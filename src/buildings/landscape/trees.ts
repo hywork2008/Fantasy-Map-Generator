@@ -130,7 +130,20 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       }
     }
   },
-  saxaul: { create: () => createAridTree("saxaul") },
+  saxaul: {
+    lod: {
+      selection: "distance",
+      budget: "quality-first",
+      heightMeters: 4.2,
+      forestHeightToRadius: 1.38,
+      models: {
+        low: () => createAridTree("saxaul", "low"),
+        medium: () => createAridTree("saxaul", "medium"),
+        high: () => createAridTree("saxaul", "high"),
+        ultra: () => createAridTree("saxaul", "ultra")
+      }
+    }
+  },
   kapok: { create: createKapok },
   western_red_cedar: {
     lod: {
@@ -146,7 +159,20 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
     }
   },
   black_alder: { create: () => createWetTemperateTree("black_alder") },
-  olive: { create: () => createMediterraneanMontaneTree("olive") },
+  olive: {
+    lod: {
+      selection: "distance",
+      budget: "quality-first",
+      heightMeters: 6.2,
+      forestHeightToRadius: 1.14,
+      models: {
+        low: () => createMediterraneanMontaneTree("olive", "low"),
+        medium: () => createMediterraneanMontaneTree("olive", "medium"),
+        high: () => createMediterraneanMontaneTree("olive", "high"),
+        ultra: () => createMediterraneanMontaneTree("olive", "ultra")
+      }
+    }
+  },
   silver_fir: {
     lod: {
       selection: "distance",
@@ -161,7 +187,20 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
     }
   },
   red_mangrove: { create: () => createSaltTolerantTree("red_mangrove") },
-  tamarisk: { create: () => createSaltTolerantTree("tamarisk") },
+  tamarisk: {
+    lod: {
+      selection: "distance",
+      budget: "quality-first",
+      heightMeters: 4.9,
+      forestHeightToRadius: 1.228,
+      models: {
+        low: () => createSaltTolerantTree("tamarisk", "low"),
+        medium: () => createSaltTolerantTree("tamarisk", "medium"),
+        high: () => createSaltTolerantTree("tamarisk", "high"),
+        ultra: () => createSaltTolerantTree("tamarisk", "ultra")
+      }
+    }
+  },
   rowan: { create: () => createUplandTree("rowan") },
   canary_pine: { create: () => createUplandTree("canary_pine") },
   mediterranean_cypress: { create: () => createSacredGardenTree("mediterranean_cypress") },

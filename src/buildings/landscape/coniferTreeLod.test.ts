@@ -4,7 +4,7 @@ import { adoptedTree } from "../../city3d/adoption";
 import { createBvPrototypeCache } from "../../city3d/three/bvInstances";
 import { TREE_QUALITIES } from "./treeQuality";
 
-it.each(["western_red_cedar", "silver_fir", "date_palm", "umbrella_thorn"] as const)(
+it.each(["western_red_cedar", "silver_fir", "date_palm", "umbrella_thorn", "saxaul", "tamarisk", "olive"] as const)(
   "keeps %s tier envelopes grounded, finite and owned independently",
   species => {
     const reference = adoptedTree(species, "ultra").create();
@@ -38,7 +38,7 @@ it.each(["western_red_cedar", "silver_fir", "date_palm", "umbrella_thorn"] as co
   }
 );
 
-it.each(["western_red_cedar", "silver_fir", "date_palm", "umbrella_thorn"] as const)(
+it.each(["western_red_cedar", "silver_fir", "date_palm", "umbrella_thorn", "saxaul", "tamarisk", "olive"] as const)(
   "retains fitted %s canopy normals and colors in the actual CE prototype",
   species => {
     const variant = adoptedTree(species, "medium");

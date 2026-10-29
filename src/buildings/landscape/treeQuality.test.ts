@@ -3,7 +3,7 @@ import { expect, it } from "vitest";
 import { adoptedTree } from "../../city3d/adoption";
 import { models } from "../medieval/43-landscape-treesModels";
 import { TREE_QUALITIES, treeQualityAtDistance, treeQualityAtPixels } from "./treeQuality";
-import { createLandscapeTree } from "./trees";
+import { createLandscapeTree, treeLodProfile } from "./trees";
 
 it.each([
   "garden_parkland",
@@ -13,7 +13,10 @@ it.each([
   "western_red_cedar",
   "silver_fir",
   "date_palm",
-  "umbrella_thorn"
+  "umbrella_thorn",
+  "saxaul",
+  "tamarisk",
+  "olive"
 ] as const)("adopts four increasingly detailed, grounded %s levels from the BV variants", species => {
   const variants = models.find(model => model.id === species.replaceAll("_", "-"))!.variants!;
   expect([...new Set(variants.map(variant => variant.level))]).toEqual(TREE_QUALITIES);
@@ -31,7 +34,7 @@ it.each([
     if (level === "medium") expect(triangles).toBeLessThan(3000);
     const bounds = new THREE.Box3().setFromObject(model.group);
     expect(bounds.min.y).toBeCloseTo(-0.35, 3);
-    expect(bounds.max.y).toBeGreaterThan(species === "garden_parkland" ? 10 : 6.5);
+    expect(bounds.max.y).toBeGreaterThan(treeLodProfile(species)!.heightMeters * 0.75);
     for (const mesh of model.pickables) {
       for (const coordinate of mesh.geometry.getAttribute("position").array)
         expect(Number.isFinite(coordinate)).toBe(true);
@@ -60,7 +63,10 @@ it.each([
   "western_red_cedar",
   "silver_fir",
   "date_palm",
-  "umbrella_thorn"
+  "umbrella_thorn",
+  "saxaul",
+  "tamarisk",
+  "olive"
 ] as const)("keeps structural branches fixed between high and ultra %s", species => {
   const high = createLandscapeTree(species, "high");
   const ultra = createLandscapeTree(species, "ultra");

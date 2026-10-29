@@ -1,0 +1,984 @@
+{
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+  "viewport": [
+    1200,
+    1200
+  ],
+  "dpr": 1,
+  "areaM2": 64768,
+  "modelVariants": [
+    "tree.saxaul@low#codex-gpt-6.1-sol",
+    "tree.saxaul@medium#codex-gpt-6.1-sol",
+    "tree.saxaul@high#codex-gpt-6.1-sol",
+    "tree.saxaul@ultra#claude-opus-5.5",
+    "tree.tamarisk@low#codex-gpt-6.1-sol",
+    "tree.tamarisk@medium#codex-gpt-6.1-sol",
+    "tree.tamarisk@high#codex-gpt-6.1-sol",
+    "tree.tamarisk@ultra#claude-opus-5.5",
+    "tree.olive@low#codex-gpt-6.1-sol",
+    "tree.olive@medium#codex-gpt-6.1-sol",
+    "tree.olive@high#codex-gpt-6.1-sol",
+    "tree.olive@ultra#claude-opus-5.5"
+  ],
+  "timing": "Single CPU update/submission only; not GPU completion, full CE frame p95 or FPS.",
+  "frames": [
+    {
+      "pose": "overview",
+      "biome": "coldDesert",
+      "quality": "light",
+      "cpuSubmissionMs": 18.199999809265137,
+      "stats": {
+        "quality": "light",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 773,
+        "triangles": 303740,
+        "calls": 5,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 773,
+        "detailedTriangles": 303016,
+        "detailedSpecies": [
+          "saxaul"
+        ],
+        "detailedTiers": {
+          "low": 773,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 17
+    },
+    {
+      "pose": "overview",
+      "biome": "coldDesert",
+      "quality": "standard",
+      "cpuSubmissionMs": 1.7999999523162842,
+      "stats": {
+        "quality": "standard",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 773,
+        "triangles": 303740,
+        "calls": 6,
+        "shadowTriangles": 49784,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 773,
+        "detailedTriangles": 303016,
+        "detailedSpecies": [
+          "saxaul"
+        ],
+        "detailedTiers": {
+          "low": 773,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 17
+    },
+    {
+      "pose": "overview",
+      "biome": "coldDesert",
+      "quality": "high",
+      "cpuSubmissionMs": 1.4000000953674316,
+      "stats": {
+        "quality": "high",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 773,
+        "triangles": 303740,
+        "calls": 6,
+        "shadowTriangles": 149744,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 773,
+        "detailedTriangles": 303016,
+        "detailedSpecies": [
+          "saxaul"
+        ],
+        "detailedTiers": {
+          "low": 773,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 17
+    },
+    {
+      "pose": "edge",
+      "biome": "coldDesert",
+      "quality": "light",
+      "cpuSubmissionMs": 19.799999952316284,
+      "stats": {
+        "quality": "light",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 2,
+        "middleChunks": 2,
+        "trees": 288,
+        "triangles": 636258,
+        "calls": 7,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 288,
+        "detailedTriangles": 635534,
+        "detailedSpecies": [
+          "saxaul"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 223,
+          "high": 61,
+          "ultra": 4
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "edge",
+      "biome": "coldDesert",
+      "quality": "standard",
+      "cpuSubmissionMs": 1,
+      "stats": {
+        "quality": "standard",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 2,
+        "middleChunks": 2,
+        "trees": 288,
+        "triangles": 636258,
+        "calls": 9,
+        "shadowTriangles": 48532,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 288,
+        "detailedTriangles": 635534,
+        "detailedSpecies": [
+          "saxaul"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 223,
+          "high": 61,
+          "ultra": 4
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "edge",
+      "biome": "coldDesert",
+      "quality": "high",
+      "cpuSubmissionMs": 1.1000001430511475,
+      "stats": {
+        "quality": "high",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 2,
+        "middleChunks": 2,
+        "trees": 288,
+        "triangles": 636258,
+        "calls": 9,
+        "shadowTriangles": 149812,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 288,
+        "detailedTriangles": 635534,
+        "detailedSpecies": [
+          "saxaul"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 223,
+          "high": 61,
+          "ultra": 4
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "low",
+      "biome": "coldDesert",
+      "quality": "light",
+      "cpuSubmissionMs": 0.7999999523162842,
+      "stats": {
+        "quality": "light",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 3,
+        "middleChunks": 1,
+        "trees": 169,
+        "triangles": 474388,
+        "calls": 7,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 169,
+        "detailedTriangles": 473664,
+        "detailedSpecies": [
+          "saxaul"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 98,
+          "high": 62,
+          "ultra": 9
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "low",
+      "biome": "coldDesert",
+      "quality": "standard",
+      "cpuSubmissionMs": 0.5,
+      "stats": {
+        "quality": "standard",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 3,
+        "middleChunks": 1,
+        "trees": 169,
+        "triangles": 474388,
+        "calls": 9,
+        "shadowTriangles": 48540,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 169,
+        "detailedTriangles": 473664,
+        "detailedSpecies": [
+          "saxaul"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 98,
+          "high": 62,
+          "ultra": 9
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "low",
+      "biome": "coldDesert",
+      "quality": "high",
+      "cpuSubmissionMs": 0.7999999523162842,
+      "stats": {
+        "quality": "high",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 3,
+        "middleChunks": 1,
+        "trees": 169,
+        "triangles": 474388,
+        "calls": 9,
+        "shadowTriangles": 149820,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 169,
+        "detailedTriangles": 473664,
+        "detailedSpecies": [
+          "saxaul"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 98,
+          "high": 62,
+          "ultra": 9
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "overview",
+      "biome": "xericShrubland",
+      "quality": "light",
+      "cpuSubmissionMs": 15.5,
+      "stats": {
+        "quality": "light",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 773,
+        "triangles": 362471,
+        "calls": 6,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 773,
+        "detailedTriangles": 361747,
+        "detailedSpecies": [
+          "date_palm",
+          "tamarisk"
+        ],
+        "detailedTiers": {
+          "low": 773,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 18
+    },
+    {
+      "pose": "overview",
+      "biome": "xericShrubland",
+      "quality": "standard",
+      "cpuSubmissionMs": 1.4000000953674316,
+      "stats": {
+        "quality": "standard",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 773,
+        "triangles": 362471,
+        "calls": 8,
+        "shadowTriangles": 49974,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 773,
+        "detailedTriangles": 361747,
+        "detailedSpecies": [
+          "date_palm",
+          "tamarisk"
+        ],
+        "detailedTiers": {
+          "low": 773,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 18
+    },
+    {
+      "pose": "overview",
+      "biome": "xericShrubland",
+      "quality": "high",
+      "cpuSubmissionMs": 1.5999999046325684,
+      "stats": {
+        "quality": "high",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 773,
+        "triangles": 362471,
+        "calls": 8,
+        "shadowTriangles": 149991,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 773,
+        "detailedTriangles": 361747,
+        "detailedSpecies": [
+          "date_palm",
+          "tamarisk"
+        ],
+        "detailedTiers": {
+          "low": 773,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 18
+    },
+    {
+      "pose": "edge",
+      "biome": "xericShrubland",
+      "quality": "light",
+      "cpuSubmissionMs": 36.19999980926514,
+      "stats": {
+        "quality": "light",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 2,
+        "middleChunks": 2,
+        "trees": 290,
+        "triangles": 958400,
+        "calls": 9,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 290,
+        "detailedTriangles": 957676,
+        "detailedSpecies": [
+          "tamarisk",
+          "date_palm"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 224,
+          "high": 62,
+          "ultra": 4
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 23
+    },
+    {
+      "pose": "edge",
+      "biome": "xericShrubland",
+      "quality": "standard",
+      "cpuSubmissionMs": 0.9000000953674316,
+      "stats": {
+        "quality": "standard",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 2,
+        "middleChunks": 2,
+        "trees": 290,
+        "triangles": 958400,
+        "calls": 13,
+        "shadowTriangles": 48741,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 290,
+        "detailedTriangles": 957676,
+        "detailedSpecies": [
+          "tamarisk",
+          "date_palm"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 224,
+          "high": 62,
+          "ultra": 4
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 23
+    },
+    {
+      "pose": "edge",
+      "biome": "xericShrubland",
+      "quality": "high",
+      "cpuSubmissionMs": 0.7999999523162842,
+      "stats": {
+        "quality": "high",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 2,
+        "middleChunks": 2,
+        "trees": 290,
+        "triangles": 958400,
+        "calls": 12,
+        "shadowTriangles": 149592,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 290,
+        "detailedTriangles": 957676,
+        "detailedSpecies": [
+          "tamarisk",
+          "date_palm"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 224,
+          "high": 62,
+          "ultra": 4
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 23
+    },
+    {
+      "pose": "low",
+      "biome": "xericShrubland",
+      "quality": "light",
+      "cpuSubmissionMs": 4.700000047683716,
+      "stats": {
+        "quality": "light",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 3,
+        "middleChunks": 1,
+        "trees": 170,
+        "triangles": 669227,
+        "calls": 10,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 170,
+        "detailedTriangles": 668503,
+        "detailedSpecies": [
+          "tamarisk",
+          "date_palm"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 98,
+          "high": 63,
+          "ultra": 9
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 24
+    },
+    {
+      "pose": "low",
+      "biome": "xericShrubland",
+      "quality": "standard",
+      "cpuSubmissionMs": 0.5999999046325684,
+      "stats": {
+        "quality": "standard",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 3,
+        "middleChunks": 1,
+        "trees": 170,
+        "triangles": 669227,
+        "calls": 14,
+        "shadowTriangles": 48829,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 170,
+        "detailedTriangles": 668503,
+        "detailedSpecies": [
+          "tamarisk",
+          "date_palm"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 98,
+          "high": 63,
+          "ultra": 9
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 24
+    },
+    {
+      "pose": "low",
+      "biome": "xericShrubland",
+      "quality": "high",
+      "cpuSubmissionMs": 0.7000000476837158,
+      "stats": {
+        "quality": "high",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 3,
+        "middleChunks": 1,
+        "trees": 170,
+        "triangles": 669227,
+        "calls": 14,
+        "shadowTriangles": 147572,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 170,
+        "detailedTriangles": 668503,
+        "detailedSpecies": [
+          "tamarisk",
+          "date_palm"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 98,
+          "high": 63,
+          "ultra": 9
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 24
+    },
+    {
+      "pose": "overview",
+      "biome": "mediterraneanWoodlandScrub",
+      "quality": "light",
+      "cpuSubmissionMs": 14.600000143051147,
+      "stats": {
+        "quality": "light",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 773,
+        "triangles": 196293,
+        "calls": 5,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 773,
+        "detailedTriangles": 195569,
+        "detailedSpecies": [
+          "olive"
+        ],
+        "detailedTiers": {
+          "low": 773,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 17
+    },
+    {
+      "pose": "overview",
+      "biome": "mediterraneanWoodlandScrub",
+      "quality": "standard",
+      "cpuSubmissionMs": 1.2999999523162842,
+      "stats": {
+        "quality": "standard",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 773,
+        "triangles": 196293,
+        "calls": 6,
+        "shadowTriangles": 49841,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 773,
+        "detailedTriangles": 195569,
+        "detailedSpecies": [
+          "olive"
+        ],
+        "detailedTiers": {
+          "low": 773,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 17
+    },
+    {
+      "pose": "overview",
+      "biome": "mediterraneanWoodlandScrub",
+      "quality": "high",
+      "cpuSubmissionMs": 1.2999999523162842,
+      "stats": {
+        "quality": "high",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 773,
+        "triangles": 196293,
+        "calls": 6,
+        "shadowTriangles": 149776,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 773,
+        "detailedTriangles": 195569,
+        "detailedSpecies": [
+          "olive"
+        ],
+        "detailedTiers": {
+          "low": 773,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 17
+    },
+    {
+      "pose": "edge",
+      "biome": "mediterraneanWoodlandScrub",
+      "quality": "light",
+      "cpuSubmissionMs": 28.799999952316284,
+      "stats": {
+        "quality": "light",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 2,
+        "middleChunks": 2,
+        "trees": 288,
+        "triangles": 957328,
+        "calls": 7,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 288,
+        "detailedTriangles": 956604,
+        "detailedSpecies": [
+          "olive"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 223,
+          "high": 61,
+          "ultra": 4
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "edge",
+      "biome": "mediterraneanWoodlandScrub",
+      "quality": "standard",
+      "cpuSubmissionMs": 0.7999999523162842,
+      "stats": {
+        "quality": "standard",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 2,
+        "middleChunks": 2,
+        "trees": 288,
+        "triangles": 957328,
+        "calls": 10,
+        "shadowTriangles": 48737,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 288,
+        "detailedTriangles": 956604,
+        "detailedSpecies": [
+          "olive"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 223,
+          "high": 61,
+          "ultra": 4
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "edge",
+      "biome": "mediterraneanWoodlandScrub",
+      "quality": "high",
+      "cpuSubmissionMs": 0.7000000476837158,
+      "stats": {
+        "quality": "high",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 2,
+        "middleChunks": 2,
+        "trees": 288,
+        "triangles": 957328,
+        "calls": 10,
+        "shadowTriangles": 149376,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 288,
+        "detailedTriangles": 956604,
+        "detailedSpecies": [
+          "olive"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 223,
+          "high": 61,
+          "ultra": 4
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "low",
+      "biome": "mediterraneanWoodlandScrub",
+      "quality": "light",
+      "cpuSubmissionMs": 0.5,
+      "stats": {
+        "quality": "light",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 3,
+        "middleChunks": 1,
+        "trees": 169,
+        "triangles": 924807,
+        "calls": 7,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 169,
+        "detailedTriangles": 924083,
+        "detailedSpecies": [
+          "olive"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 98,
+          "high": 62,
+          "ultra": 9
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "low",
+      "biome": "mediterraneanWoodlandScrub",
+      "quality": "standard",
+      "cpuSubmissionMs": 0.3000001907348633,
+      "stats": {
+        "quality": "standard",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 3,
+        "middleChunks": 1,
+        "trees": 169,
+        "triangles": 924807,
+        "calls": 10,
+        "shadowTriangles": 48737,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 169,
+        "detailedTriangles": 924083,
+        "detailedSpecies": [
+          "olive"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 98,
+          "high": 62,
+          "ultra": 9
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "low",
+      "biome": "mediterraneanWoodlandScrub",
+      "quality": "high",
+      "cpuSubmissionMs": 0.39999985694885254,
+      "stats": {
+        "quality": "high",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 3,
+        "middleChunks": 1,
+        "trees": 169,
+        "triangles": 924807,
+        "calls": 10,
+        "shadowTriangles": 149101,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 169,
+        "detailedTriangles": 924083,
+        "detailedSpecies": [
+          "olive"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 98,
+          "high": 62,
+          "ultra": 9
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 20
+    }
+  ],
+  "memory": [
+    {
+      "biome": "coldDesert",
+      "counts": [
+        19,
+        19,
+        19
+      ]
+    },
+    {
+      "biome": "xericShrubland",
+      "counts": [
+        21,
+        21,
+        21
+      ]
+    },
+    {
+      "biome": "mediterraneanWoodlandScrub",
+      "counts": [
+        19,
+        19,
+        19
+      ]
+    }
+  ],
+  "errors": [],
+  "bvChecks": [
+    {
+      "species": "saxaul",
+      "choices": [
+        "low",
+        "medium",
+        "high",
+        "ultra"
+      ]
+    },
+    {
+      "species": "tamarisk",
+      "choices": [
+        "low",
+        "medium",
+        "high",
+        "ultra"
+      ]
+    },
+    {
+      "species": "olive",
+      "choices": [
+        "low",
+        "medium",
+        "high",
+        "ultra"
+      ]
+    }
+  ],
+  "bvErrors": []
+}
