@@ -733,6 +733,15 @@ function takeDaySnapshot(): DaySnapshot {
   };
 }
 
+/**
+ * Rollback snapshot, or null when the Simulation option is off. The full-pack clone costs
+ * seconds per day on large maps, so new maps leave it off; a failing system then leaves the
+ * day half-applied instead of reverting it.
+ */
+function takeRollbackSnapshot(): DaySnapshot | null {
+  return optionsStore.getState().simDayRollback ? takeDaySnapshot() : null;
+}
+
 function restoreDaySnapshot(snapshot: DaySnapshot): void {
   // In-place restore so existing context / pack object identities stay shared.
   const simTarget = simulationContext as unknown as Record<string, unknown>;
@@ -792,7 +801,7 @@ let dayBatchOpenedFastAdvanceRun = false;
 function enterDayBatch(totalDays = 1): void {
   dayBatchDepth++;
   if (dayBatchDepth === 1) {
-    activeDayBatchSnapshot = takeDaySnapshot();
+    activeDayBatchSnapshot = takeRollbackSnapshot();
     dayBatchCommittedDays = 0;
     activeDayBatchTotalDays = totalDays;
     beginWatchedAdvance(simulationContext, totalDays);
@@ -906,8 +915,8 @@ registerDayBatchController({
  * active batch snapshot (see above) when called as part of a multi-day run.
  */
 function stepDayMutation(days = 1): { result: SimulationStepResult; topics: readonly DataTopic[] } {
-  const inBatch = activeDayBatchSnapshot !== null;
-  const snapshot = activeDayBatchSnapshot ?? takeDaySnapshot();
+  const inBatch = dayBatchDepth > 0;
+  const snapshot = inBatch ? activeDayBatchSnapshot : takeRollbackSnapshot();
   try {
     const outcome = advanceTimeMutation(0, 0, days);
     if (inBatch) dayBatchCommittedDays += days;
@@ -933,7 +942,7 @@ function stepDayMutation(days = 1): { result: SimulationStepResult; topics: read
       topics: outcome.topics
     };
   } catch (error) {
-    restoreDaySnapshot(snapshot);
+    if (snapshot) restoreDaySnapshot(snapshot);
     throw error;
   }
 }

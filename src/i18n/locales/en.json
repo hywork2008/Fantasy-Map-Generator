@@ -2049,6 +2049,8 @@
     "systemsHeadingTip": "Toggle advance-time subsystems. Day is the base unit (Month ≈ 30.5 days, Year ≈ 365). Turn off unused systems to speed up long runs.",
     "demographics": "Demographics",
     "demographicsTip": "Aging, births, migration, and overpopulation losses each advance tick",
+    "dayRollback": "Day rollback",
+    "dayRollbackTip": "Snapshot the whole world before each day so a failing system reverts the day. Costs seconds per day on large maps",
     "manpowerLedger": "Manpower ledger",
     "manpowerLedgerTip": "Civilian adult males ↔ troops under arms: draft, refill, demobilize, and non-double-counted battle deaths",
     "settlementGrowth": "Settlement growth",

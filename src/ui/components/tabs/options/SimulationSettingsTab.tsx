@@ -248,6 +248,20 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
+          <tr data-tip={t("simulation.dayRollbackTip")}>
+            <td />
+            <td>
+              <label htmlFor="simDayRollback">{t("simulation.dayRollback")}</label>
+            </td>
+            <td colSpan={2}>
+              <input
+                id="simDayRollback"
+                type="checkbox"
+                checked={options.simDayRollback}
+                onChange={e => updateOption("simDayRollback", e.target.checked)}
+              />
+            </td>
+          </tr>
           <tr data-tip={t("simulation.manpowerLedgerTip")}>
             <td />
             <td>

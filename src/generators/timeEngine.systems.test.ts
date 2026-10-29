@@ -503,6 +503,7 @@ describe("timeEngine simulation system registration (P2-7)", () => {
 
   it.each([1, 3, 31])("discards Fast-Forward population growth after a failure on tick %i", failOnTick => {
     setupFastAdvancePopulation();
+    useOptionsState.setState({ simDayRollback: true });
     const cellsBefore = structuredClone(worldContext.pack.cells);
     const burgsBefore = structuredClone(worldContext.pack.burgs);
     const rngBefore = exportLiveSimulationRng();
