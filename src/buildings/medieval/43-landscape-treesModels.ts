@@ -6,6 +6,11 @@ type TreeEntry = Pick<MedievalModel, "biomes" | "name" | "size" | "note">;
 
 /** Biome labels describe current CE woodland selection, including temperature branches. */
 const TREES: Record<TreeSpecies, TreeEntry> = {
+  cacao: {
+    name: "Cacao · Theobroma cacao",
+    size: [7, 7, 4.8],
+    note: "Illustrative cultivated Theobroma cacao with a short bole, five spreading jorquette branches, large pointed entire leaves, a few copper young flushes and ribbed yellow-orange pods on short stalks directly from the trunk and old main branches. Not a measured specimen, named cultivar, complete leaf phyllotaxy or historical pruning reconstruction. Static leafy fruiting display; pod counts are illustrative, with flowers, internal seeds, seasonal ripening and crop yield omitted. Pods and stalks are simplified at medium and omitted at low quality. BV registration does not place orchards in CE or change crop production. Botanical references: https://www.nparks.gov.sg/florafaunaweb/flora/5/2/5241 and https://apps.worldagroforestry.org/treedb2/speciesprofile.php/Spid=618?Spid=1641"
+  },
   sweet_chestnut: {
     name: "Sweet chestnut · Castanea sativa",
     size: [11, 11, 9],

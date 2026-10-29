@@ -108,6 +108,7 @@ const taskArticles: Record<number, string> = {
 };
 
 const modelArticles: Record<string, string> = {
+  cacao: "Theobroma cacao",
   "sweet-chestnut": "Castanea sativa",
   lemon: "Lemon",
   "common-fig": "Ficus carica",
