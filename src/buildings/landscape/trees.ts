@@ -17,7 +17,7 @@ import { createKapok } from "./rainforestTrees";
 import { createSacredGardenTree } from "./sacredGardenTrees";
 import { createSaltTolerantTree } from "./saltTolerantTrees";
 import { createScotsPine } from "./scotsPine";
-import { applySeasonalLook, SEASONAL_LOOKS, type SeasonalLookSpecies } from "./seasonalLooks";
+import { applySeasonalLook, generatorOptions, SEASONAL_LOOKS, type SeasonalLookSpecies } from "./seasonalLooks";
 import { createSmallLeavedLime } from "./smallLeavedLime";
 import { createSweetChestnut } from "./sweetChestnut";
 import { TREE_PHENOLOGY, type TreeAppearance } from "./treePhenology";
@@ -78,10 +78,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       budget: "bounded",
       heightMeters: 8.8,
       models: {
-        low: () => createSweetChestnut("low"),
-        medium: () => createSweetChestnut("medium"),
-        high: () => createSweetChestnut("high"),
-        ultra: () => createSweetChestnut("ultra")
+        low: options => createSweetChestnut("low", options),
+        medium: options => createSweetChestnut("medium", options),
+        high: options => createSweetChestnut("high", options),
+        ultra: options => createSweetChestnut("ultra", options)
       }
     }
   },
@@ -104,10 +104,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       budget: "bounded",
       heightMeters: 4.9,
       models: {
-        low: () => createCommonFig("low"),
-        medium: () => createCommonFig("medium"),
-        high: () => createCommonFig("high"),
-        ultra: () => createCommonFig("ultra")
+        low: options => createCommonFig("low", options),
+        medium: options => createCommonFig("medium", options),
+        high: options => createCommonFig("high", options),
+        ultra: options => createCommonFig("ultra", options)
       }
     }
   },
@@ -117,10 +117,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       budget: "bounded",
       heightMeters: 6,
       models: {
-        low: () => createEuropeanPlum("low"),
-        medium: () => createEuropeanPlum("medium"),
-        high: () => createEuropeanPlum("high"),
-        ultra: () => createEuropeanPlum("ultra")
+        low: options => createEuropeanPlum("low", options),
+        medium: options => createEuropeanPlum("medium", options),
+        high: options => createEuropeanPlum("high", options),
+        ultra: options => createEuropeanPlum("ultra", options)
       }
     }
   },
@@ -130,10 +130,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       budget: "bounded",
       heightMeters: 8.8,
       models: {
-        low: () => createEuropeanPear("low"),
-        medium: () => createEuropeanPear("medium"),
-        high: () => createEuropeanPear("high"),
-        ultra: () => createEuropeanPear("ultra")
+        low: options => createEuropeanPear("low", options),
+        medium: options => createEuropeanPear("medium", options),
+        high: options => createEuropeanPear("high", options),
+        ultra: options => createEuropeanPear("ultra", options)
       }
     }
   },
@@ -171,10 +171,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       heightMeters: 16.5,
       forestHeightToRadius: 3.3,
       models: {
-        low: () => createEuropeanHornbeam("low"),
-        medium: () => createEuropeanHornbeam("medium"),
-        high: () => createEuropeanHornbeam("high"),
-        ultra: () => createEuropeanHornbeam("ultra")
+        low: options => createEuropeanHornbeam("low", options),
+        medium: options => createEuropeanHornbeam("medium", options),
+        high: options => createEuropeanHornbeam("high", options),
+        ultra: options => createEuropeanHornbeam("ultra", options)
       }
     }
   },
@@ -185,10 +185,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       heightMeters: 18,
       forestHeightToRadius: 2.3,
       models: {
-        low: () => createPedunculateOak("low"),
-        medium: () => createPedunculateOak("medium"),
-        high: () => createPedunculateOak("high"),
-        ultra: () => createPedunculateOak("ultra")
+        low: options => createPedunculateOak("low", options),
+        medium: options => createPedunculateOak("medium", options),
+        high: options => createPedunculateOak("high", options),
+        ultra: options => createPedunculateOak("ultra", options)
       }
     }
   },
@@ -212,10 +212,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       budget: "quality-first",
       heightMeters: 11.2,
       models: {
-        low: () => createSmallLeavedLime("low"),
-        medium: () => createSmallLeavedLime("medium"),
-        high: () => createSmallLeavedLime("high"),
-        ultra: () => createSmallLeavedLime("ultra")
+        low: options => createSmallLeavedLime("low", options),
+        medium: options => createSmallLeavedLime("medium", options),
+        high: options => createSmallLeavedLime("high", options),
+        ultra: options => createSmallLeavedLime("ultra", options)
       }
     }
   },
@@ -252,10 +252,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       budget: "quality-first",
       heightMeters: 11,
       models: {
-        low: () => createBorealTree("silver_birch", "low"),
-        medium: () => createBorealTree("silver_birch", "medium"),
-        high: () => createBorealTree("silver_birch", "high"),
-        ultra: () => createBorealTree("silver_birch", "ultra")
+        low: options => createBorealTree("silver_birch", "low", options),
+        medium: options => createBorealTree("silver_birch", "medium", options),
+        high: options => createBorealTree("silver_birch", "high", options),
+        ultra: options => createBorealTree("silver_birch", "ultra", options)
       }
     }
   },
@@ -335,10 +335,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       heightMeters: 13.1,
       forestHeightToRadius: 3.181,
       models: {
-        low: () => createWetTemperateTree("black_alder", "low"),
-        medium: () => createWetTemperateTree("black_alder", "medium"),
-        high: () => createWetTemperateTree("black_alder", "high"),
-        ultra: () => createWetTemperateTree("black_alder", "ultra")
+        low: options => createWetTemperateTree("black_alder", "low", options),
+        medium: options => createWetTemperateTree("black_alder", "medium", options),
+        high: options => createWetTemperateTree("black_alder", "high", options),
+        ultra: options => createWetTemperateTree("black_alder", "ultra", options)
       }
     }
   },
@@ -390,10 +390,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       heightMeters: 4.9,
       forestHeightToRadius: 1.228,
       models: {
-        low: () => createSaltTolerantTree("tamarisk", "low"),
-        medium: () => createSaltTolerantTree("tamarisk", "medium"),
-        high: () => createSaltTolerantTree("tamarisk", "high"),
-        ultra: () => createSaltTolerantTree("tamarisk", "ultra")
+        low: options => createSaltTolerantTree("tamarisk", "low", options),
+        medium: options => createSaltTolerantTree("tamarisk", "medium", options),
+        high: options => createSaltTolerantTree("tamarisk", "high", options),
+        ultra: options => createSaltTolerantTree("tamarisk", "ultra", options)
       }
     }
   },
@@ -404,10 +404,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       heightMeters: 9.5,
       forestHeightToRadius: 2.504,
       models: {
-        low: () => createUplandTree("rowan", "low"),
-        medium: () => createUplandTree("rowan", "medium"),
-        high: () => createUplandTree("rowan", "high"),
-        ultra: () => createUplandTree("rowan", "ultra")
+        low: options => createUplandTree("rowan", "low", options),
+        medium: options => createUplandTree("rowan", "medium", options),
+        high: options => createUplandTree("rowan", "high", options),
+        ultra: options => createUplandTree("rowan", "ultra", options)
       }
     }
   },
@@ -474,10 +474,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       heightMeters: 9.4,
       forestHeightToRadius: 1.378,
       models: {
-        low: () => createSacredGardenTree("peaceful_willow", "low"),
-        medium: () => createSacredGardenTree("peaceful_willow", "medium"),
-        high: () => createSacredGardenTree("peaceful_willow", "high"),
-        ultra: () => createSacredGardenTree("peaceful_willow", "ultra")
+        low: options => createSacredGardenTree("peaceful_willow", "low", options),
+        medium: options => createSacredGardenTree("peaceful_willow", "medium", options),
+        high: options => createSacredGardenTree("peaceful_willow", "high", options),
+        ultra: options => createSacredGardenTree("peaceful_willow", "ultra", options)
       }
     }
   }
@@ -502,7 +502,8 @@ export const TREE_DEFINITIONS = Object.fromEntries(
     const models = Object.fromEntries(
       TREE_QUALITIES.map(quality => [
         quality,
-        (options?: TreeAppearanceOptions) => applySeasonalLook(look, quality, base[quality](), options)
+        (options?: TreeAppearanceOptions) =>
+          applySeasonalLook(look, quality, base[quality](generatorOptions(look, quality, options)), options)
       ])
     ) as Record<TreeQuality, TreeFactory>;
     return [species, { lod: { ...definition.lod, seasonal: look.appearances, models } }];

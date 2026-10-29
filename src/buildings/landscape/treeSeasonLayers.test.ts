@@ -60,10 +60,15 @@ describe("seasonal tree layers", () => {
           base.dispose();
           expect(triangles(model), `${species} ${appearance} ${quality}`).toBeLessThanOrEqual(limit);
           expect(model.group.userData.treeAppearance).toBe(appearance);
-          // Bare trees are wood only; every other look keeps its foliage mesh.
-          expect(model.pickables.length === 1).toBe(appearance === "bare");
-          if (species === "domestic_apple" && appearance === "bloom" && quality !== "low")
+          // Bare trees are wood only, but for the cones alders keep; every other look keeps its foliage.
+          const cones = species === "black_alder" && (quality === "high" || quality === "ultra");
+          expect(model.pickables.length === 1).toBe(appearance === "bare" && !cones);
+          // Flowers open where fruit will hang; tamarisk's flower spikes are part of its plumes.
+          if (appearance === "bloom" && species !== "tamarisk" && (quality === "high" || quality === "ultra")) {
             expect(names).toContain("blossom");
+            const parts = model.pickables.slice(1).map(mesh => mesh.name);
+            expect(parts.join(" ")).not.toMatch(/fruit|cherries|pods|burs|drupes/);
+          }
           model.dispose();
         }
     }

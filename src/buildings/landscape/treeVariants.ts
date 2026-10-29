@@ -64,15 +64,19 @@ const TIERS_ADDED: ModelCredit = {
 /** Tree variants take the seasonal look; factories without seasonal layers ignore it. */
 export type TreeVariant = ModelVariant<[TreeAppearanceOptions?]>;
 
-/** Another author's edition takes the same recolouring looks as the registered tiers. */
+/**
+ * Another author's edition takes the same recolouring looks as the registered tiers. Editions
+ * without their own winter twigs show the registered tier's bare tree of the same species.
+ */
 function seasonalEdition(
   species: TreeSpecies,
   quality: TreeQuality,
-  model: CityStructureMeshes,
+  create: () => CityStructureMeshes,
   options?: TreeAppearanceOptions
 ): CityStructureMeshes {
+  if (options?.appearance === "bare") return createLandscapeTree(species, quality, options);
   const look = SEASONAL_LOOKS[species as SeasonalLookSpecies];
-  return look ? applySeasonalLook(look, quality, model, options) : model;
+  return look ? applySeasonalLook(look, quality, create(), options) : create();
 }
 
 function tieredVariants(species: TreeSpecies): TreeVariant[] {
@@ -217,7 +221,7 @@ function tieredVariants(species: TreeSpecies): TreeVariant[] {
                   : undefined,
       create: (options?: TreeAppearanceOptions) =>
         level === "medium" && comparisonMedium
-          ? seasonalEdition(species, level, comparisonMedium(), options)
+          ? seasonalEdition(species, level, comparisonMedium, options)
           : createLandscapeTree(species, level, options)
     };
   });
@@ -352,7 +356,7 @@ function tieredVariants(species: TreeSpecies): TreeVariant[] {
           }
         ],
         create: (options?: TreeAppearanceOptions) =>
-          seasonalEdition(species, "high", createSmallLeavedLimeOpus("standard"), options)
+          seasonalEdition(species, "high", () => createSmallLeavedLimeOpus("standard"), options)
       },
       {
         id: variantId(family, "high", "Claude Opus 5.5", "light"),
@@ -369,7 +373,7 @@ function tieredVariants(species: TreeSpecies): TreeVariant[] {
           }
         ],
         create: (options?: TreeAppearanceOptions) =>
-          seasonalEdition(species, "high", createSmallLeavedLimeOpus("light"), options)
+          seasonalEdition(species, "high", () => createSmallLeavedLimeOpus("light"), options)
       }
     );
   }

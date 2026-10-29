@@ -4,12 +4,19 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import { type LeafShoot, type TreeAppearanceOptions, WINTER_TWIGS, winterTwigs } from "./treeSeasonLayers";
 
 /** Ficus carica: low stout forks, spreading crown, palmate leaves and axillary figs. */
-export function createCommonFig(quality: TreeQuality = "ultra"): CityStructureMeshes {
+export function createCommonFig(
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {}
+): CityStructureMeshes {
   const low = quality === "low";
   const medium = quality === "medium";
   const reduced = low || medium;
+  // Bare winter trees keep the leafy skeleton; the registry drops leaves and fruit (seasonalLooks.ts).
+  const bare = options.appearance === "bare";
+  const shoots: LeafShoot[] = [];
   let seed = 43301;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -152,6 +159,7 @@ export function createCommonFig(quality: TreeQuality = "ultra"): CityStructureMe
     }
     crownPoints.push(...samples);
     if (medium) lobes.push(fitCanopyLobe(samples, 1.08));
+    return samples;
   }
   function fig(node: THREE.Vector3, direction: THREE.Vector3, radius: number, tint: number, index: number) {
     const center = node.clone().addScaledVector(direction, 0.055).addScaledVector(up, -0.045);
@@ -187,7 +195,7 @@ export function createCommonFig(quality: TreeQuality = "ultra"): CityStructureMe
       geometry.computeVertexNormals();
       fruitParts.push(geometry);
     }
-    if (!reduced) branch(node, center.clone().addScaledVector(up, radius * 1.1), 0.007);
+    if (!reduced && !bare) branch(node, center.clone().addScaledVector(up, radius * 1.1), 0.007);
   }
 
   timber(
@@ -216,15 +224,15 @@ export function createCommonFig(quality: TreeQuality = "ultra"): CityStructureMe
       const tip = a
         .clone()
         .add(new THREE.Vector3(Math.cos(angle) * 0.55, 0.6 + (j % 2) * 0.38, Math.sin(angle) * 0.55));
-      if (!low) branch(a, tip, 0.065 - j * 0.008);
+      if (!low || bare) branch(a, tip, 0.065 - j * 0.008);
       for (let k = 0; k < 2; k++) {
         const b = a.clone().lerp(tip, 0.25 + k * 0.5);
         const shootYaw = angle + (k ? -0.6 : 0.6);
         const shoot = b
           .clone()
           .add(new THREE.Vector3(Math.cos(shootYaw) * 0.58, 0.35 + random() * 0.3, Math.sin(shootYaw) * 0.58));
-        if (!reduced) branch(b, shoot, 0.025);
-        spray(shoot, shootYaw);
+        if (!reduced || (bare && medium)) branch(b, shoot, 0.025);
+        shoots.push({ base: b, tip: shoot, points: spray(shoot, shootYaw) });
         for (let n = 0; n < 3; n++) {
           const node = b.clone().lerp(shoot, 0.25 + n * 0.32);
           const leafYaw = shootYaw + (n % 2 ? -0.95 : 0.95);
@@ -233,7 +241,7 @@ export function createCommonFig(quality: TreeQuality = "ultra"): CityStructureMe
           const radius = 0.034 + random() * 0.009;
           const tint = random();
           if (!reduced) {
-            branch(node, petiole, 0.006);
+            if (!bare) branch(node, petiole, 0.006);
             leaf(petiole, leafYaw, 0.2, 0.15, 0.15, tint, n % 2 === 0);
           }
           fig(node, direction, radius, tint, fruitIndex++);
@@ -241,6 +249,11 @@ export function createCommonFig(quality: TreeQuality = "ultra"): CityStructureMe
       }
     }
   }
+  // Figs winter as few stout, blunt shoots rather than a fine twig haze.
+  if (bare)
+    for (const shoot of shoots)
+      for (const [from, to] of winterTwigs(shoot, Math.min(2, WINTER_TWIGS[quality])))
+        branch(from, to.clone().lerp(from, 0.35), medium ? 0.022 : 0.016);
   if (low) {
     for (const upper of [false, true])
       for (const east of [false, true])

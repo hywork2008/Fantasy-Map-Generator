@@ -4,12 +4,19 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import { type LeafShoot, type TreeAppearanceOptions, WINTER_TWIGS, winterTwigs } from "./treeSeasonLayers";
 
 /** Summer Quercus robur: furrowed timber, crooked spreading limbs and lobed leaves. */
-export function createPedunculateOak(quality: TreeQuality = "ultra"): CityStructureMeshes {
+export function createPedunculateOak(
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {}
+): CityStructureMeshes {
   const low = quality === "low";
   const medium = quality === "medium";
   const reduced = low || medium;
+  // Bare winter trees keep the leafy skeleton; the registry drops the leaves (seasonalLooks.ts).
+  const bare = options.appearance === "bare";
+  const shoots: LeafShoot[] = [];
   let seed = 43163;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -103,6 +110,7 @@ export function createPedunculateOak(quality: TreeQuality = "ultra"): CityStruct
     }
     crownPoints.push(...points);
     if (medium) lobes.push(fitCanopyLobe(points, 1.12));
+    return points;
   }
   const trunk = createTreeBase(
     [
@@ -140,9 +148,9 @@ export function createPedunculateOak(quality: TreeQuality = "ultra"): CityStruct
       Math.sin(angle + 0.12) * reach * 0.82
     );
     const end = new THREE.Vector3(Math.cos(angle) * reach, 10 + i * 0.58, Math.sin(angle) * reach);
-    if (!low || i % 2 === 0) {
+    if (!low || i % 2 === 0 || bare) {
       branch(start, elbow, 0.29 - i * 0.015);
-      if (!low) {
+      if (!low || bare) {
         branch(elbow, fork, 0.18 - i * 0.009);
         branch(fork, end, 0.09);
       }
@@ -159,16 +167,20 @@ export function createPedunculateOak(quality: TreeQuality = "ultra"): CityStruct
             Math.sin(yaw) * (0.6 + random() * 0.8)
           )
         );
-      if (!reduced) branch(a, tip, 0.035);
-      spray(tip, yaw);
+      if (!reduced || (bare && medium)) branch(a, tip, 0.035);
+      shoots.push({ base: a, tip, points: spray(tip, yaw) });
     }
   }
   for (let i = 0; i < 6; i++) {
     const angle = i * 2.39996;
     const end = new THREE.Vector3(Math.cos(angle) * 2, 14.3 + (i % 3) * 0.9, Math.sin(angle) * 2);
-    if (!low) branch(new THREE.Vector3(0, 10, 0), end, 0.12);
-    spray(end, angle);
+    if (!low || bare) branch(new THREE.Vector3(0, 10, 0), end, 0.12);
+    shoots.push({ base: new THREE.Vector3(0, 10, 0), tip: end, points: spray(end, angle) });
   }
+  // Oak twigs are short and crooked; fewer, stouter twigs keep the gnarled winter crown.
+  if (bare)
+    for (const shoot of shoots)
+      for (const [from, to] of winterTwigs(shoot, WINTER_TWIGS[quality])) branch(from, to, medium ? 0.02 : 0.012);
   if (low) {
     for (const upper of [false, true])
       for (const east of [false, true])

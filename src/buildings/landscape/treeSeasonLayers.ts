@@ -152,3 +152,26 @@ export function winterTwigs(shoot: LeafShoot, count: number): [THREE.Vector3, TH
   }
   return twigs;
 }
+
+/** Winter twigs per leafy shoot by tier: low keeps only its limbs. */
+export const WINTER_TWIGS: Record<"low" | "medium" | "high" | "ultra", number> = {
+  low: 0,
+  medium: 2,
+  high: 3,
+  ultra: 5
+};
+
+/** Open tapered cylinders for limbs a distant bare tree keeps in place of its foliage lobes. */
+export function limbGeometry(
+  limbs: readonly [THREE.Vector3, THREE.Vector3, number][],
+  sides = 4
+): THREE.BufferGeometry[] {
+  const up = new THREE.Vector3(0, 1, 0);
+  return limbs.map(([a, b, radius]) => {
+    const geometry = new THREE.CylinderGeometry(radius * 0.35, radius, a.distanceTo(b), sides, 1, true);
+    geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, b.clone().sub(a).normalize()));
+    geometry.translate(...a.clone().add(b).multiplyScalar(0.5).toArray());
+    geometry.deleteAttribute("uv");
+    return geometry;
+  });
+}

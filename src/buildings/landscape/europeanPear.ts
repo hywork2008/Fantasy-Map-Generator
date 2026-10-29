@@ -4,12 +4,19 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import { type LeafShoot, type TreeAppearanceOptions, WINTER_TWIGS, winterTwigs } from "./treeSeasonLayers";
 
 /** Free-standing cultivated Pyrus communis: upright leaders, glossy leaves and necked fruit on spurs. */
-export function createEuropeanPear(quality: TreeQuality = "ultra"): CityStructureMeshes {
+export function createEuropeanPear(
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {}
+): CityStructureMeshes {
   const low = quality === "low";
   const medium = quality === "medium";
   const reduced = low || medium;
+  // Bare winter trees keep the leafy skeleton; the registry drops leaves and fruit (seasonalLooks.ts).
+  const bare = options.appearance === "bare";
+  const shoots: LeafShoot[] = [];
   let seed = 43261;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -98,6 +105,7 @@ export function createEuropeanPear(quality: TreeQuality = "ultra"): CityStructur
     }
     crownPoints.push(...samples);
     if (medium) lobes.push(fitCanopyLobe(samples, 1.07));
+    return samples;
   }
   function pear(attachment: THREE.Vector3, radius: number, tint: number, index: number) {
     const center = attachment.clone().add(new THREE.Vector3(0, -radius * 1.65 - 0.045, 0));
@@ -135,7 +143,7 @@ export function createEuropeanPear(quality: TreeQuality = "ultra"): CityStructur
       geometry.computeVertexNormals();
       fruitParts.push(geometry);
     }
-    if (!reduced) branch(attachment, center.clone().addScaledVector(up, radius * 1.49), 0.005);
+    if (!reduced && !bare) branch(attachment, center.clone().addScaledVector(up, radius * 1.49), 0.005);
   }
 
   timber(
@@ -166,7 +174,7 @@ export function createEuropeanPear(quality: TreeQuality = "ultra"): CityStructur
       Math.sin(angle - 0.12) * reach * 0.55
     );
     const end = new THREE.Vector3(Math.cos(angle) * reach, 4.6 + t * 3.25, Math.sin(angle) * reach);
-    if (!low || i % 2 === 0) {
+    if (!low || i % 2 === 0 || bare) {
       branch(start, elbow, 0.105 * (1 - t * 0.55));
       branch(elbow, end, 0.055 * (1 - t * 0.5));
     }
@@ -174,8 +182,8 @@ export function createEuropeanPear(quality: TreeQuality = "ultra"): CityStructur
       const a = elbow.clone().lerp(end, 0.2 + j * 0.34);
       const yaw = angle + (j % 2 ? -0.8 : 0.8);
       const shoot = a.clone().add(new THREE.Vector3(Math.cos(yaw) * 0.55, 0.25 + random() * 0.4, Math.sin(yaw) * 0.55));
-      if (!low) branch(a, shoot, 0.022 * (1 - t * 0.4));
-      spray(shoot, yaw);
+      if (!low || (bare && i % 2 === 0)) branch(a, shoot, 0.022 * (1 - t * 0.4));
+      shoots.push({ base: a, tip: shoot, points: spray(shoot, yaw) });
       for (let k = 0; k < 2; k++) {
         const b = a.clone().lerp(shoot, 0.55 + k * 0.33);
         const spur = b
@@ -186,6 +194,9 @@ export function createEuropeanPear(quality: TreeQuality = "ultra"): CityStructur
       }
     }
   }
+  if (bare)
+    for (const shoot of shoots)
+      for (const [from, to] of winterTwigs(shoot, WINTER_TWIGS[quality])) branch(from, to, medium ? 0.01 : 0.006);
   if (low) {
     // Height bands retain the tapering upright crown rather than an apple-like spreading bowl.
     for (let band = 0; band < 3; band++)

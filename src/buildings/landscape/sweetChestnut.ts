@@ -4,12 +4,19 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import { type LeafShoot, type TreeAppearanceOptions, WINTER_TWIGS, winterTwigs } from "./treeSeasonLayers";
 
 /** Illustrative Castanea sativa: a broad orchard crown, long toothed simple leaves and prickly green burs. */
-export function createSweetChestnut(quality: TreeQuality = "ultra"): CityStructureMeshes {
+export function createSweetChestnut(
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {}
+): CityStructureMeshes {
   const low = quality === "low";
   const medium = quality === "medium";
   const reduced = low || medium;
+  // Bare winter trees keep the leafy skeleton; the registry drops leaves and fruit (seasonalLooks.ts).
+  const bare = options.appearance === "bare";
+  const shoots: LeafShoot[] = [];
   let seed = 74039;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -98,6 +105,7 @@ export function createSweetChestnut(quality: TreeQuality = "ultra"): CityStructu
     }
     crownPoints.push(...samples);
     if (medium) lobes.push(fitCanopyLobe(samples, 1.1));
+    return samples;
   }
   function fruit(attachment: THREE.Vector3, radius: number, tint: number, index: number) {
     const center = attachment.clone().addScaledVector(up, -radius - 0.045);
@@ -153,7 +161,7 @@ export function createSweetChestnut(quality: TreeQuality = "ultra"): CityStructu
       geometry.computeVertexNormals();
       fruitParts.push(geometry);
     }
-    if (!reduced) branch(attachment, center.clone().addScaledVector(up, radius), 0.005);
+    if (!reduced && !bare) branch(attachment, center.clone().addScaledVector(up, radius), 0.005);
   }
 
   timber(
@@ -185,15 +193,15 @@ export function createSweetChestnut(quality: TreeQuality = "ultra"): CityStructu
       const tip = a
         .clone()
         .add(new THREE.Vector3(Math.cos(angle) * 0.85, 1.05 + (j % 2) * 0.5, Math.sin(angle) * 0.85));
-      if (!low) branch(a, tip, 0.065 - j * 0.008);
+      if (!low || bare) branch(a, tip, 0.065 - j * 0.008);
       for (let k = 0; k < 2; k++) {
         const b = a.clone().lerp(tip, 0.45 + k * 0.45);
         const shootYaw = angle + (k ? -0.65 : 0.65);
         const shoot = b
           .clone()
           .add(new THREE.Vector3(Math.cos(shootYaw) * 0.55, 0.25 + random() * 0.45, Math.sin(shootYaw) * 0.55));
-        if (!reduced) branch(b, shoot, 0.023);
-        spray(shoot, shootYaw);
+        if (!reduced || (bare && medium)) branch(b, shoot, 0.023);
+        shoots.push({ base: b, tip: shoot, points: spray(shoot, shootYaw) });
         const attachment = b.clone().lerp(shoot, 0.86);
         fruit(attachment, 0.027 + random() * 0.007, random(), fruitIndex++);
       }
@@ -203,9 +211,12 @@ export function createSweetChestnut(quality: TreeQuality = "ultra"): CityStructu
   for (let i = 0; i < 6; i++) {
     const yaw = i * 2.39996;
     const tip = new THREE.Vector3(Math.cos(yaw) * 0.9, 7.4 + (i % 2) * 0.6, Math.sin(yaw) * 0.9);
-    if (!low) branch(new THREE.Vector3(0, 5.1, 0), tip, 0.055);
-    spray(tip, yaw);
+    if (!low || bare) branch(new THREE.Vector3(0, 5.1, 0), tip, 0.055);
+    shoots.push({ base: new THREE.Vector3(0, 5.1, 0), tip, points: spray(tip, yaw) });
   }
+  if (bare)
+    for (const shoot of shoots)
+      for (const [from, to] of winterTwigs(shoot, WINTER_TWIGS[quality])) branch(from, to, medium ? 0.014 : 0.008);
   if (low) {
     for (const upper of [false, true])
       for (const east of [false, true])

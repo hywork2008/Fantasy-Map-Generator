@@ -270,7 +270,7 @@ export function createDomesticApple(
     if (options.autumnPalette) tintFoliage(foliage, AUTUMN);
     else if (blooming) {
       tintFoliage(foliage, FLUSH);
-      if (reduced) blendFoliage(foliage, BLOSSOM_DISTANT, low ? 0.55 : 0.4);
+      if (reduced) blendFoliage(foliage, BLOSSOM_DISTANT, low ? 0.75 : 0.6);
     }
     const leafMaterial = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
     const crown = new THREE.Mesh(foliage, leafMaterial);

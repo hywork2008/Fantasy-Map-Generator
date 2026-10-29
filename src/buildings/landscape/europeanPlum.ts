@@ -4,12 +4,19 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import { type LeafShoot, type TreeAppearanceOptions, WINTER_TWIGS, winterTwigs } from "./treeSeasonLayers";
 
 /** Cultivated Prunus domestica: ascending forks, toothed obovate leaves and bloomed purple drupes. */
-export function createEuropeanPlum(quality: TreeQuality = "ultra"): CityStructureMeshes {
+export function createEuropeanPlum(
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {}
+): CityStructureMeshes {
   const low = quality === "low";
   const medium = quality === "medium";
   const reduced = low || medium;
+  // Bare winter trees keep the leafy skeleton; the registry drops leaves and fruit (seasonalLooks.ts).
+  const bare = options.appearance === "bare";
+  const shoots: LeafShoot[] = [];
   let seed = 43283;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -99,6 +106,7 @@ export function createEuropeanPlum(quality: TreeQuality = "ultra"): CityStructur
     }
     crownPoints.push(...samples);
     if (medium) lobes.push(fitCanopyLobe(samples, 1.08));
+    return samples;
   }
   function plum(attachment: THREE.Vector3, radius: number, tint: number, index: number) {
     const center = attachment.clone().addScaledVector(up, -radius * 1.25 - 0.035);
@@ -130,7 +138,7 @@ export function createEuropeanPlum(quality: TreeQuality = "ultra"): CityStructur
       geometry.computeVertexNormals();
       fruitParts.push(geometry);
     }
-    if (!reduced) branch(attachment, center.clone().addScaledVector(up, radius * 1.17), 0.004);
+    if (!reduced && !bare) branch(attachment, center.clone().addScaledVector(up, radius * 1.17), 0.004);
   }
 
   timber(
@@ -158,7 +166,7 @@ export function createEuropeanPlum(quality: TreeQuality = "ultra"): CityStructur
       const a = elbow.clone().lerp(end, 0.12 + j * 0.29);
       const yaw = angle + (j % 2 ? -0.7 : 0.7);
       const tip = a.clone().add(new THREE.Vector3(Math.cos(yaw) * 0.4, 0.75 + (j % 2) * 0.28, Math.sin(yaw) * 0.4));
-      if (!low) branch(a, tip, 0.036 - j * 0.003);
+      if (!low || bare) branch(a, tip, 0.036 - j * 0.003);
       for (let k = 0; k < 2; k++) {
         const b = a.clone().lerp(tip, 0.55 + k * 0.4);
         const shoot = b
@@ -170,8 +178,8 @@ export function createEuropeanPlum(quality: TreeQuality = "ultra"): CityStructur
               Math.sin(yaw + (k ? -0.6 : 0.6)) * 0.34
             )
           );
-        if (!reduced) branch(b, shoot, 0.013);
-        spray(shoot, yaw);
+        if (!reduced || (bare && medium)) branch(b, shoot, 0.013);
+        shoots.push({ base: b, tip: shoot, points: spray(shoot, yaw) });
         for (let f = 0; f < 2; f++) {
           const junction = b.clone().lerp(shoot, 0.5 + f * 0.37);
           const spur = junction
@@ -183,6 +191,9 @@ export function createEuropeanPlum(quality: TreeQuality = "ultra"): CityStructur
       }
     }
   }
+  if (bare)
+    for (const shoot of shoots)
+      for (const [from, to] of winterTwigs(shoot, WINTER_TWIGS[quality])) branch(from, to, medium ? 0.009 : 0.005);
   if (low) {
     for (const upper of [false, true])
       for (const east of [false, true])

@@ -4,12 +4,19 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import { type LeafShoot, type TreeAppearanceOptions, WINTER_TWIGS, winterTwigs } from "./treeSeasonLayers";
 
 /** Summer Carpinus betulus: a fluted grey stem, long ascending branches and pleated, toothed leaves. */
-export function createEuropeanHornbeam(quality: TreeQuality = "ultra"): CityStructureMeshes {
+export function createEuropeanHornbeam(
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {}
+): CityStructureMeshes {
   const low = quality === "low";
   const medium = quality === "medium";
   const reduced = low || medium;
+  // Bare winter trees keep the leafy skeleton; the registry drops the leaves (seasonalLooks.ts).
+  const bare = options.appearance === "bare";
+  const shoots: LeafShoot[] = [];
   let seed = 43189;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -102,6 +109,7 @@ export function createEuropeanHornbeam(quality: TreeQuality = "ultra"): CityStru
     }
     crownPoints.push(...points);
     if (medium) lobes.push(fitCanopyLobe(points, 1.12));
+    return points;
   }
   const trunk = createTreeBase(
     [
@@ -134,24 +142,27 @@ export function createEuropeanHornbeam(quality: TreeQuality = "ultra"): CityStru
       Math.sin(angle - 0.1) * reach * 0.55
     );
     const end = new THREE.Vector3(Math.cos(angle) * reach, 7 + t * 8.2, Math.sin(angle) * reach);
-    if (!low || i % 3 === 0) {
+    if (!low || i % 3 === 0 || bare) {
       branch(start, elbow, 0.12 * (1 - t * 0.6));
-      if (!low) branch(elbow, end, 0.06 * (1 - t * 0.6));
+      if (!low || bare) branch(elbow, end, 0.06 * (1 - t * 0.6));
     }
     for (let j = 0; j < 3; j++) {
       const a = start.clone().lerp(end, 0.4 + j * 0.27);
       const yaw = angle + (j % 2 ? -0.65 : 0.65);
       const tip = a.clone().add(new THREE.Vector3(Math.cos(yaw) * 0.75, 0.2 + random() * 0.9, Math.sin(yaw) * 0.75));
-      if (!reduced) branch(a, tip, 0.022);
-      spray(tip, yaw);
+      if (!reduced || (bare && medium)) branch(a, tip, 0.022);
+      shoots.push({ base: a, tip, points: spray(tip, yaw) });
     }
   }
   for (let i = 0; i < 4; i++) {
     const angle = i * 2.39996;
     const end = new THREE.Vector3(Math.cos(angle) * 0.7, 15.2 + (i % 2) * 0.3, Math.sin(angle) * 0.7);
-    if (!low) branch(new THREE.Vector3(0, 12, 0), end, 0.055);
-    spray(end, angle);
+    if (!low || bare) branch(new THREE.Vector3(0, 12, 0), end, 0.055);
+    shoots.push({ base: new THREE.Vector3(0, 12, 0), tip: end, points: spray(end, angle) });
   }
+  if (bare)
+    for (const shoot of shoots)
+      for (const [from, to] of winterTwigs(shoot, WINTER_TWIGS[quality])) branch(from, to, medium ? 0.016 : 0.009);
   if (low) {
     for (const upper of [false, true])
       for (const east of [false, true])
