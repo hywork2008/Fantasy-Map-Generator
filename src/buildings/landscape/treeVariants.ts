@@ -8,6 +8,7 @@ import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpeci
 
 /** Author of each species' model; reduced tiers credit their own authors below. */
 export const TREE_AUTHORS: Record<TreeSpecies, Author> = {
+  domestic_apple: "Codex GPT-6.1 Sol",
   scots_pine: "Codex GPT-6.1 Sol",
   european_hornbeam: "Codex GPT-6.1 Sol",
   pedunculate_oak: "Codex GPT-6.1 Sol",
@@ -74,6 +75,7 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
       family,
       level,
       author: levelAuthor,
+      ...(species === "domestic_apple" && level !== "ultra" ? { basedOn: [variantId(family, "ultra", author)] } : {}),
       ...(boreal && level !== "ultra" ? { basedOn: [variantId(family, "ultra", author)] } : {}),
       ...(expanded && level !== "ultra"
         ? {
@@ -97,57 +99,65 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
                       : "Fitted high-tier foliage vertices; shared canopy-envelope normals, vertex AO, tint variation and hidden-face removal"
             }
           ]
-        : boreal
+        : species === "domestic_apple"
           ? [
               {
                 author,
-                date: "2026-10-29",
-                note:
-                  level === "ultra"
-                    ? "Existing default model retained as the detailed reference"
-                    : level === "high"
-                      ? "Reduced foliage on the unchanged ultra branch skeleton"
-                      : level === "medium"
-                        ? "Whorled needle sprays or fitted pendulous leaf lobes on structural limbs"
-                        : "Species-specific whorled or white-barked distant silhouette"
+                date: "2026-10-30",
+                note: "New Malus domestica: short bole, spreading scaffold limbs, serrated leaves and blushed spur-borne fruit; illustrative free-standing cultivated tree with four foliage tiers"
               }
             ]
-          : species === "european_beech" ||
-              species === "pedunculate_oak" ||
-              species === "european_hornbeam" ||
-              species === "scots_pine"
+          : boreal
             ? [
                 {
                   author,
-                  date: species === "european_hornbeam" || species === "scots_pine" ? "2026-10-30" : "2026-10-29",
+                  date: "2026-10-29",
                   note:
-                    species === "pedunculate_oak"
-                      ? "New Quercus robur: furrowed bark, crooked spreading limbs, lobed leaves and fitted foliage tiers; illustrative woodland dimensions"
-                      : species === "european_hornbeam"
-                        ? "New Carpinus betulus: fluted grey stem, ascending branches, pleated toothed leaves and fitted dense crown tiers; illustrative woodland dimensions"
-                        : species === "scots_pine"
-                          ? "New Pinus sylvestris: orange upper bark, a clear bole, irregular upper limbs, paired blue-green needles and fitted shoot tiers; illustrative woodland dimensions"
-                          : "New Fagus sylvatica: smooth grey bole, ascending limbs, oval folded leaves and fitted foliage tiers; illustrative woodland dimensions"
+                    level === "ultra"
+                      ? "Existing default model retained as the detailed reference"
+                      : level === "high"
+                        ? "Reduced foliage on the unchanged ultra branch skeleton"
+                        : level === "medium"
+                          ? "Whorled needle sprays or fitted pendulous leaf lobes on structural limbs"
+                          : "Species-specific whorled or white-barked distant silhouette"
                 }
               ]
-            : comparisonMedium && level === "low"
+            : species === "european_beech" ||
+                species === "pedunculate_oak" ||
+                species === "european_hornbeam" ||
+                species === "scots_pine"
               ? [
-                  { ...TIERS_ADDED, note: "Seven-lobe canopy silhouette" },
                   {
-                    author: "Claude Opus 5.5",
-                    date: "2026-10-29",
-                    note: "Crown-envelope normals, interior occlusion and leaf speckle; geometry unchanged",
-                    commit: "eb36c33b8"
-                  },
-                  {
-                    author: "Codex GPT-6.1 Sol",
-                    date: "2026-10-29",
-                    note: "Spread the seven crown lobes into a broad lower whorl and two leaders to match high-tier dimensions"
+                    author,
+                    date: species === "european_hornbeam" || species === "scots_pine" ? "2026-10-30" : "2026-10-29",
+                    note:
+                      species === "pedunculate_oak"
+                        ? "New Quercus robur: furrowed bark, crooked spreading limbs, lobed leaves and fitted foliage tiers; illustrative woodland dimensions"
+                        : species === "european_hornbeam"
+                          ? "New Carpinus betulus: fluted grey stem, ascending branches, pleated toothed leaves and fitted dense crown tiers; illustrative woodland dimensions"
+                          : species === "scots_pine"
+                            ? "New Pinus sylvestris: orange upper bark, a clear bole, irregular upper limbs, paired blue-green needles and fitted shoot tiers; illustrative woodland dimensions"
+                            : "New Fagus sylvatica: smooth grey bole, ascending limbs, oval folded leaves and fitted foliage tiers; illustrative woodland dimensions"
                   }
                 ]
-              : comparisonMedium && level === "medium"
-                ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
-                : undefined,
+              : comparisonMedium && level === "low"
+                ? [
+                    { ...TIERS_ADDED, note: "Seven-lobe canopy silhouette" },
+                    {
+                      author: "Claude Opus 5.5",
+                      date: "2026-10-29",
+                      note: "Crown-envelope normals, interior occlusion and leaf speckle; geometry unchanged",
+                      commit: "eb36c33b8"
+                    },
+                    {
+                      author: "Codex GPT-6.1 Sol",
+                      date: "2026-10-29",
+                      note: "Spread the seven crown lobes into a broad lower whorl and two leaders to match high-tier dimensions"
+                    }
+                  ]
+                : comparisonMedium && level === "medium"
+                  ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
+                  : undefined,
       create: () => (level === "medium" && comparisonMedium ? comparisonMedium() : createLandscapeTree(species, level))
     };
   });

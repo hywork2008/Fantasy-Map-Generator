@@ -1,6 +1,7 @@
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { createAridTree } from "./aridTrees";
 import { createBorealTree } from "./borealTrees";
+import { createDomesticApple } from "./domesticApple";
 import { createEuropeanBeech } from "./europeanBeech";
 import { createEuropeanHornbeam } from "./europeanHornbeam";
 import { createEuropeanYew } from "./europeanYew";
@@ -16,6 +17,7 @@ import { createUplandTree } from "./uplandTrees";
 import { createWetTemperateTree } from "./wetTemperateTrees";
 
 export const TREE_SPECIES = [
+  "domestic_apple",
   "scots_pine",
   "european_hornbeam",
   "pedunculate_oak",
@@ -57,6 +59,19 @@ type TreeDefinition = { create: TreeFactory; lod?: undefined } | { lod: TreeLodP
 
 /** One registration supplies BV factories and CE's woodland, park and churchyard LOD policy. */
 export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
+  domestic_apple: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 6.1,
+      models: {
+        low: () => createDomesticApple("low"),
+        medium: () => createDomesticApple("medium"),
+        high: () => createDomesticApple("high"),
+        ultra: () => createDomesticApple("ultra")
+      }
+    }
+  },
   scots_pine: {
     lod: {
       selection: "pixels",

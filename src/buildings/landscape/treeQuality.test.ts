@@ -6,6 +6,7 @@ import { TREE_QUALITIES, treeQualityAtDistance, treeQualityAtPixels } from "./tr
 import { createLandscapeTree, treeLodProfile } from "./trees";
 
 it.each([
+  "domestic_apple",
   "scots_pine",
   "european_hornbeam",
   "pedunculate_oak",
@@ -69,6 +70,7 @@ it("retains tiers across small pixel changes and responds to camera zoom", () =>
 });
 
 it.each([
+  "domestic_apple",
   "garden_parkland",
   "sacred_yew",
   "european_beech",
@@ -92,6 +94,7 @@ it.each([
 });
 
 it.each([
+  "domestic_apple",
   "scots_pine",
   "european_hornbeam",
   "pedunculate_oak",

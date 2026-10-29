@@ -6,6 +6,11 @@ type TreeEntry = Pick<MedievalModel, "biomes" | "name" | "size" | "note">;
 
 /** Biome labels describe current CE woodland selection, including temperature branches. */
 const TREES: Record<TreeSpecies, TreeEntry> = {
+  domestic_apple: {
+    name: "Domestic apple · Malus domestica",
+    size: [8.1, 7.6, 6.2],
+    note: "Free-standing cultivated Malus domestica with a short grey-brown bole, low spreading scaffold limbs, folded serrated oval leaves and blushed apples on short fruiting spurs. Illustrative mature orchard tree, not a measured specimen, named cultivar or modern dwarf spindle. Static leafy fruiting display; flower, harvest and seasonal changes are omitted. Small fruit is simplified at medium and omitted at low quality. BV registration does not place orchards in CE or change crop production. Botanical references: https://www.rhs.org.uk/plants/60558/malus-domestica-f/details and https://www.rhs.org.uk/fruit/apples/grow-your-own and https://publications.naturalengland.org.uk/publication/23006"
+  },
   scots_pine: {
     biomes: ["centralEuropeanGreatForest"],
     name: "Scots pine · Pinus sylvestris",
