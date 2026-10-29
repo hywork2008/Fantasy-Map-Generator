@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { STAPLE_CROP_PROFILES } from "../../../data/stapleCrops";
-import { DEFAULT_QUARTERLY_WEIGHTS, FoodProduction, getGlobalQuarterlyFoodWeights } from "./foodProduction";
+import {
+  DEFAULT_QUARTERLY_WEIGHTS,
+  FoodProduction,
+  getGlobalQuarterlyFoodWeights,
+  RURAL_HOUSEHOLD_SURPLUS_ANNUAL_LOSS
+} from "./foodProduction";
 import type { Good } from "./goodsGeneratorTypes";
 
 // Mock economy context
@@ -170,10 +175,12 @@ describe("FoodProduction", () => {
 
     // Cultivated area records maintained fields. The labour requirement feeds
     // employment/migration calculations and does not suppress this local crop.
-    // The surplus offered to the market; with no town to sell to, the market buys none of it.
+    // The surplus offered to the market; with no town to sell to, the market buys none of it and
+    // it stays in the full larder as a second year's store.
     const ledger = mockWorldContext.markets[0].foodLedger;
-    expect(ledger.foodProduced + ledger.unsoldHarvest).toBeCloseTo(2150, 3);
     expect(ledger.foodProduced).toBe(0);
+    expect(ledger.unsoldHarvest).toBeCloseTo(0, 3);
+    expect(ruralHouseholdFoodStock[0]).toBeCloseTo(4300 + 2150, 0);
   });
 
   it("retains harvest until rural household provisions are full, then wholesales only the surplus", () => {
@@ -202,10 +209,40 @@ describe("FoodProduction", () => {
     FoodProduction.generateQuarterlyLedger(0);
 
     // Annual household target is 10 people × 0.43 = 4.3. The first quarter
-    // harvest is 5, so 0.3 refills the larder and only 4.7 reaches the Market.
-    expect(ruralHouseholdFoodStock[0]).toBeCloseTo(4.3, 4);
+    // harvest is 5, so 0.3 refills the larder and 4.7 is offered to the Market. With no town it
+    // buys none; the barns keep up to one more year (4.3) and only 0.4 is lost.
+    expect(ruralHouseholdFoodStock[0]).toBeCloseTo(8.6, 4);
     const ledger = mockWorldContext.markets[0].foodLedger;
-    expect(ledger.foodProduced + ledger.unsoldHarvest).toBeCloseTo(4.7, 4);
+    expect(ledger.foodProduced).toBe(0);
+    expect(ledger.unsoldHarvest).toBeCloseTo(0.4, 2);
+  });
+
+  it("loses part of the household grain held above the reserve", () => {
+    mockWorldContext = {
+      populationRate: 1,
+      urbanization: 1,
+      pack: {
+        cells: {
+          i: new Uint16Array([0]),
+          h: new Uint8Array([25]),
+          pop: new Float32Array([10]),
+          capacity: new Float32Array([20])
+        },
+        burgs: []
+      },
+      markets: [{ i: 1, goods: {} }]
+    };
+    ruralHouseholdFoodStock = new Float32Array([8.6]);
+    vi.mocked(getWorldContext).mockReturnValue(mockWorldContext);
+    vi.mocked(getMarkets).mockReturnValue(mockWorldContext.markets);
+    vi.mocked(getMarketCellColumn).mockReturnValue(new Uint16Array([1]));
+    vi.mocked(getCultivableArea).mockReturnValue(new Float32Array([10]));
+    vi.mocked(getCultivatedArea).mockReturnValue(new Float32Array([10]));
+    vi.mocked(getFoodPotential).mockReturnValue(new Float32Array([0]));
+
+    FoodProduction.generateQuarterlyLedger(0);
+
+    expect(ruralHouseholdFoodStock[0]).toBeCloseTo(8.6 - (4.3 * RURAL_HOUSEHOLD_SURPLUS_ANNUAL_LOSS * 3) / 12, 4);
   });
 
   it("does not create anonymous Grain when no catalogued crop is viable", () => {

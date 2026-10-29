@@ -88,6 +88,13 @@ const INITIAL_STOCK_MONTHS_PER_BUCKET = 3;
 export const BURG_TARGET_RESERVE_DAYS = 10;
 /** Rural households retain this many years of their own staple need before selling Grain. */
 export const RURAL_HOUSEHOLD_FOOD_RESERVE_YEARS = 1;
+/**
+ * Harvest the Market does not buy stays in the farmers' barns, up to this many years above the
+ * reserve; the rest is fed to animals, brewed or lost (docs/plan/unsold-harvest-household-store.md).
+ */
+export const RURAL_HOUSEHOLD_SURPLUS_STORE_YEARS = 1;
+/** Yearly loss of household grain above the reserve; traditional stores lose 10-20% a year (provisional). */
+export const RURAL_HOUSEHOLD_SURPLUS_ANNUAL_LOSS = 0.15;
 
 function isFiniteNumber(value: number | undefined): value is number {
   return value !== undefined && Number.isFinite(value);
@@ -466,6 +473,7 @@ export class FoodProductionModule {
       let ruralPopulation = 0;
       let annualMarketFoodIntake = 0;
       const cropWholesale = new Map<number, number>();
+      const cellWholesale: { cellId: number; wholesale: number; cap: number }[] = [];
 
       for (const cellId of pack.cells.i) {
         if (marketCellColumn[cellId] !== market.i || pack.cells.h[cellId] < 20) continue;
@@ -536,10 +544,15 @@ export class FoodProductionModule {
           // the bootstrap migration. Normal maps always retain household stock.
         } else {
           const householdTarget = ruralGrainEaters * GROSS_FOOD_NEED * RURAL_HOUSEHOLD_FOOD_RESERVE_YEARS;
+          const surplus = ruralHouseholdFoodStock[cellId] - householdTarget;
+          if (surplus > 0)
+            ruralHouseholdFoodStock[cellId] -= (surplus * RURAL_HOUSEHOLD_SURPLUS_ANNUAL_LOSS * periodMonths) / 12;
           const householdShortfall = Math.max(0, householdTarget - ruralHouseholdFoodStock[cellId]);
           const retainedByHouseholds = Math.min(harvest, householdShortfall);
           ruralHouseholdFoodStock[cellId] += retainedByHouseholds;
           wholesale -= retainedByHouseholds;
+          const cap = householdTarget + ruralGrainEaters * GROSS_FOOD_NEED * RURAL_HOUSEHOLD_SURPLUS_STORE_YEARS;
+          if (wholesale > 0) cellWholesale.push({ cellId, wholesale, cap });
         }
         annualMarketFoodIntake += wholesale;
 
@@ -594,7 +607,15 @@ export class FoodProductionModule {
         for (const [goodId, amount] of cropWholesale) cropWholesale.set(goodId, amount * purchaseShare);
       const foodProduced = rn(annualMarketFoodIntake * purchaseShare, 2);
       recordOfferedIntake(ledger, months, annualMarketFoodIntake);
-      ledger.unsoldHarvest = rn(annualMarketFoodIntake - foodProduced, 2);
+      // What the Market does not buy goes back to the barns of the cells that offered it.
+      let keptByHouseholds = 0;
+      if (purchaseShare < 1)
+        for (const { cellId, wholesale, cap } of cellWholesale) {
+          const kept = Math.min(wholesale * (1 - purchaseShare), Math.max(0, cap - ruralHouseholdFoodStock[cellId]));
+          ruralHouseholdFoodStock[cellId] += kept;
+          keptByHouseholds += kept;
+        }
+      ledger.unsoldHarvest = rn(annualMarketFoodIntake - foodProduced - keptByHouseholds, 2);
 
       const previousPrice = stapleFoodGood ? (market.goods[stapleFoodGood.i]?.price ?? stapleFoodGood.value) : 1;
       const farmgateUnitCost = rn(previousPrice * FARMGATE_PRICE_SHARE, 2);
