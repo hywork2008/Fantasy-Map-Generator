@@ -16,11 +16,13 @@ import { createSacredGardenTree } from "./sacredGardenTrees";
 import { createSaltTolerantTree } from "./saltTolerantTrees";
 import { createScotsPine } from "./scotsPine";
 import { createSmallLeavedLime } from "./smallLeavedLime";
+import { createSweetChestnut } from "./sweetChestnut";
 import type { TreeQuality } from "./treeQuality";
 import { createUplandTree } from "./uplandTrees";
 import { createWetTemperateTree } from "./wetTemperateTrees";
 
 export const TREE_SPECIES = [
+  "sweet_chestnut",
   "lemon",
   "common_fig",
   "european_plum",
@@ -67,6 +69,19 @@ type TreeDefinition = { create: TreeFactory; lod?: undefined } | { lod: TreeLodP
 
 /** One registration supplies BV factories and CE's woodland, park and churchyard LOD policy. */
 export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
+  sweet_chestnut: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 8.8,
+      models: {
+        low: () => createSweetChestnut("low"),
+        medium: () => createSweetChestnut("medium"),
+        high: () => createSweetChestnut("high"),
+        ultra: () => createSweetChestnut("ultra")
+      }
+    }
+  },
   lemon: {
     lod: {
       selection: "pixels",

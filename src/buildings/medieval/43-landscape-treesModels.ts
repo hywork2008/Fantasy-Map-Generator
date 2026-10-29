@@ -6,6 +6,11 @@ type TreeEntry = Pick<MedievalModel, "biomes" | "name" | "size" | "note">;
 
 /** Biome labels describe current CE woodland selection, including temperature branches. */
 const TREES: Record<TreeSpecies, TreeEntry> = {
+  sweet_chestnut: {
+    name: "Sweet chestnut · Castanea sativa",
+    size: [11, 11, 9],
+    note: "Free-standing cultivated Castanea sativa with a stout grey-brown bole, spreading boughs, a broad crown, long pointed serrated simple leaves and green burs with dense fine spines. Illustrative orchard tree, not a measured specimen, named cultivar, coppice stool, Japanese chestnut or horse chestnut. Static leafy fruiting display; closed burs do not expose the nuts. Flowers, seasonal changes and crop yield are not simulated. Burs are simplified at medium and omitted at low quality. BV registration does not place orchards in CE or change crop production. Botanical reference: https://www.woodlandtrust.org.uk/trees-woods-and-wildlife/british-trees/a-z-of-british-trees/sweet-chestnut/"
+  },
   lemon: {
     name: "Lemon · Citrus × limon",
     size: [4.1, 4.1, 3.9],

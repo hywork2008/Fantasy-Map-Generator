@@ -108,6 +108,7 @@ const taskArticles: Record<number, string> = {
 };
 
 const modelArticles: Record<string, string> = {
+  "sweet-chestnut": "Castanea sativa",
   lemon: "Lemon",
   "common-fig": "Ficus carica",
   "european-plum": "Prunus domestica",
