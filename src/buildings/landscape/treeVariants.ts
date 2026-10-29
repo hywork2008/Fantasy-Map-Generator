@@ -8,6 +8,7 @@ import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpeci
 
 /** Author of each species' model; reduced tiers credit their own authors below. */
 export const TREE_AUTHORS: Record<TreeSpecies, Author> = {
+  lemon: "Codex GPT-6.1 Sol",
   common_fig: "Codex GPT-6.1 Sol",
   european_plum: "Codex GPT-6.1 Sol",
   european_pear: "Codex GPT-6.1 Sol",
@@ -63,7 +64,8 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
     species === "domestic_apple" ||
     species === "european_pear" ||
     species === "european_plum" ||
-    species === "common_fig";
+    species === "common_fig" ||
+    species === "lemon";
   const boreal = species === "norway_spruce" || species === "silver_birch";
   const conifer = species === "western_red_cedar" || species === "silver_fir";
   const arid = species === "date_palm" || species === "umbrella_thorn";
@@ -113,13 +115,15 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
                 author,
                 date: "2026-10-30",
                 note:
-                  species === "common_fig"
-                    ? "New Ficus carica: low stout grey boughs, a broad crown, concave three- and five-lobed leaves and green/violet figs beside leaf petioles; illustrative cultivated tree with four foliage tiers"
-                    : species === "european_plum"
-                      ? "New Prunus domestica: dark short bole, ascending forks, compact crown, toothed obovate leaves and bloomed purple oval drupes on short fruiting wood; illustrative cultivated tree with four foliage tiers"
-                      : species === "european_pear"
-                        ? "New Pyrus communis: ascending scaffold branches, a tapering upright crown, glossy oval leaves and necked yellow-green spur-borne fruit; illustrative free-standing cultivated tree with four foliage tiers"
-                        : "New Malus domestica: short bole, spreading scaffold limbs, serrated leaves and blushed spur-borne fruit; illustrative free-standing cultivated tree with four foliage tiers"
+                  species === "lemon"
+                    ? "New Citrus x limon: short bole, compact evergreen crown, glossy elliptical leaves, occasional twig thorns and yellow elliptical fruit with apical nipples; illustrative cultivated tree with four foliage tiers"
+                    : species === "common_fig"
+                      ? "New Ficus carica: low stout grey boughs, a broad crown, concave three- and five-lobed leaves and green/violet figs beside leaf petioles; illustrative cultivated tree with four foliage tiers"
+                      : species === "european_plum"
+                        ? "New Prunus domestica: dark short bole, ascending forks, compact crown, toothed obovate leaves and bloomed purple oval drupes on short fruiting wood; illustrative cultivated tree with four foliage tiers"
+                        : species === "european_pear"
+                          ? "New Pyrus communis: ascending scaffold branches, a tapering upright crown, glossy oval leaves and necked yellow-green spur-borne fruit; illustrative free-standing cultivated tree with four foliage tiers"
+                          : "New Malus domestica: short bole, spreading scaffold limbs, serrated leaves and blushed spur-borne fruit; illustrative free-standing cultivated tree with four foliage tiers"
               }
             ]
           : boreal

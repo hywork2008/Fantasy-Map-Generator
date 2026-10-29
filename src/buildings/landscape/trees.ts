@@ -8,6 +8,7 @@ import { createEuropeanHornbeam } from "./europeanHornbeam";
 import { createEuropeanPear } from "./europeanPear";
 import { createEuropeanPlum } from "./europeanPlum";
 import { createEuropeanYew } from "./europeanYew";
+import { createLemon } from "./lemon";
 import { createMediterraneanMontaneTree } from "./mediterraneanMontaneTrees";
 import { createPedunculateOak } from "./pedunculateOak";
 import { createKapok } from "./rainforestTrees";
@@ -20,6 +21,7 @@ import { createUplandTree } from "./uplandTrees";
 import { createWetTemperateTree } from "./wetTemperateTrees";
 
 export const TREE_SPECIES = [
+  "lemon",
   "common_fig",
   "european_plum",
   "european_pear",
@@ -65,6 +67,19 @@ type TreeDefinition = { create: TreeFactory; lod?: undefined } | { lod: TreeLodP
 
 /** One registration supplies BV factories and CE's woodland, park and churchyard LOD policy. */
 export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
+  lemon: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 3.8,
+      models: {
+        low: () => createLemon("low"),
+        medium: () => createLemon("medium"),
+        high: () => createLemon("high"),
+        ultra: () => createLemon("ultra")
+      }
+    }
+  },
   common_fig: {
     lod: {
       selection: "pixels",

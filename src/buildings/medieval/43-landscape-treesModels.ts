@@ -6,6 +6,11 @@ type TreeEntry = Pick<MedievalModel, "biomes" | "name" | "size" | "note">;
 
 /** Biome labels describe current CE woodland selection, including temperature branches. */
 const TREES: Record<TreeSpecies, TreeEntry> = {
+  lemon: {
+    name: "Lemon · Citrus × limon",
+    size: [4.1, 4.1, 3.9],
+    note: "Free-standing cultivated Citrus x limon with a short grey-brown bole, a compact rounded evergreen crown, glossy folded elliptical leaves, a few short twig thorns and yellow elliptical lemons with a stalk collar, apical nipple and abstract pitted rind. Illustrative mature orchard tree, not a measured specimen, named cultivar, variegated citrus or container planting. Static leafy fruiting display; flowers, seasonal changes and crop yield are not simulated. Fruit is simplified at medium and omitted at low quality. BV registration does not place orchards in CE or change crop production. Botanical references: https://plants.ces.ncsu.edu/plants/citrus-x-limon/ and https://www.rhs.org.uk/fruit/citrus/grow-your-own and https://citrusvariety.ucr.edu/crc3500"
+  },
   common_fig: {
     name: "Common fig · Ficus carica",
     size: [9.5, 9.3, 5],

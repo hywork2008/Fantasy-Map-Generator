@@ -8,7 +8,7 @@
 
 主対象は未登録のリンゴ・セイヨウナシ・セイヨウスモモ・イチジク・レモン・ヨーロッパグリの6樹種・24品質枠。さらに、ガイドの食用種子作物であるカカオ・コーヒーを後半の2樹種・8品質枠として計画に含める。新規は合計 **8樹種・32品質枠**。登録済みのオリーブ・ナツメヤシは再利用を評価し、新規件数に数えない。
 
-BVでの4品質・登録・作者情報・外観確認までを本計画の実装範囲とする。2026-10-30にF01リンゴ・F02セイヨウナシ・F03セイヨウスモモ・F04イチジクの4品質を実装・確認し、現在は新規8樹種中4種・32品質枠中16枠を完了（§8〜§11）。CEの果樹園自動配置、FMG・REの表示、経済・作物暦・収量の変更は後続課題とする。
+BVでの4品質・登録・作者情報・外観確認までを本計画の実装範囲とする。2026-10-30にF01リンゴ・F02セイヨウナシ・F03セイヨウスモモ・F04イチジク・F05レモンの4品質を実装・確認し、現在は新規8樹種中5種・32品質枠中20枠を完了（§8〜§12）。CEの果樹園自動配置、FMG・REの表示、経済・作物暦・収量の変更は後続課題とする。
 
 ## 2. 掲載作物と既存モデルの照合
 
@@ -32,7 +32,7 @@ BVでの4品質・登録・作者情報・外観確認までを本計画の実�
 | Pears | 食用果樹 | `european_pear`、4品質（F02で追加） | F02完了、詳細は§9 |
 | Plums | 食用果樹 | `european_plum`、4品質（F03で追加） | F03完了、詳細は§10 |
 | Figs | 食用果樹 | `common_fig`、4品質（F04で追加） | F04完了（§11）。既存のインドボダイジュ `Ficus religiosa` とは別種・別生成器 |
-| Lemons | 食用果樹 | 未登録 | F05で新作 |
+| Lemons | 食用果樹 | `lemon`、4品質（F05で追加） | F05完了、詳細は§12 |
 | Chestnuts | 食用堅果樹 | 未登録 | F06で新作。`Castanea sativa` を使い、トチノキ類やニホングリで代用しない |
 | Olives | 食用・搾油果樹 | `olive`／`Olea europaea`、4品質 | E01で再利用評価 |
 | Dates | 食用果樹 | `date_palm`／`Phoenix dactylifera`、4品質 | E02で再利用評価 |
@@ -53,7 +53,7 @@ BVでの4品質・登録・作者情報・外観確認までを本計画の実�
 | F02 | [x] | セイヨウナシ `Pyrus communis` | `european_pear`（確定） | 上向きの主枝と縦長の樹冠、光沢のある葉、洋ナシ形の実。4品質・BV登録・作者・採用解決・表示確認を完了（§9） | 温帯の果樹園・庭の独立樹 |
 | F03 | [x] | セイヨウスモモ `Prunus domestica` | `european_plum`（確定） | 短い暗褐色の幹と上向きの分岐、鋸歯葉、紫の卵形果実。4品質・BV登録・作者・採用解決・表示確認を完了（§10） | 温帯の果樹園 |
 | F04 | [x] | イチジク `Ficus carica` | `common_fig`（確定） | 低い太枝と広い冠、3裂・5裂の葉、葉柄の付け根付近の実。4品質・BV登録・作者・採用解決・表示確認を完了（§11） | 地中海〜暖温帯の庭・果樹園 |
-| F05 | [ ] | レモン `Citrus × limon` | `lemon` | 小型常緑樹の密な冠、楕円形の葉、先端のある黄色い楕円果。オリーブの細葉・銀葉から区別 | 暖地の露地果樹園・庭 |
+| F05 | [x] | レモン `Citrus × limon` | `lemon`（確定） | 小型常緑樹の密な冠、光沢のある楕円葉、先端のある黄色い楕円果。4品質・BV登録・作者・採用解決・表示確認を完了（§12） | 暖地の露地果樹園・庭 |
 | F06 | [ ] | ヨーロッパグリ `Castanea sativa` | `sweet_chestnut` | 広い冠、長く鋸歯が目立つ単葉、いがを持つ実。ナラの切れ込み葉やトチノキの掌状複葉にしない | 温帯の食用栗園の独立成木 |
 | F07 | [ ] | カカオ `Theobroma cacao` | `cacao` | 幹・太枝に直接付く大型の実、大きな葉と低い分岐。実を枝先だけへ配置しない | 熱帯の栽培木 |
 | F08 | [ ] | アラビカコーヒーノキ `Coffea arabica` | `arabica_coffee` | 小型の栽培樹形、対生葉・横枝と節に沿う果実群。汎用広葉樹を縮小しただけにしない | 熱帯高地等の栽培木 |
@@ -70,7 +70,7 @@ Coffeeという商品だけでは種を一意に決められない。本計画�
 | F02 | [RHS: Pyrus communis](https://www.rhs.org.uk/plants/14227/pyrus-communis-f/details) | 樹冠・葉・果実、栽培型と野生型の違い |
 | F03 | [RHS: Plums](https://www.rhs.org.uk/fruit/plums/grow-your-own)、[NC State](https://plants.ces.ncsu.edu/plants/prunus-domestica/)、[Utah State University](https://extension.usu.edu/yardandgarden/research/plums-in-the-home-garden) | 対象種・葉・暗褐色の樹皮・果実、上向きの樹形とニホンスモモとの違い |
 | F04 | [Oregon State University: Ficus carica](https://landscapeplants.oregonstate.edu/plants/ficus-carica)、[University of Maryland](https://extension.umd.edu/resource/growing-figs-maryland)、[RHS](https://www.rhs.org.uk/fruit/figs/grow-your-own) | 太枝・樹冠・裂葉・実の形、若い枝の葉腋付近への実の取り付け |
-| F05 | [RHS: Lemon](https://www.rhs.org.uk/plants/212971/citrus-limonum/details) | 小型常緑樹・葉・黄色い実。ページは異名・他の柑橘名も広く含むため、制作時に学名と写真の対象を再照合 |
+| F05 | [NC State](https://plants.ces.ncsu.edu/plants/citrus-x-limon/)、[RHS: Citrus](https://www.rhs.org.uk/fruit/citrus/grow-your-own)、[UC Riverside: Femminello](https://citrusvariety.ucr.edu/crc3500) | 小型常緑樹・光沢のある葉・棘、果皮と黄色い楕円果の先端。異名・複数品種を含む資料に注意し、特定品種の再現とはしない |
 | F06 | [Kew: Sweet chestnut](https://www.kew.org/plants/sweet-chestnut)、[Woodland Trust](https://www.woodlandtrust.org.uk/trees-woods-and-wildlife/british-trees/a-z-of-british-trees/sweet-chestnut/) | 食用の種、単葉といが。萌芽林の多幹型とは分ける |
 | F07 | [Kew: Cacao tree](https://www.kew.org/plants/cacao-tree) | 種・幹生の実。制作時に栽培木の分岐を追加確認 |
 | F08 | [Kew POWO: Coffea arabica](https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A747038-1/general-information)、[FAO ECOCROP: Arabica coffee](https://ecocrop.apps.fao.org/ecocrop/srv/en/cropView?id=749) | 対象種の確認。葉・節・栽培木の寸法を制作時に補う |
@@ -114,7 +114,7 @@ Coffeeという商品だけでは種を一意に決められない。本計画�
 | P0 | [x] | 掲載12作物・既存24樹種を再照合。F01の栽培樹形・寸法・資料・固定視点を確定 | 棚卸し差分と制作基準を記録（§8） |
 | P1 | [x] | F01リンゴを4品質化・BV登録・目視確認 | 果実と葉を含む基準モデル1種を完成（§8） |
 | P2 | [x] | F02セイヨウナシ（§9）、F03セイヨウスモモ（§10）を完了 | リンゴと3種の樹形・葉・実の違いを同尺度で確認 |
-| P3 | [ ] | F04イチジク完了（§11）、F05レモン・E01オリーブは未着手 | イチジクの表示・比較を確認済み。レモン追加とオリーブの再利用評価を続ける |
+| P3 | [ ] | F04イチジク（§11）・F05レモン（§12）を完了。E01オリーブは未着手 | 暖地果樹の表示・比較を確認済み。既存オリーブ4品質の再利用評価を続ける |
 | P4 | [ ] | F06ヨーロッパグリ、E02ナツメヤシ | 主対象6種24品質枠と既存2種の評価を完了 |
 | P5 | [ ] | F07カカオ、F08アラビカコーヒー | 幹生果と節の果実群を確認し、追加8種32品質枠を完了 |
 | P6 | [ ] | 総括、V01・CE接続の残課題を整理 | 採用版・寸法・計測・未対応範囲と次の作業を確定 |
@@ -140,7 +140,7 @@ BVモデルの完成とCE配置の完成は分けて管理する。現在のCE�
 - 剪定したオリーブ、樹齢差、ブドウの支柱・棚など、既存の単木では不足する形の要否。
 - インスタンス描画・近中遠景LOD・影・有限予算・省略時の代替表現と、保存／読込・Undo/Redoでの再現。
 
-**次に着手する作業：P3のF05レモンについて、対象樹形・寸法・葉と果実の資料を確定し、小型常緑樹と黄色い楕円果を持つ4品質とBV登録を実装する。** 続いてE01オリーブの再利用評価へ進む。元計画R01の自然林調査を本計画の前提条件にはしない。
+**次に着手する作業：P3のE01オリーブについて、既存4品質を果樹用途で確認し、非剪定の老木モデルをそのまま再利用できる範囲と、園地用の別樹形が必要な範囲を記録する。** P3を完了した後はP4のF06ヨーロッパグリへ進む。元計画R01の自然林調査を本計画の前提条件にはしない。
 
 ## 8. F01リンゴの実施記録（2026-10-30）
 
@@ -190,3 +190,15 @@ BVモデルの完成とCE配置の完成は分けて管理する。現在のCE�
 - 型チェックは既存の `src/city-editor/renderers/fogControls.ts:45` の型エラーで失敗。変更したソース7ファイルのBiomeと差分チェックは成功。全件テストは実行していない。
 
 所見・再現手順は [F04検証記録](../analytics/bv-fig-tree-lod-20261030.md)、計測値は [JSON](../analytics/bv-fig-tree-lod-20261030.json)。確認画像は一時保存で目視後に削除し、Gitには収録しない。登録済みは**28樹種・112品質枠**。F04を完了し、次はP3のF05レモンへ進む。P3はレモンとE01オリーブの評価が残るため未完了。
+
+## 12. F05レモンの実施記録（2026-10-30）
+
+- 学名を `Citrus × limon`、キーを `lemon` に確定。§3のNC Stateの小型常緑樹・葉・棘、RHSの栽培資料、UC Riversideの果皮と果形の資料を参照した。UCRの品種群は果実の参考であり、特定のFemminello・Eureka・Meyer等の再現とはしない。
+- `lemon.ts` で短い幹、4本の主枝と内側の枝が作る丸みのある密な冠を新作。地表から約3.8 m・幅約3.7〜4 mは描画用の例示寸法で、測量値・矮性台木・鉢植え・歴史的樹形の再現ではない。BVの外接枠は幅4.1・奥行4.1・高さ3.9 m。
+- 光沢のある折れた楕円葉、少数の短い枝の棘、軸側のくびれと先端の突起を持つ黄色い楕円果を表現した。細かな果皮の凹凸は形状・頂点色で簡略化する。high／ultraは木部・棘・果実位置を共有し、highは葉のサンプルを4分の1にして葉面積を補う。mediumは同じ葉群の房と14個の簡略果実、lowは輪郭とし、果実を省略する。詳細段階の28果は展示用で、収量・収穫回数ではない。
+- BVのTreesに4品質・学名・説明・植物資料・Wikipedia参照・作者 `Codex GPT-6.1 Sol` を登録。各品質1版を暗黙採用し、下位品質から同種ultraへの派生元と実BVの `CE adoption: Adopted` を確認した。CEの自然林・公園・墓地の選択と果樹園配置は変更していない。
+- 三角形数はlow **259**、medium **1,095**、high **14,812**、ultra **83,132**。全品質が制作目安内。材質・meshはlow各2、他各3、LODは `pixels`・`bounded`。
+- 関連10ファイル・133件が成功。実BVの4品質・正面／上面SVG、単木3視点、葉・果実の近景、イチジク・オリーブとの同尺度比較をMetal GPUで目視確認した。geometry数は品質巡回3回で11→11→11、破棄後geometry・textureは0、pageerror／WebGL errorは0件。
+- 型チェックは既存の `src/city-editor/renderers/fogControls.ts:45` の型エラーで失敗。変更したソース7ファイルのBiomeと差分チェックは成功。全件テストは実行していない。
+
+所見・再現手順は [F05検証記録](../analytics/bv-lemon-tree-lod-20261030.md)、計測値は [JSON](../analytics/bv-lemon-tree-lod-20261030.json)。確認画像は一時保存で目視後に削除し、Gitには収録しない。登録済みは**29樹種・116品質枠**。F05を完了し、次はP3のE01オリーブ再利用評価へ進む。P3はE01が残るため未完了。
