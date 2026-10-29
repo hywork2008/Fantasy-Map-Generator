@@ -826,6 +826,39 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
       banner.hidden = true;
       roofTitle.textContent = "Exterior roof plan";
       levelTitle.textContent = "South elevation";
+      if (definition.terrainGeneration) {
+        modelOptions.hidden = false;
+        const generation = definition.terrainGeneration;
+        const row = document.createElement("label");
+        row.textContent = "Upper surface: ";
+        const surface = document.createElement("select");
+        surface.setAttribute("aria-label", "Upper surface");
+        for (const [value, title] of [
+          ["terrain", "Random terrain"],
+          ["flat", "Flat"]
+        ] as const) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = title;
+          surface.append(option);
+        }
+        surface.value = generation.surface;
+        surface.addEventListener("change", () => {
+          generation.surface = surface.value === "flat" ? "flat" : "terrain";
+          showLandmark(definition);
+        });
+        row.append(surface);
+        const regenerate = document.createElement("button");
+        regenerate.type = "button";
+        regenerate.textContent = "Regenerate";
+        regenerate.addEventListener("click", () => {
+          generation.regenerate();
+          showLandmark(definition);
+        });
+        const paragraph = document.createElement("p");
+        paragraph.append(row, document.createTextNode(" "), regenerate);
+        optionFields.append(paragraph);
+      }
       if (model.highDetail) {
         modelOptions.hidden = false;
         const row = document.createElement("label");
@@ -857,7 +890,7 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
       }
       massing = definition.create();
       scene.add(massing.group);
-      ground.visible = true;
+      ground.visible = !definition.floating;
       frame({ occupancyMeters: { width: definition.size[0], depth: definition.size[1] } }, definition.size[2]);
       // Fit the actual bounding sphere to both viewport axes, including very tall spires.
       const sphere = new THREE.Box3().setFromObject(massing.group).getBoundingSphere(new THREE.Sphere());
@@ -868,6 +901,7 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
       controls.update();
       mountPlan(roofHost, meshProjection(massing, "top"));
       mountPlan(levelHost, meshProjection(massing, "side"));
+      if (definition.terrainGeneration) appendFacts(fact("Seed", definition.terrainGeneration.seed));
       appendFacts(
         fact("Model", definition.name),
         fact("Style", definition.style),

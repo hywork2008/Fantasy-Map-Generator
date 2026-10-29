@@ -16,6 +16,14 @@ export interface LandmarkModel {
   sources: readonly { title: string; url: string }[];
   /** Optional detailed exterior; the catalogue entry itself remains the default low-resolution model. */
   highDetail?: LandmarkModel;
+  /** Local seeded terrain controls; never mutate FMG's world-generation state. */
+  terrainGeneration?: {
+    seed: string;
+    surface: "terrain" | "flat";
+    regenerate(): void;
+  };
+  /** Hide the ground disk for airborne studies. */
+  floating?: boolean;
   create(): CityStructureMeshes;
   author?: Author;
 }
