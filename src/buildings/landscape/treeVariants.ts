@@ -1,9 +1,11 @@
+import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import type { Author } from "../authors";
 import { type ModelCredit, type ModelVariant, variantId } from "../modelVariants";
 import { createNorwaySpruceOpus } from "./norwaySpruceOpus";
+import { applySeasonalLook, SEASONAL_LOOKS, type SeasonalLookSpecies } from "./seasonalLooks";
 import { createSmallLeavedLimeOpus } from "./smallLeavedLimeOpus";
 import { createTemperateTreeCodexMedium } from "./temperateTreeCodexMedium";
-import { TREE_QUALITIES } from "./treeQuality";
+import { TREE_QUALITIES, type TreeQuality } from "./treeQuality";
 import type { TreeAppearanceOptions } from "./treeSeasonLayers";
 import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpecies } from "./trees";
 
@@ -61,6 +63,17 @@ const TIERS_ADDED: ModelCredit = {
 
 /** Tree variants take the seasonal look; factories without seasonal layers ignore it. */
 export type TreeVariant = ModelVariant<[TreeAppearanceOptions?]>;
+
+/** Another author's edition takes the same recolouring looks as the registered tiers. */
+function seasonalEdition(
+  species: TreeSpecies,
+  quality: TreeQuality,
+  model: CityStructureMeshes,
+  options?: TreeAppearanceOptions
+): CityStructureMeshes {
+  const look = SEASONAL_LOOKS[species as SeasonalLookSpecies];
+  return look ? applySeasonalLook(look, quality, model, options) : model;
+}
 
 function tieredVariants(species: TreeSpecies): TreeVariant[] {
   const family = treeFamily(species);
@@ -203,7 +216,9 @@ function tieredVariants(species: TreeSpecies): TreeVariant[] {
                   ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
                   : undefined,
       create: (options?: TreeAppearanceOptions) =>
-        level === "medium" && comparisonMedium ? comparisonMedium() : createLandscapeTree(species, level, options)
+        level === "medium" && comparisonMedium
+          ? seasonalEdition(species, level, comparisonMedium(), options)
+          : createLandscapeTree(species, level, options)
     };
   });
   const high = variantId(family, "high", "Codex GPT-6.1 Sol");
@@ -227,7 +242,7 @@ function tieredVariants(species: TreeSpecies): TreeVariant[] {
           note: "Calibrated lime lobe coverage; fitted yew lobes to the four high-tier fans with horizontal orientation, preserving Opus authorship and adoption"
         }
       ],
-      create: () => createLandscapeTree(species, "medium")
+      create: (options?: TreeAppearanceOptions) => createLandscapeTree(species, "medium", options)
     });
   if (species === "norway_spruce") {
     const opusHigh = variantId(family, "high", "Claude Opus 5.5");
@@ -336,7 +351,8 @@ function tieredVariants(species: TreeSpecies): TreeVariant[] {
             note: "Own open-grown skeleton: ascending limbs to a two-layer ovoid leaf shell, outward-facing cordate leaves, sun and shade leaf colours, crown-envelope normals"
           }
         ],
-        create: () => createSmallLeavedLimeOpus("standard")
+        create: (options?: TreeAppearanceOptions) =>
+          seasonalEdition(species, "high", createSmallLeavedLimeOpus("standard"), options)
       },
       {
         id: variantId(family, "high", "Claude Opus 5.5", "light"),
@@ -352,7 +368,8 @@ function tieredVariants(species: TreeSpecies): TreeVariant[] {
             note: "The Opus medium treatment applied to the Opus high tier: one fitted lobe per leaf spray on the same limbs"
           }
         ],
-        create: () => createSmallLeavedLimeOpus("light")
+        create: (options?: TreeAppearanceOptions) =>
+          seasonalEdition(species, "high", createSmallLeavedLimeOpus("light"), options)
       }
     );
   }

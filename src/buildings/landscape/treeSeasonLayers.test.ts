@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 import type * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
-import { TREE_PHENOLOGY } from "./treePhenology";
+import { TREE_PHENOLOGY, type TreeAppearance } from "./treePhenology";
 import { TREE_QUALITIES } from "./treeQuality";
-import { createLandscapeTree, TREE_SPECIES, treeLodProfile } from "./trees";
+import { createLandscapeTree, TREE_SPECIES, type TreeSpecies, treeLodProfile } from "./trees";
 
 const BUDGET = { low: 500, medium: 3000, high: 25000, ultra: 120000 } as const;
 
@@ -47,16 +47,23 @@ describe("seasonal tree layers", () => {
   });
 
   it("draws every supported appearance of seasonal species within the tier budgets", () => {
-    for (const species of TREE_SPECIES.filter(entry => treeLodProfile(entry)?.seasonal)) {
-      for (const appearance of TREE_PHENOLOGY[species].appearances)
+    for (const species of TREE_SPECIES) {
+      const drawn = treeLodProfile(species)?.seasonal ?? [];
+      for (const appearance of drawn) expect(TREE_PHENOLOGY[species].appearances).toContain(appearance);
+      for (const appearance of drawn)
         for (const quality of TREE_QUALITIES) {
           const model = createLandscapeTree(species, quality, { appearance });
           const names = model.pickables.map(mesh => mesh.name).join(" ");
-          expect(triangles(model), `${species} ${appearance} ${quality}`).toBeLessThanOrEqual(BUDGET[quality]);
+          // A static model already over its budget (willow high) may not grow further.
+          const base = createLandscapeTree(species, quality);
+          const limit = Math.max(BUDGET[quality], triangles(base));
+          base.dispose();
+          expect(triangles(model), `${species} ${appearance} ${quality}`).toBeLessThanOrEqual(limit);
           expect(model.group.userData.treeAppearance).toBe(appearance);
           // Bare trees are wood only; every other look keeps its foliage mesh.
           expect(model.pickables.length === 1).toBe(appearance === "bare");
-          if (appearance === "bloom" && quality !== "low") expect(names).toContain("blossom");
+          if (species === "domestic_apple" && appearance === "bloom" && quality !== "low")
+            expect(names).toContain("blossom");
           model.dispose();
         }
     }
@@ -73,5 +80,27 @@ describe("seasonal tree layers", () => {
     );
     summer.dispose();
     autumn.dispose();
+  });
+
+  it("drops or recolours fruit and flowers drawn inside existing meshes", () => {
+    const count = (species: TreeSpecies, appearance?: TreeAppearance) => {
+      const model = createLandscapeTree(species, "ultra", appearance && { appearance });
+      const counts = model.pickables.map(mesh => {
+        const geometry = mesh.geometry as THREE.BufferGeometry;
+        return (geometry.index ? geometry.index.count : geometry.attributes.position.count) / 3;
+      });
+      model.dispose();
+      return counts;
+    };
+    // A harvested pear keeps wood and leaves; a harvested lemon keeps a few late fruit.
+    expect(count("european_pear", "harvested")).toEqual(count("european_pear").slice(0, 2));
+    const lemon = count("lemon")[2];
+    const left = count("lemon", "harvested")[2];
+    expect(left).toBeGreaterThan(lemon * 0.05);
+    expect(left).toBeLessThan(lemon * 0.3);
+    // Olive markers and tamarisk flowers share the foliage mesh and leave it for leaf.
+    expect(count("olive", "leaf")[1]).toBeLessThan(count("olive")[1]);
+    expect(count("tamarisk", "leaf")[1]).toBeLessThan(count("tamarisk")[1]);
+    expect(count("rowan", "autumn")).toEqual(count("rowan"));
   });
 });

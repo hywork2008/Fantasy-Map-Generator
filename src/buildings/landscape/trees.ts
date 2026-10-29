@@ -17,11 +17,13 @@ import { createKapok } from "./rainforestTrees";
 import { createSacredGardenTree } from "./sacredGardenTrees";
 import { createSaltTolerantTree } from "./saltTolerantTrees";
 import { createScotsPine } from "./scotsPine";
+import { applySeasonalLook, SEASONAL_LOOKS, type SeasonalLookSpecies } from "./seasonalLooks";
 import { createSmallLeavedLime } from "./smallLeavedLime";
 import { createSweetChestnut } from "./sweetChestnut";
-import type { TreeQuality } from "./treeQuality";
+import { TREE_PHENOLOGY, type TreeAppearance } from "./treePhenology";
+import { TREE_QUALITIES, type TreeQuality } from "./treeQuality";
 import type { TreeAppearanceOptions } from "./treeSeasonLayers";
-import type { TreeSpecies } from "./treeSpecies";
+import { TREE_SPECIES, type TreeSpecies } from "./treeSpecies";
 import { createUplandTree } from "./uplandTrees";
 import { createWetTemperateTree } from "./wetTemperateTrees";
 
@@ -33,8 +35,8 @@ export interface TreeLodProfile {
   selection: "distance" | "pixels";
   /** Quality-first trees retain their selected tier regardless of the city's geometry budget. */
   budget: "quality-first" | "bounded";
-  /** The factories draw the species' seasonal appearances (docs/plan/bv-tree-seasonal-appearance.md). */
-  seasonal?: true;
+  /** Appearances the factories can draw (docs/plan/bv-tree-seasonal-appearance.md); absent for static models. */
+  seasonal?: readonly TreeAppearance[];
   heightMeters: number;
   /** Natural stand proportions (height / crown radius); explicit park dimensions remain authoritative. */
   forestHeightToRadius?: number;
@@ -42,8 +44,8 @@ export interface TreeLodProfile {
 }
 type TreeDefinition = { create: TreeFactory; lod?: undefined } | { lod: TreeLodProfile };
 
-/** One registration supplies BV factories and CE's woodland, park and churchyard LOD policy. */
-export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
+/** Static factories as written per species; seasonal looks are layered on below. */
+const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
   arabica_coffee: {
     lod: {
       selection: "pixels",
@@ -139,7 +141,6 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
     lod: {
       selection: "pixels",
       budget: "bounded",
-      seasonal: true,
       heightMeters: 6.1,
       models: {
         low: options => createDomesticApple("low", options),
@@ -195,7 +196,6 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
     lod: {
       selection: "pixels",
       budget: "bounded",
-      seasonal: true,
       heightMeters: 20,
       forestHeightToRadius: 3.2,
       models: {
@@ -482,6 +482,32 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
     }
   }
 };
+
+/** Species whose generators draw every appearance themselves. */
+const NATIVE_SEASONS: Partial<Record<TreeSpecies, true>> = { domestic_apple: true, european_beech: true };
+
+/**
+ * One registration supplies BV factories and CE's woodland, park and churchyard LOD policy.
+ * Seasonal looks that only recolour or drop parts wrap the base factories (seasonalLooks.ts).
+ */
+export const TREE_DEFINITIONS = Object.fromEntries(
+  TREE_SPECIES.map(species => {
+    const definition = BASE_DEFINITIONS[species];
+    if (!definition.lod) return [species, definition];
+    if (NATIVE_SEASONS[species])
+      return [species, { lod: { ...definition.lod, seasonal: TREE_PHENOLOGY[species].appearances } }];
+    const look = SEASONAL_LOOKS[species as SeasonalLookSpecies];
+    if (!look) return [species, definition];
+    const base = definition.lod.models;
+    const models = Object.fromEntries(
+      TREE_QUALITIES.map(quality => [
+        quality,
+        (options?: TreeAppearanceOptions) => applySeasonalLook(look, quality, base[quality](), options)
+      ])
+    ) as Record<TreeQuality, TreeFactory>;
+    return [species, { lod: { ...definition.lod, seasonal: look.appearances, models } }];
+  })
+) as Record<TreeSpecies, TreeDefinition>;
 
 export function treeLodProfile(species: TreeSpecies): TreeLodProfile | undefined {
   return TREE_DEFINITIONS[species].lod;

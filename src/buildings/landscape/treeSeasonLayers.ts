@@ -26,7 +26,12 @@ export function positionHash(x: number, y: number, z: number): number {
  * Recolour foliage in place, one hue per triangle so a leaf or lobe facet stays uniform. Works on
  * the full leaf geometry and on fitted canopy lobes alike, keeping tier switches consistent.
  */
-export function tintFoliage(geometry: THREE.BufferGeometry, tint: FoliageTint): void {
+export function tintFoliage(
+  geometry: THREE.BufferGeometry,
+  tint: FoliageTint,
+  /** Leaves only: vertices for which this is false (berries, flowers in a shared crown) keep their colour. */
+  isLeaf: (color: THREE.Color) => boolean = () => true
+): void {
   const color = geometry.getAttribute("color");
   const position = geometry.getAttribute("position");
   if (!color) return;
@@ -41,7 +46,9 @@ export function tintFoliage(geometry: THREE.BufferGeometry, tint: FoliageTint): 
     for (let k = 0; k < 3; k++) jitter[index ? index.getX(t * 3 + k) : t * 3 + k] = noise;
   }
   for (let i = 0; i < color.count; i++) {
-    rgb.setRGB(color.getX(i), color.getY(i), color.getZ(i)).getHSL(hsl);
+    rgb.setRGB(color.getX(i), color.getY(i), color.getZ(i));
+    if (!isLeaf(rgb)) continue;
+    rgb.getHSL(hsl);
     rgb.setHSL(
       tint.hue + (jitter[i] - 0.5) * tint.hueJitter,
       tint.saturation,

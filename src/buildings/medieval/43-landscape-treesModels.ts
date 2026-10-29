@@ -223,13 +223,14 @@ const APPEARANCE_LABELS: Record<TreeAppearance, string> = {
   autumn: "Autumn colours"
 };
 
-/** Every supported appearance, plus autumn-coloured fruit and harvest for deciduous fruit trees. */
+/** Every appearance drawn so far, plus autumn-coloured fruit and harvest for deciduous fruit trees. */
 function seasons(species: TreeSpecies): MedievalModel["seasons"] {
-  if (!treeLodProfile(species)?.seasonal) return undefined;
+  const drawn = treeLodProfile(species)?.seasonal;
+  if (!drawn || drawn.length < 2) return undefined;
   const profile = TREE_PHENOLOGY[species];
   const options: { id: string; label: string }[] = [];
   for (const appearance of TREE_APPEARANCES) {
-    if (!profile.appearances.includes(appearance)) continue;
+    if (!drawn.includes(appearance)) continue;
     options.push({ id: appearance, label: APPEARANCE_LABELS[appearance] });
     if (profile.leafHabit === "deciduous" && (appearance === "fruit" || appearance === "harvested"))
       options.push({ id: `${appearance}+autumn`, label: `${APPEARANCE_LABELS[appearance]} · autumn colours` });
