@@ -2,8 +2,35 @@ import * as THREE from "three";
 import { expect, it, vi } from "vitest";
 import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { models } from "../medieval/43-landscape-treesModels";
+import { meshProjection } from "../meshProjection";
 import { TREE_QUALITIES } from "./treeQuality";
 import { createLandscapeTree } from "./trees";
+
+it.each(["olive", "date_palm"] as const)("covers every %s tier with the BV's declared envelope", species => {
+  const definition = models.find(model => model.id === species.replaceAll("_", "-"))!;
+  for (const quality of TREE_QUALITIES) {
+    const model = createLandscapeTree(species, quality);
+    try {
+      const bounds = new THREE.Box3().setFromObject(model.group);
+      expect(Math.max(Math.abs(bounds.min.x), Math.abs(bounds.max.x)) * 2).toBeLessThanOrEqual(definition.size[0]);
+      expect(Math.max(Math.abs(bounds.min.z), Math.abs(bounds.max.z)) * 2).toBeLessThanOrEqual(definition.size[1]);
+      expect(bounds.max.y).toBeLessThanOrEqual(definition.size[2]);
+    } finally {
+      model.dispose();
+    }
+  }
+});
+
+it("includes date_palm low fronds in BV's top drawing", () => {
+  const model = createLandscapeTree("date_palm", "low");
+  try {
+    const crown = model.pickables[1];
+    const drawing = meshProjection({ ...model, pickables: [crown] }, "top");
+    expect(drawing.match(/<path /g)?.length ?? 0).toBeGreaterThan(crown.geometry.getAttribute("position").count / 6);
+  } finally {
+    model.dispose();
+  }
+});
 
 it.each(["norway_spruce", "silver_birch"] as const)(
   "retains the %s envelope and releases all four tiers' owned resources",

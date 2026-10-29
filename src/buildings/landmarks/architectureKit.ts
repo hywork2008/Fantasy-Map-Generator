@@ -7,7 +7,7 @@ export interface LandmarkModel {
   id: string;
   task: string;
   name: string;
-  style: "Gothic" | "Romanesque";
+  style: "Gothic" | "Romanesque" | "Imaginary";
   state: string;
   /** Conservative display envelope, not a surveyed footprint. X is west to east. */
   size: readonly [number, number, number];
@@ -16,6 +16,21 @@ export interface LandmarkModel {
   sources: readonly { title: string; url: string }[];
   /** Optional detailed exterior; the catalogue entry itself remains the default low-resolution model. */
   highDetail?: LandmarkModel;
+  /** Optional ultra exterior, independently selectable in BV. */
+  ultraDetail?: LandmarkModel;
+  /** Local seeded terrain controls; never mutate FMG's world-generation state. */
+  terrainGeneration?: {
+    seed: string;
+    surface: "terrain" | "flat";
+    regenerate(): void;
+  };
+  towerGeneration?: {
+    seed: string;
+    overhang: number;
+    regenerate(): void;
+  };
+  /** Hide the ground disk for airborne studies. */
+  floating?: boolean;
   create(): CityStructureMeshes;
   author?: Author;
 }

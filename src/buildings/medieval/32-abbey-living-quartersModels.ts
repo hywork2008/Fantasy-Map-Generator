@@ -1,3 +1,5 @@
+import { createMonastery, monasteryPreviewPlan } from "../monasteries/friary";
+import { MONASTERY_VARIANTS } from "../siteVariants";
 import { type MedievalModel, ModelKit } from "./modelKit";
 
 export function cloister(k: ModelKit, size = 10) {
@@ -19,6 +21,19 @@ export function cloister(k: ModelKit, size = 10) {
   for (const x of [-1, 1]) for (const z of [-1, 1]) k.box("herb-bed", [x * 1.8, 0.15, z * 1.8], [2, 0.3, 2], "earth");
 }
 export const models: MedievalModel[] = [
+  {
+    author: "Codex GPT-6.1 Sol",
+    id: "abbey",
+    name: "Abbey church, cloister and domestic ranges",
+    task: 32,
+    size: [105, 95, 22],
+    note: "CE-fitted abbey with nave, choir, apse, transepts, stone crossing tower, domestic ranges, open cloister, garden, orchard, well and precinct entrance. BV and CE share the same assembly.",
+    variants: MONASTERY_VARIANTS.filter(variant => variant.family === "monastery.abbey").map(variant => ({
+      ...variant,
+      label: "CE-fitted abbey"
+    })),
+    create: () => createMonastery(monasteryPreviewPlan("abbey"))
+  },
   {
     author: "Codex GPT-6.1 Sol",
     id: "abbey-domestic-range",

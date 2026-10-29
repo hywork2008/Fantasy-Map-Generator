@@ -8,6 +8,7 @@ import {
 import { type TreeSpecies, treeLodProfile } from "../../buildings/landscape/trees";
 import type { Point } from "../../city-editor/types/document";
 import { adoptedTree, markVariant } from "../adoption";
+import { type TreeSeason, treeLookOptions } from "../treeSeason";
 import { type BvDefinition, createBvPrototypeCache } from "./bvInstances";
 
 export const FOREST_TREE_DETAIL_LIMIT = { trees: 16, species: 4, enterPixels: 60, exitPixels: 48 } as const;
@@ -22,7 +23,8 @@ export interface ForestTreeSite {
 }
 type Lease = NonNullable<ReturnType<ReturnType<typeof createBvPrototypeCache>["acquire"]>>;
 interface Model {
-  species: TreeSpecies;
+  /** Species and look: the prototype a bounded slot holds. */
+  species: string;
   lease: Lease;
   triangles: number;
   meshes: [THREE.InstancedMesh, THREE.InstancedMesh];
@@ -33,8 +35,14 @@ interface Budget {
   shadowTriangles: number;
 }
 
-/** Detailed BV silhouettes replace the same stable forest candidates, never add a second tree. */
-export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number) {
+/**
+ * Detailed BV silhouettes replace the same stable forest candidates, never add a second tree.
+ * A season draws each species in its look of the month; one look is one prototype.
+ */
+export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number, initialSeason?: TreeSeason) {
+  let season = initialSeason;
+  /** Prototype identity of a species this month: the bounded slots count prototypes, not species. */
+  const lookKey = (species: TreeSpecies) => species + treeLookOptions(season?.look(species)).suffix;
   const group = new THREE.Group();
   group.name = "forest-bv-trees";
   parent.add(group);
@@ -56,15 +64,21 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
   };
   const getModel = (species: TreeSpecies, quality: TreeQuality): Model | undefined => {
     const variant = adoptedTree(species, quality);
-    const key = variant.id;
+    const look = treeLookOptions(season?.look(species));
+    const key = variant.id + look.suffix;
     const hit = models.get(key);
     if (hit) {
       models.delete(key);
       models.set(key, hit);
       return hit;
     }
-    // The variant id names the adopted author, so a changed adoption never reuses a cached prototype.
-    const definition: BvDefinition = { id: `forest-tree:${variant.id}`, cacheKey: variant.id, create: variant.create };
+    // The variant id names the adopted author, so a changed adoption never reuses a cached prototype;
+    // the look suffix keeps each month's appearance apart (§8.3).
+    const definition: BvDefinition = {
+      id: `forest-tree:${key}`,
+      cacheKey: key,
+      create: () => variant.create(look.options)
+    };
     const lease = cache.acquire(definition);
     if (!lease) return;
     const geometry = lease.geometry,
@@ -94,15 +108,25 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
       m.userData.ceForest = true;
       m.userData.forestSpecies = species;
       m.userData.treeQuality = quality;
+      m.userData.treeAppearance = look.options?.appearance;
       markVariant(m, variant.id);
       group.add(m);
       return m;
     };
-    const model: Model = { species, lease, triangles, meshes: [mesh(true), mesh(false)] };
+    const model: Model = { species: lookKey(species), lease, triangles, meshes: [mesh(true), mesh(false)] };
     models.set(key, model);
     return model;
   };
   return {
+    /** A new month: every cached look is released and redrawn on demand. Placement never changes. */
+    setSeason(next: TreeSeason | undefined) {
+      if (next?.key === season?.key) return false;
+      season = next;
+      this.reset();
+      for (const [key, model] of models) freeModel(key, model);
+      selected.clear();
+      return true;
+    },
     reset() {
       for (const saved of hidden) {
         saved.mesh.setMatrixAt(saved.index, saved.matrix);
@@ -198,7 +222,7 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
         );
       const next = new Map<string, TreeQuality>(),
         usedSpecies = new Set<TreeSpecies>(),
-        boundedSpecies = new Set<TreeSpecies>(),
+        boundedSpecies = new Set<string>(),
         usedModels = new Set<Model>(),
         shadows: string[] = [];
       // Resolve each adopted species/tier once per frame, while allowing adoption changes next frame.
@@ -217,7 +241,8 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
         if (!preserveQuality) {
           const limit = treeLimit ?? (profile ? 256 : FOREST_TREE_DETAIL_LIMIT.trees);
           if ((profile ? tieredTrees : untieredTrees) >= limit) continue;
-          if (!boundedSpecies.has(site.species) && boundedSpecies.size >= FOREST_TREE_DETAIL_LIMIT.species) continue;
+          const prototype = lookKey(site.species);
+          if (!boundedSpecies.has(prototype) && boundedSpecies.size >= FOREST_TREE_DETAIL_LIMIT.species) continue;
         }
         let chosen = quality;
         let model: Model | undefined;
@@ -248,7 +273,7 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
         usedSpecies.add(site.species);
         usedModels.add(model);
         if (!preserveQuality) {
-          boundedSpecies.add(site.species);
+          boundedSpecies.add(lookKey(site.species));
           boundedTriangles += model.triangles;
           if (profile) tieredTrees++;
           else untieredTrees++;

@@ -1,6 +1,7 @@
 import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
+import { getCellClimateNormals } from "../generators/cellClimateNormals";
 import { getCellWindRose } from "../generators/cellWindClimate";
 import { getConstrainedNetworkConnections } from "../generators/constrainedLandNetwork";
 import { Rivers } from "../generators/river-generator";
@@ -406,6 +407,11 @@ export function getBurgSiteDescriptor(
     if (morphology && !simulationContext.burgs[burgId]?.urbanMorphology) initializeBurgMorphology(burgId, morphology);
     return {
       version: DESCRIPTOR_VERSION,
+      ...(Number.isInteger(simulationContext.currentMonth) &&
+      simulationContext.currentMonth >= 1 &&
+      simulationContext.currentMonth <= 12
+        ? { date: { year: simulationContext.currentYear, month: simulationContext.currentMonth } }
+        : {}),
       farmlandAreaHectares: burgFarmlandAreaHectares(worldContext, burg),
       ...(morphology ? { urbanMorphology: structuredClone(morphology) } : {}),
       regionalContext,
@@ -453,8 +459,10 @@ export function getBurgSiteDescriptor(
         const bColor = bData?.color?.[bId] ?? stdDef?.color ?? "#d5cfbf";
         const windRose = getCellWindRose(worldContext, pack.cells.g[burg.cell]);
         const prevailingWindDeg = windRose?.prevailingTowardDeg ?? prevailingWindDegAt(burg.y);
+        const normals = getCellClimateNormals(worldContext, pack.cells.g[burg.cell], simulationContext.currentYear);
         return {
           temperatureC: worldContext.grid.cells.temp[pack.cells.g[burg.cell]],
+          ...(normals ? { monthlyMeanTemperatureC: Array.from(normals.monthlyMeanTemperatureC, t => rn(t, 1)) } : {}),
           biomeId: bId,
           biomeKey: bKey,
           biomeName: bName,

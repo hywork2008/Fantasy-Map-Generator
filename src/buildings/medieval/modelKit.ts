@@ -14,6 +14,12 @@ export interface MedievalModel {
   note: string;
   /** Quality levels, possibly several per level by different authors; CE adopts one per level. */
   variants?: readonly (ModelVariant & { label: string })[];
+  /** Seasonal looks BV can preview on a quality variant; the default is the static model. */
+  seasons?: {
+    default: string;
+    options: readonly { id: string; label: string }[];
+    create(variantId: string, season: string): CityStructureMeshes;
+  };
   create(): CityStructureMeshes;
 }
 export type Position = readonly [number, number, number];

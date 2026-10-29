@@ -110,9 +110,15 @@ describe("shared regional SVG appearance", () => {
     expect(colors(render(automatic, "detailed", selection, { modelQuality: "standard", fmgLinked: false }))).toEqual(
       baseline
     );
-    expect(colors(render(automatic, "detailed", selection, { modelQuality: "high", fmgLinked: true }))).toEqual(
-      baseline
+    const linked = standaloneHousingAppearance(automatic, fabric, "high", true);
+    const linkedSvg = render(automatic, "detailed", selection, { modelQuality: "high", fmgLinked: true });
+    const linkedPaths = new Map(
+      [...linkedSvg.querySelectorAll<SVGElement>(".ce-building")].map(p => [p.getAttribute("d"), p])
     );
+    for (const lot of linked.buildings.filter(lot => !lot.landmark && lot.appearance))
+      expect(linkedPaths.get(polygon(lot.polygon))?.style.getPropertyValue("--ce-roof-color")).toBe(
+        buildingAppearanceColors(lot.appearance)!.roof
+      );
     expect(JSON.stringify(automatic)).toBe(before);
   });
 

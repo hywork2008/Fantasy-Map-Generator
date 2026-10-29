@@ -1,22 +1,21 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { FRIARY_VARIANTS } from "../../buildings/siteVariants";
+import { MONASTERY_VARIANTS } from "../../buildings/siteVariants";
 import type { Monastery } from "../../city-editor/generators/monasteryLayout";
 import type { CityTerrain } from "../../city-editor/generators/terrainElevation";
 import { adopt, markVariant } from "../adoption";
 import type { CityStructureMeshes } from "./structureMeshes";
 
 /** Merge solid-color BV parts into one vertex-colored city mesh, retaining the fitted CE geometry. */
-export function createTownFriaries(
+export function createTownMonasteries(
   monasteries: readonly Monastery[],
   terrain?: Pick<CityTerrain, "foundationAt" | "heightAt">
 ): CityStructureMeshes {
   const group = new THREE.Group();
-  group.name = "ce-friaries";
+  group.name = "ce-monasteries";
   const parts: THREE.BufferGeometry[] = [];
-  const friary = adopt(FRIARY_VARIANTS, "monastery.friary", "default");
   for (const monastery of monasteries) {
-    if (monastery.kind !== "friary") continue;
+    const friary = adopt(MONASTERY_VARIANTS, `monastery.${monastery.kind}`, "default");
     markVariant(group, friary.id);
     const elevation = terrain?.foundationAt(monastery.precinct) ?? 0;
     const low = terrain ? Math.min(...monastery.precinct.map(terrain.heightAt)) : elevation;
@@ -44,7 +43,7 @@ export function createTownFriaries(
     for (const part of parts) part.dispose();
     const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.name = "friary-assembly";
+    mesh.name = "monastery-assembly";
     group.add(mesh);
     pickables.push(mesh);
   }

@@ -20,6 +20,12 @@ export interface BurgSiteEconomy {
    * Absent: windmill and watermill counts stay on the population bands.
    */
   mills?: { wind: number; water: number };
+  /**
+   * Monthly harvest weights (12, January first) of each perennial crop under the burg's climate,
+   * keyed by the perennial crop catalogue. City Editor times orchard fruit from them
+   * (docs/plan/bv-tree-seasonal-appearance.md §8.1). Absent on an older profile.
+   */
+  perennialHarvest?: Record<string, number[]>;
   /** Port warehouses. Absent inland and on an older profile: no quay warehouses are drawn. */
   portWarehouse?: SitePortWarehouse;
 }

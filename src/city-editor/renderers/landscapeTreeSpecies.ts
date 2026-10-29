@@ -7,7 +7,8 @@ import type { CityDocument, Point } from "../types/document";
 export function landscapeTreeSpecies(
   preferred: TreeSpecies,
   document: CityDocument | undefined,
-  point: Point
+  point: Point,
+  context: "planting" | "woodland" = "planting"
 ): TreeSpecies | undefined {
   if (!document) return preferred;
   const zone = landscapeTreeBiome(document);
@@ -52,7 +53,30 @@ export function landscapeTreeSpecies(
       if (temperature === undefined || temperature > 3) return "western_red_cedar";
       break;
     case "temperate":
-      if (temperature === undefined || temperature > 3) return preferred;
+      if (temperature === undefined || temperature > 3) {
+        const key = document.biome?.key?.toLowerCase();
+        if (
+          context === "woodland" &&
+          preferred === "garden_parkland" &&
+          (key === "temperatedeciduousforest" || key === "centraleuropeangreatforest")
+        ) {
+          // A deterministic visual mixture, not a calibrated natural species distribution.
+          if (growthRandom(`${seed}:european-tree:${point[0]}:${point[1]}`) < 0.5) return "european_beech";
+          if (growthRandom(`${seed}:oak-tree:${point[0]}:${point[1]}`) < 0.5) return "pedunculate_oak";
+          if (
+            key === "centraleuropeangreatforest" &&
+            growthRandom(`${seed}:hornbeam-tree:${point[0]}:${point[1]}`) < 0.5
+          )
+            return "european_hornbeam";
+          if (
+            key === "centraleuropeangreatforest" &&
+            growthRandom(`${seed}:scots-pine-tree:${point[0]}:${point[1]}`) < 0.5
+          )
+            return "scots_pine";
+          return preferred;
+        }
+        return preferred;
+      }
       break;
   }
   // Retain the evergreen role of funerary planting in colder woodland.

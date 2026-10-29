@@ -1,0 +1,1296 @@
+{
+  "date": "2026-10-30",
+  "addedSpecies": 8,
+  "addedTiers": 32,
+  "evaluatedExistingSpecies": 2,
+  "evaluatedExistingTiers": 8,
+  "registeredSpecies": 32,
+  "registeredTiers": 128,
+  "scope": "Current BV registrations and adoption versus saved single-tree GPU measurements. Geometry is not regenerated; no combined scene, orchard placement, historical suitability, phenology or yield is validated.",
+  "catalog": [
+    {
+      "task": "F01",
+      "species": "domestic_apple",
+      "name": "Domestic apple · Malus domestica",
+      "added": true,
+      "factory": "src/buildings/landscape/domesticApple.ts",
+      "size": [
+        8.1,
+        7.6,
+        6.2
+      ],
+      "lod": {
+        "selection": "pixels",
+        "budget": "bounded",
+        "heightMeters": 6.1
+      },
+      "source": "docs/analytics/bv-apple-tree-lod-20261030.json",
+      "sourceSha256": "4fbd5eb948fafcb4d90efae17f698b61b6c65eb829ea40ab081cb59e31f52c54",
+      "tiers": [
+        {
+          "quality": "low",
+          "variant": "tree.domestic-apple@low#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 309,
+          "bufferBytes": 33372,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -3.98746395111084,
+              -0.3499999940395355,
+              -3.3615951538085938
+            ],
+            "max": [
+              3.743546962738037,
+              5.788674354553223,
+              3.6757681369781494
+            ]
+          },
+          "basedOn": [
+            "tree.domestic-apple@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "medium",
+          "variant": "tree.domestic-apple@medium#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 1568,
+          "bufferBytes": 141120,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -3.631103038787842,
+              -0.3499999940395355,
+              -3.561619758605957
+            ],
+            "max": [
+              3.6829307079315186,
+              6.113584995269775,
+              3.4536874294281006
+            ]
+          },
+          "basedOn": [
+            "tree.domestic-apple@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "high",
+          "variant": "tree.domestic-apple@high#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 18372,
+          "bufferBytes": 1764144,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -3.6125051975250244,
+              -0.3499999940395355,
+              -3.539841651916504
+            ],
+            "max": [
+              3.651146173477173,
+              6.03609037399292,
+              3.3739094734191895
+            ]
+          },
+          "basedOn": [
+            "tree.domestic-apple@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "ultra",
+          "variant": "tree.domestic-apple@ultra#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 109380,
+          "bufferBytes": 11192688,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -3.6092209815979004,
+              -0.3499999940395355,
+              -3.603700637817383
+            ],
+            "max": [
+              3.620521068572998,
+              6.0578436851501465,
+              3.3240549564361572
+            ]
+          },
+          "basedOn": []
+        }
+      ],
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "memory": {
+        "counts": [
+          11,
+          11,
+          11
+        ],
+        "afterDispose": {
+          "geometries": 0,
+          "textures": 0
+        }
+      }
+    },
+    {
+      "task": "F02",
+      "species": "european_pear",
+      "name": "European pear · Pyrus communis",
+      "added": true,
+      "factory": "src/buildings/landscape/europeanPear.ts",
+      "size": [
+        6.3,
+        6,
+        9
+      ],
+      "lod": {
+        "selection": "pixels",
+        "budget": "bounded",
+        "heightMeters": 8.8
+      },
+      "source": "docs/analytics/bv-pear-tree-lod-20261030.json",
+      "sourceSha256": "116d553468ad117711e33fb2aa0eebf2cbc6441b27bc62db53167dd537fa390e",
+      "tiers": [
+        {
+          "quality": "low",
+          "variant": "tree.european-pear@low#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 392,
+          "bufferBytes": 42336,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -3.1060800552368164,
+              -0.3499999940395355,
+              -2.3816144466400146
+            ],
+            "max": [
+              2.557828664779663,
+              8.616354942321777,
+              2.7565221786499023
+            ]
+          },
+          "basedOn": [
+            "tree.european-pear@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "medium",
+          "variant": "tree.european-pear@medium#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 2443,
+          "bufferBytes": 192564,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -2.988124132156372,
+              -0.3499999940395355,
+              -2.44732666015625
+            ],
+            "max": [
+              2.634871006011963,
+              8.837788581848145,
+              2.926671028137207
+            ]
+          },
+          "basedOn": [
+            "tree.european-pear@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "high",
+          "variant": "tree.european-pear@high#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 18420,
+          "bufferBytes": 1470960,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -3.0221471786499023,
+              -0.3499999940395355,
+              -2.429917573928833
+            ],
+            "max": [
+              2.559293508529663,
+              8.678078651428223,
+              2.7329225540161133
+            ]
+          },
+          "basedOn": [
+            "tree.european-pear@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "ultra",
+          "variant": "tree.european-pear@ultra#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 75444,
+          "bufferBytes": 6932304,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -3.0056746006011963,
+              -0.3499999940395355,
+              -2.3967273235321045
+            ],
+            "max": [
+              2.602402448654175,
+              8.715575218200684,
+              2.7767133712768555
+            ]
+          },
+          "basedOn": []
+        }
+      ],
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "memory": {
+        "counts": [
+          11,
+          11,
+          11
+        ],
+        "afterDispose": {
+          "geometries": 0,
+          "textures": 0
+        }
+      }
+    },
+    {
+      "task": "F03",
+      "species": "european_plum",
+      "name": "European plum · Prunus domestica",
+      "added": true,
+      "factory": "src/buildings/landscape/europeanPlum.ts",
+      "size": [
+        6,
+        6,
+        6.2
+      ],
+      "lod": {
+        "selection": "pixels",
+        "budget": "bounded",
+        "heightMeters": 6
+      },
+      "source": "docs/analytics/bv-plum-tree-lod-20261030.json",
+      "sourceSha256": "f0428b4ceaa10581155b62eeee7899200e24b85c8d08add60b7ac897d94f8b0f",
+      "tiers": [
+        {
+          "quality": "low",
+          "variant": "tree.european-plum@low#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 291,
+          "bufferBytes": 31428,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -2.8393120765686035,
+              -0.3499999940395355,
+              -2.2731425762176514
+            ],
+            "max": [
+              2.3601584434509277,
+              5.681345462799072,
+              2.593548059463501
+            ]
+          },
+          "basedOn": [
+            "tree.european-plum@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "medium",
+          "variant": "tree.european-plum@medium#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 2144,
+          "bufferBytes": 152352,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -2.897566795349121,
+              -0.3499999940395355,
+              -2.4775962829589844
+            ],
+            "max": [
+              2.408876419067383,
+              5.938878536224365,
+              2.7851076126098633
+            ]
+          },
+          "basedOn": [
+            "tree.european-plum@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "high",
+          "variant": "tree.european-plum@high#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 20452,
+          "bufferBytes": 1737456,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -2.8247787952423096,
+              -0.3499999940395355,
+              -2.333040475845337
+            ],
+            "max": [
+              2.3943710327148438,
+              5.855215072631836,
+              2.770070791244507
+            ]
+          },
+          "basedOn": [
+            "tree.european-plum@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "ultra",
+          "variant": "tree.european-plum@ultra#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 72932,
+          "bufferBytes": 6684336,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -2.8065614700317383,
+              -0.3499999940395355,
+              -2.328629493713379
+            ],
+            "max": [
+              2.373563766479492,
+              5.919582366943359,
+              2.7755086421966553
+            ]
+          },
+          "basedOn": []
+        }
+      ],
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "memory": {
+        "counts": [
+          11,
+          11,
+          11
+        ],
+        "afterDispose": {
+          "geometries": 0,
+          "textures": 0
+        }
+      }
+    },
+    {
+      "task": "F04",
+      "species": "common_fig",
+      "name": "Common fig · Ficus carica",
+      "added": true,
+      "factory": "src/buildings/landscape/commonFig.ts",
+      "size": [
+        9.5,
+        9.3,
+        5
+      ],
+      "lod": {
+        "selection": "pixels",
+        "budget": "bounded",
+        "heightMeters": 4.9
+      },
+      "source": "docs/analytics/bv-fig-tree-lod-20261030.json",
+      "sourceSha256": "043d737cd414917a35fd41f1b573d8df8b9da7cff73119a66acc4a60f537b057",
+      "tiers": [
+        {
+          "quality": "low",
+          "variant": "tree.common-fig@low#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 272,
+          "bufferBytes": 29376,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -4.7134904861450195,
+              -0.3499999940395355,
+              -4.15220832824707
+            ],
+            "max": [
+              3.9536256790161133,
+              4.632399559020996,
+              4.610393047332764
+            ]
+          },
+          "basedOn": [
+            "tree.common-fig@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "medium",
+          "variant": "tree.common-fig@medium#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 2152,
+          "bufferBytes": 143316,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -4.155948162078857,
+              -0.3499999940395355,
+              -3.775930881500244
+            ],
+            "max": [
+              3.8051106929779053,
+              4.795957088470459,
+              4.44068717956543
+            ]
+          },
+          "basedOn": [
+            "tree.common-fig@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "high",
+          "variant": "tree.common-fig@high#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 24760,
+          "bufferBytes": 2261520,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -4.433608531951904,
+              -0.3499999940395355,
+              -4.007575511932373
+            ],
+            "max": [
+              4.032225131988525,
+              4.912527084350586,
+              4.495285511016846
+            ]
+          },
+          "basedOn": [
+            "tree.common-fig@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "ultra",
+          "variant": "tree.common-fig@ultra#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 86500,
+          "bufferBytes": 8000640,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -4.20105504989624,
+              -0.3499999940395355,
+              -3.7453179359436035
+            ],
+            "max": [
+              3.9076921939849854,
+              4.760239124298096,
+              4.27419900894165
+            ]
+          },
+          "basedOn": []
+        }
+      ],
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "memory": {
+        "counts": [
+          11,
+          11,
+          11
+        ],
+        "afterDispose": {
+          "geometries": 0,
+          "textures": 0
+        }
+      }
+    },
+    {
+      "task": "F05",
+      "species": "lemon",
+      "name": "Lemon · Citrus × limon",
+      "added": true,
+      "factory": "src/buildings/landscape/lemon.ts",
+      "size": [
+        4.1,
+        4.1,
+        3.9
+      ],
+      "lod": {
+        "selection": "pixels",
+        "budget": "bounded",
+        "heightMeters": 3.8
+      },
+      "source": "docs/analytics/bv-lemon-tree-lod-20261030.json",
+      "sourceSha256": "f76e56240507f3d75edf3705cbbfe5d952bc8bba5fa3ccf8db18a5b18a756e62",
+      "tiers": [
+        {
+          "quality": "low",
+          "variant": "tree.lemon@low#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 259,
+          "bufferBytes": 27972,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -1.883416771888733,
+              -0.3499999940395355,
+              -1.859269618988037
+            ],
+            "max": [
+              1.7834322452545166,
+              3.4981985092163086,
+              1.8963449001312256
+            ]
+          },
+          "basedOn": [
+            "tree.lemon@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "medium",
+          "variant": "tree.lemon@medium#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 1095,
+          "bufferBytes": 90540,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -1.9115066528320312,
+              -0.3499999940395355,
+              -1.9001662731170654
+            ],
+            "max": [
+              2.0077922344207764,
+              3.785564661026001,
+              1.8889398574829102
+            ]
+          },
+          "basedOn": [
+            "tree.lemon@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "high",
+          "variant": "tree.lemon@high#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 14812,
+          "bufferBytes": 1434720,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -1.9261959791183472,
+              -0.3499999940395355,
+              -1.9131730794906616
+            ],
+            "max": [
+              1.9769972562789917,
+              3.6157100200653076,
+              1.9916744232177734
+            ]
+          },
+          "basedOn": [
+            "tree.lemon@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "ultra",
+          "variant": "tree.lemon@ultra#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 83132,
+          "bufferBytes": 8505504,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -1.929011344909668,
+              -0.3499999940395355,
+              -1.9158236980438232
+            ],
+            "max": [
+              2.004920721054077,
+              3.61965274810791,
+              1.953427791595459
+            ]
+          },
+          "basedOn": []
+        }
+      ],
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "memory": {
+        "counts": [
+          11,
+          11,
+          11
+        ],
+        "afterDispose": {
+          "geometries": 0,
+          "textures": 0
+        }
+      }
+    },
+    {
+      "task": "F06",
+      "species": "sweet_chestnut",
+      "name": "Sweet chestnut · Castanea sativa",
+      "added": true,
+      "factory": "src/buildings/landscape/sweetChestnut.ts",
+      "size": [
+        11,
+        11,
+        9
+      ],
+      "lod": {
+        "selection": "pixels",
+        "budget": "bounded",
+        "heightMeters": 8.8
+      },
+      "source": "docs/analytics/bv-chestnut-tree-lod-20261030.json",
+      "sourceSha256": "8434743c2c6cf2dd4b84ae2f483344762f9e720f5eef36fcb9126f90470214fe",
+      "tiers": [
+        {
+          "quality": "low",
+          "variant": "tree.sweet-chestnut@low#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 310,
+          "bufferBytes": 33480,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -4.540868759155273,
+              -0.3499999940395355,
+              -3.78554105758667
+            ],
+            "max": [
+              4.835806369781494,
+              8.447114944458008,
+              4.1167449951171875
+            ]
+          },
+          "basedOn": [
+            "tree.sweet-chestnut@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "medium",
+          "variant": "tree.sweet-chestnut@medium#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 1984,
+          "bufferBytes": 214272,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -4.477650165557861,
+              -0.3499999940395355,
+              -3.983654499053955
+            ],
+            "max": [
+              4.3201904296875,
+              8.824631690979004,
+              4.415933609008789
+            ]
+          },
+          "basedOn": [
+            "tree.sweet-chestnut@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "high",
+          "variant": "tree.sweet-chestnut@high#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 24812,
+          "bufferBytes": 2679696,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -4.394008159637451,
+              -0.3499999940395355,
+              -3.9283173084259033
+            ],
+            "max": [
+              4.616348743438721,
+              8.708900451660156,
+              4.524890899658203
+            ]
+          },
+          "basedOn": [
+            "tree.sweet-chestnut@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "ultra",
+          "variant": "tree.sweet-chestnut@ultra#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 109340,
+          "bufferBytes": 11808720,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -4.382169723510742,
+              -0.3499999940395355,
+              -3.9103574752807617
+            ],
+            "max": [
+              4.510687351226807,
+              8.688200950622559,
+              4.3995208740234375
+            ]
+          },
+          "basedOn": []
+        }
+      ],
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "memory": {
+        "counts": [
+          11,
+          11,
+          11
+        ],
+        "afterDispose": {
+          "geometries": 0,
+          "textures": 0
+        }
+      }
+    },
+    {
+      "task": "F07",
+      "species": "cacao",
+      "name": "Cacao · Theobroma cacao",
+      "added": true,
+      "factory": "src/buildings/landscape/cacao.ts",
+      "size": [
+        7,
+        7,
+        4.8
+      ],
+      "lod": {
+        "selection": "pixels",
+        "budget": "bounded",
+        "heightMeters": 4.5
+      },
+      "source": "docs/analytics/bv-cacao-tree-lod-20261030.json",
+      "sourceSha256": "8d464734733dab9476e8a1ae941573b2b0848d0e5b9268fedaa4e4d052d7341a",
+      "tiers": [
+        {
+          "quality": "low",
+          "variant": "tree.cacao@low#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 264,
+          "bufferBytes": 28512,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -3.0530247688293457,
+              -0.3499999940395355,
+              -2.804490089416504
+            ],
+            "max": [
+              2.7310659885406494,
+              4.026992321014404,
+              2.7490689754486084
+            ]
+          },
+          "basedOn": [
+            "tree.cacao@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "medium",
+          "variant": "tree.cacao@medium#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 1482,
+          "bufferBytes": 126936,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -2.8653550148010254,
+              -0.3499999940395355,
+              -2.6741786003112793
+            ],
+            "max": [
+              2.7004764080047607,
+              4.1297688484191895,
+              2.7950639724731445
+            ]
+          },
+          "basedOn": [
+            "tree.cacao@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "high",
+          "variant": "tree.cacao@high#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 16388,
+          "bufferBytes": 1474992,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -2.921011209487915,
+              -0.3499999940395355,
+              -2.642118453979492
+            ],
+            "max": [
+              2.8490989208221436,
+              4.215435028076172,
+              3.0455758571624756
+            ]
+          },
+          "basedOn": [
+            "tree.cacao@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "ultra",
+          "variant": "tree.cacao@ultra#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 65828,
+          "bufferBytes": 5980272,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -2.854440450668335,
+              -0.3499999940395355,
+              -2.615609645843506
+            ],
+            "max": [
+              2.805281639099121,
+              4.139070987701416,
+              2.9459829330444336
+            ]
+          },
+          "basedOn": []
+        }
+      ],
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "memory": {
+        "counts": [
+          11,
+          11,
+          11
+        ],
+        "afterDispose": {
+          "geometries": 0,
+          "textures": 0
+        }
+      }
+    },
+    {
+      "task": "F08",
+      "species": "arabica_coffee",
+      "name": "Arabica coffee · Coffea arabica",
+      "added": true,
+      "factory": "src/buildings/landscape/arabicaCoffee.ts",
+      "size": [
+        2.8,
+        2.8,
+        2.5
+      ],
+      "lod": {
+        "selection": "pixels",
+        "budget": "bounded",
+        "heightMeters": 2.4
+      },
+      "source": "docs/analytics/bv-coffee-tree-lod-20261030.json",
+      "sourceSha256": "5a45963eec1a24048b3ef5582188c9a425f05084448fe9b269e28cd2ae9eb844",
+      "tiers": [
+        {
+          "quality": "low",
+          "variant": "tree.arabica-coffee@low#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 283,
+          "bufferBytes": 30564,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -0.9222657680511475,
+              -0.3499999940395355,
+              -0.8400580286979675
+            ],
+            "max": [
+              0.9222795963287354,
+              2.4000000953674316,
+              0.8391382694244385
+            ]
+          },
+          "basedOn": [
+            "tree.arabica-coffee@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "medium",
+          "variant": "tree.arabica-coffee@medium#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 2318,
+          "bufferBytes": 231024,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -1.0356953144073486,
+              -0.3499999940395355,
+              -0.8741504549980164
+            ],
+            "max": [
+              0.9623099565505981,
+              2.411738634109497,
+              0.8773132562637329
+            ]
+          },
+          "basedOn": [
+            "tree.arabica-coffee@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "high",
+          "variant": "tree.arabica-coffee@high#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 23364,
+          "bufferBytes": 1918512,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -0.9723337888717651,
+              -0.3499999940395355,
+              -0.8864957094192505
+            ],
+            "max": [
+              0.9213361144065857,
+              2.4000000953674316,
+              0.9040544033050537
+            ]
+          },
+          "basedOn": [
+            "tree.arabica-coffee@ultra#codex-gpt-6.1-sol"
+          ]
+        },
+        {
+          "quality": "ultra",
+          "variant": "tree.arabica-coffee@ultra#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "triangles": 66132,
+          "bufferBytes": 4022496,
+          "meshes": 3,
+          "materials": 3,
+          "bounds": {
+            "min": [
+              -0.9398379921913147,
+              -0.3499999940395355,
+              -0.8919167518615723
+            ],
+            "max": [
+              0.9296330213546753,
+              2.4000000953674316,
+              0.880483090877533
+            ]
+          },
+          "basedOn": []
+        }
+      ],
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "memory": {
+        "counts": [
+          11,
+          11,
+          11
+        ],
+        "afterDispose": {
+          "geometries": 0,
+          "textures": 0
+        }
+      }
+    }
+  ],
+  "reuse": [
+    {
+      "task": "E01",
+      "species": "olive",
+      "name": "Olive · Olea europaea",
+      "added": false,
+      "factory": "src/buildings/landscape/mediterraneanMontaneTrees.ts",
+      "size": [
+        10.1,
+        9,
+        7
+      ],
+      "lod": {
+        "selection": "distance",
+        "budget": "quality-first",
+        "heightMeters": 6.2
+      },
+      "source": "docs/analytics/bv-olive-orchard-reuse-20261030.json",
+      "sourceSha256": "4fbe9b6b00f7556cbe72ddd5b4f09feebf2c4966010e506cf5000dde6205b42b",
+      "tiers": [
+        {
+          "quality": "low",
+          "variant": "tree.olive@low#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.olive@high#codex-gpt-6.1-sol"
+          ],
+          "fruitMarkers": 0,
+          "triangles": 253,
+          "bufferBytes": 27324,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -4.170433521270752,
+              -0.3499999940395355,
+              -3.3219757080078125
+            ],
+            "max": [
+              4.616690635681152,
+              5.781377792358398,
+              3.975898504257202
+            ]
+          }
+        },
+        {
+          "quality": "medium",
+          "variant": "tree.olive@medium#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.olive@high#codex-gpt-6.1-sol"
+          ],
+          "fruitMarkers": 0,
+          "triangles": 1337,
+          "bufferBytes": 144396,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -4.534233093261719,
+              -0.3499999940395355,
+              -3.655388116836548
+            ],
+            "max": [
+              4.97845458984375,
+              6.0359086990356445,
+              4.422295570373535
+            ]
+          }
+        },
+        {
+          "quality": "high",
+          "variant": "tree.olive@high#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.olive@ultra#claude-opus-5.5"
+          ],
+          "fruitMarkers": 135,
+          "triangles": 9149,
+          "bufferBytes": 988092,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -4.686888217926025,
+              -0.3499999940395355,
+              -3.904484272003174
+            ],
+            "max": [
+              5.017587184906006,
+              6.085249423980713,
+              4.302340030670166
+            ]
+          }
+        },
+        {
+          "quality": "ultra",
+          "variant": "tree.olive@ultra#claude-opus-5.5",
+          "author": "Claude Opus 5.5",
+          "basedOn": [],
+          "fruitMarkers": 135,
+          "triangles": 25091,
+          "bufferBytes": 2709828,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -4.686888217926025,
+              -0.3499999940395355,
+              -3.9306089878082275
+            ],
+            "max": [
+              4.992724418640137,
+              6.115581512451172,
+              4.4788923263549805
+            ]
+          }
+        }
+      ],
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "memory": {
+        "counts": [
+          8,
+          8,
+          8
+        ],
+        "afterDispose": {
+          "geometries": 0,
+          "textures": 0
+        }
+      }
+    },
+    {
+      "task": "E02",
+      "species": "date_palm",
+      "name": "Date palm · Phoenix dactylifera",
+      "added": false,
+      "factory": "src/buildings/landscape/aridTrees.ts",
+      "size": [
+        11.6,
+        10,
+        12
+      ],
+      "lod": {
+        "selection": "distance",
+        "budget": "quality-first",
+        "heightMeters": 12
+      },
+      "source": "docs/analytics/bv-date-palm-orchard-reuse-20261030.json",
+      "sourceSha256": "a0cce143bf3d7d10b221f225b5e1e55e1e6cf9f23e8650d52a6f8fd64061a0b7",
+      "tiers": [
+        {
+          "quality": "low",
+          "variant": "tree.date-palm@low#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.date-palm@high#codex-gpt-6.1-sol"
+          ],
+          "fruitMarkers": 0,
+          "triangles": 452,
+          "bufferBytes": 48816,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -3.4454736709594727,
+              -0.3499999940395355,
+              -4.115481376647949
+            ],
+            "max": [
+              5.786219596862793,
+              11.797164916992188,
+              4.6376051902771
+            ]
+          }
+        },
+        {
+          "quality": "medium",
+          "variant": "tree.date-palm@medium#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.date-palm@high#codex-gpt-6.1-sol"
+          ],
+          "fruitMarkers": 0,
+          "triangles": 2454,
+          "bufferBytes": 265032,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -3.0768282413482666,
+              -0.3499999940395355,
+              -3.8115463256835938
+            ],
+            "max": [
+              5.308019161224365,
+              11.794325828552246,
+              4.288698673248291
+            ]
+          }
+        },
+        {
+          "quality": "high",
+          "variant": "tree.date-palm@high#codex-gpt-6.1-sol",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.date-palm@ultra#claude-opus-5.5"
+          ],
+          "fruitMarkers": 96,
+          "triangles": 4224,
+          "bufferBytes": 456192,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -3.4183218479156494,
+              -0.3499999940395355,
+              -4.103763103485107
+            ],
+            "max": [
+              5.785796642303467,
+              11.825071334838867,
+              4.591574192047119
+            ]
+          }
+        },
+        {
+          "quality": "ultra",
+          "variant": "tree.date-palm@ultra#claude-opus-5.5",
+          "author": "Claude Opus 5.5",
+          "basedOn": [],
+          "fruitMarkers": 96,
+          "triangles": 6816,
+          "bufferBytes": 736128,
+          "meshes": 2,
+          "materials": 2,
+          "bounds": {
+            "min": [
+              -3.4183218479156494,
+              -0.3499999940395355,
+              -4.103763103485107
+            ],
+            "max": [
+              5.785796642303467,
+              11.859519004821777,
+              4.591574192047119
+            ]
+          }
+        }
+      ],
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "memory": {
+        "counts": [
+          8,
+          8,
+          8
+        ],
+        "afterDispose": {
+          "geometries": 0,
+          "textures": 0
+        }
+      },
+      "nodeMediumMeasurement": {
+        "triangles": 2455,
+        "bufferBytes": 265140
+      }
+    }
+  ]
+}

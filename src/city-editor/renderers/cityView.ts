@@ -13,7 +13,7 @@ import { createTownCranes, createTownHarborCargo } from "../../city3d/three/cran
 import { createTownFacilities, type TownFacilities } from "../../city3d/three/facilityMeshes";
 import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMeshes";
 import { createTownForest, type TownForest } from "../../city3d/three/forestMeshes";
-import { createTownFriaries } from "../../city3d/three/friaryMeshes";
+import { createTownMonasteries } from "../../city3d/three/friaryMeshes";
 import { createTownObjects } from "../../city3d/three/objectMeshes";
 import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../city3d/three/pierMeshes";
@@ -31,6 +31,7 @@ import {
   waterStampChanged
 } from "../../city3d/three/waterMeshes";
 import { createTownWells, type TownWells } from "../../city3d/three/wellMeshes";
+import { treeSeason } from "../../city3d/treeSeason";
 import type { EditorMessageKey } from "../../i18n/editorMessages";
 import { editorText } from "../../i18n/editorMessages";
 import type { RoadRibbon } from "../../utils/roadSurface";
@@ -57,6 +58,7 @@ import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
 import { type City3dPerformanceSnapshot, type City3dRenderMetrics, collectSceneMetrics } from "./renderMetrics";
 import { createSceneryControls, readScenerySettings } from "./sceneryControls";
+import { createSeasonControls, type SeasonSettings } from "./seasonControls";
 import { collectShipSites } from "./shipSites";
 import { createSkyBackdrop } from "./skyBackdrop";
 import { standaloneHousingAppearance, standaloneHousingDocument } from "./standaloneHousingAppearance";
@@ -206,10 +208,27 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   const sunSettings = readSunSettings();
   const fogSettings = readFogSettings();
   const scenerySettings = readScenerySettings();
+  // The month only changes how trees look; it is not saved with the city and never undone.
+  const seasonSettings: SeasonSettings = { month: "descriptor" };
+  const siteDescriptor = () => options.getDocument().fabric?.generation?.settings.descriptor;
   if (options.isFmgLinked?.()) scenerySettings.style = "none";
   let sun: THREE.DirectionalLight | null = null;
   let shadowBounds = new THREE.Box3();
+  let refreshSeasonControls = () => {};
   const createLightingPanel = () => {
+    const season = createSeasonControls(
+      seasonSettings,
+      () => {
+        const descriptor = siteDescriptor();
+        return {
+          month: descriptor?.date?.month,
+          climate: (descriptor?.climate.monthlyMeanTemperatureC?.length ?? 0) >= 12
+        };
+      },
+      (target, type, handler) => options.scope.listen(target, type, handler),
+      () => sync()
+    );
+    refreshSeasonControls = season.refresh;
     const panel = createSunControls(
       sunSettings,
       (target, type, handler) => options.scope.listen(target, type, handler),
@@ -230,7 +249,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
         scenerySettings,
         (target, type, handler) => options.scope.listen(target, type, handler),
         () => requestRender()
-      )
+      ),
+      season.panel
     );
     return panel;
   };
@@ -254,6 +274,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let regionalHouses: TownRegionalHouseLod | null = null;
   let simplification: SimplificationPreferences = { urban: "auto", outskirts: "auto" };
   let facilities: TownFacilities | null = null;
+  let facilityStructures: StructureMassing[] = [];
   let bridges: TownBridges | null = null;
   const bvPrototypes = createBvPrototypeCache();
   let openSpaces: ReturnType<typeof createTownOpenSpaces> | null = null;
@@ -272,8 +293,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let forestShadowPending = false;
   let forestShadowTimer: ReturnType<typeof setTimeout> | undefined;
   let lastForestShadowAt = -Infinity;
-  let friaries: CityStructureMeshes | null = null;
-  let friaryStamp: string | null = null;
+  let monasteries: CityStructureMeshes | null = null;
+  let monasteryStamp: string | null = null;
   let openSpaceStamp: string | null = null;
   let ships: CityStructureMeshes | null = null;
   let shipStamp: string | null = null;
@@ -415,6 +436,25 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     outline(positions);
   };
 
+  const rebuildFacilities = (city: CityDocument, fabric: DistrictFabric, quality: ModelQuality) => {
+    if (!scene) return;
+    const next = createTownFacilities(
+      city,
+      fabric,
+      facilityStructures,
+      bvPrototypes,
+      quality,
+      terrain ?? undefined,
+      point => (waterMeshes ? townWaterHeightAt(waterMeshes, point) : WATER_Y)
+    );
+    if (facilities) {
+      scene.remove(facilities.group);
+      facilities.dispose();
+    }
+    facilities = next;
+    scene.add(next.group);
+  };
+
   const rebuild = (city: CityDocument, fabric: DistrictFabric, quality: ModelQuality = "standard") => {
     if (!scene) return;
     clearHighlight();
@@ -486,13 +526,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     }
     townWalls = nextWalls;
     scene.add(townWalls.group);
-    const nextFacilities = createTownFacilities(city, fabric, grounded, bvPrototypes, quality, terrain ?? undefined);
-    if (facilities) {
-      scene.remove(facilities.group);
-      facilities.dispose();
-    }
-    facilities = nextFacilities;
-    scene.add(facilities.group);
+    facilityStructures = grounded;
+    rebuildFacilities(city, fabric, quality);
     structureList = grounded.filter(
       part =>
         !specialBuildings!.replaced.has(part.id) &&
@@ -656,6 +691,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (viewport.hidden || disposed) return;
     if (!ensure() || !scene) return;
     const city = options.getDocument();
+    const season = treeSeason(city.fabric?.generation?.settings.descriptor, seasonSettings.month);
+    refreshSeasonControls();
     mapHalfExtent = Math.max(1, city.frame.extentMeters / 2);
     atmosphereRange = Math.max(600, city.frame.cityRadiusMeters * 2);
     const nextSimplification = options.getSimplification?.() ?? { urban: "auto", outskirts: "auto" };
@@ -715,12 +752,13 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       city.biome,
       city.buildingAppearanceContext,
       city.fabric?.generation?.settings.descriptor?.climate,
-      city.historicalPeriod
+      city.historicalPeriod,
+      season?.key
     ]);
     const openSpacesChanged = terrainChanged || plan.buildings || openSpaceStamp !== nextOpenSpaceStamp || !openSpaces;
-    const friaryPlans = (fabric.aerialLandmarks?.monasteries ?? []).filter(monastery => monastery.kind === "friary");
-    const nextFriaryStamp = JSON.stringify(friaryPlans);
-    const friariesChanged = terrainChanged || friaryStamp !== nextFriaryStamp || !friaries;
+    const monasteryPlans = fabric.aerialLandmarks?.monasteries ?? [];
+    const nextMonasteryStamp = JSON.stringify(monasteryPlans);
+    const monasteriesChanged = terrainChanged || monasteryStamp !== nextMonasteryStamp || !monasteries;
     const bridgesChanged = plan.buildings || plan.water || plan.roads || !bridges;
     let nextForestSource: ForestPlan | null = null;
     if (hasForestState(city)) {
@@ -749,6 +787,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     )
       previousMotionFrame = null;
     const forestQualityChanged = forest?.setQuality(forestQuality.effective) ?? false;
+    // A new month redraws detailed trees and the canopy colour without rebuilding the woodland.
+    const forestSeasonChanged = !forestChanged && (forest?.setSeason(season) ?? false);
     if (
       !plan.buildings &&
       !plan.water &&
@@ -758,21 +798,21 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       !piersChanged &&
       !cranesChanged &&
       !openSpacesChanged &&
-      !friariesChanged &&
+      !monasteriesChanged &&
       !bridgesChanged &&
       !farmlandChanged &&
       !forestChanged
     ) {
       if (!framedRadius) frameCamera(city);
-      if (forestQualityChanged) requestRender();
+      if (forestQualityChanged || forestSeasonChanged) requestRender();
       return;
     }
-    if (friariesChanged) {
-      if (friaries) scene.remove(friaries.group);
-      friaries?.dispose();
-      friaries = createTownFriaries(friaryPlans, terrain ?? undefined);
-      scene.add(friaries.group);
-      friaryStamp = nextFriaryStamp;
+    if (monasteriesChanged) {
+      if (monasteries) scene.remove(monasteries.group);
+      monasteries?.dispose();
+      monasteries = createTownMonasteries(monasteryPlans, terrain ?? undefined);
+      scene.add(monasteries.group);
+      monasteryStamp = nextMonasteryStamp;
     }
     if (openSpacesChanged) {
       const openSpacePlan = collectOpenSpacePlan(
@@ -782,7 +822,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       );
       if (openSpaces) scene.remove(openSpaces.group);
       openSpaces?.dispose();
-      openSpaces = createTownOpenSpaces(openSpacePlan, terrain ?? undefined);
+      openSpaces = createTownOpenSpaces(openSpacePlan, terrain ?? undefined, true, season);
       scene.add(openSpaces.group);
       openSpaceStamp = nextOpenSpaceStamp;
     }
@@ -807,6 +847,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       builtQuality = quality;
       // Defenses and special buildings must use the same automatic culture as the housing preview.
       rebuild(appearanceCity, fabric, quality);
+    } else if (plan.water) {
+      rebuildFacilities(appearanceCity, fabric, quality);
     }
     if (farmlandChanged) {
       const next = createTownFarms(
@@ -831,7 +873,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
             nextForestSource,
             terrain ?? undefined,
             forestQuality.effective,
-            simplification.outskirts !== "off"
+            simplification.outskirts !== "off",
+            season
           )
         : null;
       if (forest) scene.add(forest.group);
@@ -1081,7 +1124,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     objects?.dispose();
     ships?.dispose();
     openSpaces?.dispose();
-    friaries?.dispose();
+    monasteries?.dispose();
     farmland?.dispose();
     forest?.dispose();
     if (forestShadowTimer) clearTimeout(forestShadowTimer);

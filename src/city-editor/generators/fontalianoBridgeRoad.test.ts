@@ -22,14 +22,16 @@ describe("Fontaliano (south road onto a wide-river bridge)", () => {
   it("connects the south street to the bridge foot by stage ⑧", () => {
     const city = generateStageOnDocument(cityEditorDocument(value), cityEditorSettings(value), value.seed, 8)!;
     const leg = city.frameRoads!.find(l => l.routeId === 67)!;
-    const foot = leg.pieces[0].points.at(-1)!;
+    const arm = leg.pieces[0];
     expect(leg.pieces[1].kind).toBe("bridge");
     expect(frameRoadTownConnection(city, leg)).not.toBeNull();
     const street = city.featureGroups.find(g => g.kind === "road" && g.sourceRoad?.index === leg.sourceIndex)!;
+    expect(arm.points.at(-1)).toEqual(leg.pieces[1].points[0]);
+    // The dry FMG arm now supplies the final road-width lead to the bridge.
     const gap = Math.min(
       ...featureGroupVertices(city, street).map(id => {
         const p = city.mesh.vertices[id].point;
-        return Math.hypot(p[0] - foot[0], p[1] - foot[1]);
+        return Math.hypot(p[0] - arm.points[0][0], p[1] - arm.points[0][1]);
       })
     );
     expect(gap).toBeLessThan(8);

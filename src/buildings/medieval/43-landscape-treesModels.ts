@@ -1,4 +1,11 @@
-import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpecies } from "../landscape/trees";
+import { TREE_APPEARANCES, TREE_PHENOLOGY, type TreeAppearance } from "../landscape/treePhenology";
+import {
+  createLandscapeTree,
+  hasTreeQualityLevels,
+  TREE_SPECIES,
+  type TreeSpecies,
+  treeLodProfile
+} from "../landscape/trees";
 import { TREE_AUTHORS, TREE_VARIANTS, treeFamily } from "../landscape/treeVariants";
 import type { MedievalModel } from "./modelKit";
 
@@ -6,6 +13,70 @@ type TreeEntry = Pick<MedievalModel, "biomes" | "name" | "size" | "note">;
 
 /** Biome labels describe current CE woodland selection, including temperature branches. */
 const TREES: Record<TreeSpecies, TreeEntry> = {
+  arabica_coffee: {
+    name: "Arabica coffee · Coffea arabica",
+    size: [2.8, 2.8, 2.5],
+    note: "Illustrative compact cultivated Coffea arabica with an upright stem, opposite horizontal primary branches, short secondary laterals, paired glossy pointed elliptical leaves and small red oval cherries clustered at the same lateral nodes. Representative Arabica shrub, not Robusta, a measured specimen, named cultivar or historical pruning reconstruction. Static leafy fruiting display; flowers, internal seeds, seasonal ripening and crop yield are omitted. Foliage and cherry clusters are simplified at medium; cherries and their stalks are omitted at low. BV registration does not place coffee plantations in CE or change crop production. Botanical references: https://www.nparks.gov.sg/florafaunaweb/flora/4/8/4860 and https://www.jcu.edu.au/discover-nature-at-jcu/plants/nq-weeds-by-scientific-name2/coffea-arabica"
+  },
+  cacao: {
+    name: "Cacao · Theobroma cacao",
+    size: [7, 7, 4.8],
+    note: "Illustrative cultivated Theobroma cacao with a short bole, five spreading jorquette branches, large pointed entire leaves, a few copper young flushes and ribbed yellow-orange pods on short stalks directly from the trunk and old main branches. Not a measured specimen, named cultivar, complete leaf phyllotaxy or historical pruning reconstruction. Static leafy fruiting display; pod counts are illustrative, with flowers, internal seeds, seasonal ripening and crop yield omitted. Pods and stalks are simplified at medium and omitted at low quality. BV registration does not place orchards in CE or change crop production. Botanical references: https://www.nparks.gov.sg/florafaunaweb/flora/5/2/5241 and https://apps.worldagroforestry.org/treedb2/speciesprofile.php/Spid=618?Spid=1641"
+  },
+  sweet_chestnut: {
+    name: "Sweet chestnut · Castanea sativa",
+    size: [11, 11, 9],
+    note: "Free-standing cultivated Castanea sativa with a stout grey-brown bole, spreading boughs, a broad crown, long pointed serrated simple leaves and green burs with dense fine spines. Illustrative orchard tree, not a measured specimen, named cultivar, coppice stool, Japanese chestnut or horse chestnut. Static leafy fruiting display; closed burs do not expose the nuts. Flowers, seasonal changes and crop yield are not simulated. Burs are simplified at medium and omitted at low quality. BV registration does not place orchards in CE or change crop production. Botanical reference: https://www.woodlandtrust.org.uk/trees-woods-and-wildlife/british-trees/a-z-of-british-trees/sweet-chestnut/"
+  },
+  lemon: {
+    name: "Lemon · Citrus × limon",
+    size: [4.1, 4.1, 3.9],
+    note: "Free-standing cultivated Citrus x limon with a short grey-brown bole, a compact rounded evergreen crown, glossy folded elliptical leaves, a few short twig thorns and yellow elliptical lemons with a stalk collar, apical nipple and abstract pitted rind. Illustrative mature orchard tree, not a measured specimen, named cultivar, variegated citrus or container planting. Static leafy fruiting display; flowers, seasonal changes and crop yield are not simulated. Fruit is simplified at medium and omitted at low quality. BV registration does not place orchards in CE or change crop production. Botanical references: https://plants.ces.ncsu.edu/plants/citrus-x-limon/ and https://www.rhs.org.uk/fruit/citrus/grow-your-own and https://citrusvariety.ucr.edu/crc3500"
+  },
+  common_fig: {
+    name: "Common fig · Ficus carica",
+    size: [9.5, 9.3, 5],
+    note: "Free-standing cultivated Ficus carica with a short smooth grey bole, low stout spreading boughs, a broad crown, folded three- and five-lobed leaves and green to violet pear-shaped figs beside the leaf petioles on young shoots. Concave leaf outlines retain the gaps between lobes. Illustrative leafy fruiting tree, not a measured specimen, named cultivar, wall-trained plant or Ficus religiosa. No aerial roots. Small fruit is simplified at medium and omitted at low quality; seasonal changes and crop yield are not simulated. BV registration does not place orchards in CE or change crop production. Botanical references: https://landscapeplants.oregonstate.edu/plants/ficus-carica and https://extension.umd.edu/resource/growing-figs-maryland and https://www.rhs.org.uk/fruit/figs/grow-your-own"
+  },
+  european_plum: {
+    name: "European plum · Prunus domestica",
+    size: [6, 6, 6.2],
+    note: "Free-standing cultivated Prunus domestica with a short dark-brown bole, ascending scaffold forks, a compact vase-shaped crown, folded toothed obovate leaves and purple oval drupes with a shallow suture and abstract waxy bloom on short fruiting wood. Illustrative mature orchard tree, not a measured specimen, named cultivar, Japanese plum, ornamental purple-leaf plum or dwarf planting. Purple fruit is one example within the species' range of colours. Static leafy fruiting display; flower, harvest and seasonal changes are omitted. Fruit is simplified at medium and omitted at low quality. BV registration does not place orchards in CE or change crop production. Botanical references: https://plants.ces.ncsu.edu/plants/prunus-domestica/ and https://extension.usu.edu/yardandgarden/research/plums-in-the-home-garden and https://www.rhs.org.uk/fruit/plums/grow-your-own"
+  },
+  european_pear: {
+    name: "European pear · Pyrus communis",
+    size: [6.3, 6, 9],
+    note: "Free-standing cultivated Pyrus communis with a grey-brown bole, ascending scaffold limbs, a tapering upright crown, glossy oval leaves and yellow-green pears with swollen lower bodies and narrow necks on short fruiting spurs. Illustrative mature orchard tree, not a measured specimen, named cultivar, thorny wild pear, espalier or modern dwarf planting. Static leafy fruiting display; flower, harvest and seasonal changes are omitted. Small fruit is simplified at medium and omitted at low quality. BV registration does not place orchards in CE or change crop production. Botanical references: https://www.rhs.org.uk/plants/14227/pyrus-communis-f/details and https://www.rhs.org.uk/fruit/pears/grow-your-own"
+  },
+  domestic_apple: {
+    name: "Domestic apple · Malus domestica",
+    size: [8.1, 7.6, 6.2],
+    note: "Free-standing cultivated Malus domestica with a short grey-brown bole, low spreading scaffold limbs, folded serrated oval leaves and blushed apples on short fruiting spurs. Illustrative mature orchard tree, not a measured specimen, named cultivar or modern dwarf spindle. Static leafy fruiting display; flower, harvest and seasonal changes are omitted. Small fruit is simplified at medium and omitted at low quality. BV registration does not place orchards in CE or change crop production. Botanical references: https://www.rhs.org.uk/plants/60558/malus-domestica-f/details and https://www.rhs.org.uk/fruit/apples/grow-your-own and https://publications.naturalengland.org.uk/publication/23006"
+  },
+  scots_pine: {
+    biomes: ["centralEuropeanGreatForest"],
+    name: "Scots pine · Pinus sylvestris",
+    size: [11, 11, 21],
+    note: "Mature woodland Pinus sylvestris with a dark fissured lower bole, orange-red upper bark, short dead lower stubs and an irregular upper crown of paired blue-green needles. Needles are abstracted for viewing. Illustrative 21 m tree, not a measured mature maximum or a cultivar. Cones and seasonal changes are omitted. Mixed into explicit Central European great forest woodland; existing boreal, park, cemetery and volcanic pine choices remain unchanged. Botanical references: https://www.forestryengland.uk/article/scots-pine and https://www.forestresearch.gov.uk/tools-and-resources/tree-species-database/131589-scots-pine-sp-2/ and https://forestryandland.gov.scot/living-and-working/learning-and-education/trees/scots-pine"
+  },
+  european_hornbeam: {
+    biomes: ["centralEuropeanGreatForest"],
+    name: "European hornbeam · Carpinus betulus",
+    size: [10, 10, 16.5],
+    note: "Summer woodland Carpinus betulus with a fluted grey bole, long ascending branches, a dense ovoid crown and folded toothed leaves abstracting prominent parallel veins. Illustrative woodland dimensions, not a measured mature maximum, hedge, pollard or columnar cultivar. Fruit clusters and seasonal changes are omitted. Mixed with oak, beech and lime in the explicit Central European great forest biome; existing park and cemetery preferences remain unchanged. Botanical references: https://www.forestresearch.gov.uk/tools-and-resources/tree-species-database/hornbeam-hbm-2/ and https://www.rhs.org.uk/plants/3136/carpinus-betulus/details and https://www.keele.ac.uk/arboretum/ourtrees/speciesaccounts/hornbeam/"
+  },
+  pedunculate_oak: {
+    biomes: ["temperateDeciduousForest", "centralEuropeanGreatForest"],
+    name: "Pedunculate oak · Quercus robur",
+    size: [16, 16, 18],
+    note: "Summer Quercus robur with a stout furrowed grey-brown bole, crooked spreading forks, a broad irregular crown and folded lobed leaves. Illustrative woodland dimensions, not a measured mature maximum, cultivar or a model for all oak species. Acorns and seasonal changes are omitted. Mixed with beech and lime in explicit European woodland biomes; existing park and cemetery preferences remain unchanged. Botanical references: https://www.forestryengland.uk/tree-species/english-oak and https://www.forestresearch.gov.uk/tools-and-resources/tree-species-database/131559-pedunculate-oak-pok-2/"
+  },
+  european_beech: {
+    biomes: ["temperateDeciduousForest", "centralEuropeanGreatForest"],
+    name: "European beech · Fagus sylvatica",
+    size: [13, 13, 20],
+    note: "Summer woodland Fagus sylvatica with a clear smooth grey bole, ascending limbs, a domed crown and folded oval green leaves. Illustrative 20 m tree, not a measured mature maximum or a cultivar. Mixed with oak and lime in explicit European woodland biomes; existing park and cemetery preferences remain unchanged. Botanical references: https://www.forestryengland.uk/tree-species/beech and https://www.forestresearch.gov.uk/tools-and-resources/tree-species-database/beech-be/"
+  },
   garden_parkland: {
     biomes: ["grassland", "temperateDeciduousForest", "centralEuropeanGreatForest"],
     name: "Small-leaved lime · Tilia cordata",
@@ -44,8 +115,23 @@ const TREES: Record<TreeSpecies, TreeEntry> = {
   date_palm: {
     biomes: ["hotDesert", "savanna", "tropicalSeasonalForest", "xericShrubland", "tropicalDryForest"],
     name: "Date palm · Phoenix dactylifera",
-    size: [10, 10, 12],
-    note: "Cultivated oasis Phoenix dactylifera with a slightly leaning, leaf-base-scarred trunk, basal offshoots, a crown of glaucous pinnate fronds with V-raised leaflets, a few hanging dead fronds and unripe date strands. Shared with CE hot-desert parks and cemeteries. Illustrative dimensions; not a measured specimen. Botanical reference: https://www.kew.org/plants/date-palm"
+    size: [11.6, 10, 12],
+    note: "Cultivated oasis Phoenix dactylifera with a slightly leaning, leaf-base-scarred trunk, basal offshoots, glaucous pinnate fronds with V-raised leaflets and a few hanging dead fronds. The original edition shows four hanging fruit axes with tiny ochre triangular date markers on high and ultra. The Bunches edition, adopted by CE, draws six branched bunches of oval dates on their strands in the shared fruit layer: yellow khalal, brown tamar, female inflorescences in flower and cut bunch stalks after harvest; medium shows each bunch as one mass on its stalk and low omits fruit. Reusable as an isolated fruit-bearing female landscape example; managed orchard forms, age classes and male palms require separate work. Sex, pollination, seasonal ripening and yield are not simulated. Shared with CE hot-desert parks and cemeteries. Illustrative dimensions, not a measured specimen or named cultivar. Botanical references: https://www.rhs.org.uk/plants/12768/phoenix-dactylifera-f/details and https://herbaria.plants.ox.ac.uk/bol/plants400/Profiles/op/Phoenix"
+  },
+  date_palm_orchard: {
+    name: "Date palm, grove female · Phoenix dactylifera",
+    size: [10, 9.6, 11.5],
+    note: "Managed fruiting female Phoenix dactylifera of the traditional irrigated oasis grove: an upright cleaned trunk with leaf bases trimmed to short, even stubs, no hanging dead fronds or basal offshoots (cut yearly and taken for planting), and eight bunches on stalks bent down below the crown in the shared fruit layer: female inflorescences in flower, yellow khalal, brown tamar and cut bunch stalks after harvest. Medium draws each bunch as one mass on its stalk; low omits fruit. Fronds and trunk follow the landscape date palm generator. Not a measured specimen or a named cultivar; pollination, bunch thinning and yield are not simulated. BV registration does not place groves in CE or change crop production. Botanical references: https://www.rhs.org.uk/plants/12768/phoenix-dactylifera-f/details and https://herbaria.plants.ox.ac.uk/bol/plants400/Profiles/op/Phoenix"
+  },
+  date_palm_orchard_male: {
+    name: "Date palm, grove male · Phoenix dactylifera",
+    size: [10, 9.6, 11.5],
+    note: "Managed male Phoenix dactylifera kept in the oasis grove to pollinate the females: the same cleaned trunk and pruned crown as the grove female, with no bunches. In flower it carries erect cream inflorescences of dense florets on short strands out of split brown spathes among the leaf bases; at other times it is in leaf only. Flowering follows the timing of the date crop it pollinates. Not a measured specimen or a named male line; pollen collection, hand pollination and the male-to-female ratio of a grove are not simulated. BV registration does not place groves in CE. Botanical references: https://www.rhs.org.uk/plants/12768/phoenix-dactylifera-f/details and https://herbaria.plants.ox.ac.uk/bol/plants400/Profiles/op/Phoenix"
+  },
+  date_palm_orchard_young: {
+    name: "Date palm, young grove palm · Phoenix dactylifera",
+    size: [7.2, 6.6, 3.4],
+    note: "Young Phoenix dactylifera of the oasis grove before it bears: a short, thick stem, a crown of shorter fronds rising close to the ground and two offshoots kept at the foot until they root and are separated for planting. No flowers or fruit. Not a measured specimen or a named cultivar; ages and growth rates are not simulated. BV registration does not place groves in CE. Botanical references: https://www.rhs.org.uk/plants/12768/phoenix-dactylifera-f/details and https://herbaria.plants.ox.ac.uk/bol/plants400/Profiles/op/Phoenix"
   },
   umbrella_thorn: {
     biomes: ["savanna", "tropicalSeasonalForest", "tropicalDryForest"],
@@ -80,8 +166,13 @@ const TREES: Record<TreeSpecies, TreeEntry> = {
   olive: {
     biomes: ["mediterraneanWoodlandScrub"],
     name: "Olive · Olea europaea",
-    size: [9, 9, 7],
-    note: "Aged Mediterranean Olea europaea: a short ridged bole splitting into twisting, spiralling stems, a broad open crown of narrow lance leaves that are grey-green above and silvery beneath, and scattered olives ripening from green to black. Shared with CE Mediterranean parks, cloister gardens and cemeteries. Illustrative dimensions; not a pruned grove cultivar. Botanical reference: https://en.wikipedia.org/wiki/Olea_europaea"
+    size: [10.1, 9, 7],
+    note: "Aged Mediterranean Olea europaea: a short ridged bole splitting into twisting, spiralling stems and a broad open crown of narrow lance leaves in abstract grey-green and silver tones. The original edition shows tiny green and dark triangular fruit markers on high and ultra. The Drupes edition, adopted by CE, draws stalked olives in threes at leaf axils of the fruiting shoots in the shared fruit layer, green when unripe and mixed green, violet and black when ripe; high and medium keep a stable subset and low omits fruit. Reusable as an isolated aged landscape tree; pruned orchard forms and fruit close-ups require separate work. Shared with CE Mediterranean parks, cloister gardens and cemeteries. Illustrative dimensions, not a measured specimen or pruned grove cultivar. Botanical references: https://www.rhs.org.uk/plants/olives and https://www.rhs.org.uk/plants/olives/how-to-grow-olives"
+  },
+  olive_orchard: {
+    name: "Olive, open-vase grove tree · Olea europaea",
+    size: [8, 8, 4.8],
+    note: "Managed Olea europaea of the traditional rain-fed Mediterranean grove, pruned to the open vase (vaso): a short clean trunk, four scaffold limbs leaning out about 45 degrees from one crotch, laterals fanning outward around an open centre, hanging fruiting shoots over a raised skirt at picking height and a low, wide crown. The grey-green and silver lance leaves follow the landscape olive. Olives hang in threes on short stalks from leaf axils of the fruiting shoots in the shared fruit layer: none visible in summer leaf, green when unripe, mixed green, violet and black when ripe; high and medium keep a stable subset and low omits fruit. Representative of hand-pruned groves from antiquity to the early modern period, not the modern hedgerow, high-density grove, a measured specimen or a named cultivar. Kept apart from the aged landscape olive, which CE woodland, parks and cemeteries draw; BV registration does not place groves in CE or change crop production. References: University of California ANR Olive Production Manual (Publication 3353), training and pruning chapters, and https://www.rhs.org.uk/plants/olives/how-to-grow-olives"
   },
   silver_fir: {
     biomes: ["montaneForest"],
@@ -142,6 +233,40 @@ const LEVEL_LABELS: Record<string, string> = {
   low: "Low (canopy silhouette)"
 };
 
+const APPEARANCE_LABELS: Record<TreeAppearance, string> = {
+  bare: "Bare winter twigs",
+  bloom: "In flower",
+  leaf: "In leaf",
+  unripe: "Unripe fruit",
+  fruit: "Ripe fruit",
+  harvested: "Harvested",
+  autumn: "Autumn colours"
+};
+
+/** Every appearance drawn so far, plus autumn-coloured fruit and harvest for deciduous fruit trees. */
+function seasons(species: TreeSpecies): MedievalModel["seasons"] {
+  const drawn = treeLodProfile(species)?.seasonal;
+  if (!drawn || drawn.length < 2) return undefined;
+  const profile = TREE_PHENOLOGY[species];
+  const options: { id: string; label: string }[] = [];
+  for (const appearance of TREE_APPEARANCES) {
+    if (!drawn.includes(appearance)) continue;
+    options.push({ id: appearance, label: APPEARANCE_LABELS[appearance] });
+    if (profile.leafHabit === "deciduous" && (appearance === "fruit" || appearance === "harvested"))
+      options.push({ id: `${appearance}+autumn`, label: `${APPEARANCE_LABELS[appearance]} · autumn colours` });
+  }
+  return {
+    default: profile.defaultAppearance,
+    options,
+    create(variantId, season) {
+      const variant = TREE_VARIANTS.find(entry => entry.id === variantId);
+      if (!variant) throw new Error(`Unknown tree variant ${variantId}`);
+      const [appearance, palette] = season.split("+");
+      return variant.create({ appearance: appearance as TreeAppearance, autumnPalette: palette === "autumn" });
+    }
+  };
+}
+
 export const models: MedievalModel[] = TREE_SPECIES.map(species => ({
   id: species.replaceAll("_", "-"),
   ...TREES[species],
@@ -153,5 +278,6 @@ export const models: MedievalModel[] = TREE_SPECIES.map(species => ({
         label: LEVEL_LABELS[variant.level]
       }))
     : undefined,
+  seasons: seasons(species),
   create: () => createLandscapeTree(species)
 }));

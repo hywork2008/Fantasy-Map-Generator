@@ -116,3 +116,75 @@ it("keeps rotated lodging courtyards and street entrances open on raised terrain
   layer.dispose();
   expect(cache.size).toBe(0);
 });
+
+it.each([0, 0.25, 0.85, 1, 1.2])("immerses low-bank BV wheels at a %s m river drop on both banks", drop => {
+  const angle = 0.61;
+  const mills = [1, -1].map((side, i) => {
+    const center: Point = [50 + i * 30, 40];
+    const point = (x: number, y: number): Point => [
+      center[0] + x * Math.cos(angle) - y * Math.sin(angle),
+      center[1] + x * Math.sin(angle) + y * Math.cos(angle)
+    ];
+    return {
+      id: `watermill-${i}`,
+      riverId: "river",
+      kind: "gristmill" as const,
+      name: "Watermill",
+      bankSide: side === 1 ? ("left" as const) : ("right" as const),
+      millhousePolygon: [point(-5, side * 2), point(5, side * 2), point(5, side * 8), point(-5, side * 8)],
+      millhouseRidge: [point(-5, side * 5), point(5, side * 5)] as [Point, Point],
+      riverSideRoof: [],
+      landSideRoof: [],
+      wakePolyline: [],
+      wheel: { center, radius: 2.1, width: 1.8, angleRad: angle, bladeCount: 8 }
+    };
+  });
+  const cache = createBvPrototypeCache();
+  const layer = createTownFacilities(
+    { ...city, castles: [], bastionedTown: undefined },
+    { ...fabric, aerialLandmarks: undefined, watermills: { mills, buildingCount: 500, derivedPopulation: 2250 } },
+    [],
+    cache,
+    "high",
+    { relief: true, foundationAt: () => 7, heightAt: () => 0 },
+    () => 7 - drop
+  );
+  expect(layer.accepted).toHaveLength(2);
+  for (const [i, site] of layer.accepted.entries()) {
+    expect(site.id).toBe(mills[i].id);
+    expect(site.definition.variant).toContain("object.waterMillLowBank");
+    expect(site.definition.variant).toContain(i === 0 ? "Forward@" : "Reverse@");
+    const model = site.definition.create();
+    model.group.updateMatrixWorld(true);
+    const wheelPart = model.group.getObjectByName("waterwheel-assembly")!;
+    const wheelBounds = new THREE.Box3().setFromObject(wheelPart, true).applyMatrix4(site.matrix);
+    expect(wheelBounds.min.y).toBeCloseTo(7 - drop - 0.35, 2);
+    const paddleBottom = Math.min(
+      ...model.pickables
+        .filter(mesh => mesh.name === "undershot-paddle")
+        .map(mesh => new THREE.Box3().setFromObject(mesh, true).applyMatrix4(site.matrix).min.y)
+    );
+    expect(7 - drop - paddleBottom).toBeGreaterThan(0.3);
+    expect(7 - drop - paddleBottom).toBeLessThan(0.4);
+    const hub = wheelPart.position.clone().applyMatrix4(site.matrix);
+    const gate = model.group.getObjectByName("low-sluice-gate")!.position.clone().applyMatrix4(site.matrix);
+    const tail = model.group.getObjectByName("tailrace-guide")!.position.clone().applyMatrix4(site.matrix);
+    const downstream = new THREE.Vector3(Math.cos(angle), 0, -Math.sin(angle));
+    expect(gate.clone().sub(hub).dot(downstream)).toBeLessThan(0);
+    expect(tail.clone().sub(hub).dot(downstream)).toBeGreaterThan(0);
+    expect(model.group.getObjectByName("millrace-water")).toBeUndefined();
+    model.dispose();
+    const wheel = new THREE.Vector3(1.3, 0, 4.2).applyMatrix4(site.matrix);
+    expect(wheel.x).toBeCloseTo(mills[i].wheel.center[0]);
+    expect(wheel.z).toBeCloseTo(-mills[i].wheel.center[1]);
+    expect(wheel.y).toBeCloseTo(7);
+    const house = new THREE.Vector3(0, 0, -0.1).applyMatrix4(site.matrix);
+    const dx = house.x - wheel.x,
+      dy = -house.z + wheel.z;
+    expect((-Math.sin(angle) * dx + Math.cos(angle) * dy) * (i === 0 ? 1 : -1)).toBeGreaterThan(0);
+    const mesh = layer.pickables.find(mesh => layer.resolve({ object: mesh, instanceId: 0 })?.id === site.id);
+    expect(mesh).toBeDefined();
+  }
+  layer.dispose();
+  expect(cache.size).toBe(0);
+});

@@ -81,7 +81,7 @@ describe("Bonenfeld wide-river generation", () => {
       expect(road!.beyond?.realm.relation).toBe("domestic");
     }
     expect(city?.appearance).toBe("town");
-    expect(city?.generationSeed).toBe(`${descriptor.burg.seed}:junction-retry:3`);
+    expect(city?.generationSeed).toBe(descriptor.burg.seed);
     expect(validate(city!)).toEqual([]);
     const bridge = city!.featureGroups.find(g => g.id === "gc:bridgeApproach-0")!;
     const points = featureGroupVertices(city!, bridge).map(id => city!.mesh.vertices[id].point);

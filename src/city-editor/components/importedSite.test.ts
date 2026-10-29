@@ -8,7 +8,8 @@ it("lists sea and river port access independently in the FMG parameters", () => 
   const site = structuredClone(share.descriptor) as BurgSiteDescriptor;
   const text = () =>
     describeImportedSite(site, "link")
-      .map(node => node.textContent)
+      .filter(node => node.firstChild?.textContent === editorText("cityEditor.messages.port"))
+      .map(node => node.lastChild?.textContent)
       .join("\n");
   expect(text()).toContain(
     `${editorText("cityEditor.fmgParameters.seaPort")} · ${editorText("cityEditor.fmgParameters.riverPort")}`

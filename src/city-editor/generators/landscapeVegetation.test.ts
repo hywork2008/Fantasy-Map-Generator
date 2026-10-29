@@ -13,14 +13,20 @@ const expected = {
   savanna: ["date_palm", "umbrella_thorn"],
   grassland: ["garden_parkland"],
   tropicalSeasonalForest: ["date_palm", "umbrella_thorn"],
-  temperateDeciduousForest: ["garden_parkland"],
+  temperateDeciduousForest: ["european_beech", "pedunculate_oak", "garden_parkland"],
   tropicalRainforest: ["kapok"],
   temperateRainforest: ["western_red_cedar"],
   taiga: ["norway_spruce", "silver_birch"],
   tundra: ["none"],
   glacier: ["none"],
   wetland: ["black_alder"],
-  centralEuropeanGreatForest: ["garden_parkland"],
+  centralEuropeanGreatForest: [
+    "european_beech",
+    "pedunculate_oak",
+    "european_hornbeam",
+    "scots_pine",
+    "garden_parkland"
+  ],
   mediterraneanWoodlandScrub: ["olive"],
   temperateConiferousForest: ["western_red_cedar"],
   montaneForest: ["silver_fir"],
@@ -49,7 +55,9 @@ it.each(STANDARD_BIOME_DEFINITIONS)("resolves the complete $key tree set determi
   const city = createDocument("flora-matrix-v1", 100);
   city.biome = { id: 1, key: biome.key, name: biome.label, color: biome.color, tags: [...biome.tags] };
   const before = JSON.stringify(city);
-  const species = Array.from({ length: 64 }, (_, i) => landscapeTreeSpecies("garden_parkland", city, [i * 17, i * 23]));
+  const species = Array.from({ length: 64 }, (_, i) =>
+    landscapeTreeSpecies("garden_parkland", city, [i * 17, i * 23], "woodland")
+  );
   expect([...new Set(species.map(value => value ?? "none"))].sort()).toEqual(
     [...expected[biome.key as keyof typeof expected]].sort()
   );
@@ -99,7 +107,7 @@ it("keeps BV biome labels equal to the actual CE woodland mapping across climate
       city.biome = { id: 1, key: biome.key, name: biome.label, color: biome.color, tags: [...biome.tags] };
       city.buildingAppearanceContext = { period: "medieval", forest: true, arid: false, wetland: false, temperatureC };
       for (let i = 0; i < 64; i++) {
-        const species = landscapeTreeSpecies("garden_parkland", city, [i * 17, i * 23]);
+        const species = landscapeTreeSpecies("garden_parkland", city, [i * 17, i * 23], "woodland");
         if (!species) continue;
         const id = species.replaceAll("_", "-");
         const keys = observed.get(id) ?? new Set<string>();
@@ -118,3 +126,33 @@ it("uses explicit cold tags for a custom forest or desert without a temperature"
   city.biome.tags = ["desert", "cold"];
   expect(landscapeTreeSpecies("garden_parkland", city, [0, 0])).toBe("saxaul");
 });
+
+it.each(["temperateDeciduousForest", "centralEuropeanGreatForest"])(
+  "retains plantings and cold fallback while mixing %s woodland",
+  key => {
+    const city = createDocument("beech-woodland", 100);
+    city.biome = { id: 1, key, name: "Forest", color: "green" };
+    const points = Array.from({ length: 64 }, (_, i) => [i * 17, i * 23] as [number, number]);
+    const woodland = () => points.map(point => landscapeTreeSpecies("garden_parkland", city, point, "woodland"));
+    expect(new Set(woodland())).toEqual(
+      new Set([
+        "european_beech",
+        "pedunculate_oak",
+        "garden_parkland",
+        ...(key === "centralEuropeanGreatForest" ? ["european_hornbeam", "scots_pine"] : [])
+      ])
+    );
+    expect(woodland()).toEqual(woodland());
+    for (const point of points) {
+      expect(landscapeTreeSpecies("garden_parkland", city, point)).toBe("garden_parkland");
+      expect(landscapeTreeSpecies("sacred_yew", city, point, "woodland")).toBe("sacred_yew");
+    }
+    city.buildingAppearanceContext = { period: "medieval", forest: true, arid: false, wetland: false, temperatureC: 3 };
+    expect(new Set(woodland())).toEqual(new Set(["norway_spruce", "silver_birch"]));
+    city.buildingAppearanceContext.temperatureC = 3.01;
+    expect(new Set(woodland())).toContain("european_beech");
+    city.biome.key = "custom:EuropeanForest";
+    city.biome.tags = ["forest"];
+    expect(new Set(woodland())).toEqual(new Set(["garden_parkland"]));
+  }
+);

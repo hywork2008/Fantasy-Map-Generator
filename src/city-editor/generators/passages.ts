@@ -627,6 +627,7 @@ function tryMoveVertex(document: CityDocument, vertexId: Id, target: Point): Cit
   const start = v.point;
   for (let s = 1.0; s >= 0.125; s /= 2) {
     const candidate: Point = [start[0] + (target[0] - start[0]) * s, start[1] + (target[1] - start[1]) * s];
+    if (!keepsGateSpacing(document, vertexId, candidate)) continue;
     // The cell test needs only the candidate point; it runs before the
     // document-wide copy and checks of a move.
     const invalid = incidentFaces(document.mesh, vertexId).some(face => {
@@ -737,6 +738,32 @@ export function gatePlazaRadiusMeters(wallWidthMeters: number): number {
  */
 export function minGateSpacingMeters(wallWidthMeters: number): number {
   return gatePlazaRadiusMeters(wallWidthMeters) * 2 + wallWidthMeters;
+}
+
+/** Finishing may improve existing close gates, but must never move their plazas closer. */
+export function keepsGateSpacing(
+  document: CityDocument,
+  vertexId: Id,
+  point: Point,
+  source: CityDocument = document
+): boolean {
+  const gates = townGates(source);
+  const gate = gates.find(g => g.vertexId === vertexId);
+  if (!gate) return true;
+  const wallWidth = Math.max(
+    0,
+    ...source.featureGroups.flatMap(group =>
+      group.kind === "wall" && featureGroupVertices(source, group).includes(vertexId) ? [group.style.widthMeters] : []
+    )
+  );
+  const origin = source.mesh.vertices[vertexId].point;
+  return gates.every(other => {
+    if (other === gate || other.circuitId !== gate.circuitId) return true;
+    const before = source.mesh.vertices[other.vertexId].point;
+    const current = document.mesh.vertices[other.vertexId].point;
+    const minimum = Math.min(minGateSpacingMeters(wallWidth), Math.hypot(origin[0] - before[0], origin[1] - before[1]));
+    return Math.hypot(point[0] - current[0], point[1] - current[1]) >= minimum - 1e-7;
+  });
 }
 
 /** Both gate plazas together are a disk centred on the gate. Buildings must stay outside it. */

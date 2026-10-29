@@ -243,8 +243,15 @@ export interface BurgSiteDescriptor {
     /** Suggested built-up radius derived from population (walled-town density model). */
     cityRadiusMeters: number;
   };
+  /**
+   * In-world date when the descriptor was exported. City Editor draws the trees of this month by
+   * default (docs/plan/bv-tree-seasonal-appearance.md §8). Absent in older descriptors.
+   */
+  date?: { year: number; month: number };
   climate: {
     temperatureC: number;
+    /** Monthly mean temperatures at the burg's grid cell, January first. Absent: trees keep one look. */
+    monthlyMeanTemperatureC?: number[];
     biomeId: number;
     biomeKey?: string;
     biomeName?: string;

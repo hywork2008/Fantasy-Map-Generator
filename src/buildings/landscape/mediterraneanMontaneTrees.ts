@@ -3,15 +3,43 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createConiferCanopyLod } from "./coniferCanopyLod";
+import { buildFruitLayer, type FruitSite, type FruitSpec } from "./fruitLayer";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import { positionHash, type TreeAppearanceOptions } from "./treeSeasonLayers";
 
-/** A gnarled Mediterranean olive and a montane silver fir with level whorls and upright cones. */
+/** Olives hang in threes from the leaf axils of last year's shoots on short stalks (O02). */
+export const OLIVE_DRUPES: FruitSpec = {
+  shape: "drupe",
+  sizeMeters: 0.025,
+  widthRatio: 0.72,
+  stalkMeters: 0.014,
+  stalkColor: 0x6f7238,
+  cluster: { count: 3, spread: 0.02 },
+  palettes: {
+    unripe: [0x6f7f34, 0x7a8a3a, 0x65762e],
+    // Veraison: green, violet and purple-black fruit together on one tree.
+    ripe: [0x2a2230, 0x352436, 0x4f2e44, 0x6b7a3a]
+  }
+};
+/** Share of the olive sites each tier draws; high and medium keep a stable subset. */
+export const OLIVE_SHARE: Record<TreeQuality, number> = { low: 0, medium: 0.12, high: 0.25, ultra: 1 };
+
+/**
+ * A gnarled Mediterranean olive and a montane silver fir with level whorls and upright cones.
+ * The olive's fruit is drawn as triangle markers in the leaves (the original model) or, for
+ * `fruitForm: "drupes"`, as stalked drupes in the shared fruit layer, which also draws its seasons.
+ */
 export function createMediterraneanMontaneTree(
   species: "olive" | "silver_fir",
-  quality: TreeQuality = "ultra"
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {},
+  fruitForm: "markers" | "drupes" = "markers"
 ): CityStructureMeshes {
   const olive = species === "olive";
+  const drupes = olive && fruitForm === "drupes";
+  const appearance = options.appearance === "leaf" || options.appearance === "unripe" ? options.appearance : "fruit";
+  const fruitSites: FruitSite[] = [];
   const reduced =
     !olive && (quality === "low" || quality === "medium")
       ? createConiferCanopyLod(quality, { hue: 0.35, saturation: 0.38, lightness: 0.21 }, 43283, 1.05, 1.18)
@@ -77,7 +105,7 @@ export function createMediterraneanMontaneTree(
     }
   }
   /** Narrow lance-shaped olive leaves: dark grey-green above, silvery beneath, in loose clusters. */
-  function leaves(center: THREE.Vector3, radius: number, count: number) {
+  function leaves(center: THREE.Vector3, radius: number, count: number, fruiting = false) {
     const points: THREE.Vector3[] = [];
     for (let i = 0; i < count; i++) {
       const angle = random() * Math.PI * 2,
@@ -90,6 +118,14 @@ export function createMediterraneanMontaneTree(
         .normalize()
         .multiplyScalar(0.2 + random() * 0.07);
       const across = new THREE.Vector3(-Math.sin(heading), 0.1, Math.cos(heading)).multiplyScalar(0.035);
+      // Fruiting shoots carry their olives in the axils of a share of the leaves.
+      if (drupes && fruiting && i % 18 === 0)
+        fruitSites.push({
+          position: p,
+          hang: new THREE.Vector3(along.x * 2, -1, along.z * 2).normalize(),
+          order: positionHash(p.x, p.y, p.z),
+          kind: "axil"
+        });
       const silver = random() < 0.35;
       const color = new THREE.Color().setHSL(
         silver ? 0.2 : 0.22 + random() * 0.04,
@@ -171,15 +207,15 @@ export function createMediterraneanMontaneTree(
             .add(new THREE.Vector3(Math.cos(theta) * reach, 0.4 + random() * 0.9, Math.sin(theta) * reach));
           if (step > 0) {
             branch(from, tip, radius * 0.35, 0.015, 5);
-            leaves(tip, 0.95, 260);
-            leaves(from.clone().lerp(tip, 0.55), 0.8, 150);
+            leaves(tip, 0.95, 260, true);
+            leaves(from.clone().lerp(tip, 0.55), 0.8, 150, true);
             // A few olives, green ripening to black.
             for (let f = 0; f < 5; f++) {
               const o = tip
                 .clone()
                 .add(new THREE.Vector3((random() - 0.5) * 1.2, -0.3 - random() * 0.4, (random() - 0.5) * 1.2));
               const fruit = new THREE.Color(random() < 0.5 ? 0x2a2230 : 0x6b7a3a);
-              if (oliveReduced) continue;
+              if (oliveReduced || drupes) continue;
               triangle(
                 o,
                 o.clone().add(new THREE.Vector3(0.03, -0.04, 0)),
@@ -291,19 +327,41 @@ export function createMediterraneanMontaneTree(
   const trunk = new THREE.Mesh(barkGeometry, barkMaterial),
     crown = new THREE.Mesh(foliage, leafMaterial);
   trunk.name = olive ? "olive-gnarled-twisting-stems" : "silver-fir-smooth-trunk-and-level-whorls";
-  crown.name = olive ? "olive-silvery-lance-leaves-and-fruit" : "silver-fir-flat-needles-and-upright-cones";
+  crown.name = drupes
+    ? "olive-silvery-lance-leaves"
+    : olive
+      ? "olive-silvery-lance-leaves-and-fruit"
+      : "silver-fir-flat-needles-and-upright-cones";
   const group = new THREE.Group();
   group.name = species.replaceAll("_", "-");
   group.userData.treeQuality = quality;
   group.add(trunk, crown);
+  const pickables = [trunk, crown];
+  if (drupes) {
+    group.userData.treeAppearance = appearance;
+    // Summer leaf carries no visible fruit; the drupes swell green, then turn violet to black.
+    const fruitGeometry =
+      appearance === "leaf"
+        ? undefined
+        : buildFruitLayer(fruitSites, OLIVE_DRUPES, quality, {
+            stage: appearance === "unripe" ? "unripe" : "ripe",
+            density: OLIVE_SHARE[quality]
+          });
+    if (fruitGeometry) {
+      const mesh = new THREE.Mesh(fruitGeometry, new THREE.MeshLambertMaterial({ vertexColors: true }));
+      mesh.name = appearance === "unripe" ? "olive-green-drupes" : "olive-green-violet-and-black-drupes";
+      group.add(mesh);
+      pickables.push(mesh);
+    }
+  }
   return {
     group,
-    pickables: [trunk, crown],
+    pickables,
     dispose() {
-      barkGeometry.dispose();
-      foliage.dispose();
-      barkMaterial.dispose();
-      leafMaterial.dispose();
+      for (const mesh of pickables) {
+        mesh.geometry.dispose();
+        (mesh.material as THREE.Material).dispose();
+      }
     }
   };
 }

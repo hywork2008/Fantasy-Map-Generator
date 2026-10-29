@@ -4,13 +4,24 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import {
+  type LeafShoot,
+  limbGeometry,
+  type TreeAppearanceOptions,
+  WINTER_TWIGS,
+  winterTwigs
+} from "./treeSeasonLayers";
 
 /** Summer boreal trees: whorled evergreen spruce and white-barked, pendulous birch. */
 export function createBorealTree(
   species: "norway_spruce" | "silver_birch",
-  quality: TreeQuality = "ultra"
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {}
 ): CityStructureMeshes {
-  if (quality === "low") return createBorealTreeLow(species);
+  // Bare winter birches keep the leafy skeleton; the registry drops the leaves (seasonalLooks.ts).
+  const bare = species === "silver_birch" && options.appearance === "bare";
+  if (quality === "low") return createBorealTreeLow(species, bare);
+  const shoots: LeafShoot[] = [];
   const spruce = species === "norway_spruce";
   const medium = quality === "medium";
   let seed = spruce ? 43071 : 43097;
@@ -40,7 +51,7 @@ export function createBorealTree(
     wood.push(flat);
   }
   function branch(a: THREE.Vector3, b: THREE.Vector3, radius: number, white = false) {
-    if (medium && radius < 0.025) return;
+    if (medium && radius < 0.025 && !bare) return;
     const geometry = new THREE.CylinderGeometry(radius * 0.3, radius, a.distanceTo(b), medium ? 4 : 6, 1, medium);
     geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, b.clone().sub(a).normalize()));
     geometry.translate(...a.clone().add(b).multiplyScalar(0.5).toArray());
@@ -73,6 +84,7 @@ export function createBorealTree(
     }
   }
   function leaves(center: THREE.Vector3, radius: number) {
+    const placed: THREE.Vector3[] = [];
     for (let i = 0; i < 45; i++) {
       const angle = random() * Math.PI * 2,
         r = Math.sqrt(random()) * radius;
@@ -87,6 +99,7 @@ export function createBorealTree(
         base = p.clone().addScaledVector(blade, -0.7);
       const ridge = p.clone().addScaledVector(up, 0.025);
       const color = new THREE.Color().setHSL(0.22 + random() * 0.06, 0.42, 0.28 + random() * 0.14);
+      placed.push(p);
       // Consume every leaf's randomness at every tier: the later limbs and twigs must not move.
       if (medium) {
         leafPoints.push(p);
@@ -103,6 +116,7 @@ export function createBorealTree(
       triangle(base, ridge, p.clone().sub(side), color);
       triangle(ridge, tip, p.clone().sub(side), color);
     }
+    return placed;
   }
   const height = spruce ? 12 : 11;
   timber(
@@ -207,10 +221,9 @@ export function createBorealTree(
             )
           );
         branch(a, end, 0.012);
-        leaves(end, 0.6);
-        leaves(a.clone().lerp(end, 0.45), 0.6);
+        shoots.push({ base: a, tip: end, points: [...leaves(end, 0.6), ...leaves(a.clone().lerp(end, 0.45), 0.6)] });
       }
-      leaves(tip, 0.7);
+      shoots.push({ base: start.clone().lerp(tip, 0.7), tip, points: leaves(tip, 0.7) });
       if (medium) {
         // Two fitted halves retain the drooping crown of each main branch and its open white trunk.
         const mid = leafPoints.reduce((sum, p) => sum + p.y, 0) / leafPoints.length;
@@ -222,6 +235,10 @@ export function createBorealTree(
     leaves(new THREE.Vector3(0, 10.8, 0), 0.65);
     if (medium) lobes.push(fitCanopyLobe(leafPoints, 1.1));
   }
+  // A fine haze of pendulous twigs gives the winter birch its purplish crown.
+  if (bare)
+    for (const shoot of shoots)
+      for (const [from, to] of winterTwigs(shoot, WINTER_TWIGS[quality])) branch(from, to, medium ? 0.01 : 0.005);
   const bark = mergeGeometries(wood)!;
   for (const geometry of wood) geometry.dispose();
   const foliage =
@@ -256,9 +273,9 @@ export function createBorealTree(
 }
 
 /** Small silhouettes preserve separate spruce whorls and the birch's light crown and white stem. */
-function createBorealTreeLow(species: "norway_spruce" | "silver_birch"): CityStructureMeshes {
+function createBorealTreeLow(species: "norway_spruce" | "silver_birch", bare = false): CityStructureMeshes {
   const spruce = species === "norway_spruce";
-  const bark = createTreeBase(
+  const stem = createTreeBase(
     [
       { center: [0, 0, 0], radius: spruce ? 0.3 : 0.25 },
       { center: [0.04, 2, 0], radius: 0.18 },
@@ -268,6 +285,20 @@ function createBorealTreeLow(species: "norway_spruce" | "silver_birch"): CityStr
     0.65,
     5
   );
+  // A bare distant birch shows its twelve main limbs where the lobes were.
+  const limbs: [THREE.Vector3, THREE.Vector3, number][] = [];
+  if (bare)
+    for (const i of [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]) {
+      const t = i / 24,
+        angle = i * 2.39996,
+        reach = 2.8 * Math.sin(0.5 + t * 2.2);
+      limbs.push([
+        new THREE.Vector3(0, 2.8 + t * 6.8, 0),
+        new THREE.Vector3(Math.cos(angle) * (reach + 0.9), 4 + t * 6.4 - 0.6, Math.sin(angle) * (reach + 0.9)),
+        0.06 * (1 - t * 0.6)
+      ]);
+    }
+  const bark = limbs.length ? mergeGeometries([stem, ...limbGeometry(limbs)])! : stem;
   const lobes: CanopyLobe[] = [];
   if (!spruce)
     for (const i of [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]) {

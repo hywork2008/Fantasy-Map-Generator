@@ -17,7 +17,7 @@ import { kindEdgeIds } from "../../passages";
 /** Connect the dry edges of bank-side cells through their interiors. Routing
  * along the original perimeter alone can strand an entire bank at river
  * vertices, even when neighbouring land cells form a continuous corridor. */
-export function connectDryCellInteriors(document: CityDocument): CityDocument {
+export function connectDryCellInteriors(document: CityDocument, shoreEdges: ReadonlySet<Id> = new Set()): CityDocument {
   let next = document;
   const barriers = new Set([...kindEdgeIds(document, "river"), ...kindEdgeIds(document, "wall")]);
   const barrierVertices = new Set([...barriers].flatMap(id => [document.mesh.edges[id].a, document.mesh.edges[id].b]));
@@ -35,6 +35,7 @@ export function connectDryCellInteriors(document: CityDocument): CityDocument {
       .filter(
         edge =>
           !barriers.has(edge.id) &&
+          !shoreEdges.has(edge.id) &&
           [edge.leftFace, edge.rightFace].every(id => !id || document.mesh.faces[id].properties.water === "land")
       );
     // Boundary edges joined at an ordinary dry corner already communicate.

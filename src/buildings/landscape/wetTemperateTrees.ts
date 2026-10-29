@@ -5,13 +5,18 @@ import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes
 import { createConiferCanopyLod } from "./coniferCanopyLod";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import { type LeafShoot, type TreeAppearanceOptions, WINTER_TWIGS, winterTwigs } from "./treeSeasonLayers";
 
 /** Wet temperate trees: a fluted western red cedar and a multi-stemmed black alder of the carr. */
 export function createWetTemperateTree(
   species: "western_red_cedar" | "black_alder",
-  quality: TreeQuality = "ultra"
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {}
 ): CityStructureMeshes {
   const cedar = species === "western_red_cedar";
+  // Bare winter alders keep the leafy skeleton and their cones; the registry drops the leaves.
+  const bare = !cedar && options.appearance === "bare";
+  const shoots: LeafShoot[] = [];
   const reduced =
     cedar && (quality === "low" || quality === "medium")
       ? createConiferCanopyLod(quality, { hue: 0.29, saturation: 0.42, lightness: 0.24 }, 43201, 1.05, 1.05)
@@ -53,7 +58,7 @@ export function createWetTemperateTree(
   }
   function branch(a: THREE.Vector3, b: THREE.Vector3, bottom: number, top = bottom * 0.4, sides = 6) {
     if (reduced && (quality === "low" || bottom < 0.05)) return;
-    if (alderReduced && bottom < (quality === "low" ? 0.07 : 0.035)) return;
+    if (alderReduced && bottom < (quality === "low" ? (bare ? 0.035 : 0.07) : bare ? 0.012 : 0.035)) return;
     const geometry = new THREE.CylinderGeometry(
       top,
       bottom,
@@ -112,6 +117,7 @@ export function createWetTemperateTree(
   /** Rounded alder leaves with the characteristic notched tip, scattered in loose clumps. */
   function leaves(center: THREE.Vector3, radius: number, count: number) {
     const points: THREE.Vector3[] = [];
+    const placed: THREE.Vector3[] = [];
     for (let i = 0; i < count; i++) {
       const angle = random() * Math.PI * 2,
         r = Math.sqrt(random()) * radius;
@@ -125,6 +131,7 @@ export function createWetTemperateTree(
         .multiplyScalar(size);
       const across = new THREE.Vector3(-Math.sin(heading), 0.1, Math.cos(heading)).multiplyScalar(size * 0.55);
       const color = new THREE.Color().setHSL(0.27 + random() * 0.04, 0.4 + random() * 0.1, 0.17 + random() * 0.09);
+      placed.push(p);
       if (quality !== "ultra" && i % 2 !== 0) continue;
       if (quality !== "ultra") across.multiplyScalar(2);
       const tip = p.clone().add(along),
@@ -155,6 +162,7 @@ export function createWetTemperateTree(
     }
     if (quality === "medium") alderLobes.push(fitCanopyLobe(points, 0.65, true));
     else if (quality === "low") alderPoints.push(...points);
+    return placed;
   }
   if (cedar) {
     const height = 18.5;
@@ -255,8 +263,17 @@ export function createWetTemperateTree(
           .clone()
           .add(new THREE.Vector3(Math.cos(theta) * reach, 0.8 + random() * 0.6, Math.sin(theta) * reach));
         branch(from, tip, 0.05 * (1.2 - t), 0.01, 5);
-        leaves(tip, 0.9, 55);
-        leaves(from.clone().lerp(tip, 0.55), 0.75, 35);
+        shoots.push({
+          base: from,
+          tip,
+          points: [...leaves(tip, 0.9, 55), ...leaves(from.clone().lerp(tip, 0.55), 0.75, 35)]
+        });
+        // Male catkins hang through the winter, ready to open before the leaves.
+        if (bare && !alderReduced && i % 3 === 1)
+          for (let k = 0; k < 3; k++) {
+            const at = tip.clone().add(new THREE.Vector3(Math.cos(k * 2.1) * 0.18, -0.05, Math.sin(k * 2.1) * 0.18));
+            branch(at, at.clone().add(new THREE.Vector3(0.01, -0.09, 0)), 0.007, 0.005, 4);
+          }
         // Dark woody "cones" and hanging catkins persist on the twigs.
         if (i % 3 === 0) {
           const cone = new THREE.Color(0x2b2218);
@@ -282,6 +299,10 @@ export function createWetTemperateTree(
       if (quality === "low") alderLobes.push(fitCanopyLobe(alderPoints, 0.8, true));
     }
   }
+  if (bare)
+    for (const shoot of shoots)
+      for (const [from, to] of winterTwigs(shoot, WINTER_TWIGS[quality]))
+        branch(from, to, quality === "medium" ? 0.012 : 0.006, 0.003, 4);
   const barkGeometry = mergeGeometries(wood)!;
   for (const geometry of wood) geometry.dispose();
   const foliage = alderReduced

@@ -13,6 +13,7 @@ import type { OpenSpaceModel, OpenSpacePlan, OpenSpaceSite } from "../../city-ed
 import type { Point } from "../../city-editor/types/document";
 import { adopt, adoptedTree, markVariant } from "../adoption";
 import { planVertex } from "../core/planFrame";
+import { type TreeSeason, treeLookOptions } from "../treeSeason";
 import { groundSurfaceGeometry } from "./groundSurfaceGeometry";
 import { createOpenSpaceTreeLod } from "./openSpaceTreeLod";
 import type { CityStructureMeshes } from "./structureMeshes";
@@ -42,7 +43,8 @@ function variantOf(kind: OpenSpaceModel) {
   }
 }
 
-function createModel(kind: OpenSpaceModel): CityStructureMeshes {
+function createModel(kind: OpenSpaceModel, season?: TreeSeason): CityStructureMeshes {
+  if (isTreeModel(kind)) return adoptedTree(kind).create(treeLookOptions(season?.look(kind)).options);
   const variant = variantOf(kind);
   if (variant) return variant.create();
   const k = new ModelKit("ledger");
@@ -60,7 +62,9 @@ function shapeOf(ring: Point[], holes: Point[][] = []): THREE.Shape {
 export function createTownOpenSpaces(
   plan: OpenSpacePlan,
   terrain?: Pick<CityTerrain, "heightAt" | "foundationAt">,
-  cameraTreeLod = true
+  cameraTreeLod = true,
+  /** Park and churchyard trees in the month's look; the view rebuilds open spaces on a new month. */
+  season?: TreeSeason
 ) {
   const group = new THREE.Group();
   group.name = "ce-open-spaces";
@@ -141,12 +145,12 @@ export function createTownOpenSpaces(
   }
   for (const [kind, sites] of batches) {
     if (cameraTreeLod && isTreeModel(kind) && hasTreeQualityLevels(kind)) {
-      const layer = createOpenSpaceTreeLod(kind, sites, heightAt);
+      const layer = createOpenSpaceTreeLod(kind, sites, heightAt, season);
       treeLayers.push(layer);
       group.add(layer.group);
       continue;
     }
-    const model = createModel(kind);
+    const model = createModel(kind, season);
     models.push(model);
     model.group.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(model.group);
