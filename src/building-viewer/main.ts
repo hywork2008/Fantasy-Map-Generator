@@ -807,7 +807,7 @@ const landmarkModules = import.meta.glob<LandmarkModel>(
   ],
   { eager: true, import: "model" }
 );
-for (const style of ["Gothic", "Romanesque"] as const) {
+for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
   const category = modelCategory(`${style} landmarks`);
   for (const model of Object.values(landmarkModules)
     .filter(model => model.style === style)

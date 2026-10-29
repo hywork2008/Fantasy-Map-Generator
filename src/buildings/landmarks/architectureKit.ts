@@ -7,7 +7,7 @@ export interface LandmarkModel {
   id: string;
   task: string;
   name: string;
-  style: "Gothic" | "Romanesque";
+  style: "Gothic" | "Romanesque" | "Imaginary";
   state: string;
   /** Conservative display envelope, not a surveyed footprint. X is west to east. */
   size: readonly [number, number, number];
