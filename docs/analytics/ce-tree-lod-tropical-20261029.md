@@ -1,5 +1,7 @@
 # CE森林LOD：カポック・オオバヒルギの4品質化
 
+確認用画像は目視比較のための一時出力とし、永続保存・Git収録を行わない。画像ファイルの有無を完了条件にせず、以下の所見・条件・計測値・再現手順を記録として残す。既存スクリプトによる画像出力も確認後に削除する。
+
 2026-10-29。[全樹種のタスクリスト](../plan/ce-forest-biome-tree-lod-tasks.md) F3-1の作業記録。
 
 ## 1. 実装と作者
@@ -38,10 +40,10 @@ CE森林にはquality-firstの距離LODと、元ultraの樹高／水平最大半
 
 CEと同じ `createBvPrototypeCache().acquire()`、DoubleSideの頂点カラー材質、HemisphereLight（0xf4f0e6／0x6d7a62、0.9）、DirectionalLight（1.15、`sunDirection(DEFAULT_SUN)`）を使う。背景0xc5c5bf、SRGB、DPR 1、1200×800。
 
-- [4品質・斜め](ce-tree-lod-tropical-20261029/models-front.png)、[側面](ce-tree-lod-tropical-20261029/models-side.png)、[俯瞰](ce-tree-lod-tropical-20261029/models-top.png)
-- 単木medium／high：high樹冠bounds基準の45／90 px相当で倍率を揃え、[12°](ce-tree-lod-tropical-20261029/single-medium-high-12.png)、[40°](ce-tree-lod-tropical-20261029/single-medium-high-40.png)、[70°](ce-tree-lod-tropical-20261029/single-medium-high-70.png)を比較。
-- [各260本の林、35°／130 m](ce-tree-lod-tropical-20261029/stand-medium-high.png)：同じ位置・回転・寸法で比較。
-- 実BV：[カポックmedium](ce-tree-lod-tropical-20261029/bv-kapok-medium.png)、[オオバヒルギmedium](ce-tree-lod-tropical-20261029/bv-red-mangrove-medium.png)。各4品質の選択と描画を確認した。
+- 4品質・斜め、側面、俯瞰
+- 単木medium／high：high樹冠bounds基準の45／90 px相当で倍率を揃え、12°、40°、70°を比較。
+- 各260本の林、35°／130 m：同じ位置・回転・寸法で比較。
+- 実BV：カポックmedium、オオバヒルギmedium。各4品質の選択と描画を確認した。
 
 mediumは葉を不透明な房にまとめるため、highより面の占有率が高い。低品質の根の曲線も粗くなる。画像はこの差を含む比較資料であり、全条件の最終受入はF5に残す。
 
@@ -62,8 +64,8 @@ mediumは葉を不透明な房にまとめるため、highより面の占有率�
 | `mangrove` | edge | 398 | 0 / 304 / 89 / 5 | 2,574,300 | 10 |
 | `mangrove` | low | 217 | 0 / 126 / 81 / 10 | 2,056,638 | 8 |
 
-- カポック：[林縁](ce-tree-lod-tropical-20261029/tropicalRainforest-edge.png)、[俯瞰](ce-tree-lod-tropical-20261029/tropicalRainforest-overview.png)、[低視点](ce-tree-lod-tropical-20261029/tropicalRainforest-low.png)
-- オオバヒルギ：[林縁](ce-tree-lod-tropical-20261029/mangrove-edge.png)、[俯瞰](ce-tree-lod-tropical-20261029/mangrove-overview.png)、[低視点](ce-tree-lod-tropical-20261029/mangrove-low.png)
+- カポック：林縁、俯瞰、低視点
+- オオバヒルギ：林縁、俯瞰、低視点
 
 品質切替3巡のgeometry数は両バイオームとも15→15→15で安定し、WebGL・pageerror・BVエラーは0件。[描画記録JSON](ce-tree-lod-tropical-20261029/results.json) の時間は単発CPU更新／提出のみで、GPU完了時間・街全体の操作p95・33 ms目標の達成を示さない。平坦な森林レイヤーの確認であり、干潟・水面と支柱根の接地、全バイオームの割当、影あり外観・別GPU・高DPRはF3-3／F5に残す。
 
@@ -79,6 +81,6 @@ node --import tsx scripts/measureCeTreeModels.mts docs/analytics/ce-tree-lod-tro
 node --import tsx scripts/verifyCeTropicalTreeLod.mts
 ```
 
-変更前JSONは上書きしない。棚卸しJSONにはソースSHA-256、描画スクリプトには固定入力と比較条件を保存した。今回のJSON・画像は各ファイル2 MB未満。TypeScript全体検査は既存の `src/city-editor/renderers/fogControls.ts:45` のstring／EditorMessageKey不一致1件で失敗し、今回の変更ファイルには型エラーが報告されなかった。
+変更前JSONは上書きしない。棚卸しJSONにはソースSHA-256、描画スクリプトには固定入力と比較条件を保存した。保存対象のJSONは各ファイル2 MB未満。TypeScript全体検査は既存の `src/city-editor/renderers/fogControls.ts:45` のstring／EditorMessageKey不一致1件で失敗し、今回の変更ファイルには型エラーが報告されなかった。
 
-次のモデル作製はF3-2のハンノキ・ナナカマド・カナリアマツ。F1の既存モデル基準画像・温帯寒帯確認、F2-3の乾燥地の適用確認、F3-3の全対象バイオームの割当・接地も残作業とする。
+次のモデル作製はF3-2のハンノキ・ナナカマド・カナリアマツ。F1の既存モデルの基準比較・温帯寒帯確認、F2-3の乾燥地の適用確認、F3-3の全対象バイオームの割当・接地も残作業とする。

@@ -1,5 +1,7 @@
 # CE樹木LOD：用途別4樹種の4品質化
 
+確認用画像は目視比較のための一時出力とし、永続保存・Git収録を行わない。画像ファイルの有無を完了条件にせず、以下の所見・条件・計測値・再現手順を記録として残す。既存スクリプトによる画像出力も確認後に削除する。
+
 2026-10-29。[全樹種のタスクリスト](../plan/ce-forest-biome-tree-lod-tasks.md) F4-1の作業記録。
 
 ## 1. 実装と作者
@@ -52,10 +54,10 @@ lowは全種500未満、mediumは全種3,000未満。ヤナギhighは37,292三�
 
 CEと同じ `createBvPrototypeCache().acquire()`、DoubleSideの頂点カラー材質、HemisphereLight（0xf4f0e6／0x6d7a62、0.9）、DirectionalLight（1.15、`sunDirection(DEFAULT_SUN)`）を使った。背景0xc5c5bf、SRGB、DPR 1、1200×1600。
 
-- [4品質・斜め](ce-tree-lod-garden-20261029/models-front.png)、[側面](ce-tree-lod-garden-20261029/models-side.png)、[俯瞰](ce-tree-lod-garden-20261029/models-top.png)
-- 単木medium／high：high樹冠bounds基準の45／90 px相当で倍率を揃え、[12°](ce-tree-lod-garden-20261029/single-medium-high-12.png)、[40°](ce-tree-lod-garden-20261029/single-medium-high-40.png)、[70°](ce-tree-lod-garden-20261029/single-medium-high-70.png)を比較。
-- [各260本の林、35°／130 m](ce-tree-lod-garden-20261029/stand-medium-high.png)：同じ位置・回転・寸法で比較。
-- 実BV：[イトスギ](ce-tree-lod-garden-20261029/bv-mediterranean-cypress-medium.png)、[コノテガシワ](ce-tree-lod-garden-20261029/bv-oriental-evergreen-medium.png)、[インドボダイジュ](ce-tree-lod-garden-20261029/bv-sacred-bodhi-and-fig-medium.png)、[シダレヤナギ](ce-tree-lod-garden-20261029/bv-peaceful-willow-medium.png)。各4品質の選択と描画を確認した。
+- 4品質・斜め、側面、俯瞰
+- 単木medium／high：high樹冠bounds基準の45／90 px相当で倍率を揃え、12°、40°、70°を比較。
+- 各260本の林、35°／130 m：同じ位置・回転・寸法で比較。
+- 実BV：イトスギ、コノテガシワ、インドボダイジュ、シダレヤナギ。各4品質の選択と描画を確認した。
 
 mediumはhighの個別葉を不透明な房へ縮約するため、面の占有率と透け方が異なる。特にヤナギは葉の房が高品質の細い垂れ枝より密に見える。画像はこの差を含む比較資料であり、全条件の最終受入はF5に残す。
 
@@ -80,10 +82,10 @@ zoom 1の数量：
 | `peaceful_willow` | edge | 205 | 0 / 0 / 185 / 20 | 8,408,060 | 3 |
 | `peaceful_willow` | low | 117 | 0 / 0 / 20 / 97 | 8,064,684 | 3 |
 
-- イトスギ：[近景](ce-tree-lod-garden-20261029/park-mediterranean_cypress-edge.png)、[俯瞰](ce-tree-lod-garden-20261029/park-mediterranean_cypress-overview.png)、[低視点](ce-tree-lod-garden-20261029/park-mediterranean_cypress-low.png)
-- コノテガシワ：[近景](ce-tree-lod-garden-20261029/park-oriental_evergreen-edge.png)、[俯瞰](ce-tree-lod-garden-20261029/park-oriental_evergreen-overview.png)、[低視点](ce-tree-lod-garden-20261029/park-oriental_evergreen-low.png)
-- インドボダイジュ：[近景](ce-tree-lod-garden-20261029/park-sacred_bodhi_and_fig-edge.png)、[俯瞰](ce-tree-lod-garden-20261029/park-sacred_bodhi_and_fig-overview.png)、[低視点](ce-tree-lod-garden-20261029/park-sacred_bodhi_and_fig-low.png)
-- シダレヤナギ：[近景](ce-tree-lod-garden-20261029/park-peaceful_willow-edge.png)、[俯瞰](ce-tree-lod-garden-20261029/park-peaceful_willow-overview.png)、[低視点](ce-tree-lod-garden-20261029/park-peaceful_willow-low.png)
+- イトスギ：近景、俯瞰、低視点
+- コノテガシワ：近景、俯瞰、低視点
+- インドボダイジュ：近景、俯瞰、低視点
+- シダレヤナギ：近景、俯瞰、低視点
 
 zoom切替3巡のgeometry数は全種32→32→32で安定した。WebGL・pageerror・BVエラーは0件。[描画記録JSON](ce-tree-lod-garden-20261029/results.json) は単発CPU更新／提出時間だけを記録し、GPU完了時間・街全体の操作p95・33 ms目標の達成を示さない。ヤナギの固定配置は近景約841万三角形であり、実際の配置密度・木部縮約・予算の扱いを含むF5の性能確認が必要である。影の提出先は選択するが、影ありの外観は今回の確認範囲に含めない。
 
@@ -99,6 +101,6 @@ node --import tsx scripts/measureCeTreeModels.mts docs/analytics/ce-tree-lod-gar
 node --import tsx scripts/verifyCeGardenTreeLod.mts
 ```
 
-変更前JSONは上書きせず保持する。棚卸しJSONにソースSHA-256、描画スクリプトに固定配置・比較条件を保存した。JSON・画像は各ファイル2 MB未満。TypeScript全体検査は既存の `src/city-editor/renderers/fogControls.ts:45` のstring／EditorMessageKey不一致1件で失敗し、今回の変更ファイルには型エラーが報告されなかった。
+変更前JSONは上書きせず保持する。棚卸しJSONにソースSHA-256、描画スクリプトに固定配置・比較条件を保存した。保存対象のJSONは各ファイル2 MB未満。TypeScript全体検査は既存の `src/city-editor/renderers/fogControls.ts:45` のstring／EditorMessageKey不一致1件で失敗し、今回の変更ファイルには型エラーが報告されなかった。
 
-モデル作製枠は20樹種・80品質すべて実装済み。次はF4-2の用途・文化別割当、F4-3の無立木・未指定・全件台帳の確認へ進む。F1-1の既存基準画像、F1-4／F2-3／F3-3のバイオーム確認と、F5の総合受入・性能確認は未完了である。
+モデル作製枠は20樹種・80品質すべて実装済み。次はF4-2の用途・文化別割当、F4-3の無立木・未指定・全件台帳の確認へ進む。F1-1の既存モデルの基準比較、F1-4／F2-3／F3-3のバイオーム確認と、F5の総合受入・性能確認は未完了である。
