@@ -61,7 +61,8 @@ export function landscapeTreeSpecies(
           (key === "temperatedeciduousforest" || key === "centraleuropeangreatforest")
         ) {
           // A deterministic visual mixture, not a calibrated natural species distribution.
-          return growthRandom(`${seed}:european-tree:${point[0]}:${point[1]}`) < 0.5 ? "european_beech" : preferred;
+          if (growthRandom(`${seed}:european-tree:${point[0]}:${point[1]}`) < 0.5) return "european_beech";
+          return growthRandom(`${seed}:oak-tree:${point[0]}:${point[1]}`) < 0.5 ? "pedunculate_oak" : preferred;
         }
         return preferred;
       }

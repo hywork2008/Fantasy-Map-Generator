@@ -13,14 +13,14 @@ const expected = {
   savanna: ["date_palm", "umbrella_thorn"],
   grassland: ["garden_parkland"],
   tropicalSeasonalForest: ["date_palm", "umbrella_thorn"],
-  temperateDeciduousForest: ["european_beech", "garden_parkland"],
+  temperateDeciduousForest: ["european_beech", "pedunculate_oak", "garden_parkland"],
   tropicalRainforest: ["kapok"],
   temperateRainforest: ["western_red_cedar"],
   taiga: ["norway_spruce", "silver_birch"],
   tundra: ["none"],
   glacier: ["none"],
   wetland: ["black_alder"],
-  centralEuropeanGreatForest: ["european_beech", "garden_parkland"],
+  centralEuropeanGreatForest: ["european_beech", "pedunculate_oak", "garden_parkland"],
   mediterraneanWoodlandScrub: ["olive"],
   temperateConiferousForest: ["western_red_cedar"],
   montaneForest: ["silver_fir"],
@@ -121,12 +121,12 @@ it("uses explicit cold tags for a custom forest or desert without a temperature"
   expect(landscapeTreeSpecies("garden_parkland", city, [0, 0])).toBe("saxaul");
 });
 
-it("adds beech only to explicit European woodland while retaining plantings and cold fallback", () => {
+it("adds beech and oak only to explicit European woodland while retaining plantings and cold fallback", () => {
   const city = createDocument("beech-woodland", 100);
   city.biome = { id: 1, key: "temperateDeciduousForest", name: "Forest", color: "green" };
   const points = Array.from({ length: 64 }, (_, i) => [i * 17, i * 23] as [number, number]);
   const woodland = () => points.map(point => landscapeTreeSpecies("garden_parkland", city, point, "woodland"));
-  expect(new Set(woodland())).toEqual(new Set(["european_beech", "garden_parkland"]));
+  expect(new Set(woodland())).toEqual(new Set(["european_beech", "pedunculate_oak", "garden_parkland"]));
   expect(woodland()).toEqual(woodland());
   for (const point of points) {
     expect(landscapeTreeSpecies("garden_parkland", city, point)).toBe("garden_parkland");

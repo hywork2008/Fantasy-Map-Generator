@@ -4,6 +4,7 @@ import { createBorealTree } from "./borealTrees";
 import { createEuropeanBeech } from "./europeanBeech";
 import { createEuropeanYew } from "./europeanYew";
 import { createMediterraneanMontaneTree } from "./mediterraneanMontaneTrees";
+import { createPedunculateOak } from "./pedunculateOak";
 import { createKapok } from "./rainforestTrees";
 import { createSacredGardenTree } from "./sacredGardenTrees";
 import { createSaltTolerantTree } from "./saltTolerantTrees";
@@ -13,6 +14,7 @@ import { createUplandTree } from "./uplandTrees";
 import { createWetTemperateTree } from "./wetTemperateTrees";
 
 export const TREE_SPECIES = [
+  "pedunculate_oak",
   "european_beech",
   "garden_parkland",
   "norway_spruce",
@@ -51,6 +53,20 @@ type TreeDefinition = { create: TreeFactory; lod?: undefined } | { lod: TreeLodP
 
 /** One registration supplies BV factories and CE's woodland, park and churchyard LOD policy. */
 export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
+  pedunculate_oak: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 18,
+      forestHeightToRadius: 2.3,
+      models: {
+        low: () => createPedunculateOak("low"),
+        medium: () => createPedunculateOak("medium"),
+        high: () => createPedunculateOak("high"),
+        ultra: () => createPedunculateOak("ultra")
+      }
+    }
+  },
   european_beech: {
     lod: {
       selection: "pixels",

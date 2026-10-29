@@ -6,11 +6,17 @@ type TreeEntry = Pick<MedievalModel, "biomes" | "name" | "size" | "note">;
 
 /** Biome labels describe current CE woodland selection, including temperature branches. */
 const TREES: Record<TreeSpecies, TreeEntry> = {
+  pedunculate_oak: {
+    biomes: ["temperateDeciduousForest", "centralEuropeanGreatForest"],
+    name: "Pedunculate oak · Quercus robur",
+    size: [16, 16, 18],
+    note: "Summer Quercus robur with a stout furrowed grey-brown bole, crooked spreading forks, a broad irregular crown and folded lobed leaves. Illustrative woodland dimensions, not a measured mature maximum, cultivar or a model for all oak species. Acorns and seasonal changes are omitted. Mixed with beech and lime in explicit European woodland biomes; existing park and cemetery preferences remain unchanged. Botanical references: https://www.forestryengland.uk/tree-species/english-oak and https://www.forestresearch.gov.uk/tools-and-resources/tree-species-database/131559-pedunculate-oak-pok-2/"
+  },
   european_beech: {
     biomes: ["temperateDeciduousForest", "centralEuropeanGreatForest"],
     name: "European beech · Fagus sylvatica",
     size: [13, 13, 20],
-    note: "Summer woodland Fagus sylvatica with a clear smooth grey bole, ascending limbs, a domed crown and folded oval green leaves. Illustrative 20 m tree, not a measured mature maximum or a cultivar. Mixed with lime in explicit European woodland biomes; existing park and cemetery preferences remain unchanged. Botanical references: https://www.forestryengland.uk/tree-species/beech and https://www.forestresearch.gov.uk/tools-and-resources/tree-species-database/beech-be/"
+    note: "Summer woodland Fagus sylvatica with a clear smooth grey bole, ascending limbs, a domed crown and folded oval green leaves. Illustrative 20 m tree, not a measured mature maximum or a cultivar. Mixed with oak and lime in explicit European woodland biomes; existing park and cemetery preferences remain unchanged. Botanical references: https://www.forestryengland.uk/tree-species/beech and https://www.forestresearch.gov.uk/tools-and-resources/tree-species-database/beech-be/"
   },
   garden_parkland: {
     biomes: ["grassland", "temperateDeciduousForest", "centralEuropeanGreatForest"],

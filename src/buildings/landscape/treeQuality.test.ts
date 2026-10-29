@@ -6,6 +6,7 @@ import { TREE_QUALITIES, treeQualityAtDistance, treeQualityAtPixels } from "./tr
 import { createLandscapeTree, treeLodProfile } from "./trees";
 
 it.each([
+  "pedunculate_oak",
   "european_beech",
   "garden_parkland",
   "sacred_yew",
@@ -65,7 +66,7 @@ it("retains tiers across small pixel changes and responds to camera zoom", () =>
   expect(treeQualityAtPixels(65, "high")).toBe("medium");
 });
 
-it.each(["garden_parkland", "sacred_yew", "european_beech"] as const)(
+it.each(["garden_parkland", "sacred_yew", "european_beech", "pedunculate_oak"] as const)(
   "retains the broad native crown dimensions at the low transition for %s",
   species => {
     const low = adoptedTree(species, "low").create();
@@ -85,6 +86,7 @@ it.each(["garden_parkland", "sacred_yew", "european_beech"] as const)(
 );
 
 it.each([
+  "pedunculate_oak",
   "european_beech",
   "garden_parkland",
   "sacred_yew",
