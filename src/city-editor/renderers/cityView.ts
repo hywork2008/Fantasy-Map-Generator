@@ -254,6 +254,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let regionalHouses: TownRegionalHouseLod | null = null;
   let simplification: SimplificationPreferences = { urban: "auto", outskirts: "auto" };
   let facilities: TownFacilities | null = null;
+  let facilityStructures: StructureMassing[] = [];
   let bridges: TownBridges | null = null;
   const bvPrototypes = createBvPrototypeCache();
   let openSpaces: ReturnType<typeof createTownOpenSpaces> | null = null;
@@ -415,6 +416,25 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     outline(positions);
   };
 
+  const rebuildFacilities = (city: CityDocument, fabric: DistrictFabric, quality: ModelQuality) => {
+    if (!scene) return;
+    const next = createTownFacilities(
+      city,
+      fabric,
+      facilityStructures,
+      bvPrototypes,
+      quality,
+      terrain ?? undefined,
+      point => (waterMeshes ? townWaterHeightAt(waterMeshes, point) : WATER_Y)
+    );
+    if (facilities) {
+      scene.remove(facilities.group);
+      facilities.dispose();
+    }
+    facilities = next;
+    scene.add(next.group);
+  };
+
   const rebuild = (city: CityDocument, fabric: DistrictFabric, quality: ModelQuality = "standard") => {
     if (!scene) return;
     clearHighlight();
@@ -486,13 +506,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     }
     townWalls = nextWalls;
     scene.add(townWalls.group);
-    const nextFacilities = createTownFacilities(city, fabric, grounded, bvPrototypes, quality, terrain ?? undefined);
-    if (facilities) {
-      scene.remove(facilities.group);
-      facilities.dispose();
-    }
-    facilities = nextFacilities;
-    scene.add(facilities.group);
+    facilityStructures = grounded;
+    rebuildFacilities(city, fabric, quality);
     structureList = grounded.filter(
       part =>
         !specialBuildings!.replaced.has(part.id) &&
@@ -807,6 +822,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       builtQuality = quality;
       // Defenses and special buildings must use the same automatic culture as the housing preview.
       rebuild(appearanceCity, fabric, quality);
+    } else if (plan.water) {
+      rebuildFacilities(appearanceCity, fabric, quality);
     }
     if (farmlandChanged) {
       const next = createTownFarms(

@@ -3,7 +3,7 @@ import type { CityStructureMeshes } from "../city3d/three/structureMeshes";
 import type { Author } from "./authors";
 import { createPostMill, POST_MILL } from "./mills/postMill";
 import { createTowerMill, TOWER_MILL } from "./mills/towerMill";
-import { createWaterMill, WATER_MILL } from "./mills/waterMill";
+import { createLowBankWaterMill, createWaterMill, LOW_BANK_WATER_MILLS, WATER_MILL } from "./mills/waterMill";
 import { BATTERING_RAM, createBatteringRam } from "./siege/batteringRam";
 import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "./siege/earlyFieldCannon";
 import { createSiegeTower, SIEGE_TOWER } from "./siege/siegeTower";
@@ -97,6 +97,13 @@ export const PLACEABLE_OBJECTS: readonly PlaceableObject[] = [
   { id: "postMill", category: "Mills", name: POST_MILL.name, author: POST_MILL.author, create: createPostMill },
   { id: "towerMill", category: "Mills", name: TOWER_MILL.name, author: TOWER_MILL.author, create: createTowerMill },
   { id: "waterMill", category: "Mills", name: WATER_MILL.name, author: WATER_MILL.author, create: createWaterMill },
+  ...LOW_BANK_WATER_MILLS.map(spec => ({
+    id: spec.id,
+    category: "Mills" as const,
+    name: spec.name,
+    author: WATER_MILL.author,
+    create: () => createLowBankWaterMill(spec)
+  })),
   {
     id: "earlyFieldCannon",
     category: "Artillery",

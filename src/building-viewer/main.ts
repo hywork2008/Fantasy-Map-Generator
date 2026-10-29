@@ -28,7 +28,12 @@ import type { MedievalModel } from "../buildings/medieval/modelKit";
 import { meshProjection } from "../buildings/meshProjection";
 import { createPostMill, POST_MILL } from "../buildings/mills/postMill";
 import { createTowerMill, TOWER_MILL } from "../buildings/mills/towerMill";
-import { createWaterMill, WATER_MILL } from "../buildings/mills/waterMill";
+import {
+  createLowBankWaterMill,
+  createWaterMill,
+  LOW_BANK_WATER_MILLS,
+  WATER_MILL
+} from "../buildings/mills/waterMill";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
 import {
   CONTAINER_KINDS,
@@ -1471,6 +1476,47 @@ waterMillButton.addEventListener("click", () => {
   );
 });
 millsHeading.append(waterMillButton);
+
+for (const spec of LOW_BANK_WATER_MILLS) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = spec.name;
+  button.addEventListener("click", () => {
+    selection++;
+    for (const item of list.querySelectorAll("button"))
+      item.setAttribute("aria-current", item === button ? "true" : "false");
+    clearMesh();
+    floors.replaceChildren();
+    facts.replaceChildren();
+    banner.hidden = true;
+    roofTitle.textContent = "Low-bank watermill elevation";
+    levelTitle.textContent = "Low-bank watermill plan and flow";
+    const model = createLowBankWaterMill(spec, true);
+    massing = model;
+    scene.add(model.group);
+    frame({ occupancyMeters: { width: 18, depth: 13 } }, WATER_MILL.height);
+    // This study includes its own bank section so the river below y=0 remains visible.
+    ground.visible = false;
+    camera.position.set(20, 13, 25);
+    controls.target.set(0, 3, 2);
+    controls.update();
+    mountPlan(roofHost, model.elevation);
+    mountPlan(levelHost, model.plan);
+    appendFacts(
+      fact("Model", spec.name),
+      fact("Wheel", `Undershot paddle wheel; ${WATER_MILL.wheelRadius * 2} m diameter; 16 paddles`),
+      fact("Ground / river", `Ground y=0 m; river y=-${spec.bankDrop} m; paddle immersion about 0.35 m`),
+      fact("Flow", spec.flow === 1 ? "Upstream -X → downstream +X" : "Upstream +X → downstream -X"),
+      fact("Water supply", "Low intake and partly raised sluice upstream; open tailrace downstream"),
+      fact(
+        "Note",
+        "Imagined low-bank study for CE sites with ground 0–1 m above the river. The house stays on the land side (-Z), the wheel on the river side (+Z). Surface chevrons show downstream. Bank and river context appear only in this BV preview; the placeable model omits them. Static exterior; illustrative dimensions.",
+        "Watermill"
+      )
+    );
+  });
+  millsHeading.append(button);
+}
 
 const wellsHeading = modelCategory("Wells");
 const wellButton = document.createElement("button");

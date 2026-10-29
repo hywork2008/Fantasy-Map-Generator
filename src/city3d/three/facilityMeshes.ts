@@ -19,6 +19,7 @@ import { models as instruments } from "../../buildings/medieval/39-instrument-ma
 import { models as sand } from "../../buildings/medieval/40-sand-yardsModels";
 import { POST_MILL } from "../../buildings/mills/postMill";
 import { TOWER_MILL } from "../../buildings/mills/towerMill";
+import { createLowBankWaterMill, LOW_BANK_WATER_MILLS, WATER_MILL } from "../../buildings/mills/waterMill";
 import { type ModelQuality, resolveModelQuality } from "../../buildings/modelQuality";
 import {
   GARRISON_VARIANTS,
@@ -35,6 +36,7 @@ import { resolveCastleStyle } from "../../city-editor/renderers/castlePatterns";
 import type { StructureMassing } from "../../city-editor/types/contracts/structureMassing";
 import type { CityDocument, Point } from "../../city-editor/types/document";
 import { adopt, adoptedDefinition, medievalDefinition } from "../adoption";
+import { WATER_Y } from "../core/waterGeometry";
 import { type BvDefinition, type BvPlacement, type BvPrototypeCache, createBvInstances } from "./bvInstances";
 import { fitBvBuilding } from "./bvPlacement";
 
@@ -126,7 +128,8 @@ export function createTownFacilities(
   structures: readonly StructureMassing[],
   cache: BvPrototypeCache,
   quality: ModelQuality = "high",
-  terrain?: Pick<CityTerrain, "foundationAt" | "heightAt" | "relief">
+  terrain?: Pick<CityTerrain, "foundationAt" | "heightAt" | "relief">,
+  waterHeightAt: (point: Point) => number = () => WATER_Y
 ) {
   const sites: FacilitySite[] = [],
     releases: Array<() => void> = [];
@@ -143,6 +146,36 @@ export function createTownFacilities(
     if (fitted) sites.push({ id, name, definition: model, matrix: fitted.matrix });
   };
   const aerial = fabric.aerialLandmarks;
+  for (const mill of fabric.watermills?.mills ?? []) {
+    const frame = frameOf(mill.millhousePolygon);
+    let angle = mill.wheel.angleRad;
+    const dx = frame.center[0] - mill.wheel.center[0];
+    const dy = frame.center[1] - mill.wheel.center[1];
+    // Local -Z points from the wheel toward the house, on either river bank.
+    if (-Math.sin(angle) * dx + Math.cos(angle) * dy < 0) angle += Math.PI;
+    const scale = mill.wheel.radius / WATER_MILL.wheelRadius;
+    const base = elevationAt(mill.millhousePolygon);
+    const water = waterHeightAt(mill.wheel.center);
+    if (![scale, base, water].every(Number.isFinite) || scale <= 0) continue;
+    const bankDrop = (base - water) / scale;
+    const flow = Math.cos(angle - mill.wheel.angleRad) > 0 ? 1 : -1;
+    const variants = LOW_BANK_WATER_MILLS.filter(spec => spec.flow === flow);
+    const spec = variants.reduce((best, item) =>
+      Math.abs(item.bankDrop - bankDrop) < Math.abs(best.bankDrop - bankDrop) ? item : best
+    );
+    const source = adopt(OBJECT_VARIANTS, `object.${spec.id}`, "default");
+    // Size in plan remains unchanged; axle and intake follow the rendered water, not a preset gap.
+    const immersion = 0.35 / scale;
+    const model = definition(
+      `watermill:${spec.id}:${bankDrop}:${immersion}`,
+      () => createLowBankWaterMill(spec, false, { bankDrop, immersion, drawWater: false }),
+      source.id
+    );
+    const matrix = placement(mill.wheel.center, base, angle, scale).multiply(
+      new THREE.Matrix4().makeTranslation(-WATER_MILL.wheelCenter.x, 0, -WATER_MILL.wheelCenter.z)
+    );
+    sites.push({ id: mill.id, name: mill.name, definition: model, matrix });
+  }
   for (const mill of aerial?.windmills ?? []) {
     const source = mill.kind === "post" ? POST_MILL : TOWER_MILL;
     const mills = adopt(OBJECT_VARIANTS, mill.kind === "post" ? "object.postMill" : "object.towerMill", "default");

@@ -61,6 +61,7 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     lanes: fabric.lanes
   };
   let center: [number, number] = [0, 0];
+  let riverDrop = 1;
   const cleanups: Array<() => void> = [];
   const view = mountCity3d({
     canvasHost: host,
@@ -76,7 +77,8 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     },
     getDocument: () => city,
     getViewCenter: () => center,
-    getModelQuality: () => "high"
+    getModelQuality: () => "high",
+    getRiverDropMeters: () => riverDrop
   });
   try {
     const toggle = host.querySelector<HTMLButtonElement>(".ce-view-toggle")!;
@@ -107,6 +109,15 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     flush();
     expect(render).toHaveBeenCalledTimes(2);
     expect(frames.size).toBe(0);
+
+    const previousFacilities = scene.getObjectByName("ce-facilities");
+    const previousHouses = scene.getObjectByName("ce-regional-houses");
+    expect(previousHouses).toBeDefined();
+    riverDrop = 2;
+    view.sync();
+    expect(scene.getObjectByName("ce-facilities")).not.toBe(previousFacilities);
+    // A water-only change must not rebuild the housing prototypes.
+    expect(scene.getObjectByName("ce-regional-houses")).toBe(previousHouses);
 
     center = [30, 20];
     view.resetCamera();

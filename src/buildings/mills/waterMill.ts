@@ -11,8 +11,34 @@ export const WATER_MILL = {
   height: 11,
   wheelRadius: 2.45,
   hubHeight: 2.65,
+  wheelCenter: { x: 1.3, z: 4.2 },
   note: "Imagined medieval European grain mill with a rubble-stone ground floor, timber-framed plaster upper storey, clay-tiled gable roof and wooden overshot wheel. A raised timber flume feeds the wheel from the left; the lower millrace carries water away. Static exterior study with illustrative dimensions, not a reconstruction of a particular site. Internal gearing, millstones, flowing water and wheel animation are omitted."
 } as const;
+
+/** Local +X is along the bank; local +Z points from the house toward the river. */
+export const LOW_BANK_WATER_MILLS = [
+  { id: "waterMillLowBankShallowForward", bankDrop: 0.25, flow: 1, name: "Low-bank watermill · 0.25 m · Flow +X" },
+  { id: "waterMillLowBankShallowReverse", bankDrop: 0.25, flow: -1, name: "Low-bank watermill · 0.25 m · Flow -X" },
+  { id: "waterMillLowBankDeepForward", bankDrop: 0.85, flow: 1, name: "Low-bank watermill · 0.85 m · Flow +X" },
+  { id: "waterMillLowBankDeepReverse", bankDrop: 0.85, flow: -1, name: "Low-bank watermill · 0.85 m · Flow -X" }
+] as const;
+export type LowBankWaterMill = (typeof LOW_BANK_WATER_MILLS)[number];
+
+export interface LowBankWaterMillOptions {
+  /** Local metres before the CE instance scale is applied. */
+  bankDrop?: number;
+  immersion?: number;
+  /** CE supplies its own continuous river surface. */
+  drawWater?: boolean;
+}
+
+export function createLowBankWaterMill(
+  spec: LowBankWaterMill,
+  showSite = false,
+  options: LowBankWaterMillOptions = {}
+): WaterMillMeshes {
+  return buildWaterMill(spec, showSite, options);
+}
 
 export interface WaterMillMeshes extends CityStructureMeshes {
   elevation: string;
@@ -20,8 +46,19 @@ export interface WaterMillMeshes extends CityStructureMeshes {
 }
 
 export function createWaterMill(): WaterMillMeshes {
+  return buildWaterMill();
+}
+
+function buildWaterMill(
+  lowBank?: LowBankWaterMill,
+  showSite = false,
+  options: LowBankWaterMillOptions = {}
+): WaterMillMeshes {
+  const bankDrop = options.bankDrop ?? lowBank?.bankDrop ?? 0;
+  const immersion = options.immersion ?? 0.35;
+  const hubHeight = lowBank ? WATER_MILL.wheelRadius - bankDrop - immersion : WATER_MILL.hubHeight;
   const group = new THREE.Group();
-  group.name = "medieval-watermill";
+  group.name = lowBank?.id ?? "medieval-watermill";
   const pickables: THREE.Mesh[] = [];
   const geometries = new Set<THREE.BufferGeometry>();
   const material = (color: number) => new THREE.MeshLambertMaterial({ color });
@@ -71,11 +108,46 @@ export function createWaterMill(): WaterMillMeshes {
     return mesh;
   }
 
-  // The race runs beneath the wheel, outside the building's foundation.
-  box("millrace-water", 0, 0.08, 4.2, 17.6, 0.08, 2.3, water);
-  for (const z of [2.94, 5.46]) {
-    box("race-retaining-wall", 0, 0.21, z, 17.8, 0.42, 0.22, stone[2]);
-    for (let i = 0; i < 22; i++) box("race-coping", -8.5 + i * 0.81, 0.45, z, 0.78, 0.13, 0.34, stone[i % 4]);
+  if (lowBank) {
+    // Ground datum is y=0. CE adjusts the axle to its actual water surface.
+    const waterY = -bankDrop;
+    const upstream = WATER_MILL.wheelCenter.x - lowBank.flow * 6.3;
+    const downstream = WATER_MILL.wheelCenter.x + lowBank.flow * 4.5;
+    if (options.drawWater !== false) box("millrace-water", 0, waterY - 0.04, 4.2, 17.6, 0.08, 2.3, water);
+    for (const z of [3.05, 5.35]) {
+      box("intake-guide", upstream, waterY + 0.2, z, 3.2, 0.35, 0.18, oak);
+      box("sluice-gate-guide", upstream, waterY + 0.7, z, 0.2, 1.7, 0.2, timber);
+      box("tailrace-guide", downstream, waterY + 0.05, z, 3.4, 0.18, 0.15, oak);
+    }
+    // A partly raised gate leaves the intake open below it; no elevated flume is needed.
+    box("low-sluice-gate", upstream, waterY + 0.7, 4.2, 0.16, 0.65, 2.1, freshWood);
+    box("sluice-lifting-bar", upstream, waterY + 1.25, 4.2, 0.12, 0.9, 0.12, iron);
+    box("sluice-handle", upstream, waterY + 1.65, 4.2, 0.12, 0.1, 0.7, timber);
+    if (showSite) {
+      const earth = material(0x9e967d);
+      materials.push(earth);
+      box("bank-section", 0, -1.3, -0.1, 18, 2.6, 6, earth);
+      box("river-context", 0, waterY - 0.045, 7.1, 18, 0.08, 3.5, water);
+      // Surface chevrons show downstream without relying on a camera viewpoint.
+      for (const x of [-6, 0, 6]) {
+        for (const side of [-1, 1]) {
+          beam(
+            "flow-direction",
+            v(x - lowBank.flow * 0.8, waterY + 0.02, 7.1 + side * 0.45),
+            v(x + lowBank.flow * 0.3, waterY + 0.02, 7.1),
+            0.07,
+            linen
+          );
+        }
+      }
+    }
+  } else {
+    // The race runs beneath the wheel, outside the building's foundation.
+    box("millrace-water", 0, 0.08, 4.2, 17.6, 0.08, 2.3, water);
+    for (const z of [2.94, 5.46]) {
+      box("race-retaining-wall", 0, 0.21, z, 17.8, 0.42, 0.22, stone[2]);
+      for (let i = 0; i < 22; i++) box("race-coping", -8.5 + i * 0.81, 0.45, z, 0.78, 0.13, 0.34, stone[i % 4]);
+    }
   }
   box("foundation", 0, 0.25, -0.1, 8.3, 0.5, 5.9, stone[2]);
   box("stone-ground-floor", 0, 1.65, -0.1, 8, 2.4, 5.8, stone[0]);
@@ -157,12 +229,18 @@ export function createWaterMill(): WaterMillMeshes {
   for (const y of [0.85, 2.05]) box("door-strap-hinge", -2.9, y, 3.19, 0.95, 0.085, 0.05, iron);
   box("door-latch", -2.35, 1.48, 3.2, 0.12, 0.25, 0.06, iron);
   box("doorstep", -2.8, 0.3, 3.24, 1.65, 0.2, 0.58, stone[1]);
-  // The entrance footbridge crosses the straight race at a right angle.
-  for (let i = 0; i < 13; i++) box("entrance-bridge-plank", -2.8, 0.58, 3.1 + i * 0.24, 1.5, 0.14, 0.23, freshWood);
-  for (const x of [-3.47, -2.13]) {
-    box("entrance-bridge-stringer", x, 0.43, 4.54, 0.15, 0.22, 3.3, timber);
-    box("entrance-bridge-handrail", x, 1.5, 4.54, 0.1, 0.12, 3.3, oak);
-    for (const z of [3.1, 4.54, 5.98]) box("entrance-bridge-post", x, 1.05, z, 0.12, 1.1, 0.12, timber);
+  if (!lowBank) {
+    // The entrance footbridge crosses the straight race at a right angle.
+    for (let i = 0; i < 13; i++) box("entrance-bridge-plank", -2.8, 0.58, 3.1 + i * 0.24, 1.5, 0.14, 0.23, freshWood);
+    for (const x of [-3.47, -2.13]) {
+      box("entrance-bridge-stringer", x, 0.43, 4.54, 0.15, 0.22, 3.3, timber);
+      box("entrance-bridge-handrail", x, 1.5, 4.54, 0.1, 0.12, 3.3, oak);
+      for (const z of [3.1, 4.54, 5.98]) box("entrance-bridge-post", x, 1.05, z, 0.12, 1.1, 0.12, timber);
+    }
+  } else {
+    // Put the working entrance on the land side, away from the river.
+    for (const mesh of pickables)
+      if (mesh.name.startsWith("entrance") || mesh.name.startsWith("door")) mesh.position.z = -mesh.position.z - 0.2;
   }
   for (const x of [-1, 1]) {
     frontOpening(x, 4.55, 0.95, 1.3, "upper-window");
@@ -187,7 +265,7 @@ export function createWaterMill(): WaterMillMeshes {
   // Two open annular rims and radial spokes leave the wheel's center visible.
   const wheel = new THREE.Group();
   wheel.name = "waterwheel-assembly";
-  wheel.position.set(1.3, WATER_MILL.hubHeight, 4.2);
+  wheel.position.set(WATER_MILL.wheelCenter.x, hubHeight, WATER_MILL.wheelCenter.z);
   group.add(wheel);
   const rimShape = new THREE.Shape();
   rimShape.absarc(0, 0, WATER_MILL.wheelRadius, 0, Math.PI * 2, false);
@@ -203,43 +281,64 @@ export function createWaterMill(): WaterMillMeshes {
       spoke.rotation.z = (i * Math.PI) / 4;
     }
   }
-  for (let i = 0; i < 24; i++) {
-    const a = (i * Math.PI * 2) / 24;
-    const bucket = new THREE.Group();
-    bucket.name = "wheel-bucket";
-    bucket.rotation.z = a;
-    wheel.add(bucket);
-    box("bucket-bottom", 0, 2.22, 0, 0.5, 0.09, 1.05, oak, bucket);
-    box("bucket-lip", 0.22, 2.33, 0, 0.07, 0.3, 1.05, freshWood, bucket);
+  if (lowBank) {
+    for (let i = 0; i < 16; i++) {
+      const paddle = box("undershot-paddle", 0, 0, 0, 0.12, 0.42, 1.05, freshWood, wheel);
+      const a = (i * Math.PI * 2) / 16;
+      paddle.position.set(-Math.sin(a) * 2.24, Math.cos(a) * 2.24, 0);
+      paddle.rotation.z = a + lowBank.flow * 0.12;
+    }
+  } else {
+    for (let i = 0; i < 24; i++) {
+      const a = (i * Math.PI * 2) / 24;
+      const bucket = new THREE.Group();
+      bucket.name = "wheel-bucket";
+      bucket.rotation.z = a;
+      wheel.add(bucket);
+      box("bucket-bottom", 0, 2.22, 0, 0.5, 0.09, 1.05, oak, bucket);
+      box("bucket-lip", 0.22, 2.33, 0, 0.07, 0.3, 1.05, freshWood, bucket);
+    }
   }
   const axle = add("wheel-axle", cylinder, timber);
-  axle.position.set(1.3, WATER_MILL.hubHeight, 3.9);
+  axle.position.set(1.3, hubHeight, 3.9);
   axle.rotation.x = Math.PI / 2;
   axle.scale.set(0.23, 3.1, 0.23);
   for (const z of [3.55, 4.85]) {
     const hub = add("wheel-hub", cylinder, iron);
-    hub.position.set(1.3, WATER_MILL.hubHeight, z);
+    hub.position.set(1.3, hubHeight, z);
     hub.rotation.x = Math.PI / 2;
     hub.scale.set(0.38, 0.18, 0.38);
   }
-  box("outer-bearing-pier", 1.3, 1.25, 5.48, 0.8, 2.5, 0.65, stone[2]);
-  box("outer-axle-bearing", 1.3, 2.6, 5.48, 0.6, 0.2, 0.55, oak);
+  const pierBottom = lowBank ? -bankDrop - 0.8 : 0;
+  box(
+    "outer-bearing-pier",
+    1.3,
+    (pierBottom + hubHeight - 0.15) / 2,
+    5.48,
+    0.8,
+    hubHeight - 0.15 - pierBottom,
+    0.65,
+    stone[2]
+  );
+  box("outer-axle-bearing", 1.3, hubHeight - 0.05, 5.48, 0.6, 0.2, 0.55, oak);
 
-  // An open flume ends just upstream of the crown, dropping onto the buckets.
-  box("flume-bed", -3.8, 5.38, 4.2, 7.8, 0.16, 1.06, oak);
-  for (const z of [3.62, 4.78]) box("flume-side", -3.8, 5.63, z, 7.8, 0.65, 0.14, freshWood);
-  box("flume-water", -3.8, 5.57, 4.2, 7.8, 0.035, 1.02, water);
-  for (const x of [-7.2, -4.8]) {
-    for (const z of [3.58, 4.82]) {
-      box("flume-support-post", x, 2.7, z, 0.22, 5.4, 0.22, timber);
-      beam("flume-knee-brace", v(x, 4, z), v(x + 0.85, 5.28, z), 0.14);
+  if (!lowBank) {
+    // An open flume ends just upstream of the crown, dropping onto the buckets.
+    box("flume-bed", -3.8, 5.38, 4.2, 7.8, 0.16, 1.06, oak);
+    for (const z of [3.62, 4.78]) box("flume-side", -3.8, 5.63, z, 7.8, 0.65, 0.14, freshWood);
+    box("flume-water", -3.8, 5.57, 4.2, 7.8, 0.035, 1.02, water);
+    for (const x of [-7.2, -4.8]) {
+      for (const z of [3.58, 4.82]) {
+        box("flume-support-post", x, 2.7, z, 0.22, 5.4, 0.22, timber);
+        beam("flume-knee-brace", v(x, 4, z), v(x + 0.85, 5.28, z), 0.14);
+      }
+      box("flume-crossbeam", x, 5.22, 4.2, 0.25, 0.2, 1.7, timber);
     }
-    box("flume-crossbeam", x, 5.22, 4.2, 0.25, 0.2, 1.7, timber);
+    box("sluice-gate", -6.4, 5.78, 4.2, 0.14, 0.78, 1.02, oak);
+    for (const z of [3.57, 4.83]) box("sluice-gate-guide", -6.4, 6, z, 0.18, 1.2, 0.18, timber);
+    box("sluice-lifting-bar", -6.4, 6.27, 4.2, 0.12, 1, 0.12, freshWood);
+    box("sluice-handle", -6.4, 6.75, 4.2, 0.12, 0.1, 0.65, timber);
   }
-  box("sluice-gate", -6.4, 5.78, 4.2, 0.14, 0.78, 1.02, oak);
-  for (const z of [3.57, 4.83]) box("sluice-gate-guide", -6.4, 6, z, 0.18, 1.2, 0.18, timber);
-  box("sluice-lifting-bar", -6.4, 6.27, 4.2, 0.12, 1, 0.12, freshWood);
-  box("sluice-handle", -6.4, 6.75, 4.2, 0.12, 0.1, 0.65, timber);
 
   // Small grain sacks establish the entrance's human scale.
   const sackGeometry = new THREE.SphereGeometry(1, 10, 8);
