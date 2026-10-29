@@ -64,6 +64,25 @@ it("retains tiers across small pixel changes and responds to camera zoom", () =>
   expect(treeQualityAtPixels(65, "high")).toBe("medium");
 });
 
+it.each(["garden_parkland", "sacred_yew"] as const)(
+  "retains the broad native crown dimensions at the low transition for %s",
+  species => {
+    const low = adoptedTree(species, "low").create();
+    const high = adoptedTree(species, "high").create();
+    try {
+      const lowSize = new THREE.Box3().setFromObject(low.group).getSize(new THREE.Vector3());
+      const highSize = new THREE.Box3().setFromObject(high.group).getSize(new THREE.Vector3());
+      for (const axis of ["x", "z"] as const) {
+        expect(lowSize[axis] / highSize[axis]).toBeGreaterThan(0.85);
+        expect(lowSize[axis] / highSize[axis]).toBeLessThan(1.15);
+      }
+    } finally {
+      low.dispose();
+      high.dispose();
+    }
+  }
+);
+
 it.each([
   "garden_parkland",
   "sacred_yew",

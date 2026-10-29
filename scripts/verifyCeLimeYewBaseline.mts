@@ -1,12 +1,22 @@
 /** F1-1 adopted lime/yew reference images using the CE prototype pipeline */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { chromium } from "playwright";
 import { createServer } from "vite";
 
-const output = resolve("docs/analytics/ce-tree-lod-lime-yew-baseline-20261029");
+const output = resolve(process.argv[2] ?? "docs/analytics/ce-tree-lime-yew-adjusted-20261029");
+let preview: string | undefined;
+if (process.env.CE_TREE_PREVIEW_DIR) {
+  preview = realpathSync(process.env.CE_TREE_PREVIEW_DIR);
+  const childOf = (parent: string, child: string) => {
+    const path = relative(parent, child);
+    return path !== "" && path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path);
+  };
+  assert.ok(childOf(realpathSync(tmpdir()), preview) && !childOf(realpathSync(process.cwd()), preview));
+}
 mkdirSync(output, { recursive: true });
 const server = await createServer({
   configFile: false,
@@ -226,14 +236,14 @@ try {
   }
   for (const pose of ["front","side","top"]) {
     await page.evaluate(pose=>(window as any).baselineProbe.drawModels(pose),pose);
-    await page.screenshot({ path:resolve(output,`models-${pose}.png`) });
+    if (preview) await page.screenshot({ path:resolve(preview,`models-${pose}.png`) });
   }
   for (const angle of [12,40,70]) {
     await page.evaluate(angle=>(window as any).baselineProbe.drawSingles(angle),angle);
-    await page.screenshot({ path:resolve(output,`single-medium-high-${angle}.png`) });
+    if (preview) await page.screenshot({ path:resolve(preview,`single-medium-high-${angle}.png`) });
   }
   await page.evaluate(()=>(window as any).baselineProbe.drawStands());
-  await page.screenshot({ path:resolve(output,"stand-medium-high.png") });
+  if (preview) await page.screenshot({ path:resolve(preview,"stand-medium-high.png") });
   const released=await page.evaluate(()=>(window as any).baselineProbe.finish());
   assert.deepEqual(released,{ geometries:0,textures:0 });assert.deepEqual(errors,[]);
   await page.close();
@@ -259,11 +269,11 @@ try {
     await bv.getByLabel("AI model that created this object",{ exact:true }).selectOption("Codex GPT-6.1 Sol");
     assert.ok((await bv.locator(".bv-facts").innerText()).includes("Not adopted; CE uses Claude Opus 5.5"));
     await bv.getByLabel("AI model that created this object",{ exact:true }).selectOption("Claude Opus 5.5");
-    await bv.screenshot({ path:resolve(output,`bv-${id}-medium.png`) });
+    if (preview) await bv.screenshot({ path:resolve(preview,`bv-${id}-medium.png`) });
     bvChecks.push({ species,levels,previousCodexMediumRetained:true });
   }
   assert.deepEqual(bvErrors,[]);
-  const sources=["scripts/verifyCeLimeYewBaseline.mts","src/buildings/landscape/smallLeavedLime.ts","src/buildings/landscape/europeanYew.ts","src/buildings/landscape/canopyLobes.ts","src/buildings/landscape/temperateTreeCodexMedium.ts","src/buildings/landscape/treeVariants.ts","src/buildings/landscape/trees.ts","src/city3d/adoption.ts","src/city3d/three/bvInstances.ts","src/city-editor/renderers/sunLighting.ts"];
+  const sources=["scripts/verifyCeLimeYewBaseline.mts","src/buildings/landscape/smallLeavedLime.ts","src/buildings/landscape/europeanYew.ts","src/buildings/landscape/canopyLobes.ts","src/buildings/landscape/temperateTreeLod.ts","src/buildings/landscape/temperateTreeCodexMedium.ts","src/buildings/landscape/treeVariants.ts","src/buildings/landscape/trees.ts","src/city3d/adoption.ts","src/city3d/three/bvInstances.ts","src/city-editor/renderers/sunLighting.ts"];
   writeFileSync(resolve(output,"results.json"),`${JSON.stringify({ ...setup,conditions:"Eight adopted CE prototypes, fixed world scale across quality tiers, 3 angles, 45/90px high-crown reference at 12/40/70 degrees, 260-tree medium/high stands at 35 degrees/130m, actual BV adoption checks. No full-city timing claim.",released,errors,bvChecks,bvErrors,sourceSha256:Object.fromEntries(sources.map(path=>[path,createHash("sha256").update(readFileSync(path)).digest("hex")])) },null,2)}\n`);
   console.log(`Verified eight adopted prototypes and BV authors; ${setup.gpu}`);
 } finally { await browser?.close();await server.close(); }

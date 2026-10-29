@@ -116,6 +116,11 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
                   date: "2026-10-29",
                   note: "Crown-envelope normals, interior occlusion and leaf speckle; geometry unchanged",
                   commit: "eb36c33b8"
+                },
+                {
+                  author: "Codex GPT-6.1 Sol",
+                  date: "2026-10-29",
+                  note: "Spread the seven crown lobes into a broad lower whorl and two leaders to match high-tier dimensions"
                 }
               ]
             : comparisonMedium && level === "medium"
@@ -138,6 +143,11 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
           date: "2026-10-29",
           note: "One fitted lobe per high-tier leaf spray on the high-tier branches, with the low tier's shading",
           commit: "eb36c33b8"
+        },
+        {
+          author: "Codex GPT-6.1 Sol",
+          date: "2026-10-29",
+          note: "Calibrated lime lobe coverage; fitted yew lobes to the four high-tier fans with horizontal orientation, preserving Opus authorship and adoption"
         }
       ],
       create: () => createLandscapeTree(species, "medium")

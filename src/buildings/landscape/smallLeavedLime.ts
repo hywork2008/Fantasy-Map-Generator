@@ -74,7 +74,7 @@ export function createSmallLeavedLime(quality: TreeQuality = "ultra"): CityStruc
         colors.push(color.r, color.g, color.b);
       }
     }
-    if (medium) lobes.push(fitCanopyLobe(centers, 1.3));
+    if (medium) lobes.push(fitCanopyLobe(centers, 1.13));
   }
   const fork = new THREE.Vector3(0.12, 3.3, -0.08);
   wood.push(

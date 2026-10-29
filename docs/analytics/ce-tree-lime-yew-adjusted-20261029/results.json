@@ -1,0 +1,435 @@
+{
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "viewport": [
+    1200,
+    800
+  ],
+  "dpr": 1,
+  "lighting": "CE default updateSun(DEFAULT_SUN), HemisphereLight, shadows off",
+  "measure": [
+    {
+      "species": "garden_parkland",
+      "quality": "low",
+      "variant": "tree.garden-parkland@low#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "basedOn": [],
+      "native": {
+        "triangles": 141,
+        "materials": 2,
+        "bufferBytes": 13536,
+        "bounds": {
+          "min": [
+            -4.545408248901367,
+            -0.3499999940395355,
+            -5.123096942901611
+          ],
+          "max": [
+            5.1813883781433105,
+            11.10278034210205,
+            4.940706253051758
+          ]
+        }
+      },
+      "prototype": {
+        "buildMs": 1.2999999523162842,
+        "triangles": 141,
+        "bufferBytes": 15228,
+        "bounds": {
+          "min": [
+            -4.545408248901367,
+            -0.3499999940395355,
+            -5.123096942901611
+          ],
+          "max": [
+            5.1813883781433105,
+            11.10278034210205,
+            4.940706253051758
+          ]
+        }
+      }
+    },
+    {
+      "species": "garden_parkland",
+      "quality": "medium",
+      "variant": "tree.garden-parkland@medium#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "basedOn": [
+        "tree.garden-parkland@high#codex-gpt-6.1-sol"
+      ],
+      "native": {
+        "triangles": 2043,
+        "materials": 2,
+        "bufferBytes": 180060,
+        "bounds": {
+          "min": [
+            -5.616284370422363,
+            -0.3499999940395355,
+            -5.4790191650390625
+          ],
+          "max": [
+            4.988864898681641,
+            11.025436401367188,
+            5.505846977233887
+          ]
+        }
+      },
+      "prototype": {
+        "buildMs": 8.5,
+        "triangles": 2043,
+        "bufferBytes": 220644,
+        "bounds": {
+          "min": [
+            -5.616284370422363,
+            -0.3499999940395355,
+            -5.4790191650390625
+          ],
+          "max": [
+            4.988864898681641,
+            11.025436401367188,
+            5.505846977233887
+          ]
+        }
+      }
+    },
+    {
+      "species": "garden_parkland",
+      "quality": "high",
+      "variant": "tree.garden-parkland@high#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "basedOn": [],
+      "native": {
+        "triangles": 21626,
+        "materials": 2,
+        "bufferBytes": 1949832,
+        "bounds": {
+          "min": [
+            -5.745062828063965,
+            -0.3499999940395355,
+            -5.374495983123779
+          ],
+          "max": [
+            5.10660457611084,
+            11.533796310424805,
+            5.75089168548584
+          ]
+        }
+      },
+      "prototype": {
+        "buildMs": 12.099999904632568,
+        "triangles": 21626,
+        "bufferBytes": 2335608,
+        "bounds": {
+          "min": [
+            -5.745062828063965,
+            -0.3499999940395355,
+            -5.374495983123779
+          ],
+          "max": [
+            5.10660457611084,
+            11.533796310424805,
+            5.75089168548584
+          ]
+        }
+      }
+    },
+    {
+      "species": "garden_parkland",
+      "quality": "ultra",
+      "variant": "tree.garden-parkland@ultra#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "basedOn": [],
+      "native": {
+        "triangles": 84098,
+        "materials": 2,
+        "bufferBytes": 8696808,
+        "bounds": {
+          "min": [
+            -5.62857723236084,
+            -0.3499999940395355,
+            -5.301732063293457
+          ],
+          "max": [
+            4.987098693847656,
+            11.24359130859375,
+            5.595545291900635
+          ]
+        }
+      },
+      "prototype": {
+        "buildMs": 26.799999952316284,
+        "triangles": 84098,
+        "bufferBytes": 9082584,
+        "bounds": {
+          "min": [
+            -5.62857723236084,
+            -0.3499999940395355,
+            -5.301732063293457
+          ],
+          "max": [
+            4.987098693847656,
+            11.24359130859375,
+            5.595545291900635
+          ]
+        }
+      }
+    },
+    {
+      "species": "sacred_yew",
+      "quality": "low",
+      "variant": "tree.sacred-yew@low#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "basedOn": [],
+      "native": {
+        "triangles": 152,
+        "materials": 2,
+        "bufferBytes": 14724,
+        "bounds": {
+          "min": [
+            -4.636102199554443,
+            -0.3499999940395355,
+            -4.998369216918945
+          ],
+          "max": [
+            4.880248546600342,
+            7.444388389587402,
+            5.007673263549805
+          ]
+        }
+      },
+      "prototype": {
+        "buildMs": 0.5,
+        "triangles": 152,
+        "bufferBytes": 16416,
+        "bounds": {
+          "min": [
+            -4.636102199554443,
+            -0.3499999940395355,
+            -4.998369216918945
+          ],
+          "max": [
+            4.880248546600342,
+            7.444388389587402,
+            5.007673263549805
+          ]
+        }
+      }
+    },
+    {
+      "species": "sacred_yew",
+      "quality": "medium",
+      "variant": "tree.sacred-yew@medium#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "basedOn": [
+        "tree.sacred-yew@high#codex-gpt-6.1-sol"
+      ],
+      "native": {
+        "triangles": 2104,
+        "materials": 2,
+        "bufferBytes": 183264,
+        "bounds": {
+          "min": [
+            -4.94614315032959,
+            -0.3499999940395355,
+            -4.996979236602783
+          ],
+          "max": [
+            4.704600811004639,
+            7.267587184906006,
+            4.522343158721924
+          ]
+        }
+      },
+      "prototype": {
+        "buildMs": 6.200000047683716,
+        "triangles": 2104,
+        "bufferBytes": 227232,
+        "bounds": {
+          "min": [
+            -4.94614315032959,
+            -0.3499999940395355,
+            -4.996979236602783
+          ],
+          "max": [
+            4.704600811004639,
+            7.267587184906006,
+            4.522343158721924
+          ]
+        }
+      }
+    },
+    {
+      "species": "sacred_yew",
+      "quality": "high",
+      "variant": "tree.sacred-yew@high#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "basedOn": [],
+      "native": {
+        "triangles": 14484,
+        "materials": 2,
+        "bufferBytes": 943224,
+        "bounds": {
+          "min": [
+            -5.288394451141357,
+            -0.3499999940395355,
+            -5.083573341369629
+          ],
+          "max": [
+            5.819171905517578,
+            7.4855546951293945,
+            5.140058994293213
+          ]
+        }
+      },
+      "prototype": {
+        "buildMs": 7.199999809265137,
+        "triangles": 14484,
+        "bufferBytes": 1564272,
+        "bounds": {
+          "min": [
+            -5.288394451141357,
+            -0.3499999940395355,
+            -5.083573341369629
+          ],
+          "max": [
+            5.819171905517578,
+            7.4855546951293945,
+            5.140058994293213
+          ]
+        }
+      }
+    },
+    {
+      "species": "sacred_yew",
+      "quality": "ultra",
+      "variant": "tree.sacred-yew@ultra#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "basedOn": [],
+      "native": {
+        "triangles": 33428,
+        "materials": 2,
+        "bufferBytes": 2989176,
+        "bounds": {
+          "min": [
+            -5.529186725616455,
+            -0.3499999940395355,
+            -5.279642581939697
+          ],
+          "max": [
+            5.819171905517578,
+            7.552562236785889,
+            5.472962379455566
+          ]
+        }
+      },
+      "prototype": {
+        "buildMs": 11,
+        "triangles": 33428,
+        "bufferBytes": 3610224,
+        "bounds": {
+          "min": [
+            -5.529186725616455,
+            -0.3499999940395355,
+            -5.279642581939697
+          ],
+          "max": [
+            5.819171905517578,
+            7.552562236785889,
+            5.472962379455566
+          ]
+        }
+      }
+    }
+  ],
+  "comparisonMedium": [
+    {
+      "id": "tree.garden-parkland@medium#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "basedOn": []
+    },
+    {
+      "id": "tree.garden-parkland@medium#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "basedOn": [
+        "tree.garden-parkland@high#codex-gpt-6.1-sol"
+      ]
+    },
+    {
+      "id": "tree.sacred-yew@medium#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "basedOn": []
+    },
+    {
+      "id": "tree.sacred-yew@medium#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "basedOn": [
+        "tree.sacred-yew@high#codex-gpt-6.1-sol"
+      ]
+    }
+  ],
+  "conditions": "Eight adopted CE prototypes, fixed world scale across quality tiers, 3 angles, 45/90px high-crown reference at 12/40/70 degrees, 260-tree medium/high stands at 35 degrees/130m, actual BV adoption checks. No full-city timing claim.",
+  "released": {
+    "geometries": 0,
+    "textures": 0
+  },
+  "errors": [],
+  "bvChecks": [
+    {
+      "species": "garden_parkland",
+      "levels": [
+        {
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol"
+        },
+        {
+          "quality": "medium",
+          "author": "Claude Opus 5.5"
+        },
+        {
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol"
+        },
+        {
+          "quality": "ultra",
+          "author": "Codex GPT-6.1 Sol"
+        }
+      ],
+      "previousCodexMediumRetained": true
+    },
+    {
+      "species": "sacred_yew",
+      "levels": [
+        {
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol"
+        },
+        {
+          "quality": "medium",
+          "author": "Claude Opus 5.5"
+        },
+        {
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol"
+        },
+        {
+          "quality": "ultra",
+          "author": "Codex GPT-6.1 Sol"
+        }
+      ],
+      "previousCodexMediumRetained": true
+    }
+  ],
+  "bvErrors": [],
+  "sourceSha256": {
+    "scripts/verifyCeLimeYewBaseline.mts": "108bfddbdd10964e5d24f920a7e587bf9fa92f4f56ac76f783c6e50e0c9269fc",
+    "src/buildings/landscape/smallLeavedLime.ts": "53f0023aa8edf2d1307fc4127386ba3d60f544aa7c3a035e083e653f6de7fe52",
+    "src/buildings/landscape/europeanYew.ts": "251ef483f894d2f37fcebb1f0bc8b7cfeb479363c3eae845128951908ae79c46",
+    "src/buildings/landscape/canopyLobes.ts": "8e8cf7aace434f57521efbdb8eebbe547febf30da03b40ec0693ab6c03b0dc84",
+    "src/buildings/landscape/temperateTreeLod.ts": "ce2c3c5fb66d537ffc4aea2e1671f396c44b4e5098932e68e2131c165ce0d314",
+    "src/buildings/landscape/temperateTreeCodexMedium.ts": "c6f24b59e1ab147caf221b0cd2fd48a64a366d992a9f4c57f1a0ab4a792e630f",
+    "src/buildings/landscape/treeVariants.ts": "f1d00cacbbae51a6b34567d63bf4d6ccf06430c3fb7474707b3b789ad4f121e2",
+    "src/buildings/landscape/trees.ts": "f769a778979cc87cc65e03f9a18fbf0bbe741d13dca62b67e6b3ac37c50ea4b1",
+    "src/city3d/adoption.ts": "14d584dfba64e8f164b63fa477c125b6b22f68b46520c0b8635c76498720b9df",
+    "src/city3d/three/bvInstances.ts": "84d76ab41c1b81997b1882e2cb524529a0231536e1a2447618e3fc0ffce32fdd",
+    "src/city-editor/renderers/sunLighting.ts": "7a43a7de7698f60cad9daba190e3e30fc24863965609adbb92acec8e82da9fe8"
+  }
+}

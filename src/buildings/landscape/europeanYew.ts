@@ -57,7 +57,7 @@ export function createEuropeanYew(quality: TreeQuality = "ultra"): CityStructure
       );
       const length = 0.75 + random() * 0.45;
       const vertices: THREE.Vector3[] = [];
-      const segments = quality === "high" ? 4 : 8;
+      const segments = medium || quality === "high" ? 4 : 8;
       for (let n = 0; n <= segments; n++) {
         const t = n / segments;
         const spine = base.clone().addScaledVector(direction, t * length);
@@ -69,7 +69,8 @@ export function createEuropeanYew(quality: TreeQuality = "ultra"): CityStructure
         );
       }
       const shade = 0.16 + random() * 0.13;
-      points.push(...vertices);
+      // Fit only the fans that high actually renders, rather than filling the omitted ultra sprays.
+      if (shoot < 4) points.push(...vertices);
       // Keep branch positions identical by retaining the random sequence for omitted sprays.
       if (medium || (quality === "high" && shoot >= 4)) continue;
       for (let n = 0; n < segments; n++) {
@@ -83,7 +84,7 @@ export function createEuropeanYew(quality: TreeQuality = "ultra"): CityStructure
         }
       }
     }
-    if (medium) lobes.push(fitCanopyLobe(points, 0.78));
+    if (medium) lobes.push(fitCanopyLobe(points, 0.45, true));
   }
   const fork = new THREE.Vector3(0.08, 1.9, -0.04);
   wood.push(
