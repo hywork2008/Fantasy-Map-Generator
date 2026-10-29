@@ -23,6 +23,7 @@ const FAR_CHUNK = 256,
   BASE_LIMIT = 60000,
   CACHE_LIMIT = 24;
 const CONIFERS = new Set<TreeSpecies>([
+  "scots_pine",
   "norway_spruce",
   "western_red_cedar",
   "silver_fir",

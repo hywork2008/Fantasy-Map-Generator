@@ -8,6 +8,7 @@ import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpeci
 
 /** Author of each species' model; reduced tiers credit their own authors below. */
 export const TREE_AUTHORS: Record<TreeSpecies, Author> = {
+  scots_pine: "Codex GPT-6.1 Sol",
   european_hornbeam: "Codex GPT-6.1 Sol",
   pedunculate_oak: "Codex GPT-6.1 Sol",
   european_beech: "Codex GPT-6.1 Sol",
@@ -111,17 +112,22 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
                         : "Species-specific whorled or white-barked distant silhouette"
               }
             ]
-          : species === "european_beech" || species === "pedunculate_oak" || species === "european_hornbeam"
+          : species === "european_beech" ||
+              species === "pedunculate_oak" ||
+              species === "european_hornbeam" ||
+              species === "scots_pine"
             ? [
                 {
                   author,
-                  date: species === "european_hornbeam" ? "2026-10-30" : "2026-10-29",
+                  date: species === "european_hornbeam" || species === "scots_pine" ? "2026-10-30" : "2026-10-29",
                   note:
                     species === "pedunculate_oak"
                       ? "New Quercus robur: furrowed bark, crooked spreading limbs, lobed leaves and fitted foliage tiers; illustrative woodland dimensions"
                       : species === "european_hornbeam"
                         ? "New Carpinus betulus: fluted grey stem, ascending branches, pleated toothed leaves and fitted dense crown tiers; illustrative woodland dimensions"
-                        : "New Fagus sylvatica: smooth grey bole, ascending limbs, oval folded leaves and fitted foliage tiers; illustrative woodland dimensions"
+                        : species === "scots_pine"
+                          ? "New Pinus sylvestris: orange upper bark, a clear bole, irregular upper limbs, paired blue-green needles and fitted shoot tiers; illustrative woodland dimensions"
+                          : "New Fagus sylvatica: smooth grey bole, ascending limbs, oval folded leaves and fitted foliage tiers; illustrative woodland dimensions"
                 }
               ]
             : comparisonMedium && level === "low"

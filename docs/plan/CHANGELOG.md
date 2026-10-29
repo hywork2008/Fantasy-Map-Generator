@@ -2,7 +2,7 @@
 
 2026-10-30
 
-- docs/plan/fmg-biome-unregistered-bv-tree-tasks.md - U03のヨーロッパシデ（Carpinus betulus）4品質・BV登録・中欧大森林への混交を追加。既存ブナ・ナラの候補と用途別植栽・寒冷fallbackを維持し、関連91件、Metalの森林9条件、実BV、同尺度比較、3種の有限予算・資源解放を確認。23樹種92品質枠と次の中欧のマツ類、型チェックの既存fogControlsエラーを記録
+- docs/plan/fmg-biome-unregistered-bv-tree-tasks.md - U03のヨーロッパシデ（Carpinus betulus）4品質・BV登録・中欧大森林への混交を追加。既存ブナ・ナラの候補と用途別植栽・寒冷fallbackを維持し、関連91件、Metalの森林9条件、実BV、同尺度比較、3種の有限予算・資源解放を確認。23樹種92品質枠と次の中欧のマツ類、型チェックの既存fogControlsエラーを記録。同日U04のヨーロッパアカマツ（Pinus sylvestris）4品質・BV登録・中欧大森林混交と2D／3Dの針葉樹分類を追加。関連92件、実BV、森林9条件、既存針葉樹との同尺度比較、4樹種の有限予算・資源解放を確認し、24樹種96品質枠、初期U01〜U04完了と次のR01地域別樹種調査を記録
 
 2026-10-29
 

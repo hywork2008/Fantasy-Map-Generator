@@ -11,6 +11,7 @@ import type { Point } from "../types/document";
 import { renderEditorSvg } from "./editorSvg";
 import { FOREST_SVG_ELEMENT_LIMIT, renderForestLayer, updateForestScale } from "./forestSvg";
 import { renderLandscapeLayer } from "./landscape";
+import { landscapeTreeSpecies } from "./landscapeTreeSpecies";
 import { renderStandaloneCitySvg, serializeCitySvg } from "./standaloneSvg";
 
 const settings = { version: 1, mode: "farmland", density: "standard" } as const;
@@ -54,6 +55,27 @@ function city() {
 }
 
 describe("shared forest SVG", () => {
+  it("draws Scots pine woodland candidates as conifers alongside broadleaf trees", () => {
+    const doc = city();
+    doc.biome!.key = "centralEuropeanGreatForest";
+    const layer = renderForestLayer(doc, plan(400), "detailed", 1, { representation: "all-trees" });
+    let pines = 0;
+    let broadleaves = 0;
+    for (const tree of layer.querySelectorAll("use")) {
+      const point: Point = [Number(tree.getAttribute("data-world-x")), Number(tree.getAttribute("data-world-y"))];
+      const species = landscapeTreeSpecies("garden_parkland", doc, point, "woodland");
+      if (species === "scots_pine") {
+        expect(tree.getAttribute("href")).toMatch(/-conifer$/);
+        pines++;
+      } else {
+        expect(tree.getAttribute("href")).toMatch(/-leaf$/);
+        broadleaves++;
+      }
+    }
+    expect(pines).toBeGreaterThan(0);
+    expect(broadleaves).toBeGreaterThan(0);
+  });
+
   it("preserves exact forest area and holes at every quality, with a fill-only minimal layer", () => {
     const doc = city(),
       forest = plan();

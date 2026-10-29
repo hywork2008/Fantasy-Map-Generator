@@ -9,12 +9,14 @@ import { createPedunculateOak } from "./pedunculateOak";
 import { createKapok } from "./rainforestTrees";
 import { createSacredGardenTree } from "./sacredGardenTrees";
 import { createSaltTolerantTree } from "./saltTolerantTrees";
+import { createScotsPine } from "./scotsPine";
 import { createSmallLeavedLime } from "./smallLeavedLime";
 import type { TreeQuality } from "./treeQuality";
 import { createUplandTree } from "./uplandTrees";
 import { createWetTemperateTree } from "./wetTemperateTrees";
 
 export const TREE_SPECIES = [
+  "scots_pine",
   "european_hornbeam",
   "pedunculate_oak",
   "european_beech",
@@ -55,6 +57,20 @@ type TreeDefinition = { create: TreeFactory; lod?: undefined } | { lod: TreeLodP
 
 /** One registration supplies BV factories and CE's woodland, park and churchyard LOD policy. */
 export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
+  scots_pine: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 21,
+      forestHeightToRadius: 3.8,
+      models: {
+        low: () => createScotsPine("low"),
+        medium: () => createScotsPine("medium"),
+        high: () => createScotsPine("high"),
+        ultra: () => createScotsPine("ultra")
+      }
+    }
+  },
   european_hornbeam: {
     lod: {
       selection: "pixels",

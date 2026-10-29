@@ -6,6 +6,12 @@ type TreeEntry = Pick<MedievalModel, "biomes" | "name" | "size" | "note">;
 
 /** Biome labels describe current CE woodland selection, including temperature branches. */
 const TREES: Record<TreeSpecies, TreeEntry> = {
+  scots_pine: {
+    biomes: ["centralEuropeanGreatForest"],
+    name: "Scots pine · Pinus sylvestris",
+    size: [11, 11, 21],
+    note: "Mature woodland Pinus sylvestris with a dark fissured lower bole, orange-red upper bark, short dead lower stubs and an irregular upper crown of paired blue-green needles. Needles are abstracted for viewing. Illustrative 21 m tree, not a measured mature maximum or a cultivar. Cones and seasonal changes are omitted. Mixed into explicit Central European great forest woodland; existing boreal, park, cemetery and volcanic pine choices remain unchanged. Botanical references: https://www.forestryengland.uk/article/scots-pine and https://www.forestresearch.gov.uk/tools-and-resources/tree-species-database/131589-scots-pine-sp-2/ and https://forestryandland.gov.scot/living-and-working/learning-and-education/trees/scots-pine"
+  },
   european_hornbeam: {
     biomes: ["centralEuropeanGreatForest"],
     name: "European hornbeam · Carpinus betulus",

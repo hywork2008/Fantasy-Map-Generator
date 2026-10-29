@@ -148,6 +148,7 @@ const modelArticles: Record<string, string> = {
   "garden-parkland": "Tilia cordata",
   "european-beech": "Fagus sylvatica",
   "european-hornbeam": "Carpinus betulus",
+  "scots-pine": "Pinus sylvestris",
   "pedunculate-oak": "Quercus robur",
   "sacred-yew": "Taxus baccata",
   "norway-spruce": "Picea abies",

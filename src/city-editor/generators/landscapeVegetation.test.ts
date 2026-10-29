@@ -20,7 +20,13 @@ const expected = {
   tundra: ["none"],
   glacier: ["none"],
   wetland: ["black_alder"],
-  centralEuropeanGreatForest: ["european_beech", "pedunculate_oak", "european_hornbeam", "garden_parkland"],
+  centralEuropeanGreatForest: [
+    "european_beech",
+    "pedunculate_oak",
+    "european_hornbeam",
+    "scots_pine",
+    "garden_parkland"
+  ],
   mediterraneanWoodlandScrub: ["olive"],
   temperateConiferousForest: ["western_red_cedar"],
   montaneForest: ["silver_fir"],
@@ -133,7 +139,7 @@ it.each(["temperateDeciduousForest", "centralEuropeanGreatForest"])(
         "european_beech",
         "pedunculate_oak",
         "garden_parkland",
-        ...(key === "centralEuropeanGreatForest" ? ["european_hornbeam"] : [])
+        ...(key === "centralEuropeanGreatForest" ? ["european_hornbeam", "scots_pine"] : [])
       ])
     );
     expect(woodland()).toEqual(woodland());

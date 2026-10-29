@@ -68,6 +68,11 @@ export function landscapeTreeSpecies(
             growthRandom(`${seed}:hornbeam-tree:${point[0]}:${point[1]}`) < 0.5
           )
             return "european_hornbeam";
+          if (
+            key === "centraleuropeangreatforest" &&
+            growthRandom(`${seed}:scots-pine-tree:${point[0]}:${point[1]}`) < 0.5
+          )
+            return "scots_pine";
           return preferred;
         }
         return preferred;
