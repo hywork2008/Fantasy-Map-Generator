@@ -188,3 +188,25 @@ describe("shared forest SVG", () => {
     ).toBeNull();
   });
 });
+
+it.each(["marine", "tundra", "glacier", "lavaField"])(
+  "ignores stale %s forests in SVG and background tree decoration",
+  key => {
+    const doc = city();
+    doc.biome = { id: 1, key, name: key, color: "grey" };
+    const input = plan();
+    expect(renderForestLayer(doc, input).children.length).toBe(0);
+    expect(renderForestLayer(doc, input).getAttribute("data-forest-area-m2")).toBe("0");
+    expect(renderLandscapeLayer(doc, true).querySelector(".ce-landscape-tree")).toBeNull();
+    expect(input.areaM2).toBeGreaterThan(0);
+  }
+);
+
+it("does not turn unknown custom woodland into conifers from its display name", () => {
+  const doc = city();
+  doc.biome = { id: 1, key: "custom:taiga-party", name: "Taiga party", color: "green", tags: [] };
+  const svg = renderForestLayer(doc, plan());
+  const trees = [...svg.querySelectorAll("use")];
+  expect(trees.length).toBeGreaterThan(0);
+  expect(trees.every(tree => tree.getAttribute("href")?.endsWith("-leaf"))).toBe(true);
+});

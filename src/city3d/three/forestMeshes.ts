@@ -3,6 +3,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { TREE_LOD_DISTANCES } from "../../buildings/landscape/treeQuality";
 import { hasTreeQualityLevels, type TreeSpecies, treeLodProfile } from "../../buildings/landscape/trees";
 import { forestContains } from "../../city-editor/generators/forestGeometry";
+import { landscapeHasTrees } from "../../city-editor/generators/landscapeVegetation";
 import { bounds, intersectConvex, PlotIndex, plotArea } from "../../city-editor/generators/parcelGeometry";
 import { landscapeTreeSpecies } from "../../city-editor/renderers/landscapeTreeSpecies";
 import type { ForestPlan, ForestRegion } from "../../city-editor/types/contracts/forest";
@@ -142,9 +143,11 @@ export function createTownForest(
   initialQuality: Forest3dQuality = "standard",
   simplify = true
 ) {
+  if (!landscapeHasTrees(document)) plan = { ...plan, regions: [], forestFaceIds: [], areaM2: 0 };
   const group = new THREE.Group();
   group.name = "ce-forest";
-  const forestProfile = treeLodProfile(landscapeTreeSpecies("garden_parkland", document, [0, 0]));
+  const initialSpecies = landscapeTreeSpecies("garden_parkland", document, [0, 0]);
+  const forestProfile = initialSpecies ? treeLodProfile(initialSpecies) : undefined;
   const qualityFirstTrees = forestProfile?.budget === "quality-first";
   const details = createForestTreeDetails(group);
   const seed = document.generationSeed ?? document.fabric?.seed ?? document.format;
@@ -398,10 +401,8 @@ export function createTownForest(
         )
           continue;
         const species = landscapeTreeSpecies("garden_parkland", document, p);
-        const needle =
-          species === "silver_birch"
-            ? false
-            : CONIFERS.has(species) || /conifer|taiga/i.test(document.biome?.key ?? "");
+        if (!species) continue;
+        const needle = CONIFERS.has(species);
         const batch = `${Math.floor(p[0] / TREE_CHUNK)},${Math.floor(p[1] / TREE_CHUNK)}:${needle ? "needle" : "leaf"}`;
         const list = batches.get(batch) ?? [];
         const heightToRadius = treeLodProfile(species)?.forestHeightToRadius;

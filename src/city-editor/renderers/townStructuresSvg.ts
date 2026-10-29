@@ -1,3 +1,4 @@
+import { landscapeHasTrees } from "../generators/landscapeVegetation";
 import type { ParkTreeCanopy } from "../generators/parkFabric";
 import { renderAerialLandmarks, renderBarbicans } from "./aerialLandmarksSvg";
 import { renderTownQuays } from "./quaySvg";
@@ -39,6 +40,7 @@ export function renderTownStructures(
 
 function renderTrees(ctx: RenderContext, svg: SVGSVGElement, treeGroups: ParkTreeCanopy[][], className: string) {
   const { lightweight, minimal } = ctx;
+  if (!landscapeHasTrees(ctx.document)) return;
   if (treeGroups.some(trees => trees.length)) {
     const parkTreesLayer = element("g", {
       class: className,

@@ -1,0 +1,66 @@
+{
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "viewport": [
+    800,
+    600
+  ],
+  "dpr": 1,
+  "conditions": "Six fixed cases with deliberately stale forest and saved park tree candidates. Public SVG/3D entry-point check, not full CE or a frame/GPU benchmark.",
+  "results": [
+    {
+      "key": "temperateDeciduousForest",
+      "areaM2": 9216.000000000004,
+      "forestTrees": 93,
+      "triangles": 7821186,
+      "parkSites": 1,
+      "svgTrees": 52,
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "marine",
+      "areaM2": 0,
+      "forestTrees": 0,
+      "triangles": 0,
+      "parkSites": 0,
+      "svgTrees": 0,
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "tundra",
+      "areaM2": 0,
+      "forestTrees": 0,
+      "triangles": 0,
+      "parkSites": 0,
+      "svgTrees": 0,
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "glacier",
+      "areaM2": 0,
+      "forestTrees": 0,
+      "triangles": 0,
+      "parkSites": 0,
+      "svgTrees": 0,
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "lavaField",
+      "areaM2": 0,
+      "forestTrees": 0,
+      "triangles": 0,
+      "parkSites": 0,
+      "svgTrees": 0,
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "custom:unknown",
+      "areaM2": 9216.000000000004,
+      "forestTrees": 93,
+      "triangles": 7821186,
+      "parkSites": 1,
+      "svgTrees": 52,
+      "geometriesAfterDispose": 0
+    }
+  ],
+  "errors": []
+}

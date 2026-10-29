@@ -1,0 +1,6066 @@
+{
+  "conditions": "One fixed city/seed; 29 biomes, 7 temperatures, 64 fixed points, all burial culture profiles. Semantic audit only; no visual/GPU/p95 measurement.",
+  "sourceSha256": {
+    "scripts/auditCeTreeBiomes.mts": "c1bb5a09c62be25bbae88016cb6715d5e3e05a5b610e5c00678c93254219e802",
+    "src/city-editor/generators/landscapeVegetation.ts": "0bcb161212afbee54e8addcd88478c68ab8b3729eb4ad8ca40dcb86af9da44f2",
+    "src/city-editor/renderers/landscapeTreeSpecies.ts": "7168028d603ddf4a5dbde70f092ad3ee73a81c02a73f6286bf76af5ffe02f1b9",
+    "src/city-editor/generators/forestLandCover.ts": "7615a5e2e922bfc44f1f71b2a5a9321ff57788ff61fe63e7aa23b0ce546fe5ce",
+    "src/city-editor/generators/forestPlan.ts": "739b9ba9cf0a2b9daf848a64c0d3abe182a1cef4b615664591f32584074863a9",
+    "src/city-editor/generators/parkFabric.ts": "f42e439a927ba2651a51d04884265003c73519c61a6574a3ea703c2b53d2dca3",
+    "src/city-editor/generators/cemeteryLayout.ts": "ff32704acf0b698d3a6cb32a60b919af066d5f2ac63af253c9ec389dd893d323",
+    "src/city-editor/generators/cultureCemeteryLayout.ts": "5d8ae07f1d028c5ab349bf60a9c477b8eb2ee03260cc91aea4bef7225eee4939",
+    "src/city-editor/renderers/forestSvg.ts": "cb69e7231f32ac3586a8ca3a0230e4fbfec1c8d9d781c4f93611348e67d9de12",
+    "src/city-editor/renderers/openSpaceSites.ts": "14de2f78d0e51c9d1ae5e0a15366a9125db540b3b78683606fdfac44ecde7a3a",
+    "src/city-editor/renderers/cultureCemeterySvg.ts": "d14c5e96fe5ba685a20838812dc35f2e885d74e57dbf4abaabd2aef621d00b8f",
+    "src/city-editor/renderers/cemeterySvg.ts": "b8e93039d5b71f63c472c69d18fa9a66adfc85e9348a72274ddbf5c417e13c31",
+    "src/city-editor/renderers/landscape.ts": "1e8658009e47f6ddb1f182dd894d3f8055a5b07355b6aa8ee4c39f3edc557e55",
+    "src/city-editor/renderers/townStructuresSvg.ts": "d1c9b92a12d4de62f10b04bb5bd0961a023e19f3fc97d67a1e8d75fc9f63dffa",
+    "src/city3d/three/forestMeshes.ts": "4cfa5c6107b5ee9c09e81192a3c3d870414546f034ada573fa9dfdc4403ecaf4",
+    "src/buildings/medieval/43-landscape-treesModels.ts": "de106d50ce8c2f371c78232ece7be6bd6f9a538816f54dc8b8903b19928406e2",
+    "src/data/biomeCatalog.ts": "b7d37626815701313d61b22d9aa0d4265c93e68d30b5b4d2eb0be4cbb3a9d449",
+    "src/data/burialCultures.ts": "8b7911a422670ed391e04dfafb391747c44bd7ee5da2e8df61baf3846bfbccd2"
+  },
+  "bvBiomes": [
+    {
+      "model": "garden-parkland",
+      "biomes": [
+        "grassland",
+        "temperateDeciduousForest",
+        "centralEuropeanGreatForest"
+      ]
+    },
+    {
+      "model": "norway-spruce",
+      "biomes": [
+        "temperateDeciduousForest",
+        "taiga",
+        "centralEuropeanGreatForest",
+        "temperateConiferousForest",
+        "borealPeatland"
+      ]
+    },
+    {
+      "model": "silver-birch",
+      "biomes": [
+        "temperateDeciduousForest",
+        "taiga",
+        "centralEuropeanGreatForest",
+        "temperateConiferousForest",
+        "borealPeatland"
+      ]
+    },
+    {
+      "model": "sacred-yew",
+      "biomes": []
+    },
+    {
+      "model": "date-palm",
+      "biomes": [
+        "hotDesert",
+        "savanna",
+        "tropicalSeasonalForest",
+        "xericShrubland",
+        "tropicalDryForest"
+      ]
+    },
+    {
+      "model": "umbrella-thorn",
+      "biomes": [
+        "savanna",
+        "tropicalSeasonalForest",
+        "tropicalDryForest"
+      ]
+    },
+    {
+      "model": "saxaul",
+      "biomes": [
+        "coldDesert",
+        "coldSteppe"
+      ]
+    },
+    {
+      "model": "kapok",
+      "biomes": [
+        "tropicalRainforest",
+        "cloudForest",
+        "floodedForest"
+      ]
+    },
+    {
+      "model": "western-red-cedar",
+      "biomes": [
+        "temperateRainforest",
+        "temperateConiferousForest"
+      ]
+    },
+    {
+      "model": "black-alder",
+      "biomes": [
+        "wetland",
+        "floodedForest"
+      ]
+    },
+    {
+      "model": "olive",
+      "biomes": [
+        "mediterraneanWoodlandScrub"
+      ]
+    },
+    {
+      "model": "silver-fir",
+      "biomes": [
+        "montaneForest"
+      ]
+    },
+    {
+      "model": "red-mangrove",
+      "biomes": [
+        "mangrove"
+      ]
+    },
+    {
+      "model": "tamarisk",
+      "biomes": [
+        "xericShrubland"
+      ]
+    },
+    {
+      "model": "rowan",
+      "biomes": [
+        "alpineTundra",
+        "heathMoorland"
+      ]
+    },
+    {
+      "model": "canary-pine",
+      "biomes": [
+        "volcanicBarrens",
+        "volcanicSoil"
+      ]
+    },
+    {
+      "model": "mediterranean-cypress",
+      "biomes": []
+    },
+    {
+      "model": "oriental-evergreen",
+      "biomes": []
+    },
+    {
+      "model": "sacred-bodhi-and-fig",
+      "biomes": []
+    },
+    {
+      "model": "peaceful-willow",
+      "biomes": []
+    }
+  ],
+  "results": [
+    {
+      "biome": "marine",
+      "zone": "none",
+      "treesAllowed": false,
+      "selectedForestFaces": 0,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "none": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": null
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": null
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": null
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": null
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": null
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": null
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": null
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": null
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": null
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": null
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": null
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": null
+        }
+      ]
+    },
+    {
+      "biome": "hotDesert",
+      "zone": "palm",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "date_palm": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "date_palm": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "date_palm": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "date_palm": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "date_palm": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "date_palm": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "date_palm": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "date_palm"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "date_palm"
+        }
+      ]
+    },
+    {
+      "biome": "coldDesert",
+      "zone": "desert",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "saxaul": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "saxaul": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "saxaul": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "saxaul": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "saxaul": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "saxaul": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "saxaul": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "saxaul"
+        }
+      ]
+    },
+    {
+      "biome": "savanna",
+      "zone": "savanna",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "umbrella_thorn"
+        }
+      ]
+    },
+    {
+      "biome": "grassland",
+      "zone": "preferred",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "garden_parkland": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "garden_parkland": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "garden_parkland": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "garden_parkland": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "garden_parkland": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "garden_parkland": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "garden_parkland": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "mediterranean_cypress"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "sacred_yew"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "garden_parkland"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "mediterranean_cypress"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "garden_parkland"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "oriental_evergreen"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "oriental_evergreen"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "garden_parkland"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "mediterranean_cypress"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "sacred_yew"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "sacred_yew"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "sacred_yew"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "sacred_bodhi_and_fig"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "sacred_bodhi_and_fig"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "sacred_bodhi_and_fig"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "garden_parkland"
+        }
+      ]
+    },
+    {
+      "biome": "tropicalSeasonalForest",
+      "zone": "savanna",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "umbrella_thorn"
+        }
+      ]
+    },
+    {
+      "biome": "temperateDeciduousForest",
+      "zone": "temperate",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "garden_parkland": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "garden_parkland": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "garden_parkland": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "garden_parkland": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "garden_parkland": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "mediterranean_cypress"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "sacred_yew"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "garden_parkland"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "mediterranean_cypress"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "garden_parkland"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "oriental_evergreen"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "oriental_evergreen"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "garden_parkland"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "mediterranean_cypress"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "sacred_yew"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "sacred_yew"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "sacred_yew"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "sacred_bodhi_and_fig"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "sacred_bodhi_and_fig"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "sacred_bodhi_and_fig"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "garden_parkland"
+        }
+      ]
+    },
+    {
+      "biome": "tropicalRainforest",
+      "zone": "rainforest",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "kapok": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "kapok": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "kapok": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "kapok": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "kapok": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "kapok": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "kapok": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "kapok"
+        }
+      ]
+    },
+    {
+      "biome": "temperateRainforest",
+      "zone": "cedar",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "western_red_cedar": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "western_red_cedar": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "western_red_cedar": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "western_red_cedar": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "western_red_cedar": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "western_red_cedar": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "western_red_cedar": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "western_red_cedar"
+        }
+      ]
+    },
+    {
+      "biome": "taiga",
+      "zone": "boreal",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "norway_spruce"
+        }
+      ]
+    },
+    {
+      "biome": "tundra",
+      "zone": "none",
+      "treesAllowed": false,
+      "selectedForestFaces": 0,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "none": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": null
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": null
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": null
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": null
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": null
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": null
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": null
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": null
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": null
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": null
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": null
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": null
+        }
+      ]
+    },
+    {
+      "biome": "glacier",
+      "zone": "none",
+      "treesAllowed": false,
+      "selectedForestFaces": 0,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "none": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": null
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": null
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": null
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": null
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": null
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": null
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": null
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": null
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": null
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": null
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": null
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": null
+        }
+      ]
+    },
+    {
+      "biome": "wetland",
+      "zone": "alder",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "black_alder": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "black_alder": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "black_alder": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "black_alder": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "black_alder": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "black_alder": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "black_alder": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "black_alder"
+        }
+      ]
+    },
+    {
+      "biome": "centralEuropeanGreatForest",
+      "zone": "temperate",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "garden_parkland": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "garden_parkland": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "garden_parkland": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "garden_parkland": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "garden_parkland": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "mediterranean_cypress"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "sacred_yew"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "garden_parkland"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "mediterranean_cypress"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "garden_parkland"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "oriental_evergreen"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "oriental_evergreen"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "garden_parkland"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "mediterranean_cypress"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "sacred_yew"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "sacred_yew"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "sacred_yew"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "sacred_bodhi_and_fig"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "sacred_bodhi_and_fig"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "sacred_bodhi_and_fig"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "garden_parkland"
+        }
+      ]
+    },
+    {
+      "biome": "mediterraneanWoodlandScrub",
+      "zone": "olive",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "olive": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "olive": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "olive": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "olive": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "olive": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "olive": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "olive": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "mediterranean_cypress"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "olive"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "olive"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "mediterranean_cypress"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "olive"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "olive"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "olive"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "olive"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "mediterranean_cypress"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "olive"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "olive"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "olive"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "olive"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "olive"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "olive"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "olive"
+        }
+      ]
+    },
+    {
+      "biome": "temperateConiferousForest",
+      "zone": "conifer",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "western_red_cedar": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "western_red_cedar": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "western_red_cedar": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "western_red_cedar": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "western_red_cedar": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "western_red_cedar"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "western_red_cedar"
+        }
+      ]
+    },
+    {
+      "biome": "montaneForest",
+      "zone": "fir",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "silver_fir": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "silver_fir": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "silver_fir": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "silver_fir": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "silver_fir": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "silver_fir": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "silver_fir": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "silver_fir"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "silver_fir"
+        }
+      ]
+    },
+    {
+      "biome": "alpineTundra",
+      "zone": "rowan",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "rowan": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "rowan": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "rowan": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "rowan": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "rowan": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "rowan": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "rowan": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "rowan"
+        }
+      ]
+    },
+    {
+      "biome": "mangrove",
+      "zone": "mangrove",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "red_mangrove": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "red_mangrove": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "red_mangrove": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "red_mangrove": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "red_mangrove": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "red_mangrove": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "red_mangrove": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "red_mangrove"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "red_mangrove"
+        }
+      ]
+    },
+    {
+      "biome": "xericShrubland",
+      "zone": "xeric",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "tamarisk": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "tamarisk": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "tamarisk": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "tamarisk": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "tamarisk": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "tamarisk": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "tamarisk": 48,
+            "date_palm": 16
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "tamarisk"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "tamarisk"
+        }
+      ]
+    },
+    {
+      "biome": "cloudForest",
+      "zone": "rainforest",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "kapok": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "kapok": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "kapok": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "kapok": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "kapok": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "kapok": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "kapok": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "kapok"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "kapok"
+        }
+      ]
+    },
+    {
+      "biome": "heathMoorland",
+      "zone": "rowan",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "rowan": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "rowan": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "rowan": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "rowan": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "rowan": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "rowan": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "rowan": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "rowan"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "rowan"
+        }
+      ]
+    },
+    {
+      "biome": "floodedForest",
+      "zone": "flooded",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "black_alder": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "black_alder": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "black_alder": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "black_alder": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "black_alder": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "kapok": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "kapok": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "black_alder"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "black_alder"
+        }
+      ]
+    },
+    {
+      "biome": "coldSteppe",
+      "zone": "desert",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "saxaul": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "saxaul": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "saxaul": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "saxaul": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "saxaul": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "saxaul": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "saxaul": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "saxaul"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "saxaul"
+        }
+      ]
+    },
+    {
+      "biome": "tropicalDryForest",
+      "zone": "savanna",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "umbrella_thorn": 48,
+            "date_palm": 16
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "umbrella_thorn"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "umbrella_thorn"
+        }
+      ]
+    },
+    {
+      "biome": "borealPeatland",
+      "zone": "boreal",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "norway_spruce": 49,
+            "silver_birch": 15
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "norway_spruce"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "norway_spruce"
+        }
+      ]
+    },
+    {
+      "biome": "volcanicBarrens",
+      "zone": "volcanic",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "canary_pine": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "canary_pine": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "canary_pine": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "canary_pine": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "canary_pine": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "canary_pine": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "canary_pine": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "canary_pine"
+        }
+      ]
+    },
+    {
+      "biome": "lavaField",
+      "zone": "none",
+      "treesAllowed": false,
+      "selectedForestFaces": 0,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "none": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "none": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": null
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": null
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": null
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": null
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": null
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": null
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": null
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": null
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": null
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": null
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": null
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": null
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": null
+        }
+      ]
+    },
+    {
+      "biome": "volcanicSoil",
+      "zone": "volcanic",
+      "treesAllowed": true,
+      "selectedForestFaces": 5,
+      "temperatures": [
+        {
+          "temperatureC": null,
+          "counts": {
+            "canary_pine": 64
+          }
+        },
+        {
+          "temperatureC": -5,
+          "counts": {
+            "canary_pine": 64
+          }
+        },
+        {
+          "temperatureC": 3,
+          "counts": {
+            "canary_pine": 64
+          }
+        },
+        {
+          "temperatureC": 3.01,
+          "counts": {
+            "canary_pine": 64
+          }
+        },
+        {
+          "temperatureC": 19.99,
+          "counts": {
+            "canary_pine": 64
+          }
+        },
+        {
+          "temperatureC": 20,
+          "counts": {
+            "canary_pine": 64
+          }
+        },
+        {
+          "temperatureC": 30,
+          "counts": {
+            "canary_pine": 64
+          }
+        }
+      ],
+      "cultures": [
+        {
+          "culture": "roman_via_appia",
+          "preferred": "mediterranean_cypress",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "medieval_parish",
+          "preferred": "sacred_yew",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "victorian_garden",
+          "preferred": "garden_parkland",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "prague_ghetto",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "jewish_orthodox",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "ottoman_turbe",
+          "preferred": "mediterranean_cypress",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "wadi_us_salaam",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "sunni_wahhabi",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "varanasi_ghat",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "thai_chedi_wat",
+          "preferred": "garden_parkland",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "tibetan_jhator",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "edo_temple_town",
+          "preferred": "oriental_evergreen",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "fengshui_mountain",
+          "preferred": "oriental_evergreen",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "zoroastrian_tower",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "steppe_kurgan",
+          "preferred": "garden_parkland",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "catacomb_paris",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "orthodox_churchyard",
+          "preferred": "mediterranean_cypress",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "protestant_gottesacker",
+          "preferred": "sacred_yew",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "norse_ship_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "pagan_barrow",
+          "preferred": "sacred_yew",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "mesopotamian_household",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "mesoamerican_temple",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "andean_chullpa",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "polynesian_sea",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "african_compound",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "arctic_cairn",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "hindu_shmashana",
+          "preferred": "sacred_bodhi_and_fig",
+          "rendered": "canary_pine"
+        },
+        {
+          "culture": "megalithic_dolmen",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "dwarven_hall",
+          "preferred": "barren_gravel",
+          "rendered": null
+        },
+        {
+          "culture": "elven_grove",
+          "preferred": "garden_parkland",
+          "rendered": "canary_pine"
+        }
+      ]
+    }
+  ]
+}

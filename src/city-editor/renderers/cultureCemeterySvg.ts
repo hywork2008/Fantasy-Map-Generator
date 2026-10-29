@@ -1,6 +1,8 @@
 import { cemeteryGroundColor } from "../generators/cultureCemeteryLayout";
 import { polygonCentroid } from "../generators/geom";
-import type { CemeteryPlan, Point } from "../types/document";
+import type { CemeteryPlan, CityDocument, Point } from "../types/document";
+
+import { landscapeTreeSpecies } from "./landscapeTreeSpecies";
 
 const NS = "http://www.w3.org/2000/svg";
 function element<K extends keyof SVGElementTagNameMap>(
@@ -15,7 +17,7 @@ const line = (points: Point[]) => points.map(([x, y], i) => `${i ? "L" : "M"}${x
 const polygon = (points: Point[]) => `${line(points)} Z`;
 
 /** Render saved footprints without substituting Christian buildings or grave symbols. */
-export function renderCultureCemetery(plan: CemeteryPlan): SVGGElement {
+export function renderCultureCemetery(plan: CemeteryPlan, city?: CityDocument): SVGGElement {
   const profile = plan.burialProfile!;
   const group = element("g", { "data-burial-profile": profile.id });
   for (const court of plan.courtyards)
@@ -137,7 +139,9 @@ export function renderCultureCemetery(plan: CemeteryPlan): SVGGElement {
     group.appendChild(partGroup);
   }
   for (const tree of plan.trees) {
-    const species = profile.vegetation;
+    if (profile.vegetation === "barren_gravel") continue;
+    const species = landscapeTreeSpecies(profile.vegetation, city, tree);
+    if (!species) continue;
     const treeGroup = element("g", { class: "ce-cemetery-tree", "data-species": species });
     const narrow = species === "mediterranean_cypress";
     const broad = species === "sacred_bodhi_and_fig";

@@ -417,3 +417,15 @@ describe("parkFabric", () => {
     });
   });
 });
+
+it("retains park paths, lawns and saved plans while omitting newly generated lava trees", () => {
+  const document = createParkDocument();
+  const baseline = buildParkLawns(document);
+  expect(baseline.flatMap(park => park.trees).length).toBeGreaterThan(0);
+  const before = JSON.stringify(baseline);
+  document.biome = { id: 1, key: "lavaField", name: "Lava", color: "black" };
+  const barren = buildParkLawns(document);
+  expect(barren.flatMap(park => park.trees)).toEqual([]);
+  expect(barren.map(({ trees: _, ...rest }) => rest)).toEqual(baseline.map(({ trees: _, ...rest }) => rest));
+  expect(JSON.stringify(baseline)).toBe(before);
+});

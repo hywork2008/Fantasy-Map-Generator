@@ -1,5 +1,6 @@
 import { growthHash } from "../../utils/urbanMorphology";
 import { forestContains } from "../generators/forestGeometry";
+import { landscapeHasTrees, landscapeTreeBiome } from "../generators/landscapeVegetation";
 import { PlotIndex } from "../generators/parcelGeometry";
 import type { ForestPlan, ForestRegion } from "../types/contracts/forest";
 import type { CityDocument, Point } from "../types/document";
@@ -111,16 +112,16 @@ export function renderForestLayer(
     class: "ce-forest-layer",
     "data-scene-layer": "forest",
     "pointer-events": "none",
-    "data-forest-area-m2": String(plan.areaM2),
+    "data-forest-area-m2": String(landscapeHasTrees(document) ? plan.areaM2 : 0),
     "data-forest-regions": String(plan.regions.length),
     "data-forest-representation": options.representation ?? "edge-fill",
     "data-forest-static": String(options.static === true)
   }) as SVGGElement;
-  if (!plan.regions.length) return layer;
+  if (!plan.regions.length || !landscapeHasTrees(document)) return layer;
   const density = document.forestSettings?.density ?? "standard";
   const theme = resolveLandscapeTheme(document.biome);
   const fill = density === "sparse" ? "#94a87b" : density === "dense" ? "#688259" : "#7d9667";
-  const conifer = theme.category === "conifer";
+  const conifer = ["boreal", "cedar", "conifer", "fir", "volcanic"].includes(landscapeTreeBiome(document));
   const crown = conifer ? "#45674b" : theme.category === "tropical" ? "#466f45" : "#54764a";
   const light = conifer ? "#68876a" : "#79945e";
   const path = plan.regions.map(region => [region.outer, ...region.holes].map(polygon).join(" ")).join(" ");
@@ -218,7 +219,8 @@ export function renderForestLayer(
   for (const tree of samples) {
     const radius = 3.5 + random(`${seed}:${tree.id}:radius`) * 1.5;
     const species = landscapeTreeSpecies("garden_parkland", document, tree.point);
-    const needle = species === "silver_birch" ? false : conifer || species === "norway_spruce";
+    if (!species) continue;
+    const needle = ["norway_spruce", "western_red_cedar", "silver_fir", "canary_pine"].includes(species);
     const angle = random(`${seed}:${tree.id}:angle`) * 360;
     trees.appendChild(
       element("use", {

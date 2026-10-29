@@ -9,6 +9,7 @@ import { type ForestPart, forestRegions } from "./forestGeometry";
 import { forestLandCover } from "./forestLandCover";
 import { polygonArea } from "./geom";
 import { landmarkReservationHits } from "./landmarks";
+import { landscapeTreeBiome } from "./landscapeVegetation";
 import { convexInfillParts } from "./lotGeometry";
 import { facePoints } from "./mesh";
 import { MoatReservation } from "./moats";
@@ -120,6 +121,7 @@ export function cachedForestPlan(document: CityDocument, fabric: DistrictFabric,
   keepOut ??= forestKeepOut(document, fabric);
   const key = JSON.stringify([
     document.forestSettings?.mode,
+    landscapeTreeBiome(document),
     document.mesh,
     document.frame,
     document.featureGroups,

@@ -106,13 +106,16 @@ export function collectOpenSpacePlan(
         0.035,
         surfaces
       );
-    for (const tree of park.trees)
+    for (const tree of park.trees) {
+      const model = landscapeTreeSpecies("garden_parkland", document, tree.center);
+      if (!model) continue;
       sites.push({
-        model: landscapeTreeSpecies("garden_parkland", document, tree.center),
+        model,
         point: tree.center,
         radius: tree.radius,
         angle: 0
       });
+    }
   }
   for (const cemetery of cemeteries) {
     const profile = cemetery.burialProfile;
@@ -120,12 +123,15 @@ export function collectOpenSpacePlan(
       surfaces.push({ ring, color: profile ? cemeteryGroundColor(profile) : "#7ea867", offset: 0.025 });
     for (const access of cemetery.accesses) pathSurfaces(access.points, access.widthMeters, "#d8d1bf", 0.045, surfaces);
     if (profile?.vegetation !== "barren_gravel")
-      for (const point of cemetery.trees)
+      for (const point of cemetery.trees) {
+        const model = landscapeTreeSpecies(profile?.vegetation ?? "sacred_yew", document, point);
+        if (!model) continue;
         sites.push({
-          model: landscapeTreeSpecies(profile?.vegetation ?? "sacred_yew", document, point),
+          model,
           point,
           angle: 0
         });
+      }
     for (const part of cemetery.parts) {
       if (part.footprint.length < 3) continue;
       if (part.role === "graves") {

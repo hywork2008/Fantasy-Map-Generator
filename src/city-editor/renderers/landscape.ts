@@ -3,6 +3,7 @@ import { outerWallRing } from "../generators/concealStreets";
 import { featureGroupVertices } from "../generators/features";
 import { forestContains } from "../generators/forestGeometry";
 import { nearestOnPolyline, pointInPolygon } from "../generators/geom";
+import { landscapeHasTrees } from "../generators/landscapeVegetation";
 import { facePoints } from "../generators/mesh";
 import { makeRng } from "../generators/prng";
 import { regionalSurfaceLayers } from "../generators/regionalCoast";
@@ -677,6 +678,8 @@ export function renderLandscapeLayer(
   if (!town) return layer;
 
   const theme = resolveLandscapeTheme(document.biome);
+  const treesAllowed = landscapeHasTrees(document);
+  if (!treesAllowed && theme.category !== "tundra" && theme.category !== "glacier") return layer;
   const extent = document.frame.extentMeters;
   const half = extent / 2;
   const cityRadius = document.frame.cityRadiusMeters;
@@ -934,7 +937,9 @@ export function renderLandscapeLayer(
           } else if (roll < 0.8) {
             layer.appendChild(renderGrassTuft(svgX, svgY, scale * 0.85));
           } else {
-            layer.appendChild(renderConifer(svgX, svgY, scale * 0.6));
+            layer.appendChild(
+              treesAllowed ? renderConifer(svgX, svgY, scale * 0.6) : renderRock(svgX, svgY, scale * 0.6)
+            );
           }
           break;
         }

@@ -363,3 +363,22 @@ it("draws only adopted lime distance tiers, even beyond the former replacement c
   expect(forest.stats.detailedTrees).toBe(0);
   forest.dispose();
 });
+
+it.each(["marine", "tundra", "glacier", "lavaField"])(
+  "rejects a stale %s forest plan even with simplification disabled",
+  key => {
+    const doc = document();
+    doc.biome = { id: 1, key, name: key, color: "grey" };
+    const input = plan();
+    const forest = createTownForest(doc, input, undefined, "high", false);
+    try {
+      forest.update(camera(), 720);
+      expect(forest.stats.areaM2).toBe(0);
+      expect(forest.stats.trees).toBe(0);
+      expect(forest.stats.triangles).toBe(0);
+      expect(input.areaM2).toBeGreaterThan(0);
+    } finally {
+      forest.dispose();
+    }
+  }
+);

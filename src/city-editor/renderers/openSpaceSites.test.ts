@@ -4,6 +4,7 @@ import { BURIAL_CULTURE_PRESETS } from "../../data/burialCultures";
 import { layoutCemetery } from "../generators/cemeteryLayout";
 import { cemeteryPlots } from "../generators/cemeteryPlots";
 import type { CemeteryPlan, CityDocument, Point } from "../types/document";
+import { renderCultureCemetery } from "./cultureCemeterySvg";
 import { collectOpenSpacePlan } from "./openSpaceSites";
 
 const ring: Point[] = [
@@ -229,3 +230,25 @@ it.each([
   expect([...models].every(model => (expected as readonly string[]).includes(model))).toBe(true);
   expect(models.has(expected[0])).toBe(true);
 });
+
+it.each(Object.values(BURIAL_CULTURE_PRESETS))(
+  "retains $id vegetation in a neutral climate and suppresses it on ice",
+  profile => {
+    const plan = { ...cemetery(), burialProfile: profile, trees: [[15, 15] as Point] };
+    const temperate = { ...city, biome: { id: 1, key: "temperateDeciduousForest", name: "Woodland", color: "green" } };
+    const before = JSON.stringify(plan);
+    const sites = collectOpenSpacePlan([], [plan], temperate).sites.filter(s =>
+      (TREE_SPECIES as readonly string[]).includes(s.model)
+    );
+    expect(sites.map(s => s.model)).toEqual(profile.vegetation === "barren_gravel" ? [] : [profile.vegetation]);
+    const ice = { ...temperate, biome: { id: 1, key: "glacier", name: "Ice", color: "white" } };
+    expect(
+      collectOpenSpacePlan([], [plan], ice).sites.some(s => (TREE_SPECIES as readonly string[]).includes(s.model))
+    ).toBe(false);
+    expect(renderCultureCemetery(plan, ice).querySelectorAll(".ce-cemetery-tree")).toHaveLength(0);
+    expect(renderCultureCemetery(plan, temperate).querySelectorAll(".ce-cemetery-tree")).toHaveLength(
+      profile.vegetation === "barren_gravel" ? 0 : 1
+    );
+    expect(JSON.stringify(plan)).toBe(before);
+  }
+);
