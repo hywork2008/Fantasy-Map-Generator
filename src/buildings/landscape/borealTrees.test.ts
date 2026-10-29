@@ -5,6 +5,21 @@ import { models } from "../medieval/43-landscape-treesModels";
 import { TREE_QUALITIES } from "./treeQuality";
 import { createLandscapeTree } from "./trees";
 
+it("covers every olive tier with the BV's declared envelope", () => {
+  const definition = models.find(model => model.id === "olive")!;
+  for (const quality of TREE_QUALITIES) {
+    const model = createLandscapeTree("olive", quality);
+    try {
+      const bounds = new THREE.Box3().setFromObject(model.group);
+      expect(Math.max(Math.abs(bounds.min.x), Math.abs(bounds.max.x)) * 2).toBeLessThanOrEqual(definition.size[0]);
+      expect(Math.max(Math.abs(bounds.min.z), Math.abs(bounds.max.z)) * 2).toBeLessThanOrEqual(definition.size[1]);
+      expect(bounds.max.y).toBeLessThanOrEqual(definition.size[2]);
+    } finally {
+      model.dispose();
+    }
+  }
+});
+
 it.each(["norway_spruce", "silver_birch"] as const)(
   "retains the %s envelope and releases all four tiers' owned resources",
   species => {

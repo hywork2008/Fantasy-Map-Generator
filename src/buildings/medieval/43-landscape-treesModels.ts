@@ -129,8 +129,8 @@ const TREES: Record<TreeSpecies, TreeEntry> = {
   olive: {
     biomes: ["mediterraneanWoodlandScrub"],
     name: "Olive · Olea europaea",
-    size: [9, 9, 7],
-    note: "Aged Mediterranean Olea europaea: a short ridged bole splitting into twisting, spiralling stems, a broad open crown of narrow lance leaves that are grey-green above and silvery beneath, and scattered olives ripening from green to black. Shared with CE Mediterranean parks, cloister gardens and cemeteries. Illustrative dimensions; not a pruned grove cultivar. Botanical reference: https://en.wikipedia.org/wiki/Olea_europaea"
+    size: [10.1, 9, 7],
+    note: "Aged Mediterranean Olea europaea: a short ridged bole splitting into twisting, spiralling stems and a broad open crown of narrow lance leaves in abstract grey-green and silver tones. High and ultra show tiny green and dark triangular fruit markers, without modeled fruit bodies or stalks; low and medium omit fruit. Reusable as an isolated aged landscape tree; pruned orchard forms and fruit close-ups require separate work. Shared with CE Mediterranean parks, cloister gardens and cemeteries. Illustrative dimensions, not a measured specimen or pruned grove cultivar. Botanical references: https://www.rhs.org.uk/plants/olives and https://www.rhs.org.uk/plants/olives/how-to-grow-olives"
   },
   silver_fir: {
     biomes: ["montaneForest"],

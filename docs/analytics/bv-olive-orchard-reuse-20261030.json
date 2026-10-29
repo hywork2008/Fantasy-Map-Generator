@@ -1,0 +1,131 @@
+{
+  "models": [
+    {
+      "quality": "low",
+      "variant": "tree.olive@low#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "basedOn": [
+        "tree.olive@high#codex-gpt-6.1-sol"
+      ],
+      "fruitMarkers": 0,
+      "triangles": 253,
+      "bufferBytes": 27324,
+      "meshes": 2,
+      "materials": 2,
+      "bounds": {
+        "min": [
+          -4.170433521270752,
+          -0.3499999940395355,
+          -3.3219757080078125
+        ],
+        "max": [
+          4.616690635681152,
+          5.781377792358398,
+          3.975898504257202
+        ]
+      }
+    },
+    {
+      "quality": "medium",
+      "variant": "tree.olive@medium#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "basedOn": [
+        "tree.olive@high#codex-gpt-6.1-sol"
+      ],
+      "fruitMarkers": 0,
+      "triangles": 1337,
+      "bufferBytes": 144396,
+      "meshes": 2,
+      "materials": 2,
+      "bounds": {
+        "min": [
+          -4.534233093261719,
+          -0.3499999940395355,
+          -3.655388116836548
+        ],
+        "max": [
+          4.97845458984375,
+          6.0359086990356445,
+          4.422295570373535
+        ]
+      }
+    },
+    {
+      "quality": "high",
+      "variant": "tree.olive@high#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "basedOn": [
+        "tree.olive@ultra#claude-opus-5.5"
+      ],
+      "fruitMarkers": 135,
+      "triangles": 9149,
+      "bufferBytes": 988092,
+      "meshes": 2,
+      "materials": 2,
+      "bounds": {
+        "min": [
+          -4.686888217926025,
+          -0.3499999940395355,
+          -3.904484272003174
+        ],
+        "max": [
+          5.017587184906006,
+          6.085249423980713,
+          4.302340030670166
+        ]
+      }
+    },
+    {
+      "quality": "ultra",
+      "variant": "tree.olive@ultra#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "basedOn": [],
+      "fruitMarkers": 135,
+      "triangles": 25091,
+      "bufferBytes": 2709828,
+      "meshes": 2,
+      "materials": 2,
+      "bounds": {
+        "min": [
+          -4.686888217926025,
+          -0.3499999940395355,
+          -3.9306089878082275
+        ],
+        "max": [
+          4.992724418640137,
+          6.115581512451172,
+          4.4788923263549805
+        ]
+      }
+    }
+  ],
+  "markerPositionsMatch": true,
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "memory": {
+    "counts": [
+      8,
+      8,
+      8
+    ],
+    "afterDispose": {
+      "geometries": 0,
+      "textures": 0
+    }
+  },
+  "bvChecks": {
+    "choices": [
+      "low",
+      "medium",
+      "high",
+      "ultra"
+    ],
+    "adoption": {
+      "low": true,
+      "medium": true,
+      "high": true,
+      "ultra": true
+    }
+  },
+  "errors": [],
+  "scope": "Existing olive single-tree reuse evaluation only; fruit markers are triangles, not fruit bodies. CE orchards, pruning geometry and dense-stand budgets are not implemented or measured."
+}
