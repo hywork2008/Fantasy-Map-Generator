@@ -198,9 +198,10 @@ describe("agricultural land use", () => {
 
     const expectedYieldMultiplier = 1 + AGTECH_YIELD_BONUS_MAX * AGTECH_NO_DRAFT_EFFECT_SHARE;
     expect(withAgTech.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * expectedYieldMultiplier, 4);
-    // Tools save labour per hectare, so the same adults open more fields rather than sit idle.
-    expect(withAgTech.cultivatedArea[1]).toBeGreaterThan(baseline.cultivatedArea[1]);
-    expect(withAgTech.farmLaborRequired[1]).toBeCloseTo(baseline.farmLaborRequired[1], 3);
+    // Fields are sized to the staple need, so a better yield needs fewer of them and less labour;
+    // the spare adults herd or craft instead (wet-region-pastoral-economy.md §2.3).
+    expect(withAgTech.cultivatedArea[1]).toBeLessThan(baseline.cultivatedArea[1]);
+    expect(withAgTech.farmLaborRequired[1]).toBeLessThan(baseline.farmLaborRequired[1]);
 
     // Cell 0's agTechStockByCell entry is 0, so it is untouched by the other cell's investment.
     expect(withAgTech.yieldPerArea[0]).toBe(baseline.yieldPerArea[0]);
@@ -234,10 +235,9 @@ describe("agricultural land use", () => {
       (1 + AGTECH_YIELD_BONUS_MAX * AGTECH_NO_DRAFT_EFFECT_SHARE) * (1 + STATE_YIELD_BONUS_MAX);
     expect(withStateOnly.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * stateBonusMultiplier, 4);
     expect(withBoth.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * combinedMultiplier, 4);
-    // State infrastructure raises yield only. Food-first planting already uses every farmable
-    // adult, so the same labour tends the same area and simply harvests more grain.
-    expect(withStateOnly.cultivatedArea[1]).toBeCloseTo(baseline.cultivatedArea[1], 4);
-    expect(withStateOnly.farmLaborRequired[1]).toBeCloseTo(baseline.farmLaborRequired[1], 4);
+    // State infrastructure raises yield only, so the same people need proportionally fewer fields.
+    expect(withStateOnly.cultivatedArea[1]).toBeCloseTo(baseline.cultivatedArea[1] / stateBonusMultiplier, 4);
+    expect(withStateOnly.farmLaborRequired[1]).toBeLessThan(baseline.farmLaborRequired[1]);
   });
 
   it("raises yield with purchased Phosphate Fertilizer, independent of agTech/State bonuses", () => {
@@ -268,7 +268,7 @@ describe("agricultural land use", () => {
     expect(withFertilizer.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * fertilizerBonusMultiplier, 4);
     expect(withAll.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * combinedMultiplier, 4);
     // Yield-only, like State infrastructure: no labor-savings or draft-animal gating.
-    expect(withFertilizer.farmLaborRequired[1]).toBeCloseTo(baseline.farmLaborRequired[1], 4);
+    expect(withFertilizer.cultivatedArea[1]).toBeCloseTo(baseline.cultivatedArea[1] / fertilizerBonusMultiplier, 4);
     // Cell 0's fertilizerStockByCell entry is 0, so it is untouched.
     expect(withFertilizer.yieldPerArea[0]).toBe(baseline.yieldPerArea[0]);
   });
@@ -323,7 +323,7 @@ describe("agricultural land use", () => {
     expect(withNitrogen.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * nitrogenBonusMultiplier, 4);
     expect(withAll.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * combinedMultiplier, 4);
     // Yield-only, like Phosphate Fertilizer: no labor-savings or draft-animal gating.
-    expect(withNitrogen.farmLaborRequired[1]).toBeCloseTo(baseline.farmLaborRequired[1], 4);
+    expect(withNitrogen.farmLaborRequired[1]).toBeLessThan(baseline.farmLaborRequired[1]);
     // Cell 0's nitrogenFertilizerStockByCell entry is 0, so it is untouched.
     expect(withNitrogen.yieldPerArea[0]).toBe(baseline.yieldPerArea[0]);
   });
@@ -380,7 +380,7 @@ describe("agricultural land use", () => {
     expect(withPotash.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * potashBonusMultiplier, 4);
     expect(withAll.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * combinedMultiplier, 4);
     // Yield-only, like Phosphate Fertilizer: no labor-savings or draft-animal gating.
-    expect(withPotash.farmLaborRequired[1]).toBeCloseTo(baseline.farmLaborRequired[1], 4);
+    expect(withPotash.cultivatedArea[1]).toBeCloseTo(baseline.cultivatedArea[1] / potashBonusMultiplier, 4);
     // Cell 0's potashFertilizerStockByCell entry is 0, so it is untouched.
     expect(withPotash.yieldPerArea[0]).toBe(baseline.yieldPerArea[0]);
     // Unlike the four-course/nitrogen fallow-reduction axis, Potash does not raise the effective
@@ -416,8 +416,8 @@ describe("agricultural land use", () => {
     const rotated = calculateAgriculturalLandProfile(world, undefined, undefined, {}, fourCourseConditions);
 
     expect(rotated.yieldPerArea[1]).toBeGreaterThan(baseline.yieldPerArea[1]);
-    expect(rotated.cultivatedArea[1]).toBeGreaterThan(baseline.cultivatedArea[1]);
-    expect(rotated.farmLaborRequired[1]).toBeCloseTo(baseline.farmLaborRequired[1], 3);
+    expect(rotated.cultivatedArea[1]).toBeLessThan(baseline.cultivatedArea[1]);
+    expect(rotated.farmLaborRequired[1]).toBeLessThan(baseline.farmLaborRequired[1]);
     expect(rotated.floweringForageArea[1]).toBeCloseTo(rotated.cultivatedArea[1] * FOUR_COURSE_CLOVER_LEY_SHARE, 5);
 
     const baselineSoil = advanceAgriculturalSoils(world, crops, new Float32Array([1, 1]), new Float32Array(2));
@@ -721,7 +721,7 @@ describe("agricultural land use", () => {
     expect(salted.irrigationSalinity[0]).toBeGreaterThan(0);
   });
 
-  it("expands fields beyond the subsistence reserve when leftover adults can tend more land", () => {
+  it("keeps fields at the subsistence reserve however many adults could tend more land", () => {
     const world = createWorld();
     world.pack.cells.pop[1] = 1;
     world.pack.cells.maleAdults[1] = 0.22;
@@ -732,9 +732,8 @@ describe("agricultural land use", () => {
     world.pack.cells.femaleAdults[1] = 2;
     const manyHands = calculateAgriculturalLandProfile(world);
 
-    expect(manyHands.cultivatedArea[1]).toBeGreaterThan(fewHands.cultivatedArea[1]);
-    expect(manyHands.cultivatedArea[1]).toBeGreaterThan(fewHands.cultivatedArea[1] * 1.15);
-    expect(manyHands.farmLaborRequired[1]).toBeGreaterThan(fewHands.farmLaborRequired[1]);
+    expect(manyHands.cultivatedArea[1]).toBeCloseTo(fewHands.cultivatedArea[1], 6);
+    expect(manyHands.farmLaborRequired[1]).toBeCloseTo(fewHands.farmLaborRequired[1], 6);
   });
 
   it("reserves this year's child→adult arrivals so extra planting cannot cancel sustainable outflow", () => {

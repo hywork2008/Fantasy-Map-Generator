@@ -91,6 +91,7 @@ import {
 } from "./agriculturalLandUse";
 import { isGoodEnabled } from "./goods-generator";
 import { calculateDesiredPastureAreaHectares, getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
+import { getWetPastoralFieldCapacityMultiplier } from "./ruralDiet";
 import { allocateRuralOccupations, type RuralOccupationAllocation } from "./ruralOccupationAllocation";
 
 /**
@@ -336,6 +337,7 @@ export class DevelopmentPotentialModule {
 
   clear(): void {
     clearRiverResidualFlows(getWorldContext());
+    delete getWorldContext().pack.cells.wetPastoralDietShare;
     setFoodPotential(new Float32Array());
     setCultivableArea(new Float32Array());
     setYieldPerArea(new Float32Array());
@@ -398,6 +400,39 @@ export class DevelopmentPotentialModule {
     return true;
   }
 
+  /**
+   * One round of the world-birth land plan (docs/plan/livestock-world-birth-herds.md, B1): re-plans
+   * land and occupations for the herds now placed, as the annual update would, without the annual
+   * gate or a year of soil change. Clearing done here is part of the world's past, so it yields no
+   * timber for sale.
+   */
+  replanWorldBirth(): void {
+    const world = getWorldContext();
+    const landUse = world.pack.landUse;
+    if (landUse) landUse.needsAnnualReconciliation = true;
+    const timberReceipts = landUse?.conversionTimber?.length ?? 0;
+    const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
+    const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
+    const demandOptions = {
+      includeUrbanFoodDemand: optionsStore.getState().ruralUrbanMigration !== "megacity",
+      year: getSimulationYear(),
+      annual: true
+    };
+    const conditions = this.getAgriculturalConditions(world);
+    reconcileForestClearanceForAgriculture(
+      world,
+      agTechStockByCell,
+      stateProductivityByCell,
+      demandOptions,
+      conditions
+    );
+    world.pack.landUse?.conversionTimber?.splice(timberReceipts);
+    this.storeAgriculture(
+      world,
+      calculateAgriculturalLandProfile(world, agTechStockByCell, stateProductivityByCell, demandOptions, conditions)
+    );
+  }
+
   /** Reclassifies unlocked burgs at most once per simulation year. */
   updateAnnualBurgGroups(): boolean {
     const year = getSimulationYear();
@@ -419,6 +454,7 @@ export class DevelopmentPotentialModule {
     setCultivableArea(agriculture.cultivableArea);
     setYieldPerArea(agriculture.yieldPerArea);
     setRuralFoodCapacity(agriculture.ruralFoodCapacity);
+    world.pack.cells.wetPastoralDietShare = agriculture.wetPastoralDietShare;
     setCultivatedArea(agriculture.cultivatedArea);
     setFloweringForageArea(agriculture.floweringForageArea);
     setIrrigatedArea(agriculture.irrigation.irrigatedAreaHa);
@@ -431,7 +467,12 @@ export class DevelopmentPotentialModule {
     });
     // Only the fields the residents can work feed a settled rural population
     // (docs/plan/farm-labour-calibration.md §9).
-    reconcileSubsistenceCapacityFromFood(world.pack.cells, agriculture.labourLimitedFoodCapacity);
+    // Wet-land fields feed only the grain part of their people's diet; herds feed the rest.
+    const fieldCapacity = agriculture.labourLimitedFoodCapacity.map(
+      (capacity, cellId) =>
+        capacity * getWetPastoralFieldCapacityMultiplier(world.pack.cells, cellId, agriculture.ruralFoodCapacity)
+    );
+    reconcileSubsistenceCapacityFromFood(world.pack.cells, fieldCapacity);
 
     // The calendar allocator combines staple fields and all resident rural occupations before it
     // derives migration surplus, so these columns are not a second annual deduction from Grain.
@@ -506,12 +547,15 @@ export class DevelopmentPotentialModule {
             (input.subsistenceReserve ?? 1.1)
         )
       );
+      // Households fed by milk and meat where rain is too heavy for grain herd first, whatever the
+      // fields leave over (docs/plan/wet-region-pastoral-economy.md §3.4).
       const bootstrapLaborDays = Math.max(
         0,
         workforce.adultPeople * workforce.workableDays -
           stapleArea * workforce.maintenanceDaysPerHa -
           (settings?.otherOccupationDays ??
-            occupationDays.reduce((s, a) => s + (a[input.id] ?? 0) * WORKABLE_DAYS_PER_ADULT, 0))
+            occupationDays.reduce((s, a) => s + (a[input.id] ?? 0) * WORKABLE_DAYS_PER_ADULT, 0)),
+        workforce.adultPeople * workforce.workableDays * (world.pack.cells.wetPastoralDietShare?.[input.id] ?? 0)
       );
       const pasture = hasGrazed ? calculateDesiredPastureAreaHectares(world, input.id, true, bootstrapLaborDays) : 0;
       const workersKnown = getHusbandryWorkers().length === cellCount;

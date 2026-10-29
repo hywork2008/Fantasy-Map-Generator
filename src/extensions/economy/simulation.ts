@@ -279,6 +279,7 @@ import { UrbanWater } from "./generators/urbanWaterSystem";
 import { clearMerchantHullOwnerships, recordMerchantHullOwnership } from "./generators/vesselOwnership";
 import { clearViticultureAllocationShares } from "./generators/viticultureAllocation";
 import { VolcanicOperations } from "./generators/volcanicOperations";
+import { isUnadvancedWorld, markWorldBirthHerdsSettled, settleWorldBirthHerds } from "./generators/worldBirthHerds";
 import { ECONOMY_TICK_SYSTEM_IDS, ECONOMY_TICK_TOPIC_CONTRACTS, type EconomyTickSystemId } from "./tickSystemIds";
 
 export const ECONOMY_EXTENSION_ID = "economy";
@@ -1719,6 +1720,9 @@ function register(api: SimulationExtensionAPI): () => void {
           // (initializeStock(), same as the annual update does), matching what the first Advance
           // Time tick would have produced anyway.
           updateAnnualFaunaCohorts();
+          // Pasture, herders and herds start settled together, like towns and people
+          // (docs/plan/livestock-world-birth-herds.md, B1).
+          settleWorldBirthHerds(() => DevelopmentPotential.replanWorldBirth());
           MerchantTransportAssets.requestMerchantHullSnapshot();
           MineOperations.generate();
           SmelterOperations.generate();
@@ -1818,6 +1822,10 @@ function register(api: SimulationExtensionAPI): () => void {
       )
     )
       DevelopmentPotential.generate();
+    // A world saved before B1 and never advanced still receives its birth herds; an advanced world
+    // keeps the herds it has grown.
+    if (isUnadvancedWorld()) settleWorldBirthHerds(() => DevelopmentPotential.replanWorldBirth());
+    else markWorldBirthHerdsSettled();
     if (MineOperations.reanchorOperations() || (!getSmelterOperations().length && getMineOperations().length)) {
       SmelterOperations.generate();
     }
@@ -2184,6 +2192,12 @@ function register(api: SimulationExtensionAPI): () => void {
     // Dams.settleAnnual() below explains is allowed to lag a year).
     // docs/plan/climate-disaster-drought.md §3.1.
     ClimateDisasters.settleAnnual(context.rng);
+    // Fauna population cohort update (docs/plan/biome-goods-producer-ecosystem.md §4, Phase 2):
+    // its own once-per-year guard, independent of agriculture's — no-ops entirely when
+    // options.ruralEcosystemDetail === "simplified" (§11.3). Runs before the occupation
+    // allocation so herders and haymakers are hired for this year's herd after births, not
+    // last year's (E1 §7.58). Herd capacity reads last year's committed pasture.
+    updateAnnualFaunaCohorts();
     // Must run before the quarter's food ledger so annual demographic changes
     // alter cultivated area and farm labour without waiting an extra quarter.
     agricultureRefreshed = DevelopmentPotential.updateAnnualAgriculture();
@@ -2194,10 +2208,6 @@ function register(api: SimulationExtensionAPI): () => void {
     if (agricultureRefreshed && reconcileUrbanCapacityFromFood()) {
       writer.markChanged("simulation.burgs");
     }
-    // Fauna population cohort update (docs/plan/biome-goods-producer-ecosystem.md §4, Phase 2):
-    // its own once-per-year guard, independent of agriculture's — no-ops entirely when
-    // options.ruralEcosystemDetail === "simplified" (§11.3).
-    updateAnnualFaunaCohorts();
     // Only release this year's freshly recomputed migratableAdults surplus — running on a
     // tick where agriculture wasn't refreshed would re-read last year's (already-extracted) figures.
     // Options -> Simulation "Settlement growth" gate: "independent" keeps the classic

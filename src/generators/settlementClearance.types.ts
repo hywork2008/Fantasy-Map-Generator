@@ -45,7 +45,7 @@ export interface ClearanceCellInput {
   yieldKgPerSownHa: number;
   annualSownShare?: number;
   laborAffordableAreaHa?: number;
-  /** Preserve the existing max(subsistence reserve, labour development) policy. */
+  /** Field target = staple need x this reserve; labour no longer raises it. */
   subsistenceReserve?: number;
   importedStaplePeople?: number;
   includeUrbanFoodDemand?: boolean;

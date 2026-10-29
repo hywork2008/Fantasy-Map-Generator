@@ -9,7 +9,8 @@ import { getOrCreateFaunaStockTable, getOrCreateLivestockFeedTable } from "../sr
 import { getWorldContext } from "../src/extensions/economy/context/economyApi";
 import { getGoods, getMarkets } from "../src/extensions/economy/context/trade";
 import { getCultivatedArea, getYieldPerArea } from "../src/extensions/economy/context/agriculture";
-import { getDomesticatedCarryingCapacity } from "../src/extensions/economy/generators/faunaPopulation";
+import * as fauna from "../src/extensions/economy/generators/faunaPopulation";
+import { previewHuntingGameOutput } from "../src/extensions/economy/generators/ruralOccupationAllocation";
 import * as husbandry from "../src/extensions/economy/generators/husbandry";
 import { getAnnualWoolPotentialKg } from "../src/extensions/economy/generators/woolProduction";
 import { setTickStepObserver } from "../src/generators/tickProfiler";
@@ -82,7 +83,7 @@ try {
           if (cells.h[cell] < 20 || !(cells.pop[cell] > 0)) continue;
           const herd = table[`${cell}:${good.name}`];
           const heads = herd ? herd.young + herd.breeding + herd.old : 0;
-          const supported = getDomesticatedCarryingCapacity(cell, good, 0);
+          const supported = fauna.getDomesticatedCarryingCapacity(cell, good, 0);
           row.heads += heads;
           // Absent before E1 §7.41; the baseline runtime then reports 0.
           const targets = "getLivestockHerdTargets" in husbandry ? husbandry.getLivestockHerdTargets(world, cell) : {};
@@ -110,7 +111,19 @@ try {
         feedYear.requiredKg += sample.requiredKg;
         feedYear.fedKg += sample.fedKg;
       }
+    // Wild stock and the hunters' monthly take (read-only preview), for the wild-capture C3 check.
+    const wild = { heads: 0, monthlyHuntingTake: 0 };
+    for (const cell of cells.i) {
+      if (cells.h[cell] < 20) continue;
+      const game = table[`${cell}:${fauna.WILD_SPECIES_KEY}`];
+      if (game) wild.heads += game.young + game.breeding + game.old;
+      wild.monthlyHuntingTake += previewHuntingGameOutput(cell);
+    }
+    // Absent before wild capture (C2); the baseline runtime then reports null.
+    const wildCapture = "getLastWildCaptureRecord" in fauna ? fauna.getLastWildCaptureRecord() : null;
     return {
+      wild,
+      wildCapture,
       date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay],
       land,
       convertedForestHaByKind,
@@ -140,7 +153,7 @@ try {
     output,
     `${JSON.stringify(
       {
-        schemaVersion: 3,
+        schemaVersion: 4,
         inputSha256: hash(bytes),
         sourceTreeSha256,
         months,

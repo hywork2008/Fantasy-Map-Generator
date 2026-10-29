@@ -96,6 +96,8 @@ export interface PackedGraphCells {
   subsistenceCapacity?: Float32Array;
   /** Baseline fishing, pastoral, and foraging capacity, before agricultural food is reconciled annually. */
   subsistenceNonAgriculturalCapacity?: Float32Array;
+  /** Milk-and-meat diet share where rain is too heavy for grain (economy ruralDiet.ts); runtime, recomputed annually. */
+  wetPastoralDietShare?: Float32Array;
   /** Dominant livelihood code from `subsistenceCapacity.ts`; 0 means no stable local subsistence. */
   livelihood?: Uint8Array;
   children: TypedArray; // cell children pop

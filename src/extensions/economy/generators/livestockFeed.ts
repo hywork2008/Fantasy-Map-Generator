@@ -75,6 +75,23 @@ function reserveAfterFeedingKg(cellId: number): number {
   return getCellHayPlan(cellId).reserveAfterMonthKg[livestockFeedMonth() - 1];
 }
 
+/**
+ * World birth (docs/plan/livestock-world-birth-herds.md, B1): each cell's barn holds what its own hay
+ * plan keeps at the start of the birth month, made the summer before the world began. Without it a
+ * world born in winter starves its first winter and the fed-share history cuts every herd.
+ */
+export function stockWorldBirthHay(): void {
+  const table = getOrCreateLivestockFeedTable();
+  if (!table) return;
+  const before = (livestockFeedMonth() + 10) % 12;
+  for (const cell of getWorldContext().pack.cells?.i ?? []) {
+    if (!(getLivestockMonthlyFeedNeedKg(cell) > 0)) continue;
+    table[cell] ??= emptyLedger();
+    const row = table[cell];
+    row.hayKg = Math.max(row.hayKg, getCellHayPlan(cell).reserveAfterMonthKg[before] ?? 0);
+  }
+}
+
 /** Runs before military procurement. Only unused pasture growth can become hay or market Fodder. */
 export function harvestLivestockForage(): void {
   const table = getOrCreateLivestockFeedTable();

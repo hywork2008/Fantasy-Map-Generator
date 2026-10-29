@@ -8,6 +8,10 @@ export const FODDER_DRY_MATTER_SHARE = 0.85;
 export const FODDER_DM_KG_PER_LOT = FODDER_LOT_KG * FODDER_DRY_MATTER_SHARE;
 export const HAY_DRY_MATTER_RETENTION = 0.85;
 export const HAY_STORAGE_LOSS_PER_MONTH = 0.01;
+/**
+ * Mowing, turning, cocking and carrying. Customary mowing ran ½-1 acre a day (2.5-5 man-days/ha;
+ * VCH Wiltshire iv, medieval agriculture), so on a 1.5 t DM/ha meadow this is the low end (E1 §7.68).
+ */
 export const HAY_WORK_DAYS_PER_TONNE_DM = 3;
 export const HAY_RESERVE_MONTHS = 3;
 /** Monthly loss of grass left standing on a meadow shut up for the main cut (authored). */

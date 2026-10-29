@@ -6,10 +6,22 @@
  */
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
-import { getHusbandryMonthlyWorkDays } from "../src/extensions/economy/context/agriculture";
-import { getOrCreateLivestockFeedTable } from "../src/extensions/economy/context/cellTables";
+import {
+  getFishingRequiredWorkers,
+  getFishingWorkers,
+  getHuntingWorkers,
+  getHusbandryRequiredWorkers,
+  getHusbandryMonthlyWorkDays,
+  getViticultureWorkers
+} from "../src/extensions/economy/context/agriculture";
+import { getGoodCellColumn, getOrCreateLivestockFeedTable } from "../src/extensions/economy/context/cellTables";
+import { getGoods } from "../src/extensions/economy/context/trade";
+import { DevelopmentPotential } from "../src/extensions/economy/generators/developmentPotential";
 import { getWorldContext } from "../src/extensions/economy/context/economyApi";
-import { WORKABLE_DAYS_PER_ADULT } from "../src/extensions/economy/generators/agriculturalLandUse";
+import {
+  getMonthlyWorkDaysPerAdult,
+  WORKABLE_DAYS_PER_ADULT
+} from "../src/extensions/economy/generators/agriculturalLandUse";
 import { calculateHusbandryDemand, getForageAreaHectares } from "../src/extensions/economy/generators/husbandry";
 import { getHusbandryLaborBudget } from "../src/extensions/economy/generators/husbandryLabor";
 import { getLivestockMonthlyFeedNeedKg } from "../src/extensions/economy/generators/livestockFeed";
@@ -19,6 +31,7 @@ import {
   HAY_WORK_DAYS_PER_TONNE_DM
 } from "../src/extensions/economy/generators/livestockFeedPolicy";
 import { livestockFeedMonth, livestockFeedPeriod } from "../src/extensions/economy/generators/livestockFeedState";
+import { calculateViticultureDemand, getPerennialMonthlyLaborWeights } from "../src/extensions/economy/generators/viticulture";
 import { setTickStepObserver } from "../src/generators/tickProfiler";
 import { advanceWorld, createNodeSimulationHost } from "../src/simulation/adapters/node";
 
@@ -50,7 +63,17 @@ interface Month {
 const log = new Map<number, Month[]>();
 // Demand as the annual occupation allocator saw it, snapshotted whenever a new calendar is stored.
 let calendarSum = NaN;
-const allocated = new Map<number, { total: number[]; hay: number[] }>();
+const allocated = new Map<number, { total: number[]; hay: number[]; storedRequired?: number; requiredNow?: number }>();
+// §7.58: what already filled each month before husbandry, from the crop calendar of the last annual allocation.
+interface Claims { capacity: number[]; crop: number[]; hunting: number[]; fishing: number[]; viticulture: number[]; fishFirst: boolean; vineFirst: boolean }
+const claims = new Map<number, Claims>();
+let cropDaysByMonth: Float32Array | undefined;
+const proto = DevelopmentPotential as unknown as { storeAgriculture(world: unknown, agriculture: { cropLaborDaysByMonth: Float32Array }): unknown };
+const storeAgriculture = proto.storeAgriculture;
+proto.storeAgriculture = function (world, agriculture) {
+  cropDaysByMonth = agriculture.cropLaborDaysByMonth.slice();
+  return storeAgriculture.call(this, world, agriculture);
+};
 const bytes = readFileSync(input);
 const host = createNodeSimulationHost();
 let recording = false;
@@ -67,15 +90,44 @@ try {
       if (!Number.isNaN(sum) && sum !== calendarSum) {
         calendarSum = sum;
         allocated.clear();
+        claims.clear();
+        // Fishing workers are stored per holder cell; spread them back over the land cells that staffed them.
+        const fishGood = getGoods().find(good => good.name === "Fish");
+        const fishValue = fishGood?.value ?? 0;
+        const fishingByLandCell = new Map<number, number>();
+        const goodColumn = getGoodCellColumn();
+        for (const holder of world.pack.cells.i) {
+          if (!fishGood || goodColumn[holder] !== fishGood.i || !(getFishingRequiredWorkers()[holder] > 0)) continue;
+          const assigned = getFishingWorkers()[holder] ?? 0;
+          const land = world.pack.cells.h[holder] >= 20 ? [holder] : (world.pack.cells.c[holder] ?? []).filter(n => world.pack.cells.h[n] >= 20);
+          for (const n of land) fishingByLandCell.set(n, (fishingByLandCell.get(n) ?? 0) + assigned / land.length);
+        }
         for (const cell of world.pack.cells.i) {
           if (world.pack.cells.h[cell] < 20) continue;
           const demand = calculateHusbandryDemand(world, cell);
           if (!(demand.requiredWorkers > 0)) continue;
           const days = (weights: readonly number[] | undefined, workers: number) =>
             Array.from({ length: 12 }, (_, m) => workers * WORKABLE_DAYS_PER_ADULT * (weights?.[m] ?? 1 / 12));
+          if (cropDaysByMonth?.length === world.pack.cells.i.length * 12) {
+            const adults = (world.pack.cells.maleAdults?.[cell] ?? 0) + (world.pack.cells.femaleAdults?.[cell] ?? 0);
+            const perAdult = getMonthlyWorkDaysPerAdult(cropDaysByMonth, cell * 12);
+            const vine = getPerennialMonthlyLaborWeights(world, cell);
+            const fish = fishingByLandCell.get(cell) ?? 0;
+            claims.set(cell, {
+              capacity: perAdult.map(days => adults * Math.max(1, world.populationRate || 1) * days),
+              crop: Array.from(cropDaysByMonth.subarray(cell * 12, cell * 12 + 12)),
+              hunting: new Array(12).fill((getHuntingWorkers()[cell] ?? 0) * WORKABLE_DAYS_PER_ADULT / 12),
+              fishing: new Array(12).fill(fish * WORKABLE_DAYS_PER_ADULT / 12),
+              viticulture: vine.map(weight => (getViticultureWorkers()[cell] ?? 0) * WORKABLE_DAYS_PER_ADULT * (weight ?? 0)),
+              fishFirst: fish > 0 && fishValue > demand.value,
+              vineFirst: (getViticultureWorkers()[cell] ?? 0) > 0 && calculateViticultureDemand(world, cell).value > demand.value
+            });
+          }
           allocated.set(cell, {
             total: days(demand.monthlyLaborWeights, demand.requiredWorkers),
-            hay: days(demand.hayMonthlyLaborWeights ?? new Array(12).fill(0), demand.hayWorkers ?? 0)
+            hay: days(demand.hayMonthlyLaborWeights ?? new Array(12).fill(0), demand.hayWorkers ?? 0),
+            storedRequired: getHusbandryRequiredWorkers()[cell] ?? 0,
+            requiredNow: demand.requiredWorkers
           });
         }
       }
@@ -152,7 +204,11 @@ try {
     let laborShortKg = 0;
     let planLeftKg = 0;
     let plannedKg = 0;
-    const biomeLabor = { reserved: 0, careNow: 0, hayNow: 0, allocRequested: 0, allocHay: 0, capacity: 0 };
+    const biomeLabor = {
+      reserved: 0, careNow: 0, hayNow: 0, allocRequested: 0, allocHay: 0, capacity: 0,
+      adultCapacity: 0, crop: 0, cropMean: 0, hunting: 0, fishing: 0, viticulture: 0,
+      fishingBeforeHerd: 0, viticultureBeforeHerd: 0, cropFull: 0, hayMonths: 0
+    };
     let freeKg = 0;
 
     for (const entry of settled) {
@@ -167,6 +223,22 @@ try {
         biomeLabor.allocRequested += entry.allocRequestedKg;
         biomeLabor.allocHay += entry.allocHayKg;
         biomeLabor.capacity += entry.capacityKg;
+        const claim = claims.get(cell);
+        if (claim) {
+          const toKg = (days: number) => (days / HAY_WORK_DAYS_PER_TONNE_DM) * 1000;
+          const m = entry.month;
+          biomeLabor.adultCapacity += toKg(claim.capacity[m]);
+          biomeLabor.crop += toKg(claim.crop[m]);
+          biomeLabor.hunting += toKg(claim.hunting[m]);
+          biomeLabor.fishing += toKg(claim.fishing[m]);
+          biomeLabor.viticulture += toKg(claim.viticulture[m]);
+          if (claim.fishFirst) biomeLabor.fishingBeforeHerd += toKg(claim.fishing[m]);
+          if (claim.vineFirst) biomeLabor.viticultureBeforeHerd += toKg(claim.viticulture[m]);
+          biomeLabor.cropFull += Number(claim.crop[m] >= claim.capacity[m] * 0.999);
+          biomeLabor.hayMonths++;
+          const others = claims.get(cell)!.crop.reduce((a, b) => a + b, 0) / 12;
+          biomeLabor.cropMean += toKg(others);
+        }
       }
       freeKg += Math.min(entry.freeKg, entry.cuttableKg);
       if (laborBound) laborShortKg += Math.min(uncut, wanted);
@@ -205,9 +277,10 @@ try {
       biome.needAtCutKg = (biome.needAtCutKg ?? 0) + atCut.needKg * shortage.length;
       biome.needAtShortageKg = (biome.needAtShortageKg ?? 0) + shortage.reduce((sum, entry) => sum + entry.requiredKg!, 0);
     }
-    examples.push({ cell, biome: name, people: world.pack.cells.pop[cell] * rate, unmet, required, cause, mainCut, months: settled });
+    examples.push({ cell, biome: name, people: world.pack.cells.pop[cell] * rate, unmet, required, cause, mainCut, claims: claims.get(cell), allocated: allocated.get(cell), months: settled });
   }
   examples.sort((a: any, b: any) => b.unmet - a.unmet);
+  const heath = examples.filter((e: any) => /Heath|peatland/.test(e.biome)).slice(0, 10);
   writeFileSync(
     output,
     `${JSON.stringify(
@@ -222,7 +295,7 @@ try {
         causes,
         byBiome,
         byOffset,
-        examples: examples.slice(0, 20)
+        examples: [...examples.slice(0, 20), ...heath]
       },
       null,
       2

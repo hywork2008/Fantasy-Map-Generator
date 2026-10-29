@@ -3,7 +3,7 @@ import {
   getLivestockDispatchTable,
   getOrCreateLivestockDispatchTable
 } from "../context/cellTables";
-import { getEconomySlice } from "../context/economyApi";
+import { getEconomySlice, getSimulationYear } from "../context/economyApi";
 import { livestockFeedPeriod } from "./livestockFeedState";
 /**
  * Fauna Population Stock Model — docs/plan/biome-goods-producer-ecosystem.md §4 (Phase 2).
@@ -77,6 +77,7 @@ import { YARD_HEADS_PER_RURAL_PERSON } from "./livestockHerdTargetPolicy";
 import { assessAnnualHerdRenewal } from "./livestockJointDemand";
 import { getLandTransportDefinition } from "./tradeCargo";
 import { getVineyardAreaUsedHectares } from "./viticulture";
+import { getCellWildCaptureRight, isWildCaptureAllowed } from "./wildCaptureRightsPolicy";
 
 /** The species key used for Game's wild stock — Game itself carries no `liveAnimal` tag (§4.1). */
 export const WILD_SPECIES_KEY = "Game";
@@ -219,6 +220,8 @@ export function getAnnualHerdRenewal(cellId: number, good: Good) {
  * Heads a managed grazed herd should sell this month: this year's natural increase plus any stock
  * above the supported herd, spread over twelve settlements. Replaces the biome-rate flow, so meat
  * and live sales follow the herd that actually exists rather than the cell's population x biome rate.
+ * The supported herd bounds the herd just after the January renewal, so next year's increase is sold
+ * in advance and the herd that enters winter fits its feed (E1-5, §7.71).
  */
 export function getGrazedMonthlyOfftakeHeads(cellId: number, good: Good): number {
   const cohorts = getFaunaStockTable()?.[getStockKey(cellId, good.name)];
@@ -236,7 +239,28 @@ function cohortTotal(cohorts: FaunaCohorts): number {
   return cohorts.young + cohorts.breeding + cohorts.old;
 }
 
+/** Saved in the economy slice once a world's birth herds are settled (worldBirthHerds.ts). */
+export const WORLD_BIRTH_HERDS_KEY = "livestockWorldBirthHerds";
+
+/**
+ * True until the world's birth herds are settled. Only then may a herd be placed where its species
+ * is absent; afterwards animals arrive by breeding, moving or capture alone
+ * (docs/plan/livestock-world-birth-herds.md §2).
+ */
+export function isWorldBirthPhase(): boolean {
+  const slice = getEconomySlice();
+  return !slice || slice[WORLD_BIRTH_HERDS_KEY] === undefined;
+}
+
+/** A herd needs at least a breeding pair to have young (provisional, all species). */
+export const MIN_BREEDING_HEADS = 2;
+/** Share of a neighbouring herd's young and breeding stock that moves into an empty cell in a year. */
+export const NEIGHBOUR_SPREAD_SHARE = 0.05;
+/** An empty cell takes at most this share of its supported herd from its neighbours in a year. */
+export const NEIGHBOUR_SPREAD_CAPACITY_SHARE = 0.25;
+
 function initializeStock(carryingCapacity: number): FaunaCohorts {
+  if (!isWorldBirthPhase()) return { young: 0, breeding: 0, old: 0 };
   const total = Math.max(0, carryingCapacity) * INITIAL_STOCK_FRACTION_OF_CAPACITY;
   return {
     young: total * INITIAL_COHORT_SPLIT.young,
@@ -552,6 +576,26 @@ function applyCull(cohorts: FaunaCohorts, amount: number, selectivity: number): 
   return draw;
 }
 
+/** Young a keeper holds back per breeding animal for renewal; matches the winter-slaughter rule. */
+export const HERD_SALE_YOUNG_RETAINED_PER_BREEDER = 0.5;
+
+/**
+ * A keeper's sale from a managed herd: old stock, then young beyond renewal needs, and breeding
+ * animals only after those (E1-5, §7.71). Selling breeders first cut the next year's births.
+ */
+function applyHerdSale(cohorts: FaunaCohorts, amount: number): void {
+  let remaining = Math.min(Math.max(0, amount), cohortTotal(cohorts));
+  const take = (cohort: keyof FaunaCohorts, limit: number) => {
+    const heads = Math.min(remaining, Math.max(0, limit));
+    cohorts[cohort] -= heads;
+    remaining -= heads;
+  };
+  take("old", cohorts.old);
+  take("young", cohorts.young - cohorts.breeding * HERD_SALE_YOUNG_RETAINED_PER_BREEDER);
+  take("breeding", cohorts.breeding);
+  take("young", cohorts.young);
+}
+
 function ensureStock(
   table: Record<string, FaunaCohorts>,
   cellId: number,
@@ -658,7 +702,8 @@ export function dispatchDomesticatedFauna(
   if (stock) {
     const herd = ensureStock(stock, cellId, good.name, capacity);
     const opening = { ...herd };
-    applyCull(herd, heads, getDomesticatedCullSelectivity(cellId));
+    if (isManagedHerdGood(good.name)) applyHerdSale(herd, heads);
+    else applyCull(herd, heads, getDomesticatedCullSelectivity(cellId));
     cohortHeads = {
       young: opening.young - herd.young,
       breeding: opening.breeding - herd.breeding,
@@ -690,7 +735,7 @@ export function dispatchDomesticatedFauna(
 function peekHarvestableStock(cellId: number, speciesKey: string, capacity: number): number {
   const existing = getOrCreateFaunaStockTable()?.[getStockKey(cellId, speciesKey)];
   if (existing) return cohortTotal(existing);
-  return capacity > 0 ? capacity * INITIAL_STOCK_FRACTION_OF_CAPACITY : 0;
+  return cohortTotal(initializeStock(capacity));
 }
 
 /**
@@ -742,7 +787,7 @@ function advanceCohortsOneYear(
     null,
     gradualGrazingAdjustment
   );
-  const born = renewal.birthsHeads;
+  const born = cohorts.breeding >= MIN_BREEDING_HEADS ? renewal.birthsHeads : 0;
 
   const youngMaturing = cohorts.young / Math.max(0.1, profile.youngMaturityYears);
   const breedingAging = cohorts.breeding / Math.max(0.1, profile.breedingTenureYears);
@@ -780,7 +825,8 @@ function advanceStockOneYear(
   const key = getStockKey(cellId, speciesKey);
   const existing = table[key];
   if (!existing) {
-    if (carryingCapacity > 0) table[key] = initializeStock(carryingCapacity);
+    // Seeded only at world birth; later an empty cell is filled from its neighbours.
+    if (carryingCapacity > 0 && isWorldBirthPhase()) table[key] = initializeStock(carryingCapacity);
     return; // Freshly seeded — breeding/aging starts from here next year.
   }
 
@@ -853,10 +899,17 @@ export function updateAnnualFaunaCohorts(): boolean {
     good => good.tags.includes("liveAnimal") && (isGoodEnabled(good) || isManagedHerdGood(good.name))
   );
 
+  const emptyCells: { cellId: number; speciesKey: string; capacity: number }[] = [];
+  const advance = (cellId: number, speciesKey: string, capacity: number) => {
+    advanceStockOneYear(table, cellId, speciesKey, capacity);
+    const herd = table[getStockKey(cellId, speciesKey)];
+    if (capacity > 0 && (!herd || cohortTotal(herd) < MIN_BREEDING_HEADS))
+      emptyCells.push({ cellId, speciesKey, capacity });
+  };
   for (const cellId of cells.i) {
     if ((cells.h[cellId] ?? 0) < 20) continue;
 
-    advanceStockOneYear(table, cellId, WILD_SPECIES_KEY, getWildCarryingCapacity(cellId));
+    advance(cellId, WILD_SPECIES_KEY, getWildCarryingCapacity(cellId));
     if (!domesticatedGoods.length) continue;
 
     const biomeCode = cells.biomeCode[cellId] ?? 0;
@@ -868,10 +921,124 @@ export function updateAnnualFaunaCohorts(): boolean {
       const existingGrazedHerd = grazed && table[getStockKey(cellId, good.name)];
       if ((!isGoodEnabled(good) || (rate <= 0 && !grazed)) && !existingGrazedHerd) continue;
       const flatRateAmount = Math.max(0, cells.pop[cellId] ?? 0) * rate;
-      advanceStockOneYear(table, cellId, good.name, getDomesticatedCarryingCapacity(cellId, good, flatRateAmount));
+      advance(cellId, good.name, getDomesticatedCarryingCapacity(cellId, good, flatRateAmount));
     }
   }
+  if (!isWorldBirthPhase()) for (const empty of emptyCells) spreadFromNeighbours(table, empty);
+  captureWildLivestock(table, domesticatedGoods);
   return true;
+}
+
+/**
+ * An empty cell with room for a species takes young and breeding stock from neighbouring herds of
+ * that species: wild animals wander in, keepers settle with a share of their family's herd. Heads
+ * move one for one; a cell whose neighbours cannot spare a breeding pair stays empty.
+ */
+function spreadFromNeighbours(
+  table: Record<string, FaunaCohorts>,
+  { cellId, speciesKey, capacity }: { cellId: number; speciesKey: string; capacity: number }
+): void {
+  const key = getStockKey(cellId, speciesKey);
+  const herd = table[key] ?? { young: 0, breeding: 0, old: 0 };
+  const donors = (getWorldContext().pack.cells.c?.[cellId] ?? [])
+    .map(n => table[getStockKey(n, speciesKey)])
+    .filter((d): d is FaunaCohorts => !!d && cohortTotal(d) >= MIN_BREEDING_HEADS);
+  const offered = donors.reduce((sum, d) => sum + (d.young + d.breeding) * NEIGHBOUR_SPREAD_SHARE, 0);
+  const moved = Math.min(offered, capacity * NEIGHBOUR_SPREAD_CAPACITY_SHARE);
+  if (!(offered > 0) || cohortTotal(herd) + moved < MIN_BREEDING_HEADS) return;
+  const share = moved / offered;
+  for (const donor of donors)
+    for (const age of ["young", "breeding"] as const) {
+      const heads = donor[age] * NEIGHBOUR_SPREAD_SHARE * share;
+      donor[age] -= heads;
+      herd[age] += heads;
+    }
+  table[key] = herd;
+}
+
+// ---- Wild capture (docs/plan/wild-animal-capture-domestication.md, C2) ----
+
+/** Domesticated goods whose wild ancestor peasants catch and tame. Pigs are left out: their yard
+ * herds refill by breeding every year (C0). Cattle, sheep and goats have no catchable ancestor. */
+export const WILD_CAPTURE_GOODS: readonly string[] = ["Horses"];
+/**
+ * Share of a cell's Game stock that is wild or semi-wild horses, by biome tag (best tag wins).
+ * Provisional: steppe and open grassland carry the tarpan herds, marsh and heath the semi-wild
+ * herds rounded up by the community, forest only a few.
+ */
+export const WILD_HORSE_SHARE_OF_GAME_BY_TAG: Partial<Record<BiomeTag, number>> = {
+  grassland: 0.1,
+  scrub: 0.05,
+  wetland: 0.05,
+  forest: 0.02,
+  cold: 0.02
+};
+/** Share of the herd's gap to its supported size caught in one year (the gap is not closed at once). */
+export const CAPTURE_GAP_SHARE = 0.25;
+/** Share of the wild horses caught in one year, kept small so hunting's draw on Game barely moves. */
+export const CAPTURE_WILD_SHARE = 0.02;
+
+export interface WildCaptureRecord {
+  year: number;
+  /** Real animals moved from Game to each good's herd. */
+  headsByGood: Record<string, number>;
+  cells: number;
+  /** Cells short of their herd that the rights policy kept out. */
+  deniedCells: number;
+}
+
+let lastWildCapture: WildCaptureRecord | null = null;
+
+/** The latest annual capture, for observation only; not persisted. */
+export function getLastWildCaptureRecord(): WildCaptureRecord | null {
+  return lastWildCapture;
+}
+
+function getWildHorseShareOfGame(cellId: number): number {
+  const world = getWorldContext();
+  const tags = world.biomesData.tags?.[world.pack.cells.biomeCode[cellId] ?? 0] ?? [];
+  return tags.reduce((max, tag) => Math.max(max, WILD_HORSE_SHARE_OF_GAME_BY_TAG[tag] ?? 0), 0);
+}
+
+/**
+ * After the renewal, herds that will not reach their supported size this year (heads + natural
+ * increase <= target, so no sale) take wild animals of the same cell as young stock — last
+ * autumn's round-up of foals and young horses, settled with the herd count. Heads move from Game
+ * to the herd one for one; no market and no purse is involved. Spare hands are not a limit: C0
+ * found them 100x the shortfall.
+ */
+export function captureWildLivestock(table: Record<string, FaunaCohorts>, goods: readonly Good[]): void {
+  const record: WildCaptureRecord = { year: getSimulationYear(), headsByGood: {}, cells: 0, deniedCells: 0 };
+  const cells = getWorldContext().pack.cells;
+  for (const good of goods) {
+    if (!WILD_CAPTURE_GOODS.includes(good.name) || !isGoodEnabled(good)) continue;
+    for (const cellId of cells.i) {
+      const herd = table[getStockKey(cellId, good.name)];
+      const wild = table[getStockKey(cellId, WILD_SPECIES_KEY)];
+      if (!herd || !wild) continue;
+      const target = getDomesticatedCarryingCapacity(cellId, good, 0);
+      const heads = cohortTotal(herd);
+      if (!(target > heads) || heads + (getAnnualHerdRenewal(cellId, good)?.naturalNetHeads ?? 0) > target) continue;
+      if (!isWildCaptureAllowed(getCellWildCaptureRight(cellId))) {
+        record.deniedCells++;
+        continue;
+      }
+      const catchable = cohortTotal(wild) * getWildHorseShareOfGame(cellId);
+      const caught = Math.min(
+        (target - heads) * CAPTURE_GAP_SHARE,
+        catchable * CAPTURE_WILD_SHARE,
+        wild.young + wild.breeding
+      );
+      if (!(caught > 0)) continue;
+      const fromYoung = Math.min(wild.young, caught);
+      wild.young -= fromYoung;
+      wild.breeding -= caught - fromYoung;
+      herd.young += caught;
+      record.headsByGood[good.name] = (record.headsByGood[good.name] ?? 0) + caught;
+      record.cells++;
+    }
+  }
+  lastWildCapture = record;
 }
 
 // ---- Non-food demand-absorption history (§4.5) ----

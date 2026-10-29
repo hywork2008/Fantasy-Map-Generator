@@ -60,6 +60,11 @@ describe("shared settlement land use", () => {
     expect(p.maintenanceShortfallHa).toBeGreaterThan(19);
     expect(p.patches.some(p => p.kind === "cultivation")).toBe(true);
   });
+  it("does not till spare labour into staple fields beyond the need and its reserve", () => {
+    const p = plan([cell({ laborAffordableAreaHa: 70, subsistenceReserve: 1.1 })]).cells[1];
+    expect(p.policyTargetAreaHa).toBeCloseTo(p.requiredAreaHa * 1.1, 8);
+    expect(p.allocatedAreaHa).toBeLessThanOrEqual(p.requiredAreaHa * 1.1 + 1e-8);
+  });
   it("partitions land and never converts naturally open fields or treats logging as cropland", () => {
     const p = plan([cell({ forestCover: 0 })]).cells[1];
     expect(p.convertedForestAreaHa).toBe(0);
