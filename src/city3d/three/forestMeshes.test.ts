@@ -341,7 +341,7 @@ it("uses BV trees beyond distance and count caps when outskirts simplification i
 
 it("draws only adopted lime distance tiers, even beyond the former replacement cap and geometry budget", () => {
   const doc = document();
-  doc.biome = { id: 13, key: "centralEuropeanGreatForest", name: "Great forest", color: "green", tags: ["forest"] };
+  doc.biome = { id: 4, key: "grassland", name: "Explicit lime planting", color: "green", tags: ["grassland"] };
   const forest = createTownForest(doc, plan(), undefined, "standard");
   const c = camera();
   forest.update(c, 720);

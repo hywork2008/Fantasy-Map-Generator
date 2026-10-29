@@ -1,5 +1,7 @@
+import { PERENNIAL_CROP_PROFILES } from "../../../data/perennialCrops";
 import type { BurgSiteEconomy, GuildDomain, SiteGuild, SiteLodging } from "../../../services/burgSiteEconomy";
 import { GUILD_DOMAINS } from "../../../services/burgSiteEconomy";
+import { rn } from "../../../utils";
 import {
   getGoods,
   getGuildChapters,
@@ -18,6 +20,7 @@ import { collectGuildPractitioners } from "./guildKnowledge";
 import type { CraftKnowledgeDomain, GuildKnowledgeStock } from "./guildKnowledgeTypes";
 import { millCountsForBurg } from "./millCapacity";
 import { portWarehouseForBurg } from "./portWarehouses";
+import { createAgriculturalClimateReader, getSeasonalCropPlan } from "./seasonalCropClimate";
 import { storageYardsForBurg } from "./siteEconomyFootprint";
 import { tradePartnersForBurg } from "./tradeCorridorLedger";
 
@@ -162,6 +165,7 @@ export function buildBurgSiteEconomy(burgId: number): BurgSiteEconomy | null {
     getMintLedgers().flatMap(ledger => (ledger.mintMarketId == null ? [] : [ledger.mintMarketId]))
   );
   const mint = getMarkets().some(market => market.centerBurgId === burgId && mintMarkets.has(market.i));
+  const perennialHarvest = perennialHarvestForBurg(burgId);
   return {
     version: 1,
     year: getSimulationYear(),
@@ -177,8 +181,24 @@ export function buildBurgSiteEconomy(burgId: number): BurgSiteEconomy | null {
     facilities: projectLodging(getInnFacilities(), burgId),
     tradePartners,
     mills: millCountsForBurg(burgId),
-    ...(portWarehouse ? { portWarehouse } : {})
+
+    ...(portWarehouse ? { portWarehouse } : {}),
+    ...(perennialHarvest ? { perennialHarvest } : {})
   };
+}
+
+/** Harvest weights of every perennial crop under the burg cell's climate, for orchard trees in CE. */
+function perennialHarvestForBurg(burgId: number): Record<string, number[]> | undefined {
+  const world = getWorldContext();
+  const cell = world.pack.burgs?.find(burg => burg?.i === burgId)?.cell;
+  if (cell === undefined || !world.pack.cells) return undefined;
+  const climate = createAgriculturalClimateReader(world)(cell);
+  return Object.fromEntries(
+    Object.entries(PERENNIAL_CROP_PROFILES).map(([crop, profile]) => [
+      crop,
+      Array.from(getSeasonalCropPlan(profile.calendar, climate).calendar.harvestWeights, weight => rn(weight, 4))
+    ])
+  );
 }
 
 function burgName(burgId: number): string {

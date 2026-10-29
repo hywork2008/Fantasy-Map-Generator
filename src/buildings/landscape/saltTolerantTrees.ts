@@ -4,13 +4,18 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import { type LeafShoot, type TreeAppearanceOptions, WINTER_TWIGS, winterTwigs } from "./treeSeasonLayers";
 
 /** Salt-tolerant trees: a stilt-rooted red mangrove and a feathery, flowering tamarisk of dry scrub. */
 export function createSaltTolerantTree(
   species: "red_mangrove" | "tamarisk",
-  quality: TreeQuality = "ultra"
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {}
 ): CityStructureMeshes {
   const mangrove = species === "red_mangrove";
+  // Winter tamarisks shed their scale-leaved branchlets, leaving the reddish twigs (seasonalLooks.ts).
+  const bare = !mangrove && options.appearance === "bare";
+  const shoots: LeafShoot[] = [];
   const tier = quality;
   const reduced = tier === "low" || tier === "medium";
   const lobes: CanopyLobe[] = [],
@@ -51,7 +56,8 @@ export function createSaltTolerantTree(
     wood.push(flat);
   }
   function branch(a: THREE.Vector3, b: THREE.Vector3, bottom: number, top = bottom * 0.4, sides = 6, root = false) {
-    if (reduced && !(mangrove && root) && bottom < (tier === "low" ? 0.07 : 0.035)) return;
+    if (reduced && !(mangrove && root) && bottom < (tier === "low" ? (bare ? 0.03 : 0.07) : bare ? 0.012 : 0.035))
+      return;
     const geometry = new THREE.CylinderGeometry(
       top,
       bottom,
@@ -120,7 +126,8 @@ export function createSaltTolerantTree(
     const foliage = new THREE.Color(),
       flower = new THREE.Color();
     const points: THREE.Vector3[] = [],
-      pink: THREE.Vector3[] = [];
+      pink: THREE.Vector3[] = [],
+      ends: THREE.Vector3[] = [];
     for (let i = 0; i < 11; i++) {
       const theta = azimuth + (random() - 0.5) * 1.4;
       const length = 0.45 + random() * 0.45;
@@ -153,6 +160,7 @@ export function createSaltTolerantTree(
         }
         p = q;
       }
+      ends.push(p.clone());
     }
     if (tier === "medium") {
       lobes.push(fitCanopyLobe(points, 0.6, true));
@@ -161,6 +169,7 @@ export function createSaltTolerantTree(
       lowPoints.push(...points);
       lowFlowers.push(...pink);
     }
+    return ends;
   }
   if (mangrove) {
     // The bole rides above the mud on arching prop roots, which sink just below ground level.
@@ -312,15 +321,20 @@ export function createSaltTolerantTree(
             )
           );
         branch(from, tip, 0.025, 0.006, 4);
-        plume(tip, theta);
+        shoots.push({ base: from, tip, points: plume(tip, theta) });
       }
-      plume(end, angle);
+      shoots.push({ base: curve.getPoint(0.8), tip: end, points: plume(end, angle) });
       if (tier === "low") {
         lobes.push(fitCanopyLobe(lowPoints, 0.72, true));
         flowers.push(fitCanopyLobe(lowFlowers, 0.5, true));
       }
     }
   }
+  // Slender, wand-like twigs arch out where the branchlets hung.
+  if (bare)
+    for (const shoot of shoots)
+      for (const [from, to] of winterTwigs(shoot, WINTER_TWIGS[tier]))
+        branch(from, to, tier === "medium" ? 0.012 : 0.006, 0.003, 4);
   const barkGeometry = mergeGeometries(wood)!;
   for (const geometry of wood) geometry.dispose();
   if (mangrove) {

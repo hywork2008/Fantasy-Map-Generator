@@ -4,6 +4,7 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import type { TreeAppearanceOptions } from "./treeSeasonLayers";
 
 export type SacredGardenSpecies =
   | "mediterranean_cypress"
@@ -17,8 +18,14 @@ export type SacredGardenSpecies =
  */
 export function createSacredGardenTree(
   species: SacredGardenSpecies,
-  quality: TreeQuality = "ultra"
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {}
 ): CityStructureMeshes {
+  // A bare weeping willow keeps its curtain of whips; the registry drops the leaves (seasonalLooks.ts).
+  const bare = species === "peaceful_willow" && options.appearance === "bare";
+  const whips: THREE.Vector3[][] = [];
+  // Where the next whip leaves its limb, so reduced tiers without the short arches stay attached.
+  let whipRoot: THREE.Vector3 | undefined;
   const cypress = species === "mediterranean_cypress",
     arborvitae = species === "oriental_evergreen",
     fig = species === "sacred_bodhi_and_fig";
@@ -176,6 +183,8 @@ export function createSacredGardenTree(
   function strand(start: THREE.Vector3, outward: THREE.Vector3, length: number) {
     let p = start.clone();
     const steps = 10;
+    const whip = whipRoot ? [whipRoot, p] : [p];
+    whips.push(whip);
     for (let i = 0; i < steps; i++) {
       const t = i / steps;
       const q = p
@@ -197,6 +206,7 @@ export function createSacredGardenTree(
         triangle(base, mid.clone().add(width), base.clone().add(leaf), color);
         triangle(base, base.clone().add(leaf), mid.clone().sub(width), color);
       }
+      whip.push(q);
       p = q;
     }
     if (quality === "medium" && ++strands % 3 === 0) finishSpray();
@@ -424,6 +434,7 @@ export function createSacredGardenTree(
           .addScaledVector(outward, 0.45 + random() * 0.35)
           .addScaledVector(up, 0.25);
         branch(from, arch, 0.03, 0.012, 4);
+        whipRoot = from;
         strand(arch, outward, Math.min(arch.y - 0.6, 3.6 + random() * 2));
         strand(arch, outward.clone().applyAxisAngle(up, 0.5), Math.min(arch.y - 0.8, 3 + random() * 2));
         if (quality === "low" && k === 12) {
@@ -431,10 +442,43 @@ export function createSacredGardenTree(
           finishBranch();
         }
       }
+      whipRoot = undefined;
       strand(tip, out, 4.5);
       finishSpray();
       finishBranch();
     }
+  }
+  if (bare) {
+    // Winter willow whips glow yellow-green; reduced tiers keep a sample of coarser whips.
+    const every = quality === "ultra" ? 1 : quality === "high" ? 2 : quality === "medium" ? 4 : 16;
+    const stride = quality === "ultra" ? 1 : quality === "high" ? 2 : quality === "medium" ? 3 : 5;
+    const whipColor = new THREE.Color(0x9c9a45);
+    whips.forEach((whip, index) => {
+      if (index % every) return;
+      for (let i = 0; i + stride < whip.length; i += stride) {
+        const a = whip[i],
+          b = whip[i + stride];
+        const geometry = new THREE.CylinderGeometry(
+          0.004,
+          quality === "low" ? 0.03 : quality === "medium" ? 0.015 : 0.008,
+          a.distanceTo(b),
+          3,
+          1,
+          true
+        );
+        geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, b.clone().sub(a).normalize()));
+        geometry.translate(...a.clone().add(b).multiplyScalar(0.5).toArray());
+        const flat = geometry.toNonIndexed();
+        geometry.dispose();
+        flat.deleteAttribute("uv");
+        const count = flat.getAttribute("position").count;
+        flat.setAttribute(
+          "color",
+          new THREE.Float32BufferAttribute(Array.from({ length: count }, () => whipColor.toArray()).flat(), 3)
+        );
+        wood.push(flat);
+      }
+    });
   }
   const barkGeometry = mergeGeometries(wood)!;
   for (const geometry of wood) geometry.dispose();

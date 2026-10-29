@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, type CanopyPalette, createCanopyLobes } from "./canopyLobes";
+import { limbGeometry } from "./treeSeasonLayers";
 
 /** Mean foliage color of the high tiers, shared by the reduced tiers so tier switches do not flash. */
 export const TEMPERATE_CANOPY: Record<"lime" | "yew", CanopyPalette> = {
@@ -10,7 +11,8 @@ export const TEMPERATE_CANOPY: Record<"lime" | "yew", CanopyPalette> = {
 };
 
 /** Opaque, lobed silhouettes retain the spreading lime and broad evergreen yew at distant city scales. */
-export function createTemperateTreeLod(species: "lime" | "yew"): CityStructureMeshes {
+/** `bare` adds the limbs a leafless distant lime shows; the registry drops its lobes (seasonalLooks.ts). */
+export function createTemperateTreeLod(species: "lime" | "yew", bare = false): CityStructureMeshes {
   const lime = species === "lime";
   const wood: THREE.BufferGeometry[] = [];
   const top = lime ? 11.2 : 7.8;
@@ -19,6 +21,26 @@ export function createTemperateTreeLod(species: "lime" | "yew"): CityStructureMe
   wood.push(trunk);
   const root = new THREE.ConeGeometry(lime ? 0.85 : 1.05, 0.7, 5);
   wood.push(root);
+  if (bare && lime) {
+    const limbs: [THREE.Vector3, THREE.Vector3, number][] = [];
+    for (let i = 0; i < 5; i++) {
+      const angle = (i * Math.PI * 2) / 5;
+      const out = (r: number, y: number) => new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
+      const fork = out(2.2, 6.6);
+      limbs.push(
+        [new THREE.Vector3(0, 3.3 + i * 0.45, 0), fork, 0.2],
+        [fork, out(4.6, 8.4), 0.1],
+        [fork, out(3.2, 9.8), 0.08]
+      );
+    }
+    for (const angle of [0.6, Math.PI + 0.6])
+      limbs.push([
+        new THREE.Vector3(0, 7.6, 0),
+        new THREE.Vector3(Math.cos(angle) * 1.5, 11, Math.sin(angle) * 1.5),
+        0.1
+      ]);
+    wood.push(...limbGeometry(limbs));
+  }
   const count = 7;
   const lobes: CanopyLobe[] = [];
   for (let i = 0; i < count; i++) {

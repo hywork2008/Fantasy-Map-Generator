@@ -5,10 +5,17 @@ import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes
 import { createTemperateTreeLod, TEMPERATE_CANOPY } from "./temperateTreeLod";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import { type LeafShoot, type TreeAppearanceOptions, WINTER_TWIGS, winterTwigs } from "./treeSeasonLayers";
 
 /** A summer, open-grown Tilia cordata. Meter scale; deterministic and texture-free. */
-export function createSmallLeavedLime(quality: TreeQuality = "ultra"): CityStructureMeshes {
-  if (quality === "low") return createTemperateTreeLod("lime");
+export function createSmallLeavedLime(
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {}
+): CityStructureMeshes {
+  // Bare winter trees keep the leafy skeleton; the registry drops the leaves (seasonalLooks.ts).
+  const bare = options.appearance === "bare";
+  if (quality === "low") return createTemperateTreeLod("lime", bare);
+  const shoots: LeafShoot[] = [];
   // Medium follows the same branch skeleton and replaces each leaf spray with one fitted lobe.
   const medium = quality === "medium";
   let seed = 6143;
@@ -22,7 +29,7 @@ export function createSmallLeavedLime(quality: TreeQuality = "ultra"): CityStruc
   const up = new THREE.Vector3(0, 1, 0);
   function branch(a: THREE.Vector3, b: THREE.Vector3, bottom: number, top: number) {
     // Twigs are sub-pixel at medium range; only limbs that show between lobes are kept.
-    if (medium && bottom < 0.05) return;
+    if (medium && bottom < 0.05 && !bare) return;
     const geometry = medium
       ? new THREE.CylinderGeometry(top, bottom, a.distanceTo(b), 4, 1, true)
       : new THREE.CylinderGeometry(top, bottom, a.distanceTo(b), 9, 1);
@@ -75,6 +82,7 @@ export function createSmallLeavedLime(quality: TreeQuality = "ultra"): CityStruc
       }
     }
     if (medium) lobes.push(fitCanopyLobe(centers, 1.13));
+    return centers;
   }
   const fork = new THREE.Vector3(0.12, 3.3, -0.08);
   wood.push(
@@ -113,14 +121,15 @@ export function createSmallLeavedLime(quality: TreeQuality = "ultra"): CityStruc
             Math.sin(theta) * (0.5 + random() * 0.8)
           )
         );
-      branch(elbow.clone().lerp(end, 0.45 + j * 0.1), tip, 0.026, 0.005);
-      spray(tip, 0.7 + random() * 0.3);
+      const base = elbow.clone().lerp(end, 0.45 + j * 0.1);
+      branch(base, tip, 0.026, 0.005);
+      shoots.push({ base, tip, points: spray(tip, 0.7 + random() * 0.3) });
     }
   }
   // Continue the leader into a leafy upper crown rather than leaving a hollow ring.
   const leaderBase = new THREE.Vector3(-0.25, 8.1, 0.15);
   const leaderTip = new THREE.Vector3(0.08, 10.35, -0.12);
-  spray(leaderTip, 0.9, 240);
+  shoots.push({ base: leaderBase, tip: leaderTip, points: spray(leaderTip, 0.9, 240) });
   for (let i = 0; i < 14; i++) {
     const angle = i * 2.39996;
     const radius = i < 5 ? 0.65 : 1.45;
@@ -133,8 +142,12 @@ export function createSmallLeavedLime(quality: TreeQuality = "ultra"): CityStruc
     const elbow = start.clone().lerp(tip, 0.55);
     branch(start, elbow, 0.035, 0.018);
     branch(elbow, tip, 0.018, 0.004);
-    spray(tip, 0.8 + random() * 0.15, 200);
+    shoots.push({ base: elbow, tip, points: spray(tip, 0.8 + random() * 0.15, 200) });
   }
+  if (bare)
+    for (const shoot of shoots)
+      for (const [from, to] of winterTwigs(shoot, medium ? 1 : WINTER_TWIGS[quality]))
+        branch(from, to, medium ? 0.014 : 0.009, 0.003);
   const leaves = medium ? createCanopyLobes(lobes, TEMPERATE_CANOPY.lime, 6143) : new THREE.BufferGeometry();
   if (!medium) {
     leaves.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));

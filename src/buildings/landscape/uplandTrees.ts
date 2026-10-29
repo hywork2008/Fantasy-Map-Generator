@@ -4,13 +4,18 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import { type LeafShoot, type TreeAppearanceOptions, WINTER_TWIGS, winterTwigs } from "./treeSeasonLayers";
 
 /** Open-upland trees: a berry-laden moorland rowan and a fire-hardy Canary pine of volcanic slopes. */
 export function createUplandTree(
   species: "rowan" | "canary_pine",
-  quality: TreeQuality = "ultra"
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {}
 ): CityStructureMeshes {
   const rowan = species === "rowan";
+  // Bare winter rowans keep the leafy skeleton; the registry drops leaves and berries.
+  const bare = rowan && options.appearance === "bare";
+  const shoots: LeafShoot[] = [];
   const reduced = quality === "low" || quality === "medium";
   const lobes: CanopyLobe[] = [],
     fruitLobes: CanopyLobe[] = [];
@@ -64,7 +69,8 @@ export function createUplandTree(
     wood.push(flat);
   }
   function branch(a: THREE.Vector3, b: THREE.Vector3, bottom: number, top = bottom * 0.4, sides = 6) {
-    if (reduced && bottom < (quality === "low" ? (rowan ? 0.045 : 0.08) : rowan ? 0.025 : 0.045)) return;
+    if (reduced && bottom < (quality === "low" ? (rowan ? 0.045 : 0.08) : rowan ? (bare ? 0.012 : 0.025) : 0.045))
+      return;
     const geometry = new THREE.CylinderGeometry(
       top,
       bottom,
@@ -219,13 +225,16 @@ export function createUplandTree(
           .clone()
           .add(new THREE.Vector3(Math.cos(theta) * 0.8, 0.15 + random() * 0.3, Math.sin(theta) * 0.8));
         branch(a, twig, 0.018, 0.006, 4);
+        const bases: THREE.Vector3[] = [];
         for (let l = 0; l < 12; l++) {
           const phi = random() * Math.PI * 2;
-          pinnate(
-            twig.clone().add(new THREE.Vector3((random() - 0.5) * 0.4, (random() - 0.5) * 0.3, (random() - 0.5) * 0.4)),
-            new THREE.Vector3(Math.cos(phi), 0.2 - random() * 0.4, Math.sin(phi))
-          );
+          const base = twig
+            .clone()
+            .add(new THREE.Vector3((random() - 0.5) * 0.4, (random() - 0.5) * 0.3, (random() - 0.5) * 0.4));
+          bases.push(base);
+          pinnate(base, new THREE.Vector3(Math.cos(phi), 0.2 - random() * 0.4, Math.sin(phi)));
         }
+        shoots.push({ base: a, tip: twig, points: bases });
         finishSpray();
         if (k % 2 === 1) berries(twig.clone().addScaledVector(up, -0.05));
       }
@@ -237,6 +246,10 @@ export function createUplandTree(
       berries(tip.clone().addScaledVector(up, -0.08));
       finishBand();
     }
+    if (bare)
+      for (const shoot of shoots)
+        for (const [from, to] of winterTwigs(shoot, WINTER_TWIGS[quality]))
+          branch(from, to, quality === "medium" ? 0.012 : 0.006, 0.003, 4);
   } else {
     const height = 15.5;
     timber(

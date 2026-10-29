@@ -1,0 +1,542 @@
+{
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "areaM2": 25600,
+  "models": [
+    {
+      "quality": "low",
+      "variant": "tree.scots-pine@low#codex-gpt-6.1-sol",
+      "triangles": 275,
+      "bytes": 29700,
+      "bounds": {
+        "min": [
+          -5.654156684875488,
+          -0.3499999940395355,
+          -5.218191146850586
+        ],
+        "max": [
+          5.038957118988037,
+          21.323585510253906,
+          4.8375563621521
+        ]
+      }
+    },
+    {
+      "quality": "medium",
+      "variant": "tree.scots-pine@medium#codex-gpt-6.1-sol",
+      "triangles": 1305,
+      "bytes": 140940,
+      "bounds": {
+        "min": [
+          -4.835651874542236,
+          -0.3499999940395355,
+          -4.6097517013549805
+        ],
+        "max": [
+          3.8734123706817627,
+          20.555952072143555,
+          4.611604690551758
+        ]
+      }
+    },
+    {
+      "quality": "high",
+      "variant": "tree.scots-pine@high#codex-gpt-6.1-sol",
+      "triangles": 10316,
+      "bytes": 1114128,
+      "bounds": {
+        "min": [
+          -5.311582565307617,
+          -0.3499999940395355,
+          -5.03802490234375
+        ],
+        "max": [
+          4.267088890075684,
+          21.06420135498047,
+          4.991304397583008
+        ]
+      }
+    },
+    {
+      "quality": "ultra",
+      "variant": "tree.scots-pine@ultra#codex-gpt-6.1-sol",
+      "triangles": 37364,
+      "bytes": 4035312,
+      "bounds": {
+        "min": [
+          -4.924663066864014,
+          -0.3499999940395355,
+          -4.78798770904541
+        ],
+        "max": [
+          3.9380571842193604,
+          20.668914794921875,
+          4.715511798858643
+        ]
+      }
+    }
+  ],
+  "frames": [
+    {
+      "pose": "overview",
+      "quality": "light",
+      "cpuSubmissionMs": 70.29999995231628,
+      "pineTriangles": 1305,
+      "pineTrees": 1,
+      "boundedTriangles": 70861,
+      "pineAnchor": [
+        -29.85624122619629,
+        0,
+        45.71417236328125
+      ],
+      "pineHeight": 17.59272813796997,
+      "budget": {
+        "trees": 2000,
+        "triangles": 100000,
+        "calls": 64,
+        "shadowTriangles": 0
+      },
+      "stats": {
+        "quality": "light",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 302,
+        "triangles": 134728,
+        "calls": 20,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 92,
+        "detailedTriangles": 105592,
+        "detailedSpecies": [
+          "european_hornbeam",
+          "european_beech",
+          "pedunculate_oak",
+          "garden_parkland",
+          "scots_pine"
+        ],
+        "detailedTiers": {
+          "low": 22,
+          "medium": 70,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "overview",
+      "quality": "standard",
+      "cpuSubmissionMs": 1.2000000476837158,
+      "pineTriangles": 13050,
+      "pineTrees": 10,
+      "boundedTriangles": 225800,
+      "pineAnchor": [
+        -29.85624122619629,
+        0,
+        45.71417236328125
+      ],
+      "pineHeight": 17.59272813796997,
+      "budget": {
+        "trees": 8000,
+        "triangles": 300000,
+        "calls": 128,
+        "shadowTriangles": 50000
+      },
+      "stats": {
+        "quality": "standard",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 302,
+        "triangles": 289667,
+        "calls": 27,
+        "shadowTriangles": 49820,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 273,
+        "detailedTriangles": 260531,
+        "detailedSpecies": [
+          "european_hornbeam",
+          "european_beech",
+          "pedunculate_oak",
+          "garden_parkland",
+          "scots_pine"
+        ],
+        "detailedTiers": {
+          "low": 93,
+          "medium": 180,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "overview",
+      "quality": "high",
+      "cpuSubmissionMs": 0.7999999523162842,
+      "pineTriangles": 13050,
+      "pineTrees": 10,
+      "boundedTriangles": 225800,
+      "pineAnchor": [
+        -29.85624122619629,
+        0,
+        45.71417236328125
+      ],
+      "pineHeight": 17.59272813796997,
+      "budget": {
+        "trees": 20000,
+        "triangles": 800000,
+        "calls": 256,
+        "shadowTriangles": 150000
+      },
+      "stats": {
+        "quality": "high",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 302,
+        "triangles": 289667,
+        "calls": 27,
+        "shadowTriangles": 149973,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 273,
+        "detailedTriangles": 260531,
+        "detailedSpecies": [
+          "european_hornbeam",
+          "european_beech",
+          "pedunculate_oak",
+          "garden_parkland",
+          "scots_pine"
+        ],
+        "detailedTiers": {
+          "low": 93,
+          "medium": 180,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "near",
+      "quality": "light",
+      "cpuSubmissionMs": 221.29999995231628,
+      "pineTriangles": 37364,
+      "pineTrees": 1,
+      "boundedTriangles": 85400,
+      "pineAnchor": [
+        -29.85624122619629,
+        0,
+        45.71417236328125
+      ],
+      "pineHeight": 17.59272813796997,
+      "budget": {
+        "trees": 2000,
+        "triangles": 100000,
+        "calls": 64,
+        "shadowTriangles": 0
+      },
+      "stats": {
+        "quality": "light",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 2,
+        "nearChunks": 2,
+        "middleChunks": 0,
+        "trees": 146,
+        "triangles": 143152,
+        "calls": 14,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 16,
+        "detailedTriangles": 128652,
+        "detailedSpecies": [
+          "scots_pine",
+          "european_beech",
+          "european_hornbeam",
+          "pedunculate_oak",
+          "garden_parkland"
+        ],
+        "detailedTiers": {
+          "low": 4,
+          "medium": 7,
+          "high": 4,
+          "ultra": 1
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "near",
+      "quality": "standard",
+      "cpuSubmissionMs": 192.29999995231628,
+      "pineTriangles": 37364,
+      "pineTrees": 1,
+      "boundedTriangles": 285372,
+      "pineAnchor": [
+        -29.85624122619629,
+        0,
+        45.71417236328125
+      ],
+      "pineHeight": 17.59272813796997,
+      "budget": {
+        "trees": 8000,
+        "triangles": 300000,
+        "calls": 128,
+        "shadowTriangles": 50000
+      },
+      "stats": {
+        "quality": "standard",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 2,
+        "nearChunks": 2,
+        "middleChunks": 0,
+        "trees": 146,
+        "triangles": 343124,
+        "calls": 15,
+        "shadowTriangles": 49585,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 19,
+        "detailedTriangles": 328624,
+        "detailedSpecies": [
+          "scots_pine",
+          "european_beech",
+          "european_hornbeam",
+          "pedunculate_oak",
+          "garden_parkland"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 12,
+          "high": 3,
+          "ultra": 4
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "near",
+      "quality": "high",
+      "cpuSubmissionMs": 156.09999990463257,
+      "pineTriangles": 38669,
+      "pineTrees": 2,
+      "boundedTriangles": 785490,
+      "pineAnchor": [
+        -29.85624122619629,
+        0,
+        45.71417236328125
+      ],
+      "pineHeight": 17.59272813796997,
+      "budget": {
+        "trees": 20000,
+        "triangles": 800000,
+        "calls": 256,
+        "shadowTriangles": 150000
+      },
+      "stats": {
+        "quality": "high",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 2,
+        "nearChunks": 2,
+        "middleChunks": 0,
+        "trees": 146,
+        "triangles": 843242,
+        "calls": 19,
+        "shadowTriangles": 141704,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 23,
+        "detailedTriangles": 828742,
+        "detailedSpecies": [
+          "scots_pine",
+          "european_beech",
+          "european_hornbeam",
+          "pedunculate_oak",
+          "garden_parkland"
+        ],
+        "detailedTiers": {
+          "low": 2,
+          "medium": 9,
+          "high": 2,
+          "ultra": 10
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "inside",
+      "quality": "light",
+      "cpuSubmissionMs": 30.40000009536743,
+      "pineTriangles": 37364,
+      "pineTrees": 1,
+      "boundedTriangles": 78252,
+      "pineAnchor": [
+        -29.85624122619629,
+        0,
+        45.71417236328125
+      ],
+      "pineHeight": 17.59272813796997,
+      "budget": {
+        "trees": 2000,
+        "triangles": 100000,
+        "calls": 64,
+        "shadowTriangles": 0
+      },
+      "stats": {
+        "quality": "light",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 2,
+        "nearChunks": 2,
+        "middleChunks": 0,
+        "trees": 144,
+        "triangles": 92752,
+        "calls": 10,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 5,
+        "detailedTriangles": 78252,
+        "detailedSpecies": [
+          "scots_pine",
+          "european_hornbeam",
+          "european_beech"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 2,
+          "high": 2,
+          "ultra": 1
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "inside",
+      "quality": "standard",
+      "cpuSubmissionMs": 0.2999999523162842,
+      "pineTriangles": 37364,
+      "pineTrees": 1,
+      "boundedTriangles": 264520,
+      "pineAnchor": [
+        -29.85624122619629,
+        0,
+        45.71417236328125
+      ],
+      "pineHeight": 17.59272813796997,
+      "budget": {
+        "trees": 8000,
+        "triangles": 300000,
+        "calls": 128,
+        "shadowTriangles": 50000
+      },
+      "stats": {
+        "quality": "standard",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 2,
+        "nearChunks": 2,
+        "middleChunks": 0,
+        "trees": 144,
+        "triangles": 279020,
+        "calls": 10,
+        "shadowTriangles": 37364,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 5,
+        "detailedTriangles": 264520,
+        "detailedSpecies": [
+          "scots_pine",
+          "european_hornbeam",
+          "european_beech"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 0,
+          "high": 2,
+          "ultra": 3
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "inside",
+      "quality": "high",
+      "cpuSubmissionMs": 0.2999999523162842,
+      "pineTriangles": 37364,
+      "pineTrees": 1,
+      "boundedTriangles": 368968,
+      "pineAnchor": [
+        -29.85624122619629,
+        0,
+        45.71417236328125
+      ],
+      "pineHeight": 17.59272813796997,
+      "budget": {
+        "trees": 20000,
+        "triangles": 800000,
+        "calls": 256,
+        "shadowTriangles": 150000
+      },
+      "stats": {
+        "quality": "high",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 2,
+        "nearChunks": 2,
+        "middleChunks": 0,
+        "trees": 144,
+        "triangles": 383468,
+        "calls": 10,
+        "shadowTriangles": 108772,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 5,
+        "detailedTriangles": 368968,
+        "detailedSpecies": [
+          "scots_pine",
+          "european_hornbeam",
+          "european_beech"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 0,
+          "high": 0,
+          "ultra": 5
+        },
+        "builds": 4
+      }
+    }
+  ],
+  "memory": {
+    "counts": [
+      24,
+      24,
+      24
+    ],
+    "afterDispose": 0
+  },
+  "bvChecks": {
+    "choices": [
+      "low",
+      "medium",
+      "high",
+      "ultra"
+    ]
+  },
+  "errors": [],
+  "timing": "CPU update and submission only, includes first-use model setup; not GPU completion or city FPS."
+}

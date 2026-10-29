@@ -6,6 +6,18 @@ import { TREE_QUALITIES, treeQualityAtDistance, treeQualityAtPixels } from "./tr
 import { createLandscapeTree, treeLodProfile } from "./trees";
 
 it.each([
+  "arabica_coffee",
+  "cacao",
+  "sweet_chestnut",
+  "lemon",
+  "common_fig",
+  "european_plum",
+  "european_pear",
+  "domestic_apple",
+  "scots_pine",
+  "european_hornbeam",
+  "pedunculate_oak",
+  "european_beech",
   "garden_parkland",
   "sacred_yew",
   "norway_spruce",
@@ -25,7 +37,11 @@ it.each([
   "mediterranean_cypress",
   "oriental_evergreen",
   "sacred_bodhi_and_fig",
-  "peaceful_willow"
+  "peaceful_willow",
+  "olive_orchard",
+  "date_palm_orchard",
+  "date_palm_orchard_male",
+  "date_palm_orchard_young"
 ] as const)("adopts four increasingly detailed, grounded %s levels from the BV variants", species => {
   const variants = models.find(model => model.id === species.replaceAll("_", "-"))!.variants!;
   expect([...new Set(variants.map(variant => variant.level))]).toEqual(TREE_QUALITIES);
@@ -64,26 +80,50 @@ it("retains tiers across small pixel changes and responds to camera zoom", () =>
   expect(treeQualityAtPixels(65, "high")).toBe("medium");
 });
 
-it.each(["garden_parkland", "sacred_yew"] as const)(
-  "retains the broad native crown dimensions at the low transition for %s",
-  species => {
-    const low = adoptedTree(species, "low").create();
-    const high = adoptedTree(species, "high").create();
-    try {
-      const lowSize = new THREE.Box3().setFromObject(low.group).getSize(new THREE.Vector3());
-      const highSize = new THREE.Box3().setFromObject(high.group).getSize(new THREE.Vector3());
-      for (const axis of ["x", "z"] as const) {
-        expect(lowSize[axis] / highSize[axis]).toBeGreaterThan(0.85);
-        expect(lowSize[axis] / highSize[axis]).toBeLessThan(1.15);
-      }
-    } finally {
-      low.dispose();
-      high.dispose();
+it.each([
+  "arabica_coffee",
+  "cacao",
+  "sweet_chestnut",
+  "lemon",
+  "common_fig",
+  "european_plum",
+  "european_pear",
+  "domestic_apple",
+  "garden_parkland",
+  "sacred_yew",
+  "european_beech",
+  "pedunculate_oak",
+  "european_hornbeam",
+  "scots_pine"
+] as const)("retains the broad native crown dimensions at the low transition for %s", species => {
+  const low = adoptedTree(species, "low").create();
+  const high = adoptedTree(species, "high").create();
+  try {
+    const lowSize = new THREE.Box3().setFromObject(low.group).getSize(new THREE.Vector3());
+    const highSize = new THREE.Box3().setFromObject(high.group).getSize(new THREE.Vector3());
+    for (const axis of ["x", "z"] as const) {
+      expect(lowSize[axis] / highSize[axis]).toBeGreaterThan(0.85);
+      expect(lowSize[axis] / highSize[axis]).toBeLessThan(1.15);
     }
+  } finally {
+    low.dispose();
+    high.dispose();
   }
-);
+});
 
 it.each([
+  "arabica_coffee",
+  "cacao",
+  "sweet_chestnut",
+  "lemon",
+  "common_fig",
+  "european_plum",
+  "european_pear",
+  "domestic_apple",
+  "scots_pine",
+  "european_hornbeam",
+  "pedunculate_oak",
+  "european_beech",
   "garden_parkland",
   "sacred_yew",
   "norway_spruce",

@@ -62,6 +62,12 @@ export interface BurgSiteEconomy {
    */
   mills?: { wind: number; water: number };
   /**
+   * Monthly harvest weights (12, January first) of each perennial crop under the burg's climate,
+   * keyed by the perennial crop catalogue. City Editor times orchard fruit from them
+   * (docs/plan/bv-tree-seasonal-appearance.md §8.1). Absent on an older profile.
+   */
+  perennialHarvest?: Record<string, number[]>;
+  /**
    * Warehouses of a port burg (docs/plan/port-freight-queue-and-warehouses.md §5–§6).
    * Absent on an inland burg and on an older profile.
    */

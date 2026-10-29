@@ -1,24 +1,49 @@
+import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import type { Author } from "../authors";
 import { type ModelCredit, type ModelVariant, variantId } from "../modelVariants";
 import { createNorwaySpruceOpus } from "./norwaySpruceOpus";
+import { applySeasonalLook, SEASONAL_LOOKS, type SeasonalLookSpecies } from "./seasonalLooks";
 import { createSmallLeavedLimeOpus } from "./smallLeavedLimeOpus";
 import { createTemperateTreeCodexMedium } from "./temperateTreeCodexMedium";
-import { TREE_QUALITIES } from "./treeQuality";
-import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpecies } from "./trees";
+import { TREE_QUALITIES, type TreeQuality } from "./treeQuality";
+import type { TreeAppearanceOptions } from "./treeSeasonLayers";
+import {
+  createLandscapeTree,
+  FRUIT_LAYER_EDITIONS,
+  hasTreeQualityLevels,
+  TREE_SPECIES,
+  type TreeSpecies
+} from "./trees";
 
 /** Author of each species' model; reduced tiers credit their own authors below. */
 export const TREE_AUTHORS: Record<TreeSpecies, Author> = {
+  arabica_coffee: "Codex GPT-6.1 Sol",
+  cacao: "Codex GPT-6.1 Sol",
+  sweet_chestnut: "Codex GPT-6.1 Sol",
+  lemon: "Codex GPT-6.1 Sol",
+  common_fig: "Codex GPT-6.1 Sol",
+  european_plum: "Codex GPT-6.1 Sol",
+  european_pear: "Codex GPT-6.1 Sol",
+  domestic_apple: "Codex GPT-6.1 Sol",
+  scots_pine: "Codex GPT-6.1 Sol",
+  european_hornbeam: "Codex GPT-6.1 Sol",
+  pedunculate_oak: "Codex GPT-6.1 Sol",
+  european_beech: "Codex GPT-6.1 Sol",
   garden_parkland: "Codex GPT-6.1 Sol",
   norway_spruce: "Codex GPT-6.1 Sol",
   silver_birch: "Codex GPT-6.1 Sol",
   sacred_yew: "Codex GPT-6.1 Sol",
   date_palm: "Claude Opus 5.5",
+  date_palm_orchard: "Claude Opus 5.5",
+  date_palm_orchard_male: "Claude Opus 5.5",
+  date_palm_orchard_young: "Claude Opus 5.5",
   umbrella_thorn: "Claude Opus 5.5",
   saxaul: "Claude Opus 5.5",
   kapok: "Claude Opus 5.5",
   western_red_cedar: "Claude Opus 5.5",
   black_alder: "Claude Opus 5.5",
   olive: "Claude Opus 5.5",
+  olive_orchard: "Claude Opus 5.5",
   silver_fir: "Claude Opus 5.5",
   red_mangrove: "Claude Opus 5.5",
   tamarisk: "Claude Opus 5.5",
@@ -46,11 +71,38 @@ const TIERS_ADDED: ModelCredit = {
   commit: "45e24d51d"
 };
 
-function tieredVariants(species: TreeSpecies): ModelVariant[] {
+/** Tree variants take the seasonal look; factories without seasonal layers ignore it. */
+export type TreeVariant = ModelVariant<[TreeAppearanceOptions?]>;
+
+/**
+ * Another author's edition takes the same recolouring looks as the registered tiers. Editions
+ * without their own winter twigs show the registered tier's bare tree of the same species.
+ */
+function seasonalEdition(
+  species: TreeSpecies,
+  quality: TreeQuality,
+  create: () => CityStructureMeshes,
+  options?: TreeAppearanceOptions
+): CityStructureMeshes {
+  if (options?.appearance === "bare") return createLandscapeTree(species, quality, options);
+  const look = SEASONAL_LOOKS[species as SeasonalLookSpecies];
+  return look ? applySeasonalLook(look, quality, create(), options) : create();
+}
+
+function tieredVariants(species: TreeSpecies): TreeVariant[] {
   const family = treeFamily(species);
   // Historical comparison models are explicit overrides, never a fallback for a new species.
   const comparisonMedium = COMPARISON_MEDIUM[species];
   const author = TREE_AUTHORS[species];
+  const orchard =
+    species === "domestic_apple" ||
+    species === "european_pear" ||
+    species === "european_plum" ||
+    species === "common_fig" ||
+    species === "lemon" ||
+    species === "sweet_chestnut" ||
+    species === "cacao" ||
+    species === "arabica_coffee";
   const boreal = species === "norway_spruce" || species === "silver_birch";
   const conifer = species === "western_red_cedar" || species === "silver_fir";
   const arid = species === "date_palm" || species === "umbrella_thorn";
@@ -63,13 +115,25 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
     species === "sacred_bodhi_and_fig" ||
     species === "peaceful_willow";
   const expanded = conifer || arid || dryland || tropical || upland || garden;
-  const variants: ModelVariant[] = TREE_QUALITIES.map(level => {
+  // Grove forms keep the landscape palm's fronds and trunk generator; the olive has its own skeleton.
+  const grovePalm =
+    species === "date_palm_orchard" || species === "date_palm_orchard_male" || species === "date_palm_orchard_young";
+  const grove = grovePalm || species === "olive_orchard";
+  const variants: TreeVariant[] = TREE_QUALITIES.map(level => {
     const levelAuthor = expanded && level !== "ultra" ? "Codex GPT-6.1 Sol" : author;
     return {
       id: variantId(family, level, levelAuthor),
       family,
       level,
       author: levelAuthor,
+      ...(orchard && level !== "ultra" ? { basedOn: [variantId(family, "ultra", author)] } : {}),
+      ...(grovePalm
+        ? {
+            basedOn: [
+              variantId(treeFamily("date_palm"), level, level === "ultra" ? "Claude Opus 5.5" : "Codex GPT-6.1 Sol")
+            ]
+          }
+        : {}),
       ...(boreal && level !== "ultra" ? { basedOn: [variantId(family, "ultra", author)] } : {}),
       ...(expanded && level !== "ultra"
         ? {
@@ -78,55 +142,110 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
             ]
           }
         : {}),
-      credits: expanded
-        ? [
-            {
-              author: levelAuthor,
-              date: "2026-10-29",
-              note:
-                level === "ultra"
-                  ? "Existing Opus default geometry retained as the ultra reference"
-                  : level === "high"
-                    ? "Reduced sprays on the original Opus branch skeleton, preserving its random sequence"
-                    : arid && level === "low"
-                      ? "Original curved palm frond ribbons or fitted flat umbrella canopy; reduced trunk tessellation"
-                      : "Fitted high-tier foliage vertices; shared canopy-envelope normals, vertex AO, tint variation and hidden-face removal"
-            }
-          ]
-        : boreal
+      credits: grove
+        ? [{ author, date: "2026-10-30", note: GROVE_NOTES[species as keyof typeof GROVE_NOTES] }]
+        : expanded
           ? [
               {
-                author,
+                author: levelAuthor,
                 date: "2026-10-29",
                 note:
                   level === "ultra"
-                    ? "Existing default model retained as the detailed reference"
+                    ? "Existing Opus default geometry retained as the ultra reference"
                     : level === "high"
-                      ? "Reduced foliage on the unchanged ultra branch skeleton"
-                      : level === "medium"
-                        ? "Whorled needle sprays or fitted pendulous leaf lobes on structural limbs"
-                        : "Species-specific whorled or white-barked distant silhouette"
-              }
+                      ? "Reduced sprays on the original Opus branch skeleton, preserving its random sequence"
+                      : arid && level === "low"
+                        ? "Original curved palm frond ribbons or fitted flat umbrella canopy; reduced trunk tessellation"
+                        : "Fitted high-tier foliage vertices; shared canopy-envelope normals, vertex AO, tint variation and hidden-face removal"
+              },
+              ...(species === "date_palm" && level === "low"
+                ? [
+                    {
+                      author: levelAuthor,
+                      date: "2026-10-30",
+                      note: "Corrected low frond face winding for BV top projection"
+                    }
+                  ]
+                : [])
             ]
-          : comparisonMedium && level === "low"
+          : orchard
             ? [
-                { ...TIERS_ADDED, note: "Seven-lobe canopy silhouette" },
                 {
-                  author: "Claude Opus 5.5",
-                  date: "2026-10-29",
-                  note: "Crown-envelope normals, interior occlusion and leaf speckle; geometry unchanged",
-                  commit: "eb36c33b8"
-                },
-                {
-                  author: "Codex GPT-6.1 Sol",
-                  date: "2026-10-29",
-                  note: "Spread the seven crown lobes into a broad lower whorl and two leaders to match high-tier dimensions"
+                  author,
+                  date: "2026-10-30",
+                  note:
+                    species === "arabica_coffee"
+                      ? "New Coffea arabica: compact upright cultivated shrub, opposite horizontal laterals and glossy leaf pairs, with red oval cherries clustered at lateral nodes; four foliage tiers, not a scaled generic broadleaf tree"
+                      : species === "cacao"
+                        ? "New Theobroma cacao: low five-branched fan, large entire pointed leaves, copper young flushes and ribbed yellow-orange pods on short stalks from the bole and old branches; illustrative cultivated tree with four foliage tiers"
+                        : species === "sweet_chestnut"
+                          ? "New Castanea sativa: a broad crown on stout spreading boughs, long toothed simple leaves and green spiny burs; illustrative free-standing cultivated tree with four foliage tiers"
+                          : species === "lemon"
+                            ? "New Citrus x limon: short bole, compact evergreen crown, glossy elliptical leaves, occasional twig thorns and yellow elliptical fruit with apical nipples; illustrative cultivated tree with four foliage tiers"
+                            : species === "common_fig"
+                              ? "New Ficus carica: low stout grey boughs, a broad crown, concave three- and five-lobed leaves and green/violet figs beside leaf petioles; illustrative cultivated tree with four foliage tiers"
+                              : species === "european_plum"
+                                ? "New Prunus domestica: dark short bole, ascending forks, compact crown, toothed obovate leaves and bloomed purple oval drupes on short fruiting wood; illustrative cultivated tree with four foliage tiers"
+                                : species === "european_pear"
+                                  ? "New Pyrus communis: ascending scaffold branches, a tapering upright crown, glossy oval leaves and necked yellow-green spur-borne fruit; illustrative free-standing cultivated tree with four foliage tiers"
+                                  : "New Malus domestica: short bole, spreading scaffold limbs, serrated leaves and blushed spur-borne fruit; illustrative free-standing cultivated tree with four foliage tiers"
                 }
               ]
-            : comparisonMedium && level === "medium"
-              ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
-              : undefined,
-      create: () => (level === "medium" && comparisonMedium ? comparisonMedium() : createLandscapeTree(species, level))
+            : boreal
+              ? [
+                  {
+                    author,
+                    date: "2026-10-29",
+                    note:
+                      level === "ultra"
+                        ? "Existing default model retained as the detailed reference"
+                        : level === "high"
+                          ? "Reduced foliage on the unchanged ultra branch skeleton"
+                          : level === "medium"
+                            ? "Whorled needle sprays or fitted pendulous leaf lobes on structural limbs"
+                            : "Species-specific whorled or white-barked distant silhouette"
+                  }
+                ]
+              : species === "european_beech" ||
+                  species === "pedunculate_oak" ||
+                  species === "european_hornbeam" ||
+                  species === "scots_pine"
+                ? [
+                    {
+                      author,
+                      date: species === "european_hornbeam" || species === "scots_pine" ? "2026-10-30" : "2026-10-29",
+                      note:
+                        species === "pedunculate_oak"
+                          ? "New Quercus robur: furrowed bark, crooked spreading limbs, lobed leaves and fitted foliage tiers; illustrative woodland dimensions"
+                          : species === "european_hornbeam"
+                            ? "New Carpinus betulus: fluted grey stem, ascending branches, pleated toothed leaves and fitted dense crown tiers; illustrative woodland dimensions"
+                            : species === "scots_pine"
+                              ? "New Pinus sylvestris: orange upper bark, a clear bole, irregular upper limbs, paired blue-green needles and fitted shoot tiers; illustrative woodland dimensions"
+                              : "New Fagus sylvatica: smooth grey bole, ascending limbs, oval folded leaves and fitted foliage tiers; illustrative woodland dimensions"
+                    }
+                  ]
+                : comparisonMedium && level === "low"
+                  ? [
+                      { ...TIERS_ADDED, note: "Seven-lobe canopy silhouette" },
+                      {
+                        author: "Claude Opus 5.5",
+                        date: "2026-10-29",
+                        note: "Crown-envelope normals, interior occlusion and leaf speckle; geometry unchanged",
+                        commit: "eb36c33b8"
+                      },
+                      {
+                        author: "Codex GPT-6.1 Sol",
+                        date: "2026-10-29",
+                        note: "Spread the seven crown lobes into a broad lower whorl and two leaders to match high-tier dimensions"
+                      }
+                    ]
+                  : comparisonMedium && level === "medium"
+                    ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
+                    : undefined,
+      create: (options?: TreeAppearanceOptions) =>
+        level === "medium" && comparisonMedium
+          ? seasonalEdition(species, level, comparisonMedium, options)
+          : createLandscapeTree(species, level, options)
     };
   });
   const high = variantId(family, "high", "Codex GPT-6.1 Sol");
@@ -150,7 +269,7 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
           note: "Calibrated lime lobe coverage; fitted yew lobes to the four high-tier fans with horizontal orientation, preserving Opus authorship and adoption"
         }
       ],
-      create: () => createLandscapeTree(species, "medium")
+      create: (options?: TreeAppearanceOptions) => createLandscapeTree(species, "medium", options)
     });
   if (species === "norway_spruce") {
     const opusHigh = variantId(family, "high", "Claude Opus 5.5");
@@ -242,6 +361,34 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
       create: () => createNorwaySpruceOpus("plate", "ultra")
     });
   }
+  const fruitLayer = FRUIT_LAYER_EDITIONS[species as keyof typeof FRUIT_LAYER_EDITIONS];
+  if (fruitLayer)
+    for (const level of TREE_QUALITIES) {
+      const base = variants.find(variant => variant.level === level && !variant.edition)!;
+      variants.splice(variants.indexOf(base) + 1, 0, {
+        id: variantId(family, level, "Claude Opus 5.5", fruitLayer.edition),
+        family,
+        level,
+        author: "Claude Opus 5.5",
+        edition: fruitLayer.edition,
+        basedOn: [base.id],
+        credits: [
+          {
+            author: "Claude Opus 5.5",
+            date: "2026-10-30",
+            note:
+              species === "olive"
+                ? level === "low"
+                  ? "Shared fruit layer edition: no fruit at distant range, geometry unchanged"
+                  : "Shared fruit layer: the triangle markers in the leaves replaced by stalked olives in pairs at leaf axils of the fruiting shoots, green to violet-black by season; medium keeps a few fruit masses"
+                : level === "low"
+                  ? "Shared fruit layer edition: no fruit at distant range, geometry unchanged"
+                  : "Shared fruit layer: the four marker axes replaced by six branched bunches, strands carrying oval dates, yellow khalal to brown tamar, and cut bunch stalks after harvest; medium draws each bunch as one mass on its stalk"
+          }
+        ],
+        create: (options?: TreeAppearanceOptions) => fruitLayer.models[level](options)
+      });
+    }
   if (species === "garden_parkland") {
     const opusHigh = variantId(family, "high", "Claude Opus 5.5");
     variants.splice(
@@ -259,7 +406,8 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
             note: "Own open-grown skeleton: ascending limbs to a two-layer ovoid leaf shell, outward-facing cordate leaves, sun and shade leaf colours, crown-envelope normals"
           }
         ],
-        create: () => createSmallLeavedLimeOpus("standard")
+        create: (options?: TreeAppearanceOptions) =>
+          seasonalEdition(species, "high", () => createSmallLeavedLimeOpus("standard"), options)
       },
       {
         id: variantId(family, "high", "Claude Opus 5.5", "light"),
@@ -275,19 +423,31 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
             note: "The Opus medium treatment applied to the Opus high tier: one fitted lobe per leaf spray on the same limbs"
           }
         ],
-        create: () => createSmallLeavedLimeOpus("light")
+        create: (options?: TreeAppearanceOptions) =>
+          seasonalEdition(species, "high", () => createSmallLeavedLimeOpus("light"), options)
       }
     );
   }
   return variants;
 }
 
+const GROVE_NOTES = {
+  olive_orchard:
+    "New managed Olea europaea of the traditional rain-fed grove, pruned to the open vase: a short clean trunk, four scaffold limbs from one crotch, an open centre, a low wide crown with hanging fruiting shoots and a raised skirt; landscape-olive leaves and the shared drupe fruit layer",
+  date_palm_orchard:
+    "Managed fruiting female of the irrigated oasis grove: upright cleaned trunk with trimmed leaf-base stubs, no dead fronds or offshoots, eight bunches bent down below the crown in the shared fruit layer",
+  date_palm_orchard_male:
+    "Managed male pollinator of the irrigated oasis grove: the female's cleaned trunk and crown without bunches, with erect cream inflorescences out of split spathes when in flower",
+  date_palm_orchard_young:
+    "Young grove palm before bearing: a short thick stem, a crown of shorter fronds rising near the ground and two offshoots kept until they are separated"
+} as const;
+
 const COMPARISON_MEDIUM: Partial<Record<TreeSpecies, () => ReturnType<typeof createLandscapeTree>>> = {
   garden_parkland: () => createTemperateTreeCodexMedium("lime"),
   sacred_yew: () => createTemperateTreeCodexMedium("yew")
 };
 
-export const TREE_VARIANTS: readonly ModelVariant[] = TREE_SPECIES.flatMap(species =>
+export const TREE_VARIANTS: readonly TreeVariant[] = TREE_SPECIES.flatMap(species =>
   hasTreeQualityLevels(species)
     ? tieredVariants(species)
     : [

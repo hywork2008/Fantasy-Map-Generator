@@ -1,4 +1,4 @@
-import { editorText } from "../../i18n/editorMessages";
+import { type EditorMessageKey, editorText } from "../../i18n/editorMessages";
 
 const STORAGE_KEY = "fmg-city-editor:distance-fog";
 const DEFAULT_STRENGTH = 80;
@@ -39,7 +39,7 @@ export function createFogControls(
   controls.className = "ce-fog-settings";
   const legend = document.createElement("legend");
   legend.textContent = editorText("cityEditor.messages.distanceFog");
-  const slider = (key: keyof FogSettings, name: string, text: string, max: number) => {
+  const slider = (key: keyof FogSettings, name: string, text: EditorMessageKey, max: number) => {
     const label = document.createElement("label");
     const title = document.createElement("span");
     title.textContent = editorText(text);

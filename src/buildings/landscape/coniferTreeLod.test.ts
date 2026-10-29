@@ -27,7 +27,9 @@ it.each([
   reference.dispose();
   for (const quality of TREE_QUALITIES) {
     const variant = adoptedTree(species, quality);
-    expect(variant.author).toBe(quality === "ultra" ? "Claude Opus 5.5" : "Codex GPT-6.1 Sol");
+    // CE adopts the Opus fruit-layer editions of the olive and date palm at every tier.
+    const fruitLayer = species === "olive" || species === "date_palm";
+    expect(variant.author).toBe(quality === "ultra" || fruitLayer ? "Claude Opus 5.5" : "Codex GPT-6.1 Sol");
     const model = variant.create();
     const bounds = new THREE.Box3().setFromObject(model.group);
     const size = bounds.getSize(new THREE.Vector3());

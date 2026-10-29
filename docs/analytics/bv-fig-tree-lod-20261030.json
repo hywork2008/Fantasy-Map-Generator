@@ -1,0 +1,116 @@
+{
+  "models": [
+    {
+      "quality": "low",
+      "variant": "tree.common-fig@low#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 272,
+      "bufferBytes": 29376,
+      "meshes": 2,
+      "materials": 2,
+      "bounds": {
+        "min": [
+          -4.7134904861450195,
+          -0.3499999940395355,
+          -4.15220832824707
+        ],
+        "max": [
+          3.9536256790161133,
+          4.632399559020996,
+          4.610393047332764
+        ]
+      }
+    },
+    {
+      "quality": "medium",
+      "variant": "tree.common-fig@medium#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 2152,
+      "bufferBytes": 143316,
+      "meshes": 3,
+      "materials": 3,
+      "bounds": {
+        "min": [
+          -4.155948162078857,
+          -0.3499999940395355,
+          -3.775930881500244
+        ],
+        "max": [
+          3.8051106929779053,
+          4.795957088470459,
+          4.44068717956543
+        ]
+      }
+    },
+    {
+      "quality": "high",
+      "variant": "tree.common-fig@high#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 24760,
+      "bufferBytes": 2261520,
+      "meshes": 3,
+      "materials": 3,
+      "bounds": {
+        "min": [
+          -4.433608531951904,
+          -0.3499999940395355,
+          -4.007575511932373
+        ],
+        "max": [
+          4.032225131988525,
+          4.912527084350586,
+          4.495285511016846
+        ]
+      }
+    },
+    {
+      "quality": "ultra",
+      "variant": "tree.common-fig@ultra#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 86500,
+      "bufferBytes": 8000640,
+      "meshes": 3,
+      "materials": 3,
+      "bounds": {
+        "min": [
+          -4.20105504989624,
+          -0.3499999940395355,
+          -3.7453179359436035
+        ],
+        "max": [
+          3.9076921939849854,
+          4.760239124298096,
+          4.27419900894165
+        ]
+      }
+    }
+  ],
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "memory": {
+    "counts": [
+      11,
+      11,
+      11
+    ],
+    "afterDispose": {
+      "geometries": 0,
+      "textures": 0
+    }
+  },
+  "bvChecks": {
+    "choices": [
+      "low",
+      "medium",
+      "high",
+      "ultra"
+    ],
+    "adoption": {
+      "low": true,
+      "medium": true,
+      "high": true,
+      "ultra": true
+    }
+  },
+  "errors": [],
+  "scope": "BV and single-tree GPU rendering only; CE orchard placement, forest performance and seasonal simulation are outside this check."
+}

@@ -389,7 +389,7 @@ function frame(record: Pick<BuildingRecord, "occupancyMeters">, height: number):
   ground.geometry = new THREE.CircleGeometry(radius * 0.9, 48);
 }
 
-function clearMesh(): void {
+function clearMesh(preserveOptions = false): void {
   comparisonModel = null;
   comparisonVariants = null;
   modelComparison.clear();
@@ -399,8 +399,10 @@ function clearMesh(): void {
     regionalDetails.dispose();
     regionalDetails = null;
   }
-  optionFields.replaceChildren();
-  modelOptions.hidden = true;
+  if (!preserveOptions) {
+    optionFields.replaceChildren();
+    modelOptions.hidden = true;
+  }
   ground.visible = false;
   studyWater?.dispose();
   studyWater = null;
@@ -807,7 +809,7 @@ const landmarkModules = import.meta.glob<LandmarkModel>(
   ],
   { eager: true, import: "model" }
 );
-for (const style of ["Gothic", "Romanesque"] as const) {
+for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
   const category = modelCategory(`${style} landmarks`);
   for (const model of Object.values(landmarkModules)
     .filter(model => model.style === style)
@@ -817,39 +819,116 @@ for (const style of ["Gothic", "Romanesque"] as const) {
     category.append(button);
     button.textContent = `${model.task} · ${model.name}`;
     button.dataset.id = model.id;
-    const showLandmark = (definition: LandmarkModel = model) => {
+    const showLandmark = (definition: LandmarkModel = model, keepControls = false) => {
       selection++;
       for (const other of list.querySelectorAll("button")) other.setAttribute("aria-current", String(other === button));
-      clearMesh();
+      clearMesh(keepControls);
       floors.replaceChildren();
       facts.replaceChildren();
       banner.hidden = true;
       roofTitle.textContent = "Exterior roof plan";
       levelTitle.textContent = "South elevation";
-      if (model.highDetail) {
+      if (definition.towerGeneration && !keepControls) {
+        modelOptions.hidden = false;
+        const generation = definition.towerGeneration;
+        const row = document.createElement("label");
+        row.textContent = "Terrace projection: ";
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.min = "0";
+        slider.max = "12";
+        slider.step = "0.25";
+        slider.value = String(generation.overhang);
+        slider.setAttribute("aria-label", "Terrace projection");
+        const output = document.createElement("output");
+        output.value = `${generation.overhang} m`;
+        slider.addEventListener("input", () => {
+          generation.overhang = slider.valueAsNumber;
+          output.value = `${generation.overhang} m`;
+          showLandmark(definition, true);
+        });
+        row.append(slider, output);
+        const regenerate = document.createElement("button");
+        regenerate.type = "button";
+        regenerate.textContent = "Randomize corridors";
+        regenerate.addEventListener("click", () => {
+          generation.regenerate();
+          showLandmark(definition);
+        });
+        const paragraph = document.createElement("p");
+        paragraph.append(row, document.createElement("br"), regenerate);
+        optionFields.append(paragraph);
+      }
+      if (definition.terrainGeneration) {
+        modelOptions.hidden = false;
+        const generation = definition.terrainGeneration;
+        const row = document.createElement("label");
+        row.textContent = "Upper surface: ";
+        const surface = document.createElement("select");
+        surface.setAttribute("aria-label", "Upper surface");
+        for (const [value, title] of [
+          ["terrain", "Random terrain"],
+          ["flat", "Flat"]
+        ] as const) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = title;
+          surface.append(option);
+        }
+        surface.value = generation.surface;
+        surface.addEventListener("change", () => {
+          generation.surface = surface.value === "flat" ? "flat" : "terrain";
+          showLandmark(definition);
+        });
+        row.append(surface);
+        const regenerate = document.createElement("button");
+        regenerate.type = "button";
+        regenerate.textContent = "Regenerate";
+        regenerate.addEventListener("click", () => {
+          generation.regenerate();
+          showLandmark(definition);
+        });
+        const paragraph = document.createElement("p");
+        paragraph.append(row, document.createTextNode(" "), regenerate);
+        optionFields.append(paragraph);
+      }
+      if (model.highDetail || model.ultraDetail) {
         modelOptions.hidden = false;
         const row = document.createElement("label");
         row.textContent = "Resolution: ";
         const resolution = document.createElement("select");
         for (const [value, title] of [
           ["low", "Low resolution (default)"],
-          ["high", "High resolution"]
+          ...(model.highDetail ? [["high", "High resolution"]] : []),
+          ...(model.ultraDetail ? [["ultra", "Ultra resolution"]] : [])
         ]) {
           const option = document.createElement("option");
           option.value = value;
           option.textContent = title;
           resolution.append(option);
         }
-        resolution.value = definition === model ? "low" : "high";
+        resolution.value = definition === model ? "low" : definition === model.ultraDetail ? "ultra" : "high";
         resolution.addEventListener("change", () =>
-          showLandmark(resolution.value === "high" ? model.highDetail : model)
+          showLandmark(
+            resolution.value === "ultra" ? model.ultraDetail : resolution.value === "high" ? model.highDetail : model
+          )
         );
         row.append(resolution);
         const paragraph = document.createElement("p");
         paragraph.append(row);
         optionFields.append(paragraph);
       }
-      if (model.highDetail) {
+      if (model.ultraDetail) {
+        comparisonVariants = {
+          id: model.id,
+          levels: [
+            { id: "low", label: "Low" },
+            ...(model.highDetail ? [{ id: "high", label: "High" }] : []),
+            { id: "ultra", label: "Ultra" }
+          ],
+          selected: definition === model ? "low" : definition === model.ultraDetail ? "ultra" : "high"
+        };
+      } else if (model.highDetail) {
         comparisonModel = {
           path: Object.keys(landmarkModules).find(path => landmarkModules[path] === model)!,
           quality: definition === model ? "low" : "high"
@@ -857,17 +936,31 @@ for (const style of ["Gothic", "Romanesque"] as const) {
       }
       massing = definition.create();
       scene.add(massing.group);
-      ground.visible = true;
-      frame({ occupancyMeters: { width: definition.size[0], depth: definition.size[1] } }, definition.size[2]);
-      // Fit the actual bounding sphere to both viewport axes, including very tall spires.
-      const sphere = new THREE.Box3().setFromObject(massing.group).getBoundingSphere(new THREE.Sphere());
-      const halfFov = Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.min(1, camera.aspect));
-      const distance = (sphere.radius / Math.sin(halfFov)) * 1.08;
-      camera.position.copy(new THREE.Vector3(-1, 0.7, 1.1).normalize().multiplyScalar(distance).add(sphere.center));
-      controls.target.copy(sphere.center);
-      controls.update();
+      ground.visible = !definition.floating;
+      if (!keepControls) {
+        frame({ occupancyMeters: { width: definition.size[0], depth: definition.size[1] } }, definition.size[2]);
+        // Fit the actual bounding sphere to both viewport axes, including very tall spires.
+        const sphere = new THREE.Box3().setFromObject(massing.group).getBoundingSphere(new THREE.Sphere());
+        const halfFov = Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.min(1, camera.aspect));
+        const distance = (sphere.radius / Math.sin(halfFov)) * 1.08;
+        camera.position.copy(new THREE.Vector3(-1, 0.7, 1.1).normalize().multiplyScalar(distance).add(sphere.center));
+        controls.target.copy(sphere.center);
+        controls.update();
+      }
       mountPlan(roofHost, meshProjection(massing, "top"));
       mountPlan(levelHost, meshProjection(massing, "side"));
+      if (definition.terrainGeneration) appendFacts(fact("Seed", definition.terrainGeneration.seed));
+      if (definition.towerGeneration) {
+        const branches = massing.group.userData.branches as { length: number }[];
+        appendFacts(
+          fact("Seed", definition.towerGeneration.seed),
+          fact("Satellite towers", String(branches.length)),
+          fact(
+            "Corridor clear spans",
+            branches.length ? branches.map(branch => `${branch.length.toFixed(1)} m`).join(", ") : "None"
+          )
+        );
+      }
       appendFacts(
         fact("Model", definition.name),
         fact("Style", definition.style),
@@ -2350,6 +2443,8 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         ? entry.level
         : `${entry.level} · ${entry.author.split(" ")[0]}${entry.edition ? ` ${entry.edition}` : ""}`;
     const editionLabel = (entry: Variant) => (entry.edition ? label(entry.edition) : "Standard");
+    // The previewed season persists across quality and edition switches of the same tree.
+    let season = definition.seasons?.default;
     const showModel = (variant: Variant | undefined = definition.variants && adopted(levels.at(-1)!)) => {
       selection++;
       for (const item of list.querySelectorAll("button"))
@@ -2414,13 +2509,36 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
           optionFields.append(document.createElement("br"), editionRow);
         }
       }
+      if (variant && definition.seasons) {
+        const seasonRow = document.createElement("label");
+        seasonRow.textContent = "Season: ";
+        const seasonSelect = document.createElement("select");
+        seasonSelect.setAttribute("aria-label", "Tree seasonal appearance");
+        for (const entry of definition.seasons.options) {
+          const option = document.createElement("option");
+          option.value = entry.id;
+          option.textContent = entry.label;
+          seasonSelect.append(option);
+        }
+        seasonSelect.value = season!;
+        seasonSelect.addEventListener("change", () => {
+          season = seasonSelect.value;
+          showModel(variant);
+        });
+        seasonRow.append(seasonSelect);
+        optionFields.append(document.createElement("br"), seasonRow);
+      }
       if (variant && definition.variants)
         comparisonVariants = {
           id: definition.id,
           levels: definition.variants.map(entry => ({ id: column(entry), label: entry.label })),
           selected: column(variant)
         };
-      const model = variant ? variant.create() : definition.create();
+      const model = variant
+        ? definition.seasons && season !== definition.seasons.default
+          ? definition.seasons.create(variant.id, season!)
+          : variant.create()
+        : definition.create();
       massing = model;
       scene.add(model.group);
       ground.visible = true;
@@ -2441,6 +2559,9 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         ...(variant
           ? [
               fact("Quality", variant.label),
+              ...(definition.seasons
+                ? [fact("Season", definition.seasons.options.find(entry => entry.id === season)?.label ?? season!)]
+                : []),
               ...(variant.edition || definition.variants!.some(entry => entry.edition)
                 ? [fact("Edition", editionLabel(variant))]
                 : []),
