@@ -1,4 +1,6 @@
 import { createModularBridge, MODULAR_BRIDGE } from "../bridges/modularBridge";
+import { createSuspensionBridge, SUSPENSION_BRIDGE, type SuspensionBridgeSpec } from "../bridges/suspensionBridge";
+import { SUSPENSION_BRIDGE_VARIANTS } from "../siteVariants";
 import type { MedievalModel } from "./modelKit";
 
 export const models: MedievalModel[] = [
@@ -45,5 +47,33 @@ export const models: MedievalModel[] = [
         waterHeight: 2,
         movableOpeningMeters: 12
       })
-  }
+  },
+  ...(
+    [
+      { length: 48, width: 2.6, id: "timber-rope-suspension-bridge", label: "Footbridge" },
+      { length: 96, width: 3.4, id: "timber-rope-suspension-bridge-long", label: "Packhorse bridge" }
+    ] as const
+  ).map(preview => {
+    const spec: SuspensionBridgeSpec = {
+      length: preview.length,
+      width: preview.width,
+      deckHeight: 2,
+      waterHeight: -18
+    };
+    return {
+      id: preview.id,
+      name: `Rope suspension bridge · ${preview.label} · ${preview.length} m`,
+      task: 47,
+      author: SUSPENSION_BRIDGE.author,
+      size: [preview.length + 18, preview.width + 2, 14] as const,
+      note: `${SUSPENSION_BRIDGE.note} Preview: bridge deck 20 m above the water datum.`,
+      variants: SUSPENSION_BRIDGE_VARIANTS.map(variant => ({
+        ...variant,
+        label: variant.level === "high" ? "High" : "Low",
+        createGeometry: undefined,
+        create: () => variant.create(spec)
+      })),
+      create: () => createSuspensionBridge(spec)
+    };
+  })
 ];

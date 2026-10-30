@@ -120,6 +120,8 @@ const modelArticles: Record<string, string> = {
   "modular-stone-arch-bridge-long": "Arch bridge",
   "modular-timber-trestle-bridge": "Trestle bridge",
   "modular-lifting-river-bridge": "Bascule bridge",
+  "timber-rope-suspension-bridge": "Suspension bridge",
+  "timber-rope-suspension-bridge-long": "Suspension bridge",
   "citadel-barracks": "Barracks",
   "citadel-command": "Headquarters",
   "citadel-service": "Arsenal",

@@ -1,5 +1,6 @@
 import { DEFAULT_AUTHOR } from "./authors";
 import { createModularBridge, type ModularBridgeSpec } from "./bridges/modularBridge";
+import { createSuspensionBridge, SUSPENSION_BRIDGE, type SuspensionBridgeSpec } from "./bridges/suspensionBridge";
 import { createCitadelRavelin, createCourtyardLodging, createGarrisonBuilding } from "./facilities/siteFacilities";
 import { tiers } from "./houses/houseVariants";
 import { CEMETERY_PROP_KINDS, createCemeteryProp } from "./landscape/cemeteryProps";
@@ -90,3 +91,14 @@ export const BRIDGE_VARIANTS: ModelVariant<[ModularBridgeSpec]>[] = (["high", "l
   author: DEFAULT_AUTHOR,
   create: spec => createModularBridge(spec, level)
 }));
+
+/** Bank-supported rope bridges available for future CE clearance-based selection. */
+export const SUSPENSION_BRIDGE_VARIANTS: ModelVariant<[SuspensionBridgeSpec]>[] = (["low", "high"] as const).map(
+  level => ({
+    id: variantId("bridge.suspension", level, SUSPENSION_BRIDGE.author),
+    family: "bridge.suspension",
+    level,
+    author: SUSPENSION_BRIDGE.author,
+    create: spec => createSuspensionBridge(spec, level)
+  })
+);

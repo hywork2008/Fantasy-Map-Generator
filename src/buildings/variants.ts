@@ -13,6 +13,7 @@ import {
   MONASTERY_VARIANTS,
   OBJECT_VARIANTS,
   RAVELIN_VARIANTS,
+  SUSPENSION_BRIDGE_VARIANTS,
   WELL_VARIANTS,
   YARD_VARIANTS
 } from "./siteVariants";
@@ -38,7 +39,8 @@ export const MODEL_VARIANTS: readonly ModelVariantInfo[] = [
   ...GARRISON_VARIANTS,
   ...LODGING_VARIANTS,
   ...RAVELIN_VARIANTS,
-  ...BRIDGE_VARIANTS
+  ...BRIDGE_VARIANTS,
+  ...SUSPENSION_BRIDGE_VARIANTS
 ];
 
 export function familyVariants(family: string): ModelVariantInfo[] {
