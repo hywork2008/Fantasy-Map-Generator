@@ -419,7 +419,8 @@ export class DevelopmentPotentialModule {
     const demandOptions = {
       includeUrbanFoodDemand: optionsStore.getState().ruralUrbanMigration !== "megacity",
       year: getSimulationYear(),
-      annual: true
+      annual: true,
+      worldBirth: true
     };
     const conditions = this.getAgriculturalConditions(world);
     reconcileForestClearanceForAgriculture(

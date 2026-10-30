@@ -334,6 +334,11 @@ export interface AgriculturalDemandOptions {
   readonly year?: number;
   readonly annual?: boolean;
   readonly includeUrbanFoodDemand?: boolean;
+  /**
+   * The world-birth plan: fields the settled people cleared in the world's past, sized to their need
+   * with no yearly clearance limit (docs/plan/start-provisioning.md §4.2).
+   */
+  readonly worldBirth?: boolean;
 }
 
 /**
@@ -733,13 +738,15 @@ export function reconcileForestClearanceForAgriculture(
       diagnostics: [...(staticInputs.get(cellId)?.diagnostics ?? []), "estimated-clearance-labour"]
     });
   }
-  routeUnreachableStapleDemandToMarkets(inputs, conditions.marketCenterCellByCell, previous);
+  // The world's past is not bound by one year's clearance; later years grow from these fields.
+  const clearanceBase = demandOptions.worldBirth ? undefined : previous;
+  routeUnreachableStapleDemandToMarkets(inputs, conditions.marketCenterCellByCell, clearanceBase);
   const plan = planSettlementLandUse(inputs, {
     seed: world.seed ?? "legacy",
     year,
     provenance: "authoritative",
     previous,
-    annual: demandOptions.annual === true && !!previous
+    annual: demandOptions.annual === true && !!clearanceBase
   });
   if (demandOptions.preserveLegacyStock)
     for (const budget of Object.values(plan.cells)) budget.diagnostics.push("legacy-timber-stock-preserved");

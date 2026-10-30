@@ -1,13 +1,14 @@
 /**
  * What people hold the first winter after the map is made (docs/plan/start-provisioning.md). The
  * towns and villages are already lived in: last year's salt, clothes and bedding sit in their
- * markets and they live in houses, so the first months do not open on empty shelves and a doubled price. Runs once per
+ * markets, they live in houses and farm the fields their forebears cleared, so the first months do not open on empty shelves and a doubled price. Runs once per
  * world, only before it is first advanced; an advanced world keeps the stock it has.
  */
 import { rn } from "../../hostUtils";
 import { getEconomySlice } from "../context/economyApi";
 import { getGoods, getMarkets } from "../context/trade";
 import { seedStartHousing } from "./constructionEmployment";
+import { DevelopmentPotential } from "./developmentPotential";
 import { isGoodEnabled } from "./goods-generator";
 import { seedWorldBirthSaltStock } from "./saltLogistics";
 import { getMarketBlanketDemandProfile, getMarketTextileDemandProfile } from "./textileDemand";
@@ -15,7 +16,7 @@ import { isUnadvancedWorld } from "./worldBirthHerds";
 
 /** Saved in the economy slice once a world's start stock is seeded. */
 export const START_PROVISIONING_KEY = "startProvisioning";
-const START_PROVISIONING_VERSION = 1;
+const START_PROVISIONING_VERSION = 2;
 /** Months of household clothing and bedding replacement the markets hold at the start (provisional). */
 export const START_TEXTILE_STOCK_MONTHS = 3;
 
@@ -25,6 +26,8 @@ export function settleStartProvisioning(): boolean {
   if (!slice || slice[START_PROVISIONING_KEY] === START_PROVISIONING_VERSION) return false;
   slice[START_PROVISIONING_KEY] = START_PROVISIONING_VERSION;
   if (!isUnadvancedWorld()) return false;
+  // A save made at world birth kept fields sized by an earlier, smaller plan (start-provisioning.md §4.2).
+  DevelopmentPotential.replanWorldBirth();
   seedStartHousing();
   seedWorldBirthSaltStock();
   seedStartTextileStock();
