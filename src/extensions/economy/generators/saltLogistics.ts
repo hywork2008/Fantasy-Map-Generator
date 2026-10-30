@@ -642,12 +642,15 @@ export class SaltLogisticsModule {
 
       for (const demand of demands) {
         const destinationGood = getMarketGood(demand.market, salt.i, salt.value);
-        const reserveBags =
-          (demand.householdBags + demand.processingBags + demand.livestockBags) * SALT_MARKET_RESERVE_MONTHS;
+        const needBags = demand.householdBags + demand.processingBags + demand.livestockBags;
+        const reserveBags = needBags * SALT_MARKET_RESERVE_MONTHS;
         const inboundBags = inboundBagsByMarketId.get(demand.market.i) ?? 0;
+        // A market split between states is stocked by each for its own people: each counts only its
+        // share of the stock, or every state would count the whole shelf as its own reserve.
+        const stockShare = Math.min(1, needBags / Math.max(1e-9, pricedNeedBagsById.get(demand.market.i) ?? 0));
         let remaining = Math.max(
           0,
-          demand.householdBags + demand.livestockBags + reserveBags - destinationGood.stock - inboundBags
+          demand.householdBags + demand.livestockBags + reserveBags - destinationGood.stock * stockShare - inboundBags
         );
         // Neutral households can use existing local retail stock, but do not order state-funded cargo.
         const supplierOperations = (

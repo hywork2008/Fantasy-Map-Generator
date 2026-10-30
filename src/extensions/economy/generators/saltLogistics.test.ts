@@ -323,6 +323,20 @@ describe("SaltLogisticsModule", () => {
     expect(worldContext.pack.states[2].treasury).toBe(otherStateCash);
   });
 
+  it("stocks a market shared by two states for both, each counting only its share of the shelf", () => {
+    worldContext.pack.burgs[2].market = 1;
+    setMarketCellColumn(Uint16Array.from([1, 1, 0]));
+    setMarkets([getMarkets()[0]]);
+    Markets.sync();
+    SaltLogistics.generate();
+    const monthlyCapacity = getSaltworks().reduce((sum, w) => sum + w.annualCapacityBags, 0) / 12;
+    // About half the market's three-month reserve: enough for either state's own order alone.
+    getMarkets()[0].goods[1] = { stock: monthlyCapacity * 1.5, price: 1 };
+    SaltLogistics.settleMonth();
+    const ordered = new Set(getSaltShipments().map(shipment => shipment.importerStateId));
+    expect(ordered).toEqual(new Set([1, 2]));
+  });
+
   function seedOwners(): void {
     worldContext.pack.burgs[1].treasury = 1e8;
     worldContext.pack.states[1].departmentBalances = {
