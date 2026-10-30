@@ -1,3 +1,4 @@
+import { WATERMILL_HOUSE_METERS } from "../../buildings/mills/millDimensions";
 import type { CityDocument, Id, Point } from "../types/document";
 import { ferryLandingReserves } from "./ferryLanding";
 import { polygonOverlaps } from "./fortifications";
@@ -516,7 +517,7 @@ export function buildWatermillPlan(
 
     // Millhouse dimensions
     const houseLength = 8.5 + rng.range(0, 2.5); // along river
-    const houseDepth = 5.8 + rng.range(0, 1.4); // inland
+    const houseDepth = WATERMILL_HOUSE_METERS.depth + 0.3 + rng.range(0, 1.4); // inland
     const hl2 = houseLength / 2;
     if (bankFrame) {
       // Keep the whole millhouse dry while bringing its river wall as close to the

@@ -94,12 +94,14 @@ export function createTownSpecialBuildings(
     const preset = templeFootprintMeters(townExtentMeters(city.frame));
     const scaleX = length / BASILICA_LENGTH;
     const scaleZ = (length * (preset.width / preset.length)) / BASILICA_WIDTH;
+    // Keep the metre-sized portal and storeys. A smaller reservation retains its CE massing.
+    if (scaleX < 1 - 1e-6 || scaleZ < 1 - 1e-6) continue;
     const elevation = Math.min(...own.map(part => part.baseElevationMeters));
     const matrix = new THREE.Matrix4()
       .compose(
         new THREE.Vector3(element.point[0], elevation, -element.point[1]),
         new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), element.rotation ?? 0),
-        new THREE.Vector3(scaleX, scaleX, scaleZ)
+        new THREE.Vector3(1, 1, 1)
       )
       .multiply(new THREE.Matrix4().makeTranslation(-BASILICA_ORIGIN_X, 0, 0));
     const id = `temple:${element.id}`;

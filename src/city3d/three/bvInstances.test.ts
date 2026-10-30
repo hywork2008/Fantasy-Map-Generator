@@ -123,7 +123,7 @@ describe("shared BV city instances", () => {
     layer.dispose();
   });
 
-  it("fits the complete real chapel envelope, keeps proportions and grounds its lowest point", () => {
+  it("places the complete chapel at metre scale and grounds its lowest point", () => {
     const cache = createBvPrototypeCache(),
       prototype = cache.acquire(CE_CHAPEL)!;
     for (const angle of [-0.7, 0, 1.2]) {
@@ -133,8 +133,7 @@ describe("shared BV city instances", () => {
         scale = new THREE.Vector3(),
         position = new THREE.Vector3();
       fit.matrix.decompose(position, rotation, scale);
-      expect(scale.x).toBeCloseTo(scale.y);
-      expect(scale.y).toBeCloseTo(scale.z);
+      for (const component of scale.toArray()) expect(component).toBeCloseTo(1, 10);
       const direction = new THREE.Vector3(1, 0, 0).applyQuaternion(rotation);
       expect(Math.atan2(-direction.z, direction.x)).toBeCloseTo(angle);
       const attribute = prototype.geometry.getAttribute("position");
@@ -147,6 +146,10 @@ describe("shared BV city instances", () => {
       expect(low).toBeCloseTo(18);
     }
     expect(fitBvBuilding(prototype.bounds, createRotatedRect([0, 0], 1, 1, 0), 0, 0)).toBeUndefined();
+    const size = prototype.bounds.getSize(new THREE.Vector3());
+    expect(
+      fitBvBuilding(prototype.bounds, createRotatedRect([0, 0], size.x * 0.9, size.z * 0.9, 0), 0, 0)
+    ).toBeUndefined();
     expect(
       fitBvBuilding(
         prototype.bounds,
@@ -238,6 +241,10 @@ describe("shared BV city instances", () => {
     expect([...layer.replaced].sort()).toEqual(["temple:b:apse", "temple:b:nave"]);
     const mesh = layer.pickables[0];
     expect(mesh.name).toBe("basilica-temple:low-instances");
+    const matrix = new THREE.Matrix4();
+    mesh.getMatrixAt(0, matrix);
+    for (const component of new THREE.Vector3().setFromMatrixScale(matrix).toArray())
+      expect(component).toBeCloseTo(1, 6);
     mesh.updateMatrixWorld(true);
     mesh.computeBoundingBox();
     const bounds = mesh.boundingBox!;
@@ -245,6 +252,13 @@ describe("shared BV city instances", () => {
     expect(bounds.getCenter(new THREE.Vector3()).x).toBeCloseTo(10, -1);
     expect(bounds.getCenter(new THREE.Vector3()).z).toBeCloseTo(-20, -1);
     layer.dispose();
+    const small = createTownSpecialBuildings(
+      { ...city, elements: [{ ...city.elements[0], sizeMeters: 30 }] },
+      parts,
+      cache
+    );
+    expect(small.replaced.size).toBe(0);
+    small.dispose();
     expect(cache.size).toBe(0);
   });
 

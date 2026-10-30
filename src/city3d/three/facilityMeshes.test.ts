@@ -5,6 +5,7 @@ import { buildBlockFabric } from "../../city-editor/generators/blockInfill";
 import type { DistrictFabric } from "../../city-editor/generators/blockInfill.types";
 import type { GateInn } from "../../city-editor/generators/gateInnPlacement";
 import { generateCityOnDocument } from "../../city-editor/generators/generation/generateCity";
+import { pointInPolygon } from "../../city-editor/generators/geom";
 import { collectCityStructures } from "../../city-editor/renderers/structureMassing";
 import { parseIncomingPayload } from "../../city-editor/services/io/incomingCity";
 import { cityEditorDocument, cityEditorSettings } from "../../city-editor/services/io/shareRequest";
@@ -35,6 +36,10 @@ it("shows Vegides windmills, yards and every saved citadel building, and release
   const parts = collectCityStructures(city);
   const layer = createTownFacilities(city, fabric, parts, cache, "high");
   const ids = new Set(layer.accepted.map(site => site.id));
+  for (const site of layer.accepted) {
+    const scale = new THREE.Vector3().setFromMatrixScale(site.matrix);
+    for (const component of scale.toArray()) expect(component).toBeCloseTo(1, 10);
+  }
   for (const item of [
     ...fabric.aerialLandmarks!.windmills,
     ...fabric.aerialLandmarks!.gateInns,
@@ -117,6 +122,60 @@ it("keeps rotated lodging courtyards and street entrances open on raised terrain
   expect(cache.size).toBe(0);
 });
 
+it("keeps compact warehouses and yards visible without shrinking their doors or fences", () => {
+  const rectangle = (x: number, w: number, d: number): Point[] => [
+    [x - w / 2, -d / 2],
+    [x + w / 2, -d / 2],
+    [x + w / 2, d / 2],
+    [x - w / 2, d / 2]
+  ];
+  const sites = (["warehouse", "warehouse", "timberYard"] as const).map((form, i) => ({
+    ...fabric.aerialLandmarks!.storageYards[0],
+    id: `compact-${i}`,
+    form,
+    origin: undefined,
+    polygon: rectangle(i * 40, i === 0 ? 30 : 6, i === 0 ? 20 : 5)
+  }));
+  const cache = createBvPrototypeCache();
+  const layer = createTownFacilities(
+    { ...city, castles: [], bastionedTown: undefined },
+    {
+      ...fabric,
+      watermills: undefined,
+      aerialLandmarks: {
+        ...fabric.aerialLandmarks!,
+        windmills: [],
+        gateInns: [],
+        storageYards: sites,
+        guildYards: [],
+        guildHalls: [],
+        tanneries: [],
+        gallows: [],
+        quayWarehouses: []
+      }
+    },
+    [],
+    cache
+  );
+  expect(layer.accepted.map(site => site.id)).toEqual(sites.map(site => site.id));
+  for (const [i, site] of layer.accepted.entries()) {
+    const model = site.definition.create();
+    model.group.updateMatrixWorld(true);
+    const feature = model.pickables.find(mesh => mesh.name === (i === 2 ? "fence-post" : "door-leaf"))!;
+    expect(feature).toBeDefined();
+    const bounds = new THREE.Box3().setFromObject(feature, true).applyMatrix4(site.matrix);
+    expect(bounds.max.y - bounds.min.y).toBeCloseTo(i === 2 ? 1.3 : 2.2);
+    if (i === 1) {
+      const envelope = new THREE.Box3().setFromObject(model.group, true).applyMatrix4(site.matrix);
+      expect(envelope.max.x - envelope.min.x).toBeLessThan(6);
+      expect(envelope.max.z - envelope.min.z).toBeLessThan(5);
+    }
+    model.dispose();
+  }
+  layer.dispose();
+  expect(cache.size).toBe(0);
+});
+
 it.each([0, 0.25, 0.85, 1, 1.2])("immerses low-bank BV wheels at a %s m river drop on both banks", drop => {
   const angle = 0.61;
   const mills = [1, -1].map((side, i) => {
@@ -136,7 +195,7 @@ it.each([0, 0.25, 0.85, 1, 1.2])("immerses low-bank BV wheels at a %s m river dr
       riverSideRoof: [],
       landSideRoof: [],
       wakePolyline: [],
-      wheel: { center, radius: 2.1, width: 1.8, angleRad: angle, bladeCount: 8 }
+      wheel: { center, radius: 1.9 + i * 0.4, width: 1.8, angleRad: angle, bladeCount: 8 }
     };
   });
   const cache = createBvPrototypeCache();
@@ -156,9 +215,22 @@ it.each([0, 0.25, 0.85, 1, 1.2])("immerses low-bank BV wheels at a %s m river dr
     expect(site.definition.variant).toContain(i === 0 ? "Forward@" : "Reverse@");
     const model = site.definition.create();
     model.group.updateMatrixWorld(true);
+    const door = model.group.getObjectByName("entrance-door-board")!;
+    const doorBounds = new THREE.Box3().setFromObject(door, true).applyMatrix4(site.matrix);
+    expect(doorBounds.max.y - doorBounds.min.y).toBeCloseTo(2.02);
     const wheelPart = model.group.getObjectByName("waterwheel-assembly")!;
+    const foundation = new THREE.Box3().setFromObject(model.group.getObjectByName("foundation")!, true);
+    for (const x of [foundation.min.x, foundation.max.x])
+      for (const z of [foundation.min.z, foundation.max.z]) {
+        const corner = new THREE.Vector3(x, 0, z).applyMatrix4(site.matrix);
+        expect(pointInPolygon([corner.x, -corner.z], mills[i].millhousePolygon)).toBe(true);
+      }
+    const shaft = new THREE.Box3().setFromObject(model.group.getObjectByName("wheel-axle")!, true);
+    expect(shaft.min.z).toBeLessThan(2.8);
+    expect(shaft.max.z).toBeGreaterThan(wheelPart.position.z);
     const wheelBounds = new THREE.Box3().setFromObject(wheelPart, true).applyMatrix4(site.matrix);
-    expect(wheelBounds.min.y).toBeCloseTo(7 - drop - 0.35, 2);
+    // Raked paddle corners project a few millimetres beyond the nominal circular rim.
+    expect(Math.abs(wheelBounds.min.y - (7 - drop - 0.35))).toBeLessThan(0.01);
     const paddleBottom = Math.min(
       ...model.pickables
         .filter(mesh => mesh.name === "undershot-paddle")
@@ -174,7 +246,7 @@ it.each([0, 0.25, 0.85, 1, 1.2])("immerses low-bank BV wheels at a %s m river dr
     expect(tail.clone().sub(hub).dot(downstream)).toBeGreaterThan(0);
     expect(model.group.getObjectByName("millrace-water")).toBeUndefined();
     model.dispose();
-    const wheel = new THREE.Vector3(1.3, 0, 4.2).applyMatrix4(site.matrix);
+    const wheel = new THREE.Vector3(wheelPart.position.x, 0, wheelPart.position.z).applyMatrix4(site.matrix);
     expect(wheel.x).toBeCloseTo(mills[i].wheel.center[0]);
     expect(wheel.z).toBeCloseTo(-mills[i].wheel.center[1]);
     expect(wheel.y).toBeCloseTo(7);

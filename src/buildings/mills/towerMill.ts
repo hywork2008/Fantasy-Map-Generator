@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { meshProjection } from "../meshProjection";
+import { WINDMILL_SAIL_RADIUS_METERS } from "./millDimensions";
 
 /** An imagined stone tower mill, in meters; not a surveyed reconstruction. */
 export const TOWER_MILL = {
@@ -13,7 +14,7 @@ export const TOWER_MILL = {
   baseRadius: 3.5,
   topRadius: 2.25,
   hubHeight: 12.2,
-  sailRadius: 7.3,
+  sailRadius: WINDMILL_SAIL_RADIUS_METERS.tower,
   note: "Imagined European stone tower windmill with tapering masonry, an arched timber entrance, small shuttered windows, a conical timber cap, four canvas-covered lattice sails and a rear tailpole. The cap carries the windshaft and sails above the fixed tower. Static exterior study; gearing, millstones and interiors are omitted. Dimensions are illustrative."
 } as const;
 

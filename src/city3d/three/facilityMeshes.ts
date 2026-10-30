@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createMeasuredFacility } from "../../buildings/facilities/measuredFacility";
 import type { CourtyardLodgingSpec, GarrisonBuildingSpec } from "../../buildings/facilities/siteFacilities";
 import { models as smithies } from "../../buildings/medieval/11-smithiesModels";
 import { models as fuel } from "../../buildings/medieval/13-fuel-storageModels";
@@ -17,9 +18,8 @@ import { models as glass } from "../../buildings/medieval/37-glassworkers-hallsM
 import { models as printing } from "../../buildings/medieval/38-printing-modelsModels";
 import { models as instruments } from "../../buildings/medieval/39-instrument-makers-hallsModels";
 import { models as sand } from "../../buildings/medieval/40-sand-yardsModels";
-import { POST_MILL } from "../../buildings/mills/postMill";
-import { TOWER_MILL } from "../../buildings/mills/towerMill";
-import { createLowBankWaterMill, LOW_BANK_WATER_MILLS, WATER_MILL } from "../../buildings/mills/waterMill";
+import { WATERMILL_HOUSE_METERS } from "../../buildings/mills/millDimensions";
+import { createLowBankWaterMill, LOW_BANK_WATER_MILLS } from "../../buildings/mills/waterMill";
 import { type ModelQuality, resolveModelQuality } from "../../buildings/modelQuality";
 import {
   GARRISON_VARIANTS,
@@ -110,11 +110,11 @@ function frameOf(ring: readonly Point[], longest = true) {
     local: (p: Point): Point => [p[0] * c + p[1] * s - u, -(-p[0] * s + p[1] * c - v)]
   };
 }
-function placement(point: Point, elevation: number, angle = 0, scale = 1) {
+function placement(point: Point, elevation: number, angle = 0) {
   return new THREE.Matrix4().compose(
     new THREE.Vector3(point[0], elevation, -point[1]),
     new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle),
-    new THREE.Vector3(scale, scale, scale)
+    new THREE.Vector3(1, 1, 1)
   );
 }
 export interface FacilitySite extends BvPlacement {
@@ -136,14 +136,30 @@ export function createTownFacilities(
   const replacements = new Map<string, string[]>();
   const tier = resolveModelQuality(quality, ["high", "low"] as const);
   const elevationAt = (ring: Point[]) => (terrain?.relief ? terrain.foundationAt(ring) : 0);
-  const fitFacility = (id: string, name: string, ring: Point[], model: BvDefinition) => {
-    if (ring.length < 3) return;
+  const fitFacility = (id: string, name: string, ring: Point[], model: BvDefinition, building = false) => {
+    if (ring.length < 3 || ring.some(point => !point.every(Number.isFinite))) return;
+    const frame = frameOf(ring);
+    if (frame.width < 0.2 || frame.depth < 0.2) return;
     const prototype = cache.acquire(model);
     if (!prototype) return;
     releases.push(prototype.release);
-    // Outdoor compounds can occupy small saved plots. Always scale uniformly and retain the full BV envelope.
-    const fitted = fitBvBuilding(prototype.bounds, ring, frameOf(ring).angle, elevationAt(ring), 0.05);
+    const fitted = fitBvBuilding(prototype.bounds, ring, frame.angle, elevationAt(ring));
     if (fitted) sites.push({ id, name, definition: model, matrix: fitted.matrix });
+    else {
+      const local = ring.map(frame.local);
+      const height = prototype.bounds.max.y - prototype.bounds.min.y;
+      const key = `measured-facility:${building}:${height}:${JSON.stringify(local)}`;
+      let measured = definitions.get(key);
+      if (!measured) {
+        measured = {
+          id: key,
+          create: () => createMeasuredFacility(local, frame.width, frame.depth, building, height)
+        };
+        definitions.set(key, measured);
+        if (definitions.size > 512) definitions.delete(definitions.keys().next().value!);
+      }
+      sites.push({ id, name, definition: measured, matrix: placement(frame.center, elevationAt(ring), frame.angle) });
+    }
   };
   const aerial = fabric.aerialLandmarks;
   for (const mill of fabric.watermills?.mills ?? []) {
@@ -153,31 +169,45 @@ export function createTownFacilities(
     const dy = frame.center[1] - mill.wheel.center[1];
     // Local -Z points from the wheel toward the house, on either river bank.
     if (-Math.sin(angle) * dx + Math.cos(angle) * dy < 0) angle += Math.PI;
-    const scale = mill.wheel.radius / WATER_MILL.wheelRadius;
+    const wheelRadius = mill.wheel.radius;
     const base = elevationAt(mill.millhousePolygon);
     const water = waterHeightAt(mill.wheel.center);
-    if (![scale, base, water].every(Number.isFinite) || scale <= 0) continue;
-    const bankDrop = (base - water) / scale;
+    if (![wheelRadius, base, water].every(Number.isFinite) || wheelRadius <= 0) continue;
+    const bankDrop = base - water;
     const flow = Math.cos(angle - mill.wheel.angleRad) > 0 ? 1 : -1;
     const variants = LOW_BANK_WATER_MILLS.filter(spec => spec.flow === flow);
     const spec = variants.reduce((best, item) =>
       Math.abs(item.bankDrop - bankDrop) < Math.abs(best.bankDrop - bankDrop) ? item : best
     );
     const source = adopt(OBJECT_VARIANTS, `object.${spec.id}`, "default");
-    // Size in plan remains unchanged; axle and intake follow the rendered water, not a preset gap.
-    const immersion = 0.35 / scale;
+    // Anchor the full-size house to its dry plot; connect the wheel at its saved river position.
+    const dxWheel = mill.wheel.center[0] - frame.center[0],
+      dyWheel = mill.wheel.center[1] - frame.center[1];
+    const wheelCenter = {
+      x: Math.cos(angle) * dxWheel + Math.sin(angle) * dyWheel,
+      z: Math.sin(angle) * dxWheel - Math.cos(angle) * dyWheel + WATERMILL_HOUSE_METERS.centerZ
+    };
+    const wheelWidth = mill.wheel.width;
+    const immersion = 0.35;
     const model = definition(
-      `watermill:${spec.id}:${bankDrop}:${immersion}`,
-      () => createLowBankWaterMill(spec, false, { bankDrop, immersion, drawWater: false }),
+      `watermill:${spec.id}:${bankDrop}:${immersion}:${wheelRadius}:${wheelWidth}:${wheelCenter.x}:${wheelCenter.z}`,
+      () =>
+        createLowBankWaterMill(spec, false, {
+          bankDrop,
+          immersion,
+          wheelRadius,
+          wheelWidth,
+          wheelCenter,
+          drawWater: false
+        }),
       source.id
     );
-    const matrix = placement(mill.wheel.center, base, angle, scale).multiply(
-      new THREE.Matrix4().makeTranslation(-WATER_MILL.wheelCenter.x, 0, -WATER_MILL.wheelCenter.z)
+    const matrix = placement(frame.center, base, angle).multiply(
+      new THREE.Matrix4().makeTranslation(0, 0, -WATERMILL_HOUSE_METERS.centerZ)
     );
     sites.push({ id: mill.id, name: mill.name, definition: model, matrix });
   }
   for (const mill of aerial?.windmills ?? []) {
-    const source = mill.kind === "post" ? POST_MILL : TOWER_MILL;
     const mills = adopt(OBJECT_VARIANTS, mill.kind === "post" ? "object.postMill" : "object.towerMill", "default");
     const model = definition(
       `windmill:${mill.kind}:${mill.sailAngle}`,
@@ -193,12 +223,7 @@ export function createTownFacilities(
       id: mill.id,
       name: mill.name,
       definition: model,
-      matrix: placement(
-        mill.center,
-        terrain?.relief ? terrain.heightAt(mill.center) : 0,
-        mill.facing + Math.PI / 2,
-        mill.sailLength / source.sailRadius
-      )
+      matrix: placement(mill.center, terrain?.relief ? terrain.heightAt(mill.center) : 0, mill.facing + Math.PI / 2)
     });
   }
   for (const inn of aerial?.gateInns ?? []) {
@@ -226,7 +251,8 @@ export function createTownFacilities(
   }
   for (const yard of aerial?.storageYards ?? []) {
     const model = yard.origin === "publicWorks" ? medieval(granaryWorks[0]) : storageModels[yard.form];
-    if (model) fitFacility(yard.id, yard.name, yard.polygon, model);
+    if (model)
+      fitFacility(yard.id, yard.name, yard.polygon, model, yard.form === "granary" || yard.form === "warehouse");
   }
   for (const yard of aerial?.guildYards ?? []) {
     const model = yardModels[yard.kind];
@@ -234,7 +260,7 @@ export function createTownFacilities(
   }
   for (const hall of aerial?.guildHalls ?? []) {
     const model = guildModels[hall.domain];
-    if (model) fitFacility(hall.id, hall.name, hall.footprint, model);
+    if (model) fitFacility(hall.id, hall.name, hall.footprint, model, true);
   }
   for (const yard of aerial?.tanneries ?? []) fitFacility(yard.id, yard.name, yard.yard, medieval(tanneries[0]));
   for (const item of aerial?.gallows ?? []) {
@@ -252,7 +278,7 @@ export function createTownFacilities(
     );
   }
   for (const warehouse of aerial?.quayWarehouses ?? [])
-    if (!warehouse.court) fitFacility(warehouse.id, warehouse.name, warehouse.footprint, medieval(warehouses[0]));
+    if (!warehouse.court) fitFacility(warehouse.id, warehouse.name, warehouse.footprint, medieval(warehouses[0]), true);
 
   const addGarrison = (
     id: string,

@@ -1,10 +1,16 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
+import { bvInstanceGeometry } from "../../city3d/three/bvInstances";
+import * as townWallMeshes from "../../city3d/three/townWallMeshes";
+import * as wellMeshes from "../../city3d/three/wellMeshes";
+import { editorText } from "../../i18n/editorMessages";
 import { buildBlockFabric, documentFabricFingerprint } from "../generators/blockInfill";
 import { createDocument } from "../generators/document";
 import { withForestSettings } from "../generators/forestLandCover";
+import { cityTerrain } from "../generators/terrainElevation";
 import { beginEditorMount } from "../services/editorLifetime";
 import type { ForestQualityPreference } from "../types/contracts/forest";
+import type { StructureMassing } from "../types/contracts/structureMassing";
 import { mountCity3d } from "./cityView";
 
 const render = vi.hoisted(() => vi.fn());
@@ -24,6 +30,109 @@ vi.mock("three", async importOriginal => ({
     dispose() {}
   }
 }));
+
+it("reports rendered overall height separately from elevation for both tagged towers and BV instances", () => {
+  vi.stubGlobal("requestAnimationFrame", () => 1);
+  vi.stubGlobal("cancelAnimationFrame", () => {});
+  const host = document.createElement("div"),
+    map = document.createElement("div");
+  host.append(map);
+  document.body.append(host);
+  const scope = beginEditorMount(host);
+  const city = createDocument("height-readout", 160);
+  const datum = cityTerrain(city).datumMeters;
+  expect(datum).not.toBe(0);
+  const tower: StructureMassing = {
+    id: "raised-tower",
+    kind: "tower",
+    material: "stone",
+    heightMeters: 12,
+    baseElevationMeters: 7,
+    roof: "pyramid",
+    parapet: "none",
+    parapetMeters: 0,
+    parapetWidthMeters: 0,
+    spire: false
+  };
+  const towerGeometry = new THREE.BoxGeometry(3, 18, 3).translate(0, 16, 0);
+  towerGeometry.setAttribute(
+    "buildingIndex",
+    new THREE.Float32BufferAttribute(new Float32Array(towerGeometry.getAttribute("position").count), 1)
+  );
+  const material = new THREE.MeshLambertMaterial();
+  const mesh = new THREE.Mesh(towerGeometry, material);
+  const group = new THREE.Group();
+  group.add(mesh);
+  const walls = vi.spyOn(townWallMeshes, "createTownWalls").mockReturnValue({
+    group,
+    pickables: [mesh],
+    replaced: new Set(),
+    resolve: hit => (hit.object === mesh ? tower : undefined),
+    dispose: () => {
+      towerGeometry.dispose();
+      material.dispose();
+    }
+  });
+  const wells = wellMeshes.createTownWells([{ id: "raised-well", point: [20, 0] }], () => 7);
+  const waterworks = vi.spyOn(wellMeshes, "createTownWells").mockReturnValue(wells);
+  const towerHit = {
+    object: mesh,
+    face: { a: 0, b: 1, c: 2, normal: new THREE.Vector3() },
+    point: new THREE.Vector3(),
+    distance: 1
+  } as THREE.Intersection;
+  const wellHit = { ...towerHit, object: wells.pickables[0], instanceId: 0 };
+  const wellGeometry = bvInstanceGeometry(wellHit)!;
+  const bounds = wellGeometry.boundingBox!;
+  const pick = vi.spyOn(THREE.Raycaster.prototype, "intersectObjects");
+  const view = mountCity3d({ canvasHost: host, map, scope, getDocument: () => city });
+  try {
+    host.querySelector<HTMLButtonElement>(".ce-view-toggle")!.click();
+    vi.spyOn(host.querySelector("canvas")!, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 800,
+      height: 600
+    } as DOMRect);
+    const viewport = host.querySelector<HTMLElement>(".ce-3d")!;
+    const click = (hit: THREE.Intersection) => {
+      pick.mockReturnValueOnce([hit]);
+      for (const type of ["pointerdown", "pointerup"])
+        viewport.dispatchEvent(new MouseEvent(type, { clientX: 10, clientY: 10 }));
+      return host.querySelector(".ce-3d-readout")!.textContent;
+    };
+    const text = click(towerHit);
+    expect(text).toContain(
+      editorText("cityEditor.messages.structureReadout", {
+        value0: editorText("cityEditor.messages.massingStructureTower"),
+        value1: editorText("cityEditor.messages.massingStone"),
+        value2: "18.0"
+      })
+    );
+    expect(text).toContain(
+      editorText("cityEditor.messages.structureElevationReadout", {
+        value0: (7 + datum).toFixed(1),
+        value1: (25 + datum).toFixed(1)
+      })
+    );
+    expect(click(wellHit)).toContain(
+      editorText("cityEditor.messages.structureReadout", {
+        value0: editorText("cityEditor.messages.massingStructureLandmark"),
+        value1: editorText("cityEditor.messages.massingStone"),
+        value2: (bounds.max.y - bounds.min.y).toFixed(1)
+      })
+    );
+  } finally {
+    view.dispose();
+    scope.dispose();
+    host.remove();
+    wellGeometry.dispose();
+    pick.mockRestore();
+    walls.mockRestore();
+    waterworks.mockRestore();
+    vi.unstubAllGlobals();
+  }
+});
 
 it("renders on demand, retains unchanged scene layers on reopen, and reflects camera, size and document changes", () => {
   const frames = new Map<number, FrameRequestCallback>();

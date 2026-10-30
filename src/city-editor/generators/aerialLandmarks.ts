@@ -5,6 +5,7 @@
 // permanent gallows on an approach road outside town. Watermills and harbour cranes live in
 // watermillFabric.ts / harborFabric.ts. Everything here is derived from the finished document
 // and the final building fabric; it never edits the mesh.
+import { WINDMILL_SAIL_RADIUS_METERS } from "../../buildings/mills/millDimensions";
 import { religiousHousesFor } from "../../data/civilizationTraditions";
 import { HISTORICAL_PERIODS } from "../../types/historicalPeriod";
 import type { CityDocument } from "../types/document";
@@ -696,7 +697,7 @@ function placeWindmills(site: Site, input: AerialLandmarkInput, rng: Rng): Windm
     if (out.some(m => Math.hypot(m.center[0] - center[0], m.center[1] - center[1]) < 34)) continue;
     if (gates.some(g => Math.hypot(g[0] - center[0], g[1] - center[1]) < 45)) continue;
     const kind: Windmill["kind"] = towerMills && rng() < 0.45 ? "tower" : "post";
-    const sailLength = kind === "tower" ? rng.range(9, 11) : rng.range(8, 9.5);
+    const sailLength = WINDMILL_SAIL_RADIUS_METERS[kind];
     const baseRadius = kind === "tower" ? 3.6 : 5;
     const sweep = circle(center, sailLength + 1.2, 12);
     const base = circle(center, baseRadius + 0.8, 10);
