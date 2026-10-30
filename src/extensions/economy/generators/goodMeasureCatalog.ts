@@ -160,6 +160,7 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   // Other goods counted by the wain take the same weight.
   Fish: wain(0.6, "crate", "model"),
   Game: wain(0.5, "crate", "model"),
+  Meat: wain(0.5, "crate", "model"),
   Hemp: wain(0.3, "bale", "model"),
   Clay: wain(1.6, "bulk", "model"),
   Brick: wain(1.6, "bulk", "model"),

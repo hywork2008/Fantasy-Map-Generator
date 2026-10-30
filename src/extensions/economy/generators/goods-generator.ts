@@ -258,6 +258,9 @@ const INK_BARRELS_PER_BOOK = 0.5 / 120;
 const PEAT_BALE_VALUE = 0.03;
 const LEGACY_PEAT_BALE_VALUE = 2;
 
+/** Value of a wain of fresh Meat: 2.5 times grain's value per kilogram. */
+export const MEAT_WAIN_VALUE = 2.5;
+
 export const GOODS_DATA: GoodData[] = [
   {
     name: "Wood",
@@ -2379,6 +2382,19 @@ export const GOODS_DATA: GoodData[] = [
     demandCoverage: { utilities: 0.3 }
   },
   {
+    // Fresh meat of the slaughtered herd offtake, sold to the towns the month it is killed
+    // (docs/plan/livestock-meat-sales.md). No recipe or demand coverage: slaughter.ts makes and
+    // settles it, so it never stands in stock for craft or trade.
+    name: "Meat",
+    tags: ["food", "freshFood"],
+    icon: "good-game",
+    color: "#b5524a",
+    // A wain at 2.5 times grain by the kilogram, from c.1300 English livestock and wheat prices (§2.2).
+    value: MEAT_WAIN_VALUE,
+    chance: 0,
+    unit: "wain"
+  },
+  {
     name: "Beeswax",
     tags: ["ritual"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
@@ -3510,6 +3526,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Chicken: tradeProfile(2, 2, 1, -2, -2, 1, 5),
   Fish: tradeProfile(3, 3, 1, -1, -2, 1, 5),
   Game: tradeProfile(3, 3, 2, 0, -2, 1, 5),
+  Meat: tradeProfile(3, 3, 2, 0, -2, 1, 5),
   // durability bumped to the 1-5 scale's max (Phase 5, §9.4): wine ages/stores better than most
   // goods, and viticultureAllocation.ts's reallocation-speed smoothing needs Wine and Raisins to
   // actually differ (both were 4 pre-Phase-5) for "Wine reallocates slower than Raisins" to hold.
@@ -5295,6 +5312,16 @@ export function migrateWoolBlanketGoods(): boolean {
   good.i = Math.max(0, ...goods.map(entry => entry.i)) + 1;
   const cloth = goods.find(entry => entry.name === "Wool Cloth");
   good.recipes = cloth ? [{ [cloth.i]: TEXTILE_RECIPES[good.name][0]["Wool Cloth"] }] : [];
+  goods.push(good);
+  return true;
+}
+
+/** Adds fresh Meat for the slaughtered offtake (docs/plan/livestock-meat-sales.md). */
+export function migrateMeatGood(): boolean {
+  const goods = getGoods();
+  if (goods.some(good => good.name === "Meat")) return false;
+  const good = Goods.getDefaultGood("Meat")!;
+  good.i = Math.max(0, ...goods.map(entry => entry.i)) + 1;
   goods.push(good);
   return true;
 }

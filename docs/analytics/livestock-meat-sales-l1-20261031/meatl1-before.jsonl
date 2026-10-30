@@ -1,0 +1,25 @@
+[shipbuilding] Foreign agents sabotage the shipyard at Idia.
+{"month":1,"livestockDemand":33961,"unmetLivestock":0,"unmetHousehold":0,"ruralPurse":302942,"treasury":32596,"ruralPayable":18959,"saltReceivable":5458,"src":{},"sinks":{},"urbanPurse":120248}
+{"month":2,"livestockDemand":33326,"unmetLivestock":0,"unmetHousehold":0,"ruralPurse":336523,"treasury":13789,"ruralPayable":16529,"saltReceivable":8450,"src":{},"sinks":{},"urbanPurse":124700}
+{"month":3,"livestockDemand":32865,"unmetLivestock":0,"unmetHousehold":0,"ruralPurse":322170,"treasury":30765,"ruralPayable":7191,"saltReceivable":10493,"src":{},"sinks":{},"urbanPurse":126834}
+{"month":4,"livestockDemand":32481,"unmetLivestock":0,"unmetHousehold":0,"ruralPurse":306318,"treasury":36639,"ruralPayable":1267,"saltReceivable":12543,"src":{},"sinks":{},"urbanPurse":129731}
+{"month":5,"livestockDemand":32132,"unmetLivestock":0,"unmetHousehold":0,"ruralPurse":281858,"treasury":58311,"ruralPayable":0,"saltReceivable":14951,"src":{},"sinks":{},"urbanPurse":129666}
+{"month":6,"livestockDemand":31823,"unmetLivestock":1631,"unmetHousehold":0,"ruralPurse":261758,"treasury":79513,"ruralPayable":0,"saltReceivable":16989,"src":{},"sinks":{},"urbanPurse":127638}
+{"month":7,"livestockDemand":31542,"unmetLivestock":3195,"unmetHousehold":0,"ruralPurse":244513,"treasury":103842,"ruralPayable":0,"saltReceivable":18603,"src":{},"sinks":{},"urbanPurse":124383}
+{"month":8,"livestockDemand":31291,"unmetLivestock":3816,"unmetHousehold":4,"ruralPurse":229179,"treasury":123970,"ruralPayable":0,"saltReceivable":20244,"src":{},"sinks":{},"urbanPurse":120917}
+{"month":9,"livestockDemand":31060,"unmetLivestock":3699,"unmetHousehold":17,"ruralPurse":215141,"treasury":139716,"ruralPayable":0,"saltReceivable":22239,"src":{},"sinks":{},"urbanPurse":118892}
+{"month":10,"livestockDemand":30803,"unmetLivestock":3896,"unmetHousehold":23,"ruralPurse":200809,"treasury":151814,"ruralPayable":0,"saltReceivable":24473,"src":{},"sinks":{},"urbanPurse":118084}
+{"month":11,"livestockDemand":30563,"unmetLivestock":4002,"unmetHousehold":33,"ruralPurse":255066,"treasury":95448,"ruralPayable":0,"saltReceivable":23903,"src":{},"sinks":{},"urbanPurse":117861}
+{"month":12,"livestockDemand":38775,"unmetLivestock":2008,"unmetHousehold":0,"ruralPurse":335825,"treasury":49402,"ruralPayable":0,"saltReceivable":24063,"src":{},"sinks":{},"urbanPurse":126520}
+{"month":13,"livestockDemand":37573,"unmetLivestock":2798,"unmetHousehold":0,"ruralPurse":354659,"treasury":26351,"ruralPayable":22282,"saltReceivable":23090,"src":{},"sinks":{},"urbanPurse":125447}
+{"month":14,"livestockDemand":36589,"unmetLivestock":1948,"unmetHousehold":21,"ruralPurse":372367,"treasury":6999,"ruralPayable":47320,"saltReceivable":22371,"src":{},"sinks":{},"urbanPurse":126387}
+{"month":15,"livestockDemand":35838,"unmetLivestock":1250,"unmetHousehold":0,"ruralPurse":363530,"treasury":8903,"ruralPayable":33538,"saltReceivable":21792,"src":{},"sinks":{},"urbanPurse":127140}
+{"month":16,"livestockDemand":35193,"unmetLivestock":1113,"unmetHousehold":0,"ruralPurse":348495,"treasury":18450,"ruralPayable":19270,"saltReceivable":21483,"src":{},"sinks":{},"urbanPurse":126579}
+{"month":17,"livestockDemand":34663,"unmetLivestock":1432,"unmetHousehold":0,"ruralPurse":329955,"treasury":26438,"ruralPayable":8860,"saltReceivable":21706,"src":{},"sinks":{},"urbanPurse":124870}
+{"month":18,"livestockDemand":34154,"unmetLivestock":1872,"unmetHousehold":0,"ruralPurse":309159,"treasury":40943,"ruralPayable":4352,"saltReceivable":22340,"src":{},"sinks":{},"urbanPurse":122956}
+{"month":19,"livestockDemand":33674,"unmetLivestock":2256,"unmetHousehold":9,"ruralPurse":286697,"treasury":60626,"ruralPayable":1327,"saltReceivable":23254,"src":{},"sinks":{},"urbanPurse":120492}
+{"month":20,"livestockDemand":33213,"unmetLivestock":3313,"unmetHousehold":17,"ruralPurse":265379,"treasury":79311,"ruralPayable":142,"saltReceivable":24040,"src":{},"sinks":{},"urbanPurse":118202}
+{"month":21,"livestockDemand":32799,"unmetLivestock":4153,"unmetHousehold":23,"ruralPurse":246145,"treasury":95624,"ruralPayable":0,"saltReceivable":24796,"src":{},"sinks":{},"urbanPurse":116514}
+{"month":22,"livestockDemand":32380,"unmetLivestock":5102,"unmetHousehold":79,"ruralPurse":229201,"treasury":107276,"ruralPayable":0,"saltReceivable":25444,"src":{},"sinks":{},"urbanPurse":115809}
+{"month":23,"livestockDemand":32002,"unmetLivestock":4777,"unmetHousehold":106,"ruralPurse":253057,"treasury":84955,"ruralPayable":0,"saltReceivable":25180,"src":{},"sinks":{},"urbanPurse":116411}
+{"month":24,"livestockDemand":40423,"unmetLivestock":468,"unmetHousehold":0,"ruralPurse":355039,"treasury":33706,"ruralPayable":0,"saltReceivable":26519,"src":{},"sinks":{},"urbanPurse":124060}
