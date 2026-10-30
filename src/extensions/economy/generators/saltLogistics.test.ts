@@ -609,7 +609,8 @@ describe("SaltLogisticsModule", () => {
     const existingCapacity = getSaltworks()[0].annualCapacityBags;
     SaltLogistics.settleMonth();
     expect(getSaltworks().find(w => w.stateId === 2)?.kind).toBe("brineWell");
-    expect(getSaltworks()[0].annualCapacityBags).toBe(existingCapacity);
+    // State 1 no longer supplies state 2, which now has its own works; together they keep the same need.
+    expect(getSaltworks().reduce((sum, w) => sum + w.annualCapacityBags, 0)).toBeCloseTo(existingCapacity, 1);
     SaltLogistics.settleMonth();
     expect(getSaltworks().filter(w => w.stateId === 2)).toHaveLength(1);
     setMineralDeposits([
@@ -892,20 +893,34 @@ describe("SaltLogisticsModule", () => {
     expect(priceWith(1200)).toBeCloseTo(priceWith(0), 6);
   });
 
-  it("orders and reserves no livestock salt the rural purse cannot pay for", () => {
-    const outputWith = (herd: number) => {
+  it("resizes installed saltworks to the current provision of people and herds", () => {
+    SaltLogistics.generate();
+    const before = getSaltworks().reduce((sum, w) => sum + w.annualCapacityBags, 0);
+    // Herds placed after generation (as on the fixed World) were missing from the capacity.
+    getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: 1200, old: 0 };
+    SaltLogistics.settleMonth();
+    const provision = getStateSaltLedgers().reduce((sum, row) => sum + row.monthlyProvisionBags, 0);
+    const after = getSaltworks().reduce((sum, w) => sum + w.annualCapacityBags, 0);
+    expect(after).toBeGreaterThan(before);
+    expect(after).toBeCloseTo(provision * 12 * 1.15, 0);
+  });
+
+  it("orders and reserves the full livestock need even when the rural purse is empty", () => {
+    const stockWith = (ruralPurse: number) => {
       setUpWorld();
-      getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: herd, old: 0 };
+      getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: 1200, old: 0 };
       SaltLogistics.generate();
-      for (const market of getMarkets()) market.foodLedger!.ruralHouseholdWealth = 0;
-      // Herds also size the works at generation; keep capacity out of the comparison.
-      for (const works of getSaltworks()) works.annualCapacityBags = 1e6;
-      SaltLogistics.settleMonth();
-      return getSaltworks().reduce((sum, works) => sum + works.monthlyOutputBags, 0);
+      for (let month = 0; month < 6; month++) {
+        for (const market of getMarkets()) market.foodLedger!.ruralHouseholdWealth = ruralPurse;
+        SaltLogistics.settleMonth();
+      }
+      return getMarkets().find(m => m.i === 1)!.goods[1].stock;
     };
-    const without = outputWith(0);
-    expect(without).toBeGreaterThan(0);
-    expect(outputWith(1200)).toBeCloseTo(without, 4);
+    // Market 1 needs 100 household and 33.3 livestock bags a month; the works stock the herds'
+    // three months too, so supply follows physical need rather than the purse.
+    const householdBags = 100;
+    const livestockBags = 1200 * (20 / 60 / 12);
+    expect(stockWith(0)).toBeGreaterThanOrEqual((householdBags + livestockBags) * 3);
   });
 
   it("spends at most a share of the rural purse on livestock salt in a month, across states", () => {
