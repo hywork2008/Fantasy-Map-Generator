@@ -19,8 +19,44 @@ export function saltMarketCash(market: Market, committed: ReadonlyMap<number, nu
     (t?.balance ?? 0) -
       (t?.ruralGrainPayable ?? 0) -
       (committed.get(market.i) ?? 0) -
-      Object.values(t?.tradePayables ?? {}).reduce((sum, value) => sum + Math.max(0, value), 0)
+      Object.values(t?.tradePayables ?? {}).reduce((sum, value) => sum + Math.max(0, value), 0) -
+      saltPayable(market)
   );
+}
+/**
+ * Months of a market's Salt provision its saltworks sell it on credit (docs/plan/salt-supply-calibration.md
+ * §3.2). Cash-only, the autumn grain purchase emptied the treasuries and stopped the works until summer.
+ */
+export const SALT_CREDIT_MONTHS = 3;
+export function saltPayable(market: Market): number {
+  return Object.values(market.marketTreasury?.saltPayables ?? {}).reduce((sum, value) => sum + Math.max(0, value), 0);
+}
+/** Credit left for a month whose provision costs `monthlyProvisionCost` landed. */
+export function saltCreditRoom(market: Market, monthlyProvisionCost: number): number {
+  return Math.max(0, monthlyProvisionCost * SALT_CREDIT_MONTHS - saltPayable(market));
+}
+/** Repay Salt credit from free cash, oldest saltworks id first; a vanished works' credit lapses. */
+export function repaySaltPayables(market: Market, operations: readonly Saltworks[], cash: number): number {
+  const payables = market.marketTreasury?.saltPayables;
+  if (!payables) return 0;
+  let repaid = 0;
+  for (const id of Object.keys(payables).sort((a, b) => Number(a) - Number(b))) {
+    const operation = operations.find(o => o.i === Number(id));
+    const account = operation ? getSaltOwnerAccount(operation) : null;
+    if (!account) {
+      delete payables[id];
+      continue;
+    }
+    const pay = cents(Math.min(payables[id], Math.max(0, cash - repaid)));
+    if (!(pay > 0)) continue;
+    creditMarket(market, -pay);
+    account.change(pay);
+    repaid = cents(repaid + pay);
+    payables[id] = cents(payables[id] - pay);
+    if (!(payables[id] > 0)) delete payables[id];
+  }
+  if (!Object.keys(payables).length) delete market.marketTreasury!.saltPayables;
+  return repaid;
 }
 function creditMarket(market: Market, amount: number): void {
   market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
@@ -71,7 +107,8 @@ export function paySaltWholesale(
   bags: number,
   unitPrice: number,
   freightPerBag: number,
-  fresh: boolean
+  fresh: boolean,
+  cash = Infinity
 ): { goods: number; freight: number } {
   const goods = saltInvoice(bags * unitPrice);
   const freight = saltInvoice(bags * freightPerBag);
@@ -94,7 +131,14 @@ export function paySaltWholesale(
     exporter.treasury -= freight;
   } else {
     exporter.treasury -= goods + freight;
-    account!.change(goods + freight);
+    // What the market cannot pay now is owed to the works; the owner advances the carrier's freight.
+    const owed = cents(Math.max(0, goods + freight - Math.max(0, cash)));
+    if (owed > 0) {
+      creditMarket(to, owed);
+      to.marketTreasury!.saltPayables ??= {};
+      to.marketTreasury!.saltPayables[operation.i] = cents((to.marketTreasury!.saltPayables[operation.i] ?? 0) + owed);
+    }
+    account!.change(goods + freight - owed);
     account!.change(-freight);
     operation.monthlyWholesaleReceived = cents((operation.monthlyWholesaleReceived ?? 0) + goods);
   }

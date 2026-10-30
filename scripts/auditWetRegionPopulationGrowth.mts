@@ -22,6 +22,7 @@ import { GROSS_FOOD_NEED } from "../src/extensions/economy/generators/foodConsta
 import { setGoodFlowObserver } from "../src/extensions/economy/generators/goodsBalanceLedger";
 import { getRuralGrainDietShare } from "../src/extensions/economy/generators/ruralDiet";
 import { advanceWorld, createNodeSimulationHost } from "../src/simulation/adapters/node";
+import { applyConflictAutonomyFromEnv } from "./lib/conflictAutonomyFromEnv.mts";
 
 const [input, output, length = "144"] = process.argv.slice(2);
 const months = Number(length);
@@ -112,6 +113,7 @@ try {
   });
   await host.loadArchive(new Uint8Array(bytes));
   await host.prepare();
+  applyConflictAutonomyFromEnv();
   for (let m = 1; m <= months; m++) {
     await advanceWorld(host, { months: 1 });
     await new Promise(done => setImmediate(done));

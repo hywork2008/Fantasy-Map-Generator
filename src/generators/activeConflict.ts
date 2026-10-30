@@ -10,6 +10,11 @@ function conflictAutonomy(): ConflictAutonomy {
   return normalizeConflictAutonomy(worldContext.options.conflictAutonomy);
 }
 
+/** Calibration peace: no state is at war, whatever its saved diplomacy says. */
+export function isPeaceMode(): boolean {
+  return conflictAutonomy() === "peace";
+}
+
 function hasPlayerAuthorization(stateId: number): boolean {
   const nobility = simulationContext.extensions.nobility;
   if (typeof nobility !== "object" || nobility === null || Array.isArray(nobility)) return false;
@@ -40,6 +45,6 @@ function hasCommittedStrategicGoal(stateId: number): boolean {
  * committed strategic goal; a historical `diplomacy: "Enemy"` relation alone is never enough.
  */
 export function isStateInActiveConflict(stateId: number): boolean {
-  if (!Number.isInteger(stateId) || stateId <= 0) return false;
+  if (!Number.isInteger(stateId) || stateId <= 0 || isPeaceMode()) return false;
   return conflictAutonomy() === "playerDirected" ? hasPlayerAuthorization(stateId) : hasCommittedStrategicGoal(stateId);
 }

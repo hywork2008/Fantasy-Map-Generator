@@ -1,5 +1,6 @@
 import { getMaxShipClassTierForState } from "../../../generators/technologyProgress";
 import { simEvents } from "../../../simulation/events";
+import { isPeaceMode } from "../../hostCore";
 import {
   type Burg,
   SHIPBUILDING_MATERIAL_IDS,
@@ -68,7 +69,7 @@ const doNotAddSurplusShip: NotifySurplusShipCompletedFn = () => false;
 /** True if the state has an active "Enemy" diplomacy relation with anyone — same idiom Economy's own tick hook already uses (`economy/index.tsx`) to decide wartime behavior, replicated here rather than imported since it's a plain read of `pack.states`. */
 export function isStateAtWar(stateId: number, states: readonly State[]): boolean {
   const state = states[stateId];
-  return Boolean(state?.diplomacy && (state.diplomacy as unknown[]).includes("Enemy"));
+  return !isPeaceMode() && Boolean(state?.diplomacy && (state.diplomacy as unknown[]).includes("Enemy"));
 }
 
 export function getHulls(): readonly ShipHull[] {

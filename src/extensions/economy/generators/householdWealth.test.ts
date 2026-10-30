@@ -10,6 +10,7 @@ import {
   drawStateUrbanHouseholdWealth,
   getRuralHouseholdWealth,
   moveRuralPursesWithFarms,
+  payOutMarketSurplus,
   RURAL_HOUSEHOLD_TOWN_SPEND_SHARE,
   RURAL_TOWN_SPEND_DUES_SHARE,
   resetRuralHouseholdWealthCycleTracking,
@@ -105,6 +106,20 @@ describe("householdWealth (docs/plan/economy-coupling-audit.md L2 Phase 2/3)", (
       expect(big.treasury).toBeCloseTo(spent * 0.75 * RURAL_TOWN_SPEND_DUES_SHARE, 1);
       expect(getHouseholdWealth(1) - before[0]).toBeCloseTo(spent * 0.75 * (1 - RURAL_TOWN_SPEND_DUES_SHARE), 1);
       expect(small.treasury! + getHouseholdWealth(2) - before[1]).toBeCloseTo(spent * 0.25, 1);
+    });
+
+    it("keeps the cash owed for salt bought on credit out of the market surplus payout", () => {
+      const market = setUpSplitMarket();
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, { i: 1, market: 1, population: 1 } as unknown as Burg];
+      const payout = (saltPayables?: Record<string, number>) => {
+        market.marketTreasury = { balance: 1e6, ruralGrainPayable: 0, ...(saltPayables ? { saltPayables } : {}) };
+        payOutMarketSurplus(() => false);
+        return 1e6 - market.marketTreasury.balance;
+      };
+      const free = payout();
+      expect(free).toBeGreaterThan(0);
+      // Owing nearly the whole balance to the saltworks leaves almost nothing to pay out.
+      expect(payout({ 7: 1e6 - 1 })).toBeLessThan(1);
     });
 
     it("moves farm families' cash with their farms when market territories are redrawn", () => {

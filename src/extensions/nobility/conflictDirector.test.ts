@@ -124,6 +124,31 @@ describe("conflictDirector", () => {
     expect(chronicle[0][0]).toBe("Conflict plans suspended");
   });
 
+  it("lets no conflict start or advance in peace mode", () => {
+    worldContext.options = { conflictAutonomy: "peace" } as never;
+    worldContext.pack = {
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        {
+          i: 1,
+          name: "Attacker",
+          diplomacy: [undefined, "x", "Enemy"],
+          conflictAuthorizations: { 2: { origin: "player" } }
+        },
+        { i: 2, name: "Defender", diplomacy: [undefined, "Enemy", "x"] }
+      ]
+    } as unknown as PackedGraph;
+
+    expect(mayAdvanceAutonomousConflict()).toBe(false);
+    expect(mayAdvanceConflict(1, 2)).toBe(false);
+    expect(mayAdvanceAnyConflict()).toBe(false);
+    expect(startPlayerConflict({ attackerStateId: 2, defenderStateId: 1 })).toEqual({
+      started: false,
+      reason: "peace"
+    });
+    expect(worldContext.pack.states[2].conflictAuthorizations).toBeUndefined();
+  });
+
   it("authorizes, persists, and ends an explicit player conflict", () => {
     worldContext.options = { conflictAutonomy: "playerDirected" } as never;
     worldContext.pack = {

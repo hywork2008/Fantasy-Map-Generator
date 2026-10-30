@@ -25,6 +25,13 @@ describe("isStateInActiveConflict", () => {
     expect(isStateInActiveConflict(1)).toBe(false);
   });
 
+  it("treats no state as in conflict in peace mode, even with a player authorization", () => {
+    worldContext.options = { conflictAutonomy: "peace" } as typeof worldContext.options;
+    simulationContext.extensions = { nobility: { conflictAuthorizationsByState: { 1: { 2: { origin: "player" } } } } };
+
+    expect(isStateInActiveConflict(1)).toBe(false);
+  });
+
   it("recognizes a player-directed conflict only after player authorization", () => {
     worldContext.options = { conflictAutonomy: "playerDirected" } as typeof worldContext.options;
     simulationContext.extensions = {

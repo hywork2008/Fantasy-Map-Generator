@@ -31,11 +31,12 @@ import { getRuralHouseholdWealth } from "./householdWealth";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import { createPersonalCashState } from "./personalCashLedger";
-import { buyHouseholdSalt, priceSalt } from "./saltFinance";
+import { buyHouseholdSalt, priceSalt, saltPayable } from "./saltFinance";
 import {
   auditSaltPopulationCoverage,
   SALT_HOUSEHOLD_KILOGRAMS_PER_PERSON_YEAR,
   SALT_KILOGRAMS_PER_BAG,
+  SALT_LIVESTOCK_CASH_SHARE,
   SaltLogistics
 } from "./saltLogistics";
 import type { SaltworksOwner } from "./saltLogisticsTypes";
@@ -481,14 +482,37 @@ describe("SaltLogisticsModule", () => {
     );
   });
 
-  it("does not manufacture or charge inputs without operating cash or a funded buyer", () => {
+  it("does not manufacture or charge inputs without operating cash", () => {
     SaltLogistics.generate();
     worldContext.pack.states[1].treasury = 0;
-    getMarkets()[1].marketTreasury!.balance = 0;
+    worldContext.pack.states[2].treasury = 0;
     const before = cash();
     SaltLogistics.settleMonth();
     expect(getSaltworks().every(w => w.monthlyOutputBags === 0 && w.monthlyWagesPaid === 0)).toBe(true);
     expect(cash()).toBeCloseTo(before, 5);
+  });
+
+  it("sells fresh salt on credit to a market without cash and is repaid from later cash", () => {
+    SaltLogistics.generate();
+    const market = getMarkets()[1];
+    market.marketTreasury!.balance = 0;
+    const before = cash();
+    SaltLogistics.settleMonth();
+    const owed = saltPayable(market);
+    expect(getSaltworks().some(w => w.marketId === market.i && w.monthlyOutputBags > 0)).toBe(true);
+    expect(owed).toBeGreaterThan(0);
+    expect(market.marketTreasury!.balance).toBeGreaterThanOrEqual(0);
+    // Credit moves no money that does not exist: the debt is the only new entry.
+    expect(cash()).toBeCloseTo(before, 2);
+
+    // Cash just covering the debt repays all of it; the debt is not deducted from itself.
+    market.marketTreasury!.balance = owed + 1;
+    for (const works of getSaltworks()) works.active = false;
+    // No sales this month, so only the cash already held can repay.
+    setBurgMarketLedgers([1, 2].map(burgId => ({ burgId, marketId: burgId, merchants: [], householdWealth: 0 })));
+    for (const m of getMarkets()) m.foodLedger!.ruralHouseholdWealth = 0;
+    SaltLogistics.settleMonth();
+    expect(saltPayable(market)).toBe(0);
   });
 
   it("leaves unpaid households unmet even with stock, without charging the state", () => {
@@ -850,6 +874,57 @@ describe("SaltLogisticsModule", () => {
     SaltLogistics.settleMonth();
     expect(getStateSaltLedgers().reduce((sum, row) => sum + row.monthlyHouseholdSalesBags, 0)).toBe(300);
     expect(getStateSaltLedgers().find(row => row.stateId === 1)?.monthlyLivestockSuppliedBags).toBe(0);
+  });
+
+  it("prices salt on the livestock need the rural purse can pay for", () => {
+    const priceWith = (herd: number) => {
+      setUpWorld();
+      getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: herd, old: 0 };
+      SaltLogistics.generate();
+      for (const works of getSaltworks()) works.active = false;
+      const market = getMarkets().find(m => m.i === 1)!;
+      market.goods[1] = { stock: 400, price: 3 };
+      market.foodLedger!.ruralHouseholdWealth = 0;
+      SaltLogistics.settleMonth();
+      return market.goods[1].price;
+    };
+    // A penniless countryside's herds want salt but cannot bid for it.
+    expect(priceWith(1200)).toBeCloseTo(priceWith(0), 6);
+  });
+
+  it("orders and reserves no livestock salt the rural purse cannot pay for", () => {
+    const outputWith = (herd: number) => {
+      setUpWorld();
+      getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: herd, old: 0 };
+      SaltLogistics.generate();
+      for (const market of getMarkets()) market.foodLedger!.ruralHouseholdWealth = 0;
+      // Herds also size the works at generation; keep capacity out of the comparison.
+      for (const works of getSaltworks()) works.annualCapacityBags = 1e6;
+      SaltLogistics.settleMonth();
+      return getSaltworks().reduce((sum, works) => sum + works.monthlyOutputBags, 0);
+    };
+    const without = outputWith(0);
+    expect(without).toBeGreaterThan(0);
+    expect(outputWith(1200)).toBeCloseTo(without, 4);
+  });
+
+  it("spends at most a share of the rural purse on livestock salt in a month, across states", () => {
+    // Both states' herds buy at Market 1, so its one allowance must cover them together.
+    setMarketCellColumn(Uint16Array.from([1, 1, 0]));
+    getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: 1200, old: 0 };
+    getOrCreateFaunaStockTable()!["1:Cattle"] = { young: 0, breeding: 1200, old: 0 };
+    SaltLogistics.generate();
+    for (const works of getSaltworks()) works.active = false;
+    const market = getMarkets().find(m => m.i === 1)!;
+    market.goods[1] = { stock: 1e6, price: 3 };
+    market.foodLedger!.ruralHouseholdWealth = 1000;
+    SaltLogistics.settleMonth();
+    const ledgers = getStateSaltLedgers().filter(row => row.stateId === 1 || row.stateId === 2);
+    const paid = ledgers.reduce((sum, row) => sum + row.monthlyLivestockPaid, 0);
+    // The herds want far more, but their salt takes at most 5% of the 1000 purse.
+    expect(paid).toBeGreaterThan(0);
+    expect(paid).toBeLessThanOrEqual(1000 * SALT_LIVESTOCK_CASH_SHARE + 0.01);
+    expect(ledgers.every(row => row.monthlyUnmetLivestockBags > 0)).toBe(true);
   });
 
   it("uses horse fauna heads without applying the market lot conversion", () => {

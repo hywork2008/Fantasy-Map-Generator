@@ -7,6 +7,7 @@ import { isLichState } from "../extensions/characters/lichPolicy";
 import type { MilitaryRegiment, MilitaryUnit, State } from "../types/models";
 import { getCultureFuneralMechanics } from "../utils/cultureBurialProfile";
 import { rn } from "../utils/numberUtils";
+import { isPeaceMode } from "./activeConflict";
 import { ensureFuneralRemainsSeeded, getFuneralState, takeFuneralRemains } from "./funeralRites";
 
 export const SKELETON_UNIT_NAME = "skeletons";
@@ -159,6 +160,7 @@ export function raiseUndeadOnCellEntered(regiment: MilitaryRegiment, cellId: num
   const entrant = pack.states?.[regiment.state];
   const owner = pack.states?.[pack.cells.state[cellId]];
   if (!entrant?.i || entrant.removed || !owner?.i || owner.removed || owner.i === entrant.i) return false;
+  if (isPeaceMode()) return false;
   if (entrant.diplomacy?.[owner.i] !== "Enemy" && owner.diplomacy?.[entrant.i] !== "Enemy") return false;
   const attackingLich = isLichState(pack.races, pack.cultures, entrant);
   const defendingLich = isLichState(pack.races, pack.cultures, owner);

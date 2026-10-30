@@ -492,11 +492,14 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
   for (const market of getMarkets()) {
     const treasury = market.marketTreasury;
     if (!treasury) continue;
+    // Salt bought on credit is owed to the works and repaid from this cash (salt-supply-calibration.md §3.4).
+    const saltOwed = Object.values(treasury.saltPayables ?? {}).reduce((sum, owed) => sum + Math.max(0, owed), 0);
     const reserve =
       (memberPopulation.get(market.i) ?? 0) *
         profile.burgTreasuryPerPopulation *
         MARKET_CASH_RESERVE_PER_POPULATION_FACTOR +
-      (openAccount?.get(market.i) ?? 0);
+      (openAccount?.get(market.i) ?? 0) +
+      saltOwed;
     // Farmers are paid what they are owed from any cash, before the market keeps a reserve or
     // anyone takes a profit.
     const repay = rn(Math.min(Math.max(0, treasury.balance), Math.max(0, treasury.ruralGrainPayable)), 2);

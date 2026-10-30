@@ -10,6 +10,7 @@ import { getWorldContext } from "../src/extensions/economy/context/economyApi";
 import { getHouseholdWealth, setHouseholdWealthFlowObserver } from "../src/extensions/economy/generators/burgMarketLedgers";
 import { setRuralHouseholdWealthFlowObserver } from "../src/extensions/economy/generators/householdWealth";
 import { advanceWorld, createNodeSimulationHost } from "../src/simulation/adapters/node";
+import { applyConflictAutonomyFromEnv } from "./lib/conflictAutonomyFromEnv.mts";
 
 const [input, output, length = "84"] = process.argv.slice(2);
 const months = Number(length);
@@ -66,6 +67,7 @@ function urbanPeople(): Record<number, number> {
 try {
   await host.loadArchive(new Uint8Array(bytes));
   await host.prepare();
+  applyConflictAutonomyFromEnv();
   let start = wallets();
   setHouseholdWealthFlowObserver((burgId, amount) => {
     const market = marketOfBurg.get(burgId) ?? getWorldContext().pack.burgs?.[burgId]?.market ?? 0;

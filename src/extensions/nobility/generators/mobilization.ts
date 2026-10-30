@@ -1,6 +1,7 @@
 import {
   ANNUAL_DRAFT_SHARE,
   isManpowerSimEnabled,
+  isPeaceMode,
   livingTroops,
   PEACE_TARGET_MOBILIZATION,
   simulationContext,
@@ -31,6 +32,7 @@ function currentLandCapacity(state: State): number {
 
 /** Combined estimated military power of every declared Enemy. */
 function hostilePower(state: State): number {
+  if (isPeaceMode()) return 0;
   const intel = simulationContext.intelligence[state.i] ?? {};
   let total = 0;
   for (const otherIdStr in intel) {

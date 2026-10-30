@@ -18,8 +18,12 @@ export interface WorldNote {
   legend: string;
 }
 
-/** Controls whether Advance Time may autonomously initiate or advance interstate conflict. */
-export type ConflictAutonomy = "autonomous" | "playerDirected";
+/**
+ * Controls whether Advance Time may autonomously initiate or advance interstate conflict. "peace" is the
+ * calibration mode: no conflict starts or advances, and no state counts as at war (Enemy relations stay
+ * saved but drive no war footing or wartime economy).
+ */
+export type ConflictAutonomy = "autonomous" | "playerDirected" | "peace";
 
 /**
  * Controls how much habitable land is populated at map generation. The Phase 0

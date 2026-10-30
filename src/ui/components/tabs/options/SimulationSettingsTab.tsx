@@ -96,6 +96,16 @@ export const SimulationSettingsTab: React.FC = () => {
                   onChange={e => setConflictAutonomy(e.target.value)}
                 />{" "}
                 {t("simulation.playerDirected")}
+              </label>{" "}
+              <label>
+                <input
+                  type="radio"
+                  name="conflictAutonomy"
+                  value="peace"
+                  checked={options.conflictAutonomy === "peace"}
+                  onChange={e => setConflictAutonomy(e.target.value)}
+                />{" "}
+                {t("simulation.peace")}
               </label>
             </td>
           </tr>

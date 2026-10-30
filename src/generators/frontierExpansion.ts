@@ -13,6 +13,7 @@ import { isFrontierExpansionPattern } from "../utils/initialSettlementPattern";
 import { getWorldMoneyScale } from "../utils/moneyScale";
 import { isTrueOceanHarborCell, isTrueOceanPortBurg } from "../utils/oceanPort";
 import type { RNGService } from "../utils/probabilityUtils";
+import { isPeaceMode } from "./activeConflict";
 import { getCellPrecipitation, getCellWaterAccess } from "./cellWaterAccess";
 import { FRONTIER_OUTPOST_MAX_DANGER } from "./dangerExpandPolicy";
 import {
@@ -1245,7 +1246,7 @@ function getFrontierSector(
 }
 
 function isAtWar(state: { diplomacy?: unknown } | undefined): boolean {
-  return Array.isArray(state?.diplomacy) && state.diplomacy.includes("Enemy");
+  return !isPeaceMode() && Array.isArray(state?.diplomacy) && state.diplomacy.includes("Enemy");
 }
 
 function consumeFood(state: { foodStock?: number }, amount: number): void {

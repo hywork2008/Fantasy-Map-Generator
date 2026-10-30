@@ -52,7 +52,7 @@ const THREAT_CALCULATIONS = ["additive", "max", "nonlinear"] as const;
 const SETTLEMENT_PATTERNS = ["frontier", "marches", "scattered", "standard", "dense"] as const;
 const FRONTIER_START_MODES = ["landOrigin", "seaborne"] as const;
 const FRONTIER_SPACINGS = ["dispersed", "clustered"] as const;
-const CONFLICT_AUTONOMIES = ["playerDirected", "autonomous"] as const;
+const CONFLICT_AUTONOMIES = ["playerDirected", "autonomous", "peace"] as const;
 const CLIMATE_VARIABILITY_STARTS = ["off", "fromStart", "later"] as const;
 const CLIMATE_VARIABILITY_MODES = ["periodic", "irregular"] as const;
 

@@ -290,6 +290,8 @@ export interface MarketTreasury {
   tradeCapitalPaid?: boolean;
   /** Unpaid purchases of arrived inter-market cargo, by creditor (exporting) market id (§5.1). */
   tradePayables?: Record<string, number>;
+  /** Salt bought on credit from saltworks, by saltworks id (docs/plan/salt-supply-calibration.md §3.2). */
+  saltPayables?: Record<string, number>;
   /**
    * Cash this market has put up for cargo bought on escrow terms and still on the way: taken
    * out of `balance` at booking, paid to the seller on arrival, returned if the cargo never comes
