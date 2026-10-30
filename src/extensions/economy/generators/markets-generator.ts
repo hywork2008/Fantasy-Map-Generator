@@ -126,6 +126,8 @@ import {
   MerchantTradeCapital
 } from "./merchantTradeCapital";
 import { LAND_HIRE_FREIGHT_MULTIPLIER, MerchantTransportAssets } from "./merchantTransportAssets";
+import { getPeatGood } from "./peatFuel";
+import { supplyRuralPeat } from "./peatSupply";
 import { expectedPortStorageUnitCost } from "./portWarehouses";
 import { applyPriceElasticity, relaxMarketPrice } from "./priceElasticity";
 import {
@@ -935,6 +937,12 @@ export class MarketsModule {
 
     const wood = getGoods().find(g => g.name === "Wood");
     if (wood && isGoodEnabled(wood)) this.supplyRuralWood(wood, index);
+    if (getPeatGood())
+      supplyRuralPeat(
+        new Map([...getMonthlyHouseholdFuelDemands()].map(([marketId, demand]) => [marketId, demand.ruralDemand])),
+        getWoodSupplyMonthKey(),
+        (marketId, burgId, goodId, units) => this.addRuralOutput(marketId, burgId, goodId, units)
+      );
 
     this.applyRuralTotals(index.standard);
 

@@ -98,6 +98,15 @@ export interface Market {
   heatingLedger?: HeatingLedger;
   /** Rural woodcutting for own fuel and for sale (docs/plan/farm-labour-calibration.md §19). */
   woodSupply?: WoodSupplyLedger;
+  /** Rural peat cutting for hearths and for sale (docs/plan/saltworks-fuel-procurement.md F2). */
+  peatSupply?: {
+    monthKey: number;
+    potential: number;
+    ruralFuelPeat: number;
+    marketPeat: number;
+    stockAfterSupply: number;
+    smoothedDraw: number;
+  };
   /** Physical intake, household use, processing and spoilage for dairy, vine, and ale goods. */
   foodProcessingLedger?: FoodProcessingLedger;
   /** Returnable containers remain in circulation; recipe inputs only cover loss and repair. */

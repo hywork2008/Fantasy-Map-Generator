@@ -366,6 +366,40 @@ describe("SaltLogisticsModule", () => {
     expect(cash()).toBeCloseTo(before, 4);
   });
 
+  it("boils with the cheaper heat of Wood and Peat, and with Peat where there is no Wood", () => {
+    const burned = (woodStock: number, woodPrice: number) => {
+      setUpWorld();
+      seedOwners();
+      SaltLogistics.generate();
+      const operation = getSaltworks()[0];
+      operation.kind = "brineWell";
+      setGoods([
+        Goods.get(1)!,
+        { i: 2, name: "Wood", tags: [], value: 1, unit: "pile", icon: "", color: "" },
+        { i: 3, name: "Peat", tags: ["fuel"], value: 0.03, unit: "bale", icon: "", color: "" }
+      ]);
+      const market = getMarkets()[0];
+      market.goods[2] = { stock: woodStock, price: woodPrice };
+      market.goods[3] = { stock: 1e4, price: 0.05 };
+      SaltLogistics.settleMonth();
+      return {
+        output: operation.monthlyOutputBags,
+        wood: woodStock - market.goods[2].stock,
+        peat: 1e4 - market.goods[3].stock
+      };
+    };
+    // A bale is 200/6,500 of a pile's heat: at 0.05 a bale Peat costs 1.63 a pile of heat.
+    const noWood = burned(0, 1);
+    expect(noWood.output).toBeGreaterThan(0);
+    expect(noWood.peat).toBeGreaterThan(0);
+    const cheapWood = burned(100, 1);
+    expect(cheapWood.wood).toBeGreaterThan(0);
+    expect(cheapWood.peat).toBe(0);
+    const dearWood = burned(100, 3);
+    expect(dearWood.wood).toBe(0);
+    expect(dearWood.peat).toBeGreaterThan(0);
+  });
+
   it("uses authoritative Characters cash rather than the compatibility pack copy", () => {
     seedOwners();
     const actualPerson = { ...worldContext.pack.characters![0], name: "Actual Merchant", wealth: 2e8 };

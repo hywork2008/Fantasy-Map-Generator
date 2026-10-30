@@ -1,8 +1,11 @@
 import { createCellClimateNormalsReader } from "../../hostCore";
 import { getGoods, getMarkets, getSimulationMonth, getSimulationYear, getWorldContext } from "../economyContext";
 import { getBasicWorkersByBurg, getChildLabourEquivalent, getCraftWorkforce } from "./craftWorkforce";
+import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
+import type { Market } from "./marketTypes";
+import { getPeatGood, PEAT_HEAT_PER_BALE } from "./peatFuel";
 import { paySaltInputs, saltInvoice, saltOwnerCash } from "./saltFinance";
 import type { Saltworks } from "./saltLogisticsTypes";
 import { getSaltworksOperator } from "./saltOwnership";
@@ -18,6 +21,9 @@ export const SALT_PRODUCTION_POLICY = {
   boilingHoursPerKg: 82 / 34.5,
   boilingWoodKgPerKg: 60 / 34.5
 } as const;
+
+/** Wood piles one bag of boiled salt burns; Peat burns the same heat in bales. */
+export const SALT_BOILING_WOOD_PILES_PER_BAG = (60 * SALT_PRODUCTION_POLICY.boilingWoodKgPerKg) / WOOD_KG_PER_LOT;
 
 /** Evaporation proxy; precipitation seasonality is the host's uniform assumption. */
 export function saltSolarWeights(temperatures: ArrayLike<number>, rainMm: ArrayLike<number>): number[] {
@@ -68,13 +74,13 @@ export function createSaltProductionBudget() {
           : SALT_PRODUCTION_POLICY.boilingHoursPerKg;
     const pointsPerBag = (60 * hoursPerKg) / SALT_PRODUCTION_POLICY.hoursPerWorkerMonth / rate;
     const market = getMarkets().find(m => m.i === operation.marketId);
-    const wood = getGoods().find(g => g.name === "Wood" && isGoodEnabled(g));
-    const fuel = wood && market?.goods[wood.i];
-    const fuelPerBag =
-      operation.productionMethod === "boiling" ? (60 * SALT_PRODUCTION_POLICY.boilingWoodKgPerKg) / WOOD_KG_PER_LOT : 0;
+    const boiling = operation.productionMethod === "boiling";
+    // Boiling burns the cheaper of Wood and Peat for the heat first (saltworks-fuel-procurement.md §2).
+    const fuels = boiling ? saltFuelOptions(market) : [];
+    const fuelPerBag = boiling ? SALT_BOILING_WOOD_PILES_PER_BAG : 0;
     const wagesPerBag = ((pointsPerBag * rate) / 1000) * getSubsistenceWage(market);
-    const fuelCostPerBag = fuelPerBag * Math.max(0, fuel?.price ?? wood?.value ?? 0);
-    return { pointsPerBag, market, wood, fuel, fuelPerBag, wagesPerBag, fuelCostPerBag };
+    const fuelCostPerBag = (fuels.find(fuel => fuel.stock > 0) ?? fuels[0])?.costPerBag ?? 0;
+    return { pointsPerBag, market, fuels, fuelPerBag, wagesPerBag, fuelCostPerBag };
   };
   return {
     charged,
@@ -105,21 +111,38 @@ export function createSaltProductionBudget() {
     produce(operation: Saltworks, requestedBags: number): number {
       const crews = world.pack.burgs.filter(b => b?.i && !b.removed && b.market === operation.marketId);
       const availablePoints = crews.reduce((sum, b) => sum + (remaining.get(b.i ?? 0) ?? 0), 0);
-      const { pointsPerBag, market, wood, fuel, fuelPerBag, wagesPerBag, fuelCostPerBag } = inputs(operation);
+      const { pointsPerBag, market, fuels, fuelPerBag, wagesPerBag, fuelCostPerBag } = inputs(operation);
       if (!market) return 0;
-      const cashLimit = Math.max(0, saltOwnerCash(operation) - 0.02) / Math.max(1e-12, wagesPerBag + fuelCostPerBag);
+      // Fund at the dearest fuel in stock, since the cheaper may run out part-way.
+      const fundedFuelPerBag = Math.max(
+        fuelCostPerBag,
+        ...fuels.filter(fuel => fuel.stock > 0).map(fuel => fuel.costPerBag)
+      );
+      const cashLimit = Math.max(0, saltOwnerCash(operation) - 0.02) / Math.max(1e-12, wagesPerBag + fundedFuelPerBag);
       const output = Math.max(
         0,
         Math.min(
           requestedBags,
           cashLimit,
           availablePoints / pointsPerBag,
-          fuelPerBag > 0 ? Math.max(0, fuel?.stock ?? 0) / fuelPerBag : Infinity
+          fuelPerBag > 0 ? fuels.reduce((sum, fuel) => sum + fuel.stock / fuel.unitsPerBag, 0) : Infinity
         )
       );
       if (!(output > 0)) return 0;
       const wages = saltInvoice(output * wagesPerBag);
-      const fuelCost = saltInvoice(output * fuelCostPerBag);
+      // Draw the cheaper fuel first, the dearer for what it cannot cover.
+      let bagsLeft = fuelPerBag > 0 ? output : 0;
+      let fuelBill = 0;
+      const burned: { fuel: SaltFuel; units: number }[] = [];
+      for (const fuel of fuels) {
+        if (bagsLeft <= 0) break;
+        const bags = Math.min(bagsLeft, fuel.stock / fuel.unitsPerBag);
+        if (!(bags > 0)) continue;
+        burned.push({ fuel, units: bags * fuel.unitsPerBag });
+        fuelBill += bags * fuel.costPerBag;
+        bagsLeft -= bags;
+      }
+      const fuelCost = saltInvoice(fuelBill);
       paySaltInputs(
         operation,
         market,
@@ -136,14 +159,14 @@ export function createSaltProductionBudget() {
       }
       operation.monthlyLaborHours =
         (operation.monthlyLaborHours ?? 0) + points * rate * SALT_PRODUCTION_POLICY.hoursPerWorkerMonth;
-      if (fuel && wood && fuelPerBag > 0) {
-        const units = output * fuelPerBag;
-        fuel.stock = Math.max(0, fuel.stock - units);
-        operation.monthlyFuelWoodUnits = (operation.monthlyFuelWoodUnits ?? 0) + units;
+      for (const { fuel, units } of burned) {
+        fuel.row.stock = Math.max(0, fuel.row.stock - units);
+        // Fuel use stays counted in Wood piles of heat.
+        operation.monthlyFuelWoodUnits = (operation.monthlyFuelWoodUnits ?? 0) + units * fuel.heatPerUnit;
         recordGoodFlow({
           direction: "sink",
           category: "recipeInput",
-          goodId: wood.i,
+          goodId: fuel.goodId,
           units,
           marketId: operation.marketId
         });
@@ -151,4 +174,40 @@ export function createSaltProductionBudget() {
       return output;
     }
   };
+}
+
+interface SaltFuel {
+  goodId: number;
+  row: { stock: number; price: number };
+  /** Wood piles of heat one unit gives. */
+  heatPerUnit: number;
+  unitsPerBag: number;
+  costPerBag: number;
+  stock: number;
+}
+
+/** The market's boiling fuels, cheapest for a bag's heat first. */
+function saltFuelOptions(market: Market | undefined): SaltFuel[] {
+  if (!market) return [];
+  const options: SaltFuel[] = [];
+  const add = (good: Good | undefined, heatPerUnit: number) => {
+    if (!good) return;
+    market.goods[good.i] ??= { stock: 0, price: good.value };
+    const row = market.goods[good.i];
+    const unitsPerBag = SALT_BOILING_WOOD_PILES_PER_BAG / heatPerUnit;
+    options.push({
+      goodId: good.i,
+      row,
+      heatPerUnit,
+      unitsPerBag,
+      costPerBag: unitsPerBag * Math.max(0, row.price ?? good.value),
+      stock: Math.max(0, row.stock ?? 0)
+    });
+  };
+  add(
+    getGoods().find(g => g.name === "Wood" && isGoodEnabled(g)),
+    1
+  );
+  add(getPeatGood(), PEAT_HEAT_PER_BALE);
+  return options.sort((a, b) => a.costPerBag - b.costPerBag || a.goodId - b.goodId);
 }

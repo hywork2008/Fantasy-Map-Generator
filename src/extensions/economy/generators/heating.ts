@@ -22,10 +22,12 @@ import {
   getWorldContext
 } from "../economyContext";
 import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
+import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { creditRuralHouseholdWealth } from "./householdWealth";
 import type { HeatingLedger, Market } from "./marketTypes";
+import { getPeatGood, PEAT_HEAT_PER_BALE } from "./peatFuel";
 
 /** Key that ties rural production's monthly Wood record to the same month's heating. */
 export function getWoodSupplyMonthKey(): number {
@@ -212,6 +214,24 @@ function drawFuel(market: Market, goodId: number | undefined, requested: number)
   return consumed;
 }
 
+/** The market's Wood and Peat, cheapest for the heat first. */
+function localHeatingFuels(
+  market: Market,
+  wood: Good | undefined,
+  peat: Good | undefined
+): { goodId: number; heatPerUnit: number; price: number }[] {
+  const fuels: { goodId: number; heatPerUnit: number; price: number }[] = [];
+  if (wood)
+    fuels.push({ goodId: wood.i, heatPerUnit: 1, price: Math.max(0, market.goods[wood.i]?.price ?? wood.value) });
+  if (peat)
+    fuels.push({
+      goodId: peat.i,
+      heatPerUnit: PEAT_HEAT_PER_BALE,
+      price: Math.max(0, market.goods[peat.i]?.price ?? peat.value)
+    });
+  return fuels.sort((a, b) => a.price / a.heatPerUnit - b.price / b.heatPerUnit || a.goodId - b.goodId);
+}
+
 /** Returns the persisted heating record for a market, if it has settled at least once. */
 export function getHeatingLedger(marketId: number): HeatingLedger | undefined {
   return getMarkets().find(market => market.i === marketId)?.heatingLedger;
@@ -255,6 +275,7 @@ function recordHeatingDraw(goodId: number, units: number, marketId: number): voi
 export function settleMonthlyHeating(): void {
   const wood = getGoods().find(good => good.name === "Wood" && isGoodEnabled(good));
   const coal = getGoods().find(good => good.name === "Coal" && isGoodEnabled(good));
+  const peat = getPeatGood();
   const monthKey = getWoodSupplyMonthKey();
 
   const demands = getMonthlyHouseholdFuelDemands();
@@ -267,46 +288,72 @@ export function settleMonthlyHeating(): void {
       market.woodSupply?.monthKey === monthKey
         ? Math.min(demand.ruralDemand, Math.max(0, market.woodSupply.ruralFuelWood))
         : 0;
+    // Bog and moor households burn the peat they cut themselves (peatSupply.ts), in Wood piles of heat.
+    const selfSuppliedPeat =
+      market.peatSupply?.monthKey === monthKey
+        ? Math.min(
+            Math.max(0, demand.ruralDemand - selfSuppliedWood),
+            Math.max(0, market.peatSupply.ruralFuelPeat) * PEAT_HEAT_PER_BALE
+          )
+        : 0;
+    // Wood and Peat are both cut in the countryside; buyers take the cheaper heat first.
+    const localFuels = localHeatingFuels(market, wood, peat);
 
-    // Rural households take what their own forest could not give from the market. They buy from
-    // their own countryside's woodcutters, so the money stays in the same rural purse.
-    const ruralMarketNeed = Math.max(0, demand.ruralDemand - selfSuppliedWood);
-    const ruralWood = drawFuel(market, wood?.i, ruralMarketNeed);
-    const ruralCoal = drawFuel(market, coal?.i, Math.max(0, ruralMarketNeed - ruralWood) / COAL_HEAT_PER_UNIT);
-    const ruralUnmet = Math.max(0, ruralMarketNeed - ruralWood - ruralCoal * COAL_HEAT_PER_UNIT);
+    // Rural households take what their own forest and bog could not give from the market. They buy
+    // from their own countryside's woodcutters and peat cutters, so the money stays in the same purse.
+    const ruralMarketNeed = Math.max(0, demand.ruralDemand - selfSuppliedWood - selfSuppliedPeat);
+    let ruralLocalHeat = 0;
+    let ruralWood = 0;
+    let ruralPeat = 0;
+    for (const fuel of localFuels) {
+      const units = drawFuel(market, fuel.goodId, (ruralMarketNeed - ruralLocalHeat) / fuel.heatPerUnit);
+      ruralLocalHeat += units * fuel.heatPerUnit;
+      if (fuel.goodId === wood?.i) ruralWood += units;
+      else ruralPeat += units;
+    }
+    const ruralCoal = drawFuel(market, coal?.i, Math.max(0, ruralMarketNeed - ruralLocalHeat) / COAL_HEAT_PER_UNIT);
+    const ruralUnmet = Math.max(0, ruralMarketNeed - ruralLocalHeat - ruralCoal * COAL_HEAT_PER_UNIT);
 
     // Towns pay. Each town asks for what its purse covers; a short stock is shared pro rata.
-    const woodPrice = wood ? Math.max(0, market.goods[wood.i]?.price ?? wood.value) : 0;
     const coalPrice = coal ? Math.max(0, market.goods[coal.i]?.price ?? coal.value) : 0;
     const needs = getBurgFuelNeeds(market);
-    const woodWanted = needs.map(need => {
-      const total = need.heat + need.cooking;
-      return woodPrice > 0 ? Math.min(total, getHouseholdWealth(need.burgId) / woodPrice) : total;
-    });
-    const woodStock = wood ? Math.max(0, market.goods[wood.i]?.stock ?? 0) : 0;
-    const woodWantedTotal = woodWanted.reduce((sum, units) => sum + units, 0);
-    const woodShare = woodWantedTotal > 0 ? Math.min(1, woodStock / woodWantedTotal) : 0;
+    const purses = needs.map(need => getHouseholdWealth(need.burgId));
+    const heatLeftByBurg = needs.map(need => need.heat + need.cooking);
     let urbanWood = 0;
+    let urbanPeat = 0;
     let urbanCoal = 0;
     let urbanUnmet = 0;
     let woodRevenue = 0;
     let coalRevenue = 0;
+    for (const fuel of localFuels) {
+      const wanted = needs.map((_, index) => {
+        const units = heatLeftByBurg[index] / fuel.heatPerUnit;
+        return fuel.price > 0 ? Math.min(units, purses[index] / fuel.price) : units;
+      });
+      const stock = Math.max(0, market.goods[fuel.goodId]?.stock ?? 0);
+      const wantedTotal = wanted.reduce((sum, units) => sum + units, 0);
+      const share = wantedTotal > 0 ? Math.min(1, stock / wantedTotal) : 0;
+      needs.forEach((need, index) => {
+        const units = drawFuel(market, fuel.goodId, wanted[index] * share);
+        const paid = debitHouseholdWealth(need.burgId, rn(units * fuel.price, 2));
+        purses[index] = Math.max(0, purses[index] - paid);
+        heatLeftByBurg[index] = Math.max(0, heatLeftByBurg[index] - units * fuel.heatPerUnit);
+        woodRevenue += paid;
+        if (fuel.goodId === wood?.i) urbanWood += units;
+        else urbanPeat += units;
+      });
+    }
     needs.forEach((need, index) => {
-      const total = need.heat + need.cooking;
-      const woodUnits = drawFuel(market, wood?.i, woodWanted[index] * woodShare);
-      const woodPaid = debitHouseholdWealth(need.burgId, rn(woodUnits * woodPrice, 2));
-      const heatLeft = Math.max(0, total - woodUnits);
+      const heatLeft = heatLeftByBurg[index];
       const coalAffordable = coalPrice > 0 ? getHouseholdWealth(need.burgId) / coalPrice : Infinity;
       const coalUnits = drawFuel(market, coal?.i, Math.min(heatLeft / COAL_HEAT_PER_UNIT, coalAffordable));
       const coalPaid = debitHouseholdWealth(need.burgId, rn(coalUnits * coalPrice, 2));
-      const unmet = Math.max(0, total - woodUnits - coalUnits * COAL_HEAT_PER_UNIT);
+      const unmet = Math.max(0, heatLeft - coalUnits * COAL_HEAT_PER_UNIT);
       // Cooking comes first: the shortfall falls on heating.
       const unheated = Math.min(need.heat, unmet);
       need.burg.coldExposure = rn(need.heat > 0 ? clamp01(unheated / need.heat) * clamp01(need.coldness) : 0, 4);
-      urbanWood += woodUnits;
       urbanCoal += coalUnits;
       urbanUnmet += unmet;
-      woodRevenue += woodPaid;
       coalRevenue += coalPaid;
     });
     // A market without a food ledger has no rural purse yet; its merchants keep the Wood money too.
@@ -320,10 +367,13 @@ export function settleMonthlyHeating(): void {
     }
 
     if (wood) recordHeatingDraw(wood.i, ruralWood + urbanWood, market.i);
+    if (peat) recordHeatingDraw(peat.i, ruralPeat + urbanPeat, market.i);
     if (coal) recordHeatingDraw(coal.i, ruralCoal + urbanCoal, market.i);
 
     const heatingDemand = demand.urbanDemand + demand.ruralDemand;
-    const woodConsumption = selfSuppliedWood + ruralWood + urbanWood;
+    // Peat burned is counted with Wood, in Wood piles of heat.
+    const woodConsumption =
+      selfSuppliedWood + ruralWood + urbanWood + selfSuppliedPeat + (ruralPeat + urbanPeat) * PEAT_HEAT_PER_BALE;
     const coalConsumption = ruralCoal + urbanCoal;
     const unmetHeating = ruralUnmet + urbanUnmet;
     const coalHeatShare = heatingDemand > 0 ? Math.min(1, (coalConsumption * COAL_HEAT_PER_UNIT) / heatingDemand) : 0;

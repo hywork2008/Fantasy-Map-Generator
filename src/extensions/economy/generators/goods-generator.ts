@@ -254,6 +254,10 @@ const shipGoodValue = (shipClassId: string): number => {
 /** Ink in a book or an artwork: the half litre it took of the 1 L bottle, in 120 L barrels. */
 const INK_BARRELS_PER_BOOK = 0.5 / 120;
 
+/** Value of a 200 kg Peat bale: Wood's value (1 per 6,500 kg pile) for the same heat. */
+const PEAT_BALE_VALUE = 0.03;
+const LEGACY_PEAT_BALE_VALUE = 2;
+
 export const GOODS_DATA: GoodData[] = [
   {
     name: "Wood",
@@ -2184,7 +2188,9 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["fuel"],
     icon: "good-peat",
     color: "#5c4938",
-    value: 2,
+    // A 200 kg bale gives the heat of 200/6,500 of a Wood pile; priced at Wood's value per heat
+    // (docs/plan/saltworks-fuel-procurement.md §2.3).
+    value: PEAT_BALE_VALUE,
     chance: 3,
     distribution: 'biomeTag("wetland") && biomeTag("cold") || biomeTag("wetland") && random(35)',
     unit: "bale",
@@ -5290,6 +5296,14 @@ export function migrateWoolBlanketGoods(): boolean {
   const cloth = goods.find(entry => entry.name === "Wool Cloth");
   good.recipes = cloth ? [{ [cloth.i]: TEXTILE_RECIPES[good.name][0]["Wool Cloth"] }] : [];
   goods.push(good);
+  return true;
+}
+
+/** Reprices Peat from its old luxury-like value to fuel at Wood's value per heat. */
+export function migratePeatFuelValue(): boolean {
+  const peat = getGoods().find(good => good.name === "Peat");
+  if (!peat || peat.value !== LEGACY_PEAT_BALE_VALUE) return false;
+  peat.value = PEAT_BALE_VALUE;
   return true;
 }
 

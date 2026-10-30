@@ -3,6 +3,7 @@ import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
+  getGoods,
   getMarkets,
   initEconomyContext,
   setBurgMarketLedgers,
@@ -170,6 +171,22 @@ describe("household heating", () => {
       coalSmokeExposure: ledger.coalSmokeExposure
     });
     expect(smoky).toBeGreaterThan(base);
+  });
+
+  it("burns the cheaper heat of Wood and Peat before Coal, and pays the countryside for Peat", () => {
+    installMarket(-10, 0, 100, 1_000);
+    setGoods([...getGoods(), { i: 3, name: "Peat", value: 0.03, tags: ["fuel"], unit: "bale", icon: "", color: "" }]);
+    // A bale is 200/6,500 of a pile's heat: at 0.02 Peat is cheaper heat than Wood at 1.
+    getMarkets()[0].goods[3] = { stock: 1e6, price: 0.02 };
+    settleMonthlyHeating();
+    const market = getMarkets()[0];
+    expect(market.goods[3].stock).toBeLessThan(1e6);
+    expect(market.goods[2].stock).toBe(100);
+    expect(market.heatingLedger!.coalConsumption).toBe(0);
+    expect(market.heatingLedger!.unmetHeating).toBe(0);
+    const spent = 1_000 - getHouseholdWealth(1);
+    expect(spent).toBeGreaterThan(0);
+    expect(getRuralHouseholdWealth(market) + (market.marketTreasury?.balance ?? 0)).toBeCloseTo(spent, 2);
   });
 
   it("turns sustained cold residence into forestry, heating, and insulation knowledge", () => {
