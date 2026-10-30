@@ -91,10 +91,17 @@ import {
   WORKABLE_DAYS_PER_ADULT
 } from "./agriculturalLandUse";
 import { isGoodEnabled } from "./goods-generator";
-import { calculateHerdDietShare } from "./herdDiet";
+import { calculateHerdDietShare, getMeatSoldShare } from "./herdDiet";
 import { calculateDesiredPastureAreaHectares, getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
 import { getWetPastoralFieldCapacityMultiplier } from "./ruralDiet";
 import { allocateRuralOccupations, type RuralOccupationAllocation } from "./ruralOccupationAllocation";
+
+/** Each cell's share of its market's slaughtered meat the towns bought (herdDiet.ts). */
+function meatSoldShareByCell(): (cellId: number) => number {
+  const column = getMarketCellColumn();
+  const shares = new Map(getMarkets().map(market => [market.i, getMeatSoldShare(market)]));
+  return cellId => shares.get(column[cellId]) ?? 0;
+}
 
 /**
  * Broadcasts each Market's agTechStock (docs/plan/rural-agtech-investment.md) to its cells so
@@ -463,7 +470,8 @@ export class DevelopmentPotentialModule {
     world.pack.cells.herdDietShare = calculateHerdDietShare(
       agriculture.wetPastoralDietShare,
       cellId => Math.max(0, world.pack.cells.pop[cellId] ?? 0) * Math.max(1, world.populationRate || 1),
-      getFaunaStockTable()
+      getFaunaStockTable(),
+      meatSoldShareByCell()
     );
     setCultivatedArea(agriculture.cultivatedArea);
     setFloweringForageArea(agriculture.floweringForageArea);

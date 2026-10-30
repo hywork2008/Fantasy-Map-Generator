@@ -107,6 +107,11 @@ export interface Market {
     stockAfterSupply: number;
     smoothedDraw: number;
   };
+  /**
+   * Fresh Meat the slaughtered offtake gave and the towns bought, in kg, this simulation year and
+   * the share sold in the last complete one (docs/plan/livestock-meat-sales.md §3.3).
+   */
+  meatSales?: { year: number; producedKg: number; soldKg: number; lastSoldShare?: number };
   /** Physical intake, household use, processing and spoilage for dairy, vine, and ale goods. */
   foodProcessingLedger?: FoodProcessingLedger;
   /** Returnable containers remain in circulation; recipe inputs only cover loss and repair. */

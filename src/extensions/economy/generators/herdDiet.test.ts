@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateHerdDietShare, getHerdFoodKcal } from "./herdDiet";
+import { calculateHerdDietShare, getHerdFoodKcal, getMeatSoldShare } from "./herdDiet";
 
 describe("herd diet share", () => {
   const herd = (heads: number) => ({ young: heads * 0.4, breeding: heads * 0.55, old: heads * 0.05 });
@@ -19,5 +19,22 @@ describe("herd diet share", () => {
 
   it("keeps the rainfall share without a herd table", () => {
     expect(Array.from(calculateHerdDietShare(Float32Array.from([0.2]), () => 1, null))).toEqual([Math.fround(0.2)]);
+  });
+
+  it("does not let the household eat the meat its market sold to the towns", () => {
+    const stock = { "0:Cattle": herd(1) };
+    const kept = calculateHerdDietShare(Float32Array.from([0.9]), () => 1, stock)[0];
+    const sold = calculateHerdDietShare(
+      Float32Array.from([0.9]),
+      () => 1,
+      stock,
+      () => 1
+    )[0];
+    const milkOnly = getHerdFoodKcal({ Cattle: herd(1) }, 0) / needPerPerson;
+    expect(sold).toBeCloseTo(milkOnly, 5);
+    expect(sold).toBeLessThan(kept);
+    // The last closed year wins over the running one.
+    expect(getMeatSoldShare({ meatSales: { year: 2, producedKg: 100, soldKg: 50, lastSoldShare: 0.2 } })).toBe(0.2);
+    expect(getMeatSoldShare({ meatSales: { year: 1, producedKg: 100, soldKg: 50 } })).toBe(0.5);
   });
 });

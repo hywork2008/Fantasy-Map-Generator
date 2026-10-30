@@ -10,6 +10,7 @@
 
 import { ANNUAL_LITERS_PER_LACTATING_FEMALE, LACTATING_SHARE_OF_BREEDING_COHORT } from "./dairyProductionPolicy";
 import type { FaunaCohorts } from "./faunaPopulationTypes";
+import type { Market } from "./marketTypes";
 import { DAILY_CALORIC_NEED_KCAL, MILK_KCAL_PER_LITER } from "./nutritionAudit";
 import { EXPERIMENTAL_CARCASS_PROFILES, WINTER_SLAUGHTER_POLICY } from "./winterSlaughterPolicy";
 
@@ -33,8 +34,22 @@ export const HERD_MEAT_OFFTAKE: Readonly<Record<string, { readonly share: number
   Goats: { share: 0.25, edibleKg: 9 }
 };
 
-/** Food energy a cell's herds give in a year, in kcal. */
-export function getHerdFoodKcal(herds: Readonly<Record<string, FaunaCohorts | undefined>>): number {
+/**
+ * Share of a market's slaughtered meat its towns bought: the last complete year, or this year's
+ * so far before one has closed (docs/plan/livestock-meat-sales.md §3.3).
+ */
+export function getMeatSoldShare(market: Pick<Market, "meatSales">): number {
+  const sales = market.meatSales;
+  if (!sales) return 0;
+  if (sales.lastSoldShare !== undefined) return sales.lastSoldShare;
+  return sales.producedKg > 0 ? Math.min(1, sales.soldKg / sales.producedKg) : 0;
+}
+
+/**
+ * Food energy a cell's herds give in a year, in kcal. `meatKept` is the share of the meat that stays
+ * at home, the rest sold to the towns.
+ */
+export function getHerdFoodKcal(herds: Readonly<Record<string, FaunaCohorts | undefined>>, meatKept = 1): number {
   let kcal = 0;
   for (const [species, herd] of Object.entries(herds)) {
     if (!herd) continue;
@@ -46,6 +61,7 @@ export function getHerdFoodKcal(herds: Readonly<Record<string, FaunaCohorts | un
         Math.max(0, herd.young + herd.breeding + herd.old) *
         meat.share *
         meat.edibleKg *
+        meatKept *
         WINTER_SLAUGHTER_POLICY.dietaryKcalPerKg;
   }
   return kcal;
@@ -53,12 +69,14 @@ export function getHerdFoodKcal(herds: Readonly<Record<string, FaunaCohorts | un
 
 /**
  * Milk-and-meat diet share the herds can carry, never above the rainfall share. Without a herd table
- * (simplified rural ecosystem) the rainfall share stands as before.
+ * (simplified rural ecosystem) the rainfall share stands as before. `meatSoldShare` is the share of a
+ * cell's meat sold to the towns, which the household no longer eats.
  */
 export function calculateHerdDietShare(
   wetPastoralDietShare: ArrayLike<number>,
   realPeople: (cellId: number) => number,
-  stock: Readonly<Record<string, FaunaCohorts>> | null
+  stock: Readonly<Record<string, FaunaCohorts>> | null,
+  meatSoldShare: (cellId: number) => number = () => 0
 ): Float32Array {
   const shares = Float32Array.from(wetPastoralDietShare);
   if (!stock) return shares;
@@ -68,7 +86,7 @@ export function calculateHerdDietShare(
     const herds = Object.fromEntries(
       Object.keys(HERD_MEAT_OFFTAKE).map(species => [species, stock[`${cellId}:${species}`]])
     );
-    shares[cellId] = need > 0 ? Math.min(shares[cellId], getHerdFoodKcal(herds) / need) : 0;
+    shares[cellId] = need > 0 ? Math.min(shares[cellId], getHerdFoodKcal(herds, 1 - meatSoldShare(cellId)) / need) : 0;
   }
   return shares;
 }

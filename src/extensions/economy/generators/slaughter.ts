@@ -19,6 +19,7 @@
 
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
+import { getSimulationYear } from "../context/economyApi";
 import { isWinterSlaughterExperimentEnabled } from "../context/winterSlaughter";
 import {
   getGoods,
@@ -251,7 +252,22 @@ function sellMeat(market: Market, meat: Good, units: number, towns: readonly Bur
     treasury.balance = rn(treasury.balance + revenue - farmers, 2);
     market.marketTreasury = treasury;
   }
+  recordMeatSales(market, units * WAIN_KG, sold * WAIN_KG);
   const sales = getOrCreateCumulativeGoodsSales();
   if (sales) sales[meat.i] = rn((sales[meat.i] ?? 0) + sold, 4);
   return sold;
+}
+
+/** Keeps the year's meat produced and sold; a new year closes the last one's sold share. */
+function recordMeatSales(market: Market, producedKg: number, soldKg: number): void {
+  const year = getSimulationYear();
+  const sales = market.meatSales;
+  if (!sales || sales.year !== year) {
+    const lastSoldShare =
+      sales && sales.producedKg > 0 ? rn(Math.min(1, sales.soldKg / sales.producedKg), 4) : sales?.lastSoldShare;
+    market.meatSales = { year, producedKg: 0, soldKg: 0, lastSoldShare };
+  }
+  const ledger = market.meatSales!;
+  ledger.producedKg = rn(ledger.producedKg + producedKg, 2);
+  ledger.soldKg = rn(ledger.soldKg + soldKg, 2);
 }

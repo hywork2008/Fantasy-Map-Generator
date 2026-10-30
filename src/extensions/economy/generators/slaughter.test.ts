@@ -21,9 +21,12 @@ function market(goods: Market["goods"]): Market {
   return { i: 1, centerBurgId: 1, color: "#000", goods };
 }
 
+const simulation = { currentYear: 1350 };
+
 describe("settleSlaughter", () => {
   beforeEach(() => {
-    initEconomyContext({ worldContext, simulationContext: { currentYear: 1350 } } as unknown as ExtensionAPI);
+    simulation.currentYear = 1350;
+    initEconomyContext({ worldContext, simulationContext: simulation } as unknown as ExtensionAPI);
   });
 
   afterEach(() => clearEconomyContext());
@@ -129,6 +132,20 @@ describe("settleSlaughter", () => {
       // Nothing waits in stock for craft or trade, and the unsold meat earns nothing.
       expect(stall.goods[3].stock).toBe(0);
       expect(getHouseholdWealth(1)).toBeCloseTo(50 - budget, 1);
+    });
+
+    it("keeps the year's meat produced and sold, and closes the sold share when the year turns", () => {
+      const stall = setUp(1000);
+      settleSlaughter();
+      const kg = 10 * HERD_MEAT_OFFTAKE.Cattle.edibleKg;
+      expect(stall.meatSales).toMatchObject({ year: 1350, lastSoldShare: undefined });
+      expect(stall.meatSales?.producedKg).toBeCloseTo(kg, 1);
+      expect(stall.meatSales?.soldKg).toBeCloseTo(kg, 0);
+      simulation.currentYear = 1351;
+      stall.goods[1].stock = 10;
+      settleSlaughter();
+      expect(stall.meatSales?.year).toBe(1351);
+      expect(stall.meatSales?.lastSoldShare).toBeCloseTo(1, 3);
     });
   });
 });

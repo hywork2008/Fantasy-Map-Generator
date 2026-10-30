@@ -42,7 +42,14 @@
 - `npx tsc --noEmit -p .`: 既知のfogControls.tsの1件のほかはエラー無し。
 - goldenの基準値は更新していない。
 
-## 5. ファイル
+## 5. L2: `herdDiet`から町に売った肉を差し引く（同日）
+
+- 市場ごとに、その年に潰した肉と町が買った肉（kg）を`market.meatSales`に記録し、年が変わると前の年の売れた割合（`lastSoldShare`）を残す。
+- 年ごとの`herdDiet`の計算（`developmentPotential.ts`の`storeAgriculture`）で、セルの群れの肉に（1 − 市場の売れた割合）を掛ける。閉じた年が無いうちは、その年の途中までの割合を使う。
+- 固定入力24か月（`scripts/auditMarketFoodBudget.mts`、L1の後との比較）: 農村の主食の必要は1301年+77、1302年+937（1.15百万の0.08%）。都市の主食の充足（99.78%・99.82%）と町のお金の不足（584・473）は変わらない。L0の見込み（重なりは取り分の2〜7%）どおり小さい。
+- テスト: `herdDiet.test.ts`に1件（売った肉を食べない、閉じた年の割合を先に使う）、`slaughter.test.ts`に1件（年の記録と年の変わり目）。`slaughter`・`herdDiet`・`ruralDiet`の13件、`developmentPotential.test.ts`の6件が成功。
+
+## 6. ファイル
 
 `livestock-meat-sales-l1-20261031/`
 
@@ -53,3 +60,4 @@
 | meatl1-after.jsonl | 変更後の24か月 | 68571b36d07dd98612d022812fb27197fb7e29587f6b56e050e0481a5028cc24 |
 | food-before-24.json | `scripts/auditMarketFoodBudget.mts`の基準の24か月 | 29b04cac7466bd4b23ac5f38f462eaa31076767be30f6a733bf4e43da2c99f9b |
 | food-after-24.json | 同じく変更後 | 21ed1a00075af6f58dd0b026ff43ad0e83b0d416d7d0b0bd1cdcf091bd15d0d3 |
+| food-l2-24.json | 同じくL2の後 | 8092a058c0dc8f1050547a2cad3c6590c62ac36a56a43374f22caf5bfe6f40af |
