@@ -110,6 +110,8 @@ describe("settleSlaughter", () => {
 
     it("sells the carcasses to a town that can pay and pays the farm families their share", () => {
       const stall = setUp(1000);
+      // An empty shelf priced up by the old stock rule must not raise the bill.
+      stall.goods[3] = { stock: 0, price: 7.5 };
       const result = settleSlaughter();
       expect(result.meat).toBeCloseTo(meatWains, 6);
       // The town wants more than ten cattle give, so it takes all of it.
@@ -119,7 +121,7 @@ describe("settleSlaughter", () => {
       expect(getHouseholdWealth(1)).toBeCloseTo(1000 - bill, 1);
       expect(getRuralHouseholdWealth(stall)).toBeCloseTo(bill * FARMGATE_PRICE_SHARE, 1);
       expect(stall.marketTreasury?.balance).toBeCloseTo(bill * (1 - FARMGATE_PRICE_SHARE), 1);
-      expect(stall.goods[3].stock).toBe(0);
+      expect(stall.goods[3]).toEqual({ stock: 0, price: 2.5 });
     });
 
     it("lets a poor town buy only from what is left after its staple bill, and the rest is eaten at home", () => {

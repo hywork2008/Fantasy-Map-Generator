@@ -69,10 +69,12 @@ export function customerBuyPrice(midPrice: number, burgId?: number, goodId?: num
 /**
  * Salt is priced once a month from its need and stock (saltFinance.ts `priceSalt`, which smooths from
  * the last price). Trade and purchase pressure must not move it, or one large deal carried a
- * collapsed price into the following months (docs/plan/salt-supply-calibration.md §3.12).
+ * collapsed price into the following months (docs/plan/salt-supply-calibration.md §3.12). Fresh
+ * Meat is sold the month it is killed and never stands in stock (slaughter.ts), so an empty shelf
+ * is not a shortage; it is priced at sale (docs/plan/livestock-meat-sales.md §4.4).
  */
 export function hasSettledPrice(good: Pick<Good, "name">): boolean {
-  return good.name === "Salt";
+  return good.name === "Salt" || good.name === "Meat";
 }
 
 export const PRICE_FLOOR_FACTOR = 0.25;

@@ -1593,7 +1593,7 @@ export class MarketsModule {
     // stapleFood (Grain) pricing is owned by foodLedgerConsumption.ts's monthly settlement.
     const goods = getGoods()
       .filter(isGoodEnabled)
-      .filter(good => !good.tags.includes("stapleFood") && good.name !== "Salt");
+      .filter(good => !good.tags.includes("stapleFood") && !hasSettledPrice(good));
     const consumerDemandFactors = this.collectConsumerDemand(goods);
     const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
     const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(goods);
@@ -1726,7 +1726,7 @@ export class MarketsModule {
       const population = populationByMarket[market.i] || 0;
       const priceLevel = getMarketPriceLevel(market);
       for (const good of getGoods().filter(isGoodEnabled)) {
-        if (good.tags.includes("stapleFood") || good.name === "Salt") continue;
+        if (good.tags.includes("stapleFood") || hasSettledPrice(good)) continue;
         // These are source-cell farmgate references, not empty trade pools awaiting imports.
         if (good.name === "Apples" || good.name === "Pears") continue;
         const marketGood = this.getMarketGood(market, good);
@@ -1756,7 +1756,7 @@ export class MarketsModule {
       const multiplier = getMoneyPriceLevelForMarket(market);
       if (multiplier === 1) continue;
       for (const good of getGoods().filter(isGoodEnabled)) {
-        if (good.tags.includes("stapleFood") || good.name === "Salt") continue;
+        if (good.tags.includes("stapleFood") || hasSettledPrice(good)) continue;
         const marketGood = this.getMarketGood(market, good);
         marketGood.price = rn(
           minmax(marketGood.price * multiplier, good.value * PRICE_FLOOR_FACTOR, good.value * PRICE_CEILING_FACTOR),

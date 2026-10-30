@@ -29,6 +29,7 @@ import {
   getWorldContext
 } from "../economyContext";
 import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
+import { getMarketPriceLevel } from "./currencySufficiency";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { recordFoodMarketIntake } from "./foodProcessingLedger";
 import { FARMGATE_PRICE_SHARE } from "./foodProduction";
@@ -198,9 +199,11 @@ function sellMeat(market: Market, meat: Good, units: number, towns: readonly Bur
   const world = getWorldContext();
   const rate = Math.max(1, world.populationRate ?? 1);
   const urbanization = Math.max(1, world.urbanization ?? 1);
-  const row = market.goods[meat.i] ?? { stock: 0, price: meat.value };
+  // Priced at its value in this market's money, not from an empty shelf (marketPricing.ts hasSettledPrice).
+  const price = Math.max(0.0001, rn(meat.value * getMarketPriceLevel(market), 2));
+  const row = market.goods[meat.i] ?? { stock: 0, price };
+  row.price = price;
   market.goods[meat.i] = row;
-  const price = Math.max(0.0001, row.price);
   recordGoodFlow({
     direction: "source",
     category: "burgCraft",
