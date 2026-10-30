@@ -1,6 +1,7 @@
 import { minmax, rn } from "../../hostUtils";
 import { getBurgMarketLedger } from "./burgMarketLedgers";
 import { GOODS_DATA, Goods } from "./goods-generator";
+import type { Good } from "./goodsGeneratorTypes";
 
 export const MARKET_MARGIN = 0.1;
 
@@ -63,6 +64,15 @@ export function getWarPriceModifier(burgId: number | undefined, goodId: number |
 export function customerBuyPrice(midPrice: number, burgId?: number, goodId?: number): number {
   const warMod = getWarPriceModifier(burgId, goodId);
   return rn(midPrice * warMod * (1 + MARKET_MARGIN), 2);
+}
+
+/**
+ * Salt is priced once a month from its need and stock (saltFinance.ts `priceSalt`, which smooths from
+ * the last price). Trade and purchase pressure must not move it, or one large deal carried a
+ * collapsed price into the following months (docs/plan/salt-supply-calibration.md §3.12).
+ */
+export function hasSettledPrice(good: Pick<Good, "name">): boolean {
+  return good.name === "Salt";
 }
 
 export const PRICE_FLOOR_FACTOR = 0.25;

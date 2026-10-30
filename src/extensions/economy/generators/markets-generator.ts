@@ -97,6 +97,7 @@ import {
   applyMarketPressure,
   customerBuyPrice,
   getWarPriceModifier,
+  hasSettledPrice,
   MARKET_MARGIN,
   PRICE_CEILING_FACTOR,
   PRICE_FLOOR_FACTOR
@@ -126,6 +127,7 @@ import {
   MerchantTradeCapital
 } from "./merchantTradeCapital";
 import { LAND_HIRE_FREIGHT_MULTIPLIER, MerchantTransportAssets } from "./merchantTransportAssets";
+import { moveProvisionsToNewMarkets } from "./newMarketProvisions";
 import { getPeatGood } from "./peatFuel";
 import { supplyRuralPeat } from "./peatSupply";
 import { expectedPortStorageUnitCost } from "./portWarehouses";
@@ -658,6 +660,7 @@ export class MarketsModule {
     const changed = previous.length !== next.length || previous.some((marketId, cellId) => marketId !== next[cellId]);
     if (changed) {
       moveRuralPursesWithFarms(previous, next);
+      moveProvisionsToNewMarkets(previous, next);
       this.invalidateRuralProductionCache();
     }
     return changed;
@@ -751,6 +754,7 @@ export class MarketsModule {
     const previous = getMarketCellColumn();
     const territories = this.expandMarkets(markets);
     moveRuralPursesWithFarms(previous, territories);
+    moveProvisionsToNewMarkets(previous, territories);
     this.invalidateRuralProductionCache();
     return territories;
   }
@@ -2704,8 +2708,10 @@ export class MarketsModule {
       deals.push(deal);
       observe?.({ stage: "deal", ...leg, units, value: units * landedCost });
 
-      exporterGood.price = rn(this.applyMarketPressure(good.value, exporterGood.price, units), 2);
-      importerGood.price = rn(this.applyMarketPressure(good.value, importerGood.price, -units), 2);
+      if (!hasSettledPrice(good)) {
+        exporterGood.price = rn(this.applyMarketPressure(good.value, exporterGood.price, units), 2);
+        importerGood.price = rn(this.applyMarketPressure(good.value, importerGood.price, -units), 2);
+      }
       importerStockAdjustments.set(opportunity.importer.i, importerAdj + units);
       // Note: importerGood.stock is NO LONGER instantly increased. Caravans physically transport it.
     }

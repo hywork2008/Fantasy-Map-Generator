@@ -28,6 +28,7 @@ import { getCouncilSupport } from "./councilAssembly";
 import { Goods } from "./goods-generator";
 import { recordGoodFlow, setGoodFlowObserver } from "./goodsBalanceLedger";
 import { getRuralHouseholdWealth } from "./householdWealth";
+import { buyMarketGoods } from "./marketPurchases";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import { createPersonalCashState } from "./personalCashLedger";
@@ -335,6 +336,16 @@ describe("SaltLogisticsModule", () => {
     SaltLogistics.settleMonth();
     const ordered = new Set(getSaltShipments().map(shipment => shipment.importerStateId));
     expect(ordered).toEqual(new Set([1, 2]));
+  });
+
+  it("keeps the settled salt price when a town buys salt from the market", () => {
+    SaltLogistics.generate();
+    SaltLogistics.settleMonth();
+    const market = getMarkets()[0];
+    const before = market.goods[1].price;
+    const deal = buyMarketGoods({ burg: worldContext.pack.burgs[1], good: Goods.get(1)!, units: 50 }, market);
+    expect(deal).not.toBeNull();
+    expect(market.goods[1].price).toBe(before);
   });
 
   function seedOwners(): void {

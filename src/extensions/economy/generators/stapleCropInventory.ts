@@ -137,6 +137,35 @@ export function drawTradeableStapleCrop(ledger: FoodLedger, goodId: number, unit
   return rn(fromOverflow + fromStored, 2);
 }
 
+/**
+ * Moves `share` of every crop's stored buckets, age by age and at their unit cost, from one ledger
+ * to another; overflow heaped outside the granary stays. Returns the units moved.
+ */
+export function transferStapleCropShare(from: FoodLedger, to: FoodLedger, share: number): number {
+  const fraction = Math.min(1, Math.max(0, share));
+  if (!(fraction > EPSILON)) return 0;
+  let moved = 0;
+  for (const [goodId, source] of Object.entries(from.stapleCropInventories ?? {})) {
+    const target = getStapleCropInventory(to, Number(goodId));
+    for (const age of OLDEST_FIRST) {
+      const units = rn(Math.max(0, source[age] ?? 0) * fraction, 2);
+      if (!(units > EPSILON)) continue;
+      const held = Math.max(0, target[age] ?? 0);
+      target[`${age}UnitCost`] = rn(
+        (held * (target[`${age}UnitCost`] ?? 0) + units * (source[`${age}UnitCost`] ?? 0)) / (held + units),
+        4
+      );
+      target[age] = rn(held + units, 2);
+      source[age] = rn(Math.max(0, (source[age] ?? 0) - units), 2);
+      moved += units;
+    }
+  }
+  refreshLegacyFoodLedgerTotals(from);
+  refreshLegacyFoodLedgerTotals(to);
+  from.exportable = rn(Math.max(0, from.exportable - moved), 2);
+  return rn(moved, 2);
+}
+
 /** Returns a player-sold physical crop to the newest Food Ledger bucket. */
 export function returnTradeableStapleCrop(ledger: FoodLedger, goodId: number, units: number, unitCost: number): void {
   if (!(units > EPSILON)) return;
