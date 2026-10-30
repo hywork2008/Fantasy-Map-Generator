@@ -108,6 +108,42 @@ select {
   touch-action: none;
 }
 
+.bv-scale-toolbar {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f7f4ecee;
+  border: 1px solid #b7b0a2;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.bv-scale-toolbar[hidden] {
+  display: none;
+}
+
+.bv-scale-toolbar button {
+  cursor: pointer;
+}
+
+.bv-scale-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.bv-physical-scale {
+  border-bottom: 1px solid #b7b0a2;
+  margin-bottom: 12px;
+}
+
 .bv-banner {
   position: absolute;
   left: 12px;

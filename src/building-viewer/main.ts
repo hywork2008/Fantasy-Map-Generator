@@ -100,6 +100,13 @@ import type { TownWaterMeshes } from "../city3d/three/waterMeshes";
 import type { HistoricalPeriod } from "../types/historicalPeriod";
 import { createModelComparison } from "./modelComparison";
 import { mountPerformancePanel } from "./performancePanel";
+import {
+  createReferencePerson,
+  fitStudyCamera,
+  REFERENCE_PERSON_HEIGHT_METERS,
+  studyBounds,
+  studyEnvelope
+} from "./physicalScale";
 import { sanitizeSvg } from "./svgSanitize";
 import {
   catalogueWikipedia,
@@ -329,6 +336,29 @@ ground.visible = false;
 scene.add(ground);
 const controls = new OrbitControls(camera, canvas);
 controls.maxPolarAngle = Math.PI / 2 - 0.05;
+const referencePerson = createReferencePerson();
+referencePerson.group.visible = false;
+scene.add(referencePerson.group);
+const scaleToolbar = document.createElement("div");
+scaleToolbar.className = "bv-scale-toolbar";
+scaleToolbar.hidden = true;
+const scaleCaption = document.createElement("label");
+const showHuman = document.createElement("input");
+showHuman.type = "checkbox";
+showHuman.checked = false;
+scaleCaption.append(showHuman, `Show human · ${REFERENCE_PERSON_HEIGHT_METERS.toFixed(2)} m`);
+const fitModelButton = document.createElement("button");
+fitModelButton.type = "button";
+fitModelButton.textContent = "Fit model";
+const humanScaleButton = document.createElement("button");
+humanScaleButton.type = "button";
+humanScaleButton.textContent = "Human scale";
+humanScaleButton.disabled = true;
+scaleToolbar.append(scaleCaption, fitModelButton, humanScaleButton);
+stage.append(scaleToolbar);
+let measuredBounds: THREE.Box3 | undefined;
+let scaleReady = false;
+let preserveScaleView = false;
 let massing: CityStructureMeshes | null = null;
 let regionalDetails: TownBuildingDetails | null = null;
 let studyWater: TownWaterMeshes | null = null;
@@ -338,8 +368,100 @@ let comparisonVariants: { id: string; levels: readonly { id: string; label: stri
   null;
 let comparisonModel: { path: string; quality: "low" | "high" } | null = null;
 
+function studyRoots(): THREE.Object3D[] {
+  const roots: THREE.Object3D[] = [];
+  if (massing) roots.push(massing.group);
+  if (regionalDetails) roots.push(regionalDetails.group);
+  if (studyWater) {
+    roots.push(studyWater.parent);
+    for (const mesh of [studyWater.land, studyWater.bank, studyWater.unknown]) if (mesh) roots.push(mesh);
+  }
+  return roots;
+}
+
+function fitMeasuredStudy(): void {
+  if (!measuredBounds) return;
+  const bounds = measuredBounds.clone();
+  if (referencePerson.group.visible) bounds.union(new THREE.Box3().setFromObject(referencePerson.group, true));
+  if (ground.visible) {
+    const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+    ground.geometry.dispose();
+    ground.geometry = new THREE.CircleGeometry(Math.max(Math.hypot(size.x, size.z) * 0.55, 2), 48);
+    ground.position.set(center.x, -0.05, center.z);
+  }
+  const direction = camera.position.clone().sub(controls.target);
+  if (direction.lengthSq() < 0.01) direction.set(1, 0.7, 1);
+  controls.target.copy(fitStudyCamera(camera, bounds, direction));
+  controls.update();
+}
+fitModelButton.addEventListener("click", fitMeasuredStudy);
+showHuman.addEventListener("change", () => {
+  referencePerson.group.visible = showHuman.checked && measuredBounds !== undefined;
+  humanScaleButton.disabled = !referencePerson.group.visible;
+  fitMeasuredStudy();
+});
+humanScaleButton.addEventListener("click", () => {
+  const target = referencePerson.group.position.clone().add(new THREE.Vector3(0, 0.9, 0));
+  camera.position.copy(target).add(new THREE.Vector3(2.8, 1.1, 4.2));
+  controls.target.copy(target);
+  controls.update();
+});
+canvas.addEventListener("click", event => {
+  if (!event.shiftKey || !measuredBounds || !showHuman.checked) return;
+  const rect = canvas.getBoundingClientRect();
+  const pointer = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(pointer, camera);
+  const roots = studyRoots();
+  const visible = (hit: THREE.Intersection) => {
+    for (let object: THREE.Object3D | null = hit.object; object; object = object.parent)
+      if (!object.visible) return false;
+    return true;
+  };
+  const hit = ray.intersectObjects(roots, true).find(visible);
+  if (!hit) return;
+  // Stand in front of the clicked wall, on the ground or a landing below it.
+  const offset = new THREE.Vector3(-ray.ray.direction.x, 0, -ray.ray.direction.z).normalize().multiplyScalar(0.35);
+  const feet = hit.point.clone().add(offset);
+  const downward = new THREE.Raycaster(feet.clone().add(new THREE.Vector3(0, 0.05, 0)), new THREE.Vector3(0, -1, 0));
+  const support = downward.intersectObjects(roots, true).find(visible);
+  feet.y = support?.point.y ?? 0;
+  referencePerson.group.position.copy(feet);
+});
+
 function appendFacts(...nodes: (Node | string)[]): void {
+  // Every family reports the displayed geometry, rather than its old camera-framing estimate.
   facts.append(...nodes);
+  if (!scaleReady) {
+    measuredBounds = studyBounds(studyRoots());
+    if (measuredBounds) {
+      referencePerson.group.position.set(measuredBounds.min.x - 0.8, 0, measuredBounds.max.z + 0.2);
+      referencePerson.group.visible = showHuman.checked;
+      humanScaleButton.disabled = !showHuman.checked;
+      scaleToolbar.hidden = false;
+      const summary = document.createElement("section");
+      summary.className = "bv-physical-scale";
+      summary.append(
+        fact("Study envelope", studyEnvelope(measuredBounds)),
+        fact("Scale", `1 unit = 1 m; human reference ${REFERENCE_PERSON_HEIGHT_METERS.toFixed(2)} m`),
+        fact(
+          "Axes",
+          "Width X × depth Z × height Y. Includes modelled site; excludes viewer ground and reference figure."
+        ),
+        fact(
+          "Reference placement",
+          "Enable Show human to display the 1.70 m figure. Feet start at Y = 0 m. Shift-click a surface to place it beside a door or on a deck, then choose Human scale."
+        )
+      );
+      facts.prepend(summary);
+      scaleReady = true;
+      if (!preserveScaleView) fitMeasuredStudy();
+    }
+  }
   if (facts.querySelector(".bv-comparison")) return;
   const root = new THREE.Group();
   // References only: do not reparent the visible model or its supplementary details.
@@ -390,6 +512,12 @@ function frame(record: Pick<BuildingRecord, "occupancyMeters">, height: number):
 }
 
 function clearMesh(preserveOptions = false): void {
+  preserveScaleView = preserveOptions;
+  scaleReady = false;
+  measuredBounds = undefined;
+  referencePerson.group.visible = false;
+  scaleToolbar.hidden = true;
+  ground.position.set(0, -0.05, 0);
   comparisonModel = null;
   comparisonVariants = null;
   modelComparison.clear();
@@ -789,7 +917,6 @@ stGeorgesButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", ST_GEORGES_CHAPEL.name),
     fact("Style", "English Perpendicular Gothic"),
-    fact("Study envelope", `${ST_GEORGES_CHAPEL.width} × ${ST_GEORGES_CHAPEL.depth} × ${ST_GEORGES_CHAPEL.height} m`),
     fact("Note", ST_GEORGES_CHAPEL.note, "St George's Chapel, Windsor Castle")
   );
   const source = document.createElement("a");
@@ -965,7 +1092,6 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
         fact("Model", definition.name),
         fact("Style", definition.style),
         fact("State", definition.state),
-        fact("Study envelope", `${definition.size.join(" × ")} m`),
         fact("Dimensions", definition.dimensions),
         fact("Note", definition.note, landmarkWikipedia[model.id])
       );
@@ -1012,7 +1138,6 @@ bojniceButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", BOJNICE.name),
     fact("Phase", "Romantic reconstruction, 1889–1910"),
-    fact("Study envelope", `${BOJNICE.width} × ${BOJNICE.depth} × ${BOJNICE.height} m`),
     fact("Note", BOJNICE.note, "Bojnice Castle")
   );
   const source = document.createElement("a");
@@ -1055,7 +1180,6 @@ chambordButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", CHAMBORD.name),
     fact("Period", "French Renaissance"),
-    fact("Study envelope", `${CHAMBORD.width} × ${CHAMBORD.depth} × ${CHAMBORD.height} m`),
     fact("Note", CHAMBORD.note, "Château de Chambord")
   );
   const source = document.createElement("a");
@@ -1339,7 +1463,6 @@ trebuchetButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", TREBUCHET.name),
     fact("Type", "Hinged-counterweight siege engine"),
-    fact("Study envelope", `${TREBUCHET.length} × ${TREBUCHET.width} × ${TREBUCHET.height} m`),
     fact("Throwing arm", `${TREBUCHET.longArm} m long arm / ${TREBUCHET.shortArm} m counterweight arm`),
     fact("Pose", "Lowered for loading; sling and projectile in the trough"),
     fact("Note", TREBUCHET.note, "Trebuchet")
@@ -1374,7 +1497,6 @@ ramButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", BATTERING_RAM.name),
     fact("Style", "Medieval Europe · Covered siege ram"),
-    fact("Study envelope", `${BATTERING_RAM.length} × ${BATTERING_RAM.width} × ${BATTERING_RAM.height} m`),
     fact("Ram", "Suspended oak log, rope cradles, iron bindings, blunt iron head and crew hand grips"),
     fact("Protection", "Hide-covered timber roof, braced open frame and four iron-bound wooden wheels"),
     fact("Note", BATTERING_RAM.note, "Battering ram")
@@ -1409,7 +1531,6 @@ siegeTowerButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", SIEGE_TOWER.name),
     fact("Style", "Medieval Europe · Timber belfry"),
-    fact("Study envelope", `${SIEGE_TOWER.length} × ${SIEGE_TOWER.width} × ${SIEGE_TOWER.height} m`),
     fact("Structure", "Asymmetric timber frame, raked open rear, four decks and rear-set roof access"),
     fact("Protection", "Hide panels, arrow slits and a clear 1.5 m deep forward archer strip"),
     fact(
@@ -1453,10 +1574,6 @@ cannonButton.addEventListener("click", () => {
     fact("Model", EARLY_FIELD_CANNON.name),
     fact("Period", "Late medieval / Age of Discovery · Europe, circa 1500"),
     fact("Type", "Muzzle-loading land artillery on a two-wheeled field carriage"),
-    fact(
-      "Study envelope",
-      `${EARLY_FIELD_CANNON.length} × ${EARLY_FIELD_CANNON.width} × ${EARLY_FIELD_CANNON.height} m`
-    ),
     fact("Barrel", "Tapered bronze tube, open muzzle, reinforcing mouldings, trunnions and cascabel"),
     fact("Carriage", "Iron-bound oak wheels, timber cheeks, ground-resting trail and wooden elevation quoin"),
     fact("Note", EARLY_FIELD_CANNON.note, "History of cannon")
@@ -1492,7 +1609,6 @@ postMillButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", POST_MILL.name),
     fact("Style", "Medieval Europe · Timber post mill"),
-    fact("Study envelope", `${POST_MILL.width} × ${POST_MILL.depth} × ${POST_MILL.height} m`),
     fact("Sails", `Four canvas-covered lattice sails; ${POST_MILL.sailRadius * 2} m stock diameter`),
     fact("Structure", "Timber milling house on a braced central post; rear stair and tailpole"),
     fact("Note", POST_MILL.note, "Post mill")
@@ -1527,7 +1643,6 @@ towerMillButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", TOWER_MILL.name),
     fact("Style", "European stone tower mill"),
-    fact("Study envelope", `${TOWER_MILL.width} × ${TOWER_MILL.depth} × ${TOWER_MILL.height} m`),
     fact("Tower", `${TOWER_MILL.towerHeight} m high; ${TOWER_MILL.baseRadius * 2} m diameter at the base`),
     fact("Sails", "Four canvas-covered lattice sails on a timber cap"),
     fact("Note", TOWER_MILL.note, "Tower mill")
@@ -1562,7 +1677,6 @@ waterMillButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", WATER_MILL.name),
     fact("Style", "Medieval Europe · Stone and half-timbered grain mill"),
-    fact("Study envelope", `${WATER_MILL.width} × ${WATER_MILL.depth} × ${WATER_MILL.height} m`),
     fact("Wheel", `Wooden overshot wheel; ${WATER_MILL.wheelRadius * 2} m diameter; 24 buckets`),
     fact("Water supply", "Raised timber flume with sluice gate; lower millrace and axle bearing pier"),
     fact("Note", WATER_MILL.note, "Watermill")
@@ -1639,7 +1753,6 @@ wellButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", MEDIEVAL_WELL.name),
     fact("Style", "Medieval Europe · Roofed village well"),
-    fact("Study envelope", `${MEDIEVAL_WELL.width} × ${MEDIEVAL_WELL.depth} × ${MEDIEVAL_WELL.height} m`),
     fact("Structure", "Open masonry curb, braced oak posts and a timber-shingled gable roof"),
     fact("Lifting gear", "Hand-cranked wooden windlass, rope and iron-bound wooden bucket"),
     fact("Note", MEDIEVAL_WELL.note, "Water well")
@@ -1675,7 +1788,6 @@ for (const kind of WATER_BASIN_KINDS) {
     mountPlan(levelHost, model.plan);
     appendFacts(
       fact("Model", spec.name),
-      fact("Study envelope", `${spec.width} × ${spec.depth} × ${spec.height} m`),
       fact("Ground contact", "Base Y = 0 m"),
       fact("Note", PUBLIC_WATER_BASIN_NOTE, "Fountain")
     );
@@ -1719,7 +1831,6 @@ for (const kind of CONTAINER_KINDS) {
       appendFacts(
         fact("Model", spec.name),
         fact("State", stateLabel),
-        fact("Study envelope", `${spec.width} × ${spec.depth} × ${spec.height} m`),
         fact(
           "Mesh dimensions",
           `${dimensions.x.toFixed(3)} × ${dimensions.z.toFixed(3)} × ${dimensions.y.toFixed(3)} m`
@@ -1763,10 +1874,6 @@ lumberYardButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", MEDIEVAL_LUMBER_YARD.name),
     fact("Style", "Medieval Europe · Timber storage and hand-work yard"),
-    fact(
-      "Study envelope",
-      `${MEDIEVAL_LUMBER_YARD.width} × ${MEDIEVAL_LUMBER_YARD.depth} × ${MEDIEVAL_LUMBER_YARD.height} m`
-    ),
     fact("Storage", "Sleeper-supported log pile, boards separated by drying stickers and stacked hewn beams"),
     fact("Workshop", "Open braced timber shed, wooden roof, sawing trestles, frame saw and chopping block with axe"),
     fact("Note", MEDIEVAL_LUMBER_YARD.note, "Lumber yard")
@@ -1808,7 +1915,6 @@ for (const [definition, create] of [
     appendFacts(
       fact("Model", definition.name),
       fact("Style", "Low-poly · Untextured flat-shaded geometry"),
-      fact("Study envelope", `${definition.length} × ${definition.width} × ${definition.height} m`),
       fact("Triangles", triangles.toLocaleString("en-US")),
       fact("Note", definition.note, definition.name)
     );
@@ -1843,7 +1949,6 @@ minecartButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", MINECART.name),
     fact("Type", "Hand-pushed mining cart"),
-    fact("Study envelope", `${MINECART.length} × ${MINECART.width} × ${MINECART.height} m, including display track`),
     fact("Body", "Empty sloping plank box, iron straps, rivets and end handles"),
     fact("Running gear", "Four flanged iron wheels on two axles; short narrow-gauge track on timber sleepers"),
     fact("Note", MINECART.note, "Minecart")
@@ -1878,7 +1983,6 @@ wagonButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", MEDIEVAL_WAGON.name),
     fact("Style", "Medieval Europe · Open timber freight wagon"),
-    fact("Study envelope", `${MEDIEVAL_WAGON.length} × ${MEDIEVAL_WAGON.width} × ${MEDIEVAL_WAGON.height} m`),
     fact("Running gear", "Four wooden spoked wheels with iron tires; smaller front wheels and a pivoted front axle"),
     fact("Body", "Empty plank bed, iron straps, driver's bench and twin draft shafts; no animals"),
     fact("Note", MEDIEVAL_WAGON.note, "Wagon")
@@ -1913,7 +2017,6 @@ coveredWagonButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", COVERED_WAGON.name),
     fact("Style", "Pre-industrial · Timber freight wagon with a canvas cover"),
-    fact("Study envelope", `${COVERED_WAGON.length} × ${COVERED_WAGON.width} × ${COVERED_WAGON.height} m`),
     fact("Cover", "Unbleached canvas on five wooden bows; stitched seams, rope lashings and rolled end curtains"),
     fact("Body", "Empty plank bed; open front and rear above the end boards"),
     fact("Running gear", "Four iron-bound spoked wheels, driver's bench and twin shafts; no animals"),
@@ -1949,7 +2052,6 @@ nobleCarriageButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", NOBLE_CARRIAGE.name),
     fact("Style", "Late medieval Europe · Noble household traveling wagon"),
-    fact("Study envelope", `${NOBLE_CARRIAGE.length} × ${NOBLE_CARRIAGE.width} × ${NOBLE_CARRIAGE.height} m`),
     fact("Body", "Blue painted timber, burgundy textile canopy, tied curtains and gilded heraldic shields"),
     fact("Interior", "Facing cushioned benches, low side doors and boarding steps; unglazed openings"),
     fact("Running gear", "Four iron-bound spoked wheels, front axle pivot, driver's bench and twin shafts; no animals"),
@@ -1985,7 +2087,6 @@ warWagonButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", WAR_WAGON.name),
     fact("Style", "Late medieval Europe · Wagon-fort inspired defensive wagon"),
-    fact("Study envelope", `${WAR_WAGON.length} × ${WAR_WAGON.width} × ${WAR_WAGON.height} m`),
     fact(
       "Defenses",
       "High iron-strapped timber walls with four firing apertures on each side; open fighting compartment"
