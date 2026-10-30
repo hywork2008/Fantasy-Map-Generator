@@ -24,6 +24,7 @@ import {
   paySaltWholesale,
   priceSalt,
   repaySaltPayables,
+  SALT_CREDIT_MONTHS,
   saltCreditRoom,
   saltFreightPerBag,
   saltInvoice,
@@ -51,6 +52,12 @@ export const SALT_LIVESTOCK_ANNUAL_KG: Readonly<Record<string, number>> = {
 /** No measured natural salt source exists yet; never fabricate a credit from forage mass alone. */
 export const SALT_LIVESTOCK_NATURAL_SHARE = 0;
 /**
+ * Share of the herds' physiological salt need that farmers bought; the rest went unsalted by custom.
+ * With 3.6 kg a person for households it puts bought salt near the 18 livres (8.8 kg) a head that
+ * Necker found in the cheap-salt pays rédimés (docs/plan/salt-supply-calibration.md §3.10).
+ */
+export const SALT_LIVESTOCK_PURCHASED_SHARE = 0.4;
+/**
  * Share of a Market's rural household wallet a month's livestock salt may take, across all states, as for bought Fodder
  * (docs/plan/livestock-salt-cash-share.md). Uncapped, salt took the whole purse before the towns saw any of it.
  */
@@ -67,7 +74,11 @@ function livestockSalt(cellId: number): { total: number; natural: number; purcha
         12 /
         SALT_KILOGRAMS_PER_BAG;
   }
-  return { total, natural: total * SALT_LIVESTOCK_NATURAL_SHARE, purchase: total * (1 - SALT_LIVESTOCK_NATURAL_SHARE) };
+  return {
+    total,
+    natural: total * SALT_LIVESTOCK_NATURAL_SHARE,
+    purchase: total * (1 - SALT_LIVESTOCK_NATURAL_SHARE) * SALT_LIVESTOCK_PURCHASED_SHARE
+  };
 }
 
 function statePopulation(stateId: number): number {
@@ -89,6 +100,16 @@ function statePopulation(stateId: number): number {
       0
     )
   );
+}
+
+/** Rural households first pay down the livestock salt they owe, from the month's allowance. */
+function repayRuralSaltReceivable(market: Market, allowance: number): number {
+  const owed = market.marketTreasury?.ruralSaltReceivable ?? 0;
+  if (!(owed > 0) || !market.marketTreasury) return 0;
+  const paid = debitRuralHouseholdWealth(market, Math.min(owed, allowance));
+  market.marketTreasury.ruralSaltReceivable = rn(owed - paid, 2);
+  market.marketTreasury.balance += paid;
+  return paid;
 }
 
 const SALTWORK_ANNUAL_CAPACITY_BAGS = 900;
@@ -486,8 +507,6 @@ export class SaltLogisticsModule {
     const ledgers: StateSaltLedger[] = [];
     const demandsByStateId = new Map<number, MarketDemand[]>();
     const marketReserveBagsById = new Map<number, number>();
-    // Price on the need buyers can pay for: herds count only what the month's livestock allowance buys
-    // (docs/plan/salt-price-pressure.md §4.2), not a physical need their purse never reaches.
     const pricedNeedBagsById = new Map<number, number>();
     const livestockNeedBagsById = new Map<number, number>();
     const remainingHouseholdByMarket = new Map<number, number>();
@@ -520,15 +539,15 @@ export class SaltLogisticsModule {
     const remainingCapacityBySaltworksId = new Map(
       operations.map(operation => [operation.i, production.capacity(operation)])
     );
-    // Orders, reserves and credit follow the full physical need so saltworks run to it
-    // (docs/plan/salt-supply-calibration.md §3.8); only the price uses the paid-for need.
+    // Price, orders, reserves and credit all follow the full physical need: herds take their salt on
+    // account and repay from the month's allowance (docs/plan/salt-supply-calibration.md §3.8–3.9).
+    const livestockCreditRoomByMarket = new Map<number, number>();
     for (const market of getMarkets()) {
-      const price = Math.max(0.0001, market.goods[salt.i]?.price ?? salt.value);
-      const affordable = (getRuralHouseholdWealth(market) * SALT_LIVESTOCK_CASH_SHARE) / price;
-      const livestockNeed = livestockNeedBagsById.get(market.i) ?? 0;
-      const baseNeed = pricedNeedBagsById.get(market.i) ?? 0;
-      pricedNeedBagsById.set(market.i, baseNeed + Math.min(livestockNeed, affordable));
-      marketReserveBagsById.set(market.i, (baseNeed + livestockNeed) * SALT_MARKET_RESERVE_MONTHS);
+      const need = (pricedNeedBagsById.get(market.i) ?? 0) + (livestockNeedBagsById.get(market.i) ?? 0);
+      pricedNeedBagsById.set(market.i, need);
+      marketReserveBagsById.set(market.i, need * SALT_MARKET_RESERVE_MONTHS);
+      const allowance = getRuralHouseholdWealth(market) * SALT_LIVESTOCK_CASH_SHARE;
+      livestockAllowanceByMarket.set(market.i, Math.max(0, allowance - repayRuralSaltReceivable(market, allowance)));
     }
     // Secure each salt-producing state's domestic reserve before landlocked buyers enter the same
     // merchant pool. This makes foreign Salt an actual surplus purchase rather than an implicit levy.
@@ -537,7 +556,18 @@ export class SaltLogisticsModule {
       const rightProduces = operations.some(operation => operation.active && operation.stateId === right);
       return Number(left === 0) - Number(right === 0) || Number(rightProduces) - Number(leftProduces) || left - right;
     });
-    for (const market of getMarkets()) priceSalt(market, salt, pricedNeedBagsById.get(market.i) ?? 0);
+    for (const market of getMarkets()) {
+      priceSalt(market, salt, pricedNeedBagsById.get(market.i) ?? 0);
+      const price = Math.max(0.0001, market.goods[salt.i]?.price ?? salt.value);
+      livestockCreditRoomByMarket.set(
+        market.i,
+        Math.max(
+          0,
+          (livestockNeedBagsById.get(market.i) ?? 0) * price * SALT_CREDIT_MONTHS -
+            (market.marketTreasury?.ruralSaltReceivable ?? 0)
+        )
+      );
+    }
     const dispatchedShipmentIds = new Set<number>();
     for (const stateId of stateIds) {
       const stateOperations = operations.filter(operation => operation.active && operation.stateId === stateId);
@@ -773,21 +803,27 @@ export class SaltLogisticsModule {
           (remainingHouseholdByMarket.get(demand.market.i) ?? 0) - demand.householdBags
         );
         remainingHouseholdByMarket.set(demand.market.i, pendingHouseholds);
-        const livestockAllowance =
-          livestockAllowanceByMarket.get(demand.market.i) ??
-          getRuralHouseholdWealth(demand.market) * SALT_LIVESTOCK_CASH_SHARE;
+        const livestockAllowance = livestockAllowanceByMarket.get(demand.market.i) ?? 0;
+        const livestockCredit = livestockCreditRoomByMarket.get(demand.market.i) ?? 0;
         const livestockLimit = Math.min(
           demand.livestockBags,
           Math.max(0, destinationGood.stock - pendingHouseholds),
-          livestockAllowance / Math.max(0.0001, destinationGood.price)
+          (livestockAllowance + livestockCredit) / Math.max(0.0001, destinationGood.price)
         );
         const livestockBill = saltInvoice(livestockLimit * destinationGood.price);
-        const paid = debitRuralHouseholdWealth(demand.market, livestockBill);
-        const livestock = livestockBill > 0 ? (livestockLimit * paid) / livestockBill : 0;
+        const paid = debitRuralHouseholdWealth(demand.market, Math.min(livestockBill, livestockAllowance));
+        const owed = Math.min(livestockCredit, Math.max(0, livestockBill - paid));
+        const livestock = livestockBill > 0 ? (livestockLimit * (paid + owed)) / livestockBill : 0;
         livestockAllowanceByMarket.set(demand.market.i, Math.max(0, livestockAllowance - paid));
+        livestockCreditRoomByMarket.set(demand.market.i, Math.max(0, livestockCredit - owed));
         livestockPaid += paid;
         demand.market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
         demand.market.marketTreasury.balance += paid;
+        if (owed > 0)
+          demand.market.marketTreasury.ruralSaltReceivable = rn(
+            (demand.market.marketTreasury.ruralSaltReceivable ?? 0) + owed,
+            2
+          );
         destinationGood.stock = rn(destinationGood.stock - livestock, 4);
         livestockSupplied += livestock;
         livestockUnmet += demand.livestockBags - livestock;

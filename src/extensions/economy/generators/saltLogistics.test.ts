@@ -37,6 +37,7 @@ import {
   SALT_HOUSEHOLD_KILOGRAMS_PER_PERSON_YEAR,
   SALT_KILOGRAMS_PER_BAG,
   SALT_LIVESTOCK_CASH_SHARE,
+  SALT_LIVESTOCK_PURCHASED_SHARE,
   SaltLogistics
 } from "./saltLogistics";
 import type { SaltworksOwner } from "./saltLogisticsTypes";
@@ -838,9 +839,9 @@ describe("SaltLogisticsModule", () => {
     const row = getStateSaltLedgers().find(row => row.stateId === 1)!;
     expect(row.monthlyLivestockTotalRequirementBags).toBeCloseTo(33.3333, 4);
     expect(row.monthlyLivestockNaturalBags).toBe(0);
-    expect(row.monthlyLivestockSuppliedBags).toBeCloseTo(33.3333, 4);
+    expect(row.monthlyLivestockSuppliedBags).toBeCloseTo(33.3333 * SALT_LIVESTOCK_PURCHASED_SHARE, 4);
     expect(row.monthlyUnmetLivestockBags).toBe(0);
-    expect(market.goods[1].stock).toBeCloseTo(10_000 - 100 - 33.3333, 4);
+    expect(market.goods[1].stock).toBeCloseTo(10_000 - 100 - 33.3333 * SALT_LIVESTOCK_PURCHASED_SHARE, 4);
   });
 
   it("shares one processing forecast across states using the same market", () => {
@@ -877,22 +878,6 @@ describe("SaltLogisticsModule", () => {
     expect(getStateSaltLedgers().find(row => row.stateId === 1)?.monthlyLivestockSuppliedBags).toBe(0);
   });
 
-  it("prices salt on the livestock need the rural purse can pay for", () => {
-    const priceWith = (herd: number) => {
-      setUpWorld();
-      getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: herd, old: 0 };
-      SaltLogistics.generate();
-      for (const works of getSaltworks()) works.active = false;
-      const market = getMarkets().find(m => m.i === 1)!;
-      market.goods[1] = { stock: 400, price: 3 };
-      market.foodLedger!.ruralHouseholdWealth = 0;
-      SaltLogistics.settleMonth();
-      return market.goods[1].price;
-    };
-    // A penniless countryside's herds want salt but cannot bid for it.
-    expect(priceWith(1200)).toBeCloseTo(priceWith(0), 6);
-  });
-
   it("resizes installed saltworks to the current provision of people and herds", () => {
     SaltLogistics.generate();
     const before = getSaltworks().reduce((sum, w) => sum + w.annualCapacityBags, 0);
@@ -916,14 +901,14 @@ describe("SaltLogisticsModule", () => {
       }
       return getMarkets().find(m => m.i === 1)!.goods[1].stock;
     };
-    // Market 1 needs 100 household and 33.3 livestock bags a month; the works stock the herds'
+    // Market 1 needs 100 household and 13.3 bought livestock bags a month; the works stock the herds'
     // three months too, so supply follows physical need rather than the purse.
     const householdBags = 100;
-    const livestockBags = 1200 * (20 / 60 / 12);
+    const livestockBags = 1200 * (20 / 60 / 12) * SALT_LIVESTOCK_PURCHASED_SHARE;
     expect(stockWith(0)).toBeGreaterThanOrEqual((householdBags + livestockBags) * 3);
   });
 
-  it("spends at most a share of the rural purse on livestock salt in a month, across states", () => {
+  it("sells livestock salt on account beyond a share of the rural purse, across states", () => {
     // Both states' herds buy at Market 1, so its one allowance must cover them together.
     setMarketCellColumn(Uint16Array.from([1, 1, 0]));
     getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: 1200, old: 0 };
@@ -936,17 +921,27 @@ describe("SaltLogisticsModule", () => {
     SaltLogistics.settleMonth();
     const ledgers = getStateSaltLedgers().filter(row => row.stateId === 1 || row.stateId === 2);
     const paid = ledgers.reduce((sum, row) => sum + row.monthlyLivestockPaid, 0);
-    // The herds want far more, but their salt takes at most 5% of the 1000 purse.
+    // The herds take their full need, but pay at most 5% of the 1000 purse; the rest is on account.
     expect(paid).toBeGreaterThan(0);
     expect(paid).toBeLessThanOrEqual(1000 * SALT_LIVESTOCK_CASH_SHARE + 0.01);
-    expect(ledgers.every(row => row.monthlyUnmetLivestockBags > 0)).toBe(true);
+    expect(ledgers.every(row => row.monthlyUnmetLivestockBags < 1e-6)).toBe(true);
+    const owed = market.marketTreasury!.ruralSaltReceivable!;
+    const supplied = ledgers.reduce((sum, row) => sum + row.monthlyLivestockSuppliedBags, 0);
+    expect(owed).toBeCloseTo(supplied * market.goods[1].price - paid, 1);
+    // Next month the allowance repays the debt before buying more.
+    market.foodLedger!.ruralHouseholdWealth = 1000;
+    SaltLogistics.settleMonth();
+    expect(market.marketTreasury!.ruralSaltReceivable!).toBeLessThan(owed + supplied * market.goods[1].price);
   });
 
   it("uses horse fauna heads without applying the market lot conversion", () => {
     getOrCreateFaunaStockTable()!["0:Horses"] = { young: 0, breeding: 120, old: 0 };
     SaltLogistics.generate();
     SaltLogistics.settleMonth();
-    expect(getStateSaltLedgers().find(row => row.stateId === 1)?.monthlyLivestockDemandBags).toBeCloseTo(3.8889, 4);
+    expect(getStateSaltLedgers().find(row => row.stateId === 1)?.monthlyLivestockDemandBags).toBeCloseTo(
+      3.8889 * SALT_LIVESTOCK_PURCHASED_SHARE,
+      4
+    );
   });
 
   it("caps stock at the market reserve while output continues to replace household sales", () => {
