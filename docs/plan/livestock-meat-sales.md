@@ -1,0 +1,110 @@
+# 家畜の肉を町に売り、代金を農村へ払う
+
+作成: 2026-10-31
+
+関連: [記録](../analytics/livestock-salt-rural-income-20261031.md)、[livestock-salt-cash-share.md](livestock-salt-cash-share.md)、[livestock-head-unit.md](livestock-head-unit.md)、[wet-region-pastoral-economy.md](wet-region-pastoral-economy.md) §3.8、[winter-livestock-slaughter-and-preservation.md](winter-livestock-slaughter-and-preservation.md)、[fmg-economy-to-city-editor.md](fmg-economy-to-city-editor.md) §8.1
+
+## 1. 背景
+
+家畜の塩の不足（2年目に月1〜5千袋）は、すべて農村の財布の上限による（[記録](../analytics/livestock-salt-rural-income-20261031.md)§1）。家畜を飼う費用（塩・買う飼い葉）は農村が払うが、家畜からの収入が農村に入らない。
+
+- 群れの取り分（自然増と余り、`getGrazedMonthlyOfftakeHeads`）は、毎月、生きた家畜として市場の在庫に入る（`addRuralOutput`）。代金は払われない。
+- 羊・牛・豚・山羊は、その月のうちに`slaughter.ts`で獣脂と革に変わる。肉の財が無いので、肉は消える（§8.1の「Meat は足さない」）。
+- 鶏は潰されず、市場の在庫に積み上がる（13か月で301万羽）。
+- 家畜の値段（牛5、羊1、豚2、鶏1。穀物1 = 1 wain = 465 kg）は、1300年頃のイングランドの値段の4〜80倍（§2.2）。値段の校正は[livestock-head-unit.md](livestock-head-unit.md)で設計済み・未実装で、市場の式（小数2桁の丸めなど）を単位に依らない形に直すことが先に要る。このため、家畜の値段で代金を払うと、売れない値打ちの掛けが積み上がる（[記録](../analytics/livestock-salt-rural-income-20261031.md)§5、取り消した）。
+
+利用者の決定（2026-10-31）により、§8.1の方針を見直し、肉を財として町に売る。
+
+## 2. 史料と量
+
+### 2.1 量（固定入力の誕生時と1年目）
+
+| | 人・頭数 | 1年目の取り分（頭） | 食べられる肉と脂（kg/頭） | 肉（t/年） |
+| --- | ---: | ---: | ---: | ---: |
+| 牛 | 2.40百万 | 358千 | 110 | 39,400 |
+| 羊 | 7.94百万 | 2.60百万 | 10.7 | 27,800 |
+| 豚 | 0.70百万 | 292千 | 20.5 | 6,000 |
+| 合計 | | | | 73,200 |
+
+- 1頭の肉と脂は`winterSlaughterPolicy.ts`の`EXPERIMENTAL_CARCASS_PROFILES`（スコットランドの成畜の参照値: 牛の枝肉310 lb・赤身206 lb・脂36 lb、羊30・20・3.5 lb）。豚は診断の平均からの分け方で、出典が弱い。
+- 人口は農村3.70百万、町0.62百万。
+- 町の肉を1人年25 kg（仮値）とすると15,500 t/年で、取り分の約21%。残りは農村が食べる（§3.3）。
+
+### 2.2 値段
+
+1300年頃のイングランド（Rogers・Dyerの値をまとめた二次資料）:
+
+| | 値段 | 穀物の単位に直す |
+| --- | --- | --- |
+| 小麦 | 1クォーター（約218 kg）5〜6 s | 1 wain（465 kg）≒ 10.7〜12.8 s。値1 ≒ 11 s |
+| 雌牛 | 6〜6 s 8 d（牡牛13 s） | 0.55〜0.6（1.2） |
+| 羊 | 1 s〜1 s 8 d | 0.09〜0.16 |
+| 豚 | 1 s 2 d〜3 s | 0.1〜0.28 |
+| 鶏 | 1〜2 d | 0.008〜0.016 |
+
+1頭の値段を食べられる肉で割ると、肉1 kgは小麦1 kgの牛で約2倍、豚で2〜2.7倍、羊で3.4〜5.6倍（皮・羊毛を含む）。肉の値段は1 kgあたり穀物の2.5倍（仮値）とする。
+
+この値段で、町の肉の代金は年約84千、農村への支払い（`FARMGATE_PRICE_SHARE` 0.8）は年約67千になる。1年目の家畜の塩の代金は年201千、不足分は年約19千（約4万袋）、農村の現金収入は年680千。
+
+出典:
+- Medieval English Wages and Prices. http://www.medievalcoinage.com/prices/medievalprices.htm （Rogersの値のまとめ。二次資料）
+- C14 Price List. http://faculty.goucher.edu/eng211/c14_price_list.htm （Dyerの値のまとめ。二次資料）
+- Clark, G. The Price History of English Agriculture, 1209-1914. https://faculty.econ.ucdavis.edu/faculty/gclark/papers/Agprice.pdf
+- The Size and Weight of Cattle and Sheep in Early Modern Scotland. Agricultural History Review 36. https://bahs.org.uk/AGHR/ARTICLES/36n2a4.pdf
+- Farmer, D. L. Prices and wages. The Agrarian History of England and Wales, vol. II（原典。未確認）
+
+## 3. 方針
+
+### 3.1 財`Meat`
+
+- 生の肉（`freshFood`、保冷の無い時代はその月のうちに食べるか傷む）。単位は100 kg（仮）、値は100 × 2.5 / 465 ≒ 0.54。
+- `slaughter.ts`で、潰した頭数×食べられる肉と脂（§2.1）の`Meat`を、獣脂・革と一緒に出す。
+- 家畜の値段（`Cattle`などの`value`）は変えない。肉の代金は`Meat`の値段で決まるので、家畜の値段の校正（[livestock-head-unit.md](livestock-head-unit.md)）と切り離せる。
+
+### 3.2 町が買い、代金を農村へ
+
+- 町の家計は毎月、人数×1人年25 kg（仮値）/12の`Meat`を、市場から家計の財布で買う。財布が足りなければ買える分だけ（不足として記録）。
+- 代金は市場の金庫へ入り、その80%（`FARMGATE_PRICE_SHARE`）を、肉を出した市場の農村の財布へ払う。売れた分にだけ払うので、掛けは生じない。
+- 残りの20%は今までどおり市場の利益になり、`payOutMarketSurplus`で町の給金と商人の利益へ回る。
+
+### 3.3 売れ残りの肉は農村が食べる
+
+- 町が買わなかった肉は、潰した家畜の持ち主である農村の家計の食べ物とし、市場の在庫に残さない（記録だけ。お金は動かない）。
+- `herdDiet.ts`は、多雨地の農村の食べ物に群れの肉（牛は群れの15%、羊・山羊は25%）を数えている。同じ家畜を町に売れば二重に数えることになるため、町に売った肉を差し引くかどうかをL0で量る。
+
+### 3.4 秋の保存食と塩（後続）
+
+取り分は12月・1月に大きい（牛は月19千頭→12月68千頭）。保存食を作るなら、秋に塩を買い置く必要がある（利用者の指摘）。L1では生の肉だけを扱い、保存は[冬の屠殺の計画](winter-livestock-slaughter-and-preservation.md)とつないで後続（L3）とする。
+
+### 3.5 この計画で扱わないもの
+
+- 家畜の値段の校正（[livestock-head-unit.md](livestock-head-unit.md)）。
+- 鶏の在庫の積み上がり（取り分が需要と関係なく入る）。鶏はL1の肉の対象に入れない。
+- 乳・チーズ・ぶどう等を家計が代金を払わずに市場から取っている点（`foodProcessingLedger.ts`の`drawHouseholdDemand`）。同じ形の穴として、別の計画で扱う。
+
+## 4. 段階
+
+| 段階 | 内容 | 確認 |
+| --- | --- | --- |
+| L0 | 計測。市場ごとの肉の取り分と町の需要、`herdDiet`が数える肉と町に売る肉の重なり、町の家計の財布に対する肉の代金の割合 | 固定入力12か月 |
+| L1 | 財`Meat`、`slaughter.ts`の肉、町の購入と農村への支払い | 単体テスト（売れた分だけ払う、財布の上限、売れ残りを残さない）、固定入力24か月で家畜の塩の不足と農村の財布 |
+| L2 | `herdDiet`との重なりの扱い（L0の結果による） | 固定入力24か月 |
+| L3 | 秋の保存食と塩の買い置き | 冬の屠殺の計画に合わせて別に設計 |
+| L4 | 84か月の確認。家畜の塩の不足、農村の財布、都市の主食の充足、町のお金の不足（budgetGap） | 固定入力84か月 |
+
+### 4.1 L0の結果（2026-10-31、[記録](../analytics/livestock-meat-sales-l0-20261031.md)）
+
+利用者の了承（2026-10-31）により、§2の仮値（町の肉1人年25 kg、肉の値段は穀物の2.5倍、`Meat`を財として加える）で進める。
+
+- 取り分の肉は町の需要の3〜8倍あり、一番少ない月（11月）でも町の1か月の需要の1.7倍以上ある。生の肉だけで毎月の需要をまかなえる。
+- 町の肉の代金は年83千で、町の家計の1年目の収入（約349千）の約4分の1。L1では、町の家計が財布で払える分だけ買う上限を入れる。
+- `herdDiet`の肉と町の需要の和は、世界で取り分の92%。取り分を超える市場は6つで、超える量は2〜7%。L2は、町に売った肉を`herdDiet`から差し引く小さな修正とする。
+- 町の少ない市場13では、肉の売り上げ（農村へ年154）で家畜の塩の不足分（年約0.8〜2.6千）をまかなえない。家畜を他の市場へ歩かせて売る（牛追い）を後続の課題とする（§5）。
+
+## 5. 未確定事項
+
+- 町の肉の量（1人年25 kgは仮値）。中世後期の都市は20〜50 kgとされるが、原典を確かめていない。
+- 肉の値段（穀物の2.5倍）。Farmerの値で確かめる。
+- 町の少ない牧畜の市場から、家畜を他の市場へ歩かせて売る（牛追い）。
+- 町の家計の財布は、すでに不足（budgetGap）が増えている（[start-provisioning.md](start-provisioning.md)§5）。肉の代金が町から農村へ出て、農村が町で使う分で戻るかを、L4で見る。
+- `Meat`をCEで描くか（肉屋）。
