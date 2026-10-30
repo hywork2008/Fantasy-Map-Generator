@@ -12,3 +12,8 @@ export const PEAT_HEAT_PER_BALE = PEAT_KG_PER_BALE / WOOD_KG_PER_LOT;
 export function getPeatGood(): Good | undefined {
   return getGoods().find(good => good.name === "Peat" && isGoodEnabled(good));
 }
+
+/** Wood a kilogram of boiled salt burns (salt-logistics.md). */
+export const SALT_BOILING_WOOD_KG_PER_KG = 60 / 34.5;
+/** Wood piles one 60 kg bag of boiled salt burns; Peat burns the same heat in bales. */
+export const SALT_BOILING_WOOD_PILES_PER_BAG = (60 * SALT_BOILING_WOOD_KG_PER_KG) / WOOD_KG_PER_LOT;

@@ -171,6 +171,32 @@ export function normalizeConstructionOperation(
   return op as ConstructionOperation;
 }
 
+/** Share of a shanty town's households housed at the start (provisional); the rest live in shacks. */
+export const SHANTY_START_HOUSED_SHARE = 0.85;
+
+/** Housed share a town starts with on a new map. */
+export function getStartHousedShare(burg: { shanty?: number | boolean }): number {
+  return burg.shanty ? SHANTY_START_HOUSED_SHARE : 1;
+}
+
+/**
+ * Houses the towns of a world saved at birth, whose operations stored no dwellings (the load path
+ * does not regenerate them). A town with dwellings keeps them.
+ */
+export function seedStartHousing(): void {
+  const { pack } = getWorldContext();
+  const populationRate = getPopulationRate();
+  for (const operation of getConstructionOperations()) {
+    if (operation.dwellingStock > 0) continue;
+    const burg = pack.burgs?.[operation.burgId];
+    if (!burg || burg.removed) continue;
+    const draft = operation as LegacyConstructionOperation;
+    draft.buildingStock = getStartHousedShare(burg);
+    draft.dwellingStock = undefined;
+    normalizeConstructionOperation(draft, burg, populationRate);
+  }
+}
+
 /** Size-aware effective backlog shared by the points (materials) and people (Employment) formulas below. */
 function computeEffectiveBacklog(
   operation: Pick<ConstructionOperation, "buildingStock"> & {
@@ -438,14 +464,17 @@ export class ConstructionOperationsModule {
       if (!marketId || !marketById.has(marketId)) continue;
 
       const previous = previousByBurg.get(burg.i);
+      // A town on a new map is already lived in: it starts housed, a shanty town only in part
+      // (docs/plan/start-provisioning.md §3.1). A stored 0 is a world-birth save, never a built-down town.
+      const seeded = (previous?.dwellingStock ?? 0) > 0;
       const draft: LegacyConstructionOperation = {
         i: operations.length + 1,
         burgId: burg.i,
         marketId,
         masonWorkers: previous?.masonWorkers ?? 0,
         carpenterWorkers: previous?.carpenterWorkers ?? 0,
-        buildingStock: previous?.buildingStock ?? 0,
-        dwellingStock: previous?.dwellingStock,
+        buildingStock: seeded ? (previous?.buildingStock ?? 0) : getStartHousedShare(burg),
+        dwellingStock: seeded ? previous?.dwellingStock : undefined,
         hasQuarryAccess: quarryAccessByBurg.has(burg.i),
         active: true,
         civicStock: previous?.civicStock

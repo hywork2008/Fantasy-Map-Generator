@@ -291,6 +291,31 @@ function marketTravelDays(from: Market, to: Market): number {
   return Math.max(1, Math.round(distance / 20));
 }
 
+/**
+ * World birth (docs/plan/start-provisioning.md §3.2): last year's salt already sits in each market,
+ * a reserve of its people's and herds' need, and the works are sized to the herds placed after them.
+ */
+export function seedWorldBirthSaltStock(): void {
+  const salt = getGoods().find(good => good.name === "Salt" && isGoodEnabled(good));
+  if (!salt) return;
+  const demandsByStateId = new Map<number, MarketDemand[]>();
+  for (const state of getWorldContext().pack.states ?? []) {
+    if (!state?.i || state.removed) continue;
+    demandsByStateId.set(state.i, stateMarketDemands(state.i));
+  }
+  resizeSaltworksToNeed(getSaltworks(), demandsByStateId);
+  const needByMarket = new Map<number, number>();
+  for (const demands of demandsByStateId.values())
+    for (const demand of demands)
+      needByMarket.set(demand.market.i, (needByMarket.get(demand.market.i) ?? 0) + demand.provisionBags);
+  for (const market of getMarkets()) {
+    const reserve = (needByMarket.get(market.i) ?? 0) * SALT_MARKET_RESERVE_MONTHS;
+    if (!(reserve > 0)) continue;
+    const good = getMarketGood(market, salt.i, salt.value);
+    good.stock = rn(Math.max(good.stock, reserve), 4);
+  }
+}
+
 function addSaltMarketOutput(market: Market, saltGoodId: number, bags: number): void {
   if (bags <= 0) return;
   const cumulativeIntake = getOrCreateCumulativeMarketIntake();

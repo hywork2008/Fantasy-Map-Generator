@@ -5,13 +5,17 @@ import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Market } from "./marketTypes";
-import { getPeatGood, PEAT_HEAT_PER_BALE } from "./peatFuel";
+import {
+  getPeatGood,
+  PEAT_HEAT_PER_BALE,
+  SALT_BOILING_WOOD_KG_PER_KG,
+  SALT_BOILING_WOOD_PILES_PER_BAG
+} from "./peatFuel";
 import { paySaltInputs, saltInvoice, saltOwnerCash } from "./saltFinance";
 import type { Saltworks } from "./saltLogisticsTypes";
 import { getSaltworksOperator } from "./saltOwnership";
 import { readAgriculturalClimate } from "./seasonalCropClimate";
 import { getSubsistenceWage } from "./subsistenceWage";
-import { WOOD_KG_PER_LOT } from "./woodRecipeContracts";
 
 /** Explicit planning assumptions, not universal historical yields. See salt-logistics.md. */
 export const SALT_PRODUCTION_POLICY = {
@@ -19,11 +23,8 @@ export const SALT_PRODUCTION_POLICY = {
   solarHoursPerKg: 0.1,
   miningHoursPerKg: 0.5,
   boilingHoursPerKg: 82 / 34.5,
-  boilingWoodKgPerKg: 60 / 34.5
+  boilingWoodKgPerKg: SALT_BOILING_WOOD_KG_PER_KG
 } as const;
-
-/** Wood piles one bag of boiled salt burns; Peat burns the same heat in bales. */
-export const SALT_BOILING_WOOD_PILES_PER_BAG = (60 * SALT_PRODUCTION_POLICY.boilingWoodKgPerKg) / WOOD_KG_PER_LOT;
 
 /** Evaporation proxy; precipitation seasonality is the host's uniform assumption. */
 export function saltSolarWeights(temperatures: ArrayLike<number>, rainMm: ArrayLike<number>): number[] {

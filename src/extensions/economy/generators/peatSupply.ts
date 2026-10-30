@@ -6,8 +6,7 @@
  */
 import { rn } from "../../hostUtils";
 import { getGoods, getMarketCellColumn, getMarkets, getSaltworks, getWorldContext } from "../economyContext";
-import { getPeatGood, PEAT_HEAT_PER_BALE, PEAT_KG_PER_BALE } from "./peatFuel";
-import { SALT_BOILING_WOOD_PILES_PER_BAG } from "./saltProduction";
+import { getPeatGood, PEAT_HEAT_PER_BALE, PEAT_KG_PER_BALE, SALT_BOILING_WOOD_PILES_PER_BAG } from "./peatFuel";
 
 /**
  * Peat one rural person in a bog or moor cell can cut and dry in a year besides the farm work

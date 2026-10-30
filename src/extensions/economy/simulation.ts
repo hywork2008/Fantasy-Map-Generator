@@ -228,6 +228,7 @@ import { SaltLogistics } from "./generators/saltLogistics";
 import { migrateSaltworksOwnership } from "./generators/saltOwnership";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
 import { SmelterOperations } from "./generators/smelterOperations";
+import { settleStartProvisioning } from "./generators/startProvisioning";
 import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
 import { clearStateFiscalReports } from "./generators/stateFiscalReport";
 import { StateSecretKnowledge } from "./generators/stateSecretKnowledge";
@@ -1731,6 +1732,7 @@ function register(api: SimulationExtensionAPI): () => void {
           QuarryOperations.generate();
           VolcanicOperations.generate();
           ConstructionOperations.generate();
+          settleStartProvisioning();
           Minting.generate();
           MilitaryResources.generate();
           TradeSecurity.generate();
@@ -1828,6 +1830,8 @@ function register(api: SimulationExtensionAPI): () => void {
     // keeps the herds it has grown.
     if (isUnadvancedWorld()) settleWorldBirthHerds(() => DevelopmentPotential.replanWorldBirth());
     else markWorldBirthHerdsSettled();
+    // Last year's salt, clothes and bedding for a world saved at birth (start-provisioning.md).
+    settleStartProvisioning();
     if (MineOperations.reanchorOperations() || (!getSmelterOperations().length && getMineOperations().length)) {
       SmelterOperations.generate();
     }

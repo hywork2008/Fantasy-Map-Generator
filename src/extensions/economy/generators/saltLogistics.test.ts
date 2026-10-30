@@ -38,7 +38,8 @@ import {
   SALT_KILOGRAMS_PER_BAG,
   SALT_LIVESTOCK_CASH_SHARE,
   SALT_LIVESTOCK_PURCHASED_SHARE,
-  SaltLogistics
+  SaltLogistics,
+  seedWorldBirthSaltStock
 } from "./saltLogistics";
 import type { SaltworksOwner } from "./saltLogisticsTypes";
 import {
@@ -910,6 +911,19 @@ describe("SaltLogisticsModule", () => {
     SaltLogistics.settleMonth();
     expect(getStateSaltLedgers().reduce((sum, row) => sum + row.monthlyHouseholdSalesBags, 0)).toBe(300);
     expect(getStateSaltLedgers().find(row => row.stateId === 1)?.monthlyLivestockSuppliedBags).toBe(0);
+  });
+
+  it("starts a new world with each market's salt reserve and works sized to the herds placed after them", () => {
+    SaltLogistics.generate();
+    getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: 1200, old: 0 };
+    seedWorldBirthSaltStock();
+    SaltLogistics.settleMonth();
+    const provision = getStateSaltLedgers().reduce((sum, row) => sum + row.monthlyProvisionBags, 0);
+    const capacity = getSaltworks().reduce((sum, w) => sum + w.annualCapacityBags, 0);
+    expect(capacity).toBeCloseTo(provision * 12 * 1.15, 0);
+    // Three months of need were in stock before the first month's sales.
+    const market = getMarkets().find(m => m.i === 1)!;
+    expect(market.goods[1].stock).toBeGreaterThan(100 * 2);
   });
 
   it("resizes installed saltworks to the current provision of people and herds", () => {
