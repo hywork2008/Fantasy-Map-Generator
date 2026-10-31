@@ -379,6 +379,9 @@ export function settleRosterCash(): void {
     key = `${clock.currentYear}:${clock.currentMonth}`;
   if (s.lastCycle === key) return;
   s.lastCycle = key;
+  // Regiments and towns change while the world runs, and a load rebuilds the roster from them; the
+  // month rebuilds it too, or a saved and reloaded world pays a different payroll.
+  buildWorldRoster();
   ensureCurrentPools(roster);
   // Resolve retired cohorts before inheritance, independently of detail generation timing.
   for (const appointment of roster.appointments) {

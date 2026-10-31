@@ -72,7 +72,7 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   hayTrade: "marketShortfall",
   hayPayment: "onCredit",
   surplusRuralWeight: 1,
-  surplusReserveFactor: 1,
+  surplusReserveFactor: 0.25,
   merchantProfitShare: 1 / 3,
   merchantProfitUse: "houseCapital",
   merchantReserveYears: 5

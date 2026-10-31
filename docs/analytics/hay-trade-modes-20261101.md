@@ -554,3 +554,7 @@ Simulation設定の「市場（経済）」に3つを加えた。
 | credit-r0.25-84-money.json | 同じく、経路ごとのお金 | 977a91986fbfb9a3610f566d3b5a8ab4e5713e82afdce45de861b9cfb96d9540 |
 | credit-r0-84.jsonl | 掛け・倍率0の塩と家計 | b7ca4be838908b26c49d327d56d4e3f5aac17b06758d9e6a4b3c6bb2dbfd895e |
 | credit-r0-84-money.json | 同じく、経路ごとのお金 | 9140f3238aad8b1b82ba5bdf64f3f7b57605bf6eec80d0a496369afaf901b700 |
+
+### 15.4 既定の変更
+
+「市場の準備金」（`surplusReserveFactor`）の既定を1から0.25にした。
