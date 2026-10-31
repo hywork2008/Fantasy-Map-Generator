@@ -553,7 +553,7 @@
       "elevationReliefHelp": "Scales the preset's height difference. Updating rewrites land elevation on the current map and leaves streets, wards and buildings.",
       "riverDrop": "River depth",
       "riverDropValue": "{{value0}} m",
-      "riverDropHelp": "How far the 3D river sits below the land it touches. At 1 m, land at 100 m holds the river at 99 m. The far end of the slider lowers the river to 0 m, the previous deep cut. The surface is highest upstream, never rises downstream, and never stands above the land. A high centre does not lift the river over the mound.",
+      "riverDropHelp": "Water level is the lower of the two banks minus River depth, with a lower limit of 0 m. For example, banks at 100 m and 80 m with River depth 3 m give a 77 m water surface. This is bank-to-water clearance, not the simulated water thickness. Water never rises downstream; an uphill reach is cut below the upstream water level.",
       "elevationBrush": "Elevation brush",
       "elevationRaise": "Raise",
       "elevationLower": "Lower",

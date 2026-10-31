@@ -62,15 +62,12 @@ describe("terrain layers", () => {
     if (corridor?.kind !== "riverCorridor" || !terrain.waterAt) return;
     const mid = Math.floor(corridor.centerline.length / 2);
     const at = corridor.centerline[mid];
-    const next = corridor.centerline[Math.min(corridor.centerline.length - 1, mid + 1)];
-    const dx = next[0] - at[0];
-    const dy = next[1] - at[1];
-    const length = Math.hypot(dx, dy) || 1;
-    const normal: Point = [-dy / length, dx / length];
-    const offset = corridor.widthsMeters[mid] / 4;
-    const left: Point = [at[0] + normal[0] * offset, at[1] + normal[1] * offset];
-    const right: Point = [at[0] - normal[0] * offset, at[1] - normal[1] * offset];
-    const surface = corridor.bedMeters[mid] + corridor.depthMeters - terrain.datumMeters;
+    const station = terrain.riverProfiles![0].stations.find(
+      station => Math.hypot(station.point[0] - at[0], station.point[1] - at[1]) < 1e-6
+    )!;
+    const left: Point = [(station.left[0] + at[0]) / 2, (station.left[1] + at[1]) / 2];
+    const right: Point = [(station.right[0] + at[0]) / 2, (station.right[1] + at[1]) / 2];
+    const surface = station.surfaceMeters - terrain.datumMeters;
     expect(terrain.waterAt(at)).toBeCloseTo(surface, 4);
     expect(terrain.waterAt(left)).toBeCloseTo(terrain.waterAt(right)!, 4);
     expect(terrain.waterAt(corridor.centerline.at(-1)!)!).toBeLessThan(terrain.waterAt(corridor.centerline[0])!);

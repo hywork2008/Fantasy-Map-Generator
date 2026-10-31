@@ -726,7 +726,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     const stamp = `${townWaterStamp(city)}|${riverDropMeters(riverDrop())}`;
     const roads = townRoadStamp(city, fabric.lanes);
     const spacing = options.getTerrainSpacing?.() ?? "auto";
-    const nextTerrainStamp = `${cityTerrainStamp(city)}|${roads}|${spacing}`;
+    const nextTerrainStamp = `${cityTerrainStamp(city)}|${roads}|${spacing}|${riverDropMeters(riverDrop())}`;
     const terrainChanged = nextTerrainStamp !== terrainStamp;
     if (terrainChanged) {
       let ribbons: RoadRibbon[] | undefined;
@@ -735,7 +735,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       } catch {
         // Reported once by the road meshes below; the terrain stays ungraded.
       }
-      terrain = cityTerrain(city, { roads: ribbons, renderSpacing: spacing });
+      terrain = cityTerrain(city, { roads: ribbons, renderSpacing: spacing, riverDropMeters: riverDrop() });
       sky.fit(city, terrain.heightAt);
       terrainStamp = nextTerrainStamp;
     }
