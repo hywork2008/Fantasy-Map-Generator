@@ -1,4 +1,6 @@
+import { createHighGraveMarker } from "./graveMarkerDetails";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -53,3 +55,9 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "plain-stone-grave-marker": () => createHighGraveMarker("stone"),
+  "wooden-grave-cross": () => createHighGraveMarker("cross"),
+  "churchyard-slabs": () => createHighGraveMarker("ensemble")
+});

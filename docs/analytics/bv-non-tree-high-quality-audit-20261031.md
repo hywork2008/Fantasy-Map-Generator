@@ -12,7 +12,7 @@ Regenerate: `node --import tsx scripts/auditBvModelQuality.mts`
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **69**. Missing candidates: **151**.
+Records: **220**. Codex High or Ultra available: **75**. Missing candidates: **145**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -37,8 +37,8 @@ Records: **220**. Codex High or Ultra available: **69**. Missing candidates: **1
 | Medieval 16 | 2 | 2 | 0 |
 | Medieval 17 | 2 | 2 | 0 |
 | Medieval 18 | 1 | 1 | 0 |
-| Medieval 19 | 3 | 0 | 3 |
-| Medieval 20 | 3 | 0 | 3 |
+| Medieval 19 | 3 | 3 | 0 |
+| Medieval 20 | 3 | 3 | 0 |
 | Medieval 21 | 2 | 0 | 2 |
 | Medieval 22 | 1 | 0 | 1 |
 | Medieval 23 | 2 | 0 | 2 |
@@ -80,8 +80,9 @@ Records: **220**. Codex High or Ultra available: **69**. Missing candidates: **1
 9. Eighth batch (2026-11-01): added High for the two Medieval 15 breweries and two Medieval 16 granaries, preserving the default granary variants used by CE. See [verification and previews](bv-brewery-granary-high-20261101.md).
 10. Ninth batch (2026-11-01): added High for the two Medieval 17 warehouses and the Medieval 18 livestock market, preserving their default CE variants. See [verification and previews](bv-warehouse-market-high-20261101.md).
 11. Composite-model phase (2026-11-01): audited the friary's Ultra vegetation and detailed well, introduced independent components and quality budgets, and decomposed shop houses, bakeries, inns and breweries. Added a new High urban friary with actual masonry apertures, buttresses, roof intersections, a pointed cloister arcade and detailed bellcote. CE keeps its default Low architecture. See [verification and previews](bv-friary-high-p4-20261101.md).
-12. Next: extend component inspection to named landmarks, then resume the remaining non-tree High candidates, including Medieval 19 grave markers and 20 textile/leather workshops. Preserve the existing default CE variants for grave markers. Regional houses, standalone props and the Codex basilica remain later batches.
-13. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
+12. Tenth model batch (2026-11-01): added High for the three Medieval 19 grave markers and three Medieval 20 textile/leather workshops, preserving default CE grave-marker variants. See [verification and previews](bv-grave-textile-high-20261101.md).
+13. Next: Medieval 21 cooper/joiner workshops and 22 tanneries, preserving existing default tannery variants. Continue component inspection of named landmarks. Regional houses, standalone props and the Codex basilica remain later batches.
+14. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
 
@@ -100,12 +101,6 @@ Records: **220**. Codex High or Ultra available: **69**. Missing candidates: **1
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
-| Medieval 19 | `plain-stone-grave-marker` | Plain stone grave marker | single/default; assumed Low - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
-| Medieval 19 | `wooden-grave-cross` | Wooden grave cross | single/default; assumed Low - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
-| Medieval 19 | `churchyard-slabs` | Churchyard ledger slabs and markers | single/default; assumed Low - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
-| Medieval 20 | `weavers-workshop` | Weaver workshop and treadle loom | single/default; assumed Low - [source](../../src/buildings/medieval/20-textile-leather-workshopsModels.ts) |
-| Medieval 20 | `tailors-workshop` | Tailor workshop and cutting table | single/default; assumed Low - [source](../../src/buildings/medieval/20-textile-leather-workshopsModels.ts) |
-| Medieval 20 | `cobblers-workshop` | Cobbler workshop and shoe lasts | single/default; assumed Low - [source](../../src/buildings/medieval/20-textile-leather-workshopsModels.ts) |
 | Medieval 21 | `coopers-workshop` | Cooper workshop and assembly stand | single/default; assumed Low - [source](../../src/buildings/medieval/21-woodworking-workshopsModels.ts) |
 | Medieval 21 | `joiners-workshop` | Joiner workshop and woodworking bench | single/default; assumed Low - [source](../../src/buildings/medieval/21-woodworking-workshopsModels.ts) |
 | Medieval 22 | `tanners-yard` | Tannery vats and drying frames | single/default; assumed Low - [source](../../src/buildings/medieval/22-tanneriesModels.ts) |
@@ -297,6 +292,12 @@ Records: **220**. Codex High or Ultra available: **69**. Missing candidates: **1
 | Medieval 17 | `merchant-warehouse` | Merchant warehouse and loading hoist | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/17-warehousesModels.ts) |
 | Medieval 17 | `riverside-goods-store` | Small riverside goods store | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/17-warehousesModels.ts) |
 | Medieval 18 | `livestock-market-pens` | Divided livestock market pens | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/18-livestock-marketsModels.ts) |
+| Medieval 19 | `plain-stone-grave-marker` | Plain stone grave marker | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
+| Medieval 19 | `wooden-grave-cross` | Wooden grave cross | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
+| Medieval 19 | `churchyard-slabs` | Churchyard ledger slabs and markers | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
+| Medieval 20 | `weavers-workshop` | Weaver workshop and treadle loom | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/20-textile-leather-workshopsModels.ts) |
+| Medieval 20 | `tailors-workshop` | Tailor workshop and cutting table | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/20-textile-leather-workshopsModels.ts) |
+| Medieval 20 | `cobblers-workshop` | Cobbler workshop and shoe lasts | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/20-textile-leather-workshopsModels.ts) |
 | Medieval 32 | `abbey` | Abbey church, cloister and domestic ranges | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/32-abbey-living-quartersModels.ts) |
 | Medieval 33 | `mendicant-friary` | Urban mendicant friary | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/33-friariesModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
