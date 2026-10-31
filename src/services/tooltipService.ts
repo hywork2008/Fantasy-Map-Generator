@@ -12,8 +12,8 @@ import { convertTemperature, si } from "../utils/unitUtils";
 import {
   getCellPoliticalSummary,
   getCombatDeathsTip,
+  getDisplayedPrecipitation,
   getFriendlyHeight,
-  getFriendlyPrecipitation,
   getPopulationTip
 } from "./cellInfoService";
 
@@ -281,7 +281,7 @@ export function showMapTooltip(point: [number, number], e: MouseEvent, i: number
     return;
   }
 
-  if (layerIsOn("togglePrecipitation") && land) tip(`Annual Precipitation: ${getFriendlyPrecipitation(i)}`);
+  if (layerIsOn("togglePrecipitation") && land) tip(getDisplayedPrecipitation(i));
   else if (layerIsOn("toggleCombatDeaths")) tip(getCombatDeathsTip(i));
   else if (layerIsOn("togglePopulation")) tip(getPopulationTip(i));
   else if (layerIsOn("toggleTemperature")) tip(`Temperature: ${convertTemperature(worldContext.grid.cells.temp[g])}`);

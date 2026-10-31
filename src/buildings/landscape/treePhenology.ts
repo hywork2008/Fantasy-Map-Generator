@@ -1,11 +1,22 @@
 import type { PERENNIAL_CROP_PROFILES } from "../../data/perennialCrops";
+import type { DrySeasonCandidates } from "../../utils/precipitationSeasonality";
 import type { TreeSpecies } from "./treeSpecies";
 
 /**
  * Seasonal appearances a tree model can show (docs/plan/bv-tree-seasonal-appearance.md §3).
  * They are visual states chosen per month, not botanical growth stages.
  */
-export const TREE_APPEARANCES = ["bare", "bloom", "leaf", "unripe", "fruit", "harvested", "autumn"] as const;
+export const TREE_APPEARANCES = [
+  "bare",
+  "bloom",
+  "leaf",
+  "unripe",
+  "fruit",
+  "harvested",
+  "autumn",
+  "sparse",
+  "flush"
+] as const;
 export type TreeAppearance = (typeof TREE_APPEARANCES)[number];
 export type TreeLeafHabit = "deciduous" | "evergreen" | "leafless";
 export type PerennialCropKey = keyof typeof PERENNIAL_CROP_PROFILES;
@@ -41,6 +52,9 @@ export interface TreeAppearanceState {
 }
 
 export interface TreeSeasonInput {
+  /** Rain-derived candidates only; irrigated / groundwater-supported trees may opt out. */
+  drySeason?: DrySeasonCandidates;
+  waterBuffered?: boolean;
   /** Twelve monthly mean temperatures of the cell, January first. */
   monthlyMeanTemperatureC?: ArrayLike<number>;
   /** Twelve monthly harvest weights of the tree's perennial crop from the economy, if planted as a crop. */
@@ -184,10 +198,9 @@ export const TREE_PHENOLOGY: Record<TreeSpecies, TreePhenologyProfile> = {
     perennialCrop: "Dates"
   },
   date_palm_orchard_young: EVERGREEN,
-  // Dry-season leaf fall needs seasonal precipitation, which the host does not provide yet (X01).
-  umbrella_thorn: EVERGREEN,
+  umbrella_thorn: { ...EVERGREEN, appearances: ["leaf", "sparse", "flush"] },
   saxaul: { ...EVERGREEN, leafHabit: "leafless" },
-  kapok: EVERGREEN,
+  kapok: { ...EVERGREEN, appearances: ["leaf", "bare", "flush"] },
   western_red_cedar: EVERGREEN,
   // Alder leaves fall green, so it has no autumn colour.
   black_alder: { leafHabit: "deciduous", appearances: ["bare", "leaf"], defaultAppearance: "leaf" },
@@ -227,7 +240,7 @@ export const TREE_PHENOLOGY: Record<TreeSpecies, TreePhenologyProfile> = {
   canary_pine: EVERGREEN,
   mediterranean_cypress: EVERGREEN,
   oriental_evergreen: EVERGREEN,
-  sacred_bodhi_and_fig: EVERGREEN,
+  sacred_bodhi_and_fig: { ...EVERGREEN, appearances: ["leaf", "bare", "flush"] },
   peaceful_willow: FOREST_DECIDUOUS
 };
 
@@ -239,6 +252,8 @@ const FALLBACKS: Record<TreeAppearance, readonly TreeAppearance[]> = {
   unripe: ["leaf", "harvested"],
   fruit: [],
   harvested: ["leaf", "unripe"],
+  sparse: ["leaf"],
+  flush: ["leaf"],
   autumn: ["harvested", "leaf"]
 };
 
@@ -372,6 +387,23 @@ export function resolveTreeAppearanceYear(species: TreeSpecies, input: TreeSeaso
     }
   }
 
+  if (!input.waterBuffered && input.drySeason?.status === "seasonal") {
+    for (const interval of input.drySeason.intervals) {
+      const start = interval.startMonth - 1;
+      // Display rules: kapok sheds after one dry month, thorn retains sparse foliage,
+      // sacred fig sheds briefly at the end and flushes before the return of rain.
+      if (species === "kapok") {
+        for (let j = 1; j < interval.length; j++) year[(start + j) % 12] = "bare";
+        year[(start + interval.length) % 12] = "flush";
+      } else if (species === "umbrella_thorn") {
+        for (let j = 1; j < interval.length; j++) year[(start + j) % 12] = "sparse";
+        year[(start + interval.length) % 12] = "flush";
+      } else if (species === "sacred_bodhi_and_fig") {
+        year[(start + interval.length - 2) % 12] = "bare";
+        year[(start + interval.length - 1) % 12] = "flush";
+      }
+    }
+  }
   return year.map((wanted, m) => {
     const appearance = supported(profile, wanted);
     return { appearance, autumnPalette: phases?.[m] === "autumn" && appearance !== "bare" && appearance !== "leaf" };

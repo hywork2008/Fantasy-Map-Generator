@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createMoneyFlowRecorder, createObserveViews } from "../../../../scripts/lib/observeViews.mts";
 import { simEvents } from "../../../simulation/events";
+import { distributeSeasonalPrecipitation, getPrecipitationDailyScores } from "../../../utils/precipitationSeasonality";
 import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
@@ -873,4 +874,30 @@ describe("SaltLogisticsModule", () => {
     expect(finalStock).toBeCloseTo(initialStock, 2);
     expect(finalOutput).toBeGreaterThan(initialOutput);
   });
+});
+
+it("keeps annual solar capacity normalized across winter-rain, monsoon and persistently wet normals", () => {
+  const rain = (latitudeDeg: number, continentality: number, annual: number) =>
+    distributeSeasonalPrecipitation(
+      annual,
+      2023,
+      getPrecipitationDailyScores({
+        latitudeDeg,
+        continentality,
+        landFraction: 0.6,
+        axialTiltDeg: 23.5,
+        moisture: new Array(12).fill(1),
+        orographic: new Array(12).fill(1)
+      }),
+      1,
+      23.5
+    ).monthly;
+  const mediterranean = saltSolarWeights([12, 12, 14, 16, 20, 24, 27, 27, 23, 19, 15, 12], rain(38, 0.05, 760));
+  expect(mediterranean[6]).toBeGreaterThan(mediterranean[0]);
+  expect(mediterranean.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
+  const monsoon = saltSolarWeights(new Array(12).fill(28), rain(18, 0.6, 1800));
+  expect(monsoon[0]).toBeGreaterThan(monsoon[6]);
+  expect(monsoon.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
+  // No solar window selects boiling in the production budget; no extra annual capability is invented.
+  expect(saltSolarWeights(new Array(12).fill(28), rain(0, 0, 6000)).some(v => v > 0)).toBe(false);
 });

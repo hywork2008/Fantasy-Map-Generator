@@ -1,11 +1,18 @@
 import type React from "react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { simulationContext } from "../../context/simulationContext";
+import { worldContext } from "../../context/worldContext";
 import { toggleCells } from "../../controllers/layers";
+import { getCellClimateNormals } from "../../generators/cellClimateNormals";
+import { worldRuntime } from "../../runtime/worldRuntime";
+import { getDisplayedPrecipitation } from "../../services/cellInfoService";
 import { useCellInfoState } from "../../store/cellInfoState";
 import { useDialogState } from "../../store/dialogState";
 import { useExtensionState } from "../../store/extensionState";
+import { usePrecipitationDisplayState } from "../../store/precipitationDisplayState";
 import { layerIsOn } from "../../utils/layerUtils";
+import { getDrySeasonCandidates } from "../../utils/precipitationSeasonality";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -14,6 +21,32 @@ export const CellInfoDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("cellInfo"));
   const info = useCellInfoState();
   const cellInfoRows = useExtensionState(state => state.cellInfoRows);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const refresh = () => {
+      const state = useCellInfoState.getState();
+      const cell = state.cellId;
+      if (cell === null) return;
+      const gridCell = worldContext.pack.cells.g[cell];
+      state.updateInfo({
+        climateNormals: getCellClimateNormals(worldContext, gridCell, simulationContext.currentYear),
+        prec: worldContext.pack.cells.h[cell] >= 20 ? getDisplayedPrecipitation(cell) : "n/a"
+      });
+    };
+    const stopRuntime = worldRuntime.subscribe(commit => {
+      if (
+        commit.changes.fullReplace ||
+        commit.changes.changes.some(c => c.topic === "simulation.cells" || c.topic === "map.physical")
+      )
+        refresh();
+    });
+    const stopDisplay = usePrecipitationDisplayState.subscribe(refresh);
+    return () => {
+      stopRuntime();
+      stopDisplay();
+    };
+  }, [isOpen]);
 
   // Show the Cells layer while the dialog is open; restore it only if the dialog enabled it.
   useEffect(() => {
@@ -234,6 +267,71 @@ export const CellInfoDialog: React.FC = () => {
             <tr>
               <th scope="row">{t("generation.gremlins")}</th>
               <td>{info.gremlins}</td>
+            </tr>
+          )}
+          {info.climateNormals && (
+            <tr>
+              <th scope="row">{t("dialogs.cellInfo.monthlyClimate", "Monthly climate")}</th>
+              <td>
+                <details>
+                  <summary>
+                    {info.climateNormals.annualPrecipitationMm.toFixed(1)} mm/year ·{" "}
+                    {info.climateNormals.precipitationSeasonalitySource} ·{" "}
+                    {Math.round(info.climateNormals.precipitationSeasonalityConfidence * 100)}%
+                  </summary>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{t("dialogs.cellInfo.month", "Month")}</th>
+                        <th>°C</th>
+                        <th>mm/month</th>
+                        <th>{t("dialogs.cellInfo.moistureSupply", "Ocean supply")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from(info.climateNormals.monthlyPrecipitationMm, (p, m) => (
+                        // Month indices are immutable calendar identities, not reorderable rows.
+                        // biome-ignore lint/suspicious/noArrayIndexKey: January through December are fixed identities.
+                        <tr key={m}>
+                          <td>{m + 1}</td>
+                          <td>{info.climateNormals!.monthlyMeanTemperatureC[m].toFixed(1)}</td>
+                          <td>{p.toFixed(1)}</td>
+                          <td>{info.climateNormals!.monthlyMoistureSupply[m].toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p>
+                    {t("dialogs.cellInfo.wetThreeMonths", "Wettest three months")}: {(() => {
+                      const c = info.climateNormals!;
+                      const sums = Array.from(
+                        { length: 12 },
+                        (_, m) =>
+                          c.monthlyPrecipitationMm[m] +
+                          c.monthlyPrecipitationMm[(m + 1) % 12] +
+                          c.monthlyPrecipitationMm[(m + 2) % 12]
+                      );
+                      const peak = Math.max(...sums),
+                        start = sums.indexOf(peak);
+                      return `${start + 1}–${((start + 2) % 12) + 1}: ${c.annualPrecipitationMm > 0 ? ((100 * peak) / c.annualPrecipitationMm).toFixed(1) : 0}%`;
+                    })()}
+                  </p>
+                  <p>
+                    {t("dialogs.cellInfo.drySeason", "Dry season candidates")}: {(() => {
+                      const dry = getDrySeasonCandidates(info.climateNormals);
+                      return dry.status === "seasonal"
+                        ? dry.intervals
+                            .map(i => `${i.startMonth}–${((i.startMonth + i.length - 2) % 12) + 1}`)
+                            .join(", ")
+                        : dry.status;
+                    })()}
+                  </p>
+                  {info.climateNormals.invalidAnnualPrecipitation && <p>invalidAnnualPrecipitation</p>}
+                  {info.climateNormals.precipitationOutsideEarthlikeTilt && (
+                    <p>{t("dialogs.cellInfo.outsideEarthlikeTilt", "Axial tilt outside the Earth-like model range")}</p>
+                  )}
+                </details>
+              </td>
             </tr>
           )}
           {cellInfoRows.map(row => (

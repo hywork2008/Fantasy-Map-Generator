@@ -351,3 +351,25 @@ describe("mandatory local site bounds", () => {
     }
   });
 });
+
+it("preserves exact precipitation values and discards incomplete or invalid optional rain blocks", () => {
+  const rain = {
+    annualPrecipitationMm: 120.000001,
+    monthlyPrecipitationMm: [0.000001, ...new Array(10).fill(10), 20],
+    precipitationModelVersion: "seasonal-precipitation-v1",
+    precipitationSeasonalitySource: "modeledSeasonality",
+    precipitationSeasonalityConfidence: 0.8
+  };
+  const input = { ...sample, climate: { ...sample.climate, ...rain } };
+  expect(parseDescriptor(JSON.stringify(input))?.climate.monthlyPrecipitationMm).toEqual(rain.monthlyPrecipitationMm);
+  for (const broken of [
+    { monthlyPrecipitationMm: [1, 2] },
+    { precipitationSeasonalityConfidence: 2 },
+    { precipitationSeasonalitySource: "unknown" },
+    { annualPrecipitationMm: -1 }
+  ]) {
+    const parsed = parseDescriptor(JSON.stringify({ ...input, climate: { ...input.climate, ...broken } }));
+    expect(parsed).not.toBeNull();
+    expect(parsed?.climate.monthlyPrecipitationMm).toBeUndefined();
+  }
+});

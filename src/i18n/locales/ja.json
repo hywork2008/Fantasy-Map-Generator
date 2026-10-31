@@ -2096,6 +2096,10 @@
     "rarityLabel12": "レアリティ 1–2"
   },
   "layersTab": {
+    "precipitationPeriod": "降水量",
+    "precipitationAnnual": "年合計 (mm/年)",
+    "precipitationMonth": "表示中の月 (mm/月)",
+
     "webglRendering": "WebGL 描画",
     "webglRenderingTip": "従来の SVG 描画の代わりに WebGL Hybrid 描画を使います",
     "useSvg": "SVG 描画を使う",
@@ -2893,6 +2897,13 @@
       "generationOptionsNote": "このファイルには地図生成に使うオプション（シード、ハイトマップ、文化、集落パターンなど）が含まれます。生成済みの世界データそのものは含まれません。"
     },
     "cellInfo": {
+      "monthlyClimate": "月別の気候",
+      "month": "月",
+      "moistureSupply": "海洋水分供給",
+      "wetThreeMonths": "雨の多い3か月",
+      "drySeason": "乾季候補",
+      "outsideEarthlikeTilt": "地軸傾斜が地球型モデルの適用範囲外です",
+
       "pin": "セルを固定",
       "follow": "カーソルに追従",
       "pinTip": "カーソルを動かしても、このセルの詳細を保ちます",

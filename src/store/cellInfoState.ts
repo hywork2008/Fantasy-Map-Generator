@@ -15,6 +15,7 @@ export interface CellInfoData {
   area: string;
   feature: string;
   prec: string;
+  climateNormals?: import("../generators/cellClimateNormals").CellClimateNormals | null;
   river: string;
   /** Estimated river-surface velocity at this cell, or "n/a" when no river passes through it. */
   riverSurfaceVelocity: string;

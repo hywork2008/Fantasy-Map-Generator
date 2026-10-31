@@ -3,6 +3,7 @@ import { worldContext } from "../context/worldContext";
 import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../data/coastalHabitatCatalog";
 import { ARCTIC_CIRCLE_LATITUDE_DEG } from "../data/earthConfig";
 import { isFantasyCulturesSet } from "../data/raceCivicStance";
+import { getCellClimateNormals } from "../generators/cellClimateNormals";
 import { getCellDiurnalParameters, getCellWind, getDailyWindStats } from "../generators/cellWindClimate";
 import { evaluateCellFireSpiritStatus } from "../generators/fireSpirits";
 import { getForestClearingRate } from "../generators/forestStock";
@@ -15,6 +16,7 @@ import { buildStateSignals } from "../generators/technologyProgress";
 import { useCellInfoState } from "../store/cellInfoState";
 import { useOptionsState } from "../store/optionsState";
 import { usePopulationOverviewState } from "../store/populationOverviewState";
+import { usePrecipitationDisplayState } from "../store/precipitationDisplayState";
 import type { PackedGraphFeature } from "../types/models";
 import { getLatitude, getLongitude } from "../utils/commonUtils";
 import { getCultureFuneralRite } from "../utils/cultureFuneralRite";
@@ -69,7 +71,8 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
     depth: getDepth(worldContext.pack.features[f], point),
     temp: air.current === null ? "n/a" : convertTemperature(air.current),
     annualTemp: air.annual === null ? "n/a" : convertTemperature(air.annual),
-    prec: cells.h[i] >= 20 ? getFriendlyPrecipitation(i) : "n/a",
+    climateNormals: getCellClimateNormals(worldContext, g, simulationContext.currentYear),
+    prec: cells.h[i] >= 20 ? getDisplayedPrecipitation(i) : "n/a",
     river: riverId ? getRiverInfo(riverId) : "no",
     riverSurfaceVelocity: riverHydrology ? `${riverHydrology.surfaceVelocity} m/s` : "n/a",
     riverWaterDepth: riverHydrology ? `${riverHydrology.waterDepth} m` : "n/a",
@@ -255,6 +258,13 @@ export function getFriendlyWind(gridCellId: number): string {
   if (daily) notes.push(`windmill ${Math.round(daily.windmillFraction * 100)}% of the day`);
   return notes.length ? `${parts.join(", ")}; ${notes.join("; ")}` : parts.join(", ");
 }
+export function getDisplayedPrecipitation(i: number): string {
+  if (usePrecipitationDisplayState.getState().mode === "annual")
+    return `Annual precipitation: ${getFriendlyPrecipitation(i)}`;
+  const normals = getCellClimateNormals(worldContext, worldContext.pack.cells.g[i], simulationContext.currentYear);
+  return `Month ${simulationContext.currentMonth}: ${(normals?.monthlyPrecipitationMm[simulationContext.currentMonth - 1] ?? 0).toFixed(1)} mm/month`;
+}
+
 export function getFriendlyPrecipitation(i: number): string {
   const prec = worldContext.grid.cells.prec[worldContext.pack.cells.g[i]];
   return getPrecipitation(prec);

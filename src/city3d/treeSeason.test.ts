@@ -75,3 +75,24 @@ it("tints the aggregate canopy by the share of bare and turning trees", () => {
   expect(half.r).toBeCloseTo((bare.r + 1) / 2, 6);
   expect(forestCanopyTint(["european_beech"], undefined).toArray()).toEqual([1, 1, 1]);
 });
+
+it("refreshes tropical appearances when only precipitation changes, including source and confidence", () => {
+  const descriptor = site(1, new Array(12).fill(27));
+  Object.assign(descriptor.climate, {
+    annualPrecipitationMm: 1620,
+    monthlyPrecipitationMm: [5, 5, 200, 200, 200, 200, 200, 200, 200, 200, 5, 5],
+    precipitationModelVersion: "seasonal-precipitation-v1",
+    precipitationSeasonalitySource: "modeledSeasonality",
+    precipitationSeasonalityConfidence: 1
+  });
+  descriptor.climate.annualPrecipitationMm = descriptor.climate.monthlyPrecipitationMm!.reduce((a, b) => a + b, 0);
+  const dry = treeSeason(descriptor)!;
+  expect(dry.look("kapok")?.appearance).toBe("bare");
+  expect(dry.look("umbrella_thorn")?.appearance).toBe("sparse");
+  descriptor.climate.monthlyPrecipitationMm = new Array(12).fill(descriptor.climate.annualPrecipitationMm / 12);
+  const wet = treeSeason(descriptor)!;
+  expect(wet.key).not.toBe(dry.key);
+  expect(wet.look("kapok")).toBeUndefined();
+  descriptor.climate.precipitationSeasonalityConfidence = 0;
+  expect(treeSeason(descriptor)!.key).not.toBe(wet.key);
+});
