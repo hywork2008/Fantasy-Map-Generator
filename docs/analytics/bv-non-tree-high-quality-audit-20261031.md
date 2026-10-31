@@ -12,7 +12,7 @@ Regenerate: `node --import tsx scripts/auditBvModelQuality.mts`
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **68**. Missing candidates: **152**.
+Records: **220**. Codex High or Ultra available: **69**. Missing candidates: **151**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -49,7 +49,7 @@ Records: **220**. Codex High or Ultra available: **68**. Missing candidates: **1
 | Medieval 29 | 1 | 0 | 1 |
 | Medieval 30 | 1 | 0 | 1 |
 | Medieval 31 | 1 | 0 | 1 |
-| Medieval 32 | 2 | 0 | 2 |
+| Medieval 32 | 2 | 1 | 1 |
 | Medieval 33 | 1 | 1 | 0 |
 | Medieval 34 | 1 | 0 | 1 |
 | Medieval 35 | 2 | 0 | 2 |
@@ -122,7 +122,6 @@ Records: **220**. Codex High or Ultra available: **68**. Missing candidates: **1
 | Medieval 29 | `masons-stone-yard` | Stone yard and mason work shelter | single/default; assumed Low - [source](../../src/buildings/medieval/29-stone-yardsModels.ts) |
 | Medieval 30 | `masonry-lime-kiln` | Masonry lime kiln and charging bank | single/default; assumed Low - [source](../../src/buildings/medieval/30-lime-kilnsModels.ts) |
 | Medieval 31 | `linen-bleaching-field` | Linen bleaching ground and drying racks | single/default; assumed Low - [source](../../src/buildings/medieval/31-bleaching-fieldsModels.ts) |
-| Medieval 32 | `abbey` | Abbey church, cloister and domestic ranges | single/default; assumed Low - [source](../../src/buildings/medieval/32-abbey-living-quartersModels.ts) |
 | Medieval 32 | `abbey-domestic-range` | Abbey cloister and domestic ranges | single/default; assumed Low - [source](../../src/buildings/medieval/32-abbey-living-quartersModels.ts) |
 | Medieval 34 | `potters-workshop` | Potter workshop, kiln, and drying shelves | single/default; assumed Low - [source](../../src/buildings/medieval/34-pottery-workshopsModels.ts) |
 | Medieval 35 | `harbor-treadwheel-crane` | Timber harbor treadwheel crane | single/default; assumed Low - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
@@ -298,6 +297,7 @@ Records: **220**. Codex High or Ultra available: **68**. Missing candidates: **1
 | Medieval 17 | `merchant-warehouse` | Merchant warehouse and loading hoist | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/17-warehousesModels.ts) |
 | Medieval 17 | `riverside-goods-store` | Small riverside goods store | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/17-warehousesModels.ts) |
 | Medieval 18 | `livestock-market-pens` | Divided livestock market pens | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/18-livestock-marketsModels.ts) |
+| Medieval 32 | `abbey` | Abbey church, cloister and domestic ranges | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/32-abbey-living-quartersModels.ts) |
 | Medieval 33 | `mendicant-friary` | Urban mendicant friary | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/33-friariesModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-barracks` | Citadel barracks · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |

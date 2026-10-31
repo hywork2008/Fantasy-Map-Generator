@@ -2,7 +2,7 @@
 
 2026-11-01
 
-- docs/plan/bv-composite-models.md - FriaryのUltra樹木・詳細井戸による負荷を調査し、複合施設の部品境界・独立品質・BV表示・CE計画と資源所有を設計。P0植栽Low、P1井戸Low・台帳、P2独立factory、P3住宅系9モデルの部品化・構成と貯蔵樽共通化、P4 Friary Highの開口付き外殻・交差屋根・回廊・鐘架とLowのCE既定維持まで完了。次のP5固有建築への展開を明記
+- docs/plan/bv-composite-models.md - FriaryのUltra樹木・詳細井戸による負荷を調査し、複合施設の部品境界・独立品質・BV表示・CE計画と資源所有を設計。P0植栽Low、P1井戸Low・台帳、P2独立factory、P3住宅系9モデルの部品化・構成と貯蔵樽共通化、P4 Friary Highの開口付き外殻・交差屋根・回廊・鐘架まで完了。CEのModel quality設定に応じたLow／High採用・再生成も接続。実CEの対象がAbbeyと確認し、Abbeyの詳細外殻・回廊・石造交差塔もHigh化して設定へ接続。付属の木と井戸もCE品質へ追従させ、採用一覧に実依存元を記録。次のP5固有建築への展開を明記
 
 2026-10-31
 

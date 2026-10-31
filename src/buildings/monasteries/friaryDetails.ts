@@ -6,7 +6,7 @@ import { ModelKit, type Surface } from "../medieval/modelKit";
 import { createMonasterySlab, type MonasteryContext } from "./monasteryComponents";
 
 type Vertex = [number, number, number];
-type Opening = { u: number; base: number; width: number; height: number; door?: boolean };
+type Opening = { u: number; base: number; width: number; height: number; door?: boolean; unglazed?: boolean };
 const pitch = Math.tan((32 * Math.PI) / 180);
 const lerp = (a: Point, b: Point, t: number): Point => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 const cross = (a: Point, b: Point) => a[0] * b[1] - a[1] * b[0];
@@ -109,7 +109,7 @@ function wall(
         k.group.add(holder);
         edgePlacement(holder, a, b, elevation);
       }
-    } else {
+    } else if (!opening.unglazed) {
       const pane = new THREE.Shape(sectionPath(opening, opening.width * 0.94, opening.height * 0.97));
       const glass = k.add("recessed-lancet-glazing", new THREE.ShapeGeometry(pane, 4), "water");
       edgePlacement(glass, a, b, elevation, 0.32 * scale);
@@ -225,7 +225,9 @@ function roofInfo(context: MonasteryContext, index: number): Roof {
     maxU: Math.max(...us),
     minV: Math.min(...vs),
     maxV: Math.max(...vs),
-    eave: (ordinary(building.role) && building.role !== "range" ? 7.2 : 5.4) * context.scale
+    eave:
+      (building.role === "crossing-tower" ? 14 : ordinary(building.role) && building.role !== "range" ? 7.2 : 5.4) *
+      context.scale
   };
 }
 const local = (roof: Roof, u: number, v: number): Point => [
@@ -401,10 +403,64 @@ function bellcote(context: MonasteryContext, index: number) {
   return result.finish();
 }
 
+function abbeyCrossingTower(context: MonasteryContext, index: number) {
+  const k = new ModelKit("abbey-crossing-tower-high"),
+    s = context.scale,
+    ring = ringOf(context.plan.buildings[index].polygon);
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i],
+      b = ring[(i + 1) % ring.length],
+      length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    wall(
+      k,
+      a,
+      b,
+      14 * s,
+      7.1 * s,
+      context.elevation,
+      s,
+      [-1, 1].map(side => ({
+        u: length / 2 + side * 0.95 * s,
+        base: 11.1 * s,
+        width: 1.05 * s,
+        height: 2.25 * s,
+        unglazed: true
+      }))
+    );
+    const holder = new THREE.Group();
+    for (const side of [-1, 1])
+      for (let y = 11.4; y < 12.65; y += 0.3) {
+        const louver = k.box("abbey-belfry-louver", [0, 0, 0], [0.96 * s, 0.09 * s, 0.16 * s], "dark");
+        holder.add(louver);
+        louver.position.set(length / 2 + side * 0.95 * s, y * s, 0.2 * s);
+        louver.rotation.x = 0.35;
+      }
+    k.group.add(holder);
+    edgePlacement(holder, a, b, context.elevation);
+    for (const y of [10.5, 13.8]) {
+      const cornice = k.box("abbey-tower-cornice", [0, 0, 0], [length, 0.18 * s, 0.48 * s], "white");
+      const course = new THREE.Group();
+      course.add(cornice);
+      cornice.position.set(length / 2, y * s, 0.12 * s);
+      k.group.add(course);
+      edgePlacement(course, a, b, context.elevation);
+    }
+    k.box(
+      "abbey-tower-corner-pier",
+      planVertex(a, context.elevation + 10.55 * s),
+      [0.45 * s, 7.1 * s, 0.45 * s],
+      "stone"
+    );
+  }
+  roof(k, context, index);
+  return k.finish();
+}
+
 export function createHighFriaryBuilding(context: MonasteryContext, index: number) {
   const building = context.plan.buildings[index],
     s = context.scale;
-  if (building.role === "crossing-tower") return bellcote(context, index);
+  if (building.role === "crossing-tower")
+    return context.plan.kind === "abbey" ? abbeyCrossingTower(context, index) : bellcote(context, index);
   const k = new ModelKit(`friary-${building.role}-high`),
     ring = ringOf(building.polygon);
   const sacred = building.role === "church" || building.role === "apse",

@@ -772,7 +772,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     ]);
     const openSpacesChanged = terrainChanged || plan.buildings || openSpaceStamp !== nextOpenSpaceStamp || !openSpaces;
     const monasteryPlans = fabric.aerialLandmarks?.monasteries ?? [];
-    const nextMonasteryStamp = JSON.stringify(monasteryPlans);
+    const nextMonasteryStamp = JSON.stringify([monasteryPlans, quality]);
     const monasteriesChanged = terrainChanged || monasteryStamp !== nextMonasteryStamp || !monasteries;
     const bridgesChanged = plan.buildings || plan.water || plan.roads || !bridges;
     let nextForestSource: ForestPlan | null = null;
@@ -825,7 +825,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (monasteriesChanged) {
       if (monasteries) scene.remove(monasteries.group);
       monasteries?.dispose();
-      monasteries = createTownMonasteries(monasteryPlans, terrain ?? undefined);
+      monasteries = createTownMonasteries(monasteryPlans, terrain ?? undefined, quality);
       scene.add(monasteries.group);
       monasteryStamp = nextMonasteryStamp;
     }

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
 import { bvInstanceGeometry } from "../../city3d/three/bvInstances";
+import * as friaryMeshes from "../../city3d/three/friaryMeshes";
 import * as townWallMeshes from "../../city3d/three/townWallMeshes";
 import * as wellMeshes from "../../city3d/three/wellMeshes";
 import { editorText } from "../../i18n/editorMessages";
@@ -30,6 +31,43 @@ vi.mock("three", async importOriginal => ({
     dispose() {}
   }
 }));
+
+it("rebuilds monastery models when model quality changes without a document edit", () => {
+  vi.stubGlobal("requestAnimationFrame", () => 1);
+  vi.stubGlobal("cancelAnimationFrame", () => {});
+  const host = document.createElement("div"),
+    map = document.createElement("div");
+  host.append(map);
+  document.body.append(host);
+  const scope = beginEditorMount(host);
+  const city = createDocument("monastery-quality", 160);
+  let quality: "low" | "standard" | "high" = "standard";
+  const build = vi.spyOn(friaryMeshes, "createTownMonasteries");
+  const view = mountCity3d({ canvasHost: host, map, scope, getDocument: () => city, getModelQuality: () => quality });
+  try {
+    host.querySelector<HTMLButtonElement>(".ce-view-toggle")!.click();
+    expect(build).toHaveBeenCalledTimes(1);
+    expect(build.mock.lastCall?.[2]).toBe("standard");
+    const dispose = vi.spyOn(build.mock.results[0].value, "dispose");
+    quality = "high";
+    view.sync();
+    expect(build).toHaveBeenCalledTimes(2);
+    expect(build.mock.lastCall?.[2]).toBe("high");
+    expect(dispose).toHaveBeenCalledTimes(1);
+    view.sync();
+    expect(build).toHaveBeenCalledTimes(2);
+    quality = "low";
+    view.sync();
+    expect(build).toHaveBeenCalledTimes(3);
+    expect(build.mock.lastCall?.[2]).toBe("low");
+  } finally {
+    view.dispose();
+    scope.dispose();
+    host.remove();
+    build.mockRestore();
+    vi.unstubAllGlobals();
+  }
+});
 
 it("reports rendered overall height separately from elevation for both tagged towers and BV instances", () => {
   vi.stubGlobal("requestAnimationFrame", () => 1);

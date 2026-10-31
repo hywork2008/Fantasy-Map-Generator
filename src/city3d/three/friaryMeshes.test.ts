@@ -18,12 +18,71 @@ import { createTownMonasteries } from "./friaryMeshes";
 const center = (ring: Point[]): Point =>
   ring.reduce<Point>((a, p) => [a[0] + p[0] / ring.length, a[1] + p[1] / ring.length], [0, 0]);
 
+it.each(["low", "standard", "high"] as const)(
+  "selects %s Friary architecture while retaining other monasteries and merged part ranges",
+  quality => {
+    const plans = [friaryPreviewPlan(), monasteryPreviewPlan("abbey"), monasteryPreviewPlan("orthodoxMonastery")];
+    const level = quality === "high" ? "high" : "low";
+    const sources = plans.map(plan =>
+      createMonastery(plan, 12, 7.8, {
+        architectureQuality: plan.kind === "orthodoxMonastery" ? "low" : level,
+        vegetationQuality: quality === "standard" ? "medium" : quality,
+        wellQuality: quality === "high" ? "default" : "low"
+      })
+    );
+    const merged = createTownMonasteries(plans, { foundationAt: () => 12, heightAt: () => 8 }, quality);
+    try {
+      expect(merged.group.userData.modelVariants.filter((id: string) => id.startsWith("monastery."))).toEqual([
+        `monastery.friary@${level}#codex-gpt-6.1-sol`,
+        `monastery.abbey@${level}#codex-gpt-6.1-sol`,
+        "monastery.orthodoxMonastery@default#codex-gpt-6.1-sol"
+      ]);
+      expect(collectModelMetrics(merged.group).triangles).toBe(
+        sources.reduce((sum, source) => sum + collectModelMetrics(source.group).triangles, 0)
+      );
+      expect(modelParts(merged.group)).toEqual(sources.flatMap(source => modelParts(source.group)));
+      const treeLevel = quality === "standard" ? "medium" : quality;
+      const wellLevel = quality === "high" ? "default" : "low";
+      expect(merged.group.userData.modelVariants).toContain(`tree.garden-parkland@${treeLevel}#codex-gpt-6.1-sol`);
+      expect(merged.group.userData.modelVariants).toContain(`well.medieval@${wellLevel}#codex-gpt-6.1-sol`);
+      for (const part of modelParts(merged.group)) {
+        if (part.role === "vegetation") expect(part.quality).toBe(treeLevel);
+        if (part.role === "well") {
+          expect(part.quality).toBe(wellLevel);
+          expect(part.triangles).toBe(quality === "high" ? 11284 : 632);
+        }
+      }
+      expect(merged.pickables).toHaveLength(1);
+      const mesh = merged.pickables[0];
+      const ranges = mesh.userData.modelPartRanges as ModelPartRange[];
+      let offset = 0;
+      for (const range of ranges) {
+        expect(range.start).toBe(offset);
+        offset += range.count;
+      }
+      expect(offset).toBe(mesh.geometry.getAttribute("position").count);
+      for (const part of modelParts(merged.group))
+        expect(ranges.filter(range => range.partId === part.id).reduce((sum, range) => sum + range.count / 3, 0)).toBe(
+          part.triangles
+        );
+      expect(new THREE.Box3().setFromObject(merged.group).min.y).toBeCloseTo(7.8);
+      const geometry = vi.spyOn(mesh.geometry, "dispose");
+      const material = vi.spyOn(mesh.material as THREE.Material, "dispose");
+      merged.dispose();
+      expect(geometry).toHaveBeenCalledTimes(1);
+      expect(material).toHaveBeenCalledTimes(1);
+    } finally {
+      for (const source of sources) source.dispose();
+    }
+  }
+);
+
 it("accounts for every source mesh and preserves part identity across a multi-precinct CE merge", () => {
   const first = friaryPreviewPlan();
   const second = { ...monasteryPreviewPlan("abbey"), id: "second-precinct" };
   const source = createFriary(first);
   const originalWell = createFriary(first, 0, 0, { wellQuality: "default" });
-  const merged = createTownMonasteries([first, second], { foundationAt: () => 3, heightAt: () => 0 });
+  const merged = createTownMonasteries([first, second], { foundationAt: () => 3, heightAt: () => 0 }, "low");
   try {
     const parts = modelParts(source.group);
     expect(parts.reduce((sum, part) => sum + part.meshes, 0)).toBe(source.pickables.length);
@@ -67,7 +126,7 @@ it("budgets attached vegetation explicitly in BV and CE while allowing an indepe
   try {
     const bv = createFriary(plan);
     models.push(bv);
-    const ce = createTownMonasteries([plan]);
+    const ce = createTownMonasteries([plan], undefined, "low");
     models.push(ce);
     expect(spy).toHaveBeenCalledTimes(plan.trees.length * 2);
     expect(spy.mock.calls.every(call => call[1] === "low")).toBe(true);
@@ -185,7 +244,9 @@ it.each(["abbey", "orthodoxMonastery"] as const)(
     const model = createTownMonasteries([plan], { foundationAt: () => 12, heightAt: () => 8 });
     expect(model.pickables).toHaveLength(1);
     expect(Array.from(model.pickables[0].geometry.getAttribute("position").array).every(Number.isFinite)).toBe(true);
-    expect(model.group.userData.modelVariants).toContain(`monastery.${kind}@default#codex-gpt-6.1-sol`);
+    expect(model.group.userData.modelVariants).toContain(
+      `monastery.${kind}@${kind === "abbey" ? "low" : "default"}#codex-gpt-6.1-sol`
+    );
     expect(new THREE.Box3().setFromObject(model.group).min.y).toBeCloseTo(7.8);
     const detailed = createMonastery(plan);
     expect(detailed.pickables.some(mesh => mesh.name === "friary-bell")).toBe(false);

@@ -23,7 +23,13 @@
 
 教会堂・後陣・居住棟・門棟・鐘架・回廊・囲壁の部品をHighとし、庭・菜園・基礎・樹木・井戸は独立したLow部品として扱う。既定の樹木4本は合計564三角形、井戸は632三角形。樹木Ultraへの暗黙の依存を戻していない。
 
-CEの`createTownMonasteries`は引き続きdefaultを採用し、実測でもLowの4,262三角形・1描画メッシュだった。保存計画とCEの自動配置は変更していない。BVにはHighを明示選択できることと、CE既定がLowであることを分けて表示する。
+制作時点ではCEの`createTownMonasteries`はdefaultを採用し、実測でもLowの4,262三角形・1描画メッシュだった。以下のJSONと画像はその時点の記録である。
+
+同日の追加修正で、CEのModel quality設定を生成と更新判定へ接続した。Highでは登録High、Low／Standardでは登録Lowを採用する。設定変更だけでも既存モデルを解放して再生成し、同じ設定の再同期では再生成しない。Highの材質結合済みメッシュが持つ部品範囲もCEの結合へ引き継ぐ。保存計画と自動配置、樹木・井戸のLowは維持する。BVのCE採用表示も設定に応じた説明へ更新した。
+
+その後、ユーザーのCEで表示されていた施設がAbbeyであると確認し、Abbeyにも専用Highと設定切替を追加した。Orthodoxは既存defaultのまま。[原因と追加修正・比較画像](ce-abbey-quality-20261101.md)を参照。
+
+追加修正の検証は`npx vitest run src/city3d/three/friaryMeshes.test.ts src/city-editor/renderers/cityViewRendering.test.ts src/city3d/adoption.test.ts`の3ファイル21件が成功。3品質の混在修道院生成・三角形数・接地・部品範囲・解放と、文書編集なしの品質変更・再生成・旧モデル解放を確認した。描画更新のテストではWebGLRendererをモックし、ブラウザーでの追加確認は行っていない。
 
 ## 計測
 

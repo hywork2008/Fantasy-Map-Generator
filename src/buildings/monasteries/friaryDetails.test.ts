@@ -5,7 +5,7 @@ import type { Point } from "../../city-editor/types/document";
 import * as trees from "../landscape/trees";
 import { models } from "../medieval/33-friariesModels";
 import { type ModelPartRange, modelParts } from "../modelParts";
-import { FRIARY_VARIANTS } from "../siteVariants";
+import { FRIARY_VARIANTS, MONASTERY_VARIANTS } from "../siteVariants";
 import {
   createFriary,
   createMonastery,
@@ -73,6 +73,48 @@ it("keeps registered default and Low factories Low even if callers pass a differ
       model.dispose();
     }
   }
+});
+
+it("details the abbey programme with its own hollow stone crossing tower and fixed registered tiers", () => {
+  const plan = monasteryPreviewPlan("abbey");
+  const saved = JSON.stringify(plan);
+  const factories = monasteryPartFactories(plan, 3, -1, { architectureQuality: "high" });
+  const tower = factories.find(part => part.role === "crossing-tower")!.create();
+  try {
+    expect(tower.pickables.some(mesh => mesh.name === "abbey-belfry-louver")).toBe(true);
+    expect(tower.pickables.some(mesh => mesh.name.includes("bellcote"))).toBe(false);
+    tower.group.updateMatrixWorld(true);
+    const building = plan.buildings.find(part => part.role === "crossing-tower")!;
+    const center = building.polygon.reduce((sum, p) => [sum[0] + p[0] / 4, sum[1] + p[1] / 4], [0, 0]);
+    const ray = new THREE.Raycaster(new THREE.Vector3(center[0], 4, -center[1]), new THREE.Vector3(0, 1, 0), 0, 9);
+    expect(ray.intersectObjects(tower.pickables)).toHaveLength(0);
+  } finally {
+    tower.dispose();
+  }
+  for (const variant of MONASTERY_VARIANTS.filter(variant => variant.family === "monastery.abbey")) {
+    const model = variant.create(plan, 3, -1, { architectureQuality: variant.level === "high" ? "low" : "high" });
+    try {
+      const metrics = collectModelMetrics(model.group);
+      if (variant.level === "high") {
+        expect(metrics.triangles).toBeGreaterThan(10000);
+        expect(metrics.triangles).toBeLessThan(100000);
+        expect(metrics.meshes).toBeLessThanOrEqual(20);
+      } else expect(metrics.triangles).toBeLessThan(10000);
+      const bounds = new THREE.Box3().setFromObject(model.group);
+      expect(bounds.min.y).toBeCloseTo(-1);
+      expect(bounds.max.y).toBeLessThan(25);
+      for (const mesh of model.pickables)
+        expect(Array.from(mesh.geometry.getAttribute("position").array).every(Number.isFinite)).toBe(true);
+      expect(
+        modelParts(model.group)
+          .filter(part => ["vegetation", "well"].includes(part.role))
+          .every(part => part.quality === "low")
+      ).toBe(true);
+    } finally {
+      model.dispose();
+    }
+  }
+  expect(JSON.stringify(plan)).toBe(saved);
 });
 
 it("keeps the church entrance, nave-to-choir connection and recessed windows physically open", () => {
@@ -176,9 +218,9 @@ it("preserves gate access, fitted rotation and elevation without mutating the sa
   } finally {
     model.dispose();
   }
-  expect(() => createMonastery(monasteryPreviewPlan("abbey"), 0, 0, { architectureQuality: "high" })).toThrow(
-    "not yet available"
-  );
+  expect(() =>
+    createMonastery(monasteryPreviewPlan("orthodoxMonastery"), 0, 0, { architectureQuality: "high" })
+  ).toThrow("not yet available");
 });
 
 it("owns the High buffers independently and disposes each final resource once", () => {

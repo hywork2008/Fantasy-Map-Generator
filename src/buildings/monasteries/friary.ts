@@ -61,7 +61,7 @@ export function monasteryPartFactories(
   foundationBottom = elevation,
   options: MonasteryRenderOptions = {}
 ): ModelPartFactory[] {
-  if (options.architectureQuality === "high" && plan.kind !== "friary")
+  if (options.architectureQuality === "high" && plan.kind === "orthodoxMonastery")
     throw new Error("High architecture is not yet available for this monastery programme");
   const high = options.architectureQuality === "high";
   const context = monasteryContext(plan, elevation, foundationBottom);

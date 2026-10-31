@@ -1,4 +1,9 @@
-import { createMonastery, monasteryPartFactories, monasteryPreviewPlan } from "../monasteries/friary";
+import {
+  assembleMonasteryParts,
+  createMonastery,
+  monasteryPartFactories,
+  monasteryPreviewPlan
+} from "../monasteries/friary";
 import { MONASTERY_VARIANTS } from "../siteVariants";
 import { type MedievalModel, ModelKit } from "./modelKit";
 
@@ -28,12 +33,19 @@ export const models: MedievalModel[] = [
     task: 32,
     size: [105, 95, 22],
     note: "CE-fitted abbey with nave, choir, apse, transepts, stone crossing tower, domestic ranges, open cloister, garden, orchard, well and precinct entrance. BV and CE share the same assembly.",
-    variants: MONASTERY_VARIANTS.filter(variant => variant.family === "monastery.abbey").map(variant => ({
+    variants: MONASTERY_VARIANTS.filter(
+      variant => variant.family === "monastery.abbey" && variant.level !== "default"
+    ).map(variant => ({
       ...variant,
-      label: "CE-fitted abbey"
+      label: variant.level === "high" ? "High" : "Low"
     })),
     create: () => createMonastery(monasteryPreviewPlan("abbey")),
-    parts: () => monasteryPartFactories(monasteryPreviewPlan("abbey"))
+    parts: variantId =>
+      monasteryPartFactories(monasteryPreviewPlan("abbey"), 0, 0, {
+        architectureQuality:
+          MONASTERY_VARIANTS.find(variant => variant.id === variantId)?.level === "high" ? "high" : "low"
+      }),
+    assembleParts: parts => assembleMonasteryParts("abbey", parts)
   },
   {
     author: "Codex GPT-6.1 Sol",

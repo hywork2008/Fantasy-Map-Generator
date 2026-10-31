@@ -2745,10 +2745,10 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
                 "CE adoption",
                 partFactory || customAssembly
                   ? "Component preview; CE placement uses its registered assembly"
-                  : variant.family === "monastery.friary"
+                  : variant.family === "monastery.friary" || variant.family === "monastery.abbey"
                     ? variant.level === "high"
-                      ? "Explicit High edition available; CE default keeps Low architecture"
-                      : "CE default keeps this Low architecture"
+                      ? "CE uses this architecture at High model quality"
+                      : "CE uses Low architecture at Low or Standard model quality"
                     : variant === adopted(variant.level)
                       ? "Adopted"
                       : `Not adopted; CE uses ${adopted(variant.level).author}`
