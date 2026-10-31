@@ -32,6 +32,11 @@ export type MarketSettings = {
   dissolveMonths: number;
   dissolveCargo: MarketDissolveCargoMode;
   hayTrade: HayTradeMode;
+  /**
+   * Weight of a rural person against a town person in the wages a market pays from its surplus:
+   * carters, threshers and hay hands in its countryside as well as dealers and porters in its towns.
+   */
+  surplusRuralWeight: number;
 };
 
 export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
@@ -39,13 +44,15 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   dissolveWealthShare: 0.2,
   dissolveMonths: 12,
   dissolveCargo: "windDown",
-  hayTrade: "marketShortfall"
+  hayTrade: "marketShortfall",
+  surplusRuralWeight: 1
 };
 
 export const MARKET_SETTING_LIMITS = {
   foundingSpacingFactor: { min: 0, max: 3, step: 0.05 },
   dissolveWealthShare: { min: 0, max: 1, step: 0.01 },
-  dissolveMonths: { min: 1, max: 60, step: 1 }
+  dissolveMonths: { min: 1, max: 60, step: 1 },
+  surplusRuralWeight: { min: 0, max: 1, step: 0.05 }
 } as const;
 
 type NumericMarketSetting = keyof typeof MARKET_SETTING_LIMITS;
@@ -78,7 +85,8 @@ export function getMarketSettings(): MarketSettings {
     dissolveWealthShare: clamp("dissolveWealthShare", parsed.dissolveWealthShare),
     dissolveMonths: clamp("dissolveMonths", parsed.dissolveMonths),
     dissolveCargo: cargoMode(parsed.dissolveCargo),
-    hayTrade: hayTradeMode(parsed.hayTrade)
+    hayTrade: hayTradeMode(parsed.hayTrade),
+    surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight)
   };
 }
 
@@ -89,7 +97,8 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     dissolveWealthShare: clamp("dissolveWealthShare", next.dissolveWealthShare),
     dissolveMonths: clamp("dissolveMonths", next.dissolveMonths),
     dissolveCargo: cargoMode(next.dissolveCargo),
-    hayTrade: hayTradeMode(next.hayTrade)
+    hayTrade: hayTradeMode(next.hayTrade),
+    surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight)
   };
   worldSettings.setItem(MARKET_SETTINGS_KEY, JSON.stringify(settings));
   return settings;

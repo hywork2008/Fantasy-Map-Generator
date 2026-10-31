@@ -27,7 +27,8 @@ applyConflictAutonomyFromEnv();
 {
   const { setMarketSettings, getMarketSettings } = await import(`${R}/src/simulation/marketSettings`);
   if (process.env.FMG_HAY_TRADE) setMarketSettings({ hayTrade: process.env.FMG_HAY_TRADE });
-  console.log("hayTrade", getMarketSettings().hayTrade);
+  if (process.env.FMG_SURPLUS_RURAL_WEIGHT) setMarketSettings({ surplusRuralWeight: Number(process.env.FMG_SURPLUS_RURAL_WEIGHT) });
+  console.log("settings", JSON.stringify(getMarketSettings()));
 }
 
 const { getCaravans, getExportStagingLots } = await import(`${R}/src/extensions/economy/context/trade`);

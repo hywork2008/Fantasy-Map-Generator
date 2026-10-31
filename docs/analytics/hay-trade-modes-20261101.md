@@ -86,7 +86,7 @@
 | haycompare.py | §2の表（HEADは`haysurplus-36.json`と`treasury-84.json`を同じフォルダーに置いて読む） | 8f0044552f9c6387d766dbb862147f9382eaa2fa6e6a462b89144249a8e3107f |
 | fodderflow.mts | Fodderの物の流れを、市場ごと・分類ごとに年で足すprobe | a7564b76100d11530d018706a5af3d227c98ceb6893df239a45ea7a08241ea37 |
 | fodderflow-A-24.json | Aの24か月 | f735e100fd7724c396690d8d633c150eae6346530a174a3cdee4b90fee17d015 |
-| marketv3.mts | [market-dissolution-m2-20261031](market-dissolution-m2-20261031/)の`marketv2.mts`に方式の選択を加え、自分のファイル名を飛ばすようにしたprobe | 1a4419f5a4d89090f33c0ab446b707362c7f01cf8d15ffa6b71e3aa0fdf4af99 |
+| marketv3.mts | [market-dissolution-m2-20261031](market-dissolution-m2-20261031/)の`marketv2.mts`に方式の選択（`FMG_HAY_TRADE`、§9から`FMG_SURPLUS_RURAL_WEIGHT`も）を加え、自分のファイル名を飛ばすようにしたprobe | 0f0258660b152c0630fa77e669a4a7febefeab99d588238bc0803173c2f68c34 |
 | mv3-marketShortfall-money.json | Aの36か月の、年ごと・市場ごと・経路ごとのお金 | 9c290320bd0cf56216d970eceea1a294e116f41742aaa4a8377692b1138230ff |
 | mv3-farmsFirst-money.json | Bの同じもの | bbadd8d93d1b8e613382a4c10afe830d9f22bdcf6f4d4a3d380b6635a8bed515 |
 
@@ -231,3 +231,52 @@
 | mv3-v0-marketShortfall.jsonl | 直す前のAの36か月（`marketv3.mts`、月ごとの塩と家計） | 9ea0d44d50d191c4c4f12b0f99af023cee842581ad1b1f2d3f183fae4e81fc0e |
 | mv3-v3-marketShortfall.jsonl | v3のAの同じもの | 1533ff7ad5b631d10cc075424bd668ecd1b367582a8ca4ae750c6b5e6df6b052 |
 | mv3-v3-marketShortfall-money.json | v3のAの、年ごと・市場ごと・経路ごとのお金 | 33835e1f0bb14e3ae89b87be38d54ebe26ffdc16b5596a4b82eaffd9ca4125ed |
+
+## 9. 余りの払い出しを農村にも（§8.4のb）と84か月
+
+- 変更: [householdWealth.ts](../../src/extensions/economy/generators/householdWealth.ts)の`payOutMarketSurplus`。
+  - 町の給与として払っていた分（払い出しから商人の利益を引いた分）を、町の人口と、農村の人口×重みで分ける。
+  - 重みはSimulation設定の「市場の余りの給与の農村の重み」（`surplusRuralWeight`）で、既定は1（人数どおり）である。0で町だけになる。
+  - 国の給与（`payStateHouseholds`）と同じく、町の`population`とセルの`pop`を比べる。
+- 計測: v3のAで、重み1と重み0を84か月ずつ。HEADは[market-dissolution-m2-20261031.md](market-dissolution-m2-20261031.md)の`m2-wind.jsonl`（同じ固定入力・平和モード）。
+
+| 年 | | HEAD | 重み0 | 重み1 |
+| ---: | --- | ---: | ---: | ---: |
+| 1302 | 人の塩の不足 | 70 | 80 | 82 |
+| 1304 | 人の塩の不足 | 462 | 796 | 970 |
+| 1306 | 人の塩の不足 | 1,308 | 2,173 | 2,118 |
+| 1306 | 家畜の塩の不足 | 0 | 0 | 0 |
+| 1306 | 塩の値段の中央値（12月） | 0.056 | 0.055 | 0.056 |
+| 1306 | 製塩所への掛け（12月） | 1,222 | 1,161 | 1,118 |
+| 1304 | budgetGap（町の主食の予算の不足） | 611 | 1,772 | 1,644 |
+| 1306 | budgetGap | 1,839 | 8,000 | 7,945 |
+| 1306 | 農村の財布（12月） | 445.3千 | 317.2千 | 374.0千 |
+| 1306 | 町の家計の財布（12月） | 110.3千 | 116.9千 | 96.4千 |
+| 1306 | 市場の金庫（12月） | 79.2千 | 146.5千 | 120.6千 |
+| 1306 | 国の金庫（12月） | 286.9千 | 261.8千 | 259.8千 |
+
+- 36か月では塩は良くなっていた（§8.2）。84か月では、1304年から人の塩の不足とbudgetGapが悪くなる。
+  - 不足が増えたのは国10・28に加えて、国5・8である（1305〜1306年）。
+- 重み1は、重み0より農村の財布を18%多く残す。その分、町の家計の財布は18%少ない。人の塩の不足とbudgetGapは、ほとんど変わらない。
+- 市場の金庫は、どちらもHEADより多く、毎年増えている。準備金（全市場で約15万）に届くまで、家計からお金を吸い続けている。
+  - 1306年の農村の、払い出しからの受け取りは、重み1で58.6千、重み0で56.2千である（穀物の掛けの返済を含む）。準備金を超える市場が少ないので、払い出しそのものが小さい。
+- 町の家計の財布は、多くの市場で減った（市場10・12・15・9・17・1・8・5）。町の収入の大部分は、農村が町で使うお金（農村の財布の毎月5%）である。農村の財布が減って、それが減った（1306年の`spendRuralHouseholdsInTowns`: HEAD −290.1千、重み1 −228.2千、重み0 −208.2千）。
+
+### 9.1 分かったこと
+
+1. bは働くが、効きは小さい。準備金を超えるお金が少なく、払い出しそのものが小さいからである。
+2. 干し草の値段を直した後は、市場の金庫が準備金に向けてお金をため続ける。その分、農村の財布が減り、町の収入（農村が町で使うお金）も減る。その結果、町が主食を買えない（budgetGap）。人の塩の不足も増える。
+3. 直す前の干し草の損は、たまたま金庫のお金を家計に戻す役をしていた。それが無くなって、準備金の大きさ（町の人口×20）が家計のお金に比べて大きすぎることが出てきた。
+
+### 9.2 次にすること
+
+- §8.4のc。準備金の倍率（`MARKET_CASH_RESERVE_PER_POPULATION_FACTOR`、今は1）をSimulation設定にして、0.5・0.25などで84か月を計る。金庫が実際に使う運転資金（穀物の門口の代金、草刈りの買い上げ、塩の掛け）と比べて、準備金の大きさを決める。
+
+### 9.3 ファイル（追加）
+
+| ファイル | 内容 | SHA-256 |
+| --- | --- | --- |
+| surplus-w1-84.jsonl | 重み1の84か月（月ごとの塩と家計） | 4173d59dfd6d2c459f4af4a80ac862b37d5287883f2e5c37b9eff0cc2339059b |
+| surplus-w1-84-money.json | 重み1の、年ごと・市場ごと・経路ごとのお金 | cac748deff2db97eab0a5b3c566cee80c3481d174b0dafb95aed4f4469fdf721 |
+| surplus-w0-84.jsonl | 重み0の84か月 | ab43b97041532c2a2cda7dda8d077e9433bc8ecfb32214284c48b10b4eefd7f8 |
+| surplus-w0-84-money.json | 重み0の同じもの | c79c32f1a1028078a62fa48d64b2e0cc8a9d24528459fefd34c753d60d3ce689 |

@@ -340,6 +340,20 @@ export const SimulationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip={t("simulation.marketSurplusRuralWeightTip")}>
+            <td />
+            <td>{t("simulation.marketSurplusRuralWeight")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="marketSurplusRuralWeight"
+                min={MARKET_SETTING_LIMITS.surplusRuralWeight.min * 100}
+                max={MARKET_SETTING_LIMITS.surplusRuralWeight.max * 100}
+                step={MARKET_SETTING_LIMITS.surplusRuralWeight.step * 100}
+                value={Math.round(marketSettings.surplusRuralWeight * 100)}
+                onChange={v => updateMarketSetting("surplusRuralWeight", String(Number(v) / 100))}
+              />
+            </td>
+          </tr>
           <tr data-tip={t("simulation.hayTradeTip")}>
             <td />
             <td>

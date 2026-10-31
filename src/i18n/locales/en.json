@@ -2078,6 +2078,8 @@
     "marketDissolveCargoTip": "Wind down: no new trade is booked with the market, and it is dissolved once the cargo on the way has arrived. Hand over: it is dissolved at once and the cargo on the way goes to the absorbing market. Deliveries to its own towns go to the absorbing market in both. A market owning merchant ships is not dissolved.",
     "marketDissolveCargo_windDown": "Wind down",
     "marketDissolveCargo_handOver": "Hand over",
+    "marketSurplusRuralWeight": "Market surplus wages to the countryside %",
+    "marketSurplusRuralWeightTip": "A market pays part of its cash above its reserve as wages: dealers and porters in its towns, carters, threshers and hay hands in its countryside. This is how much a rural person counts against a town person; 100 = by population, 0 = towns only.",
     "hayTrade": "Spare hay",
     "hayTradeTip": "Hay that farms cut beyond their own winter reserve. Market buys: the market buys it up to what its short farms still lack for their winter reserves, or a year of its Fodder sales if larger. Farm to farm first: it goes straight to short farms of the same market, and the market buys for what is still short.",
     "hayTrade_marketShortfall": "Market buys",

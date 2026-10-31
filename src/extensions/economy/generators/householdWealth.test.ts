@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { setMarketSettings } from "../../../simulation/marketSettings";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext, setMarketCellColumn, setMarkets } from "../economyContext";
@@ -120,6 +121,36 @@ describe("householdWealth (docs/plan/economy-coupling-audit.md L2 Phase 2/3)", (
       expect(free).toBeGreaterThan(0);
       // Owing nearly the whole balance to the saltworks leaves almost nothing to pay out.
       expect(payout({ 7: 1e6 - 1 })).toBeLessThan(1);
+    });
+
+    it("pays the surplus wages in the towns and the countryside by population, weighted by the setting", () => {
+      const market = setUpSplitMarket();
+      market.foodLedger = { ruralFoodStressQuarters: 0, urbanFoodStressQuarters: 0, ruralHouseholdWealth: 0 } as never;
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, { i: 1, market: 1, population: 1 } as unknown as Burg];
+      const pay = (weight: number) => {
+        setMarketSettings({ surplusRuralWeight: weight });
+        market.marketTreasury = { balance: 1e6, ruralGrainPayable: 0 };
+        market.foodLedger!.ruralHouseholdWealth = 0;
+        const town = getHouseholdWealth(1);
+        payOutMarketSurplus(() => false);
+        return {
+          paid: 1e6 - market.marketTreasury.balance,
+          rural: getRuralHouseholdWealth(market),
+          town: getHouseholdWealth(1) - town
+        };
+      };
+      try {
+        // 20 rural population points against a town of 1.
+        const both = pay(1);
+        expect(both.paid).toBeGreaterThan(0);
+        expect(both.rural).toBeCloseTo((both.paid * 20) / 21, 1);
+        expect(both.rural + both.town).toBeCloseTo(both.paid, 1);
+        const towns = pay(0);
+        expect(towns.rural).toBe(0);
+        expect(towns.town).toBeCloseTo(towns.paid, 1);
+      } finally {
+        setMarketSettings({ surplusRuralWeight: 1 });
+      }
     });
 
     it("moves farm families' cash with their farms when market territories are redrawn", () => {
