@@ -1,0 +1,20 @@
+--- a/saltFinance.ts	2026-10-31 12:08:59
++++ b/saltFinance.ts	2026-10-31 12:08:59
+@@ -214,14 +214,16 @@
+     smuggled += channel(desired * bypass, 0);
+     legal += channel(Math.max(0, desired - bought), taxRate);
+     affordabilityGap += taxRate > 0 ? Math.max(0, Math.min(desired, wallet / price) - bought) : 0;
+-    bags += bought;
++    bags += bought;    (globalThis as any).__saltDiag?.({ kind: "householdBuy", stateId, market: market.i, rural: ruralDiag, desired, bought, wallet, stock, price });
+   };
++  let ruralDiag = false;
+   for (const burg of towns)
+     buy(
+       ((burg.population ?? 0) * rate * Math.max(1, world.urbanization ?? 1)) / people,
+       getHouseholdWealth(burg.i),
+       amount => debitHouseholdWealth(burg.i, amount)
+     );
++  ruralDiag = true;
+   if (ruralPeople > 0)
+     buy(ruralPeople / people, getRuralHouseholdWealth(market), amount => debitRuralHouseholdWealth(market, amount));
+   creditMarket(market, cents(paid - tax));
