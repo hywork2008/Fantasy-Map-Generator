@@ -60,4 +60,4 @@ Highは各部品を独立所有した後、同じ設定の材質を既存の`com
 - [Town High・標準へ戻した表示](bv-bakery-standard-p3-20261101.png)
 - [Communal High・上屋を含む標準構成](bv-bakery-shelter-p3-20261101.png)
 
-次はMedieval 12 Innsの宿泊棟・厩舎・サービス棟・中庭を部品化する。通路と共用境界、厩舎の支持構造を維持した組み合わせを用意する。
+後続の[Inns実装記録](bv-inn-parts-p3-20261101.md)で宿泊棟・厩舎・サービス棟・中庭を部品化した。次はMedieval 15 Breweriesの醸造棟・炉釜・容器・作業設備を分割する。
