@@ -1,8 +1,12 @@
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
+import { orientedRectCorners, templeRectForElement } from "../../city-editor/generators/civicPlacement";
 import { createGridDocument } from "../../city-editor/generators/document";
-import { pointInPolygon } from "../../city-editor/generators/geom";
+import { pointInPolygon, polygonCentroid } from "../../city-editor/generators/geom";
+import { placeCivicElement } from "../../city-editor/generators/manualCompletion";
+import { facePoints } from "../../city-editor/generators/mesh";
 import { createRotatedRect } from "../../city-editor/renderers/castleLayoutBuilder";
+import { collectCityStructures } from "../../city-editor/renderers/structureMassing";
 import type { StructureMassing } from "../../city-editor/types/contracts/structureMassing";
 import { bvInstanceGeometry, createBvInstances, createBvPrototypeCache } from "./bvInstances";
 import { fitBvBuilding } from "./bvPlacement";
@@ -29,6 +33,40 @@ function fixture() {
 }
 
 describe("shared BV city instances", () => {
+  it.each(["tiny", "small"] as const)(
+    "reserves enough 2D land on a %s map for the unscaled high-quality basilica",
+    size => {
+      const grid = createGridDocument({ size, grid: "hex", seed: "basilica-reservation" });
+      const face = Object.values(grid.mesh.faces)
+        .filter(face => face.properties.water === "land")
+        .sort(
+          (a, b) =>
+            Math.hypot(...polygonCentroid(facePoints(grid.mesh, a))) -
+            Math.hypot(...polygonCentroid(facePoints(grid.mesh, b)))
+        )[0];
+      const city = placeCivicElement(grid, face.id, "temple")!;
+      const temple = city.elements.find(element => element.kind === "temple")!;
+      expect(temple).toBeDefined();
+      expect(temple.sizeMeters).toBeGreaterThanOrEqual(54);
+      const cache = createBvPrototypeCache();
+      const layer = createTownSpecialBuildings(city, collectCityStructures(city), cache, "high");
+      expect(layer.accepted).toHaveLength(1);
+      expect(layer.accepted[0].definition.variant).toBe("temple.basilica@high#claude-opus-5.5");
+      const scale = new THREE.Vector3().setFromMatrixScale(layer.accepted[0].matrix);
+      for (const component of scale.toArray()) expect(component).toBeCloseTo(1, 10);
+      const ring = orientedRectCorners(
+        templeRectForElement(temple.point!, temple.sizeMeters, temple.rotation, city.frame.extentMeters)
+      );
+      const geometry = bvInstanceGeometry({ object: layer.pickables[0], instanceId: 0 })!;
+      const bounds = geometry.boundingBox!;
+      for (const x of [bounds.min.x, bounds.max.x])
+        for (const z of [bounds.min.z, bounds.max.z]) expect(pointInPolygon([x, -z], ring)).toBe(true);
+      geometry.dispose();
+      layer.dispose();
+      expect(cache.size).toBe(0);
+    }
+  );
+
   it("takes ownership of direct geometry without constructing a source model", () => {
     const source = fixture();
     const geometry = source.pickables[0].geometry.toNonIndexed();

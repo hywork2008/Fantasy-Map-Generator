@@ -173,7 +173,8 @@ export function placeLandmark(
       element.point,
       element.sizeMeters,
       element.rotation,
-      document.frame.extentMeters
+      document.frame.extentMeters,
+      element.templeType
     );
     const localCorners: Point[] = [
       [-footprint.length / 2, -footprint.width / 2],

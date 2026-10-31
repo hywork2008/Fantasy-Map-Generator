@@ -306,7 +306,9 @@ class Site {
     this.templeYard = Math.max(2, civicYardMeters(town) * 0.25);
     for (const element of document.elements)
       if (element.kind === "temple" && element.point)
-        this.temples.push(templeRectForElement(element.point, element.sizeMeters, element.rotation, town));
+        this.temples.push(
+          templeRectForElement(element.point, element.sizeMeters, element.rotation, town, element.templeType)
+        );
 
     const circuit = outerTownCircuit(document);
     const ring = circuit ? circuitRing(document, circuit) : [];
