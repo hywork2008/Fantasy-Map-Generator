@@ -1,4 +1,6 @@
+import { createHighBakery } from "./bakeryDetails";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 function oven(k: ModelKit, x: number, z: number) {
   k.box("oven-stone-plinth", [x, 0.45, z], [2.2, 0.9, 2], "stone");
@@ -73,3 +75,9 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "bread-bakehouse": () => createHighBakery("bread-bakehouse"),
+  "town-bakery": () => createHighBakery("town-bakery"),
+  "communal-bread-oven": () => createHighBakery("communal-bread-oven")
+});

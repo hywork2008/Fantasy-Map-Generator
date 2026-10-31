@@ -1,4 +1,6 @@
+import { createHighHandCart } from "./handCartDetails";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 function wheel(k: ModelKit, x: number, y: number, z: number, r: number) {
   k.ring("wheel-iron-tyre", [x, y, z], r, 0.035, "iron", true);
@@ -70,3 +72,9 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "two-wheel-farm-cart": () => createHighHandCart("two-wheel-farm-cart"),
+  "wooden-wheelbarrow": () => createHighHandCart("wooden-wheelbarrow"),
+  "two-person-handbarrow": () => createHighHandCart("two-person-handbarrow")
+});

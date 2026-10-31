@@ -12,7 +12,7 @@ Regenerate: `node --import tsx scripts/auditBvModelQuality.mts`
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **45**. Missing candidates: **175**.
+Records: **220**. Codex High or Ultra available: **51**. Missing candidates: **169**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -27,8 +27,8 @@ Records: **220**. Codex High or Ultra available: **45**. Missing candidates: **1
 | Medieval 06 | 2 | 2 | 0 |
 | Medieval 07 | 3 | 3 | 0 |
 | Medieval 08 | 2 | 2 | 0 |
-| Medieval 09 | 3 | 0 | 3 |
-| Medieval 10 | 3 | 0 | 3 |
+| Medieval 09 | 3 | 3 | 0 |
+| Medieval 10 | 3 | 3 | 0 |
 | Medieval 11 | 2 | 0 | 2 |
 | Medieval 12 | 2 | 0 | 2 |
 | Medieval 13 | 3 | 0 | 3 |
@@ -74,8 +74,9 @@ Records: **220**. Codex High or Ultra available: **45**. Missing candidates: **1
 3. Second batch (2026-11-01): added High for the three Medieval 02 boundaries and four Medieval 04 animal houses. See [verification and previews](bv-boundary-animal-high-20261101.md).
 4. Third batch (2026-11-01): added High for the two Medieval 05 troughs and two Medieval 06 market stalls. See [verification and previews](bv-trough-market-high-20261101.md).
 5. Fourth batch (2026-11-01): added High for the three Medieval 07 dwellings and two Medieval 08 shop houses. The existing default dwelling variants remain registered for CE. See [verification and previews](bv-dwelling-shop-high-20261101.md).
-6. Next: Medieval 09 hand carts, followed by 10 bakeries. Landmarks, standalone props, regional houses and the Codex basilica form later batches.
-7. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
+6. Fifth batch (2026-11-01): added High for the three Medieval 09 hand carts and three Medieval 10 bakeries. See [verification and previews](bv-cart-bakery-high-20261101.md).
+7. Next: Medieval 11 smithies, followed by 12 inns. Preserve the existing default smithy variants when adding BV tiers. Landmarks, standalone props, regional houses and the Codex basilica form later batches.
+8. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
 
@@ -94,12 +95,6 @@ Records: **220**. Codex High or Ultra available: **45**. Missing candidates: **1
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
-| Medieval 09 | `two-wheel-farm-cart` | Two-wheel farm cart | single/default; assumed Low - [source](../../src/buildings/medieval/09-hand-cartsModels.ts) |
-| Medieval 09 | `wooden-wheelbarrow` | Single-wheel wooden barrow | single/default; assumed Low - [source](../../src/buildings/medieval/09-hand-cartsModels.ts) |
-| Medieval 09 | `two-person-handbarrow` | Two-person carrying barrow | single/default; assumed Low - [source](../../src/buildings/medieval/09-hand-cartsModels.ts) |
-| Medieval 10 | `bread-bakehouse` | Detached bread bakehouse | single/default; assumed Low - [source](../../src/buildings/medieval/10-bakeriesModels.ts) |
-| Medieval 10 | `town-bakery` | Bakery and bread shop | single/default; assumed Low - [source](../../src/buildings/medieval/10-bakeriesModels.ts) |
-| Medieval 10 | `communal-bread-oven` | Communal bread oven shelter | single/default; assumed Low - [source](../../src/buildings/medieval/10-bakeriesModels.ts) |
 | Medieval 11 | `open-smithy` | Open forge and smithy | single/default; assumed Low - [source](../../src/buildings/medieval/11-smithiesModels.ts) |
 | Medieval 11 | `farriers-workshop` | Farrier workshop and shoeing stock | single/default; assumed Low - [source](../../src/buildings/medieval/11-smithiesModels.ts) |
 | Medieval 12 | `roadside-inn` | Roadside inn with stable court | single/default; assumed Low - [source](../../src/buildings/medieval/12-innsModels.ts) |
@@ -293,6 +288,12 @@ Records: **220**. Codex High or Ultra available: **45**. Missing candidates: **1
 | Medieval 07 | `plastered-small-house` | Small plastered town house | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/07-dwellingsModels.ts) |
 | Medieval 08 | `merchant-shop-house` | Merchant shop and dwelling | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/08-shop-housesModels.ts) |
 | Medieval 08 | `artisan-shop-house` | Street workshop and lodging | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/08-shop-housesModels.ts) |
+| Medieval 09 | `two-wheel-farm-cart` | Two-wheel farm cart | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/09-hand-cartsModels.ts) |
+| Medieval 09 | `wooden-wheelbarrow` | Single-wheel wooden barrow | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/09-hand-cartsModels.ts) |
+| Medieval 09 | `two-person-handbarrow` | Two-person carrying barrow | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/09-hand-cartsModels.ts) |
+| Medieval 10 | `bread-bakehouse` | Detached bread bakehouse | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/10-bakeriesModels.ts) |
+| Medieval 10 | `town-bakery` | Bakery and bread shop | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/10-bakeriesModels.ts) |
+| Medieval 10 | `communal-bread-oven` | Communal bread oven shelter | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/10-bakeriesModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-barracks` | Citadel barracks · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-command` | Citadel command · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |

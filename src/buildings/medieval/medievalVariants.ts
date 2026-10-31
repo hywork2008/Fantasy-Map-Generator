@@ -7,6 +7,8 @@ import { models as troughs } from "./05-troughsModels";
 import { models as stalls } from "./06-market-stallsModels";
 import { models as dwellings } from "./07-dwellingsModels";
 import { models as shops } from "./08-shop-housesModels";
+import { models as carts } from "./09-hand-cartsModels";
+import { models as bakeries } from "./10-bakeriesModels";
 import { models as smithies } from "./11-smithiesModels";
 import { models as fuel } from "./13-fuel-storageModels";
 import { models as churches } from "./14-parish-churchesModels";
@@ -42,6 +44,8 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   stalls,
   dwellings,
   shops,
+  carts,
+  bakeries,
   smithies,
   fuel,
   churches,
