@@ -6,7 +6,9 @@ import { setConflictAutonomy } from "../../../../controllers/simulationSettings"
 import {
   getMarketGenerationSpacing,
   getMarketSettings,
+  HAY_PAYMENT_MODES,
   HAY_TRADE_MODES,
+  type HayPaymentMode,
   type HayTradeMode,
   MARKET_DISSOLVE_CARGO_MODES,
   MARKET_SETTING_LIMITS,
@@ -433,6 +435,27 @@ export const SimulationSettingsTab: React.FC = () => {
                 {HAY_TRADE_MODES.map(mode => (
                   <option key={mode} value={mode}>
                     {t(`simulation.hayTrade_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.hayPaymentTip")}>
+            <td />
+            <td>
+              <label htmlFor="hayPayment">{t("simulation.hayPayment")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="hayPayment"
+                value={marketSettings.hayPayment}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ hayPayment: e.target.value as HayPaymentMode }))
+                }
+              >
+                {HAY_PAYMENT_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.hayPayment_${mode}`)}
                   </option>
                 ))}
               </select>

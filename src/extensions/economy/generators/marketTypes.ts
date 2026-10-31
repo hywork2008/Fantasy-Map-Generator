@@ -296,6 +296,8 @@ export interface MarketTreasury {
   balance: number;
   /** Aggregate unpaid farmgate debt owed to rural Grain producers when balance was insufficient. */
   ruralGrainPayable: number;
+  /** Hay bought at the cut on credit, repaid to the farms as the Fodder sells (Simulation settings `hayPayment`). */
+  ruralHayPayable?: number;
   /**
    * Merchant company working capital for inter-market trade (export warehouse booking).
    * Soft ledger: not full B2B settlement between markets.

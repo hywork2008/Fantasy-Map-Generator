@@ -477,6 +477,18 @@ function payMarketWages(
   return true;
 }
 
+/** Pays the farms up to `amount` of the hay the market owes them; returns what it paid. */
+export function repayRuralHay(market: Market, amount: number): number {
+  const treasury = market.marketTreasury;
+  if (!treasury?.ruralHayPayable) return 0;
+  const repay = rn(Math.min(Math.max(0, amount), Math.max(0, treasury.balance), treasury.ruralHayPayable), 2);
+  if (!(repay > 0)) return 0;
+  treasury.ruralHayPayable = rn(treasury.ruralHayPayable - repay, 2);
+  treasury.balance = rn(treasury.balance - repay, 2);
+  creditRuralHouseholdWealth(market, repay);
+  return repay;
+}
+
 /** Share of a market's cash above its reserve paid out each month. */
 export const MARKET_SURPLUS_PAYOUT_SHARE = 0.2;
 
@@ -524,6 +536,8 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
       creditRuralHouseholdWealth(market, repay);
       paid = rn(paid + repay, 2);
     }
+    // And for the hay it bought on credit, from cash the Fodder sales alone did not repay (army orders).
+    paid = rn(paid + repayRuralHay(market, Number.POSITIVE_INFINITY), 2);
     // Then the houses whose cargo it bought on credit (long-distance-merchant-reach-capital.md §5.1).
     MerchantTradeCapital.repayPayables(market);
     const excess = treasury.balance - reserve;

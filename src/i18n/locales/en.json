@@ -2093,7 +2093,11 @@
     "hayTrade": "Spare hay",
     "hayTradeTip": "Hay that farms cut beyond their own winter reserve. Market buys: the market buys it up to what its short farms still lack for their winter reserves, or a year of its Fodder sales if larger. Farm to farm first: it goes straight to short farms of the same market, and the market buys for what is still short.",
     "hayTrade_marketShortfall": "Market buys",
-    "hayTrade_farmsFirst": "Farm to farm first"
+    "hayTrade_farmsFirst": "Farm to farm first",
+    "hayPayment": "Hay payment",
+    "hayPaymentTip": "How a market pays for the hay it buys at the cut. On credit: it owes the farms and pays them as the Fodder sells, as it does for grain. Cash at the cut: it pays at once from its cash, as far as it holds, and that cash sits in the market until the next cut.",
+    "hayPayment_onCredit": "On credit",
+    "hayPayment_cash": "Cash at the cut"
   },
   "dangerSettings": {
     "heading": "Danger settings:",

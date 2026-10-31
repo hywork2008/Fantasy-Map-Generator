@@ -16,7 +16,12 @@ import { consumeCropResidues } from "./cropResidues";
 import { getMarketPriceLevel } from "./currencySufficiency";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
-import { creditRuralHouseholdWealth, debitRuralHouseholdWealth, getRuralHouseholdWealth } from "./householdWealth";
+import {
+  creditRuralHouseholdWealth,
+  debitRuralHouseholdWealth,
+  getRuralHouseholdWealth,
+  repayRuralHay
+} from "./householdWealth";
 import { calculateHusbandryDemand, getForageAreaHectares } from "./husbandry";
 import { getHusbandryLaborBudget } from "./husbandryLabor";
 import {
@@ -167,7 +172,7 @@ export function harvestLivestockForage(): void {
     }
   }
   if (!fodder) return;
-  const { hayTrade } = getMarketSettings();
+  const { hayTrade, hayPayment } = getMarketSettings();
   for (const market of getMarkets()) {
     if (!market.foodLedger) continue;
     const ledger = market.foodLedger;
@@ -201,9 +206,13 @@ export function harvestLivestockForage(): void {
     // the dear price of the empty market before the cut, and the hay then sold to the same farms at
     // a fraction of it (docs/analytics/hay-trade-modes-20261101.md §3).
     const price = getFodderClearingPrice(market, stock.stock + totalKg / FODDER_DM_KG_PER_LOT) * 0.8;
-    const bill =
-      Math.floor(Math.min(Math.max(0, treasury?.balance ?? 0), (totalKg / FODDER_DM_KG_PER_LOT) * price) * 100) / 100;
-    if (!(bill > 0) || !treasury) continue;
+    if (!treasury) continue;
+    // On credit the farms are paid as the hay sells, so their cash does not sit in the market until
+    // the next cut (docs/analytics/hay-trade-modes-20261101.md §13); with cash, only what it holds.
+    const onCredit = hayPayment === "onCredit";
+    const value = (totalKg / FODDER_DM_KG_PER_LOT) * price;
+    const bill = Math.floor((onCredit ? value : Math.min(Math.max(0, treasury.balance), value)) * 100) / 100;
+    if (!(bill > 0)) continue;
     const boughtKg = (bill / price) * FODDER_DM_KG_PER_LOT;
     for (const offer of list) {
       const row = table[offer.cell];
@@ -215,8 +224,11 @@ export function harvestLivestockForage(): void {
       row.soldKg += kg;
       row.revenue += (bill * offer.kg) / offeredKg;
     }
-    treasury.balance = rn(treasury.balance - bill, 2);
-    creditRuralHouseholdWealth(market, bill);
+    if (onCredit) treasury.ruralHayPayable = rn((treasury.ruralHayPayable ?? 0) + bill, 2);
+    else {
+      treasury.balance = rn(treasury.balance - bill, 2);
+      creditRuralHouseholdWealth(market, bill);
+    }
     stock.stock += boughtKg / FODDER_DM_KG_PER_LOT;
     stock.price = getFodderClearingPrice(market, stock.stock);
     recordGoodFlow({
@@ -322,6 +334,7 @@ function buyFeed(market: Market, entries: { cell: number; kg: number }[], budget
   stock.stock = Math.max(0, stock.stock - kg / FODDER_DM_KG_PER_LOT);
   market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
   market.marketTreasury.balance = rn(market.marketTreasury.balance + paid, 2);
+  repayRuralHay(market, paid);
   for (const entry of entries) {
     const row = table[entry.cell];
     row.hayKg += (kg * entry.kg) / need;

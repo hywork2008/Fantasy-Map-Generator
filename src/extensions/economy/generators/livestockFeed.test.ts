@@ -29,6 +29,7 @@ import { getMilkOutput } from "./dairy";
 import { getDomesticatedCarryingCapacity } from "./faunaPopulation";
 import { type Good, Goods } from "./goods-generator";
 import { type GoodFlowRecord, setGoodFlowObserver } from "./goodsBalanceLedger";
+import { repayRuralHay } from "./householdWealth";
 import { getGrazedCarryingCapacity } from "./husbandry";
 import {
   getFodderSeasonDemandLots,
@@ -286,6 +287,35 @@ describe("physical livestock feed budget", () => {
     expect(soldLots).toBeGreaterThan(0);
     expect(fodder.price).toBeLessThan(3);
     expect(rows()[0].revenue / soldLots).toBeCloseTo(fodder.price * 0.8, 2);
+  });
+
+  it("buys the cut on credit and repays the farms as the Fodder sells", () => {
+    const market = getMarkets()[0];
+    market.foodLedger!.fodderAnnualUseLots = 3;
+    const balance = market.marketTreasury!.balance;
+    const purse = market.foodLedger!.ruralHouseholdWealth!;
+    harvestLivestockForage();
+    const revenue = rows()[0].revenue + rows()[1].revenue;
+    expect(revenue).toBeGreaterThan(0);
+    expect(market.marketTreasury!.balance).toBe(balance);
+    expect(market.marketTreasury!.ruralHayPayable).toBeCloseTo(revenue, 2);
+    expect(repayRuralHay(market, 1)).toBe(1);
+    expect(market.marketTreasury!.ruralHayPayable).toBeCloseTo(revenue - 1, 2);
+    expect(market.foodLedger!.ruralHouseholdWealth).toBeCloseTo(purse + 1, 2);
+  });
+
+  it("pays cash for the cut when set, as far as the market holds", () => {
+    setMarketSettings({ hayPayment: "cash" });
+    try {
+      const market = getMarkets()[0];
+      market.foodLedger!.fodderAnnualUseLots = 3;
+      harvestLivestockForage();
+      expect(rows()[0].revenue + rows()[1].revenue).toBeGreaterThan(0);
+      expect(market.marketTreasury!.ruralHayPayable ?? 0).toBe(0);
+      expect(market.marketTreasury!.balance).toBeCloseTo(10_000 - rows()[0].revenue - rows()[1].revenue, 2);
+    } finally {
+      setMarketSettings({ hayPayment: "onCredit" });
+    }
   });
 
   it("moves spare hay from farm to farm first when set, with no cash moving", () => {
