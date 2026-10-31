@@ -1685,14 +1685,17 @@ function buildLayerSignatures(
     () =>
       `${landGeometry()}|${numberListSignature(pack.cells?.pop)}|${numberListSignature(pack.cells?.capacity)}|scale:${useOptionsState.getState().populationColorScale}|op:${styles.cellLayerOpacities.population}`
   );
-  setIfActive(
-    "precipitation",
-    "togglePrecipitation",
-    ["map.topology", "map.physical", "simulation.cells", "presentation.styles"],
-    () =>
-      `${gridGeometry()}|centers:${pointListSignature(grid.points)}|${gridHeights()}|${numberListSignature(grid.cells?.prec)}|${colorSignature(styles.precipitationPaint.color)}|points:${styles.precipitationPointsOption}|rain:${precipitationDisplaySignature(worldContext)}`,
-    `points:${styles.precipitationPointsOption}|rain:${precipitationDisplaySignature(worldContext)}`
-  );
+  if (activeLayers.togglePrecipitation) {
+    const rainSignature = precipitationDisplaySignature(worldContext);
+    setIfActive(
+      "precipitation",
+      "togglePrecipitation",
+      ["map.topology", "map.physical", "simulation.cells", "presentation.styles"],
+      () =>
+        `${gridGeometry()}|centers:${pointListSignature(grid.points)}|${gridHeights()}|${numberListSignature(grid.cells?.prec)}|${colorSignature(styles.precipitationPaint.color)}|points:${styles.precipitationPointsOption}|rain:${rainSignature}`,
+      `points:${styles.precipitationPointsOption}|rain:${rainSignature}`
+    );
+  }
   setIfActive(
     "danger",
     "toggleDanger",
