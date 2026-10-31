@@ -5,6 +5,7 @@ import type { StructureMassing } from "../../city-editor/types/contracts/structu
 import type { Point } from "../../city-editor/types/document";
 import { planVertex } from "../../city3d/core/planFrame";
 import { createStructureMassing } from "../../city3d/three/structureMeshes";
+import type { TreeQuality } from "../landscape/treeQuality";
 import { createLandscapeTree } from "../landscape/trees";
 import { ModelKit, type Surface } from "../medieval/modelKit";
 import { createMedievalWellModel } from "../wells/medievalWell";
@@ -42,8 +43,18 @@ function shape(ring: Point[], holes: Point[][] = []): THREE.Shape {
   return result;
 }
 
+export interface MonasteryRenderOptions {
+  /** Vegetation has its own budget; never inherit the standalone tree's Ultra default. */
+  vegetationQuality?: TreeQuality;
+}
+
 /** The actual CE footprints determine every wing, opening and roof ridge. No assembly-wide stretching. */
-export function createMonastery(plan: Monastery = monasteryPreviewPlan(), elevation = 0, foundationBottom = elevation) {
+export function createMonastery(
+  plan: Monastery = monasteryPreviewPlan(),
+  elevation = 0,
+  foundationBottom = elevation,
+  options: MonasteryRenderOptions = {}
+) {
   const k = new ModelKit(plan.kind === "friary" ? "mendicant-friary" : plan.kind);
   const nave = plan.buildings.find(building => building.role === "church");
   const ridge = nave?.ridge;
@@ -302,7 +313,7 @@ export function createMonastery(plan: Monastery = monasteryPreviewPlan(), elevat
     wall.rotation.y = Math.atan2(b[1] - a[1], b[0] - a[0]);
   }
   for (const tree of plan.trees) {
-    const model = createLandscapeTree("garden_parkland");
+    const model = createLandscapeTree("garden_parkland", options.vegetationQuality ?? "low");
     const size = new THREE.Box3().setFromObject(model.group).getSize(new THREE.Vector3());
     const radiusScale = tree.radius / (Math.max(size.x, size.z) / 2);
     // ModelKit.attach sets a uniform scale, so attach before applying the crown dimensions.
@@ -315,5 +326,9 @@ export function createMonastery(plan: Monastery = monasteryPreviewPlan(), elevat
 
 /** Backwards-compatible friary entry points for callers requesting that specific programme. */
 export const friaryPreviewPlan = () => monasteryPreviewPlan("friary");
-export const createFriary = (plan: Monastery = friaryPreviewPlan(), elevation = 0, foundationBottom = elevation) =>
-  createMonastery(plan, elevation, foundationBottom);
+export const createFriary = (
+  plan: Monastery = friaryPreviewPlan(),
+  elevation = 0,
+  foundationBottom = elevation,
+  options: MonasteryRenderOptions = {}
+) => createMonastery(plan, elevation, foundationBottom, options);

@@ -1,0 +1,7626 @@
+{
+  "runtime": "v22.23.1",
+  "method": "One deterministic preview per factory, disposed after counting. Build time is a single order-dependent observation with mixed cache/JIT state, not FPS or a benchmark. Attribute bytes count unique CPU ArrayBuffers including indices, excluding JS objects, GPU allocations and transient clones. BV-without-trees omits trees before construction; all other plan fields are unchanged. Parts share resources and their unique-resource counts must not be summed. CE cases include indexed-to-nonindexed conversion and merge. BV-legacy-ultra reproduces the former implicit vegetation tier explicitly; current-low uses the corrected default.",
+  "rows": [
+    {
+      "id": "friary/plan",
+      "treeCount": 4,
+      "buildingCount": 8
+    },
+    {
+      "id": "friary/BV-legacy-ultra",
+      "buildMs": 145.44,
+      "meshes": 497,
+      "triangles": 350742,
+      "vertices": 979475,
+      "geometries": 74,
+      "materials": 46,
+      "attributeBytes": 34943456,
+      "parts": [
+        {
+          "name": "friary-garth",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "friary-garden",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "friary-church",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-church",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-apse",
+          "meshes": 2,
+          "triangles": 34,
+          "vertices": 102,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 2856
+        },
+        {
+          "name": "friary-bellcote",
+          "meshes": 14,
+          "triangles": 212,
+          "vertices": 136,
+          "geometries": 3,
+          "materials": 3,
+          "attributeBytes": 4712
+        },
+        {
+          "name": "friary-range",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-range",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-range",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "gatehouse-pier",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "gatehouse-pier",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-gatehouse",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "cloister-floor",
+          "meshes": 1,
+          "triangles": 32,
+          "vertices": 96,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3072
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-roof",
+          "meshes": 1,
+          "triangles": 2,
+          "vertices": 6,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 144
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-roof",
+          "meshes": 1,
+          "triangles": 2,
+          "vertices": 6,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 144
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-roof",
+          "meshes": 1,
+          "triangles": 2,
+          "vertices": 6,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 144
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-roof",
+          "meshes": 1,
+          "triangles": 2,
+          "vertices": 6,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 144
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "small-leaved-lime",
+          "meshes": 2,
+          "triangles": 84098,
+          "vertices": 243730,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 8696808
+        },
+        {
+          "name": "small-leaved-lime",
+          "meshes": 2,
+          "triangles": 84098,
+          "vertices": 243730,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 8696808
+        },
+        {
+          "name": "small-leaved-lime",
+          "meshes": 2,
+          "triangles": 84098,
+          "vertices": 243730,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 8696808
+        },
+        {
+          "name": "small-leaved-lime",
+          "meshes": 2,
+          "triangles": 84098,
+          "vertices": 243730,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 8696808
+        },
+        {
+          "name": "medieval-european-well",
+          "meshes": 319,
+          "triangles": 11284,
+          "vertices": 1525,
+          "geometries": 13,
+          "materials": 16,
+          "attributeBytes": 52904
+        }
+      ]
+    },
+    {
+      "id": "friary/BV-current-low",
+      "buildMs": 8.03,
+      "meshes": 497,
+      "triangles": 14914,
+      "vertices": 6115,
+      "geometries": 74,
+      "materials": 46,
+      "attributeBytes": 210368
+    },
+    {
+      "id": "friary/BV-without-trees",
+      "buildMs": 3.55,
+      "meshes": 489,
+      "triangles": 14350,
+      "vertices": 4555,
+      "geometries": 66,
+      "materials": 38,
+      "attributeBytes": 156224
+    },
+    {
+      "id": "friary/BV-without-trees-or-well",
+      "buildMs": 1.46,
+      "meshes": 170,
+      "triangles": 3066,
+      "vertices": 3030,
+      "geometries": 53,
+      "materials": 22,
+      "attributeBytes": 103320
+    },
+    {
+      "id": "friary/CE-current-low",
+      "buildMs": 25.2,
+      "meshes": 1,
+      "triangles": 14914,
+      "vertices": 44742,
+      "geometries": 1,
+      "materials": 1,
+      "attributeBytes": 1610712
+    },
+    {
+      "id": "friary/CE-without-trees",
+      "buildMs": 11.74,
+      "meshes": 1,
+      "triangles": 14350,
+      "vertices": 43050,
+      "geometries": 1,
+      "materials": 1,
+      "attributeBytes": 1549800
+    },
+    {
+      "id": "abbey/plan",
+      "treeCount": 3,
+      "buildingCount": 9
+    },
+    {
+      "id": "abbey/BV-legacy-ultra",
+      "buildMs": 85.7,
+      "meshes": 524,
+      "triangles": 267348,
+      "vertices": 736637,
+      "geometries": 85,
+      "materials": 47,
+      "attributeBytes": 26277688,
+      "parts": [
+        {
+          "name": "friary-garth",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "friary-garden",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "herb-bed",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "friary-church",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-church",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-apse",
+          "meshes": 2,
+          "triangles": 34,
+          "vertices": 102,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 2856
+        },
+        {
+          "name": "friary-church",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "crossing-tower",
+          "meshes": 11,
+          "triangles": 124,
+          "vertices": 36,
+          "geometries": 2,
+          "materials": 4,
+          "attributeBytes": 1128
+        },
+        {
+          "name": "friary-range",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-range",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-range",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "gatehouse-pier",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "gatehouse-pier",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-gatehouse",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "cloister-floor",
+          "meshes": 1,
+          "triangles": 32,
+          "vertices": 96,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3072
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-roof",
+          "meshes": 1,
+          "triangles": 2,
+          "vertices": 6,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 144
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-roof",
+          "meshes": 1,
+          "triangles": 2,
+          "vertices": 6,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 144
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-roof",
+          "meshes": 1,
+          "triangles": 2,
+          "vertices": 6,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 144
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-column",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "cloister-roof",
+          "meshes": 1,
+          "triangles": 2,
+          "vertices": 6,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 144
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "small-leaved-lime",
+          "meshes": 2,
+          "triangles": 84098,
+          "vertices": 243730,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 8696808
+        },
+        {
+          "name": "small-leaved-lime",
+          "meshes": 2,
+          "triangles": 84098,
+          "vertices": 243730,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 8696808
+        },
+        {
+          "name": "small-leaved-lime",
+          "meshes": 2,
+          "triangles": 84098,
+          "vertices": 243730,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 8696808
+        },
+        {
+          "name": "medieval-european-well",
+          "meshes": 319,
+          "triangles": 11284,
+          "vertices": 1525,
+          "geometries": 13,
+          "materials": 16,
+          "attributeBytes": 52904
+        }
+      ]
+    },
+    {
+      "id": "abbey/BV-current-low",
+      "buildMs": 4.16,
+      "meshes": 524,
+      "triangles": 15477,
+      "vertices": 6617,
+      "geometries": 85,
+      "materials": 47,
+      "attributeBytes": 227872
+    },
+    {
+      "id": "abbey/BV-without-trees",
+      "buildMs": 2.87,
+      "meshes": 518,
+      "triangles": 15054,
+      "vertices": 5447,
+      "geometries": 79,
+      "materials": 41,
+      "attributeBytes": 187264
+    },
+    {
+      "id": "orthodoxMonastery/plan",
+      "treeCount": 2,
+      "buildingCount": 9
+    },
+    {
+      "id": "orthodoxMonastery/BV-legacy-ultra",
+      "buildMs": 51.63,
+      "meshes": 486,
+      "triangles": 181652,
+      "vertices": 489691,
+      "geometries": 38,
+      "materials": 44,
+      "attributeBytes": 17469712,
+      "parts": [
+        {
+          "name": "friary-yard",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1152
+        },
+        {
+          "name": "friary-range",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-range",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-range",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-range",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "bell-tower",
+          "meshes": 11,
+          "triangles": 124,
+          "vertices": 36,
+          "geometries": 2,
+          "materials": 4,
+          "attributeBytes": 1128
+        },
+        {
+          "name": "friary-church",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-church",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-window",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "dome",
+          "meshes": 6,
+          "triangles": 352,
+          "vertices": 274,
+          "geometries": 3,
+          "materials": 3,
+          "attributeBytes": 10664
+        },
+        {
+          "name": "gatehouse-pier",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "gatehouse-pier",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-gatehouse",
+          "meshes": 2,
+          "triangles": 16,
+          "vertices": 48,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 1344
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "friary-precinct-wall",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "small-leaved-lime",
+          "meshes": 2,
+          "triangles": 84098,
+          "vertices": 243730,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 8696808
+        },
+        {
+          "name": "small-leaved-lime",
+          "meshes": 2,
+          "triangles": 84098,
+          "vertices": 243730,
+          "geometries": 2,
+          "materials": 2,
+          "attributeBytes": 8696808
+        },
+        {
+          "name": "medieval-european-well",
+          "meshes": 319,
+          "triangles": 11284,
+          "vertices": 1525,
+          "geometries": 13,
+          "materials": 16,
+          "attributeBytes": 52904
+        }
+      ]
+    },
+    {
+      "id": "orthodoxMonastery/BV-current-low",
+      "buildMs": 2.91,
+      "meshes": 486,
+      "triangles": 13738,
+      "vertices": 3011,
+      "geometries": 38,
+      "materials": 44,
+      "attributeBytes": 103168
+    },
+    {
+      "id": "orthodoxMonastery/BV-without-trees",
+      "buildMs": 2.71,
+      "meshes": 482,
+      "triangles": 13456,
+      "vertices": 2231,
+      "geometries": 34,
+      "materials": 40,
+      "attributeBytes": 76096
+    },
+    {
+      "id": "medieval-well/current",
+      "buildMs": 0.99,
+      "meshes": 319,
+      "triangles": 11284,
+      "vertices": 1525,
+      "geometries": 13,
+      "materials": 16,
+      "attributeBytes": 52904,
+      "parts": [
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "curb-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "coping-stone",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "shaft-water",
+          "meshes": 1,
+          "triangles": 32,
+          "vertices": 34,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1280
+        },
+        {
+          "name": "post-footing",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "oak-upright",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "post-iron-strap",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "post-iron-strap",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-wall-plate",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "longitudinal-knee-brace",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "longitudinal-knee-brace",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "cross-knee-brace",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "post-footing",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "oak-upright",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "post-iron-strap",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "post-iron-strap",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-wall-plate",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "longitudinal-knee-brace",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "longitudinal-knee-brace",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "cross-knee-brace",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "cross-tie",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "rafter",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "rafter",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "rafter",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "rafter",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "rafter",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "rafter",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "bargeboard",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "bargeboard",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "roof-shingle",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "bargeboard",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "bargeboard",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "ridge-cap",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "windlass-bearing",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "axle-collar",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "windlass-bearing",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "axle-collar",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "windlass-axle",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "windlass-drum",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "rope-winding",
+          "meshes": 1,
+          "triangles": 240,
+          "vertices": 150,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 6240
+        },
+        {
+          "name": "rope-winding",
+          "meshes": 1,
+          "triangles": 240,
+          "vertices": 150,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 6240
+        },
+        {
+          "name": "rope-winding",
+          "meshes": 1,
+          "triangles": 240,
+          "vertices": 150,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 6240
+        },
+        {
+          "name": "rope-winding",
+          "meshes": 1,
+          "triangles": 240,
+          "vertices": 150,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 6240
+        },
+        {
+          "name": "rope-winding",
+          "meshes": 1,
+          "triangles": 240,
+          "vertices": 150,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 6240
+        },
+        {
+          "name": "rope-winding",
+          "meshes": 1,
+          "triangles": 240,
+          "vertices": 150,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 6240
+        },
+        {
+          "name": "rope-winding",
+          "meshes": 1,
+          "triangles": 240,
+          "vertices": 150,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 6240
+        },
+        {
+          "name": "rope-winding",
+          "meshes": 1,
+          "triangles": 240,
+          "vertices": 150,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 6240
+        },
+        {
+          "name": "rope-winding",
+          "meshes": 1,
+          "triangles": 240,
+          "vertices": 150,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 6240
+        },
+        {
+          "name": "rope-winding",
+          "meshes": 1,
+          "triangles": 240,
+          "vertices": 150,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 6240
+        },
+        {
+          "name": "rope-winding",
+          "meshes": 1,
+          "triangles": 240,
+          "vertices": 150,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 6240
+        },
+        {
+          "name": "rope-winding",
+          "meshes": 1,
+          "triangles": 240,
+          "vertices": 150,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 6240
+        },
+        {
+          "name": "rope-winding",
+          "meshes": 1,
+          "triangles": 240,
+          "vertices": 150,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 6240
+        },
+        {
+          "name": "crank-arm",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 840
+        },
+        {
+          "name": "crank-handle",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "hanging-rope",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-stave",
+          "meshes": 1,
+          "triangles": 52,
+          "vertices": 156,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 4992
+        },
+        {
+          "name": "bucket-bottom",
+          "meshes": 1,
+          "triangles": 64,
+          "vertices": 100,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 3584
+        },
+        {
+          "name": "bucket-iron-hoop",
+          "meshes": 1,
+          "triangles": 32,
+          "vertices": 34,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1280
+        },
+        {
+          "name": "bucket-iron-hoop",
+          "meshes": 1,
+          "triangles": 32,
+          "vertices": 34,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 1280
+        },
+        {
+          "name": "bucket-bail",
+          "meshes": 1,
+          "triangles": 240,
+          "vertices": 147,
+          "geometries": 1,
+          "materials": 1,
+          "attributeBytes": 6144
+        }
+      ]
+    },
+    {
+      "id": "garden_parkland/low",
+      "buildMs": 1.16,
+      "meshes": 2,
+      "triangles": 141,
+      "vertices": 390,
+      "geometries": 2,
+      "materials": 2,
+      "attributeBytes": 13536
+    },
+    {
+      "id": "garden_parkland/medium",
+      "buildMs": 15.13,
+      "meshes": 2,
+      "triangles": 2043,
+      "vertices": 5083,
+      "geometries": 2,
+      "materials": 2,
+      "attributeBytes": 180060
+    },
+    {
+      "id": "garden_parkland/high",
+      "buildMs": 12.6,
+      "meshes": 2,
+      "triangles": 21626,
+      "vertices": 56314,
+      "geometries": 2,
+      "materials": 2,
+      "attributeBytes": 1949832
+    },
+    {
+      "id": "garden_parkland/ultra",
+      "buildMs": 22.5,
+      "meshes": 2,
+      "triangles": 84098,
+      "vertices": 243730,
+      "geometries": 2,
+      "materials": 2,
+      "attributeBytes": 8696808
+    },
+    {
+      "id": "salisbury/low",
+      "buildMs": 4.78,
+      "meshes": 364,
+      "triangles": 11754,
+      "vertices": 24145,
+      "geometries": 141,
+      "materials": 5,
+      "attributeBytes": 779282
+    },
+    {
+      "id": "salisbury/high",
+      "buildMs": 93.47,
+      "meshes": 58,
+      "triangles": 295432,
+      "vertices": 886070,
+      "geometries": 54,
+      "materials": 8,
+      "attributeBytes": 28354696
+    },
+    {
+      "id": "merchant-shop-house/low",
+      "buildMs": 0.64,
+      "meshes": 98,
+      "triangles": 1146,
+      "vertices": 66,
+      "geometries": 5,
+      "materials": 12,
+      "attributeBytes": 2112
+    },
+    {
+      "id": "merchant-shop-house/high",
+      "buildMs": 8.92,
+      "meshes": 9,
+      "triangles": 25310,
+      "vertices": 75930,
+      "geometries": 9,
+      "materials": 9,
+      "attributeBytes": 1822320
+    },
+    {
+      "id": "artisan-shop-house/low",
+      "buildMs": 0.26,
+      "meshes": 66,
+      "triangles": 894,
+      "vertices": 374,
+      "geometries": 10,
+      "materials": 7,
+      "attributeBytes": 13000
+    },
+    {
+      "id": "artisan-shop-house/high",
+      "buildMs": 8.84,
+      "meshes": 8,
+      "triangles": 19060,
+      "vertices": 57180,
+      "geometries": 8,
+      "materials": 8,
+      "attributeBytes": 1372320
+    },
+    {
+      "id": "bread-bakehouse/low",
+      "buildMs": 0.29,
+      "meshes": 63,
+      "triangles": 1106,
+      "vertices": 671,
+      "geometries": 13,
+      "materials": 7,
+      "attributeBytes": 24328
+    },
+    {
+      "id": "bread-bakehouse/high",
+      "buildMs": 13.95,
+      "meshes": 10,
+      "triangles": 43384,
+      "vertices": 130152,
+      "geometries": 10,
+      "materials": 10,
+      "attributeBytes": 3123648
+    },
+    {
+      "id": "town-bakery/low",
+      "buildMs": 0.5,
+      "meshes": 79,
+      "triangles": 2518,
+      "vertices": 1543,
+      "geometries": 20,
+      "materials": 8,
+      "attributeBytes": 60056
+    },
+    {
+      "id": "town-bakery/high",
+      "buildMs": 13.4,
+      "meshes": 10,
+      "triangles": 42256,
+      "vertices": 126768,
+      "geometries": 10,
+      "materials": 10,
+      "attributeBytes": 3042432
+    },
+    {
+      "id": "communal-bread-oven/low",
+      "buildMs": 0.24,
+      "meshes": 34,
+      "triangles": 780,
+      "vertices": 665,
+      "geometries": 11,
+      "materials": 4,
+      "attributeBytes": 24184
+    },
+    {
+      "id": "communal-bread-oven/high",
+      "buildMs": 7.98,
+      "meshes": 6,
+      "triangles": 30556,
+      "vertices": 91668,
+      "geometries": 6,
+      "materials": 6,
+      "attributeBytes": 2200032
+    },
+    {
+      "id": "roadside-inn/low",
+      "buildMs": 2.76,
+      "meshes": 121,
+      "triangles": 6270,
+      "vertices": 10001,
+      "geometries": 36,
+      "materials": 12,
+      "attributeBytes": 334984
+    },
+    {
+      "id": "roadside-inn/high",
+      "buildMs": 21.56,
+      "meshes": 10,
+      "triangles": 40856,
+      "vertices": 122568,
+      "geometries": 10,
+      "materials": 10,
+      "attributeBytes": 2941632
+    },
+    {
+      "id": "courtyard-hostelry/low",
+      "buildMs": 2.21,
+      "meshes": 163,
+      "triangles": 7056,
+      "vertices": 10619,
+      "geometries": 45,
+      "materials": 12,
+      "attributeBytes": 356920
+    },
+    {
+      "id": "courtyard-hostelry/high",
+      "buildMs": 20.44,
+      "meshes": 10,
+      "triangles": 57608,
+      "vertices": 172824,
+      "geometries": 10,
+      "materials": 10,
+      "attributeBytes": 4147776
+    },
+    {
+      "id": "town-brewery/low",
+      "buildMs": 4.64,
+      "meshes": 178,
+      "triangles": 16978,
+      "vertices": 30308,
+      "geometries": 103,
+      "materials": 27,
+      "attributeBytes": 1017280
+    },
+    {
+      "id": "town-brewery/high",
+      "buildMs": 15.14,
+      "meshes": 14,
+      "triangles": 43110,
+      "vertices": 129330,
+      "geometries": 14,
+      "materials": 14,
+      "attributeBytes": 3103920
+    },
+    {
+      "id": "ale-brewhouse/low",
+      "buildMs": 4.46,
+      "meshes": 168,
+      "triangles": 16858,
+      "vertices": 30308,
+      "geometries": 103,
+      "materials": 27,
+      "attributeBytes": 1017280
+    },
+    {
+      "id": "ale-brewhouse/high",
+      "buildMs": 10.13,
+      "meshes": 14,
+      "triangles": 34194,
+      "vertices": 102582,
+      "geometries": 14,
+      "materials": 14,
+      "attributeBytes": 2461968
+    }
+  ]
+}

@@ -60,8 +60,8 @@ export const CEMETERY_VARIANTS = CEMETERY_PROP_KINDS.map(kind =>
 export const FRIARY_VARIANTS = [
   {
     ...single<Parameters<typeof createFriary>>("monastery.friary", DEFAULT_AUTHOR, (...args) => createFriary(...args)),
-    // The cloister garth plants the full lime model.
-    basedOn: [variantId("tree.garden-parkland", "ultra", "Codex GPT-6.1 Sol")]
+    // Vegetation quality is independent of the architectural assembly.
+    basedOn: [variantId("tree.garden-parkland", "low", "Codex GPT-6.1 Sol")]
   }
 ];
 
@@ -74,7 +74,7 @@ export const MONASTERY_VARIANTS = [
       DEFAULT_AUTHOR,
       (plan = monasteryPreviewPlan(kind), ...args) => createMonastery(plan, ...args)
     ),
-    basedOn: [variantId("tree.garden-parkland", "ultra", "Codex GPT-6.1 Sol")]
+    basedOn: [variantId("tree.garden-parkland", "low", "Codex GPT-6.1 Sol")]
   }))
 ];
 

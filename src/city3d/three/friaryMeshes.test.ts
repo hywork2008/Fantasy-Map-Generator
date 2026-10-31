@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
+import { collectModelMetrics } from "../../building-viewer/modelMetrics";
+import * as landscapeTrees from "../../buildings/landscape/trees";
 import {
   createFriary,
   createMonastery,
@@ -13,6 +15,32 @@ import { createTownMonasteries } from "./friaryMeshes";
 
 const center = (ring: Point[]): Point =>
   ring.reduce<Point>((a, p) => [a[0] + p[0] / ring.length, a[1] + p[1] / ring.length], [0, 0]);
+
+it("budgets attached vegetation explicitly in BV and CE while allowing an independent tree tier", () => {
+  const plan = friaryPreviewPlan();
+  const spy = vi.spyOn(landscapeTrees, "createLandscapeTree");
+  const models = [] as ReturnType<typeof createFriary>[];
+  try {
+    const bv = createFriary(plan);
+    models.push(bv);
+    const ce = createTownMonasteries([plan]);
+    models.push(ce);
+    expect(spy).toHaveBeenCalledTimes(plan.trees.length * 2);
+    expect(spy.mock.calls.every(call => call[1] === "low")).toBe(true);
+    const bvTriangles = collectModelMetrics(bv.group).triangles;
+    expect(bvTriangles).toBeLessThan(20000);
+    expect(collectModelMetrics(ce.group).triangles).toBe(bvTriangles);
+    spy.mockClear();
+    const detailedTrees = createFriary(plan, 0, 0, { vegetationQuality: "ultra" });
+    models.push(detailedTrees);
+    expect(spy).toHaveBeenCalledTimes(plan.trees.length);
+    expect(spy.mock.calls.every(call => call[1] === "ultra")).toBe(true);
+    expect(collectModelMetrics(detailedTrees.group).triangles).toBeGreaterThan(bvTriangles * 10);
+  } finally {
+    for (const model of models) model.dispose();
+    spy.mockRestore();
+  }
+});
 
 it("uses the CE church footprints and keeps the cloister garth open above the garden", () => {
   const plan = friaryPreviewPlan();
