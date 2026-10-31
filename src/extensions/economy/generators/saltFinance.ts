@@ -31,9 +31,13 @@ export const SALT_CREDIT_MONTHS = 3;
 export function saltPayable(market: Market): number {
   return Object.values(market.marketTreasury?.saltPayables ?? {}).reduce((sum, value) => sum + Math.max(0, value), 0);
 }
-/** Credit left for a month whose provision costs `monthlyProvisionCost` landed. */
-export function saltCreditRoom(market: Market, monthlyProvisionCost: number): number {
-  return Math.max(0, monthlyProvisionCost * SALT_CREDIT_MONTHS - saltPayable(market));
+/**
+ * Credit left for a month whose provision costs `monthlyProvisionCost` landed. A market split between
+ * states owes one Salt debt; each state's buying counts only its `share` of it, or every state's room
+ * shrank by the whole market's debt (docs/plan/salt-supply-calibration.md §3.13).
+ */
+export function saltCreditRoom(market: Market, monthlyProvisionCost: number, share = 1): number {
+  return Math.max(0, monthlyProvisionCost * SALT_CREDIT_MONTHS - saltPayable(market) * share);
 }
 /** Repay Salt credit from free cash, oldest saltworks id first; a vanished works' credit lapses. */
 export function repaySaltPayables(market: Market, operations: readonly Saltworks[], cash: number): number {

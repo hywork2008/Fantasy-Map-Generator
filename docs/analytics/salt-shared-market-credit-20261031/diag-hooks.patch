@@ -1,0 +1,36 @@
+--- a/saltLogistics.ts	2026-10-31 10:20:53
++++ b/saltLogistics.ts	2026-10-31 10:20:53
+@@ -639,6 +639,7 @@
+         0,
+         livestockTotals.purchase - demands.reduce((sum, demand) => sum + demand.livestockBags, 0)
+       );
++      (globalThis as any).__saltDiag?.({ kind: "unmarketed", stateId, livestock: livestockUnmet, household: unmarketedHouseholdBags });
+ 
+       for (const demand of demands) {
+         const destinationGood = getMarketGood(demand.market, salt.i, salt.value);
+@@ -745,6 +746,7 @@
+             stockShare
+           );
+           const cashLimit = (cash + credit) / (quote + freight);
++          (globalThis as any).__saltDiag?.({ kind: "order", stateId, market: demand.market.i, works: operation.i, remaining, remainingCapacity, buyerCash: cashLimit });
+           const output = production.produce(operation, Math.min(remaining, remainingCapacity, cashLimit));
+           if (output <= 0) continue;
+           const payment = paySaltWholesale(
+@@ -856,6 +858,7 @@
+         destinationGood.stock = rn(destinationGood.stock - livestock, 4);
+         livestockSupplied += livestock;
+         livestockUnmet += demand.livestockBags - livestock;
++        (globalThis as any).__saltDiag?.({ kind: "livestock", stateId, market: demand.market.i, need: demand.livestockBags, stockAvail: Math.max(0, destinationGood.stock + livestock - pendingHouseholds), money: (livestockAllowance + livestockCredit) / Math.max(0.0001, destinationGood.price), supplied: livestock, householdNeed: demand.householdBags, householdSold: sold, remainingOrder: remaining, hasSupplier: supplierOperations.length });
+         if (livestock > 0)
+           recordGoodFlow({
+             direction: "sink",
+--- a/saltProduction.ts	2026-10-31 10:20:53
++++ b/saltProduction.ts	2026-10-31 10:20:53
+@@ -129,6 +129,7 @@
+           fuelPerBag > 0 ? fuels.reduce((sum, fuel) => sum + fuel.stock / fuel.unitsPerBag, 0) : Infinity
+         )
+       );
++      (globalThis as any).__saltDiag?.({ kind: "produce", requestedBags, cashLimit, labour: availablePoints / pointsPerBag, fuel: fuelPerBag > 0 ? fuels.reduce((sum, fuel) => sum + fuel.stock / fuel.unitsPerBag, 0) : Infinity, output });
+       if (!(output > 0)) return 0;
+       const wages = saltInvoice(output * wagesPerBag);
+       // Draw the cheaper fuel first, the dearer for what it cannot cover.

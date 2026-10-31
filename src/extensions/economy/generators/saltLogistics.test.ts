@@ -32,7 +32,7 @@ import { buyMarketGoods } from "./marketPurchases";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import { createPersonalCashState } from "./personalCashLedger";
-import { buyHouseholdSalt, priceSalt, saltPayable } from "./saltFinance";
+import { buyHouseholdSalt, priceSalt, saltCreditRoom, saltPayable } from "./saltFinance";
 import {
   auditSaltPopulationCoverage,
   SALT_HOUSEHOLD_KILOGRAMS_PER_PERSON_YEAR,
@@ -574,6 +574,14 @@ describe("SaltLogisticsModule", () => {
     for (const m of getMarkets()) m.foodLedger!.ruralHouseholdWealth = 0;
     SaltLogistics.settleMonth();
     expect(saltPayable(market)).toBe(0);
+  });
+
+  it("lets each state of a shared market count only its share of the market's salt debt", () => {
+    const market = getMarkets()[0];
+    market.marketTreasury = { balance: 0, ruralGrainPayable: 0, saltPayables: { 1: 90 } };
+    // Each of two equal states buys 20 a month: 60 of room each, against one market debt of 90.
+    expect(saltCreditRoom(market, 20)).toBe(0);
+    expect(saltCreditRoom(market, 20, 0.5)).toBe(15);
   });
 
   it("leaves unpaid households unmet even with stock, without charging the state", () => {

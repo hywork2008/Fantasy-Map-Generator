@@ -741,7 +741,8 @@ export class SaltLogisticsModule {
           const cash = Math.max(0, saltMarketCash(demand.market, committedCash) - 0.02);
           const credit = saltCreditRoom(
             demand.market,
-            (demand.householdBags + demand.processingBags + demand.livestockBags) * (quote + freight)
+            (demand.householdBags + demand.processingBags + demand.livestockBags) * (quote + freight),
+            stockShare
           );
           const cashLimit = (cash + credit) / (quote + freight);
           const output = production.produce(operation, Math.min(remaining, remainingCapacity, cashLimit));

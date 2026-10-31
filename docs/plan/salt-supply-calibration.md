@@ -121,3 +121,15 @@
 - Sodium Chronicles... Grain by Grain. New Methods for Quantifying Ancient Salt Demand. Journal of Archaeological Method and Theory (2026). https://link.springer.com/article/10.1007/s10816-026-09771-7
 - The salt of life. Marsal, Ministère de la Culture. https://archeologie.culture.gouv.fr/marsal/en/salt-life
 - Gabelle. Wikipedia. https://en.wikipedia.org/wiki/Gabelle
+
+### 3.13 共有の市場の塩の掛けを国ごとの割合で数える（2026-10-31、[記録](../analytics/salt-shared-market-credit-20261031.md)）
+
+- 背景: [salt-untaxed-value.md](salt-untaxed-value.md)のV2の後も、家畜の塩の不足が年1.4〜1.9万袋残った。製塩所の能力は需要×1.15で、生産は能力の85%であり、能力は上限ではなかった。
+- 原因の内訳は3つ。
+  1. 国28・15の新しい小さい市場22〜27で、農村の財布が小さいこと（お金）。
+  2. 市場1で、買う市場の金庫の現金が上限になること（注文）。
+  3. 国28の製塩所の人手の不足（注文）。
+- 2の原因: 塩の掛けの余地は、ある国のその市場の3か月分の仕入れ値から、市場全体の塩の掛けを引いていた。共有の市場では、国の数だけ掛けを引いていた。
+- 修正: 市場の掛けのうち、その国の需要の割合（§3.11の`stockShare`）だけを引く（`saltCreditRoom`の`share`）。単体テスト1件。
+- 結果（48か月）: 市場1の不足は0になった。1303年の家畜の塩の不足は15.7千から8.7千に減った。
+- 残る: 国28の製塩所の人手（市場22の町は1.0千人で6か所）と、新しい小さい市場の農村の財布。人手の直し方（能力を人手に合わせて割り振る・季節の農村の手・製塩所を加える）と、煮詰めの1袋142.6時間の根拠は未定。
