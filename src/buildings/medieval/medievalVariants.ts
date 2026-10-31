@@ -13,6 +13,7 @@ import { models as smithies } from "./11-smithiesModels";
 import { models as inns } from "./12-innsModels";
 import { models as fuel } from "./13-fuel-storageModels";
 import { models as churches } from "./14-parish-churchesModels";
+import { models as breweries } from "./15-breweriesModels";
 import { models as granaries } from "./16-granariesModels";
 import { models as warehouses } from "./17-warehousesModels";
 import { models as livestock } from "./18-livestock-marketsModels";
@@ -51,6 +52,7 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   inns,
   fuel,
   churches,
+  breweries,
   granaries,
   warehouses,
   livestock,
@@ -83,7 +85,11 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
     return model.variants
       ? [
           ...model.variants,
-          ...(dwellings.includes(model) || smithies.includes(model) || fuel.includes(model) || churches.includes(model)
+          ...(dwellings.includes(model) ||
+          smithies.includes(model) ||
+          fuel.includes(model) ||
+          churches.includes(model) ||
+          granaries.includes(model)
             ? [legacy]
             : [])
         ]

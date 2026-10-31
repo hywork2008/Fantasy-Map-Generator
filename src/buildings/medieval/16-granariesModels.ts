@@ -1,5 +1,7 @@
 import { createMedievalContainerModel } from "../props/medievalContainers";
+import { createHighGranary } from "./granaryDetails";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -43,3 +45,8 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "raised-timber-granary": () => createHighGranary("raised-timber-granary"),
+  "stone-grain-store": () => createHighGranary("stone-grain-store")
+});

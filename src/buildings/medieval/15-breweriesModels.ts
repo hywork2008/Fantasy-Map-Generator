@@ -1,5 +1,7 @@
 import { createMedievalContainerModel } from "../props/medievalContainers";
+import { createHighBrewery } from "./breweryDetails";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 function brewery(large: boolean) {
   const k = new ModelKit(large ? "town-brewery" : "ale-brewhouse");
@@ -41,3 +43,8 @@ export const models: MedievalModel[] = [
     create: () => brewery(false)
   }
 ];
+
+registerHighVariants(models, {
+  "town-brewery": () => createHighBrewery("town-brewery"),
+  "ale-brewhouse": () => createHighBrewery("ale-brewhouse")
+});

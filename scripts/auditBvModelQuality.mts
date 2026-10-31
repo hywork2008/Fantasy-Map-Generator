@@ -119,8 +119,9 @@ ${summary.join("\n")}
 6. Fifth batch (2026-11-01): added High for the three Medieval 09 hand carts and three Medieval 10 bakeries. See [verification and previews](bv-cart-bakery-high-20261101.md).
 7. Sixth batch (2026-11-01): added High for the two Medieval 11 smithies and two Medieval 12 inns. Existing default smithy variants remain registered for CE. See [verification and previews](bv-smithy-inn-high-20261101.md).
 8. Seventh batch (2026-11-01): added High for the three Medieval 13 fuel stores and two Medieval 14 churches, preserving their default CE variants. See [verification and previews](bv-fuel-church-high-20261101.md).
-9. Next: Medieval 15 breweries, followed by 16 granaries. Preserve existing default CE variants for granaries when adding BV tiers. Landmarks, standalone props, regional houses and the Codex basilica form later batches.
-10. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
+9. Eighth batch (2026-11-01): added High for the two Medieval 15 breweries and two Medieval 16 granaries, preserving the default granary variants used by CE. See [verification and previews](bv-brewery-granary-high-20261101.md).
+10. Next: Medieval 17 warehouses and 18 livestock market pens. Preserve their existing default CE variants when adding BV tiers. Landmarks, standalone props, regional houses and the Codex basilica form later batches.
+11. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
 
