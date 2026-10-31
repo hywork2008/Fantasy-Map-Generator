@@ -44,6 +44,7 @@ export interface CityTerrain {
   surfaceAt(point: Point): number;
   /** Local water-surface height where a river corridor covers the point. */
   waterAt?(point: Point): number | null;
+  riverProfiles?: import("./contracts/riverHydraulics").RiverHydraulicProfile[];
   /** Ramps in the same local frame as heightAt. */
   ramps: Array<{ ramp: TerrainRamp; elevations: number[] }>;
   roads?: {
@@ -104,6 +105,8 @@ export interface TerrainRiverCorridor {
   bedMeters: number[];
   /** Water depth above the bed. The surface is level across the width. */
   depthMeters: number;
+  /** Derived local water depths for the hydraulic model; absent on legacy saved corridors. */
+  depthsMeters?: number[];
   bank: { kind: "slope"; runMeters: number } | { kind: "quay"; heightMeters: number };
 }
 
@@ -213,6 +216,7 @@ export interface CityTerrainLayer {
 
 /** Derived, unpersisted grading model: a base field plus vector earthworks in absolute metres. */
 export interface TerrainModel {
+  riverProfiles?: import("./contracts/riverHydraulics").RiverHydraulicProfile[];
   base: TerrainBase;
   features: TerrainFeature[];
   ramps: TerrainRamp[];

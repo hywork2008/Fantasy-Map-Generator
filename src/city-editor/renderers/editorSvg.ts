@@ -9,6 +9,7 @@ import { polygonCentroid } from "../generators/geom";
 import { faceNeighbors, facePoints, faceVertices } from "../generators/mesh";
 import { regionalCoastalWaterPolygons, regionalSurfaceLayers } from "../generators/regionalCoast";
 import { townExtentMeters } from "../generators/settlementExtent";
+import { editableFaceElevation } from "../generators/terrainField/pads";
 import { waterPolygons } from "../generators/waterGeometry";
 import type { CityDocument, Tool } from "../types/document";
 import type { Id, Point } from "../types/primitives";
@@ -163,7 +164,7 @@ export function renderEditorSvg(
       id: face.id,
       label: editorText("cityEditor.messages.cellIdentifier", { value0: face.id }),
       water: face.properties.water,
-      elevation: face.properties.elevation,
+      elevation: editableFaceElevation(document, face.id),
       ward: face.properties.ward ?? null,
       site: face.site,
       center: polygonCentroid(facePoints(document.mesh, face)),

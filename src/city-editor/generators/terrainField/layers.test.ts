@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderTerrainFieldOverlay } from "../../renderers/terrainFieldSvg";
+import { parseDocument, serializeDocument } from "../../services/io/documentCodec";
 import type { Point } from "../../types/document";
 import { clipEscarpmentTriangles } from "../cellPlateClip";
 import { createGridDocument } from "../document";
@@ -10,7 +11,7 @@ import { gradeRoads } from "../roadGrading";
 import { cityTerrain } from "../terrainElevation";
 import { validateTerrainLayer } from "../terrainValidation";
 import { refreshRiverCorridors, repairRiverBeds } from "./corridor";
-import { editFaceElevation } from "./pads";
+import { editableFaceElevation, editFaceElevation } from "./pads";
 import { createCliffFortressStudy, createTerraceRiverStudy } from "./study";
 
 describe("terrain layers", () => {
@@ -61,15 +62,12 @@ describe("terrain layers", () => {
     if (corridor?.kind !== "riverCorridor" || !terrain.waterAt) return;
     const mid = Math.floor(corridor.centerline.length / 2);
     const at = corridor.centerline[mid];
-    const next = corridor.centerline[Math.min(corridor.centerline.length - 1, mid + 1)];
-    const dx = next[0] - at[0];
-    const dy = next[1] - at[1];
-    const length = Math.hypot(dx, dy) || 1;
-    const normal: Point = [-dy / length, dx / length];
-    const offset = corridor.widthsMeters[mid] / 4;
-    const left: Point = [at[0] + normal[0] * offset, at[1] + normal[1] * offset];
-    const right: Point = [at[0] - normal[0] * offset, at[1] - normal[1] * offset];
-    const surface = corridor.bedMeters[mid] + corridor.depthMeters - terrain.datumMeters;
+    const station = terrain.riverProfiles![0].stations.find(
+      station => Math.hypot(station.point[0] - at[0], station.point[1] - at[1]) < 1e-6
+    )!;
+    const left: Point = [(station.left[0] + at[0]) / 2, (station.left[1] + at[1]) / 2];
+    const right: Point = [(station.right[0] + at[0]) / 2, (station.right[1] + at[1]) / 2];
+    const surface = station.surfaceMeters - terrain.datumMeters;
     expect(terrain.waterAt(at)).toBeCloseTo(surface, 4);
     expect(terrain.waterAt(left)).toBeCloseTo(terrain.waterAt(right)!, 4);
     expect(terrain.waterAt(corridor.centerline.at(-1)!)!).toBeLessThan(terrain.waterAt(corridor.centerline[0])!);
@@ -110,6 +108,26 @@ describe("terrain layers", () => {
     expect(pad?.kind).toBe("platform");
     if (pad?.kind === "platform" && pad.summit.kind === "polygon")
       expect(pointInPolygon(at, pad.summit.points)).toBe(false);
+  });
+
+  it("keeps the editable cell elevation consistent with its 3D pad after repeat edits and save/load", () => {
+    const document = createGridDocument({ size: "micro", grid: "hex", hexSizeMeters: 30, seed: "editable-elevation" });
+    document.terrain = {
+      version: 1,
+      features: [],
+      field: { version: 1, template: "noise", seed: 0, sampleMeters: 2, parts: [{ kind: "offset", meters: 1 }] }
+    };
+    const face = Object.values(document.mesh.faces)[0];
+    const point = polygonCentroid(facePoints(document.mesh, face));
+    const raised = editFaceElevation(document, face.id, 100);
+    expect(editableFaceElevation(raised, face.id)).toBe(100);
+    const restored = parseDocument(serializeDocument(editFaceElevation(raised, face.id, 50)))!;
+    expect(restored).not.toBeNull();
+    expect(editableFaceElevation(restored, face.id)).toBe(50);
+    const terrain = cityTerrain(restored);
+    expect(terrain.datumMeters + terrain.heightAt(point)).toBeCloseTo(50);
+    expect(restored.terrain!.features.filter(feature => feature.id.startsWith(`pad:${face.id}`))).toHaveLength(1);
+    expect(editableFaceElevation(document, face.id)).toBe(1);
   });
 
   it("repairs a rising bed and still accepts the corridor", () => {

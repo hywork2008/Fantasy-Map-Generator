@@ -57,6 +57,7 @@ import { RIVER_DROP_MIN, riverDropMeters, riverDropUpperFor } from "../generator
 import { regenerateRuralLand } from "../generators/roadsideFarms";
 import { DEFAULT_TERRACE_STEP_METERS } from "../generators/terracePlanning";
 import { DEFAULT_CASTLE_RISE_METERS } from "../generators/terrainEditing";
+import { installNaturalTerrainField } from "../generators/terrainGeneration";
 import { CASTLE_STYLE_PROFILES } from "../renderers/castlePatterns";
 import { type City3dMountOptions, mountCity3d } from "../renderers/cityView";
 import { clearRenderDerivedCaches } from "../renderers/derivedCaches";
@@ -2386,7 +2387,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   };
   scope.listen(terraceSelect, "change", applyTerraces);
   scope.listen(terraceStepInput, "change", applyTerraces);
-  const synthControls = div("ce-generate-synth");
+  const synthControls = div("ce-generate-synth ce-terrain-generation-controls");
   synthControls.append(
     label(editorText("cityEditor.messages.coast"), coastSelect),
     label(editorText("cityEditor.messages.rivers"), riversSelect),
@@ -2520,16 +2521,19 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   let cityModeGrid:
     | { size: string; grid: typeof documents.gridKind; hexSize: number; source: CityDocument }
     | undefined = retainedLanguage?.cityModeGrid;
-  const generationModeSelect = select(["city", "fort"], generation.generateSettings.mode ?? "city");
+  const generationModeSelect = select(["city", "fort", "terrain"], generation.generateSettings.mode ?? "city");
   generationModeSelect.className = "ce-generation-mode";
   generationModeSelect.options[0].textContent = editorText("cityEditor.messages.cityMode");
   generationModeSelect.options[1].textContent = editorText("cityEditor.messages.fortMode");
+  generationModeSelect.options[2].textContent = editorText("cityEditor.messages.terrainMode");
   scope.listen(generationModeSelect, "change", () => {
-    const mode = generationModeSelect.value === "fort" ? "fort" : "city";
+    const mode = generationModeSelect.value as "city" | "fort" | "terrain";
     generation.generateSettings.mode = mode;
     generation.generateSettings.generationRetry = undefined;
     generation.completeResult = documents.documentState;
     generation.lastGeneratedStep = null;
+    if (mode === "terrain" && !generation.generateSettings.forestSettings)
+      generation.generateSettings.forestSettings = { version: 1, mode: "surroundings", density: "standard" };
     if (mode === "fort") {
       cityModeGrid = {
         size: size.value,
@@ -2550,14 +2554,16 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     hexSizeInput.dispatchEvent(new Event("input"));
     syncGridKindUi();
     generation.completeSource =
-      mode === "city" && cityModeGrid
+      mode !== "fort" && cityModeGrid
         ? clone(cityModeGrid.source)
-        : createGridDocument({
-            size: size.value as import("../generators/document").CitySizePreset,
-            grid: documents.gridKind,
-            hexSizeMeters: documents.hexSizeMeters,
-            seed: documents.gridSeed
-          });
+        : mode === "terrain"
+          ? clone(generation.completeSource ?? documents.documentState)
+          : createGridDocument({
+              size: size.value as import("../generators/document").CitySizePreset,
+              grid: documents.gridKind,
+              hexSizeMeters: documents.hexSizeMeters,
+              seed: documents.gridSeed
+            });
     syncGenerateControls();
   });
   const completeGenerationButton = makeButton(editorText("cityEditor.messages.generateCompleteCity"), () =>
@@ -2645,6 +2651,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     rememberElevationRelief();
     const preset = generation.generateSettings.elevationPreset ?? "flat";
     if (preset === "flat") return;
+    if (generation.generateSettings.mode === "terrain") {
+      const next = clone(documents.documentState);
+      installNaturalTerrainField(next, generation.generateSettings, generation.generateSeed);
+      if (next.fabric?.generation) next.fabric.generation.settings = clone(generation.generateSettings);
+      commit(next, editorText("cityEditor.messages.updateElevationRelief"));
+      return;
+    }
     const next = applyElevationRelief(documents.documentState, {
       elevationPreset: preset,
       elevationRelief: generation.generateSettings.elevationRelief,
@@ -2703,8 +2716,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   );
   importedFeaturesNotice.className = "ce-imported-features-notice";
   cityGenerationControls.append(
-    generationSection("cityEditor.messages.features", [featureGrid, importedFeaturesNotice]),
-    synthControls
+    generationSection("cityEditor.messages.features", [featureGrid, importedFeaturesNotice])
   );
   const basics = div();
   const cityBasics = div("ce-city-generation-controls");
@@ -2726,7 +2738,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   );
   const elements = div();
   const cityElements = div("ce-city-generation-controls");
-  cityElements.append(
+  const terrainElements = div("ce-terrain-generation-controls");
+  terrainElements.append(
     generationSection("cityEditor.generationWorkspace.terrain", [
       label(editorText("cityEditor.messages.elevationPreset"), elevationPresetSelect),
       label(editorText("cityEditor.messages.elevationRotation"), elevationRotationInput),
@@ -2734,8 +2747,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       updateElevationReliefButton,
       standaloneSettings(
         label(editorText("cityEditor.messages.terrainField"), terrainFieldSelect),
-        label(editorText("cityEditor.messages.terraces"), terraceSelect),
-        label(editorText("cityEditor.messages.terraceStep"), terraceStepInput)
+        (() => {
+          const controls = div("ce-city-generation-controls");
+          controls.append(
+            label(editorText("cityEditor.messages.terraces"), terraceSelect),
+            label(editorText("cityEditor.messages.terraceStep"), terraceStepInput)
+          );
+          return controls;
+        })()
       )
     ]),
     generationSection(
@@ -2745,7 +2764,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         label(editorText("cityEditor.messages.riverDrop"), riverDropControl)
       ],
       "rivers"
-    ),
+    )
+  );
+  cityElements.append(
     generationSection(
       "cityEditor.messages.walls",
       [
@@ -2789,6 +2810,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     ]),
     cityElements
   );
+  elements.prepend(synthControls, terrainElements);
   elements.append(generationSection("cityEditor.forest.title", [forestControls.root]));
   const view = div();
   view.append(

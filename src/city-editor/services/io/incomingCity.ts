@@ -500,7 +500,7 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
   if (raw.housingAreaScale !== undefined) settings.housingAreaScale = raw.housingAreaScale as number;
   if (raw.housingAreaPasses !== undefined) settings.housingAreaPasses = raw.housingAreaPasses as number;
   if (raw.mode !== undefined) {
-    if (raw.mode !== "city" && raw.mode !== "fort") return null;
+    if (raw.mode !== "city" && raw.mode !== "fort" && raw.mode !== "terrain") return null;
     settings.mode = raw.mode;
   }
   if (raw.population !== undefined) {

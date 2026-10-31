@@ -1,3 +1,5 @@
+import type { ForestPlan } from "../../city-editor/types/contracts/forest";
+import { applyForestGroundTexture, createForestGroundTexture } from "./forestGroundTexture";
 // Chunked height-field ground. Positions stay in the plan frame; Y includes the shared land offset.
 
 import * as THREE from "three";
@@ -31,7 +33,8 @@ export function clipDitchChunk(chunk: TerrainChunkGeometry, plan: BastionedTownP
   )
     return chunk;
   const positions: number[] = [],
-    colors: number[] = [];
+    colors: number[] = [],
+    normals: number[] = [];
   const cross = (a: Point, b: Point, c: Point) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
   for (let i = 0; i < chunk.indices.length; i += 3) {
     const ids = [chunk.indices[i], chunk.indices[i + 1], chunk.indices[i + 2]];
@@ -49,13 +52,17 @@ export function clipDitchChunk(chunk: TerrainChunkGeometry, plan: BastionedTownP
             ].map(v => v / area);
             const height = ids.reduce((sum, id, j) => sum + weights[j] * chunk.positions[id * 3 + 1], 0);
             positions.push(point[0], height, -point[1]);
-            for (let channel = 0; channel < 3; channel++)
+            for (let channel = 0; channel < 3; channel++) {
               colors.push(ids.reduce((sum, id, j) => sum + weights[j] * chunk.colors[id * 3 + channel], 0));
+              if (chunk.normals)
+                normals.push(ids.reduce((sum, id, j) => sum + weights[j] * chunk.normals![id * 3 + channel], 0));
+            }
           }
   }
   return {
     positions: Float32Array.from(positions),
     colors: Float32Array.from(colors),
+    ...(chunk.normals ? { normals: Float32Array.from(normals) } : {}),
     indices: Uint32Array.from({ length: positions.length / 3 }, (_, i) => i)
   };
 }
@@ -64,7 +71,8 @@ export function clipDitchChunk(chunk: TerrainChunkGeometry, plan: BastionedTownP
 export function terrainFieldMeshes(
   document: CityDocument,
   terrain: CityTerrain,
-  wetPolygons: Point[][] = []
+  wetPolygons: Point[][] = [],
+  forest?: ForestPlan
 ): THREE.Mesh[] {
   const grid = terrain.grid;
   if (!grid || !terrain.slopeAt) return [];
@@ -75,6 +83,9 @@ export function terrainFieldMeshes(
     suburbSpacingFactor(document.frame.extentMeters)
   );
   const wetParts = wetPolygons.flatMap(triangularInfillParts).map(polygon => ({ polygon, box: bounds(polygon) }));
+  const cover = forest?.regions.length ? createForestGroundTexture(document, forest) : null;
+  let remainingMaterials = chunks.length;
+  if (!remainingMaterials) cover?.dispose();
   return chunks.map((source, index) => {
     const chunk = clipWaterChunk(clipDitchChunk(source, document.bastionedTown), wetParts);
     const positions = new Float32Array(chunk.positions);
@@ -83,8 +94,18 @@ export function terrainFieldMeshes(
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute("color", new THREE.BufferAttribute(chunk.colors, 3));
     geometry.setIndex(new THREE.BufferAttribute(chunk.indices, 1));
-    geometry.computeVertexNormals();
-    const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.FrontSide }));
+    if (chunk.normals) {
+      geometry.setAttribute("normal", new THREE.BufferAttribute(chunk.normals, 3));
+      geometry.normalizeNormals();
+    } else geometry.computeVertexNormals();
+    const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.FrontSide });
+    if (cover) {
+      applyForestGroundTexture(material, cover, document.frame.extentMeters);
+      material.addEventListener("dispose", () => {
+        if (--remainingMaterials === 0) cover.dispose();
+      });
+    }
+    const mesh = new THREE.Mesh(geometry, material);
     mesh.name = `ce-field-${index}`;
     mesh.raycast = () => {};
     return mesh;
@@ -103,7 +124,8 @@ export function clipWaterChunk(
   wetParts = wetParts.filter(wet => boundsOverlap(chunkBox, wet.box));
   if (!wetParts.length) return chunk;
   const positions: number[] = [],
-    colors: number[] = [];
+    colors: number[] = [],
+    normals: number[] = [];
   const cross = (a: Point, b: Point, c: Point) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
   for (let i = 0; i < chunk.indices.length; i += 3) {
     const ids = [chunk.indices[i], chunk.indices[i + 1], chunk.indices[i + 2]];
@@ -130,13 +152,17 @@ export function clipWaterChunk(
               ids.reduce((sum, id, j) => sum + weights[j] * chunk.positions[id * 3 + 1], 0),
               -point[1]
             );
-            for (let channel = 0; channel < 3; channel++)
+            for (let channel = 0; channel < 3; channel++) {
               colors.push(ids.reduce((sum, id, j) => sum + weights[j] * chunk.colors[id * 3 + channel], 0));
+              if (chunk.normals)
+                normals.push(ids.reduce((sum, id, j) => sum + weights[j] * chunk.normals![id * 3 + channel], 0));
+            }
           }
   }
   return {
     positions: Float32Array.from(positions),
     colors: Float32Array.from(colors),
+    ...(chunk.normals ? { normals: Float32Array.from(normals) } : {}),
     indices: Uint32Array.from({ length: positions.length / 3 }, (_, i) => i)
   };
 }

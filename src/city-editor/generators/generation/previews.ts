@@ -16,6 +16,7 @@ import { preparePopulationGeneration } from "../populationGeneration";
 import { cultivateRoadside } from "../roadsideFarms";
 import { generateRuralFieldStage } from "../ruralFieldStage";
 import { townExtentMeters } from "../settlementExtent";
+import { generateTerrainOnDocument } from "../terrainGeneration";
 import { applyPlan } from "./assembly/applyPlan";
 import type { Plan } from "./contracts";
 import { planningDebugDocument } from "./debugPreview";
@@ -74,6 +75,7 @@ export function generateStageOnDocument(
     Object.values(document.mesh.faces).some(face => !validLandCoverOverride(face.properties.landCoverOverride))
   )
     return null;
+  if (settings.mode === "terrain") return generateTerrainOnDocument(document, settings, seed);
   settings = { ...settings, forestSettings: settings.forestSettings ?? document.forestSettings };
   document = {
     ...document,

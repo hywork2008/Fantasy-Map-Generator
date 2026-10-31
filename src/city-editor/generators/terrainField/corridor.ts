@@ -4,7 +4,7 @@ import type { CityDocument, EdgeFeatureGroup, Point } from "../../types/document
 import type { TerrainField, TerrainRiverCorridor } from "../../types/terrain";
 import { polygonArea } from "../geom";
 import { triangularInfillParts } from "../lotGeometry";
-import { plotArea, corridor as segmentCorridor, subtractConvex } from "../parcelGeometry";
+import { PlotIndex, plotArea, corridor as segmentCorridor, subtractConvex } from "../parcelGeometry";
 import { riverRibbonRing } from "../riverRibbonRing";
 import { terrainFieldForDocument } from "./build";
 import { sampleField } from "./sample";
@@ -133,6 +133,7 @@ export function syncRiverCorridors(document: CityDocument, field: TerrainField):
 export interface CorridorStation {
   distance: number;
   bed: number;
+  depth: number;
   width: number;
   /** Unit normal of the nearest segment, pointing left of the downstream direction. */
   normal: Point;
@@ -140,12 +141,32 @@ export interface CorridorStation {
   at: Point;
 }
 
+const stationIndexes = new WeakMap<TerrainRiverCorridor, PlotIndex<number>>();
+function segmentIndex(corridor: TerrainRiverCorridor): PlotIndex<number> {
+  const hit = stationIndexes.get(corridor);
+  if (hit) return hit;
+  const index = new PlotIndex<number>(64);
+  const reach = Math.max(...corridor.widthsMeters) / 2 + bankReach(corridor) + 1;
+  for (let i = 1; i < corridor.centerline.length; i++) {
+    const a = corridor.centerline[i - 1],
+      b = corridor.centerline[i];
+    index.add(i, [
+      Math.min(a[0], b[0]) - reach,
+      Math.min(a[1], b[1]) - reach,
+      Math.max(a[0], b[0]) + reach,
+      Math.max(a[1], b[1]) + reach
+    ]);
+  }
+  stationIndexes.set(corridor, index);
+  return index;
+}
+
 /** Nearest centre-line station. Bed and width are interpolated along the segment and do not depend on the lateral offset. */
 export function corridorStation(corridor: TerrainRiverCorridor, point: Point): CorridorStation | null {
   const line = corridor.centerline;
   if (line.length < 2) return null;
   let best: CorridorStation | null = null;
-  for (let i = 1; i < line.length; i++) {
+  for (const i of segmentIndex(corridor).query([point[0], point[1], point[0], point[1]])) {
     const a = line[i - 1];
     const b = line[i];
     const dx = b[0] - a[0];
@@ -158,7 +179,10 @@ export function corridorStation(corridor: TerrainRiverCorridor, point: Point): C
     const length = Math.hypot(dx, dy) || 1;
     const bed = corridor.bedMeters[i - 1] + (corridor.bedMeters[i] - corridor.bedMeters[i - 1]) * t;
     const width = corridor.widthsMeters[i - 1] + (corridor.widthsMeters[i] - corridor.widthsMeters[i - 1]) * t;
-    best = { distance, bed, width, normal: [-dy / length, dx / length], at };
+    const depth = corridor.depthsMeters
+      ? corridor.depthsMeters[i - 1] + (corridor.depthsMeters[i] - corridor.depthsMeters[i - 1]) * t
+      : corridor.depthMeters;
+    best = { distance, bed, depth, width, normal: [-dy / length, dx / length], at };
   }
   return best;
 }
@@ -181,7 +205,7 @@ export function corridorWaterAt(corridors: readonly TerrainRiverCorridor[], poin
   for (const corridor of corridors) {
     const station = corridorStation(corridor, point);
     if (!station || station.distance > station.width / 2 + 0.05) continue;
-    const surface = station.bed + corridor.depthMeters;
+    const surface = station.bed + station.depth;
     level = level === null ? surface : Math.min(level, surface);
   }
   return level;

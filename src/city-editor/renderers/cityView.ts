@@ -686,10 +686,10 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   };
 
   const riverDrop = () => options.getRiverDropMeters?.() ?? RIVER_DROP_MIN;
-  const placeWater = (city: CityDocument) => {
+  const placeWater = (city: CityDocument, cover: ForestPlan | null) => {
     if (!scene || !ground) return;
     waterMeshes?.dispose();
-    waterMeshes = createTownWater(city, terrain ?? undefined, riverDrop());
+    waterMeshes = createTownWater(city, terrain ?? undefined, riverDrop(), cover ?? undefined);
     if (waterMeshes.replacesDisc) scene.remove(ground);
     else {
       if (!ground.parent) scene.add(ground);
@@ -726,7 +726,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     const stamp = `${townWaterStamp(city)}|${riverDropMeters(riverDrop())}`;
     const roads = townRoadStamp(city, fabric.lanes);
     const spacing = options.getTerrainSpacing?.() ?? "auto";
-    const nextTerrainStamp = `${cityTerrainStamp(city)}|${roads}|${spacing}`;
+    const nextTerrainStamp = `${cityTerrainStamp(city)}|${roads}|${spacing}|${riverDropMeters(riverDrop())}`;
     const terrainChanged = nextTerrainStamp !== terrainStamp;
     if (terrainChanged) {
       let ribbons: RoadRibbon[] | undefined;
@@ -735,7 +735,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       } catch {
         // Reported once by the road meshes below; the terrain stays ungraded.
       }
-      terrain = cityTerrain(city, { roads: ribbons, renderSpacing: spacing });
+      terrain = cityTerrain(city, { roads: ribbons, renderSpacing: spacing, riverDropMeters: riverDrop() });
       sky.fit(city, terrain.heightAt);
       terrainStamp = nextTerrainStamp;
     }
@@ -841,8 +841,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       scene.add(openSpaces.group);
       openSpaceStamp = nextOpenSpaceStamp;
     }
-    if (plan.water) {
-      placeWater(city);
+    if (plan.water || (terrain?.field && forestChanged)) {
+      placeWater(city, nextForestSource);
       waterStamp = stamp;
     }
     if (bridgesChanged) {
@@ -889,7 +889,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
             terrain ?? undefined,
             forestQuality.effective,
             simplification.outskirts !== "off",
-            season
+            season,
+            Boolean(terrain?.field)
           )
         : null;
       if (forest) scene.add(forest.group);

@@ -283,8 +283,10 @@ export function validFabricPlan(plan: FabricPlan): boolean {
     validBuildingHeightLimit(g.settings?.buildingHeightLimit) &&
     validHousingAreaSettings(g.settings ?? {}) &&
     validBuildingHeightPolicy(g.input?.buildingHeightPolicy) &&
-    ["evolution-city-v3", "castle-city-v1", "skeleton-city-v1", "fort-v1", "bastioned-city-v1"].includes(g.algorithm) &&
-    (g.settings?.mode === undefined || ["city", "fort"].includes(g.settings.mode)) &&
+    ["terrain-v1", "evolution-city-v3", "castle-city-v1", "skeleton-city-v1", "fort-v1", "bastioned-city-v1"].includes(
+      g.algorithm
+    ) &&
+    (g.settings?.mode === undefined || ["city", "fort", "terrain"].includes(g.settings.mode)) &&
     (g.settings?.townFortification?.dimensionPolicy === undefined ||
       ["legacy", "artillery-v1"].includes(g.settings.townFortification.dimensionPolicy)) &&
     (g.settings?.generationMethod === undefined ||

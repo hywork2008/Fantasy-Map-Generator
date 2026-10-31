@@ -1,7 +1,8 @@
 import { growthHash } from "../../utils/urbanMorphology";
 import { forestContains } from "../generators/forestGeometry";
-import { landscapeHasTrees, landscapeTreeBiome } from "../generators/landscapeVegetation";
+import { landscapeHasTrees, landscapeTreeBiome, naturalTreeSuitability } from "../generators/landscapeVegetation";
 import { PlotIndex } from "../generators/parcelGeometry";
+import { cityTerrain } from "../generators/terrainElevation";
 import type { ForestPlan, ForestRegion } from "../types/contracts/forest";
 import type { CityDocument, Point } from "../types/document";
 import { resolveLandscapeTheme } from "./landscape";
@@ -213,8 +214,13 @@ export function renderForestLayer(
   const limit = quality === "light" ? FOREST_SVG_ELEMENT_LIMIT.light : FOREST_SVG_ELEMENT_LIMIT.detailed;
   const available = Math.max(0, limit - layer.querySelectorAll("*").length);
   const probability = density === "sparse" ? 0.5 : density === "dense" ? 1 : 0.8;
+  const ground = document.fabric?.generation?.settings.mode === "terrain" ? cityTerrain(document) : undefined;
   const samples = candidates(plan, seed, options.representation === "all-trees")
-    .filter(tree => random(`${seed}:${tree.id}:density`) < probability)
+    .filter(
+      tree =>
+        random(`${seed}:${tree.id}:density`) <
+        probability * naturalTreeSuitability(document, tree.point, ground?.heightAt)
+    )
     .slice(0, available);
   for (const tree of samples) {
     const radius = 3.5 + random(`${seed}:${tree.id}:radius`) * 1.5;
