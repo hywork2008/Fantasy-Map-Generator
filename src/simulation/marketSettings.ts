@@ -23,6 +23,15 @@ export type MarketDissolveCargoMode = (typeof MARKET_DISSOLVE_CARGO_MODES)[numbe
 export const HAY_TRADE_MODES = ["marketShortfall", "farmsFirst"] as const;
 export type HayTradeMode = (typeof HAY_TRADE_MODES)[number];
 
+/**
+ * The merchants' share of a market's surplus payout (docs/analytics/hay-trade-modes-20261101.md §12):
+ * `houseCapital` puts it into their market's trading house as each merchant's stake, as far as the
+ * house wants capital, and pays what it does not take as the market's local wages; `wealth` adds it
+ * to the merchants' own wealth.
+ */
+export const MERCHANT_PROFIT_USES = ["houseCapital", "wealth"] as const;
+export type MerchantProfitUse = (typeof MERCHANT_PROFIT_USES)[number];
+
 export type MarketSettings = {
   /** A town promoted during the run opens a market only this many generation spacings from every market centre. */
   foundingSpacingFactor: number;
@@ -39,6 +48,11 @@ export type MarketSettings = {
   surplusRuralWeight: number;
   /** Cash a market keeps before paying out its surplus, per member-town population point, as times the town working cash. */
   surplusReserveFactor: number;
+  /** Share of that payout the market's manager and rival merchants take as profit. */
+  merchantProfitShare: number;
+  merchantProfitUse: MerchantProfitUse;
+  /** Years of living costs a market merchant keeps before spending the rest of its wealth. */
+  merchantReserveYears: number;
 };
 
 export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
@@ -48,7 +62,10 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   dissolveCargo: "windDown",
   hayTrade: "marketShortfall",
   surplusRuralWeight: 1,
-  surplusReserveFactor: 1
+  surplusReserveFactor: 1,
+  merchantProfitShare: 1 / 3,
+  merchantProfitUse: "houseCapital",
+  merchantReserveYears: 5
 };
 
 export const MARKET_SETTING_LIMITS = {
@@ -56,7 +73,9 @@ export const MARKET_SETTING_LIMITS = {
   dissolveWealthShare: { min: 0, max: 1, step: 0.01 },
   dissolveMonths: { min: 1, max: 60, step: 1 },
   surplusRuralWeight: { min: 0, max: 1, step: 0.05 },
-  surplusReserveFactor: { min: 0, max: 2, step: 0.05 }
+  surplusReserveFactor: { min: 0, max: 2, step: 0.05 },
+  merchantProfitShare: { min: 0, max: 1, step: 0.01 },
+  merchantReserveYears: { min: 0, max: 10, step: 0.5 }
 } as const;
 
 type NumericMarketSetting = keyof typeof MARKET_SETTING_LIMITS;
@@ -68,6 +87,11 @@ const cargoMode = (value: unknown): MarketDissolveCargoMode =>
 
 const hayTradeMode = (value: unknown): HayTradeMode =>
   HAY_TRADE_MODES.includes(value as HayTradeMode) ? (value as HayTradeMode) : DEFAULT_MARKET_SETTINGS.hayTrade;
+
+const profitUse = (value: unknown): MerchantProfitUse =>
+  MERCHANT_PROFIT_USES.includes(value as MerchantProfitUse)
+    ? (value as MerchantProfitUse)
+    : DEFAULT_MARKET_SETTINGS.merchantProfitUse;
 
 const clamp = (key: NumericMarketSetting, value: unknown): number => {
   const { min, max, step } = MARKET_SETTING_LIMITS[key];
@@ -91,7 +115,10 @@ export function getMarketSettings(): MarketSettings {
     dissolveCargo: cargoMode(parsed.dissolveCargo),
     hayTrade: hayTradeMode(parsed.hayTrade),
     surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight),
-    surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor)
+    surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor),
+    merchantProfitShare: clamp("merchantProfitShare", parsed.merchantProfitShare),
+    merchantProfitUse: profitUse(parsed.merchantProfitUse),
+    merchantReserveYears: clamp("merchantReserveYears", parsed.merchantReserveYears)
   };
 }
 
@@ -104,7 +131,10 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     dissolveCargo: cargoMode(next.dissolveCargo),
     hayTrade: hayTradeMode(next.hayTrade),
     surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight),
-    surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor)
+    surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor),
+    merchantProfitShare: clamp("merchantProfitShare", next.merchantProfitShare),
+    merchantProfitUse: profitUse(next.merchantProfitUse),
+    merchantReserveYears: clamp("merchantReserveYears", next.merchantReserveYears)
   };
   worldSettings.setItem(MARKET_SETTINGS_KEY, JSON.stringify(settings));
   return settings;

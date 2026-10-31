@@ -479,8 +479,6 @@ function payMarketWages(
 
 /** Share of a market's cash above its reserve paid out each month. */
 export const MARKET_SURPLUS_PAYOUT_SHARE = 0.2;
-/** Part of that payout kept by the market's merchants as profit; the rest is paid as wages in its towns and countryside. */
-export const MARKET_MERCHANT_PROFIT_SHARE = 1 / 3;
 
 /**
  * A market's margin (retail minus farmgate) used to pile up in `marketTreasury.balance` with no
@@ -504,7 +502,7 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
     if ((burg.population ?? 0) > 0) memberTowns.set(burg.market, [...(memberTowns.get(burg.market) ?? []), burg]);
   }
   const ruralPopulation = getRuralPopulationByMarket(getMarketCellColumn());
-  const { surplusRuralWeight, surplusReserveFactor } = getMarketSettings();
+  const { surplusRuralWeight, surplusReserveFactor, merchantProfitShare, merchantProfitUse } = getMarketSettings();
   let paid = 0;
   // Open-account cargo on its way is paid for on arrival; that cash is not surplus (§12).
   const openAccount = isLongDistanceTradeEnabled() ? getOpenAccountCommitments() : null;
@@ -537,11 +535,21 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
     const merchants = [market.managerCharacterId, ...(market.rivalCharacterIds ?? [])].filter(
       (id): id is number => typeof id === "number"
     );
-    let profit = merchants.length ? rn(payout * MARKET_MERCHANT_PROFIT_SHARE, 2) : 0;
+    // The merchants' profit (Simulation settings `merchantProfitShare`). Kept as wealth, it sat
+    // under their years of reserve and left the towns and countryside; as a stake in their own
+    // house it goes back out through its trade, and what the house does not want is paid as wages
+    // (docs/analytics/hay-trade-modes-20261101.md §12).
+    let profit = merchants.length ? rn(payout * merchantProfitShare, 2) : 0;
     if (profit > 0) {
       const each = rn(profit / merchants.length, 2);
       profit = 0;
-      for (const id of merchants) if (creditMerchant(id, each)) profit = rn(profit + each, 2);
+      for (const id of merchants) {
+        if (merchantProfitUse === "wealth") {
+          if (creditMerchant(id, each)) profit = rn(profit + each, 2);
+        } else if (creditMerchant(id, 0)) {
+          profit = rn(profit + MerchantTradeCapital.investFromCharacter(market, id, each), 2);
+        }
+      }
     }
     const local = rn(payout - profit, 2);
     if (

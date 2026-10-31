@@ -12,6 +12,8 @@ import {
   MARKET_SETTING_LIMITS,
   type MarketDissolveCargoMode,
   type MarketSettings,
+  MERCHANT_PROFIT_USES,
+  type MerchantProfitUse,
   setMarketSettings
 } from "../../../../simulation/marketSettings";
 import { useOptionsState } from "../../../../store/optionsState";
@@ -365,6 +367,55 @@ export const SimulationSettingsTab: React.FC = () => {
                 step={MARKET_SETTING_LIMITS.surplusRuralWeight.step * 100}
                 value={Math.round(marketSettings.surplusRuralWeight * 100)}
                 onChange={v => updateMarketSetting("surplusRuralWeight", String(Number(v) / 100))}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.merchantProfitShareTip")}>
+            <td />
+            <td>{t("simulation.merchantProfitShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="merchantProfitShare"
+                min={MARKET_SETTING_LIMITS.merchantProfitShare.min * 100}
+                max={MARKET_SETTING_LIMITS.merchantProfitShare.max * 100}
+                step={MARKET_SETTING_LIMITS.merchantProfitShare.step * 100}
+                value={Math.round(marketSettings.merchantProfitShare * 100)}
+                onChange={v => updateMarketSetting("merchantProfitShare", String(Number(v) / 100))}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.merchantProfitUseTip")}>
+            <td />
+            <td>
+              <label htmlFor="merchantProfitUse">{t("simulation.merchantProfitUse")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="merchantProfitUse"
+                value={marketSettings.merchantProfitUse}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ merchantProfitUse: e.target.value as MerchantProfitUse }))
+                }
+              >
+                {MERCHANT_PROFIT_USES.map(use => (
+                  <option key={use} value={use}>
+                    {t(`simulation.merchantProfitUse_${use}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.merchantReserveYearsTip")}>
+            <td />
+            <td>{t("simulation.merchantReserveYears")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="merchantReserveYears"
+                min={MARKET_SETTING_LIMITS.merchantReserveYears.min}
+                max={MARKET_SETTING_LIMITS.merchantReserveYears.max}
+                step={MARKET_SETTING_LIMITS.merchantReserveYears.step}
+                value={marketSettings.merchantReserveYears}
+                onChange={v => updateMarketSetting("merchantReserveYears", v)}
               />
             </td>
           </tr>
