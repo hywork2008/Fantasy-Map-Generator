@@ -1,4 +1,5 @@
 import basilicaRecord from "../../buildings/catalogue/basilica-temple.json";
+import { BASILICA_NAVE_METERS } from "../../buildings/temples/basilicaDimensions";
 import { validateBuildingRecord } from "../../buildings/validate";
 import { catalogueMassing } from "../../city3d/core/catalogueMassing";
 import { withinBridgeSkewLimit } from "../../utils/bridgeSkewPolicy";
@@ -45,8 +46,8 @@ const STONE_LIP = 1.1;
 const BASTION_HEIGHT = 6;
 const WOOD_LIP = 0.8;
 const SACRED = /church|cathedral|basilica|chapel|shrine|abbey|mosque|temple|stupa|minster/i;
-export const BASILICA_LENGTH = 54;
-export const BASILICA_WIDTH = 28;
+export const BASILICA_LENGTH = BASILICA_NAVE_METERS.length;
+export const BASILICA_WIDTH = BASILICA_NAVE_METERS.width;
 const basilica = validateBuildingRecord(basilicaRecord);
 if (!basilica.ok) throw new Error(`Invalid basilica catalogue record: ${basilica.errors.join("; ")}`);
 const BASILICA_PARTS = catalogueMassing(basilica.record);

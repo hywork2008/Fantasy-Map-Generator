@@ -12,8 +12,8 @@ import { convertTemperature } from "../utils/unitUtils";
 import {
   getCellPoliticalSummary,
   getCombatDeathsTip,
+  getDisplayedPrecipitation,
   getFriendlyHeight,
-  getFriendlyPrecipitation,
   getPopulationTip,
   getProvinceName,
   getStateName,
@@ -223,7 +223,7 @@ function formatWebglPickTooltip(detail: WebglPickDetail): string {
     case "population":
       return getPopulationTip(cellId);
     case "precipitation":
-      return `Annual Precipitation: ${getFriendlyPrecipitation(cellId)}`;
+      return getDisplayedPrecipitation(cellId);
     case "danger": {
       const danger = worldContext.pack.cells.danger?.[cellId] ?? 0;
       const wild = worldContext.pack.cells.wildLand?.[cellId];

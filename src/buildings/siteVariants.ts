@@ -1,5 +1,6 @@
 import { DEFAULT_AUTHOR } from "./authors";
 import { createModularBridge, type ModularBridgeSpec } from "./bridges/modularBridge";
+import { createSuspensionBridge, SUSPENSION_BRIDGE, type SuspensionBridgeSpec } from "./bridges/suspensionBridge";
 import { createCitadelRavelin, createCourtyardLodging, createGarrisonBuilding } from "./facilities/siteFacilities";
 import { tiers } from "./houses/houseVariants";
 import { CEMETERY_PROP_KINDS, createCemeteryProp } from "./landscape/cemeteryProps";
@@ -14,6 +15,7 @@ import {
 } from "./props/medievalContainers";
 import { createEarlyFieldCannonModel, EARLY_FIELD_CANNON } from "./siege/earlyFieldCannon";
 import { createMedievalWellModel, MEDIEVAL_WELL } from "./wells/medievalWell";
+import { createLowMedievalWellModel } from "./wells/medievalWellLow";
 import { createPublicWaterBasinModel } from "./wells/publicWaterBasin";
 import { PUBLIC_WATER_BASINS, WATER_BASIN_KINDS } from "./wells/publicWaterBasinSpec";
 import { createMedievalLumberYardModel, MEDIEVAL_LUMBER_YARD } from "./yards/medievalLumberYard";
@@ -33,6 +35,13 @@ export const OBJECT_VARIANTS = PLACEABLE_OBJECTS.map(object =>
 
 export const WELL_VARIANTS = [
   single("well.medieval", MEDIEVAL_WELL.author, createMedievalWellModel),
+  {
+    id: variantId("well.medieval", "low", DEFAULT_AUTHOR),
+    family: "well.medieval",
+    level: "low",
+    author: DEFAULT_AUTHOR,
+    create: createLowMedievalWellModel
+  },
   ...WATER_BASIN_KINDS.map(kind =>
     single(`well.${kind}`, PUBLIC_WATER_BASINS[kind].author, () => createPublicWaterBasinModel(kind))
   )
@@ -58,22 +67,59 @@ export const CEMETERY_VARIANTS = CEMETERY_PROP_KINDS.map(kind =>
 
 export const FRIARY_VARIANTS = [
   {
-    ...single<Parameters<typeof createFriary>>("monastery.friary", DEFAULT_AUTHOR, (...args) => createFriary(...args)),
-    // The cloister garth plants the full lime model.
-    basedOn: [variantId("tree.garden-parkland", "ultra", "Codex GPT-6.1 Sol")]
-  }
+    ...single<Parameters<typeof createFriary>>("monastery.friary", DEFAULT_AUTHOR, (plan, elevation, bottom, options) =>
+      createFriary(plan, elevation, bottom, { ...options, architectureQuality: "low" })
+    ),
+    // Vegetation quality is independent of the architectural assembly.
+    basedOn: [
+      variantId("tree.garden-parkland", "low", DEFAULT_AUTHOR),
+      variantId("well.medieval", "low", DEFAULT_AUTHOR)
+    ]
+  },
+  ...(["low", "high"] as const).map(level => ({
+    id: variantId("monastery.friary", level, DEFAULT_AUTHOR),
+    family: "monastery.friary",
+    level,
+    author: DEFAULT_AUTHOR,
+    basedOn: [
+      variantId("tree.garden-parkland", "low", DEFAULT_AUTHOR),
+      variantId("well.medieval", "low", DEFAULT_AUTHOR)
+    ],
+    create: (...[plan, elevation, bottom, options]: Parameters<typeof createFriary>) =>
+      createFriary(plan, elevation, bottom, { ...options, architectureQuality: level })
+  }))
 ];
 
 /** Every generated religious-house programme uses the same BV and CE assembly. */
 export const MONASTERY_VARIANTS = [
   ...FRIARY_VARIANTS,
+  ...(["low", "high"] as const).map(level => ({
+    id: variantId("monastery.abbey", level, DEFAULT_AUTHOR),
+    family: "monastery.abbey",
+    level,
+    author: DEFAULT_AUTHOR,
+    basedOn: [
+      variantId("tree.garden-parkland", "low", DEFAULT_AUTHOR),
+      variantId("well.medieval", "low", DEFAULT_AUTHOR)
+    ],
+    create: (
+      plan = monasteryPreviewPlan("abbey"),
+      elevation = 0,
+      bottom = elevation,
+      options: Parameters<typeof createMonastery>[3] = {}
+    ) => createMonastery(plan, elevation, bottom, { ...options, architectureQuality: level })
+  })),
   ...(["abbey", "orthodoxMonastery"] as const).map(kind => ({
     ...single<Parameters<typeof createMonastery>>(
       `monastery.${kind}`,
       DEFAULT_AUTHOR,
-      (plan = monasteryPreviewPlan(kind), ...args) => createMonastery(plan, ...args)
+      (plan = monasteryPreviewPlan(kind), elevation, bottom, options) =>
+        createMonastery(plan, elevation, bottom, { ...options, architectureQuality: "low" })
     ),
-    basedOn: [variantId("tree.garden-parkland", "ultra", "Codex GPT-6.1 Sol")]
+    basedOn: [
+      variantId("tree.garden-parkland", "low", DEFAULT_AUTHOR),
+      variantId("well.medieval", "low", DEFAULT_AUTHOR)
+    ]
   }))
 ];
 
@@ -90,3 +136,14 @@ export const BRIDGE_VARIANTS: ModelVariant<[ModularBridgeSpec]>[] = (["high", "l
   author: DEFAULT_AUTHOR,
   create: spec => createModularBridge(spec, level)
 }));
+
+/** Bank-supported rope bridges available for future CE clearance-based selection. */
+export const SUSPENSION_BRIDGE_VARIANTS: ModelVariant<[SuspensionBridgeSpec]>[] = (["low", "high"] as const).map(
+  level => ({
+    id: variantId("bridge.suspension", level, SUSPENSION_BRIDGE.author),
+    family: "bridge.suspension",
+    level,
+    author: SUSPENSION_BRIDGE.author,
+    create: spec => createSuspensionBridge(spec, level)
+  })
+);

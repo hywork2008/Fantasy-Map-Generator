@@ -10,6 +10,7 @@ export const BUILDING_PALETTES = {
   "local-stone-roof": ["#5B605D", "#686C69", "#77756B"],
   lead: ["#889096", "#9AA0A4", "#A9AEB1"],
   turf: ["#59613F", "#68704B", "#78805B"],
+  "white-limewash": ["#DDDCD6", "#ECEBE5", "#F5F4EF"],
   limewash: ["#CDBD9E", "#DCCEB1", "#E7DDC6"],
   plaster: ["#C5B697", "#D5C7A8", "#E2D5BC"],
   limestone: ["#A79C84", "#B8AD94", "#C9BFA8"],

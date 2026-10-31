@@ -195,7 +195,13 @@ export function applyRoads(input: ApplyRoadsInput) {
       .filter(e => e.leftFace && e.rightFace && templeFaces.has(e.leftFace) && templeFaces.has(e.rightFace))
       .map(e => e.id);
     const templeNave = templeElem?.point
-      ? templeRectForElement(templeElem.point, templeElem.sizeMeters, templeElem.rotation, townExtentMeters(next.frame))
+      ? templeRectForElement(
+          templeElem.point,
+          templeElem.sizeMeters,
+          templeElem.rotation,
+          townExtentMeters(next.frame),
+          templeElem.templeType
+        )
       : null;
     const templeBlockedEdges = new Set<Id>(internalTempleEdges);
     if (templeNave) {

@@ -19,6 +19,7 @@ import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../city3d/three/pierMeshes";
 import { createTownRegionalHouseLod, type TownRegionalHouseLod } from "../../city3d/three/regionalHouseLod";
 import { createTownRoads, roadStampChanged, type TownRoadMeshes } from "../../city3d/three/roadMeshes";
+import { structureSelectionGeometry } from "../../city3d/three/selectionGeometry";
 import { createTownShips } from "../../city3d/three/shipMeshes";
 import { createTownSpecialBuildings, type TownSpecialBuildings } from "../../city3d/three/specialBuildingMeshes";
 import { type CityStructureMeshes, createStructureMassing } from "../../city3d/three/structureMeshes";
@@ -384,26 +385,40 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     requestRender();
   };
 
-  const showStructure = (structure: StructureMassing | undefined) => {
+  const structureReadout = (
+    kind: StructureMassing["kind"],
+    material: StructureMassing["material"],
+    bounds: THREE.Box3
+  ) =>
+    `${editorText("cityEditor.messages.structureReadout", {
+      value0: editorText(STRUCTURE_KEY[kind]),
+      value1: editorText(STRUCTURE_MATERIAL[material]),
+      value2: (bounds.max.y - bounds.min.y).toFixed(1)
+    })}\n${editorText("cityEditor.messages.structureElevationReadout", {
+      value0: (bounds.min.y + (terrain?.datumMeters ?? 0)).toFixed(1),
+      value1: (bounds.max.y + (terrain?.datumMeters ?? 0)).toFixed(1)
+    })}`;
+
+  const showStructure = (structure: StructureMassing | undefined, geometry?: THREE.BufferGeometry) => {
     clearHighlight();
     if (!structure) {
       readout.hidden = false;
       readout.textContent = editorText("cityEditor.messages.massingEmpty");
       return;
     }
-    const top = structure.baseElevationMeters + structure.heightMeters;
-    const line = editorText("cityEditor.messages.structureReadout", {
-      value0: editorText(STRUCTURE_KEY[structure.kind]),
-      value1: editorText(STRUCTURE_MATERIAL[structure.material]),
-      value2: top.toFixed(1)
-    });
+    let positions: Float32Array;
+    if (geometry) positions = new Float32Array(geometry.getAttribute("position").array);
+    else {
+      const surfaces = structureSurfaces(structure);
+      if (!surfaces) return;
+      positions = new Float32Array(surfaces.walls.positions.length + surfaces.roofs.positions.length);
+      positions.set(surfaces.walls.positions);
+      positions.set(surfaces.roofs.positions, surfaces.walls.positions.length);
+    }
+    const bounds = new THREE.Box3().setFromBufferAttribute(new THREE.BufferAttribute(positions, 3));
+    const line = structureReadout(structure.kind, structure.material, bounds);
     readout.hidden = false;
     readout.textContent = structure.name ? `${line}\n${structure.name}` : line;
-    const surfaces = structureSurfaces(structure);
-    if (!surfaces) return;
-    const positions = new Float32Array(surfaces.walls.positions.length + surfaces.roofs.positions.length);
-    positions.set(surfaces.walls.positions, 0);
-    positions.set(surfaces.roofs.positions, surfaces.walls.positions.length);
     outline(positions);
   };
 
@@ -671,10 +686,10 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   };
 
   const riverDrop = () => options.getRiverDropMeters?.() ?? RIVER_DROP_MIN;
-  const placeWater = (city: CityDocument) => {
+  const placeWater = (city: CityDocument, cover: ForestPlan | null) => {
     if (!scene || !ground) return;
     waterMeshes?.dispose();
-    waterMeshes = createTownWater(city, terrain ?? undefined, riverDrop());
+    waterMeshes = createTownWater(city, terrain ?? undefined, riverDrop(), cover ?? undefined);
     if (waterMeshes.replacesDisc) scene.remove(ground);
     else {
       if (!ground.parent) scene.add(ground);
@@ -711,7 +726,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     const stamp = `${townWaterStamp(city)}|${riverDropMeters(riverDrop())}`;
     const roads = townRoadStamp(city, fabric.lanes);
     const spacing = options.getTerrainSpacing?.() ?? "auto";
-    const nextTerrainStamp = `${cityTerrainStamp(city)}|${roads}|${spacing}`;
+    const nextTerrainStamp = `${cityTerrainStamp(city)}|${roads}|${spacing}|${riverDropMeters(riverDrop())}`;
     const terrainChanged = nextTerrainStamp !== terrainStamp;
     if (terrainChanged) {
       let ribbons: RoadRibbon[] | undefined;
@@ -720,7 +735,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       } catch {
         // Reported once by the road meshes below; the terrain stays ungraded.
       }
-      terrain = cityTerrain(city, { roads: ribbons, renderSpacing: spacing });
+      terrain = cityTerrain(city, { roads: ribbons, renderSpacing: spacing, riverDropMeters: riverDrop() });
       sky.fit(city, terrain.heightAt);
       terrainStamp = nextTerrainStamp;
     }
@@ -757,7 +772,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     ]);
     const openSpacesChanged = terrainChanged || plan.buildings || openSpaceStamp !== nextOpenSpaceStamp || !openSpaces;
     const monasteryPlans = fabric.aerialLandmarks?.monasteries ?? [];
-    const nextMonasteryStamp = JSON.stringify(monasteryPlans);
+    const nextMonasteryStamp = JSON.stringify([monasteryPlans, quality]);
     const monasteriesChanged = terrainChanged || monasteryStamp !== nextMonasteryStamp || !monasteries;
     const bridgesChanged = plan.buildings || plan.water || plan.roads || !bridges;
     let nextForestSource: ForestPlan | null = null;
@@ -810,7 +825,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (monasteriesChanged) {
       if (monasteries) scene.remove(monasteries.group);
       monasteries?.dispose();
-      monasteries = createTownMonasteries(monasteryPlans, terrain ?? undefined);
+      monasteries = createTownMonasteries(monasteryPlans, terrain ?? undefined, quality);
       scene.add(monasteries.group);
       monasteryStamp = nextMonasteryStamp;
     }
@@ -826,8 +841,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       scene.add(openSpaces.group);
       openSpaceStamp = nextOpenSpaceStamp;
     }
-    if (plan.water) {
-      placeWater(city);
+    if (plan.water || (terrain?.field && forestChanged)) {
+      placeWater(city, nextForestSource);
       waterStamp = stamp;
     }
     if (bridgesChanged) {
@@ -874,7 +889,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
             terrain ?? undefined,
             forestQuality.effective,
             simplification.outskirts !== "off",
-            season
+            season,
+            Boolean(terrain?.field)
           )
         : null;
       if (forest) scene.add(forest.group);
@@ -1022,7 +1038,13 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     }
     const defense = townWalls?.resolve(hit);
     if (defense) {
-      showStructure(defense);
+      const index = (hit.object as THREE.Mesh).geometry.getAttribute("buildingIndex").getX(hit.face.a);
+      const geometry = structureSelectionGeometry(townWalls!.pickables, index);
+      try {
+        showStructure(defense, geometry);
+      } finally {
+        geometry?.dispose();
+      }
       return;
     }
     const house = regionalHouses?.resolve(hit);
@@ -1054,19 +1076,21 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       clearHighlight();
       const geometry = bvInstanceGeometry(hit)!;
       readout.hidden = false;
-      readout.textContent = `${editorText("cityEditor.messages.structureReadout", {
-        value0: editorText(STRUCTURE_KEY.landmark),
-        value1: editorText(STRUCTURE_MATERIAL.stone),
-        value2: geometry.boundingBox!.max.y.toFixed(1)
-      })}\n${special?.structure.name ?? special?.id ?? facility?.name ?? well!.id}`;
+      readout.textContent = `${structureReadout("landmark", "stone", geometry.boundingBox!)}\n${special?.structure.name ?? special?.id ?? facility?.name ?? well!.id}`;
       outline(new Float32Array(geometry.getAttribute("position").array));
       geometry.dispose();
       return;
     }
     const attribute = (hit.object as THREE.Mesh).geometry.getAttribute("buildingIndex");
     const index = attribute?.getX(hit.face.a) ?? -1;
-    if (structures?.pickables.includes(hit.object as THREE.Mesh)) showStructure(structureList[index]);
-    else showLot(built?.buildings[index]);
+    if (structures?.pickables.includes(hit.object as THREE.Mesh)) {
+      const geometry = structureSelectionGeometry(structures.pickables, index);
+      try {
+        showStructure(structureList[index], geometry);
+      } finally {
+        geometry?.dispose();
+      }
+    } else showLot(built?.buildings[index]);
   };
 
   const bindChrome = () => {

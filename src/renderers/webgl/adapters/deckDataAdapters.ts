@@ -17,6 +17,7 @@ import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../.
 import { HeightThreshold, OceanCurrentConstants } from "../../../data/constants";
 import { ensureCellWindClimate } from "../../../generators/cellWindClimate";
 import { LavaFlows } from "../../../generators/lavaFlows";
+import { createPrecipitationDisplayReader } from "../../../generators/precipitationDisplay";
 import { Rivers } from "../../../generators/river-generator";
 import { Routes } from "../../../generators/routes-generator";
 import { useOptionsState } from "../../../store/optionsState";
@@ -803,9 +804,10 @@ export function buildPrecipitationSymbols(
   const { cells, points } = worldContext.grid;
   const cellsNumberModifier = ((pointsOption === 4 ? 10000 : pointsOption * 2500) / 10000) ** 0.25;
   const symbols: DeckPrecipitationSymbol[] = [];
+  const readPrecipitation = createPrecipitationDisplayReader(worldContext);
 
   for (const cellId of cells.i) {
-    const precipitation = cells.prec[cellId] ?? 0;
+    const precipitation = readPrecipitation(cellId);
     if (cells.h[cellId] < 20 || !precipitation || !isGridCellInScope(focusScope, cellId)) continue;
 
     const position = points[cellId];

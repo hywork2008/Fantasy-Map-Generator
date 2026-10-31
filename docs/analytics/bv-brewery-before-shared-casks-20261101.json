@@ -1,0 +1,1028 @@
+{
+  "runtime": "v22.23.1",
+  "method": "SHA-256 over sorted triangle strings: material color hex and side, then oriented world vertices rounded to 5 decimals. Normals, mesh names and resource identity are excluded. Baseline was captured before component extraction. Every registered model, composition and single component is independently built, counted and disposed. Source-part mesh counts in ledgers precede final material batching.",
+  "rows": [
+    {
+      "id": "town-brewery",
+      "quality": "low",
+      "standard": {
+        "metrics": {
+          "meshes": 178,
+          "triangles": 16978,
+          "vertices": 30356,
+          "geometries": 105,
+          "materials": 32
+        },
+        "baseline": "3c52f2dd0bca2e7c345439d6997934c1a279f38eed73453d7acc9b29c4e5e009",
+        "sha256": "3c52f2dd0bca2e7c345439d6997934c1a279f38eed73453d7acc9b29c4e5e009",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 178,
+            "triangles": 16978,
+            "vertices": 30356,
+            "geometries": 105,
+            "materials": 32
+          },
+          "parts": [
+            {
+              "id": "town-brewery:hall",
+              "role": "hall",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 52,
+              "triangles": 594
+            },
+            {
+              "id": "town-brewery:shelter",
+              "role": "shelter",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 18,
+              "triangles": 208
+            },
+            {
+              "id": "town-brewery:heating-unit",
+              "role": "heating-unit",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 364
+            },
+            {
+              "id": "town-brewery:mash-tun",
+              "role": "mash-tun",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 920
+            },
+            {
+              "id": "town-brewery:malt-station",
+              "role": "malt-station",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 6,
+              "triangles": 72
+            },
+            {
+              "id": "town-brewery:casks",
+              "role": "casks",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "basedOn": [
+                "container.barrel-closed@default#codex-gpt-6.1-sol"
+              ],
+              "meshes": 90,
+              "triangles": 14820
+            }
+          ]
+        },
+        {
+          "id": "without-casks",
+          "metrics": {
+            "meshes": 88,
+            "triangles": 2158,
+            "vertices": 1040,
+            "geometries": 15,
+            "materials": 20
+          },
+          "parts": [
+            {
+              "id": "town-brewery:hall",
+              "role": "hall",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 52,
+              "triangles": 594
+            },
+            {
+              "id": "town-brewery:shelter",
+              "role": "shelter",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 18,
+              "triangles": 208
+            },
+            {
+              "id": "town-brewery:heating-unit",
+              "role": "heating-unit",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 364
+            },
+            {
+              "id": "town-brewery:mash-tun",
+              "role": "mash-tun",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 920
+            },
+            {
+              "id": "town-brewery:malt-station",
+              "role": "malt-station",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 6,
+              "triangles": 72
+            }
+          ]
+        },
+        {
+          "id": "brewing-yard",
+          "metrics": {
+            "meshes": 36,
+            "triangles": 1564,
+            "vertices": 998,
+            "geometries": 11,
+            "materials": 13
+          },
+          "parts": [
+            {
+              "id": "town-brewery:shelter",
+              "role": "shelter",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 18,
+              "triangles": 208
+            },
+            {
+              "id": "town-brewery:heating-unit",
+              "role": "heating-unit",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 364
+            },
+            {
+              "id": "town-brewery:mash-tun",
+              "role": "mash-tun",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 920
+            },
+            {
+              "id": "town-brewery:malt-station",
+              "role": "malt-station",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 6,
+              "triangles": 72
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "town-brewery:hall",
+          "role": "hall",
+          "quality": "low",
+          "sha256": "fc7ed646f0b1c450dcdf44515e33d1f17887992cdbbfee976b6819605a62feaa",
+          "metrics": {
+            "meshes": 52,
+            "triangles": 594,
+            "vertices": 42,
+            "geometries": 4,
+            "materials": 7
+          }
+        },
+        {
+          "id": "town-brewery:shelter",
+          "role": "shelter",
+          "quality": "low",
+          "sha256": "3bf164841d0155ddfd19ce0d9f852a15dd8faf891a14ae092e68c838f32dc7a2",
+          "metrics": {
+            "meshes": 18,
+            "triangles": 208,
+            "vertices": 36,
+            "geometries": 2,
+            "materials": 3
+          }
+        },
+        {
+          "id": "town-brewery:heating-unit",
+          "role": "heating-unit",
+          "quality": "low",
+          "sha256": "23cde15877d13f4c303bfeb26fe5ec6eee51865b9bf3070891c14a42ab04d1ee",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 364,
+            "vertices": 274,
+            "geometries": 3,
+            "materials": 4
+          }
+        },
+        {
+          "id": "town-brewery:mash-tun",
+          "role": "mash-tun",
+          "quality": "low",
+          "sha256": "8e7970cce09794e252682fc935956d5daa893bb58da3cac2013fbe49287de04d",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 920,
+            "vertices": 664,
+            "geometries": 5,
+            "materials": 3
+          }
+        },
+        {
+          "id": "town-brewery:malt-station",
+          "role": "malt-station",
+          "quality": "low",
+          "sha256": "0f44f07c8939629c90d354b20cd34ffbb0195ec2fe8f327a09d453f5221a2d95",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 72,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 3
+          }
+        },
+        {
+          "id": "town-brewery:casks",
+          "role": "casks",
+          "quality": "low",
+          "sha256": "a3e893b527157a280b2bb86557f4ce3c91e2684fbd268da9a76fc68bb45222d9",
+          "metrics": {
+            "meshes": 90,
+            "triangles": 14820,
+            "vertices": 29316,
+            "geometries": 90,
+            "materials": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "town-brewery",
+      "quality": "high",
+      "standard": {
+        "metrics": {
+          "meshes": 11,
+          "triangles": 43110,
+          "vertices": 129330,
+          "geometries": 11,
+          "materials": 11
+        },
+        "baseline": "4e0d6b6c5cea5d9219d35feb4c200d32da630910b0c8cdb7875bbb8b6172815e",
+        "sha256": "4e0d6b6c5cea5d9219d35feb4c200d32da630910b0c8cdb7875bbb8b6172815e",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 11,
+            "triangles": 43110,
+            "vertices": 129330,
+            "geometries": 11,
+            "materials": 11
+          },
+          "parts": [
+            {
+              "id": "town-brewery:hall",
+              "role": "hall",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 22368
+            },
+            {
+              "id": "town-brewery:shelter",
+              "role": "shelter",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 5786
+            },
+            {
+              "id": "town-brewery:heating-unit",
+              "role": "heating-unit",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 7960
+            },
+            {
+              "id": "town-brewery:mash-tun",
+              "role": "mash-tun",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 4,
+              "triangles": 1608
+            },
+            {
+              "id": "town-brewery:malt-station",
+              "role": "malt-station",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 996
+            },
+            {
+              "id": "town-brewery:casks",
+              "role": "casks",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 4392
+            }
+          ]
+        },
+        {
+          "id": "without-casks",
+          "metrics": {
+            "meshes": 11,
+            "triangles": 38718,
+            "vertices": 116154,
+            "geometries": 11,
+            "materials": 11
+          },
+          "parts": [
+            {
+              "id": "town-brewery:hall",
+              "role": "hall",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 22368
+            },
+            {
+              "id": "town-brewery:shelter",
+              "role": "shelter",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 5786
+            },
+            {
+              "id": "town-brewery:heating-unit",
+              "role": "heating-unit",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 7960
+            },
+            {
+              "id": "town-brewery:mash-tun",
+              "role": "mash-tun",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 4,
+              "triangles": 1608
+            },
+            {
+              "id": "town-brewery:malt-station",
+              "role": "malt-station",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 996
+            }
+          ]
+        },
+        {
+          "id": "brewing-yard",
+          "metrics": {
+            "meshes": 10,
+            "triangles": 16350,
+            "vertices": 49050,
+            "geometries": 10,
+            "materials": 10
+          },
+          "parts": [
+            {
+              "id": "town-brewery:shelter",
+              "role": "shelter",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 5786
+            },
+            {
+              "id": "town-brewery:heating-unit",
+              "role": "heating-unit",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 7960
+            },
+            {
+              "id": "town-brewery:mash-tun",
+              "role": "mash-tun",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 4,
+              "triangles": 1608
+            },
+            {
+              "id": "town-brewery:malt-station",
+              "role": "malt-station",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 996
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "town-brewery:hall",
+          "role": "hall",
+          "quality": "high",
+          "sha256": "6764adac3a8fc1571ec1a661cef1f9d4865760ae0084a266cce139eb4b58c789",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 22368,
+            "vertices": 67104,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "town-brewery:shelter",
+          "role": "shelter",
+          "quality": "high",
+          "sha256": "d2cb3cdd4c0b0012ff8782fdaf2dc71de27120da49e9f4c950a8db4e8e57f633",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 5786,
+            "vertices": 17358,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "town-brewery:heating-unit",
+          "role": "heating-unit",
+          "quality": "high",
+          "sha256": "67ccabcbf04358214b917d3af4ca5ddf26d318a898d10f0f8129321e12463eeb",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 7960,
+            "vertices": 23880,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "town-brewery:mash-tun",
+          "role": "mash-tun",
+          "quality": "high",
+          "sha256": "0d483085a953fec7fff8a729157bdd56c10039e3574ec30610886b5c5538575c",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 1608,
+            "vertices": 4824,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "town-brewery:malt-station",
+          "role": "malt-station",
+          "quality": "high",
+          "sha256": "986644d489ee2ca838a15c35c111eae801118678870b672f59f174c775fac4d3",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 996,
+            "vertices": 2988,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "town-brewery:casks",
+          "role": "casks",
+          "quality": "high",
+          "sha256": "6e6a6b7f86d449257de453e87aa4e2e52ccca9e7642f7e688e0460cc29edf9d6",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 4392,
+            "vertices": 13176,
+            "geometries": 3,
+            "materials": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "ale-brewhouse",
+      "quality": "low",
+      "standard": {
+        "metrics": {
+          "meshes": 168,
+          "triangles": 16858,
+          "vertices": 30356,
+          "geometries": 105,
+          "materials": 32
+        },
+        "baseline": "6e66eb2b9bf9e957c69e2316457572adc198df71295474d093c36537c98bb5a9",
+        "sha256": "6e66eb2b9bf9e957c69e2316457572adc198df71295474d093c36537c98bb5a9",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 168,
+            "triangles": 16858,
+            "vertices": 30356,
+            "geometries": 105,
+            "materials": 32
+          },
+          "parts": [
+            {
+              "id": "ale-brewhouse:hall",
+              "role": "hall",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 42,
+              "triangles": 474
+            },
+            {
+              "id": "ale-brewhouse:shelter",
+              "role": "shelter",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 18,
+              "triangles": 208
+            },
+            {
+              "id": "ale-brewhouse:heating-unit",
+              "role": "heating-unit",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 364
+            },
+            {
+              "id": "ale-brewhouse:mash-tun",
+              "role": "mash-tun",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 920
+            },
+            {
+              "id": "ale-brewhouse:malt-station",
+              "role": "malt-station",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 6,
+              "triangles": 72
+            },
+            {
+              "id": "ale-brewhouse:casks",
+              "role": "casks",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "basedOn": [
+                "container.barrel-closed@default#codex-gpt-6.1-sol"
+              ],
+              "meshes": 90,
+              "triangles": 14820
+            }
+          ]
+        },
+        {
+          "id": "without-casks",
+          "metrics": {
+            "meshes": 78,
+            "triangles": 2038,
+            "vertices": 1040,
+            "geometries": 15,
+            "materials": 20
+          },
+          "parts": [
+            {
+              "id": "ale-brewhouse:hall",
+              "role": "hall",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 42,
+              "triangles": 474
+            },
+            {
+              "id": "ale-brewhouse:shelter",
+              "role": "shelter",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 18,
+              "triangles": 208
+            },
+            {
+              "id": "ale-brewhouse:heating-unit",
+              "role": "heating-unit",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 364
+            },
+            {
+              "id": "ale-brewhouse:mash-tun",
+              "role": "mash-tun",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 920
+            },
+            {
+              "id": "ale-brewhouse:malt-station",
+              "role": "malt-station",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 6,
+              "triangles": 72
+            }
+          ]
+        },
+        {
+          "id": "brewing-yard",
+          "metrics": {
+            "meshes": 36,
+            "triangles": 1564,
+            "vertices": 998,
+            "geometries": 11,
+            "materials": 13
+          },
+          "parts": [
+            {
+              "id": "ale-brewhouse:shelter",
+              "role": "shelter",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 18,
+              "triangles": 208
+            },
+            {
+              "id": "ale-brewhouse:heating-unit",
+              "role": "heating-unit",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 364
+            },
+            {
+              "id": "ale-brewhouse:mash-tun",
+              "role": "mash-tun",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 920
+            },
+            {
+              "id": "ale-brewhouse:malt-station",
+              "role": "malt-station",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 6,
+              "triangles": 72
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "ale-brewhouse:hall",
+          "role": "hall",
+          "quality": "low",
+          "sha256": "3432316b55a0bfa560448965b34f8292d217d9d54e4b280364a4c049e15b917c",
+          "metrics": {
+            "meshes": 42,
+            "triangles": 474,
+            "vertices": 42,
+            "geometries": 4,
+            "materials": 7
+          }
+        },
+        {
+          "id": "ale-brewhouse:shelter",
+          "role": "shelter",
+          "quality": "low",
+          "sha256": "5c224ed45adea93d25af486739ec946d0e4d5fcdc64f41dc94dafee835a3f687",
+          "metrics": {
+            "meshes": 18,
+            "triangles": 208,
+            "vertices": 36,
+            "geometries": 2,
+            "materials": 3
+          }
+        },
+        {
+          "id": "ale-brewhouse:heating-unit",
+          "role": "heating-unit",
+          "quality": "low",
+          "sha256": "cfdb721e8494b34f674a3aed60dd662c59abdc42d56cb593884bbffbf87975c0",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 364,
+            "vertices": 274,
+            "geometries": 3,
+            "materials": 4
+          }
+        },
+        {
+          "id": "ale-brewhouse:mash-tun",
+          "role": "mash-tun",
+          "quality": "low",
+          "sha256": "47e8f069d0616af1e31f6a57270062a32966f0c6fc130187abbd4595aacd5b9b",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 920,
+            "vertices": 664,
+            "geometries": 5,
+            "materials": 3
+          }
+        },
+        {
+          "id": "ale-brewhouse:malt-station",
+          "role": "malt-station",
+          "quality": "low",
+          "sha256": "0f44f07c8939629c90d354b20cd34ffbb0195ec2fe8f327a09d453f5221a2d95",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 72,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 3
+          }
+        },
+        {
+          "id": "ale-brewhouse:casks",
+          "role": "casks",
+          "quality": "low",
+          "sha256": "a3e893b527157a280b2bb86557f4ce3c91e2684fbd268da9a76fc68bb45222d9",
+          "metrics": {
+            "meshes": 90,
+            "triangles": 14820,
+            "vertices": 29316,
+            "geometries": 90,
+            "materials": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "ale-brewhouse",
+      "quality": "high",
+      "standard": {
+        "metrics": {
+          "meshes": 11,
+          "triangles": 34194,
+          "vertices": 102582,
+          "geometries": 11,
+          "materials": 11
+        },
+        "baseline": "fae14b6408b4790a49e66571d13f277c4da06748089415a39e7a1f66d0714556",
+        "sha256": "fae14b6408b4790a49e66571d13f277c4da06748089415a39e7a1f66d0714556",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 11,
+            "triangles": 34194,
+            "vertices": 102582,
+            "geometries": 11,
+            "materials": 11
+          },
+          "parts": [
+            {
+              "id": "ale-brewhouse:hall",
+              "role": "hall",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 13452
+            },
+            {
+              "id": "ale-brewhouse:shelter",
+              "role": "shelter",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 5786
+            },
+            {
+              "id": "ale-brewhouse:heating-unit",
+              "role": "heating-unit",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 7960
+            },
+            {
+              "id": "ale-brewhouse:mash-tun",
+              "role": "mash-tun",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 4,
+              "triangles": 1608
+            },
+            {
+              "id": "ale-brewhouse:malt-station",
+              "role": "malt-station",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 996
+            },
+            {
+              "id": "ale-brewhouse:casks",
+              "role": "casks",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 4392
+            }
+          ]
+        },
+        {
+          "id": "without-casks",
+          "metrics": {
+            "meshes": 11,
+            "triangles": 29802,
+            "vertices": 89406,
+            "geometries": 11,
+            "materials": 11
+          },
+          "parts": [
+            {
+              "id": "ale-brewhouse:hall",
+              "role": "hall",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 13452
+            },
+            {
+              "id": "ale-brewhouse:shelter",
+              "role": "shelter",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 5786
+            },
+            {
+              "id": "ale-brewhouse:heating-unit",
+              "role": "heating-unit",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 7960
+            },
+            {
+              "id": "ale-brewhouse:mash-tun",
+              "role": "mash-tun",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 4,
+              "triangles": 1608
+            },
+            {
+              "id": "ale-brewhouse:malt-station",
+              "role": "malt-station",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 996
+            }
+          ]
+        },
+        {
+          "id": "brewing-yard",
+          "metrics": {
+            "meshes": 10,
+            "triangles": 16350,
+            "vertices": 49050,
+            "geometries": 10,
+            "materials": 10
+          },
+          "parts": [
+            {
+              "id": "ale-brewhouse:shelter",
+              "role": "shelter",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 5786
+            },
+            {
+              "id": "ale-brewhouse:heating-unit",
+              "role": "heating-unit",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 7960
+            },
+            {
+              "id": "ale-brewhouse:mash-tun",
+              "role": "mash-tun",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 4,
+              "triangles": 1608
+            },
+            {
+              "id": "ale-brewhouse:malt-station",
+              "role": "malt-station",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 996
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "ale-brewhouse:hall",
+          "role": "hall",
+          "quality": "high",
+          "sha256": "5b9ef9c796197ea2c679ac985f7fc38e342551840b4fa7ed9312fc540bb2bb3f",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 13452,
+            "vertices": 40356,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "ale-brewhouse:shelter",
+          "role": "shelter",
+          "quality": "high",
+          "sha256": "92ea259f06b963421c86f32583e0dc03d2c6fded3132371293a9ee395d46ce2a",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 5786,
+            "vertices": 17358,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "ale-brewhouse:heating-unit",
+          "role": "heating-unit",
+          "quality": "high",
+          "sha256": "333971ce3631965e5247da06fc8719d533e39abaac94f9a6bc4b718fb08fcdf1",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 7960,
+            "vertices": 23880,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "ale-brewhouse:mash-tun",
+          "role": "mash-tun",
+          "quality": "high",
+          "sha256": "5a1a79507b02e6e2425cd1230af3172cd0d44c1e1d9d43e4e966c19a441a6afb",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 1608,
+            "vertices": 4824,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "ale-brewhouse:malt-station",
+          "role": "malt-station",
+          "quality": "high",
+          "sha256": "986644d489ee2ca838a15c35c111eae801118678870b672f59f174c775fac4d3",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 996,
+            "vertices": 2988,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "ale-brewhouse:casks",
+          "role": "casks",
+          "quality": "high",
+          "sha256": "6e6a6b7f86d449257de453e87aa4e2e52ccca9e7642f7e688e0460cc29edf9d6",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 4392,
+            "vertices": 13176,
+            "geometries": 3,
+            "materials": 3
+          }
+        }
+      ]
+    }
+  ]
+}

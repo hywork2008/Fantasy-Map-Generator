@@ -45,6 +45,7 @@ export function inheritBuildingAppearance(document: CityDocument, current: CityD
     buildingAppearanceVersion: current.buildingAppearanceVersion,
     buildingAppearanceProfile: current.buildingAppearanceProfile,
     buildingAppearanceClimate: current.buildingAppearanceClimate,
+    buildingWallFinish: current.buildingWallFinish,
     buildingAppearanceContext: current.buildingAppearanceContext
   };
 }
@@ -75,6 +76,7 @@ export function assignBuildingAppearances(document: CityDocument, lots: Building
       const input: BuildingAppearanceInput = {
         version: document.buildingAppearanceVersion,
         profile: document.buildingAppearanceProfile,
+        wallFinish: document.buildingWallFinish,
         context,
         seed,
         stableLotId: stableBuildingAppearanceId(lot),
@@ -104,6 +106,7 @@ export function buildingAppearanceKey(document: CityDocument): string {
     document.buildingAppearanceVersion ?? null,
     document.buildingAppearanceProfile ?? null,
     document.buildingAppearanceClimate ?? null,
+    document.buildingWallFinish ?? null,
     document.buildingAppearanceContext ?? contextOf(document)
   ]);
 }

@@ -1,13 +1,20 @@
-import * as THREE from "three";
 import { fitMonastery, type Monastery, type MonasteryKind } from "../../city-editor/generators/monasteryLayout";
 import { makeRng } from "../../city-editor/generators/prng";
-import type { StructureMassing } from "../../city-editor/types/contracts/structureMassing";
-import type { Point } from "../../city-editor/types/document";
-import { planVertex } from "../../city3d/core/planFrame";
-import { createStructureMassing } from "../../city3d/three/structureMeshes";
-import { createLandscapeTree } from "../landscape/trees";
-import { ModelKit, type Surface } from "../medieval/modelKit";
-import { createMedievalWellModel } from "../wells/medievalWell";
+import { DEFAULT_AUTHOR } from "../authors";
+import { compactModel } from "../compactModel";
+import type { TreeQuality } from "../landscape/treeQuality";
+import { createModelAssembly, type ModelPartFactory } from "../modelParts";
+import { variantId } from "../modelVariants";
+import { createHighFriaryBuilding, createHighFriaryCloister, createHighFriaryWall } from "./friaryDetails";
+import {
+  createMonasteryBuilding,
+  createMonasteryCloister,
+  createMonasterySlab,
+  createMonasteryTree,
+  createMonasteryWall,
+  createMonasteryWell,
+  monasteryContext
+} from "./monasteryComponents";
 
 /** A fixed example of the same fitted programme used by generated CE religious houses. */
 export function monasteryPreviewPlan(kind: MonasteryKind = "friary"): Monastery {
@@ -36,284 +43,130 @@ export function monasteryPreviewPlan(kind: MonasteryKind = "friary"): Monastery 
   })!.monastery;
 }
 
-function shape(ring: Point[], holes: Point[][] = []): THREE.Shape {
-  const result = new THREE.Shape(ring.map(p => new THREE.Vector2(...p)));
-  result.holes = holes.map(hole => new THREE.Path(hole.map(p => new THREE.Vector2(...p))));
+export interface MonasteryRenderOptions {
+  /** Detailed architecture is currently available for the friary programme only. */
+  architectureQuality?: "low" | "high";
+  /** Omitted means all parts; an empty array intentionally creates an empty assembly. */
+  partIds?: readonly string[];
+  /** Vegetation has its own budget; never inherit the standalone tree's Ultra default. */
+  vegetationQuality?: TreeQuality;
+  /** Keep the original standalone well available without coupling it to the building tier. */
+  wellQuality?: "low" | "default";
+}
+
+/** Enumerate factories without constructing any geometry or changing the saved plan. */
+export function monasteryPartFactories(
+  plan: Monastery = monasteryPreviewPlan(),
+  elevation = 0,
+  foundationBottom = elevation,
+  options: MonasteryRenderOptions = {}
+): ModelPartFactory[] {
+  if (options.architectureQuality === "high" && plan.kind === "orthodoxMonastery")
+    throw new Error("High architecture is not yet available for this monastery programme");
+  const high = options.architectureQuality === "high";
+  const context = monasteryContext(plan, elevation, foundationBottom);
+  const { scale } = context;
+  const result: ModelPartFactory[] = [];
+  const add = (
+    id: string,
+    role: string,
+    create: ModelPartFactory["create"],
+    quality: ModelPartFactory["quality"] = "low",
+    basedOn?: string[]
+  ) => result.push({ id: `${plan.id}:${id}`, role, quality, author: DEFAULT_AUTHOR, basedOn, create });
+  if (foundationBottom < elevation - 0.01)
+    add("foundation", "foundation", () =>
+      createMonasterySlab(
+        "precinct-foundation",
+        plan.precinct,
+        [],
+        foundationBottom,
+        elevation - foundationBottom,
+        "stone"
+      )
+    );
+  for (const [index, court] of plan.courts.entries())
+    add(`court:${index}`, court.kind, () =>
+      createMonasterySlab(
+        `friary-${court.kind}`,
+        court.polygon,
+        [],
+        elevation + 0.01,
+        0.03,
+        court.kind === "yard" ? "earth" : "green"
+      )
+    );
+  for (const [index, bed] of plan.beds.entries())
+    add(`bed:${index}`, "herb-bed", () =>
+      createMonasterySlab("herb-bed", bed, [], elevation + 0.04, 0.15 * scale, "earth")
+    );
+  for (const [index, building] of plan.buildings.entries())
+    add(
+      `building:${index}`,
+      building.role,
+      () => (high ? createHighFriaryBuilding(context, index) : createMonasteryBuilding(context, index)),
+      high ? "high" : "low"
+    );
+  if (plan.walk)
+    add(
+      "cloister",
+      "cloister",
+      () => (high ? createHighFriaryCloister(context) : createMonasteryCloister(context)),
+      high ? "high" : "low"
+    );
+  if (plan.wall.length > 1)
+    add(
+      "wall",
+      "precinct-wall",
+      () => (high ? createHighFriaryWall(context) : createMonasteryWall(context)),
+      high ? "high" : "low"
+    );
+  for (const [index] of plan.trees.entries()) {
+    const quality = options.vegetationQuality ?? "low";
+    add(`tree:${index}`, "vegetation", () => createMonasteryTree(context, index, quality), quality, [
+      variantId("tree.garden-parkland", quality, DEFAULT_AUTHOR)
+    ]);
+  }
+  if (plan.well) {
+    const quality = options.wellQuality ?? "low";
+    add("well", "well", () => createMonasteryWell(context, quality), quality, [
+      variantId("well.medieval", quality, DEFAULT_AUTHOR)
+    ]);
+  }
   return result;
 }
 
-/** The actual CE footprints determine every wing, opening and roof ridge. No assembly-wide stretching. */
-export function createMonastery(plan: Monastery = monasteryPreviewPlan(), elevation = 0, foundationBottom = elevation) {
-  const k = new ModelKit(plan.kind === "friary" ? "mendicant-friary" : plan.kind);
-  const nave = plan.buildings.find(building => building.role === "church");
-  const ridge = nave?.ridge;
-  const azimuth = ridge ? Math.atan2(ridge[1][1] - ridge[0][1], ridge[1][0] - ridge[0][0]) : 0;
-  const across = nave?.polygon.map(p => -p[0] * Math.sin(azimuth) + p[1] * Math.cos(azimuth)) ?? [0, 10];
-  const scale =
-    (Math.max(...across) - Math.min(...across)) /
-    (plan.kind === "abbey" ? 11 : plan.kind === "orthodoxMonastery" ? 8 : 10);
-  const churchHeight = 7.2 * scale;
-  const churchTop = churchHeight + 5 * scale * Math.tan((32 * Math.PI) / 180);
-  const slab = (name: string, ring: Point[], holes: Point[][], y: number, height: number, surface: Surface) => {
-    const mesh = k.add(
-      name,
-      new THREE.ExtrudeGeometry(shape(ring, holes), { depth: height, bevelEnabled: false }),
-      surface
-    );
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = y;
-  };
-  if (foundationBottom < elevation - 0.01)
-    slab("precinct-foundation", plan.precinct, [], foundationBottom, elevation - foundationBottom, "stone");
-  for (const court of plan.courts)
-    slab(`friary-${court.kind}`, court.polygon, [], elevation + 0.01, 0.03, court.kind === "yard" ? "earth" : "green");
-  for (const bed of plan.beds) slab("herb-bed", bed, [], elevation + 0.04, 0.15 * scale, "earth");
-  for (const [index, building] of plan.buildings.entries()) {
-    if (
-      building.role === "dome" ||
-      building.role === "bell-tower" ||
-      (building.role === "crossing-tower" && plan.kind === "abbey")
-    ) {
-      const center = building.polygon.reduce<Point>(
-        (a, p) => [a[0] + p[0] / building.polygon.length, a[1] + p[1] / building.polygon.length],
-        [0, 0]
-      );
-      const tower = new ModelKit(building.role);
-      const width = Math.hypot(
-        building.polygon[1][0] - building.polygon[0][0],
-        building.polygon[1][1] - building.polygon[0][1]
-      );
-      if (building.role === "dome") {
-        const radius = Math.max(...building.polygon.map(p => Math.hypot(p[0] - center[0], p[1] - center[1])));
-        const base = churchTop;
-        tower.cylinder("central-drum", [0, base + scale, 0], radius * 0.75, 2 * scale, "stone");
-        const profile = [
-          [0.75, 0],
-          [1, 0.45],
-          [1.04, 0.95],
-          [0.78, 1.55],
-          [0.28, 2.15],
-          [0, 2.6]
-        ];
-        const dome = tower.add(
-          "bulbous-church-dome",
-          new THREE.LatheGeometry(
-            profile.map(([r, y]) => new THREE.Vector2(r * radius, y * scale)),
-            24
-          ),
-          "green"
-        );
-        dome.position.y = base + 2 * scale;
-        const top = base + 4.6 * scale;
-        tower.beam("orthodox-cross-upright", [0, top, 0], [0, top + 1.7 * scale, 0], 0.075 * scale, "iron");
-        tower.beam(
-          "cross-main-bar",
-          [-0.5 * scale, top + 1.1 * scale, 0],
-          [0.5 * scale, top + 1.1 * scale, 0],
-          0.075 * scale,
-          "iron"
-        );
-        tower.beam(
-          "cross-upper-bar",
-          [-0.25 * scale, top + 1.45 * scale, 0],
-          [0.25 * scale, top + 1.45 * scale, 0],
-          0.06 * scale,
-          "iron"
-        );
-        tower.beam(
-          "cross-footbar",
-          [-0.3 * scale, top + 0.4 * scale, 0],
-          [0.3 * scale, top + 0.2 * scale, 0],
-          0.06 * scale,
-          "iron"
-        );
-      } else {
-        const height = (building.role === "bell-tower" ? 10 : 14) * scale;
-        const depth = Math.hypot(
-          building.polygon[2][0] - building.polygon[1][0],
-          building.polygon[2][1] - building.polygon[1][1]
-        );
-        tower.box("stone-tower", [0, height / 2, 0], [width, height, depth], "stone");
-        tower.roof(0, 0, width, depth, height, 2.5 * scale, "iron");
-        for (const side of [-1, 1])
-          tower.box(
-            "belfry-opening",
-            [side * (width / 2 + 0.01), height - 1.5 * scale, 0],
-            [0.025, 1.7 * scale, width * 0.3],
-            "dark"
-          );
-      }
-      const model = tower.finish();
-      model.group.rotation.y = azimuth;
-      k.attach(model, planVertex(center, elevation));
-      continue;
-    }
-    if (building.role === "crossing-tower") {
-      const center = building.polygon.reduce<Point>(
-        (a, p) => [a[0] + p[0] / building.polygon.length, a[1] + p[1] / building.polygon.length],
-        [0, 0]
-      );
-      const bellcote = new ModelKit("friary-bellcote");
-      const top = churchTop + 2 * scale;
-      for (const x of [-1.2, 1.2])
-        for (const z of [-1.2, 1.2])
-          bellcote.box(
-            "bellcote-post",
-            [x * scale, (churchHeight + top) / 2, z * scale],
-            [0.18 * scale, top - churchHeight, 0.18 * scale]
-          );
-      bellcote.beam(
-        "bell-yoke",
-        [-1.2 * scale, top - 0.2 * scale, 0],
-        [1.2 * scale, top - 0.2 * scale, 0],
-        0.15 * scale
-      );
-      bellcote.roof(0, 0, 3 * scale, 3 * scale, top, 0.65 * scale, "tile");
-      bellcote.cylinder("friary-bell", [0, churchTop + scale, 0], 0.3 * scale, 0.6 * scale, "iron", 0.18 * scale);
-      const model = bellcote.finish();
-      model.group.rotation.y = azimuth;
-      k.attach(model, planVertex(center, elevation));
-      continue;
-    }
-    const sacred = building.role === "church" || building.role === "apse";
-    const direction = building.ridge
-      ? Math.atan2(building.ridge[1][1] - building.ridge[0][1], building.ridge[1][0] - building.ridge[0][0])
-      : Math.atan2(building.polygon[1][1] - building.polygon[0][1], building.polygon[1][0] - building.polygon[0][0]);
-    const gatehouse = building.role === "gatehouse";
-    const clearance = gatehouse ? Math.max(2.1, 2.6 * scale) : 0;
-    if (gatehouse) {
-      const center = building.polygon.reduce<Point>((a, p) => [a[0] + p[0] / 4, a[1] + p[1] / 4], [0, 0]);
-      const width = Math.hypot(
-        building.polygon[1][0] - building.polygon[0][0],
-        building.polygon[1][1] - building.polygon[0][1]
-      );
-      const depth = Math.hypot(
-        building.polygon[2][0] - building.polygon[1][0],
-        building.polygon[2][1] - building.polygon[1][1]
-      );
-      const pier = (width - Math.min(3.4, width * 0.65)) / 2;
-      for (const side of [-1, 1]) {
-        const x = (side * (width - pier)) / 2;
-        const column = k.box(
-          "gatehouse-pier",
-          planVertex(
-            [center[0] + x * Math.cos(direction), center[1] + x * Math.sin(direction)],
-            elevation + clearance / 2
-          ),
-          [pier, clearance, depth],
-          "stone"
-        );
-        column.rotation.y = direction;
-      }
-    }
-    const part: StructureMassing = {
-      id: `${plan.id}:${index}`,
-      kind: "landmark",
-      name: plan.name,
-      material: "stone",
-      footprint: building.polygon,
-      heightMeters: (sacred ? 7.2 : 5.4) * scale - clearance,
-      baseElevationMeters: elevation + clearance,
-      roof: building.role === "apse" ? "hip" : "gable",
-      roofPitchDeg: 32,
-      roofMaterial: sacred ? "slate" : "tile",
-      ridgeAzimuth: direction,
-      parapet: "none",
-      parapetMeters: 0,
-      parapetWidthMeters: 0,
-      spire: false
-    };
-    const model = createStructureMassing([part]);
-    // Each body / roof batch has one color. Keep it on the material for BV's SVG projections as well.
-    for (const mesh of model.pickables) {
-      const material = mesh.material as THREE.MeshLambertMaterial;
-      const colors = mesh.geometry.getAttribute("color");
-      if (colors) material.color.fromBufferAttribute(colors, 0);
-      material.vertexColors = false;
-      mesh.geometry.deleteAttribute("color");
-    }
-    model.group.name = `friary-${building.role}`;
-    if (building === nave && model.pickables[1]) model.pickables[1].name = "pitched-roof";
-    k.attach(model, [0, 0, 0]);
-    if (building.ridge && (building.role === "church" || building.role === "range")) {
-      const u: Point = [Math.cos(direction), Math.sin(direction)],
-        v: Point = [-u[1], u[0]];
-      const along = building.polygon.map(p => p[0] * u[0] + p[1] * u[1]);
-      const across = building.polygon.map(p => p[0] * v[0] + p[1] * v[1]);
-      const min = Math.min(...along),
-        max = Math.max(...along);
-      const rows = sacred ? [4.7] : [1.7, 4];
-      for (let x = min + 2.5 * scale; x < max - 1.5 * scale; x += 4 * scale) {
-        for (const side of [Math.min(...across) - 0.012, Math.max(...across) + 0.012])
-          for (const y of rows) {
-            const window = k.box(
-              "friary-window",
-              planVertex([x * u[0] + side * v[0], x * u[1] + side * v[1]], elevation + y * scale),
-              [0.55 * scale, (sacred ? 1.8 : 0.9) * scale, 0.025],
-              "dark"
-            );
-            window.rotation.y = direction;
-          }
-      }
-    }
-  }
-  if (plan.walk) {
-    const { outer, garth } = plan.walk;
-    slab("cloister-floor", outer, [garth], elevation + 0.04, 0.12 * scale, "stone");
-    for (let i = 0; i < garth.length; i++) {
-      const a = garth[i],
-        b = garth[(i + 1) % garth.length];
-      const count = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / (2.8 * scale)));
-      for (let j = 0; j < count; j++) {
-        const point: Point = [a[0] + ((b[0] - a[0]) * j) / count, a[1] + ((b[1] - a[1]) * j) / count];
-        k.cylinder("cloister-column", planVertex(point, elevation + 1.4 * scale), 0.13 * scale, 2.8 * scale, "stone");
-      }
-      const next = (i + 1) % garth.length;
-      const vertices = [
-        planVertex(outer[i], elevation + 3.3 * scale),
-        planVertex(outer[next], elevation + 3.3 * scale),
-        planVertex(garth[next], elevation + 2.8 * scale),
-        planVertex(garth[i], elevation + 2.8 * scale)
-      ];
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute(
-        "position",
-        new THREE.Float32BufferAttribute(
-          [0, 1, 2, 0, 2, 3].flatMap(index => vertices[index]),
-          3
-        )
-      );
-      geometry.computeVertexNormals();
-      k.add("cloister-roof", geometry, "tile");
-    }
-  }
-  // The saved wall is an OPEN polyline: never join its last point back to its first.
-  for (let i = 1; i < plan.wall.length; i++) {
-    const a = plan.wall[i - 1],
-      b = plan.wall[i];
-    const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    if (length < 1e-6) continue;
-    const wall = k.box(
-      "friary-precinct-wall",
-      planVertex([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], elevation + 0.9 * scale),
-      [length, 1.8 * scale, 0.5 * scale],
-      "stone"
-    );
-    wall.rotation.y = Math.atan2(b[1] - a[1], b[0] - a[0]);
-  }
-  for (const tree of plan.trees) {
-    const model = createLandscapeTree("garden_parkland");
-    const size = new THREE.Box3().setFromObject(model.group).getSize(new THREE.Vector3());
-    const radiusScale = tree.radius / (Math.max(size.x, size.z) / 2);
-    // ModelKit.attach sets a uniform scale, so attach before applying the crown dimensions.
-    k.attach(model, planVertex(tree.at, elevation));
-    model.group.scale.set(radiusScale, Math.min(1, scale), radiusScale);
-  }
-  if (plan.well) k.attach(createMedievalWellModel(), planVertex(plan.well, elevation));
-  return k.finish();
+/** Selected parts retain their fitted world placement and own only the resources they build. */
+export function createMonastery(
+  plan: Monastery = monasteryPreviewPlan(),
+  elevation = 0,
+  foundationBottom = elevation,
+  options: MonasteryRenderOptions = {}
+) {
+  const factories = monasteryPartFactories(plan, elevation, foundationBottom, options);
+  const selected =
+    options.partIds === undefined
+      ? factories
+      : options.partIds.map(id => {
+          const factory = factories.find(part => part.id === id);
+          if (!factory) throw new Error(`Unknown monastery part: ${id}`);
+          return factory;
+        });
+  if (new Set(selected.map(part => part.id)).size !== selected.length)
+    throw new Error("Duplicate monastery part selection");
+  return assembleMonasteryParts(plan.kind === "friary" ? "mendicant-friary" : plan.kind, selected);
+}
+
+export function assembleMonasteryParts(name: string, parts: readonly ModelPartFactory[]) {
+  const model = createModelAssembly(name, parts);
+  return parts.some(part => part.quality === "high") ? compactModel(model, { mergeEquivalentMaterials: true }) : model;
 }
 
 /** Backwards-compatible friary entry points for callers requesting that specific programme. */
 export const friaryPreviewPlan = () => monasteryPreviewPlan("friary");
-export const createFriary = (plan: Monastery = friaryPreviewPlan(), elevation = 0, foundationBottom = elevation) =>
-  createMonastery(plan, elevation, foundationBottom);
+export const createFriary = (
+  plan: Monastery = friaryPreviewPlan(),
+  elevation = 0,
+  foundationBottom = elevation,
+  options: MonasteryRenderOptions = {}
+) => createMonastery(plan, elevation, foundationBottom, options);

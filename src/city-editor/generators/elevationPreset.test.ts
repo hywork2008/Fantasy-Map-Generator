@@ -15,6 +15,7 @@ import {
 import { settings } from "./generateTestScenarios";
 import { generateStageOnDocument } from "./generation/previews";
 import { incidentFaces } from "./mesh";
+import { townWaterElevations } from "./riverSurface";
 
 function grid(): CityDocument {
   return createGridDocument({ size: "micro", grid: "hex", hexSizeMeters: 50, seed: "elev-unit" });
@@ -251,7 +252,7 @@ describe("elevation presets", () => {
     expect(landBed(settled, high)).toBeGreaterThanOrEqual((landBed(settled, low) ?? 0) - 1e-6);
   });
 
-  it("does not reverse a locked river, and still lowers unlocked steps", () => {
+  it("does not reverse a locked river or lower its banks", () => {
     const document = grid();
     const [low, high] = span(document);
     for (const face of Object.values(document.mesh.faces)) face.properties.elevation = 3;
@@ -263,7 +264,8 @@ describe("elevation presets", () => {
     if (group?.kind !== "river") return;
     expect(group.vertices).toEqual([low, high]);
     expect(settled.featureGroups).toBe(document.featureGroups);
-    expect(landBed(settled, high)!).toBeLessThanOrEqual((landBed(settled, low) ?? 0) + 1e-6);
+    expect(settled).toBe(document);
+    expect(landBed(settled, high)).toBe(12);
   });
 
   it("puts the sea end downstream and does not lower the sea", () => {
@@ -286,7 +288,7 @@ describe("elevation presets", () => {
     }
   });
 
-  it("lowers an unlocked hump and keeps a locked cell", () => {
+  it("keeps both unlocked and locked land humps above the river", () => {
     const document = grid();
     let middle: Id | null = null;
     let upstream: Id | null = null;
@@ -319,7 +321,13 @@ describe("elevation presets", () => {
     document.featureGroups = [river([upstream, middle, downstream])];
     const open = settleRiverGrades(document);
     expect(document.mesh.faces[incidentFaces(document.mesh, middle)[0].id].properties.elevation).toBe(10);
-    for (const face of incidentFaces(open.mesh, middle)) expect(face.properties.elevation).toBe(4);
+    expect(open.mesh).toBe(document.mesh);
+    for (const face of incidentFaces(open.mesh, middle)) expect(face.properties.elevation).toBe(10);
+    const water = townWaterElevations(open);
+    const heights = [upstream, middle, downstream].map(id => water.riverAt(open.mesh.vertices[id].point)!);
+    expect(heights.every(Number.isFinite)).toBe(true);
+    expect(heights[1]).toBeLessThanOrEqual(heights[0]);
+    expect(heights[2]).toBeLessThanOrEqual(heights[1]);
 
     for (const face of incidentFaces(document.mesh, middle)) face.properties.locked = true;
     const closed = settleRiverGrades(document);

@@ -9,9 +9,9 @@ const weightsIn = (...months: number[]) => Array.from({ length: 12 }, (_, m) => 
 const looks = (states: { appearance: string }[]) => states.map(state => state.appearance).join(" ");
 
 describe("tree phenology", () => {
-  it("registers the 91 appearances of the design and resolves only supported ones", () => {
-    // 81 of the 32 landscape species (§4) and 10 of the four grove forms (§18).
-    expect(TREE_SPECIES.reduce((sum, species) => sum + TREE_PHENOLOGY[species].appearances.length, 0)).toBe(91);
+  it("registers the 97 appearances of the design and resolves only supported ones", () => {
+    // Includes six dry-season appearances for the three X01 species.
+    expect(TREE_SPECIES.reduce((sum, species) => sum + TREE_PHENOLOGY[species].appearances.length, 0)).toBe(97);
     for (const species of TREE_SPECIES) {
       const profile = TREE_PHENOLOGY[species];
       expect(profile.appearances).toContain(profile.defaultAppearance);
@@ -69,4 +69,26 @@ describe("tree phenology", () => {
       "harvested harvested harvested fruit fruit fruit harvested harvested harvested harvested harvested harvested"
     );
   });
+});
+
+it("separates tropical dry-season responses and preserves buffered or unknown sites", () => {
+  const input = {
+    monthlyMeanTemperatureC: TROPICAL,
+    drySeason: { status: "seasonal" as const, intervals: [{ startMonth: 11, length: 4 }] }
+  };
+  const kapok = resolveTreeAppearanceYear("kapok", input);
+  expect(kapok[0].appearance).toBe("bare");
+  expect(kapok[2].appearance).toBe("flush");
+  expect(resolveTreeAppearanceYear("umbrella_thorn", input)[0].appearance).toBe("sparse");
+  const fig = resolveTreeAppearanceYear("sacred_bodhi_and_fig", input);
+  expect(fig.filter(s => s.appearance === "bare")).toHaveLength(1);
+  expect(fig[1].appearance).toBe("flush");
+  expect(
+    resolveTreeAppearanceYear("kapok", { ...input, waterBuffered: true }).every(s => s.appearance === "leaf")
+  ).toBe(true);
+  expect(
+    resolveTreeAppearanceYear("kapok", { ...input, drySeason: { status: "unknown", intervals: [] } }).every(
+      s => s.appearance === "leaf"
+    )
+  ).toBe(true);
 });

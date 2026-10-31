@@ -9,6 +9,8 @@ import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, splitP
 import { triangularInfillParts } from "./lotGeometry";
 import { facePoints, faceVertices } from "./mesh";
 import { intersectConvex, PlotIndex, subtractConvex } from "./parcelGeometry";
+import { hydraulicWaterAt, solveRiverHydraulics } from "./riverHydraulics";
+import { riverDropMeters } from "./riverSurface";
 import { gradeRoads } from "./roadGrading";
 import { terrainFieldForDocument } from "./terrainField/build";
 import { RETAINING_MAX_METERS } from "./terrainField/constants";
@@ -43,7 +45,7 @@ const MAX_REFINE_DEPTH = 8;
 const cross = (a: Point, b: Point, c: Point) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
 
 /** A fort site grades flat ground; a height-field recipe replaces cell elevations; every other document uses the cells. */
-export function cityTerrainModel(document: CityDocument): TerrainModel {
+export function cityTerrainModel(document: CityDocument, dropMeters?: number): TerrainModel {
   const site = document.fortSite;
   if (site)
     return {
@@ -52,9 +54,30 @@ export function cityTerrainModel(document: CityDocument): TerrainModel {
       ramps: []
     };
   const field = document.terrain?.field ? terrainFieldForDocument(document) : null;
+  const descriptor = document.fabric?.generation?.settings.descriptor;
+  const profiles = field
+    ? (document.terrain?.features ?? []).flatMap(feature => {
+        if (feature.kind !== "riverCorridor") return [];
+        const riverId = feature.sourceId.startsWith("flow:") ? Number(feature.sourceId.slice(5)) : undefined;
+        const source = descriptor?.rivers.find(river => river.riverId === riverId);
+        const profile = solveRiverHydraulics({
+          corridor: feature,
+          landAt: point => sampleField(field, point),
+          bankDropMeters: riverDropMeters(dropMeters ?? document.fabric?.generation?.settings.riverDropMeters),
+          upstreamDepthMeters: source?.hydrology?.waterDepth ?? source?.depthMeters ?? undefined,
+          upstreamVelocityMps: source?.hydrology?.surfaceVelocity
+        });
+        return profile ? [profile] : [];
+      })
+    : [];
   return {
+    ...(profiles.length ? { riverProfiles: profiles } : {}),
     base: field ? { kind: "field", field } : { kind: "cells" },
-    features: document.terrain?.features ?? [],
+    features: (document.terrain?.features ?? []).map(feature =>
+      feature.kind === "riverCorridor"
+        ? (profiles.find(profile => profile.sourceId === feature.sourceId)?.corridor ?? feature)
+        : feature
+    ),
     ramps: document.terrain?.ramps ?? []
   };
 }
@@ -396,9 +419,9 @@ function gradedPatches(
  */
 export function cityTerrain(
   document: CityDocument,
-  options: { roads?: readonly RoadRibbon[]; renderSpacing?: number | "auto" } = {}
+  options: { roads?: readonly RoadRibbon[]; renderSpacing?: number | "auto"; riverDropMeters?: number } = {}
 ): CityTerrain {
-  const model = cityTerrainModel(document);
+  const model = cityTerrainModel(document, options.riverDropMeters);
   const locate = faceLocator(document);
   const features = resolveTerrainFeatures(
     model.features,
@@ -478,7 +501,9 @@ export function cityTerrain(
   const corridors = features.filter(feature => feature.kind === "riverCorridor");
   const waterAt = corridors.length
     ? (point: Point) => {
-        const absolute = corridorWaterAt(corridors, point);
+        const absolute = model.riverProfiles?.length
+          ? hydraulicWaterAt(model.riverProfiles, point)
+          : corridorWaterAt(corridors, point);
         return absolute === null ? null : absolute - datumMeters;
       }
     : undefined;
@@ -491,6 +516,7 @@ export function cityTerrain(
     heightAt,
     ...(slopeAt ? { slopeAt } : {}),
     ...(waterAt ? { waterAt } : {}),
+    ...(model.riverProfiles?.length ? { riverProfiles: model.riverProfiles } : {}),
     // Roads ride ramp decks, and in a terraced town the steps and ramps built over the ground.
     surfaceAt,
     ramps: ramps.map(ramp => ({ ramp, elevations: ramp.elevationsMeters.map(level => level - datumMeters) })),

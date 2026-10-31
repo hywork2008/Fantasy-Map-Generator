@@ -83,6 +83,7 @@ import { planTerraces } from "../terracePlanning";
 import { generatedCastleTerrain } from "../terrainEditing";
 import { attachTerrainField } from "../terrainField/attach";
 import { fieldModeAllowed } from "../terrainField/constants";
+import { generateTerrainOnDocument } from "../terrainGeneration";
 import { consolidateThinRoadCells } from "../thinRoadCells";
 import { auditTownDefenseClosure } from "../townDefenseClosure";
 import { connectUrbanRiverDistricts } from "../urbanBridges";
@@ -136,6 +137,7 @@ export function generateCityOnDocument(
     return null;
   }
   settings = { ...settings, forestSettings: settings.forestSettings ?? document.forestSettings };
+  if (settings.mode === "terrain") return generateTerrainOnDocument(document, settings, seed);
   const heightAreaSource = document;
   if (
     !validBuildingHeightPolicy(settings.buildingHeightPolicy) ||

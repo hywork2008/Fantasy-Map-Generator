@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ViewContext } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
+import * as precipitationDisplay from "../../../generators/precipitationDisplay";
 import { Rivers } from "../../../generators/river-generator";
 import { useLayerState } from "../../../store/layerState";
+import { usePrecipitationDisplayState } from "../../../store/precipitationDisplayState";
 import {
   buildDeckLayers,
   clearDeckLayerDataCache,
@@ -1504,6 +1506,23 @@ describe("deck.gl data adapters", () => {
 
     expect(secondIds).toEqual(expect.arrayContaining(firstIds));
     expect(secondBiomeData).toBe(firstBiomeData);
+  });
+
+  it("skips monthly climate signatures while the precipitation layer is hidden", () => {
+    const worldContext = createWorldContext();
+    const viewContext = { focusScope: null } as ViewContext;
+    const signature = vi.spyOn(precipitationDisplay, "precipitationDisplaySignature");
+    const previousMode = usePrecipitationDisplayState.getState().mode;
+    usePrecipitationDisplayState.getState().setMode("month");
+    useLayerState.getState().setAllActiveLayers({ toggleBiomes: true });
+
+    try {
+      buildDeckLayers(worldContext, viewContext, appServices);
+      expect(signature).not.toHaveBeenCalled();
+    } finally {
+      signature.mockRestore();
+      usePrecipitationDisplayState.getState().setMode(previousMode);
+    }
   });
 
   it("invalidates cached deck.gl data after in-place world data changes", () => {

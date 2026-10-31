@@ -2,6 +2,7 @@ import { resolveTreeAppearance, TREE_PHENOLOGY, type TreeAppearanceState } from 
 import type { TreeAppearanceOptions } from "../buildings/landscape/treeSeasonLayers";
 import type { TreeSpecies } from "../buildings/landscape/trees";
 import type { BurgSiteDescriptor } from "../city-editor/types/contracts/burgSiteDescriptor";
+import { getDrySeasonCandidates } from "../utils/precipitationSeasonality";
 
 /** CE's display month: the descriptor's own month, or one the viewer picked. Never saved in the city. */
 export type TreeDisplayMonth = "descriptor" | number;
@@ -39,18 +40,23 @@ export function treeSeason(
   if (!temperatures || temperatures.length < 12) return undefined;
   const month = displayMonth === "descriptor" ? descriptor.date?.month : displayMonth;
   if (!month || !Number.isInteger(month) || month < 1 || month > 12) return undefined;
+  const climate = descriptor!.climate;
+  const waterBuffered = Boolean(descriptor?.rivers?.length || descriptor?.waterbody?.kind === "lake");
+  const drySeason = getDrySeasonCandidates({ ...climate, year: descriptor?.date?.year ?? 1 });
   const harvest = descriptor.economy?.perennialHarvest;
   const looks = new Map<TreeSpecies, TreeAppearanceState | undefined>();
   return {
     month,
-    key: `${month}|${temperatures.join(",")}|${JSON.stringify(harvest ?? null)}`,
+    key: `${month}|${temperatures.join(",")}|${JSON.stringify(harvest ?? null)}|${JSON.stringify([climate.annualPrecipitationMm, climate.monthlyPrecipitationMm, climate.precipitationModelVersion, climate.precipitationSeasonalitySource, climate.precipitationSeasonalityConfidence, descriptor.date?.year, waterBuffered])}`,
     look(species) {
       if (looks.has(species)) return looks.get(species);
       const profile = TREE_PHENOLOGY[species];
       const crop = ORCHARD_TREES.has(species) && profile.perennialCrop ? harvest?.[profile.perennialCrop] : undefined;
       const state = resolveTreeAppearance(species, month, {
         monthlyMeanTemperatureC: temperatures,
-        harvestWeights: crop
+        harvestWeights: crop,
+        drySeason,
+        waterBuffered
       });
       const look = state.appearance === profile.defaultAppearance && !state.autumnPalette ? undefined : state;
       looks.set(species, look);

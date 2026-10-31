@@ -1,0 +1,1370 @@
+{
+  "runtime": "v22.23.1",
+  "method": "Fixed fitted preview. Buffer bytes count unique CPU ArrayBuffers, excluding JS objects, GPU memory and transient allocations. Build time is a single order-dependent observation and is not an FPS benchmark. Source-part counts precede final compaction; display-part counts use BV's selected-part assembly path. Dimensions are X/Y/Z in metres. CE default is measured through createTownMonasteries.",
+  "rows": [
+    {
+      "id": "monastery.friary@low#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "level": "low",
+      "basedOn": [
+        "tree.garden-parkland@low#codex-gpt-6.1-sol",
+        "well.medieval@low#codex-gpt-6.1-sol"
+      ],
+      "metrics": {
+        "meshes": 206,
+        "triangles": 4262,
+        "vertices": 5768,
+        "geometries": 75,
+        "materials": 50,
+        "attributeBytes": 196216
+      },
+      "buildMs": 16.84,
+      "dimensions": [
+        59.10000000000001,
+        13.384346753586179,
+        48
+      ],
+      "sourceParts": [
+        {
+          "id": "mendicant-friary:court:0",
+          "role": "garth",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:court:1",
+          "role": "garden",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:0",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:1",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:2",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:3",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:4",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:5",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:6",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:7",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:building:0",
+          "role": "church",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 18,
+          "triangles": 208
+        },
+        {
+          "id": "mendicant-friary:building:1",
+          "role": "church",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 64
+        },
+        {
+          "id": "mendicant-friary:building:2",
+          "role": "apse",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 34
+        },
+        {
+          "id": "mendicant-friary:building:3",
+          "role": "crossing-tower",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 14,
+          "triangles": 212
+        },
+        {
+          "id": "mendicant-friary:building:4",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 26,
+          "triangles": 304
+        },
+        {
+          "id": "mendicant-friary:building:5",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 34,
+          "triangles": 400
+        },
+        {
+          "id": "mendicant-friary:building:6",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 26,
+          "triangles": 304
+        },
+        {
+          "id": "mendicant-friary:building:7",
+          "role": "gatehouse",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 4,
+          "triangles": 40
+        },
+        {
+          "id": "mendicant-friary:cloister",
+          "role": "cloister",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 25,
+          "triangles": 1320
+        },
+        {
+          "id": "mendicant-friary:wall",
+          "role": "precinct-wall",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 60
+        },
+        {
+          "id": "mendicant-friary:tree:0",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141
+        },
+        {
+          "id": "mendicant-friary:tree:1",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141
+        },
+        {
+          "id": "mendicant-friary:tree:2",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141
+        },
+        {
+          "id": "mendicant-friary:tree:3",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141
+        },
+        {
+          "id": "mendicant-friary:well",
+          "role": "well",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "well.medieval@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 28,
+          "triangles": 632
+        }
+      ],
+      "displayParts": [
+        {
+          "id": "mendicant-friary:court:0",
+          "role": "garth",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:court:1",
+          "role": "garden",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:0",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:1",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:2",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:3",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:4",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:5",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:6",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:7",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:building:0",
+          "role": "church",
+          "quality": "low",
+          "metrics": {
+            "meshes": 18,
+            "triangles": 208,
+            "vertices": 72,
+            "geometries": 3,
+            "materials": 3,
+            "attributeBytes": 2184
+          }
+        },
+        {
+          "id": "mendicant-friary:building:1",
+          "role": "church",
+          "quality": "low",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 64,
+            "vertices": 72,
+            "geometries": 3,
+            "materials": 3,
+            "attributeBytes": 2184
+          }
+        },
+        {
+          "id": "mendicant-friary:building:2",
+          "role": "apse",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 34,
+            "vertices": 102,
+            "geometries": 2,
+            "materials": 2,
+            "attributeBytes": 2856
+          }
+        },
+        {
+          "id": "mendicant-friary:building:3",
+          "role": "crossing-tower",
+          "quality": "low",
+          "metrics": {
+            "meshes": 14,
+            "triangles": 212,
+            "vertices": 136,
+            "geometries": 3,
+            "materials": 3,
+            "attributeBytes": 4712
+          }
+        },
+        {
+          "id": "mendicant-friary:building:4",
+          "role": "range",
+          "quality": "low",
+          "metrics": {
+            "meshes": 26,
+            "triangles": 304,
+            "vertices": 72,
+            "geometries": 3,
+            "materials": 3,
+            "attributeBytes": 2184
+          }
+        },
+        {
+          "id": "mendicant-friary:building:5",
+          "role": "range",
+          "quality": "low",
+          "metrics": {
+            "meshes": 34,
+            "triangles": 400,
+            "vertices": 72,
+            "geometries": 3,
+            "materials": 3,
+            "attributeBytes": 2184
+          }
+        },
+        {
+          "id": "mendicant-friary:building:6",
+          "role": "range",
+          "quality": "low",
+          "metrics": {
+            "meshes": 26,
+            "triangles": 304,
+            "vertices": 72,
+            "geometries": 3,
+            "materials": 3,
+            "attributeBytes": 2184
+          }
+        },
+        {
+          "id": "mendicant-friary:building:7",
+          "role": "gatehouse",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 40,
+            "vertices": 72,
+            "geometries": 3,
+            "materials": 3,
+            "attributeBytes": 2184
+          }
+        },
+        {
+          "id": "mendicant-friary:cloister",
+          "role": "cloister",
+          "quality": "low",
+          "metrics": {
+            "meshes": 25,
+            "triangles": 1320,
+            "vertices": 2120,
+            "geometries": 25,
+            "materials": 2,
+            "attributeBytes": 75328
+          }
+        },
+        {
+          "id": "mendicant-friary:wall",
+          "role": "precinct-wall",
+          "quality": "low",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 60,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 840
+          }
+        },
+        {
+          "id": "mendicant-friary:tree:0",
+          "role": "vegetation",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 141,
+            "vertices": 390,
+            "geometries": 2,
+            "materials": 2,
+            "attributeBytes": 13536
+          }
+        },
+        {
+          "id": "mendicant-friary:tree:1",
+          "role": "vegetation",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 141,
+            "vertices": 390,
+            "geometries": 2,
+            "materials": 2,
+            "attributeBytes": 13536
+          }
+        },
+        {
+          "id": "mendicant-friary:tree:2",
+          "role": "vegetation",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 141,
+            "vertices": 390,
+            "geometries": 2,
+            "materials": 2,
+            "attributeBytes": 13536
+          }
+        },
+        {
+          "id": "mendicant-friary:tree:3",
+          "role": "vegetation",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 141,
+            "vertices": 390,
+            "geometries": 2,
+            "materials": 2,
+            "attributeBytes": 13536
+          }
+        },
+        {
+          "id": "mendicant-friary:well",
+          "role": "well",
+          "quality": "low",
+          "metrics": {
+            "meshes": 28,
+            "triangles": 632,
+            "vertices": 1034,
+            "geometries": 8,
+            "materials": 6,
+            "attributeBytes": 33712
+          }
+        }
+      ]
+    },
+    {
+      "id": "monastery.friary@high#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "level": "high",
+      "basedOn": [
+        "tree.garden-parkland@low#codex-gpt-6.1-sol",
+        "well.medieval@low#codex-gpt-6.1-sol"
+      ],
+      "metrics": {
+        "meshes": 13,
+        "triangles": 38983,
+        "vertices": 116949,
+        "geometries": 13,
+        "materials": 13,
+        "attributeBytes": 2822760
+      },
+      "buildMs": 67.17,
+      "dimensions": [
+        59.19999885559082,
+        13.534347146749496,
+        48.09999942779541
+      ],
+      "sourceParts": [
+        {
+          "id": "mendicant-friary:court:0",
+          "role": "garth",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:court:1",
+          "role": "garden",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:0",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:1",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:2",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:3",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:4",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:5",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:6",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:bed:7",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "mendicant-friary:building:0",
+          "role": "church",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 129,
+          "triangles": 3632
+        },
+        {
+          "id": "mendicant-friary:building:1",
+          "role": "church",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 56,
+          "triangles": 1029
+        },
+        {
+          "id": "mendicant-friary:building:2",
+          "role": "apse",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 66,
+          "triangles": 2076
+        },
+        {
+          "id": "mendicant-friary:building:3",
+          "role": "crossing-tower",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 20,
+          "triangles": 528
+        },
+        {
+          "id": "mendicant-friary:building:4",
+          "role": "range",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 232,
+          "triangles": 7148
+        },
+        {
+          "id": "mendicant-friary:building:5",
+          "role": "range",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 306,
+          "triangles": 8988
+        },
+        {
+          "id": "mendicant-friary:building:6",
+          "role": "range",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 226,
+          "triangles": 7230
+        },
+        {
+          "id": "mendicant-friary:building:7",
+          "role": "gatehouse",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 45,
+          "triangles": 1424
+        },
+        {
+          "id": "mendicant-friary:cloister",
+          "role": "cloister",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 125,
+          "triangles": 3440
+        },
+        {
+          "id": "mendicant-friary:wall",
+          "role": "precinct-wall",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 181,
+          "triangles": 2172
+        },
+        {
+          "id": "mendicant-friary:tree:0",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141
+        },
+        {
+          "id": "mendicant-friary:tree:1",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141
+        },
+        {
+          "id": "mendicant-friary:tree:2",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141
+        },
+        {
+          "id": "mendicant-friary:tree:3",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141
+        },
+        {
+          "id": "mendicant-friary:well",
+          "role": "well",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "well.medieval@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 28,
+          "triangles": 632
+        }
+      ],
+      "displayParts": [
+        {
+          "id": "mendicant-friary:court:0",
+          "role": "garth",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:court:1",
+          "role": "garden",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:0",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:1",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:2",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:3",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:4",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:5",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:6",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:bed:7",
+          "role": "herb-bed",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1,
+            "attributeBytes": 1152
+          }
+        },
+        {
+          "id": "mendicant-friary:building:0",
+          "role": "church",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 3632,
+            "vertices": 10896,
+            "geometries": 6,
+            "materials": 6,
+            "attributeBytes": 261504
+          }
+        },
+        {
+          "id": "mendicant-friary:building:1",
+          "role": "church",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 1029,
+            "vertices": 3087,
+            "geometries": 5,
+            "materials": 5,
+            "attributeBytes": 74088
+          }
+        },
+        {
+          "id": "mendicant-friary:building:2",
+          "role": "apse",
+          "quality": "high",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 2076,
+            "vertices": 6228,
+            "geometries": 4,
+            "materials": 4,
+            "attributeBytes": 149472
+          }
+        },
+        {
+          "id": "mendicant-friary:building:3",
+          "role": "crossing-tower",
+          "quality": "high",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 528,
+            "vertices": 1584,
+            "geometries": 4,
+            "materials": 4,
+            "attributeBytes": 38016
+          }
+        },
+        {
+          "id": "mendicant-friary:building:4",
+          "role": "range",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 7148,
+            "vertices": 21444,
+            "geometries": 5,
+            "materials": 5,
+            "attributeBytes": 514656
+          }
+        },
+        {
+          "id": "mendicant-friary:building:5",
+          "role": "range",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 8988,
+            "vertices": 26964,
+            "geometries": 5,
+            "materials": 5,
+            "attributeBytes": 647136
+          }
+        },
+        {
+          "id": "mendicant-friary:building:6",
+          "role": "range",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 7230,
+            "vertices": 21690,
+            "geometries": 5,
+            "materials": 5,
+            "attributeBytes": 520560
+          }
+        },
+        {
+          "id": "mendicant-friary:building:7",
+          "role": "gatehouse",
+          "quality": "high",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 1424,
+            "vertices": 4272,
+            "geometries": 4,
+            "materials": 4,
+            "attributeBytes": 102528
+          }
+        },
+        {
+          "id": "mendicant-friary:cloister",
+          "role": "cloister",
+          "quality": "high",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 3440,
+            "vertices": 10320,
+            "geometries": 4,
+            "materials": 4,
+            "attributeBytes": 247680
+          }
+        },
+        {
+          "id": "mendicant-friary:wall",
+          "role": "precinct-wall",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 2172,
+            "vertices": 6516,
+            "geometries": 2,
+            "materials": 2,
+            "attributeBytes": 156384
+          }
+        },
+        {
+          "id": "mendicant-friary:tree:0",
+          "role": "vegetation",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 141,
+            "vertices": 390,
+            "geometries": 2,
+            "materials": 2,
+            "attributeBytes": 13536
+          }
+        },
+        {
+          "id": "mendicant-friary:tree:1",
+          "role": "vegetation",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 141,
+            "vertices": 390,
+            "geometries": 2,
+            "materials": 2,
+            "attributeBytes": 13536
+          }
+        },
+        {
+          "id": "mendicant-friary:tree:2",
+          "role": "vegetation",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 141,
+            "vertices": 390,
+            "geometries": 2,
+            "materials": 2,
+            "attributeBytes": 13536
+          }
+        },
+        {
+          "id": "mendicant-friary:tree:3",
+          "role": "vegetation",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 141,
+            "vertices": 390,
+            "geometries": 2,
+            "materials": 2,
+            "attributeBytes": 13536
+          }
+        },
+        {
+          "id": "mendicant-friary:well",
+          "role": "well",
+          "quality": "low",
+          "metrics": {
+            "meshes": 28,
+            "triangles": 632,
+            "vertices": 1034,
+            "geometries": 8,
+            "materials": 6,
+            "attributeBytes": 33712
+          }
+        }
+      ]
+    }
+  ],
+  "ceDefault": {
+    "variants": [
+      "monastery.friary@default#codex-gpt-6.1-sol"
+    ],
+    "metrics": {
+      "meshes": 1,
+      "triangles": 4262,
+      "vertices": 12786,
+      "geometries": 1,
+      "materials": 1,
+      "attributeBytes": 460296
+    },
+    "sourceParts": [
+      {
+        "id": "mendicant-friary:court:0",
+        "role": "garth",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 1,
+        "triangles": 12
+      },
+      {
+        "id": "mendicant-friary:court:1",
+        "role": "garden",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 1,
+        "triangles": 12
+      },
+      {
+        "id": "mendicant-friary:bed:0",
+        "role": "herb-bed",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 1,
+        "triangles": 12
+      },
+      {
+        "id": "mendicant-friary:bed:1",
+        "role": "herb-bed",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 1,
+        "triangles": 12
+      },
+      {
+        "id": "mendicant-friary:bed:2",
+        "role": "herb-bed",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 1,
+        "triangles": 12
+      },
+      {
+        "id": "mendicant-friary:bed:3",
+        "role": "herb-bed",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 1,
+        "triangles": 12
+      },
+      {
+        "id": "mendicant-friary:bed:4",
+        "role": "herb-bed",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 1,
+        "triangles": 12
+      },
+      {
+        "id": "mendicant-friary:bed:5",
+        "role": "herb-bed",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 1,
+        "triangles": 12
+      },
+      {
+        "id": "mendicant-friary:bed:6",
+        "role": "herb-bed",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 1,
+        "triangles": 12
+      },
+      {
+        "id": "mendicant-friary:bed:7",
+        "role": "herb-bed",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 1,
+        "triangles": 12
+      },
+      {
+        "id": "mendicant-friary:building:0",
+        "role": "church",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 18,
+        "triangles": 208
+      },
+      {
+        "id": "mendicant-friary:building:1",
+        "role": "church",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 6,
+        "triangles": 64
+      },
+      {
+        "id": "mendicant-friary:building:2",
+        "role": "apse",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 2,
+        "triangles": 34
+      },
+      {
+        "id": "mendicant-friary:building:3",
+        "role": "crossing-tower",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 14,
+        "triangles": 212
+      },
+      {
+        "id": "mendicant-friary:building:4",
+        "role": "range",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 26,
+        "triangles": 304
+      },
+      {
+        "id": "mendicant-friary:building:5",
+        "role": "range",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 34,
+        "triangles": 400
+      },
+      {
+        "id": "mendicant-friary:building:6",
+        "role": "range",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 26,
+        "triangles": 304
+      },
+      {
+        "id": "mendicant-friary:building:7",
+        "role": "gatehouse",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 4,
+        "triangles": 40
+      },
+      {
+        "id": "mendicant-friary:cloister",
+        "role": "cloister",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 25,
+        "triangles": 1320
+      },
+      {
+        "id": "mendicant-friary:wall",
+        "role": "precinct-wall",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "meshes": 5,
+        "triangles": 60
+      },
+      {
+        "id": "mendicant-friary:tree:0",
+        "role": "vegetation",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "basedOn": [
+          "tree.garden-parkland@low#codex-gpt-6.1-sol"
+        ],
+        "meshes": 2,
+        "triangles": 141
+      },
+      {
+        "id": "mendicant-friary:tree:1",
+        "role": "vegetation",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "basedOn": [
+          "tree.garden-parkland@low#codex-gpt-6.1-sol"
+        ],
+        "meshes": 2,
+        "triangles": 141
+      },
+      {
+        "id": "mendicant-friary:tree:2",
+        "role": "vegetation",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "basedOn": [
+          "tree.garden-parkland@low#codex-gpt-6.1-sol"
+        ],
+        "meshes": 2,
+        "triangles": 141
+      },
+      {
+        "id": "mendicant-friary:tree:3",
+        "role": "vegetation",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "basedOn": [
+          "tree.garden-parkland@low#codex-gpt-6.1-sol"
+        ],
+        "meshes": 2,
+        "triangles": 141
+      },
+      {
+        "id": "mendicant-friary:well",
+        "role": "well",
+        "quality": "low",
+        "author": "Codex GPT-6.1 Sol",
+        "basedOn": [
+          "well.medieval@low#codex-gpt-6.1-sol"
+        ],
+        "meshes": 28,
+        "triangles": 632
+      }
+    ]
+  }
+}

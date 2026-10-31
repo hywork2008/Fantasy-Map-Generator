@@ -7,6 +7,7 @@ import { collectCityStructures } from "../../city-editor/renderers/structureMass
 import type { StructureMassing } from "../../city-editor/types/contracts/structureMassing";
 import type { CityDocument } from "../../city-editor/types/document";
 import { createBvPrototypeCache } from "./bvInstances";
+import { structureSelectionGeometry } from "./selectionGeometry";
 import { createTownWalls } from "./townWallMeshes";
 
 function town(): CityDocument {
@@ -50,6 +51,34 @@ function cast(layer: ReturnType<typeof createTownWalls>, origin: THREE.Vector3, 
 }
 
 describe("CE Codex town defenses", () => {
+  it("measures and highlights the actual tower roof above a raised base, rather than its design body height", () => {
+    const city = town();
+    const parts = collectCityStructures(city);
+    const index = parts.findIndex(part => part.kind === "tower");
+    expect(index).toBeGreaterThanOrEqual(0);
+    parts[index] = { ...parts[index], baseElevationMeters: 7 };
+    const cache = createBvPrototypeCache();
+    const layer = createTownWalls(city, parts, cache, "high");
+    const geometry = structureSelectionGeometry(layer.pickables, index)!;
+    try {
+      const bounds = geometry.boundingBox!;
+      const center = bounds.getCenter(new THREE.Vector3());
+      expect(bounds.min.y).toBeCloseTo(7);
+      expect(bounds.max.y - bounds.min.y).toBeGreaterThan(parts[index].heightMeters);
+      const roofHit = cast(
+        layer,
+        new THREE.Vector3(center.x, bounds.max.y + 10, center.z),
+        new THREE.Vector3(0, -1, 0)
+      )[0];
+      expect(layer.resolve(roofHit)?.id).toBe(parts[index].id);
+      expect(bounds.max.y).toBeCloseTo(roofHit.point.y, 3);
+    } finally {
+      geometry.dispose();
+      layer.dispose();
+    }
+    expect(cache.size).toBe(0);
+  });
+
   it("refreshes tower and gate roofs from housing culture while preserving stonework and cached cities", () => {
     const city = town(),
       cache = createBvPrototypeCache(),

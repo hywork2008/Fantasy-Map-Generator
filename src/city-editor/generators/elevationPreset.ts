@@ -1,4 +1,4 @@
-// Cell-elevation presets and the rule that a river bed never rises downstream.
+// Cell-elevation presets and river orientation. Water profiles are resolved separately.
 
 import type { CityDocument, Id, Mesh, Point, RiverGroup } from "../types/document";
 import type { ElevationPreset } from "../types/generationSettings";
@@ -16,7 +16,6 @@ export const ELEVATION_PRESETS = [
   "valley"
 ] as const satisfies readonly ElevationPreset[];
 
-const LAND_FLOOR_METERS = 1;
 const LOW_METERS = 2;
 /** A rise smaller than this stays put, so a flat river is not flipped by rounding. */
 const REVERSE_EPSILON_METERS = 0.5;
@@ -138,7 +137,7 @@ export interface ElevationReliefUpdate {
 
 /**
  * Rewrite land elevations with the current preset and relief, then keep river
- * beds from climbing. Streets, wards, and buildings stay. A flat preset, and a
+ * courses oriented downstream. Streets, wards, and buildings stay. A flat preset, and a
  * map that already matches, return the same document.
  */
 export function applyElevationRelief(document: CityDocument, update: ElevationReliefUpdate): CityDocument {
@@ -175,86 +174,40 @@ export function applyElevationRelief(document: CityDocument, update: ElevationRe
 }
 
 /**
- * Turn every river so its land bed does not rise downstream, lowering unlocked
- * land cells that still form a step. Sea cells stay as they are. Returns the
- * same document when nothing changes.
+ * Orient unlocked rivers toward the lower endpoint or sea without changing land elevations.
+ * townWaterElevations resolves the downstream-only water profile independently of the banks.
  */
 export function settleRiverGrades(document: CityDocument): CityDocument {
-  let faces = document.mesh.faces;
-  let facesCopied = false;
   let groups = document.featureGroups;
   let groupsCopied = false;
-  const writeFace = (faceId: Id, elevation: number): void => {
-    const face = faces[faceId];
-    if (!face || face.properties.locked || face.properties.water !== "land") return;
-    const next = Math.max(LAND_FLOOR_METERS, roundTenth(elevation));
-    if (face.properties.elevation <= next + 1e-6) return;
-    if (!facesCopied) {
-      faces = { ...faces };
-      facesCopied = true;
-    }
-    faces[faceId] = { ...face, properties: { ...face.properties, elevation: next } };
-  };
-  const workingMesh = (): Mesh => ({ ...document.mesh, faces });
-  const bed = (vertexId: Id): number | null => landBed(workingMesh(), vertexId);
-
   for (let index = 0; index < groups.length; index++) {
     const group = groups[index];
-    if (group.kind !== "river" || group.vertices.length < 2) continue;
-    let vertices = group.vertices;
-    const seaStart = touchesSea(workingMesh(), vertices[0]);
-    const seaEnd = touchesSea(workingMesh(), vertices[vertices.length - 1]);
-    const startBed = firstLandBed(workingMesh(), vertices);
-    const endBed = firstLandBed(workingMesh(), [...vertices].reverse());
+    if (group.kind !== "river" || group.vertices.length < 2 || group.locked) continue;
+    const vertices = group.vertices;
+    const seaStart = touchesSea(document.mesh, vertices[0]);
+    const seaEnd = touchesSea(document.mesh, vertices[vertices.length - 1]);
+    const startBed = firstLandBed(document.mesh, vertices);
+    const endBed = firstLandBed(document.mesh, [...vertices].reverse());
     const reverse =
-      !group.locked &&
-      ((seaStart && !seaEnd) ||
-        (!seaStart && !seaEnd && endBed !== null && startBed !== null && endBed > startBed + REVERSE_EPSILON_METERS));
-    if (reverse) {
-      vertices = [...vertices].reverse();
-      const upstream = vertices[0];
-      const downstream = vertices[vertices.length - 1];
-      const turned: RiverGroup = {
-        ...group,
-        vertices,
-        source: { vertexId: upstream, kind: sourceKind(document, upstream) },
-        mouth: { vertexId: downstream, kind: mouthKind(document, downstream) }
-      };
-      if (!groupsCopied) {
-        groups = groups.slice();
-        groupsCopied = true;
-      }
-      groups[index] = turned;
+      (seaStart && !seaEnd) ||
+      (!seaStart && !seaEnd && endBed !== null && startBed !== null && endBed > startBed + REVERSE_EPSILON_METERS);
+    if (!reverse) continue;
+    const turnedVertices = [...vertices].reverse();
+    const upstream = turnedVertices[0];
+    const downstream = turnedVertices[turnedVertices.length - 1];
+    const turned: RiverGroup = {
+      ...group,
+      vertices: turnedVertices,
+      source: { vertexId: upstream, kind: sourceKind(document, upstream) },
+      mouth: { vertexId: downstream, kind: mouthKind(document, downstream) }
+    };
+    if (!groupsCopied) {
+      groups = groups.slice();
+      groupsCopied = true;
     }
-    let running: number | null = null;
-    for (const vertexId of vertices) {
-      const height = bed(vertexId);
-      if (height === null) continue;
-      if (running === null) {
-        running = height;
-        continue;
-      }
-      if (height > running + 1e-6) writeFaceAt(document.mesh, vertexId, running, writeFace);
-      const after = landBed(workingMesh(), vertexId);
-      if (after !== null) running = Math.min(running, after);
-    }
+    groups[index] = turned;
   }
-
-  if (!facesCopied && !groupsCopied) return document;
-  return {
-    ...document,
-    ...(facesCopied ? { mesh: { ...document.mesh, faces } } : {}),
-    ...(groupsCopied ? { featureGroups: groups } : {})
-  };
-}
-
-function writeFaceAt(
-  mesh: Mesh,
-  vertexId: Id,
-  elevation: number,
-  writeFace: (faceId: Id, elevation: number) => void
-): void {
-  for (const face of incidentFaces(mesh, vertexId)) writeFace(face.id, elevation);
+  return groupsCopied ? { ...document, featureGroups: groups } : document;
 }
 
 function landBed(mesh: Mesh, vertexId: Id): number | null {

@@ -36,6 +36,20 @@ function isHandPad(document: CityDocument, feature: TerrainPlatform): boolean {
   return !!document.mesh.faces[body.split(":")[0]];
 }
 
+/** The editable level is the hand pad's target; the cell value beneath a field remains its base mean. */
+export function editableFaceElevation(document: CityDocument, faceId: Id): number | undefined {
+  const face = document.mesh.faces[faceId];
+  if (!face || !document.terrain?.field) return face?.properties.elevation;
+  const prefix = padId(faceId, 0);
+  const pad = document.terrain.features.find(
+    feature =>
+      feature.kind === "platform" &&
+      feature.role === "pad" &&
+      (feature.id === prefix || feature.id.startsWith(`${prefix}:`))
+  );
+  return pad?.kind === "platform" ? pad.levelMeters : face.properties.elevation;
+}
+
 /**
  * In a height field, editing a cell's elevation lays a pad on the dry part of that cell.
  * The stored cell elevation stays the derived mean.

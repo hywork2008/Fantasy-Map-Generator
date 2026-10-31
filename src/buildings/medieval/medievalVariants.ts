@@ -1,9 +1,19 @@
 import { DEFAULT_AUTHOR } from "../authors";
 import { type ModelVariant, variantId } from "../modelVariants";
+import { models as boundaries } from "./02-boundariesModels";
+import { models as barns } from "./03-barnsModels";
+import { models as animals } from "./04-animal-housingModels";
+import { models as troughs } from "./05-troughsModels";
+import { models as stalls } from "./06-market-stallsModels";
 import { models as dwellings } from "./07-dwellingsModels";
+import { models as shops } from "./08-shop-housesModels";
+import { models as carts } from "./09-hand-cartsModels";
+import { models as bakeries } from "./10-bakeriesModels";
 import { models as smithies } from "./11-smithiesModels";
+import { models as inns } from "./12-innsModels";
 import { models as fuel } from "./13-fuel-storageModels";
 import { models as churches } from "./14-parish-churchesModels";
+import { models as breweries } from "./15-breweriesModels";
 import { models as granaries } from "./16-granariesModels";
 import { models as warehouses } from "./17-warehousesModels";
 import { models as livestock } from "./18-livestock-marketsModels";
@@ -27,12 +37,22 @@ export function medievalFamily(model: Pick<MedievalModel, "id">): string {
   return `medieval.${model.id}`;
 }
 
-/** Medieval task models that CE draws, one variant each. */
+/** Registered medieval studies: explicit BV tiers and the default variants used by CE. */
 export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
+  boundaries,
+  barns,
+  animals,
+  troughs,
+  stalls,
   dwellings,
+  shops,
+  carts,
+  bakeries,
   smithies,
+  inns,
   fuel,
   churches,
+  breweries,
   granaries,
   warehouses,
   livestock,
@@ -52,13 +72,28 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   sand
 ]
   .flat()
-  .map(model => {
+  .flatMap(model => {
     const author = model.author ?? DEFAULT_AUTHOR;
-    return {
+    const legacy = {
       id: variantId(medievalFamily(model), "default", author),
       family: medievalFamily(model),
       level: "default",
       author,
       create: () => model.create()
     };
+    // Previously registered CE families keep default identities while BV gains selectable tiers.
+    return model.variants
+      ? [
+          ...model.variants,
+          ...(dwellings.includes(model) ||
+          smithies.includes(model) ||
+          fuel.includes(model) ||
+          churches.includes(model) ||
+          granaries.includes(model) ||
+          warehouses.includes(model) ||
+          livestock.includes(model)
+            ? [legacy]
+            : [])
+        ]
+      : [legacy];
   });

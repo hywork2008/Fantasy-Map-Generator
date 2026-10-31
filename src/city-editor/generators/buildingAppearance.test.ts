@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { buildingAppearanceColors } from "../../buildings/appearance/colors";
+import { BUILDING_APPEARANCE_CLIMATES, BUILDING_WALL_FINISHES } from "../../buildings/appearance/types";
 import { buildBlockFabric, documentFabricFingerprint } from "./blockInfill";
 import { assignBuildingAppearances, stableBuildingAppearanceId, withBuildingAppearance } from "./buildingAppearance";
 import { buildingAppearancePreview } from "./buildingAppearancePreview";
@@ -32,6 +34,40 @@ function geometryAndCapacity(building: BuildingLot) {
 }
 
 describe("CE building appearance integration", () => {
+  it("overrides brick walls in every climate without changing the roof, massing or capacity", () => {
+    const source = createDocument("wall-finish", 400);
+    const sample = buildingAppearancePreview("mediterranean")[0];
+    sample.massing = { ...sample.massing!, wall: "brick" };
+    for (const climate of BUILDING_APPEARANCE_CLIMATES) {
+      const auto = withBuildingAppearance({ ...source, buildingAppearanceClimate: climate }, "mediterranean");
+      const before = assignBuildingAppearances(auto, [sample])[0];
+      expect(before.appearance?.wallPaletteId).toBe("brick");
+      for (const finish of BUILDING_WALL_FINISHES) {
+        const document = { ...auto, buildingWallFinish: finish };
+        const after = assignBuildingAppearances(document, [sample])[0];
+        expect(after.massing).toEqual(before.massing);
+        expect(after.appearance?.roofPaletteId).toBe(before.appearance?.roofPaletteId);
+        expect(residentialCapacity(after)).toBe(residentialCapacity(before));
+        expect(buildingAppearanceColors(after.appearance)?.wall).not.toBeUndefined();
+        expect(documentFabricFingerprint(document)).not.toBe(documentFabricFingerprint(auto));
+        if (finish === "limewash") {
+          expect(after.appearance?.wallPaletteId).toBe("white-limewash");
+          expect(after.appearance?.wallFinish).toBe("limewash");
+          expect(after.appearance?.framePaletteId).toBeUndefined();
+        }
+      }
+    }
+    const document = withBuildingAppearance({ ...source, buildingWallFinish: "limewash" }, "mediterranean");
+    const prepared = preparePopulationGeneration(
+      document,
+      {
+        ...defaultGenerationSettings(),
+        population: defaultPopulationSettings(500)
+      },
+      "wall-finish"
+    ).document;
+    expect(prepared.buildingWallFinish).toBe("limewash");
+  });
   it("applies persisted climate overrides to finishes and retains them when population fitting rebuilds the grid", () => {
     const source = createDocument("appearance-climate", 400);
     source.biome = { id: 1, key: "desert", name: "Desert", color: "tan" };

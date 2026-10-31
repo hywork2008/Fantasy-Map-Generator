@@ -464,6 +464,7 @@ describe("building setbacks", () => {
     const temple = city.elements.find(e => e.kind === "temple");
     expect(temple?.point).toBeTruthy();
     if (temple?.point) {
+      expect(temple.sizeMeters).toBeGreaterThanOrEqual(54);
       const nave = templeRectForElement(temple.point, temple.sizeMeters, temple.rotation, city.frame.extentMeters);
       for (const group of city.featureGroups) {
         if (group.kind !== "road") continue;

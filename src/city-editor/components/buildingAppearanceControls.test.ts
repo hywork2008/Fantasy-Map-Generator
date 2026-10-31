@@ -37,6 +37,11 @@ it("applies culture and vegetation immediately, restores saved selections and re
   root.append(panel.root);
   const culture = root.querySelector<HTMLSelectElement>(".ce-housing-culture")!;
   const climate = root.querySelector<HTMLSelectElement>(".ce-housing-climate")!;
+  const walls = root.querySelector<HTMLSelectElement>(".ce-housing-walls")!;
+  expect(walls.value).toBe("auto");
+  walls.value = "limewash";
+  walls.dispatchEvent(new Event("change"));
+  expect(city.buildingWallFinish).toBe("limewash");
   culture.value = "northern-wooded";
   culture.dispatchEvent(new Event("change"));
   climate.value = "arid";
@@ -55,11 +60,14 @@ it("applies culture and vegetation immediately, restores saved selections and re
   panel.sync();
   expect(culture.value).toBe("northern-wooded");
   expect(climate.value).toBe("arid");
+  expect(walls.value).toBe("limewash");
   culture.value = "auto";
+  walls.value = "auto";
   climate.value = "auto";
   climate.dispatchEvent(new Event("change"));
   expect(city.buildingAppearanceProfile).toBeUndefined();
   expect(city.buildingAppearanceClimate).toBeUndefined();
+  expect(city.buildingWallFinish).toBeUndefined();
   expect(city.buildingAppearanceContext).toMatchObject({ forest: true, wetland: false, arid: false });
 });
 
@@ -115,6 +123,8 @@ it.each(["snapshot", "session"])("retains %s farmland through housing culture an
     [".ce-housing-culture", "mediterranean"],
     [".ce-housing-culture", "northern-wooded"],
     [".ce-housing-climate", "arid"],
+    [".ce-housing-walls", "limewash"],
+    [".ce-housing-walls", "auto"],
     [".ce-housing-culture", "auto"]
   ]) {
     const control = root.querySelector<HTMLSelectElement>(selector)!;

@@ -1,8 +1,12 @@
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
+import { orientedRectCorners, templeRectForElement } from "../../city-editor/generators/civicPlacement";
 import { createGridDocument } from "../../city-editor/generators/document";
-import { pointInPolygon } from "../../city-editor/generators/geom";
+import { pointInPolygon, polygonCentroid } from "../../city-editor/generators/geom";
+import { placeCivicElement } from "../../city-editor/generators/manualCompletion";
+import { facePoints } from "../../city-editor/generators/mesh";
 import { createRotatedRect } from "../../city-editor/renderers/castleLayoutBuilder";
+import { collectCityStructures } from "../../city-editor/renderers/structureMassing";
 import type { StructureMassing } from "../../city-editor/types/contracts/structureMassing";
 import { bvInstanceGeometry, createBvInstances, createBvPrototypeCache } from "./bvInstances";
 import { fitBvBuilding } from "./bvPlacement";
@@ -29,6 +33,40 @@ function fixture() {
 }
 
 describe("shared BV city instances", () => {
+  it.each(["tiny", "small"] as const)(
+    "reserves enough 2D land on a %s map for the unscaled high-quality basilica",
+    size => {
+      const grid = createGridDocument({ size, grid: "hex", seed: "basilica-reservation" });
+      const face = Object.values(grid.mesh.faces)
+        .filter(face => face.properties.water === "land")
+        .sort(
+          (a, b) =>
+            Math.hypot(...polygonCentroid(facePoints(grid.mesh, a))) -
+            Math.hypot(...polygonCentroid(facePoints(grid.mesh, b)))
+        )[0];
+      const city = placeCivicElement(grid, face.id, "temple")!;
+      const temple = city.elements.find(element => element.kind === "temple")!;
+      expect(temple).toBeDefined();
+      expect(temple.sizeMeters).toBeGreaterThanOrEqual(54);
+      const cache = createBvPrototypeCache();
+      const layer = createTownSpecialBuildings(city, collectCityStructures(city), cache, "high");
+      expect(layer.accepted).toHaveLength(1);
+      expect(layer.accepted[0].definition.variant).toBe("temple.basilica@high#claude-opus-5.5");
+      const scale = new THREE.Vector3().setFromMatrixScale(layer.accepted[0].matrix);
+      for (const component of scale.toArray()) expect(component).toBeCloseTo(1, 10);
+      const ring = orientedRectCorners(
+        templeRectForElement(temple.point!, temple.sizeMeters, temple.rotation, city.frame.extentMeters)
+      );
+      const geometry = bvInstanceGeometry({ object: layer.pickables[0], instanceId: 0 })!;
+      const bounds = geometry.boundingBox!;
+      for (const x of [bounds.min.x, bounds.max.x])
+        for (const z of [bounds.min.z, bounds.max.z]) expect(pointInPolygon([x, -z], ring)).toBe(true);
+      geometry.dispose();
+      layer.dispose();
+      expect(cache.size).toBe(0);
+    }
+  );
+
   it("takes ownership of direct geometry without constructing a source model", () => {
     const source = fixture();
     const geometry = source.pickables[0].geometry.toNonIndexed();
@@ -123,7 +161,7 @@ describe("shared BV city instances", () => {
     layer.dispose();
   });
 
-  it("fits the complete real chapel envelope, keeps proportions and grounds its lowest point", () => {
+  it("places the complete chapel at metre scale and grounds its lowest point", () => {
     const cache = createBvPrototypeCache(),
       prototype = cache.acquire(CE_CHAPEL)!;
     for (const angle of [-0.7, 0, 1.2]) {
@@ -133,8 +171,7 @@ describe("shared BV city instances", () => {
         scale = new THREE.Vector3(),
         position = new THREE.Vector3();
       fit.matrix.decompose(position, rotation, scale);
-      expect(scale.x).toBeCloseTo(scale.y);
-      expect(scale.y).toBeCloseTo(scale.z);
+      for (const component of scale.toArray()) expect(component).toBeCloseTo(1, 10);
       const direction = new THREE.Vector3(1, 0, 0).applyQuaternion(rotation);
       expect(Math.atan2(-direction.z, direction.x)).toBeCloseTo(angle);
       const attribute = prototype.geometry.getAttribute("position");
@@ -147,6 +184,10 @@ describe("shared BV city instances", () => {
       expect(low).toBeCloseTo(18);
     }
     expect(fitBvBuilding(prototype.bounds, createRotatedRect([0, 0], 1, 1, 0), 0, 0)).toBeUndefined();
+    const size = prototype.bounds.getSize(new THREE.Vector3());
+    expect(
+      fitBvBuilding(prototype.bounds, createRotatedRect([0, 0], size.x * 0.9, size.z * 0.9, 0), 0, 0)
+    ).toBeUndefined();
     expect(
       fitBvBuilding(
         prototype.bounds,
@@ -238,6 +279,10 @@ describe("shared BV city instances", () => {
     expect([...layer.replaced].sort()).toEqual(["temple:b:apse", "temple:b:nave"]);
     const mesh = layer.pickables[0];
     expect(mesh.name).toBe("basilica-temple:low-instances");
+    const matrix = new THREE.Matrix4();
+    mesh.getMatrixAt(0, matrix);
+    for (const component of new THREE.Vector3().setFromMatrixScale(matrix).toArray())
+      expect(component).toBeCloseTo(1, 6);
     mesh.updateMatrixWorld(true);
     mesh.computeBoundingBox();
     const bounds = mesh.boundingBox!;
@@ -245,6 +290,13 @@ describe("shared BV city instances", () => {
     expect(bounds.getCenter(new THREE.Vector3()).x).toBeCloseTo(10, -1);
     expect(bounds.getCenter(new THREE.Vector3()).z).toBeCloseTo(-20, -1);
     layer.dispose();
+    const small = createTownSpecialBuildings(
+      { ...city, elements: [{ ...city.elements[0], sizeMeters: 30 }] },
+      parts,
+      cache
+    );
+    expect(small.replaced.size).toBe(0);
+    small.dispose();
     expect(cache.size).toBe(0);
   });
 

@@ -59,6 +59,9 @@ export function completeRoadRouter(
     graph.adjacency[b].push({ to: a, w });
     edgeFor.set(`${Math.min(a, b)},${Math.max(a, b)}`, edge);
   }
+  // Imported crossings can widen the display beyond the editable town mesh.
+  // Approach exits belong to that mesh, where regional roads begin.
+  const meshHalf = graph.points.reduce((half, p) => Math.max(half, Math.abs(p[0]), Math.abs(p[1])), 0);
   const urban = new Set([...plan.urban].map(i => faceIdOf[i]));
   // Passage splitting inherits the parent region, including newly allocated faces.
   const originalFaces = new Set(faceIdOf);
@@ -192,11 +195,11 @@ export function completeRoadRouter(
       approachVertices.add(edge.b);
     }
   }
-  const nearestDryApproach = (point: Point): Id | null => {
+  const nearestDryApproach = (point: Point, excludeGates = false): Id | null => {
     if (!document.importedFixedCrossings) return nearest(point);
     const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
     const endpointWet = lineHitsDocumentWater(document, [point, point], width, true, water);
-    const pool = new Set(approachVertices);
+    const pool = new Set([...approachVertices].filter(id => !excludeGates || !gateIds.has(id)));
     while (pool.size) {
       const id = nearest(point, pool);
       if (!id) break;
@@ -267,7 +270,8 @@ export function completeRoadRouter(
       });
       return [];
     }
-    const snap = (p: Point, gateEnd: boolean) => (gateEnd ? endpoint(p) : outside ? nearestDryApproach(p) : nearest(p));
+    const snap = (p: Point, gateEnd: boolean) =>
+      gateEnd ? endpoint(p) : outside ? nearestDryApproach(p, true) : nearest(p);
     const sampled: Point[] = [];
     const stride = Math.max(1, Math.ceil((polyline.length - 1) / 8));
     for (let i = 0; i < polyline.length; i += stride) sampled.push(polyline[i]);
@@ -275,12 +279,8 @@ export function completeRoadRouter(
     const waypoints: number[] = [];
     for (let i = 0; i < sampled.length; i++) {
       const onFrame =
-        acrossBanks && i === 0 && sampled[i].some(value => Math.abs(value) >= document.frame.extentMeters / 2 - 0.01)
-          ? new Set(
-              ids.filter(id =>
-                mesh.vertices[id].point.some(value => Math.abs(value) >= document.frame.extentMeters / 2 - 0.01)
-              )
-            )
+        acrossBanks && i === 0 && sampled[i].some(value => Math.abs(value) >= meshHalf - 0.01)
+          ? new Set(ids.filter(id => mesh.vertices[id].point.some(value => Math.abs(value) >= meshHalf - 0.01)))
           : undefined;
       let id =
         i === 0 && options?.startVertex
@@ -507,8 +507,7 @@ export function completeRoadRouter(
     // there; the frame road carries it over the river (Myosiasos lost its
     // bridge road to a detour along the bank to the frame).
     const landsInside =
-      !!document.importedFixedCrossings &&
-      polyline[0].every(value => Math.abs(value) < document.frame.extentMeters / 2 - 0.01);
+      !!document.importedFixedCrossings && polyline[0].every(value => Math.abs(value) < meshHalf - 0.01);
     // Keep successful planned routes unchanged. Only retry a failed exterior
     // approach against the repaired closed curtain.
     for (let pass = 0; outside && pass < (curtainInterior ? 2 : 1); pass++) {
@@ -526,13 +525,11 @@ export function completeRoadRouter(
       }
       if (
         outside &&
-        (!nodes ||
-          (!landsInside &&
-            graph.points[nodes[0]].every(value => Math.abs(value) < document.frame.extentMeters / 2 - 0.01)))
+        (!nodes || (!landsInside && graph.points[nodes[0]].every(value => Math.abs(value) < meshHalf - 0.01)))
       ) {
         // The bearing can snap to an unusable river mouth. Search dry frame
         // exits in bearing order before giving up the already placed gate.
-        const half = document.frame.extentMeters / 2;
+        const half = meshHalf;
         const target = graph.points[waypoints[0]];
         const exits = ids.map((_, i) => i).filter(i => graph.points[i].some(v => Math.abs(v) >= half - 0.01));
         exits.sort(
@@ -553,8 +550,7 @@ export function completeRoadRouter(
         useCurrentCurtain = false;
         nodes = planned;
       }
-      if (nodes && graph.points[nodes[0]].some(value => Math.abs(value) >= document.frame.extentMeters / 2 - 0.01))
-        break;
+      if (nodes && graph.points[nodes[0]].some(value => Math.abs(value) >= meshHalf - 0.01)) break;
     }
     // A ferry landing just outside the gate leaves no room for an approach
     // between the curtain and the bank (Toyora: ~15 m). The gate is the
@@ -645,7 +641,7 @@ export function completeRoadRouter(
       return [];
     }
     if (outside) {
-      const half = document.frame.extentMeters / 2;
+      const half = meshHalf;
       const onFrame = (node: number) => graph.points[node].some(value => Math.abs(value) >= half - 0.01);
       // Routes are stored frame → town. Keep the first frame contact seen
       // from town, even when the discarded tail briefly returns inland.

@@ -13,7 +13,9 @@ import { renderStandaloneCitySvg } from "../city-editor/renderers/standaloneSvg"
 import { parseDocument } from "../city-editor/services/io/documentCodec";
 import { decodeShare, encodeShare, shareFromDescriptor } from "../city-editor/services/io/incomingCity";
 import type { BurgSiteDescriptor as CESite } from "../city-editor/types/contracts/burgSiteDescriptor";
+import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
+import { getCellClimateNormals } from "../generators/cellClimateNormals";
 import * as cellWindClimate from "../generators/cellWindClimate";
 import type { Grid } from "../types/Grid";
 import type { PackedGraph } from "../types/PackedGraph";
@@ -198,6 +200,27 @@ describe("getBurgSiteDescriptor", () => {
       worldContext.options.winds = previousWinds;
       worldContext.mapCoordinates = previousCoords;
     }
+  });
+
+  it("exports exact canonical precipitation through the CE handoff without the economy", () => {
+    worldContext.grid = {
+      points: [[100, 100]],
+      features: [{ type: "island" }],
+      cells: {
+        i: new Uint32Array([0]),
+        temp: new Int8Array([27]),
+        prec: new Uint8Array([15]),
+        h: new Uint8Array([30]),
+        f: new Uint8Array([0]),
+        c: [[]]
+      }
+    } as unknown as Grid;
+    const expected = getCellClimateNormals(worldContext, 0, simulationContext.currentYear)!;
+    const site = getBurgSiteDescriptor(1)!;
+    expect(site.climate.monthlyPrecipitationMm).toEqual(Array.from(expected.monthlyPrecipitationMm));
+    expect(site.climate.precipitationModelVersion).toBe(expected.precipitationModelVersion);
+    const shared = decodeShare(encodeShare(shareFromDescriptor(site as unknown as CESite)));
+    expect(shared?.descriptor?.climate.monthlyPrecipitationMm).toEqual(site.climate.monthlyPrecipitationMm);
   });
 
   it("exports the latitude-tier prevailing wind and keeps it through the CE share", () => {

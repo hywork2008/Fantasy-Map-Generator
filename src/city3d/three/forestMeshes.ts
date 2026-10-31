@@ -3,7 +3,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { TREE_LOD_DISTANCES } from "../../buildings/landscape/treeQuality";
 import { hasTreeQualityLevels, type TreeSpecies, treeLodProfile } from "../../buildings/landscape/trees";
 import { forestContains } from "../../city-editor/generators/forestGeometry";
-import { landscapeHasTrees } from "../../city-editor/generators/landscapeVegetation";
+import { landscapeHasTrees, naturalTreeSuitability } from "../../city-editor/generators/landscapeVegetation";
 import { bounds, intersectConvex, PlotIndex, plotArea } from "../../city-editor/generators/parcelGeometry";
 import { landscapeTreeSpecies } from "../../city-editor/renderers/landscapeTreeSpecies";
 import type { ForestPlan, ForestRegion } from "../../city-editor/types/contracts/forest";
@@ -39,7 +39,7 @@ interface Chunk {
   id: string;
   box: THREE.Box3;
   far: THREE.Mesh;
-  floor: THREE.Mesh;
+  floor: THREE.Mesh | null;
   mode: LOD;
 }
 interface TreeLayer {
@@ -171,7 +171,8 @@ export function createTownForest(
   terrain?: Pick<CityTerrain, "heightAt" | "relief">,
   initialQuality: Forest3dQuality = "standard",
   simplify = true,
-  initialSeason?: TreeSeason
+  initialSeason?: TreeSeason,
+  groundCoverOnTerrain = false
 ) {
   if (!landscapeHasTrees(document)) plan = { ...plan, regions: [], forestFaceIds: [], areaM2: 0 };
   const group = new THREE.Group();
@@ -236,6 +237,34 @@ export function createTownForest(
       source.push(ring);
     }
   }
+  // A straight triangle between samples can sink into a convex hill. Refine only where
+  // curvature would put the forest floor below the ground, retaining the shared budget.
+  const floorTriangle = (target: Parts, tri: Point[], depth = 0): void => {
+    if (!terrain?.relief) {
+      for (const p of tri) vertex(target, p, heightAt(p) + 0.035, floorColor);
+      return;
+    }
+    const heights = tri.map(heightAt);
+    const midpoints = tri.map((p, i): Point => [(p[0] + tri[(i + 1) % 3][0]) / 2, (p[1] + tri[(i + 1) % 3][1]) / 2]);
+    const center: Point = [(tri[0][0] + tri[1][0] + tri[2][0]) / 3, (tri[0][1] + tri[1][1] + tri[2][1]) / 3];
+    const error = Math.max(
+      heightAt(center) - (heights[0] + heights[1] + heights[2]) / 3,
+      ...midpoints.map((p, i) => heightAt(p) - (heights[i] + heights[(i + 1) % 3]) / 2)
+    );
+    if (terrain?.relief && error > 0.025 && depth < 5) {
+      const [a, b, c] = tri,
+        [ab, bc, ca] = midpoints;
+      for (const part of [
+        [a, ab, ca],
+        [ab, b, bc],
+        [ca, bc, c],
+        [ab, bc, ca]
+      ])
+        floorTriangle(target, part, depth + 1);
+      return;
+    }
+    for (const p of tri) vertex(target, p, heightAt(p) + 0.035, floorColor);
+  };
   let spacing = 16;
   let data = new Map<string, { far: Parts; floor: Parts; baseVertices?: number }>();
   for (let pass = 0; pass < 10; pass++, spacing *= 2) {
@@ -268,7 +297,7 @@ export function createTownForest(
               ) < 1e-7
             )
               continue;
-            for (const p of tri) vertex(item.floor, p, heightAt(p) + 0.035, floorColor);
+            if (!groundCoverOnTerrain) floorTriangle(item.floor, tri);
             for (const p of tri) vertex(item.far, p, canopyAt(p), crownColor, 0.85 + noise(p[0], p[1], seed) * 0.25);
           }
           for (let i = 0; i < polygon.length; i++) {
@@ -368,9 +397,9 @@ export function createTownForest(
       geometry({ positions: [...d.floor.positions, ...d.far.positions], colors: [...d.floor.colors, ...d.far.colors] }),
       `forest-canopy-${id}`
     );
-    const floor = makeMesh(geometry(d.floor), `forest-floor-${id}`);
+    const floor = groundCoverOnTerrain ? null : makeMesh(geometry(d.floor), `forest-floor-${id}`);
     far.geometry.userData.forestBaseVertices = d.baseVertices;
-    floor.visible = false;
+    if (floor) floor.visible = false;
     const box = far.geometry.boundingBox!.clone();
     box.max.y += 8;
     chunks.push({ id, far, floor, box, mode: "far" });
@@ -422,6 +451,7 @@ export function createTownForest(
           (gx + 0.2 + random(`${seed}:tree:${id}:x`) * 0.6) * 8,
           (gy + 0.2 + random(`${seed}:tree:${id}:y`) * 0.6) * 8
         ];
+        if (random(`${seed}:tree:${id}:environment`) > naturalTreeSuitability(document, p, heightAt)) continue;
         const radius = 2.7 + random(`${seed}:tree:${id}:radius`) * 1.3;
         const nearby = regionIndex.query([p[0], p[1], p[0], p[1]]);
         const region = nearby.find(r => forestContains(r, p));
@@ -553,7 +583,7 @@ export function createTownForest(
         .sort((a, b) => a.distance - b.distance || a.chunk.id.localeCompare(b.chunk.id));
       for (const c of chunks) {
         c.far.visible = false;
-        c.floor.visible = false;
+        if (c.floor) c.floor.visible = false;
       }
       for (const layer of cache.values()) {
         layer.group.visible = false;
@@ -586,9 +616,9 @@ export function createTownForest(
         const layer = getLayer(chunk, "near");
         used.add(`${chunk.id}:near`);
         layer.group.visible = true;
-        chunk.floor.visible = true;
-        stats.calls++;
-        stats.triangles += count(chunk.floor.geometry);
+        if (chunk.floor) chunk.floor.visible = true;
+        if (chunk.floor) stats.calls++;
+        stats.triangles += chunk.floor ? count(chunk.floor.geometry) : 0;
         chunk.mode = dist < TREE_LOD_DISTANCES.high ? "near" : "middle";
         if (chunk.mode === "near") stats.nearChunks++;
         else stats.middleChunks++;
@@ -649,14 +679,20 @@ export function createTownForest(
               cost &&
               (stats.trees + cost.trees > budget.trees ||
                 stats.calls + cost.calls > budget.calls ||
-                stats.triangles - count(chunk.far.geometry) + count(chunk.floor.geometry) + cost.triangles >
+                stats.triangles -
+                  count(chunk.far.geometry) +
+                  (chunk.floor ? count(chunk.floor.geometry) : 0) +
+                  cost.triangles >
                   triangleLimit)
             )
               continue;
             const layer = getLayer(chunk, mode);
             const triangles =
-              stats.triangles - count(chunk.far.geometry) + count(chunk.floor.geometry) + layer.triangles;
-            const calls = stats.calls - 1 + 1 + layer.calls;
+              stats.triangles -
+              count(chunk.far.geometry) +
+              (chunk.floor ? count(chunk.floor.geometry) : 0) +
+              layer.triangles;
+            const calls = stats.calls - 1 + (chunk.floor ? 1 : 0) + layer.calls;
             if (
               stats.trees + layer.trees > budget.trees ||
               triangles > triangleLimit ||
@@ -674,7 +710,7 @@ export function createTownForest(
               mesh.visible = true;
               mesh.material = quality === "high" && mode === "near" ? smoothMaterial : material;
             }
-            chunk.floor.visible = true;
+            if (chunk.floor) chunk.floor.visible = true;
             chunk.mode = mode;
             used.add(`${chunk.id}:${mode}`);
             for (const mesh of layer.meshes)

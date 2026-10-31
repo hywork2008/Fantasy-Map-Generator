@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { meshProjection } from "../meshProjection";
+import { WINDMILL_SAIL_RADIUS_METERS } from "./millDimensions";
 
 /** Imagined medieval European timber post mill. Dimensions are illustrative, in meters. */
 export const POST_MILL = {
@@ -10,7 +11,7 @@ export const POST_MILL = {
   depth: 13,
   height: 15,
   hubHeight: 8.1,
-  sailRadius: 6.3,
+  sailRadius: WINDMILL_SAIL_RADIUS_METERS.post,
   note: "Schematic medieval European post mill: a timber-clad milling house on a braced central post, a shingled gable roof, four lattice sails with canvas, an external access stair and a tailpole for turning the body into the wind. Static exterior study; internal gearing and millstones are omitted. Dimensions are illustrative, not a reconstruction of a particular mill."
 } as const;
 

@@ -32,7 +32,7 @@ export interface GenerationSettings {
   housingAreaPasses?: number;
   buildingHeightPolicy?: import("./contracts/buildingHeightPolicy").BuildingHeightPolicy;
   /** Standalone military site; defaults to a motte-and-bailey on a hex mesh. */
-  mode?: "city" | "fort";
+  mode?: "city" | "fort" | "terrain";
   population?: import("./contracts/population").PopulationGenerationSettings;
   /** Unset preserves the existing flood fill and outer residential belt. */
   urbanCoreMode?: "legacy" | "compact";

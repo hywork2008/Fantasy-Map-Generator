@@ -1,3 +1,5 @@
+import type { ForestPlan } from "../../city-editor/types/contracts/forest";
+import { createRiverHydraulicMesh } from "./riverHydraulicMesh";
 // CE 3D land, water, and bank meshes. WebGL is created by the view, not here.
 
 import * as THREE from "three";
@@ -94,9 +96,13 @@ export function townWaterHeightAt(water: TownWaterMeshes, point: Point): number 
 export function createTownWater(
   document: CityDocument,
   terrain: CityTerrain = cityTerrain(document),
-  dropMeters?: number
+  dropMeters?: number,
+  forest?: ForestPlan
 ): TownWaterMeshes {
   if (document.fortSite) return createFortGround(document, terrain);
+  const drop = riverDropMeters(dropMeters ?? document.fabric?.generation?.settings.riverDropMeters);
+  if (terrain.field && terrain.riverProfiles?.some(profile => profile.bankDropMeters !== drop))
+    terrain = cityTerrain(document, { riverDropMeters: drop });
   const parent = new THREE.Object3D();
   parent.name = "ce-water";
   const water = classifyTownWater(document);
@@ -161,7 +167,7 @@ export function createTownWater(
     if (terrain.field && terrain.waterAt && (part.kind === "river" || part.kind === "channel"))
       return point => {
         const level = terrain.waterAt?.(point);
-        return level === null || level === undefined ? rimAt(point) : level + WATER_Y;
+        return level === null || level === undefined ? rimAt(point) : level + LAND_Y;
       };
     if (terrain.field && (part.kind === "river" || part.kind === "channel")) return rimAt;
     if (absoluteWater && part.kind === "river")
@@ -186,7 +192,8 @@ export function createTownWater(
     ? terrainFieldMeshes(
         document,
         terrain,
-        water.parts.map(part => part.polygon)
+        water.parts.map(part => part.polygon),
+        forest
       )
     : [];
   for (const mesh of fieldMeshes) parent.add(mesh);
@@ -215,7 +222,17 @@ export function createTownWater(
       )
     : null;
   if (land || fieldMeshes.length) {
+    if (terrain.riverProfiles?.length) {
+      const river = createRiverHydraulicMesh(
+        terrain.riverProfiles,
+        terrain.datumMeters,
+        TOWN_WATER_COLOR.river,
+        water.parts.filter(part => part.kind === "river").map(part => part.polygon)
+      );
+      if (river) parent.add(river);
+    }
     for (const kind of KINDS) {
+      if (kind === "river" && terrain.riverProfiles?.length) continue;
       const parts = water.parts.filter(part => part.kind === kind);
       if (!parts.length) continue;
       const positions: number[] = [],
@@ -254,7 +271,11 @@ export function createTownWater(
 
 /** Vertical quay from just below the corridor water to the bank ground. */
 function quayMesh(document: CityDocument, terrain: CityTerrain): THREE.Mesh | null {
-  const corridors = (document.terrain?.features ?? []).filter(
+  const corridors = (
+    terrain.riverProfiles?.map(profile => profile.corridor) ??
+    document.terrain?.features ??
+    []
+  ).filter(
     (feature): feature is TerrainRiverCorridor => feature.kind === "riverCorridor" && feature.bank.kind === "quay"
   );
   if (!corridors.length) return null;
@@ -276,8 +297,18 @@ function quayMesh(document: CityDocument, terrain: CityTerrain): THREE.Mesh | nu
       const normal: Point = [-dy / length, dx / length];
       const halfA = corridor.widthsMeters[Math.min(i - 1, corridor.widthsMeters.length - 1)] / 2;
       const halfB = corridor.widthsMeters[Math.min(i, corridor.widthsMeters.length - 1)] / 2;
-      const waterA = corridor.bedMeters[i - 1] + corridor.depthMeters - terrain.datumMeters + WATER_Y - 0.15;
-      const waterB = corridor.bedMeters[i] + corridor.depthMeters - terrain.datumMeters + WATER_Y - 0.15;
+      const waterA =
+        corridor.bedMeters[i - 1] +
+        (corridor.depthsMeters?.[i - 1] ?? corridor.depthMeters) -
+        terrain.datumMeters +
+        LAND_Y -
+        0.15;
+      const waterB =
+        corridor.bedMeters[i] +
+        (corridor.depthsMeters?.[i] ?? corridor.depthMeters) -
+        terrain.datumMeters +
+        LAND_Y -
+        0.15;
       for (const side of [-1, 1] as const) {
         const left: Point = [a[0] + normal[0] * halfA * side, a[1] + normal[1] * halfA * side];
         const right: Point = [b[0] + normal[0] * halfB * side, b[1] + normal[1] * halfB * side];

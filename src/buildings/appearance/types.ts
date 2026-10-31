@@ -13,6 +13,17 @@ export type BuildingAppearanceProfile = (typeof BUILDING_APPEARANCE_PROFILES)[nu
 export const BUILDING_APPEARANCE_CLIMATES = ["temperate", "forest", "wetland", "wet-forest", "arid"] as const;
 export type BuildingAppearanceClimate = (typeof BUILDING_APPEARANCE_CLIMATES)[number];
 
+export const BUILDING_WALL_FINISHES = [
+  "limewash",
+  "plaster",
+  "stone",
+  "limestone",
+  "brick",
+  "earth",
+  "timber"
+] as const;
+export type BuildingWallFinish = (typeof BUILDING_WALL_FINISHES)[number];
+
 /** Persisted inputs, independent of later changes to the world or generation recipe. */
 export interface BuildingAppearanceContext {
   period: string;

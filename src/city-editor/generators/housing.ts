@@ -1,4 +1,6 @@
+import { BASILICA_NAVE_METERS, BASILICA_RESERVATION_METERS } from "../../buildings/temples/basilicaDimensions";
 import { URBAN_DWELLING_SIZE } from "../../utils/urbanDwellings";
+import type { TempleType } from "../types/document";
 
 export { URBAN_DWELLING_SIZE };
 
@@ -28,12 +30,12 @@ export function civicSizeForExtent(extentMeters: number): CivicSize {
   return "large";
 }
 
-/** Nave length × aisle width (m). Stepped by map size, not by population. */
+/** Nave length × aisle width (m). Basilicas never fall below their native model's dimensions. */
 export const TEMPLE_FOOTPRINT_M: Record<CivicSize, { length: number; width: number }> = {
   micro: { length: 14, width: 8 },
-  tiny: { length: 28, width: 16 },
-  small: { length: 40, width: 22 },
-  medium: { length: 54, width: 28 },
+  tiny: BASILICA_NAVE_METERS,
+  small: BASILICA_NAVE_METERS,
+  medium: BASILICA_NAVE_METERS,
   large: { length: 68, width: 36 }
 };
 
@@ -57,6 +59,18 @@ export const CIVIC_YARD_M: Record<CivicSize, number> = {
 
 export function templeFootprintMeters(extentMeters: number): { length: number; width: number } {
   return TEMPLE_FOOTPRINT_M[civicSizeForExtent(extentMeters)];
+}
+
+/** Reserve the full detailed model in 2D; the nave dimensions alone omit projecting architecture. */
+export function templeReservationMeters(extentMeters: number, sizeMeters?: number, type?: TempleType) {
+  const preset = templeFootprintMeters(extentMeters);
+  const length = sizeMeters && sizeMeters > 0 ? sizeMeters : preset.length;
+  const width = (length * preset.width) / preset.length;
+  if ((type ?? (length < 24 ? "chapel" : "basilica")) !== "basilica") return { length, width };
+  return {
+    length: BASILICA_RESERVATION_METERS.length * Math.max(1, length / BASILICA_NAVE_METERS.length),
+    width: BASILICA_RESERVATION_METERS.width * Math.max(1, width / BASILICA_NAVE_METERS.width)
+  };
 }
 
 export function plazaFootprintMeters(extentMeters: number): number {

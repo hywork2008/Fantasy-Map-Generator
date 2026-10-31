@@ -5,9 +5,11 @@ import {
   BUILDING_APPEARANCE_CLIMATES,
   BUILDING_APPEARANCE_PROFILES,
   BUILDING_APPEARANCE_VERSION,
+  BUILDING_WALL_FINISHES,
   type BuildingAppearance,
   type BuildingAppearanceContext,
-  type BuildingAppearanceProfile
+  type BuildingAppearanceProfile,
+  type BuildingWallFinish
 } from "./types";
 
 export interface BuildingAppearanceSource {
@@ -34,8 +36,14 @@ export function validBuildingAppearanceFields(value: {
   buildingAppearanceVersion?: unknown;
   buildingAppearanceProfile?: unknown;
   buildingAppearanceClimate?: unknown;
+  buildingWallFinish?: unknown;
   buildingAppearanceContext?: unknown;
 }): boolean {
+  if (
+    value.buildingWallFinish !== undefined &&
+    !BUILDING_WALL_FINISHES.includes(value.buildingWallFinish as BuildingWallFinish)
+  )
+    return false;
   const version = value.buildingAppearanceVersion;
   const profile = value.buildingAppearanceProfile;
   const context = value.buildingAppearanceContext;
@@ -81,6 +89,7 @@ const TRADITION_PROFILE: Readonly<Record<string, BuildingAppearanceProfile>> = {
 export interface BuildingAppearanceInput {
   version?: number;
   profile?: BuildingAppearanceProfile;
+  wallFinish?: BuildingWallFinish;
   context: BuildingAppearanceContext;
   seed: string;
   stableLotId: string;
@@ -169,15 +178,25 @@ export function resolveBuildingAppearance(input: BuildingAppearanceInput): Build
   const salt = `${input.seed}:building-appearance:${input.version}`;
   const blockShade = Math.floor(growthRandom(`${salt}:block:${input.blockId}`) * 3);
   const drift = Math.floor(growthRandom(`${salt}:lot:${input.stableLotId}:shade`) * 3) - 1;
+  const override = input.wallFinish;
+  const wallOverrides: Record<BuildingWallFinish, [BuildingPaletteId, BuildingAppearance["wallFinish"]]> = {
+    limewash: ["white-limewash", "limewash"],
+    plaster: ["plaster", "limewash"],
+    stone: ["rubble", "stone"],
+    limestone: ["limestone", "stone"],
+    brick: ["brick", "brick"],
+    earth: ["earth", "earth"],
+    timber: ["timber", "timber-boarding"]
+  };
   return {
     version: BUILDING_APPEARANCE_VERSION,
     profileId,
     roofPaletteId: legacy ? `legacy-${input.roof}` : roofPalettes[input.roof],
-    wallPaletteId: legacy ? `legacy-${input.wall}` : walls[input.wall],
-    ...(!legacy && input.wall === "timber-frame" && !boarding && !mediterranean
+    wallPaletteId: override ? wallOverrides[override][0] : legacy ? `legacy-${input.wall}` : walls[input.wall],
+    ...(!override && !legacy && input.wall === "timber-frame" && !boarding && !mediterranean
       ? { framePaletteId: northern ? ("northern-frame" as const) : ("frame" as const) }
       : {}),
     shadeBin: Math.max(0, Math.min(2, blockShade + drift)) as 0 | 1 | 2,
-    wallFinish: legacy ? "legacy" : finishes[input.wall]
+    wallFinish: override ? wallOverrides[override][1] : legacy ? "legacy" : finishes[input.wall]
   };
 }

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { meshProjection } from "../meshProjection";
+import { WATERMILL_HOUSE_METERS } from "./millDimensions";
 
 /** Imagined medieval European grain mill; all dimensions are illustrative meters. */
 export const WATER_MILL = {
@@ -28,6 +29,11 @@ export interface LowBankWaterMillOptions {
   /** Local metres before the CE instance scale is applied. */
   bankDrop?: number;
   immersion?: number;
+  /** Size the wheel independently of the building and its entrance. */
+  wheelRadius?: number;
+  wheelWidth?: number;
+  /** Position the wheel independently so the house stays centred on its dry reservation. */
+  wheelCenter?: { x: number; z: number };
   /** CE supplies its own continuous river surface. */
   drawWater?: boolean;
 }
@@ -56,7 +62,9 @@ function buildWaterMill(
 ): WaterMillMeshes {
   const bankDrop = options.bankDrop ?? lowBank?.bankDrop ?? 0;
   const immersion = options.immersion ?? 0.35;
-  const hubHeight = lowBank ? WATER_MILL.wheelRadius - bankDrop - immersion : WATER_MILL.hubHeight;
+  const wheelRadius = options.wheelRadius ?? WATER_MILL.wheelRadius;
+  const wheelCenter = options.wheelCenter ?? WATER_MILL.wheelCenter;
+  const hubHeight = lowBank ? wheelRadius - bankDrop - immersion : WATER_MILL.hubHeight;
   const group = new THREE.Group();
   group.name = lowBank?.id ?? "medieval-watermill";
   const pickables: THREE.Mesh[] = [];
@@ -149,7 +157,16 @@ function buildWaterMill(
       for (let i = 0; i < 22; i++) box("race-coping", -8.5 + i * 0.81, 0.45, z, 0.78, 0.13, 0.34, stone[i % 4]);
     }
   }
-  box("foundation", 0, 0.25, -0.1, 8.3, 0.5, 5.9, stone[2]);
+  box(
+    "foundation",
+    0,
+    0.25,
+    WATERMILL_HOUSE_METERS.centerZ,
+    WATERMILL_HOUSE_METERS.width,
+    0.5,
+    WATERMILL_HOUSE_METERS.depth,
+    stone[2]
+  );
   box("stone-ground-floor", 0, 1.65, -0.1, 8, 2.4, 5.8, stone[0]);
   for (let row = 0; row < 6; row++) {
     for (let col = 0; col < 11; col++) {
@@ -266,6 +283,11 @@ function buildWaterMill(
   const wheel = new THREE.Group();
   wheel.name = "waterwheel-assembly";
   wheel.position.set(WATER_MILL.wheelCenter.x, hubHeight, WATER_MILL.wheelCenter.z);
+  wheel.scale.set(
+    wheelRadius / WATER_MILL.wheelRadius,
+    wheelRadius / WATER_MILL.wheelRadius,
+    (options.wheelWidth ?? 1.2) / 1.2
+  );
   group.add(wheel);
   const rimShape = new THREE.Shape();
   rimShape.absarc(0, 0, WATER_MILL.wheelRadius, 0, Math.PI * 2, false);
@@ -347,6 +369,28 @@ function buildWaterMill(
     sack.position.set(-4.65 - (i % 2) * 0.65, 0.48, 1.6 - Math.floor(i / 2) * 0.7);
     sack.scale.set(0.36, 0.48, 0.31);
     box("sack-tie", sack.position.x, 0.91, sack.position.z, 0.19, 0.12, 0.16, freshWood);
+  }
+
+  if (lowBank && options.wheelCenter) {
+    const offset = v(wheelCenter.x - WATER_MILL.wheelCenter.x, 0, wheelCenter.z - WATER_MILL.wheelCenter.z);
+    const attached = new Set([
+      "waterwheel-assembly",
+      "wheel-axle",
+      "wheel-hub",
+      "outer-bearing-pier",
+      "outer-axle-bearing",
+      "intake-guide",
+      "sluice-gate-guide",
+      "tailrace-guide",
+      "low-sluice-gate",
+      "sluice-lifting-bar",
+      "sluice-handle",
+      "millrace-water"
+    ]);
+    for (const child of group.children) if (attached.has(child.name)) child.position.add(offset);
+    // The shaft reaches from the fixed house wall to the relocated outer bearing.
+    axle.position.z = (2.6 + wheelCenter.z + 1.28) / 2;
+    axle.scale.y = wheelCenter.z + 1.28 - 2.6;
   }
 
   const model = {

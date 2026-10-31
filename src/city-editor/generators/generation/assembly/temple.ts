@@ -11,6 +11,7 @@ import {
 import { COASTAL_BUILDING_SETBACK_METERS, oceanShoreSegments } from "../../coastalSuitability";
 import { featureGroupVertices } from "../../features";
 import { pointInPolygon, polygonCentroid } from "../../geom";
+import { templeReservationMeters } from "../../housing";
 import { facePoints } from "../../mesh";
 import { townExtentMeters } from "../../settlementExtent";
 
@@ -80,11 +81,13 @@ export function settleTempleOnDocument(document: CityDocument): void {
   const parkPlots = Object.values(document.mesh.faces)
     .filter(face => face.properties.ward === "park" || face.properties.ward === "cemetery")
     .map(face => facePoints(document.mesh, face));
+  const reservation = templeReservationMeters(townExtentMeters(document.frame), temple.sizeMeters, temple.templeType);
   let rect = placeAndClearTempleRect(
     temple.point,
     townExtentMeters(document.frame),
     guides,
-    hazards.length ? hazards : templeHazards(roads, rivers, townExtentMeters(document.frame))
+    hazards.length ? hazards : templeHazards(roads, rivers, townExtentMeters(document.frame)),
+    reservation
   );
   const validSite = (candidate: typeof rect): boolean =>
     hazards.every(hazard => orientedRectPolylineDistance(candidate, hazard.points) >= hazard.clearance - 0.2) &&
@@ -103,7 +106,7 @@ export function settleTempleOnDocument(document: CityDocument): void {
           Math.hypot(b[0] - temple.point![0], b[1] - temple.point![1])
       );
     for (const center of candidates) {
-      const candidate = placeAndClearTempleRect(center, townExtentMeters(document.frame), guides, hazards);
+      const candidate = placeAndClearTempleRect(center, townExtentMeters(document.frame), guides, hazards, reservation);
       if (!validSite(candidate)) continue;
       rect = candidate;
       break;
@@ -118,7 +121,13 @@ export function settleTempleOnDocument(document: CityDocument): void {
   temple.point = rect.center;
   temple.rotation = orientTempleHybrid(rect.center, rect.rotation, plazaCenter, document.historicalPeriod);
 
-  const nave = templeRectForElement(temple.point, temple.sizeMeters, temple.rotation, townExtentMeters(document.frame));
+  const nave = templeRectForElement(
+    temple.point,
+    temple.sizeMeters,
+    temple.rotation,
+    townExtentMeters(document.frame),
+    temple.templeType
+  );
   const hitFaces = Object.values(document.mesh.faces).filter(face => {
     const poly = facePoints(document.mesh, face);
     return pointInPolygon(temple.point!, poly) || polygonHitsOrientedRect(poly, nave);

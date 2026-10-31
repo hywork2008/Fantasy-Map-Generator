@@ -13,6 +13,14 @@ class FakeWorker {
   }
 }
 const high = { meshes: 2, triangles: 120, vertices: 240, geometries: 2, materials: 1 };
+
+it("labels a High component measurement without claiming Low is unavailable", () => {
+  comparison.mount(host, null, "high", root, true);
+  expect(host.textContent).toContain("Only the displayed High view is measured.");
+  expect(host.querySelector("tbody tr")?.textContent).toContain("Meshes—1—");
+  vi.advanceTimersByTime(20);
+  expect(workers).toHaveLength(0);
+});
 let host: HTMLElement;
 let geometry: THREE.BoxGeometry;
 let material: THREE.MeshBasicMaterial;
@@ -108,4 +116,13 @@ it("shows single-quality models without starting unavailable measurements or sha
   comparison.mount(host, null, "low", root);
   expect(host.querySelector("tbody tr")?.textContent).toContain("Meshes2——");
   expect(host.textContent).toContain("Only Low quality is available");
+});
+
+it("treats unspecified single-model quality as Low, without claiming a High edition", () => {
+  comparison.mount(host, null, null, root);
+  expect(host.querySelector("tbody tr")?.textContent).toContain("Meshes1——");
+  expect(host.textContent).toContain("Only Low quality is available");
+  expect(host.textContent).not.toContain("Only High quality is available");
+  vi.advanceTimersByTime(20);
+  expect(workers).toHaveLength(0);
 });

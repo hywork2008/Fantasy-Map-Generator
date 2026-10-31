@@ -108,6 +108,42 @@ select {
   touch-action: none;
 }
 
+.bv-scale-toolbar {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f7f4ecee;
+  border: 1px solid #b7b0a2;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.bv-scale-toolbar[hidden] {
+  display: none;
+}
+
+.bv-scale-toolbar button {
+  cursor: pointer;
+}
+
+.bv-scale-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.bv-physical-scale {
+  border-bottom: 1px solid #b7b0a2;
+  margin-bottom: 12px;
+}
+
 .bv-banner {
   position: absolute;
   left: 12px;
@@ -251,7 +287,8 @@ select {
   font-size: 0.8rem;
 }
 
-.bv-comparison table {
+.bv-comparison table,
+.bv-model-parts table {
   width: 100%;
   min-width: 16rem;
   border-collapse: collapse;
@@ -259,11 +296,29 @@ select {
 }
 
 .bv-comparison th,
-.bv-comparison td {
+.bv-comparison td,
+.bv-model-parts th,
+.bv-model-parts td {
   padding: 5px 3px;
   border-bottom: 1px solid #c8c0b4;
   text-align: right;
   overflow-wrap: normal;
+}
+
+.bv-model-parts {
+  margin-top: 12px;
+  font-size: 0.75rem;
+  overflow-x: auto;
+}
+
+.bv-model-parts summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.bv-model-parts td:first-child,
+.bv-model-parts th:first-child {
+  text-align: left;
 }
 
 .bv-comparison th:first-child {

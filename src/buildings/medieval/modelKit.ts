@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import type { Author } from "../authors";
+import type { ModelPartFactory } from "../modelParts";
 import type { ModelVariant } from "../modelVariants";
 
 export interface MedievalModel {
@@ -8,6 +9,8 @@ export interface MedievalModel {
   name: string;
   task: number;
   author?: Author;
+  /** Explicit preview tier for factories with no BV variant selector; unspecified means low. */
+  quality?: "low" | "high";
   biomes?: readonly string[];
   /** Conservative width, depth and height envelopes in meters. */
   size: readonly [number, number, number];
@@ -21,6 +24,10 @@ export interface MedievalModel {
     create(variantId: string, season: string): CityStructureMeshes;
   };
   create(): CityStructureMeshes;
+  /** Optional independent components in their fitted assembly positions. */
+  parts?(variantId?: string, preset?: string): readonly ModelPartFactory[];
+  partPresets?: readonly { id: string; name: string }[];
+  assembleParts?(parts: readonly ModelPartFactory[]): CityStructureMeshes;
 }
 export type Position = readonly [number, number, number];
 export type Surface =

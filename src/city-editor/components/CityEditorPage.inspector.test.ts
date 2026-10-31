@@ -48,6 +48,47 @@ describe("City Editor Inspector (Select and move mode)", () => {
     expect(root.querySelector<HTMLInputElement>(".ce-cell-height-storeys")!.value).toBe("2");
   });
 
+  it("retains a terrain cell's edited elevation through refresh, reselection, undo and redo", () => {
+    for (const [selector, value] of [
+      [".ce-generation-mode", "terrain"],
+      [".ce-generate-river-count", "0"]
+    ]) {
+      const select = root.querySelector<HTMLSelectElement>(selector)!;
+      select.value = value;
+      select.dispatchEvent(new Event("change"));
+    }
+    root.querySelector<HTMLButtonElement>(".ce-complete-generation")!.click();
+    const cells = [...root.querySelectorAll<SVGElement>(".ce-cells path[data-pick]")];
+    expect(cells.length).toBeGreaterThan(1);
+    const id = cells[0].getAttribute("data-face")!;
+    const selectCell = () =>
+      root
+        .querySelector<SVGElement>(`.ce-cells [data-face="${id}"]`)!
+        .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const value = () => root.querySelector<HTMLInputElement>(".ce-cell-elevation")!.value;
+    selectCell();
+    const before = value();
+    const input = root.querySelector<HTMLInputElement>(".ce-cell-elevation")!;
+    input.value = "100";
+    input.dispatchEvent(new Event("change"));
+    expect(value()).toBe("100");
+    expect(JSON.parse(root.querySelector(".cg-inspector-content")!.textContent!).elevation).toBe(100);
+    expect(
+      parsePickInfo(root.querySelector(`.ce-cells [data-face="${id}"]`)!.getAttribute("data-pick"))!.elevation
+    ).toBe(100);
+    root
+      .querySelector<SVGElement>(`.ce-cells [data-face="${cells[1].getAttribute("data-face")}"]`)!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    selectCell();
+    expect(value()).toBe("100");
+    root.querySelector<HTMLButtonElement>('button[aria-label="Undo"]')!.click();
+    selectCell();
+    expect(value()).toBe(before);
+    root.querySelector<HTMLButtonElement>('button[aria-label="Redo"]')!.click();
+    selectCell();
+    expect(value()).toBe("100");
+  });
+
   it("offers the three bundled historic landmark studies without an import", () => {
     const select = root.querySelector<HTMLSelectElement>('select[aria-label="Historic landmark asset"]');
     expect(select).not.toBeNull();

@@ -373,7 +373,13 @@ export interface FabricPlan {
   districts: FabricDistrict[];
   /** Exact completed-generation settings; absent for manually upgraded maps. */
   generation?: {
-    algorithm: "evolution-city-v3" | "castle-city-v1" | "skeleton-city-v1" | "fort-v1" | "bastioned-city-v1";
+    algorithm:
+      | "terrain-v1"
+      | "evolution-city-v3"
+      | "castle-city-v1"
+      | "skeleton-city-v1"
+      | "fort-v1"
+      | "bastioned-city-v1";
     seed: string;
     settings: import("./generationSettings").GenerationSettings;
     input: Omit<CityDocument, "fabric">;
@@ -617,6 +623,8 @@ export interface CityDocument {
   buildingAppearanceVersion?: typeof import("../../buildings/appearance/types").BUILDING_APPEARANCE_VERSION;
   buildingAppearanceProfile?: import("../../buildings/appearance/types").BuildingAppearanceProfile;
   /** Explicit housing climate override; absent uses the site's biome. */
+  /** Optional surface finish override; does not change structural massing. */
+  buildingWallFinish?: import("../../buildings/appearance/types").BuildingWallFinish;
   buildingAppearanceClimate?: import("../../buildings/appearance/types").BuildingAppearanceClimate;
   /** Captured on generation or explicit appearance refresh, never on load. */
   buildingAppearanceContext?: import("../../buildings/appearance/types").BuildingAppearanceContext;

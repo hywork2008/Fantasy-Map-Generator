@@ -1,4 +1,6 @@
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
+import { createHighFodderTrough, createHighStoneWaterTrough } from "./troughDetails";
 
 export const models: MedievalModel[] = [
   {
@@ -45,3 +47,8 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "fodder-trough": createHighFodderTrough,
+  "stone-water-trough": createHighStoneWaterTrough
+});

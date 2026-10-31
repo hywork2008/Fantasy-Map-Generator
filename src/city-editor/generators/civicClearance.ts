@@ -19,7 +19,8 @@ export function buildingHitsCivicLandmark(document: CityDocument, polygon: Point
         element.point,
         element.sizeMeters,
         element.rotation,
-        townExtentMeters(document.frame)
+        townExtentMeters(document.frame),
+        element.templeType
       );
       if (polygonHitsTempleYard(polygon, rect, Math.max(2, yard * 0.25))) return true;
     }
@@ -34,7 +35,8 @@ export function laneHitsCivicLandmark(document: CityDocument, points: Point[]): 
         element.point,
         element.sizeMeters,
         element.rotation,
-        townExtentMeters(document.frame)
+        townExtentMeters(document.frame),
+        element.templeType
       );
       if (orientedRectPolylineDistance(rect, points) < 1.8) return true;
     }

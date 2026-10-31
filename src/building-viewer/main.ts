@@ -34,6 +34,7 @@ import {
   LOW_BANK_WATER_MILLS,
   WATER_MILL
 } from "../buildings/mills/waterMill";
+import { createModelAssembly, type ModelPartFactory } from "../buildings/modelParts";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
 import {
   CONTAINER_KINDS,
@@ -67,7 +68,7 @@ import {
   createBasilicaTemple
 } from "../buildings/temples/basilicaTemple";
 import { validateBuildingRecord } from "../buildings/validate";
-import { familyVariants } from "../buildings/variants";
+import { familyVariants, MODEL_VARIANTS } from "../buildings/variants";
 import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
 import {
   AIRSHIP,
@@ -99,7 +100,15 @@ import { type CityStructureMeshes, createStructureMassing } from "../city3d/thre
 import type { TownWaterMeshes } from "../city3d/three/waterMeshes";
 import type { HistoricalPeriod } from "../types/historicalPeriod";
 import { createModelComparison } from "./modelComparison";
+import { modelPartsPanel } from "./modelPartsPanel";
 import { mountPerformancePanel } from "./performancePanel";
+import {
+  createReferencePerson,
+  fitStudyCamera,
+  REFERENCE_PERSON_HEIGHT_METERS,
+  studyBounds,
+  studyEnvelope
+} from "./physicalScale";
 import { sanitizeSvg } from "./svgSanitize";
 import {
   catalogueWikipedia,
@@ -329,6 +338,29 @@ ground.visible = false;
 scene.add(ground);
 const controls = new OrbitControls(camera, canvas);
 controls.maxPolarAngle = Math.PI / 2 - 0.05;
+const referencePerson = createReferencePerson();
+referencePerson.group.visible = false;
+scene.add(referencePerson.group);
+const scaleToolbar = document.createElement("div");
+scaleToolbar.className = "bv-scale-toolbar";
+scaleToolbar.hidden = true;
+const scaleCaption = document.createElement("label");
+const showHuman = document.createElement("input");
+showHuman.type = "checkbox";
+showHuman.checked = false;
+scaleCaption.append(showHuman, `Show human · ${REFERENCE_PERSON_HEIGHT_METERS.toFixed(2)} m`);
+const fitModelButton = document.createElement("button");
+fitModelButton.type = "button";
+fitModelButton.textContent = "Fit model";
+const humanScaleButton = document.createElement("button");
+humanScaleButton.type = "button";
+humanScaleButton.textContent = "Human scale";
+humanScaleButton.disabled = true;
+scaleToolbar.append(scaleCaption, fitModelButton, humanScaleButton);
+stage.append(scaleToolbar);
+let measuredBounds: THREE.Box3 | undefined;
+let scaleReady = false;
+let preserveScaleView = false;
 let massing: CityStructureMeshes | null = null;
 let regionalDetails: TownBuildingDetails | null = null;
 let studyWater: TownWaterMeshes | null = null;
@@ -336,10 +368,102 @@ let selection = 0;
 const modelComparison = createModelComparison();
 let comparisonVariants: { id: string; levels: readonly { id: string; label: string }[]; selected: string } | null =
   null;
-let comparisonModel: { path: string; quality: "low" | "high" } | null = null;
+let comparisonModel: { path: string | null; quality: "low" | "high"; viewOnly?: boolean } | null = null;
+
+function studyRoots(): THREE.Object3D[] {
+  const roots: THREE.Object3D[] = [];
+  if (massing) roots.push(massing.group);
+  if (regionalDetails) roots.push(regionalDetails.group);
+  if (studyWater) {
+    roots.push(studyWater.parent);
+    for (const mesh of [studyWater.land, studyWater.bank, studyWater.unknown]) if (mesh) roots.push(mesh);
+  }
+  return roots;
+}
+
+function fitMeasuredStudy(): void {
+  if (!measuredBounds) return;
+  const bounds = measuredBounds.clone();
+  if (referencePerson.group.visible) bounds.union(new THREE.Box3().setFromObject(referencePerson.group, true));
+  if (ground.visible) {
+    const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+    ground.geometry.dispose();
+    ground.geometry = new THREE.CircleGeometry(Math.max(Math.hypot(size.x, size.z) * 0.55, 2), 48);
+    ground.position.set(center.x, -0.05, center.z);
+  }
+  const direction = camera.position.clone().sub(controls.target);
+  if (direction.lengthSq() < 0.01) direction.set(1, 0.7, 1);
+  controls.target.copy(fitStudyCamera(camera, bounds, direction));
+  controls.update();
+}
+fitModelButton.addEventListener("click", fitMeasuredStudy);
+showHuman.addEventListener("change", () => {
+  referencePerson.group.visible = showHuman.checked && measuredBounds !== undefined;
+  humanScaleButton.disabled = !referencePerson.group.visible;
+  fitMeasuredStudy();
+});
+humanScaleButton.addEventListener("click", () => {
+  const target = referencePerson.group.position.clone().add(new THREE.Vector3(0, 0.9, 0));
+  camera.position.copy(target).add(new THREE.Vector3(2.8, 1.1, 4.2));
+  controls.target.copy(target);
+  controls.update();
+});
+canvas.addEventListener("click", event => {
+  if (!event.shiftKey || !measuredBounds || !showHuman.checked) return;
+  const rect = canvas.getBoundingClientRect();
+  const pointer = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(pointer, camera);
+  const roots = studyRoots();
+  const visible = (hit: THREE.Intersection) => {
+    for (let object: THREE.Object3D | null = hit.object; object; object = object.parent)
+      if (!object.visible) return false;
+    return true;
+  };
+  const hit = ray.intersectObjects(roots, true).find(visible);
+  if (!hit) return;
+  // Stand in front of the clicked wall, on the ground or a landing below it.
+  const offset = new THREE.Vector3(-ray.ray.direction.x, 0, -ray.ray.direction.z).normalize().multiplyScalar(0.35);
+  const feet = hit.point.clone().add(offset);
+  const downward = new THREE.Raycaster(feet.clone().add(new THREE.Vector3(0, 0.05, 0)), new THREE.Vector3(0, -1, 0));
+  const support = downward.intersectObjects(roots, true).find(visible);
+  feet.y = support?.point.y ?? 0;
+  referencePerson.group.position.copy(feet);
+});
 
 function appendFacts(...nodes: (Node | string)[]): void {
+  // Every family reports the displayed geometry, rather than its old camera-framing estimate.
   facts.append(...nodes);
+  if (!scaleReady) {
+    measuredBounds = studyBounds(studyRoots());
+    if (measuredBounds) {
+      referencePerson.group.position.set(measuredBounds.min.x - 0.8, 0, measuredBounds.max.z + 0.2);
+      referencePerson.group.visible = showHuman.checked;
+      humanScaleButton.disabled = !showHuman.checked;
+      scaleToolbar.hidden = false;
+      const summary = document.createElement("section");
+      summary.className = "bv-physical-scale";
+      summary.append(
+        fact("Study envelope", studyEnvelope(measuredBounds)),
+        fact("Scale", `1 unit = 1 m; human reference ${REFERENCE_PERSON_HEIGHT_METERS.toFixed(2)} m`),
+        fact(
+          "Axes",
+          "Width X × depth Z × height Y. Includes modelled site; excludes viewer ground and reference figure."
+        ),
+        fact(
+          "Reference placement",
+          "Enable Show human to display the 1.70 m figure. Feet start at Y = 0 m. Shift-click a surface to place it beside a door or on a deck, then choose Human scale."
+        )
+      );
+      facts.prepend(summary);
+      scaleReady = true;
+      if (!preserveScaleView) fitMeasuredStudy();
+    }
+  }
   if (facts.querySelector(".bv-comparison")) return;
   const root = new THREE.Group();
   // References only: do not reparent the visible model or its supplementary details.
@@ -359,7 +483,13 @@ function appendFacts(...nodes: (Node | string)[]): void {
     );
     return;
   }
-  modelComparison.mount(facts, comparisonModel?.path ?? null, comparisonModel?.quality ?? "high", root);
+  modelComparison.mount(
+    facts,
+    comparisonModel?.path ?? null,
+    comparisonModel?.quality ?? null,
+    root,
+    comparisonModel?.viewOnly
+  );
 }
 const performancePanel = mountPerformancePanel(inspector, () => massing?.group ?? null);
 window.addEventListener("pagehide", () => modelComparison.clear());
@@ -390,6 +520,12 @@ function frame(record: Pick<BuildingRecord, "occupancyMeters">, height: number):
 }
 
 function clearMesh(preserveOptions = false): void {
+  preserveScaleView = preserveOptions;
+  scaleReady = false;
+  measuredBounds = undefined;
+  referencePerson.group.visible = false;
+  scaleToolbar.hidden = true;
+  ground.position.set(0, -0.05, 0);
   comparisonModel = null;
   comparisonVariants = null;
   modelComparison.clear();
@@ -789,7 +925,6 @@ stGeorgesButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", ST_GEORGES_CHAPEL.name),
     fact("Style", "English Perpendicular Gothic"),
-    fact("Study envelope", `${ST_GEORGES_CHAPEL.width} × ${ST_GEORGES_CHAPEL.depth} × ${ST_GEORGES_CHAPEL.height} m`),
     fact("Note", ST_GEORGES_CHAPEL.note, "St George's Chapel, Windsor Castle")
   );
   const source = document.createElement("a");
@@ -965,7 +1100,6 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
         fact("Model", definition.name),
         fact("Style", definition.style),
         fact("State", definition.state),
-        fact("Study envelope", `${definition.size.join(" × ")} m`),
         fact("Dimensions", definition.dimensions),
         fact("Note", definition.note, landmarkWikipedia[model.id])
       );
@@ -1012,7 +1146,6 @@ bojniceButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", BOJNICE.name),
     fact("Phase", "Romantic reconstruction, 1889–1910"),
-    fact("Study envelope", `${BOJNICE.width} × ${BOJNICE.depth} × ${BOJNICE.height} m`),
     fact("Note", BOJNICE.note, "Bojnice Castle")
   );
   const source = document.createElement("a");
@@ -1055,7 +1188,6 @@ chambordButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", CHAMBORD.name),
     fact("Period", "French Renaissance"),
-    fact("Study envelope", `${CHAMBORD.width} × ${CHAMBORD.depth} × ${CHAMBORD.height} m`),
     fact("Note", CHAMBORD.note, "Château de Chambord")
   );
   const source = document.createElement("a");
@@ -1162,6 +1294,7 @@ function showOpusGalleon(): void {
   levelTitle.textContent = "Deck plan";
   showQuality(true);
   const quality = qualitySelect.value as OpusGalleonQuality;
+  comparisonModel = { path: null, quality };
   const model = createOpusGalleon(quality, { ensign: opusGalleonEnsign });
   const ensignToggle = document.createElement("input");
   ensignToggle.type = "checkbox";
@@ -1339,7 +1472,6 @@ trebuchetButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", TREBUCHET.name),
     fact("Type", "Hinged-counterweight siege engine"),
-    fact("Study envelope", `${TREBUCHET.length} × ${TREBUCHET.width} × ${TREBUCHET.height} m`),
     fact("Throwing arm", `${TREBUCHET.longArm} m long arm / ${TREBUCHET.shortArm} m counterweight arm`),
     fact("Pose", "Lowered for loading; sling and projectile in the trough"),
     fact("Note", TREBUCHET.note, "Trebuchet")
@@ -1374,7 +1506,6 @@ ramButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", BATTERING_RAM.name),
     fact("Style", "Medieval Europe · Covered siege ram"),
-    fact("Study envelope", `${BATTERING_RAM.length} × ${BATTERING_RAM.width} × ${BATTERING_RAM.height} m`),
     fact("Ram", "Suspended oak log, rope cradles, iron bindings, blunt iron head and crew hand grips"),
     fact("Protection", "Hide-covered timber roof, braced open frame and four iron-bound wooden wheels"),
     fact("Note", BATTERING_RAM.note, "Battering ram")
@@ -1409,7 +1540,6 @@ siegeTowerButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", SIEGE_TOWER.name),
     fact("Style", "Medieval Europe · Timber belfry"),
-    fact("Study envelope", `${SIEGE_TOWER.length} × ${SIEGE_TOWER.width} × ${SIEGE_TOWER.height} m`),
     fact("Structure", "Asymmetric timber frame, raked open rear, four decks and rear-set roof access"),
     fact("Protection", "Hide panels, arrow slits and a clear 1.5 m deep forward archer strip"),
     fact(
@@ -1453,10 +1583,6 @@ cannonButton.addEventListener("click", () => {
     fact("Model", EARLY_FIELD_CANNON.name),
     fact("Period", "Late medieval / Age of Discovery · Europe, circa 1500"),
     fact("Type", "Muzzle-loading land artillery on a two-wheeled field carriage"),
-    fact(
-      "Study envelope",
-      `${EARLY_FIELD_CANNON.length} × ${EARLY_FIELD_CANNON.width} × ${EARLY_FIELD_CANNON.height} m`
-    ),
     fact("Barrel", "Tapered bronze tube, open muzzle, reinforcing mouldings, trunnions and cascabel"),
     fact("Carriage", "Iron-bound oak wheels, timber cheeks, ground-resting trail and wooden elevation quoin"),
     fact("Note", EARLY_FIELD_CANNON.note, "History of cannon")
@@ -1492,7 +1618,6 @@ postMillButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", POST_MILL.name),
     fact("Style", "Medieval Europe · Timber post mill"),
-    fact("Study envelope", `${POST_MILL.width} × ${POST_MILL.depth} × ${POST_MILL.height} m`),
     fact("Sails", `Four canvas-covered lattice sails; ${POST_MILL.sailRadius * 2} m stock diameter`),
     fact("Structure", "Timber milling house on a braced central post; rear stair and tailpole"),
     fact("Note", POST_MILL.note, "Post mill")
@@ -1527,7 +1652,6 @@ towerMillButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", TOWER_MILL.name),
     fact("Style", "European stone tower mill"),
-    fact("Study envelope", `${TOWER_MILL.width} × ${TOWER_MILL.depth} × ${TOWER_MILL.height} m`),
     fact("Tower", `${TOWER_MILL.towerHeight} m high; ${TOWER_MILL.baseRadius * 2} m diameter at the base`),
     fact("Sails", "Four canvas-covered lattice sails on a timber cap"),
     fact("Note", TOWER_MILL.note, "Tower mill")
@@ -1562,7 +1686,6 @@ waterMillButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", WATER_MILL.name),
     fact("Style", "Medieval Europe · Stone and half-timbered grain mill"),
-    fact("Study envelope", `${WATER_MILL.width} × ${WATER_MILL.depth} × ${WATER_MILL.height} m`),
     fact("Wheel", `Wooden overshot wheel; ${WATER_MILL.wheelRadius * 2} m diameter; 24 buckets`),
     fact("Water supply", "Raised timber flume with sluice gate; lower millrace and axle bearing pier"),
     fact("Note", WATER_MILL.note, "Watermill")
@@ -1639,7 +1762,6 @@ wellButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", MEDIEVAL_WELL.name),
     fact("Style", "Medieval Europe · Roofed village well"),
-    fact("Study envelope", `${MEDIEVAL_WELL.width} × ${MEDIEVAL_WELL.depth} × ${MEDIEVAL_WELL.height} m`),
     fact("Structure", "Open masonry curb, braced oak posts and a timber-shingled gable roof"),
     fact("Lifting gear", "Hand-cranked wooden windlass, rope and iron-bound wooden bucket"),
     fact("Note", MEDIEVAL_WELL.note, "Water well")
@@ -1675,7 +1797,6 @@ for (const kind of WATER_BASIN_KINDS) {
     mountPlan(levelHost, model.plan);
     appendFacts(
       fact("Model", spec.name),
-      fact("Study envelope", `${spec.width} × ${spec.depth} × ${spec.height} m`),
       fact("Ground contact", "Base Y = 0 m"),
       fact("Note", PUBLIC_WATER_BASIN_NOTE, "Fountain")
     );
@@ -1719,7 +1840,6 @@ for (const kind of CONTAINER_KINDS) {
       appendFacts(
         fact("Model", spec.name),
         fact("State", stateLabel),
-        fact("Study envelope", `${spec.width} × ${spec.depth} × ${spec.height} m`),
         fact(
           "Mesh dimensions",
           `${dimensions.x.toFixed(3)} × ${dimensions.z.toFixed(3)} × ${dimensions.y.toFixed(3)} m`
@@ -1763,10 +1883,6 @@ lumberYardButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", MEDIEVAL_LUMBER_YARD.name),
     fact("Style", "Medieval Europe · Timber storage and hand-work yard"),
-    fact(
-      "Study envelope",
-      `${MEDIEVAL_LUMBER_YARD.width} × ${MEDIEVAL_LUMBER_YARD.depth} × ${MEDIEVAL_LUMBER_YARD.height} m`
-    ),
     fact("Storage", "Sleeper-supported log pile, boards separated by drying stickers and stacked hewn beams"),
     fact("Workshop", "Open braced timber shed, wooden roof, sawing trestles, frame saw and chopping block with axe"),
     fact("Note", MEDIEVAL_LUMBER_YARD.note, "Lumber yard")
@@ -1808,7 +1924,6 @@ for (const [definition, create] of [
     appendFacts(
       fact("Model", definition.name),
       fact("Style", "Low-poly · Untextured flat-shaded geometry"),
-      fact("Study envelope", `${definition.length} × ${definition.width} × ${definition.height} m`),
       fact("Triangles", triangles.toLocaleString("en-US")),
       fact("Note", definition.note, definition.name)
     );
@@ -1843,7 +1958,6 @@ minecartButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", MINECART.name),
     fact("Type", "Hand-pushed mining cart"),
-    fact("Study envelope", `${MINECART.length} × ${MINECART.width} × ${MINECART.height} m, including display track`),
     fact("Body", "Empty sloping plank box, iron straps, rivets and end handles"),
     fact("Running gear", "Four flanged iron wheels on two axles; short narrow-gauge track on timber sleepers"),
     fact("Note", MINECART.note, "Minecart")
@@ -1878,7 +1992,6 @@ wagonButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", MEDIEVAL_WAGON.name),
     fact("Style", "Medieval Europe · Open timber freight wagon"),
-    fact("Study envelope", `${MEDIEVAL_WAGON.length} × ${MEDIEVAL_WAGON.width} × ${MEDIEVAL_WAGON.height} m`),
     fact("Running gear", "Four wooden spoked wheels with iron tires; smaller front wheels and a pivoted front axle"),
     fact("Body", "Empty plank bed, iron straps, driver's bench and twin draft shafts; no animals"),
     fact("Note", MEDIEVAL_WAGON.note, "Wagon")
@@ -1913,7 +2026,6 @@ coveredWagonButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", COVERED_WAGON.name),
     fact("Style", "Pre-industrial · Timber freight wagon with a canvas cover"),
-    fact("Study envelope", `${COVERED_WAGON.length} × ${COVERED_WAGON.width} × ${COVERED_WAGON.height} m`),
     fact("Cover", "Unbleached canvas on five wooden bows; stitched seams, rope lashings and rolled end curtains"),
     fact("Body", "Empty plank bed; open front and rear above the end boards"),
     fact("Running gear", "Four iron-bound spoked wheels, driver's bench and twin shafts; no animals"),
@@ -1949,7 +2061,6 @@ nobleCarriageButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", NOBLE_CARRIAGE.name),
     fact("Style", "Late medieval Europe · Noble household traveling wagon"),
-    fact("Study envelope", `${NOBLE_CARRIAGE.length} × ${NOBLE_CARRIAGE.width} × ${NOBLE_CARRIAGE.height} m`),
     fact("Body", "Blue painted timber, burgundy textile canopy, tied curtains and gilded heraldic shields"),
     fact("Interior", "Facing cushioned benches, low side doors and boarding steps; unglazed openings"),
     fact("Running gear", "Four iron-bound spoked wheels, front axle pivot, driver's bench and twin shafts; no animals"),
@@ -1985,7 +2096,6 @@ warWagonButton.addEventListener("click", () => {
   appendFacts(
     fact("Model", WAR_WAGON.name),
     fact("Style", "Late medieval Europe · Wagon-fort inspired defensive wagon"),
-    fact("Study envelope", `${WAR_WAGON.length} × ${WAR_WAGON.width} × ${WAR_WAGON.height} m`),
     fact(
       "Defenses",
       "High iron-strapped timber walls with four firing apertures on each side; open fighting compartment"
@@ -2014,10 +2124,10 @@ function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = f
   const resolution = document.createElement("select");
   resolution.setAttribute("aria-label", "Model resolution");
   const option = document.createElement("option");
-  option.value = "high";
-  option.textContent = "High resolution (default)";
+  option.value = "low";
+  option.textContent = "Low resolution (only available tier)";
   resolution.append(option);
-  resolution.value = "high";
+  resolution.value = "low";
   row.append(resolution);
   const paragraph = document.createElement("p");
   paragraph.append(row);
@@ -2078,7 +2188,7 @@ function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = f
     ...adoptionFacts(`town-wall.${model.id}`, "default", model.author ?? TOWN_WALL_AUTHOR),
     fact("Part", model.part),
     fact("Period", model.period ?? (codex ? CODEX_TOWN_WALL_PERIOD : "High medieval Europe")),
-    fact("Resolution", "High — low and standard tiers are not prepared"),
+    fact("Resolution", "Low — no explicit high-quality edition is registered"),
     fact("Mesh dimensions", `${extent.x.toFixed(2)} × ${extent.z.toFixed(2)} × ${extent.y.toFixed(2)} m`),
     fact("Construction", model.note, wallWikipedia[model.id]),
     fact(
@@ -2445,6 +2555,8 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
     const editionLabel = (entry: Variant) => (entry.edition ? label(entry.edition) : "Standard");
     // The previewed season persists across quality and edition switches of the same tree.
     let season = definition.seasons?.default;
+    let selectedPart = "all";
+    let selectedPartPreset = definition.partPresets?.[0]?.id;
     const showModel = (variant: Variant | undefined = definition.variants && adopted(levels.at(-1)!)) => {
       selection++;
       for (const item of list.querySelectorAll("button"))
@@ -2476,7 +2588,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         const row = document.createElement("label");
         row.textContent = "Quality: ";
         const resolution = document.createElement("select");
-        resolution.setAttribute("aria-label", "Tree model quality");
+        resolution.setAttribute("aria-label", task === 43 ? "Tree model quality" : "Model quality");
         for (const level of levels) {
           const option = document.createElement("option");
           option.value = level;
@@ -2534,11 +2646,64 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
           levels: definition.variants.map(entry => ({ id: column(entry), label: entry.label })),
           selected: column(variant)
         };
-      const model = variant
-        ? definition.seasons && season !== definition.seasons.default
-          ? definition.seasons.create(variant.id, season!)
-          : variant.create()
-        : definition.create();
+      if (!variant) comparisonModel = { path: null, quality: definition.quality ?? "low" };
+      const partFactories = definition.parts?.(variant?.id, selectedPartPreset);
+      if (selectedPart !== "all" && !partFactories?.some(part => part.id === selectedPart)) selectedPart = "all";
+      const partFactory = partFactories?.find(part => part.id === selectedPart);
+      const displayedDependencies = partFactory ? partFactory.basedOn : variant?.basedOn;
+      const customAssembly =
+        !!partFactories && !!definition.partPresets && selectedPartPreset !== definition.partPresets[0].id;
+      if (definition.partPresets) {
+        const row = document.createElement("label");
+        row.textContent = "Composition: ";
+        const select = document.createElement("select");
+        select.setAttribute("aria-label", "Assembly composition");
+        for (const preset of definition.partPresets) select.add(new Option(preset.name, preset.id));
+        select.value = selectedPartPreset!;
+        select.addEventListener("change", () => {
+          selectedPartPreset = select.value;
+          showModel(variant);
+        });
+        row.append(select);
+        optionFields.append(row);
+      }
+      if (partFactories) {
+        modelOptions.hidden = false;
+        const row = document.createElement("label");
+        row.textContent = "View: ";
+        const select = document.createElement("select");
+        select.setAttribute("aria-label", "Assembly part");
+        select.add(new Option("Complete assembly", "all"));
+        for (const [index, part] of partFactories.entries())
+          select.add(new Option(`${label(part.role)} · ${index + 1}`, part.id));
+        select.value = partFactory ? selectedPart : "all";
+        select.addEventListener("change", () => {
+          selectedPart = select.value;
+          showModel(variant);
+        });
+        row.append(select);
+        optionFields.append(row);
+      }
+      if (partFactory || customAssembly) {
+        // Components and custom compositions must not overwrite the registered assembly's metrics.
+        comparisonVariants = null;
+        comparisonModel = {
+          path: null,
+          quality: (partFactory?.quality ?? variant?.level) === "high" ? "high" : "low",
+          viewOnly: true
+        };
+      }
+      const assemble = (parts: readonly ModelPartFactory[]) =>
+        definition.assembleParts ? definition.assembleParts(parts) : createModelAssembly(definition.id, parts);
+      const model = partFactory
+        ? assemble([partFactory])
+        : customAssembly
+          ? assemble(partFactories!)
+          : variant
+            ? definition.seasons && season !== definition.seasons.default
+              ? definition.seasons.create(variant.id, season!)
+              : variant.create()
+            : definition.create();
       massing = model;
       scene.add(model.group);
       ground.visible = true;
@@ -2551,14 +2716,25 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       controls.update();
       ground.geometry.dispose();
       ground.geometry = new THREE.CircleGeometry(radius * 0.85, 48);
+      if (partFactory) ground.position.set(center.x, -0.05, center.z);
       mountPlan(roofHost, meshProjection(model, "side"));
       mountPlan(levelHost, meshProjection(model, "top"));
       appendFacts(
         fact("Model", definition.name),
         fact("Task", String(task).padStart(2, "0")),
+        ...(definition.partPresets
+          ? [fact("Composition", definition.partPresets.find(preset => preset.id === selectedPartPreset)!.name)]
+          : []),
+        ...(partFactory
+          ? [
+              fact("View", `Single part: ${label(partFactory.role)}; fitted position retained`),
+              fact("Part quality", partFactory.quality),
+              fact("Part author", partFactory.author)
+            ]
+          : []),
         ...(variant
           ? [
-              fact("Quality", variant.label),
+              fact(partFactory ? "Assembly quality" : "Quality", variant.label),
               ...(definition.seasons
                 ? [fact("Season", definition.seasons.options.find(entry => entry.id === season)?.label ?? season!)]
                 : []),
@@ -2567,15 +2743,27 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
                 : []),
               fact(
                 "CE adoption",
-                variant === adopted(variant.level) ? "Adopted" : `Not adopted; CE uses ${adopted(variant.level).author}`
+                partFactory || customAssembly
+                  ? "Component preview; CE placement uses its registered assembly"
+                  : variant.family === "monastery.friary" || variant.family === "monastery.abbey"
+                    ? variant.level === "high"
+                      ? "CE uses this architecture at High model quality"
+                      : "CE uses Low architecture at Low or Standard model quality"
+                    : variant === adopted(variant.level)
+                      ? "Adopted"
+                      : `Not adopted; CE uses ${adopted(variant.level).author}`
               ),
-              ...(variant.basedOn
+              ...(displayedDependencies
                 ? [
                     fact(
                       "Based on",
-                      variant.basedOn
-                        .map(id => definition.variants!.find(entry => entry.id === id))
-                        .map(entry => (entry ? `${entry.label} · ${entry.author}` : ""))
+                      displayedDependencies
+                        .map(id => {
+                          const own = definition.variants!.find(entry => entry.id === id);
+                          if (own) return `${own.label} · ${own.author}`;
+                          const dependency = MODEL_VARIANTS.find(entry => entry.id === id);
+                          return dependency ? `${dependency.family} · ${dependency.level} · ${dependency.author}` : id;
+                        })
                         .join(", ")
                     )
                   ]
@@ -2616,13 +2804,19 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         fact("Construction", definition.note, medievalWikipediaArticle(definition)),
         fact(
           "Scope",
-          definition.task === 33 || definition.id === "abbey" || definition.id === "orthodox-monastery"
-            ? "CE-fitted religious-house assembly; meter units. BV and CE share the same construction."
-            : definition.task === 43 || definition.task === 44
-              ? "Shared landscape or funerary model; meter units. Shared with CE park and cemetery 3D placement."
-              : "Illustrative medieval or early modern model; meter units. CE automatic placement is separate."
+          partFactory
+            ? "Independently generated component in its assembly position; other parts are not constructed."
+            : customAssembly
+              ? "Component composition preview; CE placement continues to use its registered assembly."
+              : definition.task === 33 || definition.id === "abbey" || definition.id === "orthodox-monastery"
+                ? "CE-fitted religious-house assembly; meter units. BV and CE share the same construction."
+                : definition.task === 43 || definition.task === 44
+                  ? "Shared landscape or funerary model; meter units. Shared with CE park and cemetery 3D placement."
+                  : "Illustrative medieval or early modern model; meter units. CE automatic placement is separate."
         )
       );
+      const partsPanel = modelPartsPanel(model.group);
+      if (partsPanel) facts.append(partsPanel);
     };
     button.addEventListener("click", () => showModel());
     category.append(button);

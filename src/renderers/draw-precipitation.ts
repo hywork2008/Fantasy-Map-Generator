@@ -2,8 +2,10 @@ import { easeSinIn, transition } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { EnvironmentLayers, FocusFields, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { createPrecipitationDisplayReader } from "../generators/precipitationDisplay";
 import type { PrecipitationWindDirections } from "../generators/precipitationModel";
 import { useOptionsState } from "../store/optionsState";
+import { usePrecipitationDisplayState } from "../store/precipitationDisplayState";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
 import { isGridCellInScope } from "./core/focusScope";
@@ -23,6 +25,8 @@ export const PrecipitationRenderer: IRenderer = {
 
     prec.selectAll("circle").remove();
     const { cells, points } = grid;
+    const readPrecipitation = createPrecipitationDisplayReader(worldContext);
+    prec.select("#wind").style("display", usePrecipitationDisplayState.getState().mode === "month" ? "none" : "");
 
     const show = transition().duration(800).ease(easeSinIn);
     prec.selectAll("text").attr("opacity", 0).transition(show).attr("opacity", 1);
@@ -30,7 +34,7 @@ export const PrecipitationRenderer: IRenderer = {
     const { points: pointsOpt } = useOptionsState.getState();
     const cellsNumberModifier = ((pointsOpt === 4 ? 10000 : pointsOpt * 2500) / 10000) ** 0.25;
     const data = Array.from(cells.i).filter(
-      i => (cells.h[i] as number) >= 20 && cells.prec[i] && isGridCellInScope(focusScope, i)
+      i => (cells.h[i] as number) >= 20 && readPrecipitation(i) && isGridCellInScope(focusScope, i)
     );
     const getRadius = (p: number) => rn(Math.sqrt(p / 4) / cellsNumberModifier, 2);
 
@@ -42,7 +46,7 @@ export const PrecipitationRenderer: IRenderer = {
       .append("circle")
       .attr("cx", d => points[d][0])
       .attr("cy", d => points[d][1])
-      .attr("r", d => getRadius(cells.prec[d] as number));
+      .attr("r", d => getRadius(readPrecipitation(d)));
 
     TIME && console.timeEnd("PrecipitationRenderer");
   },
@@ -58,7 +62,10 @@ export function drawPrecipitationWindDirections(
   viewContext: Readonly<EnvironmentLayers>,
   windDirections: PrecipitationWindDirections
 ): void {
-  const wind = viewContext.prec.append("g").attr("id", "wind");
+  const wind = viewContext.prec
+    .append("g")
+    .attr("id", "wind")
+    .style("display", usePrecipitationDisplayState.getState().mode === "month" ? "none" : "");
 
   for (let tier = 0; tier < 6; tier++) {
     const west = windDirections.westerly.filter(source => source.windTier === tier);

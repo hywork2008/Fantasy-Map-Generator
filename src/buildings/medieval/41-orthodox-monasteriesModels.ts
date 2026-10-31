@@ -1,4 +1,4 @@
-import { createMonastery, monasteryPreviewPlan } from "../monasteries/friary";
+import { createMonastery, monasteryPartFactories, monasteryPreviewPlan } from "../monasteries/friary";
 import { MONASTERY_VARIANTS } from "../siteVariants";
 import type { MedievalModel } from "./modelKit";
 
@@ -14,6 +14,7 @@ export const models: MedievalModel[] = [
       ...variant,
       label: "CE-fitted Orthodox monastery"
     })),
-    create: () => createMonastery(monasteryPreviewPlan("orthodoxMonastery"))
+    create: () => createMonastery(monasteryPreviewPlan("orthodoxMonastery")),
+    parts: () => monasteryPartFactories(monasteryPreviewPlan("orthodoxMonastery"))
   }
 ];

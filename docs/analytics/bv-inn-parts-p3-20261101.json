@@ -1,0 +1,1068 @@
+{
+  "runtime": "v22.23.1",
+  "method": "SHA-256 over sorted triangle strings: material color hex and side, then oriented world vertices rounded to 5 decimals. Normals, mesh names and resource identity are excluded. Baseline was captured before component extraction. Every registered model, composition and single component is independently built, counted and disposed. Source-part mesh counts in ledgers precede final material batching.",
+  "rows": [
+    {
+      "id": "roadside-inn",
+      "quality": "low",
+      "standard": {
+        "metrics": {
+          "meshes": 121,
+          "triangles": 6270,
+          "vertices": 10097,
+          "geometries": 40,
+          "materials": 20
+        },
+        "baseline": "172bdea8adb1672812a787d666a770d54ca3b14fd1380d88f17bf1984aa7b47c",
+        "sha256": "172bdea8adb1672812a787d666a770d54ca3b14fd1380d88f17bf1984aa7b47c",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 121,
+            "triangles": 6270,
+            "vertices": 10097,
+            "geometries": 40,
+            "materials": 20
+          },
+          "parts": [
+            {
+              "id": "roadside-inn:courtyard",
+              "role": "courtyard",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 12
+            },
+            {
+              "id": "roadside-inn:lodging",
+              "role": "lodging",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 55,
+              "triangles": 630
+            },
+            {
+              "id": "roadside-inn:stable",
+              "role": "stable",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 21,
+              "triangles": 244
+            },
+            {
+              "id": "roadside-inn:yard-furniture",
+              "role": "yard-furniture",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 11,
+              "triangles": 132
+            },
+            {
+              "id": "roadside-inn:barrel",
+              "role": "barrel",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "basedOn": [
+                "container.barrel-closed@default#codex-gpt-6.1-sol"
+              ],
+              "meshes": 30,
+              "triangles": 4940
+            },
+            {
+              "id": "roadside-inn:sign",
+              "role": "sign",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 312
+            }
+          ]
+        },
+        {
+          "id": "unfurnished",
+          "metrics": {
+            "meshes": 80,
+            "triangles": 1198,
+            "vertices": 301,
+            "geometries": 9,
+            "materials": 14
+          },
+          "parts": [
+            {
+              "id": "roadside-inn:courtyard",
+              "role": "courtyard",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 12
+            },
+            {
+              "id": "roadside-inn:lodging",
+              "role": "lodging",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 55,
+              "triangles": 630
+            },
+            {
+              "id": "roadside-inn:stable",
+              "role": "stable",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 21,
+              "triangles": 244
+            },
+            {
+              "id": "roadside-inn:sign",
+              "role": "sign",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 312
+            }
+          ]
+        },
+        {
+          "id": "lodging-only",
+          "metrics": {
+            "meshes": 59,
+            "triangles": 954,
+            "vertices": 265,
+            "geometries": 7,
+            "materials": 11
+          },
+          "parts": [
+            {
+              "id": "roadside-inn:courtyard",
+              "role": "courtyard",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 12
+            },
+            {
+              "id": "roadside-inn:lodging",
+              "role": "lodging",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 55,
+              "triangles": 630
+            },
+            {
+              "id": "roadside-inn:sign",
+              "role": "sign",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 312
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "roadside-inn:courtyard",
+          "role": "courtyard",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "roadside-inn:lodging",
+          "role": "lodging",
+          "quality": "low",
+          "metrics": {
+            "meshes": 55,
+            "triangles": 630,
+            "vertices": 42,
+            "geometries": 4,
+            "materials": 7
+          }
+        },
+        {
+          "id": "roadside-inn:stable",
+          "role": "stable",
+          "quality": "low",
+          "metrics": {
+            "meshes": 21,
+            "triangles": 244,
+            "vertices": 36,
+            "geometries": 2,
+            "materials": 3
+          }
+        },
+        {
+          "id": "roadside-inn:yard-furniture",
+          "role": "yard-furniture",
+          "quality": "low",
+          "metrics": {
+            "meshes": 11,
+            "triangles": 132,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 2
+          }
+        },
+        {
+          "id": "roadside-inn:barrel",
+          "role": "barrel",
+          "quality": "low",
+          "metrics": {
+            "meshes": 30,
+            "triangles": 4940,
+            "vertices": 9772,
+            "geometries": 30,
+            "materials": 4
+          }
+        },
+        {
+          "id": "roadside-inn:sign",
+          "role": "sign",
+          "quality": "low",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 312,
+            "vertices": 199,
+            "geometries": 2,
+            "materials": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "roadside-inn",
+      "quality": "high",
+      "standard": {
+        "metrics": {
+          "meshes": 10,
+          "triangles": 40856,
+          "vertices": 122568,
+          "geometries": 10,
+          "materials": 10
+        },
+        "baseline": "b3faaa5f0af20ff0a2b672442d0f3c32fcbddf4dc72fb7cce69ef43f23b4e0bd",
+        "sha256": "b3faaa5f0af20ff0a2b672442d0f3c32fcbddf4dc72fb7cce69ef43f23b4e0bd",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 10,
+            "triangles": 40856,
+            "vertices": 122568,
+            "geometries": 10,
+            "materials": 10
+          },
+          "parts": [
+            {
+              "id": "roadside-inn:courtyard",
+              "role": "courtyard",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 420
+            },
+            {
+              "id": "roadside-inn:lodging",
+              "role": "lodging",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 18612
+            },
+            {
+              "id": "roadside-inn:stable",
+              "role": "stable",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 8220
+            },
+            {
+              "id": "roadside-inn:yard-furniture",
+              "role": "yard-furniture",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 1332
+            },
+            {
+              "id": "roadside-inn:barrel",
+              "role": "barrel",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 10136
+            },
+            {
+              "id": "roadside-inn:sign",
+              "role": "sign",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 2136
+            }
+          ]
+        },
+        {
+          "id": "unfurnished",
+          "metrics": {
+            "meshes": 10,
+            "triangles": 29388,
+            "vertices": 88164,
+            "geometries": 10,
+            "materials": 10
+          },
+          "parts": [
+            {
+              "id": "roadside-inn:courtyard",
+              "role": "courtyard",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 420
+            },
+            {
+              "id": "roadside-inn:lodging",
+              "role": "lodging",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 18612
+            },
+            {
+              "id": "roadside-inn:stable",
+              "role": "stable",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 8220
+            },
+            {
+              "id": "roadside-inn:sign",
+              "role": "sign",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 2136
+            }
+          ]
+        },
+        {
+          "id": "lodging-only",
+          "metrics": {
+            "meshes": 9,
+            "triangles": 21168,
+            "vertices": 63504,
+            "geometries": 9,
+            "materials": 9
+          },
+          "parts": [
+            {
+              "id": "roadside-inn:courtyard",
+              "role": "courtyard",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 420
+            },
+            {
+              "id": "roadside-inn:lodging",
+              "role": "lodging",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 18612
+            },
+            {
+              "id": "roadside-inn:sign",
+              "role": "sign",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 2136
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "roadside-inn:courtyard",
+          "role": "courtyard",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 420,
+            "vertices": 1260,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "roadside-inn:lodging",
+          "role": "lodging",
+          "quality": "high",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 18612,
+            "vertices": 55836,
+            "geometries": 8,
+            "materials": 8
+          }
+        },
+        {
+          "id": "roadside-inn:stable",
+          "role": "stable",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 8220,
+            "vertices": 24660,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "roadside-inn:yard-furniture",
+          "role": "yard-furniture",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 1332,
+            "vertices": 3996,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "roadside-inn:barrel",
+          "role": "barrel",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 10136,
+            "vertices": 30408,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "roadside-inn:sign",
+          "role": "sign",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 2136,
+            "vertices": 6408,
+            "geometries": 3,
+            "materials": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "courtyard-hostelry",
+      "quality": "low",
+      "standard": {
+        "metrics": {
+          "meshes": 163,
+          "triangles": 7056,
+          "vertices": 10763,
+          "geometries": 51,
+          "materials": 28
+        },
+        "baseline": "150f83d85aa92ae7e1c22e6af111405865e7754b714e7ae5f577f4df30504752",
+        "sha256": "150f83d85aa92ae7e1c22e6af111405865e7754b714e7ae5f577f4df30504752",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 163,
+            "triangles": 7056,
+            "vertices": 10763,
+            "geometries": 51,
+            "materials": 28
+          },
+          "parts": [
+            {
+              "id": "courtyard-hostelry:courtyard",
+              "role": "courtyard",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 12
+            },
+            {
+              "id": "courtyard-hostelry:lodging",
+              "role": "lodging",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 55,
+              "triangles": 630
+            },
+            {
+              "id": "courtyard-hostelry:stable",
+              "role": "stable",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 21,
+              "triangles": 244
+            },
+            {
+              "id": "courtyard-hostelry:service-wing",
+              "role": "service-wing",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 32,
+              "triangles": 354
+            },
+            {
+              "id": "courtyard-hostelry:yard-furniture",
+              "role": "yard-furniture",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 11,
+              "triangles": 132
+            },
+            {
+              "id": "courtyard-hostelry:barrel",
+              "role": "barrel",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "basedOn": [
+                "container.barrel-closed@default#codex-gpt-6.1-sol"
+              ],
+              "meshes": 30,
+              "triangles": 4940
+            },
+            {
+              "id": "courtyard-hostelry:sign",
+              "role": "sign",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 312
+            },
+            {
+              "id": "courtyard-hostelry:gate",
+              "role": "gate",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 10,
+              "triangles": 432
+            }
+          ]
+        },
+        {
+          "id": "unfurnished",
+          "metrics": {
+            "meshes": 122,
+            "triangles": 1984,
+            "vertices": 967,
+            "geometries": 20,
+            "materials": 22
+          },
+          "parts": [
+            {
+              "id": "courtyard-hostelry:courtyard",
+              "role": "courtyard",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 12
+            },
+            {
+              "id": "courtyard-hostelry:lodging",
+              "role": "lodging",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 55,
+              "triangles": 630
+            },
+            {
+              "id": "courtyard-hostelry:stable",
+              "role": "stable",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 21,
+              "triangles": 244
+            },
+            {
+              "id": "courtyard-hostelry:service-wing",
+              "role": "service-wing",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 32,
+              "triangles": 354
+            },
+            {
+              "id": "courtyard-hostelry:sign",
+              "role": "sign",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 312
+            },
+            {
+              "id": "courtyard-hostelry:gate",
+              "role": "gate",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 10,
+              "triangles": 432
+            }
+          ]
+        },
+        {
+          "id": "lodging-only",
+          "metrics": {
+            "meshes": 69,
+            "triangles": 1386,
+            "vertices": 889,
+            "geometries": 14,
+            "materials": 13
+          },
+          "parts": [
+            {
+              "id": "courtyard-hostelry:courtyard",
+              "role": "courtyard",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 12
+            },
+            {
+              "id": "courtyard-hostelry:lodging",
+              "role": "lodging",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 55,
+              "triangles": 630
+            },
+            {
+              "id": "courtyard-hostelry:sign",
+              "role": "sign",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 312
+            },
+            {
+              "id": "courtyard-hostelry:gate",
+              "role": "gate",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 10,
+              "triangles": 432
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "courtyard-hostelry:courtyard",
+          "role": "courtyard",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "courtyard-hostelry:lodging",
+          "role": "lodging",
+          "quality": "low",
+          "metrics": {
+            "meshes": 55,
+            "triangles": 630,
+            "vertices": 42,
+            "geometries": 4,
+            "materials": 7
+          }
+        },
+        {
+          "id": "courtyard-hostelry:stable",
+          "role": "stable",
+          "quality": "low",
+          "metrics": {
+            "meshes": 21,
+            "triangles": 244,
+            "vertices": 36,
+            "geometries": 2,
+            "materials": 3
+          }
+        },
+        {
+          "id": "courtyard-hostelry:service-wing",
+          "role": "service-wing",
+          "quality": "low",
+          "metrics": {
+            "meshes": 32,
+            "triangles": 354,
+            "vertices": 42,
+            "geometries": 4,
+            "materials": 6
+          }
+        },
+        {
+          "id": "courtyard-hostelry:yard-furniture",
+          "role": "yard-furniture",
+          "quality": "low",
+          "metrics": {
+            "meshes": 11,
+            "triangles": 132,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 2
+          }
+        },
+        {
+          "id": "courtyard-hostelry:barrel",
+          "role": "barrel",
+          "quality": "low",
+          "metrics": {
+            "meshes": 30,
+            "triangles": 4940,
+            "vertices": 9772,
+            "geometries": 30,
+            "materials": 4
+          }
+        },
+        {
+          "id": "courtyard-hostelry:sign",
+          "role": "sign",
+          "quality": "low",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 312,
+            "vertices": 199,
+            "geometries": 2,
+            "materials": 3
+          }
+        },
+        {
+          "id": "courtyard-hostelry:gate",
+          "role": "gate",
+          "quality": "low",
+          "metrics": {
+            "meshes": 10,
+            "triangles": 432,
+            "vertices": 624,
+            "geometries": 7,
+            "materials": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "courtyard-hostelry",
+      "quality": "high",
+      "standard": {
+        "metrics": {
+          "meshes": 10,
+          "triangles": 57608,
+          "vertices": 172824,
+          "geometries": 10,
+          "materials": 10
+        },
+        "baseline": "f5820eb7aa9a88bf671704764230ba0c17f6ea6762c255d4e3fda85267bbfafb",
+        "sha256": "f5820eb7aa9a88bf671704764230ba0c17f6ea6762c255d4e3fda85267bbfafb",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 10,
+            "triangles": 57608,
+            "vertices": 172824,
+            "geometries": 10,
+            "materials": 10
+          },
+          "parts": [
+            {
+              "id": "courtyard-hostelry:courtyard",
+              "role": "courtyard",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 516
+            },
+            {
+              "id": "courtyard-hostelry:lodging",
+              "role": "lodging",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 25800
+            },
+            {
+              "id": "courtyard-hostelry:stable",
+              "role": "stable",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 8220
+            },
+            {
+              "id": "courtyard-hostelry:service-wing",
+              "role": "service-wing",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 7680
+            },
+            {
+              "id": "courtyard-hostelry:yard-furniture",
+              "role": "yard-furniture",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 2664
+            },
+            {
+              "id": "courtyard-hostelry:barrel",
+              "role": "barrel",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 10136
+            },
+            {
+              "id": "courtyard-hostelry:sign",
+              "role": "sign",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 2136
+            },
+            {
+              "id": "courtyard-hostelry:gate",
+              "role": "gate",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 456
+            }
+          ]
+        },
+        {
+          "id": "unfurnished",
+          "metrics": {
+            "meshes": 10,
+            "triangles": 44808,
+            "vertices": 134424,
+            "geometries": 10,
+            "materials": 10
+          },
+          "parts": [
+            {
+              "id": "courtyard-hostelry:courtyard",
+              "role": "courtyard",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 516
+            },
+            {
+              "id": "courtyard-hostelry:lodging",
+              "role": "lodging",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 25800
+            },
+            {
+              "id": "courtyard-hostelry:stable",
+              "role": "stable",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 8220
+            },
+            {
+              "id": "courtyard-hostelry:service-wing",
+              "role": "service-wing",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 7680
+            },
+            {
+              "id": "courtyard-hostelry:sign",
+              "role": "sign",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 2136
+            },
+            {
+              "id": "courtyard-hostelry:gate",
+              "role": "gate",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 456
+            }
+          ]
+        },
+        {
+          "id": "lodging-only",
+          "metrics": {
+            "meshes": 9,
+            "triangles": 28908,
+            "vertices": 86724,
+            "geometries": 9,
+            "materials": 9
+          },
+          "parts": [
+            {
+              "id": "courtyard-hostelry:courtyard",
+              "role": "courtyard",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 516
+            },
+            {
+              "id": "courtyard-hostelry:lodging",
+              "role": "lodging",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 25800
+            },
+            {
+              "id": "courtyard-hostelry:sign",
+              "role": "sign",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 2136
+            },
+            {
+              "id": "courtyard-hostelry:gate",
+              "role": "gate",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 456
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "courtyard-hostelry:courtyard",
+          "role": "courtyard",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 516,
+            "vertices": 1548,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "courtyard-hostelry:lodging",
+          "role": "lodging",
+          "quality": "high",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 25800,
+            "vertices": 77400,
+            "geometries": 8,
+            "materials": 8
+          }
+        },
+        {
+          "id": "courtyard-hostelry:stable",
+          "role": "stable",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 8220,
+            "vertices": 24660,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "courtyard-hostelry:service-wing",
+          "role": "service-wing",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 7680,
+            "vertices": 23040,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "courtyard-hostelry:yard-furniture",
+          "role": "yard-furniture",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 2664,
+            "vertices": 7992,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "courtyard-hostelry:barrel",
+          "role": "barrel",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 10136,
+            "vertices": 30408,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "courtyard-hostelry:sign",
+          "role": "sign",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 2136,
+            "vertices": 6408,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "courtyard-hostelry:gate",
+          "role": "gate",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 456,
+            "vertices": 1368,
+            "geometries": 3,
+            "materials": 3
+          }
+        }
+      ]
+    }
+  ]
+}

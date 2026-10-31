@@ -1,4 +1,6 @@
+import { createHighFuelStorage } from "./fuelStorageDetails";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -83,3 +85,9 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "covered-firewood-stack": () => createHighFuelStorage("covered-firewood-stack"),
+  "brushwood-faggots": () => createHighFuelStorage("brushwood-faggots"),
+  "charcoal-bin": () => createHighFuelStorage("charcoal-bin")
+});

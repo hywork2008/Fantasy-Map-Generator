@@ -71,7 +71,8 @@ export const cityFixedApproachProvider: FixedApproachProvider = (_request, docum
               element.point,
               element.sizeMeters,
               element.rotation,
-              document.frame.settlementExtentMeters ?? document.frame.extentMeters
+              document.frame.settlementExtentMeters ?? document.frame.extentMeters,
+              element.templeType
             )
           )
         );

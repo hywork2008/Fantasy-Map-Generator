@@ -107,7 +107,7 @@ export interface GenerationContext {
 export function createGenerationController(ctx: GenerationContext) {
   function fitPopulationFrame(next: CityDocument) {
     if (
-      (!next.populationPlan && ctx.generation.generateSettings.mode !== "fort") ||
+      (!next.populationPlan && (ctx.generation.generateSettings.mode ?? "city") === "city") ||
       next.frame.extentMeters === ctx.documents.documentState.frame.extentMeters
     )
       return;
@@ -118,7 +118,7 @@ export function createGenerationController(ctx: GenerationContext) {
   function runCompleteGeneration(): void {
     if (!ctx.scope.active) return;
     const populationPanel = ctx.root.querySelector<HTMLElement>(".ce-population-controls");
-    if (ctx.generation.generateSettings.mode !== "fort" && populationPanel?.dataset.valid === "false") {
+    if ((ctx.generation.generateSettings.mode ?? "city") === "city" && populationPanel?.dataset.valid === "false") {
       populationPanel.querySelector<HTMLInputElement>(".ce-population-input")?.reportValidity();
       return;
     }
@@ -310,7 +310,8 @@ export function createGenerationController(ctx: GenerationContext) {
           ...next,
           biome: ctx.generation.generateSettings.descriptor ? next.biome : ctx.documents.documentState.biome,
           buildingAppearanceProfile: ctx.documents.documentState.buildingAppearanceProfile,
-          buildingAppearanceClimate: ctx.documents.documentState.buildingAppearanceClimate
+          buildingAppearanceClimate: ctx.documents.documentState.buildingAppearanceClimate,
+          buildingWallFinish: ctx.documents.documentState.buildingWallFinish
         },
         ctx.documents.documentState.buildingAppearanceProfile,
         ctx.generation.generateSettings.descriptor
@@ -359,9 +360,11 @@ export function createGenerationController(ctx: GenerationContext) {
       ctx.documents.documentState = ctx.documents.history.commit(
         generateRuralFieldStage(ctx.documentForOutput(next)),
         editorText(
-          ctx.generation.generateSettings.mode === "fort"
-            ? "cityEditor.messages.generateFort"
-            : "cityEditor.messages.generateCompleteCityCityEditorPage"
+          ctx.generation.generateSettings.mode === "terrain"
+            ? "cityEditor.messages.generateTerrain"
+            : ctx.generation.generateSettings.mode === "fort"
+              ? "cityEditor.messages.generateFort"
+              : "cityEditor.messages.generateCompleteCityCityEditorPage"
         )
       );
       if (next.gridKind) ctx.documents.gridKind = next.gridKind;
@@ -389,7 +392,7 @@ export function createGenerationController(ctx: GenerationContext) {
       // Double walls fall back to one curtain when the mesh has no room for an old
       // town (docs/plan/ce-multi-ring-walls.md §5); say why instead of staying silent.
       const doubleFallback =
-        ctx.generation.generateSettings.mode !== "fort" &&
+        (ctx.generation.generateSettings.mode ?? "city") === "city" &&
         ctx.generation.generateSettings.townWallRings === "double" &&
         townCircuits(ctx.documents.documentState).length < 2
           ? ctx.wallFallbackNotice(ctx.documents.documentState)
@@ -398,9 +401,11 @@ export function createGenerationController(ctx: GenerationContext) {
         [
           roadWarning ||
             editorText(
-              ctx.generation.generateSettings.mode === "fort"
-                ? "cityEditor.messages.fortGenerated"
-                : "cityEditor.messages.cityGeneratedWallsStreetsAndBuildings"
+              ctx.generation.generateSettings.mode === "terrain"
+                ? "cityEditor.messages.terrainGenerated"
+                : ctx.generation.generateSettings.mode === "fort"
+                  ? "cityEditor.messages.fortGenerated"
+                  : "cityEditor.messages.cityGeneratedWallsStreetsAndBuildings"
             ),
           doubleFallback
         ]
@@ -466,7 +471,7 @@ export function createGenerationController(ctx: GenerationContext) {
 
   function runGenerationStage(stage: GenerationStage): void {
     const populationPanel = ctx.root.querySelector<HTMLElement>(".ce-population-controls");
-    if (ctx.generation.generateSettings.mode !== "fort" && populationPanel?.dataset.valid === "false") {
+    if ((ctx.generation.generateSettings.mode ?? "city") === "city" && populationPanel?.dataset.valid === "false") {
       populationPanel.querySelector<HTMLInputElement>(".ce-population-input")?.reportValidity();
       return;
     }
@@ -725,17 +730,33 @@ export function createGenerationController(ctx: GenerationContext) {
 
   function syncGenerateControls(): void {
     const fort = ctx.generation.generateSettings.mode === "fort";
+    const terrain = ctx.generation.generateSettings.mode === "terrain";
     const modeSelect = ctx.root.querySelector<HTMLSelectElement>(".ce-generation-mode");
-    if (modeSelect) modeSelect.value = fort ? "fort" : "city";
+    if (modeSelect) modeSelect.value = ctx.generation.generateSettings.mode ?? "city";
     for (const selector of [".ce-city-generation-controls", ".ce-city-decoration"])
-      for (const section of ctx.root.querySelectorAll<HTMLElement>(selector)) section.hidden = fort;
+      for (const section of ctx.root.querySelectorAll<HTMLElement>(selector)) section.hidden = fort || terrain;
+    for (const section of ctx.root.querySelectorAll<HTMLElement>(".ce-terrain-generation-controls"))
+      section.hidden = fort;
+    for (const section of ctx.root.querySelectorAll<HTMLElement>(".ce-generate-stages, .ce-generation-step-row"))
+      section.hidden = terrain;
     const complete = ctx.root.querySelector<HTMLElement>(".ce-complete-generation");
     if (complete)
       complete.textContent = editorText(
-        fort ? "cityEditor.messages.generateFort" : "cityEditor.messages.generateCompleteCity"
+        terrain
+          ? "cityEditor.messages.generateTerrain"
+          : fort
+            ? "cityEditor.messages.generateFort"
+            : "cityEditor.messages.generateCompleteCity"
       );
     const roll = ctx.root.querySelector<HTMLElement>(".ce-new-generation");
-    if (roll) roll.textContent = editorText(fort ? "cityEditor.messages.newFort" : "cityEditor.messages.newCity");
+    if (roll)
+      roll.textContent = editorText(
+        terrain
+          ? "cityEditor.messages.newTerrain"
+          : fort
+            ? "cityEditor.messages.newFort"
+            : "cityEditor.messages.newCity"
+      );
     ctx.seedInput.value = ctx.generation.generateSeed;
     if (ctx.documents.documentState.castleStyle !== undefined)
       ctx.generation.generateSettings.castle = {

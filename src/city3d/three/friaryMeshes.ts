@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { type ModelPart, type ModelPartRange, modelParts } from "../../buildings/modelParts";
+import { type ModelQuality, resolveModelQuality } from "../../buildings/modelQuality";
 import { MONASTERY_VARIANTS } from "../../buildings/siteVariants";
 import type { Monastery } from "../../city-editor/generators/monasteryLayout";
 import type { CityTerrain } from "../../city-editor/generators/terrainElevation";
@@ -9,17 +11,28 @@ import type { CityStructureMeshes } from "./structureMeshes";
 /** Merge solid-color BV parts into one vertex-colored city mesh, retaining the fitted CE geometry. */
 export function createTownMonasteries(
   monasteries: readonly Monastery[],
-  terrain?: Pick<CityTerrain, "foundationAt" | "heightAt">
+  terrain?: Pick<CityTerrain, "foundationAt" | "heightAt">,
+  quality: ModelQuality = "standard"
 ): CityStructureMeshes {
   const group = new THREE.Group();
   group.name = "ce-monasteries";
   const parts: THREE.BufferGeometry[] = [];
+  const ledger: ModelPart[] = [];
+  const ranges: ModelPartRange[] = [];
+  let vertexOffset = 0;
   for (const monastery of monasteries) {
-    const friary = adopt(MONASTERY_VARIANTS, `monastery.${monastery.kind}`, "default");
+    const level = monastery.kind === "orthodoxMonastery" ? "default" : resolveModelQuality(quality, ["low", "high"]);
+    const friary = adopt(MONASTERY_VARIANTS, `monastery.${monastery.kind}`, level);
     markVariant(group, friary.id);
     const elevation = terrain?.foundationAt(monastery.precinct) ?? 0;
     const low = terrain ? Math.min(...monastery.precinct.map(terrain.heightAt)) : elevation;
-    const model = friary.create(monastery, elevation, low < elevation - 0.1 ? low - 0.2 : elevation);
+    const model = friary.create(monastery, elevation, low < elevation - 0.1 ? low - 0.2 : elevation, {
+      vegetationQuality: quality === "standard" ? "medium" : quality,
+      wellQuality: quality === "high" ? "default" : "low"
+    });
+    const assemblyParts = modelParts(model.group);
+    ledger.push(...assemblyParts);
+    for (const part of assemblyParts) for (const dependency of part.basedOn ?? []) markVariant(group, dependency);
     model.group.updateMatrixWorld(true);
     for (const mesh of model.pickables) {
       const transformed = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);
@@ -34,6 +47,12 @@ export function createTownMonasteries(
       for (const attribute of Object.keys(geometry.attributes))
         if (!["position", "normal", "color"].includes(attribute)) geometry.deleteAttribute(attribute);
       parts.push(geometry);
+      const count = geometry.getAttribute("position").count;
+      if (mesh.userData.modelPartRanges) {
+        for (const range of mesh.userData.modelPartRanges as ModelPartRange[])
+          ranges.push({ ...range, start: vertexOffset + range.start });
+      } else ranges.push({ partId: mesh.userData.modelPartId, start: vertexOffset, count });
+      vertexOffset += count;
     }
     model.dispose();
   }
@@ -44,9 +63,11 @@ export function createTownMonasteries(
     const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = "monastery-assembly";
+    mesh.userData.modelPartRanges = ranges;
     group.add(mesh);
     pickables.push(mesh);
   }
+  group.userData.modelParts = ledger;
   return {
     group,
     pickables,

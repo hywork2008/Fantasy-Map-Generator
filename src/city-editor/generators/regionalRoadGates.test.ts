@@ -135,6 +135,29 @@ describe("regional highways crossing the curtain", () => {
     expect(installRegionalRoadGates(source)).toEqual(source);
   });
 
+  it("opens fixed bridge crossings without frame-road segments", () => {
+    const source = town();
+    source.frameRoads = [];
+    source.importedFixedCrossings = {
+      ...structuredClone(input.descriptor.fixedCrossings),
+      crossings: [
+        {
+          ...structuredClone(input.descriptor.fixedCrossings.crossings[0]),
+          approachA: [-50, 50],
+          approachB: [150, 50]
+        }
+      ]
+    } as CityDocument["importedFixedCrossings"];
+    const before = structuredClone(source);
+    const city = installRegionalRoadGates(source);
+    expect(source).toEqual(before);
+    expect(city.importedFixedCrossings).toEqual(before.importedFixedCrossings);
+    expect(city.gates).toHaveLength(2);
+    expect(validGeneratedCrossings(city)).toBe(true);
+    expect(validate(city)).toEqual([]);
+    expect(installRegionalRoadGates(city)).toEqual(city);
+  });
+
   it("preserves locked curtains", () => {
     const source = town();
     source.featureGroups[0].locked = true;

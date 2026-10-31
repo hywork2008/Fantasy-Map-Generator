@@ -23,6 +23,8 @@ export interface SeasonalLook {
   /** The appearance of the unmodified model. */
   default: TreeAppearance;
   autumn?: FoliageTint;
+  /** New foliage, independent of autumn senescence. */
+  flush?: FoliageTint;
   /** Parts of the foliage mesh that stay on a bare winter tree, such as alder cones. */
   bareKeeps?: (color: THREE.Color) => boolean;
   /** Fruit, berries or flowers drawn inside the foliage mesh, recognised by colour. */
@@ -85,6 +87,21 @@ const redOrPink = (color: THREE.Color) => {
 const SMALL_GREEN: FoliageTint = { hue: 0.23, hueJitter: 0.03, saturation: 0.5, lightnessScale: 1 };
 
 export const SEASONAL_LOOKS = {
+  kapok: {
+    appearances: ["bare", "leaf", "flush"],
+    default: "leaf",
+    flush: { hue: 0.24, hueJitter: 0.04, saturation: 0.55, lightnessScale: 1.4 }
+  },
+  umbrella_thorn: {
+    appearances: ["leaf", "sparse", "flush"],
+    default: "leaf",
+    flush: { hue: 0.22, hueJitter: 0.04, saturation: 0.48, lightnessScale: 1.3 }
+  },
+  sacred_bodhi_and_fig: {
+    appearances: ["bare", "leaf", "flush"],
+    default: "leaf",
+    flush: { hue: 0.04, hueJitter: 0.035, saturation: 0.48, lightnessScale: 1.5 }
+  },
   european_pear: {
     appearances: ["bare", "bloom", "leaf", "fruit", "harvested"],
     bloom: {
@@ -463,6 +480,34 @@ export function applySeasonalLook(
     mesh.geometry.dispose();
     (mesh.material as THREE.Material).dispose();
   };
+
+  if (crown && appearance === "sparse") {
+    if (quality === "low" || quality === "medium") {
+      // Fitted crowns keep coherent closed lobes while exposing more of the limbs.
+      const geometry = crown.geometry;
+      geometry.computeBoundingBox();
+      const center = geometry.boundingBox!.getCenter(new THREE.Vector3());
+      geometry.translate(-center.x, -center.y, -center.z);
+      geometry.scale(0.78, 0.55, 0.78);
+      geometry.translate(center.x, center.y, center.z);
+    } else {
+      const positions = crown.geometry.getAttribute("position");
+      replace(
+        crown,
+        filterTriangles(crown.geometry, t => {
+          const i = crown.geometry.index ? crown.geometry.index.getX(t * 3) : t * 3;
+          return (
+            positionHash(
+              Math.floor(positions.getX(i) * 4),
+              Math.floor(positions.getY(i) * 4),
+              Math.floor(positions.getZ(i) * 4)
+            ) < 0.4
+          );
+        })
+      );
+    }
+  }
+  if (crown && appearance === "flush" && look.flush) tintFoliage(crown.geometry, look.flush);
 
   if (appearance === "bare") {
     // The generator drew winter twigs on its skeleton; leaves and fruit fall away.

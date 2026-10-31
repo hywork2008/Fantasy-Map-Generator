@@ -1,4 +1,6 @@
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
+import { createHighSmithy } from "./smithyDetails";
 
 function smithy(shoeing: boolean) {
   const k = new ModelKit(shoeing ? "farrier" : "smithy");
@@ -55,3 +57,8 @@ export const models: MedievalModel[] = [
     create: () => smithy(true)
   }
 ];
+
+registerHighVariants(models, {
+  "open-smithy": () => createHighSmithy("open-smithy"),
+  "farriers-workshop": () => createHighSmithy("farriers-workshop")
+});

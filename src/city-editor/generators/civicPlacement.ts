@@ -1,4 +1,4 @@
-import type { HistoricalPeriod } from "../types/document";
+import type { HistoricalPeriod, TempleType } from "../types/document";
 import type { Cell, Point } from "../types/geometry";
 import {
   nearestOnPolyline,
@@ -8,7 +8,7 @@ import {
   polylineTangent,
   segmentsIntersect
 } from "./geom";
-import { civicYardMeters, plazaFootprintMeters, templeCellCount, templeFootprintMeters } from "./housing";
+import { civicYardMeters, plazaFootprintMeters, templeCellCount, templeReservationMeters } from "./housing";
 
 const MAX_CIVIC_CELLS = 12;
 
@@ -495,9 +495,9 @@ export function placeAndClearTempleRect(
   center: Point,
   extentMeters: number,
   guides: Point[][],
-  hazards: PolylineHazard[]
+  hazards: PolylineHazard[],
+  footprint = templeReservationMeters(extentMeters)
 ): OrientedRect {
-  const footprint = templeFootprintMeters(extentMeters);
   let rect: OrientedRect = {
     center: [center[0], center[1]],
     length: footprint.length,
@@ -598,8 +598,8 @@ export function placeTempleFootprint(
     return inA - inB || scores.get(a.id)! - scores.get(b.id)! || a.id - b.id;
   });
   const minCells = templeCellCount(extentMeters, capital);
-  const maxCells = Math.min(MAX_CIVIC_CELLS, minCells + 3);
-  const footprint = templeFootprintMeters(extentMeters);
+  const maxCells = MAX_CIVIC_CELLS;
+  const footprint = templeReservationMeters(extentMeters);
   const minArea = footprint.length * footprint.width;
   const land = cells.filter(c => !sea.has(c.id)).map(c => c.polygon);
   const water = cells.filter(c => sea.has(c.id)).map(c => c.polygon);
@@ -612,19 +612,18 @@ export function placeTempleFootprint(
     );
   const clears = (rect: OrientedRect, ids: number[]): boolean =>
     clearOfHazards(rect) && fitsCluster(rect, ids, byId) && onLand(rect);
+  const completeCluster = (ids: number[]): boolean => {
+    if (ids.length < minCells || clusterArea(ids, byId) < minArea) return false;
+    const center = clusterCentroid(ids, byId);
+    return fitsCluster({ center, ...footprint, rotation: civicOrientation(center, guides) }, ids, byId);
+  };
 
   for (const pick of ranked.slice(0, Math.min(32, ranked.length))) {
     const growEligible = (c: Cell): boolean => eligible(c) && !wet(c) && !streeted(c);
     const fallbackEligible = (c: Cell): boolean => eligible(c) && !wet(c);
     for (const accept of [growEligible, fallbackEligible]) {
       if (!accept(pick)) continue;
-      const cellIds = growCluster(
-        pick.id,
-        byId,
-        accept,
-        ids => ids.length >= minCells && clusterArea(ids, byId) >= minArea,
-        maxCells
-      );
+      const cellIds = growCluster(pick.id, byId, accept, completeCluster, maxCells);
       if (cellIds.length < minCells) continue;
       const rect = placeAndClearTempleRect(clusterCentroid(cellIds, byId), extentMeters, guides, hazards);
       if (!clears(rect, cellIds)) continue;
@@ -633,13 +632,7 @@ export function placeTempleFootprint(
   }
 
   for (const pick of ranked) {
-    const cellIds = growCluster(
-      pick.id,
-      byId,
-      eligible,
-      ids => ids.length >= minCells && clusterArea(ids, byId) >= minArea,
-      maxCells
-    );
+    const cellIds = growCluster(pick.id, byId, eligible, completeCluster, maxCells);
     const rect = placeAndClearTempleRect(clusterCentroid(cellIds, byId), extentMeters, guides, hazards);
     if (onLand(rect) && clearOfHazards(rect)) {
       return { cellIds, anchor: rect.center, rotation: rect.rotation };
@@ -647,9 +640,14 @@ export function placeTempleFootprint(
   }
 
   const pick = ranked[0];
-  const cellIds = growCluster(pick.id, byId, eligible, ids => ids.length >= minCells, maxCells);
+  const cellIds = growCluster(pick.id, byId, eligible, completeCluster, maxCells);
   const rect = placeAndClearTempleRect(clusterCentroid(cellIds, byId), extentMeters, guides, hazards);
-  if (!onLand(rect) || wallHazards.some(h => orientedRectPolylineDistance(rect, h.points) < h.clearance)) return null;
+  if (
+    !fitsCluster(rect, cellIds, byId) ||
+    !onLand(rect) ||
+    wallHazards.some(h => orientedRectPolylineDistance(rect, h.points) < h.clearance)
+  )
+    return null;
   return { cellIds, anchor: rect.center, rotation: rect.rotation };
 }
 
@@ -657,12 +655,10 @@ export function templeRectForElement(
   point: Point,
   sizeMeters: number | undefined,
   rotation: number | undefined,
-  extentMeters: number
+  extentMeters: number,
+  type?: TempleType
 ): OrientedRect {
-  const footprint = templeFootprintMeters(extentMeters);
-  const length = sizeMeters && sizeMeters > 0 ? sizeMeters : footprint.length;
-  const width = length * (footprint.width / footprint.length);
-  return { center: point, length, width, rotation: rotation ?? 0 };
+  return { center: point, ...templeReservationMeters(extentMeters, sizeMeters, type), rotation: rotation ?? 0 };
 }
 
 export function polygonHitsTempleYard(polygon: Point[], rect: OrientedRect, yard: number): boolean {

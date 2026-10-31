@@ -1,4 +1,6 @@
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { createHighParishChurch } from "./parishChurchDetails";
+import { registerHighVariants } from "./qualityVariants";
 
 function church(tower: boolean) {
   const k = new ModelKit(tower ? "parish-church" : "village-chapel");
@@ -55,3 +57,8 @@ export const models: MedievalModel[] = [
     create: () => church(false)
   }
 ];
+
+registerHighVariants(models, {
+  "parish-church": () => createHighParishChurch("parish-church"),
+  "village-chapel": () => createHighParishChurch("village-chapel")
+});

@@ -1,3 +1,5 @@
+import { variantId } from "../modelVariants";
+import { type BarnKind, createHighBarn } from "./barnDetails";
 import { type MedievalModel, ModelKit } from "./modelKit";
 
 export const models: MedievalModel[] = [
@@ -55,3 +57,24 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+for (const model of models) {
+  model.variants = [
+    {
+      id: variantId(`medieval.${model.id}`, "low", "Codex GPT-6.1 Sol"),
+      family: `medieval.${model.id}`,
+      level: "low",
+      label: "Low",
+      author: "Codex GPT-6.1 Sol",
+      create: model.create
+    },
+    {
+      id: variantId(`medieval.${model.id}`, "high", "Codex GPT-6.1 Sol"),
+      family: `medieval.${model.id}`,
+      level: "high",
+      label: "High",
+      author: "Codex GPT-6.1 Sol",
+      create: () => createHighBarn(model.id as BarnKind)
+    }
+  ];
+}
