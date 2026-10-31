@@ -1,0 +1,33 @@
+# BV高品質モデル 第7群：燃料置場と教会（2026-11-01）
+
+Medieval 13の燃料置場3種と14の教会2種にCodex GPT-6.1 SolのHighを追加した。元の生成関数はLowとして保持し、BVでLow／Highを切り替えられる。既存CE用default版のIDと生成関数も保持した。
+
+## 追加内容とBV実測
+
+| モデル | Highの構造・詳細 | Low三角形 | High三角形 | Highメッシュ | 外観 |
+| --- | --- | ---: | ---: | ---: | --- |
+| 覆い付き薪積み | 三角断面の割材、木口・樹皮・木目、乾燥の隙間、地面から上げた枕木、保持柱・筋交い、重ね板の屋根 | 1,000 | 8,616 | 3 | [画像](bv-covered-firewood-stack-high-20261101.png) |
+| 結束した細枝束 | 曲がり・先細り・枝分かれのある細枝、木口、結束と結び目、二段積みの支持台・保持柱 | 6,872 | 45,180 | 2 | [画像](bv-brushwood-faggots-high-20261101.png) |
+| 木炭置場 | 角張った塊と連続した山、板張りの区画・釘、前面の積み下ろし開口、片流れの板屋根、T字の握りと刃を持つシャベル | 5,012 | 2,376 | 5 | [画像](bv-charcoal-bin-high-20261101.png) |
+| 教区教会 | 壁のアーチ開口、奥まった窓ガラス・組子・石枠、石積み目地・控壁・軒蛇腹、身廊と内陣、実際に開いた鐘楼・鎧戸、中空の鐘と舌、開いた西側扉 | 1,072 | 58,099 | 8 | [画像](bv-parish-church-high-20261101.png)・[西側](bv-parish-church-west-high-20261101.png) |
+| 村の礼拝堂 | 小さな身廊と内陣、ランセット窓、石枠・控壁・重ね瓦、木製の開放鐘架、中空の鐘と舌、十字架、開いたアーチ扉 | 1,136 | 32,779 | 8 | [画像](bv-village-chapel-high-20261101.png)・[西側](bv-village-chapel-west-high-20261101.png) |
+
+形状の追加と材質別の統合を行った。木炭置場は低解像度の丸い球の集まりから、連続した山と少ない面数の角張った塊に変えたため、Highの三角形数がLowより少ない。三角形数の増加だけで品質を判定していない。
+
+## CE互換性
+
+5種とも既存の`medieval.<id>@default#codex-gpt-6.1-sol`を保持している。CEの施設・礼拝堂が従来のdefaultを解決することを確認した。BVの選択欄にはLow／Highを表示する。今回の追加によるCE採用変更はない。
+
+## 確認
+
+- 初回：`npx vitest run src/buildings/medieval/fuelAndChurchDetails.test.ts src/city3d/adoption.test.ts`：17件中16件成功、教区教会の鐘楼透過テスト1件が失敗。
+- 原因は身廊の屋根が鐘楼内に入り込んでいたこと。塔と接する屋根・瓦・妻側部材を矩形に切り欠き、鐘楼を塞がないよう修正した。
+- 切り欠き処理を`roofCut.ts`に共通化したため、既存の鍛冶場も確認。`npx vitest run src/buildings/medieval/fuelAndChurchDetails.test.ts src/buildings/medieval/smithyAndInnDetails.test.ts -t 'parish-church|village-chapel|open-smithy|farriers-workshop'`：対象12件成功。
+- 細枝束の密度を調整した後、`npx vitest run src/buildings/medieval/fuelAndChurchDetails.test.ts -t 'brushwood-faggots'`：対象2件成功。今回確認した異なる項目は計23件で、修正後はすべて成功。
+- 検証内容：実寸上限、接地、有限の頂点・法線、上面・側面投影、資源の独立性と一度だけの解放、元のCE版参照、薪の乾燥空間と木炭の積み下ろし開口、教会の入口・鐘楼の透過部、屋根の外面。
+- `npx tsc --noEmit`：共通処理追加後も成功。変更ソースのBiomeチェック、`git diff --check`：成功。
+- 実BVで5種すべてのLow→High、Codex作者表示、三角形数、外観を確認。教会2種は西側の画像も保存した。巡回中のJavaScriptエラーは0件。
+
+## 次の作業
+
+Medieval 15の醸造所2種、その後16の穀倉2種を作製する。穀倉はCE用default参照を保持する。[全体の監査一覧](bv-non-tree-high-quality-audit-20261031.md)では累計34種を追加し、未作製候補は165件から160件になった。件数は作者違い・状態違い・同じ生成関数の別表示を含む監査レコードで、固有資産数とは異なる。

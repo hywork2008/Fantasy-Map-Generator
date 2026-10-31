@@ -12,7 +12,7 @@ Regenerate: `node --import tsx scripts/auditBvModelQuality.mts`
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **55**. Missing candidates: **165**.
+Records: **220**. Codex High or Ultra available: **60**. Missing candidates: **160**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -31,8 +31,8 @@ Records: **220**. Codex High or Ultra available: **55**. Missing candidates: **1
 | Medieval 10 | 3 | 3 | 0 |
 | Medieval 11 | 2 | 2 | 0 |
 | Medieval 12 | 2 | 2 | 0 |
-| Medieval 13 | 3 | 0 | 3 |
-| Medieval 14 | 2 | 0 | 2 |
+| Medieval 13 | 3 | 3 | 0 |
+| Medieval 14 | 2 | 2 | 0 |
 | Medieval 15 | 2 | 0 | 2 |
 | Medieval 16 | 2 | 0 | 2 |
 | Medieval 17 | 2 | 0 | 2 |
@@ -76,8 +76,9 @@ Records: **220**. Codex High or Ultra available: **55**. Missing candidates: **1
 5. Fourth batch (2026-11-01): added High for the three Medieval 07 dwellings and two Medieval 08 shop houses. The existing default dwelling variants remain registered for CE. See [verification and previews](bv-dwelling-shop-high-20261101.md).
 6. Fifth batch (2026-11-01): added High for the three Medieval 09 hand carts and three Medieval 10 bakeries. See [verification and previews](bv-cart-bakery-high-20261101.md).
 7. Sixth batch (2026-11-01): added High for the two Medieval 11 smithies and two Medieval 12 inns. Existing default smithy variants remain registered for CE. See [verification and previews](bv-smithy-inn-high-20261101.md).
-8. Next: Medieval 13 fuel storage, followed by 14 parish churches. Preserve their existing default CE variants when adding BV tiers. Landmarks, standalone props, regional houses and the Codex basilica form later batches.
-9. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
+8. Seventh batch (2026-11-01): added High for the three Medieval 13 fuel stores and two Medieval 14 churches, preserving their default CE variants. See [verification and previews](bv-fuel-church-high-20261101.md).
+9. Next: Medieval 15 breweries, followed by 16 granaries. Preserve existing default CE variants for granaries when adding BV tiers. Landmarks, standalone props, regional houses and the Codex basilica form later batches.
+10. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
 
@@ -96,11 +97,6 @@ Records: **220**. Codex High or Ultra available: **55**. Missing candidates: **1
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
-| Medieval 13 | `covered-firewood-stack` | Covered split-firewood stack | single/default; assumed Low - [source](../../src/buildings/medieval/13-fuel-storageModels.ts) |
-| Medieval 13 | `brushwood-faggots` | Bound brushwood faggots | single/default; assumed Low - [source](../../src/buildings/medieval/13-fuel-storageModels.ts) |
-| Medieval 13 | `charcoal-bin` | Covered charcoal store | single/default; assumed Low - [source](../../src/buildings/medieval/13-fuel-storageModels.ts) |
-| Medieval 14 | `parish-church` | Small parish church and bell tower | single/default; assumed Low - [source](../../src/buildings/medieval/14-parish-churchesModels.ts) |
-| Medieval 14 | `village-chapel` | Village chapel with bellcote | single/default; assumed Low - [source](../../src/buildings/medieval/14-parish-churchesModels.ts) |
 | Medieval 15 | `town-brewery` | Town brewery and copper yard | single/default; assumed Low - [source](../../src/buildings/medieval/15-breweriesModels.ts) |
 | Medieval 15 | `ale-brewhouse` | Small ale brewhouse | single/default; assumed Low - [source](../../src/buildings/medieval/15-breweriesModels.ts) |
 | Medieval 16 | `raised-timber-granary` | Raised timber granary | single/default; assumed Low - [source](../../src/buildings/medieval/16-granariesModels.ts) |
@@ -295,6 +291,11 @@ Records: **220**. Codex High or Ultra available: **55**. Missing candidates: **1
 | Medieval 11 | `farriers-workshop` | Farrier workshop and shoeing stock | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/11-smithiesModels.ts) |
 | Medieval 12 | `roadside-inn` | Roadside inn with stable court | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/12-innsModels.ts) |
 | Medieval 12 | `courtyard-hostelry` | Courtyard hostelry | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/12-innsModels.ts) |
+| Medieval 13 | `covered-firewood-stack` | Covered split-firewood stack | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/13-fuel-storageModels.ts) |
+| Medieval 13 | `brushwood-faggots` | Bound brushwood faggots | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/13-fuel-storageModels.ts) |
+| Medieval 13 | `charcoal-bin` | Covered charcoal store | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/13-fuel-storageModels.ts) |
+| Medieval 14 | `parish-church` | Small parish church and bell tower | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/14-parish-churchesModels.ts) |
+| Medieval 14 | `village-chapel` | Village chapel with bellcote | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/14-parish-churchesModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-barracks` | Citadel barracks · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-command` | Citadel command · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |

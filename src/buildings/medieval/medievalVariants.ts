@@ -81,6 +81,11 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
     };
     // Previously registered CE families keep default identities while BV gains selectable tiers.
     return model.variants
-      ? [...model.variants, ...(dwellings.includes(model) || smithies.includes(model) ? [legacy] : [])]
+      ? [
+          ...model.variants,
+          ...(dwellings.includes(model) || smithies.includes(model) || fuel.includes(model) || churches.includes(model)
+            ? [legacy]
+            : [])
+        ]
       : [legacy];
   });
