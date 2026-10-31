@@ -2733,7 +2733,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
           : []),
         ...(variant
           ? [
-              fact("Quality", variant.label),
+              fact(partFactory ? "Assembly quality" : "Quality", variant.label),
               ...(definition.seasons
                 ? [fact("Season", definition.seasons.options.find(entry => entry.id === season)?.label ?? season!)]
                 : []),

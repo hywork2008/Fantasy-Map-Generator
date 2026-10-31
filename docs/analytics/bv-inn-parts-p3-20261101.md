@@ -42,7 +42,7 @@ Lowの部品別資源所有によりユニーク数は増える。Roadsideはgeo
 
 付属樽はLowでも4,940三角形、Highは10,136。対してLowの宿泊棟は630、厩舎は244三角形。Low標準の大半を単独展示用の共通容器が占めている。今回は標準形状を保つため置き換えていないが、井戸に続く付属物の軽量化候補である。Highの厩舎は8,220三角形で、単体でも床・仕切り・支持・屋根を保持する。
 
-`node --import tsx scripts/profileInnParts.mts`で標準4ケースのハッシュ、全12構成と各部品の単体負荷を再生成できる。計測したモデルは都度解放する。
+このJSONは部品化時点の記録。後続の[共有樽への置き換え](bv-inn-shared-barrel-20261101.md)でHighの樽を意図的に変更し、`scripts/profileInnParts.mts`のHigh基準値と出力既定名を更新した。Lowの基準値は同じである。
 
 ## 検証
 
@@ -61,4 +61,4 @@ Lowの部品別資源所有によりユニーク数は増える。Roadsideはgeo
 - [Courtyard High・宿泊棟と中庭](bv-inn-lodging-court-p3-20261101.png)
 - [Courtyard High・標準へ戻した表示](bv-inn-standard-p3-20261101.png)
 
-次はMedieval 15 Breweriesの醸造棟・上屋・炉釜・容器・作業設備を分割する。容器や細部の単体負荷も確認し、共通の付属物の品質予算を整理する。
+部品化後の指摘により、Highの専用樽を削除してStorage propsの閉じた樽に共通化した。上表は変更前の値で、変更後の値は[共有樽の修正記録](bv-inn-shared-barrel-20261101.md)を参照。次はMedieval 15 Breweriesの部品化へ進む。

@@ -71,11 +71,10 @@ export function innPartFactories(
     .map(role => ({
       id: `${kind}:${role}`,
       role,
-      quality,
+      // This shared prop has one registered default edition, treated as Low rather than an Inn High asset.
+      quality: role === "barrel" ? "low" : quality,
       author: DEFAULT_AUTHOR,
-      ...(quality === "low" && role === "barrel"
-        ? { basedOn: [variantId("container.barrel-closed", "default", DEFAULT_AUTHOR)] }
-        : {}),
+      ...(role === "barrel" ? { basedOn: [variantId("container.barrel-closed", "default", DEFAULT_AUTHOR)] } : {}),
       create: () => (quality === "high" ? createHighInnComponent(kind, role) : createLowInnComponent(kind, role))
     }));
 }

@@ -20,7 +20,7 @@ it.each([...smithies, ...inns])("$id High fits, projects and owns independent re
     [size.y, definition.size[2]]
   ])
     expect(actual).toBeLessThanOrEqual(limit + 0.00001);
-  expect(model.pickables.length).toBeLessThanOrEqual(11);
+  expect(model.pickables.length).toBeLessThanOrEqual(definition.task === 12 ? 14 : 11);
   for (const mesh of model.pickables)
     for (const attribute of ["position", "normal"])
       expect(Array.from(mesh.geometry.getAttribute(attribute).array).every(Number.isFinite)).toBe(true);

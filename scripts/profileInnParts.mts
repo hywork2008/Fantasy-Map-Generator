@@ -6,12 +6,12 @@ import { modelParts } from "../src/buildings/modelParts";
 import { models } from "../src/buildings/medieval/12-innsModels";
 import type { CityStructureMeshes } from "../src/city3d/three/structureMeshes";
 
-// Captured before splitting Inns. Triangle order across material buckets is irrelevant.
+// Low retains the pre-split baseline; High includes the shared closed Storage barrel revision.
 const baseline = {
   "roadside-inn/low": "172bdea8adb1672812a787d666a770d54ca3b14fd1380d88f17bf1984aa7b47c",
-  "roadside-inn/high": "b3faaa5f0af20ff0a2b672442d0f3c32fcbddf4dc72fb7cce69ef43f23b4e0bd",
+  "roadside-inn/high": "4c60da7de4d619af5a4dc8c22b82457d7b9528929e4f79af730fb130195ae2fb",
   "courtyard-hostelry/low": "150f83d85aa92ae7e1c22e6af111405865e7754b714e7ae5f577f4df30504752",
-  "courtyard-hostelry/high": "f5820eb7aa9a88bf671704764230ba0c17f6ea6762c255d4e3fda85267bbfafb"
+  "courtyard-hostelry/high": "10f08feea326508d0210ffa7892cb84cc38c8c6e8f7fb71bb6f45f6188c5c334"
 };
 
 function digest(model: CityStructureMeshes) {
@@ -56,10 +56,10 @@ for (const definition of models) {
     rows.push({ id: definition.id, quality: variant.level, standard, compositions, components });
   }
 }
-const output = process.argv[2] ?? "docs/analytics/bv-inn-parts-p3-20261101.json";
+const output = process.argv[2] ?? "docs/analytics/bv-inn-shared-barrel-20261101.json";
 await writeFile(output, JSON.stringify({
   runtime: process.version,
-  method: "SHA-256 over sorted triangle strings: material color hex and side, then oriented world vertices rounded to 5 decimals. Normals, mesh names and resource identity are excluded. Baseline was captured before component extraction. Every registered model, composition and single component is independently built, counted and disposed. Source-part mesh counts in ledgers precede final material batching.",
+  method: "SHA-256 over sorted triangle strings: material color hex and side, then oriented world vertices rounded to 5 decimals. Normals, mesh names and resource identity are excluded. Low baseline predates component extraction; High baseline includes the shared closed Storage barrel revision. Original P3 measurements remain in bv-inn-parts-p3-20261101.json. Every registered model, composition and single component is independently built, counted and disposed. Source-part mesh counts in ledgers precede final material batching.",
   rows
 }, null, 2) + "\n");
 console.log(rows.map(row => ({ id: row.id, quality: row.quality, matchesBaseline: row.standard.matchesBaseline, metrics: row.standard.metrics })));

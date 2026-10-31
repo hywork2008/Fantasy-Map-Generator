@@ -1,5 +1,5 @@
-import * as THREE from "three";
 import { compactModel } from "../compactModel";
+import { createMedievalContainerModel } from "../props/medievalContainers";
 import { HouseDetailKit, type HouseOpening } from "./houseDetailKit";
 
 export type InnKind = "roadside-inn" | "courtyard-hostelry";
@@ -120,48 +120,6 @@ function yardTable(k: HouseDetailKit, x: number, z: number) {
   }
 }
 
-function barrel(k: HouseDetailKit, x: number, z: number) {
-  const profile = [
-    [0, 0],
-    [0.3, 0],
-    [0.34, 0.12],
-    [0.38, 0.4],
-    [0.34, 0.7],
-    [0.31, 0.82],
-    [0.28, 0.82],
-    [0.28, 0.08],
-    [0, 0.08]
-  ];
-  k.add(
-    "bulging-stave-barrel",
-    new THREE.LatheGeometry(
-      profile.map(([r, y]) => new THREE.Vector2(r, y)),
-      32
-    ),
-    "wood"
-  ).position.set(x, 0, z);
-  for (const [y, r] of [
-    [0.11, 0.34],
-    [0.4, 0.38],
-    [0.72, 0.337]
-  ])
-    k.ring("barrel-iron-hoop", [x, y, z], r + 0.008, 0.018, "iron");
-  for (let i = 0; i < 20; i++) {
-    const a = (i * Math.PI) / 10;
-    const points = Array.from({ length: 9 }, (_, j): readonly [number, number, number] => {
-      const y = 0.006 + j * 0.1,
-        r = 0.31 + 0.07 * Math.sin((y / 0.8) * Math.PI);
-      return [x + Math.cos(a) * (r + 0.005), y, z + Math.sin(a) * (r + 0.005)];
-    });
-    k.tube("barrel-stave-joint", points, 0.005, "oak");
-  }
-  for (let xx = -0.25; xx <= 0.25; xx += 0.1) {
-    const half = Math.sqrt(0.29 ** 2 - xx ** 2);
-    k.box("barrel-lid-plank", [x + xx, 0.825, z], [0.095, 0.045, half * 2], "wood");
-  }
-  k.cylinder("barrel-bung", [x, 0.857, z], 0.035, 0.025, "oak", 0.035, 12);
-}
-
 function sign(k: HouseDetailKit) {
   k.beam("inn-sign-wall-arm", [2, 3.2, -0.45], [2, 3.2, 0.95], 0.065, "iron");
   k.beam("sign-arm-brace", [2, 2.7, -0.45], [2, 3.18, 0.55], 0.045, "iron");
@@ -205,7 +163,7 @@ export function createHighInnComponent(kind: InnKind, part: InnPart) {
   else if (part === "yard-furniture") {
     yardTable(k, -2.25, 2);
     if (large) yardTable(k, 2.75, 3.2);
-  } else if (part === "barrel") barrel(k, 3, 0.6);
+  } else if (part === "barrel") k.attach(createMedievalContainerModel("barrel", "closed"), [3, 0, 0.6]);
   else if (part === "sign") sign(k);
   else if (part === "gate") {
     if (large) {
