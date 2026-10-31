@@ -1,6 +1,6 @@
 import { simEvents } from "../../../simulation/events";
 import { getSimulationCharacters as getCharacters, hasCharactersContext } from "../../characters/charactersContext";
-import { stateHasEnemy } from "../../hostCore";
+import { isPeaceMode, stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getRulerId } from "../../nobility/nobilityContext";
@@ -39,7 +39,7 @@ export const WAR_FOOTING_SECONDARY_FLOOR: Partial<
 };
 
 export function isWarFootingActive(state: Pick<State, "warFooting">): boolean {
-  return Boolean(state.warFooting);
+  return !isPeaceMode() && Boolean(state.warFooting);
 }
 
 /**
@@ -192,6 +192,7 @@ export function getRulerBoldness(state: Pick<State, "i">): number {
  * - At peace, very bold rulers preemptively arm against Rivals and may stay armed.
  */
 export function shouldAiEnableWarFooting(state: State): boolean {
+  if (isPeaceMode()) return false;
   const boldness = getRulerBoldness(state);
   const atWar = stateHasEnemy(state);
 
@@ -234,6 +235,16 @@ function dispatchWarFootingChange(state: State, warFooting: boolean, reason: str
  * unless a bold ruler keeps a Rival-facing posture.
  */
 export function syncWarFootingFromDiplomacy(state: State): { changed: boolean; warFooting: boolean } {
+  // Peace mode demobilizes every state, player locks included.
+  if (isPeaceMode()) {
+    const wasOn = Boolean(state.warFooting);
+    if (wasOn) {
+      setWarFooting(state, false);
+      dispatchWarFootingChange(state, false, "peace-mode");
+    }
+    state.warFootingPlayerLocked = false;
+    return { changed: wasOn, warFooting: false };
+  }
   const wantOn = shouldAiEnableWarFooting(state);
   const atWar = stateHasEnemy(state);
 

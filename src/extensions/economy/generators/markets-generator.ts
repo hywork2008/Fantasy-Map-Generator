@@ -4,7 +4,7 @@ import FlatQueue from "flatqueue";
 import { deliverConversionTimber } from "../../../generators/landUse";
 import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
-import { pow } from "../../../simulation/deterministicMath";
+import { getMarketGenerationSpacing, getMarketSettings } from "../../../simulation/marketSettings";
 import { optionsStore } from "../../hostCore";
 import type { Burg, ShipGoodName, ShipGoodStock } from "../../hostTypes";
 import {
@@ -15,7 +15,6 @@ import {
 } from "../../hostTypes";
 import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
 import { getLivestockDispatchTable } from "../context/cellTables";
-import { getMilitaryResourceLedgers } from "../context/fiscal";
 import {
   getColdStorageDepots,
   getDeals,
@@ -50,7 +49,7 @@ import {
   recipesForIndustrialDemand
 } from "./craftDemandCalibration";
 import { laborPeople } from "./craftScale";
-import { getMarketPriceLevel, getMintPriceFloor, getMoneyPriceLevelForMarket } from "./currencySufficiency";
+import { getMarketPriceLevel, getMoneyPriceLevelForMarket } from "./currencySufficiency";
 import { ExportStaging } from "./exportStaging";
 import { getFarmToolsDemandByMarket } from "./farmToolsDemand";
 import { withRegionalDemandShareCache } from "./faunaPopulation";
@@ -81,12 +80,20 @@ import { recordGoodFlow } from "./goodsBalanceLedger";
 import { floorToRetailLot, getMarketTradeMinimumUnits, getRetailLotSize } from "./goodsTradeLots";
 import { getCraftDomainForGood } from "./guildKnowledgeTypes";
 import { getMonthlyHouseholdFuelDemands, getWoodSupplyMonthKey } from "./heating";
-import { moveRuralPursesWithFarms } from "./householdWealth";
+import { getRuralPopulationByMarket, moveRuralPursesWithFarms } from "./householdWealth";
 import { getHouseTimberShare, getHousingRecipe } from "./housingRecipes";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
-import { getLivestockFodderOrderLots } from "./livestockFeed";
+import { getFodderSeasonDemandLots } from "./livestockFeed";
 import { isLuxuryValueDemandEnabled, luxuryBudgetByMarketTier, luxuryStockTarget } from "./luxuryDemand";
 import { isHighValueTradeGood, isLuxuryDemandGood, type LuxuryTier } from "./luxuryTiers";
+import {
+  absorbMarketHoldings,
+  handOverLocalDeliveries,
+  handOverTrade,
+  hasMarketTrafficInFlight,
+  marketTrafficInFlight,
+  updateLowRuralWealthMonths
+} from "./marketDissolution";
 import {
   computeMarketGoodFlowBudget,
   TRADE_RESERVE_FACTOR as FLOW_TRADE_RESERVE_FACTOR,
@@ -96,7 +103,11 @@ import { syncMarketManagers } from "./marketManagers";
 import {
   applyMarketPressure,
   customerBuyPrice,
+  getPriceFloor,
+  getRawGoodTargetPrice,
   getWarPriceModifier,
+  hasSettledPrice,
+  LAPLACE_PRICE_SMOOTHING,
   MARKET_MARGIN,
   PRICE_CEILING_FACTOR,
   PRICE_FLOOR_FACTOR
@@ -126,6 +137,9 @@ import {
   MerchantTradeCapital
 } from "./merchantTradeCapital";
 import { LAND_HIRE_FREIGHT_MULTIPLIER, MerchantTransportAssets } from "./merchantTransportAssets";
+import { moveProvisionsToNewMarkets } from "./newMarketProvisions";
+import { getPeatGood } from "./peatFuel";
+import { supplyRuralPeat } from "./peatSupply";
 import { expectedPortStorageUnitCost } from "./portWarehouses";
 import { applyPriceElasticity, relaxMarketPrice } from "./priceElasticity";
 import {
@@ -191,7 +205,6 @@ export const RURAL_MONTHLY_FELLING_SHARE = 0.01;
  * (docs/plan/farm-labour-calibration.md §21.2, §22).
  */
 export const RURAL_BUILDING_TIMBER_PER_1000_RESIDENTS_ANNUAL = 40;
-const LAPLACE_PRICE_SMOOTHING = 5;
 
 /** Extra import-reserve share per point of burg warIntensity for military/essential goods. */
 export const WARTIME_TRADE_RESERVE_PER_INTENSITY = 0.5;
@@ -342,13 +355,6 @@ interface GlobalTradeContext {
 export type { Deal, Market } from "./marketTypes";
 
 /** Goods whose supply is a mine or a furnace rather than a cell distribution or a recipe. */
-/** Lowest price a good falls to: a quarter of its value, or the mint price for minted metal. */
-function getPriceFloor(good: Pick<Good, "unit" | "value">, baseValue: number): number {
-  const floor = baseValue * PRICE_FLOOR_FACTOR;
-  const mintFloor = getMintPriceFloor(good);
-  return mintFloor === undefined ? floor : Math.max(floor, mintFloor);
-}
-
 function isMineOrFurnaceGood(good: Pick<Good, "tags">): boolean {
   return good.tags.some(tag => tag === "ore" || tag === "ingot" || tag === "mineral");
 }
@@ -656,6 +662,7 @@ export class MarketsModule {
     const changed = previous.length !== next.length || previous.some((marketId, cellId) => marketId !== next[cellId]);
     if (changed) {
       moveRuralPursesWithFarms(previous, next);
+      moveProvisionsToNewMarkets(previous, next);
       this.invalidateRuralProductionCache();
     }
     return changed;
@@ -706,9 +713,11 @@ export class MarketsModule {
 
     // minSpacing scales with map size relative to burg count
     let minSpacing =
-      (((this.worldContext.graphWidth + this.worldContext.graphHeight) * 2) /
-        pow(this.worldContext.pack.burgs.length, 0.6)) |
-      0;
+      getMarketGenerationSpacing(
+        this.worldContext.graphWidth,
+        this.worldContext.graphHeight,
+        this.worldContext.pack.burgs.length
+      ) | 0;
 
     const markets: Market[] = [];
     const tree = quadtree<[number, number, number]>(
@@ -749,6 +758,7 @@ export class MarketsModule {
     const previous = getMarketCellColumn();
     const territories = this.expandMarkets(markets);
     moveRuralPursesWithFarms(previous, territories);
+    moveProvisionsToNewMarkets(previous, territories);
     this.invalidateRuralProductionCache();
     return territories;
   }
@@ -935,6 +945,12 @@ export class MarketsModule {
 
     const wood = getGoods().find(g => g.name === "Wood");
     if (wood && isGoodEnabled(wood)) this.supplyRuralWood(wood, index);
+    if (getPeatGood())
+      supplyRuralPeat(
+        new Map([...getMonthlyHouseholdFuelDemands()].map(([marketId, demand]) => [marketId, demand.ruralDemand])),
+        getWoodSupplyMonthKey(),
+        (marketId, burgId, goodId, units) => this.addRuralOutput(marketId, burgId, goodId, units)
+      );
 
     this.applyRuralTotals(index.standard);
 
@@ -1581,7 +1597,7 @@ export class MarketsModule {
     // stapleFood (Grain) pricing is owned by foodLedgerConsumption.ts's monthly settlement.
     const goods = getGoods()
       .filter(isGoodEnabled)
-      .filter(good => !good.tags.includes("stapleFood") && good.name !== "Salt");
+      .filter(good => !good.tags.includes("stapleFood") && !hasSettledPrice(good));
     const consumerDemandFactors = this.collectConsumerDemand(goods);
     const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
     const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(goods);
@@ -1631,10 +1647,9 @@ export class MarketsModule {
             market.i,
             textileOrders
           ) + (mineOrFurnaceGood ? (metalDemandByMarket.get(market.i)?.get(good.i) ?? 0) : 0);
-        const ratio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
         const baseValue = good.value * priceLevel;
         const floor = getPriceFloor(good, baseValue);
-        const targetPrice = minmax(baseValue * ratio, floor, baseValue * PRICE_CEILING_FACTOR);
+        const targetPrice = getRawGoodTargetPrice(good, baseValue, demand, marketGood.stock);
         const prevPrice = marketGood.price > 0 ? marketGood.price : baseValue;
         marketGood.price = relaxMarketPrice(prevPrice, targetPrice, floor, baseValue * PRICE_CEILING_FACTOR);
       }
@@ -1714,7 +1729,7 @@ export class MarketsModule {
       const population = populationByMarket[market.i] || 0;
       const priceLevel = getMarketPriceLevel(market);
       for (const good of getGoods().filter(isGoodEnabled)) {
-        if (good.tags.includes("stapleFood") || good.name === "Salt") continue;
+        if (good.tags.includes("stapleFood") || hasSettledPrice(good)) continue;
         // These are source-cell farmgate references, not empty trade pools awaiting imports.
         if (good.name === "Apples" || good.name === "Pears") continue;
         const marketGood = this.getMarketGood(market, good);
@@ -1744,7 +1759,7 @@ export class MarketsModule {
       const multiplier = getMoneyPriceLevelForMarket(market);
       if (multiplier === 1) continue;
       for (const good of getGoods().filter(isGoodEnabled)) {
-        if (good.tags.includes("stapleFood") || good.name === "Salt") continue;
+        if (good.tags.includes("stapleFood") || hasSettledPrice(good)) continue;
         const marketGood = this.getMarketGood(market, good);
         marketGood.price = rn(
           minmax(marketGood.price * multiplier, good.value * PRICE_FLOOR_FACTOR, good.value * PRICE_CEILING_FACTOR),
@@ -1759,13 +1774,44 @@ export class MarketsModule {
     return market.name || this.worldContext.pack.burgs[market.centerBurgId]?.name || `Market ${market.i}`;
   }
 
-  addMarket(burgId: number): Market | null {
+  /**
+   * Distance a town promoted during the run must keep from every market centre to open its own
+   * market: the generation spacing for the current burg count, times the world's setting.
+   */
+  getFoundingSpacing(): number {
+    const { graphWidth, graphHeight, pack } = this.worldContext;
+    return (
+      getMarketGenerationSpacing(graphWidth, graphHeight, pack.burgs.length) * getMarketSettings().foundingSpacingFactor
+    );
+  }
+
+  /**
+   * `spaced`: a town promoted during the run (world birth included) opens a market only as far
+   * from every centre as markets are spaced at generation; nearer, it stays in the market whose
+   * catchment already holds it (docs/plan/market-founding-viability.md §3.1). The player's own
+   * Add market is not limited.
+   */
+  addMarket(burgId: number, { spaced = false }: { spaced?: boolean } = {}): Market | null {
     const burg = (this.worldContext.pack.burgs as Burg[])[burgId];
     if (!burg || burg.removed) return null;
 
     const markets = getMarkets();
     if (markets.some(m => m.centerBurgId === burgId)) {
       return null;
+    }
+
+    if (spaced && !this.usesStateBoundedTerritories()) {
+      const spacing = this.getFoundingSpacing();
+      const burgs = this.worldContext.pack.burgs as Burg[];
+      const crowded = markets.some(market => {
+        const center = burgs[market.centerBurgId];
+        return center && !center.removed && Math.hypot(center.x - burg.x, center.y - burg.y) < spacing;
+      });
+      if (crowded) {
+        const column = getMarketCellColumn();
+        if (burg.cell >= 0 && burg.cell < column.length) burg.market = column[burg.cell] || 0;
+        return null;
+      }
     }
 
     // A new frontier village is supplied by the merchants who already serve
@@ -1834,6 +1880,80 @@ export class MarketsModule {
 
     syncBurgMarketLedgers();
 
+    return true;
+  }
+
+  /**
+   * Monthly: dissolves each market whose rural purse per head stayed below the world setting's
+   * share of the median market's for its months (docs/plan/market-founding-viability.md §3.2).
+   * `windDown` first stops new trade with it and waits for the cargo on the way; `handOver`
+   * dissolves it at once. Returns the dissolved market ids.
+   */
+  dissolveUnviableMarkets(): number[] {
+    if (this.usesStateBoundedTerritories()) return [];
+    const { dissolveWealthShare, dissolveMonths, dissolveCargo } = getMarketSettings();
+    if (!(dissolveWealthShare > 0) || getMarkets().length < 2) {
+      for (const market of getMarkets()) delete market.dissolving;
+      return [];
+    }
+    const due = updateLowRuralWealthMonths(
+      getRuralPopulationByMarket(getMarketCellColumn()),
+      dissolveWealthShare,
+      dissolveMonths
+    );
+    const dissolved: number[] = [];
+    for (const market of due) {
+      if (getMarkets().length < 2) break;
+      if (dissolveCargo === "windDown") {
+        market.dissolving = true;
+        if (hasMarketTrafficInFlight(market)) continue;
+      } else if (marketTrafficInFlight(market) === "merchantShips") continue;
+      if (this.dissolveMarket(market, dissolveCargo === "handOver")) dissolved.push(market.i);
+    }
+    return dissolved;
+  }
+
+  /** Redraws the catchments without `market` and hands its holdings to the market that takes its centre. */
+  private dissolveMarket(market: Market, handOverCargo: boolean): boolean {
+    const markets = getMarkets();
+    const index = markets.indexOf(market);
+    if (index === -1) return false;
+    const burgs = this.worldContext.pack.burgs as Burg[];
+    const center = burgs[market.centerBurgId];
+    const previous = getMarketCellColumn().slice();
+    const remaining = markets.filter(other => other !== market);
+    if (center) center.plaza = 0;
+    this.indexMarkets(remaining);
+    const next = this.floodFillMarketTerritories(remaining);
+
+    let into = center ? this.get(next[center.cell]) : undefined;
+    if (!into || into === market) {
+      const taken = new Map<number, number>();
+      previous.forEach((owner, cellId) => {
+        if (owner === market.i && next[cellId]) taken.set(next[cellId], (taken.get(next[cellId]) ?? 0) + 1);
+      });
+      const [best] = [...taken.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+      into = best ? this.get(best[0]) : undefined;
+    }
+    if (!into) {
+      // Nowhere to go: restore the market's catchment.
+      this.indexMarkets(markets);
+      this.floodFillMarketTerritories(markets);
+      if (center) center.plaza = 1;
+      return false;
+    }
+
+    // The rural purses follow their farms while the market is still listed.
+    moveRuralPursesWithFarms(previous, next);
+    absorbMarketHoldings(market, into);
+    handOverLocalDeliveries(market, into);
+    if (handOverCargo) handOverTrade(market, into);
+    markets.splice(index, 1);
+    setDeals([]);
+    this.invalidateTradeRouteCache();
+    this.invalidateRuralProductionCache();
+    this.indexMarkets();
+    syncBurgMarketLedgers();
     return true;
   }
 
@@ -2696,8 +2816,10 @@ export class MarketsModule {
       deals.push(deal);
       observe?.({ stage: "deal", ...leg, units, value: units * landedCost });
 
-      exporterGood.price = rn(this.applyMarketPressure(good.value, exporterGood.price, units), 2);
-      importerGood.price = rn(this.applyMarketPressure(good.value, importerGood.price, -units), 2);
+      if (!hasSettledPrice(good)) {
+        exporterGood.price = rn(this.applyMarketPressure(good.value, exporterGood.price, units), 2);
+        importerGood.price = rn(this.applyMarketPressure(good.value, importerGood.price, -units), 2);
+      }
       importerStockAdjustments.set(opportunity.importer.i, importerAdj + units);
       // Note: importerGood.stock is NO LONGER instantly increased. Caravans physically transport it.
     }
@@ -3226,16 +3348,14 @@ export class MarketsModule {
   ): number {
     const market = marketId === undefined ? undefined : this.get(marketId);
     if (good.name === "Fodder" && market) {
-      const military = getMilitaryResourceLedgers()
-        .filter(ledger => ledger.supplyMarketId === market.i)
-        .reduce((sum, ledger) => sum + (ledger.annualDemand.fodder ?? 0) / 12, 0);
       // Migration removes only legacy defaults; retained custom demand still consumes market stock.
       const customDemand = applyPriceElasticity(
         urbanPopulation * (consumerDemand + industrialDemand),
         good,
         laggedPrice
       );
-      return getLivestockFodderOrderLots(market) + military + customDemand;
+      const price = laggedPrice && laggedPrice > 0 ? laggedPrice : good.value * getMarketPriceLevel(market);
+      return getFodderSeasonDemandLots(market, price) + customDemand;
     }
     const orders = market ? (textileOrders ?? getTextileMarketOrders(market)) : undefined;
     if (good.name === "Wool Blankets") return orders?.blankets ?? 0;

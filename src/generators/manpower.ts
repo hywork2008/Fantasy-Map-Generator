@@ -17,7 +17,7 @@ import { optionsStore } from "../state/optionsStore";
 import type { MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { isUndeadMilitaryUnit, livingTroops, undeadTroops } from "../utils/regimentPopulation";
-import { isStateInActiveConflict } from "./activeConflict";
+import { isPeaceMode, isStateInActiveConflict } from "./activeConflict";
 import { recordDeaths } from "./populationLossTracker";
 
 /** Peacetime under-arms target as a share of total people. */
@@ -293,8 +293,9 @@ export function addCivilianMalePeople(
   return added;
 }
 
-/** Whether diplomacy currently marks this state as hostile to another state. */
+/** Whether diplomacy currently marks this state as hostile to another state. Never in peace mode. */
 export function stateHasEnemy(state: State): boolean {
+  if (isPeaceMode()) return false;
   return state.diplomacy?.includes("Enemy") ?? false;
 }
 

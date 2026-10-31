@@ -1,0 +1,90 @@
+{
+ "schemaVersion": 1,
+ "inputSha256": "5592c9acbdf7a96f94c60293d5b784c1e799268f93200719be55375bb33c352b",
+ "months": 24,
+ "notes": [
+  "Settled land cells; 'wet' = annual rainfall >= 2000 mm (100 mm proxy). People are rural; urbanPeople is burg population x populationRate.",
+  "Herd values are supported heads (carrying capacity after winter feed), real animals.",
+  "lastTwelveMonths sums the monthly Food Ledger settlement (food-ledger units) and the livestock feed ledgers (kg DM) since the previous sample."
+ ],
+ "years": [
+  {
+   "month": 12,
+   "date": [
+    1301,
+    1
+   ],
+   "world": {
+    "people": 3694097.693361342,
+    "cultivatedHa": 4308901.195487976,
+    "pastureKeptHa": 32817511.813870296,
+    "Cattle": 2445738.2332357764,
+    "Horses": 728028.9812865152,
+    "Camels": 41114.525954322206,
+    "Sheep": 8030263.97095342,
+    "Goats": 160346.65122185653,
+    "urbanPeople": 606430.7980224859
+   },
+   "wet": {
+    "people": 1274845.5022946,
+    "cultivatedHa": 2162280.5737075806,
+    "pastureKeptHa": 13036418.236718386,
+    "Cattle": 1070554.451531779,
+    "Horses": 326725.2902399373,
+    "Camels": 561.9345122080197,
+    "Sheep": 3303271.7110333564,
+    "Goats": 2191.544597611277
+   },
+   "lastTwelveMonths": {
+    "ruralNeed": 1059054.7400000005,
+    "ruralSupplied": 1059054.7600000005,
+    "urbanNeed": 262498.29999999993,
+    "urbanSupplied": 259097.4499999999,
+    "feedRequiredKg": 12614019916.334335,
+    "feedUnmetKg": 24119995.687703755,
+    "ruralMetShare": 1.000000018884765,
+    "urbanMetShare": 0.9870442970487807,
+    "feedUnmetShare": 0.0019121577298661094
+   }
+  },
+  {
+   "month": 24,
+   "date": [
+    1302,
+    1
+   ],
+   "world": {
+    "people": 3698816.5472000837,
+    "cultivatedHa": 4438244.825965881,
+    "pastureKeptHa": 33204534.243716642,
+    "Cattle": 2492383.3241600427,
+    "Horses": 737969.2067332091,
+    "Camels": 40791.61508632524,
+    "Sheep": 8008731.468171063,
+    "Goats": 159087.29883666846,
+    "urbanPeople": 594096.7550739197
+   },
+   "wet": {
+    "people": 1277655.2620902658,
+    "cultivatedHa": 2198674.80960083,
+    "pastureKeptHa": 13189900.822577743,
+    "Cattle": 1082621.1928054488,
+    "Horses": 329392.9618880688,
+    "Camels": 562.2228707747327,
+    "Sheep": 3302845.6963175377,
+    "Goats": 2192.6691960214575
+   },
+   "lastTwelveMonths": {
+    "ruralNeed": 1083135.84,
+    "ruralSupplied": 1080854.69,
+    "urbanNeed": 257592.25,
+    "urbanSupplied": 246259.24999999997,
+    "feedRequiredKg": 13193452199.216341,
+    "feedUnmetKg": 96769527.48209274,
+    "ruralMetShare": 0.9978939391387879,
+    "urbanMetShare": 0.9560041111485301,
+    "feedUnmetShare": 0.0073346631359941265
+   }
+  }
+ ]
+}

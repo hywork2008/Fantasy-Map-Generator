@@ -5,6 +5,7 @@ describe("normalizeConflictAutonomy", () => {
   it("preserves both known policies unchanged", () => {
     expect(normalizeConflictAutonomy("autonomous")).toBe("autonomous");
     expect(normalizeConflictAutonomy("playerDirected")).toBe("playerDirected");
+    expect(normalizeConflictAutonomy("peace")).toBe("peace");
   });
 
   it("falls back to DEFAULT_CONFLICT_AUTONOMY for missing or invalid input", () => {

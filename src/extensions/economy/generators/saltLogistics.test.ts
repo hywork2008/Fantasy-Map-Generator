@@ -29,15 +29,19 @@ import { getCouncilSupport } from "./councilAssembly";
 import { Goods } from "./goods-generator";
 import { recordGoodFlow, setGoodFlowObserver } from "./goodsBalanceLedger";
 import { getRuralHouseholdWealth } from "./householdWealth";
+import { buyMarketGoods } from "./marketPurchases";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import { createPersonalCashState } from "./personalCashLedger";
-import { buyHouseholdSalt, priceSalt } from "./saltFinance";
+import { buyHouseholdSalt, priceSalt, saltCreditRoom, saltPayable } from "./saltFinance";
 import {
   auditSaltPopulationCoverage,
   SALT_HOUSEHOLD_KILOGRAMS_PER_PERSON_YEAR,
   SALT_KILOGRAMS_PER_BAG,
-  SaltLogistics
+  SALT_LIVESTOCK_CASH_SHARE,
+  SALT_LIVESTOCK_PURCHASED_SHARE,
+  SaltLogistics,
+  seedWorldBirthSaltStock
 } from "./saltLogistics";
 import type { SaltworksOwner } from "./saltLogisticsTypes";
 import {
@@ -321,6 +325,30 @@ describe("SaltLogisticsModule", () => {
     expect(worldContext.pack.states[2].treasury).toBe(otherStateCash);
   });
 
+  it("stocks a market shared by two states for both, each counting only its share of the shelf", () => {
+    worldContext.pack.burgs[2].market = 1;
+    setMarketCellColumn(Uint16Array.from([1, 1, 0]));
+    setMarkets([getMarkets()[0]]);
+    Markets.sync();
+    SaltLogistics.generate();
+    const monthlyCapacity = getSaltworks().reduce((sum, w) => sum + w.annualCapacityBags, 0) / 12;
+    // About half the market's three-month reserve: enough for either state's own order alone.
+    getMarkets()[0].goods[1] = { stock: monthlyCapacity * 1.5, price: 1 };
+    SaltLogistics.settleMonth();
+    const ordered = new Set(getSaltShipments().map(shipment => shipment.importerStateId));
+    expect(ordered).toEqual(new Set([1, 2]));
+  });
+
+  it("keeps the settled salt price when a town buys salt from the market", () => {
+    SaltLogistics.generate();
+    SaltLogistics.settleMonth();
+    const market = getMarkets()[0];
+    const before = market.goods[1].price;
+    const deal = buyMarketGoods({ burg: worldContext.pack.burgs[1], good: Goods.get(1)!, units: 50 }, market);
+    expect(deal).not.toBeNull();
+    expect(market.goods[1].price).toBe(before);
+  });
+
   function seedOwners(): void {
     worldContext.pack.burgs[1].treasury = 1e8;
     worldContext.pack.states[1].departmentBalances = {
@@ -363,6 +391,40 @@ describe("SaltLogisticsModule", () => {
     expect(operation.settlementOwner).toEqual(owner);
     expect(getSaltShipments().find(sh => sh.saltworksId === operation.i)?.sellerOwner).toEqual(owner);
     expect(cash()).toBeCloseTo(before, 4);
+  });
+
+  it("boils with the cheaper heat of Wood and Peat, and with Peat where there is no Wood", () => {
+    const burned = (woodStock: number, woodPrice: number) => {
+      setUpWorld();
+      seedOwners();
+      SaltLogistics.generate();
+      const operation = getSaltworks()[0];
+      operation.kind = "brineWell";
+      setGoods([
+        Goods.get(1)!,
+        { i: 2, name: "Wood", tags: [], value: 1, unit: "pile", icon: "", color: "" },
+        { i: 3, name: "Peat", tags: ["fuel"], value: 0.03, unit: "bale", icon: "", color: "" }
+      ]);
+      const market = getMarkets()[0];
+      market.goods[2] = { stock: woodStock, price: woodPrice };
+      market.goods[3] = { stock: 1e4, price: 0.05 };
+      SaltLogistics.settleMonth();
+      return {
+        output: operation.monthlyOutputBags,
+        wood: woodStock - market.goods[2].stock,
+        peat: 1e4 - market.goods[3].stock
+      };
+    };
+    // A bale is 200/6,500 of a pile's heat: at 0.05 a bale Peat costs 1.63 a pile of heat.
+    const noWood = burned(0, 1);
+    expect(noWood.output).toBeGreaterThan(0);
+    expect(noWood.peat).toBeGreaterThan(0);
+    const cheapWood = burned(100, 1);
+    expect(cheapWood.wood).toBeGreaterThan(0);
+    expect(cheapWood.peat).toBe(0);
+    const dearWood = burned(100, 3);
+    expect(dearWood.wood).toBe(0);
+    expect(dearWood.peat).toBeGreaterThan(0);
   });
 
   it("uses authoritative Characters cash rather than the compatibility pack copy", () => {
@@ -482,14 +544,45 @@ describe("SaltLogisticsModule", () => {
     );
   });
 
-  it("does not manufacture or charge inputs without operating cash or a funded buyer", () => {
+  it("does not manufacture or charge inputs without operating cash", () => {
     SaltLogistics.generate();
     worldContext.pack.states[1].treasury = 0;
-    getMarkets()[1].marketTreasury!.balance = 0;
+    worldContext.pack.states[2].treasury = 0;
     const before = cash();
     SaltLogistics.settleMonth();
     expect(getSaltworks().every(w => w.monthlyOutputBags === 0 && w.monthlyWagesPaid === 0)).toBe(true);
     expect(cash()).toBeCloseTo(before, 5);
+  });
+
+  it("sells fresh salt on credit to a market without cash and is repaid from later cash", () => {
+    SaltLogistics.generate();
+    const market = getMarkets()[1];
+    market.marketTreasury!.balance = 0;
+    const before = cash();
+    SaltLogistics.settleMonth();
+    const owed = saltPayable(market);
+    expect(getSaltworks().some(w => w.marketId === market.i && w.monthlyOutputBags > 0)).toBe(true);
+    expect(owed).toBeGreaterThan(0);
+    expect(market.marketTreasury!.balance).toBeGreaterThanOrEqual(0);
+    // Credit moves no money that does not exist: the debt is the only new entry.
+    expect(cash()).toBeCloseTo(before, 2);
+
+    // Cash just covering the debt repays all of it; the debt is not deducted from itself.
+    market.marketTreasury!.balance = owed + 1;
+    for (const works of getSaltworks()) works.active = false;
+    // No sales this month, so only the cash already held can repay.
+    setBurgMarketLedgers([1, 2].map(burgId => ({ burgId, marketId: burgId, merchants: [], householdWealth: 0 })));
+    for (const m of getMarkets()) m.foodLedger!.ruralHouseholdWealth = 0;
+    SaltLogistics.settleMonth();
+    expect(saltPayable(market)).toBe(0);
+  });
+
+  it("lets each state of a shared market count only its share of the market's salt debt", () => {
+    const market = getMarkets()[0];
+    market.marketTreasury = { balance: 0, ruralGrainPayable: 0, saltPayables: { 1: 90 } };
+    // Each of two equal states buys 20 a month: 60 of room each, against one market debt of 90.
+    expect(saltCreditRoom(market, 20)).toBe(0);
+    expect(saltCreditRoom(market, 20, 0.5)).toBe(15);
   });
 
   it("leaves unpaid households unmet even with stock, without charging the state", () => {
@@ -586,7 +679,8 @@ describe("SaltLogisticsModule", () => {
     const existingCapacity = getSaltworks()[0].annualCapacityBags;
     SaltLogistics.settleMonth();
     expect(getSaltworks().find(w => w.stateId === 2)?.kind).toBe("brineWell");
-    expect(getSaltworks()[0].annualCapacityBags).toBe(existingCapacity);
+    // State 1 no longer supplies state 2, which now has its own works; together they keep the same need.
+    expect(getSaltworks().reduce((sum, w) => sum + w.annualCapacityBags, 0)).toBeCloseTo(existingCapacity, 1);
     SaltLogistics.settleMonth();
     expect(getSaltworks().filter(w => w.stateId === 2)).toHaveLength(1);
     setMineralDeposits([
@@ -644,7 +738,7 @@ describe("SaltLogisticsModule", () => {
     expect(budget.produce(operation, 10)).toBeCloseTo(2);
     expect(getMarkets()[0].goods[2].stock).toBe(0);
     expect(budget.produce(operation, 1)).toBe(0);
-    expect(operation.monthlyLaborHours).toBeCloseTo(120 * SALT_PRODUCTION_POLICY.boilingHoursPerKg);
+    expect(operation.monthlyLaborHours).toBeCloseTo(120 * SALT_PRODUCTION_POLICY.brineBoilingHoursPerKg);
     expect(operation.monthlyFuelWoodUnits).toBeCloseTo(fuelForTwoBags);
     expect(flows).toMatchObject([{ goodId: 2, units: fuelForTwoBags }]);
   });
@@ -814,9 +908,9 @@ describe("SaltLogisticsModule", () => {
     const row = getStateSaltLedgers().find(row => row.stateId === 1)!;
     expect(row.monthlyLivestockTotalRequirementBags).toBeCloseTo(33.3333, 4);
     expect(row.monthlyLivestockNaturalBags).toBe(0);
-    expect(row.monthlyLivestockSuppliedBags).toBeCloseTo(33.3333, 4);
+    expect(row.monthlyLivestockSuppliedBags).toBeCloseTo(33.3333 * SALT_LIVESTOCK_PURCHASED_SHARE, 4);
     expect(row.monthlyUnmetLivestockBags).toBe(0);
-    expect(market.goods[1].stock).toBeCloseTo(10_000 - 100 - 33.3333, 4);
+    expect(market.goods[1].stock).toBeCloseTo(10_000 - 100 - 33.3333 * SALT_LIVESTOCK_PURCHASED_SHARE, 4);
   });
 
   it("shares one processing forecast across states using the same market", () => {
@@ -853,11 +947,83 @@ describe("SaltLogisticsModule", () => {
     expect(getStateSaltLedgers().find(row => row.stateId === 1)?.monthlyLivestockSuppliedBags).toBe(0);
   });
 
+  it("starts a new world with each market's salt reserve and works sized to the herds placed after them", () => {
+    SaltLogistics.generate();
+    getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: 1200, old: 0 };
+    seedWorldBirthSaltStock();
+    SaltLogistics.settleMonth();
+    const provision = getStateSaltLedgers().reduce((sum, row) => sum + row.monthlyProvisionBags, 0);
+    const capacity = getSaltworks().reduce((sum, w) => sum + w.annualCapacityBags, 0);
+    expect(capacity).toBeCloseTo(provision * 12 * 1.15, 0);
+    // Three months of need were in stock before the first month's sales.
+    const market = getMarkets().find(m => m.i === 1)!;
+    expect(market.goods[1].stock).toBeGreaterThan(100 * 2);
+  });
+
+  it("resizes installed saltworks to the current provision of people and herds", () => {
+    SaltLogistics.generate();
+    const before = getSaltworks().reduce((sum, w) => sum + w.annualCapacityBags, 0);
+    // Herds placed after generation (as on the fixed World) were missing from the capacity.
+    getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: 1200, old: 0 };
+    SaltLogistics.settleMonth();
+    const provision = getStateSaltLedgers().reduce((sum, row) => sum + row.monthlyProvisionBags, 0);
+    const after = getSaltworks().reduce((sum, w) => sum + w.annualCapacityBags, 0);
+    expect(after).toBeGreaterThan(before);
+    expect(after).toBeCloseTo(provision * 12 * 1.15, 0);
+  });
+
+  it("orders and reserves the full livestock need even when the rural purse is empty", () => {
+    const stockWith = (ruralPurse: number) => {
+      setUpWorld();
+      getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: 1200, old: 0 };
+      SaltLogistics.generate();
+      for (let month = 0; month < 6; month++) {
+        for (const market of getMarkets()) market.foodLedger!.ruralHouseholdWealth = ruralPurse;
+        SaltLogistics.settleMonth();
+      }
+      return getMarkets().find(m => m.i === 1)!.goods[1].stock;
+    };
+    // Market 1 needs 100 household and 13.3 bought livestock bags a month; the works stock the herds'
+    // three months too, so supply follows physical need rather than the purse.
+    const householdBags = 100;
+    const livestockBags = 1200 * (20 / 60 / 12) * SALT_LIVESTOCK_PURCHASED_SHARE;
+    expect(stockWith(0)).toBeGreaterThanOrEqual((householdBags + livestockBags) * 3);
+  });
+
+  it("sells livestock salt on account beyond a share of the rural purse, across states", () => {
+    // Both states' herds buy at Market 1, so its one allowance must cover them together.
+    setMarketCellColumn(Uint16Array.from([1, 1, 0]));
+    getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: 1200, old: 0 };
+    getOrCreateFaunaStockTable()!["1:Cattle"] = { young: 0, breeding: 1200, old: 0 };
+    SaltLogistics.generate();
+    for (const works of getSaltworks()) works.active = false;
+    const market = getMarkets().find(m => m.i === 1)!;
+    market.goods[1] = { stock: 1e6, price: 3 };
+    market.foodLedger!.ruralHouseholdWealth = 1000;
+    SaltLogistics.settleMonth();
+    const ledgers = getStateSaltLedgers().filter(row => row.stateId === 1 || row.stateId === 2);
+    const paid = ledgers.reduce((sum, row) => sum + row.monthlyLivestockPaid, 0);
+    // The herds take their full need, but pay at most 5% of the 1000 purse; the rest is on account.
+    expect(paid).toBeGreaterThan(0);
+    expect(paid).toBeLessThanOrEqual(1000 * SALT_LIVESTOCK_CASH_SHARE + 0.01);
+    expect(ledgers.every(row => row.monthlyUnmetLivestockBags < 1e-6)).toBe(true);
+    const owed = market.marketTreasury!.ruralSaltReceivable!;
+    const supplied = ledgers.reduce((sum, row) => sum + row.monthlyLivestockSuppliedBags, 0);
+    expect(owed).toBeCloseTo(supplied * market.goods[1].price - paid, 1);
+    // Next month the allowance repays the debt before buying more.
+    market.foodLedger!.ruralHouseholdWealth = 1000;
+    SaltLogistics.settleMonth();
+    expect(market.marketTreasury!.ruralSaltReceivable!).toBeLessThan(owed + supplied * market.goods[1].price);
+  });
+
   it("uses horse fauna heads without applying the market lot conversion", () => {
     getOrCreateFaunaStockTable()!["0:Horses"] = { young: 0, breeding: 120, old: 0 };
     SaltLogistics.generate();
     SaltLogistics.settleMonth();
-    expect(getStateSaltLedgers().find(row => row.stateId === 1)?.monthlyLivestockDemandBags).toBeCloseTo(3.8889, 4);
+    expect(getStateSaltLedgers().find(row => row.stateId === 1)?.monthlyLivestockDemandBags).toBeCloseTo(
+      3.8889 * SALT_LIVESTOCK_PURCHASED_SHARE,
+      4
+    );
   });
 
   it("caps stock at the market reserve while output continues to replace household sales", () => {

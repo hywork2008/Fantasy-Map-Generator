@@ -1,0 +1,264 @@
+{
+ "events": [
+  {
+   "month": 12,
+   "kind": "joined",
+   "burg": 410,
+   "pop": 1.2516976833343505,
+   "market": 6
+  },
+  {
+   "month": 12,
+   "kind": "add",
+   "burg": 411,
+   "pop": 0.9103860139846801,
+   "market": 18
+  },
+  {
+   "month": 12,
+   "kind": "joined",
+   "burg": 412,
+   "pop": 0.809497332572937,
+   "market": 9
+  },
+  {
+   "month": 12,
+   "kind": "joined",
+   "burg": 413,
+   "pop": 0.6081737279891968,
+   "market": 13
+  },
+  {
+   "month": 12,
+   "kind": "joined",
+   "burg": 414,
+   "pop": 1.022935438156128,
+   "market": 13
+  },
+  {
+   "month": 24,
+   "kind": "joined",
+   "burg": 415,
+   "pop": 0.7269599676132202,
+   "market": 18
+  },
+  {
+   "month": 24,
+   "kind": "joined",
+   "burg": 416,
+   "pop": 0.6474311113357544,
+   "market": 14
+  },
+  {
+   "month": 36,
+   "kind": "joined",
+   "burg": 417,
+   "pop": 0.604369068145752,
+   "market": 18
+  },
+  {
+   "month": 36,
+   "kind": "joined",
+   "burg": 418,
+   "pop": 0.6145483016967773,
+   "market": 13
+  },
+  {
+   "month": 48,
+   "kind": "joined",
+   "burg": 419,
+   "pop": 0.6028212547302246,
+   "market": 13
+  },
+  {
+   "month": 71,
+   "kind": "windingDown",
+   "market": 18,
+   "low": 12,
+   "reason": "caravan",
+   "escrow": 0,
+   "locked": 0,
+   "escrowInCaravans": 0,
+   "escrowInLots": 0,
+   "caravansAsSeller": 0,
+   "lotsAsSeller": 0
+  },
+  {
+   "month": 72,
+   "kind": "windingDown",
+   "market": 18,
+   "low": 13,
+   "reason": "caravan",
+   "escrow": 0,
+   "locked": 0,
+   "escrowInCaravans": 0,
+   "escrowInLots": 0,
+   "caravansAsSeller": 0,
+   "lotsAsSeller": 0
+  },
+  {
+   "month": 73,
+   "kind": "dissolve",
+   "market": 18,
+   "into": 13,
+   "cashChange": 0,
+   "debtChange": 0,
+   "claimsChange": 0
+  }
+ ],
+ "end": [
+  {
+   "i": 1,
+   "center": 16,
+   "towns": 30,
+   "townPop": 98.61,
+   "ruralPeople": 423480,
+   "ruralPurse": 63771.7,
+   "lowMonths": 0
+  },
+  {
+   "i": 2,
+   "center": 28,
+   "towns": 17,
+   "townPop": 22.5,
+   "ruralPeople": 129789,
+   "ruralPurse": 14427,
+   "lowMonths": 0
+  },
+  {
+   "i": 3,
+   "center": 5,
+   "towns": 28,
+   "townPop": 30.79,
+   "ruralPeople": 186297,
+   "ruralPurse": 21371.3,
+   "lowMonths": 0
+  },
+  {
+   "i": 4,
+   "center": 4,
+   "towns": 20,
+   "townPop": 61.95,
+   "ruralPeople": 404956,
+   "ruralPurse": 38301.6,
+   "lowMonths": 0
+  },
+  {
+   "i": 5,
+   "center": 21,
+   "towns": 16,
+   "townPop": 34.55,
+   "ruralPeople": 149761,
+   "ruralPurse": 20194.5,
+   "lowMonths": 0
+  },
+  {
+   "i": 6,
+   "center": 24,
+   "towns": 38,
+   "townPop": 83.55,
+   "ruralPeople": 422411,
+   "ruralPurse": 74123.8,
+   "lowMonths": 0
+  },
+  {
+   "i": 7,
+   "center": 9,
+   "towns": 27,
+   "townPop": 55.1,
+   "ruralPeople": 294396,
+   "ruralPurse": 46666,
+   "lowMonths": 0
+  },
+  {
+   "i": 8,
+   "center": 10,
+   "towns": 23,
+   "townPop": 22.48,
+   "ruralPeople": 120113,
+   "ruralPurse": 12095.8,
+   "lowMonths": 0
+  },
+  {
+   "i": 9,
+   "center": 18,
+   "towns": 26,
+   "townPop": 26.5,
+   "ruralPeople": 235647,
+   "ruralPurse": 22396.7,
+   "lowMonths": 0
+  },
+  {
+   "i": 10,
+   "center": 400,
+   "towns": 12,
+   "townPop": 10.26,
+   "ruralPeople": 120094,
+   "ruralPurse": 5732.3,
+   "lowMonths": 0
+  },
+  {
+   "i": 11,
+   "center": 40,
+   "towns": 15,
+   "townPop": 23.66,
+   "ruralPeople": 104325,
+   "ruralPurse": 13029,
+   "lowMonths": 0
+  },
+  {
+   "i": 12,
+   "center": 61,
+   "towns": 31,
+   "townPop": 45.01,
+   "ruralPeople": 271817,
+   "ruralPurse": 29013.2,
+   "lowMonths": 0
+  },
+  {
+   "i": 13,
+   "center": 407,
+   "towns": 14,
+   "townPop": 19.46,
+   "ruralPeople": 199489,
+   "ruralPurse": 8574.9,
+   "lowMonths": 0
+  },
+  {
+   "i": 14,
+   "center": 159,
+   "towns": 13,
+   "townPop": 10.76,
+   "ruralPeople": 65279,
+   "ruralPurse": 4978.7,
+   "lowMonths": 0
+  },
+  {
+   "i": 15,
+   "center": 145,
+   "towns": 20,
+   "townPop": 18.53,
+   "ruralPeople": 111185,
+   "ruralPurse": 9555.2,
+   "lowMonths": 0
+  },
+  {
+   "i": 16,
+   "center": 349,
+   "towns": 24,
+   "townPop": 19.15,
+   "ruralPeople": 161956,
+   "ruralPurse": 8431.4,
+   "lowMonths": 0
+  },
+  {
+   "i": 17,
+   "center": 166,
+   "towns": 65,
+   "townPop": 69.31,
+   "ruralPeople": 423450,
+   "ruralPurse": 52596.4,
+   "lowMonths": 0
+  }
+ ]
+}

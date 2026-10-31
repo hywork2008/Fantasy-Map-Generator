@@ -254,6 +254,16 @@ const shipGoodValue = (shipClassId: string): number => {
 /** Ink in a book or an artwork: the half litre it took of the 1 L bottle, in 120 L barrels. */
 const INK_BARRELS_PER_BOOK = 0.5 / 120;
 
+/** Value of a 200 kg Peat bale: Wood's value (1 per 6,500 kg pile) for the same heat. */
+const PEAT_BALE_VALUE = 0.03;
+const LEGACY_PEAT_BALE_VALUE = 2;
+/** Salt's base value per 60 kg bag before and after docs/plan/salt-untaxed-value.md (0.08 was its first V1 step). */
+const TAXED_SALT_BAG_VALUES: readonly number[] = [0.45, 0.08];
+export const UNTAXED_SALT_BAG_VALUE = 0.04;
+
+/** Value of a wain of fresh Meat: 2.5 times grain's value per kilogram. */
+export const MEAT_WAIN_VALUE = 2.5;
+
 export const GOODS_DATA: GoodData[] = [
   {
     name: "Wood",
@@ -836,9 +846,10 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["preservative", "mineral"],
     icon: "good-salt",
     color: "#E5E4E5",
-    // A 60 kg bag at 3.5 times the grain price per kilogram, as the sources put it
-    // (goods-physical-units.md §22); it was 3, 23 times.
-    value: 0.45,
+    // A 60 kg bag at 0.31 times the grain price per kilogram: untaxed salt, mid-range of the sources
+    // and above the saltworks' boiling cost. The 0.45 of goods-physical-units.md §22 was the price under
+    // a heavy salt tax, which saltPolicy.taxRate models on its own (docs/plan/salt-untaxed-value.md).
+    value: UNTAXED_SALT_BAG_VALUE,
     // Salt is supplied only by the state saltworks network. Keeping it out of the ordinary
     // per-cell bonus-good roll prevents climate-independent salt appearing in every market.
     chance: 0,
@@ -2184,7 +2195,9 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["fuel"],
     icon: "good-peat",
     color: "#5c4938",
-    value: 2,
+    // A 200 kg bale gives the heat of 200/6,500 of a Wood pile; priced at Wood's value per heat
+    // (docs/plan/saltworks-fuel-procurement.md §2.3).
+    value: PEAT_BALE_VALUE,
     chance: 3,
     distribution: 'biomeTag("wetland") && biomeTag("cold") || biomeTag("wetland") && random(35)',
     unit: "bale",
@@ -2371,6 +2384,19 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [{ Cattle: 0.3 }, { Sheep: 0.5 }, { Pig: 0.5 }, { Goats: 0.5 }],
     unit: "barrel",
     demandCoverage: { utilities: 0.3 }
+  },
+  {
+    // Fresh meat of the slaughtered herd offtake, sold to the towns the month it is killed
+    // (docs/plan/livestock-meat-sales.md). No recipe or demand coverage: slaughter.ts makes and
+    // settles it, so it never stands in stock for craft or trade.
+    name: "Meat",
+    tags: ["food", "freshFood"],
+    icon: "good-game",
+    color: "#b5524a",
+    // A wain at 2.5 times grain by the kilogram, from c.1300 English livestock and wheat prices (§2.2).
+    value: MEAT_WAIN_VALUE,
+    chance: 0,
+    unit: "wain"
   },
   {
     name: "Beeswax",
@@ -3504,6 +3530,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Chicken: tradeProfile(2, 2, 1, -2, -2, 1, 5),
   Fish: tradeProfile(3, 3, 1, -1, -2, 1, 5),
   Game: tradeProfile(3, 3, 2, 0, -2, 1, 5),
+  Meat: tradeProfile(3, 3, 2, 0, -2, 1, 5),
   // durability bumped to the 1-5 scale's max (Phase 5, §9.4): wine ages/stores better than most
   // goods, and viticultureAllocation.ts's reallocation-speed smoothing needs Wine and Raisins to
   // actually differ (both were 4 pre-Phase-5) for "Wine reallocates slower than Raisins" to hold.
@@ -4955,7 +4982,8 @@ export function migrateInkBarrel(): boolean {
  * weight as it switches their cargo slots: the textiles, whose unit was 5 to 23 times a wain of
  * grain at a price per kilogram below the sources' (the Wool -> Cloth -> Garments chain keeps its
  * margins), the Flour and Bread whose sack and loaf lot cost 14 and 47 times as much per
- * kilogram, and Salt, whose bag cost 23 times as much (§22).
+ * kilogram, and Salt, whose bag cost 23 times as much (§22; since docs/plan/salt-untaxed-value.md
+ * to the untaxed value).
  */
 export const WEIGHT_REPRICING: Readonly<Record<string, readonly [before: number, after: number]>> = {
   Wool: [2, 13],
@@ -4963,7 +4991,7 @@ export const WEIGHT_REPRICING: Readonly<Record<string, readonly [before: number,
   Garments: [20, 130],
   Flour: [1.5, 0.16],
   Bread: [2, 0.08],
-  Salt: [3, 0.45],
+  Salt: [3, UNTAXED_SALT_BAG_VALUE],
   Flax: [1, 0.3],
   Linen: [6, 8],
   Ink: [7, 3.4],
@@ -5290,6 +5318,32 @@ export function migrateWoolBlanketGoods(): boolean {
   const cloth = goods.find(entry => entry.name === "Wool Cloth");
   good.recipes = cloth ? [{ [cloth.i]: TEXTILE_RECIPES[good.name][0]["Wool Cloth"] }] : [];
   goods.push(good);
+  return true;
+}
+
+/** Adds fresh Meat for the slaughtered offtake (docs/plan/livestock-meat-sales.md). */
+export function migrateMeatGood(): boolean {
+  const goods = getGoods();
+  if (goods.some(good => good.name === "Meat")) return false;
+  const good = Goods.getDefaultGood("Meat")!;
+  good.i = Math.max(0, ...goods.map(entry => entry.i)) + 1;
+  goods.push(good);
+  return true;
+}
+
+/** Reprices Salt from the heavily taxed price to the untaxed one (docs/plan/salt-untaxed-value.md). */
+export function migrateUntaxedSaltValue(): boolean {
+  const salt = getGoods().find(good => good.name === "Salt");
+  if (!salt || !TAXED_SALT_BAG_VALUES.includes(salt.value)) return false;
+  salt.value = UNTAXED_SALT_BAG_VALUE;
+  return true;
+}
+
+/** Reprices Peat from its old luxury-like value to fuel at Wood's value per heat. */
+export function migratePeatFuelValue(): boolean {
+  const peat = getGoods().find(good => good.name === "Peat");
+  if (!peat || peat.value !== LEGACY_PEAT_BALE_VALUE) return false;
+  peat.value = PEAT_BALE_VALUE;
   return true;
 }
 

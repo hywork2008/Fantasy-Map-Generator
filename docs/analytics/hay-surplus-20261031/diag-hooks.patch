@@ -1,0 +1,17 @@
+Temporary diagnostics used with haysurplus.mts (applied to HEAD 41c8d86bb, reverted after the run).
+
+--- a/src/extensions/economy/generators/livestockFeed.ts
++++ b/src/extensions/economy/generators/livestockFeed.ts
+@@ harvestLivestockForage, after `const sellKg = received - ownHay;`
++    {
++      const g = ((globalThis as any).__diagCut ??= {});
++      const r = (g[marketCells[cell]] ??= { cuttable: 0, laborKg: 0, received: 0, ownHay: 0, sellKg: 0, barnIn: 0, reserve: 0, planCut: 0 });
++      r.cuttable += standingIn + surplus;
++      r.laborKg += (workDays / HAY_WORK_DAYS_PER_TONNE_DM) * 1000;
++      r.received += received;
++      r.ownHay += ownHay;
++      r.sellKg += sellKg;
++      r.barnIn += remainingHay;
++      r.reserve += plan.reserveAfterMonthKg[month];
++      r.planCut += plan.harvestWeights[month] * plan.rawHarvestKg;
++    }

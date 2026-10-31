@@ -1,6 +1,23 @@
 import type React from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { worldContext } from "../../../../context/worldContext";
 import { setConflictAutonomy } from "../../../../controllers/simulationSettings";
+import {
+  getMarketGenerationSpacing,
+  getMarketSettings,
+  HAY_PAYMENT_MODES,
+  HAY_TRADE_MODES,
+  type HayPaymentMode,
+  type HayTradeMode,
+  MARKET_DISSOLVE_CARGO_MODES,
+  MARKET_SETTING_LIMITS,
+  type MarketDissolveCargoMode,
+  type MarketSettings,
+  MERCHANT_PROFIT_USES,
+  type MerchantProfitUse,
+  setMarketSettings
+} from "../../../../simulation/marketSettings";
 import { useOptionsState } from "../../../../store/optionsState";
 import { MIN_CURRENCY_EXCHANGE_RATE } from "../../../../utils/currency";
 import { lock } from "../../../../utils/domUtils";
@@ -29,6 +46,17 @@ export const SimulationSettingsTab: React.FC = () => {
     updateOption(key, value);
     lock(key as string);
   };
+
+  const [marketSettings, setMarketSettingsState] = useState(getMarketSettings);
+  const updateMarketSetting = (key: keyof MarketSettings, value: string) => {
+    const number = Number(value);
+    if (Number.isFinite(number)) setMarketSettingsState(setMarketSettings({ [key]: number }));
+  };
+  const generationSpacing = getMarketGenerationSpacing(
+    worldContext.graphWidth,
+    worldContext.graphHeight,
+    worldContext.pack?.burgs?.length ?? 0
+  );
 
   const updateCurrencyRate = (key: "goldToSilverRate" | "silverToCopperRate", value: string) => {
     const rate = Number(value);
@@ -96,6 +124,16 @@ export const SimulationSettingsTab: React.FC = () => {
                   onChange={e => setConflictAutonomy(e.target.value)}
                 />{" "}
                 {t("simulation.playerDirected")}
+              </label>{" "}
+              <label>
+                <input
+                  type="radio"
+                  name="conflictAutonomy"
+                  value="peace"
+                  checked={options.conflictAutonomy === "peace"}
+                  onChange={e => setConflictAutonomy(e.target.value)}
+                />{" "}
+                {t("simulation.peace")}
               </label>
             </td>
           </tr>
@@ -227,6 +265,201 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
             <td>{t("simulation.copperPieces")}</td>
+          </tr>
+
+          <tr>
+            <td colSpan={4}>
+              <p data-tip={t("simulation.marketsHeadingTip")}>{t("simulation.marketsHeading")}</p>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.marketFoundingSpacingTip")}>
+            <td />
+            <td>{t("simulation.marketFoundingSpacing")}</td>
+            <td>
+              <SliderInput
+                id="marketFoundingSpacing"
+                min={MARKET_SETTING_LIMITS.foundingSpacingFactor.min}
+                max={MARKET_SETTING_LIMITS.foundingSpacingFactor.max}
+                step={MARKET_SETTING_LIMITS.foundingSpacingFactor.step}
+                value={marketSettings.foundingSpacingFactor}
+                onChange={v => updateMarketSetting("foundingSpacingFactor", v)}
+              />
+            </td>
+            <td>
+              {t("simulation.marketFoundingSpacingDistance", {
+                distance: Math.round(generationSpacing * marketSettings.foundingSpacingFactor)
+              })}
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.marketDissolveWealthShareTip")}>
+            <td />
+            <td>{t("simulation.marketDissolveWealthShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="marketDissolveWealthShare"
+                min={MARKET_SETTING_LIMITS.dissolveWealthShare.min * 100}
+                max={MARKET_SETTING_LIMITS.dissolveWealthShare.max * 100}
+                step={MARKET_SETTING_LIMITS.dissolveWealthShare.step * 100}
+                value={Math.round(marketSettings.dissolveWealthShare * 100)}
+                onChange={v => updateMarketSetting("dissolveWealthShare", String(Number(v) / 100))}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.marketDissolveMonthsTip")}>
+            <td />
+            <td>{t("simulation.marketDissolveMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="marketDissolveMonths"
+                min={MARKET_SETTING_LIMITS.dissolveMonths.min}
+                max={MARKET_SETTING_LIMITS.dissolveMonths.max}
+                step={MARKET_SETTING_LIMITS.dissolveMonths.step}
+                value={marketSettings.dissolveMonths}
+                onChange={v => updateMarketSetting("dissolveMonths", v)}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip={t("simulation.marketDissolveCargoTip")}>
+            <td />
+            <td>
+              <label htmlFor="marketDissolveCargo">{t("simulation.marketDissolveCargo")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="marketDissolveCargo"
+                value={marketSettings.dissolveCargo}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ dissolveCargo: e.target.value as MarketDissolveCargoMode })
+                  )
+                }
+              >
+                {MARKET_DISSOLVE_CARGO_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.marketDissolveCargo_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+
+          <tr data-tip={t("simulation.marketSurplusReserveFactorTip")}>
+            <td />
+            <td>{t("simulation.marketSurplusReserveFactor")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="marketSurplusReserveFactor"
+                min={MARKET_SETTING_LIMITS.surplusReserveFactor.min}
+                max={MARKET_SETTING_LIMITS.surplusReserveFactor.max}
+                step={MARKET_SETTING_LIMITS.surplusReserveFactor.step}
+                value={marketSettings.surplusReserveFactor}
+                onChange={v => updateMarketSetting("surplusReserveFactor", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.marketSurplusRuralWeightTip")}>
+            <td />
+            <td>{t("simulation.marketSurplusRuralWeight")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="marketSurplusRuralWeight"
+                min={MARKET_SETTING_LIMITS.surplusRuralWeight.min * 100}
+                max={MARKET_SETTING_LIMITS.surplusRuralWeight.max * 100}
+                step={MARKET_SETTING_LIMITS.surplusRuralWeight.step * 100}
+                value={Math.round(marketSettings.surplusRuralWeight * 100)}
+                onChange={v => updateMarketSetting("surplusRuralWeight", String(Number(v) / 100))}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.merchantProfitShareTip")}>
+            <td />
+            <td>{t("simulation.merchantProfitShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="merchantProfitShare"
+                min={MARKET_SETTING_LIMITS.merchantProfitShare.min * 100}
+                max={MARKET_SETTING_LIMITS.merchantProfitShare.max * 100}
+                step={MARKET_SETTING_LIMITS.merchantProfitShare.step * 100}
+                value={Math.round(marketSettings.merchantProfitShare * 100)}
+                onChange={v => updateMarketSetting("merchantProfitShare", String(Number(v) / 100))}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.merchantProfitUseTip")}>
+            <td />
+            <td>
+              <label htmlFor="merchantProfitUse">{t("simulation.merchantProfitUse")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="merchantProfitUse"
+                value={marketSettings.merchantProfitUse}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ merchantProfitUse: e.target.value as MerchantProfitUse }))
+                }
+              >
+                {MERCHANT_PROFIT_USES.map(use => (
+                  <option key={use} value={use}>
+                    {t(`simulation.merchantProfitUse_${use}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.merchantReserveYearsTip")}>
+            <td />
+            <td>{t("simulation.merchantReserveYears")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="merchantReserveYears"
+                min={MARKET_SETTING_LIMITS.merchantReserveYears.min}
+                max={MARKET_SETTING_LIMITS.merchantReserveYears.max}
+                step={MARKET_SETTING_LIMITS.merchantReserveYears.step}
+                value={marketSettings.merchantReserveYears}
+                onChange={v => updateMarketSetting("merchantReserveYears", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.hayTradeTip")}>
+            <td />
+            <td>
+              <label htmlFor="hayTrade">{t("simulation.hayTrade")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="hayTrade"
+                value={marketSettings.hayTrade}
+                onChange={e => setMarketSettingsState(setMarketSettings({ hayTrade: e.target.value as HayTradeMode }))}
+              >
+                {HAY_TRADE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.hayTrade_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.hayPaymentTip")}>
+            <td />
+            <td>
+              <label htmlFor="hayPayment">{t("simulation.hayPayment")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="hayPayment"
+                value={marketSettings.hayPayment}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ hayPayment: e.target.value as HayPaymentMode }))
+                }
+              >
+                {HAY_PAYMENT_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.hayPayment_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
           </tr>
 
           <tr>

@@ -1,0 +1,145 @@
+[shipbuilding] Foreign agents sabotage the shipyard at Idia.
+1 fuelBagsAtWorksMarkets 1602097 marketsSaltCash 16805 woodPriceAvg 0.43
+1 active 274 saltPayable 9646 ownerCashSum 6604358
+1 {"boiling":{"n":274,"cap":24822,"out":22870,"ownerCash0":0,"fuel0":22}}
+2 fuelBagsAtWorksMarkets 1907723 marketsSaltCash 788 woodPriceAvg 0.41
+2 active 274 saltPayable 25525 ownerCashSum 6170423
+2 {"boiling":{"n":274,"cap":24822,"out":22124,"ownerCash0":0,"fuel0":22}}
+3 fuelBagsAtWorksMarkets 2723989 marketsSaltCash 411 woodPriceAvg 0.40
+3 active 274 saltPayable 39540 ownerCashSum 5846931
+3 {"boiling":{"n":274,"cap":24822,"out":20058,"ownerCash0":0,"fuel0":22}}
+4 fuelBagsAtWorksMarkets 3662627 marketsSaltCash 955 woodPriceAvg 0.40
+4 active 274 saltPayable 54597 ownerCashSum 5605334
+4 {"boiling":{"n":274,"cap":24822,"out":19562,"ownerCash0":0,"fuel0":22}}
+5 fuelBagsAtWorksMarkets 4457587 marketsSaltCash 5328 woodPriceAvg 0.40
+5 active 274 saltPayable 64958 ownerCashSum 5469723
+5 {"boiling":{"n":274,"cap":24822,"out":18940,"ownerCash0":0,"fuel0":22}}
+6 fuelBagsAtWorksMarkets 4916794 marketsSaltCash 21896 woodPriceAvg 0.40
+6 active 274 saltPayable 60644 ownerCashSum 5552364
+6 {"boiling":{"n":274,"cap":24822,"out":20479,"ownerCash0":0,"fuel0":22}}
+7 fuelBagsAtWorksMarkets 4895408 marketsSaltCash 50017 woodPriceAvg 0.40
+7 active 274 saltPayable 42107 ownerCashSum 5767643
+7 {"boiling":{"n":274,"cap":24822,"out":21578,"ownerCash0":0,"fuel0":22}}
+8 fuelBagsAtWorksMarkets 4425373 marketsSaltCash 77701 woodPriceAvg 0.40
+8 active 274 saltPayable 25850 ownerCashSum 5905372
+8 {"boiling":{"n":274,"cap":24822,"out":22873,"ownerCash0":0,"fuel0":22}}
+9 fuelBagsAtWorksMarkets 4062483 marketsSaltCash 99829 woodPriceAvg 0.40
+9 active 274 saltPayable 12430 ownerCashSum 6008362
+9 {"boiling":{"n":274,"cap":24822,"out":22691,"ownerCash0":0,"fuel0":22}}
+10 fuelBagsAtWorksMarkets 4314498 marketsSaltCash 118303 woodPriceAvg 0.40
+10 active 274 saltPayable 7618 ownerCashSum 5982833
+10 {"boiling":{"n":274,"cap":24822,"out":22691,"ownerCash0":0,"fuel0":22}}
+11 fuelBagsAtWorksMarkets 4348501 marketsSaltCash 61001 woodPriceAvg 0.40
+11 active 274 saltPayable 14303 ownerCashSum 5837674
+11 {"boiling":{"n":274,"cap":24822,"out":22212,"ownerCash0":0,"fuel0":22}}
+12 fuelBagsAtWorksMarkets 4239189 marketsSaltCash 27060 woodPriceAvg 0.40
+12 active 274 saltPayable 25813 ownerCashSum 5550064
+12 {"boiling":{"n":274,"cap":24822,"out":22196,"ownerCash0":0,"fuel0":22}}
+13 fuelBagsAtWorksMarkets 3925986 marketsSaltCash 12882 woodPriceAvg 0.39
+13 active 274 saltPayable 39873 ownerCashSum 5405127
+13 {"boiling":{"n":274,"cap":24822,"out":20921,"ownerCash0":0,"fuel0":22}}
+14 fuelBagsAtWorksMarkets 3575067 marketsSaltCash 3805 woodPriceAvg 0.39
+14 active 274 saltPayable 57727 ownerCashSum 5272375
+14 {"boiling":{"n":274,"cap":24822,"out":20716,"ownerCash0":0,"fuel0":22}}
+15 fuelBagsAtWorksMarkets 3267011 marketsSaltCash 424 woodPriceAvg 0.39
+15 active 274 saltPayable 75843 ownerCashSum 5164282
+15 {"boiling":{"n":274,"cap":24822,"out":19005,"ownerCash0":0,"fuel0":22}}
+16 fuelBagsAtWorksMarkets 3258495 marketsSaltCash 1079 woodPriceAvg 0.39
+16 active 274 saltPayable 89738 ownerCashSum 5104588
+16 {"boiling":{"n":274,"cap":24822,"out":15458,"ownerCash0":0,"fuel0":22}}
+17 fuelBagsAtWorksMarkets 3745821 marketsSaltCash 7960 woodPriceAvg 0.39
+17 active 274 saltPayable 95534 ownerCashSum 5121200
+17 {"boiling":{"n":274,"cap":24822,"out":21649,"ownerCash0":0,"fuel0":22}}
+18 fuelBagsAtWorksMarkets 4090416 marketsSaltCash 22614 woodPriceAvg 0.39
+18 active 274 saltPayable 88328 ownerCashSum 5239782
+18 {"boiling":{"n":274,"cap":24822,"out":21799,"ownerCash0":0,"fuel0":22}}
+19 fuelBagsAtWorksMarkets 4084614 marketsSaltCash 42213 woodPriceAvg 0.39
+19 active 274 saltPayable 74559 ownerCashSum 5430854
+19 {"boiling":{"n":274,"cap":24822,"out":21868,"ownerCash0":0,"fuel0":22}}
+20 fuelBagsAtWorksMarkets 3859581 marketsSaltCash 63204 woodPriceAvg 0.39
+20 active 274 saltPayable 59427 ownerCashSum 5686888
+20 {"boiling":{"n":274,"cap":24822,"out":21811,"ownerCash0":0,"fuel0":22}}
+21 fuelBagsAtWorksMarkets 4025722 marketsSaltCash 81918 woodPriceAvg 0.39
+21 active 274 saltPayable 45375 ownerCashSum 5886739
+21 {"boiling":{"n":274,"cap":24822,"out":21471,"ownerCash0":0,"fuel0":22}}
+22 fuelBagsAtWorksMarkets 4121253 marketsSaltCash 95813 woodPriceAvg 0.39
+22 active 274 saltPayable 37949 ownerCashSum 5906232
+22 {"boiling":{"n":274,"cap":24822,"out":21616,"ownerCash0":0,"fuel0":22}}
+23 fuelBagsAtWorksMarkets 4070016 marketsSaltCash 69299 woodPriceAvg 0.39
+23 active 274 saltPayable 41071 ownerCashSum 5800385
+23 {"boiling":{"n":274,"cap":24822,"out":21531,"ownerCash0":0,"fuel0":22}}
+24 fuelBagsAtWorksMarkets 3873129 marketsSaltCash 31252 woodPriceAvg 0.39
+24 active 274 saltPayable 49133 ownerCashSum 5580489
+24 {"boiling":{"n":274,"cap":24822,"out":22010,"ownerCash0":0,"fuel0":22}}
+25 fuelBagsAtWorksMarkets 3582156 marketsSaltCash 19551 woodPriceAvg 0.39
+25 active 274 saltPayable 61016 ownerCashSum 5422037
+25 {"boiling":{"n":274,"cap":24822,"out":20608,"ownerCash0":0,"fuel0":22}}
+26 fuelBagsAtWorksMarkets 3265412 marketsSaltCash 11476 woodPriceAvg 0.39
+26 active 274 saltPayable 73232 ownerCashSum 5289430
+26 {"boiling":{"n":274,"cap":24822,"out":18996,"ownerCash0":0,"fuel0":22}}
+27 fuelBagsAtWorksMarkets 3000600 marketsSaltCash 4179 woodPriceAvg 0.39
+27 active 274 saltPayable 86387 ownerCashSum 5179257
+27 {"boiling":{"n":274,"cap":24822,"out":17468,"ownerCash0":0,"fuel0":22}}
+28 fuelBagsAtWorksMarkets 2995349 marketsSaltCash 6643 woodPriceAvg 0.39
+28 active 274 saltPayable 96584 ownerCashSum 5104178
+28 {"boiling":{"n":274,"cap":24822,"out":17791,"ownerCash0":0,"fuel0":22}}
+29 fuelBagsAtWorksMarkets 3497622 marketsSaltCash 11509 woodPriceAvg 0.39
+29 active 274 saltPayable 103819 ownerCashSum 5071156
+29 {"boiling":{"n":274,"cap":24822,"out":17913,"ownerCash0":0,"fuel0":22}}
+30 fuelBagsAtWorksMarkets 3832070 marketsSaltCash 19930 woodPriceAvg 0.39
+30 active 274 saltPayable 105418 ownerCashSum 5104135
+30 {"boiling":{"n":274,"cap":24822,"out":18784,"ownerCash0":0,"fuel0":22}}
+31 fuelBagsAtWorksMarkets 3826397 marketsSaltCash 28407 woodPriceAvg 0.39
+31 active 274 saltPayable 107378 ownerCashSum 5146640
+31 {"boiling":{"n":274,"cap":24822,"out":20422,"ownerCash0":0,"fuel0":22}}
+32 fuelBagsAtWorksMarkets 3693476 marketsSaltCash 43839 woodPriceAvg 0.39
+32 active 274 saltPayable 97141 ownerCashSum 5323384
+32 {"boiling":{"n":274,"cap":24822,"out":20790,"ownerCash0":0,"fuel0":22}}
+33 fuelBagsAtWorksMarkets 3798681 marketsSaltCash 56376 woodPriceAvg 0.39
+33 active 274 saltPayable 76912 ownerCashSum 5689709
+33 {"boiling":{"n":274,"cap":24822,"out":19732,"ownerCash0":0,"fuel0":22}}
+34 fuelBagsAtWorksMarkets 3908086 marketsSaltCash 70905 woodPriceAvg 0.39
+34 active 274 saltPayable 61837 ownerCashSum 5893775
+34 {"boiling":{"n":274,"cap":24822,"out":20121,"ownerCash0":0,"fuel0":22}}
+35 fuelBagsAtWorksMarkets 3865572 marketsSaltCash 64497 woodPriceAvg 0.39
+35 active 274 saltPayable 62425 ownerCashSum 5775664
+35 {"boiling":{"n":274,"cap":24822,"out":19118,"ownerCash0":0,"fuel0":22}}
+36 fuelBagsAtWorksMarkets 3697485 marketsSaltCash 49177 woodPriceAvg 0.39
+36 active 274 saltPayable 67615 ownerCashSum 5595916
+36 {"boiling":{"n":274,"cap":24822,"out":19243,"ownerCash0":0,"fuel0":22}}
+37 fuelBagsAtWorksMarkets 3423275 marketsSaltCash 27682 woodPriceAvg 0.39
+37 active 274 saltPayable 79337 ownerCashSum 5430358
+37 {"boiling":{"n":274,"cap":24822,"out":19319,"ownerCash0":0,"fuel0":22}}
+38 fuelBagsAtWorksMarkets 3132349 marketsSaltCash 7553 woodPriceAvg 0.39
+38 active 274 saltPayable 91664 ownerCashSum 5283400
+38 {"boiling":{"n":274,"cap":24822,"out":16125,"ownerCash0":0,"fuel0":22}}
+39 fuelBagsAtWorksMarkets 2881874 marketsSaltCash 3626 woodPriceAvg 0.39
+39 active 274 saltPayable 103523 ownerCashSum 5178180
+39 {"boiling":{"n":274,"cap":24822,"out":15546,"ownerCash0":0,"fuel0":22}}
+40 fuelBagsAtWorksMarkets 2868946 marketsSaltCash 4740 woodPriceAvg 0.39
+40 active 274 saltPayable 112575 ownerCashSum 5101709
+40 {"boiling":{"n":274,"cap":24822,"out":12034,"ownerCash0":0,"fuel0":22}}
+41 fuelBagsAtWorksMarkets 3360370 marketsSaltCash 6166 woodPriceAvg 0.38
+41 active 274 saltPayable 120918 ownerCashSum 5036267
+41 {"boiling":{"n":274,"cap":24822,"out":11067,"ownerCash0":0,"fuel0":22}}
+42 fuelBagsAtWorksMarkets 3689494 marketsSaltCash 8470 woodPriceAvg 0.38
+42 active 274 saltPayable 130125 ownerCashSum 4985549
+42 {"boiling":{"n":274,"cap":24822,"out":13076,"ownerCash0":0,"fuel0":22}}
+43 fuelBagsAtWorksMarkets 3662205 marketsSaltCash 10412 woodPriceAvg 0.38
+43 active 274 saltPayable 138781 ownerCashSum 4954360
+43 {"boiling":{"n":274,"cap":24822,"out":11883,"ownerCash0":0,"fuel0":22}}
+44 fuelBagsAtWorksMarkets 3507349 marketsSaltCash 16278 woodPriceAvg 0.38
+44 active 274 saltPayable 146190 ownerCashSum 4962094
+44 {"boiling":{"n":274,"cap":24822,"out":13434,"ownerCash0":0,"fuel0":22}}
+45 fuelBagsAtWorksMarkets 3617238 marketsSaltCash 14903 woodPriceAvg 0.38
+45 active 274 saltPayable 145756 ownerCashSum 5131927
+45 {"boiling":{"n":274,"cap":24822,"out":14581,"ownerCash0":0,"fuel0":22}}
+46 fuelBagsAtWorksMarkets 3659056 marketsSaltCash 17998 woodPriceAvg 0.38
+46 active 274 saltPayable 144966 ownerCashSum 5164831
+46 {"boiling":{"n":274,"cap":24822,"out":16810,"ownerCash0":0,"fuel0":22}}
+47 fuelBagsAtWorksMarkets 3618878 marketsSaltCash 20869 woodPriceAvg 0.38
+47 active 274 saltPayable 148193 ownerCashSum 5127027
+47 {"boiling":{"n":274,"cap":24822,"out":13553,"ownerCash0":0,"fuel0":22}}
+48 fuelBagsAtWorksMarkets 3463232 marketsSaltCash 19444 woodPriceAvg 0.38
+48 active 274 saltPayable 156537 ownerCashSum 5048941
+48 {"boiling":{"n":274,"cap":24822,"out":16326,"ownerCash0":0,"fuel0":22}}
