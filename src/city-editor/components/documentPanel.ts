@@ -253,7 +253,8 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
       buildingHeightPolicy: housing.buildingHeightPolicy,
       buildingHeightLimit: housing.buildingHeightLimit,
       buildingAppearanceProfile: housing.buildingAppearanceProfile,
-      buildingAppearanceClimate: housing.buildingAppearanceClimate
+      buildingAppearanceClimate: housing.buildingAppearanceClimate,
+      buildingWallFinish: housing.buildingWallFinish
     });
     ctx.documents.history = new DocumentHistory(
       ctx.documents.documentState,

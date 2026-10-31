@@ -1,9 +1,13 @@
 import * as THREE from "three";
 import { expect, it } from "vitest";
+import { buildingAppearanceColors } from "../../buildings/appearance/colors";
 import type { BuildingAppearanceProfile } from "../../buildings/appearance/types";
+import { assignBuildingAppearances, withBuildingAppearance } from "../../city-editor/generators/buildingAppearance";
 import { buildingAppearancePreview } from "../../city-editor/generators/buildingAppearancePreview";
 import { createBuildingFrontageResolver } from "../../city-editor/generators/buildingFrontage";
+import { createDocument } from "../../city-editor/generators/document";
 import { createBvPrototypeCache } from "./bvInstances";
+import { createCityMassing } from "./cityMeshes";
 import { createTownRegionalHouses, regionalHouseSite } from "./regionalHouseMeshes";
 
 const PROFILES: BuildingAppearanceProfile[] = [
@@ -230,5 +234,36 @@ it("puts a polygon house door on its selected street wall without rotating the f
   expect(hit).toBeDefined();
   expect(prototype.geometry.getAttribute("color").getX(hit.face!.a)).toBeCloseTo(new THREE.Color("#5A3B26").r);
   prototype.release();
+  expect(cache.size).toBe(0);
+});
+
+it("renders the selected white wall finish in both massing and detailed Mediterranean houses", () => {
+  const document = withBuildingAppearance(
+    { ...createDocument("white-walls", 400), buildingWallFinish: "limewash" },
+    "mediterranean"
+  );
+  const lot = assignBuildingAppearances(document, buildingAppearancePreview("mediterranean"))[0];
+  const expected = new THREE.Color(buildingAppearanceColors(lot.appearance)!.wall);
+  const massing = createCityMassing([lot]);
+  const wall = massing.pickables.find(mesh => mesh.userData.surface === "wall")!.geometry.getAttribute("color");
+  expect(wall.getX(0)).toBeCloseTo(expected.r, 6);
+  expect(wall.getY(0)).toBeCloseTo(expected.g, 6);
+  expect(wall.getZ(0)).toBeCloseTo(expected.b, 6);
+  const cache = createBvPrototypeCache();
+  const site = regionalHouseSite(lot, 0, 0, "high")!;
+  const prototype = cache.acquire(site.definition)!;
+  const colors = prototype.geometry.getAttribute("color");
+  let whiteVertices = 0;
+  for (let i = 0; i < colors.count; i++) {
+    if (
+      Math.abs(colors.getX(i) - expected.r) < 1e-6 &&
+      Math.abs(colors.getY(i) - expected.g) < 1e-6 &&
+      Math.abs(colors.getZ(i) - expected.b) < 1e-6
+    )
+      whiteVertices++;
+  }
+  expect(whiteVertices).toBeGreaterThan(0);
+  prototype.release();
+  massing.dispose();
   expect(cache.size).toBe(0);
 });

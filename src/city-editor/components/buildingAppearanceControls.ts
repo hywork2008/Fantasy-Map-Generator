@@ -1,8 +1,10 @@
 import {
   BUILDING_APPEARANCE_CLIMATES,
   BUILDING_APPEARANCE_PROFILES,
+  BUILDING_WALL_FINISHES,
   type BuildingAppearanceClimate,
-  type BuildingAppearanceProfile
+  type BuildingAppearanceProfile,
+  type BuildingWallFinish
 } from "../../buildings/appearance/types";
 import { MODEL_QUALITIES, type ModelQuality } from "../../buildings/modelQuality";
 import { type EditorMessageKey, editorText } from "../../i18n/editorMessages";
@@ -38,6 +40,15 @@ const PROFILE_LABELS: Record<BuildingAppearanceProfile, EditorMessageKey> = {
   "northern-wooded": "cityEditor.messages.housingCultureNorthernWooded",
   "northern-urban": "cityEditor.messages.housingCultureNorthernUrban",
   "stone-upland": "cityEditor.messages.housingCultureStoneUpland"
+};
+const WALL_LABELS: Record<BuildingWallFinish, EditorMessageKey> = {
+  limewash: "cityEditor.messages.housingWallsLimewash",
+  plaster: "cityEditor.messages.housingWallsPlaster",
+  stone: "cityEditor.messages.housingWallsStone",
+  limestone: "cityEditor.messages.housingWallsLimestone",
+  brick: "cityEditor.messages.housingWallsBrick",
+  earth: "cityEditor.messages.housingWallsEarth",
+  timber: "cityEditor.messages.housingWallsTimber"
 };
 const QUALITY_LABELS: Record<ModelQuality, EditorMessageKey> = {
   low: "cityEditor.messages.modelQualityLow",
@@ -124,6 +135,14 @@ export function buildBuildingAppearanceControls(ctx: {
         ? "cityEditor.messages.housingSiteAuto"
         : CLIMATE_LABELS[option.value as BuildingAppearanceClimate]
     );
+  const walls = ctx.select(["auto", ...BUILDING_WALL_FINISHES], "auto");
+  walls.className = "ce-housing-walls";
+  walls.setAttribute("aria-label", editorText("cityEditor.messages.housingWalls"));
+  walls.title = editorText("cityEditor.messages.housingWallsHelp");
+  for (const option of walls.options)
+    option.textContent = editorText(
+      option.value === "auto" ? "cityEditor.messages.housingSiteAuto" : WALL_LABELS[option.value as BuildingWallFinish]
+    );
   const simplification = readSimplificationPreferences();
   const simplificationControls = (["urban", "outskirts"] as const).map(region => {
     const control = ctx.select(["auto", "off"], simplification[region]);
@@ -162,6 +181,7 @@ export function buildBuildingAppearanceControls(ctx: {
   root.append(
     ctx.label(editorText("cityEditor.messages.housingCulture"), culture),
     ctx.label(editorText("cityEditor.messages.housingClimate"), climate),
+    ctx.label(editorText("cityEditor.messages.housingWalls"), walls),
     ctx.label(editorText("cityEditor.messages.buildingHeightMode"), mode),
     cityLimits,
     heightStatus,
@@ -174,6 +194,7 @@ export function buildBuildingAppearanceControls(ctx: {
     let next = withBuildingAppearance({
       ...current,
       buildingAppearanceProfile: culture.value === "auto" ? undefined : (culture.value as BuildingAppearanceProfile),
+      buildingWallFinish: walls.value === "auto" ? undefined : (walls.value as BuildingWallFinish),
       buildingAppearanceClimate: climate.value === "auto" ? undefined : (climate.value as BuildingAppearanceClimate)
     });
     if (fields) {
@@ -196,6 +217,7 @@ export function buildBuildingAppearanceControls(ctx: {
   });
   ctx.scope.listen(culture, "change", change);
   ctx.scope.listen(climate, "change", change);
+  ctx.scope.listen(walls, "change", change);
   const sync = () => {
     const city = ctx.getDocument();
     mode.value = (
@@ -220,6 +242,7 @@ export function buildBuildingAppearanceControls(ctx: {
     heightButton.disabled = !supported || hasBuildingHeightVariation(city);
     culture.value = city.buildingAppearanceProfile ?? "auto";
     climate.value = city.buildingAppearanceClimate ?? "auto";
+    walls.value = city.buildingWallFinish ?? "auto";
   };
   sync();
   return { root, viewControls, sync };

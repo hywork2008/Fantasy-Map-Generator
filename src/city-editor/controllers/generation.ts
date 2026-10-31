@@ -310,7 +310,8 @@ export function createGenerationController(ctx: GenerationContext) {
           ...next,
           biome: ctx.generation.generateSettings.descriptor ? next.biome : ctx.documents.documentState.biome,
           buildingAppearanceProfile: ctx.documents.documentState.buildingAppearanceProfile,
-          buildingAppearanceClimate: ctx.documents.documentState.buildingAppearanceClimate
+          buildingAppearanceClimate: ctx.documents.documentState.buildingAppearanceClimate,
+          buildingWallFinish: ctx.documents.documentState.buildingWallFinish
         },
         ctx.documents.documentState.buildingAppearanceProfile,
         ctx.generation.generateSettings.descriptor
