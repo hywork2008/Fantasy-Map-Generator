@@ -462,7 +462,20 @@ export function getBurgSiteDescriptor(
         const normals = getCellClimateNormals(worldContext, pack.cells.g[burg.cell], simulationContext.currentYear);
         return {
           temperatureC: worldContext.grid.cells.temp[pack.cells.g[burg.cell]],
-          ...(normals ? { monthlyMeanTemperatureC: Array.from(normals.monthlyMeanTemperatureC, t => rn(t, 1)) } : {}),
+          ...(normals
+            ? {
+                monthlyMeanTemperatureC: Array.from(normals.monthlyMeanTemperatureC, t => rn(t, 1)),
+                ...(!normals.invalidAnnualPrecipitation
+                  ? {
+                      annualPrecipitationMm: normals.annualPrecipitationMm,
+                      monthlyPrecipitationMm: Array.from(normals.monthlyPrecipitationMm),
+                      precipitationModelVersion: normals.precipitationModelVersion,
+                      precipitationSeasonalitySource: normals.precipitationSeasonalitySource,
+                      precipitationSeasonalityConfidence: normals.precipitationSeasonalityConfidence
+                    }
+                  : {})
+              }
+            : {}),
           biomeId: bId,
           biomeKey: bKey,
           biomeName: bName,

@@ -252,6 +252,13 @@ export interface BurgSiteDescriptor {
     temperatureC: number;
     /** Monthly mean temperatures at the burg's grid cell, January first. Absent: trees keep one look. */
     monthlyMeanTemperatureC?: number[];
+    /** Unrounded rain/snow water equivalent, January first. Optional in legacy descriptors. */
+    annualPrecipitationMm?: number;
+    monthlyPrecipitationMm?: number[];
+    precipitationModelVersion?: string;
+    precipitationSeasonalitySource?: import("../utils/precipitationSeasonality").PrecipitationSeasonalitySource;
+    precipitationSeasonalityConfidence?: number;
+
     biomeId: number;
     biomeKey?: string;
     biomeName?: string;

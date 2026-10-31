@@ -234,12 +234,14 @@ const LEVEL_LABELS: Record<string, string> = {
 };
 
 const APPEARANCE_LABELS: Record<TreeAppearance, string> = {
-  bare: "Bare winter twigs",
+  bare: "Bare branches",
   bloom: "In flower",
   leaf: "In leaf",
   unripe: "Unripe fruit",
   fruit: "Ripe fruit",
   harvested: "Harvested",
+  sparse: "Sparse dry-season foliage",
+  flush: "New leaves",
   autumn: "Autumn colours"
 };
 

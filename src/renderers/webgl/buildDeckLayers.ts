@@ -21,6 +21,7 @@ import { simulationContext } from "../../context/simulationContext";
 import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
 import { getCombatDeathsByCell, getPopulationLossSimDay } from "../../generators/populationLossTracker";
+import { precipitationDisplaySignature } from "../../generators/precipitationDisplay";
 import { getOceanPathsCacheSize, renderOceanDepthToOffscreenCanvas } from "../../renderers/ocean-layers";
 import { getPresentationStyle, presentationData } from "../../runtime/presentationData";
 import { getWorldLandConnectionCurrent } from "../../services/worldLandConnectionRuntime";
@@ -1687,10 +1688,10 @@ function buildLayerSignatures(
   setIfActive(
     "precipitation",
     "togglePrecipitation",
-    ["map.topology", "map.physical", "presentation.styles"],
+    ["map.topology", "map.physical", "simulation.cells", "presentation.styles"],
     () =>
-      `${gridGeometry()}|centers:${pointListSignature(grid.points)}|${gridHeights()}|${numberListSignature(grid.cells?.prec)}|${colorSignature(styles.precipitationPaint.color)}|points:${styles.precipitationPointsOption}`,
-    `points:${styles.precipitationPointsOption}`
+      `${gridGeometry()}|centers:${pointListSignature(grid.points)}|${gridHeights()}|${numberListSignature(grid.cells?.prec)}|${colorSignature(styles.precipitationPaint.color)}|points:${styles.precipitationPointsOption}|rain:${precipitationDisplaySignature(worldContext)}`,
+    `points:${styles.precipitationPointsOption}|rain:${precipitationDisplaySignature(worldContext)}`
   );
   setIfActive(
     "danger",

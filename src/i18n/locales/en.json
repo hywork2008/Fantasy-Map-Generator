@@ -2096,6 +2096,10 @@
     "rarityLabel12": "Rarity 1-2"
   },
   "layersTab": {
+    "precipitationPeriod": "Precipitation",
+    "precipitationAnnual": "Annual total (mm/year)",
+    "precipitationMonth": "Current month (mm/month)",
+
     "webglRendering": "WebGL rendering",
     "webglRenderingTip": "Use WebGL Hybrid rendering instead of classic SVG rendering",
     "useSvg": "Use SVG rendering",
@@ -2893,6 +2897,13 @@
       "generationOptionsNote": "This file contains the Options values used to generate a map (seed, heightmap, cultures, settlement pattern, and related settings). It does not include the generated world itself."
     },
     "cellInfo": {
+      "monthlyClimate": "Monthly climate",
+      "month": "Month",
+      "moistureSupply": "Ocean supply",
+      "wetThreeMonths": "Wettest three months",
+      "drySeason": "Dry season candidates",
+      "outsideEarthlikeTilt": "Axial tilt outside the Earth-like model range",
+
       "pin": "Pin cell",
       "follow": "Follow cursor",
       "pinTip": "Keep this cell's details while moving the cursor",

@@ -2,13 +2,25 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { setRenderMode } from "../../../actions";
-import { handleLayersPresetChange, removePreset, savePreset, toggleLayerById } from "../../../controllers/layers";
+import { appServices } from "../../../context/appServices";
+import { viewContext } from "../../../context/viewContext";
+import { worldContext } from "../../../context/worldContext";
+import {
+  handleLayersPresetChange,
+  removePreset,
+  savePreset,
+  scheduleWebglUpdate,
+  toggleLayerById
+} from "../../../controllers/layers";
 import { changeViewMode } from "../../../controllers/viewMode";
+import { PrecipitationRenderer } from "../../../renderers/draw-precipitation";
 import { useGenerationProgressState } from "../../../store/generationProgressState";
 import { DEFAULT_LAYERS, type LayerConfig, useLayerState } from "../../../store/layerState";
+import { usePrecipitationDisplayState } from "../../../store/precipitationDisplayState";
 import { useViewModeState } from "../../../store/viewModeState";
 
 export const LayersTab: React.FC = () => {
+  const rain = usePrecipitationDisplayState();
   const { t, i18n } = useTranslation();
   const { layers, setLayers, activeLayers, presets, presetLabels, activePreset, presetDisabled, reorderLayers } =
     useLayerState();
@@ -69,6 +81,22 @@ export const LayersTab: React.FC = () => {
 
   return (
     <div id="layersContent" className="tabcontent d-block">
+      <label>
+        {t("layersTab.precipitationPeriod", "Precipitation")}{" "}
+        <select
+          value={rain.mode}
+          onChange={e => {
+            rain.setMode(e.target.value as "annual" | "month");
+            if (activeLayers.togglePrecipitation) {
+              PrecipitationRenderer.render(worldContext, viewContext, appServices);
+              scheduleWebglUpdate();
+            }
+          }}
+        >
+          <option value="annual">{t("layersTab.precipitationAnnual", "Annual total (mm/year)")}</option>
+          <option value="month">{t("layersTab.precipitationMonth", "Current month (mm/month)")}</option>
+        </select>
+      </label>
       <div className="renderer-mode-control" data-tip={t("layersTab.webglRenderingTip")}>
         <span id="webglRenderingLabel" className="renderer-mode-label">
           {t("layersTab.webglRendering")}

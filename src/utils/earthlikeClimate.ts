@@ -2,7 +2,7 @@
 import { EARTH_AXIAL_TILT_DEG } from "../data/earthConfig";
 import { getDayOfYear, getDaysInMonth, isLeapYear } from "./seasonUtils";
 
-export const CLIMATE_MODEL_VERSION = "earthlike-seasonal-v1";
+export const CLIMATE_MODEL_VERSION = "earthlike-seasonal-v2";
 const SEA_AMPLITUDES = [0, 2, 4, 7, 10, 12, 14];
 const LAND_AMPLITUDES = [0, 3, 8, 14, 20, 24, 26];
 

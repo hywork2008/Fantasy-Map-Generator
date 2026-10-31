@@ -43,7 +43,7 @@ import {
   windVectorToFromDeg,
   windVectorToTowardDeg
 } from "../utils/windClimate";
-import { ensureClimateGeography } from "./cellClimateNormals";
+import { climateDeltaX, climateNeighbors, ensureClimateGeography, geographyKey } from "./cellClimateGeography";
 import { computeWorldTerrainAspect, HILLSIDE_LENGTH_M } from "./terrainAspect";
 
 export const WIND_FLAG_LEE = 1;
@@ -93,7 +93,7 @@ function hash(values: ArrayLike<number> | undefined): number {
 function cacheKey(world: WorldContext, exponent: number): string {
   const { grid, mapCoordinates, graphWidth, graphHeight, options, distanceScale } = world;
   return JSON.stringify([
-    world.mapId,
+    geographyKey(world),
     graphWidth,
     graphHeight,
     mapCoordinates,
@@ -111,13 +111,13 @@ function cacheKey(world: WorldContext, exponent: number): string {
 }
 
 /** Box mean over a row-major raster, separable running sums, repeated twice (≈ triangular kernel). O(n). */
-function boxBlur(values: Float32Array, width: number, height: number, radius: number): Float32Array {
+function boxBlur(values: Float32Array, width: number, height: number, radius: number, wrapX = false): Float32Array {
   if (radius < 1) return values.slice();
   let source = values;
   const line = new Float64Array(Math.max(width, height));
   for (let pass = 0; pass < 2; pass++) {
     const out = new Float32Array(source.length);
-    blurLines(source, out, height, width, 1, width, radius, line);
+    blurLines(source, out, height, width, 1, width, radius, line, wrapX);
     const out2 = new Float32Array(source.length);
     blurLines(out, out2, width, height, width, 1, radius, line);
     source = out2;
@@ -134,7 +134,8 @@ function blurLines(
   step: number,
   lineStride: number,
   radius: number,
-  prefix: Float64Array
+  prefix: Float64Array,
+  wrap = false
 ): void {
   for (let j = 0; j < count; j++) {
     const base = j * lineStride;
@@ -142,6 +143,16 @@ function blurLines(
     for (let k = 0; k < length; k++) {
       running += source[base + k * step];
       prefix[k] = running;
+    }
+    if (wrap) {
+      const r = Math.min(radius, Math.floor((length - 1) / 2));
+      let sum = 0;
+      for (let k = -r; k <= r; k++) sum += source[base + ((k + length) % length) * step];
+      for (let k = 0; k < length; k++) {
+        target[base + k * step] = sum / (2 * r + 1);
+        sum += source[base + ((k + r + 1) % length) * step] - source[base + ((k - r + length) % length) * step];
+      }
+      continue;
     }
     for (let k = 0; k < length; k++) {
       const lo = Math.max(0, k - radius);
@@ -167,11 +178,12 @@ export function ensureCellWindClimate(world: WorldContext): CellWindClimate {
   const { grid } = world;
   const n = grid.cells.i.length;
   const heights = grid.cells.h ?? new Uint8Array(n);
-  const neighbors = grid.cells.c ?? [];
+  const neighbors = Array.from({ length: n }, (_, cell) => climateNeighbors(world, cell));
   const points = grid.points;
   const winds = world.options.winds ?? [225, 45, 225, 315, 135, 315];
   const axialTilt = world.options.axialTilt ?? 23.5;
   const kmPerUnit = Math.max(world.distanceScale, 0);
+  const wrapX = (world.mapCoordinates.lonT ?? 0) >= 359.999;
   const spacingKm = (grid.spacing ?? 0) * kmPerUnit;
   const meters = new Float32Array(n);
   const land = new Float32Array(n);
@@ -185,8 +197,14 @@ export function ensureCellWindClimate(world: WorldContext): CellWindClimate {
   let landFraction: Float32Array;
   let surroundings: Float32Array;
   if (isRaster) {
-    landFraction = boxBlur(land, grid.cellsX, grid.cellsY, Math.round(LAND_FRACTION_HALF_WIDTH_KM / spacingKm / 1.5));
-    surroundings = boxBlur(meters, grid.cellsX, grid.cellsY, Math.round(EXPOSURE_RADIUS_KM / spacingKm / 1.5));
+    landFraction = boxBlur(
+      land,
+      grid.cellsX,
+      grid.cellsY,
+      Math.round(LAND_FRACTION_HALF_WIDTH_KM / spacingKm / 1.5),
+      wrapX
+    );
+    surroundings = boxBlur(meters, grid.cellsX, grid.cellsY, Math.round(EXPOSURE_RADIUS_KM / spacingKm / 1.5), wrapX);
   } else {
     const meanLand = n ? land.reduce((a, b) => a + b, 0) / n : 0;
     landFraction = new Float32Array(n).fill(meanLand);
@@ -292,15 +310,19 @@ export function ensureCellWindClimate(world: WorldContext): CellWindClimate {
     const month = new Float32Array(n);
     for (let m = 0; m < 12; m++) {
       for (let cell = 0; cell < n; cell++) month[cell] = seasonal[cell * 12 + m];
-      const smooth = boxBlur(month, width, height, radius);
+      const smooth = boxBlur(month, width, height, radius, wrapX);
       for (let cell = 0; cell < n; cell++) {
         const x = cell % width;
         const y = Math.floor(cell / width);
-        const xl = Math.max(0, x - 1);
-        const xr = Math.min(width - 1, x + 1);
+        const xl = wrapX ? (x + width - 1) % width : Math.max(0, x - 1);
+        const xr = wrapX ? (x + 1) % width : Math.min(width - 1, x + 1);
         const yt = Math.max(0, y - 1);
         const yb = Math.min(height - 1, y + 1);
-        const gradEast = xr > xl ? (smooth[y * width + xr] - smooth[y * width + xl]) / ((xr - xl) * spacingKm) : 0;
+        const gradEast = wrapX
+          ? (smooth[y * width + xr] - smooth[y * width + xl]) / (2 * spacingKm)
+          : xr > xl
+            ? (smooth[y * width + xr] - smooth[y * width + xl]) / ((xr - xl) * spacingKm)
+            : 0;
         // Screen rows grow southward, so north is the row above.
         const gradNorth = yb > yt ? (smooth[yt * width + x] - smooth[yb * width + x]) / ((yb - yt) * spacingKm) : 0;
         const monsoon = getMonsoonVector(gradEast, gradNorth, latitudes[cell], monsoonConfidence[cell]);
@@ -327,7 +349,7 @@ export function ensureCellWindClimate(world: WorldContext): CellWindClimate {
         const next: number[] = [];
         for (const cell of frontier) {
           const sea = source[cell];
-          const dx = (points[cell][0] - points[sea][0]) * kmPerUnit;
+          const dx = climateDeltaX(world, points[cell][0] - points[sea][0]) * kmPerUnit;
           const dyNorth = -(points[cell][1] - points[sea][1]) * kmPerUnit;
           const distance = Math.max(0, Math.hypot(dx, dyNorth) - spacingKm / 2);
           if (distance > reach) continue;
@@ -346,7 +368,10 @@ export function ensureCellWindClimate(world: WorldContext): CellWindClimate {
         let bestDistance = Infinity;
         for (const other of neighbors[cell] ?? []) {
           if (!isOcean(other)) continue;
-          const d = Math.hypot(points[other][0] - points[cell][0], points[other][1] - points[cell][1]);
+          const d = Math.hypot(
+            climateDeltaX(world, points[other][0] - points[cell][0]),
+            points[other][1] - points[cell][1]
+          );
           if (d < bestDistance) {
             bestDistance = d;
             best = other;
@@ -411,7 +436,7 @@ export function ensureCellWindClimate(world: WorldContext): CellWindClimate {
       let bestDot = 0.5;
       let bestLength = 0;
       for (const other of neighbors[cell] ?? []) {
-        const dx = points[other][0] - x0;
+        const dx = climateDeltaX(world, points[other][0] - x0);
         const dy = points[other][1] - y0;
         const length = Math.hypot(dx, dy);
         if (!length) continue;

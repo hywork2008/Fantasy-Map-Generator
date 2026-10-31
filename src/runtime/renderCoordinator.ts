@@ -15,6 +15,7 @@ import {
   BurgLabelsRenderer,
   MarkersRenderer,
   MilitaryRenderer,
+  PrecipitationRenderer,
   RoutesRenderer,
   StateLabelsRenderer,
   StatesRenderer
@@ -49,6 +50,7 @@ export interface RenderEffects {
   renderMarkers(): void;
   renderRoutes(): void;
   renderMilitary(): void;
+  renderPrecipitation?(): void;
   /** Extension SVG / hybrid overlay hooks (`registerDrawLayerHook`). */
   renderExtensionLayers(): void;
   scheduleWebglUpdate(): void;
@@ -137,6 +139,8 @@ function applyCommit(commit: WorldCommit<unknown>, effects: RenderEffects): void
   if (topics.has("map.networks")) effects.renderRoutes();
 
   if (topics.has("map.annotations")) effects.renderMarkers();
+
+  if (topics.has("simulation.cells") || topics.has("map.physical")) effects.renderPrecipitation?.();
 
   if (topics.has("simulation.military")) {
     effects.renderMilitary();
@@ -246,6 +250,10 @@ export function initRenderCoordinator(): void {
     renderExtensionLayers: () => {
       if (!viewContext.renderMap) return;
       runDrawLayerHooks();
+    },
+    renderPrecipitation: () => {
+      if (viewContext.renderMap && layerIsOn("togglePrecipitation"))
+        PrecipitationRenderer.render(worldContext, viewContext, appServices);
     },
     scheduleWebglUpdate,
     scheduleLandTopologyProjection: () => landTopologyScheduler?.schedule(),

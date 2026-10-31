@@ -410,6 +410,43 @@ function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
   if (raw.burialProfile !== undefined && !isBurialCultureProfile(raw.burialProfile)) return warnShape("burialProfile");
   // An unreadable civilization block only loses the culture-aware landmarks.
   if (raw.civilization !== undefined && !isCivilizationContext(raw.civilization)) delete raw.civilization;
+  if (isRecord(raw.climate)) {
+    const c = raw.climate;
+    const monthly = c.monthlyPrecipitationMm;
+    const hasRain = [
+      "annualPrecipitationMm",
+      "monthlyPrecipitationMm",
+      "precipitationModelVersion",
+      "precipitationSeasonalitySource",
+      "precipitationSeasonalityConfidence"
+    ].some(k => c[k] !== undefined);
+    const valid =
+      Array.isArray(monthly) &&
+      monthly.length === 12 &&
+      monthly.every(v => isFiniteNumber(v) && v >= 0) &&
+      isFiniteNumber(c.annualPrecipitationMm) &&
+      c.annualPrecipitationMm >= 0 &&
+      typeof c.precipitationModelVersion === "string" &&
+      c.precipitationModelVersion.length > 0 &&
+      ["modeledSeasonality", "uniformFallback", "uniformAssumption"].includes(
+        String(c.precipitationSeasonalitySource)
+      ) &&
+      isFiniteNumber(c.precipitationSeasonalityConfidence) &&
+      c.precipitationSeasonalityConfidence >= 0 &&
+      c.precipitationSeasonalityConfidence <= 1 &&
+      Math.abs(monthly.reduce((sum: number, v: number) => sum + v, 0) - c.annualPrecipitationMm) <=
+        Math.max(1e-8, c.annualPrecipitationMm * 1e-12);
+    // Discard the entire optional block: missing months must never become an invented dry season.
+    if (hasRain && !valid)
+      for (const k of [
+        "annualPrecipitationMm",
+        "monthlyPrecipitationMm",
+        "precipitationModelVersion",
+        "precipitationSeasonalitySource",
+        "precipitationSeasonalityConfidence"
+      ])
+        delete c[k];
+  }
   if (!Array.isArray(raw.rivers) || !Array.isArray(raw.roads)) return warnShape("rivers[] / roads[]");
   if (raw.economy !== undefined) {
     const economy = sanitizeBurgSiteEconomy(raw.economy);
