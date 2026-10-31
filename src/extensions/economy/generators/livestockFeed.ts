@@ -1,4 +1,6 @@
 /** One physical pasture/hay budget per cell; farmers and the army share real Fodder market stock. */
+
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import { rn } from "../../hostUtils";
 import { getCropResidueState } from "../context/cropResidues";
 import {
@@ -103,6 +105,8 @@ export function harvestLivestockForage(): void {
   const marketCells = getMarketCellColumn();
   const fodder = getGoods().find(good => good.name === "Fodder" && isGoodEnabled(good));
   const offers = new Map<number, { cell: number; kg: number }[]>();
+  // Hay still missing from each herd's winter reserve plan after its own cut.
+  const shortfalls = new Map<number, { cell: number; kg: number }[]>();
   for (const cell of world.pack.cells?.i ?? []) {
     if (world.pack.cells.h[cell] < 20) continue;
     if (!(getForageAreaHectares(cell) > 0) && !(getLivestockMonthlyFeedNeedKg(cell) > 0) && !(table[cell]?.hayKg > 0))
@@ -152,8 +156,15 @@ export function harvestLivestockForage(): void {
       list.push({ cell, kg: sellKg });
       offers.set(marketCells[cell], list);
     }
+    const shortKg = need > 0 ? Math.max(0, plan.reserveAfterMonthKg[month] - row.hayKg) : 0;
+    if (fodder && shortKg > 0 && marketCells[cell]) {
+      const list = shortfalls.get(marketCells[cell]) ?? [];
+      list.push({ cell, kg: shortKg });
+      shortfalls.set(marketCells[cell], list);
+    }
   }
   if (!fodder) return;
+  const { hayTrade } = getMarketSettings();
   for (const market of getMarkets()) {
     if (!market.foodLedger) continue;
     const ledger = market.foodLedger;
@@ -167,12 +178,21 @@ export function harvestLivestockForage(): void {
     market.goods[fodder.i] ??= { stock: 0, price: fodder.value };
     const stock = market.goods[fodder.i];
     if (!(stock.price > 0) || !Number.isFinite(stock.price)) continue;
-    // The market buys only the grass its herds will eat: up to a year's sales above its stock.
-    const wantedLots = Math.max(0, ledger.fodderAnnualUseLots * FODDER_STOCK_YEARS - Math.max(0, stock.stock));
+    const price = stock.price * 0.8;
+    const short = shortfalls.get(market.i) ?? [];
+    if (hayTrade === "farmsFirst") tradeHayBetweenFarms(table, list, short, price);
+    // The market buys the grass its herds will eat: what its farms still lack for their winter
+    // reserves, or a year's sales if larger, above its stock. Sales alone shrank year by year, since
+    // a market short of stock sold less and then bought less (docs/analytics/hay-surplus-20261031.md).
+    const shortLots = short.reduce((sum, entry) => sum + entry.kg, 0) / FODDER_DM_KG_PER_LOT;
+    const wantedLots = Math.max(
+      0,
+      Math.max(ledger.fodderAnnualUseLots * FODDER_STOCK_YEARS, shortLots) - Math.max(0, stock.stock)
+    );
     const offeredKg = list.reduce((sum, offer) => sum + offer.kg, 0);
+    if (!(offeredKg > 0)) continue;
     const totalKg = Math.min(offeredKg, wantedLots * FODDER_DM_KG_PER_LOT);
     const treasury = market.marketTreasury;
-    const price = stock.price * 0.8;
     const bill =
       Math.floor(Math.min(Math.max(0, treasury?.balance ?? 0), (totalKg / FODDER_DM_KG_PER_LOT) * price) * 100) / 100;
     if (!(bill > 0) || !treasury) continue;
@@ -197,6 +217,42 @@ export function harvestLivestockForage(): void {
       units: boughtKg / FODDER_DM_KG_PER_LOT,
       marketId: market.i
     });
+  }
+}
+
+/**
+ * Spare hay goes straight from farms with more than their reserve plan to short farms of the same
+ * market, in proportion on both sides. Both pay from and into the one rural purse, so no cash moves;
+ * the price is only recorded. The offers and shortfalls are reduced by what was moved.
+ */
+function tradeHayBetweenFarms(
+  table: Record<number, LivestockFeedLedger>,
+  offers: { cell: number; kg: number }[],
+  shortfalls: { cell: number; kg: number }[],
+  price: number
+): void {
+  const offeredKg = offers.reduce((sum, offer) => sum + offer.kg, 0);
+  const shortKg = shortfalls.reduce((sum, entry) => sum + entry.kg, 0);
+  const movedKg = Math.min(offeredKg, shortKg);
+  if (!(movedKg > 0)) return;
+  for (const offer of offers) {
+    const row = table[offer.cell];
+    const kg = (movedKg * offer.kg) / offeredKg;
+    const rawHarvest = kg / HAY_DRY_MATTER_RETENTION;
+    row.harvestedKg += rawHarvest;
+    row.harvestLossKg += rawHarvest - kg;
+    row.unharvestedKg = Math.max(0, row.unharvestedKg - rawHarvest);
+    row.soldKg += kg;
+    row.revenue += (kg / FODDER_DM_KG_PER_LOT) * price;
+    offer.kg -= kg;
+  }
+  for (const entry of shortfalls) {
+    const row = table[entry.cell];
+    const kg = (movedKg * entry.kg) / shortKg;
+    row.hayKg += kg;
+    row.purchasedKg += kg;
+    row.spending += (kg / FODDER_DM_KG_PER_LOT) * price;
+    entry.kg -= kg;
   }
 }
 

@@ -2077,7 +2077,11 @@
     "marketDissolveCargo": "畳む市場の運送中の荷",
     "marketDissolveCargoTip": "店じまい：その市場との新しい取り引きを受けず、運送中の荷が着いてから畳みます。引き継ぎ：すぐに畳み、運送中の荷を取り込み先の市場に引き継ぎます。自分の町への荷は、どちらでも取り込み先に引き継ぎます。商船を持つ市場は畳みません。",
     "marketDissolveCargo_windDown": "店じまい",
-    "marketDissolveCargo_handOver": "引き継ぎ"
+    "marketDissolveCargo_handOver": "引き継ぎ",
+    "hayTrade": "余った干し草",
+    "hayTradeTip": "農家が自分の冬の備えより多く刈った干し草です。市場が買う：市場の足りない農家の冬の備えの不足分（1年の飼い葉の販売の方が多ければその量）まで、市場が買います。農家どうしを先に：同じ市場の足りない農家に直接回し、まだ足りない分を市場が買います。",
+    "hayTrade_marketShortfall": "市場が買う",
+    "hayTrade_farmsFirst": "農家どうしを先に"
   },
   "dangerSettings": {
     "heading": "危険度の設定：",

@@ -6,6 +6,7 @@ vi.mock("./seasonalCropClimate", async original => ({
   readAgriculturalClimate: () => ({ year: 1000, monthlyMeanTemperatureC: climate.temperatures })
 }));
 
+import { setMarketSettings } from "../../../simulation/marketSettings";
 import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { getCadencePhase, setCadencePhase } from "../context/cadencePhases";
@@ -237,6 +238,38 @@ describe("physical livestock feed budget", () => {
     // 3 lots decay by a month to 2.75; with 1 lot held, at most 1.75 more is bought.
     expect(market.goods[good("Fodder").i].stock).toBeCloseTo(2.75, 8);
     expect((rows()[0].soldKg + rows()[1].soldKg) / FODDER_DM_KG_PER_LOT).toBeCloseTo(1.75, 8);
+  });
+
+  it("buys spare hay for farms short of their winter reserve even with no Fodder sales last year", () => {
+    const market = getMarkets()[0];
+    market.foodLedger!.fodderAnnualUseLots = 0;
+    // The second cell has no hands to cut its own hay.
+    setHusbandryWorkers(Float32Array.from([100, 0]));
+    harvestLivestockForage();
+    const stock = market.goods[good("Fodder").i].stock;
+    expect(stock).toBeGreaterThan(0);
+    expect(stock * FODDER_DM_KG_PER_LOT).toBeCloseTo(rows()[0].soldKg, 8);
+    expect(rows()[1].hayKg).toBe(0);
+  });
+
+  it("moves spare hay from farm to farm first when set, with no cash moving", () => {
+    setMarketSettings({ hayTrade: "farmsFirst" });
+    try {
+      const market = getMarkets()[0];
+      const beforeMoney = market.marketTreasury!.balance + market.foodLedger!.ruralHouseholdWealth!;
+      setHusbandryWorkers(Float32Array.from([100, 0]));
+      harvestLivestockForage();
+      expect(rows()[1].hayKg).toBeGreaterThan(0);
+      expect(rows()[1].purchasedKg).toBeCloseTo(rows()[1].hayKg, 8);
+      expect(rows()[0].harvestedKg).toBeCloseTo(rows()[0].harvestLossKg + rows()[0].hayKg + rows()[0].soldKg, 8);
+      expect(rows()[0].soldKg).toBeCloseTo(
+        rows()[1].purchasedKg + market.goods[good("Fodder").i].stock * FODDER_DM_KG_PER_LOT,
+        8
+      );
+      expect(market.marketTreasury!.balance + market.foodLedger!.ruralHouseholdWealth!).toBeCloseTo(beforeMoney, 8);
+    } finally {
+      setMarketSettings({ hayTrade: "marketShortfall" });
+    }
   });
 
   it("caps haymaking by assigned shared herder labor, with no population bonus Fodder source", () => {

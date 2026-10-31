@@ -15,6 +15,14 @@ export const MARKET_SETTINGS_KEY = "fmg-market-settings";
 export const MARKET_DISSOLVE_CARGO_MODES = ["windDown", "handOver"] as const;
 export type MarketDissolveCargoMode = (typeof MARKET_DISSOLVE_CARGO_MODES)[number];
 
+/**
+ * Spare hay at the cut (docs/analytics/hay-surplus-20261031.md): `marketShortfall` has the market buy
+ * it up to its farms' shortfall against their winter reserve plans; `farmsFirst` first moves it from
+ * farms with spare hay to short farms of the same market, and the market buys for what is still short.
+ */
+export const HAY_TRADE_MODES = ["marketShortfall", "farmsFirst"] as const;
+export type HayTradeMode = (typeof HAY_TRADE_MODES)[number];
+
 export type MarketSettings = {
   /** A town promoted during the run opens a market only this many generation spacings from every market centre. */
   foundingSpacingFactor: number;
@@ -23,13 +31,15 @@ export type MarketSettings = {
   /** ...for this many consecutive months. */
   dissolveMonths: number;
   dissolveCargo: MarketDissolveCargoMode;
+  hayTrade: HayTradeMode;
 };
 
 export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   foundingSpacingFactor: 1,
   dissolveWealthShare: 0.2,
   dissolveMonths: 12,
-  dissolveCargo: "windDown"
+  dissolveCargo: "windDown",
+  hayTrade: "marketShortfall"
 };
 
 export const MARKET_SETTING_LIMITS = {
@@ -44,6 +54,9 @@ const cargoMode = (value: unknown): MarketDissolveCargoMode =>
   MARKET_DISSOLVE_CARGO_MODES.includes(value as MarketDissolveCargoMode)
     ? (value as MarketDissolveCargoMode)
     : DEFAULT_MARKET_SETTINGS.dissolveCargo;
+
+const hayTradeMode = (value: unknown): HayTradeMode =>
+  HAY_TRADE_MODES.includes(value as HayTradeMode) ? (value as HayTradeMode) : DEFAULT_MARKET_SETTINGS.hayTrade;
 
 const clamp = (key: NumericMarketSetting, value: unknown): number => {
   const { min, max, step } = MARKET_SETTING_LIMITS[key];
@@ -64,7 +77,8 @@ export function getMarketSettings(): MarketSettings {
     foundingSpacingFactor: clamp("foundingSpacingFactor", parsed.foundingSpacingFactor),
     dissolveWealthShare: clamp("dissolveWealthShare", parsed.dissolveWealthShare),
     dissolveMonths: clamp("dissolveMonths", parsed.dissolveMonths),
-    dissolveCargo: cargoMode(parsed.dissolveCargo)
+    dissolveCargo: cargoMode(parsed.dissolveCargo),
+    hayTrade: hayTradeMode(parsed.hayTrade)
   };
 }
 
@@ -74,7 +88,8 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     foundingSpacingFactor: clamp("foundingSpacingFactor", next.foundingSpacingFactor),
     dissolveWealthShare: clamp("dissolveWealthShare", next.dissolveWealthShare),
     dissolveMonths: clamp("dissolveMonths", next.dissolveMonths),
-    dissolveCargo: cargoMode(next.dissolveCargo)
+    dissolveCargo: cargoMode(next.dissolveCargo),
+    hayTrade: hayTradeMode(next.hayTrade)
   };
   worldSettings.setItem(MARKET_SETTINGS_KEY, JSON.stringify(settings));
   return settings;
