@@ -2064,7 +2064,20 @@
     "recruitQuality": "新兵の質",
     "recruitQualityTip": "新兵は連隊の質を薄めます。戦闘力は質に比例し、未熟な部隊は弱く戦います",
     "femaleLevy": "女性徴兵",
-    "femaleLevyTip": "成人男性が不足しているとき、限られた割合の成人女性を武装兵力に徴します（実験的）"
+    "femaleLevyTip": "成人男性が不足しているとき、限られた割合の成人女性を武装兵力に徴します（実験的）",
+    "marketsHeading": "市場（経済）：",
+    "marketsHeadingTip": "時間の進行中に市場を開く・畳む規則です。ワールドと一緒に保存されます。",
+    "marketFoundingSpacing": "新しい市場の間隔 ×",
+    "marketFoundingSpacingTip": "時間の進行中（世界の誕生を含む）に昇格した町は、どの市場の中心からもこの倍率の生成時の間隔以上離れている時だけ、自分の市場を開きます。近い時は、周りの市場に入ります。1は地図の市場を生成した時の間隔です。市場の一覧からの市場の追加は制限しません。",
+    "marketFoundingSpacingDistance": "≈ 地図の単位で {{distance}}",
+    "marketDissolveWealthShare": "市場を畳む農村の財布（中央値の%）",
+    "marketDissolveWealthShareTip": "農村の1人あたりの財布が、全市場の中央値のこの割合より小さいままの市場は、お金・掛け・在庫と一緒に隣の市場に取り込まれます。国の首都の市場は畳みません。0で畳みません。",
+    "marketDissolveMonths": "…の続いた月数",
+    "marketDissolveMonthsTip": "市場を畳むまでに、割合を下回る月が続く数です。",
+    "marketDissolveCargo": "畳む市場の運送中の荷",
+    "marketDissolveCargoTip": "店じまい：その市場との新しい取り引きを受けず、運送中の荷が着いてから畳みます。引き継ぎ：すぐに畳み、運送中の荷を取り込み先の市場に引き継ぎます。自分の町への荷は、どちらでも取り込み先に引き継ぎます。商船を持つ市場は畳みません。",
+    "marketDissolveCargo_windDown": "店じまい",
+    "marketDissolveCargo_handOver": "引き継ぎ"
   },
   "dangerSettings": {
     "heading": "危険度の設定：",

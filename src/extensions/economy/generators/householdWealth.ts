@@ -65,7 +65,7 @@ function ensureRuralHouseholdWealthSeeded(market: Market): number {
 const pendingFarmMoves = new Map<number, Map<number, number>>();
 
 /** Rural population points per market in a market-cell column. */
-function getRuralPopulationByMarket(column: ArrayLike<number>): Map<number, number> {
+export function getRuralPopulationByMarket(column: ArrayLike<number>): Map<number, number> {
   const { pack } = getWorldContext();
   const population = new Map<number, number>();
   for (const cellId of pack.cells?.i ?? []) {

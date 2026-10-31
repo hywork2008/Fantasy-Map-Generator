@@ -424,8 +424,10 @@ export class StrategicProcurementModule {
     const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
     const candidates: CandidateWithRoute[] = [];
 
+    // A market winding down to be dissolved takes no new trade (market-founding-viability.md §3.2).
+    if (destination.dissolving) return candidates;
     for (const source of getMarkets()) {
-      if (source.i === destination.i) continue;
+      if (source.i === destination.i || source.dissolving) continue;
       const sourceGood = source.goods[good.i];
       if (!sourceGood) continue;
 

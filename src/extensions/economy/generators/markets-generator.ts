@@ -4,7 +4,7 @@ import FlatQueue from "flatqueue";
 import { deliverConversionTimber } from "../../../generators/landUse";
 import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
-import { pow } from "../../../simulation/deterministicMath";
+import { getMarketGenerationSpacing, getMarketSettings } from "../../../simulation/marketSettings";
 import { optionsStore } from "../../hostCore";
 import type { Burg, ShipGoodName, ShipGoodStock } from "../../hostTypes";
 import {
@@ -81,12 +81,20 @@ import { recordGoodFlow } from "./goodsBalanceLedger";
 import { floorToRetailLot, getMarketTradeMinimumUnits, getRetailLotSize } from "./goodsTradeLots";
 import { getCraftDomainForGood } from "./guildKnowledgeTypes";
 import { getMonthlyHouseholdFuelDemands, getWoodSupplyMonthKey } from "./heating";
-import { moveRuralPursesWithFarms } from "./householdWealth";
+import { getRuralPopulationByMarket, moveRuralPursesWithFarms } from "./householdWealth";
 import { getHouseTimberShare, getHousingRecipe } from "./housingRecipes";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import { getLivestockFodderOrderLots } from "./livestockFeed";
 import { isLuxuryValueDemandEnabled, luxuryBudgetByMarketTier, luxuryStockTarget } from "./luxuryDemand";
 import { isHighValueTradeGood, isLuxuryDemandGood, type LuxuryTier } from "./luxuryTiers";
+import {
+  absorbMarketHoldings,
+  handOverLocalDeliveries,
+  handOverTrade,
+  hasMarketTrafficInFlight,
+  marketTrafficInFlight,
+  updateLowRuralWealthMonths
+} from "./marketDissolution";
 import {
   computeMarketGoodFlowBudget,
   TRADE_RESERVE_FACTOR as FLOW_TRADE_RESERVE_FACTOR,
@@ -711,9 +719,11 @@ export class MarketsModule {
 
     // minSpacing scales with map size relative to burg count
     let minSpacing =
-      (((this.worldContext.graphWidth + this.worldContext.graphHeight) * 2) /
-        pow(this.worldContext.pack.burgs.length, 0.6)) |
-      0;
+      getMarketGenerationSpacing(
+        this.worldContext.graphWidth,
+        this.worldContext.graphHeight,
+        this.worldContext.pack.burgs.length
+      ) | 0;
 
     const markets: Market[] = [];
     const tree = quadtree<[number, number, number]>(
@@ -1771,13 +1781,44 @@ export class MarketsModule {
     return market.name || this.worldContext.pack.burgs[market.centerBurgId]?.name || `Market ${market.i}`;
   }
 
-  addMarket(burgId: number): Market | null {
+  /**
+   * Distance a town promoted during the run must keep from every market centre to open its own
+   * market: the generation spacing for the current burg count, times the world's setting.
+   */
+  getFoundingSpacing(): number {
+    const { graphWidth, graphHeight, pack } = this.worldContext;
+    return (
+      getMarketGenerationSpacing(graphWidth, graphHeight, pack.burgs.length) * getMarketSettings().foundingSpacingFactor
+    );
+  }
+
+  /**
+   * `spaced`: a town promoted during the run (world birth included) opens a market only as far
+   * from every centre as markets are spaced at generation; nearer, it stays in the market whose
+   * catchment already holds it (docs/plan/market-founding-viability.md §3.1). The player's own
+   * Add market is not limited.
+   */
+  addMarket(burgId: number, { spaced = false }: { spaced?: boolean } = {}): Market | null {
     const burg = (this.worldContext.pack.burgs as Burg[])[burgId];
     if (!burg || burg.removed) return null;
 
     const markets = getMarkets();
     if (markets.some(m => m.centerBurgId === burgId)) {
       return null;
+    }
+
+    if (spaced && !this.usesStateBoundedTerritories()) {
+      const spacing = this.getFoundingSpacing();
+      const burgs = this.worldContext.pack.burgs as Burg[];
+      const crowded = markets.some(market => {
+        const center = burgs[market.centerBurgId];
+        return center && !center.removed && Math.hypot(center.x - burg.x, center.y - burg.y) < spacing;
+      });
+      if (crowded) {
+        const column = getMarketCellColumn();
+        if (burg.cell >= 0 && burg.cell < column.length) burg.market = column[burg.cell] || 0;
+        return null;
+      }
     }
 
     // A new frontier village is supplied by the merchants who already serve
@@ -1846,6 +1887,80 @@ export class MarketsModule {
 
     syncBurgMarketLedgers();
 
+    return true;
+  }
+
+  /**
+   * Monthly: dissolves each market whose rural purse per head stayed below the world setting's
+   * share of the median market's for its months (docs/plan/market-founding-viability.md §3.2).
+   * `windDown` first stops new trade with it and waits for the cargo on the way; `handOver`
+   * dissolves it at once. Returns the dissolved market ids.
+   */
+  dissolveUnviableMarkets(): number[] {
+    if (this.usesStateBoundedTerritories()) return [];
+    const { dissolveWealthShare, dissolveMonths, dissolveCargo } = getMarketSettings();
+    if (!(dissolveWealthShare > 0) || getMarkets().length < 2) {
+      for (const market of getMarkets()) delete market.dissolving;
+      return [];
+    }
+    const due = updateLowRuralWealthMonths(
+      getRuralPopulationByMarket(getMarketCellColumn()),
+      dissolveWealthShare,
+      dissolveMonths
+    );
+    const dissolved: number[] = [];
+    for (const market of due) {
+      if (getMarkets().length < 2) break;
+      if (dissolveCargo === "windDown") {
+        market.dissolving = true;
+        if (hasMarketTrafficInFlight(market)) continue;
+      } else if (marketTrafficInFlight(market) === "merchantShips") continue;
+      if (this.dissolveMarket(market, dissolveCargo === "handOver")) dissolved.push(market.i);
+    }
+    return dissolved;
+  }
+
+  /** Redraws the catchments without `market` and hands its holdings to the market that takes its centre. */
+  private dissolveMarket(market: Market, handOverCargo: boolean): boolean {
+    const markets = getMarkets();
+    const index = markets.indexOf(market);
+    if (index === -1) return false;
+    const burgs = this.worldContext.pack.burgs as Burg[];
+    const center = burgs[market.centerBurgId];
+    const previous = getMarketCellColumn().slice();
+    const remaining = markets.filter(other => other !== market);
+    if (center) center.plaza = 0;
+    this.indexMarkets(remaining);
+    const next = this.floodFillMarketTerritories(remaining);
+
+    let into = center ? this.get(next[center.cell]) : undefined;
+    if (!into || into === market) {
+      const taken = new Map<number, number>();
+      previous.forEach((owner, cellId) => {
+        if (owner === market.i && next[cellId]) taken.set(next[cellId], (taken.get(next[cellId]) ?? 0) + 1);
+      });
+      const [best] = [...taken.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+      into = best ? this.get(best[0]) : undefined;
+    }
+    if (!into) {
+      // Nowhere to go: restore the market's catchment.
+      this.indexMarkets(markets);
+      this.floodFillMarketTerritories(markets);
+      if (center) center.plaza = 1;
+      return false;
+    }
+
+    // The rural purses follow their farms while the market is still listed.
+    moveRuralPursesWithFarms(previous, next);
+    absorbMarketHoldings(market, into);
+    handOverLocalDeliveries(market, into);
+    if (handOverCargo) handOverTrade(market, into);
+    markets.splice(index, 1);
+    setDeals([]);
+    this.invalidateTradeRouteCache();
+    this.invalidateRuralProductionCache();
+    this.indexMarkets();
+    syncBurgMarketLedgers();
     return true;
   }
 

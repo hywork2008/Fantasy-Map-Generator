@@ -1,6 +1,17 @@
 import type React from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { worldContext } from "../../../../context/worldContext";
 import { setConflictAutonomy } from "../../../../controllers/simulationSettings";
+import {
+  getMarketGenerationSpacing,
+  getMarketSettings,
+  MARKET_DISSOLVE_CARGO_MODES,
+  MARKET_SETTING_LIMITS,
+  type MarketDissolveCargoMode,
+  type MarketSettings,
+  setMarketSettings
+} from "../../../../simulation/marketSettings";
 import { useOptionsState } from "../../../../store/optionsState";
 import { MIN_CURRENCY_EXCHANGE_RATE } from "../../../../utils/currency";
 import { lock } from "../../../../utils/domUtils";
@@ -29,6 +40,17 @@ export const SimulationSettingsTab: React.FC = () => {
     updateOption(key, value);
     lock(key as string);
   };
+
+  const [marketSettings, setMarketSettingsState] = useState(getMarketSettings);
+  const updateMarketSetting = (key: keyof MarketSettings, value: string) => {
+    const number = Number(value);
+    if (Number.isFinite(number)) setMarketSettingsState(setMarketSettings({ [key]: number }));
+  };
+  const generationSpacing = getMarketGenerationSpacing(
+    worldContext.graphWidth,
+    worldContext.graphHeight,
+    worldContext.pack?.burgs?.length ?? 0
+  );
 
   const updateCurrencyRate = (key: "goldToSilverRate" | "silverToCopperRate", value: string) => {
     const rate = Number(value);
@@ -237,6 +259,83 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
             <td>{t("simulation.copperPieces")}</td>
+          </tr>
+
+          <tr>
+            <td colSpan={4}>
+              <p data-tip={t("simulation.marketsHeadingTip")}>{t("simulation.marketsHeading")}</p>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.marketFoundingSpacingTip")}>
+            <td />
+            <td>{t("simulation.marketFoundingSpacing")}</td>
+            <td>
+              <SliderInput
+                id="marketFoundingSpacing"
+                min={MARKET_SETTING_LIMITS.foundingSpacingFactor.min}
+                max={MARKET_SETTING_LIMITS.foundingSpacingFactor.max}
+                step={MARKET_SETTING_LIMITS.foundingSpacingFactor.step}
+                value={marketSettings.foundingSpacingFactor}
+                onChange={v => updateMarketSetting("foundingSpacingFactor", v)}
+              />
+            </td>
+            <td>
+              {t("simulation.marketFoundingSpacingDistance", {
+                distance: Math.round(generationSpacing * marketSettings.foundingSpacingFactor)
+              })}
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.marketDissolveWealthShareTip")}>
+            <td />
+            <td>{t("simulation.marketDissolveWealthShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="marketDissolveWealthShare"
+                min={MARKET_SETTING_LIMITS.dissolveWealthShare.min * 100}
+                max={MARKET_SETTING_LIMITS.dissolveWealthShare.max * 100}
+                step={MARKET_SETTING_LIMITS.dissolveWealthShare.step * 100}
+                value={Math.round(marketSettings.dissolveWealthShare * 100)}
+                onChange={v => updateMarketSetting("dissolveWealthShare", String(Number(v) / 100))}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.marketDissolveMonthsTip")}>
+            <td />
+            <td>{t("simulation.marketDissolveMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="marketDissolveMonths"
+                min={MARKET_SETTING_LIMITS.dissolveMonths.min}
+                max={MARKET_SETTING_LIMITS.dissolveMonths.max}
+                step={MARKET_SETTING_LIMITS.dissolveMonths.step}
+                value={marketSettings.dissolveMonths}
+                onChange={v => updateMarketSetting("dissolveMonths", v)}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip={t("simulation.marketDissolveCargoTip")}>
+            <td />
+            <td>
+              <label htmlFor="marketDissolveCargo">{t("simulation.marketDissolveCargo")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="marketDissolveCargo"
+                value={marketSettings.dissolveCargo}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ dissolveCargo: e.target.value as MarketDissolveCargoMode })
+                  )
+                }
+              >
+                {MARKET_DISSOLVE_CARGO_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.marketDissolveCargo_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
           </tr>
 
           <tr>

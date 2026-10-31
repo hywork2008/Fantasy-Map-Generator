@@ -2064,7 +2064,20 @@
     "recruitQuality": "Recruit quality",
     "recruitQualityTip": "New recruits dilute regiment quality; combat power scales with quality (green troops fight poorly)",
     "femaleLevy": "Female levy",
-    "femaleLevyTip": "When male adults are scarce, draft a limited share of adult females into under-arms (experimental)"
+    "femaleLevyTip": "When male adults are scarce, draft a limited share of adult females into under-arms (experimental)",
+    "marketsHeading": "Markets (Economy):",
+    "marketsHeadingTip": "How markets open and close while time advances. Saved with the world.",
+    "marketFoundingSpacing": "New market spacing ×",
+    "marketFoundingSpacingTip": "A town promoted while time advances (world birth included) opens its own market only if it is at least this many generation spacings from every market centre. Nearer, it joins the market around it. 1 = the spacing used when the map's markets were generated. Add market in the Markets overview is not limited.",
+    "marketFoundingSpacingDistance": "≈ {{distance}} map units",
+    "marketDissolveWealthShare": "Dissolve market below median rural cash %",
+    "marketDissolveWealthShareTip": "A market whose rural cash per head stays below this share of the median market's is dissolved into its neighbours, with its money, debts and stock. A market of a state capital is never dissolved. 0 = never.",
+    "marketDissolveMonths": "…for months",
+    "marketDissolveMonthsTip": "Consecutive months below the share before the market is dissolved.",
+    "marketDissolveCargo": "Cargo of a dissolved market",
+    "marketDissolveCargoTip": "Wind down: no new trade is booked with the market, and it is dissolved once the cargo on the way has arrived. Hand over: it is dissolved at once and the cargo on the way goes to the absorbing market. Deliveries to its own towns go to the absorbing market in both. A market owning merchant ships is not dissolved.",
+    "marketDissolveCargo_windDown": "Wind down",
+    "marketDissolveCargo_handOver": "Hand over"
   },
   "dangerSettings": {
     "heading": "Danger settings:",

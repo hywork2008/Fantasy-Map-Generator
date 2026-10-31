@@ -116,6 +116,13 @@ export interface Market {
   foodProcessingLedger?: FoodProcessingLedger;
   /** Returnable containers remain in circulation; recipe inputs only cover loss and repair. */
   returnableContainerLedger?: ReturnableContainerLedger;
+  /**
+   * Consecutive months its rural purse per head stayed below the dissolve share of the median
+   * market's (docs/plan/market-founding-viability.md §3.2). Absent when above it.
+   */
+  lowRuralWealthMonths?: number;
+  /** Winding down to be dissolved: no new trade is booked with it (market-founding-viability.md §3.2). */
+  dissolving?: boolean;
 }
 
 export interface TextileLedger {

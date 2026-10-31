@@ -874,6 +874,12 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
       measureTickStep("production:marketPayout", () => payOutMarketSurplus(creditCharacter));
       measureTickStep("production:townWorks", () => payTownWorks());
       measureTickStep("production:taxes", () => Taxes.collectTaxes());
+      // Once a month, after the month's money has moved (docs/plan/market-founding-viability.md §3.2).
+      if (skipFoodConsumption)
+        measureTickStep("production:marketDissolution", () => {
+          if (Markets.dissolveUnviableMarkets().length && MineOperations.reanchorOperations())
+            SmelterOperations.generate();
+        });
       measureTickStep("production:stateSummaries", () => refreshStateEconomySummaries());
       measureTickStep("production:playerCommerce", () => synchronizePlayerCommerce());
       return { changed: true };
@@ -1964,7 +1970,7 @@ function register(api: SimulationExtensionAPI): () => void {
     // Frontier polities share one market with their founding merchants. A new
     // village joins that catchment; only a state that still has no market
     // (typically a seaborne beachhead that founded a new polity) opens one.
-    const createdMarket = burg ? Markets.addMarket(burgId) : null;
+    const createdMarket = burg ? Markets.addMarket(burgId, { spaced: true }) : null;
     if (createdMarket || Markets.usesStateBoundedTerritories()) Markets.expandTerritories();
     if (burg) burg.market = getMarketCellColumn()[cellId] || 0;
     // A new catchment can cover an already-opened mine that was still paying labour

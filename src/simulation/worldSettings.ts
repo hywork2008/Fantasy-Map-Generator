@@ -29,7 +29,9 @@ export const WORLD_SETTING_KEYS = [
   /** "escrow" / "openAccount" fix how importers pay for paid cargo; default strikes terms per booking (long-distance-merchant-reach-capital.md §12). */
   "fmg-trade-payment-terms",
   /** "off": no bandit or war raids on caravans, for calibration runs (docs/plan/goods-physical-units.md §12.7). */
-  "fmg-caravan-raids"
+  "fmg-caravan-raids",
+  /** Market founding spacing and dissolution thresholds (docs/plan/market-founding-viability.md §3). */
+  "fmg-market-settings"
 ] as const;
 
 export type WorldSettingKey = (typeof WORLD_SETTING_KEYS)[number];

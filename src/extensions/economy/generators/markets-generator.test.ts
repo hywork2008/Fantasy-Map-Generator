@@ -1121,6 +1121,82 @@ describe("MarketsModule", () => {
       expect(getMarkets()).toHaveLength(1);
     });
 
+    it("dissolveUnviableMarkets() folds a market with a cashless countryside into its neighbour", () => {
+      const rich: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "",
+        goods: {},
+        foodLedger: { ruralHouseholdWealth: 100 } as Market["foodLedger"],
+        marketTreasury: { balance: 5, ruralGrainPayable: 0 }
+      };
+      const poor: Market = {
+        i: 2,
+        centerBurgId: 2,
+        color: "",
+        goods: { 0: { stock: 4, price: 1 } },
+        foodLedger: { ruralHouseholdWealth: 1 } as Market["foodLedger"],
+        marketTreasury: { balance: 3, ruralGrainPayable: 0, saltPayables: { 7: 2 } },
+        lowRuralWealthMonths: 11
+      };
+      setMarkets([rich, poor]);
+      worldContext.pack.burgs = [
+        { i: 0 } as unknown as Burg,
+        { i: 1, cell: 0, x: 0, y: 0, state: 1, market: 1, plaza: 1 } as unknown as Burg,
+        { i: 2, cell: 3, x: 3, y: 0, state: 1, market: 2, plaza: 1 } as unknown as Burg
+      ];
+      worldContext.pack.cells = {
+        i: [0, 1, 2, 3],
+        c: [[1], [0, 2], [1, 3], [2]],
+        h: [30, 30, 30, 30],
+        f: [1, 1, 1, 1],
+        state: [1, 1, 1, 1],
+        pop: [10, 10, 10, 10],
+        market: Uint16Array.from([1, 1, 2, 2])
+      } as unknown as PackedGraph["cells"];
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [undefined as unknown as Market, rich, poor];
+
+      expect(marketsModule.dissolveUnviableMarkets()).toEqual([2]);
+
+      expect(getMarkets()).toEqual([rich]);
+      expect(Array.from(getMarketCellColumn())).toEqual([1, 1, 1, 1]);
+      expect(rich.foodLedger!.ruralHouseholdWealth).toBe(101);
+      expect(rich.marketTreasury).toMatchObject({ balance: 8, saltPayables: { 7: 2 } });
+      expect(rich.goods[0].stock).toBe(4);
+      expect(worldContext.pack.burgs[2].market).toBe(1);
+      expect(worldContext.pack.burgs[2].plaza).toBe(0);
+    });
+
+    it("addMarket() spaced: a promoted town opens a market only beyond the generation spacing", () => {
+      const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: {} };
+      setMarkets([market1]);
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market1];
+      const near = { i: 2, cell: 1, y: 0 } as unknown as Burg;
+      const far = { i: 3, cell: 2, y: 0 } as unknown as Burg;
+      worldContext.pack.burgs = [
+        { i: 0 } as unknown as Burg,
+        { i: 1, cell: 0, x: 0, y: 0 } as unknown as Burg,
+        near,
+        far
+      ];
+      const spacing = marketsModule.getFoundingSpacing();
+      near.x = spacing * 0.5;
+      far.x = spacing * 1.5;
+      worldContext.pack.cells = {
+        i: [0, 1, 2],
+        market: Uint16Array.from([1, 1, 1])
+      } as unknown as PackedGraph["cells"];
+
+      expect(marketsModule.addMarket(2, { spaced: true })).toBeNull();
+      expect(near.market).toBe(1);
+      expect(getMarkets()).toHaveLength(1);
+      expect(marketsModule.addMarket(3, { spaced: true })?.i).toBe(2);
+      // The player's own Add market is not limited.
+      expect(marketsModule.addMarket(2)?.i).toBe(3);
+    });
+
     it("collectRuralProduction() should ignore cells with no market (market 0)", async () => {
       const { Goods } = await import("./goods-generator");
       const { getRuralProductionContributions } = await import("./production-utils");
