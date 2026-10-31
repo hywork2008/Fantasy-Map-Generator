@@ -27,6 +27,7 @@ applyConflictAutonomyFromEnv();
 {
   const { setMarketSettings, getMarketSettings } = await import(`${R}/src/simulation/marketSettings`);
   if (process.env.FMG_HAY_TRADE) setMarketSettings({ hayTrade: process.env.FMG_HAY_TRADE });
+  if (process.env.FMG_SURPLUS_RESERVE_FACTOR) setMarketSettings({ surplusReserveFactor: Number(process.env.FMG_SURPLUS_RESERVE_FACTOR) });
   if (process.env.FMG_SURPLUS_RURAL_WEIGHT) setMarketSettings({ surplusRuralWeight: Number(process.env.FMG_SURPLUS_RURAL_WEIGHT) });
   console.log("settings", JSON.stringify(getMarketSettings()));
 }

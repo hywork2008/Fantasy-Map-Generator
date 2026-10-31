@@ -2078,6 +2078,8 @@
     "marketDissolveCargoTip": "店じまい：その市場との新しい取り引きを受けず、運送中の荷が着いてから畳みます。引き継ぎ：すぐに畳み、運送中の荷を取り込み先の市場に引き継ぎます。自分の町への荷は、どちらでも取り込み先に引き継ぎます。商船を持つ市場は畳みません。",
     "marketDissolveCargo_windDown": "店じまい",
     "marketDissolveCargo_handOver": "引き継ぎ",
+    "marketSurplusReserveFactor": "市場の準備金",
+    "marketSurplusReserveFactorTip": "市場が余りを給与と商人の利益として払い出す前に手元に置くお金です。町の家計の運転資金の何倍かで決めます（塩の掛けと後払いの荷の代金は別に足します）。0で、負っている分を除いてすべて払い出します。",
     "marketSurplusRuralWeight": "市場の余りの給与の農村の重み（%）",
     "marketSurplusRuralWeightTip": "市場は、準備金を超えたお金の一部を給与として払います。町の仲買人や荷運び、農村の荷車引き・脱穀・草刈りの人たちです。農村の1人を町の1人に対してどれだけに数えるかです。100で人数どおり、0で町だけです。",
     "hayTrade": "余った干し草",

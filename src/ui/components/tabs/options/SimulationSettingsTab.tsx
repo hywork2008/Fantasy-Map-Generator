@@ -340,6 +340,20 @@ export const SimulationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip={t("simulation.marketSurplusReserveFactorTip")}>
+            <td />
+            <td>{t("simulation.marketSurplusReserveFactor")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="marketSurplusReserveFactor"
+                min={MARKET_SETTING_LIMITS.surplusReserveFactor.min}
+                max={MARKET_SETTING_LIMITS.surplusReserveFactor.max}
+                step={MARKET_SETTING_LIMITS.surplusReserveFactor.step}
+                value={marketSettings.surplusReserveFactor}
+                onChange={v => updateMarketSetting("surplusReserveFactor", v)}
+              />
+            </td>
+          </tr>
           <tr data-tip={t("simulation.marketSurplusRuralWeightTip")}>
             <td />
             <td>{t("simulation.marketSurplusRuralWeight")}</td>

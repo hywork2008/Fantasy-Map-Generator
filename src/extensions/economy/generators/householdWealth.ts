@@ -477,8 +477,6 @@ function payMarketWages(
   return true;
 }
 
-/** Months of operating cash a market keeps (per member-town population point, as town working cash). */
-export const MARKET_CASH_RESERVE_PER_POPULATION_FACTOR = 1;
 /** Share of a market's cash above its reserve paid out each month. */
 export const MARKET_SURPLUS_PAYOUT_SHARE = 0.2;
 /** Part of that payout kept by the market's merchants as profit; the rest is paid as wages in its towns and countryside. */
@@ -506,7 +504,7 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
     if ((burg.population ?? 0) > 0) memberTowns.set(burg.market, [...(memberTowns.get(burg.market) ?? []), burg]);
   }
   const ruralPopulation = getRuralPopulationByMarket(getMarketCellColumn());
-  const { surplusRuralWeight } = getMarketSettings();
+  const { surplusRuralWeight, surplusReserveFactor } = getMarketSettings();
   let paid = 0;
   // Open-account cargo on its way is paid for on arrival; that cash is not surplus (§12).
   const openAccount = isLongDistanceTradeEnabled() ? getOpenAccountCommitments() : null;
@@ -516,9 +514,7 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
     // Salt bought on credit is owed to the works and repaid from this cash (salt-supply-calibration.md §3.4).
     const saltOwed = Object.values(treasury.saltPayables ?? {}).reduce((sum, owed) => sum + Math.max(0, owed), 0);
     const reserve =
-      (memberPopulation.get(market.i) ?? 0) *
-        profile.burgTreasuryPerPopulation *
-        MARKET_CASH_RESERVE_PER_POPULATION_FACTOR +
+      (memberPopulation.get(market.i) ?? 0) * profile.burgTreasuryPerPopulation * surplusReserveFactor +
       (openAccount?.get(market.i) ?? 0) +
       saltOwed;
     // Farmers are paid what they are owed from any cash, before the market keeps a reserve or

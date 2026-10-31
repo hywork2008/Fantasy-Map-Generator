@@ -37,6 +37,8 @@ export type MarketSettings = {
    * carters, threshers and hay hands in its countryside as well as dealers and porters in its towns.
    */
   surplusRuralWeight: number;
+  /** Cash a market keeps before paying out its surplus, per member-town population point, as times the town working cash. */
+  surplusReserveFactor: number;
 };
 
 export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
@@ -45,14 +47,16 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   dissolveMonths: 12,
   dissolveCargo: "windDown",
   hayTrade: "marketShortfall",
-  surplusRuralWeight: 1
+  surplusRuralWeight: 1,
+  surplusReserveFactor: 1
 };
 
 export const MARKET_SETTING_LIMITS = {
   foundingSpacingFactor: { min: 0, max: 3, step: 0.05 },
   dissolveWealthShare: { min: 0, max: 1, step: 0.01 },
   dissolveMonths: { min: 1, max: 60, step: 1 },
-  surplusRuralWeight: { min: 0, max: 1, step: 0.05 }
+  surplusRuralWeight: { min: 0, max: 1, step: 0.05 },
+  surplusReserveFactor: { min: 0, max: 2, step: 0.05 }
 } as const;
 
 type NumericMarketSetting = keyof typeof MARKET_SETTING_LIMITS;
@@ -86,7 +90,8 @@ export function getMarketSettings(): MarketSettings {
     dissolveMonths: clamp("dissolveMonths", parsed.dissolveMonths),
     dissolveCargo: cargoMode(parsed.dissolveCargo),
     hayTrade: hayTradeMode(parsed.hayTrade),
-    surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight)
+    surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight),
+    surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor)
   };
 }
 
@@ -98,7 +103,8 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     dissolveMonths: clamp("dissolveMonths", next.dissolveMonths),
     dissolveCargo: cargoMode(next.dissolveCargo),
     hayTrade: hayTradeMode(next.hayTrade),
-    surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight)
+    surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight),
+    surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor)
   };
   worldSettings.setItem(MARKET_SETTINGS_KEY, JSON.stringify(settings));
   return settings;
