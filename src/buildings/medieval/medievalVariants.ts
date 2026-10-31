@@ -89,7 +89,9 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
           smithies.includes(model) ||
           fuel.includes(model) ||
           churches.includes(model) ||
-          granaries.includes(model)
+          granaries.includes(model) ||
+          warehouses.includes(model) ||
+          livestock.includes(model)
             ? [legacy]
             : [])
         ]

@@ -12,7 +12,7 @@ Regenerate: `node --import tsx scripts/auditBvModelQuality.mts`
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **64**. Missing candidates: **156**.
+Records: **220**. Codex High or Ultra available: **67**. Missing candidates: **153**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -35,8 +35,8 @@ Records: **220**. Codex High or Ultra available: **64**. Missing candidates: **1
 | Medieval 14 | 2 | 2 | 0 |
 | Medieval 15 | 2 | 2 | 0 |
 | Medieval 16 | 2 | 2 | 0 |
-| Medieval 17 | 2 | 0 | 2 |
-| Medieval 18 | 1 | 0 | 1 |
+| Medieval 17 | 2 | 2 | 0 |
+| Medieval 18 | 1 | 1 | 0 |
 | Medieval 19 | 3 | 0 | 3 |
 | Medieval 20 | 3 | 0 | 3 |
 | Medieval 21 | 2 | 0 | 2 |
@@ -78,8 +78,9 @@ Records: **220**. Codex High or Ultra available: **64**. Missing candidates: **1
 7. Sixth batch (2026-11-01): added High for the two Medieval 11 smithies and two Medieval 12 inns. Existing default smithy variants remain registered for CE. See [verification and previews](bv-smithy-inn-high-20261101.md).
 8. Seventh batch (2026-11-01): added High for the three Medieval 13 fuel stores and two Medieval 14 churches, preserving their default CE variants. See [verification and previews](bv-fuel-church-high-20261101.md).
 9. Eighth batch (2026-11-01): added High for the two Medieval 15 breweries and two Medieval 16 granaries, preserving the default granary variants used by CE. See [verification and previews](bv-brewery-granary-high-20261101.md).
-10. Next: Medieval 17 warehouses and 18 livestock market pens. Preserve their existing default CE variants when adding BV tiers. Landmarks, standalone props, regional houses and the Codex basilica form later batches.
-11. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
+10. Ninth batch (2026-11-01): added High for the two Medieval 17 warehouses and the Medieval 18 livestock market, preserving their default CE variants. See [verification and previews](bv-warehouse-market-high-20261101.md).
+11. Next: Medieval 19 grave markers and 20 textile/leather workshops. Preserve the existing default CE variants for grave markers when adding BV tiers. Landmarks, standalone props, regional houses and the Codex basilica form later batches.
+12. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
 
@@ -98,9 +99,6 @@ Records: **220**. Codex High or Ultra available: **64**. Missing candidates: **1
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
-| Medieval 17 | `merchant-warehouse` | Merchant warehouse and loading hoist | single/default; assumed Low - [source](../../src/buildings/medieval/17-warehousesModels.ts) |
-| Medieval 17 | `riverside-goods-store` | Small riverside goods store | single/default; assumed Low - [source](../../src/buildings/medieval/17-warehousesModels.ts) |
-| Medieval 18 | `livestock-market-pens` | Divided livestock market pens | single/default; assumed Low - [source](../../src/buildings/medieval/18-livestock-marketsModels.ts) |
 | Medieval 19 | `plain-stone-grave-marker` | Plain stone grave marker | single/default; assumed Low - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
 | Medieval 19 | `wooden-grave-cross` | Wooden grave cross | single/default; assumed Low - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
 | Medieval 19 | `churchyard-slabs` | Churchyard ledger slabs and markers | single/default; assumed Low - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
@@ -297,6 +295,9 @@ Records: **220**. Codex High or Ultra available: **64**. Missing candidates: **1
 | Medieval 15 | `ale-brewhouse` | Small ale brewhouse | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/15-breweriesModels.ts) |
 | Medieval 16 | `raised-timber-granary` | Raised timber granary | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/16-granariesModels.ts) |
 | Medieval 16 | `stone-grain-store` | Stone grain storage house | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/16-granariesModels.ts) |
+| Medieval 17 | `merchant-warehouse` | Merchant warehouse and loading hoist | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/17-warehousesModels.ts) |
+| Medieval 17 | `riverside-goods-store` | Small riverside goods store | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/17-warehousesModels.ts) |
+| Medieval 18 | `livestock-market-pens` | Divided livestock market pens | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/18-livestock-marketsModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-barracks` | Citadel barracks · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-command` | Citadel command · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |

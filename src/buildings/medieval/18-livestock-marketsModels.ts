@@ -1,4 +1,6 @@
+import { createHighLivestockMarket } from "./livestockMarketDetails";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -27,3 +29,5 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, { "livestock-market-pens": createHighLivestockMarket });
