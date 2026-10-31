@@ -1,3 +1,5 @@
+import type { ForestPlan } from "../../city-editor/types/contracts/forest";
+import { applyForestGroundTexture, createForestGroundTexture } from "./forestGroundTexture";
 // Chunked height-field ground. Positions stay in the plan frame; Y includes the shared land offset.
 
 import * as THREE from "three";
@@ -64,7 +66,8 @@ export function clipDitchChunk(chunk: TerrainChunkGeometry, plan: BastionedTownP
 export function terrainFieldMeshes(
   document: CityDocument,
   terrain: CityTerrain,
-  wetPolygons: Point[][] = []
+  wetPolygons: Point[][] = [],
+  forest?: ForestPlan
 ): THREE.Mesh[] {
   const grid = terrain.grid;
   if (!grid || !terrain.slopeAt) return [];
@@ -75,6 +78,9 @@ export function terrainFieldMeshes(
     suburbSpacingFactor(document.frame.extentMeters)
   );
   const wetParts = wetPolygons.flatMap(triangularInfillParts).map(polygon => ({ polygon, box: bounds(polygon) }));
+  const cover = forest?.regions.length ? createForestGroundTexture(document, forest) : null;
+  let remainingMaterials = chunks.length;
+  if (!remainingMaterials) cover?.dispose();
   return chunks.map((source, index) => {
     const chunk = clipWaterChunk(clipDitchChunk(source, document.bastionedTown), wetParts);
     const positions = new Float32Array(chunk.positions);
@@ -84,7 +90,14 @@ export function terrainFieldMeshes(
     geometry.setAttribute("color", new THREE.BufferAttribute(chunk.colors, 3));
     geometry.setIndex(new THREE.BufferAttribute(chunk.indices, 1));
     geometry.computeVertexNormals();
-    const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.FrontSide }));
+    const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.FrontSide });
+    if (cover) {
+      applyForestGroundTexture(material, cover, document.frame.extentMeters);
+      material.addEventListener("dispose", () => {
+        if (--remainingMaterials === 0) cover.dispose();
+      });
+    }
+    const mesh = new THREE.Mesh(geometry, material);
     mesh.name = `ce-field-${index}`;
     mesh.raycast = () => {};
     return mesh;

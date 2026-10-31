@@ -91,3 +91,32 @@ export function landscapeTreeBiome(document?: CityDocument): TreeBiome {
 export function landscapeHasTrees(document?: CityDocument): boolean {
   return landscapeTreeBiome(document) !== "none";
 }
+
+/** Natural cover for terrain previews: biome productivity, local slope, and temperature lapse with height. */
+export function naturalTreeSuitability(
+  document: CityDocument,
+  point: [number, number],
+  heightAt?: (point: [number, number]) => number
+): number {
+  if (document.fabric?.generation?.settings.mode !== "terrain") return 1;
+  const biome = landscapeTreeBiome(document);
+  if (biome === "none") return 0;
+  const productivity =
+    biome === "palm" || biome === "desert"
+      ? 0.03
+      : biome === "xeric" || biome === "volcanic"
+        ? 0.08
+        : biome === "preferred" || biome === "rowan"
+          ? 0.15
+          : biome === "savanna" || biome === "olive"
+            ? 0.3
+            : 1;
+  if (!heightAt) return productivity;
+  const height = heightAt(point);
+  const dx = (heightAt([point[0] + 2, point[1]]) - heightAt([point[0] - 2, point[1]])) / 4;
+  const dy = (heightAt([point[0], point[1] + 2]) - heightAt([point[0], point[1] - 2])) / 4;
+  // Forest can cover a 45-degree hillside; thin it only as the ground approaches a cliff.
+  const slope = Math.max(0, Math.min(1, 2 - Math.hypot(dx, dy)));
+  const temperature = (landscapeTemperature(document) ?? 15) - Math.max(0, height) * 0.0065;
+  return productivity * slope * Math.max(0, Math.min(1, (temperature + 2) / 7));
+}

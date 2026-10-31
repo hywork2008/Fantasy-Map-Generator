@@ -57,6 +57,7 @@ export function generationSettingIssues(
   document: CityDocument,
   settings: GenerationSettings
 ): GenerationSettingIssue[] {
+  if (settings.mode === "terrain") return [];
   if (settings.mode === "fort" && !settings.townFortification) return [];
   const issues: GenerationSettingIssue[] = [];
   if (!settings.descriptor && settings.config.features.port && settings.config.coast === "none")

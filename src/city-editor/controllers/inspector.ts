@@ -47,7 +47,7 @@ import {
 import { canPlaceObject, objectScale } from "../generators/objectPlacement";
 import { openGatePassage } from "../generators/passages";
 import { castlePlatform, castleRamp, castleSiteFaceIds, setCastlePlatform } from "../generators/terrainEditing";
-import { editFaceElevation } from "../generators/terrainField/pads";
+import { editableFaceElevation, editFaceElevation } from "../generators/terrainField/pads";
 import { withBuildingHeightPolicy } from "../generators/updateBuildingHeights";
 import { CASTLE_STYLE_PROFILES, resolveCastleStyle } from "../renderers/castlePatterns";
 import { SHIP_SPECS } from "../renderers/shipSpecifications";
@@ -366,7 +366,7 @@ export function createInspectorController(ctx: InspectorContext) {
     const state = ctx.documents.documentState;
     const current = castlePlatform(state, castle.id);
     const siteLevels = castleSiteFaceIds(state, castle)
-      .map(id => state.mesh.faces[id]?.properties.elevation)
+      .map(id => editableFaceElevation(state, id))
       .filter((value): value is number => Number.isFinite(value));
     const level = current?.levelMeters ?? Math.round(Math.max(1, ...siteLevels) + 10);
     const run = current?.edge.kind === "slope" ? current.edge.runMeters : 15;
@@ -475,7 +475,7 @@ export function createInspectorController(ctx: InspectorContext) {
         : (castle.siteFaceIds ?? circuit?.areaFaceIds ?? [])) {
         const face = ctx.documents.documentState.mesh.faces[faceId];
         if (!face) continue;
-        const elevation = numberInput(String(face.properties.elevation), "1", "1");
+        const elevation = numberInput(String(editableFaceElevation(ctx.documents.documentState, face.id)), "1", "1");
         elevation.disabled = castle.locked || face.properties.locked;
         ctx.scope.listen(elevation, "change", () => {
           const height = Number(elevation.value);
@@ -807,7 +807,8 @@ export function createInspectorController(ctx: InspectorContext) {
           editorText("cityEditor.messages.setWater", { value0: water.value })
         )
       );
-      const elevation = numberInput(String(face.properties.elevation), "-1000", "1");
+      const elevation = numberInput(String(editableFaceElevation(ctx.documents.documentState, face.id)), "-1000", "1");
+      elevation.className = "ce-cell-elevation";
       ctx.scope.listen(elevation, "change", () =>
         ctx.commit(
           editFaceElevation(ctx.documents.documentState, face.id, Number(elevation.value)),
@@ -1020,6 +1021,8 @@ export function createInspectorController(ctx: InspectorContext) {
 
     if (ctx.interaction.inspectedInfo) {
       const info = ctx.interaction.inspectedInfo;
+      if (info.kind === "cell" && info.id != null)
+        info.elevation = editableFaceElevation(ctx.documents.documentState, String(info.id));
       const selectedCastle =
         info.kind === "castle" ? ctx.documents.documentState.castles?.find(castle => castle.id === info.id) : undefined;
       if (selectedCastle) {

@@ -17,6 +17,7 @@ export function generateRuralFieldStage(
     profiler?: ProcessingProfiler;
   }
 ): CityDocument {
+  if (document.fabric?.generation?.settings.mode === "terrain") return document;
   if (document.appearance !== "town") {
     if (options?.createLotPads && document.terrain?.field)
       installLotPads(document, buildBlockFabric(document).buildings);

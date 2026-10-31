@@ -121,6 +121,52 @@ describe("forest geometry and budgets", () => {
     forest.dispose();
   });
 
+  it("omits the forest floor when the existing terrain carries ground cover", () => {
+    const heightAt = ([x, y]: Point) =>
+      96 * (1 + Math.cos(Math.PI * Math.min(1, Math.hypot(x, y) / (300 * Math.SQRT2))));
+    const legacy = createTownForest(document(), plan(), { heightAt, relief: true });
+    const integrated = createTownForest(document(), plan(), { heightAt, relief: true }, "high", true, undefined, true);
+    expect(integrated.group.children.some(object => object.name.startsWith("forest-floor-"))).toBe(false);
+    const triangles = (group: THREE.Group) =>
+      group.children.reduce(
+        (sum, object) => sum + (object instanceof THREE.Mesh ? object.geometry.getAttribute("position").count / 3 : 0),
+        0
+      );
+    expect(triangles(integrated.group)).toBeLessThan(triangles(legacy.group));
+    integrated.update(camera(), 720);
+    expect(integrated.stats.trees).toBeGreaterThan(0);
+    legacy.dispose();
+    integrated.dispose();
+  });
+
+  it("keeps the forest floor above a convex hill at maximum preset relief", () => {
+    const heightAt = ([x, y]: Point) =>
+      96 * (1 + Math.cos(Math.PI * Math.min(1, Math.hypot(x, y) / (300 * Math.SQRT2))));
+    const forest = createTownForest(document(), plan(), { heightAt, relief: true });
+    let triangles = 0;
+    for (const object of forest.group.children) {
+      if (!(object instanceof THREE.Mesh) || !object.name.startsWith("forest-floor-")) continue;
+      const positions = object.geometry.getAttribute("position");
+      triangles += positions.count / 3;
+      for (let i = 0; i < positions.count; i += 3) {
+        for (const weights of [
+          [1 / 3, 1 / 3, 1 / 3],
+          [0.5, 0.5, 0],
+          [0, 0.5, 0.5],
+          [0.5, 0, 0.5]
+        ]) {
+          const x = weights.reduce((sum, w, j) => sum + w * positions.getX(i + j), 0);
+          const y = weights.reduce((sum, w, j) => sum - w * positions.getZ(i + j), 0);
+          const floor = weights.reduce((sum, w, j) => sum + w * positions.getY(i + j), 0);
+          expect(floor).toBeGreaterThanOrEqual(heightAt([x, y]) - 0.001);
+        }
+      }
+    }
+    expect(triangles).toBeGreaterThan(0);
+    expect(triangles).toBeLessThan(60000);
+    forest.dispose();
+  });
+
   it("grounds every root and keeps complete crowns out of clearings while switching stable LODs", () => {
     const p = plan(),
       heightAt = ([x, y]: Point) => x * 0.02 + y * 0.01;

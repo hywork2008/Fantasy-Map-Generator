@@ -686,10 +686,10 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   };
 
   const riverDrop = () => options.getRiverDropMeters?.() ?? RIVER_DROP_MIN;
-  const placeWater = (city: CityDocument) => {
+  const placeWater = (city: CityDocument, cover: ForestPlan | null) => {
     if (!scene || !ground) return;
     waterMeshes?.dispose();
-    waterMeshes = createTownWater(city, terrain ?? undefined, riverDrop());
+    waterMeshes = createTownWater(city, terrain ?? undefined, riverDrop(), cover ?? undefined);
     if (waterMeshes.replacesDisc) scene.remove(ground);
     else {
       if (!ground.parent) scene.add(ground);
@@ -841,8 +841,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       scene.add(openSpaces.group);
       openSpaceStamp = nextOpenSpaceStamp;
     }
-    if (plan.water) {
-      placeWater(city);
+    if (plan.water || (terrain?.field && forestChanged)) {
+      placeWater(city, nextForestSource);
       waterStamp = stamp;
     }
     if (bridgesChanged) {
@@ -889,7 +889,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
             terrain ?? undefined,
             forestQuality.effective,
             simplification.outskirts !== "off",
-            season
+            season,
+            Boolean(terrain?.field)
           )
         : null;
       if (forest) scene.add(forest.group);

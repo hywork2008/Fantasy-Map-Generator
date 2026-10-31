@@ -109,6 +109,19 @@ describe("generation workspace", () => {
     ]);
   });
 
+  it("exposes terrain and forest controls while hiding settlement settings in Terrain mode", () => {
+    select(".ce-generation-mode", "terrain");
+    tab("elements").click();
+    expect([...root.querySelectorAll<HTMLElement>(".ce-city-generation-controls")].every(group => group.hidden)).toBe(
+      true
+    );
+    const elevation = root.querySelector(".ce-elevation-preset")!;
+    expect(elevation.closest(".ce-terrain-generation-controls")?.hasAttribute("hidden")).toBe(false);
+    expect(elevation.closest(".ce-city-generation-controls")).toBeNull();
+    expect(root.querySelector(".ce-forest-controls")).not.toBeNull();
+    expect(root.querySelector(".ce-complete-generation")!.textContent).toContain("terrain");
+  });
+
   it("retains the active tab while changing mode and hides every city-only group in Fort mode", () => {
     tab("debug").click();
     select(".ce-generation-mode", "fort");

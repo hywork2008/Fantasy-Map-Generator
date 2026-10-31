@@ -1,3 +1,4 @@
+import type { ForestPlan } from "../../city-editor/types/contracts/forest";
 // CE 3D land, water, and bank meshes. WebGL is created by the view, not here.
 
 import * as THREE from "three";
@@ -94,7 +95,8 @@ export function townWaterHeightAt(water: TownWaterMeshes, point: Point): number 
 export function createTownWater(
   document: CityDocument,
   terrain: CityTerrain = cityTerrain(document),
-  dropMeters?: number
+  dropMeters?: number,
+  forest?: ForestPlan
 ): TownWaterMeshes {
   if (document.fortSite) return createFortGround(document, terrain);
   const parent = new THREE.Object3D();
@@ -186,7 +188,8 @@ export function createTownWater(
     ? terrainFieldMeshes(
         document,
         terrain,
-        water.parts.map(part => part.polygon)
+        water.parts.map(part => part.polygon),
+        forest
       )
     : [];
   for (const mesh of fieldMeshes) parent.add(mesh);
