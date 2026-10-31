@@ -61,4 +61,4 @@ Lowの部品別資源所有によりユニーク数は増える。Roadsideはgeo
 - [Courtyard High・宿泊棟と中庭](bv-inn-lodging-court-p3-20261101.png)
 - [Courtyard High・標準へ戻した表示](bv-inn-standard-p3-20261101.png)
 
-部品化後の指摘により、Highの専用樽を削除してStorage propsの閉じた樽に共通化した。上表は変更前の値で、変更後の値は[共有樽の修正記録](bv-inn-shared-barrel-20261101.md)を参照。次はMedieval 15 Breweriesの部品化へ進む。
+部品化後の指摘により、Highの専用樽を削除してStorage propsの閉じた樽に共通化した。上表は変更前の値で、変更後の値は[共有樽の修正記録](bv-inn-shared-barrel-20261101.md)を参照。後続の[Breweries部品化](bv-brewery-parts-p3-20261101.md)も完了し、次はP4 Friary Highへ進む。
