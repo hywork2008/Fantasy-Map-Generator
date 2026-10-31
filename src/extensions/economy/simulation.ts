@@ -157,6 +157,7 @@ import {
   migrateStapleCropGoods,
   migrateSyntheticAmmoniaGoods,
   migrateTextileQualityGoods,
+  migrateUntaxedSaltValue,
   migrateWeightRepricing,
   migrateWineRecipe,
   migrateWoodPhysicalRecipes,
@@ -358,7 +359,8 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateWoolBlanketGoods,
   migrateWoodPhysicalRecipes,
   migratePeatFuelValue,
-  migrateMeatGood
+  migrateMeatGood,
+  migrateUntaxedSaltValue
 ];
 
 /**

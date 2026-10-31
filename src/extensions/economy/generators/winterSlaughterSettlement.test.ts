@@ -142,7 +142,7 @@ describe("physical winter preparation settlement", () => {
       expect(getOrCreateLivestockFeedTable()![0].requiredKg).toBeCloseTo(getLivestockMonthlyFeedNeedKg(0));
       expect(getOrCreateFaunaStockTable()!["0:Sheep"].breeding).toBe(40);
       // The same market animals are neither appropriated nor converted to legacy joint byproducts.
-      expect(settleSlaughter()).toEqual({ heads: 0, leather: 0, tallow: 0, rennet: 0 });
+      expect(settleSlaughter()).toEqual({ heads: 0, leather: 0, tallow: 0, rennet: 0, meat: 0, meatSold: 0 });
       expect(market.goods[goods("Sheep").i].stock).toBe(5);
       expect(market.goods[goods("Tallow").i]).toBeUndefined();
     });

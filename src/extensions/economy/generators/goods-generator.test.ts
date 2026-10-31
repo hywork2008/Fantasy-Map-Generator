@@ -50,6 +50,7 @@ import {
   migrateStapleCropGoods,
   migrateSyntheticAmmoniaGoods,
   migrateTextileQualityGoods,
+  migrateUntaxedSaltValue,
   migrateWeightRepricing,
   migrateWineRecipe,
   migrateWoodPhysicalRecipes,
@@ -1195,12 +1196,25 @@ describe("GoodsModule", () => {
     expect(migrateWeightRepricing()).toBe(true);
     expect(byName("Wool").value).toBe(3);
     expect(byName("Cloth").value).toBe(98);
-    expect(byName("Salt").value).toBe(0.45);
+    expect(byName("Salt").value).toBe(0.08);
     expect(byName("Sails").recipes).toEqual([{ [byName("Cloth").i]: 0.15 }, { [byName("Linen").i]: 1 }]);
     expect(byName("Tapestries").recipes).toEqual([{ [byName("Cloth").i]: 0.3, [byName("Dyes").i]: 1 }]);
     expect(byName("Flour")).toMatchObject({ recipes: [{ [byName("Grain").i]: 0.134 }], demandCoverage: { food: 0.1 } });
     expect(byName("Bread")).toMatchObject({ recipes: [{ [byName("Flour").i]: 0.3 }], demandCoverage: { food: 0.03 } });
     expect(migrateWeightRepricing()).toBe(false);
+  });
+
+  it("moves saved Salt from the taxed 0.45 to the untaxed value, keeping a player's value", () => {
+    goodsModule.restoreDefaults();
+    const salt = getGoods().find(good => good.name === "Salt")!;
+    salt.value = 0.45;
+
+    expect(migrateUntaxedSaltValue()).toBe(true);
+    expect(salt.value).toBe(0.08);
+    expect(migrateUntaxedSaltValue()).toBe(false);
+    salt.value = 0.6; // set by the player in the Goods editor
+    expect(migrateUntaxedSaltValue()).toBe(false);
+    expect(salt.value).toBe(0.6);
   });
 
   it("moves saved Linen from bolts to 200 kg bales, a tenth of the stock, once", () => {
