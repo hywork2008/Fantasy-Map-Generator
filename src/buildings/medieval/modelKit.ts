@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import type { Author } from "../authors";
+import type { ModelPartFactory } from "../modelParts";
 import type { ModelVariant } from "../modelVariants";
 
 export interface MedievalModel {
@@ -23,6 +24,8 @@ export interface MedievalModel {
     create(variantId: string, season: string): CityStructureMeshes;
   };
   create(): CityStructureMeshes;
+  /** Optional independent components in their fitted assembly positions. */
+  parts?(): readonly ModelPartFactory[];
 }
 export type Position = readonly [number, number, number];
 export type Surface =

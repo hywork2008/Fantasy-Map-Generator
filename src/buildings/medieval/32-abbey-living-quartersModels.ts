@@ -1,4 +1,4 @@
-import { createMonastery, monasteryPreviewPlan } from "../monasteries/friary";
+import { createMonastery, monasteryPartFactories, monasteryPreviewPlan } from "../monasteries/friary";
 import { MONASTERY_VARIANTS } from "../siteVariants";
 import { type MedievalModel, ModelKit } from "./modelKit";
 
@@ -32,7 +32,8 @@ export const models: MedievalModel[] = [
       ...variant,
       label: "CE-fitted abbey"
     })),
-    create: () => createMonastery(monasteryPreviewPlan("abbey"))
+    create: () => createMonastery(monasteryPreviewPlan("abbey")),
+    parts: () => monasteryPartFactories(monasteryPreviewPlan("abbey"))
   },
   {
     author: "Codex GPT-6.1 Sol",

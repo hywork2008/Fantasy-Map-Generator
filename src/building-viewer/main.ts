@@ -34,6 +34,7 @@ import {
   LOW_BANK_WATER_MILLS,
   WATER_MILL
 } from "../buildings/mills/waterMill";
+import { createModelAssembly } from "../buildings/modelParts";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
 import {
   CONTAINER_KINDS,
@@ -2548,6 +2549,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
     const editionLabel = (entry: Variant) => (entry.edition ? label(entry.edition) : "Standard");
     // The previewed season persists across quality and edition switches of the same tree.
     let season = definition.seasons?.default;
+    let selectedPart = "all";
     const showModel = (variant: Variant | undefined = definition.variants && adopted(levels.at(-1)!)) => {
       selection++;
       for (const item of list.querySelectorAll("button"))
@@ -2638,11 +2640,37 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
           selected: column(variant)
         };
       if (!variant) comparisonModel = { path: null, quality: definition.quality ?? "low" };
-      const model = variant
-        ? definition.seasons && season !== definition.seasons.default
-          ? definition.seasons.create(variant.id, season!)
-          : variant.create()
-        : definition.create();
+      const partFactories = definition.parts?.();
+      const partFactory = partFactories?.find(part => part.id === selectedPart);
+      if (partFactories) {
+        modelOptions.hidden = false;
+        const row = document.createElement("label");
+        row.textContent = "View: ";
+        const select = document.createElement("select");
+        select.setAttribute("aria-label", "Assembly part");
+        select.add(new Option("Complete assembly", "all"));
+        for (const [index, part] of partFactories.entries())
+          select.add(new Option(`${label(part.role)} · ${index + 1}`, part.id));
+        select.value = partFactory ? selectedPart : "all";
+        select.addEventListener("change", () => {
+          selectedPart = select.value;
+          showModel(variant);
+        });
+        row.append(select);
+        optionFields.append(row);
+      }
+      if (partFactory) {
+        // A component is not a quality variant of the full assembly; keep its metrics out of that cache.
+        comparisonVariants = null;
+        comparisonModel = { path: null, quality: "low" };
+      }
+      const model = partFactory
+        ? createModelAssembly(definition.id, [partFactory])
+        : variant
+          ? definition.seasons && season !== definition.seasons.default
+            ? definition.seasons.create(variant.id, season!)
+            : variant.create()
+          : definition.create();
       massing = model;
       scene.add(model.group);
       ground.visible = true;
@@ -2655,11 +2683,19 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       controls.update();
       ground.geometry.dispose();
       ground.geometry = new THREE.CircleGeometry(radius * 0.85, 48);
+      if (partFactory) ground.position.set(center.x, -0.05, center.z);
       mountPlan(roofHost, meshProjection(model, "side"));
       mountPlan(levelHost, meshProjection(model, "top"));
       appendFacts(
         fact("Model", definition.name),
         fact("Task", String(task).padStart(2, "0")),
+        ...(partFactory
+          ? [
+              fact("View", `Single part: ${label(partFactory.role)}; fitted position retained`),
+              fact("Part quality", partFactory.quality),
+              fact("Part author", partFactory.author)
+            ]
+          : []),
         ...(variant
           ? [
               fact("Quality", variant.label),
@@ -2720,11 +2756,13 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         fact("Construction", definition.note, medievalWikipediaArticle(definition)),
         fact(
           "Scope",
-          definition.task === 33 || definition.id === "abbey" || definition.id === "orthodox-monastery"
-            ? "CE-fitted religious-house assembly; meter units. BV and CE share the same construction."
-            : definition.task === 43 || definition.task === 44
-              ? "Shared landscape or funerary model; meter units. Shared with CE park and cemetery 3D placement."
-              : "Illustrative medieval or early modern model; meter units. CE automatic placement is separate."
+          partFactory
+            ? "Independently generated component of the CE-fitted assembly; other parts are not constructed."
+            : definition.task === 33 || definition.id === "abbey" || definition.id === "orthodox-monastery"
+              ? "CE-fitted religious-house assembly; meter units. BV and CE share the same construction."
+              : definition.task === 43 || definition.task === 44
+                ? "Shared landscape or funerary model; meter units. Shared with CE park and cemetery 3D placement."
+                : "Illustrative medieval or early modern model; meter units. CE automatic placement is separate."
         )
       );
       const partsPanel = modelPartsPanel(model.group);

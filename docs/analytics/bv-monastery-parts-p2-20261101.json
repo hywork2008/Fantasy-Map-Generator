@@ -1,0 +1,1578 @@
+{
+  "runtime": "v22.23.1",
+  "method": "Fixed plans at elevation 3 and foundationBottom -1. SHA-256 streams mesh name, material RGB hex, then triangle vertices in pickable order, world coordinates rounded to 5 decimals. It excludes normals and object/resource identity. Every component is separately constructed and disposed for its metrics and bounds. Full metrics include the foundation.",
+  "rows": [
+    {
+      "kind": "friary",
+      "baseline": "d1b9325efad320ec36d4858b909b7d3ded6d93acb4ab9a427909e65ce0f28698",
+      "sha256": "d1b9325efad320ec36d4858b909b7d3ded6d93acb4ab9a427909e65ce0f28698",
+      "matchesBaseline": true,
+      "metrics": {
+        "meshes": 207,
+        "triangles": 4274,
+        "vertices": 5804,
+        "geometries": 76,
+        "materials": 51
+      },
+      "parts": [
+        {
+          "id": "mendicant-friary:foundation",
+          "role": "foundation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -29,
+            -1.0000000000000078,
+            -12.5
+          ],
+          "max": [
+            29.600000381469727,
+            3.0000000000000027,
+            35
+          ]
+        },
+        {
+          "id": "mendicant-friary:court:0",
+          "role": "garth",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            1.2999999523162842,
+            3.0099999999999962,
+            1.7999999523162842
+          ],
+          "max": [
+            15.300000190734863,
+            3.039999999329447,
+            15.800000190734863
+          ]
+        },
+        {
+          "id": "mendicant-friary:court:1",
+          "role": "garden",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -24,
+            3.0099999999999962,
+            -6
+          ],
+          "max": [
+            -12,
+            3.039999999329449,
+            15.800000190734863
+          ]
+        },
+        {
+          "id": "mendicant-friary:bed:0",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -17.299999237060547,
+            3.039999999999997,
+            10.699999809265137
+          ],
+          "max": [
+            -13.399999618530273,
+            3.1900000059604623,
+            14.399999618530273
+          ]
+        },
+        {
+          "id": "mendicant-friary:bed:1",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -17.299999237060547,
+            3.039999999999998,
+            5.599999904632568
+          ],
+          "max": [
+            -13.399999618530273,
+            3.190000005960463,
+            9.300000190734863
+          ]
+        },
+        {
+          "id": "mendicant-friary:bed:2",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -17.299999237060547,
+            3.039999999999999,
+            0.5
+          ],
+          "max": [
+            -13.399999618530273,
+            3.1900000059604645,
+            4.199999809265137
+          ]
+        },
+        {
+          "id": "mendicant-friary:bed:3",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -17.299999237060547,
+            3.04,
+            -4.599999904632568
+          ],
+          "max": [
+            -13.399999618530273,
+            3.1900000059604654,
+            -0.8999999761581421
+          ]
+        },
+        {
+          "id": "mendicant-friary:bed:4",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -22.600000381469727,
+            3.039999999999997,
+            10.699999809265137
+          ],
+          "max": [
+            -18.700000762939453,
+            3.1900000059604623,
+            14.399999618530273
+          ]
+        },
+        {
+          "id": "mendicant-friary:bed:5",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -22.600000381469727,
+            3.039999999999998,
+            5.599999904632568
+          ],
+          "max": [
+            -18.700000762939453,
+            3.190000005960463,
+            9.300000190734863
+          ]
+        },
+        {
+          "id": "mendicant-friary:bed:6",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -22.600000381469727,
+            3.039999999999999,
+            0.5
+          ],
+          "max": [
+            -18.700000762939453,
+            3.1900000059604645,
+            4.199999809265137
+          ]
+        },
+        {
+          "id": "mendicant-friary:bed:7",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -22.600000381469727,
+            3.04,
+            -4.599999904632568
+          ],
+          "max": [
+            -18.700000762939453,
+            3.1900000059604654,
+            -0.8999999761581421
+          ]
+        },
+        {
+          "id": "mendicant-friary:building:0",
+          "role": "church",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 18,
+          "triangles": 208,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -8,
+            3,
+            18.575499999999998
+          ],
+          "max": [
+            24.600000381469727,
+            13.324346542358398,
+            28.624500000000005
+          ]
+        },
+        {
+          "id": "mendicant-friary:building:1",
+          "role": "church",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 64,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -17,
+            3,
+            19.4755
+          ],
+          "max": [
+            -8,
+            12.761964797973633,
+            27.724500000000003
+          ]
+        },
+        {
+          "id": "mendicant-friary:building:2",
+          "role": "apse",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 34,
+          "vertices": 102,
+          "geometries": 2,
+          "materials": 2,
+          "min": [
+            -21.100000381469727,
+            3,
+            19.5
+          ],
+          "max": [
+            -17,
+            11.456368446350098,
+            27.700000762939453
+          ]
+        },
+        {
+          "id": "mendicant-friary:building:3",
+          "role": "crossing-tower",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 14,
+          "triangles": 212,
+          "vertices": 136,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -9.5,
+            10.200000000000003,
+            22.076143553741943
+          ],
+          "max": [
+            -6.5,
+            16.034346759546644,
+            25.12385644625806
+          ]
+        },
+        {
+          "id": "mendicant-friary:building:4",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 26,
+          "triangles": 304,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            18.0755,
+            3,
+            -7.5
+          ],
+          "max": [
+            24.624499999999994,
+            10.430825233459473,
+            18.600000381469727
+          ]
+        },
+        {
+          "id": "mendicant-friary:building:5",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 34,
+          "triangles": 400,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -8,
+            3,
+            -7.524500000000003
+          ],
+          "max": [
+            24.600000381469727,
+            10.430825233459473,
+            -0.9754999999999963
+          ]
+        },
+        {
+          "id": "mendicant-friary:building:6",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 26,
+          "triangles": 304,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -8.024500000000002,
+            3,
+            -7.5
+          ],
+          "max": [
+            -1.4754999999999987,
+            10.430825233459473,
+            18.600000381469727
+          ]
+        },
+        {
+          "id": "mendicant-friary:building:7",
+          "role": "gatehouse",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 4,
+          "triangles": 40,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -22.600000381469727,
+            3,
+            31.399999618530273
+          ],
+          "max": [
+            -16.199999999999996,
+            9.431034088134766,
+            34.70000076293945
+          ]
+        },
+        {
+          "id": "mendicant-friary:cloister",
+          "role": "cloister",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 25,
+          "triangles": 1320,
+          "vertices": 2120,
+          "geometries": 25,
+          "materials": 2,
+          "min": [
+            -1.5,
+            3.0000000238418583,
+            -1
+          ],
+          "max": [
+            18.100000381469727,
+            6.300000190734863,
+            18.600000381469727
+          ]
+        },
+        {
+          "id": "mendicant-friary:wall",
+          "role": "precinct-wall",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 60,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -29.250000000000007,
+            3,
+            -12.750000000000004
+          ],
+          "max": [
+            29.85,
+            4.800000000000001,
+            35.25
+          ]
+        },
+        {
+          "id": "mendicant-friary:tree:0",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141,
+          "vertices": 390,
+          "geometries": 2,
+          "materials": 2,
+          "min": [
+            -25.49654702343951,
+            2.6500000059604645,
+            26.00987572461743
+          ],
+          "max": [
+            -22.065219827915215,
+            14.10278034210205,
+            29.560088905868156
+          ]
+        },
+        {
+          "id": "mendicant-friary:tree:1",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141,
+          "vertices": 390,
+          "geometries": 2,
+          "materials": 2,
+          "min": [
+            -25.897539401963137,
+            2.6500000059604645,
+            18.771378554367395
+          ],
+          "max": [
+            -22.511121854565605,
+            14.10278034210205,
+            22.275126092541896
+          ]
+        },
+        {
+          "id": "mendicant-friary:tree:2",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141,
+          "vertices": 390,
+          "geometries": 2,
+          "materials": 2,
+          "min": [
+            -25.528026733133682,
+            2.6500000059604645,
+            -11.430556929293921
+          ],
+          "max": [
+            -21.811204008678878,
+            14.10278034210205,
+            -7.584956589593453
+          ]
+        },
+        {
+          "id": "mendicant-friary:tree:3",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141,
+          "vertices": 390,
+          "geometries": 2,
+          "materials": 2,
+          "min": [
+            -18.042479605100578,
+            2.6500000059604645,
+            -10.743119315131487
+          ],
+          "max": [
+            -15.028997311200069,
+            14.10278034210205,
+            -7.6252282043024096
+          ]
+        },
+        {
+          "id": "mendicant-friary:well",
+          "role": "well",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "well.medieval@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 28,
+          "triangles": 632,
+          "vertices": 1034,
+          "geometries": 8,
+          "materials": 6,
+          "min": [
+            6.638002478570714,
+            2.9999999999999996,
+            7.220000000000001
+          ],
+          "max": [
+            10.159999999999998,
+            6.79,
+            10.38
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "abbey",
+      "baseline": "14cda5e0637bb5e156e6d19aaa3a9263b014c9c3fe3ca0a88d2f7d8dcf2e377d",
+      "sha256": "14cda5e0637bb5e156e6d19aaa3a9263b014c9c3fe3ca0a88d2f7d8dcf2e377d",
+      "matchesBaseline": true,
+      "metrics": {
+        "meshes": 234,
+        "triangles": 4837,
+        "vertices": 6330,
+        "geometries": 88,
+        "materials": 57
+      },
+      "parts": [
+        {
+          "id": "abbey:foundation",
+          "role": "foundation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -37,
+            -1.00000000000001,
+            -8.899999618530273
+          ],
+          "max": [
+            35,
+            3.0000000000000018,
+            45
+          ]
+        },
+        {
+          "id": "abbey:court:0",
+          "role": "garth",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            2,
+            3.0099999999999945,
+            6.099999904632568
+          ],
+          "max": [
+            20,
+            3.039999999329446,
+            24.100000381469727
+          ]
+        },
+        {
+          "id": "abbey:court:1",
+          "role": "garden",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -32,
+            3.0099999999999945,
+            -2.4000000953674316
+          ],
+          "max": [
+            -12,
+            3.039999999329448,
+            24.100000381469727
+          ]
+        },
+        {
+          "id": "abbey:bed:0",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -18.200000762939453,
+            3.039999999999995,
+            17.825000762939453
+          ],
+          "max": [
+            -13.399999618530273,
+            3.1900000059604605,
+            22.700000762939453
+          ]
+        },
+        {
+          "id": "abbey:bed:1",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -18.200000762939453,
+            3.0399999999999965,
+            11.550000190734863
+          ],
+          "max": [
+            -13.399999618530273,
+            3.190000005960462,
+            16.424999237060547
+          ]
+        },
+        {
+          "id": "abbey:bed:2",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -18.200000762939453,
+            3.039999999999998,
+            5.275000095367432
+          ],
+          "max": [
+            -13.399999618530273,
+            3.190000005960463,
+            10.149999618530273
+          ]
+        },
+        {
+          "id": "abbey:bed:3",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -18.200000762939453,
+            3.039999999999999,
+            -1
+          ],
+          "max": [
+            -13.399999618530273,
+            3.1900000059604645,
+            3.875
+          ]
+        },
+        {
+          "id": "abbey:bed:4",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -24.399999618530273,
+            3.039999999999995,
+            17.825000762939453
+          ],
+          "max": [
+            -19.600000381469727,
+            3.1900000059604605,
+            22.700000762939453
+          ]
+        },
+        {
+          "id": "abbey:bed:5",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -24.399999618530273,
+            3.0399999999999965,
+            11.550000190734863
+          ],
+          "max": [
+            -19.600000381469727,
+            3.190000005960462,
+            16.424999237060547
+          ]
+        },
+        {
+          "id": "abbey:bed:6",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -24.399999618530273,
+            3.039999999999998,
+            5.275000095367432
+          ],
+          "max": [
+            -19.600000381469727,
+            3.190000005960463,
+            10.149999618530273
+          ]
+        },
+        {
+          "id": "abbey:bed:7",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -24.399999618530273,
+            3.039999999999999,
+            -1
+          ],
+          "max": [
+            -19.600000381469727,
+            3.1900000059604645,
+            3.875
+          ]
+        },
+        {
+          "id": "abbey:bed:8",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -30.600000381469727,
+            3.039999999999995,
+            17.825000762939453
+          ],
+          "max": [
+            -25.799999237060547,
+            3.1900000059604605,
+            22.700000762939453
+          ]
+        },
+        {
+          "id": "abbey:bed:9",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -30.600000381469727,
+            3.0399999999999965,
+            11.550000190734863
+          ],
+          "max": [
+            -25.799999237060547,
+            3.190000005960462,
+            16.424999237060547
+          ]
+        },
+        {
+          "id": "abbey:bed:10",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -30.600000381469727,
+            3.039999999999998,
+            5.275000095367432
+          ],
+          "max": [
+            -25.799999237060547,
+            3.190000005960463,
+            10.149999618530273
+          ]
+        },
+        {
+          "id": "abbey:bed:11",
+          "role": "herb-bed",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -30.600000381469727,
+            3.039999999999999,
+            -1
+          ],
+          "max": [
+            -25.799999237060547,
+            3.1900000059604645,
+            3.875
+          ]
+        },
+        {
+          "id": "abbey:building:0",
+          "role": "church",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 20,
+          "triangles": 232,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -8,
+            3,
+            27.075499999999998
+          ],
+          "max": [
+            30,
+            13.636781692504883,
+            38.124500000000005
+          ]
+        },
+        {
+          "id": "abbey:building:1",
+          "role": "church",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 64,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -20,
+            3,
+            28.0655
+          ],
+          "max": [
+            -8,
+            13.018160820007324,
+            37.1345
+          ]
+        },
+        {
+          "id": "abbey:building:2",
+          "role": "apse",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 34,
+          "vertices": 102,
+          "geometries": 2,
+          "materials": 2,
+          "min": [
+            -24.510000228881836,
+            3,
+            28.09000015258789
+          ],
+          "max": [
+            -20,
+            11.582005500793457,
+            37.11000061035156
+          ]
+        },
+        {
+          "id": "abbey:building:3",
+          "role": "church",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 10,
+          "triangles": 112,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -11.5245,
+            3,
+            23.600000381469727
+          ],
+          "max": [
+            -4.475499999999999,
+            12.387042999267578,
+            43.599998474121094
+          ]
+        },
+        {
+          "id": "abbey:building:4",
+          "role": "crossing-tower",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 11,
+          "triangles": 124,
+          "vertices": 36,
+          "geometries": 2,
+          "materials": 4,
+          "min": [
+            -10.772499999999999,
+            3,
+            29.809639632360224
+          ],
+          "max": [
+            -5.2275,
+            19.560000000000006,
+            35.39036036763978
+          ]
+        },
+        {
+          "id": "abbey:building:5",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 30,
+          "triangles": 352,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            22.9755,
+            3,
+            -3.9000000953674316
+          ],
+          "max": [
+            30.0245,
+            10.587042808532715,
+            27.100000381469727
+          ]
+        },
+        {
+          "id": "abbey:building:6",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 38,
+          "triangles": 448,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -8,
+            3,
+            -3.9245000000000028
+          ],
+          "max": [
+            30,
+            10.587042808532715,
+            3.124500000000006
+          ]
+        },
+        {
+          "id": "abbey:building:7",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 26,
+          "triangles": 304,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -8.024500000000002,
+            3,
+            -3.9000000953674316
+          ],
+          "max": [
+            -0.9754999999999986,
+            10.587042808532715,
+            23.600000381469727
+          ]
+        },
+        {
+          "id": "abbey:building:8",
+          "role": "gatehouse",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 4,
+          "triangles": 40,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -30.600000381469727,
+            3.0000000000000004,
+            41.400000000000006
+          ],
+          "max": [
+            -24.199999999999996,
+            9.431034088134766,
+            44.70000076293945
+          ]
+        },
+        {
+          "id": "abbey:cloister",
+          "role": "cloister",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 33,
+          "triangles": 1832,
+          "vertices": 2920,
+          "geometries": 33,
+          "materials": 2,
+          "min": [
+            -1,
+            3.0000000238418583,
+            3.0999999046325684
+          ],
+          "max": [
+            23,
+            6.300000190734863,
+            27.100000381469727
+          ]
+        },
+        {
+          "id": "abbey:wall",
+          "role": "precinct-wall",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 60,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -37.25000000000001,
+            3,
+            -9.150000000000006
+          ],
+          "max": [
+            35.25000000000001,
+            4.800000000000001,
+            45.25
+          ]
+        },
+        {
+          "id": "abbey:tree:0",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141,
+          "vertices": 390,
+          "geometries": 2,
+          "materials": 2,
+          "min": [
+            -30.728812164575846,
+            2.6500000059604645,
+            31.36578686665201
+          ],
+          "max": [
+            -27.301344007923866,
+            14.10278034210205,
+            34.912007304019454
+          ]
+        },
+        {
+          "id": "abbey:tree:1",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141,
+          "vertices": 390,
+          "geometries": 2,
+          "materials": 2,
+          "min": [
+            -30.470088996048553,
+            2.6500000059604645,
+            24.971511502362205
+          ],
+          "max": [
+            -27.186981668644613,
+            14.10278034210205,
+            28.368369407493972
+          ]
+        },
+        {
+          "id": "abbey:tree:2",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141,
+          "vertices": 390,
+          "geometries": 2,
+          "materials": 2,
+          "min": [
+            -24.123270364745753,
+            2.6500000059604645,
+            37.61733220502826
+          ],
+          "max": [
+            -20.744609432386202,
+            14.10278034210205,
+            41.11305438293236
+          ]
+        },
+        {
+          "id": "abbey:well",
+          "role": "well",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "well.medieval@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 28,
+          "triangles": 632,
+          "vertices": 1034,
+          "geometries": 8,
+          "materials": 6,
+          "min": [
+            9.338002478570719,
+            2.9999999999999996,
+            13.520000000000001
+          ],
+          "max": [
+            12.860000000000001,
+            6.79,
+            16.68
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "orthodoxMonastery",
+      "baseline": "f26d56bd6d03639710c829e1867e167b7fa1cac75bb6c966d6f04293bc8fba58",
+      "sha256": "f26d56bd6d03639710c829e1867e167b7fa1cac75bb6c966d6f04293bc8fba58",
+      "matchesBaseline": true,
+      "metrics": {
+        "meshes": 196,
+        "triangles": 3098,
+        "vertices": 2724,
+        "geometries": 41,
+        "materials": 41
+      },
+      "parts": [
+        {
+          "id": "orthodox-monastery:foundation",
+          "role": "foundation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -29,
+            -1.00000000000001,
+            -1.399999976158142
+          ],
+          "max": [
+            27,
+            3,
+            45
+          ]
+        },
+        {
+          "id": "orthodox-monastery:court:0",
+          "role": "yard",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12,
+          "vertices": 36,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -18,
+            3.009999999999992,
+            9.600000381469727
+          ],
+          "max": [
+            16,
+            3.0399999993294453,
+            35.599998474121094
+          ]
+        },
+        {
+          "id": "orthodox-monastery:building:0",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 26,
+          "triangles": 304,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -24.024500000000003,
+            3,
+            9.600000381469727
+          ],
+          "max": [
+            -17.975499999999997,
+            10.274608612060547,
+            35.599998474121094
+          ]
+        },
+        {
+          "id": "orthodox-monastery:building:1",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 26,
+          "triangles": 304,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            15.975499999999998,
+            3,
+            9.600000381469727
+          ],
+          "max": [
+            22.024500000000003,
+            10.274608612060547,
+            35.599998474121094
+          ]
+        },
+        {
+          "id": "orthodox-monastery:building:2",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 46,
+          "triangles": 544,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -24,
+            3,
+            3.5755000000000012
+          ],
+          "max": [
+            22,
+            10.274608612060547,
+            9.624500000000001
+          ]
+        },
+        {
+          "id": "orthodox-monastery:building:3",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 22,
+          "triangles": 256,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            0,
+            3,
+            36.0755
+          ],
+          "max": [
+            22,
+            10.74325942993164,
+            43.624500000000005
+          ]
+        },
+        {
+          "id": "orthodox-monastery:building:4",
+          "role": "bell-tower",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 11,
+          "triangles": 124,
+          "vertices": 36,
+          "geometries": 2,
+          "materials": 4,
+          "min": [
+            -17.022499999999997,
+            3,
+            38.15757359312881
+          ],
+          "max": [
+            -11.977500000000001,
+            15.56,
+            43.242426406871196
+          ]
+        },
+        {
+          "id": "orthodox-monastery:building:5",
+          "role": "church",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 8,
+          "triangles": 88,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -8,
+            3,
+            18.5755
+          ],
+          "max": [
+            6,
+            12.699477195739746,
+            26.6245
+          ]
+        },
+        {
+          "id": "orthodox-monastery:building:6",
+          "role": "church",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 8,
+          "triangles": 88,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -5.024500000000001,
+            3,
+            14.600000381469727
+          ],
+          "max": [
+            3.0245000000000006,
+            12.699477195739746,
+            30.600000381469727
+          ]
+        },
+        {
+          "id": "orthodox-monastery:building:7",
+          "role": "dome",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 352,
+          "vertices": 274,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -4.328000068664551,
+            13.324346759546637,
+            19.27199993133545
+          ],
+          "max": [
+            2.3280000686645503,
+            19.62434675954664,
+            25.928000068664552
+          ]
+        },
+        {
+          "id": "orthodox-monastery:building:8",
+          "role": "gatehouse",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 4,
+          "triangles": 40,
+          "vertices": 72,
+          "geometries": 3,
+          "materials": 3,
+          "min": [
+            -12,
+            3,
+            41.400000000000006
+          ],
+          "max": [
+            -5.599999904632568,
+            9.431034088134766,
+            44.70000076293945
+          ]
+        },
+        {
+          "id": "orthodox-monastery:wall",
+          "role": "precinct-wall",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 60,
+          "vertices": 24,
+          "geometries": 1,
+          "materials": 1,
+          "min": [
+            -29.250000000000004,
+            3,
+            -1.6500000000000021
+          ],
+          "max": [
+            27.250000000000004,
+            4.8,
+            45.25
+          ]
+        },
+        {
+          "id": "orthodox-monastery:tree:0",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141,
+          "vertices": 390,
+          "geometries": 2,
+          "materials": 2,
+          "min": [
+            -24.446841014051742,
+            2.6500000059604645,
+            37.330909622897636
+          ],
+          "max": [
+            -20.843549382806998,
+            14.10278034210205,
+            41.0590453313843
+          ]
+        },
+        {
+          "id": "orthodox-monastery:tree:1",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141,
+          "vertices": 390,
+          "geometries": 2,
+          "materials": 2,
+          "min": [
+            -4.834073078583775,
+            2.6500000059604645,
+            36.997307909753175
+          ],
+          "max": [
+            -1.4267172515594133,
+            14.10278034210205,
+            40.52271918096393
+          ]
+        },
+        {
+          "id": "orthodox-monastery:well",
+          "role": "well",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "well.medieval@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 28,
+          "triangles": 632,
+          "vertices": 1034,
+          "geometries": 8,
+          "materials": 6,
+          "min": [
+            8.338002478570719,
+            2.9999999999999996,
+            12.020000000000001
+          ],
+          "max": [
+            11.860000000000001,
+            6.79,
+            15.180000000000001
+          ]
+        }
+      ]
+    }
+  ]
+}

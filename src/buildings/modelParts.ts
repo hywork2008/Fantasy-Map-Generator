@@ -1,6 +1,7 @@
 import type * as THREE from "three";
 import type { CityStructureMeshes } from "../city3d/three/structureMeshes";
 import type { Author } from "./authors";
+import { ModelKit } from "./medieval/modelKit";
 
 export interface ModelPartDefinition {
   id: string;
@@ -8,6 +9,28 @@ export interface ModelPartDefinition {
   quality: "low" | "medium" | "high" | "ultra" | "default";
   author: Author;
   basedOn?: readonly string[];
+}
+
+export interface ModelPartFactory extends ModelPartDefinition {
+  /** Return an assembly-origin group; fitted position and scale belong to its children. */
+  create(): CityStructureMeshes;
+}
+
+/** Build only the chosen components; the returned assembly owns their resources. */
+export function createModelAssembly(name: string, factories: readonly ModelPartFactory[]): CityStructureMeshes {
+  const kit = new ModelKit(name);
+  const tracker = new ModelPartTracker(kit);
+  try {
+    for (const { create, ...definition } of factories) {
+      tracker.begin(definition);
+      kit.attach(create(), [0, 0, 0]);
+    }
+    tracker.finish();
+    return kit.finish();
+  } catch (error) {
+    kit.finish().dispose();
+    throw error;
+  }
 }
 
 /** JSON-safe source ledger; counts describe the unmerged part, not the CE draw batch. */
