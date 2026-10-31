@@ -12,7 +12,7 @@ Regenerate: `node --import tsx scripts/auditBvModelQuality.mts`
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **29**. Missing candidates: **191**.
+Records: **220**. Codex High or Ultra available: **36**. Missing candidates: **184**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -20,9 +20,9 @@ Records: **220**. Codex High or Ultra available: **29**. Missing candidates: **1
 | Direct BV study | 66 | 2 | 64 |
 | Gothic landmark | 10 | 10 | 0 |
 | Imaginary landmark | 4 | 1 | 3 |
-| Medieval 02 | 3 | 0 | 3 |
+| Medieval 02 | 3 | 3 | 0 |
 | Medieval 03 | 3 | 3 | 0 |
-| Medieval 04 | 4 | 0 | 4 |
+| Medieval 04 | 4 | 4 | 0 |
 | Medieval 05 | 2 | 0 | 2 |
 | Medieval 06 | 2 | 0 | 2 |
 | Medieval 07 | 3 | 0 | 3 |
@@ -67,12 +67,13 @@ Records: **220**. Codex High or Ultra available: **29**. Missing candidates: **1
 | Regional house | 5 | 0 | 5 |
 | Romanesque landmark | 10 | 0 | 10 |
 
-## First batch and next work
+## Completed batches and next work
 
 1. Fixed the unspecified-quality fallback and the hardcoded town-wall High labels to Low. Preserved explicit high/low factories for facilities, bridges and the Opus galleon.
 2. Added new Codex High factories for farm-barn, threshing-barn and hay-shelter. BV offers Low/High; the old create factory remains unchanged as Low. No existing CE adoption was switched.
-3. Next: Medieval 02 boundaries, then 04 animal housing, followed by the remaining numbered tasks. Landmarks, standalone props, regional houses and the Codex basilica form later batches.
-4. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
+3. Second batch (2026-11-01): added High for the three Medieval 02 boundaries and four Medieval 04 animal houses. See [verification and previews](bv-boundary-animal-high-20261101.md).
+4. Next: Medieval 05 fodder/water troughs and 06 market stalls, followed by the remaining numbered tasks. Landmarks, standalone props, regional houses and the Codex basilica form later batches.
+5. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
 
@@ -91,13 +92,6 @@ Records: **220**. Codex High or Ultra available: **29**. Missing candidates: **1
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
-| Medieval 02 | `timber-fence` | Timber rail fence | single/default; assumed Low - [source](../../src/buildings/medieval/02-boundariesModels.ts) |
-| Medieval 02 | `wattle-fence` | Woven wattle fence | single/default; assumed Low - [source](../../src/buildings/medieval/02-boundariesModels.ts) |
-| Medieval 02 | `simple-timber-gate` | Braced timber wicket gate | single/default; assumed Low - [source](../../src/buildings/medieval/02-boundariesModels.ts) |
-| Medieval 04 | `village-stable` | Stable with divided stalls | single/default; assumed Low - [source](../../src/buildings/medieval/04-animal-housingModels.ts) |
-| Medieval 04 | `cattle-byre` | Stone cattle byre | single/default; assumed Low - [source](../../src/buildings/medieval/04-animal-housingModels.ts) |
-| Medieval 04 | `pigsty` | Pigsty with exercise pen | single/default; assumed Low - [source](../../src/buildings/medieval/04-animal-housingModels.ts) |
-| Medieval 04 | `chicken-coop` | Raised chicken coop | single/default; assumed Low - [source](../../src/buildings/medieval/04-animal-housingModels.ts) |
 | Medieval 05 | `fodder-trough` | Timber fodder manger | single/default; assumed Low - [source](../../src/buildings/medieval/05-troughsModels.ts) |
 | Medieval 05 | `stone-water-trough` | Stone livestock water trough | single/default; assumed Low - [source](../../src/buildings/medieval/05-troughsModels.ts) |
 | Medieval 06 | `market-produce-stall` | Produce stall with cloth awning | single/default; assumed Low - [source](../../src/buildings/medieval/06-market-stallsModels.ts) |
@@ -287,9 +281,16 @@ Records: **220**. Codex High or Ultra available: **29**. Missing candidates: **1
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
+| Medieval 02 | `timber-fence` | Timber rail fence | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/02-boundariesModels.ts) |
+| Medieval 02 | `wattle-fence` | Woven wattle fence | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/02-boundariesModels.ts) |
+| Medieval 02 | `simple-timber-gate` | Braced timber wicket gate | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/02-boundariesModels.ts) |
 | Medieval 03 | `farm-barn` | Timber farm barn | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/03-barnsModels.ts) |
 | Medieval 03 | `threshing-barn` | Threshing barn and work floor | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/03-barnsModels.ts) |
 | Medieval 03 | `hay-shelter` | Open hay shelter | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/03-barnsModels.ts) |
+| Medieval 04 | `village-stable` | Stable with divided stalls | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/04-animal-housingModels.ts) |
+| Medieval 04 | `cattle-byre` | Stone cattle byre | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/04-animal-housingModels.ts) |
+| Medieval 04 | `pigsty` | Pigsty with exercise pen | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/04-animal-housingModels.ts) |
+| Medieval 04 | `chicken-coop` | Raised chicken coop | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/04-animal-housingModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-barracks` | Citadel barracks · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-command` | Citadel command · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |

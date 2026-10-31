@@ -1,6 +1,8 @@
 import { DEFAULT_AUTHOR } from "../authors";
 import { type ModelVariant, variantId } from "../modelVariants";
+import { models as boundaries } from "./02-boundariesModels";
 import { models as barns } from "./03-barnsModels";
+import { models as animals } from "./04-animal-housingModels";
 import { models as dwellings } from "./07-dwellingsModels";
 import { models as smithies } from "./11-smithiesModels";
 import { models as fuel } from "./13-fuel-storageModels";
@@ -30,7 +32,9 @@ export function medievalFamily(model: Pick<MedievalModel, "id">): string {
 
 /** Registered medieval studies: explicit BV tiers and the default variants used by CE. */
 export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
+  boundaries,
   barns,
+  animals,
   dwellings,
   smithies,
   fuel,

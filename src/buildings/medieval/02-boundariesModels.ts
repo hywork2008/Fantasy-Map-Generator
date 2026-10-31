@@ -1,4 +1,6 @@
+import { createHighTimberFence, createHighTimberGate, createHighWattleFence } from "./boundaryDetails";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -48,3 +50,9 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "timber-fence": createHighTimberFence,
+  "wattle-fence": createHighWattleFence,
+  "simple-timber-gate": createHighTimberGate
+});
