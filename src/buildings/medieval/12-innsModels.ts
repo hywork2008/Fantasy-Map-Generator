@@ -1,5 +1,7 @@
 import { createMedievalContainerModel } from "../props/medievalContainers";
+import { createHighInn } from "./innDetails";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 function inn(large: boolean) {
   const k = new ModelKit(large ? "courtyard-inn" : "roadside-inn");
@@ -44,3 +46,8 @@ export const models: MedievalModel[] = [
     create: () => inn(true)
   }
 ];
+
+registerHighVariants(models, {
+  "roadside-inn": () => createHighInn("roadside-inn"),
+  "courtyard-hostelry": () => createHighInn("courtyard-hostelry")
+});

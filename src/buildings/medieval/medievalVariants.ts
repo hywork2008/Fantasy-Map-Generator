@@ -10,6 +10,7 @@ import { models as shops } from "./08-shop-housesModels";
 import { models as carts } from "./09-hand-cartsModels";
 import { models as bakeries } from "./10-bakeriesModels";
 import { models as smithies } from "./11-smithiesModels";
+import { models as inns } from "./12-innsModels";
 import { models as fuel } from "./13-fuel-storageModels";
 import { models as churches } from "./14-parish-churchesModels";
 import { models as granaries } from "./16-granariesModels";
@@ -47,6 +48,7 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   carts,
   bakeries,
   smithies,
+  inns,
   fuel,
   churches,
   granaries,
@@ -77,6 +79,8 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
       author,
       create: () => model.create()
     };
-    // Dwellings were already registered under default; preserve that CE contract while BV gains tiers.
-    return model.variants ? [...model.variants, ...(dwellings.includes(model) ? [legacy] : [])] : [legacy];
+    // Previously registered CE families keep default identities while BV gains selectable tiers.
+    return model.variants
+      ? [...model.variants, ...(dwellings.includes(model) || smithies.includes(model) ? [legacy] : [])]
+      : [legacy];
   });
