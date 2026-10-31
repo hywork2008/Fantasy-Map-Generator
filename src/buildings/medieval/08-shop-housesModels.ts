@@ -1,5 +1,7 @@
 import { createMedievalContainerModel } from "../props/medievalContainers";
+import { createHighShopHouse } from "./dwellingDetails";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -49,3 +51,8 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "merchant-shop-house": () => createHighShopHouse("merchant-shop-house"),
+  "artisan-shop-house": () => createHighShopHouse("artisan-shop-house")
+});

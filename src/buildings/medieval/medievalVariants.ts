@@ -6,6 +6,7 @@ import { models as animals } from "./04-animal-housingModels";
 import { models as troughs } from "./05-troughsModels";
 import { models as stalls } from "./06-market-stallsModels";
 import { models as dwellings } from "./07-dwellingsModels";
+import { models as shops } from "./08-shop-housesModels";
 import { models as smithies } from "./11-smithiesModels";
 import { models as fuel } from "./13-fuel-storageModels";
 import { models as churches } from "./14-parish-churchesModels";
@@ -40,6 +41,7 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   troughs,
   stalls,
   dwellings,
+  shops,
   smithies,
   fuel,
   churches,
@@ -63,13 +65,14 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
 ]
   .flat()
   .flatMap(model => {
-    if (model.variants) return [...model.variants];
     const author = model.author ?? DEFAULT_AUTHOR;
-    return {
+    const legacy = {
       id: variantId(medievalFamily(model), "default", author),
       family: medievalFamily(model),
       level: "default",
       author,
       create: () => model.create()
     };
+    // Dwellings were already registered under default; preserve that CE contract while BV gains tiers.
+    return model.variants ? [...model.variants, ...(dwellings.includes(model) ? [legacy] : [])] : [legacy];
   });

@@ -1,4 +1,6 @@
+import { createHighDwelling } from "./dwellingDetails";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -57,3 +59,9 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "half-timber-farmhouse": () => createHighDwelling("half-timber-farmhouse"),
+  "stone-cottage": () => createHighDwelling("stone-cottage"),
+  "plastered-small-house": () => createHighDwelling("plastered-small-house")
+});
