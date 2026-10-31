@@ -67,4 +67,4 @@ BVの`Composition`は以下の3構成。各部品の単体表示も可能。
 - [Town High・加熱ユニット単体](bv-brewery-heating-p3-20261101.png)
 - [Town High・標準へ戻した表示](bv-brewery-standard-p3-20261101.png)
 
-次はFriaryの主要建築（教会堂・居住棟・回廊等）を部品単位でHigh化する。樹木・井戸等の付属物の品質と予算を独立させる方式を維持する。
+後続の[Friary High実装記録](bv-friary-high-p4-20261101.md)で主要建築をHigh化した。樹木・井戸はLowのまま独立させ、CEの既定Lowも維持している。次はP5の固有建築の部品検査へ進む。

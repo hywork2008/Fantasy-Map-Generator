@@ -68,7 +68,7 @@ import {
   createBasilicaTemple
 } from "../buildings/temples/basilicaTemple";
 import { validateBuildingRecord } from "../buildings/validate";
-import { familyVariants } from "../buildings/variants";
+import { familyVariants, MODEL_VARIANTS } from "../buildings/variants";
 import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
 import {
   AIRSHIP,
@@ -2650,6 +2650,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       const partFactories = definition.parts?.(variant?.id, selectedPartPreset);
       if (selectedPart !== "all" && !partFactories?.some(part => part.id === selectedPart)) selectedPart = "all";
       const partFactory = partFactories?.find(part => part.id === selectedPart);
+      const displayedDependencies = partFactory ? partFactory.basedOn : variant?.basedOn;
       const customAssembly =
         !!partFactories && !!definition.partPresets && selectedPartPreset !== definition.partPresets[0].id;
       if (definition.partPresets) {
@@ -2744,17 +2745,25 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
                 "CE adoption",
                 partFactory || customAssembly
                   ? "Component preview; CE placement uses its registered assembly"
-                  : variant === adopted(variant.level)
-                    ? "Adopted"
-                    : `Not adopted; CE uses ${adopted(variant.level).author}`
+                  : variant.family === "monastery.friary"
+                    ? variant.level === "high"
+                      ? "Explicit High edition available; CE default keeps Low architecture"
+                      : "CE default keeps this Low architecture"
+                    : variant === adopted(variant.level)
+                      ? "Adopted"
+                      : `Not adopted; CE uses ${adopted(variant.level).author}`
               ),
-              ...(variant.basedOn
+              ...(displayedDependencies
                 ? [
                     fact(
                       "Based on",
-                      variant.basedOn
-                        .map(id => definition.variants!.find(entry => entry.id === id))
-                        .map(entry => (entry ? `${entry.label} · ${entry.author}` : ""))
+                      displayedDependencies
+                        .map(id => {
+                          const own = definition.variants!.find(entry => entry.id === id);
+                          if (own) return `${own.label} · ${own.author}`;
+                          const dependency = MODEL_VARIANTS.find(entry => entry.id === id);
+                          return dependency ? `${dependency.family} · ${dependency.level} · ${dependency.author}` : id;
+                        })
                         .join(", ")
                     )
                   ]

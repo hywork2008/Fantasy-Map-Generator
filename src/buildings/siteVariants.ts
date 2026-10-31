@@ -67,13 +67,27 @@ export const CEMETERY_VARIANTS = CEMETERY_PROP_KINDS.map(kind =>
 
 export const FRIARY_VARIANTS = [
   {
-    ...single<Parameters<typeof createFriary>>("monastery.friary", DEFAULT_AUTHOR, (...args) => createFriary(...args)),
+    ...single<Parameters<typeof createFriary>>("monastery.friary", DEFAULT_AUTHOR, (plan, elevation, bottom, options) =>
+      createFriary(plan, elevation, bottom, { ...options, architectureQuality: "low" })
+    ),
     // Vegetation quality is independent of the architectural assembly.
     basedOn: [
       variantId("tree.garden-parkland", "low", DEFAULT_AUTHOR),
       variantId("well.medieval", "low", DEFAULT_AUTHOR)
     ]
-  }
+  },
+  ...(["low", "high"] as const).map(level => ({
+    id: variantId("monastery.friary", level, DEFAULT_AUTHOR),
+    family: "monastery.friary",
+    level,
+    author: DEFAULT_AUTHOR,
+    basedOn: [
+      variantId("tree.garden-parkland", "low", DEFAULT_AUTHOR),
+      variantId("well.medieval", "low", DEFAULT_AUTHOR)
+    ],
+    create: (...[plan, elevation, bottom, options]: Parameters<typeof createFriary>) =>
+      createFriary(plan, elevation, bottom, { ...options, architectureQuality: level })
+  }))
 ];
 
 /** Every generated religious-house programme uses the same BV and CE assembly. */

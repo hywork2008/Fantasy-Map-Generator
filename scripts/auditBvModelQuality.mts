@@ -121,8 +121,9 @@ ${summary.join("\n")}
 8. Seventh batch (2026-11-01): added High for the three Medieval 13 fuel stores and two Medieval 14 churches, preserving their default CE variants. See [verification and previews](bv-fuel-church-high-20261101.md).
 9. Eighth batch (2026-11-01): added High for the two Medieval 15 breweries and two Medieval 16 granaries, preserving the default granary variants used by CE. See [verification and previews](bv-brewery-granary-high-20261101.md).
 10. Ninth batch (2026-11-01): added High for the two Medieval 17 warehouses and the Medieval 18 livestock market, preserving their default CE variants. See [verification and previews](bv-warehouse-market-high-20261101.md).
-11. Next: Medieval 19 grave markers and 20 textile/leather workshops. Preserve the existing default CE variants for grave markers when adding BV tiers. Landmarks, standalone props, regional houses and the Codex basilica form later batches.
-12. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
+11. Composite-model phase (2026-11-01): audited the friary's Ultra vegetation and detailed well, introduced independent components and quality budgets, and decomposed shop houses, bakeries, inns and breweries. Added a new High urban friary with actual masonry apertures, buttresses, roof intersections, a pointed cloister arcade and detailed bellcote. CE keeps its default Low architecture. See [verification and previews](bv-friary-high-p4-20261101.md).
+12. Next: extend component inspection to named landmarks, then resume the remaining non-tree High candidates, including Medieval 19 grave markers and 20 textile/leather workshops. Preserve the existing default CE variants for grave markers. Regional houses, standalone props and the Codex basilica remain later batches.
+13. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
 

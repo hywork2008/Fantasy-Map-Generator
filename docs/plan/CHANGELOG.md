@@ -2,7 +2,7 @@
 
 2026-11-01
 
-- docs/plan/bv-composite-models.md - FriaryのUltra樹木・詳細井戸による負荷を調査し、教会堂・回廊・居住棟・外構と住宅系施設の部品境界、用途と構成の分類、建築・植栽の独立品質、BVの部品表示、CE計画と資源所有、P0〜P5の実施順序を整理。P0植栽Low、P1井戸Low・部品台帳、P2独立factory・BV単体表示、P3住宅系4カテゴリ9モデルの部品化・各3構成、専用貯蔵樽のStorage props共通化と負荷差、次のP4 Friary Highを明記
+- docs/plan/bv-composite-models.md - FriaryのUltra樹木・詳細井戸による負荷を調査し、複合施設の部品境界・独立品質・BV表示・CE計画と資源所有を設計。P0植栽Low、P1井戸Low・台帳、P2独立factory、P3住宅系9モデルの部品化・構成と貯蔵樽共通化、P4 Friary Highの開口付き外殻・交差屋根・回廊・鐘架とLowのCE既定維持まで完了。次のP5固有建築への展開を明記
 
 2026-10-31
 

@@ -1,9 +1,11 @@
 import { fitMonastery, type Monastery, type MonasteryKind } from "../../city-editor/generators/monasteryLayout";
 import { makeRng } from "../../city-editor/generators/prng";
 import { DEFAULT_AUTHOR } from "../authors";
+import { compactModel } from "../compactModel";
 import type { TreeQuality } from "../landscape/treeQuality";
 import { createModelAssembly, type ModelPartFactory } from "../modelParts";
 import { variantId } from "../modelVariants";
+import { createHighFriaryBuilding, createHighFriaryCloister, createHighFriaryWall } from "./friaryDetails";
 import {
   createMonasteryBuilding,
   createMonasteryCloister,
@@ -42,6 +44,8 @@ export function monasteryPreviewPlan(kind: MonasteryKind = "friary"): Monastery 
 }
 
 export interface MonasteryRenderOptions {
+  /** Detailed architecture is currently available for the friary programme only. */
+  architectureQuality?: "low" | "high";
   /** Omitted means all parts; an empty array intentionally creates an empty assembly. */
   partIds?: readonly string[];
   /** Vegetation has its own budget; never inherit the standalone tree's Ultra default. */
@@ -57,6 +61,9 @@ export function monasteryPartFactories(
   foundationBottom = elevation,
   options: MonasteryRenderOptions = {}
 ): ModelPartFactory[] {
+  if (options.architectureQuality === "high" && plan.kind !== "friary")
+    throw new Error("High architecture is not yet available for this monastery programme");
+  const high = options.architectureQuality === "high";
   const context = monasteryContext(plan, elevation, foundationBottom);
   const { scale } = context;
   const result: ModelPartFactory[] = [];
@@ -94,9 +101,26 @@ export function monasteryPartFactories(
       createMonasterySlab("herb-bed", bed, [], elevation + 0.04, 0.15 * scale, "earth")
     );
   for (const [index, building] of plan.buildings.entries())
-    add(`building:${index}`, building.role, () => createMonasteryBuilding(context, index));
-  if (plan.walk) add("cloister", "cloister", () => createMonasteryCloister(context));
-  if (plan.wall.length > 1) add("wall", "precinct-wall", () => createMonasteryWall(context));
+    add(
+      `building:${index}`,
+      building.role,
+      () => (high ? createHighFriaryBuilding(context, index) : createMonasteryBuilding(context, index)),
+      high ? "high" : "low"
+    );
+  if (plan.walk)
+    add(
+      "cloister",
+      "cloister",
+      () => (high ? createHighFriaryCloister(context) : createMonasteryCloister(context)),
+      high ? "high" : "low"
+    );
+  if (plan.wall.length > 1)
+    add(
+      "wall",
+      "precinct-wall",
+      () => (high ? createHighFriaryWall(context) : createMonasteryWall(context)),
+      high ? "high" : "low"
+    );
   for (const [index] of plan.trees.entries()) {
     const quality = options.vegetationQuality ?? "low";
     add(`tree:${index}`, "vegetation", () => createMonasteryTree(context, index, quality), quality, [
@@ -130,7 +154,12 @@ export function createMonastery(
         });
   if (new Set(selected.map(part => part.id)).size !== selected.length)
     throw new Error("Duplicate monastery part selection");
-  return createModelAssembly(plan.kind === "friary" ? "mendicant-friary" : plan.kind, selected);
+  return assembleMonasteryParts(plan.kind === "friary" ? "mendicant-friary" : plan.kind, selected);
+}
+
+export function assembleMonasteryParts(name: string, parts: readonly ModelPartFactory[]) {
+  const model = createModelAssembly(name, parts);
+  return parts.some(part => part.quality === "high") ? compactModel(model, { mergeEquivalentMaterials: true }) : model;
 }
 
 /** Backwards-compatible friary entry points for callers requesting that specific programme. */
