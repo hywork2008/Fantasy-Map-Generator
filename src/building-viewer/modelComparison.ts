@@ -64,7 +64,8 @@ export function createModelComparison(
       section.append(title, scroll, note);
       host.append(section);
     },
-    mount(host: HTMLElement, modulePath: string | null, quality: ModelQuality, root: THREE.Object3D) {
+    mount(host: HTMLElement, modulePath: string | null, requestedQuality: ModelQuality | null, root: THREE.Object3D) {
+      const quality = requestedQuality ?? "low";
       cancel();
       const measurements = (modulePath ? cache.get(modulePath) : undefined) ?? {};
       measurements[quality] = collectModelMetrics(root);

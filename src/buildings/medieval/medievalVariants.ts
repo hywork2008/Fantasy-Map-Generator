@@ -1,5 +1,6 @@
 import { DEFAULT_AUTHOR } from "../authors";
 import { type ModelVariant, variantId } from "../modelVariants";
+import { models as barns } from "./03-barnsModels";
 import { models as dwellings } from "./07-dwellingsModels";
 import { models as smithies } from "./11-smithiesModels";
 import { models as fuel } from "./13-fuel-storageModels";
@@ -27,8 +28,9 @@ export function medievalFamily(model: Pick<MedievalModel, "id">): string {
   return `medieval.${model.id}`;
 }
 
-/** Medieval task models that CE draws, one variant each. */
+/** Registered medieval studies: explicit BV tiers and the default variants used by CE. */
 export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
+  barns,
   dwellings,
   smithies,
   fuel,
@@ -52,7 +54,8 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   sand
 ]
   .flat()
-  .map(model => {
+  .flatMap(model => {
+    if (model.variants) return [...model.variants];
     const author = model.author ?? DEFAULT_AUTHOR;
     return {
       id: variantId(medievalFamily(model), "default", author),

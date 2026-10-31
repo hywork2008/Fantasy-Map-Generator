@@ -109,3 +109,12 @@ it("shows single-quality models without starting unavailable measurements or sha
   expect(host.querySelector("tbody tr")?.textContent).toContain("Meshes2——");
   expect(host.textContent).toContain("Only Low quality is available");
 });
+
+it("treats unspecified single-model quality as Low, without claiming a High edition", () => {
+  comparison.mount(host, null, null, root);
+  expect(host.querySelector("tbody tr")?.textContent).toContain("Meshes1——");
+  expect(host.textContent).toContain("Only Low quality is available");
+  expect(host.textContent).not.toContain("Only High quality is available");
+  vi.advanceTimersByTime(20);
+  expect(workers).toHaveLength(0);
+});

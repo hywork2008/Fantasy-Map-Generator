@@ -8,6 +8,8 @@ export interface MedievalModel {
   name: string;
   task: number;
   author?: Author;
+  /** Explicit preview tier for factories with no BV variant selector; unspecified means low. */
+  quality?: "low" | "high";
   biomes?: readonly string[];
   /** Conservative width, depth and height envelopes in meters. */
   size: readonly [number, number, number];

@@ -366,7 +366,7 @@ let selection = 0;
 const modelComparison = createModelComparison();
 let comparisonVariants: { id: string; levels: readonly { id: string; label: string }[]; selected: string } | null =
   null;
-let comparisonModel: { path: string; quality: "low" | "high" } | null = null;
+let comparisonModel: { path: string | null; quality: "low" | "high" } | null = null;
 
 function studyRoots(): THREE.Object3D[] {
   const roots: THREE.Object3D[] = [];
@@ -481,7 +481,7 @@ function appendFacts(...nodes: (Node | string)[]): void {
     );
     return;
   }
-  modelComparison.mount(facts, comparisonModel?.path ?? null, comparisonModel?.quality ?? "high", root);
+  modelComparison.mount(facts, comparisonModel?.path ?? null, comparisonModel?.quality ?? null, root);
 }
 const performancePanel = mountPerformancePanel(inspector, () => massing?.group ?? null);
 window.addEventListener("pagehide", () => modelComparison.clear());
@@ -1286,6 +1286,7 @@ function showOpusGalleon(): void {
   levelTitle.textContent = "Deck plan";
   showQuality(true);
   const quality = qualitySelect.value as OpusGalleonQuality;
+  comparisonModel = { path: null, quality };
   const model = createOpusGalleon(quality, { ensign: opusGalleonEnsign });
   const ensignToggle = document.createElement("input");
   ensignToggle.type = "checkbox";
@@ -2115,10 +2116,10 @@ function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = f
   const resolution = document.createElement("select");
   resolution.setAttribute("aria-label", "Model resolution");
   const option = document.createElement("option");
-  option.value = "high";
-  option.textContent = "High resolution (default)";
+  option.value = "low";
+  option.textContent = "Low resolution (only available tier)";
   resolution.append(option);
-  resolution.value = "high";
+  resolution.value = "low";
   row.append(resolution);
   const paragraph = document.createElement("p");
   paragraph.append(row);
@@ -2179,7 +2180,7 @@ function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = f
     ...adoptionFacts(`town-wall.${model.id}`, "default", model.author ?? TOWN_WALL_AUTHOR),
     fact("Part", model.part),
     fact("Period", model.period ?? (codex ? CODEX_TOWN_WALL_PERIOD : "High medieval Europe")),
-    fact("Resolution", "High — low and standard tiers are not prepared"),
+    fact("Resolution", "Low — no explicit high-quality edition is registered"),
     fact("Mesh dimensions", `${extent.x.toFixed(2)} × ${extent.z.toFixed(2)} × ${extent.y.toFixed(2)} m`),
     fact("Construction", model.note, wallWikipedia[model.id]),
     fact(
@@ -2577,7 +2578,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         const row = document.createElement("label");
         row.textContent = "Quality: ";
         const resolution = document.createElement("select");
-        resolution.setAttribute("aria-label", "Tree model quality");
+        resolution.setAttribute("aria-label", task === 43 ? "Tree model quality" : "Model quality");
         for (const level of levels) {
           const option = document.createElement("option");
           option.value = level;
@@ -2635,6 +2636,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
           levels: definition.variants.map(entry => ({ id: column(entry), label: entry.label })),
           selected: column(variant)
         };
+      if (!variant) comparisonModel = { path: null, quality: definition.quality ?? "low" };
       const model = variant
         ? definition.seasons && season !== definition.seasons.default
           ? definition.seasons.create(variant.id, season!)
