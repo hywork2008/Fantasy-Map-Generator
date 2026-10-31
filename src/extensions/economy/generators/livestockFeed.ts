@@ -3,6 +3,7 @@
 import { getMarketSettings } from "../../../simulation/marketSettings";
 import { rn } from "../../hostUtils";
 import { getCropResidueState } from "../context/cropResidues";
+import { getMilitaryResourceLedgers } from "../context/fiscal";
 import {
   getGoods,
   getMarketCellColumn,
@@ -12,6 +13,7 @@ import {
   getWorldContext
 } from "../economyContext";
 import { consumeCropResidues } from "./cropResidues";
+import { getMarketPriceLevel } from "./currencySufficiency";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { creditRuralHouseholdWealth, debitRuralHouseholdWealth, getRuralHouseholdWealth } from "./householdWealth";
@@ -31,6 +33,7 @@ import {
   STANDING_GRASS_LOSS_PER_MONTH
 } from "./livestockFeedPolicy";
 import { livestockFeedMonth, livestockFeedPeriod } from "./livestockFeedState";
+import { getRawGoodTargetPrice } from "./marketPricing";
 import type { Market } from "./marketTypes";
 
 export function getLivestockMonthlyFeedNeedKg(cellId: number): number {
@@ -175,12 +178,13 @@ export function harvestLivestockForage(): void {
         : (ledger.fodderAnnualUseLots * 11) / 12;
     const list = offers.get(market.i);
     if (!list?.length) continue;
+    ledger.fodderCutPeriod = period;
     market.goods[fodder.i] ??= { stock: 0, price: fodder.value };
     const stock = market.goods[fodder.i];
     if (!(stock.price > 0) || !Number.isFinite(stock.price)) continue;
-    const price = stock.price * 0.8;
     const short = shortfalls.get(market.i) ?? [];
-    if (hayTrade === "farmsFirst") tradeHayBetweenFarms(table, list, short, price);
+    if (hayTrade === "farmsFirst")
+      tradeHayBetweenFarms(table, list, short, getFodderClearingPrice(market, stock.stock) * 0.8);
     // The market buys the grass its herds will eat: what its farms still lack for their winter
     // reserves, or a year's sales if larger, above its stock. Sales alone shrank year by year, since
     // a market short of stock sold less and then bought less (docs/analytics/hay-surplus-20261031.md).
@@ -193,6 +197,10 @@ export function harvestLivestockForage(): void {
     if (!(offeredKg > 0)) continue;
     const totalKg = Math.min(offeredKg, wantedLots * FODDER_DM_KG_PER_LOT);
     const treasury = market.marketTreasury;
+    // The new crop is bought at the price it clears at once in stock, not at last month's: that was
+    // the dear price of the empty market before the cut, and the hay then sold to the same farms at
+    // a fraction of it (docs/analytics/hay-trade-modes-20261101.md §3).
+    const price = getFodderClearingPrice(market, stock.stock + totalKg / FODDER_DM_KG_PER_LOT) * 0.8;
     const bill =
       Math.floor(Math.min(Math.max(0, treasury?.balance ?? 0), (totalKg / FODDER_DM_KG_PER_LOT) * price) * 100) / 100;
     if (!(bill > 0) || !treasury) continue;
@@ -210,6 +218,7 @@ export function harvestLivestockForage(): void {
     treasury.balance = rn(treasury.balance - bill, 2);
     creditRuralHouseholdWealth(market, bill);
     stock.stock += boughtKg / FODDER_DM_KG_PER_LOT;
+    stock.price = getFodderClearingPrice(market, stock.stock);
     recordGoodFlow({
       direction: "source",
       category: "ruralHarvest",
@@ -218,6 +227,44 @@ export function harvestLivestockForage(): void {
       marketId: market.i
     });
   }
+}
+
+/** Months the market's hay stock must still last: a year from its last cut, at least this month. */
+function monthsToNextCut(market: Market): number {
+  const cut = market.foodLedger?.fodderCutPeriod;
+  return cut === undefined ? 1 : Math.max(1, 12 - (livestockFeedPeriod() - cut));
+}
+
+/**
+ * Fodder the market's stock is priced and traded against: until the next cut, the farms' need or what
+ * they spend on feed at `price` if less, and the army's ration. Hay is cut once a year and bought
+ * over the months after, so one month's orders against a year's stock priced it at the floor after
+ * the cut, and the farms' whole need priced it beyond their purse (docs/analytics/hay-trade-modes-20261101.md).
+ */
+export function getFodderSeasonDemandLots(market: Market, price: number): number {
+  const months = monthsToNextCut(market);
+  const army = getMilitaryResourceLedgers()
+    .filter(ledger => ledger.supplyMarketId === market.i)
+    .reduce((sum, ledger) => sum + (ledger.annualDemand.fodder ?? 0) / 12, 0);
+  const spend = price > 0 ? (getRuralHouseholdWealth(market) * LIVESTOCK_FEED_CASH_SHARE * months) / price : 0;
+  return Math.min(getLivestockFodderNeedLots(market), spend) + army * months;
+}
+
+/**
+ * Fodder price at which the season's demand meets `stockLots` in stock, as the monthly price pass
+ * reckons it (markets-generator.ts `initializeMarketPrices`, without its smoothing from the last
+ * price). Farm spending falls as the price rises, so it is iterated by geometric means.
+ */
+export function getFodderClearingPrice(market: Market, stockLots: number): number {
+  const fodder = getGoods().find(good => good.name === "Fodder" && isGoodEnabled(good));
+  if (!fodder) return 0;
+  const baseValue = fodder.value * getMarketPriceLevel(market);
+  let price = baseValue;
+  for (let step = 0; step < 8; step++)
+    price = Math.sqrt(
+      price * getRawGoodTargetPrice(fodder, baseValue, getFodderSeasonDemandLots(market, price), stockLots)
+    );
+  return price;
 }
 
 /**
@@ -377,13 +424,14 @@ export function settleLivestockFeed(): void {
   }
 }
 
-/** Remaining private demand, used by trade without adding generic population/category demand. */
-export function getLivestockFodderOrderLots(market: Market): number {
+/**
+ * Hay the farms of a market still lack for this month and their winter reserve plans, whatever they
+ * can pay this month. Hay is cut once a year and bought over the months after, so this, not one
+ * month's orders, is what the market's stock is priced and traded against.
+ */
+export function getLivestockFodderNeedLots(market: Market): number {
   const table = getOrCreateLivestockFeedTable();
   if (!table || !market.foodLedger) return 0;
-  const fodder = getGoods().find(good => good.name === "Fodder" && isGoodEnabled(good));
-  const price = fodder ? (market.goods[fodder.i]?.price ?? fodder.value) : 0;
-  if (!(price > 0) || !Number.isFinite(price)) return 0;
   const marketCells = getMarketCellColumn();
   let need = 0;
   for (const cell of getWorldContext().pack.cells?.i ?? []) {
@@ -397,5 +445,16 @@ export function getLivestockFodderOrderLots(market: Market): number {
         (row?.hayKg ?? 0)
     );
   }
-  return Math.min(need / FODDER_DM_KG_PER_LOT, (getRuralHouseholdWealth(market) * LIVESTOCK_FEED_CASH_SHARE) / price);
+  return need / FODDER_DM_KG_PER_LOT;
+}
+
+/** This month's farm orders: their need, within the cash they spend on feed in a month. */
+export function getLivestockFodderOrderLots(market: Market): number {
+  const fodder = getGoods().find(good => good.name === "Fodder" && isGoodEnabled(good));
+  const price = fodder ? (market.goods[fodder.i]?.price ?? fodder.value) : 0;
+  if (!(price > 0) || !Number.isFinite(price)) return 0;
+  return Math.min(
+    getLivestockFodderNeedLots(market),
+    (getRuralHouseholdWealth(market) * LIVESTOCK_FEED_CASH_SHARE) / price
+  );
 }

@@ -30,7 +30,12 @@ import { getDomesticatedCarryingCapacity } from "./faunaPopulation";
 import { type Good, Goods } from "./goods-generator";
 import { type GoodFlowRecord, setGoodFlowObserver } from "./goodsBalanceLedger";
 import { getGrazedCarryingCapacity } from "./husbandry";
-import { getLivestockFodderOrderLots, harvestLivestockForage, settleLivestockFeed } from "./livestockFeed";
+import {
+  getFodderSeasonDemandLots,
+  getLivestockFodderNeedLots,
+  harvestLivestockForage,
+  settleLivestockFeed
+} from "./livestockFeed";
 import { FODDER_DM_KG_PER_LOT } from "./livestockFeedPolicy";
 import { scheduleLivestockFeedPeriods } from "./livestockFeedSchedule";
 import {
@@ -178,7 +183,7 @@ describe("physical livestock feed budget", () => {
     expect(getOrCreateFaunaStockTable()!["0:Sheep"].old).toBeCloseTo(3000 - expected, 8);
   });
 
-  it("adds retained custom consumer and industrial demand to farm and military Fodder orders", () => {
+  it("adds retained custom consumer and industrial demand to farm need and military Fodder", () => {
     const market = getMarkets()[0];
     const fodder = good("Fodder");
     fodder.demandCoverage = { utilities: 0.4, military: 0.6 };
@@ -197,12 +202,25 @@ describe("physical livestock feed budget", () => {
         marketId: number
       ): number;
     };
-    const farmOrders = getLivestockFodderOrderLots(market);
-    expect(farmOrders).toBeGreaterThan(0);
-    expect(demand.calculateGoodDemand(fodder, 10, 10, 0.4, 0.2, fodder.value, 1)).toBeCloseTo(farmOrders + 10 + 6);
-    expect(demand.calculateGoodDemand(fodder, 10, 10, 0.4, 0.2, fodder.value * 2, 1)).toBeCloseTo(farmOrders + 10 + 3);
+    const season = (price: number) => getFodderSeasonDemandLots(market, price);
+    // Farm need plus the army's monthly ration of 10, with no hay cut recorded yet.
+    expect(season(fodder.value)).toBeGreaterThan(10);
+    expect(demand.calculateGoodDemand(fodder, 10, 10, 0.4, 0.2, fodder.value, 1)).toBeCloseTo(season(fodder.value) + 6);
+    expect(demand.calculateGoodDemand(fodder, 10, 10, 0.4, 0.2, fodder.value * 2, 1)).toBeCloseTo(
+      season(fodder.value * 2) + 3
+    );
     fodder.demandCoverage = {};
-    expect(demand.calculateGoodDemand(fodder, 10, 10, 0, 0, fodder.value * 2, 1)).toBeCloseTo(farmOrders + 10);
+    expect(demand.calculateGoodDemand(fodder, 10, 10, 0, 0, fodder.value * 2, 1)).toBeCloseTo(season(fodder.value * 2));
+  });
+
+  it("prices hay against what farms spend until the next cut, not one month or their whole need", () => {
+    const market = getMarkets()[0];
+    market.foodLedger!.ruralHouseholdWealth = 100;
+    // 5% of the purse a month at price 1.
+    expect(getFodderSeasonDemandLots(market, 1)).toBeCloseTo(Math.min(getLivestockFodderNeedLots(market), 5), 8);
+    market.foodLedger!.fodderCutPeriod = livestockFeedPeriod();
+    expect(getFodderSeasonDemandLots(market, 1)).toBeCloseTo(Math.min(getLivestockFodderNeedLots(market), 60), 8);
+    expect(getFodderSeasonDemandLots(market, 2)).toBeCloseTo(Math.min(getLivestockFodderNeedLots(market), 30), 8);
   });
 
   it("uses each pasture kilogram once and transfers real cash for surplus hay", () => {
@@ -235,9 +253,14 @@ describe("physical livestock feed budget", () => {
     market.goods[good("Fodder").i].stock = 1;
     market.foodLedger!.fodderAnnualUseLots = 3;
     harvestLivestockForage();
-    // 3 lots decay by a month to 2.75; with 1 lot held, at most 1.75 more is bought.
-    expect(market.goods[good("Fodder").i].stock).toBeCloseTo(2.75, 8);
-    expect((rows()[0].soldKg + rows()[1].soldKg) / FODDER_DM_KG_PER_LOT).toBeCloseTo(1.75, 8);
+    // 3 lots decay by a month to 2.75; with 1 lot held, at most 1.75 more is bought (the bill is
+    // rounded down to whole cents).
+    expect(market.goods[good("Fodder").i].stock).toBeLessThanOrEqual(2.75);
+    expect(market.goods[good("Fodder").i].stock).toBeCloseTo(2.75, 1);
+    expect((rows()[0].soldKg + rows()[1].soldKg) / FODDER_DM_KG_PER_LOT).toBeCloseTo(
+      market.goods[good("Fodder").i].stock - 1,
+      8
+    );
   });
 
   it("buys spare hay for farms short of their winter reserve even with no Fodder sales last year", () => {
@@ -250,6 +273,19 @@ describe("physical livestock feed budget", () => {
     expect(stock).toBeGreaterThan(0);
     expect(stock * FODDER_DM_KG_PER_LOT).toBeCloseTo(rows()[0].soldKg, 8);
     expect(rows()[1].hayKg).toBe(0);
+  });
+
+  it("buys the new crop at the price it clears at in stock, not at the empty market's dear price", () => {
+    const market = getMarkets()[0];
+    const fodder = market.goods[good("Fodder").i];
+    fodder.price = 3;
+    market.foodLedger!.fodderAnnualUseLots = 0;
+    setHusbandryWorkers(Float32Array.from([100, 0]));
+    harvestLivestockForage();
+    const soldLots = rows()[0].soldKg / FODDER_DM_KG_PER_LOT;
+    expect(soldLots).toBeGreaterThan(0);
+    expect(fodder.price).toBeLessThan(3);
+    expect(rows()[0].revenue / soldLots).toBeCloseTo(fodder.price * 0.8, 2);
   });
 
   it("moves spare hay from farm to farm first when set, with no cash moving", () => {

@@ -15,7 +15,6 @@ import {
 } from "../../hostTypes";
 import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
 import { getLivestockDispatchTable } from "../context/cellTables";
-import { getMilitaryResourceLedgers } from "../context/fiscal";
 import {
   getColdStorageDepots,
   getDeals,
@@ -50,7 +49,7 @@ import {
   recipesForIndustrialDemand
 } from "./craftDemandCalibration";
 import { laborPeople } from "./craftScale";
-import { getMarketPriceLevel, getMintPriceFloor, getMoneyPriceLevelForMarket } from "./currencySufficiency";
+import { getMarketPriceLevel, getMoneyPriceLevelForMarket } from "./currencySufficiency";
 import { ExportStaging } from "./exportStaging";
 import { getFarmToolsDemandByMarket } from "./farmToolsDemand";
 import { withRegionalDemandShareCache } from "./faunaPopulation";
@@ -84,7 +83,7 @@ import { getMonthlyHouseholdFuelDemands, getWoodSupplyMonthKey } from "./heating
 import { getRuralPopulationByMarket, moveRuralPursesWithFarms } from "./householdWealth";
 import { getHouseTimberShare, getHousingRecipe } from "./housingRecipes";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
-import { getLivestockFodderOrderLots } from "./livestockFeed";
+import { getFodderSeasonDemandLots } from "./livestockFeed";
 import { isLuxuryValueDemandEnabled, luxuryBudgetByMarketTier, luxuryStockTarget } from "./luxuryDemand";
 import { isHighValueTradeGood, isLuxuryDemandGood, type LuxuryTier } from "./luxuryTiers";
 import {
@@ -104,8 +103,11 @@ import { syncMarketManagers } from "./marketManagers";
 import {
   applyMarketPressure,
   customerBuyPrice,
+  getPriceFloor,
+  getRawGoodTargetPrice,
   getWarPriceModifier,
   hasSettledPrice,
+  LAPLACE_PRICE_SMOOTHING,
   MARKET_MARGIN,
   PRICE_CEILING_FACTOR,
   PRICE_FLOOR_FACTOR
@@ -203,7 +205,6 @@ export const RURAL_MONTHLY_FELLING_SHARE = 0.01;
  * (docs/plan/farm-labour-calibration.md §21.2, §22).
  */
 export const RURAL_BUILDING_TIMBER_PER_1000_RESIDENTS_ANNUAL = 40;
-const LAPLACE_PRICE_SMOOTHING = 5;
 
 /** Extra import-reserve share per point of burg warIntensity for military/essential goods. */
 export const WARTIME_TRADE_RESERVE_PER_INTENSITY = 0.5;
@@ -354,13 +355,6 @@ interface GlobalTradeContext {
 export type { Deal, Market } from "./marketTypes";
 
 /** Goods whose supply is a mine or a furnace rather than a cell distribution or a recipe. */
-/** Lowest price a good falls to: a quarter of its value, or the mint price for minted metal. */
-function getPriceFloor(good: Pick<Good, "unit" | "value">, baseValue: number): number {
-  const floor = baseValue * PRICE_FLOOR_FACTOR;
-  const mintFloor = getMintPriceFloor(good);
-  return mintFloor === undefined ? floor : Math.max(floor, mintFloor);
-}
-
 function isMineOrFurnaceGood(good: Pick<Good, "tags">): boolean {
   return good.tags.some(tag => tag === "ore" || tag === "ingot" || tag === "mineral");
 }
@@ -1653,10 +1647,9 @@ export class MarketsModule {
             market.i,
             textileOrders
           ) + (mineOrFurnaceGood ? (metalDemandByMarket.get(market.i)?.get(good.i) ?? 0) : 0);
-        const ratio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
         const baseValue = good.value * priceLevel;
         const floor = getPriceFloor(good, baseValue);
-        const targetPrice = minmax(baseValue * ratio, floor, baseValue * PRICE_CEILING_FACTOR);
+        const targetPrice = getRawGoodTargetPrice(good, baseValue, demand, marketGood.stock);
         const prevPrice = marketGood.price > 0 ? marketGood.price : baseValue;
         marketGood.price = relaxMarketPrice(prevPrice, targetPrice, floor, baseValue * PRICE_CEILING_FACTOR);
       }
@@ -3355,16 +3348,14 @@ export class MarketsModule {
   ): number {
     const market = marketId === undefined ? undefined : this.get(marketId);
     if (good.name === "Fodder" && market) {
-      const military = getMilitaryResourceLedgers()
-        .filter(ledger => ledger.supplyMarketId === market.i)
-        .reduce((sum, ledger) => sum + (ledger.annualDemand.fodder ?? 0) / 12, 0);
       // Migration removes only legacy defaults; retained custom demand still consumes market stock.
       const customDemand = applyPriceElasticity(
         urbanPopulation * (consumerDemand + industrialDemand),
         good,
         laggedPrice
       );
-      return getLivestockFodderOrderLots(market) + military + customDemand;
+      const price = laggedPrice && laggedPrice > 0 ? laggedPrice : good.value * getMarketPriceLevel(market);
+      return getFodderSeasonDemandLots(market, price) + customDemand;
     }
     const orders = market ? (textileOrders ?? getTextileMarketOrders(market)) : undefined;
     if (good.name === "Wool Blankets") return orders?.blankets ?? 0;

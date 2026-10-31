@@ -439,6 +439,8 @@ export interface FoodLedger {
    * month's sales). Caps how much spare grass the market buys (docs/plan/fodder-purchase-demand-cap.md).
    */
   fodderAnnualUseLots?: number;
+  /** Feed period of the market's last hay purchase from its farms: its stock must last a year from it. */
+  fodderCutPeriod?: number;
   /**
    * Grain the catchment's farm families bought from this market over roughly the last year (monthly
    * exponential average × 12), once their own larders ran out. Stocked like urban demand

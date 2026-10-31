@@ -1,5 +1,6 @@
 import { minmax, rn } from "../../hostUtils";
 import { getBurgMarketLedger } from "./burgMarketLedgers";
+import { getMintPriceFloor } from "./currencySufficiency";
 import { GOODS_DATA, Goods } from "./goods-generator";
 import type { Good } from "./goodsGeneratorTypes";
 
@@ -79,6 +80,26 @@ export function hasSettledPrice(good: Pick<Good, "name">): boolean {
 
 export const PRICE_FLOOR_FACTOR = 0.25;
 export const PRICE_CEILING_FACTOR = 3.0;
+/** Lots added to both demand and stock, so an empty market is dear rather than infinitely so. */
+export const LAPLACE_PRICE_SMOOTHING = 5;
+
+/** Lowest price a good falls to: a quarter of its value, or the mint price for minted metal. */
+export function getPriceFloor(good: Pick<Good, "unit" | "value">, baseValue: number): number {
+  const floor = baseValue * PRICE_FLOOR_FACTOR;
+  const mintFloor = getMintPriceFloor(good);
+  return mintFloor === undefined ? floor : Math.max(floor, mintFloor);
+}
+
+/** A raw good's price for its demand against its stock: value times their ratio, floor to ceiling. */
+export function getRawGoodTargetPrice(
+  good: Pick<Good, "unit" | "value">,
+  baseValue: number,
+  demand: number,
+  stock: number
+): number {
+  const ratio = (demand + LAPLACE_PRICE_SMOOTHING) / (Math.max(0, stock) + LAPLACE_PRICE_SMOOTHING);
+  return minmax(baseValue * ratio, getPriceFloor(good, baseValue), baseValue * PRICE_CEILING_FACTOR);
+}
 const MARKET_PRESSURE_FACTOR = 0.01;
 
 export function applyMarketPressure(basePrice: number, currentPrice: number | undefined, units: number): number {
