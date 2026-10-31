@@ -114,8 +114,9 @@ ${summary.join("\n")}
 1. Fixed the unspecified-quality fallback and the hardcoded town-wall High labels to Low. Preserved explicit high/low factories for facilities, bridges and the Opus galleon.
 2. Added new Codex High factories for farm-barn, threshing-barn and hay-shelter. BV offers Low/High; the old create factory remains unchanged as Low. No existing CE adoption was switched.
 3. Second batch (2026-11-01): added High for the three Medieval 02 boundaries and four Medieval 04 animal houses. See [verification and previews](bv-boundary-animal-high-20261101.md).
-4. Next: Medieval 05 fodder/water troughs and 06 market stalls, followed by the remaining numbered tasks. Landmarks, standalone props, regional houses and the Codex basilica form later batches.
-5. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
+4. Third batch (2026-11-01): added High for the two Medieval 05 troughs and two Medieval 06 market stalls. See [verification and previews](bv-trough-market-high-20261101.md).
+5. Next: Medieval 07 dwellings (three models), followed by 08 shop houses. Landmarks, standalone props, regional houses and the Codex basilica form later batches.
+6. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
 

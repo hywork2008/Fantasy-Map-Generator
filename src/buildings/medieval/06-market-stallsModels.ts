@@ -1,5 +1,7 @@
 import { createMedievalContainerModel } from "../props/medievalContainers";
+import { createHighGoodsBooth, createHighProduceStall } from "./marketDetails";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -52,3 +54,8 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "market-produce-stall": createHighProduceStall,
+  "market-goods-booth": createHighGoodsBooth
+});

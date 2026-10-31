@@ -3,6 +3,8 @@ import { type ModelVariant, variantId } from "../modelVariants";
 import { models as boundaries } from "./02-boundariesModels";
 import { models as barns } from "./03-barnsModels";
 import { models as animals } from "./04-animal-housingModels";
+import { models as troughs } from "./05-troughsModels";
+import { models as stalls } from "./06-market-stallsModels";
 import { models as dwellings } from "./07-dwellingsModels";
 import { models as smithies } from "./11-smithiesModels";
 import { models as fuel } from "./13-fuel-storageModels";
@@ -35,6 +37,8 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   boundaries,
   barns,
   animals,
+  troughs,
+  stalls,
   dwellings,
   smithies,
   fuel,
