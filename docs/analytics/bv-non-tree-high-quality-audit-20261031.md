@@ -12,7 +12,7 @@ Regenerate: `node --import tsx scripts/auditBvModelQuality.mts`
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **78**. Missing candidates: **142**.
+Records: **220**. Codex High or Ultra available: **81**. Missing candidates: **139**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -41,8 +41,8 @@ Records: **220**. Codex High or Ultra available: **78**. Missing candidates: **1
 | Medieval 20 | 3 | 3 | 0 |
 | Medieval 21 | 2 | 2 | 0 |
 | Medieval 22 | 1 | 1 | 0 |
-| Medieval 23 | 2 | 0 | 2 |
-| Medieval 25 | 1 | 0 | 1 |
+| Medieval 23 | 2 | 2 | 0 |
+| Medieval 25 | 1 | 1 | 0 |
 | Medieval 26 | 2 | 0 | 2 |
 | Medieval 27 | 1 | 0 | 1 |
 | Medieval 28 | 4 | 0 | 4 |
@@ -82,8 +82,9 @@ Records: **220**. Codex High or Ultra available: **78**. Missing candidates: **1
 11. Composite-model phase (2026-11-01): audited the friary's Ultra vegetation and detailed well, introduced independent components and quality budgets, and decomposed shop houses, bakeries, inns and breweries. Added a new High urban friary with actual masonry apertures, buttresses, roof intersections, a pointed cloister arcade and detailed bellcote. CE keeps its default Low architecture. See [verification and previews](bv-friary-high-p4-20261101.md).
 12. Tenth model batch (2026-11-01): added High for the three Medieval 19 grave markers and three Medieval 20 textile/leather workshops, preserving default CE grave-marker variants. See [verification and previews](bv-grave-textile-high-20261101.md).
 13. Eleventh model batch (2026-11-01): added High for the two Medieval 21 woodworking workshops and the Medieval 22 tannery, preserving the default CE tannery variant. See [verification and previews](bv-woodworking-tannery-high-20261101.md).
-14. Next: Medieval 23 small boats and 25 public granary, preserving the existing default granary variant. Continue component inspection of named landmarks. Regional houses, standalone props and the Codex basilica remain later batches.
-15. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
+14. Twelfth model batch (2026-11-01): added High for the two Medieval 23 small boats and the Medieval 25 public granary, preserving the default CE public-granary variant. See [verification and previews](bv-boat-public-granary-high-20261101.md).
+15. Next: Medieval 26 civic halls and 27 cloth merchants hall, preserving the existing default cloth-hall variant. Continue component inspection of named landmarks. Regional houses, standalone props and the Codex basilica remain later batches.
+16. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
 
@@ -102,9 +103,6 @@ Records: **220**. Codex High or Ultra available: **78**. Missing candidates: **1
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
-| Medieval 23 | `small-fishing-boat` | Small clinker fishing boat | single/default; assumed Low - [source](../../src/buildings/medieval/23-small-boatsModels.ts) |
-| Medieval 23 | `open-rowing-boat` | Open river rowing boat | single/default; assumed Low - [source](../../src/buildings/medieval/23-small-boatsModels.ts) |
-| Medieval 25 | `public-granary` | Public municipal granary | single/default; assumed Low - [source](../../src/buildings/medieval/25-public-granariesModels.ts) |
 | Medieval 26 | `medieval-town-hall` | Town hall with assembly loggia | single/default; assumed Low - [source](../../src/buildings/medieval/26-civic-hallsModels.ts) |
 | Medieval 26 | `covered-market-hall` | Open market hall and meeting loft | single/default; assumed Low - [source](../../src/buildings/medieval/26-civic-hallsModels.ts) |
 | Medieval 27 | `cloth-guild-hall` | Cloth merchants' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/27-cloth-hallsModels.ts) |
@@ -299,6 +297,9 @@ Records: **220**. Codex High or Ultra available: **78**. Missing candidates: **1
 | Medieval 21 | `coopers-workshop` | Cooper workshop and assembly stand | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/21-woodworking-workshopsModels.ts) |
 | Medieval 21 | `joiners-workshop` | Joiner workshop and woodworking bench | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/21-woodworking-workshopsModels.ts) |
 | Medieval 22 | `tanners-yard` | Tannery vats and drying frames | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/22-tanneriesModels.ts) |
+| Medieval 23 | `small-fishing-boat` | Small clinker fishing boat | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/23-small-boatsModels.ts) |
+| Medieval 23 | `open-rowing-boat` | Open river rowing boat | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/23-small-boatsModels.ts) |
+| Medieval 25 | `public-granary` | Public municipal granary | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/25-public-granariesModels.ts) |
 | Medieval 32 | `abbey` | Abbey church, cloister and domestic ranges | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/32-abbey-living-quartersModels.ts) |
 | Medieval 33 | `mendicant-friary` | Urban mendicant friary | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/33-friariesModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |

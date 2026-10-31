@@ -1,5 +1,7 @@
 import { createMedievalContainerModel } from "../props/medievalContainers";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { createHighPublicGranary } from "./publicGranaryDetails";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -28,3 +30,7 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "public-granary": createHighPublicGranary
+});
