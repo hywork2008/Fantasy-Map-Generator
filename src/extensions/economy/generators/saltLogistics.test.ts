@@ -737,7 +737,7 @@ describe("SaltLogisticsModule", () => {
     expect(budget.produce(operation, 10)).toBeCloseTo(2);
     expect(getMarkets()[0].goods[2].stock).toBe(0);
     expect(budget.produce(operation, 1)).toBe(0);
-    expect(operation.monthlyLaborHours).toBeCloseTo(120 * SALT_PRODUCTION_POLICY.boilingHoursPerKg);
+    expect(operation.monthlyLaborHours).toBeCloseTo(120 * SALT_PRODUCTION_POLICY.brineBoilingHoursPerKg);
     expect(operation.monthlyFuelWoodUnits).toBeCloseTo(fuelForTwoBags);
     expect(flows).toMatchObject([{ goodId: 2, units: fuelForTwoBags }]);
   });

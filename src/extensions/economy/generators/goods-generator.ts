@@ -257,9 +257,9 @@ const INK_BARRELS_PER_BOOK = 0.5 / 120;
 /** Value of a 200 kg Peat bale: Wood's value (1 per 6,500 kg pile) for the same heat. */
 const PEAT_BALE_VALUE = 0.03;
 const LEGACY_PEAT_BALE_VALUE = 2;
-/** Salt's base value per 60 kg bag before and after docs/plan/salt-untaxed-value.md. */
-const TAXED_SALT_BAG_VALUE = 0.45;
-export const UNTAXED_SALT_BAG_VALUE = 0.08;
+/** Salt's base value per 60 kg bag before and after docs/plan/salt-untaxed-value.md (0.08 was its first V1 step). */
+const TAXED_SALT_BAG_VALUES: readonly number[] = [0.45, 0.08];
+export const UNTAXED_SALT_BAG_VALUE = 0.04;
 
 /** Value of a wain of fresh Meat: 2.5 times grain's value per kilogram. */
 export const MEAT_WAIN_VALUE = 2.5;
@@ -846,9 +846,9 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["preservative", "mineral"],
     icon: "good-salt",
     color: "#E5E4E5",
-    // A 60 kg bag at 0.62 times the grain price per kilogram: untaxed salt, just above the
-    // saltworks' boiling cost. The 0.45 of goods-physical-units.md §22 was the price under a heavy
-    // salt tax, which saltPolicy.taxRate models on its own (docs/plan/salt-untaxed-value.md).
+    // A 60 kg bag at 0.31 times the grain price per kilogram: untaxed salt, mid-range of the sources
+    // and above the saltworks' boiling cost. The 0.45 of goods-physical-units.md §22 was the price under
+    // a heavy salt tax, which saltPolicy.taxRate models on its own (docs/plan/salt-untaxed-value.md).
     value: UNTAXED_SALT_BAG_VALUE,
     // Salt is supplied only by the state saltworks network. Keeping it out of the ordinary
     // per-cell bonus-good roll prevents climate-independent salt appearing in every market.
@@ -5334,7 +5334,7 @@ export function migrateMeatGood(): boolean {
 /** Reprices Salt from the heavily taxed price to the untaxed one (docs/plan/salt-untaxed-value.md). */
 export function migrateUntaxedSaltValue(): boolean {
   const salt = getGoods().find(good => good.name === "Salt");
-  if (!salt || salt.value !== TAXED_SALT_BAG_VALUE) return false;
+  if (!salt || !TAXED_SALT_BAG_VALUES.includes(salt.value)) return false;
   salt.value = UNTAXED_SALT_BAG_VALUE;
   return true;
 }

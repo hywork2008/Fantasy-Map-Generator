@@ -22,7 +22,11 @@ export const SALT_PRODUCTION_POLICY = {
   hoursPerWorkerMonth: 160,
   solarHoursPerKg: 0.1,
   miningHoursPerKg: 0.5,
-  boilingHoursPerKg: 82 / 34.5,
+  // Medieval lead pans (docs/analytics/saltworks-boiling-labour-sources-20261031.md): shore works
+  // gathering and washing salted sand for their brine about 0.2-0.4 h/kg; a strong brine spring
+  // such as Lüneburg about 0.05-0.21 h/kg. The former 82 h / 34.5 kg was a prehistoric briquetage trial.
+  boilingHoursPerKg: 0.3,
+  brineBoilingHoursPerKg: 0.15,
   boilingWoodKgPerKg: SALT_BOILING_WOOD_KG_PER_KG
 } as const;
 
@@ -72,7 +76,9 @@ export function createSaltProductionBudget() {
         ? SALT_PRODUCTION_POLICY.solarHoursPerKg
         : operation.productionMethod === "mining"
           ? SALT_PRODUCTION_POLICY.miningHoursPerKg
-          : SALT_PRODUCTION_POLICY.boilingHoursPerKg;
+          : operation.kind === "brineWell"
+            ? SALT_PRODUCTION_POLICY.brineBoilingHoursPerKg
+            : SALT_PRODUCTION_POLICY.boilingHoursPerKg;
     const pointsPerBag = (60 * hoursPerKg) / SALT_PRODUCTION_POLICY.hoursPerWorkerMonth / rate;
     const market = getMarkets().find(m => m.i === operation.marketId);
     const boiling = operation.productionMethod === "boiling";
