@@ -60,4 +60,4 @@ Lowの独立部品は共有立方体・材質をそれぞれ所有するため�
 - [Artisan High・庇単体](bv-shop-canopy-p3-20261101.png)
 - [Artisan High・標準へ戻した表示](bv-workshop-standard-p3-20261101.png)
 
-次はMedieval 10 Bakeriesで、住宅棟・パン窯・上屋・作業設備を分割する。炉と煙突、作業台や商品の支持関係を保持し、独立共同窯と住宅併設の構成を整理する。
+後続の[Bakeries実装記録](bv-bakery-parts-p3-20261101.md)で住宅棟・パン窯・上屋・作業設備を分割した。次はMedieval 12 Innsの宿泊棟・厩舎・サービス棟・中庭を部品化する。

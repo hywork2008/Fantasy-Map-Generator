@@ -1,0 +1,1222 @@
+{
+  "runtime": "v22.23.1",
+  "method": "SHA-256 over sorted triangle strings: material color hex and side, then oriented world vertices rounded to 5 decimals. Normals, mesh names and resource identity are excluded. Baseline was captured before component extraction. Every registered model, composition and single component is independently built, counted and disposed. Source-part mesh counts in ledgers precede final material batching.",
+  "rows": [
+    {
+      "id": "bread-bakehouse",
+      "quality": "low",
+      "standard": {
+        "metrics": {
+          "meshes": 63,
+          "triangles": 1106,
+          "vertices": 743,
+          "geometries": 16,
+          "materials": 13
+        },
+        "baseline": "33b665ee54b42bbfe5cd311411435039739ad5f7e1b459d2ba9f9e431bbd008f",
+        "sha256": "33b665ee54b42bbfe5cd311411435039739ad5f7e1b459d2ba9f9e431bbd008f",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 63,
+            "triangles": 1106,
+            "vertices": 743,
+            "geometries": 16,
+            "materials": 13
+          },
+          "parts": [
+            {
+              "id": "bread-bakehouse:shell",
+              "role": "shell",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 42,
+              "triangles": 474
+            },
+            {
+              "id": "bread-bakehouse:oven",
+              "role": "oven",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 240
+            },
+            {
+              "id": "bread-bakehouse:fuel",
+              "role": "fuel",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 280
+            },
+            {
+              "id": "bread-bakehouse:cooling-bench",
+              "role": "cooling-bench",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 60
+            },
+            {
+              "id": "bread-bakehouse:tools",
+              "role": "tools",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 52
+            }
+          ]
+        },
+        {
+          "id": "core-site",
+          "metrics": {
+            "meshes": 56,
+            "triangles": 994,
+            "vertices": 631,
+            "geometries": 13,
+            "materials": 10
+          },
+          "parts": [
+            {
+              "id": "bread-bakehouse:shell",
+              "role": "shell",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 42,
+              "triangles": 474
+            },
+            {
+              "id": "bread-bakehouse:oven",
+              "role": "oven",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 240
+            },
+            {
+              "id": "bread-bakehouse:fuel",
+              "role": "fuel",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 280
+            }
+          ]
+        },
+        {
+          "id": "oven-only",
+          "metrics": {
+            "meshes": 14,
+            "triangles": 520,
+            "vertices": 589,
+            "geometries": 9,
+            "materials": 3
+          },
+          "parts": [
+            {
+              "id": "bread-bakehouse:oven",
+              "role": "oven",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 240
+            },
+            {
+              "id": "bread-bakehouse:fuel",
+              "role": "fuel",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 280
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "bread-bakehouse:shell",
+          "role": "shell",
+          "quality": "low",
+          "metrics": {
+            "meshes": 42,
+            "triangles": 474,
+            "vertices": 42,
+            "geometries": 4,
+            "materials": 7
+          }
+        },
+        {
+          "id": "bread-bakehouse:oven",
+          "role": "oven",
+          "quality": "low",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 240,
+            "vertices": 141,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "bread-bakehouse:fuel",
+          "role": "fuel",
+          "quality": "low",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 280,
+            "vertices": 448,
+            "geometries": 7,
+            "materials": 1
+          }
+        },
+        {
+          "id": "bread-bakehouse:cooling-bench",
+          "role": "cooling-bench",
+          "quality": "low",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 60,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 2
+          }
+        },
+        {
+          "id": "bread-bakehouse:tools",
+          "role": "tools",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 52,
+            "vertices": 88,
+            "geometries": 2,
+            "materials": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "bread-bakehouse",
+      "quality": "high",
+      "standard": {
+        "metrics": {
+          "meshes": 10,
+          "triangles": 43384,
+          "vertices": 130152,
+          "geometries": 10,
+          "materials": 10
+        },
+        "baseline": "9e76e1bc8b4a846df9646e2f96c9e830a84cef909e3768621aff5eb851356bff",
+        "sha256": "9e76e1bc8b4a846df9646e2f96c9e830a84cef909e3768621aff5eb851356bff",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 10,
+            "triangles": 43384,
+            "vertices": 130152,
+            "geometries": 10,
+            "materials": 10
+          },
+          "parts": [
+            {
+              "id": "bread-bakehouse:shell",
+              "role": "shell",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 14244
+            },
+            {
+              "id": "bread-bakehouse:oven",
+              "role": "oven",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 22716
+            },
+            {
+              "id": "bread-bakehouse:fuel",
+              "role": "fuel",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 720
+            },
+            {
+              "id": "bread-bakehouse:cooling-bench",
+              "role": "cooling-bench",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 180
+            },
+            {
+              "id": "bread-bakehouse:bread",
+              "role": "bread",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 4800
+            },
+            {
+              "id": "bread-bakehouse:tools",
+              "role": "tools",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 100
+            },
+            {
+              "id": "bread-bakehouse:kneading-station",
+              "role": "kneading-station",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 624
+            }
+          ]
+        },
+        {
+          "id": "core-site",
+          "metrics": {
+            "meshes": 9,
+            "triangles": 37680,
+            "vertices": 113040,
+            "geometries": 9,
+            "materials": 9
+          },
+          "parts": [
+            {
+              "id": "bread-bakehouse:shell",
+              "role": "shell",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 14244
+            },
+            {
+              "id": "bread-bakehouse:oven",
+              "role": "oven",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 22716
+            },
+            {
+              "id": "bread-bakehouse:fuel",
+              "role": "fuel",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 720
+            }
+          ]
+        },
+        {
+          "id": "oven-only",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 23436,
+            "vertices": 70308,
+            "geometries": 4,
+            "materials": 4
+          },
+          "parts": [
+            {
+              "id": "bread-bakehouse:oven",
+              "role": "oven",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 22716
+            },
+            {
+              "id": "bread-bakehouse:fuel",
+              "role": "fuel",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 720
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "bread-bakehouse:shell",
+          "role": "shell",
+          "quality": "high",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 14244,
+            "vertices": 42732,
+            "geometries": 8,
+            "materials": 8
+          }
+        },
+        {
+          "id": "bread-bakehouse:oven",
+          "role": "oven",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 22716,
+            "vertices": 68148,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "bread-bakehouse:fuel",
+          "role": "fuel",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 720,
+            "vertices": 2160,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "bread-bakehouse:cooling-bench",
+          "role": "cooling-bench",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 180,
+            "vertices": 540,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "bread-bakehouse:bread",
+          "role": "bread",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 4800,
+            "vertices": 14400,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "bread-bakehouse:tools",
+          "role": "tools",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 100,
+            "vertices": 300,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "bread-bakehouse:kneading-station",
+          "role": "kneading-station",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 624,
+            "vertices": 1872,
+            "geometries": 3,
+            "materials": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "town-bakery",
+      "quality": "low",
+      "standard": {
+        "metrics": {
+          "meshes": 79,
+          "triangles": 2518,
+          "vertices": 1591,
+          "geometries": 22,
+          "materials": 13
+        },
+        "baseline": "5a17bdc3460ac3e29105b1d5bbac3bbc4a8b2396ea070d191ea0fe89e5634c55",
+        "sha256": "5a17bdc3460ac3e29105b1d5bbac3bbc4a8b2396ea070d191ea0fe89e5634c55",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 79,
+            "triangles": 2518,
+            "vertices": 1591,
+            "geometries": 22,
+            "materials": 13
+          },
+          "parts": [
+            {
+              "id": "town-bakery:shell",
+              "role": "shell",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 52,
+              "triangles": 594
+            },
+            {
+              "id": "town-bakery:oven",
+              "role": "oven",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 240
+            },
+            {
+              "id": "town-bakery:fuel",
+              "role": "fuel",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 280
+            },
+            {
+              "id": "town-bakery:cooling-bench",
+              "role": "cooling-bench",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 60
+            },
+            {
+              "id": "town-bakery:bread",
+              "role": "bread",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 1344
+            }
+          ]
+        },
+        {
+          "id": "core-site",
+          "metrics": {
+            "meshes": 66,
+            "triangles": 1114,
+            "vertices": 631,
+            "geometries": 13,
+            "materials": 10
+          },
+          "parts": [
+            {
+              "id": "town-bakery:shell",
+              "role": "shell",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 52,
+              "triangles": 594
+            },
+            {
+              "id": "town-bakery:oven",
+              "role": "oven",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 240
+            },
+            {
+              "id": "town-bakery:fuel",
+              "role": "fuel",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 280
+            }
+          ]
+        },
+        {
+          "id": "oven-only",
+          "metrics": {
+            "meshes": 14,
+            "triangles": 520,
+            "vertices": 589,
+            "geometries": 9,
+            "materials": 3
+          },
+          "parts": [
+            {
+              "id": "town-bakery:oven",
+              "role": "oven",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 240
+            },
+            {
+              "id": "town-bakery:fuel",
+              "role": "fuel",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 280
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "town-bakery:shell",
+          "role": "shell",
+          "quality": "low",
+          "metrics": {
+            "meshes": 52,
+            "triangles": 594,
+            "vertices": 42,
+            "geometries": 4,
+            "materials": 7
+          }
+        },
+        {
+          "id": "town-bakery:oven",
+          "role": "oven",
+          "quality": "low",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 240,
+            "vertices": 141,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "town-bakery:fuel",
+          "role": "fuel",
+          "quality": "low",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 280,
+            "vertices": 448,
+            "geometries": 7,
+            "materials": 1
+          }
+        },
+        {
+          "id": "town-bakery:cooling-bench",
+          "role": "cooling-bench",
+          "quality": "low",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 60,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 2
+          }
+        },
+        {
+          "id": "town-bakery:bread",
+          "role": "bread",
+          "quality": "low",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 1344,
+            "vertices": 936,
+            "geometries": 8,
+            "materials": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "town-bakery",
+      "quality": "high",
+      "standard": {
+        "metrics": {
+          "meshes": 10,
+          "triangles": 42256,
+          "vertices": 126768,
+          "geometries": 10,
+          "materials": 10
+        },
+        "baseline": "79d74956a88a457032ff5ddcb968e2e1e0f033ae3e6bd732661aa8dd5b94afbf",
+        "sha256": "79d74956a88a457032ff5ddcb968e2e1e0f033ae3e6bd732661aa8dd5b94afbf",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 10,
+            "triangles": 42256,
+            "vertices": 126768,
+            "geometries": 10,
+            "materials": 10
+          },
+          "parts": [
+            {
+              "id": "town-bakery:shell",
+              "role": "shell",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 13092
+            },
+            {
+              "id": "town-bakery:oven",
+              "role": "oven",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 22716
+            },
+            {
+              "id": "town-bakery:fuel",
+              "role": "fuel",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 720
+            },
+            {
+              "id": "town-bakery:cooling-bench",
+              "role": "cooling-bench",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 204
+            },
+            {
+              "id": "town-bakery:bread",
+              "role": "bread",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 4800
+            },
+            {
+              "id": "town-bakery:tools",
+              "role": "tools",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 100
+            },
+            {
+              "id": "town-bakery:kneading-station",
+              "role": "kneading-station",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 624
+            }
+          ]
+        },
+        {
+          "id": "core-site",
+          "metrics": {
+            "meshes": 9,
+            "triangles": 36528,
+            "vertices": 109584,
+            "geometries": 9,
+            "materials": 9
+          },
+          "parts": [
+            {
+              "id": "town-bakery:shell",
+              "role": "shell",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 13092
+            },
+            {
+              "id": "town-bakery:oven",
+              "role": "oven",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 22716
+            },
+            {
+              "id": "town-bakery:fuel",
+              "role": "fuel",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 720
+            }
+          ]
+        },
+        {
+          "id": "oven-only",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 23436,
+            "vertices": 70308,
+            "geometries": 4,
+            "materials": 4
+          },
+          "parts": [
+            {
+              "id": "town-bakery:oven",
+              "role": "oven",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 22716
+            },
+            {
+              "id": "town-bakery:fuel",
+              "role": "fuel",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 720
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "town-bakery:shell",
+          "role": "shell",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 13092,
+            "vertices": 39276,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "town-bakery:oven",
+          "role": "oven",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 22716,
+            "vertices": 68148,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "town-bakery:fuel",
+          "role": "fuel",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 720,
+            "vertices": 2160,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "town-bakery:cooling-bench",
+          "role": "cooling-bench",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 204,
+            "vertices": 612,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "town-bakery:bread",
+          "role": "bread",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 4800,
+            "vertices": 14400,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "town-bakery:tools",
+          "role": "tools",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 100,
+            "vertices": 300,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "town-bakery:kneading-station",
+          "role": "kneading-station",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 624,
+            "vertices": 1872,
+            "geometries": 3,
+            "materials": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "communal-bread-oven",
+      "quality": "low",
+      "standard": {
+        "metrics": {
+          "meshes": 34,
+          "triangles": 780,
+          "vertices": 713,
+          "geometries": 13,
+          "materials": 7
+        },
+        "baseline": "166221c43a52abce74deae93aaa8d84fbb9f54288088d074b784e6a9d295edd3",
+        "sha256": "166221c43a52abce74deae93aaa8d84fbb9f54288088d074b784e6a9d295edd3",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 34,
+            "triangles": 780,
+            "vertices": 713,
+            "geometries": 13,
+            "materials": 7
+          },
+          "parts": [
+            {
+              "id": "communal-bread-oven:shelter",
+              "role": "shelter",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 18,
+              "triangles": 208
+            },
+            {
+              "id": "communal-bread-oven:oven",
+              "role": "oven",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 240
+            },
+            {
+              "id": "communal-bread-oven:fuel",
+              "role": "fuel",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 280
+            },
+            {
+              "id": "communal-bread-oven:tools",
+              "role": "tools",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 52
+            }
+          ]
+        },
+        {
+          "id": "core-site",
+          "metrics": {
+            "meshes": 32,
+            "triangles": 728,
+            "vertices": 625,
+            "geometries": 11,
+            "materials": 6
+          },
+          "parts": [
+            {
+              "id": "communal-bread-oven:shelter",
+              "role": "shelter",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 18,
+              "triangles": 208
+            },
+            {
+              "id": "communal-bread-oven:oven",
+              "role": "oven",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 240
+            },
+            {
+              "id": "communal-bread-oven:fuel",
+              "role": "fuel",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 280
+            }
+          ]
+        },
+        {
+          "id": "oven-only",
+          "metrics": {
+            "meshes": 14,
+            "triangles": 520,
+            "vertices": 589,
+            "geometries": 9,
+            "materials": 3
+          },
+          "parts": [
+            {
+              "id": "communal-bread-oven:oven",
+              "role": "oven",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 240
+            },
+            {
+              "id": "communal-bread-oven:fuel",
+              "role": "fuel",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 7,
+              "triangles": 280
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "communal-bread-oven:shelter",
+          "role": "shelter",
+          "quality": "low",
+          "metrics": {
+            "meshes": 18,
+            "triangles": 208,
+            "vertices": 36,
+            "geometries": 2,
+            "materials": 3
+          }
+        },
+        {
+          "id": "communal-bread-oven:oven",
+          "role": "oven",
+          "quality": "low",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 240,
+            "vertices": 141,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "communal-bread-oven:fuel",
+          "role": "fuel",
+          "quality": "low",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 280,
+            "vertices": 448,
+            "geometries": 7,
+            "materials": 1
+          }
+        },
+        {
+          "id": "communal-bread-oven:tools",
+          "role": "tools",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 52,
+            "vertices": 88,
+            "geometries": 2,
+            "materials": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "communal-bread-oven",
+      "quality": "high",
+      "standard": {
+        "metrics": {
+          "meshes": 6,
+          "triangles": 30556,
+          "vertices": 91668,
+          "geometries": 6,
+          "materials": 6
+        },
+        "baseline": "347ab434114ff61d031385bfe62225dc79ea8a6e2049ad70c711c5b430a6ec17",
+        "sha256": "347ab434114ff61d031385bfe62225dc79ea8a6e2049ad70c711c5b430a6ec17",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 30556,
+            "vertices": 91668,
+            "geometries": 6,
+            "materials": 6
+          },
+          "parts": [
+            {
+              "id": "communal-bread-oven:shelter",
+              "role": "shelter",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 4,
+              "triangles": 6876
+            },
+            {
+              "id": "communal-bread-oven:oven",
+              "role": "oven",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 22860
+            },
+            {
+              "id": "communal-bread-oven:fuel",
+              "role": "fuel",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 720
+            },
+            {
+              "id": "communal-bread-oven:tools",
+              "role": "tools",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 100
+            }
+          ]
+        },
+        {
+          "id": "core-site",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 30456,
+            "vertices": 91368,
+            "geometries": 6,
+            "materials": 6
+          },
+          "parts": [
+            {
+              "id": "communal-bread-oven:shelter",
+              "role": "shelter",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 4,
+              "triangles": 6876
+            },
+            {
+              "id": "communal-bread-oven:oven",
+              "role": "oven",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 22860
+            },
+            {
+              "id": "communal-bread-oven:fuel",
+              "role": "fuel",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 720
+            }
+          ]
+        },
+        {
+          "id": "oven-only",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 23580,
+            "vertices": 70740,
+            "geometries": 4,
+            "materials": 4
+          },
+          "parts": [
+            {
+              "id": "communal-bread-oven:oven",
+              "role": "oven",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 22860
+            },
+            {
+              "id": "communal-bread-oven:fuel",
+              "role": "fuel",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 720
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "communal-bread-oven:shelter",
+          "role": "shelter",
+          "quality": "high",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 6876,
+            "vertices": 20628,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "communal-bread-oven:oven",
+          "role": "oven",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 22860,
+            "vertices": 68580,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "communal-bread-oven:fuel",
+          "role": "fuel",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 720,
+            "vertices": 2160,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "communal-bread-oven:tools",
+          "role": "tools",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 100,
+            "vertices": 300,
+            "geometries": 2,
+            "materials": 2
+          }
+        }
+      ]
+    }
+  ]
+}
