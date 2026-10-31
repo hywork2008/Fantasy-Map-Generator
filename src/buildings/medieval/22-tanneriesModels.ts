@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { type MedievalModel, ModelKit, type Position } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
+import { createHighTannery } from "./tanneryDetails";
 
 export const models: MedievalModel[] = [
   {
@@ -47,3 +49,5 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, { "tanners-yard": createHighTannery });

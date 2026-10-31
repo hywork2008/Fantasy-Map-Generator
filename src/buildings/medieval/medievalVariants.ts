@@ -19,6 +19,7 @@ import { models as warehouses } from "./17-warehousesModels";
 import { models as livestock } from "./18-livestock-marketsModels";
 import { models as graves } from "./19-grave-markersModels";
 import { models as textileWorkshops } from "./20-textile-leather-workshopsModels";
+import { models as woodworking } from "./21-woodworking-workshopsModels";
 import { models as tanneries } from "./22-tanneriesModels";
 import { models as publicGranaries } from "./25-public-granariesModels";
 import { models as cloth } from "./27-cloth-hallsModels";
@@ -59,6 +60,7 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   livestock,
   graves,
   textileWorkshops,
+  woodworking,
   tanneries,
   publicGranaries,
   cloth,
@@ -94,7 +96,8 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
           granaries.includes(model) ||
           warehouses.includes(model) ||
           livestock.includes(model) ||
-          graves.includes(model)
+          graves.includes(model) ||
+          tanneries.includes(model)
             ? [legacy]
             : [])
         ]
