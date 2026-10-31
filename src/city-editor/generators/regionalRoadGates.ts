@@ -5,23 +5,33 @@ import { clone, insertEdgeVertex } from "./mesh";
 import { frameRoadWidthMeters } from "./roadTraffic";
 
 function regionalRoadPaths(document: CityDocument): Point[][] {
-  return (document.frameRoads ?? []).flatMap(leg =>
-    leg.pieces.filter(piece => piece.kind === "road").map(piece => piece.points)
-  );
+  return [
+    ...(document.frameRoads ?? []).flatMap(leg =>
+      leg.pieces.filter(piece => piece.kind === "road").map(piece => piece.points)
+    ),
+    ...(document.importedFixedCrossings?.crossings ?? []).map(c => [c.approachA, c.approachB] as Point[])
+  ];
 }
 
 function regionalRoadSegments(document: CityDocument): { a: Point; b: Point; width: number }[] {
-  return (document.frameRoads ?? []).flatMap(leg =>
-    leg.pieces
-      .filter(piece => piece.kind === "road")
-      .flatMap(piece =>
-        piece.points.slice(1).map((b, i) => ({
-          a: piece.points[i],
-          b,
-          width: frameRoadWidthMeters(document, leg.sourceIndex, leg.routeId)
-        }))
-      )
-  );
+  return [
+    ...(document.frameRoads ?? []).flatMap(leg =>
+      leg.pieces
+        .filter(piece => piece.kind === "road")
+        .flatMap(piece =>
+          piece.points.slice(1).map((b, i) => ({
+            a: piece.points[i],
+            b,
+            width: frameRoadWidthMeters(document, leg.sourceIndex, leg.routeId)
+          }))
+        )
+    ),
+    ...(document.importedFixedCrossings?.crossings ?? []).map(c => ({
+      a: c.approachA as Point,
+      b: c.approachB as Point,
+      width: document.importedFixedCrossings!.roadWidthMeters
+    }))
+  ];
 }
 
 /** The imported highway is independent of the mesh. It must actually pass
@@ -63,7 +73,7 @@ export function regionalRoadThroughGate(document: CityDocument, vertexId: Id): P
 /** Cut real curtain vertices at surveyed highway intersections. Road and
  * bridge coordinates stay unchanged; a gate opens the physical wall there. */
 export function installRegionalRoadGates(source: CityDocument): CityDocument {
-  if (!source.frameRoads?.length) return source;
+  if (!source.frameRoads?.length && !source.importedFixedCrossings?.crossings.length) return source;
   let next = source;
   const castles = castleWallIds(next);
   const segments = regionalRoadSegments(next);

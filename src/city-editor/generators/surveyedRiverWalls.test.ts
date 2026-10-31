@@ -123,6 +123,38 @@ describe("surveyed river wall cuts", () => {
     expect(clipSurveyedRiverWalls(result)).toEqual(result);
   });
 
+  it.each([false, true])("removes only unlocked detached bank remnants (locked: %s)", locked => {
+    const source = curtain();
+    source.waterAreas = [];
+    source.importedFixedCrossings!.rivers = [
+      {
+        ...structuredClone(input.descriptor.fixedCrossings.rivers[0]),
+        rings: [
+          [
+            [0, 0],
+            [50, -1],
+            [100, 0],
+            [100, -100],
+            [0, -100]
+          ]
+        ]
+      }
+    ];
+    const wall = source.featureGroups[0];
+    source.featureGroups = [
+      { ...wall, segments: [wall.segments[0]], locked },
+      { ...wall, id: "gc:wall-1", segments: [wall.segments[2]] }
+    ];
+    const result = clipSurveyedRiverWalls(source);
+    expect(result.featureGroups.some(g => g.id === "gc:wall-0")).toBe(locked);
+    expect(result.featureGroups.some(g => g.id === "gc:wall-1")).toBe(true);
+    expect(validate(result)).toEqual([]);
+    expect(clipSurveyedRiverWalls(result)).toEqual(result);
+    // Without another landward curtain, retain the only wall.
+    source.featureGroups = [{ ...wall, segments: [wall.segments[0]] }];
+    expect(clipSurveyedRiverWalls(source).featureGroups).toHaveLength(1);
+  });
+
   it("preserves locked and manually drawn curtains", () => {
     const locked = curtain();
     locked.featureGroups[0].locked = true;
