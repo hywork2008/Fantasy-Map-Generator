@@ -60,4 +60,4 @@ Medieval 33 Friaries、32 Abbey、41 Orthodoxの`Model options > View`へ`Comple
 
 新規・共有モジュール4ファイルのBiome checkと`git diff --check`も成功。実BVで回廊・井戸・塔・ドームと全体の往復、寸法・投影図・負荷の更新を確認した。GPU FPS・CEの対話操作は今回検証していない。
 
-次はP3のShop Housesから住宅系施設へ展開する。分解表示、組み合わせプリセット、部品別品質のUI、新規Friary Highは未実装。
+この記録はP2時点の結果。後続の[P3 Shop Houses実装記録](bv-shop-house-parts-p3-20261101.md)で住宅系へ展開し、Low/Highに対応した単体表示と3構成の切り替えを追加した。次はBakeries。修道院の品質UI・分解表示・新規Friary Highは後続とする。

@@ -1,0 +1,964 @@
+{
+  "runtime": "v22.23.1",
+  "method": "SHA-256 over sorted triangle strings: material color hex and side, then oriented world vertices rounded to 5 decimals. Normals, mesh names and resource identity are excluded. Baseline was captured before component extraction. Every registered model, composition and single component is independently built, counted and disposed. Source-part mesh counts in ledgers precede final material batching.",
+  "rows": [
+    {
+      "id": "merchant-shop-house",
+      "quality": "low",
+      "standard": {
+        "metrics": {
+          "meshes": 98,
+          "triangles": 1146,
+          "vertices": 162,
+          "geometries": 9,
+          "materials": 17
+        },
+        "baseline": "0199c4bb1b6d7dfcba00c6c2203f650b527fbbf22930e30d3ba0dfde0aa809ce",
+        "sha256": "0199c4bb1b6d7dfcba00c6c2203f650b527fbbf22930e30d3ba0dfde0aa809ce",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 98,
+            "triangles": 1146,
+            "vertices": 162,
+            "geometries": 9,
+            "materials": 17
+          },
+          "parts": [
+            {
+              "id": "merchant-shop-house:shell",
+              "role": "shell",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 44,
+              "triangles": 498
+            },
+            {
+              "id": "merchant-shop-house:shutters",
+              "role": "shutters",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 24
+            },
+            {
+              "id": "merchant-shop-house:counter",
+              "role": "counter",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 60
+            },
+            {
+              "id": "merchant-shop-house:canopy",
+              "role": "canopy",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 36
+            },
+            {
+              "id": "merchant-shop-house:stock",
+              "role": "stock",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "basedOn": [
+                "container.crate-closed@default#codex-gpt-6.1-sol"
+              ],
+              "meshes": 44,
+              "triangles": 528
+            }
+          ]
+        },
+        {
+          "id": "unstocked",
+          "metrics": {
+            "meshes": 54,
+            "triangles": 618,
+            "vertices": 114,
+            "geometries": 7,
+            "materials": 12
+          },
+          "parts": [
+            {
+              "id": "merchant-shop-house:shell",
+              "role": "shell",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 44,
+              "triangles": 498
+            },
+            {
+              "id": "merchant-shop-house:shutters",
+              "role": "shutters",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 24
+            },
+            {
+              "id": "merchant-shop-house:counter",
+              "role": "counter",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 60
+            },
+            {
+              "id": "merchant-shop-house:canopy",
+              "role": "canopy",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 36
+            }
+          ]
+        },
+        {
+          "id": "open-front",
+          "metrics": {
+            "meshes": 95,
+            "triangles": 1110,
+            "vertices": 138,
+            "geometries": 8,
+            "materials": 15
+          },
+          "parts": [
+            {
+              "id": "merchant-shop-house:shell",
+              "role": "shell",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 44,
+              "triangles": 498
+            },
+            {
+              "id": "merchant-shop-house:shutters",
+              "role": "shutters",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 24
+            },
+            {
+              "id": "merchant-shop-house:counter",
+              "role": "counter",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 60
+            },
+            {
+              "id": "merchant-shop-house:stock",
+              "role": "stock",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "basedOn": [
+                "container.crate-closed@default#codex-gpt-6.1-sol"
+              ],
+              "meshes": 44,
+              "triangles": 528
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "merchant-shop-house:shell",
+          "role": "shell",
+          "quality": "low",
+          "metrics": {
+            "meshes": 44,
+            "triangles": 498,
+            "vertices": 42,
+            "geometries": 4,
+            "materials": 7
+          }
+        },
+        {
+          "id": "merchant-shop-house:shutters",
+          "role": "shutters",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 24,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "merchant-shop-house:counter",
+          "role": "counter",
+          "quality": "low",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 60,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 2
+          }
+        },
+        {
+          "id": "merchant-shop-house:canopy",
+          "role": "canopy",
+          "quality": "low",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 36,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 2
+          }
+        },
+        {
+          "id": "merchant-shop-house:stock",
+          "role": "stock",
+          "quality": "low",
+          "metrics": {
+            "meshes": 44,
+            "triangles": 528,
+            "vertices": 48,
+            "geometries": 2,
+            "materials": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": "merchant-shop-house",
+      "quality": "high",
+      "standard": {
+        "metrics": {
+          "meshes": 9,
+          "triangles": 25310,
+          "vertices": 75930,
+          "geometries": 9,
+          "materials": 9
+        },
+        "baseline": "867a5b49fbcbbd126fafc9dff2f78133b199a4584002e8ddf89b0d3a40c3c012",
+        "sha256": "867a5b49fbcbbd126fafc9dff2f78133b199a4584002e8ddf89b0d3a40c3c012",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 9,
+            "triangles": 25310,
+            "vertices": 75930,
+            "geometries": 9,
+            "materials": 9
+          },
+          "parts": [
+            {
+              "id": "merchant-shop-house:shell",
+              "role": "shell",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 12924
+            },
+            {
+              "id": "merchant-shop-house:shutters",
+              "role": "shutters",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 440
+            },
+            {
+              "id": "merchant-shop-house:counter",
+              "role": "counter",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 192
+            },
+            {
+              "id": "merchant-shop-house:shelves",
+              "role": "shelves",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 72
+            },
+            {
+              "id": "merchant-shop-house:canopy",
+              "role": "canopy",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 6450
+            },
+            {
+              "id": "merchant-shop-house:stock",
+              "role": "stock",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 4,
+              "triangles": 5232
+            }
+          ]
+        },
+        {
+          "id": "unstocked",
+          "metrics": {
+            "meshes": 9,
+            "triangles": 20078,
+            "vertices": 60234,
+            "geometries": 9,
+            "materials": 9
+          },
+          "parts": [
+            {
+              "id": "merchant-shop-house:shell",
+              "role": "shell",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 12924
+            },
+            {
+              "id": "merchant-shop-house:shutters",
+              "role": "shutters",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 440
+            },
+            {
+              "id": "merchant-shop-house:counter",
+              "role": "counter",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 192
+            },
+            {
+              "id": "merchant-shop-house:shelves",
+              "role": "shelves",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 72
+            },
+            {
+              "id": "merchant-shop-house:canopy",
+              "role": "canopy",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 6450
+            }
+          ]
+        },
+        {
+          "id": "open-front",
+          "metrics": {
+            "meshes": 9,
+            "triangles": 18860,
+            "vertices": 56580,
+            "geometries": 9,
+            "materials": 9
+          },
+          "parts": [
+            {
+              "id": "merchant-shop-house:shell",
+              "role": "shell",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 12924
+            },
+            {
+              "id": "merchant-shop-house:shutters",
+              "role": "shutters",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 440
+            },
+            {
+              "id": "merchant-shop-house:counter",
+              "role": "counter",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 192
+            },
+            {
+              "id": "merchant-shop-house:shelves",
+              "role": "shelves",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 72
+            },
+            {
+              "id": "merchant-shop-house:stock",
+              "role": "stock",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 4,
+              "triangles": 5232
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "merchant-shop-house:shell",
+          "role": "shell",
+          "quality": "high",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 12924,
+            "vertices": 38772,
+            "geometries": 8,
+            "materials": 8
+          }
+        },
+        {
+          "id": "merchant-shop-house:shutters",
+          "role": "shutters",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 440,
+            "vertices": 1320,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "merchant-shop-house:counter",
+          "role": "counter",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 192,
+            "vertices": 576,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "merchant-shop-house:shelves",
+          "role": "shelves",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 72,
+            "vertices": 216,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "merchant-shop-house:canopy",
+          "role": "canopy",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 6450,
+            "vertices": 19350,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "merchant-shop-house:stock",
+          "role": "stock",
+          "quality": "high",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 5232,
+            "vertices": 15696,
+            "geometries": 4,
+            "materials": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": "artisan-shop-house",
+      "quality": "low",
+      "standard": {
+        "metrics": {
+          "meshes": 66,
+          "triangles": 894,
+          "vertices": 446,
+          "geometries": 13,
+          "materials": 13
+        },
+        "baseline": "5033bb45b684f855042b4fcedd2b1417d2cd9ed311c69b1886441893db4ea9a3",
+        "sha256": "5033bb45b684f855042b4fcedd2b1417d2cd9ed311c69b1886441893db4ea9a3",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 66,
+            "triangles": 894,
+            "vertices": 446,
+            "geometries": 13,
+            "materials": 13
+          },
+          "parts": [
+            {
+              "id": "artisan-shop-house:shell",
+              "role": "shell",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 47,
+              "triangles": 534
+            },
+            {
+              "id": "artisan-shop-house:shutters",
+              "role": "shutters",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 12
+            },
+            {
+              "id": "artisan-shop-house:counter",
+              "role": "counter",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 60
+            },
+            {
+              "id": "artisan-shop-house:canopy",
+              "role": "canopy",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 88
+            },
+            {
+              "id": "artisan-shop-house:stock",
+              "role": "stock",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 200
+            }
+          ]
+        },
+        {
+          "id": "unstocked",
+          "metrics": {
+            "meshes": 61,
+            "triangles": 694,
+            "vertices": 126,
+            "geometries": 8,
+            "materials": 12
+          },
+          "parts": [
+            {
+              "id": "artisan-shop-house:shell",
+              "role": "shell",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 47,
+              "triangles": 534
+            },
+            {
+              "id": "artisan-shop-house:shutters",
+              "role": "shutters",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 12
+            },
+            {
+              "id": "artisan-shop-house:counter",
+              "role": "counter",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 60
+            },
+            {
+              "id": "artisan-shop-house:canopy",
+              "role": "canopy",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 88
+            }
+          ]
+        },
+        {
+          "id": "open-front",
+          "metrics": {
+            "meshes": 58,
+            "triangles": 806,
+            "vertices": 410,
+            "geometries": 11,
+            "materials": 11
+          },
+          "parts": [
+            {
+              "id": "artisan-shop-house:shell",
+              "role": "shell",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 47,
+              "triangles": 534
+            },
+            {
+              "id": "artisan-shop-house:shutters",
+              "role": "shutters",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 1,
+              "triangles": 12
+            },
+            {
+              "id": "artisan-shop-house:counter",
+              "role": "counter",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 60
+            },
+            {
+              "id": "artisan-shop-house:stock",
+              "role": "stock",
+              "quality": "low",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 5,
+              "triangles": 200
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "artisan-shop-house:shell",
+          "role": "shell",
+          "quality": "low",
+          "metrics": {
+            "meshes": 47,
+            "triangles": 534,
+            "vertices": 42,
+            "geometries": 4,
+            "materials": 7
+          }
+        },
+        {
+          "id": "artisan-shop-house:shutters",
+          "role": "shutters",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "artisan-shop-house:counter",
+          "role": "counter",
+          "quality": "low",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 60,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 2
+          }
+        },
+        {
+          "id": "artisan-shop-house:canopy",
+          "role": "canopy",
+          "quality": "low",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 88,
+            "vertices": 36,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "artisan-shop-house:stock",
+          "role": "stock",
+          "quality": "low",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 200,
+            "vertices": 320,
+            "geometries": 5,
+            "materials": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "artisan-shop-house",
+      "quality": "high",
+      "standard": {
+        "metrics": {
+          "meshes": 8,
+          "triangles": 19060,
+          "vertices": 57180,
+          "geometries": 8,
+          "materials": 8
+        },
+        "baseline": "b8fe4427396dfc00723c7ba1bd4250873852ece8464c9ced57dd071509ed7f40",
+        "sha256": "b8fe4427396dfc00723c7ba1bd4250873852ece8464c9ced57dd071509ed7f40",
+        "matchesBaseline": true
+      },
+      "compositions": [
+        {
+          "id": "standard",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 19060,
+            "vertices": 57180,
+            "geometries": 8,
+            "materials": 8
+          },
+          "parts": [
+            {
+              "id": "artisan-shop-house:shell",
+              "role": "shell",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 12900
+            },
+            {
+              "id": "artisan-shop-house:shutters",
+              "role": "shutters",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 440
+            },
+            {
+              "id": "artisan-shop-house:counter",
+              "role": "counter",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 192
+            },
+            {
+              "id": "artisan-shop-house:shelves",
+              "role": "shelves",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 72
+            },
+            {
+              "id": "artisan-shop-house:canopy",
+              "role": "canopy",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 4740
+            },
+            {
+              "id": "artisan-shop-house:stock",
+              "role": "stock",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 716
+            }
+          ]
+        },
+        {
+          "id": "unstocked",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 18344,
+            "vertices": 55032,
+            "geometries": 8,
+            "materials": 8
+          },
+          "parts": [
+            {
+              "id": "artisan-shop-house:shell",
+              "role": "shell",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 12900
+            },
+            {
+              "id": "artisan-shop-house:shutters",
+              "role": "shutters",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 440
+            },
+            {
+              "id": "artisan-shop-house:counter",
+              "role": "counter",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 192
+            },
+            {
+              "id": "artisan-shop-house:shelves",
+              "role": "shelves",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 72
+            },
+            {
+              "id": "artisan-shop-house:canopy",
+              "role": "canopy",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 4740
+            }
+          ]
+        },
+        {
+          "id": "open-front",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 14320,
+            "vertices": 42960,
+            "geometries": 8,
+            "materials": 8
+          },
+          "parts": [
+            {
+              "id": "artisan-shop-house:shell",
+              "role": "shell",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 8,
+              "triangles": 12900
+            },
+            {
+              "id": "artisan-shop-house:shutters",
+              "role": "shutters",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 440
+            },
+            {
+              "id": "artisan-shop-house:counter",
+              "role": "counter",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 192
+            },
+            {
+              "id": "artisan-shop-house:shelves",
+              "role": "shelves",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 2,
+              "triangles": 72
+            },
+            {
+              "id": "artisan-shop-house:stock",
+              "role": "stock",
+              "quality": "high",
+              "author": "Codex GPT-6.1 Sol",
+              "meshes": 3,
+              "triangles": 716
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "artisan-shop-house:shell",
+          "role": "shell",
+          "quality": "high",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 12900,
+            "vertices": 38700,
+            "geometries": 8,
+            "materials": 8
+          }
+        },
+        {
+          "id": "artisan-shop-house:shutters",
+          "role": "shutters",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 440,
+            "vertices": 1320,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "artisan-shop-house:counter",
+          "role": "counter",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 192,
+            "vertices": 576,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "artisan-shop-house:shelves",
+          "role": "shelves",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 72,
+            "vertices": 216,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "artisan-shop-house:canopy",
+          "role": "canopy",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 4740,
+            "vertices": 14220,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "artisan-shop-house:stock",
+          "role": "stock",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 716,
+            "vertices": 2148,
+            "geometries": 3,
+            "materials": 3
+          }
+        }
+      ]
+    }
+  ]
+}

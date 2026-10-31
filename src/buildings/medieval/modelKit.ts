@@ -25,7 +25,9 @@ export interface MedievalModel {
   };
   create(): CityStructureMeshes;
   /** Optional independent components in their fitted assembly positions. */
-  parts?(): readonly ModelPartFactory[];
+  parts?(variantId?: string, preset?: string): readonly ModelPartFactory[];
+  partPresets?: readonly { id: string; name: string }[];
+  assembleParts?(parts: readonly ModelPartFactory[]): CityStructureMeshes;
 }
 export type Position = readonly [number, number, number];
 export type Surface =

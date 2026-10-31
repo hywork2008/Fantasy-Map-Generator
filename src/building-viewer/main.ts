@@ -34,7 +34,7 @@ import {
   LOW_BANK_WATER_MILLS,
   WATER_MILL
 } from "../buildings/mills/waterMill";
-import { createModelAssembly } from "../buildings/modelParts";
+import { createModelAssembly, type ModelPartFactory } from "../buildings/modelParts";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
 import {
   CONTAINER_KINDS,
@@ -368,7 +368,7 @@ let selection = 0;
 const modelComparison = createModelComparison();
 let comparisonVariants: { id: string; levels: readonly { id: string; label: string }[]; selected: string } | null =
   null;
-let comparisonModel: { path: string | null; quality: "low" | "high" } | null = null;
+let comparisonModel: { path: string | null; quality: "low" | "high"; viewOnly?: boolean } | null = null;
 
 function studyRoots(): THREE.Object3D[] {
   const roots: THREE.Object3D[] = [];
@@ -483,7 +483,13 @@ function appendFacts(...nodes: (Node | string)[]): void {
     );
     return;
   }
-  modelComparison.mount(facts, comparisonModel?.path ?? null, comparisonModel?.quality ?? null, root);
+  modelComparison.mount(
+    facts,
+    comparisonModel?.path ?? null,
+    comparisonModel?.quality ?? null,
+    root,
+    comparisonModel?.viewOnly
+  );
 }
 const performancePanel = mountPerformancePanel(inspector, () => massing?.group ?? null);
 window.addEventListener("pagehide", () => modelComparison.clear());
@@ -2550,6 +2556,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
     // The previewed season persists across quality and edition switches of the same tree.
     let season = definition.seasons?.default;
     let selectedPart = "all";
+    let selectedPartPreset = definition.partPresets?.[0]?.id;
     const showModel = (variant: Variant | undefined = definition.variants && adopted(levels.at(-1)!)) => {
       selection++;
       for (const item of list.querySelectorAll("button"))
@@ -2640,8 +2647,25 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
           selected: column(variant)
         };
       if (!variant) comparisonModel = { path: null, quality: definition.quality ?? "low" };
-      const partFactories = definition.parts?.();
+      const partFactories = definition.parts?.(variant?.id, selectedPartPreset);
+      if (selectedPart !== "all" && !partFactories?.some(part => part.id === selectedPart)) selectedPart = "all";
       const partFactory = partFactories?.find(part => part.id === selectedPart);
+      const customAssembly =
+        !!partFactories && !!definition.partPresets && selectedPartPreset !== definition.partPresets[0].id;
+      if (definition.partPresets) {
+        const row = document.createElement("label");
+        row.textContent = "Composition: ";
+        const select = document.createElement("select");
+        select.setAttribute("aria-label", "Assembly composition");
+        for (const preset of definition.partPresets) select.add(new Option(preset.name, preset.id));
+        select.value = selectedPartPreset!;
+        select.addEventListener("change", () => {
+          selectedPartPreset = select.value;
+          showModel(variant);
+        });
+        row.append(select);
+        optionFields.append(row);
+      }
       if (partFactories) {
         modelOptions.hidden = false;
         const row = document.createElement("label");
@@ -2659,18 +2683,26 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         row.append(select);
         optionFields.append(row);
       }
-      if (partFactory) {
-        // A component is not a quality variant of the full assembly; keep its metrics out of that cache.
+      if (partFactory || customAssembly) {
+        // Components and custom compositions must not overwrite the registered assembly's metrics.
         comparisonVariants = null;
-        comparisonModel = { path: null, quality: "low" };
+        comparisonModel = {
+          path: null,
+          quality: (partFactory?.quality ?? variant?.level) === "high" ? "high" : "low",
+          viewOnly: true
+        };
       }
+      const assemble = (parts: readonly ModelPartFactory[]) =>
+        definition.assembleParts ? definition.assembleParts(parts) : createModelAssembly(definition.id, parts);
       const model = partFactory
-        ? createModelAssembly(definition.id, [partFactory])
-        : variant
-          ? definition.seasons && season !== definition.seasons.default
-            ? definition.seasons.create(variant.id, season!)
-            : variant.create()
-          : definition.create();
+        ? assemble([partFactory])
+        : customAssembly
+          ? assemble(partFactories!)
+          : variant
+            ? definition.seasons && season !== definition.seasons.default
+              ? definition.seasons.create(variant.id, season!)
+              : variant.create()
+            : definition.create();
       massing = model;
       scene.add(model.group);
       ground.visible = true;
@@ -2689,6 +2721,9 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       appendFacts(
         fact("Model", definition.name),
         fact("Task", String(task).padStart(2, "0")),
+        ...(definition.partPresets
+          ? [fact("Composition", definition.partPresets.find(preset => preset.id === selectedPartPreset)!.name)]
+          : []),
         ...(partFactory
           ? [
               fact("View", `Single part: ${label(partFactory.role)}; fitted position retained`),
@@ -2707,7 +2742,11 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
                 : []),
               fact(
                 "CE adoption",
-                variant === adopted(variant.level) ? "Adopted" : `Not adopted; CE uses ${adopted(variant.level).author}`
+                partFactory || customAssembly
+                  ? "Component preview; CE placement uses its registered assembly"
+                  : variant === adopted(variant.level)
+                    ? "Adopted"
+                    : `Not adopted; CE uses ${adopted(variant.level).author}`
               ),
               ...(variant.basedOn
                 ? [
@@ -2757,12 +2796,14 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         fact(
           "Scope",
           partFactory
-            ? "Independently generated component of the CE-fitted assembly; other parts are not constructed."
-            : definition.task === 33 || definition.id === "abbey" || definition.id === "orthodox-monastery"
-              ? "CE-fitted religious-house assembly; meter units. BV and CE share the same construction."
-              : definition.task === 43 || definition.task === 44
-                ? "Shared landscape or funerary model; meter units. Shared with CE park and cemetery 3D placement."
-                : "Illustrative medieval or early modern model; meter units. CE automatic placement is separate."
+            ? "Independently generated component in its assembly position; other parts are not constructed."
+            : customAssembly
+              ? "Component composition preview; CE placement continues to use its registered assembly."
+              : definition.task === 33 || definition.id === "abbey" || definition.id === "orthodox-monastery"
+                ? "CE-fitted religious-house assembly; meter units. BV and CE share the same construction."
+                : definition.task === 43 || definition.task === 44
+                  ? "Shared landscape or funerary model; meter units. Shared with CE park and cemetery 3D placement."
+                  : "Illustrative medieval or early modern model; meter units. CE automatic placement is separate."
         )
       );
       const partsPanel = modelPartsPanel(model.group);

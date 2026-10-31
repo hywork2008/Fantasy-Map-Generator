@@ -28,7 +28,7 @@ BVの既存カテゴリとモデルIDを維持し、横断的な構成区分を�
 
 住宅系はすべて「完成済み住宅の横に物を置くだけ」で成立するわけではない。店舗の大きな開口は外殻の生成入力に渡す必要がある。パン窯・炉の離隔、煙突と屋根の貫通、共用壁の重複除去、庇の支持、入口から中庭への通路も組み合わせ契約に含める。
 
-現状のHighには`house`、`oven`、`lodging`、`stable`、`serviceWing`、`brewingHall`等の関数があるが、多くは非公開で、位置が固定されている。最後の`compactModel`で材質ごとに結合され、部品の意味も失われる。この状態から描画後のメッシュ名だけで分割する方法は採用しない。
+調査開始時のHighには`house`、`oven`、`lodging`、`stable`、`serviceWing`、`brewingHall`等の関数があるが、多くは非公開で、位置が固定されていた。最後の`compactModel`で材質ごとに結合され、部品の意味も失われていた。この状態から描画後のメッシュ名だけで分割する方法は採用しない。P3のShop Housesでは生成境界を明示し、材質結合後にも台帳と部品範囲を残す方式を導入した。
 
 ## 部品生成と配置の契約
 
@@ -76,7 +76,7 @@ High不足の監査では部品のHigh対応と組み合わせプリセットの
 | P0 | 原因計測、植栽品質の明示、既定Lowへの修正 | **完了**。Friaryは350,742→14,914三角形。BV・CE・依存元記録がLowで一致。旧UltraはAPIの明示指定で比較可能 |
 | P1 | 敷地付属の井戸Lowと部品台帳の導入 | **完了**。井戸632三角形・28メッシュ、Friary全体4,262三角形。BVの部品別負荷表と、CE結合後の部品対応を追加。[実装記録](../analytics/bv-composite-parts-p1-20261101.md) |
 | P2 | Friaryを教会堂・居住棟・回廊・外構・植栽に分割しBVへ部品表示を追加 | **完了**。独立factoryと生成前の部分選択、BVの全体／単体切替を追加。修道院三種の頂点・色・順序がP1と一致。品質の独立指定APIを維持し、資源解放も検証。[実装記録](../analytics/bv-monastery-parts-p2-20261101.md) |
-| P3 | Shop Houses→Bakeries→Inns→Breweriesの順に部品化 | **次の作業**。既存Low/Highをプリセットで再現後、互換な組み合わせを追加。開口・支持・離隔・通路を検証 |
+| P3 | Shop Houses→Bakeries→Inns→Breweriesの順に部品化 | **進行中**。Shop Houses 2モデルのLow/Highを部品化し、標準・商品や道具なし・庇なしの3構成と単体表示を追加。標準形状とHighの描画数を維持。[実装記録](../analytics/bv-shop-house-parts-p3-20261101.md)。**次はBakeries**。窯・住宅棟・作業設備を分割し、開口・支持・離隔・通路を検証 |
 | P4 | 部品単位でFriary Highを制作し合成 | 主要建築のHighが明示登録され、植栽や付属物で品質を偽装しない。Low/Highと部品別コストを比較可能 |
 | P5 | G07等の固有建築へ部品表示を展開、CEのLOD／バッチを評価 | 固有建築の配置を維持したまま検査可能。一般施設への流用は互換性を個別確認 |
 
@@ -84,4 +84,6 @@ P0〜P1を実装した。`ModelPartTracker`は生成中の明示的な境界か�
 
 P2で`monasteryComponents.ts`へ建築棟・回廊・壁・地面・植栽・井戸のfactoryを分離した。`monasteryPartFactories`は形状を作らずに部品を列挙し、`createModelAssembly`が選んだfactoryだけを生成して所有する。`createMonastery`の`partIds`は複数部品の部分構成にも対応する。BVは`MedievalModel.parts`のあるモデルへ`View`を表示し、全体／部品単体を切り替える。単体は元の配置を保持し、比較キャッシュへ全体モデルの計測値として登録しない。
 
-分解表示、組み合わせプリセット、部品別品質のUI、新規Friary Highは未実装。植栽・井戸品質は引き続きAPI指定で、UIの単体表示は既定Lowを使う。次はP3のShop Housesから住宅系へ展開し、新規High制作の前に組み合わせの制約を確認する。
+P3のShop HousesはLowを5部品、Highを6部品に分け、住宅外殻と店舗開口、戸、カウンター、Highの棚、庇と支持材、商品・道具を区別する。`MedievalModel.parts`は選択variantと構成を受け取り、BVは`Composition`と`View`を組み合わせて表示する。`assembleParts`があるモデルはその結合方法を使う。標準以外の構成と単体の計測値は登録variantの比較キャッシュへ混入させない。`compactModel`は部品台帳と頂点範囲を維持し、明示指定時だけ同じ設定の通常Lambert材質をまとめる。
+
+修道院の植栽・井戸品質は引き続きAPI指定で、BVでは既定Low。住宅系は全体のLow／High選択に単体と構成も追従する。部品ごとの混在品質、任意の住宅と設備の交換、分解表示、新規Friary Highは未実装。次はBakeriesへ展開し、組み合わせの制約を確認する。

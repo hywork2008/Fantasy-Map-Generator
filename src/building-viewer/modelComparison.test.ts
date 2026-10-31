@@ -13,6 +13,14 @@ class FakeWorker {
   }
 }
 const high = { meshes: 2, triangles: 120, vertices: 240, geometries: 2, materials: 1 };
+
+it("labels a High component measurement without claiming Low is unavailable", () => {
+  comparison.mount(host, null, "high", root, true);
+  expect(host.textContent).toContain("Only the displayed High view is measured.");
+  expect(host.querySelector("tbody tr")?.textContent).toContain("Meshes—1—");
+  vi.advanceTimersByTime(20);
+  expect(workers).toHaveLength(0);
+});
 let host: HTMLElement;
 let geometry: THREE.BoxGeometry;
 let material: THREE.MeshBasicMaterial;

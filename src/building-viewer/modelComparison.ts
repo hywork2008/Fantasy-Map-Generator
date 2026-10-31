@@ -64,7 +64,13 @@ export function createModelComparison(
       section.append(title, scroll, note);
       host.append(section);
     },
-    mount(host: HTMLElement, modulePath: string | null, requestedQuality: ModelQuality | null, root: THREE.Object3D) {
+    mount(
+      host: HTMLElement,
+      modulePath: string | null,
+      requestedQuality: ModelQuality | null,
+      root: THREE.Object3D,
+      viewOnly = false
+    ) {
       const quality = requestedQuality ?? "low";
       cancel();
       const measurements = (modulePath ? cache.get(modulePath) : undefined) ?? {};
@@ -157,7 +163,9 @@ export function createModelComparison(
         }, 0);
       });
       status.textContent = !modulePath
-        ? `Only ${quality === "high" ? "High" : "Low"} quality is available for this model.`
+        ? viewOnly
+          ? `Only the displayed ${quality === "high" ? "High" : "Low"} view is measured.`
+          : `Only ${quality === "high" ? "High" : "Low"} quality is available for this model.`
         : measurements[other]
           ? "Both quality levels measured."
           : `Measuring ${other === "high" ? "High" : "Low"} in the background…`;
