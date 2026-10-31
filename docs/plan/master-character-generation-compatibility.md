@@ -19,6 +19,15 @@
 - 回帰データは `tests/fixtures/master-character-opening.fmg` と `.json`。`src/simulation/masterReference.node.test.ts` が固定期待値と照合し、`src/extensions/characters/reference/reference.test.ts` が遅延生成・兼任・家族人数・財布・詳細削除・保存・メモ復元を検証する。期待値を再採取する場合は `node --import tsx scripts/recordMasterCharacterFixture.mts --output /tmp/master-character-oracle.json` を実行して差分をレビューし、テストから期待値を自動更新しない。
 - 検証: 関連19ファイル267テストを実行し、追加人物の公開処理に見つかった1件を修正して該当7テストを再実行・成功。型チェック、Viteビルド、アーキテクチャ/シミュレーション境界/世界書込の検査に成功。全拡張ONのブラウザ確認では、元首・首脳12人から全77人へ詳細化し、個別所持金と家族人数を照合、通貨総額619,245.6991033664の不変、保存、プリセット画面の表示を確認した。
 
+## 期待値の取り直し（2026-11-01）
+
+- `src/simulation/masterReference.node.test.ts`は、2026-10-22の`1c0a5aefb`（布・小麦粉・パンを重さで値付けし直した変更）から失敗していた。人物の評価は今の経済のコードで回すため、経済を変えると初期人物が変わる。値付けの移行だけを外しても一致しなかった。develop（`origin/develop` 29e6f35ee）でも同じく失敗する。
+- `tests/fixtures/master-character-opening.json`の`expected`と`expectedFantasy`を、今のコードの評価結果で取り直した。ほかの項目（`masterCommit`・設定・入力）は変えていない。
+  - 人間条件: 77人・個人資金7,137.45 → 31人・7,058.89。
+  - Fantasy条件: 77人・7,108.06 → 32人・6,657.19。
+  - 差の大部分は、ギルドの親方と徒弟（27人ずつ → 3人ずつ）である。市場の商人・管理者・国の役職の人数は同じで、称号の性別などは乱数の流れの違いで変わった。
+- この期待値は、もう基準masterの人物と同じではない。テストは、今のコードの初期人物が変わらないことを確かめる回帰テストになった。基準masterの人物を取り直す`scripts/recordMasterCharacterFixture.mts`は、そのまま基準masterを記録する。
+
 ## 1. 決定事項と互換性の範囲
 
 全拡張機能を有効にした基準 master の「新しい世界の初期化がすべて完了した時点」を、人物生成の基準にする。feature ブランチで必要人数や財布の目安を独自に作り直すことをやめ、master が実際に作る人物の集合、兼任、初期所持金、家族人数を先に確定し、その集合からプリセットで必要な人物だけ詳細化する。
