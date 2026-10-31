@@ -15,6 +15,7 @@ import {
 } from "./props/medievalContainers";
 import { createEarlyFieldCannonModel, EARLY_FIELD_CANNON } from "./siege/earlyFieldCannon";
 import { createMedievalWellModel, MEDIEVAL_WELL } from "./wells/medievalWell";
+import { createLowMedievalWellModel } from "./wells/medievalWellLow";
 import { createPublicWaterBasinModel } from "./wells/publicWaterBasin";
 import { PUBLIC_WATER_BASINS, WATER_BASIN_KINDS } from "./wells/publicWaterBasinSpec";
 import { createMedievalLumberYardModel, MEDIEVAL_LUMBER_YARD } from "./yards/medievalLumberYard";
@@ -34,6 +35,13 @@ export const OBJECT_VARIANTS = PLACEABLE_OBJECTS.map(object =>
 
 export const WELL_VARIANTS = [
   single("well.medieval", MEDIEVAL_WELL.author, createMedievalWellModel),
+  {
+    id: variantId("well.medieval", "low", DEFAULT_AUTHOR),
+    family: "well.medieval",
+    level: "low",
+    author: DEFAULT_AUTHOR,
+    create: createLowMedievalWellModel
+  },
   ...WATER_BASIN_KINDS.map(kind =>
     single(`well.${kind}`, PUBLIC_WATER_BASINS[kind].author, () => createPublicWaterBasinModel(kind))
   )
@@ -61,7 +69,10 @@ export const FRIARY_VARIANTS = [
   {
     ...single<Parameters<typeof createFriary>>("monastery.friary", DEFAULT_AUTHOR, (...args) => createFriary(...args)),
     // Vegetation quality is independent of the architectural assembly.
-    basedOn: [variantId("tree.garden-parkland", "low", "Codex GPT-6.1 Sol")]
+    basedOn: [
+      variantId("tree.garden-parkland", "low", DEFAULT_AUTHOR),
+      variantId("well.medieval", "low", DEFAULT_AUTHOR)
+    ]
   }
 ];
 
@@ -74,7 +85,10 @@ export const MONASTERY_VARIANTS = [
       DEFAULT_AUTHOR,
       (plan = monasteryPreviewPlan(kind), ...args) => createMonastery(plan, ...args)
     ),
-    basedOn: [variantId("tree.garden-parkland", "low", "Codex GPT-6.1 Sol")]
+    basedOn: [
+      variantId("tree.garden-parkland", "low", DEFAULT_AUTHOR),
+      variantId("well.medieval", "low", DEFAULT_AUTHOR)
+    ]
   }))
 ];
 

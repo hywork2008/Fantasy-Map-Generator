@@ -2,12 +2,14 @@ import * as THREE from "three";
 import { expect, it, vi } from "vitest";
 import { collectModelMetrics } from "../../building-viewer/modelMetrics";
 import * as landscapeTrees from "../../buildings/landscape/trees";
+import { type ModelPartRange, modelParts } from "../../buildings/modelParts";
 import {
   createFriary,
   createMonastery,
   friaryPreviewPlan,
   monasteryPreviewPlan
 } from "../../buildings/monasteries/friary";
+import { MODEL_VARIANTS } from "../../buildings/variants";
 import { fitMonastery } from "../../city-editor/generators/monasteryLayout";
 import { makeRng } from "../../city-editor/generators/prng";
 import type { Point } from "../../city-editor/types/document";
@@ -15,6 +17,48 @@ import { createTownMonasteries } from "./friaryMeshes";
 
 const center = (ring: Point[]): Point =>
   ring.reduce<Point>((a, p) => [a[0] + p[0] / ring.length, a[1] + p[1] / ring.length], [0, 0]);
+
+it("accounts for every source mesh and preserves part identity across a multi-precinct CE merge", () => {
+  const first = friaryPreviewPlan();
+  const second = { ...monasteryPreviewPlan("abbey"), id: "second-precinct" };
+  const source = createFriary(first);
+  const originalWell = createFriary(first, 0, 0, { wellQuality: "default" });
+  const merged = createTownMonasteries([first, second], { foundationAt: () => 3, heightAt: () => 0 });
+  try {
+    const parts = modelParts(source.group);
+    expect(parts.reduce((sum, part) => sum + part.meshes, 0)).toBe(source.pickables.length);
+    expect(parts.reduce((sum, part) => sum + part.triangles, 0)).toBe(collectModelMetrics(source.group).triangles);
+    const ids = new Set(parts.map(part => part.id));
+    expect(ids.size).toBe(parts.length);
+    expect(source.pickables.every(mesh => ids.has(mesh.userData.modelPartId))).toBe(true);
+    expect(parts.find(part => part.role === "well")?.quality).toBe("low");
+    expect(modelParts(originalWell.group).find(part => part.role === "well")?.quality).toBe("default");
+    expect(collectModelMetrics(source.group).triangles).toBeLessThan(6000);
+    const registered = new Set(MODEL_VARIANTS.map(variant => variant.id));
+    expect(parts.every(part => part.basedOn?.every(id => registered.has(id)) ?? true)).toBe(true);
+    const mergedParts = modelParts(merged.group);
+    const mergedIds = new Set(mergedParts.map(part => part.id));
+    expect(mergedIds.size).toBe(mergedParts.length);
+    expect(mergedParts.filter(part => part.role === "foundation")).toHaveLength(2);
+    const ranges = merged.pickables[0].userData.modelPartRanges as ModelPartRange[];
+    let offset = 0;
+    for (const range of ranges) {
+      expect(range.start).toBe(offset);
+      expect(range.count % 3).toBe(0);
+      expect(mergedIds.has(range.partId)).toBe(true);
+      offset += range.count;
+    }
+    expect(offset).toBe(merged.pickables[0].geometry.getAttribute("position").count);
+    for (const part of mergedParts)
+      expect(ranges.filter(range => range.partId === part.id).reduce((sum, range) => sum + range.count / 3, 0)).toBe(
+        part.triangles
+      );
+  } finally {
+    source.dispose();
+    originalWell.dispose();
+    merged.dispose();
+  }
+});
 
 it("budgets attached vegetation explicitly in BV and CE while allowing an independent tree tier", () => {
   const plan = friaryPreviewPlan();

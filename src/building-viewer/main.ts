@@ -99,6 +99,7 @@ import { type CityStructureMeshes, createStructureMassing } from "../city3d/thre
 import type { TownWaterMeshes } from "../city3d/three/waterMeshes";
 import type { HistoricalPeriod } from "../types/historicalPeriod";
 import { createModelComparison } from "./modelComparison";
+import { modelPartsPanel } from "./modelPartsPanel";
 import { mountPerformancePanel } from "./performancePanel";
 import {
   createReferencePerson,
@@ -2726,6 +2727,8 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
               : "Illustrative medieval or early modern model; meter units. CE automatic placement is separate."
         )
       );
+      const partsPanel = modelPartsPanel(model.group);
+      if (partsPanel) facts.append(partsPanel);
     };
     button.addEventListener("click", () => showModel());
     category.append(button);

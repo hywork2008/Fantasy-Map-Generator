@@ -287,7 +287,8 @@ select {
   font-size: 0.8rem;
 }
 
-.bv-comparison table {
+.bv-comparison table,
+.bv-model-parts table {
   width: 100%;
   min-width: 16rem;
   border-collapse: collapse;
@@ -295,11 +296,29 @@ select {
 }
 
 .bv-comparison th,
-.bv-comparison td {
+.bv-comparison td,
+.bv-model-parts th,
+.bv-model-parts td {
   padding: 5px 3px;
   border-bottom: 1px solid #c8c0b4;
   text-align: right;
   overflow-wrap: normal;
+}
+
+.bv-model-parts {
+  margin-top: 12px;
+  font-size: 0.75rem;
+  overflow-x: auto;
+}
+
+.bv-model-parts summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.bv-model-parts td:first-child,
+.bv-model-parts th:first-child {
+  text-align: left;
 }
 
 .bv-comparison th:first-child {

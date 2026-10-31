@@ -5,10 +5,14 @@ import type { StructureMassing } from "../../city-editor/types/contracts/structu
 import type { Point } from "../../city-editor/types/document";
 import { planVertex } from "../../city3d/core/planFrame";
 import { createStructureMassing } from "../../city3d/three/structureMeshes";
+import { DEFAULT_AUTHOR } from "../authors";
 import type { TreeQuality } from "../landscape/treeQuality";
 import { createLandscapeTree } from "../landscape/trees";
 import { ModelKit, type Surface } from "../medieval/modelKit";
+import { type ModelPartDefinition, ModelPartTracker } from "../modelParts";
+import { variantId } from "../modelVariants";
 import { createMedievalWellModel } from "../wells/medievalWell";
+import { createLowMedievalWellModel } from "../wells/medievalWellLow";
 
 /** A fixed example of the same fitted programme used by generated CE religious houses. */
 export function monasteryPreviewPlan(kind: MonasteryKind = "friary"): Monastery {
@@ -46,6 +50,8 @@ function shape(ring: Point[], holes: Point[][] = []): THREE.Shape {
 export interface MonasteryRenderOptions {
   /** Vegetation has its own budget; never inherit the standalone tree's Ultra default. */
   vegetationQuality?: TreeQuality;
+  /** Keep the original standalone well available without coupling it to the building tier. */
+  wellQuality?: "low" | "default";
 }
 
 /** The actual CE footprints determine every wing, opening and roof ridge. No assembly-wide stretching. */
@@ -56,6 +62,9 @@ export function createMonastery(
   options: MonasteryRenderOptions = {}
 ) {
   const k = new ModelKit(plan.kind === "friary" ? "mendicant-friary" : plan.kind);
+  const parts = new ModelPartTracker(k);
+  const begin = (id: string, role: string, quality: ModelPartDefinition["quality"] = "low", basedOn?: string[]) =>
+    parts.begin({ id: `${plan.id}:${id}`, role, quality, author: DEFAULT_AUTHOR, basedOn });
   const nave = plan.buildings.find(building => building.role === "church");
   const ridge = nave?.ridge;
   const azimuth = ridge ? Math.atan2(ridge[1][1] - ridge[0][1], ridge[1][0] - ridge[0][0]) : 0;
@@ -74,12 +83,20 @@ export function createMonastery(
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = y;
   };
-  if (foundationBottom < elevation - 0.01)
+  if (foundationBottom < elevation - 0.01) {
+    begin("foundation", "foundation");
     slab("precinct-foundation", plan.precinct, [], foundationBottom, elevation - foundationBottom, "stone");
-  for (const court of plan.courts)
+  }
+  for (const [index, court] of plan.courts.entries()) {
+    begin(`court:${index}`, court.kind);
     slab(`friary-${court.kind}`, court.polygon, [], elevation + 0.01, 0.03, court.kind === "yard" ? "earth" : "green");
-  for (const bed of plan.beds) slab("herb-bed", bed, [], elevation + 0.04, 0.15 * scale, "earth");
+  }
+  for (const [index, bed] of plan.beds.entries()) {
+    begin(`bed:${index}`, "herb-bed");
+    slab("herb-bed", bed, [], elevation + 0.04, 0.15 * scale, "earth");
+  }
   for (const [index, building] of plan.buildings.entries()) {
+    begin(`building:${index}`, building.role);
     if (
       building.role === "dome" ||
       building.role === "bell-tower" ||
@@ -269,6 +286,7 @@ export function createMonastery(
     }
   }
   if (plan.walk) {
+    begin("cloister", "cloister");
     const { outer, garth } = plan.walk;
     slab("cloister-floor", outer, [garth], elevation + 0.04, 0.12 * scale, "stone");
     for (let i = 0; i < garth.length; i++) {
@@ -299,6 +317,7 @@ export function createMonastery(
     }
   }
   // The saved wall is an OPEN polyline: never join its last point back to its first.
+  begin("wall", "precinct-wall");
   for (let i = 1; i < plan.wall.length; i++) {
     const a = plan.wall[i - 1],
       b = plan.wall[i];
@@ -312,15 +331,25 @@ export function createMonastery(
     );
     wall.rotation.y = Math.atan2(b[1] - a[1], b[0] - a[0]);
   }
-  for (const tree of plan.trees) {
-    const model = createLandscapeTree("garden_parkland", options.vegetationQuality ?? "low");
+  for (const [index, tree] of plan.trees.entries()) {
+    const quality = options.vegetationQuality ?? "low";
+    begin(`tree:${index}`, "vegetation", quality, [variantId("tree.garden-parkland", quality, DEFAULT_AUTHOR)]);
+    const model = createLandscapeTree("garden_parkland", quality);
     const size = new THREE.Box3().setFromObject(model.group).getSize(new THREE.Vector3());
     const radiusScale = tree.radius / (Math.max(size.x, size.z) / 2);
     // ModelKit.attach sets a uniform scale, so attach before applying the crown dimensions.
     k.attach(model, planVertex(tree.at, elevation));
     model.group.scale.set(radiusScale, Math.min(1, scale), radiusScale);
   }
-  if (plan.well) k.attach(createMedievalWellModel(), planVertex(plan.well, elevation));
+  if (plan.well) {
+    const quality = options.wellQuality ?? "low";
+    begin("well", "well", quality, [variantId("well.medieval", quality, DEFAULT_AUTHOR)]);
+    k.attach(
+      quality === "low" ? createLowMedievalWellModel() : createMedievalWellModel(),
+      planVertex(plan.well, elevation)
+    );
+  }
+  parts.finish();
   return k.finish();
 }
 

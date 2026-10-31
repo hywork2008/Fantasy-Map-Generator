@@ -6,6 +6,8 @@ import { createLandscapeTree } from "../src/buildings/landscape/trees";
 import { model as salisbury } from "../src/buildings/landmarks/salisbury";
 import { createMonastery, monasteryPreviewPlan } from "../src/buildings/monasteries/friary";
 import { createMedievalWellModel } from "../src/buildings/wells/medievalWell";
+import { createLowMedievalWellModel } from "../src/buildings/wells/medievalWellLow";
+import { modelParts } from "../src/buildings/modelParts";
 import { createTownMonasteries } from "../src/city3d/three/friaryMeshes";
 import type { CityStructureMeshes } from "../src/city3d/three/structureMeshes";
 
@@ -30,10 +32,11 @@ function measure(id: string, create: () => CityStructureMeshes, parts = false) {
   const buildMs = performance.now() - started;
   const row = {
     id, buildMs: +buildMs.toFixed(2), ...metrics(model.group),
+    ...(modelParts(model.group).length ? { partLedger: modelParts(model.group) } : {}),
     ...(parts ? { parts: model.group.children.map(child => ({ name: child.name, ...metrics(child) })) } : {})
   };
   rows.push(row);
-  console.log(JSON.stringify({ ...row, parts: undefined }));
+  console.log(JSON.stringify({ ...row, parts: undefined, partLedger: undefined }));
   model.dispose();
 }
 
@@ -41,7 +44,7 @@ for (const kind of ["friary", "abbey", "orthodoxMonastery"] as const) {
   const plan = monasteryPreviewPlan(kind);
   const withoutTrees = { ...plan, trees: [] };
   rows.push({ id: `${kind}/plan`, treeCount: plan.trees.length, buildingCount: plan.buildings.length });
-  measure(`${kind}/BV-legacy-ultra`, () => createMonastery(plan, 0, 0, { vegetationQuality: "ultra" }), true);
+  measure(`${kind}/BV-legacy-ultra`, () => createMonastery(plan, 0, 0, { vegetationQuality: "ultra", wellQuality: "default" }), true);
   measure(`${kind}/BV-current-low`, () => createMonastery(plan));
   measure(`${kind}/BV-without-trees`, () => createMonastery(withoutTrees));
   if (kind === "friary") {
@@ -51,6 +54,7 @@ for (const kind of ["friary", "abbey", "orthodoxMonastery"] as const) {
   }
 }
 measure("medieval-well/current", () => createMedievalWellModel(), true);
+measure("medieval-well/low", () => createLowMedievalWellModel(), true);
 for (const quality of ["low", "medium", "high", "ultra"] as const)
   measure(`garden_parkland/${quality}`, () => createLandscapeTree("garden_parkland", quality));
 measure("salisbury/low", () => salisbury.create());
@@ -62,9 +66,9 @@ for (const file of ["08-shop-housesModels", "10-bakeriesModels", "12-innsModels"
       measure(`${model.id}/${variant.level}`, () => variant.create());
   }
 }
-const output = process.argv[2] ?? "docs/analytics/bv-composite-profile-20261101.json";
+const output = process.argv[2] ?? "docs/analytics/bv-composite-parts-p1-20261101.json";
 await writeFile(output, JSON.stringify({
   runtime: process.version,
-  method: "One deterministic preview per factory, disposed after counting. Build time is a single order-dependent observation with mixed cache/JIT state, not FPS or a benchmark. Attribute bytes count unique CPU ArrayBuffers including indices, excluding JS objects, GPU allocations and transient clones. BV-without-trees omits trees before construction; all other plan fields are unchanged. Parts share resources and their unique-resource counts must not be summed. CE cases include indexed-to-nonindexed conversion and merge. BV-legacy-ultra reproduces the former implicit vegetation tier explicitly; current-low uses the corrected default.",
+  method: "One deterministic preview per factory, disposed after counting. Build time is a single order-dependent observation with mixed cache/JIT state, not FPS or a benchmark. Attribute bytes count unique CPU ArrayBuffers including indices, excluding JS objects, GPU allocations and transient clones. BV-without-trees omits trees before construction; all other plan fields are unchanged. Parts share resources and their unique-resource counts must not be summed. CE cases include indexed-to-nonindexed conversion and merge. BV-legacy-ultra explicitly reproduces the former Ultra vegetation and original well; current-low uses Low vegetation and Low well. Part ledger metrics describe unmerged source parts, including in CE rows.",
   rows
 }, null, 2) + "\n");
