@@ -22,7 +22,7 @@ Read [BV composite models and per-part quality](../plan/bv-composite-models.md) 
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **93**. Missing candidates: **127**.
+Records: **220**. Codex High or Ultra available: **95**. Missing candidates: **125**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -62,7 +62,7 @@ Records: **220**. Codex High or Ultra available: **93**. Missing candidates: **1
 | Medieval 32 | 2 | 2 | 0 |
 | Medieval 33 | 1 | 1 | 0 |
 | Medieval 34 | 1 | 1 | 0 |
-| Medieval 35 | 2 | 0 | 2 |
+| Medieval 35 | 2 | 2 | 0 |
 | Medieval 36 | 1 | 0 | 1 |
 | Medieval 37 | 1 | 0 | 1 |
 | Medieval 38 | 2 | 0 | 2 |
@@ -97,7 +97,7 @@ Records: **220**. Codex High or Ultra available: **93**. Missing candidates: **1
 16. Fourteenth model batch (2026-11-01): added High for the four Medieval 28 craft guild halls and the Medieval 29 stone yard. Guild halls share the cloth hall architecture profile, masonry supports and east stair; trade dressing is a separate part. Preserved default CE variants. See [verification and previews](bv-guild-stone-yard-high-20261101.md).
 17. Fifteenth model batch (2026-11-01): added High for the Medieval 30 lime kiln and Medieval 31 bleaching field, each with three independently inspectable components. Preserved default CE variants. See [verification, sources and previews](bv-kiln-bleaching-high-20261101.md).
 18. Sixteenth model batch (2026-11-01): added High for the remaining Medieval 32 domestic ranges and the Medieval 34 pottery workshop. Reused monastery buildings/cloister, workshop shelter/benches and shared masonry kiln passages. Added independent component views and preserved original Low factories. See [verification, sources and previews](bv-domestic-pottery-high-20261101.md).
-19. Harbor prerequisite (2026-11-01): investigated historical crane sites and cargo transfer, and audited independent ship/crane placement plus the 2D/3D arm-length mismatch. Implemented the initial cargo-quay/lighter contract for flat sea ports, fixed-radius reach/depth/rigging/approach checks and shared 2D/3D crane dimensions; validated three waiting ships and a broadside lighter in CE. Next is Medieval 35 High using [CE harbor crane planning](../plan/ce-harbor-cranes-and-cargo-berths.md); river/relief sites and furled sailing rigs remain follow-up work. Medieval 36 town gallows remains a later candidate. Continue component inspection of named landmarks; regional houses, standalone props and the Codex basilica remain later batches.
+19. Harbor prerequisite (2026-11-01): investigated historical crane sites and cargo transfer, and audited independent ship/crane placement plus the 2D/3D arm-length mismatch. Implemented the initial cargo-quay/lighter contract for flat sea ports, fixed-radius reach/depth/rigging/approach checks and shared 2D/3D crane dimensions; validated three waiting ships and a broadside lighter in CE. Added Medieval 35 High for treadwheel and hand-winch cranes with four components, shared BV/CE construction dimensions, quality-sensitive CE adoption and prototype disposal. See [verification and previews](bv-harbor-cranes-high-20261101.md) and [CE harbor crane planning](../plan/ce-harbor-cranes-and-cargo-berths.md); river/relief sites and furled sailing rigs remain follow-up work. Next is Medieval 36 town gallows. Continue component inspection of named landmarks; regional houses, standalone props and the Codex basilica remain later batches.
 20. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
@@ -117,8 +117,6 @@ Records: **220**. Codex High or Ultra available: **93**. Missing candidates: **1
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
-| Medieval 35 | `harbor-treadwheel-crane` | Timber harbor treadwheel crane | single/default; assumed Low - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
-| Medieval 35 | `harbor-winch-crane` | Hand-winch loading crane | single/default; assumed Low - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
 | Medieval 36 | `permanent-town-gallows` | Permanent timber gallows | single/default; assumed Low - [source](../../src/buildings/medieval/36-gallowsModels.ts) |
 | Medieval 37 | `glassworkers-guild-hall` | Glassworkers' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/37-glassworkers-hallsModels.ts) |
 | Medieval 38 | `early-printing-workshop` | Early printing workshop | single/default; assumed Low - [source](../../src/buildings/medieval/38-printing-modelsModels.ts) |
@@ -316,6 +314,8 @@ Records: **220**. Codex High or Ultra available: **93**. Missing candidates: **1
 | Medieval 32 | `abbey-domestic-range` | Abbey cloister and domestic ranges | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/32-abbey-living-quartersModels.ts) |
 | Medieval 33 | `mendicant-friary` | Urban mendicant friary | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/33-friariesModels.ts) |
 | Medieval 34 | `potters-workshop` | Potter workshop, kiln, and drying shelves | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/34-pottery-workshopsModels.ts) |
+| Medieval 35 | `harbor-treadwheel-crane` | Timber harbor treadwheel crane | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
+| Medieval 35 | `harbor-winch-crane` | Hand-winch loading crane | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-barracks` | Citadel barracks · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-command` | Citadel command · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |

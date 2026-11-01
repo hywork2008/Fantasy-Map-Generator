@@ -50,7 +50,7 @@ export interface HarborCrane {
   point: Point;
   armAngleRad: number;
   radiusMeters: number;
-  /** Horizontal radius to the pulley, shared by SVG and the model factory. */
+  /** Horizontal radius to the falling hoist line, shared by SVG and the model factory. */
   armLengthMeters: number;
   pulleyHeightMeters?: number;
   hookHeightMeters?: number;

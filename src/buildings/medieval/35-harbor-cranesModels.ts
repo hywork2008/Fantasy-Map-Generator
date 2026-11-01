@@ -1,12 +1,16 @@
+import { DEFAULT_AUTHOR } from "../authors";
 import { createMedievalContainerModel } from "../props/medievalContainers";
+import {
+  checkedHarborCraneDimensions,
+  DEFAULT_HARBOR_CRANE_DIMENSIONS,
+  HARBOR_CRANE_PROFILES,
+  type HarborCraneDimensions
+} from "./harborCraneDimensions";
+import { assembleHarborCraneParts, createHighHarborCrane, harborCranePartFactories } from "./harborCraneParts";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
-export interface HarborCraneDimensions {
-  reach: number;
-  pulleyHeight: number;
-  hookHeight: number;
-  showCargo?: boolean;
-}
+export type { HarborCraneDimensions } from "./harborCraneDimensions";
 
 /** Rebuild the jib, mast and tackle from construction dimensions; never stretch the machine. */
 export function createHarborCrane(treadwheel: boolean, dimensions?: HarborCraneDimensions) {
@@ -15,14 +19,7 @@ export function createHarborCrane(treadwheel: boolean, dimensions?: HarborCraneD
     pulleyHeight: top,
     hookHeight: hook,
     showCargo
-  } = dimensions ?? {
-    reach: 4.35,
-    pulleyHeight: 4.45,
-    hookHeight: 1.1,
-    showCargo: true
-  };
-  if (![reach, top, hook].every(Number.isFinite) || reach <= 0 || hook < 0.4 || top <= hook + 0.3)
-    throw new Error("Invalid harbor crane dimensions");
+  } = checkedHarborCraneDimensions(dimensions ?? { ...DEFAULT_HARBOR_CRANE_DIMENSIONS, showCargo: true });
   const mastTop = top + 0.65;
   const k = new ModelKit(treadwheel ? "treadwheel-crane" : "hand-winch-crane");
   k.box("crane-foundation", [-0.6, 0.12, 0], [6.2, 0.24, 4], "stone");
@@ -85,7 +82,7 @@ export const models: MedievalModel[] = [
     id: "harbor-treadwheel-crane",
     name: "Timber harbor treadwheel crane",
     task: 35,
-    size: [11, 7, 7],
+    size: [15, 7, 10],
     note: "Human-powered timber treadwheel, paired rims and treads, bearing posts, braced rotating mast, lifting jib, pulley, rope and cargo hook. An illustrative late medieval European harbor crane.",
     create: () => createHarborCrane(true)
   },
@@ -94,8 +91,38 @@ export const models: MedievalModel[] = [
     id: "harbor-winch-crane",
     name: "Hand-winch loading crane",
     task: 35,
-    size: [11, 7, 7],
+    size: [15, 7, 10],
     note: "Smaller hand-winch harbor crane with drum, twin cranks, braced mast and lifting tackle. A regional alternative to a treadwheel; no quay is included.",
     create: () => createHarborCrane(false)
   }
 ];
+
+registerHighVariants(models, {
+  "harbor-treadwheel-crane": () => createHighHarborCrane(true),
+  "harbor-winch-crane": () => createHighHarborCrane(false)
+});
+for (const model of models) {
+  model.partPresets = [
+    { id: "study", name: "Compact study" },
+    { id: "ce-quay", name: "CE cargo-quay dimensions" }
+  ];
+  model.parts = (variantId, preset) => {
+    const treadwheel = model.id === "harbor-treadwheel-crane";
+    const dimensions =
+      preset === "ce-quay"
+        ? { ...HARBOR_CRANE_PROFILES[treadwheel ? "treadwheel" : "derrick"], showCargo: false }
+        : undefined;
+    return model.variants?.find(v => v.id === variantId)?.level === "high"
+      ? harborCranePartFactories(treadwheel, dimensions)
+      : [
+          {
+            id: `${model.id}:legacy`,
+            role: "legacy-assembly",
+            quality: "low",
+            author: DEFAULT_AUTHOR,
+            create: () => createHarborCrane(treadwheel, dimensions)
+          }
+        ];
+  };
+  model.assembleParts = parts => assembleHarborCraneParts(model.id, parts);
+}

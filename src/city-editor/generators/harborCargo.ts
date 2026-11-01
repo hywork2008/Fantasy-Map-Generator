@@ -7,13 +7,8 @@ import type { ShipType } from "../types/ships";
 import { pointInPolygon } from "./geom";
 import { corridor, distance } from "./parcelGeometry";
 
+export { HARBOR_CRANE_PROFILES } from "../../buildings/medieval/harborCraneDimensions";
 export type { CargoBerthAssignment, CargoQuay } from "../types/contracts/harborCargo";
-
-/** Construction dimensions, not telescoping controls. Illustrative game profiles in metres. */
-export const HARBOR_CRANE_PROFILES = {
-  treadwheel: { reach: 9, pulleyHeight: 8, hookHeight: 6.5 },
-  derrick: { reach: 7, pulleyHeight: 6.5, hookHeight: 5 }
-} as const;
 
 export function cargoShipGeometry(type: ShipType, length: number) {
   const authored = SHIP_CARGO_GEOMETRY[type];

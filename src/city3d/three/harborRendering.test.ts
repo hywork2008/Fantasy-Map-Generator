@@ -126,3 +126,46 @@ it("rebuilds two crane dimensions with exact SVG pulley radii, without cargo pro
   result.dispose();
   expect(cache.size).toBe(0);
 });
+
+it("adopts actual crane High geometry, keeps Low separate, and releases quality-specific prototypes", async () => {
+  const { sceneVariants } = await import("../adoption");
+  const cranes = (["treadwheel", "derrick"] as const).map((kind, i) => ({
+    id: `quality-crane-${i}`,
+    kind,
+    point: [10 + i * 30, 20] as [number, number],
+    armAngleRad: Math.PI / 2,
+    radiusMeters: 4.2,
+    armLengthMeters: i ? 7 : 9,
+    pulleyHeightMeters: i ? 6.5 : 8,
+    hookHeightMeters: i ? 5 : 6.5
+  }));
+  const cache = createBvPrototypeCache();
+  const low = createTownCranes(cranes, () => 3, cache, "low");
+  const high = createTownCranes(cranes, () => 3, cache, "high");
+  expect(cache.size).toBe(4);
+  expect(sceneVariants(high.group)).toEqual([
+    "medieval.harbor-treadwheel-crane@high#codex-gpt-6.1-sol",
+    "medieval.harbor-winch-crane@high#codex-gpt-6.1-sol"
+  ]);
+  expect(sceneVariants(low.group).every(id => id.includes("@low#"))).toBe(true);
+  high.accepted.forEach((site, i) => {
+    expect(site.matrix.equals(low.accepted[i].matrix)).toBe(true);
+    const model = site.definition.create();
+    expect(model.group.userData.modelParts.map((p: { quality: string }) => p.quality)).toEqual([
+      "high",
+      "high",
+      "high",
+      "high"
+    ]);
+    model.dispose();
+  });
+  low.dispose();
+  expect(cache.size).toBe(2);
+  high.dispose();
+  expect(cache.size).toBe(0);
+  // An unsupported Roman rig keeps its existing display tier, even at the High setting.
+  const roman = createTownCranes([{ ...cranes[0], kind: "romanMagnaRota" }], () => 0, cache, "high");
+  expect(sceneVariants(roman.group)).toEqual(["medieval.harbor-winch-crane@default#codex-gpt-6.1-sol"]);
+  roman.dispose();
+  expect(cache.size).toBe(0);
+});
