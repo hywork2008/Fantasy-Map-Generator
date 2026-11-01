@@ -8,9 +8,8 @@ import { useMapReadyTaskState } from "../../store/mapReadyTaskState";
 export const Sticked: React.FC = () => {
   const { t } = useTranslation();
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
-  const canConfigureInitialMap = useGenerationProgressState(
-    state => state.isOpen && !state.isGenerating && state.isInitialGeneration
-  );
+  // Loading waits for the paused generation to roll back, so it is safe for New map reviews too.
+  const isReviewPaused = useGenerationProgressState(state => state.isOpen && !state.isGenerating);
   const isMapReadyTaskRunning = useMapReadyTaskState(state => state.isRunning);
   const openDialogs = useDialogState(state => state.openDialogs);
 
@@ -55,7 +54,7 @@ export const Sticked: React.FC = () => {
         id="loadButton"
         data-tip={t("sticked.loadTip")}
         onClick={() => void showLoadPane()}
-        disabled={isMapGenerationInProgress && !canConfigureInitialMap}
+        disabled={isMapGenerationInProgress && !isReviewPaused}
       >
         {t("sticked.load")}
       </button>
