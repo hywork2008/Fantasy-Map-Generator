@@ -133,3 +133,6 @@ export function preachingCrossPartFactories(): ModelPartFactory[] {
     ] as const
   ).map(([role, create]) => ({ id: `preaching-cross:${role}`, role, quality: "high", author: DEFAULT_AUTHOR, create }));
 }
+
+/** Grounded dressed stone for independently fitted plinths, chests and caps. */
+export { dressedBlock as addDressedStoneBlock };

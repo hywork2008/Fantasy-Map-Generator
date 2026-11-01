@@ -2,6 +2,7 @@ import { DEFAULT_AUTHOR } from "../authors";
 import type { CemeteryPropKind } from "../landscape/cemeteryProps";
 import type { ModelPartFactory } from "../modelParts";
 import { variantId } from "../modelVariants";
+import { mausoleumPartFactories } from "./mausoleumParts";
 import { boneRackPartFactories, ossuaryPartFactories } from "./ossuaryParts";
 import { preachingCrossPartFactories } from "./preachingCrossParts";
 
@@ -21,6 +22,10 @@ export const CEMETERY_HIGH_DETAILS: Partial<Record<CemeteryPropKind, CemeteryHig
   skull_shelf: {
     parts: boneRackPartFactories,
     note: "Reusable wooden rack for stored skeletal remains. High adds pegged shelves, braced posts, pierced skull sockets and supported long bones. Illustrative dimensions; no specific historical monument is reconstructed."
+  },
+  mausoleum_dome: {
+    parts: mausoleumPartFactories,
+    note: "Circular stone mausoleum. High has a hollow rotunda, real arched entrance and glazed windows, annular cornice, hollow hemispherical dome and a separate memorial chest. Illustrative dimensions; no specific historical monument is reconstructed."
   },
   preaching_cross_calvary: {
     parts: preachingCrossPartFactories,

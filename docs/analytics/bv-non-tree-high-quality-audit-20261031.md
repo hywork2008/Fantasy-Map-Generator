@@ -25,7 +25,7 @@ Read [BV composite models and per-part quality](../plan/bv-composite-models.md) 
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **106**. Missing candidates: **114**.
+Records: **220**. Codex High or Ultra available: **107**. Missing candidates: **113**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -73,7 +73,7 @@ Records: **220**. Codex High or Ultra available: **106**. Missing candidates: **
 | Medieval 40 | 1 | 1 | 0 |
 | Medieval 41 | 1 | 1 | 0 |
 | Medieval 42 | 1 | 1 | 0 |
-| Medieval 44 | 21 | 3 | 18 |
+| Medieval 44 | 21 | 4 | 17 |
 | Medieval 45 | 3 | 0 | 3 |
 | Medieval 46 | 7 | 7 | 0 |
 | Medieval 47 | 6 | 6 | 0 |
@@ -120,7 +120,6 @@ Records: **220**. Codex High or Ultra available: **106**. Missing candidates: **
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
-| Medieval 44 | `mausoleum-dome` | Mausoleum dome | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `stupa-chorten` | Stupa chorten | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `cremation-pyre-platform` | Cremation pyre platform | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `tower-of-silence` | Tower of silence | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
@@ -318,6 +317,7 @@ Records: **220**. Codex High or Ultra available: **106**. Missing candidates: **
 | Medieval 42 | `balkan-caravanserai` | Ottoman Balkan caravanserai | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/42-caravanseraisModels.ts) |
 | Medieval 44 | `ossuary-charnel-house` | Ossuary charnel house | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `preaching-cross-calvary` | Preaching cross calvary | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
+| Medieval 44 | `mausoleum-dome` | Mausoleum dome | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `skull-shelf` | Skull shelf | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-barracks` | Citadel barracks · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |

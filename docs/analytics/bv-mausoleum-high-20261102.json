@@ -1,0 +1,162 @@
+{
+  "method": "Fixed BV variant geometry. Dimensions X/Y/Z metres. Unique CPU attribute/index ArrayBuffers exclude JS objects, transient allocations and GPU memory; no FPS benchmark.",
+  "rows": [
+    {
+      "id": "cemetery.mausoleum_dome@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 3,
+        "triangles": 660,
+        "vertices": 497,
+        "geometries": 3,
+        "materials": 2
+      },
+      "attributeBytes": 19864,
+      "dimensions": [
+        6,
+        6.6,
+        6.029999999999999
+      ],
+      "fingerprint": "427cacb173b6750d3b8432ece18097329c5e3caba79fc72b839e6a0827ca90b0",
+      "sourceParts": [],
+      "parts": [
+        {
+          "id": "mausoleum-dome:legacy",
+          "role": "legacy-assembly",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 660,
+            "vertices": 1980,
+            "geometries": 2,
+            "materials": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "cemetery.mausoleum_dome@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 6,
+        "triangles": 41948,
+        "vertices": 125844,
+        "geometries": 6,
+        "materials": 6
+      },
+      "attributeBytes": 3020256,
+      "dimensions": [
+        6.599999904632568,
+        6.8299999272823335,
+        6.599999904632568
+      ],
+      "fingerprint": "494af7b7cb9426d91ee4571d9b7766584547bae5e49a9596a88ac44aa67d6351",
+      "sourceParts": [
+        {
+          "id": "mausoleum:platform",
+          "role": "platform",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 512
+        },
+        {
+          "id": "mausoleum:rotunda",
+          "role": "rotunda",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 456,
+          "triangles": 29572
+        },
+        {
+          "id": "mausoleum:dome",
+          "role": "dome",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 9,
+          "triangles": 10152
+        },
+        {
+          "id": "mausoleum:door",
+          "role": "door",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 15,
+          "triangles": 1532
+        },
+        {
+          "id": "mausoleum:memorial-chest",
+          "role": "memorial-chest",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 180
+        }
+      ],
+      "parts": [
+        {
+          "id": "mausoleum:platform",
+          "role": "platform",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 512,
+            "vertices": 1536,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "mausoleum:rotunda",
+          "role": "rotunda",
+          "quality": "high",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 29572,
+            "vertices": 88716,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "mausoleum:dome",
+          "role": "dome",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 10152,
+            "vertices": 30456,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "mausoleum:door",
+          "role": "door",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 1532,
+            "vertices": 4596,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "mausoleum:memorial-chest",
+          "role": "memorial-chest",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 180,
+            "vertices": 540,
+            "geometries": 2,
+            "materials": 2
+          }
+        }
+      ]
+    }
+  ]
+}
