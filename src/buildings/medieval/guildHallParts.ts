@@ -6,14 +6,23 @@ import { assembleCivicHallParts, civicHallPartFactories } from "./civicHallParts
 import { GUILD_HALL_PROFILE } from "./civicHallProfile";
 import { createGlassGuildDressing } from "./glassGuildDressing";
 import { HouseDetailKit } from "./houseDetailKit";
+import { createHighHarpDisplay, createInstrumentGuildDressing } from "./instrumentGuildDressing";
 import { createPrintingGuildDressing, fittedPrintingPress } from "./printingEquipment";
 import { addCraftBench } from "./workshopDetailKit";
 
-export type GuildCraft = "leather" | "woodworking" | "masonry" | "metallurgy" | "glassworking" | "printing";
+export type GuildCraft =
+  | "leather"
+  | "woodworking"
+  | "masonry"
+  | "metallurgy"
+  | "glassworking"
+  | "printing"
+  | "instruments";
 
 function tradeDressing(craft: GuildCraft) {
   if (craft === "glassworking") return createGlassGuildDressing();
   if (craft === "printing") return createPrintingGuildDressing();
+  if (craft === "instruments") return createInstrumentGuildDressing();
   const k = new HouseDetailKit(`${craft}-guild-trade-dressing`),
     front = GUILD_HALL_PROFILE.depth / 2;
   k.box("guild-trade-plaque", [0, 6.12, front + 0.14], [1.4, 0.65, 0.12], "wood");
@@ -96,6 +105,17 @@ export function guildHallPartFactories(craft: GuildCraft): ModelPartFactory[] {
             quality: "high" as const,
             author: DEFAULT_AUTHOR,
             create: () => fittedPrintingPress(-3, -0.35)
+          }
+        ]
+      : []),
+    ...(craft === "instruments"
+      ? [
+          {
+            id: "instruments:harp-display",
+            role: "harp-display",
+            quality: "high" as const,
+            author: DEFAULT_AUTHOR,
+            create: createHighHarpDisplay
           }
         ]
       : [])

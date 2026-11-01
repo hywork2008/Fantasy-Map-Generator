@@ -1,0 +1,142 @@
+{
+  "method": "Fixed BV variant geometry. Dimensions X/Y/Z metres. Unique CPU attribute/index ArrayBuffers exclude JS objects, transient allocations and GPU memory; no FPS benchmark.",
+  "rows": [
+    {
+      "id": "medieval.instrument-makers-guild-hall@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 133,
+        "triangles": 9606,
+        "vertices": 6980,
+        "geometries": 55,
+        "materials": 13
+      },
+      "attributeBytes": 275200,
+      "dimensions": [
+        12.600000381469727,
+        8.63000002384186,
+        12.177659389693655
+      ],
+      "fingerprint": "40bb823c47bea68eab5a8d0b36aa8ac03571d7fcc0009b9ae17a9410e29aeb86",
+      "sourceParts": [],
+      "parts": [
+        {
+          "id": "instrument-makers-guild-hall:legacy",
+          "role": "legacy-assembly",
+          "quality": "low",
+          "metrics": {
+            "meshes": 9,
+            "triangles": 9606,
+            "vertices": 28818,
+            "geometries": 9,
+            "materials": 9
+          }
+        }
+      ]
+    },
+    {
+      "id": "medieval.instrument-makers-guild-hall@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 13,
+        "triangles": 39876,
+        "vertices": 119628,
+        "geometries": 13,
+        "materials": 13
+      },
+      "attributeBytes": 2871072,
+      "dimensions": [
+        17.085000038146973,
+        9.060839653015137,
+        8.769999742507935
+      ],
+      "fingerprint": "9b2710b5b410abc5cd63b5e7e43650f44a6e1ee2c634bdf748eaafc06db701fd",
+      "sourceParts": [
+        {
+          "id": "instruments:architecture",
+          "role": "architecture",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 8,
+          "triangles": 29064
+        },
+        {
+          "id": "instruments:exterior-stair",
+          "role": "exterior-stair",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 3,
+          "triangles": 528
+        },
+        {
+          "id": "instruments:trade-dressing",
+          "role": "trade-dressing",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 463,
+          "triangles": 9304
+        },
+        {
+          "id": "instruments:harp-display",
+          "role": "harp-display",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 49,
+          "triangles": 980
+        }
+      ],
+      "parts": [
+        {
+          "id": "instruments:architecture",
+          "role": "architecture",
+          "quality": "high",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 29064,
+            "vertices": 87192,
+            "geometries": 8,
+            "materials": 8
+          }
+        },
+        {
+          "id": "instruments:exterior-stair",
+          "role": "exterior-stair",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 528,
+            "vertices": 1584,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "instruments:trade-dressing",
+          "role": "trade-dressing",
+          "quality": "high",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 9304,
+            "vertices": 27912,
+            "geometries": 8,
+            "materials": 8
+          }
+        },
+        {
+          "id": "instruments:harp-display",
+          "role": "harp-display",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 980,
+            "vertices": 2940,
+            "geometries": 6,
+            "materials": 6
+          }
+        }
+      ]
+    }
+  ]
+}
