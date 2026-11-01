@@ -12,6 +12,7 @@ import { rulers } from "../store/editorState";
 import { generationProgressStore } from "../store/generationProgressState";
 import { useMapReadyTaskState } from "../store/mapReadyTaskState";
 import { useOptionsState } from "../store/optionsState";
+import { useTimeSimulationState } from "../store/timeSimulationState";
 import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
 import { createObjectURL, link, parseError, ra, revokeObjectURL, rn } from "../utils";
 import { ERROR } from "../utils/debug";
@@ -441,6 +442,7 @@ export async function initiateAutosave(): Promise<void> {
     if (!timeoutMinutes) return;
     if (generationProgressStore.getState().isOpen) return;
     if (useMapReadyTaskState.getState().isRunning) return;
+    if (useTimeSimulationState.getState().isRunning) return;
 
     const diffInMinutes = (Date.now() - lastSavedAt) / MINUTE;
     if (diffInMinutes < timeoutMinutes) return;
