@@ -1,0 +1,228 @@
+{
+  "method": "Fixed BV variant geometry. Dimensions X/Y/Z metres. Unique CPU attribute/index ArrayBuffers exclude JS objects, transient allocations and GPU memory; no FPS benchmark.",
+  "rows": [
+    {
+      "id": "medieval.balkan-caravanserai@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 350,
+        "triangles": 5278,
+        "vertices": 2456,
+        "geometries": 38,
+        "materials": 8
+      },
+      "attributeBytes": 85624,
+      "dimensions": [
+        27.25996669441875,
+        7.180000000000003,
+        25.38203957948328
+      ],
+      "fingerprint": "74a4297400e9c30dc2badf66cff81dbc2efaf8438da625541709754ae2f0e6d0",
+      "sourceParts": [],
+      "parts": [
+        {
+          "id": "balkan-caravanserai:legacy",
+          "role": "legacy-assembly",
+          "quality": "low",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 5278,
+            "vertices": 15834,
+            "geometries": 8,
+            "materials": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "medieval.balkan-caravanserai@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 9,
+        "triangles": 50070,
+        "vertices": 150210,
+        "geometries": 9,
+        "materials": 9
+      },
+      "attributeBytes": 3605040,
+      "dimensions": [
+        27.200000762939453,
+        7.559999942779541,
+        25.350000381469727
+      ],
+      "fingerprint": "70a051557b9b32241eb3e7836e53dc4ef8d2df2418b0a8432b1f62891cc890b7",
+      "sourceParts": [
+        {
+          "id": "caravanserai:courtyard",
+          "role": "courtyard",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 3,
+          "triangles": 36
+        },
+        {
+          "id": "caravanserai:lodging",
+          "role": "lodging",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 591,
+          "triangles": 24174
+        },
+        {
+          "id": "caravanserai:front-service",
+          "role": "front-service",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 184,
+          "triangles": 5160
+        },
+        {
+          "id": "caravanserai:gateway",
+          "role": "gateway",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 58,
+          "triangles": 1412
+        },
+        {
+          "id": "caravanserai:galleries",
+          "role": "galleries",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 315,
+          "triangles": 3750
+        },
+        {
+          "id": "caravanserai:exterior-stair",
+          "role": "exterior-stair",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 3,
+          "triangles": 468
+        },
+        {
+          "id": "caravanserai:animal-equipment",
+          "role": "animal-equipment",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "medieval.fodder-trough@high#codex-gpt-6.1-sol"
+          ],
+          "meshes": 24,
+          "triangles": 13640
+        },
+        {
+          "id": "caravanserai:water-trough",
+          "role": "water-trough",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "medieval.stone-water-trough@high#codex-gpt-6.1-sol"
+          ],
+          "meshes": 3,
+          "triangles": 1430
+        }
+      ],
+      "parts": [
+        {
+          "id": "caravanserai:courtyard",
+          "role": "courtyard",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 36,
+            "vertices": 108,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "caravanserai:lodging",
+          "role": "lodging",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 24174,
+            "vertices": 72522,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "caravanserai:front-service",
+          "role": "front-service",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 5160,
+            "vertices": 15480,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "caravanserai:gateway",
+          "role": "gateway",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 1412,
+            "vertices": 4236,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "caravanserai:galleries",
+          "role": "galleries",
+          "quality": "high",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 3750,
+            "vertices": 11250,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "caravanserai:exterior-stair",
+          "role": "exterior-stair",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 468,
+            "vertices": 1404,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "caravanserai:animal-equipment",
+          "role": "animal-equipment",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 13640,
+            "vertices": 40920,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "caravanserai:water-trough",
+          "role": "water-trough",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 1430,
+            "vertices": 4290,
+            "geometries": 3,
+            "materials": 3
+          }
+        }
+      ]
+    }
+  ]
+}

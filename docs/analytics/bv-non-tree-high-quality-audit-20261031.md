@@ -25,7 +25,7 @@ Read [BV composite models and per-part quality](../plan/bv-composite-models.md) 
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **102**. Missing candidates: **118**.
+Records: **220**. Codex High or Ultra available: **103**. Missing candidates: **117**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -72,7 +72,7 @@ Records: **220**. Codex High or Ultra available: **102**. Missing candidates: **
 | Medieval 39 | 1 | 1 | 0 |
 | Medieval 40 | 1 | 1 | 0 |
 | Medieval 41 | 1 | 1 | 0 |
-| Medieval 42 | 1 | 0 | 1 |
+| Medieval 42 | 1 | 1 | 0 |
 | Medieval 44 | 21 | 0 | 21 |
 | Medieval 45 | 3 | 0 | 3 |
 | Medieval 46 | 7 | 7 | 0 |
@@ -120,7 +120,6 @@ Records: **220**. Codex High or Ultra available: **102**. Missing candidates: **
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
-| Medieval 42 | `balkan-caravanserai` | Ottoman Balkan caravanserai | single/default; assumed Low - [source](../../src/buildings/medieval/42-caravanseraisModels.ts) |
 | Medieval 44 | `ossuary-charnel-house` | Ossuary charnel house | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `preaching-cross-calvary` | Preaching cross calvary | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `mausoleum-dome` | Mausoleum dome | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
@@ -319,6 +318,7 @@ Records: **220**. Codex High or Ultra available: **102**. Missing candidates: **
 | Medieval 39 | `instrument-makers-guild-hall` | Instrument makers' guild hall | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/39-instrument-makers-hallsModels.ts) |
 | Medieval 40 | `sand-storage-yard` | Sand storage and loading yard | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/40-sand-yardsModels.ts) |
 | Medieval 41 | `orthodox-monastery` | Eastern European Orthodox monastery | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/41-orthodox-monasteriesModels.ts) |
+| Medieval 42 | `balkan-caravanserai` | Ottoman Balkan caravanserai | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/42-caravanseraisModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-barracks` | Citadel barracks · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-command` | Citadel command · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
