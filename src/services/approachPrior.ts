@@ -190,14 +190,20 @@ export function blendApproachProfiles(
     const pri = prior.get(id);
     const mix = (pick: (profile: ApproachProfile) => number) =>
       r3(weight * (led ? pick(led) : 0) + (1 - weight) * (pri ? pick(pri) : 0));
+    // Ratios are weighted by each side's flow through this gate; a side without the gate adds none.
+    const ledFlow = led ? weight * led.share : 0;
+    const priFlow = pri ? (1 - weight) * pri.share : 0;
+    const ratioWeight = ledFlow + priFlow > 0 ? ledFlow / (ledFlow + priFlow) : led ? (pri ? weight : 1) : 0;
+    const mixRatio = (pick: (profile: ApproachProfile) => number) =>
+      r3(ratioWeight * (led ? pick(led) : 0) + (1 - ratioWeight) * (pri ? pick(pri) : 0));
     const partner = axisFromHeavier(weight, led?.axisPartner, pri?.axisPartner, ids);
     profiles.set(id, {
       share: shareSum > 0 ? r3((rawShare.get(id) ?? 0) / shareSum) : 0,
-      throughShare: mix(profile => profile.throughShare),
+      throughShare: mixRatio(profile => profile.throughShare),
       ...(partner ? { axisPartner: partner } : {}),
-      inboundShare: mix(profile => profile.inboundShare),
-      cargo: mixRecord(led?.cargo, pri?.cargo, weight),
-      cargoValue: mixRecord(led?.cargoValue, pri?.cargoValue, weight),
+      inboundShare: mixRatio(profile => profile.inboundShare),
+      cargo: mixRecord(led?.cargo, pri?.cargo, ratioWeight),
+      cargoValue: mixRecord(led?.cargoValue, pri?.cargoValue, ratioWeight),
       wagonsPerYear: mix(profile => profile.wagonsPerYear),
       source: "blend"
     });

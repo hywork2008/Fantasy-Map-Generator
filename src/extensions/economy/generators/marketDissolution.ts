@@ -147,6 +147,8 @@ function mergeTreasury(from: MarketTreasury, into: Market): void {
   target.balance = rn(target.balance + from.balance, 2);
   target.ruralGrainPayable = rn(target.ruralGrainPayable + from.ruralGrainPayable, 2);
   if (from.ruralHayPayable) target.ruralHayPayable = rn((target.ruralHayPayable ?? 0) + from.ruralHayPayable, 2);
+  if (from.ruralHayConsignedLots)
+    target.ruralHayConsignedLots = (target.ruralHayConsignedLots ?? 0) + from.ruralHayConsignedLots;
   if (from.tradeWorkingCapital)
     target.tradeWorkingCapital = rn((target.tradeWorkingCapital ?? 0) + from.tradeWorkingCapital, 2);
   if (from.tradeEscrow) target.tradeEscrow = rn((target.tradeEscrow ?? 0) + from.tradeEscrow, 2);

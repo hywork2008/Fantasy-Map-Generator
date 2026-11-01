@@ -137,14 +137,17 @@ describe("approach prior", () => {
     const blended = blendApproachProfiles(ledger, prior, 3, 100);
     expect(blended.get("east")).toMatchObject({
       share: 0.612,
-      throughShare: 0.485,
+      throughShare: 0.476,
       axisPartner: "west",
-      inboundShare: 0.497,
+      inboundShare: 0.495,
       wagonsPerYear: 0.401,
       source: "blend"
     });
     expect(blended.get("west")?.share).toBe(0.388);
     expect(blended.get("west")?.source).toBe("blend");
+    // A gate only the prior has keeps the prior's ratios instead of mixing with zero.
+    expect(blended.get("west")?.throughShare).toBe(prior.get("west")?.throughShare);
+    expect(blended.get("west")?.inboundShare).toBe(prior.get("west")?.inboundShare);
 
     const full = blendApproachProfiles(ledger, prior, 100, 100);
     expect(full.get("east")).toEqual(ledger.get("east"));
