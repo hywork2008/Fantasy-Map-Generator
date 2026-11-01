@@ -14,6 +14,8 @@ import { defaultRoadWidthMeters } from "./settlementExtent";
 export const QUIET_GATE_SHARE = 0.05;
 /** Grain+livestock or luxury+manufactured at or above this pulls the extra market cells. */
 export const MARKET_END_SHARE = 0.2;
+/** A gate's cargo or cargo-value share at or above this earns that good's gate facility (§6.3). */
+export const COMMERCE_CARGO_MARK = 0.2;
 
 export interface ApproachCommerceRoad {
   approachId?: string;
@@ -33,6 +35,12 @@ export interface CommerceGateShare {
   point: Point;
   share: number;
   main: boolean;
+  /** Inbound part of this gate's end flow. Below 0.3 the gate is an export gate. */
+  inboundShare: number;
+  cargo: ApproachProfile["cargo"];
+  cargoValue: ApproachProfile["cargoValue"];
+  /** Descriptor road index. Absent for the sea landing. */
+  roadIndex?: number;
 }
 
 export interface ApproachCommercePlan {
@@ -64,6 +72,8 @@ interface LocatedGate {
   approachId: string;
   point: Point;
   gateIndex: number;
+  /** Descriptor road index. */
+  roadIndex: number;
   share: number;
   throughShare: number;
   axisPartner?: string;
@@ -189,13 +199,10 @@ export function resolveApproachCommerce(input: ApproachCommerceInput): ApproachC
   const gateIndexes = [seaWins ? -1 : main!.gateIndex, partner?.gateIndex].filter(
     (index): index is number => index !== undefined && index >= 0
   );
-  const shares: CommerceGateShare[] = located.map(gate => ({
-    gateIndex: gate.gateIndex,
-    point: gate.point,
-    share: gate.share,
-    main: !seaWins && gate.gateIndex === main!.gateIndex
-  }));
-  if (seaWins) shares.push({ gateIndex: -1, point: mainPoint, share: sea!.share, main: true });
+  const shares: CommerceGateShare[] = located.map(gate =>
+    gateShare(gate, !seaWins && gate.gateIndex === main!.gateIndex)
+  );
+  if (seaWins) shares.push(seaShare(mainPoint, sea!.share, sea!.profile));
 
   return {
     mainPoint,
@@ -230,6 +237,7 @@ function locateGates(input: ApproachCommerceInput): LocatedGate[] {
       approachId: road.approachId,
       point: gate.point,
       gateIndex,
+      roadIndex: imported.sourceIndex,
       share: profile.share,
       throughShare: profile.throughShare,
       ...(profile.axisPartner ? { axisPartner: profile.axisPartner } : {}),
@@ -275,29 +283,62 @@ function busierEnd(a: LocatedGate, b: LocatedGate): LocatedGate {
   return a.approachId < b.approachId ? a : b;
 }
 
+function gateShare(gate: LocatedGate, main: boolean): CommerceGateShare {
+  return {
+    gateIndex: gate.gateIndex,
+    point: gate.point,
+    share: gate.share,
+    main,
+    inboundShare: gate.profile.inboundShare,
+    cargo: gate.profile.cargo,
+    cargoValue: gate.profile.cargoValue,
+    roadIndex: gate.roadIndex
+  };
+}
+
+function seaShare(point: Point, share: number, profile: ApproachProfile): CommerceGateShare {
+  return {
+    gateIndex: -1,
+    point,
+    share,
+    main: true,
+    inboundShare: profile.inboundShare,
+    cargo: profile.cargo,
+    cargoValue: profile.cargoValue
+  };
+}
+
 /**
- * Descriptor index of the land main gate (§6.2). Null when no profile resolves,
- * or when the sea landing is the main gate and there is no land approach to host an inn.
+ * Every located gate, including a sea landing (`gateIndex` -1, no `roadIndex`).
+ * Land gates sit on synthetic points off the plaza so the resolver can run without the town mesh.
  */
-export function mainCommerceRoadIndex(roads: readonly ApproachCommerceRoad[], port: boolean): number | null {
+export function commerceGateShares(roads: readonly ApproachCommerceRoad[], port: boolean): CommerceGateShare[] {
   const importedRoads = roads.map((_, index) => ({ sourceIndex: index }));
   const gates: ApproachCommerceGate[] = [];
   for (let index = 0; index < roads.length; index++) {
     const road = roads[index];
     if (!road.approachId || !road.approachProfile || road.group === "searoutes") continue;
-    // Synthetic points stay off the plaza so a lone gate is not rejected as coincident.
     gates.push({ point: [(index + 1) * 20, 0], roadIndex: index, water: false });
   }
-  const plan = resolveApproachCommerce({
-    roads,
-    importedRoads,
-    gates,
-    plaza: [0, 0],
-    landing: [0, 40],
-    port,
-    extentMeters: 600
-  });
-  const main = plan?.shares.find(share => share.main);
-  if (!main || main.gateIndex < 0) return null;
-  return gates[main.gateIndex]?.roadIndex ?? null;
+  return (
+    resolveApproachCommerce({
+      roads,
+      importedRoads,
+      gates,
+      plaza: [0, 0],
+      landing: [0, 40],
+      port,
+      extentMeters: 600
+    })?.shares ?? []
+  );
+}
+
+/**
+ * Descriptor index of the land main gate (§6.2). Null when no profile resolves,
+ * or when the sea landing is the main gate and there is no land approach to host an inn.
+ */
+export function mainCommerceRoadIndex(roads: readonly ApproachCommerceRoad[], port: boolean): number | null {
+  const main = commerceGateShares(roads, port).find(share => share.main);
+  if (!main || main.gateIndex < 0 || main.roadIndex == null) return null;
+  return main.roadIndex;
 }

@@ -1,16 +1,17 @@
 # 門ごとの物流に応じた商業区・職人区・門前施設の配置 (Approach Commerce Quarters) 設計
 
-2026-10-17 設計。C0・C1・C2 実装済み。
+2026-10-17 設計。C0・C1・C2・C3 実装済み。
 
 ## 状態
 
-- 実装は §9 の段階計画に従う。C0 と C1 と C2 は実装済み(2026-11-01)。次は C3。
+- 実装は §9 の段階計画に従う。C0 と C1 と C2 と C3 は実装済み(2026-11-01)。次は C4。
 - C0: 算出は `src/services/approachProfile.ts` の `approachProfiles()` に一本化し、descriptor(`burgApproachProfiles` → `roads[].approachProfile`)と `observe/gates`(各門の `profile`、`axisPartner`、`wagonsPerYear`)が同じ関数を呼ぶ。軸の判定のため、台帳の通過に「同じ町で抜けた先の門」を `through.partners` として記録する(記録のみ)。`CARGO_CLASSES` は同じファイルへ移した。
   - `share` は全経路(陸・川・海・道の外)の積載枠の比で、O4 の `approachTraffic.share`(陸の道路のみ、通過は荷馬車数)とは別の値。O4 はそのまま残す。
   - `wagonsPerYear` は減衰累計 S から年流量 S × (1 − 0.7) を出し、`WAGON_CARGO_SLOTS` = 51 で割る。
   - 共有の渡河(`crossing:<c>`)の道路には台帳の行がないため、`approachProfile` を載せない。
   - `generateCity` は `approachCommerce` が on のときだけ `approachProfile` を残す。off と未設定では生成前に取り除く。
 - C2: `approachCommerce` が on で陸の主門が決まるとき、その門外に街道宿を 1 軒置く。`stableSpaces` は主門の `wagonsPerYear` を四捨五入した値で、中庭面積は既存の `courtAreaM2`。短辺が 16 m 未満の中庭は入口と出口を分け、長辺も 8 m 未満、または台数が 0、主門が海のみのときは置かず、経済モデルの従来配置に戻る。off と未設定は `busiestGroup` のまま。隊商宿は残す。
+- C3: `approachCommerce` が on のとき、家畜が 0.2 以上の陸門の外に家畜市、穀物が主の陸門の内側に穀物市と穀倉、嵩物が 0.2 以上の門へ既存の木材・石・石灰・鍛冶のギルド置き場を寄せる。生鮮は広場に小売市場を 1 つ。高価品は市場通りの中心寄りに隊商宿を置く。職人は嵩物門・流出門・下流に寄り、同職は隣り合う。off と未設定は従来の無作為と既存の置き場のまま。ハーンの呼称と文化別の宿の位置は C4。
 - 前提: [approach-traffic-observatory.md](approach-traffic-observatory.md)(出入り口台帳 `approachTraffic`、観測 API、CE プローブ、O4 の `approachGrowthSource`)。
 - 調査用に追加した API: `GET /api/sim/channels/:id/observe/goods`(品目カタログと貨物区分)と `observe/gates[?burg=b]`(門ごとの占有率・流入比・通過比・平均積載・貨物区分の積載枠と価値)。実装は `scripts/lib/observeViews.mts` の `goods()` / `gates()`。
 - 計測の修正(§4.1): 市場内の出荷を経路付きで記録、台帳に品目別の価値 `goodsValue`。`npm run observe -- run` は 1 年ずつ進めるようにした(大きな地図で HTTP がタイムアウトしたため)。

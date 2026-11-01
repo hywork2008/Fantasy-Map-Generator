@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ApproachProfile } from "../../services/approachProfile";
+import type { BurgSiteEconomy, GuildDomain, SiteGuild } from "../types/contracts/burgSiteEconomy";
 import type { Cell, Point } from "../types/geometry";
 import {
   type ApproachCommerceRoad,
@@ -377,3 +378,130 @@ function merchantStreetGap(seed: string): { on: number; off: number } {
     on: mean(new Map(on.wards.map(ward => [ward.cellId, ward.kind])))
   };
 }
+
+function guild(domain: GuildDomain, practitioners: number): SiteGuild {
+  return { domain, status: "chapter", practitioners, prestige: 0.2, foundedYear: 1200 };
+}
+
+function craftEconomy(guilds: SiteGuild[]): BurgSiteEconomy {
+  return {
+    version: 1,
+    year: 1300,
+    commerce: { rank: 0, marketCenter: false, merchantHouse: null, mint: false, caravanArrivalRank: 0 },
+    guilds,
+    storage: [],
+    facilities: [],
+    tradePartners: []
+  };
+}
+
+/** Absorbers for merchant, market, slum, patriciate, and administration, plus one far cemetery cell. */
+function craftGrid(special: Cell[]): Cell[] {
+  const plaza = square(0, [0, 0]);
+  const near = [
+    [18, 0],
+    [0, 18],
+    [-18, 0],
+    [0, -18],
+    [36, 16],
+    [-16, 28]
+  ].map((point, index) => square(1 + index, point as Point));
+  const street = [50, 90, 130, 170, 210, 250].map((x, index) => square(10 + index, [x, 0]));
+  const far = [800, 1000, 1200, 1400, 1600].map((y, index) => square(50 + index, [0, y]));
+  const cemetery = square(90, [0, 4000]);
+  return [plaza, ...near, ...street, ...far, cemetery, ...special];
+}
+
+function touch(a: Cell, b: Cell): void {
+  a.neighbors.push(b.id);
+  b.neighbors.push(a.id);
+}
+
+describe("assignWards craftsman cargo", () => {
+  const east = { point: [400, 0] as Point, borderIndex: 0, water: false, roadIndex: 0 };
+  const west = { point: [-400, 0] as Point, borderIndex: 1, water: false, roadIndex: 1 };
+  const commerce = {
+    roads: [
+      road("east", "roads", profile({ share: 0.6, inboundShare: 0.8, cargo: { bulk: 0.5 } })),
+      road("west", "roads", profile({ share: 0.3, inboundShare: 0.1, cargo: { bulk: 0.05, manufactured: 0.2 } }))
+    ],
+    importedRoads: [{ sourceIndex: 0 }, { sourceIndex: 1 }],
+    port: false,
+    extentMeters: 600
+  };
+
+  it("puts smiths by the bulk gate, cloth by the export gate, and clusters the same craft", () => {
+    const smith = square(40, [340, 70]);
+    const next = square(41, [340, 90]);
+    const other = square(42, [300, 70]);
+    const cloth = square(43, [-340, 40]);
+    touch(smith, next);
+    const cells = craftGrid([smith, next, other, cloth]);
+    const result = assignWards(
+      wardInput("c3-craft-0", cells, {
+        gates: [east, west],
+        economy: craftEconomy([guild("metallurgy", 10), guild("textiles", 10)]),
+        commerce
+      })
+    );
+    const order = result.assignmentOrder;
+    const row = (id: number) => order.find(item => item.cellId === id);
+    expect(row(smith.id)?.craftDomain).toBe("metallurgy");
+    expect(row(next.id)?.craftDomain).toBe("metallurgy");
+    expect(row(cloth.id)?.craftDomain).toBe("textiles");
+    expect(order.find(item => item.craftDomain === "metallurgy")?.cellId).toBe(smith.id);
+    expect(order.find(item => item.craftDomain === "textiles")?.cellId).toBe(cloth.id);
+    expect(order.findIndex(item => item.cellId === next.id)).toBeLessThan(
+      order.findIndex(item => item.cellId === other.id)
+    );
+  });
+
+  it("keeps the previous wards when commerce is on but the craft gates have no profile", () => {
+    const cells = craftGrid([square(40, [340, 70]), square(41, [300, 70])]);
+    const economy = craftEconomy([guild("metallurgy", 10)]);
+    const gates = [east];
+    const base = wardInput("c3-craft-off", cells, { gates, economy });
+    const on = assignWards({
+      ...base,
+      commerce: {
+        roads: [road("east", "roads")],
+        importedRoads: [{ sourceIndex: 0 }],
+        port: false,
+        extentMeters: 600
+      }
+    });
+    expect(assignWards(base).wards).toEqual(on.wards);
+    expect(on.approachCommerce).toBeUndefined();
+  });
+
+  it("seats tanners downstream, and leaves them random when the town has no river", () => {
+    const downClose = square(30, [350, 10]);
+    const upClose = square(31, [-180, 10]);
+    const downFar = square(32, [350, 80]);
+    const cells = craftGrid([downClose, upClose, downFar]);
+    const gates = [{ point: [0, 500] as Point, borderIndex: 0, water: false, roadIndex: 0 }];
+    const economy = craftEconomy([guild("leather", 12)]);
+    const commerce = {
+      roads: [road("north", "roads", profile({ share: 0.5, inboundShare: 0.5, cargo: { provisions: 0.4 } }))],
+      importedRoads: [{ sourceIndex: 0 }],
+      port: false,
+      extentMeters: 600
+    };
+    const withRiver = assignWards(
+      wardInput("c3-leather", cells, {
+        gates,
+        economy,
+        commerce,
+        rivers: [
+          [
+            [-200, 0],
+            [400, 0]
+          ]
+        ]
+      })
+    );
+    expect(withRiver.assignmentOrder.find(item => item.craftDomain === "leather")?.cellId).toBe(downClose.id);
+    const dry = assignWards(wardInput("c3-leather", cells, { gates, economy, commerce }));
+    expect(dry.assignmentOrder.find(item => item.craftDomain === "leather")?.cellId).not.toBe(downClose.id);
+  });
+});
