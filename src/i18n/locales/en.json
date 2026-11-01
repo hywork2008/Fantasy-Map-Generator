@@ -2095,7 +2095,7 @@
     "hayTrade_marketShortfall": "Market buys",
     "hayTrade_farmsFirst": "Farm to farm first",
     "hayPayment": "Hay payment",
-    "hayPaymentTip": "How a market pays for the hay it buys at the cut. On credit: it owes the farms and pays them as the Fodder sells, as it does for grain. Cash at the cut: it pays at once from its cash, as far as it holds, and that cash sits in the market until the next cut.",
+    "hayPaymentTip": "How a market pays for the hay it takes at the cut. On credit: it sells the farms' hay for them and pays them what it fetches, as it sells. Cash at the cut: it buys outright from its cash, as far as it holds, and keeps what the hay later sells for.",
     "hayPayment_onCredit": "On credit",
     "hayPayment_cash": "Cash at the cut"
   },

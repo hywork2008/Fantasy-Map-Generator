@@ -192,12 +192,16 @@ export function harvestLivestockForage(): void {
     if (hayTrade === "farmsFirst")
       tradeHayBetweenFarms(table, list, short, getFodderClearingPrice(market, stock.stock) * 0.8);
     // The market buys the grass its herds will eat: what its farms still lack for their winter
-    // reserves, or a year's sales if larger, above its stock. Sales alone shrank year by year, since
-    // a market short of stock sold less and then bought less (docs/analytics/hay-surplus-20261031.md).
+    // reserves and can pay for before the next cut, or a year's sales if larger, above its stock.
+    // Sales alone shrank year by year, since a market short of stock sold less and then bought less
+    // (docs/analytics/hay-surplus-20261031.md); the farms' whole shortfall bought hay they could not
+    // afford, which lay in stock at the floor price (approach-commerce-readiness-20261101.md §7).
     const shortLots = short.reduce((sum, entry) => sum + entry.kg, 0) / FODDER_DM_KG_PER_LOT;
+    const seasonLots = getFodderSeasonDemandLots(market, getFodderClearingPrice(market, stock.stock));
     const wantedLots = Math.max(
       0,
-      Math.max(ledger.fodderAnnualUseLots * FODDER_STOCK_YEARS, shortLots) - Math.max(0, stock.stock)
+      Math.max(ledger.fodderAnnualUseLots * FODDER_STOCK_YEARS, Math.min(shortLots, seasonLots)) -
+        Math.max(0, stock.stock)
     );
     const offeredKg = list.reduce((sum, offer) => sum + offer.kg, 0);
     if (!(offeredKg > 0)) continue;
@@ -208,13 +212,14 @@ export function harvestLivestockForage(): void {
     // a fraction of it (docs/analytics/hay-trade-modes-20261101.md §3).
     const price = getFodderClearingPrice(market, stock.stock + totalKg / FODDER_DM_KG_PER_LOT) * 0.8;
     if (!treasury) continue;
-    // On credit the farms are paid as the hay sells, so their cash does not sit in the market until
-    // the next cut (docs/analytics/hay-trade-modes-20261101.md §13); with cash, only what it holds.
+    // On credit the market sells the farms' hay for them and pays them what it fetches, as it sells;
+    // a price fixed at the cut left the gap to the dearer winter price in the treasury
+    // (approach-commerce-readiness-20261101.md §7). With cash it buys outright, as far as it holds.
     const onCredit = hayPayment === "onCredit";
     const value = (totalKg / FODDER_DM_KG_PER_LOT) * price;
-    const bill = Math.floor((onCredit ? value : Math.min(Math.max(0, treasury.balance), value)) * 100) / 100;
-    if (!(bill > 0)) continue;
-    const boughtKg = (bill / price) * FODDER_DM_KG_PER_LOT;
+    const bill = onCredit ? 0 : Math.floor(Math.min(Math.max(0, treasury.balance), value) * 100) / 100;
+    if (!onCredit && !(bill > 0)) continue;
+    const boughtKg = onCredit ? totalKg : (bill / price) * FODDER_DM_KG_PER_LOT;
     for (const offer of list) {
       const row = table[offer.cell];
       const kg = (boughtKg * offer.kg) / offeredKg;
@@ -225,7 +230,8 @@ export function harvestLivestockForage(): void {
       row.soldKg += kg;
       row.revenue += (bill * offer.kg) / offeredKg;
     }
-    if (onCredit) treasury.ruralHayPayable = rn((treasury.ruralHayPayable ?? 0) + bill, 2);
+    if (onCredit)
+      treasury.ruralHayConsignedLots = (treasury.ruralHayConsignedLots ?? 0) + boughtKg / FODDER_DM_KG_PER_LOT;
     else {
       treasury.balance = rn(treasury.balance - bill, 2);
       creditRuralHouseholdWealth(market, bill);
@@ -335,8 +341,21 @@ function buyFeed(market: Market, entries: { cell: number; kg: number }[], budget
   const kg = (paid / stock.price) * FODDER_DM_KG_PER_LOT;
   stock.stock = Math.max(0, stock.stock - kg / FODDER_DM_KG_PER_LOT);
   market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
-  market.marketTreasury.balance = rn(market.marketTreasury.balance + paid, 2);
-  repayRuralHay(market, paid);
+  const treasury = market.marketTreasury;
+  treasury.balance = rn(treasury.balance + paid, 2);
+  // The farms' consigned hay sells first, and what it fetches is theirs.
+  const soldLots = kg / FODDER_DM_KG_PER_LOT;
+  const consigned = Math.min(treasury.ruralHayConsignedLots ?? 0, stock.stock + soldLots);
+  const farmLots = Math.min(soldLots, consigned);
+  let proceeds = 0;
+  if (farmLots > 0) {
+    treasury.ruralHayConsignedLots = consigned - farmLots;
+    proceeds = rn((paid * farmLots) / soldLots, 2);
+    treasury.balance = rn(treasury.balance - proceeds, 2);
+    creditRuralHouseholdWealth(market, proceeds);
+  }
+  // Hay a save bought on credit at a fixed price is still owed.
+  repayRuralHay(market, rn(paid - proceeds, 2));
   for (const entry of entries) {
     const row = table[entry.cell];
     row.hayKg += (kg * entry.kg) / need;
