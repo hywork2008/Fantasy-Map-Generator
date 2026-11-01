@@ -46,12 +46,16 @@ for (const [quality, definition] of [["low", model], ["high", model.highDetail!]
     parts.push({ id: factory.id, role: factory.role, quality: factory.quality, metrics: collectModelMetrics(solo.group) });
     solo.dispose();
   }
-  rows.push({ quality, metrics: collectModelMetrics(assembly.group),
+  const otherParts = definition.parts?.().filter(part => part.role !== "chapter-house");
+  const remainder = otherParts ? definition.assembleParts!(otherParts) : undefined;
+  const unchangedArchitectureFingerprint = remainder ? fingerprint(remainder.group) : undefined;
+  remainder?.dispose();
+  rows.push({ quality, metrics: collectModelMetrics(assembly.group), unchangedArchitectureFingerprint,
     attributeBytes: [...buffers].reduce((sum, buffer) => sum + buffer.byteLength, 0),
     dimensions: new THREE.Box3().setFromObject(assembly.group).getSize(new THREE.Vector3()).toArray(),
     fingerprint: fingerprint(assembly.group), sourceParts: modelParts(assembly.group), parts });
   assembly.dispose();
 }
-const output = process.argv[2] ?? "docs/analytics/bv-salisbury-parts-p5-20261101.json";
+const output = process.argv[2] ?? "docs/analytics/bv-salisbury-chapter-high-20261101.json";
 await writeFile(output, JSON.stringify({ method: "World-space triangles and normals rounded to 1e-5, with winding and material settings, sorted independently of batching. Buffer bytes count unique CPU ArrayBuffers only; no GPU/FPS benchmark.", rows }, null, 2) + "\n");
 console.log(rows.map(({ quality, metrics, attributeBytes, fingerprint }) => ({ quality, metrics, attributeBytes, fingerprint })));

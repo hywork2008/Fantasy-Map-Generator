@@ -3,6 +3,7 @@ import { compactModel } from "../compactModel";
 import { createModelAssembly, type ModelPartFactory } from "../modelParts";
 import { ArchitectureKit, type LandmarkModel } from "./architectureKit";
 import { detailedLandmark, GothicDetailKit } from "./gothic/detailKit";
+import { addSalisburyChapterHouse } from "./gothic/salisburyChapterHouse";
 
 export const model: LandmarkModel = {
   author: "Codex GPT-6.1 Sol",
@@ -31,7 +32,14 @@ export const model: LandmarkModel = {
 const highDetail = detailedLandmark(model, () => assembleParts(parts("high")));
 model.highDetail = {
   ...highDetail,
-  note: `${highDetail.note} The octagonal chapter house retains the low-detail shell; its component quality is Low.`,
+  note: "Detailed exterior on the original fitted plan, with molded lancet surrounds, tracery, portal archivolts, roof seams and detailed tower and spire. The chapter house adds open masonry, recessed four-light glazing, stepped buttresses, a faceted roof, supporting shafts and ribs, and an estimated entrance passage to the cloister. The study is illustrative, not a measured reconstruction. Most interiors, carved narrative friezes and exact glass scenes are omitted.",
+  sources: [
+    ...model.sources,
+    {
+      title: "Gleeson White: chapter-house fabric and photographs (1898)",
+      url: "https://www.gutenberg.org/files/23668/23668-h/23668-h.htm#Page_71"
+    }
+  ],
   parts: () => parts("high")
 };
 
@@ -124,11 +132,12 @@ function parts(quality: "low" | "high"): readonly ModelPartFactory[] {
   return definitions.map(({ id, build }) => ({
     id: `salisbury:${id}`,
     role: id,
-    quality: id === "chapter-house" ? "low" : quality,
+    quality,
     author: DEFAULT_AUTHOR,
     create() {
       const kit = quality === "high" ? new GothicDetailKit("salisbury") : new ArchitectureKit("salisbury");
-      build(kit);
+      if (id === "chapter-house" && kit instanceof GothicDetailKit) addSalisburyChapterHouse(kit);
+      else build(kit);
       return kit.finish();
     }
   }));

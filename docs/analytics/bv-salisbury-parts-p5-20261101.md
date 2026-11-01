@@ -2,6 +2,8 @@
 
 2026-11-01
 
+追記：この記録は部品化直後の状態を示す。同日、未詳細化だった参事会室を実際にHigh化した。[制作と検証記録](bv-salisbury-chapter-high-20261101.md)を参照。以下の295,432三角形と部品Lowの記述は制作前の比較基準である。
+
 ## 実装
 
 Salisbury Cathedralの既存Low／Highを12部品の独立factoryへ分割した。部品IDは両品質で共通で、全体の原点と配置を保持する。部品の列挙だけでは形状を生成せず、単体表示では選んだfactoryのみを生成する。
@@ -57,7 +59,7 @@ Highの主な三角形数は西正面100,664、身廊・内陣58,272、中央塔
 - 変更した建築・型・関連テスト4ファイルのBiome check、BV mainのformat、`git diff --check`が成功。
 - 独立したChromiumで実BVの全体Low／High、回廊Low／High、参事会室、品質変更時の部品維持、全体への復帰、カタログ再選択時のリセットを確認。表示値はNode計測と一致し、ページエラーなし。
 
-再計測は`node --import tsx scripts/profileSalisburyParts.mts`。部品別の値を[計測JSON](bv-salisbury-parts-p5-20261101.json)へ保存する。台帳のメッシュ数は各factoryの生成・内部結合後、全体の材質結合前の値である。
+当時の部品別の値は[計測JSON](bv-salisbury-parts-p5-20261101.json)に保存した。`node --import tsx scripts/profileSalisburyParts.mts`は参事会室High化後の現行値を新しいJSONへ出力する。台帳のメッシュ数は各factoryの生成・内部結合後、全体の材質結合前の値である。
 
 - [High全体](bv-salisbury-high-p5-20261101.png)
 - [High回廊単体](bv-salisbury-cloister-high-p5-20261101.png)
