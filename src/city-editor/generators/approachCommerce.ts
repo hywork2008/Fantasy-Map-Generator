@@ -274,3 +274,30 @@ function busierEnd(a: LocatedGate, b: LocatedGate): LocatedGate {
   if (a.share !== b.share) return a.share > b.share ? a : b;
   return a.approachId < b.approachId ? a : b;
 }
+
+/**
+ * Descriptor index of the land main gate (§6.2). Null when no profile resolves,
+ * or when the sea landing is the main gate and there is no land approach to host an inn.
+ */
+export function mainCommerceRoadIndex(roads: readonly ApproachCommerceRoad[], port: boolean): number | null {
+  const importedRoads = roads.map((_, index) => ({ sourceIndex: index }));
+  const gates: ApproachCommerceGate[] = [];
+  for (let index = 0; index < roads.length; index++) {
+    const road = roads[index];
+    if (!road.approachId || !road.approachProfile || road.group === "searoutes") continue;
+    // Synthetic points stay off the plaza so a lone gate is not rejected as coincident.
+    gates.push({ point: [(index + 1) * 20, 0], roadIndex: index, water: false });
+  }
+  const plan = resolveApproachCommerce({
+    roads,
+    importedRoads,
+    gates,
+    plaza: [0, 0],
+    landing: [0, 40],
+    port,
+    extentMeters: 600
+  });
+  const main = plan?.shares.find(share => share.main);
+  if (!main || main.gateIndex < 0) return null;
+  return gates[main.gateIndex]?.roadIndex ?? null;
+}

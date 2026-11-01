@@ -1,6 +1,7 @@
 import type { SiteLodging } from "../types/contracts/burgSiteEconomy";
 import type { CityDocument, EdgeFeatureGroup, Id, Point } from "../types/document";
 import { externalGateRoads } from "./approachBeyond";
+import { mainCommerceRoadIndex } from "./approachCommerce";
 import { featureGroupVertices } from "./features";
 import { nearestOnPolyline } from "./geom";
 import type { GuildSiteView } from "./guildFacilityPlacement";
@@ -9,6 +10,8 @@ import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
 
 /**
  * Wayside inns and caravanserais sit outside the gate of the busiest road.
+ * With approach commerce on, one wayside inn sits outside the land main gate
+ * and its court follows that gate's wagon count (approach-commerce-quarters.md §6.2).
  * The open court is 12 m² per stall, and the rooms ring that court.
  */
 
@@ -22,6 +25,8 @@ export interface GateInn {
   footprint: Point[];
   court: Point[];
   entrance: [Point, Point];
+  /** Outer opening of a through-yard. A turning court keeps the single road-side door. */
+  exit?: [Point, Point];
   stalls: Array<[Point, Point]>;
 }
 
@@ -35,6 +40,71 @@ const NAME: Record<SiteLodging["kind"], string> = { inn: "Wayside Inn", caravans
 
 export function courtAreaM2(stableSpaces: number): number {
   return Math.round(Math.min(MAX_COURT_M2, Math.max(MIN_COURT_M2, Math.max(0, stableSpaces) * STABLE_COURT_M2)));
+}
+
+/** Full court sides. `across` is the depth away from the road; the 1.45 ratio matches placement. */
+export function courtBox(stableSpaces: number): { area: number; along: number; across: number } {
+  const area = courtAreaM2(stableSpaces);
+  const across = Math.sqrt(area / 1.45);
+  return { area, along: across > 0 ? area / across : 0, across };
+}
+
+/** A wagon needs about this radius to turn, and a passage at least this long to drive through. */
+export const WAGON_TURN_RADIUS_M = 8;
+
+export type CourtAdmission = "turn" | "through";
+
+/** Stall count for a commerce inn. Zero wagons, and any non-finite count, place nothing. */
+export function stableSpacesFromWagons(wagonsPerYear: number): number {
+  if (!Number.isFinite(wagonsPerYear) || !(wagonsPerYear > 0)) return 0;
+  return Math.round(wagonsPerYear);
+}
+
+/**
+ * How a commerce court admits wagons. A turning court needs 16 m on the short side.
+ * Otherwise a through-yard needs one side of at least 8 m, with a separate exit.
+ * Null omits the court. Economy inns do not consult this.
+ */
+export function courtAdmission(stableSpaces: number): CourtAdmission | null {
+  if (!(stableSpaces > 0)) return null;
+  const box = courtBox(stableSpaces);
+  const short = Math.min(box.along, box.across);
+  const long = Math.max(box.along, box.across);
+  if (short >= WAGON_TURN_RADIUS_M * 2) return "turn";
+  if (long >= WAGON_TURN_RADIUS_M) return "through";
+  return null;
+}
+
+export interface CommerceInnRequest {
+  group: EdgeFeatureGroup;
+  lodging: SiteLodging;
+  admission: CourtAdmission;
+}
+
+/**
+ * One wayside inn outside the land main gate when commerce quarters are on.
+ * Null keeps today's busiest-road lodging, including a sea main gate and a town
+ * whose wagon count rounds to zero.
+ */
+export function commerceInnRequest(document: CityDocument): CommerceInnRequest | null {
+  const settings = document.fabric?.generation?.settings;
+  if (settings?.approachCommerce !== "on") return null;
+  const roads = settings.descriptor?.roads ?? [];
+  const port = settings.descriptor?.burg.port === true || settings.config?.features.port === true;
+  const index = mainCommerceRoadIndex(roads, port);
+  if (index == null) return null;
+  const profile = roads[index]?.approachProfile;
+  if (!profile) return null;
+  const stableSpaces = stableSpacesFromWagons(profile.wagonsPerYear);
+  const admission = courtAdmission(stableSpaces);
+  if (!admission) return null;
+  const group = externalGateRoads(document).find(road => road.group.sourceRoad?.index === index)?.group;
+  if (!group) return null;
+  return {
+    group,
+    lodging: { kind: "inn", count: 1, scale: 1, stableSpaces },
+    admission
+  };
 }
 
 function hypot(a: Point, b: Point): number {
@@ -191,6 +261,21 @@ function busiestGroup(document: CityDocument): EdgeFeatureGroup | null {
   return best?.group ?? null;
 }
 
+function openings(
+  footprint: Point[],
+  court: Point[],
+  admission?: CourtAdmission
+): { entrance: [Point, Point]; exit?: [Point, Point] } {
+  // Through-yard: townward short end in, outer short end out. +along is away from town.
+  if (admission === "through") {
+    return {
+      entrance: [midpoint(footprint[0], footprint[3]), midpoint(court[0], court[3])],
+      exit: [midpoint(footprint[1], footprint[2]), midpoint(court[1], court[2])]
+    };
+  }
+  return { entrance: [midpoint(footprint[0], footprint[1]), midpoint(court[0], court[1])] };
+}
+
 function placeOne(
   site: GuildSiteView,
   lodging: SiteLodging,
@@ -200,12 +285,12 @@ function placeOne(
   year: number,
   index: number,
   clearance: number,
-  reach: number
+  reach: number,
+  admission?: CourtAdmission
 ): (GateInn & { station: number; span: number }) | null {
-  const area = courtAreaM2(lodging.stableSpaces);
-  const depth = Math.sqrt(area / 1.45);
-  const courtAlong = area / depth / 2;
-  const courtAcross = depth / 2;
+  const box = courtBox(lodging.stableSpaces);
+  const courtAlong = box.along / 2;
+  const courtAcross = box.across / 2;
   const ring = RING[lodging.kind];
   const halfAlong = courtAlong + ring;
   const halfAcross = courtAcross + ring;
@@ -231,7 +316,7 @@ function placeOne(
         year,
         footprint,
         court,
-        entrance: [midpoint(footprint[0], footprint[1]), midpoint(court[0], court[1])],
+        ...openings(footprint, court, admission),
         stalls: stallMarks(court, lodging.stableSpaces),
         station: start + halfAcross + 16 + extra,
         span: halfAlong * 2
@@ -241,10 +326,15 @@ function placeOne(
   return null;
 }
 
-export function placeGateInns(site: GuildSiteView, lodging: readonly SiteLodging[], year: number): GateInn[] {
+export function placeGateInns(
+  site: GuildSiteView,
+  lodging: readonly SiteLodging[],
+  year: number,
+  target?: { group: EdgeFeatureGroup; admission: CourtAdmission }
+): GateInn[] {
   const wanted = lodging.filter(item => item.count > 0);
   if (!wanted.length) return [];
-  const group = busiestGroup(site.document);
+  const group = target?.group ?? busiestGroup(site.document);
   if (!group) return [];
   const points = approachPoints(site.document, group, site);
   if (points.length < 2) return [];
@@ -257,7 +347,9 @@ export function placeGateInns(site: GuildSiteView, lodging: readonly SiteLodging
   const clearance = site.approachClearance(group.id);
   const reach = site.outworkReach(group.id);
   ordered.forEach((item, index) => {
-    const inn = placeOne(site, item, points, start, roadHalf, year, index, clearance, reach);
+    // The through-yard rule is for the commerce inn. A caravanserai keeps one road-side door.
+    const admission = target && item.kind === "inn" ? target.admission : undefined;
+    const inn = placeOne(site, item, points, start, roadHalf, year, index, clearance, reach, admission);
     if (!inn) return;
     site.claim(inn.footprint);
     placed.push(inn);

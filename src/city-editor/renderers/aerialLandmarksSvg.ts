@@ -704,6 +704,15 @@ function renderGateInn(inn: GateInn, options: PickOptions): SVGElement {
       "stroke-width": "1.1"
     })
   );
+  if (inn.exit)
+    g.appendChild(
+      el("path", {
+        d: line(inn.exit),
+        fill: "none",
+        stroke: "#8a7560",
+        "stroke-width": "1.1"
+      })
+    );
   for (const stall of inn.stalls)
     g.appendChild(
       el("path", {

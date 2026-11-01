@@ -5,6 +5,7 @@ import {
   type ApproachCommerceRoad,
   gateWardQuota,
   generationDescriptor,
+  mainCommerceRoadIndex,
   marketFunnelDisks,
   marketStreetScore,
   marketStreetWidthMeters,
@@ -69,6 +70,26 @@ describe("approach commerce plan", () => {
     ]);
     expect(plan?.marketEnd).toBe("gate");
     expect(plan?.shares.find(share => share.gateIndex === 2)?.main).toBe(false);
+  });
+
+  it("returns the land main-gate road and skips a sea main gate", () => {
+    const axis = [
+      road("west", "roads", profile({ share: 0.3, throughShare: 0.8, axisPartner: "east" })),
+      road("east", "roads", profile({ share: 0.34, throughShare: 0.75, axisPartner: "west" })),
+      road("north", "roads", profile({ share: 0.36, throughShare: 0 }))
+    ];
+    // East is the busier end of the axis, so the quieter dead-end is not the inn's road.
+    expect(mainCommerceRoadIndex(axis, false)).toBe(1);
+    const gapped = [
+      road("bare", "roads"),
+      road("sea", "searoutes", profile({ share: 0.1 })),
+      road("land", "roads", profile({ share: 0.4 }))
+    ];
+    expect(mainCommerceRoadIndex(gapped, false)).toBe(2);
+    const sea = [road("inland", "roads", profile({ share: 0.2 })), road("sea", "searoutes", profile({ share: 0.55 }))];
+    expect(mainCommerceRoadIndex(sea, true)).toBeNull();
+    expect(mainCommerceRoadIndex(sea, false)).toBe(0);
+    expect(mainCommerceRoadIndex([], false)).toBeNull();
   });
 
   it("treats the landing as the main gate when the sea share beats every land gate", () => {

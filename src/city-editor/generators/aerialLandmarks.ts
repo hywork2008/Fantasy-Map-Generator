@@ -34,7 +34,7 @@ import { facilityStorage, HALL_DOMAINS, YARD_DOMAINS } from "./facilitySettings"
 import { featureGroupVertices } from "./features";
 import { ferryLandingReserves } from "./ferryLanding";
 import { circuitRing, gateTownCircuit, outerTownCircuit, polygonOverlaps, townGates } from "./fortifications";
-import { type GateInn, placeGateInns } from "./gateInnPlacement";
+import { commerceInnRequest, type GateInn, placeGateInns } from "./gateInnPlacement";
 import {
   bufferPolygon,
   cleanRing,
@@ -1192,7 +1192,14 @@ export function buildAerialLandmarkPlan(
   for (const kind of ["inn", "caravanserai"] as const) {
     for (let i = 0; i < (counts[kind] ?? 0); i++) lodging.push({ kind, count: 1, scale: 1, stableSpaces: 8 });
   }
-  const fp = `${seed}:${input.buildings.length}:${input.lanes.length}:${document.fabric?.seed ?? document.generationSeed ?? ""}:${siteEconomyKey(economy)}:${JSON.stringify(counts)}:${roadTrafficKey(document)}:${prevailingWindKey(document)}:${JSON.stringify(input.waterUsers ?? [])}`;
+  // One commerce inn outside the land main gate replaces economy wayside inns. Caravanserais stay.
+  // Off, a sea main gate, or zero wagons keeps the busiest-road placement.
+  const commerceInn = commerceInnRequest(document);
+  const placedLodging = commerceInn ? [commerceInn.lodging, ...lodging.filter(item => item.kind !== "inn")] : lodging;
+  const commerceKey = commerceInn
+    ? `${commerceInn.lodging.stableSpaces}:${commerceInn.admission}:${commerceInn.group.id}`
+    : "";
+  const fp = `${seed}:${input.buildings.length}:${input.lanes.length}:${document.fabric?.seed ?? document.generationSeed ?? ""}:${siteEconomyKey(economy)}:${JSON.stringify(counts)}:${roadTrafficKey(document)}:${prevailingWindKey(document)}:${JSON.stringify(input.waterUsers ?? [])}:${commerceKey}`;
   const cached = aerialPlanCache.get(document);
   if (cached && cached.fingerprint === fp) return cached.plan;
 
@@ -1223,7 +1230,7 @@ export function buildAerialLandmarkPlan(
     guildWorks.yards,
     economy?.year ?? 0
   );
-  const gateInns = placeGateInns(site, lodging, economy?.year ?? 0);
+  const gateInns = placeGateInns(site, placedLodging, economy?.year ?? 0, commerceInn ?? undefined);
   const monasteries = placeMonasteries(site, input, makeRng(`${root}:monastery`));
   const gallows = placeGallows(site, input, makeRng(`${root}:gallows`));
   const windmills = placeWindmills(site, input, makeRng(`${root}:windmill`));
