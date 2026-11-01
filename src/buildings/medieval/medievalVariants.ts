@@ -105,7 +105,9 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
           publicGranaries.includes(model) ||
           cloth.includes(model) ||
           guilds.includes(model) ||
-          stoneYards.includes(model)
+          stoneYards.includes(model) ||
+          kilns.includes(model) ||
+          bleaching.includes(model)
             ? [legacy]
             : [])
         ]
