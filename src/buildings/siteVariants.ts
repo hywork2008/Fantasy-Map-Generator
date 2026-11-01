@@ -93,22 +93,24 @@ export const FRIARY_VARIANTS = [
 /** Every generated religious-house programme uses the same BV and CE assembly. */
 export const MONASTERY_VARIANTS = [
   ...FRIARY_VARIANTS,
-  ...(["low", "high"] as const).map(level => ({
-    id: variantId("monastery.abbey", level, DEFAULT_AUTHOR),
-    family: "monastery.abbey",
-    level,
-    author: DEFAULT_AUTHOR,
-    basedOn: [
-      variantId("tree.garden-parkland", "low", DEFAULT_AUTHOR),
-      variantId("well.medieval", "low", DEFAULT_AUTHOR)
-    ],
-    create: (
-      plan = monasteryPreviewPlan("abbey"),
-      elevation = 0,
-      bottom = elevation,
-      options: Parameters<typeof createMonastery>[3] = {}
-    ) => createMonastery(plan, elevation, bottom, { ...options, architectureQuality: level })
-  })),
+  ...(["abbey", "orthodoxMonastery"] as const).flatMap(kind =>
+    (["low", "high"] as const).map(level => ({
+      id: variantId(`monastery.${kind}`, level, DEFAULT_AUTHOR),
+      family: `monastery.${kind}`,
+      level,
+      author: DEFAULT_AUTHOR,
+      basedOn: [
+        variantId("tree.garden-parkland", "low", DEFAULT_AUTHOR),
+        variantId("well.medieval", "low", DEFAULT_AUTHOR)
+      ],
+      create: (
+        plan = monasteryPreviewPlan(kind),
+        elevation = 0,
+        bottom = elevation,
+        options: Parameters<typeof createMonastery>[3] = {}
+      ) => createMonastery(plan, elevation, bottom, { ...options, architectureQuality: level })
+    }))
+  ),
   ...(["abbey", "orthodoxMonastery"] as const).map(kind => ({
     ...single<Parameters<typeof createMonastery>>(
       `monastery.${kind}`,

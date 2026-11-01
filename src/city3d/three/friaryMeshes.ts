@@ -21,7 +21,7 @@ export function createTownMonasteries(
   const ranges: ModelPartRange[] = [];
   let vertexOffset = 0;
   for (const monastery of monasteries) {
-    const level = monastery.kind === "orthodoxMonastery" ? "default" : resolveModelQuality(quality, ["low", "high"]);
+    const level = resolveModelQuality(quality, ["low", "high"]);
     const friary = adopt(MONASTERY_VARIANTS, `monastery.${monastery.kind}`, level);
     markVariant(group, friary.id);
     const elevation = terrain?.foundationAt(monastery.precinct) ?? 0;

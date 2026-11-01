@@ -1,0 +1,676 @@
+{
+  "method": "Fixed BV variant geometry. Dimensions X/Y/Z metres. Unique CPU attribute/index ArrayBuffers exclude JS objects, transient allocations and GPU memory; no FPS benchmark.",
+  "rows": [
+    {
+      "id": "monastery.orthodoxMonastery@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 195,
+        "triangles": 3086,
+        "vertices": 2688,
+        "geometries": 40,
+        "materials": 40
+      },
+      "attributeBytes": 89856,
+      "dimensions": [
+        56.50000000000001,
+        16.974346753586172,
+        46.900000000000006
+      ],
+      "fingerprint": "2960c1188d26f1befdd52de94d65416fc9ade8423c84d41529bb457d4c0e62df",
+      "sourceParts": [
+        {
+          "id": "orthodox-monastery:court:0",
+          "role": "yard",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "orthodox-monastery:building:0",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 26,
+          "triangles": 304
+        },
+        {
+          "id": "orthodox-monastery:building:1",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 26,
+          "triangles": 304
+        },
+        {
+          "id": "orthodox-monastery:building:2",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 46,
+          "triangles": 544
+        },
+        {
+          "id": "orthodox-monastery:building:3",
+          "role": "range",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 22,
+          "triangles": 256
+        },
+        {
+          "id": "orthodox-monastery:building:4",
+          "role": "bell-tower",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 11,
+          "triangles": 124
+        },
+        {
+          "id": "orthodox-monastery:building:5",
+          "role": "church",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 8,
+          "triangles": 88
+        },
+        {
+          "id": "orthodox-monastery:building:6",
+          "role": "church",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 8,
+          "triangles": 88
+        },
+        {
+          "id": "orthodox-monastery:building:7",
+          "role": "dome",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 352
+        },
+        {
+          "id": "orthodox-monastery:building:8",
+          "role": "gatehouse",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 4,
+          "triangles": 40
+        },
+        {
+          "id": "orthodox-monastery:wall",
+          "role": "precinct-wall",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 60
+        },
+        {
+          "id": "orthodox-monastery:tree:0",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141
+        },
+        {
+          "id": "orthodox-monastery:tree:1",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141
+        },
+        {
+          "id": "orthodox-monastery:well",
+          "role": "well",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "well.medieval@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 28,
+          "triangles": 632
+        }
+      ],
+      "parts": [
+        {
+          "id": "orthodox-monastery:court:0",
+          "role": "yard",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:0",
+          "role": "range",
+          "quality": "low",
+          "metrics": {
+            "meshes": 26,
+            "triangles": 304,
+            "vertices": 72,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:1",
+          "role": "range",
+          "quality": "low",
+          "metrics": {
+            "meshes": 26,
+            "triangles": 304,
+            "vertices": 72,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:2",
+          "role": "range",
+          "quality": "low",
+          "metrics": {
+            "meshes": 46,
+            "triangles": 544,
+            "vertices": 72,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:3",
+          "role": "range",
+          "quality": "low",
+          "metrics": {
+            "meshes": 22,
+            "triangles": 256,
+            "vertices": 72,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:4",
+          "role": "bell-tower",
+          "quality": "low",
+          "metrics": {
+            "meshes": 11,
+            "triangles": 124,
+            "vertices": 36,
+            "geometries": 2,
+            "materials": 4
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:5",
+          "role": "church",
+          "quality": "low",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 88,
+            "vertices": 72,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:6",
+          "role": "church",
+          "quality": "low",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 88,
+            "vertices": 72,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:7",
+          "role": "dome",
+          "quality": "low",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 352,
+            "vertices": 274,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:8",
+          "role": "gatehouse",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 40,
+            "vertices": 72,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "orthodox-monastery:wall",
+          "role": "precinct-wall",
+          "quality": "low",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 60,
+            "vertices": 24,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "orthodox-monastery:tree:0",
+          "role": "vegetation",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 141,
+            "vertices": 390,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "orthodox-monastery:tree:1",
+          "role": "vegetation",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 141,
+            "vertices": 390,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "orthodox-monastery:well",
+          "role": "well",
+          "quality": "low",
+          "metrics": {
+            "meshes": 28,
+            "triangles": 632,
+            "vertices": 1034,
+            "geometries": 8,
+            "materials": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "monastery.orthodoxMonastery@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 14,
+        "triangles": 57329,
+        "vertices": 171987,
+        "geometries": 14,
+        "materials": 14
+      },
+      "attributeBytes": 4135680,
+      "dimensions": [
+        56.599998474121094,
+        16.974347680807114,
+        46.99999928474426
+      ],
+      "fingerprint": "fef5f025d8216388956053b14ed3e23c9238b2dbe26e2ca881ffae243cc83b24",
+      "sourceParts": [
+        {
+          "id": "orthodox-monastery:court:0",
+          "role": "yard",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "id": "orthodox-monastery:building:0",
+          "role": "range",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 234,
+          "triangles": 7472
+        },
+        {
+          "id": "orthodox-monastery:building:1",
+          "role": "range",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 191,
+          "triangles": 7396
+        },
+        {
+          "id": "orthodox-monastery:building:2",
+          "role": "range",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 201,
+          "triangles": 10964
+        },
+        {
+          "id": "orthodox-monastery:building:3",
+          "role": "range",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 222,
+          "triangles": 7122
+        },
+        {
+          "id": "orthodox-monastery:building:4",
+          "role": "bell-tower",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 595,
+          "triangles": 8360
+        },
+        {
+          "id": "orthodox-monastery:building:5",
+          "role": "church",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 127,
+          "triangles": 1717
+        },
+        {
+          "id": "orthodox-monastery:building:6",
+          "role": "church",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 126,
+          "triangles": 1700
+        },
+        {
+          "id": "orthodox-monastery:building:7",
+          "role": "dome",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 259,
+          "triangles": 8532
+        },
+        {
+          "id": "orthodox-monastery:building:8",
+          "role": "gatehouse",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 43,
+          "triangles": 1040
+        },
+        {
+          "id": "orthodox-monastery:wall",
+          "role": "precinct-wall",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 175,
+          "triangles": 2100
+        },
+        {
+          "id": "orthodox-monastery:tree:0",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141
+        },
+        {
+          "id": "orthodox-monastery:tree:1",
+          "role": "vegetation",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "tree.garden-parkland@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 2,
+          "triangles": 141
+        },
+        {
+          "id": "orthodox-monastery:well",
+          "role": "well",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "well.medieval@low#codex-gpt-6.1-sol"
+          ],
+          "meshes": 28,
+          "triangles": 632
+        }
+      ],
+      "parts": [
+        {
+          "id": "orthodox-monastery:court:0",
+          "role": "yard",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 12,
+            "vertices": 36,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:0",
+          "role": "range",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 7472,
+            "vertices": 22416,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:1",
+          "role": "range",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 7396,
+            "vertices": 22188,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:2",
+          "role": "range",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 10964,
+            "vertices": 32892,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:3",
+          "role": "range",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 7122,
+            "vertices": 21366,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:4",
+          "role": "bell-tower",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 8360,
+            "vertices": 25080,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:5",
+          "role": "church",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 1717,
+            "vertices": 5151,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:6",
+          "role": "church",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 1700,
+            "vertices": 5100,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:7",
+          "role": "dome",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 8532,
+            "vertices": 25596,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "orthodox-monastery:building:8",
+          "role": "gatehouse",
+          "quality": "high",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 1040,
+            "vertices": 3120,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "orthodox-monastery:wall",
+          "role": "precinct-wall",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 2100,
+            "vertices": 6300,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "orthodox-monastery:tree:0",
+          "role": "vegetation",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 141,
+            "vertices": 390,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "orthodox-monastery:tree:1",
+          "role": "vegetation",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 141,
+            "vertices": 390,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "orthodox-monastery:well",
+          "role": "well",
+          "quality": "low",
+          "metrics": {
+            "meshes": 28,
+            "triangles": 632,
+            "vertices": 1034,
+            "geometries": 8,
+            "materials": 6
+          }
+        }
+      ]
+    }
+  ],
+  "ce": [
+    {
+      "quality": "low",
+      "variants": [
+        "monastery.orthodoxMonastery@low#codex-gpt-6.1-sol",
+        "tree.garden-parkland@low#codex-gpt-6.1-sol",
+        "well.medieval@low#codex-gpt-6.1-sol"
+      ],
+      "metrics": {
+        "meshes": 1,
+        "triangles": 3086,
+        "vertices": 9258,
+        "geometries": 1,
+        "materials": 1
+      }
+    },
+    {
+      "quality": "standard",
+      "variants": [
+        "monastery.orthodoxMonastery@low#codex-gpt-6.1-sol",
+        "tree.garden-parkland@medium#codex-gpt-6.1-sol",
+        "well.medieval@low#codex-gpt-6.1-sol"
+      ],
+      "metrics": {
+        "meshes": 1,
+        "triangles": 6890,
+        "vertices": 20670,
+        "geometries": 1,
+        "materials": 1
+      }
+    },
+    {
+      "quality": "high",
+      "variants": [
+        "monastery.orthodoxMonastery@high#codex-gpt-6.1-sol",
+        "tree.garden-parkland@high#codex-gpt-6.1-sol",
+        "well.medieval@default#codex-gpt-6.1-sol"
+      ],
+      "metrics": {
+        "meshes": 1,
+        "triangles": 110951,
+        "vertices": 332853,
+        "geometries": 1,
+        "materials": 1
+      }
+    }
+  ]
+}
