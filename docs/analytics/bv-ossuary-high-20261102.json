@@ -1,0 +1,262 @@
+{
+  "method": "Fixed BV variant geometry. Dimensions X/Y/Z metres. Unique CPU attribute/index ArrayBuffers exclude JS objects, transient allocations and GPU memory; no FPS benchmark.",
+  "rows": [
+    {
+      "id": "cemetery.ossuary_charnel_house@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 44,
+        "triangles": 498,
+        "vertices": 42,
+        "geometries": 4,
+        "materials": 7
+      },
+      "attributeBytes": 1272,
+      "dimensions": [
+        6.599999999999998,
+        4.98,
+        4.772969225334619
+      ],
+      "fingerprint": "94d0b7b61f5a4941221a8934e4275b90d9bc20b822ef2cf58e6a4ac83aa89bba",
+      "sourceParts": [],
+      "parts": [
+        {
+          "id": "ossuary-charnel-house:legacy",
+          "role": "legacy-assembly",
+          "quality": "low",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 498,
+            "vertices": 1494,
+            "geometries": 7,
+            "materials": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": "cemetery.ossuary_charnel_house@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 7,
+        "triangles": 35372,
+        "vertices": 106116,
+        "geometries": 7,
+        "materials": 7
+      },
+      "attributeBytes": 2546784,
+      "dimensions": [
+        6.730000019073486,
+        5.020839691162109,
+        4.71999979019165
+      ],
+      "fingerprint": "eeb718efc678ecc47cbaf1e2545511f0495c2650d92de593e748e03deea707f9",
+      "sourceParts": [
+        {
+          "id": "ossuary:architecture",
+          "role": "architecture",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 325,
+          "triangles": 7572
+        },
+        {
+          "id": "ossuary:roof",
+          "role": "roof",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 657,
+          "triangles": 7884
+        },
+        {
+          "id": "ossuary:door",
+          "role": "door",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 15,
+          "triangles": 1532
+        },
+        {
+          "id": "ossuary:vent-grilles",
+          "role": "vent-grilles",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 126,
+          "triangles": 1512
+        },
+        {
+          "id": "ossuary:bone-racks",
+          "role": "bone-racks",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "cemetery.skull_shelf@high#codex-gpt-6.1-sol"
+          ],
+          "meshes": 248,
+          "triangles": 16872
+        }
+      ],
+      "parts": [
+        {
+          "id": "ossuary:architecture",
+          "role": "architecture",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 7572,
+            "vertices": 22716,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "ossuary:roof",
+          "role": "roof",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 7884,
+            "vertices": 23652,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "ossuary:door",
+          "role": "door",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 1532,
+            "vertices": 4596,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "ossuary:vent-grilles",
+          "role": "vent-grilles",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 1512,
+            "vertices": 4536,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "ossuary:bone-racks",
+          "role": "bone-racks",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 16872,
+            "vertices": 50616,
+            "geometries": 3,
+            "materials": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "cemetery.skull_shelf@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 14,
+        "triangles": 1572,
+        "vertices": 1077,
+        "geometries": 10,
+        "materials": 2
+      },
+      "attributeBytes": 43608,
+      "dimensions": [
+        2.2,
+        2.3,
+        0.6
+      ],
+      "fingerprint": "4d38fd15a599a10e70564738fa636df3f1235f8c39d2a409d91ce39e5baa5320",
+      "sourceParts": [],
+      "parts": [
+        {
+          "id": "skull-shelf:legacy",
+          "role": "legacy-assembly",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 1572,
+            "vertices": 4716,
+            "geometries": 2,
+            "materials": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "cemetery.skull_shelf@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 3,
+        "triangles": 8436,
+        "vertices": 25308,
+        "geometries": 3,
+        "materials": 3
+      },
+      "attributeBytes": 607392,
+      "dimensions": [
+        2.25,
+        2.259999990463257,
+        0.7300000190734863
+      ],
+      "fingerprint": "7e38feb040a8ace39b1214497c405f58126d20bd9a0ae70d8a49386a28811ddc",
+      "sourceParts": [
+        {
+          "id": "bone-rack:frame",
+          "role": "frame",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 25,
+          "triangles": 468
+        },
+        {
+          "id": "bone-rack:remains",
+          "role": "remains",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 99,
+          "triangles": 7968
+        }
+      ],
+      "parts": [
+        {
+          "id": "bone-rack:frame",
+          "role": "frame",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 468,
+            "vertices": 1404,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "bone-rack:remains",
+          "role": "remains",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 7968,
+            "vertices": 23904,
+            "geometries": 1,
+            "materials": 1
+          }
+        }
+      ]
+    }
+  ]
+}
