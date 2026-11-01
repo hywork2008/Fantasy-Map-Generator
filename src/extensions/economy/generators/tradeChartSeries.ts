@@ -13,6 +13,7 @@
  */
 
 import { getGoods, getTradeCorridors, getWorldContext, isEconomyContextReady } from "../economyContext";
+import { GOOD_MEASURES } from "./goodMeasureCatalog";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 import { TRADE_HEADING_LABELS, tradeHeadingOf } from "./tradeHeadings";
 
@@ -32,8 +33,8 @@ export interface TradeChartBurg {
 export interface TradeChartGood {
   id: number;
   value: number;
-  /** Transport weight, 1 (light) to 5 (heavy). */
-  weight: number;
+  /** Net mass in kilograms per market unit, or undefined when the unit is not measured. */
+  kgPerUnit?: number;
   cargoSlotsPerUnit: number;
   /** Resolved trade-statistics label. The full slot count is counted here. */
   heading: string;
@@ -131,13 +132,13 @@ function weightOf(corridor: TradeChartCorridor, goodsById: ReadonlyMap<number, T
     const id = Number(key);
     const slots = Number(rawSlots);
     const good = goodsById.get(id);
-    if (!Number.isInteger(id) || !good || !(slots > 0)) continue;
+    if (!Number.isInteger(id) || !good || !(slots > 0) || good.kgPerUnit === undefined) continue;
     accounted += slots;
-    total += (slots / slotsPerUnit(good)) * Math.max(0, good.weight);
+    total += (slots / slotsPerUnit(good)) * Math.max(0, good.kgPerUnit);
   }
   const residual = Math.max(0, corridor.cargoSlots - accounted);
   if (residual > 0) {
-    const perSlot = accounted > 0 ? total / accounted : 3;
+    const perSlot = accounted > 0 ? total / accounted : 0;
     total += residual * perSlot;
   }
   return total;
@@ -234,7 +235,7 @@ export function readTradeContributions(input: {
   const goods = getGoods().map(good => ({
     id: good.i,
     value: good.value ?? 0,
-    weight: good.trade?.weight ?? 3,
+    kgPerUnit: GOOD_MEASURES[good.name]?.unit === good.unit ? GOOD_MEASURES[good.name].kg : undefined,
     cargoSlotsPerUnit: getGoodCargoSlotsPerUnit(good),
     heading: tradeHeadingOf(good)
   }));

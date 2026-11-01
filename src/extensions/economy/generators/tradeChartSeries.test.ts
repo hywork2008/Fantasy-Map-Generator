@@ -10,7 +10,7 @@ import {
 const grain: TradeChartGood = {
   id: 7,
   value: 5,
-  weight: 2,
+  kgPerUnit: 465,
   cargoSlotsPerUnit: 2,
   heading: "Food"
 };
@@ -73,8 +73,8 @@ describe("trade chart series", () => {
       goods: [grain]
     });
     expect(rows).toEqual([
-      { entityId: 1, groupKey: "1", value: 10 },
-      { entityId: 2, groupKey: "1", value: 10 }
+      { entityId: 1, groupKey: "1", value: 2325 },
+      { entityId: 2, groupKey: "1", value: 2325 }
     ]);
   });
 

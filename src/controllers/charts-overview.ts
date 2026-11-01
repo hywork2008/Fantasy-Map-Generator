@@ -44,7 +44,7 @@ export const BURG_ENTITY_OPTION = { value: "burgs", label: "Burg" } as const;
 
 export const TRADE_PLOT_OPTIONS = [
   { value: "trade_price", label: "Trade volume (price)" },
-  { value: "trade_weight", label: "Trade volume (weight)" },
+  { value: "trade_weight", label: "Trade volume (weight, kg)" },
   { value: "trade_tags", label: "Trade volume (trade heading)" }
 ] as const;
 

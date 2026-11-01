@@ -6,6 +6,7 @@ import {
   setGoods,
   setTradeCorridors
 } from "../extensions/economy/economyContext";
+import { WAIN_KG } from "../extensions/economy/generators/goodMeasureCatalog";
 import type { Good } from "../extensions/economy/generators/goodsGeneratorTypes";
 import type { TradeCorridor } from "../extensions/economy/generators/tradeCorridorLedgerTypes";
 import type { ExtensionAPI } from "../types/extension-api";
@@ -98,8 +99,8 @@ describe("trade charts", () => {
       sorting: "value",
       type: "stackedBar"
     });
-    expect(weight?.title).toBe("States by Trade volume (weight)");
-    expect(valuesOf(weight!)).toEqual({ "Realm|Realm": 16 });
+    expect(weight?.title).toBe("States by Trade volume (weight, kg)");
+    expect(valuesOf(weight!)).toEqual({ "Realm|Realm": Math.round(8 * WAIN_KG * 1000) / 1000 });
 
     const tags = buildChart({
       entity: "burgs",
