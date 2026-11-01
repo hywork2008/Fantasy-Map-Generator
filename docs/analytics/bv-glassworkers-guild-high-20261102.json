@@ -1,0 +1,122 @@
+{
+  "method": "Fixed BV variant geometry. Dimensions X/Y/Z metres. Unique CPU attribute/index ArrayBuffers exclude JS objects, transient allocations and GPU memory; no FPS benchmark.",
+  "rows": [
+    {
+      "id": "medieval.glassworkers-guild-hall@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 123,
+        "triangles": 9850,
+        "vertices": 6726,
+        "geometries": 42,
+        "materials": 14
+      },
+      "attributeBytes": 268320,
+      "dimensions": [
+        12.600000381469727,
+        8.63000002384186,
+        12.177659389693655
+      ],
+      "fingerprint": "9e23da63c47e369a6e466879c1bb2476414c4805bf3cfde7ed4ca38e28f8cf8a",
+      "sourceParts": [],
+      "parts": [
+        {
+          "id": "glassworkers-guild-hall:legacy",
+          "role": "legacy-assembly",
+          "quality": "low",
+          "metrics": {
+            "meshes": 10,
+            "triangles": 9850,
+            "vertices": 29550,
+            "geometries": 10,
+            "materials": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "medieval.glassworkers-guild-hall@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 11,
+        "triangles": 35024,
+        "vertices": 105072,
+        "geometries": 11,
+        "materials": 11
+      },
+      "attributeBytes": 2521728,
+      "dimensions": [
+        17.085000038146973,
+        9.060839653015137,
+        8.769999742507935
+      ],
+      "fingerprint": "840531c4bb6f12064e228cf6f0ff98706ce2c3a919e3f45e323745bf24258104",
+      "sourceParts": [
+        {
+          "id": "glassworking:architecture",
+          "role": "architecture",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 8,
+          "triangles": 29064
+        },
+        {
+          "id": "glassworking:exterior-stair",
+          "role": "exterior-stair",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 3,
+          "triangles": 528
+        },
+        {
+          "id": "glassworking:trade-dressing",
+          "role": "trade-dressing",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 89,
+          "triangles": 5432
+        }
+      ],
+      "parts": [
+        {
+          "id": "glassworking:architecture",
+          "role": "architecture",
+          "quality": "high",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 29064,
+            "vertices": 87192,
+            "geometries": 8,
+            "materials": 8
+          }
+        },
+        {
+          "id": "glassworking:exterior-stair",
+          "role": "exterior-stair",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 528,
+            "vertices": 1584,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "glassworking:trade-dressing",
+          "role": "trade-dressing",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 5432,
+            "vertices": 16296,
+            "geometries": 7,
+            "materials": 7
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,10 @@
+import { DEFAULT_AUTHOR } from "../authors";
 import { createMedievalContainerModel } from "../props/medievalContainers";
 import { models as carts } from "./09-hand-cartsModels";
+import { assembleCivicHallParts } from "./civicHallParts";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
+import { sandYardPartFactories } from "./sandYardParts";
 
 export const models: MedievalModel[] = [
   {
@@ -8,8 +12,8 @@ export const models: MedievalModel[] = [
     id: "sand-storage-yard",
     name: "Sand storage and loading yard",
     task: 40,
-    size: [15, 13, 4],
-    note: "Separated sand heaps, low timber retaining bays, dry material shelter, transport buckets, shovel and a wooden wheelbarrow for glassmaking or masonry supply.",
+    size: [15, 13, 5],
+    note: "Separated sand heaps, timber retaining bays, dry material shelter, reusable storage vessels, shovel and a wooden wheelbarrow for glassmaking or masonry supply. The detailed yard also includes a sorting sieve and tool rack.",
     create() {
       const k = new ModelKit("sand-storage-yard");
       for (let bay = 0; bay < 2; bay++) {
@@ -29,3 +33,22 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "sand-storage-yard": () => assembleCivicHallParts("sand-yard-high", sandYardPartFactories())
+});
+for (const model of models) {
+  model.parts = variantId =>
+    model.variants?.find(variant => variant.id === variantId)?.level === "high"
+      ? sandYardPartFactories()
+      : [
+          {
+            id: `${model.id}:legacy`,
+            role: "legacy-assembly",
+            quality: "low",
+            author: DEFAULT_AUTHOR,
+            create: () => model.create()
+          }
+        ];
+  model.assembleParts = parts => assembleCivicHallParts(model.id, parts);
+}

@@ -1,10 +1,13 @@
 import * as THREE from "three";
-import { models } from "../../buildings/medieval/35-harbor-cranesModels";
+import { createHarborCrane, models } from "../../buildings/medieval/35-harbor-cranesModels";
+import { createHighHarborCrane } from "../../buildings/medieval/harborCraneParts";
+import { MEDIEVAL_VARIANTS, medievalFamily } from "../../buildings/medieval/medievalVariants";
+import { type ModelQuality, resolveModelQuality } from "../../buildings/modelQuality";
 import { MEDIEVAL_CONTAINERS } from "../../buildings/props/medievalContainers";
 import { CONTAINER_VARIANTS } from "../../buildings/siteVariants";
 import type { HarborCargoPile, HarborCrane } from "../../city-editor/generators/harborFabric";
 import type { Point } from "../../city-editor/types/primitives";
-import { adoptedDefinition, medievalDefinition } from "../adoption";
+import { adopt, adoptedDefinition } from "../adoption";
 import { planVertex } from "../core/planFrame";
 import { LAND_Y } from "../core/waterGeometry";
 import { type BvPrototypeCache, createBvInstances } from "./bvInstances";
@@ -13,17 +16,36 @@ import { type BvPrototypeCache, createBvInstances } from "./bvInstances";
 export function createTownCranes(
   cranes: readonly HarborCrane[],
   heightAt: (point: Point) => number,
-  cache: BvPrototypeCache
+  cache: BvPrototypeCache,
+  quality: ModelQuality = "standard"
 ) {
-  const sites = cranes.map(crane => ({
-    id: crane.id,
-    definition: medievalDefinition(crane.kind === "treadwheel" ? models[0] : models[1]),
-    matrix: new THREE.Matrix4().compose(
-      new THREE.Vector3(...planVertex(crane.point, LAND_Y + heightAt(crane.point))),
-      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), crane.armAngleRad),
-      new THREE.Vector3(1, 1, 1)
-    )
-  }));
+  const sites = cranes.map(crane => {
+    const model = crane.kind === "treadwheel" ? models[0] : models[1];
+    // Roman equipment keeps its existing Low display; a medieval winch is not a Roman High model.
+    const tier = crane.kind === "romanMagnaRota" ? "default" : resolveModelQuality(quality, ["high", "low"] as const);
+    const variant = adopt(MEDIEVAL_VARIANTS, medievalFamily(model), tier);
+    const create = tier === "high" ? createHighHarborCrane : createHarborCrane;
+    return {
+      id: crane.id,
+      definition: {
+        id: model.id,
+        variant: variant.id,
+        cacheKey: `harbor-crane:${variant.id}:${crane.kind}:${crane.armLengthMeters}:${crane.pulleyHeightMeters ?? 4.45}:${crane.hookHeightMeters ?? 1.1}`,
+        create: () =>
+          create(crane.kind === "treadwheel", {
+            reach: crane.armLengthMeters,
+            pulleyHeight: crane.pulleyHeightMeters ?? 4.45,
+            hookHeight: crane.hookHeightMeters ?? 1.1,
+            showCargo: false
+          })
+      },
+      matrix: new THREE.Matrix4().compose(
+        new THREE.Vector3(...planVertex(crane.point, LAND_Y + heightAt(crane.point))),
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), crane.armAngleRad),
+        new THREE.Vector3(1, 1, 1)
+      )
+    };
+  });
   const result = createBvInstances(sites, cache);
   result.group.name = "ce-harbor-cranes";
   for (const mesh of result.pickables) mesh.raycast = () => {};

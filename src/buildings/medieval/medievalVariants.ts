@@ -18,19 +18,27 @@ import { models as granaries } from "./16-granariesModels";
 import { models as warehouses } from "./17-warehousesModels";
 import { models as livestock } from "./18-livestock-marketsModels";
 import { models as graves } from "./19-grave-markersModels";
+import { models as textileWorkshops } from "./20-textile-leather-workshopsModels";
+import { models as woodworking } from "./21-woodworking-workshopsModels";
 import { models as tanneries } from "./22-tanneriesModels";
+import { models as smallBoats } from "./23-small-boatsModels";
 import { models as publicGranaries } from "./25-public-granariesModels";
+import { models as civicHalls } from "./26-civic-hallsModels";
 import { models as cloth } from "./27-cloth-hallsModels";
 import { models as guilds } from "./28-craft-guild-hallsModels";
 import { models as stoneYards } from "./29-stone-yardsModels";
 import { models as kilns } from "./30-lime-kilnsModels";
 import { models as bleaching } from "./31-bleaching-fieldsModels";
+import { models as domestic } from "./32-abbey-living-quartersModels";
+import { models as pottery } from "./34-pottery-workshopsModels";
 import { models as cranes } from "./35-harbor-cranesModels";
 import { models as gallows } from "./36-gallowsModels";
 import { models as glass } from "./37-glassworkers-hallsModels";
 import { models as printing } from "./38-printing-modelsModels";
 import { models as instruments } from "./39-instrument-makers-hallsModels";
 import { models as sand } from "./40-sand-yardsModels";
+import { models as caravanserais } from "./42-caravanseraisModels";
+import { models as jettied } from "./45-jettied-housesModels";
 import type { MedievalModel } from "./modelKit";
 
 export function medievalFamily(model: Pick<MedievalModel, "id">): string {
@@ -57,19 +65,27 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   warehouses,
   livestock,
   graves,
+  textileWorkshops,
+  woodworking,
   tanneries,
+  smallBoats,
   publicGranaries,
+  civicHalls,
   cloth,
   guilds,
   stoneYards,
   kilns,
   bleaching,
+  domestic.filter(model => model.id === "abbey-domestic-range"),
+  pottery,
   cranes,
   gallows,
   glass,
   printing,
   instruments,
-  sand
+  sand,
+  caravanserais,
+  jettied
 ]
   .flat()
   .flatMap(model => {
@@ -91,7 +107,25 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
           churches.includes(model) ||
           granaries.includes(model) ||
           warehouses.includes(model) ||
-          livestock.includes(model)
+          livestock.includes(model) ||
+          graves.includes(model) ||
+          tanneries.includes(model) ||
+          publicGranaries.includes(model) ||
+          cloth.includes(model) ||
+          guilds.includes(model) ||
+          stoneYards.includes(model) ||
+          kilns.includes(model) ||
+          bleaching.includes(model) ||
+          domestic.includes(model) ||
+          pottery.includes(model) ||
+          cranes.includes(model) ||
+          gallows.includes(model) ||
+          glass.includes(model) ||
+          printing.includes(model) ||
+          instruments.includes(model) ||
+          sand.includes(model) ||
+          caravanserais.includes(model) ||
+          jettied.includes(model)
             ? [legacy]
             : [])
         ]

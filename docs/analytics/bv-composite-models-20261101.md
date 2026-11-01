@@ -75,6 +75,6 @@ Highの生成関数には建築棟・窯・厩舎などの境界が既にある�
 - 時間はNode v22の単発観測で、順序・JIT・キャッシュの条件は揃えていない。速度改善率やFPSの根拠には使わない。変更前JSONの`cold observation`というmethod表記も、厳密なcold計測を保証するものではない。
 - `npx vitest run src/city3d/three/friaryMeshes.test.ts src/city-editor/generators/monasteryLayout.test.ts`：23件成功。追加した回帰テストでBV・CEの明示的Low、固定例20,000三角形未満、植栽Ultraの独立指定を検証。既存の回廊の空洞・門の通路・回転／標高・資源解放も成功。
 - `npx vitest run src/city3d/adoption.test.ts`：3件成功。既存のモデルID・CE採用を確認。
-- 実BV：Urban mendicant friaryの全体・平面図を目視。回廊の中庭、菜園、樹木、教会堂、居住棟を確認。インスペクターはLowのみ、497メッシュ・14,914三角形でNode計測と一致。[確認画像](bv-friary-low-20261101.png)。CEの対話操作とGPU FPSは今回測定していない。
+- 実BV：Urban mendicant friaryの全体・平面図を目視。回廊の中庭、菜園、樹木、教会堂、居住棟を確認。インスペクターはLowのみ、497メッシュ・14,914三角形でNode計測と一致。CEの対話操作とGPU FPSは今回測定していない。
 
 この記録はP0時点の結果。後続の[P1実装記録](bv-composite-parts-p1-20261101.md)で井戸Lowと部品台帳を導入した。次はP2の部品factory分離と単体表示を実装する。

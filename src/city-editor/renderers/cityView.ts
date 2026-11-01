@@ -756,7 +756,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     const shipsChanged = plan.water || shipStamp !== nextShipStamp || !scene.getObjectByName("ce-ships");
     const pierSites = collectPierSites(city, fabric.harbor);
     const nextPierStamp = JSON.stringify(pierSites);
-    const nextCraneStamp = JSON.stringify([fabric.harbor?.cranes ?? [], fabric.harbor?.cargoPiles ?? []]);
+    const nextCraneStamp = JSON.stringify([fabric.harbor?.cranes ?? [], fabric.harbor?.cargoPiles ?? [], quality]);
     const cranesChanged = terrainChanged || craneStamp !== nextCraneStamp || !cranes;
     const piersChanged =
       plan.water || terrainChanged || pierStamp !== nextPierStamp || !scene.getObjectByName("ce-piers");
@@ -920,7 +920,12 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
         bvPrototypes
       );
       scene.add(harborCargo.group);
-      cranes = createTownCranes(fabric.harbor?.cranes ?? [], point => terrain?.heightAt(point) ?? 0, bvPrototypes);
+      cranes = createTownCranes(
+        fabric.harbor?.cranes ?? [],
+        point => terrain?.heightAt(point) ?? 0,
+        bvPrototypes,
+        quality
+      );
       scene.add(cranes.group);
       craneStamp = nextCraneStamp;
     }

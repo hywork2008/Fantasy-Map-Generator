@@ -1,5 +1,7 @@
 import { createMedievalContainerModel } from "../props/medievalContainers";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
+import { createHighWoodworkingWorkshop } from "./woodworkingDetails";
 
 export const models: MedievalModel[] = [
   {
@@ -52,3 +54,8 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "coopers-workshop": () => createHighWoodworkingWorkshop("cooper"),
+  "joiners-workshop": () => createHighWoodworkingWorkshop("joiner")
+});

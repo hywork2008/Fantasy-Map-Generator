@@ -1,6 +1,8 @@
 import { objectDrawing, placeableObject } from "../../buildings/placeableObjects";
 import { editorText } from "../../i18n/editorMessages";
 import type { DomesticWaterPoint } from "../generators/domesticWater";
+import { activeCargoAssignment } from "../generators/harborCargo";
+import type { HarborPlan } from "../generators/harborFabric";
 import { templeFootprintMeters } from "../generators/housing";
 import { accessCorridor, transformLandmarkPolygons } from "../generators/landmarks";
 import { townExtentMeters } from "../generators/settlementExtent";
@@ -19,7 +21,8 @@ export function renderCityElements(
   ctx: RenderContext,
   svg: SVGSVGElement,
   castleFaces: Set<Id>,
-  domesticWater?: readonly DomesticWaterPoint[]
+  domesticWater?: readonly DomesticWaterPoint[],
+  harbor?: HarborPlan
 ): void {
   const { document, tool, selection, town } = ctx;
   const elements = element("g", { class: "ce-elements" });
@@ -66,6 +69,13 @@ export function renderCityElements(
         id: cityElement.id,
         className: isPickSelected ? "ce-is-selected cg-is-selected" : ""
       });
+      const operation = activeCargoAssignment(cityElement, harbor?.cargoQuays ?? []);
+      shipNode.setAttribute("data-harbor-operation", operation?.kind ?? "waiting");
+      if (operation) {
+        shipNode.setAttribute("data-berth-id", operation.berthId);
+        shipNode.setAttribute("data-crane-id", operation.craneId);
+        if (operation.sourceShipId) shipNode.setAttribute("data-source-ship-id", operation.sourceShipId);
+      }
       shipNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
       if (tool === "select") {
         shipNode.style.pointerEvents = "all";

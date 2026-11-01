@@ -35,7 +35,7 @@ import {
   segmentInteriorInPolygon
 } from "./geom";
 import { economyOnDocument, siteEconomyKey } from "./guildFacilities";
-import { type HarborPlan, planHarbor } from "./harborFabric";
+import { type HarborPlan, harborLaneRuns, harborThroughStreets, planHarbor } from "./harborFabric";
 import { rebuildLandmarkHousing } from "./landmarkIntegration";
 import { landmarkReservationHits } from "./landmarks";
 import { buildLocalFabric, FabricCache } from "./localInfill";
@@ -318,7 +318,7 @@ function memoHarbor(
   ].join("|");
   let plan = entry.plans.get(key);
   if (!plan) {
-    plan = planHarbor(document, streets, barriers);
+    plan = planHarbor(document, streets, barriers, undefined, harborThroughStreets(document));
     entry.plans.set(key, plan);
   }
   return plan;
@@ -373,12 +373,18 @@ export function buildBlockFabric(
       );
       const barriers = (document.cemeteries ?? []).flatMap(c => convexInfillParts(c.boundary));
       const harbor = measureProcessing(profiler, "harbor-fabric", () =>
-        isDefaultCache ? planHarbor(document, streets, barriers) : memoHarbor(cache, document, streets, barriers)
+        isDefaultCache
+          ? planHarbor(document, streets, barriers, undefined, harborThroughStreets(document))
+          : memoHarbor(cache, document, streets, barriers)
       );
       fabricResult = measureProcessing(profiler, "coastal-reservations", () =>
         finishCoastalBuildings(document, {
           ...base,
           buildings: base.buildings.filter(b => !harbor.spaces.some(s => polygonOverlaps(b.polygon, s.polygon))),
+          lanes: base.lanes.flatMap(lane => {
+            const spaces = harbor.spaces.filter(s => s.faceId === lane.faceId);
+            return harborLaneRuns(lane.points, spaces).map(points => ({ ...lane, points }));
+          }),
           openSpaces: [...(base.openSpaces ?? []), ...harbor.spaces],
           harbor
         })
@@ -476,7 +482,9 @@ export function buildHarborPlan(document: CityDocument, profiler?: ProcessingPro
     l.points.slice(1).map((b, i) => ({ a: l.points[i], b, widthMeters: l.widthMeters }))
   );
   const barriers = (document.cemeteries ?? []).flatMap(c => convexInfillParts(c.boundary));
-  return measureProcessing(profiler, "harbor-fabric", () => planHarbor(document, streets, barriers));
+  return measureProcessing(profiler, "harbor-fabric", () =>
+    planHarbor(document, streets, barriers, undefined, harborThroughStreets(document))
+  );
 }
 
 function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric): DistrictFabric {

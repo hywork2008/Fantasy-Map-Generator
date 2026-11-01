@@ -326,3 +326,6 @@ export function createHighParishChurch(kind: ParishChurchKind) {
   else bellcote(k);
   return compactModel(k.finish());
 }
+
+/** Shared masonry apertures and fitted door hardware for small stone buildings. */
+export { openDoor as addOpenParishDoor, wall as addParishMasonryWall };

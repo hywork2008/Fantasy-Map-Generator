@@ -954,6 +954,7 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
     category.append(button);
     button.textContent = `${model.task} · ${model.name}`;
     button.dataset.id = model.id;
+    let selectedPart = "all";
     const showLandmark = (definition: LandmarkModel = model, keepControls = false) => {
       selection++;
       for (const other of list.querySelectorAll("button")) other.setAttribute("aria-current", String(other === button));
@@ -1030,8 +1031,9 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
       if (model.highDetail || model.ultraDetail) {
         modelOptions.hidden = false;
         const row = document.createElement("label");
-        row.textContent = "Resolution: ";
+        row.textContent = model.parts ? "Assembly resolution: " : "Resolution: ";
         const resolution = document.createElement("select");
+        resolution.setAttribute("aria-label", "Landmark resolution");
         for (const [value, title] of [
           ["low", "Low resolution (default)"],
           ...(model.highDetail ? [["high", "High resolution"]] : []),
@@ -1069,7 +1071,35 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
           quality: definition === model ? "low" : "high"
         };
       }
-      massing = definition.create();
+      const partFactories = definition.parts?.();
+      if (!partFactories?.some(part => part.id === selectedPart)) selectedPart = "all";
+      const partFactory = partFactories?.find(part => part.id === selectedPart);
+      if (partFactories) {
+        modelOptions.hidden = false;
+        const row = document.createElement("label");
+        row.textContent = "View: ";
+        const select = document.createElement("select");
+        select.setAttribute("aria-label", "Assembly part");
+        select.add(new Option("Complete assembly", "all"));
+        for (const part of partFactories)
+          select.add(new Option(`${label(part.role)} · ${label(part.quality)}`, part.id));
+        select.value = selectedPart;
+        select.addEventListener("change", () => {
+          selectedPart = select.value;
+          showLandmark(definition);
+        });
+        row.append(select);
+        const paragraph = document.createElement("p");
+        paragraph.append(row);
+        optionFields.append(paragraph);
+      }
+      if (partFactory) {
+        comparisonVariants = null;
+        comparisonModel = { path: null, quality: partFactory.quality === "low" ? "low" : "high", viewOnly: true };
+      }
+      massing = partFactory
+        ? (definition.assembleParts ?? (parts => createModelAssembly(model.id, parts)))([partFactory])
+        : definition.create();
       scene.add(massing.group);
       ground.visible = !definition.floating;
       if (!keepControls) {
@@ -1103,6 +1133,19 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
         fact("Dimensions", definition.dimensions),
         fact("Note", definition.note, landmarkWikipedia[model.id])
       );
+      if (partFactory) {
+        appendFacts(
+          fact("View", `Single part: ${label(partFactory.role)}; fitted position retained`),
+          fact("Part quality", partFactory.quality),
+          fact("Part author", partFactory.author),
+          fact(
+            "Assembly",
+            "Fixed landmark exterior study; components are for inspection and are not interchangeable building presets."
+          )
+        );
+      }
+      const partsPanel = modelPartsPanel(massing.group);
+      if (partsPanel) facts.append(partsPanel);
       for (const source of definition.sources) {
         const row = document.createElement("p");
         const link = document.createElement("a");
@@ -1114,7 +1157,10 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
         appendFacts(row);
       }
     };
-    button.addEventListener("click", () => showLandmark());
+    button.addEventListener("click", () => {
+      selectedPart = "all";
+      showLandmark();
+    });
   }
 }
 const assemblies = modelCategory("Fortress assemblies");

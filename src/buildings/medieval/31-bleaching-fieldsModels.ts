@@ -1,4 +1,11 @@
+import { DEFAULT_AUTHOR } from "../authors";
+import {
+  assembleKilnOrBleachingParts,
+  bleachingFieldPartFactories,
+  createHighBleachingField
+} from "./kilnAndBleachingParts";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -28,3 +35,20 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, { [models[0].id]: createHighBleachingField });
+for (const model of models) {
+  model.parts = variantId =>
+    model.variants?.find(v => v.id === variantId)?.level === "high"
+      ? bleachingFieldPartFactories()
+      : [
+          {
+            id: `${model.id}:legacy`,
+            role: "legacy-assembly",
+            quality: "low",
+            author: DEFAULT_AUTHOR,
+            create: () => model.create()
+          }
+        ];
+  model.assembleParts = parts => assembleKilnOrBleachingParts(model.id, parts);
+}

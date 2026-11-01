@@ -2,7 +2,20 @@
 
 Regenerate: `node --import tsx scripts/auditBvModelQuality.mts`
 
+## Shared-component production rules
+
+Read [BV composite models and per-part quality](../plan/bv-composite-models.md) before starting each candidate. Reuse its explicit factories, connection contracts, part ledger and BV isolation workflow. Do not independently rebuild elements that should be shared.
+
+- Cloth and craft guild halls use one shared architecture profile: upper floor 3.32 m, upper wall 3.25 m, roof rise 2.2 m, east-side exterior stair, door Z=-2.3 m, and masonry arcade supports. Trade decoration must not change these dimensions or connections.
+- Before Medieval 35 crane High work, follow [CE crane siting, cargo berths and lighter transfer](../plan/ce-harbor-cranes-and-cargo-berths.md). Resolve vessel cargo access, quay support, crane reach/height and the unloading route together; do not extend a jib to compensate for a failed berth.
+- Check existing components before adding stairs, floor supports, roofs or balconies. Regenerate from profile parameters; do not resize a completed assembly.
+- For future attachments, retain continuous host walls/roofs and use controlled overlap. Do not cut a bespoke socket for one chapel or workshop footprint: smaller replacements must not leave gaps. Functional doors/windows are separate. This is forward guidance, not a request to revise Notre-Dame.
+- Different stair sides, floor heights or support systems require a named, documented preset. The town bell turret and timber-post market hall are civic presets, not arbitrary craft-guild differences.
+- Verify unintended collisions, physical support/contact, doorway clearance, functional roof penetrations, ownership and standalone part display. Preserve intended attachment overlap on continuous hosts. Count shared placement variants as audit records, not newly independent High assets. Legacy Low/default factories retain their compatibility identities.
+
 ## Rules
+
+- Do not commit completed-model screenshots or link their PNG files in these records. Inspect models and parts in BV; temporary images may be used for local verification only.
 
 - Authorship does not establish quality. Single/default/unspecified models are treated as Low.
 - High evidence: highDetail/ultraDetail, registered high/ultra factories, or explicit high preview metadata backed by a high/low factory.
@@ -12,7 +25,7 @@ Regenerate: `node --import tsx scripts/auditBvModelQuality.mts`
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **69**. Missing candidates: **151**.
+Records: **220**. Codex High or Ultra available: **111**. Missing candidates: **109**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -37,31 +50,31 @@ Records: **220**. Codex High or Ultra available: **69**. Missing candidates: **1
 | Medieval 16 | 2 | 2 | 0 |
 | Medieval 17 | 2 | 2 | 0 |
 | Medieval 18 | 1 | 1 | 0 |
-| Medieval 19 | 3 | 0 | 3 |
-| Medieval 20 | 3 | 0 | 3 |
-| Medieval 21 | 2 | 0 | 2 |
-| Medieval 22 | 1 | 0 | 1 |
-| Medieval 23 | 2 | 0 | 2 |
-| Medieval 25 | 1 | 0 | 1 |
-| Medieval 26 | 2 | 0 | 2 |
-| Medieval 27 | 1 | 0 | 1 |
-| Medieval 28 | 4 | 0 | 4 |
-| Medieval 29 | 1 | 0 | 1 |
-| Medieval 30 | 1 | 0 | 1 |
-| Medieval 31 | 1 | 0 | 1 |
-| Medieval 32 | 2 | 1 | 1 |
+| Medieval 19 | 3 | 3 | 0 |
+| Medieval 20 | 3 | 3 | 0 |
+| Medieval 21 | 2 | 2 | 0 |
+| Medieval 22 | 1 | 1 | 0 |
+| Medieval 23 | 2 | 2 | 0 |
+| Medieval 25 | 1 | 1 | 0 |
+| Medieval 26 | 2 | 2 | 0 |
+| Medieval 27 | 1 | 1 | 0 |
+| Medieval 28 | 4 | 4 | 0 |
+| Medieval 29 | 1 | 1 | 0 |
+| Medieval 30 | 1 | 1 | 0 |
+| Medieval 31 | 1 | 1 | 0 |
+| Medieval 32 | 2 | 2 | 0 |
 | Medieval 33 | 1 | 1 | 0 |
-| Medieval 34 | 1 | 0 | 1 |
-| Medieval 35 | 2 | 0 | 2 |
-| Medieval 36 | 1 | 0 | 1 |
-| Medieval 37 | 1 | 0 | 1 |
-| Medieval 38 | 2 | 0 | 2 |
-| Medieval 39 | 1 | 0 | 1 |
-| Medieval 40 | 1 | 0 | 1 |
-| Medieval 41 | 1 | 0 | 1 |
-| Medieval 42 | 1 | 0 | 1 |
-| Medieval 44 | 21 | 0 | 21 |
-| Medieval 45 | 3 | 0 | 3 |
+| Medieval 34 | 1 | 1 | 0 |
+| Medieval 35 | 2 | 2 | 0 |
+| Medieval 36 | 1 | 1 | 0 |
+| Medieval 37 | 1 | 1 | 0 |
+| Medieval 38 | 2 | 2 | 0 |
+| Medieval 39 | 1 | 1 | 0 |
+| Medieval 40 | 1 | 1 | 0 |
+| Medieval 41 | 1 | 1 | 0 |
+| Medieval 42 | 1 | 1 | 0 |
+| Medieval 44 | 21 | 5 | 16 |
+| Medieval 45 | 3 | 3 | 0 |
 | Medieval 46 | 7 | 7 | 0 |
 | Medieval 47 | 6 | 6 | 0 |
 | Regional house | 5 | 0 | 5 |
@@ -80,8 +93,15 @@ Records: **220**. Codex High or Ultra available: **69**. Missing candidates: **1
 9. Eighth batch (2026-11-01): added High for the two Medieval 15 breweries and two Medieval 16 granaries, preserving the default granary variants used by CE. See [verification and previews](bv-brewery-granary-high-20261101.md).
 10. Ninth batch (2026-11-01): added High for the two Medieval 17 warehouses and the Medieval 18 livestock market, preserving their default CE variants. See [verification and previews](bv-warehouse-market-high-20261101.md).
 11. Composite-model phase (2026-11-01): audited the friary's Ultra vegetation and detailed well, introduced independent components and quality budgets, and decomposed shop houses, bakeries, inns and breweries. Added a new High urban friary with actual masonry apertures, buttresses, roof intersections, a pointed cloister arcade and detailed bellcote. CE keeps its default Low architecture. See [verification and previews](bv-friary-high-p4-20261101.md).
-12. Next: extend component inspection to named landmarks, then resume the remaining non-tree High candidates, including Medieval 19 grave markers and 20 textile/leather workshops. Preserve the existing default CE variants for grave markers. Regional houses, standalone props and the Codex basilica remain later batches.
-13. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
+12. Tenth model batch (2026-11-01): added High for the three Medieval 19 grave markers and three Medieval 20 textile/leather workshops, preserving default CE grave-marker variants. See [verification and previews](bv-grave-textile-high-20261101.md).
+13. Eleventh model batch (2026-11-01): added High for the two Medieval 21 woodworking workshops and the Medieval 22 tannery, preserving the default CE tannery variant. See [verification and previews](bv-woodworking-tannery-high-20261101.md).
+14. Twelfth model batch (2026-11-01): added High for the two Medieval 23 small boats and the Medieval 25 public granary, preserving the default CE public-granary variant. See [verification and previews](bv-boat-public-granary-high-20261101.md).
+15. Thirteenth model batch (2026-11-01): added High for the two Medieval 26 civic halls and the Medieval 27 cloth merchants hall, preserving the default CE cloth-hall variant. See [verification and previews](bv-civic-cloth-hall-high-20261101.md).
+16. Fourteenth model batch (2026-11-01): added High for the four Medieval 28 craft guild halls and the Medieval 29 stone yard. Guild halls share the cloth hall architecture profile, masonry supports and east stair; trade dressing is a separate part. Preserved default CE variants. See [verification and previews](bv-guild-stone-yard-high-20261101.md).
+17. Fifteenth model batch (2026-11-01): added High for the Medieval 30 lime kiln and Medieval 31 bleaching field, each with three independently inspectable components. Preserved default CE variants. See [verification, sources and previews](bv-kiln-bleaching-high-20261101.md).
+18. Sixteenth model batch (2026-11-01): added High for the remaining Medieval 32 domestic ranges and the Medieval 34 pottery workshop. Reused monastery buildings/cloister, workshop shelter/benches and shared masonry kiln passages. Added independent component views and preserved original Low factories. See [verification, sources and previews](bv-domestic-pottery-high-20261101.md).
+19. Harbor prerequisite (2026-11-01): investigated historical crane sites and cargo transfer, and audited independent ship/crane placement plus the 2D/3D arm-length mismatch. Implemented the initial cargo-quay/lighter contract for flat sea ports, fixed-radius reach/depth/rigging/approach checks and shared 2D/3D crane dimensions; validated three waiting ships and a broadside lighter in CE. Added Medieval 35 High for treadwheel and hand-winch cranes with four components, shared BV/CE construction dimensions, quality-sensitive CE adoption and prototype disposal. See [verification and previews](bv-harbor-cranes-high-20261101.md) and [CE harbor crane planning](../plan/ce-harbor-cranes-and-cargo-berths.md); river/relief sites and furled sailing rigs remain follow-up work. Next is Medieval 36 town gallows. Continue component inspection of named landmarks; regional houses, standalone props and the Codex basilica remain later batches.
+20. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
 
@@ -90,54 +110,16 @@ Records: **220**. Codex High or Ultra available: **69**. Missing candidates: **1
 - Live BV: all three models switched between Low and High with Codex authorship and separate complexity columns. Basic timber fence and town wall displayed Low; explicit citadel/bridge previews retained High.
 - Browser console: no model/application errors; an unrelated favicon.ico 404 was observed.
 
-| Model | Low triangles | High triangles | High meshes | Preview |
-| --- | ---: | ---: | ---: | --- |
-| Timber farm barn | 2,310 | 11,780 | 5 | [High](bv-farm-barn-high-20261101.png) |
-| Threshing barn | 1,134 | 13,688 | 7 | [High](bv-threshing-barn-high-20261101.png) |
-| Open hay shelter | 1,228 | 8,592 | 5 | [High](bv-hay-shelter-high-20261101.png) |
+| Model | Low triangles | High triangles | High meshes |
+| --- | ---: | ---: | ---: |
+| Timber farm barn | 2,310 | 11,780 | 5 |
+| Threshing barn | 1,134 | 13,688 | 7 |
+| Open hay shelter | 1,228 | 8,592 | 5 |
 
 ## Missing Codex High candidates
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
-| Medieval 19 | `plain-stone-grave-marker` | Plain stone grave marker | single/default; assumed Low - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
-| Medieval 19 | `wooden-grave-cross` | Wooden grave cross | single/default; assumed Low - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
-| Medieval 19 | `churchyard-slabs` | Churchyard ledger slabs and markers | single/default; assumed Low - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
-| Medieval 20 | `weavers-workshop` | Weaver workshop and treadle loom | single/default; assumed Low - [source](../../src/buildings/medieval/20-textile-leather-workshopsModels.ts) |
-| Medieval 20 | `tailors-workshop` | Tailor workshop and cutting table | single/default; assumed Low - [source](../../src/buildings/medieval/20-textile-leather-workshopsModels.ts) |
-| Medieval 20 | `cobblers-workshop` | Cobbler workshop and shoe lasts | single/default; assumed Low - [source](../../src/buildings/medieval/20-textile-leather-workshopsModels.ts) |
-| Medieval 21 | `coopers-workshop` | Cooper workshop and assembly stand | single/default; assumed Low - [source](../../src/buildings/medieval/21-woodworking-workshopsModels.ts) |
-| Medieval 21 | `joiners-workshop` | Joiner workshop and woodworking bench | single/default; assumed Low - [source](../../src/buildings/medieval/21-woodworking-workshopsModels.ts) |
-| Medieval 22 | `tanners-yard` | Tannery vats and drying frames | single/default; assumed Low - [source](../../src/buildings/medieval/22-tanneriesModels.ts) |
-| Medieval 23 | `small-fishing-boat` | Small clinker fishing boat | single/default; assumed Low - [source](../../src/buildings/medieval/23-small-boatsModels.ts) |
-| Medieval 23 | `open-rowing-boat` | Open river rowing boat | single/default; assumed Low - [source](../../src/buildings/medieval/23-small-boatsModels.ts) |
-| Medieval 25 | `public-granary` | Public municipal granary | single/default; assumed Low - [source](../../src/buildings/medieval/25-public-granariesModels.ts) |
-| Medieval 26 | `medieval-town-hall` | Town hall with assembly loggia | single/default; assumed Low - [source](../../src/buildings/medieval/26-civic-hallsModels.ts) |
-| Medieval 26 | `covered-market-hall` | Open market hall and meeting loft | single/default; assumed Low - [source](../../src/buildings/medieval/26-civic-hallsModels.ts) |
-| Medieval 27 | `cloth-guild-hall` | Cloth merchants' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/27-cloth-hallsModels.ts) |
-| Medieval 28 | `leather-guild-hall` | Leatherworkers' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/28-craft-guild-hallsModels.ts) |
-| Medieval 28 | `woodworking-guild-hall` | Carpenters' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/28-craft-guild-hallsModels.ts) |
-| Medieval 28 | `masonry-guild-hall` | Masons' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/28-craft-guild-hallsModels.ts) |
-| Medieval 28 | `metallurgy-guild-hall` | Smiths' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/28-craft-guild-hallsModels.ts) |
-| Medieval 29 | `masons-stone-yard` | Stone yard and mason work shelter | single/default; assumed Low - [source](../../src/buildings/medieval/29-stone-yardsModels.ts) |
-| Medieval 30 | `masonry-lime-kiln` | Masonry lime kiln and charging bank | single/default; assumed Low - [source](../../src/buildings/medieval/30-lime-kilnsModels.ts) |
-| Medieval 31 | `linen-bleaching-field` | Linen bleaching ground and drying racks | single/default; assumed Low - [source](../../src/buildings/medieval/31-bleaching-fieldsModels.ts) |
-| Medieval 32 | `abbey-domestic-range` | Abbey cloister and domestic ranges | single/default; assumed Low - [source](../../src/buildings/medieval/32-abbey-living-quartersModels.ts) |
-| Medieval 34 | `potters-workshop` | Potter workshop, kiln, and drying shelves | single/default; assumed Low - [source](../../src/buildings/medieval/34-pottery-workshopsModels.ts) |
-| Medieval 35 | `harbor-treadwheel-crane` | Timber harbor treadwheel crane | single/default; assumed Low - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
-| Medieval 35 | `harbor-winch-crane` | Hand-winch loading crane | single/default; assumed Low - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
-| Medieval 36 | `permanent-town-gallows` | Permanent timber gallows | single/default; assumed Low - [source](../../src/buildings/medieval/36-gallowsModels.ts) |
-| Medieval 37 | `glassworkers-guild-hall` | Glassworkers' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/37-glassworkers-hallsModels.ts) |
-| Medieval 38 | `early-printing-workshop` | Early printing workshop | single/default; assumed Low - [source](../../src/buildings/medieval/38-printing-modelsModels.ts) |
-| Medieval 38 | `printers-guild-hall` | Printers' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/38-printing-modelsModels.ts) |
-| Medieval 39 | `instrument-makers-guild-hall` | Instrument makers' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/39-instrument-makers-hallsModels.ts) |
-| Medieval 40 | `sand-storage-yard` | Sand storage and loading yard | single/default; assumed Low - [source](../../src/buildings/medieval/40-sand-yardsModels.ts) |
-| Medieval 41 | `orthodox-monastery` | Eastern European Orthodox monastery | single/default; assumed Low - [source](../../src/buildings/medieval/41-orthodox-monasteriesModels.ts) |
-| Medieval 42 | `balkan-caravanserai` | Ottoman Balkan caravanserai | single/default; assumed Low - [source](../../src/buildings/medieval/42-caravanseraisModels.ts) |
-| Medieval 44 | `ossuary-charnel-house` | Ossuary charnel house | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
-| Medieval 44 | `preaching-cross-calvary` | Preaching cross calvary | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
-| Medieval 44 | `mausoleum-dome` | Mausoleum dome | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
-| Medieval 44 | `stupa-chorten` | Stupa chorten | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `cremation-pyre-platform` | Cremation pyre platform | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `tower-of-silence` | Tower of silence | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `ancestral-hall` | Ancestral hall | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
@@ -149,15 +131,11 @@ Records: **220**. Codex High or Ultra available: **69**. Missing candidates: **1
 | Medieval 44 | `linear-avenue-monuments` | Linear avenue monuments | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `bone-cleaning-table` | Bone cleaning table | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `incense-candle-stand` | Incense candle stand | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
-| Medieval 44 | `skull-shelf` | Skull shelf | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `high-stone-wall` | High stone wall | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `low-curb-or-hedge` | Low curb or hedge | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `ditch-and-rampart` | Ditch and rampart | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `monumental-gate-pylon` | Monumental gate pylon | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `mourning-cloister` | Mourning cloister | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
-| Medieval 45 | `jettied-town-house` | Jettied timber town house | single/default; assumed Low - [source](../../src/buildings/medieval/45-jettied-housesModels.ts) |
-| Medieval 45 | `double-jettied-merchant-house` | Double-jettied merchant house | single/default; assumed Low - [source](../../src/buildings/medieval/45-jettied-housesModels.ts) |
-| Medieval 45 | `corner-jettied-shop-house` | Corner-jettied shop and dwelling | single/default; assumed Low - [source](../../src/buildings/medieval/45-jettied-housesModels.ts) |
 | Romanesque landmark | `conques` | Sainte-Foy Abbey Church, Conques | base only; documented low-resolution - [source](../../src/buildings/landmarks/conques.ts) |
 | Romanesque landmark | `durham` | Durham Cathedral | base only; documented low-resolution - [source](../../src/buildings/landmarks/durham.ts) |
 | Imaginary landmark | `floating-island` | Floating island (FMG mountain terrain) | base only; documented low-resolution - [source](../../src/buildings/landmarks/floatingIsland.ts) |
@@ -297,8 +275,50 @@ Records: **220**. Codex High or Ultra available: **69**. Missing candidates: **1
 | Medieval 17 | `merchant-warehouse` | Merchant warehouse and loading hoist | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/17-warehousesModels.ts) |
 | Medieval 17 | `riverside-goods-store` | Small riverside goods store | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/17-warehousesModels.ts) |
 | Medieval 18 | `livestock-market-pens` | Divided livestock market pens | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/18-livestock-marketsModels.ts) |
+| Medieval 19 | `plain-stone-grave-marker` | Plain stone grave marker | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
+| Medieval 19 | `wooden-grave-cross` | Wooden grave cross | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
+| Medieval 19 | `churchyard-slabs` | Churchyard ledger slabs and markers | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/19-grave-markersModels.ts) |
+| Medieval 20 | `weavers-workshop` | Weaver workshop and treadle loom | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/20-textile-leather-workshopsModels.ts) |
+| Medieval 20 | `tailors-workshop` | Tailor workshop and cutting table | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/20-textile-leather-workshopsModels.ts) |
+| Medieval 20 | `cobblers-workshop` | Cobbler workshop and shoe lasts | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/20-textile-leather-workshopsModels.ts) |
+| Medieval 21 | `coopers-workshop` | Cooper workshop and assembly stand | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/21-woodworking-workshopsModels.ts) |
+| Medieval 21 | `joiners-workshop` | Joiner workshop and woodworking bench | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/21-woodworking-workshopsModels.ts) |
+| Medieval 22 | `tanners-yard` | Tannery vats and drying frames | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/22-tanneriesModels.ts) |
+| Medieval 23 | `small-fishing-boat` | Small clinker fishing boat | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/23-small-boatsModels.ts) |
+| Medieval 23 | `open-rowing-boat` | Open river rowing boat | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/23-small-boatsModels.ts) |
+| Medieval 25 | `public-granary` | Public municipal granary | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/25-public-granariesModels.ts) |
+| Medieval 26 | `medieval-town-hall` | Town hall with assembly loggia | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/26-civic-hallsModels.ts) |
+| Medieval 26 | `covered-market-hall` | Open market hall and meeting loft | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/26-civic-hallsModels.ts) |
+| Medieval 27 | `cloth-guild-hall` | Cloth merchants' guild hall | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/27-cloth-hallsModels.ts) |
+| Medieval 28 | `leather-guild-hall` | Leatherworkers' guild hall | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/28-craft-guild-hallsModels.ts) |
+| Medieval 28 | `woodworking-guild-hall` | Carpenters' guild hall | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/28-craft-guild-hallsModels.ts) |
+| Medieval 28 | `masonry-guild-hall` | Masons' guild hall | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/28-craft-guild-hallsModels.ts) |
+| Medieval 28 | `metallurgy-guild-hall` | Smiths' guild hall | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/28-craft-guild-hallsModels.ts) |
+| Medieval 29 | `masons-stone-yard` | Stone yard and mason work shelter | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/29-stone-yardsModels.ts) |
+| Medieval 30 | `masonry-lime-kiln` | Masonry lime kiln and charging bank | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/30-lime-kilnsModels.ts) |
+| Medieval 31 | `linen-bleaching-field` | Linen bleaching ground and drying racks | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/31-bleaching-fieldsModels.ts) |
 | Medieval 32 | `abbey` | Abbey church, cloister and domestic ranges | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/32-abbey-living-quartersModels.ts) |
+| Medieval 32 | `abbey-domestic-range` | Abbey cloister and domestic ranges | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/32-abbey-living-quartersModels.ts) |
 | Medieval 33 | `mendicant-friary` | Urban mendicant friary | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/33-friariesModels.ts) |
+| Medieval 34 | `potters-workshop` | Potter workshop, kiln, and drying shelves | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/34-pottery-workshopsModels.ts) |
+| Medieval 35 | `harbor-treadwheel-crane` | Timber harbor treadwheel crane | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
+| Medieval 35 | `harbor-winch-crane` | Hand-winch loading crane | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
+| Medieval 36 | `permanent-town-gallows` | Permanent timber gallows | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/36-gallowsModels.ts) |
+| Medieval 37 | `glassworkers-guild-hall` | Glassworkers' guild hall | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/37-glassworkers-hallsModels.ts) |
+| Medieval 38 | `early-printing-workshop` | Early printing workshop | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/38-printing-modelsModels.ts) |
+| Medieval 38 | `printers-guild-hall` | Printers' guild hall | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/38-printing-modelsModels.ts) |
+| Medieval 39 | `instrument-makers-guild-hall` | Instrument makers' guild hall | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/39-instrument-makers-hallsModels.ts) |
+| Medieval 40 | `sand-storage-yard` | Sand storage and loading yard | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/40-sand-yardsModels.ts) |
+| Medieval 41 | `orthodox-monastery` | Eastern European Orthodox monastery | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/41-orthodox-monasteriesModels.ts) |
+| Medieval 42 | `balkan-caravanserai` | Ottoman Balkan caravanserai | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/42-caravanseraisModels.ts) |
+| Medieval 44 | `ossuary-charnel-house` | Ossuary charnel house | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
+| Medieval 44 | `preaching-cross-calvary` | Preaching cross calvary | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
+| Medieval 44 | `mausoleum-dome` | Mausoleum dome | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
+| Medieval 44 | `stupa-chorten` | Stupa chorten | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
+| Medieval 44 | `skull-shelf` | Skull shelf | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
+| Medieval 45 | `jettied-town-house` | Jettied timber town house | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/45-jettied-housesModels.ts) |
+| Medieval 45 | `double-jettied-merchant-house` | Double-jettied merchant house | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/45-jettied-housesModels.ts) |
+| Medieval 45 | `corner-jettied-shop-house` | Corner-jettied shop and dwelling | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/45-jettied-housesModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-barracks` | Citadel barracks · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-command` | Citadel command · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |

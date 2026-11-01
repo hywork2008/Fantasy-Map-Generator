@@ -25,7 +25,7 @@ it.each(["low", "standard", "high"] as const)(
     const level = quality === "high" ? "high" : "low";
     const sources = plans.map(plan =>
       createMonastery(plan, 12, 7.8, {
-        architectureQuality: plan.kind === "orthodoxMonastery" ? "low" : level,
+        architectureQuality: level,
         vegetationQuality: quality === "standard" ? "medium" : quality,
         wellQuality: quality === "high" ? "default" : "low"
       })
@@ -35,7 +35,7 @@ it.each(["low", "standard", "high"] as const)(
       expect(merged.group.userData.modelVariants.filter((id: string) => id.startsWith("monastery."))).toEqual([
         `monastery.friary@${level}#codex-gpt-6.1-sol`,
         `monastery.abbey@${level}#codex-gpt-6.1-sol`,
-        "monastery.orthodoxMonastery@default#codex-gpt-6.1-sol"
+        `monastery.orthodoxMonastery@${level}#codex-gpt-6.1-sol`
       ]);
       expect(collectModelMetrics(merged.group).triangles).toBe(
         sources.reduce((sum, source) => sum + collectModelMetrics(source.group).triangles, 0)
@@ -244,9 +244,7 @@ it.each(["abbey", "orthodoxMonastery"] as const)(
     const model = createTownMonasteries([plan], { foundationAt: () => 12, heightAt: () => 8 });
     expect(model.pickables).toHaveLength(1);
     expect(Array.from(model.pickables[0].geometry.getAttribute("position").array).every(Number.isFinite)).toBe(true);
-    expect(model.group.userData.modelVariants).toContain(
-      `monastery.${kind}@${kind === "abbey" ? "low" : "default"}#codex-gpt-6.1-sol`
-    );
+    expect(model.group.userData.modelVariants).toContain(`monastery.${kind}@low#codex-gpt-6.1-sol`);
     expect(new THREE.Box3().setFromObject(model.group).min.y).toBeCloseTo(7.8);
     const detailed = createMonastery(plan);
     expect(detailed.pickables.some(mesh => mesh.name === "friary-bell")).toBe(false);

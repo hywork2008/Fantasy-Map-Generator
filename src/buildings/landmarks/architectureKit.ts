@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import type { Author } from "../authors";
 import { ModelKit, type Surface } from "../medieval/modelKit";
+import type { ModelPartFactory } from "../modelParts";
 
 export interface LandmarkModel {
   id: string;
@@ -32,6 +33,9 @@ export interface LandmarkModel {
   /** Hide the ground disk for airborne studies. */
   floating?: boolean;
   create(): CityStructureMeshes;
+  /** Inspection components in this landmark's fixed assembly coordinates; not interchangeable presets. */
+  parts?(): readonly ModelPartFactory[];
+  assembleParts?(parts: readonly ModelPartFactory[]): CityStructureMeshes;
   author?: Author;
 }
 

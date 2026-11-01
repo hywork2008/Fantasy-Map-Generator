@@ -1,5 +1,9 @@
+import { DEFAULT_AUTHOR } from "../authors";
+import type { CivicHallKind } from "./civicHallDetails";
+import { assembleCivicHallParts, civicHallPartFactories, createHighCivicHall } from "./civicHallParts";
 import { assemblyHall } from "./civicParts";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -31,3 +35,25 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "cloth-guild-hall": () => createHighCivicHall("cloth")
+});
+
+for (const model of models) {
+  const kind: CivicHallKind =
+    model.id === "medieval-town-hall" ? "town" : model.id === "covered-market-hall" ? "market" : "cloth";
+  model.parts = variantId =>
+    model.variants?.find(v => v.id === variantId)?.level === "high"
+      ? civicHallPartFactories(kind)
+      : [
+          {
+            id: `${kind}:legacy`,
+            role: "architecture",
+            quality: "low",
+            author: DEFAULT_AUTHOR,
+            create: () => model.create()
+          }
+        ];
+  model.assembleParts = parts => assembleCivicHallParts(model.id, parts);
+}

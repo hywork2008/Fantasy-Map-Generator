@@ -1,3 +1,4 @@
+import { HARBOR_CRANE_FOUNDATION } from "../../buildings/medieval/harborCraneDimensions";
 import type { HarborPlan } from "../generators/harborFabric";
 import type { FallbackPier } from "./harborPierFacts";
 import { element, polygon } from "./svgPrimitives";
@@ -20,6 +21,30 @@ export function renderTownQuays(
           "stroke-width": "0.6"
         })
       );
+
+    for (const quay of harbor.cargoQuays ?? []) {
+      const g = element("g", { class: "ce-cargo-quay", "data-berth-id": quay.id, "data-crane-id": quay.craneId });
+      g.appendChild(
+        element("path", {
+          d: `M${quay.a[0]} ${-quay.a[1]} L${quay.b[0]} ${-quay.b[1]}`,
+          stroke: "#6e5941",
+          "stroke-width": "1.2",
+          fill: "none"
+        })
+      );
+      g.appendChild(
+        element("circle", {
+          cx: String(quay.landDrop[0]),
+          cy: String(-quay.landDrop[1]),
+          r: "1",
+          fill: "none",
+          stroke: "#6e5941",
+          "stroke-width": "0.3",
+          "stroke-dasharray": "0.6 0.4"
+        })
+      );
+      layer.appendChild(g);
+    }
 
     // Cargo piles along the harbor
     if (harbor.cargoPiles?.length) {
@@ -107,16 +132,34 @@ export function renderTownQuays(
         const armAngleDeg = (-crane.armAngleRad * 180) / Math.PI;
         const g = element("g", {
           class: `ce-crane ce-crane--${crane.kind}`,
+          "data-berth-id": crane.berthId ?? "",
+          "data-reach-m": String(crane.armLengthMeters),
           transform: `translate(${cx.toFixed(2)},${cy.toFixed(2)})`
         });
 
+        // Draw the reserved rectangle, not the enclosing collision-radius circle.
+        const foundation = element("g", { transform: `rotate(${armAngleDeg.toFixed(1)})` });
+        foundation.appendChild(
+          element("rect", {
+            class: "ce-crane-foundation",
+            x: String(HARBOR_CRANE_FOUNDATION.minX),
+            y: String(-HARBOR_CRANE_FOUNDATION.halfWidth),
+            width: String(HARBOR_CRANE_FOUNDATION.maxX - HARBOR_CRANE_FOUNDATION.minX),
+            height: String(HARBOR_CRANE_FOUNDATION.halfWidth * 2),
+            fill: "#aaa18e",
+            stroke: "#514b40",
+            "stroke-width": "0.3"
+          })
+        );
+        g.appendChild(foundation);
+        const baseRadius = Math.min(crane.radiusMeters, 1.5);
         // Crane house or base
         if (crane.kind === "treadwheel") {
           g.appendChild(
             element("circle", {
               cx: "0",
               cy: "0",
-              r: String(crane.radiusMeters),
+              r: String(baseRadius),
               fill: "#6d5b45",
               stroke: "#362a1c",
               "stroke-width": "0.6"
@@ -126,7 +169,7 @@ export function renderTownQuays(
             element("circle", {
               cx: "0",
               cy: "0",
-              r: String(crane.radiusMeters * 0.45),
+              r: String(baseRadius * 0.45),
               fill: "#4f4030",
               stroke: "#291e13",
               "stroke-width": "0.4"
@@ -137,7 +180,7 @@ export function renderTownQuays(
             element("circle", {
               cx: "0",
               cy: "0",
-              r: String(crane.radiusMeters),
+              r: String(baseRadius),
               fill: "#786d5e",
               stroke: "#3d362d",
               "stroke-width": "0.5"
@@ -173,17 +216,6 @@ export function renderTownQuays(
             fill: "#221c15"
           })
         );
-        armGroup.appendChild(
-          element("rect", {
-            x: (crane.armLengthMeters + 0.3).toFixed(2),
-            y: "-0.6",
-            width: "1.2",
-            height: "1.2",
-            fill: "#8c7657",
-            stroke: "#3a2f21",
-            "stroke-width": "0.3"
-          })
-        );
 
         g.appendChild(armGroup);
         cranesLayer.appendChild(g);
@@ -191,7 +223,7 @@ export function renderTownQuays(
       layer.appendChild(cranesLayer);
     }
 
-    if (harbor.piers.length > 0) {
+    if (harbor.piers.length > 0 || harbor.cargoQuays?.length) {
       return layer;
     }
   }

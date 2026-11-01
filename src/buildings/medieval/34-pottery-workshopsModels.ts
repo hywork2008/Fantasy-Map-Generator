@@ -1,4 +1,7 @@
+import { DEFAULT_AUTHOR } from "../authors";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { assemblePotteryParts, createHighPottery, potteryPartFactories } from "./potteryParts";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -29,3 +32,20 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, { "potters-workshop": createHighPottery });
+for (const model of models) {
+  model.parts = variantId =>
+    model.variants?.find(v => v.id === variantId)?.level === "high"
+      ? potteryPartFactories()
+      : [
+          {
+            id: "pottery:legacy",
+            role: "legacy-assembly",
+            quality: "low",
+            author: DEFAULT_AUTHOR,
+            create: () => model.create()
+          }
+        ];
+  model.assembleParts = parts => assemblePotteryParts(model.id, parts);
+}

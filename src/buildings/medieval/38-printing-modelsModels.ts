@@ -1,5 +1,10 @@
+import { DEFAULT_AUTHOR } from "../authors";
+import { assembleCivicHallParts } from "./civicHallParts";
 import { assemblyHall } from "./civicParts";
+import { createHighGuildHall, guildHallPartFactories } from "./guildHallParts";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { printingWorkshopPartFactories } from "./printingParts";
+import { registerHighVariants } from "./qualityVariants";
 
 function press(k: ModelKit, x: number, z: number) {
   for (const s of [-1, 1]) k.box("press-upright", [x + s * 0.8, 1.5, z], [0.23, 3, 0.23]);
@@ -58,3 +63,25 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "early-printing-workshop": () => assembleCivicHallParts("printing-workshop-high", printingWorkshopPartFactories()),
+  "printers-guild-hall": () => createHighGuildHall("printing")
+});
+for (const model of models) {
+  model.parts = variantId =>
+    model.variants?.find(variant => variant.id === variantId)?.level === "high"
+      ? model.id === "early-printing-workshop"
+        ? printingWorkshopPartFactories()
+        : guildHallPartFactories("printing")
+      : [
+          {
+            id: `${model.id}:legacy`,
+            role: "legacy-assembly",
+            quality: "low",
+            author: DEFAULT_AUTHOR,
+            create: () => model.create()
+          }
+        ];
+  model.assembleParts = parts => assembleCivicHallParts(model.id, parts);
+}

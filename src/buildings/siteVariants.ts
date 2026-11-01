@@ -4,6 +4,8 @@ import { createSuspensionBridge, SUSPENSION_BRIDGE, type SuspensionBridgeSpec } 
 import { createCitadelRavelin, createCourtyardLodging, createGarrisonBuilding } from "./facilities/siteFacilities";
 import { tiers } from "./houses/houseVariants";
 import { CEMETERY_PROP_KINDS, createCemeteryProp } from "./landscape/cemeteryProps";
+import { CEMETERY_HIGH_DETAILS } from "./medieval/cemeteryHighDetails";
+import { assembleCivicHallParts } from "./medieval/civicHallParts";
 import { type ModelVariant, variantId } from "./modelVariants";
 import { createFriary, createMonastery, monasteryPreviewPlan } from "./monasteries/friary";
 import { PLACEABLE_OBJECTS } from "./placeableObjects";
@@ -61,9 +63,23 @@ export const CONTAINER_VARIANTS = CONTAINER_KINDS.flatMap(kind =>
 );
 
 /** Cemetery and friary models record no author; every unattributed BV model was made with Codex. */
-export const CEMETERY_VARIANTS = CEMETERY_PROP_KINDS.map(kind =>
-  single(`cemetery.${kind}`, DEFAULT_AUTHOR, () => createCemeteryProp(kind))
-);
+export const CEMETERY_VARIANTS = CEMETERY_PROP_KINDS.flatMap(kind => {
+  const detail = CEMETERY_HIGH_DETAILS[kind];
+  return [
+    single(`cemetery.${kind}`, DEFAULT_AUTHOR, () => createCemeteryProp(kind)),
+    ...(detail
+      ? (["low", "high"] as const).map(level => ({
+          id: variantId(`cemetery.${kind}`, level, DEFAULT_AUTHOR),
+          family: `cemetery.${kind}`,
+          level,
+          author: DEFAULT_AUTHOR,
+          ...(level === "high" && detail.basedOn ? { basedOn: detail.basedOn } : {}),
+          create: () =>
+            level === "low" ? createCemeteryProp(kind) : assembleCivicHallParts(`${kind}-high`, detail.parts())
+        }))
+      : [])
+  ];
+});
 
 export const FRIARY_VARIANTS = [
   {
@@ -93,22 +109,24 @@ export const FRIARY_VARIANTS = [
 /** Every generated religious-house programme uses the same BV and CE assembly. */
 export const MONASTERY_VARIANTS = [
   ...FRIARY_VARIANTS,
-  ...(["low", "high"] as const).map(level => ({
-    id: variantId("monastery.abbey", level, DEFAULT_AUTHOR),
-    family: "monastery.abbey",
-    level,
-    author: DEFAULT_AUTHOR,
-    basedOn: [
-      variantId("tree.garden-parkland", "low", DEFAULT_AUTHOR),
-      variantId("well.medieval", "low", DEFAULT_AUTHOR)
-    ],
-    create: (
-      plan = monasteryPreviewPlan("abbey"),
-      elevation = 0,
-      bottom = elevation,
-      options: Parameters<typeof createMonastery>[3] = {}
-    ) => createMonastery(plan, elevation, bottom, { ...options, architectureQuality: level })
-  })),
+  ...(["abbey", "orthodoxMonastery"] as const).flatMap(kind =>
+    (["low", "high"] as const).map(level => ({
+      id: variantId(`monastery.${kind}`, level, DEFAULT_AUTHOR),
+      family: `monastery.${kind}`,
+      level,
+      author: DEFAULT_AUTHOR,
+      basedOn: [
+        variantId("tree.garden-parkland", "low", DEFAULT_AUTHOR),
+        variantId("well.medieval", "low", DEFAULT_AUTHOR)
+      ],
+      create: (
+        plan = monasteryPreviewPlan(kind),
+        elevation = 0,
+        bottom = elevation,
+        options: Parameters<typeof createMonastery>[3] = {}
+      ) => createMonastery(plan, elevation, bottom, { ...options, architectureQuality: level })
+    }))
+  ),
   ...(["abbey", "orthodoxMonastery"] as const).map(kind => ({
     ...single<Parameters<typeof createMonastery>>(
       `monastery.${kind}`,

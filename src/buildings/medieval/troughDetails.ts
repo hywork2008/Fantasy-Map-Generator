@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { compactModel } from "../compactModel";
 import { ModelKit } from "./modelKit";
 
-export function createHighFodderTrough() {
+export function createHighFodderTrough(options: { filled?: boolean } = {}) {
   const k = new ModelKit("fodder-trough-high");
   for (const x of [-1, 1]) {
     for (const side of [-1, 1]) {
@@ -47,7 +47,7 @@ export function createHighFodderTrough() {
   }
   k.beam("hayrack-top-rail", [-1.32, 1.3, -0.49], [1.32, 1.3, -0.49], 0.055);
   // Separate stems leave the feeding cavity visible between the fodder and side planks.
-  for (let i = 0; i < 315; i++) {
+  for (let i = 0; i < (options.filled === false ? 0 : 315); i++) {
     const layer = Math.floor(i / 45),
       cell = i % 45;
     const x = -1.14 + (cell % 15) * 0.155;

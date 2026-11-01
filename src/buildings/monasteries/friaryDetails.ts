@@ -6,7 +6,15 @@ import { ModelKit, type Surface } from "../medieval/modelKit";
 import { createMonasterySlab, type MonasteryContext } from "./monasteryComponents";
 
 type Vertex = [number, number, number];
-type Opening = { u: number; base: number; width: number; height: number; door?: boolean; unglazed?: boolean };
+type Opening = {
+  u: number;
+  base: number;
+  width: number;
+  height: number;
+  door?: boolean;
+  unglazed?: boolean;
+  round?: boolean;
+};
 const pitch = Math.tan((32 * Math.PI) / 180);
 const lerp = (a: Point, b: Point, t: number): Point => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 const cross = (a: Point, b: Point) => a[0] * b[1] - a[1] * b[0];
@@ -14,7 +22,18 @@ const area = (ring: Point[]) => ring.reduce((sum, p, i) => sum + cross(p, ring[(
 const ringOf = (ring: Point[]) => (area(ring) < 0 ? ring : [...ring].reverse());
 const ordinary = (role: string) => ["church", "apse", "range"].includes(role);
 
-function archPoints(width: number, height: number): Point[] {
+function archPoints(width: number, height: number, round = false): Point[] {
+  if (round) {
+    const r = width / 2;
+    return [
+      [-r, 0],
+      ...Array.from({ length: 13 }, (_, i): Point => {
+        const a = Math.PI - (i * Math.PI) / 12;
+        return [Math.cos(a) * r, height - r + Math.sin(a) * r];
+      }),
+      [r, 0]
+    ];
+  }
   const w = width / 2,
     spring = height - width * 0.65;
   const points: Point[] = [
@@ -48,7 +67,7 @@ function edgePlacement(mesh: THREE.Object3D, a: Point, b: Point, elevation: numb
 }
 
 function sectionPath(opening: Opening, width = opening.width, height = opening.height, base = opening.base) {
-  return archPoints(width, height).map(([x, y]) => new THREE.Vector2(x + opening.u, y + base));
+  return archPoints(width, height, opening.round).map(([x, y]) => new THREE.Vector2(x + opening.u, y + base));
 }
 
 function wall(
@@ -498,6 +517,20 @@ export function createHighFriaryBuilding(context: MonasteryContext, index: numbe
         building === context.nave &&
         Math.hypot((a[0] + b[0]) / 2 - building.ridge![0][0], (a[1] + b[1]) / 2 - building.ridge![0][1]) < 0.1;
       if (entry) openings.push({ u: length / 2, base: 0.08 * s, width: 2.5 * s, height: 3.6 * s, door: true });
+      if (context.plan.kind === "orthodoxMonastery" && building.role === "range" && context.plan.courts[0]) {
+        const court = context.plan.courts[0].polygon;
+        const center = court.reduce<Point>(
+          (sum, point) => [sum[0] + point[0] / court.length, sum[1] + point[1] / court.length],
+          [0, 0]
+        );
+        const distance = (edge: number) => {
+          const mid = lerp(ring[edge], ring[(edge + 1) % ring.length], 0.5);
+          return Math.hypot(mid[0] - center[0], mid[1] - center[1]);
+        };
+        const entranceEdge = ring.reduce((best, _, edge) => (distance(edge) < distance(best) ? edge : best), 0);
+        if (i === entranceEdge && length > 2 * s)
+          openings.push({ u: length / 2, base: 0.12 * s, width: 1.25 * s, height: 2.45 * s, door: true });
+      }
       const walk = context.plan.walk;
       if (!entry && walk)
         for (let j = 0; j < walk.outer.length; j++) {
@@ -523,8 +556,17 @@ export function createHighFriaryBuilding(context: MonasteryContext, index: numbe
         for (const base of sacred ? [3.0 * s] : gate ? [3.65 * s] : [1.0 * s, 3.65 * s])
           openings.push({ u, base, width: w, height: (sacred ? 3.2 : 1.25) * s });
       }
-      wall(k, p, q, height, bottom, context.elevation, s, openings);
-      if (sacred && !entry && length > 5 * s)
+      wall(
+        k,
+        p,
+        q,
+        height,
+        bottom,
+        context.elevation,
+        s,
+        context.plan.kind === "orthodoxMonastery" ? openings.map(o => ({ ...o, round: true })) : openings
+      );
+      if (sacred && context.plan.kind !== "orthodoxMonastery" && !entry && length > 5 * s)
         for (let bay = 1; bay < count; bay++) {
           const t = bay / count,
             point = lerp(p, q, t),
@@ -699,3 +741,6 @@ export function createHighFriaryWall(context: MonasteryContext) {
   }
   return k.finish();
 }
+
+/** Shared perforated masonry used by fitted church and tower programmes. */
+export { wall as addMonasteryMasonryWall };

@@ -56,8 +56,4 @@ Highは各部品を独立所有した後、同じ設定の材質を既存の`com
 
 実BVで3モデル×2品質×3構成を巡回し、窯の単体High→Low切替と全体へ戻した際の比較値を確認した。全数値はNode計測と一致した。CEの対話操作・GPU FPSは今回測定していない。
 
-- [Town High・窯単体](bv-bakery-oven-p3-20261101.png)
-- [Town High・標準へ戻した表示](bv-bakery-standard-p3-20261101.png)
-- [Communal High・上屋を含む標準構成](bv-bakery-shelter-p3-20261101.png)
-
 後続の[Inns実装記録](bv-inn-parts-p3-20261101.md)で宿泊棟・厩舎・サービス棟・中庭を部品化した。次はMedieval 15 Breweriesの醸造棟・炉釜・容器・作業設備を分割する。

@@ -17,11 +17,22 @@ checkLandmark(model, assembly => {
   // All three doors sit behind the front wall, within the modeled portal recesses.
   for (const z of [-12, 2, 16]) {
     const door = westRay(4, z)[0];
-    expect(door.object.name).toBe("west-door-leaf");
+    expect((door.object as THREE.Mesh<THREE.BufferGeometry, THREE.MeshLambertMaterial>).material.color.getHex()).toBe(
+      0x795036
+    );
     expect(door.point.x).toBeGreaterThan(-62);
   }
-  const count = (name: string) =>
-    assembly.pickables.filter(m => m.name === name).reduce((sum, m) => sum + (m.userData.instances ?? 1), 0);
+  const counts = new Map<string, number>();
+  for (const part of model.parts!()) {
+    const source = part.create();
+    try {
+      for (const mesh of source.pickables)
+        counts.set(mesh.name, (counts.get(mesh.name) ?? 0) + (mesh.userData.instances ?? 1));
+    } finally {
+      source.dispose();
+    }
+  }
+  const count = (name: string) => counts.get(name) ?? 0;
   expect(count("king-crown")).toBe(28);
   expect(count("rose-glass")).toBeGreaterThanOrEqual(3);
   expect(count("flying-buttress")).toBe(25);

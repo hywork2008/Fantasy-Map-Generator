@@ -27,8 +27,6 @@ CEではソース台帳を資源解放前に引き継ぎ、`monastery-assembly.u
 
 BVの修道院インスペクターへ折り畳みの`Assembly parts`表を追加した。役割・品質・メッシュ数・三角形数を表示し、行のツールチップに部品ID・作者・依存元を示す。Friary 25部品、Abbey 29部品、Orthodox 14部品を確認した。
 
-- [Friary全体と計測値](bv-friary-parts-p1-20261101.png)
-- [Friary部品表](bv-friary-part-table-p1-20261101.png)
 - [全計測JSON](bv-composite-parts-p1-20261101.json)
 
 ## 検証

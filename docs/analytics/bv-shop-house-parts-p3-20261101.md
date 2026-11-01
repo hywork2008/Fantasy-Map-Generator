@@ -56,8 +56,4 @@ Lowの独立部品は共有立方体・材質をそれぞれ所有するため�
 
 実BVで12構成を巡回し、部品単体のHigh→Low切替と標準へ戻した比較値を確認。全値がNode計測と一致した。
 
-- [Merchant High・庇なし](bv-shop-open-front-p3-20261101.png)
-- [Artisan High・庇単体](bv-shop-canopy-p3-20261101.png)
-- [Artisan High・標準へ戻した表示](bv-workshop-standard-p3-20261101.png)
-
 後続の[Bakeries実装記録](bv-bakery-parts-p3-20261101.md)で住宅棟・パン窯・上屋・作業設備を分割した。次はMedieval 12 Innsの宿泊棟・厩舎・サービス棟・中庭を部品化する。

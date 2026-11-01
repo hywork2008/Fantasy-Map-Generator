@@ -110,3 +110,39 @@ it("persists the elevation tint switch and rejects invalid values", () => {
   }
   expect(parseDocument(JSON.stringify({ ...document, showElevationTint: "false" }))).toBeNull();
 });
+
+it("preserves cargo berth assignments while legacy ships need no new fields", () => {
+  const document = createDocument("cargo-berth-codec", 400);
+  const point: [number, number] = [10, 20];
+  const assignment = {
+    kind: "cargo-quay" as const,
+    shipType: "barge" as const,
+    berthId: "q",
+    craneId: "c",
+    cargoAccessId: "barge:deck-handover",
+    point,
+    rotation: 0,
+    length: 18,
+    hook: point,
+    landDrop: [28, 20] as [number, number],
+    swingAngleRad: Math.PI
+  };
+  document.elements.push({
+    id: "cargo-barge",
+    kind: "ship",
+    locked: false,
+    faceIds: [Object.keys(document.mesh.faces)[0]],
+    point,
+    rotation: 0,
+    sizeMeters: 18,
+    shipType: "barge",
+    harborOperation: assignment
+  });
+  const saved = parseDocument(serializeDocument(document))!;
+  expect(saved).not.toBeNull();
+  expect(saved.elements.find(e => e.id === "cargo-barge")?.harborOperation).toEqual(assignment);
+  delete document.elements.find(e => e.id === "cargo-barge")!.harborOperation;
+  expect(
+    parseDocument(serializeDocument(document))!.elements.find(e => e.id === "cargo-barge")?.harborOperation
+  ).toBeUndefined();
+});

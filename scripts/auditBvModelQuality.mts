@@ -93,7 +93,20 @@ const report = `# BV non-tree Codex high-quality model audit (2026-10-31)
 
 Regenerate: \`node --import tsx scripts/auditBvModelQuality.mts\`
 
+## Shared-component production rules
+
+Read [BV composite models and per-part quality](../plan/bv-composite-models.md) before starting each candidate. Reuse its explicit factories, connection contracts, part ledger and BV isolation workflow. Do not independently rebuild elements that should be shared.
+
+- Cloth and craft guild halls use one shared architecture profile: upper floor 3.32 m, upper wall 3.25 m, roof rise 2.2 m, east-side exterior stair, door Z=-2.3 m, and masonry arcade supports. Trade decoration must not change these dimensions or connections.
+- Before Medieval 35 crane High work, follow [CE crane siting, cargo berths and lighter transfer](../plan/ce-harbor-cranes-and-cargo-berths.md). Resolve vessel cargo access, quay support, crane reach/height and the unloading route together; do not extend a jib to compensate for a failed berth.
+- Check existing components before adding stairs, floor supports, roofs or balconies. Regenerate from profile parameters; do not resize a completed assembly.
+- For future attachments, retain continuous host walls/roofs and use controlled overlap. Do not cut a bespoke socket for one chapel or workshop footprint: smaller replacements must not leave gaps. Functional doors/windows are separate. This is forward guidance, not a request to revise Notre-Dame.
+- Different stair sides, floor heights or support systems require a named, documented preset. The town bell turret and timber-post market hall are civic presets, not arbitrary craft-guild differences.
+- Verify unintended collisions, physical support/contact, doorway clearance, functional roof penetrations, ownership and standalone part display. Preserve intended attachment overlap on continuous hosts. Count shared placement variants as audit records, not newly independent High assets. Legacy Low/default factories retain their compatibility identities.
+
 ## Rules
+
+- Do not commit completed-model screenshots or link their PNG files in these records. Inspect models and parts in BV; temporary images may be used for local verification only.
 
 - Authorship does not establish quality. Single/default/unspecified models are treated as Low.
 - High evidence: highDetail/ultraDetail, registered high/ultra factories, or explicit high preview metadata backed by a high/low factory.
@@ -122,8 +135,15 @@ ${summary.join("\n")}
 9. Eighth batch (2026-11-01): added High for the two Medieval 15 breweries and two Medieval 16 granaries, preserving the default granary variants used by CE. See [verification and previews](bv-brewery-granary-high-20261101.md).
 10. Ninth batch (2026-11-01): added High for the two Medieval 17 warehouses and the Medieval 18 livestock market, preserving their default CE variants. See [verification and previews](bv-warehouse-market-high-20261101.md).
 11. Composite-model phase (2026-11-01): audited the friary's Ultra vegetation and detailed well, introduced independent components and quality budgets, and decomposed shop houses, bakeries, inns and breweries. Added a new High urban friary with actual masonry apertures, buttresses, roof intersections, a pointed cloister arcade and detailed bellcote. CE keeps its default Low architecture. See [verification and previews](bv-friary-high-p4-20261101.md).
-12. Next: extend component inspection to named landmarks, then resume the remaining non-tree High candidates, including Medieval 19 grave markers and 20 textile/leather workshops. Preserve the existing default CE variants for grave markers. Regional houses, standalone props and the Codex basilica remain later batches.
-13. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
+12. Tenth model batch (2026-11-01): added High for the three Medieval 19 grave markers and three Medieval 20 textile/leather workshops, preserving default CE grave-marker variants. See [verification and previews](bv-grave-textile-high-20261101.md).
+13. Eleventh model batch (2026-11-01): added High for the two Medieval 21 woodworking workshops and the Medieval 22 tannery, preserving the default CE tannery variant. See [verification and previews](bv-woodworking-tannery-high-20261101.md).
+14. Twelfth model batch (2026-11-01): added High for the two Medieval 23 small boats and the Medieval 25 public granary, preserving the default CE public-granary variant. See [verification and previews](bv-boat-public-granary-high-20261101.md).
+15. Thirteenth model batch (2026-11-01): added High for the two Medieval 26 civic halls and the Medieval 27 cloth merchants hall, preserving the default CE cloth-hall variant. See [verification and previews](bv-civic-cloth-hall-high-20261101.md).
+16. Fourteenth model batch (2026-11-01): added High for the four Medieval 28 craft guild halls and the Medieval 29 stone yard. Guild halls share the cloth hall architecture profile, masonry supports and east stair; trade dressing is a separate part. Preserved default CE variants. See [verification and previews](bv-guild-stone-yard-high-20261101.md).
+17. Fifteenth model batch (2026-11-01): added High for the Medieval 30 lime kiln and Medieval 31 bleaching field, each with three independently inspectable components. Preserved default CE variants. See [verification, sources and previews](bv-kiln-bleaching-high-20261101.md).
+18. Sixteenth model batch (2026-11-01): added High for the remaining Medieval 32 domestic ranges and the Medieval 34 pottery workshop. Reused monastery buildings/cloister, workshop shelter/benches and shared masonry kiln passages. Added independent component views and preserved original Low factories. See [verification, sources and previews](bv-domestic-pottery-high-20261101.md).
+19. Harbor prerequisite (2026-11-01): investigated historical crane sites and cargo transfer, and audited independent ship/crane placement plus the 2D/3D arm-length mismatch. Implemented the initial cargo-quay/lighter contract for flat sea ports, fixed-radius reach/depth/rigging/approach checks and shared 2D/3D crane dimensions; validated three waiting ships and a broadside lighter in CE. Added Medieval 35 High for treadwheel and hand-winch cranes with four components, shared BV/CE construction dimensions, quality-sensitive CE adoption and prototype disposal. See [verification and previews](bv-harbor-cranes-high-20261101.md) and [CE harbor crane planning](../plan/ce-harbor-cranes-and-cargo-berths.md); river/relief sites and furled sailing rigs remain follow-up work. Next is Medieval 36 town gallows. Continue component inspection of named landmarks; regional houses, standalone props and the Codex basilica remain later batches.
+20. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
 
@@ -132,11 +152,11 @@ ${summary.join("\n")}
 - Live BV: all three models switched between Low and High with Codex authorship and separate complexity columns. Basic timber fence and town wall displayed Low; explicit citadel/bridge previews retained High.
 - Browser console: no model/application errors; an unrelated favicon.ico 404 was observed.
 
-| Model | Low triangles | High triangles | High meshes | Preview |
-| --- | ---: | ---: | ---: | --- |
-| Timber farm barn | 2,310 | 11,780 | 5 | [High](bv-farm-barn-high-20261101.png) |
-| Threshing barn | 1,134 | 13,688 | 7 | [High](bv-threshing-barn-high-20261101.png) |
-| Open hay shelter | 1,228 | 8,592 | 5 | [High](bv-hay-shelter-high-20261101.png) |
+| Model | Low triangles | High triangles | High meshes |
+| --- | ---: | ---: | ---: |
+| Timber farm barn | 2,310 | 11,780 | 5 |
+| Threshing barn | 1,134 | 13,688 | 7 |
+| Open hay shelter | 1,228 | 8,592 | 5 |
 
 ## Missing Codex High candidates
 

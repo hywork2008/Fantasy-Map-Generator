@@ -1,4 +1,6 @@
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
+import { createHighStoneYard } from "./stoneYardDetails";
 
 export const models: MedievalModel[] = [
   {
@@ -33,3 +35,5 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, { "masons-stone-yard": createHighStoneYard });

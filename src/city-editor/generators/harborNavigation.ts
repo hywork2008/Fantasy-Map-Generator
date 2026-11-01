@@ -89,7 +89,11 @@ function edt1d(
   for (let q = 0; q < n; q++) f[offset + q * stride] = d[q];
 }
 
-export function harborWaterField(document: CityDocument): HarborWaterField {
+export function harborWaterField(
+  document: CityDocument,
+  minimumDepth = 0,
+  obstacles: readonly Point[][] = []
+): HarborWaterField {
   const extent = document.frame.extentMeters;
   const cell = Math.max(2, extent / 700);
   const size = Math.ceil(extent / cell);
@@ -103,6 +107,13 @@ export function harborWaterField(document: CityDocument): HarborWaterField {
   for (const face of faces)
     if (face.properties.water !== "land") fillPolygon(wet, size, origin, cell, facePoints(document.mesh, face), 1);
   for (const polygon of waterPolygons(document)) fillPolygon(wet, size, origin, cell, polygon, 1);
+
+  // Cargo approaches also need a draft-safe route around fixed structures and vessels.
+  if (minimumDepth > 0)
+    for (const face of faces)
+      if (face.properties.water !== "land" && (face.properties.depth ?? 3) < minimumDepth)
+        fillPolygon(wet, size, origin, cell, facePoints(document.mesh, face), 0);
+  for (const polygon of obstacles) fillPolygon(wet, size, origin, cell, polygon, 0);
 
   const dist = new Float64Array(size * size);
   for (let i = 0; i < dist.length; i++) dist[i] = wet[i] ? FAR : 0;

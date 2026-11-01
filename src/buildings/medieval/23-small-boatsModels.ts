@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { createMedievalContainerModel } from "../props/medievalContainers";
 import { type MedievalModel, ModelKit, type Position } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
+import { createHighSmallBoat } from "./smallBoatDetails";
 
 function boat(fishing: boolean) {
   const k = new ModelKit(fishing ? "fishing-boat" : "rowing-boat");
@@ -83,3 +85,8 @@ export const models: MedievalModel[] = [
     create: () => boat(false)
   }
 ];
+
+registerHighVariants(models, {
+  "small-fishing-boat": () => createHighSmallBoat(true),
+  "open-rowing-boat": () => createHighSmallBoat(false)
+});

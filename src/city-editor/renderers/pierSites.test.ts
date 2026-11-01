@@ -75,3 +75,46 @@ it("uses the exact planned polygon and never adds fallback piers when a planned 
   expect(collectPierSites(city, harbor)).toEqual([]);
   expect(renderTownQuays(harbor, plannedHarborPiers(city, harbor), []).querySelectorAll(".ce-pier")).toHaveLength(0);
 });
+
+it("does not recreate walking piers through a cargo-only quay reservation", () => {
+  const city = harborCity();
+  const harbor: HarborPlan = {
+    spaces: [],
+    frontages: [],
+    piers: [],
+    cranes: [],
+    cargoPiles: [],
+    sharedArea: 0,
+    cargoQuays: [
+      {
+        id: "q",
+        craneId: "c",
+        landFaceId: "f0",
+        waterFaceId: "f1",
+        a: [50, 0],
+        b: [50, 50],
+        axis: [45, 25],
+        outward: [1, 0],
+        reach: 9,
+        pulleyHeight: 8,
+        transferHeight: 6.5,
+        waterBelowQuay: 1,
+        landDrop: [36, 25],
+        swingDirections: [1],
+        depth: 6,
+        water: [
+          [50, 0],
+          [100, 0],
+          [100, 50],
+          [50, 50]
+        ],
+        reservedWater: []
+      }
+    ]
+  };
+  expect(fallbackHarborPiers(city).length).toBeGreaterThan(0);
+  expect(collectPierSites(city, harbor)).toEqual([]);
+  const svg = renderTownQuays(harbor, [], fallbackHarborPiers(city));
+  expect(svg.querySelectorAll(".ce-pier")).toHaveLength(0);
+  expect(svg.querySelector(".ce-cargo-quay")?.getAttribute("data-crane-id")).toBe("c");
+});

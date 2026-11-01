@@ -1,4 +1,7 @@
+import { DEFAULT_AUTHOR } from "../authors";
+import { assembleGallowsParts, createHighGallows, gallowsPartFactories } from "./gallowsParts";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -7,7 +10,7 @@ export const models: MedievalModel[] = [
     name: "Permanent timber gallows",
     task: 36,
     size: [8, 7, 6],
-    note: "Unoccupied permanent gallows for the outskirts of a town with judicial rights: stone post sockets, braced timber frame, suspended ropes and an access ladder. No people or remains.",
+    note: "Unoccupied permanent gallows for the outskirts of a town with judicial rights: stone post bases, braced timber frame, suspended ropes and an access ladder. High adds chamfered timbers, pegs and iron straps, masonry courses, rope relief and a fitted ladder. No people or remains.",
     create() {
       const k = new ModelKit("permanent-town-gallows");
       for (const x of [-2.4, 2.4]) {
@@ -35,3 +38,20 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, { "permanent-town-gallows": createHighGallows });
+for (const model of models) {
+  model.parts = variantId =>
+    model.variants?.find(variant => variant.id === variantId)?.level === "high"
+      ? gallowsPartFactories()
+      : [
+          {
+            id: `${model.id}:legacy`,
+            role: "legacy-assembly",
+            quality: "low",
+            author: DEFAULT_AUTHOR,
+            create: () => model.create()
+          }
+        ];
+  model.assembleParts = assembleGallowsParts;
+}

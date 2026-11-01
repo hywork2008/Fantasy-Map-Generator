@@ -1,5 +1,9 @@
+import { DEFAULT_AUTHOR } from "../authors";
+import { assembleCivicHallParts } from "./civicHallParts";
 import { assemblyHall } from "./civicParts";
+import { createHighGuildHall, type GuildCraft, guildHallPartFactories } from "./guildHallParts";
 import type { MedievalModel } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 const crafts = [
   {
@@ -66,3 +70,24 @@ export const models: MedievalModel[] = crafts.map((craft, index) => ({
     return k.finish();
   }
 }));
+
+registerHighVariants(
+  models,
+  Object.fromEntries(crafts.map(craft => [`${craft.id}-guild-hall`, () => createHighGuildHall(craft.id)]))
+);
+for (const model of models) {
+  const craft = model.id.replace("-guild-hall", "") as GuildCraft;
+  model.parts = variantId =>
+    model.variants?.find(v => v.id === variantId)?.level === "high"
+      ? guildHallPartFactories(craft)
+      : [
+          {
+            id: `${craft}:legacy`,
+            role: "architecture",
+            quality: "low",
+            author: DEFAULT_AUTHOR,
+            create: () => model.create()
+          }
+        ];
+  model.assembleParts = parts => assembleCivicHallParts(model.id, parts);
+}
