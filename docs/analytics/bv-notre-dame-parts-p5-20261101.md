@@ -2,7 +2,7 @@
 
 2026-11-01
 
-追記：同日、放射状礼拝堂の窓が壁面からずれていた不具合を修正した。[修正記録](bv-notre-dame-chapel-window-fix-20261101.md)を参照。以下の形状署名・画像・JSONは分割直後の比較基準である。
+追記：同日、放射状礼拝堂の窓が壁面からずれていた不具合を修正した。[修正記録](bv-notre-dame-chapel-window-fix-20261101.md)を参照。以下の形状署名・JSONは分割直後の比較基準である。
 
 ## 実装
 
@@ -67,10 +67,5 @@ Highの幅×奥行×高さは約131.12×49.82×96 mで、登録の132×58×97 m�
 - 実BVで全体Low／High、西正面High、鐘楼High／Low、全体High内の周歩廊Low、交差部尖塔High、全体への復帰、カタログ再選択時のリセットを確認。ページエラーと比較値の混入なし。品質表示を選択肢へ追加した後も再確認した。
 
 分割直後の値は[計測JSON](bv-notre-dame-parts-p5-20261101.json)に保存した。`node --import tsx scripts/profileNotreDameParts.mts`は窓位置修正後の現行値を新しいJSONへ出力する。台帳のメッシュ数は各factory内部の結合後、全体の材質結合前の値であり、Highの台帳総数201と表示の10メッシュを区別する。
-
-- [High全体](bv-notre-dame-high-p5-20261101.png)
-- [西正面High](bv-notre-dame-front-high-p5-20261101.png)
-- [北西塔High](bv-notre-dame-tower-high-p5-20261101.png)
-- [High構成内の周歩廊Low](bv-notre-dame-ambulatory-p5-20261101.png)
 
 次は周歩廊の既存形状と接続・屋根の重複を調べ、他の10部品を維持して実際のHigh部品を作製する。P5のCE側LOD／バッチ評価と、全体監査に残る非樹木Highの制作は継続課題。

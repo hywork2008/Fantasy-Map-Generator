@@ -51,11 +51,6 @@
 
 再計測は`node --import tsx scripts/profileGlassGuildHigh.mts`。[計測JSON](bv-glassworkers-guild-high-20261102.json)へ出力する。台帳のメッシュ数は各factoryの生成後・全体結合前を示し、最終表示の11メッシュとは区別する。
 
-- [全体High](bv-glassworkers-guild-high-20261102.png)
-- [用途部品の単体](bv-glassworkers-trade-high-20261102.png)
-- [ガラス見本と検品台の近景](bv-glassworkers-samples-high-20261102.png)
-- [既存Low](bv-glassworkers-guild-low-20261102.png)
-
 非樹木監査は220記録中、Highあり97、未対応123。前回からHighありが1増えた。固有資産数とは区別する。
 
 次はMedieval 38の印刷工房と印刷工ギルド会館。会館は同じ共通基盤を使い、工房と会館で共用できる印刷関連の用途部品も確認してから作製する。

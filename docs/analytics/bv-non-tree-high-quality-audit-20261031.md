@@ -15,6 +15,8 @@ Read [BV composite models and per-part quality](../plan/bv-composite-models.md) 
 
 ## Rules
 
+- Do not commit completed-model screenshots or link their PNG files in these records. Inspect models and parts in BV; temporary images may be used for local verification only.
+
 - Authorship does not establish quality. Single/default/unspecified models are treated as Low.
 - High evidence: highDetail/ultraDetail, registered high/ultra factories, or explicit high preview metadata backed by a high/low factory.
 - Triangle counts, names and hardcoded BV labels do not establish quality. Opus-only High remains a missing Codex edition. Codex Ultra qualifies as an existing detailed edition.
@@ -23,7 +25,7 @@ Read [BV composite models and per-part quality](../plan/bv-composite-models.md) 
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **97**. Missing candidates: **123**.
+Records: **220**. Codex High or Ultra available: **99**. Missing candidates: **121**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -66,7 +68,7 @@ Records: **220**. Codex High or Ultra available: **97**. Missing candidates: **1
 | Medieval 35 | 2 | 2 | 0 |
 | Medieval 36 | 1 | 1 | 0 |
 | Medieval 37 | 1 | 1 | 0 |
-| Medieval 38 | 2 | 0 | 2 |
+| Medieval 38 | 2 | 2 | 0 |
 | Medieval 39 | 1 | 0 | 1 |
 | Medieval 40 | 1 | 0 | 1 |
 | Medieval 41 | 1 | 0 | 1 |
@@ -108,18 +110,16 @@ Records: **220**. Codex High or Ultra available: **97**. Missing candidates: **1
 - Live BV: all three models switched between Low and High with Codex authorship and separate complexity columns. Basic timber fence and town wall displayed Low; explicit citadel/bridge previews retained High.
 - Browser console: no model/application errors; an unrelated favicon.ico 404 was observed.
 
-| Model | Low triangles | High triangles | High meshes | Preview |
-| --- | ---: | ---: | ---: | --- |
-| Timber farm barn | 2,310 | 11,780 | 5 | [High](bv-farm-barn-high-20261101.png) |
-| Threshing barn | 1,134 | 13,688 | 7 | [High](bv-threshing-barn-high-20261101.png) |
-| Open hay shelter | 1,228 | 8,592 | 5 | [High](bv-hay-shelter-high-20261101.png) |
+| Model | Low triangles | High triangles | High meshes |
+| --- | ---: | ---: | ---: |
+| Timber farm barn | 2,310 | 11,780 | 5 |
+| Threshing barn | 1,134 | 13,688 | 7 |
+| Open hay shelter | 1,228 | 8,592 | 5 |
 
 ## Missing Codex High candidates
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
-| Medieval 38 | `early-printing-workshop` | Early printing workshop | single/default; assumed Low - [source](../../src/buildings/medieval/38-printing-modelsModels.ts) |
-| Medieval 38 | `printers-guild-hall` | Printers' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/38-printing-modelsModels.ts) |
 | Medieval 39 | `instrument-makers-guild-hall` | Instrument makers' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/39-instrument-makers-hallsModels.ts) |
 | Medieval 40 | `sand-storage-yard` | Sand storage and loading yard | single/default; assumed Low - [source](../../src/buildings/medieval/40-sand-yardsModels.ts) |
 | Medieval 41 | `orthodox-monastery` | Eastern European Orthodox monastery | single/default; assumed Low - [source](../../src/buildings/medieval/41-orthodox-monasteriesModels.ts) |
@@ -317,6 +317,8 @@ Records: **220**. Codex High or Ultra available: **97**. Missing candidates: **1
 | Medieval 35 | `harbor-winch-crane` | Hand-winch loading crane | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
 | Medieval 36 | `permanent-town-gallows` | Permanent timber gallows | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/36-gallowsModels.ts) |
 | Medieval 37 | `glassworkers-guild-hall` | Glassworkers' guild hall | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/37-glassworkers-hallsModels.ts) |
+| Medieval 38 | `early-printing-workshop` | Early printing workshop | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/38-printing-modelsModels.ts) |
+| Medieval 38 | `printers-guild-hall` | Printers' guild hall | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/38-printing-modelsModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-barracks` | Citadel barracks · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-command` | Citadel command · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |

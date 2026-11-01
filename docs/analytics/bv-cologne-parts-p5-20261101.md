@@ -58,8 +58,4 @@ Highの幅×奥行×高さは約142.42×86.62×157.26 mで、登録の151×91×1
 
 再計測は`node --import tsx scripts/profileCologneParts.mts`。[計測JSON](bv-cologne-parts-p5-20261101.json)に部品ごとの値を保存した。部品台帳のメッシュ数は各factoryの内部結合後、全体の材質結合前の値で、Highの台帳メッシュ総数193は表示の7メッシュとは区別する。
 
-- [High全体](bv-cologne-high-p5-20261101.png)
-- [High北西塔](bv-cologne-tower-high-p5-20261101.png)
-- [High放射状礼拝堂群](bv-cologne-chapels-high-p5-20261101.png)
-
 次はNotre-Dame de Parisの既存Low／詳細モデルの生成境界を確認し、同じ部品表示へ展開する。P5のCE側LOD／バッチ評価と、監査に残る非樹木Highの制作は継続課題。

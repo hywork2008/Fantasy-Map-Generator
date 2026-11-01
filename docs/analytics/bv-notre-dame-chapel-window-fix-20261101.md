@@ -21,8 +21,6 @@ G01 Notre-Dame de Parisの`Radiating Chapels · High`は、五角形の壁を生
 - 実BVで礼拝堂群の内側・外側から3D表示を確認し、Low／High切替と全体復帰も確認。ページエラーなし。
 - 変更した生成コードと関連テストのBiome check、`git diff --check`成功。
 
-[修正後の外側視点](bv-notre-dame-chapel-window-fixed-outer-20261101.png)・[通常視点](bv-notre-dame-chapel-window-fixed-20261101.png)。
-
 窓の修正直後の値は[修正後JSON](bv-notre-dame-chapel-window-fix-20261101.json)に保存した。`node --import tsx scripts/profileNotreDameParts.mts`は周歩廊High化後の現行値を別のJSONへ出力する。[P5初回記録](bv-notre-dame-parts-p5-20261101.md)とそのJSONも修正前の比較基準として残す。
 
 次は周歩廊の既存外殻の重なりと接続を見直し、実際のHigh部品の作製を続ける。

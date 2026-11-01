@@ -61,9 +61,6 @@ Highの主な三角形数は西正面100,664、身廊・内陣58,272、中央塔
 
 当時の部品別の値は[計測JSON](bv-salisbury-parts-p5-20261101.json)に保存した。`node --import tsx scripts/profileSalisburyParts.mts`は参事会室High化後の現行値を新しいJSONへ出力する。台帳のメッシュ数は各factoryの生成・内部結合後、全体の材質結合前の値である。
 
-- [High全体](bv-salisbury-high-p5-20261101.png)
-- [High回廊単体](bv-salisbury-cloister-high-p5-20261101.png)
-
 ## 次の作業
 
 P5全体は継続中。Salisbury参事会室のHigh作製と、他の複合的な固有建築の部品表示を進める。固有建築を一般施設へ流用する場合の寸法・接続互換性、およびCEのLOD／バッチ評価は別途必要。その後、全体監査に残る非樹木High候補の制作を継続する。

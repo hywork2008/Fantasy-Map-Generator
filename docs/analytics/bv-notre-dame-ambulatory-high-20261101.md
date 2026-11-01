@@ -48,8 +48,4 @@ Low全体の形状署名は`010bc16205b0683c32d4f80b8c4c76e88b7a9686c047884f2503
 
 再計測は`node --import tsx scripts/profileNotreDameParts.mts`。[現行計測JSON](bv-notre-dame-ambulatory-high-20261101.json)へ出力する。
 
-- [周歩廊High・内側](bv-notre-dame-ambulatory-high-20261101.png)
-- [周歩廊High・外側](bv-notre-dame-ambulatory-high-outer-20261101.png)
-- [更新後の全体High](bv-notre-dame-ambulatory-updated-full-20261101.png)
-
 次は全体監査の未対応一覧へ戻り、先頭のMedieval 36 Permanent timber gallowsのHighを作製する。P5のCE側LOD／バッチ評価は継続課題として残す。

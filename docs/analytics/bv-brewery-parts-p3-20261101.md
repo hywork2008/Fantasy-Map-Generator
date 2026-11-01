@@ -63,8 +63,4 @@ BVの`Composition`は以下の3構成。各部品の単体表示も可能。
 
 実BVで2モデル×2品質×3構成を巡回し、加熱ユニットのHigh→Lowと全体へ戻した際の比較値を確認。全値がNode計測と一致した。CEの対話操作・GPU FPSは今回測定していない。
 
-- [Town High・醸造庭のみ](bv-brewery-yard-p3-20261101.png)
-- [Town High・加熱ユニット単体](bv-brewery-heating-p3-20261101.png)
-- [Town High・標準へ戻した表示](bv-brewery-standard-p3-20261101.png)
-
 後続の[Friary High実装記録](bv-friary-high-p4-20261101.md)で主要建築をHigh化した。樹木・井戸はLowのまま独立させ、CEの既定Lowも維持している。次はP5の固有建築の部品検査へ進む。

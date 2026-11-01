@@ -45,11 +45,6 @@ Lowの三角形・法線・材質を含む形状署名は`17486207b629a73fe0ace5
 
 再計測は`node --import tsx scripts/profileGallowsHigh.mts`。[計測JSON](bv-gallows-high-20261101.json)へ出力する。
 
-- [High](bv-gallows-high-20261101.png)
-- [Highの別方向](bv-gallows-high-side-20261101.png)
-- [共通梯子の単体High](bv-gallows-ladder-high-20261101.png)
-- [既存Low](bv-gallows-low-20261101.png)
-
 非樹木監査は220記録中、Codex Highあり96、未対応124。前回からHighありが1増えた。これは表示状態や共用モデルを含む監査記録数であり、固有資産数ではない。
 
 次はMedieval 37 Glassworkers' guild hall。既存の`GUILD_HALL_PROFILE`・共通会館本体・外階段を使い、職種による変更は紋章・展示品等の用途部品へ限定してHigh化する。

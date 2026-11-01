@@ -4,18 +4,18 @@ Medieval 32の未対応だったAbbey domestic rangeと34の陶工房にCodex GP
 
 ## 作製内容とBV実測
 
-| モデル | Highの構造・詳細 | Low三角形 | High三角形 | Highメッシュ | 外観 |
-| --- | --- | ---: | ---: | ---: | --- |
-| 修道院生活棟 | 5棟の生活・食堂・サービス・厨房・貯蔵棟、厚い壁と開いた出入口、窓、切り合いを処理した屋根、尖頭アーチ回廊、中庭と低い薬草、寝室階の床と内部階段・床開口、寝台、食卓・長椅子、厨房の開いた煙道と屋根の切り欠き | 4,738 | 31,630 | 10 | [全体](bv-abbey-domestic-range-high-20261101.png)・[低い視点](bv-abbey-domestic-range-front-high-20261101.png) |
-| 陶工房 | 共通作業上屋、足で回すろくろの軸・下部円盤・上部円盤・支持枠・腰掛け、内側のある陶器、筋交い付き乾燥棚、粘土作業台・切り糸・道具、原料の台、独立した厚壁の窯と焚口・装入口・上部通気口、隙間のある焼成床・受け段・支柱 | 5,416 | 43,216 | 9 | [全体](bv-potters-workshop-high-20261101.png)・[低い視点](bv-potters-workshop-front-high-20261101.png) |
+| モデル | Highの構造・詳細 | Low三角形 | High三角形 | Highメッシュ |
+| --- | --- | ---: | ---: | ---: |
+| 修道院生活棟 | 5棟の生活・食堂・サービス・厨房・貯蔵棟、厚い壁と開いた出入口、窓、切り合いを処理した屋根、尖頭アーチ回廊、中庭と低い薬草、寝室階の床と内部階段・床開口、寝台、食卓・長椅子、厨房の開いた煙道と屋根の切り欠き | 4,738 | 31,630 | 10 |
+| 陶工房 | 共通作業上屋、足で回すろくろの軸・下部円盤・上部円盤・支持枠・腰掛け、内側のある陶器、筋交い付き乾燥棚、粘土作業台・切り糸・道具、原料の台、独立した厚壁の窯と焚口・装入口・上部通気口、隙間のある焼成床・受け段・支柱 | 5,416 | 43,216 | 9 |
 
 ## 共通部品と生成境界
 
 生活棟は`createHighFriaryBuilding`と`createHighFriaryCloister`へ生活棟用の配置計画を渡して再利用する。主教会を仮置きして形を切ることはせず、生活棟だけの計画を使う。教会を含む既存Abbeyとは別のBV表示項目である。
 
-8部品は[Dormitory](bv-abbey-domestic-range-dormitory-high-20261101.png)、[Refectory](bv-abbey-domestic-range-refectory-high-20261101.png)、[Service Range](bv-abbey-domestic-range-service-range-high-20261101.png)、[Kitchen](bv-abbey-domestic-range-kitchen-high-20261101.png)、[Stores](bv-abbey-domestic-range-stores-high-20261101.png)、[Cloister](bv-abbey-domestic-range-cloister-high-20261101.png)、[Court](bv-abbey-domestic-range-court-high-20261101.png)、[Furnishings](bv-abbey-domestic-range-furnishings-high-20261101.png)。厨房は煙道と対応する屋根切り欠きを一緒に扱う。家具部品は上階床・その開口・内部階段・寝台等を含み、建築本体と合成した位置に置く。
+8部品は、、、、、、、。厨房は煙道と対応する屋根切り欠きを一緒に扱う。家具部品は上階床・その開口・内部階段・寝台等を含み、建築本体と合成した位置に置く。
 
-陶工房は[Shelter](bv-potters-workshop-shelter-high-20261101.png)、[Equipment](bv-potters-workshop-equipment-high-20261101.png)、[Kiln](bv-potters-workshop-kiln-high-20261101.png)の3部品。上屋と作業台は`workshopDetailKit`を再利用した。窯の深いアーチ開口は`addMasonryArchPassage`へ切り出し、既存石灰窯の焚口もこの共通factoryを使う。石灰窯と陶器窯では炉・装入物・焼成床が異なるため、本体をそのまま交換しない。
+陶工房は、、の3部品。上屋と作業台は`workshopDetailKit`を再利用した。窯の深いアーチ開口は`addMasonryArchPassage`へ切り出し、既存石灰窯の焚口もこの共通factoryを使う。石灰窯と陶器窯では炉・装入物・焼成床が異なるため、本体をそのまま交換しない。
 
 各部品は独立factoryで、選択した部品だけを生成できる。合成時には作者・High品質・部品台帳・統合後の頂点範囲を保持する。
 

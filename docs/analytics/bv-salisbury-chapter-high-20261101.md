@@ -49,8 +49,4 @@ Low全体の形状署名は`57830caca7f54e783d539e880c5e7753acdb75a1f9357ed668e4
 
 再計測は`node --import tsx scripts/profileSalisburyParts.mts docs/analytics/bv-salisbury-chapter-high-20261101.json`。[計測JSON](bv-salisbury-chapter-high-20261101.json)には各部品と変更対象外の署名も含めた。
 
-- [参事会室High](bv-salisbury-chapter-high-20261101.png)
-- [参事会室High・低い視点](bv-salisbury-chapter-high-side-20261101.png)
-- [更新後のHigh全体](bv-salisbury-chapter-updated-full-20261101.png)
-
 次は他の固有建築に既存の部品化がないか確認し、同じBV単体表示へ展開する。ギルドホールについては既存の共通建築・寸法・外階段を基盤とし、重複実装を作らない。
