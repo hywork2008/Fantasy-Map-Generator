@@ -1,0 +1,527 @@
+{
+  "method": "World-space triangles and normals rounded to 1e-5, with winding and material settings, sorted independently of batching. Buffer bytes count unique CPU ArrayBuffers only; no GPU/FPS benchmark.",
+  "rows": [
+    {
+      "quality": "low",
+      "metrics": {
+        "meshes": 5,
+        "triangles": 11754,
+        "vertices": 35262,
+        "geometries": 5,
+        "materials": 5
+      },
+      "attributeBytes": 846288,
+      "dimensions": [
+        139.06999969482422,
+        123,
+        99.4000015258789
+      ],
+      "fingerprint": "57830caca7f54e783d539e880c5e7753acdb75a1f9357ed668e4789d2e167edd",
+      "sourceParts": [
+        {
+          "id": "salisbury:nave-and-quire",
+          "role": "nave-and-quire",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 50,
+          "triangles": 884
+        },
+        {
+          "id": "salisbury:north-aisle",
+          "role": "north-aisle",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 34,
+          "triangles": 548
+        },
+        {
+          "id": "salisbury:north-great-transept",
+          "role": "north-great-transept",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 8,
+          "triangles": 128
+        },
+        {
+          "id": "salisbury:north-eastern-transept",
+          "role": "north-eastern-transept",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 20
+        },
+        {
+          "id": "salisbury:south-aisle",
+          "role": "south-aisle",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 34,
+          "triangles": 548
+        },
+        {
+          "id": "salisbury:south-great-transept",
+          "role": "south-great-transept",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 8,
+          "triangles": 128
+        },
+        {
+          "id": "salisbury:south-eastern-transept",
+          "role": "south-eastern-transept",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 20
+        },
+        {
+          "id": "salisbury:lady-chapel",
+          "role": "lady-chapel",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 74
+        },
+        {
+          "id": "salisbury:crossing-tower-and-spire",
+          "role": "crossing-tower-and-spire",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 37,
+          "triangles": 1184
+        },
+        {
+          "id": "salisbury:west-front",
+          "role": "west-front",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 74,
+          "triangles": 2476
+        },
+        {
+          "id": "salisbury:cloister",
+          "role": "cloister",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 108,
+          "triangles": 5696
+        },
+        {
+          "id": "salisbury:chapter-house",
+          "role": "chapter-house",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 48
+        }
+      ],
+      "parts": [
+        {
+          "id": "salisbury:nave-and-quire",
+          "role": "nave-and-quire",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 884,
+            "vertices": 2652,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "salisbury:north-aisle",
+          "role": "north-aisle",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 548,
+            "vertices": 1644,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "salisbury:north-great-transept",
+          "role": "north-great-transept",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 128,
+            "vertices": 384,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "salisbury:north-eastern-transept",
+          "role": "north-eastern-transept",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 20,
+            "vertices": 60,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "salisbury:south-aisle",
+          "role": "south-aisle",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 548,
+            "vertices": 1644,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "salisbury:south-great-transept",
+          "role": "south-great-transept",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 128,
+            "vertices": 384,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "salisbury:south-eastern-transept",
+          "role": "south-eastern-transept",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 20,
+            "vertices": 60,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "salisbury:lady-chapel",
+          "role": "lady-chapel",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 74,
+            "vertices": 222,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "salisbury:crossing-tower-and-spire",
+          "role": "crossing-tower-and-spire",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 1184,
+            "vertices": 3552,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "salisbury:west-front",
+          "role": "west-front",
+          "quality": "low",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 2476,
+            "vertices": 7428,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "salisbury:cloister",
+          "role": "cloister",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 5696,
+            "vertices": 17088,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "salisbury:chapter-house",
+          "role": "chapter-house",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 48,
+            "vertices": 144,
+            "geometries": 2,
+            "materials": 2
+          }
+        }
+      ]
+    },
+    {
+      "quality": "high",
+      "metrics": {
+        "meshes": 8,
+        "triangles": 295432,
+        "vertices": 886296,
+        "geometries": 8,
+        "materials": 8
+      },
+      "attributeBytes": 21271104,
+      "dimensions": [
+        139.4499969482422,
+        123,
+        99.4000015258789
+      ],
+      "fingerprint": "7c1cc576afd8a4585a1ba66efb900d5a5fb336b96e64e17bbc83b270581dafad",
+      "sourceParts": [
+        {
+          "id": "salisbury:nave-and-quire",
+          "role": "nave-and-quire",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 18,
+          "triangles": 58272
+        },
+        {
+          "id": "salisbury:north-aisle",
+          "role": "north-aisle",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 19,
+          "triangles": 29824
+        },
+        {
+          "id": "salisbury:north-great-transept",
+          "role": "north-great-transept",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 18,
+          "triangles": 7456
+        },
+        {
+          "id": "salisbury:north-eastern-transept",
+          "role": "north-eastern-transept",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 248
+        },
+        {
+          "id": "salisbury:south-aisle",
+          "role": "south-aisle",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 19,
+          "triangles": 29824
+        },
+        {
+          "id": "salisbury:south-great-transept",
+          "role": "south-great-transept",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 18,
+          "triangles": 7456
+        },
+        {
+          "id": "salisbury:south-eastern-transept",
+          "role": "south-eastern-transept",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 248
+        },
+        {
+          "id": "salisbury:lady-chapel",
+          "role": "lady-chapel",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 18,
+          "triangles": 3840
+        },
+        {
+          "id": "salisbury:crossing-tower-and-spire",
+          "role": "crossing-tower-and-spire",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 26,
+          "triangles": 50272
+        },
+        {
+          "id": "salisbury:west-front",
+          "role": "west-front",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 28,
+          "triangles": 100664
+        },
+        {
+          "id": "salisbury:cloister",
+          "role": "cloister",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 7280
+        },
+        {
+          "id": "salisbury:chapter-house",
+          "role": "chapter-house",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 48
+        }
+      ],
+      "parts": [
+        {
+          "id": "salisbury:nave-and-quire",
+          "role": "nave-and-quire",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 58272,
+            "vertices": 174816,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "salisbury:north-aisle",
+          "role": "north-aisle",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 29824,
+            "vertices": 89472,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "salisbury:north-great-transept",
+          "role": "north-great-transept",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 7456,
+            "vertices": 22368,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "salisbury:north-eastern-transept",
+          "role": "north-eastern-transept",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 248,
+            "vertices": 744,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "salisbury:south-aisle",
+          "role": "south-aisle",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 29824,
+            "vertices": 89472,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "salisbury:south-great-transept",
+          "role": "south-great-transept",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 7456,
+            "vertices": 22368,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "salisbury:south-eastern-transept",
+          "role": "south-eastern-transept",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 248,
+            "vertices": 744,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "salisbury:lady-chapel",
+          "role": "lady-chapel",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 3840,
+            "vertices": 11520,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "salisbury:crossing-tower-and-spire",
+          "role": "crossing-tower-and-spire",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 50272,
+            "vertices": 150816,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "salisbury:west-front",
+          "role": "west-front",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 100664,
+            "vertices": 301992,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "salisbury:cloister",
+          "role": "cloister",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 7280,
+            "vertices": 21840,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "salisbury:chapter-house",
+          "role": "chapter-house",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 48,
+            "vertices": 144,
+            "geometries": 2,
+            "materials": 2
+          }
+        }
+      ]
+    }
+  ]
+}
