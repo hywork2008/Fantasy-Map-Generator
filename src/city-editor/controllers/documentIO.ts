@@ -173,6 +173,8 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
         clone(recipe.settings)
       );
       ctx.generation.generateSettings.legacyCastles = recipe.algorithm === "evolution-city-v3";
+      if (recipe.settings.approachCommerce === "on") ctx.generation.generateSettings.approachCommerce = "on";
+      else delete ctx.generation.generateSettings.approachCommerce;
       ctx.generation.completeResultSettings = JSON.stringify(ctx.generation.generateSettings);
       ctx.documents.importedOrigin = ctx.generation.generateSettings.descriptor
         ? (ctx.documents.importedOrigin ?? "link")
@@ -261,7 +263,6 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
     }
   }
 
-  // biome-ignore lint/correctness/noComponentHookFactories: This is a document action, not a React hook.
   function useStandaloneSite(): void {
     delete ctx.generation.generateSettings.descriptor;
     ctx.documents.importedOrigin = null;

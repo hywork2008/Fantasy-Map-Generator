@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { approachProfiles } from "../../../services/approachProfile";
 import { applyApproachJourney, approachesOfJourney, decayApproachRows } from "./approachLedger";
 import type { TradeRouteSegment } from "./marketTypes";
 
@@ -43,8 +44,23 @@ describe("approach ledger", () => {
     expect(row("burg:1:route:7:edge:1").outbound).toEqual({ departures: 1, cargoSlots: 10, value: 5 });
     expect(row("burg:3:route:7:edge:3").inbound.cargoSlots).toBe(10);
     expect(row("burg:3:route:7:edge:3").partners).toEqual({ 1: 10 });
-    expect(row("burg:2:route:7:edge:3").through).toEqual({ departures: 1, cargoSlots: 10 });
+    expect(row("burg:2:route:7:edge:3").through).toEqual({
+      departures: 1,
+      cargoSlots: 10,
+      partners: { "burg:2:route:7:edge:1": 10 }
+    });
     expect(decayApproachRows(rows)[0].outbound.cargoSlots).toBe(7);
+    // The pass-through pair is the town's axis (approach-commerce-quarters.md C0).
+    const profiles = approachProfiles(
+      rows.filter(r => r.burgId === 2),
+      () => "grain",
+      0.7
+    );
+    expect(profiles.get("burg:2:route:7:edge:1")).toMatchObject({
+      share: 0.5,
+      throughShare: 1,
+      axisPartner: "burg:2:route:7:edge:3"
+    });
   });
 
   it("uses sea and open approaches off the route network", () => {

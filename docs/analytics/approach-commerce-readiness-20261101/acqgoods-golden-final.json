@@ -1,0 +1,156 @@
+{
+ "slots": [
+  {
+   "good": "Wood",
+   "cls": "bulk",
+   "share": 0.741
+  },
+  {
+   "good": "Fodder",
+   "cls": "other",
+   "share": 0.1
+  },
+  {
+   "good": "Grain",
+   "cls": "grain",
+   "share": 0.084
+  },
+  {
+   "good": "Tallow",
+   "cls": "bulk",
+   "share": 0.02
+  },
+  {
+   "good": "Barley",
+   "cls": "grain",
+   "share": 0.016
+  },
+  {
+   "good": "Salt",
+   "cls": "bulk",
+   "share": 0.012
+  },
+  {
+   "good": "Wheat",
+   "cls": "grain",
+   "share": 0.01
+  },
+  {
+   "good": "Garments",
+   "cls": "manufactured",
+   "share": 0.005
+  },
+  {
+   "good": "Leather",
+   "cls": "manufactured",
+   "share": 0.003
+  },
+  {
+   "good": "Meat",
+   "cls": "perishable",
+   "share": 0.002
+  },
+  {
+   "good": "Stone",
+   "cls": "bulk",
+   "share": 0.002
+  },
+  {
+   "good": "Chicken",
+   "cls": "livestock",
+   "share": 0.001
+  },
+  {
+   "good": "Wool",
+   "cls": "manufactured",
+   "share": 0.001
+  },
+  {
+   "good": "Horses",
+   "cls": "livestock",
+   "share": 0.001
+  },
+  {
+   "good": "Camels",
+   "cls": "livestock",
+   "share": 0.001
+  }
+ ],
+ "value": [
+  {
+   "good": "Grain",
+   "cls": "grain",
+   "share": 0.245
+  },
+  {
+   "good": "Fodder",
+   "cls": "other",
+   "share": 0.177
+  },
+  {
+   "good": "Tallow",
+   "cls": "bulk",
+   "share": 0.12
+  },
+  {
+   "good": "Wood",
+   "cls": "bulk",
+   "share": 0.107
+  },
+  {
+   "good": "Garments",
+   "cls": "manufactured",
+   "share": 0.106
+  },
+  {
+   "good": "Leather",
+   "cls": "manufactured",
+   "share": 0.048
+  },
+  {
+   "good": "Barley",
+   "cls": "grain",
+   "share": 0.033
+  },
+  {
+   "good": "Horses",
+   "cls": "livestock",
+   "share": 0.026
+  },
+  {
+   "good": "Wheat",
+   "cls": "grain",
+   "share": 0.022
+  },
+  {
+   "good": "Meat",
+   "cls": "perishable",
+   "share": 0.016
+  },
+  {
+   "good": "Camels",
+   "cls": "livestock",
+   "share": 0.014
+  },
+  {
+   "good": "Wool",
+   "cls": "manufactured",
+   "share": 0.012
+  },
+  {
+   "good": "Chicken",
+   "cls": "livestock",
+   "share": 0.011
+  },
+  {
+   "good": "Wool Blankets",
+   "cls": "manufactured",
+   "share": 0.007
+  },
+  {
+   "good": "Gold Ingot",
+   "cls": "bulk",
+   "share": 0.007
+  }
+ ]
+}

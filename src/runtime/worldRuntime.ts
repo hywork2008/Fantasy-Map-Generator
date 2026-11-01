@@ -2457,9 +2457,23 @@ export function registerSimulationStepDayHandler(handler: SimulationStepDayHandl
  * when Advance Time is running with a coarser tick (docs/plan/advance-time-history-mode.md §4).
  */
 export function stepDaySimulation(days = 1): WorldCommit<SimulationStepResult> | null {
-  return (worldRuntime as LegacyWorldRuntime).execute(
+  const commit = (worldRuntime as LegacyWorldRuntime).execute<SimulationStepResult>(
     days === 1 ? { type: "simulation.stepDay" } : { type: "simulation.stepDay", payload: { days } }
   );
+  if (commit) for (const finalize of [...dayFinalizers]) finalize();
+  return commit;
+}
+
+const dayFinalizers = new Set<() => void>();
+
+/**
+ * Runs `finalize` after every committed day, before the next day starts, so work an extension
+ * defers out of the day's systems (Economy's production settlement) lands on its own day in a
+ * multi-day advance too (docs/plan/ce-roadside-growth-observation.md §2.2).
+ */
+export function registerDayFinalizer(finalize: () => void): () => void {
+  dayFinalizers.add(finalize);
+  return () => dayFinalizers.delete(finalize);
 }
 
 /** Dispatches one compatibility simulation step through the named command seam. */

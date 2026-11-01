@@ -859,6 +859,8 @@ export function createGenerationController(ctx: GenerationContext) {
       ctx.generation.generateSettings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
     }
     ctx.avoidSeaInput.checked = ctx.generation.generateSettings.streets.avoidSea !== false;
+    const approachCommerce = ctx.root.querySelector<HTMLInputElement>(".ce-approach-commerce");
+    if (approachCommerce) approachCommerce.checked = ctx.generation.generateSettings.approachCommerce === "on";
     ctx.farNodeSelect.value = ctx.generation.generateSettings.streets.farNode ?? "descriptorEnd";
     ctx.bearingsInput.value =
       ctx.generation.generateSettings.streets.manualBearings?.map(n => String(n)).join(", ") ?? "";

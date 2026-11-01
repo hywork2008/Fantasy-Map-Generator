@@ -778,6 +778,8 @@ export function gatePlazaDisks(document: CityDocument): { center: Point; radius:
     if (wall?.kind !== "wall") continue;
     disks.push({ center: frame.point, radius: gatePlazaRadiusMeters(wall.style.widthMeters) });
   }
+  // Market funnel inside the main gate (approach-commerce-quarters.md §6.1). Absent when commerce is off.
+  if (document.marketFunnel) disks.push(...document.marketFunnel);
   return disks;
 }
 

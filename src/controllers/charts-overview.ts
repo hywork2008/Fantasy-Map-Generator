@@ -1,5 +1,10 @@
 import * as d3 from "d3";
 import { worldContext } from "../context/worldContext";
+import {
+  isTradeChartEntity,
+  readTradeContributions,
+  type TradeChartBasis
+} from "../extensions/economy/generators/tradeChartSeries";
 import { getHeight, getPrecipitation } from "../services/cellInfoService";
 import { tip } from "../services/tooltipService";
 import { openDialog } from "../ui/dialogs/dialogService";
@@ -17,6 +22,14 @@ export interface BuiltChart {
   svgElement: SVGElement;
   title: string;
   sortedData: ChartDataPoint[];
+  /** Y-axis names in draw order. Index 0 is the bottom row. */
+  entityNames: readonly string[];
+  /** X axis, kept outside the scrolling plot. */
+  axisElement: SVGElement;
+  /** Legend, kept outside the scrolling plot. */
+  legendElement: SVGElement;
+  /** Bars and y-axis labels for entityNames.slice(start, end). */
+  renderPlot: (start: number, end: number) => SVGElement;
 }
 
 interface ChartOptions {
@@ -27,6 +40,24 @@ interface ChartOptions {
   type: string;
 }
 
+export const BURG_ENTITY_OPTION = { value: "burgs", label: "Burg" } as const;
+
+export const TRADE_PLOT_OPTIONS = [
+  { value: "trade_price", label: "Trade volume (price)" },
+  { value: "trade_weight", label: "Trade volume (weight, kg)" },
+  { value: "trade_tags", label: "Trade volume (trade heading)" }
+] as const;
+
+const TRADE_PLOT_BASIS: Record<(typeof TRADE_PLOT_OPTIONS)[number]["value"], TradeChartBasis> = {
+  trade_price: "price",
+  trade_weight: "weight",
+  trade_tags: "tags"
+};
+
+export function isTradePlot(plotBy: string): plotBy is keyof typeof TRADE_PLOT_BASIS {
+  return Object.hasOwn(TRADE_PLOT_BASIS, plotBy);
+}
+
 /** d3.stack で生成されるバーの各セグメントのデータポイント: [x0, x1] + インデックス i */
 type BarDataPoint = [number, number] & { i: number; data: unknown };
 
@@ -34,6 +65,12 @@ type BarDataPoint = [number, number] & { i: number; data: unknown };
 const NEUTRAL_COLOR = "#ccc";
 const EMPTY_NAME = "no";
 const WIDTH = 800;
+/** SVG plot width. The dialog uses this to turn bar slots into CSS pixels. */
+export const CHART_PLOT_WIDTH = WIDTH;
+/** One y-axis row, including the gap, in SVG units. */
+export const CHART_BAR_SLOT = 25;
+/** Rows kept on screen before the plot scrolls. */
+export const CHART_VISIBLE_ROWS = 16;
 const Y_PADDING = 0.2;
 const RESERVED_PX_PER_CHAR = 7;
 const LABEL_GAP = 10;
@@ -82,6 +119,13 @@ const entitiesMap: Record<
     getName: biomeNameGetter,
     getColors: biomeColorsGetter,
     landOnly: false
+  },
+  burgs: {
+    label: "Burg",
+    getCellsData: () => worldContext.pack.cells.burg,
+    getName: burgNameGetter,
+    getColors: burgColorsGetter,
+    landOnly: true
   }
 };
 
@@ -265,14 +309,121 @@ export function openChartsOverview(): void {
 }
 
 export function buildChart({ entity, plotBy, groupBy, sorting, type }: ChartOptions): BuiltChart | null {
-  const { stackable } = quantizationMap[plotBy];
+  if (isTradePlot(plotBy)) return renderTradeChart({ entity, plotBy, groupBy, sorting, type });
+  const quantization = quantizationMap[plotBy];
+  if (!quantization) return null;
   let resolvedGroupBy = groupBy;
-  if (!stackable && groupBy !== entity) {
+  if (!quantization.stackable && groupBy !== entity) {
     tip(`Grouping is not supported for ${plotBy}`, false, "warn", 4000);
     resolvedGroupBy = entity;
   }
 
   return renderChart({ entity, plotBy, groupBy: resolvedGroupBy, sorting, type });
+}
+
+function renderTradeChart({ entity, plotBy, groupBy, sorting, type }: ChartOptions): BuiltChart | null {
+  if (!isTradePlot(plotBy) || !isTradeChartEntity(entity)) return null;
+  const basis = TRADE_PLOT_BASIS[plotBy];
+  const resolvedGroup = basis === "tags" || !isTradeChartEntity(groupBy) ? entity : groupBy;
+  const contributions = readTradeContributions({ basis, entity, groupBy: resolvedGroup });
+  if (!contributions) {
+    tip("Economy data is not available", false, "warn", 4000);
+    return null;
+  }
+  if (!contributions.length) {
+    tip("No recorded trade to plot", false, "warn", 4000);
+    return null;
+  }
+
+  const plotByLabel = TRADE_PLOT_OPTIONS.find(option => option.value === plotBy)?.label ?? plotBy;
+  const noGrouping = basis !== "tags" && resolvedGroup === entity;
+  const { label: entityLabel, getName: getEntityName } = entitiesMap[entity];
+  const { label: groupLabel, getName: getGroupName, getColors } = entitiesMap[resolvedGroup];
+  // D3 uses labels as keys, so distinguish towns that share a name before aggregation.
+  const burgLabels =
+    entity === "burgs" || resolvedGroup === "burgs"
+      ? uniqueBurgLabels(
+          contributions.flatMap(row => [
+            ...(entity === "burgs" ? [row.entityId] : []),
+            ...(basis !== "tags" && resolvedGroup === "burgs" ? [Number(row.groupKey)] : [])
+          ])
+        )
+      : new Map<number, string>();
+  const chartData = mergePoints(
+    contributions.map(row => ({
+      name:
+        burgLabels.get(row.entityId) && entity === "burgs"
+          ? burgLabels.get(row.entityId)!
+          : getEntityName(row.entityId),
+      group:
+        basis === "tags"
+          ? row.groupKey
+          : resolvedGroup === "burgs"
+            ? burgLabels.get(Number(row.groupKey))!
+            : getGroupName(row.groupKey),
+      value: row.value
+    }))
+  );
+  const sortedData = sortData(chartData, sorting);
+  const colors =
+    basis === "tags"
+      ? Object.fromEntries([...new Set(chartData.map(point => point.group))].map(tag => [tag, tagColor(tag)]))
+      : resolvedGroup === "burgs"
+        ? Object.fromEntries([...burgLabels].map(([id, label]) => [label, burgColor(id)]))
+        : getColors();
+  const title = `${capitalize(entity)} by ${plotByLabel}${
+    basis === "tags" ? " grouped by trade heading" : noGrouping ? "" : ` grouped by ${groupLabel}`
+  }`;
+  const tooltip = (entityName: string, group: string, value: number, percentage: number) => {
+    const entityTip = `${entityLabel}: ${entityName}`;
+    const groupTip = noGrouping ? "" : `${basis === "tags" ? "Trade heading" : groupLabel}: ${group}`;
+    let valueTip = `${plotByLabel}: ${value.toLocaleString()}`;
+    if (!noGrouping) valueTip += ` (${rn(percentage * 100)}%)`;
+    return [entityTip, groupTip, valueTip].filter(Boolean);
+  };
+  const { offset, formatX = (value: number) => si(value) } = plotTypeMap[type] ?? plotTypeMap.stackedBar;
+  const view = createStackedBarChart(sortedData, {
+    colors,
+    tooltip,
+    offset,
+    formatX: formatX as (value: number) => string
+  });
+  return { ...view, title, sortedData };
+}
+
+function uniqueBurgLabels(ids: number[]): Map<number, string> {
+  const distinct = [...new Set(ids)];
+  const names = distinct.map(id => burgNameGetter(id));
+  const counts = new Map<string, number>();
+  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1);
+  const used = new Set(names.filter(name => counts.get(name) === 1));
+  return new Map(
+    distinct.map((id, index) => {
+      const name = names[index];
+      if (counts.get(name) === 1) return [id, name];
+      let label = `${name} (Burg ${id})`;
+      while (used.has(label)) label += ` (${id})`;
+      used.add(label);
+      return [id, label];
+    })
+  );
+}
+
+function mergePoints(points: ChartDataPoint[]): ChartDataPoint[] {
+  const merged = new Map<string, ChartDataPoint>();
+  for (const point of points) {
+    const key = `${point.name}\0${point.group}`;
+    const existing = merged.get(key);
+    if (existing) existing.value += point.value;
+    else merged.set(key, { ...point });
+  }
+  return [...merged.values()];
+}
+
+function tagColor(tag: string): string {
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) hash = (hash * 31 + tag.charCodeAt(i)) >>> 0;
+  return `hsl(${hash % 360}, 55%, 42%)`;
 }
 
 function renderChart({ entity, plotBy, groupBy, sorting, type }: ChartOptions): BuiltChart {
@@ -311,6 +462,8 @@ function renderChart({ entity, plotBy, groupBy, sorting, type }: ChartOptions): 
   for (const cellId of worldContext.pack.cells.i) {
     if ((entityLandOnly || plotByLandOnly) && isWater(cellId, worldContext.pack)) continue;
     const entityId = entityCells[cellId];
+    // A burg chart is one bar per town. Cell 0 is every cell that has no burg.
+    if (entity === "burgs" && !entityId) continue;
     const groupId = groupCells[cellId];
     const value = quantize(cellId);
 
@@ -332,14 +485,36 @@ function renderChart({ entity, plotBy, groupBy, sorting, type }: ChartOptions): 
   const colors = getColors();
   const { offset, formatX = formatTicks } = plotTypeMap[type];
 
-  const svgElement = createStackedBarChart(sortedData, {
+  const view = createStackedBarChart(sortedData, {
     colors,
     tooltip,
     offset,
     formatX: formatX as (v: number) => string
   });
 
-  return { svgElement, title, sortedData };
+  return { ...view, title, sortedData };
+}
+
+interface StackedSeries {
+  key: string;
+  data: BarDataPoint[];
+}
+
+interface StackedBarParts {
+  svgElement: SVGElement;
+  entityNames: readonly string[];
+  axisElement: SVGElement;
+  legendElement: SVGElement;
+  renderPlot: (start: number, end: number) => SVGElement;
+}
+
+function chartSvg(height: number): d3.Selection<SVGSVGElement, undefined, null, undefined> {
+  return d3
+    .create("svg")
+    .attr("version", "1.1")
+    .attr("xmlns", "http://www.w3.org/2000/svg")
+    .attr("viewBox", `0 0 ${WIDTH} ${height}`)
+    .attr("style", "max-width: 100%; height: auto; height: intrinsic;");
 }
 
 function createStackedBarChart(
@@ -355,7 +530,7 @@ function createStackedBarChart(
     offset: (series: d3.Series<unknown, string>[], order: number[]) => void;
     formatX: (value: number) => string | number;
   }
-): SVGElement {
+): StackedBarParts {
   const X = sortedData.map(d => d.value);
   const Y = sortedData.map(d => d.name);
   const Z = sortedData.map(d => d.group);
@@ -372,7 +547,7 @@ function createStackedBarChart(
 
   const margin = { top: 30, right: 15, bottom: legendRows * 20 + 10, left: yScaleMinWidth };
   const xRange: [number, number] = [margin.left, WIDTH - margin.right];
-  const height = yDomain.size * 25 + margin.top + margin.bottom;
+  const height = yDomain.size * CHART_BAR_SLOT + margin.top + margin.bottom;
   const yRange: [number, number] = [height - margin.bottom, margin.top];
 
   const rolled = d3.rollups(
@@ -382,10 +557,10 @@ function createStackedBarChart(
     (i: number) => Z[i]
   ) as unknown as [string, Map<string, number[]>][];
 
-  const series = d3
+  const series: StackedSeries[] = d3
     .stack<[string, Map<string, number[]>]>()
     .keys(groupsArr)
-    .value(([, I], z) => X[new Map(I as unknown as [string, number][]).get(z)!])
+    .value(([, groupRows], z) => X[new Map(groupRows as unknown as [string, number][]).get(z)!])
     .order(d3.stackOrderNone)
     .offset(offset)(rolled)
     .map(s => {
@@ -402,20 +577,75 @@ function createStackedBarChart(
   const xScale = d3.scaleLinear(xDomain, xRange);
   const yScale = d3.scaleBand(entities, yRange).paddingInner(Y_PADDING);
 
-  const xAxis = d3.axisTop(xScale).ticks(WIDTH / 80, null);
-  const yAxis = d3.axisLeft(yScale).tickSizeOuter(0);
+  const totalZ: Record<string, number> = {};
+  for (const i of I) totalZ[Y[i]] = (totalZ[Y[i]] || 0) + X[i];
+  const getTooltip = (p: BarDataPoint) => {
+    if (p.i == null) return [];
+    return tooltip(Y[p.i], Z[p.i], X[p.i], X[p.i] / totalZ[Y[p.i]]);
+  };
 
-  const svgNode = d3
-    .create("svg")
-    .attr("version", "1.1")
-    .attr("xmlns", "http://www.w3.org/2000/svg")
-    .attr("viewBox", `0 0 ${WIDTH} ${height}`)
-    .attr("style", "max-width: 100%; height: auto; height: intrinsic;");
+  const drawBars = (
+    parent: d3.Selection<SVGSVGElement, undefined, null, undefined>,
+    band: d3.ScaleBand<string>,
+    visible: ReadonlySet<string> | null
+  ) => {
+    const bar = parent
+      .append("g")
+      .attr("stroke", "#666")
+      .attr("stroke-width", 0.5)
+      .selectAll("g")
+      .data(series)
+      .join("g")
+      .attr("fill", d => colors[d.key])
+      .selectAll("rect")
+      .data(d => d.data.filter(p => p[0] !== p[1] && (visible === null || visible.has(Y[p.i]))))
+      .join("rect")
+      .attr("x", (p: BarDataPoint) => Math.min(xScale(p[0]), xScale(p[1])))
+      .attr("y", (p: BarDataPoint) => band(Y[p.i]) ?? 0)
+      .attr("width", (p: BarDataPoint) => Math.abs(xScale(p[0]) - xScale(p[1])))
+      .attr("height", band.bandwidth());
+    bar.append("title").text(d => getTooltip(d).join("\r\n"));
+    bar.on("mouseover", d => tip(getTooltip(d).join(". ")));
+  };
 
+  const rowElements = Math.ceil(groupsArr.length / legendRows);
+  const columnWidth = WIDTH / (rowElements + 0.5);
+  const ROW_HEIGHT = 20;
+  const getLegendX = (_d: unknown, i: number) => (i % rowElements) * columnWidth;
+  const getLegendLabelX = (d: unknown, i: number) => getLegendX(d, i) + LABEL_GAP;
+  const getLegendY = (_d: unknown, i: number) => Math.floor(i / rowElements) * ROW_HEIGHT;
+
+  const drawLegend = (parent: d3.Selection<SVGSVGElement, undefined, null, undefined>, originY: number) => {
+    const legend = parent
+      .append("g")
+      .attr("stroke", "#666")
+      .attr("stroke-width", 0.5)
+      .attr("dominant-baseline", "central")
+      .attr("transform", `translate(${margin.left},${originY})`);
+    legend
+      .selectAll("circle")
+      .data(groupsArr)
+      .join("rect")
+      .attr("x", getLegendX)
+      .attr("y", getLegendY)
+      .attr("width", 10)
+      .attr("height", 10)
+      .attr("transform", "translate(-5, -5)")
+      .attr("fill", d => colors[d]);
+    legend
+      .selectAll("text")
+      .data(groupsArr)
+      .join("text")
+      .attr("x", getLegendLabelX)
+      .attr("y", getLegendY)
+      .text(d => d);
+  };
+
+  const svgNode = chartSvg(height);
   svgNode
     .append("g")
     .attr("transform", `translate(0,${margin.top})`)
-    .call(xAxis)
+    .call(d3.axisTop(xScale).ticks(WIDTH / 80, null))
     .call(g => g.select(".domain").remove())
     .call(g => g.selectAll("text").text((d: unknown) => formatX(d as number)))
     .call(g =>
@@ -425,81 +655,58 @@ function createStackedBarChart(
         .attr("y2", height - margin.top - margin.bottom)
         .attr("stroke-opacity", 0.1)
     );
-
-  const bar = svgNode
-    .append("g")
-    .attr("stroke", "#666")
-    .attr("stroke-width", 0.5)
-    .selectAll("g")
-    .data(series)
-    .join("g")
-    .attr("fill", d => colors[d.key])
-    .selectAll("rect")
-    .data(d => (d as unknown as { key: string; data: BarDataPoint[] }).data.filter((p: BarDataPoint) => p[0] !== p[1]))
-    .join("rect")
-    .attr("x", (p: BarDataPoint) => Math.min(xScale(p[0]), xScale(p[1])))
-    .attr("y", (p: BarDataPoint) => yScale(Y[p.i]) ?? 0)
-    .attr("width", (p: BarDataPoint) => Math.abs(xScale(p[0]) - xScale(p[1])))
-    .attr("height", yScale.bandwidth());
-
-  const totalZ = Object.fromEntries(
-    d3
-      .rollups(
-        I,
-        ([i]: number[]) => i,
-        (i: number) => Y[i],
-        (i: number) => X[i]
-      )
-      .map(([y, yz]) => [y, d3.sum(yz, ([, val]) => val)])
-  );
-  const getTooltip = (p: BarDataPoint) => {
-    if (p.i == null) return [];
-    return tooltip(Y[p.i], Z[p.i], X[p.i], X[p.i] / totalZ[Y[p.i]]);
-  };
-
-  bar.append("title").text(d => getTooltip(d).join("\r\n"));
-  bar.on("mouseover", d => tip(getTooltip(d).join(". ")));
-
+  drawBars(svgNode, yScale, null);
   svgNode
     .append("g")
     .attr("transform", `translate(${xScale(0)},0)`)
-    .call(yAxis);
+    .call(d3.axisLeft(yScale).tickSizeOuter(0));
+  drawLegend(svgNode, height - margin.bottom + 15);
 
-  const rowElements = Math.ceil(groupsArr.length / legendRows);
-  const columnWidth = WIDTH / (rowElements + 0.5);
-  const ROW_HEIGHT = 20;
-
-  const getLegendX = (_d: unknown, i: number) => (i % rowElements) * columnWidth;
-  const getLegendLabelX = (d: unknown, i: number) => getLegendX(d, i) + LABEL_GAP;
-  const getLegendY = (_d: unknown, i: number) => Math.floor(i / rowElements) * ROW_HEIGHT;
-
-  const legend = svgNode
+  const axisNode = chartSvg(margin.top);
+  axisNode
     .append("g")
-    .attr("stroke", "#666")
-    .attr("stroke-width", 0.5)
-    .attr("dominant-baseline", "central")
-    .attr("transform", `translate(${margin.left},${height - margin.bottom + 15})`);
+    .attr("transform", `translate(0,${margin.top})`)
+    .call(d3.axisTop(xScale).ticks(WIDTH / 80, null))
+    .call(g => g.select(".domain").remove())
+    .call(g => g.selectAll("text").text((d: unknown) => formatX(d as number)));
 
-  legend
-    .selectAll("circle")
-    .data(groupsArr)
-    .join("rect")
-    .attr("x", getLegendX)
-    .attr("y", getLegendY)
-    .attr("width", 10)
-    .attr("height", 10)
-    .attr("transform", "translate(-5, -5)")
-    .attr("fill", d => colors[d]);
+  const legendNode = chartSvg(margin.bottom);
+  drawLegend(legendNode, 15);
 
-  legend
-    .selectAll("text")
-    .data(groupsArr)
-    .join("text")
-    .attr("x", getLegendLabelX)
-    .attr("y", getLegendY)
-    .text(d => d);
+  const renderPlot = (start: number, end: number): SVGElement => {
+    const from = Math.max(0, Math.min(start, entities.length));
+    const to = Math.max(from, Math.min(end, entities.length));
+    const names = entities.slice(from, to);
+    const plotHeight = Math.max(names.length, 1) * CHART_BAR_SLOT;
+    const node = chartSvg(names.length === 0 ? 0 : plotHeight);
+    if (!names.length) return node.node()!;
+    const band = d3.scaleBand(names, [plotHeight, 0]).paddingInner(Y_PADDING);
+    node
+      .append("g")
+      .attr("stroke", "#000")
+      .attr("stroke-opacity", 0.1)
+      .selectAll("line")
+      .data(xScale.ticks(WIDTH / 80))
+      .join("line")
+      .attr("x1", d => xScale(d))
+      .attr("x2", d => xScale(d))
+      .attr("y1", 0)
+      .attr("y2", plotHeight);
+    drawBars(node, band, new Set(names));
+    node
+      .append("g")
+      .attr("transform", `translate(${xScale(0)},0)`)
+      .call(d3.axisLeft(band).tickSizeOuter(0));
+    return node.node()!;
+  };
 
-  return svgNode.node()!;
+  return {
+    svgElement: svgNode.node()!,
+    entityNames: entities,
+    axisElement: axisNode.node()!,
+    legendElement: legendNode.node()!,
+    renderPlot
+  };
 }
 
 function getTextMinWidth(entities: string[]): number {
@@ -537,6 +744,26 @@ function biomeColorsGetter(): Record<string, string> {
   return Object.fromEntries(
     worldContext.biomesData.i.map(i => [worldContext.biomesData.name[i], worldContext.biomesData.color[i]])
   );
+}
+
+function burgNameGetter(i: string | number): string {
+  const id = +i;
+  const burg = worldContext.pack.burgs[id];
+  if (!id || !burg || typeof burg !== "object") return EMPTY_NAME;
+  return burg.name || `Burg ${id}`;
+}
+
+function burgColor(id: number): string {
+  return `hsl(${(id * 137.508) % 360}, 55%, 42%)`;
+}
+
+function burgColorsGetter(): Record<string, string> {
+  const colors: Record<string, string> = {};
+  worldContext.pack.burgs.forEach((burg, id) => {
+    if (!id || !burg || typeof burg !== "object") return;
+    colors[burg.name || `Burg ${id}`] = burgColor(id);
+  });
+  return colors;
 }
 
 function getUrbanPopulation(cellId: number): number {

@@ -9,6 +9,8 @@ export interface TradeCorridor {
   /** Cargo slots, decayed the same way. */
   cargoSlots: number;
   value: number;
+  /** Catalogue value of movements recorded without a transaction price. */
+  unpricedValue?: number;
   /** Cargo-slot split. The three numbers add up to `cargoSlots`. */
   byMode: { land: number; river: number; sea: number };
   /** EWMA of the journey actually planned, in days. */
@@ -32,6 +34,8 @@ export interface CorridorMovement {
   destinationBurgId: number;
   cargoSlots: number;
   value: number;
+  /** Catalogue value of a movement without a transaction price. */
+  unpricedValue?: number;
   /** Shares of path length. They should add up to 1. */
   modeShare: { land: number; river: number; sea: number };
   observedDays: number;

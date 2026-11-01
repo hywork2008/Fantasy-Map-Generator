@@ -1,5 +1,6 @@
 import { MEAN_DAYS_PER_MONTH, MEAN_DAYS_PER_YEAR } from "../../runtime/calendarDuration";
 import type { DataTopic } from "../../runtime/worldRuntime";
+import { registerDayFinalizer } from "../../runtime/worldRuntime";
 import { simEvents } from "../../simulation/events";
 import { isRepairAtVersion } from "../../simulation/loadRepairs";
 import { prepareMasterReference } from "../../simulation/masterReference";
@@ -156,6 +157,7 @@ import {
   migrateSmeltingFuelAndAshGoods,
   migrateStapleCropGoods,
   migrateSyntheticAmmoniaGoods,
+  migrateTallowByproduct,
   migrateTextileQualityGoods,
   migrateUntaxedSaltValue,
   migrateWeightRepricing,
@@ -267,6 +269,7 @@ import {
 import { clearCullHireState, rebuildCullJobPostings, tickCullJobBoard } from "./generators/threatCullJobPostings";
 import { payTownWorks } from "./generators/townWorks";
 import { TradeAnimation } from "./generators/trade-animation";
+import { assignedTradeHeading } from "./generators/tradeHeadings";
 import { TradeSecurity } from "./generators/tradeSecurity";
 import { TransportAssetOrders } from "./generators/transportAssetOrders";
 import { clearTreasuryAllocationSnapshots } from "./generators/treasuryAllocation";
@@ -350,6 +353,7 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateRennetBarrel,
   migrateRennetCalfContract,
   migrateLeatherByproduct,
+  migrateTallowByproduct,
   migrateMeasuredCargoSlots,
   migrateWeightRepricing,
   migrateTextileQualityGoods,
@@ -697,6 +701,7 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
         i: nextId,
         name: value.name,
         tags: [...value.tags],
+        tradeHeading: assignedTradeHeading({ name: value.name, tags: value.tags }),
         value: value.value,
         unit: value.unit,
         icon: value.icon,
@@ -1924,40 +1929,47 @@ function register(api: SimulationExtensionAPI): () => void {
     });
   };
 
+  // Runs from the day finalizer right after the day that made the settlement due, and from the
+  // microtask for anything queued outside a day (map edits, regeneration).
+  const drainProductionSettlement = () => {
+    productionSettlementScheduled = false;
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+
+    // A periodic settlement must run even when no external producer marked the
+    // economy dirty: it is what accrues ordinary rural/urban output and demand.
+    // When only dirty (no monthly due), one settle is enough to absorb producer
+    // changes; when N months are due, run N full produce/tax cycles.
+    const dueSettlements = productionSettlementsDue;
+    const times = Math.max(dueSettlements, productionDirty ? 1 : 0);
+    const settlementsWithFoodAlreadyApplied = Math.min(dueSettlements, foodSettlementsAlreadyApplied);
+    const fastForward = productionSettlementsFastForward && !winterSlaughterNeedsPhysicalSettlement();
+    if (times === 0) return;
+    const feedPeriods = productionFeedPeriods;
+    productionFeedPeriods = [];
+    productionSettlementsDue = 0;
+    productionDirty = false;
+    productionSettlementsFastForward = false;
+    foodSettlementsAlreadyApplied -= settlementsWithFoodAlreadyApplied;
+
+    // Runs after the advance has returned, so it gets its own reproducible stream (track R).
+    runWithSimulationRandom("economy.productionSettlement", () => {
+      if (fastForward) {
+        runOneFastForwardSettlement(times);
+      } else {
+        for (let i = 0; i < times; i++)
+          runOneProductionSettlement(i < settlementsWithFoodAlreadyApplied, feedPeriods[i]);
+      }
+    });
+  };
+
   const scheduleProductionSettlement = () => {
     if (productionSettlementScheduled) return;
     productionSettlementScheduled = true;
-    queueMicrotask(() => {
-      productionSettlementScheduled = false;
-      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
-
-      // A periodic settlement must run even when no external producer marked the
-      // economy dirty: it is what accrues ordinary rural/urban output and demand.
-      // When only dirty (no monthly due), one settle is enough to absorb producer
-      // changes; when N months are due, run N full produce/tax cycles.
-      const dueSettlements = productionSettlementsDue;
-      const times = Math.max(dueSettlements, productionDirty ? 1 : 0);
-      const settlementsWithFoodAlreadyApplied = Math.min(dueSettlements, foodSettlementsAlreadyApplied);
-      const fastForward = productionSettlementsFastForward && !winterSlaughterNeedsPhysicalSettlement();
-      if (times === 0) return;
-      const feedPeriods = productionFeedPeriods;
-      productionFeedPeriods = [];
-      productionSettlementsDue = 0;
-      productionDirty = false;
-      productionSettlementsFastForward = false;
-      foodSettlementsAlreadyApplied -= settlementsWithFoodAlreadyApplied;
-
-      // Runs after the advance has returned, so it gets its own reproducible stream (track R).
-      runWithSimulationRandom("economy.productionSettlement", () => {
-        if (fastForward) {
-          runOneFastForwardSettlement(times);
-        } else {
-          for (let i = 0; i < times; i++)
-            runOneProductionSettlement(i < settlementsWithFoodAlreadyApplied, feedPeriods[i]);
-        }
-      });
-    });
+    queueMicrotask(drainProductionSettlement);
   };
+  const unregisterDayFinalizer = registerDayFinalizer(() => {
+    if (productionSettlementScheduled) drainProductionSettlement();
+  });
 
   // Core owns burg creation; the extension only enriches the newly created
   // settlement after it announces the completed promotion transaction.
@@ -2711,6 +2723,7 @@ function register(api: SimulationExtensionAPI): () => void {
     // `after`, and the tick systems form a linear chain (see registerEconomyTickSystem).
     for (const unregister of _unregisterTickSystems.reverse()) unregister();
     unregisterMarketTerritorySystem();
+    unregisterDayFinalizer();
     unsubscribe();
     unregisterMapReadyTask();
     for (const [type, listener] of listeners) api.events.removeEventListener(type, listener);

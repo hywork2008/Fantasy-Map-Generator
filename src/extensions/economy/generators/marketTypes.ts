@@ -298,6 +298,8 @@ export interface MarketTreasury {
   ruralGrainPayable: number;
   /** Hay bought at the cut on credit, repaid to the farms as the Fodder sells (Simulation settings `hayPayment`). */
   ruralHayPayable?: number;
+  /** Lots of the Fodder stock that are the farms' hay, sold for them on credit: its proceeds go to them. */
+  ruralHayConsignedLots?: number;
   /**
    * Merchant company working capital for inter-market trade (export warehouse booking).
    * Soft ledger: not full B2B settlement between markets.

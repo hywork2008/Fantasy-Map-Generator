@@ -36,6 +36,16 @@ import type {
   WardAssignment,
   WardKind
 } from "../types/geometry";
+import {
+  type ApproachCommercePlan,
+  type ApproachCommerceRoad,
+  COMMERCE_CARGO_MARK,
+  type CommerceGateShare,
+  gateWardQuota,
+  marketStreetScore,
+  merchantStreetScore,
+  resolveApproachCommerce
+} from "./approachCommerce";
 import { placeTempleFootprint } from "./civicPlacement";
 import { cultivableParts } from "./coastalSuitability";
 import { economyWardMix, type WardMixSlot } from "./economicWards";
@@ -147,6 +157,18 @@ export interface WardInputs {
   historicalPeriod?: HistoricalPeriod;
   burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
   elevations?: Map<number, number>;
+  /**
+   * Set only when `approachCommerce` is on. Profiles on these roads score the
+   * market street; absent profiles keep the previous gate chances and scores.
+   */
+  commerce?: {
+    roads: readonly ApproachCommerceRoad[];
+    importedRoads?: readonly { sourceIndex: number }[];
+    port: boolean;
+    extentMeters: number;
+    /** Open ground at both ends of the market street (Japanese masugata). */
+    bothEnds?: boolean;
+  };
 }
 
 export interface WardResult {
@@ -163,6 +185,8 @@ export interface WardResult {
   precincts: Precinct[];
   overlays: Overlay[];
   shanty: Set<number>;
+  /** Present when a market street was resolved. Assembly widens those gates' streets. */
+  approachCommerce?: { gateIndexes: number[]; funnel: { center: Point; radius: number }[] };
 }
 
 const EMPTY: WardResult = { wards: [], assignmentOrder: [], precincts: [], overlays: [], shanty: new Set() };
@@ -348,12 +372,35 @@ export function assignWards(input: WardInputs): WardResult {
 
   const gateChance = program.walls ? GATE_CHANCE_WALLED : GATE_CHANCE_OPEN;
   const gateEps = Math.max(QUANTUM * 2, cellSize * 0.08);
+  const commercePlan = input.commerce
+    ? resolveApproachCommerce({
+        roads: input.commerce.roads,
+        importedRoads: input.commerce.importedRoads,
+        gates,
+        plaza: plaza?.anchor ?? null,
+        landing: extraPrecincts.find(p => p.kind === "harbor")?.anchor ?? null,
+        port: input.commerce.port,
+        extentMeters: input.commerce.extentMeters,
+        bothEnds: input.commerce.bothEnds
+      })
+    : null;
 
-  // 4. Inner cells touching a gate → GateWard (probabilistic).
-  for (const cell of cells) {
-    if (!urban.has(cell.id) || occupied.has(cell.id)) continue;
-    if (!gates.some(g => cellTouchesPoint(cell, g.point, gateEps))) continue;
-    if (rng() < gateChance) take(cell.id, "gate");
+  // 4. Inner cells touching a gate → GateWard.
+  // Off: the historical chance. On: a share of each gate's touching cells.
+  if (!commercePlan) {
+    for (const cell of cells) {
+      if (!urban.has(cell.id) || occupied.has(cell.id)) continue;
+      if (!gates.some(g => cellTouchesPoint(cell, g.point, gateEps))) continue;
+      if (rng() < gateChance) take(cell.id, "gate");
+    }
+  } else {
+    assignGateWards(
+      cells,
+      cell => urban.has(cell.id) && !occupied.has(cell.id),
+      commercePlan,
+      gateEps,
+      id => take(id, "gate")
+    );
   }
 
   // 5. Remaining inner cells: shuffled, possibly-repeated mix + rateLocation.
@@ -369,19 +416,34 @@ export function assignWards(input: WardInputs): WardResult {
     borders,
     program.walls,
     rng,
-    input.economy
+    input.economy,
+    commercePlan,
+    input.riverBanks?.length ? input.riverBanks : (input.rivers ?? [])
   );
 
-  // 6. Outer cells touching a gate → GateWard (high probability).
-  for (const cell of cells) {
-    if (urban.has(cell.id) || sea.has(cell.id) || occupied.has(cell.id)) continue;
-    if (!gates.some(g => cellTouchesPoint(cell, g.point, gateEps))) continue;
-    if (rng() < OUTER_GATE_CHANCE) {
-      take(cell.id, "gate");
-      // A gate suburb is built-up land; outside the outskirts it would keep
-      // its ward but never be buildable, so it drew no houses.
-      outskirts.add(cell.id);
+  // 6. Outer cells touching a gate → GateWard.
+  if (!commercePlan) {
+    for (const cell of cells) {
+      if (urban.has(cell.id) || sea.has(cell.id) || occupied.has(cell.id)) continue;
+      if (!gates.some(g => cellTouchesPoint(cell, g.point, gateEps))) continue;
+      if (rng() < OUTER_GATE_CHANCE) {
+        take(cell.id, "gate");
+        // A gate suburb is built-up land; outside the outskirts it would keep
+        // its ward but never be buildable, so it drew no houses.
+        outskirts.add(cell.id);
+      }
     }
+  } else {
+    assignGateWards(
+      cells,
+      cell => !urban.has(cell.id) && !sea.has(cell.id) && !occupied.has(cell.id),
+      commercePlan,
+      gateEps,
+      id => {
+        take(id, "gate");
+        outskirts.add(id);
+      }
+    );
   }
 
   // 7. Remaining outskirts: compact + 20% → Farm, else empty Ward.
@@ -415,7 +477,53 @@ export function assignWards(input: WardInputs): WardResult {
     return craftDomain ? { cellId, kind, craftDomain } : { cellId, kind };
   });
   const wards = assignmentOrder.slice().sort((a, b) => a.cellId - b.cellId);
-  return { wards, assignmentOrder, precincts: extraPrecincts, overlays, shanty };
+  return {
+    wards,
+    assignmentOrder,
+    precincts: extraPrecincts,
+    overlays,
+    shanty,
+    ...(commercePlan
+      ? { approachCommerce: { gateIndexes: commercePlan.gateIndexes, funnel: commercePlan.funnel } }
+      : {})
+  };
+}
+
+/** Give each measured gate a number of touching cells proportional to its share. */
+function assignGateWards(
+  cells: Cell[],
+  eligible: (cell: Cell) => boolean,
+  plan: ApproachCommercePlan,
+  eps: number,
+  take: (id: number) => void
+): void {
+  const groups = new Map<number, Cell[]>();
+  for (const cell of cells) {
+    if (!eligible(cell)) continue;
+    let best = -1;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < plan.shares.length; i++) {
+      const share = plan.shares[i];
+      if (!cellTouchesPoint(cell, share.point, eps)) continue;
+      const distance = dist(cell.centroid, share.point);
+      if (distance < bestDist || (distance === bestDist && i < best)) {
+        best = i;
+        bestDist = distance;
+      }
+    }
+    if (best < 0) continue;
+    const list = groups.get(best) ?? [];
+    list.push(cell);
+    groups.set(best, list);
+  }
+  const maxShare = plan.shares.reduce((max, share) => Math.max(max, share.share), 0);
+  for (const [index, share] of plan.shares.entries()) {
+    const touching = (groups.get(index) ?? [])
+      .slice()
+      .sort((a, b) => dist(a.centroid, share.point) - dist(b.centroid, share.point) || a.id - b.id);
+    const quota = gateWardQuota(touching.length, share.share, share.main, maxShare);
+    for (const cell of touching.slice(0, quota)) take(cell.id);
+  }
 }
 
 function fillInner(
@@ -429,7 +537,9 @@ function fillInner(
   borders: BorderLoop[],
   walled: boolean,
   rng: Rng,
-  economy?: BurgSiteEconomy
+  economy?: BurgSiteEconomy,
+  commerce?: ApproachCommercePlan | null,
+  rivers: Point[][] = []
 ): void {
   const remaining = unassigned.slice();
   const queue = scaleMix(remaining.length, rng, economy);
@@ -438,7 +548,22 @@ function fillInner(
   while (remaining.length) {
     const slot: WardMixSlot = queue.shift() ?? { kind: "slum" };
     const kind = slot.kind;
-    const pick = pickFor(kind, remaining, byId, assigned, citadelIds, plaza, origin, borders, walled, rng);
+    const pick = pickFor(
+      kind,
+      remaining,
+      byId,
+      assigned,
+      citadelIds,
+      plaza,
+      origin,
+      borders,
+      walled,
+      rng,
+      commerce,
+      slot.craftDomain,
+      rivers,
+      craftDomains
+    );
     if (pick === null) {
       // This kind cannot sit anywhere left (e.g. MilitaryWard with no wall). Skip
       // it rather than forcing a slum in the middle of the mix.
@@ -485,10 +610,27 @@ function pickFor(
   origin: Point,
   borders: BorderLoop[],
   walled: boolean,
-  rng: Rng
+  rng: Rng,
+  commerce?: ApproachCommercePlan | null,
+  craftDomain?: NonNullable<WardMixSlot["craftDomain"]>,
+  rivers: Point[][] = [],
+  craftDomains?: Map<number, NonNullable<WardMixSlot["craftDomain"]>>
 ): number | null {
   if (!ids.length) return null;
-  const rate = rateLocation(kind, byId, assigned, citadelIds, plaza, origin, borders, walled);
+  const rate = rateLocation(
+    kind,
+    byId,
+    assigned,
+    citadelIds,
+    plaza,
+    origin,
+    borders,
+    walled,
+    commerce,
+    craftDomain,
+    rivers,
+    craftDomains
+  );
   if (!rate) {
     return ids[rng.int(0, ids.length)];
   }
@@ -513,7 +655,11 @@ function rateLocation(
   plaza: Precinct | null,
   origin: Point,
   borders: BorderLoop[],
-  walled: boolean
+  walled: boolean,
+  commerce?: ApproachCommercePlan | null,
+  craftDomain?: NonNullable<WardMixSlot["craftDomain"]>,
+  rivers: Point[][] = [],
+  craftDomains?: Map<number, NonNullable<WardMixSlot["craftDomain"]>>
 ): ((cell: Cell) => number) | null {
   const plazaAnchor = plaza?.anchor ?? origin;
   const plazaSet = new Set(plaza?.cellIds ?? []);
@@ -526,8 +672,18 @@ function rateLocation(
         return dist(cell.centroid, plazaAnchor);
       };
     case "merchant":
+      if (commerce) return cell => merchantStreetScore(cell.centroid, origin, commerce.marketStreet);
       return cell => dist(cell.centroid, origin);
     case "market":
+      if (commerce)
+        return cell =>
+          marketStreetScore(
+            cell.centroid,
+            commerce.marketStreet,
+            commerce.marketEnd,
+            commerce.mainPoint,
+            commerce.plaza
+          );
       return cell => {
         if (cell.neighbors.some(n => assigned.get(n) === "market" || plazaSet.has(n))) return Number.POSITIVE_INFINITY;
         const plazaArea = plazaSet.size ? Math.abs(polygonArea(byId.get([...plazaSet][0])!.polygon)) : 1;
@@ -551,9 +707,71 @@ function rateLocation(
         }
         return score;
       };
+    case "craftsmen":
+      return craftsmanScore(commerce, craftDomain, rivers, craftDomains);
     default:
       return null;
   }
+}
+
+/** A neighbour already given this craft is worth more than a short walk toward the gate. */
+const CRAFT_CLUSTER_M = 120;
+
+const BULK_CRAFTS = new Set<NonNullable<WardMixSlot["craftDomain"]>>(["metallurgy", "woodworking", "masonry"]);
+
+/**
+ * Bulk crafts sit by the bulk gate, export crafts by an outbound gate, and tanning by the
+ * downstream river (the same preference as the tannery). Other crafts stay random.
+ * Leather is named with the export trades too; the water rule takes that seat.
+ */
+function craftsmanScore(
+  commerce: ApproachCommercePlan | null | undefined,
+  domain: NonNullable<WardMixSlot["craftDomain"]> | undefined,
+  rivers: Point[][],
+  domains: Map<number, NonNullable<WardMixSlot["craftDomain"]>> | undefined
+): ((cell: Cell) => number) | null {
+  if (!commerce || !domain || !domains) return null;
+  const cluster = (cell: Cell) => (cell.neighbors.some(id => domains.get(id) === domain) ? -CRAFT_CLUSTER_M : 0);
+  if (domain === "leather") {
+    const lines = rivers.filter(line => line.length >= 2);
+    if (!lines.length) return null;
+    return cell => riverCraftScore(cell.centroid, lines) + cluster(cell);
+  }
+  if (domain === "textiles") {
+    const targets = commerce.shares.filter(share => share.inboundShare < 0.3);
+    if (!targets.length) return null;
+    return cell => nearestShare(cell.centroid, targets) + cluster(cell);
+  }
+  if (!BULK_CRAFTS.has(domain)) return null;
+  const targets = commerce.shares.filter(share => (share.cargo.bulk ?? 0) >= COMMERCE_CARGO_MARK);
+  if (!targets.length) return null;
+  return cell => nearestShare(cell.centroid, targets) + cluster(cell);
+}
+
+function nearestShare(point: Point, shares: readonly CommerceGateShare[]): number {
+  let best = Number.POSITIVE_INFINITY;
+  for (const share of shares) {
+    const distance = Math.hypot(point[0] - share.point[0], point[1] - share.point[1]);
+    if (distance < best) best = distance;
+  }
+  return best;
+}
+
+/** Close to the water, and further downstream, is better. Rivers run upstream to downstream. */
+function riverCraftScore(point: Point, lines: readonly Point[][]): number {
+  let best = Number.POSITIVE_INFINITY;
+  for (const line of lines) {
+    const hit = nearestOnPolyline(point, line);
+    let along = 0;
+    for (let index = 0; index < hit.segIndex; index++)
+      along += Math.hypot(line[index + 1][0] - line[index][0], line[index + 1][1] - line[index][1]);
+    const a = line[hit.segIndex];
+    const b = line[hit.segIndex + 1];
+    if (a && b) along += Math.hypot(b[0] - a[0], b[1] - a[1]) * hit.t;
+    const score = hit.dist - along * 0.2;
+    if (score < best) best = score;
+  }
+  return best;
 }
 
 /** Open-water cells an estuary sea harbour must claim before it is drawn. */

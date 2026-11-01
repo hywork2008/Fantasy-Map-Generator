@@ -21,6 +21,7 @@ import {
   getSimulationYear,
   getWorldContext
 } from "../economyContext";
+import { recordCountrysideFlow } from "./approachLedger";
 import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
@@ -337,6 +338,7 @@ export function settleMonthlyHeating(): void {
         const units = drawFuel(market, fuel.goodId, wanted[index] * share);
         const paid = debitHouseholdWealth(need.burgId, rn(units * fuel.price, 2));
         purses[index] = Math.max(0, purses[index] - paid);
+        recordCountrysideFlow(market.i, need.burgId, fuel.goodId, units, "inbound");
         heatLeftByBurg[index] = Math.max(0, heatLeftByBurg[index] - units * fuel.heatPerUnit);
         woodRevenue += paid;
         if (fuel.goodId === wood?.i) urbanWood += units;
@@ -353,6 +355,7 @@ export function settleMonthlyHeating(): void {
       const unheated = Math.min(need.heat, unmet);
       need.burg.coldExposure = rn(need.heat > 0 ? clamp01(unheated / need.heat) * clamp01(need.coldness) : 0, 4);
       urbanCoal += coalUnits;
+      recordCountrysideFlow(market.i, need.burgId, coal?.i, coalUnits, "inbound");
       urbanUnmet += unmet;
       coalRevenue += coalPaid;
     });

@@ -674,6 +674,8 @@
       "urbanCoreAllocationMode": "Urban core allocation mode",
       "3NPatchesBlankAuto": "nPatches (blank = auto)",
       "avoidSea": "Avoid sea",
+      "approachCommerce": "Quarters by gate traffic",
+      "approachCommerceHint": "Site the market street, merchant quarters and gate wards from each gate's measured cargo. Off keeps the existing layout.",
       "streetFarEnd": "Street far end",
       "stepThroughTheLastPressedProcessOneLoopIterationAt": "Step through the last-pressed process one loop iteration at a time",
       "drawACircleOverAtLeastOneCityCellTo": "Draw a circle over at least one city cell to create a wall",

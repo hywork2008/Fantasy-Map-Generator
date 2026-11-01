@@ -1,3 +1,4 @@
+import type { ApproachProfile } from "../services/approachProfile";
 import type { BridgeTransport } from "../utils/bridgeCrossingPolicy";
 import type { RelationKey } from "../utils/diplomacyRelations";
 import type { FixedBurgCrossings } from "../utils/fixedBurgCrossings";
@@ -129,6 +130,11 @@ export interface BurgSiteRoadEntry {
    * `approachGrowthSource: "traffic"`.
    */
   approachTraffic?: { cargoSlots: number; through: number; share: number };
+  /**
+   * Gate character (docs/plan/approach-commerce-quarters.md §5): ledger, prior, or a blend.
+   * Same values as `observe/gates`. City Editor drops the field unless approach commerce is on.
+   */
+  approachProfile?: ApproachProfile;
 }
 
 export interface BurgSiteWaterbody {

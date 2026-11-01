@@ -11,7 +11,7 @@ import { getBurgEconomySummary } from "./burgEconomySummary";
 import { recordAdvanceBalanceSnapshot, recordInitialBalanceSnapshot } from "./controllers/balance-history";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import { bindEconomyView } from "./economyContext";
-import { burgApproachTraffic } from "./generators/approachLedger";
+import { burgApproachProfiles, burgApproachTraffic } from "./generators/approachLedger";
 import { getBurgEmploymentComposition } from "./generators/burgEmploymentComposition";
 import { buildBurgSiteEconomy } from "./generators/burgSiteEconomy";
 import { getBurgSettlementValue, getStateSettlementValue } from "./generators/settlementValuation";
@@ -968,6 +968,7 @@ export function init(api: ExtensionAPI): void {
       api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
       api.burgEconomyExtensions.getBurgSiteEconomy = buildBurgSiteEconomy;
       api.burgEconomyExtensions.getBurgApproachTraffic = burgApproachTraffic;
+      api.burgEconomyExtensions.getBurgApproachProfiles = burgApproachProfiles;
       registerOverviewColumns(api);
     } else if (!isEnabled && wasEnabled) {
       // Visually turn off layers before removing them
@@ -1015,6 +1016,7 @@ export function init(api: ExtensionAPI): void {
       api.burgEconomyExtensions.getBurgEconomySummary = undefined;
       api.burgEconomyExtensions.getBurgSiteEconomy = undefined;
       api.burgEconomyExtensions.getBurgApproachTraffic = undefined;
+      api.burgEconomyExtensions.getBurgApproachProfiles = undefined;
       unregisterOverviewColumns(api);
     }
   });
@@ -1033,6 +1035,7 @@ export function init(api: ExtensionAPI): void {
     api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
     api.burgEconomyExtensions.getBurgSiteEconomy = buildBurgSiteEconomy;
     api.burgEconomyExtensions.getBurgApproachTraffic = burgApproachTraffic;
+    api.burgEconomyExtensions.getBurgApproachProfiles = burgApproachProfiles;
     registerOverviewColumns(api);
   }
 
@@ -1327,6 +1330,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.burgEconomyExtensions.getBurgEconomySummary = undefined;
   api.burgEconomyExtensions.getBurgSiteEconomy = undefined;
   api.burgEconomyExtensions.getBurgApproachTraffic = undefined;
+  api.burgEconomyExtensions.getBurgApproachProfiles = undefined;
   unregisterOverviewColumns(api);
 
   // Unregister tool action handlers

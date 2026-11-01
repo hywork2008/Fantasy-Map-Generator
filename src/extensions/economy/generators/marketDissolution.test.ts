@@ -75,6 +75,7 @@ describe("marketDissolution (docs/plan/market-founding-viability.md §3.2)", () 
         ruralGrainPayable: 4,
         saltPayables: { 9: 6 },
         ruralSaltReceivable: 2,
+        ruralHayConsignedLots: 1.5,
         tradePayables: { 1: 3, 3: 5 }
       }
     });
@@ -92,6 +93,7 @@ describe("marketDissolution (docs/plan/market-founding-viability.md §3.2)", () 
       ruralGrainPayable: 5,
       saltPayables: { 9: 7 },
       ruralSaltReceivable: 2,
+      ruralHayConsignedLots: 1.5,
       // Owed between the two markets is owed to itself; the debt to market 3 stays.
       tradePayables: { 3: 5 }
     });

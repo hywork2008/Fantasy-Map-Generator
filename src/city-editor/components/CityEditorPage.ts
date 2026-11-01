@@ -2793,6 +2793,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     ]),
     generationSection("cityEditor.generationWorkspace.streets", [
       toggleLabel(editorText("cityEditor.messages.avoidSea"), avoidSeaInput),
+      (() => {
+        const input = checkbox(generation.generateSettings.approachCommerce === "on", checked => {
+          if (checked) generation.generateSettings.approachCommerce = "on";
+          else delete generation.generateSettings.approachCommerce;
+        });
+        input.className = "ce-approach-commerce";
+        input.title = editorText("cityEditor.messages.approachCommerceHint");
+        return toggleLabel(editorText("cityEditor.messages.approachCommerce"), input);
+      })(),
       label(editorText("cityEditor.messages.streetFarEnd"), farNodeSelect),
       bearingsLabel
     ])
@@ -3499,7 +3508,6 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     return getDocumentIOController().copyShareLink(button);
   }
 
-  // biome-ignore lint/correctness/noComponentHookFactories: This is an editor action, not a React hook.
   function useStandaloneSite(): void {
     getDocumentIOController().useStandaloneSite();
   }

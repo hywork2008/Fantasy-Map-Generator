@@ -163,7 +163,11 @@ async function handle(request: Request): Promise<unknown> {
       if (request.view === "luxury") return observe.luxury();
       if (request.view === "trade") return observe.trade();
       if (request.view === "farmland") return { revision: meta.revision, date: date(), ...observe.farmland() };
-      if (request.view === "gates") return observe.gates(params.burg === undefined ? undefined : Number(params.burg));
+      if (request.view === "gates")
+        return observe.gates(
+          params.burg === undefined ? undefined : Number(params.burg),
+          params.prior === "1" || params.prior === "true"
+        );
       if (request.view === "approaches") return observe.approaches(params.burg === undefined ? undefined : Number(params.burg));
       return observe.corridors(params.top === undefined ? undefined : Number(params.top));
     }

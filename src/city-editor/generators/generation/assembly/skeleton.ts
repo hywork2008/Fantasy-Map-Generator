@@ -1,5 +1,6 @@
 // Materialise K6's certified edge chains. No path search or passage deformation.
 import type { CityDocument, EdgeRef, Point } from "../../../types/document";
+import { marketStreetWidthMeters } from "../../approachCommerce";
 import { registerTownCircuit } from "../../castles";
 import { normalizeGeneratedRoadOwnership } from "../../generatedRoadOwnership";
 import type { GenerationObserver } from "../../generationDiagnostics";
@@ -104,13 +105,21 @@ export function applySkeletonFeatures(
         [`road-${route.id}`, routeEdges.slice(cut)]
       ] as const) {
         if (!segments.length || (plan.wardsOnly && suffix.startsWith("street-"))) continue;
+        const baseWidth = defaultRoadWidthMeters(townExtentMeters(next.frame));
+        const marketStreet =
+          suffix.startsWith("street-") &&
+          route.gateIndex !== null &&
+          !!plan.approachCommerce?.gateIndexes.includes(route.gateIndex);
         next.featureGroups.push({
           id: `${GEN_PREFIX}${suffix}`,
           kind: "road",
           name: "Road",
           roadRole: suffix.startsWith("road-") ? "approach" : "street",
           segments,
-          style: { widthMeters: defaultRoadWidthMeters(townExtentMeters(next.frame)), color: "#9d8a65" },
+          style: {
+            widthMeters: marketStreet ? marketStreetWidthMeters(baseWidth) : baseWidth,
+            color: "#9d8a65"
+          },
           locked: false,
           ...(imported && suffix.startsWith("road-")
             ? { sourceRoad: { index: imported.sourceIndex, routeId: imported.routeId } }

@@ -66,6 +66,7 @@ export interface BurgEconomyExtensionHooks {
   getBurgSiteEconomy?: (burgId: number) => BurgSiteEconomy | null;
   /** Approach ledger rows of one burg (docs/plan/approach-traffic-observatory.md O4). */
   getBurgApproachTraffic?: (burgId: number) => import("../services/burgEconomyExtensions").BurgApproachTrafficRow[];
+  getBurgApproachProfiles?: (burgId: number) => Record<string, import("../services/approachProfile").ApproachProfile>;
 }
 
 export interface ExtensionStateSnapshot {

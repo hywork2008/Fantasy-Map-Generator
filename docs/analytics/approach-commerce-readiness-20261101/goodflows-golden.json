@@ -1,0 +1,46 @@
+{
+ "burgPopulationPoints": 241,
+ "stockStart": {
+  "Wood": 522,
+  "Grain": 23559,
+  "Fodder": 178,
+  "Chicken": 119
+ },
+ "stockEnd": {
+  "Wood": 20130,
+  "Grain": 70410,
+  "Fodder": 365580,
+  "Chicken": 4269216
+ },
+ "gateSlots": {
+  "Wood": 922390,
+  "Grain": 107669,
+  "Fodder": 2097288,
+  "Chicken": 547153
+ },
+ "flows": {
+  "Chicken sink burgDemand": 469,
+  "Chicken source burgCraft": 18,
+  "Chicken source ruralHarvest": 4269548,
+  "Fodder sink livestockFeed": 23017,
+  "Fodder sink military": 0,
+  "Fodder sink navyExport": 108187,
+  "Fodder source ruralHarvest": 496607,
+  "Grain sink exportDeparture": 27,
+  "Grain sink recipeInput": 188,
+  "Grain source burgCraft": 16,
+  "Grain source importArrival": 27,
+  "Wood sink burgDemand": 233,
+  "Wood sink construction": 6563,
+  "Wood sink funeral": 2016,
+  "Wood sink householdHeating": 19398,
+  "Wood sink marketInvestment": 5,
+  "Wood sink military": 1,
+  "Wood sink recipeInput": 8231,
+  "Wood source burgCraft": 51,
+  "Wood source clearanceSupply": 6426,
+  "Wood source importArrival": 0,
+  "Wood source ruralHarvest": 49574,
+  "Wood source vesselSalvage": 3
+ }
+}
