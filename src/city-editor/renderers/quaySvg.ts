@@ -1,3 +1,4 @@
+import { HARBOR_CRANE_FOUNDATION } from "../../buildings/medieval/harborCraneDimensions";
 import type { HarborPlan } from "../generators/harborFabric";
 import type { FallbackPier } from "./harborPierFacts";
 import { element, polygon } from "./svgPrimitives";
@@ -136,13 +137,29 @@ export function renderTownQuays(
           transform: `translate(${cx.toFixed(2)},${cy.toFixed(2)})`
         });
 
+        // Draw the reserved rectangle, not the enclosing collision-radius circle.
+        const foundation = element("g", { transform: `rotate(${armAngleDeg.toFixed(1)})` });
+        foundation.appendChild(
+          element("rect", {
+            class: "ce-crane-foundation",
+            x: String(HARBOR_CRANE_FOUNDATION.minX),
+            y: String(-HARBOR_CRANE_FOUNDATION.halfWidth),
+            width: String(HARBOR_CRANE_FOUNDATION.maxX - HARBOR_CRANE_FOUNDATION.minX),
+            height: String(HARBOR_CRANE_FOUNDATION.halfWidth * 2),
+            fill: "#aaa18e",
+            stroke: "#514b40",
+            "stroke-width": "0.3"
+          })
+        );
+        g.appendChild(foundation);
+        const baseRadius = Math.min(crane.radiusMeters, 1.5);
         // Crane house or base
         if (crane.kind === "treadwheel") {
           g.appendChild(
             element("circle", {
               cx: "0",
               cy: "0",
-              r: String(crane.radiusMeters),
+              r: String(baseRadius),
               fill: "#6d5b45",
               stroke: "#362a1c",
               "stroke-width": "0.6"
@@ -152,7 +169,7 @@ export function renderTownQuays(
             element("circle", {
               cx: "0",
               cy: "0",
-              r: String(crane.radiusMeters * 0.45),
+              r: String(baseRadius * 0.45),
               fill: "#4f4030",
               stroke: "#291e13",
               "stroke-width": "0.4"
@@ -163,7 +180,7 @@ export function renderTownQuays(
             element("circle", {
               cx: "0",
               cy: "0",
-              r: String(crane.radiusMeters),
+              r: String(baseRadius),
               fill: "#786d5e",
               stroke: "#3d362d",
               "stroke-width": "0.5"

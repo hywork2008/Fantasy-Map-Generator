@@ -8,7 +8,7 @@ import { defaultDistrictParameters, resolveDistricts } from "./fabricDistricts";
 import { circuitRing } from "./fortifications";
 import { polygonBitesDisk } from "./gatePlazaBuildings";
 import { nearestOnPolyline, pointInPolygon, polygonCentroid, segmentSegmentHit } from "./geom";
-import { harborLaneRuns, planHarbor } from "./harborFabric";
+import { harborLaneRuns, harborThroughStreets, planHarbor } from "./harborFabric";
 import { convexInfillParts, longestFrame } from "./lotGeometry";
 import { facePoints } from "./mesh";
 import { bounds, corridor, distance, intersectConvex, PlotIndex, plotArea } from "./parcelGeometry";
@@ -47,7 +47,7 @@ export function buildMedievalFabric(document: CityDocument, base: DistrictFabric
     l.points.slice(1).map((b, i) => ({ a: l.points[i], b, widthMeters: l.widthMeters }))
   );
   const barriers: Point[][] = [];
-  const throughStreets: ParcelFrontage[] = [];
+  const throughStreets = harborThroughStreets(document);
   for (const group of document.featureGroups) {
     const segments: [Point, Point][] =
       group.kind === "river"
@@ -62,7 +62,6 @@ export function buildMedievalFabric(document: CityDocument, base: DistrictFabric
       if (group.kind === "road" || group.kind === "plank") {
         const frontage = { a, b, widthMeters: group.style.widthMeters };
         fronts.push(frontage);
-        throughStreets.push(frontage);
       } else barriers.push(corridor(a, b, group.style.widthMeters + 2));
     }
   }

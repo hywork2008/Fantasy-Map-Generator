@@ -29,3 +29,22 @@ export function checkedHarborCraneDimensions(input = DEFAULT_HARBOR_CRANE_DIMENS
     throw new Error("Invalid harbor crane dimensions");
   return { ...input };
 }
+
+/** Foundation in authored crane coordinates: +X points along the jib. */
+export const HARBOR_CRANE_FOUNDATION = { minX: -3.7, maxX: 2.5, halfWidth: 2 } as const;
+
+export function harborCraneFoundationFootprint(
+  point: readonly [number, number],
+  angle: number,
+  margin = 0
+): [number, number][] {
+  const { minX, maxX, halfWidth } = HARBOR_CRANE_FOUNDATION;
+  const c = Math.cos(angle),
+    s = Math.sin(angle);
+  return [
+    [minX - margin, -halfWidth - margin],
+    [maxX + margin, -halfWidth - margin],
+    [maxX + margin, halfWidth + margin],
+    [minX - margin, halfWidth + margin]
+  ].map(([x, y]) => [point[0] + x * c - y * s, point[1] + x * s + y * c]);
+}
