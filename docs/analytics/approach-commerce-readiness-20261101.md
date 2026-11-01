@@ -78,6 +78,20 @@
   - 修正: その日の終わりに決算するようにした。修正の後は、12か月を1回で進めても、1か月ずつ進めた上の表の左の列と完全に同じ値になる。
 - 主食の穀物は、1年に約2.8万〜10.7万積載枠である(人口点241の5市場)。町の数と比べて少なすぎないかは、まだ確かめていない。
 
+## 6. 鶏と飼い葉の溜まり方(2026-11-01)
+
+`goodflows.mts`で、golden を1か月ずつ12か月進め、品物ごとの出入りを分類別に足した(`goodflows-golden.json`)。
+
+| 品物 | 期首の在庫 | 期末の在庫 | 主な入り | 主な出 |
+| --- | ---: | ---: | --- | --- |
+| 鶏 | 119 | 4,269,216 | 農村 4,269,548 | 町の需要 469 |
+| 飼い葉 | 178 | 365,580 | 農村 496,607 | 船での輸出 108,187、家畜の餌 23,017 |
+| 木材 | 522 | 20,130 | 農村 49,574、開墾 6,426 | 暖房 19,398、加工 8,231、建築 6,563 |
+
+- 鶏: 庭の群れの自然増を全部市場へ送っていた。家で食べるのを先にした([historical-economy-production-consumption-circulation.md](../plan/historical-economy-production-consumption-circulation.md)§7.86)。修正の後は、期末の在庫 40,398(町の1か月分)、門の鶏 1,572積載枠(修正の前は547,153)になった(`goodflows-golden-chicken.json`)。
+- 農村は、市場へ送った鶏の代金を受け取っていなかった。world-102 の24か月(`marketv3.mts`)の塩と家計の出力は、修正の前と後でバイト単位で同じだった。
+- 飼い葉: 買い上げの約3分の2が在庫に残る。まだ直していない。
+
 ## 4. ファイル
 
 `approach-commerce-readiness-20261101/`
@@ -92,3 +106,6 @@
 | acqgoods-golden-o5.json | O5の後のgoldenの12か月 | 10523dfe8ae70e017dfb5840977e07d6ff0e780c9d004efa0437f2041330a7ee |
 | gateunits.mts | 品物ごとの単位数と獣脂の流れを出すprobe(`STEP=1`で1か月ずつ) | 64874a75598cb8e14d25d455d62a540f5dccb202ea4bb5577202cde517feda05 |
 | gateunits-golden-step.txt | O5の後のgolden、1か月ずつ12か月 | 36bab513a4f743fe277c6740186927b0e400f2187cdca853ae75cf7c974f0b11 |
+| goodflows.mts | 品物ごとの出入りを分類別に足すprobe(golden、1か月ずつ12か月) | de4c1356c3cfc21ace86e02e3f532d22de36fedf0db70b0e412ad77ee9efce23 |
+| goodflows-golden.json | 鶏の修正の前 | 95e8c2074a31724a3a2711db46eeff0962760e147bd929913b05333153074108 |
+| goodflows-golden-chicken.json | 鶏の修正の後 | bf3dd1dd895a6bc2e247780de67e1df1064ce46d9ea198732f04fed15761bf41 |

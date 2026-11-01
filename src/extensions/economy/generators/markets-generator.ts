@@ -53,6 +53,7 @@ import { getMarketPriceLevel, getMoneyPriceLevelForMarket } from "./currencySuff
 import { ExportStaging } from "./exportStaging";
 import { getFarmToolsDemandByMarket } from "./farmToolsDemand";
 import { withRegionalDemandShareCache } from "./faunaPopulation";
+import type { FaunaCohorts } from "./faunaPopulationTypes";
 import { isOrchardDrink } from "./foodLots";
 import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
@@ -84,6 +85,7 @@ import { getRuralPopulationByMarket, moveRuralPursesWithFarms } from "./househol
 import { getHouseTimberShare, getHousingRecipe } from "./housingRecipes";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import { getFodderSeasonDemandLots } from "./livestockFeed";
+import { HOME_EATEN_YARD_MARKET_HEADS_PER_TOWNSPERSON_YEAR } from "./livestockHerdTargetPolicy";
 import { isLuxuryValueDemandEnabled, luxuryBudgetByMarketTier, luxuryStockTarget } from "./luxuryDemand";
 import { isHighValueTradeGood, isLuxuryDemandGood, type LuxuryTier } from "./luxuryTiers";
 import {
@@ -357,6 +359,13 @@ export type { Deal, Market } from "./marketTypes";
 /** Goods whose supply is a mine or a furnace rather than a cell distribution or a recipe. */
 function isMineOrFurnaceGood(good: Pick<Good, "tags">): boolean {
   return good.tags.some(tag => tag === "ore" || tag === "ingot" || tag === "mineral");
+}
+
+/** The age split of the part of a dispatch that went to market; the household ate the rest. */
+function shareCohorts(cohorts: FaunaCohorts | null | undefined, share: number): FaunaCohorts | undefined {
+  if (!cohorts) return undefined;
+  if (share === 1) return cohorts;
+  return { young: cohorts.young * share, breeding: cohorts.breeding * share, old: cohorts.old * share };
 }
 
 export class MarketsModule {
@@ -920,6 +929,17 @@ export class MarketsModule {
     return cellMarket;
   }
 
+  /** Real townspeople of the market's burgs. */
+  private getTownPeople(marketId: number): number {
+    const world = this.worldContext;
+    const rate = Math.max(1, world.populationRate ?? 1);
+    const urbanization = Math.max(1, world.urbanization ?? 1);
+    let people = 0;
+    for (const burg of world.pack.burgs)
+      if (burg.i && !burg.removed && burg.market === marketId) people += (burg.population ?? 0) * rate * urbanization;
+    return people;
+  }
+
   collectRuralProduction(): void {
     const populationSnapshotPeriod = this.getRuralPopulationSnapshotPeriod();
     const index =
@@ -932,15 +952,48 @@ export class MarketsModule {
     const marketIds = new Set(getMarkets().map(market => market.i));
     const collectionBurgs = this.getCollectionBurgsByMarket();
     const biomeProduction = Goods.getBiomesProduction();
+    // Home-eaten yard birds: the flock's increase leaves the herd in full, but only the market's room
+    // under a month of town purchases is sold; the household eats the rest.
+    const homeEaten = new Map<
+      number,
+      Map<number, { marketId: number; collection: number; cellId: number; amount: number }[]>
+    >();
     withRegionalDemandShareCache(() => {
       for (const cellId of cells.i) {
         const marketId = getMarketCellColumn()[cellId];
         if (!marketId || !marketIds.has(marketId)) continue;
         const collection = this.getCollectionBurgId(cellId, marketId, collectionBurgs);
-        for (const contribution of getRuralLiveAnimalContributions(cellId, biomeProduction))
+        for (const contribution of getRuralLiveAnimalContributions(cellId, biomeProduction)) {
+          const good = Goods.get(contribution.goodId);
+          if (good && good.name in HOME_EATEN_YARD_MARKET_HEADS_PER_TOWNSPERSON_YEAR) {
+            const byMarket = homeEaten.get(good.i) ?? new Map();
+            homeEaten.set(good.i, byMarket);
+            const entries = byMarket.get(marketId) ?? [];
+            byMarket.set(marketId, entries);
+            entries.push({ marketId, collection, cellId, amount: contribution.amount });
+            continue;
+          }
           this.addRuralOutput(marketId, collection, contribution.goodId, contribution.amount, cellId);
+        }
       }
     });
+    for (const [goodId, byMarket] of homeEaten) {
+      const good = Goods.get(goodId)!;
+      const perTownsperson = HOME_EATEN_YARD_MARKET_HEADS_PER_TOWNSPERSON_YEAR[good.name];
+      for (const [marketId, entries] of byMarket) {
+        const market = this.get(marketId);
+        if (!market) continue;
+        const room = Math.max(
+          0,
+          (this.getTownPeople(marketId) * perTownsperson) / 12 - (market.goods[goodId]?.stock ?? 0)
+        );
+        const offered = entries.reduce((total, entry) => total + entry.amount, 0);
+        const sold = offered > 0 ? Math.min(1, room / offered) : 0;
+        if (!(sold > 0)) continue;
+        for (const entry of entries)
+          this.addRuralOutput(entry.marketId, entry.collection, goodId, entry.amount * sold, entry.cellId, sold);
+      }
+    }
     const monthIndex = Math.max(0, Math.min(11, getSimulationMonth() - 1));
 
     const wood = getGoods().find(g => g.name === "Wood");
@@ -1483,7 +1536,8 @@ export class MarketsModule {
     collectionBurgId: number,
     goodId: number,
     amount: number,
-    sourceCellId?: number
+    sourceCellId?: number,
+    dispatchedShare = 1
   ): void {
     if (amount <= 0) return;
     const market = this.get(marketId);
@@ -1506,7 +1560,10 @@ export class MarketsModule {
       livestockCohorts:
         sourceCellId === undefined
           ? undefined
-          : getLivestockDispatchTable()?.[`${sourceCellId}:${good.name}`]?.observation?.cohortHeads,
+          : shareCohorts(
+              getLivestockDispatchTable()?.[`${sourceCellId}:${good.name}`]?.observation?.cohortHeads,
+              dispatchedShare
+            ),
       goodId,
       units: resolvedAmount,
       marketId,
