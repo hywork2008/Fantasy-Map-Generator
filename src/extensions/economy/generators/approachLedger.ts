@@ -8,6 +8,7 @@
  */
 
 import { approachIdForLeg, openApproachId, riverApproachId, seaApproachId } from "../../../services/approachId";
+import { type ApproachProfile, approachProfiles, cargoClassOf } from "../../../services/approachProfile";
 import type { PackedGraph } from "../../../types/PackedGraph";
 import { findCell, rn } from "../../hostUtils";
 import { registerContextFallbackReset } from "../context/economyApi";
@@ -253,11 +254,18 @@ export function applyApproachJourney(
   };
   end(approaches.outbound, "outbound", journey.destinationBurgId);
   end(approaches.inbound, "inbound", journey.originBurgId);
-  for (const ref of approaches.through) {
+  approaches.through.forEach((ref, at) => {
     const row = rowOf(ref);
     row.through.departures = rn(row.through.departures + 1, 3);
     row.through.cargoSlots = rn(row.through.cargoSlots + slots, 3);
-  }
+    // Entries come in (entered, left) pairs per town: the other one is this gate's axis partner.
+    const other = approaches.through[at ^ 1];
+    if (slots > 0 && other && other.burgId === ref.burgId && other.approachId !== ref.approachId) {
+      const partners = row.through.partners ?? {};
+      partners[other.approachId] = rn((partners[other.approachId] ?? 0) + slots, 3);
+      row.through.partners = trim(partners);
+    }
+  });
   return rows;
 }
 
@@ -286,7 +294,8 @@ export function decayApproachRows(
     const outbound = flow(row.outbound);
     const through = {
       departures: rn(row.through.departures * retention, 3),
-      cargoSlots: rn(row.through.cargoSlots * retention, 3)
+      cargoSlots: rn(row.through.cargoSlots * retention, 3),
+      ...(row.through.partners ? { partners: decayRecord(row.through.partners, retention) } : {})
     };
     const departures = inbound.departures + outbound.departures + through.departures;
     const slots = inbound.cargoSlots + outbound.cargoSlots + through.cargoSlots;
@@ -447,6 +456,15 @@ export function decayApproachTraffic(): void {
   if (rows.length) setApproachTraffic(decayApproachRows(rows));
   // Route.traffic and the corridor ledger decay at the same settlement.
   setApproachLedgerDecays(getApproachLedgerDecays() + 1);
+}
+
+/** Gate profiles of one burg (`burgEconomyExtensions.getBurgApproachProfiles`). */
+export function burgApproachProfiles(burgId: number): Record<string, ApproachProfile> {
+  if (!isEconomyContextReady()) return {};
+  const rows = getApproachTraffic().filter(row => row.burgId === burgId);
+  if (!rows.length) return {};
+  const tags = new Map(getGoods().map(good => [String(good.i), good.tags]));
+  return Object.fromEntries(approachProfiles(rows, id => cargoClassOf(tags.get(id)), APPROACH_ANNUAL_RETENTION));
 }
 
 /** The site-descriptor view of one burg's rows (`burgEconomyExtensions.getBurgApproachTraffic`). */

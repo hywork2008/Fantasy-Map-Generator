@@ -73,6 +73,8 @@ export const burgEconomyExtensions: {
   getBurgSiteEconomy?: (burgId: number) => import("./burgSiteEconomy").BurgSiteEconomy | null;
   /** Approach ledger rows of one burg (Economy `approachTraffic`); kept even under urban morphology. */
   getBurgApproachTraffic?: (burgId: number) => BurgApproachTrafficRow[];
+  /** Gate profiles of one burg keyed by approach id (approach-commerce-quarters.md C0). */
+  getBurgApproachProfiles?: (burgId: number) => Record<string, import("./approachProfile").ApproachProfile>;
 } = {};
 
 export interface BurgApproachTrafficRow {

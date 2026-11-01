@@ -18,7 +18,12 @@ export interface ApproachTraffic {
   inbound: ApproachFlow;
   outbound: ApproachFlow;
   /** Journeys that pass the burg on the way elsewhere (inns and stables, not the market). */
-  through: { departures: number; cargoSlots: number };
+  through: {
+    departures: number;
+    cargoSlots: number;
+    /** Pass-through cargo slots per gate of the same town the journey crossed to, busiest 8. */
+    partners?: Record<string, number>;
+  };
   /** Cargo slots per good id, busiest 8. */
   goodsSlots: Record<string, number>;
   /** Cargo value per good id, dearest 8 (high-value goods are invisible in slots). */

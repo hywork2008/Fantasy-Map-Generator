@@ -69,31 +69,15 @@ import { getMoneyTradeCapacityFactorForMarket } from "../../src/extensions/econo
 import type { Good } from "../../src/extensions/economy/generators/goodsGeneratorTypes";
 import { cloneTextileLedgerObservation } from "../../src/extensions/economy/generators/textileDemand";
 import type { Burg, Route } from "../../src/types/models";
+import { approachProfiles, CARGO_CLASSES, cargoClassOf } from "../../src/services/approachProfile";
+import { APPROACH_ANNUAL_RETENTION } from "../../src/extensions/economy/generators/approachLedger";
 
 export const SAMPLE_VERSION = 1;
 export const SAMPLE_DETAILS = ["burgs", "routes", "approaches", "corridors", "markets", "wealth", "luxury", "trade", "farmland"] as const;
 export type SampleDetail = (typeof SAMPLE_DETAILS)[number];
 const DEFAULT_SAMPLE_DETAILS = SAMPLE_DETAILS.filter(detail => detail !== "farmland");
 
-/**
- * Cargo classes for gate profiles (docs/plan/approach-commerce-quarters.md §4): what a gate's
- * traffic asks of the street behind it. First matching tag wins, in this order.
- */
-export const CARGO_CLASSES = [
-  { id: "livestock", tags: ["liveAnimal", "draft"] },
-  { id: "perishable", tags: ["freshFood", "fruit", "aquatic"] },
-  { id: "grain", tags: ["cereal", "stapleCrop", "legume", "tuber", "stapleFood"] },
-  { id: "bulk", tags: ["construction", "mineral", "ore", "fuel", "ingot", "alloy", "metal"] },
-  { id: "luxury", tags: ["luxury", "art", "gift", "ritual"] },
-  { id: "manufactured", tags: ["clothing", "tools", "industrial", "military", "naval", "chemical"] },
-  { id: "provisions", tags: ["food", "preservedFood", "beverage", "preservative", "crop", "perennialCrop"] }
-] as const;
-export type CargoClass = (typeof CARGO_CLASSES)[number]["id"] | "other";
-
-export function cargoClassOf(tags: readonly string[] | undefined): CargoClass {
-  for (const entry of CARGO_CLASSES) if (tags?.some(tag => (entry.tags as readonly string[]).includes(tag))) return entry.id;
-  return "other";
-}
+export { CARGO_CLASSES, cargoClassOf, type CargoClass } from "../../src/services/approachProfile";
 
 export interface ObserveClock {
   year: number;
@@ -291,6 +275,8 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     return [...byBurg].map(([id, list]) => {
       const load = (row: (typeof rows)[number]) => row.inbound.cargoSlots + row.outbound.cargoSlots + row.through.cargoSlots;
       const total = list.reduce((sum, row) => sum + load(row), 0);
+      // Same profile the site descriptor carries (approach-commerce-quarters.md C0).
+      const profiles = approachProfiles(list, good => classOf.get(good) ?? "other", APPROACH_ANNUAL_RETENTION);
       return {
         burg: id,
         name: burgs[id]?.name ?? "",
@@ -309,20 +295,24 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
               valueClasses[key] = r3((valueClasses[key] ?? 0) + value);
             }
             const ends = row.inbound.cargoSlots + row.outbound.cargoSlots;
+            const profile = profiles.get(row.approachId)!;
             return {
               id: row.approachId,
               mode: row.mode,
               azimuth: azimuthOf(row.approachId, id),
-              share: total > 0 ? r3(load(row) / total) : 0,
+              share: profile.share,
               inbound: row.inbound.cargoSlots,
               outbound: row.outbound.cargoSlots,
               through: row.through.cargoSlots,
-              throughShare: load(row) > 0 ? r3(row.through.cargoSlots / load(row)) : 0,
-              inboundShare: ends > 0 ? r3(row.inbound.cargoSlots / ends) : 0,
+              throughShare: profile.throughShare,
+              axisPartner: profile.axisPartner ?? null,
+              inboundShare: profile.inboundShare,
               departures: r3(row.inbound.departures + row.outbound.departures + row.through.departures),
               meanLoad: row.inbound.departures + row.outbound.departures > 0 ? r3(ends / (row.inbound.departures + row.outbound.departures)) : 0,
               cargoClasses: classes,
               cargoValue: valueClasses,
+              wagonsPerYear: profile.wagonsPerYear,
+              profile,
               partners: Object.keys(row.partners).length
             };
           })

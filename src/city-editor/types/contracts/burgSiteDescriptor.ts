@@ -1,3 +1,4 @@
+import type { ApproachProfile } from "../../../services/approachProfile";
 import type { RegionalContext } from "../../../types/cityRegional";
 import type { UrbanMorphologyProfile } from "../../../types/urbanMorphology";
 import type { BridgeTransport } from "../../../utils/bridgeCrossingPolicy";
@@ -196,6 +197,11 @@ export interface BurgSiteRoadEntry {
    * `approachGrowthSource: "traffic"`.
    */
   approachTraffic?: { cargoSlots: number; through: number; share: number };
+  /**
+   * Gate character from the Economy approach ledger (docs/plan/approach-commerce-quarters.md §5,
+   * C0): same values as the observatory's `observe/gates`. Absent without ledger rows.
+   */
+  approachProfile?: ApproachProfile;
 }
 
 export interface BurgSiteRoadNextBurg {

@@ -197,12 +197,17 @@ export function generateCityOnDocument(
     );
     return null;
   }
-  if (settings.descriptor && settings.approachGrowthSource !== "traffic") {
+  if (settings.descriptor) {
     // Without the O4 opt-in the measured approach traffic must not reach the generation inputs,
-    // so towns stay identical to those generated before the ledger existed.
-    if (settings.descriptor.roads.some(road => road.approachTraffic)) {
+    // so towns stay identical to those generated before the ledger existed. Gate profiles
+    // (approach-commerce-quarters.md C0) have no reader yet and are always dropped.
+    const dropTraffic = settings.approachGrowthSource !== "traffic";
+    if (settings.descriptor.roads.some(road => road.approachProfile || (dropTraffic && road.approachTraffic))) {
       const descriptor = structuredClone(settings.descriptor);
-      for (const road of descriptor.roads) delete road.approachTraffic;
+      for (const road of descriptor.roads) {
+        delete road.approachProfile;
+        if (dropTraffic) delete road.approachTraffic;
+      }
       settings = { ...settings, descriptor };
     }
   }
