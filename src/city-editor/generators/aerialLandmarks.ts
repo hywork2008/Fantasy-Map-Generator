@@ -21,6 +21,7 @@ import type {
 } from "./aerialLandmarks.types";
 import type { BuildingLot } from "./buildingLots.types";
 import { type OrientedRect, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
+import { commerceSeatFromDocument } from "./commerceCulture";
 import { bulkGatePoint, commerceFacilityRoles, placeCommerceFacilities } from "./commerceGateFacilities";
 import {
   curtainSegments,
@@ -1195,16 +1196,19 @@ export function buildAerialLandmarkPlan(
   }
   // One commerce inn outside the land main gate replaces economy wayside inns. Caravanserais stay.
   // Off, a sea main gate, or zero wagons keeps the busiest-road placement.
+  const commerceOn = document.fabric?.generation?.settings?.approachCommerce === "on";
+  const seat = commerceOn ? commerceSeatFromDocument(document) : "";
   const commerceInn = commerceInnRequest(document);
   const placedLodging = commerceInn ? [commerceInn.lodging, ...lodging.filter(item => item.kind !== "inn")] : lodging;
   const commerceKey = commerceInn
-    ? `${commerceInn.lodging.stableSpaces}:${commerceInn.admission}:${commerceInn.group.id}`
+    ? `${commerceInn.lodging.stableSpaces}:${commerceInn.admission}:${commerceInn.group.id}:${commerceInn.seat ?? "outside"}`
     : "";
-  // Cargo roles change which yards are drawn. Compute them before the cache lookup.
+  // Cargo roles and the culture seat change which yards are drawn. Compute them before the cache lookup.
   const facilityRoles = commerceFacilityRoles(document);
-  const facilityKey = facilityRoles
+  const roleKey = facilityRoles
     .map(role => `${role.kind}:${role.roadIndex ?? "c"}:${role.weight.toFixed(2)}`)
     .join(",");
+  const facilityKey = commerceOn ? `${seat}:${roleKey}` : roleKey;
   const fp = `${seed}:${input.buildings.length}:${input.lanes.length}:${document.fabric?.seed ?? document.generationSeed ?? ""}:${siteEconomyKey(economy)}:${JSON.stringify(counts)}:${roadTrafficKey(document)}:${prevailingWindKey(document)}:${JSON.stringify(input.waterUsers ?? [])}:${commerceKey}:${facilityKey}`;
   const cached = aerialPlanCache.get(document);
   if (cached && cached.fingerprint === fp) return cached.plan;
@@ -1238,7 +1242,12 @@ export function buildAerialLandmarkPlan(
   );
   const gateInns = placeGateInns(site, placedLodging, economy?.year ?? 0, commerceInn ?? undefined);
   // After the wayside inn, so a livestock pen walks further out when the first spot is taken.
-  const commercePlots = placeCommerceFacilities(site, facilityRoles, economy?.year ?? 0);
+  const commercePlots = placeCommerceFacilities(
+    site,
+    facilityRoles,
+    economy?.year ?? 0,
+    seat === "islamic" || seat === "japanese" ? seat : "european"
+  );
   const monasteries = placeMonasteries(site, input, makeRng(`${root}:monastery`));
   const gallows = placeGallows(site, input, makeRng(`${root}:gallows`));
   const windmills = placeWindmills(site, input, makeRng(`${root}:windmill`));

@@ -55,7 +55,8 @@ export interface ApproachProfile {
   cargoValue: Partial<Record<CargoClass, number>>;
   /** Wagon loads per year (ends + pass-through), from the decayed stock at steady state. */
   wagonsPerYear: number;
-  source: "ledger";
+  /** Ledger measurement, the generation-time estimate, or a weighted mix while the ledger is short. */
+  source: "ledger" | "prior" | "blend";
 }
 
 /** The ledger fields a profile reads (structurally `ApproachTraffic`). */

@@ -66,6 +66,8 @@ export interface ApproachCommerceInput {
   landing?: Point | null;
   port: boolean;
   extentMeters: number;
+  /** Japanese masugata: the same funnel inside both ends of a through-axis. Not a new street. */
+  bothEnds?: boolean;
 }
 
 interface LocatedGate {
@@ -119,6 +121,18 @@ export function gateWardQuota(touching: number, share: number, main: boolean, ma
 /** One step wider, the same scale as a cobbled approach. */
 export function marketStreetWidthMeters(baseMeters: number): number {
   return cobbledWidthMeters(baseMeters);
+}
+
+function funnelEnds(
+  main: Point,
+  partner: Point | undefined,
+  plaza: Point,
+  extentMeters: number,
+  bothEnds: boolean
+): { center: Point; radius: number }[] {
+  const funnel = marketFunnelDisks(main, plaza, extentMeters);
+  if (bothEnds && partner) funnel.push(...marketFunnelDisks(partner, plaza, extentMeters));
+  return funnel;
 }
 
 /** Disks of open market ground inside the main gate. The disk nearest the gate is the widest. */
@@ -211,7 +225,7 @@ export function resolveApproachCommerce(input: ApproachCommerceInput): ApproachC
     marketStreet,
     marketEnd: marketEndOf(mainProfile),
     shares,
-    funnel: marketFunnelDisks(mainPoint, plaza, input.extentMeters)
+    funnel: funnelEnds(mainPoint, partner?.point, plaza, input.extentMeters, input.bothEnds === true)
   };
 }
 

@@ -70,7 +70,7 @@ import type { Good } from "../../src/extensions/economy/generators/goodsGenerato
 import { cloneTextileLedgerObservation } from "../../src/extensions/economy/generators/textileDemand";
 import type { Burg, Route } from "../../src/types/models";
 import { approachProfiles, CARGO_CLASSES, cargoClassOf } from "../../src/services/approachProfile";
-import { APPROACH_ANNUAL_RETENTION } from "../../src/extensions/economy/generators/approachLedger";
+import { APPROACH_ANNUAL_RETENTION, burgApproachPrior, burgApproachProfiles } from "../../src/extensions/economy/generators/approachLedger";
 
 export const SAMPLE_VERSION = 1;
 export const SAMPLE_DETAILS = ["burgs", "routes", "approaches", "corridors", "markets", "wealth", "luxury", "trade", "farmland"] as const;
@@ -263,25 +263,33 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
 
   /**
    * One row per gate with its share of the town's traffic, the direction of flow and the cargo
-   * classes it carries (docs/plan/approach-commerce-quarters.md §4). Values are the ledger's
-   * decayed stocks: a recent-years picture, not a single month.
+   * classes it carries (docs/plan/approach-commerce-quarters.md §4). Slot columns stay the
+   * ledger. `profile` is the same blend the site descriptor carries. `prior=1` also returns the
+   * pure estimate, including a town whose ledger is still empty.
    */
-  function gates(burgId?: number) {
+  function gates(burgId?: number, prior = false) {
     const classOf = new Map(goods().map(good => [String(good.id), good.cargoClass]));
     const rows = approaches(burgId);
     const byBurg = new Map<number, typeof rows>();
     for (const row of rows) byBurg.set(row.burgId, [...(byBurg.get(row.burgId) ?? []), row]);
     const burgs = getWorld().pack.burgs;
+    if (prior && burgId !== undefined && Number.isFinite(burgId) && !byBurg.has(burgId)) {
+      const estimated = priorBurg(burgId, burgs);
+      return estimated ? [estimated] : [];
+    }
     return [...byBurg].map(([id, list]) => {
       const load = (row: (typeof rows)[number]) => row.inbound.cargoSlots + row.outbound.cargoSlots + row.through.cargoSlots;
       const total = list.reduce((sum, row) => sum + load(row), 0);
-      // Same profile the site descriptor carries (approach-commerce-quarters.md C0).
-      const profiles = approachProfiles(list, good => classOf.get(good) ?? "other", APPROACH_ANNUAL_RETENTION);
+      // Same blend the site descriptor carries (approach-commerce-quarters.md §5).
+      const blended = burgApproachProfiles(id);
+      const ledgerProfiles = approachProfiles(list, good => classOf.get(good) ?? "other", APPROACH_ANNUAL_RETENTION);
+      const estimated = prior ? burgApproachPrior(id).profiles : undefined;
       return {
         burg: id,
         name: burgs[id]?.name ?? "",
         population: r3(burgs[id]?.population ?? 0),
         totalSlots: r3(total),
+        ...(estimated ? { prior: estimated } : {}),
         gates: list
           .map(row => {
             const classes: Record<string, number> = {};
@@ -295,7 +303,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
               valueClasses[key] = r3((valueClasses[key] ?? 0) + value);
             }
             const ends = row.inbound.cargoSlots + row.outbound.cargoSlots;
-            const profile = profiles.get(row.approachId)!;
+            const profile = blended[row.approachId] ?? ledgerProfiles.get(row.approachId)!;
             return {
               id: row.approachId,
               mode: row.mode,
@@ -319,6 +327,42 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
           .sort((a, b) => b.share - a.share)
       };
     });
+  }
+
+  /** Pure prior for a town the ledger has not reached yet (`observe/gates?prior=1`). */
+  function priorBurg(id: number, burgs: ArrayLike<{ name?: string; population?: number } | undefined>) {
+    const estimated = burgApproachPrior(id).profiles;
+    const entries = Object.entries(estimated);
+    if (!entries.length) return null;
+    const burg = burgs[id];
+    return {
+      burg: id,
+      name: burg?.name ?? "",
+      population: r3(burg?.population ?? 0),
+      totalSlots: 0,
+      prior: estimated,
+      gates: entries
+        .map(([approachId, profile]) => ({
+          id: approachId,
+          mode: "land" as const,
+          azimuth: azimuthOf(approachId, id),
+          share: profile.share,
+          inbound: 0,
+          outbound: 0,
+          through: 0,
+          throughShare: profile.throughShare,
+          axisPartner: profile.axisPartner ?? null,
+          inboundShare: profile.inboundShare,
+          departures: 0,
+          meanLoad: 0,
+          cargoClasses: {},
+          cargoValue: {},
+          wagonsPerYear: profile.wagonsPerYear,
+          profile,
+          partners: 0
+        }))
+        .sort((a, b) => b.share - a.share)
+    };
   }
 
   /**

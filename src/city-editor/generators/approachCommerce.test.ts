@@ -195,6 +195,31 @@ describe("approach commerce plan", () => {
     expect(marketFunnelDisks([0, 0], [5, 0], 600)).toEqual([]);
   });
 
+  it("opens a funnel at both ends of a Japanese axis and only the main gate otherwise", () => {
+    const input = {
+      roads: [
+        road("west", "roads", profile({ share: 0.3, throughShare: 0.8, axisPartner: "east" })),
+        road("east", "roads", profile({ share: 0.34, throughShare: 0.75, axisPartner: "west" }))
+      ],
+      importedRoads: [{ sourceIndex: 0 }, { sourceIndex: 1 }],
+      gates: [
+        { point: [-80, 0] as Point, roadIndex: 0, water: false },
+        { point: [90, 0] as Point, roadIndex: 1, water: false }
+      ],
+      plaza: [0, 0] as Point,
+      port: false,
+      extentMeters: 600
+    };
+    const main = resolveApproachCommerce(input);
+    expect(main?.funnel).toHaveLength(3);
+    expect(main?.funnel.every(disk => disk.center[0] > 0)).toBe(true);
+    const both = resolveApproachCommerce({ ...input, bothEnds: true });
+    expect(both?.funnel).toHaveLength(6);
+    expect(both?.funnel.some(disk => disk.center[0] > 0)).toBe(true);
+    expect(both?.funnel.some(disk => disk.center[0] < 0)).toBe(true);
+    expect(both?.marketStreet).toEqual(main?.marketStreet);
+  });
+
   it("drops gate profiles unless commerce is on, and leaves approach traffic on its own switch", () => {
     const descriptor = {
       roads: [{ approachProfile: profile(), approachTraffic: { share: 0.4 } }, { approachId: "quiet" }]

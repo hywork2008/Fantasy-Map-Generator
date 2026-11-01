@@ -320,6 +320,19 @@ describe("drawn gate facilities", () => {
     expect(picks.some(pick => pick.includes("隊商宿") && pick.includes("Caravanserai"))).toBe(true);
   });
 
+  it("names the centre exchange Khan and sits it closer to the plaza", () => {
+    const document = commerceDocument("on", SPLIT_ROADS, SPLIT_LINES);
+    const roles = commerceFacilityRoles(document);
+    const european = placeCommerceFacilities(ringSite(document), roles).inns.find(inn => inn.kind === "caravanserai");
+    const khan = placeCommerceFacilities(ringSite(document), roles, 0, "islamic").inns.find(
+      inn => inn.kind === "caravanserai"
+    );
+    expect(european?.name).toBe("Caravanserai");
+    expect(khan?.name).toBe("Khan");
+    expect(hypot(centre(khan!.footprint))).toBeLessThan(hypot(centre(european!.footprint)));
+    expect(khan?.exit).toBeUndefined();
+  });
+
   it("returns no roles when commerce is off or unset, and drops a sea caravanserai without a harbour", () => {
     expect(commerceFacilityRoles(commerceDocument(undefined, SPLIT_ROADS, SPLIT_LINES))).toEqual([]);
     expect(commerceFacilityRoles(commerceDocument("off", SPLIT_ROADS, SPLIT_LINES))).toEqual([]);

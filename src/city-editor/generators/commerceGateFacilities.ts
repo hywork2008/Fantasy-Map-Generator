@@ -7,6 +7,7 @@ import {
   type CommerceGateShare,
   commerceGateShares
 } from "./approachCommerce";
+import type { CommerceSeat } from "./commerceCulture";
 import { featureGroupVertices } from "./features";
 import type { GateInn } from "./gateInnPlacement";
 import { polygonArea } from "./geom";
@@ -16,7 +17,7 @@ import type { StorageYard } from "./storageYardPlacement";
 /**
  * Cargo-specific gate works (approach-commerce-quarters.md §6.3).
  * Drawn only when approach commerce is on. Off keeps the existing yards and inns.
- * A khan label for caravanserai cultures is §6.5 and is not applied here.
+ * A caravanserai culture names the centre exchange Khan and sits it by the plaza (§6.5).
  */
 
 export type CommerceFacilityKind =
@@ -282,10 +283,13 @@ function placeCaravanserai(
   site: GuildSiteView,
   role: CommerceFacilityRole,
   plaza: Point,
-  year: number
+  year: number,
+  seat: CommerceSeat
 ): GateInn | null {
   const gate = role.point;
-  for (const t of [0.35, 0.5, 0.22]) {
+  const khan = seat === "islamic";
+  // Unloading stays at the gate. The exchange sits by the plaza for a caravanserai culture.
+  for (const t of khan ? [0.08, 0.14, 0.22] : [0.35, 0.5, 0.22]) {
     const centerLine: Point = [plaza[0] + (gate[0] - plaza[0]) * t, plaza[1] + (gate[1] - plaza[1]) * t];
     const inward = unit(centerLine, plaza) ?? unit(gate, plaza);
     if (!inward) continue;
@@ -299,7 +303,7 @@ function placeCaravanserai(
       return {
         id: `commerce-caravanserai-${index}`,
         kind: "caravanserai",
-        name: "Caravanserai",
+        name: khan ? "Khan" : "Caravanserai",
         stableSpaces: 8,
         count: 1,
         year,
@@ -333,7 +337,8 @@ function placeRetail(site: GuildSiteView, plaza: Point, year: number): StorageYa
 export function placeCommerceFacilities(
   site: GuildSiteView,
   roles: readonly CommerceFacilityRole[],
-  year = 0
+  year = 0,
+  seat: CommerceSeat = "european"
 ): CommerceFacilityPlots {
   const yards: StorageYard[] = [];
   const inns: GateInn[] = [];
@@ -356,7 +361,7 @@ export function placeCommerceFacilities(
       if (polygon) keep(yardOf(`commerce-granary-${index}`, "granary", "Granary", polygon, false, year));
     } else if (role.kind === "retailMarket") keep(placeRetail(site, role.point, year));
     else if (role.kind === "caravanserai") {
-      const inn = placeCaravanserai(site, role, plaza, year);
+      const inn = placeCaravanserai(site, role, plaza, year, seat);
       if (!inn) continue;
       inns.push(inn);
       site.claim(inn.footprint);

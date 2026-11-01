@@ -8,6 +8,7 @@
  */
 
 import { approachIdForLeg, openApproachId, riverApproachId, seaApproachId } from "../../../services/approachId";
+import { approachPriorFromWorld, blendApproachProfiles } from "../../../services/approachPrior";
 import { type ApproachProfile, approachProfiles, cargoClassOf } from "../../../services/approachProfile";
 import type { PackedGraph } from "../../../types/PackedGraph";
 import { findCell, rn } from "../../hostUtils";
@@ -17,6 +18,7 @@ import {
   getApproachTraffic,
   getGoods,
   getMarketCellColumn,
+  getMarkets,
   getSimulationMonth,
   getSimulationYear,
   getWorldContext,
@@ -458,13 +460,48 @@ export function decayApproachTraffic(): void {
   setApproachLedgerDecays(getApproachLedgerDecays() + 1);
 }
 
-/** Gate profiles of one burg (`burgEconomyExtensions.getBurgApproachProfiles`). */
+/**
+ * Generation-time profiles for one burg (approach-commerce-quarters.md §5).
+ * Empty when the burg has no market. The ledger is not read.
+ */
+export function burgApproachPrior(burgId: number): { profiles: Record<string, ApproachProfile>; baseline: number } {
+  if (!isEconomyContextReady()) return { profiles: {}, baseline: 0 };
+  const pack = livePack();
+  if (!pack?.cells.p) return { profiles: {}, baseline: 0 };
+  const result = approachPriorFromWorld({
+    burgId,
+    pack,
+    marketByCell: getMarketCellColumn(),
+    markets: getMarkets(),
+    goods: getGoods(),
+    directApproach: (from, to) => approachTowards(pack, from, to)?.approachId ?? null,
+    classOf: tags => cargoClassOf(tags),
+    retention: APPROACH_ANNUAL_RETENTION
+  });
+  return { profiles: Object.fromEntries(result.profiles), baseline: result.baseline };
+}
+
+/**
+ * Gate profiles of one burg (`burgEconomyExtensions.getBurgApproachProfiles`).
+ * Prior when the ledger is empty, the ledger once its annual flow reaches the prior baseline,
+ * and a weighted blend until then (§5).
+ */
 export function burgApproachProfiles(burgId: number): Record<string, ApproachProfile> {
   if (!isEconomyContextReady()) return {};
   const rows = getApproachTraffic().filter(row => row.burgId === burgId);
-  if (!rows.length) return {};
   const tags = new Map(getGoods().map(good => [String(good.i), good.tags]));
-  return Object.fromEntries(approachProfiles(rows, id => cargoClassOf(tags.get(id)), APPROACH_ANNUAL_RETENTION));
+  const ledger = rows.length
+    ? approachProfiles(rows, id => cargoClassOf(tags.get(id)), APPROACH_ANNUAL_RETENTION)
+    : new Map<string, ApproachProfile>();
+  const prior = burgApproachPrior(burgId);
+  const stock = rows.reduce(
+    (sum, row) => sum + row.inbound.cargoSlots + row.outbound.cargoSlots + row.through.cargoSlots,
+    0
+  );
+  const ledgerAnnual = stock * (1 - APPROACH_ANNUAL_RETENTION);
+  return Object.fromEntries(
+    blendApproachProfiles(ledger, new Map(Object.entries(prior.profiles)), ledgerAnnual, prior.baseline)
+  );
 }
 
 /** The site-descriptor view of one burg's rows (`burgEconomyExtensions.getBurgApproachTraffic`). */

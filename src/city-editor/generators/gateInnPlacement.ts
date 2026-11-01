@@ -2,6 +2,7 @@ import type { SiteLodging } from "../types/contracts/burgSiteEconomy";
 import type { CityDocument, EdgeFeatureGroup, Id, Point } from "../types/document";
 import { externalGateRoads } from "./approachBeyond";
 import { mainCommerceRoadIndex } from "./approachCommerce";
+import { commerceSeatFromDocument } from "./commerceCulture";
 import { featureGroupVertices } from "./features";
 import { nearestOnPolyline } from "./geom";
 import type { GuildSiteView } from "./guildFacilityPlacement";
@@ -79,6 +80,8 @@ export interface CommerceInnRequest {
   group: EdgeFeatureGroup;
   lodging: SiteLodging;
   admission: CourtAdmission;
+  /** "center" is the Japanese market-street inn. Omitted and "outside" keep the gate court. */
+  seat?: "outside" | "center";
 }
 
 /**
@@ -100,10 +103,12 @@ export function commerceInnRequest(document: CityDocument): CommerceInnRequest |
   if (!admission) return null;
   const group = externalGateRoads(document).find(road => road.group.sourceRoad?.index === index)?.group;
   if (!group) return null;
+  const japanese = commerceSeatFromDocument(document) === "japanese";
   return {
     group,
     lodging: { kind: "inn", count: 1, scale: 1, stableSpaces },
-    admission
+    admission,
+    seat: japanese ? "center" : "outside"
   };
 }
 
@@ -326,11 +331,126 @@ function placeOne(
   return null;
 }
 
+const CENTER_STATIONS = [22, 36, 52, 68];
+const TOIYA_STATIONS = [36, 52, 68, 22];
+
+/** Townward end first, extended back to the plaza when the drawn approach starts at the gate. */
+function towardPlaza(points: Point[]): Point[] {
+  const plaza: Point = [0, 0];
+  const forward = hypot(points[0], plaza) <= hypot(points[points.length - 1], plaza) ? points : [...points].reverse();
+  if (hypot(forward[0], plaza) <= 8) return forward;
+  return [plaza, ...forward];
+}
+
+function insideCourt(site: GuildSiteView, polygon: Point[]): boolean {
+  if (!polygon.every(point => site.insideTown(point))) return false;
+  if (!site.inFrame(polygon, 2)) return false;
+  if (site.hitsWater(polygon, 0.6) || site.hitsRoutes(polygon, 0.6) || site.hitsBlocked(polygon)) return false;
+  return !site.hitsLanes(polygon);
+}
+
+/** A court beside the market street, inside the town. */
+function placeBeside(
+  site: GuildSiteView,
+  points: Point[],
+  stations: readonly number[],
+  preferSign: 1 | -1,
+  lodging: SiteLodging,
+  name: string,
+  id: string,
+  year: number,
+  roadHalf: number,
+  admission?: CourtAdmission
+): GateInn | null {
+  const box = courtBox(lodging.stableSpaces);
+  const courtAlong = box.along / 2;
+  const courtAcross = box.across / 2;
+  const ring = RING[lodging.kind];
+  const halfAlong = courtAlong + ring;
+  const halfAcross = courtAcross + ring;
+  const signs: Array<1 | -1> = [preferSign, preferSign === 1 ? -1 : 1];
+  for (const distance of stations) {
+    const at = sample(points, distance + halfAlong);
+    if (!at) continue;
+    for (const sign of signs) {
+      const away: Point = [-at.tangent[1] * sign, at.tangent[0] * sign];
+      const center: Point = [
+        at.point[0] + away[0] * (halfAcross + roadHalf + 2.5),
+        at.point[1] + away[1] * (halfAcross + roadHalf + 2.5)
+      ];
+      const footprint = rect(center, at.tangent, away, halfAlong, halfAcross);
+      if (!insideCourt(site, footprint)) continue;
+      const court = rect(center, at.tangent, away, courtAlong, courtAcross);
+      return {
+        id,
+        kind: lodging.kind,
+        name,
+        stableSpaces: lodging.stableSpaces,
+        count: lodging.count,
+        year,
+        footprint,
+        court,
+        ...openings(footprint, court, admission),
+        stalls: stallMarks(court, lodging.stableSpaces)
+      };
+    }
+  }
+  return null;
+}
+
+/** Japanese inn and toiya on the market street. The outside loop still places a caravanserai. */
+function placeCenterInns(
+  site: GuildSiteView,
+  inns: readonly SiteLodging[],
+  points: Point[],
+  roadHalf: number,
+  year: number,
+  admission: CourtAdmission
+): GateInn[] {
+  const street = towardPlaza(points);
+  const placed: GateInn[] = [];
+  const inn = inns[0];
+  if (inn) {
+    const wayside = placeBeside(
+      site,
+      street,
+      CENTER_STATIONS,
+      1,
+      inn,
+      NAME.inn,
+      "gate-inn-inn-0",
+      year,
+      roadHalf,
+      admission
+    );
+    if (wayside) {
+      site.claim(wayside.footprint);
+      placed.push(wayside);
+    }
+  }
+  const toiya = placeBeside(
+    site,
+    street,
+    TOIYA_STATIONS,
+    -1,
+    { kind: "inn", count: 1, scale: 1, stableSpaces: 8 },
+    "Toiya",
+    "gate-inn-toiya-0",
+    year,
+    roadHalf
+  );
+  if (toiya) {
+    site.claim(toiya.footprint);
+    placed.push(toiya);
+  }
+  return placed;
+}
+
 export function placeGateInns(
   site: GuildSiteView,
   lodging: readonly SiteLodging[],
   year: number,
-  target?: { group: EdgeFeatureGroup; admission: CourtAdmission }
+  target?: { group: EdgeFeatureGroup; admission: CourtAdmission; seat?: "outside" | "center" }
 ): GateInn[] {
   const wanted = lodging.filter(item => item.count > 0);
   if (!wanted.length) return [];
@@ -343,10 +463,24 @@ export function placeGateInns(
   const roadHalf = (cobbledApproach(use) ? cobbledWidthMeters(base) : base) / 2;
   const ordered = [...wanted].sort((a, b) => b.stableSpaces - a.stableSpaces || a.kind.localeCompare(b.kind));
   const placed: GateInn[] = [];
+  const center = target?.seat === "center";
+  if (center && target) {
+    placed.push(
+      ...placeCenterInns(
+        site,
+        ordered.filter(item => item.kind === "inn"),
+        points,
+        roadHalf,
+        year,
+        target.admission
+      )
+    );
+  }
+  const outsideItems = center ? ordered.filter(item => item.kind !== "inn") : ordered;
   let start = exitDistance(site, points);
   const clearance = site.approachClearance(group.id);
   const reach = site.outworkReach(group.id);
-  ordered.forEach((item, index) => {
+  outsideItems.forEach((item, index) => {
     // The through-yard rule is for the commerce inn. A caravanserai keeps one road-side door.
     const admission = target && item.kind === "inn" ? target.admission : undefined;
     const inn = placeOne(site, item, points, start, roadHalf, year, index, clearance, reach, admission);

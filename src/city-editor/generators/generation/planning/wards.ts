@@ -11,6 +11,7 @@ import type {
 } from "../../../types/geometry";
 import { terrainHeight } from "../../castlePlacement";
 import type { CoastResult } from "../../classifySea";
+import { commerceSeat } from "../../commerceCulture";
 import type { RoutedRiver } from "../../riverPath";
 import { synthSite } from "../../site/synthSite";
 import { assignWards } from "../../wards";
@@ -153,7 +154,12 @@ export function planWards(input: PlanWardsInput) {
             roads: settings.descriptor?.roads ?? [],
             importedRoads: streetGeo.importedRoads,
             port: program.port,
-            extentMeters: params.extentMeters
+            extentMeters: params.extentMeters,
+            bothEnds:
+              commerceSeat({
+                civilization: settings.descriptor?.civilization ?? sourceDocument?.civilization,
+                facilities: settings.descriptor?.economy?.facilities ?? sourceDocument?.siteEconomy?.facilities
+              }) === "japanese"
           }
         }
       : {})

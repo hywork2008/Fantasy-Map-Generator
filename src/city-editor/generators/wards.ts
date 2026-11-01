@@ -166,6 +166,8 @@ export interface WardInputs {
     importedRoads?: readonly { sourceIndex: number }[];
     port: boolean;
     extentMeters: number;
+    /** Open ground at both ends of the market street (Japanese masugata). */
+    bothEnds?: boolean;
   };
 }
 
@@ -378,7 +380,8 @@ export function assignWards(input: WardInputs): WardResult {
         plaza: plaza?.anchor ?? null,
         landing: extraPrecincts.find(p => p.kind === "harbor")?.anchor ?? null,
         port: input.commerce.port,
-        extentMeters: input.commerce.extentMeters
+        extentMeters: input.commerce.extentMeters,
+        bothEnds: input.commerce.bothEnds
       })
     : null;
 

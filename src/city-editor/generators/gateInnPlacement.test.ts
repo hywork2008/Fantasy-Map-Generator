@@ -356,4 +356,65 @@ describe("commerce inn court", () => {
       nearestOnPolyline(plainAt, roadPoints(off, "main")).dist
     );
   });
+
+  it("keeps a European and caravanserai inn outside, and seats a Japanese inn on the market street", () => {
+    const roads = [roadEntry("main", 10, { share: 0.8, wagonsPerYear: 40 })];
+    const european = town(roads, "on");
+    expect(commerceInnRequest(european)?.seat).toBe("outside");
+    const islamic = town(roads, "on", false, ECONOMY);
+    expect(commerceInnRequest(islamic)?.seat).toBe("outside");
+
+    const japanese = town(roads, "on");
+    japanese.civilization = {
+      tradition: "japanese",
+      period: "highMedieval",
+      faith: "shintoBuddhist",
+      cultureFaith: "shintoBuddhist",
+      fortification: "japanese",
+      culture: { id: 12, name: "Japanese", nameBase: 12 }
+    };
+    const request = commerceInnRequest(japanese);
+    expect(request?.seat).toBe("center");
+    const placed = placeGateInns(diskSite(japanese), [request!.lodging], 0, request!);
+    const inn = placed.find(item => item.name === "Wayside Inn");
+    const toiya = placed.find(item => item.name === "Toiya");
+    expect(inn?.kind).toBe("inn");
+    expect(Math.hypot(centre(inn!.footprint)[0], centre(inn!.footprint)[1])).toBeLessThan(80);
+    expect(toiya?.name).toBe("Toiya");
+    expect(Math.hypot(centre(toiya!.footprint)[0], centre(toiya!.footprint)[1])).toBeLessThan(80);
+
+    const outside = placeGateInns(
+      diskSite(european),
+      [commerceInnRequest(european)!.lodging],
+      0,
+      commerceInnRequest(european)!
+    );
+    expect(Math.hypot(centre(outside[0].footprint)[0], centre(outside[0].footprint)[1])).toBeGreaterThan(100);
+  });
 });
+
+function diskSite(document: CityDocument): GuildSiteView {
+  const placed: Point[][] = [];
+  const radius = 100;
+  return {
+    document,
+    town: [],
+    insideTown: point => Math.hypot(point[0], point[1]) < radius,
+    townDistance: point => Math.abs(Math.hypot(point[0], point[1]) - radius),
+    inFrame: () => true,
+    hitsWater: () => false,
+    hitsRoutes: () => false,
+    hitsBlocked: polygon =>
+      placed.some(existing =>
+        polygon.some(point => existing.some(other => Math.hypot(point[0] - other[0], point[1] - other[1]) < 1))
+      ),
+    hitsLanes: () => false,
+    buildingsIn: () => [],
+    claim: polygon => {
+      placed.push(polygon);
+    },
+    clearsGlacis: () => true,
+    approachClearance: () => 0,
+    outworkReach: () => 0
+  };
+}

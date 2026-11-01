@@ -198,8 +198,8 @@ export interface BurgSiteRoadEntry {
    */
   approachTraffic?: { cargoSlots: number; through: number; share: number };
   /**
-   * Gate character from the Economy approach ledger (docs/plan/approach-commerce-quarters.md §5,
-   * C0): same values as the observatory's `observe/gates`. Absent without ledger rows.
+   * Gate character (docs/plan/approach-commerce-quarters.md §5): ledger, prior, or a blend.
+   * Same values as `observe/gates`. City Editor drops the field unless approach commerce is on.
    */
   approachProfile?: ApproachProfile;
 }
