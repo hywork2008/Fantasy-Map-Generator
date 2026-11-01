@@ -23,6 +23,7 @@ import { models as woodworking } from "./21-woodworking-workshopsModels";
 import { models as tanneries } from "./22-tanneriesModels";
 import { models as smallBoats } from "./23-small-boatsModels";
 import { models as publicGranaries } from "./25-public-granariesModels";
+import { models as civicHalls } from "./26-civic-hallsModels";
 import { models as cloth } from "./27-cloth-hallsModels";
 import { models as guilds } from "./28-craft-guild-hallsModels";
 import { models as stoneYards } from "./29-stone-yardsModels";
@@ -65,6 +66,7 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   tanneries,
   smallBoats,
   publicGranaries,
+  civicHalls,
   cloth,
   guilds,
   stoneYards,
@@ -100,7 +102,10 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
           livestock.includes(model) ||
           graves.includes(model) ||
           tanneries.includes(model) ||
-          publicGranaries.includes(model)
+          publicGranaries.includes(model) ||
+          cloth.includes(model) ||
+          guilds.includes(model) ||
+          stoneYards.includes(model)
             ? [legacy]
             : [])
         ]

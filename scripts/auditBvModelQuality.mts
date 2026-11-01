@@ -93,6 +93,15 @@ const report = `# BV non-tree Codex high-quality model audit (2026-10-31)
 
 Regenerate: \`node --import tsx scripts/auditBvModelQuality.mts\`
 
+## Shared-component production rules
+
+Read [BV composite models and per-part quality](../plan/bv-composite-models.md) before starting each candidate. Reuse its explicit factories, connection contracts, part ledger and BV isolation workflow. Do not independently rebuild elements that should be shared.
+
+- Cloth and craft guild halls use one shared architecture profile: upper floor 3.32 m, upper wall 3.25 m, roof rise 2.2 m, east-side exterior stair, door Z=-2.3 m, and masonry arcade supports. Trade decoration must not change these dimensions or connections.
+- Check existing components before adding stairs, floor supports, roofs or balconies. Regenerate from profile parameters; do not resize a completed assembly.
+- Different stair sides, floor heights or support systems require a named, documented preset. The town bell turret and timber-post market hall are civic presets, not arbitrary craft-guild differences.
+- Verify both non-intersection and physical support/contact, doorway clearance, roof penetrations, ownership and standalone part display. Count shared placement variants as audit records, not newly independent High assets. Legacy Low/default factories retain their compatibility identities.
+
 ## Rules
 
 - Authorship does not establish quality. Single/default/unspecified models are treated as Low.
@@ -125,8 +134,10 @@ ${summary.join("\n")}
 12. Tenth model batch (2026-11-01): added High for the three Medieval 19 grave markers and three Medieval 20 textile/leather workshops, preserving default CE grave-marker variants. See [verification and previews](bv-grave-textile-high-20261101.md).
 13. Eleventh model batch (2026-11-01): added High for the two Medieval 21 woodworking workshops and the Medieval 22 tannery, preserving the default CE tannery variant. See [verification and previews](bv-woodworking-tannery-high-20261101.md).
 14. Twelfth model batch (2026-11-01): added High for the two Medieval 23 small boats and the Medieval 25 public granary, preserving the default CE public-granary variant. See [verification and previews](bv-boat-public-granary-high-20261101.md).
-15. Next: Medieval 26 civic halls and 27 cloth merchants hall, preserving the existing default cloth-hall variant. Continue component inspection of named landmarks. Regional houses, standalone props and the Codex basilica remain later batches.
-16. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
+15. Thirteenth model batch (2026-11-01): added High for the two Medieval 26 civic halls and the Medieval 27 cloth merchants hall, preserving the default CE cloth-hall variant. See [verification and previews](bv-civic-cloth-hall-high-20261101.md).
+16. Fourteenth model batch (2026-11-01): added High for the four Medieval 28 craft guild halls and the Medieval 29 stone yard. Guild halls share the cloth hall architecture profile, masonry supports and east stair; trade dressing is a separate part. Preserved default CE variants. See [verification and previews](bv-guild-stone-yard-high-20261101.md).
+17. Next: Medieval 30 lime kiln and 31 bleaching field, preserving default CE variants and checking the composite-model rules before adding any new component. Continue component inspection of named landmarks. Regional houses, standalone props and the Codex basilica remain later batches.
+18. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
 
