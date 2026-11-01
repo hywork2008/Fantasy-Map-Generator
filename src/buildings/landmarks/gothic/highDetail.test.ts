@@ -38,9 +38,11 @@ for (const low of models) {
     }
   });
   checkLandmark(high, assembly => {
-    if (low === salisbury) {
-      // Salisbury batches across feature names; component tests verify the unchanged architecture.
-      expect(modelParts(assembly.group).map(part => part.role)).toContain("crossing-tower-and-spire");
+    if (low.parts) {
+      // Component models batch across feature names; their tests verify world-space geometry.
+      expect(modelParts(assembly.group).map(part => part.role)).toContain(
+        low === salisbury ? "crossing-tower-and-spire" : "crossing-turret-and-spire"
+      );
       expect(modelParts(assembly.group).every(part => part.quality === "high")).toBe(true);
       return;
     }

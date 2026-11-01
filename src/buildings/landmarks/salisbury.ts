@@ -1,7 +1,6 @@
-import { DEFAULT_AUTHOR } from "../authors";
-import { compactModel } from "../compactModel";
-import { createModelAssembly, type ModelPartFactory } from "../modelParts";
+import type { ModelPartFactory } from "../modelParts";
 import { ArchitectureKit, type LandmarkModel } from "./architectureKit";
+import { assembleLandmarkParts, landmarkPartFactories } from "./components/assembly";
 import { detailedLandmark, GothicDetailKit } from "./gothic/detailKit";
 import { addSalisburyChapterHouse } from "./gothic/salisburyChapterHouse";
 
@@ -124,25 +123,19 @@ function parts(quality: "low" | "high"): readonly ModelPartFactory[] {
     {
       id: "chapter-house",
       build(k) {
-        k.cylinder("chapter-house", [-7, 6, 58], 8, 12, "plaster", 8, 8);
-        k.cylinder("chapter-house-roof", [-7, 15, 58], 8.4, 6, "iron", 0, 8);
+        if (k instanceof GothicDetailKit) addSalisburyChapterHouse(k);
+        else {
+          k.cylinder("chapter-house", [-7, 6, 58], 8, 12, "plaster", 8, 8);
+          k.cylinder("chapter-house-roof", [-7, 15, 58], 8.4, 6, "iron", 0, 8);
+        }
       }
     }
   );
-  return definitions.map(({ id, build }) => ({
-    id: `salisbury:${id}`,
-    role: id,
-    quality,
-    author: DEFAULT_AUTHOR,
-    create() {
-      const kit = quality === "high" ? new GothicDetailKit("salisbury") : new ArchitectureKit("salisbury");
-      if (id === "chapter-house" && kit instanceof GothicDetailKit) addSalisburyChapterHouse(kit);
-      else build(kit);
-      return kit.finish();
-    }
-  }));
+  return landmarkPartFactories("salisbury", quality, definitions, () =>
+    quality === "high" ? new GothicDetailKit("salisbury") : new ArchitectureKit("salisbury")
+  );
 }
 
 function assembleParts(selected: readonly ModelPartFactory[]) {
-  return compactModel(createModelAssembly("salisbury", selected), { mergeEquivalentMaterials: true });
+  return assembleLandmarkParts("salisbury", selected);
 }

@@ -1,0 +1,527 @@
+{
+  "method": "World-space triangles and normals rounded to 1e-5, with winding and material settings, sorted independently of batching. Buffer bytes count unique CPU ArrayBuffers only; no GPU/FPS benchmark.",
+  "rows": [
+    {
+      "quality": "low",
+      "metrics": {
+        "meshes": 5,
+        "triangles": 13976,
+        "vertices": 41928,
+        "geometries": 5,
+        "materials": 5
+      },
+      "attributeBytes": 1006272,
+      "dimensions": [
+        142.4199981689453,
+        157.26487731933594,
+        86.41999816894531
+      ],
+      "fingerprint": "58139dcc3882edec58c837b9e5634ad29ebd26df558ddbea29135c72230fa0b8",
+      "sourceParts": [
+        {
+          "id": "cologne:longitudinal-body",
+          "role": "longitudinal-body",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 104,
+          "triangles": 1740
+        },
+        {
+          "id": "cologne:north-transept",
+          "role": "north-transept",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 74
+        },
+        {
+          "id": "cologne:north-flying-buttresses",
+          "role": "north-flying-buttresses",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 56,
+          "triangles": 2352
+        },
+        {
+          "id": "cologne:south-transept",
+          "role": "south-transept",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 74
+        },
+        {
+          "id": "cologne:south-flying-buttresses",
+          "role": "south-flying-buttresses",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 56,
+          "triangles": 2352
+        },
+        {
+          "id": "cologne:choir-ambulatory",
+          "role": "choir-ambulatory",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 96
+        },
+        {
+          "id": "cologne:high-choir-apse",
+          "role": "high-choir-apse",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 96
+        },
+        {
+          "id": "cologne:radiating-chapels",
+          "role": "radiating-chapels",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 14,
+          "triangles": 504
+        },
+        {
+          "id": "cologne:west-front",
+          "role": "west-front",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 10,
+          "triangles": 192
+        },
+        {
+          "id": "cologne:north-west-tower",
+          "role": "north-west-tower",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 49,
+          "triangles": 2704
+        },
+        {
+          "id": "cologne:south-west-tower",
+          "role": "south-west-tower",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 49,
+          "triangles": 2704
+        },
+        {
+          "id": "cologne:crossing-turret-and-spire",
+          "role": "crossing-turret-and-spire",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 29,
+          "triangles": 1088
+        }
+      ],
+      "parts": [
+        {
+          "id": "cologne:longitudinal-body",
+          "role": "longitudinal-body",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 1740,
+            "vertices": 5220,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "cologne:north-transept",
+          "role": "north-transept",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 74,
+            "vertices": 222,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "cologne:north-flying-buttresses",
+          "role": "north-flying-buttresses",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 2352,
+            "vertices": 7056,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "cologne:south-transept",
+          "role": "south-transept",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 74,
+            "vertices": 222,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "cologne:south-flying-buttresses",
+          "role": "south-flying-buttresses",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 2352,
+            "vertices": 7056,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "cologne:choir-ambulatory",
+          "role": "choir-ambulatory",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 96,
+            "vertices": 288,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "cologne:high-choir-apse",
+          "role": "high-choir-apse",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 96,
+            "vertices": 288,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "cologne:radiating-chapels",
+          "role": "radiating-chapels",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 504,
+            "vertices": 1512,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "cologne:west-front",
+          "role": "west-front",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 192,
+            "vertices": 576,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "cologne:north-west-tower",
+          "role": "north-west-tower",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 2704,
+            "vertices": 8112,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "cologne:south-west-tower",
+          "role": "south-west-tower",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 2704,
+            "vertices": 8112,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "cologne:crossing-turret-and-spire",
+          "role": "crossing-turret-and-spire",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 1088,
+            "vertices": 3264,
+            "geometries": 2,
+            "materials": 2
+          }
+        }
+      ]
+    },
+    {
+      "quality": "high",
+      "metrics": {
+        "meshes": 7,
+        "triangles": 443208,
+        "vertices": 1329624,
+        "geometries": 7,
+        "materials": 7
+      },
+      "attributeBytes": 31910976,
+      "dimensions": [
+        142.4199981689453,
+        157.26487731933594,
+        86.62000274658203
+      ],
+      "fingerprint": "ce26ac994c2301e7f1e989ae04de38f28f84060db19ca7875d53d712d4a8e0c5",
+      "sourceParts": [
+        {
+          "id": "cologne:longitudinal-body",
+          "role": "longitudinal-body",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 21,
+          "triangles": 103552
+        },
+        {
+          "id": "cologne:north-transept",
+          "role": "north-transept",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 18,
+          "triangles": 3984
+        },
+        {
+          "id": "cologne:north-flying-buttresses",
+          "role": "north-flying-buttresses",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 9,
+          "triangles": 48552
+        },
+        {
+          "id": "cologne:south-transept",
+          "role": "south-transept",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 18,
+          "triangles": 3984
+        },
+        {
+          "id": "cologne:south-flying-buttresses",
+          "role": "south-flying-buttresses",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 9,
+          "triangles": 48552
+        },
+        {
+          "id": "cologne:choir-ambulatory",
+          "role": "choir-ambulatory",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 3,
+          "triangles": 252
+        },
+        {
+          "id": "cologne:high-choir-apse",
+          "role": "high-choir-apse",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 3,
+          "triangles": 252
+        },
+        {
+          "id": "cologne:radiating-chapels",
+          "role": "radiating-chapels",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 15,
+          "triangles": 75432
+        },
+        {
+          "id": "cologne:west-front",
+          "role": "west-front",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 19,
+          "triangles": 9688
+        },
+        {
+          "id": "cologne:north-west-tower",
+          "role": "north-west-tower",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 28,
+          "triangles": 53520
+        },
+        {
+          "id": "cologne:south-west-tower",
+          "role": "south-west-tower",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 28,
+          "triangles": 53520
+        },
+        {
+          "id": "cologne:crossing-turret-and-spire",
+          "role": "crossing-turret-and-spire",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 22,
+          "triangles": 41920
+        }
+      ],
+      "parts": [
+        {
+          "id": "cologne:longitudinal-body",
+          "role": "longitudinal-body",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 103552,
+            "vertices": 310656,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "cologne:north-transept",
+          "role": "north-transept",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 3984,
+            "vertices": 11952,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "cologne:north-flying-buttresses",
+          "role": "north-flying-buttresses",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 48552,
+            "vertices": 145656,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "cologne:south-transept",
+          "role": "south-transept",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 3984,
+            "vertices": 11952,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "cologne:south-flying-buttresses",
+          "role": "south-flying-buttresses",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 48552,
+            "vertices": 145656,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "cologne:choir-ambulatory",
+          "role": "choir-ambulatory",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 252,
+            "vertices": 756,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "cologne:high-choir-apse",
+          "role": "high-choir-apse",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 252,
+            "vertices": 756,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "cologne:radiating-chapels",
+          "role": "radiating-chapels",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 75432,
+            "vertices": 226296,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "cologne:west-front",
+          "role": "west-front",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 9688,
+            "vertices": 29064,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "cologne:north-west-tower",
+          "role": "north-west-tower",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 53520,
+            "vertices": 160560,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "cologne:south-west-tower",
+          "role": "south-west-tower",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 53520,
+            "vertices": 160560,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "cologne:crossing-turret-and-spire",
+          "role": "crossing-turret-and-spire",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 41920,
+            "vertices": 125760,
+            "geometries": 6,
+            "materials": 6
+          }
+        }
+      ]
+    }
+  ]
+}
