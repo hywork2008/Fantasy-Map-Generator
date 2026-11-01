@@ -142,3 +142,7 @@ Highの織物商人会館と職人ギルド会館4種は、`civicHallProfile.ts`
 2026-11-02にMedieval 44のMausoleum domeを基壇・円形壁・ドーム・扉・石棺の5部品でHigh化した。共通の石造アーチと窓・目地を同じ曲面へ変換し、入口と室内空間、厚さ0.2 mの半球殻、コーニスへの重ね合わせを作製。41,948三角形・6メッシュ、関連8件・型検査・既存6形状・実BVを検証した。コーニス上面のちらつきも解消。[制作記録](../analytics/bv-mausoleum-high-20261102.md)。同44のStupa chortenもHigh化した。次はCremation pyre platformを制作する。
 
 2026-11-02にMedieval 44のStupa chortenを基壇・テラス・壺形の胴・四角い上部・13輪相輪・傘蓋と日月の6部品でHigh化した。一次資料に基づきチベット風の外観に範囲を定め、共通の面取り石材と回転面を使い、各部を重ねて支持。6,832三角形・4メッシュ、関連12件・型検査・既存8形状・実BVを検証した。[制作記録](../analytics/bv-stupa-high-20261102.md)。次は同44のCremation pyre platformを制作する。
+
+## 優先順位の変更とMedieval 45以降（2026-11-02）
+
+ユーザー指示により、Medieval 44の未着手分（Cremation pyre platform以降）は保留し、45以降を優先する。45の3住居は階・張り出し量・角家指定から共通生成するHighを作製し、本体・支持材・階段・屋根・煙突・商店設備を独立部品化した。町屋16,016、商人住宅20,738、角商店住宅16,872三角形で各8メッシュ。共通建具・跳ね上げ戸・階段・瓦屋根を再利用し、Lowと互換defaultを維持。関連23件・型検査・実BVを検証した。[制作記録](../analytics/bv-jettied-high-20261102.md)。46・47は既に明示的な詳細factoryでHigh対応済み。次は未対応一覧の`medieval-town-gatehouse`（Gatehouse with guard quarters）の品質と部品を調べ、高品質化へ進む。44へは自動的に戻らない。

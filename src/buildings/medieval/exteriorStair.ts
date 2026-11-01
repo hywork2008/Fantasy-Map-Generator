@@ -2,6 +2,7 @@ import { compactModel } from "../compactModel";
 import { ModelKit } from "./modelKit";
 
 export interface ExteriorStairOptions {
+  surface?: "stone" | "wood";
   rise: number;
   run: number;
   width: number;
@@ -34,6 +35,7 @@ export function exteriorStairLayout(options: ExteriorStairOptions) {
 /** Self-contained flight, supported landing and guards, regenerated from dimensions. */
 export function createExteriorStair(options: ExteriorStairOptions) {
   const { rise, run, width, landingDepth, doorWidth } = options;
+  const surface = options.surface ?? "stone";
   const layout = exteriorStairLayout(options),
     k = new ModelKit("shared-exterior-stair-high");
   const edge = width / 2 - 0.03,
@@ -44,14 +46,14 @@ export function createExteriorStair(options: ExteriorStairOptions) {
   for (let i = 0; i < layout.steps; i++) {
     const y = ((i + 1) * rise) / layout.steps,
       z = start + run - ((i + 0.5) * run) / layout.steps;
-    k.box("solid-exterior-stair", [0, y / 2, z], [width, y, run / layout.steps + 0.006], "stone");
+    k.box("solid-exterior-stair", [0, y / 2, z], [width, y, run / layout.steps + 0.006], surface);
     if (i % 3 === 0 && z > railEnd)
       for (const side of [-1, 1])
         k.box("stair-rail-post", [side * edge, y + railHeight / 2, z], [0.075, railHeight, 0.075], "oak");
   }
-  k.box("upper-stair-landing", [0, rise - 0.09, 0], [layout.landingWidth, 0.18, landingDepth], "stone");
+  k.box("upper-stair-landing", [0, rise - 0.09, 0], [layout.landingWidth, 0.18, landingDepth], surface);
   for (const x of [-width / 2 + 0.11, width / 2 - 0.11])
-    k.box("landing-support-pier", [x, (rise - 0.18) / 2, 0], [0.23, rise - 0.18, 0.35], "stone");
+    k.box("landing-support-pier", [x, (rise - 0.18) / 2, 0], [0.23, rise - 0.18, 0.35], surface);
   for (const side of [-1, 1]) {
     k.beam(
       "flight-handrail",

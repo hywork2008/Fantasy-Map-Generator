@@ -1,4 +1,8 @@
+import { DEFAULT_AUTHOR } from "../authors";
+import { assembleCivicHallParts } from "./civicHallParts";
+import { type JettiedHouseKind, jettiedHousePartFactories } from "./jettiedHouseParts";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 /** Each upper floor projects toward the street (+Z); corner houses also project toward +X. */
 function dwelling(id: string, storeys: number, corner = false, shop = false) {
@@ -158,3 +162,28 @@ export const models: MedievalModel[] = [
     create: () => dwelling("corner-jettied-shop-house", 2, true, true)
   }
 ];
+
+registerHighVariants(
+  models,
+  Object.fromEntries(
+    models.map(model => [
+      model.id,
+      () => assembleCivicHallParts(`${model.id}-high`, jettiedHousePartFactories(model.id as JettiedHouseKind))
+    ])
+  )
+);
+for (const model of models) {
+  model.parts = variantId =>
+    model.variants?.find(v => v.id === variantId)?.level === "high"
+      ? jettiedHousePartFactories(model.id as JettiedHouseKind)
+      : [
+          {
+            id: `${model.id}:legacy`,
+            role: "legacy-assembly",
+            quality: "low",
+            author: DEFAULT_AUTHOR,
+            create: () => model.create()
+          }
+        ];
+  model.assembleParts = parts => assembleCivicHallParts(model.id, parts);
+}

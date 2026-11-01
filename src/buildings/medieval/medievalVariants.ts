@@ -38,6 +38,7 @@ import { models as printing } from "./38-printing-modelsModels";
 import { models as instruments } from "./39-instrument-makers-hallsModels";
 import { models as sand } from "./40-sand-yardsModels";
 import { models as caravanserais } from "./42-caravanseraisModels";
+import { models as jettied } from "./45-jettied-housesModels";
 import type { MedievalModel } from "./modelKit";
 
 export function medievalFamily(model: Pick<MedievalModel, "id">): string {
@@ -83,7 +84,8 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   printing,
   instruments,
   sand,
-  caravanserais
+  caravanserais,
+  jettied
 ]
   .flat()
   .flatMap(model => {
@@ -122,7 +124,8 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
           printing.includes(model) ||
           instruments.includes(model) ||
           sand.includes(model) ||
-          caravanserais.includes(model)
+          caravanserais.includes(model) ||
+          jettied.includes(model)
             ? [legacy]
             : [])
         ]

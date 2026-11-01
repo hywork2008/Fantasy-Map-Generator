@@ -25,7 +25,7 @@ Read [BV composite models and per-part quality](../plan/bv-composite-models.md) 
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **108**. Missing candidates: **112**.
+Records: **220**. Codex High or Ultra available: **111**. Missing candidates: **109**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -74,7 +74,7 @@ Records: **220**. Codex High or Ultra available: **108**. Missing candidates: **
 | Medieval 41 | 1 | 1 | 0 |
 | Medieval 42 | 1 | 1 | 0 |
 | Medieval 44 | 21 | 5 | 16 |
-| Medieval 45 | 3 | 0 | 3 |
+| Medieval 45 | 3 | 3 | 0 |
 | Medieval 46 | 7 | 7 | 0 |
 | Medieval 47 | 6 | 6 | 0 |
 | Regional house | 5 | 0 | 5 |
@@ -136,9 +136,6 @@ Records: **220**. Codex High or Ultra available: **108**. Missing candidates: **
 | Medieval 44 | `ditch-and-rampart` | Ditch and rampart | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `monumental-gate-pylon` | Monumental gate pylon | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `mourning-cloister` | Mourning cloister | single/default; assumed Low - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
-| Medieval 45 | `jettied-town-house` | Jettied timber town house | single/default; assumed Low - [source](../../src/buildings/medieval/45-jettied-housesModels.ts) |
-| Medieval 45 | `double-jettied-merchant-house` | Double-jettied merchant house | single/default; assumed Low - [source](../../src/buildings/medieval/45-jettied-housesModels.ts) |
-| Medieval 45 | `corner-jettied-shop-house` | Corner-jettied shop and dwelling | single/default; assumed Low - [source](../../src/buildings/medieval/45-jettied-housesModels.ts) |
 | Romanesque landmark | `conques` | Sainte-Foy Abbey Church, Conques | base only; documented low-resolution - [source](../../src/buildings/landmarks/conques.ts) |
 | Romanesque landmark | `durham` | Durham Cathedral | base only; documented low-resolution - [source](../../src/buildings/landmarks/durham.ts) |
 | Imaginary landmark | `floating-island` | Floating island (FMG mountain terrain) | base only; documented low-resolution - [source](../../src/buildings/landmarks/floatingIsland.ts) |
@@ -319,6 +316,9 @@ Records: **220**. Codex High or Ultra available: **108**. Missing candidates: **
 | Medieval 44 | `mausoleum-dome` | Mausoleum dome | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `stupa-chorten` | Stupa chorten | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
 | Medieval 44 | `skull-shelf` | Skull shelf | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/44-cemetery-facilitiesModels.ts) |
+| Medieval 45 | `jettied-town-house` | Jettied timber town house | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/45-jettied-housesModels.ts) |
+| Medieval 45 | `double-jettied-merchant-house` | Double-jettied merchant house | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/45-jettied-housesModels.ts) |
+| Medieval 45 | `corner-jettied-shop-house` | Corner-jettied shop and dwelling | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/45-jettied-housesModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-barracks` | Citadel barracks · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-command` | Citadel command · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
