@@ -33,5 +33,7 @@ export interface ApproachJourney {
   destinationBurgId: number;
   cargoSlots: number;
   value: number;
+  /** Journeys this counts as at each end; a countryside flow split over gates counts its share. */
+  departures?: number;
   goods: { id: number; slots: number; value?: number }[];
 }

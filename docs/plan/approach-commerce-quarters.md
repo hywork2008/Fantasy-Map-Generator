@@ -168,6 +168,13 @@ baseline(province 3000 cells、seed 101–103、warmup 2 年 + 10 年)の最終�
 - province 地図(3 地図、15 年、luxury-value-demand.md §10・§14)では、市場間の高額品の運び込みは `off`・`on` とも 15 年続く。ただし市場どうしが近いため、遠距離の検証にはならない。
 - 結論: 高額品の継続的な需要(候補 (1))は luxury-value-demand.md で入ったが、遠距離交易は増えていない。遠距離交易を太くするには、商会の到達範囲(候補 (2))と、商人の運転資金(新しい関門)の見直しが要る。設計は [long-distance-merchant-reach-capital.md](long-distance-merchant-reach-capital.md)。
 
+### 4.6 お金の循環の是正の後の再計測(2026-11-01)
+
+[approach-commerce-readiness-20261101.md](../analytics/approach-commerce-readiness-20261101.md)。
+
+- 市場間の交易は3年目も続く(golden の高額品 31・57・55 件/年)。§4.5・§10 の「遠距離交易が細い」は、3年目に消える状態ではなくなった。
+- 門の台帳は小売の出荷だけを記録し、町の主食・農村の穀物・肉・干し草の流れを記録していない。門の荷は獣脂(積載枠70%)・鶏(17%)に見え、穀物は1%(§4.2 は91%)。**C0 の前に、出荷を作らない流れを門と一緒に台帳へ記録する**(記録のみ、経済の値は変えない)。
+
 ## 5. 門の性格(Approach Profile)の算出
 
 descriptor の `roads[]` に、O4 の `approachTraffic` を拡張した `approachProfile` を載せる。

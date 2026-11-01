@@ -8,6 +8,7 @@ import {
   getSimulationMonth,
   getWorldContext
 } from "../economyContext";
+import { recordCountrysideFlow } from "./approachLedger";
 import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import { getMarketPriceLevel } from "./currencySufficiency";
 import { GROSS_FOOD_NEED } from "./foodConstants";
@@ -270,6 +271,7 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
       // holds (docs/plan/economy-coupling-audit.md).
       const affordableUnits = retailPrice > 0 ? getHouseholdWealth(burgId) / retailPrice : monthlyNeed;
       const { satisfied, needed } = drawBurgMonthlyNeed(burg, ledger, monthlyNeed, affordableUnits);
+      recordCountrysideFlow(market.i, burgId, stapleFoodGood?.i, satisfied, "inbound");
       urbanMonthlyNeed += needed;
       urbanDrawn += satisfied;
       const paid = debitHouseholdWealth(burgId, rn(satisfied * retailPrice, 2));

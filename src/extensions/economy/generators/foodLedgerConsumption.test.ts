@@ -12,6 +12,7 @@ vi.mock("../economyContext", () => ({
   setBurgMarketLedgers: vi.fn()
 }));
 
+vi.mock("./approachLedger", () => ({ recordCountrysideFlow: vi.fn() }));
 vi.mock("./innStays", () => ({
   getTemporaryLodgerPopulationPointsByBurg: vi.fn(() => new Map())
 }));

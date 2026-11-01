@@ -28,6 +28,7 @@ import {
   getOrCreateMarketGoodProductionTotals,
   getWorldContext
 } from "../economyContext";
+import { recordCountrysideFlow } from "./approachLedger";
 import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import { getMarketPriceLevel } from "./currencySufficiency";
 import { GROSS_FOOD_NEED } from "./foodConstants";
@@ -228,6 +229,7 @@ function sellMeat(market: Market, meat: Good, units: number, towns: readonly Bur
     if (!(paid > 0)) return;
     const bought = paid / price;
     sold += bought;
+    recordCountrysideFlow(market.i, burg.i ?? 0, meat.i, bought, "inbound");
     revenue += paid;
     recordGoodFlow({
       direction: "sink",

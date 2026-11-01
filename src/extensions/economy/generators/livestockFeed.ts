@@ -12,6 +12,7 @@ import {
   getOrCreateLivestockFeedTable,
   getWorldContext
 } from "../economyContext";
+import { recordCountrysideFlow } from "./approachLedger";
 import { consumeCropResidues } from "./cropResidues";
 import { getMarketPriceLevel } from "./currencySufficiency";
 import { isGoodEnabled } from "./goods-generator";
@@ -231,6 +232,7 @@ export function harvestLivestockForage(): void {
     }
     stock.stock += boughtKg / FODDER_DM_KG_PER_LOT;
     stock.price = getFodderClearingPrice(market, stock.stock);
+    recordCountrysideFlow(market.i, market.centerBurgId ?? 0, fodder.i, boughtKg / FODDER_DM_KG_PER_LOT, "inbound");
     recordGoodFlow({
       direction: "source",
       category: "ruralHarvest",
@@ -342,6 +344,7 @@ function buyFeed(market: Market, entries: { cell: number; kg: number }[], budget
     row.spending += (paid * entry.kg) / need;
   }
   market.foodLedger.fodderAnnualUseLots = (market.foodLedger.fodderAnnualUseLots ?? 0) + kg / FODDER_DM_KG_PER_LOT;
+  recordCountrysideFlow(market.i, market.centerBurgId ?? 0, fodder.i, kg / FODDER_DM_KG_PER_LOT, "outbound");
   // Bought hay is transferred into private reserves; final feeding is recorded in the dry-matter ledger.
   recordGoodFlow({
     direction: "sink",

@@ -223,6 +223,7 @@ ops は既存の `advance` を使う。長期実行のため `{"type":"advance",
 | O2 | 出入り口台帳(§4)と標本の `approaches` | 貫通路線の両門に別の値が付く地図で確認。economy 以外の golden 一致 |
 | O3 | CE プローブ(§7.2)と一致率レポート | 3 シード × 上位 10 都市で一致率を出す |
 | O4 | CE の `roadUse()` を `approachTraffic` 優先にする比較実験 | O3 の一致率と見た目を並べて採否を決める |
+| O5 | 出荷を作らない町と農村のあいだの流れを台帳へ記録する(§12) | golden の差分が `economy.approachTraffic` だけ |
 
 ## 10. リスクと未決事項
 
@@ -251,3 +252,24 @@ ops は既存の `advance` を使う。長期実行のため `{"type":"advance",
   - 上の一致率は ribbon の **budget**(と帯内の lot 数)で測っており、実際に描かれる城外の家とは一致しない。例: burg 72 は traffic 設定で最も交通量の多い門に budget 778 が付くが、城外住戸は 71 → 17 に減り、残りは城内に回った。
   - したがって O4 の効果を判断する指標は「門ごとの城外の家の数」にすべきで、budget ベースの一致率は過大評価。プローブの指標を差し替えるまで採否は保留。
 - 採否は上記の指標修正、SVG の目視、全球規模での再測定の後に決める。採用する場合は CE UI の設定追加と既定値の切り替え(既存都市の見た目が変わる)の扱いを別途決める。
+
+## 12. O5 出荷を作らない流れの記録(2026-11-01)
+
+O2 の台帳は、小売の出荷(`MarketShipment`)とキャラバン・国の調達だけを記録していた。町の主食、肉、町の燃料、干し草の売り買いは出荷を作らないので、門を通らない扱いだった([approach-commerce-readiness-20261101.md](../analytics/approach-commerce-readiness-20261101.md)§2)。
+
+- `recordCountrysideFlow(marketId, burgId, goodId, units, side)`(`approachLedger.ts`)は、町と、その市場の農村とのあいだの流れを記録する。相手の都市は 0(農村)とする。
+- 通る門: 市場の農村のセル(人口あり、都市のセルを除く)を人口で重み付けする。セルごとに、`approachTowardsPoint` でそのセルの方向に最も近い門を選び、門ごとの割合に分ける。割合は月ごと・世界ごとに作り直す(キャッシュの鍵は月、市場の列、`pack.cells`)。
+- 記録点:
+
+| 流れ | 場所 | 向き | 町 |
+| :--- | :--- | :--- | :--- |
+| 町の主食 | `foodLedgerConsumption.ts`(`drawBurgMonthlyNeed` の `satisfied`) | 農村→町 | 各町 |
+| 肉 | `slaughter.ts sellMeat` | 農村→町 | 買った町 |
+| 町の燃料(木・泥炭・石炭) | `heating.ts` | 農村→町 | 各町 |
+| 干し草の買い上げ | `livestockFeed.ts harvestLivestockForage` | 農村→町 | 市場の中心 |
+| 干し草の売り | `livestockFeed.ts buyFeed` | 町→農村 | 市場の中心 |
+
+- 一つの流れを複数の門へ分けたときは、出発の数(`departures`)も割合で数える(`ApproachJourney.departures`)。
+- 経済の値は変えない。golden の差分は `economy.approachTraffic` だけであることを、保存したアーカイブの economy の各キーを比べて確かめた。Node golden を作り直した。
+
+結果(golden、1か月ずつ12か月): 門の積載枠は、獣脂 41%、飼い葉 37%、木材 17%、鶏 10%、穀物 2%。獣脂の多さは記録の問題ではない。各市場に獣脂が140万〜270万樽あり、最低価格 0.5 で、中心の町から周りの町へ小売の出荷で送られている(readiness §5)。

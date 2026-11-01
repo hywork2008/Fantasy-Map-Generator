@@ -10,10 +10,14 @@
 import { approachIdForLeg, openApproachId, riverApproachId, seaApproachId } from "../../../services/approachId";
 import type { PackedGraph } from "../../../types/PackedGraph";
 import { findCell, rn } from "../../hostUtils";
+import { registerContextFallbackReset } from "../context/economyApi";
 import {
   getApproachLedgerDecays,
   getApproachTraffic,
   getGoods,
+  getMarketCellColumn,
+  getSimulationMonth,
+  getSimulationYear,
   getWorldContext,
   isEconomyContextReady,
   setApproachLedgerDecays,
@@ -140,11 +144,16 @@ export function approachesOfJourney(
  * points most nearly at the partner, or the open bearing when the cell has no route.
  */
 export function approachTowards(pack: Pack, burgId: number, partnerBurgId: number): ApproachRef | null {
-  const burg = pack.burgs[burgId];
   const partner = pack.burgs[partnerBurgId];
-  if (!burg || !partner) return null;
-  const dx = partner.x - burg.x;
-  const dy = partner.y - burg.y;
+  return partner ? approachTowardsPoint(pack, burgId, partner.x, partner.y) : null;
+}
+
+/** The route out of the burg cell that points most nearly at (x, y), or the open bearing. */
+export function approachTowardsPoint(pack: Pack, burgId: number, x: number, y: number): ApproachRef | null {
+  const burg = pack.burgs[burgId];
+  if (!burg) return null;
+  const dx = x - burg.x;
+  const dy = y - burg.y;
   const length = Math.hypot(dx, dy);
   if (!(length > 0)) return null;
   let best: { cell: number; routeId: number; score: number } | null = null;
@@ -224,7 +233,7 @@ export function applyApproachJourney(
     if (!ref) return;
     const row = rowOf(ref);
     const flow = row[side];
-    flow.departures = rn(flow.departures + 1, 3);
+    flow.departures = rn(flow.departures + (journey.departures ?? 1), 3);
     flow.cargoSlots = rn(flow.cargoSlots + slots, 3);
     flow.value = rn(flow.value + value, 3);
     if (slots > 0) {
@@ -341,6 +350,95 @@ export function recordShipmentApproaches(
           : []
     })
   );
+}
+
+/**
+ * Goods that move between a town and its countryside without a shipment (O5: the towns' staple food,
+ * meat and fuel, the hay the market buys and sells to its farms). The flow is split over the town's
+ * approaches by the direction of each rural cell of its market, weighted by its people; the partner
+ * is recorded as 0, the countryside. Shares are worked out once a month from that month's state, so
+ * a reloaded world records the same.
+ */
+type CountrysideShare = { ref: ApproachRef; share: number };
+let countryside: {
+  month: number;
+  column: ArrayLike<number>;
+  graph: Pack["cells"];
+  cells: Map<number, number[]>;
+  shares: Map<number, CountrysideShare[]>;
+} | null = null;
+
+function countrysideShares(pack: Pack, marketId: number, burgId: number): CountrysideShare[] {
+  const month = getSimulationYear() * 12 + getSimulationMonth();
+  const column = getMarketCellColumn();
+  // Another world (a load) brings new cell arrays, so the month alone does not key the cache.
+  if (countryside?.month !== month || countryside.column !== column || countryside.graph !== pack.cells) {
+    const cells = new Map<number, number[]>();
+    const pop = pack.cells.pop;
+    for (let cell = 0; cell < column.length; cell++) {
+      if (!column[cell] || !((pop?.[cell] ?? 0) > 0) || pack.cells.burg?.[cell]) continue;
+      const list = cells.get(column[cell]) ?? [];
+      list.push(cell);
+      cells.set(column[cell], list);
+    }
+    countryside = { month, column, graph: pack.cells, cells, shares: new Map() };
+  }
+  const cached = countryside.shares.get(burgId);
+  if (cached) return cached;
+  const weights = new Map<string, CountrysideShare>();
+  let total = 0;
+  for (const cell of countryside.cells.get(marketId) ?? []) {
+    const p = pack.cells.p[cell];
+    const people = pack.cells.pop?.[cell] ?? 0;
+    const ref = p ? approachTowardsPoint(pack, burgId, p[0], p[1]) : null;
+    if (!ref || !(people > 0)) continue;
+    const entry = weights.get(ref.approachId) ?? { ref, share: 0 };
+    entry.share += people;
+    weights.set(ref.approachId, entry);
+    total += people;
+  }
+  const shares = [...weights.values()]
+    .map(entry => ({ ref: entry.ref, share: total > 0 ? entry.share / total : 0 }))
+    .filter(entry => entry.share > 0);
+  countryside.shares.set(burgId, shares);
+  return shares;
+}
+
+registerContextFallbackReset(() => {
+  countryside = null;
+});
+
+/** Records `units` of a good moving between `burgId` and its market's countryside (O5). */
+export function recordCountrysideFlow(
+  marketId: number,
+  burgId: number,
+  goodId: number | undefined,
+  units: number,
+  side: "inbound" | "outbound"
+): void {
+  if (!isEconomyContextReady() || goodId === undefined || !(units > 0) || !marketId || !burgId) return;
+  const pack = livePack();
+  if (!pack?.cells.p) return;
+  const good = getGoods().find(entry => entry.i === goodId);
+  if (!good) return;
+  const slots = units * getGoodCargoSlotsPerUnit(good);
+  const value = units * (good.value ?? 0);
+  let rows = getApproachTraffic();
+  for (const { ref, share } of countrysideShares(pack, marketId, burgId)) {
+    rows = applyApproachJourney(
+      rows,
+      { outbound: side === "outbound" ? ref : null, inbound: side === "inbound" ? ref : null, through: [] },
+      {
+        originBurgId: side === "inbound" ? 0 : burgId,
+        destinationBurgId: side === "inbound" ? burgId : 0,
+        cargoSlots: slots * share,
+        value: value * share,
+        departures: share,
+        goods: [{ id: goodId, slots: slots * share, value: value * share }]
+      }
+    );
+  }
+  setApproachTraffic(rows);
 }
 
 export function decayApproachTraffic(): void {
