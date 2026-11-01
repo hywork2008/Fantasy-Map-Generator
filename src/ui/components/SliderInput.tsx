@@ -7,6 +7,8 @@ interface SliderInputProps {
   step?: string | number;
   value: string | number;
   onChange?: (value: string) => void;
+  /** Fires once when the user finishes dragging/typing, and only if the value changed. */
+  onCommit?: (value: string) => void;
   className?: string;
   children?: ReactNode;
   disabled?: boolean;
@@ -20,6 +22,7 @@ export const SliderInput = ({
   step = 1,
   value: valueProp,
   onChange,
+  onCommit,
   className,
   children,
   disabled,
@@ -38,6 +41,14 @@ export const SliderInput = ({
     onChange?.(e.target.value);
   };
 
+  const commit = (e: { currentTarget: HTMLInputElement }) => {
+    const v = e.currentTarget.value;
+    if (v !== String(valueProp)) onCommit?.(v);
+  };
+  const commitOnEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") commit(e);
+  };
+
   return (
     <div className={`d-flex ${className}`}>
       {children}
@@ -51,6 +62,9 @@ export const SliderInput = ({
         disabled={disabled}
         data-stored={dataStored}
         onChange={handleChange}
+        onPointerUp={commit}
+        onKeyUp={commit}
+        onBlur={commit}
       />
       <input
         type="number"
@@ -61,6 +75,8 @@ export const SliderInput = ({
         disabled={disabled}
         data-stored={dataStored}
         onChange={handleChange}
+        onBlur={commit}
+        onKeyUp={commitOnEnter}
       />
     </div>
   );
