@@ -109,6 +109,8 @@ export function createEditingController(ctx: EditingContext) {
       ctx.generation.generateSettings.forestSettings = next.forestSettings;
       ctx.generation.completeSource = recipe ? clone(recipe.input) : null;
       ctx.generation.completeResult = recipe ? next : null;
+      if (recipe?.settings.approachCommerce === "on") ctx.generation.generateSettings.approachCommerce = "on";
+      else delete ctx.generation.generateSettings.approachCommerce;
       ctx.generation.completeResultSettings = recipe ? JSON.stringify(ctx.generation.generateSettings) : null;
       ctx.generation.lastGeneratedStep = null;
       ctx.generation.activeStepStage = null;

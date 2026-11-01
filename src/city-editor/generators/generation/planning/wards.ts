@@ -21,7 +21,10 @@ import { fmgCellElevations } from "./waterTerrain";
 const NOMINAL_PRESET = "largeTown" as const;
 
 export interface PlanWardsInput {
-  settings: Pick<GenerationSettings, "historicalPeriod" | "descriptor" | "config" | "burialProfile">;
+  settings: Pick<
+    GenerationSettings,
+    "historicalPeriod" | "descriptor" | "config" | "burialProfile" | "approachCommerce"
+  >;
   sourceDocument: CityDocument | undefined;
   seed: string;
   half: number;
@@ -143,7 +146,17 @@ export function planWards(input: PlanWardsInput) {
           0
       ])
     ),
-    economy: settings.descriptor?.economy
+    economy: settings.descriptor?.economy,
+    ...(settings.approachCommerce === "on"
+      ? {
+          commerce: {
+            roads: settings.descriptor?.roads ?? [],
+            importedRoads: streetGeo.importedRoads,
+            port: program.port,
+            extentMeters: params.extentMeters
+          }
+        }
+      : {})
   });
   return { fmgElevations, warded };
 }

@@ -71,6 +71,11 @@ export interface Plan {
   /** An open estuary uses the surveyed river bank as its coastal boundary. */
   openWaterfront?: boolean;
   streets: Point[][];
+  /**
+   * Market street of an `approachCommerce: "on"` town. `gateIndexes` are indexes
+   * into `gates` whose gate-to-plaza streets are widened. Absent when commerce is off.
+   */
+  approachCommerce?: { gateIndexes: number[]; funnel: { center: Point; radius: number }[] };
   /** The district preview omits the gate-to-centre streets, so gates have no inner road yet. */
   wardsOnly?: true;
   wards: Map<number, WardKind>;

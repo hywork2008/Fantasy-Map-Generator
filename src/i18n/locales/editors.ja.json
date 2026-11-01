@@ -674,6 +674,8 @@
       "urbanCoreAllocationMode": "市街地コアの確保方式",
       "3NPatchesBlankAuto": "nPatches (blank = auto)",
       "avoidSea": "Avoid sea",
+      "approachCommerce": "門の物流で区を配置",
+      "approachCommerceHint": "門ごとの荷に合わせて市場通り、商人区、門区を置きます。オフのときは従来の配置のままです。",
       "streetFarEnd": "Street far end",
       "stepThroughTheLastPressedProcessOneLoopIterationAt": "Step through the last-pressed process one loop iteration at a time",
       "drawACircleOverAtLeastOneCityCellTo": "Draw a circle over at least one city cell to create a wall",

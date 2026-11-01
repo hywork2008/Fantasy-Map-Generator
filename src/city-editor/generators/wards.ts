@@ -36,6 +36,14 @@ import type {
   WardAssignment,
   WardKind
 } from "../types/geometry";
+import {
+  type ApproachCommercePlan,
+  type ApproachCommerceRoad,
+  gateWardQuota,
+  marketStreetScore,
+  merchantStreetScore,
+  resolveApproachCommerce
+} from "./approachCommerce";
 import { placeTempleFootprint } from "./civicPlacement";
 import { cultivableParts } from "./coastalSuitability";
 import { economyWardMix, type WardMixSlot } from "./economicWards";
@@ -147,6 +155,16 @@ export interface WardInputs {
   historicalPeriod?: HistoricalPeriod;
   burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
   elevations?: Map<number, number>;
+  /**
+   * Set only when `approachCommerce` is on. Profiles on these roads score the
+   * market street; absent profiles keep the previous gate chances and scores.
+   */
+  commerce?: {
+    roads: readonly ApproachCommerceRoad[];
+    importedRoads?: readonly { sourceIndex: number }[];
+    port: boolean;
+    extentMeters: number;
+  };
 }
 
 export interface WardResult {
@@ -163,6 +181,8 @@ export interface WardResult {
   precincts: Precinct[];
   overlays: Overlay[];
   shanty: Set<number>;
+  /** Present when a market street was resolved. Assembly widens those gates' streets. */
+  approachCommerce?: { gateIndexes: number[]; funnel: { center: Point; radius: number }[] };
 }
 
 const EMPTY: WardResult = { wards: [], assignmentOrder: [], precincts: [], overlays: [], shanty: new Set() };
@@ -348,12 +368,34 @@ export function assignWards(input: WardInputs): WardResult {
 
   const gateChance = program.walls ? GATE_CHANCE_WALLED : GATE_CHANCE_OPEN;
   const gateEps = Math.max(QUANTUM * 2, cellSize * 0.08);
+  const commercePlan = input.commerce
+    ? resolveApproachCommerce({
+        roads: input.commerce.roads,
+        importedRoads: input.commerce.importedRoads,
+        gates,
+        plaza: plaza?.anchor ?? null,
+        landing: extraPrecincts.find(p => p.kind === "harbor")?.anchor ?? null,
+        port: input.commerce.port,
+        extentMeters: input.commerce.extentMeters
+      })
+    : null;
 
-  // 4. Inner cells touching a gate → GateWard (probabilistic).
-  for (const cell of cells) {
-    if (!urban.has(cell.id) || occupied.has(cell.id)) continue;
-    if (!gates.some(g => cellTouchesPoint(cell, g.point, gateEps))) continue;
-    if (rng() < gateChance) take(cell.id, "gate");
+  // 4. Inner cells touching a gate → GateWard.
+  // Off: the historical chance. On: a share of each gate's touching cells.
+  if (!commercePlan) {
+    for (const cell of cells) {
+      if (!urban.has(cell.id) || occupied.has(cell.id)) continue;
+      if (!gates.some(g => cellTouchesPoint(cell, g.point, gateEps))) continue;
+      if (rng() < gateChance) take(cell.id, "gate");
+    }
+  } else {
+    assignGateWards(
+      cells,
+      cell => urban.has(cell.id) && !occupied.has(cell.id),
+      commercePlan,
+      gateEps,
+      id => take(id, "gate")
+    );
   }
 
   // 5. Remaining inner cells: shuffled, possibly-repeated mix + rateLocation.
@@ -369,19 +411,33 @@ export function assignWards(input: WardInputs): WardResult {
     borders,
     program.walls,
     rng,
-    input.economy
+    input.economy,
+    commercePlan
   );
 
-  // 6. Outer cells touching a gate → GateWard (high probability).
-  for (const cell of cells) {
-    if (urban.has(cell.id) || sea.has(cell.id) || occupied.has(cell.id)) continue;
-    if (!gates.some(g => cellTouchesPoint(cell, g.point, gateEps))) continue;
-    if (rng() < OUTER_GATE_CHANCE) {
-      take(cell.id, "gate");
-      // A gate suburb is built-up land; outside the outskirts it would keep
-      // its ward but never be buildable, so it drew no houses.
-      outskirts.add(cell.id);
+  // 6. Outer cells touching a gate → GateWard.
+  if (!commercePlan) {
+    for (const cell of cells) {
+      if (urban.has(cell.id) || sea.has(cell.id) || occupied.has(cell.id)) continue;
+      if (!gates.some(g => cellTouchesPoint(cell, g.point, gateEps))) continue;
+      if (rng() < OUTER_GATE_CHANCE) {
+        take(cell.id, "gate");
+        // A gate suburb is built-up land; outside the outskirts it would keep
+        // its ward but never be buildable, so it drew no houses.
+        outskirts.add(cell.id);
+      }
     }
+  } else {
+    assignGateWards(
+      cells,
+      cell => !urban.has(cell.id) && !sea.has(cell.id) && !occupied.has(cell.id),
+      commercePlan,
+      gateEps,
+      id => {
+        take(id, "gate");
+        outskirts.add(id);
+      }
+    );
   }
 
   // 7. Remaining outskirts: compact + 20% → Farm, else empty Ward.
@@ -415,7 +471,53 @@ export function assignWards(input: WardInputs): WardResult {
     return craftDomain ? { cellId, kind, craftDomain } : { cellId, kind };
   });
   const wards = assignmentOrder.slice().sort((a, b) => a.cellId - b.cellId);
-  return { wards, assignmentOrder, precincts: extraPrecincts, overlays, shanty };
+  return {
+    wards,
+    assignmentOrder,
+    precincts: extraPrecincts,
+    overlays,
+    shanty,
+    ...(commercePlan
+      ? { approachCommerce: { gateIndexes: commercePlan.gateIndexes, funnel: commercePlan.funnel } }
+      : {})
+  };
+}
+
+/** Give each measured gate a number of touching cells proportional to its share. */
+function assignGateWards(
+  cells: Cell[],
+  eligible: (cell: Cell) => boolean,
+  plan: ApproachCommercePlan,
+  eps: number,
+  take: (id: number) => void
+): void {
+  const groups = new Map<number, Cell[]>();
+  for (const cell of cells) {
+    if (!eligible(cell)) continue;
+    let best = -1;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < plan.shares.length; i++) {
+      const share = plan.shares[i];
+      if (!cellTouchesPoint(cell, share.point, eps)) continue;
+      const distance = dist(cell.centroid, share.point);
+      if (distance < bestDist || (distance === bestDist && i < best)) {
+        best = i;
+        bestDist = distance;
+      }
+    }
+    if (best < 0) continue;
+    const list = groups.get(best) ?? [];
+    list.push(cell);
+    groups.set(best, list);
+  }
+  const maxShare = plan.shares.reduce((max, share) => Math.max(max, share.share), 0);
+  for (const [index, share] of plan.shares.entries()) {
+    const touching = (groups.get(index) ?? [])
+      .slice()
+      .sort((a, b) => dist(a.centroid, share.point) - dist(b.centroid, share.point) || a.id - b.id);
+    const quota = gateWardQuota(touching.length, share.share, share.main, maxShare);
+    for (const cell of touching.slice(0, quota)) take(cell.id);
+  }
 }
 
 function fillInner(
@@ -429,7 +531,8 @@ function fillInner(
   borders: BorderLoop[],
   walled: boolean,
   rng: Rng,
-  economy?: BurgSiteEconomy
+  economy?: BurgSiteEconomy,
+  commerce?: ApproachCommercePlan | null
 ): void {
   const remaining = unassigned.slice();
   const queue = scaleMix(remaining.length, rng, economy);
@@ -438,7 +541,7 @@ function fillInner(
   while (remaining.length) {
     const slot: WardMixSlot = queue.shift() ?? { kind: "slum" };
     const kind = slot.kind;
-    const pick = pickFor(kind, remaining, byId, assigned, citadelIds, plaza, origin, borders, walled, rng);
+    const pick = pickFor(kind, remaining, byId, assigned, citadelIds, plaza, origin, borders, walled, rng, commerce);
     if (pick === null) {
       // This kind cannot sit anywhere left (e.g. MilitaryWard with no wall). Skip
       // it rather than forcing a slum in the middle of the mix.
@@ -485,10 +588,11 @@ function pickFor(
   origin: Point,
   borders: BorderLoop[],
   walled: boolean,
-  rng: Rng
+  rng: Rng,
+  commerce?: ApproachCommercePlan | null
 ): number | null {
   if (!ids.length) return null;
-  const rate = rateLocation(kind, byId, assigned, citadelIds, plaza, origin, borders, walled);
+  const rate = rateLocation(kind, byId, assigned, citadelIds, plaza, origin, borders, walled, commerce);
   if (!rate) {
     return ids[rng.int(0, ids.length)];
   }
@@ -513,7 +617,8 @@ function rateLocation(
   plaza: Precinct | null,
   origin: Point,
   borders: BorderLoop[],
-  walled: boolean
+  walled: boolean,
+  commerce?: ApproachCommercePlan | null
 ): ((cell: Cell) => number) | null {
   const plazaAnchor = plaza?.anchor ?? origin;
   const plazaSet = new Set(plaza?.cellIds ?? []);
@@ -526,8 +631,18 @@ function rateLocation(
         return dist(cell.centroid, plazaAnchor);
       };
     case "merchant":
+      if (commerce) return cell => merchantStreetScore(cell.centroid, origin, commerce.marketStreet);
       return cell => dist(cell.centroid, origin);
     case "market":
+      if (commerce)
+        return cell =>
+          marketStreetScore(
+            cell.centroid,
+            commerce.marketStreet,
+            commerce.marketEnd,
+            commerce.mainPoint,
+            commerce.plaza
+          );
       return cell => {
         if (cell.neighbors.some(n => assigned.get(n) === "market" || plazaSet.has(n))) return Number.POSITIVE_INFINITY;
         const plazaArea = plazaSet.size ? Math.abs(polygonArea(byId.get([...plazaSet][0])!.polygon)) : 1;

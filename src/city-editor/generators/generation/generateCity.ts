@@ -6,6 +6,7 @@ import type { GenerationSample } from "../../types/contracts/generationDiagnosti
 import type { CityDocument, Point } from "../../types/document";
 import type { GenerationSettings } from "../../types/generation";
 import { tagExternalGateRoads } from "../approachBeyond";
+import { generationDescriptor } from "../approachCommerce";
 import { applyBastionedTown, lockBastionedRoads } from "../bastionedTown/apply";
 import { planBastionedCity } from "../bastionedTown/plan";
 import { markReservedFaces } from "../bastionedTown/reserve";
@@ -200,16 +201,9 @@ export function generateCityOnDocument(
   if (settings.descriptor) {
     // Without the O4 opt-in the measured approach traffic must not reach the generation inputs,
     // so towns stay identical to those generated before the ledger existed. Gate profiles
-    // (approach-commerce-quarters.md C0) have no reader yet and are always dropped.
-    const dropTraffic = settings.approachGrowthSource !== "traffic";
-    if (settings.descriptor.roads.some(road => road.approachProfile || (dropTraffic && road.approachTraffic))) {
-      const descriptor = structuredClone(settings.descriptor);
-      for (const road of descriptor.roads) {
-        delete road.approachProfile;
-        if (dropTraffic) delete road.approachTraffic;
-      }
-      settings = { ...settings, descriptor };
-    }
+    // (approach-commerce-quarters.md C1) stay only when `approachCommerce` is on.
+    const descriptor = generationDescriptor(settings);
+    if (descriptor && descriptor !== settings.descriptor) settings = { ...settings, descriptor };
   }
   const profile = settings.descriptor?.urbanMorphology;
   if (profile && supportsUrbanMorphology(profile.period)) {
@@ -1222,6 +1216,8 @@ export function generateCityAttempt(
       : roads.map((_, i) => `${GEN_PREFIX}road-${i}`)
   );
   mark("road-ownership-final", normalizeGeneratedRoadOwnership(withApproaches, preserved));
+  if (plan.approachCommerce?.funnel.length) withApproaches.marketFunnel = plan.approachCommerce.funnel;
+  else delete withApproaches.marketFunnel;
   return withApproaches;
 }
 

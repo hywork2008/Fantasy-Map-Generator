@@ -655,6 +655,11 @@ export interface CityDocument {
   mesh: Mesh;
   featureGroups: FeatureGroup[];
   gates: CityGate[];
+  /**
+   * Open market ground just inside the main gate when `approachCommerce` is on.
+   * Buildings stay outside these disks. Absent keeps every gate's ordinary plaza.
+   */
+  marketFunnel?: { center: Point; radius: number }[];
   /** Imported point decorations such as trees; Ward landmarks are derived at render time. */
   elements: CityElement[];
   /** Urban morphology layout (circulade, bram, organic or classic) */
