@@ -5,6 +5,7 @@ import { variantId } from "../modelVariants";
 import { mausoleumPartFactories } from "./mausoleumParts";
 import { boneRackPartFactories, ossuaryPartFactories } from "./ossuaryParts";
 import { preachingCrossPartFactories } from "./preachingCrossParts";
+import { stupaPartFactories } from "./stupaParts";
 
 interface CemeteryHighDetail {
   parts: () => ModelPartFactory[];
@@ -22,6 +23,10 @@ export const CEMETERY_HIGH_DETAILS: Partial<Record<CemeteryPropKind, CemeteryHig
   skull_shelf: {
     parts: boneRackPartFactories,
     note: "Reusable wooden rack for stored skeletal remains. High adds pegged shelves, braced posts, pierced skull sockets and supported long bones. Illustrative dimensions; no specific historical monument is reconstructed."
+  },
+  stupa_chorten: {
+    parts: stupaPartFactories,
+    note: "Illustrative Tibetan-style chorten. High has a stepped throne, four terraces, closed vase-shaped bumpa, square harmika, thirteen tapering spire rings and a parasol with moon, sun and jewel. Meter-scale study; no specific historical monument is reconstructed."
   },
   mausoleum_dome: {
     parts: mausoleumPartFactories,

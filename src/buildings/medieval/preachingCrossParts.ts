@@ -1,12 +1,20 @@
 import * as THREE from "three";
 import { DEFAULT_AUTHOR } from "../authors";
 import type { ModelPartFactory } from "../modelParts";
-import { ModelKit } from "./modelKit";
+import { ModelKit, type Surface } from "./modelKit";
 
 export const PREACHING_CROSS_HEAD_BASE = 2.97;
 
 /** Bevels stay inside the vertical support interval, including the ground contact. */
-function dressedBlock(k: ModelKit, name: string, width: number, depth: number, bottom: number, height: number) {
+function dressedBlock(
+  k: ModelKit,
+  name: string,
+  width: number,
+  depth: number,
+  bottom: number,
+  height: number,
+  surface: Surface = "stone"
+) {
   const bevel = 0.012;
   const shape = new THREE.Shape([
     new THREE.Vector2(-width / 2, -depth / 2),
@@ -23,7 +31,7 @@ function dressedBlock(k: ModelKit, name: string, width: number, depth: number, b
       bevelThickness: bevel,
       bevelSegments: 2
     }),
-    "stone"
+    surface
   );
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.y = bottom + bevel;
