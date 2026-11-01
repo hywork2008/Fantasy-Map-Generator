@@ -231,6 +231,7 @@ import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
 import { SaltLogistics } from "./generators/saltLogistics";
 import { migrateSaltworksOwnership } from "./generators/saltOwnership";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
+import { clearPrepaidStapleBills, recordStapleBillPaid } from "./generators/slaughter";
 import { SmelterOperations } from "./generators/smelterOperations";
 import { settleStartProvisioning } from "./generators/startProvisioning";
 import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
@@ -835,6 +836,7 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
       // rate. refreshStateEconomySummaries()/synchronizePlayerCommerce() still run for real so
       // Overview dialogs reflect the new treasury/stock (§4.6).
       if (isFastForwardSettlementPayload(value)) {
+        clearPrepaidStapleBills();
         measureTickStep("production:fastForward", () =>
           applyFastForwardEconomySettlement(value.monthsElapsed, resolveFastAdvanceRates(), api.appServices.rng)
         );
@@ -2576,6 +2578,7 @@ function register(api: SimulationExtensionAPI): () => void {
       // Day, Month, and Year rather than overfilling storage first.
       const settlementMonth = (firstSettlementMonth + settledMonths) % 12 || 12;
       measureTickStep("food:consumption", () => settleMonthlyFoodConsumption(settlementMonth));
+      recordStapleBillPaid();
       measureTickStep("food:production", () =>
         FoodProduction.generateMonthlyLedger(
           settlementMonth,

@@ -10,7 +10,13 @@ import type { Good } from "./goods-generator";
 import { HERD_MEAT_OFFTAKE } from "./herdDiet";
 import { getRuralHouseholdWealth } from "./householdWealth";
 import type { Market } from "./marketTypes";
-import { MEAT_HOUSEHOLD_CASH_SHARE, settleSlaughter, URBAN_MEAT_KG_PER_PERSON_YEAR } from "./slaughter";
+import {
+  clearPrepaidStapleBills,
+  MEAT_HOUSEHOLD_CASH_SHARE,
+  recordStapleBillPaid,
+  settleSlaughter,
+  URBAN_MEAT_KG_PER_PERSON_YEAR
+} from "./slaughter";
 
 function market(goods: Market["goods"]): Market {
   return { i: 1, centerBurgId: 1, color: "#000", goods };
@@ -129,6 +135,18 @@ describe("settleSlaughter", () => {
       // Nothing waits in stock for craft or trade, and the unsold meat earns nothing.
       expect(stall.goods[3].stock).toBe(0);
       expect(getHouseholdWealth(1)).toBeCloseTo(50 - budget, 1);
+    });
+
+    it("does not hold the staple bill back again when the food calendar has already paid it", () => {
+      const stall = setUp(50);
+      recordStapleBillPaid();
+      const result = settleSlaughter();
+      expect(result.meatSold).toBeCloseTo((50 * MEAT_HOUSEHOLD_CASH_SHARE) / 2.5, 2);
+      expect(getRuralHouseholdWealth(stall)).toBeGreaterThan(0);
+      // The prepaid month is spent: the next settlement holds the bill back again.
+      const again = settleSlaughter();
+      expect(again.meatSold).toBeLessThan(result.meatSold);
+      clearPrepaidStapleBills();
     });
 
     it("keeps the year's meat produced and sold, and closes the sold share when the year turns", () => {

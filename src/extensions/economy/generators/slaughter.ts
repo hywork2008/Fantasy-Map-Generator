@@ -8,8 +8,8 @@
  * other draft animals are not food-tagged and stay in the market. Chickens stay
  * too: their catalog product is eggs, not a hide or tallow.
  *
- * No catalog good states how much meat one head yields. Game is hunted meat.
- * This pass does not invent that ratio and does not add a Meat good.
+ * The carcasses' Meat (MEAT_KG_PER_HEAD) is sold fresh to the market's towns the same month
+ * (sellMeat); what they do not buy is eaten by the farm families and never stands in stock.
  */
 
 import type { Burg } from "../../hostTypes";
@@ -50,8 +50,8 @@ const LEATHER_HEADS_PER_ROLL: Readonly<Record<string, number>> = { Cattle: 1 };
  * Rendered tallow a slaughtered head gives: the loose suet and caul fat, about 5% of the live weight.
  * An animal's fat is about a tenth of its weight (Lowengard, after Arthur Young 1788); the other half
  * is the carcass fat sold with the meat. Live weight is the carcass over a dressing share of 0.55
- * for cattle and 0.5 for small stock. Pig fat is lard and stays with the meat. Model values, not a
- * catalogue recipe: `{ Cattle: 0.3 }` once gave a cow 3.3 barrels, 360 kg.
+ * for cattle and 0.5 for small stock. A pig gives none: its fat is lard and is sold with the meat
+ * (MEAT_KG_PER_HEAD counts it). Model values, not a catalogue recipe.
  */
 const TALLOW_KG_PER_HEAD: Readonly<Record<string, number>> = {
   Cattle: (EXPERIMENTAL_CARCASS_PROFILES.Cattle.carcassKgPerHead / 0.55) * 0.05,
@@ -81,9 +81,26 @@ const MEAT_KG_PER_HEAD: Readonly<Record<string, number>> = {
 export const URBAN_MEAT_KG_PER_PERSON_YEAR = 25;
 /**
  * Share of a town household purse, after this month's staple bill, the month's meat may take
- * (provisional). Meat is bought before the staple is paid (simulation.ts), so the staple comes first.
+ * (provisional). When the staple is not yet paid, its bill is held back from the purse first.
  */
 export const MEAT_HOUSEHOLD_CASH_SHARE = 0.1;
+
+/**
+ * Calendar months whose staple bill households have paid ahead of their production settlement.
+ * The food calendar settles consumption first and queues production after it (simulation.ts), so
+ * those settlements must not hold the bill back a second time. Session state, like the queue.
+ */
+let prepaidStapleMonths = 0;
+
+/** The food calendar paid a month's staple bill; its production settlement is still queued. */
+export function recordStapleBillPaid(): void {
+  prepaidStapleMonths++;
+}
+
+/** Drops prepaid months whose settlement will not run slaughter (Fast-Forward, reset). */
+export function clearPrepaidStapleBills(): void {
+  prepaidStapleMonths = 0;
+}
 
 /** Heads of `animal` one unit of `output` consumes, when the recipe is that animal alone. */
 export function singleIngredientHeads(output: Good, animalId: number): number | undefined {
@@ -142,6 +159,8 @@ export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, 
   if (isWinterSlaughterExperimentEnabled()) return result;
   if (!animals.length || (!tallow && !leather)) return result;
 
+  const stapleBillPaid = prepaidStapleMonths > 0;
+  if (stapleBillPaid) prepaidStapleMonths--;
   const townsByMarket = meat ? getTownsByMarket() : undefined;
   for (const market of getMarkets()) {
     let meatKg = 0;
@@ -183,7 +202,7 @@ export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, 
     if (meat && meatKg > 0) {
       const units = meatKg / WAIN_KG;
       result.meat += units;
-      result.meatSold += sellMeat(market, meat, units, townsByMarket?.get(market.i) ?? []);
+      result.meatSold += sellMeat(market, meat, units, townsByMarket?.get(market.i) ?? [], stapleBillPaid);
     }
   }
   return result;
@@ -200,12 +219,13 @@ function getTownsByMarket(): Map<number, Burg[]> {
 
 /**
  * The market's towns buy this month's fresh Meat from their household purses, each its share of
- * what the carcasses gave, up to its people's need and the cash left after the staple bill. The
+ * what the carcasses gave, up to its people's need and the cash left after the staple bill (held
+ * back unless `stapleBillPaid` says the purse has already paid it this month). The
  * farm families who sent the herds are paid FARMGATE_PRICE_SHARE of what sold; the rest is the
  * market's margin. Meat the towns did not buy is eaten by those families and never stands in stock
  * (docs/plan/livestock-meat-sales.md §3). Returns the wains sold.
  */
-function sellMeat(market: Market, meat: Good, units: number, towns: readonly Burg[]): number {
+function sellMeat(market: Market, meat: Good, units: number, towns: readonly Burg[], stapleBillPaid: boolean): number {
   const world = getWorldContext();
   const rate = Math.max(1, world.populationRate ?? 1);
   const urbanization = Math.max(1, world.urbanization ?? 1);
@@ -223,7 +243,7 @@ function sellMeat(market: Market, meat: Good, units: number, towns: readonly Bur
     burgId: market.centerBurgId
   });
   const staple = getGoods().find(good => good.tags.includes("stapleFood"));
-  const staplePrice = staple ? (market.goods[staple.i]?.price ?? staple.value) : 0;
+  const staplePrice = staple && !stapleBillPaid ? (market.goods[staple.i]?.price ?? staple.value) : 0;
   const people = towns.map(burg => (burg.population ?? 0) * rate * urbanization);
   const wanted = people.map(count => (count * URBAN_MEAT_KG_PER_PERSON_YEAR) / 12 / WAIN_KG);
   const totalWanted = wanted.reduce((sum, value) => sum + value, 0);
