@@ -137,8 +137,9 @@ ${summary.join("\n")}
 15. Thirteenth model batch (2026-11-01): added High for the two Medieval 26 civic halls and the Medieval 27 cloth merchants hall, preserving the default CE cloth-hall variant. See [verification and previews](bv-civic-cloth-hall-high-20261101.md).
 16. Fourteenth model batch (2026-11-01): added High for the four Medieval 28 craft guild halls and the Medieval 29 stone yard. Guild halls share the cloth hall architecture profile, masonry supports and east stair; trade dressing is a separate part. Preserved default CE variants. See [verification and previews](bv-guild-stone-yard-high-20261101.md).
 17. Fifteenth model batch (2026-11-01): added High for the Medieval 30 lime kiln and Medieval 31 bleaching field, each with three independently inspectable components. Preserved default CE variants. See [verification, sources and previews](bv-kiln-bleaching-high-20261101.md).
-18. Next: the remaining Medieval 32 abbey domestic range and Medieval 34 pottery workshop. Reuse existing monastery and kiln components where compatible; preserve default CE variants. Continue component inspection of named landmarks. Regional houses, standalone props and the Codex basilica remain later batches.
-19. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
+18. Sixteenth model batch (2026-11-01): added High for the remaining Medieval 32 domestic ranges and the Medieval 34 pottery workshop. Reused monastery buildings/cloister, workshop shelter/benches and shared masonry kiln passages. Added independent component views and preserved original Low factories. See [verification, sources and previews](bv-domestic-pottery-high-20261101.md).
+19. Next: Medieval 35 harbor cranes and 36 town gallows. Inspect shared frames, hoists and access clearances before creating new parts. Continue component inspection of named landmarks. Regional houses, standalone props and the Codex basilica remain later batches.
+20. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
 

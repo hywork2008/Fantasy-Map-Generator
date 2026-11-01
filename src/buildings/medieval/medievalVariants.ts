@@ -29,6 +29,8 @@ import { models as guilds } from "./28-craft-guild-hallsModels";
 import { models as stoneYards } from "./29-stone-yardsModels";
 import { models as kilns } from "./30-lime-kilnsModels";
 import { models as bleaching } from "./31-bleaching-fieldsModels";
+import { models as domestic } from "./32-abbey-living-quartersModels";
+import { models as pottery } from "./34-pottery-workshopsModels";
 import { models as cranes } from "./35-harbor-cranesModels";
 import { models as gallows } from "./36-gallowsModels";
 import { models as glass } from "./37-glassworkers-hallsModels";
@@ -72,6 +74,8 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   stoneYards,
   kilns,
   bleaching,
+  domestic.filter(model => model.id === "abbey-domestic-range"),
+  pottery,
   cranes,
   gallows,
   glass,
@@ -107,7 +111,9 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
           guilds.includes(model) ||
           stoneYards.includes(model) ||
           kilns.includes(model) ||
-          bleaching.includes(model)
+          bleaching.includes(model) ||
+          domestic.includes(model) ||
+          pottery.includes(model)
             ? [legacy]
             : [])
         ]

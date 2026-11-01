@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { addMasonryArchPassage } from "./masonryArchPassage";
 import { ModelKit } from "./modelKit";
 
 export type LimeKilnPart = "kiln" | "charging-bank" | "materials";
@@ -36,23 +37,18 @@ export function createLimeKilnPart(part: LimeKilnPart) {
         k.add("kiln-masonry-course-block", geometry, "stone").position.set(0, y1, cz);
       }
     // The lower shell opening is closed around, rather than behind, the throat.
-    for (const side of [-1, 1]) k.box("stoke-passage-sidewall", [side * 0.98, 1.075, 1.35], [0.96, 1.65, 2.1], "stone");
-    const arch = new THREE.Shape();
-    arch.moveTo(-1.46, 1.92);
-    arch.lineTo(1.46, 1.92);
-    arch.lineTo(1.46, 1.05);
-    arch.lineTo(0.5, 1.05);
-    for (let i = 1; i <= 32; i++) {
-      const a = (i * Math.PI) / 32;
-      arch.lineTo(Math.cos(a) * 0.5, 1.05 + Math.sin(a) * 0.55);
-    }
-    arch.lineTo(-1.46, 1.05);
-    arch.closePath();
-    k.add(
-      "open-stoking-passage-vault",
-      new THREE.ExtrudeGeometry(arch, { depth: 2.1, bevelEnabled: false }),
-      "stone"
-    ).position.z = 0.3;
+    addMasonryArchPassage(k, {
+      name: "stoking-passage",
+      x: 0,
+      z: 0.3,
+      bottom: 0.25,
+      spring: 1.05,
+      rise: 0.55,
+      opening: 1,
+      outerWidth: 2.92,
+      top: 1.92,
+      depth: 2.1
+    });
     // Radial arch joints remain outside the opening.
     for (let i = 1; i < 12; i++) {
       const a = (i * Math.PI) / 12;

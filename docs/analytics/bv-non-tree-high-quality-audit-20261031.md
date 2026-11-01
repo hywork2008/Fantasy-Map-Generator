@@ -21,7 +21,7 @@ Read [BV composite models and per-part quality](../plan/bv-composite-models.md) 
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **91**. Missing candidates: **129**.
+Records: **220**. Codex High or Ultra available: **93**. Missing candidates: **127**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -58,9 +58,9 @@ Records: **220**. Codex High or Ultra available: **91**. Missing candidates: **1
 | Medieval 29 | 1 | 1 | 0 |
 | Medieval 30 | 1 | 1 | 0 |
 | Medieval 31 | 1 | 1 | 0 |
-| Medieval 32 | 2 | 1 | 1 |
+| Medieval 32 | 2 | 2 | 0 |
 | Medieval 33 | 1 | 1 | 0 |
-| Medieval 34 | 1 | 0 | 1 |
+| Medieval 34 | 1 | 1 | 0 |
 | Medieval 35 | 2 | 0 | 2 |
 | Medieval 36 | 1 | 0 | 1 |
 | Medieval 37 | 1 | 0 | 1 |
@@ -95,8 +95,9 @@ Records: **220**. Codex High or Ultra available: **91**. Missing candidates: **1
 15. Thirteenth model batch (2026-11-01): added High for the two Medieval 26 civic halls and the Medieval 27 cloth merchants hall, preserving the default CE cloth-hall variant. See [verification and previews](bv-civic-cloth-hall-high-20261101.md).
 16. Fourteenth model batch (2026-11-01): added High for the four Medieval 28 craft guild halls and the Medieval 29 stone yard. Guild halls share the cloth hall architecture profile, masonry supports and east stair; trade dressing is a separate part. Preserved default CE variants. See [verification and previews](bv-guild-stone-yard-high-20261101.md).
 17. Fifteenth model batch (2026-11-01): added High for the Medieval 30 lime kiln and Medieval 31 bleaching field, each with three independently inspectable components. Preserved default CE variants. See [verification, sources and previews](bv-kiln-bleaching-high-20261101.md).
-18. Next: the remaining Medieval 32 abbey domestic range and Medieval 34 pottery workshop. Reuse existing monastery and kiln components where compatible; preserve default CE variants. Continue component inspection of named landmarks. Regional houses, standalone props and the Codex basilica remain later batches.
-19. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
+18. Sixteenth model batch (2026-11-01): added High for the remaining Medieval 32 domestic ranges and the Medieval 34 pottery workshop. Reused monastery buildings/cloister, workshop shelter/benches and shared masonry kiln passages. Added independent component views and preserved original Low factories. See [verification, sources and previews](bv-domestic-pottery-high-20261101.md).
+19. Next: Medieval 35 harbor cranes and 36 town gallows. Inspect shared frames, hoists and access clearances before creating new parts. Continue component inspection of named landmarks. Regional houses, standalone props and the Codex basilica remain later batches.
+20. Regenerate this report after each batch. Verify geometry, dimensions, projections, ownership and BV selection. Relabelling or subdividing an existing basic model does not complete High.
 
 ## First-batch verification (2026-11-01 JST)
 
@@ -115,8 +116,6 @@ Records: **220**. Codex High or Ultra available: **91**. Missing candidates: **1
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
-| Medieval 32 | `abbey-domestic-range` | Abbey cloister and domestic ranges | single/default; assumed Low - [source](../../src/buildings/medieval/32-abbey-living-quartersModels.ts) |
-| Medieval 34 | `potters-workshop` | Potter workshop, kiln, and drying shelves | single/default; assumed Low - [source](../../src/buildings/medieval/34-pottery-workshopsModels.ts) |
 | Medieval 35 | `harbor-treadwheel-crane` | Timber harbor treadwheel crane | single/default; assumed Low - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
 | Medieval 35 | `harbor-winch-crane` | Hand-winch loading crane | single/default; assumed Low - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
 | Medieval 36 | `permanent-town-gallows` | Permanent timber gallows | single/default; assumed Low - [source](../../src/buildings/medieval/36-gallowsModels.ts) |
@@ -313,7 +312,9 @@ Records: **220**. Codex High or Ultra available: **91**. Missing candidates: **1
 | Medieval 30 | `masonry-lime-kiln` | Masonry lime kiln and charging bank | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/30-lime-kilnsModels.ts) |
 | Medieval 31 | `linen-bleaching-field` | Linen bleaching ground and drying racks | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/31-bleaching-fieldsModels.ts) |
 | Medieval 32 | `abbey` | Abbey church, cloister and domestic ranges | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/32-abbey-living-quartersModels.ts) |
+| Medieval 32 | `abbey-domestic-range` | Abbey cloister and domestic ranges | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/32-abbey-living-quartersModels.ts) |
 | Medieval 33 | `mendicant-friary` | Urban mendicant friary | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/33-friariesModels.ts) |
+| Medieval 34 | `potters-workshop` | Potter workshop, kiln, and drying shelves | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/34-pottery-workshopsModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-barracks` | Citadel barracks · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-command` | Citadel command · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
