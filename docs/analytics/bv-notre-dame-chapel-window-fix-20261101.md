@@ -2,6 +2,8 @@
 
 2026-11-01
 
+追記：この修正後、[周歩廊をHigh化](bv-notre-dame-ambulatory-high-20261101.md)した。以下の565,859三角形とHigh全体の署名は周歩廊High化前の比較基準であり、礼拝堂の窓修正は維持している。
+
 ## 原因と修正
 
 G01 Notre-Dame de Parisの`Radiating Chapels · High`は、五角形の壁を生成しながら、窓を半径20.3・礼拝堂の角度±0.17 radで置いていた。この位置と向きが実際の前方2面に一致せず、窓が壁面からずれていた。P5の分割前からの形状を維持した際に残った不具合である。
@@ -21,6 +23,6 @@ G01 Notre-Dame de Parisの`Radiating Chapels · High`は、五角形の壁を生
 
 [修正後の外側視点](bv-notre-dame-chapel-window-fixed-outer-20261101.png)・[通常視点](bv-notre-dame-chapel-window-fixed-20261101.png)。
 
-現行の再計測は`node --import tsx scripts/profileNotreDameParts.mts`で[修正後JSON](bv-notre-dame-chapel-window-fix-20261101.json)へ出力する。[P5初回記録](bv-notre-dame-parts-p5-20261101.md)とそのJSONは修正前の比較基準として残す。
+窓の修正直後の値は[修正後JSON](bv-notre-dame-chapel-window-fix-20261101.json)に保存した。`node --import tsx scripts/profileNotreDameParts.mts`は周歩廊High化後の現行値を別のJSONへ出力する。[P5初回記録](bv-notre-dame-parts-p5-20261101.md)とそのJSONも修正前の比較基準として残す。
 
 次は周歩廊の既存外殻の重なりと接続を見直し、実際のHigh部品の作製を続ける。

@@ -2,6 +2,8 @@ import * as THREE from "three";
 import type { ModelPartFactory } from "../../modelParts";
 import type { LandmarkModel } from "../architectureKit";
 import { assembleLandmarkParts, type LandmarkComponent, landmarkPartFactories } from "../components/assembly";
+import { addNotreDameAmbulatory } from "./ambulatory";
+import { notreDameChapelPlan } from "./chevetPlan";
 import { NotreDameKit } from "./details";
 
 const WEST = -Math.PI / 2;
@@ -17,7 +19,7 @@ export const model: LandmarkModel = {
   size: [132, 58, 97],
   dimensions:
     "Metre-scale interpretation based on the cathedral's published plans: 127 m length, 48 m transept, 43.5 m facade envelope, 69 m towers, 96 m spire; west rose diameter 9.70 m, transept roses 13.10 m. Bay spacing, chapel profiles and ornament are estimated.",
-  note: "Detailed five-aisled exterior: recessed triple portals and archivolts, 28 schematic crowned kings, open upper gallery and twin belfries, three patterned rose windows, paired lancets, roof seams, radial curved flying buttresses, pinnacles, gargoyles and spire with copper figures. Sculptures and glazing are geometric interpretations, not replicas. Interior, sacristy, individual glass scenes and surveyed masonry joints are omitted. The two-level ambulatory remains a Low-detail shell and is labeled separately. No textures or external model downloads are required.",
+  note: "Detailed five-aisled exterior: recessed triple portals and archivolts, 28 schematic crowned kings, open upper gallery and twin belfries, three patterned rose windows, paired lancets, roof seams, radial curved flying buttresses, pinnacles, gargoyles and spire with copper figures. Sculptures and glazing are geometric interpretations, not replicas. Most interiors, the sacristy, individual glass scenes and surveyed masonry joints are omitted. The detailed double ambulatory has an open lower arcade, recessed gallery glazing and fitted annular roofs. No textures or external model downloads are required.",
   sources: [
     {
       title: "Cathedral: plans, elevations and principal dimensions",
@@ -88,11 +90,7 @@ function parts() {
     },
     {
       id: "ambulatory",
-      quality: "low",
-      build(k) {
-        k.apse("outer-ambulatory", 42, 0, 18.3, 11.5, 3.5);
-        k.apse("inner-ambulatory-gallery", 42, 0, 12.4, 19, 3.5);
-      }
+      build: addNotreDameAmbulatory
     },
     {
       id: "choir-apse",
@@ -108,19 +106,8 @@ function parts() {
       id: "radiating-chapels",
       build(k) {
         // Polygonal chevet chapels and long single-flight radial buttresses.
-        for (let i = 0; i < 7; i++) {
-          const a = ((i + 0.5) * Math.PI) / 7;
-          const dx = Math.sin(a),
-            dz = Math.cos(a);
-          const points = [
-            [42 + dx * 15 - dz * 3.2, dz * 15 + dx * 3.2],
-            [42 + dx * 19.7 - dz * 3, dz * 19.7 + dx * 3],
-            [42 + dx * 21.5, dz * 21.5],
-            [42 + dx * 19.7 + dz * 3, dz * 19.7 - dx * 3],
-            [42 + dx * 15 + dz * 3.2, dz * 15 - dx * 3.2]
-          ] as const;
+        for (const { points, center } of notreDameChapelPlan()) {
           k.prism("chevet-chapel", points, 0, 10.5);
-          const center = [42 + dx * 17.9, dz * 17.9];
           // A hipped fan roof, each triangle meeting a common ridge point.
           for (let j = 0; j < points.length; j++) {
             const p = points[j],

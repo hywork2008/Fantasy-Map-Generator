@@ -27,6 +27,6 @@ for (const [quality, definition] of [["low", model], ["high", model.highDetail!]
     fingerprint: fingerprint(assembly.group), sourceParts: modelParts(assembly.group), parts });
   assembly.dispose();
 }
-const output = process.argv[2] ?? "docs/analytics/bv-notre-dame-chapel-window-fix-20261101.json";
+const output = process.argv[2] ?? "docs/analytics/bv-notre-dame-ambulatory-high-20261101.json";
 await writeFile(output, JSON.stringify({ method: "World-space triangles and normals rounded to 1e-5, with winding and material settings, sorted independently of batching. Buffer bytes count unique CPU ArrayBuffers only; no GPU/FPS benchmark.", rows }, null, 2) + "\n");
 console.log(rows.map(({ quality, metrics, attributeBytes, fingerprint }) => ({ quality, metrics, attributeBytes, fingerprint })));

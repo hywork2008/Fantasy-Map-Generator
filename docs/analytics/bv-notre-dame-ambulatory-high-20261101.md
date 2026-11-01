@@ -1,0 +1,55 @@
+# Notre-Dame周歩廊のHigh作製
+
+2026-11-01
+
+## 制作と既存部品の利用
+
+全体Highでも未詳細化のLowだった`notre-dame-paris:ambulatory`を、実際のHigh形状へ置き換えた。部品IDと11部品の構成は維持し、Lowの生成は変更しない。既存Highの一部を詳細化する変更で、全体モデル監査のHigh資産を新規1件として加算しない。
+
+旧形状は半円形の塊と屋根を2つ重ねたもので、内側まで床・壁・屋根が埋まり、中央部で重なっていた。新形状は次のように分ける。
+
+- 内半径6.5 mから外半径18.3 mまでの半環状の床。聖歌隊席に相当する中央の領域を埋めない。
+- 半径12.4 m付近の開いた下層アーチと支持部。上層ギャラリー床を11.5 mに設ける。
+- 上層の壁に実際の尖頭開口を設け、ガラスを0.26 m奥へ置き、窓枠・二連のトレーサリー・中央縦桟を加える。
+- 上層・外側通路それぞれの屋根を環状に作り、稜線と鉛板目地を加える。両端の断面は既存の身廊側の側廊に合わせる。上層は軒19／棟22.5 m、外側は軒11.5／棟15 m。
+- 礼拝堂と重なる床・外壁を生成せず、礼拝堂の屋根より下に隠れる周歩廊屋根・目地も除く。上に見える面だけを残す。
+
+`NotreDameKit`のアーチ・壁パネル・座標変換、`ModelKit`の梁・柱・プリズム、共通の部品factory・材質結合を再利用する。床と屋根の切り欠きは既存の`subtractConvex`・`clipHalfPlane`を使う。礼拝堂の平面と屋根頂点の計画を`chevetPlan.ts`へ取り出して共用し、既に修正済みの窓の位置を含む礼拝堂自体は変更しない。ギルドホールの共通寸法・建築・外階段は変更していない。
+
+## 参照と制作範囲
+
+[Cité de l’architectureの所蔵平面図と建物解説](https://www.citedelarchitecture.fr/fr/oeuvre/plan-de-la-cathedrale-notre-dame-de-paris-0)にある二重周歩廊の構成を参照した。形状と寸法は既存モデルへ合わせる。現地実測や正確な歴史的室内の復元は行っていない。
+
+新部品は外観と接合を検査できる半環状の構造である。単体では中央の空き・下層アーチ・両端の通路が開くが、隣接する身廊・聖歌隊席・礼拝堂には既存の閉じた概略形状が残る。建物全体の室内歩行・避難経路の実装とはしていない。CEの配置・LODも今回変更していない。
+
+## 負荷と不変性
+
+| 表示 | 三角形 | メッシュ | CPU属性・indexバッファ bytes |
+| --- | ---: | ---: | ---: |
+| 全体Low | 15,582 | 5 | 1,121,904 |
+| 全体High・変更前 | 565,859 | 10 | 40,741,848 |
+| 全体High・変更後 | 576,021 | 10 | 41,473,512 |
+| 周歩廊単体・変更前のHigh内Low | 192 | 2 | — |
+| 周歩廊単体・新High | 10,354 | 5 | — |
+| 周歩廊単体・既存Low | 96 | 2 | — |
+
+全体Highは10,162三角形・約0.73 MB増、メッシュ数は10を維持する。常駐CPUバッファの値であり、GPUメモリ・一時領域・FPSは計測していない。新Highの単体は約18.06×36.60×22.59 m。全体の約131.12×49.82×96 mという寸法と登録の枠内に収まる。
+
+Low全体の形状署名は`010bc16205b0683c32d4f80b8c4c76e88b7a9686c047884f2503e60bb45f6d29`で変更なし。周歩廊を除くHighの10部品は`63de4c667eb6de3ec8f8b2d3bce91cc3f4a2881d77b68a5fdd36a546648b663f`で作製前後一致した。三角形のワールド座標・法線を1e-5で丸め、頂点順と材質設定を含めてバッチ順を無視する比較である。
+
+## 検証と再現
+
+- `npx vitest run src/buildings/landmarks/notreDame/ambulatory.test.ts src/buildings/landmarks/notreDameParts.test.ts src/buildings/landmarks/notreDame/highDetail.test.ts src/buildings/landmarks/notreDame/chapelWindows.test.ts`：関連4ファイル10件成功。
+- 中央の空き、両端の単体通路、身廊側の屋根断面との接続、下層アーチの開口、窓の奥行と壁の実体、礼拝堂の床・低い屋根面の重複除去、1地点での自分自身の屋根の重複がないことをレイで確認。
+- Lowと他10部品の署名、品質・作者・部品範囲、有限頂点・法線、単体20,000三角形未満・5メッシュ以下、独立した資源の一度だけの解放を検証。
+- 従来の鐘楼の実開口、扉・彫刻の数と、Notre-Dame／Cologneの礼拝堂窓の壁面への収まりも成功。
+- 実BVで周歩廊Highの2視点、既存Lowへの切替、全体Highへの復帰を確認。品質表示・計測値が一致し、ページエラーなし。
+- 変更した生成と関連テスト5ファイルのBiome check、`git diff --check`が成功。
+
+再計測は`node --import tsx scripts/profileNotreDameParts.mts`。[現行計測JSON](bv-notre-dame-ambulatory-high-20261101.json)へ出力する。
+
+- [周歩廊High・内側](bv-notre-dame-ambulatory-high-20261101.png)
+- [周歩廊High・外側](bv-notre-dame-ambulatory-high-outer-20261101.png)
+- [更新後の全体High](bv-notre-dame-ambulatory-updated-full-20261101.png)
+
+次は全体監査の未対応一覧へ戻り、先頭のMedieval 36 Permanent timber gallowsのHighを作製する。P5のCE側LOD／バッチ評価は継続課題として残す。

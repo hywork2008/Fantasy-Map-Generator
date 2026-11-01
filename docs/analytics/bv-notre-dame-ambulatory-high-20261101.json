@@ -1,0 +1,487 @@
+{
+  "method": "World-space triangles and normals rounded to 1e-5, with winding and material settings, sorted independently of batching. Buffer bytes count unique CPU ArrayBuffers only; no GPU/FPS benchmark.",
+  "rows": [
+    {
+      "quality": "low",
+      "metrics": {
+        "meshes": 5,
+        "triangles": 15582,
+        "vertices": 46746,
+        "geometries": 5,
+        "materials": 5
+      },
+      "attributeBytes": 1121904,
+      "dimensions": [
+        128.0749969482422,
+        96,
+        49.67176818847656
+      ],
+      "fingerprint": "010bc16205b0683c32d4f80b8c4c76e88b7a9686c047884f2503e60bb45f6d29",
+      "sourceParts": [
+        {
+          "id": "notre-dame-paris:longitudinal-body",
+          "role": "longitudinal-body",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 194,
+          "triangles": 5940
+        },
+        {
+          "id": "notre-dame-paris:ambulatory",
+          "role": "ambulatory",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 96
+        },
+        {
+          "id": "notre-dame-paris:choir-apse",
+          "role": "choir-apse",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 96
+        },
+        {
+          "id": "notre-dame-paris:radiating-chapels",
+          "role": "radiating-chapels",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 14,
+          "triangles": 504
+        },
+        {
+          "id": "notre-dame-paris:chevet-flying-buttresses",
+          "role": "chevet-flying-buttresses",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 14,
+          "triangles": 168
+        },
+        {
+          "id": "notre-dame-paris:west-front",
+          "role": "west-front",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 107,
+          "triangles": 4594
+        },
+        {
+          "id": "notre-dame-paris:north-west-tower",
+          "role": "north-west-tower",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 28,
+          "triangles": 1072
+        },
+        {
+          "id": "notre-dame-paris:south-west-tower",
+          "role": "south-west-tower",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 28,
+          "triangles": 1072
+        },
+        {
+          "id": "notre-dame-paris:north-transept",
+          "role": "north-transept",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 16,
+          "triangles": 476
+        },
+        {
+          "id": "notre-dame-paris:south-transept",
+          "role": "south-transept",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 16,
+          "triangles": 476
+        },
+        {
+          "id": "notre-dame-paris:crossing-spire",
+          "role": "crossing-spire",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 29,
+          "triangles": 1088
+        }
+      ],
+      "parts": [
+        {
+          "id": "notre-dame-paris:longitudinal-body",
+          "role": "longitudinal-body",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 5940,
+            "vertices": 17820,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "notre-dame-paris:ambulatory",
+          "role": "ambulatory",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 96,
+            "vertices": 288,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "notre-dame-paris:choir-apse",
+          "role": "choir-apse",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 96,
+            "vertices": 288,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "notre-dame-paris:radiating-chapels",
+          "role": "radiating-chapels",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 504,
+            "vertices": 1512,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "notre-dame-paris:chevet-flying-buttresses",
+          "role": "chevet-flying-buttresses",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 168,
+            "vertices": 504,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "notre-dame-paris:west-front",
+          "role": "west-front",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 4594,
+            "vertices": 13782,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "notre-dame-paris:north-west-tower",
+          "role": "north-west-tower",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 1072,
+            "vertices": 3216,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "notre-dame-paris:south-west-tower",
+          "role": "south-west-tower",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 1072,
+            "vertices": 3216,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "notre-dame-paris:north-transept",
+          "role": "north-transept",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 476,
+            "vertices": 1428,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "notre-dame-paris:south-transept",
+          "role": "south-transept",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 476,
+            "vertices": 1428,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "notre-dame-paris:crossing-spire",
+          "role": "crossing-spire",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 1088,
+            "vertices": 3264,
+            "geometries": 2,
+            "materials": 2
+          }
+        }
+      ]
+    },
+    {
+      "quality": "high",
+      "metrics": {
+        "meshes": 10,
+        "triangles": 576021,
+        "vertices": 1728063,
+        "geometries": 10,
+        "materials": 10
+      },
+      "attributeBytes": 41473512,
+      "dimensions": [
+        131.12166595458984,
+        96,
+        49.82487487792969
+      ],
+      "fingerprint": "e4aa8cc9b1b5c24cb5c682b9e30677347d9c87b0e2bf3aef241168abad6bb262",
+      "sourceParts": [
+        {
+          "id": "notre-dame-paris:longitudinal-body",
+          "role": "longitudinal-body",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 31,
+          "triangles": 182332
+        },
+        {
+          "id": "notre-dame-paris:ambulatory",
+          "role": "ambulatory",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 11,
+          "triangles": 10354
+        },
+        {
+          "id": "notre-dame-paris:choir-apse",
+          "role": "choir-apse",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 15,
+          "triangles": 25072
+        },
+        {
+          "id": "notre-dame-paris:radiating-chapels",
+          "role": "radiating-chapels",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 15,
+          "triangles": 50099
+        },
+        {
+          "id": "notre-dame-paris:chevet-flying-buttresses",
+          "role": "chevet-flying-buttresses",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 4140
+        },
+        {
+          "id": "notre-dame-paris:west-front",
+          "role": "west-front",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 46,
+          "triangles": 107120
+        },
+        {
+          "id": "notre-dame-paris:north-west-tower",
+          "role": "north-west-tower",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 12,
+          "triangles": 13024
+        },
+        {
+          "id": "notre-dame-paris:south-west-tower",
+          "role": "south-west-tower",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 12,
+          "triangles": 13024
+        },
+        {
+          "id": "notre-dame-paris:north-transept",
+          "role": "north-transept",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 24,
+          "triangles": 82740
+        },
+        {
+          "id": "notre-dame-paris:south-transept",
+          "role": "south-transept",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 24,
+          "triangles": 70340
+        },
+        {
+          "id": "notre-dame-paris:crossing-spire",
+          "role": "crossing-spire",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 13,
+          "triangles": 17776
+        }
+      ],
+      "parts": [
+        {
+          "id": "notre-dame-paris:longitudinal-body",
+          "role": "longitudinal-body",
+          "quality": "high",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 182332,
+            "vertices": 546996,
+            "geometries": 7,
+            "materials": 7
+          }
+        },
+        {
+          "id": "notre-dame-paris:ambulatory",
+          "role": "ambulatory",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 10354,
+            "vertices": 31062,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "notre-dame-paris:choir-apse",
+          "role": "choir-apse",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 25072,
+            "vertices": 75216,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "notre-dame-paris:radiating-chapels",
+          "role": "radiating-chapels",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 50099,
+            "vertices": 150297,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "notre-dame-paris:chevet-flying-buttresses",
+          "role": "chevet-flying-buttresses",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 4140,
+            "vertices": 12420,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "notre-dame-paris:west-front",
+          "role": "west-front",
+          "quality": "high",
+          "metrics": {
+            "meshes": 8,
+            "triangles": 107120,
+            "vertices": 321360,
+            "geometries": 8,
+            "materials": 8
+          }
+        },
+        {
+          "id": "notre-dame-paris:north-west-tower",
+          "role": "north-west-tower",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 13024,
+            "vertices": 39072,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "notre-dame-paris:south-west-tower",
+          "role": "south-west-tower",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 13024,
+            "vertices": 39072,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "notre-dame-paris:north-transept",
+          "role": "north-transept",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 82740,
+            "vertices": 248220,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "notre-dame-paris:south-transept",
+          "role": "south-transept",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 70340,
+            "vertices": 211020,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "notre-dame-paris:crossing-spire",
+          "role": "crossing-spire",
+          "quality": "high",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 17776,
+            "vertices": 53328,
+            "geometries": 4,
+            "materials": 4
+          }
+        }
+      ]
+    }
+  ]
+}

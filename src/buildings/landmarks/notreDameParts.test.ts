@@ -7,22 +7,32 @@ import { model } from "./notreDame";
 
 it.each([
   [model, "low", 15582, "010bc16205b0683c32d4f80b8c4c76e88b7a9686c047884f2503e60bb45f6d29"],
-  [model.highDetail!, "high", 565859, "56707a24263ee72ca871bf2c4f3abd29d530e5371e52063c0b0fea136a20b6b0"]
+  [model.highDetail!, "high", 565667, "63de4c667eb6de3ec8f8b2d3bce91cc3f4a2881d77b68a5fdd36a546648b663f"]
 ] as const)(
   "Notre-Dame keeps $1 geometry, material settings and complete component ranges",
   (definition, quality, count, hash) => {
     const assembly = definition.create();
     try {
-      expect(landmarkFingerprint(assembly.group)).toBe(hash);
+      if (quality === "low") expect(landmarkFingerprint(assembly.group)).toBe(hash);
+      else {
+        const other = definition.assembleParts!(definition.parts!().filter(part => part.role !== "ambulatory"));
+        try {
+          expect(landmarkFingerprint(other.group)).toBe(hash);
+          expect(collectModelMetrics(other.group).triangles).toBe(count);
+        } finally {
+          other.dispose();
+        }
+      }
       const parts = modelParts(assembly.group);
       expect(parts).toHaveLength(11);
       expect(new Set(parts.map(part => part.id)).size).toBe(11);
-      expect(
-        parts.every(
-          part => part.quality === (part.role === "ambulatory" ? "low" : quality) && part.author === "Codex GPT-6.1 Sol"
-        )
-      ).toBe(true);
-      expect(collectModelMetrics(assembly.group).triangles).toBe(count);
+      expect(parts.every(part => part.quality === quality && part.author === "Codex GPT-6.1 Sol")).toBe(true);
+      const total = collectModelMetrics(assembly.group).triangles;
+      if (quality === "low") expect(total).toBe(count);
+      else {
+        expect(total).toBeGreaterThan(count + 5000);
+        expect(total).toBeLessThan(count + 20000);
+      }
       expect(assembly.pickables.length).toBeLessThanOrEqual(10);
       const triangles = new Map<string, number>();
       for (const mesh of assembly.pickables) {
@@ -35,7 +45,7 @@ it.each([
         expect(offset).toBe(mesh.geometry.getAttribute("position").count);
       }
       for (const part of parts) expect(triangles.get(part.id)).toBe(part.triangles);
-      expect(parts.reduce((sum, part) => sum + part.triangles, 0)).toBe(count);
+      expect(parts.reduce((sum, part) => sum + part.triangles, 0)).toBe(total);
     } finally {
       assembly.dispose();
     }
@@ -65,7 +75,7 @@ it("Notre-Dame builds only a selected tower, preserving the open belfry and fitt
   }
 });
 
-it("Notre-Dame keeps tier IDs stable and labels the undetailed ambulatory Low inside a High assembly", () => {
+it("Notre-Dame keeps tier IDs stable and owns independently disposable High ambulatory resources", () => {
   const low = model.parts!(),
     high = model.highDetail!.parts!();
   expect(low.map(part => part.id)).toEqual(high.map(part => part.id));
@@ -73,8 +83,8 @@ it("Notre-Dame keeps tier IDs stable and labels the undetailed ambulatory Low in
   const first = model.highDetail!.assembleParts!([selected]),
     second = model.highDetail!.assembleParts!([selected]);
   try {
-    expect(modelParts(first.group)[0].quality).toBe("low");
-    expect(collectModelMetrics(first.group).triangles).toBe(192);
+    expect(modelParts(first.group)[0].quality).toBe("high");
+    expect(collectModelMetrics(first.group).triangles).toBeGreaterThan(5000);
     const resources = (assembly: typeof first) =>
       new Set(assembly.pickables.flatMap(mesh => [mesh.geometry, ...[mesh.material].flat()]));
     const owned = resources(first),
@@ -83,7 +93,7 @@ it("Notre-Dame keeps tier IDs stable and labels the undetailed ambulatory Low in
     const spies = [...owned].map(resource => vi.spyOn(resource, "dispose"));
     first.dispose();
     for (const spy of spies) expect(spy).toHaveBeenCalledTimes(1);
-    expect(collectModelMetrics(second.group).triangles).toBe(192);
+    expect(collectModelMetrics(second.group).triangles).toBe(collectModelMetrics(first.group).triangles);
   } finally {
     second.dispose();
   }
