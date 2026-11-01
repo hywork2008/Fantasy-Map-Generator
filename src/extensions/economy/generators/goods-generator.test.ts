@@ -1508,6 +1508,16 @@ describe("GoodsModule", () => {
     expect(goodsModule.isUnmodifiedDefault(boots)).toBe(false);
   });
 
+  it("treats a saved good that has no trade heading as the shipped entry", () => {
+    goodsModule.restoreDefaults();
+    const boots = getGoods().find(good => good.name === "Boots");
+    if (!boots) throw new Error("Boots must be present in the default catalogue");
+    const saved = { ...boots };
+    delete saved.tradeHeading;
+
+    expect(goodsModule.isUnmodifiedDefault(saved)).toBe(true);
+  });
+
   it("initialises the catalogue from defaults when none exists yet", () => {
     setGoods([]);
     goodsModule.generate();

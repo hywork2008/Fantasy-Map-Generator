@@ -269,6 +269,7 @@ import {
 import { clearCullHireState, rebuildCullJobPostings, tickCullJobBoard } from "./generators/threatCullJobPostings";
 import { payTownWorks } from "./generators/townWorks";
 import { TradeAnimation } from "./generators/trade-animation";
+import { assignedTradeHeading } from "./generators/tradeHeadings";
 import { TradeSecurity } from "./generators/tradeSecurity";
 import { TransportAssetOrders } from "./generators/transportAssetOrders";
 import { clearTreasuryAllocationSnapshots } from "./generators/treasuryAllocation";
@@ -700,6 +701,7 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
         i: nextId,
         name: value.name,
         tags: [...value.tags],
+        tradeHeading: assignedTradeHeading({ name: value.name, tags: value.tags }),
         value: value.value,
         unit: value.unit,
         icon: value.icon,

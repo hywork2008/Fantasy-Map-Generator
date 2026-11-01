@@ -42,6 +42,7 @@ import {
 import { RENNET_BARRELS_PER_CHEESE_LOT } from "./rennet";
 import { TEXTILE_RECIPES } from "./textileRecipeContracts";
 import { getDefaultGoodCargoProfile } from "./tradeCargo";
+import { catalogTradeHeading } from "./tradeHeadings";
 import {
   CHARCOAL_WOOD_PER_LOT,
   LEGACY_WOOD_RECIPES,
@@ -3885,7 +3886,7 @@ export class GoodsModule {
   /** True only while a catalogue entry still exactly matches its shipped definition. */
   isUnmodifiedDefault(good: Readonly<Good>): boolean {
     const defaultGood = this.defaultGoods[good.i - 1];
-    return defaultGood?.name === good.name && JSON.stringify(defaultGood) === JSON.stringify(good);
+    return defaultGood?.name === good.name && catalogueIdentity(defaultGood) === catalogueIdentity(good);
   }
 
   sync() {
@@ -3935,9 +3936,15 @@ export class GoodsModule {
         ? { ...good.cargo, cargoSlotsPerUnit: measuredCargoSlotsPerUnit(good) ?? good.cargo.cargoSlotsPerUnit }
         : getDefaultGoodCargoProfile({ ...good, trade }),
       ...(recipes && { recipes }),
-      ...(byproducts && { byproducts })
+      ...(byproducts && { byproducts }),
+      tradeHeading: catalogTradeHeading(good.name)
     };
   });
+}
+
+function catalogueIdentity(good: Readonly<Good>): string {
+  const { tradeHeading: _tradeHeading, ...identity } = good;
+  return JSON.stringify(identity);
 }
 
 export const Goods = new GoodsModule();
@@ -5169,6 +5176,7 @@ export function migrateLegacyOreIngotGoods(): boolean {
     ingotIdByLegacyGoodId.set(ore.i, ingotId);
     ore.name = `${legacyName} Ore`;
     ore.tags = ["ore", "mineral"];
+    ore.tradeHeading = catalogTradeHeading(ore.name);
     ore.warEconomyType = undefined;
     ore.value = ingotValue / 2;
     ore.chance = 0;
@@ -5182,6 +5190,7 @@ export function migrateLegacyOreIngotGoods(): boolean {
       i: ingotId,
       name: `${legacyName} Ingot`,
       tags: [...ingotProperties.tags],
+      tradeHeading: catalogTradeHeading(`${legacyName} Ingot`),
       warEconomyType: ingotProperties.warEconomyType,
       icon: ore.icon,
       color: ore.color,
