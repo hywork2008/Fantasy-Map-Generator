@@ -3,23 +3,24 @@ import { compactModel } from "../../compactModel";
 import { createModelAssembly, type ModelPartFactory } from "../../modelParts";
 import type { ArchitectureKit } from "../architectureKit";
 
-export interface LandmarkComponent {
+export interface LandmarkComponent<Kit extends ArchitectureKit = ArchitectureKit> {
   id: string;
-  build(kit: ArchitectureKit): void;
+  quality?: ModelPartFactory["quality"];
+  build(kit: Kit): void;
 }
 
 /** Fixed landmark coordinates: enumerate without building; construct only the selected factories. */
-export function landmarkPartFactories(
+export function landmarkPartFactories<Kit extends ArchitectureKit>(
   name: string,
   quality: "low" | "high",
-  components: readonly LandmarkComponent[],
-  createKit: () => ArchitectureKit,
+  components: readonly LandmarkComponent<Kit>[],
+  createKit: () => Kit,
   author: Author = DEFAULT_AUTHOR
 ): readonly ModelPartFactory[] {
-  return components.map(({ id, build }) => ({
+  return components.map(({ id, build, quality: componentQuality }) => ({
     id: `${name}:${id}`,
     role: id,
-    quality,
+    quality: componentQuality ?? quality,
     author,
     create() {
       const kit = createKit();

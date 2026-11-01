@@ -1031,7 +1031,7 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
       if (model.highDetail || model.ultraDetail) {
         modelOptions.hidden = false;
         const row = document.createElement("label");
-        row.textContent = "Resolution: ";
+        row.textContent = model.parts ? "Assembly resolution: " : "Resolution: ";
         const resolution = document.createElement("select");
         resolution.setAttribute("aria-label", "Landmark resolution");
         for (const [value, title] of [
@@ -1081,7 +1081,8 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
         const select = document.createElement("select");
         select.setAttribute("aria-label", "Assembly part");
         select.add(new Option("Complete assembly", "all"));
-        for (const part of partFactories) select.add(new Option(label(part.role), part.id));
+        for (const part of partFactories)
+          select.add(new Option(`${label(part.role)} · ${label(part.quality)}`, part.id));
         select.value = selectedPart;
         select.addEventListener("change", () => {
           selectedPart = select.value;
