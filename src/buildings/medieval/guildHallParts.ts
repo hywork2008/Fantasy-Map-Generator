@@ -6,12 +6,14 @@ import { assembleCivicHallParts, civicHallPartFactories } from "./civicHallParts
 import { GUILD_HALL_PROFILE } from "./civicHallProfile";
 import { createGlassGuildDressing } from "./glassGuildDressing";
 import { HouseDetailKit } from "./houseDetailKit";
+import { createPrintingGuildDressing, fittedPrintingPress } from "./printingEquipment";
 import { addCraftBench } from "./workshopDetailKit";
 
-export type GuildCraft = "leather" | "woodworking" | "masonry" | "metallurgy" | "glassworking";
+export type GuildCraft = "leather" | "woodworking" | "masonry" | "metallurgy" | "glassworking" | "printing";
 
 function tradeDressing(craft: GuildCraft) {
   if (craft === "glassworking") return createGlassGuildDressing();
+  if (craft === "printing") return createPrintingGuildDressing();
   const k = new HouseDetailKit(`${craft}-guild-trade-dressing`),
     front = GUILD_HALL_PROFILE.depth / 2;
   k.box("guild-trade-plaque", [0, 6.12, front + 0.14], [1.4, 0.65, 0.12], "wood");
@@ -85,7 +87,18 @@ export function guildHallPartFactories(craft: GuildCraft): ModelPartFactory[] {
       quality: "high",
       author: DEFAULT_AUTHOR,
       create: () => tradeDressing(craft)
-    }
+    },
+    ...(craft === "printing"
+      ? [
+          {
+            id: "printing:printing-press",
+            role: "printing-press",
+            quality: "high" as const,
+            author: DEFAULT_AUTHOR,
+            create: () => fittedPrintingPress(-3, -0.35)
+          }
+        ]
+      : [])
   ];
 }
 export const createHighGuildHall = (craft: GuildCraft) =>

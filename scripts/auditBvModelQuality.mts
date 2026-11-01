@@ -106,6 +106,8 @@ Read [BV composite models and per-part quality](../plan/bv-composite-models.md) 
 
 ## Rules
 
+- Do not commit completed-model screenshots or link their PNG files in these records. Inspect models and parts in BV; temporary images may be used for local verification only.
+
 - Authorship does not establish quality. Single/default/unspecified models are treated as Low.
 - High evidence: highDetail/ultraDetail, registered high/ultra factories, or explicit high preview metadata backed by a high/low factory.
 - Triangle counts, names and hardcoded BV labels do not establish quality. Opus-only High remains a missing Codex edition. Codex Ultra qualifies as an existing detailed edition.
@@ -150,11 +152,11 @@ ${summary.join("\n")}
 - Live BV: all three models switched between Low and High with Codex authorship and separate complexity columns. Basic timber fence and town wall displayed Low; explicit citadel/bridge previews retained High.
 - Browser console: no model/application errors; an unrelated favicon.ico 404 was observed.
 
-| Model | Low triangles | High triangles | High meshes | Preview |
-| --- | ---: | ---: | ---: | --- |
-| Timber farm barn | 2,310 | 11,780 | 5 | [High](bv-farm-barn-high-20261101.png) |
-| Threshing barn | 1,134 | 13,688 | 7 | [High](bv-threshing-barn-high-20261101.png) |
-| Open hay shelter | 1,228 | 8,592 | 5 | [High](bv-hay-shelter-high-20261101.png) |
+| Model | Low triangles | High triangles | High meshes |
+| --- | ---: | ---: | ---: |
+| Timber farm barn | 2,310 | 11,780 | 5 |
+| Threshing barn | 1,134 | 13,688 | 7 |
+| Open hay shelter | 1,228 | 8,592 | 5 |
 
 ## Missing Codex High candidates
 
