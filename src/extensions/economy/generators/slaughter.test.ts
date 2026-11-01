@@ -10,12 +10,7 @@ import type { Good } from "./goods-generator";
 import { HERD_MEAT_OFFTAKE } from "./herdDiet";
 import { getRuralHouseholdWealth } from "./householdWealth";
 import type { Market } from "./marketTypes";
-import {
-  MEAT_HOUSEHOLD_CASH_SHARE,
-  settleSlaughter,
-  singleIngredientHeads,
-  URBAN_MEAT_KG_PER_PERSON_YEAR
-} from "./slaughter";
+import { MEAT_HOUSEHOLD_CASH_SHARE, settleSlaughter, URBAN_MEAT_KG_PER_PERSON_YEAR } from "./slaughter";
 
 function market(goods: Market["goods"]): Market {
   return { i: 1, centerBurgId: 1, color: "#000", goods };
@@ -31,14 +26,14 @@ describe("settleSlaughter", () => {
 
   afterEach(() => clearEconomyContext());
 
-  it("turns the catalog tallow and leather ratios into a joint yield and leaves the rest of the herd", () => {
+  it("renders tallow by carcass weight, takes a hide per cow and leaves the rest of the herd", () => {
     const goods = [
       { i: 1, name: "Pig", tags: ["food", "liveAnimal"], value: 2 },
       { i: 2, name: "Cattle", tags: ["food", "draft", "liveAnimal"], value: 5 },
       { i: 3, name: "Sheep", tags: ["food", "clothing", "liveAnimal"], value: 4 },
       { i: 4, name: "Chicken", tags: ["food", "liveAnimal"], value: 1 },
       { i: 5, name: "Horses", tags: ["supply", "military", "draft", "liveAnimal"], value: 8 },
-      { i: 6, name: "Tallow", tags: ["fuel"], value: 2, recipes: [{ 2: 0.3 }, { 3: 0.5 }, { 1: 0.5 }] },
+      { i: 6, name: "Tallow", tags: ["fuel"], value: 2 },
       { i: 7, name: "Leather", tags: ["clothing"], value: 6, recipes: [{ 2: 1 }, { 5: 0.5 }] }
     ] as Good[];
     setGoods(goods);
@@ -51,15 +46,15 @@ describe("settleSlaughter", () => {
     });
     setMarkets([stall]);
 
-    expect(singleIngredientHeads(goods[5], 1)).toBe(0.5);
     const result = settleSlaughter();
-    expect(result).toEqual({ heads: 4, tallow: 9.33, leather: 1, rennet: 0, meat: 0, meatSold: 0 });
+    // A cow renders 12.8 kg and a sheep 1.4 kg of a 108 kg barrel; pig fat stays with the meat.
+    expect(result).toEqual({ heads: 4, tallow: 0.13, leather: 1, rennet: 0, meat: 0, meatSold: 0 });
     expect(stall.goods[1].stock).toBe(0);
     expect(stall.goods[2].stock).toBe(0);
     expect(stall.goods[3].stock).toBe(0);
     expect(stall.goods[4].stock).toBe(6);
     expect(stall.goods[5].stock).toBe(3);
-    expect(stall.goods[6].stock).toBe(9.33);
+    expect(stall.goods[6].stock).toBe(0.13);
     expect(stall.goods[7].stock).toBe(1);
   });
   it("recovers rennet only from explicitly eligible calves, without consuming extra cattle or rounding it away", () => {

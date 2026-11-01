@@ -1,15 +1,10 @@
 /**
  * Slaughter of the food herd (docs/plan/fmg-economy-to-city-editor.md §8.1).
  *
- * Cattle, sheep, pigs and goats reach the market as live heads. Tallow and Leather
- * already price a single-ingredient recipe for some of them, but those recipes lose
- * the labor ranking, so the heads are sold alive. This pass runs after that craft
- * and before household demand, and turns whatever heads remain into the products
- * those recipes already price.
- *
- * Yield per head is the inverse of the recipe coefficient: `{ Pig: 0.5 }` on Tallow
- * is two barrels per head. A species with both a Tallow recipe and a Leather recipe
- * yields both, because one carcass has both fat and a hide. Horses, camels and
+ * Cattle, sheep, pigs and goats reach the market as live heads. This pass runs after
+ * craft and before household demand, and turns whatever heads remain into their
+ * carcass byproducts: rendered tallow by weight (TALLOW_KG_PER_HEAD) and a hide per
+ * cow. One carcass gives both. Horses, camels and
  * other draft animals are not food-tagged and stay in the market. Chickens stay
  * too: their catalog product is eggs, not a hide or tallow.
  *
@@ -34,7 +29,7 @@ import { getMarketPriceLevel } from "./currencySufficiency";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { recordFoodMarketIntake } from "./foodProcessingLedger";
 import { FARMGATE_PRICE_SHARE } from "./foodProduction";
-import { WAIN_KG } from "./goodMeasureCatalog";
+import { GOOD_MEASURES, WAIN_KG } from "./goodMeasureCatalog";
 import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
@@ -50,6 +45,20 @@ import { EXPERIMENTAL_CARCASS_PROFILES } from "./winterSlaughterPolicy";
  * for one; an older catalogue's Leather recipe, if it has one, wins.
  */
 const LEATHER_HEADS_PER_ROLL: Readonly<Record<string, number>> = { Cattle: 1 };
+
+/**
+ * Rendered tallow a slaughtered head gives: the loose suet and caul fat, about 5% of the live weight.
+ * An animal's fat is about a tenth of its weight (Lowengard, after Arthur Young 1788); the other half
+ * is the carcass fat sold with the meat. Live weight is the carcass over a dressing share of 0.55
+ * for cattle and 0.5 for small stock. Pig fat is lard and stays with the meat. Model values, not a
+ * catalogue recipe: `{ Cattle: 0.3 }` once gave a cow 3.3 barrels, 360 kg.
+ */
+const TALLOW_KG_PER_HEAD: Readonly<Record<string, number>> = {
+  Cattle: (EXPERIMENTAL_CARCASS_PROFILES.Cattle.carcassKgPerHead / 0.55) * 0.05,
+  Sheep: (EXPERIMENTAL_CARCASS_PROFILES.Sheep.carcassKgPerHead / 0.5) * 0.05,
+  Goats: (EXPERIMENTAL_CARCASS_PROFILES.Sheep.carcassKgPerHead / 0.5) * 0.05,
+  Pig: 0
+};
 
 export interface SlaughterResult {
   heads: number;
@@ -137,11 +146,11 @@ export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, 
   for (const market of getMarkets()) {
     let meatKg = 0;
     for (const animal of animals) {
-      const tallowHeads = tallow ? singleIngredientHeads(tallow, animal.i) : undefined;
+      const tallowKg = tallow ? TALLOW_KG_PER_HEAD[animal.name] : undefined;
       const leatherHeads = leather
         ? (singleIngredientHeads(leather, animal.i) ?? LEATHER_HEADS_PER_ROLL[animal.name])
         : undefined;
-      if (tallowHeads === undefined && leatherHeads === undefined) continue;
+      if (tallowKg === undefined && leatherHeads === undefined) continue;
       const row = market.goods[animal.i];
       const heads = row?.stock ?? 0;
       if (!(heads > 0.001)) continue;
@@ -153,9 +162,9 @@ export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, 
         units: heads,
         marketId: market.i,
         burgId: market.centerBurgId,
-        relatedGoodId: tallowHeads !== undefined ? tallow?.i : leather?.i
+        relatedGoodId: tallowKg !== undefined ? tallow?.i : leather?.i
       });
-      const tallowUnits = tallow && tallowHeads ? rn(heads / tallowHeads, 2) : 0;
+      const tallowUnits = tallow && tallowKg ? rn((heads * tallowKg) / GOOD_MEASURES.Tallow.kg, 2) : 0;
       const leatherUnits = leather && leatherHeads ? rn(heads / leatherHeads, 2) : 0;
       const eligibleCalves = eligibleCalfHeadsByMarket?.get(market.i) ?? 0;
       const rennetUnits =

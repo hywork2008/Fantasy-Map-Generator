@@ -2376,12 +2376,8 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e8d9b8",
     value: 2,
     chance: 0,
-    // Cattle leg reduced 0.4 -> 0.3 (2026-08-12, goods-generator.test.ts margin regression test):
-    // Cattle's own value (5) made { Cattle: 0.4 } cost exactly 2 — this good's own value — the same
-    // dead-recipe tie found in Preserved food/Jewelry/Vinegar/Ash/Egg above. 0.3 costs 1.5, a 33%
-    // margin matching the Goats leg's own 1.5-cost/33% margin, without touching Tallow's shared value
-    // (Candles/Soap below both price their own { Tallow } legs off it).
-    recipes: [{ Cattle: 0.3 }, { Sheep: 0.5 }, { Pig: 0.5 }, { Goats: 0.5 }],
+    // No recipe: tallow is rendered from the slaughtered herd by weight (slaughter.ts). The old
+    // { Cattle: 0.3 } leg gave a cow 3.3 barrels, 360 kg (goods-physical-units.md §40).
     unit: "barrel",
     demandCoverage: { utilities: 0.3 }
   },
@@ -4945,6 +4941,14 @@ export function migrateLeatherByproduct(): boolean {
   const leather = getGoods().find(good => good.name === "Leather");
   if (!leather?.recipes?.length) return false;
   delete leather.recipes;
+  return true;
+}
+
+/** Drops a saved catalogue's Tallow recipes: tallow is rendered from the carcass by weight now (§40). */
+export function migrateTallowByproduct(): boolean {
+  const tallow = getGoods().find(good => good.name === "Tallow");
+  if (!tallow?.recipes?.length) return false;
+  delete tallow.recipes;
   return true;
 }
 
