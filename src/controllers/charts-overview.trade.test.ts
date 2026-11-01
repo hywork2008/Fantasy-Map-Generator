@@ -116,6 +116,37 @@ describe("trade charts", () => {
     });
   });
 
+  it("keeps same-named burgs separate in the trade chart", () => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.pack = {
+      burgs: [
+        0,
+        { i: 1, name: "Springfield", state: 1, cell: 0 },
+        { i: 2, name: "Springfield", state: 1, cell: 1 },
+        { i: 3, name: "Other", state: 1, cell: 2 }
+      ],
+      states: [{ name: "no" }, { name: "Realm", color: "#333" }],
+      cells: { religion: [0, 0, 0], biomeCode: [0, 0, 0], province: [0, 0, 0] }
+    } as unknown as typeof worldContext.pack;
+    setGoods([grain]);
+    setTradeCorridors([corridor, { ...corridor, burgA: 2, burgB: 3, value: 10 }]);
+
+    const chart = buildChart({
+      entity: "burgs",
+      plotBy: "trade_price",
+      groupBy: "states",
+      sorting: "value",
+      type: "stackedBar"
+    });
+    expect(valuesOf(chart!)).toEqual({
+      "Springfield (Burg 1)|Realm": 40,
+      "Springfield (Burg 2)|Realm": 50,
+      "Other|Realm": 10
+    });
+    expect(chart!.entityNames).toHaveLength(3);
+    expect(chart!.svgElement.querySelectorAll("title")).toHaveLength(3);
+  });
+
   it("draws only the requested rows in a tall burg window", () => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     const burgs = [0];

@@ -339,10 +339,28 @@ function renderTradeChart({ entity, plotBy, groupBy, sorting, type }: ChartOptio
   const noGrouping = basis !== "tags" && resolvedGroup === entity;
   const { label: entityLabel, getName: getEntityName } = entitiesMap[entity];
   const { label: groupLabel, getName: getGroupName, getColors } = entitiesMap[resolvedGroup];
+  // D3 uses labels as keys, so distinguish towns that share a name before aggregation.
+  const burgLabels =
+    entity === "burgs" || resolvedGroup === "burgs"
+      ? uniqueBurgLabels(
+          contributions.flatMap(row => [
+            ...(entity === "burgs" ? [row.entityId] : []),
+            ...(basis !== "tags" && resolvedGroup === "burgs" ? [Number(row.groupKey)] : [])
+          ])
+        )
+      : new Map<number, string>();
   const chartData = mergePoints(
     contributions.map(row => ({
-      name: getEntityName(row.entityId),
-      group: basis === "tags" ? row.groupKey : getGroupName(row.groupKey),
+      name:
+        burgLabels.get(row.entityId) && entity === "burgs"
+          ? burgLabels.get(row.entityId)!
+          : getEntityName(row.entityId),
+      group:
+        basis === "tags"
+          ? row.groupKey
+          : resolvedGroup === "burgs"
+            ? burgLabels.get(Number(row.groupKey))!
+            : getGroupName(row.groupKey),
       value: row.value
     }))
   );
@@ -350,7 +368,9 @@ function renderTradeChart({ entity, plotBy, groupBy, sorting, type }: ChartOptio
   const colors =
     basis === "tags"
       ? Object.fromEntries([...new Set(chartData.map(point => point.group))].map(tag => [tag, tagColor(tag)]))
-      : getColors();
+      : resolvedGroup === "burgs"
+        ? Object.fromEntries([...burgLabels].map(([id, label]) => [label, burgColor(id)]))
+        : getColors();
   const title = `${capitalize(entity)} by ${plotByLabel}${
     basis === "tags" ? " grouped by trade heading" : noGrouping ? "" : ` grouped by ${groupLabel}`
   }`;
@@ -369,6 +389,24 @@ function renderTradeChart({ entity, plotBy, groupBy, sorting, type }: ChartOptio
     formatX: formatX as (value: number) => string
   });
   return { ...view, title, sortedData };
+}
+
+function uniqueBurgLabels(ids: number[]): Map<number, string> {
+  const distinct = [...new Set(ids)];
+  const names = distinct.map(id => burgNameGetter(id));
+  const counts = new Map<string, number>();
+  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1);
+  const used = new Set(names.filter(name => counts.get(name) === 1));
+  return new Map(
+    distinct.map((id, index) => {
+      const name = names[index];
+      if (counts.get(name) === 1) return [id, name];
+      let label = `${name} (Burg ${id})`;
+      while (used.has(label)) label += ` (${id})`;
+      used.add(label);
+      return [id, label];
+    })
+  );
 }
 
 function mergePoints(points: ChartDataPoint[]): ChartDataPoint[] {
