@@ -23,7 +23,7 @@ Read [BV composite models and per-part quality](../plan/bv-composite-models.md) 
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **96**. Missing candidates: **124**.
+Records: **220**. Codex High or Ultra available: **97**. Missing candidates: **123**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -65,7 +65,7 @@ Records: **220**. Codex High or Ultra available: **96**. Missing candidates: **1
 | Medieval 34 | 1 | 1 | 0 |
 | Medieval 35 | 2 | 2 | 0 |
 | Medieval 36 | 1 | 1 | 0 |
-| Medieval 37 | 1 | 0 | 1 |
+| Medieval 37 | 1 | 1 | 0 |
 | Medieval 38 | 2 | 0 | 2 |
 | Medieval 39 | 1 | 0 | 1 |
 | Medieval 40 | 1 | 0 | 1 |
@@ -118,7 +118,6 @@ Records: **220**. Codex High or Ultra available: **96**. Missing candidates: **1
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
-| Medieval 37 | `glassworkers-guild-hall` | Glassworkers' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/37-glassworkers-hallsModels.ts) |
 | Medieval 38 | `early-printing-workshop` | Early printing workshop | single/default; assumed Low - [source](../../src/buildings/medieval/38-printing-modelsModels.ts) |
 | Medieval 38 | `printers-guild-hall` | Printers' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/38-printing-modelsModels.ts) |
 | Medieval 39 | `instrument-makers-guild-hall` | Instrument makers' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/39-instrument-makers-hallsModels.ts) |
@@ -317,6 +316,7 @@ Records: **220**. Codex High or Ultra available: **96**. Missing candidates: **1
 | Medieval 35 | `harbor-treadwheel-crane` | Timber harbor treadwheel crane | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
 | Medieval 35 | `harbor-winch-crane` | Hand-winch loading crane | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
 | Medieval 36 | `permanent-town-gallows` | Permanent timber gallows | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/36-gallowsModels.ts) |
+| Medieval 37 | `glassworkers-guild-hall` | Glassworkers' guild hall | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/37-glassworkers-hallsModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-barracks` | Citadel barracks · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-command` | Citadel command · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |

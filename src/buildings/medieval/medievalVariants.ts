@@ -115,7 +115,8 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
           domestic.includes(model) ||
           pottery.includes(model) ||
           cranes.includes(model) ||
-          gallows.includes(model)
+          gallows.includes(model) ||
+          glass.includes(model)
             ? [legacy]
             : [])
         ]

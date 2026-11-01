@@ -4,12 +4,14 @@ import type { ModelPartFactory } from "../modelParts";
 import { createHighCivicHallBody } from "./civicHallDetails";
 import { assembleCivicHallParts, civicHallPartFactories } from "./civicHallParts";
 import { GUILD_HALL_PROFILE } from "./civicHallProfile";
+import { createGlassGuildDressing } from "./glassGuildDressing";
 import { HouseDetailKit } from "./houseDetailKit";
 import { addCraftBench } from "./workshopDetailKit";
 
-export type GuildCraft = "leather" | "woodworking" | "masonry" | "metallurgy";
+export type GuildCraft = "leather" | "woodworking" | "masonry" | "metallurgy" | "glassworking";
 
 function tradeDressing(craft: GuildCraft) {
+  if (craft === "glassworking") return createGlassGuildDressing();
   const k = new HouseDetailKit(`${craft}-guild-trade-dressing`),
     front = GUILD_HALL_PROFILE.depth / 2;
   k.box("guild-trade-plaque", [0, 6.12, front + 0.14], [1.4, 0.65, 0.12], "wood");
