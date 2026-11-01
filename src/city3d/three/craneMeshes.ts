@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { models } from "../../buildings/medieval/35-harbor-cranesModels";
+import { createHarborCrane, models } from "../../buildings/medieval/35-harbor-cranesModels";
 import { MEDIEVAL_CONTAINERS } from "../../buildings/props/medievalContainers";
 import { CONTAINER_VARIANTS } from "../../buildings/siteVariants";
 import type { HarborCargoPile, HarborCrane } from "../../city-editor/generators/harborFabric";
@@ -17,7 +17,17 @@ export function createTownCranes(
 ) {
   const sites = cranes.map(crane => ({
     id: crane.id,
-    definition: medievalDefinition(crane.kind === "treadwheel" ? models[0] : models[1]),
+    definition: {
+      ...medievalDefinition(crane.kind === "treadwheel" ? models[0] : models[1]),
+      cacheKey: `harbor-crane:${crane.kind}:${crane.armLengthMeters}:${crane.pulleyHeightMeters ?? 4.45}:${crane.hookHeightMeters ?? 1.1}`,
+      create: () =>
+        createHarborCrane(crane.kind === "treadwheel", {
+          reach: crane.armLengthMeters,
+          pulleyHeight: crane.pulleyHeightMeters ?? 4.45,
+          hookHeight: crane.hookHeightMeters ?? 1.1,
+          showCargo: false
+        })
+    },
     matrix: new THREE.Matrix4().compose(
       new THREE.Vector3(...planVertex(crane.point, LAND_Y + heightAt(crane.point))),
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), crane.armAngleRad),

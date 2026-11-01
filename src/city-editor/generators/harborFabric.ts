@@ -1,5 +1,6 @@
 import type { OpenSpace } from "../types/contracts/parcelTypes";
 import type { CityDocument, HarborPreset, Id, Point } from "../types/document";
+import { cellRelief } from "./cellRelief";
 import { ferryLandingReserves } from "./ferryLanding";
 import {
   nearestOnPolyline,
@@ -9,6 +10,7 @@ import {
   segmentSegmentHit
 } from "./geom";
 import { economyOnDocument } from "./guildFacilities";
+import { type CargoQuay, cargoQuayReservation, HARBOR_CRANE_PROFILES, polygonsOverlap } from "./harborCargo";
 import { harborRootIsDry } from "./harborLand";
 import { type HarborWaterField, harborWaterField, seaBerthIsNavigable } from "./harborNavigation";
 import { convexInfillParts } from "./lotGeometry";
@@ -16,7 +18,7 @@ import { facePoints } from "./mesh";
 import { corridor, distance, intersectConvex, plotArea, subtractConvex } from "./parcelGeometry";
 import type { ParcelFrontage } from "./parcelTypes";
 import { riverPortShore, seaPortShore } from "./riverPortShore";
-import { waterPolygons } from "./waterGeometry";
+import { flatSeaDropMeters, waterPolygons } from "./waterGeometry";
 
 /**
  * Cargo the port's warehouses cannot hold lies stacked on the loading yards (§4.4, §6.2 of
@@ -48,7 +50,11 @@ export interface HarborCrane {
   point: Point;
   armAngleRad: number;
   radiusMeters: number;
+  /** Horizontal radius to the pulley, shared by SVG and the model factory. */
   armLengthMeters: number;
+  pulleyHeightMeters?: number;
+  hookHeightMeters?: number;
+  berthId?: string;
 }
 
 export interface HarborCargoPile {
@@ -65,6 +71,7 @@ export interface HarborPlan {
   frontages: ParcelFrontage[];
   piers: HarborPier[];
   cranes: HarborCrane[];
+  cargoQuays?: CargoQuay[];
   cargoPiles: HarborCargoPile[];
   /** Distinct shared spaces; private warehouse yards are measured separately. */
   sharedArea: number;
@@ -91,7 +98,15 @@ export function planHarbor(
   isFree: (polygon: Point[]) => boolean = () => true,
   throughStreets: ParcelFrontage[] = streets
 ): HarborPlan {
-  const plan: HarborPlan = { spaces: [], frontages: [], piers: [], cranes: [], cargoPiles: [], sharedArea: 0 };
+  const plan: HarborPlan = {
+    spaces: [],
+    frontages: [],
+    piers: [],
+    cranes: [],
+    cargoQuays: [],
+    cargoPiles: [],
+    sharedArea: 0
+  };
   // A port with a merchants' compound, a storehouse or docks has the wide quays of a warehouse port
   // unless the district chose otherwise (port-freight-queue-and-warehouses.md §6.2).
   const portLayout = economyOnDocument(document)?.portWarehouse?.layout;
@@ -410,6 +425,7 @@ export function planHarbor(
     );
   };
   const clearOfPiles = (point: Point, radius: number): boolean =>
+    plan.cranes.every(c => distance(point, c.point) > c.armLengthMeters + radius) &&
     plan.cargoPiles.every(
       other => distance(point, other.point) >= radius + Math.hypot(other.widthMeters, other.heightMeters) / 2 + 0.5
     );
@@ -423,6 +439,8 @@ export function planHarbor(
     }
   }
 
+  const flatCargoSite = selectedForCrane.length > 0 && !document.terrain && !cellRelief(document).relief;
+  const waterBelowQuay = flatSeaDropMeters(document);
   for (const { shore, midpoint, stripWidth } of selectedForCrane) {
     const params = document.fabric?.districts.find(d => d.faceIds.includes(shore.landId))?.parameters;
     const preset = params?.harborPreset ?? defaultPreset;
@@ -455,7 +473,8 @@ export function planHarbor(
           ? "treadwheel"
           : "derrick";
     const armAngleRad = Math.atan2(-shore.inward[1], -shore.inward[0]);
-    const radiusMeters = craneKind === "treadwheel" ? 2.8 : 2;
+    // Enclose the actual 6.2 x 4 m foundation (offset 0.6 m behind the mast).
+    const radiusMeters = 4.2;
     const tangent: Point = [(shore.b[0] - shore.a[0]) / shore.length, (shore.b[1] - shore.a[1]) / shore.length];
     // Omit equipment if no safe fit exists.
     const fits = (point: Point, radius: number): boolean => apronFits(shore.landId, point, radius);
@@ -470,17 +489,82 @@ export function planHarbor(
       }
     const cranePt = candidates.find(p => fits(p, radiusMeters + 0.4));
     if (!cranePt) continue;
-    plan.cranes.push({
+    // Fixed construction profiles must not grow to chase an already placed ship.
+    const profile = craneKind === "romanMagnaRota" ? undefined : HARBOR_CRANE_PROFILES[craneKind];
+    const crane: HarborCrane = {
       id: `crane:${shore.id}:0`,
       kind: craneKind,
       point: cranePt,
       armAngleRad,
       radiusMeters,
-      armLengthMeters: Math.max(
-        craneKind === "treadwheel" ? 6.5 : 4.5,
-        nearestOnPolyline(cranePt, [shore.a, shore.b]).dist + 1.5
-      )
-    });
+      armLengthMeters: profile?.reach ?? 4.35,
+      pulleyHeightMeters: profile?.pulleyHeight ?? 4.45,
+      hookHeightMeters: profile?.hookHeight ?? 1.1
+    };
+    // First deployment: straight sea quays on the flat CE datum. River and terrain-field
+    // berths retain waiting/manual handling until their water/foundation levels are shared.
+    if (
+      profile &&
+      !shore.riverId &&
+      !shore.id.startsWith("bank:") &&
+      flatCargoSite &&
+      waterBelowQuay >= 0.3 &&
+      waterBelowQuay <= 3 &&
+      (!document.waterAccess ||
+        (document.waterAccess.port?.sea && document.coastalOceanFaceIds?.includes(shore.waterId))) &&
+      shore.length >= 26
+    ) {
+      const outward: Point = [-shore.inward[0], -shore.inward[1]];
+      const projection = nearestOnPolyline(cranePt, [shore.a, shore.b]).point;
+      const half = Math.min(22, shore.length / 2 - 1);
+      const a: Point = [projection[0] - tangent[0] * half, projection[1] - tangent[1] * half];
+      const b: Point = [projection[0] + tangent[0] * half, projection[1] + tangent[1] * half];
+      const withinShore = [a, b].every(p => nearestOnPolyline(p, [shore.a, shore.b]).dist < 0.01);
+      const landDrop: Point = [
+        cranePt[0] + shore.inward[0] * profile.reach,
+        cranePt[1] + shore.inward[1] * profile.reach
+      ];
+      // Reserve the land-side swept load path in existing public apron/yard space.
+      const swingDirections = [-1, 1].filter(sign =>
+        Array.from({ length: 33 }, (_, i) => {
+          const angle = armAngleRad + (sign * Math.PI * i) / 32;
+          const p: Point = [cranePt[0] + Math.cos(angle) * profile.reach, cranePt[1] + Math.sin(angle) * profile.reach];
+          return Array.from({ length: 9 }, (_, j) => {
+            const q: Point =
+              j === 8 ? p : [p[0] + Math.cos((j * Math.PI) / 4) * 0.8, p[1] + Math.sin((j * Math.PI) / 4) * 0.8];
+            return pointInPolygon(q, shore.water) || fits(q, 0.05);
+          }).every(Boolean);
+        }).every(Boolean)
+      );
+      if (
+        withinShore &&
+        profile.reach - nearestOnPolyline(cranePt, [shore.a, shore.b]).dist >= 3.6 &&
+        fits(landDrop, 1.2) &&
+        swingDirections.length
+      ) {
+        crane.berthId = `cargo-quay:${shore.id}`;
+        plan.cargoQuays!.push({
+          id: crane.berthId,
+          craneId: crane.id,
+          landFaceId: shore.landId,
+          waterFaceId: shore.waterId,
+          a,
+          b,
+          outward,
+          water: shore.water,
+          depth: shore.depth,
+          axis: cranePt,
+          reach: profile.reach,
+          pulleyHeight: profile.pulleyHeight,
+          transferHeight: profile.hookHeight,
+          waterBelowQuay,
+          landDrop,
+          swingDirections,
+          reservedWater: cargoQuayReservation(a, b, outward)
+        });
+      }
+    }
+    plan.cranes.push(crane);
 
     if (isExplorationOrLater) {
       const tangent: Point = [(shore.b[0] - shore.a[0]) / shore.length, (shore.b[1] - shore.a[1]) / shore.length];
@@ -515,7 +599,12 @@ export function planHarbor(
               return [c, ...s.polygon.map(p => [(p[0] + c[0]) / 2, (p[1] + c[1]) / 2] as Point)];
             })
         ];
-        const point = positions.find(p => fits(p, radius) && clearOfPiles(p, radius));
+        const point = positions.find(
+          p =>
+            fits(p, radius) &&
+            clearOfPiles(p, radius) &&
+            plan.cranes.every(c => distance(p, c.point) > c.armLengthMeters + radius)
+        );
         if (point) plan.cargoPiles.push({ ...pile, point });
       }
     }
@@ -615,6 +704,7 @@ export function planHarbor(
         reach = d;
       }
       if (reach < 3) continue;
+      if (plan.cargoQuays?.some(q => polygonsOverlap(q.reservedWater, corridor(start, end(reach), width)))) continue;
       // River berths (ribbon or physical `bank:`) keep their own fairway rule;
       // sea berths need a basin to swing in and a channel out to open water.
       const riverBerth = !!shore.riverId || shore.id.startsWith("bank:");

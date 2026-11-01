@@ -193,6 +193,7 @@ export interface CityElement {
   /** Uniform multiplier of the authored meter dimensions. */
   objectScale?: number;
   shipType?: "small" | "medium" | "large" | "barge";
+  harborOperation?: import("./contracts/harborCargo").CargoBerthAssignment;
   /** The dry harbour ward owning an element placed in a neighbouring water cell. */
   harborFaceId?: Id;
   harborKind?: "river" | "sea";

@@ -518,6 +518,9 @@ export function renderTownFabric(
     watermills: facts.watermills,
     aerial: facts.fabric?.aerialLandmarks,
     plannedPiers: plannedHarborPiers(document, facts.fabric?.harbor),
-    fallbackPiers: facts.fabric?.harbor?.piers.length ? [] : fallbackHarborPiers(document)
+    fallbackPiers:
+      facts.fabric?.harbor?.piers.length || facts.fabric?.harbor?.cargoQuays?.length
+        ? []
+        : fallbackHarborPiers(document)
   };
 }

@@ -372,3 +372,12 @@ export function lineHitsDocumentWater(
   }
   return false;
 }
+
+/** Flat CE ocean level below the land datum; shared by cargo planning and 3D water. */
+export function flatSeaDropMeters(document: CityDocument): number {
+  const elevations = Object.values(document.mesh.faces)
+    .filter(face => face.properties.water === "land")
+    .map(face => face.properties.elevation)
+    .filter(elevation => Number.isFinite(elevation) && elevation > 0);
+  return elevations.length ? elevations.reduce((sum, value) => sum + value, 0) / elevations.length : 1;
+}

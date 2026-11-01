@@ -11,7 +11,7 @@ export interface PierSite {
 
 /** Follow the SVG's planned/fallback choice, including removal of flooded harbor wards. */
 export function collectPierSites(city: CityDocument, harbor: HarborPlan | undefined): PierSite[] {
-  if (harbor?.piers.length) {
+  if (harbor && (harbor.piers.length || harbor.cargoQuays?.length)) {
     return plannedHarborPiers(city, harbor).map(pier => ({ id: pier.id, deck: pier.polygon, depth: pier.depth }));
   }
   return fallbackHarborPiers(city).map((pier, index) => ({

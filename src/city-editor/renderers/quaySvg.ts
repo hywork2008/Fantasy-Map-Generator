@@ -21,6 +21,30 @@ export function renderTownQuays(
         })
       );
 
+    for (const quay of harbor.cargoQuays ?? []) {
+      const g = element("g", { class: "ce-cargo-quay", "data-berth-id": quay.id, "data-crane-id": quay.craneId });
+      g.appendChild(
+        element("path", {
+          d: `M${quay.a[0]} ${-quay.a[1]} L${quay.b[0]} ${-quay.b[1]}`,
+          stroke: "#6e5941",
+          "stroke-width": "1.2",
+          fill: "none"
+        })
+      );
+      g.appendChild(
+        element("circle", {
+          cx: String(quay.landDrop[0]),
+          cy: String(-quay.landDrop[1]),
+          r: "1",
+          fill: "none",
+          stroke: "#6e5941",
+          "stroke-width": "0.3",
+          "stroke-dasharray": "0.6 0.4"
+        })
+      );
+      layer.appendChild(g);
+    }
+
     // Cargo piles along the harbor
     if (harbor.cargoPiles?.length) {
       const cargoLayer = element("g", { class: "ce-cargo-layer" });
@@ -107,6 +131,8 @@ export function renderTownQuays(
         const armAngleDeg = (-crane.armAngleRad * 180) / Math.PI;
         const g = element("g", {
           class: `ce-crane ce-crane--${crane.kind}`,
+          "data-berth-id": crane.berthId ?? "",
+          "data-reach-m": String(crane.armLengthMeters),
           transform: `translate(${cx.toFixed(2)},${cy.toFixed(2)})`
         });
 
@@ -173,17 +199,6 @@ export function renderTownQuays(
             fill: "#221c15"
           })
         );
-        armGroup.appendChild(
-          element("rect", {
-            x: (crane.armLengthMeters + 0.3).toFixed(2),
-            y: "-0.6",
-            width: "1.2",
-            height: "1.2",
-            fill: "#8c7657",
-            stroke: "#3a2f21",
-            "stroke-width": "0.3"
-          })
-        );
 
         g.appendChild(armGroup);
         cranesLayer.appendChild(g);
@@ -191,7 +206,7 @@ export function renderTownQuays(
       layer.appendChild(cranesLayer);
     }
 
-    if (harbor.piers.length > 0) {
+    if (harbor.piers.length > 0 || harbor.cargoQuays?.length) {
       return layer;
     }
   }

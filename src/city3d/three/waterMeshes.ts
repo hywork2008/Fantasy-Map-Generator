@@ -16,6 +16,7 @@ import {
   townGroundPolygons,
   townWaterTriangles
 } from "../../city-editor/generators/townWater";
+import { flatSeaDropMeters } from "../../city-editor/generators/waterGeometry";
 import type { CityDocument } from "../../city-editor/types/document";
 import type { Point } from "../../city-editor/types/primitives";
 import type { TerrainRiverCorridor } from "../../city-editor/types/terrain";
@@ -121,11 +122,7 @@ export function createTownWater(
   // The field chunks clip their own ground, so the unused cell surface needs no excavation pass.
   const ground = townGroundPolygons(document, water, terrain.relief ? patches : undefined, !terrain.grid);
   // Preserve the legacy flat frame. Relief and sea level share the terrain datum.
-  const elevations = Object.values(document.mesh.faces)
-    .filter(face => face.properties.water === "land")
-    .map(face => face.properties.elevation)
-    .filter(elevation => Number.isFinite(elevation) && elevation > 0);
-  const landElevation = elevations.length ? elevations.reduce((sum, value) => sum + value, 0) / elevations.length : 1;
+  const landElevation = flatSeaDropMeters(document);
   const waterY = (kind: TownWaterKind) =>
     kind === "ocean" ? LAND_Y - (terrain.relief ? terrain.datumMeters : landElevation) : WATER_Y;
   const partLevel = (part: TownWaterPart) =>

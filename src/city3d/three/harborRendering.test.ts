@@ -89,3 +89,40 @@ describe("harbor 3D rendering", () => {
     expect(cache.size).toBe(0);
   });
 });
+
+it("rebuilds two crane dimensions with exact SVG pulley radii, without cargo props or shared prototypes", async () => {
+  const { renderTownQuays } = await import("../../city-editor/renderers/quaySvg");
+  const cranes = [9, 7].map((reach, i) => ({
+    id: `c${i}`,
+    kind: "treadwheel" as const,
+    point: [10, 20] as [number, number],
+    armAngleRad: Math.PI / 2,
+    radiusMeters: 4.2,
+    armLengthMeters: reach,
+    pulleyHeightMeters: 8,
+    hookHeightMeters: 6.5
+  }));
+  const harbor = { cranes, spaces: [], frontages: [], piers: [], cargoPiles: [], sharedArea: 0 };
+  const svg = renderTownQuays(harbor, [], []);
+  const cache = createBvPrototypeCache();
+  const result = createTownCranes(cranes, () => 0, cache);
+  expect(result.accepted).toHaveLength(2);
+  expect(cache.size).toBe(2);
+  for (let i = 0; i < cranes.length; i++) {
+    const model = result.accepted[i].definition.create();
+    model.group.applyMatrix4(result.accepted[i].matrix);
+    model.group.updateMatrixWorld(true);
+    const pulley = model.pickables.find(m => m.name === "jib-pulley")!;
+    const center = new THREE.Box3().setFromObject(pulley).getCenter(new THREE.Vector3());
+    expect(center.x).toBeCloseTo(10);
+    expect(center.y).toBeCloseTo(7.8);
+    expect(center.z).toBeCloseTo(-20 - cranes[i].armLengthMeters);
+    expect(svg.querySelectorAll(".ce-crane")[i].querySelector(":scope > g > circle")?.getAttribute("cx")).toBe(
+      cranes[i].armLengthMeters.toFixed(2)
+    );
+    expect(model.pickables.some(m => m.name.includes("crate"))).toBe(false);
+    model.dispose();
+  }
+  result.dispose();
+  expect(cache.size).toBe(0);
+});

@@ -4,12 +4,14 @@ import type { CityDocument, CityElement, Id, Point } from "../types/document";
 import type { ShipType } from "../types/ships";
 import { buildHarborPlan } from "./blockInfill";
 import { pointInPolygon, polygonCentroid } from "./geom";
+import { cargoShipGeometry, polygonsOverlap, shipFootprint, solveCargoBerth } from "./harborCargo";
 import { harborRootIsDry, pruneInvalidHarbors } from "./harborLand";
 import { harborWaterField, SEA_CHANNEL_HALF_WIDTH, seaBerthIsNavigable } from "./harborNavigation";
 import { faceNeighbors, facePoints } from "./mesh";
 import { corridor, distance } from "./parcelGeometry";
 import { makeRng } from "./prng";
 import { riverPortShore, seaShoreWater } from "./riverPortShore";
+import { normalizeShipType } from "./ships";
 import { waterPolygons as documentWaterPolygons } from "./waterGeometry";
 
 const GEN_PREFIX = "gc:";
@@ -185,7 +187,7 @@ export function planHarborShips(
   }
 
   // (2) fabric.harbor に桟橋がない場合（デフォルト生成等）、svg.ts と同一のメッシュ岸辺から桟橋を抽出
-  if (!knownPiers.length) {
+  if (!knownPiers.length && !fabricHarbor?.cargoQuays?.length) {
     const shores = new Map<
       Id,
       { a: Point; b: Point; ring: Point[]; length: number; depth: number; inward?: Point; landFaceId: Id }
@@ -618,6 +620,119 @@ export function planHarborShips(
     }
   }
 
+  // Waiting piers do not imply crane access. Solve each dedicated quay separately.
+  const fixedShips = document.elements.filter(
+    e => e.kind === "ship" && e.point && (e.locked || !e.id.startsWith(GEN_PREFIX))
+  );
+  const occupied = (except?: CityElement) => [...fixedShips, ...placedShips].filter(s => s !== except && s.point);
+  const footprint = (s: CityElement) => {
+    const type = normalizeShipType(s.shipType),
+      length = s.sizeMeters ?? SHIP_DIMENSIONS[type].defaultSizeMeters;
+    return shipFootprint(s.point!, s.rotation ?? 0, length + 2, cargoShipGeometry(type, length).beam + 2);
+  };
+  for (const quay of fabricHarbor?.cargoQuays ?? []) {
+    if (
+      document.waterAccess &&
+      (!document.waterAccess.port?.sea || !document.coastalOceanFaceIds?.includes(quay.waterFaceId))
+    )
+      continue;
+    const tryShip = (ship: CityElement) => {
+      const type = normalizeShipType(ship.shipType),
+        length = ship.sizeMeters ?? SHIP_DIMENSIONS[type].defaultSizeMeters;
+      const neighbours = occupied(ship);
+      const others = neighbours.map(footprint);
+      const riggingObstacles = neighbours.map(s => {
+        const type = normalizeShipType(s.shipType),
+          length = s.sizeMeters ?? SHIP_DIMENSIONS[type].defaultSizeMeters;
+        return shipFootprint(
+          s.point!,
+          s.rotation ?? 0,
+          length * (type === "barge" ? 1.1 : 1.5),
+          cargoShipGeometry(type, length).beam * (type === "barge" ? 1.1 : 2)
+        );
+      });
+      let cargoField: ReturnType<typeof harborWaterField> | undefined;
+      const navigation = () =>
+        (cargoField ??= harborWaterField(document, cargoShipGeometry(type, length).draft + 0.5, [
+          ...(fabricHarbor?.piers.map(p => p.polygon) ?? []),
+          ...others,
+          ...crossingLines.map(line => corridor(line.a, line.b, line.halfWidth * 2 + 1))
+        ]));
+      const currentQuay = {
+        ...quay,
+        depth: Math.min(quay.depth, document.mesh.faces[quay.waterFaceId]?.properties.depth ?? 3)
+      };
+      const result = solveCargoBerth(
+        currentQuay,
+        type,
+        length,
+        (polygon, center, beam) => {
+          if (!navigation().navigable(center, beam / 2)) return false;
+          // Check water and dry land along every hull edge, including concave coastlines.
+          for (let i = 0; i < polygon.length; i++) {
+            const a = polygon[i],
+              b = polygon[(i + 1) % polygon.length];
+            const steps = Math.ceil(distance(a, b));
+            for (let j = 0; j <= steps; j++) {
+              const p: Point = [a[0] + ((b[0] - a[0]) * j) / steps, a[1] + ((b[1] - a[1]) * j) / steps];
+              if (!pointInPolygon(p, quay.water) || landPolygons.some(l => onDryLand(p, l))) return false;
+            }
+          }
+          if (
+            fabricHarbor?.piers.some(p => polygonsOverlap(polygon, p.polygon)) ||
+            others.some(p => polygonsOverlap(polygon, p))
+          )
+            return false;
+          if (crossingLines.some(line => polygonsOverlap(polygon, corridor(line.a, line.b, line.halfWidth * 2 + 1))))
+            return false;
+          return true;
+        },
+        p =>
+          riggingObstacles.every(
+            polygon =>
+              !polygonsOverlap(polygon, [
+                [p[0] - 0.8, p[1] - 0.8],
+                [p[0] + 0.8, p[1] - 0.8],
+                [p[0] + 0.8, p[1] + 0.8],
+                [p[0] - 0.8, p[1] + 0.8]
+              ])
+          )
+      );
+      if (!result) return false;
+      const turn: Point = [result.point[0] + quay.outward[0] * length, result.point[1] + quay.outward[1] * length];
+      if (
+        navigation().clearance(turn) < length / 2 + 2 ||
+        !navigation().navigable(turn, Math.max(SEA_CHANNEL_HALF_WIDTH, cargoShipGeometry(type, length).beam / 2 + 1))
+      )
+        return false;
+      Object.assign(ship, {
+        point: result.point,
+        rotation: result.rotation,
+        harborOperation: result.assignment,
+        harborFaceId: quay.landFaceId,
+        faceIds: [quay.waterFaceId]
+      });
+      return true;
+    };
+    const waiting = placedShips.filter(s => !s.harborOperation && s.faceIds.includes(quay.waterFaceId));
+    if (waiting.some(tryShip)) continue;
+    // A local lighter serves an actual waiting sailing ship; it does not grant the mother
+    // ship a fictitious direct crane connection. No offshore sailing route is assigned to it.
+    const source = waiting.find(s => s.shipType !== "barge");
+    const type: ShipType = "barge";
+    const ship: CityElement = {
+      id: `${GEN_PREFIX}ship-${placedShips.length}`,
+      kind: "ship",
+      locked: false,
+      faceIds: [quay.waterFaceId],
+      shipType: type,
+      sizeMeters: SHIP_DIMENSIONS[type].defaultSizeMeters
+    };
+    if (tryShip(ship)) {
+      if (source) Object.assign(ship.harborOperation!, { kind: "lighter-transfer", sourceShipId: source.id });
+      placedShips.push(ship);
+    }
+  }
   return placedShips;
 }
 

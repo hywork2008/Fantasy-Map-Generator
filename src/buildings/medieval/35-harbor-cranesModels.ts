@@ -1,25 +1,47 @@
 import { createMedievalContainerModel } from "../props/medievalContainers";
 import { type MedievalModel, ModelKit } from "./modelKit";
 
-function crane(treadwheel: boolean) {
+export interface HarborCraneDimensions {
+  reach: number;
+  pulleyHeight: number;
+  hookHeight: number;
+  showCargo?: boolean;
+}
+
+/** Rebuild the jib, mast and tackle from construction dimensions; never stretch the machine. */
+export function createHarborCrane(treadwheel: boolean, dimensions?: HarborCraneDimensions) {
+  const {
+    reach,
+    pulleyHeight: top,
+    hookHeight: hook,
+    showCargo
+  } = dimensions ?? {
+    reach: 4.35,
+    pulleyHeight: 4.45,
+    hookHeight: 1.1,
+    showCargo: true
+  };
+  if (![reach, top, hook].every(Number.isFinite) || reach <= 0 || hook < 0.4 || top <= hook + 0.3)
+    throw new Error("Invalid harbor crane dimensions");
+  const mastTop = top + 0.65;
   const k = new ModelKit(treadwheel ? "treadwheel-crane" : "hand-winch-crane");
   k.box("crane-foundation", [-0.6, 0.12, 0], [6.2, 0.24, 4], "stone");
-  k.box("crane-mast", [0, 2.6, 0], [0.38, 5.2, 0.38]);
+  k.box("crane-mast", [0, (mastTop + 0.1) / 2, 0], [0.38, mastTop + 0.1, 0.38]);
   for (const z of [-1.5, 1.5]) {
     k.box("crane-sleeper", [-0.6, 0.33, z], [5.5, 0.18, 0.3]);
-    k.beam("mast-diagonal", [-2.8, 0.4, z], [0, 4.2, 0], 0.2);
+    k.beam("mast-diagonal", [-2.8, 0.4, z], [0, top - 0.25, 0], 0.2);
   }
-  k.beam("lifting-jib", [0, 5.1, 0], [4.5, 4.5, 0], 0.28);
-  k.beam("jib-brace", [0, 2.7, 0], [3.2, 4.65, 0], 0.2);
-  k.ring("jib-pulley", [4.35, 4.45, 0], 0.23, 0.06, "wood", true);
-  k.beam("hoist-rope", [4.35, 4.4, 0], [4.35, 1.1, 0], 0.028, "cloth", true);
+  k.beam("lifting-jib", [0, mastTop, 0], [reach + 0.15, top + 0.05, 0], 0.28);
+  k.beam("jib-brace", [0, top * 0.6, 0], [reach * 0.735, top + 0.2, 0], 0.2);
+  k.ring("jib-pulley", [reach, top, 0], 0.23, 0.06, "wood", true);
+  k.beam("hoist-rope", [reach, top - 0.05, 0], [reach, hook, 0], 0.028, "cloth", true);
   k.tube(
     "cargo-hook",
     [
-      [4.35, 1.1, 0],
-      [4.15, 0.88, 0],
-      [4.35, 0.77, 0],
-      [4.48, 0.9, 0]
+      [reach, hook, 0],
+      [reach - 0.2, hook - 0.22, 0],
+      [reach, hook - 0.33, 0],
+      [reach + 0.13, hook - 0.2, 0]
     ],
     0.04,
     "iron"
@@ -52,9 +74,9 @@ function crane(treadwheel: boolean) {
       k.beam("crank-grip", [-1.6, 2.1, z], [-1.6, 2.1, z + Math.sign(z) * 0.3], 0.08, "wood", true);
     }
   }
-  k.beam("rope-to-jib", [-1.8, treadwheel ? 2.8 : 1.6, 0], [0, 5, 0], 0.025, "cloth", true);
-  k.beam("jib-running-rope", [0, 5, 0], [4.35, 4.6, 0], 0.025, "cloth", true);
-  k.attach(createMedievalContainerModel("crate", "closed"), [4.3, 0, 0]);
+  k.beam("rope-to-jib", [-1.8, treadwheel ? 2.8 : 1.6, 0], [0, mastTop - 0.1, 0], 0.025, "cloth", true);
+  k.beam("jib-running-rope", [0, mastTop - 0.1, 0], [reach, top + 0.15, 0], 0.025, "cloth", true);
+  if (showCargo) k.attach(createMedievalContainerModel("crate", "closed"), [reach - 0.05, 0, 0]);
   return k.finish();
 }
 export const models: MedievalModel[] = [
@@ -65,7 +87,7 @@ export const models: MedievalModel[] = [
     task: 35,
     size: [11, 7, 7],
     note: "Human-powered timber treadwheel, paired rims and treads, bearing posts, braced rotating mast, lifting jib, pulley, rope and cargo hook. An illustrative late medieval European harbor crane.",
-    create: () => crane(true)
+    create: () => createHarborCrane(true)
   },
   {
     author: "Codex GPT-6.1 Sol",
@@ -74,6 +96,6 @@ export const models: MedievalModel[] = [
     task: 35,
     size: [11, 7, 7],
     note: "Smaller hand-winch harbor crane with drum, twin cranks, braced mast and lifting tackle. A regional alternative to a treadwheel; no quay is included.",
-    create: () => crane(false)
+    create: () => createHarborCrane(false)
   }
 ];
