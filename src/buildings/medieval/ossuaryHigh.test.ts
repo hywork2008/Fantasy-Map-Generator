@@ -14,7 +14,7 @@ import {
   ossuaryPartFactories
 } from "./ossuaryParts";
 
-const targets = models.filter(m => m.variants);
+const targets = models.filter(m => ["ossuary-charnel-house", "skull-shelf"].includes(m.id));
 it("registers two real High models in their shared cemetery families and preserves Low/default shapes", () => {
   const hashes = [
     "94d0b7b61f5a4941221a8934e4275b90d9bc20b822ef2cf58e6a4ac83aa89bba",

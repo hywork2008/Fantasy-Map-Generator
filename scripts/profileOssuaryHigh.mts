@@ -6,7 +6,7 @@ import { modelParts } from "../src/buildings/modelParts";
 import { landmarkFingerprint } from "./lib/landmarkFingerprint.mts";
 
 const rows = [];
-for (const definition of models.filter(model => model.variants)) for (const variant of definition.variants!) {
+for (const definition of models.filter(model => ["ossuary-charnel-house", "skull-shelf"].includes(model.id))) for (const variant of definition.variants!) {
   const model = variant.create(), buffers = new Set<ArrayBufferLike>();
   for (const mesh of model.pickables) for (const attribute of [...Object.values(mesh.geometry.attributes), mesh.geometry.index])
     if (attribute) buffers.add(("array" in attribute ? attribute.array : attribute.data.array).buffer);

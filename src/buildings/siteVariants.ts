@@ -4,8 +4,8 @@ import { createSuspensionBridge, SUSPENSION_BRIDGE, type SuspensionBridgeSpec } 
 import { createCitadelRavelin, createCourtyardLodging, createGarrisonBuilding } from "./facilities/siteFacilities";
 import { tiers } from "./houses/houseVariants";
 import { CEMETERY_PROP_KINDS, createCemeteryProp } from "./landscape/cemeteryProps";
+import { CEMETERY_HIGH_DETAILS } from "./medieval/cemeteryHighDetails";
 import { assembleCivicHallParts } from "./medieval/civicHallParts";
-import { boneRackPartFactories, ossuaryPartFactories } from "./medieval/ossuaryParts";
 import { type ModelVariant, variantId } from "./modelVariants";
 import { createFriary, createMonastery, monasteryPreviewPlan } from "./monasteries/friary";
 import { PLACEABLE_OBJECTS } from "./placeableObjects";
@@ -63,27 +63,23 @@ export const CONTAINER_VARIANTS = CONTAINER_KINDS.flatMap(kind =>
 );
 
 /** Cemetery and friary models record no author; every unattributed BV model was made with Codex. */
-export const CEMETERY_VARIANTS = CEMETERY_PROP_KINDS.flatMap(kind => [
-  single(`cemetery.${kind}`, DEFAULT_AUTHOR, () => createCemeteryProp(kind)),
-  ...(kind === "ossuary_charnel_house" || kind === "skull_shelf"
-    ? (["low", "high"] as const).map(level => ({
-        id: variantId(`cemetery.${kind}`, level, DEFAULT_AUTHOR),
-        family: `cemetery.${kind}`,
-        level,
-        author: DEFAULT_AUTHOR,
-        ...(kind === "ossuary_charnel_house" && level === "high"
-          ? { basedOn: [variantId("cemetery.skull_shelf", "high", DEFAULT_AUTHOR)] }
-          : {}),
-        create: () =>
-          level === "low"
-            ? createCemeteryProp(kind)
-            : assembleCivicHallParts(
-                `${kind}-high`,
-                kind === "skull_shelf" ? boneRackPartFactories() : ossuaryPartFactories()
-              )
-      }))
-    : [])
-]);
+export const CEMETERY_VARIANTS = CEMETERY_PROP_KINDS.flatMap(kind => {
+  const detail = CEMETERY_HIGH_DETAILS[kind];
+  return [
+    single(`cemetery.${kind}`, DEFAULT_AUTHOR, () => createCemeteryProp(kind)),
+    ...(detail
+      ? (["low", "high"] as const).map(level => ({
+          id: variantId(`cemetery.${kind}`, level, DEFAULT_AUTHOR),
+          family: `cemetery.${kind}`,
+          level,
+          author: DEFAULT_AUTHOR,
+          ...(level === "high" && detail.basedOn ? { basedOn: detail.basedOn } : {}),
+          create: () =>
+            level === "low" ? createCemeteryProp(kind) : assembleCivicHallParts(`${kind}-high`, detail.parts())
+        }))
+      : [])
+  ];
+});
 
 export const FRIARY_VARIANTS = [
   {
