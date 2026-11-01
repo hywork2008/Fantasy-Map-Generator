@@ -33,6 +33,12 @@ BVの既存カテゴリとモデルIDを維持し、横断的な構成区分を�
 
 ## 部品生成と配置の契約
 
+### 今後の接続方針（ユーザー指示・2026-11-01）
+
+Notre-Dame以降の制作では、母体の壁・屋根を基本的に連続させ、付属パーツの一部を母体へ埋め込む重ね合わせで接続する。特定の付属パーツの輪郭に合わせた差し込み穴を母体へ作ることを既定にしない。小型の礼拝堂や別の屋根付き作業場に置き換えても、母体に前の部品用の穴が残らず、隙間が開かない構成を優先する。接触・支持は維持し、接合のために意図した重なりを不具合と判定しない。
+
+実際の出入口・窓などに必要な開口は接合用の差し込み穴とは区別する。将来の寸法・接続契約には、接合面・埋め込みの許容範囲・交換可能な寸法を記録する。この指示は今後の制作の指針であり、Notre-Dameの既存部品を今回修正する指示ではない。過去のP4／P5で行った切り欠き・重複除去の記録は履歴として残す。
+
 次の内容は実装予定であり、現行の保存形式にはまだ追加しない。
 
 1. **部品定義**：安定した部品ID、用途、作者、品質別factory、基準寸法、占有領域、接続点、必要な空地、互換条件を持つ。壁・屋根の切り欠きは部品生成時に指定する。
@@ -79,7 +85,7 @@ High不足の監査では部品のHigh対応と組み合わせプリセットの
 | P2 | Friaryを教会堂・居住棟・回廊・外構・植栽に分割しBVへ部品表示を追加 | **完了**。独立factoryと生成前の部分選択、BVの全体／単体切替を追加。修道院三種の頂点・色・順序がP1と一致。品質の独立指定APIを維持し、資源解放も検証。[実装記録](../analytics/bv-monastery-parts-p2-20261101.md) |
 | P3 | Shop Houses→Bakeries→Inns→Breweriesの順に部品化 | **完了**。[Shop Houses](../analytics/bv-shop-house-parts-p3-20261101.md) 2モデル、[Bakeries](../analytics/bv-bakery-parts-p3-20261101.md) 3モデル、[Inns](../analytics/bv-inn-parts-p3-20261101.md) 2モデル、[Breweries](../analytics/bv-brewery-parts-p3-20261101.md) 2モデルのLow/Highを部品化し、各3構成と単体表示に対応。分割前後の形状を検証し、専用樽から共通Storage propsへの意図的な変更は別に計測 |
 | P4 | 部品単位でFriary Highを制作し合成 | **完了**。教会堂・内陣・後陣・居住棟・門棟・鐘架・回廊・囲壁を詳細化しHighを明示登録。Highは38,983三角形・13メッシュ、樹木・井戸はLow。CEはFriary・AbbeyともModel qualityのHighでHigh、Low／StandardでLowを採用。[実装記録](../analytics/bv-friary-high-p4-20261101.md) |
-| P5 | G07等の固有建築へ部品表示を展開、CEのLOD／バッチを評価 | **進行中**。SalisburyのLow／Highを12部品へ分割し、形状を維持してBV単体表示と部品別計測に対応。参事会室を実際にHigh化（15,448三角形・5メッシュ）。Cologneも12部品へ分け、形状維持でHighを62→7メッシュへ結合。共通の部品factory・合成処理を両モデルで使う。Notre-DameもLow／専用Highの形状を維持して11部品化（Highは104→10メッシュ）。未詳細化の周歩廊をLowと明示した後、開口付きアーチ・上層窓・切り欠き付き環状屋根を持つ実際のHigh（10,354三角形・5メッシュ）を制作した。次は未対応一覧のMedieval 36へ戻る。CEのLOD評価は継続課題。[Salisbury](../analytics/bv-salisbury-parts-p5-20261101.md)・[Cologne](../analytics/bv-cologne-parts-p5-20261101.md)・[Notre-Dame](../analytics/bv-notre-dame-parts-p5-20261101.md) |
+| P5 | G07等の固有建築へ部品表示を展開、CEのLOD／バッチを評価 | **進行中**。SalisburyのLow／Highを12部品へ分割し、形状を維持してBV単体表示と部品別計測に対応。参事会室を実際にHigh化（15,448三角形・5メッシュ）。Cologneも12部品へ分け、形状維持でHighを62→7メッシュへ結合。共通の部品factory・合成処理を両モデルで使う。Notre-DameもLow／専用Highの形状を維持して11部品化（Highは104→10メッシュ）。未詳細化の周歩廊をLowと明示した後、開口付きアーチ・上層窓・切り欠き付き環状屋根を持つ実際のHigh（10,354三角形・5メッシュ）を制作した。Medieval 36のHigh（7,148三角形・5メッシュ）も制作済み。次は既存の会館共通基盤を使いMedieval 37へ進む。CEのLOD評価は継続課題。[Salisbury](../analytics/bv-salisbury-parts-p5-20261101.md)・[Cologne](../analytics/bv-cologne-parts-p5-20261101.md)・[Notre-Dame](../analytics/bv-notre-dame-parts-p5-20261101.md) |
 
 P0〜P1を実装した。`ModelPartTracker`は生成中の明示的な境界から役割・品質・作者・依存元・メッシュ数・三角形数を記録する。部品IDは同じ保存計画と配列順に対して決定的で、編集で配列順を変えた前後の永続識別子を保証するものではない。BVでは部品別負荷表を表示し、CEでは非index化した結合メッシュの頂点範囲を部品IDへ対応付ける。井戸は既定Lowと既存の`default`をAPIで独立指定できる。任意指定した植栽・井戸の品質と依存元は台帳へ記録される。
 
@@ -95,7 +101,7 @@ P3のBreweriesは醸造棟・上屋・加熱ユニット・仕込み桶・麦芽
 
 P4でFriary専用の`friaryDetails.ts`を追加した。壁は厚みを持つ開口付き外殻とし、隣接する棟の共有面を除く。屋根は隣接棟の高い面へ交わる箇所と鐘架の位置を切り欠き、重複する居住棟の床は一度だけ生成する。Highの部品も既存計画から寸法・向き・標高を求め、部品単体で生成・検査できる。登録の`default`と`low`はLow建築に固定し、`high`だけが詳細建築を生成する。CEはModel quality設定を渡し、変更時には修道院レイヤーを再生成する。StandardはLowへフォールバックする。CE画面で実際の対象がAbbeyだったことを確認し、Abbeyも共通の詳細外殻・回廊と専用の開口付き石造交差塔でHigh化した。FriaryとAbbeyの両方を設定で切り替える。[修正記録](../analytics/ce-abbey-quality-20261101.md)。OrthodoxのHighは未対応で、CEでは既存defaultを使い、直接生成APIで未実装のHighを指定すると拒否する。
 
-修道院の植栽・井戸品質はAPI指定でき、BVでは既定Low。CEではModel qualityに追従し、植栽はLow／Medium／High、井戸はHighで既存詳細版default、それ以外でLowを使う。Friary・Abbey・Orthodoxに共通で、実際の依存元IDをCE採用モデル一覧へ記録する。主要建築のHighから付属物の品質を独立させる。住宅系も共通容器の品質は親のHighを継承しない。任意の混在品質を選ぶUI、自由な住宅と設備の交換、分解表示は未実装。P5ではSalisburyを12部品へ分け、全体Highの中でも参事会室は未詳細化のLowと明示した。その後、参事会室を実際にHigh化し、開口・奥まった窓・扶壁・屋根・回廊への入口通路を追加した。Low全体と他11部品の形状を維持し、既存のGothicDetailKitとModelKitを再利用した。ギルドホールの共通基盤（GUILD_HALL_PROFILE・共通建築・外階段）は変更・重複実装せず維持する。[制作記録](../analytics/bv-salisbury-chapter-high-20261101.md)。Cologneにも同じ部品表示を展開し、部品factoryと合成処理をSalisburyと共通化した。Notre-DameもLow／専用Highの形状を維持して11部品化した。周歩廊の単純な外殻は全体Highでも部品Lowとし、選択肢に品質を併記する。放射状礼拝堂の窓が五角形の壁面と一致していなかったため、辺の中央と外向き法線に合わせて14枚を修正した。[修正と回帰検証](../analytics/bv-notre-dame-chapel-window-fix-20261101.md)。周歩廊も開口付きアーチと上層ギャラリー・窓・環状屋根でHigh化した。共通の凸多角形切り欠き処理と礼拝堂の計画を再利用し、Lowと他10部品は不変。[制作記録](../analytics/bv-notre-dame-ambulatory-high-20261101.md)。次は監査の未対応一覧の先頭、Medieval 36 Permanent timber gallowsのHigh制作を再開する。
+修道院の植栽・井戸品質はAPI指定でき、BVでは既定Low。CEではModel qualityに追従し、植栽はLow／Medium／High、井戸はHighで既存詳細版default、それ以外でLowを使う。Friary・Abbey・Orthodoxに共通で、実際の依存元IDをCE採用モデル一覧へ記録する。主要建築のHighから付属物の品質を独立させる。住宅系も共通容器の品質は親のHighを継承しない。任意の混在品質を選ぶUI、自由な住宅と設備の交換、分解表示は未実装。P5ではSalisburyを12部品へ分け、全体Highの中でも参事会室は未詳細化のLowと明示した。その後、参事会室を実際にHigh化し、開口・奥まった窓・扶壁・屋根・回廊への入口通路を追加した。Low全体と他11部品の形状を維持し、既存のGothicDetailKitとModelKitを再利用した。ギルドホールの共通基盤（GUILD_HALL_PROFILE・共通建築・外階段）は変更・重複実装せず維持する。[制作記録](../analytics/bv-salisbury-chapter-high-20261101.md)。Cologneにも同じ部品表示を展開し、部品factoryと合成処理をSalisburyと共通化した。Notre-DameもLow／専用Highの形状を維持して11部品化した。周歩廊の単純な外殻は全体Highでも部品Lowとし、選択肢に品質を併記する。放射状礼拝堂の窓が五角形の壁面と一致していなかったため、辺の中央と外向き法線に合わせて14枚を修正した。[修正と回帰検証](../analytics/bv-notre-dame-chapel-window-fix-20261101.md)。周歩廊も開口付きアーチと上層ギャラリー・窓・環状屋根でHigh化した。共通の凸多角形切り欠き処理と礼拝堂の計画を再利用し、Lowと他10部品は不変。[制作記録](../analytics/bv-notre-dame-ambulatory-high-20261101.md)。監査の未対応一覧へ戻り、Medieval 36 Permanent timber gallowsをHigh化した。基礎・フレーム・ロープ・共通梯子の4部品とし、接合には連続した母体への重ね合わせを用いる。[制作記録](../analytics/bv-gallows-high-20261101.md)。次はMedieval 37 Glassworkers' guild hallのHighを、既存の会館共通基盤を使って制作する。
 
 26 Civic Hallsと27 Cloth HallのHighにも同じ部品契約を適用した。`exteriorStair.ts`は寸法から階段・踊り場・支持柱・手すりを再生成し、扉接続点と通路の空地を返す。`civicHallParts.ts`が建築本体と共通外階段を独立factoryにし、接続点を実際の上階扉へ合わせる。BVのViewから単体表示でき、結合後も部品台帳と頂点範囲を保持する。入口側の手すりは通路の手前で止め、踊り場の外側・奥側を囲う。Lowの元の生成関数は維持し、Low階段の分割は未対応。[実装・通路検証記録](../analytics/bv-shared-exterior-stair-20261101.md)。
 

@@ -100,8 +100,9 @@ Read [BV composite models and per-part quality](../plan/bv-composite-models.md) 
 - Cloth and craft guild halls use one shared architecture profile: upper floor 3.32 m, upper wall 3.25 m, roof rise 2.2 m, east-side exterior stair, door Z=-2.3 m, and masonry arcade supports. Trade decoration must not change these dimensions or connections.
 - Before Medieval 35 crane High work, follow [CE crane siting, cargo berths and lighter transfer](../plan/ce-harbor-cranes-and-cargo-berths.md). Resolve vessel cargo access, quay support, crane reach/height and the unloading route together; do not extend a jib to compensate for a failed berth.
 - Check existing components before adding stairs, floor supports, roofs or balconies. Regenerate from profile parameters; do not resize a completed assembly.
+- For future attachments, retain continuous host walls/roofs and use controlled overlap. Do not cut a bespoke socket for one chapel or workshop footprint: smaller replacements must not leave gaps. Functional doors/windows are separate. This is forward guidance, not a request to revise Notre-Dame.
 - Different stair sides, floor heights or support systems require a named, documented preset. The town bell turret and timber-post market hall are civic presets, not arbitrary craft-guild differences.
-- Verify both non-intersection and physical support/contact, doorway clearance, roof penetrations, ownership and standalone part display. Count shared placement variants as audit records, not newly independent High assets. Legacy Low/default factories retain their compatibility identities.
+- Verify unintended collisions, physical support/contact, doorway clearance, functional roof penetrations, ownership and standalone part display. Preserve intended attachment overlap on continuous hosts. Count shared placement variants as audit records, not newly independent High assets. Legacy Low/default factories retain their compatibility identities.
 
 ## Rules
 

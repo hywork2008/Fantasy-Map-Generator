@@ -9,8 +9,9 @@ Read [BV composite models and per-part quality](../plan/bv-composite-models.md) 
 - Cloth and craft guild halls use one shared architecture profile: upper floor 3.32 m, upper wall 3.25 m, roof rise 2.2 m, east-side exterior stair, door Z=-2.3 m, and masonry arcade supports. Trade decoration must not change these dimensions or connections.
 - Before Medieval 35 crane High work, follow [CE crane siting, cargo berths and lighter transfer](../plan/ce-harbor-cranes-and-cargo-berths.md). Resolve vessel cargo access, quay support, crane reach/height and the unloading route together; do not extend a jib to compensate for a failed berth.
 - Check existing components before adding stairs, floor supports, roofs or balconies. Regenerate from profile parameters; do not resize a completed assembly.
+- For future attachments, retain continuous host walls/roofs and use controlled overlap. Do not cut a bespoke socket for one chapel or workshop footprint: smaller replacements must not leave gaps. Functional doors/windows are separate. This is forward guidance, not a request to revise Notre-Dame.
 - Different stair sides, floor heights or support systems require a named, documented preset. The town bell turret and timber-post market hall are civic presets, not arbitrary craft-guild differences.
-- Verify both non-intersection and physical support/contact, doorway clearance, roof penetrations, ownership and standalone part display. Count shared placement variants as audit records, not newly independent High assets. Legacy Low/default factories retain their compatibility identities.
+- Verify unintended collisions, physical support/contact, doorway clearance, functional roof penetrations, ownership and standalone part display. Preserve intended attachment overlap on continuous hosts. Count shared placement variants as audit records, not newly independent High assets. Legacy Low/default factories retain their compatibility identities.
 
 ## Rules
 
@@ -22,7 +23,7 @@ Read [BV composite models and per-part quality](../plan/bv-composite-models.md) 
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **95**. Missing candidates: **125**.
+Records: **220**. Codex High or Ultra available: **96**. Missing candidates: **124**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
@@ -63,7 +64,7 @@ Records: **220**. Codex High or Ultra available: **95**. Missing candidates: **1
 | Medieval 33 | 1 | 1 | 0 |
 | Medieval 34 | 1 | 1 | 0 |
 | Medieval 35 | 2 | 2 | 0 |
-| Medieval 36 | 1 | 0 | 1 |
+| Medieval 36 | 1 | 1 | 0 |
 | Medieval 37 | 1 | 0 | 1 |
 | Medieval 38 | 2 | 0 | 2 |
 | Medieval 39 | 1 | 0 | 1 |
@@ -117,7 +118,6 @@ Records: **220**. Codex High or Ultra available: **95**. Missing candidates: **1
 
 | Category | ID | Model | Quality evidence |
 | --- | --- | --- | --- |
-| Medieval 36 | `permanent-town-gallows` | Permanent timber gallows | single/default; assumed Low - [source](../../src/buildings/medieval/36-gallowsModels.ts) |
 | Medieval 37 | `glassworkers-guild-hall` | Glassworkers' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/37-glassworkers-hallsModels.ts) |
 | Medieval 38 | `early-printing-workshop` | Early printing workshop | single/default; assumed Low - [source](../../src/buildings/medieval/38-printing-modelsModels.ts) |
 | Medieval 38 | `printers-guild-hall` | Printers' guild hall | single/default; assumed Low - [source](../../src/buildings/medieval/38-printing-modelsModels.ts) |
@@ -316,6 +316,7 @@ Records: **220**. Codex High or Ultra available: **95**. Missing candidates: **1
 | Medieval 34 | `potters-workshop` | Potter workshop, kiln, and drying shelves | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/34-pottery-workshopsModels.ts) |
 | Medieval 35 | `harbor-treadwheel-crane` | Timber harbor treadwheel crane | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
 | Medieval 35 | `harbor-winch-crane` | Hand-winch loading crane | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/35-harbor-cranesModels.ts) |
+| Medieval 36 | `permanent-town-gallows` | Permanent timber gallows | variants: high/ultra; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/36-gallowsModels.ts) |
 | Medieval 46 | `citadel-ravelin` | Citadel ravelin with open gateways · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-barracks` | Citadel barracks · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
 | Medieval 46 | `citadel-command` | Citadel command · high detail | quality: high; detailed factory; Codex GPT-6.1 Sol - [source](../../src/buildings/medieval/46-citadel-and-lodgingModels.ts) |
