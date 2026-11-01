@@ -50,6 +50,7 @@ function emptyCorridor(burgA: number, burgB: number): TradeCorridor {
     departures: 0,
     cargoSlots: 0,
     value: 0,
+    unpricedValue: 0,
     byMode: { land: 0, river: 0, sea: 0 },
     meanTravelDays: 0,
     idealTravelDays: 0,
@@ -142,6 +143,8 @@ export function applyCorridorMovement(
   corridor.departures = rn(corridor.departures + 1, 3);
   corridor.cargoSlots = rn(corridor.cargoSlots + slots, 3);
   corridor.value = rn(corridor.value + Math.max(0, movement.value), 3);
+  if (movement.unpricedValue !== undefined || corridor.unpricedValue !== undefined)
+    corridor.unpricedValue = rn((corridor.unpricedValue ?? 0) + Math.max(0, movement.unpricedValue ?? 0), 3);
   corridor.byMode.land = rn(corridor.byMode.land + slots * land, 3);
   corridor.byMode.river = rn(corridor.byMode.river + slots * river, 3);
   corridor.byMode.sea = rn(corridor.byMode.sea + slots * sea, 3);
@@ -196,6 +199,7 @@ export function decayCorridors(
       departures,
       cargoSlots,
       value: rn(corridor.value * retention, 3),
+      ...(corridor.unpricedValue !== undefined ? { unpricedValue: rn(corridor.unpricedValue * retention, 3) } : {}),
       byMode: {
         land: rn(corridor.byMode.land * retention, 3),
         river: rn(corridor.byMode.river * retention, 3),
@@ -397,7 +401,16 @@ function bakedTravelDays(caravan: Caravan): number | null {
 
 function remember(movement: CorridorMovement): void {
   if (!isEconomyContextReady()) return;
-  setTradeCorridors(applyCorridorMovement(getTradeCorridors(), movement));
+  const goods = getGoods();
+  const corridors = getTradeCorridors().map(corridor => {
+    if (corridor.unpricedValue !== undefined || corridor.value > 0) return corridor;
+    const unpricedValue = Object.entries(corridor.goodsSlots).reduce((total, [id, slots]) => {
+      const good = goods.find(entry => entry.i === Number(id));
+      return total + (good ? (slots / getGoodCargoSlotsPerUnit(good)) * Math.max(0, good.value) : 0);
+    }, 0);
+    return { ...corridor, unpricedValue };
+  });
+  setTradeCorridors(applyCorridorMovement(corridors, movement));
 }
 
 function goodById(goodId: number) {
@@ -466,6 +479,7 @@ export function recordMarketShipment(shipment: MarketShipment): void {
     destinationBurgId: shipment.destinationBurgId,
     cargoSlots: slots,
     value: 0,
+    unpricedValue: Math.max(0, shipment.units) * Math.max(0, good?.value ?? 0),
     modeShare: { land: 1, river: 0, sea: 0 },
     observedDays: days,
     idealDays: days,

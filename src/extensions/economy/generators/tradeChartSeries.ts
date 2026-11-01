@@ -5,8 +5,7 @@
  * departures). Each living endpoint receives the full amount, so a state's bar is the
  * sum of its towns and an internal shipment is counted at both ends.
  *
- * Price uses the money recorded on the corridor. Same-market shipments store no money,
- * so those fall back to catalogue value times units. Weight is units times the good's
+ * Price uses the money recorded on the corridor and the catalogue value of same-market shipments. Weight is units times the good's
  * transport weight. The tag basis counts every cargo slot under that good's one trade
  * heading, so a stacked bar still sums to the slots. The ledger keeps only the busiest
  * goods; the unlisted tail is "Other" (headings) or the known goods' average weight per slot.
@@ -45,6 +44,8 @@ export interface TradeChartCorridor {
   burgB: number;
   /** Recorded money. Zero on same-market shipments. */
   value: number;
+  /** Catalogue value of shipments without a transaction price, absent on older saves. */
+  unpricedValue?: number;
   cargoSlots: number;
   goodsSlots: Readonly<Record<string, number>>;
 }
@@ -189,9 +190,7 @@ export function collectTradeContributions(input: TradeChartSeriesInput): TradeCh
     }
     const amount =
       input.basis === "price"
-        ? corridor.value > 0
-          ? corridor.value
-          : catalogueValue(corridor, goodsById)
+        ? corridor.value + (corridor.unpricedValue ?? (corridor.value > 0 ? 0 : catalogueValue(corridor, goodsById)))
         : weightOf(corridor, goodsById);
     for (const burg of ends) add(membership(burg, input.entity), String(membership(burg, input.groupBy)), amount);
   }
@@ -243,6 +242,7 @@ export function readTradeContributions(input: {
     burgA: corridor.burgA,
     burgB: corridor.burgB,
     value: corridor.value ?? 0,
+    unpricedValue: corridor.unpricedValue,
     cargoSlots: corridor.cargoSlots ?? 0,
     goodsSlots: corridor.goodsSlots ?? {}
   }));

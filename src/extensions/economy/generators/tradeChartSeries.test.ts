@@ -63,6 +63,21 @@ describe("trade chart series", () => {
     ]);
   });
 
+  it("includes unpriced shipments when the same corridor also has paid trade", () => {
+    const rows = collectTradeContributions({
+      basis: "price",
+      entity: "burgs",
+      groupBy: "burgs",
+      corridors: [corridor({ value: 40, unpricedValue: 20 })],
+      burgs,
+      goods: [grain]
+    });
+    expect(rows).toEqual([
+      { entityId: 1, groupKey: "1", value: 60 },
+      { entityId: 2, groupKey: "2", value: 60 }
+    ]);
+  });
+
   it("weights units and spreads the unlisted slot tail at the known rate", () => {
     const rows = collectTradeContributions({
       basis: "weight",
