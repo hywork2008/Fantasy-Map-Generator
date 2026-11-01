@@ -881,6 +881,21 @@ export interface RiverCellHydrology {
   waterTemperature: number;
 }
 
+/** A candidate route removed by route generation, kept for debugging network gaps. */
+export interface PrunedRoute {
+  /** The removed route as generated, including its planned river crossings. */
+  route: Route;
+  reason: "impassableRiverCrossing" | "seaShipPassage" | "riverNavigation";
+  /**
+   * Gap repair outcome for an impassable land route: "connected" when the surviving local
+   * network already joins its burgs and junctions, "detoured" when detour routes were added,
+   * "partial"/"failed" when some/all local components stayed apart.
+   */
+  repair?: "connected" | "detoured" | "partial" | "failed";
+  /** Ids of the routes added as detours for this gap. */
+  detourRouteIds?: number[];
+}
+
 export interface Route {
   /** A surveyed dry city connection must retain all waypoints, including same-cell points. */
   fixedSettlementApproach?: boolean;

@@ -10,6 +10,7 @@ import type {
   Monster,
   PackedGraphFeature,
   Province,
+  PrunedRoute,
   Race,
   Religion,
   River,
@@ -151,6 +152,11 @@ export interface PackedGraph {
    */
   races?: Race[];
   routes: Route[];
+  /**
+   * Debug record of the candidate routes that route generation discarded (impassable river
+   * crossing, blocked ship passage) and of the detours built for them. Absent on legacy maps.
+   */
+  prunedRoutes?: PrunedRoute[];
   religions: Religion[];
   zones: Zone[];
   markers: Marker[];

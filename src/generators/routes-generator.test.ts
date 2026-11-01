@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../context/worldContext";
 import type { Grid } from "../types/Grid";
-import type { Burg, Route } from "../types/models";
+import type { Burg, PrunedRoute, Route } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { findPath } from "../utils/pathUtils";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
@@ -348,6 +348,89 @@ describe("RoutesModule settlement connections", () => {
 
     worldContext.pack.cells.state = undefined as unknown as typeof worldContext.pack.cells.state;
     expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([]);
+  });
+});
+
+describe("RoutesModule pruned route gap repair", () => {
+  const internals = Routes as unknown as { repairPrunedRouteGaps(prunedRoutes: PrunedRoute[]): void };
+  // 0 - 1 - 2   cell 1 is on a river the removed road cannot cross;
+  // |   |   |   the southern row is the only detour.
+  // 3 - 4 - 5
+  const impassableRoad = (): PrunedRoute => ({
+    reason: "impassableRiverCrossing",
+    route: {
+      i: 0,
+      group: "roads",
+      feature: 1,
+      cells: [0, 1, 2],
+      points: [
+        [0, 0, 0],
+        [10, 0, 1],
+        [20, 0, 2]
+      ],
+      riverCrossings: [{ riverId: 1, cellId: 1, point: [10, 0], plan: { kind: "none" } }]
+    } as Route
+  });
+
+  beforeEach(() => {
+    worldContext.distanceScale = 1;
+    worldContext.options = {} as typeof worldContext.options;
+    worldContext.grid = { spacing: 10 } as Grid;
+    worldContext.pack = {
+      cells: {
+        c: [
+          [1, 3],
+          [0, 2, 4],
+          [1, 5],
+          [0, 4],
+          [1, 3, 5],
+          [2, 4]
+        ],
+        h: [25, 25, 25, 25, 25, 25],
+        biomeCode: [1, 1, 1, 1, 1, 1],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0],
+          [0, 10],
+          [10, 10],
+          [20, 10]
+        ],
+        burg: [1, 0, 2, 0, 0, 0],
+        r: [0, 1, 0, 0, 0, 0],
+        fl: [0, 0, 0, 0, 0, 0],
+        f: [1, 1, 1, 1, 1, 1],
+        state: [1, 1, 1, 1, 1, 1],
+        routes: {}
+      },
+      burgs: [{ i: 0 }, { i: 1, cell: 0, x: 0, y: 0, state: 1 }, { i: 2, cell: 2, x: 20, y: 0, state: 1 }],
+      rivers: [],
+      routes: []
+    } as unknown as PackedGraph;
+    worldContext.biomesData = { habitability: [0, 100] } as unknown as typeof worldContext.biomesData;
+  });
+
+  it("joins burgs stranded by a removed road with a detour around the impassable river cell", () => {
+    const record = impassableRoad();
+    internals.repairPrunedRouteGaps([record]);
+
+    expect(worldContext.pack.routes).toEqual([expect.objectContaining({ i: 1, group: "roads", feature: 1 })]);
+    expect(worldContext.pack.routes[0].cells).not.toContain(1);
+    expect([0, 2]).toContain(worldContext.pack.routes[0].cells!.at(0));
+    expect([0, 2]).toContain(worldContext.pack.routes[0].cells!.at(-1));
+    expect(record).toMatchObject({ repair: "detoured", detourRouteIds: [1] });
+    expect(Routes.areConnected(3, 4)).toBe(true);
+  });
+
+  it("adds nothing when the surviving local network still joins the stranded ends", () => {
+    worldContext.pack.routes = [
+      { i: 1, group: "trails", feature: 1, cells: [0, 3, 4, 5, 2], points: [] } as unknown as Route
+    ];
+    const record = impassableRoad();
+    internals.repairPrunedRouteGaps([record]);
+
+    expect(worldContext.pack.routes).toHaveLength(1);
+    expect(record.repair).toBe("connected");
   });
 });
 

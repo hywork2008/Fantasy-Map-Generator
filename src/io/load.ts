@@ -669,6 +669,7 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
   worldContext.pack.provinces = data[30] ? JSON.parse(data[30]) : [0];
   worldContext.pack.rivers = data[32] ? JSON.parse(data[32]) : [];
   worldContext.pack.lavaFlows = data[57] ? JSON.parse(data[57]) : [];
+  worldContext.pack.prunedRoutes = data[60] ? JSON.parse(data[60]) : [];
   worldContext.pack.markers = data[35] ? JSON.parse(data[35]) : [];
   worldContext.pack.frontierForts = data[51] ? JSON.parse(data[51]) : [];
   worldContext.pack.routes = data[37] ? JSON.parse(data[37]) : [];

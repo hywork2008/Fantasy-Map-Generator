@@ -31,18 +31,52 @@ export function resolveRiverRouteCrossings(
 ): void {
   const { pack } = world;
   const landRoutes = (pack.routes ?? []).filter(r => r.group !== "searoutes" && !r.lock);
+  resolveRiverCrossingsForRoutes(world, landRoutes);
+  if (!landRoutes.length) return;
+  const scale = mapUnitMeters(world.distanceScale, optionsStore.getState().distanceUnit);
+  for (const facility of converged.facilities) {
+    const c = facility.crossing;
+    const river = pack.rivers.find(r => r.i === c.riverId)!;
+    const cells = river.cells.filter(c => c >= 0);
+    const cellId = cells.reduce(
+      (best, id) =>
+        Math.hypot(pack.cells.p[id][0] * scale - c.q[0], pack.cells.p[id][1] * scale - c.q[1]) <
+        Math.hypot(pack.cells.p[best][0] * scale - c.q[0], pack.cells.p[best][1] * scale - c.q[1])
+          ? id
+          : best,
+      cells[0]
+    );
+    for (const route of landRoutes.filter(r => facility.routeIds.includes(r.i))) {
+      route.riverCrossings = (route.riverCrossings ?? []).filter(
+        hit =>
+          hit.riverId !== c.riverId ||
+          Math.hypot(hit.point[0] * scale - c.q[0], hit.point[1] * scale - c.q[1]) > c.deckLengthMeters
+      );
+      route.riverCrossings.push({ riverId: c.riverId, cellId, point: [c.q[0] / scale, c.q[1] / scale], plan: c.plan });
+    }
+  }
+}
+
+/**
+ * Plans the river crossings of the given unlocked land routes against the routes currently in
+ * `pack.routes` (the navigating vessel depends on which water routes share the river). Rivers
+ * that none of the routes touch are skipped before their banks are built.
+ */
+export function resolveRiverCrossingsForRoutes(world: WorldContext, landRoutes: Route[]): void {
+  const { pack } = world;
   for (const route of landRoutes) route.riverCrossings = [];
   if (!landRoutes.length) return;
   for (const river of pack.rivers ?? []) {
     if (river.cells.length < 2 || !Number.isFinite(river.widthFactor) || !Number.isFinite(river.sourceWidth)) continue;
+    const cellSet = new Set(river.cells);
+    const crossingRoutes = landRoutes.filter(route => routeCells(route).some(c => cellSet.has(c)));
+    if (!crossingRoutes.length) continue;
     const points = Rivers.addMeandering(river.cells, river.points?.length === river.cells.length ? river.points : null);
     const banks = Rivers.getRiverBanks(points, river.widthFactor, river.sourceWidth);
-    const cellSet = new Set(river.cells);
     const waterRoutes = (pack.routes ?? []).filter(
       r => r.group === "searoutes" && routeCells(r).some(c => cellSet.has(c))
     );
-    for (const route of landRoutes) {
-      if (!routeCells(route).some(c => cellSet.has(c))) continue;
+    for (const route of crossingRoutes) {
       for (let j = 1; j < route.points.length; j++) {
         for (let i = 1; i < points.length; i++) {
           const hit = intersection(route.points[j - 1], route.points[j], points[i - 1], points[i]);
@@ -85,29 +119,8 @@ export function resolveRiverRouteCrossings(
       }
     }
   }
-  const scale = mapUnitMeters(world.distanceScale, optionsStore.getState().distanceUnit);
-  for (const facility of converged.facilities) {
-    const c = facility.crossing;
-    const river = pack.rivers.find(r => r.i === c.riverId)!;
-    const cells = river.cells.filter(c => c >= 0);
-    const cellId = cells.reduce(
-      (best, id) =>
-        Math.hypot(pack.cells.p[id][0] * scale - c.q[0], pack.cells.p[id][1] * scale - c.q[1]) <
-        Math.hypot(pack.cells.p[best][0] * scale - c.q[0], pack.cells.p[best][1] * scale - c.q[1])
-          ? id
-          : best,
-      cells[0]
-    );
-    for (const route of landRoutes.filter(r => facility.routeIds.includes(r.i))) {
-      route.riverCrossings = (route.riverCrossings ?? []).filter(
-        hit =>
-          hit.riverId !== c.riverId ||
-          Math.hypot(hit.point[0] * scale - c.q[0], hit.point[1] * scale - c.q[1]) > c.deckLengthMeters
-      );
-      route.riverCrossings.push({ riverId: c.riverId, cellId, point: [c.q[0] / scale, c.q[1] / scale], plan: c.plan });
-    }
-  }
 }
+
 function routeCells(route: Route): number[] {
   return route.cells ?? route.points.map(p => p[2]);
 }

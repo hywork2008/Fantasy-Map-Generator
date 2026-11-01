@@ -105,6 +105,7 @@ export const DATA_FIELD_OWNERSHIP: readonly DataFieldOwnership[] = [
   map("pack.rivers", "map.networks", "river.id", ["cell.id", "feature.id"], "cascade"),
   map("pack.lavaFlows", "map.physical", "lava-flow.id", ["cell.id"], "cascade"),
   map("pack.routes", "map.networks", "route.id", ["cell.id", "feature.id"], "cascade"),
+  map("pack.prunedRoutes", "map.networks", "route.id", ["cell.id", "feature.id"], "cascade"),
   map("pack.ice", "map.physical", "ice.id", ["cell.id"], "cascade"),
   map("pack.markers", "map.annotations", "marker.id", ["cell.id"], "cascade"),
   map("pack.zones", "map.annotations", "zone.id", ["cell.id"], "cascade"),

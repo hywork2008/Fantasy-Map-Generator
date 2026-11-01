@@ -6,7 +6,11 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { getRaceById } from "../data/races";
-import { NO_RIVER_ROAD_CONVERGENCE, resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
+import {
+  NO_RIVER_ROAD_CONVERGENCE,
+  resolveRiverCrossingsForRoutes,
+  resolveRiverRouteCrossings
+} from "../services/riverRouteCrossings";
 import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
 import { densifyLandRoutePoints, routeRenderPoints } from "../services/routeRenderGeometry";
 import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
@@ -17,6 +21,7 @@ import type {
   Burg,
   InternationalRoutePolicy,
   LandRouteGenerationMode,
+  PrunedRoute,
   Route,
   SeaRouteGenerationMode,
   State
@@ -60,6 +65,14 @@ const ROUTE_CURVES: Record<string, import("d3").CurveFactory | import("d3").Curv
 };
 
 const MIN_PASSABLE_SEA_TEMP = -4;
+/**
+ * A pruned route's gap is repaired only near the route: its bounding box grown by half its
+ * larger side, but at least this many grid spacings, bounds both the connectivity check and
+ * the detour search.
+ */
+const DETOUR_REGION_MIN_MARGIN_SPACINGS = 8;
+/** Detour searches per network component before an impassable river is given up on. */
+const MAX_DETOUR_ATTEMPTS = 8;
 const PEACEFUL_ROUTE_RELATIONS: ReadonlySet<RelationKey> = new Set([
   "Ally",
   "Friendly",
@@ -1723,7 +1736,7 @@ class RoutesModule {
    * route may have had its point in that cell eased by the sharp-angle pass in getPoints. Move such
    * a non-settlement end onto the joined route's point so the two meet instead of stopping short.
    */
-  private snapJunctionEnds(routes: Route[]): void {
+  private snapJunctionEnds(routes: Route[], targets: Route[] = routes): void {
     const { pack } = this.worldContext;
     const land = routes.filter(route => route.group !== "searoutes" && route.points?.length > 1);
     const interior = new Map<number, [number, number][]>();
@@ -1733,7 +1746,8 @@ class RoutesModule {
         if (!interior.has(cell)) interior.set(cell, []);
         interior.get(cell)!.push([x, y]);
       }
-    for (const route of land)
+    const landSet = new Set(land);
+    for (const route of targets.filter(route => landSet.has(route)))
       for (const index of [0, route.points.length - 1]) {
         const [x, y, cell] = route.points[index];
         if (pack.cells.burg[cell]) continue;
@@ -1807,21 +1821,31 @@ class RoutesModule {
         );
       });
     };
-    pack.routes = measureGenerationStep("prune-impassable-routes", () =>
-      pack.routes.filter(
-        route =>
-          route.lock ||
-          ((route.riverCrossings ?? []).every(c => c.plan.kind !== "none") &&
-            preservesSeaShipPassage(route) &&
-            (route.navigation !== "river" ||
-              (route.cells ?? [])
-                .slice(1)
-                .every((cell, index) =>
-                  finalRiverGraph.getOutgoing(route.cells![index]).some(edge => edge.toCellId === cell)
-                )))
+    const getPruneReason = (route: Route): PrunedRoute["reason"] | undefined => {
+      if (route.lock) return;
+      if ((route.riverCrossings ?? []).some(c => c.plan.kind === "none")) return "impassableRiverCrossing";
+      if (!preservesSeaShipPassage(route)) return "seaShipPassage";
+      if (
+        route.navigation === "river" &&
+        !(route.cells ?? [])
+          .slice(1)
+          .every((cell, index) => finalRiverGraph.getOutgoing(route.cells![index]).some(edge => edge.toCellId === cell))
       )
+        return "riverNavigation";
+    };
+    const prunedRoutes: PrunedRoute[] = [];
+    pack.routes = measureGenerationStep("prune-impassable-routes", () =>
+      pack.routes.filter(route => {
+        const reason = getPruneReason(route);
+        if (reason) prunedRoutes.push({ route, reason });
+        return !reason;
+      })
     );
+    pack.prunedRoutes = prunedRoutes;
     pack.cells.routes = measureGenerationStep("buildLinks", () => this.buildLinks(pack.routes));
+    // Physical land connections replace every generated land route, so their gaps need no detour.
+    if (!worldContext.options.landConnectionGeneration)
+      measureGenerationStep("repair-pruned-route-gaps", () => this.repairPrunedRouteGaps(prunedRoutes));
     if (worldContext.options.landConnectionGeneration) {
       const physical = measureGenerationStep("generateWorldLandConnections", () =>
         generateWorldLandConnections(worldContext, optionsStore.getState().distanceUnit)
@@ -1833,6 +1857,194 @@ class RoutesModule {
         delete worldContext.options.registeredLandConnections;
         console.warn("Physical land connections unresolved", physical.reason);
       }
+    }
+  }
+
+  /**
+   * Removing a land route at an impassable river crossing strands the burgs on it and the
+   * routes that joined it. For each such route, label the surviving land network near the
+   * route only (see DETOUR_REGION_MIN_MARGIN_SPACINGS) and join each separated component to
+   * another one by a detour of the same group, inside the same region. A detour that again
+   * meets an impassable crossing blocks that river cell and is searched once more.
+   */
+  private repairPrunedRouteGaps(prunedRoutes: PrunedRoute[]): void {
+    const { pack } = this.worldContext;
+    const gaps = prunedRoutes.filter(
+      record =>
+        record.reason === "impassableRiverCrossing" &&
+        record.route.group !== "searoutes" &&
+        record.route.navigation !== "river"
+    );
+    if (!gaps.length) return;
+
+    const routeCells = (route: Route) => route.cells ?? route.points.map(point => point[2]);
+    const isLandRoute = (route: Route) => route.group !== "searoutes" && route.navigation !== "river";
+    const landConnections = new Map<string, boolean>();
+    const landLinks = new Map<number, number[]>();
+    const addLandRoute = (route: Route) => {
+      const cells = routeCells(route);
+      this.addConnections(cells, landConnections);
+      for (let i = 1; i < cells.length; i++) {
+        if (cells[i - 1] === cells[i]) continue;
+        for (const [from, to] of [
+          [cells[i - 1], cells[i]],
+          [cells[i], cells[i - 1]]
+        ]) {
+          if (!landLinks.has(from)) landLinks.set(from, []);
+          landLinks.get(from)!.push(to);
+        }
+      }
+    };
+    for (const route of pack.routes) if (isLandRoute(route)) addLandRoute(route);
+
+    const pointsArray = this.preparePointsArray();
+    let nextId = Math.max(-1, ...pack.routes.map(route => route.i), ...prunedRoutes.map(({ route }) => route.i)) + 1;
+    let added = false;
+
+    for (const record of gaps) {
+      const removedCells = routeCells(record.route);
+      const inRegion = this.getGapRegion(removedCells);
+
+      // Local components of the surviving network that touch the removed route.
+      const component = new Map<number, number>();
+      const anchors: number[][] = [];
+      for (const anchor of removedCells) {
+        if (component.has(anchor) || (!pack.cells.burg[anchor] && !landLinks.has(anchor))) continue;
+        const id = anchors.length;
+        anchors.push([anchor]);
+        component.set(anchor, id);
+        const queue = [anchor];
+        while (queue.length) {
+          const cell = queue.pop()!;
+          for (const next of landLinks.get(cell) ?? []) {
+            if (component.has(next) || !inRegion(next)) continue;
+            component.set(next, id);
+            queue.push(next);
+          }
+        }
+      }
+      for (const anchor of removedCells) {
+        const id = component.get(anchor);
+        if (id !== undefined && !anchors[id].includes(anchor)) anchors[id].push(anchor);
+      }
+      if (anchors.length < 2) {
+        record.repair = "connected";
+        continue;
+      }
+
+      const parent = anchors.map((_, id) => id);
+      const find = (id: number): number => {
+        while (parent[id] !== id) id = parent[id];
+        return id;
+      };
+      const blocked = { cells: new Set<number>(), edges: new Set<string>() };
+      this.blockImpassableCrossings(record.route, blocked);
+      const allowedStates = new Set(removedCells.map(cell => pack.cells.state[cell]).filter(Boolean));
+      const baseCost = this.createCostEvaluator({
+        isWater: false,
+        connections: landConnections,
+        landMode: record.route.group === "roads" ? "roads" : "trails"
+      });
+      const getCost = (from: number, to: number) => {
+        if (blocked.cells.has(to) || blocked.edges.has(`${from}-${to}`) || !inRegion(to)) return Infinity;
+        if (pack.cells.state[to] && !allowedStates.has(pack.cells.state[to])) return Infinity;
+        return baseCost(from, to);
+      };
+      const detourRouteIds: number[] = [];
+      let joined = 0;
+
+      for (let id = 0; id < anchors.length; id++) {
+        if (new Set(anchors.map((_, other) => find(other))).size === 1) break;
+        for (let attempt = 0; attempt < MAX_DETOUR_ATTEMPTS; attempt++) {
+          const own = find(id);
+          const pathCells = findPath(
+            anchors[id][0],
+            cell => component.has(cell) && find(component.get(cell)!) !== own,
+            getCost,
+            pack
+          );
+          if (!pathCells) break;
+          const candidates = this.getRouteSegments(pathCells, landConnections).map(cells => {
+            const route: Route = {
+              i: -1,
+              group: record.route.group,
+              feature: record.route.feature,
+              points: this.getPoints(record.route.group, cells, pointsArray),
+              cells
+            };
+            if (record.route.international) route.international = true;
+            return route;
+          });
+          this.snapJunctionEnds([...pack.routes.filter(isLandRoute), ...candidates], candidates);
+          resolveRiverCrossingsForRoutes(this.worldContext, candidates);
+          const blockedBefore = blocked.cells.size + blocked.edges.size;
+          for (const candidate of candidates) this.blockImpassableCrossings(candidate, blocked);
+          if (blocked.cells.size + blocked.edges.size > blockedBefore) continue;
+          if (candidates.some(route => route.riverCrossings!.some(c => c.plan.kind === "none"))) break;
+
+          for (const route of candidates) {
+            route.i = nextId++;
+            pack.routes.push(route);
+            addLandRoute(route);
+            detourRouteIds.push(route.i);
+          }
+          parent[own] = find(component.get(pathCells.at(-1)!)!);
+          joined++;
+          added = true;
+          break;
+        }
+      }
+
+      if (detourRouteIds.length) record.detourRouteIds = detourRouteIds;
+      const remaining = new Set(anchors.map((_, id) => find(id))).size;
+      record.repair = remaining === 1 ? "detoured" : joined ? "partial" : "failed";
+    }
+
+    if (added) pack.cells.routes = this.buildLinks(pack.routes);
+  }
+
+  /** Bounding box of the cells grown by half its larger side (at least a few grid spacings). */
+  private getGapRegion(cells: number[]): (cellId: number) => boolean {
+    const { pack, grid } = this.worldContext;
+    const xs = cells.map(cell => pack.cells.p[cell][0]);
+    const ys = cells.map(cell => pack.cells.p[cell][1]);
+    const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const margin = Math.max(
+      Math.max(maxX - minX, maxY - minY) / 2,
+      DETOUR_REGION_MIN_MARGIN_SPACINGS * (grid?.spacing ?? 0)
+    );
+    return cellId => {
+      const [x, y] = pack.cells.p[cellId];
+      return x >= minX - margin && x <= maxX + margin && y >= minY - margin && y <= maxY + margin;
+    };
+  }
+
+  /**
+   * Blocks the route's step over each river it cannot cross, and the river cells beside that
+   * step (burg cells stay reachable).
+   */
+  private blockImpassableCrossings(route: Route, blocked: { cells: Set<number>; edges: Set<string> }): void {
+    const { pack } = this.worldContext;
+    for (const crossing of route.riverCrossings ?? []) {
+      if (crossing.plan.kind !== "none") continue;
+      if (!pack.cells.burg[crossing.cellId]) blocked.cells.add(crossing.cellId);
+      let nearest = 1;
+      let nearestDistance = Infinity;
+      for (let j = 1; j < route.points.length; j++) {
+        const [ax, ay] = route.points[j - 1];
+        const [bx, by] = route.points[j];
+        const distance =
+          Math.hypot(crossing.point[0] - ax, crossing.point[1] - ay) +
+          Math.hypot(crossing.point[0] - bx, crossing.point[1] - by) -
+          Math.hypot(bx - ax, by - ay);
+        if (distance < nearestDistance) [nearest, nearestDistance] = [j, distance];
+      }
+      const step = [route.points[nearest - 1]?.[2], route.points[nearest]?.[2]];
+      if (step[0] !== undefined && step[1] !== undefined && step[0] !== step[1])
+        blocked.edges.add(`${step[0]}-${step[1]}`).add(`${step[1]}-${step[0]}`);
+      for (const cell of step)
+        if (cell !== undefined && pack.cells.r[cell] === crossing.riverId && !pack.cells.burg[cell])
+          blocked.cells.add(cell);
     }
   }
 
