@@ -45,8 +45,10 @@ import {
 } from "../buildings/props/medievalContainers";
 import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { BARGE, createBarge } from "../buildings/ships/barge";
+import { CARAVEL, createCaravel } from "../buildings/ships/caravel";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
+import { createMerchantShipHigh, merchantShipParts } from "../buildings/ships/merchantShipHigh";
 import { createOpusGalleon, OPUS_GALLEON, type OpusGalleonQuality } from "../buildings/ships/opusGalleon";
 import { assembleSailingParts, type SailingShipState } from "../buildings/ships/sailingAssembly";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
@@ -1286,45 +1288,27 @@ const shipsHeading = modelCategory("Ships");
 const carrackButton = document.createElement("button");
 carrackButton.type = "button";
 carrackButton.textContent = "Carrack · High-castled merchant ship";
-carrackButton.addEventListener("click", () => {
-  selection++;
-  for (const button of list.querySelectorAll("button")) {
-    button.setAttribute("aria-current", button === carrackButton ? "true" : "false");
-  }
-  clearMesh();
-  floors.replaceChildren();
-  facts.replaceChildren();
-  banner.hidden = true;
-  roofTitle.textContent = "Ship elevation";
-  levelTitle.textContent = "Deck plan";
-  const model = createCarrack();
-  massing = model;
-  scene.add(model.group);
-  frame({ occupancyMeters: { width: CARRACK.length, depth: CARRACK.beam } }, CARRACK.height);
-  camera.position.set(43, 28, 54);
-  controls.target.set(1, 14, 0);
-  controls.update();
-  mountPlan(roofHost, model.elevation);
-  mountPlan(levelHost, model.plan);
-  appendFacts(
-    fact("Model", CARRACK.name),
-    fact("Period", "Late medieval / early modern · imagined merchant vessel"),
-    fact(
-      "Dimensions",
-      `${CARRACK.length} m overall length × ${CARRACK.beam} m beam; ${CARRACK.height} m above water; ${CARRACK.draft} m draft`
-    ),
-    fact("Rig", "Three masts; square-rigged fore and main masts; lateen mizzen"),
-    fact("Hull", "Broad round-bilged hull; high forecastle and stepped sterncastle"),
-    fact("Note", CARRACK.note, "Carrack")
-  );
-  const source = document.createElement("a");
-  source.href = CARRACK.source;
-  source.textContent = "Mariners’ Museum · Carrack";
-  source.target = "_blank";
-  source.rel = "noreferrer";
-  appendFacts(source);
-});
+carrackButton.dataset.id = "carrack";
+AUTHORED_VARIANTS.carrack = {
+  author: CARRACK.author,
+  primary: true,
+  quality: true,
+  show: () => showSailingShip("carrack")
+};
+carrackButton.addEventListener("click", () => showSailingShip("carrack"));
 shipsHeading.append(carrackButton);
+const caravelButton = document.createElement("button");
+caravelButton.type = "button";
+caravelButton.dataset.id = "caravel";
+caravelButton.textContent = "Caravel · Two-masted lateen ship";
+AUTHORED_VARIANTS.caravel = {
+  author: CARAVEL.author,
+  primary: true,
+  quality: true,
+  show: () => showSailingShip("caravel")
+};
+caravelButton.addEventListener("click", () => showSailingShip("caravel"));
+shipsHeading.append(caravelButton);
 
 const galleonButton = document.createElement("button");
 galleonButton.type = "button";
@@ -1421,13 +1405,37 @@ const sloopButton = document.createElement("button");
 sloopButton.type = "button";
 sloopButton.textContent = "Sloop · Small coastal sailing ship";
 sloopButton.dataset.id = "sloop";
-AUTHORED_VARIANTS.sloop = { author: SLOOP.author, primary: true, quality: true, show: () => showSloop() };
-let sloopSails: SailingShipState["sails"] = "set";
-let sloopPart = "all";
-function showSloop(): void {
+AUTHORED_VARIANTS.sloop = { author: SLOOP.author, primary: true, quality: true, show: () => showSailingShip("sloop") };
+type SailingStudy = "sloop" | "caravel" | "carrack";
+const sailingStudies = {
+  sloop: { info: SLOOP, button: sloopButton, low: createSloop, high: createSloopHigh, parts: sloopHighParts },
+  caravel: {
+    info: CARAVEL,
+    button: caravelButton,
+    low: createCaravel,
+    high: (state: SailingShipState) => createMerchantShipHigh("caravel", state),
+    parts: (state: SailingShipState) => merchantShipParts("caravel", state)
+  },
+  carrack: {
+    info: CARRACK,
+    button: carrackButton,
+    low: createCarrack,
+    high: (state: SailingShipState) => createMerchantShipHigh("carrack", state),
+    parts: (state: SailingShipState) => merchantShipParts("carrack", state)
+  }
+};
+const sailingStates: Record<SailingStudy, { sails: "set" | "furled"; part: string }> = {
+  sloop: { sails: "set", part: "all" },
+  caravel: { sails: "set", part: "all" },
+  carrack: { sails: "set", part: "all" }
+};
+function showSailingShip(kind: SailingStudy): void {
+  const study = sailingStudies[kind],
+    saved = sailingStates[kind],
+    info = study.info;
   selection++;
   for (const button of list.querySelectorAll("button")) {
-    button.setAttribute("aria-current", button === sloopButton ? "true" : "false");
+    button.setAttribute("aria-current", button === study.button ? "true" : "false");
   }
   clearMesh();
   floors.replaceChildren();
@@ -1437,43 +1445,39 @@ function showSloop(): void {
   levelTitle.textContent = "Deck plan";
   showQuality(true);
   const high = qualitySelect.value === "high";
-  const state = { sails: sloopSails };
+  const state = { sails: saved.sails };
   const parts: readonly ModelPartFactory[] = high
-    ? sloopHighParts(state)
+    ? study.parts(state)
     : [
         {
           id: "low-assembly",
           role: "Legacy assembly",
-          author: SLOOP.author,
+          author: info.author,
           quality: "low",
-          create: () => createSloop(state)
+          create: () => study.low(state)
         }
       ];
-  if (!parts.some(part => part.id === sloopPart)) sloopPart = "all";
-  const chosen = parts.find(part => part.id === sloopPart);
-  const model = chosen
-    ? assembleSailingParts("sloop-part", [chosen])
-    : high
-      ? createSloopHigh(state)
-      : createSloop(state);
+  if (!parts.some(part => part.id === saved.part)) saved.part = "all";
+  const chosen = parts.find(part => part.id === saved.part);
+  const model = chosen ? assembleSailingParts(`${kind}-part`, [chosen]) : high ? study.high(state) : study.low(state);
   comparisonModel = { path: null, quality: high ? "high" : "low", viewOnly: true };
   const sailsSelect = document.createElement("select");
   sailsSelect.setAttribute("aria-label", "Sails");
   sailsSelect.add(new Option("Set", "set"));
   sailsSelect.add(new Option("Furled · moored", "furled"));
-  sailsSelect.value = sloopSails ?? "set";
+  sailsSelect.value = saved.sails;
   sailsSelect.addEventListener("change", () => {
-    sloopSails = sailsSelect.value as SailingShipState["sails"];
-    showSloop();
+    saved.sails = sailsSelect.value as "set" | "furled";
+    showSailingShip(kind);
   });
   const partSelect = document.createElement("select");
   partSelect.setAttribute("aria-label", "Assembly part");
   partSelect.add(new Option("Complete ship", "all"));
   for (const part of parts) partSelect.add(new Option(`${part.role} · ${part.quality}`, part.id));
-  partSelect.value = sloopPart;
+  partSelect.value = saved.part;
   partSelect.addEventListener("change", () => {
-    sloopPart = partSelect.value;
-    showSloop();
+    saved.part = partSelect.value;
+    showSailingShip(kind);
   });
   for (const [label, input] of [
     ["Sails", sailsSelect],
@@ -1486,30 +1490,53 @@ function showSloop(): void {
   modelOptions.hidden = false;
   massing = model;
   scene.add(model.group);
-  frame({ occupancyMeters: { width: SLOOP.length, depth: SLOOP.beam } }, SLOOP.height);
-  camera.position.set(19, 13, 23);
-  controls.target.set(1, 6, 0);
+  frame({ occupancyMeters: { width: info.length, depth: info.beam } }, info.height);
+  camera.position.set(info.length * 1.2, info.height * 0.9, info.length * 1.5);
+  controls.target.set(1, info.height * 0.43, 0);
   controls.update();
   mountPlan(roofHost, meshProjection(model, "side"));
   mountPlan(levelHost, meshProjection(model, "top"));
   appendFacts(
-    fact("Model", SLOOP.name),
+    fact("Model", info.name),
     fact("Quality", high ? "High" : "Low"),
-    fact("Sails", sloopSails === "furled" ? "Furled" : "Set"),
-    fact("CE adoption", "Legacy default (Low); High and sail states are BV-only"),
-    fact("Period", "Age of sail · imagined coastal vessel"),
+    fact("Sails", saved.sails === "furled" ? "Furled" : "Set"),
+    fact(
+      "CE adoption",
+      kind === "carrack" ? "BV-only model" : "Legacy default (Low); High and sail states are BV-only"
+    ),
+    fact(
+      "Period",
+      kind === "sloop"
+        ? "Age of sail · imagined coastal vessel"
+        : "Late medieval / early modern · imagined merchant vessel"
+    ),
     fact(
       "Dimensions",
-      `${SLOOP.length} m overall length × ${SLOOP.beam} m beam; ${SLOOP.height} m above water; ${SLOOP.draft} m draft`
+      `${info.length} m overall length × ${info.beam} m beam; ${info.height} m above water; ${info.draft} m draft`
     ),
-    fact("Rig", "One mast; gaff mainsail and jib"),
-    fact("Hull", "Small wooden hull with keel, low cabin and tiller steering"),
-    fact("Note", SLOOP.note, "Sloop")
+    fact(
+      "Rig",
+      kind === "sloop"
+        ? "One mast; gaff mainsail and jib"
+        : kind === "caravel"
+          ? "Two masts; lateen sails"
+          : "Three masts; square fore and main, lateen mizzen"
+    ),
+
+    fact("Note", info.note, info.name)
   );
+  if (kind === "carrack") {
+    const source = document.createElement("a");
+    source.href = CARRACK.source;
+    source.textContent = "Mariners’ Museum · Carrack";
+    source.target = "_blank";
+    source.rel = "noreferrer";
+    appendFacts(source);
+  }
   const panel = modelPartsPanel(model.group);
   if (panel) facts.append(panel);
 }
-sloopButton.addEventListener("click", () => showSloop());
+sloopButton.addEventListener("click", () => showSailingShip("sloop"));
 shipsHeading.append(sloopButton);
 
 const bargeButton = document.createElement("button");

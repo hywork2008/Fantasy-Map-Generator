@@ -25,12 +25,12 @@ Read [BV composite models and per-part quality](../plan/bv-composite-models.md) 
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **112**. Missing candidates: **108**.
+Records: **221**. Codex High or Ultra available: **114**. Missing candidates: **107**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
 | Catalogue | 11 | 0 | 11 |
-| Direct BV study | 66 | 3 | 63 |
+| Direct BV study | 67 | 5 | 62 |
 | Gothic landmark | 10 | 10 | 0 |
 | Imaginary landmark | 4 | 1 | 3 |
 | Medieval 02 | 3 | 3 | 0 |
@@ -201,7 +201,6 @@ Records: **220**. Codex High or Ultra available: **112**. Missing candidates: **
 | Direct BV study | `medieval-containers-basket-closed` | Woven wicker basket · closed | single/default; assumed Low - [source](../../src/buildings/props/medievalContainers.ts) |
 | Direct BV study | `medieval-containers-basket-loaded` | Woven wicker basket · loaded | single/default; assumed Low - [source](../../src/buildings/props/medievalContainers.ts) |
 | Direct BV study | `barge` | River barge | single/default; assumed Low - [source](../../src/buildings/ships/barge.ts) |
-| Direct BV study | `carrack` | Carrack | single/default; assumed Low - [source](../../src/buildings/ships/carrack.ts) |
 | Direct BV study | `galleon` | Galleon | single/default; assumed Low - [source](../../src/buildings/ships/galleon.ts) |
 | Direct BV study | `opus-galleon` | Galleon | explicit high/low factory; Claude Opus 5.5 - [source](../../src/buildings/ships/opusGalleon.ts) |
 | Direct BV study | `battering-ram` | Medieval European battering ram | single/default; assumed Low - [source](../../src/buildings/siege/batteringRam.ts) |
@@ -344,4 +343,6 @@ Records: **220**. Codex High or Ultra available: **112**. Missing candidates: **
 | Gothic landmark | `salisbury` | Salisbury Cathedral | highDetail/ultraDetail; Codex GPT-6.1 Sol - [source](../../src/buildings/landmarks/salisbury.ts) |
 | Direct BV study | `polygon-houses` | Polygonal and narrow houses | explicit high/low factory; Codex GPT-6.1 Sol - [source](../../src/buildings/houses/polygonHouses.ts) |
 | Direct BV study | `earthen-houses` | Earthen flat-roof houses | explicit high/low factory; Codex GPT-6.1 Sol - [source](../../src/buildings/houses/earthenHouses.ts) |
+| Direct BV study | `caravel` | Caravel | explicit high/low factory; Codex GPT-6.1 Sol - [source](../../src/buildings/ships/caravel.ts) |
+| Direct BV study | `carrack` | Carrack | explicit high/low factory; Codex GPT-6.1 Sol - [source](../../src/buildings/ships/carrack.ts) |
 | Direct BV study | `sloop` | Sloop | explicit high/low factory; Codex GPT-6.1 Sol - [source](../../src/buildings/ships/sloop.ts) |

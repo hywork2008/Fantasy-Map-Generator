@@ -2,7 +2,7 @@
 
 ## 1. 範囲と結論
 
-ユーザー指示により、門楼よりShipsを優先する。Medieval 44の残りは保留を維持する。S0で既存factory・品質・負荷・BVとCEの採用を調べ、状態別部品の契約を定めた。続くS1で**Sloop Highと展帆／畳帆、部品組立・索具保持の共通基盤を実装した。次はCaravel／Carrack Highを制作する。** 単一モデルの部品化だけではHigh完成と扱わない。
+ユーザー指示により、門楼よりShipsを優先する。Medieval 44の残りは保留を維持する。S0で既存factory・品質・負荷・BVとCEの採用を調べ、状態別部品の契約を定めた。続くS1で**Sloop Highと展帆／畳帆、部品組立・索具保持の共通基盤を実装した。S2でCaravel／Carrack Highも完成した。次はガレオンのHighと砲門開閉へ進む。** 単一モデルの部品化だけではHigh完成と扱わない。
 
 通常の展帆に加えて停泊用の畳帆を作る。ガレオンは帆と独立して砲門を閉じられる構成にする。旗も帆から独立させる。畳帆時にマスト・必要な索具を丸ごと消すこと、閉じた蓋から砲身が突き抜けることは禁止する。
 
@@ -11,19 +11,19 @@
 | モデル | 作者 | 現在の指定 | 対応経路 |
 | --- | --- | --- | --- |
 | Sloop | Codex GPT-6.1 Sol | S1で明示Low／High追加、互換default維持 | BV両品質・両帆状態。CE smallは従来Low |
-| Caravel | Codex GPT-6.1 Sol | 単一default、Low扱い | CE medium。BV Shipsの直接選択ボタンは無い |
-| Carrack | Codex GPT-6.1 Sol | 単一、Low扱い | BV専用。SHIP_VARIANTSに未登録 |
+| Caravel | Codex GPT-6.1 Sol | S2で明示Low／High追加、互換default維持 | BVへ追加、両帆状態対応。CE mediumは従来Low |
+| Carrack | Codex GPT-6.1 Sol | S2でdefault／Low／Highを登録 | BV専用、両帆状態対応 |
 | Galleon | Codex GPT-6.1 Sol | 単一default、Low扱い | BVとCE large |
 | Barge | Codex GPT-6.1 Sol | 単一default、Low扱い | BVとCE barge。帆は無い |
 | Galleon | Claude Opus 5.5 | 実際のlow／high分岐あり | BVの作者切替。CEは不採用 |
 
-根拠は`src/buildings/ships/shipVariants.ts`、各factory、BVのShips区画。S0時点ではCodex製にHigh指定が無かった。S1ではSloopに新しい詳細factoryと明示Highを追加した。作者名やポリゴン数でHighと判定しない。
+根拠は`src/buildings/ships/shipVariants.ts`、各factory、BVのShips区画。S0時点ではCodex製にHigh指定が無かった。S1ではSloop、S2ではCaravel／Carrackに新しい詳細factoryと明示Highを追加した。作者名やポリゴン数でHighと判定しない。
 
 Opusは`createOpusGalleon("high")`が船体分割数・帆・手すり・甲板・索具を増やす実装であり、High表示には明示的な根拠がある。ただしSHIP_VARIANTSではそのHighを`level: "default"`として登録している。Codex Highの存在とは数えない。後の明示high追加でも既存default互換IDは維持する。
 
-`Carrack · High-castled merchant ship`のHigh-castledは高い船首楼・船尾楼の説明で、品質指定ではない。単一モデルの比較は`clearMesh()`で品質指定を空にし、`modelComparison.mount()`が既定Lowを使う。Opusのみ選択したlow／highを明示する。ラベルの一語でなく、作者・比較表・生成factoryを合わせて確認する。
+`Carrack · High-castled merchant ship`のHigh-castledは高い船首楼・船尾楼の説明で、品質指定ではない。S0時点で単一モデルの比較は`clearMesh()`で品質指定を空にし、`modelComparison.mount()`が既定Lowを使っていた。S1／S2の帆船も、現在は選択したlow／highを明示する。ラベルの一語でなく、作者・比較表・生成factoryを合わせて確認する。
 
-実BVでもCodexの4ボタンがLowのみ、OpusがLow／Highを選べることを確認した。Opusの比較表には選択中の品質しか計測しないのに「この品質のみ利用可能」と表示する不具合があったため、`viewOnly: true`を指定して「表示中の品質のみ計測」に修正した。品質判定や形状は変えていない。
+S0の実BVでもCodexの4ボタンがLowのみ、OpusがLow／Highを選べることを確認した。Opusの比較表には選択中の品質しか計測しないのに「この品質のみ利用可能」と表示する不具合があったため、`viewOnly: true`を指定して「表示中の品質のみ計測」に修正した。品質判定や形状は変えていない。
 
 ## 3. S0時点の負荷計測
 
@@ -102,8 +102,8 @@ CEは`shipMeshes.ts`で船種別defaultを採用し、`hull-topsides`または`h
 
 1. **S0 調査（今回完了）**: 品質・7構成の負荷・採用経路・状態別部品を記録。
 2. **S1 完了**: Sloop High、展帆／畳帆、部品台帳、共通寸法・帆装・索具の所有。Low維持とBV単体表示。
-3. **S2 次に制作**: Caravel／Carrack High。ラテン帆・横帆を共通生成し畳帆も完成。CaravelをBVへ追加。
-4. **S3**: Codex Galleon Highと既存Opusの状態対応。両作者の4状態、Low／High、旗を確認。流用箇所は作者・派生元を維持。
+3. **S2 完了**: Caravel／Carrack High。ラテン帆・横帆を共通生成し畳帆も完成。CaravelをBVへ追加。
+4. **S3 次に制作**: Codex Galleon Highと既存Opusの状態対応。両作者の4状態、Low／High、旗を確認。流用箇所は作者・派生元を維持。
 5. **S4**: Barge High。船体・設備・共通積荷を分離し、混用部品の品質を明記。
 6. **S5**: CEの保存・2D／3D・共有・荷役への接続。
 
@@ -138,3 +138,31 @@ Highの主帆は展帆布と可動ガフ・ハリヤード・メインシート�
 `npx vitest run src/buildings/ships/sloopHigh.test.ts src/buildings/ships/sloop.test.ts src/city3d/three/shipMeshes.test.ts src/city3d/adoption.test.ts`は4ファイル15件成功。既存Low署名、状態間6部品の不変性、船体の閉鎖・窓の凹み、部品台帳／結合範囲、索具保持、両品質・両状態の資源解放、畳帆交換とガフ位置を確認した。型検査の失敗はS0で記録した未変更2箇所のみ。
 
 実BVでもLow／High×展帆／畳帆、各状態のHigh8部品とLow互換1部品を巡回し、計測値と一致、ページ例外・コンソールエラー0。線を持たない部品の結合時に空の追加呼出しを避ける修正も行い、該当8テストを再確認した。High両状態の全体と投影を視認し、甲板継ぎ目・取付金具・帆束の収まりを確認した。検証画像は一時領域のみで、リポジトリへPNGや画像参照を追加していない。監査は220レコード、Codex High 112、未対応108へ更新。次はS2のCaravel／Carrack Highと畳帆。
+
+
+## 9. S2 Caravel／Carrack High（2026-11-03）
+
+`merchantShipHigh.ts`で丸底船体・甲板・船楼・設備・帆柱・索具・帆布を共通生成し、Caravelを8部品、Carrackを13部品で作製した。Lowのstationを共有し、Highは曲面を補間しつつ最大船幅を元の寸法内へ制限する。船楼は船体幅に沿う輪郭とし、下部を連続した船体へ重ねて隙間を防ぐ。独立した窓の凹み・建具・甲板・手すり・昇降梯子・荷口・巻揚機・係船設備を持つ。想像上の外観モデルであり、船倉や居住室全体の再現ではない。
+
+Caravelは2枚のラテン帆、Carrackは横帆3枚と後部ラテン帆を個別部品にした。各部品が桁・帆布・対応動索を所有し、畳帆では帆布束と結束へ交換して展帆用シートを除去。固定索具は状態間で同一。Caravelの前後帆は反対側へずらし、帆布同士の干渉を防ぐ。桁とマストの間はパレルを表す接続材で支持する。Carrackの旗は独立部品で、畳帆でも維持する。
+
+幅方向の桁に沿う帆布束で、従来の断面基底計算がゼロになる問題を共通`addSailBundle()`で修正した。Sloopの軸方向と形状は維持。Lowにも畳帆入力を追加し、展帆defaultは旧形状・材質署名を維持した。CarrackのLow畳帆は固定SVGを流用せず、実形状から平面・側面図を生成する。
+
+BVはSloopと新規2船の表示処理を共通化し、CaravelをShips一覧へ追加。Low／High・帆・部品を選べ、帆指定は品質を変えても保持する。CarrackはBV専用と表示し、CEのCaravelは従来default Lowのまま。全モデルの状態・HighをCEへ接続するS5は未着手。
+
+[計測JSON](../analytics/bv-merchant-ships-high-20261103.json)は`node --import tsx scripts/profileMerchantShipsHigh.mts`で再生成する。S0／S1と同じ定義で線も別計測し、GPUメモリ・FPSではない。
+
+| 船種 | 品質 | 帆 | 三角形 | メッシュ | 線分 | 属性・index配列 bytes |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| Caravel | Low | 展帆 | 1,058 | 42 | 16 | 6,836 |
+| Caravel | Low | 畳帆 | 2,108 | 52 | 10 | 32,288 |
+| Caravel | High | 展帆 | 14,214 | 6 | 3,282 | 1,102,176 |
+| Caravel | High | 畳帆 | 14,094 | 6 | 2,764 | 1,081,104 |
+| Carrack | Low | 展帆 | 4,764 | 198 | 136 | 22,952 |
+| Carrack | Low | 畳帆 | 6,297 | 218 | 124 | 62,318 |
+| Carrack | High | 展帆 | 25,019 | 6 | 4,502 | 1,909,416 |
+| Carrack | High | 畳帆 | 23,807 | 7 | 3,463 | 1,797,216 |
+
+関連テストは`merchantShipHigh.test.ts`14件、`carrack.test.ts`2件、`sloopHigh.test.ts`8件、`shipMeshes.test.ts`2件、`adoption.test.ts`3件の計29件成功。Low署名・default採用、固定部品と旗の不変性、全帆の厚みを持つ束への交換、前後帆の分離、船楼支持、全21 High部品の組立・台帳・線・有限座標・寸法・資源解放を確認した。型検査は引き続き未変更の`charts-overview.ts:560`と`approachPrior.ts:259`の2件で失敗し、変更箇所を指すエラーは無い。
+
+実BVでは3船×Low／High×展帆／畳帆と各部品を巡回。最終形状の視認とコンソールを確認し、PNGは一時領域だけで使用した。監査はCaravelのBV追加で221レコード、Codex High 114、未対応107となった。増えた1レコードは新しい独立モデルではなく、既存CE船種をBVへ表示したもの。次はS3のCodex Galleon Highと砲門開閉、既存Opusの状態対応。

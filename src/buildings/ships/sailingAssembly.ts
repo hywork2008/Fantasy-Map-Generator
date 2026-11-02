@@ -57,7 +57,8 @@ export function addSailBundle(kit: ModelKit, name: string, a: Position, b: Posit
   const start = new THREE.Vector3(...a),
     end = new THREE.Vector3(...b);
   const axis = end.clone().sub(start).normalize();
-  const across = new THREE.Vector3(0, 0, 1).cross(axis).normalize();
+  const reference = Math.abs(axis.z) > 0.95 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, 1);
+  const across = reference.cross(axis).normalize();
   const normal = axis.clone().cross(across).normalize();
   const rows = high ? Math.max(8, Math.min(24, Math.ceil(start.distanceTo(end) / 0.3))) : 12,
     sides = high ? 12 : 8;

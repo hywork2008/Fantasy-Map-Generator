@@ -72,8 +72,8 @@ for (const statement of viewer.statements) {
       const isBasilica = symbol === "BASILICA_TEMPLE";
       const isHouse = ["EARTHEN_HOUSES", "POLYGON_HOUSES"].includes(symbol);
       const isOpusGalleon = symbol === "OPUS_GALLEON";
-      const highAuthors = symbol === "SLOOP"
-        ? SHIP_VARIANTS.filter(v => v.family === "ship.sloop" && v.level === "high").map(v => v.author)
+      const highAuthors = ["SLOOP", "CARAVEL", "CARRACK"].includes(symbol)
+        ? SHIP_VARIANTS.filter(v => v.family === `ship.${symbol.toLowerCase()}` && v.level === "high").map(v => v.author)
         : isBasilica || isHouse || isOpusGalleon ? [definition.author ?? codex] : [];
       const states = symbol === "MEDIEVAL_CONTAINERS" ? ["empty", "closed", "loaded"] : [""];
       for (const state of states)

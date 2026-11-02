@@ -1,7 +1,9 @@
 import { type ModelVariant, variantId } from "../modelVariants";
 import { createBarge } from "./barge";
 import { createCaravel } from "./caravel";
+import { createCarrack } from "./carrack";
 import { createGalleon } from "./galleon";
+import { createMerchantShipHigh } from "./merchantShipHigh";
 import { createOpusGalleon } from "./opusGalleon";
 import { createSloop } from "./sloop";
 import { createSloopHigh } from "./sloopHigh";
@@ -20,6 +22,17 @@ export const SHIP_VARIANTS: readonly ModelVariant[] = [
   { ...codex("ship.sloop", createSloop), id: variantId("ship.sloop", "low", "Codex GPT-6.1 Sol"), level: "low" },
   { ...codex("ship.sloop", createSloopHigh), id: variantId("ship.sloop", "high", "Codex GPT-6.1 Sol"), level: "high" },
   codex("ship.caravel", createCaravel),
+  codex("ship.carrack", createCarrack),
+  ...(["caravel", "carrack"] as const).flatMap(kind =>
+    (["low", "high"] as const).map(level => ({
+      id: variantId(`ship.${kind}`, level, "Codex GPT-6.1 Sol"),
+      family: `ship.${kind}`,
+      level,
+      author: "Codex GPT-6.1 Sol" as const,
+      create: () =>
+        level === "high" ? createMerchantShipHigh(kind) : kind === "caravel" ? createCaravel() : createCarrack()
+    }))
+  ),
   codex("ship.barge", createBarge),
   codex("ship.galleon", createGalleon),
   {

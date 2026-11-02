@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { ModelKit } from "../medieval/modelKit";
 import { meshProjection } from "../meshProjection";
+import { addSailBundle, type SailingShipState } from "./sailingAssembly";
 
 /** An illustrative two-masted lateen-rigged caravel. */
 export const CARAVEL = {
@@ -14,7 +16,7 @@ export const CARAVEL = {
 } as const;
 
 // Bow faces +X; waterline is Y=0. Stations give X, half beam and deck height.
-const STATIONS = [
+export const CARAVEL_STATIONS = [
   [-12, 1.8, 3.1],
   [-9, 3.1, 2.7],
   [-5, 3.75, 2.4],
@@ -28,7 +30,9 @@ export interface CaravelMeshes extends CityStructureMeshes {
   elevation: string;
 }
 
-export function createCaravel(): CaravelMeshes {
+export function createCaravel({ sails = "set" }: SailingShipState = {}): CaravelMeshes {
+  const furled = sails === "furled";
+  const bundles = new ModelKit("caravel-furled-canvas");
   const group = new THREE.Group();
   group.name = "caravel";
   const pickables: THREE.Mesh[] = [];
@@ -76,7 +80,7 @@ export function createCaravel(): CaravelMeshes {
   function line(a: THREE.Vector3, b: THREE.Vector3) {
     ropes.push(...a.toArray(), ...b.toArray());
   }
-  const rings = STATIONS.map(([x, beam, sheer]) => [
+  const rings = CARAVEL_STATIONS.map(([x, beam, sheer]) => [
     [x, sheer, -beam * 0.9],
     [x, 0.3, -beam],
     [x, -1, -beam * 0.65],
@@ -104,14 +108,14 @@ export function createCaravel(): CaravelMeshes {
   surface("stem", rings.at(-1)!.flat(), [0, 7, 1, 1, 7, 6, 1, 6, 2, 2, 6, 5, 2, 5, 3, 3, 5, 4], wood);
   surface(
     "main-deck",
-    STATIONS.flatMap(([x, b, y]) => [x, y, -b * 0.9, x, y, b * 0.9]),
+    CARAVEL_STATIONS.flatMap(([x, b, y]) => [x, y, -b * 0.9, x, y, b * 0.9]),
     deckIndices,
     deck
   );
   for (const side of [-1, 1]) {
-    for (let i = 0; i < STATIONS.length - 1; i++) {
-      const [x, b, y] = STATIONS[i],
-        [nx, nb, ny] = STATIONS[i + 1];
+    for (let i = 0; i < CARAVEL_STATIONS.length - 1; i++) {
+      const [x, b, y] = CARAVEL_STATIONS[i],
+        [nx, nb, ny] = CARAVEL_STATIONS[i + 1];
       spar("gunwale", v(x, y + 0.2, side * b * 0.9), v(nx, ny + 0.2, side * nb * 0.9), 0.14, trim);
     }
   }
@@ -137,23 +141,34 @@ export function createCaravel(): CaravelMeshes {
     const b = v(mast.x + mast.reach * 0.6, mast.foot + 1);
     const c = v(mast.x - mast.reach * 0.75, mast.foot, 0.7);
     spar("lateen-yard", a, b, 0.09);
-    const center = a.clone().add(b).add(c).divideScalar(3);
-    center.z += 0.8;
-    surface(
-      "lateen-sail",
-      [...a.toArray(), ...b.toArray(), ...c.toArray(), ...center.toArray()],
-      [0, 1, 3, 1, 2, 3, 2, 0, 3],
-      canvas
-    );
-    line(a, c);
-    line(b, c);
-    line(c, v(mast.x - 2, 3, 2));
+    if (!furled) {
+      const center = a.clone().add(b).add(c).divideScalar(3);
+      center.z += 0.8;
+      surface(
+        "lateen-sail",
+        [...a.toArray(), ...b.toArray(), ...c.toArray(), ...center.toArray()],
+        [0, 1, 3, 1, 2, 3, 2, 0, 3],
+        canvas
+      );
+      line(a, c);
+      line(b, c);
+      line(c, v(mast.x - 2, 3, 2));
+    } else {
+      const offset = new THREE.Vector3(0, 0.12, 0);
+      const start = a.clone().lerp(b, 0.03).add(offset),
+        end = a.clone().lerp(b, 0.97).add(offset);
+      addSailBundle(bundles, "furled-lateen", [start.x, start.y, start.z], [end.x, end.y, end.z], 0.2, false);
+    }
     for (const side of [-1, 1]) {
       for (const dx of [-1.5, 0]) line(v(mast.x, mast.top * 0.8), v(mast.x + dx, 3, side * 2.8));
     }
   }
   line(v(2.5, 20), v(15.5, 5.8));
   line(v(-6, 15.8), v(-11, 4.5));
+  if (furled) {
+    group.add(bundles.group);
+    pickables.push(...bundles.pickables);
+  }
   const rigging = new THREE.BufferGeometry();
   rigging.setAttribute("position", new THREE.Float32BufferAttribute(ropes, 3));
   geometries.add(rigging);
@@ -162,6 +177,7 @@ export function createCaravel(): CaravelMeshes {
     group,
     pickables,
     dispose() {
+      bundles.finish().dispose();
       for (const geometry of geometries) geometry.dispose();
       for (const material of materials) material.dispose();
     }

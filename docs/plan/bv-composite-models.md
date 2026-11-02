@@ -150,3 +150,5 @@ Highの織物商人会館と職人ギルド会館4種は、`civicHallProfile.ts`
 2026-11-03のユーザー指示でShipsを優先した。[Shipsの調査・状態別部品設計](bv-ships-models.md)に、Codexの未High対応5船種、既存Opus Highの根拠と負荷、展帆／畳帆・砲門開閉・旗の独立指定、索具を含む所有と部品化、CEの寸法・保存・荷役への接続を記録。今回は調査まで完了し、次はSloop Highと畳帆共通基盤を制作する。門楼と44残件は保留。
 
 S1としてSloop Highを8部品で作製し、Low／Highの展帆・畳帆とBV部品選択を実装した。固定部品と既存Low/defaultを維持し、材質結合時にも索具と部品IDを保持・解放する共通処理を追加。関連15件・実BVで検証し、CEは従来Lowのまま。詳細と計測は[Ships設計書§8](bv-ships-models.md#8-s1-sloop-high制作検証2026-11-03)。次はCaravel／Carrack High。
+
+S2でCaravel（8部品）とCarrack（13部品）もHigh化し、両品質で展帆／畳帆に対応。共有する船体・船楼・甲板設備・帆布とS1の組立・索具処理を利用し、前後のラテン帆の干渉を回避した。CaravelをBVへ追加し、既存Low/defaultとCE採用を維持。関連29件・実BV・計測を[Ships設計書§9](bv-ships-models.md)に記録。次はガレオンHighと砲門開閉。
