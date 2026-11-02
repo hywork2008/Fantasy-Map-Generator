@@ -16,7 +16,7 @@ const codex = (family: string, create: ModelVariant["create"]): ModelVariant => 
   create
 });
 
-/** Harbour ships CE places. The Opus galleon's high tier competes with Codex's single model. */
+/** Ship quality families; existing CE default identities remain unchanged. */
 export const SHIP_VARIANTS: readonly ModelVariant[] = [
   codex("ship.sloop", createSloop),
   { ...codex("ship.sloop", createSloop), id: variantId("ship.sloop", "low", "Codex GPT-6.1 Sol"), level: "low" },
@@ -35,6 +35,19 @@ export const SHIP_VARIANTS: readonly ModelVariant[] = [
   ),
   codex("ship.barge", createBarge),
   codex("ship.galleon", createGalleon),
+  { ...codex("ship.galleon", createGalleon), id: variantId("ship.galleon", "low", "Codex GPT-6.1 Sol"), level: "low" },
+  {
+    ...codex("ship.galleon", () => createMerchantShipHigh("galleon")),
+    id: variantId("ship.galleon", "high", "Codex GPT-6.1 Sol"),
+    level: "high"
+  },
+  {
+    id: variantId("ship.galleon", "high", "Claude Opus 5.5"),
+    family: "ship.galleon",
+    level: "high",
+    author: "Claude Opus 5.5",
+    create: () => createOpusGalleon("high")
+  },
   {
     id: variantId("ship.galleon", "default", "Claude Opus 5.5"),
     family: "ship.galleon",

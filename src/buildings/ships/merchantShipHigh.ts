@@ -3,18 +3,20 @@ import { ModelKit, type Position, type Surface } from "../medieval/modelKit";
 import type { ModelPartFactory } from "../modelParts";
 import { CARAVEL_STATIONS } from "./caravel";
 import { CARRACK_STATIONS } from "./carrack";
+import { GALLEON_STATIONS } from "./galleon";
 import {
-  addSailBundle,
-  assembleSailingParts,
-  SailingKit,
-  type SailingShipState,
-  type ShipHullFrame
-} from "./sailingAssembly";
+  createGunportFrames,
+  createGunportMoving,
+  GALLEON_GUN_X,
+  type GalleonState,
+  type GunportMount
+} from "./galleonArmament";
+import { addSailBundle, assembleSailingParts, SailingKit, type ShipHullFrame } from "./sailingAssembly";
 
-export type MerchantShipKind = "caravel" | "carrack";
+export type MerchantShipKind = "caravel" | "carrack" | "galleon";
 const v = (p: Position) => new THREE.Vector3(...p);
 const pos = (p: THREE.Vector3): Position => [p.x, p.y, p.z];
-const profiles = { caravel: CARAVEL_STATIONS, carrack: CARRACK_STATIONS };
+const profiles = { caravel: CARAVEL_STATIONS, carrack: CARRACK_STATIONS, galleon: GALLEON_STATIONS };
 const samples = Object.fromEntries(
   (Object.keys(profiles) as MerchantShipKind[]).map(kind => [
     kind,
@@ -25,7 +27,7 @@ const samples = Object.fromEntries(
   ])
 ) as Record<MerchantShipKind, THREE.Vector3[]>;
 const sections = (kind: MerchantShipKind) => samples[kind];
-const draft = (kind: MerchantShipKind) => (kind === "caravel" ? 1.8 : 3.5);
+const draft = (kind: MerchantShipKind) => (kind === "caravel" ? 1.8 : kind === "galleon" ? 3.2 : 3.5);
 function section(kind: MerchantShipKind, x: number) {
   const points = sections(kind);
   const found = points.findIndex(p => p.x >= x);
@@ -41,11 +43,59 @@ function surface(k: ModelKit, name: string, points: number[], indices: number[],
   geometry.computeVertexNormals();
   k.add(name, geometry, material);
 }
+function galleonBreadth(x: number, y: number) {
+  const p = section("galleon", x);
+  return p.y * (1 - (0.12 * (y - 0.3)) / (p.z - 0.3));
+}
+export function galleonGunportMounts(): readonly GunportMount[] {
+  return [-1, 1].flatMap(side =>
+    GALLEON_GUN_X.map(x => {
+      const y = 2.9,
+        dx = (galleonBreadth(x + 0.01, y) - galleonBreadth(x - 0.01, y)) / 0.02;
+      const dy = (galleonBreadth(x, y + 0.01) - galleonBreadth(x, y - 0.01)) / 0.02;
+      return {
+        id: `broadside-${side}-${x}`,
+        point: [x, y, side * galleonBreadth(x, y)] as Position,
+        normal: pos(new THREE.Vector3(-dx, -dy, side).normalize()),
+        width: 1.25,
+        height: 1.08
+      };
+    })
+  );
+}
+function addGalleonTopsides(k: ModelKit) {
+  const xs = [
+    ...new Set([...sections("galleon").map(p => p.x), ...GALLEON_GUN_X.flatMap(x => [x - 0.6, x + 0.6])])
+  ].sort((a, b) => a - b);
+  for (const side of [-1, 1]) {
+    const points: number[] = [],
+      indices: number[] = [];
+    for (let i = 0; i < xs.length - 1; i++)
+      for (const band of [
+        [0.3, 2.38],
+        [2.38, 3.42],
+        [3.42, Infinity]
+      ]) {
+        const a = xs[i],
+          b = xs[i + 1],
+          middle = (a + b) / 2;
+        if (band[0] === 2.38 && GALLEON_GUN_X.some(x => Math.abs(middle - x) < 0.6)) continue;
+        const bottom = band[0],
+          at = (x: number, y: number) => [x, y, side * galleonBreadth(x, y)];
+        const topA = Math.min(band[1], section("galleon", a).z),
+          topB = Math.min(band[1], section("galleon", b).z);
+        const offset = points.length / 3;
+        points.push(...at(a, bottom), ...at(b, bottom), ...at(a, topA), ...at(b, topB));
+        indices.push(offset, offset + 1, offset + 2, offset + 1, offset + 3, offset + 2);
+      }
+    surface(k, "hull-topsides", points, indices, "oak");
+  }
+}
 function hull(kind: MerchantShipKind) {
   const k = new SailingKit(`${kind}-hull`),
     points = sections(kind);
   const depth = draft(kind),
-    beamScale = kind === "caravel" ? 0.9 : 0.82;
+    beamScale = kind === "caravel" ? 0.9 : kind === "galleon" ? 0.88 : 0.82;
   const rings = points.map(p => [
     [p.x, p.z, -p.y * beamScale],
     ...Array.from({ length: 21 }, (_, j) => {
@@ -62,7 +112,8 @@ function hull(kind: MerchantShipKind) {
         b = a + 23;
       (j === 0 || j === 21 ? upper : lower).push(a, b, a + 1, b, b + 1, a + 1);
     }
-  surface(k, "hull-topsides", rings.flat(2), upper, "oak");
+  if (kind === "galleon") addGalleonTopsides(k);
+  else surface(k, "hull-topsides", rings.flat(2), upper, "oak");
   surface(k, "hull-underwater", rings.flat(2), lower, "dark");
   for (const index of [0, 80]) {
     const indices: number[] = [];
@@ -83,7 +134,7 @@ function hull(kind: MerchantShipKind) {
 function deck(kind: MerchantShipKind) {
   const k = new SailingKit(`${kind}-deck`),
     points = sections(kind),
-    scale = kind === "caravel" ? 0.9 : 0.82;
+    scale = kind === "caravel" ? 0.9 : kind === "galleon" ? 0.88 : 0.82;
   const indices: number[] = [];
   for (let i = 0; i < 80; i++) {
     const a = i * 2;
@@ -223,9 +274,9 @@ function ladder(k: ModelKit, name: string, a: Position, b: Position, width = 0.8
 }
 function equipment(kind: MerchantShipKind) {
   const k = new ModelKit(`${kind}-equipment`),
-    big = kind === "carrack";
-  const x = big ? 2.2 : 2,
-    y = big ? 5.35 : 2.6,
+    big = kind !== "caravel";
+  const x = kind === "galleon" ? 3 : big ? 2.2 : 2,
+    y = kind === "galleon" ? 5.05 : big ? 5.35 : 2.6,
     w = big ? 4.5 : 2.5,
     d = big ? 3.3 : 2;
   k.box("hatch-coaming", [x, y, 0], [w, 0.4, d], "oak");
@@ -244,7 +295,34 @@ function equipment(kind: MerchantShipKind) {
       k.box("cleat-foot", [xx, p.z + 0.13, z], [0.16, 0.26, 0.16], "iron");
       k.beam("cleat-horns", [xx - 0.35, p.z + 0.25, z], [xx + 0.35, p.z + 0.25, z], 0.09, "iron", true);
     }
-  if (big) {
+  if (kind === "galleon") {
+    ladder(k, "forecastle-access", [10.5, 5.1, 1.3], [12.5, 6.7, 1.3]);
+    ladder(k, "quarterdeck-access", [-8.5, 4.9, 1.4], [-10.5, 7.7, 1.4]);
+    ladder(k, "poop-access", [-15.5, 7.7, 0], [-17.2, 9.8, 0]);
+    surface(
+      k,
+      "beakhead-deck",
+      [19.2, 6.72, -2, 19.2, 6.72, 2, 21, 6.8, -1.8, 21, 6.8, 1.8, 28, 7.8, -0.6, 28, 7.8, 0.6],
+      [0, 1, 2, 1, 3, 2, 2, 3, 4, 3, 5, 4],
+      "wood"
+    );
+    for (const side of [-1, 1]) {
+      k.beam("beakhead-stringer", [19.2, 6.63, side * 1.9], [21, 6.71, side * 1.7], 0.18, "oak");
+      k.beam("beakhead-stringer", [21, 6.71, side * 1.7], [28, 7.71, side * 0.5], 0.18, "oak");
+      k.beam("beakhead-knee", [22.5, 4, side * 0.6], [27, 7.55, side * 0.6], 0.22, "oak");
+    }
+    for (const side of [-1, 1]) {
+      k.beam("beakhead-rail", [21, 7.8, side * 1.8], [28, 8.8, side * 0.6], 0.12, "oak");
+      for (let t = 0; t < 1.01; t += 0.2)
+        k.beam(
+          "beakhead-post",
+          [21 + 7 * t, 6.8 + t, side * (1.8 - 1.2 * t)],
+          [21 + 7 * t, 7.8 + t, side * (1.8 - 1.2 * t)],
+          0.08,
+          "oak"
+        );
+    }
+  } else if (big) {
     ladder(k, "forecastle-access", [5.5, 5.32, 1.3], [8.5, 9.2, 1.3]);
     ladder(k, "quarterdeck-access", [-5.5, 5.3, 1.4], [-8, 9.0, 1.4]);
     ladder(k, "poop-access", [-9, 9.0, 0], [-11, 11.3, 0]);
@@ -263,10 +341,17 @@ const CARRACK_MASTS = [
   { x: -2, top: 33 },
   { x: -12.5, top: 24 }
 ] as const;
+const GALLEON_MASTS = [
+  { x: 11, top: 32 },
+  { x: -3, top: 39 },
+  { x: -17, top: 28 }
+] as const;
+const mastPlans = (kind: MerchantShipKind) =>
+  kind === "galleon" ? GALLEON_MASTS : kind === "carrack" ? CARRACK_MASTS : CARAVEL_MASTS;
 function spars(kind: MerchantShipKind) {
   const k = new ModelKit(`${kind}-spars`),
-    big = kind === "carrack";
-  for (const mast of big ? CARRACK_MASTS : CARAVEL_MASTS) {
+    big = kind !== "caravel";
+  for (const mast of mastPlans(kind)) {
     const bottom = section(kind, mast.x).z;
     k.cylinder(
       "mast",
@@ -285,8 +370,8 @@ function spars(kind: MerchantShipKind) {
   }
   k.beam(
     "bowsprit",
-    big ? [12, 7.5, 0] : [9, 3.3, 0],
-    big ? [24, 14, 0] : [15.5, 5.8, 0],
+    kind === "galleon" ? [18, 6, 0] : big ? [12, 7.5, 0] : [9, 3.3, 0],
+    kind === "galleon" ? [33, 14, 0] : big ? [24, 14, 0] : [15.5, 5.8, 0],
     big ? 0.46 : 0.28,
     "oak",
     true
@@ -295,9 +380,9 @@ function spars(kind: MerchantShipKind) {
 }
 function rigging(kind: MerchantShipKind) {
   const k = new SailingKit(`${kind}-standing-rig`),
-    big = kind === "carrack";
+    big = kind !== "caravel";
   const segments: [Position, Position][] = [];
-  for (const mast of big ? CARRACK_MASTS : CARAVEL_MASTS)
+  for (const mast of mastPlans(kind))
     for (const side of [-1, 1]) {
       const top: Position = [mast.x, mast.top * 0.75, 0],
         feet: Position[] = [];
@@ -312,8 +397,11 @@ function rigging(kind: MerchantShipKind) {
       for (let t = 0.12; t < 0.95; t += 0.06)
         segments.push([pos(v(top).lerp(v(feet[0]), t)), pos(v(top).lerp(v(feet.at(-1)!), t))]);
     }
-  const masts = big ? CARRACK_MASTS : CARAVEL_MASTS;
-  segments.push([[masts[0].x, masts[0].top - 0.2, 0], big ? [24, 14, 0] : [15.5, 5.8, 0]]);
+  const masts = mastPlans(kind);
+  segments.push([
+    [masts[0].x, masts[0].top - 0.2, 0],
+    kind === "galleon" ? [33, 14, 0] : big ? [24, 14, 0] : [15.5, 5.8, 0]
+  ]);
   for (let i = 1; i < masts.length; i++)
     segments.push([
       [masts[i].x, masts[i].top - 0.2, 0],
@@ -353,6 +441,12 @@ function lateen(kind: MerchantShipKind, index: number, furled: boolean) {
     a = [m.x - m.reach * 0.55, m.top - 0.4, 0];
     b = [m.x + m.reach * 0.6, m.foot + 1, 0];
     c = [m.x - m.reach * 0.75, m.foot, 0.7];
+  } else if (kind === "galleon") {
+    a = [-23, 15, 0];
+    b = [-13, 28, 0];
+    c = [-12, 13, 0];
+    mastX = -17;
+    mastTop = 28;
   } else {
     a = [-18, 14, 0];
     b = [-8, 25, 0];
@@ -413,9 +507,15 @@ const SQUARES = [
   { x: -2, y: 24, width: 17, drop: 14 },
   { x: -2, y: 31, width: 9, drop: 5 }
 ] as const;
-function square(index: number, furled: boolean) {
+const GALLEON_SQUARES = [
+  { x: 11, y: 23, width: 15, drop: 10 },
+  { x: 11, y: 30, width: 10, drop: 6 },
+  { x: -3, y: 26, width: 19, drop: 12 },
+  { x: -3, y: 36, width: 12, drop: 8 }
+] as const;
+function square(kind: MerchantShipKind, index: number, furled: boolean) {
   const k = new SailingKit(`carrack-square-${index}`),
-    s = SQUARES[index];
+    s = (kind === "galleon" ? GALLEON_SQUARES : SQUARES)[index];
   k.beam("yard", [s.x, s.y, -s.width / 2 - 0.5], [s.x, s.y, s.width / 2 + 0.5], 0.28, "wood", true);
   if (furled) addSailBundle(k, "furled-square", [s.x, s.y + 0.18, -s.width / 2], [s.x, s.y + 0.18, s.width / 2], 0.25);
   else {
@@ -425,14 +525,14 @@ function square(index: number, furled: boolean) {
       (u - 0.5) * s.width * (1 - 0.1 * t)
     ]);
     for (const side of [-1, 1]) {
-      const p = section("carrack", s.x - 2),
+      const p = section(kind, s.x - 2),
         anchor: Position = [p.x, p.z + 0.25, side * p.y * 0.7];
       k.lines("square-sheet", [[[s.x, s.y - s.drop, side * s.width * 0.45], anchor]]);
       k.ring("sheet-block", anchor, 0.08, 0.02, "iron", true);
       k.box("sheet-anchor", [anchor[0], anchor[1] - 0.14, anchor[2]], [0.1, 0.28, 0.1], "iron");
     }
   }
-  const top = s.x === 10 ? 27 : 33;
+  const top = mastPlans(kind).find(m => m.x === s.x)!.top;
   k.lines(
     "yard-lifts",
     [-1, 1].map(
@@ -445,9 +545,9 @@ function square(index: number, furled: boolean) {
   );
   return k.finish();
 }
-function flags() {
+function flags(kind: MerchantShipKind) {
   const k = new ModelKit("carrack-pennants");
-  for (const m of CARRACK_MASTS)
+  for (const m of mastPlans(kind))
     surface(
       k,
       "pennant",
@@ -475,37 +575,48 @@ function flags() {
 }
 export function merchantShipParts(
   kind: MerchantShipKind,
-  { sails = "set" }: SailingShipState = {}
+  { sails = "set", gunports = "open" }: GalleonState = {}
 ): readonly ModelPartFactory[] {
-  const big = kind === "carrack",
+  const big = kind !== "caravel",
     furled = sails === "furled";
   const list: [string, string, ModelPartFactory["create"]][] = [
     ["hull", "Hull and rudder", () => hull(kind)],
     ["deck", "Main deck", () => deck(kind)],
-    ...(big
+    ...(kind === "galleon"
       ? ([
-          ["forecastle", "Forecastle", () => castle(kind, "forecastle", 8.5, 16.5, 6.2, 6.2, 9.2)],
-          ["sterncastle", "Sterncastle", () => castle(kind, "sterncastle", -17.2, -8, 8, 5.8, 9)],
-          ["poop", "Upper sterncastle", () => castle(kind, "upper-sterncastle", -17, -11, 6.6, 9, 11.3)]
+          ["forecastle", "Forecastle", () => castle(kind, "forecastle", 12.5, 19.5, 6.5, 5.4, 6.7)],
+          ["sterncastle", "Quarterdeck", () => castle(kind, "sterncastle", -22.5, -10.5, 8.4, 5.4, 7.7)],
+          ["poop", "Poop deck", () => castle(kind, "upper-sterncastle", -22.4, -17.2, 7.2, 7.7, 9.8)]
         ] as [string, string, ModelPartFactory["create"]][])
-      : ([["aft-cabin", "Aft cabin and deck", () => castle(kind, "aft-cabin", -10.8, -6.2, 5, 2.6, 4.5)]] as [
-          string,
-          string,
-          ModelPartFactory["create"]
-        ][])),
+      : big
+        ? ([
+            ["forecastle", "Forecastle", () => castle(kind, "forecastle", 8.5, 16.5, 6.2, 6.2, 9.2)],
+            ["sterncastle", "Sterncastle", () => castle(kind, "sterncastle", -17.2, -8, 8, 5.8, 9)],
+            ["poop", "Upper sterncastle", () => castle(kind, "upper-sterncastle", -17, -11, 6.6, 9, 11.3)]
+          ] as [string, string, ModelPartFactory["create"]][])
+        : ([["aft-cabin", "Aft cabin and deck", () => castle(kind, "aft-cabin", -10.8, -6.2, 5, 2.6, 4.5)]] as [
+            string,
+            string,
+            ModelPartFactory["create"]
+          ][])),
     ["equipment", "Hatches and deck equipment", () => equipment(kind)],
     ["spars", "Masts and bowsprit", () => spars(kind)],
     ["rigging", "Standing rigging", () => rigging(kind)]
   ];
   if (big) {
-    SQUARES.forEach((_, i) => {
-      list.push([`square-${i}`, `Square sail ${i + 1}`, () => square(i, furled)]);
+    (kind === "galleon" ? GALLEON_SQUARES : SQUARES).forEach((_, i) => {
+      list.push([`square-${i}`, `Square sail ${i + 1}`, () => square(kind, i, furled)]);
     });
-    list.push(["mizzen", "Lateen mizzen", () => lateen(kind, 0, furled)], ["flags", "Pennants", flags]);
+    list.push(["mizzen", "Lateen mizzen", () => lateen(kind, 0, furled)], ["flags", "Pennants", () => flags(kind)]);
   } else for (let i = 0; i < 2; i++) list.push([`lateen-${i}`, `Lateen rig ${i + 1}`, () => lateen(kind, i, furled)]);
+  if (kind === "galleon")
+    list.push(
+      ["port-frames", "Gunport frames and chambers", () => createGunportFrames(galleonGunportMounts())],
+      ["armament", "Gunport lids and guns", () => createGunportMoving(galleonGunportMounts(), gunports === "closed")]
+    );
   return list.map(([id, role, create]) => ({ id, role, create, quality: "high", author: "Codex GPT-6.1 Sol" }));
 }
-export function createMerchantShipHigh(kind: MerchantShipKind, state: SailingShipState = {}) {
+export function createMerchantShipHigh(kind: MerchantShipKind, state: GalleonState = {}) {
   const model = assembleSailingParts(`${kind}-high`, merchantShipParts(kind, state)),
     points = sections(kind);
   model.group.userData.shipHull = {
@@ -515,5 +626,6 @@ export function createMerchantShipHigh(kind: MerchantShipKind, state: SailingShi
     waterline: 0,
     draft: draft(kind)
   } satisfies ShipHullFrame;
+  if (kind === "galleon") model.group.userData.gunports = galleonGunportMounts();
   return model;
 }

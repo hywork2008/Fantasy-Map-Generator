@@ -1,5 +1,10 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { compactModel } from "../compactModel";
+import { ModelKit } from "../medieval/modelKit";
+import { meshProjection } from "../meshProjection";
+import { createGunportMoving, type GalleonState, type GunportMount } from "./galleonArmament";
+import { addSailBundle } from "./sailingAssembly";
 
 /** An imagined sailing galleon, in meters, rather than a surveyed historical vessel. */
 export const GALLEON = {
@@ -13,7 +18,7 @@ export const GALLEON = {
 } as const;
 
 // Longitudinal stations: x, half beam, sheer height. The bow points along +X.
-const STATIONS = [
+export const GALLEON_STATIONS = [
   [-23, 3.3, 6.3],
   [-20, 4.6, 5.8],
   [-14, 5.7, 5.2],
@@ -48,7 +53,12 @@ export interface GalleonMeshes extends CityStructureMeshes {
   elevation: string;
 }
 
-export function createGalleon(): GalleonMeshes {
+export function createGalleon({ sails = "set", gunports = "open" }: GalleonState = {}): GalleonMeshes {
+  const furled = sails === "furled",
+    closed = gunports === "closed";
+  const bundles = new ModelKit("galleon-furled-canvas");
+  const additions: CityStructureMeshes[] = [];
+  const closedPorts: GunportMount[] = [];
   const group = new THREE.Group();
   group.name = "galleon";
   const pickables: THREE.Mesh[] = [];
@@ -100,7 +110,7 @@ export function createGalleon(): GalleonMeshes {
     return add(name, geometry, material);
   }
   // Closed cross-section with a narrow keel, rounded bilges and inward-tapering topsides.
-  const rings = STATIONS.map(([x, beam, sheer]) => [
+  const rings = GALLEON_STATIONS.map(([x, beam, sheer]) => [
     [x, sheer, -beam * 0.88],
     [x, 1.2, -beam],
     [x, -1.6, -beam * 0.7],
@@ -125,17 +135,17 @@ export function createGalleon(): GalleonMeshes {
   surface("hull-underwater", vertices, lower, lowerHull);
   surface("transom", rings[0].flat(), [0, 1, 7, 1, 6, 7, 1, 2, 6, 2, 5, 6, 2, 3, 5, 3, 4, 5], blue);
   surface("stem", rings.at(-1)!.flat(), [0, 7, 1, 1, 7, 6, 1, 6, 2, 2, 6, 5, 2, 5, 3, 3, 5, 4], wood);
-  const deckPoints = STATIONS.flatMap(([x, beam, y]) => [x, y, -beam * 0.88, x, y, beam * 0.88]);
+  const deckPoints = GALLEON_STATIONS.flatMap(([x, beam, y]) => [x, y, -beam * 0.88, x, y, beam * 0.88]);
   const deckIndices: number[] = [];
-  for (let i = 0; i < STATIONS.length - 1; i++) {
+  for (let i = 0; i < GALLEON_STATIONS.length - 1; i++) {
     const a = i * 2;
     deckIndices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
   }
   surface("main-deck", deckPoints, deckIndices, deck);
   for (const side of [-1, 1]) {
-    for (let i = 0; i < STATIONS.length - 1; i++) {
-      const [x, beam, y] = STATIONS[i],
-        [nx, nb, ny] = STATIONS[i + 1];
+    for (let i = 0; i < GALLEON_STATIONS.length - 1; i++) {
+      const [x, beam, y] = GALLEON_STATIONS[i],
+        [nx, nb, ny] = GALLEON_STATIONS[i + 1];
       spar("bulwark", v(x, y + 0.35, side * beam * 0.88), v(nx, ny + 0.35, side * nb * 0.88), 0.2, blue);
       for (const offset of [0.75, 2.6]) {
         spar("hull-wale", v(x, y - offset, side * beam * 0.93), v(nx, ny - offset, side * nb * 0.93), 0.1, trim);
@@ -156,15 +166,30 @@ export function createGalleon(): GalleonMeshes {
   raisedDeck("poop-deck", -20, 7.8, 5.5, 2, 7.2);
   for (const side of [-1, 1]) {
     for (const x of [-17, -12, -7, -2, 3, 8, 13]) {
-      const station = STATIONS.findIndex(s => s[0] >= x);
-      const [ax, ab] = STATIONS[station - 1],
-        [bx, bb] = STATIONS[station];
+      const station = GALLEON_STATIONS.findIndex(s => s[0] >= x);
+      const [ax, ab] = GALLEON_STATIONS[station - 1],
+        [bx, bb] = GALLEON_STATIONS[station];
       const beam = ab + ((bb - ab) * (x - ax)) / (bx - ax);
-      box("gunport", x, 2.9, side * beam * 0.95, 1.15, 0.95, 0.12, dark);
-      spar("cannon", v(x, 2.9, side * (beam * 0.95 - 0.2)), v(x, 2.9, side * (beam + 0.8)), 0.18, iron);
-      const lid = box("gunport-lid", x, 3.65, side * (beam * 0.95 + 0.3), 1.25, 0.12, 0.9, wood);
-      lid.rotation.x = side * 0.35;
+      if (!closed) {
+        box("gunport", x, 2.9, side * beam * 0.95, 1.15, 0.95, 0.12, dark);
+        spar("cannon", v(x, 2.9, side * (beam * 0.95 - 0.2)), v(x, 2.9, side * (beam + 0.8)), 0.18, iron);
+        const lid = box("gunport-lid", x, 3.65, side * (beam * 0.95 + 0.3), 1.25, 0.12, 0.9, wood);
+        lid.rotation.x = side * 0.35;
+      } else
+        closedPorts.push({
+          id: `port-${side}-${x}`,
+          point: [x, 2.9, side * beam * 0.95],
+          normal: [0, 0, side],
+          width: 1.15,
+          height: 0.95
+        });
     }
+  }
+  if (closedPorts.length) {
+    const guns = compactModel(createGunportMoving(closedPorts, true, false), { mergeEquivalentMaterials: true });
+    group.add(guns.group);
+    pickables.push(...guns.pickables);
+    additions.push(guns);
   }
   for (const z of [-2.4, -1.2, 0, 1.2, 2.4]) {
     box("stern-window", -23.06, 8.7, z, 0.12, 1, 0.75, trim);
@@ -204,29 +229,39 @@ export function createGalleon(): GalleonMeshes {
     }
     for (const s of mast.sails) {
       spar("yard", v(mast.x, s.y, -s.width / 2 - 0.7), v(mast.x, s.y, s.width / 2 + 0.7), 0.14);
-      const points: number[] = [],
-        indices: number[] = [];
-      const cols = 12,
-        rows = 8;
-      for (let row = 0; row <= rows; row++) {
-        const t = row / rows;
-        for (let col = 0; col <= cols; col++) {
-          const u = col / cols;
-          points.push(
-            mast.x + 2.2 * Math.sin(Math.PI * u) * Math.sin(Math.PI * t),
-            s.y - s.drop * t + 0.8 * Math.sin(Math.PI * u) * t,
-            (u - 0.5) * s.width * (1 - 0.12 * t)
-          );
+      if (!furled) {
+        const points: number[] = [],
+          indices: number[] = [];
+        const cols = 12,
+          rows = 8;
+        for (let row = 0; row <= rows; row++) {
+          const t = row / rows;
+          for (let col = 0; col <= cols; col++) {
+            const u = col / cols;
+            points.push(
+              mast.x + 2.2 * Math.sin(Math.PI * u) * Math.sin(Math.PI * t),
+              s.y - s.drop * t + 0.8 * Math.sin(Math.PI * u) * t,
+              (u - 0.5) * s.width * (1 - 0.12 * t)
+            );
+          }
         }
-      }
-      for (let r = 0; r < rows; r++)
-        for (let c = 0; c < cols; c++) {
-          const a = r * (cols + 1) + c;
-          indices.push(a, a + cols + 1, a + 1, a + 1, a + cols + 1, a + cols + 2);
-        }
-      surface("square-sail", points, indices, sail);
-      for (const side of [-1, 1])
-        line(v(mast.x, s.y, (side * s.width) / 2), v(mast.x, s.y - s.drop, side * s.width * 0.44));
+        for (let r = 0; r < rows; r++)
+          for (let c = 0; c < cols; c++) {
+            const a = r * (cols + 1) + c;
+            indices.push(a, a + cols + 1, a + 1, a + 1, a + cols + 1, a + cols + 2);
+          }
+        surface("square-sail", points, indices, sail);
+        for (const side of [-1, 1])
+          line(v(mast.x, s.y, (side * s.width) / 2), v(mast.x, s.y - s.drop, side * s.width * 0.44));
+      } else
+        addSailBundle(
+          bundles,
+          "furled-square",
+          [mast.x, s.y + 0.18, -s.width / 2],
+          [mast.x, s.y + 0.18, s.width / 2],
+          0.28,
+          false
+        );
     }
     // Long, forked pennants provide a readable silhouette above the rig.
     surface(
@@ -254,9 +289,15 @@ export function createGalleon(): GalleonMeshes {
   }
   function lateen() {
     spar("lateen-yard", v(-23, 15), v(-13, 28), 0.13);
-    surface("lateen-sail", [-23, 15, 0, -13, 28, 0, -12, 13, 0, -16, 18, 1.3], [0, 1, 3, 1, 2, 3, 2, 0, 3], sail);
+    if (!furled)
+      surface("lateen-sail", [-23, 15, 0, -13, 28, 0, -12, 13, 0, -16, 18, 1.3], [0, 1, 3, 1, 2, 3, 2, 0, 3], sail);
+    else addSailBundle(bundles, "furled-lateen", [-22.7, 15.51, 0], [-13.3, 27.73, 0], 0.28, false);
   }
   lateen();
+  if (furled) {
+    group.add(bundles.group);
+    pickables.push(...bundles.pickables);
+  }
   line(v(33, 14), v(11, 32));
   line(v(24, 7), v(11, 31));
   line(v(11, 32), v(-3, 38));
@@ -267,22 +308,27 @@ export function createGalleon(): GalleonMeshes {
   const lines = new THREE.LineSegments(rigging, rope);
   lines.name = "standing-rigging";
   group.add(lines);
-  return {
+  const model = {
     group,
     pickables,
     plan: galleonPlan(),
     elevation: galleonElevation(),
     dispose() {
+      bundles.finish().dispose();
+      for (const addition of additions) addition.dispose();
       for (const geometry of geometries) geometry.dispose();
       for (const material of materials) material.dispose();
     }
   };
+  return furled || closed
+    ? { ...model, plan: meshProjection(model, "top"), elevation: meshProjection(model, "side") }
+    : model;
 }
 
 function galleonPlan(): string {
   const outline = [
-    ...STATIONS.map(([x, b]) => `${x},${-b * 0.88}`),
-    ...[...STATIONS].reverse().map(([x, b]) => `${x},${b * 0.88}`)
+    ...GALLEON_STATIONS.map(([x, b]) => `${x},${-b * 0.88}`),
+    ...[...GALLEON_STATIONS].reverse().map(([x, b]) => `${x},${b * 0.88}`)
   ].join(" ");
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-26 -12 62 24"><g stroke="#604530" stroke-width="0.16"><polygon points="${outline}" fill="#b58e59"/><path d="M-22.5,-4.2 H-10.5 V4.2 H-22.5 Z M-22.75,-3.6 H-17.25 V3.6 H-22.75 Z M12.5,-3.25 H19.5 V3.25 H12.5 Z" fill="#d1ad60"/><rect x="1" y="-1.5" width="4" height="3" fill="#68432e"/><path d="M18,0 H33" stroke-width="0.45"/>${MASTS.map(m => `<circle cx="${m.x}" r="0.6" fill="#68432e"/>${m.sails.map(s => `<path d="M${m.x},${-s.width / 2} V${s.width / 2}" stroke-width="0.3"/>`).join("")}`).join("")}</g></svg>`;
 }
