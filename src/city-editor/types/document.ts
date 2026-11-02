@@ -532,6 +532,11 @@ export interface CityDocument {
   fortSite?: import("./fortSite").FortSite;
   /** Earthworks over the cell elevations, such as a castle platform. Ignored by fort sites. */
   terrain?: import("./terrain").CityTerrainLayer;
+  /**
+   * Mesh-free city. When set, the ledger is the saved document and `mesh` is only an empty view shell.
+   * Roads, rivers, plots, and zones are read from here, not from cell edges.
+   */
+  freeform?: import("./freeformCity").FreeformCity;
   /** Optional finishing decoration, independent of city generation stages. */
   vacantLotTrees?: { seed: string; visible: boolean };
   /** CE overrides for automatically placed facilities; absent entries follow FMG/defaults. */
@@ -683,7 +688,10 @@ export type Tool =
   | "face"
   | "landmark"
   | "ship"
-  | "object";
+  | "object"
+  | "building"
+  | "way"
+  | "zone";
 
 export type { CastleSettings } from "./castle";
 export type {

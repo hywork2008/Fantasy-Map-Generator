@@ -578,7 +578,9 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
       template !== "crag" &&
       template !== "spur" &&
       template !== "meander" &&
-      template !== "escarpment"
+      template !== "escarpment" &&
+      template !== "dome" &&
+      template !== "cells"
     )
       return null;
     const sample = raw.terrainField.sampleMeters;

@@ -14,6 +14,14 @@ import {
   resolveMaxPatches
 } from "../generators/document";
 import { finishRiver, smoothFeatureGroups } from "../generators/features";
+import { placeFreeformBuildings } from "../generators/freeform/autoPlace";
+import {
+  convertDocumentToFreeform,
+  createFreeformCity,
+  freeformFrameMeters,
+  freeformSeed,
+  materializeFreeform
+} from "../generators/freeform/freeformCity";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { randomSeed } from "../generators/generation/settings";
 import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } from "../generators/hexGrid";
@@ -149,6 +157,8 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     gridKindLabel: { get: () => gridKindLabel },
     syncGridKindUi: { get: () => syncGridKindUi },
     newButton: { get: () => newButton },
+    freeformButton: { get: () => freeformButton },
+    convertButton: { get: () => convertButton },
     sizeLabel: { get: () => sizeLabel },
     undoButton: { get: () => undoButton },
     redoButton: { get: () => redoButton },
@@ -235,38 +245,14 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     hexSizeLabel.hidden = ctx.documents.gridKind !== "hex";
   };
   syncGridKindUi();
-  const newButton = ctx.makeIconButton("🆕", editorText("cityEditor.messages.generateANewGrid"), () => {
-    const housing = ctx.documents.documentState;
-    ctx.documents.gridSeed = randomSeed();
-    ctx.documents.documentState = createGridDocument({
-      size: size.value as CitySizePreset,
-      grid: ctx.documents.gridKind,
-      seed: ctx.documents.gridSeed,
-      hexSizeMeters: ctx.documents.hexSizeMeters,
-      patchParams: { ...ctx.generation.gridEvoParams },
-      ...ctx.importedFrame(),
-      measureBlockSize: ctx.documents.measureTownCells
-    });
-    ctx.documents.documentState = withBuildingAppearance({
-      ...ctx.documents.documentState,
-      biome: housing.biome,
-      buildingHeightPolicy: housing.buildingHeightPolicy,
-      buildingHeightLimit: housing.buildingHeightLimit,
-      buildingAppearanceProfile: housing.buildingAppearanceProfile,
-      buildingAppearanceClimate: housing.buildingAppearanceClimate,
-      buildingWallFinish: housing.buildingWallFinish
-    });
-    ctx.documents.history = new DocumentHistory(
-      ctx.documents.documentState,
-      editorText("cityEditor.messages.newGrid"),
-      undefined,
-      ctx.fixedApproachProvider
-    );
+  const openFreshDocument = (next: CityDocument, label: string): void => {
+    ctx.documents.documentState = next;
+    ctx.documents.history = new DocumentHistory(next, label, undefined, ctx.fixedApproachProvider);
     ctx.generationLog.reset();
     ctx.documents.referenceImage = null;
     ctx.interaction.selection = emptySelection();
     ctx.interaction.activeGroupId = null;
-    ctx.display.halfView = ctx.documents.documentState.frame.extentMeters / 2;
+    ctx.display.halfView = next.frame.extentMeters / 2;
     ctx.display.viewCenter = [0, 0];
     // A fresh mesh may reuse the old town's face ids — drop any stale step state.
     ctx.generation.activeStepStage = null;
@@ -283,6 +269,85 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     ctx.clearMeasurement();
     ctx.rebuildEditorIndexes();
     ctx.refresh();
+  };
+  const keptAppearance = (next: CityDocument, housing: CityDocument): CityDocument =>
+    withBuildingAppearance({
+      ...next,
+      biome: housing.biome,
+      buildingHeightPolicy: housing.buildingHeightPolicy,
+      buildingHeightLimit: housing.buildingHeightLimit,
+      buildingAppearanceProfile: housing.buildingAppearanceProfile,
+      buildingAppearanceClimate: housing.buildingAppearanceClimate,
+      buildingWallFinish: housing.buildingWallFinish
+    });
+  const newButton = ctx.makeIconButton("🆕", editorText("cityEditor.messages.generateANewGrid"), () => {
+    const housing = ctx.documents.documentState;
+    ctx.documents.gridSeed = randomSeed();
+    openFreshDocument(
+      keptAppearance(
+        createGridDocument({
+          size: size.value as CitySizePreset,
+          grid: ctx.documents.gridKind,
+          seed: ctx.documents.gridSeed,
+          hexSizeMeters: ctx.documents.hexSizeMeters,
+          patchParams: { ...ctx.generation.gridEvoParams },
+          ...ctx.importedFrame(),
+          measureBlockSize: ctx.documents.measureTownCells
+        }),
+        housing
+      ),
+      editorText("cityEditor.messages.newGrid")
+    );
+  });
+  const freeformButton = ctx.makeIconButton("◌", editorText("cityEditor.messages.freeformCity"), () => {
+    const housing = ctx.documents.documentState;
+    const requested = CITY_SIZE_PRESETS[size.value as CitySizePreset].extentMeters;
+    const extent = freeformFrameMeters(requested);
+    openFreshDocument(
+      keptAppearance(materializeFreeform(createFreeformCity(extent, freeformSeed(randomSeed())), housing), housing),
+      editorText("cityEditor.messages.freeformCity")
+    );
+    if (extent < requested) ctx.showNotice(editorText("cityEditor.messages.freeformFrame"));
+  });
+  const convertButton = ctx.makeIconButton("⇄", editorText("cityEditor.messages.convertToFreeform"), () => {
+    const current = ctx.documents.documentState;
+    if (current.freeform) {
+      ctx.showNotice(editorText("cityEditor.messages.freeformAlready"));
+      return;
+    }
+    const next = convertDocumentToFreeform(current);
+    if (!next) {
+      ctx.showNotice(editorText("cityEditor.messages.freeformNoHeight"));
+      return;
+    }
+    ctx.generation.failurePreview = null;
+    ctx.generation.failureRenderContext = null;
+    ctx.generation.activeStepStage = null;
+    ctx.generation.urbanCoreHighlight = null;
+    ctx.generation.stepOverlayPaths = null;
+    ctx.stepStatus.textContent = "";
+    ctx.commit(next, editorText("cityEditor.messages.freeformConverted"));
+  });
+  const placeButton = ctx.makeIconButton("🏠", editorText("cityEditor.messages.placeFreeform"), () => {
+    const current = ctx.documents.documentState;
+    if (!current.freeform) {
+      ctx.showNotice(editorText("cityEditor.messages.freeformPlaceNeedsCity"));
+      return;
+    }
+    const result = placeFreeformBuildings(current);
+    if (result.placed === 0) {
+      const key =
+        result.reason === "full"
+          ? "cityEditor.messages.freeformPlaceFull"
+          : result.reason === "ledger"
+            ? "cityEditor.messages.buildingNeedsField"
+            : "cityEditor.messages.freeformPlaceNone";
+      ctx.showNotice(editorText(key));
+      return;
+    }
+    const message = editorText("cityEditor.messages.freeformPlaced", { value0: result.placed });
+    ctx.commit(result.document, message);
+    ctx.showNotice(message);
   });
   const sizeLabel = ctx.label(editorText("cityEditor.messages.mapSize"), size);
   sizeLabel.className = "ce-size-choice";
@@ -384,7 +449,15 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     ctx.label(editorText("cityEditor.messages.cellIDs"), showLabelsInput)
   );
   const documentActions = div("ce-icon-row");
-  documentActions.append(newButton, scaleButton, finishButton, smoothGroupsButton);
+  documentActions.append(
+    newButton,
+    freeformButton,
+    convertButton,
+    placeButton,
+    scaleButton,
+    finishButton,
+    smoothGroupsButton
+  );
   const gridParamLabels: HTMLLabelElement[] = [];
   const gridParamControls: Partial<
     Record<

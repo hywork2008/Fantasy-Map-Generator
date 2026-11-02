@@ -42,6 +42,7 @@ import { createBuildingFrontageResolver } from "../generators/buildingFrontage";
 import type { BuildingLot } from "../generators/buildingLots.types";
 import { cachedForestPlan } from "../generators/forestPlan";
 import { hasForestState } from "../generators/forestSettings";
+import { terrainRayPoint } from "../generators/freeform/groundPick";
 import { buildParkLawns } from "../generators/parkFabric";
 import { RIVER_DROP_MIN, riverDropMeters } from "../generators/riverSurface";
 import { type CityTerrain, cityTerrain, cityTerrainStamp } from "../generators/terrainElevation";
@@ -53,8 +54,10 @@ import type { ForestPlan, ForestQualityPreference } from "../types/contracts/for
 import type { SimplificationPreferences } from "../types/contracts/simplification";
 import type { StructureKind, StructureMassing, StructureMaterial } from "../types/contracts/structureMassing";
 import type { CityDocument } from "../types/document";
+import type { Point } from "../types/primitives";
 import { createFogControls, readFogSettings } from "./fogControls";
 import { ForestAutoQuality } from "./forestAutoQuality";
+import { createPlacementGhost, type PlacementGhost } from "./freeform/placementGhost";
 import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
 import { type City3dPerformanceSnapshot, type City3dRenderMetrics, collectSceneMetrics } from "./renderMetrics";
@@ -148,7 +151,12 @@ function frontageStructurePolygons(parts: readonly StructureMassing[]): [number,
 
 interface Mount {
   own(cleanup: () => void): void;
-  listen(target: EventTarget, type: string, handler: (event: Event) => void): void;
+  listen(
+    target: EventTarget,
+    type: string,
+    handler: (event: Event) => void,
+    options?: boolean | AddEventListenerOptions
+  ): void;
 }
 
 /**
@@ -174,6 +182,19 @@ export interface City3dMountOptions {
   getTerrainSpacing?: () => number | "auto";
   /** Metres the river surface sits below the land it touches. Absent keeps 1 m. */
   getRiverDropMeters?: () => number;
+  /**
+   * Building-tool cursor. `ghost().level` is an absolute field elevation;
+   * the view subtracts the terrain datum before drawing.
+   */
+  placement?: {
+    active(): boolean;
+    rotating(): boolean;
+    hover(point: Point | null, ctrl: boolean): void;
+    place(point: Point, shift: boolean, ctrl: boolean): void;
+    cancel(): void;
+    wheel(deltaDegrees: number, ctrl: boolean, fine: boolean): void;
+    ghost(): PlacementGhost | null;
+  };
 }
 
 export function mountCity3d(initialOptions: City3dMountOptions): {
@@ -316,6 +337,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let terrain: CityTerrain | null = null;
   let terrainStamp: string | null = null;
   let highlight: THREE.LineSegments | null = null;
+  let placementGhost: ReturnType<typeof createPlacementGhost> | null = null;
   let built: DistrictFabric | null = null;
   let builtQuality: ModelQuality | null = null;
   let framedRadius = 0;
@@ -983,6 +1005,40 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (shadowBounds.isEmpty()) shadowBounds.set(new THREE.Vector3(-20, 0, -20), new THREE.Vector3(20, 20, 20));
     if (sun) updateSun(sun, shadowBounds, sunSettings);
     if (renderer) renderer.shadowMap.needsUpdate = true;
+    syncGhost();
+    requestRender();
+  };
+
+  const groundPoint = (event: PointerEvent): Point | null => {
+    if (!renderer || !camera || !terrain) return null;
+    const rect = renderer.domElement.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    pointerNdc.set(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    raycaster.setFromCamera(pointerNdc, camera);
+    const ray = raycaster.ray;
+    return terrainRayPoint(
+      terrain.heightAt,
+      {
+        origin: [ray.origin.x, -ray.origin.z, ray.origin.y],
+        direction: [ray.direction.x, -ray.direction.z, ray.direction.y]
+      },
+      20000
+    );
+  };
+
+  const syncGhost = () => {
+    if (!scene) return;
+    placementGhost ??= createPlacementGhost(scene);
+    const raw = !viewport.hidden && options.placement?.active() ? options.placement.ghost() : null;
+    if (!raw) {
+      placementGhost.update(null);
+      requestRender();
+      return;
+    }
+    placementGhost.update({ ...raw, level: raw.level - (terrain?.datumMeters ?? 0) });
     requestRender();
   };
 
@@ -1107,10 +1163,48 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     options.scope.listen(viewport, "pointerup", event => {
       const point = event as PointerEvent;
       if (!pointer || Math.hypot(point.clientX - pointer.x, point.clientY - pointer.y) > 4) return;
+      if (options.placement?.active()) {
+        if (point.button === 2) {
+          options.placement.cancel();
+          syncGhost();
+          return;
+        }
+        if (point.button === 0) {
+          const hit = groundPoint(point);
+          if (hit) options.placement.place(hit, point.shiftKey, point.ctrlKey || point.metaKey);
+          return;
+        }
+      }
       pick(point);
     });
   };
   bindChrome();
+  options.scope.listen(viewport, "pointermove", event => {
+    if (viewport.hidden || !options.placement?.active()) return;
+    const point = event as PointerEvent;
+    options.placement.hover(groundPoint(point), point.ctrlKey || point.metaKey);
+    syncGhost();
+  });
+  options.scope.listen(viewport, "contextmenu", event => {
+    if (viewport.hidden || !options.placement?.active()) return;
+    event.preventDefault();
+    options.placement.cancel();
+    syncGhost();
+  });
+  options.scope.listen(
+    viewport,
+    "wheel",
+    event => {
+      if (viewport.hidden || !options.placement?.rotating()) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const wheel = event as WheelEvent;
+      const step = wheel.altKey ? 1 : 5;
+      options.placement.wheel((wheel.deltaY > 0 ? 1 : -1) * step, wheel.ctrlKey || wheel.metaKey, wheel.altKey);
+      syncGhost();
+    },
+    { capture: true, passive: false }
+  );
   const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => resize());
   observer?.observe(options.canvasHost);
 
@@ -1152,6 +1246,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     bridges?.dispose();
     objects?.dispose();
     ships?.dispose();
+    placementGhost?.dispose();
     openSpaces?.dispose();
     monasteries?.dispose();
     farmland?.dispose();

@@ -6,6 +6,23 @@ function jitter(rng: ReturnType<typeof makeRng>, reach: number): number {
   return rng.range(-reach, reach);
 }
 
+/** Spherical cap used by the dome template. The rim sits on the template's offset. */
+export function domeTemplateSize(extentMeters: number): { radiusMeters: number; heightMeters: number } {
+  return { radiusMeters: extentMeters * 0.375, heightMeters: extentMeters / 30 };
+}
+
+/**
+ * Share of the dome's disk whose slope stays at or under `slope` (rise/run).
+ * The cap's steepest point is the rim, at `2H/R`.
+ */
+export function domeBuildableShare(radiusMeters: number, heightMeters: number, slope: number): number {
+  if (!(radiusMeters > 0) || !(heightMeters > 0) || !(slope > 0)) return 0;
+  const maxSlope = (2 * heightMeters) / radiusMeters;
+  if (maxSlope <= slope) return 1;
+  const radius = (slope * radiusMeters * radiusMeters) / (2 * heightMeters);
+  return (radius * radius) / (radiusMeters * radiusMeters);
+}
+
 /** Parts for one template, in apply order. Positions are metres from the frame centre. */
 export function templateParts(template: TerrainTemplateId, seed: number, extentMeters: number): TerrainFieldPart[] {
   const rng = makeRng(`terrain-field:${template}:${seed}`);
@@ -77,6 +94,14 @@ export function templateParts(template: TerrainTemplateId, seed: number, extentM
       { kind: "mask", dropMeters: 2 }
     ];
   }
+  if (template === "dome") {
+    const size = domeTemplateSize(extentMeters);
+    return [
+      { kind: "offset", meters: 4 },
+      { kind: "dome", center: [0, 0], radiusMeters: size.radiusMeters, heightMeters: size.heightMeters }
+    ];
+  }
+  if (template === "cells") return [{ kind: "offset", meters: 0 }];
   const origin: Point = [jitter(rng, offset), 0];
   const angle = rng.range(-0.4, 0.4);
   return [

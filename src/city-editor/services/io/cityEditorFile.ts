@@ -1,3 +1,4 @@
+import { materializeFreeform, parseFreeformCity, serializeFreeform } from "../../generators/freeform/freeformCity";
 import { serializeGenerationDebugSvg } from "../../renderers/generationDebugSvg";
 import { serializeCitySvg } from "../../renderers/standaloneSvg";
 import type { FixedApproachProvider } from "../../types/contracts/fixedApproachAdoption";
@@ -16,11 +17,14 @@ export interface ImportedCityMap {
 
 /** Download the complete editable map, not a rendered SVG snapshot. */
 export function exportCityMap(cityDocument: CityDocument): void {
-  const blob = new Blob([serializeDocument(cityDocument)], { type: "application/json" });
+  const ledger = Boolean(cityDocument.freeform);
+  const blob = new Blob([ledger ? serializeFreeform(cityDocument) : serializeDocument(cityDocument)], {
+    type: "application/json"
+  });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `ce-${formatExportTimestamp(new Date())}.json`;
+  link.download = `${ledger ? "ce-freeform-" : "ce-"}${formatExportTimestamp(new Date())}.json`;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
@@ -77,9 +81,14 @@ export async function readCityMap(
       const document = importMfcgSvg(text);
       return document ? { document, source: "mfcg-svg" } : null;
     }
+    const payload = JSON.parse(text) as { format?: unknown };
+    if (payload && typeof payload === "object" && payload.format === "fmg-freeform-city") {
+      const city = parseFreeformCity(text);
+      return city ? { document: materializeFreeform(city), source: "city-editor" } : null;
+    }
     const cityEditor = parseDocument(text, fixedApproachProvider);
     if (cityEditor) return { document: cityEditor, source: "city-editor" };
-    const document = importMfcgJson(JSON.parse(text));
+    const document = importMfcgJson(payload);
     return document ? { document, source: "mfcg-json" } : null;
   } catch {
     return null;
