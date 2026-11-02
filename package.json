@@ -71,6 +71,7 @@
     "ce:terrain-perf": "node --import tsx scripts/ceTerrainPerf.ts",
     "ce:freeform-perf": "node --import tsx scripts/ceFreeformPerf.ts",
     "ce:freeform-frame": "node --import tsx scripts/ceFreeformFrame.mts",
+    "ce:freeform-real-frame": "node --import tsx scripts/ceFreeformRealFrame.mts",
     "ce:wall-order": "node scripts/compareTownWallOrders.mjs",
     "audit:fmg-cities": "node --import tsx scripts/auditFmgCityContext.ts",
     "test:fmg-audit": "node --import tsx --test scripts/lib/fmgCityAudit/audit.test.ts"
