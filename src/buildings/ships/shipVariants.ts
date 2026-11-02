@@ -4,6 +4,7 @@ import { createCaravel } from "./caravel";
 import { createGalleon } from "./galleon";
 import { createOpusGalleon } from "./opusGalleon";
 import { createSloop } from "./sloop";
+import { createSloopHigh } from "./sloopHigh";
 
 const codex = (family: string, create: ModelVariant["create"]): ModelVariant => ({
   id: variantId(family, "default", "Codex GPT-6.1 Sol"),
@@ -16,6 +17,8 @@ const codex = (family: string, create: ModelVariant["create"]): ModelVariant => 
 /** Harbour ships CE places. The Opus galleon's high tier competes with Codex's single model. */
 export const SHIP_VARIANTS: readonly ModelVariant[] = [
   codex("ship.sloop", createSloop),
+  { ...codex("ship.sloop", createSloop), id: variantId("ship.sloop", "low", "Codex GPT-6.1 Sol"), level: "low" },
+  { ...codex("ship.sloop", createSloopHigh), id: variantId("ship.sloop", "high", "Codex GPT-6.1 Sol"), level: "high" },
   codex("ship.caravel", createCaravel),
   codex("ship.barge", createBarge),
   codex("ship.galleon", createGalleon),

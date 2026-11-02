@@ -25,12 +25,12 @@ Read [BV composite models and per-part quality](../plan/bv-composite-models.md) 
 
 ## Summary
 
-Records: **220**. Codex High or Ultra available: **111**. Missing candidates: **109**.
+Records: **220**. Codex High or Ultra available: **112**. Missing candidates: **108**.
 
 | Category | Records | Codex High available | Missing candidates |
 | --- | ---: | ---: | ---: |
 | Catalogue | 11 | 0 | 11 |
-| Direct BV study | 66 | 2 | 64 |
+| Direct BV study | 66 | 3 | 63 |
 | Gothic landmark | 10 | 10 | 0 |
 | Imaginary landmark | 4 | 1 | 3 |
 | Medieval 02 | 3 | 3 | 0 |
@@ -204,7 +204,6 @@ Records: **220**. Codex High or Ultra available: **111**. Missing candidates: **
 | Direct BV study | `carrack` | Carrack | single/default; assumed Low - [source](../../src/buildings/ships/carrack.ts) |
 | Direct BV study | `galleon` | Galleon | single/default; assumed Low - [source](../../src/buildings/ships/galleon.ts) |
 | Direct BV study | `opus-galleon` | Galleon | explicit high/low factory; Claude Opus 5.5 - [source](../../src/buildings/ships/opusGalleon.ts) |
-| Direct BV study | `sloop` | Sloop | single/default; assumed Low - [source](../../src/buildings/ships/sloop.ts) |
 | Direct BV study | `battering-ram` | Medieval European battering ram | single/default; assumed Low - [source](../../src/buildings/siege/batteringRam.ts) |
 | Direct BV study | `early-field-cannon` | Early European field cannon | single/default; assumed Low - [source](../../src/buildings/siege/earlyFieldCannon.ts) |
 | Direct BV study | `siege-tower` | Medieval European siege tower | single/default; assumed Low - [source](../../src/buildings/siege/siegeTower.ts) |
@@ -345,3 +344,4 @@ Records: **220**. Codex High or Ultra available: **111**. Missing candidates: **
 | Gothic landmark | `salisbury` | Salisbury Cathedral | highDetail/ultraDetail; Codex GPT-6.1 Sol - [source](../../src/buildings/landmarks/salisbury.ts) |
 | Direct BV study | `polygon-houses` | Polygonal and narrow houses | explicit high/low factory; Codex GPT-6.1 Sol - [source](../../src/buildings/houses/polygonHouses.ts) |
 | Direct BV study | `earthen-houses` | Earthen flat-roof houses | explicit high/low factory; Codex GPT-6.1 Sol - [source](../../src/buildings/houses/earthenHouses.ts) |
+| Direct BV study | `sloop` | Sloop | explicit high/low factory; Codex GPT-6.1 Sol - [source](../../src/buildings/ships/sloop.ts) |

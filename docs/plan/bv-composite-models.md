@@ -145,4 +145,8 @@ Highの織物商人会館と職人ギルド会館4種は、`civicHallProfile.ts`
 
 ## 優先順位の変更とMedieval 45以降（2026-11-02）
 
-ユーザー指示により、Medieval 44の未着手分（Cremation pyre platform以降）は保留し、45以降を優先する。45の3住居は階・張り出し量・角家指定から共通生成するHighを作製し、本体・支持材・階段・屋根・煙突・商店設備を独立部品化した。町屋16,016、商人住宅20,738、角商店住宅16,872三角形で各8メッシュ。共通建具・跳ね上げ戸・階段・瓦屋根を再利用し、Lowと互換defaultを維持。関連23件・型検査・実BVを検証した。[制作記録](../analytics/bv-jettied-high-20261102.md)。46・47は既に明示的な詳細factoryでHigh対応済み。次は未対応一覧の`medieval-town-gatehouse`（Gatehouse with guard quarters）の品質と部品を調べ、高品質化へ進む。44へは自動的に戻らない。
+ユーザー指示により、Medieval 44の未着手分（Cremation pyre platform以降）は保留し、45以降を優先する。45の3住居は階・張り出し量・角家指定から共通生成するHighを作製し、本体・支持材・階段・屋根・煙突・商店設備を独立部品化した。町屋16,016、商人住宅20,738、角商店住宅16,872三角形で各8メッシュ。共通建具・跳ね上げ戸・階段・瓦屋根を再利用し、Lowと互換defaultを維持。関連23件・型検査・実BVを検証した。[制作記録](../analytics/bv-jettied-high-20261102.md)。46・47は既に明示的な詳細factoryでHigh対応済み。当時の次候補は未対応一覧の`medieval-town-gatehouse`（Gatehouse with guard quarters）。44へは自動的に戻らない。
+
+2026-11-03のユーザー指示でShipsを優先した。[Shipsの調査・状態別部品設計](bv-ships-models.md)に、Codexの未High対応5船種、既存Opus Highの根拠と負荷、展帆／畳帆・砲門開閉・旗の独立指定、索具を含む所有と部品化、CEの寸法・保存・荷役への接続を記録。今回は調査まで完了し、次はSloop Highと畳帆共通基盤を制作する。門楼と44残件は保留。
+
+S1としてSloop Highを8部品で作製し、Low／Highの展帆・畳帆とBV部品選択を実装した。固定部品と既存Low/defaultを維持し、材質結合時にも索具と部品IDを保持・解放する共通処理を追加。関連15件・実BVで検証し、CEは従来Lowのまま。詳細と計測は[Ships設計書§8](bv-ships-models.md#8-s1-sloop-high制作検証2026-11-03)。次はCaravel／Carrack High。

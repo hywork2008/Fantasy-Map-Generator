@@ -48,7 +48,9 @@ import { BARGE, createBarge } from "../buildings/ships/barge";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { createOpusGalleon, OPUS_GALLEON, type OpusGalleonQuality } from "../buildings/ships/opusGalleon";
+import { assembleSailingParts, type SailingShipState } from "../buildings/ships/sailingAssembly";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
+import { createSloopHigh, sloopHighParts } from "../buildings/ships/sloopHigh";
 import { BATTERING_RAM, createBatteringRam } from "../buildings/siege/batteringRam";
 import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "../buildings/siege/earlyFieldCannon";
 import { createSiegeTower, SIEGE_TOWER } from "../buildings/siege/siegeTower";
@@ -1340,7 +1342,7 @@ function showOpusGalleon(): void {
   levelTitle.textContent = "Deck plan";
   showQuality(true);
   const quality = qualitySelect.value as OpusGalleonQuality;
-  comparisonModel = { path: null, quality };
+  comparisonModel = { path: null, quality, viewOnly: true };
   const model = createOpusGalleon(quality, { ensign: opusGalleonEnsign });
   const ensignToggle = document.createElement("input");
   ensignToggle.type = "checkbox";
@@ -1418,7 +1420,11 @@ shipsHeading.append(galleonButton);
 const sloopButton = document.createElement("button");
 sloopButton.type = "button";
 sloopButton.textContent = "Sloop · Small coastal sailing ship";
-sloopButton.addEventListener("click", () => {
+sloopButton.dataset.id = "sloop";
+AUTHORED_VARIANTS.sloop = { author: SLOOP.author, primary: true, quality: true, show: () => showSloop() };
+let sloopSails: SailingShipState["sails"] = "set";
+let sloopPart = "all";
+function showSloop(): void {
   selection++;
   for (const button of list.querySelectorAll("button")) {
     button.setAttribute("aria-current", button === sloopButton ? "true" : "false");
@@ -1429,17 +1435,68 @@ sloopButton.addEventListener("click", () => {
   banner.hidden = true;
   roofTitle.textContent = "Ship elevation";
   levelTitle.textContent = "Deck plan";
-  const model = createSloop();
+  showQuality(true);
+  const high = qualitySelect.value === "high";
+  const state = { sails: sloopSails };
+  const parts: readonly ModelPartFactory[] = high
+    ? sloopHighParts(state)
+    : [
+        {
+          id: "low-assembly",
+          role: "Legacy assembly",
+          author: SLOOP.author,
+          quality: "low",
+          create: () => createSloop(state)
+        }
+      ];
+  if (!parts.some(part => part.id === sloopPart)) sloopPart = "all";
+  const chosen = parts.find(part => part.id === sloopPart);
+  const model = chosen
+    ? assembleSailingParts("sloop-part", [chosen])
+    : high
+      ? createSloopHigh(state)
+      : createSloop(state);
+  comparisonModel = { path: null, quality: high ? "high" : "low", viewOnly: true };
+  const sailsSelect = document.createElement("select");
+  sailsSelect.setAttribute("aria-label", "Sails");
+  sailsSelect.add(new Option("Set", "set"));
+  sailsSelect.add(new Option("Furled · moored", "furled"));
+  sailsSelect.value = sloopSails ?? "set";
+  sailsSelect.addEventListener("change", () => {
+    sloopSails = sailsSelect.value as SailingShipState["sails"];
+    showSloop();
+  });
+  const partSelect = document.createElement("select");
+  partSelect.setAttribute("aria-label", "Assembly part");
+  partSelect.add(new Option("Complete ship", "all"));
+  for (const part of parts) partSelect.add(new Option(`${part.role} · ${part.quality}`, part.id));
+  partSelect.value = sloopPart;
+  partSelect.addEventListener("change", () => {
+    sloopPart = partSelect.value;
+    showSloop();
+  });
+  for (const [label, input] of [
+    ["Sails", sailsSelect],
+    ["Assembly part", partSelect]
+  ] as const) {
+    const row = document.createElement("label");
+    row.append(label, input);
+    optionFields.append(row);
+  }
+  modelOptions.hidden = false;
   massing = model;
   scene.add(model.group);
   frame({ occupancyMeters: { width: SLOOP.length, depth: SLOOP.beam } }, SLOOP.height);
   camera.position.set(19, 13, 23);
   controls.target.set(1, 6, 0);
   controls.update();
-  mountPlan(roofHost, model.elevation);
-  mountPlan(levelHost, model.plan);
+  mountPlan(roofHost, meshProjection(model, "side"));
+  mountPlan(levelHost, meshProjection(model, "top"));
   appendFacts(
     fact("Model", SLOOP.name),
+    fact("Quality", high ? "High" : "Low"),
+    fact("Sails", sloopSails === "furled" ? "Furled" : "Set"),
+    fact("CE adoption", "Legacy default (Low); High and sail states are BV-only"),
     fact("Period", "Age of sail · imagined coastal vessel"),
     fact(
       "Dimensions",
@@ -1449,7 +1506,10 @@ sloopButton.addEventListener("click", () => {
     fact("Hull", "Small wooden hull with keel, low cabin and tiller steering"),
     fact("Note", SLOOP.note, "Sloop")
   );
-});
+  const panel = modelPartsPanel(model.group);
+  if (panel) facts.append(panel);
+}
+sloopButton.addEventListener("click", () => showSloop());
 shipsHeading.append(sloopButton);
 
 const bargeButton = document.createElement("button");
