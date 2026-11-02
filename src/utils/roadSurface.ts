@@ -128,6 +128,8 @@ export interface RoadRibbon {
   surface: RoadSurfaceId;
   /** Absent reads as "cart". Bounds the longitudinal grade when roads are graded into relief. */
   gradeClass?: RoadGradeClass;
+  /** Rise/run used instead of the grade class, for a castle approach at 8% or a cart road at 10%. */
+  maxGrade?: number;
   /** A ramp deck that may pass between levels a cliff separates. */
   connectsLevels?: true;
 }

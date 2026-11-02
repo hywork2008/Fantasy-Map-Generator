@@ -12,6 +12,7 @@ import type { RenderSelection } from "../../types/selection";
 import { pointInPolygon } from "../editorGeometry";
 import { aimBuilding, applyBuildingPlace, buildingModelName } from "./buildingTool";
 import { targetId } from "./toolTypes";
+import { clickWay, commitDrawnWay, wayRejectText } from "./wayTool";
 export interface MapClickContext {
   scope: import("../../services/editorLifetime").EditorLifetime;
   map: HTMLDivElement;
@@ -111,6 +112,17 @@ export function bindMapClick(ctx: MapClickContext) {
           value0: buildingModelName(ctx.interaction.buildingModelId)
         })
       );
+      return;
+    }
+    if (ctx.interaction.tool === "way") {
+      const point = ctx.localPoint(event as PointerEvent);
+      if (clickWay(ctx.interaction, point) === "finish") {
+        const placed = commitDrawnWay(ctx.documents.documentState, ctx.interaction);
+        if ("error" in placed) ctx.showNotice(wayRejectText(placed.preview));
+        else ctx.commit(placed.document, editorText("cityEditor.messages.wayFinish"));
+        return;
+      }
+      ctx.refresh();
       return;
     }
     if (ctx.interaction.tool === "ship") {

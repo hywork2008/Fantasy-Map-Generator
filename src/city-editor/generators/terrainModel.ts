@@ -276,15 +276,22 @@ export function evaluateTerrainFeatures(
   }
   let level = base,
     dry = false,
-    padLevel: number | null = null;
+    padLevel: number | null = null,
+    padSummit = false;
   for (const feature of features) {
     if (feature.kind !== "platform") continue;
     const raised = platformLevel(feature, base, point);
     if (raised === null) continue;
     // A pad is a cut and a fill, so it replaces the slope. A castle platform only raises,
     // and it keeps that raise where a pad would otherwise cover the same point.
-    if (feature.role === "pad") padLevel = raised;
-    else {
+    // A later pad's shoulder must not bury an earlier pad's flat summit. Its own summit still wins.
+    if (feature.role === "pad") {
+      const summit = onPlatformSummit([feature], point);
+      if (summit || !padSummit) {
+        padLevel = raised;
+        padSummit = summit;
+      }
+    } else {
       level = Math.max(level, raised);
       dry = true;
     }

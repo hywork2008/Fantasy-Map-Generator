@@ -15,6 +15,7 @@ import { sampleField, slopeField } from "../terrainField/sample";
 import { classifyTownWater } from "../townWater";
 import { createPlotIndex, plotRecord } from "./plotIndex";
 import { type PlacementReject, validatePlacement } from "./validatePlacement";
+import { wayCoversPolygon } from "./validateWay";
 
 /** Gap between the building box and the next plot. The pad outline is the grown box. */
 export const DEFAULT_PLOT_MARGIN_METERS = 1;
@@ -97,7 +98,7 @@ export function previewPlacement(document: CityDocument, draft: PlacementDraft):
       edgeDropMeters: edgeDrop,
       onWater: onWater(document, draft.position),
       onCliff: onCliff(document, draft.position, slopeField(field, draft.position)),
-      onWay: false
+      onWay: wayCoversPolygon(document, outline)
     },
     plotIndex(document, draft.id)
   );

@@ -50,7 +50,7 @@ export interface CityTerrain {
   roads?: {
     ribbons: import("../../utils/roadSurface").RoadRibbon[];
     /** Flights of steps on lanes and paths too steep to walk as a slope, heights in the local frame. */
-    stairs: Array<{ centerline: Point[]; elevations: number[]; widthMeters: number }>;
+    stairs: Array<{ centerline: Point[]; elevations: number[]; widthMeters: number; riserMeters?: number }>;
     /** Where a road met a cliff between levels and was stopped. */
     cliffBreaks: Point[];
   };
@@ -207,6 +207,38 @@ export interface TerrainRamp {
   widthMeters: number;
 }
 
+/** A flat landing of a stepped way. Distances are metres along the way centre line. */
+export interface FreeformWayLanding {
+  fromMeters: number;
+  toMeters: number;
+  levelMeters: number;
+}
+
+/** One flight between landings. Rise is `steps` times 0.17 m and run is `steps` times 0.30 m. */
+export interface FreeformWayFlight {
+  fromMeters: number;
+  toMeters: number;
+  fromLevelMeters: number;
+  toLevelMeters: number;
+  steps: number;
+}
+
+/**
+ * A freehand way on the height field. The centre line is the saved ledger.
+ * A stepped way also stores the landings and flights chosen when it was drawn.
+ */
+export interface FreeformWay {
+  id: Id;
+  centerline: Point[];
+  widthMeters: number;
+  profile: "slope" | "stepped";
+  surface: "dirt" | "paved" | "cobble";
+  /** Cart roads climb at 10%. A castle approach climbs at 8%. Absent means cart. */
+  grade?: "cart" | "approach";
+  landings?: FreeformWayLanding[];
+  flights?: FreeformWayFlight[];
+}
+
 /** Saved earthworks. Pads and river corridors store their finished heights; the field stores a recipe. */
 export interface CityTerrainLayer {
   version: 1;
@@ -214,6 +246,8 @@ export interface CityTerrainLayer {
   ramps?: TerrainRamp[];
   /** Height-field recipe. Absent documents keep cell elevations. */
   field?: TerrainFieldRecipe;
+  /** Freehand ways. Absent on documents saved before freeform roads. */
+  ways?: FreeformWay[];
 }
 
 /** Derived, unpersisted grading model: a base field plus vector earthworks in absolute metres. */

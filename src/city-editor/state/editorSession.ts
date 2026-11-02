@@ -80,6 +80,12 @@ export interface InteractionState {
   buildingShift: boolean;
   buildingCtrl: boolean;
   buildingEditId: string | null;
+  wayProfile: "slope" | "stepped";
+  waySurface: "dirt" | "paved" | "cobble";
+  wayGrade: "cart" | "approach";
+  wayWidthMeters: number;
+  wayPoints: Point[];
+  wayHoverPoint: Point | null;
   shipType: ShipType;
   shipSizeMeters: number;
   shipAngleDegrees: number;

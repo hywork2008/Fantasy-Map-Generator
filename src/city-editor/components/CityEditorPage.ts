@@ -30,6 +30,7 @@ import { bindPointerDown } from "../controllers/tools/pointerDown";
 import { bindPointerMove } from "../controllers/tools/pointerMove";
 import { createRoutesController } from "../controllers/tools/routes";
 import { createSelectionController } from "../controllers/tools/selection";
+import { cancelWay, commitDrawnWay, wayRejectText } from "../controllers/tools/wayTool";
 import { cityFixedApproachProvider } from "../generators/automaticFixedApproaches";
 import { withCastleStyle } from "../generators/castleAppearance";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
@@ -46,6 +47,7 @@ import {
   presetAmplitude
 } from "../generators/elevationPreset";
 import { restoreFixedCrossingApproaches } from "../generators/fixedApproachAdoption";
+import { removeWay } from "../generators/freeform/commitWay";
 import { snapFacing } from "../generators/freeform/facing";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { defaultGenerationSettings, randomGeography, randomSeed } from "../generators/generation/settings";
@@ -119,12 +121,14 @@ import { mountModelAuthorsPanel } from "./modelAuthorsPanel";
 import { buildObjectControls } from "./objectControls";
 import { mountOperationHelp } from "./operationHelp";
 import { mountPerformancePanel } from "./performancePanel";
+import { buildWayControls } from "./wayControls";
 
 const TOOLS: Array<[Tool, EditorMessageKey, string]> = [
   ["select", "cityEditor.messages.selectAndMove", "↖"],
   ["landmark", "cityEditor.messages.placeHistoricLandmark", "⌂"],
   ["object", "cityEditor.messages.placeObjects", "⚒"],
   ["building", "cityEditor.messages.placeBuilding", "▢"],
+  ["way", "cityEditor.messages.drawWay", "∿"],
   ["ship", "cityEditor.messages.placeShips", "⛵"],
   ["vertex", "cityEditor.messages.editVertices", "⌘"],
   ["road", "cityEditor.messages.drawRoad", "╱"],
@@ -527,6 +531,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         },
         get syncBuildingModel() {
           return buildingUi.syncFromInteraction;
+        },
+        get wayControls() {
+          return wayUi.controls;
+        },
+        get wayStatus() {
+          return wayUi.status;
+        },
+        get syncWayList() {
+          return () => wayUi.sync(documents.documentState.terrain?.ways ?? []);
         },
         get shipControls() {
           return shipControls;
@@ -1388,6 +1401,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   interaction.buildingShift = false;
   interaction.buildingCtrl = false;
   interaction.buildingEditId = null;
+  interaction.wayProfile = "stepped";
+  interaction.waySurface = "dirt";
+  interaction.wayGrade = "cart";
+  interaction.wayWidthMeters = 2;
+  interaction.wayPoints = [];
+  interaction.wayHoverPoint = null;
   interaction.shipType = "small";
   interaction.shipSizeMeters = SHIP_SPECS.small.defaultSizeMeters;
   interaction.shipAngleDegrees = 0;
@@ -1753,6 +1772,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         interaction.buildingGesture = "move";
         interaction.buildingShift = false;
       }
+      if (id !== "way") cancelWay(interaction);
       if (id !== "select") {
         interaction.inspectedInfo = null;
         interaction.selection.inspectedId = null;
@@ -1832,6 +1852,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   toolbar.content.appendChild(objectControls);
   const buildingUi = buildBuildingControls(scope, interaction, () => updateBuildingPreview());
   toolbar.content.appendChild(buildingUi.controls);
+  const wayUi = buildWayControls(
+    scope,
+    interaction,
+    () => updateWayPreview(),
+    id => {
+      commit(removeWay(documents.documentState, id), editorText("cityEditor.messages.wayDelete"));
+    }
+  );
+  toolbar.content.appendChild(wayUi.controls);
 
   const elevationControls = div("ce-elevation-controls");
   const elevationMode = select(["raise", "lower", "smooth"], interaction.elevationBrush);
@@ -2429,6 +2458,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           version: 1,
           features: current.terrain?.features ?? [],
           ...(current.terrain?.ramps?.length ? { ramps: current.terrain.ramps } : {}),
+          ...(current.terrain?.ways?.length ? { ways: current.terrain.ways } : {}),
           field: recipe
         }
       },
@@ -2974,6 +3004,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     get updateBuildingPreview() {
       return updateBuildingPreview;
     },
+    get updateWayPreview() {
+      return updateWayPreview;
+    },
     get updateCircularWallPreview() {
       return updateCircularWallPreview;
     },
@@ -3144,6 +3177,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     },
     get updateBuildingPreview() {
       return updateBuildingPreview;
+    },
+    get updateWayPreview() {
+      return updateWayPreview;
+    },
+    get finishWay() {
+      return finishWay;
     }
   });
 
@@ -3428,6 +3467,20 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   function updateBuildingPreview(): void {
     getMapDisplayController().updateBuildingPreview();
+  }
+
+  function updateWayPreview(): void {
+    getMapDisplayController().updateWayPreview();
+  }
+
+  function finishWay(): void {
+    const placed = commitDrawnWay(documents.documentState, interaction);
+    if ("error" in placed) {
+      showNotice(wayRejectText(placed.preview));
+      updateWayPreview();
+      return;
+    }
+    commit(placed.document, editorText("cityEditor.messages.wayFinish"));
   }
 
   function updateLandmarkPreview(): void {

@@ -5,6 +5,7 @@ import type { CityTerrain, TerrainPatch as Patch, TerrainGrid, TerrainModel } fr
 import { type CellRelief, cellRelief, faceLocator } from "./cellRelief";
 import { fortCircle } from "./fortSiteGeometry";
 import { fortSiteTerrainFeatures } from "./fortSiteTerrain";
+import { landingPlatforms, slopeRibbons, steppedFlights } from "./freeform/wayTerrain";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, splitPolygonHalfPlane } from "./geom";
 import { triangularInfillParts } from "./lotGeometry";
 import { facePoints, faceVertices } from "./mesh";
@@ -423,10 +424,16 @@ export function cityTerrain(
 ): CityTerrain {
   const model = cityTerrainModel(document, options.riverDropMeters);
   const locate = faceLocator(document);
+  const fieldNow = model.base.kind === "field" ? model.base.field : undefined;
+  const wayPads = landingPlatforms(document.terrain?.ways ?? [], point =>
+    fieldNow ? sampleField(fieldNow, point) : 0
+  );
+  const freeformRoads = slopeRibbons(document.terrain?.ways ?? []);
+  const roads = [...(options.roads ?? []), ...freeformRoads];
   const features = resolveTerrainFeatures(
-    model.features,
+    [...wayPads, ...model.features],
     faceIds => platformOutline(document, faceIds),
-    model.features.length ? locate : undefined
+    model.features.length || wayPads.length ? locate : undefined
   );
   const featuresAt = indexTerrainFeatures(features);
   const field = model.base.kind === "field" ? model.base.field : undefined;
@@ -444,7 +451,7 @@ export function cityTerrain(
     fieldRelief = max - min > 1e-6;
   }
   const surface = field
-    ? fieldSeedSurface(document, fieldDatum, fieldRelief, features, model.ramps, options.roads)
+    ? fieldSeedSurface(document, fieldDatum, fieldRelief, features, model.ramps, roads)
     : cells
       ? cellSurface(document, cells)
       : flatSurface(document, model.base.kind === "flat" ? model.base.elevationMeters : 0);
@@ -464,9 +471,9 @@ export function cityTerrain(
     return deck === null ? null : deck - datumMeters;
   };
   const grading =
-    relief && options.roads?.length
+    relief && roads.length
       ? gradeRoads(
-          options.roads,
+          roads,
           groundAt,
           point => terrainLevelAt(featuresAt(point), point),
           point => onPlatformSummit(featuresAt(point), point),
@@ -520,11 +527,17 @@ export function cityTerrain(
     // Roads ride ramp decks, and in a terraced town the steps and ramps built over the ground.
     surfaceAt,
     ramps: ramps.map(ramp => ({ ramp, elevations: ramp.elevationsMeters.map(level => level - datumMeters) })),
-    ...(options.roads
+    ...(roads.length || (document.terrain?.ways?.length ?? 0) > 0
       ? {
           roads: {
-            ribbons: grading?.ribbons ?? [...options.roads],
-            stairs: grading?.stairs ?? [],
+            ribbons: grading?.ribbons ?? roads,
+            stairs: [
+              ...(grading?.stairs ?? []),
+              ...steppedFlights(document.terrain?.ways ?? []).map(flight => ({
+                ...flight,
+                elevations: flight.elevations.map(level => level - datumMeters)
+              }))
+            ],
             cliffBreaks: grading?.cliffBreaks ?? []
           }
         }

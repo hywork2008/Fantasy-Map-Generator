@@ -1,5 +1,5 @@
 import type { CityDocument, Point } from "../types/document";
-import type { TerrainPlatform, TerrainRamp, TerrainRiverCorridor } from "../types/terrain";
+import type { FreeformWay, TerrainPlatform, TerrainRamp, TerrainRiverCorridor } from "../types/terrain";
 
 export type PlatformEdge = TerrainPlatform["edge"];
 
@@ -111,32 +111,98 @@ export function validateTerrainLayer(document: CityDocument): string[] {
     return valid ? [] : [`Invalid terrain feature ${index}`];
   });
   const rampValue = (layer as { ramps?: unknown }).ramps;
-  if (rampValue === undefined) return errors;
-  if (!Array.isArray(rampValue)) return [...errors, "Invalid terrain ramps"];
-  return [
-    ...errors,
-    ...rampValue.flatMap((item: unknown, index): string[] => {
-      const ramp = item as Partial<TerrainRamp> | null;
-      const points = ramp?.centerline,
-        levels = ramp?.elevationsMeters;
-      const valid =
-        !!ramp &&
-        ramp.kind === "ramp" &&
-        typeof ramp.id === "string" &&
-        !ids.has(ramp.id) &&
-        typeof ramp.platformId === "string" &&
-        (ramp.ownerId === undefined || typeof ramp.ownerId === "string") &&
-        typeof ramp.widthMeters === "number" &&
-        ramp.widthMeters > 0 &&
-        ramp.widthMeters <= 20 &&
-        Array.isArray(points) &&
-        points.length >= 2 &&
-        points.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)) &&
-        Array.isArray(levels) &&
-        levels.length === points.length &&
-        levels.every(level => typeof level === "number" && Number.isFinite(level));
-      if (ramp && typeof ramp.id === "string") ids.add(ramp.id);
-      return valid ? [] : [`Invalid terrain ramp ${index}`];
-    })
-  ];
+  const rampErrors =
+    rampValue === undefined
+      ? []
+      : !Array.isArray(rampValue)
+        ? ["Invalid terrain ramps"]
+        : rampValue.flatMap((item: unknown, index): string[] => {
+            const ramp = item as Partial<TerrainRamp> | null;
+            const points = ramp?.centerline,
+              levels = ramp?.elevationsMeters;
+            const valid =
+              !!ramp &&
+              ramp.kind === "ramp" &&
+              typeof ramp.id === "string" &&
+              !ids.has(ramp.id) &&
+              typeof ramp.platformId === "string" &&
+              (ramp.ownerId === undefined || typeof ramp.ownerId === "string") &&
+              typeof ramp.widthMeters === "number" &&
+              ramp.widthMeters > 0 &&
+              ramp.widthMeters <= 20 &&
+              Array.isArray(points) &&
+              points.length >= 2 &&
+              points.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)) &&
+              Array.isArray(levels) &&
+              levels.length === points.length &&
+              levels.every(level => typeof level === "number" && Number.isFinite(level));
+            if (ramp && typeof ramp.id === "string") ids.add(ramp.id);
+            return valid ? [] : [`Invalid terrain ramp ${index}`];
+          });
+  const wayValue = (layer as { ways?: unknown }).ways;
+  const wayErrors =
+    wayValue === undefined
+      ? []
+      : !Array.isArray(wayValue)
+        ? ["Invalid terrain ways"]
+        : wayValue.flatMap((item: unknown, index): string[] => {
+            const valid = validWay(item, ids);
+            const way = item as Partial<FreeformWay> | null;
+            if (way && typeof way.id === "string") ids.add(way.id);
+            return valid ? [] : [`Invalid terrain way ${index}`];
+          });
+  return [...errors, ...rampErrors, ...wayErrors];
+}
+
+function validWay(item: unknown, ids: Set<string>): boolean {
+  const way = item as Partial<FreeformWay> | null;
+  if (!way || (way.profile !== "slope" && way.profile !== "stepped")) return false;
+  if (way.surface !== "dirt" && way.surface !== "paved" && way.surface !== "cobble") return false;
+  if (way.grade !== undefined && way.grade !== "cart" && way.grade !== "approach") return false;
+  const line = way.centerline;
+  if (
+    typeof way.id !== "string" ||
+    ids.has(way.id) ||
+    typeof way.widthMeters !== "number" ||
+    !(way.widthMeters > 0) ||
+    way.widthMeters > 40 ||
+    !Array.isArray(line) ||
+    line.length < 2 ||
+    line.length > 400 ||
+    !line.every(validPoint)
+  )
+    return false;
+  if (way.profile === "slope") return way.landings === undefined && way.flights === undefined;
+  return validLandings(way.landings) && validFlights(way.flights);
+}
+
+function validLandings(landings: FreeformWay["landings"]): boolean {
+  return (
+    Array.isArray(landings) &&
+    landings.length > 0 &&
+    landings.every(
+      landing =>
+        finiteLevel(landing?.fromMeters) &&
+        finiteLevel(landing?.toMeters) &&
+        landing.toMeters + 1e-6 >= landing.fromMeters &&
+        finiteLevel(landing.levelMeters)
+    )
+  );
+}
+
+function validFlights(flights: FreeformWay["flights"]): boolean {
+  return (
+    Array.isArray(flights) &&
+    flights.every(
+      flight =>
+        finiteLevel(flight?.fromMeters) &&
+        finiteLevel(flight?.toMeters) &&
+        flight.toMeters + 1e-6 >= flight.fromMeters &&
+        finiteLevel(flight.fromLevelMeters) &&
+        finiteLevel(flight.toLevelMeters) &&
+        Number.isInteger(flight.steps) &&
+        flight.steps >= 1 &&
+        flight.steps <= 17
+    )
+  );
 }

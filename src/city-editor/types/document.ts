@@ -684,7 +684,8 @@ export type Tool =
   | "landmark"
   | "ship"
   | "object"
-  | "building";
+  | "building"
+  | "way";
 
 export type { CastleSettings } from "./castle";
 export type {

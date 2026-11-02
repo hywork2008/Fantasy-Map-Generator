@@ -15,6 +15,7 @@ import type { ContextMenuAction } from "../../types/editor";
 import { pointInPolygon } from "../editorGeometry";
 import { cancelBuildingGesture } from "./buildingTool";
 import { targetId } from "./toolTypes";
+import { cancelWay } from "./wayTool";
 export interface MapContextContext {
   scope: import("../../services/editorLifetime").EditorLifetime;
   contextMenu: HTMLDivElement;
@@ -40,6 +41,11 @@ export function bindMapContext(ctx: MapContextContext) {
     event.preventDefault();
     if (ctx.interaction.tool === "building") {
       cancelBuildingGesture(ctx.interaction);
+      ctx.refresh();
+      return;
+    }
+    if (ctx.interaction.tool === "way") {
+      cancelWay(ctx.interaction);
       ctx.refresh();
       return;
     }

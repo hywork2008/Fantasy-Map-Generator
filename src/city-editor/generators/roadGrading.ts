@@ -70,7 +70,8 @@ export interface RoadGrading {
  * (terraced) town, where every street climbs the retaining walls as stairs rather than cutting through them.
  */
 const climbLimit = (ribbon: RoadRibbon, stepped: boolean) =>
-  ribbon.connectsLevels || ((ribbon.gradeClass ?? "cart") === "cart" && !stepped) ? MAX_ROAD_GRADE.cart : STAIR_GRADE;
+  ribbon.maxGrade ??
+  (ribbon.connectsLevels || ((ribbon.gradeClass ?? "cart") === "cart" && !stepped) ? MAX_ROAD_GRADE.cart : STAIR_GRADE);
 
 const key = (point: Point) => `${Math.round(point[0] * 100)},${Math.round(point[1] * 100)}`;
 const binKey = (x: number, y: number) => `${x},${y}`;

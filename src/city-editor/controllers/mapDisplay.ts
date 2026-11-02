@@ -11,6 +11,7 @@ import { syncCellReliefFace } from "../renderers/cellElevationSvg";
 import { type RenderQuality, renderEditorSvg } from "../renderers/editorSvg";
 import { updateForestScale } from "../renderers/forestSvg";
 import { renderFootprintSvg } from "../renderers/freeform/footprintSvg";
+import { renderWayOverlay } from "../renderers/freeform/waySvg";
 import { renderGenerationDebugSvg } from "../renderers/generationDebugSvg";
 import { faceClassName, renderFaceWardLandmark } from "../renderers/landmarkSvg";
 import { renderObjectRotationHandle, renderObjectSvg } from "../renderers/objectSvg";
@@ -31,6 +32,7 @@ import type { CityDocument, Id, LandmarkAsset, Tool, WardKind } from "../types/d
 import { formatDistance, niceScale } from "../utils/editorUnits";
 import { placementLabel, previewBuilding } from "./tools/buildingTool";
 import { isBrushTool } from "./tools/toolTypes";
+import { currentWayPreview, rubberCenterline, wayStatusText } from "./tools/wayTool";
 export interface MapDisplayContext {
   scope: import("../services/editorLifetime").EditorLifetime;
   documents: DocumentsState;
@@ -43,6 +45,9 @@ export interface MapDisplayContext {
   buildingStatus: HTMLOutputElement;
   syncBuildingFacing: (degrees: number) => void;
   syncBuildingModel: () => void;
+  wayControls: HTMLDivElement;
+  wayStatus: HTMLOutputElement;
+  syncWayList: () => void;
   elevationControls: HTMLDivElement;
   currentBuildingPatternSelect: HTMLSelectElement;
   historicalPeriodSelect: HTMLSelectElement;
@@ -207,6 +212,8 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     ctx.landmarkControls.hidden = ctx.interaction.tool !== "landmark";
     ctx.objectControls.hidden = ctx.interaction.tool !== "object";
     ctx.buildingControls.hidden = ctx.interaction.tool !== "building";
+    ctx.wayControls.hidden = ctx.interaction.tool !== "way";
+    ctx.syncWayList();
     ctx.shipControls.hidden = ctx.interaction.tool !== "ship";
     ctx.elevationControls.hidden = ctx.interaction.tool !== "elevation";
     ctx.currentBuildingPatternSelect.value =
@@ -496,6 +503,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     ctx.updateMeasureOverlay();
     updateLandmarkPreview();
     updateBuildingPreview();
+    updateWayPreview();
     svg.setAttribute("data-redraw-cpu-ms", String(performance.now() - renderStart));
   }
   function selectedLandmarkAsset(): LandmarkAsset | null {
@@ -550,6 +558,32 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
         ok: preview.ok,
         facingDegrees: preview.facingDegrees,
         label
+      })
+    );
+  }
+  function updateWayPreview(): void {
+    const svg = ctx.map.querySelector("svg");
+    svg?.querySelector(".ce-way-overlay")?.remove();
+    const drawing = ctx.interaction.tool === "way";
+    const preview = drawing ? currentWayPreview(ctx.documents.documentState, ctx.interaction) : null;
+    if (drawing) {
+      ctx.wayStatus.textContent = wayStatusText(preview, ctx.interaction.wayPoints?.length ?? 0);
+      ctx.wayStatus.style.color = preview && !preview.ok ? "#c62828" : "#2e7d32";
+    }
+    const ways = ctx.documents.documentState.terrain?.ways ?? [];
+    const rubber = drawing ? rubberCenterline(ctx.interaction) : [];
+    if (!svg || (!ways.length && rubber.length < 2)) return;
+    svg.querySelector(".ce-map-scene")?.appendChild(
+      renderWayOverlay({
+        ways,
+        draft:
+          rubber.length >= 2
+            ? {
+                centerline: rubber,
+                widthMeters: ctx.interaction.wayWidthMeters,
+                ok: preview?.ok !== false
+              }
+            : null
       })
     );
   }
@@ -885,6 +919,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     preservedLandmarkLanes,
     updateShipPreview,
     updateBuildingPreview,
+    updateWayPreview,
     updateLandmarkPreview,
     patchFaceRender,
     updateRoutePreview,

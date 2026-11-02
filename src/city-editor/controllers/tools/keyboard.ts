@@ -2,6 +2,7 @@ import type { DocumentsState, GenerationState, InteractionState } from "../../st
 import type { CityDocument } from "../../types/document";
 import { cancelBuildingGesture } from "./buildingTool";
 import { emptySelection } from "./toolTypes";
+import { cancelWay, popWayPoint } from "./wayTool";
 export interface KeyboardContext {
   scope: import("../../services/editorLifetime").EditorLifetime;
   generation: GenerationState;
@@ -16,6 +17,8 @@ export interface KeyboardContext {
   contextMenu: HTMLDivElement;
   refreshScaleBar: () => void;
   updateBuildingPreview: () => void;
+  updateWayPreview: () => void;
+  finishWay: () => void;
 }
 function typingTarget(event: KeyboardEvent): boolean {
   const target = event.target;
@@ -61,6 +64,19 @@ export function bindKeyboard(ctx: KeyboardContext) {
       ctx.clearFailurePreview();
       return;
     }
+    if (ctx.interaction.tool === "way" && !typingTarget(event)) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        ctx.finishWay();
+        return;
+      }
+      if (event.key === "Backspace") {
+        event.preventDefault();
+        popWayPoint(ctx.interaction);
+        ctx.updateWayPreview();
+        return;
+      }
+    }
     if (event.key === "Enter") ctx.finishButton.click();
     if (event.key === "Escape") {
       ctx.interaction.routeStroke = null;
@@ -69,6 +85,7 @@ export function bindKeyboard(ctx: KeyboardContext) {
       ctx.hideContextMenu();
       ctx.clearMeasurement();
       if (ctx.interaction.tool === "building") cancelBuildingGesture(ctx.interaction);
+      if (ctx.interaction.tool === "way") cancelWay(ctx.interaction);
       ctx.refresh();
     }
   });

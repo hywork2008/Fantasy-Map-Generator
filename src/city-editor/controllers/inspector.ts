@@ -37,6 +37,7 @@ import {
 import { reservedCastleFaces } from "../generators/fortifications";
 import { fortressPlacement, setCastleFortress } from "../generators/fortressPlacement";
 import { commitPlacement, isPlotPlacement, removePlacement } from "../generators/freeform/commitPlacement";
+import { connectEntrance } from "../generators/freeform/entrance";
 import { transformPlacedLandmark } from "../generators/landmarks";
 import {
   clone,
@@ -74,6 +75,7 @@ import type {
 import type { ContextMenuAction } from "../types/editor";
 import type { RenderSelection } from "../types/selection";
 import { buildingModelName, placementFailureText } from "./tools/buildingTool";
+import { entranceErrorText } from "./tools/wayTool";
 
 export interface InspectorContext {
   controls: ReturnType<typeof createEditorControls>;
@@ -1191,6 +1193,14 @@ export function createInspectorController(ctx: InspectorContext) {
               ctx.interaction.buildingGesture = "move";
               ctx.interaction.buildingShift = false;
               ctx.refresh();
+            }),
+            makeButton(editorText("cityEditor.messages.connectEntrance"), () => {
+              const connected = connectEntrance(ctx.documents.documentState, item.id);
+              if ("error" in connected) {
+                ctx.showNotice(entranceErrorText(connected.error));
+                return;
+              }
+              ctx.commit(connected.document, editorText("cityEditor.messages.wayConnected"));
             }),
             makeButton(editorText("cityEditor.messages.deleteObject"), () => {
               ctx.commit(
