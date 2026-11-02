@@ -1,4 +1,5 @@
 import { objectDrawing, placeableObject } from "../../buildings/placeableObjects";
+import { placementCatalog } from "../../buildings/placementModels";
 import { editorText } from "../../i18n/editorMessages";
 import type { DomesticWaterPoint } from "../generators/domesticWater";
 import { activeCargoAssignment } from "../generators/harborCargo";
@@ -25,6 +26,7 @@ export function renderCityElements(
   harbor?: HarborPlan
 ): void {
   const { document, tool, selection, town } = ctx;
+  const placementNames = new Map(placementCatalog().map(item => [item.id, item.name]));
   const elements = element("g", { class: "ce-elements" });
   for (const cityElement of document.elements) {
     // Cell landmarks are determined by Ward. Keep only point decorations from
@@ -43,7 +45,11 @@ export function renderCityElements(
     if (cityElement.kind === "object") {
       const node = renderObjectSvg(cityElement, isPickSelected);
       const definition = placeableObject(cityElement.objectType);
-      pickInfo.label = definition?.name ?? cityElement.objectType ?? "Object";
+      pickInfo.label =
+        definition?.name ??
+        (cityElement.objectType ? placementNames.get(cityElement.objectType) : undefined) ??
+        cityElement.objectType ??
+        "Object";
       delete pickInfo.sizeMeters;
       if (definition) {
         const { bounds } = objectDrawing(definition);

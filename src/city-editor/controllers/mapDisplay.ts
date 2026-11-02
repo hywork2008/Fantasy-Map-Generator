@@ -10,6 +10,7 @@ import { renderApproachLabels } from "../renderers/approachLabelSvg";
 import { syncCellReliefFace } from "../renderers/cellElevationSvg";
 import { type RenderQuality, renderEditorSvg } from "../renderers/editorSvg";
 import { updateForestScale } from "../renderers/forestSvg";
+import { renderFootprintSvg } from "../renderers/freeform/footprintSvg";
 import { renderGenerationDebugSvg } from "../renderers/generationDebugSvg";
 import { faceClassName, renderFaceWardLandmark } from "../renderers/landmarkSvg";
 import { renderObjectRotationHandle, renderObjectSvg } from "../renderers/objectSvg";
@@ -28,6 +29,7 @@ import type { DisplayState, DocumentsState, GenerationState, InteractionState } 
 import type { InfillLane } from "../types/contracts/localInfill";
 import type { CityDocument, Id, LandmarkAsset, Tool, WardKind } from "../types/document";
 import { formatDistance, niceScale } from "../utils/editorUnits";
+import { placementLabel, previewBuilding } from "./tools/buildingTool";
 import { isBrushTool } from "./tools/toolTypes";
 export interface MapDisplayContext {
   scope: import("../services/editorLifetime").EditorLifetime;
@@ -37,6 +39,10 @@ export interface MapDisplayContext {
   landmarkControls: HTMLDivElement;
   shipControls: HTMLDivElement;
   objectControls: HTMLDivElement;
+  buildingControls: HTMLDivElement;
+  buildingStatus: HTMLOutputElement;
+  syncBuildingFacing: (degrees: number) => void;
+  syncBuildingModel: () => void;
   elevationControls: HTMLDivElement;
   currentBuildingPatternSelect: HTMLSelectElement;
   historicalPeriodSelect: HTMLSelectElement;
@@ -200,6 +206,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     ctx.landmarkSelect.value = ctx.interaction.landmarkAssetId;
     ctx.landmarkControls.hidden = ctx.interaction.tool !== "landmark";
     ctx.objectControls.hidden = ctx.interaction.tool !== "object";
+    ctx.buildingControls.hidden = ctx.interaction.tool !== "building";
     ctx.shipControls.hidden = ctx.interaction.tool !== "ship";
     ctx.elevationControls.hidden = ctx.interaction.tool !== "elevation";
     ctx.currentBuildingPatternSelect.value =
@@ -488,6 +495,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     updateHoverOverlay();
     ctx.updateMeasureOverlay();
     updateLandmarkPreview();
+    updateBuildingPreview();
     svg.setAttribute("data-redraw-cpu-ms", String(performance.now() - renderStart));
   }
   function selectedLandmarkAsset(): LandmarkAsset | null {
@@ -520,6 +528,30 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
       ];
     } else ctx.interaction.landmarkLanes = [];
     return ctx.interaction.landmarkLanes;
+  }
+  function updateBuildingPreview(): void {
+    const svg = ctx.map.querySelector("svg");
+    svg?.querySelector(".ce-building-preview")?.remove();
+    ctx.syncBuildingModel();
+    if (ctx.interaction.tool !== "building") {
+      ctx.buildingStatus.textContent = "";
+      return;
+    }
+    const preview = previewBuilding(ctx.documents.documentState, ctx.interaction);
+    const label = preview ? placementLabel(preview) : "";
+    ctx.buildingStatus.textContent = label;
+    ctx.buildingStatus.style.color = preview && !preview.ok ? "#c62828" : "#2e7d32";
+    ctx.syncBuildingFacing(preview?.facingDegrees ?? ctx.interaction.buildingFacingDegrees);
+    if (!svg || !preview) return;
+    svg.querySelector(".ce-map-scene")?.appendChild(
+      renderFootprintSvg({
+        building: preview.building,
+        plot: preview.plot,
+        ok: preview.ok,
+        facingDegrees: preview.facingDegrees,
+        label
+      })
+    );
   }
   function updateShipPreview(): void {
     const svg = ctx.map.querySelector("svg");
@@ -852,6 +884,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     selectedLandmarkAsset,
     preservedLandmarkLanes,
     updateShipPreview,
+    updateBuildingPreview,
     updateLandmarkPreview,
     patchFaceRender,
     updateRoutePreview,

@@ -132,11 +132,13 @@ export type TerrainBase =
   | { kind: "flat"; elevationMeters: number }
   | { kind: "field"; field: TerrainField };
 
-export type TerrainTemplateId = "noise" | "crag" | "spur" | "meander" | "escarpment";
+export type TerrainTemplateId = "noise" | "crag" | "spur" | "meander" | "escarpment" | "dome" | "cells";
 
 export type TerrainFieldPart =
   | { kind: "offset"; meters: number }
   | { kind: "hill"; center: Point; radiusMeters: number; heightMeters: number }
+  /** Spherical cap: `H · (1 − r²/R²)` inside the base radius, and 0 outside. The rim is level with the cap's base. */
+  | { kind: "dome"; center: Point; radiusMeters: number; heightMeters: number }
   | { kind: "range"; points: Point[]; radiusMeters: number; heightMeters: number }
   | { kind: "trough"; points: Point[]; radiusMeters: number; depthMeters: number }
   | { kind: "pit"; center: Point; radiusMeters: number; depthMeters: number }

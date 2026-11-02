@@ -13,7 +13,8 @@ export function validPlatformEdge(edge: unknown): edge is PlatformEdge {
   return (
     value.kind === "cliff" ||
     value.kind === "wall" ||
-    (value.kind === "slope" && typeof value.runMeters === "number" && value.runMeters > 0 && value.runMeters <= 200)
+    // A flush pad is a slope of length 0: the summit is already the ground.
+    (value.kind === "slope" && typeof value.runMeters === "number" && value.runMeters >= 0 && value.runMeters <= 200)
   );
 }
 

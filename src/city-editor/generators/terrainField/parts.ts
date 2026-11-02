@@ -180,6 +180,15 @@ export function applyParts(grid: FieldGrid, values: Float32Array, parts: readonl
               part.heightMeters *
               falloff(Math.hypot(point[0] - part.center[0], point[1] - part.center[1]), part.radiusMeters);
             break;
+          case "dome": {
+            const radius = part.radiusMeters;
+            if (!(radius > 0)) break;
+            const distance = Math.hypot(point[0] - part.center[0], point[1] - part.center[1]);
+            if (distance >= radius) break;
+            const t = distance / radius;
+            values[index] += part.heightMeters * (1 - t * t);
+            break;
+          }
           case "range":
             values[index] += part.heightMeters * falloff(distanceToPolyline(point, part.points), part.radiusMeters);
             break;

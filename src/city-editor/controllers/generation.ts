@@ -832,14 +832,28 @@ export function createGenerationController(ctx: GenerationContext) {
       if (riverDropValue)
         riverDropValue.textContent = editorText("cityEditor.messages.riverDropValue", { value0: String(drop) });
     }
-    const terrainField = ctx.root.querySelector<HTMLSelectElement>(".ce-terrain-field");
+    // The height-field drawing uses the same class on an SVG group. A plain
+    // class query would bind the sync to that group once a field exists.
+    const terrainField = ctx.root.querySelector<HTMLSelectElement>("select.ce-terrain-field");
     if (terrainField) {
       const allowed = fieldModeAllowed(ctx.documents.documentState.frame.extentMeters);
       terrainField.disabled = !allowed;
       const template = ctx.generation.generateSettings.terrainField?.template ?? "off";
-      terrainField.value = allowed ? template : "off";
+      let cells = terrainField.querySelector<HTMLOptionElement>('option[value="cells"]');
+      if (template === "cells") {
+        if (!cells) {
+          cells = document.createElement("option");
+          cells.value = "cells";
+          cells.textContent = editorText("cityEditor.messages.convertCellElevations");
+          terrainField.append(cells);
+        }
+      } else cells?.remove();
+      const known = [...terrainField.options].some(option => option.value === template);
+      terrainField.value = allowed && known ? template : "off";
       if (!allowed) delete ctx.generation.generateSettings.terrainField;
     }
+    const convertCells = ctx.root.querySelector<HTMLButtonElement>(".ce-convert-cells");
+    if (convertCells) convertCells.disabled = !fieldModeAllowed(ctx.documents.documentState.frame.extentMeters);
     for (const [key, input] of ctx.featureInputs)
       input.checked = (ctx.generation.generateSettings.descriptor?.burg ??
         ctx.generation.generateSettings.config.features)[key];

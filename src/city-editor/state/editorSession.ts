@@ -72,6 +72,14 @@ export interface InteractionState {
   objectType: string;
   objectScale: number;
   objectAngleDegrees: number;
+  buildingModelId: string;
+  buildingFacingDegrees: number;
+  buildingHoverPoint: Point | null;
+  buildingAnchor: Point | null;
+  buildingGesture: "move" | "rotate";
+  buildingShift: boolean;
+  buildingCtrl: boolean;
+  buildingEditId: string | null;
   shipType: ShipType;
   shipSizeMeters: number;
   shipAngleDegrees: number;

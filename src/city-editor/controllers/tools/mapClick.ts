@@ -10,6 +10,7 @@ import type { InfillLane } from "../../types/contracts/localInfill";
 import type { CityDocument, CityElement, Id, LandmarkAsset, Point } from "../../types/document";
 import type { RenderSelection } from "../../types/selection";
 import { pointInPolygon } from "../editorGeometry";
+import { aimBuilding, applyBuildingPlace, buildingModelName } from "./buildingTool";
 import { targetId } from "./toolTypes";
 export interface MapClickContext {
   scope: import("../../services/editorLifetime").EditorLifetime;
@@ -92,6 +93,23 @@ export function bindMapClick(ctx: MapClickContext) {
       ctx.commit(
         { ...ctx.documents.documentState, elements: [...ctx.documents.documentState.elements, item] },
         editorText("cityEditor.messages.placeCityEditorPage", { value0: placeableObject(item.objectType)!.name })
+      );
+      return;
+    }
+    if (ctx.interaction.tool === "building") {
+      const pointer = event as PointerEvent;
+      aimBuilding(ctx.interaction, ctx.localPoint(pointer), pointer.ctrlKey || pointer.metaKey);
+      const placed = applyBuildingPlace(ctx.documents.documentState, ctx.interaction);
+      if (!placed) return;
+      if ("error" in placed) {
+        ctx.showNotice(placed.error);
+        return;
+      }
+      ctx.commit(
+        placed.document,
+        editorText(placed.editing ? "cityEditor.messages.updateObject" : "cityEditor.messages.placeCityEditorPage", {
+          value0: buildingModelName(ctx.interaction.buildingModelId)
+        })
       );
       return;
     }

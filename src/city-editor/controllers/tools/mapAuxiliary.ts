@@ -1,4 +1,5 @@
 import { clamp } from "../../components/editorControls";
+import { snapFacing } from "../../generators/freeform/facing";
 import type { DisplayState, DocumentsState, InteractionState } from "../../state/editorSession";
 export interface MapAuxiliaryContext {
   scope: import("../../services/editorLifetime").EditorLifetime;
@@ -15,6 +16,7 @@ export interface MapAuxiliaryContext {
   updateViewport: (zoomChanged?: boolean) => void;
   updateCircularWallPreview: (event?: PointerEvent) => void;
   refreshScaleBar: () => void;
+  updateBuildingPreview: () => void;
 }
 export function bindMapAuxiliary(ctx: MapAuxiliaryContext) {
   ctx.scope.listen(ctx.map, "dragover", event => {
@@ -32,6 +34,10 @@ export function bindMapAuxiliary(ctx: MapAuxiliaryContext) {
       ctx.interaction.shipHoverPoint = null;
       ctx.map.querySelector(".ce-ship-preview")?.remove();
     }
+    if (ctx.interaction.tool === "building") {
+      ctx.interaction.buildingHoverPoint = null;
+      ctx.updateBuildingPreview();
+    }
     if (!ctx.interaction.isWardPainting && !ctx.interaction.isJunctionPainting) ctx.hideWardBrushPreview();
     if (!ctx.interaction.circularWallStroke) ctx.hideCircularWallPreview();
   });
@@ -41,6 +47,18 @@ export function bindMapAuxiliary(ctx: MapAuxiliaryContext) {
     ctx.map,
     "wheel",
     event => {
+      if (ctx.interaction.tool === "building" && ctx.interaction.buildingGesture === "rotate") {
+        event.preventDefault();
+        const step = event.altKey ? 1 : 5;
+        const sign = event.deltaY > 0 ? 1 : -1;
+        ctx.interaction.buildingCtrl = event.ctrlKey || event.metaKey;
+        ctx.interaction.buildingFacingDegrees = snapFacing(
+          ctx.interaction.buildingFacingDegrees + sign * step,
+          ctx.interaction.buildingCtrl ? 15 : null
+        );
+        ctx.updateBuildingPreview();
+        return;
+      }
       event.preventDefault();
       const previousHalfView = ctx.display.halfView;
       ctx.display.halfView = clamp(

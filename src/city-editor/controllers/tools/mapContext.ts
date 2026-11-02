@@ -13,6 +13,7 @@ import type { DocumentsState, InteractionState } from "../../state/editorSession
 import type { CityDocument, FeatureGroup, Id, Point } from "../../types/document";
 import type { ContextMenuAction } from "../../types/editor";
 import { pointInPolygon } from "../editorGeometry";
+import { cancelBuildingGesture } from "./buildingTool";
 import { targetId } from "./toolTypes";
 export interface MapContextContext {
   scope: import("../../services/editorLifetime").EditorLifetime;
@@ -37,6 +38,11 @@ export function bindMapContext(ctx: MapContextContext) {
   ctx.scope.listen(ctx.contextMenu, "contextmenu", event => event.preventDefault());
   ctx.scope.listen(ctx.map, "contextmenu", event => {
     event.preventDefault();
+    if (ctx.interaction.tool === "building") {
+      cancelBuildingGesture(ctx.interaction);
+      ctx.refresh();
+      return;
+    }
     ctx.flushRedraw();
     if (
       ctx.documents.documentState.sceneRegions &&

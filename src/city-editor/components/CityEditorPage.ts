@@ -14,6 +14,13 @@ import { createMapDisplayController } from "../controllers/mapDisplay";
 import { bindPanelEvents } from "../controllers/panelEvents";
 import { createSpatialIndexController } from "../controllers/spatialIndex";
 import { createBrushesController } from "../controllers/tools/brushes";
+import {
+  aimBuilding,
+  applyBuildingPlace,
+  buildingModelName,
+  cancelBuildingGesture,
+  previewBuilding
+} from "../controllers/tools/buildingTool";
 import { createDragCompletionController } from "../controllers/tools/dragCompletion";
 import { bindKeyboard } from "../controllers/tools/keyboard";
 import { bindMapAuxiliary } from "../controllers/tools/mapAuxiliary";
@@ -39,6 +46,7 @@ import {
   presetAmplitude
 } from "../generators/elevationPreset";
 import { restoreFixedCrossingApproaches } from "../generators/fixedApproachAdoption";
+import { snapFacing } from "../generators/freeform/facing";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { defaultGenerationSettings, randomGeography, randomSeed } from "../generators/generation/settings";
 import { DEFAULT_HEX_SIZE_METERS } from "../generators/hexGrid";
@@ -57,6 +65,7 @@ import { RIVER_DROP_MIN, riverDropMeters, riverDropUpperFor } from "../generator
 import { regenerateRuralLand } from "../generators/roadsideFarms";
 import { DEFAULT_TERRACE_STEP_METERS } from "../generators/terracePlanning";
 import { DEFAULT_CASTLE_RISE_METERS } from "../generators/terrainEditing";
+import { cellsToFieldRecipe } from "../generators/terrainField/cellsToField";
 import { installNaturalTerrainField } from "../generators/terrainGeneration";
 import { CASTLE_STYLE_PROFILES } from "../renderers/castlePatterns";
 import { type City3dMountOptions, mountCity3d } from "../renderers/cityView";
@@ -92,6 +101,8 @@ import type {
 import type { ContextMenuAction, RoutePaintKind, RouteStroke } from "../types/editor";
 import type { GenerationSettings, GenerationStage } from "../types/generation";
 import type { RenderSelection } from "../types/selection";
+import type { TerrainTemplateId } from "../types/terrain";
+import { buildBuildingControls } from "./buildingControls";
 import { buildDocumentPanel } from "./documentPanel";
 import { createEditorControls, div, text } from "./editorControls";
 import { buildFacilityPanel } from "./facilityPanel";
@@ -113,6 +124,7 @@ const TOOLS: Array<[Tool, EditorMessageKey, string]> = [
   ["select", "cityEditor.messages.selectAndMove", "↖"],
   ["landmark", "cityEditor.messages.placeHistoricLandmark", "⌂"],
   ["object", "cityEditor.messages.placeObjects", "⚒"],
+  ["building", "cityEditor.messages.placeBuilding", "▢"],
   ["ship", "cityEditor.messages.placeShips", "⛵"],
   ["vertex", "cityEditor.messages.editVertices", "⌘"],
   ["road", "cityEditor.messages.drawRoad", "╱"],
@@ -308,6 +320,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       get updateShipPreview() {
         return updateShipPreview;
       },
+      get updateBuildingPreview() {
+        return updateBuildingPreview;
+      },
       get shipAngle() {
         return shipAngle;
       },
@@ -500,6 +515,18 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         },
         get objectControls() {
           return objectControls;
+        },
+        get buildingControls() {
+          return buildingUi.controls;
+        },
+        get buildingStatus() {
+          return buildingUi.status;
+        },
+        get syncBuildingFacing() {
+          return buildingUi.syncFacing;
+        },
+        get syncBuildingModel() {
+          return buildingUi.syncFromInteraction;
         },
         get shipControls() {
           return shipControls;
@@ -1353,6 +1380,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   interaction.objectType = "trebuchet";
   interaction.objectScale = 1;
   interaction.objectAngleDegrees = 0;
+  interaction.buildingModelId = "house:mediterranean";
+  interaction.buildingFacingDegrees = 0;
+  interaction.buildingHoverPoint = null;
+  interaction.buildingAnchor = null;
+  interaction.buildingGesture = "move";
+  interaction.buildingShift = false;
+  interaction.buildingCtrl = false;
+  interaction.buildingEditId = null;
   interaction.shipType = "small";
   interaction.shipSizeMeters = SHIP_SPECS.small.defaultSizeMeters;
   interaction.shipAngleDegrees = 0;
@@ -1713,6 +1748,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   for (const [id, labelKey, icon] of TOOLS) {
     const button = makeIconButton(icon, editorText(labelKey), () => {
       interaction.tool = id;
+      if (id === "building") {
+        interaction.buildingEditId = null;
+        interaction.buildingGesture = "move";
+        interaction.buildingShift = false;
+      }
       if (id !== "select") {
         interaction.inspectedInfo = null;
         interaction.selection.inspectedId = null;
@@ -1790,6 +1830,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (interaction.tool === "object") updateShipPreview();
   });
   toolbar.content.appendChild(objectControls);
+  const buildingUi = buildBuildingControls(scope, interaction, () => updateBuildingPreview());
+  toolbar.content.appendChild(buildingUi.controls);
 
   const elevationControls = div("ce-elevation-controls");
   const elevationMode = select(["raise", "lower", "smooth"], interaction.elevationBrush);
@@ -2190,7 +2232,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       return makeButton;
     },
     get useStandaloneSite() {
-      return useStandaloneSite;
+      return applyStandaloneSite;
     },
     get copyShareLink() {
       return copyShareLink;
@@ -2333,23 +2375,27 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   castleControls.append(label(editorText("cityEditor.messages.castleGroundRise"), riseInput));
   // Terraces level the site's relief into flat steps; streets cross them as ramps or stairs.
   const terrainFieldSelect = select(
-    ["off", "crag", "spur", "meander", "escarpment", "noise"],
-    generation.generateSettings.terrainField?.template ?? "off"
+    ["off", "dome", "crag", "spur", "meander", "escarpment", "noise"],
+    generation.generateSettings.terrainField?.template === "cells"
+      ? "off"
+      : (generation.generateSettings.terrainField?.template ?? "off")
   );
   terrainFieldSelect.className = "ce-terrain-field";
   const terrainFieldLabel = (value: string) =>
     editorText(
       value === "off"
         ? "cityEditor.messages.terrainFieldOff"
-        : value === "crag"
-          ? "cityEditor.messages.terrainFieldCrag"
-          : value === "spur"
-            ? "cityEditor.messages.terrainFieldSpur"
-            : value === "meander"
-              ? "cityEditor.messages.terrainFieldMeander"
-              : value === "escarpment"
-                ? "cityEditor.messages.terrainFieldEscarpment"
-                : "cityEditor.messages.terrainFieldNoise"
+        : value === "dome"
+          ? "cityEditor.messages.terrainFieldDome"
+          : value === "crag"
+            ? "cityEditor.messages.terrainFieldCrag"
+            : value === "spur"
+              ? "cityEditor.messages.terrainFieldSpur"
+              : value === "meander"
+                ? "cityEditor.messages.terrainFieldMeander"
+                : value === "escarpment"
+                  ? "cityEditor.messages.terrainFieldEscarpment"
+                  : "cityEditor.messages.terrainFieldNoise"
     );
   for (const option of terrainFieldSelect.options) option.textContent = terrainFieldLabel(option.value);
   scope.listen(terrainFieldSelect, "change", () => {
@@ -2357,7 +2403,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (template === "off") delete generation.generateSettings.terrainField;
     else {
       generation.generateSettings.terrainField = {
-        template: template as "noise" | "crag" | "spur" | "meander" | "escarpment"
+        template: template as TerrainTemplateId
       };
       generation.generateSettings.elevationPreset = "flat";
       const castle = generation.generateSettings.castle ?? {};
@@ -2369,6 +2415,30 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     }
     syncGenerateControls();
   });
+  const convertCellsButton = makeButton(editorText("cityEditor.messages.convertCellElevations"), () => {
+    const recipe = cellsToFieldRecipe(documents.documentState);
+    if (!recipe) {
+      showNotice(editorText("cityEditor.messages.buildingNeedsField"));
+      return;
+    }
+    const current = documents.documentState;
+    commit(
+      {
+        ...current,
+        terrain: {
+          version: 1,
+          features: current.terrain?.features ?? [],
+          ...(current.terrain?.ramps?.length ? { ramps: current.terrain.ramps } : {}),
+          field: recipe
+        }
+      },
+      editorText("cityEditor.messages.convertCellElevations")
+    );
+    generation.generateSettings.elevationPreset = "flat";
+    delete generation.generateSettings.terrainField;
+    syncGenerateControls();
+  });
+  convertCellsButton.className = "ce-convert-cells";
   const terraceSelect = select(["natural", "terraces"], generation.generateSettings.terraces ? "terraces" : "natural");
   for (const option of terraceSelect.options)
     option.textContent = editorText(
@@ -2747,6 +2817,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       updateElevationReliefButton,
       standaloneSettings(
         label(editorText("cityEditor.messages.terrainField"), terrainFieldSelect),
+        convertCellsButton,
         (() => {
           const controls = div("ce-city-generation-controls");
           controls.append(
@@ -2899,6 +2970,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     },
     get updateShipPreview() {
       return updateShipPreview;
+    },
+    get updateBuildingPreview() {
+      return updateBuildingPreview;
     },
     get updateCircularWallPreview() {
       return updateCircularWallPreview;
@@ -3067,6 +3141,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     },
     get refreshScaleBar() {
       return refreshScaleBar;
+    },
+    get updateBuildingPreview() {
+      return updateBuildingPreview;
     }
   });
 
@@ -3084,7 +3161,50 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     getForestQuality: () => readForestViewPreferences().quality,
     isFmgLinked: () => Boolean(generation.generateSettings.descriptor),
     getTerrainSpacing: readTerrainSpacingPreference,
-    getRiverDropMeters: () => riverDropMeters(generation.generateSettings.riverDropMeters)
+    getRiverDropMeters: () => riverDropMeters(generation.generateSettings.riverDropMeters),
+    placement: {
+      active: () => interaction.tool === "building",
+      rotating: () => interaction.tool === "building" && interaction.buildingGesture === "rotate",
+      hover(point, ctrl) {
+        aimBuilding(interaction, point, ctrl);
+        updateBuildingPreview();
+      },
+      place(point, _shift, ctrl) {
+        aimBuilding(interaction, point, ctrl);
+        const placed = applyBuildingPlace(documents.documentState, interaction);
+        if (!placed) return;
+        if ("error" in placed) {
+          showNotice(placed.error);
+          return;
+        }
+        commit(
+          placed.document,
+          editorText(placed.editing ? "cityEditor.messages.updateObject" : "cityEditor.messages.placeCityEditorPage", {
+            value0: buildingModelName(interaction.buildingModelId)
+          })
+        );
+      },
+      cancel() {
+        cancelBuildingGesture(interaction);
+        updateBuildingPreview();
+      },
+      wheel(delta, ctrl) {
+        interaction.buildingCtrl = ctrl;
+        interaction.buildingFacingDegrees = snapFacing(interaction.buildingFacingDegrees + delta, ctrl ? 15 : null);
+        updateBuildingPreview();
+      },
+      ghost() {
+        const preview = previewBuilding(documents.documentState, interaction);
+        if (!preview) return null;
+        return {
+          building: preview.building,
+          plot: preview.plot,
+          level: preview.level,
+          ok: preview.ok,
+          facingDegrees: preview.facingDegrees
+        };
+      }
+    }
   };
   const city3d = retainedLanguage?.city3d ?? mountCity3d(city3dOptions);
   if (retainedLanguage?.city3d) city3d.adopt(city3dOptions);
@@ -3306,6 +3426,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     getMapDisplayController().updateShipPreview();
   }
 
+  function updateBuildingPreview(): void {
+    getMapDisplayController().updateBuildingPreview();
+  }
+
   function updateLandmarkPreview(): void {
     getMapDisplayController().updateLandmarkPreview();
   }
@@ -3508,7 +3632,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     return getDocumentIOController().copyShareLink(button);
   }
 
-  function useStandaloneSite(): void {
+  function applyStandaloneSite(): void {
     getDocumentIOController().useStandaloneSite();
   }
 

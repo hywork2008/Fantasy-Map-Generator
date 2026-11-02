@@ -1,7 +1,9 @@
 import { objectDrawing, placeableObject } from "../../buildings/placeableObjects";
+import { facingFromRotation, frontAxisOf, planBox, planBoxCorners } from "../../buildings/placementContract";
+import { placementFootprint } from "../../buildings/placementModels";
 import { objectScale } from "../generators/objectPlacement";
 import type { CityElement } from "../types/document";
-import { element } from "./svgPrimitives";
+import { element, polygon } from "./svgPrimitives";
 
 export function renderObjectSvg(item: CityElement, selected = false): SVGElement {
   const node = element("g", {
@@ -11,7 +13,10 @@ export function renderObjectSvg(item: CityElement, selected = false): SVGElement
     "data-element": item.id
   });
   const definition = placeableObject(item.objectType);
-  if (!definition || !item.point) return node;
+  if (!definition || !item.point) {
+    appendFootprint(node, item);
+    return node;
+  }
   const { bounds, plan } = objectDrawing(definition);
   const x = (bounds.min.x + bounds.max.x) / 2;
   const z = (bounds.min.z + bounds.max.z) / 2;
@@ -46,7 +51,10 @@ export function renderObjectRotationHandle(item: CityElement): SVGElement {
     "data-object-id": item.id
   });
   const definition = placeableObject(item.objectType);
-  if (!definition || !item.point || item.locked) return group;
+  if (!definition || !item.point || item.locked) {
+    appendFootprintHandle(group, item);
+    return group;
+  }
   const { bounds } = objectDrawing(definition);
   const reach = ((bounds.max.x - bounds.min.x) * objectScale(item.objectScale)) / 2 + 8;
   const rotation = item.rotation ?? 0;
@@ -88,4 +96,67 @@ export function renderObjectRotationHandle(item: CityElement): SVGElement {
     })
   );
   return group;
+}
+
+/** Plan box for a BV placement that has no placeable SVG. The pad uses the same corners. */
+function appendFootprint(node: SVGElement, item: CityElement): void {
+  if (!item.point || !item.objectType) return;
+  const footprint = placementFootprint(item.objectType);
+  if (!footprint) return;
+  const corners = planBoxCorners(planBox(item.point, footprint, item.rotation ?? 0));
+  node.appendChild(
+    element("path", {
+      d: polygon(corners),
+      fill: "rgba(46, 125, 50, 0.18)",
+      stroke: "#2e7d32",
+      "stroke-width": "1.5",
+      "vector-effect": "non-scaling-stroke",
+      class: "ce-object-selection"
+    })
+  );
+}
+
+function appendFootprintHandle(group: SVGElement, item: CityElement): void {
+  if (!item.point || !item.objectType || item.locked) return;
+  const footprint = placementFootprint(item.objectType);
+  if (!footprint) return;
+  const facing = (facingFromRotation(frontAxisOf(item.objectType), item.rotation ?? 0) * Math.PI) / 180;
+  const reach = Math.max(footprint.halfX, footprint.halfZ) + 8;
+  const x = item.point[0] + Math.sin(facing) * reach;
+  const y = item.point[1] + Math.cos(facing) * reach;
+  group.appendChild(
+    element("line", {
+      x1: String(item.point[0]),
+      y1: String(-item.point[1]),
+      x2: String(x),
+      y2: String(-y),
+      stroke: "#2679a8",
+      "stroke-width": "1.2",
+      "stroke-dasharray": "3 2",
+      "pointer-events": "none"
+    })
+  );
+  group.appendChild(
+    element("circle", {
+      cx: String(x),
+      cy: String(-y),
+      r: "10",
+      fill: "transparent",
+      stroke: "none",
+      class: "ce-object-rotate-hit",
+      style: "cursor: grab;"
+    })
+  );
+  group.appendChild(
+    element("circle", {
+      cx: String(x),
+      cy: String(-y),
+      r: "4.5",
+      fill: "#ffffff",
+      stroke: "#1d638d",
+      "stroke-width": "2",
+      class: "ce-object-rotate-knob",
+      style: "cursor: grab;"
+    })
+  );
 }

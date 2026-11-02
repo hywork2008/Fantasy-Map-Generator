@@ -1,5 +1,6 @@
 import type { DocumentsState, GenerationState, InteractionState } from "../../state/editorSession";
 import type { CityDocument } from "../../types/document";
+import { cancelBuildingGesture } from "./buildingTool";
 import { emptySelection } from "./toolTypes";
 export interface KeyboardContext {
   scope: import("../../services/editorLifetime").EditorLifetime;
@@ -14,7 +15,15 @@ export interface KeyboardContext {
   refresh: () => void;
   contextMenu: HTMLDivElement;
   refreshScaleBar: () => void;
+  updateBuildingPreview: () => void;
 }
+function typingTarget(event: KeyboardEvent): boolean {
+  const target = event.target;
+  return (
+    target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement
+  );
+}
+
 export function bindKeyboard(ctx: KeyboardContext) {
   ctx.scope.listen(window, "keydown", event => {
     if (ctx.generation.generationJob) return;
@@ -27,6 +36,27 @@ export function bindKeyboard(ctx: KeyboardContext) {
           : ctx.documents.history.undo(ctx.documents.documentState)
       );
     }
+    if (ctx.interaction.tool === "building" && !typingTarget(event)) {
+      if (event.key === "Tab") {
+        event.preventDefault();
+        if (ctx.interaction.buildingGesture === "rotate") ctx.interaction.buildingGesture = "move";
+        else {
+          ctx.interaction.buildingAnchor = ctx.interaction.buildingHoverPoint;
+          ctx.interaction.buildingGesture = "rotate";
+        }
+        ctx.updateBuildingPreview();
+      } else if (event.key === "Shift" && !event.ctrlKey && !event.metaKey && !event.repeat) {
+        ctx.interaction.buildingShift = true;
+        if (ctx.interaction.buildingGesture !== "rotate") {
+          ctx.interaction.buildingAnchor = ctx.interaction.buildingHoverPoint;
+          ctx.interaction.buildingGesture = "rotate";
+        }
+        ctx.updateBuildingPreview();
+      } else if (event.key === "Control" || event.key === "Meta") {
+        ctx.interaction.buildingCtrl = true;
+        ctx.updateBuildingPreview();
+      }
+    }
     if (ctx.generation.failurePreview && event.key === "Escape") {
       ctx.clearFailurePreview();
       return;
@@ -38,11 +68,23 @@ export function bindKeyboard(ctx: KeyboardContext) {
       ctx.interaction.activeGroupId = null;
       ctx.hideContextMenu();
       ctx.clearMeasurement();
+      if (ctx.interaction.tool === "building") cancelBuildingGesture(ctx.interaction);
       ctx.refresh();
     }
   });
   ctx.scope.listen(window, "keyup", event => {
     if (event.code === "Space") ctx.interaction.isSpacePressed = false;
+    if (event.key === "Shift") {
+      ctx.interaction.buildingShift = false;
+      if (ctx.interaction.tool === "building") {
+        ctx.interaction.buildingGesture = "move";
+        ctx.updateBuildingPreview();
+      }
+    }
+    if ((event.key === "Control" || event.key === "Meta") && ctx.interaction.tool === "building") {
+      ctx.interaction.buildingCtrl = false;
+      ctx.updateBuildingPreview();
+    }
   });
   ctx.scope.listen(window, "blur", () => {
     ctx.interaction.isSpacePressed = false;

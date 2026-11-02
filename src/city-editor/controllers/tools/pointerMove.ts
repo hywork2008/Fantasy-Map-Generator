@@ -1,9 +1,11 @@
 import { previewRouteAcrossFace } from "../../generators/features";
+import { isPlotPlacement } from "../../generators/freeform/commitPlacement";
 import { moveVertex } from "../../generators/mesh";
 import { canPlaceObject } from "../../generators/objectPlacement";
 import { getShipAngleFromPoint } from "../../renderers/shipSvg";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../../state/editorSession";
 import type { Id, Point } from "../../types/document";
+import { aimBuilding } from "./buildingTool";
 import { isBrushTool } from "./toolTypes";
 export interface PointerMoveContext {
   scope: import("../../services/editorLifetime").EditorLifetime;
@@ -14,6 +16,7 @@ export interface PointerMoveContext {
   scheduleRedraw: () => void;
   updateLandmarkPreview: () => void;
   updateShipPreview: () => void;
+  updateBuildingPreview: () => void;
   updateCircularWallPreview: (event?: PointerEvent) => void;
   updateWardBrushPreview: (event?: PointerEvent) => void;
   paintCellsAtPoint: (point: Point) => void;
@@ -49,7 +52,12 @@ export function bindPointerMove(ctx: PointerMoveContext) {
           ctx.interaction.shipDrag.initialShipPoint[1] + dy
         ];
         const item = ctx.documents.documentState.elements.find(e => e.id === ctx.interaction.shipDrag!.shipId);
-        if (item?.kind === "object" && !canPlaceObject(ctx.documents.documentState, { ...item, point: nextPoint }))
+        const plot = Boolean(item && isPlotPlacement(ctx.documents.documentState, item.id));
+        if (
+          item?.kind === "object" &&
+          !plot &&
+          !canPlaceObject(ctx.documents.documentState, { ...item, point: nextPoint })
+        )
           return;
         ctx.documents.documentState = {
           ...ctx.documents.documentState,
@@ -69,7 +77,8 @@ export function bindPointerMove(ctx: PointerMoveContext) {
             by = point[1] - y;
           if (Math.hypot(ax, ay) < 1e-6 || Math.hypot(bx, by) < 1e-6) return;
           nextAngle = drag.initialRotation + Math.atan2(ax * by - ay * bx, ax * bx + ay * by);
-          if (!canPlaceObject(ctx.documents.documentState, { ...item, rotation: nextAngle })) return;
+          const plot = isPlotPlacement(ctx.documents.documentState, item.id);
+          if (!plot && !canPlaceObject(ctx.documents.documentState, { ...item, rotation: nextAngle })) return;
         }
         ctx.documents.documentState = {
           ...ctx.documents.documentState,
@@ -85,6 +94,11 @@ export function bindPointerMove(ctx: PointerMoveContext) {
     if (ctx.interaction.tool === "landmark" && !ctx.interaction.isPanning) {
       ctx.interaction.landmarkHoverPoint = ctx.localPoint(event);
       ctx.updateLandmarkPreview();
+      return;
+    }
+    if (ctx.interaction.tool === "building" && !ctx.interaction.isPanning) {
+      aimBuilding(ctx.interaction, ctx.localPoint(event), event.ctrlKey || event.metaKey);
+      ctx.updateBuildingPreview();
       return;
     }
     if ((ctx.interaction.tool === "ship" || ctx.interaction.tool === "object") && !ctx.interaction.isPanning) {
