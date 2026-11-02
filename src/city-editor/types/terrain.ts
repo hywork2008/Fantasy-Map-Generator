@@ -1,4 +1,7 @@
+import type { TerrainRiverCorridor } from "./contracts/riverHydraulics";
 import type { Id, Point } from "./primitives";
+
+export type { TerrainRiverCorridor } from "./contracts/riverHydraulics";
 
 export interface TerrainPatch {
   faceId: string;
@@ -86,28 +89,6 @@ export interface TerrainPlatform {
    * A wall is a vertical retaining face; roads may stair over it.
    */
   edge: { kind: "cliff" } | { kind: "slope"; runMeters: number } | { kind: "wall" };
-}
-
-/**
- * A river as its own height layer: a centre line, a bed profile, and banks.
- * The bed never rises downstream. Water level is the bed plus depth, not a guess from the ground.
- */
-export interface TerrainRiverCorridor {
-  kind: "riverCorridor";
-  id: Id;
-  /** Source feature group or river flow, so an edit of that line can rebuild the corridor. */
-  sourceId: Id;
-  /** Upstream first. */
-  centerline: Point[];
-  /** Water width at each centre-line point, in metres. */
-  widthsMeters: number[];
-  /** Absolute bed height at each centre-line point. Never rises downstream. */
-  bedMeters: number[];
-  /** Water depth above the bed. The surface is level across the width. */
-  depthMeters: number;
-  /** Derived local water depths for the hydraulic model; absent on legacy saved corridors. */
-  depthsMeters?: number[];
-  bank: { kind: "slope"; runMeters: number } | { kind: "quay"; heightMeters: number };
 }
 
 /** A level-floored ring excavation, such as a moat, measured from an absolute rim. */
