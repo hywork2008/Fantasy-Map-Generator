@@ -13,8 +13,14 @@ import { terrainFieldForDocument } from "../terrainField/build";
 import { fieldFoundation } from "../terrainField/lots";
 import { sampleField, slopeField } from "../terrainField/sample";
 import { classifyTownWater } from "../townWater";
+import { frontRoadLevel } from "./frontRoad";
 import { createPlotIndex, plotRecord } from "./plotIndex";
-import { type PlacementReject, RETAINING_WALL_THICKNESS_METERS, validatePlacement } from "./validatePlacement";
+import {
+  type PlacementReject,
+  type PlotEdge,
+  RETAINING_WALL_THICKNESS_METERS,
+  validatePlacement
+} from "./validatePlacement";
 import { wayCoversPolygon } from "./validateWay";
 
 /** Gap between the building box and the next plot. The pad outline is the grown box. */
@@ -38,7 +44,7 @@ export interface PlacementPreview {
   ok: boolean;
   reason?: PlacementFailure;
   level: number;
-  edge: TerrainPlatform["edge"];
+  edge: PlotEdge;
   facingDegrees: number;
   rotation: number;
   building: [Point, Point, Point, Point];
@@ -79,7 +85,10 @@ export function previewPlacement(document: CityDocument, draft: PlacementDraft):
   }
   const heightAt = (point: Point) => sampleField(field, point);
   const outline = planBoxCorners(plot);
-  const level = fieldFoundation(outline, heightAt, heightAt);
+  const level = fieldFoundation(outline, heightAt, point => {
+    const road = frontRoadLevel(document, frontDoor(draft.position, draft.facingDegrees, outline));
+    return road ?? heightAt(point);
+  });
   let edgeDrop = 0;
   for (let i = 0; i < outline.length; i++) {
     const a = outline[i];
@@ -93,14 +102,14 @@ export function previewPlacement(document: CityDocument, draft: PlacementDraft):
     {
       id: draft.id,
       box: plot,
-      slope: slopeField(field, draft.position),
+      slope: footprintSlope(field, draft.position, planBoxCorners(building)),
       areaM2: 4 * draft.footprint.halfX * draft.footprint.halfZ,
       edgeDropMeters: edgeDrop,
       onWater: onWater(document, outline),
       onCliff: onCliff(document, draft.position, slopeField(field, draft.position)),
       onWay: wayCoversPolygon(document, outline)
     },
-    plotIndex(document, draft.id)
+    plotIndex(document)
   );
   return {
     ok: decision.ok,
@@ -128,7 +137,7 @@ export function commitPlacement(
     role: "pad",
     summit: { kind: "polygon", points: preview.plot },
     levelMeters: preview.level,
-    edge: preview.edge.kind === "wall" ? { kind: "wall" } : { kind: "slope", runMeters: preview.edge.runMeters }
+    edge: padEdge(preview.edge)
   };
   const element: CityElement = {
     id: draft.id,
@@ -163,12 +172,21 @@ export function removePlacement(document: CityDocument, id: string): CityDocumen
   };
 }
 
-function plotIndex(document: CityDocument, ignoreId: string) {
+const plotIndexCache = new WeakMap<object, ReturnType<typeof createPlotIndex>>();
+
+/**
+ * Index of every placed plot, built once per feature list. A pointer move reuses it;
+ * the candidate's own plot stays in and is skipped by id in `validatePlacement`.
+ */
+function plotIndex(document: CityDocument) {
+  const features = document.terrain?.features ?? [];
+  const cached = plotIndexCache.get(features);
+  if (cached) return cached;
   const records = [];
-  for (const feature of document.terrain?.features ?? []) {
+  for (const feature of features) {
     if (feature.kind !== "platform" || feature.role !== "pad" || !feature.id.startsWith(PLOT_PREFIX)) continue;
     const id = feature.ownerId ?? feature.id.slice(PLOT_PREFIX.length);
-    if (id === ignoreId || feature.summit.kind !== "polygon" || feature.summit.points.length < 4) continue;
+    if (feature.summit.kind !== "polygon" || feature.summit.points.length < 4) continue;
     records.push(
       plotRecord(
         id,
@@ -179,6 +197,7 @@ function plotIndex(document: CityDocument, ignoreId: string) {
   }
   const index = createPlotIndex();
   index.load(records);
+  plotIndexCache.set(features, index);
   return index;
 }
 
@@ -261,4 +280,26 @@ function segmentDistance(point: Point, a: Point, b: Point): number {
   const lengthSq = dx * dx + dy * dy;
   const t = lengthSq ? Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / lengthSq)) : 0;
   return Math.hypot(point[0] - a[0] - dx * t, point[1] - a[1] - dy * t);
+}
+
+function padEdge(edge: PlotEdge): TerrainPlatform["edge"] {
+  return edge.kind === "slope" ? { kind: "slope", runMeters: edge.runMeters } : { kind: "wall" };
+}
+
+/** Steepest slope under the footprint: its centre and corners. One sample at the centre misses a ridge edge. */
+function footprintSlope(field: Parameters<typeof slopeField>[0], center: Point, corners: readonly Point[]): number {
+  let steepest = slopeField(field, center);
+  for (const corner of corners) steepest = Math.max(steepest, slopeField(field, corner));
+  return steepest;
+}
+
+/** Just beyond the plot edge on the side the front faces (compass bearing, 0 = north, clockwise). */
+function frontDoor(position: Point, facingDegrees: number, plot: readonly Point[]): Point {
+  const radians = (facingDegrees * Math.PI) / 180;
+  const east = Math.sin(radians);
+  const north = Math.cos(radians);
+  let reach = 0;
+  for (const corner of plot)
+    reach = Math.max(reach, (corner[0] - position[0]) * east + (corner[1] - position[1]) * north);
+  return [position[0] + east * (reach + 0.5), position[1] + north * (reach + 0.5)];
 }

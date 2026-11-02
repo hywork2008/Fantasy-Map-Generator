@@ -1421,6 +1421,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   interaction.buildingGesture = "move";
   interaction.buildingShift = false;
   interaction.buildingCtrl = false;
+  interaction.buildingFine = false;
   interaction.buildingEditId = null;
   interaction.wayProfile = "stepped";
   interaction.waySurface = "dirt";
@@ -3270,9 +3271,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         cancelBuildingGesture(interaction);
         updateBuildingPreview();
       },
-      wheel(delta, ctrl) {
+      wheel(delta, ctrl, fine) {
         interaction.buildingCtrl = ctrl;
-        interaction.buildingFacingDegrees = snapFacing(interaction.buildingFacingDegrees + delta, ctrl ? 15 : null);
+        interaction.buildingFine = fine;
+        interaction.buildingFacingDegrees = snapFacing(
+          interaction.buildingFacingDegrees + delta,
+          ctrl ? 15 : null,
+          !fine
+        );
         updateBuildingPreview();
       },
       ghost() {

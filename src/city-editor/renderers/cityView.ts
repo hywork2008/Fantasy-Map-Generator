@@ -151,7 +151,12 @@ function frontageStructurePolygons(parts: readonly StructureMassing[]): [number,
 
 interface Mount {
   own(cleanup: () => void): void;
-  listen(target: EventTarget, type: string, handler: (event: Event) => void): void;
+  listen(
+    target: EventTarget,
+    type: string,
+    handler: (event: Event) => void,
+    options?: boolean | AddEventListenerOptions
+  ): void;
 }
 
 /**
@@ -187,7 +192,7 @@ export interface City3dMountOptions {
     hover(point: Point | null, ctrl: boolean): void;
     place(point: Point, shift: boolean, ctrl: boolean): void;
     cancel(): void;
-    wheel(deltaDegrees: number, ctrl: boolean): void;
+    wheel(deltaDegrees: number, ctrl: boolean, fine: boolean): void;
     ghost(): PlacementGhost | null;
   };
 }
@@ -1195,7 +1200,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       event.stopPropagation();
       const wheel = event as WheelEvent;
       const step = wheel.altKey ? 1 : 5;
-      options.placement.wheel((wheel.deltaY > 0 ? 1 : -1) * step, wheel.ctrlKey || wheel.metaKey);
+      options.placement.wheel((wheel.deltaY > 0 ? 1 : -1) * step, wheel.ctrlKey || wheel.metaKey, wheel.altKey);
       syncGhost();
     },
     { capture: true, passive: false }

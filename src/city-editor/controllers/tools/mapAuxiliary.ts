@@ -52,9 +52,11 @@ export function bindMapAuxiliary(ctx: MapAuxiliaryContext) {
         const step = event.altKey ? 1 : 5;
         const sign = event.deltaY > 0 ? 1 : -1;
         ctx.interaction.buildingCtrl = event.ctrlKey || event.metaKey;
+        ctx.interaction.buildingFine = event.altKey;
         ctx.interaction.buildingFacingDegrees = snapFacing(
           ctx.interaction.buildingFacingDegrees + sign * step,
-          ctx.interaction.buildingCtrl ? 15 : null
+          ctx.interaction.buildingCtrl ? 15 : null,
+          !event.altKey
         );
         ctx.updateBuildingPreview();
         return;

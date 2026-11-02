@@ -49,7 +49,7 @@ export function buildingDraft(_document: CityDocument, interaction: InteractionS
   if (!footprint) return null;
   const facing =
     interaction.buildingGesture === "rotate"
-      ? snapFacing(interaction.buildingFacingDegrees, interaction.buildingCtrl ? 15 : null)
+      ? snapFacing(interaction.buildingFacingDegrees, interaction.buildingCtrl ? 15 : null, !interaction.buildingFine)
       : normalizeDegrees(interaction.buildingFacingDegrees);
   return {
     id: interaction.buildingEditId ?? "preview",
@@ -78,6 +78,7 @@ export function buildingModelName(id: string): string {
 /** Move follows the cursor. Rotate keeps the anchor and aims the front at the cursor. */
 export function aimBuilding(interaction: InteractionState, point: Point | null, ctrl: boolean): void {
   interaction.buildingCtrl = ctrl;
+  interaction.buildingFine = false;
   if (interaction.buildingGesture === "rotate") {
     if (point && !interaction.buildingAnchor) interaction.buildingAnchor = point;
     if (point && interaction.buildingAnchor)
@@ -94,6 +95,7 @@ export function cancelBuildingGesture(interaction: InteractionState): void {
   interaction.buildingGesture = "move";
   interaction.buildingShift = false;
   interaction.buildingCtrl = false;
+  interaction.buildingFine = false;
 }
 
 /** Commit the armed pose. A rejected pose leaves the document and the gesture unchanged. */

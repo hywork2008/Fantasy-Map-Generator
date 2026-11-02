@@ -8,10 +8,14 @@ export function facingToward(origin: Point, target: Point): number {
   return normalizeDegrees((Math.atan2(east, north) * 180) / Math.PI);
 }
 
-/** Cardinal directions within 3°, then an optional equal step such as 15°. */
-export function snapFacing(degrees: number, step: number | null): number {
+/**
+ * Cardinal directions within 3°, then an optional equal step such as 15°.
+ * `cardinals: false` is fine adjustment: nothing pulls the value off a 1° step.
+ */
+export function snapFacing(degrees: number, step: number | null, cardinals = true): number {
   let value = normalizeDegrees(degrees);
   if (step && step > 0) value = normalizeDegrees(Math.round(value / step) * step);
+  if (!cardinals) return value;
   for (const cardinal of [0, 90, 180, 270]) {
     const delta = Math.abs(value - cardinal);
     if (Math.min(delta, 360 - delta) <= 3) return cardinal;

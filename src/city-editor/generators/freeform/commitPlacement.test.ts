@@ -6,6 +6,7 @@ import { buildTerrainFieldRecipe } from "../terrainField/build";
 import { validateTerrainLayer } from "../terrainValidation";
 import { commitPlacement, isPlotPlacement, previewPlacement, removePlacement } from "./commitPlacement";
 import { facingToward, snapFacing } from "./facing";
+import { frontRoadLevel } from "./frontRoad";
 import { terrainRayPoint } from "./groundPick";
 
 const footprint = { halfX: 4, halfZ: 6, centerX: 0, centerZ: 0, groundY: 0 };
@@ -141,5 +142,50 @@ describe("freeform placement", () => {
     expect(snapFacing(2, null)).toBe(0);
     expect(snapFacing(16, 15)).toBe(15);
     expect(terrainRayPoint(() => 5, { origin: [0, 0, 20], direction: [0, 1, -1] }, 40)?.[1]).toBeGreaterThan(10);
+  });
+
+  it("keeps fine steps off the cardinal pull and skips its own plot when edited", () => {
+    expect(snapFacing(1, null)).toBe(0);
+    expect(snapFacing(1, null, false)).toBe(1);
+    const placed = commitPlacement(domeDocument(), {
+      id: "house-1",
+      modelId: "house:mediterranean",
+      position: [0, 0],
+      facingDegrees: 0,
+      footprint
+    }).document;
+    const draft = {
+      modelId: "house:mediterranean",
+      position: [0, 0] as [number, number],
+      facingDegrees: 30,
+      footprint
+    };
+    expect(previewPlacement(placed, { ...draft, id: "house-1" }).ok).toBe(true);
+    expect(previewPlacement(placed, { ...draft, id: "house-2" }).reason).toBe("overlap");
+  });
+
+  it("reads the level of the stepped way a door opens onto", () => {
+    const document = domeDocument();
+    document.terrain!.ways = [
+      {
+        id: "way",
+        centerline: [
+          [0, 0],
+          [0, 20]
+        ],
+        widthMeters: 2,
+        profile: "stepped",
+        surface: "dirt",
+        landings: [
+          { fromMeters: 0, toMeters: 8, levelMeters: 10 },
+          { fromMeters: 12, toMeters: 20, levelMeters: 11 }
+        ],
+        flights: [{ fromMeters: 8, toMeters: 12, fromLevelMeters: 10, toLevelMeters: 11, steps: 6 }]
+      }
+    ];
+    expect(frontRoadLevel(document, [1, 4])).toBe(10);
+    expect(frontRoadLevel(document, [1, 16])).toBe(11);
+    expect(frontRoadLevel(document, [1, 10])).toBeCloseTo(10.5, 5);
+    expect(frontRoadLevel(document, [30, 4])).toBeNull();
   });
 });

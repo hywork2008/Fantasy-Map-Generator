@@ -92,7 +92,7 @@ export function renderFreeformCitySvg(
   renderCityElements(ctx, svg, new Set());
   svg.appendChild(element("g", { class: "ce-hover-layer", "pointer-events": "none" }));
   svg.appendChild(element("g", { class: "ce-measure-layer", "pointer-events": "none" }));
-  frameScene(ctx, svg, element("g", { class: "ce-features" }), getLandscapeGroundColor(document), {
+  frameScene(ctx, svg, element("g", { class: "ce-features" }) as SVGGElement, getLandscapeGroundColor(document), {
     core: true,
     regional: true
   });

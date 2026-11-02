@@ -79,6 +79,8 @@ export interface InteractionState {
   buildingGesture: "move" | "rotate";
   buildingShift: boolean;
   buildingCtrl: boolean;
+  /** Alt + wheel: 1° steps that cardinal snapping must not undo. Cleared when the cursor aims again. */
+  buildingFine: boolean;
   buildingEditId: string | null;
   wayProfile: "slope" | "stepped";
   waySurface: "dirt" | "paved" | "cobble";

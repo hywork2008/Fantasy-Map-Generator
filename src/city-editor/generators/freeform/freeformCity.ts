@@ -179,20 +179,18 @@ export function convertDocumentToFreeform(document: CityDocument): CityDocument 
   if (document.freeform) return captureFreeform(document);
   const ground = document.terrain?.field ?? cellsToFieldRecipe(document);
   if (!ground) return null;
-  const drafted: CityDocument = {
-    ...document,
-    terrain: {
-      version: 1,
-      features: document.terrain?.features ?? [],
-      field: ground,
-      ways: document.terrain?.ways
-    }
+  const draftedTerrain: NonNullable<CityDocument["terrain"]> = {
+    version: 1,
+    features: document.terrain?.features ?? [],
+    field: ground,
+    ways: document.terrain?.ways
   };
-  const existingRivers = (drafted.terrain.features ?? []).filter(
+  const drafted: CityDocument = { ...document, terrain: draftedTerrain };
+  const existingRivers = draftedTerrain.features.filter(
     (feature): feature is TerrainRiverCorridor => feature.kind === "riverCorridor"
   );
   const rivers = existingRivers.length ? existingRivers : riversFromCourses(drafted);
-  const pads = (drafted.terrain.features ?? []).filter(
+  const pads = draftedTerrain.features.filter(
     (feature): feature is TerrainPlatform => feature.kind === "platform" && feature.role === "pad"
   );
   const seeded: FreeformCity = {

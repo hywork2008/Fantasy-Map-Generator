@@ -3,7 +3,6 @@ import { createRegionalHouseGeometry, defaultRegionalHouseSpec } from "../../../
 import { instanceCellKey } from "../../generators/freeform/instanceGrid";
 import {
   buildChunkPositions,
-  type ChunkAddress,
   chunkLayout,
   samplesForStep,
   sharedChunkIndices
@@ -23,15 +22,6 @@ function dome(point: Point): number {
 function percentile(values: number[], fraction: number): number {
   const sorted = [...values].sort((left, right) => left - right);
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * fraction) - 1))];
-}
-
-function _chunkBox(chunk: ChunkAddress): THREE.Box3 {
-  const south = chunk.origin[1];
-  const north = south + 64;
-  return new THREE.Box3(
-    new THREE.Vector3(chunk.origin[0], 0, -north),
-    new THREE.Vector3(chunk.origin[0] + 64, HEIGHT, -south)
-  );
 }
 
 interface ViewSample {
