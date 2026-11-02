@@ -69,7 +69,7 @@ import { RIVER_DROP_MIN, riverDropMeters, riverDropUpperFor } from "../generator
 import { regenerateRuralLand } from "../generators/roadsideFarms";
 import { DEFAULT_TERRACE_STEP_METERS } from "../generators/terracePlanning";
 import { DEFAULT_CASTLE_RISE_METERS } from "../generators/terrainEditing";
-import { cellsToFieldRecipe } from "../generators/terrainField/cellsToField";
+import { convertCellsToField } from "../generators/terrainField/cellsToField";
 import { installNaturalTerrainField } from "../generators/terrainGeneration";
 import { CASTLE_STYLE_PROFILES } from "../renderers/castlePatterns";
 import { type City3dMountOptions, mountCity3d } from "../renderers/cityView";
@@ -2480,25 +2480,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     syncGenerateControls();
   });
   const convertCellsButton = makeButton(editorText("cityEditor.messages.convertCellElevations"), () => {
-    const recipe = cellsToFieldRecipe(documents.documentState);
-    if (!recipe) {
+    const next = convertCellsToField(documents.documentState);
+    if (!next) {
       showNotice(editorText("cityEditor.messages.buildingNeedsField"));
       return;
     }
-    const current = documents.documentState;
-    commit(
-      {
-        ...current,
-        terrain: {
-          version: 1,
-          features: current.terrain?.features ?? [],
-          ...(current.terrain?.ramps?.length ? { ramps: current.terrain.ramps } : {}),
-          ...(current.terrain?.ways?.length ? { ways: current.terrain.ways } : {}),
-          field: recipe
-        }
-      },
-      editorText("cityEditor.messages.convertCellElevations")
-    );
+    commit(next, editorText("cityEditor.messages.convertCellElevations"));
     generation.generateSettings.elevationPreset = "flat";
     delete generation.generateSettings.terrainField;
     syncGenerateControls();

@@ -4,6 +4,7 @@ import { clone } from "../mesh";
 import { cityTerrain } from "../terrainElevation";
 import { fieldFromParts } from "./conform";
 import { FIELD_SAMPLE_METERS } from "./constants";
+import { buildRiverCorridors } from "./corridor";
 import { fieldGrid, fieldPoint, sampleField } from "./sample";
 
 /** Height field whose low frequency is the current cell surface. The grid itself is not saved. */
@@ -35,6 +36,30 @@ export function cellsToFieldRecipe(
       }
     ]
   };
+}
+
+/**
+ * The document on a height field converted from its cells.
+ * The cell surface stands over the river, so each river gets a corridor whose bed only falls downstream:
+ * through a hill it cuts a valley instead of the water following the ground. Saved corridors are rebuilt.
+ */
+export function convertCellsToField(document: CityDocument): CityDocument | null {
+  const recipe = cellsToFieldRecipe(document);
+  if (!recipe) return null;
+  const kept = (document.terrain?.features ?? []).filter(feature => feature.kind !== "riverCorridor");
+  const next: CityDocument = {
+    ...document,
+    terrain: {
+      version: 1,
+      features: kept,
+      ...(document.terrain?.ramps?.length ? { ramps: document.terrain.ramps } : {}),
+      ...(document.terrain?.ways?.length ? { ways: document.terrain.ways } : {}),
+      field: recipe
+    }
+  };
+  const field = fieldFromParts(document.frame.extentMeters, recipe.sampleMeters, recipe.parts);
+  next.terrain!.features = [...kept, ...buildRiverCorridors(next, field)];
+  return next;
 }
 
 /** Difference between the cell surface and the field rebuilt from `cellsToFieldRecipe`. */
