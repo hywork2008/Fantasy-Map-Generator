@@ -937,6 +937,7 @@
       "freeRiverDelete": "Delete",
       "freeformRejectShort": "The line is too short",
       "freeformRejectFrame": "Stay inside the frame",
+      "freeformRejectBridge": "The river would create an invalid bridge crossing",
       "freeformRejectPlot": "Crosses a plot",
       "freeformNeedsCity": "Start a freeform city before drawing.",
       "placeFreeform": "Place buildings",

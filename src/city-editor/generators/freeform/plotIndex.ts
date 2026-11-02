@@ -1,5 +1,5 @@
 import RBush from "rbush";
-import { type PlanBox, planBoxCorners } from "../../../buildings/placementContract";
+import { growPlanBox, type PlanBox, planBoxCorners } from "../../../buildings/placementContract";
 
 export interface PlotRecord {
   minX: number;
@@ -8,6 +8,7 @@ export interface PlotRecord {
   maxY: number;
   id: string;
   box: PlanBox;
+  reach: number;
 }
 
 export function plotBounds(box: PlanBox): Pick<PlotRecord, "minX" | "minY" | "maxX" | "maxY"> {
@@ -25,8 +26,8 @@ export function plotBounds(box: PlanBox): Pick<PlotRecord, "minX" | "minY" | "ma
   return { minX, minY, maxX, maxY };
 }
 
-export function plotRecord(id: string, box: PlanBox): PlotRecord {
-  return { id, box, ...plotBounds(box) };
+export function plotRecord(id: string, box: PlanBox, reach = 0): PlotRecord {
+  return { id, box, reach, ...plotBounds(growPlanBox(box, reach)) };
 }
 
 export function createPlotIndex() {

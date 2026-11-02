@@ -1,4 +1,4 @@
-import type { Id, Point } from "./primitives";
+import type { HistoricalPeriod, Id, Point } from "./primitives";
 import type { FreeformWay, TerrainFieldRecipe, TerrainRiverCorridor } from "./terrain";
 
 /** One hand edit of the height field. Replayed in order. The brush UI is not part of F3. */
@@ -46,6 +46,8 @@ export interface FreeformCity {
   format: "fmg-freeform-city";
   version: 1;
   frame: { extentMeters: number };
+  historicalPeriod?: HistoricalPeriod;
+  maxBridgeSkewDegrees?: number;
   ground: TerrainFieldRecipe;
   sculpt: SculptStroke[];
   plots: FreeformPlot[];

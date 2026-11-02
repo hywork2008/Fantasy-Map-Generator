@@ -22,6 +22,8 @@ export function ledgerRejectText(reason: RiverReject | ZoneReject | undefined): 
       return editorText("cityEditor.messages.freeformRejectFrame");
     case "plot":
       return editorText("cityEditor.messages.freeformRejectPlot");
+    case "bridge":
+      return editorText("cityEditor.messages.freeformRejectBridge");
     case "field":
       return editorText("cityEditor.messages.freeformNeedsCity");
     default:

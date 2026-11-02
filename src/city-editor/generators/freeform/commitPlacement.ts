@@ -8,13 +8,13 @@ import {
 } from "../../../buildings/placementContract";
 import type { CityDocument, CityElement, Point } from "../../types/document";
 import type { TerrainPlatform } from "../../types/terrain";
-import { pointInPolygon } from "../geom";
+import { pointInPolygon, segmentsIntersect } from "../geom";
 import { terrainFieldForDocument } from "../terrainField/build";
 import { fieldFoundation } from "../terrainField/lots";
 import { sampleField, slopeField } from "../terrainField/sample";
 import { classifyTownWater } from "../townWater";
 import { createPlotIndex, plotRecord } from "./plotIndex";
-import { type PlacementReject, validatePlacement } from "./validatePlacement";
+import { type PlacementReject, RETAINING_WALL_THICKNESS_METERS, validatePlacement } from "./validatePlacement";
 import { wayCoversPolygon } from "./validateWay";
 
 /** Gap between the building box and the next plot. The pad outline is the grown box. */
@@ -96,7 +96,7 @@ export function previewPlacement(document: CityDocument, draft: PlacementDraft):
       slope: slopeField(field, draft.position),
       areaM2: 4 * draft.footprint.halfX * draft.footprint.halfZ,
       edgeDropMeters: edgeDrop,
-      onWater: onWater(document, draft.position),
+      onWater: onWater(document, outline),
       onCliff: onCliff(document, draft.position, slopeField(field, draft.position)),
       onWay: wayCoversPolygon(document, outline)
     },
@@ -169,7 +169,13 @@ function plotIndex(document: CityDocument, ignoreId: string) {
     if (feature.kind !== "platform" || feature.role !== "pad" || !feature.id.startsWith(PLOT_PREFIX)) continue;
     const id = feature.ownerId ?? feature.id.slice(PLOT_PREFIX.length);
     if (id === ignoreId || feature.summit.kind !== "polygon" || feature.summit.points.length < 4) continue;
-    records.push(plotRecord(id, boxFromCorners(feature.summit.points)));
+    records.push(
+      plotRecord(
+        id,
+        boxFromCorners(feature.summit.points),
+        feature.edge.kind === "slope" ? feature.edge.runMeters : RETAINING_WALL_THICKNESS_METERS
+      )
+    );
   }
   const index = createPlotIndex();
   index.load(records);
@@ -196,21 +202,42 @@ function boxFromCorners(points: readonly Point[]): PlanBox {
 
 const waterCache = new WeakMap<CityDocument, Point[][]>();
 
-function onWater(document: CityDocument, point: Point): boolean {
+function onWater(document: CityDocument, outline: Point[]): boolean {
   let polygons = waterCache.get(document);
   if (!polygons) {
     polygons = classifyTownWater(document).parts.map(part => part.polygon);
     waterCache.set(document, polygons);
   }
-  if (polygons.some(polygon => pointInPolygon(point, polygon))) return true;
+  if (polygons.some(polygon => ringsOverlap(outline, polygon))) return true;
   for (const feature of document.terrain?.features ?? []) {
     if (feature.kind !== "riverCorridor") continue;
     for (let i = 1; i < feature.centerline.length; i++) {
-      const width = Math.max(feature.widthsMeters[i - 1] ?? 0, feature.widthsMeters[i] ?? 0) / 2;
-      if (segmentDistance(point, feature.centerline[i - 1], feature.centerline[i]) <= width) return true;
+      const a = feature.centerline[i - 1],
+        b = feature.centerline[i];
+      const half = Math.max(feature.widthsMeters[i - 1] ?? 0, feature.widthsMeters[i] ?? 0) / 2;
+      if (pointInPolygon(a, outline) || pointInPolygon(b, outline)) return true;
+      for (let j = 0; j < outline.length; j++) {
+        const c = outline[j],
+          d = outline[(j + 1) % outline.length];
+        if (
+          segmentsIntersect(a, b, c, d) ||
+          segmentDistance(c, a, b) <= half ||
+          segmentDistance(a, c, d) <= half ||
+          segmentDistance(b, c, d) <= half
+        )
+          return true;
+      }
     }
   }
   return false;
+}
+
+function ringsOverlap(a: Point[], b: Point[]): boolean {
+  if (!a.length || !b.length) return false;
+  if (pointInPolygon(a[0], b) || pointInPolygon(b[0], a)) return true;
+  return a.some((point, i) =>
+    b.some((other, j) => segmentsIntersect(point, a[(i + 1) % a.length], other, b[(j + 1) % b.length]))
+  );
 }
 
 function onCliff(document: CityDocument, point: Point, slope: number): boolean {

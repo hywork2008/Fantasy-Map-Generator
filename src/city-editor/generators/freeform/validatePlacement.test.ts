@@ -67,6 +67,16 @@ describe("freeform placement checks", () => {
     expect(validatePlacement(candidate("b", box([30, 0]), { onWay: true }), index).reason).toBe("way");
   });
 
+  it("keeps new plots and their edges clear of an existing slope", () => {
+    const index = createPlotIndex();
+    index.insert(plotRecord("a", box([0, 0]), 5));
+    expect(validatePlacement(candidate("b", box([11, 0])), index)).toMatchObject({ ok: false, reason: "overlap" });
+    expect(validatePlacement(candidate("b", box([14, 0]), { edgeDropMeters: 1 }), index)).toMatchObject({
+      ok: true,
+      edge: { kind: "wall" }
+    });
+  });
+
   it("ignores the plot being edited", () => {
     const index = createPlotIndex();
     const plot = box([0, 0]);

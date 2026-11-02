@@ -937,6 +937,7 @@
       "freeRiverDelete": "削除",
       "freeformRejectShort": "短すぎます",
       "freeformRejectFrame": "図枠の外には描けません",
+      "freeformRejectBridge": "既存の道との交差が橋の規則に違反します",
       "freeformRejectPlot": "敷地を横切ります",
       "freeformNeedsCity": "自由造形の都市を開いてから描いてください。",
       "placeFreeform": "建物を自動配置",

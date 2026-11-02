@@ -1,4 +1,5 @@
 import { facingFromRotation, frontAxisOf, rotationFromFacing } from "../../../buildings/placementContract";
+import { isHistoricalPeriod } from "../../../types/historicalPeriod";
 import type { CityDocument, EdgeFeatureGroup, Point } from "../../types/document";
 import type { FreeformCity, FreeformPlacement, FreeformPlot, LandZone, SculptStroke } from "../../types/freeformCity";
 import type {
@@ -70,7 +71,7 @@ export function materializeFreeform(city: FreeformCity, base?: CityDocument): Ci
       cityRadiusMeters: city.frame.extentMeters * 0.33,
       blockSizeMeters: base?.frame.blockSizeMeters ?? 50
     },
-    historicalPeriod: base?.historicalPeriod ?? "ageOfExploration",
+    historicalPeriod: city.historicalPeriod ?? base?.historicalPeriod ?? "ageOfExploration",
     mesh: { vertices: {}, edges: {}, faces: {} },
     featureGroups: [],
     gates: [],
@@ -91,7 +92,9 @@ export function materializeFreeform(city: FreeformCity, base?: CityDocument): Ci
       ways: city.ways
     },
     freeform: city,
-    ...(base?.maxBridgeSkewDegrees !== undefined ? { maxBridgeSkewDegrees: base.maxBridgeSkewDegrees } : {}),
+    ...((city.maxBridgeSkewDegrees ?? base?.maxBridgeSkewDegrees) !== undefined
+      ? { maxBridgeSkewDegrees: city.maxBridgeSkewDegrees ?? base?.maxBridgeSkewDegrees }
+      : {}),
     ...(base?.biome ? { biome: base.biome } : {}),
     ...(base?.showElevationTint !== undefined ? { showElevationTint: base.showElevationTint } : {}),
     ...(base?.buildingAppearanceVersion !== undefined
@@ -151,6 +154,8 @@ export function captureFreeform(document: CityDocument): CityDocument {
     format: "fmg-freeform-city",
     version: 1,
     frame: { extentMeters: document.frame.extentMeters },
+    ...(document.historicalPeriod ? { historicalPeriod: document.historicalPeriod } : {}),
+    ...(document.maxBridgeSkewDegrees !== undefined ? { maxBridgeSkewDegrees: document.maxBridgeSkewDegrees } : {}),
     ground: structuredClone(document.terrain.field),
     sculpt: structuredClone(document.freeform.sculpt),
     plots,
@@ -301,6 +306,12 @@ function validCity(value: unknown): FreeformCity | null {
   if (city.format !== "fmg-freeform-city" || city.version !== 1) return null;
   const extent = city.frame?.extentMeters;
   if (!(typeof extent === "number" && extent > 0)) return null;
+  if (city.historicalPeriod !== undefined && !isHistoricalPeriod(city.historicalPeriod)) return null;
+  if (
+    city.maxBridgeSkewDegrees !== undefined &&
+    (!Number.isFinite(city.maxBridgeSkewDegrees) || city.maxBridgeSkewDegrees < 0 || city.maxBridgeSkewDegrees > 90)
+  )
+    return null;
   const ground = validRecipe(city.ground);
   if (!ground) return null;
   const sculpt = validSculpt(city.sculpt);
@@ -314,6 +325,8 @@ function validCity(value: unknown): FreeformCity | null {
     format: "fmg-freeform-city",
     version: 1,
     frame: { extentMeters: extent },
+    ...(city.historicalPeriod ? { historicalPeriod: city.historicalPeriod } : {}),
+    ...(city.maxBridgeSkewDegrees !== undefined ? { maxBridgeSkewDegrees: city.maxBridgeSkewDegrees } : {}),
     ground,
     sculpt,
     plots,

@@ -5,12 +5,13 @@ import { pointInPolygon, polygonArea, segmentsIntersect } from "../geom";
 import { terrainFieldForDocument } from "../terrainField/build";
 import { offsetPolyline, SLOPE_BANK_RUN_METERS } from "../terrainField/corridor";
 import { sampleField } from "../terrainField/sample";
+import { riverCrossing } from "./validateWay";
 import { offsetStrip } from "./wayGeometry";
 
 const MIN_RIVER_METERS = 4;
 const MIN_ZONE_AREA = 4;
 
-export type RiverReject = "short" | "frame" | "plot" | "field";
+export type RiverReject = "short" | "frame" | "plot" | "field" | "bridge";
 export type ZoneReject = "short" | "frame";
 
 export function previewRiver(
@@ -23,6 +24,19 @@ export function previewRiver(
   if (centerline.some(point => !insideFrame(document, point))) return { ok: false, reason: "frame" };
   if (crossesPlot(document, centerline, widthMeters)) return { ok: false, reason: "plot" };
   if (!document.terrain?.field) return { ok: false, reason: "field" };
+  const corridor: TerrainRiverCorridor = {
+    kind: "riverCorridor",
+    id: "preview",
+    sourceId: "preview",
+    centerline: centerline.map(point => [point[0], point[1]]),
+    widthsMeters: centerline.map(() => widthMeters),
+    bedMeters: centerline.map(() => 0),
+    depthMeters: 1,
+    bank: { kind: "slope", runMeters: 0 }
+  };
+  const crossingDocument = { ...document, terrain: { ...document.terrain, features: [corridor] } };
+  if ((document.terrain.ways ?? []).some(way => riverCrossing(crossingDocument, way).reason))
+    return { ok: false, reason: "bridge" };
   return { ok: true };
 }
 

@@ -9,6 +9,7 @@ import { FIELD_MODE_MAX_EXTENT_METERS } from "../terrainField/constants";
 import { sampleField } from "../terrainField/sample";
 import { commitRiver, commitZone } from "./commitLedger";
 import { commitPlacement } from "./commitPlacement";
+import { commitWay } from "./commitWay";
 import {
   convertDocumentToFreeform,
   createFreeformCity,
@@ -25,6 +26,47 @@ function domeView(extent = 96) {
 }
 
 describe("freeform city ledger", () => {
+  it("preserves bridge policy on reload and checks rivers drawn after ways", () => {
+    const view = domeView();
+    view.historicalPeriod = "highMedieval";
+    view.maxBridgeSkewDegrees = 20;
+    const restored = materializeFreeform(parseFreeformCity(serializeFreeform(view))!);
+    expect(restored.historicalPeriod).toBe("highMedieval");
+    expect(restored.maxBridgeSkewDegrees).toBe(20);
+    const road = commitWay(restored, {
+      id: "road",
+      centerline: [
+        [-30, 0],
+        [30, 0]
+      ],
+      widthMeters: 3,
+      profile: "slope",
+      surface: "paved"
+    }).document;
+    expect(
+      commitRiver(
+        road,
+        "diagonal",
+        [
+          [-30, -30],
+          [30, 30]
+        ],
+        8
+      ).reason
+    ).toBe("bridge");
+    expect(
+      commitRiver(
+        road,
+        "square",
+        [
+          [0, -30],
+          [0, 30]
+        ],
+        8
+      ).reason
+    ).toBeUndefined();
+  });
+
   it("materializes a dome ledger with an empty mesh", () => {
     expect(createFreeformCity(2400).frame.extentMeters).toBe(FIELD_MODE_MAX_EXTENT_METERS);
     const view = domeView();

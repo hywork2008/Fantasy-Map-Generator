@@ -106,7 +106,7 @@ function padLevelAt(document: CityDocument, point: Point): number | undefined {
   return undefined;
 }
 
-function riverCrossing(
+export function riverCrossing(
   document: CityDocument,
   draft: WayDraft
 ): { reason?: "skew" | "bend"; skewDegrees?: number; limitDegrees?: number } {

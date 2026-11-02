@@ -105,6 +105,32 @@ describe("freeform placement", () => {
     expect(isPlotPlacement(removed, "house-2")).toBe(true);
   });
 
+  it("rejects a plot whose edge crosses a river even when its center is dry", () => {
+    const document = domeDocument();
+    document.terrain!.features.push({
+      kind: "riverCorridor",
+      id: "r",
+      sourceId: "r",
+      centerline: [
+        [0, -40],
+        [0, 40]
+      ],
+      widthsMeters: [8, 8],
+      bedMeters: [0, 0],
+      depthMeters: 1,
+      bank: { kind: "slope", runMeters: 2 }
+    });
+    expect(
+      previewPlacement(document, {
+        id: "a",
+        modelId: "house:mediterranean",
+        position: [8, 0],
+        facingDegrees: 0,
+        footprint
+      }).reason
+    ).toBe("water");
+  });
+
   it("needs a height field and snaps facing to the cardinal directions", () => {
     const bare = createGridDocument({ size: "micro", seed: "freeform-flat", grid: "hex" });
     expect(

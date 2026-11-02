@@ -38,11 +38,11 @@ export interface PlacementDecision {
   edge: PlotEdge;
 }
 
-function hits(box: PlanBox, others: readonly { id: string; box: PlanBox }[], selfId: string): boolean {
+function hits(box: PlanBox, others: readonly { id: string; box: PlanBox; reach: number }[], selfId: string): boolean {
   const corners = planBoxCorners(box);
   for (const other of others) {
     if (other.id === selfId) continue;
-    if (orientedBoxesOverlap(corners, planBoxCorners(other.box))) return true;
+    if (orientedBoxesOverlap(corners, planBoxCorners(growPlanBox(other.box, other.reach)))) return true;
   }
   return false;
 }
