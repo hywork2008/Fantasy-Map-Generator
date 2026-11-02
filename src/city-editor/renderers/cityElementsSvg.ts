@@ -7,6 +7,7 @@ import type { HarborPlan } from "../generators/harborFabric";
 import { templeFootprintMeters } from "../generators/housing";
 import { accessCorridor, transformLandmarkPolygons } from "../generators/landmarks";
 import { townExtentMeters } from "../generators/settlementExtent";
+import { resolveShipDisplayState } from "../generators/shipDisplayState";
 import type { Id } from "../types/document";
 import type { SvgPickInfo } from "../types/selection";
 import { shipHasHarborLand } from "./harborPierFacts";
@@ -69,6 +70,7 @@ export function renderCityElements(
       if (!shipHasHarborLand(document, cityElement)) continue;
       const shipNode = renderShipSvg({
         type: cityElement.shipType ?? "small",
+        state: resolveShipDisplayState(cityElement),
         point: p,
         sizeMeters: cityElement.sizeMeters,
         rotation: cityElement.rotation,

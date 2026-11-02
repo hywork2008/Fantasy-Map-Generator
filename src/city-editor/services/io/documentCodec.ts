@@ -24,6 +24,7 @@ import { validPopulationDocument } from "../../generators/populationValidation";
 import { validRuralFieldSettings } from "../../generators/ruralFieldProfile";
 import { validRuralFieldSnapshot } from "../../generators/ruralFieldSnapshot";
 import { validRegionalFrameRoads, validSceneRegions } from "../../generators/sceneRegions";
+import { validShipDisplayState } from "../../generators/shipDisplayState";
 import { repairRiverBeds } from "../../generators/terrainField/corridor";
 import { validUrbanGrowth } from "../../generators/urbanGrowth";
 import { CASTLE_STYLE_PROFILES } from "../../renderers/castlePatterns";
@@ -199,7 +200,13 @@ function isDocument(value: unknown): value is CityDocument {
     !!doc.mesh.edges &&
     !!doc.mesh.faces &&
     Array.isArray(doc.featureGroups) &&
-    Array.isArray(doc.elements)
+    Array.isArray(doc.elements) &&
+    doc.elements.every(
+      element =>
+        element &&
+        typeof element === "object" &&
+        (element.shipState === undefined || validShipDisplayState(element.shipState))
+    )
   );
 }
 

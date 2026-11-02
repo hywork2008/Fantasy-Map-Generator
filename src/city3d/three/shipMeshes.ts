@@ -2,9 +2,9 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { SHIP_VARIANTS } from "../../buildings/ships/shipVariants";
 import { SHIP_DIMENSIONS } from "../../city-editor/data/ships";
+import { BRUSH_SHIP_STATE } from "../../city-editor/generators/shipDisplayState";
 import type { ShipSite } from "../../city-editor/renderers/shipSites";
 import type { Point } from "../../city-editor/types/primitives";
-import type { ShipType } from "../../city-editor/types/ships";
 import { adopt, markVariant } from "../adoption";
 import { planVertex } from "../core/planFrame";
 import type { CityStructureMeshes } from "./structureMeshes";
@@ -17,7 +17,7 @@ const MODELS = {
   barge: ship("ship.barge")
 } as const;
 
-/** Share one BV model per type, batching mesh parts by material and instancing each ship. */
+/** Share a BV prototype per ship type and display state, with material batches per prototype. */
 export function createTownShips(
   sites: readonly ShipSite[],
   waterHeightAt: (point: Point) => number
@@ -27,10 +27,19 @@ export function createTownShips(
   const pickables: THREE.Mesh[] = [];
   const geometries: THREE.BufferGeometry[] = [];
   const models: CityStructureMeshes[] = [];
-  for (const type of Object.keys(MODELS) as ShipType[]) {
-    const ships = sites.filter(site => site.type === type);
+  const batchesByState = new Map<string, ShipSite[]>();
+  for (const site of sites) {
+    const state = site.type === "barge" ? BRUSH_SHIP_STATE : (site.state ?? BRUSH_SHIP_STATE);
+    const key = `${site.type}:${state.sails}:${state.gunports}`;
+    const batch = batchesByState.get(key) ?? [];
+    batch.push(site);
+    batchesByState.set(key, batch);
+  }
+  for (const ships of batchesByState.values()) {
+    const type = ships[0].type,
+      state = type === "barge" ? BRUSH_SHIP_STATE : (ships[0].state ?? BRUSH_SHIP_STATE);
     if (!ships.length) continue;
-    const model = MODELS[type].create();
+    const model = MODELS[type].create(state);
     markVariant(group, MODELS[type].id);
     models.push(model);
     model.group.updateMatrixWorld(true);
@@ -70,6 +79,7 @@ export function createTownShips(
       const mesh = new THREE.InstancedMesh(geometry, material, ships.length);
       mesh.name = `ship-${type}`;
       mesh.userData.shipIds = ships.map(ship => ship.id);
+      mesh.userData.shipState = { ...state };
       transforms.forEach((matrix, index) => {
         mesh.setMatrixAt(index, matrix);
       });
@@ -78,14 +88,15 @@ export function createTownShips(
       pickables.push(mesh);
     }
     model.group.traverse(object => {
-      if (!(object instanceof THREE.LineSegments)) return;
+      if (!(object as THREE.LineSegments).isLineSegments) return;
+      const original = object as THREE.LineSegments;
       const parts = transforms.map(matrix =>
-        object.geometry.clone().applyMatrix4(matrix.clone().multiply(object.matrixWorld))
+        original.geometry.clone().applyMatrix4(matrix.clone().multiply(original.matrixWorld))
       );
       const geometry = mergeGeometries(parts)!;
       for (const part of parts) part.dispose();
       geometries.push(geometry);
-      const lines = new THREE.LineSegments(geometry, object.material);
+      const lines = new THREE.LineSegments(geometry, original.material);
       lines.name = `ship-rigging-${type}`;
       group.add(lines);
     });

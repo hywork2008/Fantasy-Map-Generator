@@ -6,6 +6,7 @@ import { placeLandmark, transformLandmarkPolygons } from "../generators/landmark
 import { facePoints, validate } from "../generators/mesh";
 import { ruralFieldOverlay, storeRuralFieldOverlay } from "../generators/ruralFieldOverlay";
 import { defaultWalledAreaShare } from "../generators/settlementExtent";
+import { BRUSH_SHIP_STATE } from "../generators/shipDisplayState";
 import { renderApproachLabels } from "../renderers/approachLabelSvg";
 import { syncCellReliefFace } from "../renderers/cellElevationSvg";
 import { type RenderQuality, renderEditorSvg } from "../renderers/editorSvg";
@@ -649,6 +650,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     if (ctx.interaction.tool !== "ship" || !ctx.interaction.shipHoverPoint) return;
     const preview = renderShipSvg({
       type: ctx.interaction.shipType,
+      state: BRUSH_SHIP_STATE,
       point: ctx.interaction.shipHoverPoint,
       sizeMeters: ctx.interaction.shipSizeMeters,
       rotation: (ctx.interaction.shipAngleDegrees * Math.PI) / 180,

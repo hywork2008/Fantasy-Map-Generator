@@ -1433,7 +1433,10 @@ function showGalleon(author: string = authorSelect.value): void {
     fact("Quality", high ? "High" : "Low"),
     fact("Sails", galleonState.sails),
     fact("Gunports", galleonState.gunports),
-    fact("CE adoption", opus ? "BV-only comparison" : "Legacy default (Low); High and states are BV-only"),
+    fact(
+      "CE adoption",
+      opus ? "BV-only comparison" : "Legacy default (Low); sail and gunport states supported in CE; High is BV-only"
+    ),
     fact(
       "Dimensions",
       `${info.length} m over spars × ${info.beam} m hull beam; ${info.height} m above water; ${info.draft} m draft`
@@ -1548,7 +1551,7 @@ function showSailingShip(kind: SailingStudy): void {
     fact("Sails", saved.sails === "furled" ? "Furled" : "Set"),
     fact(
       "CE adoption",
-      kind === "carrack" ? "BV-only model" : "Legacy default (Low); High and sail states are BV-only"
+      kind === "carrack" ? "BV-only model" : "Legacy default (Low); sail states supported in CE; High is BV-only"
     ),
     fact(
       "Period",

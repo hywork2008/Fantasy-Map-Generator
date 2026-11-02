@@ -3,6 +3,7 @@ import { editorText } from "../../../i18n/editorMessages";
 import { appendEdge, groupUsesEdge } from "../../generators/features";
 import { placeLandmark } from "../../generators/landmarks";
 import { canPlaceObject } from "../../generators/objectPlacement";
+import { BRUSH_SHIP_STATE } from "../../generators/shipDisplayState";
 import { parsePickInfo } from "../../renderers/pickInfo";
 import { SHIP_SPECS } from "../../renderers/shipSpecifications";
 import type { DocumentsState, InteractionState } from "../../state/editorSession";
@@ -148,6 +149,7 @@ export function bindMapClick(ctx: MapClickContext) {
       const newElement: CityElement = {
         id: `ship-${crypto.randomUUID()}`,
         kind: "ship",
+        shipState: { ...BRUSH_SHIP_STATE },
         shipType: ctx.interaction.shipType,
         faceIds: [],
         point: p,

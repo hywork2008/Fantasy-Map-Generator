@@ -108,3 +108,17 @@ describe("shipSvg", () => {
     expect(node.querySelectorAll(".ce-ship-pole").length).toBe(2);
   });
 });
+
+it("distinguishes furled harbor sails from the ship brush's set sails without adding sails to barges", () => {
+  for (const type of ["small", "medium", "large"] as const) {
+    const furled = renderShipSvg({ type, point: [0, 0], state: { sails: "furled", gunports: "closed" } });
+    const set = renderShipSvg({ type, point: [0, 0], state: { sails: "set", gunports: "closed" } });
+    expect(furled.querySelector(".ce-ship-furled-sail")).not.toBeNull();
+    expect(furled.querySelector(".ce-ship-set-sail")).toBeNull();
+    expect(set.querySelector(".ce-ship-furled-sail")).toBeNull();
+    expect(set.querySelector(".ce-ship-set-sail")).not.toBeNull();
+    expect(set.getAttribute("data-ship-gunports")).toBe("closed");
+  }
+  const barge = renderShipSvg({ type: "barge", point: [0, 0] });
+  expect(barge.querySelector(".ce-ship-set-sail")).toBeNull();
+});
