@@ -27,6 +27,7 @@ import { fixedDocumentGeometry, fixedDocumentLayers } from "./fixedDocumentGeome
 import { type ForestSvgOptions, renderForestLayer } from "./forestSvg";
 import { renderFortSiteGround, renderFortSiteObjects } from "./fortSiteSvg";
 import { appendFrameRoads } from "./frameRoadSvg";
+import { renderFreeformCitySvg } from "./freeform/citySvg";
 import { renderGateLayer } from "./gateLayerSvg";
 import { faceClassName, renderFaceWardLandmark } from "./landmarkSvg";
 import {
@@ -86,6 +87,7 @@ export function renderEditorSvg(
   housingView?: HousingViewOptions,
   forestView?: ForestSvgOptions
 ): SVGSVGElement {
+  if (document.freeform) return renderFreeformCitySvg(document, tool, selection, viewBox, zoom);
   const fixedMode = document.importedFixedCrossings !== undefined;
   const fixedGeometry = fixedDocumentGeometry(document);
   const fixedLayers = fixedGeometry ? fixedDocumentLayers(fixedGeometry) : null;

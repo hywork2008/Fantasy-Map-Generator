@@ -330,6 +330,7 @@ export function buildBlockFabric(
   cache = getDefaultCache(),
   profiler?: ProcessingProfiler
 ): DistrictFabric {
+  if (document.freeform) return { buildings: [], lanes: [], entrances: new Map(), farms: [] };
   const isDefaultCache = cache === getDefaultCache();
   if (!profiler && isDefaultCache) {
     const cached = fabricByDocument.get(document);

@@ -11,6 +11,7 @@ import type { CityDocument, CityElement, Id, LandmarkAsset, Point } from "../../
 import type { RenderSelection } from "../../types/selection";
 import { pointInPolygon } from "../editorGeometry";
 import { aimBuilding, applyBuildingPlace, buildingModelName } from "./buildingTool";
+import { clickLedger, commitDrawnLedger, ledgerActive, ledgerRejectText } from "./ledgerTool";
 import { targetId } from "./toolTypes";
 import { clickWay, commitDrawnWay, wayRejectText } from "./wayTool";
 export interface MapClickContext {
@@ -120,6 +121,23 @@ export function bindMapClick(ctx: MapClickContext) {
         const placed = commitDrawnWay(ctx.documents.documentState, ctx.interaction);
         if ("error" in placed) ctx.showNotice(wayRejectText(placed.preview));
         else ctx.commit(placed.document, editorText("cityEditor.messages.wayFinish"));
+        return;
+      }
+      ctx.refresh();
+      return;
+    }
+    if (ledgerActive(ctx.documents.documentState, ctx.interaction)) {
+      const point = ctx.localPoint(event as PointerEvent);
+      if (clickLedger(ctx.interaction, point) === "finish") {
+        const placed = commitDrawnLedger(ctx.documents.documentState, ctx.interaction);
+        if ("error" in placed) ctx.showNotice(ledgerRejectText(placed.error));
+        else
+          ctx.commit(
+            placed.document,
+            editorText(
+              ctx.interaction.tool === "zone" ? "cityEditor.messages.zoneFinish" : "cityEditor.messages.freeRiverFinish"
+            )
+          );
         return;
       }
       ctx.refresh();

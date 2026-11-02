@@ -14,6 +14,7 @@ import type { CityDocument, FeatureGroup, Id, Point } from "../../types/document
 import type { ContextMenuAction } from "../../types/editor";
 import { pointInPolygon } from "../editorGeometry";
 import { cancelBuildingGesture } from "./buildingTool";
+import { cancelLedger, ledgerActive } from "./ledgerTool";
 import { targetId } from "./toolTypes";
 import { cancelWay } from "./wayTool";
 export interface MapContextContext {
@@ -46,6 +47,11 @@ export function bindMapContext(ctx: MapContextContext) {
     }
     if (ctx.interaction.tool === "way") {
       cancelWay(ctx.interaction);
+      ctx.refresh();
+      return;
+    }
+    if (ledgerActive(ctx.documents.documentState, ctx.interaction)) {
+      cancelLedger(ctx.interaction);
       ctx.refresh();
       return;
     }

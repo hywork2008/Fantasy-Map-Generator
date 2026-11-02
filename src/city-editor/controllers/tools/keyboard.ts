@@ -1,6 +1,7 @@
 import type { DocumentsState, GenerationState, InteractionState } from "../../state/editorSession";
 import type { CityDocument } from "../../types/document";
 import { cancelBuildingGesture } from "./buildingTool";
+import { cancelLedger, ledgerActive, popLedgerPoint } from "./ledgerTool";
 import { emptySelection } from "./toolTypes";
 import { cancelWay, popWayPoint } from "./wayTool";
 export interface KeyboardContext {
@@ -19,6 +20,8 @@ export interface KeyboardContext {
   updateBuildingPreview: () => void;
   updateWayPreview: () => void;
   finishWay: () => void;
+  updateLedgerPreview: () => void;
+  finishLedger: () => void;
 }
 function typingTarget(event: KeyboardEvent): boolean {
   const target = event.target;
@@ -77,6 +80,19 @@ export function bindKeyboard(ctx: KeyboardContext) {
         return;
       }
     }
+    if (ledgerActive(ctx.documents.documentState, ctx.interaction) && !typingTarget(event)) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        ctx.finishLedger();
+        return;
+      }
+      if (event.key === "Backspace") {
+        event.preventDefault();
+        popLedgerPoint(ctx.interaction);
+        ctx.updateLedgerPreview();
+        return;
+      }
+    }
     if (event.key === "Enter") ctx.finishButton.click();
     if (event.key === "Escape") {
       ctx.interaction.routeStroke = null;
@@ -86,6 +102,7 @@ export function bindKeyboard(ctx: KeyboardContext) {
       ctx.clearMeasurement();
       if (ctx.interaction.tool === "building") cancelBuildingGesture(ctx.interaction);
       if (ctx.interaction.tool === "way") cancelWay(ctx.interaction);
+      if (ledgerActive(ctx.documents.documentState, ctx.interaction)) cancelLedger(ctx.interaction);
       ctx.refresh();
     }
   });

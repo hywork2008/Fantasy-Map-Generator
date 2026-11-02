@@ -86,6 +86,11 @@ export interface InteractionState {
   wayWidthMeters: number;
   wayPoints: Point[];
   wayHoverPoint: Point | null;
+  /** Freeform river width, and the land-use kind drawn by the zone tool. */
+  riverWidthMeters: number;
+  zoneKind: "forest" | "farm" | "park";
+  ledgerPoints: Point[];
+  ledgerHover: Point | null;
   shipType: ShipType;
   shipSizeMeters: number;
   shipAngleDegrees: number;

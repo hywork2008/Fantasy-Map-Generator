@@ -6,6 +6,7 @@ import { getShipAngleFromPoint } from "../../renderers/shipSvg";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../../state/editorSession";
 import type { Id, Point } from "../../types/document";
 import { aimBuilding } from "./buildingTool";
+import { ledgerActive } from "./ledgerTool";
 import { isBrushTool } from "./toolTypes";
 export interface PointerMoveContext {
   scope: import("../../services/editorLifetime").EditorLifetime;
@@ -18,6 +19,7 @@ export interface PointerMoveContext {
   updateShipPreview: () => void;
   updateBuildingPreview: () => void;
   updateWayPreview: () => void;
+  updateLedgerPreview: () => void;
   updateCircularWallPreview: (event?: PointerEvent) => void;
   updateWardBrushPreview: (event?: PointerEvent) => void;
   paintCellsAtPoint: (point: Point) => void;
@@ -105,6 +107,11 @@ export function bindPointerMove(ctx: PointerMoveContext) {
     if (ctx.interaction.tool === "way" && !ctx.interaction.isPanning) {
       ctx.interaction.wayHoverPoint = ctx.localPoint(event);
       ctx.updateWayPreview();
+      return;
+    }
+    if (ledgerActive(ctx.documents.documentState, ctx.interaction) && !ctx.interaction.isPanning) {
+      ctx.interaction.ledgerHover = ctx.localPoint(event);
+      ctx.updateLedgerPreview();
       return;
     }
     if ((ctx.interaction.tool === "ship" || ctx.interaction.tool === "object") && !ctx.interaction.isPanning) {

@@ -23,6 +23,7 @@ import type { TerrainRiverCorridor } from "../../city-editor/types/terrain";
 import type { TriangleSoup } from "../core/massingGeometry";
 import { planVertex } from "../core/planFrame";
 import { LAND_Y, WATER_Y, waterSurfaceGeometry } from "../core/waterGeometry";
+import { freeformRiverMesh, freeformZoneMeshes } from "./freeformOverlay";
 import { terrainFieldMeshes } from "./terrainFieldMesh";
 
 /** Highest the river surface may stand above the carved bed under it, in metres. */
@@ -247,6 +248,9 @@ export function createTownWater(
       if (mesh) parent.add(mesh);
     }
   }
+  const freeRiver = freeformRiverMesh(document, terrain);
+  if (freeRiver) parent.add(freeRiver);
+  for (const zone of freeformZoneMeshes(document, terrain)) parent.add(zone);
   const owned = [land, unknown, bank, ...parent.children];
   return {
     parent,

@@ -23,6 +23,7 @@ import {
 } from "../controllers/tools/buildingTool";
 import { createDragCompletionController } from "../controllers/tools/dragCompletion";
 import { bindKeyboard } from "../controllers/tools/keyboard";
+import { cancelLedger, commitDrawnLedger, ledgerRejectText } from "../controllers/tools/ledgerTool";
 import { bindMapAuxiliary } from "../controllers/tools/mapAuxiliary";
 import { bindMapClick } from "../controllers/tools/mapClick";
 import { bindMapContext } from "../controllers/tools/mapContext";
@@ -47,6 +48,7 @@ import {
   presetAmplitude
 } from "../generators/elevationPreset";
 import { restoreFixedCrossingApproaches } from "../generators/fixedApproachAdoption";
+import { removeRiver, removeZone } from "../generators/freeform/commitLedger";
 import { removeWay } from "../generators/freeform/commitWay";
 import { snapFacing } from "../generators/freeform/facing";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
@@ -117,6 +119,7 @@ import {
   restoreLanguageControls,
   restoreLanguageUi
 } from "./languagePanel";
+import { buildLedgerControls } from "./ledgerControls";
 import { mountModelAuthorsPanel } from "./modelAuthorsPanel";
 import { buildObjectControls } from "./objectControls";
 import { mountOperationHelp } from "./operationHelp";
@@ -129,6 +132,7 @@ const TOOLS: Array<[Tool, EditorMessageKey, string]> = [
   ["object", "cityEditor.messages.placeObjects", "⚒"],
   ["building", "cityEditor.messages.placeBuilding", "▢"],
   ["way", "cityEditor.messages.drawWay", "∿"],
+  ["zone", "cityEditor.messages.drawZone", "▨"],
   ["ship", "cityEditor.messages.placeShips", "⛵"],
   ["vertex", "cityEditor.messages.editVertices", "⌘"],
   ["road", "cityEditor.messages.drawRoad", "╱"],
@@ -540,6 +544,23 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         },
         get syncWayList() {
           return () => wayUi.sync(documents.documentState.terrain?.ways ?? []);
+        },
+        get ledgerControls() {
+          return ledgerUi.controls;
+        },
+        get ledgerStatus() {
+          return ledgerUi.status;
+        },
+        get syncLedgerList() {
+          return () =>
+            ledgerUi.sync(
+              interaction.tool,
+              (documents.documentState.terrain?.features ?? []).filter(
+                (feature): feature is import("../types/terrain").TerrainRiverCorridor =>
+                  feature.kind === "riverCorridor"
+              ),
+              documents.documentState.freeform?.zones ?? []
+            );
         },
         get shipControls() {
           return shipControls;
@@ -1407,6 +1428,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   interaction.wayWidthMeters = 2;
   interaction.wayPoints = [];
   interaction.wayHoverPoint = null;
+  interaction.riverWidthMeters = 8;
+  interaction.zoneKind = "park";
+  interaction.ledgerPoints = [];
+  interaction.ledgerHover = null;
   interaction.shipType = "small";
   interaction.shipSizeMeters = SHIP_SPECS.small.defaultSizeMeters;
   interaction.shipAngleDegrees = 0;
@@ -1767,12 +1792,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   for (const [id, labelKey, icon] of TOOLS) {
     const button = makeIconButton(icon, editorText(labelKey), () => {
       interaction.tool = id;
+      if (id !== "way") cancelWay(interaction);
+      cancelLedger(interaction);
       if (id === "building") {
         interaction.buildingEditId = null;
         interaction.buildingGesture = "move";
         interaction.buildingShift = false;
       }
-      if (id !== "way") cancelWay(interaction);
       if (id !== "select") {
         interaction.inspectedInfo = null;
         interaction.selection.inspectedId = null;
@@ -1861,6 +1887,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     }
   );
   toolbar.content.appendChild(wayUi.controls);
+  const ledgerUi = buildLedgerControls(
+    scope,
+    interaction,
+    () => updateLedgerPreview(),
+    id => commit(removeRiver(documents.documentState, id), editorText("cityEditor.messages.freeRiverDelete")),
+    id => commit(removeZone(documents.documentState, id), editorText("cityEditor.messages.zoneDelete"))
+  );
+  toolbar.content.appendChild(ledgerUi.controls);
 
   const elevationControls = div("ce-elevation-controls");
   const elevationMode = select(["raise", "lower", "smooth"], interaction.elevationBrush);
@@ -3007,6 +3041,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     get updateWayPreview() {
       return updateWayPreview;
     },
+    get updateLedgerPreview() {
+      return updateLedgerPreview;
+    },
     get updateCircularWallPreview() {
       return updateCircularWallPreview;
     },
@@ -3183,6 +3220,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     },
     get finishWay() {
       return finishWay;
+    },
+    get updateLedgerPreview() {
+      return updateLedgerPreview;
+    },
+    get finishLedger() {
+      return finishLedger;
     }
   });
 
@@ -3471,6 +3514,23 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   function updateWayPreview(): void {
     getMapDisplayController().updateWayPreview();
+  }
+
+  function updateLedgerPreview(): void {
+    getMapDisplayController().updateLedgerPreview();
+  }
+
+  function finishLedger(): void {
+    const placed = commitDrawnLedger(documents.documentState, interaction);
+    if ("error" in placed) {
+      showNotice(ledgerRejectText(placed.error));
+      updateLedgerPreview();
+      return;
+    }
+    commit(
+      placed.document,
+      editorText(interaction.tool === "zone" ? "cityEditor.messages.zoneFinish" : "cityEditor.messages.freeRiverFinish")
+    );
   }
 
   function finishWay(): void {

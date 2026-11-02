@@ -3,6 +3,7 @@ import { bastionedEditRejection } from "../generators/bastionedTown/edit";
 import { refreshCastleLayouts } from "../generators/castleLayout";
 import { sizePresetForExtent } from "../generators/document";
 import { validateFortifications } from "../generators/fortifications";
+import { captureFreeform } from "../generators/freeform/freeformCity";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { defaultGenerationSettings } from "../generators/generation/settings";
 import { clone } from "../generators/mesh";
@@ -33,6 +34,7 @@ export function createEditingController(ctx: EditingContext) {
     // A no-op edit (re-selecting the same ward, scale ×1, re-applying "sea" to a
     // sea cell) returns the document unchanged. Skip the snapshot so it does not
     // add an empty undo step or a History-panel row.
+    if (next.freeform) next = captureFreeform(next);
     if (next === ctx.documents.documentState) {
       ctx.refresh();
       return;

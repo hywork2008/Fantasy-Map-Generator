@@ -609,6 +609,7 @@ export function cityTerrainStamp(document: CityDocument): string {
     document.gates,
     document.defenseCircuits,
     document.fortSite,
-    document.terrain
+    document.terrain,
+    document.freeform?.zones
   ]);
 }
