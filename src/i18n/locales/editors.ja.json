@@ -351,6 +351,8 @@
       "sceneryWorldTree": "霞む世界樹",
       "sceneryHeight": "高さ",
       "treeSeason": "樹木",
+      "treeSeasonLatitude": "緯度",
+      "treeSeasonPreviewHint": "緯度から海抜0mの気温周期を推定し、樹木の見た目に反映します。負の値は南緯、正の値は北緯です。",
       "treeSeasonMonth": "月",
       "treeSeasonFromMap": "地図の月（{{month}}）",
       "treeSeasonDefault": "既定の姿",

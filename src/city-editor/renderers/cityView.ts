@@ -231,7 +231,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   const fogSettings = readFogSettings();
   const scenerySettings = readScenerySettings();
   // The month only changes how trees look; it is not saved with the city and never undone.
-  const seasonSettings: SeasonSettings = { month: "descriptor" };
+  const seasonSettings: SeasonSettings = { month: "descriptor", latitude: 45, standaloneMonth: 7 };
   const siteDescriptor = () => options.getDocument().fabric?.generation?.settings.descriptor;
   if (options.isFmgLinked?.()) scenerySettings.style = "none";
   let sun: THREE.DirectionalLight | null = null;
@@ -728,7 +728,10 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (viewport.hidden || disposed) return;
     if (!ensure() || !scene) return;
     const city = options.getDocument();
-    const season = treeSeason(city.fabric?.generation?.settings.descriptor, seasonSettings.month);
+    const season = treeSeason(city.fabric?.generation?.settings.descriptor, seasonSettings.month, {
+      latitude: seasonSettings.latitude,
+      month: seasonSettings.standaloneMonth
+    });
     refreshSeasonControls();
     mapHalfExtent = Math.max(1, city.frame.extentMeters / 2);
     atmosphereRange = Math.max(600, city.frame.cityRadiusMeters * 2);

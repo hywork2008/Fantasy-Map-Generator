@@ -2,6 +2,8 @@ import { resolveTreeAppearance, TREE_PHENOLOGY, type TreeAppearanceState } from 
 import type { TreeAppearanceOptions } from "../buildings/landscape/treeSeasonLayers";
 import type { TreeSpecies } from "../buildings/landscape/trees";
 import type { BurgSiteDescriptor } from "../city-editor/types/contracts/burgSiteDescriptor";
+import { EARTH_AXIAL_TILT_DEG } from "../data/earthConfig";
+import { getMonthlyMeanTemperaturesC } from "../utils/earthlikeClimate";
 import { getDrySeasonCandidates } from "../utils/precipitationSeasonality";
 
 /** CE's display month: the descriptor's own month, or one the viewer picked. Never saved in the city. */
@@ -30,24 +32,45 @@ export interface TreeSeason {
 /**
  * Seasonal looks for a CE view (docs/plan/bv-tree-seasonal-appearance.md §8). Undefined when the
  * descriptor carries no monthly temperatures (older files) or no month is known: every tree then
- * keeps its default appearance.
+ * keeps its default appearance unless standalone display settings supply a latitude and month.
  */
 export function treeSeason(
   descriptor: BurgSiteDescriptor | undefined,
-  displayMonth: TreeDisplayMonth = "descriptor"
+  displayMonth: TreeDisplayMonth = "descriptor",
+  standalone?: { latitude: number; month: number }
 ): TreeSeason | undefined {
-  const temperatures = descriptor?.climate.monthlyMeanTemperatureC;
-  if (!temperatures || temperatures.length < 12) return undefined;
-  const month = displayMonth === "descriptor" ? descriptor.date?.month : displayMonth;
+  let climate = descriptor?.climate;
+  let month = displayMonth === "descriptor" ? descriptor?.date?.month : displayMonth;
+  if (!climate?.monthlyMeanTemperatureC || climate.monthlyMeanTemperatureC.length < 12) {
+    if (!standalone || !Number.isFinite(standalone.latitude)) return undefined;
+    const latitude = Math.max(-90, Math.min(90, standalone.latitude));
+    // A sea-level preview climate, not a change to the city's simulated climate or crop calendar.
+    const temperatureC = 30 - 36 * Math.sin((latitude * Math.PI) / 180) ** 2;
+    climate = {
+      temperatureC,
+      biomeId: 0,
+      monthlyMeanTemperatureC: Array.from(
+        getMonthlyMeanTemperaturesC({
+          annualMeanTemperatureC: temperatureC,
+          latitudeDeg: latitude,
+          continentality: 0.5,
+          axialTiltDeg: EARTH_AXIAL_TILT_DEG,
+          year: 1
+        })
+      )
+    };
+    descriptor = undefined;
+    month = standalone.month;
+  }
+  const temperatures = climate.monthlyMeanTemperatureC!;
   if (!month || !Number.isInteger(month) || month < 1 || month > 12) return undefined;
-  const climate = descriptor!.climate;
   const waterBuffered = Boolean(descriptor?.rivers?.length || descriptor?.waterbody?.kind === "lake");
   const drySeason = getDrySeasonCandidates({ ...climate, year: descriptor?.date?.year ?? 1 });
-  const harvest = descriptor.economy?.perennialHarvest;
+  const harvest = descriptor?.economy?.perennialHarvest;
   const looks = new Map<TreeSpecies, TreeAppearanceState | undefined>();
   return {
     month,
-    key: `${month}|${temperatures.join(",")}|${JSON.stringify(harvest ?? null)}|${JSON.stringify([climate.annualPrecipitationMm, climate.monthlyPrecipitationMm, climate.precipitationModelVersion, climate.precipitationSeasonalitySource, climate.precipitationSeasonalityConfidence, descriptor.date?.year, waterBuffered])}`,
+    key: `${month}|${temperatures.join(",")}|${JSON.stringify(harvest ?? null)}|${JSON.stringify([climate.annualPrecipitationMm, climate.monthlyPrecipitationMm, climate.precipitationModelVersion, climate.precipitationSeasonalitySource, climate.precipitationSeasonalityConfidence, descriptor?.date?.year, waterBuffered])}`,
     look(species) {
       if (looks.has(species)) return looks.get(species);
       const profile = TREE_PHENOLOGY[species];

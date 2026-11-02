@@ -96,3 +96,19 @@ it("refreshes tropical appearances when only precipitation changes, including so
   descriptor.climate.precipitationSeasonalityConfidence = 0;
   expect(treeSeason(descriptor)!.key).not.toBe(wet.key);
 });
+
+it("previews latitude-based seasons without a descriptor, with reversed southern seasons and tropical foliage", () => {
+  const preview = (latitude: number, month: number) => treeSeason(undefined, "descriptor", { latitude, month })!;
+  expect(preview(45, 1).look("european_beech")?.appearance).toBe("bare");
+  expect(preview(45, 7).look("european_beech")).toBeUndefined();
+  expect(preview(45, 11).look("european_beech")?.appearance).toBe("autumn");
+  expect(preview(-45, 7).look("european_beech")?.appearance).toBe("bare");
+  expect(preview(-45, 1).look("european_beech")).toBeUndefined();
+  for (const month of [1, 7]) expect(preview(0, month).look("european_beech")).toBeUndefined();
+  expect(preview(45, 1).key).not.toBe(preview(0, 1).key);
+  const descriptor = site(1);
+  const before = JSON.stringify(descriptor);
+  expect(treeSeason(descriptor, "descriptor", { latitude: 0, month: 7 })!.key).toBe(treeSeason(descriptor)!.key);
+  expect(JSON.stringify(descriptor)).toBe(before);
+  expect(treeSeason(site(1, null), "descriptor", { latitude: 45, month: 7 })!.look("european_beech")).toBeUndefined();
+});

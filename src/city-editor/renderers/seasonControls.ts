@@ -1,10 +1,12 @@
 import type { TreeDisplayMonth } from "../../city3d/treeSeason";
-import { editorText } from "../../i18n/editorMessages";
+import { type EditorMessageKey, editorText } from "../../i18n/editorMessages";
 import i18n from "../../i18n/index";
 
-/** The 3D view's month for trees. A display preference only: never saved in the city or undone. */
+/** The 3D view's season for trees. A display preference only: never saved in the city or undone. */
 export interface SeasonSettings {
   month: TreeDisplayMonth;
+  latitude: number;
+  standaloneMonth: number;
 }
 
 const monthName = (month: number) =>
@@ -28,9 +30,50 @@ export function createSeasonControls(
   title.textContent = editorText("cityEditor.messages.treeSeasonMonth");
   const select = document.createElement("select");
   select.name = "treeSeasonMonth";
+  const slider = (
+    key: "latitude" | "standaloneMonth",
+    name: string,
+    text: EditorMessageKey,
+    min: number,
+    max: number
+  ) => {
+    const label = document.createElement("label");
+    const title = document.createElement("span");
+    title.textContent = editorText(text);
+    const input = document.createElement("input");
+    input.type = "range";
+    input.name = name;
+    input.min = String(min);
+    input.max = String(max);
+    input.step = "1";
+    const output = document.createElement("output");
+    const refresh = () => {
+      input.value = String(settings[key]);
+      output.value = key === "latitude" ? `${settings[key]}°` : String(settings[key]);
+      input.setAttribute("aria-valuetext", key === "latitude" ? output.value : monthName(settings[key]));
+    };
+    listen(input, "input", () => {
+      settings[key] = Number(input.value);
+      refresh();
+      onChange();
+    });
+    refresh();
+    label.append(title, input, output);
+    return { label, refresh };
+  };
+  const latitude = slider("latitude", "treeSeasonLatitude", "cityEditor.messages.treeSeasonLatitude", -90, 90);
+  const monthSlider = slider("standaloneMonth", "treeSeasonMonth", "cityEditor.messages.treeSeasonMonth", 1, 12);
+  const hint = document.createElement("p");
+  hint.textContent = editorText("cityEditor.messages.treeSeasonPreviewHint");
   let shown = "";
   const refresh = () => {
     const { month, climate } = source();
+    label.hidden = !climate;
+    latitude.label.hidden = climate;
+    monthSlider.label.hidden = climate;
+    hint.hidden = climate;
+    latitude.refresh();
+    monthSlider.refresh();
     // Rebuilt only when the site changes, so an open drop-down is never replaced under the viewer.
     const key = `${month}|${climate}|${i18n.language}`;
     if (key === shown) return;
@@ -52,9 +95,6 @@ export function createSeasonControls(
       })
     );
     select.value = String(settings.month);
-    // Older sites carry no monthly climate: every tree keeps its default look.
-    select.disabled = !climate;
-    select.title = climate ? "" : editorText("cityEditor.messages.treeSeasonNoClimate");
   };
   refresh();
   listen(select, "change", () => {
@@ -62,6 +102,6 @@ export function createSeasonControls(
     onChange();
   });
   label.append(title, select);
-  panel.append(legend, label);
+  panel.append(legend, label, latitude.label, monthSlider.label, hint);
   return { panel, refresh };
 }

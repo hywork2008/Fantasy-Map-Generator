@@ -351,6 +351,8 @@
       "sceneryWorldTree": "World tree in the mist",
       "sceneryHeight": "Height",
       "treeSeason": "Trees",
+      "treeSeasonLatitude": "Latitude",
+      "treeSeasonPreviewHint": "Latitude estimates a sea-level temperature cycle for tree appearance only. Negative values are south; positive values are north.",
       "treeSeasonMonth": "Month",
       "treeSeasonFromMap": "Map month ({{month}})",
       "treeSeasonDefault": "Default look",
