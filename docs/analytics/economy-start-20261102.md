@@ -135,6 +135,8 @@
 
 Aは単位の誤りで、影響が大きく、直し方もはっきりしている。B〜Eは設計の判断が要る。
 
+Aは修正した（[economy-start-admin-20261102.md](economy-start-admin-20261102.md)）。
+
 ## 8. ファイル
 
 `economy-start-20261102/`

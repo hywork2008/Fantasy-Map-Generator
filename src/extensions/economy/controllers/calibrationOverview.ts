@@ -1,3 +1,4 @@
+import { getBurgDemographics } from "../../hostCore";
 import { openDialog } from "../../hostUi";
 import { rn } from "../../hostUtils";
 import {
@@ -10,7 +11,7 @@ import {
   getSmelterOperations,
   getWorldContext
 } from "../economyContext";
-import { getAdministrationEmploymentPeople } from "../generators/administrationEmployment";
+import { getAdministrationRequiredWorkers } from "../generators/administrationEmployment";
 import { getTradeWorkersByBurg } from "../generators/basicEmployment";
 import { getHousingRecipeForBurg } from "../generators/constructionEmployment";
 import { getCalibratedMonthlyLots, goodsForDomain, laborPointsForLots } from "../generators/craftDemandCalibration";
@@ -55,13 +56,19 @@ export function refreshCalibrationOverview(): void {
   // actualPeople = pointsToPeople(actualWorkerPoints, rate) derivation below roundtrips correctly —
   // not a raw pointsToPeople() of the population-point reconcile figure, which is how mine's actual
   // headcount used to inflate into the tens of thousands.
+  const capitalAdults = (burg: (typeof burgs)[number]) => {
+    if (!burg) return 0;
+    const demographics = getBurgDemographics(burg);
+    return demographics.maleAdults + demographics.femaleAdults;
+  };
   const adminByBurg = new Map<number, number>();
   for (const record of getAdministrationEmployment()) {
     const state = states[record.stateId];
     if (!state?.i || state.removed) continue;
     adminByBurg.set(
       record.burgId,
-      (adminByBurg.get(record.burgId) ?? 0) + peopleToPoints(getAdministrationEmploymentPeople(state, rate), rate)
+      (adminByBurg.get(record.burgId) ?? 0) +
+        getAdministrationRequiredWorkers(state, capitalAdults(burgs[record.burgId]), rate)
     );
   }
   const mineByBurg = new Map<number, number>();
