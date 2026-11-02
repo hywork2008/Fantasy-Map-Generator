@@ -69,6 +69,8 @@
     "map:server": "node scripts/mapServer.mjs",
     "ce:wall-lab": "node --import tsx scripts/wallRingLab.ts",
     "ce:terrain-perf": "node --import tsx scripts/ceTerrainPerf.ts",
+    "ce:freeform-perf": "node --import tsx scripts/ceFreeformPerf.ts",
+    "ce:freeform-frame": "node --import tsx scripts/ceFreeformFrame.mts",
     "ce:wall-order": "node scripts/compareTownWallOrders.mjs",
     "audit:fmg-cities": "node --import tsx scripts/auditFmgCityContext.ts",
     "test:fmg-audit": "node --import tsx --test scripts/lib/fmgCityAudit/audit.test.ts"
@@ -149,6 +151,7 @@
     "jszip": "^3.10.1",
     "lineclip": "^2.0.0",
     "polylabel": "^2.1.0",
+    "rbush": "^4.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-i18next": "^17.0.11",
