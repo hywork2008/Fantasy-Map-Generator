@@ -14,6 +14,7 @@ import {
   resolveMaxPatches
 } from "../generators/document";
 import { finishRiver, smoothFeatureGroups } from "../generators/features";
+import { placeFreeformBuildings } from "../generators/freeform/autoPlace";
 import {
   convertDocumentToFreeform,
   createFreeformCity,
@@ -327,6 +328,27 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     ctx.stepStatus.textContent = "";
     ctx.commit(next, editorText("cityEditor.messages.freeformConverted"));
   });
+  const placeButton = ctx.makeIconButton("🏠", editorText("cityEditor.messages.placeFreeform"), () => {
+    const current = ctx.documents.documentState;
+    if (!current.freeform) {
+      ctx.showNotice(editorText("cityEditor.messages.freeformPlaceNeedsCity"));
+      return;
+    }
+    const result = placeFreeformBuildings(current);
+    if (result.placed === 0) {
+      const key =
+        result.reason === "full"
+          ? "cityEditor.messages.freeformPlaceFull"
+          : result.reason === "ledger"
+            ? "cityEditor.messages.buildingNeedsField"
+            : "cityEditor.messages.freeformPlaceNone";
+      ctx.showNotice(editorText(key));
+      return;
+    }
+    const message = editorText("cityEditor.messages.freeformPlaced", { value0: result.placed });
+    ctx.commit(result.document, message);
+    ctx.showNotice(message);
+  });
   const sizeLabel = ctx.label(editorText("cityEditor.messages.mapSize"), size);
   sizeLabel.className = "ce-size-choice";
   const undoButton = ctx.makeIconButton("🔙", editorText("cityEditor.messages.undo"), () =>
@@ -427,7 +449,15 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     ctx.label(editorText("cityEditor.messages.cellIDs"), showLabelsInput)
   );
   const documentActions = div("ce-icon-row");
-  documentActions.append(newButton, freeformButton, convertButton, scaleButton, finishButton, smoothGroupsButton);
+  documentActions.append(
+    newButton,
+    freeformButton,
+    convertButton,
+    placeButton,
+    scaleButton,
+    finishButton,
+    smoothGroupsButton
+  );
   const gridParamLabels: HTMLLabelElement[] = [];
   const gridParamControls: Partial<
     Record<
