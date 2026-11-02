@@ -149,9 +149,9 @@
 | C1 | 会館の開設に実務者3人以上を条件にする（生成時・年次） | `guildChapters.ts` | 生成時の職人0人の会館が0。36か月目の一斉解散が無い |
 | C2 | 会館の時代の条件をFMGとCEで共通にする | `guildChapters.ts`、`guildFacilities.ts`、共通の定数 | 1300年の地図で印刷の会館が0 |
 | C3 | 建設の石工・大工を実務者に数える | `guildKnowledge.ts` | 石工・木工の会館に職人がいる。`Lime`・`Barrels`の生産の変化を記録 |
-| D1 | 較正の無いレシピ財に労働量を与える | `craftDemandCalibration.ts` | 保存食だけの町の職人が1,000人あたり数人〜十数人。塩・家畜・食料の主な数値の変化を記録 |
+| D1 | 較正の無いレシピ財に労働量を与える | `craftDemandCalibration.ts` | 完了（[urban-craft-staffing.md](urban-craft-staffing.md) §10.2のS2）。労働量だけでは保存食・タール・蝋燭が上限なく作られたので、この3財は需要の行にした |
 | D2 | 既存の業種に入る財を表に加える | `guildKnowledgeTypes.ts` | 該当財の職人が業種に数えられる |
-| D3 | 業種`victualling`・`brewing`を加える | `guildKnowledgeTypes.ts`、`guildChapterSuitability.ts`、`occupationalCalibration.ts`、`GUILD_DOMAINS`2か所、多言語化 | 型検査・関連テスト。会館と技術ストックが2業種にもできる |
+| D3 | 業種`victualling`・`brewing`を加える（業種の追加はurban-craft-staffing.mdのS1、財の割り当てはS2で完了） | `guildKnowledgeTypes.ts`、`guildChapterSuitability.ts`、`occupationalCalibration.ts`、`GUILD_DOMAINS`2か所、多言語化 | 型検査・関連テスト。会館と技術ストックが2業種にもできる |
 | D4 | `BurgSiteEconomy.otherCrafts`を加える | `production-generator.ts`、`burgSiteEconomy.ts`（FMGとCEの型） | CEに内訳が渡る。古い保存はそのまま読める |
 | D5 | CEの職人街の位置の規則と、森の仕事の置き場 | `wards.ts`、`economicWards.ts`、置き場の配置 | 「業種なし」だけの町が減る。実CEで確かめる |
 

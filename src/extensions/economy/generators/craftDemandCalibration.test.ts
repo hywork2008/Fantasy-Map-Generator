@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calibratedReserveFactor,
   consumerCoverageForCategory,
   domainShare,
   GOOD_DEMAND_CALIBRATION,
@@ -40,7 +41,7 @@ describe("craftDemandCalibration", () => {
       expect(row?.laborPointsPerLotAtDefaultRate, name).toBeGreaterThan(0);
       expect(row?.fixtureLotsPerMonth, name).toBeGreaterThan(0);
     }
-    expect(GOOD_DEMAND_CALIBRATION).toHaveLength(names.length);
+    expect(GOOD_DEMAND_CALIBRATION.filter(row => row.domain)).toHaveLength(names.length);
   });
 
   it("does not treat occupational typical as identical to lots × laborPointsPerLot", () => {
@@ -53,6 +54,14 @@ describe("craftDemandCalibration", () => {
       ) * 1000;
     // Cooperage typical 45 people at the fixture; the authored barrel labor is a fifth of it.
     expect(barrelLaborPeople / expectedPeople).toBeCloseTo(0.22, 1);
+  });
+
+  it("stops a per-head floor once the market holds three months of it", () => {
+    expect(calibratedReserveFactor(0, 100)).toBe(1);
+    expect(calibratedReserveFactor(200, 100)).toBe(1);
+    expect(calibratedReserveFactor(250, 100)).toBeCloseTo(0.5, 6);
+    expect(calibratedReserveFactor(20000, 100)).toBe(0);
+    expect(calibratedReserveFactor(500, 0)).toBe(1);
   });
 
   it("scales laborPointsForLots inversely with populationRate", () => {

@@ -237,7 +237,7 @@ export const OCCUPATIONAL_CALIBRATION: readonly OccupationalCalibrationRow[] = [
   {
     pool: "butchery",
     peoplePerThousandUrban: { min: 3, max: 10, inlandTypicalPerThousand: 6 },
-    goodNames: [],
+    goodNames: ["Preserved food"],
     guildDomain: "victualling",
     sources: ["F2 Montpellier 1/300, F3 Toulouse 1/225, E1 butchers 2.1% (9.5/1000, a meat-eating England)"]
   },
@@ -252,7 +252,7 @@ export const OCCUPATIONAL_CALIBRATION: readonly OccupationalCalibrationRow[] = [
   {
     pool: "chandlery",
     peoplePerThousandUrban: { min: 1, max: 4, inlandTypicalPerThousand: 2 },
-    goodNames: [],
+    goodNames: ["Candles"],
     guildDomain: "victualling",
     sources: ["F1 candle makers 0.27 × shoemakers (4/1000), local share with soap boilers"]
   },

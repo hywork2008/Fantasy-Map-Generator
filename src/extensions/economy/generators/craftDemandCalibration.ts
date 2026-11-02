@@ -16,7 +16,8 @@ export type DemandProvenanceKind =
 
 export interface GoodDemandCalibrationRow {
   goodName: string;
-  domain: CraftKnowledgeDomain;
+  /** null for work outside the town guilds (the forest's tar kilns). */
+  domain: CraftKnowledgeDomain | null;
   inlandShare: number;
   portShare: number;
   provenances: readonly DemandProvenanceKind[];
@@ -388,6 +389,51 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     laborPointsPerLotAtDefaultRate: 0.036,
     residualWeight: 0,
     sources: ["provisional instruments map; annualLotsPerPerson authored, no vessel-liter contract"]
+  },
+  {
+    goodName: "Preserved food",
+    domain: "victualling",
+    inlandShare: 0.6,
+    portShare: 0.7,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 10 / 900,
+    fixtureLotsPerMonth: 8.333,
+    laborPointsPerLotAtDefaultRate: 0.0005,
+    residualWeight: 1,
+    sources: [
+      "provisional: 10 kg of salted meat and fish a person a year in 0.9 t wains (urban-craft-staffing.md §10.2)",
+      "0.5 person-month a wain: dressing, salting, packing at ~60 kg a day (guild-halls-and-urban-trades.md D1)"
+    ]
+  },
+  {
+    goodName: "Candles",
+    domain: "victualling",
+    inlandShare: 0.2,
+    portShare: 0.15,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 1 / 100,
+    fixtureLotsPerMonth: 7.5,
+    laborPointsPerLotAtDefaultRate: 0.00015,
+    residualWeight: 1,
+    sources: [
+      "provisional: 1 kg of tallow and wax candles a person a year in 100 kg blocks",
+      "0.15 person-month a block: dipping at ~25 kg a day (guild-halls-and-urban-trades.md D1)"
+    ]
+  },
+  {
+    goodName: "Tar",
+    domain: null,
+    inlandShare: 0,
+    portShare: 0,
+    provenances: ["householdPerCapita", "strategicOrder"],
+    annualLotsPerPerson: 0.5 / 144,
+    fixtureLotsPerMonth: 2.604,
+    laborPointsPerLotAtDefaultRate: 0.0001,
+    residualWeight: 1,
+    sources: [
+      "provisional: 0.5 kg a person a year for boats, carts, roofs and cordage, in 144 kg barrels; shipbuilding orders add at runtime",
+      "0.1 person-month a barrel: tending the kiln and casking, the wood being the forester's"
+    ]
   }
 ];
 
@@ -414,9 +460,61 @@ export function domainShare(goodName: string, port: boolean): number {
  * Charcoal: preserve the existing work time (0.0215 points/50 kg) during the physical recipe
  * correction. Its former price-minus-Wood derivation used an invalid 9.75 t input and is retired.
  * Do not increase work time simply to absorb the lower feedstock bill (§37).
+ *
+ * The other entries are person-months a lot ÷ 1,000 for the pre-industrial recipe Goods of a
+ * 1300 map (docs/plan/urban-craft-staffing.md §6.3, guild-halls-and-urban-trades.md D1), from the
+ * lot sizes in goodMeasureCatalog.ts. Raw material work (felling, herding, fishing, the vineyard)
+ * stays in the ingredient.
  */
 export const UNCALIBRATED_LABOR_POINTS_PER_LOT: Readonly<Record<string, number>> = {
-  Charcoal: 0.0215
+  Charcoal: 0.0215,
+  // Victualling. 25 kg of split cod hung to dry on racks.
+  Stockfish: 0.00001,
+  // 0.6 t of cheese turned in the smokehouse.
+  "Smoked Cheese": 0.0001,
+  // 250 kg: cutting and turning fruit on the drying floor at ~20 kg a day; grapes dry whole.
+  "Dried Fruits": 0.0004,
+  Raisins: 0.00015,
+  // 120 L of wine or honey water kept acetifying.
+  Vinegar: 0.00005,
+  // 120 L boiled down from lye and fat, then cast.
+  Soap: 0.0002,
+  // A 1,000 kg cheese from 10,000 L of milk: a dairy hand works ~170 L, ~17 kg of cheese, a day.
+  Cheese: 0.002,
+  // 30 kg of eggs gathered from the town's hens.
+  Egg: 0.00001,
+  // Brewing. 1,000 L from malting to casking, about five person-days; cider and perry need no malt.
+  Beer: 0.0002,
+  Cider: 0.00015,
+  Perry: 0.00015,
+  // Pressing and cellaring; the vine is the vineyard's.
+  Wine: 0.00005,
+  "Pomace Wine": 0.00003,
+  // 120 L of oil pressed from olives or rendered from blubber.
+  Oil: 0.0001,
+  // Forest works: burning and sacking ash; the wood is the forester's.
+  Ash: 0.00002,
+  // 120 L leached from ash and boiled down.
+  Potash: 0.0001,
+  // A 1.2 t barrel of nitre scraped from the beds and refined.
+  Saltpeter: 0.003,
+  // Building materials. A 1.6 t wain of brick moulded, dried and fired; lime slaked and sacked.
+  Brick: 0.0003,
+  "Slaked Lime": 0.00002,
+  // A 7.5 m³ beam hewn or pit-sawn by a pair of sawyers.
+  Timber: 0.0005,
+  // Woodwork: a wheel in about three days; a lute or harp set in a month.
+  "Spinning Wheel": 0.0001,
+  Instruments: 0.001,
+  // A tusk cut from the carcass.
+  Ivory: 0.00005,
+  // Luxury pieces, by the work of one master and a journeyman.
+  Jewelry: 0.0005,
+  Artworks: 0.001,
+  Sculptures: 0.003,
+  Tapestries: 0.01,
+  Relics: 0.002,
+  Perfume: 0.0002
 };
 
 export function laborPointsForLots(goodName: string, lots: number, populationRate: number): number {
@@ -448,6 +546,21 @@ export function getCalibratedMonthlyLots(args: {
   let lots = row.fixtureLotsPerMonth * scale;
   if (args.capital && row.goodName === "Books") lots *= 2;
   return lots;
+}
+
+/** Months of a market's per-head floor its stock may hold before its towns stop making more. */
+export const CALIBRATED_RESERVE_MONTHS = 3;
+
+/**
+ * Share of a per-head floor a town still makes, given the market's stock of the good and the
+ * floor summed over the market's towns. The floor alone is blind to what is unsold: a market kept
+ * making 600 wains of Preserved food a month into a stock of 20,000 (urban-craft-staffing.md
+ * §10.2). Full up to two months of stock, falling to none at three.
+ */
+export function calibratedReserveFactor(marketStock: number, marketMonthlyLots: number): number {
+  if (!(marketMonthlyLots > 0)) return 1;
+  const months = Math.max(0, marketStock) / marketMonthlyLots;
+  return Math.max(0, Math.min(1, CALIBRATED_RESERVE_MONTHS - months));
 }
 
 /**

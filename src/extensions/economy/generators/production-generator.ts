@@ -41,6 +41,7 @@ import {
   getConstructionProductivityMultiplier
 } from "./constructionEmployment";
 import {
+  calibratedReserveFactor,
   domainShare,
   getCalibratedMonthlyLots,
   getGoodDemandCalibration,
@@ -256,6 +257,9 @@ export function settlePomaceWineMarketProcessing(market: Market): number {
 }
 
 export class ProductionModule {
+  /** Burg population points per market, counted once a production cycle. */
+  private urbanPopulationByMarket: Map<number, number> | null = null;
+
   private get worldContext() {
     return getWorldContext();
   }
@@ -320,6 +324,7 @@ export class ProductionModule {
   }
 
   private startProductionCycle(): ProductionCycle {
+    this.urbanPopulationByMarket = null;
     scheduleLivestockFeedPeriods(0);
     // Cleared here (start of cycle) rather than after Taxes.collectTaxes() so the previous
     // cycle's deals stay visible to transaction-history UI (markets-overview.ts,
@@ -802,21 +807,46 @@ export class ProductionModule {
     // already in the market, so the burgs of one market do not each make the whole order.
     const militaryDemand = MetallurgWork.getProductionDemandByGood(marketId);
     const militaryOrder = (goodId: number): number => militaryDemand.get(goodId)?.outstandingUnits ?? 0;
+    // And so are the shipwrights' procurement orders for the goods that count them (Ropes, Sails,
+    // Tar): a household floor would otherwise cap a yard's rigging and caulking at the town's own
+    // use (urban-craft-staffing.md §10.2).
+    const procurementDemand = getStrategicProductionDemandByGood(getStrategicProcurementOrders(), marketId);
+    const procurementOrder = (goodId: number): number => procurementDemand.get(goodId)?.outstandingUnits ?? 0;
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
     const laborPeopleBurg = laborPeople(population, populationRate);
     const port = Boolean(burg.port);
     const capital = Boolean(burg.capital);
+    const marketLaborPeople = laborPeople(this.getUrbanPopulationOfMarket(marketId), populationRate);
+    const market = Markets.get(marketId);
     for (const good of index.productiveGoods) {
       const row = getGoodDemandCalibration(good.name);
       if (!row) continue;
-      const lots = getCalibratedMonthlyLots({ goodName: good.name, laborPeopleBurg, port, capital });
+      let lots = getCalibratedMonthlyLots({ goodName: good.name, laborPeopleBurg, port, capital });
+      // A per-head floor stops when the market already holds months of it; orders do not.
+      if (row.annualLotsPerPerson != null) {
+        const marketLots = (marketLaborPeople * row.annualLotsPerPerson) / 12;
+        lots *= calibratedReserveFactor(market?.goods[good.i]?.stock ?? 0, marketLots);
+      }
       const ordered =
         (transportMaterialDemand.get(good.i) ?? 0) +
-        (row.provenances.includes("militaryLedger") ? militaryOrder(good.i) : 0);
+        (row.provenances.includes("militaryLedger") ? militaryOrder(good.i) : 0) +
+        (row.provenances.includes("strategicOrder") ? procurementOrder(good.i) : 0);
       remainingCalibratedLots.set(good.i, Math.max(0, lots) + ordered);
       if (ordered > 0) orderedCalibratedLots.set(good.i, ordered);
     }
     return { remainingCalibratedLots, orderedCalibratedLots };
+  }
+
+  private getUrbanPopulationOfMarket(marketId: number): number {
+    if (!this.urbanPopulationByMarket) {
+      this.urbanPopulationByMarket = new Map();
+      for (const burg of this.worldContext.pack.burgs) {
+        if (!burg?.i || burg.removed || !burg.market) continue;
+        const total = this.urbanPopulationByMarket.get(burg.market) ?? 0;
+        this.urbanPopulationByMarket.set(burg.market, total + rn(burg.population || 0, 2));
+      }
+    }
+    return this.urbanPopulationByMarket.get(marketId) ?? 0;
   }
 
   /**

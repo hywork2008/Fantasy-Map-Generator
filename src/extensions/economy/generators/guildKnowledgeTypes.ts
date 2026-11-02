@@ -89,7 +89,20 @@ export const CRAFT_DOMAIN_BY_GOOD_NAME: Readonly<Record<string, CraftKnowledgeDo
   "Precision Instruments": "instruments",
   Paper: "printing",
   Ink: "printing",
-  Books: "printing"
+  Books: "printing",
+  // Butchers', fishmongers' and tallow chandlers' work (docs/plan/urban-craft-staffing.md §10.2).
+  // Cheese stays with the dairy (dairy.ts); Wine and Pomace Wine stay with the vineyard.
+  "Preserved food": "victualling",
+  Stockfish: "victualling",
+  "Smoked Cheese": "victualling",
+  "Dried Fruits": "victualling",
+  Raisins: "victualling",
+  Vinegar: "victualling",
+  Candles: "victualling",
+  Soap: "victualling",
+  Beer: "brewing",
+  Cider: "brewing",
+  Perry: "brewing"
 };
 
 /** null when the Good has no guild-craft domain (unmapped recipe good, or a raw resource). */
