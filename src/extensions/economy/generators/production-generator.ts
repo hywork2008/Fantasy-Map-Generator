@@ -4,6 +4,7 @@ import {
   isDistillationKnown
 } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
+import { getCraftEmploymentScale } from "../../../simulation/craftSettings";
 import { yieldToHost } from "../../../simulation/ports";
 import type { Burg, State } from "../../hostTypes";
 import { DEBUG, ERROR, measureTickStep, measureTickStepAsync, rn, TIME } from "../../hostUtils";
@@ -98,7 +99,7 @@ import { settleMilling } from "./millCapacity";
 import { MineOperations } from "./mineOperations";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { Minting } from "./minting";
-import { expectedWorkerPoints, getOccupationalRow } from "./occupationalCalibration";
+import { expectedDomainWorkerPoints } from "./occupationalCalibration";
 import { OverseasRelations } from "./overseasRelations";
 import { beginPortProductionCycle } from "./portWarehouses";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
@@ -1136,13 +1137,17 @@ export class ProductionModule {
     const domain = getCraftDomainForGood(good.name);
     if (domain) {
       const port = Boolean(state.burg.port);
-      const expected = expectedWorkerPoints({
-        row: getOccupationalRow(domain),
+      const stateId = state.burg.state || 0;
+      const expected = expectedDomainWorkerPoints({
+        domain,
         laborPeople: laborPeople(state.population, populationRate),
         populationRate,
         port,
         capital: Boolean(state.burg.capital),
-        hasQuarry: false
+        hasQuarry: false,
+        period: this.worldContext.options.historicalPeriod,
+        technologyAdopted: id => isTechnologyStageAtLeast(getTechnologyStage(id, stateId), "adopted"),
+        employmentScale: getCraftEmploymentScale()
       });
       const orderedLabor = (state.orderedCalibratedLots.get(good.i) ?? 0) * laborPerLot;
       cap = Math.min(cap, expected * domainShare(good.name, port) + orderedLabor);

@@ -7,7 +7,10 @@ export const CRAFT_KNOWLEDGE_DOMAINS = [
   "leather",
   "glassware",
   "instruments",
-  "printing"
+  "printing",
+  "victualling",
+  "brewing",
+  "baking"
 ] as const;
 export type CraftKnowledgeDomain = (typeof CRAFT_KNOWLEDGE_DOMAINS)[number];
 

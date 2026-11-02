@@ -589,6 +589,15 @@ const HALL_LABEL: Record<string, string> = {
   },
   get printing() {
     return editorText("cityEditor.messages.printersHall");
+  },
+  get victualling() {
+    return editorText("cityEditor.messages.butchersHall");
+  },
+  get brewing() {
+    return editorText("cityEditor.messages.brewersHall");
+  },
+  get baking() {
+    return editorText("cityEditor.messages.bakersHall");
   }
 };
 

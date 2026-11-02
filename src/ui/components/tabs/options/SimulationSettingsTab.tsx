@@ -4,6 +4,11 @@ import { useTranslation } from "react-i18next";
 import { worldContext } from "../../../../context/worldContext";
 import { setConflictAutonomy } from "../../../../controllers/simulationSettings";
 import {
+  CRAFT_EMPLOYMENT_SHARE_LIMITS,
+  getCraftEmploymentShare,
+  setCraftEmploymentShare
+} from "../../../../simulation/craftSettings";
+import {
   getMarketGenerationSpacing,
   getMarketSettings,
   HAY_PAYMENT_MODES,
@@ -52,6 +57,7 @@ export const SimulationSettingsTab: React.FC = () => {
     const number = Number(value);
     if (Number.isFinite(number)) setMarketSettingsState(setMarketSettings({ [key]: number }));
   };
+  const [craftEmploymentShare, setCraftEmploymentShareState] = useState(getCraftEmploymentShare);
   const generationSpacing = getMarketGenerationSpacing(
     worldContext.graphWidth,
     worldContext.graphHeight,
@@ -459,6 +465,29 @@ export const SimulationSettingsTab: React.FC = () => {
                   </option>
                 ))}
               </select>
+            </td>
+          </tr>
+
+          <tr>
+            <td colSpan={4}>
+              <p data-tip={t("simulation.craftsHeadingTip")}>{t("simulation.craftsHeading")}</p>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.craftEmploymentShareTip")}>
+            <td />
+            <td>{t("simulation.craftEmploymentShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="craftEmploymentShare"
+                min={CRAFT_EMPLOYMENT_SHARE_LIMITS.min * 100}
+                max={CRAFT_EMPLOYMENT_SHARE_LIMITS.max * 100}
+                step={CRAFT_EMPLOYMENT_SHARE_LIMITS.step * 100}
+                value={Math.round(craftEmploymentShare * 100)}
+                onChange={v => {
+                  const share = Number(v) / 100;
+                  if (Number.isFinite(share)) setCraftEmploymentShareState(setCraftEmploymentShare(share));
+                }}
+              />
             </td>
           </tr>
 

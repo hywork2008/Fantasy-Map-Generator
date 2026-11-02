@@ -31,7 +31,9 @@ export const WORLD_SETTING_KEYS = [
   /** "off": no bandit or war raids on caravans, for calibration runs (docs/plan/goods-physical-units.md §12.7). */
   "fmg-caravan-raids",
   /** Market founding spacing and dissolution thresholds (docs/plan/market-founding-viability.md §3). */
-  "fmg-market-settings"
+  "fmg-market-settings",
+  /** Share of town people in work, scaling the per-thousand craft table (docs/plan/urban-craft-staffing.md §5.1). */
+  "fmg-craft-employment-share"
 ] as const;
 
 export type WorldSettingKey = (typeof WORLD_SETTING_KEYS)[number];

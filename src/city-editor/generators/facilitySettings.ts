@@ -13,7 +13,10 @@ export const HALL_DOMAINS: GuildDomain[] = [
   "metallurgy",
   "glassware",
   "instruments",
-  "printing"
+  "printing",
+  "victualling",
+  "brewing",
+  "baking"
 ];
 export const YARD_DOMAINS = {
   bleachingField: "textiles",

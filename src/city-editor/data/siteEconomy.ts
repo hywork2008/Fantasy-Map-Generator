@@ -6,7 +6,10 @@ export const GUILD_DOMAINS = [
   "leather",
   "glassware",
   "instruments",
-  "printing"
+  "printing",
+  "victualling",
+  "brewing",
+  "baking"
 ] as const;
 
 export const STORAGE_FORMS = [

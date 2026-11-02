@@ -9,7 +9,7 @@ import {
   recipesForIndustrialDemand
 } from "./craftDemandCalibration";
 import { laborPeople } from "./craftScale";
-import { getOccupationalRow, referenceFixtureExpectedPeople } from "./occupationalCalibration";
+import { OCCUPATIONAL_CALIBRATION, referenceFixtureExpectedPeople } from "./occupationalCalibration";
 
 describe("craftDemandCalibration", () => {
   it("authors barrel labor at 0.00106 pt/lot (share 0.50 applied)", () => {
@@ -33,15 +33,7 @@ describe("craftDemandCalibration", () => {
   });
 
   it("has a numeric row for every guild-mapped good", () => {
-    const names = getOccupationalRow("woodworking").goodNames.concat(
-      getOccupationalRow("textiles").goodNames,
-      getOccupationalRow("leather").goodNames,
-      getOccupationalRow("metallurgy").goodNames,
-      getOccupationalRow("masonry").goodNames,
-      getOccupationalRow("glassware").goodNames,
-      getOccupationalRow("printing").goodNames,
-      getOccupationalRow("instruments").goodNames
-    );
+    const names = OCCUPATIONAL_CALIBRATION.filter(row => row.guildDomain).flatMap(row => row.goodNames);
     for (const name of names) {
       const row = getGoodDemandCalibration(name);
       expect(row, name).toBeDefined();
@@ -52,14 +44,15 @@ describe("craftDemandCalibration", () => {
   });
 
   it("does not treat occupational typical as identical to lots × laborPointsPerLot", () => {
-    const expectedPeople = referenceFixtureExpectedPeople("woodworking");
+    const expectedPeople = referenceFixtureExpectedPeople("cooperage");
     const barrelLaborPeople =
       laborPointsForLots(
         "Barrels",
         getCalibratedMonthlyLots({ goodName: "Barrels", laborPeopleBurg: 9000, port: false }),
         1000
       ) * 1000;
-    expect(barrelLaborPeople / expectedPeople).toBeCloseTo(0.5, 1);
+    // Cooperage typical 45 people at the fixture; the authored barrel labor is a fifth of it.
+    expect(barrelLaborPeople / expectedPeople).toBeCloseTo(0.22, 1);
   });
 
   it("scales laborPointsForLots inversely with populationRate", () => {
