@@ -23,6 +23,7 @@ export interface FreeformPlacement {
   id: Id;
   modelId: string;
   quality?: "low" | "high" | "ultra";
+  palette?: import("../../buildings/medieval/marketAppearance").MarketPalette;
   position: Point;
   facingDegrees: number;
   plotId: Id;

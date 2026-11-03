@@ -6,6 +6,7 @@ import { createStructureMassing } from "../city3d/three/structureMeshes";
 import { BUILDING_APPEARANCE_PROFILES } from "./appearance/types";
 import { createRegionalHouse, defaultRegionalHouseSpec } from "./houses/regionalHouses";
 import { models as marketStalls } from "./medieval/06-market-stallsModels";
+import { isMarketPalette, type MarketPalette } from "./medieval/marketAppearance";
 import { objectDrawing, PLACEABLE_OBJECTS, placeableObject } from "./placeableObjects";
 import type { PlacementQuality } from "./placementContract";
 import { axisBoxFromBounds, type FootprintBox, footprintBox } from "./placementContract";
@@ -29,6 +30,15 @@ interface PlacementSource {
 }
 
 const footprints = new Map<string, FootprintBox>();
+const paletteDefinitions = new Map<string, BvDefinition>();
+
+export function placementPalette(id: string, requested?: MarketPalette): MarketPalette | undefined {
+  return marketStalls.find(model => model.id === id)?.appearances
+    ? isMarketPalette(requested)
+      ? requested
+      : "ochre"
+    : undefined;
+}
 
 function measured(definition: BvDefinition): FootprintBox {
   const cached = footprints.get(definition.id);
@@ -123,9 +133,23 @@ export function placementFootprint(id: string, quality?: PlacementQuality): Foot
 }
 
 /** Mesh factory for models that are not already placeable objects. Placeable objects keep their adopted variants. */
-export function placementDefinition(id: string, quality?: PlacementQuality): BvDefinition | null {
+export function placementDefinition(
+  id: string,
+  quality?: PlacementQuality,
+  palette?: MarketPalette
+): BvDefinition | null {
   if (placeableObject(id)) return null;
   const source = sources.get(id);
   const level = placementQuality(id, quality);
-  return (level ? source?.qualities?.[level] : source?.definition) ?? null;
+  const definition = (level ? source?.qualities?.[level] : source?.definition) ?? null;
+  const appearance = placementPalette(id, palette);
+  if (!definition || !appearance || appearance === "ochre") return definition;
+  const key = `${definition.id}:${appearance}`;
+  let result = paletteDefinitions.get(key);
+  if (!result) {
+    const model = marketStalls.find(model => model.id === id)!;
+    result = { ...definition, id: key, create: () => model.appearances!.create(definition.variant!, appearance) };
+    paletteDefinitions.set(key, result);
+  }
+  return result;
 }

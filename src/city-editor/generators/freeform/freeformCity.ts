@@ -1,3 +1,4 @@
+import { isMarketPalette } from "../../../buildings/medieval/marketAppearance";
 import { facingFromRotation, frontAxisOf, rotationFromFacing } from "../../../buildings/placementContract";
 import { isHistoricalPeriod } from "../../../types/historicalPeriod";
 import type { CityDocument, EdgeFeatureGroup, Point } from "../../types/document";
@@ -83,6 +84,7 @@ export function materializeFreeform(city: FreeformCity, base?: CityDocument): Ci
       point: [placement.position[0], placement.position[1]],
       objectType: placement.modelId,
       ...(placement.quality ? { objectQuality: placement.quality } : {}),
+      ...(placement.palette ? { objectPalette: placement.palette } : {}),
       objectScale: 1,
       rotation: rotationFromFacing(frontAxisOf(placement.modelId), placement.facingDegrees)
     })),
@@ -146,6 +148,7 @@ export function captureFreeform(document: CityDocument): CityDocument {
       id: element.id,
       modelId: element.objectType,
       ...((element.objectQuality ?? kept?.quality) ? { quality: element.objectQuality ?? kept?.quality } : {}),
+      ...(element.objectPalette ? { palette: element.objectPalette } : {}),
       position: [element.point[0], element.point[1]],
       facingDegrees: facingFromRotation(frontAxisOf(element.objectType), element.rotation ?? 0),
       plotId
@@ -398,10 +401,12 @@ function validPlacements(value: unknown, plotIds: Set<string>): FreeformPlacemen
     if (!position || typeof placement.id !== "string" || typeof placement.modelId !== "string") return null;
     if (!Number.isFinite(placement.facingDegrees) || !plotIds.has(placement.plotId)) return null;
     if (placement.quality !== undefined && !["low", "high", "ultra"].includes(placement.quality)) return null;
+    if (placement.palette !== undefined && !isMarketPalette(placement.palette)) return null;
     placements.push({
       id: placement.id,
       modelId: placement.modelId,
       ...(placement.quality ? { quality: placement.quality } : {}),
+      ...(placement.palette ? { palette: placement.palette } : {}),
       position,
       facingDegrees: placement.facingDegrees,
       plotId: placement.plotId

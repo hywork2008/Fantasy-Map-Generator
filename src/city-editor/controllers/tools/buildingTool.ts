@@ -1,4 +1,9 @@
-import { placementCatalog, placementFootprint, placementQuality } from "../../../buildings/placementModels";
+import {
+  placementCatalog,
+  placementFootprint,
+  placementPalette,
+  placementQuality
+} from "../../../buildings/placementModels";
 import { editorText } from "../../../i18n/editorMessages";
 import {
   commitPlacement,
@@ -55,6 +60,7 @@ export function buildingDraft(_document: CityDocument, interaction: InteractionS
     id: interaction.buildingEditId ?? "preview",
     modelId: interaction.buildingModelId,
     quality: placementQuality(interaction.buildingModelId, interaction.buildingQuality),
+    palette: placementPalette(interaction.buildingModelId, interaction.buildingPalette),
     position,
     facingDegrees: facing,
     footprint

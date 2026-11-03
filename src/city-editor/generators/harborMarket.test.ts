@@ -126,6 +126,12 @@ describe("harbor market", () => {
       expect(result.placed).toBeGreaterThan(0);
       expect(result.document.markets).toHaveLength(2);
       const market = result.document.markets!.find(site => site.setting !== "plaza")!;
+      const stalls = result.document.elements.filter(item => market.stallElementIds.includes(item.id));
+      expect(stalls.filter(item => item.objectType?.startsWith("market-fish"))).toHaveLength(4);
+      expect(stalls.some(item => item.objectType === "market-fish-booth")).toBe(true);
+      expect(
+        stalls.filter(item => item.objectType?.startsWith("market-fish")).every(item => item.objectPalette === "woad")
+      ).toBe(true);
       expect(market.setting).toBe(river ? "river-port" : "sea-port");
       const freight = marketHarborReservations(source, before);
       for (const id of market.stallElementIds) {

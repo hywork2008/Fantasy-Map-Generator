@@ -52,6 +52,7 @@ export function createDragCompletionController(ctx: DragCompletionContext) {
                 id: moved.id,
                 modelId: moved.objectType,
                 quality: moved.objectQuality,
+                palette: moved.objectPalette,
                 position: moved.point,
                 facingDegrees: facingFromRotation(frontAxisOf(moved.objectType), moved.rotation ?? 0),
                 footprint

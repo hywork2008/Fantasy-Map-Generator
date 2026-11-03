@@ -2737,6 +2737,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
     const editionLabel = (entry: Variant) => (entry.edition ? label(entry.edition) : "Standard");
     // The previewed season persists across quality and edition switches of the same tree.
     let season = definition.seasons?.default;
+    let appearance = definition.appearances?.default;
     let selectedPart = "all";
     let selectedPartPreset = definition.partPresets?.[0]?.id;
     const showModel = (variant: Variant | undefined = definition.variants && adopted(levels.at(-1)!)) => {
@@ -2803,6 +2804,20 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
           optionFields.append(document.createElement("br"), editionRow);
         }
       }
+      if (variant && definition.appearances) {
+        const row = document.createElement("label");
+        row.textContent = "Palette: ";
+        const select = document.createElement("select");
+        select.setAttribute("aria-label", "Model palette");
+        for (const option of definition.appearances.options) select.add(new Option(option.label, option.id));
+        select.value = appearance!;
+        select.addEventListener("change", () => {
+          appearance = select.value;
+          showModel(variant);
+        });
+        row.append(select);
+        optionFields.append(document.createElement("br"), row);
+      }
       if (variant && definition.seasons) {
         const seasonRow = document.createElement("label");
         seasonRow.textContent = "Season: ";
@@ -2866,7 +2881,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         row.append(select);
         optionFields.append(row);
       }
-      if (partFactory || customAssembly) {
+      if (partFactory || customAssembly || (definition.appearances && appearance !== definition.appearances.default)) {
         // Components and custom compositions must not overwrite the registered assembly's metrics.
         comparisonVariants = null;
         comparisonModel = {
@@ -2882,9 +2897,11 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         : customAssembly
           ? assemble(partFactories!)
           : variant
-            ? definition.seasons && season !== definition.seasons.default
-              ? definition.seasons.create(variant.id, season!)
-              : variant.create()
+            ? definition.appearances
+              ? definition.appearances.create(variant.id, appearance!)
+              : definition.seasons && season !== definition.seasons.default
+                ? definition.seasons.create(variant.id, season!)
+                : variant.create()
             : definition.create();
       massing = model;
       scene.add(model.group);
@@ -2904,6 +2921,14 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       appendFacts(
         fact("Model", definition.name),
         fact("Task", String(task).padStart(2, "0")),
+        ...(definition.appearances
+          ? [
+              fact(
+                "Palette",
+                definition.appearances.options.find(option => option.id === appearance)?.label ?? appearance!
+              )
+            ]
+          : []),
         ...(definition.partPresets
           ? [fact("Composition", definition.partPresets.find(preset => preset.id === selectedPartPreset)!.name)]
           : []),

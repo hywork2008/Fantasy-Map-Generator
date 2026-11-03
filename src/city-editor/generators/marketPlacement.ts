@@ -1,5 +1,5 @@
 import { planBox, planBoxCorners, rotationFromFacing } from "../../buildings/placementContract";
-import { placementFootprint } from "../../buildings/placementModels";
+import { placementFootprint, placementPalette } from "../../buildings/placementModels";
 import type { MarketSite } from "../types/contracts/market";
 import type { CityDocument, CityElement, Point } from "../types/document";
 import { aerialLandmarkFootprints } from "./aerialFootprints";
@@ -23,6 +23,8 @@ import { documentWaterTest } from "./waterGeometry";
 
 const PRODUCE = "market-produce-stall";
 const CLOTH = "market-goods-booth";
+const PLAZA_GOODS = [PRODUCE, "market-bread-stall", "market-grain-table", PRODUCE, CLOTH, "market-bread-stall"];
+const PORT_GOODS = ["market-fish-table", "market-fish-booth", "market-fish-table", "market-fish-table", PRODUCE, CLOTH];
 const STALL_LIMIT = 6;
 const AISLE_WIDTH = 4;
 const PLOT_MARGIN = 1.2;
@@ -288,7 +290,7 @@ export function placeMarketInArea(
       const y = side < 0 ? v0 + halfV + EDGE_WALK : v1 - halfV - EDGE_WALK;
       const facing = (Math.atan2(-side * v[0], -side * v[1]) * 180) / Math.PI;
       const position = at(x, y);
-      const modelId = stallElementIds.length < 4 ? PRODUCE : CLOTH;
+      const modelId = (isPort ? PORT_GOODS : PLAZA_GOODS)[stallElementIds.length];
       const modelFootprint = placementFootprint(modelId, "high")!;
       const plot = planBoxCorners(
         planBox(
@@ -306,6 +308,7 @@ export function placeMarketInArea(
         id,
         modelId,
         quality: "high",
+        palette: placementPalette(modelId, isPort ? "woad" : stallElementIds.length % 2 ? "madder" : "ochre"),
         position,
         facingDegrees: (facing + 360) % 360,
         footprint: modelFootprint,

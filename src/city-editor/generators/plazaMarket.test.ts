@@ -77,8 +77,10 @@ describe("explicit plaza market", () => {
     expect(placePlazaMarket(source).document).toEqual(result.document);
     assertReservations(result.document);
     const stalls = result.document.elements.filter(item => item.kind === "object");
-    expect(stalls.filter(item => item.objectType === "market-produce-stall")).toHaveLength(4);
-    expect(stalls.filter(item => item.objectType === "market-goods-booth")).toHaveLength(2);
+    expect(stalls.filter(item => item.objectType === "market-produce-stall")).toHaveLength(2);
+    expect(stalls.filter(item => item.objectType === "market-goods-booth")).toHaveLength(1);
+    expect(stalls.filter(item => item.objectType === "market-bread-stall")).toHaveLength(2);
+    expect(stalls.filter(item => item.objectType === "market-grain-table")).toHaveLength(1);
     for (const stall of stalls) {
       expect(stall.objectQuality).toBe("high");
       expect(Math.cos(stall.rotation!) * -1 * stall.point![1]).toBeLessThan(0);

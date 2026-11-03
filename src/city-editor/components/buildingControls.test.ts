@@ -38,6 +38,19 @@ it("selects market tiers for the placement preview and restores the edited stall
     controls.syncFromInteraction();
     expect(quality.parentElement?.hidden).toBe(true);
     expect(buildingDraft({} as CityDocument, interaction)?.quality).toBeUndefined();
+    interaction.buildingModelId = "market-bread-stall";
+    interaction.buildingPalette = "woad";
+    controls.syncFromInteraction();
+    const palette = selects[3];
+    expect(palette.parentElement?.hidden).toBe(false);
+    expect(palette.value).toBe("woad");
+    palette.value = "madder";
+    palette.dispatchEvent(new Event("change"));
+    expect(buildingDraft({} as CityDocument, interaction)?.palette).toBe("madder");
+    interaction.buildingModelId = "market-produce-stall";
+    controls.syncFromInteraction();
+    expect(palette.parentElement?.hidden).toBe(true);
+    expect(buildingDraft({} as CityDocument, interaction)?.palette).toBeUndefined();
   } finally {
     scope.dispose();
     root.remove();

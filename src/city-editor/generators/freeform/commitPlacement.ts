@@ -1,3 +1,4 @@
+import type { MarketPalette } from "../../../buildings/medieval/marketAppearance";
 import {
   type FootprintBox,
   frontAxisOf,
@@ -35,6 +36,7 @@ export interface PlacementDraft {
   id: string;
   modelId: string;
   quality?: PlacementQuality;
+  palette?: MarketPalette;
   position: Point;
   facingDegrees: number;
   /** Building box, without the plot margin. */
@@ -132,6 +134,7 @@ export function commitPlacement(
   const preview = previewPlacement(document, draft);
   if (!preview.ok || !document.terrain?.field) return { document, preview };
   const kept = (document.terrain.features ?? []).filter(feature => feature.id !== plotFeatureId(draft.id));
+  const previous = document.elements.find(element => element.id === draft.id);
   const pad: TerrainPlatform = {
     kind: "platform",
     id: plotFeatureId(draft.id),
@@ -150,6 +153,8 @@ export function commitPlacement(
     objectType: draft.modelId,
     objectScale: 1,
     ...(draft.quality ? { objectQuality: draft.quality } : {}),
+    ...(draft.palette ? { objectPalette: draft.palette } : {}),
+    ...(previous?.harborFaceId ? { harborFaceId: previous.harborFaceId } : {}),
     rotation: preview.rotation
   };
   return {

@@ -1,5 +1,7 @@
 import { createMedievalContainerModel } from "../props/medievalContainers";
+import { isMarketPalette, MARKET_PALETTE_OPTIONS } from "./marketAppearance";
 import { createHighGoodsBooth, createHighProduceStall } from "./marketDetails";
+import { createMarketFoodStall, MARKET_FOOD_IDS } from "./marketFoodDetails";
 import { type MedievalModel, ModelKit } from "./modelKit";
 import { registerHighVariants } from "./qualityVariants";
 
@@ -55,7 +57,45 @@ export const models: MedievalModel[] = [
   }
 ];
 
+const foodNames = {
+  "market-fish-table": "Fish on an open trestle table",
+  "market-fish-booth": "Timber fish booth",
+  "market-bread-stall": "Bread stall with linen awning",
+  "market-grain-table": "Grain and cheese table"
+};
+const foodNotes = {
+  "market-fish-table":
+    "Open trestle counter with whole fish on shallow wooden trays, a stock barrel and a water tub. Illustrative late medieval European sale pitch, not a measured reconstruction. The customer side faces local +Z.",
+  "market-fish-booth":
+    "Braced plank-roof shelter with a rear doorway, a raised shutter, fish trays, a stock barrel and a water tub. Illustrative freestanding timber booth; the customer side faces local +Z.",
+  "market-bread-stall":
+    "Demountable linen awning over round loaves on a cloth-covered counter, with a tied sack and a low stock board. Optional muted palettes are art direction, not historical regional uniforms. The customer side faces local +Z.",
+  "market-grain-table":
+    "Open trestle counter with two bins of dry goods, cheese wheels, a wooden measure and a tied sack. Illustrative late medieval sale pitch; the customer side faces local +Z."
+};
+for (const id of MARKET_FOOD_IDS)
+  models.push({
+    author: "Codex GPT-6.1 Sol",
+    id,
+    name: foodNames[id],
+    task: 6,
+    size: [5, 5, 4],
+    note: foodNotes[id],
+    create: () => createMarketFoodStall(id, "low"),
+    appearances: {
+      default: "ochre",
+      options: MARKET_PALETTE_OPTIONS,
+      create: (variantId, palette) =>
+        createMarketFoodStall(
+          id,
+          variantId.includes("@high#") ? "high" : "low",
+          isMarketPalette(palette) ? palette : "ochre"
+        )
+    }
+  });
+
 registerHighVariants(models, {
   "market-produce-stall": createHighProduceStall,
-  "market-goods-booth": createHighGoodsBooth
+  "market-goods-booth": createHighGoodsBooth,
+  ...Object.fromEntries(MARKET_FOOD_IDS.map(id => [id, () => createMarketFoodStall(id, "high")]))
 });

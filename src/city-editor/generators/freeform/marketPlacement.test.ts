@@ -1,7 +1,13 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import { MARKET_FOOD_IDS } from "../../../buildings/medieval/marketFoodDetails";
 import { rotationFromFacing } from "../../../buildings/placementContract";
-import { placementCatalog, placementDefinition, placementFootprint } from "../../../buildings/placementModels";
+import {
+  placementCatalog,
+  placementDefinition,
+  placementFootprint,
+  placementPalette
+} from "../../../buildings/placementModels";
 import { sceneVariants } from "../../../city3d/adoption";
 import { createTownObjects } from "../../../city3d/three/objectMeshes";
 import { renderObjectSvg } from "../../renderers/objectSvg";
@@ -29,17 +35,19 @@ function flatDocument(freeform = false) {
 }
 
 describe("market stall placement", () => {
-  it.each(["market-produce-stall", "market-goods-booth"])(
+  it.each(["market-produce-stall", "market-goods-booth", ...MARKET_FOOD_IDS])(
     "keeps %s quality, position and front through both file formats and renders the adopted tier",
     modelId => {
       expect(placementCatalog().some(item => item.id === modelId)).toBe(true);
       for (const freeform of [false, true]) {
         for (const quality of ["low", "high"] as const) {
           const footprint = placementFootprint(modelId, quality)!;
+          const palette = placementPalette(modelId, "woad");
           const placed = commitPlacement(flatDocument(freeform), {
             id: "stall",
             modelId,
             quality,
+            palette,
             position: [12, -8],
             facingDegrees: 90,
             footprint
@@ -56,11 +64,12 @@ describe("market stall placement", () => {
             point: [12, -8],
             rotation: rotationFromFacing("+z", 90)
           });
+          expect(stall.objectPalette).toBe(palette);
           expect(renderObjectSvg(stall).querySelector("path.ce-object-selection")).not.toBeNull();
           const layer = createTownObjects([stall], () => 7);
           try {
             expect(layer.accepted).toHaveLength(1);
-            expect(sceneVariants(layer.group)).toEqual([placementDefinition(modelId, quality)!.variant]);
+            expect(sceneVariants(layer.group)).toEqual([placementDefinition(modelId, quality, palette)!.variant]);
             const bounds = new THREE.Box3().setFromObject(layer.group);
             expect(bounds.min.y).toBeCloseTo(7, 4);
             expect(bounds.getCenter(new THREE.Vector3()).x).toBeCloseTo(12, 4);
@@ -117,5 +126,36 @@ describe("market stall placement", () => {
     expect(placementDefinition(modelId)?.variant).toContain("@high#");
     old.elements[0].objectQuality = "invalid" as "high";
     expect(parseDocument(JSON.stringify(old))).toBeNull();
+  });
+
+  it("saves edited palettes in both formats, rejects unknown palettes, and keeps harbor ownership during edits", () => {
+    for (const freeform of [false, true]) {
+      const draft = {
+        id: "food-stall",
+        modelId: "market-bread-stall",
+        quality: "high" as const,
+        palette: "madder" as const,
+        position: [0, 0] as [number, number],
+        facingDegrees: 0,
+        footprint: placementFootprint("market-bread-stall", "high")!
+      };
+      const placed = commitPlacement(flatDocument(freeform), draft).document;
+      const loaded = freeform
+        ? materializeFreeform(parseFreeformCity(serializeFreeform(placed))!)
+        : parseDocument(serializeDocument(placed))!;
+      loaded.elements[0].harborFaceId = "port-land";
+      const edited = commitPlacement(loaded, { ...draft, palette: "woad", facingDegrees: 90 }).document;
+      expect(edited.elements[0].harborFaceId).toBe("port-land");
+      if (freeform) {
+        const ledger = parseFreeformCity(serializeFreeform(edited))!;
+        expect(ledger.placements[0].palette).toBe("woad");
+        ledger.placements[0].palette = "invalid" as "woad";
+        expect(parseFreeformCity(JSON.stringify(ledger))).toBeNull();
+      } else {
+        expect(parseDocument(serializeDocument(edited))!.elements[0].objectPalette).toBe("woad");
+        edited.elements[0].objectPalette = "invalid" as "woad";
+        expect(parseDocument(JSON.stringify(edited))).toBeNull();
+      }
+    }
   });
 });

@@ -39,7 +39,7 @@ export function createTownObjects(
         .multiply(new THREE.Matrix4().makeTranslation(-center.x, -bounds.min.y, -center.z));
       return [{ id: item.id, definition: objectDefinition(placeable.id), matrix }];
     }
-    const definition = placementDefinition(item.objectType, item.objectQuality);
+    const definition = placementDefinition(item.objectType, item.objectQuality, item.objectPalette);
     const footprint = placementFootprint(item.objectType, item.objectQuality);
     if (!definition || !footprint) return [];
     const pose = placementPose(item.point, heightAt?.(item.point) ?? 0, item.rotation ?? 0, footprint);

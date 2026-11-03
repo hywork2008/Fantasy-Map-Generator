@@ -1,9 +1,11 @@
+import type { MarketPalette } from "../../buildings/medieval/marketAppearance";
 import type { PlacementQuality } from "../../buildings/placementContract";
 import { placementCatalog } from "../../buildings/placementModels";
 import { editorText } from "../../i18n/editorMessages";
 import type { EditorLifetime } from "../services/editorLifetime";
 import type { InteractionState } from "../state/editorSession";
 import { div } from "./editorControls";
+import { syncPlacementPaletteControl } from "./placementPaletteControl";
 import { syncPlacementQualityControl } from "./placementQualityControl";
 
 export function buildBuildingControls(scope: EditorLifetime, interaction: InteractionState, preview: () => void) {
@@ -20,9 +22,15 @@ export function buildBuildingControls(scope: EditorLifetime, interaction: Intera
   quality.setAttribute("aria-label", editorText("cityEditor.messages.modelQuality"));
   const qualityLabel = document.createElement("label");
   qualityLabel.append(editorText("cityEditor.messages.modelQuality"), quality);
+  const palette = document.createElement("select");
+  palette.setAttribute("aria-label", editorText("cityEditor.messages.marketPalette"));
+  const paletteLabel = document.createElement("label");
+  paletteLabel.append(editorText("cityEditor.messages.marketPalette"), palette);
   function syncQuality() {
     syncPlacementQualityControl(quality, interaction.buildingModelId, interaction.buildingQuality);
     qualityLabel.hidden = quality.disabled;
+    syncPlacementPaletteControl(palette, interaction.buildingModelId, interaction.buildingPalette);
+    paletteLabel.hidden = palette.disabled;
   }
   const facing = document.createElement("input");
   facing.type = "number";
@@ -57,6 +65,10 @@ export function buildBuildingControls(scope: EditorLifetime, interaction: Intera
     interaction.buildingQuality = quality.value as PlacementQuality;
     preview();
   });
+  scope.listen(palette, "change", () => {
+    interaction.buildingPalette = palette.value as MarketPalette;
+    preview();
+  });
   scope.listen(facing, "input", () => {
     interaction.buildingFacingDegrees = Number(facing.value) || 0;
     preview();
@@ -70,7 +82,7 @@ export function buildBuildingControls(scope: EditorLifetime, interaction: Intera
     label.append(title, input);
     controls.append(label);
   }
-  controls.append(qualityLabel);
+  controls.append(qualityLabel, paletteLabel);
   const hint = document.createElement("p");
   hint.textContent = editorText("cityEditor.messages.buildingHint");
   controls.append(hint, status);

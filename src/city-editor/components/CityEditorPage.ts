@@ -1416,6 +1416,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   interaction.objectAngleDegrees = 0;
   interaction.buildingModelId = "house:mediterranean";
   interaction.buildingQuality = undefined;
+  interaction.buildingPalette = undefined;
   interaction.buildingFacingDegrees = 0;
   interaction.buildingHoverPoint = null;
   interaction.buildingAnchor = null;

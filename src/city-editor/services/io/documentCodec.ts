@@ -1,4 +1,5 @@
 import { validBuildingAppearanceFields } from "../../../buildings/appearance/resolver";
+import { isMarketPalette } from "../../../buildings/medieval/marketAppearance";
 import { isBurialCultureProfile } from "../../../data/burialCultures";
 import { isCivilizationContext } from "../../../data/civilizationTraditions";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../../../utils/fixedBurgCrossings";
@@ -219,7 +220,8 @@ function isDocument(value: unknown): value is CityDocument {
         element &&
         typeof element === "object" &&
         (element.shipState === undefined || validShipDisplayState(element.shipState)) &&
-        (element.objectQuality === undefined || ["low", "high", "ultra"].includes(element.objectQuality))
+        (element.objectQuality === undefined || ["low", "high", "ultra"].includes(element.objectQuality)) &&
+        (element.objectPalette === undefined || isMarketPalette(element.objectPalette))
     )
   );
 }
