@@ -63,4 +63,23 @@ export function pruneInvalidHarbors(document: CityDocument): void {
     element.faceIds = element.faceIds.filter(id => valid.has(id));
     return element.faceIds.length > 0;
   });
+  if (document.markets) {
+    const live = new Set(document.elements.map(element => element.id));
+    const removed = new Set(
+      document.markets
+        .filter(market => market.setting !== "plaza")
+        .flatMap(market => market.stallElementIds)
+        .filter(id => !live.has(id))
+    );
+    if (document.terrain && removed.size)
+      document.terrain.features = document.terrain.features.filter(
+        feature =>
+          feature.kind !== "platform" ||
+          feature.role !== "pad" ||
+          !removed.has(feature.ownerId ?? feature.id.slice("plot:".length))
+      );
+    document.markets = document.markets
+      .filter(market => live.has(market.anchorElementId))
+      .map(market => ({ ...market, stallElementIds: market.stallElementIds.filter(id => live.has(id)) }));
+  }
 }

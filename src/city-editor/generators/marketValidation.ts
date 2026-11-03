@@ -19,10 +19,11 @@ export function validMarkets(value: unknown): value is MarketSite[] | undefined 
     ids.add(market.id);
     return (
       market.version === 1 &&
-      market.setting === "plaza" &&
+      ["plaza", "river-port", "sea-port"].includes(market.setting) &&
       typeof market.anchorElementId === "string" &&
       ring(market.boundary) &&
       paths(market.accessPaths) &&
+      (market.cargoAccessPaths === undefined || paths(market.cargoAccessPaths)) &&
       Array.isArray(market.reservedAreas) &&
       market.reservedAreas.length <= 4096 &&
       market.reservedAreas.every(ring) &&

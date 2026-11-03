@@ -41,7 +41,9 @@ export function parseDocument(text: string, fixedApproachProvider?: FixedApproac
     if (value.markets) {
       const elements = new Map(value.elements.map(element => [element.id, element]));
       value.markets = value.markets
-        .filter(market => elements.get(market.anchorElementId)?.kind === "plaza")
+        .filter(
+          market => elements.get(market.anchorElementId)?.kind === (market.setting === "plaza" ? "plaza" : "harbor")
+        )
         .map(market => ({
           ...market,
           stallElementIds: market.stallElementIds.filter(id => elements.get(id)?.kind === "object")

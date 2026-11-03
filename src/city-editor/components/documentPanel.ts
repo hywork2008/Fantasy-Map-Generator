@@ -24,6 +24,7 @@ import {
 } from "../generators/freeform/freeformCity";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { randomSeed } from "../generators/generation/settings";
+import { placeHarborMarket } from "../generators/harborMarket";
 import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } from "../generators/hexGrid";
 import { DocumentHistory } from "../generators/history";
 import { scaleDocument } from "../generators/mesh";
@@ -377,6 +378,32 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     ctx.commit(result.document, message);
     ctx.showNotice(message);
   });
+  const harborMarketButton = ctx.makeIconButton("▤", editorText("cityEditor.messages.populateHarborMarket"), () => {
+    const selected = ctx.interaction.inspectedInfo;
+    const result = placeHarborMarket(
+      ctx.documents.documentState,
+      selected?.kind === "harbor" && typeof selected.id === "string" ? selected.id : undefined
+    );
+    if (!result.placed) {
+      const key =
+        result.reason === "field"
+          ? "cityEditor.messages.buildingNeedsField"
+          : result.reason === "existing"
+            ? "cityEditor.messages.harborMarketAlreadyPopulated"
+            : result.reason === "locked"
+              ? "cityEditor.messages.harborMarketLocked"
+              : result.reason === "freeform"
+                ? "cityEditor.messages.marketNeedsMesh"
+                : result.reason === "harbor"
+                  ? "cityEditor.messages.harborMarketNeedsPort"
+                  : "cityEditor.messages.marketNoSpace";
+      ctx.showNotice(editorText(key));
+      return;
+    }
+    const message = editorText("cityEditor.messages.marketPopulated", { value0: result.placed });
+    ctx.commit(result.document, message);
+    ctx.showNotice(message);
+  });
   const sizeLabel = ctx.label(editorText("cityEditor.messages.mapSize"), size);
   sizeLabel.className = "ce-size-choice";
   const undoButton = ctx.makeIconButton("🔙", editorText("cityEditor.messages.undo"), () =>
@@ -483,6 +510,7 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     convertButton,
     placeButton,
     marketButton,
+    harborMarketButton,
     scaleButton,
     finishButton,
     smoothGroupsButton

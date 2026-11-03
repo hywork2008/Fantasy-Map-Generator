@@ -981,6 +981,7 @@ export function scaleDocument(document: CityDocument, factor: number): CityDocum
       ...market,
       boundary: market.boundary.map(scale),
       accessPaths: market.accessPaths.map(path => path.map(scale)),
+      ...(market.cargoAccessPaths ? { cargoAccessPaths: market.cargoAccessPaths.map(path => path.map(scale)) } : {}),
       reservedAreas: market.reservedAreas.map(ring => ring.map(scale))
     }));
   }
