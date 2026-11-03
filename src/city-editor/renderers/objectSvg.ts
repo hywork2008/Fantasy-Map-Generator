@@ -101,7 +101,7 @@ export function renderObjectRotationHandle(item: CityElement): SVGElement {
 /** Plan box for a BV placement that has no placeable SVG. The pad uses the same corners. */
 function appendFootprint(node: SVGElement, item: CityElement): void {
   if (!item.point || !item.objectType) return;
-  const footprint = placementFootprint(item.objectType);
+  const footprint = placementFootprint(item.objectType, item.objectQuality);
   if (!footprint) return;
   const corners = planBoxCorners(planBox(item.point, footprint, item.rotation ?? 0));
   node.appendChild(
@@ -118,7 +118,7 @@ function appendFootprint(node: SVGElement, item: CityElement): void {
 
 function appendFootprintHandle(group: SVGElement, item: CityElement): void {
   if (!item.point || !item.objectType || item.locked) return;
-  const footprint = placementFootprint(item.objectType);
+  const footprint = placementFootprint(item.objectType, item.objectQuality);
   if (!footprint) return;
   const facing = (facingFromRotation(frontAxisOf(item.objectType), item.rotation ?? 0) * Math.PI) / 180;
   const reach = Math.max(footprint.halfX, footprint.halfZ) + 8;

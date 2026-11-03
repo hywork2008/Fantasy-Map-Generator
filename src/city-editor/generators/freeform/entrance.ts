@@ -29,7 +29,7 @@ export function connectEntrance(
 ): { document: CityDocument; preview: WayPreview } | { error: "missing" | "footprint" | "way" | WayReject } {
   const element = document.elements.find(item => item.id === elementId);
   if (!element?.point || !element.objectType) return { error: "missing" };
-  const footprint = placementFootprint(element.objectType);
+  const footprint = placementFootprint(element.objectType, element.objectQuality);
   if (!footprint) return { error: "footprint" };
   const ways = document.terrain?.ways ?? [];
   if (!ways.length) return { error: "way" };

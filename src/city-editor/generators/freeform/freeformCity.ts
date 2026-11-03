@@ -82,6 +82,7 @@ export function materializeFreeform(city: FreeformCity, base?: CityDocument): Ci
       locked: false,
       point: [placement.position[0], placement.position[1]],
       objectType: placement.modelId,
+      ...(placement.quality ? { objectQuality: placement.quality } : {}),
       objectScale: 1,
       rotation: rotationFromFacing(frontAxisOf(placement.modelId), placement.facingDegrees)
     })),
@@ -144,7 +145,7 @@ export function captureFreeform(document: CityDocument): CityDocument {
     placements.push({
       id: element.id,
       modelId: element.objectType,
-      ...(kept?.quality ? { quality: kept.quality } : {}),
+      ...((element.objectQuality ?? kept?.quality) ? { quality: element.objectQuality ?? kept?.quality } : {}),
       position: [element.point[0], element.point[1]],
       facingDegrees: facingFromRotation(frontAxisOf(element.objectType), element.rotation ?? 0),
       plotId

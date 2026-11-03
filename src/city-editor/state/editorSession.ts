@@ -73,6 +73,7 @@ export interface InteractionState {
   objectScale: number;
   objectAngleDegrees: number;
   buildingModelId: string;
+  buildingQuality?: import("../../buildings/placementContract").PlacementQuality;
   buildingFacingDegrees: number;
   buildingHoverPoint: Point | null;
   buildingAnchor: Point | null;

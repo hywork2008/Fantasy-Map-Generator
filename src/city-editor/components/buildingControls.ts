@@ -1,8 +1,10 @@
+import type { PlacementQuality } from "../../buildings/placementContract";
 import { placementCatalog } from "../../buildings/placementModels";
 import { editorText } from "../../i18n/editorMessages";
 import type { EditorLifetime } from "../services/editorLifetime";
 import type { InteractionState } from "../state/editorSession";
 import { div } from "./editorControls";
+import { syncPlacementQualityControl } from "./placementQualityControl";
 
 export function buildBuildingControls(scope: EditorLifetime, interaction: InteractionState, preview: () => void) {
   const controls = div("ce-building-controls");
@@ -14,6 +16,14 @@ export function buildBuildingControls(scope: EditorLifetime, interaction: Intera
   for (const name of categories) category.add(new Option(name, name));
   const model = document.createElement("select");
   model.setAttribute("aria-label", editorText("cityEditor.messages.buildingModel"));
+  const quality = document.createElement("select");
+  quality.setAttribute("aria-label", editorText("cityEditor.messages.modelQuality"));
+  const qualityLabel = document.createElement("label");
+  qualityLabel.append(editorText("cityEditor.messages.modelQuality"), quality);
+  function syncQuality() {
+    syncPlacementQualityControl(quality, interaction.buildingModelId, interaction.buildingQuality);
+    qualityLabel.hidden = quality.disabled;
+  }
   const facing = document.createElement("input");
   facing.type = "number";
   facing.min = "0";
@@ -31,6 +41,7 @@ export function buildBuildingControls(scope: EditorLifetime, interaction: Intera
   function populate(fromUser: boolean) {
     fillModels();
     interaction.buildingModelId = model.value;
+    syncQuality();
     if (!fromUser) return;
     interaction.buildingEditId = null;
     preview();
@@ -38,7 +49,12 @@ export function buildBuildingControls(scope: EditorLifetime, interaction: Intera
   scope.listen(category, "change", () => populate(true));
   scope.listen(model, "change", () => {
     interaction.buildingModelId = model.value;
+    syncQuality();
     interaction.buildingEditId = null;
+    preview();
+  });
+  scope.listen(quality, "change", () => {
+    interaction.buildingQuality = quality.value as PlacementQuality;
     preview();
   });
   scope.listen(facing, "input", () => {
@@ -54,6 +70,7 @@ export function buildBuildingControls(scope: EditorLifetime, interaction: Intera
     label.append(title, input);
     controls.append(label);
   }
+  controls.append(qualityLabel);
   const hint = document.createElement("p");
   hint.textContent = editorText("cityEditor.messages.buildingHint");
   controls.append(hint, status);
@@ -76,6 +93,7 @@ export function buildBuildingControls(scope: EditorLifetime, interaction: Intera
         fillModels();
       }
       if (model.value !== item.id) model.value = item.id;
+      syncQuality();
       if (document.activeElement !== facing) facing.value = String(Math.round(interaction.buildingFacingDegrees));
     }
   };

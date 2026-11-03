@@ -192,6 +192,8 @@ export interface CityElement {
   objectType?: string;
   /** Uniform multiplier of the authored meter dimensions. */
   objectScale?: number;
+  /** Optional explicit BV tier for placed models that support quality selection. */
+  objectQuality?: import("../../buildings/placementContract").PlacementQuality;
   shipType?: "small" | "medium" | "large" | "barge";
   shipState?: import("./ships").ShipDisplayState;
   harborOperation?: import("./contracts/harborCargo").CargoBerthAssignment;

@@ -205,7 +205,8 @@ function isDocument(value: unknown): value is CityDocument {
       element =>
         element &&
         typeof element === "object" &&
-        (element.shipState === undefined || validShipDisplayState(element.shipState))
+        (element.shipState === undefined || validShipDisplayState(element.shipState)) &&
+        (element.objectQuality === undefined || ["low", "high", "ultra"].includes(element.objectQuality))
     )
   );
 }

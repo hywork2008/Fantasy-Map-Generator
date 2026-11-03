@@ -1,6 +1,7 @@
 import {
   type FootprintBox,
   frontAxisOf,
+  type PlacementQuality,
   type PlanBox,
   planBox,
   planBoxCorners,
@@ -33,6 +34,7 @@ export type PlacementFailure = PlacementReject | "field";
 export interface PlacementDraft {
   id: string;
   modelId: string;
+  quality?: PlacementQuality;
   position: Point;
   facingDegrees: number;
   /** Building box, without the plot margin. */
@@ -147,6 +149,7 @@ export function commitPlacement(
     point: draft.position,
     objectType: draft.modelId,
     objectScale: 1,
+    ...(draft.quality ? { objectQuality: draft.quality } : {}),
     rotation: preview.rotation
   };
   return {
