@@ -2738,6 +2738,8 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
     // The previewed season persists across quality and edition switches of the same tree.
     let season = definition.seasons?.default;
     let appearance = definition.appearances?.default;
+    let marketActivity: "market-day" | "closed" = "market-day";
+    let marketDetail: "near" | "distant" = "near";
     let selectedPart = "all";
     let selectedPartPreset = definition.partPresets?.[0]?.id;
     const showModel = (variant: Variant | undefined = definition.variants && adopted(levels.at(-1)!)) => {
@@ -2802,6 +2804,47 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
           );
           editionRow.append(editionSelect);
           optionFields.append(document.createElement("br"), editionRow);
+        }
+      }
+      if (variant && definition.marketDisplay) {
+        for (const [title, aria, entries, value, change] of [
+          [
+            "Activity",
+            "Market activity",
+            [
+              ["market-day", "Market day"],
+              ["closed", "Closed"]
+            ],
+            marketActivity,
+            (value: string) => {
+              marketActivity = value as typeof marketActivity;
+            }
+          ],
+          [
+            "Detail",
+            "Market distance representation",
+            [
+              ["near", "Near"],
+              ["distant", "Distant"]
+            ],
+            marketDetail,
+            (value: string) => {
+              marketDetail = value as typeof marketDetail;
+            }
+          ]
+        ] as const) {
+          const row = document.createElement("label");
+          row.textContent = `${title}: `;
+          const select = document.createElement("select");
+          select.setAttribute("aria-label", aria);
+          for (const [id, label] of entries) select.add(new Option(label, id));
+          select.value = value;
+          select.addEventListener("change", () => {
+            change(select.value);
+            showModel(variant);
+          });
+          row.append(select);
+          optionFields.append(document.createElement("br"), row);
         }
       }
       if (variant && definition.appearances) {
@@ -2881,7 +2924,12 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         row.append(select);
         optionFields.append(row);
       }
-      if (partFactory || customAssembly || (definition.appearances && appearance !== definition.appearances.default)) {
+      if (
+        partFactory ||
+        customAssembly ||
+        (definition.appearances && appearance !== definition.appearances.default) ||
+        (definition.marketDisplay && (marketActivity === "closed" || marketDetail === "distant"))
+      ) {
         // Components and custom compositions must not overwrite the registered assembly's metrics.
         comparisonVariants = null;
         comparisonModel = {
@@ -2897,16 +2945,19 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         : customAssembly
           ? assemble(partFactories!)
           : variant
-            ? definition.appearances
-              ? definition.appearances.create(variant.id, appearance!)
-              : definition.seasons && season !== definition.seasons.default
-                ? definition.seasons.create(variant.id, season!)
-                : variant.create()
+            ? definition.marketDisplay
+              ? definition.marketDisplay.create(variant.id, appearance ?? "ochre", marketActivity, marketDetail)
+              : definition.appearances
+                ? definition.appearances.create(variant.id, appearance!)
+                : definition.seasons && season !== definition.seasons.default
+                  ? definition.seasons.create(variant.id, season!)
+                  : variant.create()
             : definition.create();
       massing = model;
       scene.add(model.group);
       ground.visible = true;
       const bounds = new THREE.Box3().setFromObject(model.group, true);
+      if (bounds.isEmpty()) bounds.set(new THREE.Vector3(), new THREE.Vector3());
       const center = bounds.getCenter(new THREE.Vector3());
       const size = bounds.getSize(new THREE.Vector3());
       const radius = Math.max(size.x, size.y, size.z, 0.6);
@@ -2921,6 +2972,19 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       appendFacts(
         fact("Model", definition.name),
         fact("Task", String(task).padStart(2, "0")),
+        ...(definition.marketDisplay
+          ? [
+              fact(
+                "Activity",
+                marketActivity === "closed"
+                  ? definition.id === "market-fish-booth"
+                    ? "Closed; shutters shut"
+                    : "Closed; temporary pitch packed away"
+                  : "Market day"
+              ),
+              fact("Representation", marketDetail === "distant" ? "Distant silhouette" : "Near model")
+            ]
+          : []),
         ...(definition.appearances
           ? [
               fact(

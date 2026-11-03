@@ -10,6 +10,7 @@ import type {
   TerrainRiverCorridor,
   TerrainTemplateId
 } from "../../types/terrain";
+import { validMarkets } from "../marketValidation";
 import { facePoints } from "../mesh";
 import { buildTerrainFieldRecipe, terrainFieldForDocument } from "../terrainField/build";
 import { cellsToFieldRecipe } from "../terrainField/cellsToField";
@@ -80,11 +81,12 @@ export function materializeFreeform(city: FreeformCity, base?: CityDocument): Ci
       id: placement.id,
       kind: "object",
       faceIds: [],
-      locked: false,
+      locked: placement.locked ?? false,
       point: [placement.position[0], placement.position[1]],
       objectType: placement.modelId,
       ...(placement.quality ? { objectQuality: placement.quality } : {}),
       ...(placement.palette ? { objectPalette: placement.palette } : {}),
+      ...(placement.marketActivity ? { objectMarketActivity: placement.marketActivity } : {}),
       objectScale: 1,
       rotation: rotationFromFacing(frontAxisOf(placement.modelId), placement.facingDegrees)
     })),
@@ -95,6 +97,7 @@ export function materializeFreeform(city: FreeformCity, base?: CityDocument): Ci
       ways: city.ways
     },
     freeform: city,
+    ...(city.markets ? { markets: structuredClone(city.markets) } : {}),
     ...((city.maxBridgeSkewDegrees ?? base?.maxBridgeSkewDegrees) !== undefined
       ? { maxBridgeSkewDegrees: city.maxBridgeSkewDegrees ?? base?.maxBridgeSkewDegrees }
       : {}),
@@ -149,6 +152,8 @@ export function captureFreeform(document: CityDocument): CityDocument {
       modelId: element.objectType,
       ...((element.objectQuality ?? kept?.quality) ? { quality: element.objectQuality ?? kept?.quality } : {}),
       ...(element.objectPalette ? { palette: element.objectPalette } : {}),
+      ...(element.objectMarketActivity ? { marketActivity: element.objectMarketActivity } : {}),
+      ...(element.locked ? { locked: true } : {}),
       position: [element.point[0], element.point[1]],
       facingDegrees: facingFromRotation(frontAxisOf(element.objectType), element.rotation ?? 0),
       plotId
@@ -168,7 +173,23 @@ export function captureFreeform(document: CityDocument): CityDocument {
     rivers: structuredClone(
       document.terrain.features.filter((feature): feature is TerrainRiverCorridor => feature.kind === "riverCorridor")
     ),
-    zones: structuredClone(document.freeform.zones)
+    zones: structuredClone(document.freeform.zones),
+    ...(document.markets
+      ? {
+          markets: document.markets.map(market => {
+            const { anchorElementId, ...rest } = market;
+            return {
+              ...structuredClone(rest),
+              ...(market.setting === "hall-front" &&
+              (!anchorElementId || !placements.some(p => p.id === anchorElementId))
+                ? { setting: "freeform" as const }
+                : {}),
+              ...(anchorElementId && placements.some(p => p.id === anchorElementId) ? { anchorElementId } : {}),
+              stallElementIds: market.stallElementIds.filter(id => placements.some(p => p.id === id))
+            };
+          })
+        }
+      : {})
   };
   return { ...document, freeform: city };
 }
@@ -322,7 +343,8 @@ function validCity(value: unknown): FreeformCity | null {
   const ways = validWays(city.ways);
   const rivers = validRivers(city.rivers);
   const zones = validZones(city.zones);
-  if (!sculpt || !plots || !placements || !ways || !rivers || !zones) return null;
+  if (!sculpt || !plots || !placements || !ways || !rivers || !zones || !validMarkets(city.markets)) return null;
+  const live = new Set(placements.map(p => p.id));
   return {
     format: "fmg-freeform-city",
     version: 1,
@@ -335,7 +357,14 @@ function validCity(value: unknown): FreeformCity | null {
     placements,
     ways,
     rivers,
-    zones
+    zones,
+    ...(city.markets
+      ? {
+          markets: city.markets
+            .filter(m => !m.anchorElementId || live.has(m.anchorElementId))
+            .map(m => ({ ...m, stallElementIds: m.stallElementIds.filter(id => live.has(id)) }))
+        }
+      : {})
   };
 }
 
@@ -402,11 +431,16 @@ function validPlacements(value: unknown, plotIds: Set<string>): FreeformPlacemen
     if (!Number.isFinite(placement.facingDegrees) || !plotIds.has(placement.plotId)) return null;
     if (placement.quality !== undefined && !["low", "high", "ultra"].includes(placement.quality)) return null;
     if (placement.palette !== undefined && !isMarketPalette(placement.palette)) return null;
+    if (placement.marketActivity !== undefined && !["market-day", "closed"].includes(placement.marketActivity))
+      return null;
+    if (placement.locked !== undefined && typeof placement.locked !== "boolean") return null;
     placements.push({
       id: placement.id,
       modelId: placement.modelId,
       ...(placement.quality ? { quality: placement.quality } : {}),
       ...(placement.palette ? { palette: placement.palette } : {}),
+      ...(placement.marketActivity ? { marketActivity: placement.marketActivity } : {}),
+      ...(placement.locked !== undefined ? { locked: placement.locked } : {}),
       position,
       facingDegrees: placement.facingDegrees,
       plotId: placement.plotId

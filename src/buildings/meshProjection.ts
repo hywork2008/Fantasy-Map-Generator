@@ -6,6 +6,7 @@ export function meshProjection(model: CityStructureMeshes, view: "side" | "top")
   model.group.updateMatrixWorld(true);
   const faces: { depth: number; path: string }[] = [];
   const bounds = new THREE.Box3().setFromObject(model.group);
+  if (bounds.isEmpty()) return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"></svg>';
   const point = (p: THREE.Vector3) => `${p.x.toFixed(3)},${(view === "side" ? -p.y : p.z).toFixed(3)}`;
   for (const mesh of model.pickables) {
     const positions = mesh.geometry.getAttribute("position"),

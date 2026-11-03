@@ -111,7 +111,8 @@ function appendFootprint(node: SVGElement, item: CityElement): void {
       stroke: "#2e7d32",
       "stroke-width": "1.5",
       "vector-effect": "non-scaling-stroke",
-      class: "ce-object-selection"
+      class: "ce-object-selection",
+      ...(item.objectMarketActivity === "closed" ? { "stroke-dasharray": "2 1", fill: "rgba(100,90,75,0.08)" } : {})
     })
   );
 }

@@ -1,4 +1,4 @@
-import { planBox, planBoxCorners, rotationFromFacing } from "../../buildings/placementContract";
+import { planAxes, planBox, planBoxCorners, rotationFromFacing } from "../../buildings/placementContract";
 import { placementFootprint, placementPalette } from "../../buildings/placementModels";
 import type { MarketSite } from "../types/contracts/market";
 import type { CityDocument, CityElement, Point } from "../types/document";
@@ -30,7 +30,17 @@ const AISLE_WIDTH = 4;
 const PLOT_MARGIN = 1.2;
 const EDGE_WALK = 2;
 
-export type MarketPlacementReason = "plaza" | "harbor" | "field" | "existing" | "space" | "freeform" | "locked";
+export type MarketPlacementReason =
+  | "plaza"
+  | "harbor"
+  | "field"
+  | "existing"
+  | "space"
+  | "freeform"
+  | "locked"
+  | "area"
+  | "street"
+  | "hall";
 export interface MarketPlacementResult {
   document: CityDocument;
   placed: number;
@@ -54,7 +64,7 @@ export function placeMarketInArea(
   const fail = (reason: MarketPlacementReason): MarketPlacementResult => ({ document, placed: 0, reason });
   if (!document.terrain?.field) return fail("field");
   const { anchor: plaza, boundary } = area;
-  const isPort = area.setting !== "plaza";
+  const isPort = area.setting === "river-port" || area.setting === "sea-port";
   const center = polygonCentroid(boundary);
   const frame = longestFrame(boundary);
   const u = frame.axis;
@@ -97,7 +107,7 @@ export function placeMarketInArea(
   for (const polygon of cargo.areas) reserve(polygon, true);
   const closedBoundary = [...boundary, boundary[0]];
   const access = (point: Point) => {
-    if (isPort) return;
+    if (area.streetAccess) return;
     if (nearestOnPolyline(point, closedBoundary).dist > 8 && !pointInPolygon(point, boundary)) return;
     if (!accessTargets.some(other => Math.hypot(other[0] - point[0], other[1] - point[1]) < 0.5))
       accessTargets.push(point);
@@ -153,12 +163,12 @@ export function placeMarketInArea(
       reserveLine(water.access, AISLE_WIDTH);
       if (water.access.length) access(water.access.at(-1)!);
     }
-  } else if (!isPort && plaza.point) {
+  } else if (area.setting === "plaza" && plaza.point) {
     // Older layouts render a public basin at the plaza anchor.
     reserve(square(plaza.point, 4), true);
   }
   for (const item of document.elements) {
-    if (!item.point || item.id === plaza.id) continue;
+    if (!item.point || (item.id === plaza.id && item.kind !== "object")) continue;
     if (item.kind === "object" && item.objectType) {
       const footprint = placementFootprint(item.objectType, item.objectQuality);
       if (footprint) {
@@ -173,6 +183,20 @@ export function placeMarketInArea(
           ),
           true
         );
+        if (area.setting === "hall-front" && item.id === plaza.id) {
+          const axes = planAxes(item.rotation ?? 0);
+          const front: Point = [
+            item.point[0] + axes.axisZ[0] * (footprint.halfZ + 4),
+            item.point[1] + axes.axisZ[1] * (footprint.halfZ + 4)
+          ];
+          const frontage = [-1, 1].map(
+            (side): Point => [
+              front[0] + side * axes.axisX[0] * footprint.halfX,
+              front[1] + side * axes.axisX[1] * footprint.halfX
+            ]
+          );
+          reserveLine(frontage, 4);
+        }
       }
     } else if (item.kind === "temple") {
       reserve(
@@ -207,6 +231,7 @@ export function placeMarketInArea(
     for (const path of landmark.accesses) reserveLine(path.points, Math.max(AISLE_WIDTH, path.widthMeters));
   }
   for (const cemetery of document.cemeteries ?? []) reserve(cemetery.boundary, true);
+  for (const zone of document.freeform?.zones ?? []) reserve(zone.polygon, true);
   for (const market of document.markets ?? []) {
     reserve(market.boundary);
     for (const path of market.accessPaths) reserveLine(path, AISLE_WIDTH);
@@ -283,7 +308,7 @@ export function placeMarketInArea(
   );
   let current = document;
   const stallElementIds: string[] = [];
-  const marketId = `${isPort ? "harbor" : "plaza"}-market:${plaza.id}`;
+  const marketId = `${isPort ? "harbor" : area.setting === "plaza" ? "plaza" : "area"}-market:${plaza.id}`;
   for (const x of offsets) {
     for (const side of [-1, 1]) {
       if (stallElementIds.length >= STALL_LIMIT) break;
@@ -333,7 +358,7 @@ export function placeMarketInArea(
     version: 1,
     id: marketId,
     setting: area.setting,
-    anchorElementId: plaza.id,
+    ...(["plaza", "river-port", "sea-port", "hall-front"].includes(area.setting) ? { anchorElementId: plaza.id } : {}),
     boundary,
     accessPaths,
     reservedAreas: reservations,

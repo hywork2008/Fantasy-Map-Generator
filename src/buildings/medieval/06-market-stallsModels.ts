@@ -1,7 +1,10 @@
+import * as THREE from "three";
+import { axisBoxFromBounds, footprintBox } from "../placementContract";
 import { createMedievalContainerModel } from "../props/medievalContainers";
 import { isMarketPalette, MARKET_PALETTE_OPTIONS } from "./marketAppearance";
 import { createHighGoodsBooth, createHighProduceStall } from "./marketDetails";
 import { createMarketFoodStall, MARKET_FOOD_IDS } from "./marketFoodDetails";
+import { createClosedMarketBooth, createDistantMarket, packedMarketPitch } from "./marketPresentation";
 import { type MedievalModel, ModelKit } from "./modelKit";
 import { registerHighVariants } from "./qualityVariants";
 
@@ -99,3 +102,27 @@ registerHighVariants(models, {
   "market-goods-booth": createHighGoodsBooth,
   ...Object.fromEntries(MARKET_FOOD_IDS.map(id => [id, () => createMarketFoodStall(id, "high")]))
 });
+
+for (const model of models)
+  model.marketDisplay = {
+    create(variantId, palette, activity, detail) {
+      const variant = model.variants!.find(v => v.id === variantId) ?? model.variants!.at(-1)!;
+      const color = isMarketPalette(palette) ? palette : "ochre";
+      if (packedMarketPitch(model.id, activity)) return new ModelKit(`${model.id}-packed`).finish();
+      if (detail === "distant") {
+        const source = variant.create();
+        try {
+          return createDistantMarket(
+            model.id,
+            footprintBox(axisBoxFromBounds(new THREE.Box3().setFromObject(source.group, true))),
+            color,
+            activity
+          );
+        } finally {
+          source.dispose();
+        }
+      }
+      if (activity === "closed") return createClosedMarketBooth(variant.level === "high" ? "high" : "low", color);
+      return model.appearances ? model.appearances.create(variant.id, color) : variant.create();
+    }
+  };

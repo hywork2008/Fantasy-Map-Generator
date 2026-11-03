@@ -6,7 +6,15 @@ import { createStructureMassing } from "../city3d/three/structureMeshes";
 import { BUILDING_APPEARANCE_PROFILES } from "./appearance/types";
 import { createRegionalHouse, defaultRegionalHouseSpec } from "./houses/regionalHouses";
 import { models as marketStalls } from "./medieval/06-market-stallsModels";
+import { models as civicHalls } from "./medieval/26-civic-hallsModels";
+import { models as clothHalls } from "./medieval/27-cloth-hallsModels";
 import { isMarketPalette, type MarketPalette } from "./medieval/marketAppearance";
+import {
+  isMarketModel,
+  type MarketActivity,
+  type MarketDetail,
+  packedMarketPitch
+} from "./medieval/marketPresentation";
 import { objectDrawing, PLACEABLE_OBJECTS, placeableObject } from "./placeableObjects";
 import type { PlacementQuality } from "./placementContract";
 import { axisBoxFromBounds, type FootprintBox, footprintBox } from "./placementContract";
@@ -98,7 +106,7 @@ for (const object of PLACEABLE_OBJECTS) {
   });
 }
 
-for (const model of marketStalls) {
+for (const model of [...marketStalls, ...civicHalls, ...clothHalls]) {
   const qualities = Object.fromEntries(
     (["low", "high"] as const).map(level => [
       level,
@@ -106,7 +114,7 @@ for (const model of marketStalls) {
     ])
   );
   sources.set(model.id, {
-    item: { id: model.id, category: "Market stalls", name: model.name },
+    item: { id: model.id, category: model.task === 6 ? "Market stalls" : "Market halls", name: model.name },
     definition: qualities.high,
     qualities,
     footprint: quality => measured(qualities[quality === "low" ? "low" : "high"])
@@ -136,19 +144,34 @@ export function placementFootprint(id: string, quality?: PlacementQuality): Foot
 export function placementDefinition(
   id: string,
   quality?: PlacementQuality,
-  palette?: MarketPalette
+  palette?: MarketPalette,
+  presentation?: { activity?: MarketActivity; detail?: MarketDetail }
 ): BvDefinition | null {
   if (placeableObject(id)) return null;
+  if (packedMarketPitch(id, presentation?.activity)) return null;
   const source = sources.get(id);
   const level = placementQuality(id, quality);
   const definition = (level ? source?.qualities?.[level] : source?.definition) ?? null;
   const appearance = placementPalette(id, palette);
-  if (!definition || !appearance || appearance === "ochre") return definition;
-  const key = `${definition.id}:${appearance}`;
+  const custom = isMarketModel(id) && (presentation?.activity === "closed" || presentation?.detail === "distant");
+  if (!definition || (!custom && (!appearance || appearance === "ochre"))) return definition;
+  const key = `${definition.id}:${appearance ?? "ochre"}:${presentation?.activity ?? "market-day"}:${presentation?.detail ?? "near"}`;
   let result = paletteDefinitions.get(key);
   if (!result) {
     const model = marketStalls.find(model => model.id === id)!;
-    result = { ...definition, id: key, create: () => model.appearances!.create(definition.variant!, appearance) };
+    result = {
+      id: key,
+      variant: definition.variant,
+      create: () =>
+        custom
+          ? model.marketDisplay!.create(
+              definition.variant!,
+              appearance ?? "ochre",
+              presentation?.activity ?? "market-day",
+              presentation?.detail ?? "near"
+            )
+          : model.appearances!.create(definition.variant!, appearance!)
+    };
     paletteDefinitions.set(key, result);
   }
   return result;

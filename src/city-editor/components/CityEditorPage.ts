@@ -1971,6 +1971,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     finishButton,
     smoothingModeInput,
     documentActions,
+    syncMarketControls,
     syncGridParamControls,
     gridEvoSlider,
     gridEvoFirstButton,
@@ -3445,6 +3446,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     appearanceControls.sync();
     forestControls.sync();
     getMapDisplayController().refresh();
+    syncMarketControls();
     syncCity3d();
   }
 

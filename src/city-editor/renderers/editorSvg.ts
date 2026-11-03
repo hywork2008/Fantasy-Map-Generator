@@ -36,6 +36,7 @@ import {
   type LandscapeKeepOut,
   renderLandscapeLayer
 } from "./landscape";
+import { renderMarketAreas } from "./marketSvg";
 import { renderMoats } from "./moatSvg";
 import { appendFaceSelectionLabels, type GridOverlay, renderGridOverlay } from "./overlays/editorOverlays";
 import { renderPreviewSymbols } from "./previewSymbols";
@@ -365,6 +366,7 @@ export function renderEditorSvg(
 
   renderGateLayer(ctx, svg);
 
+  svg.appendChild(renderMarketAreas(document));
   renderCityElements(ctx, svg, castleFaces, townPlans.aerial?.domesticWater, townPlans.harbor);
 
   if (showSelectionLabels && selection.faceId) appendFaceSelectionLabels(svg, document, selection.faceId, zoom);

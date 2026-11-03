@@ -15,9 +15,17 @@ export const MARKET_FOOD_IDS = [
 export type MarketFoodId = (typeof MARKET_FOOD_IDS)[number];
 
 /** Shared shell, goods and stock; +Z is the customer side, the vendor stands behind the counter. */
-export function createMarketFoodStall(id: MarketFoodId, quality: "low" | "high", palette: MarketPalette = "ochre") {
+export function createMarketFoodStall(
+  id: MarketFoodId,
+  quality: "low" | "high",
+  palette: MarketPalette = "ochre",
+  activity: "market-day" | "closed" = "market-day"
+) {
   const high = quality === "high";
-  const k = new ModelKit(`${id}-${quality}-${palette}`, { cloth: MARKET_CLOTH_COLORS[palette] });
+  const closed = activity === "closed";
+  const k = new ModelKit(`${id}-${quality}-${palette}${closed ? "-closed" : ""}`, {
+    cloth: MARKET_CLOTH_COLORS[palette]
+  });
   const parts = new ModelPartTracker(k);
   const part = (role: string) => parts.begin({ id: role, role, quality, author: "Codex GPT-6.1 Sol" });
   const ellipsoid = (name: string, p: Position, size: Position, surface: Surface) => {
@@ -49,8 +57,20 @@ export function createMarketFoodStall(id: MarketFoodId, quality: "low" | "high",
     }
     for (let i = 0; i < 10; i++) k.box("rear-screen-board", [-1.72 + i * 0.25, 1, -1.3], [0.24, 2, 0.055], "wood");
     // A 1 m rear doorway and open sides give the seller an actual entrance.
-    k.box("raised-front-shutter", [0, 2.18, 1.3], [3.4, 0.54, 0.05], "wood");
-    for (const x of [-1.5, 1.5]) k.beam("shutter-prop", [x, 1.83, 1.1], [x, 2.18, 1.3], 0.055);
+    if (closed) {
+      for (let i = 0; i < 14; i++)
+        k.box("closed-front-shutter", [-1.625 + i * 0.25, 1.72, 1.31], [0.245, 1.48, 0.06], "wood");
+      for (const x of [-1.85, 1.85]) k.box("closed-side-screen", [x, 1.3, 0], [0.06, 2.5, 2.6], "wood");
+      k.box("closed-rear-door", [1.22, 1, -1.3], [1.05, 2, 0.06], "wood");
+      for (const x of [-1.1, 1.1]) k.box("shutter-strap", [x, 1.72, 1.35], [0.045, 1.1, 0.035], "iron");
+    } else {
+      k.box("raised-front-shutter", [0, 2.18, 1.3], [3.4, 0.54, 0.05], "wood");
+      for (const x of [-1.5, 1.5]) k.beam("shutter-prop", [x, 1.83, 1.1], [x, 2.18, 1.3], 0.055);
+    }
+  }
+  if (closed) {
+    parts.finish();
+    return compactModel(k.finish(), { mergeEquivalentMaterials: true });
   }
   part("display-goods");
   const tray = (x: number, width: number) => {

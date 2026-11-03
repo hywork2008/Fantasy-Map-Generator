@@ -36,6 +36,7 @@ import type { FixedApproachProvider } from "../types/contracts/fixedApproachAdop
 import type { CityDocument } from "../types/document";
 import { formatDistance } from "../utils/editorUnits";
 import { div, text } from "./editorControls";
+import { buildMarketAreaControls } from "./marketAreaControls";
 export interface DocumentPanelContext {
   select: (values: string[], selected: string) => HTMLSelectElement;
   panelEventContext: () => {
@@ -515,6 +516,15 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     finishButton,
     smoothGroupsButton
   );
+  const marketAreaControls = buildMarketAreaControls({
+    getDocument: () => ctx.documents.documentState,
+    selected: () => ctx.interaction.inspectedInfo,
+    commit: (document, label) => ctx.commit(document, label),
+    notice: message => ctx.showNotice(message),
+    map: ctx.panelEventContext().map
+  });
+  marketAreaControls.root.style.flexBasis = "100%";
+  documentActions.append(marketAreaControls.root);
   const gridParamLabels: HTMLLabelElement[] = [];
   const gridParamControls: Partial<
     Record<
@@ -649,6 +659,7 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     finishButton,
     smoothingModeInput,
     documentActions,
+    syncMarketControls: marketAreaControls.sync,
     syncGridParamControls,
     gridEvoSlider,
     gridEvoFirstButton,

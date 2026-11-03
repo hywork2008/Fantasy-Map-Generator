@@ -79,7 +79,7 @@ export function pruneInvalidHarbors(document: CityDocument): void {
           !removed.has(feature.ownerId ?? feature.id.slice("plot:".length))
       );
     document.markets = document.markets
-      .filter(market => live.has(market.anchorElementId))
+      .filter(market => !market.anchorElementId || live.has(market.anchorElementId))
       .map(market => ({ ...market, stallElementIds: market.stallElementIds.filter(id => live.has(id)) }));
   }
 }

@@ -195,6 +195,7 @@ export interface CityElement {
   /** Optional explicit BV tier for placed models that support quality selection. */
   objectQuality?: import("../../buildings/placementContract").PlacementQuality;
   objectPalette?: import("../../buildings/medieval/marketAppearance").MarketPalette;
+  objectMarketActivity?: "market-day" | "closed";
   shipType?: "small" | "medium" | "large" | "barge";
   shipState?: import("./ships").ShipDisplayState;
   harborOperation?: import("./contracts/harborCargo").CargoBerthAssignment;

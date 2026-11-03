@@ -157,6 +157,7 @@ export function createBvInstances<T extends BvPlacement>(sites: readonly T[], ca
   const pickables: THREE.InstancedMesh[] = [];
   const batches = new Map<BvDefinition | string, { definition: BvDefinition; sites: T[] }>();
   const lookup = new Map<THREE.Object3D, T[]>();
+  const originals = new Map<THREE.InstancedMesh, T[]>();
   const leases: Array<{ release(): void }> = [];
   const accepted: T[] = [];
   for (const site of sites) {
@@ -181,6 +182,7 @@ export function createBvInstances<T extends BvPlacement>(sites: readonly T[], ca
     group.add(mesh);
     pickables.push(mesh);
     lookup.set(mesh, batch);
+    originals.set(mesh, batch);
     accepted.push(...batch);
   }
   let disposed = false;
@@ -188,6 +190,28 @@ export function createBvInstances<T extends BvPlacement>(sites: readonly T[], ca
     group,
     pickables,
     accepted,
+    /** Compact visible instances without rebaking prototypes. Picking follows the compacted indices. */
+    setVisible(predicate: (site: T) => boolean): boolean {
+      let changed = false;
+      for (const [mesh, all] of originals) {
+        const visible = all.filter(predicate);
+        const previous = lookup.get(mesh)!;
+        if (previous.length === visible.length && previous.every((site, i) => site === visible[i])) continue;
+        changed = true;
+        lookup.set(mesh, visible);
+        mesh.count = visible.length;
+        mesh.visible = visible.length > 0;
+        visible.forEach((site, i) => {
+          mesh.setMatrixAt(i, site.matrix);
+        });
+        mesh.instanceMatrix.needsUpdate = true;
+        if (visible.length) {
+          mesh.computeBoundingBox();
+          mesh.computeBoundingSphere();
+        }
+      }
+      return changed;
+    },
     resolve(hit: Pick<THREE.Intersection, "object" | "instanceId">): T | undefined {
       return hit.instanceId === undefined ? undefined : lookup.get(hit.object)?.[hit.instanceId];
     },
@@ -197,6 +221,7 @@ export function createBvInstances<T extends BvPlacement>(sites: readonly T[], ca
       for (const mesh of pickables) mesh.dispose();
       for (const lease of leases) lease.release();
       lookup.clear();
+      originals.clear();
       group.clear();
     }
   };

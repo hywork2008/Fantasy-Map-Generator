@@ -155,6 +155,7 @@ export function commitPlacement(
     ...(draft.quality ? { objectQuality: draft.quality } : {}),
     ...(draft.palette ? { objectPalette: draft.palette } : {}),
     ...(previous?.harborFaceId ? { harborFaceId: previous.harborFaceId } : {}),
+    ...(previous?.objectMarketActivity ? { objectMarketActivity: previous.objectMarketActivity } : {}),
     rotation: preview.rotation
   };
   return {
@@ -168,11 +169,15 @@ export function commitPlacement(
 }
 
 export function removePlacement(document: CityDocument, id: string): CityDocument {
-  const markets = document.markets?.map(market =>
-    market.stallElementIds.includes(id)
+  const markets = document.markets?.map(market => {
+    if (market.anchorElementId === id && market.setting === "hall-front") {
+      const { anchorElementId, ...rest } = market;
+      return { ...rest, setting: document.freeform ? ("freeform" as const) : ("street" as const) };
+    }
+    return market.stallElementIds.includes(id)
       ? { ...market, stallElementIds: market.stallElementIds.filter(stallId => stallId !== id) }
-      : market
-  );
+      : market;
+  });
   const metadata = markets ? { markets } : {};
   if (!isPlotPlacement(document, id)) {
     return { ...document, ...metadata, elements: document.elements.filter(item => item.id !== id) };

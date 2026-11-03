@@ -19,8 +19,9 @@ export function validMarkets(value: unknown): value is MarketSite[] | undefined 
     ids.add(market.id);
     return (
       market.version === 1 &&
-      ["plaza", "river-port", "sea-port"].includes(market.setting) &&
-      typeof market.anchorElementId === "string" &&
+      ["plaza", "river-port", "sea-port", "street", "hall-front", "freeform"].includes(market.setting) &&
+      (market.anchorElementId === undefined || typeof market.anchorElementId === "string") &&
+      (market.activity === undefined || ["market-day", "closed"].includes(market.activity)) &&
       ring(market.boundary) &&
       paths(market.accessPaths) &&
       (market.cargoAccessPaths === undefined || paths(market.cargoAccessPaths)) &&

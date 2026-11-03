@@ -28,6 +28,14 @@ export interface MedievalModel {
     options: readonly { id: string; label: string }[];
     create(variantId: string, appearance: string): CityStructureMeshes;
   };
+  marketDisplay?: {
+    create(
+      variantId: string,
+      palette: string,
+      activity: "market-day" | "closed",
+      detail: "near" | "distant"
+    ): CityStructureMeshes;
+  };
   create(): CityStructureMeshes;
   /** Optional independent components in their fitted assembly positions. */
   parts?(variantId?: string, preset?: string): readonly ModelPartFactory[];

@@ -155,6 +155,10 @@
       .ce-context-menu { position:fixed; z-index:10000; display:grid; gap:4px; min-width:210px; padding:6px; border:1px solid #9da8a7; border-radius:6px; background:var(--panel); box-shadow:0 8px 20px #2331363d; } .ce-context-menu[hidden] { display:none; } .ce-context-menu span { padding:4px; color:var(--muted); } .ce-context-menu button { text-align:left; } .ce-context-menu hr { width:100%; margin:2px 0; border:0; border-top:1px solid #d6dddb; }
       .ce-measure-line { fill:none; stroke:#1d2930; stroke-width:2; vector-effect:non-scaling-stroke; } .ce-measure-point { fill:#fffdf4; stroke:#1d2930; stroke-width:2; vector-effect:non-scaling-stroke; } .ce-measure-point--start { fill:#e9a23b; } .ce-measure-label { font-family:system-ui,-apple-system,sans-serif; font-weight:700; fill:#1d2930; paint-order:stroke; stroke:#ffffff; stroke-linejoin:round; user-select:none; }
       @media (max-width:760px) { .ce-document { top:14px; left:8px; max-width:200px; } .ce-inspector { top:auto; bottom:38px; right:8px; width:190px; max-height:42vh; } .ce-groups,.ce-history,.ce-generate { display:none; } .ce-toolbar { top:8px; left:8px; width:200px; max-height:calc(100vh - 16px); } }
+      .ce-market-controls { width:100%; min-width:0; box-sizing:border-box; }
+      .ce-market-controls > label { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:center; gap:6px; white-space:normal; }
+      .ce-market-controls input,.ce-market-controls select { width:100%; min-width:0; max-width:100%; box-sizing:border-box; }
+      .ce-market-controls > button { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
     </style>
   </head>
   <body>

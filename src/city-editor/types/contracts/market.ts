@@ -4,8 +4,10 @@ import type { Point } from "../primitives";
 export interface MarketSite {
   version: 1;
   id: string;
-  setting: "plaza" | "river-port" | "sea-port";
-  anchorElementId: string;
+  setting: "plaza" | "river-port" | "sea-port" | "street" | "hall-front" | "freeform";
+  anchorElementId?: string;
+  /** Missing on earlier maps means market-day. Individual locked stalls keep their own state. */
+  activity?: "market-day" | "closed";
   boundary: Point[];
   accessPaths: Point[][];
   reservedAreas: Point[][];

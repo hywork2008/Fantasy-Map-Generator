@@ -42,8 +42,11 @@ export function parseDocument(text: string, fixedApproachProvider?: FixedApproac
     if (value.markets) {
       const elements = new Map(value.elements.map(element => [element.id, element]));
       value.markets = value.markets
-        .filter(
-          market => elements.get(market.anchorElementId)?.kind === (market.setting === "plaza" ? "plaza" : "harbor")
+        .filter(market =>
+          !market.anchorElementId
+            ? !["plaza", "river-port", "sea-port", "hall-front"].includes(market.setting)
+            : elements.get(market.anchorElementId)?.kind ===
+              (market.setting === "plaza" ? "plaza" : market.setting === "hall-front" ? "object" : "harbor")
         )
         .map(market => ({
           ...market,
@@ -221,7 +224,8 @@ function isDocument(value: unknown): value is CityDocument {
         typeof element === "object" &&
         (element.shipState === undefined || validShipDisplayState(element.shipState)) &&
         (element.objectQuality === undefined || ["low", "high", "ultra"].includes(element.objectQuality)) &&
-        (element.objectPalette === undefined || isMarketPalette(element.objectPalette))
+        (element.objectPalette === undefined || isMarketPalette(element.objectPalette)) &&
+        (element.objectMarketActivity === undefined || ["market-day", "closed"].includes(element.objectMarketActivity))
     )
   );
 }

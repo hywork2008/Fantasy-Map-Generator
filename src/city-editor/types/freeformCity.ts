@@ -1,3 +1,4 @@
+import type { MarketSite } from "./contracts/market";
 import type { HistoricalPeriod, Id, Point } from "./primitives";
 import type { FreeformWay, TerrainFieldRecipe, TerrainRiverCorridor } from "./terrain";
 
@@ -24,6 +25,8 @@ export interface FreeformPlacement {
   modelId: string;
   quality?: "low" | "high" | "ultra";
   palette?: import("../../buildings/medieval/marketAppearance").MarketPalette;
+  marketActivity?: "market-day" | "closed";
+  locked?: boolean;
   position: Point;
   facingDegrees: number;
   plotId: Id;
@@ -56,4 +59,5 @@ export interface FreeformCity {
   ways: FreeformWay[];
   rivers: TerrainRiverCorridor[];
   zones: LandZone[];
+  markets?: MarketSite[];
 }
