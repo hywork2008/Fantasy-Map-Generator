@@ -11,6 +11,7 @@ import { faceNeighbors, facePoints } from "./mesh";
 import { corridor, distance } from "./parcelGeometry";
 import { makeRng } from "./prng";
 import { riverPortShore, seaShoreWater } from "./riverPortShore";
+import { MOORED_SHIP_STATE } from "./shipDisplayState";
 import { normalizeShipType } from "./ships";
 import { waterPolygons as documentWaterPolygons } from "./waterGeometry";
 
@@ -519,6 +520,7 @@ export function planHarborShips(
     placedShips.push({
       id: `${GEN_PREFIX}ship-${placedShips.length}`,
       kind: "ship",
+      shipState: { ...MOORED_SHIP_STATE },
       faceIds: berth.pier.waterFaceId ? [berth.pier.waterFaceId] : [],
       harborFaceId: berth.pier.landFaceId,
       point: shipCenter,
@@ -608,6 +610,7 @@ export function planHarborShips(
       placedShips.push({
         id: `${GEN_PREFIX}ship-${placedShips.length}`,
         kind: "ship",
+        shipState: { ...MOORED_SHIP_STATE },
         faceIds: [waterId],
         harborFaceId: coastalHarborFaces[0].id,
         point: anchorPt,
@@ -723,6 +726,7 @@ export function planHarborShips(
     const ship: CityElement = {
       id: `${GEN_PREFIX}ship-${placedShips.length}`,
       kind: "ship",
+      shipState: { ...MOORED_SHIP_STATE },
       locked: false,
       faceIds: [quay.waterFaceId],
       shipType: type,

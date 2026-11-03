@@ -64,6 +64,16 @@ export const CE_ADOPTION: Record<string, Record<string, Adoption>> = {
     }
   },
   "ship.galleon": {
+    low: {
+      variant: "ship.galleon@low#codex-gpt-6.1-sol",
+      since: "2026-11-03",
+      note: "Explicit Low tier; CE ships still request the compatibility default"
+    },
+    high: {
+      variant: "ship.galleon@high#codex-gpt-6.1-sol",
+      since: "2026-11-03",
+      note: "Codex High candidate; existing CE placement still requests default"
+    },
     default: {
       variant: "ship.galleon@default#codex-gpt-6.1-sol",
       since: "2026-10-29",

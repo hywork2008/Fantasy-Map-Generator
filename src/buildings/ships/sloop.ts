@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { ModelKit } from "../medieval/modelKit";
 import { meshProjection } from "../meshProjection";
+import { addSailBundle, type SailingShipState } from "./sailingAssembly";
 
 /** An illustrative small gaff-rigged sloop, not a reconstruction of a named vessel. */
 export const SLOOP = {
@@ -14,7 +16,7 @@ export const SLOOP = {
 } as const;
 
 // Bow faces +X; waterline is Y=0. Stations give X, half beam and deck height.
-const STATIONS = [
+export const SLOOP_STATIONS = [
   [-5.8, 1.05, 1.75],
   [-4.5, 1.7, 1.5],
   [-2, 2.1, 1.3],
@@ -29,7 +31,9 @@ export interface SloopMeshes extends CityStructureMeshes {
   elevation: string;
 }
 
-export function createSloop(): SloopMeshes {
+export function createSloop({ sails = "set" }: SailingShipState = {}): SloopMeshes {
+  const furled = sails === "furled";
+  const bundles = new ModelKit("sloop-furled-canvas");
   const group = new THREE.Group();
   group.name = "sloop";
   const pickables: THREE.Mesh[] = [];
@@ -77,7 +81,7 @@ export function createSloop(): SloopMeshes {
   function line(a: THREE.Vector3, b: THREE.Vector3) {
     ropes.push(...a.toArray(), ...b.toArray());
   }
-  const rings = STATIONS.map(([x, beam, sheer]) => [
+  const rings = SLOOP_STATIONS.map(([x, beam, sheer]) => [
     [x, sheer, -beam * 0.9],
     [x, 0.25, -beam],
     [x, -0.8, -beam * 0.65],
@@ -105,7 +109,7 @@ export function createSloop(): SloopMeshes {
   surface("stem", rings.at(-1)!.flat(), [0, 7, 1, 1, 7, 6, 1, 6, 2, 2, 6, 5, 2, 5, 3, 3, 5, 4], wood);
   surface(
     "main-deck",
-    STATIONS.flatMap(([x, b, y]) => [x, y, -b * 0.9, x, y, b * 0.9]),
+    SLOOP_STATIONS.flatMap(([x, b, y]) => [x, y, -b * 0.9, x, y, b * 0.9]),
     deckIndices,
     deck
   );
@@ -114,9 +118,9 @@ export function createSloop(): SloopMeshes {
   spar("rudder-stock", v(-6.1, -0.9), v(-6.1, 2.05), 0.09);
   spar("tiller", v(-6.1, 2.05), v(-4.2, 2.05), 0.07);
   for (const side of [-1, 1]) {
-    for (let i = 0; i < STATIONS.length - 1; i++) {
-      const [x, b, y] = STATIONS[i],
-        [nx, nb, ny] = STATIONS[i + 1];
+    for (let i = 0; i < SLOOP_STATIONS.length - 1; i++) {
+      const [x, b, y] = SLOOP_STATIONS[i],
+        [nx, nb, ny] = SLOOP_STATIONS[i + 1];
       spar("gunwale", v(x, y + 0.16, side * b * 0.9), v(nx, ny + 0.16, side * nb * 0.9), 0.1, trim);
       spar("hull-wale", v(x, 0.3, side * b), v(nx, 0.3, side * nb), 0.06, deck);
     }
@@ -132,7 +136,7 @@ export function createSloop(): SloopMeshes {
   spar("mast", v(0.8, 1.3), v(0.8, 13.8), 0.14);
   spar("bowsprit", v(4, 1.8), v(8.4, 3.3), 0.11);
   spar("boom", v(0.7, 3.15), v(-5.3, 3.15, 0.55), 0.09);
-  spar("gaff", v(0.7, 10.4), v(-3.7, 12.25, 0.4), 0.075);
+  spar("gaff", furled ? v(0.7, 3.56) : v(0.7, 10.4), furled ? v(-3.7, 3.62, 0.4) : v(-3.7, 12.25, 0.4), 0.075);
   // Subdivided cloth keeps the sail edges attached to the spars while adding belly.
   function cloth(name: string, a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, d: THREE.Vector3) {
     const points: number[] = [],
@@ -163,17 +167,25 @@ export function createSloop(): SloopMeshes {
     ])
       line(start, end);
   }
-  cloth("gaff-mainsail", v(0.65, 10.35), v(-3.65, 12.15, 0.4), v(-5.15, 3.25, 0.55), v(0.65, 3.25));
-  // The repeated head collapses the upper edge into a triangular jib.
-  cloth("jib", v(0.9, 12.8), v(0.9, 12.8), v(2.2, 3.1, 0.35), v(8.05, 3.25));
+  if (!furled) {
+    cloth("gaff-mainsail", v(0.65, 10.35), v(-3.65, 12.15, 0.4), v(-5.15, 3.25, 0.55), v(0.65, 3.25));
+    // The repeated head collapses the upper edge into a triangular jib.
+    cloth("jib", v(0.9, 12.8), v(0.9, 12.8), v(2.2, 3.1, 0.35), v(8.05, 3.25));
+  } else {
+    addSailBundle(bundles, "furled-mainsail", [0.5, 3.38, 0.02], [-5.15, 3.38, 0.54], 0.22, false);
+    addSailBundle(bundles, "furled-jib", [2.5, 1.65, 0.8], [4.1, 1.87, 0.8], 0.18, false);
+    group.add(bundles.group);
+    pickables.push(...bundles.pickables);
+    line(v(0.9, 12.8), v(0.9, 1.5, 0.25));
+  }
   line(v(0.8, 13.7), v(8.4, 3.3));
   line(v(8.4, 3.3), v(5.5, 0));
   line(v(0.8, 13.7), v(-5.5, 1.9));
-  line(v(0.8, 13.5), v(-3.7, 12.25, 0.4));
+  line(v(0.8, 13.5), furled ? v(-3.7, 3.62, 0.4) : v(-3.7, 12.25, 0.4));
   line(v(-5.2, 3.15, 0.55), v(-4.4, 1.65));
   for (const side of [-1, 1]) {
     for (const x of [-0.6, 0.2]) line(v(0.8, 10.5), v(x, 1.5, side * 1.8));
-    line(v(2.2, 3.1, 0.35), v(-0.3, 1.6, side * 1.7));
+    if (!furled) line(v(2.2, 3.1, 0.35), v(-0.3, 1.6, side * 1.7));
   }
   const rigging = new THREE.BufferGeometry();
   rigging.setAttribute("position", new THREE.Float32BufferAttribute(ropes, 3));
@@ -185,6 +197,7 @@ export function createSloop(): SloopMeshes {
     group,
     pickables,
     dispose() {
+      bundles.finish().dispose();
       for (const geometry of geometries) geometry.dispose();
       for (const material of materials) material.dispose();
     }

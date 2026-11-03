@@ -1,6 +1,10 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { ModelKit } from "../medieval/modelKit";
+import type { ModelPart, ModelPartFactory, ModelPartRange } from "../modelParts";
+import type { GalleonState } from "./galleonArmament";
+import { addSailBundle } from "./sailingAssembly";
 
 export const OPUS_GALLEON_QUALITIES = ["high", "low"] as const;
 export type OpusGalleonQuality = (typeof OPUS_GALLEON_QUALITIES)[number];
@@ -156,14 +160,25 @@ const COLORS = {
   lantern: 0xffd27a
 };
 
-export interface OpusGalleonOptions {
+export const OPUS_GALLEON_PARTS = ["structure", "armament", "spars", "sails", "flags", "rigging"] as const;
+export type OpusGalleonPart = (typeof OPUS_GALLEON_PARTS)[number];
+const PART_ROLES: Record<OpusGalleonPart, string> = {
+  structure: "Hull and deck equipment",
+  armament: "Gunports and guns",
+  spars: "Masts, yards and fittings",
+  sails: "Sails and running rigging",
+  flags: "Pennants and stern ensign",
+  rigging: "Standing rigging"
+};
+export interface OpusGalleonOptions extends GalleonState {
+  part?: OpusGalleonPart;
   /** National ensign on the stern staff; hidden by default. */
   ensign?: boolean;
 }
 
 export function createOpusGalleon(
   quality: OpusGalleonQuality = "high",
-  { ensign = false }: OpusGalleonOptions = {}
+  { ensign = false, sails = "set", gunports = "open", part: selectedPart }: OpusGalleonOptions = {}
 ): CityStructureMeshes {
   const high = quality === "high";
   const group = new THREE.Group();
@@ -173,6 +188,19 @@ export function createOpusGalleon(
     cloth: [],
     glow: []
   };
+  const pieceParts: Record<Layer, OpusGalleonPart[]> = { solid: [], cloth: [], glow: [] };
+  let currentPart: OpusGalleonPart = "structure";
+  const within = <T>(id: OpusGalleonPart, build: () => T): T => {
+    const previous = currentPart;
+    currentPart = id;
+    try {
+      return build();
+    } finally {
+      currentPart = previous;
+    }
+  };
+  const lineParts = new Map<number[], ModelPartRange[]>();
+  const gunportMounts: { id: string; point: number[]; normal: number[]; width: number; height: number }[] = [];
   const rig: number[] = [];
   const running: number[] = [];
   const seams: number[] = [];
@@ -180,10 +208,15 @@ export function createOpusGalleon(
   const Y = new THREE.Vector3(0, 1, 0);
 
   function put(geometry: THREE.BufferGeometry, color: number, layer: Layer = "solid", matrix?: THREE.Matrix4) {
+    if (selectedPart && currentPart !== selectedPart) {
+      geometry.dispose();
+      return;
+    }
     if (matrix) geometry.applyMatrix4(matrix);
     geometry.deleteAttribute("uv");
     if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
     const flat = geometry.index ? geometry.toNonIndexed() : geometry;
+    if (flat !== geometry) geometry.dispose();
     if (!flat.getAttribute("color")) {
       const c = new THREE.Color(color);
       const count = flat.getAttribute("position").count;
@@ -192,6 +225,7 @@ export function createOpusGalleon(
       flat.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     }
     pieces[layer].push(flat);
+    pieceParts[layer].push(currentPart);
   }
   function mesh(points: number[], indices: number[], color: number, layer: Layer = "solid", colors?: number[]) {
     const geometry = new THREE.BufferGeometry();
@@ -243,7 +277,33 @@ export function createOpusGalleon(
     const curve = new THREE.CatmullRomCurve3(points);
     put(new THREE.TubeGeometry(curve, high ? segments : Math.ceil(segments / 2), radius, high ? 6 : 4), color);
   }
-  const line = (target: number[], a: THREE.Vector3, b: THREE.Vector3) => target.push(...a.toArray(), ...b.toArray());
+  const line = (target: number[], a: THREE.Vector3, b: THREE.Vector3) => {
+    const owner = target === rig ? "rigging" : target === seams ? "structure" : currentPart;
+    if (selectedPart && owner !== selectedPart) return;
+    const ranges = lineParts.get(target) ?? [];
+    ranges.push({ partId: owner, start: target.length / 3, count: 2 });
+    lineParts.set(target, ranges);
+    target.push(...a.toArray(), ...b.toArray());
+  };
+  function bundle(a: THREE.Vector3, b: THREE.Vector3, radius: number) {
+    const kit = new ModelKit("opus-furled-canvas");
+    addSailBundle(kit, "furled-sail", [a.x, a.y, a.z], [b.x, b.y, b.z], radius, high);
+    const source = kit.finish();
+    source.group.updateMatrixWorld(true);
+    try {
+      for (const object of source.pickables) {
+        const material = object.material as THREE.MeshLambertMaterial;
+        put(
+          object.geometry.clone(),
+          material.color.getHex(),
+          object.name === "furled-sail" ? "cloth" : "solid",
+          object.matrixWorld
+        );
+      }
+    } finally {
+      source.dispose();
+    }
+  }
   /** Outward-facing frame on the hull at (x, y): the quaternion turns +Z onto the surface normal. */
   function onHull(x: number, y: number, side: number) {
     const slope = (breadthAt(x + 0.05, y) - breadthAt(x - 0.05, y)) / 0.1;
@@ -314,7 +374,7 @@ export function createOpusGalleon(
       const z = Math.max(0, p.z * 0.97 - inset);
       points.push(p.x, y, -z, p.x, y, z);
       if (i < n) indices.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2);
-      if (high && i % 2 === 0) seams.push(p.x, y + 0.01, -z, p.x, y + 0.01, z);
+      if (high && i % 2 === 0) line(seams, v(p.x, y + 0.01, -z), v(p.x, y + 0.01, z));
     }
     mesh(points, indices, COLORS.deck);
     if (high)
@@ -431,36 +491,76 @@ export function createOpusGalleon(
 
   // Gunports, guns and lids.
   function gun(x: number, y: number, side: number, lid: boolean) {
-    const { point, normal, q } = onHull(x, y, side);
-    put(
-      new THREE.BoxGeometry(1.05, 0.95, 0.16),
-      COLORS.red,
-      "solid",
-      new THREE.Matrix4().compose(point.clone().addScaledVector(normal, 0.02), q, v(1, 1, 1))
-    );
-    put(
-      new THREE.BoxGeometry(0.8, 0.7, 0.18),
-      COLORS.dark,
-      "solid",
-      new THREE.Matrix4().compose(point.clone().addScaledVector(normal, 0.04), q, v(1, 1, 1))
-    );
-    const muzzle = point.clone().addScaledVector(normal, 0.95);
-    rod(COLORS.iron, point.clone().addScaledVector(normal, -0.3), muzzle, 0.19, 0.14, high ? 10 : 6);
-    if (high) rod(COLORS.iron, muzzle.clone().addScaledVector(normal, -0.12), muzzle, 0.18, 0.18, 10);
-    if (lid) {
-      const hinge = point
-        .clone()
-        .add(v(0, 0.48, 0))
-        .addScaledVector(normal, 0.1);
-      const open = q.clone().multiply(new THREE.Quaternion().setFromAxisAngle(v(1, 0, 0), -1.05));
-      const centre = hinge.clone().add(v(0, 0, 0.45).applyQuaternion(open));
+    return within("armament", () => {
+      const { point, normal, q } = onHull(x, y, side);
+      gunportMounts.push({
+        id: `broadside-${side}-${x}-${y}`,
+        point: point.toArray(),
+        normal: normal.toArray(),
+        width: 0.8,
+        height: 0.7
+      });
+      if (gunports === "closed") {
+        put(
+          new THREE.BoxGeometry(1.12, 1.02, 0.12),
+          COLORS.red,
+          "solid",
+          new THREE.Matrix4().compose(point.clone().addScaledVector(normal, 0.16), q, v(1, 1, 1))
+        );
+        for (const dx of [-0.32, 0.32])
+          put(
+            new THREE.BoxGeometry(0.045, 0.9, 0.025),
+            COLORS.iron,
+            "solid",
+            new THREE.Matrix4().compose(
+              point
+                .clone()
+                .add(v(dx, 0, 0).applyQuaternion(q))
+                .addScaledVector(normal, 0.24),
+              q,
+              v(1, 1, 1)
+            )
+          );
+        rod(
+          COLORS.iron,
+          point.clone().addScaledVector(normal, -1.1),
+          point.clone().addScaledVector(normal, -0.22),
+          0.19,
+          0.14,
+          high ? 10 : 6
+        );
+        return;
+      }
       put(
-        new THREE.BoxGeometry(0.95, 0.09, 0.9),
+        new THREE.BoxGeometry(1.05, 0.95, 0.16),
         COLORS.red,
         "solid",
-        new THREE.Matrix4().compose(centre, open, v(1, 1, 1))
+        new THREE.Matrix4().compose(point.clone().addScaledVector(normal, 0.02), q, v(1, 1, 1))
       );
-    }
+      put(
+        new THREE.BoxGeometry(0.8, 0.7, 0.18),
+        COLORS.dark,
+        "solid",
+        new THREE.Matrix4().compose(point.clone().addScaledVector(normal, 0.04), q, v(1, 1, 1))
+      );
+      const muzzle = point.clone().addScaledVector(normal, 0.95);
+      rod(COLORS.iron, point.clone().addScaledVector(normal, -0.3), muzzle, 0.19, 0.14, high ? 10 : 6);
+      if (high) rod(COLORS.iron, muzzle.clone().addScaledVector(normal, -0.12), muzzle, 0.18, 0.18, 10);
+      if (lid) {
+        const hinge = point
+          .clone()
+          .add(v(0, 0.48, 0))
+          .addScaledVector(normal, 0.1);
+        const open = q.clone().multiply(new THREE.Quaternion().setFromAxisAngle(v(1, 0, 0), -1.05));
+        const centre = hinge.clone().add(v(0, 0, 0.45).applyQuaternion(open));
+        put(
+          new THREE.BoxGeometry(0.95, 0.09, 0.9),
+          COLORS.red,
+          "solid",
+          new THREE.Matrix4().compose(centre, open, v(1, 1, 1))
+        );
+      }
+    });
   }
   for (const side of [-1, 1]) {
     for (const x of LOWER_GUNS) gun(x, 2.5, side, high);
@@ -471,11 +571,24 @@ export function createOpusGalleon(
   const rake = Math.atan(1.4 / (sheer(0) + keel(0)));
   const sternQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, rake));
   const sternAt = (y: number, z: number, out = 0) => v(hullPoint(0, y).x - out, y, z);
-  for (const z of [-1.4, 1.4]) {
-    box(COLORS.red, sternAt(2.5, z, 0.05), 0.14, 0.95, 1.05, sternQ);
-    box(COLORS.dark, sternAt(2.5, z, 0.09), 0.14, 0.7, 0.8, sternQ);
-    rod(COLORS.iron, sternAt(2.5, z, -0.3), sternAt(2.5, z, 0.9), 0.17, 0.13, 8);
-  }
+  for (const z of [-1.4, 1.4])
+    within("armament", () => {
+      gunportMounts.push({
+        id: `stern-${z}`,
+        point: sternAt(2.5, z).toArray(),
+        normal: [-1, 0, 0],
+        width: 0.8,
+        height: 0.7
+      });
+      if (gunports === "closed") {
+        box(COLORS.red, sternAt(2.5, z, 0.18), 0.12, 1.04, 1.12, sternQ);
+        rod(COLORS.iron, sternAt(2.5, z, -1.1), sternAt(2.5, z, -0.22), 0.17, 0.13, 8);
+        return;
+      }
+      box(COLORS.red, sternAt(2.5, z, 0.05), 0.14, 0.95, 1.05, sternQ);
+      box(COLORS.dark, sternAt(2.5, z, 0.09), 0.14, 0.7, 0.8, sternQ);
+      rod(COLORS.iron, sternAt(2.5, z, -0.3), sternAt(2.5, z, 0.9), 0.17, 0.13, 8);
+    });
   function windows(y: number, count: number, spacing: number, h: number) {
     for (let i = 0; i < count; i++) {
       const z = (i - (count - 1) / 2) * spacing;
@@ -654,6 +767,7 @@ export function createOpusGalleon(
     for (const side of [-1, 1]) rod(COLORS.gold, v(26.3, 5.6, side * 0.18), v(26.8, 5.1, side * 0.2), 0.08, 0.06, 6);
   }
 
+  currentPart = "spars";
   // Bowsprit, spritsail yard and the gammoning that lashes it to the knee.
   const bowsprit = [v(17.6, 7.1), v(36, 14.4)] as const;
   rod(COLORS.spar, bowsprit[0], bowsprit[1], 0.38, 0.2, 10);
@@ -663,6 +777,7 @@ export function createOpusGalleon(
   for (let i = 0; i < 3; i++) line(rig, v(20.4 + i * 0.3, 8.3 + i * 0.12), v(22.8 + i * 0.4, 3.0 + i * 0.3));
   line(rig, bowsprit[1], v(23.2, 1.4));
 
+  currentPart = "structure";
   // Catheads and anchors.
   for (const side of [-1, 1]) {
     const head = onHull(15.8, 7.0, side);
@@ -786,63 +901,73 @@ export function createOpusGalleon(
     return mast.x + (tier > 0 ? 0.6 : 0) + (tier > 1 ? 0.35 : 0);
   }
   function squareSail(x: number, top: number, width: number, foot: number, footWidth: number, reefs = 0) {
-    const cols = high ? 16 : 8,
-      rows = high ? 12 : 6;
-    const points: number[] = [],
-      colors: number[] = [],
-      indices: number[] = [];
-    const base = new THREE.Color(COLORS.canvas);
-    const depth = 0.1 * Math.min(width, (top - foot) * 1.3);
-    const vertex = (u: number, t: number) => {
-      const belly = depth * Math.sin(Math.PI * u) * Math.sin(Math.PI * 0.9 * t);
-      return v(
-        x + 0.35 + belly,
-        lerp(top, foot, t) + 0.5 * Math.sin(Math.PI * u) * t ** 4,
-        (u - 0.5) * lerp(width, footWidth, t)
-      );
-    };
-    for (let r = 0; r <= rows; r++)
-      for (let c = 0; c <= cols; c++) {
-        const u = c / cols,
-          t = r / rows;
-        points.push(...vertex(u, t).toArray());
-        const shade =
-          0.86 + 0.14 * (1 - Math.sin(Math.PI * u) * Math.sin(Math.PI * 0.9 * t)) - (high && c % 2 ? 0.025 : 0);
-        colors.push(base.r * shade, base.g * shade, base.b * shade);
+    return within("sails", () => {
+      if (sails === "furled") {
+        bundle(v(x, top + 0.3, -width / 2), v(x, top + 0.3, width / 2), 0.24);
+        return;
       }
-    for (let r = 0; r < rows; r++)
-      for (let c = 0; c < cols; c++) {
-        const a = r * (cols + 1) + c;
-        indices.push(a, a + cols + 1, a + 1, a + 1, a + cols + 1, a + cols + 2);
-      }
-    mesh(points, indices, COLORS.canvas, "cloth", colors);
-    if (!high) return;
-    const edge = (fn: (k: number) => THREE.Vector3, n: number) => {
-      for (let k = 0; k < n; k++) line(running, fn(k / n), fn((k + 1) / n));
-    };
-    edge(k => vertex(0, k), rows);
-    edge(k => vertex(1, k), rows);
-    edge(k => vertex(k, 1), cols);
-    for (let i = 1; i <= reefs; i++) edge(k => vertex(k, i * 0.14).add(v(0.03, 0)), cols);
-  }
-  function flag(at: THREE.Vector3, length: number, bands: number[], colors: number[], fork = false) {
-    let top = at.y;
-    bands.forEach((height, index) => {
+
+      const cols = high ? 16 : 8,
+        rows = high ? 12 : 6;
       const points: number[] = [],
+        colors: number[] = [],
         indices: number[] = [];
-      const n = high ? 16 : 6;
-      for (let i = 0; i <= n; i++) {
-        const u = i / n;
-        const wave = 0.22 * Math.sin(u * Math.PI * 3) * u;
-        const taper = fork ? 1 - 0.75 * u : 1;
-        const mid = at.y - (at.y - top) * taper;
-        points.push(at.x + u * length, mid, at.z + wave, at.x + u * length, mid - height * taper, at.z + wave);
-        if (i < n) indices.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2);
-      }
-      mesh(points, indices, colors[index], "cloth");
-      top -= height;
+      const base = new THREE.Color(COLORS.canvas);
+      const depth = 0.1 * Math.min(width, (top - foot) * 1.3);
+      const vertex = (u: number, t: number) => {
+        const belly = depth * Math.sin(Math.PI * u) * Math.sin(Math.PI * 0.9 * t);
+        return v(
+          x + 0.35 + belly,
+          lerp(top, foot, t) + 0.5 * Math.sin(Math.PI * u) * t ** 4,
+          (u - 0.5) * lerp(width, footWidth, t)
+        );
+      };
+      for (let r = 0; r <= rows; r++)
+        for (let c = 0; c <= cols; c++) {
+          const u = c / cols,
+            t = r / rows;
+          points.push(...vertex(u, t).toArray());
+          const shade =
+            0.86 + 0.14 * (1 - Math.sin(Math.PI * u) * Math.sin(Math.PI * 0.9 * t)) - (high && c % 2 ? 0.025 : 0);
+          colors.push(base.r * shade, base.g * shade, base.b * shade);
+        }
+      for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++) {
+          const a = r * (cols + 1) + c;
+          indices.push(a, a + cols + 1, a + 1, a + 1, a + cols + 1, a + cols + 2);
+        }
+      mesh(points, indices, COLORS.canvas, "cloth", colors);
+      if (!high) return;
+      const edge = (fn: (k: number) => THREE.Vector3, n: number) => {
+        for (let k = 0; k < n; k++) line(running, fn(k / n), fn((k + 1) / n));
+      };
+      edge(k => vertex(0, k), rows);
+      edge(k => vertex(1, k), rows);
+      edge(k => vertex(k, 1), cols);
+      for (let i = 1; i <= reefs; i++) edge(k => vertex(k, i * 0.14).add(v(0.03, 0)), cols);
     });
   }
+  function flag(at: THREE.Vector3, length: number, bands: number[], colors: number[], fork = false) {
+    return within("flags", () => {
+      let top = at.y;
+      bands.forEach((height, index) => {
+        const points: number[] = [],
+          indices: number[] = [];
+        const n = high ? 16 : 6;
+        for (let i = 0; i <= n; i++) {
+          const u = i / n;
+          const wave = 0.22 * Math.sin(u * Math.PI * 3) * u;
+          const taper = fork ? 1 - 0.75 * u : 1;
+          const mid = at.y - (at.y - top) * taper;
+          points.push(at.x + u * length, mid, at.z + wave, at.x + u * length, mid - height * taper, at.z + wave);
+          if (i < n) indices.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2);
+        }
+        mesh(points, indices, colors[index], "cloth");
+        top -= height;
+      });
+    });
+  }
+  currentPart = "spars";
   for (const mast of MASTS) {
     const foot = MAIN_DECK - 0.1;
     rod(COLORS.spar, v(mast.x, foot), v(mast.x, mast.lowerHead + 0.4), mast.radius, mast.radius * 0.78, high ? 14 : 8);
@@ -990,7 +1115,7 @@ export function createOpusGalleon(
         const lead =
           mast.x > 5 ? v(-2, MASTS[1].lowerHead - 2 + yard.tier * 6) : v(mast.x - 12, QUARTER_DECK + 1, side * 3.6);
         line(running, arm, lead);
-        if (yard.tier === 0) {
+        if (yard.tier === 0 && sails !== "furled") {
           const clew = v(yx + 0.35, yard.foot, (side * yard.footWidth) / 2);
           const sheet = onHull(mast.x - 5, sheer(uAt(mast.x - 5, 5)), side).point;
           line(running, clew, sheet);
@@ -1000,11 +1125,19 @@ export function createOpusGalleon(
     }
   }
   // Lateen mizzen: yard steeved up toward the stern, sail set aft of the mast.
-  {
+  within("sails", () => {
     const fore = v(-5.5, 9.6, 0.5),
       aft = v(-25.4, 23.4, 0.5),
       clew = v(-22.4, 11.2, 0.5);
     rod(COLORS.spar, fore, aft, 0.14, 0.18, 8);
+    if (sails === "furled") {
+      if (high) {
+        line(running, aft, v(-14.5, 18.2));
+        line(running, fore, v(-8, QUARTER_DECK + 0.2, 0.6));
+      }
+      bundle(fore.clone().lerp(aft, 0.03).add(v(0, 0.14)), fore.clone().lerp(aft, 0.97).add(v(0, 0.14)), 0.28);
+      return;
+    }
     const n = high ? 14 : 6;
     const points: number[] = [],
       colors: number[] = [],
@@ -1033,7 +1166,8 @@ export function createOpusGalleon(
       line(running, clew, v(-21.6, POOP_DECK + 1, 2.8));
       line(running, fore, v(-8, QUARTER_DECK + 0.2, 0.6));
     }
-  }
+  });
+  currentPart = "structure";
   // Fore-and-aft stays.
   const [fore, main, mizzen] = MASTS;
   const onSprit = (t: number) => bowsprit[0].clone().lerp(bowsprit[1], t);
@@ -1059,14 +1193,36 @@ export function createOpusGalleon(
     cloth: "galleon-sails-and-flags",
     glow: "galleon-lanterns"
   };
+  const ledger = new Map<OpusGalleonPart, ModelPart>();
   const pickables: THREE.Mesh[] = [];
   const geometries: THREE.BufferGeometry[] = [];
   for (const layer of ["solid", "cloth", "glow"] as const) {
+    if (!pieces[layer].length) continue;
+    const ranges: ModelPartRange[] = [];
+    let start = 0;
+    pieces[layer].forEach((piece, i) => {
+      const id = pieceParts[layer][i],
+        count = piece.getAttribute("position").count;
+      ranges.push({ partId: id, start, count });
+      start += count;
+      const entry = ledger.get(id) ?? {
+        id,
+        role: PART_ROLES[id],
+        quality,
+        author: "Claude Opus 5.5",
+        meshes: 0,
+        triangles: 0
+      };
+      entry.meshes++;
+      entry.triangles += count / 3;
+      ledger.set(id, entry);
+    });
     const merged = mergeGeometries(pieces[layer], false)!;
     for (const piece of pieces[layer]) piece.dispose();
     geometries.push(merged);
     const object = new THREE.Mesh(merged, materials[layer]);
     object.name = names[layer];
+    object.userData.modelPartRanges = ranges;
     group.add(object);
     pickables.push(object);
   }
@@ -1082,10 +1238,23 @@ export function createOpusGalleon(
     const material = new THREE.LineBasicMaterial({ color });
     const lines = new THREE.LineSegments(geometry, material);
     lines.name = name;
+    lines.userData.modelPartRanges = lineParts.get(positions) ?? [];
+    for (const range of lines.userData.modelPartRanges as ModelPartRange[]) {
+      const id = range.partId as OpusGalleonPart;
+      if (!ledger.has(id))
+        ledger.set(id, { id, role: PART_ROLES[id], quality, author: "Claude Opus 5.5", meshes: 0, triangles: 0 });
+    }
     group.add(lines);
     geometries.push(geometry);
     lineMaterials.push(material);
   }
+  group.userData.modelParts = [...ledger.values()].map(entry => {
+    if ((entry.id === "sails" && sails === "furled") || (entry.id === "armament" && gunports === "closed"))
+      return { ...entry, author: "Codex GPT-6.1 Sol", basedOn: [`ship.galleon@${quality}#claude-opus-5.5`] };
+    return entry;
+  });
+  group.userData.shipState = { sails, gunports };
+  group.userData.gunports = gunportMounts;
   return {
     group,
     pickables,
@@ -1094,4 +1263,22 @@ export function createOpusGalleon(
       for (const material of [...Object.values(materials), ...lineMaterials]) material.dispose();
     }
   };
+}
+
+/** Construction retains the original author while recording the changed state components. */
+export function opusGalleonParts(
+  quality: OpusGalleonQuality,
+  state: OpusGalleonOptions = {}
+): readonly ModelPartFactory[] {
+  return OPUS_GALLEON_PARTS.map(id => ({
+    id,
+    role: PART_ROLES[id],
+    quality,
+    author:
+      (id === "sails" && state.sails === "furled") || (id === "armament" && state.gunports === "closed")
+        ? "Codex GPT-6.1 Sol"
+        : "Claude Opus 5.5",
+    basedOn: [`ship.galleon@${quality}#claude-opus-5.5`],
+    create: () => createOpusGalleon(quality, { ...state, part: id })
+  }));
 }

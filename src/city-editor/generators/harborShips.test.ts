@@ -105,6 +105,7 @@ describe("harborShips", () => {
 
     for (const ship of ships) {
       expect(ship.kind).toBe("ship");
+      expect(ship.shipState).toEqual({ sails: "furled", gunports: "closed" });
       expect(ship.point).toBeDefined();
       expect(ship.rotation).toBeDefined();
       expect(ship.sizeMeters).toBeGreaterThan(10);

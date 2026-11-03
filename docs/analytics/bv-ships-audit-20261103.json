@@ -1,0 +1,891 @@
+{
+  "method": "Current unmodified factories with default options. Unique CPU attribute/index buffers include line geometry, exclude JS objects, transient allocations and GPU memory; not an FPS benchmark. Fingerprint covers world-space mesh triangles, normals and materials, not line geometry. bv means directly selectable in the current Ships section. No raster previews are stored.",
+  "rows": [
+    {
+      "id": "sloop",
+      "author": "Codex GPT-6.1 Sol",
+      "quality": "single/default; assumed Low",
+      "bv": true,
+      "metrics": {
+        "meshes": 49,
+        "triangles": 1642,
+        "vertices": 460,
+        "geometries": 9,
+        "materials": 6
+      },
+      "attributeBytes": 15356,
+      "lineSegments": 19,
+      "dimensionsXYZ": [
+        14.860494132056697,
+        15.5,
+        4.3357254290171605
+      ],
+      "fingerprint": "e3a89818a2d191d5ec3f80d800f72a58e6376ebc850456db436291373565420d",
+      "meshNames": [
+        {
+          "name": "gunwale",
+          "meshes": 12,
+          "triangles": 384
+        },
+        {
+          "name": "hull-wale",
+          "meshes": 12,
+          "triangles": 384
+        },
+        {
+          "name": "gaff-mainsail",
+          "meshes": 1,
+          "triangles": 200
+        },
+        {
+          "name": "jib",
+          "meshes": 1,
+          "triangles": 190
+        },
+        {
+          "name": "mooring-cleat",
+          "meshes": 2,
+          "triangles": 64
+        },
+        {
+          "name": "hull-underwater",
+          "meshes": 1,
+          "triangles": 60
+        },
+        {
+          "name": "cabin-window",
+          "meshes": 4,
+          "triangles": 48
+        },
+        {
+          "name": "rudder-stock",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "tiller",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "mast",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "bowsprit",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "boom",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "gaff",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "hull-topsides",
+          "meshes": 1,
+          "triangles": 24
+        },
+        {
+          "name": "main-deck",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "keel",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "rudder-blade",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "cabin",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "cabin-roof",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "companionway",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "fore-hatch",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "transom",
+          "meshes": 1,
+          "triangles": 6
+        },
+        {
+          "name": "stem",
+          "meshes": 1,
+          "triangles": 6
+        }
+      ]
+    },
+    {
+      "id": "caravel",
+      "author": "Codex GPT-6.1 Sol",
+      "quality": "single/default; assumed Low",
+      "bv": false,
+      "metrics": {
+        "meshes": 42,
+        "triangles": 1058,
+        "vertices": 208,
+        "geometries": 9,
+        "materials": 6
+      },
+      "attributeBytes": 6836,
+      "lineSegments": 16,
+      "dimensionsXYZ": [
+        28.350257071103243,
+        22.299999952316284,
+        7.5
+      ],
+      "fingerprint": "6a2c19783cfb340d41ffda5462570826968020c04408908fc03c64d776dd4aa1",
+      "meshNames": [
+        {
+          "name": "gunwale",
+          "meshes": 10,
+          "triangles": 320
+        },
+        {
+          "name": "rail-post",
+          "meshes": 8,
+          "triangles": 256
+        },
+        {
+          "name": "aft-rail",
+          "meshes": 2,
+          "triangles": 64
+        },
+        {
+          "name": "mast",
+          "meshes": 2,
+          "triangles": 64
+        },
+        {
+          "name": "lateen-yard",
+          "meshes": 2,
+          "triangles": 64
+        },
+        {
+          "name": "hull-underwater",
+          "meshes": 1,
+          "triangles": 50
+        },
+        {
+          "name": "cabin-window",
+          "meshes": 4,
+          "triangles": 48
+        },
+        {
+          "name": "bowsprit",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "rudder-stock",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "tiller",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "hull-topsides",
+          "meshes": 1,
+          "triangles": 20
+        },
+        {
+          "name": "aft-cabin",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "aft-deck",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "cargo-hatch",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "rudder-blade",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "main-deck",
+          "meshes": 1,
+          "triangles": 10
+        },
+        {
+          "name": "transom",
+          "meshes": 1,
+          "triangles": 6
+        },
+        {
+          "name": "stem",
+          "meshes": 1,
+          "triangles": 6
+        },
+        {
+          "name": "lateen-sail",
+          "meshes": 2,
+          "triangles": 6
+        }
+      ]
+    },
+    {
+      "id": "carrack",
+      "author": "Codex GPT-6.1 Sol",
+      "quality": "single/default; assumed Low",
+      "bv": true,
+      "metrics": {
+        "meshes": 198,
+        "triangles": 4764,
+        "vertices": 606,
+        "geometries": 14,
+        "materials": 8
+      },
+      "attributeBytes": 22952,
+      "lineSegments": 136,
+      "dimensionsXYZ": [
+        43.009545124164376,
+        36.5,
+        17.999999999999996
+      ],
+      "fingerprint": "a3f16cf9e1af045cd519f3f27d8cd1dbd97594d7e91bedfaa39052c864a2fafa",
+      "meshNames": [
+        {
+          "name": "hull-wale",
+          "meshes": 42,
+          "triangles": 1344
+        },
+        {
+          "name": "castle-post",
+          "meshes": 52,
+          "triangles": 624
+        },
+        {
+          "name": "square-sail",
+          "meshes": 3,
+          "triangles": 576
+        },
+        {
+          "name": "bulwark",
+          "meshes": 14,
+          "triangles": 448
+        },
+        {
+          "name": "vertical-fender",
+          "meshes": 12,
+          "triangles": 384
+        },
+        {
+          "name": "castle-window",
+          "meshes": 24,
+          "triangles": 288
+        },
+        {
+          "name": "castle-rail",
+          "meshes": 6,
+          "triangles": 192
+        },
+        {
+          "name": "castle-end-rail",
+          "meshes": 6,
+          "triangles": 192
+        },
+        {
+          "name": "hatch-grating",
+          "meshes": 11,
+          "triangles": 132
+        },
+        {
+          "name": "mast",
+          "meshes": 3,
+          "triangles": 96
+        },
+        {
+          "name": "yard",
+          "meshes": 3,
+          "triangles": 96
+        },
+        {
+          "name": "hull-underwater",
+          "meshes": 1,
+          "triangles": 70
+        },
+        {
+          "name": "fighting-top",
+          "meshes": 2,
+          "triangles": 64
+        },
+        {
+          "name": "bowsprit",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "rudder-stock",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "lateen-yard",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "hull-topsides",
+          "meshes": 1,
+          "triangles": 28
+        },
+        {
+          "name": "main-deck",
+          "meshes": 1,
+          "triangles": 14
+        },
+        {
+          "name": "forecastle",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "forecastle-deck",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "sterncastle",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "sterncastle-deck",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "sterncastle-upper",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "sterncastle-upper-deck",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "cargo-hatch",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "rudder-blade",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "pennant",
+          "meshes": 3,
+          "triangles": 9
+        },
+        {
+          "name": "stern",
+          "meshes": 1,
+          "triangles": 6
+        },
+        {
+          "name": "stem",
+          "meshes": 1,
+          "triangles": 6
+        },
+        {
+          "name": "lateen-sail",
+          "meshes": 1,
+          "triangles": 3
+        }
+      ]
+    },
+    {
+      "id": "galleon",
+      "author": "Codex GPT-6.1 Sol",
+      "quality": "single/default; assumed Low",
+      "bv": true,
+      "metrics": {
+        "meshes": 200,
+        "triangles": 4798,
+        "vertices": 727,
+        "geometries": 16,
+        "materials": 9
+      },
+      "attributeBytes": 26780,
+      "lineSegments": 126,
+      "dimensionsXYZ": [
+        57.103529411764704,
+        42.200000047683716,
+        20.399999999999995
+      ],
+      "fingerprint": "fdef4645faac8674e3ee4ba554ccc2a95ad925720907a1171880668ddfbffa24",
+      "meshNames": [
+        {
+          "name": "hull-wale",
+          "meshes": 28,
+          "triangles": 896
+        },
+        {
+          "name": "square-sail",
+          "meshes": 4,
+          "triangles": 768
+        },
+        {
+          "name": "rail-post",
+          "meshes": 42,
+          "triangles": 504
+        },
+        {
+          "name": "bulwark",
+          "meshes": 14,
+          "triangles": 448
+        },
+        {
+          "name": "cannon",
+          "meshes": 14,
+          "triangles": 448
+        },
+        {
+          "name": "beakhead-post",
+          "meshes": 12,
+          "triangles": 384
+        },
+        {
+          "name": "gunport",
+          "meshes": 14,
+          "triangles": 168
+        },
+        {
+          "name": "gunport-lid",
+          "meshes": 14,
+          "triangles": 168
+        },
+        {
+          "name": "yard",
+          "meshes": 4,
+          "triangles": 128
+        },
+        {
+          "name": "hatch-grating",
+          "meshes": 9,
+          "triangles": 108
+        },
+        {
+          "name": "mast",
+          "meshes": 3,
+          "triangles": 96
+        },
+        {
+          "name": "hull-underwater",
+          "meshes": 1,
+          "triangles": 70
+        },
+        {
+          "name": "beakhead-rail",
+          "meshes": 2,
+          "triangles": 64
+        },
+        {
+          "name": "fighting-top",
+          "meshes": 2,
+          "triangles": 64
+        },
+        {
+          "name": "stern-window",
+          "meshes": 5,
+          "triangles": 60
+        },
+        {
+          "name": "stern-glass",
+          "meshes": 5,
+          "triangles": 60
+        },
+        {
+          "name": "bowsprit",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "rudder",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "capstan-bar",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "lateen-yard",
+          "meshes": 1,
+          "triangles": 32
+        },
+        {
+          "name": "hull-topsides",
+          "meshes": 1,
+          "triangles": 28
+        },
+        {
+          "name": "forecastle-rail",
+          "meshes": 2,
+          "triangles": 24
+        },
+        {
+          "name": "quarterdeck-rail",
+          "meshes": 2,
+          "triangles": 24
+        },
+        {
+          "name": "poop-deck-rail",
+          "meshes": 2,
+          "triangles": 24
+        },
+        {
+          "name": "main-deck",
+          "meshes": 1,
+          "triangles": 14
+        },
+        {
+          "name": "forecastle",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "forecastle-deck",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "quarterdeck",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "quarterdeck-deck",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "poop-deck",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "poop-deck-deck",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "deck-hatch",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "capstan",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "pennant",
+          "meshes": 3,
+          "triangles": 9
+        },
+        {
+          "name": "transom",
+          "meshes": 1,
+          "triangles": 6
+        },
+        {
+          "name": "stem",
+          "meshes": 1,
+          "triangles": 6
+        },
+        {
+          "name": "lateen-sail",
+          "meshes": 1,
+          "triangles": 3
+        },
+        {
+          "name": "beakhead-deck",
+          "meshes": 1,
+          "triangles": 2
+        }
+      ]
+    },
+    {
+      "id": "barge",
+      "author": "Codex GPT-6.1 Sol",
+      "quality": "single/default; assumed Low",
+      "bv": true,
+      "metrics": {
+        "meshes": 141,
+        "triangles": 5860,
+        "vertices": 732,
+        "geometries": 13,
+        "materials": 8
+      },
+      "attributeBytes": 28736,
+      "lineSegments": 0,
+      "dimensionsXYZ": [
+        19.874682954754103,
+        4.049999988079071,
+        6.262658339447614
+      ],
+      "fingerprint": "a8d74780f1aa9074be9285f1cfcfbfe574e9c58f68f86a635145e1dc95eb1020",
+      "meshNames": [
+        {
+          "name": "barrel-hoop",
+          "meshes": 18,
+          "triangles": 1728
+        },
+        {
+          "name": "cargo-barrel",
+          "meshes": 6,
+          "triangles": 864
+        },
+        {
+          "name": "mooring-rope",
+          "meshes": 4,
+          "triangles": 640
+        },
+        {
+          "name": "gunwale",
+          "meshes": 10,
+          "triangles": 400
+        },
+        {
+          "name": "rubbing-strake",
+          "meshes": 10,
+          "triangles": 400
+        },
+        {
+          "name": "crate-brace",
+          "meshes": 10,
+          "triangles": 400
+        },
+        {
+          "name": "crate-batten",
+          "meshes": 30,
+          "triangles": 360
+        },
+        {
+          "name": "timber-cargo",
+          "meshes": 15,
+          "triangles": 180
+        },
+        {
+          "name": "bollard",
+          "meshes": 4,
+          "triangles": 160
+        },
+        {
+          "name": "bollard-crossbar",
+          "meshes": 4,
+          "triangles": 160
+        },
+        {
+          "name": "stowed-pole",
+          "meshes": 2,
+          "triangles": 80
+        },
+        {
+          "name": "towing-brace",
+          "meshes": 2,
+          "triangles": 80
+        },
+        {
+          "name": "cargo-crate",
+          "meshes": 5,
+          "triangles": 60
+        },
+        {
+          "name": "cargo-coaming",
+          "meshes": 4,
+          "triangles": 48
+        },
+        {
+          "name": "rudder-stock",
+          "meshes": 1,
+          "triangles": 40
+        },
+        {
+          "name": "tiller",
+          "meshes": 1,
+          "triangles": 40
+        },
+        {
+          "name": "towing-post",
+          "meshes": 1,
+          "triangles": 40
+        },
+        {
+          "name": "towing-crossbar",
+          "meshes": 1,
+          "triangles": 40
+        },
+        {
+          "name": "cargo-lashing",
+          "meshes": 2,
+          "triangles": 24
+        },
+        {
+          "name": "shelter-window",
+          "meshes": 2,
+          "triangles": 24
+        },
+        {
+          "name": "hull-sides",
+          "meshes": 1,
+          "triangles": 20
+        },
+        {
+          "name": "stern-shelter",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "shelter-roof",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "shelter-door",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "rudder-blade",
+          "meshes": 1,
+          "triangles": 12
+        },
+        {
+          "name": "flat-bottom",
+          "meshes": 1,
+          "triangles": 10
+        },
+        {
+          "name": "cargo-deck",
+          "meshes": 1,
+          "triangles": 10
+        },
+        {
+          "name": "stern",
+          "meshes": 1,
+          "triangles": 2
+        },
+        {
+          "name": "bow",
+          "meshes": 1,
+          "triangles": 2
+        }
+      ]
+    },
+    {
+      "id": "opus-galleon-low",
+      "author": "Claude Opus 5.5",
+      "quality": "low",
+      "bv": true,
+      "metrics": {
+        "meshes": 3,
+        "triangles": 17284,
+        "vertices": 51852,
+        "geometries": 3,
+        "materials": 3
+      },
+      "attributeBytes": 1869312,
+      "lineSegments": 110,
+      "dimensionsXYZ": [
+        61.57271766662598,
+        46.22015690803528,
+        22.399999618530273
+      ],
+      "fingerprint": "3cdbc83a5aa4a7c36fbbf16d44998e3bcb40331c32a3fe581f03fa40122c2b7d",
+      "meshNames": [
+        {
+          "name": "galleon-hull-and-fittings",
+          "meshes": 1,
+          "triangles": 16312
+        },
+        {
+          "name": "galleon-sails-and-flags",
+          "meshes": 1,
+          "triangles": 876
+        },
+        {
+          "name": "galleon-lanterns",
+          "meshes": 1,
+          "triangles": 96
+        }
+      ]
+    },
+    {
+      "id": "opus-galleon-high",
+      "author": "Claude Opus 5.5",
+      "quality": "high",
+      "bv": true,
+      "metrics": {
+        "meshes": 3,
+        "triangles": 50736,
+        "vertices": 152208,
+        "geometries": 3,
+        "materials": 3
+      },
+      "attributeBytes": 5600520,
+      "lineSegments": 5043,
+      "dimensionsXYZ": [
+        62.57014465332031,
+        46.190550565719604,
+        22.399999618530273
+      ],
+      "fingerprint": "b1b7af45569aaa31b20e7b92fce7eea2d4055878cd4485e0f80f1c340ab17e56",
+      "meshNames": [
+        {
+          "name": "galleon-hull-and-fittings",
+          "meshes": 1,
+          "triangles": 47180
+        },
+        {
+          "name": "galleon-sails-and-flags",
+          "meshes": 1,
+          "triangles": 3460
+        },
+        {
+          "name": "galleon-lanterns",
+          "meshes": 1,
+          "triangles": 96
+        }
+      ]
+    }
+  ]
+}

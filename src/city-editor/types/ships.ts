@@ -9,3 +9,8 @@ export interface ShipPhysicalDimensions {
   maxSizeMeters: number;
   historicalName: string;
 }
+
+export interface ShipDisplayState {
+  sails: "set" | "furled";
+  gunports: "open" | "closed";
+}

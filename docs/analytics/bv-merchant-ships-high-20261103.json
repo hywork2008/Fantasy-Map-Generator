@@ -1,0 +1,701 @@
+{
+  "method": "One BV ship without ground. CPU attribute/index buffers include lines and count shared buffers once; exclude JS objects, transient allocations, GPU memory and FPS. Fingerprints cover world-space mesh triangles, normals and materials, not lines. No raster previews stored.",
+  "rows": [
+    {
+      "kind": "caravel",
+      "quality": "low",
+      "sails": "set",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 42,
+        "triangles": 1058,
+        "vertices": 208,
+        "geometries": 9,
+        "materials": 6
+      },
+      "lineSegments": 16,
+      "attributeBytes": 6836,
+      "dimensionsXYZ": [
+        28.350257071103243,
+        22.299999952316284,
+        7.5
+      ],
+      "fingerprint": "6a2c19783cfb340d41ffda5462570826968020c04408908fc03c64d776dd4aa1",
+      "sourceParts": [],
+      "parts": []
+    },
+    {
+      "kind": "caravel",
+      "quality": "low",
+      "sails": "furled",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 52,
+        "triangles": 2108,
+        "vertices": 862,
+        "geometries": 19,
+        "materials": 7
+      },
+      "lineSegments": 10,
+      "attributeBytes": 32288,
+      "dimensionsXYZ": [
+        28.350257071103243,
+        22.299999952316284,
+        7.5
+      ],
+      "fingerprint": "bd0c2f449523dee2b28e0efae5fd81e95e2890bfd41ad9902f380d23bd46d429",
+      "sourceParts": [],
+      "parts": []
+    },
+    {
+      "kind": "caravel",
+      "quality": "high",
+      "sails": "set",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 6,
+        "triangles": 14214,
+        "vertices": 42642,
+        "geometries": 6,
+        "materials": 6
+      },
+      "lineSegments": 3282,
+      "attributeBytes": 1102176,
+      "dimensionsXYZ": [
+        28.472797393798828,
+        22.299999952316284,
+        7.5
+      ],
+      "fingerprint": "42b003c5d95bee9a972793decaf8f1b98d2611de469a2350831368c35693b745",
+      "sourceParts": [
+        {
+          "id": "hull",
+          "role": "Hull and rudder",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 9,
+          "triangles": 3650
+        },
+        {
+          "id": "deck",
+          "role": "Main deck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 161,
+          "triangles": 2080
+        },
+        {
+          "id": "aft-cabin",
+          "role": "Aft cabin and deck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 134,
+          "triangles": 1620
+        },
+        {
+          "id": "equipment",
+          "role": "Hatches and deck equipment",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 40,
+          "triangles": 704
+        },
+        {
+          "id": "spars",
+          "role": "Masts and bowsprit",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1320
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 16,
+          "triangles": 2400
+        },
+        {
+          "id": "lateen-0",
+          "role": "Lateen rig 1",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 1220
+        },
+        {
+          "id": "lateen-1",
+          "role": "Lateen rig 2",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 1220
+        }
+      ],
+      "parts": [
+        {
+          "id": "hull",
+          "fingerprint": "c1fc1d0591b5425f9e0d5f8829ef78ab6ceff6d69877aa991e95216f21058a8a"
+        },
+        {
+          "id": "deck",
+          "fingerprint": "1a4692e1005f34153e6bc83b75699c70250e2f4a77749190e5b1e644dbc4b158"
+        },
+        {
+          "id": "aft-cabin",
+          "fingerprint": "bfc6f8e3023f1a9d85c72d770e6b4a0fcb2a77b008ee2e10bffd3ad8aa53e0e0"
+        },
+        {
+          "id": "equipment",
+          "fingerprint": "bdee089792a28dec5b586895b90b1ac9470b9a28a22970b8375260290ff0fc52"
+        },
+        {
+          "id": "spars",
+          "fingerprint": "039c5fcf260775fac34058894f0205e2221e3ab6bb780f0e01738a96c1bf3b78"
+        },
+        {
+          "id": "rigging",
+          "fingerprint": "1ca8783c463497c44251430ab40af30aad45f8925f04c22130e9033808c24c28"
+        },
+        {
+          "id": "lateen-0",
+          "fingerprint": "5a8dc0a9ed340f021949f7f13a1276027cf79b720e6ad9ddd5d8899327a46780"
+        },
+        {
+          "id": "lateen-1",
+          "fingerprint": "977110386a6e7404819298196ccb928e7746ace238e2ca9396f2e8919079c78f"
+        }
+      ]
+    },
+    {
+      "kind": "caravel",
+      "quality": "high",
+      "sails": "furled",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 6,
+        "triangles": 14094,
+        "vertices": 42282,
+        "geometries": 6,
+        "materials": 6
+      },
+      "lineSegments": 2764,
+      "attributeBytes": 1081104,
+      "dimensionsXYZ": [
+        28.472797393798828,
+        22.299999952316284,
+        7.5
+      ],
+      "fingerprint": "d08f02c19c57aa30deb3636e2b52c45e03ae37fee20eb66f0bc291a9264cc542",
+      "sourceParts": [
+        {
+          "id": "hull",
+          "role": "Hull and rudder",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 9,
+          "triangles": 3650
+        },
+        {
+          "id": "deck",
+          "role": "Main deck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 161,
+          "triangles": 2080
+        },
+        {
+          "id": "aft-cabin",
+          "role": "Aft cabin and deck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 134,
+          "triangles": 1620
+        },
+        {
+          "id": "equipment",
+          "role": "Hatches and deck equipment",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 40,
+          "triangles": 704
+        },
+        {
+          "id": "spars",
+          "role": "Masts and bowsprit",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1320
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 16,
+          "triangles": 2400
+        },
+        {
+          "id": "lateen-0",
+          "role": "Lateen rig 1",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 8,
+          "triangles": 1160
+        },
+        {
+          "id": "lateen-1",
+          "role": "Lateen rig 2",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 8,
+          "triangles": 1160
+        }
+      ],
+      "parts": [
+        {
+          "id": "hull",
+          "fingerprint": "c1fc1d0591b5425f9e0d5f8829ef78ab6ceff6d69877aa991e95216f21058a8a"
+        },
+        {
+          "id": "deck",
+          "fingerprint": "1a4692e1005f34153e6bc83b75699c70250e2f4a77749190e5b1e644dbc4b158"
+        },
+        {
+          "id": "aft-cabin",
+          "fingerprint": "bfc6f8e3023f1a9d85c72d770e6b4a0fcb2a77b008ee2e10bffd3ad8aa53e0e0"
+        },
+        {
+          "id": "equipment",
+          "fingerprint": "bdee089792a28dec5b586895b90b1ac9470b9a28a22970b8375260290ff0fc52"
+        },
+        {
+          "id": "spars",
+          "fingerprint": "039c5fcf260775fac34058894f0205e2221e3ab6bb780f0e01738a96c1bf3b78"
+        },
+        {
+          "id": "rigging",
+          "fingerprint": "1ca8783c463497c44251430ab40af30aad45f8925f04c22130e9033808c24c28"
+        },
+        {
+          "id": "lateen-0",
+          "fingerprint": "cc5cbf9d89293eb98aaec6fb66f8dbb669b96bd6323b99bd1cc252aabd906e5f"
+        },
+        {
+          "id": "lateen-1",
+          "fingerprint": "a7f483ff0fa4f285478b30cafe18a61b6b01c0d5322494d0fcca871a8dbd5828"
+        }
+      ]
+    },
+    {
+      "kind": "carrack",
+      "quality": "low",
+      "sails": "set",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 198,
+        "triangles": 4764,
+        "vertices": 606,
+        "geometries": 14,
+        "materials": 8
+      },
+      "lineSegments": 136,
+      "attributeBytes": 22952,
+      "dimensionsXYZ": [
+        43.009545124164376,
+        36.5,
+        17.999999999999996
+      ],
+      "fingerprint": "a3f16cf9e1af045cd519f3f27d8cd1dbd97594d7e91bedfaa39052c864a2fafa",
+      "sourceParts": [],
+      "parts": []
+    },
+    {
+      "kind": "carrack",
+      "quality": "low",
+      "sails": "furled",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 218,
+        "triangles": 6297,
+        "vertices": 1575,
+        "geometries": 34,
+        "materials": 9
+      },
+      "lineSegments": 124,
+      "attributeBytes": 62318,
+      "dimensionsXYZ": [
+        43.009545124164376,
+        36.5,
+        17.999999999999996
+      ],
+      "fingerprint": "2a8e607b7d601bbde676e3b59f7785a84f6c4ce089c9e6ef3415dcb1f8c450e7",
+      "sourceParts": [],
+      "parts": []
+    },
+    {
+      "kind": "carrack",
+      "quality": "high",
+      "sails": "set",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 6,
+        "triangles": 25019,
+        "vertices": 75057,
+        "geometries": 6,
+        "materials": 6
+      },
+      "lineSegments": 4502,
+      "attributeBytes": 1909416,
+      "dimensionsXYZ": [
+        43.02918243408203,
+        36.5,
+        18
+      ],
+      "fingerprint": "dcfacc7a83cd983682a5a24a4711ba46487badbf362447e5ad237fceaad151e4",
+      "sourceParts": [
+        {
+          "id": "hull",
+          "role": "Hull and rudder",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 9,
+          "triangles": 3650
+        },
+        {
+          "id": "deck",
+          "role": "Main deck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 161,
+          "triangles": 2080
+        },
+        {
+          "id": "forecastle",
+          "role": "Forecastle",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 134,
+          "triangles": 1620
+        },
+        {
+          "id": "sterncastle",
+          "role": "Sterncastle",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 134,
+          "triangles": 1620
+        },
+        {
+          "id": "poop",
+          "role": "Upper sterncastle",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 133,
+          "triangles": 1608
+        },
+        {
+          "id": "equipment",
+          "role": "Hatches and deck equipment",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 88,
+          "triangles": 1252
+        },
+        {
+          "id": "spars",
+          "role": "Masts and bowsprit",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 12,
+          "triangles": 2088
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 36,
+          "triangles": 5400
+        },
+        {
+          "id": "square-0",
+          "role": "Square sail 1",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 1504
+        },
+        {
+          "id": "square-1",
+          "role": "Square sail 2",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 1504
+        },
+        {
+          "id": "square-2",
+          "role": "Square sail 3",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 1504
+        },
+        {
+          "id": "mizzen",
+          "role": "Lateen mizzen",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 4,
+          "triangles": 1180
+        },
+        {
+          "id": "flags",
+          "role": "Pennants",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 3,
+          "triangles": 9
+        }
+      ],
+      "parts": [
+        {
+          "id": "hull",
+          "fingerprint": "69210424ef21a3439961f54b422530b31bf2bebb3430ba2417cbb42e9cc734ca"
+        },
+        {
+          "id": "deck",
+          "fingerprint": "f480e16e030740633a2551ab45c42c5d068a94ed4a9b62d474bfa2a6240d6e50"
+        },
+        {
+          "id": "forecastle",
+          "fingerprint": "dd814ff7ba43cbce5c084c2d4d950e22530a3a8a3b080fdb97bfab322e00594d"
+        },
+        {
+          "id": "sterncastle",
+          "fingerprint": "d7290354de49646e8bef8117e5c35f31b12093b7fe7592a4a6b541ae1a0c134c"
+        },
+        {
+          "id": "poop",
+          "fingerprint": "e761da9aeac67fd20f5652b0039992e8a146aa92013003d3821408ff7f55feec"
+        },
+        {
+          "id": "equipment",
+          "fingerprint": "95e2e3d1b063add4385f4ae9ce2586caeb7e80801727909e947966f3d7f36861"
+        },
+        {
+          "id": "spars",
+          "fingerprint": "1febbc82015da32f80f01d2d8b7ea8b12065a30e0969d5f1feecb717c80b3dbc"
+        },
+        {
+          "id": "rigging",
+          "fingerprint": "ed89a174e1d8a9a4a507466aafb6630be7fa8b91c439fb2d3b3e5a1a8e2f0f9f"
+        },
+        {
+          "id": "square-0",
+          "fingerprint": "ec5a141a166c2876ec1a7dbc077da89360451414226aac927879cc642628aab2"
+        },
+        {
+          "id": "square-1",
+          "fingerprint": "0f19653924aac8c6730cd717f7cf3fbf716d73a409b1e4bc89117a333cbebc9f"
+        },
+        {
+          "id": "square-2",
+          "fingerprint": "b4883e5fd7f4ed78193fd1089310b6fadf39c7656815e6204522cc5a59ca6029"
+        },
+        {
+          "id": "mizzen",
+          "fingerprint": "e5de3f0ca0910e49d28201f1f9b36be0363b594ec9e0706d1b22b926c521654b"
+        },
+        {
+          "id": "flags",
+          "fingerprint": "7ef1ae7f030e200761c9a1ab0acad6ae299164f7cf005a201c296eedf6939d64"
+        }
+      ]
+    },
+    {
+      "kind": "carrack",
+      "quality": "high",
+      "sails": "furled",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 7,
+        "triangles": 23807,
+        "vertices": 71421,
+        "geometries": 7,
+        "materials": 7
+      },
+      "lineSegments": 3463,
+      "attributeBytes": 1797216,
+      "dimensionsXYZ": [
+        43.02918243408203,
+        36.5,
+        18
+      ],
+      "fingerprint": "7689772e8f69f2c19b6e7d456416a3f82b35f96b86de7a55894ab27fb432cdd1",
+      "sourceParts": [
+        {
+          "id": "hull",
+          "role": "Hull and rudder",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 9,
+          "triangles": 3650
+        },
+        {
+          "id": "deck",
+          "role": "Main deck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 161,
+          "triangles": 2080
+        },
+        {
+          "id": "forecastle",
+          "role": "Forecastle",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 134,
+          "triangles": 1620
+        },
+        {
+          "id": "sterncastle",
+          "role": "Sterncastle",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 134,
+          "triangles": 1620
+        },
+        {
+          "id": "poop",
+          "role": "Upper sterncastle",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 133,
+          "triangles": 1608
+        },
+        {
+          "id": "equipment",
+          "role": "Hatches and deck equipment",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 88,
+          "triangles": 1252
+        },
+        {
+          "id": "spars",
+          "role": "Masts and bowsprit",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 12,
+          "triangles": 2088
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 36,
+          "triangles": 5400
+        },
+        {
+          "id": "square-0",
+          "role": "Square sail 1",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1120
+        },
+        {
+          "id": "square-1",
+          "role": "Square sail 2",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1120
+        },
+        {
+          "id": "square-2",
+          "role": "Square sail 3",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1120
+        },
+        {
+          "id": "mizzen",
+          "role": "Lateen mizzen",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1120
+        },
+        {
+          "id": "flags",
+          "role": "Pennants",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 3,
+          "triangles": 9
+        }
+      ],
+      "parts": [
+        {
+          "id": "hull",
+          "fingerprint": "69210424ef21a3439961f54b422530b31bf2bebb3430ba2417cbb42e9cc734ca"
+        },
+        {
+          "id": "deck",
+          "fingerprint": "f480e16e030740633a2551ab45c42c5d068a94ed4a9b62d474bfa2a6240d6e50"
+        },
+        {
+          "id": "forecastle",
+          "fingerprint": "dd814ff7ba43cbce5c084c2d4d950e22530a3a8a3b080fdb97bfab322e00594d"
+        },
+        {
+          "id": "sterncastle",
+          "fingerprint": "d7290354de49646e8bef8117e5c35f31b12093b7fe7592a4a6b541ae1a0c134c"
+        },
+        {
+          "id": "poop",
+          "fingerprint": "e761da9aeac67fd20f5652b0039992e8a146aa92013003d3821408ff7f55feec"
+        },
+        {
+          "id": "equipment",
+          "fingerprint": "95e2e3d1b063add4385f4ae9ce2586caeb7e80801727909e947966f3d7f36861"
+        },
+        {
+          "id": "spars",
+          "fingerprint": "1febbc82015da32f80f01d2d8b7ea8b12065a30e0969d5f1feecb717c80b3dbc"
+        },
+        {
+          "id": "rigging",
+          "fingerprint": "ed89a174e1d8a9a4a507466aafb6630be7fa8b91c439fb2d3b3e5a1a8e2f0f9f"
+        },
+        {
+          "id": "square-0",
+          "fingerprint": "7a90f6ce18064fda238020ac24f0c57c35ddf93e763b29874750b0b0b3e9fb19"
+        },
+        {
+          "id": "square-1",
+          "fingerprint": "d18cc7448baad492eb1fabdc047155a9a068dd54b79e8d5d12a33d96960e6367"
+        },
+        {
+          "id": "square-2",
+          "fingerprint": "2ef445924c023a8e61ea1a48829bab18db6f60f963b2ab6c84125c13352a67fd"
+        },
+        {
+          "id": "mizzen",
+          "fingerprint": "dc39a554bc72252151ed439a17ff4e79ddbaf2cbef7c2267cddd948f2bac3481"
+        },
+        {
+          "id": "flags",
+          "fingerprint": "7ef1ae7f030e200761c9a1ab0acad6ae299164f7cf005a201c296eedf6939d64"
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
+import { SHIP_VARIANTS } from "../src/buildings/ships/shipVariants";
 
 const root = process.cwd();
 const codex = "Codex GPT-6.1 Sol";
@@ -71,7 +72,9 @@ for (const statement of viewer.statements) {
       const isBasilica = symbol === "BASILICA_TEMPLE";
       const isHouse = ["EARTHEN_HOUSES", "POLYGON_HOUSES"].includes(symbol);
       const isOpusGalleon = symbol === "OPUS_GALLEON";
-      const highAuthors = isBasilica || isHouse || isOpusGalleon ? [definition.author ?? codex] : [];
+      const highAuthors = ["SLOOP", "CARAVEL", "CARRACK", "GALLEON"].includes(symbol)
+        ? SHIP_VARIANTS.filter(v => v.family === `ship.${symbol.toLowerCase()}` && v.level === "high").map(v => v.author)
+        : isBasilica || isHouse || isOpusGalleon ? [definition.author ?? codex] : [];
       const states = symbol === "MEDIEVAL_CONTAINERS" ? ["empty", "closed", "loaded"] : [""];
       for (const state of states)
         add({ category: "Direct BV study", id: state ? `${id}-${state}` : id, name: `${label}${state ? ` · ${state}` : ""}`, source,
