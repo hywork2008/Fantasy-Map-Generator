@@ -1,5 +1,7 @@
 import type { Point } from "../city-editor/types/primitives";
 
+export type PlacementQuality = "low" | "high" | "ultra";
+
 /**
  * Local axis the model's front points along, before City Editor yaw.
  * Houses, gatehouses and courtyard ranges face local +Z (street / field).

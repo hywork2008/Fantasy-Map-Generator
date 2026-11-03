@@ -23,6 +23,19 @@ export interface MedievalModel {
     options: readonly { id: string; label: string }[];
     create(variantId: string, season: string): CityStructureMeshes;
   };
+  appearances?: {
+    default: string;
+    options: readonly { id: string; label: string }[];
+    create(variantId: string, appearance: string): CityStructureMeshes;
+  };
+  marketDisplay?: {
+    create(
+      variantId: string,
+      palette: string,
+      activity: "market-day" | "closed",
+      detail: "near" | "distant"
+    ): CityStructureMeshes;
+  };
   create(): CityStructureMeshes;
   /** Optional independent components in their fitted assembly positions. */
   parts?(variantId?: string, preset?: string): readonly ModelPartFactory[];
@@ -72,7 +85,10 @@ export class ModelKit {
   private readonly materials = new Map<Surface, THREE.MeshLambertMaterial>();
   private readonly children: CityStructureMeshes[] = [];
   private readonly cube = new THREE.BoxGeometry(1, 1, 1);
-  constructor(name: string) {
+  constructor(
+    name: string,
+    private readonly colors: Partial<Record<Surface, number>> = {}
+  ) {
     this.group.name = name;
     this.geometries.add(this.cube);
   }
@@ -80,7 +96,10 @@ export class ModelKit {
     this.geometries.add(geometry);
     let material = this.materials.get(surface);
     if (!material) {
-      material = new THREE.MeshLambertMaterial({ color: COLORS[surface], side: THREE.DoubleSide });
+      material = new THREE.MeshLambertMaterial({
+        color: this.colors[surface] ?? COLORS[surface],
+        side: THREE.DoubleSide
+      });
       this.materials.set(surface, material);
     }
     const mesh = new THREE.Mesh(geometry, material);

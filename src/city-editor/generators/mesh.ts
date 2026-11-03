@@ -975,6 +975,16 @@ export function scaleDocument(document: CityDocument, factor: number): CityDocum
     if (element.point) element.point = [element.point[0] * factor, element.point[1] * factor];
     if (element.sizeMeters) element.sizeMeters *= factor;
   }
+  if (next.markets) {
+    const scale = (point: Point): Point => [point[0] * factor, point[1] * factor];
+    next.markets = next.markets.map(market => ({
+      ...market,
+      boundary: market.boundary.map(scale),
+      accessPaths: market.accessPaths.map(path => path.map(scale)),
+      ...(market.cargoAccessPaths ? { cargoAccessPaths: market.cargoAccessPaths.map(path => path.map(scale)) } : {}),
+      reservedAreas: market.reservedAreas.map(ring => ring.map(scale))
+    }));
+  }
   next.frame.extentMeters *= factor;
   next.frame.cityRadiusMeters *= factor;
   next.frame.blockSizeMeters *= factor;

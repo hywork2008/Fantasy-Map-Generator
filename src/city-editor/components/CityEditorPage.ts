@@ -1415,6 +1415,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   interaction.objectScale = 1;
   interaction.objectAngleDegrees = 0;
   interaction.buildingModelId = "house:mediterranean";
+  interaction.buildingQuality = undefined;
+  interaction.buildingPalette = undefined;
   interaction.buildingFacingDegrees = 0;
   interaction.buildingHoverPoint = null;
   interaction.buildingAnchor = null;
@@ -1969,6 +1971,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     finishButton,
     smoothingModeInput,
     documentActions,
+    syncMarketControls,
     syncGridParamControls,
     gridEvoSlider,
     gridEvoFirstButton,
@@ -3443,6 +3446,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     appearanceControls.sync();
     forestControls.sync();
     getMapDisplayController().refresh();
+    syncMarketControls();
     syncCity3d();
   }
 

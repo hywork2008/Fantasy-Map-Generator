@@ -46,11 +46,13 @@ export function createDragCompletionController(ctx: DragCompletionContext) {
         const moved = movedId ? next.elements.find(item => item.id === movedId) : undefined;
         ctx.documents.documentState = before;
         if (moved?.kind === "object" && moved.point && moved.objectType && isPlotPlacement(before, moved.id)) {
-          const footprint = placementFootprint(moved.objectType);
+          const footprint = placementFootprint(moved.objectType, moved.objectQuality);
           const result = footprint
             ? commitPlacement(before, {
                 id: moved.id,
                 modelId: moved.objectType,
+                quality: moved.objectQuality,
+                palette: moved.objectPalette,
                 position: moved.point,
                 facingDegrees: facingFromRotation(frontAxisOf(moved.objectType), moved.rotation ?? 0),
                 footprint

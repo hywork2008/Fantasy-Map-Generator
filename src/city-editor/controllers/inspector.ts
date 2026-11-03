@@ -1,12 +1,15 @@
 import type { KrakPhase } from "../../buildings/fortresses/krak";
+import type { MarketPalette } from "../../buildings/medieval/marketAppearance";
 import { placeableObject } from "../../buildings/placeableObjects";
-import { facingFromRotation, frontAxisOf } from "../../buildings/placementContract";
+import { facingFromRotation, frontAxisOf, type PlacementQuality } from "../../buildings/placementContract";
 import { placementFootprint } from "../../buildings/placementModels";
 import { editorHtml, editorText } from "../../i18n/editorMessages";
 import { buildingHeightLimitControls } from "../components/buildingHeightLimitControls";
 import type { createEditorControls, FloatingWindow } from "../components/editorControls";
 import { div, text } from "../components/editorControls";
 import { populateFortSiteInspector } from "../components/fortSiteInspector";
+import { syncPlacementPaletteControl } from "../components/placementPaletteControl";
+import { syncPlacementQualityControl } from "../components/placementQualityControl";
 import {
   evaluateApproachBeyond,
   normalizeApproachBeyond,
@@ -96,6 +99,8 @@ export interface InspectorContext {
     | "inspectedInfo"
     | "tool"
     | "buildingModelId"
+    | "buildingQuality"
+    | "buildingPalette"
     | "buildingFacingDegrees"
     | "buildingHoverPoint"
     | "buildingAnchor"
@@ -1147,8 +1152,15 @@ export function createInspectorController(ctx: InspectorContext) {
           const angle = numberInput(String(facing), "0", "1");
           angle.max = "359";
           angle.setAttribute("aria-label", editorText("cityEditor.messages.buildingFacing"));
+          const quality = document.createElement("select");
+          quality.setAttribute("aria-label", editorText("cityEditor.messages.modelQuality"));
+          syncPlacementQualityControl(quality, item.objectType, item.objectQuality);
+          const palette = document.createElement("select");
+          palette.setAttribute("aria-label", editorText("cityEditor.messages.marketPalette"));
+          syncPlacementPaletteControl(palette, item.objectType, item.objectPalette);
           const apply = () => {
-            const footprint = placementFootprint(item.objectType ?? "");
+            const level = quality.disabled ? item.objectQuality : (quality.value as PlacementQuality);
+            const footprint = placementFootprint(item.objectType ?? "", level);
             const position: Point = [Number(x.value), Number(y.value)];
             const facingDegrees = Number(angle.value);
             if (
@@ -1163,6 +1175,8 @@ export function createInspectorController(ctx: InspectorContext) {
             const result = commitPlacement(ctx.documents.documentState, {
               id: item.id,
               modelId: item.objectType,
+              quality: level,
+              palette: palette.disabled ? item.objectPalette : (palette.value as MarketPalette),
               position,
               facingDegrees,
               footprint
@@ -1179,11 +1193,15 @@ export function createInspectorController(ctx: InspectorContext) {
             label(editorText("cityEditor.messages.xM"), x),
             label(editorText("cityEditor.messages.yM"), y),
             label(editorText("cityEditor.messages.buildingFacing"), angle),
+            ...(!quality.disabled ? [label(editorText("cityEditor.messages.modelQuality"), quality)] : []),
+            ...(!palette.disabled ? [label(editorText("cityEditor.messages.marketPalette"), palette)] : []),
             makeButton(editorText("cityEditor.messages.updateObject"), apply),
             makeButton(editorText("cityEditor.messages.moveBuildingOnMap"), () => {
               ctx.interaction.tool = "building";
               ctx.interaction.buildingEditId = item.id;
               ctx.interaction.buildingModelId = item.objectType ?? ctx.interaction.buildingModelId;
+              ctx.interaction.buildingQuality = item.objectQuality;
+              ctx.interaction.buildingPalette = item.objectPalette;
               ctx.interaction.buildingFacingDegrees = facingFromRotation(
                 frontAxisOf(item.objectType ?? ""),
                 item.rotation ?? 0

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { isMarketModel } from "../../buildings/medieval/marketPresentation";
 import { objectDrawing, placeableObject } from "../../buildings/placeableObjects";
 import { placementPose } from "../../buildings/placementContract";
 import { placementDefinition, placementFootprint } from "../../buildings/placementModels";
@@ -21,7 +22,8 @@ function objectDefinition(id: string): BvDefinition {
 export function createTownObjects(
   elements: readonly CityElement[],
   heightAt?: (point: Point) => number,
-  cache?: BvPrototypeCache
+  cache?: BvPrototypeCache,
+  options?: { lod?: boolean }
 ) {
   const sites = elements.flatMap(item => {
     if (item.kind !== "object" || !item.point || !item.objectType) return [];
@@ -39,8 +41,10 @@ export function createTownObjects(
         .multiply(new THREE.Matrix4().makeTranslation(-center.x, -bounds.min.y, -center.z));
       return [{ id: item.id, definition: objectDefinition(placeable.id), matrix }];
     }
-    const definition = placementDefinition(item.objectType);
-    const footprint = placementFootprint(item.objectType);
+    const definition = placementDefinition(item.objectType, item.objectQuality, item.objectPalette, {
+      activity: item.objectMarketActivity
+    });
+    const footprint = placementFootprint(item.objectType, item.objectQuality);
     if (!definition || !footprint) return [];
     const pose = placementPose(item.point, heightAt?.(item.point) ?? 0, item.rotation ?? 0, footprint);
     const matrix = new THREE.Matrix4()
@@ -56,5 +60,47 @@ export function createTownObjects(
   });
   const layer = createBvInstances(sites, cache);
   layer.group.name = "ce-objects";
-  return layer;
+  const byId = new Map(elements.map(e => [e.id, e]));
+  const farSites = options?.lod
+    ? sites.flatMap(site => {
+        const item = byId.get(site.id)!;
+        if (!item.objectType || !isMarketModel(item.objectType)) return [];
+        const definition = placementDefinition(item.objectType, item.objectQuality, item.objectPalette, {
+          activity: item.objectMarketActivity,
+          detail: "distant"
+        });
+        return definition ? [{ ...site, definition }] : [];
+      })
+    : [];
+  const far = createBvInstances(farSites, cache);
+  if (farSites.length) layer.group.add(far.group);
+  far.setVisible(() => false);
+  const distant = new Set<string>();
+  const position = new THREE.Vector3();
+  return {
+    ...layer,
+    pickables: [...layer.pickables, ...far.pickables],
+    resolve(hit: Pick<THREE.Intersection, "object" | "instanceId">) {
+      return layer.resolve(hit) ?? far.resolve(hit);
+    },
+    update(camera: THREE.PerspectiveCamera, viewportHeight: number): boolean {
+      if (!farSites.length) return false;
+      const projection = (viewportHeight * camera.zoom) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+      for (const site of farSites) {
+        const item = byId.get(site.id)!;
+        position.setFromMatrixPosition(site.matrix);
+        const width = placementFootprint(item.objectType!, item.objectQuality)!.halfX * 2;
+        const pixels = (width * projection) / Math.max(1, camera.position.distanceTo(position));
+        if (pixels < (distant.has(site.id) ? 28 : 20)) distant.add(site.id);
+        else distant.delete(site.id);
+      }
+      const nearChanged = layer.setVisible(site => !distant.has(site.id));
+      const farChanged = far.setVisible(site => distant.has(site.id));
+      return nearChanged || farChanged;
+    },
+    dispose() {
+      far.dispose();
+      layer.dispose();
+    }
+  };
 }

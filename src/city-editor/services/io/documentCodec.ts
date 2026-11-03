@@ -1,4 +1,5 @@
 import { validBuildingAppearanceFields } from "../../../buildings/appearance/resolver";
+import { isMarketPalette } from "../../../buildings/medieval/marketAppearance";
 import { isBurialCultureProfile } from "../../../data/burialCultures";
 import { isCivilizationContext } from "../../../data/civilizationTraditions";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../../../utils/fixedBurgCrossings";
@@ -18,6 +19,7 @@ import { validFacilityCounts } from "../../generators/facilitySettings";
 import { restoreFixedCrossingApproaches, validSavedFixedApproaches } from "../../generators/fixedApproachAdoption";
 import { hasForestState, validForestDocument } from "../../generators/forestSettings";
 import { validateLandmarks } from "../../generators/landmarks";
+import { validMarkets } from "../../generators/marketValidation";
 import { validate } from "../../generators/mesh";
 import { populationHousingFacts } from "../../generators/populationHousing";
 import { validPopulationDocument } from "../../generators/populationValidation";
@@ -37,6 +39,20 @@ export function parseDocument(text: string, fixedApproachProvider?: FixedApproac
     const value = JSON.parse(text) as unknown;
     if (!isDocument(value)) return null;
     repairRiverBeds(value);
+    if (value.markets) {
+      const elements = new Map(value.elements.map(element => [element.id, element]));
+      value.markets = value.markets
+        .filter(market =>
+          !market.anchorElementId
+            ? !["plaza", "river-port", "sea-port", "hall-front"].includes(market.setting)
+            : elements.get(market.anchorElementId)?.kind ===
+              (market.setting === "plaza" ? "plaza" : market.setting === "hall-front" ? "object" : "harbor")
+        )
+        .map(market => ({
+          ...market,
+          stallElementIds: market.stallElementIds.filter(id => elements.get(id)?.kind === "object")
+        }));
+    }
     if (value.burialProfile !== undefined && !isBurialCultureProfile(value.burialProfile)) return null;
     if (value.civilization !== undefined && !isCivilizationContext(value.civilization)) delete value.civilization;
     if (value.cemeteries?.some(c => c.burialProfile !== undefined && !isBurialCultureProfile(c.burialProfile)))
@@ -97,6 +113,7 @@ function isDocument(value: unknown): value is CityDocument {
   return (
     doc.format === "fmg-city-editor" &&
     validForestDocument(doc) &&
+    validMarkets(doc.markets) &&
     validBuildingAppearanceFields(doc) &&
     (doc.castleStyle === undefined ||
       doc.castleStyle === "auto" ||
@@ -205,7 +222,10 @@ function isDocument(value: unknown): value is CityDocument {
       element =>
         element &&
         typeof element === "object" &&
-        (element.shipState === undefined || validShipDisplayState(element.shipState))
+        (element.shipState === undefined || validShipDisplayState(element.shipState)) &&
+        (element.objectQuality === undefined || ["low", "high", "ultra"].includes(element.objectQuality)) &&
+        (element.objectPalette === undefined || isMarketPalette(element.objectPalette)) &&
+        (element.objectMarketActivity === undefined || ["market-day", "closed"].includes(element.objectMarketActivity))
     )
   );
 }

@@ -642,6 +642,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     const previous = previousMotionFrame;
     previousMotionFrame = moving ? { at: start, endedAt: start, camera: pose } : null;
     if (regionalHouses?.update(camera, renderer.domElement.clientHeight)) forestShadowPending = true;
+    if (objects?.update(camera, renderer.domElement.clientHeight)) forestShadowPending = true;
     if (regionalHouses?.stats.pending) requestRender();
     buildingDetails?.update(camera, renderer.domElement.clientHeight, regionalHouses?.replaced);
     if (forest?.update(camera, renderer.domElement.clientHeight)) forestShadowPending = true;
@@ -926,7 +927,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (objectsChanged) {
       if (objects) scene.remove(objects.group);
       objects?.dispose();
-      objects = createTownObjects(objectElements, terrain?.heightAt, bvPrototypes);
+      objects = createTownObjects(objectElements, terrain?.heightAt, bvPrototypes, { lod: true });
       scene.add(objects.group);
       objectStamp = nextObjectStamp;
     }

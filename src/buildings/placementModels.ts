@@ -1,10 +1,22 @@
 import * as THREE from "three";
+import { adoptedDefinition } from "../city3d/adoption";
 import { catalogueMassing } from "../city3d/core/catalogueMassing";
 import type { BvDefinition } from "../city3d/three/bvInstances";
 import { createStructureMassing } from "../city3d/three/structureMeshes";
 import { BUILDING_APPEARANCE_PROFILES } from "./appearance/types";
 import { createRegionalHouse, defaultRegionalHouseSpec } from "./houses/regionalHouses";
+import { models as marketStalls } from "./medieval/06-market-stallsModels";
+import { models as civicHalls } from "./medieval/26-civic-hallsModels";
+import { models as clothHalls } from "./medieval/27-cloth-hallsModels";
+import { isMarketPalette, type MarketPalette } from "./medieval/marketAppearance";
+import {
+  isMarketModel,
+  type MarketActivity,
+  type MarketDetail,
+  packedMarketPitch
+} from "./medieval/marketPresentation";
 import { objectDrawing, PLACEABLE_OBJECTS, placeableObject } from "./placeableObjects";
+import type { PlacementQuality } from "./placementContract";
 import { axisBoxFromBounds, type FootprintBox, footprintBox } from "./placementContract";
 import type { BuildingRecord } from "./record";
 
@@ -21,10 +33,20 @@ export interface PlacementCatalogItem {
 interface PlacementSource {
   item: PlacementCatalogItem;
   definition: BvDefinition | null;
-  footprint: () => FootprintBox;
+  qualities?: Partial<Record<PlacementQuality, BvDefinition>>;
+  footprint: (quality?: PlacementQuality) => FootprintBox;
 }
 
 const footprints = new Map<string, FootprintBox>();
+const paletteDefinitions = new Map<string, BvDefinition>();
+
+export function placementPalette(id: string, requested?: MarketPalette): MarketPalette | undefined {
+  return marketStalls.find(model => model.id === id)?.appearances
+    ? isMarketPalette(requested)
+      ? requested
+      : "ochre"
+    : undefined;
+}
 
 function measured(definition: BvDefinition): FootprintBox {
   const cached = footprints.get(definition.id);
@@ -84,16 +106,73 @@ for (const object of PLACEABLE_OBJECTS) {
   });
 }
 
+for (const model of [...marketStalls, ...civicHalls, ...clothHalls]) {
+  const qualities = Object.fromEntries(
+    (["low", "high"] as const).map(level => [
+      level,
+      adoptedDefinition(model.variants!, `medieval.${model.id}`, `${model.id}:${level}`, { level })
+    ])
+  );
+  sources.set(model.id, {
+    item: { id: model.id, category: model.task === 6 ? "Market stalls" : "Market halls", name: model.name },
+    definition: qualities.high,
+    qualities,
+    footprint: quality => measured(qualities[quality === "low" ? "low" : "high"])
+  });
+}
+
+/** Explicit tiers supported by a placement; existing objects keep their compatibility defaults. */
+export function placementQualities(id: string): readonly PlacementQuality[] {
+  return Object.keys(sources.get(id)?.qualities ?? {}) as PlacementQuality[];
+}
+
+/** Missing or unavailable market tiers resolve to High; other models keep their existing defaults. */
+export function placementQuality(id: string, requested?: PlacementQuality): PlacementQuality | undefined {
+  const available = placementQualities(id);
+  return available.length ? (requested && available.includes(requested) ? requested : "high") : undefined;
+}
+
 export function placementCatalog(): readonly PlacementCatalogItem[] {
   return [...sources.values()].map(source => source.item);
 }
 
-export function placementFootprint(id: string): FootprintBox | null {
-  return sources.get(id)?.footprint() ?? null;
+export function placementFootprint(id: string, quality?: PlacementQuality): FootprintBox | null {
+  return sources.get(id)?.footprint(quality) ?? null;
 }
 
 /** Mesh factory for models that are not already placeable objects. Placeable objects keep their adopted variants. */
-export function placementDefinition(id: string): BvDefinition | null {
+export function placementDefinition(
+  id: string,
+  quality?: PlacementQuality,
+  palette?: MarketPalette,
+  presentation?: { activity?: MarketActivity; detail?: MarketDetail }
+): BvDefinition | null {
   if (placeableObject(id)) return null;
-  return sources.get(id)?.definition ?? null;
+  if (packedMarketPitch(id, presentation?.activity)) return null;
+  const source = sources.get(id);
+  const level = placementQuality(id, quality);
+  const definition = (level ? source?.qualities?.[level] : source?.definition) ?? null;
+  const appearance = placementPalette(id, palette);
+  const custom = isMarketModel(id) && (presentation?.activity === "closed" || presentation?.detail === "distant");
+  if (!definition || (!custom && (!appearance || appearance === "ochre"))) return definition;
+  const key = `${definition.id}:${appearance ?? "ochre"}:${presentation?.activity ?? "market-day"}:${presentation?.detail ?? "near"}`;
+  let result = paletteDefinitions.get(key);
+  if (!result) {
+    const model = marketStalls.find(model => model.id === id)!;
+    result = {
+      id: key,
+      variant: definition.variant,
+      create: () =>
+        custom
+          ? model.marketDisplay!.create(
+              definition.variant!,
+              appearance ?? "ochre",
+              presentation?.activity ?? "market-day",
+              presentation?.detail ?? "near"
+            )
+          : model.appearances!.create(definition.variant!, appearance!)
+    };
+    paletteDefinitions.set(key, result);
+  }
+  return result;
 }

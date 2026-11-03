@@ -24,9 +24,11 @@ import {
 } from "../generators/freeform/freeformCity";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { randomSeed } from "../generators/generation/settings";
+import { placeHarborMarket } from "../generators/harborMarket";
 import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } from "../generators/hexGrid";
 import { DocumentHistory } from "../generators/history";
 import { scaleDocument } from "../generators/mesh";
+import { placePlazaMarket } from "../generators/plazaMarket";
 import { writeMaxPatchesPreference } from "../services/browserPreferences";
 import { exportCityMap, exportCitySvg, exportGenerationDebugSvg } from "../services/io/cityEditorFile";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
@@ -34,6 +36,7 @@ import type { FixedApproachProvider } from "../types/contracts/fixedApproachAdop
 import type { CityDocument } from "../types/document";
 import { formatDistance } from "../utils/editorUnits";
 import { div, text } from "./editorControls";
+import { buildMarketAreaControls } from "./marketAreaControls";
 export interface DocumentPanelContext {
   select: (values: string[], selected: string) => HTMLSelectElement;
   panelEventContext: () => {
@@ -349,6 +352,59 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     ctx.commit(result.document, message);
     ctx.showNotice(message);
   });
+  const marketButton = ctx.makeIconButton("▤", editorText("cityEditor.messages.populatePlazaMarket"), () => {
+    const current = ctx.documents.documentState;
+    const selected = ctx.interaction.inspectedInfo;
+    const result = placePlazaMarket(
+      current,
+      selected?.kind === "plaza" && typeof selected.id === "string" ? selected.id : undefined
+    );
+    if (!result.placed) {
+      const key =
+        result.reason === "field"
+          ? "cityEditor.messages.buildingNeedsField"
+          : result.reason === "existing"
+            ? "cityEditor.messages.marketAlreadyPopulated"
+            : result.reason === "locked"
+              ? "cityEditor.messages.marketPlazaLocked"
+              : result.reason === "freeform"
+                ? "cityEditor.messages.marketNeedsMesh"
+                : result.reason === "plaza"
+                  ? "cityEditor.messages.marketNeedsPlaza"
+                  : "cityEditor.messages.marketNoSpace";
+      ctx.showNotice(editorText(key));
+      return;
+    }
+    const message = editorText("cityEditor.messages.marketPopulated", { value0: result.placed });
+    ctx.commit(result.document, message);
+    ctx.showNotice(message);
+  });
+  const harborMarketButton = ctx.makeIconButton("▤", editorText("cityEditor.messages.populateHarborMarket"), () => {
+    const selected = ctx.interaction.inspectedInfo;
+    const result = placeHarborMarket(
+      ctx.documents.documentState,
+      selected?.kind === "harbor" && typeof selected.id === "string" ? selected.id : undefined
+    );
+    if (!result.placed) {
+      const key =
+        result.reason === "field"
+          ? "cityEditor.messages.buildingNeedsField"
+          : result.reason === "existing"
+            ? "cityEditor.messages.harborMarketAlreadyPopulated"
+            : result.reason === "locked"
+              ? "cityEditor.messages.harborMarketLocked"
+              : result.reason === "freeform"
+                ? "cityEditor.messages.marketNeedsMesh"
+                : result.reason === "harbor"
+                  ? "cityEditor.messages.harborMarketNeedsPort"
+                  : "cityEditor.messages.marketNoSpace";
+      ctx.showNotice(editorText(key));
+      return;
+    }
+    const message = editorText("cityEditor.messages.marketPopulated", { value0: result.placed });
+    ctx.commit(result.document, message);
+    ctx.showNotice(message);
+  });
   const sizeLabel = ctx.label(editorText("cityEditor.messages.mapSize"), size);
   sizeLabel.className = "ce-size-choice";
   const undoButton = ctx.makeIconButton("🔙", editorText("cityEditor.messages.undo"), () =>
@@ -454,10 +510,21 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     freeformButton,
     convertButton,
     placeButton,
+    marketButton,
+    harborMarketButton,
     scaleButton,
     finishButton,
     smoothGroupsButton
   );
+  const marketAreaControls = buildMarketAreaControls({
+    getDocument: () => ctx.documents.documentState,
+    selected: () => ctx.interaction.inspectedInfo,
+    commit: (document, label) => ctx.commit(document, label),
+    notice: message => ctx.showNotice(message),
+    map: ctx.panelEventContext().map
+  });
+  marketAreaControls.root.style.flexBasis = "100%";
+  documentActions.append(marketAreaControls.root);
   const gridParamLabels: HTMLLabelElement[] = [];
   const gridParamControls: Partial<
     Record<
@@ -592,6 +659,7 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     finishButton,
     smoothingModeInput,
     documentActions,
+    syncMarketControls: marketAreaControls.sync,
     syncGridParamControls,
     gridEvoSlider,
     gridEvoFirstButton,

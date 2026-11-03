@@ -6,6 +6,7 @@ import type { RenderSelection } from "../../types/selection";
 import type { TerrainRiverCorridor } from "../../types/terrain";
 import { renderCityElements } from "../cityElementsSvg";
 import { getLandscapeGroundColor } from "../landscape";
+import { renderMarketAreas } from "../marketSvg";
 import type { RenderContext } from "../renderContext";
 import { frameScene } from "../sceneFrameSvg";
 import { element, polygon } from "../svgPrimitives";
@@ -89,6 +90,7 @@ export function renderFreeformCitySvg(
       })
     );
   }
+  svg.appendChild(renderMarketAreas(document));
   renderCityElements(ctx, svg, new Set());
   svg.appendChild(element("g", { class: "ce-hover-layer", "pointer-events": "none" }));
   svg.appendChild(element("g", { class: "ce-measure-layer", "pointer-events": "none" }));

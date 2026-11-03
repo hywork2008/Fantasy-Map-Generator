@@ -192,6 +192,10 @@ export interface CityElement {
   objectType?: string;
   /** Uniform multiplier of the authored meter dimensions. */
   objectScale?: number;
+  /** Optional explicit BV tier for placed models that support quality selection. */
+  objectQuality?: import("../../buildings/placementContract").PlacementQuality;
+  objectPalette?: import("../../buildings/medieval/marketAppearance").MarketPalette;
+  objectMarketActivity?: "market-day" | "closed";
   shipType?: "small" | "medium" | "large" | "barge";
   shipState?: import("./ships").ShipDisplayState;
   harborOperation?: import("./contracts/harborCargo").CargoBerthAssignment;
@@ -667,6 +671,8 @@ export interface CityDocument {
    * Buildings stay outside these disks. Absent keeps every gate's ordinary plaza.
    */
   marketFunnel?: { center: Point; radius: number }[];
+  /** Explicitly populated plaza markets; rendering never generates their stalls. */
+  markets?: import("./contracts/market").MarketSite[];
   /** Imported point decorations such as trees; Ward landmarks are derived at render time. */
   elements: CityElement[];
   /** Urban morphology layout (circulade, bram, organic or classic) */

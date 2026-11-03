@@ -1,6 +1,8 @@
+import type { MarketPalette } from "../../../buildings/medieval/marketAppearance";
 import {
   type FootprintBox,
   frontAxisOf,
+  type PlacementQuality,
   type PlanBox,
   planBox,
   planBoxCorners,
@@ -33,6 +35,8 @@ export type PlacementFailure = PlacementReject | "field";
 export interface PlacementDraft {
   id: string;
   modelId: string;
+  quality?: PlacementQuality;
+  palette?: MarketPalette;
   position: Point;
   facingDegrees: number;
   /** Building box, without the plot margin. */
@@ -130,6 +134,7 @@ export function commitPlacement(
   const preview = previewPlacement(document, draft);
   if (!preview.ok || !document.terrain?.field) return { document, preview };
   const kept = (document.terrain.features ?? []).filter(feature => feature.id !== plotFeatureId(draft.id));
+  const previous = document.elements.find(element => element.id === draft.id);
   const pad: TerrainPlatform = {
     kind: "platform",
     id: plotFeatureId(draft.id),
@@ -147,6 +152,10 @@ export function commitPlacement(
     point: draft.position,
     objectType: draft.modelId,
     objectScale: 1,
+    ...(draft.quality ? { objectQuality: draft.quality } : {}),
+    ...(draft.palette ? { objectPalette: draft.palette } : {}),
+    ...(previous?.harborFaceId ? { harborFaceId: previous.harborFaceId } : {}),
+    ...(previous?.objectMarketActivity ? { objectMarketActivity: previous.objectMarketActivity } : {}),
     rotation: preview.rotation
   };
   return {
@@ -160,11 +169,22 @@ export function commitPlacement(
 }
 
 export function removePlacement(document: CityDocument, id: string): CityDocument {
+  const markets = document.markets?.map(market => {
+    if (market.anchorElementId === id && market.setting === "hall-front") {
+      const { anchorElementId, ...rest } = market;
+      return { ...rest, setting: document.freeform ? ("freeform" as const) : ("street" as const) };
+    }
+    return market.stallElementIds.includes(id)
+      ? { ...market, stallElementIds: market.stallElementIds.filter(stallId => stallId !== id) }
+      : market;
+  });
+  const metadata = markets ? { markets } : {};
   if (!isPlotPlacement(document, id)) {
-    return { ...document, elements: document.elements.filter(item => item.id !== id) };
+    return { ...document, ...metadata, elements: document.elements.filter(item => item.id !== id) };
   }
   return {
     ...document,
+    ...metadata,
     elements: document.elements.filter(item => item.id !== id),
     terrain: document.terrain
       ? { ...document.terrain, features: document.terrain.features.filter(feature => feature.id !== plotFeatureId(id)) }
