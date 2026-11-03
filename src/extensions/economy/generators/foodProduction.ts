@@ -18,6 +18,8 @@ import { getEconomyStartProfile } from "./economyStartMode";
 import { syncStapleCropMarketRows } from "./foodCoLoad";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { resolveFoodImportNetwork } from "./foodImportNetwork";
+import { GRAIN_LOTS_PER_BEER_LOT } from "./foodLots";
+import { getAleDemandSnapshot } from "./foodProcessingLedger";
 import type { Good } from "./goods-generator";
 import {
   getHarvestBridgeReserve,
@@ -597,11 +599,15 @@ export class FoodProductionModule {
       // quarter's urban need at harvest, leaving the towns without grain for the rest of the year
       // (docs/plan/craft-wage-subsistence-scale.md §10).
       const held = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + (ledger.foodStockAge3 ?? 0);
-      const periodDemand = (annualDemand * periodMonths) / 12;
       // The granary holds STORAGE_CAP_MONTHS plus what is eaten this period. Capping at the bare
       // STORAGE_CAP_MONTHS used to heap this period's purchase into overflow the moment it was paid
       // for (docs/plan/grain-storage-life.md §1).
-      const storageCap = annualDemand * (STORAGE_CAP_MONTHS / 12) + periodDemand;
+      // Towns bought their brewing grain from the surrounding villages too. Without it the brewers
+      // drew down the towns' bread surplus and the next months went short (urban-craft-staffing.md
+      // §10.7, §10.8). The export reserve stays the eaters' own, so brewing takes only this share.
+      const annualBrewingGrain = getAleDemandSnapshot(market).monthlyDemand * 12 * GRAIN_LOTS_PER_BEER_LOT;
+      const annualPurchaseDemand = annualDemand + annualBrewingGrain;
+      const storageCap = annualPurchaseDemand * (STORAGE_CAP_MONTHS / 12) + (annualPurchaseDemand * periodMonths) / 12;
       const purchasable = Math.max(0, storageCap - held);
       const purchaseShare = annualMarketFoodIntake > 0 ? Math.min(1, purchasable / annualMarketFoodIntake) : 0;
       if (purchaseShare < 1)
@@ -620,7 +626,7 @@ export class FoodProductionModule {
 
       const previousPrice = stapleFoodGood ? (market.goods[stapleFoodGood.i]?.price ?? stapleFoodGood.value) : 1;
       const farmgateUnitCost = rn(previousPrice * FARMGATE_PRICE_SHARE, 2);
-      this.settleFarmgatePayment(market, foodProduced, farmgateUnitCost, annualDemand);
+      this.settleFarmgatePayment(market, foodProduced, farmgateUnitCost, annualPurchaseDemand);
 
       // A market with catalogued, cell-suitable crops ages and caps stock per named crop (Wheat,
       // Rye, Barley, ...) so each one's own bucket-and-overflow bookkeeping stays real — rather

@@ -26,6 +26,15 @@ vi.mock("../economyContext", () => ({
   setRuralHouseholdFoodStock: vi.fn()
 }));
 
+vi.mock("./foodProcessingLedger", () => ({
+  getAleDemandSnapshot: vi.fn(() => ({
+    baselineDemand: 0,
+    waterSafetyDemand: 0,
+    monthlyDemand: 0,
+    drinkingWaterRisk: 0
+  }))
+}));
+
 import {
   getCultivableArea,
   getCultivatedArea,
@@ -40,6 +49,7 @@ import {
   getWorldContext,
   setRuralHouseholdFoodStock
 } from "../economyContext";
+import { getAleDemandSnapshot } from "./foodProcessingLedger";
 
 describe("FoodProduction", () => {
   let mockWorldContext: any;
@@ -215,6 +225,44 @@ describe("FoodProduction", () => {
     const ledger = mockWorldContext.markets[0].foodLedger;
     expect(ledger.foodProduced).toBe(0);
     expect(ledger.unsoldHarvest).toBeCloseTo(0.4, 2);
+  });
+
+  it("buys the brewers' grain on top of the eaters' and leaves it outside the export reserve", () => {
+    mockWorldContext = {
+      populationRate: 1,
+      urbanization: 1,
+      pack: {
+        cells: {
+          i: new Uint16Array([0]),
+          h: new Uint8Array([25]),
+          pop: new Float32Array([10]),
+          capacity: new Float32Array([20])
+        },
+        burgs: []
+      },
+      markets: [{ i: 1, goods: {} }]
+    };
+    ruralHouseholdFoodStock = new Float32Array([4]);
+    vi.mocked(getWorldContext).mockReturnValue(mockWorldContext);
+    vi.mocked(getMarkets).mockReturnValue(mockWorldContext.markets);
+    vi.mocked(getMarketCellColumn).mockReturnValue(new Uint16Array([1]));
+    vi.mocked(getCultivableArea).mockReturnValue(new Float32Array([10]));
+    vi.mocked(getCultivatedArea).mockReturnValue(new Float32Array([10]));
+    vi.mocked(getFoodPotential).mockReturnValue(new Float32Array([20]));
+    vi.mocked(getAleDemandSnapshot).mockReturnValue({
+      baselineDemand: 0.1,
+      waterSafetyDemand: 0,
+      monthlyDemand: 0.1,
+      drinkingWaterRisk: 0
+    });
+
+    FoodProduction.generateQuarterlyLedger(0);
+
+    // Ale takes 0.1 tun a month, one lot of grain a tun: a year's 1.2 plus this quarter's 0.3 of
+    // the 4.7 offered. No town eats from it, so all of it may go to the brewers.
+    const ledger = mockWorldContext.markets[0].foodLedger;
+    expect(ledger.foodProduced).toBeCloseTo(1.5, 2);
+    expect(ledger.exportable).toBeCloseTo(1.5, 2);
   });
 
   it("loses part of the household grain held above the reserve", () => {

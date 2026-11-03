@@ -11,6 +11,8 @@ export const KILOGRAMS_PER_CHEESE_LOT = 1_000;
 export const KILOGRAMS_PER_GRAPES_LOT = 1_000;
 /** Ale, cider and perry are traded by the tun of 1,000 L, five casks, so that a lot earns what the other goods' do. */
 export const LITERS_PER_BEER_LOT = 1_000;
+/** Each Beer recipe takes one lot of malting grain (barley, wheat, oats or rye) a tun. */
+export const GRAIN_LOTS_PER_BEER_LOT = 1;
 export const LITERS_PER_ORCHARD_DRINK_LOT = 1_000;
 export const KILOGRAMS_PER_ORCHARD_FRUIT_LOT = 1_000;
 /** Model pressing contract: 1.5 kg of fresh fruit per litre of finished drink. */
