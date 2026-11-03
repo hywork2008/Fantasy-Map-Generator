@@ -824,6 +824,48 @@ describe("runWorkerLoop steps (port-freight-queue-and-warehouses.md §10.23)", (
     expect(made).toEqual(["Missing Input", "Work", "Work"]);
     expect(total).toBe(2);
   });
+
+  it("staffs a town's own calibrated need before the profit ranking, up to 1.5 times its craft's headcount", () => {
+    setEconomyCalibrationState({ applyCalibration: true });
+    worldContext.populationRate = 1000;
+    worldContext.options = { ...worldContext.options, historicalPeriod: "highMedieval" };
+    const boots = good(1, "Boots");
+    const perfume = good(2, "Perfume");
+    const production = new ProductionModule() as unknown as LoopHarness;
+    const made: { name: string; labor: number }[] = [];
+    // Perfume always pays better whenever it is a candidate.
+    production.makeProductionDecision = (...args: unknown[]) => {
+      const candidates = args[7] as Good[];
+      const goal = candidates.includes(perfume) ? perfume : candidates.includes(boots) ? boots : null;
+      return goal ? { action: { good: goal }, candidates: [], goalGoodId: goal.i, laborProductivity: 1 } : null;
+    };
+    production.executeManufacture = (...args: unknown[]) => {
+      const action = (args[2] as { action: { good: Good } }).action;
+      const labor = args[3] as number;
+      made.push({ name: action.good.name, labor });
+      return { yieldLots: labor / laborPointsForLots(action.good.name, 1, 1000), laborUsed: labor };
+    };
+
+    // 5,000 people: 15 shoemakers a thousand, 75 people, 0.075 points; the stage stops at 1.5 times.
+    production.runWorkerLoop(
+      { priorityGoods: [], productiveGoods: [boots, perfume] },
+      {
+        burg: { i: 0, cell: 0, state: 0 },
+        population: 5,
+        workforce: 1,
+        activeGoalGoodId: null,
+        strategicDemandByGood: new Map(),
+        remainingCalibratedLots: new Map([[boots.i, 100]]),
+        orderedCalibratedLots: new Map(),
+        demandTargets: [],
+        demandCoverage: []
+      }
+    );
+
+    expect(made[0].name).toBe("Boots");
+    expect(made[0].labor).toBeCloseTo(0.075 * 1.5, 6);
+    expect(made.slice(1).every(entry => entry.name === "Perfume")).toBe(true);
+  });
 });
 
 describe("linen clothing preparation", () => {

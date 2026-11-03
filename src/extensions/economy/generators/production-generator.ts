@@ -100,7 +100,14 @@ import { settleMilling } from "./millCapacity";
 import { MineOperations } from "./mineOperations";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { Minting } from "./minting";
-import { expectedDomainWorkerPoints } from "./occupationalCalibration";
+import {
+  type ExpectedWorkerArgs,
+  expectedDomainWorkerPoints,
+  expectedWorkerPoints,
+  getOccupationalRowForGood,
+  type OccupationalCalibrationRow,
+  type OccupationalPool
+} from "./occupationalCalibration";
 import { OverseasRelations } from "./overseasRelations";
 import { beginPortProductionCycle } from "./portWarehouses";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
@@ -185,6 +192,12 @@ const PORT_CYCLE_DAYS = 30;
  * carve-outs protect different things and are free to diverge later.
  */
 const STRATEGIC_PRIORITY_LABOR_SHARE = 0.15;
+/** The local stage's labor for one craft, as a multiple of its urban-table headcount (urban-craft-staffing.md §3 decision 3). */
+const LOCAL_STAGE_CRAFT_CAP = 1.5;
+/** Share of the Tools a town could not forge that its smiths mend instead (urban-craft-staffing.md §6.2, provisional). */
+const SMITH_REPAIR_SHARE = 0.3;
+/** Planning attempts the local stage gives one good in a cycle. */
+const LOCAL_STAGE_ATTEMPTS_PER_GOOD = 4;
 
 const STATE_TECH_GATED_GOODS: Readonly<Record<string, (stateId: number) => boolean>> = {
   Liquor: isDistillationKnown
@@ -991,6 +1004,102 @@ export class ProductionModule {
       }
     }
 
+    // Phase 1a, the local stage (docs/plan/urban-craft-staffing.md §6.2): before the orders and the
+    // profit ranking, each guild good with a calibrated floor gets workshop labor up to the town's
+    // own monthly need, each craft up to LOCAL_STAGE_CRAFT_CAP times its urban-table headcount.
+    // Ranked by profit alone, a town's shoemakers and coopers lost every step to whatever paid best
+    // (§2.2). A good whose materials or margin fail is left, its reason in the planning diagnostics.
+    if (applyCalibration) {
+      let expectedArgs: ReturnType<typeof this.getExpectedWorkerArgs> | null = null;
+      const craftLaborLeft = new Map<OccupationalPool, number>();
+      const craftLeft = (row: OccupationalCalibrationRow): number => {
+        let left = craftLaborLeft.get(row.pool);
+        if (left == null) {
+          expectedArgs ??= this.getExpectedWorkerArgs(state, populationRate);
+          left = expectedWorkerPoints({ ...expectedArgs, row }) * LOCAL_STAGE_CRAFT_CAP;
+          craftLaborLeft.set(row.pool, left);
+        }
+        return left;
+      };
+      const spend = (row: OccupationalCalibrationRow, domain: CraftKnowledgeDomain | null, labor: number) => {
+        craftLaborLeft.set(row.pool, craftLeft(row) - labor);
+        workersUsed += labor;
+        if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + labor);
+      };
+
+      const failedGoodIds = new Set<number>();
+      for (const good of index.productiveGoods) {
+        const row = getOccupationalRowForGood(good.name);
+        if (!row) continue;
+        state.activeGoalGoodId = null;
+        // The stage spends none of the Burg's steps: a step is a population point of work, and a
+        // town of 3,000 people with three of them had no step left for its shoemakers after its
+        // first goods (2101: 391 of 400 towns hit the step limit). Its own bound is a few
+        // attempts a good, for an ingredient or two before the good itself.
+        for (let attempt = 0; attempt < LOCAL_STAGE_ATTEMPTS_PER_GOOD; attempt++) {
+          if (this.getLocalCalibratedLots(state, good.i) <= 0.001) break;
+          const workersLeft = Math.min(state.workforce - workersUsed, craftLeft(row));
+          const workerFraction = Math.min(1, workersLeft);
+          if (workerFraction <= 1e-9) break;
+
+          const decision = this.makeProductionDecision(
+            index,
+            state,
+            state.demandTargets,
+            state.demandCoverage,
+            state.activeGoalGoodId,
+            workersLeft,
+            workerFraction,
+            [good]
+          );
+          if (!decision) {
+            failedGoodIds.add(good.i); // No materials or no margin this cycle.
+            break;
+          }
+          state.activeGoalGoodId = decision.goalGoodId;
+
+          const actionGood = decision.action.good;
+          let laborBudget = state.remainingCalibratedLots.has(actionGood.i)
+            ? this.getCalibratedLaborBudget(state, actionGood, workersLeft, populationRate)
+            : workerFraction;
+          // The town's own need only; its orders are made in phase 1b and phase 2.
+          if (actionGood.i === good.i)
+            laborBudget = Math.min(
+              laborBudget,
+              this.getLocalCalibratedLots(state, good.i) * laborPointsForLots(good.name, 1, populationRate)
+            );
+          const { yieldLots, laborUsed } = this.executeManufacture(state, index, decision, laborBudget);
+          // A failure here is the town's purse or margin, not the State's: phase 1b's state-funded
+          // orders and phase 2 still try the good, so it is not skipped for the rest of the cycle.
+          const localSkips = new Set<number>();
+          this.settleCalibratedProduction(state, actionGood.i, yieldLots, laborUsed, true, localSkips);
+          spend(row, getCraftDomainForGood(actionGood.name), laborUsed);
+          // A good whose whole target, orders included, is made is done for the cycle.
+          if ((state.remainingCalibratedLots.get(actionGood.i) ?? 1) <= 0.001) skippedGoodIds.add(actionGood.i);
+          if (laborUsed <= 1e-9) {
+            failedGoodIds.add(good.i);
+            break;
+          }
+          if (localSkips.has(good.i)) break;
+        }
+      }
+
+      // Repair (§3 decision 4): the smiths mend a share of the Tools the town could not forge. It
+      // makes no Good; the townsfolk pay the smiths, who are townsfolk too, so no purse changes.
+      const tools = index.productiveGoods.find(good => good.name === "Tools");
+      const smithing = tools && getOccupationalRowForGood(tools.name);
+      if (tools && smithing && failedGoodIds.has(tools.i)) {
+        const repairLabor = Math.min(
+          this.getLocalCalibratedLots(state, tools.i) *
+            laborPointsForLots(tools.name, 1, populationRate) *
+            SMITH_REPAIR_SHARE,
+          craftLeft(smithing),
+          state.workforce - workersUsed
+        );
+        if (repairLabor > 1e-9) spend(smithing, "metallurgy", repairLabor);
+      }
+    }
+
     // Phase 1b: goods with outstanding Metallurg/strategic-procurement demand (state armories'
     // Arms/Muskets/Harnesses/Artillery/Arrows/Bullets orders, Shipbuilding's material orders) get
     // their own guaranteed labor share too, split proportionally to each good's own outstanding
@@ -1166,24 +1275,36 @@ export class ProductionModule {
 
     const domain = getCraftDomainForGood(good.name);
     if (domain) {
-      const port = Boolean(state.burg.port);
-      const stateId = state.burg.state || 0;
-      const expected = expectedDomainWorkerPoints({
-        domain,
-        laborPeople: laborPeople(state.population, populationRate),
-        populationRate,
-        port,
-        capital: Boolean(state.burg.capital),
-        hasQuarry: false,
-        period: this.worldContext.options.historicalPeriod,
-        technologyAdopted: id => isTechnologyStageAtLeast(getTechnologyStage(id, stateId), "adopted"),
-        employmentScale: getCraftEmploymentScale()
-      });
+      const expected = expectedDomainWorkerPoints({ ...this.getExpectedWorkerArgs(state, populationRate), domain });
       const orderedLabor = (state.orderedCalibratedLots.get(good.i) ?? 0) * laborPerLot;
-      cap = Math.min(cap, expected * domainShare(good.name, port) + orderedLabor);
+      cap = Math.min(cap, expected * domainShare(good.name, Boolean(state.burg.port)) + orderedLabor);
     }
 
     return Math.max(0, Math.min(cap, remainingLots * laborPerLot));
+  }
+
+  /** The Burg's inputs to the urban occupational table (occupationalCalibration.ts). */
+  private getExpectedWorkerArgs(
+    state: BurgProductionState,
+    populationRate: number
+  ): ExpectedWorkerArgs & { populationRate: number } {
+    const stateId = state.burg.state || 0;
+    return {
+      laborPeople: laborPeople(state.population, populationRate),
+      populationRate,
+      port: Boolean(state.burg.port),
+      capital: Boolean(state.burg.capital),
+      hasQuarry: false,
+      period: this.worldContext.options.historicalPeriod,
+      technologyAdopted: id => isTechnologyStageAtLeast(getTechnologyStage(id, stateId), "adopted"),
+      employmentScale: getCraftEmploymentScale()
+    };
+  }
+
+  /** A good's calibrated lots left this cycle for the town's own use, net of the orders on top of it. */
+  private getLocalCalibratedLots(state: BurgProductionState, goodId: number): number {
+    const remaining = state.remainingCalibratedLots.get(goodId) ?? 0;
+    return Math.max(0, remaining - (state.orderedCalibratedLots.get(goodId) ?? 0));
   }
 
   /**
@@ -1299,10 +1420,14 @@ export class ProductionModule {
     if (good.name === "Wool Blankets") {
       actualYield = Math.min(actualYield, getBlanketProductionHeadroom(state.market, state.inventory[good.i] || 0));
     }
-    actualYield = Math.min(
-      actualYield,
-      getFoodProcessingProductionHeadroom(state.market, good.name, state.inventory[good.i] || 0)
-    );
+    const foodHeadroom = getFoodProcessingProductionHeadroom(state.market, good.name, state.inventory[good.i] || 0);
+    actualYield = Math.min(actualYield, foodHeadroom);
+    // A good with neither a calibrated floor nor a ceiling of its own makes at most a lot a point
+    // of labor offered, as it did when such a lot cost a whole point. Its real work time is far less
+    // (craftDemandCalibration.ts), and with nothing else to stop it Tar and Spinning Wheels ran to
+    // thousands of lots a month (urban-craft-staffing.md §10.2, §10.3).
+    if (applyCalibration && !getGoodDemandCalibration(good.name) && !Number.isFinite(foodHeadroom))
+      actualYield = Math.min(actualYield, laborBudget);
 
     // Cap production by what the Burg (or State military fund) can actually afford. Without this,
     // ingredient purchases below had no budget check (Markets.buy() defaults to an unlimited budget)

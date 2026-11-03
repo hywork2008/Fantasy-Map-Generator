@@ -421,6 +421,21 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     ]
   },
   {
+    goodName: "Charcoal",
+    domain: null,
+    inlandShare: 0,
+    portShare: 0,
+    provenances: ["recipeDerived", "militaryLedger"],
+    annualLotsPerPerson: 0.0232,
+    fixtureLotsPerMonth: 17.4,
+    laborPointsPerLotAtDefaultRate: 0.00002,
+    residualWeight: 1,
+    sources: [
+      "the towns' own forging: Tools 0.02 + Bronze 0.0027 + Arms 0.0005 lots a person a year, one 50 kg sack each; forge orders add at runtime",
+      "0.6 person-day a sack: an earth kiln of ~1 t takes two colliers about a week (urban-craft-staffing.md §10.3). It was 21.5 person-months, and at that a winning step made a town's colliers 1,000 strong"
+    ]
+  },
+  {
     goodName: "Tar",
     domain: null,
     inlandShare: 0,
@@ -457,17 +472,14 @@ export function domainShare(goodName: string, port: boolean): number {
  * uncapped batching; without an entry here such a Good costs a whole labour point (1,000
  * person-months) a lot, and its wages alone exceed its price.
  *
- * Charcoal: preserve the existing work time (0.0215 points/50 kg) during the physical recipe
- * correction. Its former price-minus-Wood derivation used an invalid 9.75 t input and is retired.
- * Do not increase work time simply to absorb the lower feedstock bill (§37).
- *
- * The other entries are person-months a lot ÷ 1,000 for the pre-industrial recipe Goods of a
+ * Entries are person-months a lot ÷ 1,000 for the pre-industrial recipe Goods of a
  * 1300 map (docs/plan/urban-craft-staffing.md §6.3, guild-halls-and-urban-trades.md D1), from the
  * lot sizes in goodMeasureCatalog.ts. Raw material work (felling, herding, fishing, the vineyard)
  * stays in the ingredient.
  */
 export const UNCALIBRATED_LABOR_POINTS_PER_LOT: Readonly<Record<string, number>> = {
-  Charcoal: 0.0215,
+  // Baking. 20 loaves of the ~250 a baker draws from the oven in a day.
+  Bread: 0.000003,
   // Victualling. 25 kg of split cod hung to dry on racks.
   Stockfish: 0.00001,
   // 0.6 t of cheese turned in the smokehouse.

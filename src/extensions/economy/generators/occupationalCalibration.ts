@@ -332,6 +332,20 @@ export function getOccupationalRow(pool: OccupationalPool): OccupationalCalibrat
   return row;
 }
 
+let rowByGoodName: Map<string, OccupationalCalibrationRow> | null = null;
+
+/** The guild craft whose table row lists a Good (docs/plan/urban-craft-staffing.md §6.2). */
+export function getOccupationalRowForGood(goodName: string): OccupationalCalibrationRow | undefined {
+  if (!rowByGoodName) {
+    rowByGoodName = new Map();
+    for (const row of OCCUPATIONAL_CALIBRATION) {
+      if (!row.guildDomain) continue;
+      for (const name of row.goodNames) rowByGoodName.set(name, row);
+    }
+  }
+  return rowByGoodName.get(goodName);
+}
+
 /** The crafts of one guild domain. */
 export function getDomainOccupationalRows(domain: CraftKnowledgeDomain): readonly OccupationalCalibrationRow[] {
   return OCCUPATIONAL_CALIBRATION.filter(row => row.guildDomain === domain);
