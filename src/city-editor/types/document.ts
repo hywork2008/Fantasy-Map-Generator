@@ -669,6 +669,8 @@ export interface CityDocument {
    * Buildings stay outside these disks. Absent keeps every gate's ordinary plaza.
    */
   marketFunnel?: { center: Point; radius: number }[];
+  /** Explicitly populated plaza markets; rendering never generates their stalls. */
+  markets?: import("./contracts/market").MarketSite[];
   /** Imported point decorations such as trees; Ward landmarks are derived at render time. */
   elements: CityElement[];
   /** Urban morphology layout (circulade, bram, organic or classic) */

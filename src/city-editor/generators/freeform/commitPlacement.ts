@@ -163,11 +163,18 @@ export function commitPlacement(
 }
 
 export function removePlacement(document: CityDocument, id: string): CityDocument {
+  const markets = document.markets?.map(market =>
+    market.stallElementIds.includes(id)
+      ? { ...market, stallElementIds: market.stallElementIds.filter(stallId => stallId !== id) }
+      : market
+  );
+  const metadata = markets ? { markets } : {};
   if (!isPlotPlacement(document, id)) {
-    return { ...document, elements: document.elements.filter(item => item.id !== id) };
+    return { ...document, ...metadata, elements: document.elements.filter(item => item.id !== id) };
   }
   return {
     ...document,
+    ...metadata,
     elements: document.elements.filter(item => item.id !== id),
     terrain: document.terrain
       ? { ...document.terrain, features: document.terrain.features.filter(feature => feature.id !== plotFeatureId(id)) }
