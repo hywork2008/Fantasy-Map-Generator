@@ -206,13 +206,15 @@ function calculateAleDemand(market: Market): AleDemandSnapshot {
   let urbanBaselineDemand = 0;
   let waterSafetyDemand = 0;
   let riskWeightedPeople = 0;
+  // A market that takes in grapes is wine country, and its towns drink wine (WINE_TARGETS).
+  const wineCountry = (getGoodLedger(market, "Grapes")?.marketIntake ?? 0) > 0;
+  const urbanLiters = wineCountry ? ALE_TARGETS.baselineLitersPerAdultYear : ALE_TARGETS.urbanLitersPerAdultYear;
 
   for (const burg of world.pack.burgs) {
     if (!burg.i || burg.removed || burg.market !== market.i) continue;
     const people = getBurgPeople(burg.population);
     if (people <= 0) continue;
-    const baselineDemand =
-      (people * ALE_TARGETS.adultShare * ALE_TARGETS.baselineLitersPerAdultYear) / 12 / LITERS_PER_BEER_LOT;
+    const baselineDemand = (people * ALE_TARGETS.adultShare * urbanLiters) / 12 / LITERS_PER_BEER_LOT;
     const system = systemsByBurgId.get(burg.i);
     const waterRisk = system ? getAleWaterRisk(system) : getAleSanitationFallbackRisk(burg.sanitation);
     urbanPeople += people;

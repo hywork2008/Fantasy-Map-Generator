@@ -1,0 +1,5627 @@
+{
+ "before": {
+  "2101": [
+   {
+    "month": 0,
+    "urbanPeople": 667492,
+    "craftPer1000": 9.5,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 10,
+      "guildPer1000": {
+       "metallurgy": 0.3,
+       "woodworking": 0.3,
+       "textiles": 5.5,
+       "leather": 2.3,
+       "glassware": 0,
+       "printing": 0.1,
+       "victualling": 1.1
+      }
+     },
+     "3k-10k": {
+      "n": 61,
+      "craftPer1000": 9.5,
+      "guildPer1000": {
+       "metallurgy": 0.3,
+       "woodworking": 0.3,
+       "masonry": 0.1,
+       "textiles": 5.2,
+       "leather": 2.4,
+       "glassware": 0,
+       "printing": 0.1,
+       "victualling": 1.1
+      }
+     },
+     "1k-3k": {
+      "n": 114,
+      "craftPer1000": 10.2,
+      "guildPer1000": {
+       "metallurgy": 0.4,
+       "woodworking": 0.4,
+       "textiles": 4.9,
+       "leather": 3.6,
+       "victualling": 1.1,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 222,
+      "craftPer1000": 8.3,
+      "guildPer1000": {
+       "textiles": 2.8,
+       "leather": 5.1,
+       "victualling": 1,
+       "metallurgy": 1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 9,
+    "output": {
+     "Preserved food": 618,
+     "Beer": 0,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 15.7,
+     "Soap": 1,
+     "Vinegar": 65,
+     "Stockfish": 0,
+     "Tar": 109.2,
+     "Boots": 377,
+     "Barrels": 644.3,
+     "Tools": 1,
+     "Ceramics": 5.1,
+     "Garments": 0,
+     "Cloth": 13.3
+    }
+   },
+   {
+    "month": 1,
+    "urbanPeople": 667143,
+    "craftPer1000": 20.6,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 19.7,
+      "guildPer1000": {
+       "metallurgy": 0.4,
+       "woodworking": 0.6,
+       "textiles": 6.7,
+       "leather": 6.9,
+       "glassware": 0,
+       "printing": 0.2,
+       "victualling": 2,
+       "baking": 2.4
+      }
+     },
+     "3k-10k": {
+      "n": 61,
+      "craftPer1000": 20.6,
+      "guildPer1000": {
+       "metallurgy": 0.5,
+       "woodworking": 0.6,
+       "masonry": 0.1,
+       "textiles": 7.7,
+       "leather": 6.9,
+       "glassware": 0,
+       "printing": 0.2,
+       "victualling": 2.1,
+       "brewing": 0,
+       "baking": 2.4
+      }
+     },
+     "1k-3k": {
+      "n": 114,
+      "craftPer1000": 21.1,
+      "guildPer1000": {
+       "metallurgy": 0.6,
+       "woodworking": 0.4,
+       "textiles": 7.1,
+       "leather": 7.9,
+       "victualling": 2.1,
+       "brewing": 0.3,
+       "baking": 2.4,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 222,
+      "craftPer1000": 19.9,
+      "guildPer1000": {
+       "textiles": 5.1,
+       "leather": 9,
+       "victualling": 1.4,
+       "baking": 2.4,
+       "metallurgy": 1.4,
+       "brewing": 0.1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 550.9,
+     "Beer": 2163.7,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 540.6,
+     "Soap": 30.7,
+     "Vinegar": 18.3,
+     "Stockfish": 0,
+     "Tar": 63.5,
+     "Boots": 707.6,
+     "Barrels": 644.6,
+     "Tools": 80.7,
+     "Ceramics": 5.1,
+     "Garments": 0,
+     "Cloth": 13.3
+    }
+   },
+   {
+    "month": 6,
+    "urbanPeople": 664593,
+    "craftPer1000": 79.4,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 135,
+      "guildPer1000": {
+       "metallurgy": 1,
+       "woodworking": 0.5,
+       "textiles": 108.5,
+       "leather": 11,
+       "glassware": 0,
+       "printing": 0.5,
+       "victualling": 4,
+       "baking": 8.9
+      }
+     },
+     "3k-10k": {
+      "n": 61,
+      "craftPer1000": 76.8,
+      "guildPer1000": {
+       "metallurgy": 1.4,
+       "woodworking": 0.6,
+       "masonry": 0.2,
+       "textiles": 48.2,
+       "leather": 13.1,
+       "glassware": 0.3,
+       "printing": 0.4,
+       "victualling": 3.6,
+       "brewing": 0,
+       "baking": 8.9
+      }
+     },
+     "1k-3k": {
+      "n": 113,
+      "craftPer1000": 77.6,
+      "guildPer1000": {
+       "metallurgy": 1.5,
+       "woodworking": 0.6,
+       "textiles": 45.1,
+       "leather": 16,
+       "victualling": 3.7,
+       "brewing": 0.3,
+       "baking": 8.9,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 223,
+      "craftPer1000": 66.6,
+      "guildPer1000": {
+       "textiles": 32.4,
+       "leather": 18.2,
+       "victualling": 2.3,
+       "baking": 8.2,
+       "metallurgy": 1.8,
+       "brewing": 0.1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 400,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 302.4,
+     "Soap": 55.9,
+     "Vinegar": 12.1,
+     "Stockfish": 0,
+     "Tar": 31.5,
+     "Boots": 446.7,
+     "Barrels": 112.7,
+     "Tools": 1,
+     "Ceramics": 3,
+     "Garments": 13.2,
+     "Cloth": 13.1
+    }
+   },
+   {
+    "month": 12,
+    "urbanPeople": 664491,
+    "craftPer1000": 90.2,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 196.9,
+      "guildPer1000": {
+       "metallurgy": 1.2,
+       "woodworking": 0.6,
+       "textiles": 167.7,
+       "leather": 11.3,
+       "glassware": 0.2,
+       "printing": 0.6,
+       "victualling": 3.8,
+       "baking": 11.3
+      }
+     },
+     "3k-10k": {
+      "n": 61,
+      "craftPer1000": 83.9,
+      "guildPer1000": {
+       "metallurgy": 2.2,
+       "woodworking": 0.5,
+       "masonry": 0.2,
+       "textiles": 51.7,
+       "leather": 13.7,
+       "glassware": 0.3,
+       "printing": 0.4,
+       "victualling": 3.2,
+       "brewing": 0.2,
+       "baking": 11.2
+      }
+     },
+     "1k-3k": {
+      "n": 113,
+      "craftPer1000": 86.2,
+      "guildPer1000": {
+       "metallurgy": 2.7,
+       "woodworking": 0.6,
+       "textiles": 50,
+       "leather": 16.8,
+       "victualling": 3.3,
+       "brewing": 0.3,
+       "baking": 11.1,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 224,
+      "craftPer1000": 72.8,
+      "guildPer1000": {
+       "textiles": 34.1,
+       "leather": 20.3,
+       "victualling": 1.8,
+       "baking": 10.3,
+       "metallurgy": 2.4,
+       "brewing": 0.1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 312.1,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 296.7,
+     "Soap": 42.7,
+     "Vinegar": 0.9,
+     "Stockfish": 0,
+     "Tar": 5.3,
+     "Boots": 418.6,
+     "Barrels": 366.4,
+     "Tools": 82.9,
+     "Ceramics": 1.6,
+     "Garments": 12.2,
+     "Cloth": 13.2
+    }
+   },
+   {
+    "month": 24,
+    "urbanPeople": 668259,
+    "craftPer1000": 80.9,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 162.6,
+      "guildPer1000": {
+       "metallurgy": 1.5,
+       "woodworking": 0.3,
+       "textiles": 132,
+       "leather": 12,
+       "glassware": 0.8,
+       "printing": 0.6,
+       "victualling": 3,
+       "baking": 11.9
+      }
+     },
+     "3k-10k": {
+      "n": 61,
+      "craftPer1000": 74.5,
+      "guildPer1000": {
+       "metallurgy": 2.4,
+       "woodworking": 0.5,
+       "masonry": 0.2,
+       "textiles": 40.4,
+       "leather": 14.9,
+       "glassware": 0.2,
+       "printing": 0.4,
+       "victualling": 3,
+       "brewing": 0,
+       "baking": 11.9
+      }
+     },
+     "1k-3k": {
+      "n": 114,
+      "craftPer1000": 77.8,
+      "guildPer1000": {
+       "metallurgy": 3.3,
+       "woodworking": 0.5,
+       "textiles": 38.7,
+       "leather": 18.1,
+       "glassware": 0,
+       "victualling": 3.3,
+       "brewing": 0.2,
+       "baking": 11.9,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 224,
+      "craftPer1000": 73.6,
+      "guildPer1000": {
+       "textiles": 32.4,
+       "leather": 21.7,
+       "victualling": 1.5,
+       "baking": 11.2,
+       "metallurgy": 2.7,
+       "brewing": 0.2
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 212.9,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 302.6,
+     "Soap": 50.9,
+     "Vinegar": 3.3,
+     "Stockfish": 0,
+     "Tar": 11.5,
+     "Boots": 439,
+     "Barrels": 198.8,
+     "Tools": 134.5,
+     "Ceramics": 1.7,
+     "Garments": 11.6,
+     "Cloth": 13.1
+    }
+   },
+   {
+    "month": 36,
+    "urbanPeople": 672541,
+    "craftPer1000": 75.8,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 122,
+      "guildPer1000": {
+       "metallurgy": 2.1,
+       "woodworking": 0.4,
+       "textiles": 90.4,
+       "leather": 12.3,
+       "glassware": 0.8,
+       "printing": 0.6,
+       "victualling": 3,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 62,
+      "craftPer1000": 72.3,
+      "guildPer1000": {
+       "metallurgy": 2.4,
+       "woodworking": 0.5,
+       "masonry": 0.2,
+       "textiles": 37.7,
+       "leather": 15.1,
+       "glassware": 0.2,
+       "printing": 0.4,
+       "victualling": 3.3,
+       "brewing": 0.1,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 114,
+      "craftPer1000": 74,
+      "guildPer1000": {
+       "metallurgy": 3.2,
+       "woodworking": 0.5,
+       "textiles": 35.2,
+       "leather": 17.7,
+       "glassware": 0,
+       "victualling": 3.5,
+       "brewing": 0.2,
+       "baking": 11.9,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 223,
+      "craftPer1000": 71.6,
+      "guildPer1000": {
+       "textiles": 30.3,
+       "leather": 22,
+       "victualling": 1.7,
+       "baking": 11.2,
+       "metallurgy": 2.6,
+       "brewing": 0.2
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 728,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 279.9,
+     "Soap": 9.9,
+     "Vinegar": 1.1,
+     "Stockfish": 0,
+     "Tar": 0.6,
+     "Boots": 436.2,
+     "Barrels": 138,
+     "Tools": 131.4,
+     "Ceramics": 1.7,
+     "Garments": 11.9,
+     "Cloth": 13
+    }
+   },
+   {
+    "month": 48,
+    "urbanPeople": 677798,
+    "craftPer1000": 71.4,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 77.4,
+      "guildPer1000": {
+       "metallurgy": 1.9,
+       "woodworking": 0.4,
+       "textiles": 46.3,
+       "leather": 11.4,
+       "glassware": 0.7,
+       "printing": 0.4,
+       "victualling": 3.8,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 61,
+      "craftPer1000": 70.1,
+      "guildPer1000": {
+       "metallurgy": 2.5,
+       "woodworking": 0.5,
+       "masonry": 0.2,
+       "textiles": 36,
+       "leather": 14.4,
+       "glassware": 0.2,
+       "printing": 0.4,
+       "victualling": 3.4,
+       "brewing": 0,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 114,
+      "craftPer1000": 72,
+      "guildPer1000": {
+       "metallurgy": 3.2,
+       "woodworking": 0.5,
+       "textiles": 33.7,
+       "leather": 17.5,
+       "glassware": 0,
+       "victualling": 3.5,
+       "brewing": 0.2,
+       "baking": 11.8,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 223,
+      "craftPer1000": 71.1,
+      "guildPer1000": {
+       "textiles": 29.5,
+       "leather": 21.7,
+       "victualling": 1.8,
+       "baking": 11.1,
+       "metallurgy": 2.6,
+       "brewing": 0.2
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 304.8,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 279.8,
+     "Soap": 14.7,
+     "Vinegar": 2.9,
+     "Stockfish": 0,
+     "Tar": 1,
+     "Boots": 435.3,
+     "Barrels": 229.6,
+     "Tools": 123.4,
+     "Ceramics": 1.7,
+     "Garments": 11.5,
+     "Cloth": 13.2
+    }
+   },
+   {
+    "month": 60,
+    "urbanPeople": 683171,
+    "craftPer1000": 70.9,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 74.5,
+      "guildPer1000": {
+       "metallurgy": 1.3,
+       "woodworking": 0.7,
+       "textiles": 42.8,
+       "leather": 11.3,
+       "glassware": 0.6,
+       "printing": 0.5,
+       "victualling": 4.6,
+       "baking": 11.9
+      }
+     },
+     "3k-10k": {
+      "n": 63,
+      "craftPer1000": 70,
+      "guildPer1000": {
+       "metallurgy": 2.6,
+       "woodworking": 0.6,
+       "masonry": 0.2,
+       "textiles": 34.8,
+       "leather": 14.8,
+       "glassware": 0.2,
+       "printing": 0.4,
+       "victualling": 3.8,
+       "brewing": 0.1,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 111,
+      "craftPer1000": 71.4,
+      "guildPer1000": {
+       "metallurgy": 3.3,
+       "woodworking": 0.6,
+       "textiles": 32.9,
+       "leather": 17.5,
+       "glassware": 0.1,
+       "victualling": 3.6,
+       "brewing": 0.1,
+       "baking": 11.8,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 224,
+      "craftPer1000": 71.1,
+      "guildPer1000": {
+       "woodworking": 0,
+       "textiles": 29.3,
+       "leather": 21.8,
+       "victualling": 2.1,
+       "baking": 11.1,
+       "metallurgy": 2.5,
+       "brewing": 0.2
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 991.9,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 282.6,
+     "Soap": 16.1,
+     "Vinegar": 5.8,
+     "Stockfish": 0,
+     "Tar": 0.6,
+     "Boots": 457.1,
+     "Barrels": 178.3,
+     "Tools": 129.2,
+     "Ceramics": 1.7,
+     "Garments": 12.4,
+     "Cloth": 13.7
+    }
+   }
+  ],
+  "2102": [
+   {
+    "month": 0,
+    "urbanPeople": 1200041,
+    "craftPer1000": 10.7,
+    "bands": {
+     "10k+": {
+      "n": 10,
+      "craftPer1000": 8.6,
+      "guildPer1000": {
+       "metallurgy": 0.3,
+       "woodworking": 0.4,
+       "masonry": 0.1,
+       "textiles": 3.3,
+       "leather": 3.2,
+       "glassware": 0,
+       "printing": 0.1,
+       "victualling": 1.1
+      }
+     },
+     "3k-10k": {
+      "n": 110,
+      "craftPer1000": 10.5,
+      "guildPer1000": {
+       "metallurgy": 0.4,
+       "woodworking": 0.4,
+       "masonry": 0.1,
+       "textiles": 2.7,
+       "leather": 5.6,
+       "glassware": 0,
+       "printing": 0.1,
+       "victualling": 1.1
+      }
+     },
+     "1k-3k": {
+      "n": 198,
+      "craftPer1000": 11.2,
+      "guildPer1000": {
+       "woodworking": 0.4,
+       "textiles": 3,
+       "leather": 6.1,
+       "victualling": 1.1,
+       "metallurgy": 0.7,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 329,
+      "craftPer1000": 11.8,
+      "guildPer1000": {
+       "textiles": 2.9,
+       "leather": 6.8,
+       "victualling": 1.1,
+       "metallurgy": 0.8
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 1110.9,
+     "Beer": 0,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 63.1,
+     "Soap": 0,
+     "Vinegar": 95,
+     "Stockfish": 0,
+     "Tar": 166,
+     "Boots": 1145.4,
+     "Barrels": 1247.2,
+     "Tools": 30.2,
+     "Ceramics": 39.5,
+     "Garments": 0,
+     "Cloth": 24.3
+    }
+   },
+   {
+    "month": 1,
+    "urbanPeople": 1199914,
+    "craftPer1000": 24.1,
+    "bands": {
+     "10k+": {
+      "n": 10,
+      "craftPer1000": 19.2,
+      "guildPer1000": {
+       "metallurgy": 0.5,
+       "woodworking": 0.6,
+       "masonry": 0.2,
+       "textiles": 5.4,
+       "leather": 7.7,
+       "glassware": 0.1,
+       "printing": 0.2,
+       "victualling": 2,
+       "baking": 2.4
+      }
+     },
+     "3k-10k": {
+      "n": 110,
+      "craftPer1000": 23.1,
+      "guildPer1000": {
+       "metallurgy": 0.7,
+       "woodworking": 0.6,
+       "masonry": 0.2,
+       "textiles": 6.4,
+       "leather": 10.3,
+       "glassware": 0.1,
+       "printing": 0.2,
+       "victualling": 2,
+       "brewing": 0,
+       "baking": 2.4
+      }
+     },
+     "1k-3k": {
+      "n": 198,
+      "craftPer1000": 26.4,
+      "guildPer1000": {
+       "woodworking": 0.5,
+       "textiles": 8.8,
+       "leather": 10.9,
+       "victualling": 2.1,
+       "baking": 2.4,
+       "metallurgy": 0.9,
+       "brewing": 0.3,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 329,
+      "craftPer1000": 26.4,
+      "guildPer1000": {
+       "textiles": 8,
+       "leather": 11.8,
+       "victualling": 1.5,
+       "baking": 2.3,
+       "metallurgy": 1.1,
+       "brewing": 0.1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 958.5,
+     "Beer": 3595.7,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 979.9,
+     "Soap": 54.5,
+     "Vinegar": 95.2,
+     "Stockfish": 0,
+     "Tar": 46.3,
+     "Boots": 1286.8,
+     "Barrels": 1251,
+     "Tools": 165.9,
+     "Ceramics": 36.2,
+     "Garments": 0,
+     "Cloth": 24.2
+    }
+   },
+   {
+    "month": 6,
+    "urbanPeople": 1199962,
+    "craftPer1000": 107.5,
+    "bands": {
+     "10k+": {
+      "n": 10,
+      "craftPer1000": 113.3,
+      "guildPer1000": {
+       "metallurgy": 1,
+       "woodworking": 0.6,
+       "masonry": 0.4,
+       "textiles": 85.1,
+       "leather": 12,
+       "glassware": 0.2,
+       "printing": 0.5,
+       "victualling": 4.1,
+       "baking": 8.9
+      }
+     },
+     "3k-10k": {
+      "n": 110,
+      "craftPer1000": 108.9,
+      "guildPer1000": {
+       "metallurgy": 1.7,
+       "woodworking": 0.8,
+       "masonry": 0.4,
+       "textiles": 76.7,
+       "leather": 15.3,
+       "glassware": 0.2,
+       "printing": 0.3,
+       "victualling": 4,
+       "brewing": 0,
+       "baking": 8.8
+      }
+     },
+     "1k-3k": {
+      "n": 200,
+      "craftPer1000": 107.7,
+      "guildPer1000": {
+       "woodworking": 0.8,
+       "textiles": 71,
+       "leather": 18.5,
+       "glassware": 0,
+       "victualling": 4.1,
+       "baking": 8.8,
+       "metallurgy": 2.3,
+       "masonry": 0.1,
+       "brewing": 0.6
+      }
+     },
+     "<1k": {
+      "n": 327,
+      "craftPer1000": 96.5,
+      "guildPer1000": {
+       "textiles": 57,
+       "leather": 21.9,
+       "victualling": 3.1,
+       "baking": 8.2,
+       "metallurgy": 1.8,
+       "brewing": 0.3
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 13,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 1548.9,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 613.7,
+     "Soap": 68.3,
+     "Vinegar": 15.4,
+     "Stockfish": 0,
+     "Tar": 42.3,
+     "Boots": 768.2,
+     "Barrels": 525.2,
+     "Tools": 23.2,
+     "Ceramics": 21.1,
+     "Garments": 23.4,
+     "Cloth": 24.3
+    }
+   },
+   {
+    "month": 12,
+    "urbanPeople": 1221208,
+    "craftPer1000": 108.8,
+    "bands": {
+     "10k+": {
+      "n": 10,
+      "craftPer1000": 115.7,
+      "guildPer1000": {
+       "metallurgy": 1.5,
+       "woodworking": 0.4,
+       "masonry": 0.5,
+       "textiles": 84.4,
+       "leather": 12.1,
+       "glassware": 0.3,
+       "printing": 0.5,
+       "victualling": 4.6,
+       "baking": 11.2
+      }
+     },
+     "3k-10k": {
+      "n": 112,
+      "craftPer1000": 108.3,
+      "guildPer1000": {
+       "metallurgy": 2.1,
+       "woodworking": 0.6,
+       "masonry": 0.5,
+       "textiles": 72.7,
+       "leather": 15.9,
+       "glassware": 0.4,
+       "printing": 0.4,
+       "victualling": 4.2,
+       "brewing": 0,
+       "baking": 11
+      }
+     },
+     "1k-3k": {
+      "n": 204,
+      "craftPer1000": 108.4,
+      "guildPer1000": {
+       "metallurgy": 2.6,
+       "woodworking": 0.7,
+       "textiles": 67.6,
+       "leather": 19.9,
+       "glassware": 0,
+       "victualling": 4.2,
+       "baking": 10.9,
+       "masonry": 0.1,
+       "brewing": 0.5
+      }
+     },
+     "<1k": {
+      "n": 330,
+      "craftPer1000": 106,
+      "guildPer1000": {
+       "textiles": 62.3,
+       "leather": 24,
+       "victualling": 3.1,
+       "baking": 10.3,
+       "metallurgy": 2.2,
+       "brewing": 0.3
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 5.9,
+     "Beer": 991.8,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 567.1,
+     "Soap": 62.4,
+     "Vinegar": 23.4,
+     "Stockfish": 0,
+     "Tar": 18.9,
+     "Boots": 754.1,
+     "Barrels": 548.9,
+     "Tools": 191.3,
+     "Ceramics": 19.4,
+     "Garments": 22.2,
+     "Cloth": 24.4
+    }
+   },
+   {
+    "month": 24,
+    "urbanPeople": 1249751,
+    "craftPer1000": 85.8,
+    "bands": {
+     "10k+": {
+      "n": 11,
+      "craftPer1000": 86.3,
+      "guildPer1000": {
+       "metallurgy": 1.6,
+       "woodworking": 0.5,
+       "masonry": 0.5,
+       "textiles": 51.7,
+       "leather": 14.3,
+       "glassware": 0.5,
+       "printing": 0.5,
+       "victualling": 4.5,
+       "brewing": 0,
+       "baking": 11.9
+      }
+     },
+     "3k-10k": {
+      "n": 113,
+      "craftPer1000": 77.8,
+      "guildPer1000": {
+       "metallurgy": 2.1,
+       "woodworking": 0.6,
+       "masonry": 0.4,
+       "textiles": 39.8,
+       "leather": 17.4,
+       "glassware": 0.4,
+       "printing": 0.4,
+       "victualling": 4.2,
+       "brewing": 0,
+       "baking": 11.8
+      }
+     },
+     "1k-3k": {
+      "n": 209,
+      "craftPer1000": 94.3,
+      "guildPer1000": {
+       "metallurgy": 2.7,
+       "woodworking": 0.7,
+       "textiles": 49.8,
+       "leather": 22.9,
+       "glassware": 0,
+       "victualling": 4.3,
+       "baking": 11.6,
+       "brewing": 0.5,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 330,
+      "craftPer1000": 94.7,
+      "guildPer1000": {
+       "textiles": 47.3,
+       "leather": 26,
+       "victualling": 3.2,
+       "baking": 11.1,
+       "metallurgy": 2.3,
+       "brewing": 0.3
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 13,
+    "output": {
+     "Preserved food": 2.9,
+     "Beer": 1151.2,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 654,
+     "Soap": 31.3,
+     "Vinegar": 26.2,
+     "Stockfish": 0,
+     "Tar": 12.7,
+     "Boots": 784.7,
+     "Barrels": 677.9,
+     "Tools": 252.7,
+     "Ceramics": 20.7,
+     "Garments": 22.1,
+     "Cloth": 25.1
+    }
+   },
+   {
+    "month": 36,
+    "urbanPeople": 1276863,
+    "craftPer1000": 80.9,
+    "bands": {
+     "10k+": {
+      "n": 11,
+      "craftPer1000": 80.7,
+      "guildPer1000": {
+       "metallurgy": 1.7,
+       "woodworking": 0.5,
+       "masonry": 0.5,
+       "textiles": 45.5,
+       "leather": 15,
+       "glassware": 0.3,
+       "printing": 0.5,
+       "victualling": 4.3,
+       "brewing": 0,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 117,
+      "craftPer1000": 71.7,
+      "guildPer1000": {
+       "metallurgy": 2.3,
+       "woodworking": 0.6,
+       "masonry": 0.4,
+       "textiles": 33,
+       "leather": 17.8,
+       "glassware": 0.4,
+       "printing": 0.4,
+       "victualling": 4.2,
+       "brewing": 0.1,
+       "baking": 11.8
+      }
+     },
+     "1k-3k": {
+      "n": 212,
+      "craftPer1000": 91.9,
+      "guildPer1000": {
+       "metallurgy": 2.9,
+       "woodworking": 0.7,
+       "textiles": 46,
+       "leather": 23.7,
+       "glassware": 0,
+       "victualling": 4.4,
+       "baking": 11.8,
+       "brewing": 0.3,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 329,
+      "craftPer1000": 90.1,
+      "guildPer1000": {
+       "textiles": 42.4,
+       "leather": 26.5,
+       "victualling": 3.2,
+       "baking": 11.2,
+       "metallurgy": 2.3,
+       "brewing": 0.4
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 12.2,
+     "Beer": 1659.9,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 566.3,
+     "Soap": 27.3,
+     "Vinegar": 8.5,
+     "Stockfish": 0,
+     "Tar": 8.6,
+     "Boots": 826.8,
+     "Barrels": 535.1,
+     "Tools": 214.3,
+     "Ceramics": 19.4,
+     "Garments": 23.1,
+     "Cloth": 25.6
+    }
+   },
+   {
+    "month": 48,
+    "urbanPeople": 1306759,
+    "craftPer1000": 76.9,
+    "bands": {
+     "10k+": {
+      "n": 11,
+      "craftPer1000": 73.6,
+      "guildPer1000": {
+       "metallurgy": 1.8,
+       "woodworking": 0.5,
+       "masonry": 0.5,
+       "textiles": 39.5,
+       "leather": 13.9,
+       "glassware": 0.5,
+       "printing": 0.5,
+       "victualling": 4.1,
+       "brewing": 0,
+       "baking": 11.9
+      }
+     },
+     "3k-10k": {
+      "n": 120,
+      "craftPer1000": 69.6,
+      "guildPer1000": {
+       "metallurgy": 2.4,
+       "woodworking": 0.7,
+       "masonry": 0.4,
+       "textiles": 30.4,
+       "leather": 18.1,
+       "glassware": 0.4,
+       "printing": 0.4,
+       "victualling": 4.1,
+       "brewing": 0.1,
+       "baking": 11.9
+      }
+     },
+     "1k-3k": {
+      "n": 216,
+      "craftPer1000": 87.1,
+      "guildPer1000": {
+       "metallurgy": 2.9,
+       "woodworking": 0.8,
+       "textiles": 41.5,
+       "leather": 23.7,
+       "glassware": 0,
+       "victualling": 4.4,
+       "baking": 11.6,
+       "brewing": 0.3,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 328,
+      "craftPer1000": 82.7,
+      "guildPer1000": {
+       "textiles": 35,
+       "leather": 26.5,
+       "victualling": 3.1,
+       "baking": 11.2,
+       "metallurgy": 2.4,
+       "brewing": 0.5
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 13,
+    "output": {
+     "Preserved food": 1.9,
+     "Beer": 1831.5,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 630,
+     "Soap": 19,
+     "Vinegar": 4.5,
+     "Stockfish": 0,
+     "Tar": 7.9,
+     "Boots": 851.6,
+     "Barrels": 723.9,
+     "Tools": 213.1,
+     "Ceramics": 23.1,
+     "Garments": 23.4,
+     "Cloth": 26.5
+    }
+   },
+   {
+    "month": 60,
+    "urbanPeople": 1338782,
+    "craftPer1000": 75,
+    "bands": {
+     "10k+": {
+      "n": 11,
+      "craftPer1000": 69.3,
+      "guildPer1000": {
+       "metallurgy": 2.1,
+       "woodworking": 0.6,
+       "masonry": 0.5,
+       "textiles": 35.1,
+       "leather": 14,
+       "glassware": 0.4,
+       "printing": 0.5,
+       "victualling": 3.8,
+       "brewing": 0,
+       "baking": 11.9
+      }
+     },
+     "3k-10k": {
+      "n": 128,
+      "craftPer1000": 67.6,
+      "guildPer1000": {
+       "metallurgy": 2.5,
+       "woodworking": 0.7,
+       "masonry": 0.5,
+       "textiles": 29,
+       "leather": 17.5,
+       "glassware": 0.4,
+       "printing": 0.4,
+       "victualling": 4.2,
+       "brewing": 0,
+       "baking": 11.9
+      }
+     },
+     "1k-3k": {
+      "n": 216,
+      "craftPer1000": 87.8,
+      "guildPer1000": {
+       "metallurgy": 3,
+       "woodworking": 0.8,
+       "textiles": 42.6,
+       "leather": 22.8,
+       "glassware": 0,
+       "victualling": 4.4,
+       "brewing": 0.4,
+       "baking": 11.7,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 326,
+      "craftPer1000": 79.1,
+      "guildPer1000": {
+       "textiles": 32.7,
+       "leather": 25,
+       "victualling": 3.1,
+       "baking": 11.2,
+       "metallurgy": 2.4,
+       "brewing": 0.4
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 13,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 1215.9,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 621.7,
+     "Soap": 29.6,
+     "Vinegar": 9.1,
+     "Stockfish": 0,
+     "Tar": 5.2,
+     "Boots": 858.5,
+     "Barrels": 659.2,
+     "Tools": 255.4,
+     "Ceramics": 20.5,
+     "Garments": 23,
+     "Cloth": 27
+    }
+   }
+  ],
+  "2103": [
+   {
+    "month": 0,
+    "urbanPeople": 1143793,
+    "craftPer1000": 9,
+    "bands": {
+     "10k+": {
+      "n": 5,
+      "craftPer1000": 6,
+      "guildPer1000": {
+       "metallurgy": 0.3,
+       "woodworking": 0.4,
+       "masonry": 0.2,
+       "textiles": 2.4,
+       "leather": 1.6,
+       "glassware": 0,
+       "printing": 0.1,
+       "victualling": 1.2
+      }
+     },
+     "3k-10k": {
+      "n": 123,
+      "craftPer1000": 8.5,
+      "guildPer1000": {
+       "metallurgy": 0.3,
+       "woodworking": 0.3,
+       "masonry": 0.2,
+       "textiles": 2.8,
+       "leather": 3.5,
+       "glassware": 0,
+       "printing": 0.1,
+       "victualling": 1.1
+      }
+     },
+     "1k-3k": {
+      "n": 188,
+      "craftPer1000": 10,
+      "guildPer1000": {
+       "woodworking": 0.4,
+       "textiles": 2.9,
+       "leather": 5,
+       "victualling": 1.1,
+       "metallurgy": 0.5,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 334,
+      "craftPer1000": 9.8,
+      "guildPer1000": {
+       "textiles": 2.6,
+       "leather": 5.3,
+       "metallurgy": 0.6,
+       "victualling": 1.1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 10,
+    "output": {
+     "Preserved food": 1057.6,
+     "Beer": 0,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 18.4,
+     "Soap": 2,
+     "Vinegar": 83,
+     "Stockfish": 0,
+     "Tar": 157.6,
+     "Boots": 879.1,
+     "Barrels": 1184.7,
+     "Tools": 9.8,
+     "Ceramics": 44.4,
+     "Garments": 0,
+     "Cloth": 23.4
+    }
+   },
+   {
+    "month": 1,
+    "urbanPeople": 1143620,
+    "craftPer1000": 20.3,
+    "bands": {
+     "10k+": {
+      "n": 5,
+      "craftPer1000": 17.2,
+      "guildPer1000": {
+       "metallurgy": 0.5,
+       "woodworking": 0.5,
+       "masonry": 0.4,
+       "textiles": 4.4,
+       "leather": 6.3,
+       "glassware": 0.1,
+       "printing": 0.2,
+       "victualling": 2,
+       "baking": 2.4
+      }
+     },
+     "3k-10k": {
+      "n": 123,
+      "craftPer1000": 19.7,
+      "guildPer1000": {
+       "metallurgy": 0.6,
+       "woodworking": 0.6,
+       "masonry": 0.3,
+       "textiles": 5.5,
+       "leather": 7.9,
+       "glassware": 0.1,
+       "printing": 0.1,
+       "victualling": 2,
+       "baking": 2.4
+      }
+     },
+     "1k-3k": {
+      "n": 188,
+      "craftPer1000": 21.4,
+      "guildPer1000": {
+       "woodworking": 0.5,
+       "textiles": 5.6,
+       "leather": 9.2,
+       "glassware": 0,
+       "victualling": 2,
+       "baking": 2.4,
+       "metallurgy": 0.7,
+       "masonry": 0.1,
+       "brewing": 0
+      }
+     },
+     "<1k": {
+      "n": 334,
+      "craftPer1000": 21.2,
+      "guildPer1000": {
+       "textiles": 5.5,
+       "leather": 9.4,
+       "baking": 2.4,
+       "metallurgy": 0.9,
+       "victualling": 1.5
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 835.3,
+     "Beer": 49.1,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 957.4,
+     "Soap": 51.2,
+     "Vinegar": 42.8,
+     "Stockfish": 0,
+     "Tar": 57.8,
+     "Boots": 1223.1,
+     "Barrels": 1143.4,
+     "Tools": 148.4,
+     "Ceramics": 32.2,
+     "Garments": 0,
+     "Cloth": 23.6
+    }
+   },
+   {
+    "month": 6,
+    "urbanPeople": 1141677,
+    "craftPer1000": 75.1,
+    "bands": {
+     "10k+": {
+      "n": 5,
+      "craftPer1000": 84.8,
+      "guildPer1000": {
+       "metallurgy": 1,
+       "woodworking": 0.3,
+       "masonry": 0.9,
+       "textiles": 60.1,
+       "leather": 9.9,
+       "glassware": 0.6,
+       "printing": 0.4,
+       "victualling": 2.8,
+       "baking": 8
+      }
+     },
+     "3k-10k": {
+      "n": 123,
+      "craftPer1000": 79.4,
+      "guildPer1000": {
+       "metallurgy": 1.7,
+       "woodworking": 0.4,
+       "masonry": 0.7,
+       "textiles": 51.9,
+       "leather": 12.7,
+       "glassware": 0.3,
+       "printing": 0.3,
+       "victualling": 3,
+       "baking": 7.9
+      }
+     },
+     "1k-3k": {
+      "n": 187,
+      "craftPer1000": 69.2,
+      "guildPer1000": {
+       "woodworking": 0.5,
+       "textiles": 38.3,
+       "leather": 15.9,
+       "glassware": 0,
+       "victualling": 2.9,
+       "baking": 8,
+       "metallurgy": 1.9,
+       "masonry": 0.3,
+       "brewing": 0
+      }
+     },
+     "<1k": {
+      "n": 335,
+      "craftPer1000": 67.4,
+      "guildPer1000": {
+       "textiles": 33.7,
+       "leather": 18.3,
+       "baking": 7.6,
+       "metallurgy": 2,
+       "victualling": 2.1,
+       "brewing": 0.1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 402.9,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 614,
+     "Soap": 36.8,
+     "Vinegar": 21.2,
+     "Stockfish": 0,
+     "Tar": 42.5,
+     "Boots": 764,
+     "Barrels": 232,
+     "Tools": 5,
+     "Ceramics": 24.9,
+     "Garments": 22.4,
+     "Cloth": 23.5
+    }
+   },
+   {
+    "month": 12,
+    "urbanPeople": 1145136,
+    "craftPer1000": 85.4,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 82.9,
+      "guildPer1000": {
+       "metallurgy": 1.2,
+       "woodworking": 0.8,
+       "masonry": 1.1,
+       "textiles": 48.9,
+       "leather": 15.2,
+       "glassware": 0.5,
+       "printing": 0.3,
+       "victualling": 3,
+       "brewing": 0.1,
+       "baking": 11
+      }
+     },
+     "3k-10k": {
+      "n": 124,
+      "craftPer1000": 92.2,
+      "guildPer1000": {
+       "metallurgy": 1.9,
+       "woodworking": 0.8,
+       "masonry": 0.8,
+       "textiles": 55.3,
+       "leather": 17.6,
+       "glassware": 0.3,
+       "printing": 0.3,
+       "victualling": 3.5,
+       "brewing": 0.1,
+       "baking": 11
+      }
+     },
+     "1k-3k": {
+      "n": 189,
+      "craftPer1000": 77.2,
+      "guildPer1000": {
+       "woodworking": 0.7,
+       "textiles": 38,
+       "leather": 20,
+       "glassware": 0,
+       "victualling": 3.3,
+       "baking": 10.8,
+       "metallurgy": 2.1,
+       "masonry": 0.3,
+       "brewing": 0.2
+      }
+     },
+     "<1k": {
+      "n": 338,
+      "craftPer1000": 76.8,
+      "guildPer1000": {
+       "metallurgy": 1.8,
+       "textiles": 36,
+       "leather": 22.3,
+       "victualling": 2.5,
+       "baking": 10.3,
+       "brewing": 0.1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 726.2,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 705.2,
+     "Soap": 35.8,
+     "Vinegar": 17.7,
+     "Stockfish": 0,
+     "Tar": 10.7,
+     "Boots": 960.8,
+     "Barrels": 526.6,
+     "Tools": 68.7,
+     "Ceramics": 26,
+     "Garments": 21,
+     "Cloth": 23.2
+    }
+   },
+   {
+    "month": 24,
+    "urbanPeople": 1145265,
+    "craftPer1000": 74.8,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 65.8,
+      "guildPer1000": {
+       "metallurgy": 1.3,
+       "woodworking": 0.6,
+       "masonry": 1.2,
+       "textiles": 31.7,
+       "leather": 14.1,
+       "glassware": 0.7,
+       "printing": 0.3,
+       "victualling": 3.2,
+       "brewing": 0.1,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 124,
+      "craftPer1000": 75,
+      "guildPer1000": {
+       "metallurgy": 1.8,
+       "woodworking": 0.8,
+       "masonry": 0.8,
+       "textiles": 37,
+       "leather": 17.5,
+       "glassware": 0.5,
+       "printing": 0.3,
+       "victualling": 3.7,
+       "brewing": 0.1,
+       "baking": 11.9
+      }
+     },
+     "1k-3k": {
+      "n": 191,
+      "craftPer1000": 74.9,
+      "guildPer1000": {
+       "woodworking": 0.7,
+       "textiles": 32.9,
+       "leather": 20.9,
+       "glassware": 0.1,
+       "victualling": 3.6,
+       "baking": 11.9,
+       "metallurgy": 2.1,
+       "masonry": 0.4,
+       "brewing": 0.2
+      }
+     },
+     "<1k": {
+      "n": 338,
+      "craftPer1000": 76.3,
+      "guildPer1000": {
+       "metallurgy": 2.1,
+       "textiles": 32,
+       "leather": 24.2,
+       "victualling": 2.6,
+       "baking": 11.2,
+       "brewing": 0.2
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 393.2,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 640.4,
+     "Soap": 32.8,
+     "Vinegar": 17.2,
+     "Stockfish": 0,
+     "Tar": 9.5,
+     "Boots": 806.3,
+     "Barrels": 434.7,
+     "Tools": 115.6,
+     "Ceramics": 21.5,
+     "Garments": 20.5,
+     "Cloth": 23
+    }
+   },
+   {
+    "month": 36,
+    "urbanPeople": 1148965,
+    "craftPer1000": 71.6,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 64.2,
+      "guildPer1000": {
+       "metallurgy": 1.3,
+       "woodworking": 0.8,
+       "masonry": 1.2,
+       "textiles": 29.5,
+       "leather": 13.8,
+       "glassware": 0.7,
+       "printing": 0.3,
+       "victualling": 3.6,
+       "brewing": 0.1,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 124,
+      "craftPer1000": 70.6,
+      "guildPer1000": {
+       "metallurgy": 1.9,
+       "woodworking": 0.8,
+       "masonry": 0.8,
+       "textiles": 33.5,
+       "leather": 16.3,
+       "glassware": 0.5,
+       "printing": 0.3,
+       "victualling": 3.8,
+       "brewing": 0.1,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 192,
+      "craftPer1000": 73.1,
+      "guildPer1000": {
+       "woodworking": 0.7,
+       "textiles": 31.6,
+       "leather": 20.2,
+       "glassware": 0.1,
+       "victualling": 3.7,
+       "baking": 12,
+       "metallurgy": 2.3,
+       "masonry": 0.4,
+       "brewing": 0.2
+      }
+     },
+     "<1k": {
+      "n": 339,
+      "craftPer1000": 74.2,
+      "guildPer1000": {
+       "metallurgy": 2.1,
+       "textiles": 30.4,
+       "leather": 23.3,
+       "victualling": 2.6,
+       "baking": 11.2,
+       "brewing": 0.2
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 625.1,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 601,
+     "Soap": 14.4,
+     "Vinegar": 9.9,
+     "Stockfish": 0,
+     "Tar": 6.5,
+     "Boots": 814.4,
+     "Barrels": 419.3,
+     "Tools": 143.3,
+     "Ceramics": 21.3,
+     "Garments": 20.3,
+     "Cloth": 23.1
+    }
+   },
+   {
+    "month": 48,
+    "urbanPeople": 1156486,
+    "craftPer1000": 69.5,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 63.3,
+      "guildPer1000": {
+       "metallurgy": 1.3,
+       "woodworking": 0.8,
+       "masonry": 1.2,
+       "textiles": 29.2,
+       "leather": 13.1,
+       "glassware": 0.5,
+       "printing": 0.2,
+       "victualling": 3.7,
+       "brewing": 0.7,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 126,
+      "craftPer1000": 67.8,
+      "guildPer1000": {
+       "metallurgy": 2.1,
+       "woodworking": 0.8,
+       "masonry": 0.8,
+       "textiles": 31.6,
+       "leather": 15.3,
+       "glassware": 0.4,
+       "printing": 0.3,
+       "victualling": 3.9,
+       "brewing": 0.1,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 194,
+      "craftPer1000": 71.5,
+      "guildPer1000": {
+       "metallurgy": 2.6,
+       "woodworking": 0.7,
+       "textiles": 30.3,
+       "leather": 19.6,
+       "glassware": 0,
+       "victualling": 3.7,
+       "baking": 11.9,
+       "masonry": 0.4,
+       "brewing": 0.1
+      }
+     },
+     "<1k": {
+      "n": 337,
+      "craftPer1000": 73.5,
+      "guildPer1000": {
+       "textiles": 29.9,
+       "leather": 23,
+       "baking": 11.2,
+       "metallurgy": 2.3,
+       "victualling": 2.6,
+       "brewing": 0.2
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 13,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 1098.7,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 573.2,
+     "Soap": 20.4,
+     "Vinegar": 8.8,
+     "Stockfish": 0,
+     "Tar": 3.9,
+     "Boots": 780.4,
+     "Barrels": 372.1,
+     "Tools": 138.3,
+     "Ceramics": 25,
+     "Garments": 20.6,
+     "Cloth": 23.4
+    }
+   },
+   {
+    "month": 60,
+    "urbanPeople": 1164854,
+    "craftPer1000": 68.5,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 61.9,
+      "guildPer1000": {
+       "metallurgy": 1.3,
+       "woodworking": 0.7,
+       "masonry": 1.2,
+       "textiles": 28.6,
+       "leather": 12.8,
+       "glassware": 0.7,
+       "printing": 0.2,
+       "victualling": 3.7,
+       "brewing": 0.2,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 127,
+      "craftPer1000": 66.6,
+      "guildPer1000": {
+       "metallurgy": 1.8,
+       "woodworking": 0.8,
+       "masonry": 0.8,
+       "textiles": 30.5,
+       "leather": 15.4,
+       "glassware": 0.3,
+       "printing": 0.3,
+       "victualling": 4,
+       "brewing": 0,
+       "baking": 11.9
+      }
+     },
+     "1k-3k": {
+      "n": 195,
+      "craftPer1000": 70.6,
+      "guildPer1000": {
+       "metallurgy": 2.4,
+       "woodworking": 0.8,
+       "textiles": 29.7,
+       "leather": 19.6,
+       "glassware": 0,
+       "victualling": 3.9,
+       "baking": 11.9,
+       "masonry": 0.4,
+       "brewing": 0.2
+      }
+     },
+     "<1k": {
+      "n": 336,
+      "craftPer1000": 73,
+      "guildPer1000": {
+       "textiles": 29.6,
+       "leather": 22.6,
+       "baking": 11.2,
+       "metallurgy": 2.2,
+       "victualling": 2.7,
+       "brewing": 0.3
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 603.9,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 612.9,
+     "Soap": 14.9,
+     "Vinegar": 11.2,
+     "Stockfish": 0,
+     "Tar": 9.2,
+     "Boots": 787.9,
+     "Barrels": 411.6,
+     "Tools": 126.7,
+     "Ceramics": 26.9,
+     "Garments": 20.7,
+     "Cloth": 23.3
+    }
+   }
+  ],
+  "2104": [
+   {
+    "month": 0,
+    "urbanPeople": 832270,
+    "craftPer1000": 8.8,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 5.3,
+      "guildPer1000": {
+       "metallurgy": 0.3,
+       "woodworking": 0.4,
+       "masonry": 0.1,
+       "textiles": 1.7,
+       "leather": 1.7,
+       "printing": 0.1,
+       "victualling": 1.1
+      }
+     },
+     "3k-10k": {
+      "n": 67,
+      "craftPer1000": 8.8,
+      "guildPer1000": {
+       "metallurgy": 0.3,
+       "woodworking": 0.4,
+       "masonry": 0.1,
+       "textiles": 2.7,
+       "leather": 3.9,
+       "printing": 0.1,
+       "victualling": 1.2
+      }
+     },
+     "1k-3k": {
+      "n": 140,
+      "craftPer1000": 9.6,
+      "guildPer1000": {
+       "metallurgy": 0.6,
+       "woodworking": 0.4,
+       "textiles": 2.7,
+       "leather": 4.9,
+       "victualling": 1.1,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 369,
+      "craftPer1000": 9.3,
+      "guildPer1000": {
+       "metallurgy": 0.7,
+       "textiles": 2.3,
+       "leather": 5.6,
+       "victualling": 1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 10,
+    "output": {
+     "Preserved food": 769.8,
+     "Beer": 0,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 17.1,
+     "Soap": 2,
+     "Vinegar": 47,
+     "Stockfish": 0,
+     "Tar": 78.5,
+     "Boots": 660,
+     "Barrels": 863.2,
+     "Tools": 39.5,
+     "Ceramics": 0,
+     "Garments": 0,
+     "Cloth": 15.9
+    }
+   },
+   {
+    "month": 1,
+    "urbanPeople": 832290,
+    "craftPer1000": 25,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 21.4,
+      "guildPer1000": {
+       "metallurgy": 0.7,
+       "woodworking": 0.7,
+       "masonry": 0.2,
+       "textiles": 8.8,
+       "leather": 6.3,
+       "printing": 0.1,
+       "victualling": 2.1,
+       "baking": 2.4
+      }
+     },
+     "3k-10k": {
+      "n": 67,
+      "craftPer1000": 23.2,
+      "guildPer1000": {
+       "metallurgy": 0.7,
+       "woodworking": 0.7,
+       "masonry": 0.2,
+       "textiles": 8.4,
+       "leather": 8.3,
+       "printing": 0.1,
+       "victualling": 2.1,
+       "brewing": 0,
+       "baking": 2.4
+      }
+     },
+     "1k-3k": {
+      "n": 140,
+      "craftPer1000": 27.5,
+      "guildPer1000": {
+       "metallurgy": 1,
+       "woodworking": 0.6,
+       "textiles": 11.7,
+       "leather": 9.2,
+       "victualling": 2.1,
+       "baking": 2.4,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 369,
+      "craftPer1000": 27.1,
+      "guildPer1000": {
+       "metallurgy": 1,
+       "textiles": 11.7,
+       "leather": 9.8,
+       "victualling": 1.5,
+       "baking": 2.3
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 691.3,
+     "Beer": 103.1,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 702.5,
+     "Soap": 27.7,
+     "Vinegar": 58.5,
+     "Stockfish": 0,
+     "Tar": 75.7,
+     "Boots": 888.6,
+     "Barrels": 840.9,
+     "Tools": 116.1,
+     "Ceramics": 0,
+     "Garments": 0,
+     "Cloth": 16.4
+    }
+   },
+   {
+    "month": 6,
+    "urbanPeople": 825747,
+    "craftPer1000": 88.9,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 95,
+      "guildPer1000": {
+       "metallurgy": 1.7,
+       "woodworking": 0.5,
+       "masonry": 0.4,
+       "textiles": 64.8,
+       "leather": 15.2,
+       "printing": 0.4,
+       "victualling": 4,
+       "baking": 7.4
+      }
+     },
+     "3k-10k": {
+      "n": 66,
+      "craftPer1000": 87.5,
+      "guildPer1000": {
+       "metallurgy": 2.1,
+       "woodworking": 0.4,
+       "masonry": 0.5,
+       "textiles": 59.3,
+       "leather": 13.3,
+       "printing": 0.3,
+       "victualling": 3.2,
+       "brewing": 0,
+       "baking": 7.9
+      }
+     },
+     "1k-3k": {
+      "n": 140,
+      "craftPer1000": 90,
+      "guildPer1000": {
+       "metallurgy": 2.5,
+       "woodworking": 0.5,
+       "textiles": 57.8,
+       "leather": 16.3,
+       "victualling": 3.3,
+       "baking": 8,
+       "masonry": 0.1,
+       "brewing": 0
+      }
+     },
+     "<1k": {
+      "n": 370,
+      "craftPer1000": 86.8,
+      "guildPer1000": {
+       "metallurgy": 1.7,
+       "textiles": 51.3,
+       "leather": 19.4,
+       "victualling": 2.3,
+       "baking": 7.3,
+       "brewing": 0
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 25.1,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 441.3,
+     "Soap": 66.9,
+     "Vinegar": 23.8,
+     "Stockfish": 0,
+     "Tar": 43.6,
+     "Boots": 578.8,
+     "Barrels": 18.8,
+     "Tools": 20.7,
+     "Ceramics": 0,
+     "Garments": 15.2,
+     "Cloth": 16.2
+    }
+   },
+   {
+    "month": 12,
+    "urbanPeople": 823676,
+    "craftPer1000": 86.9,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 74.1,
+      "guildPer1000": {
+       "metallurgy": 2.3,
+       "woodworking": 1,
+       "masonry": 0.5,
+       "textiles": 32.3,
+       "leather": 21.5,
+       "printing": 0.5,
+       "victualling": 5.1,
+       "brewing": 0.2,
+       "baking": 10.1
+      }
+     },
+     "3k-10k": {
+      "n": 66,
+      "craftPer1000": 88.8,
+      "guildPer1000": {
+       "metallurgy": 2.7,
+       "woodworking": 1.1,
+       "masonry": 0.6,
+       "textiles": 48.4,
+       "leather": 20.5,
+       "printing": 0.4,
+       "victualling": 4.2,
+       "brewing": 0.1,
+       "baking": 10.2
+      }
+     },
+     "1k-3k": {
+      "n": 143,
+      "craftPer1000": 89.2,
+      "guildPer1000": {
+       "metallurgy": 3.1,
+       "woodworking": 0.9,
+       "textiles": 47.4,
+       "leather": 21.4,
+       "victualling": 4.3,
+       "brewing": 0.3,
+       "baking": 9.9,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 372,
+      "craftPer1000": 86,
+      "guildPer1000": {
+       "metallurgy": 2.3,
+       "textiles": 43.7,
+       "leather": 23,
+       "victualling": 3,
+       "baking": 8.8,
+       "brewing": 0.2
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 1391.9,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 685.5,
+     "Soap": 18.1,
+     "Vinegar": 16.9,
+     "Stockfish": 0,
+     "Tar": 8.1,
+     "Boots": 874.8,
+     "Barrels": 779.7,
+     "Tools": 131.4,
+     "Ceramics": 0,
+     "Garments": 12.1,
+     "Cloth": 15.9
+    }
+   },
+   {
+    "month": 24,
+    "urbanPeople": 818120,
+    "craftPer1000": 79,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 63.9,
+      "guildPer1000": {
+       "metallurgy": 1.6,
+       "woodworking": 1,
+       "masonry": 0.5,
+       "textiles": 19.8,
+       "leather": 22.4,
+       "printing": 0.6,
+       "victualling": 4.5,
+       "brewing": 0.4,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 65,
+      "craftPer1000": 77.2,
+      "guildPer1000": {
+       "metallurgy": 2.7,
+       "woodworking": 1.2,
+       "masonry": 0.6,
+       "textiles": 34.8,
+       "leather": 20.3,
+       "printing": 0.3,
+       "victualling": 4.4,
+       "brewing": 0.1,
+       "baking": 11.9
+      }
+     },
+     "1k-3k": {
+      "n": 147,
+      "craftPer1000": 84,
+      "guildPer1000": {
+       "metallurgy": 3.1,
+       "woodworking": 0.9,
+       "textiles": 39.3,
+       "leather": 22.2,
+       "victualling": 4.3,
+       "brewing": 0.4,
+       "baking": 11.8,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 373,
+      "craftPer1000": 81.7,
+      "guildPer1000": {
+       "metallurgy": 2.4,
+       "textiles": 35.7,
+       "leather": 25.1,
+       "victualling": 2.9,
+       "baking": 10.5,
+       "brewing": 0.1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 1172.8,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 555.2,
+     "Soap": 20.8,
+     "Vinegar": 9.9,
+     "Stockfish": 0,
+     "Tar": 9.1,
+     "Boots": 716.3,
+     "Barrels": 609.2,
+     "Tools": 128.6,
+     "Ceramics": 0,
+     "Garments": 11.6,
+     "Cloth": 15.3
+    }
+   },
+   {
+    "month": 36,
+    "urbanPeople": 815172,
+    "craftPer1000": 74.8,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 56.2,
+      "guildPer1000": {
+       "metallurgy": 1.6,
+       "woodworking": 1,
+       "masonry": 0.5,
+       "textiles": 18.3,
+       "leather": 17.3,
+       "printing": 0.5,
+       "victualling": 3.6,
+       "brewing": 0.3,
+       "baking": 12.1
+      }
+     },
+     "3k-10k": {
+      "n": 65,
+      "craftPer1000": 72.4,
+      "guildPer1000": {
+       "metallurgy": 3.1,
+       "woodworking": 1.1,
+       "masonry": 0.6,
+       "textiles": 32.5,
+       "leather": 17.5,
+       "printing": 0.3,
+       "victualling": 4.5,
+       "brewing": 0.1,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 150,
+      "craftPer1000": 82,
+      "guildPer1000": {
+       "metallurgy": 3.4,
+       "woodworking": 0.9,
+       "textiles": 37.9,
+       "leather": 21,
+       "victualling": 4.3,
+       "brewing": 0.6,
+       "baking": 11.9,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 372,
+      "craftPer1000": 76.5,
+      "guildPer1000": {
+       "metallurgy": 2.6,
+       "textiles": 31.7,
+       "leather": 23.8,
+       "victualling": 2.8,
+       "baking": 10.6,
+       "brewing": 0.1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 1307.4,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 492.4,
+     "Soap": 8,
+     "Vinegar": 0.7,
+     "Stockfish": 0,
+     "Tar": 0.2,
+     "Boots": 581.4,
+     "Barrels": 530.6,
+     "Tools": 250.5,
+     "Ceramics": 0,
+     "Garments": 12.1,
+     "Cloth": 14.7
+    }
+   },
+   {
+    "month": 48,
+    "urbanPeople": 814162,
+    "craftPer1000": 70.4,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 61.3,
+      "guildPer1000": {
+       "metallurgy": 1.5,
+       "woodworking": 1.2,
+       "masonry": 0.6,
+       "textiles": 22.5,
+       "leather": 17.6,
+       "printing": 0.5,
+       "victualling": 4.1,
+       "brewing": 0.2,
+       "baking": 12.1
+      }
+     },
+     "3k-10k": {
+      "n": 63,
+      "craftPer1000": 67.8,
+      "guildPer1000": {
+       "metallurgy": 3.2,
+       "woodworking": 1,
+       "masonry": 0.6,
+       "textiles": 29.1,
+       "leather": 16.5,
+       "printing": 0.2,
+       "victualling": 4.5,
+       "brewing": 0.1,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 151,
+      "craftPer1000": 73.4,
+      "guildPer1000": {
+       "metallurgy": 3.5,
+       "woodworking": 0.9,
+       "textiles": 30.4,
+       "leather": 19.9,
+       "victualling": 4.3,
+       "brewing": 0.5,
+       "baking": 11.9,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 373,
+      "craftPer1000": 75.1,
+      "guildPer1000": {
+       "metallurgy": 2.6,
+       "textiles": 29.9,
+       "leather": 23.5,
+       "victualling": 3,
+       "baking": 10.7,
+       "brewing": 0.1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 700.7,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 479.3,
+     "Soap": 20.6,
+     "Vinegar": 0,
+     "Stockfish": 0,
+     "Tar": 4.2,
+     "Boots": 617.8,
+     "Barrels": 468.3,
+     "Tools": 231,
+     "Ceramics": 0,
+     "Garments": 12.5,
+     "Cloth": 15.3
+    }
+   },
+   {
+    "month": 60,
+    "urbanPeople": 815132,
+    "craftPer1000": 70.1,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 61,
+      "guildPer1000": {
+       "metallurgy": 1.5,
+       "woodworking": 1.1,
+       "masonry": 0.6,
+       "textiles": 23.1,
+       "leather": 16.5,
+       "printing": 0.5,
+       "victualling": 4.3,
+       "brewing": 0.2,
+       "baking": 12.1
+      }
+     },
+     "3k-10k": {
+      "n": 61,
+      "craftPer1000": 67.1,
+      "guildPer1000": {
+       "metallurgy": 3.3,
+       "woodworking": 1,
+       "masonry": 0.6,
+       "textiles": 29.2,
+       "leather": 15.6,
+       "printing": 0.3,
+       "victualling": 4.5,
+       "brewing": 0.1,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 156,
+      "craftPer1000": 73.6,
+      "guildPer1000": {
+       "metallurgy": 3.3,
+       "woodworking": 0.9,
+       "textiles": 31.2,
+       "leather": 19.4,
+       "victualling": 4.3,
+       "brewing": 0.6,
+       "baking": 11.9,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 371,
+      "craftPer1000": 74.6,
+      "guildPer1000": {
+       "metallurgy": 2.6,
+       "textiles": 30.1,
+       "leather": 23.2,
+       "victualling": 2.9,
+       "baking": 10.7,
+       "brewing": 0.1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 1241.1,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 457.5,
+     "Soap": 0,
+     "Vinegar": 0,
+     "Stockfish": 0,
+     "Tar": 1,
+     "Boots": 599.3,
+     "Barrels": 564.1,
+     "Tools": 251.5,
+     "Ceramics": 0,
+     "Garments": 12.7,
+     "Cloth": 15
+    }
+   }
+  ]
+ },
+ "after": {
+  "2101": [
+   {
+    "month": 0,
+    "urbanPeople": 667492,
+    "craftPer1000": 10.7,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 10.9,
+      "guildPer1000": {
+       "metallurgy": 0.3,
+       "woodworking": 1.5,
+       "textiles": 5.5,
+       "leather": 2.3,
+       "glassware": 0,
+       "printing": 0.1,
+       "victualling": 1.1
+      }
+     },
+     "3k-10k": {
+      "n": 61,
+      "craftPer1000": 10.6,
+      "guildPer1000": {
+       "metallurgy": 0.3,
+       "woodworking": 1.4,
+       "masonry": 0.1,
+       "textiles": 5.2,
+       "leather": 2.4,
+       "glassware": 0,
+       "printing": 0.1,
+       "victualling": 1.1
+      }
+     },
+     "1k-3k": {
+      "n": 114,
+      "craftPer1000": 11.2,
+      "guildPer1000": {
+       "metallurgy": 0.4,
+       "woodworking": 1.3,
+       "textiles": 4.8,
+       "leather": 3.6,
+       "victualling": 1.1,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 222,
+      "craftPer1000": 10.1,
+      "guildPer1000": {
+       "woodworking": 1.3,
+       "textiles": 2.9,
+       "leather": 5.1,
+       "victualling": 1,
+       "metallurgy": 1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 9,
+    "output": {
+     "Preserved food": 618,
+     "Beer": 0,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 16.5,
+     "Soap": 0,
+     "Vinegar": 50,
+     "Stockfish": 0,
+     "Tar": 79.6,
+     "Boots": 377,
+     "Barrels": 3906.6,
+     "Tools": 1,
+     "Ceramics": 5.1,
+     "Garments": 0,
+     "Cloth": 13.3
+    }
+   },
+   {
+    "month": 1,
+    "urbanPeople": 667143,
+    "craftPer1000": 22.5,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 21.6,
+      "guildPer1000": {
+       "metallurgy": 0.4,
+       "woodworking": 2.4,
+       "textiles": 6.7,
+       "leather": 6.9,
+       "glassware": 0,
+       "printing": 0.2,
+       "victualling": 2,
+       "baking": 2.4
+      }
+     },
+     "3k-10k": {
+      "n": 61,
+      "craftPer1000": 22.4,
+      "guildPer1000": {
+       "metallurgy": 0.5,
+       "woodworking": 2.4,
+       "masonry": 0.1,
+       "textiles": 7.7,
+       "leather": 6.9,
+       "glassware": 0,
+       "printing": 0.1,
+       "victualling": 2,
+       "baking": 2.4
+      }
+     },
+     "1k-3k": {
+      "n": 114,
+      "craftPer1000": 22.8,
+      "guildPer1000": {
+       "metallurgy": 0.8,
+       "woodworking": 2.3,
+       "textiles": 7,
+       "leather": 7.8,
+       "victualling": 2.1,
+       "brewing": 0.3,
+       "baking": 2.4,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 222,
+      "craftPer1000": 22.2,
+      "guildPer1000": {
+       "woodworking": 2.1,
+       "textiles": 5.1,
+       "leather": 9,
+       "victualling": 1.4,
+       "baking": 2.4,
+       "metallurgy": 1.3,
+       "brewing": 0.2
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 546.4,
+     "Beer": 1698.6,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 537.2,
+     "Soap": 26.7,
+     "Vinegar": 3.1,
+     "Stockfish": 0,
+     "Tar": 36.9,
+     "Boots": 702.7,
+     "Barrels": 3788.9,
+     "Tools": 52,
+     "Ceramics": 5.1,
+     "Garments": 0,
+     "Cloth": 13.2
+    }
+   },
+   {
+    "month": 6,
+    "urbanPeople": 664593,
+    "craftPer1000": 78.6,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 136.6,
+      "guildPer1000": {
+       "metallurgy": 1,
+       "woodworking": 0.9,
+       "textiles": 109.7,
+       "leather": 11.1,
+       "printing": 0.5,
+       "victualling": 4,
+       "baking": 8.9
+      }
+     },
+     "3k-10k": {
+      "n": 61,
+      "craftPer1000": 76.5,
+      "guildPer1000": {
+       "metallurgy": 1.4,
+       "woodworking": 1,
+       "masonry": 0.2,
+       "textiles": 47.6,
+       "leather": 12.8,
+       "glassware": 0.3,
+       "printing": 0.4,
+       "victualling": 3.6,
+       "baking": 8.9
+      }
+     },
+     "1k-3k": {
+      "n": 113,
+      "craftPer1000": 74.6,
+      "guildPer1000": {
+       "metallurgy": 1.7,
+       "woodworking": 1.3,
+       "textiles": 41.8,
+       "leather": 15.8,
+       "victualling": 3.7,
+       "brewing": 0.2,
+       "baking": 8.9,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 223,
+      "craftPer1000": 67.9,
+      "guildPer1000": {
+       "woodworking": 1.6,
+       "textiles": 32.2,
+       "leather": 18.1,
+       "victualling": 2.3,
+       "baking": 8.2,
+       "metallurgy": 1.7,
+       "brewing": 0.3
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 167,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 306.2,
+     "Soap": 57,
+     "Vinegar": 28,
+     "Stockfish": 0,
+     "Tar": 22.8,
+     "Boots": 437.1,
+     "Barrels": 123.8,
+     "Tools": 10.9,
+     "Ceramics": 2.1,
+     "Garments": 12.8,
+     "Cloth": 13.2
+    }
+   },
+   {
+    "month": 12,
+    "urbanPeople": 664470,
+    "craftPer1000": 90.6,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 198.6,
+      "guildPer1000": {
+       "metallurgy": 1.2,
+       "woodworking": 0.4,
+       "textiles": 169,
+       "leather": 11.4,
+       "glassware": 0.1,
+       "printing": 0.6,
+       "victualling": 4.1,
+       "baking": 11.3
+      }
+     },
+     "3k-10k": {
+      "n": 61,
+      "craftPer1000": 83.6,
+      "guildPer1000": {
+       "metallurgy": 2.2,
+       "woodworking": 0.5,
+       "masonry": 0.2,
+       "textiles": 51.5,
+       "leather": 13.7,
+       "glassware": 0.2,
+       "printing": 0.4,
+       "victualling": 3.3,
+       "brewing": 0.1,
+       "baking": 11.2
+      }
+     },
+     "1k-3k": {
+      "n": 113,
+      "craftPer1000": 87.5,
+      "guildPer1000": {
+       "metallurgy": 2.6,
+       "woodworking": 0.7,
+       "textiles": 51.3,
+       "leather": 16.8,
+       "victualling": 3.5,
+       "brewing": 0.1,
+       "baking": 11.1,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 224,
+      "craftPer1000": 72.6,
+      "guildPer1000": {
+       "woodworking": 0.5,
+       "textiles": 33,
+       "leather": 20.3,
+       "victualling": 1.9,
+       "baking": 10.3,
+       "metallurgy": 2.6,
+       "brewing": 0.2
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 262.5,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 285.6,
+     "Soap": 42.2,
+     "Vinegar": 7.4,
+     "Stockfish": 0,
+     "Tar": 6.5,
+     "Boots": 427.7,
+     "Barrels": 79,
+     "Tools": 103,
+     "Ceramics": 2.1,
+     "Garments": 12.3,
+     "Cloth": 13.2
+    }
+   },
+   {
+    "month": 24,
+    "urbanPeople": 668142,
+    "craftPer1000": 82.3,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 167.3,
+      "guildPer1000": {
+       "metallurgy": 1.8,
+       "woodworking": 0.4,
+       "textiles": 135.8,
+       "leather": 11.8,
+       "glassware": 0.6,
+       "printing": 0.6,
+       "victualling": 4.1,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 61,
+      "craftPer1000": 75.2,
+      "guildPer1000": {
+       "metallurgy": 2.4,
+       "woodworking": 0.5,
+       "masonry": 0.2,
+       "textiles": 40.5,
+       "leather": 15.1,
+       "glassware": 0.3,
+       "printing": 0.4,
+       "victualling": 3.5,
+       "brewing": 0.1,
+       "baking": 11.9
+      }
+     },
+     "1k-3k": {
+      "n": 114,
+      "craftPer1000": 80,
+      "guildPer1000": {
+       "metallurgy": 3.6,
+       "woodworking": 0.6,
+       "textiles": 40.7,
+       "leather": 17.9,
+       "glassware": 0,
+       "victualling": 3.7,
+       "brewing": 0.1,
+       "baking": 11.9,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 224,
+      "craftPer1000": 74,
+      "guildPer1000": {
+       "woodworking": 0.1,
+       "textiles": 32.7,
+       "leather": 21.2,
+       "victualling": 1.9,
+       "baking": 11.2,
+       "metallurgy": 2.8,
+       "brewing": 0.3
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 132.2,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 300.4,
+     "Soap": 33.6,
+     "Vinegar": 7.6,
+     "Stockfish": 0,
+     "Tar": 13.2,
+     "Boots": 433.2,
+     "Barrels": 58.9,
+     "Tools": 140,
+     "Ceramics": 1.7,
+     "Garments": 12.2,
+     "Cloth": 13.3
+    }
+   },
+   {
+    "month": 36,
+    "urbanPeople": 672815,
+    "craftPer1000": 77.9,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 127.2,
+      "guildPer1000": {
+       "metallurgy": 2,
+       "woodworking": 0.4,
+       "textiles": 94.3,
+       "leather": 11.6,
+       "glassware": 0.5,
+       "printing": 0.5,
+       "victualling": 4.9,
+       "brewing": 0.2,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 62,
+      "craftPer1000": 73.9,
+      "guildPer1000": {
+       "metallurgy": 2.3,
+       "woodworking": 0.6,
+       "masonry": 0.2,
+       "textiles": 38.5,
+       "leather": 15.2,
+       "glassware": 0.2,
+       "printing": 0.4,
+       "victualling": 4.1,
+       "brewing": 0,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 113,
+      "craftPer1000": 76.3,
+      "guildPer1000": {
+       "metallurgy": 3.2,
+       "woodworking": 0.7,
+       "textiles": 37,
+       "leather": 17.9,
+       "glassware": 0,
+       "victualling": 4,
+       "brewing": 0,
+       "baking": 12,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 224,
+      "craftPer1000": 72.9,
+      "guildPer1000": {
+       "woodworking": 0.2,
+       "textiles": 30.8,
+       "leather": 21.4,
+       "victualling": 2.3,
+       "baking": 11.3,
+       "metallurgy": 2.7,
+       "brewing": 0.3
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 168,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 332.1,
+     "Soap": 13.3,
+     "Vinegar": 4.4,
+     "Stockfish": 0,
+     "Tar": 0.7,
+     "Boots": 429.8,
+     "Barrels": 76.9,
+     "Tools": 160.3,
+     "Ceramics": 1.7,
+     "Garments": 11.8,
+     "Cloth": 13.5
+    }
+   },
+   {
+    "month": 48,
+    "urbanPeople": 678147,
+    "craftPer1000": 74.4,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 84.3,
+      "guildPer1000": {
+       "metallurgy": 1.7,
+       "woodworking": 0.4,
+       "textiles": 52.2,
+       "leather": 11.3,
+       "glassware": 0.6,
+       "printing": 0.4,
+       "victualling": 5.1,
+       "brewing": 0,
+       "baking": 11.9
+      }
+     },
+     "3k-10k": {
+      "n": 61,
+      "craftPer1000": 71.6,
+      "guildPer1000": {
+       "metallurgy": 2.3,
+       "woodworking": 0.5,
+       "masonry": 0.2,
+       "textiles": 36.3,
+       "leather": 14.8,
+       "glassware": 0.2,
+       "printing": 0.4,
+       "victualling": 4.3,
+       "brewing": 0.1,
+       "baking": 11.9
+      }
+     },
+     "1k-3k": {
+      "n": 114,
+      "craftPer1000": 76.8,
+      "guildPer1000": {
+       "metallurgy": 3.5,
+       "woodworking": 0.8,
+       "textiles": 36.6,
+       "leather": 17.9,
+       "glassware": 0,
+       "victualling": 4.2,
+       "brewing": 0.2,
+       "baking": 11.9,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 223,
+      "craftPer1000": 73.4,
+      "guildPer1000": {
+       "woodworking": 0.3,
+       "textiles": 30.8,
+       "leather": 21.6,
+       "victualling": 2.6,
+       "baking": 11.2,
+       "metallurgy": 2.8,
+       "brewing": 0.3
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 150.6,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 317.5,
+     "Soap": 15.9,
+     "Vinegar": 7.9,
+     "Stockfish": 0,
+     "Tar": 0.3,
+     "Boots": 476,
+     "Barrels": 268.7,
+     "Tools": 199.7,
+     "Ceramics": 1.7,
+     "Garments": 12.1,
+     "Cloth": 13.6
+    }
+   },
+   {
+    "month": 60,
+    "urbanPeople": 683974,
+    "craftPer1000": 72.6,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 77.4,
+      "guildPer1000": {
+       "metallurgy": 1.3,
+       "woodworking": 0.4,
+       "textiles": 46.1,
+       "leather": 10.9,
+       "glassware": 0.6,
+       "printing": 0.5,
+       "victualling": 5.2,
+       "baking": 11.9
+      }
+     },
+     "3k-10k": {
+      "n": 64,
+      "craftPer1000": 69.8,
+      "guildPer1000": {
+       "metallurgy": 2,
+       "woodworking": 0.5,
+       "masonry": 0.2,
+       "textiles": 35.2,
+       "leather": 14.5,
+       "glassware": 0.2,
+       "printing": 0.4,
+       "victualling": 4.5,
+       "brewing": 0,
+       "baking": 11.9
+      }
+     },
+     "1k-3k": {
+      "n": 111,
+      "craftPer1000": 76.1,
+      "guildPer1000": {
+       "metallurgy": 3.5,
+       "woodworking": 0.6,
+       "textiles": 35.8,
+       "leather": 18.2,
+       "glassware": 0,
+       "victualling": 4.1,
+       "brewing": 0,
+       "baking": 11.9,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 223,
+      "craftPer1000": 72.5,
+      "guildPer1000": {
+       "woodworking": 0.1,
+       "textiles": 29.8,
+       "leather": 21.7,
+       "victualling": 2.6,
+       "baking": 11.2,
+       "metallurgy": 2.8,
+       "brewing": 0.3
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 105.5,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 307.9,
+     "Soap": 15,
+     "Vinegar": 2.3,
+     "Stockfish": 0,
+     "Tar": 0.4,
+     "Boots": 475,
+     "Barrels": 143.4,
+     "Tools": 176.7,
+     "Ceramics": 1.7,
+     "Garments": 12.4,
+     "Cloth": 13.9
+    }
+   }
+  ],
+  "2102": [
+   {
+    "month": 0,
+    "urbanPeople": 1200041,
+    "craftPer1000": 11.7,
+    "bands": {
+     "10k+": {
+      "n": 10,
+      "craftPer1000": 9.7,
+      "guildPer1000": {
+       "metallurgy": 0.3,
+       "woodworking": 1.5,
+       "masonry": 0.1,
+       "textiles": 3.3,
+       "leather": 3.2,
+       "glassware": 0,
+       "printing": 0.1,
+       "victualling": 1.1
+      }
+     },
+     "3k-10k": {
+      "n": 110,
+      "craftPer1000": 11.7,
+      "guildPer1000": {
+       "metallurgy": 0.4,
+       "woodworking": 1.5,
+       "masonry": 0.1,
+       "textiles": 2.7,
+       "leather": 5.6,
+       "glassware": 0,
+       "printing": 0.1,
+       "victualling": 1.1
+      }
+     },
+     "1k-3k": {
+      "n": 198,
+      "craftPer1000": 12.1,
+      "guildPer1000": {
+       "woodworking": 1.6,
+       "textiles": 3,
+       "leather": 6.1,
+       "victualling": 1.1,
+       "metallurgy": 0.7,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 329,
+      "craftPer1000": 12.4,
+      "guildPer1000": {
+       "woodworking": 1.4,
+       "textiles": 2.9,
+       "leather": 6.8,
+       "victualling": 1.1,
+       "metallurgy": 0.8
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 10,
+    "output": {
+     "Preserved food": 1110.9,
+     "Beer": 0,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 54.5,
+     "Soap": 0,
+     "Vinegar": 73,
+     "Stockfish": 0,
+     "Tar": 106.7,
+     "Boots": 1145.4,
+     "Barrels": 7795.6,
+     "Tools": 30.1,
+     "Ceramics": 39.5,
+     "Garments": 0,
+     "Cloth": 24.3
+    }
+   },
+   {
+    "month": 1,
+    "urbanPeople": 1199914,
+    "craftPer1000": 26.2,
+    "bands": {
+     "10k+": {
+      "n": 10,
+      "craftPer1000": 21.4,
+      "guildPer1000": {
+       "metallurgy": 0.5,
+       "woodworking": 2.6,
+       "masonry": 0.2,
+       "textiles": 5.5,
+       "leather": 7.7,
+       "glassware": 0.1,
+       "printing": 0.2,
+       "victualling": 2,
+       "baking": 2.4
+      }
+     },
+     "3k-10k": {
+      "n": 110,
+      "craftPer1000": 25.4,
+      "guildPer1000": {
+       "metallurgy": 0.7,
+       "woodworking": 2.7,
+       "masonry": 0.2,
+       "textiles": 6.4,
+       "leather": 10.3,
+       "glassware": 0,
+       "printing": 0.1,
+       "victualling": 2,
+       "brewing": 0.1,
+       "baking": 2.4
+      }
+     },
+     "1k-3k": {
+      "n": 198,
+      "craftPer1000": 28.2,
+      "guildPer1000": {
+       "woodworking": 2.7,
+       "textiles": 8.5,
+       "leather": 10.7,
+       "victualling": 2.1,
+       "baking": 2.4,
+       "metallurgy": 0.9,
+       "brewing": 0.6,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 329,
+      "craftPer1000": 28.7,
+      "guildPer1000": {
+       "woodworking": 2.3,
+       "textiles": 7.9,
+       "leather": 11.8,
+       "victualling": 1.5,
+       "baking": 2.3,
+       "metallurgy": 1.1,
+       "brewing": 0.2
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 952.7,
+     "Beer": 7158.3,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 972.2,
+     "Soap": 20.5,
+     "Vinegar": 82.1,
+     "Stockfish": 0,
+     "Tar": 44.9,
+     "Boots": 1272,
+     "Barrels": 7626.5,
+     "Tools": 156.9,
+     "Ceramics": 33.9,
+     "Garments": 0,
+     "Cloth": 23.8
+    }
+   },
+   {
+    "month": 6,
+    "urbanPeople": 1199960,
+    "craftPer1000": 111.3,
+    "bands": {
+     "10k+": {
+      "n": 10,
+      "craftPer1000": 115.6,
+      "guildPer1000": {
+       "metallurgy": 1,
+       "woodworking": 1.2,
+       "masonry": 0.4,
+       "textiles": 86.9,
+       "leather": 11.7,
+       "glassware": 0.2,
+       "printing": 0.5,
+       "victualling": 4.1,
+       "baking": 8.9
+      }
+     },
+     "3k-10k": {
+      "n": 110,
+      "craftPer1000": 112.3,
+      "guildPer1000": {
+       "metallurgy": 1.8,
+       "woodworking": 1.6,
+       "masonry": 0.4,
+       "textiles": 79.2,
+       "leather": 15.2,
+       "glassware": 0.2,
+       "printing": 0.3,
+       "victualling": 4,
+       "brewing": 0,
+       "baking": 8.8
+      }
+     },
+     "1k-3k": {
+      "n": 200,
+      "craftPer1000": 112.4,
+      "guildPer1000": {
+       "woodworking": 1.9,
+       "textiles": 74.9,
+       "leather": 18.3,
+       "glassware": 0,
+       "victualling": 4.1,
+       "baking": 8.8,
+       "metallurgy": 2.4,
+       "brewing": 0.6,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 327,
+      "craftPer1000": 101.4,
+      "guildPer1000": {
+       "woodworking": 1.7,
+       "textiles": 61.2,
+       "leather": 21.9,
+       "victualling": 3.1,
+       "baking": 8.2,
+       "metallurgy": 2,
+       "brewing": 0.3
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 13,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 1406.8,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 564.2,
+     "Soap": 75.9,
+     "Vinegar": 20.4,
+     "Stockfish": 0,
+     "Tar": 48.2,
+     "Boots": 743.1,
+     "Barrels": 472.2,
+     "Tools": 27.5,
+     "Ceramics": 21.1,
+     "Garments": 24,
+     "Cloth": 24.3
+    }
+   },
+   {
+    "month": 12,
+    "urbanPeople": 1221218,
+    "craftPer1000": 109.9,
+    "bands": {
+     "10k+": {
+      "n": 10,
+      "craftPer1000": 121.5,
+      "guildPer1000": {
+       "metallurgy": 1.4,
+       "woodworking": 0.5,
+       "masonry": 0.5,
+       "textiles": 89.8,
+       "leather": 12.4,
+       "glassware": 0.4,
+       "printing": 0.5,
+       "victualling": 4.6,
+       "baking": 11.2
+      }
+     },
+     "3k-10k": {
+      "n": 112,
+      "craftPer1000": 108.7,
+      "guildPer1000": {
+       "metallurgy": 2.1,
+       "woodworking": 0.7,
+       "masonry": 0.5,
+       "textiles": 72.9,
+       "leather": 15.8,
+       "glassware": 0.5,
+       "printing": 0.4,
+       "victualling": 4.2,
+       "brewing": 0,
+       "baking": 11
+      }
+     },
+     "1k-3k": {
+      "n": 204,
+      "craftPer1000": 109,
+      "guildPer1000": {
+       "metallurgy": 2.7,
+       "woodworking": 1,
+       "textiles": 68.4,
+       "leather": 19.9,
+       "glassware": 0.1,
+       "victualling": 4.3,
+       "baking": 10.9,
+       "brewing": 0.3,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 330,
+      "craftPer1000": 106.9,
+      "guildPer1000": {
+       "woodworking": 0.8,
+       "textiles": 62.5,
+       "leather": 24,
+       "victualling": 3.2,
+       "baking": 10.3,
+       "metallurgy": 2.4,
+       "brewing": 0.6
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 5.9,
+     "Beer": 925.8,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 546.4,
+     "Soap": 41.2,
+     "Vinegar": 26,
+     "Stockfish": 0,
+     "Tar": 25.9,
+     "Boots": 748.9,
+     "Barrels": 535.9,
+     "Tools": 163.1,
+     "Ceramics": 17.1,
+     "Garments": 22.1,
+     "Cloth": 24.4
+    }
+   },
+   {
+    "month": 24,
+    "urbanPeople": 1249766,
+    "craftPer1000": 86.4,
+    "bands": {
+     "10k+": {
+      "n": 11,
+      "craftPer1000": 86.4,
+      "guildPer1000": {
+       "metallurgy": 1.6,
+       "woodworking": 0.6,
+       "masonry": 0.5,
+       "textiles": 52.8,
+       "leather": 13.4,
+       "glassware": 0.3,
+       "printing": 0.5,
+       "victualling": 4.6,
+       "brewing": 0,
+       "baking": 11.9
+      }
+     },
+     "3k-10k": {
+      "n": 113,
+      "craftPer1000": 77.9,
+      "guildPer1000": {
+       "metallurgy": 2.3,
+       "woodworking": 0.7,
+       "masonry": 0.4,
+       "textiles": 39.7,
+       "leather": 17.3,
+       "glassware": 0.4,
+       "printing": 0.4,
+       "victualling": 4.2,
+       "brewing": 0,
+       "baking": 11.8
+      }
+     },
+     "1k-3k": {
+      "n": 207,
+      "craftPer1000": 95.2,
+      "guildPer1000": {
+       "metallurgy": 2.7,
+       "woodworking": 1.2,
+       "textiles": 50.3,
+       "leather": 22.7,
+       "glassware": 0.1,
+       "victualling": 4.4,
+       "baking": 11.6,
+       "brewing": 0.5,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 332,
+      "craftPer1000": 96.5,
+      "guildPer1000": {
+       "woodworking": 0.7,
+       "textiles": 48.1,
+       "leather": 25.8,
+       "victualling": 3.3,
+       "baking": 11.1,
+       "metallurgy": 2.8,
+       "brewing": 0.5
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 13,
+    "output": {
+     "Preserved food": 2.9,
+     "Beer": 673.1,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 636.8,
+     "Soap": 27.3,
+     "Vinegar": 18,
+     "Stockfish": 0,
+     "Tar": 9,
+     "Boots": 776.1,
+     "Barrels": 737.5,
+     "Tools": 226.2,
+     "Ceramics": 19.7,
+     "Garments": 22.5,
+     "Cloth": 25.1
+    }
+   },
+   {
+    "month": 36,
+    "urbanPeople": 1276839,
+    "craftPer1000": 81.5,
+    "bands": {
+     "10k+": {
+      "n": 11,
+      "craftPer1000": 80.6,
+      "guildPer1000": {
+       "metallurgy": 1.7,
+       "woodworking": 0.8,
+       "masonry": 0.5,
+       "textiles": 45.5,
+       "leather": 14.1,
+       "glassware": 0.3,
+       "printing": 0.5,
+       "victualling": 4.6,
+       "brewing": 0.4,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 118,
+      "craftPer1000": 72.3,
+      "guildPer1000": {
+       "metallurgy": 2.3,
+       "woodworking": 0.9,
+       "masonry": 0.4,
+       "textiles": 33.3,
+       "leather": 17.8,
+       "glassware": 0.4,
+       "printing": 0.4,
+       "victualling": 4.4,
+       "brewing": 0.1,
+       "baking": 11.8
+      }
+     },
+     "1k-3k": {
+      "n": 211,
+      "craftPer1000": 92.6,
+      "guildPer1000": {
+       "metallurgy": 2.8,
+       "woodworking": 1.4,
+       "textiles": 46.2,
+       "leather": 23.4,
+       "glassware": 0,
+       "victualling": 4.6,
+       "baking": 11.8,
+       "brewing": 0.6,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 329,
+      "craftPer1000": 91,
+      "guildPer1000": {
+       "woodworking": 0.7,
+       "textiles": 42.3,
+       "leather": 26.2,
+       "victualling": 3.4,
+       "baking": 11.2,
+       "metallurgy": 2.7,
+       "brewing": 0.5
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 13,
+    "output": {
+     "Preserved food": 12.2,
+     "Beer": 1054.3,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 571.3,
+     "Soap": 24.1,
+     "Vinegar": 7.7,
+     "Stockfish": 0,
+     "Tar": 12.9,
+     "Boots": 809.9,
+     "Barrels": 1000.4,
+     "Tools": 248.4,
+     "Ceramics": 19.4,
+     "Garments": 23.4,
+     "Cloth": 25.7
+    }
+   },
+   {
+    "month": 48,
+    "urbanPeople": 1306588,
+    "craftPer1000": 77.3,
+    "bands": {
+     "10k+": {
+      "n": 11,
+      "craftPer1000": 74.1,
+      "guildPer1000": {
+       "metallurgy": 1.6,
+       "woodworking": 0.5,
+       "masonry": 0.5,
+       "textiles": 40.6,
+       "leather": 13.3,
+       "glassware": 0.3,
+       "printing": 0.5,
+       "victualling": 4.4,
+       "brewing": 0,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 119,
+      "craftPer1000": 70,
+      "guildPer1000": {
+       "metallurgy": 2.2,
+       "woodworking": 0.9,
+       "masonry": 0.5,
+       "textiles": 30.7,
+       "leather": 17.8,
+       "glassware": 0.4,
+       "printing": 0.4,
+       "victualling": 4.5,
+       "brewing": 0.1,
+       "baking": 11.9
+      }
+     },
+     "1k-3k": {
+      "n": 217,
+      "craftPer1000": 87,
+      "guildPer1000": {
+       "metallurgy": 3.1,
+       "woodworking": 1.4,
+       "textiles": 40.7,
+       "leather": 23.2,
+       "glassware": 0.1,
+       "victualling": 4.6,
+       "baking": 11.6,
+       "brewing": 0.5,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 328,
+      "craftPer1000": 84.2,
+      "guildPer1000": {
+       "woodworking": 0.8,
+       "textiles": 35.3,
+       "leather": 26,
+       "victualling": 3.4,
+       "baking": 11.2,
+       "metallurgy": 2.8,
+       "brewing": 0.5
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 13,
+    "output": {
+     "Preserved food": 1.9,
+     "Beer": 1170.3,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 636.3,
+     "Soap": 55.7,
+     "Vinegar": 18,
+     "Stockfish": 0,
+     "Tar": 9.5,
+     "Boots": 858.7,
+     "Barrels": 1220.8,
+     "Tools": 227,
+     "Ceramics": 23.3,
+     "Garments": 23.1,
+     "Cloth": 26.5
+    }
+   },
+   {
+    "month": 60,
+    "urbanPeople": 1338900,
+    "craftPer1000": 75.2,
+    "bands": {
+     "10k+": {
+      "n": 11,
+      "craftPer1000": 69,
+      "guildPer1000": {
+       "metallurgy": 1.7,
+       "woodworking": 0.5,
+       "masonry": 0.5,
+       "textiles": 35.7,
+       "leather": 13.3,
+       "glassware": 0.4,
+       "printing": 0.5,
+       "victualling": 4.2,
+       "baking": 11.9
+      }
+     },
+     "3k-10k": {
+      "n": 127,
+      "craftPer1000": 68.5,
+      "guildPer1000": {
+       "metallurgy": 2.4,
+       "woodworking": 0.8,
+       "masonry": 0.5,
+       "textiles": 29.8,
+       "leather": 17.3,
+       "glassware": 0.3,
+       "printing": 0.4,
+       "victualling": 4.5,
+       "brewing": 0.1,
+       "baking": 11.9
+      }
+     },
+     "1k-3k": {
+      "n": 216,
+      "craftPer1000": 86.1,
+      "guildPer1000": {
+       "metallurgy": 3.1,
+       "woodworking": 1.3,
+       "textiles": 40.5,
+       "leather": 22.5,
+       "glassware": 0,
+       "victualling": 4.5,
+       "baking": 11.7,
+       "brewing": 0.5,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 327,
+      "craftPer1000": 81.5,
+      "guildPer1000": {
+       "woodworking": 0.8,
+       "textiles": 34.1,
+       "leather": 24.9,
+       "victualling": 3.4,
+       "baking": 11.2,
+       "metallurgy": 2.7,
+       "brewing": 0.6
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 881.2,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 664.5,
+     "Soap": 17.3,
+     "Vinegar": 5.8,
+     "Stockfish": 0,
+     "Tar": 17.1,
+     "Boots": 881.9,
+     "Barrels": 708.5,
+     "Tools": 300,
+     "Ceramics": 17.4,
+     "Garments": 23.5,
+     "Cloth": 27.2
+    }
+   }
+  ],
+  "2103": [
+   {
+    "month": 0,
+    "urbanPeople": 1143793,
+    "craftPer1000": 10,
+    "bands": {
+     "10k+": {
+      "n": 5,
+      "craftPer1000": 7.5,
+      "guildPer1000": {
+       "metallurgy": 0.3,
+       "woodworking": 1.5,
+       "masonry": 0.2,
+       "textiles": 2.4,
+       "leather": 1.6,
+       "glassware": 0.1,
+       "printing": 0.1,
+       "victualling": 1.2
+      }
+     },
+     "3k-10k": {
+      "n": 123,
+      "craftPer1000": 9.5,
+      "guildPer1000": {
+       "metallurgy": 0.3,
+       "woodworking": 1.5,
+       "masonry": 0.2,
+       "textiles": 2.8,
+       "leather": 3.5,
+       "glassware": 0,
+       "printing": 0.1,
+       "victualling": 1.1
+      }
+     },
+     "1k-3k": {
+      "n": 188,
+      "craftPer1000": 10.9,
+      "guildPer1000": {
+       "woodworking": 1.6,
+       "textiles": 2.9,
+       "leather": 5,
+       "victualling": 1.1,
+       "metallurgy": 0.5,
+       "masonry": 0.1
+      }
+     },
+     "<1k": {
+      "n": 334,
+      "craftPer1000": 10.7,
+      "guildPer1000": {
+       "woodworking": 1.4,
+       "textiles": 2.6,
+       "leather": 5.3,
+       "metallurgy": 0.6,
+       "victualling": 1.1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 10,
+    "output": {
+     "Preserved food": 1057.6,
+     "Beer": 0,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 18.4,
+     "Soap": 2,
+     "Vinegar": 47,
+     "Stockfish": 0,
+     "Tar": 109.6,
+     "Boots": 879.1,
+     "Barrels": 7403.7,
+     "Tools": 11.5,
+     "Ceramics": 44.4,
+     "Garments": 0,
+     "Cloth": 23.4
+    }
+   },
+   {
+    "month": 1,
+    "urbanPeople": 1143620,
+    "craftPer1000": 22.1,
+    "bands": {
+     "10k+": {
+      "n": 5,
+      "craftPer1000": 19,
+      "guildPer1000": {
+       "metallurgy": 0.5,
+       "woodworking": 2.4,
+       "masonry": 0.4,
+       "textiles": 4.4,
+       "leather": 6.3,
+       "glassware": 0.1,
+       "printing": 0.2,
+       "victualling": 2,
+       "baking": 2.4
+      }
+     },
+     "3k-10k": {
+      "n": 123,
+      "craftPer1000": 21.7,
+      "guildPer1000": {
+       "metallurgy": 0.6,
+       "woodworking": 2.6,
+       "masonry": 0.3,
+       "textiles": 5.5,
+       "leather": 7.9,
+       "glassware": 0,
+       "printing": 0.1,
+       "victualling": 2,
+       "baking": 2.4
+      }
+     },
+     "1k-3k": {
+      "n": 188,
+      "craftPer1000": 23.1,
+      "guildPer1000": {
+       "woodworking": 2.8,
+       "textiles": 5.5,
+       "leather": 9.2,
+       "victualling": 2,
+       "baking": 2.4,
+       "metallurgy": 0.8,
+       "masonry": 0.1,
+       "brewing": 0
+      }
+     },
+     "<1k": {
+      "n": 334,
+      "craftPer1000": 23.1,
+      "guildPer1000": {
+       "woodworking": 2.3,
+       "textiles": 5.5,
+       "leather": 9.4,
+       "baking": 2.4,
+       "metallurgy": 0.9,
+       "victualling": 1.5
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 828.8,
+     "Beer": 72,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 957.4,
+     "Soap": 16.3,
+     "Vinegar": 49.3,
+     "Stockfish": 0,
+     "Tar": 34.9,
+     "Boots": 1223.1,
+     "Barrels": 7118,
+     "Tools": 120.5,
+     "Ceramics": 32.2,
+     "Garments": 0,
+     "Cloth": 23.6
+    }
+   },
+   {
+    "month": 6,
+    "urbanPeople": 1141558,
+    "craftPer1000": 74.9,
+    "bands": {
+     "10k+": {
+      "n": 5,
+      "craftPer1000": 89.8,
+      "guildPer1000": {
+       "metallurgy": 1,
+       "woodworking": 1,
+       "masonry": 0.9,
+       "textiles": 64.6,
+       "leather": 9.9,
+       "glassware": 0.5,
+       "printing": 0.4,
+       "victualling": 2.9,
+       "baking": 8
+      }
+     },
+     "3k-10k": {
+      "n": 123,
+      "craftPer1000": 77.3,
+      "guildPer1000": {
+       "metallurgy": 1.7,
+       "woodworking": 1.2,
+       "masonry": 0.7,
+       "textiles": 48.8,
+       "leather": 12.9,
+       "glassware": 0.3,
+       "printing": 0.3,
+       "victualling": 3.1,
+       "baking": 7.9
+      }
+     },
+     "1k-3k": {
+      "n": 187,
+      "craftPer1000": 70.7,
+      "guildPer1000": {
+       "woodworking": 1.4,
+       "textiles": 38.8,
+       "leather": 15.9,
+       "glassware": 0,
+       "victualling": 2.9,
+       "baking": 7.8,
+       "metallurgy": 2,
+       "masonry": 0.3,
+       "brewing": 0
+      }
+     },
+     "<1k": {
+      "n": 335,
+      "craftPer1000": 69.2,
+      "guildPer1000": {
+       "woodworking": 1.3,
+       "textiles": 34.1,
+       "leather": 18.3,
+       "baking": 7.5,
+       "metallurgy": 1.5,
+       "victualling": 2.2,
+       "brewing": 0.2
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 473.9,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 627.1,
+     "Soap": 58.8,
+     "Vinegar": 21.8,
+     "Stockfish": 0,
+     "Tar": 66.9,
+     "Boots": 788.6,
+     "Barrels": 246.9,
+     "Tools": 6.4,
+     "Ceramics": 26.2,
+     "Garments": 22.5,
+     "Cloth": 23.5
+    }
+   },
+   {
+    "month": 12,
+    "urbanPeople": 1145220,
+    "craftPer1000": 85.7,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 82.9,
+      "guildPer1000": {
+       "metallurgy": 1.2,
+       "woodworking": 0.9,
+       "masonry": 1.1,
+       "textiles": 51.1,
+       "leather": 13.2,
+       "glassware": 0.5,
+       "printing": 0.3,
+       "victualling": 3.1,
+       "baking": 10.9
+      }
+     },
+     "3k-10k": {
+      "n": 124,
+      "craftPer1000": 92.1,
+      "guildPer1000": {
+       "metallurgy": 1.9,
+       "woodworking": 1.3,
+       "masonry": 0.8,
+       "textiles": 54.7,
+       "leather": 17.6,
+       "glassware": 0.4,
+       "printing": 0.3,
+       "victualling": 3.6,
+       "brewing": 0.1,
+       "baking": 11
+      }
+     },
+     "1k-3k": {
+      "n": 189,
+      "craftPer1000": 78.8,
+      "guildPer1000": {
+       "woodworking": 1.4,
+       "textiles": 39.1,
+       "leather": 19.9,
+       "glassware": 0.1,
+       "victualling": 3.4,
+       "baking": 10.8,
+       "metallurgy": 2,
+       "masonry": 0.3,
+       "brewing": 0.1
+      }
+     },
+     "<1k": {
+      "n": 338,
+      "craftPer1000": 76.2,
+      "guildPer1000": {
+       "metallurgy": 1.7,
+       "woodworking": 1.2,
+       "textiles": 35.5,
+       "leather": 22,
+       "victualling": 2.6,
+       "baking": 10.3,
+       "brewing": 0.3
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 354.9,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 641.6,
+     "Soap": 27.5,
+     "Vinegar": 18.7,
+     "Stockfish": 0,
+     "Tar": 16.2,
+     "Boots": 915.7,
+     "Barrels": 785.4,
+     "Tools": 71.1,
+     "Ceramics": 23.4,
+     "Garments": 20.4,
+     "Cloth": 23.2
+    }
+   },
+   {
+    "month": 24,
+    "urbanPeople": 1146028,
+    "craftPer1000": 75.6,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 65.3,
+      "guildPer1000": {
+       "metallurgy": 1.3,
+       "woodworking": 0.7,
+       "masonry": 1.2,
+       "textiles": 32.8,
+       "leather": 12,
+       "glassware": 0.7,
+       "printing": 0.3,
+       "victualling": 3.4,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 123,
+      "craftPer1000": 76.1,
+      "guildPer1000": {
+       "metallurgy": 1.9,
+       "woodworking": 0.7,
+       "masonry": 0.8,
+       "textiles": 38.4,
+       "leather": 16.9,
+       "glassware": 0.5,
+       "printing": 0.3,
+       "victualling": 4,
+       "brewing": 0.1,
+       "baking": 11.9
+      }
+     },
+     "1k-3k": {
+      "n": 192,
+      "craftPer1000": 75.5,
+      "guildPer1000": {
+       "woodworking": 1.1,
+       "textiles": 33.8,
+       "leather": 20.7,
+       "glassware": 0.1,
+       "victualling": 3.8,
+       "baking": 11.9,
+       "metallurgy": 2,
+       "masonry": 0.4,
+       "brewing": 0.1
+      }
+     },
+     "<1k": {
+      "n": 338,
+      "craftPer1000": 76.7,
+      "guildPer1000": {
+       "metallurgy": 1.9,
+       "woodworking": 0.8,
+       "textiles": 32.2,
+       "leather": 23.7,
+       "victualling": 2.7,
+       "baking": 11.2,
+       "brewing": 0.4
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 532.2,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 606.4,
+     "Soap": 37.2,
+     "Vinegar": 18,
+     "Stockfish": 0,
+     "Tar": 6.2,
+     "Boots": 800.9,
+     "Barrels": 586.8,
+     "Tools": 118.8,
+     "Ceramics": 20,
+     "Garments": 20.4,
+     "Cloth": 23.1
+    }
+   },
+   {
+    "month": 36,
+    "urbanPeople": 1150906,
+    "craftPer1000": 72.1,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 62.5,
+      "guildPer1000": {
+       "metallurgy": 1.3,
+       "woodworking": 0.6,
+       "masonry": 1.2,
+       "textiles": 30.2,
+       "leather": 11.5,
+       "glassware": 0.7,
+       "printing": 0.3,
+       "victualling": 3.5,
+       "brewing": 0.6,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 125,
+      "craftPer1000": 71,
+      "guildPer1000": {
+       "metallurgy": 2,
+       "woodworking": 0.7,
+       "masonry": 0.8,
+       "textiles": 33.8,
+       "leather": 16,
+       "glassware": 0.5,
+       "printing": 0.3,
+       "victualling": 4.2,
+       "brewing": 0,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 191,
+      "craftPer1000": 73.9,
+      "guildPer1000": {
+       "woodworking": 1,
+       "textiles": 32.3,
+       "leather": 20,
+       "glassware": 0.1,
+       "victualling": 4,
+       "baking": 12,
+       "metallurgy": 2.3,
+       "masonry": 0.4,
+       "brewing": 0.1
+      }
+     },
+     "<1k": {
+      "n": 339,
+      "craftPer1000": 75.1,
+      "guildPer1000": {
+       "metallurgy": 2.1,
+       "woodworking": 0.6,
+       "textiles": 30.6,
+       "leather": 23.2,
+       "victualling": 2.9,
+       "baking": 11.3,
+       "brewing": 0.4
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 378.5,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 621.4,
+     "Soap": 14.4,
+     "Vinegar": 9.9,
+     "Stockfish": 0,
+     "Tar": 9.3,
+     "Boots": 797.6,
+     "Barrels": 388.8,
+     "Tools": 130.9,
+     "Ceramics": 24.8,
+     "Garments": 21,
+     "Cloth": 23.3
+    }
+   },
+   {
+    "month": 48,
+    "urbanPeople": 1159136,
+    "craftPer1000": 70.2,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 61,
+      "guildPer1000": {
+       "metallurgy": 1.3,
+       "woodworking": 0.5,
+       "masonry": 1.2,
+       "textiles": 29.7,
+       "leather": 11,
+       "glassware": 0.7,
+       "printing": 0.3,
+       "victualling": 3.6,
+       "brewing": 0.2,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 126,
+      "craftPer1000": 68.3,
+      "guildPer1000": {
+       "metallurgy": 2.1,
+       "woodworking": 0.7,
+       "masonry": 0.8,
+       "textiles": 31.9,
+       "leather": 15.2,
+       "glassware": 0.4,
+       "printing": 0.3,
+       "victualling": 4.4,
+       "brewing": 0.1,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 193,
+      "craftPer1000": 72.7,
+      "guildPer1000": {
+       "metallurgy": 2.6,
+       "woodworking": 1.1,
+       "textiles": 31.1,
+       "leather": 19.4,
+       "glassware": 0.1,
+       "victualling": 4.2,
+       "baking": 12,
+       "masonry": 0.4,
+       "brewing": 0.1
+      }
+     },
+     "<1k": {
+      "n": 338,
+      "craftPer1000": 74.6,
+      "guildPer1000": {
+       "metallurgy": 2.3,
+       "woodworking": 0.7,
+       "textiles": 30.1,
+       "leather": 22.7,
+       "victualling": 3.1,
+       "baking": 11.2,
+       "brewing": 0.4
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 13,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 624,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 611.4,
+     "Soap": 20.4,
+     "Vinegar": 14.6,
+     "Stockfish": 0,
+     "Tar": 18.1,
+     "Boots": 794.1,
+     "Barrels": 565.1,
+     "Tools": 163.9,
+     "Ceramics": 22.6,
+     "Garments": 21.3,
+     "Cloth": 23.7
+    }
+   },
+   {
+    "month": 60,
+    "urbanPeople": 1168651,
+    "craftPer1000": 69.3,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 60.5,
+      "guildPer1000": {
+       "metallurgy": 1.3,
+       "woodworking": 0.6,
+       "masonry": 1.1,
+       "textiles": 29.5,
+       "leather": 10.6,
+       "glassware": 1.1,
+       "printing": 0.2,
+       "victualling": 3.6,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 127,
+      "craftPer1000": 67.4,
+      "guildPer1000": {
+       "metallurgy": 1.9,
+       "woodworking": 0.8,
+       "masonry": 0.8,
+       "textiles": 31.3,
+       "leather": 14.7,
+       "glassware": 0.5,
+       "printing": 0.3,
+       "victualling": 4.5,
+       "brewing": 0,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 197,
+      "craftPer1000": 71.6,
+      "guildPer1000": {
+       "metallurgy": 2.4,
+       "woodworking": 1.2,
+       "textiles": 30.2,
+       "leather": 18.9,
+       "glassware": 0.1,
+       "victualling": 4.3,
+       "baking": 12,
+       "masonry": 0.4,
+       "brewing": 0.4
+      }
+     },
+     "<1k": {
+      "n": 334,
+      "craftPer1000": 74.5,
+      "guildPer1000": {
+       "woodworking": 0.9,
+       "textiles": 29.9,
+       "leather": 22.4,
+       "baking": 11.2,
+       "metallurgy": 2.3,
+       "victualling": 3.2,
+       "brewing": 0.4,
+       "masonry": 0
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 263.5,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 601.9,
+     "Soap": 14.9,
+     "Vinegar": 12.5,
+     "Stockfish": 0,
+     "Tar": 7.5,
+     "Boots": 799.8,
+     "Barrels": 442.5,
+     "Tools": 164,
+     "Ceramics": 27.1,
+     "Garments": 21.4,
+     "Cloth": 23.8
+    }
+   }
+  ],
+  "2104": [
+   {
+    "month": 0,
+    "urbanPeople": 832270,
+    "craftPer1000": 9.9,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 6.7,
+      "guildPer1000": {
+       "metallurgy": 0.3,
+       "woodworking": 1.6,
+       "masonry": 0.1,
+       "textiles": 1.7,
+       "leather": 1.7,
+       "printing": 0.1,
+       "victualling": 1.1
+      }
+     },
+     "3k-10k": {
+      "n": 67,
+      "craftPer1000": 9.8,
+      "guildPer1000": {
+       "metallurgy": 0.3,
+       "woodworking": 1.5,
+       "masonry": 0.1,
+       "textiles": 2.7,
+       "leather": 3.9,
+       "printing": 0.1,
+       "victualling": 1.1
+      }
+     },
+     "1k-3k": {
+      "n": 140,
+      "craftPer1000": 10.9,
+      "guildPer1000": {
+       "metallurgy": 0.6,
+       "woodworking": 1.6,
+       "textiles": 2.7,
+       "leather": 4.9,
+       "victualling": 1.1,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 369,
+      "craftPer1000": 10.4,
+      "guildPer1000": {
+       "metallurgy": 0.7,
+       "woodworking": 1.3,
+       "textiles": 2.3,
+       "leather": 5.6,
+       "victualling": 1
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 10,
+    "output": {
+     "Preserved food": 769.8,
+     "Beer": 0,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 16.8,
+     "Soap": 2,
+     "Vinegar": 19,
+     "Stockfish": 0,
+     "Tar": 55.3,
+     "Boots": 659.9,
+     "Barrels": 5394.3,
+     "Tools": 28.1,
+     "Ceramics": 0,
+     "Garments": 0,
+     "Cloth": 15.9
+    }
+   },
+   {
+    "month": 1,
+    "urbanPeople": 832290,
+    "craftPer1000": 26.9,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 23.8,
+      "guildPer1000": {
+       "metallurgy": 0.9,
+       "woodworking": 2.7,
+       "masonry": 0.2,
+       "textiles": 8.7,
+       "leather": 6.3,
+       "printing": 0.1,
+       "victualling": 2.1,
+       "baking": 2.4
+      }
+     },
+     "3k-10k": {
+      "n": 67,
+      "craftPer1000": 25,
+      "guildPer1000": {
+       "metallurgy": 0.7,
+       "woodworking": 2.6,
+       "masonry": 0.2,
+       "textiles": 8.4,
+       "leather": 8.2,
+       "printing": 0.1,
+       "victualling": 2.1,
+       "baking": 2.4
+      }
+     },
+     "1k-3k": {
+      "n": 140,
+      "craftPer1000": 29.1,
+      "guildPer1000": {
+       "metallurgy": 1,
+       "woodworking": 2.7,
+       "textiles": 11.6,
+       "leather": 9.2,
+       "victualling": 2.1,
+       "baking": 2.4,
+       "masonry": 0
+      }
+     },
+     "<1k": {
+      "n": 369,
+      "craftPer1000": 29.6,
+      "guildPer1000": {
+       "metallurgy": 0.9,
+       "woodworking": 2.2,
+       "textiles": 11.7,
+       "leather": 9.8,
+       "victualling": 1.5,
+       "baking": 2.3
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 679.5,
+     "Beer": 29,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 702.5,
+     "Soap": 7.2,
+     "Vinegar": 50.4,
+     "Stockfish": 0,
+     "Tar": 49.4,
+     "Boots": 888.6,
+     "Barrels": 5211.6,
+     "Tools": 106.5,
+     "Ceramics": 0,
+     "Garments": 0,
+     "Cloth": 16.4
+    }
+   },
+   {
+    "month": 6,
+    "urbanPeople": 825775,
+    "craftPer1000": 89.2,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 95.5,
+      "guildPer1000": {
+       "metallurgy": 1.9,
+       "woodworking": 1.4,
+       "masonry": 0.4,
+       "textiles": 65.1,
+       "leather": 14.3,
+       "printing": 0.4,
+       "victualling": 4,
+       "baking": 7.4
+      }
+     },
+     "3k-10k": {
+      "n": 66,
+      "craftPer1000": 88.4,
+      "guildPer1000": {
+       "metallurgy": 2.1,
+       "woodworking": 1.2,
+       "masonry": 0.5,
+       "textiles": 59.4,
+       "leather": 13.1,
+       "printing": 0.3,
+       "victualling": 3.2,
+       "baking": 7.9
+      }
+     },
+     "1k-3k": {
+      "n": 140,
+      "craftPer1000": 89.5,
+      "guildPer1000": {
+       "metallurgy": 2.4,
+       "woodworking": 1.4,
+       "textiles": 56.8,
+       "leather": 16.1,
+       "victualling": 3.3,
+       "baking": 8,
+       "masonry": 0.1,
+       "brewing": 0.1
+      }
+     },
+     "<1k": {
+      "n": 370,
+      "craftPer1000": 86.9,
+      "guildPer1000": {
+       "metallurgy": 1.6,
+       "woodworking": 1.2,
+       "textiles": 50.9,
+       "leather": 19.3,
+       "victualling": 2.4,
+       "baking": 7.3,
+       "brewing": 0
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 152.1,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 430.2,
+     "Soap": 63.3,
+     "Vinegar": 24.6,
+     "Stockfish": 0,
+     "Tar": 33.6,
+     "Boots": 563,
+     "Barrels": 51.9,
+     "Tools": 32.2,
+     "Ceramics": 0,
+     "Garments": 14.1,
+     "Cloth": 16.2
+    }
+   },
+   {
+    "month": 12,
+    "urbanPeople": 823685,
+    "craftPer1000": 88.4,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 72.6,
+      "guildPer1000": {
+       "metallurgy": 2.3,
+       "woodworking": 2.1,
+       "masonry": 0.5,
+       "textiles": 33.1,
+       "leather": 17.9,
+       "printing": 0.4,
+       "victualling": 4.9,
+       "brewing": 0.5,
+       "baking": 10.3
+      }
+     },
+     "3k-10k": {
+      "n": 66,
+      "craftPer1000": 90.5,
+      "guildPer1000": {
+       "metallurgy": 2.5,
+       "woodworking": 2,
+       "masonry": 0.6,
+       "textiles": 49.6,
+       "leather": 20.3,
+       "printing": 0.4,
+       "victualling": 4.3,
+       "brewing": 0.1,
+       "baking": 10.2
+      }
+     },
+     "1k-3k": {
+      "n": 143,
+      "craftPer1000": 91.8,
+      "guildPer1000": {
+       "metallurgy": 3.2,
+       "woodworking": 1.8,
+       "textiles": 49.2,
+       "leather": 21.1,
+       "victualling": 4.3,
+       "baking": 10,
+       "masonry": 0.1,
+       "brewing": 0.4
+      }
+     },
+     "<1k": {
+      "n": 372,
+      "craftPer1000": 87.4,
+      "guildPer1000": {
+       "metallurgy": 2.3,
+       "woodworking": 1.3,
+       "textiles": 44.8,
+       "leather": 22.4,
+       "victualling": 3.1,
+       "baking": 8.8,
+       "brewing": 0.5
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 890.6,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 615.2,
+     "Soap": 18.7,
+     "Vinegar": 19,
+     "Stockfish": 0,
+     "Tar": 30.9,
+     "Boots": 827,
+     "Barrels": 1099,
+     "Tools": 127.7,
+     "Ceramics": 0,
+     "Garments": 12.8,
+     "Cloth": 15.9
+    }
+   },
+   {
+    "month": 24,
+    "urbanPeople": 817978,
+    "craftPer1000": 80.8,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 66.6,
+      "guildPer1000": {
+       "metallurgy": 1.7,
+       "woodworking": 0.8,
+       "masonry": 0.5,
+       "textiles": 23.9,
+       "leather": 21.8,
+       "printing": 0.6,
+       "victualling": 4.2,
+       "brewing": 0,
+       "baking": 12
+      }
+     },
+     "3k-10k": {
+      "n": 65,
+      "craftPer1000": 77.8,
+      "guildPer1000": {
+       "metallurgy": 2.6,
+       "woodworking": 1.4,
+       "masonry": 0.6,
+       "textiles": 36,
+       "leather": 19.5,
+       "printing": 0.4,
+       "victualling": 4.6,
+       "brewing": 0.1,
+       "baking": 11.9
+      }
+     },
+     "1k-3k": {
+      "n": 147,
+      "craftPer1000": 87.4,
+      "guildPer1000": {
+       "metallurgy": 3.6,
+       "woodworking": 1.3,
+       "textiles": 41.9,
+       "leather": 22.1,
+       "victualling": 4.6,
+       "baking": 11.8,
+       "masonry": 0.1,
+       "brewing": 0.4
+      }
+     },
+     "<1k": {
+      "n": 373,
+      "craftPer1000": 83.5,
+      "guildPer1000": {
+       "metallurgy": 2.4,
+       "woodworking": 0.9,
+       "textiles": 36.1,
+       "leather": 24.5,
+       "victualling": 3.3,
+       "baking": 10.5,
+       "brewing": 0.4
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 11,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 384.5,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 495.2,
+     "Soap": 20.7,
+     "Vinegar": 26.6,
+     "Stockfish": 0,
+     "Tar": 22.4,
+     "Boots": 684.3,
+     "Barrels": 659.5,
+     "Tools": 133.4,
+     "Ceramics": 0,
+     "Garments": 13.7,
+     "Cloth": 15.6
+    }
+   },
+   {
+    "month": 36,
+    "urbanPeople": 815249,
+    "craftPer1000": 77.7,
+    "bands": {
+     "10k+": {
+      "n": 3,
+      "craftPer1000": 63.5,
+      "guildPer1000": {
+       "metallurgy": 1.4,
+       "woodworking": 0.7,
+       "masonry": 0.5,
+       "textiles": 25,
+       "leather": 17.8,
+       "printing": 0.5,
+       "victualling": 4,
+       "baking": 12.1
+      }
+     },
+     "3k-10k": {
+      "n": 65,
+      "craftPer1000": 75.2,
+      "guildPer1000": {
+       "metallurgy": 3,
+       "woodworking": 1.3,
+       "masonry": 0.6,
+       "textiles": 34.2,
+       "leather": 18.2,
+       "printing": 0.3,
+       "victualling": 4.6,
+       "brewing": 0.2,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 149,
+      "craftPer1000": 84.4,
+      "guildPer1000": {
+       "metallurgy": 3.3,
+       "woodworking": 1.3,
+       "textiles": 39.9,
+       "leather": 21.2,
+       "victualling": 4.6,
+       "baking": 11.9,
+       "masonry": 0.1,
+       "brewing": 0.5
+      }
+     },
+     "<1k": {
+      "n": 373,
+      "craftPer1000": 78.5,
+      "guildPer1000": {
+       "metallurgy": 2.7,
+       "woodworking": 0.7,
+       "textiles": 32.7,
+       "leather": 23.4,
+       "victualling": 3.3,
+       "baking": 10.6,
+       "brewing": 0.4
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 537,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 481.5,
+     "Soap": 4.4,
+     "Vinegar": 6.7,
+     "Stockfish": 0,
+     "Tar": 23.4,
+     "Boots": 624.1,
+     "Barrels": 561.2,
+     "Tools": 219.6,
+     "Ceramics": 0,
+     "Garments": 12.7,
+     "Cloth": 15.7
+    }
+   },
+   {
+    "month": 48,
+    "urbanPeople": 815387,
+    "craftPer1000": 73.1,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 61.2,
+      "guildPer1000": {
+       "metallurgy": 1.6,
+       "woodworking": 2,
+       "masonry": 0.6,
+       "textiles": 23.7,
+       "leather": 13.9,
+       "printing": 0.4,
+       "victualling": 4.9,
+       "brewing": 1,
+       "baking": 12.1
+      }
+     },
+     "3k-10k": {
+      "n": 64,
+      "craftPer1000": 71.5,
+      "guildPer1000": {
+       "metallurgy": 3.3,
+       "woodworking": 1.3,
+       "masonry": 0.6,
+       "textiles": 31.3,
+       "leather": 17,
+       "printing": 0.3,
+       "victualling": 4.7,
+       "brewing": 0.2,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 150,
+      "craftPer1000": 76.5,
+      "guildPer1000": {
+       "metallurgy": 3.5,
+       "woodworking": 1.4,
+       "textiles": 33,
+       "leather": 20.1,
+       "victualling": 4.6,
+       "baking": 11.9,
+       "masonry": 0.1,
+       "brewing": 0.3
+      }
+     },
+     "<1k": {
+      "n": 373,
+      "craftPer1000": 76.7,
+      "guildPer1000": {
+       "metallurgy": 2.8,
+       "woodworking": 0.7,
+       "textiles": 30.4,
+       "leather": 23.3,
+       "victualling": 3.3,
+       "baking": 10.7,
+       "brewing": 0.5
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 220.7,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 509.1,
+     "Soap": 0,
+     "Vinegar": 0,
+     "Stockfish": 0,
+     "Tar": 11.2,
+     "Boots": 637.2,
+     "Barrels": 653.2,
+     "Tools": 280,
+     "Ceramics": 0,
+     "Garments": 13.5,
+     "Cloth": 16.1
+    }
+   },
+   {
+    "month": 60,
+    "urbanPeople": 817267,
+    "craftPer1000": 72.5,
+    "bands": {
+     "10k+": {
+      "n": 4,
+      "craftPer1000": 63.4,
+      "guildPer1000": {
+       "metallurgy": 1.6,
+       "woodworking": 1,
+       "masonry": 0.6,
+       "textiles": 25.3,
+       "leather": 16,
+       "printing": 0.5,
+       "victualling": 5.1,
+       "brewing": 0.1,
+       "baking": 12.1
+      }
+     },
+     "3k-10k": {
+      "n": 64,
+      "craftPer1000": 69.4,
+      "guildPer1000": {
+       "metallurgy": 3.5,
+       "woodworking": 1.3,
+       "masonry": 0.6,
+       "textiles": 30.6,
+       "leather": 15.5,
+       "printing": 0.3,
+       "victualling": 4.9,
+       "brewing": 0.1,
+       "baking": 12
+      }
+     },
+     "1k-3k": {
+      "n": 154,
+      "craftPer1000": 76.9,
+      "guildPer1000": {
+       "metallurgy": 3.8,
+       "woodworking": 1.3,
+       "textiles": 33.6,
+       "leather": 19.2,
+       "victualling": 4.7,
+       "baking": 11.9,
+       "masonry": 0.1,
+       "brewing": 0.6
+      }
+     },
+     "<1k": {
+      "n": 370,
+      "craftPer1000": 76.2,
+      "guildPer1000": {
+       "metallurgy": 2.9,
+       "woodworking": 0.7,
+       "textiles": 30.5,
+       "leather": 22.6,
+       "victualling": 3.4,
+       "baking": 10.7,
+       "brewing": 0.5
+      }
+     }
+    },
+    "preservedOnly": {
+     "n": 0,
+     "medianCraftPer1000": 0,
+     "medianLots": 0,
+     "medianPeople": 0
+    },
+    "recipeGoodsPerBurg": 12,
+    "output": {
+     "Preserved food": 0,
+     "Beer": 587.8,
+     "Cheese": 0,
+     "Wine": 0,
+     "Candles": 439.7,
+     "Soap": 1.1,
+     "Vinegar": 0,
+     "Stockfish": 0,
+     "Tar": 5.6,
+     "Boots": 609.6,
+     "Barrels": 493.4,
+     "Tools": 267.8,
+     "Ceramics": 0,
+     "Garments": 14.6,
+     "Cloth": 16.5
+    }
+   }
+  ]
+ }
+}

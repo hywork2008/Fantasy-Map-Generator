@@ -16,9 +16,9 @@ describe("craftDemandCalibration", () => {
   it("authors barrel labor at 0.00106 pt/lot (share 0.50 applied)", () => {
     expect(getGoodDemandCalibration("Barrels")?.laborPointsPerLotAtDefaultRate).toBeCloseTo(0.00106, 5);
     const lots = getCalibratedMonthlyLots({ goodName: "Barrels", laborPeopleBurg: 9000, port: false });
-    expect(lots).toBeCloseTo(9.36, 2);
-    expect(laborPointsForLots("Barrels", 9.36, 1000)).toBeCloseTo(0.00992, 4);
-    expect(laborPointsForLots("Barrels", 9.36, 1000)).not.toBeCloseTo(9.36, 1);
+    expect(lots).toBeCloseTo(58.5, 2);
+    expect(laborPointsForLots("Barrels", 58.5, 1000)).toBeCloseTo(0.062, 3);
+    expect(laborPointsForLots("Barrels", 58.5, 1000)).not.toBeCloseTo(58.5, 1);
   });
 
   it("keeps Lab Glassware labor as an authored floor, not a runtime solve", () => {
@@ -52,8 +52,8 @@ describe("craftDemandCalibration", () => {
         getCalibratedMonthlyLots({ goodName: "Barrels", laborPeopleBurg: 9000, port: false }),
         1000
       ) * 1000;
-    // Cooperage typical 45 people at the fixture; the authored barrel labor is a fifth of it.
-    expect(barrelLaborPeople / expectedPeople).toBeCloseTo(0.22, 1);
+    // Cooperage typical 45 people at the fixture; the town ale casks' labor is about 1.4 times it.
+    expect(barrelLaborPeople / expectedPeople).toBeCloseTo(1.38, 1);
   });
 
   it("stops a per-head floor once the market holds three months of it", () => {

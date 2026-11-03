@@ -109,6 +109,7 @@ import {
   getRawGoodTargetPrice,
   getWarPriceModifier,
   hasSettledPrice,
+  isPricedByHouseholdDemand,
   LAPLACE_PRICE_SMOOTHING,
   MARKET_MARGIN,
   PRICE_CEILING_FACTOR,
@@ -1740,18 +1741,19 @@ export class MarketsModule {
 
         const consumerDemand = consumerDemandFactors[good.i] || 0;
         const industrialDemand = industrialDemandFactors[good.i] || 0;
-        const demand = isOrchardDrink(good.name)
-          ? getMonthlyHouseholdDemand(market, good.name)
-          : this.calculateGoodDemand(
-              good,
-              population,
-              textilePopulationByMarket[market.i] || population,
-              consumerDemand,
-              industrialDemand,
-              marketGood.price,
-              market.i,
-              textileOrders
-            );
+        const demand =
+          isOrchardDrink(good.name) || isPricedByHouseholdDemand(good)
+            ? getMonthlyHouseholdDemand(market, good.name)
+            : this.calculateGoodDemand(
+                good,
+                population,
+                textilePopulationByMarket[market.i] || population,
+                consumerDemand,
+                industrialDemand,
+                marketGood.price,
+                market.i,
+                textileOrders
+              );
         const supplyRatio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
         const demandMarkup = baseMarkup * minmax(supplyRatio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR);
 
@@ -1786,7 +1788,8 @@ export class MarketsModule {
       const population = populationByMarket[market.i] || 0;
       const priceLevel = getMarketPriceLevel(market);
       for (const good of getGoods().filter(isGoodEnabled)) {
-        if (good.tags.includes("stapleFood") || hasSettledPrice(good)) continue;
+        // Named crops follow the staple's price (foodCoLoad.ts syncStapleCropMarketRows).
+        if (good.tags.includes("stapleFood") || good.tags.includes("stapleCrop") || hasSettledPrice(good)) continue;
         // These are source-cell farmgate references, not empty trade pools awaiting imports.
         if (good.name === "Apples" || good.name === "Pears") continue;
         const marketGood = this.getMarketGood(market, good);
@@ -1816,7 +1819,7 @@ export class MarketsModule {
       const multiplier = getMoneyPriceLevelForMarket(market);
       if (multiplier === 1) continue;
       for (const good of getGoods().filter(isGoodEnabled)) {
-        if (good.tags.includes("stapleFood") || hasSettledPrice(good)) continue;
+        if (good.tags.includes("stapleFood") || good.tags.includes("stapleCrop") || hasSettledPrice(good)) continue;
         const marketGood = this.getMarketGood(market, good);
         marketGood.price = rn(
           minmax(marketGood.price * multiplier, good.value * PRICE_FLOOR_FACTOR, good.value * PRICE_CEILING_FACTOR),
@@ -2099,7 +2102,8 @@ export class MarketsModule {
     };
     deals.push(deal);
 
-    marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, -actualUnits), 2);
+    if (!isPricedByHouseholdDemand(good))
+      marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, -actualUnits), 2);
 
     // Cumulative-sales counter for the Goods Editor (docs/temp/0807-alcoholic.md's Balance History
     // investigation surfaced the need for a session-long "units sold" figure distinct from the
@@ -2179,7 +2183,10 @@ export class MarketsModule {
   }
 
   private buildGlobalTradeContext(): GlobalTradeContext {
-    const goods = getGoods().filter(isGoodEnabled);
+    // Named crops travel between Food Ledgers with the staple (foodImportNetwork.ts); their market
+    // rows are only views of those lots (foodCoLoad.ts syncStapleCropMarketRows), and a generic deal
+    // would move a view without the grain (docs/plan/urban-craft-staffing.md §10.6).
+    const goods = getGoods().filter(good => isGoodEnabled(good) && !good.tags.includes("stapleCrop"));
     const luxuryValueDemand = isLuxuryValueDemandEnabled();
     const fullConsumerDemandFactors = this.collectConsumerDemand(goods);
     // With the value demand on, luxuries are asked for by the towns' budgets instead of per head.
@@ -2873,7 +2880,7 @@ export class MarketsModule {
       deals.push(deal);
       observe?.({ stage: "deal", ...leg, units, value: units * landedCost });
 
-      if (!hasSettledPrice(good)) {
+      if (!hasSettledPrice(good) && !isPricedByHouseholdDemand(good)) {
         exporterGood.price = rn(this.applyMarketPressure(good.value, exporterGood.price, units), 2);
         importerGood.price = rn(this.applyMarketPressure(good.value, importerGood.price, -units), 2);
       }
@@ -3297,7 +3304,7 @@ export class MarketsModule {
    */
   applyPlayerTradePressure(market: Market, good: Good, units: number): void {
     const row = market.goods[good.i];
-    if (!row) return;
+    if (!row || isPricedByHouseholdDemand(good)) return;
     row.price = rn(this.applyMarketPressure(good.value, row.price, units), 2);
   }
 

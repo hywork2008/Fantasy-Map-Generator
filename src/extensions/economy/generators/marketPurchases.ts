@@ -1,12 +1,14 @@
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
-import { getDeals, getMarkets } from "../economyContext";
+import { getDeals, getGoods, getMarkets } from "../economyContext";
+import { syncStapleFoodMarketStock } from "./foodCoLoad";
 import { isGoodEnabled } from "./goods-generator";
 import { type GoodFlowCategory, recordGoodFlow } from "./goodsBalanceLedger";
 import type { Good } from "./goodsGeneratorTypes";
 import type { getCraftDomainForGood } from "./guildKnowledgeTypes";
-import { applyMarketPressure, customerBuyPrice, hasSettledPrice } from "./marketPricing";
+import { applyMarketPressure, customerBuyPrice, hasSettledPrice, isPricedByHouseholdDemand } from "./marketPricing";
 import type { Deal, Market } from "./marketTypes";
+import { drawTradeableStapleCrop, getTradeableStapleCropUnits } from "./stapleCropInventory";
 
 export type MarketPurchaseOptions = {
   burg: Burg;
@@ -46,10 +48,19 @@ export function buyMarketGoods(
 
   const marketGood = getMarketGood(market, good);
   const unitPrice = customerBuyPrice(marketGood.price, burg.i, good.i);
+  // A named crop (Barley for the brewer) is bought out of its Food Ledger lot, only the part that
+  // may leave without touching the food reserve; its row is that lot's view, priced by the staple
+  // (foodCoLoad.ts syncStapleCropMarketRows, docs/plan/urban-craft-staffing.md §10.6).
+  const cropLedger = good.tags?.includes("stapleCrop") ? market.foodLedger : undefined;
+  const tradeableCrop = cropLedger ? getTradeableStapleCropUnits(cropLedger, good.i) : null;
 
-  const available = Math.min(units, marketGood.stock, budget / unitPrice);
-  const actualUnits = exactUnits ? available : rn(available, 2);
+  const available = Math.min(units, tradeableCrop ?? marketGood.stock, budget / unitPrice);
+  let actualUnits = exactUnits ? available : rn(available, 2);
   if (actualUnits < (exactUnits ? 1e-12 : 0.01)) return null;
+  if (cropLedger && tradeableCrop !== null) {
+    actualUnits = drawTradeableStapleCrop(cropLedger, good.i, actualUnits);
+    if (actualUnits < (exactUnits ? 1e-12 : 0.01)) return null;
+  }
 
   const deals = getDeals();
   const deal: Deal = {
@@ -65,9 +76,13 @@ export function buyMarketGoods(
   };
   deals.push(deal);
 
-  marketGood.stock = exactUnits
-    ? Math.max(0, marketGood.stock - actualUnits)
-    : rn(Math.max(0, marketGood.stock - actualUnits), 2);
+  if (cropLedger && tradeableCrop !== null) {
+    const staple = getGoods().find(candidate => candidate.tags.includes("stapleFood"));
+    if (staple) syncStapleFoodMarketStock(market, staple.i, staple.value);
+  } else
+    marketGood.stock = exactUnits
+      ? Math.max(0, marketGood.stock - actualUnits)
+      : rn(Math.max(0, marketGood.stock - actualUnits), 2);
   // A Burg purchase is the Market's cash receipt. Without this counterpart, a Market
   // could pay producers but never replenish the purchasing power required next cycle.
   const treasury = market.marketTreasury ?? { balance: 0, ruralGrainPayable: 0 };
@@ -86,6 +101,7 @@ export function buyMarketGoods(
     guildDomain: flow?.guildDomain ?? undefined,
     relatedGoodId: flow?.relatedGoodId
   });
-  if (!hasSettledPrice(good)) marketGood.price = rn(applyMarketPressure(good.value, marketGood.price, actualUnits), 2);
+  if (!hasSettledPrice(good) && !isPricedByHouseholdDemand(good) && tradeableCrop === null)
+    marketGood.price = rn(applyMarketPressure(good.value, marketGood.price, actualUnits), 2);
   return deal;
 }

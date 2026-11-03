@@ -68,10 +68,19 @@ export const WINE_TARGETS = {
 
 export const ALE_TARGETS = {
   /**
-   * A conservative baseline for a general medieval-fantasy simulation. Water safety can add up
-   * to 50%; this is a recurring drink demand, not a second allocation of staple-food calories.
+   * Country households and wine-country towns, which brewed little: England's whole malt crop in
+   * 1300 makes about 70 L an adult a year across town and country (Cornell 2022, after Slavin),
+   * which leaves about this much for the countryside. Water safety can add up to 50%; this is a
+   * recurring drink demand, not a second allocation of staple-food calories.
    */
   baselineLitersPerAdultYear: 48,
+  /**
+   * Townsfolk outside the wine country bought their ale: about 300 L a head a year in the beer
+   * regions (Unger 2004), two pints a person a day in a brewing household (Bennett 1996). The
+   * brewers of the English towns were 2.7% of their employed (urban-craft-staffing.md §4.3,
+   * §10.4).
+   */
+  urbanLitersPerAdultYear: 300,
   adultShare: 0.65
 } as const;
 

@@ -78,6 +78,25 @@ export function hasSettledPrice(good: Pick<Good, "name">): boolean {
   return good.name === "Salt" || good.name === "Meat";
 }
 
+/**
+ * Food processing goods with a monthly household demand of their own (foodProcessingLedger.ts):
+ * their price is set each cycle from that demand against stock, and a sale or purchase does not
+ * push it. A tun of ale sold took 1% of its value off the price, so a brewing town's own beer fell
+ * to the floor, below its barley (docs/plan/urban-craft-staffing.md §10.6).
+ */
+const HOUSEHOLD_DEMAND_PRICED_GOODS: ReadonlySet<string> = new Set([
+  "Beer",
+  "Cider",
+  "Perry",
+  "Wine",
+  "Cheese",
+  "Raisins"
+]);
+
+export function isPricedByHouseholdDemand(good: Pick<Good, "name">): boolean {
+  return HOUSEHOLD_DEMAND_PRICED_GOODS.has(good.name);
+}
+
 export const PRICE_FLOOR_FACTOR = 0.25;
 export const PRICE_CEILING_FACTOR = 3.0;
 /** Lots added to both demand and stock, so an empty market is dear rather than infinitely so. */

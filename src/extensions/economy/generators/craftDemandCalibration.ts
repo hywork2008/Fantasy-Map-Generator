@@ -54,11 +54,13 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     inlandShare: 0.5,
     portShare: 0.3,
     provenances: ["recipeDerived"],
-    annualLotsPerPerson: 0.01248,
-    fixtureLotsPerMonth: 9.36,
+    annualLotsPerPerson: 0.078,
+    fixtureLotsPerMonth: 58.5,
     laborPointsPerLotAtDefaultRate: 0.00106,
     residualWeight: 0,
-    sources: ["urban ale fillings: 0.65 adults × 48 L / 200 L cask × 0.08 turnover"]
+    sources: [
+      "urban ale fillings: 0.65 adults × 300 L / 200 L cask × 0.08 turnover (foodLots.ts ALE_TARGETS.urbanLitersPerAdultYear; urban-craft-staffing.md §10.5). It was 48 L"
+    ]
   },
   {
     goodName: "Ropes",

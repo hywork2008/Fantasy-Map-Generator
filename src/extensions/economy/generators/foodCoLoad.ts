@@ -19,6 +19,7 @@ import { markRetailInventoryDirty } from "./retailInventory";
 import {
   creditStapleCropHarvest,
   drawStapleCropForTransport,
+  getTradeableStapleCropUnits,
   getTransportableStapleCropUnits,
   refreshLegacyFoodLedgerTotals
 } from "./stapleCropInventory";
@@ -214,7 +215,29 @@ export function syncStapleFoodMarketStock(market: Market, stapleGoodId: number, 
   };
   marketGood.stock = rn(ledger.exportable, 2);
   market.goods[stapleGoodId] = marketGood;
+  syncStapleCropMarketRows(market, marketGood.price || priceFallback, priceFallback);
   markRetailInventoryDirty(market.i);
+}
+
+/**
+ * Each named crop's market row (Wheat, Barley, ...) is a view of its Food Ledger lot: the part that
+ * may leave without touching the food reserve, at the staple's price by the crop's value. The
+ * harvest used to be added to these rows as well as to the lots, so a brewer bought Barley the
+ * townsfolk had already eaten, and every purchase pushed its price to the ceiling while the rows
+ * swelled (docs/plan/urban-craft-staffing.md §10.6).
+ */
+export function syncStapleCropMarketRows(market: Market, staplePrice: number, stapleValue = 1): void {
+  const ledger = market.foodLedger;
+  if (!ledger?.stapleCropInventories) return;
+  for (const key of Object.keys(ledger.stapleCropInventories)) {
+    const goodId = Number(key);
+    const good = getGoods().find(candidate => candidate.i === goodId);
+    if (!good) continue;
+    const row = market.goods[goodId] ?? { stock: 0, price: good.value };
+    row.stock = getTradeableStapleCropUnits(ledger, goodId) ?? 0;
+    row.price = rn(staplePrice * (good.value / Math.max(1e-9, stapleValue)), 2);
+    market.goods[goodId] = row;
+  }
 }
 
 function payloadUsedSlots(caravan: Pick<Caravan, "payload">): number {

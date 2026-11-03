@@ -15,6 +15,7 @@ import {
 } from "../economyContext";
 import { recordCropResidueHarvest } from "./cropResidueHarvest";
 import { getEconomyStartProfile } from "./economyStartMode";
+import { syncStapleCropMarketRows } from "./foodCoLoad";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { resolveFoodImportNetwork } from "./foodImportNetwork";
 import type { Good } from "./goods-generator";
@@ -643,18 +644,6 @@ export class FoodProductionModule {
         }
         applyStapleCropStorageCap(ledger, storageCap);
         refreshLegacyFoodLedgerTotals(ledger);
-
-        for (const [goodId, amount] of cropWholesale) {
-          if (amount <= 0) continue;
-          const good = cropGoods.find(candidate => candidate.i === goodId);
-          if (!good) continue;
-          const marketGood = market.goods[goodId] ?? {
-            stock: 0,
-            price: good.value
-          };
-          marketGood.stock = rn(marketGood.stock + amount, 2);
-          market.goods[goodId] = marketGood;
-        }
       } else {
         if (storageLoss) spoiled = this.advanceQuarterlyStock(ledger, foodProduced, farmgateUnitCost, storageLoss);
         else this.creditAggregateHarvest(ledger, foodProduced, farmgateUnitCost);
@@ -689,6 +678,8 @@ export class FoodProductionModule {
         // Overflow heaped outside the granary is not offered to the towns (grain-storage-life.md §3.4).
         marketGood.stock = rn(ledger.exportable, 2);
         market.goods[stapleFoodGood.i] = marketGood;
+        // The named crops' rows show their lots' tradeable part, not the harvest added a second time.
+        syncStapleCropMarketRows(market, marketGood.price, stapleFoodGood.value);
         markRetailInventoryDirty(market.i);
       }
     }

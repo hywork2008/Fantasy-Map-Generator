@@ -11,6 +11,7 @@ import {
 import { recordCountrysideFlow } from "./approachLedger";
 import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import { getMarketPriceLevel } from "./currencySufficiency";
+import { syncStapleCropMarketRows } from "./foodCoLoad";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { BURG_TARGET_RESERVE_DAYS, emptyFoodLedger, getStapleFoodGood } from "./foodProduction";
 import { creditRuralHouseholdWealth, debitRuralHouseholdWealth } from "./householdWealth";
@@ -340,6 +341,7 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
       marketGood.price = rn(retailPrice, 2);
       marketGood.stock = rn(ledger.exportable, 2);
       market.goods[stapleFoodGood.i] = marketGood;
+      syncStapleCropMarketRows(market, marketGood.price, stapleFoodGood.value);
     }
   }
 }

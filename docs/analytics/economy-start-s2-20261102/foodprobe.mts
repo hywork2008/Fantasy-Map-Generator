@@ -11,7 +11,25 @@ import { getWorldContext } from "../../../src/extensions/economy/context/economy
 import { getGoods, getMarkets } from "../../../src/extensions/economy/context/trade";
 
 const [input, output, monthsArg = "24"] = process.argv.slice(2);
-const GOODS = ["Salt", "Preserved food", "Fish", "Cattle", "Pig", "Sheep", "Game", "Vinegar", "Tallow", "Candles", "Tar", "Beer", "Barrels"];
+const GOODS = [
+  "Salt",
+  "Preserved food",
+  "Fish",
+  "Cattle",
+  "Pig",
+  "Sheep",
+  "Game",
+  "Vinegar",
+  "Tallow",
+  "Candles",
+  "Tar",
+  "Beer",
+  "Barrels",
+  "Barley",
+  "Wheat",
+  "Rye",
+  "Oats"
+];
 const r1 = (v: number) => Math.round(v * 10) / 10;
 
 const host = createNodeSimulationHost();
@@ -43,7 +61,16 @@ function snapshot(month: number) {
   const burgs = (getWorldContext().pack.burgs as any[]).filter(b => b?.i && !b.removed);
   const treasury = burgs.reduce((s, b) => s + (b.treasury ?? 0), 0);
   const population = burgs.reduce((s, b) => s + (b.population ?? 0), 0);
-  return { month, goods: byGood, burgTreasury: Math.round(treasury), burgPopulation: r1(population) };
+  // The towns' staple this month, from the food ledger (added for urban-craft-staffing.md §10.5).
+  let urbanNeed = 0;
+  let urbanSupplied = 0;
+  for (const market of markets) {
+    const consumption = market.foodLedger?.monthlyConsumption;
+    urbanNeed += consumption?.urbanNeed ?? 0;
+    urbanSupplied += consumption?.urbanSupplied ?? 0;
+  }
+  const urbanFedShare = urbanNeed > 0 ? Math.round((urbanSupplied / urbanNeed) * 1000) / 1000 : 0;
+  return { month, goods: byGood, burgTreasury: Math.round(treasury), burgPopulation: r1(population), urbanFedShare };
 }
 
 const months = Number(monthsArg);
