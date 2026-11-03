@@ -3,7 +3,9 @@
  * laborPointsPerLot is an authored constant (policy A) — not solved at runtime from expected/lots.
  */
 
+import { STAPLE_NEED_KG_PER_PERSON_YEAR } from "../../../generators/settlementClearance";
 import { DEFAULT_PEOPLE_PER_POPULATION_POINT, REFERENCE_FIXTURE_LABOR_PEOPLE } from "./craftScale";
+import { GROSS_FOOD_NEED } from "./foodConstants";
 import type { DemandCategory } from "./goodsGeneratorTypes";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 
@@ -27,6 +29,12 @@ export interface GoodDemandCalibrationRow {
   laborPointsPerLotAtDefaultRate: number;
   residualWeight: number;
   residualCategory?: "hunting" | "luxury";
+  /**
+   * The towns buy the floor itself each month before their generic category demand
+   * (urban-craft-staffing.md §10.4): otherwise their utilities budget bought less than the floor
+   * and the unsold stock stopped the craft (Boots, Candles).
+   */
+  householdPurchase?: boolean;
   typicalRecipeIndex?: number;
   sources: readonly string[];
 }
@@ -212,6 +220,7 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     fixtureLotsPerMonth: 9.375,
     laborPointsPerLotAtDefaultRate: 0.0202,
     residualWeight: 0,
+    householdPurchase: true,
     sources: ["0.25 pair/person/year ÷ itemsPerUnit 20"]
   },
   {
@@ -221,10 +230,13 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     portShare: 0.3,
     provenances: ["recipeDerived"],
     fixtureLotsPerMonth: 9.375,
-    laborPointsPerLotAtDefaultRate: 0.00864,
+    laborPointsPerLotAtDefaultRate: 0.00005,
     residualWeight: 0,
     typicalRecipeIndex: 0,
-    sources: ["Boots + Harnesses input"]
+    sources: [
+      "Boots + Harnesses input",
+      "provisional: 0.05 person-month a hide, about 240 hides a tanner a year; counted on the hides slaughter gives (urban-craft-staffing.md §10.4). It was 8.64 person-months"
+    ]
   },
   {
     goodName: "Tools",
@@ -415,6 +427,7 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     fixtureLotsPerMonth: 7.5,
     laborPointsPerLotAtDefaultRate: 0.00015,
     residualWeight: 1,
+    householdPurchase: true,
     sources: [
       "provisional: 1 kg of tallow and wax candles a person a year in 100 kg blocks",
       "0.15 person-month a block: dipping at ~25 kg a day (guild-halls-and-urban-trades.md D1)"
@@ -480,6 +493,11 @@ export function domainShare(goodName: string, port: boolean): number {
 export const UNCALIBRATED_LABOR_POINTS_PER_LOT: Readonly<Record<string, number>> = {
   // Baking. 20 loaves of the ~250 a baker draws from the oven in a day.
   Bread: 0.000003,
+  // Butchering a wain of the Meat slaughter.ts sells fresh to the towns: 2.5 person-months a tonne,
+  // the butchers of Montpellier, Toulouse and the English towns (3.3-9.5 a thousand people) over
+  // their 25-50 kg of meat a head a year (urban-craft-staffing.md §10.4). Meat has no recipe.
+  // goodMeasureCatalog.ts's WAIN_KG, not imported: that module imports this one.
+  Meat: (2.5 * (STAPLE_NEED_KG_PER_PERSON_YEAR / GROSS_FOOD_NEED)) / 1000 / 1000,
   // Victualling. 25 kg of split cod hung to dry on racks.
   Stockfish: 0.00001,
   // 0.6 t of cheese turned in the smokehouse.

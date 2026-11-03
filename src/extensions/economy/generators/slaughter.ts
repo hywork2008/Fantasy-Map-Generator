@@ -68,6 +68,10 @@ export interface SlaughterResult {
   /** Wains of Meat the carcasses gave, and the part the towns bought. */
   meat: number;
   meatSold: number;
+  /** Wains of Meat each town bought, for its butchers' work (urban-craft-staffing.md §6.4). */
+  meatBoughtByBurg: Map<number, number>;
+  /** Hides (Leather rolls) each market took in, for its tanners' work. */
+  leatherByMarket: Map<number, number>;
 }
 
 /** Edible lean and fat a slaughtered head gives (herdDiet.ts; the pig after winterSlaughterPolicy.ts). */
@@ -154,7 +158,16 @@ export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, 
     good => good.tags?.includes("liveAnimal") && good.tags.includes("food") && isGoodEnabled(good)
   );
   const meat = goods.find(good => good.name === "Meat" && isGoodEnabled(good));
-  const result: SlaughterResult = { heads: 0, tallow: 0, leather: 0, rennet: 0, meat: 0, meatSold: 0 };
+  const result: SlaughterResult = {
+    heads: 0,
+    tallow: 0,
+    leather: 0,
+    rennet: 0,
+    meat: 0,
+    meatSold: 0,
+    meatBoughtByBurg: new Map(),
+    leatherByMarket: new Map()
+  };
   // Keep unowned market animals alive; the experiment may process only its own rural herds.
   if (isWinterSlaughterExperimentEnabled()) return result;
   if (!animals.length || (!tallow && !leather)) return result;
@@ -196,13 +209,22 @@ export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, 
       result.heads = rn(result.heads + heads, 2);
       result.tallow = rn(result.tallow + tallowUnits, 2);
       result.leather = rn(result.leather + leatherUnits, 2);
+      if (leatherUnits > 0)
+        result.leatherByMarket.set(market.i, (result.leatherByMarket.get(market.i) ?? 0) + leatherUnits);
       result.rennet += rennetUnits;
       meatKg += heads * (MEAT_KG_PER_HEAD[animal.name] ?? 0);
     }
     if (meat && meatKg > 0) {
       const units = meatKg / WAIN_KG;
       result.meat += units;
-      result.meatSold += sellMeat(market, meat, units, townsByMarket?.get(market.i) ?? [], stapleBillPaid);
+      result.meatSold += sellMeat(
+        market,
+        meat,
+        units,
+        townsByMarket?.get(market.i) ?? [],
+        stapleBillPaid,
+        result.meatBoughtByBurg
+      );
     }
   }
   return result;
@@ -225,7 +247,14 @@ function getTownsByMarket(): Map<number, Burg[]> {
  * market's margin. Meat the towns did not buy is eaten by those families and never stands in stock
  * (docs/plan/livestock-meat-sales.md §3). Returns the wains sold.
  */
-function sellMeat(market: Market, meat: Good, units: number, towns: readonly Burg[], stapleBillPaid: boolean): number {
+function sellMeat(
+  market: Market,
+  meat: Good,
+  units: number,
+  towns: readonly Burg[],
+  stapleBillPaid: boolean,
+  boughtByBurg: Map<number, number>
+): number {
   const world = getWorldContext();
   const rate = Math.max(1, world.populationRate ?? 1);
   const urbanization = Math.max(1, world.urbanization ?? 1);
@@ -258,6 +287,7 @@ function sellMeat(market: Market, meat: Good, units: number, towns: readonly Bur
     if (!(paid > 0)) return;
     const bought = paid / price;
     sold += bought;
+    if (burg.i) boughtByBurg.set(burg.i, (boughtByBurg.get(burg.i) ?? 0) + bought);
     recordCountrysideFlow(market.i, burg.i ?? 0, meat.i, bought, "inbound");
     revenue += paid;
     recordGoodFlow({

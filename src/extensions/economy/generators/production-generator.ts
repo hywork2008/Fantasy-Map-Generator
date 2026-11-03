@@ -48,7 +48,7 @@ import {
   laborPointsForLots
 } from "./craftDemandCalibration";
 import { smoothCraftWorkers } from "./craftEmployment";
-import { laborPeople } from "./craftScale";
+import { laborPeople, peopleToPoints } from "./craftScale";
 import { getBasicWorkersByBurg, getChildLabourEquivalent, getCraftWorkforce } from "./craftWorkforce";
 import { settleCropResiduePreparation } from "./cropResidueSettlement";
 import { ExportStaging } from "./exportStaging";
@@ -103,7 +103,9 @@ import { Minting } from "./minting";
 import {
   type ExpectedWorkerArgs,
   expectedDomainWorkerPoints,
+  expectedWorkerPeople,
   expectedWorkerPoints,
+  getOccupationalRow,
   getOccupationalRowForGood,
   type OccupationalCalibrationRow,
   type OccupationalPool
@@ -126,7 +128,7 @@ import type {
 } from "./productionRecordTypes";
 import { QuarryOperations } from "./quarryOperations";
 import { SaltLogistics } from "./saltLogistics";
-import { settleSlaughter } from "./slaughter";
+import { type SlaughterResult, settleSlaughter } from "./slaughter";
 import { SmelterOperations } from "./smelterOperations";
 import {
   getSmithingProductProgram,
@@ -470,9 +472,14 @@ export class ProductionModule {
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
     cycle.craftObservationsByBurg.set(burg.i, {
       priorTotal: cycle.craftWorkersByBurg.get(burg.i) ?? 0,
-      priorTextiles: cycle.craftDomainWorkersByKey.get(craftDomainKey(burg.i, "textiles")) ?? 0,
       observedTotal: craftWorkersUsed.total,
-      observedTextiles: craftWorkersUsed.byDomain.get("textiles") ?? 0
+      priorByDomain: new Map(
+        CRAFT_KNOWLEDGE_DOMAINS.map(domain => [
+          domain,
+          cycle.craftDomainWorkersByKey.get(craftDomainKey(burg.i!, domain)) ?? 0
+        ])
+      ),
+      observedByDomain: new Map(craftWorkersUsed.byDomain)
     });
     cycle.craftWorkersByBurg.set(
       burg.i,
@@ -501,23 +508,75 @@ export class ProductionModule {
     setBurgProductionRecords(burg, state.records);
   }
 
-  private recordCommissionEmployment(cycle: ProductionCycle, burgId: number, points: number): void {
+  /**
+   * Adds craft work done outside the worker loop — private tailoring commissions, and the
+   * butchers', tanners' and bakers' work on what the town ate and the hides it took in
+   * (docs/plan/urban-craft-staffing.md §6.4) — to a Burg's observed craft workers this cycle.
+   */
+  private recordServiceEmployment(
+    cycle: ProductionCycle,
+    burgId: number,
+    domain: CraftKnowledgeDomain,
+    points: number
+  ): void {
     const observation = cycle.craftObservationsByBurg.get(burgId);
-    if (!observation) return;
+    if (!observation || !(points > 0)) return;
     observation.observedTotal += points;
-    observation.observedTextiles += points;
+    observation.observedByDomain.set(domain, (observation.observedByDomain.get(domain) ?? 0) + points);
     const rate = Math.max(1, this.worldContext.populationRate || 1);
     cycle.craftWorkersByBurg.set(burgId, smoothCraftWorkers(observation.priorTotal, observation.observedTotal, rate));
     cycle.craftDomainWorkersByKey.set(
-      craftDomainKey(burgId, "textiles"),
-      smoothCraftWorkers(observation.priorTextiles, observation.observedTextiles, rate)
+      craftDomainKey(burgId, domain),
+      smoothCraftWorkers(
+        observation.priorByDomain.get(domain) ?? 0,
+        observation.observedByDomain.get(domain) ?? 0,
+        rate
+      )
     );
+  }
+
+  /**
+   * The victualling and leather trades' work on the month's carcasses and bread (§6.4). The
+   * butchers dress and sell the Meat the town bought; the tanners work the hides its market took
+   * in, shared by the market's towns by people; the bakers bake for the townsfolk the staple fed.
+   * None of it makes a Good.
+   */
+  private recordCarcassAndBreadWork(cycle: ProductionCycle, slaughter: SlaughterResult): void {
+    if (!getEconomyCalibrationState().applyCalibration) return;
+    const rate = Math.max(1, this.worldContext.populationRate || 1);
+    for (const [burgId, wains] of slaughter.meatBoughtByBurg)
+      this.recordServiceEmployment(cycle, burgId, "victualling", laborPointsForLots("Meat", wains, rate));
+
+    const baking = getOccupationalRow("baking");
+    for (const burg of cycle.sortedBurgs) {
+      if (!burg.i || burg.removed || !burg.market) continue;
+      const market = Markets.get(burg.market);
+      const hides = slaughter.leatherByMarket.get(burg.market) ?? 0;
+      const marketPopulation = this.getUrbanPopulationOfMarket(burg.market);
+      if (hides > 0 && marketPopulation > 0) {
+        const share = rn(burg.population || 0, 2) / marketPopulation;
+        this.recordServiceEmployment(cycle, burg.i, "leather", laborPointsForLots("Leather", hides * share, rate));
+      }
+      const consumption = market?.foodLedger?.monthlyConsumption;
+      const fedShare = consumption?.urbanNeed ? Math.min(1, consumption.urbanSupplied / consumption.urbanNeed) : 0;
+      if (fedShare > 0) {
+        const people = expectedWorkerPeople({
+          row: baking,
+          laborPeople: laborPeople(rn(burg.population || 0, 2), rate),
+          port: Boolean(burg.port),
+          capital: Boolean(burg.capital),
+          hasQuarry: false,
+          employmentScale: getCraftEmploymentScale()
+        });
+        this.recordServiceEmployment(cycle, burg.i, "baking", peopleToPoints(people * fedShare, rate));
+      }
+    }
   }
 
   private finishProductionCycle(cycle: ProductionCycle): void {
     // Craft has had its turn at live animals (rennet, preserved food, the old tallow legs).
     // What is still walking is slaughtered before households buy it as a live head.
-    measureTickStep("production:slaughter", () => settleSlaughter());
+    const slaughter = measureTickStep("production:slaughter", () => settleSlaughter());
     // Phase D: ensure merchant trade capital, then once per map seed inherited export-warehouse
     // stock (pre-start merchant inventory) before this cycle's global trade books more lots.
     measureTickStep("production:merchantPrep", () => {
@@ -542,9 +601,12 @@ export class ProductionModule {
       // Garments are durable household purchases, not an ordinary Burg utility input. Settle their
       // market-wide (urban + rural) replacement demand after this cycle's production and trade.
       measureTickStep("production:householdTextiles", () =>
-        settleTextileHouseholdDemand((burgId, points) => this.recordCommissionEmployment(cycle, burgId, points))
+        settleTextileHouseholdDemand((burgId, points) =>
+          this.recordServiceEmployment(cycle, burgId, "textiles", points)
+        )
       );
       settleFoodProcessingHouseholds();
+      this.recordCarcassAndBreadWork(cycle, slaughter);
 
       // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
       recordFlowCycleEnd();
@@ -581,7 +643,7 @@ export class ProductionModule {
     cycle: ProductionCycle,
     { isCancelled = () => false, frameBudgetMs = 8, skipGlobalTrade = false }: IncrementalProductionOptions
   ): Promise<boolean> {
-    measureTickStep("production:slaughter", () => settleSlaughter());
+    const slaughter = measureTickStep("production:slaughter", () => settleSlaughter());
     // Phase D: ensure merchant trade capital, then once per map seed inherited export-warehouse
     // stock (pre-start merchant inventory) before this cycle's global trade books more lots.
     measureTickStep("production:merchantPrep", () => {
@@ -619,9 +681,12 @@ export class ProductionModule {
       // Garments are durable household purchases, not an ordinary Burg utility input. Settle their
       // market-wide (urban + rural) replacement demand after this cycle's production and trade.
       measureTickStep("production:householdTextiles", () =>
-        settleTextileHouseholdDemand((burgId, points) => this.recordCommissionEmployment(cycle, burgId, points))
+        settleTextileHouseholdDemand((burgId, points) =>
+          this.recordServiceEmployment(cycle, burgId, "textiles", points)
+        )
       );
       settleFoodProcessingHouseholds();
+      this.recordCarcassAndBreadWork(cycle, slaughter);
 
       // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
       recordFlowCycleEnd();
@@ -645,6 +710,9 @@ export class ProductionModule {
   }
 
   private fillBurgsDemand(sortedBurgs: Burg[], index: ProductionIndex): void {
+    const calibratedPurchases = getEconomyCalibrationState().applyCalibration
+      ? index.goods.filter(good => getGoodDemandCalibration(good.name)?.householdPurchase)
+      : [];
     for (const burg of sortedBurgs) {
       if (!burg.i || burg.removed || !burg.market) continue;
       const demandTargets = getDemandTargets(burg.population || 0);
@@ -657,7 +725,8 @@ export class ProductionModule {
         demandCoverageByGood: index.demandCoverageByGood,
         demandGoodsByCategory: index.demandGoodsByCategory,
         demandTargets,
-        records: getBurgProductionRecords(burg)
+        records: getBurgProductionRecords(burg),
+        calibratedPurchases
       });
     }
   }
@@ -1794,18 +1863,50 @@ export class ProductionModule {
     demandCoverageByGood,
     demandGoodsByCategory,
     demandTargets,
-    records
+    records,
+    calibratedPurchases = []
   }: {
     burg: Burg;
     demandCoverageByGood: number[][];
     demandGoodsByCategory: DemandGoodCandidate[][];
     demandTargets: number[];
     records: ProductionRecord[];
+    calibratedPurchases?: readonly Good[];
   }): void {
     const market = Markets.get(burg.market);
     if (!market) return;
 
     const demandCoverage = new Array(DEMAND_PRIORITY.length).fill(0);
+    const addCoverage = (goodId: number, units: number) => {
+      const coverage = demandCoverageByGood[goodId];
+      for (let categoryIndex = 0; categoryIndex < DEMAND_PRIORITY.length; categoryIndex++)
+        if (coverage?.[categoryIndex]) demandCoverage[categoryIndex] += units * coverage[categoryIndex];
+    };
+
+    // Goods with a per-head floor the town wears out or burns each month (Boots, Candles) are bought
+    // to that floor first; the cheapest utilities bought less, and the craft stopped on the unsold
+    // stock (docs/plan/urban-craft-staffing.md §10.4). What they cover counts toward the categories.
+    if (calibratedPurchases.length) {
+      const rate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
+      const laborPeopleBurg = laborPeople(rn(burg.population || 0, 2), rate);
+      for (const good of calibratedPurchases) {
+        const budget = burg.treasury || 0;
+        if (budget <= 0.01) break;
+        const units = getCalibratedMonthlyLots({
+          goodName: good.name,
+          laborPeopleBurg,
+          port: Boolean(burg.port),
+          capital: Boolean(burg.capital)
+        });
+        if (!(units > 0.001) || (market.goods[good.i]?.stock ?? 0) <= 0.01) continue;
+        const deal = Markets.buy({ burg, good, units, budget, flow: { category: "burgDemand" } });
+        if (!deal) continue;
+        records.push({ dealId: deal.i });
+        burg.treasury = rn((burg.treasury || 0) - deal.units * deal.price, 2);
+        addCoverage(good.i, deal.units);
+      }
+    }
+
     // docs/plan/luxury-value-demand.md §3: with the value demand on, luxuries are bought from a
     // budget after every other category instead of by unit count.
     const luxuryIndex = isLuxuryValueDemandEnabled() ? DEMAND_PRIORITY.indexOf("luxury") : -1;
@@ -1840,13 +1941,7 @@ export class ProductionModule {
         records.push({ dealId: deal.i });
         const totalCost = deal.units * deal.price;
         burg.treasury = rn((burg.treasury || 0) - totalCost, 2);
-
-        const retainedCoverageByCategory = demandCoverageByGood[candidate.goodId];
-        for (let coverageCategoryIndex = 0; coverageCategoryIndex < DEMAND_PRIORITY.length; coverageCategoryIndex++) {
-          const retainedCoverage = retainedCoverageByCategory[coverageCategoryIndex] || 0;
-          if (!retainedCoverage) continue;
-          demandCoverage[coverageCategoryIndex] += deal.units * retainedCoverage;
-        }
+        addCoverage(candidate.goodId, deal.units);
 
         shortage = Math.max(0, demandTargets[categoryIndex] - demandCoverage[categoryIndex]);
       }
@@ -2394,7 +2489,12 @@ type ProductionCycle = {
   index: ProductionIndex;
   craftObservationsByBurg: Map<
     number,
-    { priorTotal: number; priorTextiles: number; observedTotal: number; observedTextiles: number }
+    {
+      priorTotal: number;
+      observedTotal: number;
+      priorByDomain: Map<CraftKnowledgeDomain, number>;
+      observedByDomain: Map<CraftKnowledgeDomain, number>;
+    }
   >;
   sortedBurgs: Burg[];
   strategicLaborMarketById: ReadonlyMap<number, LaborMarket>;
