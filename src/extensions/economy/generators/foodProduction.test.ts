@@ -141,6 +141,24 @@ describe("FoodProduction", () => {
     expect(market1.marketTreasury.ruralGrainPayable).toBeGreaterThan(0);
   });
 
+  it("does not count the brewers' grain as the eaters' stock when sizing imports", () => {
+    vi.mocked(getAleDemandSnapshot).mockReturnValue({
+      baselineDemand: 300,
+      waterSafetyDemand: 0,
+      monthlyDemand: 300,
+      drinkingWaterRisk: 0
+    });
+
+    FoodProduction.generateQuarterlyLedger(0);
+
+    // Market 1 holds the quarter's 2015.63 and keeps 537.5 back from export. The brewers' six
+    // months (1,800) would take all 1478.13 exportable, so only 537.5 is the eaters', short of
+    // their six-month target of 1075.
+    const ledger = mockWorldContext.pack.markets[0].foodLedger;
+    expect(ledger.exportable).toBeCloseTo(1478.13, 0);
+    expect(ledger.importNeed).toBeCloseTo(537.5, 0);
+  });
+
   it("adds harvest monthly while retaining the legacy three-month ageing bands", () => {
     FoodProduction.generateMonthlyLedger(1);
     const january = mockWorldContext.pack.markets[0].foodLedger.foodProduced;

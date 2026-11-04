@@ -672,7 +672,12 @@ export class FoodProductionModule {
       ledger.ruralNeed = ruralNeed;
       ledger.urbanNeed = urbanNeed;
       ledger.exportable = rn(Math.max(0, totalStock - exportReserve), 2);
-      ledger.importNeed = rn(Math.max(0, importTarget - totalStock), 2);
+      // The brewers draw their grain from the exportable surplus over the same months; that share
+      // feeds no one. Counting it as the eaters' stock kept a market short of bread from importing
+      // whenever its malt was in (urban-craft-staffing.md §10.9).
+      const brewingClaim = Math.min(ledger.exportable, annualBrewingGrain * (IMPORT_TARGET_MONTHS / 12));
+      ledger.brewingReserve = rn(brewingClaim, 2);
+      ledger.importNeed = rn(Math.max(0, importTarget - (totalStock - brewingClaim)), 2);
       ledger.targetStock = rn(importTarget, 2);
       // satisfiedImport/importCapacityBonus are reset and recomputed by resolveFoodImportNetwork() below.
 

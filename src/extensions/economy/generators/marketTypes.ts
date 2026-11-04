@@ -413,6 +413,11 @@ export interface FoodLedger {
    * from `offeredIntakeByMonth` (docs/plan/grain-storage-life.md §3.5). Missing = three months.
    */
   exportReserve?: number;
+  /**
+   * Part of `exportable` the market's own brewers will draw over the import horizon: neither the
+   * eaters' stock nor grain to sell to another market (docs/plan/urban-craft-staffing.md §10.9).
+   */
+  brewingReserve?: number;
   /** Grain farmers offered this market in each calendar month (index 0 = January) over the last year. */
   offeredIntakeByMonth?: number[];
   /** Staple food over the storage cap, heaped outside the granary: milled or cheaply exported, else spoils. */
