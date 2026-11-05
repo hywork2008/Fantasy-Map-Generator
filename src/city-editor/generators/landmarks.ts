@@ -6,6 +6,18 @@ import { bounds } from "./parcelGeometry";
 
 const finitePoint = (point: Point): boolean => point.length === 2 && point.every(Number.isFinite);
 
+export interface LandmarkFrontage {
+  kind: "road" | "lane";
+  id: Id;
+  points: [Point, Point];
+}
+
+/** Automatic facilities connect directly to their selected facade frontage. */
+export interface LandmarkAccessPolicy {
+  frontage: LandmarkFrontage;
+  maxLengthMeters: number;
+}
+
 export function transformLandmarkPoint(
   point: Point,
   instance: Pick<LandmarkInstance, "position" | "rotation" | "scale">
@@ -159,7 +171,8 @@ export function placeLandmark(
   document: CityDocument,
   asset: LandmarkAsset,
   placement: Pick<LandmarkInstance, "id" | "position" | "rotation" | "scale">,
-  preservedLanes: ReadonlyArray<{ points: Point[]; widthMeters: number; id?: Id; connectedToRoad?: boolean }> = []
+  preservedLanes: ReadonlyArray<{ points: Point[]; widthMeters: number; id?: Id; connectedToRoad?: boolean }> = [],
+  accessPolicy?: LandmarkAccessPolicy
 ): { document: CityDocument | null; reasons: string[] } {
   const site = transformLandmarkPolygons(asset.minimumSite, placement);
   const siteBox = bounds(site.flatMap(part => part.outer));
@@ -269,7 +282,7 @@ export function placeLandmark(
   }
   const accesses: LandmarkInstance["accesses"] = [];
   const connectedRoads = connectedRoadEdgeIds(document);
-  const accessTargets: Array<{ kind: "road" | "lane"; id: Id; points: Point[] }> = [
+  let accessTargets: Array<{ kind: "road" | "lane"; id: Id; points: Point[] }> = [
     ...document.featureGroups.flatMap(group =>
       group.kind === "road"
         ? group.segments.flatMap(ref => {
@@ -285,6 +298,19 @@ export function placeLandmark(
       lane.connectedToRoad && lane.id ? [{ kind: "lane" as const, id: lane.id, points: lane.points }] : []
     )
   ];
+  if (accessPolicy) {
+    const frontage = accessPolicy.frontage;
+    const same = (a: Point, b: Point) => a[0] === b[0] && a[1] === b[1];
+    accessTargets = accessTargets.flatMap(target => {
+      if (target.kind !== frontage.kind || target.id !== frontage.id) return [];
+      const [a, b] = frontage.points;
+      const present = target.points.slice(1).some((d, i) => {
+        const c = target.points[i];
+        return (same(a, c) && same(b, d)) || (same(a, d) && same(b, c));
+      });
+      return present ? [{ ...target, points: frontage.points }] : [];
+    });
+  }
   for (const entrance of asset.entrances.filter(entry => entry.required)) {
     const start = transformLandmarkPoint(entrance.point, placement);
     const outward: Point = [
@@ -296,7 +322,12 @@ export function placeLandmark(
         const point = nearestOnPolyline(start, target.points).point;
         const distance = Math.hypot(point[0] - start[0], point[1] - start[1]);
         const facing = (point[0] - start[0]) * outward[0] + (point[1] - start[1]) * outward[1];
-        return distance > 80 || facing < -0.1 ? [] : [{ target, point, distance }];
+        if (distance > (accessPolicy?.maxLengthMeters ?? 80) || facing < -0.1) return [];
+        if (accessPolicy && distance > 1e-6) {
+          const cross = (point[0] - start[0]) * outward[1] - (point[1] - start[1]) * outward[0];
+          if (facing <= 0 || Math.abs(cross) > distance * Math.hypot(...outward) * Math.sin(Math.PI / 36)) return [];
+        }
+        return [{ target, point, distance }];
       })
       .sort((a, b) => a.distance - b.distance);
     // The first valid candidate in distance order is the same result as sorting

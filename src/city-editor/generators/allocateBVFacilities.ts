@@ -5,12 +5,19 @@ import type { DistrictFabric } from "./blockInfill.types";
 import { effectiveHeightLimit } from "./buildingHeightLimits";
 import { CastleDefenseClearance } from "./castleDefenseClearance";
 import { buildingHitsCivicLandmark } from "./civicClearance";
-import { convexHull, nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
+import { convexHull, nearestOnPolyline, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { landmarkDwellingCapacity } from "./landmarkDwellings";
 import { landmarkReservationParts, landmarkStreets } from "./landmarkIntegration";
 import { buildLandmarkLaneNetwork } from "./landmarkLaneNetwork";
-import { accessCorridor, placeLandmark, transformLandmarkPolygons } from "./landmarks";
-import { clipHalfPlane, convexInfillParts, longestFrame } from "./lotGeometry";
+import {
+  accessCorridor,
+  connectedRoadEdgeIds,
+  type LandmarkFrontage,
+  placeLandmark,
+  transformLandmarkPoint,
+  transformLandmarkPolygons
+} from "./landmarks";
+import { clipHalfPlane, convexInfillParts } from "./lotGeometry";
 import { faceNeighbors, facePoints } from "./mesh";
 import { MoatReservation } from "./moats";
 import { objectFootprint } from "./objectPlacement";
@@ -68,7 +75,61 @@ export function allocateBVFacilities(
       )
       .map(f => facePoints(source.mesh, f))
   ].flatMap(convexInfillParts);
+  const lanes = buildLandmarkLaneNetwork(source, fabric.lanes);
   const streets = landmarkStreets(source, fabric.lanes);
+  const connectedRoads = connectedRoadEdgeIds(source);
+  const frontages: (LandmarkFrontage & { widthMeters: number })[] = [
+    ...source.featureGroups.flatMap(g =>
+      g.kind === "road"
+        ? g.segments.flatMap(ref => {
+            if (!connectedRoads.has(ref.edgeId)) return [];
+            const edge = source.mesh.edges[ref.edgeId];
+            return [
+              {
+                kind: "road" as const,
+                id: g.id,
+                points: [source.mesh.vertices[edge.a].point, source.mesh.vertices[edge.b].point] as [Point, Point],
+                widthMeters: g.style.widthMeters
+              }
+            ];
+          })
+        : []
+    ),
+    ...lanes
+      .filter(l => l.connectedToRoad)
+      .flatMap(l =>
+        l.points.slice(1).map((b, i) => ({
+          kind: "lane" as const,
+          id: l.id,
+          points: [l.points[i], b] as [Point, Point],
+          widthMeters: l.widthMeters
+        }))
+      )
+  ];
+  const frontageIndex = new PlotIndex<(typeof frontages)[number]>();
+  for (const frontage of frontages) frontageIndex.add(frontage, bounds(frontage.points));
+  const streetIndex = new PlotIndex<[Point, Point]>();
+  for (const street of streets)
+    for (let i = 1; i < street.points.length; i++) {
+      const segment: [Point, Point] = [street.points[i - 1], street.points[i]];
+      streetIndex.add(segment, bounds(segment));
+    }
+  const accessIndex = new PlotIndex<[Point, Point]>();
+  const addAccesses = (instance: NonNullable<CityDocument["landmarks"]>[number]) => {
+    for (const access of instance.accesses)
+      for (let i = 1; i < access.points.length; i++) {
+        const segment: [Point, Point] = [access.points[i - 1], access.points[i]];
+        accessIndex.add(segment, bounds(segment));
+      }
+  };
+  for (const instance of source.landmarks ?? []) addAccesses(instance);
+  const crosses = ([a, b]: [Point, Point], [c, d]: [Point, Point]) => {
+    const hit = segmentSegmentHit(a, b, c, d),
+      reverse = segmentSegmentHit(c, d, a, b);
+    return hit && reverse && hit.t > 1e-5 && hit.t < 1 - 1e-5 && reverse.t > 1e-5 && reverse.t < 1 - 1e-5;
+  };
+  const widest = streets.reduce((n, street) => Math.max(n, street.widthMeters), 0);
+
   const streetCuts = streets.flatMap(s => accessCorridor(s.points, s.widthMeters).map(p => p.outer));
   const cuts = [...protectedLand, ...streetCuts, ...landmarkReservationParts(source)];
   const fixed = new PlotIndex<Point[]>();
@@ -124,7 +185,6 @@ export function allocateBVFacilities(
       }
   }
   const riverWater = classifyTownWater(source).parts.filter(p => p.kind === "river");
-  const lanes = buildLandmarkLaneNetwork(source, fabric.lanes);
   const terrain = cityTerrain(source),
     moat = new MoatReservation(source),
     defense = new CastleDefenseClearance(source, approachBands(source));
@@ -145,32 +205,77 @@ export function allocateBVFacilities(
       if (request.zone && plot.face.properties.settlement !== request.zone) continue;
       const area = request.asset.minimumSite.reduce((n, p) => n + plotArea(p.outer), 0);
       if (plotArea(plot.polygon) + 1e-6 < area) continue;
-      const axis = longestFrame(plot.polygon).axis;
-      candidates: for (let turn = 0; turn < 4; turn++) {
-        const rotation = Math.atan2(axis[1], axis[0]) + (turn * Math.PI) / 2;
-        const local = transformLandmarkPolygons(request.asset.minimumSite, {
-          position: [0, 0],
-          rotation,
-          scale: 1
-        }).flatMap(p => p.outer);
+      const entrance = request.asset.entrances.find(e => e.required);
+      if (!entrance) continue;
+      const normalLength = Math.hypot(...entrance.outward);
+      const localNormal: Point = [entrance.outward[0] / normalLength, entrance.outward[1] / normalLength];
+      const entryInset = Math.max(
+        0,
+        ...request.asset.minimumSite
+          .flatMap(p => p.outer)
+          .map(p => (p[0] - entrance.point[0]) * localNormal[0] + (p[1] - entrance.point[1]) * localNormal[1])
+      );
+      const box = bounds(plot.polygon),
+        reach = widest / 2 + entryInset + 2;
+      const plotCenter = polygonCentroid(plot.polygon);
+      const nearby = frontageIndex
+        .query([box[0] - reach, box[1] - reach, box[2] + reach, box[3] + reach])
+        .map(frontage => ({ frontage, distance: nearestOnPolyline(plotCenter, frontage.points).dist }))
+        .sort((a, b) => a.distance - b.distance);
+      candidates: for (const { frontage } of nearby) {
+        const [a, b] = frontage.points;
+        const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (length < Math.max(2.5, entrance.widthMeters + 0.3)) continue;
+        const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+        let normal: Point = [-tangent[1], tangent[0]];
+        if ((a[0] - plotCenter[0]) * normal[0] + (a[1] - plotCenter[1]) * normal[1] < 0)
+          normal = [-normal[0], -normal[1]];
+        const rotation = Math.atan2(normal[1], normal[0]) - Math.atan2(localNormal[1], localNormal[0]);
+        const localPose = { position: [0, 0] as Point, rotation, scale: 1 };
+        const local = transformLandmarkPolygons(request.asset.minimumSite, localPose).flatMap(p => p.outer);
         let centers = plot.polygon;
         const sign = -Math.sign(polygonArea(plot.polygon));
         for (let i = 0; i < plot.polygon.length && centers.length >= 3; i++) {
-          const a = plot.polygon[i],
-            b = plot.polygon[(i + 1) % plot.polygon.length];
-          const normal: Point = [sign * (b[1] - a[1]), sign * (a[0] - b[0])];
-          const support = Math.max(...local.map(p => p[0] * normal[0] + p[1] * normal[1]));
-          centers = clipHalfPlane(centers, normal, a[0] * normal[0] + a[1] * normal[1] - support - 1e-5);
+          const p = plot.polygon[i],
+            q = plot.polygon[(i + 1) % plot.polygon.length];
+          const edgeNormal: Point = [sign * (q[1] - p[1]), sign * (p[0] - q[0])];
+          const support = Math.max(...local.map(p => p[0] * edgeNormal[0] + p[1] * edgeNormal[1]));
+          centers = clipHalfPlane(
+            centers,
+            edgeNormal,
+            p[0] * edgeNormal[0] + p[1] * edgeNormal[1] - support - 0.001 * Math.hypot(...edgeNormal)
+          );
         }
+        const entry = transformLandmarkPoint(entrance.point, localPose);
+        const dot = (p: Point, v: Point) => p[0] * v[0] + p[1] * v[1];
+        const halfDoor = entrance.widthMeters / 2 + 0.15;
+        const maxLengthMeters = frontage.widthMeters / 2 + entryInset + 2;
+        centers = clipHalfPlane(
+          centers,
+          [-tangent[0], -tangent[1]],
+          -(dot(a, tangent) + halfDoor - dot(entry, tangent))
+        );
+        centers = clipHalfPlane(centers, tangent, dot(b, tangent) - halfDoor - dot(entry, tangent));
+        centers = clipHalfPlane(
+          centers,
+          [-normal[0], -normal[1]],
+          -(dot(a, normal) - dot(entry, normal) - maxLengthMeters)
+        );
+        centers = clipHalfPlane(centers, normal, dot(a, normal) - dot(entry, normal));
         if (centers.length < 3 || plotArea(centers) < 1e-6) continue;
-        const center = polygonCentroid(centers);
         const positions: Point[] = [
-          center,
-          ...centers.map(p => [p[0] * 0.99 + center[0] * 0.01, p[1] * 0.99 + center[1] * 0.01] as Point)
+          ...centers.map(
+            (p, i) =>
+              [
+                (p[0] + centers[(i + 1) % centers.length][0]) / 2,
+                (p[1] + centers[(i + 1) % centers.length][1]) / 2
+              ] as Point
+          ),
+          ...centers,
+          polygonCentroid(centers)
         ];
-        const streetDistance = (p: Point) => Math.min(...streets.map(s => nearestOnPolyline(p, s.points).dist));
         const ordered = positions
-          .map(position => ({ position, distance: streetDistance(position) }))
+          .map(position => ({ position, distance: dot(a, normal) - dot(entry, normal) - dot(position, normal) }))
           .sort((a, b) => a.distance - b.distance);
         for (const { position } of ordered) {
           if (
@@ -194,13 +299,24 @@ export function allocateBVFacilities(
             )
           )
             continue;
-          const result = placeLandmark(document, request.asset, pose, lanes);
+          const result = placeLandmark(document, request.asset, pose, lanes, { frontage, maxLengthMeters });
           if (!result.document) continue;
           const instance = result.document.landmarks!.at(-1)!;
           const operating = [
             ...instance.site.map(p => p.outer),
             ...instance.accesses.flatMap(a => accessCorridor(a.points, a.widthMeters).map(p => p.outer))
           ];
+          if (
+            instance.accesses.some(access =>
+              access.points.slice(1).some((b, i) => {
+                const segment: [Point, Point] = [access.points[i], b];
+                return [...streetIndex.query(bounds(segment)), ...accessIndex.query(bounds(segment))].some(other =>
+                  crosses(segment, other)
+                );
+              })
+            )
+          )
+            continue;
           const base = terrain.heightAt(position);
           if (
             operating.some(
@@ -216,6 +332,7 @@ export function allocateBVFacilities(
           )
             continue;
           accepted = result.document;
+          addAccesses(instance);
           const reservations = [
             ...instance.site.map(p => p.outer),
             ...instance.accesses.flatMap(a => accessCorridor(a.points, a.widthMeters).map(p => p.outer))

@@ -4,6 +4,9 @@
 
 - docs/analytics/ce-enclosed-guild-hall-t1b-20261103.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/analytics/ce-facility-block-allocation-20261106.md - 5,000人の施設配置・住宅補填を通常条件と広場／2階上限で確認。郊外の敷地不足29件を解消し、川なしで配置できる269施設を全配置。コア61セルの維持と87セルまでの補填、固定入力・全量出力のSHA-256・確認範囲を記録
+- docs/analytics/ce-facility-frontage-20261106.md - 提供共有URLで施設正面を接する街路に揃え、入口通路を短い垂直接続へ修正。斜め配置169→0件、通路間交差31→0件、最長79.87→5.22 mを確認。実CEの靴工房・寺院周辺画像、回帰入力、比較出力のSHA-256を記録
+- docs/analytics/ce-facility-frontage-shoemaker-20261106.png - 実CEで小路に沿った靴工房と短い入口通路を確認した画像
+- docs/analytics/ce-facility-frontage-temple-20261106.png - 実CEで寺院周辺の長い交差通路が解消されたことを確認した画像
 - docs/analytics/ce-facility-placement-performance-20261106.md - 施設付き生成をCPU計測し、入口接続候補の全件検証と遠い形状の交差判定を削減。5,000人の計算時間28.8秒→5.8秒、配置・住宅・メッシュ・道路の出力一致と関連17件成功を記録
 - docs/analytics/ce-market-guild-legacy-baseline-20261104.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/analytics/ce-workhome-trades-legacy-baseline-20261104.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
