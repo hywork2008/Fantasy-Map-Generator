@@ -1211,7 +1211,7 @@
       "populationUnsupported": "This combination is not supported. Use mesh-first, organic layout and a supported pre-industrial period.",
       "populationFrameSmall": "The current map is too small for this population.",
       "populationEstimate": "{{dwellings}} dwellings · ~{{buildings}} buildings · {{area}} km² · {{extent}} km map · {{cell}} m cells (~{{cells}} core cells)",
-      "populationSummary": "{{population}} people · {{dwellings}} dwellings · {{buildings}} represented buildings · {{groups}} housing shapes · {{{unplaced}}} people unplaced",
+      "populationSummary": "{{population}} people · {{dwellings}} dwellings · {{buildings}} represented buildings · {{groups}} housing shapes · {{unplaced}} people unplaced",
       "populationClusterTitle": "Representative housing group: capacity {{capacity}} dwellings, assigned {{dwellings}} dwellings / {{population}} people, {{buildings}} buildings",
       "populationBuildingTitle": "Housing: capacity {{capacity}} dwellings, assigned {{dwellings}} dwellings / {{population}} people",
       "urbanSimplification": "Urban simplification (3D)",
