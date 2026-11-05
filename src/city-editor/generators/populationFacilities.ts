@@ -150,7 +150,7 @@ export function generatePopulationFacilities(source: CityDocument, settings: Gen
     historicalPeriod: source.historicalPeriod ?? settings.historicalPeriod
   });
   const fabric = buildBlockFabric(source);
-  const allocation = allocateBVFacilities(source, fabric, requests);
+  const allocation = allocateBVFacilities(source, fabric, requests, undefined, { allowOutskirtsFields: true });
   const sites = requests
     .filter(r => allocation.placed.includes(r.id))
     .map(r => ({

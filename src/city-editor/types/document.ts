@@ -544,6 +544,15 @@ export interface CityDocument {
       riverbankMaxDistanceMeters?: number;
     }[];
     unplaced: { id: string; reason: string }[];
+    housing?: {
+      requiredDwellings: number;
+      assignedDwellings: number;
+      unplacedDwellings: number;
+      areaScale: number;
+      expansionPasses: number;
+      coreCells: number;
+      expansionLimited: boolean;
+    };
   };
   buildingHeightLimit?: import("./contracts/buildingHeightLimits").BuildingHeightLimit;
 

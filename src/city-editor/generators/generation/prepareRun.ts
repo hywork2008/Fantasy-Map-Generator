@@ -35,14 +35,15 @@ export function prepareRun(document: CityDocument, settings: GenerationSettings,
   const params: CityParams = {
     seed,
     extentMeters: townExtentMeters(frame),
-    cityRadiusMeters:
-      settings.descriptor &&
-      !document.populationPlan &&
-      settings.buildingHeightPolicy &&
-      supportsBuildingHeightVariation(
-        settings.historicalPeriod ?? settings.descriptor.historicalPeriod ?? "ageOfExploration",
-        settings.descriptor.civilization?.tradition
-      )
+    cityRadiusMeters: document.populationPlan
+      ? document.populationPlan.cityRadiusMeters
+      : settings.descriptor &&
+          (settings.facilityLayout === "population" ||
+            (settings.buildingHeightPolicy &&
+              supportsBuildingHeightVariation(
+                settings.historicalPeriod ?? settings.descriptor.historicalPeriod ?? "ageOfExploration",
+                settings.descriptor.civilization?.tradition
+              )))
         ? settings.descriptor.frame.cityRadiusMeters * Math.sqrt(settings.housingAreaScale ?? 1)
         : (settings.descriptor?.frame.cityRadiusMeters ?? frame.cityRadiusMeters),
     dwellings: document.populationPlan?.requiredDwellings ?? descriptor.burg.dwellings,

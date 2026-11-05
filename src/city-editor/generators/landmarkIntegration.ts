@@ -2,9 +2,9 @@ import type { CityDocument, LandmarkPolygon } from "../types/document";
 import type { Point } from "../types/primitives";
 import type { BuildingLot } from "./buildingLots.types";
 import { nearestOnPolyline, polygonArea } from "./geom";
-import { accessCorridor, landmarkReservationHits, polygonIntersectsLandmark } from "./landmarks";
+import { accessCorridor, polygonIntersectsLandmark } from "./landmarks";
 import { convexInfillParts, insetConvexKernel, longestFrame } from "./lotGeometry";
-import { plotArea, subtractConvex } from "./parcelGeometry";
+import { bounds, PlotIndex, plotArea, subtractConvex } from "./parcelGeometry";
 
 export interface LandmarkStreet {
   points: Point[];
@@ -70,23 +70,16 @@ export function rebuildLandmarkHousing(
 ): BuildingLot[] {
   if (!document.landmarks?.length) return buildings;
   const reserved = landmarkReservationParts(document);
+  const index = new PlotIndex<Point[]>();
+  for (const part of reserved) index.add(part, bounds(part));
   const streets = landmarkStreets(document, lanes);
-  return buildings.flatMap((building, index) => {
-    if (
-      !document.landmarks!.some(
-        instance =>
-          polygonIntersectsLandmark(building.polygon, instance.site) ||
-          instance.accesses.some(access =>
-            accessCorridor(access.points, access.widthMeters).some(part =>
-              polygonIntersectsLandmark(building.polygon, [part])
-            )
-          )
-      )
-    )
-      return [building];
+  return buildings.flatMap((building, buildingIndex) => {
+    const nearby = index.query(bounds(building.polygon));
+    const polygons = nearby.map(outer => ({ outer, holes: [] }));
+    if (!polygonIntersectsLandmark(building.polygon, polygons)) return [building];
     if (building.landmark || (building.uses && !building.uses.includes("residential"))) return [];
     let residual = convexInfillParts(building.polygon);
-    for (const cut of reserved) residual = residual.flatMap(part => subtractConvex(part, cut, 0.001));
+    for (const cut of nearby) residual = residual.flatMap(part => subtractConvex(part, cut, 0.001));
     const originalArea = plotArea(building.polygon);
     const candidates = residual
       .filter(part => plotArea(part) >= Math.max(20, originalArea * 0.35) && longestFrame(part).across >= 3.5)
@@ -101,14 +94,14 @@ export function rebuildLandmarkHousing(
         const contact = part.some(point =>
           streets.some(street => nearestOnPolyline(point, street.points).dist <= street.widthMeters / 2 + 6)
         );
-        return contact && !landmarkReservationHits(document, part);
+        return contact && !polygonIntersectsLandmark(part, polygons);
       })
       .sort((a, b) => Math.abs(polygonArea(b)) - Math.abs(polygonArea(a)));
     if (!candidates.length) return [];
     return [
       {
         ...building,
-        id: `${building.id ?? `${building.faceId}-${index}`}:landmark-rebuilt`,
+        id: `${building.id ?? `${building.faceId}-${buildingIndex}`}:landmark-rebuilt`,
         polygon: candidates[0]
       }
     ];

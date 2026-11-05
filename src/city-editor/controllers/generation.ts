@@ -794,6 +794,14 @@ export function createGenerationController(ctx: GenerationContext) {
             })
         : "";
       summary.title = report?.unplaced.map(r => `${r.id}: ${r.reason}`).join("\n") ?? "";
+      if (report?.population && report.housing) {
+        summary.textContent += ` / ${editorText("cityEditor.messages.populationFacilityHousingSummary", {
+          assigned: report.housing.assignedDwellings,
+          required: report.housing.requiredDwellings,
+          unplaced: report.housing.unplacedDwellings,
+          cells: report.housing.coreCells
+        })}`;
+      }
     }
     ctx.layoutSelect.value =
       ctx.generation.generateSettings.layout ?? ctx.generation.generateSettings.config.layout ?? "auto";

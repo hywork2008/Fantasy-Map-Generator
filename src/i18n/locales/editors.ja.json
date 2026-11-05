@@ -456,6 +456,7 @@
       "populationFacilities": "中世の敷地＋人口に応じた施設",
       "populationFacilitiesNeedPopulation": "施設を配置するには人口を指定してください。",
       "populationFacilitySummary": "施設 {{placed}}/{{required}}・未配置 {{unplaced}}・仮敷地 {{provisional}}",
+      "populationFacilityHousingSummary": "住居 {{assigned}}/{{required}}戸・不足 {{unplaced}}戸・コア {{cells}}セル",
       "historicalPeriod": "時代設定",
       "ageOfExplorationC14501600Default": "大航海時代 (c. 1450–1600 · 標準)",
       "lateMiddleAgesC13001450": "中世後期 (c. 1300–1450)",

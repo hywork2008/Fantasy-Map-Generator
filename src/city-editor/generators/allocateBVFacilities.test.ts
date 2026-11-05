@@ -139,6 +139,93 @@ describe("BV facilities in existing buildable blocks", () => {
       nearestOnPolyline(center, [document.mesh.vertices[bank.a].point, document.mesh.vertices[bank.b].point]).dist
     ).toBeLessThanOrEqual(27);
   });
+  it("uses unlocked adjoining field cells for a long outskirts site, while preserving streets and locked land", () => {
+    const document = city();
+    const rectangle = (x: number): Point[] => [
+      [x, 0],
+      [x + 40, 0],
+      [x + 40, 30],
+      [x, 30]
+    ];
+    document.mesh = meshFromCells(
+      [0, 1].map(id => ({
+        id,
+        polygon: rectangle(id * 40),
+        site: [id * 40 + 20, 15],
+        centroid: [id * 40 + 20, 15],
+        neighbors: [1 - id],
+        onBorder: true
+      }))
+    );
+    for (const face of Object.values(document.mesh.faces))
+      Object.assign(face.properties, {
+        water: "land",
+        elevation: 3,
+        buildable: true,
+        settlement: "outskirts",
+        ward: "farm",
+        locked: false
+      });
+    const roadEdges = Object.values(document.mesh.edges).filter(
+      e => document.mesh.vertices[e.a].point[1] === 0 && document.mesh.vertices[e.b].point[1] === 0
+    );
+    document.featureGroups = [
+      {
+        id: "road",
+        kind: "road",
+        name: "Road",
+        locked: false,
+        style: { widthMeters: 2, color: "#888" },
+        segments: roadEdges.map(e => ({ edgeId: e.id, forward: true }))
+      }
+    ];
+    const outer: Point[] = [
+      [-30, -2.5],
+      [30, -2.5],
+      [30, 2.5],
+      [-30, 2.5]
+    ];
+    const longSite = {
+      ...asset(),
+      bvModel: undefined,
+      referenceSizeMeters: [60, 5] as [number, number],
+      minimumSite: [{ outer, holes: [] }],
+      footprint: [{ outer, holes: [] }],
+      entrances: [
+        { id: "main", point: [0, -2.5] as Point, outward: [0, -1] as Point, widthMeters: 1.4, required: true }
+      ]
+    };
+    const fabric: DistrictFabric = {
+      buildings: [],
+      lanes: [],
+      entrances: new Map(),
+      farms: Object.values(document.mesh.faces).map(f => ({
+        faceId: f.id,
+        polygon: rectangle(f.id === "f0" ? 0 : 40),
+        rows: []
+      }))
+    };
+    const requests = [{ id: "ropewalk", asset: longSite, zone: "outskirts" as const }];
+    expect(allocateBVFacilities(document, fabric, requests).placed).toEqual([]);
+    const placed = allocateBVFacilities(document, fabric, requests, 0, { allowOutskirtsFields: true });
+    expect(placed.placed).toEqual(["ropewalk"]);
+    expect(plotArea(placed.document.landmarks![0].site[0].outer)).toBeCloseTo(300);
+    expect(placed.document.featureGroups).toEqual(document.featureGroups);
+    const locked = structuredClone(document);
+    locked.mesh.faces.f1.properties.locked = true;
+    expect(allocateBVFacilities(locked, fabric, requests, 0, { allowOutskirtsFields: true }).placed).toEqual([]);
+    const street = structuredClone(document);
+    const boundary = Object.values(street.mesh.edges).find(e => e.leftFace && e.rightFace)!;
+    street.featureGroups.push({
+      id: "cross-road",
+      kind: "road",
+      name: "Cross road",
+      locked: false,
+      style: { widthMeters: 2, color: "#888" },
+      segments: [{ edgeId: boundary.id, forward: true }]
+    });
+    expect(allocateBVFacilities(street, fabric, requests, 0, { allowOutskirtsFields: true }).placed).toEqual([]);
+  });
   it("rejects a block split by a lane rather than putting the facility over the junction or shrinking it", () => {
     const document = city(14, 10),
       hall = asset();

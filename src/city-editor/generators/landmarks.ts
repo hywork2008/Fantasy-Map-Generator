@@ -2,6 +2,7 @@ import type { CityDocument, Id, LandmarkAsset, LandmarkInstance, LandmarkPolygon
 import { templeRectForElement } from "./civicPlacement";
 import { nearestOnPolyline, pointInPolygon, segmentSegmentHit } from "./geom";
 import { facePoints } from "./mesh";
+import { bounds } from "./parcelGeometry";
 
 const finitePoint = (point: Point): boolean => point.length === 2 && point.every(Number.isFinite);
 
@@ -60,11 +61,23 @@ export function polygonIntersectsLandmark(polygon: Point[], site: LandmarkPolygo
 }
 
 export function landmarkReservationHits(document: CityDocument, polygon: Point[]): boolean {
+  const box = bounds(polygon);
+  const nearby = (points: Point[], padding = 0) => {
+    const other = bounds(points);
+    return (
+      box[0] <= other[2] + padding &&
+      box[2] >= other[0] - padding &&
+      box[1] <= other[3] + padding &&
+      box[3] >= other[1] - padding
+    );
+  };
   return (document.landmarks ?? []).some(
     instance =>
-      polygonIntersectsLandmark(polygon, instance.site) ||
-      instance.accesses.some(access =>
-        accessCorridor(access.points, access.widthMeters).some(part => polygonIntersectsLandmark(polygon, [part]))
+      instance.site.some(part => nearby(part.outer) && polygonIntersectsLandmark(polygon, [part])) ||
+      instance.accesses.some(
+        access =>
+          nearby(access.points, access.widthMeters / 2) &&
+          accessCorridor(access.points, access.widthMeters).some(part => polygonIntersectsLandmark(polygon, [part]))
       )
   );
 }

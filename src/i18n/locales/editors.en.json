@@ -456,6 +456,7 @@
       "populationFacilities": "Medieval lots + population-based facilities",
       "populationFacilitiesNeedPopulation": "Set a population to generate facilities.",
       "populationFacilitySummary": "Facilities {{placed}}/{{required}}; unplaced {{unplaced}}; provisional sites {{provisional}}",
+      "populationFacilityHousingSummary": "Dwellings {{assigned}}/{{required}}; shortfall {{unplaced}}; core {{cells}} cells",
       "historicalPeriod": "Historical period",
       "ageOfExplorationC14501600Default": "Age of Exploration (c. 1450–1600 · default)",
       "lateMiddleAgesC13001450": "Late Middle Ages (c. 1300–1450)",

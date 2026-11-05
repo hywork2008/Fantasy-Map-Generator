@@ -3,9 +3,10 @@
 2026-11-06
 
 - docs/analytics/ce-enclosed-guild-hall-t1b-20261103.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
+- docs/analytics/ce-facility-block-allocation-20261106.md - 5,000人の施設配置・住宅補填を通常条件と広場／2階上限で確認。郊外の敷地不足29件を解消し、川なしで配置できる269施設を全配置。コア61セルの維持と87セルまでの補填、固定入力・全量出力のSHA-256・確認範囲を記録
 - docs/analytics/ce-market-guild-legacy-baseline-20261104.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/analytics/ce-workhome-trades-legacy-baseline-20261104.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
-- docs/plan/ce-facility-block-allocation.md - 施設配置の再出発方針と3作業の状態。通常生成への接続・方式分離・人口別BV／仮敷地・住宅容量集計・保存と共有を実装し、1,000人で49/53施設の配置と川なし4施設の未配置を確認。次は住宅不足分のコア拡張
+- docs/plan/ce-facility-block-allocation.md - 施設配置の再出発方針と3作業の状態。通常生成・方式分離・人口別BV／仮敷地・保存と共有・不足住宅分のコア拡張まで実装。5,000人で川なしの269施設を全配置し、必要1,112戸の充足と郊外追加敷地を確認。次は川あり都市と実画面の確認
 - docs/plan/data/ce-dedicated-bakehouse-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/plan/data/ce-dedicated-cooperage-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/plan/data/ce-dedicated-smithies-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植

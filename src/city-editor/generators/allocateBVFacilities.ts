@@ -5,13 +5,13 @@ import type { DistrictFabric } from "./blockInfill.types";
 import { effectiveHeightLimit } from "./buildingHeightLimits";
 import { CastleDefenseClearance } from "./castleDefenseClearance";
 import { buildingHitsCivicLandmark } from "./civicClearance";
-import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
+import { convexHull, nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
 import { landmarkDwellingCapacity } from "./landmarkDwellings";
 import { landmarkReservationParts, landmarkStreets } from "./landmarkIntegration";
 import { buildLandmarkLaneNetwork } from "./landmarkLaneNetwork";
 import { accessCorridor, placeLandmark, transformLandmarkPolygons } from "./landmarks";
 import { clipHalfPlane, convexInfillParts, longestFrame } from "./lotGeometry";
-import { facePoints } from "./mesh";
+import { faceNeighbors, facePoints } from "./mesh";
 import { MoatReservation } from "./moats";
 import { objectFootprint } from "./objectPlacement";
 import { bounds, intersectConvex, PlotIndex, plotArea, subtractConvex } from "./parcelGeometry";
@@ -32,13 +32,27 @@ export function allocateBVFacilities(
   source: CityDocument,
   fabric: DistrictFabric,
   requests: readonly BVFacilityRequest[],
-  requiredDwellings = source.populationPlan?.requiredDwellings ?? 0
+  requiredDwellings = source.populationPlan?.requiredDwellings ?? 0,
+  options: { allowOutskirtsFields?: boolean } = {}
 ) {
   let document = source;
   const blockedWards = new Set(["castle", "market", "cemetery", "park", "farm", "harbor"]);
+  const fieldFaces = new Set(
+    Object.values(source.mesh.faces)
+      .filter(
+        f =>
+          options.allowOutskirtsFields &&
+          f.properties.buildable &&
+          !f.properties.locked &&
+          f.properties.water === "land" &&
+          f.properties.settlement === "outskirts" &&
+          ["farm", "empty"].includes(f.properties.ward ?? "empty")
+      )
+      .map(f => f.id)
+  );
   const protectedLand = [
     ...fabric.buildings.filter(b => b.landmark || source.mesh.faces[b.faceId]?.properties.locked).map(b => b.polygon),
-    ...fabric.farms.map(f => f.polygon),
+    ...fabric.farms.filter(f => !(f.sourceFaceIds ?? [f.faceId]).every(id => fieldFaces.has(id))).map(f => f.polygon),
     ...(fabric.parks ?? []).flatMap(p => p.lawnPolygons),
     ...(fabric.openSpaces ?? []).map(s => s.polygon),
     ...(fabric.aerialLandmarks ? aerialLandmarkFootprints(fabric.aerialLandmarks) : []),
@@ -46,7 +60,12 @@ export function allocateBVFacilities(
     ...source.elements.filter(e => e.kind === "object").map(objectFootprint),
     ...classifyTownWater(source).parts.map(p => p.polygon),
     ...Object.values(source.mesh.faces)
-      .filter(f => f.properties.locked || f.properties.water !== "land" || blockedWards.has(f.properties.ward ?? ""))
+      .filter(
+        f =>
+          f.properties.locked ||
+          f.properties.water !== "land" ||
+          (blockedWards.has(f.properties.ward ?? "") && !fieldFaces.has(f.id))
+      )
       .map(f => facePoints(source.mesh, f))
   ].flatMap(convexInfillParts);
   const streets = landmarkStreets(source, fabric.lanes);
@@ -56,13 +75,20 @@ export function allocateBVFacilities(
   cuts.forEach(c => {
     fixed.add(c, bounds(c));
   });
+  const cappedLand = new PlotIndex<{ polygon: Point[]; height: number }>();
+  for (const face of Object.values(source.mesh.faces)) {
+    const height = face.properties.buildingHeightLimit?.maxHeightMeters;
+    if (height === undefined) continue;
+    for (const polygon of convexInfillParts(facePoints(source.mesh, face)))
+      cappedLand.add({ polygon, height }, bounds(polygon));
+  }
   let plots = Object.values(source.mesh.faces)
     .filter(
       f =>
         f.properties.buildable &&
         !f.properties.locked &&
         f.properties.water === "land" &&
-        !blockedWards.has(f.properties.ward ?? "")
+        (!blockedWards.has(f.properties.ward ?? "") || fieldFaces.has(f.id))
     )
     .flatMap(face => {
       let parts = convexInfillParts(facePoints(source.mesh, face));
@@ -75,6 +101,26 @@ export function allocateBVFacilities(
         Math.hypot(...polygonCentroid(a.polygon)) - Math.hypot(...polygonCentroid(b.polygon)) ||
         a.face.id.localeCompare(b.face.id)
     );
+  // Rural mesh edges are bookkeeping boundaries, not streets. Adjacent field cells may
+  // supply one long site, while roads, tracks and every non-field face remain excluded.
+  if (fieldFaces.size) {
+    const obstacles = new PlotIndex<Point[]>();
+    for (const face of Object.values(source.mesh.faces).filter(f => !fieldFaces.has(f.id)))
+      for (const part of convexInfillParts(facePoints(source.mesh, face))) obstacles.add(part, bounds(part));
+    for (const id of fieldFaces)
+      for (const neighbor of faceNeighbors(source.mesh, id)) {
+        if (id >= neighbor || !fieldFaces.has(neighbor)) continue;
+        const face = source.mesh.faces[id];
+        const polygon = convexHull([
+          ...facePoints(source.mesh, face),
+          ...facePoints(source.mesh, source.mesh.faces[neighbor])
+        ]);
+        let parts = [polygon];
+        for (const cut of [...fixed.query(bounds(polygon)), ...obstacles.query(bounds(polygon))])
+          parts = parts.flatMap(p => subtractConvex(p, cut, 1));
+        plots.push(...parts.map(polygon => ({ face, polygon })));
+      }
+  }
   const riverWater = classifyTownWater(source).parts.filter(p => p.kind === "river");
   const lanes = buildLandmarkLaneNetwork(source, fabric.lanes);
   const terrain = cityTerrain(source),
@@ -136,6 +182,14 @@ export function allocateBVFacilities(
             continue;
           const height = request.asset.bvModel?.heightMeters ?? 0;
           if ((effectiveHeightLimit(source, plot.face.id).maxHeightMeters ?? Infinity) < height) continue;
+          if (
+            site.some(p =>
+              cappedLand
+                .query(bounds(p.outer))
+                .some(c => c.height < height && plotArea(intersectConvex(p.outer, c.polygon)) > 1e-6)
+            )
+          )
+            continue;
           const result = placeLandmark(document, request.asset, pose, lanes);
           if (!result.document) continue;
           const instance = result.document.landmarks!.at(-1)!;
