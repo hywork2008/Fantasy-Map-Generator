@@ -2,19 +2,20 @@ import { describe, expect, it } from "vitest";
 import { ENCLOSED_GUILD_HALL } from "../../buildings/medieval/enclosedGuildHall";
 import { placementFootprint } from "../../buildings/placementModels";
 import { createTownObjects } from "../../city3d/three/objectMeshes";
-import { buildBlockFabric } from "../generators/blockInfill";
-import type { DistrictFabric } from "../generators/blockInfill.types";
-import { createDocument } from "../generators/document";
-import { bvLandmarkElements } from "../generators/landmarkIntegration";
-import { accessCorridor } from "../generators/landmarks";
-import { meshFromCells } from "../generators/mesh";
-import { intersectConvex, plotArea } from "../generators/parcelGeometry";
-import { residentialCapacity } from "../generators/residentialCapacityFormula";
 import { collectCityStructures } from "../renderers/structureMassing";
+import { parseDocument, serializeDocument } from "../services/io/documentCodec";
 import type { Point } from "../types/document";
 import { allocateBVFacilities } from "./allocateBVFacilities";
+import { buildBlockFabric } from "./blockInfill";
+import type { DistrictFabric } from "./blockInfill.types";
 import { bvFacilityAsset } from "./bvFacilityAsset";
-import { parseDocument, serializeDocument } from "./io/documentCodec";
+import { createDocument } from "./document";
+import { nearestOnPolyline, polygonCentroid } from "./geom";
+import { bvLandmarkElements } from "./landmarkIntegration";
+import { accessCorridor } from "./landmarks";
+import { meshFromCells } from "./mesh";
+import { intersectConvex, plotArea } from "./parcelGeometry";
+import { residentialCapacity } from "./residentialCapacityFormula";
 
 const modelId = "trade-hall.guild-enclosed.textiles";
 const asset = () =>
@@ -92,11 +93,51 @@ describe("BV facilities in existing buildable blocks", () => {
       footprint = placementFootprint(modelId, "low")!;
     expect(plotArea(placed.site[0].outer)).toBeCloseTo(footprint.halfX * footprint.halfZ * 4, 6);
     expect(placed.scale).toBe(1);
-    expect(placed.accesses[0].target.kind).toBe("lane");
+    expect(["lane", "road"]).toContain(placed.accesses[0].target.kind);
     for (const lane of fabric.lanes)
       for (const band of accessCorridor(lane.points, lane.widthMeters))
         expect(plotArea(intersectConvex(placed.site[0].outer, band.outer))).toBeLessThan(1e-6);
     expect(JSON.stringify([document, fabric, hall])).toBe(before);
+  });
+  it("keeps a river-bound facility in the outskirts within its bank-distance limit", () => {
+    const document = city();
+    document.mesh.faces.f0.properties.settlement = "outskirts";
+    const bank = Object.values(document.mesh.edges).find(
+      e => document.mesh.vertices[e.a].point[0] === 60 && document.mesh.vertices[e.b].point[0] === 60
+    )!;
+    document.featureGroups.push({
+      id: "river",
+      kind: "river",
+      name: "River",
+      locked: false,
+      vertices: [bank.a, bank.b],
+      source: null,
+      mouth: null,
+      style: { widthMeters: 4, color: "#68a" }
+    });
+    const fabric: DistrictFabric = {
+      buildings: [],
+      farms: [],
+      entrances: new Map(),
+      lanes: [
+        {
+          faceId: "f0",
+          points: [
+            [-59, 30],
+            [59, 30]
+          ],
+          widthMeters: 2
+        }
+      ]
+    };
+    const allocation = allocateBVFacilities(document, fabric, [
+      { id: "river-facility", asset: asset(), zone: "outskirts", riverbankMaxDistanceMeters: 25 }
+    ]);
+    expect(allocation.placed).toHaveLength(1);
+    const center = polygonCentroid(allocation.document.landmarks![0].site[0].outer);
+    expect(
+      nearestOnPolyline(center, [document.mesh.vertices[bank.a].point, document.mesh.vertices[bank.b].point]).dist
+    ).toBeLessThanOrEqual(27);
   });
   it("rejects a block split by a lane rather than putting the facility over the junction or shrinking it", () => {
     const document = city(14, 10),

@@ -6,8 +6,11 @@ import { createStructureMassing } from "../city3d/three/structureMeshes";
 import { BUILDING_APPEARANCE_PROFILES } from "./appearance/types";
 import { createRegionalHouse, defaultRegionalHouseSpec } from "./houses/regionalHouses";
 import { models as marketStalls } from "./medieval/06-market-stallsModels";
+import { models as breweries } from "./medieval/15-breweriesModels";
 import { models as civicHalls } from "./medieval/26-civic-hallsModels";
 import { models as clothHalls } from "./medieval/27-cloth-hallsModels";
+import { models as potteries } from "./medieval/34-pottery-workshopsModels";
+import { models as printers } from "./medieval/38-printing-modelsModels";
 import { models as tradeHalls } from "./medieval/48-trade-guild-hallsModels";
 import { models as marketHalls } from "./medieval/49-market-guild-hallsModels";
 import { models as workhomeShells } from "./medieval/50-workhome-shellsModels";
@@ -116,6 +119,9 @@ for (const object of PLACEABLE_OBJECTS) {
 
 for (const model of [
   ...marketStalls,
+  ...breweries,
+  ...potteries,
+  ...printers.filter(m => m.id === "early-printing-workshop"),
   ...civicHalls,
   ...clothHalls,
   ...tradeHalls,

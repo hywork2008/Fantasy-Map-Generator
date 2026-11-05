@@ -340,14 +340,17 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
               : editorText("cityEditor.messages.classic");
   }
   const buildingPatternSelect = ctx.select(
-    ["legacy", "medieval"],
-    ctx.generation.generateSettings.buildingPattern ?? "legacy"
+    ["legacy", "medieval", "medieval-facilities"],
+    ctx.generation.generateSettings.facilityLayout === "population"
+      ? "medieval-facilities"
+      : (ctx.generation.generateSettings.buildingPattern ?? "legacy")
   );
   bindPanelEvents(events, "buildingPatternSelect:change");
   buildingPatternSelect.className = "ce-generate-building-pattern";
   buildingPatternSelect.setAttribute("aria-label", editorText("cityEditor.messages.buildingGeneration"));
   buildingPatternSelect.options[0].textContent = editorText("cityEditor.messages.legacyHousing");
   buildingPatternSelect.options[1].textContent = editorText("cityEditor.messages.medievalLotsStoresHousesAndGardens");
+  buildingPatternSelect.options[2].textContent = editorText("cityEditor.messages.populationFacilities");
   const coastSelect = ctx.select(["none", "straight", "bay", "cape"], ctx.generation.generateSettings.config.coast);
   coastSelect.className = "ce-generate-coast";
   bindPanelEvents(events, "coastSelect:change");

@@ -249,7 +249,11 @@ export function bindPanelEvents(ctx: PanelEventsContext, binding: PanelBinding) 
     }
     case "buildingPatternSelect:change": {
       ctx.scope.listen(ctx.buildingPatternSelect, "change", () => {
-        ctx.generation.generateSettings.buildingPattern = ctx.buildingPatternSelect.value as "legacy" | "medieval";
+        const facilities = ctx.buildingPatternSelect.value === "medieval-facilities";
+        ctx.generation.generateSettings.buildingPattern = facilities
+          ? "medieval"
+          : (ctx.buildingPatternSelect.value as "legacy" | "medieval");
+        ctx.generation.generateSettings.facilityLayout = facilities ? "population" : undefined;
         ctx.generation.completeResult = null;
         clearGenerationPreviewCache();
       });

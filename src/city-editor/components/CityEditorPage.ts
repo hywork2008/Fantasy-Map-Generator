@@ -2913,7 +2913,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       "citadel"
     ),
     generationSection("cityEditor.generationWorkspace.housing", [
-      standaloneSettings(label(editorText("cityEditor.messages.buildingGeneration"), buildingPatternSelect)),
+      label(editorText("cityEditor.messages.buildingGeneration"), buildingPatternSelect),
       label(editorText("cityEditor.messages.urbanCoreAllocationMode"), urbanCoreModeSelect),
       housingSummary
     ]),

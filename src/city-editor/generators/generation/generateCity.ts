@@ -62,6 +62,7 @@ import {
   straightenGateCrossings
 } from "../passages";
 import { bramCoreRadiusForCity, bramSpokeRadiusMeters } from "../polygonalCirculadeLayout";
+import { generatePopulationFacilities, withoutGeneratedFacilities } from "../populationFacilities";
 import { preparePopulationGeneration } from "../populationGeneration";
 import { fitPopulationHousing } from "../populationHousingFit";
 import { isHexagonalDocument, rectifyHexBlocks } from "../rectifyHexBlocks";
@@ -123,6 +124,7 @@ export function generateCityOnDocument(
   profiler?: ProcessingProfiler,
   stopAfter?: "streets" | "innerWall" | "innerGates" | "firstInnerGates"
 ): CityDocument | null {
+  document = withoutGeneratedFacilities(document);
   const settingIssues = generationSettingIssues(document, settings).filter(issue => issue.severity !== "warning");
   if (settingIssues.length) {
     for (const issue of settingIssues)
@@ -410,6 +412,22 @@ export function generateCityOnDocument(
       // the historical period and scene regions all change which lots are
       // built, so an earlier count overstated the houses by up to ~20%.
       // One content-keyed district cache for the first fabric and every housing count.
+      Object.assign(
+        result,
+        measureProcessing(profiler, "population-facilities", () => generatePopulationFacilities(result, settings))
+      );
+      if (result.facilityReport)
+        observe({
+          phase: "population-facilities",
+          elapsedMs: 0,
+          attempt: attempt + 1,
+          counts: {
+            required: result.facilityReport.required,
+            placed: result.facilityReport.placed,
+            unplaced: result.facilityReport.unplaced.length,
+            provisional: result.facilityReport.provisional
+          }
+        });
       const fabricCache = new FabricCache(512);
       let heightAreaChecked = false;
       const expandHousing = (lots: Parameters<typeof nextHousingAreaScale>[3]): CityDocument | null => {

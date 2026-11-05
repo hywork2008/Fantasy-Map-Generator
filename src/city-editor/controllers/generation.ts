@@ -770,7 +770,31 @@ export function createGenerationController(ctx: GenerationContext) {
           DEFAULT_CASTLE_SETTINGS[key] ??
           (key === "groundRiseMeters" ? DEFAULT_CASTLE_RISE_METERS : "auto")
       );
-    ctx.buildingPatternSelect.value = ctx.generation.generateSettings.buildingPattern ?? "legacy";
+    ctx.buildingPatternSelect.value =
+      ctx.generation.generateSettings.facilityLayout === "population"
+        ? "medieval-facilities"
+        : (ctx.generation.generateSettings.buildingPattern ?? "legacy");
+    const parent = ctx.buildingPatternSelect.parentElement;
+    if (parent) {
+      let summary = parent.querySelector<HTMLElement>(".ce-facility-summary");
+      if (!summary) {
+        summary = document.createElement("span");
+        summary.className = "ce-facility-summary";
+        parent.append(summary);
+      }
+      const report = ctx.documents.documentState.facilityReport;
+      summary.textContent = report
+        ? report.population === 0
+          ? editorText("cityEditor.messages.populationFacilitiesNeedPopulation")
+          : editorText("cityEditor.messages.populationFacilitySummary", {
+              placed: report.placed,
+              required: report.required,
+              unplaced: report.unplaced.length,
+              provisional: report.provisional
+            })
+        : "";
+      summary.title = report?.unplaced.map(r => `${r.id}: ${r.reason}`).join("\n") ?? "";
+    }
     ctx.layoutSelect.value =
       ctx.generation.generateSettings.layout ?? ctx.generation.generateSettings.config.layout ?? "auto";
     ctx.coastSelect.value = ctx.generation.generateSettings.config.coast;

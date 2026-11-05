@@ -379,6 +379,11 @@ export function validateLandmarks(document: CityDocument): string[] {
     errors.push("Landmarks require document version 3 or later");
   const assets = new Map<string, LandmarkAsset>();
   for (const asset of document.landmarkAssets ?? []) {
+    if (
+      asset.residentialDwellings !== undefined &&
+      (!Number.isSafeInteger(asset.residentialDwellings) || asset.residentialDwellings < 0)
+    )
+      errors.push(`Invalid landmark dwelling capacity ${asset.id}`);
     const key = `${asset.id}@${asset.revision}`;
     if (assets.has(key)) errors.push(`Duplicate landmark asset ${key}`);
     assets.set(key, asset);

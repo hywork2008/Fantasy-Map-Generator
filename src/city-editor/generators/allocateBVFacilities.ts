@@ -1,28 +1,30 @@
-import { aerialLandmarkFootprints } from "../generators/aerialFootprints";
-import { buildBlockFabric } from "../generators/blockInfill";
-import type { DistrictFabric } from "../generators/blockInfill.types";
-import { effectiveHeightLimit } from "../generators/buildingHeightLimits";
-import { CastleDefenseClearance } from "../generators/castleDefenseClearance";
-import { buildingHitsCivicLandmark } from "../generators/civicClearance";
-import { nearestOnPolyline, polygonCentroid } from "../generators/geom";
-import { landmarkReservationParts, landmarkStreets } from "../generators/landmarkIntegration";
-import { buildLandmarkLaneNetwork } from "../generators/landmarkLaneNetwork";
-import { accessCorridor, placeLandmark, transformLandmarkPolygons } from "../generators/landmarks";
-import { convexInfillParts, longestFrame } from "../generators/lotGeometry";
-import { facePoints } from "../generators/mesh";
-import { MoatReservation } from "../generators/moats";
-import { objectFootprint } from "../generators/objectPlacement";
-import { bounds, intersectConvex, PlotIndex, plotArea, subtractConvex } from "../generators/parcelGeometry";
-import { residentialCapacity } from "../generators/residentialCapacityFormula";
-import { approachBands } from "../generators/suburbanLanduse";
-import { cityTerrain } from "../generators/terrainElevation";
-import { classifyTownWater } from "../generators/townWater";
 import type { CityDocument, LandmarkAsset, Point } from "../types/document";
+import { aerialLandmarkFootprints } from "./aerialFootprints";
+import { buildBlockFabric } from "./blockInfill";
+import type { DistrictFabric } from "./blockInfill.types";
+import { effectiveHeightLimit } from "./buildingHeightLimits";
+import { CastleDefenseClearance } from "./castleDefenseClearance";
+import { buildingHitsCivicLandmark } from "./civicClearance";
+import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
+import { landmarkDwellingCapacity } from "./landmarkDwellings";
+import { landmarkReservationParts, landmarkStreets } from "./landmarkIntegration";
+import { buildLandmarkLaneNetwork } from "./landmarkLaneNetwork";
+import { accessCorridor, placeLandmark, transformLandmarkPolygons } from "./landmarks";
+import { clipHalfPlane, convexInfillParts, longestFrame } from "./lotGeometry";
+import { facePoints } from "./mesh";
+import { MoatReservation } from "./moats";
+import { objectFootprint } from "./objectPlacement";
+import { bounds, intersectConvex, PlotIndex, plotArea, subtractConvex } from "./parcelGeometry";
+import { residentialCapacity } from "./residentialCapacityFormula";
+import { approachBands } from "./suburbanLanduse";
+import { cityTerrain } from "./terrainElevation";
+import { classifyTownWater } from "./townWater";
 
 export interface BVFacilityRequest {
   id: string;
   asset: LandmarkAsset;
   zone?: "core" | "outskirts";
+  riverbankMaxDistanceMeters?: number;
 }
 
 /** Choose free building land, connect to an existing street, and measure the remaining housing. */
@@ -73,6 +75,7 @@ export function allocateBVFacilities(
         Math.hypot(...polygonCentroid(a.polygon)) - Math.hypot(...polygonCentroid(b.polygon)) ||
         a.face.id.localeCompare(b.face.id)
     );
+  const riverWater = classifyTownWater(source).parts.filter(p => p.kind === "river");
   const lanes = buildLandmarkLaneNetwork(source, fabric.lanes);
   const terrain = cityTerrain(source),
     moat = new MoatReservation(source),
@@ -80,6 +83,10 @@ export function allocateBVFacilities(
   const placed: string[] = [],
     unplaced: { id: string; reason: string }[] = [];
   for (const request of requests) {
+    if (request.riverbankMaxDistanceMeters !== undefined && !riverWater.length) {
+      unplaced.push({ id: request.id, reason: "river-required" });
+      continue;
+    }
     if (document.landmarks?.some(l => l.id === request.id)) {
       unplaced.push({ id: request.id, reason: "duplicate-id" });
       continue;
@@ -90,29 +97,38 @@ export function allocateBVFacilities(
       if (request.zone && plot.face.properties.settlement !== request.zone) continue;
       const area = request.asset.minimumSite.reduce((n, p) => n + plotArea(p.outer), 0);
       if (plotArea(plot.polygon) + 1e-6 < area) continue;
-      const center = polygonCentroid(plot.polygon),
-        axis = longestFrame(plot.polygon).axis;
-      const positions = [
-        center,
-        ...fabric.buildings
-          .filter(b => b.faceId === plot.face.id && !b.landmark)
-          .slice(0, 16)
-          .map(b => polygonCentroid(b.polygon))
-      ];
-      candidates: for (const position of positions) {
-        const nearest = streets.map(s => nearestOnPolyline(position, s.points)).sort((a, b) => a.dist - b.dist)[0];
-        const outward = request.asset.entrances.find(e => e.required)?.outward ?? [0, -1];
-        const rotations = Array.from(
-          { length: 4 },
-          (_, turn) => Math.atan2(axis[1], axis[0]) + (turn * Math.PI) / 2
-        ).sort((a, b) => {
-          if (!nearest) return 0;
-          const score = (angle: number) =>
-            (outward[0] * Math.cos(angle) - outward[1] * Math.sin(angle)) * (nearest.point[0] - position[0]) +
-            (outward[0] * Math.sin(angle) + outward[1] * Math.cos(angle)) * (nearest.point[1] - position[1]);
-          return score(b) - score(a);
-        });
-        for (const rotation of rotations) {
+      const axis = longestFrame(plot.polygon).axis;
+      candidates: for (let turn = 0; turn < 4; turn++) {
+        const rotation = Math.atan2(axis[1], axis[0]) + (turn * Math.PI) / 2;
+        const local = transformLandmarkPolygons(request.asset.minimumSite, {
+          position: [0, 0],
+          rotation,
+          scale: 1
+        }).flatMap(p => p.outer);
+        let centers = plot.polygon;
+        const sign = -Math.sign(polygonArea(plot.polygon));
+        for (let i = 0; i < plot.polygon.length && centers.length >= 3; i++) {
+          const a = plot.polygon[i],
+            b = plot.polygon[(i + 1) % plot.polygon.length];
+          const normal: Point = [sign * (b[1] - a[1]), sign * (a[0] - b[0])];
+          const support = Math.max(...local.map(p => p[0] * normal[0] + p[1] * normal[1]));
+          centers = clipHalfPlane(centers, normal, a[0] * normal[0] + a[1] * normal[1] - support - 1e-5);
+        }
+        if (centers.length < 3 || plotArea(centers) < 1e-6) continue;
+        const center = polygonCentroid(centers);
+        const positions: Point[] = [
+          center,
+          ...centers.map(p => [p[0] * 0.99 + center[0] * 0.01, p[1] * 0.99 + center[1] * 0.01] as Point)
+        ];
+        const streetDistance = (p: Point) => Math.min(...streets.map(s => nearestOnPolyline(p, s.points).dist));
+        positions.sort((a, b) => streetDistance(a) - streetDistance(b));
+        for (const position of positions) {
+          if (
+            request.riverbankMaxDistanceMeters !== undefined &&
+            Math.min(...riverWater.map(b => nearestOnPolyline(position, [...b.polygon, b.polygon[0]]).dist)) >
+              request.riverbankMaxDistanceMeters
+          )
+            continue;
           if (++trials > 256) break candidates;
           const pose = { id: request.id, position, rotation, scale: 1 };
           const site = transformLandmarkPolygons(request.asset.minimumSite, pose);
@@ -159,8 +175,12 @@ export function allocateBVFacilities(
     } else unplaced.push({ id: request.id, reason: trials > 256 ? "candidate-limit" : "no-fitting-site-and-access" });
   }
   const after = placed.length ? buildBlockFabric(document) : fabric;
-  const beforeCapacity = fabric.buildings.reduce((n, b) => n + residentialCapacity(b), 0),
-    afterCapacity = after.buildings.reduce((n, b) => n + residentialCapacity(b), 0);
+  const beforeMixed = landmarkDwellingCapacity(source),
+    afterMixed = landmarkDwellingCapacity(document);
+  const beforeCapacity =
+      fabric.buildings.reduce((n, b) => n + residentialCapacity(b), 0) + beforeMixed.inside + beforeMixed.outside,
+    afterCapacity =
+      after.buildings.reduce((n, b) => n + residentialCapacity(b), 0) + afterMixed.inside + afterMixed.outside;
   return {
     document,
     placed,

@@ -1,5 +1,5 @@
 /** Fixed-reference demand used by the T0 observation; does not change the economy or city. */
-import { HISTORICAL_PERIODS } from "../../../types/historicalPeriod";
+import { HISTORICAL_PERIODS } from "../../types/historicalPeriod";
 
 export interface TradeReferenceRow {
   domain: string;

@@ -5,6 +5,7 @@ import type { CityDocument } from "../types/document";
 import { applyBuildingHeightLimits, maximumBuildingStoreys } from "./buildingHeightLimits";
 import { assignResidentialHeightDistribution, hasBuildingHeightVariation, heightPeriod } from "./buildingHeightPolicy";
 import type { BuildingLot } from "./buildingLots.types";
+import { landmarkDwellingCapacity } from "./landmarkDwellings";
 import { isResidentialBuilding, residentialCapacity } from "./residentialCapacityFormula";
 
 export { dwellingCapacity, isResidentialBuilding, residentialCapacity } from "./residentialCapacityFormula";
@@ -68,6 +69,9 @@ export function measureHousingCapacity(
       buildingsInside++;
     }
   }
+  const mixed = landmarkDwellingCapacity(document);
+  inside += mixed.inside;
+  outside += mixed.outside;
   const outsideCap = document.urbanGrowth?.outsideCap ?? requiredDwellings;
   const availableOutside = Math.min(outside, outsideCap);
   const desiredOutside = Math.min(availableOutside, document.urbanGrowth?.outsideBudget ?? 0);

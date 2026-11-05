@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { csvParse } from "d3";
 import { describe, expect, it } from "vitest";
-import { medievalTradeDemand } from "./medievalTradeDemand";
+import { medievalTradeDemand } from "../../generators/medievalTradeDemand";
 
 const rows = csvParse(
   readFileSync(resolve("docs/plan/medieval-urban-calibration-targets/occupations.csv"), "utf8")
