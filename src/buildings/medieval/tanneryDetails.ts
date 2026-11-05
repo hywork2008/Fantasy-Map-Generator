@@ -143,3 +143,6 @@ export function createHighTannery() {
   );
   return compactModel(k.finish());
 }
+
+// Shared full-size equipment; callers own the resulting ModelKit resources.
+export { dryingFrame as addTanneryDryingFrame, vat as addTanneryVat };

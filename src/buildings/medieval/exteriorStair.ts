@@ -3,6 +3,7 @@ import { ModelKit } from "./modelKit";
 
 export interface ExteriorStairOptions {
   surface?: "stone" | "wood";
+  landingFit?: "flush";
   rise: number;
   run: number;
   width: number;
@@ -33,7 +34,7 @@ export function exteriorStairLayout(options: ExteriorStairOptions) {
 }
 
 /** Self-contained flight, supported landing and guards, regenerated from dimensions. */
-export function createExteriorStair(options: ExteriorStairOptions) {
+export function createExteriorStair(options: ExteriorStairOptions, detail: "low" | "high" = "high") {
   const { rise, run, width, landingDepth, doorWidth } = options;
   const surface = options.surface ?? "stone";
   const layout = exteriorStairLayout(options),
@@ -42,12 +43,16 @@ export function createExteriorStair(options: ExteriorStairOptions) {
     start = 0.2,
     railHeight = 0.95;
   const railEnd = Math.max(doorWidth / 2 + 0.12, landingDepth / 2 - 0.1);
-  const footZ = start + run - run / layout.steps / 2;
-  for (let i = 0; i < layout.steps; i++) {
+  const flush = options.landingFit === "flush",
+    flightTreads = flush ? layout.steps - 1 : layout.steps,
+    treadDepth = flush ? (start + run - landingDepth / 2) / flightTreads : run / layout.steps;
+  if (treadDepth < 0.25) throw new Error("Exterior stair treads are too short");
+  const footZ = start + run - treadDepth / 2;
+  for (let i = 0; i < flightTreads; i++) {
     const y = ((i + 1) * rise) / layout.steps,
-      z = start + run - ((i + 0.5) * run) / layout.steps;
-    k.box("solid-exterior-stair", [0, y / 2, z], [width, y, run / layout.steps + 0.006], surface);
-    if (i % 3 === 0 && z > railEnd)
+      z = start + run - (i + 0.5) * treadDepth;
+    k.box("solid-exterior-stair", [0, y / 2, z], [width, y, treadDepth + (flush ? 0 : 0.006)], surface);
+    if (i % (detail === "high" ? 3 : 6) === 0 && z > railEnd)
       for (const side of [-1, 1])
         k.box("stair-rail-post", [side * edge, y + railHeight / 2, z], [0.075, railHeight, 0.075], "oak");
   }

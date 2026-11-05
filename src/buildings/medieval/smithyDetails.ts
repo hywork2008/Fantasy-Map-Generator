@@ -236,3 +236,11 @@ export function createHighSmithy(kind: SmithyKind) {
   if (kind === "farriers-workshop") shoeingStock(k);
   return compactModel(k.finish());
 }
+
+/** Assembly-origin components for new forms; original full-model factories remain unchanged. */
+export type SmithyCorePart = "forge" | "bellows" | "anvil" | "tools" | "roof";
+export function createSmithyCorePart(part: SmithyCorePart) {
+  const k = new HouseDetailKit(`smithy-core-${part}`);
+  ({ forge, bellows, anvil, tools, roof: roofWithFlue })[part](k);
+  return k.finish();
+}

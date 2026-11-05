@@ -383,6 +383,15 @@ export function validateLandmarks(document: CityDocument): string[] {
     if (assets.has(key)) errors.push(`Duplicate landmark asset ${key}`);
     assets.set(key, asset);
     if (
+      asset.bvModel &&
+      (typeof asset.bvModel.id !== "string" ||
+        !asset.bvModel.id ||
+        !["low", "high"].includes(asset.bvModel.quality) ||
+        !Number.isFinite(asset.bvModel.heightMeters) ||
+        asset.bvModel.heightMeters <= 0)
+    )
+      errors.push(`Invalid BV model ${key}`);
+    if (
       !asset.id ||
       !asset.revision ||
       !asset.name ||
@@ -413,6 +422,8 @@ export function validateLandmarks(document: CityDocument): string[] {
   }
   const ids = new Set<string>();
   for (const instance of document.landmarks ?? []) {
+    const bv = assets.get(`${instance.assetId}@${instance.assetRevision}`)?.bvModel;
+    if (bv && instance.scale !== 1) errors.push(`BV landmark must retain authored scale ${instance.id}`);
     if (ids.has(instance.id)) errors.push(`Duplicate landmark ${instance.id}`);
     ids.add(instance.id);
     if (!assets.has(`${instance.assetId}@${instance.assetRevision}`))

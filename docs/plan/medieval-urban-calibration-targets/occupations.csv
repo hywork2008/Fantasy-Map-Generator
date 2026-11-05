@@ -1,0 +1,34 @@
+domain,pool,craft_ja,per_1000_people,min_per_1000,max_per_1000,port_multiplier,capital_multiplier,wine_region_per_1000,from_period,requires_technology,smallest_town_people,model_goods,bv_models,sources
+textiles,tailoring,仕立て・帽子・靴下,30,20,40,,,,,,83,Garments; Wool Garments; Linen Garments; Fine Wool Garments,20 textile-leather workshops; 08 shop-houses,"E1 tailors, hatters, hosiers 6.6% of urban employed"
+textiles,weaving,織り・縮絨・染め（地元の分）,10,5,38,,,,,,250,Cloth; Wool Cloth; Fine Wool Cloth; Linen; Wool Blankets; Sails,20 textile-leather workshops; 27 cloth halls; 31 bleaching fields,F1 weavers 0.67 × shoemakers; E1 cloth manufacture 8.5% (38/1000) is a cloth-exporting town
+leather,shoemaking,靴,15,10,20,,,,,,167,Boots,20 textile-leather workshops,E1 shoemakers 3.3%; F1 3.7% of known taxpayers; F2 4%
+leather,tanning,なめし・皮すき,11,6,15,,,,,,227,Leather,22 tanneries,"E2 tanners+curriers+tawers 25.1% vs cordwainers 34.8% of leather freemen, × 15 shoemakers"
+leather,furriery,毛皮,7,3,10,,,,,,357,,20 textile-leather workshops,E1 skinners 1.6%
+leather,leatherGoods,帯・袋・手袋,7,3,10,,,,,,357,,20 textile-leather workshops,E2 girdlers+glovers+pouchmakers 16.6% vs cordwainers 34.8%; F1 belt makers 0.36 × shoemakers
+leather,saddlery,鞍・馬具,3,1,5,,,,,,833,,20 textile-leather workshops,E2 saddlers 6.5% vs cordwainers 34.8%
+metallurgy,smithing,鍛冶・蹄鉄,3,2,5,,,,,,833,Tools; Arms; Harnesses,11 smithies,E1 smiths 0.6%; smelter site labor is added separately and is not this row
+metallurgy,cutlery,刃物,1.5,0.5,3,,,,,,1667,,11 smithies,E1 cutlers 0.3%
+metallurgy,metalwares,白鑞・真鍮・釘・錠前・針,4,2,20,,,,,,625,Bronze; Bullets,11 smithies (no pewterer or brazier model),"provisional: pewter, brass, nails, locks, pins; E2 metal 0.5 × leather includes export work"
+metallurgy,goldsmithing,金銀細工,1,0.3,3,,,,,,2500,,none (08 shop-houses),F1 goldsmiths 0.79 × shoemakers is the capital's; E1 0.12% of national employed
+woodworking,cooperage,樽,5,2,8,,,,,,500,Barrels,21 woodworking workshops,F1 barrel makers 0.32 × shoemakers
+woodworking,joinery,指物・挽物,3,1,6,,,,,,833,,21 woodworking workshops,"provisional: joiners and turners (furniture, wooden ware)"
+woodworking,bowyery,弓・矢,1,0.5,2,,,,,,2500,Arrows,21 woodworking workshops,craft-demand-calibration.md fletcher band (peacetime 0.8 quiver/month at 9000 people)
+woodworking,ropemaking,縄,1,0.5,2,2,,,,,2500,Ropes,none (ropewalk),craft-demand-calibration.md roper band; ports double for rigging
+masonry,limeAndTile,石灰焼き・煉瓦・瓦,2,1,3,,,,,,1250,Lime; Roman Concrete,30 lime kilns; 29 stone yards (no brick or tile kiln),"lime, brick and tile manufacture only; house masons stay on constructionMason"
+glassware,pottery,陶工・瓦,2,1,4,,,,,,1250,Ceramics,34 pottery workshops,provisional: town potters and tilers; most pottery came from village kilns
+glassware,glazing,ガラス・ガラス窓,0.3,0,1,,,,,,8333,Glass; Lab Glassware,37 glassworkers' halls,provisional: glaziers; glass itself came from forest glasshouses
+printing,bookTrades,写字・羊皮紙・製本,0.5,0.2,1.5,,,,,,5000,Paper; Ink; Books,38 printing (no scriptorium),"provisional: scriveners, parchmenters, bookbinders; E2 parchment+bookbinders ~1.3% of leather freemen"
+printing,printing,印刷,2,1,4,,,,ageOfExploration,,1250,,38 printing,press work after the 1450s; with bookTrades it keeps the former 2.5 stationery band
+instruments,instrumentMaking,時計・眼鏡・計器,1,0.5,2,,,,,precisionInstrumentMaking,2500,Liquor,39 instrument makers' halls,provisional — Liquor mapped until a clockmaker good exists; none before the technology
+victualling,butchery,肉屋,6,3,10,,,,,,417,Preserved food,"none (shambles, slaughterhouse); 18 livestock markets; 06 market stalls","F2 Montpellier 1/300, F3 Toulouse 1/225, E1 butchers 2.1% (9.5/1000, a meat-eating England)"
+victualling,fishmongery,魚屋・塩漬け,2,1,6,2,,,,,1250,,06 market stalls,provisional: fishmongers and salters; Swanson table 4:3 to check
+victualling,chandlery,蝋燭・石鹸,2,1,4,,,,,,1250,Candles,none,"F1 candle makers 0.27 × shoemakers (4/1000), local share with soap boilers"
+brewing,brewing,ビール・麦芽,12,2,15,,,2,,,208,,15 breweries,E1 brewers and maltsters 2.7%; wine regions drink wine from taverns instead (F1 taverniers)
+baking,baking,パン・菓子,12,6,15,,,,,,208,,10 bakeries,E1 bakers 2.7%; F1 bakers 0.54 × shoemakers (8/1000)
+baking,milling,粉屋,1.8,0.5,3,,,,,,1389,,"mills (post, tower, water)",E1 millers 0.4%; most mills stood in the villages
+(none),constructionCarpenter,建設の大工,10,5,18,,,,,,,,21 woodworking workshops; 47 river bridges (works),housingRecipes wood share of constructionTotalPerThousand 22
+(none),constructionMason,建設の石工,12,5,18,,,,,,,,29 stone yards,housingRecipes stone+brick share of constructionTotalPerThousand 22
+(none),administration,行政（首都）,15,8,25,,1,,,,,,26 civic halls,capital clerks only
+(none),mining,鉱山,0,0,0,,,,,,,,none,site labor; expected 0 from the urban table
+(none),smelting,製錬,0,0,0,,,,,,,,none,site labor; expected 0 from the urban table
+(none),trade,商業（診断用）,80,40,120,,,,,,,,06 market stalls; 17 warehouses; 27 cloth halls,market-centre merchants; diagnostic only

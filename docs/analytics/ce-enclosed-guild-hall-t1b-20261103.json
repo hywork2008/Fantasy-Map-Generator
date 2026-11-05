@@ -1,0 +1,901 @@
+{
+  "schema": 1,
+  "stage": "T1b-1",
+  "note": "BV skeleton only: two roles, no CE generation adoption.",
+  "entries": [
+    {
+      "model": "trade-hall.guild-enclosed.textiles",
+      "variant": "medieval.trade-hall.guild-enclosed.textiles@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "minXYZ": [
+        -6.300000190734863,
+        0,
+        -4.360000133514404
+      ],
+      "maxXYZ": [
+        6.300000190734863,
+        8.920000076293945,
+        4.360000133514404
+      ],
+      "triangles": 5068,
+      "meshes": 8,
+      "geometrySha256": "9ecf58f15acc17e5407b3860472a5f8a7d075259900269b9daa4e69f3e64b194",
+      "parts": [
+        {
+          "id": "textiles:architecture",
+          "role": "architecture",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 325,
+          "triangles": 3900
+        },
+        {
+          "id": "textiles:floors",
+          "role": "floors",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 60
+        },
+        {
+          "id": "textiles:roof",
+          "role": "roof",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 11,
+          "triangles": 124
+        },
+        {
+          "id": "textiles:internal-stair",
+          "role": "internal-stair",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 37,
+          "triangles": 444
+        },
+        {
+          "id": "textiles:trade-furnishings",
+          "role": "trade-furnishings",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 45,
+          "triangles": 540
+        }
+      ],
+      "placementSpec": {
+        "formId": "guild-enclosed",
+        "placementSpecVersion": 1,
+        "width": 12,
+        "depth": 8,
+        "wall": 0.3,
+        "groundFloor": 0.2,
+        "upperFloor": 3.4,
+        "eave": 6.6,
+        "roofRise": 2.2,
+        "envelope": {
+          "min": [
+            -6.4,
+            0,
+            -4.4
+          ],
+          "max": [
+            6.4,
+            9.2,
+            4.6
+          ]
+        },
+        "main": {
+          "position": [
+            0,
+            0.2,
+            4
+          ],
+          "clearWidth": 1.4,
+          "clearHeight": 2.2
+        },
+        "service": {
+          "position": [
+            -4,
+            0.2,
+            -4
+          ],
+          "clearWidth": 1.2,
+          "clearHeight": 2.1
+        },
+        "stair": {
+          "hole": [
+            3.5,
+            -1.7,
+            5.7,
+            1.7
+          ],
+          "lowerEntry": [
+            4,
+            0.2,
+            1.7
+          ],
+          "upperExit": [
+            5.2,
+            3.4,
+            1.7
+          ],
+          "risers": 18,
+          "tread": 0.27
+        },
+        "capacity": {
+          "netResidentialAreaM2": 0,
+          "workshops": 0,
+          "dwellings": 0,
+          "laborPeople": 0,
+          "simultaneousWorkplaces": 0,
+          "assemblyNetAreaM2": 48,
+          "assemblySeats": 24,
+          "assemblyAttendance": "delegated-or-scheduled"
+        },
+        "assemblyAreaXZ": [
+          -5.5,
+          -3,
+          2.5,
+          3
+        ],
+        "floors": [
+          {
+            "level": 0,
+            "elevation": 0.2,
+            "use": "administration",
+            "clearFloorAreaM2": 84.36,
+            "deductionsM2": {
+              "stair": 7.48,
+              "circulation": 10,
+              "serviceOrStorage": 15
+            },
+            "netUseAreaM2": 51.88
+          },
+          {
+            "level": 1,
+            "elevation": 3.4,
+            "use": "assembly",
+            "clearFloorAreaM2": 84.36,
+            "deductionsM2": {
+              "stair": 7.48,
+              "circulation": 10,
+              "serviceOrStorage": 18.88
+            },
+            "netUseAreaM2": 48
+          }
+        ],
+        "groundAccess": [
+          [
+            0,
+            4
+          ],
+          [
+            0,
+            2.7
+          ],
+          [
+            4,
+            2.7
+          ],
+          [
+            4,
+            1.7
+          ]
+        ],
+        "serviceAccess": [
+          [
+            -4,
+            -4
+          ],
+          [
+            -4,
+            -3.25
+          ],
+          [
+            0,
+            -3.25
+          ],
+          [
+            0,
+            2.7
+          ]
+        ],
+        "upperAccess": [
+          [
+            5.2,
+            1.7
+          ],
+          [
+            5.2,
+            2.8
+          ],
+          [
+            2,
+            2.8
+          ]
+        ]
+      }
+    },
+    {
+      "model": "trade-hall.guild-enclosed.textiles",
+      "variant": "medieval.trade-hall.guild-enclosed.textiles@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "minXYZ": [
+        -6.300000190734863,
+        0,
+        -4.360000133514404
+      ],
+      "maxXYZ": [
+        6.300000190734863,
+        8.920000076293945,
+        4.360000133514404
+      ],
+      "triangles": 21712,
+      "meshes": 9,
+      "geometrySha256": "e2efcb219ea62ffaf6895a131a3cdc907f1b0711037318210e46553c4fd7fb0e",
+      "parts": [
+        {
+          "id": "textiles:architecture",
+          "role": "architecture",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 454,
+          "triangles": 5448
+        },
+        {
+          "id": "textiles:floors",
+          "role": "floors",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 60
+        },
+        {
+          "id": "textiles:roof",
+          "role": "roof",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1243,
+          "triangles": 14908
+        },
+        {
+          "id": "textiles:internal-stair",
+          "role": "internal-stair",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 61,
+          "triangles": 732
+        },
+        {
+          "id": "textiles:trade-furnishings",
+          "role": "trade-furnishings",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 47,
+          "triangles": 564
+        }
+      ],
+      "placementSpec": {
+        "formId": "guild-enclosed",
+        "placementSpecVersion": 1,
+        "width": 12,
+        "depth": 8,
+        "wall": 0.3,
+        "groundFloor": 0.2,
+        "upperFloor": 3.4,
+        "eave": 6.6,
+        "roofRise": 2.2,
+        "envelope": {
+          "min": [
+            -6.4,
+            0,
+            -4.4
+          ],
+          "max": [
+            6.4,
+            9.2,
+            4.6
+          ]
+        },
+        "main": {
+          "position": [
+            0,
+            0.2,
+            4
+          ],
+          "clearWidth": 1.4,
+          "clearHeight": 2.2
+        },
+        "service": {
+          "position": [
+            -4,
+            0.2,
+            -4
+          ],
+          "clearWidth": 1.2,
+          "clearHeight": 2.1
+        },
+        "stair": {
+          "hole": [
+            3.5,
+            -1.7,
+            5.7,
+            1.7
+          ],
+          "lowerEntry": [
+            4,
+            0.2,
+            1.7
+          ],
+          "upperExit": [
+            5.2,
+            3.4,
+            1.7
+          ],
+          "risers": 18,
+          "tread": 0.27
+        },
+        "capacity": {
+          "netResidentialAreaM2": 0,
+          "workshops": 0,
+          "dwellings": 0,
+          "laborPeople": 0,
+          "simultaneousWorkplaces": 0,
+          "assemblyNetAreaM2": 48,
+          "assemblySeats": 24,
+          "assemblyAttendance": "delegated-or-scheduled"
+        },
+        "assemblyAreaXZ": [
+          -5.5,
+          -3,
+          2.5,
+          3
+        ],
+        "floors": [
+          {
+            "level": 0,
+            "elevation": 0.2,
+            "use": "administration",
+            "clearFloorAreaM2": 84.36,
+            "deductionsM2": {
+              "stair": 7.48,
+              "circulation": 10,
+              "serviceOrStorage": 15
+            },
+            "netUseAreaM2": 51.88
+          },
+          {
+            "level": 1,
+            "elevation": 3.4,
+            "use": "assembly",
+            "clearFloorAreaM2": 84.36,
+            "deductionsM2": {
+              "stair": 7.48,
+              "circulation": 10,
+              "serviceOrStorage": 18.88
+            },
+            "netUseAreaM2": 48
+          }
+        ],
+        "groundAccess": [
+          [
+            0,
+            4
+          ],
+          [
+            0,
+            2.7
+          ],
+          [
+            4,
+            2.7
+          ],
+          [
+            4,
+            1.7
+          ]
+        ],
+        "serviceAccess": [
+          [
+            -4,
+            -4
+          ],
+          [
+            -4,
+            -3.25
+          ],
+          [
+            0,
+            -3.25
+          ],
+          [
+            0,
+            2.7
+          ]
+        ],
+        "upperAccess": [
+          [
+            5.2,
+            1.7
+          ],
+          [
+            5.2,
+            2.8
+          ],
+          [
+            2,
+            2.8
+          ]
+        ]
+      }
+    },
+    {
+      "model": "trade-hall.guild-enclosed.leather",
+      "variant": "medieval.trade-hall.guild-enclosed.leather@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "minXYZ": [
+        -6.300000190734863,
+        0,
+        -4.360000133514404
+      ],
+      "maxXYZ": [
+        6.300000190734863,
+        8.920000076293945,
+        4.360000133514404
+      ],
+      "triangles": 5044,
+      "meshes": 7,
+      "geometrySha256": "76c92f5f05346d1db7fce9c271e1a96818623a8e0d71e758124dd26b9c24ce38",
+      "parts": [
+        {
+          "id": "leather:architecture",
+          "role": "architecture",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 325,
+          "triangles": 3900
+        },
+        {
+          "id": "leather:floors",
+          "role": "floors",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 60
+        },
+        {
+          "id": "leather:roof",
+          "role": "roof",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 11,
+          "triangles": 124
+        },
+        {
+          "id": "leather:internal-stair",
+          "role": "internal-stair",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 37,
+          "triangles": 444
+        },
+        {
+          "id": "leather:trade-furnishings",
+          "role": "trade-furnishings",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 43,
+          "triangles": 516
+        }
+      ],
+      "placementSpec": {
+        "formId": "guild-enclosed",
+        "placementSpecVersion": 1,
+        "width": 12,
+        "depth": 8,
+        "wall": 0.3,
+        "groundFloor": 0.2,
+        "upperFloor": 3.4,
+        "eave": 6.6,
+        "roofRise": 2.2,
+        "envelope": {
+          "min": [
+            -6.4,
+            0,
+            -4.4
+          ],
+          "max": [
+            6.4,
+            9.2,
+            4.6
+          ]
+        },
+        "main": {
+          "position": [
+            0,
+            0.2,
+            4
+          ],
+          "clearWidth": 1.4,
+          "clearHeight": 2.2
+        },
+        "service": {
+          "position": [
+            -4,
+            0.2,
+            -4
+          ],
+          "clearWidth": 1.2,
+          "clearHeight": 2.1
+        },
+        "stair": {
+          "hole": [
+            3.5,
+            -1.7,
+            5.7,
+            1.7
+          ],
+          "lowerEntry": [
+            4,
+            0.2,
+            1.7
+          ],
+          "upperExit": [
+            5.2,
+            3.4,
+            1.7
+          ],
+          "risers": 18,
+          "tread": 0.27
+        },
+        "capacity": {
+          "netResidentialAreaM2": 0,
+          "workshops": 0,
+          "dwellings": 0,
+          "laborPeople": 0,
+          "simultaneousWorkplaces": 0,
+          "assemblyNetAreaM2": 48,
+          "assemblySeats": 24,
+          "assemblyAttendance": "delegated-or-scheduled"
+        },
+        "assemblyAreaXZ": [
+          -5.5,
+          -3,
+          2.5,
+          3
+        ],
+        "floors": [
+          {
+            "level": 0,
+            "elevation": 0.2,
+            "use": "administration",
+            "clearFloorAreaM2": 84.36,
+            "deductionsM2": {
+              "stair": 7.48,
+              "circulation": 10,
+              "serviceOrStorage": 15
+            },
+            "netUseAreaM2": 51.88
+          },
+          {
+            "level": 1,
+            "elevation": 3.4,
+            "use": "assembly",
+            "clearFloorAreaM2": 84.36,
+            "deductionsM2": {
+              "stair": 7.48,
+              "circulation": 10,
+              "serviceOrStorage": 18.88
+            },
+            "netUseAreaM2": 48
+          }
+        ],
+        "groundAccess": [
+          [
+            0,
+            4
+          ],
+          [
+            0,
+            2.7
+          ],
+          [
+            4,
+            2.7
+          ],
+          [
+            4,
+            1.7
+          ]
+        ],
+        "serviceAccess": [
+          [
+            -4,
+            -4
+          ],
+          [
+            -4,
+            -3.25
+          ],
+          [
+            0,
+            -3.25
+          ],
+          [
+            0,
+            2.7
+          ]
+        ],
+        "upperAccess": [
+          [
+            5.2,
+            1.7
+          ],
+          [
+            5.2,
+            2.8
+          ],
+          [
+            2,
+            2.8
+          ]
+        ]
+      }
+    },
+    {
+      "model": "trade-hall.guild-enclosed.leather",
+      "variant": "medieval.trade-hall.guild-enclosed.leather@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "minXYZ": [
+        -6.300000190734863,
+        0,
+        -4.360000133514404
+      ],
+      "maxXYZ": [
+        6.300000190734863,
+        8.920000076293945,
+        4.360000133514404
+      ],
+      "triangles": 21688,
+      "meshes": 8,
+      "geometrySha256": "88d3c9377a30fb6c37013304f007fa77ea423c3b570b9ec507f3b5b1bc1c3035",
+      "parts": [
+        {
+          "id": "leather:architecture",
+          "role": "architecture",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 454,
+          "triangles": 5448
+        },
+        {
+          "id": "leather:floors",
+          "role": "floors",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 60
+        },
+        {
+          "id": "leather:roof",
+          "role": "roof",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1243,
+          "triangles": 14908
+        },
+        {
+          "id": "leather:internal-stair",
+          "role": "internal-stair",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 61,
+          "triangles": 732
+        },
+        {
+          "id": "leather:trade-furnishings",
+          "role": "trade-furnishings",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 45,
+          "triangles": 540
+        }
+      ],
+      "placementSpec": {
+        "formId": "guild-enclosed",
+        "placementSpecVersion": 1,
+        "width": 12,
+        "depth": 8,
+        "wall": 0.3,
+        "groundFloor": 0.2,
+        "upperFloor": 3.4,
+        "eave": 6.6,
+        "roofRise": 2.2,
+        "envelope": {
+          "min": [
+            -6.4,
+            0,
+            -4.4
+          ],
+          "max": [
+            6.4,
+            9.2,
+            4.6
+          ]
+        },
+        "main": {
+          "position": [
+            0,
+            0.2,
+            4
+          ],
+          "clearWidth": 1.4,
+          "clearHeight": 2.2
+        },
+        "service": {
+          "position": [
+            -4,
+            0.2,
+            -4
+          ],
+          "clearWidth": 1.2,
+          "clearHeight": 2.1
+        },
+        "stair": {
+          "hole": [
+            3.5,
+            -1.7,
+            5.7,
+            1.7
+          ],
+          "lowerEntry": [
+            4,
+            0.2,
+            1.7
+          ],
+          "upperExit": [
+            5.2,
+            3.4,
+            1.7
+          ],
+          "risers": 18,
+          "tread": 0.27
+        },
+        "capacity": {
+          "netResidentialAreaM2": 0,
+          "workshops": 0,
+          "dwellings": 0,
+          "laborPeople": 0,
+          "simultaneousWorkplaces": 0,
+          "assemblyNetAreaM2": 48,
+          "assemblySeats": 24,
+          "assemblyAttendance": "delegated-or-scheduled"
+        },
+        "assemblyAreaXZ": [
+          -5.5,
+          -3,
+          2.5,
+          3
+        ],
+        "floors": [
+          {
+            "level": 0,
+            "elevation": 0.2,
+            "use": "administration",
+            "clearFloorAreaM2": 84.36,
+            "deductionsM2": {
+              "stair": 7.48,
+              "circulation": 10,
+              "serviceOrStorage": 15
+            },
+            "netUseAreaM2": 51.88
+          },
+          {
+            "level": 1,
+            "elevation": 3.4,
+            "use": "assembly",
+            "clearFloorAreaM2": 84.36,
+            "deductionsM2": {
+              "stair": 7.48,
+              "circulation": 10,
+              "serviceOrStorage": 18.88
+            },
+            "netUseAreaM2": 48
+          }
+        ],
+        "groundAccess": [
+          [
+            0,
+            4
+          ],
+          [
+            0,
+            2.7
+          ],
+          [
+            4,
+            2.7
+          ],
+          [
+            4,
+            1.7
+          ]
+        ],
+        "serviceAccess": [
+          [
+            -4,
+            -4
+          ],
+          [
+            -4,
+            -3.25
+          ],
+          [
+            0,
+            -3.25
+          ],
+          [
+            0,
+            2.7
+          ]
+        ],
+        "upperAccess": [
+          [
+            5.2,
+            1.7
+          ],
+          [
+            5.2,
+            2.8
+          ],
+          [
+            2,
+            2.8
+          ]
+        ]
+      }
+    }
+  ],
+  "legacy": [
+    {
+      "variant": "medieval.cloth-guild-hall@low#codex-gpt-6.1-sol",
+      "boundsMatchT0": true
+    },
+    {
+      "variant": "medieval.cloth-guild-hall@high#codex-gpt-6.1-sol",
+      "boundsMatchT0": true
+    },
+    {
+      "variant": "medieval.leather-guild-hall@low#codex-gpt-6.1-sol",
+      "boundsMatchT0": true
+    },
+    {
+      "variant": "medieval.leather-guild-hall@high#codex-gpt-6.1-sol",
+      "boundsMatchT0": true
+    },
+    {
+      "variant": "medieval.woodworking-guild-hall@low#codex-gpt-6.1-sol",
+      "boundsMatchT0": true
+    },
+    {
+      "variant": "medieval.woodworking-guild-hall@high#codex-gpt-6.1-sol",
+      "boundsMatchT0": true
+    },
+    {
+      "variant": "medieval.masonry-guild-hall@low#codex-gpt-6.1-sol",
+      "boundsMatchT0": true
+    },
+    {
+      "variant": "medieval.masonry-guild-hall@high#codex-gpt-6.1-sol",
+      "boundsMatchT0": true
+    },
+    {
+      "variant": "medieval.metallurgy-guild-hall@low#codex-gpt-6.1-sol",
+      "boundsMatchT0": true
+    },
+    {
+      "variant": "medieval.metallurgy-guild-hall@high#codex-gpt-6.1-sol",
+      "boundsMatchT0": true
+    }
+  ]
+}

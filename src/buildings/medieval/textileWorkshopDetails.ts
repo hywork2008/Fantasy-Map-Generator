@@ -28,7 +28,7 @@ function roll(k: ModelKit, p: Position, surface: Surface) {
   }
 }
 
-function loom(k: ModelKit) {
+export function addTextileLoom(k: ModelKit, detail: "low" | "high" = "high") {
   for (const x of [-1.12, 1.12]) {
     k.box("loom-foot", [x, 0.1, 0.15], [0.28, 0.2, 2.35], "oak");
     for (const z of [-0.85, 0.85]) {
@@ -53,8 +53,9 @@ function loom(k: ModelKit) {
       }
     }
   }
-  for (let i = 0; i < 48; i++) {
-    const x = -0.96 + (i * 1.92) / 47;
+  const threads = detail === "high" ? 48 : 12;
+  for (let i = 0; i < threads; i++) {
+    const x = -0.96 + (i * 1.92) / (threads - 1);
     k.tube(
       "separated-warp-thread",
       [
@@ -85,7 +86,7 @@ function loom(k: ModelKit) {
   }
   for (const y of [0.98, 1.38]) k.beam("beater-frame", [-1.05, y, 0.48], [1.05, y, 0.48], 0.065);
   for (const x of [-0.45, 0.45]) k.beam("pivoted-treadle", [x, 0.16, -0.7], [x, 0.23, 1.1], 0.09);
-  for (let row = 0; row < 22; row++)
+  for (let row = 0; row < (detail === "high" ? 22 : 6); row++)
     k.box("woven-weft", [0, 1.045, 0.51 + row * 0.01], [1.94, 0.012, 0.008], row % 4 === 0 ? "white" : "cloth");
   k.box("cloth-fall", [0, 0.75, 0.96], [1.94, 0.48, 0.025], "cloth");
   const shuttle = k.sphere("boat-shuttle", [0.4, 1.08, 0.65], [0.21, 0.035, 0.055], "wood");
@@ -94,7 +95,7 @@ function loom(k: ModelKit) {
   bench(k, 0, 1.85, 2.1, 0.4, 0.48);
 }
 
-function shears(k: ModelKit, x: number, y: number, z: number) {
+export function shears(k: ModelKit, x: number, y: number, z: number) {
   // A bent spring joins two blades; no modern finger-ring scissors.
   k.tube(
     "spring-shear-bow",
@@ -131,7 +132,7 @@ export function createHighTextileWorkshop(kind: "weaver" | "tailor" | "cobbler")
     for (const z of [-3, 1.6]) k.beam("principal-rafter", [x, 3.15, z], [x, 4.35, -0.7], 0.12);
   }
   if (kind === "weaver") {
-    loom(k);
+    addTextileLoom(k);
     bench(k, -2.25, -1.9, 1.2, 0.7, 0.85);
     for (let i = 0; i < 3; i++) roll(k, [-2.25, 1.06 + i * 0.29, -1.9], i % 2 ? "white" : "cloth");
     k.box("spindle-rack-base", [2.4, 0.16, -0.975], [0.38, 0.08, 1.45], "wood");

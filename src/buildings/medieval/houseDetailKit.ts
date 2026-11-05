@@ -7,6 +7,9 @@ export interface HouseOpening {
   width: number;
   height: number;
   kind: "door" | "window" | "shop";
+  /** Named assemblies can fold leaves flat and omit a step at a level landing. */
+  doorAngle?: number;
+  thresholdHeight?: number;
 }
 
 /** Exterior construction with actual facade openings, in metres. Local +Z faces the street. */
@@ -54,6 +57,7 @@ export class HouseDetailKit extends ModelKit {
         jamb.rotation.y = angle;
       }
       for (const y of [base, base + h]) {
+        if (kind === "door" && opening.thresholdHeight === 0 && y === base) continue;
         const rail = this.box(
           `${kind}-lintel-sill`,
           this.point(x, z, angle, u, y, 0.035),
@@ -124,7 +128,7 @@ export class HouseDetailKit extends ModelKit {
   }
 
   private openDoor(x: number, z: number, angle: number, o: HouseOpening) {
-    const a = 1.18,
+    const a = o.doorAngle ?? 1.18,
       w = o.width - 0.08;
     const point = (u: number, y: number, out = 0) =>
       this.point(
@@ -154,8 +158,16 @@ export class HouseDetailKit extends ModelKit {
       point(w - 0.05, o.base + o.height - 0.2, -0.06),
       0.08
     );
-    const step = this.box("doorstep", this.point(x, z, angle, o.u, 0.1, 0.2), [o.width + 0.35, 0.2, 0.55], "stone");
-    step.rotation.y = angle;
+    const threshold = o.thresholdHeight ?? 0.2;
+    if (threshold > 0) {
+      const step = this.box(
+        "doorstep",
+        this.point(x, z, angle, o.u, threshold / 2, 0.2),
+        [o.width + 0.35, threshold, 0.55],
+        "stone"
+      );
+      step.rotation.y = angle;
+    }
   }
 
   frameWall(
@@ -226,7 +238,8 @@ export class HouseDetailKit extends ModelKit {
     depth: number,
     eave: number,
     rise: number,
-    cover: "tile" | "thatch" | "wood" = "tile"
+    cover: "tile" | "thatch" | "wood" = "tile",
+    detail: "low" | "high" = "high"
   ) {
     const w = width + 0.6,
       half = (depth + 0.6) / 2;
@@ -255,7 +268,7 @@ export class HouseDetailKit extends ModelKit {
       geo.setIndex(side > 0 ? [0, 2, 1, 0, 3, 2] : [0, 1, 2, 0, 2, 3]);
       geo.computeVertexNormals();
       this.add("roof-underlay", geo, cover);
-      for (let row = 0; row < 14; row++) {
+      for (let row = 0; row < (detail === "high" ? 14 : 0); row++) {
         const t = 0.04 + row * 0.07,
           y = eave + rise * (1 - t) + 0.035,
           zz = z + side * half * t;

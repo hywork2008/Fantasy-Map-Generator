@@ -1,0 +1,1118 @@
+{
+  "schema": 1,
+  "status": "T1a-specified-not-built",
+  "referenceSha256": "9a05b24086116d145038a91781ba54009109ba5986c3af386d7b206a9b24de79",
+  "units": "meters",
+  "qualityInvariantFields": [
+    "body",
+    "envelope",
+    "floors",
+    "stairs",
+    "ports",
+    "capacity",
+    "operations"
+  ],
+  "dwellingNetAreaM2": 40,
+  "assemblyAreaPerSeatM2": 2,
+  "siteMarginsForComparisonOnly": {
+    "side": 1,
+    "back": 2,
+    "front": 4
+  },
+  "forms": [
+    {
+      "id": "guild-enclosed",
+      "kind": "hall",
+      "plannedFamilyPattern": "medieval.trade-hall.guild-enclosed.{role}",
+      "status": "specified-not-built",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "coordinateFrame": {
+        "origin": "main-body-center-at-foundation-contact",
+        "front": "+Z",
+        "up": "+Y",
+        "metersPerUnit": 1
+      },
+      "body": {
+        "width": 12,
+        "depth": 8,
+        "wallThickness": 0.3,
+        "eaveHeight": 6.6,
+        "roofRise": 2.2
+      },
+      "envelope": {
+        "min": [
+          -6.4,
+          0,
+          -4.4
+        ],
+        "max": [
+          6.4,
+          9.2,
+          4.6
+        ]
+      },
+      "floors": [
+        {
+          "level": 0,
+          "elevation": 0.2,
+          "use": "administration",
+          "clearFloorAreaM2": 84.36,
+          "deductionsM2": {
+            "stair": 7.48,
+            "circulation": 10,
+            "serviceOrStorage": 15
+          },
+          "netUseAreaM2": 51.88
+        },
+        {
+          "level": 1,
+          "elevation": 3.4,
+          "use": "assembly",
+          "clearFloorAreaM2": 84.36,
+          "deductionsM2": {
+            "stair": 7.48,
+            "circulation": 10,
+            "serviceOrStorage": 18.88
+          },
+          "netUseAreaM2": 48.0
+        }
+      ],
+      "stairs": {
+        "kind": "internal-return",
+        "boundsXZ": [
+          3.5,
+          -1.7,
+          5.7,
+          1.7
+        ],
+        "flightClearWidth": 1.0,
+        "centralGap": 0.2,
+        "landingDepth": 1.1,
+        "tread": 0.27,
+        "flights": [
+          {
+            "fromLevel": 0,
+            "toLevel": 1,
+            "rise": 3.2,
+            "risers": 18,
+            "lowerEntry": [
+              4.0,
+              0.2,
+              1.7
+            ],
+            "upperExit": [
+              5.2,
+              3.4,
+              1.7
+            ]
+          }
+        ]
+      },
+      "ports": {
+        "main": {
+          "position": [
+            0,
+            0.2,
+            4
+          ],
+          "clearWidth": 1.4,
+          "clearHeight": 2.2
+        },
+        "service": {
+          "position": [
+            -4,
+            0.2,
+            -4
+          ],
+          "clearWidth": 1.2,
+          "clearHeight": 2.1,
+          "required": false,
+          "fallback": "main"
+        },
+        "keepClearHeight": 2.1
+      },
+      "capacity": {
+        "netResidentialAreaM2": 0,
+        "dwellings": 0,
+        "workshops": 0,
+        "laborPeople": 0,
+        "simultaneousWorkplaces": 0,
+        "assemblyNetAreaM2": 48.0,
+        "assemblySeats": 24,
+        "assemblyAttendance": "delegated-or-scheduled"
+      },
+      "operations": null,
+      "notes": [
+        "Default procedural hall form, not a reconstruction or a claim about historical prevalence.",
+        "Meeting and inspection only; no manufacturing workshop or dwelling credit."
+      ]
+    },
+    {
+      "id": "guild-market-arcade",
+      "kind": "hall",
+      "plannedFamilyPattern": "medieval.trade-hall.guild-market-arcade.{role}",
+      "status": "specified-not-built",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "coordinateFrame": {
+        "origin": "main-body-center-at-foundation-contact",
+        "front": "+Z",
+        "up": "+Y",
+        "metersPerUnit": 1
+      },
+      "body": {
+        "width": 15,
+        "depth": 7,
+        "wallThickness": 0.3,
+        "eaveHeight": 6.57,
+        "roofRise": 2.2
+      },
+      "envelope": {
+        "min": [
+          -7.9,
+          0,
+          -3.9
+        ],
+        "max": [
+          9.3,
+          9.2,
+          5.0
+        ]
+      },
+      "floors": [
+        {
+          "level": 0,
+          "elevation": 0,
+          "use": "inspection-market",
+          "clearFloorAreaM2": 92.16,
+          "deductionsM2": {
+            "stair": 0,
+            "circulation": 12,
+            "serviceOrStorage": 8
+          },
+          "netUseAreaM2": 72.16
+        },
+        {
+          "level": 1,
+          "elevation": 3.32,
+          "use": "assembly",
+          "clearFloorAreaM2": 92.16,
+          "deductionsM2": {
+            "stair": 0,
+            "circulation": 12,
+            "serviceOrStorage": 8
+          },
+          "netUseAreaM2": 72.16
+        }
+      ],
+      "stairs": {
+        "kind": "external-east",
+        "boundsXZ": [
+          7.5,
+          -3.05,
+          9.22,
+          3.6
+        ],
+        "rise": 3.32,
+        "run": 5.7,
+        "clearWidth": 1.42,
+        "landingDepth": 1.5,
+        "doorPosition": [
+          7.5,
+          3.32,
+          -2.3
+        ],
+        "risers": 18
+      },
+      "ports": {
+        "main": {
+          "position": [
+            0,
+            0,
+            3.5
+          ],
+          "clearWidth": 2,
+          "clearHeight": 2.1
+        },
+        "upper": {
+          "position": [
+            7.5,
+            3.32,
+            -2.3
+          ],
+          "clearWidth": 1.1,
+          "clearHeight": 2.1
+        },
+        "stairFoot": {
+          "position": [
+            8.36,
+            0,
+            3.6
+          ],
+          "clearWidth": 1.42,
+          "clearHeight": 2.1
+        },
+        "keepClearHeight": 2.1
+      },
+      "capacity": {
+        "netResidentialAreaM2": 0,
+        "dwellings": 0,
+        "workshops": 0,
+        "laborPeople": 0,
+        "simultaneousWorkplaces": 0,
+        "assemblyNetAreaM2": 72.16,
+        "assemblySeats": 36,
+        "assemblyAttendance": "delegated-or-scheduled"
+      },
+      "operations": null,
+      "notes": [
+        "Optional market and inspection hall, selected explicitly by role.",
+        "Source layout: current GUILD_HALL_PROFILE and CIVIC_STAIR; new Low must retain its exact source anchors.",
+        "Ground clear floor is a bookkeeping estimate for the arcade; structural piers must be excluded by T1b before operational use."
+      ]
+    },
+    {
+      "id": "workhome-standard",
+      "kind": "workhome",
+      "plannedFamilyPattern": "medieval.trade-workhome.workhome-standard.{role}",
+      "status": "specified-not-built",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "coordinateFrame": {
+        "origin": "main-body-center-at-foundation-contact",
+        "front": "+Z",
+        "up": "+Y",
+        "metersPerUnit": 1
+      },
+      "body": {
+        "width": 6,
+        "depth": 10,
+        "wallThickness": 0.2,
+        "eaveHeight": 6.05,
+        "roofRise": 1.8
+      },
+      "envelope": {
+        "min": [
+          -3.3,
+          0,
+          -5.3
+        ],
+        "max": [
+          3.3,
+          8.6,
+          6.2
+        ]
+      },
+      "floors": [
+        {
+          "level": 0,
+          "elevation": 0.15,
+          "use": "workshop",
+          "clearFloorAreaM2": 53.76,
+          "deductionsM2": {
+            "stair": 7.48,
+            "circulation": 5,
+            "serviceOrStorage": 8
+          },
+          "netUseAreaM2": 33.28
+        },
+        {
+          "level": 1,
+          "elevation": 3.35,
+          "use": "residential",
+          "clearFloorAreaM2": 53.76,
+          "deductionsM2": {
+            "stair": 7.48,
+            "circulation": 4,
+            "serviceOrStorage": 0
+          },
+          "netUseAreaM2": 42.28
+        }
+      ],
+      "stairs": {
+        "kind": "internal-return",
+        "boundsXZ": [
+          0.6,
+          -1.7,
+          2.8,
+          1.7
+        ],
+        "flightClearWidth": 1.0,
+        "centralGap": 0.2,
+        "landingDepth": 1.1,
+        "tread": 0.27,
+        "flights": [
+          {
+            "fromLevel": 0,
+            "toLevel": 1,
+            "rise": 3.2,
+            "risers": 18,
+            "lowerEntry": [
+              1.1,
+              0.15,
+              1.7
+            ],
+            "upperExit": [
+              2.3,
+              3.35,
+              1.7
+            ]
+          }
+        ]
+      },
+      "ports": {
+        "main": {
+          "position": [
+            0.1,
+            0.15,
+            5.0
+          ],
+          "clearWidth": 1.0,
+          "clearHeight": 2.1
+        },
+        "service": {
+          "position": [
+            0.1,
+            0.15,
+            -5.0
+          ],
+          "clearWidth": 1.0,
+          "clearHeight": 2.1,
+          "required": false,
+          "fallback": "main"
+        },
+        "frontToRearSpine": {
+          "centerX": 0.1,
+          "clearWidth": 1.0,
+          "fromZ": 5.0,
+          "toZ": -5.0
+        },
+        "keepClearHeight": 2.1
+      },
+      "capacity": {
+        "netResidentialAreaM2": 42.28,
+        "dwellings": 1,
+        "workshops": 1,
+        "laborPeople": 2.5,
+        "simultaneousWorkplaces": 3,
+        "assemblyNetAreaM2": 0,
+        "assemblySeats": 0,
+        "assemblyAttendance": null
+      },
+      "operations": {
+        "kind": "dry-small-craft",
+        "workStripMinWidth": 2.4,
+        "minimumBench": {
+          "width": 0.55,
+          "length": 2.4
+        },
+        "operatorStripWidth": 0.65,
+        "frontProjectionMax": 1.2,
+        "requiredSharedFacilities": [],
+        "minimumDryWorkZoneXZ": [
+          -2.8,
+          -2.1,
+          -0.6,
+          2.1
+        ],
+        "workZoneIncludesOperatorSpace": true
+      },
+      "notes": [
+        "One 2.5-person workshop is a demand-accounting unit, not an equipment throughput guarantee.",
+        "No wet processing, forge or kiln.",
+        "Upper net area already excludes walls, stairs and circulation: do not apply the legacy 0.75 factor again."
+      ]
+    },
+    {
+      "id": "workhome-narrow",
+      "kind": "workhome",
+      "plannedFamilyPattern": "medieval.trade-workhome.workhome-narrow.{role}",
+      "status": "specified-not-built",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "coordinateFrame": {
+        "origin": "main-body-center-at-foundation-contact",
+        "front": "+Z",
+        "up": "+Y",
+        "metersPerUnit": 1
+      },
+      "body": {
+        "width": 4.8,
+        "depth": 8.4,
+        "wallThickness": 0.2,
+        "eaveHeight": 8.75,
+        "roofRise": 1.8
+      },
+      "envelope": {
+        "min": [
+          -2.6999999999999997,
+          0,
+          -4.5
+        ],
+        "max": [
+          2.6999999999999997,
+          11,
+          5.4
+        ]
+      },
+      "floors": [
+        {
+          "level": 0,
+          "elevation": 0.15,
+          "use": "workshop",
+          "clearFloorAreaM2": 35.2,
+          "deductionsM2": {
+            "stair": 7.48,
+            "circulation": 4,
+            "serviceOrStorage": 4
+          },
+          "netUseAreaM2": 19.72
+        },
+        {
+          "level": 1,
+          "elevation": 3.35,
+          "use": "residential",
+          "clearFloorAreaM2": 35.2,
+          "deductionsM2": {
+            "stair": 7.48,
+            "circulation": 3,
+            "serviceOrStorage": 0
+          },
+          "netUseAreaM2": 24.72
+        },
+        {
+          "level": 2,
+          "elevation": 6.05,
+          "use": "residential",
+          "clearFloorAreaM2": 35.2,
+          "deductionsM2": {
+            "stair": 7.48,
+            "circulation": 3,
+            "serviceOrStorage": 0
+          },
+          "netUseAreaM2": 24.72
+        }
+      ],
+      "stairs": {
+        "kind": "internal-return",
+        "boundsXZ": [
+          0.0,
+          -1.7,
+          2.2,
+          1.7
+        ],
+        "flightClearWidth": 1.0,
+        "centralGap": 0.2,
+        "landingDepth": 1.1,
+        "tread": 0.27,
+        "flights": [
+          {
+            "fromLevel": 0,
+            "toLevel": 1,
+            "rise": 3.2,
+            "risers": 18,
+            "lowerEntry": [
+              0.5,
+              0.15,
+              1.7
+            ],
+            "upperExit": [
+              1.7000000000000002,
+              3.35,
+              1.7
+            ]
+          },
+          {
+            "fromLevel": 1,
+            "toLevel": 2,
+            "rise": 2.7,
+            "risers": 16,
+            "lowerEntry": [
+              0.5,
+              3.35,
+              1.7
+            ],
+            "upperExit": [
+              1.7000000000000002,
+              6.05,
+              1.7
+            ]
+          }
+        ]
+      },
+      "ports": {
+        "main": {
+          "position": [
+            -0.5,
+            0.15,
+            4.2
+          ],
+          "clearWidth": 1.0,
+          "clearHeight": 2.1
+        },
+        "service": {
+          "position": [
+            -0.5,
+            0.15,
+            -4.2
+          ],
+          "clearWidth": 1.0,
+          "clearHeight": 2.1,
+          "required": false,
+          "fallback": "main"
+        },
+        "frontToRearSpine": {
+          "centerX": -0.5,
+          "clearWidth": 1.0,
+          "fromZ": 4.2,
+          "toZ": -4.2
+        },
+        "keepClearHeight": 2.1
+      },
+      "capacity": {
+        "netResidentialAreaM2": 49.44,
+        "dwellings": 1,
+        "workshops": 1,
+        "laborPeople": 2.5,
+        "simultaneousWorkplaces": 3,
+        "assemblyNetAreaM2": 0,
+        "assemblySeats": 0,
+        "assemblyAttendance": null
+      },
+      "operations": {
+        "kind": "dry-small-craft",
+        "workStripMinWidth": 1.2,
+        "minimumBench": {
+          "width": 0.55,
+          "length": 2.4
+        },
+        "operatorStripWidth": 0.65,
+        "frontProjectionMax": 1.2,
+        "requiredSharedFacilities": [],
+        "minimumDryWorkZoneXZ": [
+          -2.2,
+          -2.1,
+          -1.0,
+          2.1
+        ],
+        "workZoneIncludesOperatorSpace": true
+      },
+      "notes": [
+        "One 2.5-person workshop is a demand-accounting unit, not an equipment throughput guarantee.",
+        "No wet processing, forge or kiln.",
+        "Upper net area already excludes walls, stairs and circulation: do not apply the legacy 0.75 factor again."
+      ]
+    },
+    {
+      "id": "workhome-wide",
+      "kind": "workhome",
+      "plannedFamilyPattern": "medieval.trade-workhome.workhome-wide.{role}",
+      "status": "specified-not-built",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "coordinateFrame": {
+        "origin": "main-body-center-at-foundation-contact",
+        "front": "+Z",
+        "up": "+Y",
+        "metersPerUnit": 1
+      },
+      "body": {
+        "width": 7.2,
+        "depth": 10,
+        "wallThickness": 0.2,
+        "eaveHeight": 6.05,
+        "roofRise": 1.8
+      },
+      "envelope": {
+        "min": [
+          -3.9,
+          0,
+          -5.3
+        ],
+        "max": [
+          3.9,
+          8.6,
+          6.2
+        ]
+      },
+      "floors": [
+        {
+          "level": 0,
+          "elevation": 0.15,
+          "use": "workshop",
+          "clearFloorAreaM2": 65.28,
+          "deductionsM2": {
+            "stair": 7.48,
+            "circulation": 5,
+            "serviceOrStorage": 12
+          },
+          "netUseAreaM2": 40.8
+        },
+        {
+          "level": 1,
+          "elevation": 3.35,
+          "use": "residential",
+          "clearFloorAreaM2": 65.28,
+          "deductionsM2": {
+            "stair": 7.48,
+            "circulation": 4,
+            "serviceOrStorage": 0
+          },
+          "netUseAreaM2": 53.8
+        }
+      ],
+      "stairs": {
+        "kind": "internal-return",
+        "boundsXZ": [
+          1.2,
+          -1.7,
+          3.4,
+          1.7
+        ],
+        "flightClearWidth": 1.0,
+        "centralGap": 0.2,
+        "landingDepth": 1.1,
+        "tread": 0.27,
+        "flights": [
+          {
+            "fromLevel": 0,
+            "toLevel": 1,
+            "rise": 3.2,
+            "risers": 18,
+            "lowerEntry": [
+              1.7,
+              0.15,
+              1.7
+            ],
+            "upperExit": [
+              2.9,
+              3.35,
+              1.7
+            ]
+          }
+        ]
+      },
+      "ports": {
+        "main": {
+          "position": [
+            0.7,
+            0.15,
+            5.0
+          ],
+          "clearWidth": 1.0,
+          "clearHeight": 2.1
+        },
+        "service": {
+          "position": [
+            0.7,
+            0.15,
+            -5.0
+          ],
+          "clearWidth": 1.0,
+          "clearHeight": 2.1,
+          "required": false,
+          "fallback": "main"
+        },
+        "frontToRearSpine": {
+          "centerX": 0.7,
+          "clearWidth": 1.0,
+          "fromZ": 5.0,
+          "toZ": -5.0
+        },
+        "keepClearHeight": 2.1
+      },
+      "capacity": {
+        "netResidentialAreaM2": 53.8,
+        "dwellings": 1,
+        "workshops": 1,
+        "laborPeople": 2.5,
+        "simultaneousWorkplaces": 3,
+        "assemblyNetAreaM2": 0,
+        "assemblySeats": 0,
+        "assemblyAttendance": null
+      },
+      "operations": {
+        "kind": "dry-small-craft",
+        "workStripMinWidth": 3.6,
+        "minimumBench": {
+          "width": 0.55,
+          "length": 2.4
+        },
+        "operatorStripWidth": 0.65,
+        "frontProjectionMax": 1.2,
+        "requiredSharedFacilities": [],
+        "minimumDryWorkZoneXZ": [
+          -3.4,
+          -2.7,
+          0.1,
+          2.7
+        ],
+        "workZoneIncludesOperatorSpace": true
+      },
+      "notes": [
+        "One 2.5-person workshop is a demand-accounting unit, not an equipment throughput guarantee.",
+        "No wet processing, forge or kiln.",
+        "Upper net area already excludes walls, stairs and circulation: do not apply the legacy 0.75 factor again."
+      ]
+    }
+  ],
+  "occupationProfiles": [
+    {
+      "pool": "tailoring",
+      "defaultForm": "workhome-standard",
+      "optionalForms": [
+        "workhome-narrow"
+      ],
+      "requiredEquipment": [
+        "cutting-table",
+        "sewing-stations",
+        "garment-stock"
+      ],
+      "externalDependencies": [],
+      "coveredProcess": "dry-workshop-only",
+      "completeOccupationalRow": true,
+      "coverageNote": "Equipment and process coverage must be checked in T1b before counting a placed business."
+    },
+    {
+      "pool": "weaving",
+      "defaultForm": "workhome-wide",
+      "optionalForms": [],
+      "requiredEquipment": [
+        "loom",
+        "weaving-bench",
+        "cloth-stock"
+      ],
+      "externalDependencies": [
+        "fulling-and-dyeing-or-supplied-cloth-chain"
+      ],
+      "coveredProcess": "dry-workshop-only",
+      "completeOccupationalRow": false,
+      "coverageNote": "Equipment and process coverage must be checked in T1b before counting a placed business."
+    },
+    {
+      "pool": "shoemaking",
+      "defaultForm": "workhome-standard",
+      "optionalForms": [
+        "workhome-narrow"
+      ],
+      "requiredEquipment": [
+        "cobblers-bench",
+        "lasts",
+        "leather-stock"
+      ],
+      "externalDependencies": [],
+      "coveredProcess": "dry-workshop-only",
+      "completeOccupationalRow": true,
+      "coverageNote": "Equipment and process coverage must be checked in T1b before counting a placed business."
+    },
+    {
+      "pool": "furriery",
+      "defaultForm": "workhome-standard",
+      "optionalForms": [],
+      "requiredEquipment": [
+        "fur-cutting-table",
+        "dry-hide-stock"
+      ],
+      "externalDependencies": [
+        "supplied-dressed-fur"
+      ],
+      "coveredProcess": "dry-workshop-only",
+      "completeOccupationalRow": false,
+      "coverageNote": "Equipment and process coverage must be checked in T1b before counting a placed business."
+    },
+    {
+      "pool": "leatherGoods",
+      "defaultForm": "workhome-standard",
+      "optionalForms": [
+        "workhome-narrow"
+      ],
+      "requiredEquipment": [
+        "leather-cutting-table",
+        "stitching-stations",
+        "finished-goods"
+      ],
+      "externalDependencies": [
+        "supplied-tanned-leather"
+      ],
+      "coveredProcess": "dry-workshop-only",
+      "completeOccupationalRow": true,
+      "coverageNote": "Supply inputs do not add on-site wet-process capacity."
+    },
+    {
+      "pool": "saddlery",
+      "defaultForm": "workhome-wide",
+      "optionalForms": [],
+      "requiredEquipment": [
+        "saddle-stand",
+        "cutting-table",
+        "leather-stock"
+      ],
+      "externalDependencies": [
+        "supplied-tanned-leather"
+      ],
+      "coveredProcess": "dry-workshop-only",
+      "completeOccupationalRow": true,
+      "coverageNote": "Supply inputs do not add on-site wet-process capacity."
+    },
+    {
+      "pool": "goldsmithing",
+      "defaultForm": "workhome-standard",
+      "optionalForms": [],
+      "requiredEquipment": [
+        "fine-metal-bench",
+        "secure-stock"
+      ],
+      "externalDependencies": [
+        "external-hot-metal-processes"
+      ],
+      "coveredProcess": "dry-workshop-only",
+      "completeOccupationalRow": false,
+      "coverageNote": "Equipment and process coverage must be checked in T1b before counting a placed business."
+    },
+    {
+      "pool": "joinery",
+      "defaultForm": "workhome-wide",
+      "optionalForms": [],
+      "requiredEquipment": [
+        "joiners-bench",
+        "saw-rack",
+        "board-stock"
+      ],
+      "externalDependencies": [],
+      "coveredProcess": "dry-workshop-only",
+      "completeOccupationalRow": true,
+      "coverageNote": "Equipment and process coverage must be checked in T1b before counting a placed business."
+    },
+    {
+      "pool": "bowyery",
+      "defaultForm": "workhome-wide",
+      "optionalForms": [],
+      "requiredEquipment": [
+        "long-bench",
+        "stave-stock",
+        "arrow-rack"
+      ],
+      "externalDependencies": [],
+      "coveredProcess": "dry-workshop-only",
+      "completeOccupationalRow": true,
+      "coverageNote": "Equipment and process coverage must be checked in T1b before counting a placed business."
+    },
+    {
+      "pool": "bookTrades",
+      "defaultForm": "workhome-standard",
+      "optionalForms": [],
+      "requiredEquipment": [
+        "writing-desk",
+        "binding-bench",
+        "book-stock"
+      ],
+      "externalDependencies": [
+        "supplied-parchment-or-external-parchment-preparation"
+      ],
+      "coveredProcess": "dry-workshop-only",
+      "completeOccupationalRow": false,
+      "coverageNote": "Equipment and process coverage must be checked in T1b before counting a placed business."
+    }
+  ],
+  "hallRoles": [
+    "textiles",
+    "leather",
+    "baking",
+    "brewing",
+    "victualling",
+    "woodworking",
+    "metallurgy",
+    "glassware-pottery",
+    "masonry",
+    "book-trades"
+  ],
+  "compatibility": {
+    "replaceExistingModels": false,
+    "changeExistingVariantFactories": false,
+    "changeExistingDefaultAdoption": false,
+    "newFamilyOnlyAfterT1bValidation": true
+  },
+  "hallProfiles": [
+    {
+      "role": "textiles",
+      "calibrationDomain": "textiles",
+      "defaultForm": "guild-enclosed",
+      "optionalForms": [
+        "guild-market-arcade"
+      ],
+      "optionalFormRequires": "explicit-market-or-inspection-role",
+      "fromPeriod": "highMedieval",
+      "requiredEquipment": [
+        "meeting-tables",
+        "records-storage",
+        "trade-inspection-samples"
+      ],
+      "manufacturingWorkshops": 0,
+      "dwellings": 0
+    },
+    {
+      "role": "leather",
+      "calibrationDomain": "leather",
+      "defaultForm": "guild-enclosed",
+      "optionalForms": [
+        "guild-market-arcade"
+      ],
+      "optionalFormRequires": "explicit-market-or-inspection-role",
+      "fromPeriod": "highMedieval",
+      "requiredEquipment": [
+        "meeting-tables",
+        "records-storage",
+        "trade-inspection-samples"
+      ],
+      "manufacturingWorkshops": 0,
+      "dwellings": 0
+    },
+    {
+      "role": "baking",
+      "calibrationDomain": "baking",
+      "defaultForm": "guild-enclosed",
+      "optionalForms": [
+        "guild-market-arcade"
+      ],
+      "optionalFormRequires": "explicit-market-or-inspection-role",
+      "fromPeriod": "highMedieval",
+      "requiredEquipment": [
+        "meeting-tables",
+        "records-storage",
+        "trade-inspection-samples"
+      ],
+      "manufacturingWorkshops": 0,
+      "dwellings": 0
+    },
+    {
+      "role": "brewing",
+      "calibrationDomain": "brewing",
+      "defaultForm": "guild-enclosed",
+      "optionalForms": [
+        "guild-market-arcade"
+      ],
+      "optionalFormRequires": "explicit-market-or-inspection-role",
+      "fromPeriod": "highMedieval",
+      "requiredEquipment": [
+        "meeting-tables",
+        "records-storage",
+        "trade-inspection-samples"
+      ],
+      "manufacturingWorkshops": 0,
+      "dwellings": 0
+    },
+    {
+      "role": "victualling",
+      "calibrationDomain": "victualling",
+      "defaultForm": "guild-enclosed",
+      "optionalForms": [
+        "guild-market-arcade"
+      ],
+      "optionalFormRequires": "explicit-market-or-inspection-role",
+      "fromPeriod": "highMedieval",
+      "requiredEquipment": [
+        "meeting-tables",
+        "records-storage",
+        "trade-inspection-samples"
+      ],
+      "manufacturingWorkshops": 0,
+      "dwellings": 0
+    },
+    {
+      "role": "woodworking",
+      "calibrationDomain": "woodworking",
+      "defaultForm": "guild-enclosed",
+      "optionalForms": [
+        "guild-market-arcade"
+      ],
+      "optionalFormRequires": "explicit-market-or-inspection-role",
+      "fromPeriod": "highMedieval",
+      "requiredEquipment": [
+        "meeting-tables",
+        "records-storage",
+        "trade-inspection-samples"
+      ],
+      "manufacturingWorkshops": 0,
+      "dwellings": 0
+    },
+    {
+      "role": "metallurgy",
+      "calibrationDomain": "metallurgy",
+      "defaultForm": "guild-enclosed",
+      "optionalForms": [
+        "guild-market-arcade"
+      ],
+      "optionalFormRequires": "explicit-market-or-inspection-role",
+      "fromPeriod": "highMedieval",
+      "requiredEquipment": [
+        "meeting-tables",
+        "records-storage",
+        "trade-inspection-samples"
+      ],
+      "manufacturingWorkshops": 0,
+      "dwellings": 0
+    },
+    {
+      "role": "glassware-pottery",
+      "calibrationDomain": "glassware",
+      "defaultForm": "guild-enclosed",
+      "optionalForms": [
+        "guild-market-arcade"
+      ],
+      "optionalFormRequires": "explicit-market-or-inspection-role",
+      "fromPeriod": "highMedieval",
+      "requiredEquipment": [
+        "meeting-tables",
+        "records-storage",
+        "trade-inspection-samples"
+      ],
+      "manufacturingWorkshops": 0,
+      "dwellings": 0
+    },
+    {
+      "role": "masonry",
+      "calibrationDomain": "masonry",
+      "defaultForm": "guild-enclosed",
+      "optionalForms": [
+        "guild-market-arcade"
+      ],
+      "optionalFormRequires": "explicit-market-or-inspection-role",
+      "fromPeriod": "highMedieval",
+      "requiredEquipment": [
+        "meeting-tables",
+        "records-storage",
+        "trade-inspection-samples"
+      ],
+      "manufacturingWorkshops": 0,
+      "dwellings": 0
+    },
+    {
+      "role": "book-trades",
+      "calibrationDomain": "printing",
+      "defaultForm": "guild-enclosed",
+      "optionalForms": [
+        "guild-market-arcade"
+      ],
+      "optionalFormRequires": "explicit-market-or-inspection-role",
+      "fromPeriod": "highMedieval",
+      "requiredEquipment": [
+        "meeting-tables",
+        "records-storage",
+        "trade-inspection-samples"
+      ],
+      "manufacturingWorkshops": 0,
+      "dwellings": 0
+    }
+  ]
+}

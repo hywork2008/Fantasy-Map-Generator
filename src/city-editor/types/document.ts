@@ -211,6 +211,8 @@ export interface LandmarkPolygon {
 }
 
 export interface LandmarkAsset {
+  /** BV models retain authored meter scale; no separate saved model instance is needed. */
+  bvModel?: { id: string; quality: "low" | "high"; heightMeters: number };
   id: string;
   revision: string;
   name: string;

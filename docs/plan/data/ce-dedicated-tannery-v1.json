@@ -1,0 +1,457 @@
+{
+  "schema": 1,
+  "status": "T3-2e-3b-spatial-placement",
+  "runtimeAdoption": true,
+  "form": {
+    "formId": "dedicated-wet-tannery",
+    "placementSpecVersion": 1,
+    "equipmentLayoutVersion": 1,
+    "coordinateFrame": {
+      "origin": "yard-ground-origin",
+      "front": "+Z",
+      "waterSide": "-Z",
+      "up": "+Y",
+      "metersPerUnit": 1
+    },
+    "siteXZ": [
+      -9,
+      -8,
+      9,
+      8
+    ],
+    "envelope": {
+      "min": [
+        -9,
+        0,
+        -8
+      ],
+      "max": [
+        9,
+        4.6,
+        8
+      ]
+    },
+    "siteAreaM2": 288,
+    "ports": [
+      {
+        "id": "hand-carried-goods",
+        "position": [
+          0,
+          0,
+          8
+        ],
+        "normalXZ": [
+          0,
+          1
+        ],
+        "clearWidth": 1.4,
+        "clearHeight": 2.2
+      }
+    ],
+    "waterPorts": [
+      {
+        "id": "intake",
+        "position": [
+          -7.5,
+          0.3,
+          -8
+        ],
+        "normalXZ": [
+          0,
+          -1
+        ],
+        "channelWidth": 0.6
+      },
+      {
+        "id": "effluent",
+        "position": [
+          7.5,
+          0.3,
+          -8
+        ],
+        "normalXZ": [
+          0,
+          -1
+        ],
+        "channelWidth": 0.6
+      }
+    ],
+    "water": {
+      "intakePathXZ": [
+        [
+          -7.5,
+          -8
+        ],
+        [
+          -7.5,
+          -4
+        ]
+      ],
+      "effluentPathXZ": [
+        [
+          7.5,
+          -4
+        ],
+        [
+          7.5,
+          -8
+        ]
+      ],
+      "supplyMode": "external-intake-to-wash-basin-manual-vat-filling",
+      "wasteMode": "manual-transfer-to-effluent-receiver-no-automatic-vat-drains",
+      "upstreamPort": "intake",
+      "downstreamPort": "effluent",
+      "requiredExternalFlowDirectionXZ": [
+        1,
+        0
+      ],
+      "intakeInvertElevation": 0.2,
+      "effluentInvertElevation": 0.2,
+      "externalConnectionVerified": false,
+      "gravityFlowVerified": false,
+      "flowRateVerified": false,
+      "waterQualityVerified": false,
+      "treatmentVerified": false
+    },
+    "componentBounds": [
+      {
+        "id": "wet-process",
+        "rectXZ": [
+          -8.2,
+          -4.1,
+          8.3,
+          -1.9
+        ]
+      },
+      {
+        "id": "water-channels",
+        "rectXZ": [
+          -7.9,
+          -8,
+          7.9,
+          -4
+        ]
+      },
+      {
+        "id": "fleshing",
+        "rectXZ": [
+          -6.2,
+          2.8,
+          -3.8,
+          3.8
+        ]
+      },
+      {
+        "id": "drying",
+        "rectXZ": [
+          1.3,
+          3,
+          6.7,
+          4.1
+        ]
+      },
+      {
+        "id": "raw-stock",
+        "rectXZ": [
+          -7.3,
+          5.5,
+          -4.7,
+          6.5
+        ]
+      },
+      {
+        "id": "dry-stock",
+        "rectXZ": [
+          4,
+          5.5,
+          6.6,
+          6.5
+        ]
+      },
+      {
+        "id": "materials",
+        "rectXZ": [
+          -3.3,
+          -6.9,
+          3,
+          -5.2
+        ]
+      }
+    ],
+    "circulation": [
+      {
+        "id": "main",
+        "rectXZ": [
+          -0.7,
+          -0.7,
+          0.7,
+          8
+        ]
+      },
+      {
+        "id": "cross-yard",
+        "rectXZ": [
+          -8.4,
+          -0.7,
+          8.4,
+          0.7
+        ]
+      },
+      {
+        "id": "vat-working-front",
+        "rectXZ": [
+          -8.4,
+          -1.8,
+          8.4,
+          0.2
+        ]
+      },
+      {
+        "id": "left-branch",
+        "rectXZ": [
+          -3.2,
+          0.3,
+          -2,
+          7.8
+        ]
+      },
+      {
+        "id": "fleshing-approach",
+        "rectXZ": [
+          -5.7,
+          4.1,
+          -2,
+          5.3
+        ]
+      },
+      {
+        "id": "rear-crossing",
+        "rectXZ": [
+          -7.4,
+          6.8,
+          7.4,
+          7.8
+        ]
+      },
+      {
+        "id": "drying-front",
+        "rectXZ": [
+          0.2,
+          1.4,
+          7,
+          2.8
+        ]
+      },
+      {
+        "id": "drying-approach",
+        "rectXZ": [
+          6.9,
+          0.3,
+          8.3,
+          7.8
+        ]
+      },
+      {
+        "id": "materials-crossing",
+        "rectXZ": [
+          -4.9,
+          -7.8,
+          3.2,
+          -6.75
+        ]
+      },
+      {
+        "id": "materials-approach",
+        "rectXZ": [
+          -4.9,
+          -7.8,
+          -3.6,
+          0.2
+        ]
+      }
+    ],
+    "workplaces": [
+      {
+        "id": "wet-worker",
+        "centerXZ": [
+          -2,
+          -1.25
+        ],
+        "sizeXZ": [
+          0.65,
+          0.65
+        ],
+        "height": 1.8
+      },
+      {
+        "id": "fleshing-worker",
+        "centerXZ": [
+          -5,
+          4.5
+        ],
+        "sizeXZ": [
+          0.65,
+          0.65
+        ],
+        "height": 1.8
+      },
+      {
+        "id": "drying-worker",
+        "centerXZ": [
+          2.5,
+          2.4
+        ],
+        "sizeXZ": [
+          0.65,
+          0.65
+        ],
+        "height": 1.8
+      }
+    ],
+    "alternateOperatingPositions": [
+      {
+        "id": "wash",
+        "assignedWorker": "wet-worker",
+        "centerXZ": [
+          -7.5,
+          -1.25
+        ]
+      },
+      {
+        "id": "tan-first",
+        "assignedWorker": "wet-worker",
+        "centerXZ": [
+          1,
+          -1.25
+        ]
+      },
+      {
+        "id": "tan-second",
+        "assignedWorker": "wet-worker",
+        "centerXZ": [
+          4,
+          -1.25
+        ]
+      },
+      {
+        "id": "effluent-transfer",
+        "assignedWorker": "wet-worker",
+        "centerXZ": [
+          7.5,
+          -1.25
+        ]
+      },
+      {
+        "id": "second-frame",
+        "assignedWorker": "drying-worker",
+        "centerXZ": [
+          5.5,
+          2.4
+        ]
+      }
+    ],
+    "stockHandlingPositions": [
+      {
+        "id": "raw-stock",
+        "assignedWorker": "fleshing-worker",
+        "centerXZ": [
+          -6,
+          7.2
+        ],
+        "pickupEdgeXZ": [
+          -6,
+          6.4
+        ]
+      },
+      {
+        "id": "dry-stock",
+        "assignedWorker": "drying-worker",
+        "centerXZ": [
+          5.3,
+          7.2
+        ],
+        "pickupEdgeXZ": [
+          5.3,
+          6.4
+        ]
+      },
+      {
+        "id": "lime",
+        "assignedWorker": "wet-worker",
+        "centerXZ": [
+          -2.5,
+          -7.2
+        ],
+        "pickupEdgeXZ": [
+          -2.5,
+          -6.57
+        ]
+      },
+      {
+        "id": "bark",
+        "assignedWorker": "wet-worker",
+        "centerXZ": [
+          0,
+          -7.2
+        ],
+        "pickupEdgeXZ": [
+          0,
+          -6.55
+        ]
+      },
+      {
+        "id": "solid-waste",
+        "assignedWorker": "wet-worker",
+        "centerXZ": [
+          2.2,
+          -7.2
+        ],
+        "pickupEdgeXZ": [
+          2.2,
+          -6.55
+        ]
+      }
+    ],
+    "stockHandlingReachFromBodyEdge": 0.6,
+    "alternatePositionsReuseAssignedWorkers": true,
+    "handling": {
+      "mode": "single-person-hand-carried-folded-hide-or-pail",
+      "movingEnvelopeXZ": [
+        0.8,
+        0.8
+      ],
+      "movingHeight": 2.1,
+      "cartsVerified": false,
+      "fullHideSwingVerified": false,
+      "concurrentTrafficVerified": false
+    },
+    "operations": {
+      "coverage": "wet-tanning-and-drying-spatial-study",
+      "completeOccupationalRow": false,
+      "currierFinishingIncluded": false,
+      "tawingIncluded": false,
+      "materialsSuppliedPrepared": true,
+      "barkGrindingIncluded": false,
+      "processMotionVerified": false,
+      "supplyChainVerified": false,
+      "throughputVerified": false,
+      "solidWasteExternalDisposalVerified": false,
+      "externalDependencies": [
+        "raw-hides",
+        "prepared-bark",
+        "lime",
+        "water-supply",
+        "effluent-destination",
+        "solid-waste-removal"
+      ]
+    },
+    "capacity": {
+      "plannedWorkshops": 1,
+      "simultaneousSpatialWorkplaces": 3,
+      "dwellings": 0,
+      "netResidentialAreaM2": 0,
+      "verifiedProductionCapacity": null
+    },
+    "status": "CE-explicit-spatial-reservation-only"
+  }
+}

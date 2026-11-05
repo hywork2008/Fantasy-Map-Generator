@@ -3014,15 +3014,17 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
                 : []),
               fact(
                 "CE adoption",
-                partFactory || customAssembly
-                  ? "Component preview; CE placement uses its registered assembly"
-                  : variant.family === "monastery.friary" || variant.family === "monastery.abbey"
-                    ? variant.level === "high"
-                      ? "CE uses this architecture at High model quality"
-                      : "CE uses Low architecture at Low or Standard model quality"
-                    : variant === adopted(variant.level)
-                      ? "Adopted"
-                      : `Not adopted; CE uses ${adopted(variant.level).author}`
+                definition.cePlacementStatus === "preview-only"
+                  ? "Not enabled; BV preview only"
+                  : partFactory || customAssembly
+                    ? "Component preview; CE placement uses its registered assembly"
+                    : variant.family === "monastery.friary" || variant.family === "monastery.abbey"
+                      ? variant.level === "high"
+                        ? "CE uses this architecture at High model quality"
+                        : "CE uses Low architecture at Low or Standard model quality"
+                      : variant === adopted(variant.level)
+                        ? "Adopted"
+                        : `Not adopted; CE uses ${adopted(variant.level).author}`
               ),
               ...(displayedDependencies
                 ? [

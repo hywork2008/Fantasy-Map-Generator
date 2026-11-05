@@ -207,6 +207,12 @@ const modelArticles: Record<string, string> = {
 };
 
 export function medievalWikipediaArticle(model: Pick<MedievalModel, "id" | "task">): string {
+  if (model.task === 55) return "Tanning (leather)";
+  if (model.task === 54) return "Cooper (profession)";
+  if (model.task === 53) return model.id.endsWith("dedicated-farrier") ? "Farrier" : "Blacksmith";
+  if (model.task === 52) return "Bakery";
+  if (model.task === 50 || model.task === 51) return "Medieval Merchant's House";
+  if (model.task === 48 || model.task === 49) return "Guildhall";
   const article = modelArticles[model.id] ?? taskArticles[model.task];
   if (!article) throw new Error(`Missing Wikipedia article for ${model.id}`);
   return article;

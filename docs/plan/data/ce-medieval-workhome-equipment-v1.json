@@ -1,0 +1,749 @@
+{
+  "schema": 1,
+  "status": "T1b-5-dry-equipment-preview",
+  "bodySpecification": "ce-medieval-workhome-shells-v2.json",
+  "units": "meters",
+  "note": "Equipment fit and three static workplaces only. Supply chains, throughput, delivery routes and CE placement remain unverified.",
+  "entries": [
+    {
+      "role": "tailoring",
+      "formId": "workhome-standard",
+      "placementSpecVersion": 2,
+      "equipmentLayoutVersion": 1,
+      "modelFamily": "medieval.trade-workhome.workhome-standard.tailoring",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "cePlacementStatus": "preview-only",
+      "operations": {
+        "kind": "dry-workshop-only",
+        "equipment": [
+          "cutting-table",
+          "sewing-stations",
+          "garment-stock"
+        ],
+        "operatorWidth": 0.65,
+        "operatorDepth": 0.65,
+        "stations": [
+          {
+            "id": "station-1",
+            "task": "cutting",
+            "x": -1.9249999999999998,
+            "z": -0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-2",
+            "task": "sewing",
+            "x": -1.9249999999999998,
+            "z": 0,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-3",
+            "task": "sewing",
+            "x": -1.9249999999999998,
+            "z": 0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          }
+        ],
+        "externalDependencies": [],
+        "completeOccupationalRow": true,
+        "supplyChainVerified": false,
+        "delivery": "hand-carried-stock",
+        "verificationScope": "equipment-fit-and-static-workplaces; not production throughput or CE placement"
+      }
+    },
+    {
+      "role": "tailoring",
+      "formId": "workhome-narrow",
+      "placementSpecVersion": 2,
+      "equipmentLayoutVersion": 1,
+      "modelFamily": "medieval.trade-workhome.workhome-narrow.tailoring",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "cePlacementStatus": "preview-only",
+      "operations": {
+        "kind": "dry-workshop-only",
+        "equipment": [
+          "cutting-table",
+          "sewing-stations",
+          "garment-stock"
+        ],
+        "operatorWidth": 0.65,
+        "operatorDepth": 0.65,
+        "stations": [
+          {
+            "id": "station-1",
+            "task": "cutting",
+            "x": -1.3249999999999997,
+            "z": -0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-2",
+            "task": "sewing",
+            "x": -1.3249999999999997,
+            "z": 0,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-3",
+            "task": "sewing",
+            "x": -1.3249999999999997,
+            "z": 0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          }
+        ],
+        "externalDependencies": [],
+        "completeOccupationalRow": true,
+        "supplyChainVerified": false,
+        "delivery": "hand-carried-stock",
+        "verificationScope": "equipment-fit-and-static-workplaces; not production throughput or CE placement"
+      }
+    },
+    {
+      "role": "weaving",
+      "formId": "workhome-wide",
+      "placementSpecVersion": 2,
+      "equipmentLayoutVersion": 1,
+      "modelFamily": "medieval.trade-workhome.workhome-wide.weaving",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "cePlacementStatus": "preview-only",
+      "operations": {
+        "kind": "dry-workshop-only",
+        "equipment": [
+          "loom",
+          "weaving-bench",
+          "cloth-stock"
+        ],
+        "operatorWidth": 0.65,
+        "operatorDepth": 0.65,
+        "stations": [
+          {
+            "id": "weaving",
+            "task": "loom",
+            "x": -1.6,
+            "z": 1.7,
+            "base": 0.72,
+            "height": 1.15,
+            "posture": "seated"
+          },
+          {
+            "id": "preparation-1",
+            "task": "cloth-preparation",
+            "x": -2.25,
+            "z": -1.675,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "preparation-2",
+            "task": "cloth-preparation",
+            "x": -0.95,
+            "z": -1.675,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          }
+        ],
+        "externalDependencies": [
+          "fulling-and-dyeing-or-supplied-cloth-chain"
+        ],
+        "completeOccupationalRow": false,
+        "supplyChainVerified": false,
+        "delivery": "hand-carried-stock",
+        "verificationScope": "equipment-fit-and-static-workplaces; not production throughput or CE placement"
+      }
+    },
+    {
+      "role": "shoemaking",
+      "formId": "workhome-standard",
+      "placementSpecVersion": 2,
+      "equipmentLayoutVersion": 1,
+      "modelFamily": "medieval.trade-workhome.workhome-standard.shoemaking",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "cePlacementStatus": "preview-only",
+      "operations": {
+        "kind": "dry-workshop-only",
+        "equipment": [
+          "cobblers-bench",
+          "lasts",
+          "leather-stock"
+        ],
+        "operatorWidth": 0.65,
+        "operatorDepth": 0.65,
+        "stations": [
+          {
+            "id": "station-1",
+            "task": "cutting",
+            "x": -1.9249999999999998,
+            "z": -0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-2",
+            "task": "lasting",
+            "x": -1.9249999999999998,
+            "z": 0,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-3",
+            "task": "stitching",
+            "x": -1.9249999999999998,
+            "z": 0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          }
+        ],
+        "externalDependencies": [],
+        "completeOccupationalRow": true,
+        "supplyChainVerified": false,
+        "delivery": "hand-carried-stock",
+        "verificationScope": "equipment-fit-and-static-workplaces; not production throughput or CE placement"
+      }
+    },
+    {
+      "role": "shoemaking",
+      "formId": "workhome-narrow",
+      "placementSpecVersion": 2,
+      "equipmentLayoutVersion": 1,
+      "modelFamily": "medieval.trade-workhome.workhome-narrow.shoemaking",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "cePlacementStatus": "preview-only",
+      "operations": {
+        "kind": "dry-workshop-only",
+        "equipment": [
+          "cobblers-bench",
+          "lasts",
+          "leather-stock"
+        ],
+        "operatorWidth": 0.65,
+        "operatorDepth": 0.65,
+        "stations": [
+          {
+            "id": "station-1",
+            "task": "cutting",
+            "x": -1.3249999999999997,
+            "z": -0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-2",
+            "task": "lasting",
+            "x": -1.3249999999999997,
+            "z": 0,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-3",
+            "task": "stitching",
+            "x": -1.3249999999999997,
+            "z": 0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          }
+        ],
+        "externalDependencies": [],
+        "completeOccupationalRow": true,
+        "supplyChainVerified": false,
+        "delivery": "hand-carried-stock",
+        "verificationScope": "equipment-fit-and-static-workplaces; not production throughput or CE placement"
+      }
+    },
+    {
+      "role": "furriery",
+      "formId": "workhome-standard",
+      "placementSpecVersion": 2,
+      "equipmentLayoutVersion": 1,
+      "modelFamily": "medieval.trade-workhome.workhome-standard.furriery",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "cePlacementStatus": "preview-only",
+      "operations": {
+        "kind": "dry-workshop-only",
+        "equipment": [
+          "fur-cutting-table",
+          "dry-hide-stock"
+        ],
+        "operatorWidth": 0.65,
+        "operatorDepth": 0.65,
+        "stations": [
+          {
+            "id": "station-1",
+            "task": "dry-cutting",
+            "x": -1.9249999999999998,
+            "z": -0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-2",
+            "task": "trimming",
+            "x": -1.9249999999999998,
+            "z": 0,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-3",
+            "task": "sewing",
+            "x": -1.9249999999999998,
+            "z": 0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          }
+        ],
+        "externalDependencies": [
+          "supplied-dressed-fur"
+        ],
+        "completeOccupationalRow": false,
+        "supplyChainVerified": false,
+        "delivery": "hand-carried-stock",
+        "verificationScope": "equipment-fit-and-static-workplaces; not production throughput or CE placement"
+      }
+    },
+    {
+      "role": "leatherGoods",
+      "formId": "workhome-standard",
+      "placementSpecVersion": 2,
+      "equipmentLayoutVersion": 1,
+      "modelFamily": "medieval.trade-workhome.workhome-standard.leatherGoods",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "cePlacementStatus": "preview-only",
+      "operations": {
+        "kind": "dry-workshop-only",
+        "equipment": [
+          "leather-cutting-table",
+          "stitching-stations",
+          "finished-goods"
+        ],
+        "operatorWidth": 0.65,
+        "operatorDepth": 0.65,
+        "stations": [
+          {
+            "id": "station-1",
+            "task": "cutting",
+            "x": -1.9249999999999998,
+            "z": -0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-2",
+            "task": "stitching",
+            "x": -1.9249999999999998,
+            "z": 0,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-3",
+            "task": "finishing",
+            "x": -1.9249999999999998,
+            "z": 0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          }
+        ],
+        "externalDependencies": [
+          "supplied-tanned-leather"
+        ],
+        "completeOccupationalRow": true,
+        "supplyChainVerified": false,
+        "delivery": "hand-carried-stock",
+        "verificationScope": "equipment-fit-and-static-workplaces; not production throughput or CE placement"
+      }
+    },
+    {
+      "role": "leatherGoods",
+      "formId": "workhome-narrow",
+      "placementSpecVersion": 2,
+      "equipmentLayoutVersion": 1,
+      "modelFamily": "medieval.trade-workhome.workhome-narrow.leatherGoods",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "cePlacementStatus": "preview-only",
+      "operations": {
+        "kind": "dry-workshop-only",
+        "equipment": [
+          "leather-cutting-table",
+          "stitching-stations",
+          "finished-goods"
+        ],
+        "operatorWidth": 0.65,
+        "operatorDepth": 0.65,
+        "stations": [
+          {
+            "id": "station-1",
+            "task": "cutting",
+            "x": -1.3249999999999997,
+            "z": -0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-2",
+            "task": "stitching",
+            "x": -1.3249999999999997,
+            "z": 0,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-3",
+            "task": "finishing",
+            "x": -1.3249999999999997,
+            "z": 0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          }
+        ],
+        "externalDependencies": [
+          "supplied-tanned-leather"
+        ],
+        "completeOccupationalRow": true,
+        "supplyChainVerified": false,
+        "delivery": "hand-carried-stock",
+        "verificationScope": "equipment-fit-and-static-workplaces; not production throughput or CE placement"
+      }
+    },
+    {
+      "role": "saddlery",
+      "formId": "workhome-wide",
+      "placementSpecVersion": 2,
+      "equipmentLayoutVersion": 1,
+      "modelFamily": "medieval.trade-workhome.workhome-wide.saddlery",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "cePlacementStatus": "preview-only",
+      "operations": {
+        "kind": "dry-workshop-only",
+        "equipment": [
+          "saddle-stand",
+          "cutting-table",
+          "leather-stock"
+        ],
+        "operatorWidth": 0.65,
+        "operatorDepth": 0.65,
+        "stations": [
+          {
+            "id": "station-1",
+            "task": "cutting",
+            "x": -2.525,
+            "z": -0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-2",
+            "task": "saddle-fitting",
+            "x": -0.65,
+            "z": 0,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-3",
+            "task": "stitching",
+            "x": -2.525,
+            "z": 0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          }
+        ],
+        "externalDependencies": [
+          "supplied-tanned-leather"
+        ],
+        "completeOccupationalRow": true,
+        "supplyChainVerified": false,
+        "delivery": "hand-carried-stock",
+        "verificationScope": "equipment-fit-and-static-workplaces; not production throughput or CE placement"
+      }
+    },
+    {
+      "role": "goldsmithing",
+      "formId": "workhome-standard",
+      "placementSpecVersion": 2,
+      "equipmentLayoutVersion": 1,
+      "modelFamily": "medieval.trade-workhome.workhome-standard.goldsmithing",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "cePlacementStatus": "preview-only",
+      "operations": {
+        "kind": "dry-workshop-only",
+        "equipment": [
+          "fine-metal-bench",
+          "secure-stock"
+        ],
+        "operatorWidth": 0.65,
+        "operatorDepth": 0.65,
+        "stations": [
+          {
+            "id": "station-1",
+            "task": "cold-finishing",
+            "x": -1.9249999999999998,
+            "z": -0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-2",
+            "task": "assembly",
+            "x": -1.9249999999999998,
+            "z": 0,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-3",
+            "task": "inspection",
+            "x": -1.9249999999999998,
+            "z": 0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          }
+        ],
+        "externalDependencies": [
+          "external-hot-metal-processes"
+        ],
+        "completeOccupationalRow": false,
+        "supplyChainVerified": false,
+        "delivery": "hand-carried-stock",
+        "verificationScope": "equipment-fit-and-static-workplaces; not production throughput or CE placement"
+      }
+    },
+    {
+      "role": "joinery",
+      "formId": "workhome-wide",
+      "placementSpecVersion": 2,
+      "equipmentLayoutVersion": 1,
+      "modelFamily": "medieval.trade-workhome.workhome-wide.joinery",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "cePlacementStatus": "preview-only",
+      "operations": {
+        "kind": "dry-workshop-only",
+        "equipment": [
+          "joiners-bench",
+          "saw-rack",
+          "board-stock"
+        ],
+        "operatorWidth": 0.65,
+        "operatorDepth": 0.65,
+        "stations": [
+          {
+            "id": "station-1",
+            "task": "planing",
+            "x": -2.525,
+            "z": -0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-2",
+            "task": "chiselling",
+            "x": -2.525,
+            "z": 0,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-3",
+            "task": "assembly",
+            "x": -2.525,
+            "z": 0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          }
+        ],
+        "externalDependencies": [],
+        "completeOccupationalRow": true,
+        "supplyChainVerified": false,
+        "delivery": "hand-carried-long-stock-routing-required",
+        "verificationScope": "equipment-fit-and-static-workplaces; not production throughput or CE placement"
+      }
+    },
+    {
+      "role": "bowyery",
+      "formId": "workhome-wide",
+      "placementSpecVersion": 2,
+      "equipmentLayoutVersion": 1,
+      "modelFamily": "medieval.trade-workhome.workhome-wide.bowyery",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "cePlacementStatus": "preview-only",
+      "operations": {
+        "kind": "dry-workshop-only",
+        "equipment": [
+          "long-bench",
+          "stave-stock",
+          "arrow-rack"
+        ],
+        "operatorWidth": 0.65,
+        "operatorDepth": 0.65,
+        "stations": [
+          {
+            "id": "station-1",
+            "task": "stave-shaping",
+            "x": -2.525,
+            "z": -1.2,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-2",
+            "task": "arrow-shaping",
+            "x": -2.525,
+            "z": 0,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-3",
+            "task": "fletching",
+            "x": -2.525,
+            "z": 1.2,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          }
+        ],
+        "externalDependencies": [],
+        "completeOccupationalRow": true,
+        "supplyChainVerified": false,
+        "delivery": "hand-carried-long-stock-routing-required",
+        "verificationScope": "equipment-fit-and-static-workplaces; not production throughput or CE placement"
+      }
+    },
+    {
+      "role": "bookTrades",
+      "formId": "workhome-standard",
+      "placementSpecVersion": 2,
+      "equipmentLayoutVersion": 1,
+      "modelFamily": "medieval.trade-workhome.workhome-standard.bookTrades",
+      "supportedQualities": [
+        "low",
+        "high"
+      ],
+      "cePlacementStatus": "preview-only",
+      "operations": {
+        "kind": "dry-workshop-only",
+        "equipment": [
+          "writing-desk",
+          "binding-bench",
+          "book-stock"
+        ],
+        "operatorWidth": 0.65,
+        "operatorDepth": 0.65,
+        "stations": [
+          {
+            "id": "station-1",
+            "task": "writing",
+            "x": -1.9249999999999998,
+            "z": -0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-2",
+            "task": "collating",
+            "x": -1.9249999999999998,
+            "z": 0,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          },
+          {
+            "id": "station-3",
+            "task": "binding",
+            "x": -1.9249999999999998,
+            "z": 0.8,
+            "base": 0.15,
+            "height": 1.7,
+            "posture": "standing"
+          }
+        ],
+        "externalDependencies": [
+          "supplied-parchment-or-external-parchment-preparation"
+        ],
+        "completeOccupationalRow": false,
+        "supplyChainVerified": false,
+        "delivery": "hand-carried-stock",
+        "verificationScope": "equipment-fit-and-static-workplaces; not production throughput or CE placement"
+      }
+    }
+  ]
+}

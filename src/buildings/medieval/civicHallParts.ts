@@ -14,9 +14,17 @@ export const CIVIC_STAIR: Readonly<ExteriorStairOptions> = {
   doorWidth: 1.1
 };
 
-export function civicHallPartFactories(kind: CivicHallKind): ModelPartFactory[] {
+/** Identical assembly-origin anchors for both tiers; old callers continue to request High. */
+export function createPlacedCivicStair(kind: CivicHallKind, detail: "low" | "high" = "high", landingFit?: "flush") {
   const profile = civicHallProfile(kind),
-    width = profile.width;
+    k = new ModelKit(`${kind}-stair-placement`);
+  const options = landingFit ? { ...CIVIC_STAIR, landingFit } : CIVIC_STAIR;
+  const layout = exteriorStairLayout(options);
+  k.attach(createExteriorStair(options, detail), [profile.width / 2 + layout.landingWidth / 2, 0, profile.doorZ]);
+  return k.finish();
+}
+
+export function civicHallPartFactories(kind: CivicHallKind): ModelPartFactory[] {
   const parts: ModelPartFactory[] = [
     {
       id: `${kind}:architecture`,
@@ -30,12 +38,7 @@ export function civicHallPartFactories(kind: CivicHallKind): ModelPartFactory[] 
       role: "exterior-stair",
       quality: "high",
       author: DEFAULT_AUTHOR,
-      create: () => {
-        const k = new ModelKit(`${kind}-stair-placement`);
-        const layout = exteriorStairLayout(CIVIC_STAIR);
-        k.attach(createExteriorStair(CIVIC_STAIR), [width / 2 + layout.landingWidth / 2, 0, profile.doorZ]);
-        return k.finish();
-      }
+      create: () => createPlacedCivicStair(kind)
     }
   ];
   if (kind === "cloth")

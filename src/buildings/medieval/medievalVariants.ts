@@ -39,6 +39,14 @@ import { models as instruments } from "./39-instrument-makers-hallsModels";
 import { models as sand } from "./40-sand-yardsModels";
 import { models as caravanserais } from "./42-caravanseraisModels";
 import { models as jettied } from "./45-jettied-housesModels";
+import { models as enclosedGuildHalls } from "./48-trade-guild-hallsModels";
+import { models as marketGuildHalls } from "./49-market-guild-hallsModels";
+import { models as workhomeShells } from "./50-workhome-shellsModels";
+import { models as tradeWorkhomes } from "./51-trade-workhomesModels";
+import { models as dedicatedBakehouses } from "./52-dedicated-bakehousesModels";
+import { models as dedicatedSmithies } from "./53-dedicated-smithiesModels";
+import { models as dedicatedCooperage } from "./54-dedicated-cooperageModels";
+import { models as dedicatedTanneries } from "./55-dedicated-tanneriesModels";
 import type { MedievalModel } from "./modelKit";
 
 export function medievalFamily(model: Pick<MedievalModel, "id">): string {
@@ -85,7 +93,15 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   instruments,
   sand,
   caravanserais,
-  jettied
+  jettied,
+  enclosedGuildHalls,
+  marketGuildHalls,
+  workhomeShells,
+  tradeWorkhomes,
+  dedicatedBakehouses,
+  dedicatedSmithies,
+  dedicatedCooperage,
+  dedicatedTanneries
 ]
   .flat()
   .flatMap(model => {

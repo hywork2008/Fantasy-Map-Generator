@@ -9,6 +9,8 @@ export interface MedievalModel {
   name: string;
   task: number;
   author?: Author;
+  /** Registry availability alone does not imply that CE can place this new assembly. */
+  cePlacementStatus?: "preview-only";
   /** Explicit preview tier for factories with no BV variant selector; unspecified means low. */
   quality?: "low" | "high";
   biomes?: readonly string[];

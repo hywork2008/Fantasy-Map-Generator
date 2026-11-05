@@ -10,6 +10,29 @@ export interface LandmarkStreet {
   points: Point[];
   widthMeters: number;
 }
+/** Derive BV render instances from their single saved landmark owner. */
+export function bvLandmarkElements(document: CityDocument): import("../types/document").CityElement[] {
+  return (document.landmarks ?? []).flatMap(instance => {
+    const asset = document.landmarkAssets?.find(
+      a => a.id === instance.assetId && a.revision === instance.assetRevision
+    );
+    return asset?.bvModel
+      ? [
+          {
+            id: `landmark:${instance.id}`,
+            kind: "object" as const,
+            faceIds: [],
+            point: instance.position,
+            rotation: instance.rotation,
+            locked: instance.locked,
+            objectType: asset.bvModel.id,
+            objectQuality: asset.bvModel.quality,
+            objectScale: 1
+          }
+        ]
+      : [];
+  });
+}
 
 /** Convex filled pieces retain holes instead of treating courtyards as reserved ground. */
 export function landmarkReservationParts(document: CityDocument): Point[][] {

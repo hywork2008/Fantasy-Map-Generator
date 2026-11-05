@@ -7,7 +7,7 @@ import { addCraftBench } from "./workshopDetailKit";
 
 export type { CivicHallKind } from "./civicHallProfile";
 
-function arcade(k: HouseDetailKit, w: number, d: number) {
+function arcade(k: HouseDetailKit, w: number, d: number, detail: "low" | "high") {
   const facade = (x: number, z: number, width: number, bays: number, angle: number) => {
     const bay = width / bays;
     for (let i = 0; i <= bays; i++) {
@@ -31,8 +31,9 @@ function arcade(k: HouseDetailKit, w: number, d: number) {
       shape.lineTo(bay / 2, 3.12);
       shape.lineTo(bay / 2, spring);
       shape.lineTo(radius, spring);
-      for (let j = 1; j <= 32; j++) {
-        const a = (j * Math.PI) / 32;
+      const divisions = detail === "high" ? 32 : 8;
+      for (let j = 1; j <= divisions; j++) {
+        const a = (j * Math.PI) / divisions;
         shape.lineTo(Math.cos(a) * radius, spring + Math.sin(a) * rise);
       }
       shape.lineTo(-bay / 2, spring);
@@ -44,7 +45,7 @@ function arcade(k: HouseDetailKit, w: number, d: number) {
       );
       arch.rotation.y = angle;
       arch.position.set(...k.point(x, z, angle, centre, 0, -0.19));
-      for (let j = 1; j < 12; j++) {
+      for (let j = 1; j < (detail === "high" ? 12 : 0); j++) {
         const a = (j * Math.PI) / 12;
         k.beam(
           "arch-radial-joint",
@@ -131,21 +132,27 @@ function bellTurret(k: HouseDetailKit) {
   k.roofCover(0, 0, 1.85, 1.85, 12.05, 1.05, "tile");
 }
 
-export function createHighCivicHallBody(kind: CivicHallKind, dressing = true) {
-  const k = new HouseDetailKit(`${kind}-civic-hall-high`);
+export function createCivicHallBody(
+  kind: CivicHallKind,
+  dressing = true,
+  detail: "low" | "high" = "high",
+  doorPose: "legacy" | "fully-open" = "legacy"
+) {
+  const k = new HouseDetailKit(`${kind}-civic-hall-${detail}`);
   const profile = civicHallProfile(kind),
     w = profile.width,
     d = profile.depth,
     wallH = profile.upperWall;
   k.box("civic-paved-foundation", [0, 0.07, 0], [w + 0.6, 0.14, d + 0.6], "stone");
   if (profile.support === "timber-posts") timberSupports(k, w, d);
-  else arcade(k, w, d);
+  else arcade(k, w, d, detail);
   for (let x = -w / 2 + 0.25; x < w / 2; x += 0.5)
     k.box("upper-floor-joist", [x, 3.05, 0], [0.18, 0.22, d + 0.12], "oak");
   k.box("assembly-floor", [0, 3.23, 0], [w + 0.14, 0.18, d + 0.14], "wood");
   const upper = new HouseDetailKit("upper-assembly-shell");
+  const doorOptions = doorPose === "fully-open" ? { doorAngle: Math.PI, thresholdHeight: 0 } : {};
   const front: HouseOpening[] = [
-    { u: 0, base: 0, width: 1.25, height: 2.15, kind: "door" },
+    { u: 0, base: 0, width: 1.25, height: 2.15, kind: "door", ...doorOptions },
     ...[-w * 0.32, -w * 0.16, w * 0.16, w * 0.32].map(u => ({
       u,
       base: 1.05,
@@ -164,7 +171,13 @@ export function createHighCivicHallBody(kind: CivicHallKind, dressing = true) {
       [-w * 0.3, 0, w * 0.3].map(u => ({ u, base: 1.05, width: 0.85, height: 1.3, kind: "window" as const }))
     ],
     [-w / 2, 0, d, -Math.PI / 2, [{ u: 0, base: 1.05, width: 0.85, height: 1.3, kind: "window" as const }]],
-    [w / 2, 0, d, Math.PI / 2, [{ u: -profile.doorZ, base: 0, width: 1.1, height: 2.15, kind: "door" as const }]]
+    [
+      w / 2,
+      0,
+      d,
+      Math.PI / 2,
+      [{ u: -profile.doorZ, base: 0, width: 1.1, height: 2.15, kind: "door" as const, ...doorOptions }]
+    ]
   ] as const) {
     upper.facade("upper-hall-infill", x, z, width, wallH, angle, holes);
     upper.frameWall(x, z, width, wallH, angle, holes, 0.3);
@@ -172,7 +185,7 @@ export function createHighCivicHallBody(kind: CivicHallKind, dressing = true) {
   for (const z of [-d / 2, d / 2])
     upper.box("upper-wall-eaves-bearing", [0, wallH + 0.08, z], [w + 0.1, 0.2, 0.22], "oak");
   for (const x of [-w / 2, w / 2]) upper.box("upper-wall-eaves-bearing", [x, wallH + 0.08, 0], [0.22, 0.2, d], "oak");
-  upper.roofCover(0, 0, w, d, wallH + 0.12, profile.roofRise, "tile");
+  upper.roofCover(0, 0, w, d, wallH + 0.12, profile.roofRise, "tile", detail);
   if (kind === "town") {
     cutRoofRectangle(
       upper,
@@ -187,6 +200,9 @@ export function createHighCivicHallBody(kind: CivicHallKind, dressing = true) {
   if (dressing) addCivicHallDressing(k, kind, w, d);
   return compactModel(k.finish(), { mergeEquivalentMaterials: true });
 }
+
+/** Compatibility entry point; existing callers retain the exact High construction. */
+export const createHighCivicHallBody = (kind: CivicHallKind, dressing = true) => createCivicHallBody(kind, dressing);
 
 function addCivicHallDressing(k: HouseDetailKit, kind: CivicHallKind, w: number, d: number) {
   if (kind !== "town")
