@@ -3229,6 +3229,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     getDocument: () => documents.documentState,
     getViewHalfSize: () => display.halfView,
     getViewCenter: () => display.viewCenter,
+    onReturnTo2d: (center, halfView) => getMapDisplayController().adopt3dView(center, halfView),
     getModelQuality: readModelQualityPreference,
     getSimplification: readSimplificationPreferences,
     getForestQuality: () => readForestViewPreferences().quality,

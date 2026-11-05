@@ -173,6 +173,7 @@ export interface City3dMountOptions {
   /** Current 2D viewBox half-size in plan meters. */
   getViewHalfSize?: () => number;
   getViewCenter?: () => readonly [number, number];
+  onReturnTo2d?: (center: readonly [number, number], halfView: number) => void;
   /** Requested detailed-model quality; each model falls back to the tiers it ships. */
   getModelQuality?: () => ModelQuality;
   getSimplification?: () => SimplificationPreferences;
@@ -206,6 +207,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   /** Per-frame metrics without walking the resident scene. */
   getFramePerformance(): Pick<City3dPerformanceSnapshot, "frame" | "forest" | "forestQuality" | "housing"> | null;
   restoreView(saved: NonNullable<City3dPerformanceSnapshot["camera"]>): void;
+  getPlanView(): { center: readonly [number, number]; halfView: number } | null;
   /** Adopted BV variants drawn by the open 3D view; null while it is closed. */
   getModelVariants(): string[] | null;
   /** Move the live scene into a rebuilt editor mount (language change) without regenerating meshes. */
@@ -1048,6 +1050,10 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   };
 
   const setOpen = (open: boolean) => {
+    if (!open && camera && controls) {
+      const view = getPlanView();
+      if (view) options.onReturnTo2d?.(view.center, view.halfView);
+    }
     viewport.hidden = !open;
     lightingPanel.hidden = !open;
     zoomReadout.hidden = !open;
@@ -1322,5 +1328,30 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     requestRender();
   };
   const getModelVariants = () => (viewport.hidden || !scene ? null : sceneVariants(scene));
-  return { sync, resetCamera, dispose, getPerformance, getFramePerformance, restoreView, getModelVariants, adopt };
+  const getPlanView = (): { center: readonly [number, number]; halfView: number } | null => {
+    if (!camera || !controls) return null;
+    const target = controls.target;
+    const delta = camera.position.clone().sub(target);
+    const distance = delta.length();
+    if (!Number.isFinite(distance) || distance <= 0) return null;
+    // Resolve the viewing ray against the plan plane, then discard its azimuth:
+    // 2D always uses north-up and the same plan-space scale.
+    const direction = delta.normalize();
+    if (direction.y <= 0.01) return null;
+    const height = distance * Math.max(0.01, direction.y);
+    const halfView =
+      (height * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.min(1, camera.aspect)) / camera.zoom;
+    return Number.isFinite(halfView) && halfView > 0 ? { center: [target.x, -target.z], halfView } : null;
+  };
+  return {
+    sync,
+    resetCamera,
+    dispose,
+    getPerformance,
+    getFramePerformance,
+    restoreView,
+    getPlanView,
+    getModelVariants,
+    adopt
+  };
 }

@@ -890,6 +890,14 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
   function zoomFactor(): number {
     return ctx.documents.documentState.frame.extentMeters / 2 / ctx.display.halfView;
   }
+  function adopt3dView(center: readonly [number, number], halfView: number): void {
+    if (!center.every(Number.isFinite) || !Number.isFinite(halfView) || halfView <= 0) return;
+    ctx.display.viewCenter = [center[0], center[1]];
+    ctx.display.halfView = halfView;
+    updateViewport(true);
+    refreshScaleBar();
+    refreshJunctionGapScale();
+  }
   function hoverGenerationLogObjects(ids: string[], seed: string): void {
     ctx.generation.generationLogHover = { ids, seed };
     updateGenerationLogHover();
@@ -969,6 +977,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     refreshScaleBar,
     refreshJunctionGapScale,
     zoomFactor,
+    adopt3dView,
     hoverGenerationLogObjects,
     updateGenerationLogHover
   };
