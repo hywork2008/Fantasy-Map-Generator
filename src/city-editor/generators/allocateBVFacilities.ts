@@ -72,6 +72,8 @@ export function allocateBVFacilities(
   const streetCuts = streets.flatMap(s => accessCorridor(s.points, s.widthMeters).map(p => p.outer));
   const cuts = [...protectedLand, ...streetCuts, ...landmarkReservationParts(source)];
   const fixed = new PlotIndex<Point[]>();
+  const protectedIndex = new PlotIndex<Point[]>();
+  for (const polygon of protectedLand) protectedIndex.add(polygon, bounds(polygon));
   cuts.forEach(c => {
     fixed.add(c, bounds(c));
   });
@@ -167,8 +169,10 @@ export function allocateBVFacilities(
           ...centers.map(p => [p[0] * 0.99 + center[0] * 0.01, p[1] * 0.99 + center[1] * 0.01] as Point)
         ];
         const streetDistance = (p: Point) => Math.min(...streets.map(s => nearestOnPolyline(p, s.points).dist));
-        positions.sort((a, b) => streetDistance(a) - streetDistance(b));
-        for (const position of positions) {
+        const ordered = positions
+          .map(position => ({ position, distance: streetDistance(position) }))
+          .sort((a, b) => a.distance - b.distance);
+        for (const { position } of ordered) {
           if (
             request.riverbankMaxDistanceMeters !== undefined &&
             Math.min(...riverWater.map(b => nearestOnPolyline(position, [...b.polygon, b.polygon[0]]).dist)) >
@@ -201,7 +205,7 @@ export function allocateBVFacilities(
           if (
             operating.some(
               p =>
-                protectedLand.some(c => plotArea(intersectConvex(p, c)) > 1e-6) ||
+                protectedIndex.query(bounds(p)).some(c => plotArea(intersectConvex(p, c)) > 1e-6) ||
                 moat.hitsPolygon(p) ||
                 buildingHitsCivicLandmark(source, p) ||
                 !defense.clears(p) ||
