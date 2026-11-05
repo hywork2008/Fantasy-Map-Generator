@@ -9,6 +9,7 @@ import {
 } from "../buildingHeightPolicy";
 import type { BuildingLot } from "../buildingLots.types";
 import { polygonArea } from "../geom";
+import { measureHousingCapacity } from "../residentialCapacity";
 import { dwellingCapacity, isResidentialBuilding, residentialCapacity } from "../residentialCapacityFormula";
 import { innerWalledAreaShare, townExtentMeters } from "../settlementExtent";
 import { importedRoadsForSite } from "../site/importedRoads";
@@ -51,6 +52,7 @@ export function initialHousingAreaScale(source: CityDocument, settings: Generati
   const site = settings.descriptor;
   if (
     !site?.urbanMorphology ||
+    settings.facilityLayout === "population" ||
     settings.population ||
     settings.housingAreaScale !== undefined ||
     !canExpandHousingArea(source, settings)
@@ -135,7 +137,9 @@ export function nextHousingAreaScale(
   lots: readonly BuildingLot[]
 ): number | undefined {
   if (
-    (!hasBuildingHeightVariation(result) && !hasBuildingHeightLimits(result)) ||
+    (settings.facilityLayout !== "population" &&
+      !hasBuildingHeightVariation(result) &&
+      !hasBuildingHeightLimits(result)) ||
     !canExpandHousingArea(source, settings)
   )
     return undefined;
@@ -149,7 +153,12 @@ export function nextHousingAreaScale(
     (result.buildingHeightLimit?.maxHeightMeters ?? Infinity) < 3
   )
     return undefined;
-  const capacity = initialHeightCapacity(result, lots);
+  // Facilities replace ordinary lots. Count their dwellings and the finished housing fit,
+  // rather than expanding for the low-rise estimate when the existing town already fits.
+  const facilities = settings.facilityLayout === "population";
+  const capacity = facilities
+    ? required - measureHousingCapacity(result, [...lots], required).unplacedDwellings
+    : initialHeightCapacity(result, lots);
   if (capacity >= required) return undefined;
   const current = settings.housingAreaScale ?? 1;
   let maximum = maximumHousingAreaScale(source, settings);
@@ -162,6 +171,12 @@ export function nextHousingAreaScale(
       maximum,
       (townExtentMeters(source.frame) / 2.6 / (result.populationPlan.cityRadiusMeters / Math.sqrt(current))) ** 2
     );
-  const next = Math.min(maximum, current * Math.min(4, (required / Math.max(1, capacity)) * 1.08));
-  return next > current * 1.02 ? next : undefined;
+  let target = current * Math.min(4, (required / Math.max(1, capacity)) * (facilities ? 1 : 1.08));
+  if (facilities) {
+    const area = result.populationPlan?.targetAreaM2 ?? Math.PI * result.frame.cityRadiusMeters ** 2;
+    // A one-dwelling deficit still needs at least one more core-sized cell.
+    target = Math.max(target, current * (1 + result.frame.blockSizeMeters ** 2 / Math.max(1, area)));
+  }
+  const next = Math.min(maximum, target);
+  return next > current * (facilities ? 1 + 1e-6 : 1.02) ? next : undefined;
 }

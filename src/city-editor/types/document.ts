@@ -211,6 +211,10 @@ export interface LandmarkPolygon {
 }
 
 export interface LandmarkAsset {
+  /** Fixed dwelling capacity in a mixed residential workshop. */
+  residentialDwellings?: number;
+  /** BV models retain authored meter scale; no separate saved model instance is needed. */
+  bvModel?: { id: string; quality: "low" | "high"; heightMeters: number };
   id: string;
   revision: string;
   name: string;
@@ -526,6 +530,30 @@ export interface BastionedTownPlan {
 }
 
 export interface CityDocument {
+  facilityReport?: {
+    population: number;
+    required: number;
+    placed: number;
+    provisional: number;
+    sites: {
+      id: string;
+      assetId: string;
+      areaM2: number;
+      zone: "core" | "outskirts";
+      provisional: boolean;
+      riverbankMaxDistanceMeters?: number;
+    }[];
+    unplaced: { id: string; reason: string }[];
+    housing?: {
+      requiredDwellings: number;
+      assignedDwellings: number;
+      unplacedDwellings: number;
+      areaScale: number;
+      expansionPasses: number;
+      coreCells: number;
+      expansionLimited: boolean;
+    };
+  };
   buildingHeightLimit?: import("./contracts/buildingHeightLimits").BuildingHeightLimit;
 
   /** Accepted automatic core-area calibration, also retained on grids without a generation recipe. */

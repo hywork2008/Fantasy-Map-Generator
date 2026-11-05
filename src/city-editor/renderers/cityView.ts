@@ -43,6 +43,7 @@ import type { BuildingLot } from "../generators/buildingLots.types";
 import { cachedForestPlan } from "../generators/forestPlan";
 import { hasForestState } from "../generators/forestSettings";
 import { terrainRayPoint } from "../generators/freeform/groundPick";
+import { bvLandmarkElements } from "../generators/landmarkIntegration";
 import { buildParkLawns } from "../generators/parkFabric";
 import { RIVER_DROP_MIN, riverDropMeters } from "../generators/riverSurface";
 import { type CityTerrain, cityTerrain, cityTerrainStamp } from "../generators/terrainElevation";
@@ -774,7 +775,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     });
     const farmlandChanged =
       outskirtsChanged || terrainChanged || plan.water || farmlandSource !== fabric.farms || !farmland;
-    const objectElements = city.elements.filter(item => item.kind === "object");
+    const objectElements = [...city.elements, ...bvLandmarkElements(city)].filter(item => item.kind === "object");
     const nextObjectStamp = JSON.stringify(objectElements);
     const objectsChanged = terrainChanged || objectStamp !== nextObjectStamp || !objects;
     const shipSites = collectShipSites(city);

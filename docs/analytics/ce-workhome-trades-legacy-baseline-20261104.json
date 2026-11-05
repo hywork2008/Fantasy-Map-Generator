@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "note": "Pre T1b-5 textile and woodworking workshop factory signatures, UUID excluded.",
+  "entries": [
+    {
+      "variant": "medieval.weavers-workshop@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "656f322923fb70c0b5da89c85e0f1c079db8582c7e13d7939f0b24f17ad938a5"
+    },
+    {
+      "variant": "medieval.weavers-workshop@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "4a229e97ec55cf38e297bc842bf7d1fffc1b0985ccba41baf5e5f30da90aa428"
+    },
+    {
+      "variant": "medieval.tailors-workshop@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "d618dd87ba6cf3c77e1b2a44515398b5da0a10813c632dd919048ce0e28720a4"
+    },
+    {
+      "variant": "medieval.tailors-workshop@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "b4f91a4f84b3ea6ca620cb7d21e765d8f3e0d2f565fc1c6bcfd599979d21bad0"
+    },
+    {
+      "variant": "medieval.cobblers-workshop@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "09b928dca24c6d959f3f5217672fcd9b3548109b598fc859171bf691bd366a32"
+    },
+    {
+      "variant": "medieval.cobblers-workshop@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "77a76b77bd5e610cd612dab7b2d998d4b3e47a4f1964face2630d0763a3e081d"
+    },
+    {
+      "variant": "medieval.coopers-workshop@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "c3e406eae2e10769cd48ae0a5f2b72a31bf495abd694c30ed4edb3dd15a047b2"
+    },
+    {
+      "variant": "medieval.coopers-workshop@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "72f13bde5d049bae324499688e86bf16c41012b9301decf91fe42803384ef99c"
+    },
+    {
+      "variant": "medieval.joiners-workshop@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "73f3cf4ac13fb105b059ae3cb8ad175b1ea5f1016d53b9e263bb87c6a5ea9070"
+    },
+    {
+      "variant": "medieval.joiners-workshop@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "1e84ec11682e8a94abd2aa795882b13c8674a86ff25f37467c6c4b36a7281658"
+    }
+  ]
+}

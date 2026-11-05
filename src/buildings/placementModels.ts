@@ -6,8 +6,19 @@ import { createStructureMassing } from "../city3d/three/structureMeshes";
 import { BUILDING_APPEARANCE_PROFILES } from "./appearance/types";
 import { createRegionalHouse, defaultRegionalHouseSpec } from "./houses/regionalHouses";
 import { models as marketStalls } from "./medieval/06-market-stallsModels";
+import { models as breweries } from "./medieval/15-breweriesModels";
 import { models as civicHalls } from "./medieval/26-civic-hallsModels";
 import { models as clothHalls } from "./medieval/27-cloth-hallsModels";
+import { models as potteries } from "./medieval/34-pottery-workshopsModels";
+import { models as printers } from "./medieval/38-printing-modelsModels";
+import { models as tradeHalls } from "./medieval/48-trade-guild-hallsModels";
+import { models as marketHalls } from "./medieval/49-market-guild-hallsModels";
+import { models as workhomeShells } from "./medieval/50-workhome-shellsModels";
+import { models as workhomes } from "./medieval/51-trade-workhomesModels";
+import { models as bakehouses } from "./medieval/52-dedicated-bakehousesModels";
+import { models as smithies } from "./medieval/53-dedicated-smithiesModels";
+import { models as coopers } from "./medieval/54-dedicated-cooperageModels";
+import { models as tanneries } from "./medieval/55-dedicated-tanneriesModels";
 import { isMarketPalette, type MarketPalette } from "./medieval/marketAppearance";
 import {
   isMarketModel,
@@ -106,7 +117,22 @@ for (const object of PLACEABLE_OBJECTS) {
   });
 }
 
-for (const model of [...marketStalls, ...civicHalls, ...clothHalls]) {
+for (const model of [
+  ...marketStalls,
+  ...breweries,
+  ...potteries,
+  ...printers.filter(m => m.id === "early-printing-workshop"),
+  ...civicHalls,
+  ...clothHalls,
+  ...tradeHalls,
+  ...marketHalls,
+  ...workhomeShells,
+  ...workhomes,
+  ...bakehouses,
+  ...smithies,
+  ...coopers,
+  ...tanneries
+]) {
   const qualities = Object.fromEntries(
     (["low", "high"] as const).map(level => [
       level,
@@ -114,7 +140,11 @@ for (const model of [...marketStalls, ...civicHalls, ...clothHalls]) {
     ])
   );
   sources.set(model.id, {
-    item: { id: model.id, category: model.task === 6 ? "Market stalls" : "Market halls", name: model.name },
+    item: {
+      id: model.id,
+      category: model.task >= 48 ? "Trade facilities" : model.task === 6 ? "Market stalls" : "Market halls",
+      name: model.name
+    },
     definition: qualities.high,
     qualities,
     footprint: quality => measured(qualities[quality === "low" ? "low" : "high"])

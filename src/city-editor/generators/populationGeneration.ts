@@ -141,7 +141,7 @@ export function validatePopulationGeneration(document: CityDocument, settings: G
     period,
     document.frame.extentMeters,
     heightPolicyVersion,
-    heightPolicyVersion ? (settings.housingAreaScale ?? 1) : 1
+    heightPolicyVersion || settings.facilityLayout === "population" ? (settings.housingAreaScale ?? 1) : 1
   );
   if (fortress && population.frameMode !== "manual") {
     const extent = fortressFrameExtent(plan.cityRadiusMeters, settings);

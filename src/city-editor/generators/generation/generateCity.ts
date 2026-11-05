@@ -62,10 +62,12 @@ import {
   straightenGateCrossings
 } from "../passages";
 import { bramCoreRadiusForCity, bramSpokeRadiusMeters } from "../polygonalCirculadeLayout";
+import { generatePopulationFacilities, withoutGeneratedFacilities } from "../populationFacilities";
 import { preparePopulationGeneration } from "../populationGeneration";
 import { fitPopulationHousing } from "../populationHousingFit";
 import { isHexagonalDocument, rectifyHexBlocks } from "../rectifyHexBlocks";
 import { rectifyVoronoiBlocks } from "../rectifyVoronoiBlocks";
+import { measureHousingCapacity } from "../residentialCapacity";
 import { riverFlowsFromDescriptor } from "../riverFlow";
 import { cultivateRoadside } from "../roadsideFarms";
 import { generateRuralFieldStage } from "../ruralFieldStage";
@@ -123,6 +125,7 @@ export function generateCityOnDocument(
   profiler?: ProcessingProfiler,
   stopAfter?: "streets" | "innerWall" | "innerGates" | "firstInnerGates"
 ): CityDocument | null {
+  document = withoutGeneratedFacilities(document);
   const settingIssues = generationSettingIssues(document, settings).filter(issue => issue.severity !== "warning");
   if (settingIssues.length) {
     for (const issue of settingIssues)
@@ -410,6 +413,24 @@ export function generateCityOnDocument(
       // the historical period and scene regions all change which lots are
       // built, so an earlier count overstated the houses by up to ~20%.
       // One content-keyed district cache for the first fabric and every housing count.
+      Object.assign(
+        result,
+        measureProcessing(profiler, "population-facilities", () => generatePopulationFacilities(result, settings))
+      );
+      if (result.facilityReport)
+        observe({
+          phase: "population-facilities",
+          elapsedMs: 0,
+          attempt: attempt + 1,
+          counts: {
+            required: result.facilityReport.required,
+            placed: result.facilityReport.placed,
+            unplaced: result.facilityReport.unplaced.length,
+            provisional: result.facilityReport.provisional,
+            coreCells: Object.values(result.mesh.faces).filter(f => f.properties.settlement === "core").length,
+            housingAreaScale: settings.housingAreaScale ?? 1
+          }
+        });
       const fabricCache = new FabricCache(512);
       let heightAreaChecked = false;
       const expandHousing = (lots: Parameters<typeof nextHousingAreaScale>[3]): CityDocument | null => {
@@ -466,7 +487,10 @@ export function generateCityOnDocument(
           phase.absorbedClusterIds = result.urbanGrowth.absorbedClusters
             .filter(c => c.wallPhaseId === phase.id)
             .map(c => c.id);
-        if (hasBuildingHeightVariation(result) || hasBuildingHeightLimits(result)) {
+        if (
+          settings.facilityLayout !== "population" &&
+          (hasBuildingHeightVariation(result) || hasBuildingHeightLimits(result))
+        ) {
           const expanded = expandHousing(initialFabric.buildings);
           if (expanded) return expanded;
         }
@@ -495,9 +519,27 @@ export function generateCityOnDocument(
         measureProcessing(profiler, "population-housing", () =>
           fitPopulationHousing(result, fabricCache, sample => observe({ ...sample, attempt: attempt + 1 }))
         );
-      if (!heightAreaChecked && (hasBuildingHeightVariation(result) || hasBuildingHeightLimits(result))) {
+      if (
+        !heightAreaChecked &&
+        (settings.facilityLayout === "population" ||
+          hasBuildingHeightVariation(result) ||
+          hasBuildingHeightLimits(result))
+      ) {
         const expanded = expandHousing(buildBlockFabric(result, fabricCache).buildings);
         if (expanded) return expanded;
+      }
+      if (result.facilityReport) {
+        const required = result.populationPlan?.requiredDwellings ?? settings.descriptor?.burg.dwellings ?? 0;
+        const housing = measureHousingCapacity(result, buildBlockFabric(result, fabricCache).buildings, required);
+        result.facilityReport.housing = {
+          requiredDwellings: required,
+          assignedDwellings: housing.assignedInside + housing.assignedOutside,
+          unplacedDwellings: housing.unplacedDwellings,
+          areaScale: settings.housingAreaScale ?? 1,
+          expansionPasses: settings.housingAreaPasses ?? 0,
+          coreCells: Object.values(result.mesh.faces).filter(f => f.properties.settlement === "core").length,
+          expansionLimited: housing.unplacedDwellings > 0
+        };
       }
       if (
         settings.townFortification &&

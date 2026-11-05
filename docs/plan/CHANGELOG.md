@@ -1,5 +1,29 @@
 # 追加したドキュメント
 
+2026-11-06
+
+- docs/analytics/ce-enclosed-guild-hall-t1b-20261103.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
+- docs/analytics/ce-facility-block-allocation-20261106.md - 5,000人の施設配置・住宅補填を通常条件と広場／2階上限で確認。郊外の敷地不足29件を解消し、川なしで配置できる269施設を全配置。コア61セルの維持と87セルまでの補填、固定入力・全量出力のSHA-256・確認範囲を記録
+- docs/analytics/ce-facility-frontage-20261106.md - 提供共有URLで施設正面を接する街路に揃え、入口通路を短い垂直接続へ修正。斜め配置169→0件、通路間交差31→0件、最長79.87→5.22 mを確認。実CEの靴工房・寺院周辺画像、回帰入力、比較出力のSHA-256を記録
+- docs/analytics/ce-facility-frontage-shoemaker-20261106.png - 実CEで小路に沿った靴工房と短い入口通路を確認した画像
+- docs/analytics/ce-facility-frontage-temple-20261106.png - 実CEで寺院周辺の長い交差通路が解消されたことを確認した画像
+- docs/analytics/ce-facility-placement-performance-20261106.md - 施設付き生成をCPU計測し、入口接続候補の全件検証と遠い形状の交差判定を削減。5,000人の計算時間28.8秒→5.8秒、配置・住宅・メッシュ・道路の出力一致と関連17件成功を記録
+- docs/analytics/ce-market-guild-legacy-baseline-20261104.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
+- docs/analytics/ce-workhome-trades-legacy-baseline-20261104.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
+- docs/plan/ce-facility-block-allocation.md - 施設配置の再出発方針と3作業の状態。通常生成・方式分離・人口別BV／仮敷地・保存と共有・不足住宅分のコア拡張まで実装。5,000人で川なしの269施設を全配置し、必要1,112戸の充足と郊外追加敷地を確認。次は川あり都市と実画面の確認
+- docs/plan/data/ce-dedicated-bakehouse-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
+- docs/plan/data/ce-dedicated-cooperage-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
+- docs/plan/data/ce-dedicated-smithies-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
+- docs/plan/data/ce-dedicated-tannery-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
+- docs/plan/data/ce-medieval-market-hall-v2.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
+- docs/plan/data/ce-medieval-trade-forms-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
+- docs/plan/data/ce-medieval-workhome-equipment-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
+- docs/plan/data/ce-medieval-workhome-shells-v2.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
+- docs/plan/medieval-urban-calibration-targets.md - 人口別施設数・面積の目標値を旧作業ブランチから移植
+- docs/plan/medieval-urban-calibration-targets/demand-and-labor.csv - 人口別施設数・面積の目標値を旧作業ブランチから移植
+- docs/plan/medieval-urban-calibration-targets/occupations.csv - 人口別施設数・面積の目標値を旧作業ブランチから移植
+- docs/plan/medieval-urban-calibration-targets/sources.csv - 人口別施設数・面積の目標値を旧作業ブランチから移植
+
 2026-11-03
 
 - docs/plan/bv-ships-models.md - ShipsのCodex単一版5船種とOpusガレオンLow／Highを監査・計測。品質根拠、索具の負荷と結合時の消失リスク、展帆／畳帆・砲門開閉・旗の独立入力、部品構成、CEの寸法・保存・荷役と制作順を整理。Opus比較表の「この品質のみ利用可能」という誤表示を修正。関連22件・実BV成功、未変更2箇所の型エラーを記録。続くS1でSloop Highの8部品・両品質の展帆／畳帆・索具保持と資源所有・BV選択を実装。既存Low/defaultとCE採用を維持し、関連15件・実BV・計測で検証。続くS2でCaravel8部品・Carrack13部品のHighと両品質の畳帆を実装。共有船体・船楼・帆装と索具処理、前後帆の干渉回避、BV追加・共通表示、関連29件・実BV・負荷を記録。続くS3でCodex Galleon High16部品、両作者・両品質の帆×砲門4状態、Opus6部品を実装。旧3形状・CE defaultを維持し、実開口・蓋の被覆・砲身格納・全28門・船首支持・解放を関連41件と実BVで検証。状態別負荷と派生元を記録。その後、左舷砲門の不要な面内回転を上方向を保つ取付基底へ修正し、左右全門の姿勢と閉蓋を関連17件で検証。さらにユーザー指定でCEを先行接続し、生成停泊船は畳帆・砲門閉、ブラシ船は展帆・砲門閉で保存・描画。旧形式補完・状態別共有・2Dを関連43件と実CEの保存／再読込・3Dで検証。次はBarge High

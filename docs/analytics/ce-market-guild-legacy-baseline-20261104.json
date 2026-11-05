@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "gitHead": "43e084e93c74380fdb27116e4b069927bc162975",
+  "entries": [
+    {
+      "variant": "medieval.medieval-town-hall@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "610cd07830dca65f9fac2629f632400f17965f5088a1a576b3c38a2cbfdf9852"
+    },
+    {
+      "variant": "medieval.medieval-town-hall@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "39ceab58dcc9782ce11e65167b04e0eead93099187701b9cdd4604f38b9bf966"
+    },
+    {
+      "variant": "medieval.covered-market-hall@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "da9075de0f7085cf16af3ee4c89285aa5afa5155daa0d21d2ae8f3f0f7f6afa5"
+    },
+    {
+      "variant": "medieval.covered-market-hall@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "56207d9b05d463d365a6b3bfcfd95b907961dc5fdbe5339c8cc202e8ef4a9222"
+    },
+    {
+      "variant": "medieval.cloth-guild-hall@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "52bb6d2790fb3093bbeb9917c29957cf9c80e9da5dbf99b9af29a8a16513671a"
+    },
+    {
+      "variant": "medieval.cloth-guild-hall@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "9f41e80c7cba61ab834c2e793e905e2e8077a1df99d856a98c1dc3cd5c136c54"
+    },
+    {
+      "variant": "medieval.leather-guild-hall@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "2c15b52de0f01308cd779bccb38da66c35e9e183dafd0de166dace06e562bb7d"
+    },
+    {
+      "variant": "medieval.leather-guild-hall@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "b74e934a96cbb0cbe9de10d49206f075b7d702a9f65e4f182537dcf8d14fa730"
+    },
+    {
+      "variant": "medieval.woodworking-guild-hall@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "4a6a71657e5971ebf0e02e1eb757a006195125adb212a6846d21f0804635ca48"
+    },
+    {
+      "variant": "medieval.woodworking-guild-hall@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "7b688c1823cf40a3faf45af94b7d0d0f42ceafb98b5716569df350bc9adb77df"
+    },
+    {
+      "variant": "medieval.masonry-guild-hall@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "c888a0b8d321f5f48ffbb911a2d4d29695e8b322708b91141c419749c13bbd6b"
+    },
+    {
+      "variant": "medieval.masonry-guild-hall@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "80696501da66905c11862a5ce1cf8d6a75f1d28ea32bb692348f01cce4abf0a5"
+    },
+    {
+      "variant": "medieval.metallurgy-guild-hall@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "5bce984d5f00f3c80f7f0235b1fa8dd4a9bd08c0646358ffd8c09d3bd0992fc8"
+    },
+    {
+      "variant": "medieval.metallurgy-guild-hall@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "5469a27f2c4aea2849157a08cf52f26540fd058f9903d1751157c949846b66e6"
+    }
+  ]
+}

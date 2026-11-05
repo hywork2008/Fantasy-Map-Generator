@@ -212,3 +212,10 @@ export function createHighWoodworkingWorkshop(kind: "cooper" | "joiner") {
   else joiner(k);
   return compactModel(k.finish());
 }
+
+/** Full-size existing vessel geometry for separate, placement-rated workshop studies. */
+export function createCooperVessel(unfinished: boolean) {
+  const k = new HouseDetailKit(unfinished ? "cooper-assembly-vessel" : "cooper-finished-vessel");
+  barrel(k, 0, 0, 0, unfinished);
+  return k.finish();
+}
