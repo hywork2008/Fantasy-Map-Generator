@@ -19,6 +19,8 @@ import { models as bakehouses } from "./medieval/52-dedicated-bakehousesModels";
 import { models as smithies } from "./medieval/53-dedicated-smithiesModels";
 import { models as coopers } from "./medieval/54-dedicated-cooperageModels";
 import { models as tanneries } from "./medieval/55-dedicated-tanneriesModels";
+import { models as ropeworks } from "./medieval/56-ropeworksModels";
+import { models as butcheries } from "./medieval/57-butcheryModels";
 import { isMarketPalette, type MarketPalette } from "./medieval/marketAppearance";
 import {
   isMarketModel,
@@ -131,7 +133,9 @@ for (const model of [
   ...bakehouses,
   ...smithies,
   ...coopers,
-  ...tanneries
+  ...tanneries,
+  ...ropeworks,
+  ...butcheries
 ]) {
   const qualities = Object.fromEntries(
     (["low", "high"] as const).map(level => [

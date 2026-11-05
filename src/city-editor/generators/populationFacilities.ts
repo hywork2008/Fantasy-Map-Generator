@@ -95,6 +95,14 @@ export function populationFacilityRequests(population: number, settings: Generat
         return bvFacilityAsset("trade-workshop.dedicated-cooperage", DEDICATED_COOPER.ports.slice(0, 1));
       if (trade.pool === "tanning")
         return bvFacilityAsset("trade-workshop.dedicated-wet-tannery", DEDICATED_TANNERY.ports);
+      if (trade.pool === "ropemaking")
+        return bvFacilityAsset("trade-workshop.dedicated-ropewalk", [
+          { id: "main", position: [0, 0, 27], clearWidth: 1.6 }
+        ]);
+      if (trade.pool === "butchery")
+        return bvFacilityAsset("trade-workshop.dedicated-butchery", [
+          { id: "main", position: [-2, 0, 2.5], clearWidth: 1.5 }
+        ]);
       // Low-tier entrance positions follow the existing authored hall/open-shelter fronts.
       if (trade.pool === "brewing")
         return bvFacilityAsset("town-brewery", [{ id: "main", position: [-2, 0, 1.5], clearWidth: 1.1 }]);
@@ -102,7 +110,6 @@ export function populationFacilityRequests(population: number, settings: Generat
         return bvFacilityAsset("potters-workshop", [{ id: "main", position: [-2, 0, 1.5], clearWidth: 1.4 }]);
       if (trade.pool === "printing")
         return bvFacilityAsset("early-printing-workshop", [{ id: "main", position: [0, 0, 1.5], clearWidth: 1.4 }]);
-      if (trade.pool === "ropemaking") return placeholder(trade.pool, 5, 60);
       if (["limeAndTile", "pottery", "glazing"].includes(trade.pool)) return placeholder(trade.pool, 20, 20);
       return placeholder(trade.pool);
     });
