@@ -103,6 +103,19 @@ export function populationFacilityRequests(population: number, settings: Generat
         return bvFacilityAsset("trade-workshop.dedicated-butchery", [
           { id: "main", position: [-2, 0, 2.5], clearWidth: 1.5 }
         ]);
+      const townTradeModels: Record<string, { id: string; depth: number }> = {
+        chandlery: { id: "chandlery", depth: 10 },
+        metalwares: { id: "metalwares", depth: 12 },
+        fishmongery: { id: "fishmongery", depth: 12 },
+        cutlery: { id: "cutlery", depth: 10 },
+        limeAndTile: { id: "lime-tile-yard", depth: 20 },
+        glazing: { id: "glaziers-workshop", depth: 10 }
+      };
+      const townTrade = townTradeModels[trade.pool];
+      if (townTrade)
+        return bvFacilityAsset(`trade-workshop.dedicated-${townTrade.id}`, [
+          { id: "main", position: [0, 0, townTrade.depth / 2 - 1.2], clearWidth: 1.5 }
+        ]);
       // Low-tier entrance positions follow the existing authored hall/open-shelter fronts.
       if (trade.pool === "brewing")
         return bvFacilityAsset("town-brewery", [{ id: "main", position: [-2, 0, 1.5], clearWidth: 1.1 }]);
@@ -110,7 +123,7 @@ export function populationFacilityRequests(population: number, settings: Generat
         return bvFacilityAsset("potters-workshop", [{ id: "main", position: [-2, 0, 1.5], clearWidth: 1.4 }]);
       if (trade.pool === "printing")
         return bvFacilityAsset("early-printing-workshop", [{ id: "main", position: [0, 0, 1.5], clearWidth: 1.4 }]);
-      if (["limeAndTile", "pottery", "glazing"].includes(trade.pool)) return placeholder(trade.pool, 20, 20);
+      if (trade.pool === "pottery") return placeholder(trade.pool, 20, 20);
       return placeholder(trade.pool);
     });
     const outer = [
