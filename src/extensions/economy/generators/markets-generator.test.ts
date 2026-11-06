@@ -1403,6 +1403,51 @@ describe("MarketsModule", () => {
       expect(market.marketTreasury?.balance).toBe(82);
     });
 
+    it("holds what the cash cannot buy on consignment and pays the town once it has sold", () => {
+      const market: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 0, price: 10 } },
+        marketTreasury: { balance: 0, ruralGrainPayable: 0 }
+      };
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market, market];
+      setMarkets([market]);
+      const burg: Burg = { i: 1, market: 1, treasury: 0 } as unknown as Burg;
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg];
+
+      expect(marketsModule.sell({ burg, good: getGoods()[0], units: 5, taxRate: 0 })).toBeNull();
+      expect(marketsModule.consign({ burg, good: getGoods()[0], units: 5 })).toBe(5);
+      expect(market.goods[0].stock).toBe(5);
+      const [units, worth] = market.marketTreasury!.craftConsigned![0][1];
+      expect(units).toBe(5);
+      const unitWorth = worth / units;
+
+      // Unsold, nothing is owed.
+      marketsModule.settleCraftConsignments();
+      expect(market.marketTreasury!.craftPayables?.[1]).toBeUndefined();
+
+      // Buyers took 3 and paid the market; the town is paid for those 3, and holds the other 2.
+      market.goods[0].stock = 2;
+      market.marketTreasury!.balance = 100;
+      marketsModule.settleCraftConsignments();
+      expect(burg.treasury).toBeCloseTo(3 * unitWorth, 2);
+      expect(market.marketTreasury!.balance).toBeCloseTo(100 - 3 * unitWorth, 2);
+      expect(market.marketTreasury!.craftConsigned![0][1][0]).toBeCloseTo(2, 9);
+      expect(market.marketTreasury!.craftPayables?.[1]).toBeUndefined();
+
+      // The rest sells while the market is out of cash: it is owed, and paid when cash comes in.
+      market.goods[0].stock = 0;
+      market.marketTreasury!.balance = 0;
+      marketsModule.settleCraftConsignments();
+      expect(market.marketTreasury!.craftPayables![1][0][1]).toBeCloseTo(2 * unitWorth, 2);
+      market.marketTreasury!.balance = 100;
+      marketsModule.settleCraftConsignments();
+      expect(burg.treasury).toBeCloseTo(5 * unitWorth, 2);
+      expect(market.marketTreasury!.craftPayables?.[1]).toBeUndefined();
+    });
+
     it("sync() should rebuild the id index so get() resolves markets after a load", () => {
       const market3: Market = { i: 3, centerBurgId: 30, color: "#fff", goods: {} };
       const market7: Market = { i: 7, centerBurgId: 70, color: "#fff", goods: {} };

@@ -9,12 +9,16 @@ import {
   setCraftEmploymentShare
 } from "../../../../simulation/craftSettings";
 import {
+  CRAFT_SALE_PAYMENT_MODES,
+  type CraftSalePaymentMode,
   getMarketGenerationSpacing,
   getMarketSettings,
   HAY_PAYMENT_MODES,
   HAY_TRADE_MODES,
   type HayPaymentMode,
   type HayTradeMode,
+  HOUSEHOLD_GOODS_PAYMENT_MODES,
+  type HouseholdGoodsPaymentMode,
   MARKET_DISSOLVE_CARGO_MODES,
   MARKET_SETTING_LIMITS,
   type MarketDissolveCargoMode,
@@ -462,6 +466,56 @@ export const SimulationSettingsTab: React.FC = () => {
                 {HAY_PAYMENT_MODES.map(mode => (
                   <option key={mode} value={mode}>
                     {t(`simulation.hayPayment_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.craftSalePaymentTip")}>
+            <td />
+            <td>
+              <label htmlFor="craftSalePayment">{t("simulation.craftSalePayment")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="craftSalePayment"
+                value={marketSettings.craftSalePayment}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      craftSalePayment: e.target.value as CraftSalePaymentMode
+                    })
+                  )
+                }
+              >
+                {CRAFT_SALE_PAYMENT_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.craftSalePayment_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.householdGoodsPaymentTip")}>
+            <td />
+            <td>
+              <label htmlFor="householdGoodsPayment">{t("simulation.householdGoodsPayment")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="householdGoodsPayment"
+                value={marketSettings.householdGoodsPayment}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      householdGoodsPayment: e.target.value as HouseholdGoodsPaymentMode
+                    })
+                  )
+                }
+              >
+                {HOUSEHOLD_GOODS_PAYMENT_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.householdGoodsPayment_${mode}`)}
                   </option>
                 ))}
               </select>

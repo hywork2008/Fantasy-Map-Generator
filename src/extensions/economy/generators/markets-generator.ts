@@ -2079,6 +2079,36 @@ export class MarketsModule {
       ? Math.max(0, treasury.balance - grossRevenue)
       : rn(Math.max(0, treasury.balance - grossRevenue), 2);
     market.marketTreasury = treasury;
+    const deals = getDeals();
+    const deal: Deal = {
+      i: deals.length,
+      seller: burg.i!,
+      sellerType: "burg",
+      buyer: market.i,
+      buyerType: "market",
+      good: good.i,
+      units: actualUnits,
+      price,
+      tax
+    };
+    deals.push(deal);
+    this.receiveBurgGoods(market, marketGood, burg, good, actualUnits, exactUnits);
+
+    return deal;
+  }
+
+  /**
+   * Takes a town's units into the market's stock, sold or consigned: the stock and its depot, the
+   * flow and food records, the price pressure and the sales counters.
+   */
+  private receiveBurgGoods(
+    market: Market,
+    marketGood: Market["goods"][number],
+    burg: Burg,
+    good: Good,
+    actualUnits: number,
+    exactUnits: boolean
+  ): void {
     marketGood.stock = exactUnits ? marketGood.stock + actualUnits : rn(marketGood.stock + actualUnits, 2);
     recordGoodFlow({
       direction: "source",
@@ -2093,20 +2123,6 @@ export class MarketsModule {
     // A burg's automatic production reaches its own collection/wholesale depot first.
     // Market.goods remains the canonical market-wide total; this records its physical location.
     addWholesaleGoodStock(burg.i!, market.i, good.i, actualUnits);
-
-    const deals = getDeals();
-    const deal: Deal = {
-      i: deals.length,
-      seller: burg.i!,
-      sellerType: "burg",
-      buyer: market.i,
-      buyerType: "market",
-      good: good.i,
-      units: actualUnits,
-      price,
-      tax
-    };
-    deals.push(deal);
 
     if (!isPricedByHouseholdDemand(good))
       marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, -actualUnits), 2);
@@ -2127,8 +2143,117 @@ export class MarketsModule {
       const key = `${market.i}:${good.i}`;
       marketProductionTable[key] = rn((marketProductionTable[key] ?? 0) + actualUnits, 2);
     }
+  }
 
-    return deal;
+  /**
+   * Holds town goods the market's cash could not buy on consignment (Simulation settings
+   * `craftSalePayment`, docs/plan/market-goods-settlement.md §2.2): they join the stock now, and
+   * the town is paid what they were worth once they have sold (`settleCraftConsignments`). Returns
+   * the units taken.
+   */
+  consign({
+    burg,
+    good,
+    units,
+    exactUnits = false
+  }: {
+    burg: Burg;
+    good: Good;
+    units: number;
+    exactUnits?: boolean;
+  }): number {
+    if (!isGoodEnabled(good) || !burg.i) return 0;
+    const market = this.get(burg.market);
+    if (!market || !(units > 0)) return 0;
+    const marketGood = this.getMarketGood(market, good);
+    const price = this.customerSellPrice(marketGood.price, burg.i, good.i);
+    const actualUnits = exactUnits ? units : rn(units, 2);
+    if (!(price > 0) || actualUnits < (exactUnits ? 1e-12 : 0.01)) return 0;
+    market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
+    const treasury = market.marketTreasury;
+    treasury.craftConsigned ??= {};
+    const byBurg = treasury.craftConsigned[good.i] ?? {};
+    treasury.craftConsigned[good.i] = byBurg;
+    const held = byBurg[burg.i] ?? [0, 0];
+    byBurg[burg.i] = [held[0] + actualUnits, rn(held[1] + actualUnits * price, 2)];
+    this.receiveBurgGoods(market, marketGood, burg, good, actualUnits, exactUnits);
+    return actualUnits;
+  }
+
+  /**
+   * Consigned goods sell first. What of each good's consigned units is no longer in stock has
+   * sold, and its worth is owed to the towns; the market pays what it owes from its cash before it
+   * buys anything new this cycle, as a sale with its sales tax. Run before the procurement budgets.
+   */
+  settleCraftConsignments(): void {
+    const burgs = this.worldContext.pack.burgs;
+    for (const market of getMarkets()) {
+      const treasury = market.marketTreasury;
+      if (!treasury?.craftConsigned && !treasury?.craftPayables) continue;
+      treasury.craftPayables ??= {};
+      const payables = treasury.craftPayables;
+      for (const [goodIdStr, byBurg] of Object.entries(treasury.craftConsigned ?? {})) {
+        const goodId = +goodIdStr;
+        const rows = Object.entries(byBurg);
+        const consigned = rows.reduce((total, [, row]) => total + row[0], 0);
+        if (!(consigned > 1e-9)) {
+          delete treasury.craftConsigned![goodId];
+          continue;
+        }
+        const sold = consigned - Math.min(consigned, Math.max(0, market.goods[goodId]?.stock ?? 0));
+        if (!(sold > 0)) continue;
+        const share = sold / consigned;
+        for (const [burgIdStr, row] of rows) {
+          const byGood = payables[+burgIdStr] ?? {};
+          payables[+burgIdStr] = byGood;
+          const owed = byGood[goodId] ?? [0, 0];
+          byGood[goodId] = [owed[0] + row[0] * share, rn(owed[1] + row[1] * share, 2)];
+          row[0] -= row[0] * share;
+          row[1] = rn(row[1] * (1 - share), 2);
+          if (!(row[0] > 1e-9)) delete byBurg[+burgIdStr];
+        }
+        if (!Object.keys(byBurg).length) delete treasury.craftConsigned![goodId];
+      }
+
+      let total = 0;
+      for (const [burgIdStr, byGood] of Object.entries(payables)) {
+        const burg = burgs[+burgIdStr];
+        // A town that is gone is owed nothing.
+        if (!burg?.i || burg.removed) delete payables[+burgIdStr];
+        else for (const [, owed] of Object.entries(byGood)) total += owed[1];
+      }
+      const cash = Math.max(0, treasury.balance);
+      if (!(total > 0) || !(cash > 0)) continue;
+      const scale = Math.min(1, cash / total);
+      const deals = getDeals();
+      for (const [burgIdStr, byGood] of Object.entries(payables)) {
+        const burg = burgs[+burgIdStr];
+        const taxRate = this.getSalesTax(burg);
+        for (const [goodIdStr, owed] of Object.entries(byGood)) {
+          const pay = rn(owed[1] * scale, 2);
+          if (!(pay > 0) || !(owed[0] > 0)) continue;
+          const units = owed[0] * scale;
+          const tax = rn(pay * taxRate, 2);
+          treasury.balance = rn(Math.max(0, treasury.balance - pay), 2);
+          burg.treasury = rn((burg.treasury ?? 0) + pay - tax, 2);
+          deals.push({
+            i: deals.length,
+            seller: burg.i!,
+            sellerType: "burg",
+            buyer: market.i,
+            buyerType: "market",
+            good: +goodIdStr,
+            units: rn(units, 2),
+            price: rn(pay / units, 2),
+            tax
+          });
+          owed[0] -= units;
+          owed[1] = rn(owed[1] - pay, 2);
+          if (!(owed[1] > 0)) delete byGood[+goodIdStr];
+        }
+        if (!Object.keys(byGood).length) delete payables[+burgIdStr];
+      }
+    }
   }
 
   /**

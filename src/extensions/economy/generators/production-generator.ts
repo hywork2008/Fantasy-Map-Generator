@@ -5,6 +5,7 @@ import {
 } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { getCraftEmploymentScale } from "../../../simulation/craftSettings";
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import { yieldToHost } from "../../../simulation/ports";
 import type { Burg, State } from "../../hostTypes";
 import { DEBUG, ERROR, measureTickStep, measureTickStepAsync, rn, TIME } from "../../hostUtils";
@@ -427,6 +428,8 @@ export class ProductionModule {
     // Purchase budgets must exist before the Burg loop; otherwise first-cycle production
     // would still depend on whichever Burg happens to run first after a legacy load.
     measureTickStep("production:merchantPurchaseCapital", () => MerchantTradeCapital.ensureAllMarkets());
+    // What a market owes its towns for consigned goods that have sold comes before new purchases.
+    measureTickStep("production:craftConsignments", () => Markets.settleCraftConsignments());
     const saleBudgetByBurg = allocateMarketProcurementBudgets(sortedBurgs, getMarkets());
     // Flour has to exist before the burg loop bakes Bread. The draw is the tradeable
     // surplus only, so this month's household grain reserve is still in the ledger.
@@ -1730,6 +1733,9 @@ export class ProductionModule {
     let phaseRevenue = 0;
     const taxRate = this.getSalesTax(state.burg);
     let remainingBudget = saleBudgetByBurg.get(state.burg.i!) ?? 0;
+    // What the market's cash cannot buy it holds on consignment instead of the town losing it
+    // (docs/plan/market-goods-settlement.md §2.2).
+    const consign = getMarketSettings().craftSalePayment === "consignment";
 
     for (const goodIdStr in state.inventory) {
       const goodId = +goodIdStr;
@@ -1738,14 +1744,16 @@ export class ProductionModule {
 
       const good = Goods.get(goodId);
       if (!good || !isGoodEnabled(good)) continue;
+      const exactUnits = hasPhysicalWoodRecipe(good.name) || hasPhysicalTextileRecipe(good.name);
       const deal = Markets.sell({
         burg: state.burg,
         good,
         units,
         taxRate,
         budget: remainingBudget,
-        exactUnits: hasPhysicalWoodRecipe(good.name) || hasPhysicalTextileRecipe(good.name)
+        exactUnits
       });
+      if (consign) Markets.consign({ burg: state.burg, good, units: units - (deal?.units ?? 0), exactUnits });
       if (!deal) continue;
 
       remainingBudget = rn(Math.max(0, remainingBudget - deal.units * deal.price), 2);

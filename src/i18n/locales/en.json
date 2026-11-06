@@ -2101,7 +2101,15 @@
     "hayPayment": "Hay payment",
     "hayPaymentTip": "How a market pays for the hay it takes at the cut. On credit: it sells the farms' hay for them and pays them what it fetches, as it sells. Cash at the cut: it buys outright from its cash, as far as it holds, and keeps what the hay later sells for.",
     "hayPayment_onCredit": "On credit",
-    "hayPayment_cash": "Cash at the cut"
+    "hayPayment_cash": "Cash at the cut",
+    "craftSalePayment": "Town goods sale",
+    "craftSalePaymentTip": "How a market takes the goods its towns make. Consignment: it buys what its cash allows and holds the rest for the town, paying the town once those goods have sold. Cash only: it takes only what its cash buys, and the rest of the town's output is lost.",
+    "craftSalePayment_consignment": "Consignment",
+    "craftSalePayment_cash": "Cash only",
+    "householdGoodsPayment": "Household drinks and foods",
+    "householdGoodsPaymentTip": "Whether households pay the market for the ale, wine, cider, cheese, milk and fruit they take from its stock. Free: they take them without paying, and the towns are not paid for their consigned goods so taken. Pay: town households pay the market price from their cash above their reserve, farm households from their month's spending in town, and they take only what they can pay for.",
+    "householdGoodsPayment_pay": "Pay",
+    "householdGoodsPayment_free": "Free"
   },
   "dangerSettings": {
     "heading": "Danger settings:",

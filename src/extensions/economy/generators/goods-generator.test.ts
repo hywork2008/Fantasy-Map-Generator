@@ -1204,6 +1204,24 @@ describe("GoodsModule", () => {
     expect(migrateWeightRepricing()).toBe(false);
   });
 
+  it("brings a saved ale and cask to their new values from either old default, keeping a player's value", () => {
+    goodsModule.restoreDefaults();
+    const byName = (name: string) => getGoods().find(good => good.name === name)!;
+    byName("Beer").value = 4;
+    byName("Barrels").value = 2;
+    byName("Wine").value = 1.28;
+
+    expect(migrateWeightRepricing()).toBe(true);
+    expect(byName("Beer").value).toBe(1.5);
+    expect(byName("Barrels").value).toBe(0.1);
+    byName("Beer").value = 2.4;
+    expect(migrateWeightRepricing()).toBe(true);
+    expect(byName("Beer").value).toBe(1.5);
+    byName("Barrels").value = 3; // set by the player in the Goods editor
+    expect(migrateWeightRepricing()).toBe(false);
+    expect(byName("Barrels").value).toBe(3);
+  });
+
   it("moves saved Salt from the taxed 0.45 or the first step's 0.08 to the untaxed value, keeping a player's value", () => {
     goodsModule.restoreDefaults();
     const salt = getGoods().find(good => good.name === "Salt")!;

@@ -385,6 +385,16 @@ export const URBAN_HOUSEHOLD_BUFFER_MONTHS = 12;
 export const URBAN_HOUSEHOLD_SPEND_SHARE = 0.2;
 
 /**
+ * A town's household cash above the buffer it keeps for food and rent: what it can spend on trades,
+ * services and the market's drinks and foods (docs/plan/market-goods-settlement.md §2.1).
+ */
+export function getUrbanHouseholdSpendable(burg: Pick<Burg, "i" | "population">): number {
+  const profile = getEconomyStartProfile(getWorldContext().options ?? {});
+  const buffer = (burg.population ?? 0) * profile.householdWealthPerPopulation * (URBAN_HOUSEHOLD_BUFFER_MONTHS / 12);
+  return Math.max(0, getHouseholdWealth(burg.i) - buffer);
+}
+
+/**
  * Town households spend cash above their buffer on local trades and services (bakers' bread aside:
  * clothes, repairs, carting, ale, rent). That spending is the town's business income, credited to
  * `burg.treasury`, which pays local works and remits to the State. Without it, wages paid into a
@@ -393,12 +403,10 @@ export const URBAN_HOUSEHOLD_SPEND_SHARE = 0.2;
 export function spendUrbanHouseholdSurplus(): number {
   if (!isEconomyContextReady()) return 0;
   const { pack } = getWorldContext();
-  const profile = getEconomyStartProfile(getWorldContext().options ?? {});
   let spent = 0;
   for (const burg of pack.burgs ?? []) {
     if (!burg?.i || burg.removed) continue;
-    const buffer = (burg.population ?? 0) * profile.householdWealthPerPopulation * (URBAN_HOUSEHOLD_BUFFER_MONTHS / 12);
-    const excess = getHouseholdWealth(burg.i) - buffer;
+    const excess = getUrbanHouseholdSpendable(burg);
     if (!(excess > 0)) continue;
     const amount = debitHouseholdWealth(burg.i, rn(excess * URBAN_HOUSEHOLD_SPEND_SHARE, 2));
     if (!(amount > 0)) continue;

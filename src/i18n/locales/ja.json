@@ -2101,7 +2101,15 @@
     "hayPayment": "干し草の支払い",
     "hayPaymentTip": "市場が刈り取りの時に受け取る干し草の払い方です。掛け：農家の干し草を代わりに売り、売れるたびにその売り値を農家に払います。刈り取りの時に現金：持っている現金の分だけその場で買い取り、後の売り上げは市場のものになります。",
     "hayPayment_onCredit": "掛け",
-    "hayPayment_cash": "刈り取りの時に現金"
+    "hayPayment_cash": "刈り取りの時に現金",
+    "craftSalePayment": "町の産物の買い取り",
+    "craftSalePaymentTip": "市場が町の産物を受け取る方法です。委託：現金で払える分を買い取り、残りは町から預かって、売れたらその代金を町に払います。現金のみ：現金で買える分だけを受け取り、残りの産物は消えます。",
+    "craftSalePayment_consignment": "委託",
+    "craftSalePayment_cash": "現金のみ",
+    "householdGoodsPayment": "家計の飲み物と食品",
+    "householdGoodsPaymentTip": "家計が市場の在庫から取るエール・ワイン・シードル・チーズ・牛乳・果物の代金を、市場に払うかどうかです。払わない：代金を払わずに取ります。こうして取られた委託の品の代金は、町に払われません。払う：町の家計は蓄えを超える現金から、農村の家計はその月に町で使う分から、市場の値段で払い、払えた分だけ取ります。",
+    "householdGoodsPayment_pay": "払う",
+    "householdGoodsPayment_free": "払わない"
   },
   "dangerSettings": {
     "heading": "危険度の設定：",

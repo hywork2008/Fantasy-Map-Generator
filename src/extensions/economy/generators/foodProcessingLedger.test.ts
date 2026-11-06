@@ -55,6 +55,29 @@ vi.mock("../economyContext", () => ({
 }));
 const ruralPopulation = vi.hoisted(() => ({ people: 0 }));
 vi.mock("./marketPopulation", () => ({ getMarketRuralPopulation: () => ruralPopulation.people }));
+// What households may spend on these goods: unlimited unless a test sets it (docs/plan/market-goods-settlement.md §2.1).
+const purses = vi.hoisted(() => ({ town: Infinity, rural: Infinity, paidByTown: 0, paidByRural: 0 }));
+const settings = vi.hoisted(() => ({ householdGoodsPayment: "free" as "free" | "pay" }));
+vi.mock("../../../simulation/marketSettings", () => ({ getMarketSettings: () => settings }));
+vi.mock("./burgMarketLedgers", () => ({
+  debitHouseholdWealth: (_burgId: number, amount: number) => {
+    const paid = Math.min(purses.town, amount);
+    purses.town -= paid;
+    purses.paidByTown += paid;
+    return paid;
+  }
+}));
+vi.mock("./householdWealth", () => ({
+  RURAL_HOUSEHOLD_TOWN_SPEND_SHARE: 1,
+  getRuralHouseholdWealth: () => purses.rural,
+  getUrbanHouseholdSpendable: () => purses.town,
+  debitRuralHouseholdWealth: (_market: unknown, amount: number) => {
+    const paid = Math.min(purses.rural, amount);
+    purses.rural -= paid;
+    purses.paidByRural += paid;
+    return paid;
+  }
+}));
 
 import {
   CHEESE_RESERVE_MONTHS,
@@ -86,7 +109,48 @@ describe("foodProcessingLedger", () => {
     for (const id of [8, 9, 10, 11]) market.goods[id] = { stock: 0, price: 1 };
     market.foodProcessingLedger = undefined;
     market.returnableContainerLedger = undefined;
+    market.marketTreasury = undefined;
     urbanWaterSystems.length = 0;
+    Object.assign(purses, { town: Infinity, rural: Infinity, paidByTown: 0, paidByRural: 0 });
+    ruralPopulation.people = 0;
+    settings.householdGoodsPayment = "free";
+  });
+
+  it("takes consigned goods out of the consignment unpaid when households take them for free", () => {
+    for (const id of [1, 3, 4, 5, 6]) market.goods[id].stock = 0;
+    market.goods[2] = { stock: 10, price: 2 };
+    market.marketTreasury = { balance: 0, ruralGrainPayable: 0, craftConsigned: { 2: { 1: [4, 8] } } };
+    const demand = getMonthlyHouseholdDemand(market, "Cheese");
+    settleFoodProcessingHouseholds();
+    const [units, worth] = market.marketTreasury.craftConsigned![2][1];
+    expect(units).toBeCloseTo(4 - demand, 6);
+    expect(worth).toBeCloseTo(8 * (1 - demand / 4), 2);
+    expect(purses.paidByTown).toBe(0);
+  });
+
+  it("has households pay the market for what they take, and take only what they can pay for", () => {
+    settings.householdGoodsPayment = "pay";
+    ruralPopulation.people = 1_000;
+    for (const id of [1, 3, 4, 5, 6]) market.goods[id].stock = 0;
+    market.goods[2] = { stock: 100, price: 2 };
+    const demand = getMonthlyHouseholdDemand(market, "Cheese");
+    settleFoodProcessingHouseholds();
+    // Town and farms share the bill by their people: 1,000 each.
+    expect(purses.paidByTown).toBeCloseTo(demand, 1);
+    expect(purses.paidByRural).toBeCloseTo(demand, 1);
+    expect(market.foodProcessingLedger!.Cheese!.householdConsumption).toBeCloseTo(demand, 2);
+    expect(market.marketTreasury!.balance).toBeCloseTo(demand * 2, 1);
+
+    market.foodProcessingLedger = undefined;
+    market.marketTreasury = undefined;
+    Object.assign(purses, { town: 0, rural: 1, paidByTown: 0, paidByRural: 0 });
+    market.goods[2] = { stock: 100, price: 2 };
+    settleFoodProcessingHouseholds();
+    const cheese = market.foodProcessingLedger!.Cheese!;
+    expect(cheese.householdConsumption).toBeCloseTo(0.5, 2);
+    expect(cheese.unmetDemand).toBeCloseTo(demand - 0.5, 2);
+    expect(market.goods[2].stock).toBeCloseTo(99.5, 2);
+    ruralPopulation.people = 0;
   });
 
   it.each([

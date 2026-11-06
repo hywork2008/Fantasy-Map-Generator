@@ -1665,7 +1665,9 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["naval", "storage"],
     icon: "good-barrels",
     color: "#b46e3b",
-    value: 2,
+    // Wood and the cooper's wage at the calibrated labor (about 0.06) with a margin
+    // (ale-cask-repricing.md §3.2). The sources' 3d is about 0.02; it was 2.
+    value: 0.1,
     chance: 0,
 
     unit: "barrel",
@@ -2075,9 +2077,10 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "beverage"],
     icon: "good-beer",
     color: "#fbb117",
-    // A 1,010 kg tun at 1.1 times the grain price per kilogram: the sources have ale at 0.7 to 1.5 times
-    // (goods-physical-units.md §29). The 200 L cask was 4, 9.2 times; a tun earns a lot's gain of about 1.
-    value: 2.4,
+    // A 1,010 kg tun at 0.67 times the grain price per kilogram: town ale at a penny a gallon with wheat at
+    // 6s a quarter (Assize of Ale, Dyer; ale-cask-repricing.md). It was 2.4 (1.1 times, goods-physical-units.md
+    // §29), which made the ale demand cost town households about all of their income.
+    value: 1.5,
     chance: 0,
     recipes: [
       // Beer may use locally traded cereal crops. It must never consume the
@@ -5049,7 +5052,17 @@ const WEIGHT_COVERAGE_REPRICING: readonly { good: string; category: DemandCatego
   ];
 
 /**
- * Applies WEIGHT_REPRICING, WEIGHT_RECIPE_REPRICING and WEIGHT_COVERAGE_REPRICING to a saved
+ * Base values before and after docs/plan/ale-cask-repricing.md, which brings ale to the sources' price
+ * against grain and the cask to its cost. Applied after WEIGHT_REPRICING, so a Beer still at its
+ * value before goods-physical-units.md §29 (4) also comes to the new value.
+ */
+export const ALE_CASK_REPRICING: Readonly<Record<string, readonly [before: number, after: number]>> = {
+  Beer: [2.4, 1.5],
+  Barrels: [2, 0.1]
+};
+
+/**
+ * Applies WEIGHT_REPRICING, ALE_CASK_REPRICING, WEIGHT_RECIPE_REPRICING and WEIGHT_COVERAGE_REPRICING to a saved
  * catalogue. Only a value still at its old default and an amount still at its old figure are
  * changed, so what the player set in the Goods editor is kept.
  */
@@ -5057,10 +5070,11 @@ export function migrateWeightRepricing(): boolean {
   const goods = getGoods();
   let changed = false;
   for (const good of goods) {
-    const repricing = WEIGHT_REPRICING[good.name];
-    if (!repricing || good.value !== repricing[0]) continue;
-    good.value = repricing[1];
-    changed = true;
+    for (const repricing of [WEIGHT_REPRICING[good.name], ALE_CASK_REPRICING[good.name]]) {
+      if (!repricing || good.value !== repricing[0]) continue;
+      good.value = repricing[1];
+      changed = true;
+    }
   }
   for (const { good: goodName, input, before, after } of WEIGHT_RECIPE_REPRICING) {
     const good = goods.find(candidate => candidate.name === goodName);

@@ -301,6 +301,13 @@ export interface MarketTreasury {
   /** Lots of the Fodder stock that are the farms' hay, sold for them on credit: its proceeds go to them. */
   ruralHayConsignedLots?: number;
   /**
+   * Town goods held on consignment, by Good then Burg, as [units, worth at the consignment price]
+   * (Simulation settings `craftSalePayment`, docs/plan/market-goods-settlement.md §2.2).
+   */
+  craftConsigned?: Record<number, Record<number, [number, number]>>;
+  /** Consigned goods that have sold and are not yet paid for, by Burg then Good, as [units, worth]. */
+  craftPayables?: Record<number, Record<number, [number, number]>>;
+  /**
    * Merchant company working capital for inter-market trade (export warehouse booking).
    * Soft ledger: not full B2B settlement between markets.
    */

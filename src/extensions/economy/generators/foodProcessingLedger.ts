@@ -1,3 +1,5 @@
+import { getMarketSettings } from "../../../simulation/marketSettings";
+import { rn } from "../../hostUtils";
 import {
   getGoods,
   getMarkets,
@@ -6,6 +8,8 @@ import {
   recordCumulativeCellFoodProcessing
 } from "../economyContext";
 import { getAleDemandMultiplier, getAleSanitationFallbackRisk, getAleWaterRisk } from "./aleDemand";
+import { debitHouseholdWealth } from "./burgMarketLedgers";
+import { releaseConsignedUnpaid } from "./craftConsignment";
 import {
   ALE_TARGETS,
   DAIRY_TARGETS,
@@ -25,6 +29,12 @@ import {
 } from "./foodLots";
 import { isFreshFoodGood } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
+import {
+  debitRuralHouseholdWealth,
+  getRuralHouseholdWealth,
+  getUrbanHouseholdSpendable,
+  RURAL_HOUSEHOLD_TOWN_SPEND_SHARE
+} from "./householdWealth";
 import { getMarketRuralPopulation } from "./marketPopulation";
 import type { FoodProcessingGoodLedger, Market } from "./marketTypes";
 
@@ -342,7 +352,84 @@ export function getFoodProcessingProductionHeadroom(
   return Math.max(householdHeadroom, Math.min(surplusCheeseHeadroom, reserveHeadroom));
 }
 
-function drawHouseholdDemand(market: Market, goodName: string, demand: number): void {
+/**
+ * What a market's households may spend this month on the drinks and foods they take from its stock:
+ * each town its cash above the buffer it keeps for food and rent, and the countryside the share of
+ * its purse it spends in town each month. Bread comes first; these never eat into it
+ * (docs/plan/market-goods-settlement.md §2.1).
+ */
+type HouseholdGoodsPurses = {
+  towns: { id: number; people: number; spendable: number }[];
+  rural: number;
+  ruralPeople: number;
+};
+
+function getHouseholdGoodsPurses(market: Market): HouseholdGoodsPurses {
+  const world = getWorldContext();
+  const towns = world.pack.burgs
+    .filter(burg => burg.i && !burg.removed && burg.market === market.i)
+    .map(burg => ({
+      id: burg.i!,
+      people: getBurgPeople(burg.population),
+      spendable: getUrbanHouseholdSpendable(burg)
+    }));
+  return {
+    towns,
+    rural: getRuralHouseholdWealth(market) * RURAL_HOUSEHOLD_TOWN_SPEND_SHARE,
+    ruralPeople: getMarketRuralPopulation(world, market.i)
+  };
+}
+
+/**
+ * The market's people pay for `units` at `price`, each by their share of the buyers: the towns by
+ * their people and, unless only the towns buy (ale), the countryside by its people, each as far as
+ * its purse for these goods holds. The cash goes into the market treasury; returns the units they
+ * paid for.
+ */
+function payForHouseholdGoods(
+  market: Market,
+  purses: HouseholdGoodsPurses,
+  units: number,
+  price: number,
+  townsOnly: boolean
+): number {
+  if (!(units > 0) || !(price > 0)) return units;
+  const rural = townsOnly ? 0 : purses.ruralPeople;
+  const people = purses.towns.reduce((total, town) => total + town.people, rural);
+  if (!(people > 0)) return 0;
+  const bill = units * price;
+  let paid = 0;
+  let short = false;
+  const charge = (amount: number, budget: number, debit: (amount: number) => number): number => {
+    const got = debit(rn(Math.min(amount, Math.max(0, budget)), 2));
+    paid += got;
+    if (got + 1e-9 < amount) short = true;
+    return got;
+  };
+  for (const town of purses.towns) {
+    if (!(town.people > 0)) continue;
+    town.spendable -= charge(rn((bill * town.people) / people, 2), town.spendable, amount =>
+      debitHouseholdWealth(town.id, amount)
+    );
+  }
+  if (rural > 0)
+    purses.rural -= charge(rn((bill * rural) / people, 2), purses.rural, amount =>
+      debitRuralHouseholdWealth(market, amount)
+    );
+  if (paid > 0) {
+    market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
+    market.marketTreasury.balance = rn(market.marketTreasury.balance + paid, 2);
+  }
+  // Every purse paid its share (to the cent): they take it all.
+  return short ? Math.min(units, paid / price) : units;
+}
+
+function drawHouseholdDemand(
+  market: Market,
+  goodName: string,
+  demand: number,
+  purses: HouseholdGoodsPurses | null
+): void {
   const good = getGoods().find(candidate => candidate.name === goodName);
   const ledger = getGoodLedger(market, goodName);
   if (!good || !ledger || demand <= 0) return;
@@ -351,7 +438,12 @@ function drawHouseholdDemand(market: Market, goodName: string, demand: number): 
   // market-level settlement. Only the remaining demand may draw from Market stock.
   const remainingDemand = Math.max(0, demand - (ledger.localHouseholdConsumptionThisCycle ?? 0));
   const available = Math.max(0, marketGood?.stock ?? 0);
-  const consumed = Math.min(available, remainingDemand);
+  let consumed = Math.min(available, remainingDemand);
+  // Households pay the market for what they take, and take only what they can pay for.
+  if (consumed > 0 && purses)
+    consumed = payForHouseholdGoods(market, purses, consumed, marketGood?.price ?? 0, goodName === "Beer");
+  // Taken without payment, the towns' consigned goods bring in nothing to pay them with.
+  else if (consumed > 0) releaseConsignedUnpaid(market, good.i, consumed);
   if (marketGood) marketGood.stock = Math.max(0, marketGood.stock - consumed);
   if (consumed > 0) {
     recordGoodFlow({
@@ -392,14 +484,16 @@ function drawHouseholdDemand(market: Market, goodName: string, demand: number): 
  * removed. Cheese, Raisins, and Wine remain market stock for later months.
  */
 export function settleFoodProcessingHouseholds(): void {
+  const pay = getMarketSettings().householdGoodsPayment === "pay";
   for (const market of getMarkets()) {
-    drawHouseholdDemand(market, "Milk", getMonthlyHouseholdDemand(market, "Milk"));
-    drawHouseholdDemand(market, "Cheese", getMonthlyHouseholdDemand(market, "Cheese"));
-    drawHouseholdDemand(market, "Grapes", getMonthlyHouseholdDemand(market, "Grapes"));
-    drawHouseholdDemand(market, "Raisins", getMonthlyHouseholdDemand(market, "Raisins"));
-    drawHouseholdDemand(market, "Wine", getMonthlyHouseholdDemand(market, "Wine"));
+    const purses = pay ? getHouseholdGoodsPurses(market) : null;
+    drawHouseholdDemand(market, "Milk", getMonthlyHouseholdDemand(market, "Milk"), purses);
+    drawHouseholdDemand(market, "Cheese", getMonthlyHouseholdDemand(market, "Cheese"), purses);
+    drawHouseholdDemand(market, "Grapes", getMonthlyHouseholdDemand(market, "Grapes"), purses);
+    drawHouseholdDemand(market, "Raisins", getMonthlyHouseholdDemand(market, "Raisins"), purses);
+    drawHouseholdDemand(market, "Wine", getMonthlyHouseholdDemand(market, "Wine"), purses);
     for (const name of ["Apples", "Pears", "Cider", "Perry"] as const)
-      drawHouseholdDemand(market, name, getMonthlyHouseholdDemand(market, name));
+      drawHouseholdDemand(market, name, getMonthlyHouseholdDemand(market, name), purses);
     const aleDemand = getAleDemandSnapshot(market);
     const beerLedger = getGoodLedger(market, "Beer");
     if (beerLedger) {
@@ -407,7 +501,7 @@ export function settleFoodProcessingHouseholds(): void {
       beerLedger.waterSafetyDemand = aleDemand.waterSafetyDemand;
       beerLedger.drinkingWaterRisk = aleDemand.drinkingWaterRisk;
     }
-    drawHouseholdDemand(market, "Beer", aleDemand.monthlyDemand);
+    drawHouseholdDemand(market, "Beer", aleDemand.monthlyDemand, purses);
 
     for (const name of ["Milk", "Grapes"] as const) {
       const good = getGoods().find(candidate => candidate.name === name);

@@ -40,6 +40,25 @@ export type MerchantProfitUse = (typeof MERCHANT_PROFIT_USES)[number];
 export const HAY_PAYMENT_MODES = ["onCredit", "cash"] as const;
 export type HayPaymentMode = (typeof HAY_PAYMENT_MODES)[number];
 
+/**
+ * How a market takes the goods its towns make (docs/plan/market-goods-settlement.md §2.2):
+ * `consignment` buys what its cash allows and holds the rest for the town, paying for it once it has
+ * sold; `cash` takes only what its cash buys, and the rest of the town's output is lost.
+ */
+export const CRAFT_SALE_PAYMENT_MODES = ["consignment", "cash"] as const;
+export type CraftSalePaymentMode = (typeof CRAFT_SALE_PAYMENT_MODES)[number];
+
+/**
+ * Whether households pay the market for the drinks and foods they take from its stock
+ * (docs/plan/market-goods-settlement.md §2.1): `free` takes them without payment, and the towns'
+ * consigned goods so taken are not paid for; `pay` debits the town purses above their buffer and a
+ * month's town spending of the farm purse at the market price, and they take only what they paid
+ * for. With today's household incomes `pay` leaves most of the ale undrunk
+ * (docs/analytics/market-goods-settlement-20261106.md §3).
+ */
+export const HOUSEHOLD_GOODS_PAYMENT_MODES = ["free", "pay"] as const;
+export type HouseholdGoodsPaymentMode = (typeof HOUSEHOLD_GOODS_PAYMENT_MODES)[number];
+
 export type MarketSettings = {
   /** A town promoted during the run opens a market only this many generation spacings from every market centre. */
   foundingSpacingFactor: number;
@@ -50,6 +69,8 @@ export type MarketSettings = {
   dissolveCargo: MarketDissolveCargoMode;
   hayTrade: HayTradeMode;
   hayPayment: HayPaymentMode;
+  craftSalePayment: CraftSalePaymentMode;
+  householdGoodsPayment: HouseholdGoodsPaymentMode;
   /**
    * Weight of a rural person against a town person in the wages a market pays from its surplus:
    * carters, threshers and hay hands in its countryside as well as dealers and porters in its towns.
@@ -71,6 +92,8 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   dissolveCargo: "windDown",
   hayTrade: "marketShortfall",
   hayPayment: "onCredit",
+  craftSalePayment: "consignment",
+  householdGoodsPayment: "free",
   surplusRuralWeight: 1,
   surplusReserveFactor: 0.25,
   merchantProfitShare: 1 / 3,
@@ -106,6 +129,16 @@ const profitUse = (value: unknown): MerchantProfitUse =>
 const hayPaymentMode = (value: unknown): HayPaymentMode =>
   HAY_PAYMENT_MODES.includes(value as HayPaymentMode) ? (value as HayPaymentMode) : DEFAULT_MARKET_SETTINGS.hayPayment;
 
+const craftSalePaymentMode = (value: unknown): CraftSalePaymentMode =>
+  CRAFT_SALE_PAYMENT_MODES.includes(value as CraftSalePaymentMode)
+    ? (value as CraftSalePaymentMode)
+    : DEFAULT_MARKET_SETTINGS.craftSalePayment;
+
+const householdGoodsPaymentMode = (value: unknown): HouseholdGoodsPaymentMode =>
+  HOUSEHOLD_GOODS_PAYMENT_MODES.includes(value as HouseholdGoodsPaymentMode)
+    ? (value as HouseholdGoodsPaymentMode)
+    : DEFAULT_MARKET_SETTINGS.householdGoodsPayment;
+
 const clamp = (key: NumericMarketSetting, value: unknown): number => {
   const { min, max, step } = MARKET_SETTING_LIMITS[key];
   if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_MARKET_SETTINGS[key];
@@ -128,6 +161,8 @@ export function getMarketSettings(): MarketSettings {
     dissolveCargo: cargoMode(parsed.dissolveCargo),
     hayTrade: hayTradeMode(parsed.hayTrade),
     hayPayment: hayPaymentMode(parsed.hayPayment),
+    craftSalePayment: craftSalePaymentMode(parsed.craftSalePayment),
+    householdGoodsPayment: householdGoodsPaymentMode(parsed.householdGoodsPayment),
     surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor),
     merchantProfitShare: clamp("merchantProfitShare", parsed.merchantProfitShare),
@@ -145,6 +180,8 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     dissolveCargo: cargoMode(next.dissolveCargo),
     hayTrade: hayTradeMode(next.hayTrade),
     hayPayment: hayPaymentMode(next.hayPayment),
+    craftSalePayment: craftSalePaymentMode(next.craftSalePayment),
+    householdGoodsPayment: householdGoodsPaymentMode(next.householdGoodsPayment),
     surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor),
     merchantProfitShare: clamp("merchantProfitShare", next.merchantProfitShare),
