@@ -1,8 +1,10 @@
 import type { HistoricalPeriod, Point } from "../primitives";
 
-export type VectorSegment =
+export type VectorHandleMode = "corner" | "aligned" | "symmetric";
+export type VectorSegment = (
   | { id: string; kind: "line"; from: Point; to: Point }
-  | { id: string; kind: "cubic"; from: Point; control1: Point; control2: Point; to: Point };
+  | { id: string; kind: "cubic"; from: Point; control1: Point; control2: Point; to: Point }
+) & { startMode?: VectorHandleMode };
 
 export interface CurveAnchor {
   pathId: string;
@@ -17,9 +19,17 @@ export type VectorPreset = {
   heightMeters: number;
   /** Bearing of the local width axis: north 0, clockwise. */
   bearingDegrees: number;
+  cornerRadiusMeters?: number;
 } & ({ preset: "ellipse" | "rectangle" } | { preset: "polygon"; sides: number });
 
-export type VectorPathSource = VectorPreset | { kind: "curve"; closed: boolean; segments: VectorSegment[] };
+export type VectorPathSource =
+  | VectorPreset
+  | {
+      kind: "curve";
+      closed: boolean;
+      segments: VectorSegment[];
+      freehandToleranceMeters?: number;
+    };
 
 export interface WidthStation {
   anchor: CurveAnchor;
@@ -34,7 +44,7 @@ export interface VectorPath {
   origin: "imported" | "automatic" | "manual";
   editPolicy: "fixed" | "editable";
   source: VectorPathSource;
-  width: { leftMeters: number; rightMeters: number; stations: WidthStation[] };
+  width: { leftMeters: number; rightMeters: number; stations: WidthStation[]; interpolation?: "linear" };
 }
 
 export interface VectorNode {
@@ -87,7 +97,7 @@ export interface VectorPlacement {
 /** Saved geometry ledger. No editable cell mesh or render-time generation. */
 export interface VectorCityDocument {
   format: "fmg-vector-city";
-  version: 1;
+  version: 2;
   revision: number;
   frame: { extentMeters: number };
   context: { historicalPeriod: HistoricalPeriod; targetPopulation: number };

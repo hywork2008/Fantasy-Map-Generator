@@ -11,7 +11,7 @@ import { validateVectorDocument } from "./validation/document";
 describe("vector document contract", () => {
   it("round-trips the authored circle, ellipse, rectangle, line, cubic, widths and shared gate without a mesh", () => {
     const document = createVectorExample();
-    expect(document).toEqual(fixture);
+    expect(document).toEqual({ ...fixture, version: 2 });
     expect("mesh" in document).toBe(false);
     expect(parseVectorDocument(serializeVectorDocument(document))).toEqual(document);
     expect(parseVectorDocument(JSON.stringify(fixture))).toEqual(document);
@@ -53,7 +53,7 @@ describe("vector document contract", () => {
     const doc = createVectorExample();
     const value = doc as unknown as Record<string, unknown>;
     if (failure === "format") value.format = "fmg-city-editor";
-    if (failure === "version") value.version = 2;
+    if (failure === "version") value.version = 3;
     if (failure === "mesh") value.mesh = { vertices: {}, edges: {}, faces: {} };
     if (failure === "nonfinite") doc.frame.extentMeters = Number.POSITIVE_INFINITY;
     if (failure === "duplicate-id") doc.paths.water.id = "main";

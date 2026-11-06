@@ -1,11 +1,11 @@
 import type { Point } from "../../../types/primitives";
 import type { CurveAnchor, VectorPath, VectorPreset, VectorSegment } from "../../../types/vector/document";
+import { evaluatePresetPiece, presetPieces } from "./presets";
 
 export const VECTOR_CONNECTION_EPSILON = 1e-6;
 
 export function presetSegmentIds(source: VectorPreset): string[] {
-  const count = source.preset === "polygon" ? source.sides : 4;
-  return Array.from({ length: count }, (_, index) => `${source.preset === "ellipse" ? "arc" : "edge"}:${index}`);
+  return presetPieces(source).map(piece => piece.id);
 }
 
 export function pathSegmentIds(path: VectorPath): string[] {
@@ -39,50 +39,14 @@ export function segmentTangent(segment: VectorSegment, t: number): Point {
   ) as Point;
 }
 
-function transform(source: VectorPreset, point: Point, vector = false): Point {
-  const angle = ((90 - source.bearingDegrees) * Math.PI) / 180;
-  return [
-    Math.cos(angle) * point[0] - Math.sin(angle) * point[1] + (vector ? 0 : source.center[0]),
-    Math.sin(angle) * point[0] + Math.cos(angle) * point[1] + (vector ? 0 : source.center[1])
-  ];
-}
-
-function presetPoint(source: VectorPreset, index: number, t: number, derivative: boolean): Point {
-  const a = source.widthMeters / 2,
-    b = source.heightMeters / 2;
-  if (source.preset === "ellipse") {
-    const angle = ((index + t) * Math.PI) / 2;
-    return transform(
-      source,
-      derivative
-        ? [(-a * Math.sin(angle) * Math.PI) / 2, (b * Math.cos(angle) * Math.PI) / 2]
-        : [a * Math.cos(angle), b * Math.sin(angle)],
-      derivative
-    );
-  }
-  const count = source.preset === "polygon" ? source.sides : 4;
-  const vertex = (i: number): Point =>
-    source.preset === "rectangle"
-      ? ([
-          [-a, -b],
-          [a, -b],
-          [a, b],
-          [-a, b]
-        ][i % 4] as Point)
-      : [a * Math.cos((i * 2 * Math.PI) / count), b * Math.sin((i * 2 * Math.PI) / count)];
-  const from = vertex(index),
-    to = vertex(index + 1);
-  return transform(source, derivative ? [to[0] - from[0], to[1] - from[1]] : lerp(from, to, t), derivative);
-}
-
 /** Invalid references fail explicitly; never reattach to a nearest segment. */
 export function evaluateAnchor(path: VectorPath, anchor: CurveAnchor, derivative = false): Point {
   if (anchor.pathId !== path.id || !Number.isFinite(anchor.t) || anchor.t < 0 || anchor.t > 1)
     throw new Error("Invalid curve anchor");
   if (path.source.kind === "preset") {
-    const index = presetSegmentIds(path.source).indexOf(anchor.segmentId);
-    if (index < 0) throw new Error("Missing preset segment");
-    return presetPoint(path.source, index, anchor.t, derivative);
+    const piece = presetPieces(path.source).find(piece => piece.id === anchor.segmentId);
+    if (!piece) throw new Error("Missing preset segment");
+    return evaluatePresetPiece(path.source, piece, anchor.t, derivative);
   }
   const segment = path.source.segments.find(segment => segment.id === anchor.segmentId);
   if (!segment) throw new Error("Missing curve segment");
@@ -107,7 +71,23 @@ export function splitSegment(
     b = lerp(segment.control1, segment.control2, t);
   const c = lerp(segment.control2, segment.to, t);
   return [
-    { id: leftId, kind: "cubic", from: [...segment.from], control1: a, control2: lerp(a, b, t), to: p },
-    { id: rightId, kind: "cubic", from: [...p], control1: lerp(b, c, t), control2: c, to: [...segment.to] }
+    {
+      id: leftId,
+      kind: "cubic",
+      from: [...segment.from],
+      control1: a,
+      control2: lerp(a, b, t),
+      to: p,
+      ...(segment.startMode ? { startMode: segment.startMode } : {})
+    },
+    {
+      id: rightId,
+      kind: "cubic",
+      from: [...p],
+      control1: lerp(b, c, t),
+      control2: c,
+      to: [...segment.to],
+      startMode: "aligned"
+    }
   ];
 }

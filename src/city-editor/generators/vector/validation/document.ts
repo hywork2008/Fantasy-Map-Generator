@@ -1,8 +1,16 @@
 import { isHistoricalPeriod } from "../../../../types/historicalPeriod";
 import type { Point } from "../../../types/primitives";
-import type { CurveAnchor, VectorCityDocument, VectorPath, VectorSegment } from "../../../types/vector/document";
+import type {
+  CurveAnchor,
+  VectorCityDocument,
+  VectorPath,
+  VectorPreset,
+  VectorSegment
+} from "../../../types/vector/document";
 import { isSimplePolygon, pointInPolygon, segmentsIntersect } from "../../geom";
 import { evaluateAnchor, pathIsClosed, VECTOR_CONNECTION_EPSILON } from "../geometry/curves";
+import { maximumCornerRadius } from "../geometry/presets";
+import { pathSurface } from "../geometry/surfaces";
 
 export const VECTOR_DOCUMENT_LIMITS = {
   paths: 2048,
@@ -56,19 +64,35 @@ function region(v: RecordValue): boolean {
   );
 }
 
-function segment(v: unknown): v is VectorSegment {
+function segment(v: unknown, legacy = false): v is VectorSegment {
   if (!record(v) || !id(v.id) || !point(v.from) || !point(v.to)) return false;
-  if (v.kind === "line") return keys(v, ["id", "kind", "from", "to"]) && !same(v.from, v.to);
+  const optional = legacy ? [] : ["startMode"];
+  if (
+    v.startMode !== undefined &&
+    (legacy || typeof v.startMode !== "string" || !["corner", "aligned", "symmetric"].includes(v.startMode))
+  )
+    return false;
+  if (v.kind === "line") return keys(v, ["id", "kind", "from", "to"], optional) && !same(v.from, v.to);
   return (
     v.kind === "cubic" &&
-    keys(v, ["id", "kind", "from", "control1", "control2", "to"]) &&
+    keys(v, ["id", "kind", "from", "control1", "control2", "to"], optional) &&
     point(v.control1) &&
     point(v.control2) &&
     [v.control1, v.control2, v.to].some(p => !same(v.from as Point, p))
   );
 }
 
-function validPath(v: RecordValue): v is unknown & VectorPath & RecordValue {
+export function validateVectorPath(value: unknown): string[] {
+  if (!record(value) || !id(value.id) || !validPath(value, false)) return ["invalid-path"];
+  try {
+    pathSurface(value);
+    return [];
+  } catch (error) {
+    return [error instanceof Error ? error.message : "invalid-geometry"];
+  }
+}
+
+function validPath(v: RecordValue, legacy: boolean): v is unknown & VectorPath & RecordValue {
   if (
     !keys(v, ["id", "revision", "role", "origin", "editPolicy", "source", "width"]) ||
     !revision(v.revision) ||
@@ -76,7 +100,8 @@ function validPath(v: RecordValue): v is unknown & VectorPath & RecordValue {
     !["road", "river", "wall"].includes(v.role) ||
     !policy(v) ||
     !record(v.source) ||
-    !keys(v.width, ["leftMeters", "rightMeters", "stations"]) ||
+    !keys(v.width, ["leftMeters", "rightMeters", "stations"], legacy ? [] : ["interpolation"]) ||
+    (v.width.interpolation !== undefined && v.width.interpolation !== "linear") ||
     !positive(v.width.leftMeters) ||
     !positive(v.width.rightMeters) ||
     !Array.isArray(v.width.stations) ||
@@ -93,7 +118,11 @@ function validPath(v: RecordValue): v is unknown & VectorPath & RecordValue {
   const s = v.source;
   if (s.kind === "preset")
     return (
-      keys(s, ["kind", "preset", "center", "widthMeters", "heightMeters", "bearingDegrees"], ["sides"]) &&
+      keys(
+        s,
+        ["kind", "preset", "center", "widthMeters", "heightMeters", "bearingDegrees"],
+        legacy ? ["sides"] : ["sides", "cornerRadiusMeters"]
+      ) &&
       typeof s.preset === "string" &&
       ["ellipse", "rectangle", "polygon"].includes(s.preset) &&
       point(s.center) &&
@@ -104,16 +133,21 @@ function validPath(v: RecordValue): v is unknown & VectorPath & RecordValue {
       s.bearingDegrees < 360 &&
       (s.preset === "polygon"
         ? Number.isInteger(s.sides) && (s.sides as number) >= 3 && (s.sides as number) <= 64
-        : s.sides === undefined)
+        : s.sides === undefined) &&
+      (s.cornerRadiusMeters === undefined ||
+        (finite(s.cornerRadiusMeters) &&
+          s.cornerRadiusMeters >= 0 &&
+          s.cornerRadiusMeters <= maximumCornerRadius(s as unknown as VectorPreset)))
     );
   if (
-    !keys(s, ["kind", "closed", "segments"]) ||
+    !keys(s, ["kind", "closed", "segments"], legacy ? [] : ["freehandToleranceMeters"]) ||
+    (s.freehandToleranceMeters !== undefined && !positive(s.freehandToleranceMeters)) ||
     s.kind !== "curve" ||
     typeof s.closed !== "boolean" ||
     !Array.isArray(s.segments) ||
     !s.segments.length ||
     s.segments.length > VECTOR_DOCUMENT_LIMITS.segments ||
-    !s.segments.every(segment)
+    !s.segments.every(value => segment(value, legacy))
   )
     return false;
   const segments: VectorSegment[] = s.segments;
@@ -124,8 +158,8 @@ function validPath(v: RecordValue): v is unknown & VectorPath & RecordValue {
   );
 }
 
-/** Strict v1 codec validation. Missing/unknown references are never repaired here. */
-export function validateVectorDocument(value: unknown): string[] {
+/** Strict native codec validation. Missing/unknown references are never repaired here. */
+export function validateVectorDocument(value: unknown, legacy = false): string[] {
   if (
     !keys(value, [
       "format",
@@ -140,7 +174,7 @@ export function validateVectorDocument(value: unknown): string[] {
       "recipe"
     ]) ||
     value.format !== "fmg-vector-city" ||
-    value.version !== 1 ||
+    value.version !== (legacy ? 1 : 2) ||
     !revision(value.revision)
   )
     return ["document-format"];
@@ -175,12 +209,21 @@ export function validateVectorDocument(value: unknown): string[] {
   const errors: string[] = [];
   let segments = 0;
   for (const p of Object.values(doc.paths)) {
-    if (!validPath(p as unknown as RecordValue)) errors.push(`path:${p.id}`);
+    if (!validPath(p as unknown as RecordValue, legacy)) errors.push(`path:${p.id}`);
     else
       segments +=
         p.source.kind === "curve" ? p.source.segments.length : p.source.preset === "polygon" ? p.source.sides : 4;
   }
   if (segments > VECTOR_DOCUMENT_LIMITS.segments) errors.push("segment-budget");
+  if (errors.length) return errors;
+  if (!legacy)
+    for (const p of Object.values(doc.paths)) {
+      try {
+        pathSurface(p);
+      } catch (error) {
+        errors.push(`geometry:${p.id}:${error instanceof Error ? error.message : "invalid"}`);
+      }
+    }
   if (errors.length) return errors;
   function checkAnchor(a: unknown): a is CurveAnchor {
     if (!anchor(a)) return false;

@@ -12,10 +12,11 @@
 - docs/analytics/ce-meshless-m0-20261106.md - メッシュなしCEのM0を完了。16機能群・52ソースの経路とセル依存、文書union・専用履歴の境界、11固定ケース、曲線精度・領域演算・索引・bundleの実測と橋APIの上限等の不足、関連33件成功、M1への引継ぎを記録
 - docs/analytics/ce-meshless-m0-baseline-20261106.json - M0の既存幾何・解析基準・橋API・索引・bundle計測。11固定ケースの準備状況と既知の不足3件、環境・負荷、61入力ファイルのSHA-256を保存
 - docs/analytics/ce-meshless-m1-20261106.md - メッシュなしCEのM1を完了。専用文書v1・解析的曲線と安定anchor・参照を保つ分割・専用履歴・native IO・方式分岐と文書プレビューを実装。旧状態復元・遅延読込・閉じた文書の解放、関連69件・実ブラウザーの保存再読込とM2への引継ぎを記録
+- docs/analytics/ce-meshless-m2-20261106.md - メッシュなしCEのM2を完了。プリセット寸法・面積・角丸、参照位置を維持する曲線変換、折れ線・フリーハンド・ベジェ編集、可変幅の2D表示、固定と接続の一括更新、v1からv2への移行を実装。関連64件と実ブラウザーの保存再読込を確認し、M3への境界を記録
 - docs/analytics/ce-workhome-trades-legacy-baseline-20261104.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/plan/ce-facility-block-allocation.md - 施設配置の再出発方針と3作業の状態。通常生成・方式分離・人口別BV／仮敷地・保存と共有・不足住宅分のコア拡張まで実装。5,000人で川なしの269施設を全配置し、必要1,112戸の充足と郊外追加敷地を確認。次は川あり都市と実画面の確認
 - docs/plan/ce-medieval-facility-district-packing.md - CEのmedieval-facilitiesにおける用途街区の選定、施設配置後の残地再分割、必要時の非直交建物外形、空地密度の計測と段階的な実装条件を設計
-- docs/plan/ce-meshless-city-editor.md - 既存CEと共存するメッシュなし都市生成・編集を設計。市壁の寸法・縦横比、自由描画・ベジェ、接続・可変川幅・施設先行・互換性を整理。M0の調査と固定入力に続き、M1の専用文書・曲線参照・保存・履歴・方式分岐を関連69件と実ブラウザーで確認。次はM2の描画・プリセット操作
+- docs/plan/ce-meshless-city-editor.md - 既存CEと共存するメッシュなし都市生成・編集を設計。市壁の寸法・縦横比、自由描画・ベジェ、接続・可変川幅・施設先行・互換性を整理。M0・M1に続き、M2の描画・プリセット操作・幅付き2Dを関連64件と実ブラウザーで確認。次はM3の接続・門・橋・二重壁
 - docs/plan/data/ce-dedicated-bakehouse-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/plan/data/ce-dedicated-cooperage-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/plan/data/ce-dedicated-smithies-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植

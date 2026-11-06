@@ -1,13 +1,13 @@
 import { editorText } from "../../../i18n/editorMessages";
 import { createVectorDocument, createVectorExample } from "../../generators/vector/document";
 import type { VectorDocumentHistory } from "../../generators/vector/history";
-import { renderVectorDocument } from "../../renderers/vector/documentSvg";
 import { beginEditorMount } from "../../services/editorLifetime";
 import { exportCityMap, readCityMap } from "../../services/io/cityEditorFile";
 import type { FixedApproachProvider } from "../../types/contracts/fixedApproachAdoption";
 import type { CityDocument } from "../../types/document";
 import { createEditorControls } from "../editorControls";
 import type { EditorLanguageLifetime } from "../languagePanel";
+import { createVectorWorkbench } from "./VectorWorkbench";
 
 export interface VectorEditorSession {
   history: VectorDocumentHistory;
@@ -34,7 +34,7 @@ export function mountVectorCityEditor(
   layout.className = "ce-vector-editor";
   layout.style.cssText = "display:flex;gap:16px;height:100%;min-height:400px;padding:16px;box-sizing:border-box";
   const controls = document.createElement("aside");
-  controls.style.cssText = "width:270px;flex-shrink:0;overflow:auto";
+  controls.style.cssText = "width:310px;flex-shrink:0;overflow:auto";
   const heading = document.createElement("h2");
   heading.textContent = editorText("cityEditor.vector.title");
   const help = document.createElement("p");
@@ -44,14 +44,12 @@ export function mountVectorCityEditor(
   status.setAttribute("aria-live", "polite");
   const map = document.createElement("main");
   map.style.cssText = "flex:1;min-width:0";
+  let workbench: ReturnType<typeof createVectorWorkbench> | undefined;
   const refresh = () => {
     const current = session.history.document;
-    const svg = renderVectorDocument(current);
-    svg.setAttribute("aria-label", editorText("cityEditor.vector.preview"));
-    svg.style.cssText = "width:100%;height:100%;min-height:300px";
-    map.replaceChildren(svg);
     undo.disabled = !session.history.canUndo;
     redo.disabled = !session.history.canRedo;
+    workbench?.refresh();
     status.textContent = editorText("cityEditor.vector.summary", {
       paths: Object.keys(current.paths).length,
       nodes: Object.keys(current.connections.nodes).length,
@@ -113,6 +111,18 @@ export function mountVectorCityEditor(
   controls.append(heading, help, actions, status);
   layout.append(controls, map);
   root.append(layout);
+  workbench = createVectorWorkbench(
+    scope,
+    controls,
+    map,
+    status,
+    () => session.history.document,
+    (document, label) => {
+      scope.invalidate("import");
+      session.history.commit(document, label);
+      refresh();
+    }
+  );
   refresh();
   return options.lifetime.dispose.bind(options.lifetime);
 }
