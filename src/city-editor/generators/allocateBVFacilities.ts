@@ -5,6 +5,8 @@ import type { DistrictFabric } from "./blockInfill.types";
 import { effectiveHeightLimit } from "./buildingHeightLimits";
 import { CastleDefenseClearance } from "./castleDefenseClearance";
 import { buildingHitsCivicLandmark } from "./civicClearance";
+import { preferredFacilityPlots } from "./facilityBlockRank";
+import { type FacilityUse, facilityGroupKey, facilityGroups } from "./facilityUses";
 import { convexHull, nearestOnPolyline, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { landmarkDwellingCapacity } from "./landmarkDwellings";
 import { landmarkReservationParts, landmarkStreets } from "./landmarkIntegration";
@@ -32,6 +34,8 @@ export interface BVFacilityRequest {
   asset: LandmarkAsset;
   zone?: "core" | "outskirts";
   riverbankMaxDistanceMeters?: number;
+  /** Use district. Omitted requests are classified from zone, river distance and id. */
+  use?: FacilityUse;
 }
 
 /** Choose free building land, connect to an existing street, and measure the remaining housing. */
@@ -40,7 +44,7 @@ export function allocateBVFacilities(
   fabric: DistrictFabric,
   requests: readonly BVFacilityRequest[],
   requiredDwellings = source.populationPlan?.requiredDwellings ?? 0,
-  options: { allowOutskirtsFields?: boolean } = {}
+  options: { allowOutskirtsFields?: boolean; preferDistricts?: boolean; deferHousing?: boolean } = {}
 ) {
   let document = source;
   const blockedWards = new Set(["castle", "market", "cemetery", "park", "farm", "harbor"]);
@@ -190,6 +194,29 @@ export function allocateBVFacilities(
     defense = new CastleDefenseClearance(source, approachBands(source));
   const placed: string[] = [],
     unplaced: { id: string; reason: string }[] = [];
+  // District ranking is opt-in. Trying a high-scoring block before the
+  // centre-out scan can take the only site a later request can use.
+  const district = options.preferDistricts
+    ? {
+        groups: facilityGroups(requests),
+        frontageOf: (polygon: Point[]) => {
+          const box = bounds(polygon);
+          const center = polygonCentroid(polygon);
+          const reach = widest / 2 + 12;
+          let best = { distance: Infinity, width: 0 };
+          for (const frontage of frontageIndex.query([
+            box[0] - reach,
+            box[1] - reach,
+            box[2] + reach,
+            box[3] + reach
+          ])) {
+            const distance = nearestOnPolyline(center, frontage.points).dist;
+            if (distance < best.distance) best = { distance, width: frontage.widthMeters };
+          }
+          return best;
+        }
+      }
+    : null;
   for (const request of requests) {
     if (request.riverbankMaxDistanceMeters !== undefined && !riverWater.length) {
       unplaced.push({ id: request.id, reason: "river-required" });
@@ -200,156 +227,180 @@ export function allocateBVFacilities(
       continue;
     }
     let accepted: CityDocument | null = null;
-    let trials = 0;
-    for (const plot of plots) {
-      if (request.zone && plot.face.properties.settlement !== request.zone) continue;
-      const area = request.asset.minimumSite.reduce((n, p) => n + plotArea(p.outer), 0);
-      if (plotArea(plot.polygon) + 1e-6 < area) continue;
-      const entrance = request.asset.entrances.find(e => e.required);
-      if (!entrance) continue;
-      const normalLength = Math.hypot(...entrance.outward);
-      const localNormal: Point = [entrance.outward[0] / normalLength, entrance.outward[1] / normalLength];
-      const entryInset = Math.max(
-        0,
-        ...request.asset.minimumSite
-          .flatMap(p => p.outer)
-          .map(p => (p[0] - entrance.point[0]) * localNormal[0] + (p[1] - entrance.point[1]) * localNormal[1])
-      );
-      const box = bounds(plot.polygon),
-        reach = widest / 2 + entryInset + 2;
-      const plotCenter = polygonCentroid(plot.polygon);
-      const nearby = frontageIndex
-        .query([box[0] - reach, box[1] - reach, box[2] + reach, box[3] + reach])
-        .map(frontage => ({ frontage, distance: nearestOnPolyline(plotCenter, frontage.points).dist }))
-        .sort((a, b) => a.distance - b.distance);
-      candidates: for (const { frontage } of nearby) {
-        const [a, b] = frontage.points;
-        const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        if (length < Math.max(2.5, entrance.widthMeters + 0.3)) continue;
-        const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
-        let normal: Point = [-tangent[1], tangent[0]];
-        if ((a[0] - plotCenter[0]) * normal[0] + (a[1] - plotCenter[1]) * normal[1] < 0)
-          normal = [-normal[0], -normal[1]];
-        const rotation = Math.atan2(normal[1], normal[0]) - Math.atan2(localNormal[1], localNormal[0]);
-        const localPose = { position: [0, 0] as Point, rotation, scale: 1 };
-        const local = transformLandmarkPolygons(request.asset.minimumSite, localPose).flatMap(p => p.outer);
-        let centers = plot.polygon;
-        const sign = -Math.sign(polygonArea(plot.polygon));
-        for (let i = 0; i < plot.polygon.length && centers.length >= 3; i++) {
-          const p = plot.polygon[i],
-            q = plot.polygon[(i + 1) % plot.polygon.length];
-          const edgeNormal: Point = [sign * (q[1] - p[1]), sign * (p[0] - q[0])];
-          const support = Math.max(...local.map(p => p[0] * edgeNormal[0] + p[1] * edgeNormal[1]));
+    let exhausted = false;
+    // Preferred blocks are a separate budget. A miss uses the original order and limit.
+    const search = (candidatePlots: typeof plots, trialLimit: number) => {
+      let trials = 0;
+      for (const plot of candidatePlots) {
+        if (request.zone && plot.face.properties.settlement !== request.zone) continue;
+        const area = request.asset.minimumSite.reduce((n, p) => n + plotArea(p.outer), 0);
+        if (plotArea(plot.polygon) + 1e-6 < area) continue;
+        const entrance = request.asset.entrances.find(e => e.required);
+        if (!entrance) continue;
+        const normalLength = Math.hypot(...entrance.outward);
+        const localNormal: Point = [entrance.outward[0] / normalLength, entrance.outward[1] / normalLength];
+        const entryInset = Math.max(
+          0,
+          ...request.asset.minimumSite
+            .flatMap(p => p.outer)
+            .map(p => (p[0] - entrance.point[0]) * localNormal[0] + (p[1] - entrance.point[1]) * localNormal[1])
+        );
+        const box = bounds(plot.polygon),
+          reach = widest / 2 + entryInset + 2;
+        const plotCenter = polygonCentroid(plot.polygon);
+        const nearby = frontageIndex
+          .query([box[0] - reach, box[1] - reach, box[2] + reach, box[3] + reach])
+          .map(frontage => ({ frontage, distance: nearestOnPolyline(plotCenter, frontage.points).dist }))
+          .sort((a, b) => a.distance - b.distance);
+        candidates: for (const { frontage } of nearby) {
+          const [a, b] = frontage.points;
+          const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+          if (length < Math.max(2.5, entrance.widthMeters + 0.3)) continue;
+          const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+          let normal: Point = [-tangent[1], tangent[0]];
+          if ((a[0] - plotCenter[0]) * normal[0] + (a[1] - plotCenter[1]) * normal[1] < 0)
+            normal = [-normal[0], -normal[1]];
+          const rotation = Math.atan2(normal[1], normal[0]) - Math.atan2(localNormal[1], localNormal[0]);
+          const localPose = { position: [0, 0] as Point, rotation, scale: 1 };
+          const local = transformLandmarkPolygons(request.asset.minimumSite, localPose).flatMap(p => p.outer);
+          let centers = plot.polygon;
+          const sign = -Math.sign(polygonArea(plot.polygon));
+          for (let i = 0; i < plot.polygon.length && centers.length >= 3; i++) {
+            const p = plot.polygon[i],
+              q = plot.polygon[(i + 1) % plot.polygon.length];
+            const edgeNormal: Point = [sign * (q[1] - p[1]), sign * (p[0] - q[0])];
+            const support = Math.max(...local.map(p => p[0] * edgeNormal[0] + p[1] * edgeNormal[1]));
+            centers = clipHalfPlane(
+              centers,
+              edgeNormal,
+              p[0] * edgeNormal[0] + p[1] * edgeNormal[1] - support - 0.001 * Math.hypot(...edgeNormal)
+            );
+          }
+          const entry = transformLandmarkPoint(entrance.point, localPose);
+          const dot = (p: Point, v: Point) => p[0] * v[0] + p[1] * v[1];
+          const halfDoor = entrance.widthMeters / 2 + 0.15;
+          const maxLengthMeters = frontage.widthMeters / 2 + entryInset + 2;
           centers = clipHalfPlane(
             centers,
-            edgeNormal,
-            p[0] * edgeNormal[0] + p[1] * edgeNormal[1] - support - 0.001 * Math.hypot(...edgeNormal)
+            [-tangent[0], -tangent[1]],
+            -(dot(a, tangent) + halfDoor - dot(entry, tangent))
           );
-        }
-        const entry = transformLandmarkPoint(entrance.point, localPose);
-        const dot = (p: Point, v: Point) => p[0] * v[0] + p[1] * v[1];
-        const halfDoor = entrance.widthMeters / 2 + 0.15;
-        const maxLengthMeters = frontage.widthMeters / 2 + entryInset + 2;
-        centers = clipHalfPlane(
-          centers,
-          [-tangent[0], -tangent[1]],
-          -(dot(a, tangent) + halfDoor - dot(entry, tangent))
-        );
-        centers = clipHalfPlane(centers, tangent, dot(b, tangent) - halfDoor - dot(entry, tangent));
-        centers = clipHalfPlane(
-          centers,
-          [-normal[0], -normal[1]],
-          -(dot(a, normal) - dot(entry, normal) - maxLengthMeters)
-        );
-        centers = clipHalfPlane(centers, normal, dot(a, normal) - dot(entry, normal));
-        if (centers.length < 3 || plotArea(centers) < 1e-6) continue;
-        const positions: Point[] = [
-          ...centers.map(
-            (p, i) =>
-              [
-                (p[0] + centers[(i + 1) % centers.length][0]) / 2,
-                (p[1] + centers[(i + 1) % centers.length][1]) / 2
-              ] as Point
-          ),
-          ...centers,
-          polygonCentroid(centers)
-        ];
-        const ordered = positions
-          .map(position => ({ position, distance: dot(a, normal) - dot(entry, normal) - dot(position, normal) }))
-          .sort((a, b) => a.distance - b.distance);
-        for (const { position } of ordered) {
-          if (
-            request.riverbankMaxDistanceMeters !== undefined &&
-            Math.min(...riverWater.map(b => nearestOnPolyline(position, [...b.polygon, b.polygon[0]]).dist)) >
-              request.riverbankMaxDistanceMeters
-          )
-            continue;
-          if (++trials > 256) break candidates;
-          const pose = { id: request.id, position, rotation, scale: 1 };
-          const site = transformLandmarkPolygons(request.asset.minimumSite, pose);
-          if (site.some(p => Math.abs(plotArea(intersectConvex(p.outer, plot.polygon)) - plotArea(p.outer)) > 1e-5))
-            continue;
-          const height = request.asset.bvModel?.heightMeters ?? 0;
-          if ((effectiveHeightLimit(source, plot.face.id).maxHeightMeters ?? Infinity) < height) continue;
-          if (
-            site.some(p =>
-              cappedLand
-                .query(bounds(p.outer))
-                .some(c => c.height < height && plotArea(intersectConvex(p.outer, c.polygon)) > 1e-6)
-            )
-          )
-            continue;
-          const result = placeLandmark(document, request.asset, pose, lanes, { frontage, maxLengthMeters });
-          if (!result.document) continue;
-          const instance = result.document.landmarks!.at(-1)!;
-          const operating = [
-            ...instance.site.map(p => p.outer),
-            ...instance.accesses.flatMap(a => accessCorridor(a.points, a.widthMeters).map(p => p.outer))
+          centers = clipHalfPlane(centers, tangent, dot(b, tangent) - halfDoor - dot(entry, tangent));
+          centers = clipHalfPlane(
+            centers,
+            [-normal[0], -normal[1]],
+            -(dot(a, normal) - dot(entry, normal) - maxLengthMeters)
+          );
+          centers = clipHalfPlane(centers, normal, dot(a, normal) - dot(entry, normal));
+          if (centers.length < 3 || plotArea(centers) < 1e-6) continue;
+          const positions: Point[] = [
+            ...centers.map(
+              (p, i) =>
+                [
+                  (p[0] + centers[(i + 1) % centers.length][0]) / 2,
+                  (p[1] + centers[(i + 1) % centers.length][1]) / 2
+                ] as Point
+            ),
+            ...centers,
+            polygonCentroid(centers)
           ];
-          if (
-            instance.accesses.some(access =>
-              access.points.slice(1).some((b, i) => {
-                const segment: [Point, Point] = [access.points[i], b];
-                return [...streetIndex.query(bounds(segment)), ...accessIndex.query(bounds(segment))].some(other =>
-                  crosses(segment, other)
-                );
-              })
+          const ordered = positions
+            .map(position => ({ position, distance: dot(a, normal) - dot(entry, normal) - dot(position, normal) }))
+            .sort((a, b) => a.distance - b.distance);
+          for (const { position } of ordered) {
+            if (
+              request.riverbankMaxDistanceMeters !== undefined &&
+              Math.min(...riverWater.map(b => nearestOnPolyline(position, [...b.polygon, b.polygon[0]]).dist)) >
+                request.riverbankMaxDistanceMeters
             )
-          )
-            continue;
-          const base = terrain.heightAt(position);
-          if (
-            operating.some(
-              p =>
-                protectedIndex.query(bounds(p)).some(c => plotArea(intersectConvex(p, c)) > 1e-6) ||
-                moat.hitsPolygon(p) ||
-                buildingHitsCivicLandmark(source, p) ||
-                !defense.clears(p) ||
-                [polygonCentroid(p), ...p].some(
-                  q => !Number.isFinite(terrain.heightAt(q)) || Math.abs(terrain.heightAt(q) - base) > 0.02
-                )
+              continue;
+            if (++trials > trialLimit) break candidates;
+            const pose = { id: request.id, position, rotation, scale: 1 };
+            const site = transformLandmarkPolygons(request.asset.minimumSite, pose);
+            if (site.some(p => Math.abs(plotArea(intersectConvex(p.outer, plot.polygon)) - plotArea(p.outer)) > 1e-5))
+              continue;
+            const height = request.asset.bvModel?.heightMeters ?? 0;
+            if ((effectiveHeightLimit(source, plot.face.id).maxHeightMeters ?? Infinity) < height) continue;
+            if (
+              site.some(p =>
+                cappedLand
+                  .query(bounds(p.outer))
+                  .some(c => c.height < height && plotArea(intersectConvex(p.outer, c.polygon)) > 1e-6)
+              )
             )
-          )
-            continue;
-          accepted = result.document;
-          addAccesses(instance);
-          const reservations = [
-            ...instance.site.map(p => p.outer),
-            ...instance.accesses.flatMap(a => accessCorridor(a.points, a.widthMeters).map(p => p.outer))
-          ];
-          for (const cut of reservations)
-            plots = plots.flatMap(p => subtractConvex(p.polygon, cut, 1).map(polygon => ({ ...p, polygon })));
-          break candidates;
+              continue;
+            const result = placeLandmark(document, request.asset, pose, lanes, { frontage, maxLengthMeters });
+            if (!result.document) continue;
+            const instance = result.document.landmarks!.at(-1)!;
+            const operating = [
+              ...instance.site.map(p => p.outer),
+              ...instance.accesses.flatMap(a => accessCorridor(a.points, a.widthMeters).map(p => p.outer))
+            ];
+            if (
+              instance.accesses.some(access =>
+                access.points.slice(1).some((b, i) => {
+                  const segment: [Point, Point] = [access.points[i], b];
+                  return [...streetIndex.query(bounds(segment)), ...accessIndex.query(bounds(segment))].some(other =>
+                    crosses(segment, other)
+                  );
+                })
+              )
+            )
+              continue;
+            const base = terrain.heightAt(position);
+            if (
+              operating.some(
+                p =>
+                  protectedIndex.query(bounds(p)).some(c => plotArea(intersectConvex(p, c)) > 1e-6) ||
+                  moat.hitsPolygon(p) ||
+                  buildingHitsCivicLandmark(source, p) ||
+                  !defense.clears(p) ||
+                  [polygonCentroid(p), ...p].some(
+                    q => !Number.isFinite(terrain.heightAt(q)) || Math.abs(terrain.heightAt(q) - base) > 0.02
+                  )
+              )
+            )
+              continue;
+            accepted = result.document;
+            addAccesses(instance);
+            const reservations = [
+              ...instance.site.map(p => p.outer),
+              ...instance.accesses.flatMap(a => accessCorridor(a.points, a.widthMeters).map(p => p.outer))
+            ];
+            for (const cut of reservations)
+              plots = plots.flatMap(p => subtractConvex(p.polygon, cut, 1).map(polygon => ({ ...p, polygon })));
+            break candidates;
+          }
         }
+        if (accepted || trials > trialLimit) break;
       }
-      if (accepted || trials > 256) break;
+      if (trials > trialLimit) exhausted = trialLimit >= 256;
+    };
+    if (district && !accepted) {
+      const preferred = preferredFacilityPlots(
+        request,
+        plots,
+        district.groups.get(facilityGroupKey(request)) ?? {
+          use: request.use ?? "craft",
+          count: 1,
+          median: 0,
+          total: 0
+        },
+        district.frontageOf
+      );
+      search(preferred, 80);
     }
+    if (!accepted) search(plots, 256);
     if (accepted) {
       document = accepted;
       placed.push(request.id);
-    } else unplaced.push({ id: request.id, reason: trials > 256 ? "candidate-limit" : "no-fitting-site-and-access" });
+    } else
+      unplaced.push({
+        id: request.id,
+        reason: exhausted ? "candidate-limit" : "no-fitting-site-and-access"
+      });
   }
-  const after = placed.length ? buildBlockFabric(document) : fabric;
+  const after = options.deferHousing || !placed.length ? fabric : buildBlockFabric(document);
   const beforeMixed = landmarkDwellingCapacity(source),
     afterMixed = landmarkDwellingCapacity(document);
   const beforeCapacity =

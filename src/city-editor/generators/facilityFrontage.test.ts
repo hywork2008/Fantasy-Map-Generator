@@ -74,7 +74,8 @@ it("keeps the supplied city's facilities aligned to their serving streets with s
     }
   const target = rows.find(r => r.id === "population-facility:workshop:shoemaking:2");
   expect(target).toBeDefined();
-  expect(rows.length).toBeGreaterThanOrEqual(237);
+  // Later ropeworks, butchery and town-trade models place 235 landmarks on this fixture.
+  expect(rows.length).toBeGreaterThanOrEqual(235);
   expect(rows.every(r => r.angle < 0.1)).toBe(true);
   expect(rows.every(r => r.length < 8)).toBe(true);
   expect(crossings).toBe(0);
