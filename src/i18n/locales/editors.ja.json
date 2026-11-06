@@ -37,7 +37,7 @@
         "aligned": "接線連続",
         "symmetric": "対称",
         "paths": "選択中の線",
-        "drawingHelp": "クリックで描画、ベジェの点はドラッグでハンドルを指定。完了・Enterで確定、Escapeで取消、Backspaceで末尾を削除。線を選択して数値を編集し、白い頂点・青いハンドルをドラッグできます。自動は人口に応じたプリセット作成です。都市全体の生成はM4で追加します。",
+        "drawingHelp": "クリックで描画、ベジェの点はドラッグでハンドルを指定。完了・Enterで確定、Escapeで取消、Backspaceで末尾を削除。線を選択して数値を編集し、白い頂点・青いハンドルをドラッグできます。自動は人口に応じたプリセット作成です。「メッシュなし都市生成」から街路や建物を生成できます。",
         "finish": "描画を完了",
         "cancel": "下書きを取消",
         "addPreset": "プリセットを作成",
@@ -206,7 +206,7 @@
         }
       },
       "generation": {
-        "title": "メッシュなし生成：入力 → 骨格 → 領域",
+        "title": "メッシュなし都市生成",
         "seed": "生成seed",
         "radius": "新しい合成・手動入力の市域半径 (m)",
         "centerX": "手動入力の中心・東 (m)",
@@ -220,9 +220,9 @@
         "rectangle": "四角形",
         "ellipse": "楕円形",
         "stage": "候補・採用済みの段階",
-        "inputs": "1/3 入力",
-        "skeleton": "2/3 骨格と接続",
-        "regions": "3/3 領域と接道",
+        "inputs": "入力",
+        "skeleton": "骨格と接続",
+        "regions": "土地と接道",
         "synthetic": "新しい合成入力を確認",
         "current": "現在の手動形状を入力にする",
         "linked": "FMG入力を確認",
@@ -259,12 +259,44 @@
           "region-budget": "領域演算の形状上限を超えました。",
           "gate-access": "この位置に道・川が収まる壁開口を作れません。別の自動形状または手動市壁を使ってください。",
           "bridge-wall": "自動市壁が固定橋に重なります。橋を維持して壁を調整してください。",
-          "bridge-length": "橋が時代・FMG入力の渡河長上限を超えます。別地点や渡し船を検討してください。"
+          "bridge-length": "橋が時代・FMG入力の渡河長上限を超えます。別地点や渡し船を検討してください。",
+          "urban-skeleton-required": "先に骨格と土地を生成・採用して下さい。",
+          "urban-generated": "建物を含む都市を採用済みです。都市の再生成かUndoで骨格に戻って下さい。",
+          "edited-urban": "生成後の編集を保護するため再生成を停止しました。Undoで生成時点に戻して下さい。",
+          "invalid-urban-settings": "人口0〜220000、小路幅1.4〜6m、間隔15〜100m、本数0〜64を指定して下さい。",
+          "urban-document-budget": "生成結果が保存サイズ上限を超えました。人口または小路を減らして下さい。"
         },
         "diagnostics": {
           "bridge-unavailable": "候補地点に適法な自動橋を置けません",
           "branch-unreachable": "追加道路の目標点へ到達できません",
           "land-without-frontage": "到達可能な接道がない土地を保持しています"
+        },
+        "blocksAndLanes": "街区と小路",
+        "facilities": "施設",
+        "housing": "住宅と完成都市",
+        "mode": "建物生成方式",
+        "population": "目標人口",
+        "laneSpacing": "小路の間隔 (m)",
+        "laneWidth": "小路の幅 (m)",
+        "maxLanes": "新設小路の上限",
+        "allowExpansion": "自動合成入力の範囲内で郊外を追加",
+        "develop": "小路・施設・住宅の候補を生成",
+        "capacity": "住戸容量 / 必要住戸",
+        "unplaced": "未収容人口",
+        "provisional": "仮寸法の施設",
+        "stagePopulation": "この段階の収容人口",
+        "urbanDiagnostics": {
+          "suburbs-expanded": "固定形状を動かさず合成市域内に郊外を追加しました。",
+          "housing-capacity-shortfall": "敷地または生成上限により住戸が不足しています。",
+          "facility-space-shortfall": "配置できない施設需要を保持しています。",
+          "manual-capacity-unverified": "容量未設定の既存建物は人口容量に加算していません。",
+          "placement-budget": "配置処理の上限に達しました。"
+        },
+        "missing": {
+          "space": "接道敷地が不足",
+          "river": "利用できる河岸がない",
+          "district": "適合する郊外・用途敷地が不足",
+          "budget": "配置上限"
         }
       }
     },

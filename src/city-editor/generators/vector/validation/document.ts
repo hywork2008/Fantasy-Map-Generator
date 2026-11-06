@@ -15,6 +15,7 @@ import { ringInside, verifyWallGapSurface } from "../geometry/routing";
 import { pathSurface, surfacesOverlap } from "../geometry/surfaces";
 import { vectorWaterSurfaces } from "../geometry/water";
 import { validateVectorGeneration } from "./generation";
+import { validateVectorUrban } from "./urban";
 
 export const VECTOR_DOCUMENT_LIMITS = {
   paths: 2048,
@@ -163,15 +164,19 @@ function validPath(v: RecordValue, legacy: boolean): v is unknown & VectorPath &
 }
 
 /** Strict native codec validation. Missing/unknown references are never repaired here. */
-export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 = false): string[] {
+export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 | 4 = false): string[] {
   if (
     !keys(
       value,
       ["format", "version", "revision", "frame", "context", "paths", "connections", "regions", "placements", "recipe"],
-      legacy ? [] : ["site", "generation"]
+      legacy === true || legacy === 2 || legacy === 3
+        ? []
+        : legacy === 4
+          ? ["site", "generation"]
+          : ["site", "generation", "urban"]
     ) ||
     value.format !== "fmg-vector-city" ||
-    value.version !== (legacy === true ? 1 : legacy === 2 ? 2 : legacy === 3 ? 3 : 4) ||
+    value.version !== (legacy === true ? 1 : legacy === 2 ? 2 : legacy === 3 ? 3 : legacy === 4 ? 4 : 5) ||
     !revision(value.revision)
   )
     return ["document-format"];
@@ -340,7 +345,11 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 =
       errors.push(`region:${r.id}`);
   for (const p of Object.values(doc.placements))
     if (
-      !keys(p, ["id", "modelId", "position", "facingDegrees", "origin", "editPolicy", "site", "accesses"]) ||
+      !keys(
+        p,
+        ["id", "modelId", "position", "facingDegrees", "origin", "editPolicy", "site", "accesses"],
+        legacy ? [] : ["building"]
+      ) ||
       !id(p.modelId) ||
       !point(p.position) ||
       !finite(p.facingDegrees) ||
@@ -448,7 +457,8 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 =
       }
     }
   }
-  if (!legacy && !errors.length) errors.push(...validateVectorGeneration(doc));
+  if ((!legacy || legacy === 4) && !errors.length) errors.push(...validateVectorGeneration(doc));
+  if (!legacy && !errors.length) errors.push(...validateVectorUrban(doc));
   return errors;
 }
 

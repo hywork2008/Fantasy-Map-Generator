@@ -4,6 +4,7 @@ import { pathSurface } from "../../generators/vector/geometry/surfaces";
 import { vectorWaterSurfaces } from "../../generators/vector/geometry/water";
 import { assertVectorDocument } from "../../generators/vector/validation/document";
 import type { VectorCityDocument, VectorPath } from "../../types/vector/document";
+import type { VectorStage } from "../../types/vector/urban";
 import { element, polygon } from "../svgPrimitives";
 
 let vectorSceneId = 0;
@@ -37,10 +38,30 @@ export function renderVectorDocument(
   document: VectorCityDocument,
   selectedId?: string,
   selectedSegmentId?: string,
-  stage: "inputs" | "skeleton" | "regions" = "regions"
+  stage: VectorStage = document.urban ? "housing" : "regions"
 ): SVGSVGElement {
   assertVectorDocument(document);
-  const hidden = new Set(stage === "inputs" ? Object.keys(document.generation?.pathRevisions ?? {}) : []);
+  const urban = document.urban?.inputRevision === document.revision ? document.urban : undefined;
+  const checkpoint = urban?.checkpoints.find(c => c.id === stage);
+  const hidden = new Set(
+    checkpoint
+      ? Object.keys(document.paths).filter(id => !checkpoint.pathIds.includes(id))
+      : stage === "inputs"
+        ? Object.keys(document.generation?.pathRevisions ?? {})
+        : []
+  );
+  const early = urban && ["inputs", "skeleton", "regions"].includes(stage);
+  const nodes =
+    stage === "inputs" && document.generation?.inputRevision === document.revision
+      ? (urban?.baseGeneration ?? document.generation).inputNodes
+      : Object.values(early ? urban.baseConnections.nodes : document.connections.nodes);
+  const visible = nodes
+    .map(n => ({ ...n, anchors: n.anchors.filter(a => !hidden.has(a.pathId)) }))
+    .filter(n => n.anchors.length);
+  const sceneDocument = {
+    ...document,
+    connections: { ...document.connections, nodes: Object.fromEntries(visible.map(n => [n.id, n])) }
+  };
   const rings = Object.values(document.paths).map(path => pathSurface(path).outer);
   let extent = document.frame.extentMeters,
     centerX = document.site?.center[0] ?? 0,
@@ -84,19 +105,29 @@ export function renderVectorDocument(
         "data-vector-region": region.id
       })
     );
-  for (const node of Object.values(document.connections.nodes)) {
-    if (node.anchors.every(a => hidden.has(a.pathId))) continue;
-    const junction = junctionSurface(document, node.id);
+  for (const node of visible) {
+    const junction = junctionSurface(sceneDocument, node.id);
     if (junction)
       svg.append(element("path", { d: polygon(junction.outer), fill: "#c7ae84", "data-vector-junction": node.id }));
   }
-  if (stage === "regions" && document.generation?.inputRevision === document.revision)
-    for (const block of document.generation.blocks)
+  if (
+    ["regions", "blocksAndLanes", "facilities", "housing"].includes(stage) &&
+    document.generation?.inputRevision === document.revision
+  )
+    for (const block of urban && stage === "regions" ? urban.baseGeneration.blocks : document.generation.blocks)
       svg.append(
         element("path", {
           d: [block.outer, ...block.holes].map(polygon).join(" "),
           "fill-rule": "evenodd",
-          fill: block.reachable ? "#d5d1a9" : "#d9c9b9",
+          fill:
+            urban && stage !== "regions"
+              ? { commerce: "#ddd0a6", craft: "#d5c2ab", hazard: "#c9b6b0", river: "#b9cec7", residential: "#d5d1a9" }[
+                  urban.districts.find(d => d.id === block.id)?.use ?? "residential"
+                ]
+              : block.reachable
+                ? "#d5d1a9"
+                : "#d9c9b9",
+          "data-vector-use": urban?.districts.find(d => d.id === block.id)?.use ?? "unassigned",
           stroke: "#b6ae90",
           "stroke-width": ".2",
           "data-vector-block": block.id
@@ -199,20 +230,34 @@ export function renderVectorDocument(
       })
     );
   }
-  for (const placement of Object.values(document.placements))
-    svg.append(
-      element("path", {
-        d: [placement.site.outer, ...placement.site.holes].map(polygon).join(" "),
-        "fill-rule": "evenodd",
-        fill: "#99816b",
-        "data-vector-placement": placement.id
-      })
-    );
-  const visibleNodes =
-    stage === "inputs" && document.generation?.inputRevision === document.revision
-      ? document.generation.inputNodes
-      : Object.values(document.connections.nodes).filter(n => !n.anchors.every(a => hidden.has(a.pathId)));
-  for (const node of visibleNodes)
+  for (const placement of Object.values(document.placements)) {
+    if (checkpoint && !checkpoint.placementIds.includes(placement.id)) continue;
+    const building = placement.building;
+    for (const entrance of building?.entrances ?? [])
+      svg.append(
+        element("path", {
+          d: entrance.connector.map((p, i) => `${i ? "L" : "M"}${p[0]} ${-p[1]}`).join(" "),
+          fill: "none",
+          stroke: "#c7ae84",
+          "stroke-width": String(entrance.widthMeters),
+          "data-vector-access": placement.id
+        })
+      );
+    for (const shape of building?.footprint ?? [placement.site])
+      svg.append(
+        element("path", {
+          d: [shape.outer, ...shape.holes].map(polygon).join(" "),
+          "fill-rule": "evenodd",
+          fill: building?.kind === "facility" ? "#ac7858" : "#99816b",
+          stroke: "#66584a",
+          "stroke-width": ".3",
+          ...(building?.provenance === "provisional" ? { "stroke-dasharray": "1 1" } : {}),
+          "data-vector-placement": placement.id,
+          "data-vector-building-kind": building?.kind ?? "manual"
+        })
+      );
+  }
+  for (const node of visible)
     svg.append(
       element("circle", {
         cx: String(node.position[0]),

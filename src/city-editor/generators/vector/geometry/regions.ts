@@ -2,6 +2,7 @@ import polygonClipping, { type MultiPolygon } from "polygon-clipping";
 import RBush from "rbush";
 import type { Point } from "../../../types/primitives";
 import { pointInPolygon, polygonArea } from "../../geom";
+import { pointSegmentDistance } from "./sampling";
 import type { PathSurface } from "./surfaces";
 
 export type VectorPolygon = PathSurface;
@@ -52,24 +53,68 @@ export function regionBoolean(
   if (count > 30000) throw new Error("region-budget");
   if ((operation !== "union" && !a.length) || (operation === "intersection" && !b.length)) return [];
   if (operation === "union" && !a.length && !b.length) return [];
-  const result =
+  const run = (left: MultiPolygon, right: MultiPolygon) =>
     operation === "union"
-      ? polygonClipping.union(toClip([...a, ...b]))
+      ? polygonClipping.union([...left, ...right])
       : operation === "difference"
-        ? polygonClipping.difference(toClip(a), toClip(b))
-        : polygonClipping.intersection(toClip(a), toClip(b));
+        ? polygonClipping.difference(left, right)
+        : polygonClipping.intersection(left, right);
+  let result: MultiPolygon;
+  try {
+    result = run(toClip(a), toClip(b));
+  } catch (error) {
+    // The sweep kernel can lose an almost coincident derived edge. Retry on a
+    // sub-micrometer lattice, far below the 5mm sampling tolerance. Source paths
+    // and surveyed input rings are never changed by this numerical fallback.
+    if (!(error instanceof Error) || !/^Unable to (complete output ring|find segment)/.test(error.message)) throw error;
+    const rounded = (polygons: VectorPolygon[], step: number): MultiPolygon =>
+      polygons.flatMap(p => {
+        const rings = [p.outer, ...p.holes]
+          .map(r =>
+            r
+              .map(p => [Math.round(p[0] / step) * step, Math.round(p[1] / step) * step] as Point)
+              .filter((p, i, all) => i === 0 || p[0] !== all[i - 1][0] || p[1] !== all[i - 1][1])
+          )
+          .filter(r => r.length >= 3);
+        return rings.length ? [rings] : [];
+      });
+    try {
+      result = run(rounded(a, 1e-8), rounded(b, 1e-8));
+    } catch {
+      result = run(rounded(a, 1e-7), rounded(b, 1e-7));
+    }
+  }
   let points = 0;
   const polygons = result
     .map(rings => {
-      const converted = rings.map(r => {
-        const points = r.slice(0, -1).map(p => [p[0], p[1]] as Point);
-        if (points.length > 16000) throw new Error("region-budget");
-        return points;
-      });
+      const converted = rings
+        .map(r => {
+          const points: Point[] = [];
+          for (const p of r.slice(0, -1))
+            if (!points.length || Math.hypot(p[0] - points.at(-1)![0], p[1] - points.at(-1)![1]) > 1e-7)
+              points.push([p[0], p[1]]);
+          if (
+            points.length > 1 &&
+            Math.hypot(points[0][0] - points.at(-1)![0], points[0][1] - points.at(-1)![1]) <= 1e-7
+          )
+            points.pop();
+          for (let i = points.length - 1; i >= 0 && points.length > 3; i--)
+            if (
+              pointSegmentDistance(
+                points[i],
+                points[(i + points.length - 1) % points.length],
+                points[(i + 1) % points.length]
+              ) < 1e-10
+            )
+              points.splice(i, 1);
+          if (points.length > 16000) throw new Error("region-budget");
+          return points;
+        })
+        .filter(r => r.length >= 3);
       points += converted.reduce((n, r) => n + r.length, 0);
       return { outer: converted[0], holes: converted.slice(1) };
     })
-    .filter(p => regionArea(p) > 1e-8);
+    .filter(p => p.outer && regionArea(p) > 1e-8);
   if (points > 50000) throw new Error("region-budget");
   return polygons.sort(
     (a, b) => regionArea(b) - regionArea(a) || JSON.stringify(a.outer).localeCompare(JSON.stringify(b.outer))

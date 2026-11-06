@@ -10,7 +10,11 @@
 - docs/analytics/ce-meshless-m4-fmg-20261107.png - 実CEでFMG固定橋・河川・道路と街区候補、入力フレームでの表示を確認した画像
 - docs/analytics/ce-meshless-m4-synthetic-20261107.json - seed m4-reviewの合成入力によるnative v4生成結果。楕円市壁・門6件・橋1件・街区候補6成分を保存
 - docs/analytics/ce-meshless-m4-synthetic-20261107.png - 実CEで合成入力の楕円市壁・開口・橋・街区候補を確認した画像
-- docs/plan/ce-meshless-city-editor.md - M4の入力・固定交差・骨格生成・領域演算を完了。native v4と生成所有、段階表示、検証範囲・後続への境界を追記。次はM5の施設先行・残地住宅・容量
+- docs/analytics/ce-meshless-m5-20261107.md - メッシュなしCEのM5を完了。接道小路・用途、共通需要による施設先行と入口予約、残地住宅、人口容量と不足、native v5と正しい段階表示を実装。関連118件と実画面の施設28件→住宅99棟、採用・Undo・保存再読込を記録。次はM6の依存更新・部分再生成
+- docs/analytics/ce-meshless-m5-facilities-20261107.png - 同じ生成の施設段階。施設28件・住宅0棟、入口予約後の小路を確認した画像
+- docs/analytics/ce-meshless-m5-housing-20261107.png - 完成都市段階。先行施設28件と残地住宅99棟で必要112戸を満たした画像
+- docs/analytics/ce-meshless-m5-synthetic-20261107.json - seed meshless・500人・川あり・小路8本のnative v5。施設先行と残地住宅、全6段階の表示対象・容量・人口を保存
+- docs/plan/ce-meshless-city-editor.md - M5の小路・用途・施設先行・残地住宅・人口容量と段階表示を完了。native v5・検証と境界を追記。次はM6の依存更新・部分再生成
 
 2026-11-06
 

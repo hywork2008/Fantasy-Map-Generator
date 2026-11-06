@@ -5,13 +5,16 @@ import {
   generateVectorSkeleton,
   type VectorGenerationResult
 } from "../../generators/vector/generation/pipeline";
+import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../../generators/vector/generation/urban";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../../generators/vector/validation/document";
+import { vectorUrbanStages } from "../../generators/vector/validation/urban";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
 import type { EditorLifetime } from "../../services/editorLifetime";
 import { parseIncomingPayload } from "../../services/io/incomingCity";
 import type { BurgSiteDescriptor } from "../../types/contracts/burgSiteDescriptor";
 import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorGenerationSettings } from "../../types/vector/generation";
+import type { VectorStage } from "../../types/vector/urban";
 
 const text = (key: string) => editorText(`cityEditor.vector.generation.${key}` as EditorMessageKey);
 export function createVectorGenerationPanel(
@@ -93,7 +96,7 @@ export function createVectorGenerationPanel(
     const message = error instanceof Error ? error.message : "invalid-input",
       match =
         message.match(
-          /site-[a-z-]+|fixed-[a-z-]+|edited-generation|unbridged-road|bridge-[a-z-]+|gate-access|region-[a-z-]+|route-budget|coastal-coverage-missing|invalid-generation-settings/
+          /urban-[a-z-]+|edited-urban|invalid-urban-settings|site-[a-z-]+|fixed-[a-z-]+|urban-generated|edited-generation|unbridged-road|bridge-[a-z-]+|gate-access|region-[a-z-]+|route-budget|coastal-coverage-missing|invalid-generation-settings/
         )?.[0] ?? "invalid-input",
       key = `cityEditor.vector.generation.errors.${match}` as EditorMessageKey,
       translated = editorText(key);
@@ -122,16 +125,24 @@ export function createVectorGenerationPanel(
   field("wall", wall);
   const stage = document.createElement("select");
   stage.dataset.generationField = "stage";
-  for (const value of ["inputs", "skeleton", "regions"]) {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = text(value);
-    stage.append(option);
-  }
-  stage.value = "regions";
+  const updateStages = (doc: VectorCityDocument) => {
+    const values: VectorStage[] = doc.urban
+      ? vectorUrbanStages(doc.urban.settings.mode)
+      : ["inputs", "skeleton", "regions"];
+    stage.replaceChildren(
+      ...values.map((value, i) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = `${i + 1}/${values.length} ${text(value)}`;
+        return option;
+      })
+    );
+    stage.value = doc.urban ? "housing" : "regions";
+  };
+  updateStages(read());
   field("stage", stage);
   const draw = (doc: VectorCityDocument) => {
-    const svg = renderVectorDocument(doc, undefined, undefined, stage.value as "inputs" | "skeleton" | "regions");
+    const svg = renderVectorDocument(doc, undefined, undefined, stage.value as VectorStage);
     svg.style.cssText = "width:100%;height:100%;min-height:300px";
     svg.dataset.generationPreview = String(!!pending);
     map.replaceChildren(svg);
@@ -140,7 +151,7 @@ export function createVectorGenerationPanel(
     assertVectorDocument(doc);
     pending = { document: doc, stages };
     label = text(key);
-    stage.value = "regions";
+    updateStages(doc);
     stage.disabled = false;
     adopt.disabled = false;
     draw(doc);
@@ -213,6 +224,58 @@ export function createVectorGenerationPanel(
     preview(result.document, "generate", result.stages);
     status.textContent = `${text("result")} ${Object.keys(result.document.paths).length} / ${result.document.generation!.blocks.length} / ${result.document.generation!.diagnostics.length}`;
   });
+  const mode = document.createElement("select");
+  mode.dataset.generationField = "mode";
+  for (const value of ["medieval", "medieval-facilities"]) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    mode.append(option);
+  }
+  mode.value = "medieval-facilities";
+  field("mode", mode);
+  const population = number("population", read().context.targetPopulation || 1000),
+    laneSpacing = number("laneSpacing", 36),
+    laneWidth = number("laneWidth", 2.4),
+    maxLanes = number("maxLanes", 32),
+    expansion = document.createElement("input");
+  expansion.type = "checkbox";
+  expansion.checked = true;
+  expansion.dataset.generationField = "allowExpansion";
+  field("allowExpansion", expansion);
+  const showUrban = (doc: VectorCityDocument) => {
+    const u = doc.urban;
+    if (!u) return;
+    if (u.inputRevision !== doc.revision) return;
+    const c = u.checkpoints.find(c => c.id === stage.value);
+    const visibleFacilities = (c?.placementIds ?? Object.keys(doc.placements))
+      .map(id => doc.placements[id])
+      .filter(p => p.building?.kind === "facility");
+    status.textContent = `${text("population")}: ${u.report.targetPopulation}; ${text("capacity")}: ${c?.capacityDwellings ?? u.report.capacityDwellings} / ${u.report.requiredDwellings}; ${text("unplaced")}: ${c?.unplacedPopulation ?? u.report.unplacedPopulation}; ${text("facilities")}: ${visibleFacilities.length} / ${u.report.requiredFacilities}; ${text("provisional")}: ${visibleFacilities.filter(p => p.building?.provenance === "provisional").length}${c ? `; ${text("stagePopulation")}: ${c.assignedPopulation}` : ""}`;
+    for (const reason of u.report.reasons) {
+      const li = document.createElement("li");
+      li.textContent = text(`urbanDiagnostics.${reason}`);
+      diagnosticList.append(li);
+    }
+    for (const f of u.report.unplacedFacilities) {
+      const li = document.createElement("li");
+      li.textContent = `${f.id}: ${text(`missing.${f.reason}`)}`;
+      diagnosticList.append(li);
+    }
+  };
+  button("develop", () => {
+    const doc = generateVectorUrban(read(), {
+      ...DEFAULT_VECTOR_URBAN,
+      mode: mode.value as "medieval" | "medieval-facilities",
+      population: Number(population.value),
+      laneSpacingMeters: Number(laneSpacing.value),
+      laneWidthMeters: Number(laneWidth.value),
+      maxLanes: Number(maxLanes.value),
+      allowExpansion: expansion.checked
+    });
+    preview(doc, "develop");
+    showUrban(doc);
+  });
   const adopt = button("adopt", () => {
     if (!pending) return;
     const doc = pending.document;
@@ -225,12 +288,15 @@ export function createVectorGenerationPanel(
     pending = undefined;
     adopt.disabled = true;
     restore();
+    updateStages(read());
     status.textContent = text("cancelled");
   });
   body.append(status, diagnosticList);
   scope.listen(stage, "change", () => {
     const doc = pending?.stages.find(s => s.id === stage.value)?.document ?? pending?.document ?? read();
     draw(doc);
+    showDiagnostics(doc);
+    showUrban(doc);
   });
   scope.listen(body, "input", event => {
     if (event.target === stage) return;
@@ -253,7 +319,13 @@ export function createVectorGenerationPanel(
       branches.value = String(doc.generation?.settings.branches ?? 8);
       wall.value = doc.generation?.settings.wall ?? "none";
       showDiagnostics(doc);
-      stage.value = "regions";
+      updateStages(doc);
+      mode.value = doc.urban?.settings.mode ?? "medieval-facilities";
+      population.value = String(doc.urban?.settings.population ?? (doc.context.targetPopulation || 1000));
+      laneSpacing.value = String(doc.urban?.settings.laneSpacingMeters ?? 36);
+      laneWidth.value = String(doc.urban?.settings.laneWidthMeters ?? 2.4);
+      maxLanes.value = String(doc.urban?.settings.maxLanes ?? 32);
+      expansion.checked = doc.urban?.settings.allowExpansion ?? true;
       stage.disabled = !!doc.generation && doc.generation.inputRevision !== doc.revision;
       status.textContent = doc.generation
         ? doc.generation.inputRevision === doc.revision
@@ -262,6 +334,7 @@ export function createVectorGenerationPanel(
         : doc.site
           ? text("inputReady")
           : text("noInput");
+      showUrban(doc);
     }
   };
 }

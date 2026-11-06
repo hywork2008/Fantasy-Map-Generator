@@ -120,3 +120,42 @@ describe("M4 input, generation and adopted stages", () => {
     expect(root.querySelector<HTMLButtonElement>('[data-generation-action="adopt"]')!.disabled).toBe(true);
   });
 });
+
+describe("M5 adopted urban checkpoints", () => {
+  it("previews, cancels and adopts one urban transaction with dynamic stages", () => {
+    mount();
+    click("synthetic");
+    click("adopt");
+    click("generate");
+    click("adopt");
+    fill("population", "500");
+    fill("maxLanes", "4");
+    const index = history.index;
+    click("develop");
+    expect(history.index).toBe(index);
+    expect(map.querySelector('[data-vector-building-kind="housing"]')).not.toBeNull();
+    field("stage").value = "facilities";
+    field("stage").dispatchEvent(new Event("change"));
+    expect(map.querySelector('[data-vector-building-kind="housing"]')).toBeNull();
+    expect(map.querySelector('[data-vector-building-kind="facility"]')).not.toBeNull();
+    expect(root.querySelector(".ce-vector-generation-status")!.textContent).toContain("13 / 112");
+    click("cancel");
+    expect(map.querySelector("[data-vector-placement]")).toBeNull();
+    click("develop");
+    click("adopt");
+    expect(history.index).toBe(index + 1);
+    expect(history.document.urban).toBeDefined();
+    expect(field("stage").querySelectorAll("option")).toHaveLength(6);
+    history.undo();
+    ui.refresh();
+    expect(history.document.urban).toBeUndefined();
+    history.redo();
+    ui.refresh();
+    expect(history.document.urban).toBeDefined();
+    fill("mode", "medieval");
+    click("develop");
+    click("adopt");
+    expect(history.document.urban!.report.placedFacilities).toBe(0);
+    expect(field("stage").querySelectorAll("option")).toHaveLength(5);
+  });
+});

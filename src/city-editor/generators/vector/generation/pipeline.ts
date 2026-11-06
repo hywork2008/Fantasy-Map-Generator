@@ -36,7 +36,7 @@ export function generationFingerprint(doc: VectorCityDocument, ids: Set<string>)
     wallRoads: Object.values(doc.connections.wallRoads).filter(r => ids.has(r.pathId))
   });
 }
-function join(doc: VectorCityDocument, anchors: CurveAnchor[]): void {
+export function joinVectorGenerationAnchors(doc: VectorCityDocument, anchors: CurveAnchor[]): void {
   const unique = anchors.filter((a, i, all) => all.findIndex(b => JSON.stringify(a) === JSON.stringify(b)) === i);
   if (unique.length < 2) return;
   const point = evaluateAnchor(doc.paths[unique[0].pathId], unique[0]);
@@ -89,7 +89,7 @@ function freeLand(doc: VectorCityDocument): VectorPolygon[] {
     ...Object.values(doc.regions)
       .filter(r => r.kind === "reservation")
       .map(r => ({ outer: r.outer, holes: r.holes })),
-    ...Object.values(doc.placements).map(p => p.site)
+    ...Object.values(doc.placements).flatMap(p => p.building?.reserved ?? [p.site])
   ];
   return regionBoolean(doc.site!.domain, obstacles, "difference");
 }
@@ -100,7 +100,7 @@ function roadEndpoints(path: VectorPath): CurveAnchor[] {
     { pathId: path.id, segmentId: ids.at(-1)!, t: 1 }
   ];
 }
-function reachablePaths(doc: VectorCityDocument, center: Point): Set<string> {
+export function reachablePaths(doc: VectorCityDocument, center: Point): Set<string> {
   const nodes = Object.values(doc.connections.nodes);
   if (!nodes.length) return new Set();
   const root = [...nodes].sort((a, b) => distance(a.position, center) - distance(b.position, center))[0],
@@ -121,7 +121,7 @@ function reachablePaths(doc: VectorCityDocument, center: Point): Set<string> {
       .map(e => e.pathId)
   );
 }
-function frontages(region: VectorPolygon, road: VectorPath): VectorBlock["frontage"] {
+export function frontages(region: VectorPolygon, road: VectorPath): VectorBlock["frontage"] {
   const result: VectorBlock["frontage"] = [],
     surface = pathSurface(road);
   for (const ring of [region.outer, ...region.holes])
@@ -155,9 +155,9 @@ function frontages(region: VectorPolygon, road: VectorPath): VectorBlock["fronta
     }
   return result;
 }
-export function deriveVectorBlocks(doc: VectorCityDocument): VectorBlock[] {
+export function deriveVectorBlocks(doc: VectorCityDocument, extra: VectorPolygon[] = []): VectorBlock[] {
   const roads = Object.values(doc.paths).filter(p => p.role === "road"),
-    land = regionBoolean(freeLand(doc), roads.map(pathSurface), "difference"),
+    land = regionBoolean(freeLand(doc), [...roads.map(pathSurface), ...extra], "difference"),
     reachable = reachablePaths(doc, doc.site!.center);
   return land.map((polygon, i) => {
     const frontage = roads.flatMap(p => frontages(polygon, p));
@@ -181,6 +181,7 @@ export function generateVectorSkeleton(
   settings: VectorGenerationSettings = DEFAULT_VECTOR_GENERATION
 ): VectorGenerationResult {
   assertVectorDocument(input);
+  if (input.urban) throw new Error("urban-generated");
   if (!input.site) throw new Error("site-required");
   if (
     !(
@@ -260,7 +261,7 @@ export function generateVectorSkeleton(
         );
         if (prior) {
           prior.widthMeters = Math.max(prior.widthMeters, opening);
-          join(doc, [prior.anchor, hit.b]);
+          joinVectorGenerationAnchors(doc, [prior.anchor, hit.b]);
         } else doc = createVectorGate(doc, hit.a, hit.b, opening, path.role === "road" ? "passage" : "water");
       }
   }
@@ -391,13 +392,13 @@ export function generateVectorSkeleton(
   }
   for (let i = 0; i < bindings.length; i++) {
     const all = bindings.flatMap((b, j) => (distance(route.points[i], route.points[j]) < 1e-6 ? b : []));
-    join(doc, all);
+    joinVectorGenerationAnchors(doc, all);
   }
   const roads = Object.values(doc.paths).filter(p => p.role === "road");
   for (let i = 0; i < roads.length; i++)
     for (let j = i + 1; j < roads.length; j++)
       for (const hit of pathIntersections(roads[i], roads[j]))
-        if (containsRegion(free, evaluateAnchor(roads[i], hit.a))) join(doc, [hit.a, hit.b]);
+        if (containsRegion(free, evaluateAnchor(roads[i], hit.a))) joinVectorGenerationAnchors(doc, [hit.a, hit.b]);
   rebuildRoadGraph(doc);
   doc.revision++;
   assertVectorDocument(doc);

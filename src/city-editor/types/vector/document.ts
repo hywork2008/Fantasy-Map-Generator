@@ -1,5 +1,6 @@
 import type { HistoricalPeriod, Point } from "../primitives";
 import type { VectorGeneration, VectorSite } from "./generation";
+import type { VectorBuilding, VectorUrban } from "./urban";
 
 export type VectorHandleMode = "corner" | "aligned" | "symmetric";
 export type VectorSegment = (
@@ -106,12 +107,13 @@ export interface VectorPlacement {
   editPolicy: VectorPath["editPolicy"];
   site: { outer: Point[]; holes: Point[][] };
   accesses: CurveAnchor[];
+  building?: VectorBuilding;
 }
 
 /** Saved geometry ledger. No editable cell mesh or render-time generation. */
 export interface VectorCityDocument {
   format: "fmg-vector-city";
-  version: 4;
+  version: 5;
   revision: number;
   frame: { extentMeters: number };
   context: { historicalPeriod: HistoricalPeriod; targetPopulation: number; bridgeSkewTier?: 0 | 1 | 2 };
@@ -131,5 +133,6 @@ export interface VectorCityDocument {
   placements: Record<string, VectorPlacement>;
   site?: VectorSite;
   generation?: VectorGeneration;
+  urban?: VectorUrban;
   recipe: { algorithm: "vector-city-v1"; seed: string };
 }

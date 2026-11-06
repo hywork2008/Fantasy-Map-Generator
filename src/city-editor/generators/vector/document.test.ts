@@ -13,7 +13,7 @@ describe("vector document contract", () => {
     const document = createVectorExample();
     expect(document).toEqual({
       ...fixture,
-      version: 4,
+      version: 5,
       connections: {
         ...fixture.connections,
         bridges: {},
@@ -62,7 +62,7 @@ describe("vector document contract", () => {
     const doc = createVectorExample();
     const value = doc as unknown as Record<string, unknown>;
     if (failure === "format") value.format = "fmg-city-editor";
-    if (failure === "version") value.version = 5;
+    if (failure === "version") value.version = 6;
     if (failure === "mesh") value.mesh = { vertices: {}, edges: {}, faces: {} };
     if (failure === "nonfinite") doc.frame.extentMeters = Number.POSITIVE_INFINITY;
     if (failure === "duplicate-id") doc.paths.water.id = "main";

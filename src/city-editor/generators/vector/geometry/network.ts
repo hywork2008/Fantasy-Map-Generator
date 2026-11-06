@@ -198,7 +198,8 @@ export function bridgeGeometry(
   for (const wall of Object.values(document.paths).filter(p => p.role === "wall"))
     if (surfacesOverlap(surface, pathSurface(wall))) throw new Error("bridge-wall");
   for (const placement of Object.values(document.placements))
-    if (surfacesOverlap(surface, placement.site)) throw new Error("protected-land");
+    if ((placement.building?.reserved ?? [placement.site]).some(p => surfacesOverlap(surface, p)))
+      throw new Error("protected-land");
   for (const region of Object.values(document.regions))
     if (region.kind === "reservation" && surfacesOverlap(surface, region)) throw new Error("protected-land");
   return { from, to, deck, skewDegrees };
@@ -261,7 +262,8 @@ export function validateGateGeometry(document: VectorCityDocument, gate: VectorG
     )
       throw new Error("gate-overlap");
   for (const placement of Object.values(document.placements))
-    if (surfacesOverlap(opening, placement.site)) throw new Error("protected-land");
+    if ((placement.building?.reserved ?? [placement.site]).some(p => surfacesOverlap(opening, p)))
+      throw new Error("protected-land");
 }
 
 export function junctionSurface(document: VectorCityDocument, nodeId: string): PathSurface | undefined {

@@ -37,7 +37,7 @@
         "aligned": "Aligned",
         "symmetric": "Symmetric",
         "paths": "Selected path",
-        "drawingHelp": "Click to draw; drag Bézier anchors to set handles. Finish or Enter confirms, Escape cancels, Backspace removes the last point. Select a path to edit its parameters; drag white vertices or blue control handles. Automatic creates a population-sized preset; city generation comes in M4.",
+        "drawingHelp": "Click to draw; drag Bézier anchors to set handles. Finish or Enter confirms, Escape cancels, Backspace removes the last point. Select a path to edit its parameters; drag white vertices or blue control handles. Automatic creates a population-sized preset. Open Meshless city generation to generate streets and buildings.",
         "finish": "Finish drawing",
         "cancel": "Cancel draft",
         "addPreset": "Create preset",
@@ -206,7 +206,7 @@
         }
       },
       "generation": {
-        "title": "Meshless generation: input → skeleton → land",
+        "title": "Meshless city generation",
         "seed": "Generation seed",
         "radius": "New synthetic / manual radius (m)",
         "centerX": "Manual input center east (m)",
@@ -220,9 +220,9 @@
         "rectangle": "Rectangle",
         "ellipse": "Ellipse",
         "stage": "Preview / adopted stage",
-        "inputs": "1/3 Inputs",
-        "skeleton": "2/3 Skeleton and connections",
-        "regions": "3/3 Land and frontage",
+        "inputs": "Inputs",
+        "skeleton": "Skeleton and connections",
+        "regions": "Land and frontage",
         "synthetic": "Preview new synthetic input",
         "current": "Use current manual shapes as input",
         "linked": "Preview FMG input",
@@ -259,12 +259,44 @@
           "region-budget": "The region operation exceeds the geometry budget.",
           "gate-access": "A wall opening cannot fit the road / river at this position. Choose another automatic wall shape or use manual walls.",
           "bridge-wall": "An automatic wall would intersect a fixed bridge. Keep the bridge and adjust the wall.",
-          "bridge-length": "The bridge exceeds the period or FMG crossing-length allowance. Use another site or a ferry."
+          "bridge-length": "The bridge exceeds the period or FMG crossing-length allowance. Use another site or a ferry.",
+          "urban-skeleton-required": "Generate and adopt a current skeleton and land first.",
+          "urban-generated": "An urban result is adopted. Regenerate the urban result or undo to the skeleton.",
+          "edited-urban": "Regeneration stopped to preserve edits. Undo to the adopted urban result first.",
+          "invalid-urban-settings": "Use population 0–220000, lane width 1.4–6m, spacing 15–100m and 0–64 lanes.",
+          "urban-document-budget": "The result exceeds the save budget. Reduce population or lanes."
         },
         "diagnostics": {
           "bridge-unavailable": "No legal automatic bridge at the candidate site",
           "branch-unreachable": "Optional road target is unreachable",
           "land-without-frontage": "Land retained without reachable road frontage"
+        },
+        "blocksAndLanes": "Blocks and lanes",
+        "facilities": "Facilities",
+        "housing": "Housing and completed city",
+        "mode": "Building generation",
+        "population": "Target population",
+        "laneSpacing": "Lane spacing (m)",
+        "laneWidth": "Lane width (m)",
+        "maxLanes": "Maximum new lanes",
+        "allowExpansion": "Allow suburbs within automatic synthetic input",
+        "develop": "Preview lanes, facilities and housing",
+        "capacity": "Dwelling capacity / required",
+        "unplaced": "Unplaced population",
+        "provisional": "Provisional facility dimensions",
+        "stagePopulation": "Population assigned at this stage",
+        "urbanDiagnostics": {
+          "suburbs-expanded": "Suburbs added within the synthetic frame without moving source geometry.",
+          "housing-capacity-shortfall": "Available sites or generation limits leave a dwelling shortfall.",
+          "facility-space-shortfall": "Unplaced facility demand is retained.",
+          "manual-capacity-unverified": "Existing buildings without capacity metadata are excluded from capacity.",
+          "placement-budget": "The placement budget was reached."
+        },
+        "missing": {
+          "space": "Insufficient accessible land",
+          "river": "No available riverbank",
+          "district": "Insufficient suitable peripheral land",
+          "budget": "Placement budget"
         }
       }
     },

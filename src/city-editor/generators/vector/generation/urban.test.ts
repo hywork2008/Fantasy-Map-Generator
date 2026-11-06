@@ -1,0 +1,170 @@
+import { describe, expect, it } from "vitest";
+import { renderVectorDocument } from "../../../renderers/vector/documentSvg";
+import { parseVectorDocument, serializeVectorDocument } from "../../../services/io/vector/documentCodec";
+import { regionArea, regionBoolean } from "../geometry/regions";
+import { syntheticVectorInput } from "./input";
+import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
+import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
+
+const skeleton = () =>
+  generateVectorSkeleton(syntheticVectorInput("m5", 100, false), { ...DEFAULT_VECTOR_GENERATION, branches: 4 })
+    .document;
+describe("meshless urban generation", () => {
+  it("packs authored houses with conserved population and no facilities in ordinary mode", () => {
+    const source = skeleton(),
+      doc = generateVectorUrban(source, { ...DEFAULT_VECTOR_URBAN, mode: "medieval", population: 90, maxLanes: 4 });
+    expect(doc.paths).toMatchObject(source.paths);
+    expect(doc.site).toEqual(source.site);
+    expect(doc.urban!.report.housingBuildings).toBeGreaterThan(0);
+    expect(doc.urban!.report.requiredFacilities).toBe(0);
+    expect(doc.urban!.checkpoints.map(c => c.id)).toEqual([
+      "inputs",
+      "skeleton",
+      "regions",
+      "blocksAndLanes",
+      "housing"
+    ]);
+    expect(doc.urban!.report.assignedPopulation + doc.urban!.report.unplacedPopulation).toBe(90);
+    expect(parseVectorDocument(serializeVectorDocument(doc))).toEqual(doc);
+  });
+  it("reserves facilities before housing and replays the same saved result", () => {
+    const doc = generateVectorUrban(skeleton(), { ...DEFAULT_VECTOR_URBAN, population: 200, maxLanes: 4 });
+    const urban = doc.urban!;
+    expect(urban.report.placedFacilities).toBeGreaterThan(0);
+    const blocks = renderVectorDocument(doc, undefined, undefined, "blocksAndLanes"),
+      fac = renderVectorDocument(doc, undefined, undefined, "facilities"),
+      housing = renderVectorDocument(doc);
+    expect(blocks.querySelectorAll("[data-vector-placement]").length).toBe(0);
+    expect(fac.querySelectorAll('[data-vector-building-kind="housing"]').length).toBe(0);
+    expect(housing.querySelectorAll('[data-vector-building-kind="facility"]').length).toBe(
+      urban.report.placedFacilities
+    );
+    expect(housing.querySelectorAll('[data-vector-building-kind="housing"]').length).toBe(
+      urban.report.housingBuildings
+    );
+    expect(urban.report.mixedDwellings + urban.report.housingBuildings).toBe(urban.report.capacityDwellings);
+    const placements = Object.values(doc.placements);
+    for (let i = 0; i < placements.length; i++)
+      for (let j = i + 1; j < placements.length; j++)
+        expect(
+          regionBoolean(placements[i].building!.reserved, placements[j].building!.reserved, "intersection").reduce(
+            (n, p) => n + regionArea(p),
+            0
+          )
+        ).toBeLessThan(1e-4);
+    const loaded = parseVectorDocument(serializeVectorDocument(doc))!;
+    expect(loaded).toEqual(doc);
+    expect(generateVectorUrban(loaded, urban.settings).placements).toEqual(doc.placements);
+    const changed = structuredClone(doc);
+    changed.paths[Object.keys(changed.generation!.pathRevisions)[0]].revision++;
+    changed.revision++;
+    expect(() => generateVectorUrban(changed, urban.settings)).toThrow("edited-urban");
+  });
+});
+
+describe("urban physical constraints and capacity deficits", () => {
+  it("connects new lanes explicitly and preserves manual reserved sites and known building dimensions", () => {
+    const source = skeleton();
+    source.placements.fixed = {
+      id: "fixed",
+      modelId: "manual:site",
+      position: [45, 45],
+      facingDegrees: 0,
+      origin: "manual",
+      editPolicy: "fixed",
+      site: {
+        outer: [
+          [40, 40],
+          [50, 40],
+          [50, 50],
+          [40, 50]
+        ],
+        holes: []
+      },
+      accesses: []
+    };
+    const doc = generateVectorUrban(source, {
+      ...DEFAULT_VECTOR_URBAN,
+      mode: "medieval",
+      population: 200,
+      maxLanes: 4
+    });
+    expect(doc.placements.fixed).toEqual(source.placements.fixed);
+    expect(doc.urban!.report.reasons).toContain("manual-capacity-unverified");
+    expect(doc.urban!.ownedPaths.length).toBeGreaterThan(0);
+    for (const id of doc.urban!.ownedPaths)
+      expect(
+        Object.values(doc.connections.nodes).some(
+          n => n.anchors.some(a => a.pathId === id) && n.anchors.some(a => a.pathId !== id)
+        )
+      ).toBe(true);
+    for (const p of Object.values(doc.placements).filter(p => p.building?.kind === "housing")) {
+      expect(p.building).toMatchObject({
+        floorFootprintMeters2: 40,
+        storeys: 2,
+        residentialShare: 0.85,
+        dwellings: 1,
+        provenance: "bv"
+      });
+      expect(regionBoolean(p.building!.reserved, [source.placements.fixed.site], "intersection")).toHaveLength(0);
+    }
+  });
+  it("keeps a fixed manual domain and reports unplaced people without shrinking buildings", () => {
+    const source = generateVectorSkeleton(syntheticVectorInput("small", 30, false), {
+      ...DEFAULT_VECTOR_GENERATION,
+      branches: 2
+    }).document;
+    source.site!.id = "manual-site";
+    const doc = generateVectorUrban(source, {
+      ...DEFAULT_VECTOR_URBAN,
+      mode: "medieval",
+      population: 200,
+      maxLanes: 0
+    });
+    expect(doc.urban!.domain).toEqual(source.site!.domain);
+    expect(doc.urban!.report.unplacedDwellings).toBeGreaterThan(0);
+    expect(doc.urban!.report.unplacedPopulation).toBeGreaterThan(0);
+    expect(doc.urban!.report.assignedPopulation + doc.urban!.report.unplacedPopulation).toBe(200);
+    const zero = generateVectorUrban(source, { ...DEFAULT_VECTOR_URBAN, population: 0, maxLanes: 0 });
+    expect(zero.urban!.report.capacityDwellings).toBe(0);
+    expect(zero.urban!.report.requiredFacilities).toBe(0);
+    expect(zero.urban!.report.unplacedPopulation).toBe(0);
+  });
+  it("uses physical riverbanks, preserves source walls and limits suburbs to synthetic input", () => {
+    const source = generateVectorSkeleton(syntheticVectorInput("river", 100, true), {
+      ...DEFAULT_VECTOR_GENERATION,
+      branches: 4,
+      wall: "ellipse"
+    }).document;
+    const doc = generateVectorUrban(source, { ...DEFAULT_VECTOR_URBAN, population: 500, maxLanes: 4 });
+    expect(doc.paths["auto-wall"]).toEqual(source.paths["auto-wall"]);
+    expect(doc.connections.bridges).toEqual(source.connections.bridges);
+    expect(doc.site).toEqual(source.site);
+    for (const p of Object.values(doc.placements))
+      if (p.building?.riverbankDistanceMeters !== undefined)
+        expect(p.building.riverbankDistanceMeters).toBeLessThanOrEqual(50);
+    const expanded = generateVectorUrban(source, {
+      ...DEFAULT_VECTOR_URBAN,
+      mode: "medieval",
+      population: 2000,
+      maxLanes: 0
+    });
+    expect(expanded.urban!.report.reasons).toContain("suburbs-expanded");
+    expect(
+      expanded
+        .urban!.domain.flatMap(p => p.outer)
+        .every(p => Math.abs(p[0]) < source.frame.extentMeters / 2 && Math.abs(p[1]) < source.frame.extentMeters / 2)
+    ).toBe(true);
+  });
+  it("migrates native v4 and rejects tampered stage ordering, totals and physical footprints", () => {
+    const source = skeleton();
+    expect(parseVectorDocument(JSON.stringify({ ...source, version: 4 }))).toEqual(source);
+    const doc = generateVectorUrban(source, { ...DEFAULT_VECTOR_URBAN, population: 90, maxLanes: 0 });
+    const wrong = structuredClone(doc);
+    wrong.urban!.checkpoints[3].placementIds = [...wrong.urban!.ownedPlacements];
+    expect(parseVectorDocument(JSON.stringify(wrong))).toBeNull();
+    const totals = structuredClone(doc);
+    totals.urban!.report.unplacedPopulation++;
+    expect(parseVectorDocument(JSON.stringify(totals))).toBeNull();
+  });
+});
