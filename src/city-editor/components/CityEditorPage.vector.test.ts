@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { editorText } from "../../i18n/editorMessages";
+import incomingFixture from "../data/fixtures/gothengsfeld-20261012.json";
 import * as documentGenerator from "../generators/document";
 import { createVectorDocument, createVectorExample } from "../generators/vector/document";
 import * as cityFiles from "../services/io/cityEditorFile";
@@ -29,6 +30,18 @@ function useMeshless() {
 }
 
 describe("meshless editor boundary", () => {
+  it("hands the current FMG descriptor to the dedicated vector input preview", () => {
+    sessionStorage.setItem("fmg.citySite", JSON.stringify(incomingFixture.descriptor));
+    dispose = mountCityEditor(root);
+    useMeshless();
+    const linked = root.querySelector<HTMLButtonElement>('[data-generation-action="linked"]')!;
+    expect(linked.disabled).toBe(false);
+    linked.click();
+    expect(root.querySelector("[data-vector-surveyed-water]")).not.toBeNull();
+    root.querySelector<HTMLButtonElement>('[data-generation-action="adopt"]')!.click();
+    expect(root.querySelectorAll("[data-vector-bridge]")).toHaveLength(1);
+    expect(root.dataset.documentFormat).toBe("fmg-vector-city");
+  });
   it("releases retained mode documents when the editor is explicitly closed", () => {
     dispose = mountCityEditor(root, { initialDocument: createVectorExample() });
     const previousDispose = dispose;

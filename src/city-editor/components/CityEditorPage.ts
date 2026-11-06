@@ -3439,9 +3439,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   function openVectorDocument(document?: VectorCityDocument): void {
     if (!scope.active || generation.generationJob) return;
     meshModeSessions.set(root, captureSession());
-    const session = document
+    const session: VectorEditorSession = document
       ? { history: new VectorDocumentHistory(document) }
       : (vectorModeSessions.get(root) ?? { history: new VectorDocumentHistory(createVectorDocument()) });
+    session.sourceDescriptor ??= generation.generateSettings.descriptor;
     mountVectorMode(root, options, session);
   }
 

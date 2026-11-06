@@ -13,6 +13,8 @@ import { bridgeGeometry, junctionSurface, validateGateGeometry } from "../geomet
 import { maximumCornerRadius } from "../geometry/presets";
 import { ringInside, verifyWallGapSurface } from "../geometry/routing";
 import { pathSurface, surfacesOverlap } from "../geometry/surfaces";
+import { vectorWaterSurfaces } from "../geometry/water";
+import { validateVectorGeneration } from "./generation";
 
 export const VECTOR_DOCUMENT_LIMITS = {
   paths: 2048,
@@ -161,28 +163,25 @@ function validPath(v: RecordValue, legacy: boolean): v is unknown & VectorPath &
 }
 
 /** Strict native codec validation. Missing/unknown references are never repaired here. */
-export function validateVectorDocument(value: unknown, legacy: boolean | 2 = false): string[] {
+export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 = false): string[] {
   if (
-    !keys(value, [
-      "format",
-      "version",
-      "revision",
-      "frame",
-      "context",
-      "paths",
-      "connections",
-      "regions",
-      "placements",
-      "recipe"
-    ]) ||
+    !keys(
+      value,
+      ["format", "version", "revision", "frame", "context", "paths", "connections", "regions", "placements", "recipe"],
+      legacy ? [] : ["site", "generation"]
+    ) ||
     value.format !== "fmg-vector-city" ||
-    value.version !== (legacy === true ? 1 : legacy === 2 ? 2 : 3) ||
+    value.version !== (legacy === true ? 1 : legacy === 2 ? 2 : legacy === 3 ? 3 : 4) ||
     !revision(value.revision)
   )
     return ["document-format"];
   if (!keys(value.frame, ["extentMeters"]) || !positive(value.frame.extentMeters)) return ["frame"];
   if (
-    !keys(value.context, ["historicalPeriod", "targetPopulation"], legacy ? [] : ["bridgeSkewTier"]) ||
+    !keys(
+      value.context,
+      ["historicalPeriod", "targetPopulation"],
+      legacy === true || legacy === 2 ? [] : ["bridgeSkewTier"]
+    ) ||
     (value.context.bridgeSkewTier !== undefined && ![0, 1, 2].includes(value.context.bridgeSkewTier as number)) ||
     !isHistoricalPeriod(value.context.historicalPeriod) ||
     !Number.isSafeInteger(value.context.targetPopulation) ||
@@ -199,7 +198,9 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 = fal
   if (
     !keys(
       value.connections,
-      legacy ? ["nodes", "edges", "gates", "circuits"] : ["nodes", "edges", "gates", "circuits", "bridges", "wallRoads"]
+      legacy === true || legacy === 2
+        ? ["nodes", "edges", "gates", "circuits"]
+        : ["nodes", "edges", "gates", "circuits", "bridges", "wallRoads"]
     )
   )
     return ["connections"];
@@ -268,7 +269,7 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 = fal
       errors.push(`node:${n.id}`);
   }
   if (errors.length) return errors;
-  if (!legacy)
+  if (legacy !== true && legacy !== 2)
     for (const node of Object.values(doc.connections.nodes)) {
       const roles = new Set(node.anchors.map(a => doc.paths[a.pathId].role));
       if (roles.has("road") && roles.has("river")) errors.push(`mixed-node:${node.id}`);
@@ -292,10 +293,10 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 = fal
     if (
       !keys(
         gate,
-        legacy
+        legacy === true || legacy === 2
           ? ["id", "wallPathId", "nodeId", "anchor", "widthMeters"]
           : ["id", "wallPathId", "nodeId", "anchor", "widthMeters", "kind"],
-        legacy ? [] : ["circuitId"]
+        legacy === true || legacy === 2 ? [] : ["circuitId"]
       ) ||
       !id(gate.wallPathId) ||
       doc.paths[gate.wallPathId]?.role !== "wall" ||
@@ -352,7 +353,7 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 = fal
       !p.accesses.every(checkAnchor)
     )
       errors.push(`placement:${p.id}`);
-  if (!legacy && !errors.length) {
+  if (legacy !== true && legacy !== 2 && !errors.length) {
     for (const node of Object.values(doc.connections.nodes)) {
       const junction = junctionSurface(doc, node.id);
       if (
@@ -362,11 +363,7 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 = fal
       )
         errors.push(`junction-site:${node.id}`);
     }
-    const waters = new Map(
-      Object.values(doc.paths)
-        .filter(p => p.role === "river")
-        .map(p => [p.id, pathSurface(p)])
-    );
+    const waters = vectorWaterSurfaces(doc);
     for (const gate of Object.values(doc.connections.gates)) {
       try {
         if (!["passage", "water"].includes(gate.kind)) throw new Error("gate-kind");
@@ -451,6 +448,7 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 = fal
       }
     }
   }
+  if (!legacy && !errors.length) errors.push(...validateVectorGeneration(doc));
   return errors;
 }
 

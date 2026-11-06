@@ -3,14 +3,17 @@ import { createVectorDocument, createVectorExample } from "../../generators/vect
 import type { VectorDocumentHistory } from "../../generators/vector/history";
 import { beginEditorMount } from "../../services/editorLifetime";
 import { exportCityMap, readCityMap } from "../../services/io/cityEditorFile";
+import type { BurgSiteDescriptor } from "../../types/contracts/burgSiteDescriptor";
 import type { FixedApproachProvider } from "../../types/contracts/fixedApproachAdoption";
 import type { CityDocument } from "../../types/document";
 import { createEditorControls } from "../editorControls";
 import type { EditorLanguageLifetime } from "../languagePanel";
+import { createVectorGenerationPanel } from "./VectorGenerationPanel";
 import { createVectorWorkbench } from "./VectorWorkbench";
 
 export interface VectorEditorSession {
   history: VectorDocumentHistory;
+  sourceDescriptor?: BurgSiteDescriptor;
 }
 
 export function mountVectorCityEditor(
@@ -44,11 +47,13 @@ export function mountVectorCityEditor(
   status.setAttribute("aria-live", "polite");
   const map = document.createElement("main");
   map.style.cssText = "flex:1;min-width:0";
+  let generationPanel: ReturnType<typeof createVectorGenerationPanel> | undefined;
   let workbench: ReturnType<typeof createVectorWorkbench> | undefined;
   const refresh = () => {
     const current = session.history.document;
     undo.disabled = !session.history.canUndo;
     redo.disabled = !session.history.canRedo;
+    generationPanel?.refresh();
     workbench?.refresh();
     status.textContent = editorText("cityEditor.vector.summary", {
       paths: Object.keys(current.paths).length,
@@ -111,6 +116,19 @@ export function mountVectorCityEditor(
   controls.append(heading, help, actions, status);
   layout.append(controls, map);
   root.append(layout);
+  generationPanel = createVectorGenerationPanel(
+    scope,
+    controls,
+    map,
+    () => session.history.document,
+    (doc, label) => {
+      scope.invalidate("import");
+      session.history.commit(doc, label);
+      refresh();
+    },
+    () => workbench?.refresh(),
+    session.sourceDescriptor ?? session.history.document.site?.descriptor
+  );
   workbench = createVectorWorkbench(
     scope,
     controls,

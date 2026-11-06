@@ -1,7 +1,9 @@
+import { resolveBridgeCrossingLimit } from "../../../../utils/bridgeCrossingPolicy";
 import {
   bridgeSkewDegrees,
   bridgeSkewLimitForTier,
   bridgeSkewTierForPeriod,
+  resolveBridgeSkewLimit,
   withinBridgeSkewLimit
 } from "../../../../utils/bridgeSkewPolicy";
 import type { Point } from "../../../types/primitives";
@@ -50,6 +52,8 @@ export function boundaryDistance(p: Point, s: PathSurface): number {
   );
 }
 export function widthAt(path: VectorPath, anchor: CurveAnchor): { left: number; right: number } {
+  evaluateAnchor(path, anchor);
+  if (!path.width.stations.length) return { left: path.width.leftMeters, right: path.width.rightMeters };
   const copy = structuredClone(path);
   if (!copy.width.stations.some(s => s.anchor.segmentId === anchor.segmentId && s.anchor.t === anchor.t))
     copy.width.stations.push({ anchor, leftMeters: path.width.leftMeters, rightMeters: path.width.rightMeters });
@@ -87,6 +91,11 @@ export function bridgeGeometry(
     to = evaluateAnchor(road, bridge.to),
     axis = unit(sub(to, from)),
     length = distance(from, to);
+  if (
+    length >
+    resolveBridgeCrossingLimit(document.context.historicalPeriod, document.site?.descriptor?.transport) + 1e-6
+  )
+    throw new Error("bridge-length");
   const low = Math.min(anchorOrder(road, bridge.from), anchorOrder(road, bridge.to)),
     high = Math.max(anchorOrder(road, bridge.from), anchorOrder(road, bridge.to));
   if (high <= low) throw new Error("bridge-bent");
@@ -156,13 +165,18 @@ export function bridgeGeometry(
           throw new Error("bridge-landing");
   }
   let skewDegrees = bridgeSkewDegrees(axis, evaluateAnchor(river, bridge.riverAnchor, true));
-  const limit = bridgeSkewLimitForTier(
+  let limit = bridgeSkewLimitForTier(
     Math.max(bridgeSkewTierForPeriod(document.context.historicalPeriod), document.context.bridgeSkewTier ?? 0) as
       | 0
       | 1
       | 2,
     bridge.structure
   );
+  if (document.site?.descriptor?.transport?.maxBridgeSkewDegrees !== undefined)
+    limit = Math.min(
+      limit,
+      resolveBridgeSkewLimit(document.context.historicalPeriod, document.site.descriptor.transport, bridge.structure)
+    );
   const rs = samplePath(river),
     rw = sampledWidth(river, rs);
   for (let i = 1; i < rs.length; i++) {
@@ -179,7 +193,8 @@ export function bridgeGeometry(
   }
   if (!withinBridgeSkewLimit(skewDegrees, limit)) throw new Error("bridge-skew");
   for (const [id, other] of waterSurfaces)
-    if (id !== river.id && surfacesOverlap(surface, other)) throw new Error("bridge-multiple-channels");
+    if (id !== river.id && JSON.stringify(other) !== JSON.stringify(water) && surfacesOverlap(surface, other))
+      throw new Error("bridge-multiple-channels");
   for (const wall of Object.values(document.paths).filter(p => p.role === "wall"))
     if (surfacesOverlap(surface, pathSurface(wall))) throw new Error("bridge-wall");
   for (const placement of Object.values(document.placements))

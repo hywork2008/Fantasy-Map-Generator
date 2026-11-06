@@ -607,7 +607,7 @@ describe("M3 legal bridge spans", () => {
     const current = structuredClone(doc);
     delete current.connections.gates.east.circuitId;
     expect(parseVectorDocument(JSON.stringify(current))).toBeNull();
-    legacy.version = 4;
+    legacy.version = 5;
     expect(parseVectorDocument(JSON.stringify(legacy))).toBeNull();
     const invalid = proposeSquareBridge(riverCity(), anchor("river", 0.5), 4, 2, "stone");
     Object.values(invalid.connections.bridges)[0].dryLandingMeters = -1;

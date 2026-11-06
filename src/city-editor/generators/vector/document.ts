@@ -4,7 +4,7 @@ import { assertVectorDocument } from "./validation/document";
 export function createVectorDocument(seed = "vector-manual", extentMeters = 400): VectorCityDocument {
   const document: VectorCityDocument = {
     format: "fmg-vector-city",
-    version: 3,
+    version: 4,
     revision: 0,
     frame: { extentMeters },
     context: { historicalPeriod: "highMedieval", targetPopulation: 0 },

@@ -5,7 +5,12 @@
 - docs/analytics/ce-meshless-m3-20261107.md - メッシュなしCEのM3を完了。明示的な接続グラフ、通行門・水門と開口、共通規約に従う橋、二重壁と実幅の壁間道路、v1／v2からv3への移行を実装。共通橋APIの絶対上限を30度へ修正し、関連18ファイル156件・実ブラウザーの候補採用と保存再読込を確認。M4への境界を記録
 - docs/analytics/ce-meshless-m3-20261107.png - 実CEで門の開口、二重壁の隙間を通る道路、河川と採用済みの直角橋を確認した画像
 - docs/analytics/ce-meshless-m3-input-20261107.json - M3の実ブラウザー確認を再現するnative v3文書。門付き二重壁・取付道路と壁間道路・河川・直角橋と明示接続を保存
-- docs/plan/ce-meshless-city-editor.md - M3の接続・門・橋・二重壁と壁間道路を完了。native v3と旧文書の移行、共通橋APIの修正、領域演算への引継ぎを追記。次はM4のFMG／合成入力・固定交差・骨格生成
+- docs/analytics/ce-meshless-m4-20261107.md - メッシュなしCEのM4を完了。FMG／合成／手動入力、測量済み水域・固定交差・共有branchの保持、骨格・領域・接道、生成所有と再生成保護、native v4・段階表示を実装。依存追加の寸法、関連113件、実画面の採用・保存再読込を記録。次はM5の施設先行・残地住宅
+- docs/analytics/ce-meshless-m4-fmg-20261107.json - FMG Gothengsfeldの固定交差113・測量水域を保持したnative v4生成結果。13本・街区候補4成分と元入力snapshotを保存
+- docs/analytics/ce-meshless-m4-fmg-20261107.png - 実CEでFMG固定橋・河川・道路と街区候補、入力フレームでの表示を確認した画像
+- docs/analytics/ce-meshless-m4-synthetic-20261107.json - seed m4-reviewの合成入力によるnative v4生成結果。楕円市壁・門6件・橋1件・街区候補6成分を保存
+- docs/analytics/ce-meshless-m4-synthetic-20261107.png - 実CEで合成入力の楕円市壁・開口・橋・街区候補を確認した画像
+- docs/plan/ce-meshless-city-editor.md - M4の入力・固定交差・骨格生成・領域演算を完了。native v4と生成所有、段階表示、検証範囲・後続への境界を追記。次はM5の施設先行・残地住宅・容量
 
 2026-11-06
 

@@ -1,6 +1,7 @@
 import { bridgeGeometry, gateOpening, junctionSurface } from "../../generators/vector/geometry/network";
 import { evaluatePresetPiece, presetPieces } from "../../generators/vector/geometry/presets";
 import { pathSurface } from "../../generators/vector/geometry/surfaces";
+import { vectorWaterSurfaces } from "../../generators/vector/geometry/water";
 import { assertVectorDocument } from "../../generators/vector/validation/document";
 import type { VectorCityDocument, VectorPath } from "../../types/vector/document";
 import { element, polygon } from "../svgPrimitives";
@@ -35,14 +36,16 @@ export function vectorPathSvg(path: VectorPath): string {
 export function renderVectorDocument(
   document: VectorCityDocument,
   selectedId?: string,
-  selectedSegmentId?: string
+  selectedSegmentId?: string,
+  stage: "inputs" | "skeleton" | "regions" = "regions"
 ): SVGSVGElement {
   assertVectorDocument(document);
+  const hidden = new Set(stage === "inputs" ? Object.keys(document.generation?.pathRevisions ?? {}) : []);
   const rings = Object.values(document.paths).map(path => pathSurface(path).outer);
   let extent = document.frame.extentMeters,
-    centerX = 0,
-    centerY = 0;
-  if (rings.length) {
+    centerX = document.site?.center[0] ?? 0,
+    centerY = document.site?.center[1] ?? 0;
+  if (rings.length && !document.site) {
     let minX = -extent / 2,
       maxX = extent / 2,
       minY = -extent / 2,
@@ -82,14 +85,42 @@ export function renderVectorDocument(
       })
     );
   for (const node of Object.values(document.connections.nodes)) {
+    if (node.anchors.every(a => hidden.has(a.pathId))) continue;
     const junction = junctionSurface(document, node.id);
     if (junction)
       svg.append(element("path", { d: polygon(junction.outer), fill: "#c7ae84", "data-vector-junction": node.id }));
   }
+  if (stage === "regions" && document.generation?.inputRevision === document.revision)
+    for (const block of document.generation.blocks)
+      svg.append(
+        element("path", {
+          d: [block.outer, ...block.holes].map(polygon).join(" "),
+          "fill-rule": "evenodd",
+          fill: block.reachable ? "#d5d1a9" : "#d9c9b9",
+          stroke: "#b6ae90",
+          "stroke-width": ".2",
+          "data-vector-block": block.id
+        })
+      );
   const priority = { road: 0, river: 1, wall: 2 };
   let maskIndex = 0;
   const sceneId = ++vectorSceneId;
+  let surveyedDrawn = false;
   for (const path of Object.values(document.paths).sort((a, b) => priority[a.role] - priority[b.role])) {
+    if (hidden.has(path.id)) continue;
+    if (path.role !== "road" && !surveyedDrawn) {
+      surveyedDrawn = true;
+      for (const water of document.site?.water ?? [])
+        for (const polygonShape of water.polygons)
+          svg.append(
+            element("path", {
+              d: [polygonShape.outer, ...polygonShape.holes].map(polygon).join(" "),
+              "fill-rule": "evenodd",
+              fill: "#71abc4",
+              "data-vector-surveyed-water": water.id
+            })
+          );
+    }
     const surface = pathSurface(path),
       layer = element("g", {});
     svg.append(layer);
@@ -122,15 +153,16 @@ export function renderVectorDocument(
       svg.append(defs);
       layer.setAttribute("mask", `url(#${id})`);
     }
-    layer.append(
-      element("path", {
-        d: [surface.outer, ...surface.holes].map(polygon).join(" "),
-        "fill-rule": "evenodd",
-        fill: path.role === "river" ? "#71abc4" : path.role === "wall" ? "#655b53" : "#c7ae84",
-        "data-vector-surface": path.id,
-        "data-vector-role": path.role
-      })
-    );
+    if (!document.site?.water.some(w => w.riverPathId === path.id))
+      layer.append(
+        element("path", {
+          d: [surface.outer, ...surface.holes].map(polygon).join(" "),
+          "fill-rule": "evenodd",
+          fill: path.role === "river" ? "#71abc4" : path.role === "wall" ? "#655b53" : "#c7ae84",
+          "data-vector-surface": path.id,
+          "data-vector-role": path.role
+        })
+      );
     layer.append(
       element("path", {
         d: vectorPathSvg(path),
@@ -142,12 +174,20 @@ export function renderVectorDocument(
       })
     );
   }
-  const waters = new Map(
-    Object.values(document.paths)
-      .filter(p => p.role === "river")
-      .map(p => [p.id, pathSurface(p)])
-  );
+  if (!surveyedDrawn)
+    for (const water of document.site?.water ?? [])
+      for (const shape of water.polygons)
+        svg.append(
+          element("path", {
+            d: [shape.outer, ...shape.holes].map(polygon).join(" "),
+            "fill-rule": "evenodd",
+            fill: "#71abc4",
+            "data-vector-surveyed-water": water.id
+          })
+        );
+  const waters = vectorWaterSurfaces(document);
   for (const bridge of Object.values(document.connections.bridges)) {
+    if (hidden.has(bridge.roadPathId)) continue;
     const geometry = bridgeGeometry(document, bridge, waters);
     svg.append(
       element("path", {
@@ -168,7 +208,11 @@ export function renderVectorDocument(
         "data-vector-placement": placement.id
       })
     );
-  for (const node of Object.values(document.connections.nodes))
+  const visibleNodes =
+    stage === "inputs" && document.generation?.inputRevision === document.revision
+      ? document.generation.inputNodes
+      : Object.values(document.connections.nodes).filter(n => !n.anchors.every(a => hidden.has(a.pathId)));
+  for (const node of visibleNodes)
     svg.append(
       element("circle", {
         cx: String(node.position[0]),
@@ -225,5 +269,20 @@ export function renderVectorDocument(
       }
     });
   }
+  const frameClipId = `ce-vector-frame-${sceneId}`,
+    defs = element("defs", {}),
+    clip = element("clipPath", { id: frameClipId });
+  clip.append(
+    element("rect", {
+      x: String(centerX - extent / 2),
+      y: String(-centerY - extent / 2),
+      width: String(extent),
+      height: String(extent)
+    })
+  );
+  defs.append(clip);
+  const content = element("g", { "clip-path": `url(#${frameClipId})`, "data-vector-frame": "true" });
+  for (const child of Array.from(svg.children)) if (child.tagName.toLowerCase() !== "defs") content.append(child);
+  svg.append(defs, content);
   return svg;
 }
