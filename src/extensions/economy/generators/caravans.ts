@@ -1784,8 +1784,11 @@ export class CaravansModule {
         settlePayloadCapital(caravan, "arrived");
         settleFoodCoLoadOnArrival(caravan, world.distanceScale);
 
-        // Add ordinary (non-food-co-load) goods to target market retail stock
-        if (caravan.buyerType === "market") {
+        // Add ordinary (non-food-co-load) goods to target market retail stock. A town's cargo for its
+        // market is already in that stock: Markets.sell() and the consignment payment put it there,
+        // and the caravan only shows the haul. Adding it again made about a sixth of the towns'
+        // goods twice (docs/analytics/beer-other-20261107.md).
+        if (caravan.buyerType === "market" && caravan.sellerType !== "burg") {
           const buyerMarket = markets.find(market => market.i === caravan.buyer);
           if (buyerMarket) {
             let stockChanged = false;
