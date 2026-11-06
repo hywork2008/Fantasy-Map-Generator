@@ -123,6 +123,12 @@ export function replaceVectorPath(document: VectorCityDocument, candidate: Vecto
   assertVectorDocument(document);
   const old = Object.hasOwn(document.paths, candidate.id) ? document.paths[candidate.id] : undefined;
   if (old?.editPolicy === "fixed") throw new Error("fixed-path");
+  if (
+    Object.values(document.connections.bridges).some(
+      b => b.editPolicy === "fixed" && (b.roadPathId === candidate.id || b.riverAnchor.pathId === candidate.id)
+    )
+  )
+    throw new Error("fixed-bridge");
   const issues = validateVectorPath(candidate);
   if (issues.length) throw new Error(issues[0]);
   const next = structuredClone(document),
@@ -153,8 +159,24 @@ export function replaceVectorPath(document: VectorCityDocument, candidate: Vecto
     }
     node.position = copy(target);
   }
+  if (
+    Object.values(document.connections.bridges).some(
+      b => b.editPolicy === "fixed" && (changed.has(b.roadPathId) || changed.has(b.riverAnchor.pathId))
+    )
+  )
+    throw new Error("fixed-bridge");
   next.revision++;
   const errors = validateVectorDocument(next);
+  if (errors.some(e => e.startsWith("road-clearance:"))) throw new Error("road-clearance");
+  if (errors.some(e => e.startsWith("gate-access:"))) throw new Error("gate-access");
+  if (errors.some(e => e.startsWith("circuit-containment:"))) throw new Error("circuit-containment");
+  if (errors.some(e => e.startsWith("bridge:")))
+    throw new Error(
+      errors
+        .find(e => e.startsWith("bridge:"))!
+        .split(":")
+        .at(-1)
+    );
   if (errors.length)
     throw new Error(
       errors.some(e => e.startsWith("node:"))
@@ -184,7 +206,23 @@ export function removeVectorPath(document: VectorCityDocument, id: string): Vect
   if (document.paths[id]?.editPolicy === "fixed") throw new Error("fixed-path");
   if (Object.values(document.placements).some(p => p.accesses.some(a => a.pathId === id)))
     throw new Error("referenced-segment");
+  if (
+    Object.values(document.connections.bridges).some(
+      b => b.editPolicy === "fixed" && (b.roadPathId === id || b.riverAnchor.pathId === id)
+    )
+  )
+    throw new Error("fixed-bridge");
   const next = structuredClone(document);
+  for (const bridge of Object.values(next.connections.bridges))
+    if (bridge.roadPathId === id || bridge.riverAnchor.pathId === id) delete next.connections.bridges[bridge.id];
+  for (const route of Object.values(next.connections.wallRoads)) {
+    if (route.pathId === id) delete next.connections.wallRoads[route.id];
+    else if (
+      next.connections.circuits[route.outerCircuitId]?.pathId === id ||
+      next.connections.circuits[route.innerCircuitId]?.pathId === id
+    )
+      throw new Error("referenced-segment");
+  }
   const removedCircuits = Object.values(next.connections.circuits)
     .filter(c => c.pathId === id)
     .map(c => c.id);

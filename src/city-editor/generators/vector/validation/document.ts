@@ -9,8 +9,10 @@ import type {
 } from "../../../types/vector/document";
 import { isSimplePolygon, pointInPolygon, segmentsIntersect } from "../../geom";
 import { evaluateAnchor, pathIsClosed, VECTOR_CONNECTION_EPSILON } from "../geometry/curves";
+import { bridgeGeometry, junctionSurface, validateGateGeometry } from "../geometry/network";
 import { maximumCornerRadius } from "../geometry/presets";
-import { pathSurface } from "../geometry/surfaces";
+import { ringInside, verifyWallGapSurface } from "../geometry/routing";
+import { pathSurface, surfacesOverlap } from "../geometry/surfaces";
 
 export const VECTOR_DOCUMENT_LIMITS = {
   paths: 2048,
@@ -159,7 +161,7 @@ function validPath(v: RecordValue, legacy: boolean): v is unknown & VectorPath &
 }
 
 /** Strict native codec validation. Missing/unknown references are never repaired here. */
-export function validateVectorDocument(value: unknown, legacy = false): string[] {
+export function validateVectorDocument(value: unknown, legacy: boolean | 2 = false): string[] {
   if (
     !keys(value, [
       "format",
@@ -174,13 +176,14 @@ export function validateVectorDocument(value: unknown, legacy = false): string[]
       "recipe"
     ]) ||
     value.format !== "fmg-vector-city" ||
-    value.version !== (legacy ? 1 : 2) ||
+    value.version !== (legacy === true ? 1 : legacy === 2 ? 2 : 3) ||
     !revision(value.revision)
   )
     return ["document-format"];
   if (!keys(value.frame, ["extentMeters"]) || !positive(value.frame.extentMeters)) return ["frame"];
   if (
-    !keys(value.context, ["historicalPeriod", "targetPopulation"]) ||
+    !keys(value.context, ["historicalPeriod", "targetPopulation"], legacy ? [] : ["bridgeSkewTier"]) ||
+    (value.context.bridgeSkewTier !== undefined && ![0, 1, 2].includes(value.context.bridgeSkewTier as number)) ||
     !isHistoricalPeriod(value.context.historicalPeriod) ||
     !Number.isSafeInteger(value.context.targetPopulation) ||
     (value.context.targetPopulation as number) < 0
@@ -193,7 +196,13 @@ export function validateVectorDocument(value: unknown, legacy = false): string[]
     value.recipe.seed.length > 256
   )
     return ["recipe"];
-  if (!keys(value.connections, ["nodes", "edges", "gates", "circuits"])) return ["connections"];
+  if (
+    !keys(
+      value.connections,
+      legacy ? ["nodes", "edges", "gates", "circuits"] : ["nodes", "edges", "gates", "circuits", "bridges", "wallRoads"]
+    )
+  )
+    return ["connections"];
   const tables = [value.paths, ...Object.values(value.connections), value.regions, value.placements];
   if (
     !tables.every(
@@ -209,14 +218,14 @@ export function validateVectorDocument(value: unknown, legacy = false): string[]
   const errors: string[] = [];
   let segments = 0;
   for (const p of Object.values(doc.paths)) {
-    if (!validPath(p as unknown as RecordValue, legacy)) errors.push(`path:${p.id}`);
+    if (!validPath(p as unknown as RecordValue, legacy === true)) errors.push(`path:${p.id}`);
     else
       segments +=
         p.source.kind === "curve" ? p.source.segments.length : p.source.preset === "polygon" ? p.source.sides : 4;
   }
   if (segments > VECTOR_DOCUMENT_LIMITS.segments) errors.push("segment-budget");
   if (errors.length) return errors;
-  if (!legacy)
+  if (legacy !== true)
     for (const p of Object.values(doc.paths)) {
       try {
         pathSurface(p);
@@ -259,6 +268,11 @@ export function validateVectorDocument(value: unknown, legacy = false): string[]
       errors.push(`node:${n.id}`);
   }
   if (errors.length) return errors;
+  if (!legacy)
+    for (const node of Object.values(doc.connections.nodes)) {
+      const roles = new Set(node.anchors.map(a => doc.paths[a.pathId].role));
+      if (roles.has("road") && roles.has("river")) errors.push(`mixed-node:${node.id}`);
+    }
   for (const edge of Object.values(doc.connections.edges))
     if (
       !keys(edge, ["id", "pathId", "fromNodeId", "toNodeId", "from", "to"]) ||
@@ -276,7 +290,13 @@ export function validateVectorDocument(value: unknown, legacy = false): string[]
       errors.push(`edge:${edge.id}`);
   for (const gate of Object.values(doc.connections.gates))
     if (
-      !keys(gate, ["id", "wallPathId", "nodeId", "anchor", "widthMeters"]) ||
+      !keys(
+        gate,
+        legacy
+          ? ["id", "wallPathId", "nodeId", "anchor", "widthMeters"]
+          : ["id", "wallPathId", "nodeId", "anchor", "widthMeters", "kind"],
+        legacy ? [] : ["circuitId"]
+      ) ||
       !id(gate.wallPathId) ||
       doc.paths[gate.wallPathId]?.role !== "wall" ||
       !id(gate.nodeId) ||
@@ -286,7 +306,10 @@ export function validateVectorDocument(value: unknown, legacy = false): string[]
       !atNode(gate.anchor, gate.nodeId)
     )
       errors.push(`gate:${gate.id}`);
+  const circuitPaths = new Set<string>();
   for (const circuit of Object.values(doc.connections.circuits)) {
+    if (circuitPaths.has(circuit.pathId)) errors.push(`circuit-duplicate:${circuit.id}`);
+    circuitPaths.add(circuit.pathId);
     if (
       !keys(circuit, ["id", "pathId"], ["parentCircuitId"]) ||
       !id(circuit.pathId) ||
@@ -329,6 +352,105 @@ export function validateVectorDocument(value: unknown, legacy = false): string[]
       !p.accesses.every(checkAnchor)
     )
       errors.push(`placement:${p.id}`);
+  if (!legacy && !errors.length) {
+    for (const node of Object.values(doc.connections.nodes)) {
+      const junction = junctionSurface(doc, node.id);
+      if (
+        junction &&
+        (Object.values(doc.placements).some(p => surfacesOverlap(junction, p.site)) ||
+          Object.values(doc.regions).some(r => r.kind === "reservation" && surfacesOverlap(junction, r)))
+      )
+        errors.push(`junction-site:${node.id}`);
+    }
+    const waters = new Map(
+      Object.values(doc.paths)
+        .filter(p => p.role === "river")
+        .map(p => [p.id, pathSurface(p)])
+    );
+    for (const gate of Object.values(doc.connections.gates)) {
+      try {
+        if (!["passage", "water"].includes(gate.kind)) throw new Error("gate-kind");
+        if (
+          gate.circuitId !== undefined &&
+          (!id(gate.circuitId) || doc.connections.circuits[gate.circuitId]?.pathId !== gate.wallPathId)
+        )
+          throw new Error("gate-circuit");
+        const node = doc.connections.nodes[gate.nodeId],
+          accesses = node.anchors.filter(
+            a => doc.paths[a.pathId].role === (gate.kind === "passage" ? "road" : "river")
+          );
+        if (pathIsClosed(doc.paths[gate.wallPathId]) && !gate.circuitId) throw new Error("gate-circuit");
+        if (!accesses.length) throw new Error("gate-access");
+        validateGateGeometry(doc, gate);
+      } catch {
+        errors.push(`gate-access:${gate.id}`);
+      }
+    }
+    for (const circuit of Object.values(doc.connections.circuits))
+      if (circuit.parentCircuitId) {
+        const parent = doc.connections.circuits[circuit.parentCircuitId];
+        const outer = pathSurface(doc.paths[parent.pathId]),
+          inner = pathSurface(doc.paths[circuit.pathId]);
+        if (parent.pathId === circuit.pathId || !outer.holes.length || !ringInside(inner.outer, outer.holes[0]))
+          errors.push(`circuit-containment:${circuit.id}`);
+      }
+    for (const route of Object.values(doc.connections.wallRoads)) {
+      if (
+        !keys(route, ["id", "pathId", "outerCircuitId", "innerCircuitId", "clearanceMeters"]) ||
+        !id(route.pathId) ||
+        !id(route.outerCircuitId) ||
+        !id(route.innerCircuitId) ||
+        doc.paths[route.pathId]?.role !== "road" ||
+        !finite(route.clearanceMeters) ||
+        route.clearanceMeters < 0
+      ) {
+        errors.push(`wall-road:${route.id}`);
+        continue;
+      }
+      try {
+        verifyWallGapSurface(
+          doc,
+          route.outerCircuitId,
+          route.innerCircuitId,
+          pathSurface(doc.paths[route.pathId]),
+          route.clearanceMeters
+        );
+      } catch {
+        errors.push(`road-clearance:${route.id}`);
+      }
+    }
+    for (const bridge of Object.values(doc.connections.bridges)) {
+      if (
+        !keys(bridge, [
+          "id",
+          "roadPathId",
+          "riverAnchor",
+          "from",
+          "to",
+          "structure",
+          "dryLandingMeters",
+          "editPolicy"
+        ]) ||
+        !id(bridge.roadPathId) ||
+        !["stone", "timber"].includes(bridge.structure) ||
+        !["fixed", "editable"].includes(bridge.editPolicy) ||
+        !positive(bridge.dryLandingMeters) ||
+        !checkAnchor(bridge.riverAnchor) ||
+        !checkAnchor(bridge.from) ||
+        !checkAnchor(bridge.to) ||
+        bridge.from.pathId !== bridge.roadPathId ||
+        bridge.to.pathId !== bridge.roadPathId
+      ) {
+        errors.push(`bridge:${bridge.id}:bridge-reference`);
+        continue;
+      }
+      try {
+        bridgeGeometry(doc, bridge, waters);
+      } catch (error) {
+        errors.push(`bridge:${bridge.id}:${error instanceof Error ? error.message : "bridge-reference"}`);
+      }
+    }
+  }
   return errors;
 }
 

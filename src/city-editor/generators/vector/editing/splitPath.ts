@@ -1,6 +1,7 @@
 import type { CurveAnchor, VectorCityDocument } from "../../../types/vector/document";
 import { splitSegment } from "../geometry/curves";
 import { assertVectorDocument } from "../validation/document";
+import { mapDocumentAnchors } from "./anchors";
 
 export interface AnchorSplit {
   pathId: string;
@@ -33,15 +34,7 @@ export function splitVectorPath(document: VectorCityDocument, split: AnchorSplit
     ...splitSegment(path.source.segments[index], split.t, split.leftId, split.rightId)
   );
   const remap = (anchor: CurveAnchor) => remapSplitAnchor(anchor, split);
-  for (const p of Object.values(next.paths))
-    for (const station of p.width.stations) station.anchor = remap(station.anchor);
-  for (const node of Object.values(next.connections.nodes)) node.anchors = node.anchors.map(remap);
-  for (const edge of Object.values(next.connections.edges)) {
-    edge.from = remap(edge.from);
-    edge.to = remap(edge.to);
-  }
-  for (const gate of Object.values(next.connections.gates)) gate.anchor = remap(gate.anchor);
-  for (const placement of Object.values(next.placements)) placement.accesses = placement.accesses.map(remap);
+  mapDocumentAnchors(next, remap);
   path.revision++;
   next.revision++;
   assertVectorDocument(next);

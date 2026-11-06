@@ -21,6 +21,7 @@ import { renderVectorDocument, vectorPathSvg } from "../../renderers/vector/docu
 import type { EditorLifetime } from "../../services/editorLifetime";
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument, VectorHandleMode, VectorPath, VectorPreset } from "../../types/vector/document";
+import { createVectorNetworkPanel } from "./VectorNetworkPanel";
 
 const text = (key: string) => editorText(`cityEditor.vector.edit.${key}` as EditorMessageKey);
 type Tool = "select" | "polyline" | "freehand" | "bezier";
@@ -221,6 +222,21 @@ export function createVectorWorkbench(
         })
       );
   }
+  const networkPanel = createVectorNetworkPanel(
+    scope,
+    toolbar,
+    map,
+    status,
+    read,
+    () => selectedId,
+    (next, label) => {
+      points = [];
+      handles = [];
+      drag = undefined;
+      pointer = false;
+      commit(next, label);
+    }
+  );
   function refresh() {
     points = [];
     handles = [];
@@ -240,6 +256,7 @@ export function createVectorWorkbench(
     scope.replaceChildren(inspector);
     const path = current.paths[selectedId];
     if (path) buildInspector(path);
+    networkPanel.refresh();
     draw();
   }
   function buildInspector(path: VectorPath) {

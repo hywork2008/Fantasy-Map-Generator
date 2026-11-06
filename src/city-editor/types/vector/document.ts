@@ -68,6 +68,19 @@ export interface VectorGate {
   nodeId: string;
   anchor: CurveAnchor;
   widthMeters: number;
+  kind: "passage" | "water";
+  circuitId?: string;
+}
+
+export interface VectorBridge {
+  id: string;
+  roadPathId: string;
+  riverAnchor: CurveAnchor;
+  from: CurveAnchor;
+  to: CurveAnchor;
+  structure: "stone" | "timber";
+  dryLandingMeters: number;
+  editPolicy: VectorPath["editPolicy"];
 }
 
 export interface VectorWallCircuit {
@@ -97,16 +110,21 @@ export interface VectorPlacement {
 /** Saved geometry ledger. No editable cell mesh or render-time generation. */
 export interface VectorCityDocument {
   format: "fmg-vector-city";
-  version: 2;
+  version: 3;
   revision: number;
   frame: { extentMeters: number };
-  context: { historicalPeriod: HistoricalPeriod; targetPopulation: number };
+  context: { historicalPeriod: HistoricalPeriod; targetPopulation: number; bridgeSkewTier?: 0 | 1 | 2 };
   paths: Record<string, VectorPath>;
   connections: {
     nodes: Record<string, VectorNode>;
     edges: Record<string, VectorRoadEdge>;
     gates: Record<string, VectorGate>;
     circuits: Record<string, VectorWallCircuit>;
+    bridges: Record<string, VectorBridge>;
+    wallRoads: Record<
+      string,
+      { id: string; pathId: string; outerCircuitId: string; innerCircuitId: string; clearanceMeters: number }
+    >;
   };
   regions: Record<string, VectorRegion>;
   placements: Record<string, VectorPlacement>;

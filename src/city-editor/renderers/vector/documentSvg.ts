@@ -1,8 +1,11 @@
+import { bridgeGeometry, gateOpening, junctionSurface } from "../../generators/vector/geometry/network";
 import { evaluatePresetPiece, presetPieces } from "../../generators/vector/geometry/presets";
 import { pathSurface } from "../../generators/vector/geometry/surfaces";
 import { assertVectorDocument } from "../../generators/vector/validation/document";
 import type { VectorCityDocument, VectorPath } from "../../types/vector/document";
 import { element, polygon } from "../svgPrimitives";
+
+let vectorSceneId = 0;
 
 /** Exact source centerlines for the document preview, not inferred road/river surfaces. */
 export function vectorPathSvg(path: VectorPath): string {
@@ -78,11 +81,48 @@ export function renderVectorDocument(
         "data-vector-region": region.id
       })
     );
-  for (const path of Object.values(document.paths).sort(
-    (a, b) => Number(a.role === "river") - Number(b.role === "river")
-  )) {
-    const surface = pathSurface(path);
-    svg.append(
+  for (const node of Object.values(document.connections.nodes)) {
+    const junction = junctionSurface(document, node.id);
+    if (junction)
+      svg.append(element("path", { d: polygon(junction.outer), fill: "#c7ae84", "data-vector-junction": node.id }));
+  }
+  const priority = { road: 0, river: 1, wall: 2 };
+  let maskIndex = 0;
+  const sceneId = ++vectorSceneId;
+  for (const path of Object.values(document.paths).sort((a, b) => priority[a.role] - priority[b.role])) {
+    const surface = pathSurface(path),
+      layer = element("g", {});
+    svg.append(layer);
+    const gates = Object.values(document.connections.gates).filter(g => g.wallPathId === path.id);
+    if (gates.length) {
+      const id = `ce-vector-gate-mask-${sceneId}-${++maskIndex}`,
+        mask = element("mask", {
+          id,
+          maskUnits: "userSpaceOnUse",
+          x: String(centerX - extent / 2),
+          y: String(-centerY - extent / 2),
+          width: String(extent),
+          height: String(extent)
+        });
+      mask.append(
+        element("rect", {
+          x: String(centerX - extent / 2),
+          y: String(-centerY - extent / 2),
+          width: String(extent),
+          height: String(extent),
+          fill: "white"
+        })
+      );
+      for (const gate of gates)
+        mask.append(
+          element("path", { d: polygon(gateOpening(document, gate)), fill: "black", "data-vector-gate": gate.id })
+        );
+      const defs = element("defs", {});
+      defs.append(mask);
+      svg.append(defs);
+      layer.setAttribute("mask", `url(#${id})`);
+    }
+    layer.append(
       element("path", {
         d: [surface.outer, ...surface.holes].map(polygon).join(" "),
         "fill-rule": "evenodd",
@@ -91,7 +131,7 @@ export function renderVectorDocument(
         "data-vector-role": path.role
       })
     );
-    svg.append(
+    layer.append(
       element("path", {
         d: vectorPathSvg(path),
         fill: "none",
@@ -99,6 +139,23 @@ export function renderVectorDocument(
         "stroke-width": path.id === selectedId ? "1.5" : "0.5",
         "vector-effect": "non-scaling-stroke",
         "data-vector-path": path.id
+      })
+    );
+  }
+  const waters = new Map(
+    Object.values(document.paths)
+      .filter(p => p.role === "river")
+      .map(p => [p.id, pathSurface(p)])
+  );
+  for (const bridge of Object.values(document.connections.bridges)) {
+    const geometry = bridgeGeometry(document, bridge, waters);
+    svg.append(
+      element("path", {
+        d: polygon(geometry.deck),
+        fill: bridge.structure === "stone" ? "#a69d8c" : "#a98050",
+        stroke: "#584a3d",
+        "stroke-width": ".5",
+        "data-vector-bridge": bridge.id
       })
     );
   }
@@ -116,7 +173,7 @@ export function renderVectorDocument(
       element("circle", {
         cx: String(node.position[0]),
         cy: String(-node.position[1]),
-        r: "2",
+        r: String(extent / 320),
         fill: "#be593b",
         "data-vector-node": node.id
       })

@@ -4,12 +4,12 @@ import { assertVectorDocument } from "./validation/document";
 export function createVectorDocument(seed = "vector-manual", extentMeters = 400): VectorCityDocument {
   const document: VectorCityDocument = {
     format: "fmg-vector-city",
-    version: 2,
+    version: 3,
     revision: 0,
     frame: { extentMeters },
     context: { historicalPeriod: "highMedieval", targetPopulation: 0 },
     paths: {},
-    connections: { nodes: {}, edges: {}, gates: {}, circuits: {} },
+    connections: { nodes: {}, edges: {}, gates: {}, circuits: {}, bridges: {}, wallRoads: {} },
     regions: {},
     placements: {},
     recipe: { algorithm: "vector-city-v1", seed }
@@ -99,6 +99,8 @@ export function createVectorExample(): VectorCityDocument {
   };
   document.connections.gates.east = {
     id: "east",
+    kind: "passage",
+    circuitId: "outer",
     wallPathId: "outer",
     nodeId: "eastGate",
     anchor: gate,
