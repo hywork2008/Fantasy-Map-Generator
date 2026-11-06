@@ -298,6 +298,36 @@
           "district": "Insufficient suitable peripheral land",
           "budget": "Placement budget"
         }
+      },
+      "dependencies": {
+        "title": "Edit dependencies",
+        "adopt": "Adopt edit and affected placements",
+        "cancel": "Cancel edit candidate",
+        "running": "Updating affected geometry in background...",
+        "retained": "Retained placements",
+        "relocated": "Placements to relocate",
+        "blocks": "Affected blocks",
+        "unplaced": "Unplaced population",
+        "failed": "Cannot adopt this edit:",
+        "placements": "Building placement edits",
+        "east": "East (m)",
+        "north": "North (m)",
+        "facing": "Facing (degrees)",
+        "move": "Preview placement transform",
+        "lock": "Toggle placement lock",
+        "errors": {
+          "dependency-stale": "The source changed after generation. Restore a current adopted result first.",
+          "dependency-fixed-path": "This edit would move a fixed path.",
+          "dependency-fixed-bridge": "This edit would change a fixed bridge.",
+          "dependency-fixed-lane": "An authored or fixed lane would intersect the new water or wall.",
+          "dependency-protected-placement": "A fixed or hand-authored building or entrance would be obstructed.",
+          "dependency-protected-access": "Removing this lane would disconnect a protected building.",
+          "dependency-unbridged-road": "The changed river or connection leaves a road crossing water without a legal bridge.",
+          "dependency-road-obstacle": "A road would cross a wall outside its opening or a protected region.",
+          "dependency-timeout": "The calculation exceeded one minute. Reduce the affected geometry and retry.",
+          "dependency-worker": "The background calculation failed. The adopted city was kept.",
+          "invalid": "The geometry or connections cannot satisfy this edit. The adopted city was kept."
+        }
       }
     },
     "forest": {

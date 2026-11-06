@@ -66,7 +66,12 @@ export function regionBoolean(
     // The sweep kernel can lose an almost coincident derived edge. Retry on a
     // sub-micrometer lattice, far below the 5mm sampling tolerance. Source paths
     // and surveyed input rings are never changed by this numerical fallback.
-    if (!(error instanceof Error) || !/^Unable to (complete output ring|find segment)/.test(error.message)) throw error;
+    if (
+      !(error instanceof Error) ||
+      (!/^Unable to (complete output ring|find segment)/.test(error.message) &&
+        !(error instanceof RangeError && error.stack?.includes("RingOut")))
+    )
+      throw error;
     const rounded = (polygons: VectorPolygon[], step: number): MultiPolygon =>
       polygons.flatMap(p => {
         const rings = [p.outer, ...p.holes]

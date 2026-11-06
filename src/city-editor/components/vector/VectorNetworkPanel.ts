@@ -1,5 +1,6 @@
 import { type EditorMessageKey, editorOptionText, editorText } from "../../../i18n/editorMessages";
 import { HISTORICAL_PERIODS } from "../../../types/historicalPeriod";
+import { prepareVectorEdit } from "../../generators/vector/editing/dependencies";
 import {
   adoptVectorBridge,
   connectVectorAnchors,
@@ -28,10 +29,11 @@ export function createVectorNetworkPanel(
   parent: HTMLElement,
   map: HTMLElement,
   status: HTMLElement,
-  read: () => VectorCityDocument,
+  readCurrent: () => VectorCityDocument,
   selected: () => string,
   commit: (document: VectorCityDocument, label: string) => void
 ) {
+  const read = () => prepareVectorEdit(readCurrent());
   const details = document.createElement("details"),
     summary = document.createElement("summary"),
     body = document.createElement("div");

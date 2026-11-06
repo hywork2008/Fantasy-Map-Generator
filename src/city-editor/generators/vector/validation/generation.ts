@@ -1,6 +1,7 @@
 import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
-import { isSimplePolygon, pointInPolygon, polygonArea } from "../../geom";
+import { pointInPolygon, polygonArea } from "../../geom";
+import { simpleContour } from "../geometry/surfaces";
 
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const keys = (v: unknown, names: string, optional = "") =>
@@ -10,7 +11,12 @@ const keys = (v: unknown, names: string, optional = "") =>
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 1e8;
 const point = (v: unknown): v is Point => Array.isArray(v) && v.length === 2 && v.every(finite);
 const ring = (v: unknown): v is Point[] =>
-  Array.isArray(v) && v.length >= 3 && v.length <= 16000 && v.every(point) && isSimplePolygon(v, 1e-12);
+  Array.isArray(v) &&
+  v.length >= 3 &&
+  v.length <= 16000 &&
+  v.every(point) &&
+  simpleContour(v, true) &&
+  Math.abs(polygonArea(v)) > 1e-12;
 const polygon = (v: unknown) =>
   object(v) &&
   ring(v.outer) &&

@@ -14,7 +14,10 @@
 - docs/analytics/ce-meshless-m5-facilities-20261107.png - 同じ生成の施設段階。施設28件・住宅0棟、入口予約後の小路を確認した画像
 - docs/analytics/ce-meshless-m5-housing-20261107.png - 完成都市段階。先行施設28件と残地住宅99棟で必要112戸を満たした画像
 - docs/analytics/ce-meshless-m5-synthetic-20261107.json - seed meshless・500人・川あり・小路8本のnative v5。施設先行と残地住宅、全6段階の表示対象・容量・人口を保存
-- docs/plan/ce-meshless-city-editor.md - M5の小路・用途・施設先行・残地住宅・人口容量と段階表示を完了。native v5・検証と境界を追記。次はM6の依存更新・部分再生成
+- docs/analytics/ce-meshless-m6-20261107.md - メッシュなしCEのM6を完了。変更に依存する自動配置の部分更新、固定・手動所有、橋の取付再評価、施設の剛体移動・固定、専用Workerのjob照合と取消、候補採用・一括履歴を実装。関連94件と実画面の122件保持・5件再配置を記録。次はM7の表示・出力・共有・複製変換
+- docs/analytics/ce-meshless-m6-edit-20261107.json - M5の500人都市で小路左幅1.2m→2.5mを採用したnative v5。122配置を保持し、5件だけを再配置。手動所有・人口・段階表示を保存
+- docs/analytics/ce-meshless-m6-edit-20261107.png - 小路の拡幅と影響配置だけの更新を実CEで確認した画像
+- docs/plan/ce-meshless-city-editor.md - M6の編集依存・部分再生成・固定／手動所有の保護・Worker取消を完了。関連94件と実画面の検証・境界を追記。次はM7の表示・出力・共有・複製変換
 
 2026-11-06
 

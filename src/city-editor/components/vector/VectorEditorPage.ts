@@ -8,7 +8,9 @@ import type { FixedApproachProvider } from "../../types/contracts/fixedApproachA
 import type { CityDocument } from "../../types/document";
 import { createEditorControls } from "../editorControls";
 import type { EditorLanguageLifetime } from "../languagePanel";
+import { createVectorEditPanel } from "./VectorEditPanel";
 import { createVectorGenerationPanel } from "./VectorGenerationPanel";
+import { createVectorPlacementPanel } from "./VectorPlacementPanel";
 import { createVectorWorkbench } from "./VectorWorkbench";
 
 export interface VectorEditorSession {
@@ -47,12 +49,16 @@ export function mountVectorCityEditor(
   status.setAttribute("aria-live", "polite");
   const map = document.createElement("main");
   map.style.cssText = "flex:1;min-width:0";
+  let placementPanel: ReturnType<typeof createVectorPlacementPanel> | undefined;
+  let editPanel: ReturnType<typeof createVectorEditPanel> | undefined;
   let generationPanel: ReturnType<typeof createVectorGenerationPanel> | undefined;
   let workbench: ReturnType<typeof createVectorWorkbench> | undefined;
   const refresh = () => {
     const current = session.history.document;
     undo.disabled = !session.history.canUndo;
     redo.disabled = !session.history.canRedo;
+    editPanel?.refresh();
+    placementPanel?.refresh();
     generationPanel?.refresh();
     workbench?.refresh();
     status.textContent = editorText("cityEditor.vector.summary", {
@@ -129,6 +135,24 @@ export function mountVectorCityEditor(
     () => workbench?.refresh(),
     session.sourceDescriptor ?? session.history.document.site?.descriptor
   );
+  editPanel = createVectorEditPanel(
+    scope,
+    controls,
+    map,
+    () => session.history.document,
+    () => session.history.currentEntryKey,
+    (doc, label) => {
+      session.history.commit(doc, label);
+      refresh();
+    },
+    () => workbench?.refresh()
+  );
+  placementPanel = createVectorPlacementPanel(
+    scope,
+    controls,
+    () => session.history.document,
+    (doc, label) => editPanel!.submit(doc, label)
+  );
   workbench = createVectorWorkbench(
     scope,
     controls,
@@ -137,8 +161,7 @@ export function mountVectorCityEditor(
     () => session.history.document,
     (document, label) => {
       scope.invalidate("import");
-      session.history.commit(document, label);
-      refresh();
+      editPanel!.submit(document, label);
     }
   );
   refresh();

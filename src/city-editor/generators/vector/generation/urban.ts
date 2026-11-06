@@ -30,9 +30,18 @@ export const DEFAULT_VECTOR_URBAN: VectorUrbanSettings = {
   clearanceMeters: 0.6,
   allowExpansion: true
 };
+export interface VectorUrbanContinuation {
+  retainedPlacements: string[];
+  ownedPaths: string[];
+  domain: NonNullable<VectorCityDocument["urban"]>["domain"];
+  baseGeneration: NonNullable<VectorCityDocument["generation"]>;
+  baseConnections: VectorCityDocument["connections"];
+  baseContext: VectorCityDocument["context"];
+}
 export function generateVectorUrban(
   input: VectorCityDocument,
-  settings: VectorUrbanSettings = DEFAULT_VECTOR_URBAN
+  settings: VectorUrbanSettings = DEFAULT_VECTOR_URBAN,
+  continuation?: VectorUrbanContinuation
 ): VectorCityDocument {
   assertVectorDocument(input);
   if (
@@ -59,6 +68,15 @@ export function generateVectorUrban(
   const doc = structuredClone(input);
   if (doc.urban) {
     const previous = doc.urban;
+    if (
+      previous.ownedPaths.some(
+        id => doc.paths[id]?.origin !== "automatic" || doc.paths[id]?.editPolicy !== "editable"
+      ) ||
+      previous.ownedPlacements.some(
+        id => doc.placements[id]?.origin !== "automatic" || doc.placements[id]?.editPolicy !== "editable"
+      )
+    )
+      throw new Error("edited-urban");
     if (vectorUrbanFingerprint(doc) !== previous.adoptedFingerprint) throw new Error("edited-urban");
     for (const id of previous.ownedPaths) delete doc.paths[id];
     for (const id of previous.ownedPlacements) delete doc.placements[id];
@@ -70,11 +88,11 @@ export function generateVectorUrban(
   }
   if (!doc.site || !doc.generation || doc.generation.inputRevision !== doc.revision)
     throw new Error("urban-skeleton-required");
-  const baseGeneration = structuredClone(doc.generation),
-    baseConnections = structuredClone(doc.connections),
-    baseContext = structuredClone(doc.context),
-    basePaths = Object.keys(doc.paths),
-    manual = Object.keys(doc.placements),
+  const baseGeneration = structuredClone(continuation?.baseGeneration ?? doc.generation),
+    baseConnections = structuredClone(continuation?.baseConnections ?? doc.connections),
+    baseContext = structuredClone(continuation?.baseContext ?? doc.context),
+    basePaths = Object.keys(doc.paths).filter(id => !continuation?.ownedPaths.includes(id)),
+    manual = Object.keys(doc.placements).filter(id => !continuation?.retainedPlacements.includes(id)),
     reasons: string[] = [];
   const sourceSite = structuredClone(doc.site),
     required =
@@ -92,9 +110,10 @@ export function generateVectorUrban(
           }).requests
         )
       : [];
-  const domain = structuredClone(sourceSite.domain);
+  const domain = structuredClone(continuation?.domain ?? sourceSite.domain);
   // Expansion is a suburb within the synthetic input's known frame; source geometry is never stretched.
   if (
+    !continuation &&
     settings.allowExpansion &&
     sourceSite.kind === "synthetic" &&
     sourceSite.id === "synthetic-site" &&
@@ -137,10 +156,20 @@ export function generateVectorUrban(
   const protectedRegions = Object.values(doc.regions)
     .filter(r => r.kind !== "district")
     .map(r => ({ outer: r.outer, holes: r.holes }));
-  let blocks = deriveVectorBlocks(doc, protectedRegions);
-  const ownedPaths: string[] = [];
+  const deriveLaneBlocks = () =>
+    deriveVectorBlocks(
+      {
+        ...doc,
+        placements: Object.fromEntries(
+          Object.entries(doc.placements).filter(([id]) => !continuation?.retainedPlacements.includes(id))
+        )
+      },
+      protectedRegions
+    );
+  let blocks = deriveLaneBlocks();
+  const ownedPaths: string[] = [...(continuation?.ownedPaths ?? [])];
   // Frontage-rooted cul-de-sacs follow free land; no cells, vertex snapping or global grid.
-  for (const block of blocks) {
+  for (const block of continuation ? [] : blocks) {
     if (ownedPaths.length >= settings.maxLanes) break;
     if (!block.reachable) continue;
     for (const f of block.frontage) {
@@ -188,7 +217,7 @@ export function generateVectorUrban(
     }
   }
   rebuildRoadGraph(doc);
-  blocks = deriveVectorBlocks(doc, protectedRegions);
+  blocks = deriveLaneBlocks();
   const walls = Object.values(doc.connections.circuits)
     .filter(c => !c.parentCircuitId)
     .map(c => ({ outer: sampledClosedRing(doc, c.pathId), holes: [] }));
@@ -242,9 +271,10 @@ export function generateVectorUrban(
   checkpoint("regions", manual, basePaths);
   checkpoint("blocksAndLanes", manual);
   const packer = createUrbanPacker(doc, blocks, settings, core, new Map(districts.map(d => [d.id, d.use]))),
-    ownedPlacements: string[] = [],
+    ownedPlacements: string[] = [...(continuation?.retainedPlacements ?? [])],
     unplacedFacilities: NonNullable<VectorCityDocument["urban"]>["report"]["unplacedFacilities"] = [];
   for (const request of requests) {
+    if (ownedPlacements.includes(`urban:${request.id}`)) continue;
     const p = ownedPlacements.length < 1500 ? packer.place(request, "facility") : undefined;
     if (p) {
       p.building!.pool = facilityUseOf(request);
@@ -262,12 +292,12 @@ export function generateVectorUrban(
                 : "space"
       });
   }
-  const facilities = [...ownedPlacements];
+  const facilities = ownedPlacements.filter(id => doc.placements[id].building?.kind === "facility");
   if (settings.mode === "medieval-facilities") checkpoint("facilities", [...manual, ...facilities]);
   const facilityLand = deriveVectorBlocks(doc, protectedRegions),
     housingPacker = createUrbanPacker(doc, facilityLand, settings, core);
   let remaining =
-    required - [...manual, ...facilities].reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0);
+    required - [...manual, ...ownedPlacements].reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0);
   if (remaining > 0) {
     const asset = bvFacilityAsset(settings.houseModelId, [
       { id: "main", position: [0, 0, 4], normalXZ: [0, 1], clearWidth: 1.1 }

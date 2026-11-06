@@ -1,5 +1,7 @@
 import { type EditorMessageKey, editorText } from "../../../i18n/editorMessages";
 import { convertVectorPreset } from "../../generators/vector/editing/convertPreset";
+import { prepareVectorEdit } from "../../generators/vector/editing/dependencies";
+import { replaceVectorPathCandidate } from "../../generators/vector/editing/pathCandidate";
 import {
   curveSource,
   freshPathId,
@@ -7,7 +9,7 @@ import {
   moveCurveVertex,
   removeCurveVertex,
   removeVectorPath,
-  replaceVectorPath,
+  replaceVectorPath as replaceRawVectorPath,
   reverseVectorPath,
   setCurveClosed,
   setVectorPathPolicy
@@ -32,9 +34,12 @@ export function createVectorWorkbench(
   panel: HTMLElement,
   map: HTMLElement,
   status: HTMLElement,
-  read: () => VectorCityDocument,
+  readCurrent: () => VectorCityDocument,
   commit: (document: VectorCityDocument, label: string) => void
 ) {
+  const read = () => prepareVectorEdit(readCurrent());
+  const replaceVectorPath = (doc: VectorCityDocument, path: VectorPath) =>
+    readCurrent().urban ? replaceVectorPathCandidate(doc, path) : replaceRawVectorPath(doc, path);
   let selectedSegmentId = "";
   let selectedId = "",
     points: Point[] = [],
@@ -179,7 +184,7 @@ export function createVectorWorkbench(
     refresh();
   });
   function draw() {
-    const svg = renderVectorDocument(read(), selectedId, selectedSegmentId || undefined);
+    const svg = renderVectorDocument(readCurrent(), selectedId, selectedSegmentId || undefined);
     svg.setAttribute("aria-label", editorText("cityEditor.vector.preview"));
     svg.style.cssText = "width:100%;height:100%;min-height:300px;touch-action:none";
     map.replaceChildren(svg);
@@ -227,7 +232,7 @@ export function createVectorWorkbench(
     toolbar,
     map,
     status,
-    read,
+    readCurrent,
     () => selectedId,
     (next, label) => {
       points = [];

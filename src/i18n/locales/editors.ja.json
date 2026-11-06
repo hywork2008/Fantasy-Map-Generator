@@ -298,6 +298,36 @@
           "district": "適合する郊外・用途敷地が不足",
           "budget": "配置上限"
         }
+      },
+      "dependencies": {
+        "title": "編集の依存更新",
+        "adopt": "編集と影響配置を一括採用",
+        "cancel": "編集候補を取消",
+        "running": "影響する形状をバックグラウンドで更新中…",
+        "retained": "保持する配置",
+        "relocated": "再配置する建物",
+        "blocks": "影響街区",
+        "unplaced": "未収容人口",
+        "failed": "この編集は採用できません：",
+        "placements": "建物配置の編集",
+        "east": "東 (m)",
+        "north": "北 (m)",
+        "facing": "向き (度)",
+        "move": "配置変更の候補を作成",
+        "lock": "配置の固定を切替",
+        "errors": {
+          "dependency-stale": "生成元が変更されています。最新の採用済み結果に戻して下さい。",
+          "dependency-fixed-path": "固定された道・川・壁を動かす必要があります。",
+          "dependency-fixed-bridge": "固定橋を変更する必要があります。",
+          "dependency-fixed-lane": "手動または固定の小路が、変更後の水域や壁に衝突します。",
+          "dependency-protected-placement": "固定または手動の建物・入口通路が塞がれます。",
+          "dependency-protected-access": "この小路を削除すると保護対象の建物が接道を失います。",
+          "dependency-unbridged-road": "河川や接続の変更で、合法な橋のない渡河道路が生じます。",
+          "dependency-road-obstacle": "道路が門以外で壁を横切るか、保護された区域に衝突します。",
+          "dependency-timeout": "計算が1分を超えました。影響範囲を小さくして再試行して下さい。",
+          "dependency-worker": "バックグラウンド計算に失敗しました。採用済み都市は保持されています。",
+          "invalid": "形状や接続の条件を満たせません。採用済み都市は保持されています。"
+        }
       }
     },
     "forest": {
