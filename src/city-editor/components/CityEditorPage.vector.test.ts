@@ -1,0 +1,132 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { editorText } from "../../i18n/editorMessages";
+import * as documentGenerator from "../generators/document";
+import { createVectorDocument, createVectorExample } from "../generators/vector/document";
+import * as cityFiles from "../services/io/cityEditorFile";
+import { serializeVectorDocument } from "../services/io/vector/documentCodec";
+import { mountCityEditor } from "./CityEditorPage";
+
+let root: HTMLElement;
+let dispose: () => void;
+beforeEach(() => {
+  if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {};
+  root = document.createElement("div");
+  document.body.append(root);
+  dispose = () => {};
+});
+afterEach(() => {
+  dispose();
+  root.remove();
+  vi.restoreAllMocks();
+  sessionStorage.clear();
+});
+
+const click = (selector: string) => root.querySelector<HTMLButtonElement>(selector)!.click();
+function useMeshless() {
+  const control = root.querySelector<HTMLSelectElement>(".ce-generation-method")!;
+  control.value = "vector-first";
+  control.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+describe("meshless editor boundary", () => {
+  it("releases retained mode documents when the editor is explicitly closed", () => {
+    dispose = mountCityEditor(root, { initialDocument: createVectorExample() });
+    const previousDispose = dispose;
+    dispose();
+    dispose = mountCityEditor(root);
+    previousDispose();
+    useMeshless();
+    expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(0);
+    dispose();
+    expect(root.childElementCount).toBe(0);
+  });
+
+  it("ignores a pending file read after another document transaction", async () => {
+    const pending = Promise.withResolvers<Awaited<ReturnType<typeof cityFiles.readCityMap>>>();
+    vi.spyOn(cityFiles, "readCityMap").mockReturnValueOnce(pending.promise);
+    dispose = mountCityEditor(root, { initialDocument: createVectorDocument() });
+    const input = root.querySelector<HTMLInputElement>(".ce-vector-file")!;
+    Object.defineProperty(input, "files", { value: [new File(["{}"], "pending.json")] });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    click(".ce-vector-example");
+    pending.resolve({ source: "vector-city", document: createVectorDocument("stale") });
+    await pending.promise;
+    expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(5);
+    click(".ce-vector-undo");
+    expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(0);
+  });
+
+  it("routes a vector file dropped into the mesh editor before calling mesh-only import logic", async () => {
+    dispose = mountCityEditor(root);
+    const grid = vi.spyOn(documentGenerator, "createGridDocument");
+    const file = new File([serializeVectorDocument(createVectorExample())], "vector.json");
+    const drop = new Event("drop", { bubbles: true, cancelable: true });
+    Object.defineProperty(drop, "dataTransfer", { value: { files: [file] } });
+    root.querySelector(".ce-map")!.dispatchEvent(drop);
+    await vi.waitFor(() => expect(root.dataset.documentFormat).toBe("fmg-vector-city"));
+    expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(5);
+    expect(grid).not.toHaveBeenCalled();
+  });
+
+  it("opens a vector document before grid construction, and previews exact curves with Undo and Redo", () => {
+    const grid = vi.spyOn(documentGenerator, "createGridDocument");
+    dispose = mountCityEditor(root, { initialDocument: createVectorDocument() });
+    expect(grid).not.toHaveBeenCalled();
+    expect(root.dataset.documentFormat).toBe("fmg-vector-city");
+    expect(root.querySelector(".ce-generate-stage-slider")).toBeNull();
+    expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(0);
+    click(".ce-vector-example");
+    expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(5);
+    expect(root.querySelector('[data-vector-path="circle"]')!.getAttribute("d")).toContain("A30 30");
+    expect(root.querySelector('[data-vector-path="water"]')!.getAttribute("d")).toContain("C-50 -150 50 -30 150 -110");
+    expect(root.querySelectorAll("[data-vector-node]")).toHaveLength(2);
+    click(".ce-vector-undo");
+    expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(0);
+    click(".ce-vector-redo");
+    expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(5);
+    expect(grid).not.toHaveBeenCalled();
+    dispose();
+    expect(root.childElementCount).toBe(0);
+  });
+
+  it("switches from the existing selector and restores the mesh document, settings and history", () => {
+    dispose = mountCityEditor(root);
+    const seed = root.querySelector<HTMLInputElement>(".ce-generate-seed")!;
+    seed.value = "preserved-mesh-seed";
+    seed.dispatchEvent(new Event("input", { bubbles: true }));
+    const history = root.querySelector(".ce-history")?.textContent;
+    const geometry = root.querySelector(".ce-svg")?.innerHTML;
+    const grid = vi.spyOn(documentGenerator, "createGridDocument");
+    useMeshless();
+    expect(root.dataset.documentFormat).toBe("fmg-vector-city");
+    expect(grid).not.toHaveBeenCalled();
+    click(".ce-vector-example");
+    click(".ce-vector-return");
+    expect(root.dataset.documentFormat).toBe("fmg-city-editor");
+    expect(root.querySelector<HTMLInputElement>(".ce-generate-seed")!.value).toBe("preserved-mesh-seed");
+    expect(root.querySelector(".ce-history")?.textContent).toBe(history);
+    expect(root.querySelector(".ce-svg")?.innerHTML).toBe(geometry);
+    useMeshless();
+    expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(5);
+    dispose();
+    expect(root.childElementCount).toBe(0);
+  });
+
+  it("imports valid vector files transactionally and keeps the current document on invalid input", async () => {
+    dispose = mountCityEditor(root, { initialDocument: createVectorDocument() });
+    const input = root.querySelector<HTMLInputElement>(".ce-vector-file")!;
+    const importFile = (value: string) => {
+      Object.defineProperty(input, "files", { configurable: true, value: [new File([value], "vector.json")] });
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    importFile(serializeVectorDocument(createVectorExample()));
+    await vi.waitFor(() => expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(5));
+    importFile('{"format":"fmg-vector-city","version":2}');
+    await vi.waitFor(() =>
+      expect(root.querySelector(".ce-vector-status")!.textContent).toBe(editorText("cityEditor.vector.invalidDocument"))
+    );
+    expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(5);
+    click(".ce-vector-undo");
+    expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(0);
+  });
+});

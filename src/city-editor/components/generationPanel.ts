@@ -24,6 +24,7 @@ import { renderGenerationSettingFeedback } from "./generationSettingFeedback";
 import { syncGenerationSections } from "./generationWorkspace";
 import { buildPopulationControls } from "./populationControls";
 export interface GenerationPanelContext {
+  openVectorDocument: () => void;
   restoringSession?: boolean;
   select: (values: string[], selected: string) => HTMLSelectElement;
   syncCity3d: () => void;
@@ -121,7 +122,7 @@ export interface GenerationPanelContext {
   refresh: () => void;
   redrawMap: () => void;
   makeButton: (value: string, onClick: () => void) => HTMLButtonElement;
-  useStandaloneSite: () => void;
+  applyStandaloneSite: () => void;
   copyShareLink: (button: HTMLButtonElement) => Promise<void>;
 }
 export function buildGenerationPanel(ctx: GenerationPanelContext) {
@@ -639,7 +640,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   importedHeading.dataset.i18nKey = "cityEditor.fmgParameters.title";
   const importedText = div("ce-imported-body");
   const standaloneButton = ctx.makeButton(editorText("cityEditor.messages.useStandaloneSite"), () =>
-    ctx.useStandaloneSite()
+    ctx.applyStandaloneSite()
   );
   importedBox.append(importedHeading, importedText, standaloneButton);
   importedBox.hidden = true;
@@ -657,12 +658,13 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   );
   const skeletonControls = div("ce-skeleton-controls");
   const methodSelect = ctx.select(
-    ["mesh-first", "skeleton-first"],
+    ["mesh-first", "skeleton-first", "vector-first"],
     ctx.generation.generateSettings.generationMethod ?? "mesh-first"
   );
   methodSelect.className = "ce-generation-method";
   methodSelect.options[0].textContent = editorText("cityEditor.messages.meshFirst");
   methodSelect.options[1].textContent = editorText("cityEditor.messages.skeletonFirst");
+  methodSelect.options[2].textContent = editorText("cityEditor.vector.method");
   const shapeSelect = ctx.select(
     ["auto", "organic", "round", "oval", "square", "polygon", "bastioned"],
     ctx.generation.generateSettings.wallShape ?? "auto"
@@ -895,6 +897,11 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   ctx.panelEventContext().scope.listen(methodSelect, "change", () => {
     if (methodSelect.selectedOptions[0]?.disabled) {
       syncSkeletonControls();
+      return;
+    }
+    if (methodSelect.value === "vector-first") {
+      syncSkeletonControls();
+      ctx.openVectorDocument();
       return;
     }
     ctx.generation.generateSettings.generationMethod = methodSelect.value as "mesh-first" | "skeleton-first";

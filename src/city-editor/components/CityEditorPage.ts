@@ -71,6 +71,8 @@ import { DEFAULT_TERRACE_STEP_METERS } from "../generators/terracePlanning";
 import { DEFAULT_CASTLE_RISE_METERS } from "../generators/terrainEditing";
 import { convertCellsToField } from "../generators/terrainField/cellsToField";
 import { installNaturalTerrainField } from "../generators/terrainGeneration";
+import { createVectorDocument } from "../generators/vector/document";
+import { VectorDocumentHistory } from "../generators/vector/history";
 import { CASTLE_STYLE_PROFILES } from "../renderers/castlePatterns";
 import { type City3dMountOptions, mountCity3d } from "../renderers/cityView";
 import { clearRenderDerivedCaches } from "../renderers/derivedCaches";
@@ -103,9 +105,11 @@ import type {
   WardKind
 } from "../types/document";
 import type { ContextMenuAction, RoutePaintKind, RouteStroke } from "../types/editor";
+import type { EditorDocument } from "../types/editorDocument";
 import type { GenerationSettings, GenerationStage } from "../types/generation";
 import type { RenderSelection } from "../types/selection";
 import type { TerrainTemplateId } from "../types/terrain";
+import type { VectorCityDocument } from "../types/vector/document";
 import { buildBuildingControls } from "./buildingControls";
 import { buildDocumentPanel } from "./documentPanel";
 import { createEditorControls, div, text } from "./editorControls";
@@ -124,6 +128,7 @@ import { mountModelAuthorsPanel } from "./modelAuthorsPanel";
 import { buildObjectControls } from "./objectControls";
 import { mountOperationHelp } from "./operationHelp";
 import { mountPerformancePanel } from "./performancePanel";
+import { mountVectorCityEditor, type VectorEditorSession } from "./vector/VectorEditorPage";
 import { buildWayControls } from "./wayControls";
 
 const TOOLS: Array<[Tool, EditorMessageKey, string]> = [
@@ -162,6 +167,7 @@ const PAINT_BRUSHES: Array<{ kind: WardKind | "sea" | "erase"; label: string }> 
 export interface CityEditorOptions {
   /** Complete current water/support/passage contract; retained only in this editor session. */
   fixedApproachProvider?: FixedApproachProvider;
+  initialDocument?: EditorDocument;
 }
 
 interface CityEditorLanguageSession {
@@ -178,13 +184,59 @@ interface CityEditorLanguageSession {
   city3d?: ReturnType<typeof mountCity3d>;
 }
 const languageSessions = new WeakMap<HTMLElement, CityEditorLanguageSession>();
+const meshModeSessions = new WeakMap<HTMLElement, CityEditorLanguageSession>();
+const vectorModeSessions = new WeakMap<HTMLElement, VectorEditorSession>();
+const editorLifetimes = new WeakMap<HTMLElement, EditorLanguageLifetime>();
+
+/** Mode handoffs retain sessions; explicitly closing the editor releases them. */
+function editorDisposer(root: HTMLElement, lifetime: EditorLanguageLifetime): () => void {
+  return () => {
+    if (editorLifetimes.get(root) !== lifetime) return;
+    lifetime.dispose();
+    languageSessions.delete(root);
+    meshModeSessions.delete(root);
+    vectorModeSessions.delete(root);
+    editorLifetimes.delete(root);
+  };
+}
+
+function mountVectorMode(root: HTMLElement, options: CityEditorOptions, session: VectorEditorSession): () => void {
+  const lifetime = editorLifetimes.get(root) ?? new EditorLanguageLifetime();
+  editorLifetimes.set(root, lifetime);
+  vectorModeSessions.set(root, session);
+  mountVectorCityEditor(root, session, {
+    lifetime,
+    fixedApproachProvider: options.fixedApproachProvider,
+    returnToMesh() {
+      const previous = meshModeSessions.get(root);
+      if (previous) {
+        languageSessions.set(root, previous);
+        meshModeSessions.delete(root);
+      }
+      mountCityEditor(root, { fixedApproachProvider: options.fixedApproachProvider });
+    },
+    openMeshDocument(document) {
+      meshModeSessions.delete(root);
+      mountCityEditor(root, { fixedApproachProvider: options.fixedApproachProvider, initialDocument: document });
+    }
+  });
+  return editorDisposer(root, lifetime);
+}
 
 export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): () => void {
+  const initialDocument = options.initialDocument;
+  if (initialDocument?.format === "fmg-vector-city")
+    return mountVectorMode(root, options, { history: new VectorDocumentHistory(initialDocument) });
   const retainedLanguage = languageSessions.get(root);
   languageSessions.delete(root);
   const scope = beginEditorMount(root);
-  const languageLifetime = retainedLanguage?.lifetime ?? new EditorLanguageLifetime();
+  const languageLifetime = retainedLanguage?.lifetime ?? editorLifetimes.get(root) ?? new EditorLanguageLifetime();
+  editorLifetimes.set(root, languageLifetime);
   languageLifetime.attach(scope);
+  root.dataset.documentFormat = "fmg-city-editor";
+  scope.own(() => {
+    delete root.dataset.documentFormat;
+  });
   // A language rebuild hands the live 3D scene and derived caches to the next mount.
   let languageHandoff = false;
   let syncCity3d = (): void => {};
@@ -1065,6 +1117,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   function getDocumentIOController() {
     if (!documentIOController)
       documentIOController = createDocumentIOController({
+        openVectorDocument,
         get fixedApproachProvider() {
           return fixedApproachProvider;
         },
@@ -1387,11 +1440,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     return result;
   }
   documents.gridSeed = randomSeed();
-  documents.documentState = createGridDocument({
-    size: DEFAULT_CITY_SIZE,
-    grid: DEFAULT_GRID_KIND,
-    seed: documents.gridSeed
-  });
+  documents.documentState = initialDocument
+    ? clone(initialDocument)
+    : createGridDocument({
+        size: DEFAULT_CITY_SIZE,
+        grid: DEFAULT_GRID_KIND,
+        seed: documents.gridSeed
+      });
   documents.gridKind = DEFAULT_GRID_KIND;
   /** Fitted hamlet import: the scale bar's cell length follows the mesh, not 50 m. */
   documents.measureTownCells = false;
@@ -2210,6 +2265,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     seedLabel,
     copyLinkButton
   } = buildGenerationPanel({
+    openVectorDocument,
     restoringSession: !!retainedLanguage,
     get select() {
       return select;
@@ -2298,7 +2354,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     get makeButton() {
       return makeButton;
     },
-    get useStandaloneSite() {
+    get applyStandaloneSite() {
       return applyStandaloneSite;
     },
     get copyShareLink() {
@@ -3323,22 +3379,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     showError: showNotice,
     async changeLanguage(language) {
       if (generation.generationJob) return;
-      const retained: CityEditorLanguageSession = {
-        documents: { ...documents },
-        generation: { ...generation },
-        display: { ...display },
-        interaction: { ...interaction },
-        ui: captureLanguageUi(root),
-        lifetime: languageLifetime,
-        camera: city3d.getPerformance?.()?.camera ?? null,
-        cityModeGrid,
-        stepStatus: stepStatus.textContent ?? "",
-        failureSummary: {
-          text: failureDebugSummary.textContent ?? "",
-          hidden: Boolean(failureDebugSummary.hidden),
-          closeHidden: Boolean(closeFailurePreview.hidden)
-        }
-      };
+      const retained = captureSession();
       await changeLanguage(language);
       if (!scope.active) return;
       retained.city3d = city3d;
@@ -3362,10 +3403,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       for (const sample of generation.generationSamples) generationLog.append(sample, generation.generateSeed);
       if (retainedLanguage.camera) city3d.restoreView(retainedLanguage.camera);
       restoreLanguageUi(root, retainedLanguage.ui);
-      return languageLifetime.dispose.bind(languageLifetime);
+      return editorDisposer(root, languageLifetime);
     }
-    const incoming = readIncomingCity();
-    if (incoming) applyShare(incoming.share, incoming.origin);
+    const incoming = initialDocument ? null : readIncomingCity();
+    if (initialDocument) applyImportedMap({ document: clone(initialDocument), source: "city-editor" });
+    else if (incoming) applyShare(incoming.share, incoming.origin);
     else refresh();
   } catch (error) {
     refresh();
@@ -3373,7 +3415,35 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   }
 
   // The bound handle follows language rebuilds without retaining this mount's closures.
-  return languageLifetime.dispose.bind(languageLifetime);
+  return editorDisposer(root, languageLifetime);
+
+  function captureSession(): CityEditorLanguageSession {
+    return {
+      documents: { ...documents },
+      generation: { ...generation, generationJob: null },
+      display: { ...display },
+      interaction: { ...interaction },
+      ui: captureLanguageUi(root),
+      lifetime: languageLifetime,
+      camera: city3d.getPerformance?.()?.camera ?? null,
+      cityModeGrid,
+      stepStatus: stepStatus.textContent ?? "",
+      failureSummary: {
+        text: failureDebugSummary.textContent ?? "",
+        hidden: Boolean(failureDebugSummary.hidden),
+        closeHidden: Boolean(closeFailurePreview.hidden)
+      }
+    };
+  }
+
+  function openVectorDocument(document?: VectorCityDocument): void {
+    if (!scope.active || generation.generationJob) return;
+    meshModeSessions.set(root, captureSession());
+    const session = document
+      ? { history: new VectorDocumentHistory(document) }
+      : (vectorModeSessions.get(root) ?? { history: new VectorDocumentHistory(createVectorDocument()) });
+    mountVectorMode(root, options, session);
+  }
 
   function appendSelectedEdge(edgeId: Id, kind: "road" | "wall"): void {
     getRoutesController().appendSelectedEdge(edgeId, kind);
@@ -3744,7 +3814,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   }
 
   function applyStandaloneSite(): void {
-    getDocumentIOController().useStandaloneSite();
+    getDocumentIOController().applyStandaloneSite();
   }
 
   function applyShare(share: CityEditorShare, origin: IncomingOrigin): void {

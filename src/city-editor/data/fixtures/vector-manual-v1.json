@@ -1,0 +1,241 @@
+{
+  "format": "fmg-vector-city",
+  "version": 1,
+  "revision": 0,
+  "frame": {
+    "extentMeters": 400
+  },
+  "context": {
+    "historicalPeriod": "highMedieval",
+    "targetPopulation": 0
+  },
+  "paths": {
+    "outer": {
+      "id": "outer",
+      "revision": 0,
+      "role": "wall",
+      "source": {
+        "kind": "preset",
+        "preset": "ellipse",
+        "center": [
+          10,
+          0
+        ],
+        "widthMeters": 200,
+        "heightMeters": 160,
+        "bearingDegrees": 90
+      },
+      "origin": "manual",
+      "editPolicy": "editable",
+      "width": {
+        "leftMeters": 1,
+        "rightMeters": 1,
+        "stations": []
+      }
+    },
+    "circle": {
+      "id": "circle",
+      "revision": 0,
+      "role": "wall",
+      "source": {
+        "kind": "preset",
+        "preset": "ellipse",
+        "center": [
+          -120,
+          -90
+        ],
+        "widthMeters": 60,
+        "heightMeters": 60,
+        "bearingDegrees": 0
+      },
+      "origin": "manual",
+      "editPolicy": "editable",
+      "width": {
+        "leftMeters": 1,
+        "rightMeters": 1,
+        "stations": []
+      }
+    },
+    "rectangle": {
+      "id": "rectangle",
+      "revision": 0,
+      "role": "wall",
+      "source": {
+        "kind": "preset",
+        "preset": "rectangle",
+        "center": [
+          120,
+          -100
+        ],
+        "widthMeters": 50,
+        "heightMeters": 60,
+        "bearingDegrees": 90
+      },
+      "origin": "manual",
+      "editPolicy": "editable",
+      "width": {
+        "leftMeters": 1,
+        "rightMeters": 1,
+        "stations": []
+      }
+    },
+    "main": {
+      "id": "main",
+      "revision": 0,
+      "role": "road",
+      "source": {
+        "kind": "curve",
+        "closed": false,
+        "segments": [
+          {
+            "id": "main-line",
+            "kind": "line",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              110,
+              0
+            ]
+          }
+        ]
+      },
+      "origin": "manual",
+      "editPolicy": "editable",
+      "width": {
+        "leftMeters": 2,
+        "rightMeters": 2,
+        "stations": []
+      }
+    },
+    "water": {
+      "id": "water",
+      "revision": 0,
+      "role": "river",
+      "source": {
+        "kind": "curve",
+        "closed": false,
+        "segments": [
+          {
+            "id": "water-bend",
+            "kind": "cubic",
+            "from": [
+              -150,
+              110
+            ],
+            "control1": [
+              -50,
+              150
+            ],
+            "control2": [
+              50,
+              30
+            ],
+            "to": [
+              150,
+              110
+            ]
+          }
+        ]
+      },
+      "origin": "manual",
+      "editPolicy": "editable",
+      "width": {
+        "leftMeters": 5,
+        "rightMeters": 5,
+        "stations": [
+          {
+            "anchor": {
+              "pathId": "water",
+              "segmentId": "water-bend",
+              "t": 0.5
+            },
+            "leftMeters": 8,
+            "rightMeters": 6
+          }
+        ]
+      }
+    }
+  },
+  "connections": {
+    "nodes": {
+      "center": {
+        "id": "center",
+        "position": [
+          0,
+          0
+        ],
+        "anchors": [
+          {
+            "pathId": "main",
+            "segmentId": "main-line",
+            "t": 0
+          }
+        ]
+      },
+      "eastGate": {
+        "id": "eastGate",
+        "position": [
+          110,
+          0
+        ],
+        "anchors": [
+          {
+            "pathId": "main",
+            "segmentId": "main-line",
+            "t": 1
+          },
+          {
+            "pathId": "outer",
+            "segmentId": "arc:0",
+            "t": 0
+          }
+        ]
+      }
+    },
+    "edges": {
+      "main": {
+        "id": "main",
+        "pathId": "main",
+        "fromNodeId": "center",
+        "toNodeId": "eastGate",
+        "from": {
+          "pathId": "main",
+          "segmentId": "main-line",
+          "t": 0
+        },
+        "to": {
+          "pathId": "main",
+          "segmentId": "main-line",
+          "t": 1
+        }
+      }
+    },
+    "gates": {
+      "east": {
+        "id": "east",
+        "wallPathId": "outer",
+        "nodeId": "eastGate",
+        "anchor": {
+          "pathId": "outer",
+          "segmentId": "arc:0",
+          "t": 0
+        },
+        "widthMeters": 4
+      }
+    },
+    "circuits": {
+      "outer": {
+        "id": "outer",
+        "pathId": "outer"
+      }
+    }
+  },
+  "regions": {},
+  "placements": {},
+  "recipe": {
+    "algorithm": "vector-city-v1",
+    "seed": "vector-example-v1"
+  }
+}

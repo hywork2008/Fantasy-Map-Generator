@@ -1,5 +1,20 @@
 {
   "cityEditor": {
+    "vector": {
+      "title": "メッシュなし文書",
+      "method": "メッシュなし（文書プレビュー）",
+      "previewHelp": "セルグリッドを使わず、作成済みの線を表示・保存します。線は中心線、点は接続点を表します。描画ツール・幅付き領域・都市生成は後続段階で追加します。",
+      "preview": "メッシュなしの線形状プレビュー",
+      "summary": "線 {{paths}} 本 · 接続点 {{nodes}} 個 · リビジョン {{revision}}",
+      "newDocument": "メッシュなし文書を新規作成",
+      "loadExample": "線形状のサンプルを読み込む",
+      "openDocument": "都市文書を開く",
+      "saveDocument": "メッシュなし文書を保存",
+      "invalidDocument": "文書を開けません。形式・形状・接続先の参照を確認してください。",
+      "returnToMesh": "メッシュ版の編集画面に戻る",
+      "undo": "元に戻す",
+      "redo": "やり直す"
+    },
     "forest": {
       "title": "周辺景観",
       "mode": "景観モード",

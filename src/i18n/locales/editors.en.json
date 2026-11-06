@@ -1,5 +1,20 @@
 {
   "cityEditor": {
+    "vector": {
+      "title": "Meshless document",
+      "method": "Meshless (document preview)",
+      "previewHelp": "Preview and save authored paths without a cell grid. Lines show centerlines and connection points. Interactive drawing, width surfaces and city generation will be added in later stages.",
+      "preview": "Meshless path preview",
+      "summary": "{{paths}} paths · {{nodes}} connection points · revision {{revision}}",
+      "newDocument": "New meshless document",
+      "loadExample": "Load path example",
+      "openDocument": "Open city document",
+      "saveDocument": "Save meshless document",
+      "invalidDocument": "Cannot open this document. Check its format, geometry and connection references.",
+      "returnToMesh": "Return to mesh editor",
+      "undo": "Undo",
+      "redo": "Redo"
+    },
     "forest": {
       "title": "Surrounding landscape",
       "mode": "Landscape mode",
