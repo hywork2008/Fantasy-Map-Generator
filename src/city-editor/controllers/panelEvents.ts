@@ -14,6 +14,7 @@ import type { EraseTarget } from "../types/editor";
 import type { GenerationSettings } from "../types/generation";
 import type { ShipType } from "../types/ships";
 import { formatDistance } from "../utils/editorUnits";
+import { generationStages } from "./generationStages";
 export interface PanelEventsContext {
   scope: import("../services/editorLifetime").EditorLifetime;
   landmarkSelect: HTMLSelectElement;
@@ -249,6 +250,9 @@ export function bindPanelEvents(ctx: PanelEventsContext, binding: PanelBinding) 
     }
     case "buildingPatternSelect:change": {
       ctx.scope.listen(ctx.buildingPatternSelect, "change", () => {
+        const currentStage = generationStages(ctx.generation.generateSettings).find(
+          stage => stage.step === ctx.generation.currentStageStep
+        );
         const facilities = ctx.buildingPatternSelect.value === "medieval-facilities";
         ctx.generation.generateSettings.buildingPattern = facilities
           ? "medieval"
@@ -256,6 +260,10 @@ export function bindPanelEvents(ctx: PanelEventsContext, binding: PanelBinding) 
         ctx.generation.generateSettings.facilityLayout = facilities ? "population" : undefined;
         ctx.generation.completeResult = null;
         clearGenerationPreviewCache();
+        const stage = generationStages(ctx.generation.generateSettings).find(
+          stage => stage.id === (currentStage?.id === "facilities" && !facilities ? "blocks" : currentStage?.id)
+        );
+        ctx.syncStageUi(stage?.step ?? 1);
       });
       break;
     }

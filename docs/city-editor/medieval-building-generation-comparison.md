@@ -40,6 +40,21 @@
 
 通常の `medieval` は 1〜3 の施設専用工程を持たず、中世ファブリックの建物生成へ進む。両モードのもっとも大きな違いは、`medieval-facilities` が「住宅の見た目だけ」ではなく、人口需要に基づく施設配置を先に行い、その後に残存容量へ住宅を適合する点である。
 
+## City generation stages の表示順
+
+`medieval-facilities` では街区・小道と住居の間に「職業施設の配置」を追加し、通常のステージ順は全19段階になる。
+
+| ステージ | 表示内容 |
+| --- | --- |
+| 14. Geometry smoothing | 平滑化した都市骨格。人口連動の職業施設はまだ表示しない。 |
+| 15. Blocks and lanes | 街区と小路。職業施設と住宅はまだ表示しない。 |
+| 16. Occupational facilities | ギルドホール・工房とそのアクセスを表示し、住宅は表示しない。 |
+| 17. Housing and completed city | 確定した職業施設に加えて、残りの土地に割り当てた住宅を表示する。 |
+| 18. Farmland | 農地を表示する。 |
+| 19. Hide roads and lanes | 仕上げとして道路・小路の線を隠す。 |
+
+表示は同じ完成都市の配置を段階的に公開する。施設ステージと住宅ステージで職業施設を再配置せず、住宅を非表示にしている間も施設の予約用地を保持する。通常の `medieval` は従来の18段階とする。Skeleton-first でも施設配置を住宅配置の直前に挿入するため、表示上の番号はそのモードのステージ構成に従う。
+
 ## 主な実装箇所
 
 - UI と設定変換: `src/city-editor/components/generationPanel.ts`、`src/city-editor/controllers/panelEvents.ts`

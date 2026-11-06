@@ -1337,6 +1337,10 @@
         "label": "Blocks and lanes",
         "hint": "Form interior blocks and secondary access lanes"
       },
+      "facilities": {
+        "label": "Occupational facilities",
+        "hint": "Allocate guild halls and workshops before fitting housing into the remaining land."
+      },
       "buildings": {
         "label": "Housing and completed city",
         "hint": "Place residential and civic buildings"
