@@ -72,9 +72,13 @@ describe("skeleton-first generation panel", () => {
     const shape = root.querySelector<HTMLSelectElement>(".ce-wall-shape")!;
     expect(method.value).toBe("mesh-first");
     expect(shape.closest("label")!.hidden).toBe(true);
+    const walls = root.querySelector<HTMLInputElement>('[data-feature="walls"]')!;
+    walls.checked = false;
+    walls.dispatchEvent(new Event("change", { bubbles: true }));
     select(".ce-generate-town-wall-rings", "single");
     select(".ce-generation-method", "skeleton-first");
     expect(shape.closest("label")!.hidden).toBe(false);
+    expect(root.querySelector<HTMLElement>('[data-generation-requires="walls"]')!.hidden).toBe(true);
     const sides = root.querySelector<HTMLInputElement>(".ce-wall-sides")!;
     expect(sides.closest("label")!.hidden).toBe(true);
     select(".ce-wall-shape", "polygon");

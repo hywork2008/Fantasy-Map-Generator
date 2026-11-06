@@ -2893,11 +2893,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     )
   );
   cityElements.append(
+    wallShapeControls,
     generationSection(
       "cityEditor.messages.walls",
       [
         fortificationControls,
-        wallShapeControls,
         label(editorText("cityEditor.messages.wallMaterial"), wallMaterialSelect),
         label(editorText("cityEditor.messages.coastalWalls"), seaWallSelect),
         moatInputs.get("town")!.closest("label")!,
