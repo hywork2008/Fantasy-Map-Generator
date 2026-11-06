@@ -151,6 +151,12 @@ export const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
     const d = generateStageOnDocument(doc, settings, seed, 8);
     return { document: d, total: 1, index: 0, detail: editorText("cityEditor.messages.blocksAndLanesComplete") };
   },
+  facilities: (doc, settings, seed) => ({
+    document: generateStageOnDocument(doc, settings, seed, 9, undefined, "facilities"),
+    total: 1,
+    index: 0,
+    detail: editorText("cityEditor.generationStages.facilities.hint")
+  }),
   buildings: (doc, settings, seed) => {
     const d = generateStageOnDocument(doc, settings, seed, 9);
     return { document: d, total: 1, index: 0, detail: editorText("cityEditor.messages.housingPlacementComplete") };

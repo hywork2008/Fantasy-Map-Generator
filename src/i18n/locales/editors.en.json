@@ -432,6 +432,8 @@
       "exportCityMapAsSVG": "Export city map as SVG",
       "exportedSVGFromTheFailedGeneration": "Exported SVG from the failed generation",
       "sVGExported": "SVG exported",
+      "exportBuildingInventoryCsv": "Export building inventory (CSV)",
+      "buildingInventoryExported": "Building inventory exported",
       "importCityMapOrSVGReference": "Import city map or SVG reference",
       "brushSize": "Brush size",
       "cellsAndEdges": "Cells and edges",
@@ -1334,6 +1336,10 @@
       "blocks": {
         "label": "Blocks and lanes",
         "hint": "Form interior blocks and secondary access lanes"
+      },
+      "facilities": {
+        "label": "Occupational facilities",
+        "hint": "Allocate guild halls and workshops before fitting housing into the remaining land."
       },
       "buildings": {
         "label": "Housing and completed city",

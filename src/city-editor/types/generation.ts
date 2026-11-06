@@ -13,7 +13,8 @@ export type StageCheckpoint =
   | "streets"
   | "innerWall"
   | "innerGates"
-  | "firstInnerGates";
+  | "firstInnerGates"
+  | "facilities";
 
 export interface GenerationStageDefinition {
   id:
@@ -38,10 +39,11 @@ export interface GenerationStageDefinition {
     | "innerGates"
     | "geometry"
     | "blocks"
+    | "facilities"
     | "buildings"
     | "farmland"
     | "conceal";
-  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18;
+  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19;
   /** Original planning pass; separate from the visible slider number. */
   processStep: number;
   wallCheckpoint?: StageCheckpoint;

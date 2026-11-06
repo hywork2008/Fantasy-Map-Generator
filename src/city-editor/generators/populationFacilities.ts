@@ -13,6 +13,7 @@ import type { GenerationSettings } from "../types/generation";
 import { allocateBVFacilities, type BVFacilityRequest } from "./allocateBVFacilities";
 import { buildBlockFabric } from "./blockInfill";
 import { bvFacilityAsset } from "./bvFacilityAsset";
+import type { FacilityUse } from "./facilityUses";
 import { medievalTradeDemand, type TradeReferenceRow } from "./medievalTradeDemand";
 
 const PREFIX = "population-facility:";
@@ -74,7 +75,7 @@ export function populationFacilityRequests(population: number, settings: Generat
           bvFacilityAsset(`trade-hall.guild-enclosed.${role}`, [{ id: "main", ...ENCLOSED_GUILD_HALL.main }])
         )
       : placeholder(`guild:${role}`, 13, 10);
-    requests.push({ id: `${PREFIX}guild:${domain.domain}`, asset, zone: "core" });
+    requests.push({ id: `${PREFIX}guild:${domain.domain}`, asset, zone: "core", use: "commerce" });
   }
   for (const trade of demand.trades) {
     if (!trade.workshops) continue;
@@ -95,6 +96,27 @@ export function populationFacilityRequests(population: number, settings: Generat
         return bvFacilityAsset("trade-workshop.dedicated-cooperage", DEDICATED_COOPER.ports.slice(0, 1));
       if (trade.pool === "tanning")
         return bvFacilityAsset("trade-workshop.dedicated-wet-tannery", DEDICATED_TANNERY.ports);
+      if (trade.pool === "ropemaking")
+        return bvFacilityAsset("trade-workshop.dedicated-ropewalk", [
+          { id: "main", position: [0, 0, 27], clearWidth: 1.6 }
+        ]);
+      if (trade.pool === "butchery")
+        return bvFacilityAsset("trade-workshop.dedicated-butchery", [
+          { id: "main", position: [-2, 0, 2.5], clearWidth: 1.5 }
+        ]);
+      const townTradeModels: Record<string, { id: string; depth: number }> = {
+        chandlery: { id: "chandlery", depth: 10 },
+        metalwares: { id: "metalwares", depth: 12 },
+        fishmongery: { id: "fishmongery", depth: 12 },
+        cutlery: { id: "cutlery", depth: 10 },
+        limeAndTile: { id: "lime-tile-yard", depth: 20 },
+        glazing: { id: "glaziers-workshop", depth: 10 }
+      };
+      const townTrade = townTradeModels[trade.pool];
+      if (townTrade)
+        return bvFacilityAsset(`trade-workshop.dedicated-${townTrade.id}`, [
+          { id: "main", position: [0, 0, townTrade.depth / 2 - 1.2], clearWidth: 1.5 }
+        ]);
       // Low-tier entrance positions follow the existing authored hall/open-shelter fronts.
       if (trade.pool === "brewing")
         return bvFacilityAsset("town-brewery", [{ id: "main", position: [-2, 0, 1.5], clearWidth: 1.1 }]);
@@ -102,8 +124,7 @@ export function populationFacilityRequests(population: number, settings: Generat
         return bvFacilityAsset("potters-workshop", [{ id: "main", position: [-2, 0, 1.5], clearWidth: 1.4 }]);
       if (trade.pool === "printing")
         return bvFacilityAsset("early-printing-workshop", [{ id: "main", position: [0, 0, 1.5], clearWidth: 1.4 }]);
-      if (trade.pool === "ropemaking") return placeholder(trade.pool, 5, 60);
-      if (["limeAndTile", "pottery", "glazing"].includes(trade.pool)) return placeholder(trade.pool, 20, 20);
+      if (trade.pool === "pottery") return placeholder(trade.pool, 20, 20);
       return placeholder(trade.pool);
     });
     const outer = [
@@ -118,11 +139,20 @@ export function populationFacilityRequests(population: number, settings: Generat
       "chandlery",
       "milling"
     ].includes(trade.pool);
+    const use: FacilityUse =
+      trade.pool === "tanning" || trade.pool === "milling"
+        ? "river"
+        : outer
+          ? "hazard"
+          : asset.residentialDwellings === 1
+            ? "craft"
+            : "commerce";
     for (let i = 0; i < trade.workshops; i++)
       requests.push({
         id: `${PREFIX}workshop:${trade.pool}:${i}`,
         asset,
         zone: outer ? "outskirts" : "core",
+        use,
         ...(trade.pool === "tanning" || trade.pool === "milling" ? { riverbankMaxDistanceMeters: 50 } : {})
       });
   }
@@ -150,7 +180,12 @@ export function generatePopulationFacilities(source: CityDocument, settings: Gen
     historicalPeriod: source.historicalPeriod ?? settings.historicalPeriod
   });
   const fabric = buildBlockFabric(source);
-  const allocation = allocateBVFacilities(source, fabric, requests, undefined, { allowOutskirtsFields: true });
+  const shared = { allowOutskirtsFields: true, deferHousing: true } as const;
+  const greedy = allocateBVFacilities(source, fabric, requests, undefined, shared);
+  const district = allocateBVFacilities(source, fabric, requests, undefined, { ...shared, preferDistricts: true });
+  // A district-first plot can take the only site a later request can use.
+  // Housing is measured once, on the kept document, by the caller.
+  const allocation = greedy.placed.every(id => district.placed.includes(id)) ? district : greedy;
   const sites = requests
     .filter(r => allocation.placed.includes(r.id))
     .map(r => ({

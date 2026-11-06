@@ -14,6 +14,7 @@ import { randomSeed } from "../generators/generation/settings";
 import { generateSkeletonPreview } from "../generators/generation/skeleton/previews";
 import { generationPhaseLabel, logGenerationFailures } from "../generators/generationDiagnostics";
 import { clone } from "../generators/mesh";
+import { withoutGeneratedFacilities } from "../generators/populationFacilities";
 import { RIVER_DROP_MIN, riverDropMeters, riverDropUpperFor } from "../generators/riverSurface";
 import { generateRuralFieldStage } from "../generators/ruralFieldStage";
 import { WALL_COAST_CHOICES, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
@@ -144,7 +145,10 @@ export function createGenerationController(ctx: GenerationContext) {
     if (!ctx.generation.generationHistory.has(ctx.documents.history.currentEntryKey))
       ctx.rememberGenerationState(
         ctx.generation.generateSeed,
-        ctx.generation.lastGeneratedStep ?? (ctx.documents.documentState.appearance === "town" ? 16 : 1)
+        ctx.generation.lastGeneratedStep ??
+          (ctx.documents.documentState.appearance === "town"
+            ? generationStages(ctx.generation.generateSettings).find(s => s.id === "buildings")!.step
+            : 1)
       );
     ctx.clearFailurePreview();
     ctx.generation.generationSamples = [];
@@ -490,7 +494,10 @@ export function createGenerationController(ctx: GenerationContext) {
     if (!ctx.generation.generationHistory.has(ctx.documents.history.currentEntryKey))
       ctx.rememberGenerationState(
         undefined,
-        ctx.generation.lastGeneratedStep ?? (ctx.documents.documentState.appearance === "town" ? 16 : 1)
+        ctx.generation.lastGeneratedStep ??
+          (ctx.documents.documentState.appearance === "town"
+            ? generationStages(ctx.generation.generateSettings).find(s => s.id === "buildings")!.step
+            : 1)
       );
     const source = clone({
       ...inheritBuildingAppearance(ctx.generation.completeSource, ctx.documents.documentState),
@@ -523,7 +530,7 @@ export function createGenerationController(ctx: GenerationContext) {
         );
         next = preview.document;
         skeletonOverlay = preview.overlayPaths;
-      } else if (finished && ["blocks", "buildings", "farmland", "conceal"].includes(stage.id)) {
+      } else if (finished && ["blocks", "facilities", "buildings", "farmland", "conceal"].includes(stage.id)) {
         next = clone(finished);
       } else if (finished && stage.id === "geometry") {
         const s7 = clone(finished);
@@ -552,6 +559,9 @@ export function createGenerationController(ctx: GenerationContext) {
           }
         );
       }
+      // Cached completed cities also carry facility reservations. Reveal them
+      // at the facilities stage, after geometry and blocks-and-lanes previews.
+      if (next && ["geometry", "blocks"].includes(stage.id)) next = withoutGeneratedFacilities(next);
       if (next && ["farmland", "conceal"].includes(stage.id))
         next = generateRuralFieldStage(
           ctx.documentForOutput({ ...next, ruralFieldSettings: ctx.documents.documentState.ruralFieldSettings })
@@ -611,7 +621,7 @@ export function createGenerationController(ctx: GenerationContext) {
     ctx.generation.urbanCoreHighlight =
       stage.id === "urban" ? buildableLandFaceIds(next, ctx.generation.generateSettings.urbanCoreMode) : null;
     ctx.generation.stepOverlayPaths = skeletonOverlay;
-    ctx.display.hideBuildings = stage.id === "blocks";
+    ctx.display.hideBuildings = stage.id === "blocks" || stage.id === "facilities";
     ctx.display.hideStreetLines = stage.id === "conceal";
     // Re-pressing the same stage on the same town is a no-op: keep the history
     // (and the undo timeline) clean.

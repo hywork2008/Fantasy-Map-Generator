@@ -432,6 +432,8 @@
       "exportCityMapAsSVG": "Export city map as SVG",
       "exportedSVGFromTheFailedGeneration": "失敗時点のSVGをエクスポートしました",
       "sVGExported": "SVG exported",
+      "exportBuildingInventoryCsv": "建物集計データをCSVで書き出す",
+      "buildingInventoryExported": "建物集計データを書き出しました",
       "importCityMapOrSVGReference": "Import city map or SVG reference",
       "brushSize": "Brush size",
       "cellsAndEdges": "Cells and edges",
@@ -1334,6 +1336,10 @@
       "blocks": {
         "label": "街区・小道",
         "hint": "Form interior blocks and secondary access lanes"
+      },
+      "facilities": {
+        "label": "職業施設の配置",
+        "hint": "ギルドホールと工房を先に配置し、その後に残りの土地へ住宅を割り当てます。"
       },
       "buildings": {
         "label": "住居・完成都市",

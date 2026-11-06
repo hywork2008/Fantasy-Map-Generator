@@ -30,7 +30,12 @@ import { DocumentHistory } from "../generators/history";
 import { scaleDocument } from "../generators/mesh";
 import { placePlazaMarket } from "../generators/plazaMarket";
 import { writeMaxPatchesPreference } from "../services/browserPreferences";
-import { exportCityMap, exportCitySvg, exportGenerationDebugSvg } from "../services/io/cityEditorFile";
+import {
+  exportBuildingInventoryCsv,
+  exportCityMap,
+  exportCitySvg,
+  exportGenerationDebugSvg
+} from "../services/io/cityEditorFile";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { FixedApproachProvider } from "../types/contracts/fixedApproachAdoption";
 import type { CityDocument } from "../types/document";
@@ -436,6 +441,14 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     );
     ctx.showNotice(editorText("cityEditor.messages.sVGExported"));
   });
+  const exportBuildingInventoryButton = ctx.makeIconButton(
+    "🏘️",
+    editorText("cityEditor.messages.exportBuildingInventoryCsv"),
+    () => {
+      exportBuildingInventoryCsv(ctx.documents.documentState);
+      ctx.showNotice(editorText("cityEditor.messages.buildingInventoryExported"));
+    }
+  );
   const importButton = ctx.makeIconButton(
     "📤",
     editorText("cityEditor.messages.importCityMapOrSVGReference"),
@@ -493,7 +506,7 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     else ctx.showNotice(editorText("cityEditor.messages.noMovableRiverRoadOrWallVerticesToSmooth"));
   });
   const actions = div("ce-icon-row");
-  actions.append(undoButton, redoButton, importButton, exportButton, exportSvgButton);
+  actions.append(undoButton, redoButton, importButton, exportButton, exportSvgButton, exportBuildingInventoryButton);
   ctx.toolbar.content.append(
     ctx.divider(),
     actions,

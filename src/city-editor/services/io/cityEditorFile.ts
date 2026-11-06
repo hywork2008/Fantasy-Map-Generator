@@ -4,6 +4,7 @@ import { serializeCitySvg } from "../../renderers/standaloneSvg";
 import type { FixedApproachProvider } from "../../types/contracts/fixedApproachAdoption";
 import type { GenerationDebugPreview } from "../../types/contracts/generationDebug";
 import type { CityDocument } from "../../types/document";
+import { buildingInventoryCsv } from "../analysis/buildingInventoryCsv";
 import { readForestViewPreferences } from "../forestViewPreferences";
 import { parseDocument, serializeDocument } from "./documentCodec";
 import { importMfcgJson, importMfcgSvg } from "./mfcgImport";
@@ -35,6 +36,17 @@ export function exportCitySvg(cityDocument: CityDocument): void {
     serializeCitySvg(cityDocument, undefined, { representation: readForestViewPreferences().representation }),
     "ce"
   );
+}
+
+/** Download one row per generated building with dimensions and floor area. */
+export function exportBuildingInventoryCsv(cityDocument: CityDocument): void {
+  const blob = new Blob([buildingInventoryCsv(cityDocument)], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `ce-building-inventory-${formatExportTimestamp(new Date())}.csv`;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 /** Download the rejected checkpoint with failure highlights and diagnostics. */

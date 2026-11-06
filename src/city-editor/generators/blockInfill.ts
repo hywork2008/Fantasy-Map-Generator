@@ -21,6 +21,7 @@ import {
   oceanShoreSegments
 } from "./coastalSuitability";
 import { districtDocument, resolveDistricts, upgradeFabricPlan } from "./fabricDistricts";
+import { packFacilityResidualLots } from "./facilityResidualLots";
 import { FixedRoadReservation } from "./fixedRoadReservation";
 import { enforceForestLandCover } from "./forestLandCover";
 import { hasForestState } from "./forestSettings";
@@ -443,6 +444,7 @@ export function buildBlockFabric(
     ...fabricResult,
     buildings: assignBuildingAppearances(document, assignBuildingMassing(document, fabricResult.buildings))
   };
+  fabricResult = appendFacilityResidualLots(document, fabricResult, castleDefense);
   if (fabricResult.parcels) {
     const buildingsByParcel = new Map<string, BuildingLot[]>();
     for (const building of fabricResult.buildings) {
@@ -486,6 +488,62 @@ export function buildHarborPlan(document: CityDocument, profiler?: ProcessingPro
   return measureProcessing(profiler, "harbor-fabric", () =>
     planHarbor(document, streets, barriers, undefined, harborThroughStreets(document))
   );
+}
+
+/** Fill facility gaps after growth and housing assignment, so those passes cannot drop the new lots. */
+function appendFacilityResidualLots(
+  document: CityDocument,
+  fabric: DistrictFabric,
+  defense: CastleDefenseClearance
+): DistrictFabric {
+  // The population housing source is a legacy rebuild of the same landmarks. Pack once, afterwards.
+  if (!document.populationPlan && document.buildingPattern === "legacy") return fabric;
+  const packed = packFacilityResidualLots(document, fabric.buildings, fabric.lanes, fabric.openSpaces ?? []);
+  if (!packed.buildings.length && !packed.openSpaces.length) return fabric;
+  const moat = new MoatReservation(document);
+  const hitsWater = documentWaterTest(document);
+  const shore = oceanShoreSegments(document);
+  const fixedRoads = new FixedRoadReservation(document);
+  const mills = fabric.watermills?.mills.map(mill => mill.millhousePolygon) ?? [];
+  const aerials = fabric.aerialLandmarks ? aerialLandmarkFootprints(fabric.aerialLandmarks) : [];
+  const buildings = packed.buildings
+    .filter(lot => {
+      const polygon = lot.polygon;
+      if (!defense.clears(polygon) || moat.hitsPolygon(polygon) || fixedRoads.hitsPolygon(polygon)) return false;
+      if (hitsWater(polygon) || landmarkReservationHits(document, polygon)) return false;
+      if (mills.some(mill => polygonOverlaps(polygon, mill)) || aerials.some(foot => polygonOverlaps(polygon, foot)))
+        return false;
+      const face = document.mesh.faces[lot.faceId];
+      if (face?.properties.water !== "land" || face?.properties.locked || face?.properties.ward === "harbor")
+        return false;
+      return !coastalBandOverlap(polygon, shore, COASTAL_BUILDING_SETBACK_METERS);
+    })
+    .map(lot => {
+      const area = Math.abs(polygonArea(lot.polygon));
+      const shed = area < 40;
+      return {
+        ...lot,
+        storeys: 1,
+        role: shed ? ("shed" as const) : lot.role,
+        uses: shed ? ["storage" as const] : lot.uses
+      };
+    });
+  const massed = buildings.length
+    ? assignBuildingAppearances(document, assignBuildingMassing(document, buildings))
+    : [];
+  const spaces = packed.openSpaces.filter(
+    space =>
+      defense.clears(space.polygon) &&
+      !moat.hitsPolygon(space.polygon) &&
+      !hitsWater(space.polygon) &&
+      !landmarkReservationHits(document, space.polygon)
+  );
+  if (!massed.length && !spaces.length) return fabric;
+  return {
+    ...fabric,
+    buildings: massed.length ? [...fabric.buildings, ...massed] : fabric.buildings,
+    openSpaces: spaces.length ? [...(fabric.openSpaces ?? []), ...spaces] : fabric.openSpaces
+  };
 }
 
 function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric): DistrictFabric {

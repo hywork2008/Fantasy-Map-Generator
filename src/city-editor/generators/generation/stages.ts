@@ -139,7 +139,7 @@ export const GENERATION_STAGE_DEFINITIONS: GenerationStageDefinition[] = [
 
 /** Keep the original slider sequence; the experiment exposes the old curtain
  * and its passages before the outer-wall checkpoints. */
-export function generationStageDefinitions(settings: GenerationSettings): GenerationStageDefinition[] {
+function baseStageDefinitions(settings: GenerationSettings): GenerationStageDefinition[] {
   if (settings.generationMethod === "skeleton-first") return SKELETON_STAGE_DEFINITIONS;
   const profile = settings.descriptor?.urbanMorphology;
   const rings =
@@ -187,6 +187,28 @@ export function generationStageDefinitions(settings: GenerationSettings): Genera
         : {})
     };
   });
+}
+
+/** Facility reservations precede housing only in the population facilities mode. */
+export function generationStageDefinitions(settings: GenerationSettings): GenerationStageDefinition[] {
+  const stages = baseStageDefinitions(settings);
+  if (settings.facilityLayout !== "population") return stages;
+  const expanded = stages.flatMap(stage =>
+    stage.id === "buildings"
+      ? [
+          {
+            id: "facilities" as const,
+            step: stage.step,
+            processStep: 9,
+            wallCheckpoint: "facilities" as const,
+            labelKey: "cityEditor.generationStages.facilities.label" as const,
+            hintKey: "cityEditor.generationStages.facilities.hint" as const
+          },
+          stage
+        ]
+      : [stage]
+  );
+  return expanded.map((stage, index) => ({ ...stage, step: (index + 1) as GenerationStageDefinition["step"] }));
 }
 
 /** Negative process steps are vector-only K previews; positive steps reuse the

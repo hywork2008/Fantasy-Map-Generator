@@ -9,6 +9,7 @@ import { defaultGenerationSettings } from "../generators/generation/settings";
 import { clone } from "../generators/mesh";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { CityDocument } from "../types/document";
+import { generationStages } from "./generationStages";
 import { emptySelection } from "./tools/toolTypes";
 export interface EditingContext {
   scope: import("../services/editorLifetime").EditorLifetime;
@@ -127,7 +128,11 @@ export function createEditingController(ctx: EditingContext) {
         town: next.defenseCircuits?.some(c => c.scope === "town" && c.moat?.enabled) ?? false,
         castle: next.defenseCircuits?.some(c => c.scope === "castle" && c.moat?.enabled) ?? false
       };
-      ctx.syncStageUi(next.appearance === "town" ? 16 : 1);
+      ctx.syncStageUi(
+        next.appearance === "town"
+          ? generationStages(ctx.generation.generateSettings).find(stage => stage.id === "buildings")!.step
+          : 1
+      );
     }
     if (next.castleStyle !== undefined || !playback)
       ctx.generation.generateSettings.castle = {

@@ -1,6 +1,6 @@
 import { editorOptionText, editorText } from "../../i18n/editorMessages";
 import { inferredWallSettings, supportsUrbanMorphology } from "../../utils/urbanMorphology";
-import { GENERATION_STAGES, generationStages } from "../controllers/generationStages";
+import { generationStages } from "../controllers/generationStages";
 import type { PanelEventsContext } from "../controllers/panelEvents";
 import { bindPanelEvents } from "../controllers/panelEvents";
 import { removeBastionedTown } from "../generators/bastionedTown/edit";
@@ -440,7 +440,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   stageSlider.type = "range";
   stageSlider.className = "ce-generate-stage-slider";
   stageSlider.min = "1";
-  stageSlider.max = String(GENERATION_STAGES.length);
+  stageSlider.max = String(generationStages(ctx.generation.generateSettings).length);
   stageSlider.step = "1";
   stageSlider.value = String(ctx.generation.currentStageStep);
   stageSlider.setAttribute("aria-label", editorText("cityEditor.messages.generationStageSlider"));
