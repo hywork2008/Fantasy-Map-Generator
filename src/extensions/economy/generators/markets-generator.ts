@@ -55,7 +55,7 @@ import { getFarmToolsDemandByMarket } from "./farmToolsDemand";
 import { withRegionalDemandShareCache } from "./faunaPopulation";
 import type { FaunaCohorts } from "./faunaPopulationTypes";
 import { isOrchardDrink } from "./foodLots";
-import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
+import { getRecipeCostBasis, hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
   getFoodProcessingProductionHeadroom,
   getMonthlyHouseholdDemand,
@@ -1729,16 +1729,21 @@ export class MarketsModule {
       for (const good of goods) {
         if (!good.recipes?.length) continue;
         const marketGood = this.getMarketGood(market, good);
-        let totalMarketCost = 0;
-        for (const recipe of good.recipes) {
-          for (const [ingIdStr, amount] of Object.entries(recipe)) {
-            const ingId = +ingIdStr;
-            const ing = Goods.get(ingId);
-            if (!ing || !isGoodEnabled(ing)) continue;
-            totalMarketCost += amount * this.getMarketGood(market, ing).price;
-          }
-        }
-        const avgMarketCost = totalMarketCost / good.recipes.length;
+        const ingredientRows = new Map<number, Market["goods"][number]>();
+        const recipeEntries = good.recipes.map(recipe =>
+          Object.entries(recipe).flatMap(([ingIdStr, amount]) => {
+            const ing = Goods.get(+ingIdStr);
+            if (!ing || !isGoodEnabled(ing)) return [];
+            ingredientRows.set(ing.i, this.getMarketGood(market, ing));
+            return [{ goodId: ing.i, amount }];
+          })
+        );
+        const avgMarketCost = getRecipeCostBasis(
+          good.name,
+          recipeEntries,
+          goodId => ingredientRows.get(goodId)?.price ?? 0,
+          goodId => ingredientRows.get(goodId)?.stock ?? 0
+        );
         marketGood.costBasis = rn(avgMarketCost, 2);
 
         const avgBaseCost = avgIngredientsCostByGood[good.i] ?? 0;
