@@ -12,6 +12,7 @@
 - docs/analytics/ce-workhome-trades-legacy-baseline-20261104.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/plan/ce-facility-block-allocation.md - 施設配置の再出発方針と3作業の状態。通常生成・方式分離・人口別BV／仮敷地・保存と共有・不足住宅分のコア拡張まで実装。5,000人で川なしの269施設を全配置し、必要1,112戸の充足と郊外追加敷地を確認。次は川あり都市と実画面の確認
 - docs/plan/ce-medieval-facility-district-packing.md - CEのmedieval-facilitiesにおける用途街区の選定、施設配置後の残地再分割、必要時の非直交建物外形、空地密度の計測と段階的な実装条件を設計
+- docs/plan/ce-meshless-city-editor.md - 既存CEと共存するメッシュなし都市生成・編集を設計。曲線と接続を正本にし、市壁プリセットの寸法・縦横比・角丸、二重壁間道路、川・道・壁のフリーハンド／ベジェ編集、可変川幅、橋規約、施設先行生成、保存・機能互換・段階実装と受入条件を整理
 - docs/plan/data/ce-dedicated-bakehouse-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/plan/data/ce-dedicated-cooperage-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/plan/data/ce-dedicated-smithies-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
