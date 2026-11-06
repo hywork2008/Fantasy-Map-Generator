@@ -432,6 +432,8 @@
       "exportCityMapAsSVG": "Export city map as SVG",
       "exportedSVGFromTheFailedGeneration": "失敗時点のSVGをエクスポートしました",
       "sVGExported": "SVG exported",
+      "exportBuildingInventoryCsv": "建物集計データをCSVで書き出す",
+      "buildingInventoryExported": "建物集計データを書き出しました",
       "importCityMapOrSVGReference": "Import city map or SVG reference",
       "brushSize": "Brush size",
       "cellsAndEdges": "Cells and edges",

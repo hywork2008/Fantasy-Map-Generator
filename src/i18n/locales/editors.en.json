@@ -432,6 +432,8 @@
       "exportCityMapAsSVG": "Export city map as SVG",
       "exportedSVGFromTheFailedGeneration": "Exported SVG from the failed generation",
       "sVGExported": "SVG exported",
+      "exportBuildingInventoryCsv": "Export building inventory (CSV)",
+      "buildingInventoryExported": "Building inventory exported",
       "importCityMapOrSVGReference": "Import city map or SVG reference",
       "brushSize": "Brush size",
       "cellsAndEdges": "Cells and edges",
