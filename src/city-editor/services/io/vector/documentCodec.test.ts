@@ -19,7 +19,7 @@ describe("vector file dispatch", () => {
 
   it("rejects unsupported vector versions and broken references without treating them as legacy or MFCG", async () => {
     const vector = createVectorExample();
-    expect(await readCityMap(new File([JSON.stringify({ ...vector, version: 6 })], "future.json"))).toBeNull();
+    expect(await readCityMap(new File([JSON.stringify({ ...vector, version: 7 })], "future.json"))).toBeNull();
     vector.connections.nodes.eastGate.anchors[0].pathId = "missing";
     expect(await readCityMap(new File([JSON.stringify(vector)], "broken.json"))).toBeNull();
     expect(

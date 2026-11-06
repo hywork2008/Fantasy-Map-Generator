@@ -328,6 +328,33 @@
           "dependency-worker": "The background calculation failed. The adopted city was kept.",
           "invalid": "The geometry or connections cannot satisfy this edit. The adopted city was kept."
         }
+      },
+      "presentation": {
+        "title": "Scene, exports and sharing",
+        "2d": "2D plan",
+        "3d": "3D scene",
+        "loading": "Preparing saved geometry…",
+        "ready": "Saved geometry ready.",
+        "massing": "Footprint massing / unverified model notes",
+        "unavailable": "3D is unavailable. The 2D plan and saved geometry are preserved.",
+        "failed": "This operation could not complete. Use the native file when a share or export exceeds its budget.",
+        "svg": "Export current stage SVG",
+        "png": "Export current view PNG",
+        "glb": "Export current stage GLB",
+        "shareDocument": "Share complete document",
+        "shareRecipe": "Share input and generation recipe",
+        "shareLink": "Share link",
+        "documentCopied": "Complete document link copied; manual geometry and the source archive are included.",
+        "recipeCopied": "Input and recipe link copied; opening it regenerates the city.",
+        "manualCopy": "Select and copy the displayed link.",
+        "copyLegacy": "Preview a meshless copy of the source city",
+        "copyReview": "Review the complete conversion inventory below. Unsupported features remain in the archived original; the source city is unchanged.",
+        "adoptCopy": "Adopt meshless copy",
+        "cancelCopy": "Cancel conversion candidate",
+        "restoreLegacy": "Open archived original in the mesh editor",
+        "invalidShare": "This vector share is invalid or exceeds its size budget. No city was imported.",
+        "replay": "Recreate shared recipe",
+        "glbHint": "Geometry and model dimensions are retained. Custom BV shaders are approximated by standard glTF materials."
       }
     },
     "forest": {

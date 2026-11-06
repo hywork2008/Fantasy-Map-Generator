@@ -35,7 +35,8 @@ export function createVectorWorkbench(
   map: HTMLElement,
   status: HTMLElement,
   readCurrent: () => VectorCityDocument,
-  commit: (document: VectorCityDocument, label: string) => void
+  commit: (document: VectorCityDocument, label: string) => void,
+  onRender?: (doc: VectorCityDocument) => void
 ) {
   const read = () => prepareVectorEdit(readCurrent());
   const replaceVectorPath = (doc: VectorCityDocument, path: VectorPath) =>
@@ -188,6 +189,7 @@ export function createVectorWorkbench(
     svg.setAttribute("aria-label", editorText("cityEditor.vector.preview"));
     svg.style.cssText = "width:100%;height:100%;min-height:300px;touch-action:none";
     map.replaceChildren(svg);
+    onRender?.(readCurrent());
     preview();
   }
   function preview(path?: VectorPath) {

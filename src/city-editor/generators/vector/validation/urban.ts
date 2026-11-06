@@ -61,7 +61,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
         !keys(
           b,
           "kind,label,districtId,provenance,dimensionSource,footprint,reserved,entrances,dwellings,floorFootprintMeters2,storeys,residentialShare",
-          "pool,riverbankDistanceMeters"
+          "pool,riverbankDistanceMeters,heightMeters"
         ) ||
         !["facility", "housing"].includes(b.kind) ||
         typeof b.label !== "string" ||
@@ -101,6 +101,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
         !finite(b.residentialShare) ||
         b.residentialShare < 0 ||
         b.residentialShare > 1 ||
+        (b.heightMeters !== undefined && (!finite(b.heightMeters) || b.heightMeters <= 0 || b.heightMeters > 500)) ||
         (b.pool !== undefined && typeof b.pool !== "string") ||
         (b.riverbankDistanceMeters !== undefined &&
           (!finite(b.riverbankDistanceMeters) || b.riverbankDistanceMeters < 0)) ||

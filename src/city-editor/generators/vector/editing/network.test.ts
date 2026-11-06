@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import fixtures from "../../../../../docs/plan/data/ce-meshless-m0-cases.json";
 import { bridgeSkewDegrees } from "../../../../utils/bridgeSkewPolicy";
 import { renderVectorDocument } from "../../../renderers/vector/documentSvg";
+import { vectorRenderData } from "../../../renderers/vector/renderData";
 import { parseVectorDocument, serializeVectorDocument } from "../../../services/io/vector/documentCodec";
 import type { Point } from "../../../types/primitives";
 import type { VectorBridge, VectorCityDocument, VectorPath } from "../../../types/vector/document";
 import { createVectorDocument, createVectorExample } from "../document";
 import { evaluateAnchor } from "../geometry/curves";
 import { bridgeGeometry, distance } from "../geometry/network";
+import { containsRegion } from "../geometry/regions";
 import { pathSurface } from "../geometry/surfaces";
 import { VectorDocumentHistory } from "../history";
 import { validateVectorDocument } from "../validation/document";
@@ -140,8 +142,10 @@ describe("M3 explicit graph and gate openings", () => {
     expect(gate.circuitId).toBe("circuit:1");
     expect(doc.connections.nodes[gate.nodeId].position).toEqual([20, 0]);
     const svg = renderVectorDocument(doc);
-    expect(svg.querySelector("mask [data-vector-gate]")).not.toBeNull();
-    expect(svg.querySelector('[data-vector-path="wall"]')!.parentElement!.hasAttribute("mask")).toBe(true);
+    expect(svg.querySelector("[data-vector-gate]")).not.toBeNull();
+    const wall = vectorRenderData(doc).surfaces.find(s => s.id === "wall" && s.kind === "wall")!;
+    expect(containsRegion(wall.polygons, [20, 0])).toBe(false);
+    expect(containsRegion(wall.polygons, [20, 5])).toBe(true);
     const moved = createVectorGate(doc, anchor("wall", 0.6, "segment:1"), anchor("access", 1), 6, "passage", gate.id);
     expect(moved.connections.nodes[moved.connections.gates[gate.id].nodeId].position[1]).toBeCloseTo(4);
     expect(() =>
@@ -607,7 +611,7 @@ describe("M3 legal bridge spans", () => {
     const current = structuredClone(doc);
     delete current.connections.gates.east.circuitId;
     expect(parseVectorDocument(JSON.stringify(current))).toBeNull();
-    legacy.version = 6;
+    legacy.version = 7;
     expect(parseVectorDocument(JSON.stringify(legacy))).toBeNull();
     const invalid = proposeSquareBridge(riverCity(), anchor("river", 0.5), 4, 2, "stone");
     Object.values(invalid.connections.bridges)[0].dryLandingMeters = -1;

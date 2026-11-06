@@ -236,6 +236,7 @@ export function createUrbanPacker(
             districtId: block.id,
             provenance: asset.bvModel ? "bv" : "provisional",
             dimensionSource: asset.dimensionSource ?? "Provisional dimensions",
+            heightMeters: asset.bvModel?.heightMeters ?? 6,
             footprint: asset.footprint.map(p => ({
               outer: p.outer.map(transform),
               holes: p.holes.map(h => h.map(transform))

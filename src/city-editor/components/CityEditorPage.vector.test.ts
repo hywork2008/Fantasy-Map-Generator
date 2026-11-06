@@ -5,6 +5,7 @@ import * as documentGenerator from "../generators/document";
 import { createVectorDocument, createVectorExample } from "../generators/vector/document";
 import * as cityFiles from "../services/io/cityEditorFile";
 import { serializeVectorDocument } from "../services/io/vector/documentCodec";
+import { encodeVectorShare } from "../services/io/vector/share";
 import { mountCityEditor } from "./CityEditorPage";
 
 let root: HTMLElement;
@@ -141,5 +142,35 @@ describe("meshless editor boundary", () => {
     expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(5);
     click(".ce-vector-undo");
     expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(0);
+  });
+});
+
+describe("vector share navigation", () => {
+  it("opens a complete vector share before constructing cells and consumes a later hash navigation", () => {
+    const document = createVectorExample(),
+      token = encodeVectorShare({
+        kind: "fmg-vector-city-share",
+        version: 1,
+        mode: "document",
+        document,
+        stage: "regions"
+      });
+    globalThis.history.replaceState(null, "", `#${token}`);
+    const grid = vi.spyOn(documentGenerator, "createGridDocument");
+    dispose = mountCityEditor(root);
+    expect(grid).not.toHaveBeenCalled();
+    expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(5);
+    expect(location.hash).toBe("");
+    const empty = encodeVectorShare({
+      kind: "fmg-vector-city-share",
+      version: 1,
+      mode: "document",
+      document: createVectorDocument(),
+      stage: "regions"
+    });
+    globalThis.history.replaceState(null, "", `#${empty}`);
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    expect(root.querySelectorAll("[data-vector-path]")).toHaveLength(0);
+    expect(location.hash).toBe("");
   });
 });

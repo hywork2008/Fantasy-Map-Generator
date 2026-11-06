@@ -108,12 +108,20 @@ export interface VectorPlacement {
   site: { outer: Point[]; holes: Point[][] };
   accesses: CurveAnchor[];
   building?: VectorBuilding;
+  display?: {
+    kind: "housing" | "facility" | "landmark" | "object";
+    heightMeters: number;
+    footprint: import("./generation").VectorPolygon[];
+    provenance: "copied" | "massing";
+    note: string;
+    dwellings?: number;
+  };
 }
 
 /** Saved geometry ledger. No editable cell mesh or render-time generation. */
 export interface VectorCityDocument {
   format: "fmg-vector-city";
-  version: 5;
+  version: 6;
   revision: number;
   frame: { extentMeters: number };
   context: { historicalPeriod: HistoricalPeriod; targetPopulation: number; bridgeSkewTier?: 0 | 1 | 2 };
@@ -134,5 +142,9 @@ export interface VectorCityDocument {
   site?: VectorSite;
   generation?: VectorGeneration;
   urban?: VectorUrban;
+  legacyCopy?: {
+    sourceJson: string;
+    report: { id: string; status: "converted" | "snapshot" | "unsupported"; category: string; reason: string }[];
+  };
   recipe: { algorithm: "vector-city-v1"; seed: string };
 }

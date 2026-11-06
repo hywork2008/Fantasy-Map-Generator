@@ -15,7 +15,8 @@ export function createVectorEditPanel(
   key: () => object,
   commit: (doc: VectorCityDocument, label: string) => void,
   restore: () => void,
-  start = startVectorEdit
+  start = startVectorEdit,
+  onRender?: (doc: VectorCityDocument) => void
 ) {
   const box = document.createElement("fieldset"),
     legend = document.createElement("legend"),
@@ -135,6 +136,7 @@ export function createVectorEditPanel(
             svg.style.cssText = "width:100%;height:100%;min-height:300px";
             svg.dataset.dependencyPreview = "true";
             map.replaceChildren(svg);
+            onRender?.(result.document);
           })
           .catch(error => {
             if (token !== epoch || !scope.active || originalKey !== key()) return;

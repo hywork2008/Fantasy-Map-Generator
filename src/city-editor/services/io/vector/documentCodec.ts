@@ -5,17 +5,19 @@ import {
   validateVectorDocument
 } from "../../../generators/vector/validation/document";
 import type { VectorCityDocument } from "../../../types/vector/document";
+import { parseDocument } from "../documentCodec";
 
 export function parseVectorDocument(text: string): VectorCityDocument | null {
   if (text.length > VECTOR_DOCUMENT_LIMITS.textLength) return null;
   try {
     const value: unknown = JSON.parse(text);
     const version = value && typeof value === "object" && "version" in value ? value.version : undefined;
-    const legacy = version === 1 ? true : version === 2 ? 2 : version === 3 ? 3 : version === 4 ? 4 : false;
+    const legacy =
+      version === 1 ? true : version === 2 ? 2 : version === 3 ? 3 : version === 4 ? 4 : version === 5 ? 5 : false;
     if (validateVectorDocument(value, legacy).length) return null;
     if (legacy) {
       const migrated = value as VectorCityDocument;
-      migrated.version = 5;
+      migrated.version = 6;
       if (legacy === true || legacy === 2) {
         migrated.connections.bridges = {};
         migrated.connections.wallRoads = {};
@@ -39,7 +41,9 @@ export function parseVectorDocument(text: string): VectorCityDocument | null {
       }
       if (validateVectorDocument(migrated).length) return null;
     }
-    return value as VectorCityDocument;
+    const document = value as VectorCityDocument;
+    if (document.legacyCopy && !parseDocument(document.legacyCopy.sourceJson)) return null;
+    return document;
   } catch {
     return null;
   }
@@ -47,6 +51,7 @@ export function parseVectorDocument(text: string): VectorCityDocument | null {
 
 export function serializeVectorDocument(document: VectorCityDocument): string {
   assertVectorDocument(document);
+  if (document.legacyCopy && !parseDocument(document.legacyCopy.sourceJson)) throw new Error("legacy-source");
   const text = JSON.stringify(document, null, 2);
   if (text.length > VECTOR_DOCUMENT_LIMITS.textLength) throw new Error("Vector document exceeds the file budget");
   return text;

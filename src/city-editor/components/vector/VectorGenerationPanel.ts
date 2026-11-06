@@ -24,7 +24,8 @@ export function createVectorGenerationPanel(
   read: () => VectorCityDocument,
   commit: (doc: VectorCityDocument, label: string) => void,
   restore: () => void,
-  linked?: BurgSiteDescriptor
+  linked?: BurgSiteDescriptor,
+  onRender?: (doc: VectorCityDocument, stage: VectorStage) => void
 ) {
   const details = document.createElement("details"),
     summary = document.createElement("summary"),
@@ -146,6 +147,7 @@ export function createVectorGenerationPanel(
     svg.style.cssText = "width:100%;height:100%;min-height:300px";
     svg.dataset.generationPreview = String(!!pending);
     map.replaceChildren(svg);
+    onRender?.(doc, stage.value as VectorStage);
   };
   const preview = (doc: VectorCityDocument, key: string, stages: VectorGenerationResult["stages"] = []) => {
     assertVectorDocument(doc);

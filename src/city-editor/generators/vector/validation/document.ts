@@ -15,6 +15,7 @@ import { ringInside, verifyWallGapSurface } from "../geometry/routing";
 import { pathSurface, surfacesOverlap } from "../geometry/surfaces";
 import { vectorWaterSurfaces } from "../geometry/water";
 import { validateVectorGeneration } from "./generation";
+import { validateVectorPresentation } from "./presentation";
 import { validateVectorUrban } from "./urban";
 
 export const VECTOR_DOCUMENT_LIMITS = {
@@ -164,7 +165,7 @@ function validPath(v: RecordValue, legacy: boolean): v is unknown & VectorPath &
 }
 
 /** Strict native codec validation. Missing/unknown references are never repaired here. */
-export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 | 4 = false): string[] {
+export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 | 4 | 5 = false): string[] {
   if (
     !keys(
       value,
@@ -173,10 +174,13 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 |
         ? []
         : legacy === 4
           ? ["site", "generation"]
-          : ["site", "generation", "urban"]
+          : legacy === 5
+            ? ["site", "generation", "urban"]
+            : ["site", "generation", "urban", "legacyCopy"]
     ) ||
     value.format !== "fmg-vector-city" ||
-    value.version !== (legacy === true ? 1 : legacy === 2 ? 2 : legacy === 3 ? 3 : legacy === 4 ? 4 : 5) ||
+    value.version !==
+      (legacy === true ? 1 : legacy === 2 ? 2 : legacy === 3 ? 3 : legacy === 4 ? 4 : legacy === 5 ? 5 : 6) ||
     !revision(value.revision)
   )
     return ["document-format"];
@@ -348,7 +352,11 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 |
       !keys(
         p,
         ["id", "modelId", "position", "facingDegrees", "origin", "editPolicy", "site", "accesses"],
-        legacy ? [] : ["building"]
+        legacy === true || legacy === 2 || legacy === 3 || legacy === 4
+          ? []
+          : legacy === 5
+            ? ["building"]
+            : ["building", "display"]
       ) ||
       !id(p.modelId) ||
       !point(p.position) ||
@@ -457,8 +465,9 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 |
       }
     }
   }
-  if ((!legacy || legacy === 4) && !errors.length) errors.push(...validateVectorGeneration(doc));
-  if (!legacy && !errors.length) errors.push(...validateVectorUrban(doc));
+  if ((!legacy || legacy === 4 || legacy === 5) && !errors.length) errors.push(...validateVectorGeneration(doc));
+  if ((!legacy || legacy === 5) && !errors.length) errors.push(...validateVectorUrban(doc));
+  if (!legacy && !errors.length) errors.push(...validateVectorPresentation(doc));
   return errors;
 }
 

@@ -19,6 +19,7 @@ export interface VectorBuilding {
   districtId: string;
   provenance: "bv" | "provisional";
   dimensionSource: string;
+  heightMeters?: number;
   footprint: VectorPolygon[];
   reserved: VectorPolygon[];
   entrances: {

@@ -88,6 +88,7 @@ import { beginEditorMount } from "../services/editorLifetime";
 import { readForestViewPreferences } from "../services/forestViewPreferences";
 import { type ImportedCityMap, pickCityMap } from "../services/io/cityEditorFile";
 import { type CityEditorShare, readIncomingCity } from "../services/io/incomingCity";
+import { decodeVectorShare } from "../services/io/vector/share";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import { createDocumentsState } from "../state/editorSession";
 import type { FixedApproachProvider } from "../types/contracts/fixedApproachAdoption";
@@ -207,6 +208,9 @@ function mountVectorMode(root: HTMLElement, options: CityEditorOptions, session:
   mountVectorCityEditor(root, session, {
     lifetime,
     fixedApproachProvider: options.fixedApproachProvider,
+    openSharedLink() {
+      mountCityEditor(root, { fixedApproachProvider: options.fixedApproachProvider });
+    },
     returnToMesh() {
       const previous = meshModeSessions.get(root);
       if (previous) {
@@ -225,11 +229,33 @@ function mountVectorMode(root: HTMLElement, options: CityEditorOptions, session:
 
 export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): () => void {
   const initialDocument = options.initialDocument;
+  if (!initialDocument && typeof location !== "undefined" && location.hash.startsWith("#vector.")) {
+    const share = decodeVectorShare(location.hash);
+    globalThis.history.replaceState(null, "", location.href.split("#")[0]);
+    if (share?.mode === "document")
+      return mountVectorMode(root, options, {
+        history: new VectorDocumentHistory(share.document),
+        sharedStage: share.stage
+      });
+    if (share?.mode === "recipe")
+      return mountVectorMode(root, options, {
+        history: new VectorDocumentHistory(share.recipe.input),
+        sharedRecipe: share.recipe
+      });
+    return mountVectorMode(root, options, {
+      history: new VectorDocumentHistory(createVectorDocument()),
+      shareError: true
+    });
+  }
   if (initialDocument?.format === "fmg-vector-city")
     return mountVectorMode(root, options, { history: new VectorDocumentHistory(initialDocument) });
   const retainedLanguage = languageSessions.get(root);
   languageSessions.delete(root);
   const scope = beginEditorMount(root);
+  scope.listen(window, "hashchange", () => {
+    if (location.hash.startsWith("#vector."))
+      mountCityEditor(root, { fixedApproachProvider: options.fixedApproachProvider });
+  });
   const languageLifetime = retainedLanguage?.lifetime ?? editorLifetimes.get(root) ?? new EditorLanguageLifetime();
   editorLifetimes.set(root, languageLifetime);
   languageLifetime.attach(scope);
@@ -3443,6 +3469,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       ? { history: new VectorDocumentHistory(document) }
       : (vectorModeSessions.get(root) ?? { history: new VectorDocumentHistory(createVectorDocument()) });
     session.sourceDescriptor ??= generation.generateSettings.descriptor;
+    session.sourceDocument = clone(documents.documentState);
     mountVectorMode(root, options, session);
   }
 

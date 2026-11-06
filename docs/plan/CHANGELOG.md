@@ -3,21 +3,16 @@
 2026-11-07
 
 - docs/analytics/ce-meshless-m3-20261107.md - メッシュなしCEのM3を完了。明示的な接続グラフ、通行門・水門と開口、共通規約に従う橋、二重壁と実幅の壁間道路、v1／v2からv3への移行を実装。共通橋APIの絶対上限を30度へ修正し、関連18ファイル156件・実ブラウザーの候補採用と保存再読込を確認。M4への境界を記録
-- docs/analytics/ce-meshless-m3-20261107.png - 実CEで門の開口、二重壁の隙間を通る道路、河川と採用済みの直角橋を確認した画像
 - docs/analytics/ce-meshless-m3-input-20261107.json - M3の実ブラウザー確認を再現するnative v3文書。門付き二重壁・取付道路と壁間道路・河川・直角橋と明示接続を保存
 - docs/analytics/ce-meshless-m4-20261107.md - メッシュなしCEのM4を完了。FMG／合成／手動入力、測量済み水域・固定交差・共有branchの保持、骨格・領域・接道、生成所有と再生成保護、native v4・段階表示を実装。依存追加の寸法、関連113件、実画面の採用・保存再読込を記録。次はM5の施設先行・残地住宅
 - docs/analytics/ce-meshless-m4-fmg-20261107.json - FMG Gothengsfeldの固定交差113・測量水域を保持したnative v4生成結果。13本・街区候補4成分と元入力snapshotを保存
-- docs/analytics/ce-meshless-m4-fmg-20261107.png - 実CEでFMG固定橋・河川・道路と街区候補、入力フレームでの表示を確認した画像
 - docs/analytics/ce-meshless-m4-synthetic-20261107.json - seed m4-reviewの合成入力によるnative v4生成結果。楕円市壁・門6件・橋1件・街区候補6成分を保存
-- docs/analytics/ce-meshless-m4-synthetic-20261107.png - 実CEで合成入力の楕円市壁・開口・橋・街区候補を確認した画像
 - docs/analytics/ce-meshless-m5-20261107.md - メッシュなしCEのM5を完了。接道小路・用途、共通需要による施設先行と入口予約、残地住宅、人口容量と不足、native v5と正しい段階表示を実装。関連118件と実画面の施設28件→住宅99棟、採用・Undo・保存再読込を記録。次はM6の依存更新・部分再生成
-- docs/analytics/ce-meshless-m5-facilities-20261107.png - 同じ生成の施設段階。施設28件・住宅0棟、入口予約後の小路を確認した画像
-- docs/analytics/ce-meshless-m5-housing-20261107.png - 完成都市段階。先行施設28件と残地住宅99棟で必要112戸を満たした画像
 - docs/analytics/ce-meshless-m5-synthetic-20261107.json - seed meshless・500人・川あり・小路8本のnative v5。施設先行と残地住宅、全6段階の表示対象・容量・人口を保存
 - docs/analytics/ce-meshless-m6-20261107.md - メッシュなしCEのM6を完了。変更に依存する自動配置の部分更新、固定・手動所有、橋の取付再評価、施設の剛体移動・固定、専用Workerのjob照合と取消、候補採用・一括履歴を実装。関連94件と実画面の122件保持・5件再配置を記録。次はM7の表示・出力・共有・複製変換
 - docs/analytics/ce-meshless-m6-edit-20261107.json - M5の500人都市で小路左幅1.2m→2.5mを採用したnative v5。122配置を保持し、5件だけを再配置。手動所有・人口・段階表示を保存
-- docs/analytics/ce-meshless-m6-edit-20261107.png - 小路の拡幅と影響配置だけの更新を実CEで確認した画像
-- docs/plan/ce-meshless-city-editor.md - M6の編集依存・部分再生成・固定／手動所有の保護・Worker取消を完了。関連94件と実画面の検証・境界を追記。次はM7の表示・出力・共有・複製変換
+- docs/analytics/ce-meshless-m7-20261107.md - メッシュなしCEのM7を完了。共通形状の2D／3D・SVG／PNG／GLB、native v6・文書／入力共有、原本付き旧CE複製と復元を実装。関連165件、実画面・出力・共有・903建物の複製と全量出力のSHA-256を記録。次はM8
+- docs/plan/ce-meshless-city-editor.md - M7の表示・出力・保存共有・原本付き複製変換を完了。関連165件と実画面を記録。次はM8の機能別移植とFreeform・地形連携
 
 2026-11-06
 

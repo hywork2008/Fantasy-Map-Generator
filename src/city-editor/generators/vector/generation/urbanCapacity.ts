@@ -5,7 +5,7 @@ export const VECTOR_HOUSE_FLOOR_AREA = REGIONAL_HOUSES.width * REGIONAL_HOUSES.d
 export const VECTOR_HOUSE_STOREYS = REGIONAL_HOUSE_STOREYS;
 export const VECTOR_HOUSE_SHARE = 0.85;
 export function vectorPlacementDwellings(placement: VectorPlacement): number {
-  return placement.building?.dwellings ?? 0;
+  return placement.building?.dwellings ?? placement.display?.dwellings ?? 0;
 }
 export function vectorHouseDwellings(): number {
   return dwellingCapacity(VECTOR_HOUSE_FLOOR_AREA, VECTOR_HOUSE_STOREYS, VECTOR_HOUSE_SHARE);

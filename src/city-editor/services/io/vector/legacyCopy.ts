@@ -1,0 +1,439 @@
+import { buildBlockFabric } from "../../../generators/blockInfill";
+import { convexHull, polygonCentroid } from "../../../generators/geom";
+import { transformLandmarkPolygons } from "../../../generators/landmarks";
+import { facePoints } from "../../../generators/mesh";
+import { objectFootprint } from "../../../generators/objectPlacement";
+import { residentialCapacity } from "../../../generators/residentialCapacityFormula";
+import { createVectorDocument } from "../../../generators/vector/document";
+import {
+  adoptVectorBridge,
+  createVectorGate,
+  rebuildRoadGraph,
+  setWallCircuit
+} from "../../../generators/vector/editing/network";
+import { curveSource } from "../../../generators/vector/editing/paths";
+import { pathIsClosed } from "../../../generators/vector/geometry/curves";
+import { pathIntersections } from "../../../generators/vector/geometry/intersections";
+import { regionBoolean } from "../../../generators/vector/geometry/regions";
+import { assertVectorDocument } from "../../../generators/vector/validation/document";
+import type { CityDocument, Point } from "../../../types/document";
+import type { CurveAnchor, VectorCityDocument, VectorPath, VectorPlacement } from "../../../types/vector/document";
+import { parseDocument, serializeDocument } from "../documentCodec";
+import { serializeVectorDocument } from "./documentCodec";
+export type VectorCopyReport = NonNullable<VectorCityDocument["legacyCopy"]>["report"];
+/** Explicit one-time adapter. The source archive preserves every feature without fabricating cells on the vector side. */
+export function copyLegacyCity(source: CityDocument): { document: VectorCityDocument; report: VectorCopyReport } {
+  const sourceJson = serializeDocument(source);
+  if (sourceJson.length > 6 * 1024 * 1024) throw new Error("vector-copy-budget");
+  let doc = createVectorDocument(source.generationSeed ?? "legacy-copy", source.frame.extentMeters);
+  doc.context = {
+    historicalPeriod: source.historicalPeriod ?? "highMedieval",
+    targetPopulation: source.populationPlan?.settings.targetPopulation ?? 0
+  };
+  const report: VectorCopyReport = [],
+    anchors = new Map<string, CurveAnchor[]>(),
+    planks: string[] = [];
+  const record = (id: string, status: VectorCopyReport[number]["status"], category: string, reason: string) =>
+    report.push({ id, status, category, reason });
+  const addPath = (id: string, role: VectorPath["role"], points: Point[], width: number, vertices?: string[]) => {
+    const key = `copy:path:${Object.keys(doc.paths).length}`,
+      closed = points.length > 2 && points[0][0] === points.at(-1)![0] && points[0][1] === points.at(-1)![1];
+    const p: VectorPath = {
+      id: key,
+      revision: 0,
+      role,
+      origin: "imported",
+      editPolicy: "fixed",
+      source: curveSource(closed ? points.slice(0, -1) : points, "polyline", closed),
+      width: { leftMeters: width / 2, rightMeters: width / 2, stations: [] }
+    };
+    const candidate = structuredClone(doc);
+    candidate.paths[key] = p;
+    try {
+      assertVectorDocument(candidate);
+    } catch {
+      record(id, "unsupported", role, "Source chain cannot satisfy vector geometry; exact source is archived.");
+      return;
+    }
+    doc.paths[key] = p;
+    if (vertices && p.source.kind === "curve")
+      for (let i = 0; i < vertices.length; i++) {
+        const index = Math.min(i, p.source.segments.length - 1),
+          a = { pathId: key, segmentId: p.source.segments[index].id, t: i >= p.source.segments.length ? 1 : 0 };
+        const list = anchors.get(vertices[i]) ?? [];
+        list.push(a);
+        anchors.set(vertices[i], list);
+      }
+    record(id, "converted", role, "Original meter coordinates and polyline corners retained.");
+    return key;
+  };
+  for (const g of source.featureGroups) {
+    if (g.kind === "river") {
+      addPath(
+        g.id,
+        "river",
+        g.vertices.map(id => source.mesh.vertices[id].point),
+        g.style.widthMeters,
+        g.vertices
+      );
+      continue;
+    }
+    let chain: string[] = [];
+    const flush = () => {
+      if (chain.length >= 2) {
+        const id = addPath(
+          g.id,
+          g.kind === "wall" ? "wall" : "road",
+          chain.map(id => source.mesh.vertices[id].point),
+          g.style.widthMeters,
+          chain
+        );
+        if (id && g.kind === "plank") planks.push(id);
+      }
+      chain = [];
+    };
+    for (const ref of g.segments) {
+      const e = source.mesh.edges[ref.edgeId],
+        a = ref.forward ? e.a : e.b,
+        b = ref.forward ? e.b : e.a;
+      if (chain.length && chain.at(-1) !== a) flush();
+      if (!chain.length) chain.push(a);
+      chain.push(b);
+    }
+    flush();
+  }
+  for (const [id, list] of anchors) {
+    const unique = list.filter((a, i, all) => all.findIndex(b => JSON.stringify(a) === JSON.stringify(b)) === i);
+    if (!unique.length) continue;
+    doc.connections.nodes[`copy:node:${doc.connections.nodes ? Object.keys(doc.connections.nodes).length : 0}`] = {
+      id: `copy:node:${Object.keys(doc.connections.nodes).length}`,
+      position: [...source.mesh.vertices[id].point],
+      anchors: unique
+    };
+  }
+  rebuildRoadGraph(doc);
+  for (const p of Object.values(doc.paths).filter(p => p.role === "wall" && pathIsClosed(p)))
+    try {
+      doc = setWallCircuit(doc, p.id);
+    } catch {
+      record(p.id, "unsupported", "wall-circuit", "The standing line is retained; circuit semantics are archived.");
+    }
+  for (const g of source.gates) {
+    const list = anchors.get(g.vertexId) ?? [],
+      wall = list.find(a => doc.paths[a.pathId]?.role === "wall"),
+      access = list.find(a => doc.paths[a.pathId]?.role === (g.role === "water" ? "river" : "road"));
+    if (!wall || !access) {
+      record(g.id, "unsupported", "gate", "No exact shared wall/access vertex. No snapping was applied.");
+      continue;
+    }
+    try {
+      doc = createVectorGate(
+        doc,
+        wall,
+        access,
+        g.passageWidthMeters ??
+          Math.max(4, (doc.paths[access.pathId].width.leftMeters + doc.paths[access.pathId].width.rightMeters) * 1.5),
+        g.role === "water" ? "water" : "passage"
+      );
+      record(
+        g.id,
+        g.passageWidthMeters ? "converted" : "snapshot",
+        "gate",
+        g.passageWidthMeters
+          ? "Exact shared source vertex and opening width retained."
+          : "Opening width inferred from the source road; original gate is archived."
+      );
+    } catch {
+      record(g.id, "unsupported", "gate", "Opening or access violates vector constraints. Source gate is archived.");
+    }
+  }
+  const region = (
+    id: string,
+    kind: "district" | "reservation" | "forest" | "farm" | "park" | "cemetery",
+    outer: Point[],
+    holes: Point[][] = []
+  ) => {
+    const key = `copy:region:${Object.keys(doc.regions).length}`,
+      candidate = structuredClone(doc);
+    candidate.regions[key] = { id: key, kind, outer: structuredClone(outer), holes: structuredClone(holes) };
+    try {
+      assertVectorDocument(candidate);
+      doc.regions[key] = candidate.regions[key];
+      record(id, "converted", kind, "Original polygon and holes retained; editable cell attributes are archived.");
+    } catch {
+      record(id, "unsupported", kind, "Source polygon exceeds vector geometry constraints; archived without repair.");
+    }
+  };
+  const water: { outer: Point[]; holes: Point[][] }[] = [];
+  for (const f of Object.values(source.mesh.faces)) {
+    const ring = facePoints(source.mesh, f);
+    if (f.properties.water !== "land") water.push({ outer: ring, holes: [] });
+    else if (f.properties.ward || f.properties.locked)
+      region(
+        f.id,
+        f.properties.locked
+          ? "reservation"
+          : ["forest", "farm", "park", "cemetery"].includes(f.properties.ward ?? "")
+            ? (f.properties.ward as "forest" | "farm" | "park" | "cemetery")
+            : "district",
+        ring
+      );
+  }
+  water.push(
+    ...(source.waterAreas ?? []).map(w => ({ outer: w.polygon, holes: [] })),
+    ...(source.regionalWaterAreas ?? []).map(outer => ({ outer, holes: [] }))
+  );
+  for (const polygon of regionBoolean(water, [], "union")) region("water", "reservation", polygon.outer, polygon.holes);
+  // Water display has an explicit immutable authority, independent of copied cell boundaries.
+  const waters = regionBoolean(water, [], "union");
+  doc.site = {
+    kind: "synthetic",
+    id: "copied-site",
+    revision: 0,
+    transform: { originMapUnits: [0, 0], metersPerMapUnit: 1, localAxes: "east-north" },
+    center: [0, 0],
+    domain: [
+      {
+        outer: [
+          [-source.frame.extentMeters / 2, -source.frame.extentMeters / 2],
+          [source.frame.extentMeters / 2, -source.frame.extentMeters / 2],
+          [source.frame.extentMeters / 2, source.frame.extentMeters / 2],
+          [-source.frame.extentMeters / 2, source.frame.extentMeters / 2]
+        ],
+        holes: []
+      }
+    ],
+    water: waters.map((polygon, i) => {
+      const rivers = Object.values(doc.paths).filter(p => p.role === "river");
+      return {
+        id: `copy-water:${i}`,
+        polygons: [polygon],
+        ...(rivers.length === 1 && waters.length === 1 ? { riverPathId: rivers[0].id } : {})
+      };
+    }),
+    fixedPaths: Object.values(doc.paths).map(p => structuredClone(p)),
+    crossings: []
+  };
+  for (const id of planks) {
+    const p = doc.paths[id];
+    let adopted = false;
+    for (const river of Object.values(doc.paths).filter(p => p.role === "river")) {
+      const hit = pathIntersections(p, river)[0];
+      if (!hit || p.source.kind !== "curve") continue;
+      try {
+        doc = adoptVectorBridge(doc, {
+          id: `copy:bridge:${Object.keys(doc.connections.bridges).length}`,
+          roadPathId: id,
+          riverAnchor: hit.b,
+          from: { pathId: id, segmentId: p.source.segments[0].id, t: 0 },
+          to: { pathId: id, segmentId: p.source.segments.at(-1)!.id, t: 1 },
+          structure: "stone",
+          dryLandingMeters: 0.1,
+          editPolicy: "fixed"
+        });
+        adopted = true;
+        break;
+      } catch {
+        /* Keep the source in the archive, never repair a copied bridge silently. */
+      }
+    }
+    if (!adopted)
+      record(
+        id,
+        "unsupported",
+        "bridge",
+        "Original crossing fails the common bridge policy or has no exact river reference; no deck is drawn."
+      );
+    else record(id, "converted", "bridge", "Bridge geometry satisfies the shared period, skew and landing policy.");
+  }
+  const addPlacement = (
+    id: string,
+    modelId: string,
+    footprint: { outer: Point[]; holes: Point[][] }[],
+    height: number,
+    kind: NonNullable<VectorPlacement["display"]>["kind"],
+    position?: Point,
+    facing = 0,
+    dwellings?: number
+  ) => {
+    const site = { outer: convexHull(footprint.flatMap(p => p.outer)), holes: [] },
+      key = `copy:placement:${Object.keys(doc.placements).length}`,
+      p: VectorPlacement = {
+        id: key,
+        modelId,
+        position: position ?? polygonCentroid(site.outer),
+        facingDegrees: ((facing % 360) + 360) % 360,
+        origin: "imported",
+        editPolicy: "fixed",
+        site,
+        accesses: [],
+        display: {
+          kind,
+          heightMeters: height,
+          footprint: structuredClone(footprint),
+          provenance: "massing",
+          note: "Copied plan footprint; 3D massing does not reproduce source detail.",
+          ...(dwellings === undefined ? {} : { dwellings })
+        }
+      };
+    const candidate = structuredClone(doc);
+    candidate.placements[key] = p;
+    try {
+      assertVectorDocument(candidate);
+      doc.placements[key] = p;
+      record(
+        id,
+        "snapshot",
+        kind,
+        "Plan footprint and available capacity retained. 3D detail and editing semantics remain in the source archive."
+      );
+    } catch {
+      record(
+        id,
+        "unsupported",
+        kind,
+        "Source placement cannot satisfy the vector contract; archived without resizing."
+      );
+    }
+  };
+  if (source.fabric) {
+    const fabric = buildBlockFabric(source);
+    for (const [i, b] of fabric.buildings.entries())
+      addPlacement(
+        b.id ?? `building:${i}`,
+        "copied:building",
+        [{ outer: b.polygon, holes: [] }],
+        b.massing?.eaveHeightMeters ?? (b.storeys ?? 1) * 3.2,
+        b.landmark ? "landmark" : "housing",
+        undefined,
+        0,
+        residentialCapacity(b)
+      );
+    for (const [i, l] of fabric.lanes.entries()) addPath(`lane:${i}`, "road", l.points, l.widthMeters);
+    for (const key of ["harbor", "parks", "watermills", "aerialLandmarks", "farms", "openSpaces"] as const)
+      if (
+        fabric[key] &&
+        (Array.isArray(fabric[key])
+          ? (fabric[key] as unknown[]).length > 0
+          : Object.values(fabric[key]!).some(v => Array.isArray(v) && v.length > 0))
+      )
+        record(
+          `fabric:${key}`,
+          "unsupported",
+          key,
+          "Derived decoration and operating semantics remain in the full source archive."
+        );
+  }
+  for (const l of source.landmarks ?? []) {
+    const asset = source.landmarkAssets?.find(a => a.id === l.assetId);
+    if (asset)
+      addPlacement(
+        l.id,
+        asset.bvModel?.id ?? "copied:landmark",
+        transformLandmarkPolygons(asset.footprint, l),
+        asset.bvModel?.heightMeters ?? 6,
+        "facility",
+        l.position,
+        (l.rotation * 180) / Math.PI,
+        asset.residentialDwellings
+      );
+    else record(l.id, "unsupported", "landmark", "Missing source asset; full instance is archived.");
+  }
+  for (const e of source.elements) {
+    if (e.kind === "object") {
+      const footprint = objectFootprint(e);
+      if (footprint.length) {
+        addPlacement(
+          e.id,
+          e.objectType ?? "copied:object",
+          [{ outer: footprint, holes: [] }],
+          6,
+          "object",
+          e.point,
+          ((e.rotation ?? 0) * 180) / Math.PI
+        );
+        continue;
+      }
+    }
+    record(e.id, "unsupported", e.kind, "No complete vector equivalent. Exact source element is archived.");
+  }
+  if (source.freeform) {
+    for (const w of source.freeform.ways) addPath(w.id, "road", w.centerline, w.widthMeters);
+    for (const r of source.freeform.rivers) {
+      const id = addPath(r.id, "river", r.centerline, r.widthsMeters[0]);
+      if (id && doc.paths[id].source.kind === "curve")
+        doc.paths[id].width.stations = r.widthsMeters.map((w, i) => ({
+          anchor: {
+            pathId: id,
+            segmentId: `segment:${Math.min(i, r.centerline.length - 2)}`,
+            t: i === r.centerline.length - 1 ? 1 : 0
+          },
+          leftMeters: w / 2,
+          rightMeters: w / 2
+        }));
+    }
+    for (const z of source.freeform.zones) region(z.id, z.kind, z.polygon);
+    for (const p of source.freeform.placements)
+      record(
+        p.id,
+        "unsupported",
+        "freeform-placement",
+        "BV placement, plot and height semantics remain in the source archive."
+      );
+    for (const p of source.freeform.plots)
+      record(p.id, "unsupported", "freeform-plot", "Pad levels and grading remain in the source archive.");
+    record(
+      "freeform",
+      "unsupported",
+      "freeform-semantics",
+      "Ground, grading, plots, placements and market operations remain in the source archive."
+    );
+  }
+  const handled = new Set([
+    "format",
+    "version",
+    "mesh",
+    "frame",
+    "featureGroups",
+    "gates",
+    "elements",
+    "fabric",
+    "landmarks",
+    "landmarkAssets",
+    "freeform",
+    "historicalPeriod",
+    "generationSeed",
+    "waterAreas",
+    "regionalWaterAreas",
+    "populationPlan"
+  ]);
+  for (const [key, value] of Object.entries(source))
+    if (!handled.has(key) && value !== undefined && value !== null && !(Array.isArray(value) && !value.length))
+      if (Array.isArray(value))
+        for (const [i, item] of value.entries())
+          record(
+            `${key}:${item && typeof item === "object" && "id" in item ? item.id : i}`,
+            "unsupported",
+            key,
+            "Exact source item and specialized semantics are retained in the archive."
+          );
+      else
+        record(
+          key,
+          "unsupported",
+          key,
+          "Source attributes and specialized semantics are retained in the archive for the original editor."
+        );
+  if (doc.site) doc.site.fixedPaths = Object.values(doc.paths).map(p => structuredClone(p));
+  doc.legacyCopy = { sourceJson, report };
+  doc.revision++;
+  assertVectorDocument(doc);
+  serializeVectorDocument(doc);
+  return { document: doc, report };
+}
+export function restoreLegacyCopy(
+  document: VectorCityDocument,
+  provider?: import("../../../types/contracts/fixedApproachAdoption").FixedApproachProvider
+) {
+  return document.legacyCopy ? parseDocument(document.legacyCopy.sourceJson, provider) : null;
+}
