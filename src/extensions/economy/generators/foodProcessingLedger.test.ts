@@ -26,16 +26,25 @@ vi.mock("../economyContext", () => ({
     { i: 2, name: "Cheese", tags: ["food"] },
     { i: 3, name: "Grapes", tags: ["food", "freshFood"] },
     { i: 4, name: "Raisins", tags: ["food"] },
-    { i: 5, name: "Wine", tags: ["food"] },
+    { i: 5, name: "Wine", tags: ["food"], recipes: [{ 3: 1.3, 15: 0.08 }] },
     { i: 6, name: "Game", tags: ["food", "freshFood"] },
-    { i: 7, name: "Beer", tags: ["food", "beverage"] },
+    {
+      i: 7,
+      name: "Beer",
+      tags: ["food", "beverage"],
+      recipes: [
+        { 16: 1, 15: 0.4 },
+        { 17: 1, 15: 0.4 }
+      ]
+    },
     { i: 8, name: "Apples", tags: ["food", "freshFood"] },
     { i: 9, name: "Pears", tags: ["food", "freshFood"] },
     { i: 10, name: "Cider", tags: ["food", "beverage"] },
     { i: 11, name: "Perry", tags: ["food", "beverage"] },
     { i: 12, name: "Fish", tags: ["food", "freshFood"] },
     { i: 13, name: "Shellfish", tags: ["food", "freshFood"] },
-    { i: 14, name: "Iron", tags: ["metal"] }
+    { i: 14, name: "Iron", tags: ["metal"] },
+    { i: 15, name: "Barrels", tags: ["storage"] }
   ],
   recordCumulativeCellFoodProcessing: vi.fn(),
   getWorldContext: () => ({
@@ -44,12 +53,15 @@ vi.mock("../economyContext", () => ({
     pack: { burgs: [{ i: 1, market: 1, population: 1 }] }
   })
 }));
-vi.mock("./marketPopulation", () => ({ getMarketRuralPopulation: () => 0 }));
+const ruralPopulation = vi.hoisted(() => ({ people: 0 }));
+vi.mock("./marketPopulation", () => ({ getMarketRuralPopulation: () => ruralPopulation.people }));
 
 import {
   CHEESE_RESERVE_MONTHS,
   getAleDemandSnapshot,
   getFoodProcessingProductionHeadroom,
+  getMonthlyHouseholdContainerDemand,
+  getMonthlyHouseholdDemand,
   recordBeerCaskFilling,
   recordCellFoodHouseholdConsumption,
   recordFoodDeliveredExport,
@@ -195,6 +207,31 @@ describe("foodProcessingLedger", () => {
     expect(beer.waterSafetyDemand).toBeCloseTo(unsafeDemand.waterSafetyDemand);
     expect(market.returnableContainerLedger!.beerCasksInService).toBe(0);
     expect(market.returnableContainerLedger!.cumulativeBeerCaskReturns).toBeCloseTo(unsafeDemand.monthlyDemand);
+  });
+
+  it("wears out casks for every household drink, ale's water-safety share included", () => {
+    urbanWaterSystems.push({ burgId: 1, waterContamination: 1, drinkingWaterSecurity: 0 });
+    refreshAleHouseholdDemand();
+    const ale = getAleDemandSnapshot(market);
+    expect(ale.waterSafetyDemand).toBeGreaterThan(0);
+
+    expect(getMonthlyHouseholdContainerDemand(market, { i: 15 })).toBeCloseTo(
+      ale.monthlyDemand * 0.4 + getMonthlyHouseholdDemand(market, "Wine") * 0.08
+    );
+  });
+
+  it("sells ale to the towns only: country households brew their own", () => {
+    refreshAleHouseholdDemand();
+    const townDemand = getAleDemandSnapshot(market).monthlyDemand;
+    const townMilk = getMonthlyHouseholdDemand(market, "Milk");
+    try {
+      ruralPopulation.people = 9_000;
+      refreshAleHouseholdDemand();
+      expect(getAleDemandSnapshot(market).monthlyDemand).toBeCloseTo(townDemand);
+      expect(getMonthlyHouseholdDemand(market, "Milk")).toBeGreaterThan(townMilk);
+    } finally {
+      ruralPopulation.people = 0;
+    }
   });
 
   it.each([0.25, 2])("settles ale by demand and supply regardless of price (stock share %s)", stockShare => {

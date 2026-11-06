@@ -203,6 +203,65 @@ describe("ProductionModule byproducts", () => {
     expect(state.market.goods[4].stock).toBeCloseTo(result.yieldLots * 0.004, 10);
   });
 
+  it("buys no input it cannot use when a later input has run short since the decision", () => {
+    // Beer's grain was bought, then its casks could not be, and the grain was lost unpaid
+    // (docs/plan/urban-craft-staffing.md §10.12).
+    setEconomyCalibrationState({ applyCalibration: false });
+    setGoods([
+      { i: 1, name: "Test Grain", tags: [], value: 1, unit: "wain", icon: "", color: "" },
+      { i: 2, name: "Test Cask", tags: [], value: 1, unit: "cask", icon: "", color: "" },
+      { i: 3, name: "Test Drink", tags: [], value: 4, unit: "tun", icon: "", color: "" }
+    ]);
+    Goods.sync();
+    const market = {
+      i: 1,
+      centerBurgId: 1,
+      goods: { 1: { stock: 10, price: 1 }, 2: { stock: 1, price: 1 } }
+    } as unknown as Market;
+    setMarkets([market]);
+    (Markets as unknown as { indexMarkets(markets: Market[]): void }).indexMarkets([market]);
+    const burg = { i: 1, cell: 0, treasury: 1_000, market: 1 };
+    const state = {
+      burg,
+      market,
+      inventory: [] as number[],
+      demandCoverage: [],
+      records: [] as ProductionRecord[],
+      ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
+      smithingProgramByGood: new Map<string, never>(),
+      strategicLaborMarket: undefined,
+      strategicDemandByGood: new Map<number, never>()
+    };
+    const result = (new ProductionModule() as unknown as ManufactureHarness).executeManufacture(
+      state,
+      { demandCoverageByGood: [] },
+      {
+        action: {
+          good: Goods.get(3)!,
+          ingredients: [
+            { goodId: 1, amount: 1 },
+            { goodId: 2, amount: 0.4 }
+          ],
+          byproducts: [],
+          // Planned when the market still held enough of both.
+          maxYield: 10,
+          ingredientCostPerUnit: 1.4,
+          smithingProgram: null
+        },
+        candidates: [],
+        goalGoodId: 3,
+        laborProductivity: 1
+      },
+      10
+    );
+    expect(result.yieldLots).toBeCloseTo(2.5, 2);
+    expect(market.goods[1].stock).toBeCloseTo(7.5, 2);
+    expect(market.goods[2].stock).toBeCloseTo(0, 2);
+    // The inputs are paid for (wages come on top).
+    expect(1_000 - burg.treasury).toBeGreaterThanOrEqual(2.5 * 1.4 - 0.01);
+  });
+
   it.each(["Cloth", "Wool Cloth", "Fine Wool Cloth", "Fine Wool Garments"])(
     "does not multiply %s material when productivity doubles",
     name => {

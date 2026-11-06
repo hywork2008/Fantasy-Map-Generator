@@ -35,6 +35,19 @@ export function getMarketGood(market: Market, good: Good): Market["goods"][numbe
   return initial;
 }
 
+/**
+ * What buyMarketGoods() can actually hand over now. A named crop (Barley for the brewer) is bought
+ * out of its Food Ledger lot, only the part that may leave without touching the food reserve; its
+ * market row is that lot's view, priced by the staple and refreshed only at settlements (foodCoLoad.ts
+ * syncStapleCropMarketRows, docs/plan/urban-craft-staffing.md §10.6), so the row's stock can be stale.
+ */
+export function getPurchasableUnits(market: Market, good: Good): number {
+  if (!isGoodEnabled(good) || good.tags?.includes("stapleFood")) return 0;
+  const cropLedger = good.tags?.includes("stapleCrop") ? market.foodLedger : undefined;
+  const tradeableCrop = cropLedger ? getTradeableStapleCropUnits(cropLedger, good.i) : null;
+  return Math.max(0, tradeableCrop ?? market.goods[good.i]?.stock ?? 0);
+}
+
 export function buyMarketGoods(
   { burg, good, units, budget = Infinity, exactUnits = false, liveBuyerId, flow }: MarketPurchaseOptions,
   market = burg.market ? getMarkets().find(market => market.i === burg.market) : undefined
@@ -48,9 +61,6 @@ export function buyMarketGoods(
 
   const marketGood = getMarketGood(market, good);
   const unitPrice = customerBuyPrice(marketGood.price, burg.i, good.i);
-  // A named crop (Barley for the brewer) is bought out of its Food Ledger lot, only the part that
-  // may leave without touching the food reserve; its row is that lot's view, priced by the staple
-  // (foodCoLoad.ts syncStapleCropMarketRows, docs/plan/urban-craft-staffing.md §10.6).
   const cropLedger = good.tags?.includes("stapleCrop") ? market.foodLedger : undefined;
   const tradeableCrop = cropLedger ? getTradeableStapleCropUnits(cropLedger, good.i) : null;
 

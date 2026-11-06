@@ -1,0 +1,67 @@
+## docs/analytics/raw/beer-shortfall-20261104/maps/world-2101.fmg
+temperateCool: people 63.5%, prec (100 mm) quartiles 14 / 19 / 28
+  soil: loam 64.5, alluvial 29.1, clay 6.4
+  culture: Naval 76.2, River 13.7, Generic 10.1
+  crops now: Barley 45.5, Peas 26.6, Wheat 21.2, Broad Beans 6.7
+boreal: people 34.4%, prec (100 mm) quartiles 17 / 24 / 33
+  soil: alluvial 40.2, clay 33.7, loam 19.6, humus 6.4
+  culture: Naval 91.6, Generic 8.4
+  crops now: Wheat 34.4, Barley 33.5, Peas 24.1, Potatoes 3.7, Broad Beans 3.0, Oats 1.1, Turnips 0.1
+polar: people 1.3%, prec (100 mm) quartiles 23 / 28 / 39
+  soil: clay 56.3, alluvial 31.3, thin 6.7, humus 5.7
+  culture: Naval 100.0
+  crops now: Wheat 58.2, Barley 29.4, Rye 4.9, Oats 3.0, Potatoes 2.6
+continental: people 0.8%, prec (100 mm) quartiles 10 / 11 / 11
+  soil: loam 50.0, alluvial 50.0
+  culture: Naval 100.0
+  crops now: Barley 35.7, Peas 33.3, Wheat 31.0
+arid: people 0.0%, prec (100 mm) quartiles 1 / 2 / 2
+  soil: loam 92.0, humus 8.0
+  culture: Naval 100.0
+  crops now: 
+## docs/analytics/raw/beer-shortfall-20261104/maps/world-2103.fmg
+temperateCool: people 42.6%, prec (100 mm) quartiles 8 / 14 / 22
+  soil: loam 50.5, alluvial 45.7, clay 3.8
+  culture: Generic 42.2, River 19.4, Nomadic 19.4, Hunting 12.1, Marsh 3.9, Lake 3.1
+  crops now: Barley 35.2, Wheat 23.2, Peas 16.4, Broad Beans 12.4, Lentils 4.4, Oats 3.2, Rice 2.1, Buckwheat 1.6, Millet 1.0, Chickpeas 0.1, Rye 0.1, Potatoes 0.1, Turnips 0.1, Spelt 0.0
+boreal: people 37.1%, prec (100 mm) quartiles 5 / 8 / 16
+  soil: loam 60.9, alluvial 32.6, clay 4.7, humus 1.9
+  culture: Generic 34.7, Nomadic 28.9, Marsh 22.6, Lake 12.3, Hunting 1.5
+  crops now: Barley 51.6, Broad Beans 21.1, Wheat 8.8, Peas 5.4, Oats 4.6, Lentils 2.6, Rye 1.8, Potatoes 1.6, Buckwheat 1.0, Spelt 0.8, Turnips 0.5
+continental: people 13.7%, prec (100 mm) quartiles 4 / 7 / 9
+  soil: loam 71.3, alluvial 28.6, clay 0.1
+  culture: Lake 44.3, Nomadic 27.7, Generic 19.2, Marsh 7.0, Hunting 1.8
+  crops now: Barley 38.4, Oats 15.3, Broad Beans 14.3, Wheat 10.6, Peas 9.6, Lentils 8.9, Millet 1.9, Chickpeas 0.6, Rye 0.2, Turnips 0.1, Spelt 0.1, Buckwheat 0.1
+arid: people 4.0%, prec (100 mm) quartiles 1 / 1 / 2
+  soil: loam 65.6, alluvial 30.4, sandy 3.4, humus 0.6
+  culture: Generic 75.9, Nomadic 18.6, Lake 5.0, Marsh 0.4
+  crops now: 
+subtropicalWet: people 2.3%, prec (100 mm) quartiles 23 / 29 / 39
+  soil: loam 56.4, alluvial 39.1, clay 4.5
+  culture: River 68.8, Generic 25.6, Nomadic 5.6
+  crops now: Barley 62.4, Broad Beans 25.3, Peas 7.6, Wheat 3.0, Rice 1.2, Lentils 0.5
+polar: people 0.4%, prec (100 mm) quartiles 4 / 7 / 12
+  soil: loam 71.2, humus 18.8, clay 10.0
+  culture: Nomadic 34.1, Marsh 30.8, Generic 30.7, Lake 4.4
+  crops now: Turnips 37.2, Oats 23.6, Barley 11.8, Rye 9.4, Wheat 3.7
+## docs/analytics/raw/beer-shortfall-20261104/maps/world-2104.fmg
+boreal: people 66.7%, prec (100 mm) quartiles 5 / 7 / 15
+  soil: alluvial 47.7, loam 42.3, humus 6.8, clay 3.2
+  culture: Nomadic 34.0, Naval 33.2, Hunting 19.7, River 10.0, Generic 3.0
+  crops now: Barley 53.7, Broad Beans 11.4, Wheat 9.7, Peas 6.7, Turnips 5.6, Lentils 5.3, Oats 4.3, Buckwheat 1.6, Potatoes 1.3, Chickpeas 0.3, Rye 0.1, Spelt 0.0
+temperateCool: people 18.7%, prec (100 mm) quartiles 9 / 16 / 27
+  soil: loam 49.5, alluvial 42.6, clay 7.9
+  culture: Nomadic 52.8, Hunting 16.4, River 16.2, Naval 14.6
+  crops now: Barley 47.0, Peas 14.5, Wheat 13.0, Broad Beans 10.8, Lentils 8.1, Oats 3.9, Buckwheat 2.5, Rye 0.3, Spelt 0.0
+polar: people 7.1%, prec (100 mm) quartiles 8 / 15 / 27
+  soil: loam 35.6, alluvial 28.8, clay 18.4, humus 17.2
+  culture: Naval 60.3, Generic 20.9, Hunting 12.9, Nomadic 5.8
+  crops now: Barley 44.9, Wheat 34.8, Oats 12.9, Turnips 4.7, Potatoes 1.7, Buckwheat 0.3
+continental: people 6.2%, prec (100 mm) quartiles 3 / 4 / 6
+  soil: alluvial 63.5, loam 36.5
+  culture: Nomadic 98.4, River 1.6
+  crops now: Barley 66.0, Broad Beans 12.5, Lentils 11.6, Chickpeas 6.5, Peas 2.7, Wheat 0.7
+arid: people 1.3%, prec (100 mm) quartiles 2 / 2 / 2
+  soil: loam 39.2, alluvial 35.0, humus 24.5, sandy 1.3
+  culture: Nomadic 62.9, Naval 14.2, Generic 10.9, Hunting 8.5, River 3.6
+  crops now: 

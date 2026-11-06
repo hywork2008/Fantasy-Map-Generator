@@ -420,6 +420,14 @@ export interface FoodLedger {
   brewingReserve?: number;
   /** Grain farmers offered this market in each calendar month (index 0 = January) over the last year. */
   offeredIntakeByMonth?: number[];
+  /**
+   * Grain that left this market's granary in each calendar month over the last year, other than to
+   * its own eaters and brewers: sent to other markets, or spoiled inside the granary. The market
+   * buys it back from its farmers (docs/plan/urban-craft-staffing.md §10.12).
+   */
+  outflowByMonth?: number[];
+  /** Grain sent to other markets since the last farmgate purchase; moved into `outflowByMonth` there. */
+  exportedSincePurchase?: number;
   /** Staple food over the storage cap, heaped outside the granary: milled or cheaply exported, else spoils. */
   storageOverflow: number;
   /** Rural surplus the market did not buy this period because it could neither hold nor sell it. */

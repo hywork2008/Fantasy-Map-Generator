@@ -11,12 +11,13 @@ import { seedStartHousing } from "./constructionEmployment";
 import { DevelopmentPotential } from "./developmentPotential";
 import { isGoodEnabled } from "./goods-generator";
 import { seedWorldBirthSaltStock } from "./saltLogistics";
+import { markStartLineStockPending } from "./startLineStock";
 import { getMarketBlanketDemandProfile, getMarketTextileDemandProfile } from "./textileDemand";
 import { isUnadvancedWorld } from "./worldBirthHerds";
 
 /** Saved in the economy slice once a world's start stock is seeded. */
 export const START_PROVISIONING_KEY = "startProvisioning";
-const START_PROVISIONING_VERSION = 2;
+const START_PROVISIONING_VERSION = 3;
 /** Months of household clothing and bedding replacement the markets hold at the start (provisional). */
 export const START_TEXTILE_STOCK_MONTHS = 3;
 
@@ -31,6 +32,8 @@ export function settleStartProvisioning(): boolean {
   seedStartHousing();
   seedWorldBirthSaltStock();
   seedStartTextileStock();
+  // Metal ingots and harness open at their settled stock at the next pricing (§6.6).
+  markStartLineStockPending();
   return true;
 }
 

@@ -70,10 +70,11 @@ export const WINE_TARGETS = {
 
 export const ALE_TARGETS = {
   /**
-   * Country households and wine-country towns, which brewed little: England's whole malt crop in
-   * 1300 makes about 70 L an adult a year across town and country (Cornell 2022, after Slavin),
-   * which leaves about this much for the countryside. Water safety can add up to 50%; this is a
-   * recurring drink demand, not a second allocation of staple-food calories.
+   * Wine-country towns, which brewed little: England's whole malt crop in 1300 makes about 70 L an
+   * adult a year across town and country (Cornell 2022, after Slavin), which leaves about this much
+   * for the countryside. Country households brew that from their own grain within their food and
+   * buy none (urban-craft-staffing.md §10.11). Water safety can add up to 50%; this is a recurring
+   * drink demand, not a second allocation of staple-food calories.
    */
   baselineLitersPerAdultYear: 48,
   /**

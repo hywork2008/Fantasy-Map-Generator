@@ -56,6 +56,7 @@ import { isOrchardDrink } from "./foodLots";
 import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
   getFoodProcessingProductionHeadroom,
+  getMonthlyHouseholdContainerDemand,
   recordBeerCaskFilling,
   recordFoodMarketIntake,
   recordFoodProcessingConsumption,
@@ -90,6 +91,7 @@ import { type LuxuryTier, luxuryTierOf } from "./luxuryTiers";
 import { beginFlowCycleCapture, recordFlowCycleEnd } from "./marketFlowDiagnostics";
 import { settleMarketMaintenance } from "./marketMaintenance";
 import { allocateMarketProcurementBudgets } from "./marketProcurementBudget";
+import { getPurchasableUnits } from "./marketPurchases";
 import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
@@ -274,6 +276,8 @@ export function settlePomaceWineMarketProcessing(market: Market): number {
 export class ProductionModule {
   /** Burg population points per market, counted once a production cycle. */
   private urbanPopulationByMarket: Map<number, number> | null = null;
+  /** "market:good" → this cycle's household-drink container floor (§12 item 20). */
+  private householdContainerLots = new Map<string, number>();
 
   private get worldContext() {
     return getWorldContext();
@@ -340,6 +344,7 @@ export class ProductionModule {
 
   private startProductionCycle(): ProductionCycle {
     this.urbanPopulationByMarket = null;
+    this.householdContainerLots.clear();
     scheduleLivestockFeedPeriods(0);
     // Cleared here (start of cycle) rather than after Taxes.collectTaxes() so the previous
     // cycle's deals stay visible to transaction-history UI (markets-overview.ts,
@@ -906,7 +911,18 @@ export class ProductionModule {
       let lots = getCalibratedMonthlyLots({ goodName: good.name, laborPeopleBurg, port, capital });
       // A per-head floor stops when the market already holds months of it; orders do not.
       if (row.annualLotsPerPerson != null) {
-        const marketLots = (marketLaborPeople * row.annualLotsPerPerson) / 12;
+        let marketLots = (marketLaborPeople * row.annualLotsPerPerson) / 12;
+        // Casks follow what the market's households drink, shared by the towns' people (§12 item 20).
+        if (row.floorFromHouseholdDrinks && market && marketLaborPeople > 0) {
+          const key = `${marketId}:${good.i}`;
+          let floor = this.householdContainerLots.get(key);
+          if (floor === undefined) {
+            floor = getMonthlyHouseholdContainerDemand(market, good);
+            this.householdContainerLots.set(key, floor);
+          }
+          marketLots = floor;
+          lots = (marketLots * laborPeopleBurg) / marketLaborPeople;
+        }
         lots *= calibratedReserveFactor(market?.goods[good.i]?.stock ?? 0, marketLots);
       }
       const ordered =
@@ -1508,6 +1524,31 @@ export class ProductionModule {
     if (costPerLot > 0) {
       const affordableYield = Math.max(0, availableFunds) / costPerLot;
       actualYield = Math.min(actualYield, affordableYield);
+    }
+    // The decision may be several steps old (a sticky goal), and the shelves have moved since: an
+    // earlier step took the Barrels it counted. Every purchase below takes stock at once, so a
+    // later ingredient that could not be bought left the earlier ones taken and unpaid for — the
+    // brewers' grain vanished with the casks they could not get (urban-craft-staffing.md §10.12).
+    // Size the batch to the inputs and purse there are now, before the first purchase.
+    if (!physicalRecipe && actualYield > 0.001) {
+      for (const ingredient of ingredients) {
+        if (!(ingredient.amount > 0)) continue;
+        const ingredientGood = Goods.get(ingredient.goodId);
+        const purchasable = ingredientGood ? getPurchasableUnits(state.market, ingredientGood) : 0;
+        actualYield = Math.min(
+          actualYield,
+          ((state.inventory[ingredient.goodId] || 0) + purchasable) / ingredient.amount
+        );
+      }
+      const freshCost = (lots: number): number =>
+        lots * wageCostPerLot +
+        ingredients.reduce((total, ingredient) => {
+          const fromMarket = Math.max(0, lots * ingredient.amount - (state.inventory[ingredient.goodId] || 0));
+          return total + fromMarket * Markets.quoteMarket(state.market, ingredient.goodId, state.burg.i).buyPrice;
+        }, 0);
+      const cost = freshCost(actualYield);
+      if (cost > Math.max(0, availableFunds) && cost > 0) actualYield *= Math.max(0, availableFunds) / cost;
+      if (actualYield <= 0.001) return failed(cost > 0 && !(availableFunds > 0) ? "funds" : "materials");
     }
     if (actualYield <= 0.001)
       return failed(costPerLot > 0 && availableFunds / costPerLot <= 0.001 ? "funds" : "outputTarget");

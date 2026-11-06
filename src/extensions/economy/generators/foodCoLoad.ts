@@ -85,9 +85,16 @@ export function foodDeliveredShare(travelDays: number, halfLifeDays: number = FO
  * aggregate-only Food Ledgers) fall back to the shared bucket set below.
  */
 export function drawFoodForExport(ledger: FoodLedger, goodId: number, amount: number): FoodDrawResult {
-  if (ledger.stapleCropInventories && Object.keys(ledger.stapleCropInventories).length)
-    return drawStapleCropForTransport(ledger, goodId, amount);
+  const drawn =
+    ledger.stapleCropInventories && Object.keys(ledger.stapleCropInventories).length
+      ? drawStapleCropForTransport(ledger, goodId, amount)
+      : drawAggregateFoodForExport(ledger, amount);
+  // The exporter buys this back from its own farmers at the next purchase (urban-craft-staffing.md §10.12).
+  if (drawn.units > 0) ledger.exportedSincePurchase = rn((ledger.exportedSincePurchase ?? 0) + drawn.units, 2);
+  return drawn;
+}
 
+function drawAggregateFoodForExport(ledger: FoodLedger, amount: number): FoodDrawResult {
   const totalStock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + (ledger.foodStockAge3 ?? 0);
   const maxDraw = Math.min(Math.max(0, amount), Math.max(0, ledger.exportable), totalStock);
   if (maxDraw <= UNIT_EPSILON) return { units: 0, unitCost: 0 };

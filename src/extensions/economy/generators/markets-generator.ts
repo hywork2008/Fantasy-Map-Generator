@@ -153,6 +153,7 @@ import {
 } from "./production-utils";
 import { addWholesaleGoodStock, getRetailLocalityMultiplier } from "./retailInventory";
 import { seaDeparturePortBurgId } from "./seaRoutePorts";
+import { START_LINE_STOCK_GOODS, seedStartLineStock, takeStartLineStockPending } from "./startLineStock";
 import {
   getMarketTextileDemandProfile,
   getTextileMarketOrders,
@@ -1666,6 +1667,9 @@ export class MarketsModule {
     // Ingot kept the stale price that made nobody carry one there (docs/plan/farm-labour-calibration.md §17).
     const metalDemandByMarket = this.collectOutstandingStateMetallurgDemand(goods);
     this.addCalibratedMetalInputDemand(goods, metalDemandByMarket);
+    // The first pricing after world birth opens these goods at their settled stock (startLineStock.ts).
+    const seedStartLine = takeStartLineStockPending();
+    const startLine = (good: Good) => seedStartLine && START_LINE_STOCK_GOODS.has(good.name);
 
     for (const market of getMarkets()) {
       const population = populationByMarket[market.i] || 0;
@@ -1707,6 +1711,7 @@ export class MarketsModule {
           ) + (mineOrFurnaceGood ? (metalDemandByMarket.get(market.i)?.get(good.i) ?? 0) : 0);
         const baseValue = good.value * priceLevel;
         const floor = getPriceFloor(good, baseValue);
+        if (startLine(good)) seedStartLineStock(marketGood, demand);
         const targetPrice = getRawGoodTargetPrice(good, baseValue, demand, marketGood.stock);
         const prevPrice = marketGood.price > 0 ? marketGood.price : baseValue;
         marketGood.price = relaxMarketPrice(prevPrice, targetPrice, floor, baseValue * PRICE_CEILING_FACTOR);
@@ -1754,6 +1759,7 @@ export class MarketsModule {
                 market.i,
                 textileOrders
               );
+        if (startLine(good)) seedStartLineStock(marketGood, demand);
         const supplyRatio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
         const demandMarkup = baseMarkup * minmax(supplyRatio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR);
 

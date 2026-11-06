@@ -198,12 +198,16 @@ function getBurgPeople(population: number | undefined): number {
   return (population ?? 0) * Math.max(1, world.populationRate || 1) * (world.urbanization ?? 1);
 }
 
+/**
+ * The market's ale is the towns' alone. Country households brewed their own from their own grain
+ * (Bennett 1996), within the food they already eat, so they buy no ale, no casks and no malt
+ * (urban-craft-staffing.md §10.10, §10.11).
+ */
 function calculateAleDemand(market: Market): AleDemandSnapshot {
   const world = getWorldContext();
   const systemsByBurgId = new Map(getUrbanWaterSystems().map(system => [system.burgId, system]));
-  const totalPeople = getMarketPeople(market);
   let urbanPeople = 0;
-  let urbanBaselineDemand = 0;
+  let baselineDemand = 0;
   let waterSafetyDemand = 0;
   let riskWeightedPeople = 0;
   // A market that takes in grapes is wine country, and its towns drink wine (WINE_TARGETS).
@@ -214,19 +218,15 @@ function calculateAleDemand(market: Market): AleDemandSnapshot {
     if (!burg.i || burg.removed || burg.market !== market.i) continue;
     const people = getBurgPeople(burg.population);
     if (people <= 0) continue;
-    const baselineDemand = (people * ALE_TARGETS.adultShare * urbanLiters) / 12 / LITERS_PER_BEER_LOT;
+    const burgBaseline = (people * ALE_TARGETS.adultShare * urbanLiters) / 12 / LITERS_PER_BEER_LOT;
     const system = systemsByBurgId.get(burg.i);
     const waterRisk = system ? getAleWaterRisk(system) : getAleSanitationFallbackRisk(burg.sanitation);
     urbanPeople += people;
-    urbanBaselineDemand += baselineDemand;
-    waterSafetyDemand += baselineDemand * (getAleDemandMultiplier(waterRisk) - 1);
+    baselineDemand += burgBaseline;
+    waterSafetyDemand += burgBaseline * (getAleDemandMultiplier(waterRisk) - 1);
     riskWeightedPeople += people * waterRisk;
   }
 
-  const ruralPeople = Math.max(0, totalPeople - urbanPeople);
-  const ruralBaselineDemand =
-    (ruralPeople * ALE_TARGETS.adultShare * ALE_TARGETS.baselineLitersPerAdultYear) / 12 / LITERS_PER_BEER_LOT;
-  const baselineDemand = urbanBaselineDemand + ruralBaselineDemand;
   return {
     baselineDemand,
     waterSafetyDemand,
@@ -282,6 +282,22 @@ export function getMonthlyHouseholdDemand(market: Market, goodName: string): num
     default:
       return 0;
   }
+}
+
+/**
+ * Units of `container` (Barrels) the market's household drinks wear out in a month: each drink's
+ * monthly demand, ale with its water-safety share, times the container its recipes take per unit.
+ * A per-head floor counted only the towns' ordinary ale (urban-craft-staffing.md §12 item 20).
+ */
+export function getMonthlyHouseholdContainerDemand(market: Market, container: { i: number }): number {
+  let units = 0;
+  for (const good of getGoods()) {
+    const amounts = (good.recipes ?? []).map(recipe => recipe[container.i] ?? 0).filter(amount => amount > 0);
+    if (!amounts.length) continue;
+    const demand = getMonthlyHouseholdDemand(market, good.name);
+    if (demand > 0) units += (demand * amounts.reduce((sum, amount) => sum + amount, 0)) / amounts.length;
+  }
+  return units;
 }
 
 /**

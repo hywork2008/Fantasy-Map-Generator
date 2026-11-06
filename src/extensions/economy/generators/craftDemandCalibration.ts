@@ -35,6 +35,12 @@ export interface GoodDemandCalibrationRow {
    * and the unsold stock stopped the craft (Boots, Candles).
    */
   householdPurchase?: boolean;
+  /**
+   * The market's floor is the containers its household drinks wear out (ale with its water-safety
+   * share, wine, cider), not the per-head rate, which stays the fallback without a market
+   * (urban-craft-staffing.md §12 item 20).
+   */
+  floorFromHouseholdDrinks?: boolean;
   typicalRecipeIndex?: number;
   sources: readonly string[];
 }
@@ -55,6 +61,7 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     portShare: 0.3,
     provenances: ["recipeDerived"],
     annualLotsPerPerson: 0.078,
+    floorFromHouseholdDrinks: true,
     fixtureLotsPerMonth: 58.5,
     laborPointsPerLotAtDefaultRate: 0.00106,
     residualWeight: 0,

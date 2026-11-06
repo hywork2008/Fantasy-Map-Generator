@@ -1,5 +1,5 @@
 import { getSeasonalAmplitude, minmax, rn } from "../../hostUtils";
-import { getSimulationYear } from "../context/economyApi";
+import { getSimulationMonth, getSimulationYear } from "../context/economyApi";
 import {
   getCropLaborCoverage,
   getCultivableArea,
@@ -29,7 +29,7 @@ import {
 } from "./grainStorage";
 import { creditRuralHouseholdWealth } from "./householdWealth";
 import type { FoodLedger, Market } from "./marketTypes";
-import { getCropHarvestWeight, getCurrentCropMix } from "./production-utils";
+import { getCellHarvestWeights, getCropHarvestWeight, getCurrentCropMix } from "./production-utils";
 import { markRetailInventoryDirty } from "./retailInventory";
 import { getRuralGrainDietShare } from "./ruralDiet";
 import {
@@ -87,6 +87,28 @@ const EXPORT_RESERVE_MONTHS = 3;
 const IMPORT_TARGET_MONTHS = 6;
 /** Initial-map/first-enable seed: months of annual demand held in Age0 and in Age1 each. */
 const INITIAL_STOCK_MONTHS_PER_BUCKET = 3;
+/**
+ * Grain a market must hold at the start month so that `annualDemand`, eaten evenly, lasts until its
+ * harvests (`profile`, by calendar month, summing to 1, each year's total equal to the demand)
+ * refill it. A month's harvest reaches the granary after that month's eating and brewing
+ * (generateMonthlyLedger), so it feeds the next month on. 0 without a profile.
+ */
+export function getStartHarvestBridge(
+  annualDemand: number,
+  profile: readonly number[] | undefined,
+  startMonth: number
+): number {
+  if (!profile || profile.length !== 12 || !(annualDemand > 0)) return 0;
+  const monthly = annualDemand / 12;
+  let balance = 0;
+  let worst = 0;
+  for (let ahead = 0; ahead < 12; ahead++) {
+    balance -= monthly;
+    worst = Math.min(worst, balance);
+    balance += annualDemand * (profile[(startMonth - 1 + ahead) % 12] ?? 0);
+  }
+  return Math.max(0, -worst);
+}
 /** Days of a burg's own staple-food need kept on hand locally, independent of the Market pool. */
 export const BURG_TARGET_RESERVE_DAYS = 10;
 /** Rural households retain this many years of their own staple need before selling Grain. */
@@ -173,6 +195,21 @@ function recordOfferedIntake(ledger: FoodLedger, months: readonly number[], offe
   ledger.offeredIntakeByMonth = history;
 }
 
+/**
+ * Remembers what left the granary in each calendar month other than to the market's own eaters and
+ * brewers (exports, spoilage inside the granary). Months not yet seen hold -1 and count as nothing.
+ */
+function recordGranaryOutflow(ledger: FoodLedger, months: readonly number[], outflow: number): void {
+  const history = ledger.outflowByMonth?.length === 12 ? ledger.outflowByMonth : new Array(12).fill(-1);
+  const perMonth = months.length ? Math.max(0, outflow) / months.length : 0;
+  for (const month of months) history[(month - 1 + 12) % 12] = rn(perMonth, 2);
+  ledger.outflowByMonth = history;
+}
+
+function getAnnualGranaryOutflow(ledger: FoodLedger | undefined): number {
+  return (ledger?.outflowByMonth ?? []).reduce((sum, units) => sum + Math.max(0, units), 0);
+}
+
 /** Empty accounting only: no bootstrap food, household provisions or cash. */
 export function emptyFoodLedger(): FoodLedger {
   return {
@@ -234,6 +271,31 @@ export class FoodProductionModule {
   }
 
   /**
+   * Each market's harvest by calendar month (index 0 = January), its cells' crop calendars weighted
+   * by their people, summing to 1. Absent where none of its cells grows a crop.
+   */
+  private getMarketHarvestProfiles(): Map<number, number[]> {
+    const { cells } = this.worldContext.pack;
+    const marketByCell = getMarketCellColumn();
+    const profiles = new Map<number, number[]>();
+    for (const cellId of cells.i) {
+      const people = cells.pop[cellId] ?? 0;
+      if (!(people > 0) || cells.h[cellId] < 20) continue;
+      const weights = getCellHarvestWeights(cellId);
+      if (!weights) continue;
+      const marketId = marketByCell[cellId];
+      const profile = profiles.get(marketId) ?? new Array<number>(12).fill(0);
+      for (let month = 0; month < 12; month++) profile[month] += people * weights[month];
+      profiles.set(marketId, profile);
+    }
+    for (const profile of profiles.values()) {
+      const total = profile.reduce((sum, weight) => sum + weight, 0);
+      for (let month = 0; month < 12; month++) profile[month] /= total;
+    }
+    return profiles;
+  }
+
+  /**
    * One-time seed for a market with no Food Ledger yet: initial bucketed stock, initial merchant
    * capital, and each of its burgs' local food reserve. Called from generation-time hooks (fresh
    * map, first economy enable, legacy-save migration) — never inferred from field absence inside
@@ -251,6 +313,8 @@ export class FoodProductionModule {
     const startingPrice = stapleFoodGood?.value ?? 1;
     const dailyNeedPerPerson = GROSS_FOOD_NEED / 365.2425;
     const economyProfile = getEconomyStartProfile(this.worldContext.options);
+    const harvestProfiles = markets.some(market => !market.foodLedger) ? this.getMarketHarvestProfiles() : null;
+    const startMonth = getSimulationMonth();
 
     // A newly generated world gets one year of private rural provisions just
     // like it gets its initial Market stock. Existing saves preserve this
@@ -269,10 +333,21 @@ export class FoodProductionModule {
         0
       );
       const annualDemand = urbanPopulation * GROSS_FOOD_NEED;
-      const bucketSeed = rn(annualDemand * (INITIAL_STOCK_MONTHS_PER_BUCKET / 12), 2);
+      const exportReserve = annualDemand * (EXPORT_RESERVE_MONTHS / 12);
+      // Last year's harvest still has to feed the towns and their brewers until this year's comes
+      // in, and keep the eaters' reserve after it (start-provisioning.md §6.5).
+      const annualBrewingGrain = getAleDemandSnapshot(market).monthlyDemand * 12 * GRAIN_LOTS_PER_BEER_LOT;
+      const bridge = getStartHarvestBridge(
+        annualDemand + annualBrewingGrain,
+        harvestProfiles?.get(market.i),
+        startMonth
+      );
+      const bucketSeed = rn(
+        Math.max(annualDemand * (INITIAL_STOCK_MONTHS_PER_BUCKET / 12), (bridge + exportReserve) / 2),
+        2
+      );
       const farmgateCost = rn(startingPrice * FARMGATE_PRICE_SHARE, 2);
       const initialStock = bucketSeed * 2;
-      const exportReserve = annualDemand * (EXPORT_RESERVE_MONTHS / 12);
       const importTarget = annualDemand * (IMPORT_TARGET_MONTHS / 12);
 
       market.foodLedger = {
@@ -606,7 +681,10 @@ export class FoodProductionModule {
       // drew down the towns' bread surplus and the next months went short (urban-craft-staffing.md
       // §10.7, §10.8). The export reserve stays the eaters' own, so brewing takes only this share.
       const annualBrewingGrain = getAleDemandSnapshot(market).monthlyDemand * 12 * GRAIN_LOTS_PER_BEER_LOT;
-      const annualPurchaseDemand = annualDemand + annualBrewingGrain;
+      // Grain sent to other markets and spoiled in the granary over the last year also left the
+      // granary. Without it the cap covered the towns and brewers alone, and every export or loss
+      // came out of their next year's stock (urban-craft-staffing.md §10.12).
+      const annualPurchaseDemand = annualDemand + annualBrewingGrain + getAnnualGranaryOutflow(ledger);
       const storageCap = annualPurchaseDemand * (STORAGE_CAP_MONTHS / 12) + (annualPurchaseDemand * periodMonths) / 12;
       const purchasable = Math.max(0, storageCap - held);
       const purchaseShare = annualMarketFoodIntake > 0 ? Math.min(1, purchasable / annualMarketFoodIntake) : 0;
@@ -639,6 +717,12 @@ export class FoodProductionModule {
         ...cropWholesale.keys()
       ]);
       const storageLoss = advanceAgeBuckets ? this.getMarketStorageLoss(market) : undefined;
+      // Overflow is already over the cap; buying back its spoilage would only heap up more overflow.
+      const overflowBefore =
+        trackedCropGoodIds.size > 0
+          ? Object.values(ledger.stapleCropInventories ?? {}).reduce((sum, inv) => sum + Math.max(0, inv.overflow), 0)
+          : Math.max(0, ledger.storageOverflow ?? 0);
+      const overflowSpoiled = storageLoss ? overflowBefore * storageLoss.overflow : 0;
       let spoiled = 0;
       if (trackedCropGoodIds.size > 0) {
         for (const goodId of trackedCropGoodIds) {
@@ -656,6 +740,12 @@ export class FoodProductionModule {
         this.applyStorageCap(ledger, storageCap);
       }
       if (storageLoss) ledger.storageSpoiled = rn(spoiled, 2);
+      recordGranaryOutflow(
+        ledger,
+        months,
+        (ledger.exportedSincePurchase ?? 0) + Math.max(0, spoiled - overflowSpoiled)
+      );
+      ledger.exportedSincePurchase = 0;
 
       const totalStock =
         ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + (ledger.foodStockAge3 ?? 0);
