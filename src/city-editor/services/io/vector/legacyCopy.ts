@@ -1,4 +1,4 @@
-import { buildBlockFabric } from "../../../generators/blockInfill";
+import { buildBlockFabric, buildHarborPlan } from "../../../generators/blockInfill";
 import { buildForestPlan } from "../../../generators/forestPlan";
 import { hasForestState } from "../../../generators/forestSettings";
 import { convexHull, polygonCentroid } from "../../../generators/geom";
@@ -24,6 +24,7 @@ import { parseDocument, serializeDocument } from "../documentCodec";
 import { serializeVectorDocument } from "./documentCodec";
 import { vectorFromFreeform } from "./freeform";
 import { copyLegacyDefense } from "./legacyDefense";
+import { copyLegacyHarbor } from "./legacyHarbor";
 export type VectorCopyReport = NonNullable<VectorCityDocument["legacyCopy"]>["report"];
 /** Explicit one-time adapter. The source archive preserves every feature without fabricating cells on the vector side. */
 export function copyLegacyCity(source: CityDocument): { document: VectorCityDocument; report: VectorCopyReport } {
@@ -410,7 +411,7 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
         residentialCapacity(b)
       );
     for (const [i, l] of fabric.lanes.entries()) addPath(`lane:${i}`, "road", l.points, l.widthMeters);
-    for (const key of ["harbor", "parks", "watermills", "aerialLandmarks", "farms", "openSpaces"] as const)
+    for (const key of ["parks", "watermills", "aerialLandmarks", "farms", "openSpaces"] as const)
       if (
         fabric[key] &&
         (Array.isArray(fabric[key])
@@ -439,7 +440,48 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
       );
     else record(l.id, "unsupported", "landmark", "Missing source asset; full instance is archived.");
   }
+  let harborConverted = false;
+  const copiedShips = new Set<string>();
+  if (source.elements.some(e => e.kind === "ship" || e.kind === "harbor") || fabric?.harbor) {
+    try {
+      const harbor = fabric?.harbor ?? buildHarborPlan(source);
+      if (!harbor) throw Error("harbor-plan-missing");
+      const converted = copyLegacyHarbor(source, doc, harbor),
+        candidate = structuredClone(doc);
+      candidate.environment ??= { features: {}, hidden: [] };
+      candidate.environment.harbor = converted;
+      assertVectorDocument(candidate);
+      doc = candidate;
+      harborConverted = true;
+      for (const ship of converted.ships) copiedShips.add(ship.id);
+      record(
+        converted.id,
+        "converted",
+        "harbor-plan",
+        "Fixed polygon navigation, depths, shore access, berth/crane/cargo links and physical ships retained without cells."
+      );
+    } catch (error) {
+      record(
+        "harbor:legacy",
+        "unsupported",
+        "harbor-plan",
+        `Atomic harbor conversion rejected: ${error instanceof Error ? error.message : "invalid-harbor"}. The source remains archived.`.slice(
+          0,
+          500
+        )
+      );
+    }
+  }
   for (const e of source.elements) {
+    if (copiedShips.has(e.id) || (harborConverted && e.kind === "harbor")) {
+      record(
+        e.id,
+        "converted",
+        e.kind,
+        "Fixed operating harbor geometry, physical dimensions and display state retained."
+      );
+      continue;
+    }
     if (e.kind === "object") {
       const footprint = objectFootprint(e);
       if (footprint.length) {
@@ -533,7 +575,14 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
     for (const [i] of cemetery.accesses.entries()) omitted(`${cemetery.id}:access:${i}`, "cemetery-access");
   }
   for (const ship of source.elements.filter(e => e.kind === "ship" && e.harborOperation))
-    omitted(`${ship.id}:cargo`, "harbor-cargo-assignment");
+    if (copiedShips.has(ship.id))
+      record(
+        `${ship.id}:cargo`,
+        "converted",
+        "harbor-cargo-assignment",
+        "Validated berth, crane, pose, swept load and lighter/mother-ship references retained."
+      );
+    else omitted(`${ship.id}:cargo`, "harbor-cargo-assignment");
   const handled = new Set([
     "format",
     "version",

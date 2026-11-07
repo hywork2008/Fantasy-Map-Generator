@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import * as THREE from "three";
 import { afterAll, describe, expect, it } from "vitest";
+import { vectorPickOwner } from "../../renderers/vector/picking";
 import { vectorRenderData } from "../../renderers/vector/renderData";
 import { createVectorScene } from "../../renderers/vector/scene3d";
 import { parseDocument, serializeDocument } from "../../services/io/documentCodec";
@@ -25,6 +26,7 @@ import { reconcileVectorEdit } from "./editing/dependencies";
 import { featureReservations } from "./environmentState";
 import { deriveVectorBlocks } from "./generation/pipeline";
 import { containsRegion, regionArea, regionBoolean } from "./geometry/regions";
+import { activeVectorHarborCargo, vectorHarborNavigation, vectorShipFootprint } from "./harbor";
 import { vectorTerrain } from "./terrain";
 
 const observations: object[] = [];
@@ -230,7 +232,7 @@ describe("M9 feature-specific release evidence", () => {
     });
   }, 30000);
 
-  it("tests a real legacy cargo berth and reports that navigation and ship semantics are not converted", () => {
+  it("converts a real legacy cargo berth, ships and operating navigation without source cells", () => {
     const source = cellDocument([rect(-100, 0, 100, 160), rect(0, 0, 160, 160), rect(160, 0, 160, 160)], 1000);
     source.historicalPeriod = "ageOfExploration";
     source.gridKind = "evolution";
@@ -273,24 +275,121 @@ describe("M9 feature-specific release evidence", () => {
     }
     source.elements.push(...ships);
     const copy = roundTrip(source);
+    expect(
+      copy.document.environment?.harbor,
+      JSON.stringify(copy.report.filter(r => r.category === "harbor-plan"))
+    ).toBeDefined();
     for (const ship of cargo)
       expect(copy.report).toContainEqual(
-        expect.objectContaining({ id: `${ship.id}:cargo`, category: "harbor-cargo-assignment", status: "unsupported" })
+        expect.objectContaining({ id: `${ship.id}:cargo`, category: "harbor-cargo-assignment", status: "converted" })
       );
     for (const ship of ships)
       expect(copy.report).toContainEqual(
-        expect.objectContaining({ id: ship.id, category: "ship", status: "unsupported" })
+        expect.objectContaining({ id: ship.id, category: "ship", status: "converted" })
       );
+    const adopted = copy.document.environment!.harbor!;
+    expect(JSON.stringify(adopted)).not.toMatch(/FaceId|faceId|faceIds|vertexId|sourceJson/);
+    expect(adopted.ships).toHaveLength(ships.length);
+    expect(adopted.quays).toHaveLength(harbor.cargoQuays!.length);
+    expect(adopted.cranes).toEqual(harbor.cranes);
+    for (const ship of ships) {
+      const saved = adopted.ships.find(s => s.id === ship.id)!;
+      expect(saved.point).toEqual(ship.point);
+      expect(saved.length).toBe(ship.sizeMeters);
+      expect(saved.rotation).toBeCloseTo(ship.rotation ?? 0, 10);
+      expect(saved.state).toEqual(ship.shipState);
+      const geometry = cargoShipGeometry(saved.type, saved.length);
+      expect(
+        vectorHarborNavigation(adopted, geometry.draft + 0.5, saved.id).navigable(saved.point, geometry.beam / 2)
+      ).toBe(true);
+      if (ship.harborOperation)
+        expect(activeVectorHarborCargo(adopted, ship.id)).toEqual(JSON.parse(JSON.stringify(ship.harborOperation)));
+    }
+    const blocks = deriveVectorBlocks(copy.document);
+    const overlap = regionBoolean(blocks, featureReservations(copy.document), "intersection").reduce(
+      (n, r) => n + regionArea(r),
+      0
+    );
+    expect(overlap).toBeLessThan(1e-5);
+    const data = vectorRenderData(copy.document),
+      scene = createVectorScene(data);
+    for (const saved of adopted.ships) {
+      const surface = data.surfaces.find(s => s.id === saved.id)!;
+      expect(surface.polygons).toEqual([vectorShipFootprint(saved)]);
+      const object = scene.group.children.find(n => n.userData.id === saved.id)!;
+      expect(object.userData.representation).toBe("bv-harbor");
+      expect(object.userData.shipState).toEqual(saved.state);
+      expect(object.userData.lengthMeters).toBe(saved.length);
+      expect(object.position.x).toBeCloseTo(saved.point[0] - data.center[0], 6);
+      expect(object.position.z).toBeCloseTo(-saved.point[1] + data.center[1], 6);
+      expect(object.position.y).toBeCloseTo(
+        adopted.navigation.depths.find(w => w.id === saved.waterId)!.levelMeters,
+        6
+      );
+      expect(vectorPickOwner(object.children[0].children[0])).toBe(saved.id);
+    }
+    for (const crane of adopted.cranes)
+      expect(
+        scene.group.children.some(n => n.userData.id === crane.id && n.userData.representation === "bv-harbor")
+      ).toBe(true);
+    scene.dispose();
+    const invalid = (change: (p: typeof adopted) => void) => {
+      const candidate = structuredClone(copy.document);
+      change(candidate.environment!.harbor!);
+      expect(parseVectorDocument(JSON.stringify(candidate))).toBeNull();
+    };
+    const cargoId = cargo[0].id;
+    invalid(p => {
+      p.ships.find(s => s.id === cargoId)!.cargo!.sourceShipId = "missing-mother";
+    });
+    invalid(p => {
+      p.ships.find(s => s.id === cargoId)!.point[0] += 2;
+    });
+    invalid(p => {
+      p.cranes[0].armAngleRad += 1;
+    });
+    invalid(p => {
+      p.quays[0].craneId = "missing-crane";
+    });
+    invalid(p => {
+      p.accesses[0].road.pathId = "missing-road";
+    });
+    invalid(p => {
+      p.navigation.depths[0].depthMeters = 0.1;
+    });
+    invalid(p => {
+      p.ships[0].length = -1;
+    });
+    invalid(p => {
+      p.ships[0].state.sails = "invalid" as "set";
+    });
+    invalid(p => {
+      p.navigation.land.push(structuredClone(p.navigation.water[0]));
+    });
+    const reliefSource = structuredClone(source);
+    Object.values(reliefSource.mesh.faces).find(f => f.properties.water === "land")!.properties.elevation = 10;
+    const rejected = roundTrip(reliefSource);
+    expect(rejected.document.environment?.harbor).toBeUndefined();
+    expect(rejected.report.find(r => r.category === "harbor-plan")?.reason).toContain("harbor-relief-not-supported");
+    const stale = structuredClone(adopted);
+    stale.ships.find(s => s.id === cargoId)!.point[0] += 2;
+    expect(activeVectorHarborCargo(stale, cargoId)).toBeUndefined();
+    const fixed = structuredClone(copy.document);
+    fixed.environment!.harbor!.ships[0].state.gunports = "open";
+    expect(() => reconcileVectorEdit(copy.document, fixed)).toThrow("dependency-fixed-harbor");
     observations.push({
       id: "legacy-harbor",
       sourceSha256: copy.sourceSha256,
-      outcome: "not-accepted",
+      outcome: "partially-accepted",
       sourceCargoQuays: harbor.cargoQuays!.length,
       sourceShips: ships.length,
       sourceActiveCargoAssignments: cargo.length,
       archiveRestored: true,
+      blockReservationOverlapM2: overlap,
+      accepted:
+        "Fixed flat sea harbor: polygon depth/navigation, road access, physical hull dimensions and display state, solved crane/berth/lighter links, generation reservations and BV rendering.",
       remaining:
-        "Draft-safe navigation, crane/berth links, ship dimensions and display state have no active vector equivalent."
+        "River ribbons, relief, crossed approaches, broader port inputs and editable harbor planning remain outside this fixed-case acceptance."
     });
   }, 30000);
 

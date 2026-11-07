@@ -99,17 +99,20 @@
       "tests": [
         "src/city-editor/generators/vector/features.test.ts",
         "src/city-editor/generators/vector/terrain.test.ts",
-        "src/city-editor/generators/vector/m9FeatureAcceptance.test.ts"
+        "src/city-editor/generators/vector/m9FeatureAcceptance.test.ts",
+        "src/city-editor/generators/vector/harbor.test.ts"
       ],
       "accepted": [
         "Dry quay, cargo route and waterborne ship on the nearest bank",
         "Market-day activity and locked booth appearance",
-        "A real legacy fixture with one cargo quay, four ships and one active cargo assignment restores exactly; omitted cargo links are reported individually"
+        "Automatic conversion of a fixed flat legacy sea harbor with one cargo quay, four physical ships and one active lighter assignment: depth/obstacle navigation, road access, solved crane/berth/mother-ship links, reservations, display state, BV rendering and exact source restoration"
       ],
       "remaining": [
-        "Legacy draft-safe navigation, cargo crane/berth links, physical ship plans and display state have no active vector equivalent"
+        "River ribbons, relief and crossed approaches are explicitly rejected until their water and ground authorities can be retained",
+        "Broader port inputs and editable harbor planning, including dedicated inspection/editing UI",
+        "Raster navigation retains the old sampling scale and explicit open-boundary assumptions; it is not a continuous offshore route certificate"
       ],
-      "evidence": "The legacy fixture passes source navigation and cargo ownership checks, but its operational links and ships are archived rather than converted. Legacy harbor acceptance is rejected; simplified new harbor geometry is not proof of parity."
+      "evidence": "The fixed legacy sea harbor is now an active cell-free plan. Native navigation rechecks hull width, draft, obstacles and connection to open water, and cargo is solved again with crane reach/angle/height, swept load, berth and mother-ship references. Four ships retain hull dimensions, pose, sails and gunports in native and shared BV rendering. Generated blocks overlap harbor reservations by 0 m2. Invalid owners, moved cargo ships, crane angles, depth and states are rejected. Broader parity remains limited."
     },
     {
       "id": "temple-cemetery-park-farm-forest",

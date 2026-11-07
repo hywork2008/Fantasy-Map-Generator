@@ -1,6 +1,10 @@
 import * as THREE from "three";
 import { placeableObject } from "../../../buildings/placeableObjects";
 import { placementDefinition, placementFootprint } from "../../../buildings/placementModels";
+import { LAND_Y } from "../../../city3d/core/waterGeometry";
+import { createBvPrototypeCache } from "../../../city3d/three/bvInstances";
+import { createTownCranes, createTownHarborCargo } from "../../../city3d/three/craneMeshes";
+import { createTownShips } from "../../../city3d/three/shipMeshes";
 import { polygonArea } from "../../generators/geom";
 import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
 import type { VectorRenderData, VectorRenderSurface } from "./renderData";
@@ -61,6 +65,7 @@ export function createVectorScene(data: VectorRenderData) {
     disposers: (() => void)[] = [],
     materials = new Map<string, THREE.MeshStandardMaterial>(),
     prototypes = new Map<string, ReturnType<NonNullable<ReturnType<typeof placementDefinition>>["create"]>>();
+  const harborCache = createBvPrototypeCache();
   const datum = data.terrain?.points[0]?.[1] ?? 0;
   group.position.set(data.center[0], datum, -data.center[1]);
   group.userData = {
@@ -137,6 +142,31 @@ export function createVectorScene(data: VectorRenderData) {
     group.add(ground);
     disposers.push(() => ground.geometry.dispose());
     for (const surface of data.surfaces) {
+      if (surface.harborShip || surface.harborCrane || surface.harborPile) {
+        const ship = surface.harborShip,
+          crane = surface.harborCrane,
+          pile = surface.harborPile;
+        const point = ship?.point ?? crane?.point ?? pile!.point;
+        const model = ship
+          ? createTownShips([{ ...ship, point: [0, 0] }], () => 0)
+          : crane
+            ? createTownCranes([{ ...crane, point: [0, 0] }], () => -LAND_Y, harborCache, "low")
+            : createTownHarborCargo([{ ...pile!, point: [0, 0] }], () => -LAND_Y, harborCache);
+        const wrapper = new THREE.Group();
+        wrapper.position.set(point[0] - data.center[0], surface.elevationMeters - datum, -point[1] + data.center[1]);
+        wrapper.userData = {
+          id: surface.id,
+          kind: "feature",
+          featureKind: "harbor",
+          pieceRole: surface.pieceRole,
+          representation: "bv-harbor",
+          ...(ship ? { shipState: { ...ship.state }, lengthMeters: ship.length } : {})
+        };
+        wrapper.add(model.group);
+        group.add(wrapper);
+        disposers.push(() => model.dispose());
+        continue;
+      }
       const p = surface.placement;
       let placed = false;
       if (p && surface.kind === "building" && !surface.provisional) {

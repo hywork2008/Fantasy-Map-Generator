@@ -7,11 +7,14 @@ import { pathSurface } from "../../generators/vector/geometry/surfaces";
 import { vectorWaterSurfaces } from "../../generators/vector/geometry/water";
 import { vectorTerrain } from "../../generators/vector/terrain";
 import { assertVectorDocument } from "../../generators/vector/validation/document";
+import type { HarborCargoPile, HarborCrane } from "../../types/contracts/harborFabric";
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument, VectorPath, VectorPlacement } from "../../types/vector/document";
 import type { VectorPolygon } from "../../types/vector/generation";
+import type { VectorHarborShip } from "../../types/vector/harbor";
 import type { VectorStage } from "../../types/vector/urban";
 import { vectorDefenseSurfaces } from "./defense";
+import { vectorHarborSurfaces } from "./harbor";
 export type VectorSurfaceKind =
   | "region"
   | "block"
@@ -31,6 +34,9 @@ export interface VectorRenderSurface {
   heightMeters: number;
   elevationMeters: number;
   placement?: VectorPlacement;
+  harborShip?: VectorHarborShip;
+  harborCrane?: HarborCrane;
+  harborPile?: HarborCargoPile;
   provisional?: boolean;
   buildingKind?: string;
   heightAt?: (point: Point) => number;
@@ -142,7 +148,9 @@ export function vectorRenderData(
     add({
       id: r.id,
       kind: "region",
-      polygons: [r],
+      polygons: doc.environment?.harbor
+        ? regionBoolean([r], doc.environment.harbor.navigation.water, "difference")
+        : [r],
       color: {
         forest: "#72976a",
         farm: "#b7ae71",
@@ -197,7 +205,7 @@ export function vectorRenderData(
       heightMeters: 0.04,
       elevationMeters: 0.02
     });
-  for (const w of doc.site?.water ?? [])
+  for (const w of doc.environment?.harbor ? [] : (doc.site?.water ?? []))
     add({ id: w.id, kind: "river", polygons: w.polygons, color: "#71abc4", heightMeters: 0, elevationMeters: 0.08 });
   const defenseWalls = new Set(Object.values(doc.environment?.defenses ?? {}).flatMap(p => p.circuit.wallPathIds));
   for (const p of paths.filter(p => p.role !== "road" && !defenseWalls.has(p.id))) {
@@ -332,6 +340,7 @@ export function vectorRenderData(
   surfaces.unshift(...grounds);
   for (const plan of Object.values(doc.environment?.defenses ?? {}))
     surfaces.push(...vectorDefenseSurfaces(plan, frame));
+  if (doc.environment?.harbor) surfaces.push(...vectorHarborSurfaces(doc.environment.harbor));
   let terrainMesh: VectorRenderData["terrain"], contours: ContourLine[] | undefined;
   if (terrain.hasRelief) {
     const count = 64,
@@ -377,7 +386,10 @@ export function vectorRenderData(
     nodes: nodes.map(n => ({ id: n.id, position: n.position })),
     warnings,
     contours,
-    groundCutouts: Object.values(doc.environment?.defenses ?? {}).flatMap(p => p.ditches.flatMap(d => d.region)),
+    groundCutouts: [
+      ...Object.values(doc.environment?.defenses ?? {}).flatMap(p => p.ditches.flatMap(d => d.region)),
+      ...(doc.environment?.harbor?.navigation.water ?? [])
+    ],
     terrain: terrainMesh
   };
 }

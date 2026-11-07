@@ -9,6 +9,7 @@ import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { ringInside } from "../geometry/routing";
 import { simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
+import { validateVectorHarbor } from "../harbor";
 
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const point = (v: unknown) =>
@@ -120,14 +121,14 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
   if (!e) return appearanceErrors;
   if (
     !record(e) ||
-    Object.keys(e).some(k => !["features", "defenses", "terrain", "hidden", "freeformSource"].includes(k)) ||
+    Object.keys(e).some(k => !["features", "defenses", "harbor", "terrain", "hidden", "freeformSource"].includes(k)) ||
     !record(e.features) ||
     Object.keys(e.features).length > 256 ||
     !Array.isArray(e.hidden) ||
     e.hidden.some(id => typeof id !== "string" || !e.features[id])
   )
     return ["environment"];
-  const errors: string[] = [...appearanceErrors, ...validateVectorDefenses(doc)];
+  const errors: string[] = [...appearanceErrors, ...validateVectorDefenses(doc), ...validateVectorHarbor(doc)];
   if (e.freeformSource && !parseFreeformCity(JSON.stringify(e.freeformSource)))
     errors.push("environment-freeform-source");
   if (e.terrain) {

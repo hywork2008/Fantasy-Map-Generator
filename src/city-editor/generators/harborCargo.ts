@@ -66,7 +66,7 @@ export function cargoQuayReservation(a: Point, b: Point, outward: Point): Point[
 /** Solve a fixed-radius hook and a broadside hull together. The callback validates the hull
  * at every position of its straight offshore approach, including neighbouring ships/roads. */
 export function solveCargoBerth(
-  quay: CargoQuay,
+  quay: Omit<CargoQuay, "landFaceId" | "waterFaceId">,
   type: ShipType,
   length: number,
   isClear: (polygon: Point[], center: Point, beam: number) => boolean,

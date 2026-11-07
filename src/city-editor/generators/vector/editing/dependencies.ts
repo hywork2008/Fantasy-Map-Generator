@@ -76,6 +76,8 @@ export function reconcileVectorEdit(source: VectorCityDocument, candidate: Vecto
   assertVectorDocument(candidate);
   for (const [id, plan] of Object.entries(source.environment?.defenses ?? {}))
     if (!same(plan, candidate.environment?.defenses?.[id])) throw Error(`dependency-fixed-defense:${id}`);
+  if (source.environment?.harbor && !same(source.environment.harbor, candidate.environment?.harbor))
+    throw Error("dependency-fixed-harbor");
   const previous = source.urban;
   if (!previous)
     return {
