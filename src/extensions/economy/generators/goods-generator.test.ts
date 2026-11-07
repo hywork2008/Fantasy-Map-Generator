@@ -1328,7 +1328,7 @@ describe("GoodsModule", () => {
     honey.biomeOutputByTag = { forest: 0.04 };
 
     expect(migrateHoneyForageLands()).toBe(true);
-    expect(honey.biomeOutputByTag).toEqual({ forest: 0.6, grassland: 0.6, scrub: 0.6, arable: 0.6 });
+    expect(honey.biomeOutputByTag).toEqual({ forest: 0.6, grassland: 0.6, scrub: 0.2, arable: 0.2 });
     expect(migrateHoneyForageLands()).toBe(false);
 
     honey.distribution = 'biomeTag("forest")';

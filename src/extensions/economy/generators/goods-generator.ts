@@ -252,11 +252,18 @@ const LEGACY_HONEY_DISTRIBUTION = 'biomeTag("forest")';
  * head), and a skep gave about 5.5 kg net a year (Crane; honey-forage-lands.md §2).
  */
 const HONEY_HARVEST_PER_THOUSAND = 0.6;
+/**
+ * A third of that in the Mediterranean scrub and on farmland without forest or grass: Roussillon kept 0.11
+ * hives a head in 1856 at 4 to 8 kg, Murcia's dry lands fewer and smaller ones (Lemeunier 2011). Spanish
+ * honey came from the uncultivated saltus, least of all from the irrigated huertas. A biome takes its best
+ * tag, so the Mediterranean's `arable` must not stand above its `scrub`.
+ */
+const HONEY_SCRUB_HARVEST_PER_THOUSAND = 0.2;
 const HONEY_OUTPUT_BY_TAG: Readonly<Partial<Record<BiomeTag, number>>> = {
   forest: HONEY_HARVEST_PER_THOUSAND,
   grassland: HONEY_HARVEST_PER_THOUSAND,
-  scrub: HONEY_HARVEST_PER_THOUSAND,
-  arable: HONEY_HARVEST_PER_THOUSAND
+  scrub: HONEY_SCRUB_HARVEST_PER_THOUSAND,
+  arable: HONEY_SCRUB_HARVEST_PER_THOUSAND
 };
 /**
  * A 168 kg barrel at 3.9 times the grain price per kilogram: honey at about 7d a gallon in England around
