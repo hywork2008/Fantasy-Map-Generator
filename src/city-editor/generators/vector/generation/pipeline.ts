@@ -1,6 +1,7 @@
 import type { Point } from "../../../types/primitives";
 import type { CurveAnchor, VectorCityDocument, VectorPath } from "../../../types/vector/document";
 import type { VectorBlock, VectorGenerationSettings, VectorPolygon } from "../../../types/vector/generation";
+import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
 import { mapDocumentAnchors } from "../editing/anchors";
 import { createVectorGate, networkId, proposeSquareBridge, rebuildRoadGraph, setWallCircuit } from "../editing/network";
 import { curveSource, removeVectorPath } from "../editing/paths";
@@ -183,8 +184,10 @@ export interface VectorGenerationResult {
 /** Adopted geometry is computed here, never while rendering or loading a document. */
 export function generateVectorSkeleton(
   input: VectorCityDocument,
-  settings: VectorGenerationSettings = DEFAULT_VECTOR_GENERATION
+  settings: VectorGenerationSettings = DEFAULT_VECTOR_GENERATION,
+  timings?: GenerationTimingObserver
 ): VectorGenerationResult {
+  const timed = generationTiming(timings);
   assertVectorDocument(input);
   if (input.urban) throw new Error("urban-generated");
   if (!input.site) throw new Error("site-required");
@@ -229,6 +232,7 @@ export function generateVectorSkeleton(
     before = new Set(Object.keys(doc.paths)),
     center = doc.site!.center;
   const diagnostics: { code: string; entityId: string; severity: "warning" | "error" }[] = [];
+  timed("source-validation-and-clone");
   if (settings.wall !== "none" && !Object.values(doc.paths).some(p => p.role === "wall")) {
     const ring = doc.site!.domain[0].outer,
       minX = Math.min(...ring.map(p => p[0])),
@@ -321,6 +325,7 @@ export function generateVectorSkeleton(
     if (regionBoolean(exposed, waters, "intersection").some(r => regionArea(r) > 1e-5))
       throw new Error(`unbridged-road:${road.id}`);
   }
+  timed("walls-gates-bridges");
   const free = freeLand(doc);
   if (!containsRegion(free, center)) throw new Error("site-center-blocked");
   const ports: Point[] = [[...center]],
@@ -399,6 +404,7 @@ export function generateVectorSkeleton(
     const all = bindings.flatMap((b, j) => (distance(route.points[i], route.points[j]) < 1e-6 ? b : []));
     joinVectorGenerationAnchors(doc, all);
   }
+  timed("road-routing");
   const roads = Object.values(doc.paths).filter(p => p.role === "road");
   for (let i = 0; i < roads.length; i++)
     for (let j = i + 1; j < roads.length; j++)
@@ -407,10 +413,12 @@ export function generateVectorSkeleton(
   rebuildRoadGraph(doc);
   doc.revision++;
   assertVectorDocument(doc);
+  timed("connections-and-validation");
   stages.push({ id: "skeleton", document: structuredClone(doc) });
   const blocks = deriveVectorBlocks(doc);
   for (const b of blocks)
     if (!b.reachable) diagnostics.push({ code: "land-without-frontage", entityId: b.id, severity: "warning" });
+  timed("land-blocks");
   const owned = Object.values(doc.paths).filter(p => !before.has(p.id));
   doc.revision++;
   doc.generation = {
@@ -426,5 +434,6 @@ export function generateVectorSkeleton(
   };
   assertVectorDocument(doc);
   stages.push({ id: "regions", document: structuredClone(doc) });
+  timed("ledger-validation-and-snapshots");
   return { document: doc, stages };
 }

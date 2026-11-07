@@ -4,6 +4,7 @@ import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorStage, VectorUrbanSettings } from "../../../types/vector/urban";
 import { bvFacilityAsset } from "../../bvFacilityAsset";
 import { facilityPlacementOrder, facilityUseOf } from "../../facilityUses";
+import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
 import { polygonCentroid } from "../../geom";
 import { buildPopulationFacilityRequests } from "../../populationFacilityRequests";
 import { rebuildRoadGraph } from "../editing/network";
@@ -57,6 +58,7 @@ export interface VectorUrbanRun {
   requestAttempts?: number;
   housingAttempts?: number;
   profile?: VectorUrbanProfile;
+  timings?: GenerationTimingObserver;
   progress?: (phase: "lanes" | "facilities" | "housing" | "validation", completed?: number, total?: number) => void;
 }
 export interface VectorUrbanContinuation {
@@ -73,6 +75,7 @@ export function generateVectorUrban(
   continuation?: VectorUrbanContinuation,
   run?: VectorUrbanRun
 ): VectorCityDocument {
+  const timed = generationTiming(run?.timings);
   assertVectorDocument(input);
   if (
     !["medieval", "medieval-facilities"].includes(settings.mode) ||
@@ -124,6 +127,7 @@ export function generateVectorUrban(
     basePaths = Object.keys(doc.paths).filter(id => !continuation?.ownedPaths.includes(id)),
     manual = Object.keys(doc.placements).filter(id => !continuation?.retainedPlacements.includes(id)),
     reasons: string[] = [];
+  timed("source-validation-and-clone");
   const sourceSite = structuredClone(doc.site),
     required =
       settings.population === 0
@@ -199,7 +203,9 @@ export function generateVectorUrban(
       },
       protectedRegions
     );
+  timed("programme-and-domain");
   let blocks = deriveLaneBlocks();
+  timed("base-blocks");
   const ownedPaths: string[] = [...(continuation?.ownedPaths ?? [])];
   run?.progress?.("lanes");
   const laneStarted = performance.now();
@@ -269,6 +275,7 @@ export function generateVectorUrban(
     settings.population > 0
       ? bvFacilityAsset(settings.houseModelId, [{ id: "main", position: [0, 0, 4], normalXZ: [0, 1], clearWidth: 1.1 }])
       : undefined;
+  timed("lane-candidates");
   const organic =
     settings.mode === "medieval" && settings.maxLanes > 0 && !continuation && run?.housingAttempts === undefined
       ? planVectorPerimeter(doc, blocks, settings)
@@ -328,7 +335,9 @@ export function generateVectorUrban(
       adoptLane([candidate.start, candidate.end], candidate.anchor, candidate.pathId, candidate.block);
     }
   if (run?.profile) run.profile.lanesMs = performance.now() - laneStarted;
+  timed("ce-perimeter-plan-and-native-connections");
   rebuildRoadGraph(doc);
+  timed("road-graph");
   blocks = organic ? organic.blocks : deriveLaneBlocks();
   const walls = Object.values(doc.connections.circuits)
     .filter(c => !c.parentCircuitId)
@@ -382,6 +391,7 @@ export function generateVectorUrban(
   checkpoint("skeleton", manual, basePaths);
   checkpoint("regions", manual, basePaths);
   checkpoint("blocksAndLanes", manual);
+  timed("districts-and-checkpoints");
   const searchStats: UrbanSearchStats = { regionMs: 0, curveMs: 0 };
   const facilityLimits = {
     totalAttempts: run?.facilityAttempts ?? FACILITY_SEARCH_LIMITS.totalAttempts,
@@ -461,6 +471,7 @@ export function generateVectorUrban(
   if (run?.profile) run.profile.facilityMs = performance.now() - facilityStarted;
   const facilities = ownedPlacements.filter(id => doc.placements[id].building?.kind === "facility");
   if (settings.mode === "medieval-facilities") checkpoint("facilities", [...manual, ...facilities]);
+  timed("facilities");
   const facilityLand = organic ? [] : deriveVectorBlocks(doc, protectedRegions),
     housingPacker = organic
       ? undefined
@@ -505,6 +516,7 @@ export function generateVectorUrban(
     if (remaining <= 0) housingStop = "demand-met";
   }
   if (run?.profile) run.profile.housingMs = performance.now() - housingStarted;
+  timed("housing-placement");
   const all = [...manual, ...facilities, ...ownedPlacements.filter(id => !facilities.includes(id))].sort(
     (a, b) => Number(inside(doc.placements[b].position)) - Number(inside(doc.placements[a].position))
   );
@@ -533,9 +545,11 @@ export function generateVectorUrban(
     run.profile.housingStop = housingStop;
   }
   run?.progress?.("validation");
+  timed("population-allocation");
   const residualLand = organic
     ? vectorPerimeterResidual(doc, organic.blocks)
     : deriveVectorBlocks(doc, protectedRegions).map(b => ({ outer: b.outer, holes: b.holes }));
+  timed("residual-land");
   doc.site = sourceSite;
   doc.context.targetPopulation = settings.population;
   doc.revision++;
@@ -580,7 +594,10 @@ export function generateVectorUrban(
     }
   };
   if (checkpoints.map(c => c.id).join() !== vectorUrbanStages(settings.mode).join()) throw new Error("urban-stages");
+  timed("ledger-and-fingerprint");
   assertVectorDocument(doc);
+  timed("final-validation");
   if (JSON.stringify(doc).length > VECTOR_DOCUMENT_LIMITS.textLength) throw new Error("urban-document-budget");
+  timed("save-budget-check");
   return doc;
 }
