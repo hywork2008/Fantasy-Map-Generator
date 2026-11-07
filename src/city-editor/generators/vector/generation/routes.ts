@@ -1,4 +1,5 @@
 import type { Point } from "../../../types/primitives";
+import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
 import { segmentDistance } from "../geometry/network";
 import { indexedContains, type VectorPolygon } from "../geometry/regions";
 import { compactRing, offsetRing } from "../geometry/routing";
@@ -14,7 +15,14 @@ export interface RouteEdge {
   pathId?: string;
 }
 /** Navigation vertices come from actual boundaries and ports, never a generated cell lattice. */
-export function skeletonRoutes(regions: VectorPolygon[], ports: Point[], links: RouteLink[], radius: number) {
+export function skeletonRoutes(
+  regions: VectorPolygon[],
+  ports: Point[],
+  links: RouteLink[],
+  radius: number,
+  timings?: GenerationTimingObserver
+) {
+  const timed = generationTiming(timings);
   const rawInside = indexedContains(regions);
   const insideCache = new WeakMap<Point, boolean>();
   const inside = (p: Point) => {
@@ -107,6 +115,7 @@ export function skeletonRoutes(regions: VectorPolygon[], ports: Point[], links: 
     } else stamp++;
     return !blocked;
   };
+  timed("boundary-index");
   const points = ports.map(p => [...p] as Point),
     linkEdges: { a: number; b: number; cost: number; pathId: string }[] = [];
   const index = (p: Point) => {
@@ -141,16 +150,14 @@ export function skeletonRoutes(regions: VectorPolygon[], ports: Point[], links: 
       for (const p of offset) if (visible(p, p)) index(p);
     }
   if (points.length > 1600) throw new Error("route-budget");
+  timed("navigation-points");
   const adjacency = new Map<number, { to: number; cost: number; pathId?: string }[]>();
   const put = (a: number, b: number, cost: number, pathId?: string) => {
     adjacency.set(a, [...(adjacency.get(a) ?? []), { to: b, cost, pathId }]);
     adjacency.set(b, [...(adjacency.get(b) ?? []), { to: a, cost, pathId }]);
   };
-  // Build once for all destinations. Dry edges cannot substitute a diagonal for a certified bridge axis.
-  for (let a = 0; a < points.length; a++)
-    for (let b = a + 1; b < points.length; b++)
-      if (visible(points[a], points[b]))
-        put(a, b, Math.hypot(points[a][0] - points[b][0], points[a][1] - points[b][1]));
+  // Certified bridge links stay explicit; dry visibility is evaluated only when
+  // an edge could improve the current shortest path, in the same point order.
   for (const link of linkEdges) put(link.a, link.b, link.cost, link.pathId);
   const costs = points.map(() => Infinity),
     previous = points.map(() => undefined as { from: number; pathId?: string } | undefined),
@@ -161,6 +168,14 @@ export function skeletonRoutes(regions: VectorPolygon[], ports: Point[], links: 
     for (let i = 0; i < points.length; i++) if (!visited.has(i) && (at < 0 || costs[i] < costs[at])) at = i;
     if (at < 0 || !Number.isFinite(costs[at])) break;
     visited.add(at);
+    for (let to = 0; to < points.length; to++) {
+      if (to === at) continue;
+      const cost = costs[at] + Math.hypot(points[at][0] - points[to][0], points[at][1] - points[to][1]);
+      if (cost < costs[to] - 1e-8 && visible(points[Math.min(at, to)], points[Math.max(at, to)])) {
+        costs[to] = cost;
+        previous[to] = { from: at };
+      }
+    }
     for (const edge of adjacency.get(at) ?? []) {
       const cost = costs[at] + edge.cost;
       if (cost < costs[edge.to] - 1e-8) {
@@ -169,6 +184,7 @@ export function skeletonRoutes(regions: VectorPolygon[], ports: Point[], links: 
       }
     }
   }
+  timed("shortest-paths-and-visibility");
   const selected = new Map<string, RouteEdge>(),
     unreachable: number[] = [];
   for (let destination = 1; destination < ports.length; destination++) {
@@ -185,5 +201,6 @@ export function skeletonRoutes(regions: VectorPolygon[], ports: Point[], links: 
       at = p.from;
     }
   }
+  timed("selected-edges");
   return { points, edges: [...selected.values()], unreachable };
 }

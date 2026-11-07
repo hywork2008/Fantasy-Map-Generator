@@ -161,7 +161,8 @@ export interface VectorGenerationResult {
 export function generateVectorSkeleton(
   input: VectorCityDocument,
   settings: VectorGenerationSettings = DEFAULT_VECTOR_GENERATION,
-  timings?: GenerationTimingObserver
+  timings?: GenerationTimingObserver,
+  routingTimings?: GenerationTimingObserver
 ): VectorGenerationResult {
   const timed = generationTiming(timings);
   assertVectorDocument(input);
@@ -343,7 +344,15 @@ export function generateVectorSkeleton(
       pathId: road.id
     };
   });
-  const route = skeletonRoutes(free, ports, links, settings.roadWidthMeters / 2 + settings.clearanceMeters + 0.011);
+  timed("road-free-land-and-ports");
+  const route = skeletonRoutes(
+    free,
+    ports,
+    links,
+    settings.roadWidthMeters / 2 + settings.clearanceMeters + 0.011,
+    routingTimings
+  );
+  timed("road-search");
   if (route.unreachable.some(i => i < required)) throw new Error("fixed-port-unreachable");
   for (const i of route.unreachable)
     diagnostics.push({ code: "branch-unreachable", entityId: `target:${i}`, severity: "warning" });
@@ -380,7 +389,7 @@ export function generateVectorSkeleton(
     const all = bindings.flatMap((b, j) => (distance(route.points[i], route.points[j]) < 1e-6 ? b : []));
     joinVectorGenerationAnchors(doc, all);
   }
-  timed("road-routing");
+  timed("road-materialization");
   const roads = Object.values(doc.paths).filter(p => p.role === "road");
   for (let i = 0; i < roads.length; i++)
     for (let j = i + 1; j < roads.length; j++)

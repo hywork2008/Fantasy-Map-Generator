@@ -136,11 +136,13 @@ it.runIf(!!output)(
       spans.push({ order: spans.length + 1, phase: `${prefix}.${phase}`, ms });
     const input = measure(() => vectorInputFromEditor({ seed, settings, frame: grid.value.frame }));
     spans.push({ order: 1, phase: "input", ms: input.ms });
+    const routingSpans: { phase: string; ms: number }[] = [];
     const skeleton = measure(() =>
       generateVectorSkeleton(
         input.value,
         { ...DEFAULT_VECTOR_GENERATION, seed, wall: settings.config.features.walls ? "ellipse" : "none" },
-        record("skeleton")
+        record("skeleton"),
+        (phase, ms) => routingSpans.push({ phase, ms })
       )
     );
     const urban = measure(() =>
@@ -155,6 +157,7 @@ it.runIf(!!output)(
     expect(validation.value).toEqual([]);
     const vectorSvg = measure(() => renderVectorDocument(urban.value));
     result.meshless = {
+      routingSpans,
       validationMs: validation.ms,
       validationSpans,
       inputMs: input.ms,
@@ -199,6 +202,7 @@ it.runIf(!!output)(
       "src/city-editor/generators/generationTiming.ts",
       "src/city-editor/generators/vector/generation/pipeline.ts",
       "src/city-editor/generators/vector/generation/urban.ts",
+      "src/city-editor/generators/vector/generation/routes.ts",
       "src/city-editor/generators/vector/validation/document.ts",
       "src/city-editor/generators/vector/validation/urban.ts",
       "src/city-editor/generators/vector/geometry/surfaces.ts",
