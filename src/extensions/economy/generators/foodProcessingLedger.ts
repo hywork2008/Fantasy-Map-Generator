@@ -1,4 +1,5 @@
 import { getMarketSettings } from "../../../simulation/marketSettings";
+import { getTreelessTownAleWoodland } from "../../../simulation/townAleSettings";
 import { rn } from "../../hostUtils";
 import {
   getGoods,
@@ -7,7 +8,12 @@ import {
   getWorldContext,
   recordCumulativeCellFoodProcessing
 } from "../economyContext";
-import { getAleDemandMultiplier, getAleSanitationFallbackRisk, getAleWaterRisk } from "./aleDemand";
+import {
+  getAleDemandMultiplier,
+  getAleSanitationFallbackRisk,
+  getAleWaterRisk,
+  getTownAleLitersPerAdultYear
+} from "./aleDemand";
 import { debitHouseholdWealth } from "./burgMarketLedgers";
 import { releaseConsignedUnpaid } from "./craftConsignment";
 import {
@@ -35,7 +41,7 @@ import {
   getUrbanHouseholdSpendable,
   RURAL_HOUSEHOLD_TOWN_SPEND_SHARE
 } from "./householdWealth";
-import { getMarketRuralPopulation } from "./marketPopulation";
+import { getMarketRuralPopulation, getMarketWoodlandShares } from "./marketPopulation";
 import type { FoodProcessingGoodLedger, Market } from "./marketTypes";
 
 const TRACKED_GOODS = new Set([
@@ -213,7 +219,10 @@ function getBurgPeople(population: number | undefined): number {
  * (Bennett 1996), within the food they already eat, so they buy no ale, no casks and no malt
  * (urban-craft-staffing.md §10.10, §10.11).
  */
-function calculateAleDemand(market: Market): AleDemandSnapshot {
+function calculateAleDemand(
+  market: Market,
+  woodlandShare = getMarketWoodlandShares(getWorldContext()).get(market.i) ?? 0
+): AleDemandSnapshot {
   const world = getWorldContext();
   const systemsByBurgId = new Map(getUrbanWaterSystems().map(system => [system.burgId, system]));
   let urbanPeople = 0;
@@ -222,7 +231,10 @@ function calculateAleDemand(market: Market): AleDemandSnapshot {
   let riskWeightedPeople = 0;
   // A market that takes in grapes is wine country, and its towns drink wine (WINE_TARGETS).
   const wineCountry = (getGoodLedger(market, "Grapes")?.marketIntake ?? 0) > 0;
-  const urbanLiters = wineCountry ? ALE_TARGETS.baselineLitersPerAdultYear : ALE_TARGETS.urbanLitersPerAdultYear;
+  const urbanLiters = getTownAleLitersPerAdultYear(wineCountry, woodlandShare, getTreelessTownAleWoodland(), {
+    baseline: ALE_TARGETS.baselineLitersPerAdultYear,
+    urban: ALE_TARGETS.urbanLitersPerAdultYear
+  });
 
   for (const burg of world.pack.burgs) {
     if (!burg.i || burg.removed || burg.market !== market.i) continue;
@@ -248,7 +260,9 @@ function calculateAleDemand(market: Market): AleDemandSnapshot {
 /** Rebuilt once before the Burg production loop, avoiding repeated water-system scans per recipe candidate. */
 export function refreshAleHouseholdDemand(): void {
   aleDemandByMarket.clear();
-  for (const market of getMarkets()) aleDemandByMarket.set(market.i, calculateAleDemand(market));
+  const woodland = getMarketWoodlandShares(getWorldContext());
+  for (const market of getMarkets())
+    aleDemandByMarket.set(market.i, calculateAleDemand(market, woodland.get(market.i) ?? 0));
 }
 
 export function getAleDemandSnapshot(market: Market): AleDemandSnapshot {

@@ -1916,6 +1916,8 @@
     "gremlinsTip": "Non-corporeal entities that proliferate around electrical machines and wires on High/Dark Fantasy maps. Causes intermittent shutdowns and delays scientific progress due to loss of reproducibility, unless banished by the Secret Arcane Art.",
     "initialPopulation": "Initial population %",
     "initialPopulationTip": "Determines how full the world is relative to its carrying capacity at the start. 100% means fully saturated, lower values allow for future demographic growth.",
+    "siteBonusFullHabitability": "Full site bonus from habitability",
+    "siteBonusFullHabitabilityTip": "Habitability from which a cell's river, coast, harbour and lowland bonuses count in full. Below it they shrink with habitability, so bogs and moors are not settled like farmland just for lying on a coast or river. 1 keeps the original score.",
     "settlementPattern": "Settlement pattern",
     "settlementPatternTip": "Choose whether initial people are spread across suitable land or concentrated around favorable settlement hubs. Selecting a preset also applies its recommended initial population percentage. Marches sits between Frontier and Scattered: several polity islands with wilderness/danger between them.",
     "settlementPatterns": {
@@ -2069,6 +2071,8 @@
     "craftsHeadingTip": "How many craftsmen a town needs for its size. Saved with the world.",
     "craftEmploymentShare": "Employed share of town people %",
     "craftEmploymentShareTip": "Share of a town's people who are in work. The per-thousand craft table (tailors, shoemakers, bakers…, from the 1379–81 English urban poll tax) is scaled by this share over 45%. 45 = the authored table.",
+    "treelessTownAleWoodland": "Woodland % for full town ale",
+    "treelessTownAleWoodlandTip": "Share of a market's land under forest from which its towns drink the full town ale (300 L an adult a year). Below it town ale falls linearly to the country level (48 L): treeless pastoral lands such as Iceland, Orkney and Shetland drank whey and buttermilk and kept ale for feasts. 0 = no reduction.",
     "marketsHeading": "Markets (Economy):",
     "marketsHeadingTip": "How markets open and close while time advances. Saved with the world.",
     "marketFoundingSpacing": "New market spacing ×",

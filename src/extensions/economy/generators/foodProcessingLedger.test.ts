@@ -54,7 +54,11 @@ vi.mock("../economyContext", () => ({
   })
 }));
 const ruralPopulation = vi.hoisted(() => ({ people: 0 }));
-vi.mock("./marketPopulation", () => ({ getMarketRuralPopulation: () => ruralPopulation.people }));
+vi.mock("./marketPopulation", () => ({
+  getMarketRuralPopulation: () => ruralPopulation.people,
+  // Wooded land: the towns drink the full town ale.
+  getMarketWoodlandShares: () => ({ get: () => 0.7 })
+}));
 // What households may spend on these goods: unlimited unless a test sets it (docs/plan/market-goods-settlement.md §2.1).
 const purses = vi.hoisted(() => ({ town: Infinity, rural: Infinity, paidByTown: 0, paidByRural: 0 }));
 const settings = vi.hoisted(() => ({ householdGoodsPayment: "free" as "free" | "pay" }));

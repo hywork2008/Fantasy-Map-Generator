@@ -27,6 +27,11 @@ import {
   type MerchantProfitUse,
   setMarketSettings
 } from "../../../../simulation/marketSettings";
+import {
+  getTreelessTownAleWoodland,
+  setTreelessTownAleWoodland,
+  TREELESS_TOWN_ALE_WOODLAND_LIMITS
+} from "../../../../simulation/townAleSettings";
 import { useOptionsState } from "../../../../store/optionsState";
 import { MIN_CURRENCY_EXCHANGE_RATE } from "../../../../utils/currency";
 import { lock } from "../../../../utils/domUtils";
@@ -62,6 +67,7 @@ export const SimulationSettingsTab: React.FC = () => {
     if (Number.isFinite(number)) setMarketSettingsState(setMarketSettings({ [key]: number }));
   };
   const [craftEmploymentShare, setCraftEmploymentShareState] = useState(getCraftEmploymentShare);
+  const [treelessTownAleWoodland, setTreelessTownAleWoodlandState] = useState(getTreelessTownAleWoodland);
   const generationSpacing = getMarketGenerationSpacing(
     worldContext.graphWidth,
     worldContext.graphHeight,
@@ -540,6 +546,23 @@ export const SimulationSettingsTab: React.FC = () => {
                 onChange={v => {
                   const share = Number(v) / 100;
                   if (Number.isFinite(share)) setCraftEmploymentShareState(setCraftEmploymentShare(share));
+                }}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.treelessTownAleWoodlandTip")}>
+            <td />
+            <td>{t("simulation.treelessTownAleWoodland")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="treelessTownAleWoodland"
+                min={TREELESS_TOWN_ALE_WOODLAND_LIMITS.min * 100}
+                max={TREELESS_TOWN_ALE_WOODLAND_LIMITS.max * 100}
+                step={TREELESS_TOWN_ALE_WOODLAND_LIMITS.step * 100}
+                value={Math.round(treelessTownAleWoodland * 100)}
+                onChange={v => {
+                  const share = Number(v) / 100;
+                  if (Number.isFinite(share)) setTreelessTownAleWoodlandState(setTreelessTownAleWoodland(share));
                 }}
               />
             </td>
