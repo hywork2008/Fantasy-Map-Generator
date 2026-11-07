@@ -1,0 +1,143 @@
+
+## 2101 months 13-36
+market | ale/mo | made | drunk | grain | casks | profit | recipe | headroom | brewers | town | rural | K | subsist/K | rural/K | main biome (share of K)
+7 | 802 | 0.23 | 0.23 | 0.00 | 0.77 | 0.00 | 0.00 | 0.00 | 24 | 42087 | 190186 | 319943 | 0.98 | 0.59 | Boreal peatland & muskeg 100%, Alpine tundra 0%
+4 | 446 | 0.00 | 0.00 | 0.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0 | 23537 | 76384 | 130405 | 0.98 | 0.59 | Boreal peatland & muskeg 84%, Wetland 14%
+15 | 246 | 0.00 | 0.00 | 0.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0 | 12754 | 53327 | 91003 | 0.98 | 0.59 | Boreal peatland & muskeg 68%, Wetland 32%
+1 | 1870 | 0.88 | 0.88 | 0.00 | 0.12 | 0.00 | 0.00 | 0.00 | 325 | 92275 | 408174 | 695860 | 0.93 | 0.59 | Temperate rainforest 65%, Flooded forest & riparian woodland 18%
+11 | 467 | 0.63 | 0.63 | 0.00 | 0.09 | 0.00 | 0.00 | 0.28 | 62 | 23919 | 143822 | 244826 | 0.92 | 0.59 | Boreal peatland & muskeg 42%, Central European great forest 22%
+10 | 432 | 0.71 | 0.71 | 0.00 | 0.00 | 0.00 | 0.00 | 0.29 | 61 | 22003 | 121700 | 208008 | 0.96 | 0.59 | Boreal peatland & muskeg 71%, Taiga 20%
+6 | 1304 | 0.92 | 0.92 | 0.00 | 0.08 | 0.00 | 0.00 | 0.00 | 242 | 67016 | 303466 | 511364 | 0.94 | 0.59 | Taiga 23%, Boreal peatland & muskeg 23%
+14 | 244 | 0.77 | 0.77 | 0.03 | 0.06 | 0.00 | 0.00 | 0.14 | 38 | 12573 | 55811 | 93873 | 0.98 | 0.59 | Boreal peatland & muskeg 69%, Taiga 26%
+9 | 456 | 0.95 | 0.95 | 0.00 | 0.00 | 0.00 | 0.00 | 0.05 | 76 | 23615 | 89944 | 153368 | 0.97 | 0.59 | Boreal peatland & muskeg 96%, Temperate rainforest 4%
+13 | 422 | 0.97 | 0.97 | 0.00 | 0.00 | 0.00 | 0.00 | 0.03 | 78 | 21694 | 113238 | 193730 | 0.98 | 0.58 | Boreal peatland & muskeg 98%, Temperate coniferous forest 1%
+16 | 6 | 0.00 | 0.00 | 0.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0 | 363 | 10302 | 17513 | 1.00 | 0.59 | Boreal peatland & muskeg 100%
+3 | 1721 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 330 | 87113 | 419811 | 716153 | 0.89 | 0.59 | Temperate rainforest 98%, Temperate deciduous forest 2%
+5 | 890 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 170 | 45575 | 258190 | 438724 | 0.92 | 0.59 | Temperate rainforest 60%, Wetland 19%
+12 | 467 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 90 | 24548 | 173632 | 304560 | 0.88 | 0.57 | Temperate coniferous forest 68%, Temperate deciduous forest 14%
+8 | 1635 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 314 | 81101 | 544401 | 931736 | 0.92 | 0.58 | Temperate coniferous forest 38%, Temperate rainforest 26%
+2 | 1737 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 334 | 87311 | 613893 | 1044318 | 0.91 | 0.59 | Temperate rainforest 76%, Flooded forest & riparian woodland 18%
+
+## 2102 months 13-36
+market | ale/mo | made | drunk | grain | casks | profit | recipe | headroom | brewers | town | rural | K | subsist/K | rural/K | main biome (share of K)
+2 | 1233 | 0.89 | 0.89 | 0.09 | 0.02 | 0.00 | 0.00 | 0.00 | 216 | 61011 | 330998 | 558748 | 0.93 | 0.59 | Flooded forest & riparian woodland 49%, Temperate rainforest 26%
+12 | 850 | 0.88 | 0.88 | 0.00 | 0.12 | 0.00 | 0.00 | 0.00 | 146 | 43277 | 218777 | 371291 | 0.88 | 0.59 | Temperate rainforest 69%, Boreal peatland & muskeg 16%
+36 | 352 | 0.85 | 0.85 | 0.00 | 0.06 | 0.00 | 0.00 | 0.09 | 64 | 0 | 0 | 0 | 0.00 | 0.00 | 
+28 | 69 | 0.67 | 0.67 | 0.18 | 0.00 | 0.00 | 0.00 | 0.15 | 9 | 3600 | 24782 | 42352 | 1.00 | 0.59 | Flooded forest & riparian woodland 63%, Heath & moorland 20%
+6 | 725 | 0.97 | 0.97 | 0.00 | 0.03 | 0.00 | 0.00 | 0.00 | 138 | 37665 | 195363 | 328765 | 0.93 | 0.59 | Boreal peatland & muskeg 38%, Temperate rainforest 24%
+29 | 41 | 0.73 | 0.73 | 0.09 | 0.00 | 0.00 | 0.10 | 0.08 | 4 | 842 | 1057806 | 1883287 | 0.80 | 0.56 | Taiga 41%, Cold steppe & forest-steppe 40%
+31 | 87 | 0.87 | 0.87 | 0.00 | 0.00 | 0.00 | 0.00 | 0.13 | 13 | 0 | 0 | 0 | 0.00 | 0.00 | 
+32 | 63 | 0.85 | 0.85 | 0.08 | 0.00 | 0.00 | 0.00 | 0.08 | 8 | 0 | 0 | 0 | 0.00 | 0.00 | 
+23 | 227 | 0.97 | 0.97 | 0.00 | 0.00 | 0.00 | 0.00 | 0.04 | 42 | 10142 | 298136 | 516135 | 0.88 | 0.58 | Boreal peatland & muskeg 44%, Taiga 38%
+34 | 48 | 0.90 | 0.89 | 0.00 | 0.00 | 0.00 | 0.00 | 0.11 | 7 | 0 | 0 | 0 | 0.00 | 0.00 | 
+35 | 70 | 0.93 | 0.93 | 0.00 | 0.07 | 0.00 | 0.00 | 0.00 | 9 | 0 | 0 | 0 | 0.00 | 0.00 | 
+38 | 4 | 0.01 | 0.01 | 0.00 | 0.00 | 0.00 | 0.99 | 0.00 | 0 | 0 | 0 | 0 | 0.00 | 0.00 | 
+21 | 415 | 0.99 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.01 | 75 | 27311 | 627269 | 1080531 | 0.90 | 0.58 | Temperate coniferous forest 45%, Cold steppe & forest-steppe 22%
+24 | 212 | 0.99 | 0.98 | 0.00 | 0.00 | 0.00 | 0.00 | 0.02 | 39 | 8526 | 218129 | 408947 | 0.80 | 0.53 | Taiga 66%, Cold steppe & forest-steppe 30%
+30 | 47 | 0.95 | 0.95 | 0.01 | 0.00 | 0.00 | 0.00 | 0.04 | 8 | 2362 | 412427 | 704345 | 0.91 | 0.59 | Cold steppe & forest-steppe 34%, Taiga 28%
+25 | 162 | 0.99 | 0.99 | 0.00 | 0.00 | 0.00 | 0.00 | 0.01 | 31 | 8915 | 78606 | 134576 | 0.95 | 0.58 | Boreal peatland & muskeg 81%, Taiga 19%
+37 | 3 | 0.49 | 0.49 | 0.00 | 0.00 | 0.00 | 0.00 | 0.51 | 0 | 0 | 0 | 0 | 0.00 | 0.00 | 
+26 | 261 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.01 | 51 | 13665 | 276106 | 475525 | 0.87 | 0.58 | Taiga 52%, Cold steppe & forest-steppe 41%
+11 | 938 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 178 | 44718 | 249611 | 427603 | 0.94 | 0.58 | Temperate deciduous forest 60%, Central European great forest 14%
+7 | 908 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 174 | 46356 | 521155 | 883261 | 0.92 | 0.59 | Central European great forest 39%, Temperate rainforest 37%
+13 | 1083 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 208 | 51465 | 344315 | 588447 | 0.94 | 0.59 | Temperate rainforest 40%, Flooded forest & riparian woodland 39%
+20 | 974 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 189 | 48081 | 571969 | 963804 | 0.88 | 0.59 | Temperate deciduous forest 22%, Temperate rainforest 21%
+4 | 968 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 191 | 59921 | 451337 | 770153 | 0.90 | 0.59 | Temperate deciduous forest 42%, Temperate rainforest 18%
+5 | 943 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 184 | 54376 | 348445 | 594353 | 0.90 | 0.59 | Temperate rainforest 50%, Cold steppe & forest-steppe 27%
+33 | 598 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 122 | 0 | 0 | 0 | 0.00 | 0.00 | 
+17 | 1484 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 286 | 76555 | 1008583 | 1733442 | 0.85 | 0.58 | Temperate deciduous forest 42%, Temperate rainforest 29%
+10 | 705 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 127 | 35227 | 1353910 | 2322702 | 0.84 | 0.58 | Temperate deciduous forest 66%, Temperate rainforest 17%
+18 | 867 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 166 | 42879 | 379694 | 651693 | 0.92 | 0.58 | Boreal peatland & muskeg 57%, Temperate coniferous forest 22%
+19 | 347 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 66 | 25110 | 538186 | 909051 | 0.83 | 0.59 | Temperate deciduous forest 84%, Temperate coniferous forest 7%
+27 | 615 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 110 | 25164 | 493626 | 925237 | 0.80 | 0.53 | Temperate deciduous forest 42%, Grassland 26%
+14 | 376 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 71 | 18682 | 514910 | 1046620 | 0.74 | 0.49 | Temperate deciduous forest 49%, Grassland 35%
+1 | 2692 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 512 | 135351 | 1075043 | 1824485 | 0.91 | 0.59 | Temperate rainforest 42%, Temperate deciduous forest 33%
+8 | 1317 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 257 | 66310 | 878480 | 1507025 | 0.86 | 0.58 | Temperate deciduous forest 41%, Temperate rainforest 37%
+22 | 926 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 178 | 49509 | 467111 | 799949 | 0.89 | 0.58 | Temperate rainforest 36%, Central European great forest 24%
+9 | 1287 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 237 | 70793 | 613231 | 1035348 | 0.89 | 0.59 | Temperate deciduous forest 51%, Temperate rainforest 32%
+16 | 279 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.01 | 56 | 15941 | 270375 | 472753 | 0.82 | 0.57 | Temperate deciduous forest 72%, Grassland 16%
+15 | 756 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 136 | 45705 | 1453877 | 2826974 | 0.75 | 0.51 | Cold steppe & forest-steppe 32%, Taiga 25%
+3 | 1258 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 237 | 55504 | 516571 | 915466 | 0.86 | 0.56 | Temperate deciduous forest 69%, Central European great forest 10%
+
+## 2103 months 13-36
+market | ale/mo | made | drunk | grain | casks | profit | recipe | headroom | brewers | town | rural | K | subsist/K | rural/K | main biome (share of K)
+3 | 1561 | 0.72 | 0.72 | 0.00 | 0.28 | 0.00 | 0.00 | 0.00 | 224 | 80102 | 414260 | 708021 | 0.96 | 0.59 | Temperate deciduous forest 41%, Cold steppe & forest-steppe 32%
+9 | 2331 | 0.85 | 0.85 | 0.00 | 0.15 | 0.00 | 0.00 | 0.00 | 395 | 113834 | 789162 | 1413333 | 0.85 | 0.56 | Temperate deciduous forest 47%, Cold steppe & forest-steppe 25%
+5 | 1453 | 0.76 | 0.76 | 0.24 | 0.00 | 0.00 | 0.00 | 0.00 | 226 | 71793 | 423258 | 720793 | 0.93 | 0.59 | Flooded forest & riparian woodland 48%, Temperate rainforest 27%
+27 | 1177 | 0.82 | 0.82 | 0.00 | 0.18 | 0.00 | 0.00 | 0.00 | 196 | 59565 | 314705 | 536194 | 0.91 | 0.59 | Temperate coniferous forest 41%, Temperate rainforest 15%
+2 | 748 | 0.75 | 0.75 | 0.25 | 0.00 | 0.00 | 0.00 | 0.00 | 118 | 38115 | 196440 | 333892 | 0.97 | 0.59 | Flooded forest & riparian woodland 43%, Wetland 25%
+21 | 112 | 0.00 | 0.00 | 0.42 | 0.58 | 0.00 | 0.00 | 0.00 | 0 | 4651 | 159125 | 680865 | 0.37 | 0.23 | Grassland 73%, Volcanic soil 18%
+4 | 222 | 0.53 | 0.53 | 0.01 | 0.11 | 0.00 | 0.00 | 0.34 | 26 | 10836 | 39527 | 67244 | 0.99 | 0.59 | Flooded forest & riparian woodland 47%, Temperate rainforest 40%
+7 | 1575 | 0.95 | 0.95 | 0.05 | 0.00 | 0.00 | 0.00 | 0.00 | 284 | 77167 | 469026 | 789053 | 0.93 | 0.59 | Central European great forest 33%, Flooded forest & riparian woodland 17%
+15 | 673 | 0.89 | 0.89 | 0.00 | 0.09 | 0.00 | 0.00 | 0.02 | 120 | 34645 | 170394 | 290500 | 0.95 | 0.59 | Boreal peatland & muskeg 61%, Temperate coniferous forest 30%
+16 | 372 | 0.84 | 0.84 | 0.00 | 0.00 | 0.00 | 0.00 | 0.16 | 64 | 18106 | 121374 | 206791 | 0.97 | 0.59 | Boreal peatland & muskeg 55%, Temperate coniferous forest 22%
+10 | 1096 | 0.96 | 0.96 | 0.00 | 0.04 | 0.00 | 0.00 | 0.00 | 201 | 56143 | 476008 | 810053 | 0.86 | 0.59 | Temperate deciduous forest 43%, Temperate coniferous forest 22%
+12 | 487 | 0.92 | 0.92 | 0.08 | 0.00 | 0.00 | 0.00 | 0.00 | 83 | 24734 | 269109 | 524154 | 0.75 | 0.51 | Grassland 45%, Temperate deciduous forest 30%
+11 | 832 | 0.96 | 0.96 | 0.00 | 0.04 | 0.00 | 0.00 | 0.00 | 156 | 43261 | 308477 | 713811 | 0.66 | 0.43 | Grassland 57%, Temperate deciduous forest 24%
+24 | 524 | 0.94 | 0.94 | 0.06 | 0.00 | 0.00 | 0.00 | 0.00 | 98 | 25976 | 234134 | 393930 | 0.92 | 0.59 | Temperate coniferous forest 70%, Flooded forest & riparian woodland 19%
+26 | 27 | 0.09 | 0.09 | 0.91 | 0.00 | 0.00 | 0.00 | 0.00 | 1 | 1459 | 4105 | 6843 | 1.00 | 0.60 | Boreal peatland & muskeg 80%, Taiga 20%
+25 | 563 | 0.96 | 0.96 | 0.00 | 0.00 | 0.00 | 0.00 | 0.04 | 105 | 27310 | 245904 | 553712 | 0.67 | 0.44 | Grassland 64%, Temperate deciduous forest 21%
+19 | 85 | 0.91 | 0.91 | 0.00 | 0.00 | 0.00 | 0.00 | 0.09 | 14 | 4456 | 35228 | 60096 | 0.93 | 0.59 | Cold steppe & forest-steppe 70%, Temperate deciduous forest 14%
+23 | 244 | 0.99 | 0.99 | 0.00 | 0.00 | 0.00 | 0.00 | 0.01 | 46 | 12648 | 89274 | 152215 | 0.97 | 0.59 | Boreal peatland & muskeg 74%, Temperate coniferous forest 20%
+22 | 564 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.01 | 106 | 27605 | 231127 | 501198 | 0.63 | 0.46 | Volcanic soil 60%, Temperate deciduous forest 34%
+1 | 1137 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 217 | 58403 | 472289 | 807117 | 0.87 | 0.59 | Temperate rainforest 36%, Temperate deciduous forest 36%
+14 | 491 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 95 | 24717 | 414709 | 916702 | 0.69 | 0.45 | Grassland 53%, Cold steppe & forest-steppe 15%
+18 | 551 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 106 | 27219 | 245765 | 420422 | 0.93 | 0.58 | Cold steppe & forest-steppe 40%, Temperate deciduous forest 17%
+8 | 1637 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 311 | 84450 | 532011 | 906751 | 0.90 | 0.59 | Temperate deciduous forest 52%, Temperate rainforest 28%
+6 | 1740 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 332 | 86763 | 541961 | 926838 | 0.91 | 0.58 | Temperate rainforest 41%, Temperate deciduous forest 26%
+17 | 787 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 150 | 40916 | 431350 | 847722 | 0.78 | 0.51 | Temperate deciduous forest 42%, Grassland 30%
+20 | 704 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 135 | 35994 | 420984 | 833036 | 0.71 | 0.51 | Volcanic soil 42%, Temperate deciduous forest 26%
+13 | 1061 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 202 | 53786 | 358417 | 617812 | 0.83 | 0.58 | Volcanic soil 41%, Temperate deciduous forest 23%
+
+## 2104 months 13-36
+market | ale/mo | made | drunk | grain | casks | profit | recipe | headroom | brewers | town | rural | K | subsist/K | rural/K | main biome (share of K)
+8 | 754 | 0.00 | 0.00 | 0.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0 | 39259 | 229040 | 385722 | 0.96 | 0.59 | Boreal peatland & muskeg 100%
+2 | 1194 | 0.62 | 0.62 | 0.31 | 0.04 | 0.00 | 0.00 | 0.03 | 156 | 60152 | 275199 | 470691 | 0.96 | 0.58 | Temperate rainforest 31%, Boreal peatland & muskeg 25%
+7 | 1655 | 0.88 | 0.88 | 0.03 | 0.09 | 0.00 | 0.00 | 0.00 | 284 | 82846 | 465633 | 804197 | 0.88 | 0.58 | Temperate deciduous forest 46%, Temperate coniferous forest 24%
+12 | 469 | 0.63 | 0.63 | 0.00 | 0.36 | 0.00 | 0.00 | 0.02 | 64 | 23936 | 105261 | 177034 | 0.95 | 0.59 | Temperate rainforest 83%, Cold steppe & forest-steppe 10%
+13 | 476 | 0.74 | 0.74 | 0.00 | 0.00 | 0.00 | 0.00 | 0.26 | 70 | 21364 | 196877 | 336600 | 0.92 | 0.58 | Boreal peatland & muskeg 33%, Temperate coniferous forest 30%
+6 | 834 | 0.92 | 0.92 | 0.00 | 0.08 | 0.00 | 0.00 | 0.00 | 151 | 42890 | 277095 | 473803 | 0.98 | 0.58 | Boreal peatland & muskeg 96%, Temperate coniferous forest 4%
+9 | 582 | 0.90 | 0.89 | 0.04 | 0.00 | 0.00 | 0.00 | 0.06 | 103 | 29034 | 149197 | 254035 | 0.91 | 0.59 | Temperate deciduous forest 35%, Temperate rainforest 26%
+5 | 1921 | 0.97 | 0.95 | 0.03 | 0.00 | 0.00 | 0.00 | 0.00 | 366 | 97902 | 615576 | 1047371 | 0.90 | 0.59 | Central European great forest 33%, Temperate deciduous forest 24%
+14 | 474 | 0.91 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.09 | 84 | 22362 | 346201 | 590518 | 0.90 | 0.59 | Temperate deciduous forest 30%, Cold steppe & forest-steppe 25%
+20 | 182 | 0.85 | 0.84 | 0.15 | 0.00 | 0.00 | 0.00 | 0.01 | 30 | 8213 | 189732 | 361019 | 0.82 | 0.53 | Cold steppe & forest-steppe 44%, Taiga 43%
+4 | 587 | 0.96 | 0.96 | 0.00 | 0.04 | 0.00 | 0.00 | 0.00 | 109 | 29753 | 333613 | 607222 | 0.82 | 0.55 | Taiga 37%, Cold steppe & forest-steppe 29%
+24 | 274 | 0.91 | 0.91 | 0.02 | 0.00 | 0.00 | 0.00 | 0.08 | 49 | 12674 | 323827 | 720750 | 0.63 | 0.45 | Grassland 56%, Taiga 23%
+23 | 371 | 0.95 | 0.95 | 0.03 | 0.00 | 0.00 | 0.00 | 0.02 | 69 | 18937 | 160599 | 300529 | 0.82 | 0.53 | Cold steppe & forest-steppe 47%, Taiga 24%
+16 | 326 | 0.95 | 0.95 | 0.00 | 0.00 | 0.00 | 0.00 | 0.05 | 59 | 16170 | 97394 | 166458 | 0.91 | 0.59 | Boreal peatland & muskeg 34%, Taiga 27%
+21 | 382 | 0.96 | 0.96 | 0.04 | 0.00 | 0.00 | 0.00 | 0.00 | 71 | 18267 | 181382 | 310074 | 0.93 | 0.58 | Temperate coniferous forest 33%, Boreal peatland & muskeg 28%
+26 | 288 | 0.96 | 0.96 | 0.04 | 0.00 | 0.00 | 0.00 | 0.00 | 52 | 14442 | 247394 | 455434 | 0.74 | 0.54 | Cold steppe & forest-steppe 39%, Taiga 37%
+11 | 906 | 0.99 | 1.00 | 0.01 | 0.00 | 0.00 | 0.00 | 0.01 | 170 | 45840 | 406257 | 683639 | 0.88 | 0.59 | Temperate deciduous forest 67%, Grassland 16%
+10 | 966 | 0.99 | 0.99 | 0.00 | 0.01 | 0.00 | 0.00 | 0.00 | 185 | 49476 | 387737 | 662139 | 0.92 | 0.59 | Temperate coniferous forest 49%, Boreal peatland & muskeg 20%
+18 | 240 | 0.97 | 0.97 | 0.00 | 0.00 | 0.00 | 0.00 | 0.03 | 43 | 10685 | 228400 | 385905 | 0.86 | 0.59 | Taiga 52%, Grassland 19%
+17 | 108 | 0.94 | 0.94 | 0.04 | 0.00 | 0.00 | 0.00 | 0.02 | 19 | 4939 | 124983 | 219819 | 0.83 | 0.57 | Cold steppe & forest-steppe 43%, Taiga 42%
+3 | 384 | 0.99 | 0.98 | 0.00 | 0.00 | 0.00 | 0.00 | 0.02 | 72 | 19886 | 199844 | 350897 | 0.80 | 0.57 | Grassland 54%, Temperate deciduous forest 40%
+28 | 15 | 0.67 | 0.66 | 0.00 | 0.00 | 0.00 | 0.00 | 0.34 | 2 | 0 | 0 | 0 | 0.00 | 0.00 | 
+1 | 1494 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.01 | 285 | 72761 | 500511 | 854052 | 0.90 | 0.59 | Temperate deciduous forest 60%, Central European great forest 16%
+27 | 21 | 0.80 | 0.80 | 0.00 | 0.00 | 0.00 | 0.00 | 0.21 | 3 | 0 | 0 | 0 | 0.00 | 0.00 | 
+19 | 279 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 54 | 14255 | 110400 | 194057 | 0.89 | 0.57 | Cold steppe & forest-steppe 59%, Taiga 37%
+15 | 333 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 64 | 16799 | 199224 | 340125 | 0.90 | 0.59 | Cold steppe & forest-steppe 38%, Taiga 30%
+25 | 207 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 40 | 10498 | 79423 | 136055 | 0.92 | 0.58 | Temperate coniferous forest 36%, Boreal peatland & muskeg 34%
+22 | 929 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 180 | 42037 | 403277 | 698178 | 0.86 | 0.58 | Temperate deciduous forest 57%, Grassland 21%
+
+## by biome, seeds 2101 2102 2103 2104 (market figures shared by the biome's share of the market's K)
+biome | habitability | cells | K | subsist/K | rural/K | town people | ale made/demand | grain | casks | profit | recipe | headroom
+Temperate deciduous forest | 100 | 993 | 14867916 | 0.86 | 0.58 | 968899 | 0.97 | 0.00 | 0.03 | 0.00 | 0.00 | 0.00
+Temperate rainforest | 90 | 844 | 9860487 | 0.91 | 0.59 | 981484 | 0.95 | 0.02 | 0.03 | 0.00 | 0.00 | 0.01
+Cold steppe & forest-steppe | 18 | 2374 | 6844604 | 0.84 | 0.58 | 169067 | 0.93 | 0.01 | 0.05 | 0.00 | 0.00 | 0.01
+Grassland | 30 | 1225 | 5545325 | 0.62 | 0.44 | 68947 | 0.94 | 0.02 | 0.03 | 0.00 | 0.00 | 0.01
+Temperate coniferous forest | 25 | 1220 | 5414434 | 0.91 | 0.59 | 351530 | 0.93 | 0.02 | 0.03 | 0.00 | 0.00 | 0.02
+Boreal peatland & muskeg | 3 | 2438 | 5358504 | 0.98 | 0.59 | 482428 | 0.71 | 0.01 | 0.24 | 0.00 | 0.00 | 0.03
+Taiga | 12 | 1821 | 4613260 | 0.77 | 0.53 | 120056 | 0.93 | 0.01 | 0.02 | 0.00 | 0.00 | 0.03
+Central European great forest | 40 | 454 | 2708355 | 0.91 | 0.59 | 215320 | 0.95 | 0.01 | 0.02 | 0.00 | 0.00 | 0.01
+Flooded forest & riparian woodland | 35 | 309 | 2531983 | 1.00 | 0.59 | 268976 | 0.90 | 0.07 | 0.02 | 0.00 | 0.00 | 0.01
+Volcanic soil | 55 | 153 | 1115707 | 0.47 | 0.38 | 32766 | 0.98 | 0.01 | 0.01 | 0.00 | 0.00 | 0.00
+Xeric shrubland | 12 | 414 | 1049764 | 0.92 | 0.59 | 49400 | 0.99 | 0.01 | 0.00 | 0.00 | 0.00 | 0.00
+Wetland | 12 | 332 | 911723 | 0.94 | 0.59 | 87428 | 0.78 | 0.09 | 0.11 | 0.00 | 0.00 | 0.02
+Heath & moorland | 10 | 259 | 530942 | 0.98 | 0.59 | 24857 | 0.84 | 0.11 | 0.03 | 0.00 | 0.00 | 0.02
+Cold desert | 10 | 87 | 120285 | 0.25 | 0.15 | 0 | 0.84 | 0.06 | 0.10 | 0.00 | 0.00 | 0.01
+Tundra | 4 | 23 | 25731 | 0.52 | 0.59 | 0 | 0.92 | 0.02 | 0.00 | 0.00 | 0.03 | 0.02
+Alpine tundra | 2 | 998 | 21658 | 0.73 | 0.49 | 1320 | 0.57 | 0.00 | 0.35 | 0.00 | 0.00 | 0.08
+Montane forest | 18 | 1 | 2995 | 0.73 | 0.58 | 0 | 1.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00
+Glacier & perennial snowfield | 0 | 168 | 0 | 0.00 | 0.00 | 0 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00
+Volcanic barrens | 3 | 12 | 0 | 0.00 | 0.00 | 0 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00
