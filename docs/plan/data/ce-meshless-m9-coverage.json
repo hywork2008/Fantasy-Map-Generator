@@ -77,55 +77,64 @@
       "status": "limited",
       "tests": [
         "src/city-editor/generators/vector/features.test.ts",
-        "src/city-editor/services/io/vector/legacyCopy.test.ts"
+        "src/city-editor/services/io/vector/legacyCopy.test.ts",
+        "src/city-editor/generators/vector/m9FeatureAcceptance.test.ts"
       ],
       "accepted": [
         "One castle circuit, a shared gate and an orthogonal moat crossing",
         "Bastions only from the age of exploration, with fixed ownership blocking removal",
-        "Legacy documents stay restorable; unsupported pieces are reported instead of dropped"
+        "Legacy documents stay restorable; unsupported pieces are reported instead of dropped",
+        "A generated legacy bastioned defense restores exactly and reports all 49 omitted detailed entities individually"
       ],
       "remaining": [
-        "Automatic semantic conversion of a detailed legacy defense plan"
+        "Automatic semantic conversion of detailed legacy defenses: ownership, ditch elevations, outworks, glacis and accesses",
+        "Ordinary generated legacy documents can exceed the existing 6 MiB copy budget; the bounded defense fixture excludes unrelated infill and rural snapshots"
       ],
-      "evidence": "Accepted on fixed inputs: a castle circuit, shared gate, orthogonal moat, period-gated bastion and fixed ownership. The legacy original is retained. Automatic conversion of a detailed defense plan is not established."
+      "evidence": "Fixed legacy defense acceptance reports all 49 omitted entities and restores its archived source. Detailed semantic conversion is not accepted; standing wall paths alone do not preserve the defense plan."
     },
     {
       "id": "harbor-ships-and-market",
       "status": "limited",
       "tests": [
         "src/city-editor/generators/vector/features.test.ts",
-        "src/city-editor/generators/vector/terrain.test.ts"
+        "src/city-editor/generators/vector/terrain.test.ts",
+        "src/city-editor/generators/vector/m9FeatureAcceptance.test.ts"
       ],
       "accepted": [
         "Dry quay, cargo route and waterborne ship on the nearest bank",
-        "Market-day activity and locked booth appearance"
+        "Market-day activity and locked booth appearance",
+        "A real legacy fixture with one cargo quay, four ships and one active cargo assignment restores exactly; omitted cargo links are reported individually"
       ],
       "remaining": [
-        "Legacy port navigation, cargo handling and detailed ship plans"
+        "Legacy draft-safe navigation, cargo crane/berth links, physical ship plans and display state have no active vector equivalent"
       ],
-      "evidence": "Accepted on fixed inputs: a dry quay, cargo route, ship on the nearest bank, and locked market booths. Legacy navigation, cargo handling and detailed ship plans are not established."
+      "evidence": "The legacy fixture passes source navigation and cargo ownership checks, but its operational links and ships are archived rather than converted. Legacy harbor acceptance is rejected; simplified new harbor geometry is not proof of parity."
     },
     {
       "id": "temple-cemetery-park-farm-forest",
       "status": "limited",
       "tests": [
-        "src/city-editor/generators/vector/features.test.ts"
+        "src/city-editor/generators/vector/features.test.ts",
+        "src/city-editor/generators/vector/m9FeatureAcceptance.test.ts"
       ],
       "accepted": [
         "Market, temple, cemetery, park, farm and forest regions keep the same geometry in native, 2D and 3D",
-        "An optional BV asset keeps its own dimensions"
+        "An optional BV asset keeps its own dimensions",
+        "Resolved legacy automatic forest boundaries, clearing holes, water and road exclusions, disjoint farm ownership, native persistence and shared 2D/3D geometry as a snapshot"
       ],
       "remaining": [
-        "Legacy automatic landscape and culture settings"
+        "Legacy tree appearance and automatic forest regeneration",
+        "Other legacy automatic landscapes and cultural settings"
       ],
-      "evidence": "Accepted on fixed inputs: reserved market, temple, cemetery, park, farm and forest geometry, plus an unscaled BV asset. Legacy automatic landscape and culture settings are not established."
+      "evidence": "Legacy automatic forest snapshots match the old forest planner: 3200 m2 with a clearing hole, 2800 m2 after water exclusion and 2624 m2 with road exclusion. Copied farm regions exclude forests. Tree appearance, regeneration and culture remain unaccepted."
     },
     {
       "id": "terrain-and-freeform-placement",
       "status": "limited",
       "tests": [
         "src/city-editor/generators/vector/terrain.test.ts",
-        "src/city-editor/renderers/vector/precision.test.ts"
+        "src/city-editor/renderers/vector/precision.test.ts",
+        "src/city-editor/generators/vector/m9FeatureAcceptance.test.ts"
       ],
       "accepted": [
         "Authored pads, sculpt, lawful crossings, rigid pad moves and source restoration",
@@ -133,9 +142,9 @@
       ],
       "remaining": [
         "A continuous vertical-error guarantee across sharp grading breaklines",
-        "Draw-grid terrain remains approximate"
+        "Fixed draw-grid interpolation has 15 m sampled vertical error on the unaligned 20 m pad fixture, despite zero evaluator error"
       ],
-      "evidence": "Accepted on fixed inputs: authored pads, sculpt, lawful crossings, rigid moves, source restoration and district holes. Draw-grid terrain stays approximate, and a continuous vertical-error guarantee across sharp breaklines is not established."
+      "evidence": "An independent 0.25 m wall-band formula and barycentric interpolation of actual draw triangles are compared at 257 points. Evaluator error is zero; maximum sampled draw error is 15 m. This rejects sharp-boundary display acceptance and does not constitute a continuous certificate."
     },
     {
       "id": "two-and-three-dimensional-view",

@@ -332,6 +332,9 @@ export function generateVectorUrban(
     pathId: string;
     depth: number;
     anchor: ReturnType<typeof nearestRoadAnchor>;
+    origin: Point;
+    normal: Point;
+    tangent: Point;
     start: Point;
     end: Point;
   }[] = [];

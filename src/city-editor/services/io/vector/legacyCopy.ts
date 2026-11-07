@@ -1,4 +1,6 @@
 import { buildBlockFabric } from "../../../generators/blockInfill";
+import { buildForestPlan } from "../../../generators/forestPlan";
+import { hasForestState } from "../../../generators/forestSettings";
 import { convexHull, polygonCentroid } from "../../../generators/geom";
 import { transformLandmarkPolygons } from "../../../generators/landmarks";
 import { facePoints } from "../../../generators/mesh";
@@ -167,15 +169,25 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
     id: string,
     kind: "district" | "reservation" | "forest" | "farm" | "park" | "cemetery",
     outer: Point[],
-    holes: Point[][] = []
+    holes: Point[][] = [],
+    snapshot = false
   ) => {
-    const key = `copy:region:${Object.keys(doc.regions).length}`,
+    let index = Object.keys(doc.regions).length;
+    while (doc.regions[`copy:region:${index}`]) index++;
+    const key = `copy:region:${index}`,
       candidate = structuredClone(doc);
     candidate.regions[key] = { id: key, kind, outer: structuredClone(outer), holes: structuredClone(holes) };
     try {
       assertVectorDocument(candidate);
       doc.regions[key] = candidate.regions[key];
-      record(id, "converted", kind, "Original polygon and holes retained; editable cell attributes are archived.");
+      record(
+        id,
+        snapshot ? "snapshot" : "converted",
+        kind,
+        snapshot
+          ? "Resolved source forest boundary and clearings retained. Tree appearance and automatic regeneration remain archived."
+          : "Original polygon and holes retained; editable cell attributes are archived."
+      );
     } catch {
       record(id, "unsupported", kind, "Source polygon exceeds vector geometry constraints; archived without repair.");
     }
@@ -312,8 +324,41 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
       );
     }
   };
-  if (source.fabric) {
-    const fabric = buildBlockFabric(source);
+  // Resolve old automatic cover once, using the same reservations as the old editor.
+  // Only independent polygons are adopted; no source cells enter the vector document.
+  const fabric = source.fabric ? buildBlockFabric(source) : undefined;
+  if (hasForestState(source)) {
+    const forest = buildForestPlan(source, fabric ?? { buildings: [], lanes: [], entrances: new Map(), farms: [] });
+    const cover = forest.regions.map(r => ({ outer: r.outer, holes: r.holes }));
+    // A farm ward may now be forest. Preserve only its non-forest area rather than
+    // keeping contradictory farm/forest ownership at the same coordinates.
+    for (const [id, r] of Object.entries(doc.regions)) {
+      if (r.kind !== "farm") continue;
+      const rest = regionBoolean([r], cover, "difference");
+      if (rest.length === 1 && JSON.stringify(rest[0]) === JSON.stringify({ outer: r.outer, holes: r.holes })) continue;
+      delete doc.regions[id];
+      record(
+        id,
+        "snapshot",
+        "farm",
+        "Copied farm ownership excludes the resolved automatic forest; original cell attributes remain archived."
+      );
+      for (const [i, polygon] of rest.entries()) {
+        const key = `${id}:open:${i}`;
+        doc.regions[key] = { ...r, id: key, ...polygon };
+      }
+    }
+    for (const r of forest.regions) region(`forest:${r.id}`, "forest", r.outer, r.holes, true);
+    for (const face of Object.values(source.mesh.faces))
+      if (face.properties.landCoverOverride !== undefined)
+        record(
+          face.id,
+          "unsupported",
+          "land-cover-override",
+          "Resolved forest geometry is copied; per-cell override editing remains archived."
+        );
+  }
+  if (fabric) {
     for (const [i, b] of fabric.buildings.entries())
       addPlacement(
         b.id ?? `building:${i}`,
@@ -373,6 +418,41 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
     }
     record(e.id, "unsupported", e.kind, "No complete vector equivalent. Exact source element is archived.");
   }
+  // Archive restoration is not semantic conversion. Report each omitted plan entity
+  // so adoption review does not hide a missing ditch, access, sluice or cargo link.
+  const omitted = (id: string, category: string) =>
+    record(
+      id,
+      "unsupported",
+      category,
+      "Detailed geometry, ownership and operating semantics remain in the source archive; no active vector equivalent was created."
+    );
+  const defense = source.bastionedTown;
+  if (defense) {
+    for (const key of [
+      "bastions",
+      "curtains",
+      "outworks",
+      "ditches",
+      "coveredWays",
+      "accesses",
+      "sluices",
+      "works"
+    ] as const)
+      for (const part of defense[key] ?? []) omitted(part.id, `defense-${key}`);
+    for (const [i] of defense.glacis.entries()) omitted(`${defense.id}:glacis:${i}`, "defense-glacis");
+  }
+  for (const castle of source.castles ?? []) {
+    for (const part of castle.parts) omitted(part.id, "castle-part");
+    for (const [i] of castle.courtyards.entries()) omitted(`${castle.id}:courtyard:${i}`, "castle-courtyard");
+    for (const [i] of castle.accesses.entries()) omitted(`${castle.id}:access:${i}`, "castle-access");
+  }
+  for (const cemetery of source.cemeteries ?? []) {
+    for (const part of cemetery.parts) omitted(part.id, "cemetery-part");
+    for (const [i] of cemetery.accesses.entries()) omitted(`${cemetery.id}:access:${i}`, "cemetery-access");
+  }
+  for (const ship of source.elements.filter(e => e.kind === "ship" && e.harborOperation))
+    omitted(`${ship.id}:cargo`, "harbor-cargo-assignment");
   const handled = new Set([
     "format",
     "version",
