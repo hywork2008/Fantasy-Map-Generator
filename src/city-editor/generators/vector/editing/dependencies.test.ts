@@ -16,7 +16,7 @@ const city = () =>
   generateVectorUrban(
     generateVectorSkeleton(syntheticVectorInput("m6", 100, false), { ...DEFAULT_VECTOR_GENERATION, branches: 4 })
       .document,
-    { ...DEFAULT_VECTOR_URBAN, population: 200, maxLanes: 4 }
+    { ...DEFAULT_VECTOR_URBAN, mode: "medieval-facilities", population: 200, maxLanes: 4 }
   );
 describe("meshless dependency transactions", () => {
   it("relocates only affected automatic placements and commits shape, population and checkpoints together", () => {
@@ -91,7 +91,7 @@ describe("physical dependency updates", () => {
     input.site!.fixedPaths = input.site!.fixedPaths.filter(p => p.id !== "input-river");
     const source = generateVectorUrban(
       generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, branches: 4 }).document,
-      { ...DEFAULT_VECTOR_URBAN, population: 200, maxLanes: 2 }
+      { ...DEFAULT_VECTOR_URBAN, mode: "medieval-facilities", population: 200, maxLanes: 2 }
     );
     const p = structuredClone(source.paths["input-river"]);
     p.width.leftMeters += 2;

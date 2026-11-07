@@ -4,7 +4,7 @@ import { featureReservations } from "../environmentState";
 import { deriveVectorBlocks, generationFingerprint, reachablePaths } from "../generation/pipeline";
 import { generateVectorUrban } from "../generation/urban";
 import { waterDistance } from "../generation/urbanPacking";
-import { vectorUrbanFingerprint } from "../generation/urbanState";
+import { matchesVectorUrbanFingerprint } from "../generation/urbanState";
 import { evaluateAnchor } from "../geometry/curves";
 import { bridgeGeometry, dryLandingExtent, gateOpening, junctionSurface, unit } from "../geometry/network";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
@@ -92,7 +92,7 @@ export function reconcileVectorEdit(source: VectorCityDocument, candidate: Vecto
         affectedBlocks: []
       }
     };
-  if (previous.inputRevision !== source.revision || previous.adoptedFingerprint !== vectorUrbanFingerprint(source))
+  if (previous.inputRevision !== source.revision || !matchesVectorUrbanFingerprint(source, previous.adoptedFingerprint))
     throw new Error("dependency-stale");
   const authoredChanges = Object.keys(candidate.paths).filter(
     id => source.paths[id] && !same(source.paths[id], candidate.paths[id])

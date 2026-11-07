@@ -64,7 +64,8 @@ export function parseVectorDocument(text: string): VectorCityDocument | null {
 export function serializeVectorDocument(document: VectorCityDocument): string {
   assertVectorDocument(document);
   if (document.legacyCopy && !parseDocument(document.legacyCopy.sourceJson)) throw new Error("legacy-source");
-  const text = JSON.stringify(document, null, 2);
+  const pretty = JSON.stringify(document, null, 2);
+  const text = pretty.length <= VECTOR_DOCUMENT_LIMITS.textLength ? pretty : JSON.stringify(document);
   if (text.length > VECTOR_DOCUMENT_LIMITS.textLength) throw new Error("Vector document exceeds the file budget");
   return text;
 }

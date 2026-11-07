@@ -288,7 +288,7 @@ export function createVectorGenerationPanel(
     option.textContent = value;
     mode.append(option);
   }
-  mode.value = "medieval-facilities";
+  mode.value = "medieval";
   field("mode", mode);
   const population = number(
       "population",
@@ -446,7 +446,7 @@ export function createVectorGenerationPanel(
       wall.value = doc.generation?.settings.wall ?? "none";
       showDiagnostics(doc);
       updateStages(doc);
-      mode.value = doc.urban?.settings.mode ?? "medieval-facilities";
+      mode.value = doc.urban?.settings.mode ?? "medieval";
       population.value = String(
         doc.urban?.settings.population ??
           (doc.context.targetPopulation ||

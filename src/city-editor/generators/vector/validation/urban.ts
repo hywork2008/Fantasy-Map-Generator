@@ -1,7 +1,9 @@
 import RBush from "rbush";
+import { residentialStoreys } from "../../../../utils/urbanMorphology";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorStage } from "../../../types/vector/urban";
 import { polygonArea } from "../../geom";
+import { dwellingCapacity } from "../../residentialCapacityFormula";
 import {
   allocateVectorResidents,
   VECTOR_HOUSE_FLOOR_AREA,
@@ -10,7 +12,7 @@ import {
   vectorHouseDwellings,
   vectorPlacementDwellings
 } from "../generation/urbanCapacity";
-import { vectorUrbanFingerprint } from "../generation/urbanState";
+import { matchesVectorUrbanFingerprint } from "../generation/urbanState";
 import { evaluateAnchor } from "../geometry/curves";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { simpleContour } from "../geometry/surfaces";
@@ -106,10 +108,14 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
         (b.riverbankDistanceMeters !== undefined &&
           (!finite(b.riverbankDistanceMeters) || b.riverbankDistanceMeters < 0)) ||
         (b.kind === "housing" &&
-          (b.storeys !== VECTOR_HOUSE_STOREYS ||
-            b.floorFootprintMeters2 !== VECTOR_HOUSE_FLOOR_AREA ||
-            b.residentialShare !== VECTOR_HOUSE_SHARE ||
-            b.dwellings !== vectorHouseDwellings())) ||
+          (p.modelId === "ce-perimeter-house"
+            ? b.storeys !== residentialStoreys(doc.context.historicalPeriod).standard ||
+              Math.abs(b.floorFootprintMeters2 - b.footprint.reduce((n, p) => n + regionArea(p), 0)) > 1e-5 ||
+              b.dwellings !== dwellingCapacity(b.floorFootprintMeters2, b.storeys, b.residentialShare)
+            : b.storeys !== VECTOR_HOUSE_STOREYS ||
+              b.floorFootprintMeters2 !== VECTOR_HOUSE_FLOOR_AREA ||
+              b.residentialShare !== VECTOR_HOUSE_SHARE ||
+              b.dwellings !== vectorHouseDwellings())) ||
         (b.kind === "facility" && (b.dwellings > 1 || (b.dwellings > 0 && !p.modelId.startsWith("trade-workhome."))))
       )
         errors.push(`building:${p.id}`);
@@ -236,7 +242,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
   if (validateVectorGeneration(baseline).length) errors.push("urban-baseline");
   if (u.inputRevision === doc.revision) {
     if (
-      u.adoptedFingerprint !== vectorUrbanFingerprint(doc) ||
+      !matchesVectorUrbanFingerprint(doc, u.adoptedFingerprint) ||
       u.ownedPaths.some(id => !doc.paths[id]) ||
       u.ownedPlacements.some(id => !doc.placements[id])
     )

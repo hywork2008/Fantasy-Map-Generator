@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { residentialStoreys } from "../../../../utils/urbanMorphology";
 import { renderVectorDocument } from "../../../renderers/vector/documentSvg";
 import { parseVectorDocument, serializeVectorDocument } from "../../../services/io/vector/documentCodec";
+import { dwellingCapacity } from "../../residentialCapacityFormula";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { syntheticVectorInput } from "./input";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
-import { VECTOR_HOUSE_FLOOR_AREA, VECTOR_HOUSE_STOREYS } from "./urbanCapacity";
 
 const skeleton = () =>
   generateVectorSkeleton(syntheticVectorInput("m5", 100, false), { ...DEFAULT_VECTOR_GENERATION, branches: 4 })
@@ -29,7 +30,12 @@ describe("meshless urban generation", () => {
     expect(parseVectorDocument(serializeVectorDocument(doc))).toEqual(doc);
   });
   it("reserves facilities before housing and replays the same saved result", () => {
-    const doc = generateVectorUrban(skeleton(), { ...DEFAULT_VECTOR_URBAN, population: 200, maxLanes: 4 });
+    const doc = generateVectorUrban(skeleton(), {
+      ...DEFAULT_VECTOR_URBAN,
+      mode: "medieval-facilities",
+      population: 200,
+      maxLanes: 4
+    });
     const urban = doc.urban!;
     expect(urban.report.placedFacilities).toBeGreaterThan(0);
     const blocks = renderVectorDocument(doc, undefined, undefined, "blocksAndLanes"),
@@ -100,13 +106,9 @@ describe("urban physical constraints and capacity deficits", () => {
         )
       ).toBe(true);
     for (const p of Object.values(doc.placements).filter(p => p.building?.kind === "housing")) {
-      expect(p.building).toMatchObject({
-        floorFootprintMeters2: 40,
-        storeys: 2,
-        residentialShare: 0.85,
-        dwellings: 1,
-        provenance: "bv"
-      });
+      expect(p.building!.floorFootprintMeters2).toBeCloseTo(regionArea(p.site), 5);
+      expect(p.building!.storeys).toBe(residentialStoreys(doc.context.historicalPeriod).standard);
+      expect(p.building!.dwellings).toBe(dwellingCapacity(regionArea(p.site), p.building!.storeys));
       expect(regionBoolean(p.building!.reserved, [source.placements.fixed.site], "intersection")).toHaveLength(0);
     }
   });
@@ -171,7 +173,7 @@ describe("urban physical constraints and capacity deficits", () => {
   it("records a capped facility search separately from housing land or housing search", () => {
     const starved = generateVectorUrban(
       skeleton(),
-      { ...DEFAULT_VECTOR_URBAN, population: 200, maxLanes: 2 },
+      { ...DEFAULT_VECTOR_URBAN, mode: "medieval-facilities", population: 200, maxLanes: 2 },
       undefined,
       { facilityAttempts: 0, requestAttempts: 5, housingAttempts: 40000 }
     );
@@ -215,7 +217,7 @@ describe("urban physical constraints and capacity deficits", () => {
     expect(profile.housingAttempts).toBeGreaterThan(0);
     expect(profile.housingStop === "demand-met" || profile.housingStop === "frontage").toBe(true);
   });
-  it("folds lanes across blocks until the fixed 5000-person town can hold real-size houses", () => {
+  it("uses CE perimeter blocks to house 5000 people without facilities or folded lanes", () => {
     const doc = generateVectorUrban(
       generateVectorSkeleton(syntheticVectorInput("m9-fixed", 240, true), {
         ...DEFAULT_VECTOR_GENERATION,
@@ -225,9 +227,23 @@ describe("urban physical constraints and capacity deficits", () => {
       { ...DEFAULT_VECTOR_URBAN, population: 5000, maxLanes: 8 }
     );
     const house = Object.values(doc.placements).find(p => p.building?.kind === "housing");
-    expect(house?.building?.floorFootprintMeters2).toBe(VECTOR_HOUSE_FLOOR_AREA);
-    expect(house?.building?.storeys).toBe(VECTOR_HOUSE_STOREYS);
-    expect(doc.urban!.ownedPaths.length).toBeLessThanOrEqual(8);
+    expect(house?.modelId).toBe("ce-perimeter-house");
+    expect(house?.building?.dimensionSource).toBe("CE organicBlocks / perimeterHousing");
+    expect(doc.urban!.report.requiredFacilities).toBe(0);
+    expect(doc.urban!.report.placedFacilities).toBe(0);
+    for (const id of doc.urban!.ownedPaths) {
+      const path = doc.paths[id];
+      if (path.source.kind !== "curve") continue;
+      for (let i = 1; i < path.source.segments.length; i++) {
+        const a = path.source.segments[i - 1],
+          b = path.source.segments[i];
+        const ux = a.to[0] - a.from[0],
+          uy = a.to[1] - a.from[1],
+          vx = b.to[0] - b.from[0],
+          vy = b.to[1] - b.from[1];
+        expect((ux * vx + uy * vy) / (Math.hypot(ux, uy) * Math.hypot(vx, vy))).toBeGreaterThan(-0.5);
+      }
+    }
     expect(doc.urban!.ownedPaths.length).toBeGreaterThan(0);
     expect(doc.urban!.report.unplacedDwellings).toBe(0);
     expect(doc.urban!.report.unplacedPopulation).toBe(0);

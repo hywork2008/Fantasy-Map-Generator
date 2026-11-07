@@ -105,6 +105,9 @@ describe("M4 input, generation and adopted stages", () => {
     expect(generated.recipe.seed).toBe("b5o620");
     expect(generated.context.historicalPeriod).toBe("ageOfExploration");
     expect(generated.urban?.report.targetPopulation).toBe(5000);
+    expect(generated.urban?.settings.mode).toBe("medieval");
+    expect(generated.urban?.report.requiredFacilities).toBe(0);
+    expect(generated.urban?.report.unplacedPopulation).toBe(0);
     expect(Object.keys(generated.paths).length).toBeGreaterThan(4);
     expect(Object.values(generated.placements).some(p => p.building?.kind === "housing")).toBe(true);
     expect(map.querySelector("[data-vector-placement]")).not.toBeNull();
@@ -234,6 +237,7 @@ describe("M5 adopted urban checkpoints", () => {
       expect(root.querySelector<HTMLButtonElement>('[data-generation-action="adopt"]')!.disabled).toBe(false)
     );
     click("adopt");
+    fill("mode", "medieval-facilities");
     fill("population", "500");
     fill("maxLanes", "4");
     const index = history.index;
