@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import type { Author } from "../authors";
-import type { ModelPartFactory } from "../modelParts";
+import type { ModelPartFactory } from "../modelPartTypes";
 import type { ModelVariant } from "../modelVariants";
 
 export interface MedievalModel {
