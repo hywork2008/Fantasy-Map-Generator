@@ -74,6 +74,8 @@ function obstacles(doc: VectorCityDocument): VectorPolygon[] {
 export function reconcileVectorEdit(source: VectorCityDocument, candidate: VectorCityDocument): VectorEditResult {
   assertVectorDocument(source);
   assertVectorDocument(candidate);
+  for (const [id, plan] of Object.entries(source.environment?.defenses ?? {}))
+    if (!same(plan, candidate.environment?.defenses?.[id])) throw Error(`dependency-fixed-defense:${id}`);
   const previous = source.urban;
   if (!previous)
     return {

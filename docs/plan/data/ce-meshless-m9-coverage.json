@@ -84,13 +84,14 @@
         "One castle circuit, a shared gate and an orthogonal moat crossing",
         "Bastions only from the age of exploration, with fixed ownership blocking removal",
         "Legacy documents stay restorable; unsupported pieces are reported instead of dropped",
-        "A generated legacy bastioned defense restores exactly and reports all 49 omitted detailed entities individually"
+        "Automatic conversion of a flat inland legacy bastioned plan: 49 semantic entities, wall-span anchors, fixed ownership, shared gates and road access, saved absolute elevations, dry/wet ditches, excavated ground and generation reservations"
       ],
       "remaining": [
-        "Automatic semantic conversion of detailed legacy defenses: ownership, ditch elevations, outworks, glacis and accesses",
+        "Relief and waterfront/sluice defenses are explicitly rejected until their ground and water authorities are supported",
+        "Legacy castle plans and editable detailed defense authoring",
         "Ordinary generated legacy documents can exceed the existing 6 MiB copy budget; the bounded defense fixture excludes unrelated infill and rural snapshots"
       ],
-      "evidence": "Fixed legacy defense acceptance reports all 49 omitted entities and restores its archived source. Detailed semantic conversion is not accepted; standing wall paths alone do not preserve the defense plan."
+      "evidence": "Fixed flat inland dry/wet defenses convert 49 entities without mesh references and restore the archived original exactly. Generated blocks overlap defense reservations by 0.000004236 m2, below the 1e-5 m2 tolerance. Native parsing rejects dangling owners, portals and wall anchors, nonfinite elevations and unlawful skew; fixed edits are rejected. Broader defense parity remains limited."
     },
     {
       "id": "harbor-ships-and-market",

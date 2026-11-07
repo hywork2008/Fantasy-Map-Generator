@@ -23,6 +23,7 @@ import type { CurveAnchor, VectorCityDocument, VectorPath, VectorPlacement } fro
 import { parseDocument, serializeDocument } from "../documentCodec";
 import { serializeVectorDocument } from "./documentCodec";
 import { vectorFromFreeform } from "./freeform";
+import { copyLegacyDefense } from "./legacyDefense";
 export type VectorCopyReport = NonNullable<VectorCityDocument["legacyCopy"]>["report"];
 /** Explicit one-time adapter. The source archive preserves every feature without fabricating cells on the vector side. */
 export function copyLegacyCity(source: CityDocument): { document: VectorCityDocument; report: VectorCopyReport } {
@@ -50,7 +51,9 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
   };
   const report: VectorCopyReport = [],
     anchors = new Map<string, CurveAnchor[]>(),
-    planks: string[] = [];
+    planks: string[] = [],
+    groupPaths = new Map<string, string[]>(),
+    gateIds = new Map<string, string>();
   const record = (id: string, status: VectorCopyReport[number]["status"], category: string, reason: string) =>
     report.push({ id, status, category, reason });
   const addPath = (id: string, role: VectorPath["role"], points: Point[], width: number, vertices?: string[]) => {
@@ -69,8 +72,16 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
     candidate.paths[key] = p;
     try {
       assertVectorDocument(candidate);
-    } catch {
-      record(id, "unsupported", role, "Source chain cannot satisfy vector geometry; exact source is archived.");
+    } catch (error) {
+      record(
+        id,
+        "unsupported",
+        role,
+        `Source chain cannot satisfy vector geometry: ${error instanceof Error ? error.message : "invalid"}. Exact source is archived.`.slice(
+          0,
+          500
+        )
+      );
       return;
     }
     doc.paths[key] = p;
@@ -106,6 +117,7 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
           g.style.widthMeters,
           chain
         );
+        if (id) groupPaths.set(g.id, [...(groupPaths.get(g.id) ?? []), id]);
         if (id && g.kind === "plank") planks.push(id);
       }
       chain = [];
@@ -115,6 +127,17 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
         a = ref.forward ? e.a : e.b,
         b = ref.forward ? e.b : e.a;
       if (chain.length && chain.at(-1) !== a) flush();
+      if (source.bastionedTown && chain.length >= 2) {
+        const before = source.mesh.vertices[chain[chain.length - 2]].point,
+          corner = source.mesh.vertices[a].point,
+          after = source.mesh.vertices[b].point,
+          u = [corner[0] - before[0], corner[1] - before[1]],
+          v = [after[0] - corner[0], after[1] - corner[1]],
+          scale = Math.hypot(...u) * Math.hypot(...v);
+        // A defense rampart is not a constant-width ribbon around a sharp star.
+        // Keep exact straight spans and shared nodes; the plan owns the corner masses.
+        if (Math.abs(u[0] * v[1] - u[1] * v[0]) > scale * 1e-8 || u[0] * v[0] + u[1] * v[1] <= 0) flush();
+      }
       if (!chain.length) chain.push(a);
       chain.push(b);
     }
@@ -145,14 +168,22 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
       continue;
     }
     try {
-      doc = createVectorGate(
-        doc,
+      const previousGates = new Set(Object.keys(doc.connections.gates));
+      const assembly = structuredClone(doc);
+      assembly.paths[wall.pathId].editPolicy = "editable";
+      const withGate = createVectorGate(
+        assembly,
         wall,
         access,
         g.passageWidthMeters ??
           Math.max(4, (doc.paths[access.pathId].width.leftMeters + doc.paths[access.pathId].width.rightMeters) * 1.5),
         g.role === "water" ? "water" : "passage"
       );
+      withGate.paths[wall.pathId].editPolicy = "fixed";
+      assertVectorDocument(withGate);
+      doc = withGate;
+      const created = Object.keys(doc.connections.gates).find(id => !previousGates.has(id));
+      if (created) gateIds.set(g.id, created);
       record(
         g.id,
         g.passageWidthMeters ? "converted" : "snapshot",
@@ -161,8 +192,16 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
           ? "Exact shared source vertex and opening width retained."
           : "Opening width inferred from the source road; original gate is archived."
       );
-    } catch {
-      record(g.id, "unsupported", "gate", "Opening or access violates vector constraints. Source gate is archived.");
+    } catch (error) {
+      record(
+        g.id,
+        "unsupported",
+        "gate",
+        `Opening or access violates vector constraints: ${error instanceof Error ? error.message : "invalid"}. Source gate is archived.`.slice(
+          0,
+          500
+        )
+      );
     }
   }
   const region = (
@@ -428,7 +467,33 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
       "Detailed geometry, ownership and operating semantics remain in the source archive; no active vector equivalent was created."
     );
   const defense = source.bastionedTown;
+  let defenseConverted = false;
   if (defense) {
+    try {
+      const converted = copyLegacyDefense(source, doc, anchors, groupPaths, gateIds);
+      const candidate = structuredClone(doc);
+      candidate.environment ??= { features: {}, hidden: [] };
+      candidate.environment.defenses = { ...candidate.environment.defenses, [converted.id]: converted };
+      assertVectorDocument(candidate);
+      doc = candidate;
+      defenseConverted = true;
+      record(
+        defense.id,
+        "converted",
+        "defense-plan",
+        "Independent defense geometry, elevations, ownership, wall spans, portals and access references retained as fixed semantic input."
+      );
+    } catch (error) {
+      record(
+        defense.id,
+        "unsupported",
+        "defense-plan",
+        `Atomic defense conversion rejected: ${error instanceof Error ? error.message : "invalid-defense"}. The full source is archived.`.slice(
+          0,
+          500
+        )
+      );
+    }
     for (const key of [
       "bastions",
       "curtains",
@@ -439,8 +504,24 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
       "sluices",
       "works"
     ] as const)
-      for (const part of defense[key] ?? []) omitted(part.id, `defense-${key}`);
-    for (const [i] of defense.glacis.entries()) omitted(`${defense.id}:glacis:${i}`, "defense-glacis");
+      for (const part of defense[key] ?? [])
+        if (defenseConverted)
+          record(
+            part.id,
+            "converted",
+            `defense-${key}`,
+            "Geometry, elevations and semantic ownership retained by the fixed defense plan."
+          );
+        else omitted(part.id, `defense-${key}`);
+    for (const [i] of defense.glacis.entries())
+      if (defenseConverted)
+        record(
+          `${defense.id}:glacis:${i}`,
+          "converted",
+          "defense-glacis",
+          "Independent defense reservation retained with polygon holes."
+        );
+      else omitted(`${defense.id}:glacis:${i}`, "defense-glacis");
   }
   for (const castle of source.castles ?? []) {
     for (const part of castle.parts) omitted(part.id, "castle-part");
@@ -469,7 +550,8 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
     "generationSeed",
     "waterAreas",
     "regionalWaterAreas",
-    "populationPlan"
+    "populationPlan",
+    ...(defenseConverted ? ["bastionedTown"] : [])
   ]);
   for (const [key, value] of Object.entries(source))
     if (!handled.has(key) && value !== undefined && value !== null && !(Array.isArray(value) && !value.length))

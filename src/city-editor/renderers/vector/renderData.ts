@@ -11,6 +11,7 @@ import type { Point } from "../../types/primitives";
 import type { VectorCityDocument, VectorPath, VectorPlacement } from "../../types/vector/document";
 import type { VectorPolygon } from "../../types/vector/generation";
 import type { VectorStage } from "../../types/vector/urban";
+import { vectorDefenseSurfaces } from "./defense";
 export type VectorSurfaceKind =
   | "region"
   | "block"
@@ -35,6 +36,7 @@ export interface VectorRenderSurface {
   heightAt?: (point: Point) => number;
   featureKind?: string;
   pieceRole?: string;
+  elevations?: { bottom: number[]; top: number[] }[];
 }
 export interface VectorRenderData {
   revision: number;
@@ -46,6 +48,7 @@ export interface VectorRenderData {
   nodes: { id: string; position: Point }[];
   warnings: string[];
   contours?: ContourLine[];
+  groundCutouts?: VectorPolygon[];
   terrain?: { points: [number, number, number][]; indices: number[] };
 }
 /** Adopted geometry only. The same clipped surfaces feed screen SVG, exports and 3D. */
@@ -196,7 +199,8 @@ export function vectorRenderData(
     });
   for (const w of doc.site?.water ?? [])
     add({ id: w.id, kind: "river", polygons: w.polygons, color: "#71abc4", heightMeters: 0, elevationMeters: 0.08 });
-  for (const p of paths.filter(p => p.role !== "road")) {
+  const defenseWalls = new Set(Object.values(doc.environment?.defenses ?? {}).flatMap(p => p.circuit.wallPathIds));
+  for (const p of paths.filter(p => p.role !== "road" && !defenseWalls.has(p.id))) {
     if (p.role === "river" && doc.site?.water.some(w => w.riverPathId === p.id)) continue;
     const polygons =
       p.role === "wall"
@@ -326,6 +330,8 @@ export function vectorRenderData(
     surfaces.splice(surfaces.indexOf(ground), 1);
   }
   surfaces.unshift(...grounds);
+  for (const plan of Object.values(doc.environment?.defenses ?? {}))
+    surfaces.push(...vectorDefenseSurfaces(plan, frame));
   let terrainMesh: VectorRenderData["terrain"], contours: ContourLine[] | undefined;
   if (terrain.hasRelief) {
     const count = 64,
@@ -371,6 +377,7 @@ export function vectorRenderData(
     nodes: nodes.map(n => ({ id: n.id, position: n.position })),
     warnings,
     contours,
+    groundCutouts: Object.values(doc.environment?.defenses ?? {}).flatMap(p => p.ditches.flatMap(d => d.region)),
     terrain: terrainMesh
   };
 }

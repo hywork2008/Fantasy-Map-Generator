@@ -1,4 +1,5 @@
 import type { VectorCityDocument } from "../../../types/vector/document";
+import { defenseWater } from "../defense";
 import { type PathSurface, pathSurface } from "./surfaces";
 export function vectorWaterSurfaces(document: VectorCityDocument): Map<string, PathSurface> {
   const result = new Map(
@@ -18,6 +19,7 @@ export function vectorWaterSurfaces(document: VectorCityDocument): Map<string, P
 export function allVectorWater(document: VectorCityDocument): PathSurface[] {
   const represented = new Set(document.site?.water.flatMap(w => (w.riverPathId ? [w.riverPathId] : [])) ?? []);
   return [
+    ...defenseWater(document),
     ...(document.site?.water.flatMap(w => w.polygons) ?? []),
     ...Object.values(document.paths)
       .filter(p => p.role === "river" && !represented.has(p.id))

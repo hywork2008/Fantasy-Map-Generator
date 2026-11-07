@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { placeableObject } from "../../../buildings/placeableObjects";
 import { placementDefinition, placementFootprint } from "../../../buildings/placementModels";
 import { polygonArea } from "../../generators/geom";
-import { regionArea } from "../../generators/vector/geometry/regions";
+import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
 import type { VectorRenderData, VectorRenderSurface } from "./renderData";
 import { projectTerrainGeometry } from "./terrainGeometry";
 
@@ -11,6 +11,48 @@ function shape(p: VectorRenderSurface["polygons"][number], origin: readonly [num
   const path = new THREE.Shape(p.outer.map(local));
   for (const h of p.holes) path.holes.push(new THREE.Path(h.map(local)));
   return path;
+}
+function elevatedGeometry(
+  polygon: VectorRenderSurface["polygons"][number],
+  levels: NonNullable<VectorRenderSurface["elevations"]>[number],
+  origin: readonly [number, number],
+  datum: number
+) {
+  const rings = [polygon.outer, ...polygon.holes];
+  const vertices = rings.flat();
+  const triangles = THREE.ShapeUtils.triangulateShape(
+    rings[0].map(p => new THREE.Vector2(...p)),
+    rings.slice(1).map(r => r.map(p => new THREE.Vector2(...p)))
+  );
+  const count = vertices.length,
+    indices: number[] = [];
+  const volume = levels.top.some((h, i) => Math.abs(h - levels.bottom[i]) > 1e-9);
+  for (const [a, b, c] of triangles) {
+    indices.push(a, b, c);
+    if (volume) indices.push(c + count, b + count, a + count);
+  }
+  let offset = 0;
+  for (const ring of volume ? rings : []) {
+    for (let i = 0; i < ring.length; i++) {
+      const a = offset + i,
+        b = offset + ((i + 1) % ring.length);
+      indices.push(a, b, a + count, b, b + count, a + count);
+    }
+    offset += ring.length;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(
+      (volume ? [levels.top, levels.bottom] : [levels.top]).flatMap(values =>
+        vertices.flatMap((p, i) => [p[0] - origin[0], values[i] - datum, -p[1] + origin[1]])
+      ),
+      3
+    )
+  );
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
 }
 /** Uses the adopted footprints as the authority, with authored BV models only when their envelope still matches. */
 export function createVectorScene(data: VectorRenderData) {
@@ -52,7 +94,30 @@ export function createVectorScene(data: VectorRenderData) {
   try {
     const groundGeometry = data.terrain
       ? new THREE.BufferGeometry()
-      : new THREE.PlaneGeometry(data.extentMeters, data.extentMeters);
+      : data.groundCutouts?.length
+        ? (() => {
+            const half = data.extentMeters / 2,
+              [x, y] = data.center;
+            const polygons = regionBoolean(
+              [
+                {
+                  outer: [
+                    [x - half, y - half],
+                    [x + half, y - half],
+                    [x + half, y + half],
+                    [x - half, y + half]
+                  ],
+                  holes: []
+                }
+              ],
+              data.groundCutouts,
+              "difference"
+            );
+            const geometry = new THREE.ShapeGeometry(polygons.map(p => shape(p, data.center)));
+            geometry.rotateX(-Math.PI / 2);
+            return geometry;
+          })()
+        : new THREE.PlaneGeometry(data.extentMeters, data.extentMeters);
     if (data.terrain) {
       groundGeometry.setAttribute(
         "position",
@@ -66,7 +131,7 @@ export function createVectorScene(data: VectorRenderData) {
     }
     const ground = new THREE.Mesh(groundGeometry, material("#ece6d9"));
     if (!data.terrain) {
-      ground.rotation.x = -Math.PI / 2;
+      if (!data.groundCutouts?.length) ground.rotation.x = -Math.PI / 2;
       ground.position.set(0, -0.01, 0);
     }
     group.add(ground);
@@ -132,17 +197,18 @@ export function createVectorScene(data: VectorRenderData) {
       }
       if (p && surface.provisional) warnings.push(`massing:${p.id}`);
       if (placed) continue;
-      for (const polygon of surface.polygons) {
+      for (const [polygonIndex, polygon] of surface.polygons.entries()) {
         if (Math.abs(polygonArea(polygon.outer)) < 1e-8) continue;
-        let geometry: THREE.BufferGeometry =
-          surface.heightMeters > 0
+        let geometry: THREE.BufferGeometry = surface.elevations
+          ? elevatedGeometry(polygon, surface.elevations[polygonIndex], data.center, datum)
+          : surface.heightMeters > 0
             ? new THREE.ExtrudeGeometry(shape(polygon, data.center), {
                 depth: surface.heightMeters,
                 bevelEnabled: false,
                 curveSegments: 1
               })
             : new THREE.ShapeGeometry(shape(polygon, data.center));
-        geometry.rotateX(-Math.PI / 2);
+        if (!surface.elevations) geometry.rotateX(-Math.PI / 2);
         if (surface.heightAt) {
           const original = geometry;
           try {
@@ -156,7 +222,7 @@ export function createVectorScene(data: VectorRenderData) {
           }
         }
         const mesh = new THREE.Mesh(geometry, material(surface.color));
-        mesh.position.y = surface.elevationMeters - (surface.heightAt ? 0 : datum);
+        mesh.position.y = surface.elevations ? 0 : surface.elevationMeters - (surface.heightAt ? 0 : datum);
         mesh.userData = {
           id: surface.id,
           kind: surface.kind,

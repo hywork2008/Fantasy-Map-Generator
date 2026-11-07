@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
+import * as THREE from "three";
 import { afterAll, describe, expect, it } from "vitest";
 import { vectorRenderData } from "../../renderers/vector/renderData";
 import { createVectorScene } from "../../renderers/vector/scene3d";
@@ -20,7 +21,10 @@ import { activeCargoAssignment, cargoShipGeometry } from "../harborCargo";
 import { harborWaterField } from "../harborNavigation";
 import { planHarborShips } from "../harborShips";
 import { meshFromCells, validate } from "../mesh";
-import { regionArea, regionBoolean } from "./geometry/regions";
+import { reconcileVectorEdit } from "./editing/dependencies";
+import { featureReservations } from "./environmentState";
+import { deriveVectorBlocks } from "./generation/pipeline";
+import { containsRegion, regionArea, regionBoolean } from "./geometry/regions";
 import { vectorTerrain } from "./terrain";
 
 const observations: object[] = [];
@@ -62,7 +66,7 @@ const rect = (x: number, y: number, w: number, h: number): Point[] => [
 ];
 
 describe("M9 feature-specific release evidence", () => {
-  it("reports every omitted detailed defense entity and preserves the restorable legacy plan", () => {
+  it("converts fixed defense ownership, heights, portals and reservations with exact source restoration", () => {
     const settings = defaultGenerationSettings();
     settings.config = structuredClone(settings.config);
     Object.assign(settings.config, { rivers: [], coast: "none", relief: false });
@@ -95,6 +99,14 @@ describe("M9 feature-specific release evidence", () => {
     delete source!.fabric;
     delete source!.ruralFieldSnapshot;
     const copy = roundTrip(source!);
+    expect(
+      copy.document.environment?.defenses,
+      JSON.stringify(
+        copy.report.filter(
+          r => r.status === "unsupported" && ["defense-plan", "wall", "gate", "road"].includes(r.category)
+        )
+      )
+    ).toBeDefined();
     const entities = [
       ...plan.bastions,
       ...plan.curtains,
@@ -106,18 +118,115 @@ describe("M9 feature-specific release evidence", () => {
       ...(plan.works ?? [])
     ];
     for (const part of entities)
-      expect(copy.report).toContainEqual(expect.objectContaining({ id: part.id, status: "unsupported" }));
+      expect(copy.report).toContainEqual(expect.objectContaining({ id: part.id, status: "converted" }));
     for (const [i] of plan.glacis.entries())
       expect(copy.report).toContainEqual(
-        expect.objectContaining({ id: `${plan.id}:glacis:${i}`, status: "unsupported" })
+        expect.objectContaining({ id: `${plan.id}:glacis:${i}`, status: "converted" })
       );
+    const adopted = copy.document.environment!.defenses![plan.id];
+    expect(JSON.stringify(adopted)).not.toMatch(/wallEdgeIds|faceIds|vertexId|sourceJson/);
+    expect(adopted.bastions.map(p => p.elevations)).toEqual(plan.bastions.map(p => p.elevations));
+    expect(adopted.ditches).toEqual(plan.ditches);
+    expect(adopted.outworks).toEqual(plan.outworks);
+    expect(adopted.glacis).toEqual(plan.glacis);
+    expect(adopted.accesses.map(p => p.elevations)).toEqual(plan.accesses.map(p => p.elevations));
+    for (const access of adopted.accesses.filter(a => a.role === "civic"))
+      expect(copy.document.connections.gates[access.portal.id]).toBeDefined();
+    const reserved = featureReservations(copy.document),
+      blocks = deriveVectorBlocks(copy.document);
+    expect(blocks.length).toBeGreaterThan(0);
+    const overlap = regionBoolean(blocks, reserved, "intersection").reduce((n, p) => n + regionArea(p), 0);
+    expect(overlap).toBeLessThan(1e-5);
+    const data = vectorRenderData(copy.document),
+      scene = createVectorScene(data);
+    expect(data.groundCutouts).toEqual(plan.ditches.flatMap(d => d.region));
+    const bedSurfaces = data.surfaces.filter(s => s.pieceRole === "ditch-bed");
+    expect(bedSurfaces.length).toBeGreaterThan(0);
+    for (const surface of bedSurfaces) {
+      const mesh = scene.group.children.find(n => n.userData.id === surface.id) as THREE.Mesh;
+      expect(mesh).toBeDefined();
+      const bounds = new THREE.Box3().setFromObject(mesh);
+      expect(bounds.min.y).toBeCloseTo(Math.min(...surface.elevations!.flatMap(e => e.bottom)), 4);
+    }
+    const ground = scene.group.children[0] as THREE.Mesh;
+    const vertices = ground.geometry.getAttribute("position"),
+      indices = ground.geometry.index!;
+    for (let i = 0; i < indices.count; i += 3) {
+      const ids = [indices.getX(i), indices.getX(i + 1), indices.getX(i + 2)];
+      const p: Point = [
+        ids.reduce((n, j) => n + vertices.getX(j), 0) / 3,
+        -ids.reduce((n, j) => n + vertices.getZ(j), 0) / 3
+      ];
+      expect(containsRegion(data.groundCutouts!, p)).toBe(false);
+    }
+    scene.dispose();
+    const malformed = (change: (p: typeof adopted) => void) => {
+      const candidate = structuredClone(copy.document);
+      change(candidate.environment!.defenses![plan.id]);
+      expect(parseVectorDocument(JSON.stringify(candidate))).toBeNull();
+    };
+    malformed(p => {
+      p.bastions[0].ownerId = "missing-owner";
+    });
+    malformed(p => {
+      p.accesses[0].portal.id = "missing-portal";
+    });
+    malformed(p => {
+      p.ditches[0].bed[0] = NaN;
+    });
+    malformed(p => {
+      p.circuit.wallPathIds = ["missing-wall"];
+    });
+    malformed(p => {
+      p.bastions[0].wallSpans[0].from.t = 2;
+    });
+    malformed(p => {
+      const access = p.accesses[0];
+      access.bridge[1] = [access.bridge[0][0] + 1000, access.bridge[0][1] + 1000];
+    });
+    const edited = structuredClone(copy.document);
+    edited.environment!.defenses![plan.id].bastions[0].elevations.crest[0] += 1;
+    expect(() => reconcileVectorEdit(copy.document, edited)).toThrow("dependency-fixed-defense");
+    const wetSource = structuredClone(source!);
+    for (const ditch of wetSource.bastionedTown!.ditches) {
+      ditch.kind = "wet";
+      ditch.waterLevel = (Math.max(...ditch.bed) + Math.min(...ditch.bank)) / 2;
+      ditch.supply = { kind: "closed-basin", inlet: "none", outlet: "none" };
+    }
+    const wet = roundTrip(wetSource);
+    expect(
+      wet.document.environment?.defenses,
+      JSON.stringify(wet.report.filter(r => r.category === "defense-plan"))
+    ).toBeDefined();
+    const wetData = vectorRenderData(wet.document);
+    expect(wetData.surfaces.some(s => s.pieceRole === "ditch-water")).toBe(true);
+    const wetScene = createVectorScene(wetData);
+    expect(wetScene.group.children.some(n => n.userData.pieceRole === "defense-bridge")).toBe(true);
+    wetScene.dispose();
+    const reliefSource = structuredClone(source!);
+    Object.values(reliefSource.mesh.faces).find(f => f.properties.water === "land")!.properties.elevation = 10;
+    const relief = roundTrip(reliefSource);
+    expect(relief.document.environment?.defenses).toBeUndefined();
+    expect(relief.report).toContainEqual(
+      expect.objectContaining({
+        category: "defense-plan",
+        status: "unsupported",
+        reason: expect.stringContaining("defense-relief-not-supported")
+      })
+    );
     observations.push({
       id: "legacy-defense",
       sourceSha256: copy.sourceSha256,
-      outcome: "not-accepted",
-      omittedEntitiesReported: entities.length + plan.glacis.length,
+      wetSourceSha256: wet.sourceSha256,
+      outcome: "partially-accepted",
+      convertedEntities: entities.length + plan.glacis.length,
       archiveRestored: true,
-      remaining: "Independent ownership, ditch elevations, outworks and defense accesses are not converted."
+      blockReservationOverlapM2: overlap,
+      dryAndWetDitches: true,
+      accepted:
+        "Fixed semantic ownership, absolute elevations, wall spans, gates, access links, generation reservations, shared geometry and excavated ground.",
+      remaining:
+        "Editable defense authoring, broader relief/waterfront cases, legacy castles and the 6 MiB archive budget remain outside this fixed-case acceptance."
     });
   }, 30000);
 

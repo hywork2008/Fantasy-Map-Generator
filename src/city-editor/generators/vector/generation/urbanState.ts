@@ -10,7 +10,13 @@ export function vectorUrbanFingerprint(doc: VectorCityDocument): string {
     site: doc.site,
     recipe: doc.recipe,
     ...(doc.environment
-      ? { environment: { features: doc.environment.features, terrain: doc.environment.terrain } }
+      ? {
+          environment: {
+            features: doc.environment.features,
+            defenses: doc.environment.defenses,
+            terrain: doc.environment.terrain
+          }
+        }
       : {})
   });
 }

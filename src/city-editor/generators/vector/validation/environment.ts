@@ -3,6 +3,7 @@ import { historicalPeriodIndex } from "../../../../types/historicalPeriod";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import { VECTOR_FEATURE_KINDS } from "../../../types/vector/environment";
 import { parseFreeformCity } from "../../freeform/freeformCity";
+import { validateVectorDefenses } from "../defense";
 import { evaluateAnchor } from "../geometry/curves";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { ringInside } from "../geometry/routing";
@@ -119,14 +120,14 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
   if (!e) return appearanceErrors;
   if (
     !record(e) ||
-    Object.keys(e).some(k => !["features", "terrain", "hidden", "freeformSource"].includes(k)) ||
+    Object.keys(e).some(k => !["features", "defenses", "terrain", "hidden", "freeformSource"].includes(k)) ||
     !record(e.features) ||
     Object.keys(e.features).length > 256 ||
     !Array.isArray(e.hidden) ||
     e.hidden.some(id => typeof id !== "string" || !e.features[id])
   )
     return ["environment"];
-  const errors: string[] = [...appearanceErrors];
+  const errors: string[] = [...appearanceErrors, ...validateVectorDefenses(doc)];
   if (e.freeformSource && !parseFreeformCity(JSON.stringify(e.freeformSource)))
     errors.push("environment-freeform-source");
   if (e.terrain) {

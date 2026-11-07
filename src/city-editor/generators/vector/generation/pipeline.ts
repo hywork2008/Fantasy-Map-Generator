@@ -34,7 +34,8 @@ export function generationFingerprint(doc: VectorCityDocument, ids: Set<string>)
     gates: Object.values(doc.connections.gates).filter(g => ids.has(g.wallPathId) || nodes.includes(g.nodeId)),
     circuits: Object.values(doc.connections.circuits).filter(c => ids.has(c.pathId)),
     bridges: Object.values(doc.connections.bridges).filter(b => ids.has(b.roadPathId) || ids.has(b.riverAnchor.pathId)),
-    wallRoads: Object.values(doc.connections.wallRoads).filter(r => ids.has(r.pathId))
+    wallRoads: Object.values(doc.connections.wallRoads).filter(r => ids.has(r.pathId)),
+    ...(doc.environment?.defenses ? { defenses: doc.environment.defenses } : {})
   });
 }
 export function joinVectorGenerationAnchors(doc: VectorCityDocument, anchors: CurveAnchor[]): void {
