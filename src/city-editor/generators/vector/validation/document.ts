@@ -1,3 +1,4 @@
+import RBush from "rbush";
 import { isHistoricalPeriod } from "../../../../types/historicalPeriod";
 import type { Point } from "../../../types/primitives";
 import type {
@@ -7,12 +8,13 @@ import type {
   VectorPreset,
   VectorSegment
 } from "../../../types/vector/document";
+import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
 import { isSimplePolygon, pointInPolygon, segmentsIntersect } from "../../geom";
 import { evaluateAnchor, pathIsClosed, VECTOR_CONNECTION_EPSILON } from "../geometry/curves";
 import { bridgeGeometry, junctionSurface, validateGateGeometry } from "../geometry/network";
 import { maximumCornerRadius } from "../geometry/presets";
 import { ringInside, verifyWallGapSurface } from "../geometry/routing";
-import { pathSurface, surfacesOverlap } from "../geometry/surfaces";
+import { type PathSurface, pathSurface, surfacesOverlap } from "../geometry/surfaces";
 import { vectorWaterSurfaces } from "../geometry/water";
 import { validateVectorEnvironment } from "./environment";
 import { validateVectorGeneration } from "./generation";
@@ -166,7 +168,12 @@ function validPath(v: RecordValue, legacy: boolean): v is unknown & VectorPath &
 }
 
 /** Strict native codec validation. Missing/unknown references are never repaired here. */
-export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 | 4 | 5 | 6 = false): string[] {
+export function validateVectorDocument(
+  value: unknown,
+  legacy: boolean | 2 | 3 | 4 | 5 | 6 = false,
+  timings?: GenerationTimingObserver
+): string[] {
+  const timed = generationTiming(timings);
   if (
     !keys(
       value,
@@ -259,6 +266,7 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 |
       }
     }
   if (errors.length) return errors;
+  timed("paths");
   function checkAnchor(a: unknown): a is CurveAnchor {
     if (!anchor(a)) return false;
     const path = Object.hasOwn(doc.paths, a.pathId) ? doc.paths[a.pathId] : undefined;
@@ -355,6 +363,7 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 |
       parent = doc.connections.circuits[parent].parentCircuitId;
     }
   }
+  timed("references");
   for (const r of Object.values(doc.regions))
     if (
       !keys(r, ["id", "kind", "outer", "holes"], legacy ? [] : ["use", "density", "maxHeightMeters"]) ||
@@ -390,16 +399,37 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 |
       !p.accesses.every(checkAnchor)
     )
       errors.push(`placement:${p.id}`);
+  timed("sites");
   if (legacy !== true && legacy !== 2 && !errors.length) {
+    // Rebuild for each validation so in-place edits cannot reuse stale bounds.
+    const bounds = (surface: PathSurface) => ({
+      minX: Math.min(...surface.outer.map(p => p[0])),
+      minY: Math.min(...surface.outer.map(p => p[1])),
+      maxX: Math.max(...surface.outer.map(p => p[0])),
+      maxY: Math.max(...surface.outer.map(p => p[1]))
+    });
+    const sites = new RBush<ReturnType<typeof bounds> & { surface: PathSurface }>();
+    sites.load(
+      [
+        ...Object.values(doc.placements).map(p => p.site),
+        ...Object.values(doc.regions).filter(r => r.kind === "reservation")
+      ].map(surface => ({ ...bounds(surface), surface }))
+    );
     for (const node of Object.values(doc.connections.nodes)) {
       const junction = junctionSurface(doc, node.id);
-      if (
-        junction &&
-        (Object.values(doc.placements).some(p => surfacesOverlap(junction, p.site)) ||
-          Object.values(doc.regions).some(r => r.kind === "reservation" && surfacesOverlap(junction, r)))
-      )
-        errors.push(`junction-site:${node.id}`);
+      if (!junction) continue;
+      const box = bounds(junction);
+      // Keep near-touching candidates accepted by segmentsIntersect's 1e-9 tolerance.
+      const padding = 1e-9;
+      const candidates = sites.search({
+        minX: box.minX - padding,
+        minY: box.minY - padding,
+        maxX: box.maxX + padding,
+        maxY: box.maxY + padding
+      });
+      if (candidates.some(({ surface }) => surfacesOverlap(junction, surface))) errors.push(`junction-site:${node.id}`);
     }
+    timed("junction-sites");
     const waters = vectorWaterSurfaces(doc);
     for (const gate of Object.values(doc.connections.gates)) {
       try {
@@ -485,11 +515,16 @@ export function validateVectorDocument(value: unknown, legacy: boolean | 2 | 3 |
       }
     }
   }
+  timed("network");
   if ((!legacy || legacy === 4 || legacy === 5 || legacy === 6) && !errors.length)
     errors.push(...validateVectorGeneration(doc));
+  timed("generation");
   if ((!legacy || legacy === 5 || legacy === 6) && !errors.length) errors.push(...validateVectorUrban(doc));
+  timed("urban");
   if ((!legacy || legacy === 6) && !errors.length) errors.push(...validateVectorPresentation(doc));
+  timed("presentation");
   if (!legacy && !errors.length) errors.push(...validateVectorEnvironment(doc));
+  timed("environment");
   return errors;
 }
 

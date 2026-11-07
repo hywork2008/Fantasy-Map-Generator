@@ -20,6 +20,7 @@ import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../../generat
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../../generators/vector/generation/urban";
 import { regionArea } from "../../generators/vector/geometry/regions";
 import { sampledClosedRing } from "../../generators/vector/geometry/routing";
+import { validateVectorDocument } from "../../generators/vector/validation/document";
 import { renderEditorSvg } from "../../renderers/editorSvg";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
 import type { GenerationSample } from "../../types/contracts/generationDiagnostics";
@@ -147,8 +148,15 @@ it.runIf(!!output)(
         timings: record("urban")
       })
     );
+    const validationSpans: { phase: string; ms: number }[] = [];
+    const validation = measure(() =>
+      validateVectorDocument(urban.value, false, (phase, ms) => validationSpans.push({ phase, ms }))
+    );
+    expect(validation.value).toEqual([]);
     const vectorSvg = measure(() => renderVectorDocument(urban.value));
     result.meshless = {
+      validationMs: validation.ms,
+      validationSpans,
       inputMs: input.ms,
       skeletonMs: skeleton.ms,
       urbanMs: urban.ms,
@@ -191,6 +199,9 @@ it.runIf(!!output)(
       "src/city-editor/generators/generationTiming.ts",
       "src/city-editor/generators/vector/generation/pipeline.ts",
       "src/city-editor/generators/vector/generation/urban.ts",
+      "src/city-editor/generators/vector/validation/document.ts",
+      "src/city-editor/generators/vector/validation/urban.ts",
+      "src/city-editor/generators/vector/geometry/surfaces.ts",
       "src/city-editor/generators/vector/generation/civic.ts",
       "src/city-editor/generators/vector/generation/editorInput.ts"
     ].map(path => ({ path, sha256: createHash("sha256").update(readFileSync(path)).digest("hex") }));
