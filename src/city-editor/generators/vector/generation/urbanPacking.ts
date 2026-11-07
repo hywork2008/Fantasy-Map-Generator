@@ -8,7 +8,7 @@ import { facilityUseOf } from "../../facilityUses";
 import { convexHull } from "../../geom";
 import { evaluateAnchor } from "../geometry/curves";
 import { distance, gateOpening, junctionSurface } from "../geometry/network";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, indexedContains, regionArea, regionBoolean } from "../geometry/regions";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
@@ -129,6 +129,7 @@ export function createUrbanPacker(
     stats.regionMs += performance.now() - started;
     return result;
   };
+
   const samples = new Map<string, ReturnType<typeof samplePath>>();
   const anchorAt = (path: VectorPath, p: Point) => {
     let cached = samples.get(path.id);
@@ -144,7 +145,43 @@ export function createUrbanPacker(
     stats.curveMs += performance.now() - started;
     return anchor;
   };
-  const allowed = new Map(blocks.map(b => [b.id, clip([b], surfaces, "union")]));
+  const indexRings = (regions: VectorPolygon[]) => {
+    const tree = new RBush<{ minX: number; minY: number; maxX: number; maxY: number }>();
+    for (const region of regions)
+      for (const ring of [region.outer, ...region.holes])
+        tree.load(
+          ring.map((a, i) => {
+            const b = ring[(i + 1) % ring.length];
+            return {
+              minX: Math.min(a[0], b[0]),
+              maxX: Math.max(a[0], b[0]),
+              minY: Math.min(a[1], b[1]),
+              maxY: Math.max(a[1], b[1])
+            };
+          })
+        );
+    return { regions, tree, inside: indexedContains(regions) };
+  };
+  // A site clear of every block edge is inside once one corner is. Touching the edge still uses the boolean.
+  const outsideArea = (info: ReturnType<typeof indexRings>, polygon: VectorPolygon) => {
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (const p of polygon.outer) {
+      if (p[0] < minX) minX = p[0];
+      if (p[1] < minY) minY = p[1];
+      if (p[0] > maxX) maxX = p[0];
+      if (p[1] > maxY) maxY = p[1];
+    }
+    const box = { minX: minX - 1e-6, minY: minY - 1e-6, maxX: maxX + 1e-6, maxY: maxY + 1e-6 };
+    if (!info.tree.search(box).length) return info.inside(polygon.outer[0]) ? 0 : regionArea(polygon);
+    return clip([polygon], info.regions, "difference").reduce((n, p) => n + regionArea(p), 0);
+  };
+  const blockClip = new Map(
+    blocks.map(block => [block.id, indexRings([{ outer: block.outer, holes: block.holes }])] as const)
+  );
+  const allowed = new Map(blocks.map(block => [block.id, indexRings(clip([block], surfaces, "union"))]));
   const slots = blocks.flatMap(block =>
     block.frontage
       .filter(f => reachable.has(f.pathId))
@@ -247,7 +284,7 @@ export function createUrbanPacker(
               2) ||
           (request.zone === "outskirts" && inside(translation)) ||
           site.outer.some(corner => !containsRegion([block], corner)) ||
-          clip([site], [block], "difference").reduce((n, p) => n + regionArea(p), 0) > 1e-5
+          outsideArea(blockClip.get(block.id)!, site) > 1e-5
         ) {
           if (abandon(offset)) break;
           continue;
@@ -287,8 +324,8 @@ export function createUrbanPacker(
             ],
             holes: []
           };
-          const offroad = clip([corridor], surfaces, "difference");
-          if (clip([corridor], allowed.get(block.id)!, "difference").reduce((n, p) => n + regionArea(p), 0) > 1e-5) {
+          const offroad = surfaces.length ? clip([corridor], surfaces, "difference") : [corridor];
+          if (outsideArea(allowed.get(block.id)!, corridor) > 1e-5) {
             valid = false;
             break;
           }
