@@ -284,15 +284,18 @@ const HONEY_BARREL_VALUE = 1.5;
  */
 const MEAD_TUN_VALUE = 4.5;
 const HONEY_DISTRIBUTION = 'biomeTag("forest") || biomeTag("grassland") || biomeTag("scrub") || biomeTag("arable")';
-/** Clay of catalogues saved before docs/plan/cold-land-clay.md: only on warm shores and rivers. */
-const LEGACY_CLAY_DISTRIBUTION = "minTemp(8) && (shore(1) || river())";
+/** Clay and White sand of catalogues saved before docs/plan/cold-land-clay.md: only on warm shores and rivers. */
+const LEGACY_SHORE_DEPOSIT_DISTRIBUTION = "minTemp(8) && (shore(1) || river())";
 /**
- * Clay on any shore or river but the treeless cold lands. Glacial and river clays fired the bricks
- * and pots of Novgorod, Turku and Moscow at a mean 5 to 6 degrees; Iceland, without fit clay or
- * fuel, imported its pottery (docs/plan/cold-land-clay.md §2). Tundra, alpine tundra and glaciers
- * are cold without forest, wetland or desert.
+ * Clay and White sand on any shore or river but the treeless cold lands. Glacial and river clays fired
+ * the bricks and pots of Novgorod, Turku and Moscow at a mean 5 to 6 degrees; Iceland, without fit clay
+ * or fuel, imported its pottery. Forest glass melted stream and lake sand with wood ash in the
+ * glasshouses of the Waldviertel, the Thuringian Forest and Smaland (docs/plan/cold-land-clay.md §2).
+ * Tundra, alpine tundra and glaciers are cold without forest, wetland or desert.
  */
-const CLAY_DISTRIBUTION = '(shore(1) || river()) && !(biomeTag("cold") && !biomeTag("forest", "wetland", "desert"))';
+const SHORE_DEPOSIT_DISTRIBUTION =
+  '(shore(1) || river()) && !(biomeTag("cold") && !biomeTag("forest", "wetland", "desert"))';
+const SHORE_DEPOSIT_GOODS: readonly string[] = ["Clay", "White sand"];
 /** Pressed grape pomace in one 200 L cask of pomace wine: 120 kg, a tenth of a lot, with water (§29). */
 const POMACE_LOTS_PER_POMACE_WINE_CASK = 0.12;
 const shipClassById = new Map(SHIP_CLASS_DEFINITIONS.map(shipClass => [shipClass.id, shipClass]));
@@ -1370,7 +1373,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#b07c60",
     value: 1,
     chance: 5,
-    distribution: CLAY_DISTRIBUTION,
+    distribution: SHORE_DEPOSIT_DISTRIBUTION,
     unit: "wain",
     demandCoverage: { construction: 1 },
     multipliers: { cultureType: { River: 1.4, Lake: 1.4 } }
@@ -1451,7 +1454,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e6d69c",
     value: 1,
     chance: 4,
-    distribution: "minTemp(8) && (shore(1) || river())",
+    distribution: SHORE_DEPOSIT_DISTRIBUTION,
     unit: "wain",
     multipliers: { cultureType: { River: 1.4, Lake: 1.4 } }
   },
@@ -5507,15 +5510,18 @@ export function migrateHoneyForageLands(): boolean {
 }
 
 /**
- * Gives a saved catalogue's Clay the cold lands' shores and rivers (docs/plan/cold-land-clay.md). Only the old
- * default is replaced, so an edited catalogue keeps its own rule. The map's deposits stay where they are; the
- * Goods editor's placement regeneration lays them out by the new rule.
+ * Gives a saved catalogue's Clay and White sand the cold lands' shores and rivers (docs/plan/cold-land-clay.md).
+ * Only the old default is replaced, so an edited catalogue keeps its own rule. The map's deposits stay where
+ * they are; the Goods editor's placement regeneration lays them out by the new rule.
  */
-export function migrateColdLandClay(): boolean {
-  const clay = getGoods().find(good => good.name === "Clay");
-  if (!clay || clay.distribution !== LEGACY_CLAY_DISTRIBUTION) return false;
-  clay.distribution = CLAY_DISTRIBUTION;
-  return true;
+export function migrateColdLandShoreDeposits(): boolean {
+  let changed = false;
+  for (const good of getGoods()) {
+    if (!SHORE_DEPOSIT_GOODS.includes(good.name) || good.distribution !== LEGACY_SHORE_DEPOSIT_DISTRIBUTION) continue;
+    good.distribution = SHORE_DEPOSIT_DISTRIBUTION;
+    changed = true;
+  }
+  return changed;
 }
 
 /** Reprices Peat from its old luxury-like value to fuel at Wood's value per heat. */

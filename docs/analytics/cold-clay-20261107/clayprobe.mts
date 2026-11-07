@@ -3,7 +3,7 @@
  * start: for every land cell on a shore or river, its biome, mean annual temperature band and rural
  * people, whether it holds a Clay deposit, and per market whether any of its cells holds Clay.
  *
- *   npx tsx docs/analytics/cold-clay-20261107/clayprobe.mts <map.fmg> <out.json>
+ *   npx tsx docs/analytics/cold-clay-20261107/clayprobe.mts <map.fmg> <out.json> [good name, default Clay]
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { createNodeSimulationHost } from "../../../src/simulation/adapters/node";
@@ -11,13 +11,13 @@ import { getGoods, getMarkets } from "../../../src/extensions/economy/context/tr
 import { getGoodCellColumn, getMarketCellColumn } from "../../../src/extensions/economy/context/cellTables";
 import { getWorldContext } from "../../../src/extensions/economy/context/economyApi";
 
-const [input, output] = process.argv.slice(2);
+const [input, output, goodName = "Clay"] = process.argv.slice(2);
 const host = createNodeSimulationHost();
 await host.loadArchive(new Uint8Array(readFileSync(input)));
 await host.prepare();
 const world = getWorldContext();
 const { pack, grid, biomesData } = world;
-const clay = getGoods().find(good => good.name === "Clay")!;
+const clay = getGoods().find(good => good.name === goodName)!;
 const column = getGoodCellColumn();
 const band = (t: number) => (t >= 8 ? ">=8" : t >= 4 ? "4-8" : t >= 0 ? "0-4" : t >= -5 ? "-5-0" : "<-5");
 const rows: Record<string, { cells: number; eligible: number; clay: number; people: number }> = {};

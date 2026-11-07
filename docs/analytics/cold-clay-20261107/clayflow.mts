@@ -1,12 +1,13 @@
 /**
- * Clay, Ceramics and Brick by the markets' mean temperature (docs/analytics/cold-clay-20261107.md).
- * With `add`, the saved deposits stay and Clay is added (seeded) on the cells only the new rule allows,
+ * Clay, Ceramics, Brick, White sand, Glass and Potash by the markets' mean temperature
+ * (docs/analytics/cold-clay-20261107.md). With `add`, the saved deposits stay and each listed deposit good
+ * (default Clay) is added (seeded) on the cells only the new rule allows,
  * at the rate the map's generation reached on the old rule's cells. With `regen`, the deposits are laid
  * out again as the Goods editor's placement regeneration does. Otherwise they stay as saved. A
- * goods-flow observer sums each month the three goods' flows by direction, category and the
+ * goods-flow observer sums each month the goods' flows by direction, category and the
  * market's temperature band; at each month's end it sums their stock and stock value by band.
  *
- *   npx tsx docs/analytics/cold-clay-20261107/clayflow.mts <map.fmg> <out.json> <months> [add|regen]
+ *   npx tsx docs/analytics/cold-clay-20261107/clayflow.mts <map.fmg> <out.json> <months> [add|regen] [Clay,White sand]
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import Alea from "alea";
@@ -18,8 +19,8 @@ import { getWorldContext } from "../../../src/extensions/economy/context/economy
 import { Goods } from "../../../src/extensions/economy/generators/goods-generator";
 import { setGoodFlowObserver } from "../../../src/extensions/economy/generators/goodsBalanceLedger";
 
-const NAMES = ["Clay", "Ceramics", "Brick"];
-const [input, output, monthsArg, mode] = process.argv.slice(2);
+const NAMES = ["Clay", "Ceramics", "Brick", "White sand", "Glass", "Potash"];
+const [input, output, monthsArg, mode, depositsArg] = process.argv.slice(2);
 const months = Number(monthsArg ?? 12);
 const host = createNodeSimulationHost();
 await host.loadArchive(new Uint8Array(readFileSync(input)));
@@ -33,31 +34,37 @@ const ruleHolds = (rule: string, cellId: number) => {
   const methods = Goods.getMethods(cellId);
   return Boolean(new Function(`{${Object.keys(methods).join(", ")}}`, `return ${rule}`)(methods));
 };
-const added = { warmEligible: 0, warmClay: 0, rate: 0, newEligible: 0, placed: 0 };
+const deposits = (depositsArg ?? "Clay").split(",");
+const added: Record<string, { warmEligible: number; warmClay: number; rate: number; newEligible: number; placed: number }> = {};
 if (mode === "regen") {
   Math.random = Alea(`clay-${world.seed}`);
   Goods.regeneratePlacement(clay.i);
 } else if (mode === "add") {
-  // Keep the saved deposits; add Clay where only the new rule allows it, at the rate the map's
-  // generation reached on the old rule's cells (other goods compete there for the same cell).
-  const random = Alea(`clay-${world.seed}`);
+  // Keep the saved deposits; add each deposit good where only the new rule allows it, at the rate the
+  // map's generation reached on the old rule's cells (other goods compete there for the same cell).
   const goodColumn = getGoodCellColumn();
-  const fresh: number[] = [];
-  for (const cellId of pack.cells.i) {
-    if (pack.cells.h[cellId] < 20) continue;
-    if (ruleHolds(legacyRule, cellId)) {
-      added.warmEligible++;
-      if (goodColumn[cellId] === clay.i) added.warmClay++;
-    } else if (ruleHolds(clay.distribution!, cellId)) {
-      added.newEligible++;
-      if (!goodColumn[cellId]) fresh.push(cellId);
+  for (const name of deposits) {
+    const good = getGoods().find(entry => entry.name === name)!;
+    const random = Alea(`${name === "Clay" ? "clay" : name}-${world.seed}`);
+    const row = { warmEligible: 0, warmClay: 0, rate: 0, newEligible: 0, placed: 0 };
+    added[name] = row;
+    const fresh: number[] = [];
+    for (const cellId of pack.cells.i) {
+      if (pack.cells.h[cellId] < 20) continue;
+      if (ruleHolds(legacyRule, cellId)) {
+        row.warmEligible++;
+        if (goodColumn[cellId] === good.i) row.warmClay++;
+      } else if (ruleHolds(good.distribution!, cellId)) {
+        row.newEligible++;
+        if (!goodColumn[cellId]) fresh.push(cellId);
+      }
     }
-  }
-  added.rate = added.warmEligible ? added.warmClay / added.warmEligible : 0;
-  for (const cellId of fresh) {
-    if (random() >= added.rate * (added.newEligible / Math.max(1, fresh.length))) continue;
-    goodColumn[cellId] = clay.i;
-    added.placed++;
+    row.rate = row.warmEligible ? row.warmClay / row.warmEligible : 0;
+    for (const cellId of fresh) {
+      if (random() >= row.rate * (row.newEligible / Math.max(1, fresh.length))) continue;
+      goodColumn[cellId] = good.i;
+      row.placed++;
+    }
   }
 }
 const band = (t: number) => (t >= 8 ? ">=8" : t >= 4 ? "4-8" : t >= 0 ? "0-4" : "<0");
@@ -86,6 +93,18 @@ for (const cellId of pack.cells.i) {
   clayCells[b] = (clayCells[b] ?? 0) + 1;
   const c = band(grid.cells.temp[pack.cells.g[cellId]]);
   clayByCellBand[c] = (clayByCellBand[c] ?? 0) + 1;
+}
+const depositCells: Record<string, Record<string, number>> = {};
+for (const name of ["Clay", "White sand"]) {
+  const good = getGoods().find(entry => entry.name === name);
+  if (!good) continue;
+  const row: Record<string, number> = {};
+  for (const cellId of pack.cells.i) {
+    if (column[cellId] !== good.i) continue;
+    const b = bandByMarket.get(cellMarket?.[cellId] ?? 0) ?? "none";
+    row[b] = (row[b] ?? 0) + 1;
+  }
+  depositCells[name] = row;
 }
 const marketsByBand: Record<string, number> = {};
 for (const b of bandByMarket.values()) marketsByBand[b] = (marketsByBand[b] ?? 0) + 1;
@@ -117,7 +136,7 @@ for (let month = 1; month <= months; month++) {
     }
   }
   snapshots.push({ month, flows, stocks });
-  writeFileSync(output, JSON.stringify({ input, mode: mode ?? "saved", added, clayCells, clayByCellBand, marketsByBand, snapshots }));
+  writeFileSync(output, JSON.stringify({ input, mode: mode ?? "saved", added, depositCells, clayCells, clayByCellBand, marketsByBand, snapshots }));
   console.log(`[clayflow] ${input} month ${month}`);
 }
 setGoodFlowObserver(null);

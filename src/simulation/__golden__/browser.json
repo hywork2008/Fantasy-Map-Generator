@@ -9,7 +9,7 @@
   ],
   "checkpoints": {
     "day-0": {
-      "digest": "3b629c8f76119e3f61553e08194218bcaa1b62bed286a04d83961c96ed373b1d",
+      "digest": "8e4f53b9e23f7a7a6c3efc4ffa09e3eca9275cde8a4b7a150674d37a5b40ca2e",
       "sections": {
         "world.biomesData": "0ac90fa3970f313e47520e60fe7abdf1d513605d20455b24c660d75fa16b8368",
         "world.distanceScale": "3803459424d54fcdc72fff573b8484c68ec7186f2e1d75d070855a3a5b3d093a",
@@ -56,7 +56,7 @@
         "simulation.currentYear": "0087cf99a4636ebd9a0f66eaf98fde8bca977e2a274bc832cc903c3561735e9d",
         "simulation.era": "003b6f53971aa2f083d73cfde10a1b5c9db7b61fcb6d3ccaa0b19aca86fdab84",
         "simulation.extensions.characters": "e143dd8eb206d07e962a19994050bc80970bef77b905ae0cd33bda6cdf28eb3b",
-        "simulation.extensions.economy": "86abe7d7ffcb44ec0d29af32c75c4533fbf218918de5438e0b6d8eb4f5a382a8",
+        "simulation.extensions.economy": "20e36d1a43b8bdeee476061b5b7bc76d6b69792a4d9f867a9932da852ada0f28",
         "simulation.extensions.nobility": "312e13194da15e8bbad19d418b9907c532466e0d2a49f83d415a3aab64637369",
         "simulation.extensions.shipbuilding": "03753d059fc730021cf3f22fb1bbc03c9f953b2bf81f59fceef87073bce347cc",
         "simulation.frontier": "23a38db257a8e2a3da0352b1d676617c73fc5bcf6174ca9f958b677d203f5693",
@@ -78,7 +78,7 @@
       }
     },
     "day-30": {
-      "digest": "ab6552c1602313fa947eff04e31102f73a2ce46a4fda0e2797e3d30140f22040",
+      "digest": "1cf15f66235e985669f86ff0de7892e55865616a7c898a2fa527ca89cb96834d",
       "sections": {
         "world.biomesData": "0ac90fa3970f313e47520e60fe7abdf1d513605d20455b24c660d75fa16b8368",
         "world.distanceScale": "3803459424d54fcdc72fff573b8484c68ec7186f2e1d75d070855a3a5b3d093a",
@@ -125,7 +125,7 @@
         "simulation.currentYear": "0087cf99a4636ebd9a0f66eaf98fde8bca977e2a274bc832cc903c3561735e9d",
         "simulation.era": "003b6f53971aa2f083d73cfde10a1b5c9db7b61fcb6d3ccaa0b19aca86fdab84",
         "simulation.extensions.characters": "8c2bd54d0c137f60a8ba238d863476d2fc95c47bc0efc62a8ff802c3167ceb03",
-        "simulation.extensions.economy": "fe52c02da96a1c8a0299ead52705d1ce44629b79d29724be8c2eeca91233bf00",
+        "simulation.extensions.economy": "a4c75211f4509926e2837de1b400cad0b3dccf99ff0785976237b1eb2e53e7c1",
         "simulation.extensions.nobility": "312e13194da15e8bbad19d418b9907c532466e0d2a49f83d415a3aab64637369",
         "simulation.extensions.shipbuilding": "1566d90c6d90ecdf4f89cdd3715b0672540811dea8753c5e5541e23f3404af8d",
         "simulation.frontier": "23a38db257a8e2a3da0352b1d676617c73fc5bcf6174ca9f958b677d203f5693",
@@ -148,7 +148,7 @@
       }
     },
     "day-365": {
-      "digest": "24dc99ef985940767f4e85a39b1c9f044b391ebcd0fa3d9d9e3fad16d7a904bc",
+      "digest": "a927f874c272c912146f06135ee627b1f646eca1bbd257703061d183be0ff4d8",
       "sections": {
         "world.biomesData": "0ac90fa3970f313e47520e60fe7abdf1d513605d20455b24c660d75fa16b8368",
         "world.distanceScale": "3803459424d54fcdc72fff573b8484c68ec7186f2e1d75d070855a3a5b3d093a",
@@ -195,7 +195,7 @@
         "simulation.currentYear": "0087cf99a4636ebd9a0f66eaf98fde8bca977e2a274bc832cc903c3561735e9d",
         "simulation.era": "003b6f53971aa2f083d73cfde10a1b5c9db7b61fcb6d3ccaa0b19aca86fdab84",
         "simulation.extensions.characters": "1d9d29e6aad85049c43ba8d46141c576557be1e72f5f4bcd6df69e46def009af",
-        "simulation.extensions.economy": "222289d9e060d5c9323a4f12742904c9ccd93e4fcaa8e58fc746690db353b040",
+        "simulation.extensions.economy": "a51661968c8066c5ed75dea2120aabc287bfb9e6bce666c7488dc023badfc4da",
         "simulation.extensions.nobility": "312e13194da15e8bbad19d418b9907c532466e0d2a49f83d415a3aab64637369",
         "simulation.extensions.shipbuilding": "b1f2bf77eb5c75d67d68072a02f346d7d33536ba9ffceb9d26a3c444c9a6b5d4",
         "simulation.frontier": "23a38db257a8e2a3da0352b1d676617c73fc5bcf6174ca9f958b677d203f5693",
