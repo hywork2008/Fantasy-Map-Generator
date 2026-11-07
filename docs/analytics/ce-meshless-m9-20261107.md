@@ -44,4 +44,4 @@ Biome、legacy UI／world writer／architecture／simulation境界チェック�
 
 今回コミット対象とする計測JSONは集計とhashのみで、全量の都市文書は出力しない。2MBを超える再生成可能な出力が必要な場合は`docs/analytics/raw/`へ置く。再実行には新しい出力名を指定し、既存観測を上書きしない。
 
-この続きは[M9追試](ce-meshless-m9-followup-20261107.md)で、施設探索の配分、接道、profile、詳細機能の比較、型検査を扱い、公開区分は試験運用のまま更新した。
+この続きは[M9追試](ce-meshless-m9-followup-20261107.md)で、施設探索の配分、接道、profile、詳細機能の比較、型検査を扱い、公開区分は試験運用のまま更新した。5,000人の接道不足はその後の[接道の記録](ce-meshless-m9-frontage-20261107.md)で解消し、公開区分は変えていない。

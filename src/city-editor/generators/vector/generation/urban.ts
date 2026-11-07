@@ -65,6 +65,131 @@ export interface VectorUrbanContinuation {
   baseConnections: VectorCityDocument["connections"];
   baseContext: VectorCityDocument["context"];
 }
+type FrontageAsset = {
+  minimumSite: { outer: Point[] }[];
+  entrances: { outward: Point; required?: boolean }[];
+};
+/** Street length one real-size site consumes, including the clearance to the next site. */
+function streetPitch(asset: FrontageAsset, clearance: number): number {
+  const entrance = asset.entrances.find(e => e.required) ?? asset.entrances[0],
+    outer = asset.minimumSite.flatMap(site => site.outer);
+  if (!entrance || outer.length < 2) return 8;
+  const tx = -entrance.outward[1],
+    ty = entrance.outward[0];
+  let lo = Infinity,
+    hi = -Infinity;
+  for (const p of outer) {
+    const t = p[0] * tx + p[1] * ty;
+    if (t < lo) lo = t;
+    if (t > hi) hi = t;
+  }
+  return Math.max(2, hi - lo) + clearance;
+}
+/** Depth of a real-size site, including the clearance kept in front of the entrance. */
+function lotDepth(asset: FrontageAsset, clearance: number): number {
+  const entrance = asset.entrances.find(e => e.required) ?? asset.entrances[0],
+    outer = asset.minimumSite.flatMap(site => site.outer);
+  if (!entrance || outer.length < 2) return 8 + clearance;
+  const len = Math.hypot(entrance.outward[0], entrance.outward[1]) || 1,
+    ox = entrance.outward[0] / len,
+    oy = entrance.outward[1] / len;
+  let lo = Infinity,
+    hi = -Infinity;
+  for (const p of outer) {
+    const t = p[0] * ox + p[1] * oy;
+    if (t < lo) lo = t;
+    if (t > hi) hi = t;
+  }
+  return Math.max(4, hi - lo) + clearance;
+}
+/** Centerline of the straight spurs the lane cap would try. One side of that length is a low credit for new frontage. */
+function straightSpurCenterline(candidates: { start: Point; end: Point }[], maxLanes: number, spacing: number): number {
+  const seen: Point[] = [];
+  let meters = 0;
+  let trials = 0;
+  for (const candidate of candidates) {
+    if (seen.length >= maxLanes || trials >= maxLanes * 8) break;
+    if (seen.some(p => Math.hypot(p[0] - candidate.start[0], p[1] - candidate.start[1]) < spacing * 0.5)) continue;
+    trials++;
+    meters += Math.hypot(candidate.end[0] - candidate.start[0], candidate.end[1] - candidate.start[1]);
+    seen.push(candidate.start);
+  }
+  return meters;
+}
+/**
+ * One lane path folded across a block at the lane spacing.
+ * A straight cul-de-sac spends the whole lane on depth, so land beside it never gets a door.
+ * The polyline stays a single simple road: in from the mouth, across the far side, then back and forth.
+ */
+function ladderLane(
+  block: { outer: Point[]; holes: Point[][] },
+  start: Point,
+  origin: Point,
+  normal: Point,
+  tangent: Point,
+  spacing: number,
+  depth: number,
+  laneWidth: number,
+  maxRungs = 8
+): Point[] {
+  const margin = laneWidth / 2 + 0.8;
+  const at = (inward: number, along: number): Point => [
+    origin[0] + normal[0] * inward + tangent[0] * along,
+    origin[1] + normal[1] * inward + tangent[1] * along
+  ];
+  const fits = (p: Point, axis: Point) => {
+    const side: Point = [-axis[1], axis[0]];
+    return [0, margin, -margin].every(d => containsRegion([block], [p[0] + side[0] * d, p[1] + side[1] * d]));
+  };
+  const lineFits = (a: Point, b: Point) => {
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1,
+      axis: Point = [(b[0] - a[0]) / len, (b[1] - a[1]) / len],
+      steps = Math.max(1, Math.ceil(len / 4));
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      if (!fits([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], axis)) return false;
+    }
+    return true;
+  };
+  const extent = (inward: number, dir: 1 | -1) => {
+    if (!fits(at(inward, 0), tangent)) return 0;
+    let ok = 0;
+    for (let d = 2; d <= 2000; d += 2) {
+      if (!fits(at(inward, dir * d), tangent)) break;
+      ok = d;
+    }
+    return ok;
+  };
+  const rungs: { inward: number; lo: number; hi: number }[] = [];
+  const pad = laneWidth;
+  for (let inward = spacing; inward <= depth - margin && rungs.length < maxRungs; inward += spacing) {
+    const hi = extent(inward, 1) - pad,
+      lo = -extent(inward, -1) + pad;
+    if (hi - lo < 20) break;
+    rungs.push({ inward, lo, hi });
+  }
+  if (!rungs.length) return [start];
+  const first = rungs[0],
+    foot = at(first.inward, 0),
+    far = Math.abs(first.lo) >= Math.abs(first.hi) ? first.lo : first.hi,
+    farPoint = at(first.inward, far);
+  if (!lineFits(foot, farPoint)) return [start];
+  const points: Point[] = [start, foot, farPoint];
+  let along = far;
+  for (let i = 1; i < rungs.length; i++) {
+    const rung = rungs[i],
+      turn = Math.min(rung.hi, Math.max(rung.lo, along)),
+      corner = at(rung.inward, turn),
+      previous = points.at(-1)!;
+    if (!lineFits(previous, corner)) break;
+    const dest = Math.abs(rung.lo - turn) >= Math.abs(rung.hi - turn) ? rung.lo : rung.hi,
+      destPoint = at(rung.inward, dest);
+    if (Math.hypot(destPoint[0] - corner[0], destPoint[1] - corner[1]) < 20 || !lineFits(corner, destPoint)) break;
+    points.push(corner, destPoint);
+    along = dest;
+  }
+  return points;
+}
 export function generateVectorUrban(
   input: VectorCityDocument,
   settings: VectorUrbanSettings = DEFAULT_VECTOR_URBAN,
@@ -247,6 +372,9 @@ export function generateVectorUrban(
             pathId: f.pathId,
             depth: lo,
             anchor,
+            origin: p,
+            normal,
+            tangent,
             start: evaluateAnchor(doc.paths[f.pathId], anchor),
             end: [p[0] + normal[0] * (lo - 3), p[1] + normal[1] * (lo - 3)]
           });
@@ -256,38 +384,132 @@ export function generateVectorUrban(
   laneCandidates.sort((a, b) => b.depth - a.depth || a.pathId.localeCompare(b.pathId));
   const mouths: Point[] = [];
   let laneTrials = 0;
-  for (const candidate of laneCandidates) {
-    if (ownedPaths.length >= settings.maxLanes || laneTrials >= settings.maxLanes * 8) break;
-    if (
-      mouths.some(
-        p => Math.hypot(p[0] - candidate.start[0], p[1] - candidate.start[1]) < settings.laneSpacingMeters * 0.5
-      )
-    )
-      continue;
-    laneTrials++;
+  const houseAsset =
+    settings.population > 0
+      ? bvFacilityAsset(settings.houseModelId, [{ id: "main", position: [0, 0, 4], normalXZ: [0, 1], clearWidth: 1.1 }])
+      : undefined;
+  const existingFrontage = blocks.reduce((n, block) => n + block.frontage.reduce((m, f) => m + f.lengthMeters, 0), 0);
+  const neededFrontage =
+    (houseAsset ? required * streetPitch(houseAsset, settings.clearanceMeters) : 0) +
+    requests.reduce((n, request) => n + streetPitch(request.asset, settings.clearanceMeters), 0);
+  // Credit the straight spurs with their centerline. Fold only when that still cannot cover real-size pitches.
+  const fillBlocks =
+    neededFrontage >
+    existingFrontage + straightSpurCenterline(laneCandidates, settings.maxLanes, settings.laneSpacingMeters);
+  const adoptLane = (
+    points: Point[],
+    anchor: (typeof laneCandidates)[number]["anchor"],
+    parentId: string,
+    block: (typeof laneCandidates)[number]["block"]
+  ) => {
+    const cleaned: Point[] = [];
+    for (const point of points) {
+      const previous = cleaned.at(-1);
+      if (!previous || Math.hypot(point[0] - previous[0], point[1] - previous[1]) > 0.05) cleaned.push(point);
+    }
+    if (cleaned.length < 2) return false;
     let id = `urban-lane:${ownedPaths.length}`;
     while (doc.paths[id]) id += "x";
-    const lane = {
-      id,
-      revision: 0,
-      role: "road" as const,
-      origin: "automatic" as const,
-      editPolicy: "editable" as const,
-      source: curveSource([candidate.start, candidate.end], "polyline", false),
-      width: { leftMeters: settings.laneWidthMeters / 2, rightMeters: settings.laneWidthMeters / 2, stations: [] }
-    };
-    const allowed = regionBoolean([candidate.block], [pathSurface(doc.paths[candidate.pathId])], "union");
-    if (regionBoolean([pathSurface(lane)], allowed, "difference").some(p => regionArea(p) > 1e-5)) continue;
-    if (
-      Object.values(doc.paths)
-        .filter(p => p.role === "road" && p.id !== candidate.pathId)
-        .some(p => regionBoolean([pathSurface(lane)], [pathSurface(p)], "intersection").some(p => regionArea(p) > 1e-5))
-    )
-      continue;
-    doc.paths[id] = lane;
-    joinVectorGenerationAnchors(doc, [candidate.anchor, { pathId: id, segmentId: "segment:0", t: 0 }]);
+    try {
+      const lane = {
+        id,
+        revision: 0,
+        role: "road" as const,
+        origin: "automatic" as const,
+        editPolicy: "editable" as const,
+        source: curveSource(cleaned, "polyline", false),
+        width: { leftMeters: settings.laneWidthMeters / 2, rightMeters: settings.laneWidthMeters / 2, stations: [] }
+      };
+      const surface = pathSurface(lane),
+        allowed = regionBoolean([block], [pathSurface(doc.paths[parentId])], "union");
+      // The mouth can cover a few square meters of the next block. A lane that misses its own block is larger.
+      const outside = regionBoolean([surface], allowed, "difference").reduce((n, p) => n + regionArea(p), 0);
+      if (outside > 20) return false;
+      if (
+        Object.values(doc.paths)
+          .filter(p => p.role === "road" && p.id !== parentId)
+          .some(p => regionBoolean([surface], [pathSurface(p)], "intersection").some(r => regionArea(r) > 1e-5))
+      )
+        return false;
+      doc.paths[id] = lane;
+    } catch {
+      return false;
+    }
+    joinVectorGenerationAnchors(doc, [anchor, { pathId: id, segmentId: "segment:0", t: 0 }]);
     ownedPaths.push(id);
-    mouths.push(candidate.start);
+    mouths.push(cleaned[0]);
+    return true;
+  };
+  const tooClose = (p: Point) =>
+    mouths.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < settings.laneSpacingMeters * 0.5);
+  const lengthOf = (points: Point[]) =>
+    points.slice(1).reduce((n, p, i) => n + Math.hypot(p[0] - points[i][0], p[1] - points[i][1]), 0);
+  if (!fillBlocks)
+    for (const candidate of laneCandidates) {
+      if (ownedPaths.length >= settings.maxLanes || laneTrials >= settings.maxLanes * 8) break;
+      if (tooClose(candidate.start)) continue;
+      laneTrials++;
+      adoptLane([candidate.start, candidate.end], candidate.anchor, candidate.pathId, candidate.block);
+    }
+  else {
+    const grouped = new Map<string, typeof laneCandidates>();
+    for (const candidate of laneCandidates) {
+      const list = grouped.get(candidate.block.id);
+      if (list) list.push(candidate);
+      else grouped.set(candidate.block.id, [candidate]);
+    }
+    const choices = [...grouped.values()].sort(
+      (a, b) => b[0].depth - a[0].depth || a[0].pathId.localeCompare(b[0].pathId)
+    );
+    const clearOfOtherRoads = (start: Point, parentId: string) =>
+      Object.values(doc.paths).every(p => {
+        if (p.role !== "road" || p.id === parentId) return true;
+        const point = evaluateAnchor(p, nearestRoadAnchor(p, start));
+        return Math.hypot(point[0] - start[0], point[1] - start[1]) >= settings.laneSpacingMeters * 0.75;
+      });
+    for (const list of choices) {
+      if (ownedPaths.length >= settings.maxLanes || laneTrials >= settings.maxLanes * 8) break;
+      // Two facing rows of real-size houses decide how close folded lanes may sit. Requested spacing is the maximum.
+      const rungSpacing = Math.min(
+        settings.laneSpacingMeters,
+        Math.max(
+          15,
+          (houseAsset ? lotDepth(houseAsset, settings.clearanceMeters) : 9) * 2 + settings.laneWidthMeters + 1
+        )
+      );
+      const ranked = list
+        .filter(candidate => !tooClose(candidate.start) && clearOfOtherRoads(candidate.start, candidate.pathId))
+        .map(candidate => {
+          const ladder = ladderLane(
+            candidate.block,
+            candidate.start,
+            candidate.origin,
+            candidate.normal,
+            candidate.tangent,
+            rungSpacing,
+            candidate.depth,
+            settings.laneWidthMeters
+          );
+          const spur = [candidate.start, candidate.end];
+          return { candidate, ladder, spur, length: Math.max(lengthOf(ladder), lengthOf(spur)) };
+        })
+        .sort((a, b) => b.length - a.length);
+      let adopted = false;
+      for (const item of ranked.slice(0, 6)) {
+        if (ownedPaths.length >= settings.maxLanes || adopted) break;
+        laneTrials++;
+        let points = item.ladder;
+        for (let trim = 0; trim < 4 && points.length >= 3 && lengthOf(points) >= lengthOf(item.spur); trim++) {
+          if (adoptLane(points, item.candidate.anchor, item.candidate.pathId, item.candidate.block)) {
+            adopted = true;
+            break;
+          }
+          points = points.slice(0, -2);
+        }
+      }
+      if (!adopted && ranked[0] && ownedPaths.length < settings.maxLanes)
+        adoptLane(ranked[0].spur, ranked[0].candidate.anchor, ranked[0].candidate.pathId, ranked[0].candidate.block);
+    }
   }
   if (run?.profile) run.profile.lanesMs = performance.now() - laneStarted;
   rebuildRoadGraph(doc);
@@ -427,10 +649,8 @@ export function generateVectorUrban(
   let housingAttempts = 0;
   let housingStop: VectorUrbanProfile["housingStop"] = remaining > 0 ? "frontage" : "demand-met";
   const housingStarted = performance.now();
-  if (remaining > 0) {
-    const asset = bvFacilityAsset(settings.houseModelId, [
-      { id: "main", position: [0, 0, 4], normalXZ: [0, 1], clearWidth: 1.1 }
-    ]);
+  if (remaining > 0 && houseAsset) {
+    const asset = houseAsset;
     for (let n = 0; remaining > 0; n++) {
       if (ownedPlacements.length >= 1500) {
         housingStop = "placement-cap";

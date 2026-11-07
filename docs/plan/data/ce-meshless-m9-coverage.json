@@ -70,7 +70,7 @@
         "src/city-editor/generators/vector/generation/urban.test.ts",
         "src/city-editor/generators/vector/m9Acceptance.test.ts"
       ],
-      "evidence": "Facility-first packing and conserved population are verified. On the fixed 5000-person case, 227 of 294 facilities are placed and the 67 misses are fully searched outskirts sites. Housing stops because frontage is exhausted, leaving 2460 people unplaced. That is a land shortfall, not an unsearched facility queue."
+      "evidence": "Facility-first packing and conserved population are verified. On the fixed 5000-person case, real-size houses meet the 1112-dwelling target and unplaced population is 0. 223 of 294 facilities are placed: 67 misses are fully searched outskirts sites and 4 hit the per-request search cap. Housing stops because demand is met."
     },
     {
       "id": "castle-moat-and-bastions",

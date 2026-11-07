@@ -5,6 +5,7 @@ import { regionArea, regionBoolean } from "../geometry/regions";
 import { syntheticVectorInput } from "./input";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
+import { VECTOR_HOUSE_FLOOR_AREA, VECTOR_HOUSE_STOREYS } from "./urbanCapacity";
 
 const skeleton = () =>
   generateVectorSkeleton(syntheticVectorInput("m5", 100, false), { ...DEFAULT_VECTOR_GENERATION, branches: 4 })
@@ -214,4 +215,23 @@ describe("urban physical constraints and capacity deficits", () => {
     expect(profile.housingAttempts).toBeGreaterThan(0);
     expect(profile.housingStop === "demand-met" || profile.housingStop === "frontage").toBe(true);
   });
+  it("folds lanes across blocks until the fixed 5000-person town can hold real-size houses", () => {
+    const doc = generateVectorUrban(
+      generateVectorSkeleton(syntheticVectorInput("m9-fixed", 240, true), {
+        ...DEFAULT_VECTOR_GENERATION,
+        branches: 4,
+        wall: "ellipse"
+      }).document,
+      { ...DEFAULT_VECTOR_URBAN, population: 5000, maxLanes: 8 }
+    );
+    const house = Object.values(doc.placements).find(p => p.building?.kind === "housing");
+    expect(house?.building?.floorFootprintMeters2).toBe(VECTOR_HOUSE_FLOOR_AREA);
+    expect(house?.building?.storeys).toBe(VECTOR_HOUSE_STOREYS);
+    expect(doc.urban!.ownedPaths.length).toBeLessThanOrEqual(8);
+    expect(doc.urban!.ownedPaths.length).toBeGreaterThan(0);
+    expect(doc.urban!.report.unplacedDwellings).toBe(0);
+    expect(doc.urban!.report.unplacedPopulation).toBe(0);
+    expect(doc.urban!.report.reasons).not.toContain("housing-capacity-shortfall");
+    expect(doc.urban!.report.reasons).not.toContain("housing-search-budget");
+  }, 180000);
 });
