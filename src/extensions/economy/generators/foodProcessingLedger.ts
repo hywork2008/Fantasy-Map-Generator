@@ -1,6 +1,7 @@
 import { getHouseholdHoneyKilograms } from "../../../simulation/householdHoneySettings";
 import { getMarketSettings } from "../../../simulation/marketSettings";
 import { getTreelessTownAleWoodland } from "../../../simulation/townAleSettings";
+import { getTownMeadLiters } from "../../../simulation/townMeadSettings";
 import { rn } from "../../hostUtils";
 import {
   getGoods,
@@ -22,14 +23,17 @@ import {
   DAIRY_TARGETS,
   GRAPE_TARGETS,
   isOrchardDrink,
+  isReturnedCaskDrink,
   KILOGRAMS_PER_CHEESE_LOT,
   KILOGRAMS_PER_GRAPES_LOT,
   KILOGRAMS_PER_ORCHARD_FRUIT_LOT,
   KILOGRAMS_PER_RAISINS_LOT,
   LITERS_PER_BEER_LOT,
+  LITERS_PER_MEAD_LOT,
   LITERS_PER_MILK_LOT,
   LITERS_PER_ORCHARD_DRINK_LOT,
   LITERS_PER_WINE_LOT,
+  MEAD_TARGETS,
   MILK_LOTS_PER_CHEESE_LOT,
   ORCHARD_TARGETS,
   WINE_TARGETS
@@ -44,7 +48,7 @@ import {
   RURAL_HOUSEHOLD_TOWN_SPEND_SHARE
 } from "./householdWealth";
 import { getMarketRuralPopulation, getMarketWoodlandShares } from "./marketPopulation";
-import type { FoodProcessingGoodLedger, Market } from "./marketTypes";
+import type { FoodProcessingGoodLedger, Market, ReturnableContainerLedger } from "./marketTypes";
 
 const TRACKED_GOODS = new Set([
   "Milk",
@@ -57,7 +61,8 @@ const TRACKED_GOODS = new Set([
   "Pears",
   "Cider",
   "Perry",
-  "Honey"
+  "Honey",
+  "Mead"
 ]);
 const BEER_RESERVE_MONTHS = 1;
 
@@ -179,7 +184,7 @@ export function recordBeerCaskFilling(market: Market, beerLots: number, replacem
 
 export function recordOrchardCaskFilling(
   market: Market,
-  name: "Cider" | "Perry",
+  name: keyof NonNullable<ReturnableContainerLedger["orchardCasks"]>,
   lots: number,
   replacements: number
 ): void {
@@ -272,6 +277,21 @@ export function getAleDemandSnapshot(market: Market): AleDemandSnapshot {
   return aleDemandByMarket.get(market.i) ?? calculateAleDemand(market);
 }
 
+/**
+ * The towns' mead: their adults' litres a year, brewed from the market's honey. Country people made
+ * theirs at home within the household honey, and the wine country drinks wine (docs/plan/mead.md §3).
+ */
+function getTownMeadDemand(market: Market): number {
+  if ((getGoodLedger(market, "Grapes")?.marketIntake ?? 0) > 0) return 0;
+  const liters = getTownMeadLiters();
+  if (!(liters > 0)) return 0;
+  let people = 0;
+  for (const burg of getWorldContext().pack.burgs) {
+    if (burg.i && !burg.removed && burg.market === market.i) people += getBurgPeople(burg.population);
+  }
+  return (people * MEAD_TARGETS.adultShare * liters) / 12 / LITERS_PER_MEAD_LOT;
+}
+
 export function getMonthlyHouseholdDemand(market: Market, goodName: string): number {
   const people = getMarketPeople(market);
   switch (goodName) {
@@ -308,6 +328,8 @@ export function getMonthlyHouseholdDemand(market: Market, goodName: string): num
       return getAleDemandSnapshot(market).monthlyDemand;
     case "Honey":
       return (people * getHouseholdHoneyKilograms()) / 12 / GOOD_MEASURES.Honey.kg;
+    case "Mead":
+      return getTownMeadDemand(market);
     default:
       return 0;
   }
@@ -345,7 +367,7 @@ export function getFoodProcessingProductionHeadroom(
     goodName !== "Cheese" &&
     goodName !== "Raisins" &&
     goodName !== "Wine" &&
-    !isOrchardDrink(goodName)
+    !isReturnedCaskDrink(goodName)
   ) {
     return Number.POSITIVE_INFINITY;
   }
@@ -355,9 +377,11 @@ export function getFoodProcessingProductionHeadroom(
   const heldStock = marketStock + Math.max(0, privateInventory);
   const reserveMonths = isOrchardDrink(goodName)
     ? ORCHARD_TARGETS.reserveMonths
-    : goodName === "Beer"
-      ? BEER_RESERVE_MONTHS
-      : 3;
+    : goodName === "Mead"
+      ? MEAD_TARGETS.reserveMonths
+      : goodName === "Beer"
+        ? BEER_RESERVE_MONTHS
+        : 3;
   const householdHeadroom = Math.max(0, getMonthlyHouseholdDemand(market, goodName) * reserveMonths - heldStock);
   if (goodName !== "Cheese") return householdHeadroom;
 
@@ -401,7 +425,7 @@ function getHouseholdGoodsPurses(market: Market): HouseholdGoodsPurses {
 
 /**
  * The market's people pay for `units` at `price`, each by their share of the buyers: the towns by
- * their people and, unless only the towns buy (ale), the countryside by its people, each as far as
+ * their people and, unless only the towns buy (ale, mead), the countryside by its people, each as far as
  * its purse for these goods holds. The cash goes into the market treasury; returns the units they
  * paid for.
  */
@@ -460,7 +484,13 @@ function drawHouseholdDemand(
   let consumed = Math.min(available, remainingDemand);
   // Households pay the market for what they take, and take only what they can pay for.
   if (consumed > 0 && purses)
-    consumed = payForHouseholdGoods(market, purses, consumed, marketGood?.price ?? 0, goodName === "Beer");
+    consumed = payForHouseholdGoods(
+      market,
+      purses,
+      consumed,
+      marketGood?.price ?? 0,
+      goodName === "Beer" || goodName === "Mead"
+    );
   // Taken without payment, the towns' consigned goods bring in nothing to pay them with.
   else if (consumed > 0) releaseConsignedUnpaid(market, good.i, consumed);
   if (marketGood) marketGood.stock = Math.max(0, marketGood.stock - consumed);
@@ -475,7 +505,7 @@ function drawHouseholdDemand(
   }
   ledger.householdConsumption += consumed;
   ledger.unmetDemand += Math.max(0, remainingDemand - consumed);
-  if (isOrchardDrink(goodName) && consumed > 0) {
+  if (isReturnedCaskDrink(goodName) && consumed > 0) {
     const row = market.returnableContainerLedger?.orchardCasks?.[goodName];
     if (row) {
       const returned = Math.min(row.inService, consumed);
@@ -512,7 +542,7 @@ export function settleFoodProcessingHouseholds(): void {
     drawHouseholdDemand(market, "Raisins", getMonthlyHouseholdDemand(market, "Raisins"), purses);
     drawHouseholdDemand(market, "Wine", getMonthlyHouseholdDemand(market, "Wine"), purses);
     drawHouseholdDemand(market, "Honey", getMonthlyHouseholdDemand(market, "Honey"), purses);
-    for (const name of ["Apples", "Pears", "Cider", "Perry"] as const)
+    for (const name of ["Apples", "Pears", "Cider", "Perry", "Mead"] as const)
       drawHouseholdDemand(market, name, getMonthlyHouseholdDemand(market, name), purses);
     const aleDemand = getAleDemandSnapshot(market);
     const beerLedger = getGoodLedger(market, "Beer");

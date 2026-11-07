@@ -37,6 +37,7 @@ import {
   setTreelessTownAleWoodland,
   TREELESS_TOWN_ALE_WOODLAND_LIMITS
 } from "../../../../simulation/townAleSettings";
+import { getTownMeadLiters, setTownMeadLiters, TOWN_MEAD_LITERS_LIMITS } from "../../../../simulation/townMeadSettings";
 import { useOptionsState } from "../../../../store/optionsState";
 import { MIN_CURRENCY_EXCHANGE_RATE } from "../../../../utils/currency";
 import { lock } from "../../../../utils/domUtils";
@@ -74,6 +75,7 @@ export const SimulationSettingsTab: React.FC = () => {
   const [craftEmploymentShare, setCraftEmploymentShareState] = useState(getCraftEmploymentShare);
   const [treelessTownAleWoodland, setTreelessTownAleWoodlandState] = useState(getTreelessTownAleWoodland);
   const [householdHoneyKilograms, setHouseholdHoneyKilogramsState] = useState(getHouseholdHoneyKilograms);
+  const [townMeadLiters, setTownMeadLitersState] = useState(getTownMeadLiters);
   const generationSpacing = getMarketGenerationSpacing(
     worldContext.graphWidth,
     worldContext.graphHeight,
@@ -587,6 +589,23 @@ export const SimulationSettingsTab: React.FC = () => {
                   const kilograms = Number(v);
                   if (Number.isFinite(kilograms))
                     setHouseholdHoneyKilogramsState(setHouseholdHoneyKilograms(kilograms));
+                }}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.townMeadLitersTip")}>
+            <td />
+            <td>{t("simulation.townMeadLiters")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="townMeadLiters"
+                min={TOWN_MEAD_LITERS_LIMITS.min}
+                max={TOWN_MEAD_LITERS_LIMITS.max}
+                step={TOWN_MEAD_LITERS_LIMITS.step}
+                value={townMeadLiters}
+                onChange={v => {
+                  const liters = Number(v);
+                  if (Number.isFinite(liters)) setTownMeadLitersState(setTownMeadLiters(liters));
                 }}
               />
             </td>

@@ -102,7 +102,8 @@ export const CRAFT_DOMAIN_BY_GOOD_NAME: Readonly<Record<string, CraftKnowledgeDo
   Soap: "victualling",
   Beer: "brewing",
   Cider: "brewing",
-  Perry: "brewing"
+  Perry: "brewing",
+  Mead: "brewing"
 };
 
 /** null when the Good has no guild-craft domain (unmapped recipe good, or a raw resource). */

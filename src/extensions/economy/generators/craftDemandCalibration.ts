@@ -526,6 +526,8 @@ export const UNCALIBRATED_LABOR_POINTS_PER_LOT: Readonly<Record<string, number>>
   Beer: 0.0002,
   Cider: 0.00015,
   Perry: 0.00015,
+  // Honey boiled in water, skimmed and casked: no malting, as cider.
+  Mead: 0.00015,
   // Pressing and cellaring; the vine is the vineyard's.
   Wine: 0.00005,
   "Pomace Wine": 0.00003,

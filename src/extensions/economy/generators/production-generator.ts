@@ -53,7 +53,7 @@ import { laborPeople, peopleToPoints } from "./craftScale";
 import { getBasicWorkersByBurg, getChildLabourEquivalent, getCraftWorkforce } from "./craftWorkforce";
 import { settleCropResiduePreparation } from "./cropResidueSettlement";
 import { ExportStaging } from "./exportStaging";
-import { isOrchardDrink } from "./foodLots";
+import { isReturnedCaskDrink } from "./foodLots";
 import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
   getFoodProcessingProductionHeadroom,
@@ -1651,11 +1651,12 @@ export class ProductionModule {
       producedByproducts.push({ goodId: byproduct.goodId, units });
     }
 
-    if (good.name === "Wine" || good.name === "Beer" || isOrchardDrink(good.name)) {
+    if (good.name === "Wine" || good.name === "Beer" || isReturnedCaskDrink(good.name)) {
       const barrelIngredient = ingredients.find(ingredient => Goods.get(ingredient.goodId)?.name === "Barrels");
       const replacementCasks = produced * (barrelIngredient?.amount ?? 0);
       if (good.name === "Wine") recordWineCaskFilling(state.market, produced, replacementCasks);
-      else if (isOrchardDrink(good.name)) recordOrchardCaskFilling(state.market, good.name, produced, replacementCasks);
+      else if (isReturnedCaskDrink(good.name))
+        recordOrchardCaskFilling(state.market, good.name, produced, replacementCasks);
       else recordBeerCaskFilling(state.market, produced, replacementCasks);
     }
 

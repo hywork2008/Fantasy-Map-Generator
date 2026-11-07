@@ -141,6 +141,7 @@ import {
   migrateLiveCatsGood,
   migrateLiveDogsGood,
   migrateLivestockFeedDemand,
+  migrateMeadGood,
   migrateMeasuredCargoSlots,
   migrateMeatGood,
   migrateMercuryChainGoods,
@@ -367,7 +368,9 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migratePeatFuelValue,
   migrateMeatGood,
   migrateUntaxedSaltValue,
-  migrateHoneyForageLands
+  migrateHoneyForageLands,
+  // docs/plan/mead.md: after Honey has its lands, add Mead on this save's Honey and Barrels ids.
+  migrateMeadGood
 ];
 
 /**

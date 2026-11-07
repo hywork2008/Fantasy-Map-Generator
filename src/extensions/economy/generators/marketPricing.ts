@@ -88,6 +88,7 @@ const HOUSEHOLD_DEMAND_PRICED_GOODS: ReadonlySet<string> = new Set([
   "Beer",
   "Cider",
   "Perry",
+  "Mead",
   "Wine",
   "Cheese",
   "Raisins"

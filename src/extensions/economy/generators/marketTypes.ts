@@ -1,3 +1,4 @@
+import type { ReturnedCaskDrink } from "./foodLots";
 import type { RuralTextileProduction } from "./ruralTextileProductionTypes";
 import type { StapleCropInventory } from "./stapleCropInventoryTypes";
 
@@ -260,16 +261,27 @@ export type FoodProcessingGoodLedger = {
 
 export type FoodProcessingLedger = Partial<
   Record<
-    "Milk" | "Cheese" | "Grapes" | "Raisins" | "Wine" | "Beer" | "Apples" | "Pears" | "Cider" | "Perry" | "Honey",
+    | "Milk"
+    | "Cheese"
+    | "Grapes"
+    | "Raisins"
+    | "Wine"
+    | "Beer"
+    | "Apples"
+    | "Pears"
+    | "Cider"
+    | "Perry"
+    | "Honey"
+    | "Mead",
     FoodProcessingGoodLedger
   >
 >;
 
 export type ReturnableContainerLedger = {
-  /** Filled orchard drink lots and their repairs/returns; absent in older saves. */
+  /** Filled cider, perry and mead lots and their repairs/returns; absent in older saves. */
   orchardCasks?: Partial<
     Record<
-      "Cider" | "Perry",
+      ReturnedCaskDrink,
       {
         inService: number;
         returns: number;

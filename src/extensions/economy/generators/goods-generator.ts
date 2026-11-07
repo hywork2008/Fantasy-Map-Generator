@@ -22,7 +22,9 @@ import {
   GRAPE_TARGETS,
   GRAPES_LOTS_PER_RAISINS_LOT,
   GRAPES_LOTS_PER_WINE_LOT,
+  HONEY_BARRELS_PER_MEAD_LOT,
   KILOGRAMS_PER_ORCHARD_FRUIT_LOT,
+  MEAD_BARRELS_PER_LOT,
   MILK_LOTS_PER_CHEESE_LOT,
   ORCHARD_DRINK_BARRELS_PER_LOT,
   ORCHARD_FRUIT_LOTS_PER_DRIED_LOT,
@@ -270,6 +272,13 @@ const HONEY_OUTPUT_BY_TAG: Readonly<Partial<Record<BiomeTag, number>>> = {
  * 1350, the price of butter, with wheat at 6s a quarter (Rogers, after Allsop and Brand Miller 1996). It was 4.
  */
 const HONEY_BARREL_VALUE = 1.5;
+/**
+ * Three times ale by the litre. Mead sold at 25 kopecks a bucket against beer's 8 in Vologda in
+ * 1626 and 20 against 10 in Mozhaisk (Liseitsev 2020); in Lublin in 1595-1601 at 4-5 grosze a
+ * garniec, against 0.67 for Krakow's ordinary beer and 1.5 for its March beer. The honey of a tun
+ * costs 2.5 at its value (docs/plan/mead.md §2, §3).
+ */
+const MEAD_TUN_VALUE = 4.5;
 const HONEY_DISTRIBUTION = 'biomeTag("forest") || biomeTag("grassland") || biomeTag("scrub") || biomeTag("arable")';
 /** Pressed grape pomace in one 200 L cask of pomace wine: 120 kg, a tenth of a lot, with water (§29). */
 const POMACE_LOTS_PER_POMACE_WINE_CASK = 0.12;
@@ -2121,7 +2130,7 @@ export const GOODS_DATA: GoodData[] = [
       { Oats: GRAIN_WAINS_PER_ALE_CASK, Barrels: BARRELS_PER_TUN }
     ],
     // Casks circulate back to coopers; the recipe consumes only replacement/repair material.
-    // Honey drinks belong to a future Mead/Braggot luxury good, not ordinary small ale.
+    // Honey drinks are Mead's, not ordinary small ale's.
     unit: "1,000 L ale tun",
     demandCoverage: {}
   },
@@ -2150,6 +2159,20 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     recipes: [{ Pears: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, Barrels: BARRELS_PER_TUN }],
     unit: "1,000 L perry tun",
+    demandCoverage: {}
+  },
+  {
+    // The drink of the lands without vines: honey boiled in water and fermented, one part to four
+    // (docs/plan/mead.md). Town brewers make it from the market's honey; country people make theirs
+    // at home within the household honey.
+    name: "Mead",
+    tags: ["food", "beverage"],
+    icon: "good-beer",
+    color: "#e0a526",
+    value: MEAD_TUN_VALUE,
+    chance: 0,
+    recipes: [{ Honey: HONEY_BARRELS_PER_MEAD_LOT, Barrels: MEAD_BARRELS_PER_LOT }],
+    unit: "1,000 L mead tun",
     demandCoverage: {}
   },
   {
@@ -3655,6 +3678,8 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   // low value density and fragility (durability/lossRisk) mean it's still not worth hauling far.
   Egg: tradeProfile(2, 3, 1, 1, 0, 2, 3),
   Beer: tradeProfile(4, 4, 2, 1, -1, 2, 3),
+  // Heavy as ale, but dearer, and it keeps and travels like wine.
+  Mead: tradeProfile(4, 4, 3, 1, 1, 4, 2),
   Liquor: tradeProfile(2, 2, 4, 2, 1, 4, 2),
   Candles: tradeProfile(2, 3, 3, 1, 0, 3, 2),
   Soap: tradeProfile(3, 3, 3, 1, 0, 4, 2),
@@ -4590,6 +4615,25 @@ export function migrateWineRecipe(): boolean {
   wine.chance = 0;
   delete wine.distribution;
   delete wine.biomeOutputByTag;
+  return true;
+}
+
+/**
+ * Adds Mead to catalogues saved before it, its recipe on this save's Honey and Barrels ids
+ * (docs/plan/mead.md). No-op when Mead is present or an ingredient is missing.
+ */
+export function migrateMeadGood(): boolean {
+  const goods = getGoods();
+  if (goods.some(good => good.name === "Mead")) return false;
+  const honey = goods.find(good => good.name === "Honey");
+  const barrels = goods.find(good => good.name === "Barrels");
+  if (!honey || !barrels) return false;
+
+  const mead = Goods.getDefaultGood("Mead");
+  if (!mead) throw new Error("Mead must be present in the shipped goods catalogue");
+  mead.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  mead.recipes = [{ [honey.i]: HONEY_BARRELS_PER_MEAD_LOT, [barrels.i]: MEAD_BARRELS_PER_LOT }];
+  goods.push(mead);
   return true;
 }
 

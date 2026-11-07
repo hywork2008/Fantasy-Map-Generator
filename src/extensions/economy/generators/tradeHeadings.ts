@@ -225,6 +225,7 @@ export const CATALOG_TRADE_HEADINGS = {
   Beer: "beverages",
   Cider: "beverages",
   Perry: "beverages",
+  Mead: "beverages",
   "Pomace Wine": "beverages",
   Liquor: "beverages",
   Candles: "manufactures",

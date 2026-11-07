@@ -37,7 +37,9 @@ export const WORLD_SETTING_KEYS = [
   /** Woodland share for the full town ale; treeless lands drink whey (docs/plan/low-habitability-site-bonus.md §4). */
   "fmg-treeless-town-ale-woodland",
   /** Honey a person eats in a year (docs/plan/honey-forage-lands.md §6). */
-  "fmg-household-honey-kg"
+  "fmg-household-honey-kg",
+  /** Mead a town adult drinks in a year outside the wine country (docs/plan/mead.md §3). */
+  "fmg-town-mead-liters"
 ] as const;
 
 export type WorldSettingKey = (typeof WORLD_SETTING_KEYS)[number];

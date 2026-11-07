@@ -37,6 +37,7 @@ import {
   migrateLiveCatsGood,
   migrateLiveDogsGood,
   migrateLivestockFeedDemand,
+  migrateMeadGood,
   migrateMercuryChainGoods,
   migrateNaturalGasChainGoods,
   migrateOrdinaryWoolGoods,
@@ -1335,6 +1336,23 @@ describe("GoodsModule", () => {
     honey.biomeOutputByTag = { forest: 0.06 };
     expect(migrateHoneyForageLands()).toBe(false);
     expect(honey.biomeOutputByTag).toEqual({ forest: 0.06 });
+  });
+
+  it("adds Mead to a saved catalogue on that save's own Honey and Barrels ids", () => {
+    goodsModule.restoreDefaults();
+    const honey = getGoods().find(good => good.name === "Honey")!;
+    const barrels = getGoods().find(good => good.name === "Barrels")!;
+    setGoods(
+      getGoods()
+        .filter(good => good.name !== "Mead")
+        .map(good => (good.i === honey.i ? { ...good, i: 900 } : good))
+    );
+
+    expect(migrateMeadGood()).toBe(true);
+    const mead = getGoods().find(good => good.name === "Mead")!;
+    expect(mead.i).toBe(901);
+    expect(mead.recipes).toEqual([{ 900: 1000 / 5 / 120, [barrels.i]: 0.4 }]);
+    expect(migrateMeadGood()).toBe(false);
   });
 
   it("upgrades legacy Wood-to-Coal fuel into Charcoal, Ash-to-Potash, and Slag without inventing stock", () => {

@@ -20,6 +20,7 @@ import {
   KILOGRAMS_PER_GRAPES_LOT,
   KILOGRAMS_PER_RAISINS_LOT,
   LITERS_PER_BEER_LOT,
+  LITERS_PER_MEAD_LOT,
   LITERS_PER_MILK_LOT,
   LITERS_PER_ORCHARD_DRINK_LOT,
   LITERS_PER_WINE_LOT
@@ -234,6 +235,7 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
     "cask",
     "label"
   ),
+  Mead: byVolume("1,000 L mead tun", `${LITERS_PER_MEAD_LOT} L`, LITERS_PER_MEAD_LOT, 1.05, "cask", "label"),
   Milk: byVolume("1,000 L dairy lot", `${LITERS_PER_MILK_LOT} L`, LITERS_PER_MILK_LOT, 1.03, "cask", "code"),
   Cheese: byMass(
     "1,000 kg cheese lot",

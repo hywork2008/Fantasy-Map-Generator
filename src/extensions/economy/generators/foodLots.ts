@@ -36,6 +36,30 @@ export const ORCHARD_TARGETS = {
 export function isOrchardDrink(name: string): name is "Cider" | "Perry" {
   return name === "Cider" || name === "Perry";
 }
+
+/** Mead is traded by the tun of 1,000 L, five casks, as ale is (docs/plan/mead.md §3). */
+export const LITERS_PER_MEAD_LOT = 1_000;
+/** A barrel of honey is 120 L (168 kg). */
+export const HONEY_LITERS_PER_BARREL = 120;
+/**
+ * One part honey to four of water, the Domostroi's white mead and an English receipt of the 13th-14th
+ * century: 200 L of honey a tun.
+ */
+export const HONEY_BARRELS_PER_MEAD_LOT = LITERS_PER_MEAD_LOT / 5 / HONEY_LITERS_PER_BARREL;
+/** Replacement/repair material for the five circulating 200 L casks, as for ale and cider. */
+export const MEAD_BARRELS_PER_LOT = 0.4;
+export const MEAD_TARGETS = {
+  adultShare: 0.65,
+  /** Mead keeps, but the towns brewed it for feasts and guests, not as a year's store. */
+  reserveMonths: 3
+} as const;
+
+/** Drinks whose filled casks the market tracks out and back in `orchardCasks`. */
+export type ReturnedCaskDrink = "Cider" | "Perry" | "Mead";
+
+export function isReturnedCaskDrink(name: string): name is ReturnedCaskDrink {
+  return isOrchardDrink(name) || name === "Mead";
+}
 export const LITERS_PER_WINE_LOT = 200;
 export const KILOGRAMS_PER_RAISINS_LOT = 250;
 
