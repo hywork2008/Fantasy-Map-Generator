@@ -13,7 +13,7 @@ import type { FixedApproachProvider } from "../../types/contracts/fixedApproachA
 import type { CityDocument } from "../../types/document";
 import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorStage } from "../../types/vector/urban";
-import { createEditorControls } from "../editorControls";
+import { clamp, createEditorControls } from "../editorControls";
 import type { EditorLanguageLifetime } from "../languagePanel";
 import { createVectorEditPanel } from "./VectorEditPanel";
 import { createVectorEnvironmentPanel } from "./VectorEnvironmentPanel";
@@ -67,6 +67,30 @@ export function mountVectorCityEditor(
   status.setAttribute("aria-live", "polite");
   const map = document.createElement("main");
   map.style.cssText = "flex:1;min-width:0";
+  const viewportExtents = new WeakMap<SVGSVGElement, number>();
+  scope.listen(
+    map,
+    "wheel",
+    event => {
+      const svg = map.querySelector<SVGSVGElement>(".ce-vector-svg");
+      if (!svg) return;
+      const [x, y, width, height] = svg.getAttribute("viewBox")!.split(/\s+/).map(Number);
+      const rect = svg.getBoundingClientRect();
+      const size = Math.min(rect.width, rect.height);
+      if (!(width > 0 && height > 0 && size > 0)) return;
+      event.preventDefault();
+      const extent = viewportExtents.get(svg) ?? width;
+      viewportExtents.set(svg, extent);
+      const nextWidth = clamp(width * Math.exp(event.deltaY * 0.0012), extent / 20, extent);
+      const scale = nextWidth / width;
+      const nextHeight = height * scale;
+      // Keep the map point under the cursor fixed, including letterboxed viewports.
+      const centerX = x + width / 2 + ((event.clientX - rect.left - rect.width / 2) * (width - nextWidth)) / size;
+      const centerY = y + height / 2 + ((event.clientY - rect.top - rect.height / 2) * (height - nextHeight)) / size;
+      svg.setAttribute("viewBox", `${centerX - nextWidth / 2} ${centerY - nextHeight / 2} ${nextWidth} ${nextHeight}`);
+    },
+    { passive: false }
+  );
   let environmentPanel: ReturnType<typeof createVectorEnvironmentPanel> | undefined;
   let placementPanel: ReturnType<typeof createVectorPlacementPanel> | undefined;
   let editPanel: ReturnType<typeof createVectorEditPanel> | undefined;

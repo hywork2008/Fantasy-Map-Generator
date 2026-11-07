@@ -31,6 +31,53 @@ function useMeshless() {
 }
 
 describe("meshless editor boundary", () => {
+  it.each([
+    [800, 800],
+    [1000, 600],
+    [600, 1000]
+  ])("zooms vector SVGs around the cursor in a %i by %i viewport without rebuilding geometry", (width, height) => {
+    dispose = mountCityEditor(root, { initialDocument: createVectorExample() });
+    const checkZoom = () => {
+      const svg = root.querySelector<SVGSVGElement>(".ce-vector-svg")!;
+      const path = svg.querySelector("[data-vector-path]");
+      vi.spyOn(svg, "getBoundingClientRect").mockReturnValue({
+        left: 70,
+        top: 40,
+        width,
+        height
+      } as DOMRect);
+      const initial = svg.getAttribute("viewBox")!;
+      const extent = Number(initial.split(/\s+/)[2]);
+      const clientX = 70 + width * 0.7,
+        clientY = 40 + height * 0.3;
+      const cursorPosition = () => {
+        const [x, y, size] = svg.getAttribute("viewBox")!.split(/\s+/).map(Number);
+        return [
+          x + size / 2 + ((clientX - 70 - width / 2) * size) / Math.min(width, height),
+          y + size / 2 + ((clientY - 40 - height / 2) * size) / Math.min(width, height)
+        ];
+      };
+      const anchor = cursorPosition();
+      for (const deltaY of [-250, -250, 100, -10000, -10000, 10000, 10000]) {
+        const event = new WheelEvent("wheel", { deltaY, clientX, clientY, bubbles: true, cancelable: true });
+        svg.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
+        const position = cursorPosition();
+        expect(position[0]).toBeCloseTo(anchor[0], 8);
+        expect(position[1]).toBeCloseTo(anchor[1], 8);
+        const size = Number(svg.getAttribute("viewBox")!.split(/\s+/)[2]);
+        expect(size).toBeGreaterThanOrEqual(extent / 20);
+        expect(size).toBeLessThanOrEqual(extent);
+        if (deltaY === -250) expect(size).toBeLessThan(extent);
+      }
+      expect(root.querySelector(".ce-vector-svg")).toBe(svg);
+      expect(svg.querySelector("[data-vector-path]")).toBe(path);
+    };
+    checkZoom();
+    click(".ce-vector-example");
+    checkZoom();
+  });
+
   it("hands the current FMG descriptor to the dedicated vector input preview", () => {
     sessionStorage.setItem("fmg.citySite", JSON.stringify(incomingFixture.descriptor));
     dispose = mountCityEditor(root);
