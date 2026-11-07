@@ -1,8 +1,11 @@
+import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
+import { type ContourLine, fieldContours } from "../../generators/terrainField/contours";
 import { curveSource } from "../../generators/vector/editing/paths";
 import { bridgeGeometry, gateOpening, junctionSurface } from "../../generators/vector/geometry/network";
 import { regionBoolean } from "../../generators/vector/geometry/regions";
 import { pathSurface } from "../../generators/vector/geometry/surfaces";
 import { vectorWaterSurfaces } from "../../generators/vector/geometry/water";
+import { vectorTerrain } from "../../generators/vector/terrain";
 import { assertVectorDocument } from "../../generators/vector/validation/document";
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument, VectorPath, VectorPlacement } from "../../types/vector/document";
@@ -17,7 +20,8 @@ export type VectorSurfaceKind =
   | "wall"
   | "bridge"
   | "access"
-  | "building";
+  | "building"
+  | "feature";
 export interface VectorRenderSurface {
   id: string;
   kind: VectorSurfaceKind;
@@ -28,6 +32,9 @@ export interface VectorRenderSurface {
   placement?: VectorPlacement;
   provisional?: boolean;
   buildingKind?: string;
+  heightAt?: (point: Point) => number;
+  featureKind?: string;
+  pieceRole?: string;
 }
 export interface VectorRenderData {
   revision: number;
@@ -38,6 +45,8 @@ export interface VectorRenderData {
   paths: VectorPath[];
   nodes: { id: string; position: Point }[];
   warnings: string[];
+  contours?: ContourLine[];
+  terrain?: { points: [number, number, number][]; indices: number[] };
 }
 /** Adopted geometry only. The same clipped surfaces feed screen SVG, exports and 3D. */
 export function vectorRenderData(
@@ -54,16 +63,35 @@ export function vectorRenderData(
           ? Object.keys(doc.generation?.pathRevisions ?? {})
           : []
     );
-  const paths = Object.values(doc.paths).filter(p => !hidden.has(p.id));
+  let paths = Object.values(doc.paths).filter(p => !hidden.has(p.id));
   let extent = doc.frame.extentMeters,
     center: Point = doc.site?.center ?? [0, 0];
-  if (!doc.site && Object.keys(doc.paths).length) {
+  if (
+    !doc.site &&
+    !doc.environment?.terrain &&
+    (Object.keys(doc.paths).length ||
+      Object.keys(doc.regions).length ||
+      Object.keys(doc.environment?.features ?? {}).length)
+  ) {
     let minX = -extent / 2,
       maxX = extent / 2,
       minY = -extent / 2,
       maxY = extent / 2;
     for (const path of Object.values(doc.paths))
       for (const p of pathSurface(path).outer) {
+        minX = Math.min(minX, p[0]);
+        maxX = Math.max(maxX, p[0]);
+        minY = Math.min(minY, p[1]);
+        maxY = Math.max(maxY, p[1]);
+      }
+    for (const ring of [
+      ...Object.values(doc.regions).map(r => r.outer),
+      ...Object.values(doc.environment?.features ?? {}).flatMap(f => [
+        f.boundary.outer,
+        ...f.pieces.map(p => p.polygon.outer)
+      ])
+    ])
+      for (const p of ring) {
         minX = Math.min(minX, p[0]);
         maxX = Math.max(maxX, p[0]);
         minY = Math.min(minY, p[1]);
@@ -83,12 +111,46 @@ export function vectorRenderData(
     },
     surfaces: VectorRenderSurface[] = [],
     warnings: string[] = [];
+  const terrain = vectorTerrain(doc);
+  const hiddenFeatures = new Set(doc.environment?.hidden ?? []);
+  const hiddenPaths = new Set(
+    Object.values(doc.environment?.features ?? {})
+      .filter(f => hiddenFeatures.has(f.id))
+      .flatMap(f => f.pathIds)
+  );
+  for (const id of hiddenPaths) hidden.add(id);
+  paths = paths.filter(p => !hiddenPaths.has(p.id));
   const add = (item: VectorRenderSurface) => {
+    if (hiddenPaths.has(item.id)) return;
+    if (terrain.hasRelief) {
+      if (item.kind === "building") item.elevationMeters += terrain.foundationAt(item.id, item.polygons[0].outer);
+      else if (item.kind !== "bridge")
+        item.heightAt =
+          item.kind === "river"
+            ? p => terrain.waterAt(p) ?? terrain.heightAt(p)
+            : ["road", "junction", "access"].includes(item.kind)
+              ? terrain.surfaceAt
+              : terrain.heightAt;
+    }
     const clipped = regionBoolean(item.polygons, [frame], "intersection");
     if (clipped.length) surfaces.push({ ...item, polygons: clipped });
   };
   for (const r of Object.values(doc.regions))
-    add({ id: r.id, kind: "region", polygons: [r], color: "#bfc8ab", heightMeters: 0, elevationMeters: 0.005 });
+    add({
+      id: r.id,
+      kind: "region",
+      polygons: [r],
+      color: {
+        forest: "#72976a",
+        farm: "#b7ae71",
+        park: "#a1bb87",
+        cemetery: "#c1beb1",
+        district: "#bfc8ab",
+        reservation: "#bfc8ab"
+      }[r.kind],
+      heightMeters: 0,
+      elevationMeters: 0.005
+    });
   const early = urban && ["inputs", "skeleton", "regions"].includes(stage),
     nodes = (
       stage === "inputs" && doc.generation?.inputRevision === doc.revision
@@ -151,7 +213,11 @@ export function vectorRenderData(
       kind: p.role,
       polygons,
       color: p.role === "wall" ? "#655b53" : "#71abc4",
-      heightMeters: p.role === "wall" ? 6 : 0,
+      heightMeters:
+        p.role === "wall"
+          ? (Object.values(doc.environment?.features ?? {}).find(f => f.pathIds.includes(p.id))?.settings
+              .heightMeters ?? 10) * 0.6
+          : 0,
       elevationMeters: p.role === "wall" ? 0.1 : 0.08
     });
   }
@@ -164,10 +230,16 @@ export function vectorRenderData(
       polygons: [{ outer: bridgeGeometry(doc, b, waters).deck, holes: [] }],
       color: b.structure === "stone" ? "#a69d8c" : "#a98050",
       heightMeters: 0.3,
-      elevationMeters: 0.16
+      elevationMeters: terrain.hasRelief ? terrain.bridgeElevation(b.id) : 0.16
     });
   }
+  const hiddenPlacements = new Set(
+    Object.values(doc.environment?.features ?? {})
+      .filter(f => hiddenFeatures.has(f.id))
+      .flatMap(f => f.placementIds)
+  );
   for (const p of Object.values(doc.placements)) {
+    if (hiddenPlacements.has(p.id) || packedMarketPitch(p.modelId, p.appearance?.activity)) continue;
     if (checkpoint && !checkpoint.placementIds.includes(p.id)) continue;
     for (const e of p.building?.entrances ?? []) {
       const path: VectorPath = {
@@ -202,6 +274,92 @@ export function vectorRenderData(
       buildingKind: b?.kind ?? display?.kind ?? "manual"
     });
   }
+  for (const feature of Object.values(doc.environment?.features ?? {})) {
+    if (hiddenFeatures.has(feature.id)) continue;
+    const color = {
+      castle: "#bbb4a1",
+      bastion: "#b3b398",
+      harbor: "#b9ad90",
+      market: "#d7c69b",
+      temple: "#d4cbb8",
+      cemetery: "#c1beb1",
+      park: "#a1bb87",
+      farm: "#b7ae71",
+      forest: "#72976a"
+    }[feature.kind];
+    add({
+      id: feature.id,
+      kind: "feature",
+      polygons: [feature.boundary],
+      color,
+      heightMeters: 0,
+      elevationMeters: 0.015,
+      featureKind: feature.kind,
+      pieceRole: "ground"
+    });
+    for (const piece of feature.pieces) {
+      if (feature.kind === "market" && feature.settings.activity === "closed" && piece.role === "stall") continue;
+      const item: VectorRenderSurface = {
+        id: piece.id,
+        kind: "feature",
+        polygons: [piece.polygon],
+        color: piece.color,
+        heightMeters: piece.heightMeters,
+        elevationMeters: 0.06,
+        featureKind: feature.kind,
+        pieceRole: piece.role
+      };
+      if (terrain.hasRelief && piece.role !== "ground") {
+        item.elevationMeters +=
+          piece.role === "ship"
+            ? (terrain.waterAt(piece.polygon.outer[0]) ?? terrain.heightAt(piece.polygon.outer[0]))
+            : terrain.foundationAt(piece.id, piece.polygon.outer);
+        // Structures stand level; their base is shared with the saved plot or sampled foundation.
+        const clipped = regionBoolean(item.polygons, [frame], "intersection");
+        if (clipped.length) surfaces.push({ ...item, polygons: clipped });
+      } else add(item);
+    }
+  }
+  // Ground reservations precede roads and walls in the plan view; details remain above them.
+  const grounds = surfaces.filter(s => s.kind === "feature" && s.pieceRole === "ground" && s.heightMeters === 0);
+  for (const ground of grounds) {
+    surfaces.splice(surfaces.indexOf(ground), 1);
+  }
+  surfaces.unshift(...grounds);
+  let terrainMesh: VectorRenderData["terrain"], contours: ContourLine[] | undefined;
+  if (terrain.hasRelief) {
+    const count = 64,
+      points: [number, number, number][] = [],
+      indices: number[] = [];
+    for (let y = 0; y <= count; y++)
+      for (let x = 0; x <= count; x++) {
+        const p: Point = [center[0] - extent / 2 + (x * extent) / count, center[1] - extent / 2 + (y * extent) / count];
+        points.push([p[0], terrain.heightAt(p) - 0.01, p[1]]);
+      }
+    for (let y = 0; y < count; y++)
+      for (let x = 0; x < count; x++) {
+        const i = y * (count + 1) + x;
+        indices.push(i, i + 1, i + count + 1, i + 1, i + count + 2, i + count + 1);
+      }
+    terrainMesh = { points, indices };
+    const elevations = new Float32Array(points.map(p => p[1] + 0.01));
+    let low = Infinity,
+      high = -Infinity;
+    for (const value of elevations) {
+      low = Math.min(low, value);
+      high = Math.max(high, value);
+    }
+    contours = fieldContours(
+      {
+        origin: [center[0] - extent / 2, center[1] - extent / 2],
+        sampleMeters: extent / count,
+        columns: count + 1,
+        rows: count + 1,
+        elevationsMeters: elevations
+      },
+      Math.max(5, (high - low) / 50)
+    );
+  }
   if (doc.urban && !urban) warnings.push("stale-stages");
   return {
     revision: doc.revision,
@@ -211,6 +369,8 @@ export function vectorRenderData(
     surfaces,
     paths,
     nodes: nodes.map(n => ({ id: n.id, position: n.position })),
-    warnings
+    warnings,
+    contours,
+    terrain: terrainMesh
   };
 }

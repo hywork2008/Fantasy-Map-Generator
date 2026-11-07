@@ -4,6 +4,7 @@ import type { VectorBlock, VectorGenerationSettings, VectorPolygon } from "../..
 import { mapDocumentAnchors } from "../editing/anchors";
 import { createVectorGate, networkId, proposeSquareBridge, rebuildRoadGraph, setWallCircuit } from "../editing/network";
 import { curveSource, removeVectorPath } from "../editing/paths";
+import { featureReservations } from "../environmentState";
 import { evaluateAnchor, pathIsClosed, pathSegmentIds } from "../geometry/curves";
 import { pathIntersections } from "../geometry/intersections";
 import { anchorOrder, bridgeGeometry, distance, gateOpening, unit, widthAt } from "../geometry/network";
@@ -84,6 +85,7 @@ function walls(doc: VectorCityDocument): VectorPolygon[] {
 }
 function freeLand(doc: VectorCityDocument): VectorPolygon[] {
   const obstacles = [
+    ...featureReservations(doc),
     ...allVectorWater(doc),
     ...walls(doc),
     ...Object.values(doc.regions)

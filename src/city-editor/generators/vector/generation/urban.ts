@@ -8,6 +8,7 @@ import { polygonCentroid } from "../../geom";
 import { buildPopulationFacilityRequests } from "../../populationFacilityRequests";
 import { rebuildRoadGraph } from "../editing/network";
 import { curveSource } from "../editing/paths";
+import { featureReservations } from "../environmentState";
 import { evaluateAnchor } from "../geometry/curves";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { sampledClosedRing } from "../geometry/routing";
@@ -153,9 +154,12 @@ export function generateVectorUrban(
     }
   }
   doc.site.domain = domain;
-  const protectedRegions = Object.values(doc.regions)
-    .filter(r => r.kind !== "district")
-    .map(r => ({ outer: r.outer, holes: r.holes }));
+  const protectedRegions = [
+    ...featureReservations(doc),
+    ...Object.values(doc.regions)
+      .filter(r => r.kind !== "district")
+      .map(r => ({ outer: r.outer, holes: r.holes }))
+  ];
   const deriveLaneBlocks = () =>
     deriveVectorBlocks(
       {

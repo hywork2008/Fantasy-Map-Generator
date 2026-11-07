@@ -1,0 +1,554 @@
+{
+  "format": "fmg-vector-city",
+  "version": 7,
+  "revision": 2,
+  "frame": {
+    "extentMeters": 128
+  },
+  "context": {
+    "historicalPeriod": "ageOfExploration",
+    "targetPopulation": 0
+  },
+  "paths": {
+    "freeform:way:street": {
+      "id": "freeform:way:street",
+      "revision": 0,
+      "role": "road",
+      "origin": "imported",
+      "editPolicy": "fixed",
+      "source": {
+        "kind": "curve",
+        "closed": false,
+        "segments": [
+          {
+            "id": "segment:0",
+            "kind": "line",
+            "from": [
+              40,
+              -60
+            ],
+            "to": [
+              40,
+              60
+            ]
+          }
+        ]
+      },
+      "width": {
+        "leftMeters": 2,
+        "rightMeters": 2,
+        "stations": []
+      }
+    },
+    "freeform:river:river": {
+      "id": "freeform:river:river",
+      "revision": 0,
+      "role": "river",
+      "origin": "imported",
+      "editPolicy": "fixed",
+      "source": {
+        "kind": "curve",
+        "closed": false,
+        "segments": [
+          {
+            "id": "segment:0",
+            "kind": "line",
+            "from": [
+              -40,
+              60
+            ],
+            "to": [
+              -40,
+              -60
+            ]
+          }
+        ]
+      },
+      "width": {
+        "leftMeters": 4,
+        "rightMeters": 4,
+        "stations": [
+          {
+            "anchor": {
+              "pathId": "freeform:river:river",
+              "segmentId": "segment:0",
+              "t": 0
+            },
+            "leftMeters": 4,
+            "rightMeters": 4
+          },
+          {
+            "anchor": {
+              "pathId": "freeform:river:river",
+              "segmentId": "segment:0",
+              "t": 1
+            },
+            "leftMeters": 4,
+            "rightMeters": 4
+          }
+        ],
+        "interpolation": "linear"
+      }
+    }
+  },
+  "connections": {
+    "nodes": {
+      "node:1": {
+        "id": "node:1",
+        "position": [
+          40,
+          -60
+        ],
+        "anchors": [
+          {
+            "pathId": "freeform:way:street",
+            "segmentId": "segment:0",
+            "t": 0
+          }
+        ]
+      },
+      "node:2": {
+        "id": "node:2",
+        "position": [
+          40,
+          60
+        ],
+        "anchors": [
+          {
+            "pathId": "freeform:way:street",
+            "segmentId": "segment:0",
+            "t": 1
+          }
+        ]
+      }
+    },
+    "edges": {
+      "edge:1": {
+        "id": "edge:1",
+        "pathId": "freeform:way:street",
+        "fromNodeId": "node:1",
+        "toNodeId": "node:2",
+        "from": {
+          "pathId": "freeform:way:street",
+          "segmentId": "segment:0",
+          "t": 0
+        },
+        "to": {
+          "pathId": "freeform:way:street",
+          "segmentId": "segment:0",
+          "t": 1
+        }
+      }
+    },
+    "gates": {},
+    "circuits": {},
+    "bridges": {},
+    "wallRoads": {}
+  },
+  "regions": {
+    "freeform:zone:woods": {
+      "id": "freeform:zone:woods",
+      "kind": "forest",
+      "outer": [
+        [
+          16,
+          20
+        ],
+        [
+          30,
+          20
+        ],
+        [
+          30,
+          40
+        ],
+        [
+          16,
+          40
+        ]
+      ],
+      "holes": []
+    }
+  },
+  "placements": {
+    "freeform:placement:house": {
+      "id": "freeform:placement:house",
+      "modelId": "house:mediterranean",
+      "position": [
+        -20,
+        -20
+      ],
+      "facingDegrees": 90,
+      "origin": "manual",
+      "editPolicy": "editable",
+      "site": {
+        "outer": [
+          [
+            -28,
+            -12
+          ],
+          [
+            -28,
+            -28
+          ],
+          [
+            -12,
+            -28
+          ],
+          [
+            -12,
+            -12
+          ]
+        ],
+        "holes": []
+      },
+      "accesses": [],
+      "display": {
+        "kind": "object",
+        "heightMeters": 10.196531295776367,
+        "footprint": [
+          {
+            "outer": [
+              [
+                -24.175000190734863,
+                -22.93917727470398
+              ],
+              [
+                -24.175000190734863,
+                -17.06082272529602
+              ],
+              [
+                -15.824999809265137,
+                -17.06082272529602
+              ],
+              [
+                -15.824999809265137,
+                -22.93917727470398
+              ]
+            ],
+            "holes": []
+          }
+        ],
+        "provenance": "copied",
+        "note": "Freeform footprint and authored pad level retained; model detail follows its saved appearance."
+      },
+      "appearance": {
+        "quality": "low"
+      }
+    }
+  },
+  "recipe": {
+    "algorithm": "vector-city-v1",
+    "seed": "freeform"
+  },
+  "environment": {
+    "features": {},
+    "hidden": [],
+    "terrain": {
+      "format": "fmg-freeform-city",
+      "version": 1,
+      "frame": {
+        "extentMeters": 128
+      },
+      "ground": {
+        "version": 1,
+        "template": "dome",
+        "seed": 1,
+        "sampleMeters": 8,
+        "parts": [
+          {
+            "kind": "offset",
+            "meters": 10
+          },
+          {
+            "kind": "hill",
+            "center": [
+              0,
+              0
+            ],
+            "radiusMeters": 50,
+            "heightMeters": 8
+          }
+        ]
+      },
+      "sculpt": [
+        {
+          "id": "raise",
+          "kind": "raise",
+          "center": [
+            -20,
+            20
+          ],
+          "radiusMeters": 16,
+          "meters": 4
+        }
+      ],
+      "plots": [
+        {
+          "id": "pad",
+          "ownerId": "house",
+          "outline": [
+            [
+              -28,
+              -12
+            ],
+            [
+              -28,
+              -28
+            ],
+            [
+              -12,
+              -28
+            ],
+            [
+              -12,
+              -12
+            ]
+          ],
+          "levelMeters": 25,
+          "edge": {
+            "kind": "wall"
+          },
+          "marginMeters": 0
+        }
+      ],
+      "placements": [
+        {
+          "id": "house",
+          "modelId": "house:mediterranean",
+          "position": [
+            0,
+            0
+          ],
+          "facingDegrees": 0,
+          "plotId": "pad"
+        }
+      ],
+      "ways": [
+        {
+          "id": "street",
+          "centerline": [
+            [
+              40,
+              -60
+            ],
+            [
+              40,
+              60
+            ]
+          ],
+          "widthMeters": 4,
+          "profile": "slope",
+          "surface": "cobble"
+        }
+      ],
+      "rivers": [
+        {
+          "kind": "riverCorridor",
+          "id": "river",
+          "sourceId": "river",
+          "centerline": [
+            [
+              -40,
+              60
+            ],
+            [
+              -40,
+              -60
+            ]
+          ],
+          "widthsMeters": [
+            8,
+            8
+          ],
+          "bedMeters": [
+            8,
+            8
+          ],
+          "depthMeters": 1,
+          "bank": {
+            "kind": "slope",
+            "runMeters": 3
+          }
+        }
+      ],
+      "zones": [
+        {
+          "id": "woods",
+          "kind": "forest",
+          "polygon": [
+            [
+              16,
+              20
+            ],
+            [
+              30,
+              20
+            ],
+            [
+              30,
+              40
+            ],
+            [
+              16,
+              40
+            ]
+          ]
+        }
+      ]
+    },
+    "freeformSource": {
+      "format": "fmg-freeform-city",
+      "version": 1,
+      "frame": {
+        "extentMeters": 128
+      },
+      "ground": {
+        "version": 1,
+        "template": "dome",
+        "seed": 1,
+        "sampleMeters": 8,
+        "parts": [
+          {
+            "kind": "offset",
+            "meters": 10
+          },
+          {
+            "kind": "hill",
+            "center": [
+              0,
+              0
+            ],
+            "radiusMeters": 50,
+            "heightMeters": 8
+          }
+        ]
+      },
+      "sculpt": [
+        {
+          "id": "raise",
+          "kind": "raise",
+          "center": [
+            -20,
+            20
+          ],
+          "radiusMeters": 16,
+          "meters": 4
+        }
+      ],
+      "plots": [
+        {
+          "id": "pad",
+          "ownerId": "house",
+          "outline": [
+            [
+              -8,
+              -8
+            ],
+            [
+              8,
+              -8
+            ],
+            [
+              8,
+              8
+            ],
+            [
+              -8,
+              8
+            ]
+          ],
+          "levelMeters": 25,
+          "edge": {
+            "kind": "wall"
+          },
+          "marginMeters": 0
+        }
+      ],
+      "placements": [
+        {
+          "id": "house",
+          "modelId": "house:mediterranean",
+          "position": [
+            0,
+            0
+          ],
+          "facingDegrees": 0,
+          "plotId": "pad"
+        }
+      ],
+      "ways": [
+        {
+          "id": "street",
+          "centerline": [
+            [
+              40,
+              -60
+            ],
+            [
+              40,
+              60
+            ]
+          ],
+          "widthMeters": 4,
+          "profile": "slope",
+          "surface": "cobble"
+        }
+      ],
+      "rivers": [
+        {
+          "kind": "riverCorridor",
+          "id": "river",
+          "sourceId": "river",
+          "centerline": [
+            [
+              -40,
+              60
+            ],
+            [
+              -40,
+              -60
+            ]
+          ],
+          "widthsMeters": [
+            8,
+            8
+          ],
+          "bedMeters": [
+            8,
+            8
+          ],
+          "depthMeters": 1,
+          "bank": {
+            "kind": "slope",
+            "runMeters": 3
+          }
+        }
+      ],
+      "zones": [
+        {
+          "id": "woods",
+          "kind": "forest",
+          "polygon": [
+            [
+              16,
+              20
+            ],
+            [
+              30,
+              20
+            ],
+            [
+              30,
+              40
+            ],
+            [
+              16,
+              40
+            ]
+          ]
+        }
+      ]
+    }
+  }
+}

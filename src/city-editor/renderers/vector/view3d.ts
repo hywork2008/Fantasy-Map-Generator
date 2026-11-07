@@ -20,17 +20,23 @@ export function mountVector3d(container: HTMLElement, data: VectorRenderData) {
   const scene = new THREE.Scene(),
     camera = new THREE.PerspectiveCamera(40, 1, 1, Math.max(10000, data.extentMeters * 20)),
     model = createVectorScene(data);
+  const bounds = new THREE.Box3().setFromObject(model.group),
+    targetHeight = (bounds.min.y + bounds.max.y) / 2;
   scene.add(model.group, new THREE.HemisphereLight(0xffffff, 0x706552, 2.3));
   const light = new THREE.DirectionalLight(0xffffff, 2);
-  light.position.set(data.center[0] - data.extentMeters, data.extentMeters * 2, -data.center[1] + data.extentMeters);
+  light.position.set(
+    data.center[0] - data.extentMeters,
+    targetHeight + data.extentMeters * 2,
+    -data.center[1] + data.extentMeters
+  );
   scene.add(light);
   camera.position.set(
     data.center[0] + data.extentMeters * 0.65,
-    data.extentMeters * 0.9,
+    targetHeight + data.extentMeters * 0.9,
     -data.center[1] + data.extentMeters * 0.8
   );
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(data.center[0], 0, -data.center[1]);
+  controls.target.set(data.center[0], targetHeight, -data.center[1]);
   controls.maxPolarAngle = Math.PI * 0.49;
   controls.maxDistance = data.extentMeters * 5;
   controls.update();

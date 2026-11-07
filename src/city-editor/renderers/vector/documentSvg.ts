@@ -56,7 +56,18 @@ export function renderVectorDocument(
       fill: "#ece6d9"
     })
   );
+  for (const contour of data.contours ?? [])
+    svg.append(
+      element("path", {
+        d: `M${contour.points.map(p => `${p[0]} ${-p[1]}`).join(" L")}`,
+        fill: "none",
+        stroke: "#aaa18b",
+        "stroke-width": ".4",
+        "data-vector-contour": String(contour.elevation)
+      })
+    );
   const attributes = {
+    feature: "data-vector-feature",
     region: "data-vector-region",
     block: "data-vector-block",
     junction: "data-vector-junction",

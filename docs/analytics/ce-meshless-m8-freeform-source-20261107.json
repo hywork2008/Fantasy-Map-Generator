@@ -1,0 +1,153 @@
+{
+  "format": "fmg-freeform-city",
+  "version": 1,
+  "frame": {
+    "extentMeters": 128
+  },
+  "ground": {
+    "version": 1,
+    "template": "dome",
+    "seed": 1,
+    "sampleMeters": 8,
+    "parts": [
+      {
+        "kind": "offset",
+        "meters": 10
+      },
+      {
+        "kind": "hill",
+        "center": [
+          0,
+          0
+        ],
+        "radiusMeters": 50,
+        "heightMeters": 8
+      }
+    ]
+  },
+  "sculpt": [
+    {
+      "id": "raise",
+      "kind": "raise",
+      "center": [
+        -20,
+        20
+      ],
+      "radiusMeters": 16,
+      "meters": 4
+    }
+  ],
+  "plots": [
+    {
+      "id": "pad",
+      "ownerId": "house",
+      "outline": [
+        [
+          -8,
+          -8
+        ],
+        [
+          8,
+          -8
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          -8,
+          8
+        ]
+      ],
+      "levelMeters": 25,
+      "edge": {
+        "kind": "wall"
+      },
+      "marginMeters": 0
+    }
+  ],
+  "placements": [
+    {
+      "id": "house",
+      "modelId": "house:mediterranean",
+      "position": [
+        0,
+        0
+      ],
+      "facingDegrees": 0,
+      "plotId": "pad"
+    }
+  ],
+  "ways": [
+    {
+      "id": "street",
+      "centerline": [
+        [
+          40,
+          -60
+        ],
+        [
+          40,
+          60
+        ]
+      ],
+      "widthMeters": 4,
+      "profile": "slope",
+      "surface": "cobble"
+    }
+  ],
+  "rivers": [
+    {
+      "kind": "riverCorridor",
+      "id": "river",
+      "sourceId": "river",
+      "centerline": [
+        [
+          -40,
+          60
+        ],
+        [
+          -40,
+          -60
+        ]
+      ],
+      "widthsMeters": [
+        8,
+        8
+      ],
+      "bedMeters": [
+        8,
+        8
+      ],
+      "depthMeters": 1,
+      "bank": {
+        "kind": "slope",
+        "runMeters": 3
+      }
+    }
+  ],
+  "zones": [
+    {
+      "id": "woods",
+      "kind": "forest",
+      "polygon": [
+        [
+          16,
+          20
+        ],
+        [
+          30,
+          20
+        ],
+        [
+          30,
+          40
+        ],
+        [
+          16,
+          40
+        ]
+      ]
+    }
+  ]
+}

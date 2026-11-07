@@ -92,6 +92,9 @@ export interface VectorWallCircuit {
 }
 
 export interface VectorRegion {
+  use?: import("./urban").VectorUse;
+  density?: number;
+  maxHeightMeters?: number;
   id: string;
   kind: "district" | "reservation" | "forest" | "farm" | "park" | "cemetery";
   outer: Point[];
@@ -107,6 +110,11 @@ export interface VectorPlacement {
   editPolicy: VectorPath["editPolicy"];
   site: { outer: Point[]; holes: Point[][] };
   accesses: CurveAnchor[];
+  appearance?: {
+    quality: import("../../../buildings/placementContract").PlacementQuality;
+    palette?: import("../../../buildings/medieval/marketAppearance").MarketPalette;
+    activity?: "market-day" | "closed";
+  };
   building?: VectorBuilding;
   display?: {
     kind: "housing" | "facility" | "landmark" | "object";
@@ -121,7 +129,7 @@ export interface VectorPlacement {
 /** Saved geometry ledger. No editable cell mesh or render-time generation. */
 export interface VectorCityDocument {
   format: "fmg-vector-city";
-  version: 6;
+  version: 7;
   revision: number;
   frame: { extentMeters: number };
   context: { historicalPeriod: HistoricalPeriod; targetPopulation: number; bridgeSkewTier?: 0 | 1 | 2 };
@@ -142,6 +150,7 @@ export interface VectorCityDocument {
   site?: VectorSite;
   generation?: VectorGeneration;
   urban?: VectorUrban;
+  environment?: import("./environment").VectorEnvironment;
   legacyCopy?: {
     sourceJson: string;
     report: { id: string; status: "converted" | "snapshot" | "unsupported"; category: string; reason: string }[];

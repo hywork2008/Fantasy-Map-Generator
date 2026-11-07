@@ -1,5 +1,6 @@
 import type { VectorCityDocument, VectorPlacement } from "../../../types/vector/document";
 import type { VectorPolygon } from "../../../types/vector/generation";
+import { featureReservations } from "../environmentState";
 import { deriveVectorBlocks, generationFingerprint, reachablePaths } from "../generation/pipeline";
 import { generateVectorUrban } from "../generation/urban";
 import { waterDistance } from "../generation/urbanPacking";
@@ -10,6 +11,7 @@ import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { sampledClosedRing } from "../geometry/routing";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater, vectorWaterSurfaces } from "../geometry/water";
+import { vectorTerrain } from "../terrain";
 import { assertVectorDocument } from "../validation/document";
 import { rebuildRoadGraph } from "./network";
 import { replaceVectorPath } from "./paths";
@@ -53,6 +55,7 @@ const overlap = (a: VectorPolygon[], b: VectorPolygon[]) =>
 const parts = (p: VectorPlacement) => p.building?.reserved ?? [p.site];
 function obstacles(doc: VectorCityDocument): VectorPolygon[] {
   return [
+    ...featureReservations(doc),
     ...allVectorWater(doc),
     ...Object.values(doc.paths)
       .filter(p => p.role === "road" || p.role === "wall")
@@ -170,7 +173,13 @@ export function reconcileVectorEdit(source: VectorCityDocument, candidate: Vecto
     if (!previous.ownedPlacements.includes(p.id) || !ownedEditable(p))
       if (
         !same(p, doc.placements[p.id]) &&
-        (!doc.placements[p.id] ||
+        ((!doc.placements[p.id] &&
+          !Object.values(source.environment?.features ?? {}).some(
+            f =>
+              f.editPolicy === "editable" &&
+              f.placementIds.includes(p.id) &&
+              !doc.environment?.features[f.id]?.placementIds.includes(p.id)
+          )) ||
           (p.editPolicy === "fixed" &&
             !same({ ...p, editPolicy: undefined }, { ...doc.placements[p.id], editPolicy: undefined })))
       )
@@ -178,6 +187,7 @@ export function reconcileVectorEdit(source: VectorCityDocument, candidate: Vecto
   const removedLanes: string[] = [];
   const water = allVectorWater(doc);
   const nonRoad = [
+    ...featureReservations(doc),
     ...water,
     ...Object.values(doc.paths)
       .filter(p => p.role === "wall")
@@ -222,13 +232,28 @@ export function reconcileVectorEdit(source: VectorCityDocument, candidate: Vecto
     if (
       overlap(
         [pathSurface(path)],
-        nonRoad.filter(p => !water.includes(p))
+        nonRoad.filter(
+          p =>
+            !water.includes(p) &&
+            !Object.values(doc.environment?.features ?? {}).some(f => f.pathIds.includes(path.id) && p === f.boundary)
+        )
       )
     )
       throw new Error(`dependency-road-obstacle:${path.id}`);
   const oldObstacles = obstacles(source);
   for (const p of Object.values(doc.placements).filter(p => !previous.ownedPlacements.includes(p.id)))
-    if (overlap(parts(p), obstacles(doc)) && !overlap(parts(source.placements[p.id] ?? p), oldObstacles))
+    if (
+      overlap(
+        parts(p),
+        obstacles(doc).filter(
+          obstacle =>
+            !Object.values(doc.environment?.features ?? {}).some(
+              f => f.placementIds.includes(p.id) && obstacle === f.boundary
+            )
+        )
+      ) &&
+      !overlap(parts(source.placements[p.id] ?? p), oldObstacles)
+    )
       throw new Error(`dependency-protected-placement:${p.id}`);
   const reachable = reachablePaths(doc, doc.site!.center),
     blocked = obstacles(doc),
@@ -251,6 +276,18 @@ export function reconcileVectorEdit(source: VectorCityDocument, candidate: Vecto
           !reachable.has(a.pathId) ||
           !same(evaluateAnchor(source.paths[a.pathId], a), evaluateAnchor(doc.paths[a.pathId], a))
       );
+    if (
+      !same(source.regions, doc.regions) &&
+      [...Object.values(source.regions), ...Object.values(doc.regions)].some(
+        r => r.kind === "district" && overlap(parts(p), [r])
+      )
+    )
+      impacted = true;
+    if (!same(source.environment?.terrain, doc.environment?.terrain) && doc.environment?.terrain) {
+      const terrain = vectorTerrain(doc),
+        heights = p.site.outer.map(terrain.heightAt);
+      if (Math.max(...heights) - Math.min(...heights) > 2) impacted = true;
+    }
     if (p.building?.riverbankDistanceMeters !== undefined) {
       const distance = waterDistance(doc, [p.site]);
       if (distance > 50) impacted = true;
@@ -273,7 +310,10 @@ export function reconcileVectorEdit(source: VectorCityDocument, candidate: Vecto
     }
   }
   // Reserve the edited topology as the new pre-urban baseline. Strip only M5-owned lanes.
-  const ownedPaths = previous.ownedPaths.filter(id => doc.paths[id] && !removedLanes.includes(id)),
+  const featureAccessPaths = new Set(Object.values(doc.environment?.features ?? {}).map(f => f.access.pathId));
+  const ownedPaths = previous.ownedPaths.filter(
+      id => doc.paths[id] && !removedLanes.includes(id) && !featureAccessPaths.has(id)
+    ),
     baseline = structuredClone(doc);
   stripLanes(baseline, new Set(ownedPaths));
   for (const id of previous.ownedPlacements) delete baseline.placements[id];

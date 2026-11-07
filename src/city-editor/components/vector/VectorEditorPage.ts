@@ -15,6 +15,7 @@ import type { VectorStage } from "../../types/vector/urban";
 import { createEditorControls } from "../editorControls";
 import type { EditorLanguageLifetime } from "../languagePanel";
 import { createVectorEditPanel } from "./VectorEditPanel";
+import { createVectorEnvironmentPanel } from "./VectorEnvironmentPanel";
 import { createVectorGenerationPanel } from "./VectorGenerationPanel";
 import { createVectorPlacementPanel } from "./VectorPlacementPanel";
 import { createVectorPresentationPanel } from "./VectorPresentationPanel";
@@ -64,6 +65,7 @@ export function mountVectorCityEditor(
   status.setAttribute("aria-live", "polite");
   const map = document.createElement("main");
   map.style.cssText = "flex:1;min-width:0";
+  let environmentPanel: ReturnType<typeof createVectorEnvironmentPanel> | undefined;
   let placementPanel: ReturnType<typeof createVectorPlacementPanel> | undefined;
   let editPanel: ReturnType<typeof createVectorEditPanel> | undefined;
   let generationPanel: ReturnType<typeof createVectorGenerationPanel> | undefined;
@@ -80,6 +82,7 @@ export function mountVectorCityEditor(
     redo.disabled = !session.history.canRedo;
     editPanel?.refresh();
     placementPanel?.refresh();
+    environmentPanel?.refresh();
     generationPanel?.refresh();
     workbench?.refresh();
     status.textContent = editorText("cityEditor.vector.summary", {
@@ -287,6 +290,20 @@ export function mountVectorCityEditor(
     controls,
     () => session.history.document,
     (doc, label) => editPanel!.submit(doc, label)
+  );
+  environmentPanel = createVectorEnvironmentPanel(
+    scope,
+    controls,
+    map,
+    () => session.history.document,
+    (doc, label) => editPanel!.submit(doc, label),
+    (doc, label) => {
+      scope.invalidate("import");
+      session.history.commit(doc, label);
+      refresh();
+    },
+    options.openMeshDocument,
+    () => session.history.currentEntryKey
   );
   workbench = createVectorWorkbench(
     scope,

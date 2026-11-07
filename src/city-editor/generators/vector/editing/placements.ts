@@ -15,7 +15,7 @@ export function transformVectorPlacement(
 ): VectorCityDocument {
   assertVectorDocument(source);
   const original = source.placements[id];
-  if (!original?.building) throw new Error("dependency-placement-required");
+  if (!original?.building && !original?.display) throw new Error("dependency-placement-required");
   if (original.editPolicy === "fixed") throw new Error("dependency-protected-placement");
   if (!position.every(Number.isFinite) || !Number.isFinite(facingDegrees) || facingDegrees < 0 || facingDegrees >= 360)
     throw new Error("dependency-placement-transform");
@@ -30,6 +30,29 @@ export function transformVectorPlacement(
     return [q[0] + position[0], q[1] + position[1]];
   };
   p.site = { outer: p.site.outer.map(transform), holes: p.site.holes.map(h => h.map(transform)) };
+  if (!p.building && p.display) {
+    p.display.footprint = p.display.footprint.map(r => ({
+      outer: r.outer.map(transform),
+      holes: r.holes.map(h => h.map(transform))
+    }));
+    const obstacles = [
+      ...Object.values(doc.paths).map(pathSurface),
+      ...Object.values(doc.placements)
+        .filter(other => other.id !== id)
+        .map(other => other.site)
+    ];
+    if (regionBoolean([p.site], obstacles, "intersection").some(r => regionArea(r) > 1e-5))
+      throw Error("dependency-placement-obstacle");
+    const plot = doc.environment?.terrain?.plots.find(plot => `freeform:placement:${plot.ownerId}` === id);
+    if (plot) plot.outline = plot.outline.map(transform);
+    p.position = [...position];
+    p.facingDegrees = facingDegrees;
+    p.origin = "manual";
+    doc.placements[id] = p;
+    doc.revision++;
+    assertVectorDocument(doc);
+    return doc;
+  }
   const b = p.building!;
   b.footprint = b.footprint.map(r => ({ outer: r.outer.map(transform), holes: r.holes.map(h => h.map(transform)) }));
   const roads = Object.values(doc.paths)
@@ -81,6 +104,36 @@ export function setVectorPlacementPolicy(
     p = source.placements[id];
   if (!p) throw new Error("dependency-placement-required");
   doc.placements[id] = { ...structuredClone(p), editPolicy: policy };
+  doc.revision++;
+  assertVectorDocument(doc);
+  return doc;
+}
+
+/** Grade one authored pad; the preserved Freeform source remains immutable. */
+export function setVectorPlacementLevel(
+  source: VectorCityDocument,
+  id: string,
+  levelMeters: number
+): VectorCityDocument {
+  const p = source.placements[id];
+  if (!p) throw Error("dependency-placement-required");
+  if (p.editPolicy === "fixed") throw Error("dependency-protected-placement");
+  if (!Number.isFinite(levelMeters) || Math.abs(levelMeters) > 10000) throw Error("dependency-placement-transform");
+  const doc = prepareVectorEdit(source),
+    terrain = doc.environment?.terrain;
+  if (!terrain) throw Error("terrain-required");
+  const ownerId = id.replace(/^freeform:placement:/, ""),
+    plot = terrain.plots.find(p => p.ownerId === ownerId);
+  if (plot) plot.levelMeters = levelMeters;
+  else
+    terrain.plots.push({
+      id: `pad:${id}`,
+      ownerId,
+      outline: structuredClone(p.site.outer),
+      levelMeters,
+      edge: { kind: "wall" },
+      marginMeters: 0
+    });
   doc.revision++;
   assertVectorDocument(doc);
   return doc;

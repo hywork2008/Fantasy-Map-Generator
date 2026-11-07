@@ -8,6 +8,9 @@ export function vectorUrbanFingerprint(doc: VectorCityDocument): string {
     regions: doc.regions,
     context: doc.context,
     site: doc.site,
-    recipe: doc.recipe
+    recipe: doc.recipe,
+    ...(doc.environment
+      ? { environment: { features: doc.environment.features, terrain: doc.environment.terrain } }
+      : {})
   });
 }

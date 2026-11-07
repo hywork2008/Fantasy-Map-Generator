@@ -12,7 +12,8 @@
 - docs/analytics/ce-meshless-m6-20261107.md - メッシュなしCEのM6を完了。変更に依存する自動配置の部分更新、固定・手動所有、橋の取付再評価、施設の剛体移動・固定、専用Workerのjob照合と取消、候補採用・一括履歴を実装。関連94件と実画面の122件保持・5件再配置を記録。次はM7の表示・出力・共有・複製変換
 - docs/analytics/ce-meshless-m6-edit-20261107.json - M5の500人都市で小路左幅1.2m→2.5mを採用したnative v5。122配置を保持し、5件だけを再配置。手動所有・人口・段階表示を保存
 - docs/analytics/ce-meshless-m7-20261107.md - メッシュなしCEのM7を完了。共通形状の2D／3D・SVG／PNG／GLB、native v6・文書／入力共有、原本付き旧CE複製と復元を実装。関連165件、実画面・出力・共有・903建物の複製と全量出力のSHA-256を記録。次はM8
-- docs/plan/ce-meshless-city-editor.md - M7の表示・出力・保存共有・原本付き複製変換を完了。関連165件と実画面を記録。次はM8の機能別移植とFreeform・地形連携
+- docs/analytics/ce-meshless-m8-20261107.md - メッシュなしCEのM8を実装。接道する9敷地・予約地・地区制約、固定と活動、FMG高さ・Freeform造成／資産／敷地高・元文書復帰、native v7を追加。関連128件と実画面・SVG／GLB・共有の検証、全量出力のSHA-256を記録。次はM9
+- docs/plan/ce-meshless-city-editor.md - M8の敷地・景観・地区制約・FMG高さとFreeform連携を実装。関連128件と実画面・出力・共有・元文書復帰を記録。次はM9の互換性・精度・負荷の受入
 
 2026-11-06
 

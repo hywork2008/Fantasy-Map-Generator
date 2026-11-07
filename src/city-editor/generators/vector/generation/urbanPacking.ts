@@ -12,6 +12,7 @@ import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
+import { vectorTerrain } from "../terrain";
 import { reachablePaths } from "./pipeline";
 import {
   VECTOR_HOUSE_FLOOR_AREA,
@@ -155,6 +156,26 @@ export function createUrbanPacker(
           outer: local.map(p => [p[0] + translation[0], p[1] + translation[1]]),
           holes: []
         };
+        const district = Object.values(doc.regions).find(
+          r => r.kind === "district" && containsRegion([r], translation)
+        );
+        if (district?.maxHeightMeters !== undefined && (asset.bvModel?.heightMeters ?? 6) > district.maxHeightMeters)
+          continue;
+        if (
+          district?.density !== undefined &&
+          ((Math.imul(attempts, 2654435761) >>> 0) % 1000) / 1000 > district.density
+        )
+          continue;
+        if (
+          district?.use &&
+          (kind === "housing" ? district.use !== "residential" : district.use !== facilityUseOf(request))
+        )
+          continue;
+        if (doc.environment?.terrain) {
+          const terrain = vectorTerrain(doc),
+            heights = site.outer.map(terrain.heightAt);
+          if (Math.max(...heights) - Math.min(...heights) > 2) continue;
+        }
         if (request.zone === "outskirts" && inside(translation)) continue;
         if (regionBoolean([site], [block], "difference").reduce((n, p) => n + regionArea(p), 0) > 1e-5) continue;
         const riverDistance = request.riverbankMaxDistanceMeters !== undefined ? waterDistance(doc, [site]) : undefined;

@@ -13,11 +13,23 @@ export function parseVectorDocument(text: string): VectorCityDocument | null {
     const value: unknown = JSON.parse(text);
     const version = value && typeof value === "object" && "version" in value ? value.version : undefined;
     const legacy =
-      version === 1 ? true : version === 2 ? 2 : version === 3 ? 3 : version === 4 ? 4 : version === 5 ? 5 : false;
+      version === 1
+        ? true
+        : version === 2
+          ? 2
+          : version === 3
+            ? 3
+            : version === 4
+              ? 4
+              : version === 5
+                ? 5
+                : version === 6
+                  ? 6
+                  : false;
     if (validateVectorDocument(value, legacy).length) return null;
     if (legacy) {
       const migrated = value as VectorCityDocument;
-      migrated.version = 6;
+      migrated.version = 7;
       if (legacy === true || legacy === 2) {
         migrated.connections.bridges = {};
         migrated.connections.wallRoads = {};

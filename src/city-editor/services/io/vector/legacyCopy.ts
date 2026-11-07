@@ -20,11 +20,27 @@ import type { CityDocument, Point } from "../../../types/document";
 import type { CurveAnchor, VectorCityDocument, VectorPath, VectorPlacement } from "../../../types/vector/document";
 import { parseDocument, serializeDocument } from "../documentCodec";
 import { serializeVectorDocument } from "./documentCodec";
+import { vectorFromFreeform } from "./freeform";
 export type VectorCopyReport = NonNullable<VectorCityDocument["legacyCopy"]>["report"];
 /** Explicit one-time adapter. The source archive preserves every feature without fabricating cells on the vector side. */
 export function copyLegacyCity(source: CityDocument): { document: VectorCityDocument; report: VectorCopyReport } {
   const sourceJson = serializeDocument(source);
   if (sourceJson.length > 6 * 1024 * 1024) throw new Error("vector-copy-budget");
+  if (source.freeform) {
+    const document = vectorFromFreeform(source.freeform, source.historicalPeriod),
+      report: VectorCopyReport = [
+        {
+          id: "freeform",
+          status: "converted",
+          category: "freeform-ledger",
+          reason:
+            "Terrain recipe, sculpt, pads, ways, rivers, zones, placements and market appearance retained without cells."
+        }
+      ];
+    document.legacyCopy = { sourceJson, report };
+    serializeVectorDocument(document);
+    return { document, report };
+  }
   let doc = createVectorDocument(source.generationSeed ?? "legacy-copy", source.frame.extentMeters);
   doc.context = {
     historicalPeriod: source.historicalPeriod ?? "highMedieval",
@@ -356,38 +372,6 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
       }
     }
     record(e.id, "unsupported", e.kind, "No complete vector equivalent. Exact source element is archived.");
-  }
-  if (source.freeform) {
-    for (const w of source.freeform.ways) addPath(w.id, "road", w.centerline, w.widthMeters);
-    for (const r of source.freeform.rivers) {
-      const id = addPath(r.id, "river", r.centerline, r.widthsMeters[0]);
-      if (id && doc.paths[id].source.kind === "curve")
-        doc.paths[id].width.stations = r.widthsMeters.map((w, i) => ({
-          anchor: {
-            pathId: id,
-            segmentId: `segment:${Math.min(i, r.centerline.length - 2)}`,
-            t: i === r.centerline.length - 1 ? 1 : 0
-          },
-          leftMeters: w / 2,
-          rightMeters: w / 2
-        }));
-    }
-    for (const z of source.freeform.zones) region(z.id, z.kind, z.polygon);
-    for (const p of source.freeform.placements)
-      record(
-        p.id,
-        "unsupported",
-        "freeform-placement",
-        "BV placement, plot and height semantics remain in the source archive."
-      );
-    for (const p of source.freeform.plots)
-      record(p.id, "unsupported", "freeform-plot", "Pad levels and grading remain in the source archive.");
-    record(
-      "freeform",
-      "unsupported",
-      "freeform-semantics",
-      "Ground, grading, plots, placements and market operations remain in the source archive."
-    );
   }
   const handled = new Set([
     "format",

@@ -1,5 +1,9 @@
 import { type EditorMessageKey, editorText } from "../../../i18n/editorMessages";
-import { setVectorPlacementPolicy, transformVectorPlacement } from "../../generators/vector/editing/placements";
+import {
+  setVectorPlacementLevel,
+  setVectorPlacementPolicy,
+  transformVectorPlacement
+} from "../../generators/vector/editing/placements";
 import type { EditorLifetime } from "../../services/editorLifetime";
 import type { VectorCityDocument } from "../../types/vector/document";
 
@@ -31,13 +35,19 @@ export function createVectorPlacementPanel(
   };
   const x = number("east"),
     y = number("north"),
-    facing = number("facing");
+    facing = number("facing"),
+    foundation = number("foundationLevel");
   const refreshFields = () => {
     const p = read().placements[select.value];
     if (!p) return;
     x.value = String(p.position[0]);
     y.value = String(p.position[1]);
     facing.value = String(p.facingDegrees);
+    const terrain = read().environment?.terrain;
+    foundation.disabled = !terrain;
+    foundation.value = String(
+      terrain?.plots.find(plot => plot.ownerId === p.id.replace(/^freeform:placement:/, ""))?.levelMeters ?? 0
+    );
   };
   scope.listen(select, "change", refreshFields);
   const button = (key: string, action: () => void) => {
@@ -72,19 +82,22 @@ export function createVectorPlacementPanel(
       text("lock")
     );
   });
+  button("setFoundation", () =>
+    submit(setVectorPlacementLevel(read(), select.value, Number(foundation.value)), text("setFoundation"))
+  );
   box.append(status);
   return {
     refresh() {
       const doc = read(),
         old = select.value;
-      box.hidden = !doc.urban;
+      box.hidden = !Object.values(doc.placements).some(p => p.building || p.display);
       select.replaceChildren(
         ...Object.values(doc.placements)
-          .filter(p => p.building)
+          .filter(p => p.building || p.display)
           .map(p => {
             const o = document.createElement("option");
             o.value = p.id;
-            o.textContent = `${p.building!.label} · ${p.id}${p.editPolicy === "fixed" ? " 🔒" : ""}`;
+            o.textContent = `${p.building?.label ?? p.modelId} · ${p.id}${p.editPolicy === "fixed" ? " 🔒" : ""}`;
             return o;
           })
       );

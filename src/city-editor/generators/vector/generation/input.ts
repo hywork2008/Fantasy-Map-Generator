@@ -12,6 +12,7 @@ import type { VectorCityDocument, VectorPath } from "../../../types/vector/docum
 import type { VectorPolygon, VectorSite } from "../../../types/vector/generation";
 import { closeCorridor } from "../../generation/skeleton/vector";
 import { azimuthToVec } from "../../geom";
+import { coarseFromHeightfield } from "../../terrainField/build";
 import { createVectorDocument } from "../document";
 import { connectVectorAnchors, rebuildRoadGraph } from "../editing/network";
 import { curveSource } from "../editing/paths";
@@ -41,6 +42,33 @@ const importedPath = (id: string, role: VectorPath["role"], points: Point[], wid
 });
 function seal(doc: VectorCityDocument, site: VectorSite): VectorCityDocument {
   doc.site = site;
+  const heightfield = site.descriptor?.terrain.heightfield;
+  if (heightfield && doc.frame.extentMeters <= 10000) {
+    const coarse = coarseFromHeightfield(heightfield.size, heightfield.spacingMeters, heightfield.elevationsMeters);
+    if (coarse)
+      doc.environment = {
+        features: {},
+        hidden: [],
+        terrain: {
+          format: "fmg-freeform-city",
+          version: 1,
+          frame: structuredClone(doc.frame),
+          ground: {
+            version: 1,
+            template: "cells",
+            seed: 1,
+            sampleMeters: Math.max(2, doc.frame.extentMeters / 128),
+            parts: [{ kind: "coarse", ...coarse }]
+          },
+          sculpt: [],
+          plots: [],
+          placements: [],
+          ways: [],
+          rivers: [],
+          zones: []
+        }
+      };
+  }
   if (!containsRegion(site.domain, site.center) || containsRegion(allVectorWater(doc), site.center))
     throw new Error("site-center-water");
   rebuildRoadGraph(doc);
