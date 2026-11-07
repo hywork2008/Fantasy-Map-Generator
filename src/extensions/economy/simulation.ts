@@ -125,6 +125,7 @@ import {
   migrateAlloySteelGoods,
   migrateBeeswaxByproduct,
   migrateChemMedGoods,
+  migrateColdLandClay,
   migrateElectricalGoods,
   migrateElectrolyticIndustryGoods,
   migrateFoodProcessingLotContracts,
@@ -369,6 +370,7 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateMeatGood,
   migrateUntaxedSaltValue,
   migrateHoneyForageLands,
+  migrateColdLandClay,
   // docs/plan/mead.md: after Honey has its lands, add Mead on this save's Honey and Barrels ids.
   migrateMeadGood
 ];

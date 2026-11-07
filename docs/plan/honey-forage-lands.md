@@ -125,4 +125,4 @@
 ## 8. 未確定事項
 
 1. 蜂蜜酒（Mead）の需要と流通量。ウクライナでは16〜17世紀に蜂蜜の多くを飲み物にした（§2）。→ [mead.md](mead.md)で扱った。
-2. 蜂蜜酒の器（樽か陶器か）と、寒い土地の粘土。
+2. 蜂蜜酒の器（樽か陶器か）と、寒い土地の粘土。→ 器は[returnable-drink-containers.md](returnable-drink-containers.md)、粘土は[cold-land-clay.md](cold-land-clay.md)で扱った。

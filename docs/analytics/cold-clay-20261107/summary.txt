@@ -1,0 +1,99 @@
+== seed 2102
+  markets by band {'>=8': 7, '4-8': 15, '0-4': 12, '<0': 8}
+  added {'warmEligible': 484, 'warmClay': 25, 'rate': 0.0517, 'newEligible': 1770, 'placed': 88}
+  base clay cells by market band {'>=8': 11, '4-8': 14} by cell temp {'>=8': 25}
+  add clay cells by market band {'>=8': 12, '4-8': 51, '0-4': 26, '<0': 24} by cell temp {'>=8': 25, '4-8': 43, '0-4': 36, '<0': 9}
+  -- Clay: 12-month flows by band (base -> add)
+    <0:sink:recipeInput                               0 ->         45
+    <0:source:ruralHarvest                            0 ->         94
+    0-4:sink:exportDeparture                          0 ->          2
+    0-4:sink:recipeInput                              0 ->         97
+    0-4:source:burgCraft                              0 ->          4
+    0-4:source:importArrival                          0 ->          2
+    0-4:source:ruralHarvest                           0 ->        170
+    4-8:sink:recipeInput                            148 ->        530
+    4-8:source:burgCraft                              3 ->         12
+    4-8:source:importArrival                         13 ->         19
+    4-8:source:ruralHarvest                         244 ->        809
+    >=8:sink:exportDeparture                         10 ->          5
+    >=8:sink:recipeInput                            127 ->        122
+    >=8:source:burgCraft                             19 ->         17
+    >=8:source:importArrival                          8 ->          7
+    >=8:source:ruralHarvest                         157 ->        163
+    none:source:ruralHarvest                          0 ->          1
+    month 12   <0: stock         0 price 0.000  ->  stock        49 price 1.940
+    month 12  0-4: stock         0 price 0.000  ->  stock        78 price 2.561
+    month 12  4-8: stock       112 price 1.998  ->  stock       309 price 2.101
+    month 12  >=8: stock        46 price 2.643  ->  stock        60 price 2.492
+  -- Ceramics: 12-month flows by band (base -> add)
+    <0:source:burgCraft                               0 ->         63
+    0-4:sink:exportDeparture                          0 ->          1
+    0-4:sink:recipeInput                              0 ->          6
+    0-4:source:burgCraft                              0 ->        113
+    0-4:source:importArrival                          1 ->          2
+    4-8:sink:exportDeparture                         17 ->         48
+    4-8:sink:recipeInput                            148 ->        156
+    4-8:source:burgCraft                            237 ->        839
+    4-8:source:containerReturn                       29 ->         29
+    4-8:source:importArrival                         54 ->         62
+    >=8:sink:exportDeparture                         44 ->         37
+    >=8:sink:recipeInput                            157 ->        157
+    >=8:source:burgCraft                            210 ->        207
+    >=8:source:containerReturn                       15 ->         15
+    >=8:source:importArrival                          9 ->         10
+    month 12   <0: stock         0 price 0.000  ->  stock        63 price 2.861
+    month 12  0-4: stock         0 price 10.950  ->  stock       107 price 3.680
+    month 12  4-8: stock       182 price 3.384  ->  stock       753 price 1.920
+    month 12  >=8: stock        54 price 2.972  ->  stock        59 price 2.766
+  -- Brick: 12-month flows by band (base -> add)
+    4-8:sink:construction                             0 ->          4
+    4-8:sink:marketInvestment                         1 ->          1
+    4-8:source:burgCraft                              3 ->          7
+    month 12   <0: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  0-4: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  4-8: stock         2 price 5.960  ->  stock         2 price 5.960
+    month 12  >=8: stock         0 price 0.000  ->  stock         0 price 0.000
+== seed 2103
+  markets by band {'4-8': 4, '0-4': 13, '>=8': 7, '<0': 1}
+  added {'warmEligible': 563, 'warmClay': 27, 'rate': 0.048, 'newEligible': 932, 'placed': 42}
+  base clay cells by market band {'4-8': 6, '0-4': 4, '>=8': 17} by cell temp {'>=8': 27}
+  add clay cells by market band {'0-4': 38, '4-8': 14, '>=8': 17} by cell temp {'0-4': 24, '4-8': 18, '>=8': 27}
+  -- Clay: 12-month flows by band (base -> add)
+    0-4:sink:exportDeparture                          0 ->          1
+    0-4:sink:recipeInput                             25 ->        154
+    0-4:source:burgCraft                              2 ->         18
+    0-4:source:importArrival                          0 ->          3
+    0-4:source:ruralHarvest                          27 ->        275
+    4-8:sink:recipeInput                             50 ->         74
+    4-8:source:burgCraft                              8 ->         29
+    4-8:source:ruralHarvest                          73 ->        119
+    >=8:sink:recipeInput                            133 ->        133
+    >=8:source:burgCraft                             10 ->         10
+    >=8:source:importArrival                          4 ->          4
+    >=8:source:ruralHarvest                         222 ->        222
+    month 12   <0: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  0-4: stock         3 price 3.000  ->  stock       141 price 2.266
+    month 12  4-8: stock        32 price 2.790  ->  stock        74 price 2.782
+    month 12  >=8: stock       103 price 2.338  ->  stock       104 price 2.337
+  -- Ceramics: 12-month flows by band (base -> add)
+    0-4:sink:exportDeparture                          2 ->          0
+    0-4:sink:recipeInput                              8 ->         33
+    0-4:source:burgCraft                             43 ->        283
+    0-4:source:importArrival                         25 ->         23
+    4-8:sink:exportDeparture                          5 ->          5
+    4-8:sink:recipeInput                              3 ->          3
+    4-8:source:burgCraft                             90 ->        180
+    4-8:source:importArrival                          4 ->          0
+    >=8:sink:exportDeparture                         21 ->         18
+    >=8:sink:recipeInput                             31 ->         31
+    >=8:source:burgCraft                            264 ->        264
+    >=8:source:containerReturn                       26 ->         26
+    month 12   <0: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  0-4: stock        62 price 3.169  ->  stock       276 price 2.686
+    month 12  4-8: stock        95 price 3.158  ->  stock       182 price 2.559
+    month 12  >=8: stock       268 price 2.248  ->  stock       272 price 2.236
+  -- Brick: 12-month flows by band (base -> add)
+    month 12   <0: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  0-4: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  4-8: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  >=8: stock         0 price 0.000  ->  stock         0 price 0.000

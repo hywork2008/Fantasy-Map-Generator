@@ -22,6 +22,7 @@ import {
   isGoodEnabled,
   migrateAlloySteelGoods,
   migrateBeeswaxByproduct,
+  migrateColdLandClay,
   migrateElectricalGoods,
   migrateElectrolyticIndustryGoods,
   migrateFoodProcessingLotContracts,
@@ -1348,6 +1349,21 @@ describe("GoodsModule", () => {
     honey.biomeOutputByTag = { forest: 0.06 };
     expect(migrateHoneyForageLands()).toBe(false);
     expect(honey.biomeOutputByTag).toEqual({ forest: 0.06 });
+  });
+
+  it("gives saved warm-only Clay the shores and rivers of the cold forests, but keeps an edited rule", () => {
+    goodsModule.restoreDefaults();
+    const clay = getGoods().find(good => good.name === "Clay")!;
+    const current = clay.distribution;
+    clay.distribution = "minTemp(8) && (shore(1) || river())";
+
+    expect(migrateColdLandClay()).toBe(true);
+    expect(clay.distribution).toBe(current);
+    expect(migrateColdLandClay()).toBe(false);
+
+    clay.distribution = "minTemp(12) && river()";
+    expect(migrateColdLandClay()).toBe(false);
+    expect(clay.distribution).toBe("minTemp(12) && river()");
   });
 
   it("adds Mead to a saved catalogue on that save's own Honey and Barrels ids", () => {
