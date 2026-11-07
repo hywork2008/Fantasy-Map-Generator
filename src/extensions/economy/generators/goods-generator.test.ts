@@ -27,6 +27,7 @@ import {
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateGrapesGood,
+  migrateHoneyForageLands,
   migrateInkBarrel,
   migrateLeatherByproduct,
   migrateLegacyOreIngotGoods,
@@ -1318,6 +1319,22 @@ describe("GoodsModule", () => {
     expect(wax.recipes).toBeUndefined();
     expect(getMarkets()[0].goods[wax.i].stock).toBe(3);
     expect(migrateBeeswaxByproduct()).toBe(false);
+  });
+
+  it("gives saved forest-only Honey the heath, steppe, scrub and farmland, but keeps edited lands", () => {
+    goodsModule.restoreDefaults();
+    const honey = getGoods().find(good => good.name === "Honey")!;
+    honey.distribution = 'biomeTag("forest")';
+    honey.biomeOutputByTag = { forest: 0.04 };
+
+    expect(migrateHoneyForageLands()).toBe(true);
+    expect(honey.biomeOutputByTag).toEqual({ forest: 0.04, grassland: 0.04, scrub: 0.04, arable: 0.04 });
+    expect(migrateHoneyForageLands()).toBe(false);
+
+    honey.distribution = 'biomeTag("forest")';
+    honey.biomeOutputByTag = { forest: 0.06 };
+    expect(migrateHoneyForageLands()).toBe(false);
+    expect(honey.biomeOutputByTag).toEqual({ forest: 0.06 });
   });
 
   it("upgrades legacy Wood-to-Coal fuel into Charcoal, Ash-to-Potash, and Slag without inventing stock", () => {

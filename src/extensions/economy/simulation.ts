@@ -130,6 +130,7 @@ import {
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateGrapesGood,
+  migrateHoneyForageLands,
   migrateIndustrialSteamGoods,
   migrateInkBarrel,
   migrateLeatherByproduct,
@@ -365,7 +366,8 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateWoodPhysicalRecipes,
   migratePeatFuelValue,
   migrateMeatGood,
-  migrateUntaxedSaltValue
+  migrateUntaxedSaltValue,
+  migrateHoneyForageLands
 ];
 
 /**

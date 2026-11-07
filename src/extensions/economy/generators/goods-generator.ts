@@ -243,6 +243,16 @@ const ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK = ORCHARD_FRUIT_LOTS_PER_DRINK_LOT;
 const GRAIN_WAINS_PER_ALE_CASK = 1;
 /** Barrel wear for a tun: five casks at 0.08 each. */
 const BARRELS_PER_TUN = 0.4;
+/** Honey barrels a month per 1,000 rural people where bees forage; the forest rate before, unchanged. */
+const LEGACY_HONEY_FOREST_OUTPUT = 0.04;
+const LEGACY_HONEY_DISTRIBUTION = 'biomeTag("forest")';
+const HONEY_OUTPUT_BY_TAG: Readonly<Partial<Record<BiomeTag, number>>> = {
+  forest: LEGACY_HONEY_FOREST_OUTPUT,
+  grassland: LEGACY_HONEY_FOREST_OUTPUT,
+  scrub: LEGACY_HONEY_FOREST_OUTPUT,
+  arable: LEGACY_HONEY_FOREST_OUTPUT
+};
+const HONEY_DISTRIBUTION = 'biomeTag("forest") || biomeTag("grassland") || biomeTag("scrub") || biomeTag("arable")';
 /** Pressed grape pomace in one 200 L cask of pomace wine: 120 kg, a tenth of a lot, with water (§29). */
 const POMACE_LOTS_PER_POMACE_WINE_CASK = 0.12;
 const shipClassById = new Map(SHIP_CLASS_DEFINITIONS.map(shipClass => [shipClass.id, shipClass]));
@@ -835,11 +845,13 @@ export const GOODS_DATA: GoodData[] = [
     color: "#DCBC66",
     value: 4,
     chance: 3,
-    distribution: 'biomeTag("forest")',
+    // Bees forage wherever flowers last the summer: forest, heath and steppe grassland, Mediterranean and dry
+    // scrub, farmland. Not the bog, the fen, the tundra or the desert (docs/plan/honey-forage-lands.md).
+    distribution: HONEY_DISTRIBUTION,
     unit: "barrel",
     demandCoverage: { food: 0.5 },
     multipliers: { cultureType: { Generic: 1.2 } },
-    biomeOutputByTag: { forest: 0.04 }
+    biomeOutputByTag: { ...HONEY_OUTPUT_BY_TAG }
   },
   {
     name: "Salt",
@@ -5363,6 +5375,21 @@ export function migrateUntaxedSaltValue(): boolean {
   const salt = getGoods().find(good => good.name === "Salt");
   if (!salt || !TAXED_SALT_BAG_VALUES.includes(salt.value)) return false;
   salt.value = UNTAXED_SALT_BAG_VALUE;
+  return true;
+}
+
+/**
+ * Gives a saved catalogue's Honey the forage lands beyond the forest (docs/plan/honey-forage-lands.md). Only the old
+ * forest-only default is replaced, so a catalogue edited in the Goods editor keeps its own lands.
+ */
+export function migrateHoneyForageLands(): boolean {
+  const honey = getGoods().find(good => good.name === "Honey");
+  if (!honey) return false;
+  const tags = honey.biomeOutputByTag ?? {};
+  const forestOnly = Object.keys(tags).length === 1 && tags.forest === LEGACY_HONEY_FOREST_OUTPUT && !honey.biomeOutput;
+  if (!forestOnly || honey.distribution !== LEGACY_HONEY_DISTRIBUTION) return false;
+  honey.distribution = HONEY_DISTRIBUTION;
+  honey.biomeOutputByTag = { ...HONEY_OUTPUT_BY_TAG };
   return true;
 }
 
