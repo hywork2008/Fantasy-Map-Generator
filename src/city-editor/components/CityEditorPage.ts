@@ -209,7 +209,7 @@ function mountVectorMode(root: HTMLElement, options: CityEditorOptions, session:
     lifetime,
     fixedApproachProvider: options.fixedApproachProvider,
     openSharedLink() {
-      mountCityEditor(root, { fixedApproachProvider: options.fixedApproachProvider });
+      mountCityEditorSession(root, { fixedApproachProvider: options.fixedApproachProvider });
     },
     returnToMesh() {
       const previous = meshModeSessions.get(root);
@@ -217,17 +217,24 @@ function mountVectorMode(root: HTMLElement, options: CityEditorOptions, session:
         languageSessions.set(root, previous);
         meshModeSessions.delete(root);
       }
-      mountCityEditor(root, { fixedApproachProvider: options.fixedApproachProvider });
+      mountCityEditorSession(root, { fixedApproachProvider: options.fixedApproachProvider });
     },
     openMeshDocument(document) {
       meshModeSessions.delete(root);
-      mountCityEditor(root, { fixedApproachProvider: options.fixedApproachProvider, initialDocument: document });
+      mountCityEditorSession(root, { fixedApproachProvider: options.fixedApproachProvider, initialDocument: document });
     }
   });
   return editorDisposer(root, lifetime);
 }
 
 export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): () => void {
+  const previous = editorLifetimes.get(root);
+  if (previous) editorDisposer(root, previous)();
+  return mountCityEditorSession(root, options);
+}
+
+/** Only explicit UI handoffs share a session and its original dispose handle. */
+function mountCityEditorSession(root: HTMLElement, options: CityEditorOptions): () => void {
   const initialDocument = options.initialDocument;
   if (!initialDocument && typeof location !== "undefined" && location.hash.startsWith("#vector.")) {
     const share = decodeVectorShare(location.hash);
@@ -254,7 +261,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   const scope = beginEditorMount(root);
   scope.listen(window, "hashchange", () => {
     if (location.hash.startsWith("#vector."))
-      mountCityEditor(root, { fixedApproachProvider: options.fixedApproachProvider });
+      mountCityEditorSession(root, { fixedApproachProvider: options.fixedApproachProvider });
   });
   const languageLifetime = retainedLanguage?.lifetime ?? editorLifetimes.get(root) ?? new EditorLanguageLifetime();
   editorLifetimes.set(root, languageLifetime);
@@ -3412,7 +3419,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       languageHandoff = true;
       languageSessions.set(root, retained);
       setEditorPageMetadata("cityEditor");
-      mountCityEditor(root, options);
+      mountCityEditorSession(root, options);
       root.querySelector<HTMLSelectElement>(".ce-language select")?.focus({ preventScroll: true });
     }
   });
