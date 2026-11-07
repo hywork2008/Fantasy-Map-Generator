@@ -332,3 +332,38 @@ export function createWallGapRoad(
   };
   return finish(next);
 }
+
+/** Join coincident curve anchors without cloning or validating an unfinished generation draft. */
+export function joinVectorGenerationAnchors(doc: VectorCityDocument, anchors: CurveAnchor[]): void {
+  const unique = anchors.filter((a, i, all) => all.findIndex(b => JSON.stringify(a) === JSON.stringify(b)) === i);
+  if (unique.length < 2) return;
+  const point = evaluateAnchor(doc.paths[unique[0].pathId], unique[0]);
+  if (unique.some(a => distance(point, evaluateAnchor(doc.paths[a.pathId], a)) > 1e-6))
+    throw new Error("connection-conflict");
+  const samePosition = (a: CurveAnchor, b: CurveAnchor) => {
+    if (a.pathId !== b.pathId) return false;
+    const path = doc.paths[a.pathId],
+      order = (anchor: CurveAnchor) => {
+        const value = anchorOrder(path, anchor),
+          count = pathSegmentIds(path).length;
+        return pathIsClosed(path) && Math.abs(value - count) < 1e-9 ? 0 : value;
+      };
+    return Math.abs(order(a) - order(b)) < 1e-9;
+  };
+  const nodes = Object.values(doc.connections.nodes).filter(n =>
+    n.anchors.some(a => unique.some(b => samePosition(a, b)))
+  );
+  const id = nodes[0]?.id ?? networkId(doc.connections.nodes, "node"),
+    all = [...unique, ...nodes.flatMap(n => n.anchors)].filter(
+      (a, i, entries) => entries.findIndex(b => JSON.stringify(a) === JSON.stringify(b)) === i
+    );
+  for (const n of nodes) {
+    delete doc.connections.nodes[n.id];
+    for (const e of Object.values(doc.connections.edges)) {
+      if (e.fromNodeId === n.id) e.fromNodeId = id;
+      if (e.toNodeId === n.id) e.toNodeId = id;
+    }
+    for (const g of Object.values(doc.connections.gates)) if (g.nodeId === n.id) g.nodeId = id;
+  }
+  doc.connections.nodes[id] = { id, position: point, anchors: all };
+}

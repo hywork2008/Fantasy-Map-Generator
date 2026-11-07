@@ -3,17 +3,24 @@ import type { CurveAnchor, VectorCityDocument, VectorPath } from "../../../types
 import type { VectorBlock, VectorGenerationSettings, VectorPolygon } from "../../../types/vector/generation";
 import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
 import { mapDocumentAnchors } from "../editing/anchors";
-import { createVectorGate, networkId, proposeSquareBridge, rebuildRoadGraph, setWallCircuit } from "../editing/network";
+import {
+  createVectorGate,
+  joinVectorGenerationAnchors,
+  proposeSquareBridge,
+  rebuildRoadGraph,
+  setWallCircuit
+} from "../editing/network";
 import { curveSource, removeVectorPath } from "../editing/paths";
 import { featureReservations } from "../environmentState";
 import { evaluateAnchor, pathIsClosed, pathSegmentIds } from "../geometry/curves";
 import { pathIntersections } from "../geometry/intersections";
-import { anchorOrder, bridgeGeometry, distance, gateOpening, unit, widthAt } from "../geometry/network";
+import { bridgeGeometry, distance, gateOpening, unit, widthAt } from "../geometry/network";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater, vectorWaterSurfaces } from "../geometry/water";
 import { assertVectorDocument } from "../validation/document";
+import { connectVectorCivicCentre } from "./civic";
 import { type RouteLink, skeletonRoutes } from "./routes";
 
 export const DEFAULT_VECTOR_GENERATION: VectorGenerationSettings = {
@@ -41,39 +48,8 @@ export function generationFingerprint(doc: VectorCityDocument, ids: Set<string>)
     ...(doc.environment?.defenses ? { defenses: doc.environment.defenses } : {})
   });
 }
-export function joinVectorGenerationAnchors(doc: VectorCityDocument, anchors: CurveAnchor[]): void {
-  const unique = anchors.filter((a, i, all) => all.findIndex(b => JSON.stringify(a) === JSON.stringify(b)) === i);
-  if (unique.length < 2) return;
-  const point = evaluateAnchor(doc.paths[unique[0].pathId], unique[0]);
-  if (unique.some(a => distance(point, evaluateAnchor(doc.paths[a.pathId], a)) > 1e-6))
-    throw new Error("connection-conflict");
-  const samePosition = (a: CurveAnchor, b: CurveAnchor) => {
-    if (a.pathId !== b.pathId) return false;
-    const path = doc.paths[a.pathId],
-      order = (anchor: CurveAnchor) => {
-        const value = anchorOrder(path, anchor),
-          count = pathSegmentIds(path).length;
-        return pathIsClosed(path) && Math.abs(value - count) < 1e-9 ? 0 : value;
-      };
-    return Math.abs(order(a) - order(b)) < 1e-9;
-  };
-  const nodes = Object.values(doc.connections.nodes).filter(n =>
-    n.anchors.some(a => unique.some(b => samePosition(a, b)))
-  );
-  const id = nodes[0]?.id ?? networkId(doc.connections.nodes, "node"),
-    all = [...unique, ...nodes.flatMap(n => n.anchors)].filter(
-      (a, i, entries) => entries.findIndex(b => JSON.stringify(a) === JSON.stringify(b)) === i
-    );
-  for (const n of nodes) {
-    delete doc.connections.nodes[n.id];
-    for (const e of Object.values(doc.connections.edges)) {
-      if (e.fromNodeId === n.id) e.fromNodeId = id;
-      if (e.toNodeId === n.id) e.toNodeId = id;
-    }
-    for (const g of Object.values(doc.connections.gates)) if (g.nodeId === n.id) g.nodeId = id;
-  }
-  doc.connections.nodes[id] = { id, position: point, anchors: all };
-}
+export { joinVectorGenerationAnchors } from "../editing/network";
+
 function walls(doc: VectorCityDocument): VectorPolygon[] {
   return Object.values(doc.paths)
     .filter(p => p.role === "wall")
@@ -411,6 +387,7 @@ export function generateVectorSkeleton(
       for (const hit of pathIntersections(roads[i], roads[j]))
         if (containsRegion(free, evaluateAnchor(roads[i], hit.a))) joinVectorGenerationAnchors(doc, [hit.a, hit.b]);
   rebuildRoadGraph(doc);
+  connectVectorCivicCentre(doc);
   doc.revision++;
   assertVectorDocument(doc);
   timed("connections-and-validation");

@@ -532,7 +532,8 @@ export function generateVectorUrban(
     reasons.push("facility-space-shortfall");
   if (unplacedFacilities.some(item => item.reason === "budget" || item.reason === "unsearched"))
     reasons.push("facility-search-starved");
-  if (manual.some(id => !doc.placements[id].building)) reasons.push("manual-capacity-unverified");
+  if (manual.some(id => !doc.placements[id].building && doc.placements[id].display?.dwellings === undefined))
+    reasons.push("manual-capacity-unverified");
   if (packer?.budgetExceeded() || housingPacker?.budgetExceeded() || (!organic && ownedPlacements.length >= 1500))
     reasons.push("placement-budget");
   if (run?.profile) {

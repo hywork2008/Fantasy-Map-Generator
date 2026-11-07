@@ -8,7 +8,7 @@ import { facilityUseOf } from "../../facilityUses";
 import { convexHull } from "../../geom";
 import { intersectConvex, plotArea } from "../../parcelGeometry";
 import { evaluateAnchor } from "../geometry/curves";
-import { distance, gateOpening, junctionSurface } from "../geometry/network";
+import { gateOpening, junctionSurface, nearestRoadAnchor } from "../geometry/network";
 import { containsRegion, indexedContains, regionArea, regionBoolean } from "../geometry/regions";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
@@ -22,51 +22,7 @@ import {
   vectorHouseDwellings
 } from "./urbanCapacity";
 
-/** Projection refines on the original curve; samples never become editable geometry. */
-export function nearestRoadAnchor(path: VectorPath, p: Point, samples = samplePath(path)): CurveAnchor {
-  let best = samples[0].anchor,
-    score = Infinity;
-  const segmentKind = (id: string) =>
-    path.source.kind === "curve" ? path.source.segments.find(segment => segment.id === id)?.kind : undefined;
-  for (let i = 1; i < samples.length; i++) {
-    const a = samples[i - 1],
-      b = samples[i],
-      dx = b.point[0] - a.point[0],
-      dy = b.point[1] - a.point[1],
-      d = dx * dx + dy * dy;
-    const t = d ? Math.max(0, Math.min(1, ((p[0] - a.point[0]) * dx + (p[1] - a.point[1]) * dy) / d)) : 0;
-    const sameSegment = a.anchor.segmentId === b.anchor.segmentId;
-    const lo = sameSegment ? a.anchor.t : 0;
-    // A straight segment's closest point is the chord projection. Cubics still use ternary search.
-    let refined = (l: number, r: number) => (l + r) / 2;
-    if (!(sameSegment && segmentKind(b.anchor.segmentId) === "line")) {
-      let l = lo,
-        r = b.anchor.t;
-      for (let n = 0; n < 28; n++) {
-        const x = l + (r - l) / 3,
-          y = r - (r - l) / 3;
-        const at = (v: number) => distance(p, evaluateAnchor(path, { ...b.anchor, t: v }));
-        if (at(x) < at(y)) r = y;
-        else l = x;
-      }
-      refined = () => (l + r) / 2;
-    }
-    const candidates = [
-      { ...b.anchor, t: lo + (b.anchor.t - lo) * t },
-      { ...b.anchor, t: refined(lo, b.anchor.t) },
-      a.anchor,
-      b.anchor
-    ];
-    for (const c of candidates) {
-      const value = distance(p, evaluateAnchor(path, c));
-      if (value < score) {
-        score = value;
-        best = c;
-      }
-    }
-  }
-  return best;
-}
+export { nearestRoadAnchor } from "../geometry/network";
 export const polygonBounds = (p: VectorPolygon) => ({
   minX: Math.min(...p.outer.map(p => p[0])),
   minY: Math.min(...p.outer.map(p => p[1])),

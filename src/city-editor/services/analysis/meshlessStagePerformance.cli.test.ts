@@ -1,21 +1,25 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { cpus, platform, release } from "node:os";
 import { resolve } from "node:path";
 import { expect, it } from "vitest";
 import { ProcessingProfiler } from "../../../utils/processingProfiler";
 import { generationStages } from "../../controllers/generationStages";
 import { createGridDocument, DEFAULT_CITY_SIZE, DEFAULT_GRID_KIND } from "../../generators/document";
+import { circuitRing } from "../../generators/fortifications";
 import { generateCityOnDocument } from "../../generators/generation/generateCity";
 import { clearGenerationPreviewCache, generateStageOnDocument } from "../../generators/generation/previews";
 import { defaultGenerationSettings } from "../../generators/generation/settings";
+import { polygonArea } from "../../generators/geom";
 import { withoutGeneratedFacilities } from "../../generators/populationFacilities";
 import { defaultPopulationSettings } from "../../generators/populationPlan";
 import { generateRuralFieldStage } from "../../generators/ruralFieldStage";
 import { vectorInputFromEditor } from "../../generators/vector/generation/editorInput";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../../generators/vector/generation/pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../../generators/vector/generation/urban";
+import { regionArea } from "../../generators/vector/geometry/regions";
+import { sampledClosedRing } from "../../generators/vector/geometry/routing";
 import { renderEditorSvg } from "../../renderers/editorSvg";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
 import type { GenerationSample } from "../../types/contracts/generationDiagnostics";
@@ -157,7 +161,48 @@ it.runIf(!!output)(
       spans,
       outputSha256: hash(urban.value)
     };
+    const meshWallArea = (complete.value!.defenseCircuits ?? [])
+      .filter(c => c.scope === "town")
+      .reduce((n, c) => n + Math.abs(polygonArea(circuitRing(complete.value!, c))), 0);
+    const vectorWallArea = regionArea({ outer: sampledClosedRing(urban.value, "auto-wall"), holes: [] });
+    result.conditions = {
+      mesh: {
+        frameExtentMeters: complete.value!.frame.extentMeters,
+        wallAreaM2: meshWallArea,
+        civicElements: complete
+          .value!.elements.filter(e => e.kind === "plaza" || e.kind === "temple")
+          .map(e => ({ kind: e.kind, point: e.point, sizeMeters: e.sizeMeters })),
+        cemeteryCount: complete.value!.cemeteries?.length ?? 0
+      },
+      meshless: {
+        frameExtentMeters: urban.value.frame.extentMeters,
+        wallAreaM2: vectorWallArea,
+        civicFeatures: Object.values(urban.value.environment!.features).map(f => ({
+          id: f.id,
+          kind: f.kind,
+          areaM2: regionArea(f.boundary)
+        })),
+        cemeteryCount: urban.value.environment!.landscape!.cemeteries.length
+      },
+      wallAreaRatio: vectorWallArea / meshWallArea
+    };
+    result.measurementSources = [
+      "src/city-editor/services/analysis/meshlessStagePerformance.cli.test.ts",
+      "src/city-editor/generators/generationTiming.ts",
+      "src/city-editor/generators/vector/generation/pipeline.ts",
+      "src/city-editor/generators/vector/generation/urban.ts",
+      "src/city-editor/generators/vector/generation/civic.ts",
+      "src/city-editor/generators/vector/generation/editorInput.ts"
+    ].map(path => ({ path, sha256: createHash("sha256").update(readFileSync(path)).digest("hex") }));
     save();
+    expect(urban.value.frame.extentMeters).toBe(complete.value!.frame.extentMeters);
+    expect(Math.abs(vectorWallArea / meshWallArea - 1)).toBeLessThan(0.05);
+    expect(Object.keys(urban.value.environment!.features)).toEqual([
+      "feature:civic-plaza",
+      "feature:civic-church",
+      "feature:civic-cemetery"
+    ]);
+    expect(urban.value.environment!.landscape!.cemeteries.length).toBe(1);
     expect(urban.value.urban!.report.unplacedPopulation).toBe(0);
     expect(urban.value.urban!.report.requiredFacilities).toBe(0);
     expect(spans.reduce((n, s) => n + s.ms, 0)).toBeLessThanOrEqual(input.ms + skeleton.ms + urban.ms);
