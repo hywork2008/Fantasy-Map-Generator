@@ -23,6 +23,7 @@ import { createVectorPresentationPanel } from "./VectorPresentationPanel";
 import { createVectorWorkbench } from "./VectorWorkbench";
 
 export interface VectorEditorSession {
+  generationInput?: import("../../generators/vector/generation/editorInput").VectorEditorGenerationInput;
   history: VectorDocumentHistory;
   sourceDescriptor?: BurgSiteDescriptor;
   sourceDocument?: CityDocument;
@@ -295,7 +296,8 @@ export function mountVectorCityEditor(
     session.sourceDescriptor ?? session.history.document.site?.descriptor,
     (doc, stage) => presentation.rendered(doc, stage),
     undefined,
-    () => session.history.currentEntryKey
+    () => session.history.currentEntryKey,
+    session.generationInput
   );
   editPanel = createVectorEditPanel(
     scope,

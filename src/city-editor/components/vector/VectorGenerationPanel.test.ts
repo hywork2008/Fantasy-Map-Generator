@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fixture from "../../data/fixtures/gothengsfeld-20261012.json";
+import { defaultGenerationSettings } from "../../generators/generation/settings";
+import { defaultPopulationSettings } from "../../generators/populationPlan";
 import { createVectorDocument } from "../../generators/vector/document";
+import type { VectorEditorGenerationInput } from "../../generators/vector/generation/editorInput";
 import { syntheticVectorInput } from "../../generators/vector/generation/input";
 import { generateVectorSkeleton } from "../../generators/vector/generation/pipeline";
 import { generateVectorUrban } from "../../generators/vector/generation/urban";
@@ -18,7 +21,11 @@ let root: HTMLElement,
   scope: EditorLifetime,
   history: VectorDocumentHistory,
   ui: ReturnType<typeof createVectorGenerationPanel>;
-function mount(initial = createVectorDocument(), linked?: BurgSiteDescriptor) {
+function mount(
+  initial = createVectorDocument(),
+  linked?: BurgSiteDescriptor,
+  editorInput?: VectorEditorGenerationInput
+) {
   history = new VectorDocumentHistory(initial);
   scope = new EditorLifetime(root);
   const refresh = () => {
@@ -40,13 +47,19 @@ function mount(initial = createVectorDocument(), linked?: BurgSiteDescriptor) {
     startOverride ??
       ((source, task) => ({
         result: Promise.resolve().then(() =>
-          task.kind === "skeleton"
-            ? generateVectorSkeleton(source, task.settings)
-            : { document: generateVectorUrban(source, task.settings), stages: [] }
+          task.kind === "city"
+            ? {
+                document: generateVectorUrban(generateVectorSkeleton(source, task.settings).document, task.urban),
+                stages: []
+              }
+            : task.kind === "skeleton"
+              ? generateVectorSkeleton(source, task.settings)
+              : { document: generateVectorUrban(source, task.settings), stages: [] }
         ),
         cancel: vi.fn()
       })),
-    () => history.currentEntryKey
+    () => history.currentEntryKey,
+    editorInput
   );
   refresh();
 }
@@ -72,6 +85,34 @@ const fill = (key: string, value: string) => {
 };
 
 describe("M4 input, generation and adopted stages", () => {
+  it("generates and commits a default CE city with one action, retaining seed and population", async () => {
+    const settings = {
+      ...defaultGenerationSettings(),
+      population: defaultPopulationSettings(),
+      historicalPeriod: "ageOfExploration" as const
+    };
+    mount(createVectorDocument(), undefined, {
+      seed: "b5o620",
+      settings,
+      frame: { extentMeters: 1200, cityRadiusMeters: 300, blockSizeMeters: 50 }
+    });
+    expect(field("seed").value).toBe("b5o620");
+    expect(field("population").value).toBe("5000");
+    click("city");
+    await vi.waitFor(() => expect(history.index).toBe(1), { timeout: 60000 });
+    const generated = history.document;
+    expect(generated.format).toBe("fmg-vector-city");
+    expect(generated.recipe.seed).toBe("b5o620");
+    expect(generated.context.historicalPeriod).toBe("ageOfExploration");
+    expect(generated.urban?.report.targetPopulation).toBe(5000);
+    expect(Object.keys(generated.paths).length).toBeGreaterThan(4);
+    expect(Object.values(generated.placements).some(p => p.building?.kind === "housing")).toBe(true);
+    expect(map.querySelector("[data-vector-placement]")).not.toBeNull();
+    expect(root.querySelector<HTMLButtonElement>('[data-generation-action="adopt"]')!.disabled).toBe(true);
+    expect(Object.keys(history.undo()!.placements)).toHaveLength(0);
+    expect(Object.keys(history.redo()!.placements).length).toBeGreaterThan(0);
+  }, 60000);
+
   it("previews input and generation without changing saved history, then adopts one transaction per operation", async () => {
     mount();
     click("synthetic");

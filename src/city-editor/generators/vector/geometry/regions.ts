@@ -2,7 +2,6 @@ import polygonClipping, { type MultiPolygon } from "polygon-clipping";
 import RBush from "rbush";
 import type { Point } from "../../../types/primitives";
 import { pointInPolygon, polygonArea } from "../../geom";
-import { pointSegmentDistance } from "./sampling";
 import type { PathSurface } from "./surfaces";
 
 export type VectorPolygon = PathSurface;
@@ -103,15 +102,20 @@ export function regionBoolean(
             Math.hypot(points[0][0] - points.at(-1)![0], points[0][1] - points.at(-1)![1]) <= 1e-7
           )
             points.pop();
-          for (let i = points.length - 1; i >= 0 && points.length > 3; i--)
-            if (
-              pointSegmentDistance(
-                points[i],
-                points[(i + points.length - 1) % points.length],
-                points[(i + 1) % points.length]
-              ) < 1e-10
-            )
-              points.splice(i, 1);
+          // Boolean output can contain zero-area out-and-back spikes where a
+          // rounded doorway edge meets a road. Remove collinear derived vertices,
+          // including reversals; source paths never enter this cleanup.
+          for (let i = points.length - 1; i >= 0 && points.length > 3; i--) {
+            const a = points[(i + points.length - 1) % points.length],
+              b = points[i],
+              c = points[(i + 1) % points.length];
+            const length = Math.hypot(c[0] - a[0], c[1] - a[1]);
+            const height =
+              length > 1e-9
+                ? Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / length
+                : Math.hypot(b[0] - a[0], b[1] - a[1]);
+            if (height < 1e-7) points.splice(i, 1);
+          }
           if (points.length > 16000) throw new Error("region-budget");
           return points;
         })

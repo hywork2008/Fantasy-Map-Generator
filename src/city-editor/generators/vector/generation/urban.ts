@@ -56,6 +56,7 @@ export interface VectorUrbanRun {
   requestAttempts?: number;
   housingAttempts?: number;
   profile?: VectorUrbanProfile;
+  progress?: (phase: "lanes" | "facilities" | "housing" | "validation", completed?: number, total?: number) => void;
 }
 export interface VectorUrbanContinuation {
   retainedPlacements: string[];
@@ -324,6 +325,7 @@ export function generateVectorUrban(
     );
   let blocks = deriveLaneBlocks();
   const ownedPaths: string[] = [...(continuation?.ownedPaths ?? [])];
+  run?.progress?.("lanes");
   const laneStarted = performance.now();
   // Frontage-rooted cul-de-sacs follow free land; no cells, vertex snapping or global grid.
   // Length follows the block, not two lot-depths, so a small lane budget still fronts the interior.
@@ -597,7 +599,8 @@ export function generateVectorUrban(
         : "space";
   let facilityAttempts = 0;
   const facilityStarted = performance.now();
-  for (const request of requests) {
+  for (const [requestIndex, request] of requests.entries()) {
+    run?.progress?.("facilities", requestIndex, requests.length);
     if (ownedPlacements.includes(`urban:${request.id}`)) continue;
     const room = facilityLimits.totalAttempts - facilityAttempts;
     if (ownedPlacements.length >= 1500 || room <= 0) {
@@ -655,6 +658,7 @@ export function generateVectorUrban(
   if (remaining > 0 && houseAsset) {
     const asset = houseAsset;
     for (let n = 0; remaining > 0; n++) {
+      if (n % 16 === 0) run?.progress?.("housing", required - remaining, required);
       if (ownedPlacements.length >= 1500) {
         housingStop = "placement-cap";
         break;
@@ -706,6 +710,7 @@ export function generateVectorUrban(
     run.profile.cappedFacilities = unplacedFacilities.filter(item => item.reason === "budget").length;
     run.profile.housingStop = housingStop;
   }
+  run?.progress?.("validation");
   const residualLand = deriveVectorBlocks(doc, protectedRegions).map(b => ({ outer: b.outer, holes: b.holes }));
   doc.site = sourceSite;
   doc.context.targetPopulation = settings.population;

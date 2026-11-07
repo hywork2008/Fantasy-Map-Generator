@@ -206,6 +206,15 @@
         }
       },
       "generation": {
+        "progress": {
+          "skeleton": "道路と橋を生成中",
+          "lanes": "街区と路地を生成中",
+          "facilities": "施設を配置中",
+          "housing": "住宅を配置中",
+          "validation": "都市の形状を検証中"
+        },
+        "readyCity": "現在のシードと目標人口で道路・施設・住宅を生成します。",
+        "city": "都市を生成",
         "title": "メッシュなし都市生成",
         "seed": "生成seed",
         "radius": "新しい合成・手動入力の市域半径 (m)",

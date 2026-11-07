@@ -19,6 +19,33 @@ class FakeWorker {
 }
 afterEach(() => vi.useRealTimers());
 describe("generation worker ownership", () => {
+  it("keeps a progressing city alive beyond one minute but times out a stalled phase", async () => {
+    vi.useFakeTimers();
+    const worker = new FakeWorker(),
+      progress = vi.fn();
+    const job = startVectorGeneration(
+      createVectorDocument(),
+      { kind: "skeleton", settings: DEFAULT_VECTOR_GENERATION },
+      () => worker as unknown as Worker,
+      progress
+    );
+    await vi.advanceTimersByTimeAsync(45000);
+    worker.onmessage!({
+      data: {
+        id: worker.request.id,
+        inputRevision: worker.request.inputRevision,
+        progress: { phase: "facilities", completed: 10, total: 20 }
+      }
+    } as MessageEvent<VectorGenerationReply>);
+    await vi.advanceTimersByTimeAsync(45000);
+    expect(worker.terminate).not.toHaveBeenCalled();
+    expect(progress).toHaveBeenCalledWith({ phase: "facilities", completed: 10, total: 20 });
+    const rejected = expect(job.result).rejects.toThrow("generation-timeout");
+    await vi.advanceTimersByTimeAsync(15000);
+    await rejected;
+    expect(worker.terminate).toHaveBeenCalledOnce();
+  });
+
   it("rejects foreign revisions, settles once and terminates on cancel or success", async () => {
     const doc = createVectorDocument(),
       worker = new FakeWorker(),

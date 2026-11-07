@@ -1,4 +1,8 @@
 import { type EditorMessageKey, editorText } from "../../../i18n/editorMessages";
+import {
+  type VectorEditorGenerationInput,
+  vectorInputFromEditor
+} from "../../generators/vector/generation/editorInput";
 import { siteDisk, syntheticVectorInput, vectorInputFromDescriptor } from "../../generators/vector/generation/input";
 import { DEFAULT_VECTOR_GENERATION, type VectorGenerationResult } from "../../generators/vector/generation/pipeline";
 import { DEFAULT_VECTOR_URBAN } from "../../generators/vector/generation/urban";
@@ -24,7 +28,8 @@ export function createVectorGenerationPanel(
   linked?: BurgSiteDescriptor,
   onRender?: (doc: VectorCityDocument, stage: VectorStage) => void,
   start = startVectorGeneration,
-  readEntryKey?: () => object
+  readEntryKey?: () => object,
+  editorInput?: VectorEditorGenerationInput
 ) {
   const details = document.createElement("details"),
     summary = document.createElement("summary"),
@@ -102,6 +107,7 @@ export function createVectorGenerationPanel(
     return b;
   };
   const fail = (error: unknown) => {
+    console.error("Meshless generation failed", error);
     pending = undefined;
     adopt.disabled = true;
     const message = error instanceof Error ? error.message : "invalid-input",
@@ -111,10 +117,10 @@ export function createVectorGenerationPanel(
         )?.[0] ?? "invalid-input",
       key = `cityEditor.vector.generation.errors.${match}` as EditorMessageKey,
       translated = editorText(key);
-    status.textContent = translated === key ? text("errors.invalid-input") : translated;
+    status.textContent = translated === key ? `${text("errors.invalid-input")} (${message.slice(0, 180)})` : translated;
     restore();
   };
-  const seed = input("seed", read().recipe.seed),
+  const seed = input("seed", editorInput?.seed ?? read().recipe.seed),
     radius = number("radius", 150),
     cx = number("centerX", 0),
     cy = number("centerY", 0),
@@ -223,7 +229,7 @@ export function createVectorGenerationPanel(
       if (ticket()) fail(error);
     }
   });
-  const run = (task: VectorGenerationTask, key: "generate" | "develop") => {
+  const run = (task: VectorGenerationTask, key: "generate" | "develop", sourceOverride?: VectorCityDocument) => {
     pending = undefined;
     adopt.disabled = true;
     status.textContent = text("running");
@@ -235,11 +241,22 @@ export function createVectorGenerationPanel(
       scope.active &&
       token === epoch &&
       (readEntryKey ? readEntryKey() === entry : JSON.stringify(read()) === snapshot);
-    job = start(source, task);
+    job = start(sourceOverride ?? source, task, undefined, progress => {
+      if (!current()) return;
+      const count = progress.total === undefined ? "" : ` (${progress.completed ?? 0}/${progress.total})`;
+      status.textContent = `${text("running")} ${text(`progress.${progress.phase}`)}${count}`;
+    });
     void job.result
       .then(result => {
         if (!result || !current()) return;
         job = undefined;
+        if (task.kind === "city") {
+          commit(result.document, text("city"));
+          updateStages(result.document);
+          showDiagnostics(result.document);
+          showUrban(result.document);
+          return;
+        }
         preview(result.document, key, result.stages);
         if (key === "develop") showUrban(result.document);
         else
@@ -273,7 +290,10 @@ export function createVectorGenerationPanel(
   }
   mode.value = "medieval-facilities";
   field("mode", mode);
-  const population = number("population", read().context.targetPopulation || 1000),
+  const population = number(
+      "population",
+      editorInput?.settings.population?.targetPopulation ?? (read().context.targetPopulation || 1000)
+    ),
     laneSpacing = number("laneSpacing", 36),
     laneWidth = number("laneWidth", 2.4),
     maxLanes = number("maxLanes", 32),
@@ -334,7 +354,44 @@ export function createVectorGenerationPanel(
     updateStages(read());
     status.textContent = text("cancelled");
   });
-  body.append(status, diagnosticList);
+  const generateCity = document.createElement("button");
+  generateCity.type = "button";
+  generateCity.dataset.generationAction = "city";
+  generateCity.textContent = text("city");
+  scope.listen(generateCity, "click", () => {
+    scope.invalidate("import");
+    scope.invalidate("vector-generation-input");
+    stop();
+    try {
+      const source = editorInput
+        ? vectorInputFromEditor({ ...editorInput, seed: seed.value })
+        : linked
+          ? vectorInputFromDescriptor(linked)
+          : syntheticVectorInput(seed.value, Number(radius.value), river.checked);
+      source.context.targetPopulation = Number(population.value);
+      run(
+        {
+          kind: "city",
+          settings: {
+            ...DEFAULT_VECTOR_GENERATION,
+            seed: seed.value,
+            wall: editorInput?.settings.config.features.walls ? "ellipse" : "none"
+          },
+          urban: { ...DEFAULT_VECTOR_URBAN, population: Number(population.value) }
+        },
+        "develop",
+        source
+      );
+    } catch (error) {
+      fail(error);
+    }
+  });
+  const firstAction = parent.querySelector(":scope > button") ?? details;
+  generateCity.style.cssText = "display:block;width:100%;margin:8px 0";
+  status.style.cssText = "display:block;margin:8px 0";
+  parent.insertBefore(generateCity, firstAction);
+  parent.insertBefore(status, firstAction);
+  body.append(diagnosticList);
   scope.listen(stage, "change", () => {
     const doc = pending?.stages.find(s => s.id === stage.value)?.document ?? pending?.document ?? read();
     draw(doc);
@@ -381,7 +438,8 @@ export function createVectorGenerationPanel(
       adopt.disabled = true;
       const doc = read();
       fmg.disabled = !linked && !doc.site?.descriptor;
-      seed.value = doc.generation?.settings.seed ?? doc.recipe.seed;
+      seed.value =
+        doc.generation?.settings.seed ?? (doc.site ? doc.recipe.seed : (editorInput?.seed ?? doc.recipe.seed));
       width.value = String(doc.generation?.settings.roadWidthMeters ?? 5);
       clearance.value = String(doc.generation?.settings.clearanceMeters ?? 0.5);
       branches.value = String(doc.generation?.settings.branches ?? 8);
@@ -389,7 +447,13 @@ export function createVectorGenerationPanel(
       showDiagnostics(doc);
       updateStages(doc);
       mode.value = doc.urban?.settings.mode ?? "medieval-facilities";
-      population.value = String(doc.urban?.settings.population ?? (doc.context.targetPopulation || 1000));
+      population.value = String(
+        doc.urban?.settings.population ??
+          (doc.context.targetPopulation ||
+            editorInput?.settings.population?.targetPopulation ||
+            linked?.burg.population ||
+            1000)
+      );
       laneSpacing.value = String(doc.urban?.settings.laneSpacingMeters ?? 36);
       laneWidth.value = String(doc.urban?.settings.laneWidthMeters ?? 2.4);
       maxLanes.value = String(doc.urban?.settings.maxLanes ?? 32);
@@ -401,7 +465,7 @@ export function createVectorGenerationPanel(
           : text("stale")
         : doc.site
           ? text("inputReady")
-          : text("noInput");
+          : text("readyCity");
       showUrban(doc);
     }
   };

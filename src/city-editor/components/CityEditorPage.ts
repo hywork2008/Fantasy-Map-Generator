@@ -3468,6 +3468,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     const session: VectorEditorSession = document
       ? { history: new VectorDocumentHistory(document) }
       : (vectorModeSessions.get(root) ?? { history: new VectorDocumentHistory(createVectorDocument()) });
+    session.generationInput = structuredClone({
+      seed: generation.generateSeed,
+      settings: generation.generateSettings,
+      frame: documents.documentState.frame
+    });
     session.sourceDescriptor ??= generation.generateSettings.descriptor;
     session.sourceDocument = clone(documents.documentState);
     mountVectorMode(root, options, session);

@@ -6,6 +6,7 @@ import type { VectorUrbanSettings } from "../../../types/vector/urban";
 import type { BVFacilityRequest } from "../../allocateBVFacilities";
 import { facilityUseOf } from "../../facilityUses";
 import { convexHull } from "../../geom";
+import { intersectConvex, plotArea } from "../../parcelGeometry";
 import { evaluateAnchor } from "../geometry/curves";
 import { distance, gateOpening, junctionSurface } from "../geometry/network";
 import { containsRegion, indexedContains, regionArea, regionBoolean } from "../geometry/regions";
@@ -111,6 +112,16 @@ export function createUrbanPacker(
     surfaces = roads.map(pathSurface),
     reachable = reachablePaths(doc, doc.site!.center);
   const occupied = new RBush<ReturnType<typeof polygonBounds> & { polygon: VectorPolygon }>();
+  const roadSurfaces = new RBush<ReturnType<typeof polygonBounds> & { polygon: VectorPolygon }>();
+  roadSurfaces.load(surfaces.map(polygon => ({ ...polygonBounds(polygon), polygon })));
+  const footprints = new RBush<ReturnType<typeof polygonBounds> & { ring: Point[] }>();
+  const indexFootprint = (placement: VectorPlacement) => {
+    if (!placement.building || placement.site.holes.length) return;
+    const ring = convexHull(placement.site.outer);
+    if (Math.abs(plotArea(ring) - regionArea(placement.site)) < 1e-7)
+      footprints.insert({ ...polygonBounds(placement.site), ring });
+  };
+  for (const p of Object.values(doc.placements)) indexFootprint(p);
   for (const p of Object.values(doc.placements))
     for (const polygon of p.building?.reserved ?? [p.site]) occupied.insert({ ...polygonBounds(polygon), polygon });
   for (const polygon of [
@@ -181,7 +192,10 @@ export function createUrbanPacker(
   const blockClip = new Map(
     blocks.map(block => [block.id, indexRings([{ outer: block.outer, holes: block.holes }])] as const)
   );
-  const allowed = new Map(blocks.map(block => [block.id, indexRings(clip([block], surfaces, "union"))]));
+  const overlapsOccupied = (polygon: VectorPolygon) =>
+    occupied
+      .search(polygonBounds(polygon))
+      .some(q => clip([polygon], [q.polygon], "intersection").some(r => regionArea(r) > 1e-5));
   const slots = blocks.flatMap(block =>
     block.frontage
       .filter(f => reachable.has(f.pathId))
@@ -269,6 +283,12 @@ export function createUrbanPacker(
           outer: local.map(p => [p[0] + translation[0], p[1] + translation[1]]),
           holes: []
         };
+        // Convex site intersections avoid sweep-line clipping for the common
+        // case of another building already occupying this frontage.
+        if (footprints.search(polygonBounds(site)).some(p => plotArea(intersectConvex(site.outer, p.ring)) > 1e-5)) {
+          if (abandon(offset)) break;
+          continue;
+        }
         const district = Object.values(doc.regions).find(
           r => r.kind === "district" && containsRegion([r], translation)
         );
@@ -286,6 +306,11 @@ export function createUrbanPacker(
           site.outer.some(corner => !containsRegion([block], corner)) ||
           outsideArea(blockClip.get(block.id)!, site) > 1e-5
         ) {
+          if (abandon(offset)) break;
+          continue;
+        }
+        // Reject occupied footprints before constructing and clipping entrance corridors.
+        if (overlapsOccupied(site)) {
           if (abandon(offset)) break;
           continue;
         }
@@ -324,8 +349,11 @@ export function createUrbanPacker(
             ],
             holes: []
           };
-          const offroad = surfaces.length ? clip([corridor], surfaces, "difference") : [corridor];
-          if (outsideArea(allowed.get(block.id)!, corridor) > 1e-5) {
+          const nearbyRoads = roadSurfaces.search(polygonBounds(corridor)).map(item => item.polygon);
+          const offroad = nearbyRoads.length ? clip([corridor], nearbyRoads, "difference") : [corridor];
+          // Removing roads first is equivalent to containment in block union roads,
+          // without clipping every candidate against the entire street network.
+          if (offroad.reduce((area, polygon) => area + outsideArea(blockClip.get(block.id)!, polygon), 0) > 1e-5) {
             valid = false;
             break;
           }
@@ -410,6 +438,7 @@ export function createUrbanPacker(
           }
         };
         doc.placements[id] = placement;
+        indexFootprint(placement);
         for (const polygon of reserved) occupied.insert({ ...polygonBounds(polygon), polygon });
         slot.cursor = offset + span + settings.clearanceMeters;
         return { placement, attempts: used, incomplete: false };

@@ -113,6 +113,9 @@ describe("meshless editor boundary", () => {
     const grid = vi.spyOn(documentGenerator, "createGridDocument");
     useMeshless();
     expect(root.dataset.documentFormat).toBe("fmg-vector-city");
+    expect(root.querySelector<HTMLInputElement>('[data-generation-field="seed"]')!.value).toBe("preserved-mesh-seed");
+    expect(root.querySelector<HTMLInputElement>('[data-generation-field="population"]')!.value).toBe("5000");
+    expect(root.querySelector('[data-generation-action="city"]')).not.toBeNull();
     expect(grid).not.toHaveBeenCalled();
     click(".ce-vector-example");
     click(".ce-vector-return");

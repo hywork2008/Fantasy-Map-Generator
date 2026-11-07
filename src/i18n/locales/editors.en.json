@@ -206,6 +206,15 @@
         }
       },
       "generation": {
+        "progress": {
+          "skeleton": "Routing roads and bridges",
+          "lanes": "Laying out blocks and lanes",
+          "facilities": "Placing facilities",
+          "housing": "Placing housing",
+          "validation": "Checking city geometry"
+        },
+        "readyCity": "Generate streets, facilities and housing using the current seed and target population.",
+        "city": "Generate city",
         "title": "Meshless city generation",
         "seed": "Generation seed",
         "radius": "New synthetic / manual radius (m)",
