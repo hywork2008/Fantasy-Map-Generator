@@ -1,6 +1,6 @@
 """Compare clayflow.mts outputs, saved Clay (base) against Clay added on the cold lands (add).
 
-  python3 -I docs/analytics/cold-clay-20261107/compare.py <raw dir> <seed>... [--goods Clay,Ceramics,Brick]
+  python3 -I docs/analytics/cold-clay-20261107/compare.py <raw dir> <seed>... [--goods Clay,Ceramics,Brick] [--modes base,add]
 
 Sums the 12 months' flows by good, the markets' temperature band and direction:category, and the
 12th month's stock and mean price by good and band.
@@ -14,13 +14,18 @@ if "--goods" in args:
     k = args.index("--goods")
     goods = args[k + 1].split(",")
     args = args[:k] + args[k + 2 :]
+modes = ["base", "add"]
+if "--modes" in args:
+    k = args.index("--modes")
+    modes = args[k + 1].split(",")
+    args = args[:k] + args[k + 2 :]
 raw, seeds = args[0], args[1:]
 BANDS = ["<0", "0-4", "4-8", ">=8"]
 for seed in seeds:
-    runs = {mode: json.load(open(f"{raw}/{mode}-{seed}.json")) for mode in ("base", "add")}
+    runs = {mode: json.load(open(f"{raw}/{mode}-{seed}.json")) for mode in modes}
     print(f"== seed {seed}")
-    print("  markets by band", runs["base"]["marketsByBand"])
-    added = runs["add"]["added"]
+    print("  markets by band", runs[modes[0]]["marketsByBand"])
+    added = runs[modes[1]]["added"]
     rows = added if all(isinstance(v, dict) for v in added.values()) else {"Clay": added}
     for name, row in rows.items():
         print(f"  added {name}", {k: round(v, 4) for k, v in row.items()})
@@ -29,7 +34,7 @@ for seed in seeds:
         if "depositCells" in run:
             print(f"  {mode} deposit cells by market band", run["depositCells"])
     for good in goods:
-        print(f"  -- {good}: 12-month flows by band (base -> add)")
+        print(f"  -- {good}: 12-month flows by band ({modes[0]} -> {modes[1]})")
         keys = set()
         for run in runs.values():
             for snap in run["snapshots"]:
@@ -38,7 +43,7 @@ for seed in seeds:
             mode: {k: sum(s["flows"].get(k, 0) for s in run["snapshots"]) for k in keys} for mode, run in runs.items()
         }
         for key in sorted(keys, key=lambda k: (BANDS.index(k.split(":")[1]) if k.split(":")[1] in BANDS else 9, k)):
-            b, a = totals["base"][key], totals["add"][key]
+            b, a = totals[modes[0]][key], totals[modes[1]][key]
             if max(b, a) < 1:
                 continue
             print(f"    {key[len(good) + 1:]:<40} {b:>10.0f} -> {a:>10.0f}")

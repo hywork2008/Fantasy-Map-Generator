@@ -52,8 +52,10 @@ import { catalogTradeHeading } from "./tradeHeadings";
 import {
   CHARCOAL_WOOD_PER_LOT,
   LEGACY_WOOD_RECIPES,
+  POTASH_ASH_SACKS_PER_BARREL,
   PRESERVED_FISH_ASH,
   PRESERVED_FISH_WOOD_RECIPE,
+  RETIRED_ASH_WOOD_RECIPE,
   WOOD_RECIPE_CONTRACTS
 } from "./woodRecipeContracts";
 
@@ -242,7 +244,20 @@ type GoodData = Omit<Good, "i" | "recipes" | "byproducts"> & {
 
 /** Whole-kiln material contract; no independently recovered ash from carbonization. */
 const CHARCOAL_WOOD_PER_UNIT = CHARCOAL_WOOD_PER_LOT;
-const POTASH_ASH_PER_UNIT = 1.5;
+const POTASH_ASH_PER_UNIT = POTASH_ASH_SACKS_PER_BARREL;
+/**
+ * A 50 kg sack of wood ash at 0.09 times the grain price per kilogram: Jefferson's 9 cents a bushel
+ * (some 21 kg) in 1795, with wheat at about $1.33 a bushel. It was 1.5, 15 times grain
+ * (docs/plan/wood-ash-potash.md §2, §3).
+ */
+export const ASH_SACK_VALUE = 0.012;
+/**
+ * A 120 L barrel of potash at 3 times the grain price per kilogram: pearl ash at £40 a ton in England
+ * in 1795 (Jefferson) against wheat at 43 to 78 s a quarter, and potash at $200 to $300 a ton in the
+ * United States in 1790-1804. The ash of a barrel costs a third of it, as in Jefferson's figures; the
+ * rest is the leaching, the boiling and its fuel. It was 3.
+ */
+export const POTASH_BARREL_VALUE = 0.9;
 /** Pomace a 200 L wine cask's pressing leaves. */
 const WINE_POMACE_LOTS_PER_CASK = GRAPES_LOTS_PER_WINE_LOT * POMACE_SHARE_OF_PRESSED_GRAPE_MASS;
 /** A tun (1,000 L) of cider or perry uses about 1.5 t of pressed orchard fruit. */
@@ -2055,22 +2070,19 @@ export const GOODS_DATA: GoodData[] = [
     // Wood ash — a cheap alkaline coagulant/preservative used historically in some traditional
     // cheeses (alongside surface mold/acidity control), added 2026-08-07 (docs/plan/
     // fauna-biome-realism.md §3 Phase N, docs/temp/0807-cheese.md) as Cheese's third coagulant path.
-    // Deliberately modeled as burnt Wood (not raw Wood itself) for the same "actually processed, not
-    // just renamed" reasoning as Barrels-from-Wood below. Wood is abundant almost everywhere, so this
-    // gives Cheese-making a near-universally available fallback input when Salt/Vinegar/Rennet are
-    // locally scarce.
+    // No recipe: the market buys the towns' hearth ash (hearthAsh.ts) and the ash of kilns, stills
+    // and smokehouses comes as their byproduct (docs/plan/wood-ash-potash.md).
     name: "Ash",
-    ...WOOD_RECIPE_CONTRACTS.Ash,
     tags: ["construction"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#b8b8b0",
-    // Retain the existing price during the material correction; Wood/ash yield is now explicit.
-    value: 1.5,
+    value: ASH_SACK_VALUE,
     chance: 0,
-
     unit: "sack",
-    demandCoverage: { construction: 0.2 }
+    // No construction share: at the price of ash a share of the towns' building budget bought it by
+    // the hundred sacks. Ash goes to potash and cheese (docs/plan/wood-ash-potash.md §3).
+    demandCoverage: {}
   },
   {
     // Cheese consumes Milk (above) rather than Cattle/Sheep/Goats headcount directly — Milk's own
@@ -2546,7 +2558,7 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#c9c2a6",
-    value: 3,
+    value: POTASH_BARREL_VALUE,
     chance: 0,
     // Refining the soluble alkali from Wood ash makes a compact, durable industrial input
     // suitable for long-distance glass and soap trade.
@@ -5185,7 +5197,10 @@ export const ALE_CASK_REPRICING: Readonly<Record<string, readonly [before: numbe
   Beer: [2.4, 1.5],
   Barrels: [2, 0.1],
   // Honey against grain: 3.9 times per kilogram (docs/plan/honey-forage-lands.md §6).
-  Honey: [4, HONEY_BARREL_VALUE]
+  Honey: [4, HONEY_BARREL_VALUE],
+  // Wood ash and potash against grain (docs/plan/wood-ash-potash.md §3).
+  Ash: [1.5, ASH_SACK_VALUE],
+  Potash: [3, POTASH_BARREL_VALUE]
 };
 
 /**
@@ -5522,6 +5537,35 @@ export function migrateColdLandShoreDeposits(): boolean {
     changed = true;
   }
   return changed;
+}
+
+/**
+ * Removes the Wood recipe and the construction share of a saved catalogue's Ash (docs/plan/wood-ash-potash.md
+ * §3): the market's ash comes from the town hearths and from byproducts, and goes to potash and cheese. Only
+ * the defaults, old or physical, are removed.
+ */
+export function migrateHearthAshGoods(): boolean {
+  const goods = getGoods();
+  const ash = goods.find(good => good.name === "Ash");
+  const wood = goods.find(good => good.name === "Wood");
+  if (!ash || !wood) return false;
+  let changed = false;
+  const coverage = ash.demandCoverage;
+  if (coverage && Object.keys(coverage).length === 1 && coverage.construction === 0.2) {
+    ash.demandCoverage = {};
+    changed = true;
+  }
+  if (!ash.recipes) return changed;
+  const retired = [LEGACY_WOOD_RECIPES.Ash?.[0]?.Wood, RETIRED_ASH_WOOD_RECIPE.Wood];
+  const onlyWood = ash.recipes.length === 1 && Object.keys(ash.recipes[0]).length === 1;
+  const amount = ash.recipes[0]?.[wood.i];
+  const isRetired = retired.some(
+    entry => entry !== undefined && amount !== undefined && Math.abs(entry - amount) < 1e-9
+  );
+  if (!onlyWood || !isRetired) return changed;
+  delete ash.recipes;
+  delete ash.byproducts;
+  return true;
 }
 
 /** Reprices Peat from its old luxury-like value to fuel at Wood's value per heat. */

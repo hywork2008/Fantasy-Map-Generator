@@ -11,6 +11,7 @@ import { rn } from "../../hostUtils";
 import { getGoods, getMarkets } from "../economyContext";
 import type { GoodFlowCategory, GoodFlowDirection, GoodFlowRecord } from "./goodFlowTypes";
 import { isGoodEnabled } from "./goods-generator";
+import { recordAshUse } from "./hearthAsh";
 import { recordLivestockLotFlow } from "./livestockLots";
 import {
   getCirculation,
@@ -180,6 +181,16 @@ export function recordGoodFlow(flow: GoodFlowRecord): void {
     const market = findById(getMarkets(), flow.marketId);
     if (market) market.saltProcessingInputBags = (market.saltProcessingInputBags ?? 0) + flow.units;
   }
+  // The market keeps as much town hearth ash as its recipes and towns draw.
+  if (
+    flow.direction === "sink" &&
+    (flow.category === "recipeInput" || flow.category === "burgDemand") &&
+    flow.marketId !== undefined &&
+    good?.name === "Ash"
+  ) {
+    const market = findById(getMarkets(), flow.marketId);
+    if (market) recordAshUse(market, flow.units);
+  }
   // Casks travel with their drink and come back empty to the market that drinks it.
   if (
     good &&
@@ -276,6 +287,7 @@ export function closeGoodsBalanceInterval(point: GoodsBalancePoint): {
         characterLuxury: categoryTotal(flows, "characterLuxury", good.i),
         vesselSalvage: categoryTotal(flows, "vesselSalvage", good.i),
         containerReturn: categoryTotal(flows, "containerReturn", good.i),
+        hearthAsh: categoryTotal(flows, "hearthAsh", good.i),
         theft: categoryTotal(flows, "theft", good.i),
         accountingGap: opening + sources - sinks - closing
       };

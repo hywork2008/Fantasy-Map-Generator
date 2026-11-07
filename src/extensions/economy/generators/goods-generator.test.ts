@@ -28,6 +28,7 @@ import {
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateGrapesGood,
+  migrateHearthAshGoods,
   migrateHoneyForageLands,
   migrateInkBarrel,
   migrateLeatherByproduct,
@@ -1351,6 +1352,32 @@ describe("GoodsModule", () => {
     expect(honey.biomeOutputByTag).toEqual({ forest: 0.06 });
   });
 
+  it("retires saved Ash's Wood recipe and building share and reprices Ash and Potash against grain, but keeps an edited recipe", () => {
+    goodsModule.restoreDefaults();
+    const ash = getGoods().find(good => good.name === "Ash")!;
+    const potash = getGoods().find(good => good.name === "Potash")!;
+    const wood = getGoods().find(good => good.name === "Wood")!;
+    expect(ash.recipes).toBeUndefined();
+    expect(potash.recipes).toEqual([{ [ash.i]: 24 }]);
+
+    expect(ash.demandCoverage).toEqual({});
+    ash.recipes = [{ [wood.i]: 1 / ASH_LOTS_PER_WOOD_LOT }];
+    ash.demandCoverage = { construction: 0.2 };
+    ash.value = 1.5;
+    potash.value = 3;
+    expect(migrateHearthAshGoods()).toBe(true);
+    expect(ash.recipes).toBeUndefined();
+    expect(ash.demandCoverage).toEqual({});
+    expect(migrateHearthAshGoods()).toBe(false);
+    expect(migrateWeightRepricing()).toBe(true);
+    expect(ash.value).toBe(0.012);
+    expect(potash.value).toBe(0.9);
+
+    ash.recipes = [{ [wood.i]: 0.5 }];
+    expect(migrateHearthAshGoods()).toBe(false);
+    expect(ash.recipes).toEqual([{ [wood.i]: 0.5 }]);
+  });
+
   it("gives saved warm-only Clay and White sand the shores and rivers of the cold forests, but keeps an edited rule", () => {
     goodsModule.restoreDefaults();
     const clay = getGoods().find(good => good.name === "Clay")!;
@@ -1424,7 +1451,7 @@ describe("GoodsModule", () => {
     expect(upgradedCoal.byproducts).toBeUndefined();
     expect(upgradedCharcoal.recipes).toEqual([{ [wood.i]: CHARCOAL_WOOD_PER_LOT }]);
     expect(upgradedCharcoal.byproducts).toBeUndefined();
-    expect(upgradedPotash.recipes).toEqual([{ [ash.i]: 1.5 }]);
+    expect(upgradedPotash.recipes).toEqual([{ [ash.i]: 24 }]);
     expect(upgradedTools.recipes).toEqual([{ [upgradedCharcoal.i]: 1 }]);
     expect(upgradedSlag.i).toBeGreaterThan(charcoal.i);
     expect(migrateSmeltingFuelAndAshGoods()).toBe(false);

@@ -33,6 +33,8 @@ export type GoodFlowCategory =
   | "vesselSalvage"
   /** Clean empty casks, pots or bottles beyond the market's refilling put back in its stock (returnableContainers.ts). */
   | "containerReturn"
+  /** Ash of the town hearths bought from the households for the market (hearthAsh.ts). */
+  | "hearthAsh"
   /** Finished weapons stolen from an unsold market stock (armsTheft.ts). */
   | "theft";
 

@@ -13,6 +13,12 @@ export const WOOD_NET_MJ_PER_KG = 14;
 export const RECOVERED_ASH_KG_PER_WOOD_LOT =
   WOOD_KG_PER_LOT * (1 - WOOD_WATER_SHARE) * WOOD_DRY_ASH_SHARE * WOOD_ASH_RECOVERY;
 export const ASH_LOTS_PER_WOOD_LOT = RECOVERED_ASH_KG_PER_WOOD_LOT / 50;
+/**
+ * Wood ash in a 120 L barrel of potash: 1.2 t, 24 sacks. Leaching and boiling down recovers about a
+ * tenth of common wood ash as potash; New England asheries took 450 to 500 bushels of hardwood ash
+ * to the ton (docs/plan/wood-ash-potash.md §2). It was 1.5 sacks.
+ */
+export const POTASH_ASH_SACKS_PER_BARREL = 24;
 /** Whole-kiln yield, including wood burned for heat: FAO earth-mound range 1/6–1/4. */
 export const CHARCOAL_AIR_DRY_YIELD = 0.2;
 export const CHARCOAL_WOOD_PER_LOT = 50 / CHARCOAL_AIR_DRY_YIELD / WOOD_KG_PER_LOT;
@@ -64,7 +70,6 @@ export const WOOD_RECIPE_CONTRACTS: Readonly<Record<string, WoodRecipeContract>>
     byproducts: [{ Charcoal: TAR_CHARCOAL_PER_LOT }, undefined]
   },
   Barrels: { recipes: [{ Wood: BARREL_WOOD_PER_LOT }] },
-  Ash: { recipes: [{ Wood: 1 / ASH_LOTS_PER_WOOD_LOT }] },
   Timber: { recipes: [{ Wood: 1.5 }] },
   Brick: { recipes: [{ Clay: 1 / 0.95, Wood: BRICK_WOOD_PER_LOT }], byproducts: [ashFor(BRICK_WOOD_PER_LOT)] },
   Arrows: { recipes: [{ Wood: 70 / 0.5 / WOOD_KG_PER_LOT, "Iron Ingot": 30 / 0.9 / 1000 }] },
@@ -86,6 +91,13 @@ export const WOOD_RECIPE_CONTRACTS: Readonly<Record<string, WoodRecipeContract>>
     byproducts: [ashFor(RAIL_WOOD_PER_LOT)]
   }
 };
+
+/**
+ * Ash has no recipe: burning bought Wood for its ash never paid. Wood ash came from the hearths
+ * (hearthAsh.ts) and from fires lit for something else (the byproducts above). The old recipe of
+ * the physical contract, retired by `migrateHearthAshGoods` (docs/plan/wood-ash-potash.md §3).
+ */
+export const RETIRED_ASH_WOOD_RECIPE: NamedRecipe = { Wood: 1 / ASH_LOTS_PER_WOOD_LOT };
 
 /** Legacy recipes recognized for migration; never infer these coefficients from current prices. */
 export const LEGACY_WOOD_RECIPES: Readonly<Record<string, NamedRecipe[]>> = {

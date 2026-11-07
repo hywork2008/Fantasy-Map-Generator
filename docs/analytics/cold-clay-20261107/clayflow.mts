@@ -6,6 +6,7 @@
  * out again as the Goods editor's placement regeneration does. Otherwise they stay as saved. A
  * goods-flow observer sums each month the goods' flows by direction, category and the
  * market's temperature band; at each month's end it sums their stock and stock value by band.
+ * CLAYFLOW_GOODS (comma-separated names) replaces the goods watched.
  *
  *   npx tsx docs/analytics/cold-clay-20261107/clayflow.mts <map.fmg> <out.json> <months> [add|regen] [Clay,White sand]
  */
@@ -19,7 +20,7 @@ import { getWorldContext } from "../../../src/extensions/economy/context/economy
 import { Goods } from "../../../src/extensions/economy/generators/goods-generator";
 import { setGoodFlowObserver } from "../../../src/extensions/economy/generators/goodsBalanceLedger";
 
-const NAMES = ["Clay", "Ceramics", "Brick", "White sand", "Glass", "Potash"];
+const NAMES = process.env.CLAYFLOW_GOODS?.split(",") ?? ["Clay", "Ceramics", "Brick", "White sand", "Glass", "Potash"];
 const [input, output, monthsArg, mode, depositsArg] = process.argv.slice(2);
 const months = Number(monthsArg ?? 12);
 const host = createNodeSimulationHost();

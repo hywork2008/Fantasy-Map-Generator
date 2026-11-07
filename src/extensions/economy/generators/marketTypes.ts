@@ -1,4 +1,5 @@
 import type { ReturnedCaskDrink } from "./foodLots";
+import type { HearthAshLedger } from "./hearthAsh";
 import type { ContainerCirculation } from "./returnableContainers";
 import type { RuralTextileProduction } from "./ruralTextileProductionTypes";
 import type { StapleCropInventory } from "./stapleCropInventoryTypes";
@@ -10,6 +11,8 @@ export interface Market {
   saltLandedUnitCost?: number;
   /** Prior interval's actual processing inputs, used only as a replenishment forecast. */
   saltProcessingForecastBags?: number;
+  /** Town hearth ash bought for the market and its monthly Ash use (hearthAsh.ts). */
+  hearthAshLedger?: HearthAshLedger;
   i: number;
   centerBurgId: number;
   color: string;
