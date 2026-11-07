@@ -167,4 +167,51 @@ describe("urban physical constraints and capacity deficits", () => {
     totals.urban!.report.unplacedPopulation++;
     expect(parseVectorDocument(JSON.stringify(totals))).toBeNull();
   });
+  it("records a capped facility search separately from housing land or housing search", () => {
+    const starved = generateVectorUrban(
+      skeleton(),
+      { ...DEFAULT_VECTOR_URBAN, population: 200, maxLanes: 2 },
+      undefined,
+      { facilityAttempts: 0, requestAttempts: 5, housingAttempts: 40000 }
+    );
+    const reasons = starved.urban!.report.reasons;
+    expect(reasons).toContain("facility-search-starved");
+    expect(
+      starved.urban!.report.unplacedFacilities.some(item => item.reason === "budget" || item.reason === "unsearched")
+    ).toBe(true);
+    const land = reasons.includes("housing-capacity-shortfall");
+    const search = reasons.includes("housing-search-budget");
+    expect(land && search).toBe(false);
+    expect(land || search).toBe(starved.urban!.report.unplacedPopulation > 0);
+    const tight = generateVectorUrban(
+      skeleton(),
+      { ...DEFAULT_VECTOR_URBAN, mode: "medieval", population: 400, maxLanes: 4 },
+      undefined,
+      { housingAttempts: 3 }
+    );
+    expect(tight.urban!.report.unplacedPopulation).toBeGreaterThan(0);
+    expect(tight.urban!.report.reasons).toContain("housing-search-budget");
+    expect(tight.urban!.report.reasons).not.toContain("housing-capacity-shortfall");
+    const profile = {
+      lanesMs: 0,
+      facilityMs: 0,
+      housingMs: 0,
+      facilityAttempts: 0,
+      housingAttempts: 0,
+      regionMs: 0,
+      curveMs: 0,
+      starvedFacilities: 0,
+      cappedFacilities: 0,
+      housingStop: "demand-met" as const
+    };
+    generateVectorUrban(
+      skeleton(),
+      { ...DEFAULT_VECTOR_URBAN, mode: "medieval", population: 40, maxLanes: 1 },
+      undefined,
+      { profile }
+    );
+    expect(profile.lanesMs).toBeGreaterThan(0);
+    expect(profile.housingAttempts).toBeGreaterThan(0);
+    expect(profile.housingStop === "demand-met" || profile.housingStop === "frontage").toBe(true);
+  });
 });

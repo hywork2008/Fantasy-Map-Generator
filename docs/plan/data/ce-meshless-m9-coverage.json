@@ -70,7 +70,7 @@
         "src/city-editor/generators/vector/generation/urban.test.ts",
         "src/city-editor/generators/vector/m9Acceptance.test.ts"
       ],
-      "evidence": "Facility-first packing and conserved population are verified. The fixed 5000-person case leaves 2900 people and all 294 requested facilities unplaced at its bounded placement budget."
+      "evidence": "Facility-first packing and conserved population are verified. On the fixed 5000-person case, 227 of 294 facilities are placed and the 67 misses are fully searched outskirts sites. Housing stops because frontage is exhausted, leaving 2460 people unplaced. That is a land shortfall, not an unsearched facility queue."
     },
     {
       "id": "castle-moat-and-bastions",
@@ -79,7 +79,15 @@
         "src/city-editor/generators/vector/features.test.ts",
         "src/city-editor/services/io/vector/legacyCopy.test.ts"
       ],
-      "evidence": "Accessible defense sites and legal moats work. Detailed legacy defense plans are preserved in the original document; complete automatic semantic conversion is not established."
+      "accepted": [
+        "One castle circuit, a shared gate and an orthogonal moat crossing",
+        "Bastions only from the age of exploration, with fixed ownership blocking removal",
+        "Legacy documents stay restorable; unsupported pieces are reported instead of dropped"
+      ],
+      "remaining": [
+        "Automatic semantic conversion of a detailed legacy defense plan"
+      ],
+      "evidence": "Accepted on fixed inputs: a castle circuit, shared gate, orthogonal moat, period-gated bastion and fixed ownership. The legacy original is retained. Automatic conversion of a detailed defense plan is not established."
     },
     {
       "id": "harbor-ships-and-market",
@@ -88,7 +96,14 @@
         "src/city-editor/generators/vector/features.test.ts",
         "src/city-editor/generators/vector/terrain.test.ts"
       ],
-      "evidence": "Bank references, reservations, activity and locked booths work. Full legacy port navigation, cargo and detailed ship-plan parity is not established."
+      "accepted": [
+        "Dry quay, cargo route and waterborne ship on the nearest bank",
+        "Market-day activity and locked booth appearance"
+      ],
+      "remaining": [
+        "Legacy port navigation, cargo handling and detailed ship plans"
+      ],
+      "evidence": "Accepted on fixed inputs: a dry quay, cargo route, ship on the nearest bank, and locked market booths. Legacy navigation, cargo handling and detailed ship plans are not established."
     },
     {
       "id": "temple-cemetery-park-farm-forest",
@@ -96,7 +111,14 @@
       "tests": [
         "src/city-editor/generators/vector/features.test.ts"
       ],
-      "evidence": "Accessible reserved sites and optional BV assets work. Full parity with legacy automatic landscape and culture settings is not established."
+      "accepted": [
+        "Market, temple, cemetery, park, farm and forest regions keep the same geometry in native, 2D and 3D",
+        "An optional BV asset keeps its own dimensions"
+      ],
+      "remaining": [
+        "Legacy automatic landscape and culture settings"
+      ],
+      "evidence": "Accepted on fixed inputs: reserved market, temple, cemetery, park, farm and forest geometry, plus an unscaled BV asset. Legacy automatic landscape and culture settings are not established."
     },
     {
       "id": "terrain-and-freeform-placement",
@@ -105,7 +127,15 @@
         "src/city-editor/generators/vector/terrain.test.ts",
         "src/city-editor/renderers/vector/precision.test.ts"
       ],
-      "evidence": "Authored pads, grading, stairs and source restoration work. Draw-grid terrain is approximate; a continuous vertical-error guarantee across sharp grading breaklines is not established."
+      "accepted": [
+        "Authored pads, sculpt, lawful crossings, rigid pad moves and source restoration",
+        "District holes survive cut and merge"
+      ],
+      "remaining": [
+        "A continuous vertical-error guarantee across sharp grading breaklines",
+        "Draw-grid terrain remains approximate"
+      ],
+      "evidence": "Accepted on fixed inputs: authored pads, sculpt, lawful crossings, rigid moves, source restoration and district holes. Draw-grid terrain stays approximate, and a continuous vertical-error guarantee across sharp breaklines is not established."
     },
     {
       "id": "two-and-three-dimensional-view",

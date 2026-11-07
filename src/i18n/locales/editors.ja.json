@@ -289,8 +289,10 @@
         "stagePopulation": "この段階の収容人口",
         "urbanDiagnostics": {
           "suburbs-expanded": "固定形状を動かさず合成市域内に郊外を追加しました。",
-          "housing-capacity-shortfall": "敷地または生成上限により住戸が不足しています。",
-          "facility-space-shortfall": "配置できない施設需要を保持しています。",
+          "housing-capacity-shortfall": "接道できる敷地が尽き、住戸が不足しています。",
+          "housing-search-budget": "住宅の探索上限に達し、残りの人口は未確認です。",
+          "facility-space-shortfall": "探索し終えた施設需要のうち、置けないものを保持しています。",
+          "facility-search-starved": "一部の施設は探索上限のため、最後まで確認できていません。",
           "manual-capacity-unverified": "容量未設定の既存建物は人口容量に加算していません。",
           "placement-budget": "配置処理の上限に達しました。"
         },
@@ -298,7 +300,8 @@
           "space": "接道敷地が不足",
           "river": "利用できる河岸がない",
           "district": "適合する郊外・用途敷地が不足",
-          "budget": "配置上限"
+          "budget": "この施設の探索上限",
+          "unsearched": "共有の探索予算が尽きたため未探索"
         },
         "running": "候補を生成中です。取消や別の編集ができます。"
       },

@@ -256,7 +256,8 @@ export function approachPriorFromWorld(input: ApproachPriorWorld): ApproachPrior
   const home = input.markets.find(market => market.i === marketId);
   const towns: ApproachPriorTown[] = [];
   const townIds = new Set<number>();
-  for (const other of input.pack.burgs) {
+  for (let index = 0; index < input.pack.burgs.length; index++) {
+    const other = input.pack.burgs[index];
     if (!other?.i || other.removed) continue;
     const otherMarket = townMarket(input, other.i);
     if (otherMarket !== marketId) continue;

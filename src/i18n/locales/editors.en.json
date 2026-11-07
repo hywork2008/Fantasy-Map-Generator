@@ -289,8 +289,10 @@
         "stagePopulation": "Population assigned at this stage",
         "urbanDiagnostics": {
           "suburbs-expanded": "Suburbs added within the synthetic frame without moving source geometry.",
-          "housing-capacity-shortfall": "Available sites or generation limits leave a dwelling shortfall.",
-          "facility-space-shortfall": "Unplaced facility demand is retained.",
+          "housing-capacity-shortfall": "Street frontage ran out before every dwelling had a site.",
+          "housing-search-budget": "The housing search stopped at its attempt budget, so the remaining people are unverified.",
+          "facility-space-shortfall": "Facility demand that was fully searched and still does not fit is retained.",
+          "facility-search-starved": "Some facilities were not fully searched because the attempt budget ran out.",
           "manual-capacity-unverified": "Existing buildings without capacity metadata are excluded from capacity.",
           "placement-budget": "The placement budget was reached."
         },
@@ -298,7 +300,8 @@
           "space": "Insufficient accessible land",
           "river": "No available riverbank",
           "district": "Insufficient suitable peripheral land",
-          "budget": "Placement budget"
+          "budget": "This facility hit its search allowance",
+          "unsearched": "Not searched; the shared attempt budget was already spent"
         },
         "running": "Generating candidate… You can cancel or continue editing."
       },

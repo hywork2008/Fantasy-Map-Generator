@@ -50,7 +50,7 @@ export interface VectorUrbanReport {
   requiredFacilities: number;
   placedFacilities: number;
   provisionalFacilities: number;
-  unplacedFacilities: { id: string; reason: "space" | "river" | "district" | "budget" }[];
+  unplacedFacilities: { id: string; reason: "space" | "river" | "district" | "budget" | "unsearched" }[];
   housingBuildings: number;
   reasons: string[];
 }

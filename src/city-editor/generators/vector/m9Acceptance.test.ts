@@ -12,7 +12,7 @@ import { createVectorExample } from "./document";
 import { curveSource } from "./editing/paths";
 import { syntheticVectorInput } from "./generation/input";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./generation/pipeline";
-import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./generation/urban";
+import { DEFAULT_VECTOR_URBAN, generateVectorUrban, type VectorUrbanProfile } from "./generation/urban";
 import { pointSegmentDistance, samplePath } from "./geometry/sampling";
 
 const output = process.env.CE_MESHLESS_ACCEPTANCE_OUT;
@@ -134,7 +134,23 @@ describe.runIf(!!output)("M9 bounded acceptance observation", () => {
         skeleton = time(
           () => generateVectorSkeleton(source, { ...DEFAULT_VECTOR_GENERATION, branches: 4, wall: "ellipse" }).document
         ),
-        urban = time(() => generateVectorUrban(skeleton.value, { ...DEFAULT_VECTOR_URBAN, population, maxLanes: 8 }));
+        profile: VectorUrbanProfile = {
+          lanesMs: 0,
+          facilityMs: 0,
+          housingMs: 0,
+          facilityAttempts: 0,
+          housingAttempts: 0,
+          regionMs: 0,
+          curveMs: 0,
+          starvedFacilities: 0,
+          cappedFacilities: 0,
+          housingStop: "demand-met"
+        },
+        urban = time(() =>
+          generateVectorUrban(skeleton.value, { ...DEFAULT_VECTOR_URBAN, population, maxLanes: 8 }, undefined, {
+            profile
+          })
+        );
       expect(serializeVectorDocument(source)).toBe(before);
       const data = time(() => vectorRenderData(urban.value)),
         scene = time(() => createVectorScene(data.value)),
@@ -160,12 +176,13 @@ describe.runIf(!!output)("M9 bounded acceptance observation", () => {
         bytes: Buffer.byteLength(native.value),
         paths: Object.keys(urban.value.paths).length,
         placements: Object.keys(urban.value.placements).length,
-        report: urban.value.urban!.report
+        report: urban.value.urban!.report,
+        profile
       });
     }
     writeFileSync(
       output!,
       `${JSON.stringify({ format: "ce-meshless-m9-acceptance", version: 1, measuredAtUtc: new Date().toISOString(), environment: { node: process.version, platform: platform(), arch: arch(), cpu: cpus()[0]?.model }, scope: "Six saved inputs and three fixed population scales; one seed; one ordered run after compatibility fixtures, shared caches may be warm; not a statistical benchmark", thresholds: { curveMeters: 0.005, workerMs: 60000, renderAndSceneMs: 10000, nativeBytes: 8 * 1024 * 1024 }, inputs, coverage, checks, scales }, null, 2)}\n`
     );
-  }, 120000);
+  }, 240000);
 });

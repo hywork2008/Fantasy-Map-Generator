@@ -22,10 +22,11 @@ import {
 } from "./urbanCapacity";
 
 /** Projection refines on the original curve; samples never become editable geometry. */
-export function nearestRoadAnchor(path: VectorPath, p: Point): CurveAnchor {
-  const samples = samplePath(path);
+export function nearestRoadAnchor(path: VectorPath, p: Point, samples = samplePath(path)): CurveAnchor {
   let best = samples[0].anchor,
     score = Infinity;
+  const segmentKind = (id: string) =>
+    path.source.kind === "curve" ? path.source.segments.find(segment => segment.id === id)?.kind : undefined;
   for (let i = 1; i < samples.length; i++) {
     const a = samples[i - 1],
       b = samples[i],
@@ -33,19 +34,25 @@ export function nearestRoadAnchor(path: VectorPath, p: Point): CurveAnchor {
       dy = b.point[1] - a.point[1],
       d = dx * dx + dy * dy;
     const t = d ? Math.max(0, Math.min(1, ((p[0] - a.point[0]) * dx + (p[1] - a.point[1]) * dy) / d)) : 0;
-    const lo = a.anchor.segmentId === b.anchor.segmentId ? a.anchor.t : 0;
-    let l = lo,
-      r = b.anchor.t;
-    for (let n = 0; n < 28; n++) {
-      const x = l + (r - l) / 3,
-        y = r - (r - l) / 3;
-      const at = (v: number) => distance(p, evaluateAnchor(path, { ...b.anchor, t: v }));
-      if (at(x) < at(y)) r = y;
-      else l = x;
+    const sameSegment = a.anchor.segmentId === b.anchor.segmentId;
+    const lo = sameSegment ? a.anchor.t : 0;
+    // A straight segment's closest point is the chord projection. Cubics still use ternary search.
+    let refined = (l: number, r: number) => (l + r) / 2;
+    if (!(sameSegment && segmentKind(b.anchor.segmentId) === "line")) {
+      let l = lo,
+        r = b.anchor.t;
+      for (let n = 0; n < 28; n++) {
+        const x = l + (r - l) / 3,
+          y = r - (r - l) / 3;
+        const at = (v: number) => distance(p, evaluateAnchor(path, { ...b.anchor, t: v }));
+        if (at(x) < at(y)) r = y;
+        else l = x;
+      }
+      refined = () => (l + r) / 2;
     }
     const candidates = [
       { ...b.anchor, t: lo + (b.anchor.t - lo) * t },
-      { ...b.anchor, t: (l + r) / 2 },
+      { ...b.anchor, t: refined(lo, b.anchor.t) },
       a.anchor,
       b.anchor
     ];
@@ -74,12 +81,31 @@ export function waterDistance(doc: VectorCityDocument, polygons: VectorPolygon[]
           result = Math.min(result, pointSegmentDistance(p, ring[i], ring[(i + 1) % ring.length]));
   return result;
 }
+/** One request cannot spend the shared attempt budget. Housing uses one long allowance. */
+export const FACILITY_SEARCH_LIMITS = { totalAttempts: 40000, requestAttempts: 240 };
+export const HOUSING_SEARCH_LIMITS = { totalAttempts: 40000, requestAttempts: 40000 };
+export interface UrbanSearchLimits {
+  totalAttempts: number;
+  requestAttempts: number;
+}
+export interface UrbanSearchStats {
+  regionMs: number;
+  curveMs: number;
+}
+export interface UrbanPlaceResult {
+  placement?: VectorPlacement;
+  attempts: number;
+  /** True when the allowance ended before every feasible frontage offset was tested. */
+  incomplete: boolean;
+}
 export function createUrbanPacker(
   doc: VectorCityDocument,
   blocks: VectorBlock[],
   settings: VectorUrbanSettings,
   inside: (p: Point) => boolean,
-  uses: Map<string, string> = new Map()
+  uses: Map<string, string> = new Map(),
+  limits: UrbanSearchLimits = FACILITY_SEARCH_LIMITS,
+  stats?: UrbanSearchStats
 ) {
   const roads = Object.values(doc.paths).filter(p => p.role === "road"),
     surfaces = roads.map(pathSurface),
@@ -96,32 +122,71 @@ export function createUrbanPacker(
   ])
     occupied.insert({ ...polygonBounds(polygon), polygon });
   let attempts = 0;
-  const maxAttempts = 40000;
-  const allowed = new Map(blocks.map(b => [b.id, regionBoolean([b], surfaces, "union")]));
+  const clip = (a: VectorPolygon[], b: VectorPolygon[], operation: "union" | "difference" | "intersection") => {
+    if (!stats) return regionBoolean(a, b, operation);
+    const started = performance.now();
+    const result = regionBoolean(a, b, operation);
+    stats.regionMs += performance.now() - started;
+    return result;
+  };
+  const samples = new Map<string, ReturnType<typeof samplePath>>();
+  const anchorAt = (path: VectorPath, p: Point) => {
+    let cached = samples.get(path.id);
+    if (!cached) {
+      const started = performance.now();
+      cached = samplePath(path);
+      if (stats) stats.curveMs += performance.now() - started;
+      samples.set(path.id, cached);
+    }
+    if (!stats) return nearestRoadAnchor(path, p, cached);
+    const started = performance.now();
+    const anchor = nearestRoadAnchor(path, p, cached);
+    stats.curveMs += performance.now() - started;
+    return anchor;
+  };
+  const allowed = new Map(blocks.map(b => [b.id, clip([b], surfaces, "union")]));
   const slots = blocks.flatMap(block =>
-    block.frontage.filter(f => reachable.has(f.pathId)).map(f => ({ block, f, cursor: 0 }))
+    block.frontage
+      .filter(f => reachable.has(f.pathId))
+      .map(f => {
+        const mid: Point = [(f.from[0] + f.to[0]) / 2, (f.from[1] + f.to[1]) / 2];
+        return {
+          block,
+          f,
+          cursor: 0,
+          mid,
+          insideTown: inside(mid),
+          water: waterDistance(doc, [{ outer: [f.from, f.to, mid], holes: [] }])
+        };
+      })
   );
-  const place = (request: BVFacilityRequest, kind: "facility" | "housing"): VectorPlacement | undefined => {
+  const place = (
+    request: BVFacilityRequest,
+    kind: "facility" | "housing",
+    allowance = limits.requestAttempts
+  ): UrbanPlaceResult => {
     const asset = request.asset,
       entrance = asset.entrances.find(e => e.required) ?? asset.entrances[0];
-    if (!entrance) return;
-    const ranked = [...slots].sort((a, b) => {
-      const score = (s: typeof a) => {
-        const mid: Point = [(s.f.from[0] + s.f.to[0]) / 2, (s.f.from[1] + s.f.to[1]) / 2];
-        return (
-          (uses.has(s.block.id) && uses.get(s.block.id) !== facilityUseOf(request) ? 10000 : 0) +
-          (request.riverbankMaxDistanceMeters !== undefined
-            ? waterDistance(doc, [{ outer: [s.f.from, s.f.to, mid], holes: [] }])
-            : 0) +
-          (request.zone === "outskirts" && inside(mid) ? 100000 : 0)
-        );
-      };
-      return score(a) - score(b);
-    });
-    for (const slot of ranked) {
+    const missed = (incomplete: boolean, used: number): UrbanPlaceResult => ({ attempts: used, incomplete });
+    if (!entrance) return missed(false, 0);
+    let used = 0;
+    const ranked = slots
+      .map(slot => ({
+        slot,
+        score:
+          (uses.has(slot.block.id) && uses.get(slot.block.id) !== facilityUseOf(request) ? 10000 : 0) +
+          (request.riverbankMaxDistanceMeters !== undefined ? slot.water : 0) +
+          (request.zone === "outskirts" && slot.insideTown ? 100000 : 0)
+      }))
+      .sort((a, b) => a.score - b.score || b.slot.f.lengthMeters - a.slot.f.lengthMeters);
+    for (const { slot } of ranked) {
       const { f, block } = slot,
         len = f.lengthMeters;
       if (len < 2) continue;
+      // The site sits a short way in from the frontage, so a bank farther than this cannot satisfy the limit.
+      if (request.riverbankMaxDistanceMeters !== undefined && slot.water > request.riverbankMaxDistanceMeters + 80)
+        continue;
+      if (request.zone === "outskirts" && slot.insideTown) continue;
       const tangent: Point = [(f.to[0] - f.from[0]) / len, (f.to[1] - f.from[1]) / len];
       let normal: Point = [-tangent[1], tangent[0]];
       const mid: Point = [(f.from[0] + f.to[0]) / 2, (f.from[1] + f.to[1]) / 2];
@@ -137,12 +202,23 @@ export function createUrbanPacker(
       const lo = Math.min(...along),
         hi = Math.max(...along),
         span = hi - lo;
+      const stride = kind === "housing" ? Math.max(2, span) : 2;
+      let consecutive = 0;
+      const abandon = (at: number) => {
+        consecutive++;
+        // Leave the rest of a failing frontage for the next house instead of scanning its whole length.
+        if (kind !== "housing" || consecutive < 8) return false;
+        slot.cursor = at + stride;
+        return true;
+      };
       for (
         let offset = Math.max(slot.cursor, settings.clearanceMeters - lo);
         offset + hi + settings.clearanceMeters <= len;
-        offset += 2
+        offset += stride
       ) {
-        if (++attempts > maxAttempts) return;
+        if (used >= allowance || attempts >= limits.totalAttempts) return missed(true, used);
+        used++;
+        attempts++;
         const boundary: Point = [f.from[0] + tangent[0] * offset, f.from[1] + tangent[1] * offset],
           translation: Point = [
             boundary[0] + normal[0] * (settings.clearanceMeters - depth),
@@ -159,34 +235,35 @@ export function createUrbanPacker(
         const district = Object.values(doc.regions).find(
           r => r.kind === "district" && containsRegion([r], translation)
         );
-        if (district?.maxHeightMeters !== undefined && (asset.bvModel?.heightMeters ?? 6) > district.maxHeightMeters)
-          continue;
         if (
-          district?.density !== undefined &&
-          ((Math.imul(attempts, 2654435761) >>> 0) % 1000) / 1000 > district.density
-        )
+          (district?.maxHeightMeters !== undefined && (asset.bvModel?.heightMeters ?? 6) > district.maxHeightMeters) ||
+          (district?.density !== undefined &&
+            ((Math.imul(attempts, 2654435761) >>> 0) % 1000) / 1000 > district.density) ||
+          (district?.use &&
+            (kind === "housing" ? district.use !== "residential" : district.use !== facilityUseOf(request))) ||
+          (doc.environment?.terrain &&
+            Math.max(...site.outer.map(vectorTerrain(doc).heightAt)) -
+              Math.min(...site.outer.map(vectorTerrain(doc).heightAt)) >
+              2) ||
+          (request.zone === "outskirts" && inside(translation)) ||
+          site.outer.some(corner => !containsRegion([block], corner)) ||
+          clip([site], [block], "difference").reduce((n, p) => n + regionArea(p), 0) > 1e-5
+        ) {
+          if (abandon(offset)) break;
           continue;
-        if (
-          district?.use &&
-          (kind === "housing" ? district.use !== "residential" : district.use !== facilityUseOf(request))
-        )
-          continue;
-        if (doc.environment?.terrain) {
-          const terrain = vectorTerrain(doc),
-            heights = site.outer.map(terrain.heightAt);
-          if (Math.max(...heights) - Math.min(...heights) > 2) continue;
         }
-        if (request.zone === "outskirts" && inside(translation)) continue;
-        if (regionBoolean([site], [block], "difference").reduce((n, p) => n + regionArea(p), 0) > 1e-5) continue;
         const riverDistance = request.riverbankMaxDistanceMeters !== undefined ? waterDistance(doc, [site]) : undefined;
-        if (riverDistance !== undefined && riverDistance > request.riverbankMaxDistanceMeters!) continue;
+        if (riverDistance !== undefined && riverDistance > request.riverbankMaxDistanceMeters!) {
+          if (abandon(offset)) break;
+          continue;
+        }
         const entrances: NonNullable<VectorPlacement["building"]>["entrances"] = [],
           accesses: CurveAnchor[] = [],
           corridors: VectorPolygon[] = [];
         let valid = true;
         for (const e of asset.entrances.filter(e => e.required)) {
           const point = transform(e.point),
-            anchor = nearestRoadAnchor(doc.paths[f.pathId], point),
+            anchor = anchorAt(doc.paths[f.pathId], point),
             end = evaluateAnchor(doc.paths[f.pathId], anchor),
             outward = rotate(e.outward),
             axis: Point = [end[0] - point[0], end[1] - point[1]];
@@ -210,11 +287,8 @@ export function createUrbanPacker(
             ],
             holes: []
           };
-          const offroad = regionBoolean([corridor], surfaces, "difference");
-          if (
-            regionBoolean([corridor], allowed.get(block.id)!, "difference").reduce((n, p) => n + regionArea(p), 0) >
-            1e-5
-          ) {
+          const offroad = clip([corridor], surfaces, "difference");
+          if (clip([corridor], allowed.get(block.id)!, "difference").reduce((n, p) => n + regionArea(p), 0) > 1e-5) {
             valid = false;
             break;
           }
@@ -229,17 +303,44 @@ export function createUrbanPacker(
           });
           accesses.push(anchor);
         }
-        if (!valid || !entrances.length) continue;
-        const reserved = regionBoolean([site], corridors, "union");
-        if (reserved.some(p => [p.outer, ...p.holes].some(r => !simpleContour(r, true)))) continue;
+        if (!valid || !entrances.length) {
+          if (abandon(offset)) break;
+          continue;
+        }
+        const reserved = clip([site], corridors, "union");
+        if (reserved.some(p => [p.outer, ...p.holes].some(r => !simpleContour(r, true)))) {
+          if (abandon(offset)) break;
+          continue;
+        }
+        // A door on the clipped boundary is not inside the reserved polygon. Move it 4mm into the building.
+        for (const entrance of entrances) {
+          if (containsRegion(reserved, entrance.point)) continue;
+          const length = Math.hypot(entrance.outward[0], entrance.outward[1]) || 1;
+          const nudged: Point = [
+            entrance.point[0] - (entrance.outward[0] / length) * 0.004,
+            entrance.point[1] - (entrance.outward[1] / length) * 0.004
+          ];
+          if (!containsRegion(reserved, nudged)) {
+            valid = false;
+            break;
+          }
+          entrance.point = nudged;
+          entrance.connector[0] = nudged;
+        }
+        if (!valid) {
+          if (abandon(offset)) break;
+          continue;
+        }
         if (
           reserved.some(p =>
             occupied
               .search(polygonBounds(p))
-              .some(q => regionBoolean([p], [q.polygon], "intersection").some(r => regionArea(r) > 1e-5))
+              .some(q => clip([p], [q.polygon], "intersection").some(r => regionArea(r) > 1e-5))
           )
-        )
+        ) {
+          if (abandon(offset)) break;
           continue;
+        }
         let id = `urban:${request.id}`;
         while (doc.placements[id]) id += "x";
         const placement: VectorPlacement = {
@@ -274,9 +375,10 @@ export function createUrbanPacker(
         doc.placements[id] = placement;
         for (const polygon of reserved) occupied.insert({ ...polygonBounds(polygon), polygon });
         slot.cursor = offset + span + settings.clearanceMeters;
-        return placement;
+        return { placement, attempts: used, incomplete: false };
       }
     }
+    return missed(false, used);
   };
-  return { place, budgetExceeded: () => attempts > maxAttempts };
+  return { place, budgetExceeded: () => attempts >= limits.totalAttempts };
 }

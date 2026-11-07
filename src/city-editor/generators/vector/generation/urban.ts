@@ -18,7 +18,14 @@ import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/docu
 import { vectorUrbanStages } from "../validation/urban";
 import { deriveVectorBlocks, joinVectorGenerationAnchors } from "./pipeline";
 import { allocateVectorResidents, vectorPlacementDwellings } from "./urbanCapacity";
-import { createUrbanPacker, nearestRoadAnchor, waterDistance } from "./urbanPacking";
+import {
+  createUrbanPacker,
+  FACILITY_SEARCH_LIMITS,
+  HOUSING_SEARCH_LIMITS,
+  nearestRoadAnchor,
+  type UrbanSearchStats,
+  waterDistance
+} from "./urbanPacking";
 import { vectorUrbanFingerprint } from "./urbanState";
 
 export const DEFAULT_VECTOR_URBAN: VectorUrbanSettings = {
@@ -31,6 +38,25 @@ export const DEFAULT_VECTOR_URBAN: VectorUrbanSettings = {
   clearanceMeters: 0.6,
   allowExpansion: true
 };
+export interface VectorUrbanProfile {
+  lanesMs: number;
+  facilityMs: number;
+  housingMs: number;
+  facilityAttempts: number;
+  housingAttempts: number;
+  regionMs: number;
+  curveMs: number;
+  starvedFacilities: number;
+  cappedFacilities: number;
+  housingStop: "demand-met" | "frontage" | "budget" | "placement-cap";
+}
+/** Optional search caps and a caller-owned profile. Neither is stored in the city document. */
+export interface VectorUrbanRun {
+  facilityAttempts?: number;
+  requestAttempts?: number;
+  housingAttempts?: number;
+  profile?: VectorUrbanProfile;
+}
 export interface VectorUrbanContinuation {
   retainedPlacements: string[];
   ownedPaths: string[];
@@ -42,7 +68,8 @@ export interface VectorUrbanContinuation {
 export function generateVectorUrban(
   input: VectorCityDocument,
   settings: VectorUrbanSettings = DEFAULT_VECTOR_URBAN,
-  continuation?: VectorUrbanContinuation
+  continuation?: VectorUrbanContinuation,
+  run?: VectorUrbanRun
 ): VectorCityDocument {
   assertVectorDocument(input);
   if (
@@ -172,54 +199,97 @@ export function generateVectorUrban(
     );
   let blocks = deriveLaneBlocks();
   const ownedPaths: string[] = [...(continuation?.ownedPaths ?? [])];
+  const laneStarted = performance.now();
   // Frontage-rooted cul-de-sacs follow free land; no cells, vertex snapping or global grid.
-  for (const block of continuation ? [] : blocks) {
-    if (ownedPaths.length >= settings.maxLanes) break;
-    if (!block.reachable) continue;
-    for (const f of block.frontage) {
-      if (ownedPaths.length >= settings.maxLanes) break;
-      for (let offset = settings.laneSpacingMeters / 2; offset < f.lengthMeters; offset += settings.laneSpacingMeters) {
-        if (ownedPaths.length >= settings.maxLanes) break;
-        const t: Point = [(f.to[0] - f.from[0]) / f.lengthMeters, (f.to[1] - f.from[1]) / f.lengthMeters],
-          p: Point = [f.from[0] + t[0] * offset, f.from[1] + t[1] * offset];
-        let n: Point = [-t[1], t[0]];
-        if (!containsRegion([block], [p[0] + n[0] * 0.1, p[1] + n[1] * 0.1])) n = [-n[0], -n[1]];
-        const anchor = nearestRoadAnchor(doc.paths[f.pathId], p),
-          start = evaluateAnchor(doc.paths[f.pathId], anchor);
-        let depth = 0;
-        for (let d = 2; d <= settings.laneSpacingMeters * 2; d += 2) {
-          if (!containsRegion([block], [p[0] + n[0] * d, p[1] + n[1] * d])) break;
-          depth = d;
+  // Length follows the block, not two lot-depths, so a small lane budget still fronts the interior.
+  const laneCandidates: {
+    block: (typeof blocks)[number];
+    pathId: string;
+    depth: number;
+    anchor: ReturnType<typeof nearestRoadAnchor>;
+    start: Point;
+    end: Point;
+  }[] = [];
+  if (!continuation)
+    for (const block of blocks) {
+      if (!block.reachable) continue;
+      for (const f of block.frontage) {
+        const tangent: Point = [(f.to[0] - f.from[0]) / f.lengthMeters, (f.to[1] - f.from[1]) / f.lengthMeters];
+        for (
+          let offset = settings.laneSpacingMeters / 2;
+          offset + 2 < f.lengthMeters;
+          offset += settings.laneSpacingMeters
+        ) {
+          const p: Point = [f.from[0] + tangent[0] * offset, f.from[1] + tangent[1] * offset];
+          let normal: Point = [-tangent[1], tangent[0]];
+          if (!containsRegion([block], [p[0] + normal[0] * 0.1, p[1] + normal[1] * 0.1]))
+            normal = [-normal[0], -normal[1]];
+          const insideAt = (d: number) => containsRegion([block], [p[0] + normal[0] * d, p[1] + normal[1] * d]);
+          if (!insideAt(20)) continue;
+          let lo = 20,
+            hi = 40;
+          while (hi <= 2000 && insideAt(hi)) {
+            lo = hi;
+            hi *= 2;
+          }
+          hi = Math.min(hi, 2000);
+          if (insideAt(hi)) lo = hi;
+          else
+            while (hi - lo > 2) {
+              const mid = (lo + hi) / 2;
+              if (insideAt(mid)) lo = mid;
+              else hi = mid;
+            }
+          if (lo < 20) continue;
+          const anchor = nearestRoadAnchor(doc.paths[f.pathId], p);
+          laneCandidates.push({
+            block,
+            pathId: f.pathId,
+            depth: lo,
+            anchor,
+            start: evaluateAnchor(doc.paths[f.pathId], anchor),
+            end: [p[0] + normal[0] * (lo - 3), p[1] + normal[1] * (lo - 3)]
+          });
         }
-        if (depth < 20) continue;
-        const end: Point = [p[0] + n[0] * (depth - 3), p[1] + n[1] * (depth - 3)];
-        let id = `urban-lane:${ownedPaths.length}`;
-        while (doc.paths[id]) id += "x";
-        const lane = {
-          id,
-          revision: 0,
-          role: "road" as const,
-          origin: "automatic" as const,
-          editPolicy: "editable" as const,
-          source: curveSource([start, end], "polyline", false),
-          width: { leftMeters: settings.laneWidthMeters / 2, rightMeters: settings.laneWidthMeters / 2, stations: [] }
-        };
-        const allowed = regionBoolean([block], [pathSurface(doc.paths[f.pathId])], "union");
-        if (regionBoolean([pathSurface(lane)], allowed, "difference").some(p => regionArea(p) > 1e-5)) continue;
-        if (
-          Object.values(doc.paths)
-            .filter(p => p.role === "road" && p.id !== f.pathId)
-            .some(p =>
-              regionBoolean([pathSurface(lane)], [pathSurface(p)], "intersection").some(p => regionArea(p) > 1e-5)
-            )
-        )
-          continue;
-        doc.paths[id] = lane;
-        joinVectorGenerationAnchors(doc, [anchor, { pathId: id, segmentId: "segment:0", t: 0 }]);
-        ownedPaths.push(id);
       }
     }
+  laneCandidates.sort((a, b) => b.depth - a.depth || a.pathId.localeCompare(b.pathId));
+  const mouths: Point[] = [];
+  let laneTrials = 0;
+  for (const candidate of laneCandidates) {
+    if (ownedPaths.length >= settings.maxLanes || laneTrials >= settings.maxLanes * 8) break;
+    if (
+      mouths.some(
+        p => Math.hypot(p[0] - candidate.start[0], p[1] - candidate.start[1]) < settings.laneSpacingMeters * 0.5
+      )
+    )
+      continue;
+    laneTrials++;
+    let id = `urban-lane:${ownedPaths.length}`;
+    while (doc.paths[id]) id += "x";
+    const lane = {
+      id,
+      revision: 0,
+      role: "road" as const,
+      origin: "automatic" as const,
+      editPolicy: "editable" as const,
+      source: curveSource([candidate.start, candidate.end], "polyline", false),
+      width: { leftMeters: settings.laneWidthMeters / 2, rightMeters: settings.laneWidthMeters / 2, stations: [] }
+    };
+    const allowed = regionBoolean([candidate.block], [pathSurface(doc.paths[candidate.pathId])], "union");
+    if (regionBoolean([pathSurface(lane)], allowed, "difference").some(p => regionArea(p) > 1e-5)) continue;
+    if (
+      Object.values(doc.paths)
+        .filter(p => p.role === "road" && p.id !== candidate.pathId)
+        .some(p => regionBoolean([pathSurface(lane)], [pathSurface(p)], "intersection").some(p => regionArea(p) > 1e-5))
+    )
+      continue;
+    doc.paths[id] = lane;
+    joinVectorGenerationAnchors(doc, [candidate.anchor, { pathId: id, segmentId: "segment:0", t: 0 }]);
+    ownedPaths.push(id);
+    mouths.push(candidate.start);
   }
+  if (run?.profile) run.profile.lanesMs = performance.now() - laneStarted;
   rebuildRoadGraph(doc);
   blocks = deriveLaneBlocks();
   const walls = Object.values(doc.connections.circuits)
@@ -274,57 +344,145 @@ export function generateVectorUrban(
   checkpoint("skeleton", manual, basePaths);
   checkpoint("regions", manual, basePaths);
   checkpoint("blocksAndLanes", manual);
-  const packer = createUrbanPacker(doc, blocks, settings, core, new Map(districts.map(d => [d.id, d.use]))),
+  const searchStats: UrbanSearchStats = { regionMs: 0, curveMs: 0 };
+  const facilityLimits = {
+    totalAttempts: run?.facilityAttempts ?? FACILITY_SEARCH_LIMITS.totalAttempts,
+    requestAttempts: run?.requestAttempts ?? FACILITY_SEARCH_LIMITS.requestAttempts
+  };
+  const housingLimits = {
+    totalAttempts: run?.housingAttempts ?? HOUSING_SEARCH_LIMITS.totalAttempts,
+    requestAttempts: run?.housingAttempts ?? HOUSING_SEARCH_LIMITS.requestAttempts
+  };
+  const packer = createUrbanPacker(
+      doc,
+      blocks,
+      settings,
+      core,
+      new Map(districts.map(d => [d.id, d.use])),
+      facilityLimits,
+      searchStats
+    ),
     ownedPlacements: string[] = [...(continuation?.retainedPlacements ?? [])],
     unplacedFacilities: NonNullable<VectorCityDocument["urban"]>["report"]["unplacedFacilities"] = [];
+  const missReason = (request: (typeof requests)[number]): "river" | "district" | "space" =>
+    request.riverbankMaxDistanceMeters !== undefined && !allVectorWater(doc).length
+      ? "river"
+      : request.zone === "outskirts"
+        ? "district"
+        : "space";
+  let facilityAttempts = 0;
+  const facilityStarted = performance.now();
   for (const request of requests) {
     if (ownedPlacements.includes(`urban:${request.id}`)) continue;
-    const p = ownedPlacements.length < 1500 ? packer.place(request, "facility") : undefined;
-    if (p) {
-      p.building!.pool = facilityUseOf(request);
-      ownedPlacements.push(p.id);
-    } else
-      unplacedFacilities.push({
-        id: request.id,
-        reason:
-          packer.budgetExceeded() || ownedPlacements.length >= 1500
-            ? "budget"
-            : request.riverbankMaxDistanceMeters !== undefined && !allVectorWater(doc).length
-              ? "river"
-              : request.zone === "outskirts"
-                ? "district"
-                : "space"
-      });
+    const room = facilityLimits.totalAttempts - facilityAttempts;
+    if (ownedPlacements.length >= 1500 || room <= 0) {
+      unplacedFacilities.push({ id: request.id, reason: "unsearched" });
+      continue;
+    }
+    const result = packer.place(request, "facility", Math.min(facilityLimits.requestAttempts, room));
+    facilityAttempts += result.attempts;
+    if (result.placement) {
+      result.placement.building!.pool = facilityUseOf(request);
+      ownedPlacements.push(result.placement.id);
+    } else unplacedFacilities.push({ id: request.id, reason: result.incomplete ? "budget" : missReason(request) });
   }
+  const retryIds = unplacedFacilities.filter(item => item.reason === "budget").map(item => item.id);
+  // A short shared reserve revisits capped requests. It does not let one request spend the rest of the budget.
+  const retryCeiling = Math.min(facilityLimits.totalAttempts, facilityAttempts + 4000);
+  let stalls = 0;
+  while (retryIds.length && facilityAttempts < retryCeiling && ownedPlacements.length < 1500) {
+    if (stalls >= retryIds.length) break;
+    const id = retryIds[0];
+    const request = requests.find(item => item.id === id);
+    if (!request) break;
+    const result = packer.place(request, "facility", Math.min(40, retryCeiling - facilityAttempts));
+    facilityAttempts += result.attempts;
+    if (result.placement) {
+      result.placement.building!.pool = facilityUseOf(request);
+      ownedPlacements.push(result.placement.id);
+      const index = unplacedFacilities.findIndex(item => item.id === id);
+      if (index >= 0) unplacedFacilities.splice(index, 1);
+      retryIds.shift();
+      stalls = 0;
+    } else if (!result.incomplete) {
+      const row = unplacedFacilities.find(item => item.id === id);
+      if (row) row.reason = missReason(request);
+      retryIds.shift();
+      stalls = 0;
+    } else if (result.attempts === 0) {
+      retryIds.shift();
+      stalls++;
+    } else {
+      retryIds.push(retryIds.shift()!);
+      stalls = 0;
+    }
+  }
+  if (run?.profile) run.profile.facilityMs = performance.now() - facilityStarted;
   const facilities = ownedPlacements.filter(id => doc.placements[id].building?.kind === "facility");
   if (settings.mode === "medieval-facilities") checkpoint("facilities", [...manual, ...facilities]);
   const facilityLand = deriveVectorBlocks(doc, protectedRegions),
-    housingPacker = createUrbanPacker(doc, facilityLand, settings, core);
+    housingPacker = createUrbanPacker(doc, facilityLand, settings, core, new Map(), housingLimits, searchStats);
   let remaining =
     required - [...manual, ...ownedPlacements].reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0);
+  let housingAttempts = 0;
+  let housingStop: VectorUrbanProfile["housingStop"] = remaining > 0 ? "frontage" : "demand-met";
+  const housingStarted = performance.now();
   if (remaining > 0) {
     const asset = bvFacilityAsset(settings.houseModelId, [
       { id: "main", position: [0, 0, 4], normalXZ: [0, 1], clearWidth: 1.1 }
     ]);
-    for (let n = 0; remaining > 0 && ownedPlacements.length < 1500; n++) {
-      const p = housingPacker.place({ id: `housing:${n}`, asset }, "housing");
-      if (!p) break;
-      p.building!.districtId =
-        districts.find(d => containsRegion([d.polygon], p.position))?.id ?? p.building!.districtId;
-      ownedPlacements.push(p.id);
-      remaining -= p.building!.dwellings;
+    for (let n = 0; remaining > 0; n++) {
+      if (ownedPlacements.length >= 1500) {
+        housingStop = "placement-cap";
+        break;
+      }
+      const room = housingLimits.totalAttempts - housingAttempts;
+      if (room <= 0) {
+        housingStop = "budget";
+        break;
+      }
+      const result = housingPacker.place({ id: `housing:${n}`, asset }, "housing", room);
+      housingAttempts += result.attempts;
+      if (!result.placement) {
+        housingStop = result.incomplete ? "budget" : "frontage";
+        break;
+      }
+      result.placement.building!.districtId =
+        districts.find(d => containsRegion([d.polygon], result.placement!.position))?.id ??
+        result.placement.building!.districtId;
+      ownedPlacements.push(result.placement.id);
+      remaining -= result.placement.building!.dwellings;
     }
+    if (remaining <= 0) housingStop = "demand-met";
   }
+  if (run?.profile) run.profile.housingMs = performance.now() - housingStarted;
   const all = [...manual, ...facilities, ...ownedPlacements.filter(id => !facilities.includes(id))].sort(
     (a, b) => Number(inside(doc.placements[b].position)) - Number(inside(doc.placements[a].position))
   );
   checkpoint("housing", all);
   const allocation = allocateVectorResidents(doc, all, required, settings.population);
-  if (allocation.unplacedDwellings) reasons.push("housing-capacity-shortfall");
-  if (unplacedFacilities.length) reasons.push("facility-space-shortfall");
+  if (allocation.unplacedDwellings)
+    reasons.push(
+      housingStop === "budget" || housingStop === "placement-cap"
+        ? "housing-search-budget"
+        : "housing-capacity-shortfall"
+    );
+  if (unplacedFacilities.some(item => item.reason === "space" || item.reason === "river" || item.reason === "district"))
+    reasons.push("facility-space-shortfall");
+  if (unplacedFacilities.some(item => item.reason === "budget" || item.reason === "unsearched"))
+    reasons.push("facility-search-starved");
   if (manual.some(id => !doc.placements[id].building)) reasons.push("manual-capacity-unverified");
   if (packer.budgetExceeded() || housingPacker.budgetExceeded() || ownedPlacements.length >= 1500)
     reasons.push("placement-budget");
+  if (run?.profile) {
+    run.profile.facilityAttempts = facilityAttempts;
+    run.profile.housingAttempts = housingAttempts;
+    run.profile.regionMs = searchStats.regionMs;
+    run.profile.curveMs = searchStats.curveMs;
+    run.profile.starvedFacilities = unplacedFacilities.filter(item => item.reason === "unsearched").length;
+    run.profile.cappedFacilities = unplacedFacilities.filter(item => item.reason === "budget").length;
+    run.profile.housingStop = housingStop;
+  }
   const residualLand = deriveVectorBlocks(doc, protectedRegions).map(b => ({ outer: b.outer, holes: b.holes }));
   doc.site = sourceSite;
   doc.context.targetPopulation = settings.population;

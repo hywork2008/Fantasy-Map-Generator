@@ -21,8 +21,13 @@ const city = () =>
 describe("meshless dependency transactions", () => {
   it("relocates only affected automatic placements and commits shape, population and checkpoints together", () => {
     const source = city(),
+      usedRoads = new Set(Object.values(source.placements).flatMap(p => p.accesses.map(a => a.pathId))),
       path = structuredClone(
-        source.paths[Object.keys(source.generation!.pathRevisions).find(id => source.paths[id].role === "road")!]
+        source.paths[
+          Object.keys(source.generation!.pathRevisions).find(
+            id => source.paths[id].role === "road" && usedRoads.has(id)
+          )!
+        ]
       );
     path.width.leftMeters += 3;
     path.width.rightMeters += 3;
