@@ -35,6 +35,7 @@ export function generationFingerprint(doc: VectorCityDocument, ids: Set<string>)
     circuits: Object.values(doc.connections.circuits).filter(c => ids.has(c.pathId)),
     bridges: Object.values(doc.connections.bridges).filter(b => ids.has(b.roadPathId) || ids.has(b.riverAnchor.pathId)),
     wallRoads: Object.values(doc.connections.wallRoads).filter(r => ids.has(r.pathId)),
+    ...(doc.environment?.landscape ? { landscape: doc.environment.landscape } : {}),
     ...(doc.environment?.harbor ? { harbor: doc.environment.harbor } : {}),
     ...(doc.environment?.defenses ? { defenses: doc.environment.defenses } : {})
   });

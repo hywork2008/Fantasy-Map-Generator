@@ -1,10 +1,12 @@
 import { placementCatalog } from "../../../buildings/placementModels";
+import { BURIAL_CULTURE_PRESETS } from "../../../data/burialCultures";
 import { type EditorMessageKey, editorText } from "../../../i18n/editorMessages";
 import { historicalPeriodIndex } from "../../../types/historicalPeriod";
 import { materializeFreeform } from "../../generators/freeform/freeformCity";
 import { prepareVectorEdit } from "../../generators/vector/editing/dependencies";
 import { combineVectorRegions, setVectorRegion } from "../../generators/vector/editing/regions";
 import { addVectorFeature, removeVectorFeature, setVectorFeatureActivity } from "../../generators/vector/features";
+import { regenerateVectorLandscape } from "../../generators/vector/landscape";
 import { assertVectorDocument } from "../../generators/vector/validation/document";
 import type { EditorLifetime } from "../../services/editorLifetime";
 import { restoreVectorFreeform, vectorFromFreeform } from "../../services/io/vector/freeform";
@@ -104,6 +106,35 @@ export function createVectorEnvironmentPanel(
     });
     return b;
   };
+  const forestMode = select("landscapeMode", ["legacy", "farmland", "surroundings"]),
+    forestDensity = select("landscapeDensity", ["sparse", "standard", "dense"]),
+    burialPreset = select("landscapeBurial", ["preserve"]);
+  for (const [id, profile] of Object.entries(BURIAL_CULTURE_PRESETS)) {
+    const option = document.createElement("option");
+    option.value = id;
+    option.textContent = profile.name;
+    burialPreset.append(option);
+  }
+  const regenerateLandscape = button("regenerateLandscape", () => {
+    const current = read();
+    submit(
+      regenerateVectorLandscape(current, {
+        forest: {
+          version: 1,
+          mode: forestMode.value as "legacy" | "farmland" | "surroundings",
+          density: forestDensity.value as "sparse" | "standard" | "dense"
+        },
+        ...(burialPreset.value !== "preserve" ? { burialPreset: burialPreset.value } : {})
+      }),
+      text("regenerateLandscape")
+    );
+  });
+  const cultureLandscape = button("applyLocalFaith", () =>
+    submit(regenerateVectorLandscape(read(), { useCivilization: true }), text("applyLocalFaith"))
+  );
+  const landscapeContext = document.createElement("output");
+  landscapeContext.dataset.landscapeContext = "";
+  box.append(landscapeContext);
   const add = (outer: Point[]) => {
     const current = read();
     const boundary = { outer, holes: [] };
@@ -468,6 +499,22 @@ export function createVectorEnvironmentPanel(
     refresh() {
       const doc = read();
       availability();
+      const landscape = doc.environment?.landscape;
+      forestMode.disabled = forestDensity.disabled = burialPreset.disabled = regenerateLandscape.disabled = !landscape;
+      cultureLandscape.disabled = !landscape?.context.civilization;
+      if (landscape) {
+        forestMode.value = landscape.forest.settings.mode;
+        forestDensity.value = landscape.forest.settings.density;
+      }
+      landscapeContext.textContent = landscape
+        ? [
+            landscape.context.biome?.name,
+            landscape.context.civilization?.culture.name,
+            landscape.context.burialProfile?.name
+          ]
+            .filter(Boolean)
+            .join(" / ")
+        : text("noLandscapeRecipe");
       if (drawing && JSON.stringify(entry) !== JSON.stringify(doc)) clearDrawing();
       fill(
         road,

@@ -52,3 +52,5 @@ node --import tsx scripts/city-editor/meshless/m9FeatureAcceptance.ts --out docs
 防御の後続実装は[防御受入記録](ce-meshless-m9-defense-20261107.md)を参照する。上表の旧防御の未受入判定から、平坦・内陸・固定49部品の意味変換を一部受け入れるところまで進んだ。
 
 港の後続実装は[港受入記録](ce-meshless-m9-harbor-20261107.md)を参照する。上表の未受入判定から、平坦・海港・固定の航行・荷役・実寸船を一部受け入れるところまで進んだ。
+
+景観の後続作業は[景観受入記録](ce-meshless-m9-landscape-20261107.md)で扱った。森林再生成・BV樹種・文化別墓地を一部受け入れ、次は造成境界の描画と連続鉛直誤差へ進める。

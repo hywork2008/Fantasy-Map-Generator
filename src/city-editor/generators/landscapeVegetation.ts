@@ -1,7 +1,11 @@
+import type { LandscapeClimate } from "../types/contracts/landscape";
+
+export type { LandscapeClimate } from "../types/contracts/landscape";
+
 import { STANDARD_BIOME_KEYS, type StandardBiomeKey } from "../../types/biome";
 import type { CityDocument } from "../types/document";
 
-type TreeBiome =
+export type TreeBiome =
   | "none"
   | "preferred"
   | "temperate"
@@ -58,16 +62,21 @@ function standardKey(key?: string): StandardBiomeKey | undefined {
   return STANDARD_BIOME_KEYS.find(candidate => candidate.toLowerCase() === key?.toLowerCase());
 }
 
-export function landscapeTemperature(document?: CityDocument): number | undefined {
-  return (
-    document?.fabric?.generation?.settings.descriptor?.climate?.temperatureC ??
-    document?.buildingAppearanceContext?.temperatureC
-  );
+export function landscapeClimate(document?: CityDocument): LandscapeClimate {
+  return {
+    ...(document?.biome ? { biome: document.biome } : {}),
+    temperatureC:
+      document?.fabric?.generation?.settings.descriptor?.climate?.temperatureC ??
+      document?.buildingAppearanceContext?.temperatureC,
+    climateBiomeKey: document?.fabric?.generation?.settings.descriptor?.climate?.biomeKey
+  };
 }
-
+export function landscapeTemperature(document?: CityDocument): number | undefined {
+  return landscapeClimate(document).temperatureC;
+}
 /** Identity before tags before generation climate. Unknown identity alone never means treeless. */
-export function landscapeTreeBiome(document?: CityDocument): TreeBiome {
-  const biome = document?.biome;
+export function treeBiomeForClimate(climate: LandscapeClimate): TreeBiome {
+  const biome = climate.biome;
   const key = standardKey(biome?.key);
   if (key) return TREE_BIOME_POLICY[key];
   const tags = new Set(biome?.tags?.map(tag => tag.toLowerCase()));
@@ -77,14 +86,17 @@ export function landscapeTreeBiome(document?: CityDocument): TreeBiome {
     if (known) return TREE_BIOME_POLICY[known];
   }
   if (tags.has("wetland")) return "alder";
-  if (tags.has("desert")) return tags.has("cold") || (landscapeTemperature(document) ?? 20) <= 3 ? "desert" : "palm";
+  if (tags.has("desert")) return tags.has("cold") || (climate.temperatureC ?? 20) <= 3 ? "desert" : "palm";
   if (tags.has("forest")) {
     if (tags.has("tropical")) return tags.has("dry") ? "savanna" : "rainforest";
-    return tags.has("cold") || (landscapeTemperature(document) ?? 10) <= 3 ? "boreal" : "temperate";
+    return tags.has("cold") || (climate.temperatureC ?? 10) <= 3 ? "boreal" : "temperate";
   }
   if (tags.has("snow")) return "none";
-  const climateKey = standardKey(document?.fabric?.generation?.settings.descriptor?.climate?.biomeKey);
+  const climateKey = standardKey(climate.climateBiomeKey);
   return climateKey ? TREE_BIOME_POLICY[climateKey] : "preferred";
+}
+export function landscapeTreeBiome(document?: CityDocument): TreeBiome {
+  return treeBiomeForClimate(landscapeClimate(document));
 }
 
 /** Shared by generation and both renderers; stored layouts and explicit overrides remain intact. */

@@ -119,18 +119,22 @@
       "status": "limited",
       "tests": [
         "src/city-editor/generators/vector/features.test.ts",
-        "src/city-editor/generators/vector/m9FeatureAcceptance.test.ts"
+        "src/city-editor/generators/vector/m9FeatureAcceptance.test.ts",
+        "src/city-editor/generators/vector/landscape.test.ts",
+        "src/city-editor/components/vector/VectorEnvironmentPanel.test.ts"
       ],
       "accepted": [
         "Market, temple, cemetery, park, farm and forest regions keep the same geometry in native, 2D and 3D",
         "An optional BV asset keeps its own dimensions",
-        "Resolved legacy automatic forest boundaries, clearing holes, water and road exclusions, disjoint farm ownership, native persistence and shared 2D/3D geometry as a snapshot"
+        "Resolved legacy automatic forest boundaries, clearing holes, water and road exclusions, disjoint farm ownership, native persistence and shared 2D/3D geometry as a snapshot",
+        "Native forest mode/density regeneration without archived cells, deterministic shared 2D/3D BV species, clearing and canopy containment, restored farmland and clipped field rows, climate/civilization/burial settings, shared cultural cemetery layout and locked-plan preservation through undoable controls"
       ],
       "remaining": [
-        "Legacy tree appearance and automatic forest regeneration",
-        "Other legacy automatic landscapes and cultural settings"
+        "Full legacy park/farm layout regeneration and temple/other automatic landscape parity",
+        "Dedicated cemetery BV architecture, seasonal tree presentation and legacy terrain suitability",
+        "Individual clearing and source-domain edits; original eligibility and exclusions remain fixed regeneration inputs"
       ],
-      "evidence": "Legacy automatic forest snapshots match the old forest planner: 3200 m2 with a clearing hole, 2800 m2 after water exclusion and 2624 m2 with road exclusion. Copied farm regions exclude forests. Tree appearance, regeneration and culture remain unaccepted."
+      "evidence": "Forest boundaries remain 3200/2800/2624 m2 on the fixed clearing/water/road inputs. The road case regenerates 19 dense or 15 sparse trees deterministically. A separate fixed culture case retains the local/culture faith distinction and produces the same cemetery parts, paths and planting as the old culture layout after applying the local faith. Native modes, density, BV tree species, field restoration, saved profiles and UI undo are verified without consulting the source archive. Full automatic landscape parity remains limited."
     },
     {
       "id": "terrain-and-freeform-placement",

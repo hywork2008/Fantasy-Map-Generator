@@ -7,6 +7,7 @@ import { createTownCranes, createTownHarborCargo } from "../../../city3d/three/c
 import { createTownShips } from "../../../city3d/three/shipMeshes";
 import { polygonArea } from "../../generators/geom";
 import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
+import { createVectorLandscapeTrees } from "./landscapeTrees";
 import type { VectorRenderData, VectorRenderSurface } from "./renderData";
 import { projectTerrainGeometry } from "./terrainGeometry";
 
@@ -141,7 +142,13 @@ export function createVectorScene(data: VectorRenderData) {
     }
     group.add(ground);
     disposers.push(() => ground.geometry.dispose());
+    if (data.landscapeTrees?.length) {
+      const trees = createVectorLandscapeTrees(data.landscapeTrees, data.center, datum);
+      group.add(trees.group);
+      disposers.push(() => trees.dispose());
+    }
     for (const surface of data.surfaces) {
+      if (surface.pieceRole === "landscape-tree") continue;
       if (surface.harborShip || surface.harborCrane || surface.harborPile) {
         const ship = surface.harborShip,
           crane = surface.harborCrane,

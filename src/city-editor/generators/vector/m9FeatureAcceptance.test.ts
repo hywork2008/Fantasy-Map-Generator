@@ -24,9 +24,11 @@ import { planHarborShips } from "../harborShips";
 import { meshFromCells, validate } from "../mesh";
 import { reconcileVectorEdit } from "./editing/dependencies";
 import { featureReservations } from "./environmentState";
+import { legacyLandscapeFixture } from "./fixtures/legacyLandscape";
 import { deriveVectorBlocks } from "./generation/pipeline";
 import { containsRegion, regionArea, regionBoolean } from "./geometry/regions";
 import { activeVectorHarborCargo, vectorHarborNavigation, vectorShipFootprint } from "./harbor";
+import { regenerateVectorLandscape } from "./landscape";
 import { vectorTerrain } from "./terrain";
 
 const observations: object[] = [];
@@ -427,10 +429,8 @@ describe("M9 feature-specific release evidence", () => {
       const scene = createVectorScene(data);
       for (const region of forest) expect(scene.group.children.some(n => n.userData.id === region.id)).toBe(true);
       scene.dispose();
-      expect(copy.report).toContainEqual(expect.objectContaining({ category: "forest", status: "snapshot" }));
-      expect(copy.report).toContainEqual(
-        expect.objectContaining({ category: "forestSettings", status: "unsupported" })
-      );
+      expect(copy.report).toContainEqual(expect.objectContaining({ category: "forest", status: "converted" }));
+      expect(copy.report).toContainEqual(expect.objectContaining({ category: "landscape-plan", status: "converted" }));
       return {
         sourceSha256: copy.sourceSha256,
         areaM2: expected.areaM2,
@@ -461,16 +461,33 @@ describe("M9 feature-specific release evidence", () => {
     ];
     const road = check(source);
     expect(road.areaM2).toBeLessThan(wet.areaM2);
+    const native = roundTrip(source).document;
+    const regenerated = regenerateVectorLandscape(native);
+    expect(regenerated.environment!.landscape!.trees.length).toBeGreaterThan(0);
+    expect(regenerated.environment!.landscape!.trees).toEqual(native.environment!.landscape!.trees);
+    const sparse = regenerateVectorLandscape(native, { forest: { version: 1, mode: "farmland", density: "sparse" } });
+    expect(sparse.environment!.landscape!.trees.length).toBeLessThan(regenerated.environment!.landscape!.trees.length);
+    const culturalSource = legacyLandscapeFixture(),
+      cultural = roundTrip(culturalSource);
+    const localFaith = regenerateVectorLandscape(cultural.document, { useCivilization: true });
+    expect(localFaith.environment!.landscape!.cemeteries[0].parts).not.toEqual(culturalSource.cemeteries![0].parts);
+    expect(parseVectorDocument(serializeVectorDocument(localFaith))).toEqual(localFaith);
     observations.push({
       id: "legacy-landscape",
       outcome: "partially-accepted",
       clearing,
       wet,
       road,
+      denseTrees: regenerated.environment!.landscape!.trees.length,
+      sparseTrees: sparse.environment!.landscape!.trees.length,
+      deterministicRegeneration: true,
+      culturalSourceSha256: cultural.sourceSha256,
+      localFaithPreset: localFaith.environment!.landscape!.cemeteries[0].burialProfile!.id,
+      cultureTreeSpecies: [...new Set(localFaith.environment!.landscape!.trees.map(t => t.species))].sort(),
       accepted:
-        "Resolved automatic forest polygons, clearing holes, water exclusion, disjoint farm ownership, native persistence and shared 2D/3D geometry.",
+        "Cell-free forest mode/density regeneration, clearing holes, farm ownership restoration, climate-adapted BV species shared in 2D/3D, cultural cemetery regeneration, locked-plan preservation and native settings controls.",
       remaining:
-        "Tree appearance, forest regeneration, other landscape generators and cultural settings remain archived."
+        "Full park/farm layout regeneration, temple and other automatic landscape parity, seasonal presentation, terrain suitability and individual clearing edits remain outside this fixed-case acceptance."
     });
   });
 

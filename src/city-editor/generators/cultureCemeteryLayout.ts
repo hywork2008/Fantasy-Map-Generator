@@ -16,6 +16,29 @@ export function layoutCultureCemetery(
   x: Point,
   y: Point
 ): CemeteryPlan {
+  return layoutCultureCemeteryOnSite(
+    {
+      water: cemetery.burialProfile?.boundary === "stepped_water_terrace" ? waterPolygons(document) : [],
+      hasTrees: landscapeHasTrees(document)
+    },
+    cemetery,
+    safe,
+    gate,
+    center,
+    x,
+    y
+  );
+}
+
+export function layoutCultureCemeteryOnSite<T extends Omit<CemeteryPlan, "faceId">>(
+  site: { water: Point[][]; hasTrees: boolean },
+  cemetery: T,
+  safe: Point[],
+  gate: Point,
+  center: Point,
+  x: Point,
+  y: Point
+): T {
   const profile = cemetery.burialProfile!;
   const rng = makeRng(cemetery.seed);
   const world = (u: number, v: number): Point => [center[0] + x[0] * u + y[0] * v, center[1] + x[1] * u + y[1] * v];
@@ -162,7 +185,7 @@ export function layoutCultureCemetery(
 
   // Boundaries whose geometry differs from a simple enclosing line.
   if (profile.boundary === "stepped_water_terrace") {
-    const water = waterPolygons(document);
+    const water = site.water;
     const edges = safe.map((a, i) => ({ a, b: safe[(i + 1) % safe.length] }));
     const distance = (p: Point) => Math.min(...water.map(ring => nearestOnPolyline(p, [...ring, ring[0]]).dist));
     edges.sort(
@@ -184,7 +207,7 @@ export function layoutCultureCemetery(
   }
 
   // Tree species affect both the placement and the renderer's canopy silhouette.
-  if (profile.vegetation !== "barren_gravel" && landscapeHasTrees(document)) {
+  if (profile.vegetation !== "barren_gravel" && site.hasTrees) {
     const treeCandidates: Point[] = [];
     if (profile.vegetation === "sacred_bodhi_and_fig") treeCandidates.push(world(7, 2));
     else if (profile.vegetation === "mediterranean_cypress") {

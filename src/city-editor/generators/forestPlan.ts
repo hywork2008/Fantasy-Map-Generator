@@ -18,9 +18,14 @@ import { approachBands } from "./suburbanLanduse";
 import { classifyTownWater } from "./townWater";
 
 /** Uses already-built housing/reservations; never calls buildBlockFabric or creates trees. */
-export function buildForestPlan(document: CityDocument, fabric: DistrictFabric, keepOut?: ForestKeepOut): ForestPlan {
+export function buildForestPlan(
+  document: CityDocument,
+  fabric: DistrictFabric,
+  keepOut?: ForestKeepOut,
+  options: { ignoreTreeClimate?: boolean } = {}
+): ForestPlan {
   keepOut ??= forestKeepOut(document, fabric);
-  const selected = forestLandCover(document);
+  const selected = forestLandCover(document, options);
   const fixedFarms = fabric.farms.filter(farm =>
     (farm.sourceFaceIds ?? [farm.faceId]).some(id => document.mesh.faces[id]?.properties.locked)
   );

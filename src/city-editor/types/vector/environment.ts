@@ -44,6 +44,7 @@ export interface VectorFeature {
 }
 export interface VectorEnvironment {
   features: Record<string, VectorFeature>;
+  landscape?: import("./landscape").VectorLandscape;
   harbor?: import("./harbor").VectorHarborPlan;
   defenses?: Record<string, import("./defense").VectorDefensePlan>;
   /** Freeform's authored ledger is the height/earthwork authority, not a synthetic cell mesh. */

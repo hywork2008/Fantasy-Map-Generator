@@ -17,6 +17,7 @@ import { curveSource } from "../../../generators/vector/editing/paths";
 import { pathIsClosed } from "../../../generators/vector/geometry/curves";
 import { pathIntersections } from "../../../generators/vector/geometry/intersections";
 import { regionBoolean } from "../../../generators/vector/geometry/regions";
+import { rebuildVectorLandscape } from "../../../generators/vector/landscape";
 import { assertVectorDocument } from "../../../generators/vector/validation/document";
 import type { CityDocument, Point } from "../../../types/document";
 import type { CurveAnchor, VectorCityDocument, VectorPath, VectorPlacement } from "../../../types/vector/document";
@@ -25,6 +26,7 @@ import { serializeVectorDocument } from "./documentCodec";
 import { vectorFromFreeform } from "./freeform";
 import { copyLegacyDefense } from "./legacyDefense";
 import { copyLegacyHarbor } from "./legacyHarbor";
+import { copyLegacyLandscape } from "./legacyLandscape";
 export type VectorCopyReport = NonNullable<VectorCityDocument["legacyCopy"]>["report"];
 /** Explicit one-time adapter. The source archive preserves every feature without fabricating cells on the vector side. */
 export function copyLegacyCity(source: CityDocument): { document: VectorCityDocument; report: VectorCopyReport } {
@@ -565,14 +567,69 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
         );
       else omitted(`${defense.id}:glacis:${i}`, "defense-glacis");
   }
+  let landscapeConverted = false;
+  if (hasForestState(source) || source.cemeteries?.length || fabric?.parks?.length || fabric?.farms?.length) {
+    try {
+      const candidate = structuredClone(doc);
+      candidate.environment ??= { features: {}, hidden: [] };
+      candidate.environment.landscape = copyLegacyLandscape(source, candidate, fabric);
+      rebuildVectorLandscape(candidate);
+      assertVectorDocument(candidate);
+      doc = candidate;
+      landscapeConverted = true;
+      for (const row of report) {
+        if (row.category === "forest" && row.status === "snapshot") {
+          row.status = "converted";
+          row.reason = "Independent forest domains, density, climate and tree species now support native regeneration.";
+        }
+        if (["parks", "farms"].includes(row.category)) {
+          row.status = "snapshot";
+          row.reason =
+            "Physical landscape geometry is retained natively; full legacy layout regeneration remains archived.";
+        }
+      }
+      record(
+        "landscape",
+        "converted",
+        "landscape-plan",
+        "Forest mode domains, density, climate/species policy, culture, planting, farms and cemetery plans retain cell-free regeneration inputs."
+      );
+    } catch (error) {
+      record(
+        "landscape",
+        "unsupported",
+        "landscape-plan",
+        `Atomic landscape conversion rejected: ${error instanceof Error ? error.message : "invalid"}. Existing snapshots and the original source remain available.`.slice(
+          0,
+          500
+        )
+      );
+    }
+  }
   for (const castle of source.castles ?? []) {
     for (const part of castle.parts) omitted(part.id, "castle-part");
     for (const [i] of castle.courtyards.entries()) omitted(`${castle.id}:courtyard:${i}`, "castle-courtyard");
     for (const [i] of castle.accesses.entries()) omitted(`${castle.id}:access:${i}`, "castle-access");
   }
   for (const cemetery of source.cemeteries ?? []) {
-    for (const part of cemetery.parts) omitted(part.id, "cemetery-part");
-    for (const [i] of cemetery.accesses.entries()) omitted(`${cemetery.id}:access:${i}`, "cemetery-access");
+    for (const part of cemetery.parts)
+      if (landscapeConverted)
+        record(
+          part.id,
+          "converted",
+          "cemetery-part",
+          "Physical plan geometry and culture profile retained by the native landscape."
+        );
+      else omitted(part.id, "cemetery-part");
+    for (const [i] of cemetery.accesses.entries())
+      if (landscapeConverted)
+        record(
+          `${cemetery.id}:access:${i}`,
+          "converted",
+          "cemetery-access",
+          "Native cemetery access geometry retained."
+        );
+      else omitted(`${cemetery.id}:access:${i}`, "cemetery-access");
   }
   for (const ship of source.elements.filter(e => e.kind === "ship" && e.harborOperation))
     if (copiedShips.has(ship.id))
@@ -600,7 +657,8 @@ export function copyLegacyCity(source: CityDocument): { document: VectorCityDocu
     "waterAreas",
     "regionalWaterAreas",
     "populationPlan",
-    ...(defenseConverted ? ["bastionedTown"] : [])
+    ...(defenseConverted ? ["bastionedTown"] : []),
+    ...(landscapeConverted ? ["forestSettings", "biome", "civilization", "burialProfile", "cemeteries"] : [])
   ]);
   for (const [key, value] of Object.entries(source))
     if (!handled.has(key) && value !== undefined && value !== null && !(Array.isArray(value) && !value.length))

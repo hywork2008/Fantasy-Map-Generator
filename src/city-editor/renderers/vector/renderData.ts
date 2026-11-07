@@ -12,9 +12,11 @@ import type { Point } from "../../types/primitives";
 import type { VectorCityDocument, VectorPath, VectorPlacement } from "../../types/vector/document";
 import type { VectorPolygon } from "../../types/vector/generation";
 import type { VectorHarborShip } from "../../types/vector/harbor";
+import type { VectorLandscapeTree } from "../../types/vector/landscape";
 import type { VectorStage } from "../../types/vector/urban";
 import { vectorDefenseSurfaces } from "./defense";
 import { vectorHarborSurfaces } from "./harbor";
+import { vectorLandscapeSurfaces } from "./landscape";
 export type VectorSurfaceKind =
   | "region"
   | "block"
@@ -55,6 +57,7 @@ export interface VectorRenderData {
   warnings: string[];
   contours?: ContourLine[];
   groundCutouts?: VectorPolygon[];
+  landscapeTrees?: (VectorLandscapeTree & { elevationMeters: number })[];
   terrain?: { points: [number, number, number][]; indices: number[] };
 }
 /** Adopted geometry only. The same clipped surfaces feed screen SVG, exports and 3D. */
@@ -341,6 +344,8 @@ export function vectorRenderData(
   for (const plan of Object.values(doc.environment?.defenses ?? {}))
     surfaces.push(...vectorDefenseSurfaces(plan, frame));
   if (doc.environment?.harbor) surfaces.push(...vectorHarborSurfaces(doc.environment.harbor));
+  if (doc.environment?.landscape)
+    for (const surface of vectorLandscapeSurfaces(doc.environment.landscape)) add(surface);
   let terrainMesh: VectorRenderData["terrain"], contours: ContourLine[] | undefined;
   if (terrain.hasRelief) {
     const count = 64,
@@ -390,6 +395,10 @@ export function vectorRenderData(
       ...Object.values(doc.environment?.defenses ?? {}).flatMap(p => p.ditches.flatMap(d => d.region)),
       ...(doc.environment?.harbor?.navigation.water ?? [])
     ],
+    landscapeTrees: doc.environment?.landscape?.trees.map(tree => ({
+      ...tree,
+      elevationMeters: terrain.heightAt(tree.point)
+    })),
     terrain: terrainMesh
   };
 }

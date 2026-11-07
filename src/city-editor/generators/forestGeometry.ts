@@ -11,7 +11,7 @@ export interface ForestPart {
   polygon: Point[];
 }
 
-export function forestContains(region: ForestRegion, point: Point): boolean {
+export function forestContains(region: Pick<ForestRegion, "outer" | "holes" | "bounds">, point: Point): boolean {
   const [x, y] = point,
     b = region.bounds;
   return (
