@@ -113,6 +113,7 @@ import { FertilizerInvestment } from "./generators/fertilizerInvestment";
 import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption";
 import { FoodProduction } from "./generators/foodProduction";
+import { settleForestGlasshouses } from "./generators/forestGlasshouses";
 import { tickForestRegrowth } from "./generators/forestStock";
 import { FortificationMastery } from "./generators/fortificationMastery";
 import { consumeFuneralMaterialsFromPending } from "./generators/funeralGoodsConsumption";
@@ -862,6 +863,7 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
         Production.produce(skipFoodConsumption ? value.livestockFeedPeriod : undefined)
       );
       measureTickStep("production:householdHeating", () => settleMonthlyHeating());
+      measureTickStep("production:forestGlasshouses", () => settleForestGlasshouses());
       // Completed forge Goods are transferred from market stock to the queue before the next
       // planning pass refreshes maintenance and consumable demand.
       measureTickStep("production:metallurgFulfillment", () => MetallurgWork.fulfillFromMarkets());
@@ -1786,6 +1788,7 @@ function register(api: SimulationExtensionAPI): () => void {
           // initial path so a settled starting world is not 75% urban-unemployed on day one.
           reconcileAnnualBasicEmploymentWorkers({ initial: true });
           settleMonthlyHeating();
+          settleForestGlasshouses();
           Taxes.collectTaxes();
           MetallurgWork.generate();
           MetallurgWork.settleMonthly();

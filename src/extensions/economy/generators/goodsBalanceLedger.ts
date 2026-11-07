@@ -9,6 +9,7 @@
 
 import { rn } from "../../hostUtils";
 import { getGoods, getMarkets } from "../economyContext";
+import { recordGlassDraw } from "./forestGlasshouses";
 import type { GoodFlowCategory, GoodFlowDirection, GoodFlowRecord } from "./goodFlowTypes";
 import { isGoodEnabled } from "./goods-generator";
 import { recordAshUse } from "./hearthAsh";
@@ -169,6 +170,14 @@ function findById<T extends { i: number }>(list: readonly T[], id: number): T | 
   return list.find(item => item.i === id);
 }
 
+const GLASS_DRAW_CATEGORIES: ReadonlySet<GoodFlowCategory> = new Set([
+  "recipeInput",
+  "burgDemand",
+  "luxuryPurchase",
+  "characterLuxury",
+  "construction"
+]);
+
 export function recordGoodFlow(flow: GoodFlowRecord): void {
   if (!Number.isFinite(flow.units) || flow.units <= 0) return;
   const good = findById(getGoods(), flow.goodId);
@@ -190,6 +199,16 @@ export function recordGoodFlow(flow: GoodFlowRecord): void {
   ) {
     const market = findById(getMarkets(), flow.marketId);
     if (market) recordAshUse(market, flow.units);
+  }
+  // The market's glasshouses keep as much Glass as its towns and recipes draw.
+  if (
+    flow.direction === "sink" &&
+    GLASS_DRAW_CATEGORIES.has(flow.category) &&
+    flow.marketId !== undefined &&
+    good?.name === "Glass"
+  ) {
+    const market = findById(getMarkets(), flow.marketId);
+    if (market) recordGlassDraw(market, flow.units);
   }
   // Casks travel with their drink and come back empty to the market that drinks it.
   if (
@@ -288,6 +307,7 @@ export function closeGoodsBalanceInterval(point: GoodsBalancePoint): {
         vesselSalvage: categoryTotal(flows, "vesselSalvage", good.i),
         containerReturn: categoryTotal(flows, "containerReturn", good.i),
         hearthAsh: categoryTotal(flows, "hearthAsh", good.i),
+        forestGlass: categoryTotal(flows, "forestGlass", good.i),
         theft: categoryTotal(flows, "theft", good.i),
         accountingGap: opening + sources - sinks - closing
       };

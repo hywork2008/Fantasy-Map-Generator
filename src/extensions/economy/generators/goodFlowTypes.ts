@@ -35,6 +35,8 @@ export type GoodFlowCategory =
   | "containerReturn"
   /** Ash of the town hearths bought from the households for the market (hearthAsh.ts). */
   | "hearthAsh"
+  /** Glass from the market's forest glasshouses (forestGlasshouses.ts). */
+  | "forestGlass"
   /** Finished weapons stolen from an unsold market stock (armsTheft.ts). */
   | "theft";
 

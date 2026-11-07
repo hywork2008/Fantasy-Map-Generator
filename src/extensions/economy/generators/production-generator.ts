@@ -68,6 +68,7 @@ import {
   refreshAleHouseholdDemand,
   settleFoodProcessingHouseholds
 } from "./foodProcessingLedger";
+import { hasForestGlasshouses } from "./forestGlasshouses";
 import type { DemandCategory, Good } from "./goods-generator";
 import {
   DEMAND_PRIORITY,
@@ -985,6 +986,8 @@ export class ProductionModule {
       const row = getGoodDemandCalibration(good.name);
       if (!row) continue;
       let lots = getCalibratedMonthlyLots({ goodName: good.name, laborPeopleBurg, port, capital });
+      // Forest glasshouses make the market's Glass; its town glaziers keep the finishing work.
+      if (good.name === "Glass" && hasForestGlasshouses(market)) lots = 0;
       // A per-head floor stops when the market already holds months of it; orders do not.
       if (row.annualLotsPerPerson != null) {
         let marketLots = (marketLaborPeople * row.annualLotsPerPerson) / 12;

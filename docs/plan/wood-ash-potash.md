@@ -99,5 +99,6 @@
 ## 5. 未確定事項
 
 1. 地元のガラスの量は、職人の贅沢品の需要の割り当て（`craftDemandCalibration`の`Glass`、`categoryResidual`）で決まる。寒い森の土地のガラス小屋（§2、[cold-land-clay.md](cold-land-clay.md) §5.2）に合わせるかは、まだ調べていない。
+   - 森のガラス小屋を入れた（[forest-glasshouses.md](forest-glasshouses.md)）。
 2. 森の灰焼き（市場に出ない森の木を、森で灰と炭酸カリウムにする）と、開墾の火の灰は入れていない。リトアニアとリガの輸出の規模にするには、これが要る。
 3. 炭酸カリウムを煮詰める燃料（木材）は、レシピに入れていない。

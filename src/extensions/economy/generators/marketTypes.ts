@@ -1,4 +1,5 @@
 import type { ReturnedCaskDrink } from "./foodLots";
+import type { ForestGlasshouseLedger } from "./forestGlasshouses";
 import type { HearthAshLedger } from "./hearthAsh";
 import type { ContainerCirculation } from "./returnableContainers";
 import type { RuralTextileProduction } from "./ruralTextileProductionTypes";
@@ -13,6 +14,8 @@ export interface Market {
   saltProcessingForecastBags?: number;
   /** Town hearth ash bought for the market and its monthly Ash use (hearthAsh.ts). */
   hearthAshLedger?: HearthAshLedger;
+  /** The market's forest glasshouses and its monthly Glass draw (forestGlasshouses.ts). */
+  forestGlasshouses?: ForestGlasshouseLedger;
   i: number;
   centerBurgId: number;
   color: string;

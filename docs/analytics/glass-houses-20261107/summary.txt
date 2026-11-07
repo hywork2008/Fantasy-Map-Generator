@@ -1,0 +1,237 @@
+== seed 2102
+  markets by band {'>=8': 7, '4-8': 15, '0-4': 12, '<0': 8}
+  added Clay {'warmEligible': 484, 'warmClay': 25, 'rate': 0.0517, 'newEligible': 1770, 'placed': 88}
+  added White sand {'warmEligible': 484, 'warmClay': 14, 'rate': 0.0289, 'newEligible': 1770, 'placed': 45}
+  base clay cells by market band {'>=8': 12, '4-8': 51, '0-4': 26, '<0': 24} by cell temp {'>=8': 25, '4-8': 43, '0-4': 36, '<0': 9}
+  base deposit cells by market band {'Clay': {'>=8': 12, '4-8': 51, '0-4': 26, '<0': 24}, 'White sand': {'>=8': 11, '4-8': 18, '0-4': 12, '<0': 18}}
+  new clay cells by market band {'>=8': 12, '4-8': 51, '0-4': 26, '<0': 24} by cell temp {'>=8': 25, '4-8': 43, '0-4': 36, '<0': 9}
+  new deposit cells by market band {'Clay': {'>=8': 12, '4-8': 51, '0-4': 26, '<0': 24}, 'White sand': {'>=8': 11, '4-8': 18, '0-4': 12, '<0': 18}}
+  -- Glass: 12-month flows by band (base -> new)
+    <0:source:forestGlass                             0 ->          4
+    0-4:sink:characterLuxury                          1 ->          2
+    0-4:sink:luxuryPurchase                           0 ->          9
+    0-4:source:burgCraft                              6 ->          0
+    0-4:source:forestGlass                            0 ->         30
+    0-4:source:navyImport                            12 ->         12
+    4-8:sink:characterLuxury                         54 ->         62
+    4-8:sink:luxuryPurchase                          54 ->        100
+    4-8:sink:recipeInput                             18 ->         19
+    4-8:source:burgCraft                             85 ->          0
+    4-8:source:forestGlass                            0 ->        194
+    4-8:source:importArrival                          1 ->          2
+    4-8:source:navyImport                           167 ->        109
+    >=8:sink:characterLuxury                         14 ->         25
+    >=8:sink:luxuryPurchase                          24 ->         88
+    >=8:sink:recipeInput                             14 ->         16
+    >=8:source:burgCraft                             45 ->          0
+    >=8:source:forestGlass                            0 ->        146
+    >=8:source:navyImport                            50 ->         48
+    month 12   <0: stock         0 price 0.000  ->  stock         4 price 6.081
+    month 12  0-4: stock        18 price 5.379  ->  stock        31 price 4.947
+    month 12  4-8: stock       128 price 4.680  ->  stock       125 price 4.058
+    month 12  >=8: stock        44 price 3.575  ->  stock        65 price 3.027
+  -- White sand: 12-month flows by band (base -> new)
+    <0:sink:recipeInput                               0 ->          4
+    <0:source:burgCraft                              28 ->         28
+    <0:source:ruralHarvest                           72 ->         72
+    0-4:sink:exportDeparture                          0 ->          5
+    0-4:sink:recipeInput                              6 ->         30
+    0-4:source:burgCraft                             19 ->         19
+    0-4:source:importArrival                          3 ->          5
+    0-4:source:ruralHarvest                         137 ->        137
+    4-8:sink:exportDeparture                         10 ->          8
+    4-8:sink:recipeInput                             84 ->        194
+    4-8:source:burgCraft                            114 ->        116
+    4-8:source:importArrival                         69 ->         66
+    4-8:source:ruralHarvest                         202 ->        202
+    >=8:sink:exportDeparture                         67 ->         74
+    >=8:sink:recipeInput                             41 ->        146
+    >=8:source:burgCraft                            205 ->        210
+    >=8:source:importArrival                          4 ->          6
+    >=8:source:ruralHarvest                         247 ->        247
+    month 12   <0: stock       100 price 0.256  ->  stock        96 price 0.257
+    month 12  0-4: stock       153 price 0.277  ->  stock       126 price 0.279
+    month 12  4-8: stock       294 price 0.309  ->  stock       184 price 0.391
+    month 12  >=8: stock       386 price 0.258  ->  stock       282 price 0.276
+  -- Potash: 12-month flows by band (base -> new)
+    0-4:sink:marketInvestment                         3 ->          4
+    0-4:sink:recipeInput                              9 ->          6
+    0-4:source:burgCraft                             14 ->         10
+    4-8:sink:exportDeparture                          2 ->          1
+    4-8:sink:marketInvestment                        18 ->         14
+    4-8:sink:recipeInput                             78 ->         46
+    4-8:source:burgCraft                            106 ->         78
+    4-8:source:importArrival                          3 ->          1
+    >=8:sink:exportDeparture                          1 ->          1
+    >=8:sink:marketInvestment                         2 ->          1
+    >=8:sink:recipeInput                             42 ->         29
+    >=8:source:burgCraft                             47 ->         34
+    month 12   <0: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  0-4: stock         3 price 1.220  ->  stock         1 price 1.240
+    month 12  4-8: stock        11 price 1.297  ->  stock        18 price 1.362
+    month 12  >=8: stock         2 price 1.119  ->  stock         4 price 1.183
+  -- Wood: 12-month flows by band (base -> new)
+    <0:sink:burgDemand                               57 ->         57
+    <0:sink:construction                           6545 ->       6545
+    <0:sink:funeral                                 930 ->        930
+    <0:sink:householdHeating                      14611 ->      14611
+    <0:sink:marketInvestment                          2 ->          0
+    <0:sink:recipeInput                            1708 ->       1708
+    <0:source:burgCraft                              13 ->         13
+    <0:source:clearanceSupply                      1140 ->       1140
+    <0:source:ruralHarvest                        30372 ->      30369
+    0-4:sink:burgDemand                             254 ->        256
+    0-4:sink:construction                         14480 ->      14480
+    0-4:sink:funeral                               2305 ->       2305
+    0-4:sink:householdHeating                     65606 ->      65606
+    0-4:sink:marketInvestment                       110 ->        110
+    0-4:sink:recipeInput                          11795 ->      11796
+    0-4:sink:smelting                                 2 ->          2
+    0-4:source:burgCraft                            107 ->        107
+    0-4:source:clearanceSupply                     3602 ->       3602
+    0-4:source:importArrival                          5 ->          5
+    0-4:source:ruralHarvest                      119092 ->     119094
+    4-8:sink:burgDemand                             818 ->        816
+    4-8:sink:construction                         28822 ->      28822
+    4-8:sink:funeral                               5085 ->       5085
+    4-8:sink:householdHeating                    171930 ->     171930
+    4-8:sink:marketInvestment                       334 ->        342
+    4-8:sink:recipeInput                          16610 ->      16615
+    4-8:sink:smelting                                 4 ->          4
+    4-8:source:burgCraft                            494 ->        482
+    4-8:source:clearanceSupply                     5580 ->       5577
+    4-8:source:importArrival                         26 ->         24
+    4-8:source:ruralHarvest                      287180 ->     287213
+    >=8:sink:burgDemand                             399 ->        399
+    >=8:sink:construction                         10813 ->      10813
+    >=8:sink:funeral                               1528 ->       1528
+    >=8:sink:householdHeating                     53225 ->      53199
+    >=8:sink:marketInvestment                       342 ->        342
+    >=8:sink:recipeInput                           8360 ->       8383
+    >=8:source:burgCraft                             41 ->         41
+    >=8:source:clearanceSupply                     2062 ->       2070
+    >=8:source:importArrival                         12 ->         20
+    >=8:source:ruralHarvest                       96994 ->      96974
+    >=8:source:vesselSalvage                         72 ->         72
+    none:sink:householdHeating                       33 ->         33
+    none:source:burgCraft                             6 ->          6
+    none:source:clearanceSupply                     202 ->        202
+    month 12   <0: stock      9761 price 0.250  ->  stock      9760 price 0.250
+    month 12  0-4: stock     39184 price 0.262  ->  stock     39184 price 0.261
+    month 12  4-8: stock     95270 price 0.281  ->  stock     95278 price 0.281
+    month 12  >=8: stock     31394 price 0.292  ->  stock     31393 price 0.295
+== seed 2103
+  markets by band {'4-8': 4, '0-4': 13, '>=8': 7, '<0': 1}
+  added Clay {'warmEligible': 563, 'warmClay': 27, 'rate': 0.048, 'newEligible': 932, 'placed': 42}
+  added White sand {'warmEligible': 563, 'warmClay': 24, 'rate': 0.0426, 'newEligible': 932, 'placed': 48}
+  base clay cells by market band {'0-4': 38, '4-8': 14, '>=8': 17} by cell temp {'0-4': 24, '4-8': 18, '>=8': 27}
+  base deposit cells by market band {'Clay': {'0-4': 38, '4-8': 14, '>=8': 17}, 'White sand': {'0-4': 35, '4-8': 22, '>=8': 15}}
+  new clay cells by market band {'0-4': 38, '4-8': 14, '>=8': 17} by cell temp {'0-4': 24, '4-8': 18, '>=8': 27}
+  new deposit cells by market band {'Clay': {'0-4': 38, '4-8': 14, '>=8': 17}, 'White sand': {'0-4': 35, '4-8': 22, '>=8': 15}}
+  -- Glass: 12-month flows by band (base -> new)
+    0-4:sink:characterLuxury                         25 ->         31
+    0-4:sink:luxuryPurchase                          59 ->         65
+    0-4:sink:recipeInput                              7 ->          7
+    0-4:source:burgCraft                              6 ->          0
+    0-4:source:forestGlass                            0 ->         57
+    0-4:source:navyImport                           120 ->         87
+    4-8:sink:characterLuxury                          3 ->          7
+    4-8:sink:luxuryPurchase                          80 ->         83
+    4-8:sink:recipeInput                             17 ->         18
+    4-8:source:burgCraft                             26 ->          0
+    4-8:source:forestGlass                            0 ->         95
+    4-8:source:navyImport                           104 ->         64
+    >=8:sink:characterLuxury                         15 ->         21
+    >=8:sink:luxuryPurchase                         107 ->        101
+    >=8:sink:recipeInput                             13 ->         13
+    >=8:source:burgCraft                             15 ->          0
+    >=8:source:forestGlass                            0 ->         94
+    >=8:source:navyImport                           160 ->         94
+    month 12   <0: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  0-4: stock        34 price 3.086  ->  stock        41 price 3.573
+    month 12  4-8: stock        30 price 2.853  ->  stock        50 price 2.649
+    month 12  >=8: stock        40 price 4.152  ->  stock        53 price 3.673
+  -- White sand: 12-month flows by band (base -> new)
+    0-4:sink:exportDeparture                          0 ->          5
+    0-4:sink:recipeInput                              6 ->         57
+    0-4:source:burgCraft                            144 ->        144
+    0-4:source:importArrival                          2 ->         11
+    0-4:source:ruralHarvest                         248 ->        248
+    4-8:sink:exportDeparture                         13 ->         23
+    4-8:sink:recipeInput                             26 ->         95
+    4-8:source:burgCraft                             53 ->         53
+    4-8:source:importArrival                          1 ->          1
+    4-8:source:ruralHarvest                         308 ->        308
+    >=8:sink:exportDeparture                          4 ->          8
+    >=8:sink:recipeInput                             15 ->         94
+    >=8:source:burgCraft                             70 ->         71
+    >=8:source:importArrival                         16 ->         26
+    >=8:source:ruralHarvest                         150 ->        150
+    month 12   <0: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  0-4: stock       388 price 0.264  ->  stock       341 price 0.269
+    month 12  4-8: stock       332 price 0.250  ->  stock       252 price 0.250
+    month 12  >=8: stock       233 price 0.290  ->  stock       160 price 0.295
+  -- Potash: 12-month flows by band (base -> new)
+    0-4:sink:marketInvestment                         2 ->          3
+    0-4:sink:recipeInput                              9 ->          7
+    0-4:source:burgCraft                             11 ->         11
+    4-8:sink:marketInvestment                         1 ->          7
+    4-8:sink:recipeInput                             25 ->         14
+    4-8:source:burgCraft                             26 ->         21
+    >=8:sink:exportDeparture                          1 ->          1
+    >=8:sink:marketInvestment                         5 ->          2
+    >=8:sink:recipeInput                             13 ->          8
+    >=8:source:burgCraft                             21 ->         13
+    >=8:source:importArrival                          1 ->          0
+    month 12   <0: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  0-4: stock         1 price 1.800  ->  stock         2 price 1.218
+    month 12  4-8: stock         1 price 1.490  ->  stock         0 price 0.000
+    month 12  >=8: stock         3 price 1.342  ->  stock         3 price 1.425
+  -- Wood: 12-month flows by band (base -> new)
+    <0:sink:burgDemand                                3 ->          3
+    <0:sink:construction                            172 ->        172
+    <0:sink:funeral                                   9 ->          9
+    <0:sink:householdHeating                        531 ->        531
+    <0:sink:marketInvestment                          4 ->          4
+    <0:sink:recipeInput                               2 ->          2
+    <0:source:ruralHarvest                          726 ->        726
+    0-4:sink:burgDemand                             242 ->        239
+    0-4:sink:construction                         16628 ->      16628
+    0-4:sink:funeral                               2532 ->       2531
+    0-4:sink:householdHeating                     80915 ->      81013
+    0-4:sink:marketInvestment                      1089 ->       1078
+    0-4:sink:navyExport                            2363 ->       2341
+    0-4:sink:recipeInput                           8966 ->       8968
+    0-4:source:burgCraft                             36 ->         36
+    0-4:source:clearanceSupply                    13007 ->      13004
+    0-4:source:importArrival                         17 ->         17
+    0-4:source:ruralHarvest                       99961 ->      99966
+    0-4:source:vesselSalvage                        440 ->        438
+    4-8:sink:burgDemand                             197 ->        180
+    4-8:sink:construction                          7384 ->       7384
+    4-8:sink:funeral                               1380 ->       1380
+    4-8:sink:householdHeating                     52334 ->      52335
+    4-8:sink:marketInvestment                       443 ->        452
+    4-8:sink:navyExport                             400 ->        400
+    4-8:sink:recipeInput                           2325 ->       2338
+    4-8:source:burgCraft                             52 ->         52
+    4-8:source:clearanceSupply                    10521 ->      10528
+    4-8:source:importArrival                          8 ->          8
+    4-8:source:ruralHarvest                       53346 ->      53348
+    4-8:source:vesselSalvage                        120 ->        118
+    >=8:sink:burgDemand                             378 ->        377
+    >=8:sink:construction                         13107 ->      13107
+    >=8:sink:funeral                               1156 ->       1156
+    >=8:sink:householdHeating                     53319 ->      53318
+    >=8:sink:marketInvestment                       874 ->        902
+    >=8:sink:navyExport                             494 ->        494
+    >=8:sink:recipeInput                           4851 ->       4857
+    >=8:source:burgCraft                            209 ->        198
+    >=8:source:clearanceSupply                    12076 ->      12089
+    >=8:source:importArrival                         12 ->         12
+    >=8:source:ruralHarvest                       60848 ->      60844
+    >=8:source:vesselSalvage                        380 ->        390
+    month 12   <0: stock       397 price 0.250  ->  stock       397 price 0.250
+    month 12  0-4: stock     51856 price 0.263  ->  stock     51793 price 0.263
+    month 12  4-8: stock     35527 price 0.270  ->  stock     35527 price 0.277
+    month 12  >=8: stock     34950 price 0.279  ->  stock     34927 price 0.300
