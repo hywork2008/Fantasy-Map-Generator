@@ -87,6 +87,11 @@ export function createVectorPlacementPanel(
   );
   box.append(status);
   return {
+    select(id: string) {
+      if (!read().placements[id]) return;
+      select.value = id;
+      refreshFields();
+    },
     refresh() {
       const doc = read(),
         old = select.value;

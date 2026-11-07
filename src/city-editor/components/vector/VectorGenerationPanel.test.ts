@@ -2,12 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fixture from "../../data/fixtures/gothengsfeld-20261012.json";
 import { createVectorDocument } from "../../generators/vector/document";
 import { syntheticVectorInput } from "../../generators/vector/generation/input";
+import { generateVectorSkeleton } from "../../generators/vector/generation/pipeline";
+import { generateVectorUrban } from "../../generators/vector/generation/urban";
 import { VectorDocumentHistory } from "../../generators/vector/history";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
 import { EditorLifetime } from "../../services/editorLifetime";
+import type { startVectorGeneration } from "../../services/vectorGenerationWorkerClient";
 import type { BurgSiteDescriptor } from "../../types/contracts/burgSiteDescriptor";
 import { createVectorGenerationPanel } from "./VectorGenerationPanel";
 
+let startOverride: typeof startVectorGeneration | undefined;
 let root: HTMLElement,
   panel: HTMLElement,
   map: HTMLElement,
@@ -31,11 +35,23 @@ function mount(initial = createVectorDocument(), linked?: BurgSiteDescriptor) {
       refresh();
     },
     () => map.replaceChildren(renderVectorDocument(history.document)),
-    linked
+    linked,
+    undefined,
+    startOverride ??
+      ((source, task) => ({
+        result: Promise.resolve().then(() =>
+          task.kind === "skeleton"
+            ? generateVectorSkeleton(source, task.settings)
+            : { document: generateVectorUrban(source, task.settings), stages: [] }
+        ),
+        cancel: vi.fn()
+      })),
+    () => history.currentEntryKey
   );
   refresh();
 }
 beforeEach(() => {
+  startOverride = undefined;
   root = document.createElement("div");
   panel = document.createElement("aside");
   map = document.createElement("main");
@@ -56,7 +72,7 @@ const fill = (key: string, value: string) => {
 };
 
 describe("M4 input, generation and adopted stages", () => {
-  it("previews input and generation without changing saved history, then adopts one transaction per operation", () => {
+  it("previews input and generation without changing saved history, then adopts one transaction per operation", async () => {
     mount();
     click("synthetic");
     expect(history.index).toBe(0);
@@ -68,6 +84,7 @@ describe("M4 input, generation and adopted stages", () => {
     expect(history.index).toBe(1);
     expect(history.document.site?.kind).toBe("synthetic");
     click("generate");
+    await vi.waitFor(() => expect(map.querySelector("[data-vector-block]")).not.toBeNull());
     expect(history.index).toBe(1);
     expect(map.querySelector("[data-vector-block]")).not.toBeNull();
     field("stage").value = "inputs";
@@ -112,26 +129,77 @@ describe("M4 input, generation and adopted stages", () => {
     stale.click();
     expect(history.index).toBe(1);
   });
-  it("shows blocked input errors without adopting partial output", () => {
+  it("shows blocked input errors without adopting partial output", async () => {
     mount();
     click("generate");
+    await vi.waitFor(() =>
+      expect(root.querySelector(".ce-vector-generation-status")!.textContent).not.toContain("Generating candidate")
+    );
     expect(history.index).toBe(0);
     expect(root.querySelector(".ce-vector-generation-status")!.textContent).not.toBe("");
     expect(root.querySelector<HTMLButtonElement>('[data-generation-action="adopt"]')!.disabled).toBe(true);
   });
 });
 
+describe("M9 asynchronous generation ownership", () => {
+  it("keeps a preview adoptable while using read-only presentation controls", () => {
+    mount();
+    click("synthetic");
+    const preview = document.createElement("fieldset"),
+      view = document.createElement("button");
+    preview.dataset.vectorPresentation = "";
+    preview.append(view);
+    panel.append(preview);
+    view.click();
+    click("adopt");
+    expect(history.document.site?.kind).toBe("synthetic");
+    expect(history.index).toBe(1);
+  });
+  it("cancels a running job on settings changes and ignores delayed replies", async () => {
+    const deferred = Promise.withResolvers<Awaited<ReturnType<typeof startVectorGeneration>["result"]>>(),
+      cancel = vi.fn();
+    startOverride = () => ({ result: deferred.promise, cancel });
+    mount();
+    click("generate");
+    const running = root.querySelector(".ce-vector-generation-status")!.textContent;
+    fill("seed", "edited");
+    expect(root.querySelector(".ce-vector-generation-status")!.textContent).not.toBe(running);
+    expect(cancel).toHaveBeenCalledOnce();
+    deferred.resolve({ document: createVectorDocument(), stages: [] });
+    await Promise.resolve();
+    expect(history.index).toBe(0);
+    expect(root.querySelector<HTMLButtonElement>('[data-generation-action="adopt"]')!.disabled).toBe(true);
+  });
+  it("compares history identity when different transactions contain identical JSON", async () => {
+    const deferred = Promise.withResolvers<Awaited<ReturnType<typeof startVectorGeneration>["result"]>>();
+    startOverride = () => ({ result: deferred.promise, cancel: vi.fn() });
+    mount();
+    click("generate");
+    history.commit(history.document, "same JSON, new transaction");
+    deferred.resolve({ document: syntheticVectorInput("late"), stages: [] });
+    await Promise.resolve();
+    expect(history.document.site).toBeUndefined();
+    expect(root.querySelector<HTMLButtonElement>('[data-generation-action="adopt"]')!.disabled).toBe(true);
+  });
+});
+
 describe("M5 adopted urban checkpoints", () => {
-  it("previews, cancels and adopts one urban transaction with dynamic stages", () => {
+  it("previews, cancels and adopts one urban transaction with dynamic stages", async () => {
     mount();
     click("synthetic");
     click("adopt");
     click("generate");
+    await vi.waitFor(() =>
+      expect(root.querySelector<HTMLButtonElement>('[data-generation-action="adopt"]')!.disabled).toBe(false)
+    );
     click("adopt");
     fill("population", "500");
     fill("maxLanes", "4");
     const index = history.index;
     click("develop");
+    await vi.waitFor(() =>
+      expect(root.querySelector<HTMLButtonElement>('[data-generation-action="adopt"]')!.disabled).toBe(false)
+    );
     expect(history.index).toBe(index);
     expect(map.querySelector('[data-vector-building-kind="housing"]')).not.toBeNull();
     field("stage").value = "facilities";
@@ -142,6 +210,9 @@ describe("M5 adopted urban checkpoints", () => {
     click("cancel");
     expect(map.querySelector("[data-vector-placement]")).toBeNull();
     click("develop");
+    await vi.waitFor(() =>
+      expect(root.querySelector<HTMLButtonElement>('[data-generation-action="adopt"]')!.disabled).toBe(false)
+    );
     click("adopt");
     expect(history.index).toBe(index + 1);
     expect(history.document.urban).toBeDefined();
@@ -154,6 +225,9 @@ describe("M5 adopted urban checkpoints", () => {
     expect(history.document.urban).toBeDefined();
     fill("mode", "medieval");
     click("develop");
+    await vi.waitFor(() =>
+      expect(root.querySelector<HTMLButtonElement>('[data-generation-action="adopt"]')!.disabled).toBe(false)
+    );
     click("adopt");
     expect(history.document.urban!.report.placedFacilities).toBe(0);
     expect(field("stage").querySelectorAll("option")).toHaveLength(5);

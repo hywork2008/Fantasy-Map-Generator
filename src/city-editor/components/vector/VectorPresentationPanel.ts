@@ -16,7 +16,8 @@ export function createVectorPresentationPanel(
   parent: HTMLElement,
   map: HTMLElement,
   host: HTMLElement,
-  read: () => VectorCityDocument
+  read: () => VectorCityDocument,
+  onSelect?: (id: string) => void
 ) {
   const box = document.createElement("fieldset"),
     legend = document.createElement("legend"),
@@ -24,6 +25,7 @@ export function createVectorPresentationPanel(
     view = document.createElement("select"),
     status = document.createElement("output"),
     link = document.createElement("textarea");
+  box.dataset.vectorPresentation = "";
   legend.textContent = text("title");
   stage.dataset.presentationField = "stage";
   view.dataset.presentationField = "view";
@@ -69,7 +71,7 @@ export function createVectorPresentationPanel(
     try {
       const { mountVector3d } = await import("../../renderers/vector/view3d");
       if (!current()) return;
-      scene = mountVector3d(host, vectorRenderData(doc, at));
+      scene = mountVector3d(host, vectorRenderData(doc, at), onSelect);
       status.textContent = scene.warnings.length ? `${text("massing")}: ${scene.warnings.length}` : text("ready");
     } catch {
       if (!current()) return;

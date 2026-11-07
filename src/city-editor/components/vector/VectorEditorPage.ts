@@ -7,6 +7,7 @@ import { beginEditorMount } from "../../services/editorLifetime";
 import { exportCityMap, readCityMap } from "../../services/io/cityEditorFile";
 import { restoreLegacyCopy } from "../../services/io/vector/legacyCopy";
 import type { VectorRecipe } from "../../services/io/vector/share";
+import { VECTOR_RELEASE_CHANNEL } from "../../services/vectorRelease";
 import type { BurgSiteDescriptor } from "../../types/contracts/burgSiteDescriptor";
 import type { FixedApproachProvider } from "../../types/contracts/fixedApproachAdoption";
 import type { CityDocument } from "../../types/document";
@@ -143,7 +144,11 @@ export function mountVectorCityEditor(
   const actions = document.createElement("div");
   actions.style.cssText = "display:flex;flex-direction:column;gap:8px";
   actions.append(newDocument, sample, undo, redo, file, save, back);
-  controls.append(heading, help, actions, status);
+  const release = document.createElement("p");
+  release.className = "ce-vector-release-status";
+  release.dataset.releaseChannel = VECTOR_RELEASE_CHANNEL;
+  release.textContent = editorText("cityEditor.vector.release.preview");
+  controls.append(heading, release, help, actions, status);
   const viewport = document.createElement("div"),
     threeHost = document.createElement("div");
   viewport.style.cssText = "flex:1;min-width:0;position:relative";
@@ -152,7 +157,26 @@ export function mountVectorCityEditor(
   viewport.append(map, threeHost);
   layout.append(controls, viewport);
   root.append(layout);
-  const presentation = createVectorPresentationPanel(scope, controls, map, threeHost, () => session.history.document);
+  const presentation = createVectorPresentationPanel(
+    scope,
+    controls,
+    map,
+    threeHost,
+    () => session.history.document,
+    id => {
+      const doc = session.history.document;
+      placementPanel?.select(id);
+      const pathId = doc.paths[id]
+        ? id
+        : (doc.connections.bridges[id]?.roadPathId ?? doc.connections.nodes[id]?.anchors[0]?.pathId);
+      if (pathId) workbench?.select(pathId);
+      const feature = Object.values(doc.environment?.features ?? {}).find(
+        f => f.id === id || f.pieces.some(p => p.id === id)
+      );
+      if (feature) environmentPanel?.select(feature.id);
+      else if (doc.regions[id]) environmentPanel?.select(id);
+    }
+  );
   const copyStatus = document.createElement("output"),
     copyList = document.createElement("ul");
   let copyCandidate: VectorCityDocument | undefined;
@@ -269,7 +293,9 @@ export function mountVectorCityEditor(
     },
     () => workbench?.refresh(),
     session.sourceDescriptor ?? session.history.document.site?.descriptor,
-    (doc, stage) => presentation.rendered(doc, stage)
+    (doc, stage) => presentation.rendered(doc, stage),
+    undefined,
+    () => session.history.currentEntryKey
   );
   editPanel = createVectorEditPanel(
     scope,

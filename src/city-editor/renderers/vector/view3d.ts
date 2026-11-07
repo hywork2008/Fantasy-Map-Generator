@@ -1,13 +1,17 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { vectorPickOwner } from "./picking";
 import type { VectorRenderData } from "./renderData";
 import { createVectorScene } from "./scene3d";
-export function mountVector3d(container: HTMLElement, data: VectorRenderData) {
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    preserveDrawingBuffer: true,
-    logarithmicDepthBuffer: true
-  });
+export function mountVector3d(container: HTMLElement, data: VectorRenderData, onSelect?: (id: string) => void) {
+  const model = createVectorScene(data);
+  let renderer: THREE.WebGLRenderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, logarithmicDepthBuffer: true });
+  } catch (error) {
+    model.dispose();
+    throw error;
+  }
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
   renderer.setClearColor("#dad6cb");
   renderer.domElement.dataset.vector3d = "true";
@@ -18,8 +22,7 @@ export function mountVector3d(container: HTMLElement, data: VectorRenderData) {
   );
   container.replaceChildren(renderer.domElement);
   const scene = new THREE.Scene(),
-    camera = new THREE.PerspectiveCamera(40, 1, 1, Math.max(10000, data.extentMeters * 20)),
-    model = createVectorScene(data);
+    camera = new THREE.PerspectiveCamera(40, 1, 1, Math.max(10000, data.extentMeters * 20));
   const bounds = new THREE.Box3().setFromObject(model.group),
     targetHeight = (bounds.min.y + bounds.max.y) / 2;
   scene.add(model.group, new THREE.HemisphereLight(0xffffff, 0x706552, 2.3));
@@ -51,6 +54,49 @@ export function mountVector3d(container: HTMLElement, data: VectorRenderData) {
       draw();
     };
   controls.addEventListener("change", draw);
+  let selection: THREE.Box3Helper | undefined;
+  const clearSelection = () => {
+    if (!selection) return;
+    selection.geometry.dispose();
+    for (const m of Array.isArray(selection.material) ? selection.material : [selection.material]) m.dispose();
+    scene.remove(selection);
+    selection = undefined;
+  };
+  let down: [number, number] | undefined;
+  const pointerDown = (event: PointerEvent) => {
+    if (event.button === 0) down = [event.clientX, event.clientY];
+  };
+  const pointerUp = (event: PointerEvent) => {
+    const start = down;
+    down = undefined;
+    if (!start || Math.hypot(event.clientX - start[0], event.clientY - start[1]) > 4) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(
+      new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        (-(event.clientY - rect.top) / rect.height) * 2 + 1
+      ),
+      camera
+    );
+    const hit = ray.intersectObject(model.group, true)[0],
+      id = hit ? vectorPickOwner(hit.object) : null;
+    if (id) {
+      renderer.domElement.dataset.vectorSelected = id;
+      let owner = hit.object;
+      for (let parent = owner.parent; parent; parent = parent.parent) if (parent.userData.id === id) owner = parent;
+      clearSelection();
+      selection = new THREE.Box3Helper(new THREE.Box3().setFromObject(owner, true), 0xe48b32);
+      for (const material of Array.isArray(selection.material) ? selection.material : [selection.material])
+        material.depthTest = false;
+      scene.add(selection);
+      draw();
+      onSelect?.(id);
+    }
+  };
+  renderer.domElement.addEventListener("pointerdown", pointerDown);
+  renderer.domElement.addEventListener("pointerup", pointerUp);
   const observer = new ResizeObserver(resize);
   observer.observe(container);
   resize();
@@ -67,6 +113,9 @@ export function mountVector3d(container: HTMLElement, data: VectorRenderData) {
       disposed = true;
       observer.disconnect();
       controls.removeEventListener("change", draw);
+      renderer.domElement.removeEventListener("pointerdown", pointerDown);
+      renderer.domElement.removeEventListener("pointerup", pointerUp);
+      clearSelection();
       controls.dispose();
       model.dispose();
       renderer.dispose();

@@ -461,6 +461,10 @@ export function createVectorEnvironmentPanel(
   };
   scope.listen(kind, "change", availability);
   return {
+    select(id: string) {
+      selected.value = id;
+      selected.dispatchEvent(new Event("change"));
+    },
     refresh() {
       const doc = read();
       availability();

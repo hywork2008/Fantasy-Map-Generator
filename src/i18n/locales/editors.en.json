@@ -264,7 +264,9 @@
           "urban-generated": "An urban result is adopted. Regenerate the urban result or undo to the skeleton.",
           "edited-urban": "Regeneration stopped to preserve edits. Undo to the adopted urban result first.",
           "invalid-urban-settings": "Use population 0–220000, lane width 1.4–6m, spacing 15–100m and 0–64 lanes.",
-          "urban-document-budget": "The result exceeds the save budget. Reduce population or lanes."
+          "urban-document-budget": "The result exceeds the save budget. Reduce population or lanes.",
+          "generation-timeout": "Generation reached the time limit. Reduce the city size or detail.",
+          "generation-worker": "Could not run generation."
         },
         "diagnostics": {
           "bridge-unavailable": "No legal automatic bridge at the candidate site",
@@ -297,7 +299,8 @@
           "river": "No available riverbank",
           "district": "Insufficient suitable peripheral land",
           "budget": "Placement budget"
-        }
+        },
+        "running": "Generating candidate… You can cancel or continue editing."
       },
       "dependencies": {
         "title": "Edit dependencies",
@@ -424,6 +427,13 @@
         "massing": "Site geometry",
         "applyActivity": "Apply activity without moving stalls",
         "terrainLimit": "Terrain editing supports frames up to 10 km."
+      },
+      "measurement": {
+        "length": "Length {value0} m",
+        "area": "Area {value0} m²"
+      },
+      "release": {
+        "preview": "Meshless preview. Review population shortages and source conversion notes before adopting a city."
       }
     },
     "forest": {

@@ -264,7 +264,9 @@
           "urban-generated": "建物を含む都市を採用済みです。都市の再生成かUndoで骨格に戻って下さい。",
           "edited-urban": "生成後の編集を保護するため再生成を停止しました。Undoで生成時点に戻して下さい。",
           "invalid-urban-settings": "人口0〜220000、小路幅1.4〜6m、間隔15〜100m、本数0〜64を指定して下さい。",
-          "urban-document-budget": "生成結果が保存サイズ上限を超えました。人口または小路を減らして下さい。"
+          "urban-document-budget": "生成結果が保存サイズ上限を超えました。人口または小路を減らして下さい。",
+          "generation-timeout": "生成が制限時間に達しました。都市の規模や詳細度を下げてください。",
+          "generation-worker": "生成処理を実行できませんでした。"
         },
         "diagnostics": {
           "bridge-unavailable": "候補地点に適法な自動橋を置けません",
@@ -297,7 +299,8 @@
           "river": "利用できる河岸がない",
           "district": "適合する郊外・用途敷地が不足",
           "budget": "配置上限"
-        }
+        },
+        "running": "候補を生成中です。取消や別の編集ができます。"
       },
       "dependencies": {
         "title": "編集の依存更新",
@@ -424,6 +427,13 @@
         "massing": "敷地形状",
         "applyActivity": "配置を保って開閉を適用",
         "terrainLimit": "地形編集は10 km以内のフレームに対応します。"
+      },
+      "measurement": {
+        "length": "長さ {value0} m",
+        "area": "面積 {value0} m²"
+      },
+      "release": {
+        "preview": "メッシュなし・試験運用。採用時は人口不足の集計と元文書の変換報告を確認してください。"
       }
     },
     "forest": {

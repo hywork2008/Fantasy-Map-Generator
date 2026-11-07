@@ -16,6 +16,7 @@ import {
 } from "../../generators/vector/editing/paths";
 import { splitVectorPath } from "../../generators/vector/editing/splitPath";
 import { pathSegmentIds } from "../../generators/vector/geometry/curves";
+import { vectorPathMeasurement } from "../../generators/vector/geometry/measurement";
 import { presetArea, presetDimensionsForArea } from "../../generators/vector/geometry/presets";
 import { clearVectorGeometryCache } from "../../generators/vector/geometry/surfaces";
 import { element, line } from "../../renderers/svgPrimitives";
@@ -267,6 +268,19 @@ export function createVectorWorkbench(
     draw();
   }
   function buildInspector(path: VectorPath) {
+    const measured = vectorPathMeasurement(path),
+      output = document.createElement("output");
+    output.dataset.vectorMeasurement = path.id;
+    output.dataset.lengthMeters = String(measured.lengthMeters);
+    output.textContent = editorText("cityEditor.vector.measurement.length", {
+      value0: measured.lengthMeters.toFixed(2)
+    });
+    if (measured.areaMeters2 !== null) {
+      output.dataset.areaMeters2 = String(measured.areaMeters2);
+      output.textContent += ` · ${editorText("cityEditor.vector.measurement.area", { value0: measured.areaMeters2.toFixed(2) })}`;
+    }
+    inspector.append(output);
+
     const locked = path.editPolicy === "fixed";
     button(inspector, locked ? "unlock" : "lock", () =>
       apply(setVectorPathPolicy(read(), path.id, locked ? "editable" : "fixed"), "policy")
@@ -543,5 +557,16 @@ export function createVectorWorkbench(
     return map;
   }
   scope.own(clearVectorGeometryCache);
-  return { refresh, cancel };
+  return {
+    refresh,
+    cancel,
+    select(id: string) {
+      const path = read().paths[id];
+      if (!path) return;
+      selectedId = id;
+      paths.value = id;
+      scope.replaceChildren(inspector);
+      buildInspector(path);
+    }
+  };
 }
