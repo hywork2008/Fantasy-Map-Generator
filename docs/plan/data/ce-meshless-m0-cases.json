@@ -1,0 +1,167 @@
+{
+  "format": "ce-meshless-m0-fixtures",
+  "version": 1,
+  "units": "meters",
+  "seed": "ce-meshless-m0-20261106",
+  "precision": {
+    "positionMeters": 0.005,
+    "connectionMeters": 0.000001,
+    "tangentDegrees": 0.1,
+    "areaRelative": 0.00001,
+    "curveSamples": [16, 64, 256, 1024],
+    "referenceSamples": 2048
+  },
+  "benchmark": { "warmup": 5, "samples": 21, "iterations": 20 },
+  "cases": [
+    {
+      "id": "wall-presets",
+      "phase": "M2",
+      "input": {
+        "ellipse": { "area": 31415.926535897932, "ratios": [1, 2, 0.5], "rotationDegrees": 37 },
+        "rectangle": { "width": 200, "height": 100, "rotationDegrees": 37 },
+        "wallThickness": 2,
+        "gateWidth": 4
+      },
+      "acceptance": ["Area-preserving ratio changes", "Rotation preserves area", "Wall and gate dimensions do not scale", "Undo and codec preserve the preset source"]
+    },
+    {
+      "id": "curves-and-freehand",
+      "phase": "M2",
+      "input": {
+        "cubic": [[0, 0], [0, 80], [100, 80], [100, 0]],
+        "freehand": [[0, 0], [1, 0.002], [2, -0.002], [3, 0.003], [4, 0], [5, 1], [6, 2]],
+        "bowTie": [[0, 0], [10, 10], [0, 10], [10, 0]],
+        "junction": [50, 60]
+      },
+      "acceptance": ["Cubic position and tangent precision are independent", "Freehand simplification preserves endpoints", "Self-intersecting walls are rejected", "Segment splitting remaps anchors"]
+    },
+    {
+      "id": "double-wall-gap",
+      "phase": "M3",
+      "input": {
+        "outerWall": [[-60, -30], [60, -30], [60, 30], [-60, 30]],
+        "innerWalls": [
+          [[-52, -22], [52, -22], [52, 22], [-52, 22]],
+          [[-54, -24], [54, -24], [54, 24], [-54, 24]]
+        ],
+        "wallThickness": 2,
+        "roadWidth": 4,
+        "clearancePerSide": 0.5
+      },
+      "oracle": { "usableTopGapMeters": [5, 3], "roadFits": [true, false] },
+      "acceptance": ["Route through the eight-meter wall gap without cell splitting", "Reject the six-meter gap for this road width and clearance", "Door and route nodes share coordinates"]
+    },
+    {
+      "id": "variable-river-width",
+      "phase": "M6",
+      "input": {
+        "centerline": [[-80, 0], [0, 0], [80, 0]],
+        "widthBefore": 20,
+        "widthAfter": 40,
+        "dryLandingMeters": 2,
+        "bridgeAxis": [[0, -12], [0, 12]],
+        "lockedBuilding": [[-5, 12], [5, 12], [5, 18], [-5, 18]]
+      },
+      "oracle": { "bridgeLengthsMeters": [24, 44], "buildingConflictsAfterWidening": true },
+      "acceptance": ["Bank and bridge length change together", "The locked building is not silently removed", "Undo restores widths, bridges and placements atomically"]
+    },
+    {
+      "id": "bridge-policy",
+      "phase": "M3",
+      "input": {
+        "riverTangent": [1, 0],
+        "skewDegrees": [0, 10, 15, 15.00001, 20, 25, 30, 45, 89, 90],
+        "limits": [
+          { "period": "highMedieval", "structure": "stone", "expected": 15 },
+          { "period": "highMedieval", "structure": "timber", "expected": 20 },
+          { "period": "ageOfExploration", "structure": "stone", "expected": 25 },
+          { "period": "preIndustrialEra", "structure": "stone", "expected": 30 }
+        ],
+        "explicitAllowances": [0, 15, 30, 45, 89, 120],
+        "absoluteMaximumDegrees": 30
+      },
+      "acceptance": ["Use the shared bridge policy", "Reject nearly parallel and bent spans", "Preserve valid state technology overrides", "Diagnose overrides above the absolute maximum"]
+    },
+    {
+      "id": "riverside-tannery",
+      "phase": "M5",
+      "input": {
+        "river": [[-80, 0], [80, 0]],
+        "riverWidth": 20,
+        "road": [[-80, 26], [80, 26]],
+        "roadWidth": 4,
+        "facilitySite": [[0, 12], [12, 12], [12, 22], [0, 22]],
+        "entrance": [6, 22],
+        "streetTarget": [6, 24],
+        "riverbankMaxDistance": 50
+      },
+      "oracle": { "bankToRoadEdgeMeters": 14, "entranceAccessMeters": 2, "siteArea": 120, "siteToBankMeters": 2 },
+      "acceptance": ["Satisfy riverbank and frontage constraints together", "Preserve the BV site dimensions", "A two-meter access does not cross another facility"]
+    },
+    {
+      "id": "fmg-fixed-crossing",
+      "phase": "M4",
+      "input": {
+        "sourceFile": "src/city-editor/data/fixtures/gothengsfeld-20261012.json",
+        "descriptorPath": "descriptor",
+        "expectedCrossings": 1
+      },
+      "acceptance": ["Preserve surveyed bank rings and fixed crossing identifiers", "Keep all shared route references", "Do not reroute imported fixed geometry to fit a cell"]
+    },
+    {
+      "id": "holes-and-open-roads",
+      "phase": "M4",
+      "input": {
+        "outer": [[-10, -10], [10, -10], [10, 10], [-10, 10]],
+        "hole": [[-5, -5], [5, -5], [5, 5], [-5, 5]],
+        "uShape": [[-4, -4], [4, -4], [4, 4], [2, 4], [2, -2], [-2, -2], [-2, 4], [-4, 4]],
+        "splitNormal": [0, -1],
+        "splitOffset": 0,
+        "openRoad": [[-15, 8], [0, 8]],
+        "thinSubject": [[0, 0], [10, 0], [10, 10], [0, 10]],
+        "thinReservation": [[0.05, 0], [10, 0], [10, 10], [0.05, 10]]
+      },
+      "oracle": { "remainingArea": 300, "uShapeUpperArea": 16, "uShapeUpperComponents": 2, "thinRemainingArea": 0.5 },
+      "acceptance": ["Keep the hole empty", "Preserve two disconnected components", "Do not discard narrow residuals using a one-square-meter default", "Open roads can serve land without enclosing a graph cycle"]
+    },
+    {
+      "id": "facility-stage-playback",
+      "phase": "M5",
+      "input": {
+        "population": 1000,
+        "facilityIds": ["facility:baking:0"],
+        "housingIds": ["housing:0"],
+        "stageOrder": ["blocksAndLanes", "facilities", "housing"],
+        "visible": { "blocksAndLanes": [], "facilities": ["facility:baking:0"], "housing": ["facility:baking:0", "housing:0"] }
+      },
+      "acceptance": ["Stage snapshots belong to the same run", "Facilities precede housing", "Returning to a stage preserves placements and IDs", "Housing capacity includes mixed-use facilities"]
+    },
+    {
+      "id": "edit-undo-stale-job",
+      "phase": "M6",
+      "input": {
+        "acceptedRevision": 7,
+        "pendingJob": { "id": "job:old", "inputRevision": 7 },
+        "editedRevision": 8,
+        "undoTargetRevision": 7,
+        "replacementJob": { "id": "job:new", "inputRevision": 7 },
+        "lockedIds": ["facility:manual:0", "road:imported:0"]
+      },
+      "oracle": { "acceptOldJobAfterEdit": false, "acceptOldJobAfterUndoAndReplacement": false },
+      "acceptance": ["Match both job ID and input revision before adoption", "Undo restores curves, connections and placements together", "Keep manual and imported fixed entities"]
+    },
+    {
+      "id": "document-formats",
+      "phase": "M1",
+      "input": {
+        "legacySourceFile": "src/city-editor/data/fixtures/gothengsfeld-20261012.json",
+        "existingFormats": ["fmg-city-editor", "fmg-freeform-city"],
+        "proposedFormat": "fmg-vector-city",
+        "proposedVersion": 1,
+        "requiredVectorFields": ["paths", "connections", "placements", "recipe"],
+        "unsupportedConversionFeatures": ["castle", "market", "moat"]
+      },
+      "acceptance": ["Legacy share fixture remains readable", "Native document and share envelope are distinguished", "Vector codec rejects dangling references", "Conversion reports unsupported entities without losing the source"]
+    }
+  ]
+}

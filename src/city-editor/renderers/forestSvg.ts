@@ -1,10 +1,9 @@
 import { growthHash } from "../../utils/urbanMorphology";
-import { forestContains } from "../generators/forestGeometry";
+import { forestTreeCandidates, forestTreeRandom } from "../generators/forestCandidates";
 import { landscapeHasTrees, landscapeTreeBiome, naturalTreeSuitability } from "../generators/landscapeVegetation";
-import { PlotIndex } from "../generators/parcelGeometry";
 import { cityTerrain } from "../generators/terrainElevation";
-import type { ForestPlan, ForestRegion } from "../types/contracts/forest";
-import type { CityDocument, Point } from "../types/document";
+import type { ForestPlan } from "../types/contracts/forest";
+import type { CityDocument } from "../types/document";
 import { resolveLandscapeTheme } from "./landscape";
 import { landscapeTreeSpecies } from "./landscapeTreeSpecies";
 import type { RenderQuality } from "./renderQuality";
@@ -18,79 +17,6 @@ export interface ForestSvgOptions {
 }
 
 export const FOREST_SVG_ELEMENT_LIMIT = { detailed: 8000, light: 3000, minimal: 1 } as const;
-const MAX_EDGE_SAMPLES = 24000;
-const MAX_GRID_SAMPLES = 64000;
-
-function random(key: string): number {
-  let n = Number.parseInt(growthHash(key), 16);
-  n = Math.imul(n ^ (n >>> 16), 0x7feb352d);
-  n = Math.imul(n ^ (n >>> 15), 0x846ca68b);
-  return ((n ^ (n >>> 16)) >>> 0) / 0x100000000;
-}
-
-interface Tree {
-  point: Point;
-  id: string;
-  rank: number;
-  edge: boolean;
-}
-
-/** Bounded, deterministic candidates in world metres. No viewport or quality enters their identity. */
-function candidates(plan: ForestPlan, seed: string, allTrees: boolean): Tree[] {
-  const out: Tree[] = [];
-  const rings = plan.regions.flatMap(region =>
-    [region.outer, ...region.holes].map(ring => {
-      const lengths = ring.map((a, i) =>
-        Math.hypot(ring[(i + 1) % ring.length][0] - a[0], ring[(i + 1) % ring.length][1] - a[1])
-      );
-      return { region, ring, lengths, length: lengths.reduce((sum, n) => sum + n, 0) };
-    })
-  );
-  const total = rings.reduce((sum, r) => sum + r.length, 0);
-  const spacing = Math.max(6, total / Math.max(1, MAX_EDGE_SAMPLES - rings.length));
-  for (const { region, ring, lengths, length } of rings) {
-    const count = Math.max(1, Math.floor(length / spacing));
-    let segment = 0,
-      before = 0;
-    for (let i = 0; i < count && out.length < MAX_EDGE_SAMPLES; i++) {
-      const distance = ((i + 0.5) * length) / count;
-      while (segment + 1 < lengths.length && before + lengths[segment] < distance) before += lengths[segment++];
-      const a = ring[segment],
-        b = ring[(segment + 1) % ring.length],
-        len = lengths[segment];
-      if (len < 1e-6) continue;
-      const t = (distance - before) / len;
-      const x = a[0] + (b[0] - a[0]) * t,
-        y = a[1] + (b[1] - a[1]) * t;
-      const id = `${region.id}:edge:${x.toFixed(3)},${y.toFixed(3)}`;
-      const inset = 1.4 + random(`${seed}:${id}:inset`) * 1.4;
-      const point: Point = [x - ((b[1] - a[1]) / len) * inset, y + ((b[0] - a[0]) / len) * inset];
-      if (forestContains(region, point)) out.push({ point, id, rank: random(`${seed}:${id}:rank`), edge: true });
-    }
-  }
-  if (allTrees && plan.regions.length) {
-    const minX = Math.min(...plan.regions.map(r => r.bounds[0])),
-      minY = Math.min(...plan.regions.map(r => r.bounds[1]));
-    const maxX = Math.max(...plan.regions.map(r => r.bounds[2])),
-      maxY = Math.max(...plan.regions.map(r => r.bounds[3]));
-    let step = 8;
-    while ((Math.ceil((maxX - minX) / step) + 2) * (Math.ceil((maxY - minY) / step) + 2) > MAX_GRID_SAMPLES) step *= 2;
-    const index = new PlotIndex<ForestRegion>(128);
-    for (const region of plan.regions) index.add(region, region.bounds);
-    for (let gx = Math.floor(minX / step); gx <= Math.floor(maxX / step); gx++)
-      for (let gy = Math.floor(minY / step); gy <= Math.floor(maxY / step); gy++) {
-        const id = `grid:${gx},${gy}:${step}`;
-        const point: Point = [
-          (gx + 0.2 + random(`${seed}:${id}:x`) * 0.6) * step,
-          (gy + 0.2 + random(`${seed}:${id}:y`) * 0.6) * step
-        ];
-        if (index.query([point[0], point[1], point[0], point[1]]).some(region => forestContains(region, point)))
-          out.push({ point, id, rank: random(`${seed}:${id}:rank`), edge: false });
-      }
-  }
-  return out.sort((a, b) => Number(b.edge) - Number(a.edge) || a.rank - b.rank || a.id.localeCompare(b.id));
-}
-
 /** Adjusts presentation only; mapDisplay calls this during zoom without rebuilding geometry or symbols. */
 export function updateForestScale(svg: SVGElement, extentMeters: number, zoom: number, viewportWidth = 1000): void {
   const layer = svg.matches(".ce-forest-layer") ? svg : svg.querySelector<SVGElement>(".ce-forest-layer");
@@ -178,8 +104,8 @@ export function renderForestLayer(
     patternUnits: "userSpaceOnUse",
     width: "46",
     height: "42",
-    x: String(random(`${seed}:pattern-x`) * 46),
-    y: String(random(`${seed}:pattern-y`) * 42)
+    x: String(forestTreeRandom(`${seed}:pattern-x`) * 46),
+    y: String(forestTreeRandom(`${seed}:pattern-y`) * 42)
   });
   pattern.appendChild(
     element("path", {
@@ -215,23 +141,23 @@ export function renderForestLayer(
   const available = Math.max(0, limit - layer.querySelectorAll("*").length);
   const probability = density === "sparse" ? 0.5 : density === "dense" ? 1 : 0.8;
   const ground = document.fabric?.generation?.settings.mode === "terrain" ? cityTerrain(document) : undefined;
-  const samples = candidates(plan, seed, options.representation === "all-trees")
+  const samples = forestTreeCandidates(plan, seed, options.representation === "all-trees")
     .filter(
       tree =>
-        random(`${seed}:${tree.id}:density`) <
+        forestTreeRandom(`${seed}:${tree.id}:density`) <
         probability * naturalTreeSuitability(document, tree.point, ground?.heightAt)
     )
     .slice(0, available);
   for (const tree of samples) {
-    const radius = 3.5 + random(`${seed}:${tree.id}:radius`) * 1.5;
+    const radius = 3.5 + forestTreeRandom(`${seed}:${tree.id}:radius`) * 1.5;
     const species = landscapeTreeSpecies("garden_parkland", document, tree.point, "woodland");
     if (!species) continue;
     const needle = ["norway_spruce", "western_red_cedar", "silver_fir", "canary_pine", "scots_pine"].includes(species);
-    const angle = random(`${seed}:${tree.id}:angle`) * 360;
+    const angle = forestTreeRandom(`${seed}:${tree.id}:angle`) * 360;
     trees.appendChild(
       element("use", {
         href: `#${prefix}-${needle ? "conifer" : "leaf"}`,
-        class: `ce-forest-tree${random(`${seed}:${tree.id}:tier`) >= 0.25 ? " ce-forest-fine" : ""}`,
+        class: `ce-forest-tree${forestTreeRandom(`${seed}:${tree.id}:tier`) >= 0.25 ? " ce-forest-fine" : ""}`,
         transform: `translate(${tree.point[0]} ${-tree.point[1]}) rotate(${angle}) scale(${radius})`,
         "data-forest-tree": tree.id,
         "data-forest-edge": String(tree.edge),

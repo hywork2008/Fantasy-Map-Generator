@@ -1,5 +1,27 @@
 # 追加したドキュメント
 
+2026-11-07
+
+- docs/analytics/ce-meshless-m9-followup-20261107.md - M9追試。施設探索を要求ごとに配分し、住宅の接道不足と探索打ち切りを分けた。固定3規模を再計測し、詳細機能は確認できた項目だけ受け入れ、型検査を通した。公開区分は試験運用のまま
+- docs/analytics/ce-meshless-m9-frontage-20261107.md - 5,000人の接道不足を折り返し小路で解消。実寸住宅のまま未収容0人、施設223/294、固定ケース46.09秒。500人と1,000人は直線小路のまま。公開区分は試験運用のまま
+- docs/analytics/ce-meshless-m9-speed-20261107.json - 固定3規模の生成時間。骨格の近傍判定と、街区辺に触れない敷地の領域差の省略。5,000人19.67秒、バイト数と直列化SHA-256は接道計測と同じ。10秒には届かず、公開区分は試験運用のまま
+- docs/analytics/ce-meshless-m9-speed-20261107.md - 上記JSONの記録。500人2.66秒、1,000人2.91秒、5,000人19.67秒。未収容0人、施設223/294。次は残る詳細機能と公開区分
+- docs/analytics/ce-meshless-m3-20261107.md - メッシュなしCEのM3を完了。明示的な接続グラフ、通行門・水門と開口、共通規約に従う橋、二重壁と実幅の壁間道路、v1／v2からv3への移行を実装。共通橋APIの絶対上限を30度へ修正し、関連18ファイル156件・実ブラウザーの候補採用と保存再読込を確認。M4への境界を記録
+- docs/analytics/ce-meshless-m4-20261107.md - メッシュなしCEのM4を完了。FMG／合成／手動入力、測量済み水域・固定交差・共有branchの保持、骨格・領域・接道、生成所有と再生成保護、native v4・段階表示を実装。依存追加の寸法、関連113件、実画面の採用・保存再読込を記録。次はM5の施設先行・残地住宅
+- docs/analytics/ce-meshless-m5-20261107.md - メッシュなしCEのM5を完了。接道小路・用途、共通需要による施設先行と入口予約、残地住宅、人口容量と不足、native v5と正しい段階表示を実装。関連118件と実画面の施設28件→住宅99棟、採用・Undo・保存再読込を記録。次はM6の依存更新・部分再生成
+- docs/analytics/ce-meshless-m6-20261107.md - メッシュなしCEのM6を完了。変更に依存する自動配置の部分更新、固定・手動所有、橋の取付再評価、施設の剛体移動・固定、専用Workerのjob照合と取消、候補採用・一括履歴を実装。関連94件と実画面の122件保持・5件再配置を記録。次はM7の表示・出力・共有・複製変換
+- docs/analytics/ce-meshless-m7-20261107.md - メッシュなしCEのM7を完了。共通形状の2D／3D・SVG／PNG／GLB、native v6・文書／入力共有、原本付き旧CE複製と復元を実装。関連165件、実画面・出力・共有・903建物の複製と全量出力のSHA-256を記録。次はM8
+- docs/analytics/ce-meshless-m8-20261107.md - メッシュなしCEのM8を実装。接道する9敷地・予約地・地区制約、固定と活動、FMG高さ・Freeform造成／資産／敷地高・元文書復帰、native v7を追加。関連128件と実画面・SVG／GLB・共有の検証、全量出力のSHA-256を記録。次はM9
+- docs/analytics/ce-meshless-m9-20261107.md - M9の検証・改善と公開判断を完了。初期生成Worker・取消・履歴照合、3Dローカル原点・選択・実寸計測を実装。関連238件、固定3規模、ブラウザーとbuild結果を記録。制約を明示して試験運用継続と判断
+- docs/plan/ce-meshless-city-editor.md - M9の検証・改善と公開判断を完了。関連238件と固定規模の観測から試験運用継続と判断。正式化へ進める配置予算・住宅用地・性能・詳細機能・型検査の作業を明記
+- docs/plan/ce-meshless-city-editor.md - M9追試の結果を追記。5,000人の人口・10秒・残る詳細機能が未達のため試験運用を継続
+- docs/plan/ce-meshless-release-acceptance.md - 追試後の固定3規模、受け入れた詳細機能と残り、型検査成功後も試験運用を継続する次作業を記録
+- docs/plan/data/ce-meshless-m9-coverage.json - 5,000人の施設・住宅の観測を更新し、防御・港湾・景観・造成の受入項目と未受入項目を分けた
+- docs/plan/ce-meshless-city-editor.md - 接道が直線小路の中心線を見込んでも足りないときだけ、小路を街区の内側で折り返す規則を§8.2へ追加
+- docs/plan/ce-meshless-release-acceptance.md - 5,000人の人口不足の解消を完了とし、46.09秒と施設の残りがあるため試験運用を継続する次作業を更新
+- docs/plan/ce-meshless-city-editor.md - 固定5,000人の生成時間を19.67秒まで短縮した記録を追記。10秒と施設の残りがあるため試験運用を継続
+- docs/plan/ce-meshless-release-acceptance.md - 固定3規模の生成時間を更新。5,000人は19.67秒で10秒に届かず、試験運用を継続する次作業を更新
+
 2026-11-06
 
 - docs/analytics/ce-enclosed-guild-hall-t1b-20261103.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
@@ -9,9 +31,14 @@
 - docs/analytics/ce-facility-frontage-temple-20261106.png - 実CEで寺院周辺の長い交差通路が解消されたことを確認した画像
 - docs/analytics/ce-facility-placement-performance-20261106.md - 施設付き生成をCPU計測し、入口接続候補の全件検証と遠い形状の交差判定を削減。5,000人の計算時間28.8秒→5.8秒、配置・住宅・メッシュ・道路の出力一致と関連17件成功を記録
 - docs/analytics/ce-market-guild-legacy-baseline-20261104.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
+- docs/analytics/ce-meshless-m0-20261106.md - メッシュなしCEのM0を完了。16機能群・52ソースの経路とセル依存、文書union・専用履歴の境界、11固定ケース、曲線精度・領域演算・索引・bundleの実測と橋APIの上限等の不足、関連33件成功、M1への引継ぎを記録
+- docs/analytics/ce-meshless-m0-baseline-20261106.json - M0の既存幾何・解析基準・橋API・索引・bundle計測。11固定ケースの準備状況と既知の不足3件、環境・負荷、61入力ファイルのSHA-256を保存
+- docs/analytics/ce-meshless-m1-20261106.md - メッシュなしCEのM1を完了。専用文書v1・解析的曲線と安定anchor・参照を保つ分割・専用履歴・native IO・方式分岐と文書プレビューを実装。旧状態復元・遅延読込・閉じた文書の解放、関連69件・実ブラウザーの保存再読込とM2への引継ぎを記録
+- docs/analytics/ce-meshless-m2-20261106.md - メッシュなしCEのM2を完了。プリセット寸法・面積・角丸、参照位置を維持する曲線変換、折れ線・フリーハンド・ベジェ編集、可変幅の2D表示、固定と接続の一括更新、v1からv2への移行を実装。関連64件と実ブラウザーの保存再読込を確認し、M3への境界を記録
 - docs/analytics/ce-workhome-trades-legacy-baseline-20261104.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/plan/ce-facility-block-allocation.md - 施設配置の再出発方針と3作業の状態。通常生成・方式分離・人口別BV／仮敷地・保存と共有・不足住宅分のコア拡張まで実装。5,000人で川なしの269施設を全配置し、必要1,112戸の充足と郊外追加敷地を確認。次は川あり都市と実画面の確認
 - docs/plan/ce-medieval-facility-district-packing.md - CEのmedieval-facilitiesにおける用途街区の選定、施設配置後の残地再分割、必要時の非直交建物外形、空地密度の計測と段階的な実装条件を設計
+- docs/plan/ce-meshless-city-editor.md - 既存CEと共存するメッシュなし都市生成・編集を設計。市壁の寸法・縦横比、自由描画・ベジェ、接続・可変川幅・施設先行・互換性を整理。M0・M1に続き、M2の描画・プリセット操作・幅付き2Dを関連64件と実ブラウザーで確認。次はM3の接続・門・橋・二重壁
 - docs/plan/data/ce-dedicated-bakehouse-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/plan/data/ce-dedicated-cooperage-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/plan/data/ce-dedicated-smithies-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
@@ -20,6 +47,8 @@
 - docs/plan/data/ce-medieval-trade-forms-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/plan/data/ce-medieval-workhome-equipment-v1.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
 - docs/plan/data/ce-medieval-workhome-shells-v2.json - 再利用するBVモデルの仕様・回帰検証に必要な固定資料を旧作業ブランチから移植
+- docs/plan/data/ce-meshless-m0-cases.json - メッシュなしCEのM0固定入力11種類。市壁・曲線・二重壁間道路・可変川幅・橋・河岸施設・FMG固定交差・穴付き領域・段階表示・Undo／job・文書形式の座標、寸法、期待値と受入条件
+- docs/plan/data/ce-meshless-m0-inventory.json - メッシュなしCEのM0移行一覧。16機能群の52ソース参照、セル依存、共有／置換方針、実装段階、固定ケースと受入条件を対応付け
 - docs/plan/medieval-urban-calibration-targets.md - 人口別施設数・面積の目標値を旧作業ブランチから移植
 - docs/plan/medieval-urban-calibration-targets/demand-and-labor.csv - 人口別施設数・面積の目標値を旧作業ブランチから移植
 - docs/plan/medieval-urban-calibration-targets/occupations.csv - 人口別施設数・面積の目標値を旧作業ブランチから移植

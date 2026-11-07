@@ -52,3 +52,16 @@ describe("bridge skew policy", () => {
     expect(bridgeStructureForRouteGroup(undefined)).toBe("timber");
   });
 });
+
+describe("absolute bridge skew ceiling", () => {
+  it.each([45, 89, 120])("caps an exported allowance of %s degrees for every caller", degrees => {
+    expect(resolveBridgeSkewLimit("highMedieval", { maxBridgeSkewDegrees: degrees })).toBe(30);
+    expect(withinBridgeSkewLimit(31, degrees)).toBe(false);
+  });
+  it("rejects invalid angles and keeps restrictive explicit values", () => {
+    expect(resolveBridgeSkewLimit("highMedieval", { maxBridgeSkewDegrees: 0 })).toBe(0);
+    expect(withinBridgeSkewLimit(Number.NaN, 30)).toBe(false);
+    expect(withinBridgeSkewLimit(-1, 30)).toBe(false);
+    expect(withinBridgeSkewLimit(90, 120)).toBe(false);
+  });
+});

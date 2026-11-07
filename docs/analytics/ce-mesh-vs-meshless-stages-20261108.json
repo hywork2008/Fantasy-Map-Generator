@@ -1,0 +1,4071 @@
+{
+  "measuredAt": "2026-11-07T21:50:37.976Z",
+  "seed": "b5o620",
+  "settings": {
+    "config": {
+      "coast": "none",
+      "rivers": [
+        "through"
+      ],
+      "relief": false,
+      "features": {
+        "walls": true,
+        "plaza": true,
+        "temple": true,
+        "citadel": false,
+        "port": false,
+        "shanty": true
+      },
+      "wall": {
+        "envelope": "auto",
+        "coast": "auto",
+        "line": "auto",
+        "material": "auto"
+      },
+      "layout": "organic"
+    },
+    "streets": {
+      "farNode": "descriptorEnd",
+      "avoidSea": true,
+      "foldSmoothing": true
+    },
+    "buildingHeightPolicy": {
+      "version": 1,
+      "profile": "european-medieval-v1"
+    },
+    "buildingPattern": "medieval",
+    "townWallRings": "single",
+    "population": {
+      "version": 1,
+      "source": "manual",
+      "targetPopulation": 5000,
+      "housingDisplay": "auto",
+      "frameMode": "auto",
+      "profileId": "medieval-v1",
+      "profileVersion": 1
+    },
+    "historicalPeriod": "ageOfExploration"
+  },
+  "input": {
+    "size": "small",
+    "grid": "voronoi",
+    "frame": {
+      "extentMeters": 1200,
+      "cityRadiusMeters": 396,
+      "blockSizeMeters": 50
+    },
+    "faces": 587,
+    "sha256": "0a546d10ea6c5b5711d3b9dd06be9ea8b851594d8ddd9fca17a91bf6ade8f4ee"
+  },
+  "environment": {
+    "node": "v22.23.1",
+    "cpu": "Apple M4",
+    "logicalCpus": 10,
+    "os": "darwin 27.0.0",
+    "runtime": "Vitest/jsdom; one worker; sequential; no browser layout, paint or Worker transfer",
+    "revision": "283cd50586c164d8ef3017ba3290e8aa54736ecc"
+  },
+  "mesh": {
+    "gridMs": 21.686499999999796,
+    "generationMs": 4229.593167,
+    "success": true,
+    "svgMs": 683.335709,
+    "svgNodes": 10485,
+    "report": {
+      "targetPopulation": 5000,
+      "assignedPopulation": 5000,
+      "unplacedPopulation": 0,
+      "estimatedBuildings": 1536,
+      "wallEnvelopeAreaM2": 120351.29525639136,
+      "displayGroups": 1536,
+      "coreLandAreaM2": 120351.29525639131,
+      "outsideDevelopedAreaM2": 0,
+      "residentialFootprintM2": 50887.803378655924,
+      "frameAreaM2": 1440000,
+      "reasons": []
+    },
+    "outputSha256": "3d57d8b25d306a65830142d17c58d7ef114d9df5be1f045eb2ec3e850003d91c",
+    "samples": [
+      {
+        "phase": "prepare",
+        "elapsedMs": 2.441874999999982,
+        "attempt": 1,
+        "counts": {
+          "faces": 152,
+          "edges": 455
+        }
+      },
+      {
+        "phase": "edge-graph",
+        "elapsedMs": 0.46004199999970297,
+        "attempt": 1
+      },
+      {
+        "phase": "coast",
+        "elapsedMs": 0.19495800000004238,
+        "attempt": 1
+      },
+      {
+        "phase": "river",
+        "elapsedMs": 2.0907500000002983,
+        "attempt": 1
+      },
+      {
+        "phase": "urban",
+        "elapsedMs": 0.5991250000001855,
+        "attempt": 1,
+        "counts": {
+          "urbanFaces": 55,
+          "recordedStages": 0,
+          "builtUpFaces": 55
+        }
+      },
+      {
+        "phase": "wall-plan",
+        "elapsedMs": 3.7982499999998254,
+        "attempt": 1
+      },
+      {
+        "phase": "street-plan",
+        "elapsedMs": 2.2035000000000764,
+        "attempt": 1
+      },
+      {
+        "phase": "wards",
+        "elapsedMs": 11.400458000000071,
+        "attempt": 1
+      },
+      {
+        "phase": "plan-total",
+        "elapsedMs": 20.951332999999977,
+        "attempt": 1
+      },
+      {
+        "phase": "apply-terrain",
+        "elapsedMs": 3.0876250000001164,
+        "attempt": 1
+      },
+      {
+        "phase": "smooth-boundaries",
+        "elapsedMs": 42.323875000000044,
+        "attempt": 1
+      },
+      {
+        "phase": "wall-junctions",
+        "elapsedMs": 36.94312500000024,
+        "attempt": 1
+      },
+      {
+        "phase": "road-network",
+        "elapsedMs": 20.154291000000285,
+        "attempt": 1,
+        "counts": {
+          "roadEdges": 51,
+          "roadComponents": 4,
+          "roadLengthMeters": 1637.3803781075987,
+          "redundantStreets": 0,
+          "detachedStreets": 0,
+          "joinedStreets": 0
+        }
+      },
+      {
+        "phase": "road-ownership",
+        "elapsedMs": 4.355457999999999,
+        "attempt": 1,
+        "counts": {
+          "removedRoadReferences": 2,
+          "removedRoadGroups": 0,
+          "splitRoadGroups": 0
+        }
+      },
+      {
+        "phase": "route-junctions",
+        "elapsedMs": 0.0016660000001138542,
+        "attempt": 1
+      },
+      {
+        "phase": "apply-validation",
+        "elapsedMs": 4.565458999999919,
+        "attempt": 1,
+        "counts": {
+          "errors": 0
+        }
+      },
+      {
+        "phase": "apply-total",
+        "elapsedMs": 111.80195900000035,
+        "attempt": 1
+      },
+      {
+        "phase": "major-road-shortcuts",
+        "elapsedMs": 0.11841700000013589,
+        "attempt": 1
+      },
+      {
+        "phase": "rectify-hex",
+        "elapsedMs": 0.00012500000002546585,
+        "attempt": 1
+      },
+      {
+        "phase": "finish-geometry",
+        "elapsedMs": 58.87970899999982,
+        "attempt": 1
+      },
+      {
+        "phase": "rectify-voronoi",
+        "elapsedMs": 4.212416000000303,
+        "attempt": 1
+      },
+      {
+        "phase": "crossing-validation",
+        "elapsedMs": 14.530374999999822,
+        "attempt": 1,
+        "counts": {
+          "valid": 1,
+          "faces": 168,
+          "edges": 471,
+          "roads": 4,
+          "crossingIssues": 0,
+          "selfIntersectingFaces": 0
+        }
+      },
+      {
+        "phase": "fixed-crossing-approaches",
+        "elapsedMs": 0.0838330000001406,
+        "attempt": 1,
+        "counts": {
+          "adopted": 0,
+          "unresolved": 0
+        },
+        "fixedApproaches": []
+      },
+      {
+        "phase": "wall-defense-closure",
+        "elapsedMs": 21.65133300000025,
+        "attempt": 1,
+        "counts": {
+          "innerFirst": 0,
+          "rings": 1,
+          "unprotectedMeters": 0,
+          "riverOpeningMeters": 0,
+          "invasionPaths": 0,
+          "outerUnprotectedMeters": 0,
+          "outerRiverOpeningMeters": 0,
+          "outerInvasionPaths": 0
+        }
+      },
+      {
+        "phase": "road-ownership-final",
+        "elapsedMs": 0.03979099999969549,
+        "attempt": 1,
+        "counts": {
+          "removedRoadReferences": 0,
+          "removedRoadGroups": 0,
+          "splitRoadGroups": 0
+        }
+      },
+      {
+        "phase": "fit-housing",
+        "attempt": 1,
+        "elapsedMs": 318.7630839999997,
+        "counts": {
+          "populationPass": 1,
+          "unplacedDwellings": 87
+        }
+      },
+      {
+        "phase": "fit-housing",
+        "attempt": 1,
+        "elapsedMs": 129.37420900000006,
+        "counts": {
+          "populationPass": 2,
+          "unplacedDwellings": 0
+        }
+      },
+      {
+        "phase": "fit-housing",
+        "attempt": 1,
+        "elapsedMs": 0,
+        "counts": {
+          "housingAreaScale": 1.171668292682927,
+          "housingAreaPass": 1
+        }
+      },
+      {
+        "phase": "prepare",
+        "elapsedMs": 1.2750419999997575,
+        "attempt": 1,
+        "counts": {
+          "faces": 587,
+          "edges": 1752
+        }
+      },
+      {
+        "phase": "edge-graph",
+        "elapsedMs": 1.1393750000002,
+        "attempt": 1
+      },
+      {
+        "phase": "coast",
+        "elapsedMs": 0.06037500000002183,
+        "attempt": 1
+      },
+      {
+        "phase": "river",
+        "elapsedMs": 6.32083399999965,
+        "attempt": 1
+      },
+      {
+        "phase": "urban",
+        "elapsedMs": 0.4177909999998519,
+        "attempt": 1,
+        "counts": {
+          "urbanFaces": 62,
+          "recordedStages": 0,
+          "builtUpFaces": 62
+        }
+      },
+      {
+        "phase": "wall-plan",
+        "elapsedMs": 5.982541999999739,
+        "attempt": 1
+      },
+      {
+        "phase": "street-plan",
+        "elapsedMs": 3.4202500000001237,
+        "attempt": 1
+      },
+      {
+        "phase": "wards",
+        "elapsedMs": 12.482915999999932,
+        "attempt": 1
+      },
+      {
+        "phase": "plan-total",
+        "elapsedMs": 29.869000000000142,
+        "attempt": 1
+      },
+      {
+        "phase": "apply-terrain",
+        "elapsedMs": 4.832875000000058,
+        "attempt": 1
+      },
+      {
+        "phase": "smooth-boundaries",
+        "elapsedMs": 84.25141600000006,
+        "attempt": 1
+      },
+      {
+        "phase": "wall-junctions",
+        "elapsedMs": 80.82512499999984,
+        "attempt": 1
+      },
+      {
+        "phase": "road-routing",
+        "elapsedMs": 0,
+        "attempt": 1,
+        "routing": [
+          {
+            "outside": false,
+            "plannedPoints": [
+              [
+                3.272317903228779,
+                190.36793978503437
+              ],
+              [
+                -20.78522824847674,
+                144.61789949196893
+              ],
+              [
+                13.070301035103462,
+                125.3572047878911
+              ],
+              [
+                11.742370530307994,
+                92.69080626200521
+              ],
+              [
+                33.73622766577558,
+                71.90984296765541
+              ],
+              [
+                18.032789444306662,
+                36.8120225104138
+              ],
+              [
+                34.47344004326878,
+                10.487440240663085
+              ],
+              [
+                72.65238339338143,
+                11.645722411901168
+              ],
+              [
+                86.82785937214267,
+                -11.872672714842427
+              ],
+              [
+                117.98310956303807,
+                -13.20540013398142
+              ],
+              [
+                133.8454200217228,
+                -39.269834420830215
+              ],
+              [
+                161.11315205544912,
+                -38.72824245404093
+              ],
+              [
+                177.02625425170024,
+                -8.56952628413734
+              ]
+            ],
+            "waypoints": [
+              "v74",
+              "v59",
+              "v58",
+              "v2",
+              "v44",
+              "v172",
+              "v63"
+            ],
+            "status": "failed",
+            "path": [],
+            "edges": [],
+            "searches": [
+              {
+                "start": "v74",
+                "end": "v59",
+                "classification": "planned",
+                "reachedCount": 1,
+                "partialPath": [
+                  "v74"
+                ],
+                "partialEdges": [],
+                "blocked": [
+                  {
+                    "edge": "e88",
+                    "from": "v74",
+                    "to": "v60",
+                    "reason": "barrier-passage: not a permitted river or wall crossing at v74 (allowed edges: None)"
+                  },
+                  {
+                    "edge": "e89",
+                    "from": "v74",
+                    "to": "v75",
+                    "reason": "river-edge: river edge"
+                  },
+                  {
+                    "edge": "e268",
+                    "from": "v74",
+                    "to": "v90",
+                    "reason": "river-edge: river edge"
+                  }
+                ]
+              },
+              {
+                "start": "v74",
+                "end": "v63",
+                "classification": "planned",
+                "reachedCount": 1,
+                "partialPath": [
+                  "v74"
+                ],
+                "partialEdges": [],
+                "blocked": [
+                  {
+                    "edge": "e88",
+                    "from": "v74",
+                    "to": "v60",
+                    "reason": "barrier-passage: not a permitted river or wall crossing at v74 (allowed edges: None)"
+                  },
+                  {
+                    "edge": "e89",
+                    "from": "v74",
+                    "to": "v75",
+                    "reason": "river-edge: river edge"
+                  },
+                  {
+                    "edge": "e268",
+                    "from": "v74",
+                    "to": "v90",
+                    "reason": "river-edge: river edge"
+                  }
+                ]
+              },
+              {
+                "start": "v74",
+                "end": "v59",
+                "classification": "current-curtain",
+                "reachedCount": 1,
+                "partialPath": [
+                  "v74"
+                ],
+                "partialEdges": [],
+                "blocked": [
+                  {
+                    "edge": "e88",
+                    "from": "v74",
+                    "to": "v60",
+                    "reason": "barrier-passage: not a permitted river or wall crossing at v74 (allowed edges: None)"
+                  },
+                  {
+                    "edge": "e89",
+                    "from": "v74",
+                    "to": "v75",
+                    "reason": "river-edge: river edge"
+                  },
+                  {
+                    "edge": "e268",
+                    "from": "v74",
+                    "to": "v90",
+                    "reason": "river-edge: river edge"
+                  }
+                ]
+              },
+              {
+                "start": "v74",
+                "end": "v63",
+                "classification": "current-curtain",
+                "reachedCount": 1,
+                "partialPath": [
+                  "v74"
+                ],
+                "partialEdges": [],
+                "blocked": [
+                  {
+                    "edge": "e88",
+                    "from": "v74",
+                    "to": "v60",
+                    "reason": "barrier-passage: not a permitted river or wall crossing at v74 (allowed edges: None)"
+                  },
+                  {
+                    "edge": "e89",
+                    "from": "v74",
+                    "to": "v75",
+                    "reason": "river-edge: river edge"
+                  },
+                  {
+                    "edge": "e268",
+                    "from": "v74",
+                    "to": "v90",
+                    "reason": "river-edge: river edge"
+                  }
+                ]
+              }
+            ],
+            "routeId": "gc:road-12"
+          }
+        ]
+      },
+      {
+        "phase": "road-network",
+        "elapsedMs": 63.76970899999969,
+        "attempt": 1,
+        "counts": {
+          "roadEdges": 163,
+          "roadComponents": 2,
+          "roadLengthMeters": 5076.8621919350235,
+          "redundantStreets": 0,
+          "detachedStreets": 0,
+          "joinedStreets": 0
+        }
+      },
+      {
+        "phase": "road-ownership",
+        "elapsedMs": 24.285499999999956,
+        "attempt": 1,
+        "counts": {
+          "removedRoadReferences": 32,
+          "removedRoadGroups": 0,
+          "splitRoadGroups": 6
+        }
+      },
+      {
+        "phase": "route-junctions",
+        "elapsedMs": 0.0039999999999054126,
+        "attempt": 1
+      },
+      {
+        "phase": "apply-validation",
+        "elapsedMs": 104.044625,
+        "attempt": 1,
+        "counts": {
+          "errors": 0
+        }
+      },
+      {
+        "phase": "apply-total",
+        "elapsedMs": 362.6931249999998,
+        "attempt": 1
+      },
+      {
+        "phase": "major-road-shortcuts",
+        "elapsedMs": 0.07537500000034925,
+        "attempt": 1
+      },
+      {
+        "phase": "rectify-hex",
+        "elapsedMs": 0.000249999999141437,
+        "attempt": 1
+      },
+      {
+        "phase": "finish-geometry",
+        "elapsedMs": 157.27420799999982,
+        "attempt": 1
+      },
+      {
+        "phase": "rectify-voronoi",
+        "elapsedMs": 4.944790999999896,
+        "attempt": 1
+      },
+      {
+        "phase": "crossing-validation",
+        "elapsedMs": 15.878917000000001,
+        "attempt": 1,
+        "counts": {
+          "valid": 1,
+          "faces": 637,
+          "edges": 1802,
+          "roads": 4,
+          "crossingIssues": 0,
+          "selfIntersectingFaces": 0
+        }
+      },
+      {
+        "phase": "fixed-crossing-approaches",
+        "elapsedMs": 0.008665999999720952,
+        "attempt": 1,
+        "counts": {
+          "adopted": 0,
+          "unresolved": 0
+        },
+        "fixedApproaches": []
+      },
+      {
+        "phase": "wall-defense-closure",
+        "elapsedMs": 62.81433300000026,
+        "attempt": 1,
+        "counts": {
+          "innerFirst": 0,
+          "rings": 1,
+          "unprotectedMeters": 0,
+          "riverOpeningMeters": 0,
+          "invasionPaths": 0,
+          "outerUnprotectedMeters": 0,
+          "outerRiverOpeningMeters": 0,
+          "outerInvasionPaths": 0
+        }
+      },
+      {
+        "phase": "road-ownership-final",
+        "elapsedMs": 0.046833000000333413,
+        "attempt": 1,
+        "counts": {
+          "removedRoadReferences": 0,
+          "removedRoadGroups": 0,
+          "splitRoadGroups": 0
+        }
+      },
+      {
+        "phase": "fit-housing",
+        "attempt": 1,
+        "elapsedMs": 319.1840830000001,
+        "counts": {
+          "populationPass": 1,
+          "unplacedDwellings": 0
+        }
+      }
+    ],
+    "breakdown": [
+      {
+        "path": "generation",
+        "parent": null,
+        "depth": 0,
+        "calls": 1,
+        "elapsedMs": 4229.5626250000005,
+        "selfMs": 334.9798760000026
+      },
+      {
+        "path": "generation/attempt-1",
+        "parent": "generation",
+        "depth": 1,
+        "calls": 2,
+        "elapsedMs": 869.8994589999998,
+        "selfMs": 8.595206999997572
+      },
+      {
+        "path": "generation/attempt-1/apply-plan",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 473.7214990000007,
+        "selfMs": 473.7214990000007
+      },
+      {
+        "path": "generation/attempt-1/bridge-gate-links",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 0.6781250000008185,
+        "selfMs": 0.6781250000008185
+      },
+      {
+        "path": "generation/attempt-1/cemetery-layouts",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 0.1911259999997128,
+        "selfMs": 0.1911259999997128
+      },
+      {
+        "path": "generation/attempt-1/cemetery-relocation",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 19.059748999999556,
+        "selfMs": 19.059748999999556
+      },
+      {
+        "path": "generation/attempt-1/cemetery-sync",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 0.09479199999987031,
+        "selfMs": 0.09479199999987031
+      },
+      {
+        "path": "generation/attempt-1/crossing-validation",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 2.1509170000003905,
+        "selfMs": 2.1509170000003905
+      },
+      {
+        "path": "generation/attempt-1/external-gate-roads",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 0.555250000000342,
+        "selfMs": 0.555250000000342
+      },
+      {
+        "path": "generation/attempt-1/fabric-plan",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 23.891542000000754,
+        "selfMs": 23.891542000000754
+      },
+      {
+        "path": "generation/attempt-1/finish-geometry",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 216.11941699999988,
+        "selfMs": 216.11941699999988
+      },
+      {
+        "path": "generation/attempt-1/fixed-crossing-approaches",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 0.0857079999996131,
+        "selfMs": 0.0857079999996131
+      },
+      {
+        "path": "generation/attempt-1/frame-road-alignment",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 0.3178749999997308,
+        "selfMs": 0.3178749999997308
+      },
+      {
+        "path": "generation/attempt-1/frame-road-junctions",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 0.027916000000459462,
+        "selfMs": 0.027916000000459462
+      },
+      {
+        "path": "generation/attempt-1/frame-road-junctions-fixed",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 0.005082999999558524,
+        "selfMs": 0.005082999999558524
+      },
+      {
+        "path": "generation/attempt-1/frame-road-repair",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 1.5967500000001564,
+        "selfMs": 1.5967500000001564
+      },
+      {
+        "path": "generation/attempt-1/frame-road-terminals",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 0.4331670000001395,
+        "selfMs": 0.4331670000001395
+      },
+      {
+        "path": "generation/attempt-1/gate-and-bridge-crossings",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 7.836750000000393,
+        "selfMs": 7.836750000000393
+      },
+      {
+        "path": "generation/attempt-1/harbor-ships",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 0.8641250000000582,
+        "selfMs": 0.38533400000005713
+      },
+      {
+        "path": "generation/attempt-1/harbor-ships/ship-plan",
+        "parent": "generation/attempt-1/harbor-ships",
+        "depth": 3,
+        "calls": 2,
+        "elapsedMs": 0.4787910000000011,
+        "selfMs": 0.4787910000000011
+      },
+      {
+        "path": "generation/attempt-1/plan",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 50.807292000000416,
+        "selfMs": 50.807292000000416
+      },
+      {
+        "path": "generation/attempt-1/prepare",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 3.613166999999976,
+        "selfMs": 3.613166999999976
+      },
+      {
+        "path": "generation/attempt-1/rectify-voronoi",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 9.02775100000008,
+        "selfMs": 9.02775100000008
+      },
+      {
+        "path": "generation/attempt-1/regional-road-gates",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 0.073500000000422,
+        "selfMs": 0.073500000000422
+      },
+      {
+        "path": "generation/attempt-1/rural-land",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 0.9561239999993631,
+        "selfMs": 0.9561239999993631
+      },
+      {
+        "path": "generation/attempt-1/straighten-bridges",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 0.11091700000042692,
+        "selfMs": 0.11091700000042692
+      },
+      {
+        "path": "generation/attempt-1/temple",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 16.92112599999973,
+        "selfMs": 16.92112599999973
+      },
+      {
+        "path": "generation/attempt-1/thin-road-cells",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 3.3310419999997976,
+        "selfMs": 3.3310419999997976
+      },
+      {
+        "path": "generation/attempt-1/through-streets",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 28.78800000000001,
+        "selfMs": 28.78800000000001
+      },
+      {
+        "path": "generation/attempt-1/water-access",
+        "parent": "generation/attempt-1",
+        "depth": 2,
+        "calls": 2,
+        "elapsedMs": 0.04554199999984121,
+        "selfMs": 0.04554199999984121
+      },
+      {
+        "path": "generation/castle-ground",
+        "parent": "generation",
+        "depth": 1,
+        "calls": 2,
+        "elapsedMs": 0.06762400000025082,
+        "selfMs": 0.06762400000025082
+      },
+      {
+        "path": "generation/farmland",
+        "parent": "generation",
+        "depth": 1,
+        "calls": 1,
+        "elapsedMs": 2217.3934579999996,
+        "selfMs": 2062.9277079999993
+      },
+      {
+        "path": "generation/farmland/coastal-reservations",
+        "parent": "generation/farmland",
+        "depth": 2,
+        "calls": 1,
+        "elapsedMs": 114.53700000000026,
+        "selfMs": 114.53700000000026
+      },
+      {
+        "path": "generation/farmland/legacy-fabric",
+        "parent": "generation/farmland",
+        "depth": 2,
+        "calls": 1,
+        "elapsedMs": 39.928750000000036,
+        "selfMs": 2.585416999998415
+      },
+      {
+        "path": "generation/farmland/legacy-fabric/district-mesh",
+        "parent": "generation/farmland/legacy-fabric",
+        "depth": 3,
+        "calls": 1,
+        "elapsedMs": 1.2322090000006938,
+        "selfMs": 1.2322090000006938
+      },
+      {
+        "path": "generation/farmland/legacy-fabric/districts",
+        "parent": "generation/farmland/legacy-fabric",
+        "depth": 3,
+        "calls": 1,
+        "elapsedMs": 20.724708000000646,
+        "selfMs": 20.724708000000646
+      },
+      {
+        "path": "generation/farmland/legacy-fabric/finish-fabric",
+        "parent": "generation/farmland/legacy-fabric",
+        "depth": 3,
+        "calls": 1,
+        "elapsedMs": 5.56054099999983,
+        "selfMs": 5.56054099999983
+      },
+      {
+        "path": "generation/farmland/legacy-fabric/local-fabric",
+        "parent": "generation/farmland/legacy-fabric",
+        "depth": 3,
+        "calls": 1,
+        "elapsedMs": 8.845500000000357,
+        "selfMs": 8.845500000000357
+      },
+      {
+        "path": "generation/farmland/legacy-fabric/parks",
+        "parent": "generation/farmland/legacy-fabric",
+        "depth": 3,
+        "calls": 1,
+        "elapsedMs": 0.9787909999995463,
+        "selfMs": 0.9787909999995463
+      },
+      {
+        "path": "generation/farmland/legacy-fabric/upgrade-fabric",
+        "parent": "generation/farmland/legacy-fabric",
+        "depth": 3,
+        "calls": 1,
+        "elapsedMs": 0.001584000000548258,
+        "selfMs": 0.001584000000548258
+      },
+      {
+        "path": "generation/population-facilities",
+        "parent": "generation",
+        "depth": 1,
+        "calls": 2,
+        "elapsedMs": 0.041790999999193446,
+        "selfMs": 0.041790999999193446
+      },
+      {
+        "path": "generation/population-housing",
+        "parent": "generation",
+        "depth": 1,
+        "calls": 2,
+        "elapsedMs": 777.5427499999992,
+        "selfMs": 777.5427499999992
+      },
+      {
+        "path": "generation/population-prepare",
+        "parent": "generation",
+        "depth": 1,
+        "calls": 2,
+        "elapsedMs": 28.79404199999999,
+        "selfMs": 28.79404199999999
+      },
+      {
+        "path": "generation/recipe-input-clone",
+        "parent": "generation",
+        "depth": 1,
+        "calls": 2,
+        "elapsedMs": 0.8135829999996531,
+        "selfMs": 0.8135829999996531
+      },
+      {
+        "path": "generation/recipe-settings-clone",
+        "parent": "generation",
+        "depth": 1,
+        "calls": 2,
+        "elapsedMs": 0.030042000000321423,
+        "selfMs": 0.030042000000321423
+      }
+    ],
+    "startOrder": [
+      "generation",
+      "generation/population-prepare",
+      "generation/attempt-1",
+      "generation/attempt-1/prepare",
+      "generation/attempt-1/plan",
+      "generation/attempt-1/apply-plan",
+      "generation/attempt-1/finish-geometry",
+      "generation/attempt-1/straighten-bridges",
+      "generation/attempt-1/rectify-voronoi",
+      "generation/attempt-1/gate-and-bridge-crossings",
+      "generation/attempt-1/thin-road-cells",
+      "generation/attempt-1/temple",
+      "generation/attempt-1/crossing-validation",
+      "generation/attempt-1/fabric-plan",
+      "generation/attempt-1/external-gate-roads",
+      "generation/attempt-1/frame-road-alignment",
+      "generation/attempt-1/frame-road-terminals",
+      "generation/attempt-1/frame-road-junctions",
+      "generation/attempt-1/rural-land",
+      "generation/attempt-1/cemetery-sync",
+      "generation/attempt-1/cemetery-layouts",
+      "generation/attempt-1/cemetery-relocation",
+      "generation/attempt-1/water-access",
+      "generation/attempt-1/harbor-ships",
+      "generation/attempt-1/harbor-ships/ship-plan",
+      "generation/attempt-1/fixed-crossing-approaches",
+      "generation/attempt-1/frame-road-junctions-fixed",
+      "generation/attempt-1/through-streets",
+      "generation/attempt-1/bridge-gate-links",
+      "generation/attempt-1/frame-road-repair",
+      "generation/attempt-1/regional-road-gates",
+      "generation/castle-ground",
+      "generation/recipe-input-clone",
+      "generation/recipe-settings-clone",
+      "generation/population-facilities",
+      "generation/population-housing",
+      "generation/farmland",
+      "generation/farmland/legacy-fabric",
+      "generation/farmland/legacy-fabric/upgrade-fabric",
+      "generation/farmland/legacy-fabric/districts",
+      "generation/farmland/legacy-fabric/district-mesh",
+      "generation/farmland/legacy-fabric/local-fabric",
+      "generation/farmland/legacy-fabric/parks",
+      "generation/farmland/legacy-fabric/finish-fabric",
+      "generation/farmland/coastal-reservations"
+    ]
+  },
+  "checkpoints": [
+    {
+      "order": 1,
+      "id": "coast",
+      "label": "Coastline and sea",
+      "processStep": 1,
+      "checkpoint": null,
+      "ms": 12.137125000000196,
+      "success": true,
+      "samples": [
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.2695830000002388,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.027708999999958905,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 0.7647919999999431,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 0.09158300000035524,
+          "attempt": 1
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.01508300000023155,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 0.348374999999578,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "id": "river",
+      "label": "Rivers",
+      "processStep": 2,
+      "checkpoint": null,
+      "ms": 12.931582999999591,
+      "success": true,
+      "samples": [
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.21920799999952578,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.020375000000058208,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 2.14850000000024,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.1967909999993935,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 0.0187500000001819,
+          "attempt": 1
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.005333000000064203,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 0.44350000000031287,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "id": "urban",
+      "label": "Urban core",
+      "processStep": 3,
+      "checkpoint": null,
+      "ms": 11.50683299999946,
+      "success": true,
+      "samples": [
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.18712500000037835,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.018082999999933236,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 1.7381249999998545,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.19508399999995163,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 55,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.118666999999732,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 0.014624999999796273,
+          "attempt": 1
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.0040829999998095445,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 0.36908300000050076,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "id": "walls",
+      "label": "Town walls",
+      "processStep": 4,
+      "checkpoint": "walls",
+      "ms": 12.434916999999587,
+      "success": true,
+      "samples": [
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.1864580000001297,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.018082999999933236,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 1.484625000000051,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.16645900000003166,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 1.5676250000005894,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.1478339999994205,
+          "attempt": 1
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "id": "riverPassages",
+      "label": "River crossings and cell splitting",
+      "processStep": 4,
+      "checkpoint": "riverPassages",
+      "ms": 65.14783299999999,
+      "success": true,
+      "samples": [
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.19258300000001327,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.01762499999949796,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 0.8715830000001006,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.15045800000007148,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 1.6513749999994616,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.2273329999998168,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 32.62950000000001,
+          "attempt": 1
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "id": "passages",
+      "label": "Gate passages and cell splitting",
+      "processStep": 4,
+      "checkpoint": "passages",
+      "ms": 69.02950000000055,
+      "success": true,
+      "samples": [
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.18254200000046694,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.01895799999965675,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 0.8690409999999247,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.15716599999996106,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 3.0335419999992155,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.1661670000003141,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 31.25512500000059,
+          "attempt": 1
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "id": "gates",
+      "label": "Gates and castles",
+      "processStep": 4,
+      "checkpoint": null,
+      "ms": 73.63183300000037,
+      "success": true,
+      "samples": [
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.18395799999962037,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.02345800000057352,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 1.2273329999998168,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.16108299999996234,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 1.6422499999998763,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.3618339999993623,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 31.729749999999513,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 26.89837499999976,
+          "attempt": 1
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.006833000000369793,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 0.4887079999998605,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "id": "streets",
+      "label": "Streets",
+      "processStep": 5,
+      "checkpoint": null,
+      "ms": 88.86212500000056,
+      "success": true,
+      "samples": [
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.165791999999783,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.019999999999527063,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 0.9822909999993499,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.15283300000010058,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 2.1238750000002256,
+          "attempt": 1
+        },
+        {
+          "phase": "street-plan",
+          "elapsedMs": 0.6599999999998545,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.1812920000002123,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 33.20900000000074,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 27.804958000000624,
+          "attempt": 1
+        },
+        {
+          "phase": "road-network",
+          "elapsedMs": 8.82941700000083,
+          "attempt": 1,
+          "counts": {
+            "roadEdges": 25,
+            "roadComponents": 5,
+            "roadLengthMeters": 923.1243031120275,
+            "redundantStreets": 0,
+            "detachedStreets": 0,
+            "joinedStreets": 0
+          }
+        },
+        {
+          "phase": "road-ownership",
+          "elapsedMs": 5.447500000000218,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 0,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.0009580000005371403,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 0.5447920000005979,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        }
+      ]
+    },
+    {
+      "order": 9,
+      "id": "wards",
+      "label": "District assignment",
+      "processStep": 6,
+      "checkpoint": "wards",
+      "ms": 88.9469999999983,
+      "success": true,
+      "samples": [
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.1780830000006972,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.02087499999834108,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 0.9804579999999987,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.15999999999985448,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 2.498290999999881,
+          "attempt": 1
+        },
+        {
+          "phase": "street-plan",
+          "elapsedMs": 0.7779580000005808,
+          "attempt": 1
+        },
+        {
+          "phase": "wards",
+          "elapsedMs": 5.848583000000872,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.186082999998689,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 28.052333000001454,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 24.97137500000099,
+          "attempt": 1
+        },
+        {
+          "phase": "road-network",
+          "elapsedMs": 9.137749999999869,
+          "attempt": 1,
+          "counts": {
+            "roadEdges": 25,
+            "roadComponents": 5,
+            "roadLengthMeters": 923.1243031120275,
+            "redundantStreets": 0,
+            "detachedStreets": 0,
+            "joinedStreets": 0
+          }
+        },
+        {
+          "phase": "road-ownership",
+          "elapsedMs": 4.387542000000394,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 0,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.0012079999996785773,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 2.0544170000011945,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "id": "centerRoads",
+      "label": "Gate-to-centre roads",
+      "processStep": 6,
+      "checkpoint": null,
+      "ms": 87.79708399999981,
+      "success": true,
+      "samples": [
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.1740829999998823,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.025041000000783242,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 1.7061659999999392,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.19291699999848788,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 1.8803329999991547,
+          "attempt": 1
+        },
+        {
+          "phase": "street-plan",
+          "elapsedMs": 0.5546659999999974,
+          "attempt": 1
+        },
+        {
+          "phase": "wards",
+          "elapsedMs": 5.355207999999038,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.1709169999994629,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 28.071500000000015,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 24.670125000000553,
+          "attempt": 1
+        },
+        {
+          "phase": "road-network",
+          "elapsedMs": 9.292832999999519,
+          "attempt": 1,
+          "counts": {
+            "roadEdges": 51,
+            "roadComponents": 4,
+            "roadLengthMeters": 1637.3803781075987,
+            "redundantStreets": 0,
+            "detachedStreets": 0,
+            "joinedStreets": 0
+          }
+        },
+        {
+          "phase": "road-ownership",
+          "elapsedMs": 4.307999999999083,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 6,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.0008340000003954628,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 2.113500000001295,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        }
+      ]
+    },
+    {
+      "order": 11,
+      "id": "innerWall",
+      "label": "Inner town wall",
+      "processStep": 7,
+      "checkpoint": "innerWall",
+      "ms": 75.97195800000009,
+      "success": true,
+      "samples": [
+        {
+          "phase": "prepare",
+          "elapsedMs": 0.6177910000005795,
+          "attempt": 1,
+          "counts": {
+            "faces": 152,
+            "edges": 455
+          }
+        },
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.17487500000061118,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.0244589999983873,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 0.9387499999993452,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.16520800000034797,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 1.6450829999994312,
+          "attempt": 1
+        },
+        {
+          "phase": "street-plan",
+          "elapsedMs": 0.590874999999869,
+          "attempt": 1
+        },
+        {
+          "phase": "wards",
+          "elapsedMs": 6.465416999999434,
+          "attempt": 1
+        },
+        {
+          "phase": "plan-total",
+          "elapsedMs": 10.02966699999888,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.2015419999988808,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 27.429291000000376,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 24.951999999999316,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-total",
+          "elapsedMs": 57.28849999999875,
+          "attempt": 1
+        }
+      ]
+    },
+    {
+      "order": 12,
+      "id": "innerGates",
+      "label": "Old-town gates and roads",
+      "processStep": 7,
+      "checkpoint": "innerGates",
+      "ms": 83.13770900000054,
+      "success": true,
+      "samples": [
+        {
+          "phase": "prepare",
+          "elapsedMs": 1.5411669999994047,
+          "attempt": 1,
+          "counts": {
+            "faces": 152,
+            "edges": 455
+          }
+        },
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.17470800000046438,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.021583000001555774,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 0.658292000000074,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.1413749999992433,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 1.4303339999987656,
+          "attempt": 1
+        },
+        {
+          "phase": "street-plan",
+          "elapsedMs": 0.5161659999994299,
+          "attempt": 1
+        },
+        {
+          "phase": "wards",
+          "elapsedMs": 5.495833999999377,
+          "attempt": 1
+        },
+        {
+          "phase": "plan-total",
+          "elapsedMs": 8.457624999999098,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.3311250000006112,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 27.247125000001688,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 23.86420900000121,
+          "attempt": 1
+        },
+        {
+          "phase": "road-network",
+          "elapsedMs": 9.285041999999521,
+          "attempt": 1,
+          "counts": {
+            "roadEdges": 51,
+            "roadComponents": 4,
+            "roadLengthMeters": 1637.3803781075987,
+            "redundantStreets": 0,
+            "detachedStreets": 0,
+            "joinedStreets": 0
+          }
+        },
+        {
+          "phase": "road-ownership",
+          "elapsedMs": 2.1002910000006523,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 2,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.0004580000004352769,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 2.166666000000987,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        },
+        {
+          "phase": "apply-total",
+          "elapsedMs": 66.13087500000074,
+          "attempt": 1
+        }
+      ]
+    },
+    {
+      "order": 13,
+      "id": "townStreets",
+      "label": "Town streets",
+      "processStep": 7,
+      "checkpoint": "streets",
+      "ms": 89.32262499999888,
+      "success": true,
+      "samples": [
+        {
+          "phase": "prepare",
+          "elapsedMs": 0.6109579999993002,
+          "attempt": 1,
+          "counts": {
+            "faces": 152,
+            "edges": 455
+          }
+        },
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.16066700000010314,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.019333000000187894,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 0.7516670000004524,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.15395899999930407,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 1.4007499999988795,
+          "attempt": 1
+        },
+        {
+          "phase": "street-plan",
+          "elapsedMs": 0.517042000001311,
+          "attempt": 1
+        },
+        {
+          "phase": "wards",
+          "elapsedMs": 6.543540999999095,
+          "attempt": 1
+        },
+        {
+          "phase": "plan-total",
+          "elapsedMs": 9.560041999999157,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.2049999999999272,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 29.89429200000086,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 25.32037499999933,
+          "attempt": 1
+        },
+        {
+          "phase": "road-network",
+          "elapsedMs": 10.121541000000434,
+          "attempt": 1,
+          "counts": {
+            "roadEdges": 51,
+            "roadComponents": 4,
+            "roadLengthMeters": 1637.3803781075987,
+            "redundantStreets": 0,
+            "detachedStreets": 0,
+            "joinedStreets": 0
+          }
+        },
+        {
+          "phase": "road-ownership",
+          "elapsedMs": 2.5635000000002037,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 2,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.0005830000009154901,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 2.4255000000011933,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        },
+        {
+          "phase": "apply-total",
+          "elapsedMs": 71.72512500000084,
+          "attempt": 1
+        }
+      ]
+    },
+    {
+      "order": 14,
+      "id": "geometry",
+      "label": "Geometry smoothing",
+      "processStep": 7,
+      "checkpoint": null,
+      "ms": 161.46037499999875,
+      "success": true,
+      "samples": [
+        {
+          "phase": "prepare",
+          "elapsedMs": 0.5901250000006257,
+          "attempt": 1,
+          "counts": {
+            "faces": 152,
+            "edges": 455
+          }
+        },
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.15949999999975262,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.019667000000481494,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 0.662625000000844,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.14274999999906868,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 1.529791999999361,
+          "attempt": 1
+        },
+        {
+          "phase": "street-plan",
+          "elapsedMs": 0.6882920000007289,
+          "attempt": 1
+        },
+        {
+          "phase": "wards",
+          "elapsedMs": 7.132916999998997,
+          "attempt": 1
+        },
+        {
+          "phase": "plan-total",
+          "elapsedMs": 10.348125000000437,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.4282919999986916,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 30.18212500000118,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 24.71783299999879,
+          "attempt": 1
+        },
+        {
+          "phase": "road-network",
+          "elapsedMs": 8.445666999999958,
+          "attempt": 1,
+          "counts": {
+            "roadEdges": 51,
+            "roadComponents": 4,
+            "roadLengthMeters": 1637.3803781075987,
+            "redundantStreets": 0,
+            "detachedStreets": 0,
+            "joinedStreets": 0
+          }
+        },
+        {
+          "phase": "road-ownership",
+          "elapsedMs": 2.1893330000002607,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 2,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.0005419999997684499,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 2.1072079999994457,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        },
+        {
+          "phase": "apply-total",
+          "elapsedMs": 69.19483299999956,
+          "attempt": 1
+        },
+        {
+          "phase": "major-road-shortcuts",
+          "elapsedMs": 0.01733299999978044,
+          "attempt": 1
+        },
+        {
+          "phase": "rectify-hex",
+          "elapsedMs": 0.0001250000004802132,
+          "attempt": 1
+        },
+        {
+          "phase": "finish-geometry",
+          "elapsedMs": 53.49175000000105,
+          "attempt": 1
+        },
+        {
+          "phase": "rectify-voronoi",
+          "elapsedMs": 2.609999999998763,
+          "attempt": 1
+        },
+        {
+          "phase": "crossing-validation",
+          "elapsedMs": 7.112375000000611,
+          "attempt": 1,
+          "counts": {
+            "valid": 1,
+            "faces": 168,
+            "edges": 471,
+            "roads": 4,
+            "crossingIssues": 0,
+            "selfIntersectingFaces": 0
+          }
+        },
+        {
+          "phase": "fixed-crossing-approaches",
+          "elapsedMs": 0.004666999999244581,
+          "attempt": 1,
+          "counts": {
+            "adopted": 0,
+            "unresolved": 0
+          },
+          "fixedApproaches": []
+        },
+        {
+          "phase": "wall-defense-closure",
+          "elapsedMs": 9.800792000000001,
+          "attempt": 1,
+          "counts": {
+            "innerFirst": 0,
+            "rings": 1,
+            "unprotectedMeters": 0,
+            "riverOpeningMeters": 0,
+            "invasionPaths": 0,
+            "outerUnprotectedMeters": 0,
+            "outerRiverOpeningMeters": 0,
+            "outerInvasionPaths": 0
+          }
+        },
+        {
+          "phase": "road-ownership-final",
+          "elapsedMs": 0.022084000000177184,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 0,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        }
+      ]
+    },
+    {
+      "order": 15,
+      "id": "blocks",
+      "label": "Blocks and lanes",
+      "processStep": 8,
+      "checkpoint": null,
+      "ms": 161.80566700000054,
+      "success": true,
+      "samples": [
+        {
+          "phase": "prepare",
+          "elapsedMs": 0.5982920000005834,
+          "attempt": 1,
+          "counts": {
+            "faces": 152,
+            "edges": 455
+          }
+        },
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.1852500000004511,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.01845800000046438,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 0.6639579999991838,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.13870800000040617,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 2.0092079999994894,
+          "attempt": 1
+        },
+        {
+          "phase": "street-plan",
+          "elapsedMs": 0.587082999998529,
+          "attempt": 1
+        },
+        {
+          "phase": "wards",
+          "elapsedMs": 5.641041999999288,
+          "attempt": 1
+        },
+        {
+          "phase": "plan-total",
+          "elapsedMs": 9.254875000000538,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.144624999998996,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 29.7587910000002,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 23.3421670000007,
+          "attempt": 1
+        },
+        {
+          "phase": "road-network",
+          "elapsedMs": 8.89116599999943,
+          "attempt": 1,
+          "counts": {
+            "roadEdges": 51,
+            "roadComponents": 4,
+            "roadLengthMeters": 1637.3803781075987,
+            "redundantStreets": 0,
+            "detachedStreets": 0,
+            "joinedStreets": 0
+          }
+        },
+        {
+          "phase": "road-ownership",
+          "elapsedMs": 3.105082999998558,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 2,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.0005000000001018634,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 2.4815830000006827,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        },
+        {
+          "phase": "apply-total",
+          "elapsedMs": 68.82620799999859,
+          "attempt": 1
+        },
+        {
+          "phase": "major-road-shortcuts",
+          "elapsedMs": 0.01958300000114832,
+          "attempt": 1
+        },
+        {
+          "phase": "rectify-hex",
+          "elapsedMs": 0.00020899999981338624,
+          "attempt": 1
+        },
+        {
+          "phase": "finish-geometry",
+          "elapsedMs": 55.876125000000684,
+          "attempt": 1
+        },
+        {
+          "phase": "rectify-voronoi",
+          "elapsedMs": 2.7210420000010345,
+          "attempt": 1
+        },
+        {
+          "phase": "crossing-validation",
+          "elapsedMs": 7.288249999999607,
+          "attempt": 1,
+          "counts": {
+            "valid": 1,
+            "faces": 168,
+            "edges": 471,
+            "roads": 4,
+            "crossingIssues": 0,
+            "selfIntersectingFaces": 0
+          }
+        },
+        {
+          "phase": "fixed-crossing-approaches",
+          "elapsedMs": 0.006957999999940512,
+          "attempt": 1,
+          "counts": {
+            "adopted": 0,
+            "unresolved": 0
+          },
+          "fixedApproaches": []
+        },
+        {
+          "phase": "wall-defense-closure",
+          "elapsedMs": 9.923957999999402,
+          "attempt": 1,
+          "counts": {
+            "innerFirst": 0,
+            "rings": 1,
+            "unprotectedMeters": 0,
+            "riverOpeningMeters": 0,
+            "invasionPaths": 0,
+            "outerUnprotectedMeters": 0,
+            "outerRiverOpeningMeters": 0,
+            "outerInvasionPaths": 0
+          }
+        },
+        {
+          "phase": "road-ownership-final",
+          "elapsedMs": 0.024084000000584638,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 0,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        }
+      ]
+    },
+    {
+      "order": 16,
+      "id": "buildings",
+      "label": "Housing and completed city",
+      "processStep": 9,
+      "checkpoint": null,
+      "ms": 166.15229199999885,
+      "success": true,
+      "samples": [
+        {
+          "phase": "prepare",
+          "elapsedMs": 0.6067910000001575,
+          "attempt": 1,
+          "counts": {
+            "faces": 152,
+            "edges": 455
+          }
+        },
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.20179099999950267,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.0314170000001468,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 0.9035420000000158,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.1468750000003638,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 1.5881249999983993,
+          "attempt": 1
+        },
+        {
+          "phase": "street-plan",
+          "elapsedMs": 0.6180829999993875,
+          "attempt": 1
+        },
+        {
+          "phase": "wards",
+          "elapsedMs": 6.010000000000218,
+          "attempt": 1
+        },
+        {
+          "phase": "plan-total",
+          "elapsedMs": 9.510540999999648,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.1492079999989073,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 30.823709000000235,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 25.045749999999316,
+          "attempt": 1
+        },
+        {
+          "phase": "road-network",
+          "elapsedMs": 9.302666999999929,
+          "attempt": 1,
+          "counts": {
+            "roadEdges": 51,
+            "roadComponents": 4,
+            "roadLengthMeters": 1637.3803781075987,
+            "redundantStreets": 0,
+            "detachedStreets": 0,
+            "joinedStreets": 0
+          }
+        },
+        {
+          "phase": "road-ownership",
+          "elapsedMs": 2.101582999999664,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 2,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.0005409999994299142,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 2.4660839999996824,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        },
+        {
+          "phase": "apply-total",
+          "elapsedMs": 70.98641700000007,
+          "attempt": 1
+        },
+        {
+          "phase": "major-road-shortcuts",
+          "elapsedMs": 0.019291999999040854,
+          "attempt": 1
+        },
+        {
+          "phase": "rectify-hex",
+          "elapsedMs": 0.0001250000004802132,
+          "attempt": 1
+        },
+        {
+          "phase": "finish-geometry",
+          "elapsedMs": 56.28895900000134,
+          "attempt": 1
+        },
+        {
+          "phase": "rectify-voronoi",
+          "elapsedMs": 3.8447500000002037,
+          "attempt": 1
+        },
+        {
+          "phase": "crossing-validation",
+          "elapsedMs": 7.396041999998488,
+          "attempt": 1,
+          "counts": {
+            "valid": 1,
+            "faces": 168,
+            "edges": 471,
+            "roads": 4,
+            "crossingIssues": 0,
+            "selfIntersectingFaces": 0
+          }
+        },
+        {
+          "phase": "fixed-crossing-approaches",
+          "elapsedMs": 0.0054579999996349216,
+          "attempt": 1,
+          "counts": {
+            "adopted": 0,
+            "unresolved": 0
+          },
+          "fixedApproaches": []
+        },
+        {
+          "phase": "wall-defense-closure",
+          "elapsedMs": 9.556040999999823,
+          "attempt": 1,
+          "counts": {
+            "innerFirst": 0,
+            "rings": 1,
+            "unprotectedMeters": 0,
+            "riverOpeningMeters": 0,
+            "invasionPaths": 0,
+            "outerUnprotectedMeters": 0,
+            "outerRiverOpeningMeters": 0,
+            "outerInvasionPaths": 0
+          }
+        },
+        {
+          "phase": "road-ownership-final",
+          "elapsedMs": 0.021208000000115135,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 0,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        }
+      ]
+    },
+    {
+      "order": 17,
+      "id": "farmland",
+      "label": "Farmland",
+      "processStep": 10,
+      "checkpoint": null,
+      "ms": 3946.171375,
+      "success": true,
+      "samples": [
+        {
+          "phase": "prepare",
+          "elapsedMs": 0.5838330000005953,
+          "attempt": 1,
+          "counts": {
+            "faces": 152,
+            "edges": 455
+          }
+        },
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.18595900000036636,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.010625000000800355,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 0.8982500000001892,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.1773750000011205,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 2.2645420000008016,
+          "attempt": 1
+        },
+        {
+          "phase": "street-plan",
+          "elapsedMs": 0.6515419999996084,
+          "attempt": 1
+        },
+        {
+          "phase": "wards",
+          "elapsedMs": 5.615207999999257,
+          "attempt": 1
+        },
+        {
+          "phase": "plan-total",
+          "elapsedMs": 9.818959000000177,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.2278750000004948,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 30.67699999999968,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 24.366541999999754,
+          "attempt": 1
+        },
+        {
+          "phase": "road-network",
+          "elapsedMs": 8.717791999999463,
+          "attempt": 1,
+          "counts": {
+            "roadEdges": 51,
+            "roadComponents": 4,
+            "roadLengthMeters": 1637.3803781075987,
+            "redundantStreets": 0,
+            "detachedStreets": 0,
+            "joinedStreets": 0
+          }
+        },
+        {
+          "phase": "road-ownership",
+          "elapsedMs": 3.0299579999991693,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 2,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.0005410000012489036,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 2.1375840000000608,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        },
+        {
+          "phase": "apply-total",
+          "elapsedMs": 70.2666250000002,
+          "attempt": 1
+        },
+        {
+          "phase": "major-road-shortcuts",
+          "elapsedMs": 0.02195900000151596,
+          "attempt": 1
+        },
+        {
+          "phase": "rectify-hex",
+          "elapsedMs": 0.00020799999947485048,
+          "attempt": 1
+        },
+        {
+          "phase": "finish-geometry",
+          "elapsedMs": 55.00691700000061,
+          "attempt": 1
+        },
+        {
+          "phase": "rectify-voronoi",
+          "elapsedMs": 3.1751249999997526,
+          "attempt": 1
+        },
+        {
+          "phase": "crossing-validation",
+          "elapsedMs": 6.938207999999577,
+          "attempt": 1,
+          "counts": {
+            "valid": 1,
+            "faces": 168,
+            "edges": 471,
+            "roads": 4,
+            "crossingIssues": 0,
+            "selfIntersectingFaces": 0
+          }
+        },
+        {
+          "phase": "fixed-crossing-approaches",
+          "elapsedMs": 0.005417000000306871,
+          "attempt": 1,
+          "counts": {
+            "adopted": 0,
+            "unresolved": 0
+          },
+          "fixedApproaches": []
+        },
+        {
+          "phase": "wall-defense-closure",
+          "elapsedMs": 9.161958000000595,
+          "attempt": 1,
+          "counts": {
+            "innerFirst": 0,
+            "rings": 1,
+            "unprotectedMeters": 0,
+            "riverOpeningMeters": 0,
+            "invasionPaths": 0,
+            "outerUnprotectedMeters": 0,
+            "outerRiverOpeningMeters": 0,
+            "outerInvasionPaths": 0
+          }
+        },
+        {
+          "phase": "road-ownership-final",
+          "elapsedMs": 0.025499999999738066,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 0,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        },
+        {
+          "phase": "fit-housing",
+          "attempt": 1,
+          "elapsedMs": 217.94604199999958,
+          "counts": {
+            "populationPass": 1,
+            "unplacedDwellings": 87
+          }
+        },
+        {
+          "phase": "fit-housing",
+          "attempt": 1,
+          "elapsedMs": 114.34204099999988,
+          "counts": {
+            "populationPass": 2,
+            "unplacedDwellings": 0
+          }
+        },
+        {
+          "phase": "fit-housing",
+          "attempt": 1,
+          "elapsedMs": 0,
+          "counts": {
+            "housingAreaScale": 1.171668292682927,
+            "housingAreaPass": 1
+          }
+        },
+        {
+          "phase": "prepare",
+          "elapsedMs": 0.9298749999998108,
+          "attempt": 1,
+          "counts": {
+            "faces": 587,
+            "edges": 1752
+          }
+        },
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.7146250000005239,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.02504199999930279,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 5.179542000001675,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.25037499999962165,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 62,
+            "recordedStages": 0,
+            "builtUpFaces": 62
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 4.6209169999983715,
+          "attempt": 1
+        },
+        {
+          "phase": "street-plan",
+          "elapsedMs": 2.59900000000016,
+          "attempt": 1
+        },
+        {
+          "phase": "wards",
+          "elapsedMs": 9.899290999999721,
+          "attempt": 1
+        },
+        {
+          "phase": "plan-total",
+          "elapsedMs": 23.30462500000067,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 4.23791700000038,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 80.64620899999863,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 80.23308300000099,
+          "attempt": 1
+        },
+        {
+          "phase": "road-routing",
+          "elapsedMs": 0,
+          "attempt": 1,
+          "routing": [
+            {
+              "outside": false,
+              "plannedPoints": [
+                [
+                  3.272317903228779,
+                  190.36793978503437
+                ],
+                [
+                  -20.78522824847674,
+                  144.61789949196893
+                ],
+                [
+                  13.070301035103462,
+                  125.3572047878911
+                ],
+                [
+                  11.742370530307994,
+                  92.69080626200521
+                ],
+                [
+                  33.73622766577558,
+                  71.90984296765541
+                ],
+                [
+                  18.032789444306662,
+                  36.8120225104138
+                ],
+                [
+                  34.47344004326878,
+                  10.487440240663085
+                ],
+                [
+                  72.65238339338143,
+                  11.645722411901168
+                ],
+                [
+                  86.82785937214267,
+                  -11.872672714842427
+                ],
+                [
+                  117.98310956303807,
+                  -13.20540013398142
+                ],
+                [
+                  133.8454200217228,
+                  -39.269834420830215
+                ],
+                [
+                  161.11315205544912,
+                  -38.72824245404093
+                ],
+                [
+                  177.02625425170024,
+                  -8.56952628413734
+                ]
+              ],
+              "waypoints": [
+                "v74",
+                "v59",
+                "v58",
+                "v2",
+                "v44",
+                "v172",
+                "v63"
+              ],
+              "status": "failed",
+              "path": [],
+              "edges": [],
+              "searches": [
+                {
+                  "start": "v74",
+                  "end": "v59",
+                  "classification": "planned",
+                  "reachedCount": 1,
+                  "partialPath": [
+                    "v74"
+                  ],
+                  "partialEdges": [],
+                  "blocked": [
+                    {
+                      "edge": "e88",
+                      "from": "v74",
+                      "to": "v60",
+                      "reason": "barrier-passage: not a permitted river or wall crossing at v74 (allowed edges: None)"
+                    },
+                    {
+                      "edge": "e89",
+                      "from": "v74",
+                      "to": "v75",
+                      "reason": "river-edge: river edge"
+                    },
+                    {
+                      "edge": "e268",
+                      "from": "v74",
+                      "to": "v90",
+                      "reason": "river-edge: river edge"
+                    }
+                  ]
+                },
+                {
+                  "start": "v74",
+                  "end": "v63",
+                  "classification": "planned",
+                  "reachedCount": 1,
+                  "partialPath": [
+                    "v74"
+                  ],
+                  "partialEdges": [],
+                  "blocked": [
+                    {
+                      "edge": "e88",
+                      "from": "v74",
+                      "to": "v60",
+                      "reason": "barrier-passage: not a permitted river or wall crossing at v74 (allowed edges: None)"
+                    },
+                    {
+                      "edge": "e89",
+                      "from": "v74",
+                      "to": "v75",
+                      "reason": "river-edge: river edge"
+                    },
+                    {
+                      "edge": "e268",
+                      "from": "v74",
+                      "to": "v90",
+                      "reason": "river-edge: river edge"
+                    }
+                  ]
+                },
+                {
+                  "start": "v74",
+                  "end": "v59",
+                  "classification": "current-curtain",
+                  "reachedCount": 1,
+                  "partialPath": [
+                    "v74"
+                  ],
+                  "partialEdges": [],
+                  "blocked": [
+                    {
+                      "edge": "e88",
+                      "from": "v74",
+                      "to": "v60",
+                      "reason": "barrier-passage: not a permitted river or wall crossing at v74 (allowed edges: None)"
+                    },
+                    {
+                      "edge": "e89",
+                      "from": "v74",
+                      "to": "v75",
+                      "reason": "river-edge: river edge"
+                    },
+                    {
+                      "edge": "e268",
+                      "from": "v74",
+                      "to": "v90",
+                      "reason": "river-edge: river edge"
+                    }
+                  ]
+                },
+                {
+                  "start": "v74",
+                  "end": "v63",
+                  "classification": "current-curtain",
+                  "reachedCount": 1,
+                  "partialPath": [
+                    "v74"
+                  ],
+                  "partialEdges": [],
+                  "blocked": [
+                    {
+                      "edge": "e88",
+                      "from": "v74",
+                      "to": "v60",
+                      "reason": "barrier-passage: not a permitted river or wall crossing at v74 (allowed edges: None)"
+                    },
+                    {
+                      "edge": "e89",
+                      "from": "v74",
+                      "to": "v75",
+                      "reason": "river-edge: river edge"
+                    },
+                    {
+                      "edge": "e268",
+                      "from": "v74",
+                      "to": "v90",
+                      "reason": "river-edge: river edge"
+                    }
+                  ]
+                }
+              ],
+              "routeId": "gc:road-12"
+            }
+          ]
+        },
+        {
+          "phase": "road-network",
+          "elapsedMs": 59.353667000001224,
+          "attempt": 1,
+          "counts": {
+            "roadEdges": 163,
+            "roadComponents": 2,
+            "roadLengthMeters": 5076.8621919350235,
+            "redundantStreets": 0,
+            "detachedStreets": 0,
+            "joinedStreets": 0
+          }
+        },
+        {
+          "phase": "road-ownership",
+          "elapsedMs": 22.521499999998923,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 32,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 6
+          }
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.0005000000001018634,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 115.51941699999952,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        },
+        {
+          "phase": "apply-total",
+          "elapsedMs": 362.760542,
+          "attempt": 1
+        },
+        {
+          "phase": "major-road-shortcuts",
+          "elapsedMs": 0.04987500000061118,
+          "attempt": 1
+        },
+        {
+          "phase": "rectify-hex",
+          "elapsedMs": 0.000249999999141437,
+          "attempt": 1
+        },
+        {
+          "phase": "finish-geometry",
+          "elapsedMs": 162.4651670000003,
+          "attempt": 1
+        },
+        {
+          "phase": "rectify-voronoi",
+          "elapsedMs": 3.8934170000011363,
+          "attempt": 1
+        },
+        {
+          "phase": "crossing-validation",
+          "elapsedMs": 14.671500000000378,
+          "attempt": 1,
+          "counts": {
+            "valid": 1,
+            "faces": 637,
+            "edges": 1802,
+            "roads": 4,
+            "crossingIssues": 0,
+            "selfIntersectingFaces": 0
+          }
+        },
+        {
+          "phase": "fixed-crossing-approaches",
+          "elapsedMs": 0.005790999999589985,
+          "attempt": 1,
+          "counts": {
+            "adopted": 0,
+            "unresolved": 0
+          },
+          "fixedApproaches": []
+        },
+        {
+          "phase": "wall-defense-closure",
+          "elapsedMs": 60.21374999999898,
+          "attempt": 1,
+          "counts": {
+            "innerFirst": 0,
+            "rings": 1,
+            "unprotectedMeters": 0,
+            "riverOpeningMeters": 0,
+            "invasionPaths": 0,
+            "outerUnprotectedMeters": 0,
+            "outerRiverOpeningMeters": 0,
+            "outerInvasionPaths": 0
+          }
+        },
+        {
+          "phase": "road-ownership-final",
+          "elapsedMs": 0.04083299999911105,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 0,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        },
+        {
+          "phase": "fit-housing",
+          "attempt": 1,
+          "elapsedMs": 320.4077500000003,
+          "counts": {
+            "populationPass": 1,
+            "unplacedDwellings": 0
+          }
+        }
+      ]
+    },
+    {
+      "order": 18,
+      "id": "conceal",
+      "label": "Hide roads and lanes",
+      "processStep": 11,
+      "checkpoint": null,
+      "ms": 3880.4107920000006,
+      "success": true,
+      "samples": [
+        {
+          "phase": "prepare",
+          "elapsedMs": 0.5617919999986043,
+          "attempt": 1,
+          "counts": {
+            "faces": 152,
+            "edges": 455
+          }
+        },
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.18499999999949068,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.01224999999976717,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 0.753499999998894,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.11408399999891117,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 55,
+            "recordedStages": 0,
+            "builtUpFaces": 55
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 1.401625000000422,
+          "attempt": 1
+        },
+        {
+          "phase": "street-plan",
+          "elapsedMs": 0.5352089999996679,
+          "attempt": 1
+        },
+        {
+          "phase": "wards",
+          "elapsedMs": 5.77179199999955,
+          "attempt": 1
+        },
+        {
+          "phase": "plan-total",
+          "elapsedMs": 8.786708000001454,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 1.2271659999987605,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 27.691624999999476,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 24.28595900000073,
+          "attempt": 1
+        },
+        {
+          "phase": "road-network",
+          "elapsedMs": 9.344665999999052,
+          "attempt": 1,
+          "counts": {
+            "roadEdges": 51,
+            "roadComponents": 4,
+            "roadLengthMeters": 1637.3803781075987,
+            "redundantStreets": 0,
+            "detachedStreets": 0,
+            "joinedStreets": 0
+          }
+        },
+        {
+          "phase": "road-ownership",
+          "elapsedMs": 3.0327500000003056,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 2,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.0006659999999101274,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 2.38537499999984,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        },
+        {
+          "phase": "apply-total",
+          "elapsedMs": 68.05891599999995,
+          "attempt": 1
+        },
+        {
+          "phase": "major-road-shortcuts",
+          "elapsedMs": 0.02216700000099081,
+          "attempt": 1
+        },
+        {
+          "phase": "rectify-hex",
+          "elapsedMs": 0.000249999999141437,
+          "attempt": 1
+        },
+        {
+          "phase": "finish-geometry",
+          "elapsedMs": 53.96929199999977,
+          "attempt": 1
+        },
+        {
+          "phase": "rectify-voronoi",
+          "elapsedMs": 2.5290420000001177,
+          "attempt": 1
+        },
+        {
+          "phase": "crossing-validation",
+          "elapsedMs": 6.767832999999882,
+          "attempt": 1,
+          "counts": {
+            "valid": 1,
+            "faces": 168,
+            "edges": 471,
+            "roads": 4,
+            "crossingIssues": 0,
+            "selfIntersectingFaces": 0
+          }
+        },
+        {
+          "phase": "fixed-crossing-approaches",
+          "elapsedMs": 0.005083000000013271,
+          "attempt": 1,
+          "counts": {
+            "adopted": 0,
+            "unresolved": 0
+          },
+          "fixedApproaches": []
+        },
+        {
+          "phase": "wall-defense-closure",
+          "elapsedMs": 8.917874999999185,
+          "attempt": 1,
+          "counts": {
+            "innerFirst": 0,
+            "rings": 1,
+            "unprotectedMeters": 0,
+            "riverOpeningMeters": 0,
+            "invasionPaths": 0,
+            "outerUnprotectedMeters": 0,
+            "outerRiverOpeningMeters": 0,
+            "outerInvasionPaths": 0
+          }
+        },
+        {
+          "phase": "road-ownership-final",
+          "elapsedMs": 0.0233749999988504,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 0,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        },
+        {
+          "phase": "fit-housing",
+          "attempt": 1,
+          "elapsedMs": 217.62687499999993,
+          "counts": {
+            "populationPass": 1,
+            "unplacedDwellings": 87
+          }
+        },
+        {
+          "phase": "fit-housing",
+          "attempt": 1,
+          "elapsedMs": 115.03045800000109,
+          "counts": {
+            "populationPass": 2,
+            "unplacedDwellings": 0
+          }
+        },
+        {
+          "phase": "fit-housing",
+          "attempt": 1,
+          "elapsedMs": 0,
+          "counts": {
+            "housingAreaScale": 1.171668292682927,
+            "housingAreaPass": 1
+          }
+        },
+        {
+          "phase": "prepare",
+          "elapsedMs": 1.6624169999995502,
+          "attempt": 1,
+          "counts": {
+            "faces": 587,
+            "edges": 1752
+          }
+        },
+        {
+          "phase": "edge-graph",
+          "elapsedMs": 0.7380410000005213,
+          "attempt": 1
+        },
+        {
+          "phase": "coast",
+          "elapsedMs": 0.024541999999200925,
+          "attempt": 1
+        },
+        {
+          "phase": "river",
+          "elapsedMs": 3.657791999999972,
+          "attempt": 1
+        },
+        {
+          "phase": "urban",
+          "elapsedMs": 0.25433300000076997,
+          "attempt": 1,
+          "counts": {
+            "urbanFaces": 62,
+            "recordedStages": 0,
+            "builtUpFaces": 62
+          }
+        },
+        {
+          "phase": "wall-plan",
+          "elapsedMs": 4.2918750000008,
+          "attempt": 1
+        },
+        {
+          "phase": "street-plan",
+          "elapsedMs": 2.749499999999898,
+          "attempt": 1
+        },
+        {
+          "phase": "wards",
+          "elapsedMs": 9.691790999999284,
+          "attempt": 1
+        },
+        {
+          "phase": "plan-total",
+          "elapsedMs": 21.425167000001238,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-terrain",
+          "elapsedMs": 4.6808339999988675,
+          "attempt": 1
+        },
+        {
+          "phase": "smooth-boundaries",
+          "elapsedMs": 71.98762499999975,
+          "attempt": 1
+        },
+        {
+          "phase": "wall-junctions",
+          "elapsedMs": 75.55254099999911,
+          "attempt": 1
+        },
+        {
+          "phase": "road-routing",
+          "elapsedMs": 0,
+          "attempt": 1,
+          "routing": [
+            {
+              "outside": false,
+              "plannedPoints": [
+                [
+                  3.272317903228779,
+                  190.36793978503437
+                ],
+                [
+                  -20.78522824847674,
+                  144.61789949196893
+                ],
+                [
+                  13.070301035103462,
+                  125.3572047878911
+                ],
+                [
+                  11.742370530307994,
+                  92.69080626200521
+                ],
+                [
+                  33.73622766577558,
+                  71.90984296765541
+                ],
+                [
+                  18.032789444306662,
+                  36.8120225104138
+                ],
+                [
+                  34.47344004326878,
+                  10.487440240663085
+                ],
+                [
+                  72.65238339338143,
+                  11.645722411901168
+                ],
+                [
+                  86.82785937214267,
+                  -11.872672714842427
+                ],
+                [
+                  117.98310956303807,
+                  -13.20540013398142
+                ],
+                [
+                  133.8454200217228,
+                  -39.269834420830215
+                ],
+                [
+                  161.11315205544912,
+                  -38.72824245404093
+                ],
+                [
+                  177.02625425170024,
+                  -8.56952628413734
+                ]
+              ],
+              "waypoints": [
+                "v74",
+                "v59",
+                "v58",
+                "v2",
+                "v44",
+                "v172",
+                "v63"
+              ],
+              "status": "failed",
+              "path": [],
+              "edges": [],
+              "searches": [
+                {
+                  "start": "v74",
+                  "end": "v59",
+                  "classification": "planned",
+                  "reachedCount": 1,
+                  "partialPath": [
+                    "v74"
+                  ],
+                  "partialEdges": [],
+                  "blocked": [
+                    {
+                      "edge": "e88",
+                      "from": "v74",
+                      "to": "v60",
+                      "reason": "barrier-passage: not a permitted river or wall crossing at v74 (allowed edges: None)"
+                    },
+                    {
+                      "edge": "e89",
+                      "from": "v74",
+                      "to": "v75",
+                      "reason": "river-edge: river edge"
+                    },
+                    {
+                      "edge": "e268",
+                      "from": "v74",
+                      "to": "v90",
+                      "reason": "river-edge: river edge"
+                    }
+                  ]
+                },
+                {
+                  "start": "v74",
+                  "end": "v63",
+                  "classification": "planned",
+                  "reachedCount": 1,
+                  "partialPath": [
+                    "v74"
+                  ],
+                  "partialEdges": [],
+                  "blocked": [
+                    {
+                      "edge": "e88",
+                      "from": "v74",
+                      "to": "v60",
+                      "reason": "barrier-passage: not a permitted river or wall crossing at v74 (allowed edges: None)"
+                    },
+                    {
+                      "edge": "e89",
+                      "from": "v74",
+                      "to": "v75",
+                      "reason": "river-edge: river edge"
+                    },
+                    {
+                      "edge": "e268",
+                      "from": "v74",
+                      "to": "v90",
+                      "reason": "river-edge: river edge"
+                    }
+                  ]
+                },
+                {
+                  "start": "v74",
+                  "end": "v59",
+                  "classification": "current-curtain",
+                  "reachedCount": 1,
+                  "partialPath": [
+                    "v74"
+                  ],
+                  "partialEdges": [],
+                  "blocked": [
+                    {
+                      "edge": "e88",
+                      "from": "v74",
+                      "to": "v60",
+                      "reason": "barrier-passage: not a permitted river or wall crossing at v74 (allowed edges: None)"
+                    },
+                    {
+                      "edge": "e89",
+                      "from": "v74",
+                      "to": "v75",
+                      "reason": "river-edge: river edge"
+                    },
+                    {
+                      "edge": "e268",
+                      "from": "v74",
+                      "to": "v90",
+                      "reason": "river-edge: river edge"
+                    }
+                  ]
+                },
+                {
+                  "start": "v74",
+                  "end": "v63",
+                  "classification": "current-curtain",
+                  "reachedCount": 1,
+                  "partialPath": [
+                    "v74"
+                  ],
+                  "partialEdges": [],
+                  "blocked": [
+                    {
+                      "edge": "e88",
+                      "from": "v74",
+                      "to": "v60",
+                      "reason": "barrier-passage: not a permitted river or wall crossing at v74 (allowed edges: None)"
+                    },
+                    {
+                      "edge": "e89",
+                      "from": "v74",
+                      "to": "v75",
+                      "reason": "river-edge: river edge"
+                    },
+                    {
+                      "edge": "e268",
+                      "from": "v74",
+                      "to": "v90",
+                      "reason": "river-edge: river edge"
+                    }
+                  ]
+                }
+              ],
+              "routeId": "gc:road-12"
+            }
+          ]
+        },
+        {
+          "phase": "road-network",
+          "elapsedMs": 57.95383299999958,
+          "attempt": 1,
+          "counts": {
+            "roadEdges": 163,
+            "roadComponents": 2,
+            "roadLengthMeters": 5076.8621919350235,
+            "redundantStreets": 0,
+            "detachedStreets": 0,
+            "joinedStreets": 0
+          }
+        },
+        {
+          "phase": "road-ownership",
+          "elapsedMs": 21.200417000000016,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 32,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 6
+          }
+        },
+        {
+          "phase": "route-junctions",
+          "elapsedMs": 0.0006249999987630872,
+          "attempt": 1
+        },
+        {
+          "phase": "apply-validation",
+          "elapsedMs": 87.20741699999962,
+          "attempt": 1,
+          "counts": {
+            "errors": 0
+          }
+        },
+        {
+          "phase": "apply-total",
+          "elapsedMs": 318.81916699999965,
+          "attempt": 1
+        },
+        {
+          "phase": "major-road-shortcuts",
+          "elapsedMs": 0.044957999998587184,
+          "attempt": 1
+        },
+        {
+          "phase": "rectify-hex",
+          "elapsedMs": 0.0001250000004802132,
+          "attempt": 1
+        },
+        {
+          "phase": "finish-geometry",
+          "elapsedMs": 155.65649999999914,
+          "attempt": 1
+        },
+        {
+          "phase": "rectify-voronoi",
+          "elapsedMs": 5.737875000000713,
+          "attempt": 1
+        },
+        {
+          "phase": "crossing-validation",
+          "elapsedMs": 27.332791000000725,
+          "attempt": 1,
+          "counts": {
+            "valid": 1,
+            "faces": 637,
+            "edges": 1802,
+            "roads": 4,
+            "crossingIssues": 0,
+            "selfIntersectingFaces": 0
+          }
+        },
+        {
+          "phase": "fixed-crossing-approaches",
+          "elapsedMs": 0.007415999998556799,
+          "attempt": 1,
+          "counts": {
+            "adopted": 0,
+            "unresolved": 0
+          },
+          "fixedApproaches": []
+        },
+        {
+          "phase": "wall-defense-closure",
+          "elapsedMs": 61.98937500000102,
+          "attempt": 1,
+          "counts": {
+            "innerFirst": 0,
+            "rings": 1,
+            "unprotectedMeters": 0,
+            "riverOpeningMeters": 0,
+            "invasionPaths": 0,
+            "outerUnprotectedMeters": 0,
+            "outerRiverOpeningMeters": 0,
+            "outerInvasionPaths": 0
+          }
+        },
+        {
+          "phase": "road-ownership-final",
+          "elapsedMs": 0.04799999999886495,
+          "attempt": 1,
+          "counts": {
+            "removedRoadReferences": 0,
+            "removedRoadGroups": 0,
+            "splitRoadGroups": 0
+          }
+        },
+        {
+          "phase": "fit-housing",
+          "attempt": 1,
+          "elapsedMs": 319.95620899999994,
+          "counts": {
+            "populationPass": 1,
+            "unplacedDwellings": 0
+          }
+        }
+      ]
+    }
+  ],
+  "meshless": {
+    "inputMs": 16.010042000001704,
+    "skeletonMs": 2041.1598750000012,
+    "urbanMs": 10712.006249999999,
+    "generationMs": 12769.176167000001,
+    "svgMs": 11349.891333000003,
+    "svgNodes": 5063,
+    "report": {
+      "targetPopulation": 5000,
+      "requiredDwellings": 1112,
+      "capacityDwellings": 1112,
+      "assignedDwellings": 1112,
+      "unplacedDwellings": 0,
+      "assignedPopulation": 5000,
+      "unplacedPopulation": 0,
+      "mixedDwellings": 0,
+      "capacityInside": 1112,
+      "capacityOutside": 0,
+      "requiredFacilities": 0,
+      "placedFacilities": 0,
+      "provisionalFacilities": 0,
+      "unplacedFacilities": [],
+      "housingBuildings": 890,
+      "reasons": []
+    },
+    "paths": 752,
+    "placements": 891,
+    "spans": [
+      {
+        "order": 1,
+        "phase": "input",
+        "ms": 16.010042000001704
+      },
+      {
+        "order": 2,
+        "phase": "skeleton.source-validation-and-clone",
+        "ms": 14.306416999999783
+      },
+      {
+        "order": 3,
+        "phase": "skeleton.walls-gates-bridges",
+        "ms": 363.61266700000124
+      },
+      {
+        "order": 4,
+        "phase": "skeleton.road-routing",
+        "ms": 1521.7090409999983
+      },
+      {
+        "order": 5,
+        "phase": "skeleton.connections-and-validation",
+        "ms": 54.294207999999344
+      },
+      {
+        "order": 6,
+        "phase": "skeleton.land-blocks",
+        "ms": 36.70937500000218
+      },
+      {
+        "order": 7,
+        "phase": "skeleton.ledger-validation-and-snapshots",
+        "ms": 50.17395800000304
+      },
+      {
+        "order": 8,
+        "phase": "urban.source-validation-and-clone",
+        "ms": 47.441750000001775
+      },
+      {
+        "order": 9,
+        "phase": "urban.programme-and-domain",
+        "ms": 0.0932909999974072
+      },
+      {
+        "order": 10,
+        "phase": "urban.base-blocks",
+        "ms": 27.623250000000553
+      },
+      {
+        "order": 11,
+        "phase": "urban.lane-candidates",
+        "ms": 13.426875000001019
+      },
+      {
+        "order": 12,
+        "phase": "urban.ce-perimeter-plan-and-native-connections",
+        "ms": 308.4144579999993
+      },
+      {
+        "order": 13,
+        "phase": "urban.road-graph",
+        "ms": 170.39649999999892
+      },
+      {
+        "order": 14,
+        "phase": "urban.districts-and-checkpoints",
+        "ms": 4.5086669999982405
+      },
+      {
+        "order": 15,
+        "phase": "urban.facilities",
+        "ms": 0.01691699999719276
+      },
+      {
+        "order": 16,
+        "phase": "urban.housing-placement",
+        "ms": 199.8481670000001
+      },
+      {
+        "order": 17,
+        "phase": "urban.population-allocation",
+        "ms": 14.564041999998153
+      },
+      {
+        "order": 18,
+        "phase": "urban.residual-land",
+        "ms": 12.909708999999566
+      },
+      {
+        "order": 19,
+        "phase": "urban.ledger-and-fingerprint",
+        "ms": 20.02295800000138
+      },
+      {
+        "order": 20,
+        "phase": "urban.final-validation",
+        "ms": 9884.704415999997
+      },
+      {
+        "order": 21,
+        "phase": "urban.save-budget-check",
+        "ms": 7.554624999997031
+      }
+    ],
+    "outputSha256": "ecbda3930f672adcd5230c104f98f87d586f960148d3c6f87247b66a0e66a7f9"
+  },
+  "conditions": {
+    "mesh": {
+      "frameExtentMeters": 1200,
+      "wallAreaM2": 120351.29525639136,
+      "civicElements": [
+        {
+          "kind": "plaza",
+          "point": [
+            -2.0687002860783514,
+            11.08145719837185
+          ],
+          "sizeMeters": 48
+        },
+        {
+          "kind": "temple",
+          "point": [
+            29.290367527396764,
+            -96.79356778559422
+          ],
+          "sizeMeters": 54
+        }
+      ],
+      "cemeteryCount": 1
+    },
+    "meshless": {
+      "frameExtentMeters": 1200,
+      "wallAreaM2": 121903.22655276634,
+      "civicFeatures": [
+        {
+          "id": "feature:civic-plaza",
+          "kind": "market",
+          "areaM2": 2304
+        },
+        {
+          "id": "feature:civic-church",
+          "kind": "temple",
+          "areaM2": 2380
+        },
+        {
+          "id": "feature:civic-cemetery",
+          "kind": "cemetery",
+          "areaM2": 2640
+        }
+      ],
+      "cemeteryCount": 1
+    },
+    "wallAreaRatio": 1.0128950111676722
+  },
+  "measurementSources": [
+    {
+      "path": "src/city-editor/services/analysis/meshlessStagePerformance.cli.test.ts",
+      "sha256": "5c4e7cedb2c7196691211c16cb9984512aec0e02470fd2f74efe888519357d37"
+    },
+    {
+      "path": "src/city-editor/generators/generationTiming.ts",
+      "sha256": "d33028b3d591d73277e334bdc47e565b0c32c6bb5c30d24e4f7fcfda707db8ab"
+    },
+    {
+      "path": "src/city-editor/generators/vector/generation/pipeline.ts",
+      "sha256": "3354250b5fb127c24e7a798d64e4d5093142fe04cf41f92727d362b29676ca72"
+    },
+    {
+      "path": "src/city-editor/generators/vector/generation/urban.ts",
+      "sha256": "54f326df78b245861170dc2902cac4c106a8b80595cb0f91174fad843d375277"
+    },
+    {
+      "path": "src/city-editor/generators/vector/generation/civic.ts",
+      "sha256": "732fa63493222595a63f562448a1037741ea6b1d1b821ba813c9b183cb0d346c"
+    },
+    {
+      "path": "src/city-editor/generators/vector/generation/editorInput.ts",
+      "sha256": "63e594833a51c2e58ccc46979f5123dc4f3dde5b1d536d347d5462c222031ea5"
+    }
+  ]
+}

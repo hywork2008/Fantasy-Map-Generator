@@ -3,13 +3,13 @@ export interface HistoryEntry {
   label: string;
   time: number;
 }
-export interface DocumentHistoryState {
-  commit(document: CityDocument, label?: string): CityDocument;
-  amendTop(document: CityDocument, label?: string): CityDocument;
-  reset(document: CityDocument, label?: string): void;
-  undo(current: CityDocument): CityDocument | null;
-  redo(current: CityDocument): CityDocument | null;
-  jumpTo(index: number): CityDocument | null;
+export interface DocumentHistoryState<TDocument = CityDocument> {
+  commit(document: TDocument, label?: string): TDocument;
+  amendTop(document: TDocument, label?: string): TDocument;
+  reset(document: TDocument, label?: string): void;
+  undo(current: TDocument): TDocument | null;
+  redo(current: TDocument): TDocument | null;
+  jumpTo(index: number): TDocument | null;
   readonly entries: HistoryEntry[];
   readonly currentEntryKey: object;
   readonly index: number;

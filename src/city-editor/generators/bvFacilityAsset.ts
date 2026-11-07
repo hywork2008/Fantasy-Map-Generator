@@ -14,7 +14,9 @@ export function bvFacilityAsset(
   quality: "low" | "high" = "low"
 ): LandmarkAsset {
   if (!entrances.length) throw new Error(`BV facility ${modelId} requires an entrance`);
-  if (!placementQualities(modelId).includes(quality)) throw new Error(`Unsupported BV facility ${modelId}:${quality}`);
+  const qualities = placementQualities(modelId);
+  if ((qualities.length && !qualities.includes(quality)) || !placementDefinition(modelId, quality))
+    throw new Error(`Unsupported BV facility ${modelId}:${quality}`);
   const footprint = placementFootprint(modelId, quality)!;
   const width = footprint.halfX * 2,
     depth = footprint.halfZ * 2;

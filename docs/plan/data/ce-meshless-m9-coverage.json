@@ -1,0 +1,204 @@
+{
+  "format": "ce-meshless-m9-coverage",
+  "version": 1,
+  "releaseChannel": "preview",
+  "automaticMigration": false,
+  "formalReleaseRequires": [
+    "All inventory groups verified without unresolved parity limits",
+    "No baseline TypeScript build errors",
+    "Population and facility targets met at agreed representative scales",
+    "Interactive generation target: 10 seconds per fixed case; worker timeout remains a separate 60-second safety bound"
+  ],
+  "features": [
+    {
+      "id": "entry-and-settings",
+      "status": "verified",
+      "tests": [
+        "src/city-editor/components/CityEditorPage.vector.test.ts",
+        "src/city-editor/services/io/documentCodec.test.ts"
+      ],
+      "evidence": "Native, legacy and Freeform formats remain distinct."
+    },
+    {
+      "id": "generation-and-stages",
+      "status": "verified",
+      "tests": [
+        "src/city-editor/components/vector/VectorGenerationPanel.test.ts",
+        "src/city-editor/services/vectorGenerationWorkerClient.test.ts"
+      ],
+      "evidence": "Cancellable workers, same-run checkpoints and history-identity guards."
+    },
+    {
+      "id": "road-river-wall-drawing",
+      "status": "verified",
+      "tests": [
+        "src/city-editor/generators/vector/editing/m2.test.ts"
+      ],
+      "evidence": "Accepted curves, widths and anchors survive edits and reload."
+    },
+    {
+      "id": "wall-presets-and-double-walls",
+      "status": "verified",
+      "tests": [
+        "src/city-editor/generators/vector/editing/network.test.ts",
+        "src/city-editor/generators/vector/editing/m2.test.ts"
+      ],
+      "evidence": "Physical wall widths, ratio and narrow-corridor rejection."
+    },
+    {
+      "id": "bridges-and-gates",
+      "status": "verified",
+      "tests": [
+        "src/city-editor/generators/vector/editing/network.test.ts",
+        "src/city-editor/generators/vector/terrain.test.ts"
+      ],
+      "evidence": "Shared nodes, dry straight crossings and centralized skew policy."
+    },
+    {
+      "id": "districts-and-local-infill",
+      "status": "verified",
+      "tests": [
+        "src/city-editor/generators/vector/generation/pipeline.test.ts",
+        "src/city-editor/generators/vector/environmentIntegration.test.ts"
+      ],
+      "evidence": "Holes, disconnected land, frontage and changed district restrictions."
+    },
+    {
+      "id": "facilities-housing-and-population",
+      "status": "limited",
+      "tests": [
+        "src/city-editor/generators/vector/generation/urban.test.ts",
+        "src/city-editor/generators/vector/m9Acceptance.test.ts"
+      ],
+      "evidence": "Facility-first packing and conserved population are verified. On the fixed 5000-person case, real-size houses meet the 1112-dwelling target and unplaced population is 0. 223 of 294 facilities are placed: 67 misses are fully searched outskirts sites and 4 hit the per-request search cap. Housing stops because demand is met."
+    },
+    {
+      "id": "castle-moat-and-bastions",
+      "status": "limited",
+      "tests": [
+        "src/city-editor/generators/vector/features.test.ts",
+        "src/city-editor/services/io/vector/legacyCopy.test.ts",
+        "src/city-editor/generators/vector/m9FeatureAcceptance.test.ts"
+      ],
+      "accepted": [
+        "One castle circuit, a shared gate and an orthogonal moat crossing",
+        "Bastions only from the age of exploration, with fixed ownership blocking removal",
+        "Legacy documents stay restorable; unsupported pieces are reported instead of dropped",
+        "Automatic conversion of a flat inland legacy bastioned plan: 49 semantic entities, wall-span anchors, fixed ownership, shared gates and road access, saved absolute elevations, dry/wet ditches, excavated ground and generation reservations"
+      ],
+      "remaining": [
+        "Relief and waterfront/sluice defenses are explicitly rejected until their ground and water authorities are supported",
+        "Legacy castle plans and editable detailed defense authoring",
+        "Ordinary generated legacy documents can exceed the existing 6 MiB copy budget; the bounded defense fixture excludes unrelated infill and rural snapshots"
+      ],
+      "evidence": "Fixed flat inland dry/wet defenses convert 49 entities without mesh references and restore the archived original exactly. Generated blocks overlap defense reservations by 0.000004236 m2, below the 1e-5 m2 tolerance. Native parsing rejects dangling owners, portals and wall anchors, nonfinite elevations and unlawful skew; fixed edits are rejected. Broader defense parity remains limited."
+    },
+    {
+      "id": "harbor-ships-and-market",
+      "status": "limited",
+      "tests": [
+        "src/city-editor/generators/vector/features.test.ts",
+        "src/city-editor/generators/vector/terrain.test.ts",
+        "src/city-editor/generators/vector/m9FeatureAcceptance.test.ts",
+        "src/city-editor/generators/vector/harbor.test.ts"
+      ],
+      "accepted": [
+        "Dry quay, cargo route and waterborne ship on the nearest bank",
+        "Market-day activity and locked booth appearance",
+        "Automatic conversion of a fixed flat legacy sea harbor with one cargo quay, four physical ships and one active lighter assignment: depth/obstacle navigation, road access, solved crane/berth/mother-ship links, reservations, display state, BV rendering and exact source restoration"
+      ],
+      "remaining": [
+        "River ribbons, relief and crossed approaches are explicitly rejected until their water and ground authorities can be retained",
+        "Broader port inputs and editable harbor planning, including dedicated inspection/editing UI",
+        "Raster navigation retains the old sampling scale and explicit open-boundary assumptions; it is not a continuous offshore route certificate"
+      ],
+      "evidence": "The fixed legacy sea harbor is now an active cell-free plan. Native navigation rechecks hull width, draft, obstacles and connection to open water, and cargo is solved again with crane reach/angle/height, swept load, berth and mother-ship references. Four ships retain hull dimensions, pose, sails and gunports in native and shared BV rendering. Generated blocks overlap harbor reservations by 0 m2. Invalid owners, moved cargo ships, crane angles, depth and states are rejected. Broader parity remains limited."
+    },
+    {
+      "id": "temple-cemetery-park-farm-forest",
+      "status": "limited",
+      "tests": [
+        "src/city-editor/generators/vector/features.test.ts",
+        "src/city-editor/generators/vector/m9FeatureAcceptance.test.ts",
+        "src/city-editor/generators/vector/landscape.test.ts",
+        "src/city-editor/components/vector/VectorEnvironmentPanel.test.ts"
+      ],
+      "accepted": [
+        "Market, temple, cemetery, park, farm and forest regions keep the same geometry in native, 2D and 3D",
+        "An optional BV asset keeps its own dimensions",
+        "Resolved legacy automatic forest boundaries, clearing holes, water and road exclusions, disjoint farm ownership, native persistence and shared 2D/3D geometry as a snapshot",
+        "Native forest mode/density regeneration without archived cells, deterministic shared 2D/3D BV species, clearing and canopy containment, restored farmland and clipped field rows, climate/civilization/burial settings, shared cultural cemetery layout and locked-plan preservation through undoable controls"
+      ],
+      "remaining": [
+        "Full legacy park/farm layout regeneration and temple/other automatic landscape parity",
+        "Dedicated cemetery BV architecture, seasonal tree presentation and legacy terrain suitability",
+        "Individual clearing and source-domain edits; original eligibility and exclusions remain fixed regeneration inputs"
+      ],
+      "evidence": "Forest boundaries remain 3200/2800/2624 m2 on the fixed clearing/water/road inputs. The road case regenerates 19 dense or 15 sparse trees deterministically. A separate fixed culture case retains the local/culture faith distinction and produces the same cemetery parts, paths and planting as the old culture layout after applying the local faith. Native modes, density, BV tree species, field restoration, saved profiles and UI undo are verified without consulting the source archive. Full automatic landscape parity remains limited."
+    },
+    {
+      "id": "terrain-and-freeform-placement",
+      "status": "limited",
+      "tests": [
+        "src/city-editor/generators/vector/terrain.test.ts",
+        "src/city-editor/renderers/vector/precision.test.ts",
+        "src/city-editor/generators/vector/m9FeatureAcceptance.test.ts"
+      ],
+      "accepted": [
+        "Authored pads, sculpt, lawful crossings, rigid pad moves and source restoration",
+        "District holes survive cut and merge"
+      ],
+      "remaining": [
+        "A continuous vertical-error guarantee across sharp grading breaklines",
+        "Fixed draw-grid interpolation has 15 m sampled vertical error on the unaligned 20 m pad fixture, despite zero evaluator error"
+      ],
+      "evidence": "An independent 0.25 m wall-band formula and barycentric interpolation of actual draw triangles are compared at 257 points. Evaluator error is zero; maximum sampled draw error is 15 m. This rejects sharp-boundary display acceptance and does not constitute a continuous certificate."
+    },
+    {
+      "id": "two-and-three-dimensional-view",
+      "status": "verified",
+      "tests": [
+        "src/city-editor/renderers/vector/renderData.test.ts",
+        "src/city-editor/renderers/vector/precision.test.ts"
+      ],
+      "evidence": "Same accepted footprints and stage IDs; translated-frame float32 precision is protected by a local render origin."
+    },
+    {
+      "id": "selection-and-measurement",
+      "status": "verified",
+      "tests": [
+        "src/city-editor/renderers/vector/picking.test.ts",
+        "src/city-editor/components/vector/VectorWorkbench.test.ts"
+      ],
+      "evidence": "Stable logical IDs for 3D selection; metre length and closed area from accepted curves."
+    },
+    {
+      "id": "history-and-transactions",
+      "status": "verified",
+      "tests": [
+        "src/city-editor/generators/vector/document.test.ts",
+        "src/city-editor/components/vector/VectorGenerationPanel.test.ts"
+      ],
+      "evidence": "Atomic history, cancellation and stale identical-JSON transactions."
+    },
+    {
+      "id": "files-sharing-and-export",
+      "status": "verified",
+      "tests": [
+        "src/city-editor/services/io/vector/share.test.ts",
+        "src/city-editor/services/io/vector/documentCodec.test.ts",
+        "src/city-editor/services/io/vector/legacyCopy.test.ts"
+      ],
+      "evidence": "Complete documents and input recipes remain separate; original source is retained."
+    },
+    {
+      "id": "layers-locks-and-manual-edits",
+      "status": "verified",
+      "tests": [
+        "src/city-editor/generators/vector/editing/dependencies.test.ts",
+        "src/city-editor/components/vector/VectorEnvironmentPanel.test.ts"
+      ],
+      "evidence": "Locked and authored geometry is preserved; display visibility does not release reservations."
+    }
+  ]
+}

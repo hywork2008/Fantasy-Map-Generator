@@ -557,20 +557,25 @@ function createStackedBarChart(
     (i: number) => Z[i]
   ) as unknown as [string, Map<string, number[]>][];
 
-  const series: StackedSeries[] = d3
+  const stacked = d3
     .stack<[string, Map<string, number[]>]>()
     .keys(groupsArr)
     .value(([, groupRows], z) => X[new Map(groupRows as unknown as [string, number][]).get(z)!])
     .order(d3.stackOrderNone)
-    .offset(offset)(rolled)
-    .map(s => {
-      const defined = s.filter(d => !Number.isNaN(d[1]));
-      const data = defined.map((d: unknown) => {
-        const point = d as { data: [string, [string, number[]][]] };
-        return Object.assign(point, { i: new Map(point.data[1]).get(s.key) });
-      });
-      return { key: s.key, data };
-    });
+    .offset(offset)(rolled);
+  const series: StackedSeries[] = stacked.map(s => {
+    const data: BarDataPoint[] = [];
+    for (const point of s) {
+      if (Number.isNaN(point[1])) continue;
+      const index = new Map(point.data[1] as unknown as [string, number][]).get(s.key);
+      if (index === undefined) continue;
+      const bar = [point[0], point[1]] as BarDataPoint;
+      bar.i = index;
+      bar.data = point.data;
+      data.push(bar);
+    }
+    return { key: s.key, data };
+  });
 
   const xDomain = d3.extent(series.flatMap(d => (d.data as unknown as number[]).flat())) as [number, number];
 

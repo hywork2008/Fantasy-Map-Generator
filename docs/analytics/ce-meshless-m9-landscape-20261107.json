@@ -1,0 +1,73 @@
+{
+  "format": "ce-meshless-m9-feature-acceptance",
+  "version": 1,
+  "releaseChannel": "preview",
+  "observations": [
+    {
+      "id": "legacy-defense",
+      "sourceSha256": "0da90a9bf4855cdc1050647fa8bc407fd4f8c6ba02101a93aaf3126cb4ad7881",
+      "wetSourceSha256": "99d697bdff0be4649c99d32ef1392b3141262b2a2da1356718208d82e15ca1f7",
+      "outcome": "partially-accepted",
+      "convertedEntities": 49,
+      "archiveRestored": true,
+      "blockReservationOverlapM2": 0.0000042357499676626276,
+      "dryAndWetDitches": true,
+      "accepted": "Fixed semantic ownership, absolute elevations, wall spans, gates, access links, generation reservations, shared geometry and excavated ground.",
+      "remaining": "Editable defense authoring, broader relief/waterfront cases, legacy castles and the 6 MiB archive budget remain outside this fixed-case acceptance."
+    },
+    {
+      "id": "legacy-harbor",
+      "sourceSha256": "b4251db9bc4841bb39ea6068d7547a3ee273353fe1ed495d392d89ab361077fa",
+      "outcome": "partially-accepted",
+      "sourceCargoQuays": 1,
+      "sourceShips": 4,
+      "sourceActiveCargoAssignments": 1,
+      "archiveRestored": true,
+      "blockReservationOverlapM2": 0,
+      "accepted": "Fixed flat sea harbor: polygon depth/navigation, road access, physical hull dimensions and display state, solved crane/berth/lighter links, generation reservations and BV rendering.",
+      "remaining": "River ribbons, relief, crossed approaches, broader port inputs and editable harbor planning remain outside this fixed-case acceptance."
+    },
+    {
+      "id": "legacy-landscape",
+      "outcome": "partially-accepted",
+      "clearing": {
+        "sourceSha256": "06b50225199847056fd7cfa08791d2f560302b2a25f6fd03396be6d88b284d2d",
+        "areaM2": 3200.000000000001,
+        "holes": 1
+      },
+      "wet": {
+        "sourceSha256": "a8a5b147787794680eb7336ef53755a5d5c77c03b6e14842b37d5cbc12436294",
+        "areaM2": 2800.000000000001,
+        "holes": 0
+      },
+      "road": {
+        "sourceSha256": "1a0b1fe9aed0d281eb250bd9b68b8fbff0863c0dae347d6eed529e7bd382379b",
+        "areaM2": 2624.000000000001,
+        "holes": 0
+      },
+      "denseTrees": 19,
+      "sparseTrees": 15,
+      "deterministicRegeneration": true,
+      "culturalSourceSha256": "c8330deafb2c2cab557351f2d99c0e94c51cfc7a95d0db101911ae65bcfeb440",
+      "localFaithPreset": "sunni_wahhabi",
+      "cultureTreeSpecies": [
+        "european_beech",
+        "european_hornbeam",
+        "garden_parkland",
+        "pedunculate_oak",
+        "scots_pine"
+      ],
+      "accepted": "Cell-free forest mode/density regeneration, clearing holes, farm ownership restoration, climate-adapted BV species shared in 2D/3D, cultural cemetery regeneration, locked-plan preservation and native settings controls.",
+      "remaining": "Full park/farm layout regeneration, temple and other automatic landscape parity, seasonal presentation, terrain suitability and individual clearing edits remain outside this fixed-case acceptance."
+    },
+    {
+      "id": "sharp-grading",
+      "outcome": "not-accepted",
+      "probes": 257,
+      "inputSha256": "210784a409d037011b9ec898eb545c1fcec61bc3e5662726e34b1f6439f8f5f1",
+      "maxEvaluatorErrorMeters": 0,
+      "maxDrawErrorMeters": 14.999999999999998,
+      "remaining": "A fixed draw grid cannot guarantee continuous vertical accuracy at unaligned breaklines. The sampled maximum is a lower bound, not a continuous certificate."
+    }
+  ]
+}

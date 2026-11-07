@@ -1,4 +1,5 @@
 import { harborCraneFoundationFootprint } from "../../buildings/medieval/harborCraneDimensions";
+import type { HarborCargoPile, HarborCrane } from "../types/contracts/harborFabric";
 import type { OpenSpace } from "../types/contracts/parcelTypes";
 import type { CityDocument, HarborPreset, Id, Point } from "../types/document";
 import { cellRelief } from "./cellRelief";
@@ -20,6 +21,8 @@ import { corridor, distance, intersectConvex, plotArea, subtractConvex } from ".
 import type { ParcelFrontage } from "./parcelTypes";
 import { riverPortShore, seaPortShore } from "./riverPortShore";
 import { flatSeaDropMeters, waterPolygons } from "./waterGeometry";
+
+export type { HarborCargoPile, HarborCrane } from "../types/contracts/harborFabric";
 
 /**
  * Cargo the port's warehouses cannot hold lies stacked on the loading yards (§4.4, §6.2 of
@@ -43,28 +46,6 @@ export interface HarborPier {
   end?: Point;
   width?: number;
   reach?: number;
-}
-
-export interface HarborCrane {
-  id: Id;
-  kind: "treadwheel" | "derrick" | "romanMagnaRota";
-  point: Point;
-  armAngleRad: number;
-  radiusMeters: number;
-  /** Horizontal radius to the falling hoist line, shared by SVG and the model factory. */
-  armLengthMeters: number;
-  pulleyHeightMeters?: number;
-  hookHeightMeters?: number;
-  berthId?: string;
-}
-
-export interface HarborCargoPile {
-  id: Id;
-  kind: "crates" | "barrels" | "bales" | "ballast";
-  point: Point;
-  widthMeters: number;
-  heightMeters: number;
-  rotation: number;
 }
 
 export interface HarborPlan {

@@ -38,6 +38,33 @@ function button(label: string) {
 }
 
 describe("editor mount boundaries", () => {
+  it("keeps the replacement mesh editor and its worker alive when an old disposer runs repeatedly", () => {
+    vi.stubGlobal("Worker", FakeWorker);
+    const oldDispose = mountCityEditor(root);
+    dispose = mountCityEditor(root);
+    const seed = root.querySelector<HTMLInputElement>(".ce-generate-seed")!;
+    seed.value = "replacement-mesh-seed";
+    seed.dispatchEvent(new Event("input", { bubbles: true }));
+    button("Generate from seed").click();
+    const currentWorker = worker;
+    const svg = root.querySelector("svg")!;
+    const geometry = svg.outerHTML;
+    const history = root.querySelector(".ce-history")!.textContent;
+
+    oldDispose();
+    oldDispose();
+
+    expect(root.querySelector("svg")).toBe(svg);
+    expect(svg.outerHTML).toBe(geometry);
+    expect(root.querySelector<HTMLInputElement>(".ce-generate-seed")!.value).toBe("replacement-mesh-seed");
+    expect(root.querySelector(".ce-history")!.textContent).toBe(history);
+    expect(root.getAttribute("aria-busy")).toBe("true");
+    expect(currentWorker.terminate).not.toHaveBeenCalled();
+    dispose();
+    expect(currentWorker.terminate).toHaveBeenCalledOnce();
+    expect(root.childNodes).toHaveLength(0);
+  });
+
   it("cancels the old worker and global keyboard bindings when remounting the same root", async () => {
     vi.stubGlobal("Worker", FakeWorker);
     const removed = vi.spyOn(window, "removeEventListener");
