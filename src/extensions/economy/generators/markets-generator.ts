@@ -57,6 +57,7 @@ import type { FaunaCohorts } from "./faunaPopulationTypes";
 import { isOrchardDrink } from "./foodLots";
 import { getRecipeCostBasis, hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
+  ensureContainerCirculation,
   getFoodProcessingProductionHeadroom,
   getMonthlyHouseholdDemand,
   recordCellFoodHouseholdConsumption,
@@ -152,6 +153,15 @@ import {
   getSeasonalFoodProductionMultiplier
 } from "./production-utils";
 import { addWholesaleGoodStock, getRetailLocalityMultiplier } from "./retailInventory";
+import {
+  cheapestContainerChoiceCosts,
+  getContainerSetPerLot,
+  getContainerYieldCap,
+  isDrinkContainer,
+  isReturnableDrink,
+  planContainerDraw,
+  recordContainerFilling
+} from "./returnableContainers";
 import { seaDeparturePortBurgId } from "./seaRoutePorts";
 import { START_LINE_STOCK_GOODS, seedStartLineStock, takeStartLineStockPending } from "./startLineStock";
 import {
@@ -188,6 +198,11 @@ import {
   transportRoomSlots
 } from "./tradeTransportRoom";
 import { TransportAssetOrders } from "./transportAssetOrders";
+
+/** A cask, pot or bottle a drink goes out in (returnableContainers.ts). */
+function isDrinkContainerId(goodId: number): boolean {
+  return isDrinkContainer(Goods.get(goodId)?.name ?? "");
+}
 
 /**
  * Rural woodcutters sell what the market draws down, not what the forest could give: they keep
@@ -1422,6 +1437,33 @@ export class MarketsModule {
               relatedGoodId: commercialGood.i
             });
             if (ingredient.name === "Barrels") replacementCasks += units;
+            // The pressing fills the market's empties first, and new casks for the rest.
+            if (isReturnableDrink(commercialGood.name) && isDrinkContainer(ingredient.name)) {
+              const circulation = ensureContainerCirculation(market);
+              const draw = planContainerDraw(
+                circulation,
+                commercialGood.name,
+                ingredient.name,
+                outcome.exportOutputUnits,
+                units
+              );
+              const extra = Math.min(draw.extra, Math.max(0, market.goods[ingredient.i].stock));
+              if (extra > 0) {
+                market.goods[ingredient.i].stock -= extra;
+                recordGoodFlow({
+                  direction: "sink",
+                  category: "recipeInput",
+                  goodId: ingredient.i,
+                  units: extra,
+                  marketId: market.i,
+                  relatedGoodId: commercialGood.i
+                });
+              }
+              recordContainerFilling(circulation, commercialGood.name, ingredient.name, outcome.exportOutputUnits, {
+                reused: draw.reused,
+                extra
+              });
+            }
           }
           recordOrchardCaskFilling(market, commercialGood.name, outcome.exportOutputUnits, replacementCasks);
         }
@@ -1498,6 +1540,19 @@ export class MarketsModule {
       const ingredient = Goods.get(+id);
       if (!ingredient || !isGoodEnabled(ingredient)) return 0;
       capacity = Math.min(capacity, Math.max(0, market.goods[+id]?.stock ?? 0) / amount);
+      // The casks must come back to be filled again: the market's empties and its casks cap it.
+      if (isReturnableDrink(drink.name) && isDrinkContainer(ingredient.name)) {
+        capacity = Math.min(
+          capacity,
+          getContainerYieldCap(
+            ensureContainerCirculation(market).empties[ingredient.name] ?? 0,
+            Math.max(0, market.goods[+id]?.stock ?? 0),
+            getContainerSetPerLot(drink.name, ingredient.name),
+            amount,
+            1
+          )
+        );
+      }
     }
     return capacity;
   }
@@ -1742,7 +1797,8 @@ export class MarketsModule {
           good.name,
           recipeEntries,
           goodId => ingredientRows.get(goodId)?.price ?? 0,
-          goodId => ingredientRows.get(goodId)?.stock ?? 0
+          goodId => ingredientRows.get(goodId)?.stock ?? 0,
+          isReturnableDrink(good.name) ? isDrinkContainerId : undefined
         );
         marketGood.costBasis = rn(avgMarketCost, 2);
 
@@ -3501,14 +3557,20 @@ export class MarketsModule {
     const avgBaseCostByGood = new Array(goods.length);
     for (const good of goods) {
       if (!good.recipes?.length) continue;
-      let totalBaseCost = 0;
-      for (const recipe of good.recipes) {
-        for (const [ingIdStr, amount] of Object.entries(recipe)) {
+      const entries = good.recipes.map(recipe =>
+        Object.entries(recipe).flatMap(([ingIdStr, amount]) => {
           const ing = Goods.get(+ingIdStr);
-          if (ing && isGoodEnabled(ing)) totalBaseCost += amount * ing.value;
-        }
-      }
-      avgBaseCostByGood[good.i] = totalBaseCost / good.recipes.length;
+          return ing && isGoodEnabled(ing) ? [{ goodId: ing.i, amount }] : [];
+        })
+      );
+      const costs = entries.map(recipe =>
+        recipe.reduce((total, entry) => total + entry.amount * (Goods.get(entry.goodId)?.value ?? 0), 0)
+      );
+      // A drink's casks, pots and bottles are one choice, at the cheapest container.
+      const choices = isReturnableDrink(good.name)
+        ? cheapestContainerChoiceCosts(entries, costs, isDrinkContainerId)
+        : costs;
+      avgBaseCostByGood[good.i] = choices.reduce((total, cost) => total + cost, 0) / choices.length;
     }
     return avgBaseCostByGood;
   }

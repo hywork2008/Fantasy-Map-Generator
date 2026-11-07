@@ -24,9 +24,7 @@ import {
   GRAPES_LOTS_PER_WINE_LOT,
   HONEY_BARRELS_PER_MEAD_LOT,
   KILOGRAMS_PER_ORCHARD_FRUIT_LOT,
-  MEAD_BARRELS_PER_LOT,
   MILK_LOTS_PER_CHEESE_LOT,
-  ORCHARD_DRINK_BARRELS_PER_LOT,
   ORCHARD_FRUIT_LOTS_PER_DRIED_LOT,
   ORCHARD_FRUIT_LOTS_PER_DRINK_LOT,
   ORCHARD_TARGETS,
@@ -42,6 +40,12 @@ import {
   type TradeTrend
 } from "./goodsGeneratorTypes";
 import { RENNET_BARRELS_PER_CHEESE_LOT } from "./rennet";
+import {
+  DRINK_CONTAINER_CHOICES,
+  getContainerReplacementPerLot,
+  type ReturnableDrink,
+  withDrinkContainers
+} from "./returnableContainers";
 import { TEXTILE_RECIPES } from "./textileRecipeContracts";
 import { getDefaultGoodCargoProfile } from "./tradeCargo";
 import { catalogTradeHeading } from "./tradeHeadings";
@@ -239,12 +243,12 @@ type GoodData = Omit<Good, "i" | "recipes" | "byproducts"> & {
 /** Whole-kiln material contract; no independently recovered ash from carbonization. */
 const CHARCOAL_WOOD_PER_UNIT = CHARCOAL_WOOD_PER_LOT;
 const POTASH_ASH_PER_UNIT = 1.5;
+/** Pomace a 200 L wine cask's pressing leaves. */
+const WINE_POMACE_LOTS_PER_CASK = GRAPES_LOTS_PER_WINE_LOT * POMACE_SHARE_OF_PRESSED_GRAPE_MASS;
 /** A tun (1,000 L) of cider or perry uses about 1.5 t of pressed orchard fruit. */
 const ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK = ORCHARD_FRUIT_LOTS_PER_DRINK_LOT;
 /** Grain in a tun (1,000 L) of ale: some 465 kg of malt, a wain (goods-physical-units.md §29). */
 const GRAIN_WAINS_PER_ALE_CASK = 1;
-/** Barrel wear for a tun: five casks at 0.08 each. */
-const BARRELS_PER_TUN = 0.4;
 /** The forest-only honey of catalogues saved before docs/plan/honey-forage-lands.md. */
 const LEGACY_HONEY_FOREST_OUTPUT = 0.04;
 const LEGACY_HONEY_DISTRIBUTION = 'biomeTag("forest")';
@@ -836,8 +840,9 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     // One 200 L cask uses 260 kg of grapes. Barrels are returnable containers; 0.08 is the
     // replacement/repair allowance per filling, not a claim that a cask is discarded each time.
-    recipes: [{ Grapes: GRAPES_LOTS_PER_WINE_LOT, Barrels: 0.08 }],
-    byproducts: [{ Pomace: GRAPES_LOTS_PER_WINE_LOT * POMACE_SHARE_OF_PRESSED_GRAPE_MASS }],
+    // In a cask, an amphora or bottles: whichever the vintner can get cheapest (returnableContainers.ts).
+    recipes: withDrinkContainers("Wine", { Grapes: GRAPES_LOTS_PER_WINE_LOT }),
+    byproducts: DRINK_CONTAINER_CHOICES.Wine.map(() => ({ Pomace: WINE_POMACE_LOTS_PER_CASK })),
     unit: "200 L cask",
     multipliers: { cultureType: { Highland: 1.2, Nomadic: 0.5 } }
   },
@@ -2124,10 +2129,10 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [
       // Beer may use locally traded cereal crops. It must never consume the
       // Food Ledger's abstract staple-equivalent accounting unit.
-      { Barley: GRAIN_WAINS_PER_ALE_CASK, Barrels: BARRELS_PER_TUN },
-      { Wheat: GRAIN_WAINS_PER_ALE_CASK, Barrels: BARRELS_PER_TUN },
-      { Rye: GRAIN_WAINS_PER_ALE_CASK, Barrels: BARRELS_PER_TUN },
-      { Oats: GRAIN_WAINS_PER_ALE_CASK, Barrels: BARRELS_PER_TUN }
+      // Each in casks, pots or bottles: whichever the brewer can get cheapest (returnableContainers.ts).
+      ...(["Barley", "Wheat", "Rye", "Oats"] as const).flatMap(grain =>
+        withDrinkContainers("Beer", { [grain]: GRAIN_WAINS_PER_ALE_CASK })
+      )
     ],
     // Casks circulate back to coopers; the recipe consumes only replacement/repair material.
     // Honey drinks are Mead's, not ordinary small ale's.
@@ -2145,7 +2150,7 @@ export const GOODS_DATA: GoodData[] = [
     // Priced as ale, per kilogram, by the tun (§29); the 200 L cask was 4.
     value: 2.4,
     chance: 0,
-    recipes: [{ Apples: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, Barrels: BARRELS_PER_TUN }],
+    recipes: withDrinkContainers("Cider", { Apples: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK }),
     unit: "1,000 L cider tun",
     demandCoverage: {}
   },
@@ -2157,7 +2162,7 @@ export const GOODS_DATA: GoodData[] = [
     // Priced as ale, per kilogram, a little over cider, by the tun (§29); the 200 L cask was 4.5.
     value: 2.5,
     chance: 0,
-    recipes: [{ Pears: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, Barrels: BARRELS_PER_TUN }],
+    recipes: withDrinkContainers("Perry", { Pears: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK }),
     unit: "1,000 L perry tun",
     demandCoverage: {}
   },
@@ -2171,7 +2176,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e0a526",
     value: MEAD_TUN_VALUE,
     chance: 0,
-    recipes: [{ Honey: HONEY_BARRELS_PER_MEAD_LOT, Barrels: MEAD_BARRELS_PER_LOT }],
+    recipes: withDrinkContainers("Mead", { Honey: HONEY_BARRELS_PER_MEAD_LOT }),
     unit: "1,000 L mead tun",
     demandCoverage: {}
   },
@@ -4459,6 +4464,31 @@ export function migrateStapleCropGoods(): boolean {
   return changed;
 }
 
+/** Wine's pressing leaves its Pomace whichever container it goes out in: one entry a recipe. */
+function alignWinePomace(goods: Good[], wine: Good): void {
+  const pomace = goods.find(good => good.name === "Pomace");
+  if (!pomace || !wine.byproducts) return;
+  wine.byproducts = (wine.recipes ?? []).map(() => ({ [pomace.i]: WINE_POMACE_LOTS_PER_CASK }));
+}
+
+/**
+ * A drink's recipes on a saved catalogue's own ids, each in every container the catalogue has:
+ * casks, pots and bottles, each at the trip's loss (returnableContainers.ts). Barrels come first.
+ */
+function withSavedDrinkContainers(
+  goods: Good[],
+  drink: ReturnableDrink,
+  bases: Record<number, number>[]
+): Record<number, number>[] {
+  const containers = DRINK_CONTAINER_CHOICES[drink].flatMap(name => {
+    const good = goods.find(candidate => candidate.name === name);
+    return good ? [{ name, i: good.i }] : [];
+  });
+  return bases.flatMap(base =>
+    containers.map(container => ({ ...base, [container.i]: getContainerReplacementPerLot(drink, container.name) }))
+  );
+}
+
 /**
  * Adds orchard goods to catalogues created before perennial horticulture and
  * upgrades Olives and Dates from legacy biome production to the climate-driven path.
@@ -4551,7 +4581,7 @@ export function migratePerennialFruitGoods(): boolean {
       beverage.tags.push("orchardDrink");
       changed = true;
     }
-    const recipes = [{ [fruit.i]: ORCHARD_FRUIT_LOTS_PER_DRINK_LOT, [barrels.i]: ORCHARD_DRINK_BARRELS_PER_LOT }];
+    const recipes = withSavedDrinkContainers(goods, beverageName, [{ [fruit.i]: ORCHARD_FRUIT_LOTS_PER_DRINK_LOT }]);
     const tunUnit = `1,000 L ${beverageName.toLowerCase()} tun`;
     if (JSON.stringify(beverage.recipes) === JSON.stringify(recipes) && beverage.unit === tunUnit) continue;
     if (beverage.unit !== tunUnit) {
@@ -4611,7 +4641,8 @@ export function migrateWineRecipe(): boolean {
   const barrels = goods.find(good => good.name === "Barrels");
   if (!grapes || !barrels) return false;
 
-  wine.recipes = [{ [grapes.i]: GRAPES_LOTS_PER_WINE_LOT, [barrels.i]: 0.08 }];
+  wine.recipes = withSavedDrinkContainers(goods, "Wine", [{ [grapes.i]: GRAPES_LOTS_PER_WINE_LOT }]);
+  alignWinePomace(goods, wine);
   wine.chance = 0;
   delete wine.distribution;
   delete wine.biomeOutputByTag;
@@ -4632,7 +4663,7 @@ export function migrateMeadGood(): boolean {
   const mead = Goods.getDefaultGood("Mead");
   if (!mead) throw new Error("Mead must be present in the shipped goods catalogue");
   mead.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
-  mead.recipes = [{ [honey.i]: HONEY_BARRELS_PER_MEAD_LOT, [barrels.i]: MEAD_BARRELS_PER_LOT }];
+  mead.recipes = withSavedDrinkContainers(goods, "Mead", [{ [honey.i]: HONEY_BARRELS_PER_MEAD_LOT }]);
   goods.push(mead);
   return true;
 }
@@ -4767,7 +4798,13 @@ export function migratePomaceDistillationGoods(): boolean {
     changed = true;
   };
 
-  setByproducts("Wine", [{ Pomace: GRAPES_LOTS_PER_WINE_LOT * POMACE_SHARE_OF_PRESSED_GRAPE_MASS }]);
+  // One Pomace entry for each container the Wine recipes come in.
+  setByproducts(
+    "Wine",
+    Array.from({ length: Math.max(1, byName.get("Wine")?.recipes?.length ?? 1) }, () => ({
+      Pomace: WINE_POMACE_LOTS_PER_CASK
+    }))
+  );
   setRecipes("Pomace Wine", [{ Pomace: POMACE_LOTS_PER_POMACE_WINE_CASK, Barrels: 0.08 }]);
 
   return changed;
@@ -4918,19 +4955,21 @@ export function migrateFoodProcessingLotContracts(): boolean {
     }
   }
   if (wine && grapes && barrels) {
-    const recipes = [{ [grapes.i]: GRAPES_LOTS_PER_WINE_LOT, [barrels.i]: 0.08 }];
+    const recipes = withSavedDrinkContainers(goods, "Wine", [{ [grapes.i]: GRAPES_LOTS_PER_WINE_LOT }]);
     if (wine.unit !== "200 L cask" || JSON.stringify(wine.recipes) !== JSON.stringify(recipes)) {
       wine.unit = "200 L cask";
       wine.recipes = recipes;
+      alignWinePomace(goods, wine);
       changed = true;
     }
   }
   const beer = goods.find(good => good.name === "Beer");
   if (beer && barrels) {
-    const recipes = ["Barley", "Wheat", "Rye", "Oats"]
+    const grainRecipes = ["Barley", "Wheat", "Rye", "Oats"]
       .map(name => goods.find(good => good.name === name))
       .filter((ingredient): ingredient is Good => Boolean(ingredient))
-      .map(ingredient => ({ [ingredient.i]: GRAIN_WAINS_PER_ALE_CASK, [barrels.i]: BARRELS_PER_TUN }));
+      .map(ingredient => ({ [ingredient.i]: GRAIN_WAINS_PER_ALE_CASK }));
+    const recipes = withSavedDrinkContainers(goods, "Beer", grainRecipes);
     const hasBeverageTag = beer.tags.includes("beverage");
     if (
       beer.unit !== "1,000 L ale tun" ||

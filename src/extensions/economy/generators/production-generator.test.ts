@@ -109,6 +109,32 @@ describe("ProductionModule byproducts", () => {
     clearEconomyContext();
   });
 
+  it("keeps the casks' first claim when Wine may also go out in pots or bottles", () => {
+    const goods = [
+      { i: 1, name: "Grapes", tags: ["food", "freshFood"], value: 1 },
+      { i: 2, name: "Wood", tags: [], value: 1 },
+      { i: 3, name: "Barrels", tags: [], value: 0.1, recipes: [{ 2: 0.2 }] },
+      { i: 4, name: "Ceramics", tags: [], value: 4, recipes: [{ 2: 1 }] },
+      {
+        i: 5,
+        name: "Wine",
+        tags: ["food"],
+        value: 2,
+        recipes: [
+          { 1: 0.26, 3: 0.08 },
+          { 1: 0.26, 4: 0.0129 }
+        ]
+      }
+    ] as Good[];
+    setGoods(goods);
+    Goods.sync();
+    const production = new ProductionModule() as unknown as {
+      buildProductionIndex(goods: Good[]): { priorityGoods: Good[] };
+    };
+    const priority = production.buildProductionIndex(goods).priorityGoods.map(good => good.name);
+    expect(priority).toContain("Barrels");
+    expect(priority).not.toContain("Ceramics");
+  });
   it("credits combustion byproducts beside the primary manufactured output", () => {
     const goods = [
       { i: 1, name: "Clay", tags: [], value: 1, unit: "wain", icon: "", color: "" },

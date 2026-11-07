@@ -49,6 +49,19 @@ import {
 } from "./householdWealth";
 import { getMarketRuralPopulation, getMarketWoodlandShares } from "./marketPopulation";
 import type { FoodProcessingGoodLedger, Market, ReturnableContainerLedger } from "./marketTypes";
+import {
+  type ContainerCirculation,
+  DRINK_CONTAINERS,
+  type DrinkContainer,
+  emptyCirculation,
+  getContainerSetPerLot,
+  getFilledMix,
+  isDrinkContainer,
+  isReturnableDrink,
+  RETURNABLE_DRINKS,
+  returnDrunkContainers,
+  rollContainerFillRate
+} from "./returnableContainers";
 
 const TRACKED_GOODS = new Set([
   "Milk",
@@ -335,20 +348,116 @@ export function getMonthlyHouseholdDemand(market: Market, goodName: string): num
   }
 }
 
+/** Months of filling the market keeps in clean empties; it puts back in stock what is past twice this. */
+export const CONTAINER_EMPTIES_TARGET_MONTHS = 1;
+/** A shortfall of empties is made up over this many months of new containers. */
+const CONTAINER_DEFICIT_MONTHS = 3;
+
 /**
- * Units of `container` (Barrels) the market's household drinks wear out in a month: each drink's
- * monthly demand, ale with its water-safety share, times the container its recipes take per unit.
- * A per-head floor counted only the towns' ordinary ale (urban-craft-staffing.md §12 item 20).
+ * Empties of `container` a month's filling takes: each returnable drink's household demand, in the
+ * share of its lots that go out in this container.
+ */
+function getMonthlyContainerFillNeed(
+  market: Market,
+  container: DrinkContainer,
+  circulation: ContainerCirculation | undefined
+): number {
+  let units = 0;
+  for (const drink of RETURNABLE_DRINKS) {
+    const demand = getMonthlyHouseholdDemand(market, drink);
+    if (!(demand > 0)) continue;
+    units += demand * getFilledMix(circulation, drink)[container] * getContainerSetPerLot(drink, container);
+  }
+  return units;
+}
+
+/**
+ * The market's casks, pots and bottles in circulation (returnableContainers.ts). A market that has
+ * never kept them starts as if it had been brewing: a month of empty casks, and its drink stock in
+ * casks.
+ */
+export function ensureContainerCirculation(market: Market): ContainerCirculation {
+  if (!market.returnableContainerLedger) {
+    market.returnableContainerLedger = {
+      wineCasksInService: 0,
+      cumulativeWineCaskReturns: 0,
+      cumulativeWineCaskReplacement: 0,
+      beerCasksInService: 0,
+      cumulativeBeerCaskReturns: 0,
+      cumulativeBeerCaskReplacement: 0
+    };
+  }
+  const ledger = market.returnableContainerLedger;
+  if (ledger.circulation) return ledger.circulation;
+  const circulation = emptyCirculation();
+  for (const drink of RETURNABLE_DRINKS) {
+    const good = getGoods().find(candidate => candidate.name === drink);
+    const stock = good ? Math.max(0, market.goods[good.i]?.stock ?? 0) : 0;
+    if (stock > 0) circulation.filled[drink] = { Barrels: stock };
+    const demand = getMonthlyHouseholdDemand(market, drink);
+    if (demand > 0) circulation.fillRate[drink] = { Barrels: demand };
+  }
+  circulation.empties.Barrels =
+    getMonthlyContainerFillNeed(market, "Barrels", circulation) * CONTAINER_EMPTIES_TARGET_MONTHS;
+  ledger.circulation = circulation;
+  return circulation;
+}
+
+/**
+ * Units of `container` the market's household drinks wear out in a month: each drink's monthly
+ * demand, ale with its water-safety share, times the container its recipes take per unit, in the
+ * share of its lots that go out in it. A shortfall of empties adds new containers, spread over
+ * CONTAINER_DEFICIT_MONTHS. A per-head floor counted only the towns' ordinary ale
+ * (urban-craft-staffing.md §12 item 20).
  */
 export function getMonthlyHouseholdContainerDemand(market: Market, container: { i: number }): number {
+  const containerName = getGoods().find(good => good.i === container.i)?.name ?? "";
+  const circulation = market.returnableContainerLedger?.circulation;
   let units = 0;
   for (const good of getGoods()) {
     const amounts = (good.recipes ?? []).map(recipe => recipe[container.i] ?? 0).filter(amount => amount > 0);
     if (!amounts.length) continue;
     const demand = getMonthlyHouseholdDemand(market, good.name);
-    if (demand > 0) units += (demand * amounts.reduce((sum, amount) => sum + amount, 0)) / amounts.length;
+    if (!(demand > 0)) continue;
+    const share =
+      isReturnableDrink(good.name) && isDrinkContainer(containerName)
+        ? getFilledMix(circulation, good.name)[containerName]
+        : 1;
+    units += (demand * share * amounts.reduce((sum, amount) => sum + amount, 0)) / amounts.length;
+  }
+  if (isDrinkContainer(containerName) && circulation) {
+    const target = getMonthlyContainerFillNeed(market, containerName, circulation) * CONTAINER_EMPTIES_TARGET_MONTHS;
+    units += Math.max(0, target - (circulation.empties[containerName] ?? 0)) / CONTAINER_DEFICIT_MONTHS;
   }
   return units;
+}
+
+/**
+ * Empties past twice what a month's filling takes go back into the market's stock, to be sold
+ * as any other container (a drink no longer wanted, a market that took in more than it drinks).
+ */
+function releaseSurplusContainers(market: Market): void {
+  const circulation = market.returnableContainerLedger?.circulation;
+  if (!circulation) return;
+  for (const container of DRINK_CONTAINERS) {
+    const empties = circulation.empties[container] ?? 0;
+    const target = getMonthlyContainerFillNeed(market, container, circulation) * CONTAINER_EMPTIES_TARGET_MONTHS;
+    if (!(empties > 2 * target + 1e-6)) continue;
+    const good = getGoods().find(candidate => candidate.name === container);
+    const row = good ? market.goods[good.i] : undefined;
+    if (!good || !row) continue;
+    const surplus = empties - target;
+    circulation.empties[container] = target;
+    circulation.released[container] = (circulation.released[container] ?? 0) + surplus;
+    row.stock += surplus;
+    recordGoodFlow({
+      direction: "source",
+      category: "containerReturn",
+      goodId: good.i,
+      units: surplus,
+      marketId: market.i
+    });
+  }
 }
 
 /**
@@ -513,6 +622,8 @@ function drawHouseholdDemand(
       row.returns += returned;
     }
   }
+  if (isReturnableDrink(goodName) && consumed > 0)
+    returnDrunkContainers(ensureContainerCirculation(market), goodName, consumed);
   if (goodName === "Wine" && consumed > 0 && market.returnableContainerLedger) {
     const containers = market.returnableContainerLedger;
     const returned = Math.min(containers.wineCasksInService, consumed);
@@ -536,6 +647,7 @@ export function settleFoodProcessingHouseholds(): void {
   const pay = getMarketSettings().householdGoodsPayment === "pay";
   for (const market of getMarkets()) {
     const purses = pay ? getHouseholdGoodsPurses(market) : null;
+    ensureContainerCirculation(market);
     drawHouseholdDemand(market, "Milk", getMonthlyHouseholdDemand(market, "Milk"), purses);
     drawHouseholdDemand(market, "Cheese", getMonthlyHouseholdDemand(market, "Cheese"), purses);
     drawHouseholdDemand(market, "Grapes", getMonthlyHouseholdDemand(market, "Grapes"), purses);
@@ -552,6 +664,8 @@ export function settleFoodProcessingHouseholds(): void {
       beerLedger.drinkingWaterRisk = aleDemand.drinkingWaterRisk;
     }
     drawHouseholdDemand(market, "Beer", aleDemand.monthlyDemand, purses);
+    rollContainerFillRate(ensureContainerCirculation(market));
+    releaseSurplusContainers(market);
 
     for (const name of ["Milk", "Grapes"] as const) {
       const good = getGoods().find(candidate => candidate.name === name);

@@ -1045,7 +1045,7 @@ describe("GoodsModule", () => {
     expect(grapes?.biomeOutput).toBeUndefined();
   });
 
-  it("defines Wine as a { Grapes, Barrels } recipe good, no longer directly biome-produced", () => {
+  it("defines Wine as a { Grapes, container } recipe good, no longer directly biome-produced", () => {
     goodsModule.restoreDefaults();
 
     const wine = getGoods().find(good => good.name === "Wine");
@@ -1054,8 +1054,15 @@ describe("GoodsModule", () => {
     expect(wine?.biomeOutputByTag).toBeUndefined();
     expect(wine?.distribution).toBeUndefined();
     const pomace = getGoods().find(good => good.name === "Pomace");
-    expect(wine?.recipes).toEqual([{ [grapes!.i]: 0.26, [barrels!.i]: 0.08 }]);
-    expect(wine?.byproducts).toEqual([{ [pomace!.i]: 0.0572 }]);
+    const ceramics = getGoods().find(good => good.name === "Ceramics");
+    const glass = getGoods().find(good => good.name === "Glass");
+    // Casks, amphorae or bottles, each at the trip's loss of the set a cask holds.
+    expect(wine?.recipes).toEqual([
+      { [grapes!.i]: 0.26, [barrels!.i]: 0.08 },
+      { [grapes!.i]: 0.26, [ceramics!.i]: 0.0129 },
+      { [grapes!.i]: 0.26, [glass!.i]: 0.0258 }
+    ]);
+    expect(wine?.byproducts).toEqual([{ [pomace!.i]: 0.0572 }, { [pomace!.i]: 0.0572 }, { [pomace!.i]: 0.0572 }]);
   });
 
   it("migrates recognized Wood recipes with saved ids, preserves edited recipes and repeats without changes", () => {
@@ -1155,7 +1162,12 @@ describe("GoodsModule", () => {
     const upgradedLiquor = getGoods().find(good => good.name === "Liquor")!;
     expect(pomace.i).toBeGreaterThan(Math.max(...preservedIds.values()));
     expect(pomaceWine.recipes).toEqual([{ [pomace.i]: 0.12, [preservedIds.get("Barrels")!]: 0.08 }]);
-    expect(getGoods().find(good => good.name === "Wine")?.byproducts).toEqual([{ [pomace.i]: 0.0572 }]);
+    // One Pomace entry for each container Wine goes out in.
+    expect(getGoods().find(good => good.name === "Wine")?.byproducts).toEqual([
+      { [pomace.i]: 0.0572 },
+      { [pomace.i]: 0.0572 },
+      { [pomace.i]: 0.0572 }
+    ]);
     expect(upgradedLiquor.recipes).toHaveLength(15);
     expect(upgradedLiquor.byproducts).toEqual(
       Array.from({ length: 15 }, () => ({ [ash.i]: LIQUOR_WOOD_PER_LOT * ASH_LOTS_PER_WOOD_LOT }))
@@ -1351,7 +1363,13 @@ describe("GoodsModule", () => {
     expect(migrateMeadGood()).toBe(true);
     const mead = getGoods().find(good => good.name === "Mead")!;
     expect(mead.i).toBe(901);
-    expect(mead.recipes).toEqual([{ 900: 1000 / 5 / 120, [barrels.i]: 0.4 }]);
+    const ceramics = getGoods().find(good => good.name === "Ceramics")!;
+    const glass = getGoods().find(good => good.name === "Glass")!;
+    expect(mead.recipes).toEqual([
+      { 900: 1000 / 5 / 120, [barrels.i]: 0.4 },
+      { 900: 1000 / 5 / 120, [ceramics.i]: 0.0645 },
+      { 900: 1000 / 5 / 120, [glass.i]: 0.129 }
+    ]);
     expect(migrateMeadGood()).toBe(false);
   });
 

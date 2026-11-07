@@ -31,6 +31,8 @@ export type GoodFlowCategory =
   | "characterLuxury"
   /** Timber recovered by breaking up a one-way river craft at its destination. */
   | "vesselSalvage"
+  /** Clean empty casks, pots or bottles beyond the market's refilling put back in its stock (returnableContainers.ts). */
+  | "containerReturn"
   /** Finished weapons stolen from an unsold market stock (armsTheft.ts). */
   | "theft";
 

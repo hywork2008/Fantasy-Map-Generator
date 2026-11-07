@@ -1,4 +1,5 @@
 import type { ReturnedCaskDrink } from "./foodLots";
+import type { ContainerCirculation } from "./returnableContainers";
 import type { RuralTextileProduction } from "./ruralTextileProductionTypes";
 import type { StapleCropInventory } from "./stapleCropInventoryTypes";
 
@@ -301,6 +302,8 @@ export type ReturnableContainerLedger = {
   cumulativeBeerCaskReturns: number;
   /** New casks/repair material consumed through the Beer recipe. */
   cumulativeBeerCaskReplacement: number;
+  /** Empties, filled lots and their trips by container; absent until the market first fills one. */
+  circulation?: ContainerCirculation;
 };
 
 export interface MarketTreasury {

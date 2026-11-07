@@ -4,6 +4,7 @@ import {
   isDistillationKnown
 } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
+import { getContainerReuseCost } from "../../../simulation/containerReuseSettings";
 import { getCraftEmploymentScale } from "../../../simulation/craftSettings";
 import { getMarketSettings } from "../../../simulation/marketSettings";
 import { yieldToHost } from "../../../simulation/ports";
@@ -56,6 +57,7 @@ import { ExportStaging } from "./exportStaging";
 import { isReturnedCaskDrink } from "./foodLots";
 import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
+  ensureContainerCirculation,
   getFoodProcessingProductionHeadroom,
   getMonthlyHouseholdContainerDemand,
   recordBeerCaskFilling,
@@ -130,6 +132,17 @@ import type {
   ProductionRecord
 } from "./productionRecordTypes";
 import { QuarryOperations } from "./quarryOperations";
+import {
+  CONTAINER_PROFILES,
+  type DrinkContainer,
+  getContainerSetPerLot,
+  getContainerYieldCap,
+  isDrinkContainer,
+  isReturnableDrink,
+  planContainerDraw,
+  type ReturnableDrink,
+  recordContainerFilling
+} from "./returnableContainers";
 import { SaltLogistics } from "./saltLogistics";
 import { type SlaughterResult, settleSlaughter } from "./slaughter";
 import { SmelterOperations } from "./smelterOperations";
@@ -272,6 +285,59 @@ export function settlePomaceWineMarketProcessing(market: Market): number {
     marketProduction[key] = rn((marketProduction[key] ?? 0) + casks, 2);
   }
   return casks;
+}
+
+type DrinkContainerUse = {
+  drink: ReturnableDrink;
+  container: DrinkContainer;
+  goodId: number;
+  /** Container units a recipe lot buys: the trip's loss. */
+  replacementPerLot: number;
+  /** Container units one filled lot takes. */
+  setPerLot: number;
+};
+
+/** The container a returnable drink's recipe fills (returnableContainers.ts), or null. */
+function getDrinkContainerUse(
+  good: Good,
+  ingredients: readonly { goodId: number; amount: number }[]
+): DrinkContainerUse | null {
+  if (!isReturnableDrink(good.name)) return null;
+  for (const ingredient of ingredients) {
+    const name = Goods.get(ingredient.goodId)?.name ?? "";
+    if (!isDrinkContainer(name) || !(ingredient.amount > 0)) continue;
+    return {
+      drink: good.name,
+      container: name,
+      goodId: ingredient.goodId,
+      replacementPerLot: ingredient.amount,
+      setPerLot: getContainerSetPerLot(good.name, name)
+    };
+  }
+  return null;
+}
+
+/** Recipe ingredients with the new containers a filling buys beyond its replacement. */
+function withNewContainers<T extends { goodId: number; amount: number }>(
+  ingredients: readonly T[],
+  use: DrinkContainerUse,
+  market: Market,
+  recipeLots: number,
+  filledPerLot: number
+): T[] {
+  if (!(recipeLots > 0)) return [...ingredients];
+  const draw = planContainerDraw(
+    ensureContainerCirculation(market),
+    use.drink,
+    use.container,
+    recipeLots * filledPerLot,
+    recipeLots * use.replacementPerLot
+  );
+  return ingredients.map(ingredient =>
+    ingredient.goodId === use.goodId
+      ? { ...ingredient, amount: ingredient.amount + draw.extra / recipeLots }
+      : ingredient
+  );
 }
 
 export class ProductionModule {
@@ -787,14 +853,21 @@ export class ProductionModule {
     // (and everything else in the priority set) essentially unbounded, flooding the market with surplus
     // Rennet while starving Cheese of its own priority turns (confirmed via Balance History: Rennet
     // stock/cumulative-sales ~16400 vs. Cheese's ~550).
+    //
+    // A drink's casks, pots and bottles are one slot (returnableContainers.ts): Wine goes out in one of
+    // them in every recipe. The slot's first claim is the casks', the container Wine ships in and the
+    // only one with a floor that bounds it (craftDemandCalibration.ts floorFromHouseholdDrinks).
+    const fillsSlot = (recipe: Recipe, good: Good): boolean =>
+      recipe.ingredients.some(ingredient => ingredient.goodId === good.i) ||
+      (good.name === "Barrels" &&
+        isReturnableDrink(recipe.good.name) &&
+        recipe.ingredients.some(ingredient => isDrinkContainer(Goods.get(ingredient.goodId)?.name ?? "")));
     const preservationIngredientGoods = productiveGoods.filter(
       good =>
         !preservationGoods.includes(good) &&
         preservationGoods.some(preservationGood => {
           const recipeAlternatives = recipesByOutput[preservationGood.i]!;
-          return recipeAlternatives.every(recipe =>
-            recipe.ingredients.some(ingredient => ingredient.goodId === good.i)
-          );
+          return recipeAlternatives.every(recipe => fillsSlot(recipe, good));
         })
     );
     // Beer has a bounded household-demand headroom, so daily-beverage priority cannot produce an
@@ -1528,13 +1601,37 @@ export class ProductionModule {
       const affordableYield = Math.max(0, availableFunds) / costPerLot;
       actualYield = Math.min(actualYield, affordableYield);
     }
+    // A cask goes out full and must come back before it is filled again: the market's empties and
+    // the casks it can buy cap the filling (returnableContainers.ts).
+    const containerUse = getDrinkContainerUse(good, ingredients);
+    const filledPerLot = physicalRecipe ? 1 : outputMultiplier;
+    if (containerUse && actualYield > 0.001) {
+      const containerGood = Goods.get(containerUse.goodId);
+      const purchasable =
+        (state.inventory[containerUse.goodId] || 0) +
+        (containerGood ? getPurchasableUnits(state.market, containerGood) : 0);
+      actualYield = Math.min(
+        actualYield,
+        getContainerYieldCap(
+          ensureContainerCirculation(state.market).empties[containerUse.container] ?? 0,
+          purchasable,
+          containerUse.setPerLot,
+          containerUse.replacementPerLot,
+          filledPerLot
+        )
+      );
+      if (actualYield <= 0.001) return failed("materials");
+    }
+    let execIngredients = containerUse
+      ? withNewContainers(ingredients, containerUse, state.market, actualYield, filledPerLot)
+      : ingredients;
     // The decision may be several steps old (a sticky goal), and the shelves have moved since: an
     // earlier step took the Barrels it counted. Every purchase below takes stock at once, so a
     // later ingredient that could not be bought left the earlier ones taken and unpaid for — the
     // brewers' grain vanished with the casks they could not get (urban-craft-staffing.md §10.12).
     // Size the batch to the inputs and purse there are now, before the first purchase.
     if (!physicalRecipe && actualYield > 0.001) {
-      for (const ingredient of ingredients) {
+      for (const ingredient of execIngredients) {
         if (!(ingredient.amount > 0)) continue;
         const ingredientGood = Goods.get(ingredient.goodId);
         const purchasable = ingredientGood ? getPurchasableUnits(state.market, ingredientGood) : 0;
@@ -1545,7 +1642,7 @@ export class ProductionModule {
       }
       const freshCost = (lots: number): number =>
         lots * wageCostPerLot +
-        ingredients.reduce((total, ingredient) => {
+        execIngredients.reduce((total, ingredient) => {
           const fromMarket = Math.max(0, lots * ingredient.amount - (state.inventory[ingredient.goodId] || 0));
           return total + fromMarket * Markets.quoteMarket(state.market, ingredient.goodId, state.burg.i).buyPrice;
         }, 0);
@@ -1561,13 +1658,15 @@ export class ProductionModule {
     const produced = physicalRecipe ? actualYield : rn(actualYield * outputMultiplier, 2);
     if (!produced) return failed("outputTarget");
 
+    if (containerUse)
+      execIngredients = withNewContainers(ingredients, containerUse, state.market, actualYield, filledPerLot);
     // Plan all ingredient sourcing first; bail out before mutating state if any market buy fails.
     type Plan = { ingredientId: number; amount: number; fromInventory: number; deal: Deal | null };
     const plans: Plan[] = [];
     // Validate all physical inputs with fresh customer quotes before the first purchase.
     if (physicalRecipe) {
       let requiredBudget = 0;
-      for (const ingredient of ingredients) {
+      for (const ingredient of execIngredients) {
         const amount = Math.max(0, actualYield * ingredient.amount - (state.inventory[ingredient.goodId] || 0));
         const quote = Markets.quoteMarket(state.market, ingredient.goodId, state.burg.i);
         if (amount > quote.stock + 1e-9) return failed("materials");
@@ -1576,7 +1675,7 @@ export class ProductionModule {
       if (requiredBudget + laborUsed * wageRate > Math.max(0, availableFunds) + 1e-9) return failed("funds");
     }
     let remainingBudget = Math.max(0, availableFunds);
-    for (const ingredient of ingredients) {
+    for (const ingredient of execIngredients) {
       const ingredientId = ingredient.goodId;
       const amount = actualYield * ingredient.amount;
       const fromInventory = Math.min(state.inventory[ingredientId] || 0, amount);
@@ -1651,6 +1750,25 @@ export class ProductionModule {
       producedByproducts.push({ goodId: byproduct.goodId, units });
     }
 
+    if (containerUse) {
+      const circulation = ensureContainerCirculation(state.market);
+      const filledLots = actualYield * filledPerLot;
+      const draw = planContainerDraw(
+        circulation,
+        containerUse.drink,
+        containerUse.container,
+        filledLots,
+        actualYield * containerUse.replacementPerLot
+      );
+      recordContainerFilling(circulation, containerUse.drink, containerUse.container, filledLots, draw);
+      // Washing and mending the empties is the brewer's work, paid to the town's households.
+      const reuseBill = rn(draw.reused * (Goods.get(containerUse.goodId)?.value ?? 0) * getContainerReuseCost(), 2);
+      if (reuseBill > 0) {
+        if (fundingState) fundingState.treasury = rn(Math.max(0, (fundingState.treasury ?? 0) - reuseBill), 2);
+        else state.burg.treasury = rn((state.burg.treasury || 0) - reuseBill, 2);
+        creditHouseholdWealth(state.burg.i, reuseBill);
+      }
+    }
     if (good.name === "Wine" || good.name === "Beer" || isReturnedCaskDrink(good.name)) {
       const barrelIngredient = ingredients.find(ingredient => Goods.get(ingredient.goodId)?.name === "Barrels");
       const replacementCasks = produced * (barrelIngredient?.amount ?? 0);
@@ -2058,12 +2176,48 @@ export class ProductionModule {
       maxYield = Math.min(maxYield, totalAvailable / ingredient.amount);
     }
 
+    // Casks must come back to be filled again: the market's empties and the casks it holds cap the
+    // filling. Each empty refilled costs its washing, and a new cask beyond the recipe's replacement
+    // its share of the trip's loss, as it comes back for later fillings (returnableContainers.ts).
+    const containerUse = getDrinkContainerUse(recipe.good, recipe.ingredients);
+    if (containerUse) {
+      const quote = Markets.quoteMarket(state.market, containerUse.goodId);
+      maxYield = Math.min(
+        maxYield,
+        getContainerYieldCap(
+          ensureContainerCirculation(state.market).empties[containerUse.container] ?? 0,
+          (state.inventory[containerUse.goodId] || 0) + (quote.stock || 0),
+          containerUse.setPerLot,
+          containerUse.replacementPerLot,
+          1
+        )
+      );
+      if (maxYield <= 0.001) {
+        constraints?.add("materials");
+        return null;
+      }
+    }
+
     if (!Number.isFinite(maxYield) || maxYield <= 0) {
       constraints?.add(!Number.isFinite(maxYield) ? "unboundedRecipeYield" : "nonPositiveRecipeYield");
       return null;
     }
 
     const actualUnits = Math.min(units, maxYield);
+    if (containerUse) {
+      const draw = planContainerDraw(
+        ensureContainerCirculation(state.market),
+        containerUse.drink,
+        containerUse.container,
+        actualUnits,
+        actualUnits * containerUse.replacementPerLot
+      );
+      const containerGood = Goods.get(containerUse.goodId);
+      const quote = Markets.quoteMarket(state.market, containerUse.goodId);
+      marketCostTotal +=
+        draw.reused * (containerGood?.value ?? 0) * getContainerReuseCost() +
+        draw.extra * quote.buyPrice * CONTAINER_PROFILES[containerUse.container].lossPerTrip;
+    }
     for (const ingredient of recipe.ingredients) {
       const quote = Markets.quoteMarket(state.market, ingredient.goodId);
       const inventoryAvailable = state.inventory[ingredient.goodId] || 0;

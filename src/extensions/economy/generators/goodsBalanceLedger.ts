@@ -12,6 +12,12 @@ import { getGoods, getMarkets } from "../economyContext";
 import type { GoodFlowCategory, GoodFlowDirection, GoodFlowRecord } from "./goodFlowTypes";
 import { isGoodEnabled } from "./goods-generator";
 import { recordLivestockLotFlow } from "./livestockLots";
+import {
+  getCirculation,
+  isReturnableDrink,
+  receiveShippedContainers,
+  shipFilledContainers
+} from "./returnableContainers";
 
 export type { GoodFlowCategory, GoodFlowDirection, GoodFlowRecord } from "./goodFlowTypes";
 
@@ -174,6 +180,20 @@ export function recordGoodFlow(flow: GoodFlowRecord): void {
     const market = findById(getMarkets(), flow.marketId);
     if (market) market.saltProcessingInputBags = (market.saltProcessingInputBags ?? 0) + flow.units;
   }
+  // Casks travel with their drink and come back empty to the market that drinks it.
+  if (
+    good &&
+    flow.marketId !== undefined &&
+    (flow.category === "exportDeparture" || flow.category === "importArrival") &&
+    isReturnableDrink(good.name)
+  ) {
+    const market = findById(getMarkets(), flow.marketId);
+    const circulation = market ? getCirculation(market) : undefined;
+    if (circulation) {
+      if (flow.category === "exportDeparture") shipFilledContainers(circulation, good.name, flow.units);
+      else receiveShippedContainers(getMarkets(), circulation, good.name, flow.units);
+    }
+  }
   const live = good?.tags?.includes("liveAnimal") ? good : undefined;
   if (live && flow.marketId !== undefined) {
     const market = findById(getMarkets(), flow.marketId);
@@ -255,6 +275,7 @@ export function closeGoodsBalanceInterval(point: GoodsBalancePoint): {
         luxuryPurchase: categoryTotal(flows, "luxuryPurchase", good.i),
         characterLuxury: categoryTotal(flows, "characterLuxury", good.i),
         vesselSalvage: categoryTotal(flows, "vesselSalvage", good.i),
+        containerReturn: categoryTotal(flows, "containerReturn", good.i),
         theft: categoryTotal(flows, "theft", good.i),
         accountingGap: opening + sources - sinks - closing
       };

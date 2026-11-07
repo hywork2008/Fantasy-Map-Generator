@@ -22,6 +22,8 @@ export function hasViableFoodProcessingMargin(
  */
 const STOCKED_RECIPE_PRICED_GOODS = new Set(["Beer"]);
 
+import { cheapestContainerChoiceCosts } from "./returnableContainers";
+
 /**
  * The ingredient cost a manufactured good's price is built on: the mean over its recipes, or for a
  * good priced by its stocked recipe, the cheapest recipe whose every ingredient the market holds a
@@ -31,11 +33,14 @@ export function getRecipeCostBasis(
   goodName: string,
   recipes: readonly (readonly { goodId: number; amount: number }[])[],
   priceOf: (goodId: number) => number,
-  stockOf: (goodId: number) => number
+  stockOf: (goodId: number) => number,
+  isContainer?: (goodId: number) => boolean
 ): number {
   if (!recipes.length) return 0;
   const costs = recipes.map(recipe => recipe.reduce((total, entry) => total + entry.amount * priceOf(entry.goodId), 0));
-  const mean = costs.reduce((total, cost) => total + cost, 0) / costs.length;
+  // A drink's casks, pots and bottles are one choice, priced at the cheapest container.
+  const choices = isContainer ? cheapestContainerChoiceCosts(recipes, costs, isContainer) : costs;
+  const mean = choices.reduce((total, cost) => total + cost, 0) / choices.length;
   if (!STOCKED_RECIPE_PRICED_GOODS.has(goodName)) return mean;
   const stocked = costs.filter((_, index) => recipes[index].every(entry => stockOf(entry.goodId) >= entry.amount));
   return stocked.length ? Math.min(...stocked) : mean;

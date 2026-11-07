@@ -4,6 +4,11 @@ import { useTranslation } from "react-i18next";
 import { worldContext } from "../../../../context/worldContext";
 import { setConflictAutonomy } from "../../../../controllers/simulationSettings";
 import {
+  CONTAINER_REUSE_COST_LIMITS,
+  getContainerReuseCost,
+  setContainerReuseCost
+} from "../../../../simulation/containerReuseSettings";
+import {
   CRAFT_EMPLOYMENT_SHARE_LIMITS,
   getCraftEmploymentShare,
   setCraftEmploymentShare
@@ -76,6 +81,7 @@ export const SimulationSettingsTab: React.FC = () => {
   const [treelessTownAleWoodland, setTreelessTownAleWoodlandState] = useState(getTreelessTownAleWoodland);
   const [householdHoneyKilograms, setHouseholdHoneyKilogramsState] = useState(getHouseholdHoneyKilograms);
   const [townMeadLiters, setTownMeadLitersState] = useState(getTownMeadLiters);
+  const [containerReuseCost, setContainerReuseCostState] = useState(getContainerReuseCost);
   const generationSpacing = getMarketGenerationSpacing(
     worldContext.graphWidth,
     worldContext.graphHeight,
@@ -606,6 +612,23 @@ export const SimulationSettingsTab: React.FC = () => {
                 onChange={v => {
                   const liters = Number(v);
                   if (Number.isFinite(liters)) setTownMeadLitersState(setTownMeadLiters(liters));
+                }}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.containerReuseCostTip")}>
+            <td />
+            <td>{t("simulation.containerReuseCost")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="containerReuseCost"
+                min={CONTAINER_REUSE_COST_LIMITS.min * 100}
+                max={CONTAINER_REUSE_COST_LIMITS.max * 100}
+                step={CONTAINER_REUSE_COST_LIMITS.step * 100}
+                value={Math.round(containerReuseCost * 100)}
+                onChange={v => {
+                  const share = Number(v) / 100;
+                  if (Number.isFinite(share)) setContainerReuseCostState(setContainerReuseCost(share));
                 }}
               />
             </td>

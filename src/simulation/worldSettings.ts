@@ -39,7 +39,9 @@ export const WORLD_SETTING_KEYS = [
   /** Honey a person eats in a year (docs/plan/honey-forage-lands.md §6). */
   "fmg-household-honey-kg",
   /** Mead a town adult drinks in a year outside the wine country (docs/plan/mead.md §3). */
-  "fmg-town-mead-liters"
+  "fmg-town-mead-liters",
+  /** Cost of washing and mending an empty for refilling, a share of its value (docs/plan/returnable-drink-containers.md §3). */
+  "fmg-container-reuse-cost"
 ] as const;
 
 export type WorldSettingKey = (typeof WORLD_SETTING_KEYS)[number];
