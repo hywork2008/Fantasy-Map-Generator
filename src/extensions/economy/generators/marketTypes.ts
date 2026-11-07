@@ -260,7 +260,7 @@ export type FoodProcessingGoodLedger = {
 
 export type FoodProcessingLedger = Partial<
   Record<
-    "Milk" | "Cheese" | "Grapes" | "Raisins" | "Wine" | "Beer" | "Apples" | "Pears" | "Cider" | "Perry",
+    "Milk" | "Cheese" | "Grapes" | "Raisins" | "Wine" | "Beer" | "Apples" | "Pears" | "Cider" | "Perry" | "Honey",
     FoodProcessingGoodLedger
   >
 >;

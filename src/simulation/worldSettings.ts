@@ -35,7 +35,9 @@ export const WORLD_SETTING_KEYS = [
   /** Share of town people in work, scaling the per-thousand craft table (docs/plan/urban-craft-staffing.md §5.1). */
   "fmg-craft-employment-share",
   /** Woodland share for the full town ale; treeless lands drink whey (docs/plan/low-habitability-site-bonus.md §4). */
-  "fmg-treeless-town-ale-woodland"
+  "fmg-treeless-town-ale-woodland",
+  /** Honey a person eats in a year (docs/plan/honey-forage-lands.md §6). */
+  "fmg-household-honey-kg"
 ] as const;
 
 export type WorldSettingKey = (typeof WORLD_SETTING_KEYS)[number];

@@ -243,15 +243,26 @@ const ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK = ORCHARD_FRUIT_LOTS_PER_DRINK_LOT;
 const GRAIN_WAINS_PER_ALE_CASK = 1;
 /** Barrel wear for a tun: five casks at 0.08 each. */
 const BARRELS_PER_TUN = 0.4;
-/** Honey barrels a month per 1,000 rural people where bees forage; the forest rate before, unchanged. */
+/** The forest-only honey of catalogues saved before docs/plan/honey-forage-lands.md. */
 const LEGACY_HONEY_FOREST_OUTPUT = 0.04;
 const LEGACY_HONEY_DISTRIBUTION = 'biomeTag("forest")';
+/**
+ * Honey barrels (168 kg) a month per 1,000 rural people where bees forage: about 1.5 kg a head a year with
+ * the Generic culture's 1.2. Galicia kept some 366,000 hives for 1.3 million people in the 1750s (0.28 a
+ * head), and a skep gave about 5.5 kg net a year (Crane; honey-forage-lands.md §2).
+ */
+const HONEY_HARVEST_PER_THOUSAND = 0.6;
 const HONEY_OUTPUT_BY_TAG: Readonly<Partial<Record<BiomeTag, number>>> = {
-  forest: LEGACY_HONEY_FOREST_OUTPUT,
-  grassland: LEGACY_HONEY_FOREST_OUTPUT,
-  scrub: LEGACY_HONEY_FOREST_OUTPUT,
-  arable: LEGACY_HONEY_FOREST_OUTPUT
+  forest: HONEY_HARVEST_PER_THOUSAND,
+  grassland: HONEY_HARVEST_PER_THOUSAND,
+  scrub: HONEY_HARVEST_PER_THOUSAND,
+  arable: HONEY_HARVEST_PER_THOUSAND
 };
+/**
+ * A 168 kg barrel at 3.9 times the grain price per kilogram: honey at about 7d a gallon in England around
+ * 1350, the price of butter, with wheat at 6s a quarter (Rogers, after Allsop and Brand Miller 1996). It was 4.
+ */
+const HONEY_BARREL_VALUE = 1.5;
 const HONEY_DISTRIBUTION = 'biomeTag("forest") || biomeTag("grassland") || biomeTag("scrub") || biomeTag("arable")';
 /** Pressed grape pomace in one 200 L cask of pomace wine: 120 kg, a tenth of a lot, with water (§29). */
 const POMACE_LOTS_PER_POMACE_WINE_CASK = 0.12;
@@ -843,7 +854,7 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "preservative"],
     icon: "good-honey",
     color: "#DCBC66",
-    value: 4,
+    value: HONEY_BARREL_VALUE,
     chance: 3,
     // Bees forage wherever flowers last the summer: forest, heath and steppe grassland, Mediterranean and dry
     // scrub, farmland. Not the bog, the fen, the tundra or the desert (docs/plan/honey-forage-lands.md).
@@ -5070,7 +5081,9 @@ const WEIGHT_COVERAGE_REPRICING: readonly { good: string; category: DemandCatego
  */
 export const ALE_CASK_REPRICING: Readonly<Record<string, readonly [before: number, after: number]>> = {
   Beer: [2.4, 1.5],
-  Barrels: [2, 0.1]
+  Barrels: [2, 0.1],
+  // Honey against grain: 3.9 times per kilogram (docs/plan/honey-forage-lands.md §6).
+  Honey: [4, HONEY_BARREL_VALUE]
 };
 
 /**
@@ -5379,8 +5392,9 @@ export function migrateUntaxedSaltValue(): boolean {
 }
 
 /**
- * Gives a saved catalogue's Honey the forage lands beyond the forest (docs/plan/honey-forage-lands.md). Only the old
- * forest-only default is replaced, so a catalogue edited in the Goods editor keeps its own lands.
+ * Gives a saved catalogue's Honey the forage lands beyond the forest and the harvest of the sources
+ * (docs/plan/honey-forage-lands.md). Only the old forest-only default is replaced, so a catalogue edited in the
+ * Goods editor keeps its own lands. The value is repriced by `migrateWeightRepricing`.
  */
 export function migrateHoneyForageLands(): boolean {
   const honey = getGoods().find(good => good.name === "Honey");

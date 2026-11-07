@@ -9,6 +9,11 @@ import {
   setCraftEmploymentShare
 } from "../../../../simulation/craftSettings";
 import {
+  getHouseholdHoneyKilograms,
+  HOUSEHOLD_HONEY_KG_LIMITS,
+  setHouseholdHoneyKilograms
+} from "../../../../simulation/householdHoneySettings";
+import {
   CRAFT_SALE_PAYMENT_MODES,
   type CraftSalePaymentMode,
   getMarketGenerationSpacing,
@@ -68,6 +73,7 @@ export const SimulationSettingsTab: React.FC = () => {
   };
   const [craftEmploymentShare, setCraftEmploymentShareState] = useState(getCraftEmploymentShare);
   const [treelessTownAleWoodland, setTreelessTownAleWoodlandState] = useState(getTreelessTownAleWoodland);
+  const [householdHoneyKilograms, setHouseholdHoneyKilogramsState] = useState(getHouseholdHoneyKilograms);
   const generationSpacing = getMarketGenerationSpacing(
     worldContext.graphWidth,
     worldContext.graphHeight,
@@ -563,6 +569,24 @@ export const SimulationSettingsTab: React.FC = () => {
                 onChange={v => {
                   const share = Number(v) / 100;
                   if (Number.isFinite(share)) setTreelessTownAleWoodlandState(setTreelessTownAleWoodland(share));
+                }}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.householdHoneyKilogramsTip")}>
+            <td />
+            <td>{t("simulation.householdHoneyKilograms")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="householdHoneyKilograms"
+                min={HOUSEHOLD_HONEY_KG_LIMITS.min}
+                max={HOUSEHOLD_HONEY_KG_LIMITS.max}
+                step={HOUSEHOLD_HONEY_KG_LIMITS.step}
+                value={householdHoneyKilograms}
+                onChange={v => {
+                  const kilograms = Number(v);
+                  if (Number.isFinite(kilograms))
+                    setHouseholdHoneyKilogramsState(setHouseholdHoneyKilograms(kilograms));
                 }}
               />
             </td>

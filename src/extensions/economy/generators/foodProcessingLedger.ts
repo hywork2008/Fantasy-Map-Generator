@@ -1,3 +1,4 @@
+import { getHouseholdHoneyKilograms } from "../../../simulation/householdHoneySettings";
 import { getMarketSettings } from "../../../simulation/marketSettings";
 import { getTreelessTownAleWoodland } from "../../../simulation/townAleSettings";
 import { rn } from "../../hostUtils";
@@ -33,6 +34,7 @@ import {
   ORCHARD_TARGETS,
   WINE_TARGETS
 } from "./foodLots";
+import { GOOD_MEASURES } from "./goodMeasureCatalog";
 import { isFreshFoodGood } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import {
@@ -54,7 +56,8 @@ const TRACKED_GOODS = new Set([
   "Apples",
   "Pears",
   "Cider",
-  "Perry"
+  "Perry",
+  "Honey"
 ]);
 const BEER_RESERVE_MONTHS = 1;
 
@@ -303,6 +306,8 @@ export function getMonthlyHouseholdDemand(market: Market, goodName: string): num
     }
     case "Beer":
       return getAleDemandSnapshot(market).monthlyDemand;
+    case "Honey":
+      return (people * getHouseholdHoneyKilograms()) / 12 / GOOD_MEASURES.Honey.kg;
     default:
       return 0;
   }
@@ -506,6 +511,7 @@ export function settleFoodProcessingHouseholds(): void {
     drawHouseholdDemand(market, "Grapes", getMonthlyHouseholdDemand(market, "Grapes"), purses);
     drawHouseholdDemand(market, "Raisins", getMonthlyHouseholdDemand(market, "Raisins"), purses);
     drawHouseholdDemand(market, "Wine", getMonthlyHouseholdDemand(market, "Wine"), purses);
+    drawHouseholdDemand(market, "Honey", getMonthlyHouseholdDemand(market, "Honey"), purses);
     for (const name of ["Apples", "Pears", "Cider", "Perry"] as const)
       drawHouseholdDemand(market, name, getMonthlyHouseholdDemand(market, name), purses);
     const aleDemand = getAleDemandSnapshot(market);

@@ -1321,14 +1321,14 @@ describe("GoodsModule", () => {
     expect(migrateBeeswaxByproduct()).toBe(false);
   });
 
-  it("gives saved forest-only Honey the heath, steppe, scrub and farmland, but keeps edited lands", () => {
+  it("gives saved forest-only Honey the heath, steppe, scrub and farmland at the sources' harvest, but keeps edited lands", () => {
     goodsModule.restoreDefaults();
     const honey = getGoods().find(good => good.name === "Honey")!;
     honey.distribution = 'biomeTag("forest")';
     honey.biomeOutputByTag = { forest: 0.04 };
 
     expect(migrateHoneyForageLands()).toBe(true);
-    expect(honey.biomeOutputByTag).toEqual({ forest: 0.04, grassland: 0.04, scrub: 0.04, arable: 0.04 });
+    expect(honey.biomeOutputByTag).toEqual({ forest: 0.6, grassland: 0.6, scrub: 0.6, arable: 0.6 });
     expect(migrateHoneyForageLands()).toBe(false);
 
     honey.distribution = 'biomeTag("forest")';
