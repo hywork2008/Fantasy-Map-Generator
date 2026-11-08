@@ -656,6 +656,60 @@ function packedRing(points: Point[], origin: Point): number[] | undefined {
 
 /** Adopt houses in CE occupancy-draw order until the dwellings are met, and save every planned district and
  * street block as fabric records. Houses are site, footprint and reservation at once. */
+type OccupiedIndex = RBush<{ minX: number; minY: number; maxX: number; maxY: number; polygon: VectorPolygon }>;
+/** Lot fits of cached plan houses, by the occupied sites near the lot when it was fitted. */
+const lotFits = new WeakMap<object, { key: string; fit?: { ring: number[]; polygon: Point[] } }>();
+/** The lot as adopted: whole, trimmed of slivers shared with occupied land, or undefined when it does not fit.
+ * Pure in the lot and the sites near it, so a lot whose surroundings are unchanged reuses its last fit. */
+function fittedLot(
+  house: VectorPerimeterPlan["houses"][number],
+  origin: Point,
+  occupied: OccupiedIndex
+): { ring: number[]; polygon: Point[] } | undefined {
+  const first = packedRing(house.polygon, origin);
+  if (!first) return undefined;
+  const whole = unpackPoints(first, origin),
+    near = occupied.search(boxOf(whole)).map(o => o.polygon),
+    key = `${origin}|${JSON.stringify(near)}`,
+    known = lotFits.get(house);
+  if (known?.key === key) return known.fit;
+  const fit = fitLot(first, whole, origin, near);
+  lotFits.set(house, { key, fit });
+  return fit;
+}
+function fitLot(
+  first: number[],
+  whole: Point[],
+  origin: Point,
+  near: VectorPolygon[]
+): { ring: number[]; polygon: Point[] } | undefined {
+  const site = { outer: whole, holes: [] },
+    overlapping = near.filter(o => regionBoolean([site], [o], "intersection").some(r => regionArea(r) > 1e-5));
+  if (!overlapping.length) return { ring: first, polygon: whole };
+  // CE lots overlap their neighbours by slivers. Trimming the sliver keeps the row closed; a lot that loses
+  // more than a sliver stays unbuilt, so no house ever shares land with another.
+  const before = regionArea(site),
+    trimmed = regionBoolean([site], overlapping, "difference");
+  const kept = trimmed.length === 1 && !trimmed[0].holes.length ? packedRing(trimmed[0].outer, origin) : undefined;
+  if (!kept) return undefined;
+  const next = unpackPoints(kept, origin),
+    trimmedSite = { outer: next, holes: [] };
+  if (regionArea(trimmedSite) < before * (1 - MAX_SLIVER_SHARE)) return undefined;
+  // The trimmed lot lies inside the whole one, so every site that can touch it is among `near`.
+  const box = boxOf(next);
+  if (
+    near.some(
+      o =>
+        boxesMeet(boxOf(o.outer), box) &&
+        regionBoolean([trimmedSite], [o], "intersection").some(r => regionArea(r) > 1e-5)
+    )
+  )
+    return undefined;
+  return { ring: kept, polygon: next };
+}
+const boxesMeet = (a: ReturnType<typeof boxOf>, b: ReturnType<typeof boxOf>) =>
+  a.minX <= b.maxX && b.minX <= a.maxX && a.minY <= b.maxY && b.minY <= a.maxY;
+
 export function placeVectorPerimeterHouses(
   doc: VectorCityDocument,
   plan: VectorPerimeterPlan,
@@ -730,33 +784,10 @@ export function placeVectorPerimeterHouses(
     if (capacity >= required && house.draw > keepDraw) break;
     const origin = origins.get(house.cellId);
     if (!origin || house.draw >= lotOccupancy || cleared[house.cellId]?.includes(house.draw)) continue;
-    let ring = packedRing(house.polygon, origin);
-    if (!ring) continue;
-    let polygon = unpackPoints(ring, origin),
+    const fit = fittedLot(house, origin, occupied);
+    if (!fit) continue;
+    const { ring, polygon } = fit,
       site = { outer: polygon, holes: [] };
-    const overlapping = occupied
-      .search(boxOf(polygon))
-      .map(o => o.polygon)
-      .filter(o => regionBoolean([site], [o], "intersection").some(r => regionArea(r) > 1e-5));
-    if (overlapping.length) {
-      // CE lots overlap their neighbours by slivers. Trimming the sliver keeps the row closed; a lot that loses
-      // more than a sliver stays unbuilt, so no house ever shares land with another.
-      const before = regionArea(site),
-        trimmed = regionBoolean([site], overlapping, "difference");
-      const kept = trimmed.length === 1 && !trimmed[0].holes.length ? packedRing(trimmed[0].outer, origin) : undefined;
-      if (!kept) continue;
-      const next = unpackPoints(kept, origin);
-      if (regionArea({ outer: next, holes: [] }) < before * (1 - MAX_SLIVER_SHARE)) continue;
-      ring = kept;
-      polygon = next;
-      site = { outer: polygon, holes: [] };
-      if (
-        occupied
-          .search(boxOf(polygon))
-          .some(o => regionBoolean([site], [o.polygon], "intersection").some(r => regionArea(r) > 1e-5))
-      )
-        continue;
-    }
     const dwellings = perimeterHouseDwellings(regionArea(site), storeys);
     // The entrance faces the nearest lane, street or road. Never an access drawn across another plot.
     let best: { from: Point; to: Point; distance: number } | undefined;
@@ -865,10 +896,8 @@ export function vectorPerimeterResidual(doc: VectorCityDocument, blocks: VectorB
   // Set operations can leave slivers that are not simple polygons; residual land is display-only, so they go.
   const valid = (ring: Point[]) =>
     ring.length >= 3 && simpleContour(ring, true) && regionArea({ outer: ring, holes: [] }) > 1e-9;
-  return blocks.flatMap(block =>
-    regionBoolean(
-      [block],
-      index
+  return blocks.flatMap(block => {
+    const sites = index
         .search({
           minX: Math.min(...block.outer.map(p => p[0])),
           minY: Math.min(...block.outer.map(p => p[1])),
@@ -876,7 +905,14 @@ export function vectorPerimeterResidual(doc: VectorCityDocument, blocks: VectorB
           maxY: Math.max(...block.outer.map(p => p[1]))
         })
         .map(item => item.polygon),
-      "difference"
-    ).filter(p => valid(p.outer) && p.holes.every(valid))
-  );
+      // The block object is shared with the plan cache, so its outline is unchanged; the sites over it decide.
+      key = JSON.stringify(sites),
+      known = residuals.get(block);
+    if (known?.key === key) return structuredClone(known.land);
+    const land = regionBoolean([block], sites, "difference").filter(p => valid(p.outer) && p.holes.every(valid));
+    residuals.set(block, { key, land });
+    return structuredClone(land);
+  });
 }
+/** Residual land of a cached plan block, by the occupied sites it was cut with. */
+const residuals = new WeakMap<object, { key: string; land: VectorPolygon[] }>();

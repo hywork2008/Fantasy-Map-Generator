@@ -9,6 +9,7 @@
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4bの完了と次のS4cを記載
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4cの完了と次のS4dを記載
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4dの完了と次のS4eを記載
+- docs/plan/ce-meshless-block-fabric-scaling.md - S4eの完了と次のS4fを記載
 
 2026-11-08
 
