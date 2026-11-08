@@ -1,0 +1,335 @@
+{
+  "format": "ce-meshless-s21g-observation",
+  "version": 1,
+  "measuredOn": "2026-11-08",
+  "scope": "S2.1g: repeated district streets removed (vector-urban-v7). Acceptance against generation v3 and v4 saved documents, and selection on the v7 50,000 document.",
+  "acceptanceVsV3": {
+    "format": "ce-meshless-fabric-acceptance",
+    "version": 1,
+    "measuredAtUtc": "2026-11-08T10:07:41.137Z",
+    "inputs": {
+      "v7": "docs/analytics/raw/scaling-v3-20261108",
+      "v8": "docs/analytics/raw/scaling-s21g-20261108"
+    },
+    "scope": "Saved documents of the fixed wall-first synthetic inputs. v7 = generation vector-urban-v3 (houses as placements, lanes as paths); v8 = vector-urban-v6 (fabric records). Street and lane length sums generated lines in either form.",
+    "rows": [
+      {
+        "population": 1000,
+        "v7": {
+          "algorithm": "vector-urban-v3",
+          "housingBuildings": 220,
+          "capacityDwellings": 223,
+          "requiredDwellings": 223,
+          "unplacedPopulation": 0,
+          "streetAndLaneMeters": 5673.2,
+          "placements": 220,
+          "paths": 446,
+          "bytes": 2063277,
+          "sha256": "42330821a3a057ae38a87849474a223ad648234044ec6e0d2989cd9b10e0e67a",
+          "parseMs": 277,
+          "resavedIdentical": false,
+          "reloadedEqual": true
+        },
+        "v8": {
+          "algorithm": "vector-urban-v7",
+          "housingBuildings": 223,
+          "capacityDwellings": 223,
+          "requiredDwellings": 223,
+          "unplacedPopulation": 0,
+          "streetAndLaneMeters": 5809.2,
+          "placements": 0,
+          "paths": 15,
+          "bytes": 905220,
+          "sha256": "2d1debaaf695650cf8646648b89d23542c8291e846cbff60783d0b112a1bbb63",
+          "parseMs": 104,
+          "resavedIdentical": true,
+          "reloadedEqual": true
+        }
+      },
+      {
+        "population": 5000,
+        "v7": {
+          "algorithm": "vector-urban-v3",
+          "housingBuildings": 1100,
+          "capacityDwellings": 1112,
+          "requiredDwellings": 1112,
+          "unplacedPopulation": 0,
+          "streetAndLaneMeters": 15372.3,
+          "placements": 1100,
+          "paths": 1090,
+          "bytes": 6659122,
+          "sha256": "e98d4376b3d8b1d648f706edb3d8030d55662519f058f5db948209e737fe2147",
+          "parseMs": 443,
+          "resavedIdentical": false,
+          "reloadedEqual": true
+        },
+        "v8": {
+          "algorithm": "vector-urban-v7",
+          "housingBuildings": 1104,
+          "capacityDwellings": 1112,
+          "requiredDwellings": 1112,
+          "unplacedPopulation": 0,
+          "streetAndLaneMeters": 15125.7,
+          "placements": 0,
+          "paths": 15,
+          "bytes": 1964497,
+          "sha256": "c25aa273fa9a2a4e939c4d7104626621321dac093a15cc20eab14d91980ac073",
+          "parseMs": 153,
+          "resavedIdentical": true,
+          "reloadedEqual": true
+        }
+      },
+      {
+        "population": 20000,
+        "v8": {
+          "algorithm": "vector-urban-v7",
+          "housingBuildings": 4415,
+          "capacityDwellings": 4445,
+          "requiredDwellings": 4445,
+          "unplacedPopulation": 0,
+          "streetAndLaneMeters": 59985.8,
+          "placements": 0,
+          "paths": 15,
+          "bytes": 6386123,
+          "sha256": "835d4c4e401828dfecc4b222220894cf365864e4f39c36d57d56a14338a8c04a",
+          "parseMs": 363,
+          "resavedIdentical": true,
+          "reloadedEqual": true
+        }
+      },
+      {
+        "population": 50000,
+        "v8": {
+          "algorithm": "vector-urban-v7",
+          "housingBuildings": 11062,
+          "capacityDwellings": 11112,
+          "requiredDwellings": 11112,
+          "unplacedPopulation": 0,
+          "streetAndLaneMeters": 148610.9,
+          "placements": 0,
+          "paths": 15,
+          "bytes": 6233788,
+          "sha256": "4422bf561f026cbe064e9d8f0cff91fa1d7f59668b62375c4502ce5d3936dc52",
+          "parseMs": 745,
+          "resavedIdentical": true,
+          "reloadedEqual": true
+        }
+      }
+    ]
+  },
+  "acceptanceVsV4": {
+    "format": "ce-meshless-fabric-acceptance",
+    "version": 1,
+    "measuredAtUtc": "2026-11-08T10:07:48.909Z",
+    "inputs": {
+      "v7": "docs/analytics/raw/scaling-v4-20261108",
+      "v8": "docs/analytics/raw/scaling-s21g-20261108"
+    },
+    "scope": "Saved documents of the fixed wall-first synthetic inputs. v7 = generation vector-urban-v3 (houses as placements, lanes as paths); v8 = vector-urban-v6 (fabric records). Street and lane length sums generated lines in either form.",
+    "rows": [
+      {
+        "population": 1000,
+        "v7": {
+          "algorithm": "vector-urban-v4",
+          "housingBuildings": 223,
+          "capacityDwellings": 223,
+          "requiredDwellings": 223,
+          "unplacedPopulation": 0,
+          "streetAndLaneMeters": 5806.8,
+          "placements": 223,
+          "paths": 461,
+          "bytes": 2106839,
+          "sha256": "3ed74c0c731013fd208b98b2e1b9c74ea9a2acb777dae1a513239e7f9a9b4a7e",
+          "parseMs": 260,
+          "resavedIdentical": true,
+          "reloadedEqual": true
+        },
+        "v8": {
+          "algorithm": "vector-urban-v7",
+          "housingBuildings": 223,
+          "capacityDwellings": 223,
+          "requiredDwellings": 223,
+          "unplacedPopulation": 0,
+          "streetAndLaneMeters": 5809.2,
+          "placements": 0,
+          "paths": 15,
+          "bytes": 905220,
+          "sha256": "2d1debaaf695650cf8646648b89d23542c8291e846cbff60783d0b112a1bbb63",
+          "parseMs": 102,
+          "resavedIdentical": true,
+          "reloadedEqual": true
+        }
+      },
+      {
+        "population": 5000,
+        "v7": {
+          "algorithm": "vector-urban-v4",
+          "housingBuildings": 1104,
+          "capacityDwellings": 1112,
+          "requiredDwellings": 1112,
+          "unplacedPopulation": 0,
+          "streetAndLaneMeters": 15104,
+          "placements": 1104,
+          "paths": 1049,
+          "bytes": 6611018,
+          "sha256": "04b8badde58e63690fa29f0a6887bf4c7c352244e80e97d18d054858506d5616",
+          "parseMs": 442,
+          "resavedIdentical": true,
+          "reloadedEqual": true
+        },
+        "v8": {
+          "algorithm": "vector-urban-v7",
+          "housingBuildings": 1104,
+          "capacityDwellings": 1112,
+          "requiredDwellings": 1112,
+          "unplacedPopulation": 0,
+          "streetAndLaneMeters": 15125.7,
+          "placements": 0,
+          "paths": 15,
+          "bytes": 1964497,
+          "sha256": "c25aa273fa9a2a4e939c4d7104626621321dac093a15cc20eab14d91980ac073",
+          "parseMs": 151,
+          "resavedIdentical": true,
+          "reloadedEqual": true
+        }
+      },
+      {
+        "population": 20000,
+        "v8": {
+          "algorithm": "vector-urban-v7",
+          "housingBuildings": 4415,
+          "capacityDwellings": 4445,
+          "requiredDwellings": 4445,
+          "unplacedPopulation": 0,
+          "streetAndLaneMeters": 59985.8,
+          "placements": 0,
+          "paths": 15,
+          "bytes": 6386123,
+          "sha256": "835d4c4e401828dfecc4b222220894cf365864e4f39c36d57d56a14338a8c04a",
+          "parseMs": 344,
+          "resavedIdentical": true,
+          "reloadedEqual": true
+        }
+      },
+      {
+        "population": 50000,
+        "v8": {
+          "algorithm": "vector-urban-v7",
+          "housingBuildings": 11062,
+          "capacityDwellings": 11112,
+          "requiredDwellings": 11112,
+          "unplacedPopulation": 0,
+          "streetAndLaneMeters": 148610.9,
+          "placements": 0,
+          "paths": 15,
+          "bytes": 6233788,
+          "sha256": "4422bf561f026cbe064e9d8f0cff91fa1d7f59668b62375c4502ce5d3936dc52",
+          "parseMs": 746,
+          "resavedIdentical": true,
+          "reloadedEqual": true
+        }
+      }
+    ]
+  },
+  "selection50000": {
+    "format": "ce-meshless-selection-observation",
+    "version": 1,
+    "measuredAtUtc": "2026-11-08T10:08:07.855Z",
+    "input": "docs/analytics/raw/scaling-s21g-20261108/scaling-50000.json",
+    "scope": "Workbench, placement and generated-house panels in jsdom, one document, nine selections each. 3D: scene build and a vertical ray pick without WebGL rendering. Excludes layout/paint.",
+    "counts": {
+      "paths": 15,
+      "placements": 0
+    },
+    "initialMs": 2005.7310699999998,
+    "mapClickMs": {
+      "median": 6.143528999999944,
+      "max": 31.53682299999946,
+      "samples": [
+        31.53682299999946,
+        8.101300000000265,
+        5.1446149999992485,
+        4.012123999999858,
+        5.149163999999473,
+        9.363142000000153,
+        6.143528999999944,
+        6.998485000000073,
+        5.05478900000071
+      ]
+    },
+    "workbenchSelectMs": {
+      "median": 3.2725119999995513,
+      "max": 5.3304699999998775,
+      "samples": [
+        1.5671179999999367,
+        1.3945269999994707,
+        1.624243999999635,
+        2.2773749999996653,
+        3.299391999999898,
+        5.3304699999998775,
+        3.2725119999995513,
+        4.102091000000655,
+        3.579552000000149
+      ]
+    },
+    "placementSelectMs": {
+      "max": null,
+      "samples": []
+    },
+    "fabric": {
+      "cells": 640,
+      "houseMapClickMs": {
+        "median": 2.772393999999622,
+        "max": 4.274761000000581,
+        "samples": [
+          3.901668999999856,
+          4.274761000000581,
+          2.715408000000025,
+          2.347575999999208,
+          3.17755600000055,
+          2.4224739999999656,
+          3.9709979999997813,
+          2.772393999999622,
+          2.490179999999782
+        ]
+      },
+      "houseClicksSelected": 9,
+      "houseInspectorMs": {
+        "median": 0.8111449999996694,
+        "max": 1.1544919999996637,
+        "samples": [
+          1.0466220000007525,
+          0.8111449999996694,
+          0.739372000000003,
+          0.849566999999297,
+          1.1544919999996637,
+          0.8473120000007839,
+          0.7100279999995109,
+          0.7122010000002774,
+          0.7616129999996701
+        ]
+      },
+      "scene3dBuildMs": 1430.4420049999999,
+      "houseMeshes": 128,
+      "house3dPickMs": {
+        "median": 2.2630980000003547,
+        "max": 19.513044000000264,
+        "samples": [
+          19.513044000000264,
+          3.5517399999998815,
+          3.146908999999141,
+          2.2630980000003547,
+          3.060128000000077,
+          2.085138999999799,
+          1.9860550000003059,
+          1.902129000000059,
+          2.1640360000001237
+        ]
+      },
+      "house3dPicksCorrect": 9
+    },
+    "renderCallbacks": 1,
+    "snapshotUnchanged": true,
+    "compareMs": 69.49693300000035
+  }
+}

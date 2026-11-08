@@ -11,7 +11,7 @@ export const VECTOR_FABRIC_LIMITS = {
   houses: 300000,
   coordinatesPerRecord: 2_000_000
 };
-const ALGORITHMS = ["vector-urban-v5", "vector-urban-v6"];
+const ALGORITHMS = ["vector-urban-v5", "vector-urban-v6", "vector-urban-v7"];
 type RecordValue = Record<string, unknown>;
 const record = (v: unknown): v is RecordValue => !!v && typeof v === "object" && !Array.isArray(v);
 const keys = (v: unknown, required: string[], optional: string[] = []): v is RecordValue =>

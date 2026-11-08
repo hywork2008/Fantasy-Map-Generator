@@ -73,8 +73,9 @@ describe.runIf(!!input && !!output)("meshless selection cost observation", () =>
       return performance.now() - start;
     };
     const median = (values: number[]) => values.slice().sort((a, b) => a - b)[values.length >> 1];
+    // Nine paths spread over the document; a fabric city keeps only its few main roads as paths.
     const pathIds = Object.keys(doc!.paths)
-      .filter((_, i) => i % 97 === 0)
+      .filter((_, i, all) => i % Math.max(1, Math.floor(all.length / 9)) === 0)
       .slice(0, 9);
     const clickMs = pathIds.map(id =>
       time(() => {

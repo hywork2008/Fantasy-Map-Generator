@@ -155,6 +155,9 @@ export function planVectorPerimeter(
       return { a, b, feature: !!road, barrier: !road, setback: road ? ROAD_FACADE_CLEARANCE_METERS : 3 };
     });
     const plan = planOrganicStreetCells(face, outline, boundaries, parameters, doc.recipe.seed, context);
+    // The CE street plan lists some streets twice (in the fixed inputs, 61 of 355 at 1,000 people). The mesh
+    // editor never noticed; saved records would store, draw and measure them twice.
+    plan.streets = withoutRepeatedStreets(plan.streets);
     const district: DistrictPlan = {
       id: districtId,
       outline,
@@ -266,6 +269,28 @@ export function planVectorPerimeter(
     for (const cell of district.cells) join(cell.lanes, (lane, end, nodeId) => cell.mouths.push({ lane, end, nodeId }));
   }
   return result;
+}
+
+/** Streets in order, without any street lying wholly on an earlier one (5 cm). Partial overlaps stay. */
+function withoutRepeatedStreets<T extends { points: Point[] }>(streets: T[]): T[] {
+  const kept: T[] = [],
+    index = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; points: Point[] }>();
+  for (const street of streets) {
+    const near = index.search(boxOf(street.points, 0.05)).map(item => item.points),
+      covered = (p: Point) => near.some(points => nearestOnPolyline(p, points).dist <= 0.05);
+    let repeated = near.length > 0;
+    for (let i = 1; repeated && i < street.points.length; i++) {
+      const a = street.points[i - 1],
+        b = street.points[i],
+        n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.5));
+      for (let k = 0; repeated && k <= n; k++)
+        repeated = covered([a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n]);
+    }
+    if (repeated) continue;
+    kept.push(street);
+    index.insert({ ...boxOf(street.points), points: street.points });
+  }
+  return kept;
 }
 
 const roundedOrigin = (points: Point[]): Point => {
