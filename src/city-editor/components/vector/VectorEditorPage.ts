@@ -189,7 +189,8 @@ export function mountVectorCityEditor(
     threeHost,
     () => session.history.document,
     id => {
-      const doc = session.history.document;
+      // Selection reads the current snapshot without copying it (see the block fabric scaling plan, S2.0).
+      const doc = session.history.peek();
       placementPanel?.select(id);
       const pathId = doc.paths[id]
         ? id
@@ -341,7 +342,8 @@ export function mountVectorCityEditor(
     scope,
     controls,
     () => session.history.document,
-    (doc, label) => editPanel!.submit(doc, label)
+    (doc, label) => editPanel!.submit(doc, label),
+    () => session.history.peek()
   );
   environmentPanel = createVectorEnvironmentPanel(
     scope,
@@ -355,7 +357,8 @@ export function mountVectorCityEditor(
       refresh();
     },
     options.openMeshDocument,
-    () => session.history.currentEntryKey
+    () => session.history.currentEntryKey,
+    () => session.history.peek()
   );
   workbench = createVectorWorkbench(
     scope,
@@ -367,7 +370,8 @@ export function mountVectorCityEditor(
       scope.invalidate("import");
       editPanel!.submit(document, label);
     },
-    doc => presentation.rendered(doc)
+    doc => presentation.rendered(doc),
+    () => session.history.peek()
   );
   refresh();
   if (session.history.document.legacyCopy) {

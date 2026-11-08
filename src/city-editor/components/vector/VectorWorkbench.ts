@@ -20,7 +20,7 @@ import { vectorPathMeasurement } from "../../generators/vector/geometry/measurem
 import { presetArea, presetDimensionsForArea } from "../../generators/vector/geometry/presets";
 import { clearVectorGeometryCache } from "../../generators/vector/geometry/surfaces";
 import { element, line } from "../../renderers/svgPrimitives";
-import { renderVectorDocument, vectorPathSvg } from "../../renderers/vector/documentSvg";
+import { renderVectorDocument, updateVectorSelection, vectorPathSvg } from "../../renderers/vector/documentSvg";
 import type { EditorLifetime } from "../../services/editorLifetime";
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument, VectorHandleMode, VectorPath, VectorPreset } from "../../types/vector/document";
@@ -37,7 +37,9 @@ export function createVectorWorkbench(
   status: HTMLElement,
   readCurrent: () => VectorCityDocument,
   commit: (document: VectorCityDocument, label: string) => void,
-  onRender?: (doc: VectorCityDocument) => void
+  onRender?: (doc: VectorCityDocument) => void,
+  /** Read-only current document for selection; never mutated. Defaults to a copy. */
+  peek: () => Readonly<VectorCityDocument> = readCurrent
 ) {
   const read = () => prepareVectorEdit(readCurrent());
   const replaceVectorPath = (doc: VectorCityDocument, path: VectorPath) =>
@@ -181,10 +183,7 @@ export function createVectorWorkbench(
     handles = [];
     draw();
   });
-  scope.listen(paths, "change", () => {
-    selectedId = paths.value;
-    refresh();
-  });
+  scope.listen(paths, "change", () => selectPath(paths.value));
   function draw() {
     const svg = renderVectorDocument(readCurrent(), selectedId, selectedSegmentId || undefined);
     svg.setAttribute("aria-label", editorText("cityEditor.vector.preview"));
@@ -230,6 +229,30 @@ export function createVectorWorkbench(
         })
       );
   }
+  /** Selection changes only the inspector and the selection layer; the document and drawing stay as they are. */
+  function showSelection() {
+    const svg = map.querySelector<SVGSVGElement>("svg");
+    if (!svg || !updateVectorSelection(svg, peek(), selectedId, selectedSegmentId || undefined)) draw();
+  }
+  function selectPath(id: string) {
+    const path = Object.hasOwn(peek().paths, id) ? peek().paths[id] : undefined;
+    if (!path) {
+      // A surface without its own path (for example a parcel) keeps the old behaviour.
+      selectedId = id;
+      refresh();
+      return;
+    }
+    points = [];
+    handles = [];
+    drag = undefined;
+    pointer = false;
+    selectedId = id;
+    paths.value = id;
+    scope.replaceChildren(inspector);
+    buildInspector(path);
+    networkPanel.selectTarget(id);
+    showSelection();
+  }
   const networkPanel = createVectorNetworkPanel(
     scope,
     toolbar,
@@ -243,7 +266,8 @@ export function createVectorWorkbench(
       drag = undefined;
       pointer = false;
       commit(next, label);
-    }
+    },
+    peek
   );
   function refresh() {
     points = [];
@@ -305,7 +329,7 @@ export function createVectorWorkbench(
     segment.value = selectedSegmentId;
     scope.listen(segment, "change", () => {
       selectedSegmentId = segment.value;
-      draw();
+      showSelection();
     });
     const t = number(inspector, "parameter", 0.5),
       sl = number(inspector, "stationLeft", path.width.leftMeters),
@@ -476,10 +500,7 @@ export function createVectorWorkbench(
           return;
         }
         const hit = target.closest<SVGElement>("[data-vector-path],[data-vector-surface]");
-        if (hit) {
-          selectedId = (hit.dataset.vectorPath ?? hit.dataset.vectorSurface)!;
-          refresh();
-        }
+        if (hit) selectPath((hit.dataset.vectorPath ?? hit.dataset.vectorSurface)!);
         return;
       }
       scope.invalidate("import");
@@ -561,12 +582,8 @@ export function createVectorWorkbench(
     refresh,
     cancel,
     select(id: string) {
-      const path = read().paths[id];
-      if (!path) return;
-      selectedId = id;
-      paths.value = id;
-      scope.replaceChildren(inspector);
-      buildInspector(path);
+      if (!Object.hasOwn(peek().paths, id)) return;
+      selectPath(id);
     }
   };
 }

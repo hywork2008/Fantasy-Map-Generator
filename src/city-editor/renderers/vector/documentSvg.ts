@@ -104,8 +104,8 @@ export function renderVectorDocument(
       element("path", {
         d: vectorPathSvg(path),
         fill: "none",
-        stroke: path.id === selectedId ? "#db573b" : path.role === "wall" ? "transparent" : "#6a6257",
-        "stroke-width": path.id === selectedId ? "1.5" : ".5",
+        stroke: path.role === "wall" ? "transparent" : "#6a6257",
+        "stroke-width": ".5",
         "vector-effect": "non-scaling-stroke",
         "data-vector-path": path.id
       })
@@ -130,53 +130,8 @@ export function renderVectorDocument(
         "data-vector-node": node.id
       })
     );
-  const selected = selectedId ? document.paths[selectedId] : undefined;
-  if (selected?.source.kind === "curve" && selected.editPolicy === "editable") {
-    const radius = extent / 220;
-    const source = selected.source;
-    source.segments.forEach((segment, index) => {
-      const active = segment.id === (selectedSegmentId ?? source.segments[0].id);
-      if (segment.kind === "cubic" && active)
-        for (const key of ["control1", "control2"] as const) {
-          const p = segment[key],
-            end = key === "control1" ? segment.from : segment.to;
-          svg.append(
-            element("path", {
-              d: `M${end[0]} ${-end[1]} L${p[0]} ${-p[1]}`,
-              stroke: "#4584ad",
-              "stroke-width": "1",
-              "vector-effect": "non-scaling-stroke",
-              "pointer-events": "none"
-            })
-          );
-          svg.append(
-            element("circle", {
-              cx: String(p[0]),
-              cy: String(-p[1]),
-              r: String(radius * 0.7),
-              fill: "#70b8e0",
-              "data-handle": key,
-              "data-segment": String(index)
-            })
-          );
-        }
-      for (const key of ["from", "to"] as const) {
-        if (key === "to" && (index < source.segments.length - 1 || source.closed)) continue;
-        const p = segment[key];
-        svg.append(
-          element("circle", {
-            cx: String(p[0]),
-            cy: String(-p[1]),
-            r: String(radius * (active ? 1 : 0.25)),
-            fill: "#fff",
-            stroke: "#db573b",
-            "data-handle": key,
-            "data-segment": String(index)
-          })
-        );
-      }
-    });
-  }
+  svg.dataset.vectorExtent = String(extent);
+  svg.append(vectorSelectionLayer(document, extent, selectedId, selectedSegmentId));
   const frameClipId = `ce-vector-frame-${sceneId}`,
     defs = element("defs", {}),
     clip = element("clipPath", { id: frameClipId });
@@ -193,4 +148,88 @@ export function renderVectorDocument(
   for (const child of Array.from(svg.children)) if (child.tagName.toLowerCase() !== "defs") content.append(child);
   svg.append(defs, content);
   return svg;
+}
+
+/** Selection decorations live in their own layer, so changing the selection replaces only this layer:
+ * no render data, validation or full SVG rebuild. Reads the document without changing it. */
+export function vectorSelectionLayer(
+  document: Readonly<VectorCityDocument>,
+  extent: number,
+  selectedId?: string,
+  selectedSegmentId?: string
+): SVGGElement {
+  const layer = element("g", { "data-vector-selection": "true" }) as SVGGElement;
+  const selected = selectedId && Object.hasOwn(document.paths, selectedId) ? document.paths[selectedId] : undefined;
+  if (!selected) return layer;
+  layer.append(
+    element("path", {
+      d: vectorPathSvg(selected),
+      fill: "none",
+      stroke: "#db573b",
+      "stroke-width": "1.5",
+      "vector-effect": "non-scaling-stroke",
+      "pointer-events": "none",
+      "data-vector-selected-path": selected.id
+    })
+  );
+  if (selected.source.kind !== "curve" || selected.editPolicy !== "editable") return layer;
+  const radius = extent / 220;
+  const source = selected.source;
+  source.segments.forEach((segment, index) => {
+    const active = segment.id === (selectedSegmentId ?? source.segments[0].id);
+    if (segment.kind === "cubic" && active)
+      for (const key of ["control1", "control2"] as const) {
+        const p = segment[key],
+          end = key === "control1" ? segment.from : segment.to;
+        layer.append(
+          element("path", {
+            d: `M${end[0]} ${-end[1]} L${p[0]} ${-p[1]}`,
+            stroke: "#4584ad",
+            "stroke-width": "1",
+            "vector-effect": "non-scaling-stroke",
+            "pointer-events": "none"
+          })
+        );
+        layer.append(
+          element("circle", {
+            cx: String(p[0]),
+            cy: String(-p[1]),
+            r: String(radius * 0.7),
+            fill: "#70b8e0",
+            "data-handle": key,
+            "data-segment": String(index)
+          })
+        );
+      }
+    for (const key of ["from", "to"] as const) {
+      if (key === "to" && (index < source.segments.length - 1 || source.closed)) continue;
+      const p = segment[key];
+      layer.append(
+        element("circle", {
+          cx: String(p[0]),
+          cy: String(-p[1]),
+          r: String(radius * (active ? 1 : 0.25)),
+          fill: "#fff",
+          stroke: "#db573b",
+          "data-handle": key,
+          "data-segment": String(index)
+        })
+      );
+    }
+  });
+  return layer;
+}
+
+/** Replace the selection layer of an SVG drawn by `renderVectorDocument`. False if there is none. */
+export function updateVectorSelection(
+  svg: SVGSVGElement,
+  document: Readonly<VectorCityDocument>,
+  selectedId?: string,
+  selectedSegmentId?: string
+): boolean {
+  const old = svg.querySelector("[data-vector-selection]"),
+    extent = Number(svg.dataset.vectorExtent);
+  if (!old || !Number.isFinite(extent)) return false;
+  old.replaceWith(vectorSelectionLayer(document, extent, selectedId, selectedSegmentId));
+  return true;
 }

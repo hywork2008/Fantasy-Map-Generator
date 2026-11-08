@@ -148,3 +148,43 @@ S1.5の後半（街路街区を記録・並列化・部分再生成の単位に�
 計測値は[S1.5後半の計測JSON](ce-meshless-scaling-s15b-20261108.json)。
 
 関連テスト: `generators/vector`、`services/io/vector`、`components/vector`と、既存CEの`organicBlocks`・`localInfill`・`populationGeneration`・`perimeterBlocks`・`blockInfill`で、29ファイル中27成功・2 skip（計測用）、208件中206成功。
+
+## S2.0 選択を軽くする
+
+計画のS2.0（選択とInspectorの表示で文書を複製せず、地図全体を描き直さない）を、現行のv7文書へ適用した。
+
+変更前、メッシュなしの道ツール（workbench）で地図上の道を1回クリックすると、次が起きていた。
+
+- `refresh()`: 文書の複製、全道（約1,000件）の一覧の作り直し、Inspector、接続パネルの全体の作り直し。
+- `draw()`: 文書の複製、全量検証を含む`vectorRenderData`、SVG全体の作り直し。
+- `onRender`: 表示パネルで文書をさらに複製し、3D表示中は3Dシーンも作り直す。
+
+変更内容:
+
+- `VectorDocumentHistory.peek()`: 現在の履歴の文書を複製せずに返す。選択と表示だけに使い、編集候補は従来どおり`document`（複製）から作る。
+- `renderVectorDocument`の選択の強調と編集ハンドルを、専用の層（`vectorSelectionLayer`）に分けた。`updateVectorSelection`はこの層だけを差し替える。
+- workbenchの選択（地図のクリック、一覧の変更、3Dからの選択）は、Inspector、接続パネルの対象の道、選択の層だけを更新する。文書の変更時の`refresh()`は従来のまま。
+- 配置パネルの一覧から自動生成の住宅を外し、施設・手動配置・固定物と、地図で選択中の住宅だけを出す。
+- 配置・環境パネルの選択と、ページの選択の通知は`peek()`を読む。
+
+計測（`src/city-editor/components/vector/selectionObservation.test.ts`、明示実行時のみ。jsdom、5,000人の保存文書`docs/analytics/raw/scaling-s0-20261108/scaling-5000.json`、各9回、3D・layout/paintを含まない）:
+
+| 操作 | 変更前（中央値） | 変更後（中央値） |
+| --- | --- | --- |
+| 地図上の道のクリック | 1,304 ms（最大1,398 ms） | 9.2 ms（最大26.4 ms） |
+| `workbench.select` | 81 ms | 4.7 ms |
+| 配置パネルの`select` | 128 ms | 0.17 ms |
+| 地図全体の描き直し（`onRender`の回数、初回表示を含む） | 10 | 1 |
+
+選択の後、履歴の文書が変わっていないことも確認した。計測値は[変更前](ce-meshless-selection-before-20261108.json)・[変更後](ce-meshless-selection-after-20261108.json)。
+
+再実行:
+
+```sh
+CE_MESHLESS_SELECTION_DOC=<保存文書> CE_MESHLESS_SELECTION_OUT=<新しい出力> \
+  npx vitest run src/city-editor/components/vector/selectionObservation.test.ts
+```
+
+関連テスト: `components/vector`、`renderers/vector`、`services/io/vector`、`generators/vector/document.test.ts`、`components/CityEditorPage*`で、36ファイル中33成功・1 skip・2失敗、203件中200成功。失敗の2件（`CityEditorPage.buildingPattern.test.ts`の生成方式の選択肢、`CityEditorPage.generate.test.ts`のBonenfeld）は、本作業の前のコミット`2156508ba`でも同じく失敗しており、本変更とは関係しない。
+
+5,000人で選択は1フレーム（16 ms）以内に収まった。50,000人以上の文書はS2の形式まで保存できないため、16 msの目標はS2で計測する。

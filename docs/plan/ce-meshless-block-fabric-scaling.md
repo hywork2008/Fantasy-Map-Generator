@@ -85,66 +85,105 @@ S1後の切り分け（[記録](../analytics/ce-meshless-scaling-20261108.md#外
 
 ### S2 街区単位の記録（native v8）
 
-自動生成した街区の中身を、街区ごとの1件の記録として保存する。手動の住宅・施設・固定物は従来どおり`VectorPlacement`で保存する。
+S1.5で、地区（骨格の街区）を街路街区に分け、街路街区ごとに独立して作れるようになった。S2では、自動生成した街並みを「地区」と「街路街区」の2層の記録として保存する。手動の住宅・施設・固定物は従来どおり`VectorPlacement`で保存する。
 
-概念型の例:
+#### S2.0 選択を軽くする（形式の変更前に行う）
+
+メッシュありCEのInspectorでは、要素の選択そのものが重くなる場合がある。選択時に地図全体の再描画へ切り替わる経路（`applySelection`で部分更新できない場合の`redrawMap`）や、Inspectorの描画で派生データ（地区の解決等）を求め直す処理があるためである。メッシュなしでも、2026-11-08時点で次の負荷がある。
+
+- 選択の通知で`session.history.document`を読む。この参照は文書全体を`structuredClone`する（5,000人の文書で1回約37 ms）。配置・道・環境の各パネルも選択のたびに同じ参照を読むため、1回の選択で複数回複製する。
+- 配置パネルは全配置を`<select>`の選択肢として持つ（5,000人で約1,100件、20万人では4万件を超える）。
+
+選択は次の規則に従う。S2の形式変更より先に、現行のv7文書へ適用する。
+
+1. 選択とInspectorの表示は、文書を複製しない。履歴から読み取り専用の参照を受け取り、複製は編集候補を作るときだけ行う。
+2. 選択で文書の検証、生成、街区構造の再計算、地図全体の再描画、3Dシーンの作り直しをしない。強調表示は専用の重ね描きの層に、選択した要素の形だけを描く。
+3. 選択で全要素を走査しない。当たり判定は空間索引（2Dは街路街区・配置の外接矩形、3Dはインスタンス番号から論理IDへの表）で行う。
+4. Inspectorに出す派生値（住戸数、地区、接道、入口）は選択した要素の分だけ求め、記録のハッシュをキーに保持する。
+5. 全要素の一覧を選択肢として描画しない。検索、地図での選択、または表示範囲だけを描く一覧にする。
+
+目標: 選択から強調表示とInspectorの表示まで、50,000人の文書で16 ms以内（1フレーム）。5,000・50,000・200,000人で計測する。
+
+#### S2.1 記録の構成
 
 ```ts
-interface VectorBlockFabric {
-  id: string;                 // stable block id (see S2.2)
-  algorithm: string;          // fabric algorithm version
+interface VectorFabric {
+  algorithm: string;                       // fabric algorithm version (vector-urban-vN)
+  districts: Record<string, VectorFabricDistrict>;
+  cells: Record<string, VectorFabricCell>;
+}
+interface VectorFabricDistrict {
+  id: string;                              // stable district id (S2.2)
+  hash: string;                            // content hash; validation and caches key on it
   seed: string;
-  parameters: { lotArea: number; laneWidthMeters: number; coverage: number };
-  outline: VectorPolygon;     // adopted block outline the fabric was built from
-  lanes: { points: Point[]; widthMeters: number }[];
-  mouths: { laneIndex: number; end: 0 | 1; nodeId: string }[]; // explicit connections to the road graph
+  parameters: { lotArea: number; laneWidthMeters: number; coverage: number; streetCellMeters: number; streetWidthMeters: number };
+  outline: PackedRing;                     // adopted district outline
+  boundaries: { feature: boolean; barrier: boolean; setback: number }[]; // per outline edge
+  streets: PackedPolylines;                // perimeter and street-block streets, unsplit
+  mouths: { street: number; end: 0 | 1; nodeId: string }[]; // explicit joins to the road graph
+  cellIds: string[];
+  growthStage?: number;                    // growth-first generation
+}
+interface VectorFabricCell {
+  id: string;                              // `${districtId}:cell:${ringHash}`
+  hash: string;
+  districtId: string;
+  ring: PackedRing;
+  lanes: PackedPolylines;
+  attachments: { lane: number; end: 0 | 1; street: number; t: number }[]; // lane ends on district streets
   houses: {
-    quantum: 0.01;            // metres per integer step
-    origin: Point;
-    rings: number[];          // packed integer coordinates per house
-    offsets: number[];        // ring start per house
+    rings: PackedRings;                    // site = footprint = reserved; stored once
     storeys: number[];
     dwellings: number[];
-    entrances: number[];      // packed point + lane/road index
+    entrances: number[];                   // packed point and target (lane or street) per house
+    draws: number[];                       // CE occupancy draw, keeps vacancies spread
   };
-  detached: number[];         // house indices replaced by manual placements
+  detached: number[];                      // house indices replaced by manual placements
+  inside?: boolean;                        // inside the town wall
 }
+// Packed* = integer centimetres relative to the record's origin, in flat arrays.
 ```
 
-#### S2.1 道路グラフとの関係
+- 文書の`fabric`に保存する。自動生成の小路は`paths`・`connections`へ登録せず、住宅は`placements`へ登録しない。
+- 街路と小路の交点は保存しない。地区の街路は分割せずに保存し、街路街区の小路の端が街路に接する位置を`attachments`で持つ。街路街区を作り直しても地区の記録は変わらない。
+- 住宅の論理IDは`<街路街区ID>#<番号>`とする。街路街区を作り直すまで変わらない。
 
-- 街区内の小路は街区記録の中の線として持ち、`paths`・`connections`には登録しない。主要道路・既存道路と接続する端点だけを接続ノードとして登録し、`mouths`で参照する（§7.1の「接続は明示する」を維持する）。
-- 小路の到達性は、街区記録の内部グラフと`mouths`から求める。近いだけで接続とは見なさない。
-- 利用者が小路を編集する場合は、その小路を通常の`VectorPath`へ切り出してから編集する（「道として切り出す」）。切り出しは1回の履歴項目で行い、Undoで街区記録へ戻る。
+#### S2.2 安定した地区ID
 
-#### S2.2 安定した街区ID
+現在の地区IDは`block:${i}`で、骨格の街区の並び順から決まる。街路街区IDと乱数はこのIDから作るため、別の地区が増減すると無関係な地区の中身が変わる。地区IDを、輪郭の正規化ハッシュ（1 cm単位）と接する道路のIDから決める。同じ輪郭・同じ接道なら同じIDになり、生成結果も同じになる。成長型の生成では`growthStage`と市壁の内外区分も保存する（[成長型の都市生成](ce-meshless-growth-generation.md) §5）。
 
-現在の街区IDは`block:${i}`で、配列の順番から決まる。`buildOrganicBlocks`の乱数もこのIDから作るため、別の街区が増減すると無関係な街区の中身が変わる。部分再生成と並列化のため、街区IDを輪郭の正規化ハッシュと接する道路のIDから決める。同じ輪郭・同じ接道なら同じIDになり、生成結果も同じになる。成長型の生成では、街区記録に採用した成長段階（`growthStage`）と市壁の内外区分も保存する（[成長型の都市生成](ce-meshless-growth-generation.md) §5）。
+#### S2.3 道路グラフとの関係
 
-#### S2.3 編集・依存更新
+- 主要道路・既存道路と接続する街路の端だけを接続ノードとして登録し、`mouths`で参照する（§7.1の「接続は明示する」を維持する）。
+- 小路の到達性は、街路と小路の内部グラフ（`attachments`と`mouths`から作る派生データ）で求める。近いだけで接続とは見なさない。
+- 利用者が街路・小路を編集する場合は、その線を通常の`VectorPath`へ切り出してから編集する（「道として切り出す」）。切り出しは1回の履歴項目で行い、Undoで記録へ戻る。
 
-- 住宅を移動・削除・固定するときは、その住宅を`VectorPlacement`へ切り出し、記録の`detached`へ番号を加える。
-- 道路・川・壁の変更（§10.2）で影響を受けた街区は、街区記録ごと再生成する。手動で切り出した住宅・小路は保持し、衝突する場合は§10.1に従って候補を示す。
+#### S2.4 編集・依存更新
+
+- 住宅を移動・削除・固定するときは、その住宅を`VectorPlacement`へ切り出し、街路街区の`detached`へ番号を加える。
+- 道路・川・壁の変更（§10.2）では、影響を受けた地区の街路街区への分割から作り直す。影響が街路街区の中に収まる変更（施設の移動など）では、その街路街区だけを作り直す。手動で切り出した住宅・道は保持し、衝突する場合は§10.1に従って候補を示す。
 - 人口容量は記録の`dwellings`の合計から求め、`faceId`は使わない。
 
-#### S2.4 保存・検証・共有
+#### S2.5 保存・検証・共有
 
-- v7→v8の移行では、既存の文書を書き換えない。v7の`urban:perimeter:*`住宅と`urban-lane:*`の道は従来の形式のまま読み込める。v8へ変換するのは、利用者が明示的に「街区記録へ変換」した場合だけとする。
-- 検証は、整数座標の範囲、輪の単純性、街区の輪郭内に収まること、入口が小路・道路に接すること、`mouths`のノードが存在し位置が一致することを確認する。街区単位で並列に検証できるようにする。
-- 住宅1戸あたりの保存量の目安を200 B以下とする。20万人（約4.8万戸）で約10 MBになるため、文書長の上限をS2の計測後に決め直す。共有は既存のgzip符号化を使う。
-- 外形・敷地・予約が同じ多角形である住宅は、1回だけ保存する。
+- v7→v8の移行では、既存の文書を書き換えない。v7の`urban:perimeter:*`住宅と`urban-lane:*`の道は従来の形式のまま読み込める。v8で生成した都市だけが`fabric`を持つ。
+- 検証は記録単位で行う。整数座標の範囲、輪の単純性、住宅が街路街区の輪の中にあること、入口が小路・街路に接すること、`attachments`と`mouths`の位置が一致することを確認する。結果は記録の`hash`をキーに保持し、編集では変更した記録とその依存だけを検証する。読込時・保存時は全記録を検証する。
+- 所有権の指紋（`vectorUrbanFingerprint`）は文書全体の`JSON.stringify`をやめ、記録の`hash`とそれ以外の部分の指紋から作る。
+- 住宅1戸あたりの保存量の目安を200 B以下とする。20万人（約4.8万戸）で約10 MBになるため、文書長の上限をS2の計測後に決め直す。大きな文書は整形せずに保存する。共有は既存のgzip符号化を使う。
 
-#### S2.5 描画
+#### S2.6 描画と選択
 
-- 2Dは街区単位でSVGの`path`をまとめ、選択時だけ住宅単位へ展開する。
-- 3Dは住宅の種類（階数・屋根）ごとにインスタンス描画する。
-- 選択・計測は街区IDと住宅番号の論理IDで行う（M9の論理ID選択を拡張する）。
+- 2Dは街路街区ごとに住宅を1つの`<path>`にまとめる。強調表示は重ね描きの層に、選択した住宅だけを描く。
+- 3Dは住宅の種類（階数・屋根）ごとにインスタンス描画し、インスタンス番号から論理IDへの表を持つ。
+- 当たり判定は、街路街区の外接矩形の空間索引で候補を絞り、その街路街区の住宅だけを復号して判定する。
+- 選択・計測・Inspectorは論理IDで行う（M9の論理ID選択を拡張する）。S2.0の規則に従う。
 
 完了条件:
 
 - 20,000人・50,000人が上限エラーなしに生成・保存・再読込できる。
-- 1,000人・5,000人で、v7とv8の住宅数・住戸数・未収容人数・小路の総延長が一致する。
-- 住宅・小路の切り出しと依存更新の回帰テストに成功する。
+- 1,000人・5,000人で、v7（生成版v3）とv8の住宅数・住戸数・未収容人数・小路の総延長が一致する。
+- 住宅・道の切り出しと依存更新の回帰テストに成功する。
+- 50,000人の文書で、選択から強調表示とInspectorの表示まで16 ms以内。
 
 ### S3 街区単位の並列生成
 
@@ -228,9 +267,8 @@ S1は道路グラフ・接続・外周計画の近傍探索を完了した。残
 
 S1.5を完了した（[記録](../analytics/ce-meshless-scaling-20261108.md#s15-後半街路街区ごとの処理)）。街路街区の大きさと街路幅は既存CEの粗いセル用の値（50 m、5 m）とした。街路街区はほかの街路街区に依存せず、1回の処理は既存CEの1セル相当（最大約4,000 m²・約20 ms）になった。
 
-次はS2の詳細化である。記録の単位を次の2層にする。
+S2を詳細化した（§S2.0〜S2.6）。記録は地区と街路街区の2層とし、選択を軽くする規則（S2.0）を加えた。
 
-- 地区（骨格の街区）: 外周の街路と街路街区への分割の結果（街路、街路街区の輪郭とID）。
-- 街路街区: 小路、区画、住宅。乱数は街路街区IDから作るため、街路街区ごとに再生成・並列化できる。
+S2.0を完了した（[記録](../analytics/ce-meshless-scaling-20261108.md#s20-選択を軽くする)）。5,000人の文書で、地図上の道のクリックは1,304 msから9.2 msになった。
 
-あわせてS2.2の安定ID（地区IDを並び順から輪郭と接道から求めるIDへ）を決める。
+次はS2.2の安定した地区IDである。地区IDを骨格の街区の並び順から輪郭と接道から求めるIDへ変え、その後S2.1の記録の型とcodec（native v8）に入る。
