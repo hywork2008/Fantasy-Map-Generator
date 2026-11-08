@@ -29,7 +29,7 @@ export function parseVectorDocument(text: string): VectorCityDocument | null {
     if (validateVectorDocument(value, legacy).length) return null;
     if (legacy) {
       const migrated = value as VectorCityDocument;
-      migrated.version = 7;
+      migrated.version = 8;
       if (legacy === true || legacy === 2) {
         migrated.connections.bridges = {};
         migrated.connections.wallRoads = {};
@@ -54,6 +54,8 @@ export function parseVectorDocument(text: string): VectorCityDocument | null {
       if (validateVectorDocument(migrated).length) return null;
     }
     const document = value as VectorCityDocument;
+    // A v7 ledger is a v8 ledger without fabric.
+    if (document.version === (7 as number)) document.version = 8;
     if (document.legacyCopy && !parseDocument(document.legacyCopy.sourceJson)) return null;
     return document;
   } catch {

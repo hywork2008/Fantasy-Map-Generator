@@ -24,6 +24,16 @@ function urbanState(doc: VectorCityDocument): string {
             terrain: doc.environment.terrain
           }
         }
+      : {}),
+    // Fabric records carry content hashes; the fingerprint never re-serialises their packed geometry.
+    ...(doc.fabric
+      ? {
+          fabric: [
+            doc.fabric.algorithm,
+            Object.values(doc.fabric.districts).map(d => d.hash),
+            Object.values(doc.fabric.cells).map(c => c.hash)
+          ]
+        }
       : {})
   });
 }

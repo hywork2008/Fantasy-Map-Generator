@@ -129,7 +129,7 @@ export interface VectorPlacement {
 /** Saved geometry ledger. No editable cell mesh or render-time generation. */
 export interface VectorCityDocument {
   format: "fmg-vector-city";
-  version: 7;
+  version: 8;
   revision: number;
   frame: { extentMeters: number };
   context: { historicalPeriod: HistoricalPeriod; targetPopulation: number; bridgeSkewTier?: 0 | 1 | 2 };

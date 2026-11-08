@@ -72,7 +72,7 @@ describe.runIf(!!output)("M9 bounded acceptance observation", () => {
     }
     const example = createVectorExample();
     example.version = 6 as typeof example.version;
-    expect(parseVectorDocument(JSON.stringify(example))?.version).toBe(7);
+    expect(parseVectorDocument(JSON.stringify(example))?.version).toBe(8);
     const points: Point[] = [
         [0, 0],
         [50, 140],

@@ -18,6 +18,7 @@ import { type PathSurface, pathSurface, surfacesOverlap } from "../geometry/surf
 import { vectorWaterSurfaces } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
 import { validateVectorEnvironment } from "./environment";
+import { validateVectorFabric } from "./fabric";
 import { validateVectorGeneration } from "./generation";
 import { validateVectorPresentation } from "./presentation";
 import { validateVectorUrban } from "./urban";
@@ -187,23 +188,26 @@ export function validateVectorDocument(
             ? ["site", "generation", "urban"]
             : legacy === 6
               ? ["site", "generation", "urban", "legacyCopy"]
-              : ["site", "generation", "urban", "legacyCopy", "environment"]
+              : ["site", "generation", "urban", "legacyCopy", "environment", "fabric"]
     ) ||
     value.format !== "fmg-vector-city" ||
-    value.version !==
-      (legacy === true
-        ? 1
-        : legacy === 2
-          ? 2
-          : legacy === 3
-            ? 3
-            : legacy === 4
-              ? 4
-              : legacy === 5
-                ? 5
-                : legacy === 6
-                  ? 6
-                  : 7) ||
+    // Native v8 adds the optional fabric. A v7 ledger is otherwise identical and loads as v8.
+    (!legacy && (value.version === 7 ? Object.hasOwn(value, "fabric") : value.version !== 8)) ||
+    (legacy &&
+      value.version !==
+        (legacy === true
+          ? 1
+          : legacy === 2
+            ? 2
+            : legacy === 3
+              ? 3
+              : legacy === 4
+                ? 4
+                : legacy === 5
+                  ? 5
+                  : legacy === 6
+                    ? 6
+                    : 7)) ||
     !revision(value.revision)
   )
     return ["document-format"];
@@ -525,6 +529,8 @@ export function validateVectorDocument(
   timed("presentation");
   if (!legacy && !errors.length) errors.push(...validateVectorEnvironment(doc));
   timed("environment");
+  if (!legacy && !errors.length && doc.fabric !== undefined) errors.push(...validateVectorFabric(doc));
+  timed("fabric");
   return errors;
 }
 
