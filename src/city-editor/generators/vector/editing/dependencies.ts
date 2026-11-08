@@ -36,7 +36,7 @@ export function prepareVectorEdit(input: VectorCityDocument): VectorCityDocument
   const doc = structuredClone(input);
   if (!doc.urban) return doc;
   for (const id of doc.urban.ownedPlacements) if (ownedEditable(doc.placements[id])) delete doc.placements[id];
-  // Generated fabric belongs to the urban result; an edit rebuilds it (per district once S2.1e lands).
+  // Generated fabric belongs to the urban result; reconciliation rebuilds it with the same street-block layout.
   delete doc.fabric;
   delete doc.urban;
   return doc;
@@ -347,7 +347,15 @@ export function reconcileVectorEdit(source: VectorCityDocument, candidate: Vecto
     domain: previous.domain,
     baseGeneration: generation,
     baseConnections: baseline.connections,
-    baseContext: doc.context
+    baseContext: doc.context,
+    ...(source.fabric
+      ? {
+          fabricDraw: Object.values(source.fabric.cells).reduce(
+            (n, c) => c.houses.draws.reduce((m, d) => Math.max(m, d), n),
+            -Infinity
+          )
+        }
+      : {})
   });
   const changedSurfaces = [
     ...changedPaths.flatMap(id => [source.paths[id], doc.paths[id]].filter(p => !!p).map(pathSurface)),

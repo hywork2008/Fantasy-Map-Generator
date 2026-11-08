@@ -287,7 +287,9 @@ export function placeVectorPerimeterHouses(
   doc: VectorCityDocument,
   plan: VectorPerimeterPlan,
   required: number,
-  inside: (p: Point) => boolean
+  inside: (p: Point) => boolean,
+  /** Lots drawn at or below this value are adopted even past `required` (an edit keeps the old vacancy). */
+  keepDraw = -Infinity
 ): { dwellings: number; houses: number } {
   const storeys = residentialStoreys(doc.context.historicalPeriod).standard;
   const occupied = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; polygon: VectorPolygon }>();
@@ -330,7 +332,7 @@ export function placeVectorPerimeterHouses(
   // CE occupancy draws spread vacant lots through every district. A population
   // target must never fill one half of the city before the other half.
   for (const house of plan.houses.slice().sort((a, b) => a.draw - b.draw)) {
-    if (capacity >= required) break;
+    if (capacity >= required && house.draw > keepDraw) break;
     const origin = origins.get(house.cellId);
     if (!origin) continue;
     const ring = packedRing(house.polygon, origin);

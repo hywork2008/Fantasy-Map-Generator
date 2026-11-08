@@ -68,6 +68,10 @@ export interface VectorUrbanContinuation {
   baseGeneration: NonNullable<VectorCityDocument["generation"]>;
   baseConnections: VectorCityDocument["connections"];
   baseContext: VectorCityDocument["context"];
+  /** Highest occupancy draw adopted before the edit, when the source kept fabric records. Regeneration keeps the
+   * CE street-block layout and adopts at least every lot up to this draw, so unaffected street blocks keep their
+   * houses unchanged. */
+  fabricDraw?: number;
 }
 export function generateVectorUrban(
   input: VectorCityDocument,
@@ -278,7 +282,10 @@ export function generateVectorUrban(
       : undefined;
   timed("lane-candidates");
   const organic =
-    settings.mode === "medieval" && settings.maxLanes > 0 && !continuation && run?.housingAttempts === undefined
+    settings.mode === "medieval" &&
+    settings.maxLanes > 0 &&
+    (!continuation || continuation.fabricDraw !== undefined) &&
+    run?.housingAttempts === undefined
       ? planVectorPerimeter(doc, blocks, settings)
       : undefined;
   const adoptLane = (
@@ -483,7 +490,7 @@ export function generateVectorUrban(
   let housingStop: VectorUrbanProfile["housingStop"] = remaining > 0 ? "frontage" : "demand-met";
   const housingStarted = performance.now();
   if (organic && remaining > 0) {
-    const placed = placeVectorPerimeterHouses(doc, organic, remaining, inside);
+    const placed = placeVectorPerimeterHouses(doc, organic, remaining, inside, continuation?.fabricDraw);
     housingAttempts = organic.houses.length;
     remaining -= placed.dwellings;
     housingStop = remaining > 0 ? "frontage" : "demand-met";

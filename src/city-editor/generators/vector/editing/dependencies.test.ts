@@ -166,3 +166,48 @@ describe("saved urban dependency regression", () => {
     expect(parseVectorDocument(serializeVectorDocument(result.document))).toEqual(result.document);
   });
 });
+
+describe("fabric records through a dependency transaction (S2.1e1)", () => {
+  it("rebuilds with the same street-block layout and keeps the houses of unaffected street blocks", () => {
+    const source = generateVectorUrban(
+        generateVectorSkeleton(syntheticVectorInput("m6", 100, false), { ...DEFAULT_VECTOR_GENERATION, branches: 4 })
+          .document,
+        { ...DEFAULT_VECTOR_URBAN, mode: "medieval", population: 200, maxLanes: 4 }
+      ),
+      road = Object.keys(source.generation!.pathRevisions).find(id => source.paths[id].role === "road")!,
+      path = structuredClone(source.paths[road]);
+    path.width.leftMeters += 2;
+    path.width.rightMeters += 2;
+    const result = reconcileVectorEdit(source, replaceVectorPath(prepareVectorEdit(source), path)).document;
+    expect(result.fabric).toBeDefined();
+    expect(result.urban!.ownedPaths).toEqual([]);
+    expect(Object.keys(result.paths).some(id => id.startsWith("urban-lane:"))).toBe(false);
+    // Houses by occupancy draw: ring, dwellings and entrance of each adopted lot.
+    const houses = (doc: typeof source, id: string) => {
+      const c = doc.fabric!.cells[id],
+        at = (i: number) => {
+          const end = i + 1 < c.houses.offsets.length ? c.houses.offsets[i + 1] : c.houses.coords.length / 2;
+          return JSON.stringify([
+            c.houses.coords.slice(2 * c.houses.offsets[i], 2 * end),
+            c.houses.dwellings[i],
+            c.houses.entrances.slice(4 * i, 4 * i + 4)
+          ]);
+        };
+      return new Map(c.houses.draws.map((d, i) => [d, at(i)]));
+    };
+    const oldMax = Math.max(...Object.values(source.fabric!.cells).flatMap(c => c.houses.draws)),
+      shared = Object.keys(source.fabric!.cells).filter(id => result.fabric!.cells[id]);
+    expect(shared.length).toBeGreaterThan(0);
+    expect(shared.length).toBeLessThan(Object.keys(source.fabric!.cells).length);
+    // A street block whose outline survived keeps every house; it may only gain lots drawn after the old ones.
+    for (const id of shared) {
+      const before = houses(source, id),
+        after = houses(result, id);
+      for (const [draw, house] of before) expect(after.get(draw)).toBe(house);
+      for (const draw of after.keys()) if (!before.has(draw)) expect(draw).toBeGreaterThan(oldMax);
+    }
+    const report = result.urban!.report;
+    expect(report.assignedPopulation + report.unplacedPopulation).toBe(200);
+    expect(parseVectorDocument(serializeVectorDocument(result))).toEqual(result);
+  });
+});
