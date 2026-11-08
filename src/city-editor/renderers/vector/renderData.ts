@@ -11,6 +11,7 @@ import { assertVectorDocument } from "../../generators/vector/validation/documen
 import type { HarborCargoPile, HarborCrane } from "../../types/contracts/harborFabric";
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument, VectorPath, VectorPlacement } from "../../types/vector/document";
+import type { VectorFabricLines } from "../../types/vector/fabric";
 import type { VectorPolygon } from "../../types/vector/generation";
 import type { VectorHarborShip } from "../../types/vector/harbor";
 import type { VectorLandscapeTree } from "../../types/vector/landscape";
@@ -304,7 +305,9 @@ export function vectorRenderData(
   }
   // Generated districts: streets and lanes from the lane stage, houses with the housing stage.
   if (doc.fabric && (!urban || ["blocksAndLanes", "facilities", "housing"].includes(stage))) {
-    const line = (id: string, points: Point[], widthMeters: number) => {
+    // Streets of a district and lanes of a street block are drawn as one surface: their union, because lines
+    // overlap at every junction. A union over the clipping budget falls back to one surface per line.
+    const surface = (id: string, points: Point[], widthMeters: number): VectorPolygon | undefined => {
       try {
         const path: VectorPath = {
           id,
@@ -315,24 +318,39 @@ export function vectorRenderData(
           source: curveSource(points, "polyline", false),
           width: { leftMeters: widthMeters / 2, rightMeters: widthMeters / 2, stations: [] }
         };
-        add({
-          id,
-          kind: "road",
-          polygons: [pathSurface(path)],
-          color: "#c7ae84",
-          heightMeters: 0.04,
-          elevationMeters: 0.02
-        });
+        return pathSurface(path);
       } catch {
         warnings.push(`fabric-line:${id}`);
+        return undefined;
+      }
+    };
+    const road = (id: string, polygons: VectorPolygon[]) =>
+      add({ id, kind: "road", polygons, color: "#c7ae84", heightMeters: 0.04, elevationMeters: 0.02 });
+    const lines = (owner: string, kind: "s" | "l", packed: VectorFabricLines, origin: Point) => {
+      const parts: [string, VectorPolygon][] = [];
+      for (let i = 0; i < packed.widths.length; i++) {
+        const id = `${owner}~${kind}${i}`,
+          polygon = surface(id, unpackLine(packed, i, origin), packed.widths[i]);
+        if (polygon) parts.push([id, polygon]);
+      }
+      if (!parts.length) return;
+      try {
+        road(
+          `${owner}~${kind}`,
+          regionBoolean(
+            parts.map(p => p[1]),
+            [],
+            "union"
+          )
+        );
+      } catch {
+        for (const [id, polygon] of parts) road(id, [polygon]);
       }
     };
     for (const district of Object.values(doc.fabric.districts))
-      for (let i = 0; i < district.streets.widths.length; i++)
-        line(`${district.id}~s${i}`, unpackLine(district.streets, i, district.origin), district.streets.widths[i]);
+      lines(district.id, "s", district.streets, district.origin);
     for (const cell of Object.values(doc.fabric.cells)) {
-      for (let i = 0; i < cell.lanes.widths.length; i++)
-        line(`${cell.id}~l${i}`, unpackLine(cell.lanes, i, cell.origin), cell.lanes.widths[i]);
+      lines(cell.id, "l", cell.lanes, cell.origin);
       if (urban && stage !== "housing") continue;
       // One surface per street block: 2D draws it as one path, 3D batches it by storeys.
       const detached = new Set(cell.detached),
