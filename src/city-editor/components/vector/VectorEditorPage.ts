@@ -9,6 +9,7 @@ import { beginEditorMount } from "../../services/editorLifetime";
 import { exportCityMap, readCityMap } from "../../services/io/cityEditorFile";
 import { restoreLegacyCopy } from "../../services/io/vector/legacyCopy";
 import type { VectorRecipe } from "../../services/io/vector/share";
+import { createVectorPlanPreparation } from "../../services/vectorPlanPreparation";
 import { VECTOR_RELEASE_CHANNEL } from "../../services/vectorRelease";
 import type { BurgSiteDescriptor } from "../../types/contracts/burgSiteDescriptor";
 import type { FixedApproachProvider } from "../../types/contracts/fixedApproachAdoption";
@@ -100,8 +101,11 @@ export function mountVectorCityEditor(
   let editPanel: ReturnType<typeof createVectorEditPanel> | undefined;
   let generationPanel: ReturnType<typeof createVectorGenerationPanel> | undefined;
   let workbench: ReturnType<typeof createVectorWorkbench> | undefined;
+  const plans = createVectorPlanPreparation();
+  scope.own(plans.dispose);
   const refresh = () => {
     const current = session.history.peek();
+    plans.request(current);
     stopCopy();
     copyCandidate = undefined;
     adoptCopy.disabled = true;

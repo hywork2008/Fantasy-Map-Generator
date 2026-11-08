@@ -280,7 +280,7 @@ export function rememberPerimeterResults(
     rotatePlanCache();
     request.jobs.forEach((job, i) => {
       const plan = results[i] as PerimeterStreetPlan;
-      streetPlans.current.set(streetPlanKey(request.context, job, plan.boundaries), plan);
+      keepStreetPlan(request.context, streetPlanKey(request.context, job, plan.boundaries), plan);
     });
   } else {
     const key = planKey(request.context);
@@ -293,6 +293,30 @@ export function rememberPerimeterResults(
       });
     });
   }
+}
+const outlineKeys = new WeakMap<PerimeterStreetPlan, string>();
+/** Keeps a street plan, with its seed, lane width, district id and outline as the record stores them (whole
+ * centimetres from the rounded origin). */
+function keepStreetPlan(context: PerimeterPlanContext, key: string, plan: PerimeterStreetPlan) {
+  streetPlans.current.set(key, plan);
+  if (!outlineKeys.has(plan)) {
+    const origin = roundedOrigin(plan.outline);
+    outlineKeys.set(
+      plan,
+      `${context.seed}|${context.laneWidthMeters}|${plan.districtId}|${origin}|${packPoints(plan.outline, origin)}`
+    );
+  }
+}
+/** True when every district of the records has a kept street plan for the same seed, lane width and outline.
+ * Road frontage, walls and the hub are not
+ * compared, so a true answer can still miss; it only decides whether preparing the plans is worth starting. */
+export function perimeterPlansKept(fabric: Readonly<VectorFabric> | undefined): boolean {
+  const districts = Object.values(fabric?.districts ?? {});
+  if (!districts.length) return true;
+  const kept = new Set(
+    [...streetPlans.current.values(), ...streetPlans.previous.values()].map(p => outlineKeys.get(p))
+  );
+  return districts.every(d => kept.has(`${d.seed}|${d.parameters.laneWidthMeters}|${d.id}|${d.origin}|${d.outline}`));
 }
 /** Starts a generation: plans kept from before the previous one are dropped. */
 function rotatePlanCache() {
@@ -348,7 +372,7 @@ export function planPerimeterStreets(context: PerimeterPlanContext, job: Perimet
     key = streetPlanKey(context, job, boundaries),
     known = streetPlans.current.get(key) ?? streetPlans.previous.get(key);
   if (known) {
-    streetPlans.current.set(key, known);
+    keepStreetPlan(context, key, known);
     return known;
   }
   const plan = planOrganicStreetCells(
@@ -368,7 +392,7 @@ export function planPerimeterStreets(context: PerimeterPlanContext, job: Perimet
     streets: withoutRepeatedStreets(plan.streets),
     cells: plan.cells
   };
-  streetPlans.current.set(key, result);
+  keepStreetPlan(context, key, result);
   return result;
 }
 

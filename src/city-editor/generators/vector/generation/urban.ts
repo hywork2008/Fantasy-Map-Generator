@@ -129,6 +129,33 @@ export async function generateVectorUrbanAsync(
   return step.value;
 }
 
+/** Plans the districts of a regeneration of `input` with `plan` and keeps them here, without building the
+ * document. A later dependency update on this thread then reuses every district it leaves unchanged. */
+export async function prepareVectorUrbanPlans(
+  input: VectorCityDocument,
+  settings: VectorUrbanSettings,
+  plan: (request: VectorUrbanDistrictRequest) => Promise<PerimeterStreetPlan[] | PerimeterCellResult[]>,
+  /** Checked between requests; false stops early. */
+  active: () => boolean = () => true
+): Promise<void> {
+  const steps = vectorUrbanSteps(input, settings);
+  try {
+    let step = steps.next();
+    while (!step.done && active()) {
+      const request = step.value,
+        results = await plan(request);
+      if (!active()) return;
+      if (results.length !== request.jobs.length) throw new Error("urban-district-plans");
+      rememberPerimeterResults(request, results);
+      // Street blocks are the last plans; the steps after them only build the document.
+      if (request.kind === "cells") return;
+      step = steps.next(results);
+    }
+  } finally {
+    steps.return(input);
+  }
+}
+
 function* vectorUrbanSteps(
   input: VectorCityDocument,
   settings: VectorUrbanSettings,
