@@ -13,13 +13,16 @@ export function createVectorFabricHousePanel(
   /** Read-only current document; never mutated. */
   peek: () => Readonly<VectorCityDocument>,
   /** Replace the shown house by a manual placement; returns a status message. */
-  detach?: (id: string) => string
+  detach?: (id: string) => string,
+  /** Remove the shown house and keep its lot empty; returns a status message. */
+  clearHouse?: (id: string) => string
 ) {
   const box = document.createElement("fieldset"),
     legend = document.createElement("legend"),
     list = document.createElement("dl"),
     note = document.createElement("p"),
     action = document.createElement("button"),
+    remove = document.createElement("button"),
     status = document.createElement("output");
   box.dataset.vectorFabricHouse = "";
   box.hidden = true;
@@ -31,8 +34,18 @@ export function createVectorFabricHousePanel(
   action.textContent = text("detach");
   action.dataset.fabricHouseAction = "detach";
   action.hidden = !detach;
+  remove.type = "button";
+  remove.textContent = text("clear");
+  remove.dataset.fabricHouseAction = "clear";
+  remove.hidden = !clearHouse;
   status.setAttribute("aria-live", "polite");
-  box.append(legend, list, note, action, status);
+  box.append(legend, list, note, action, remove, status);
+  scope.listen(remove, "click", () => {
+    if (!shown || !clearHouse) return;
+    const message = clearHouse(shown);
+    status.textContent = message;
+    box.hidden = false;
+  });
   scope.listen(action, "click", () => {
     if (!shown || !detach) return;
     // A successful detach removes the house from the records; the panel stays to report it.

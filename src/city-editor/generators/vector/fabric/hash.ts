@@ -46,7 +46,9 @@ export function fabricCellHash(c: Omit<VectorFabricCell, "hash">): string {
       c.mouths.map(m => [m.lane, m.end, m.nodeId]),
       [h.offsets, h.coords, h.storeys, h.dwellings, h.entrances, h.draws],
       c.detached,
-      c.inside ?? null
+      c.inside ?? null,
+      // Absent on records that never cleared a lot, so their hashes stay as they were.
+      ...(c.cleared ? [c.cleared] : [])
     ])
   );
 }

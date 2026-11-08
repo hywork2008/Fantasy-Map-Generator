@@ -73,6 +73,8 @@ export interface VectorUrbanContinuation {
    * CE street-block layout and adopts at least every lot up to this draw, so unaffected street blocks keep their
    * houses unchanged. */
   fabricDraw?: number;
+  /** Cleared lots of the source records, by street block id. */
+  fabricCleared?: Record<string, number[]>;
 }
 export function generateVectorUrban(
   input: VectorCityDocument,
@@ -494,7 +496,14 @@ export function generateVectorUrban(
   let housingStop: VectorUrbanProfile["housingStop"] = remaining > 0 ? "frontage" : "demand-met";
   const housingStarted = performance.now();
   if (organic && remaining > 0) {
-    const placed = placeVectorPerimeterHouses(doc, organic, remaining, inside, continuation?.fabricDraw);
+    const placed = placeVectorPerimeterHouses(
+      doc,
+      organic,
+      remaining,
+      inside,
+      continuation?.fabricDraw,
+      continuation?.fabricCleared
+    );
     reattachFabricEntrances(doc);
     housingAttempts = organic.houses.length;
     remaining -= placed.dwellings;

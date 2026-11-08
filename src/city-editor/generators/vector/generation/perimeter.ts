@@ -289,7 +289,9 @@ export function placeVectorPerimeterHouses(
   required: number,
   inside: (p: Point) => boolean,
   /** Lots drawn at or below this value are adopted even past `required` (an edit keeps the old vacancy). */
-  keepDraw = -Infinity
+  keepDraw = -Infinity,
+  /** Per street block id: draws of lots the user cleared. They stay empty and stay recorded. */
+  cleared: Record<string, number[]> = {}
 ): { dwellings: number; houses: number } {
   const storeys = residentialStoreys(doc.context.historicalPeriod).standard;
   const occupied = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; polygon: VectorPolygon }>();
@@ -334,7 +336,7 @@ export function placeVectorPerimeterHouses(
   for (const house of plan.houses.slice().sort((a, b) => a.draw - b.draw)) {
     if (capacity >= required && house.draw > keepDraw) break;
     const origin = origins.get(house.cellId);
-    if (!origin) continue;
+    if (!origin || cleared[house.cellId]?.includes(house.draw)) continue;
     const ring = packedRing(house.polygon, origin);
     if (!ring) continue;
     const polygon = unpackPoints(ring, origin),
@@ -420,6 +422,7 @@ export function placeVectorPerimeterHouses(
           draws: houses.map(h => h.draw)
         },
         detached: [],
+        ...(cleared[cell.id]?.length ? { cleared: [...cleared[cell.id]] } : {}),
         inside: inside(polygonCentroid(cell.ring))
       };
       fabricCells[cell.id] = { ...value, hash: fabricCellHash(value) };

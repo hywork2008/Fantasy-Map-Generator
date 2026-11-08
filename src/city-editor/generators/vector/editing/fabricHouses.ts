@@ -41,8 +41,10 @@ export function detachFabricHouse(
   if (!info || !ref) throw new Error("dependency-placement-required");
   const doc = structuredClone(source),
     cell = doc.fabric!.cells[ref.cellId],
-    id = detachedHouseId(cell.id, ref.index);
-  if (Object.hasOwn(doc.placements, id)) throw new Error("dependency-placement-required");
+    base = detachedHouseId(cell.id, ref.index);
+  // Clearing a lot renumbers later houses, so an earlier detached house may already hold this id.
+  let id = base;
+  for (let n = 2; Object.hasOwn(doc.placements, id); n++) id = `${base}-${n}`;
   const site = { outer: info.ring, holes: [] },
     center = polygonCentroid(info.ring),
     point = inwards(info.entrance, center);
@@ -108,6 +110,43 @@ export function detachFabricHouse(
   refreshUrbanLedger(doc, [id]);
   assertVectorDocument(doc);
   return { document: doc, placementId: id };
+}
+
+/** Removes generated house `houseId` and keeps its lot empty: the street block records the lot's occupancy
+ * draw in `cleared`, so regeneration never adopts it again. Nothing is regenerated here; the lost dwellings are
+ * reported as unplaced until the next regeneration fills them from later draws. */
+export function clearFabricHouse(source: VectorCityDocument, houseId: string): VectorCityDocument {
+  assertVectorDocument(source);
+  const u = source.urban;
+  if (!u || u.inputRevision !== source.revision || !matchesVectorUrbanFingerprint(source, u.adoptedFingerprint))
+    throw new Error("dependency-stale");
+  const ref = parseFabricHouseId(houseId);
+  if (!ref || !fabricHouseInfo(source.fabric, houseId)) throw new Error("dependency-placement-required");
+  const doc = structuredClone(source),
+    cell = doc.fabric!.cells[ref.cellId],
+    h = cell.houses,
+    i = ref.index,
+    start = h.offsets[i],
+    end = i + 1 < h.offsets.length ? h.offsets[i + 1] : h.coords.length / 2;
+  cell.cleared = [...(cell.cleared ?? []), h.draws[i]].sort((a, b) => a - b);
+  h.coords.splice(2 * start, 2 * (end - start));
+  h.offsets.splice(i, 1);
+  for (let k = i; k < h.offsets.length; k++) h.offsets[k] -= end - start;
+  h.storeys.splice(i, 1);
+  h.dwellings.splice(i, 1);
+  h.entrances.splice(4 * i, 4);
+  h.draws.splice(i, 1);
+  // Later houses move down one index; detached placements keep their ids, only the indices follow.
+  cell.detached = cell.detached.map(k => (k > i ? k - 1 : k));
+  const { hash: _hash, ...record } = cell;
+  cell.hash = fabricCellHash(record);
+  doc.revision++;
+  refreshUrbanLedger(doc, []);
+  const r = doc.urban!.report;
+  if (r.unplacedDwellings && !r.reasons.includes("housing-capacity-shortfall"))
+    r.reasons.push("housing-capacity-shortfall");
+  assertVectorDocument(doc);
+  return doc;
 }
 
 /** Recomputes the adopted ledger after a change that keeps every record and placement in place: stage

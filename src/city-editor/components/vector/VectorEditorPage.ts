@@ -1,6 +1,6 @@
 import { editorText } from "../../../i18n/editorMessages";
 import { createVectorDocument, createVectorExample } from "../../generators/vector/document";
-import { detachFabricHouse } from "../../generators/vector/editing/fabricHouses";
+import { clearFabricHouse, detachFabricHouse } from "../../generators/vector/editing/fabricHouses";
 import type { VectorDocumentHistory } from "../../generators/vector/history";
 import { assertVectorDocument } from "../../generators/vector/validation/document";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
@@ -365,6 +365,18 @@ export function mountVectorCityEditor(
         refresh();
         placementPanel?.select(placementId);
         return editorText("cityEditor.vector.fabricHouse.detached");
+      } catch (error) {
+        return `${editorText("cityEditor.vector.dependencies.failed")} ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+    id => {
+      try {
+        session.history.commit(
+          clearFabricHouse(session.history.document, id),
+          editorText("cityEditor.vector.fabricHouse.clear")
+        );
+        refresh();
+        return editorText("cityEditor.vector.fabricHouse.cleared");
       } catch (error) {
         return `${editorText("cityEditor.vector.dependencies.failed")} ${error instanceof Error ? error.message : String(error)}`;
       }

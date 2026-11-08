@@ -423,3 +423,17 @@ CE_MESHLESS_SELECTION_DOC=docs/analytics/raw/scaling-s21d-20261108/scaling-50000
 点数上限による1本ごとの描画への戻りは、どちらの文書でも起きなかった。時間は変わらない（和の計算と面の数の減少が相殺）。
 
 関連テスト: `renderers/vector`、`components/vector`、`generators/vector/generation`で、65件中64成功・1 skip（計測用）。
+
+## S2.1e3b 住宅の削除
+
+記録の住宅を削除し、その空き地を空けたまま残せるようにした（`clearFabricHouse`、Inspectorの「住宅を削除（空き地のまま残す）」）。
+
+- 削除は住宅を街路街区の記録から取り除き、その空き地の抽選値を街路街区の`cleared`へ加える。生成は作り直さずに1回の履歴項目として確定する。減った住戸は未収容として報告し、理由に`housing-capacity-shortfall`を加える。
+- 後の住宅は番号が1つずつ繰り上がる。切り出し済みの住宅の配置IDはそのまま残し、`detached`の番号だけを合わせる。番号が繰り上がった後で別の住宅を切り出し、配置IDが重なる場合は末尾に`-2`などを付ける。
+- 依存更新・再生成は、元の記録の`cleared`を継続（`fabricCleared`）で受け取る。IDが同じ街路街区では、その抽選値の空き地を採用せず、新しい記録にも`cleared`を引き継ぐ。不足した住戸は、S2.1e1と同じく抽選順で次の空き地から補う。
+- 編集で地区が作り直され、街路街区のIDが変わった場合は、`cleared`は引き継がれない（空き地の形そのものが変わるため）。
+- `cleared`は省略可能とし、空き地を空けたことのない記録のハッシュは変えていない。生成の出力も変わらない。
+
+テスト: `generators/vector/editing/fabricHouses.test.ts`に1件を加えた。削除で容量が住戸数だけ減り、人口が保存され、指紋が保たれ、保存と再読込で一致すること。その後の依存更新で、空けた空き地は空いたまま`cleared`が残り、未収容が0に戻ること。
+
+関連テスト: `generators/vector`、`components/vector`、`services/io/vector`、`renderers/vector`、`i18n`で、39ファイル中36成功・3 skip（計測用）、217件中214成功・3 skip。

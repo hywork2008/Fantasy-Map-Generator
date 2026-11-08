@@ -6,7 +6,7 @@ import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../generation
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../generation/urban";
 import { matchesVectorUrbanFingerprint } from "../generation/urbanState";
 import { reconcileVectorEdit } from "./dependencies";
-import { detachFabricHouse } from "./fabricHouses";
+import { clearFabricHouse, detachFabricHouse } from "./fabricHouses";
 import { setVectorPlacementPolicy, transformVectorPlacement } from "./placements";
 
 const source = generateVectorUrban(
@@ -73,3 +73,31 @@ describe("detaching generated houses from fabric records (S2.1e2)", () => {
     expect(parseVectorDocument(serializeVectorDocument(result))).toEqual(result);
   });
 });
+
+describe("clearing generated houses (S2.1e3b)", () => {
+  it("removes a house, keeps its lot empty through regeneration and refills the shortfall from later lots", () => {
+    const cell = Object.values(source.fabric!.cells).find(c => c.houses.offsets.length >= 2)!,
+      draw = cell.houses.draws[0],
+      dwellings = cell.houses.dwellings[0],
+      doc = clearFabricHouse(source, `${cell.id}#0`),
+      r = doc.urban!.report;
+    expect(doc.fabric!.cells[cell.id].cleared).toEqual([draw]);
+    expect(doc.fabric!.cells[cell.id].houses.draws).not.toContain(draw);
+    expect(r.capacityDwellings).toBe(source.urban!.report.capacityDwellings - dwellings);
+    expect(r.assignedPopulation + r.unplacedPopulation).toBe(200);
+    expect(matchesVectorUrbanFingerprint(doc, doc.urban!.adoptedFingerprint)).toBe(true);
+    expect(parseVectorDocument(serializeVectorDocument(doc))).toEqual(doc);
+    // Any regeneration keeps the cleared lot empty and remembers it.
+    const result = reconcileVectorEdit(doc, setVectorPlacementPolicy(...detachOther(doc, cell.id))).document,
+      after = result.fabric!.cells[cell.id];
+    expect(after.cleared).toEqual([draw]);
+    expect(after.houses.draws).not.toContain(draw);
+    expect(result.urban!.report.unplacedPopulation).toBe(0);
+  });
+});
+/** A detached house elsewhere, fixed: an edit that only triggers regeneration. */
+function detachOther(doc: ReturnType<typeof clearFabricHouse>, cellId: string): [typeof doc, string, "fixed"] {
+  const other = Object.values(doc.fabric!.cells).find(c => c.id !== cellId && c.houses.offsets.length)!,
+    { document, placementId } = detachFabricHouse(doc, `${other.id}#0`);
+  return [document, placementId, "fixed"];
+}

@@ -121,7 +121,7 @@ function cellErrors(c: RecordValue, key: string): string[] {
     !keys(
       c,
       ["id", "hash", "districtId", "origin", "ring", "lanes", "attachments", "mouths", "houses", "detached"],
-      ["inside"]
+      ["inside", "cleared"]
     ) ||
     c.id !== key ||
     !id(c.id) ||
@@ -134,7 +134,11 @@ function cellErrors(c: RecordValue, key: string): string[] {
     !Array.isArray(c.mouths) ||
     !keys(c.houses, ["offsets", "coords", "storeys", "dwellings", "entrances", "draws"]) ||
     !Array.isArray(c.detached) ||
-    (c.inside !== undefined && typeof c.inside !== "boolean")
+    (c.inside !== undefined && typeof c.inside !== "boolean") ||
+    (c.cleared !== undefined &&
+      (!Array.isArray(c.cleared) ||
+        c.cleared.length > 100000 ||
+        !c.cleared.every(d => typeof d === "number" && Number.isFinite(d))))
   )
     return [at];
   const cell = c as unknown as VectorFabricCell;

@@ -471,7 +471,9 @@
         "outsideWall": "Outside the town wall",
         "editLater": "Detaching keeps the house's shape, dwellings and entrance; the street block leaves its lot to the placement.",
         "detach": "Detach as a placement",
-        "detached": "Detached. Move or fix it under building placement edits."
+        "detached": "Detached. Move or fix it under building placement edits.",
+        "clear": "Remove house, keep the lot empty",
+        "cleared": "Removed. The lot stays empty; regeneration refills the shortfall elsewhere."
       },
       "release": {
         "preview": "Meshless preview. Review population shortages and source conversion notes before adopting a city."

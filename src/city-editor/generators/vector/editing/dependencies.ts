@@ -350,6 +350,11 @@ export function reconcileVectorEdit(source: VectorCityDocument, candidate: Vecto
     baseContext: doc.context,
     ...(source.fabric
       ? {
+          fabricCleared: Object.fromEntries(
+            Object.values(source.fabric.cells)
+              .filter(c => c.cleared?.length)
+              .map(c => [c.id, c.cleared!])
+          ),
           fabricDraw: Object.values(source.fabric.cells).reduce(
             (n, c) => c.houses.draws.reduce((m, d) => Math.max(m, d), n),
             -Infinity

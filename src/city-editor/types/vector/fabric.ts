@@ -58,6 +58,8 @@ export interface VectorFabricCell {
   };
   /** House indices replaced by manual placements. */
   detached: number[];
+  /** Occupancy draws of lots the user cleared: regeneration keeps them empty. */
+  cleared?: number[];
   inside?: boolean;
 }
 
