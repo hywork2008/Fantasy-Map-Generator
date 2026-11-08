@@ -14,6 +14,7 @@
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4gの完了と次のS4hを記載
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4hの完了と、差分の再生成の要否の判断を記載
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4を現時点の性能で完了とした判定を記載
+- docs/plan/ce-meshless-feature-parity.md - メッシュなしCEをメッシュありと同等の機能（ランダム生成・3D表示・操作）にするロードマップ。既存の設計・受入の点検結果、同等性の定義、P0〜P10
 
 2026-11-08
 
