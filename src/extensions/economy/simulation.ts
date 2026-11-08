@@ -125,8 +125,8 @@ import {
   isGoodEnabled,
   migrateAlloySteelGoods,
   migrateBarillaGood,
-  migrateBarillaSoapRecipe,
   migrateBeeswaxByproduct,
+  migrateCastileSoapGood,
   migrateChemMedGoods,
   migrateColdLandShoreDeposits,
   migrateElectricalGoods,
@@ -379,8 +379,9 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   // docs/plan/mead.md: after Honey has its lands, add Mead on this save's Honey and Barrels ids.
   migrateMeadGood,
   migrateBarillaGood,
-  // Saves with Barilla but before its soap: add the oil-and-barilla hard soap to Soap.
-  migrateBarillaSoapRecipe
+  // docs/plan/castile-soap.md: after Barilla, add the hard soap as its own good and take the
+  // barilla recipe saves of docs/plan/barilla-soap.md gave Soap.
+  migrateCastileSoapGood
 ];
 
 /**

@@ -15,7 +15,7 @@ await host.loadArchive(new Uint8Array(readFileSync(process.argv[2])));
 await host.prepare();
 // biome-ignore lint/suspicious/noExplicitAny: probe reads the private trade context
 const ctx = (Markets as any).buildGlobalTradeContext();
-const names = ["Glass", "Soap", "Barilla", "Potash", "White sand", "Soda Ash", "Caustic Soda", "Tallow", "Oil", "Olives", "Cattle"];
+const names = ["Glass", "Soap", "Castile Soap", "Barilla", "Potash", "White sand", "Soda Ash", "Caustic Soda", "Tallow", "Oil", "Olives", "Cattle"];
 for (const good of getGoods().filter(entry => names.includes(entry.name)))
   console.log(
     good.name.padEnd(14),

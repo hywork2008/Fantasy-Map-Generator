@@ -100,6 +100,7 @@ export const CRAFT_DOMAIN_BY_GOOD_NAME: Readonly<Record<string, CraftKnowledgeDo
   Vinegar: "victualling",
   Candles: "victualling",
   Soap: "victualling",
+  "Castile Soap": "victualling",
   Beer: "brewing",
   Cider: "brewing",
   Perry: "brewing",

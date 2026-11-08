@@ -518,6 +518,7 @@ export const UNCALIBRATED_LABOR_POINTS_PER_LOT: Readonly<Record<string, number>>
   Vinegar: 0.00005,
   // 120 L boiled down from lye and fat, then cast.
   Soap: 0.0002,
+  "Castile Soap": 0.0002,
   // A 1,000 kg cheese from 10,000 L of milk: a dairy hand works ~170 L, ~17 kg of cheese, a day.
   Cheese: 0.002,
   // 30 kg of eggs gathered from the town's hens.

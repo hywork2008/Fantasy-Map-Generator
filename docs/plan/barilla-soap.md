@@ -55,6 +55,7 @@
 ### 3.3 保存した地図
 
 - 移行`migrateBarillaSoapRecipe`が、バリラのある地図の石鹸にこのレシピを足す。油とバリラのIDは、その地図のものを使う。
+- 追記: このレシピは、[castile-soap.md](castile-soap.md)で別の財`Castile Soap`に移した。`migrateBarillaSoapRecipe`は除き、`migrateCastileSoapGood`が`Soap`からこのレシピを除く。
 
 ### 3.4 材料の需要
 

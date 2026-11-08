@@ -22,8 +22,8 @@ import {
   isGoodEnabled,
   migrateAlloySteelGoods,
   migrateBarillaGood,
-  migrateBarillaSoapRecipe,
   migrateBeeswaxByproduct,
+  migrateCastileSoapGood,
   migrateColdLandShoreDeposits,
   migrateElectricalGoods,
   migrateElectrolyticIndustryGoods,
@@ -1399,17 +1399,17 @@ describe("GoodsModule", () => {
     expect(clay.distribution).toBe("minTemp(12) && river()");
   });
 
-  it("adds Barilla, the soda-glass recipe and the barilla soap to a saved catalogue on that save's own ids", () => {
+  it("adds Barilla, the soda-glass recipe and Castile Soap to a saved catalogue on that save's own ids", () => {
     goodsModule.restoreDefaults();
     const sand = getGoods().find(good => good.name === "White sand")!;
     const saved = getGoods()
-      .filter(good => good.name !== "Barilla")
+      .filter(good => good.name !== "Barilla" && good.name !== "Castile Soap")
       .map(good => (good.i === sand.i ? { ...good, i: 900 } : good));
     const glass = saved.find(good => good.name === "Glass")!;
     glass.recipes = glass.recipes!.slice(0, 2);
     const soap = saved.find(good => good.name === "Soap")!;
-    soap.recipes = soap.recipes!.slice(0, 4);
     const oil = saved.find(good => good.name === "Oil")!;
+    const sodaAsh = saved.find(good => good.name === "Soda Ash")!;
     setGoods(saved);
 
     expect(migrateBarillaGood()).toBe(true);
@@ -1419,10 +1419,19 @@ describe("GoodsModule", () => {
     expect(migrateBarillaGood()).toBe(false);
     expect(glass.recipes).toHaveLength(3);
 
-    expect(migrateBarillaSoapRecipe()).toBe(true);
-    expect(soap.recipes!.at(-1)).toEqual({ [oil.i]: 0.65, 901: 0.38 });
-    expect(migrateBarillaSoapRecipe()).toBe(false);
-    expect(soap.recipes).toHaveLength(5);
+    // A save of docs/plan/barilla-soap.md made the hard soap a fifth Soap recipe.
+    soap.recipes = [...soap.recipes!, { [oil.i]: 0.65, 901: 0.38 }];
+    expect(migrateCastileSoapGood()).toBe(true);
+    expect(soap.recipes).toHaveLength(4);
+    expect(soap.recipes!.some(recipe => 901 in recipe)).toBe(false);
+    const castile = getGoods().find(good => good.name === "Castile Soap")!;
+    expect(castile.i).toBe(902);
+    expect(castile.recipes).toEqual([
+      { [oil.i]: 0.65, 901: 0.38 },
+      { [oil.i]: 0.65, [sodaAsh.i]: 0.12 }
+    ]);
+    expect(migrateCastileSoapGood()).toBe(false);
+    expect(getGoods().filter(good => good.name === "Castile Soap")).toHaveLength(1);
   });
 
   it("adds Mead to a saved catalogue on that save's own Honey and Barrels ids", () => {

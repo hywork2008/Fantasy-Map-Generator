@@ -338,6 +338,18 @@ export const BARILLA_BARRELS_PER_GLASS_LOT = 1.6;
  */
 export const SOAP_OIL_BARRELS_PER_BARILLA_SOAP = 0.65;
 export const BARILLA_BARRELS_PER_SOAP = 0.38;
+/**
+ * The same soap from the soda of the alkali works, as Marseille boiled it after the barilla: the
+ * 14 kg of soda in 46 kg of barilla, about an eighth of a 120 kg barrel (glass takes a barrel of soda
+ * ash for 3.2 of barilla).
+ */
+export const SODA_ASH_BARRELS_PER_CASTILE_SOAP = 0.12;
+/**
+ * The white hard soap of olive oil and soda is worth twice the black soft soap of potash: a livre of
+ * white soap 2.5 sols and of black soap 1.25 sols in Saintonge about 1778 (docs/plan/castile-soap.md
+ * §2). It falls in the fine luxury tier, which buys it apart from Soap.
+ */
+const CASTILE_SOAP_VALUE = 12;
 /** Pressed grape pomace in one 200 L cask of pomace wine: 120 kg, a tenth of a lot, with water (§29). */
 const POMACE_LOTS_PER_POMACE_WINE_CASK = 0.12;
 const shipClassById = new Map(SHIP_CLASS_DEFINITIONS.map(shipClass => [shipClass.id, shipClass]));
@@ -2285,9 +2297,23 @@ export const GOODS_DATA: GoodData[] = [
       { Olives: 1, Potash: 0.3 },
       { Cattle: 1, Potash: 0.3 },
       { Tallow: 1, Potash: 0.3 },
-      { Tallow: 1, "Caustic Soda": 0.15 },
-      // Fifth recipe: the hard white soap of Castile and Marseille, olive oil boiled with barilla lye.
-      { Oil: SOAP_OIL_BARRELS_PER_BARILLA_SOAP, Barilla: BARILLA_BARRELS_PER_SOAP }
+      { Tallow: 1, "Caustic Soda": 0.15 }
+    ],
+    unit: "barrel",
+    demandCoverage: { utilities: 0.4, luxury: 0.6 }
+  },
+  {
+    // The white hard soap of Castile and Marseille, olive oil boiled with barilla lye, shipped to
+    // Flanders and England (docs/plan/castile-soap.md). Soda ash takes the barilla's place once known.
+    name: "Castile Soap",
+    tags: ["luxury", "ritual"],
+    icon: "good-soap",
+    color: "#f3efe0",
+    value: CASTILE_SOAP_VALUE,
+    chance: 0,
+    recipes: [
+      { Oil: SOAP_OIL_BARRELS_PER_BARILLA_SOAP, Barilla: BARILLA_BARRELS_PER_SOAP },
+      { Oil: SOAP_OIL_BARRELS_PER_BARILLA_SOAP, "Soda Ash": SODA_ASH_BARRELS_PER_CASTILE_SOAP }
     ],
     unit: "barrel",
     demandCoverage: { utilities: 0.4, luxury: 0.6 }
@@ -4740,21 +4766,33 @@ export function migrateBarillaGood(): boolean {
 }
 
 /**
- * Adds the hard soap of oil and barilla to Soap in catalogues saved before it, on this save's Oil and
- * Barilla ids (docs/plan/barilla-soap.md). No-op when Soap already has a barilla recipe or a good is
- * missing.
+ * Adds Castile Soap to catalogues saved before it, its recipes on this save's Oil, Barilla and Soda
+ * Ash ids, and takes from Soap the oil and barilla recipe saves of docs/plan/barilla-soap.md gave it:
+ * the hard soap is its own good now (docs/plan/castile-soap.md). No-op when Castile Soap is present
+ * and Soap has no barilla recipe, or an ingredient is missing.
  */
-export function migrateBarillaSoapRecipe(): boolean {
+export function migrateCastileSoapGood(): boolean {
   const goods = getGoods();
-  const soap = goods.find(good => good.name === "Soap");
   const oil = goods.find(good => good.name === "Oil");
   const barilla = goods.find(good => good.name === "Barilla");
-  if (!soap || !oil || !barilla) return false;
-  if ((soap.recipes ?? []).some(recipe => barilla.i in recipe)) return false;
-  soap.recipes = [
-    ...(soap.recipes ?? []),
-    { [oil.i]: SOAP_OIL_BARRELS_PER_BARILLA_SOAP, [barilla.i]: BARILLA_BARRELS_PER_SOAP }
+  const sodaAsh = goods.find(good => good.name === "Soda Ash");
+  if (!oil || !barilla || !sodaAsh) return false;
+  let changed = false;
+  const soap = goods.find(good => good.name === "Soap");
+  if (soap?.recipes?.some(recipe => barilla.i in recipe)) {
+    soap.recipes = soap.recipes.filter(recipe => !(barilla.i in recipe));
+    changed = true;
+  }
+  if (goods.some(good => good.name === "Castile Soap")) return changed;
+
+  const castile = Goods.getDefaultGood("Castile Soap");
+  if (!castile) throw new Error("Castile Soap must be present in the shipped goods catalogue");
+  castile.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  castile.recipes = [
+    { [oil.i]: SOAP_OIL_BARRELS_PER_BARILLA_SOAP, [barilla.i]: BARILLA_BARRELS_PER_SOAP },
+    { [oil.i]: SOAP_OIL_BARRELS_PER_BARILLA_SOAP, [sodaAsh.i]: SODA_ASH_BARRELS_PER_CASTILE_SOAP }
   ];
+  goods.push(castile);
   return true;
 }
 

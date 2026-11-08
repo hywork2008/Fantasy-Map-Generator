@@ -114,6 +114,7 @@ const MEASURED_SLOT_GOODS: ReadonlySet<string> = new Set([
   "Tobacco",
   "Liquor",
   "Soap",
+  "Castile Soap",
   "Candles",
   // Textiles, flour and bread, priced by weight with the slot switch (§21).
   "Wool",
