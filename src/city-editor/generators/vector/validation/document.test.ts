@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { vectorRenderData } from "../../../renderers/vector/renderData";
 import { serializeVectorDocument } from "../../../services/io/vector/documentCodec";
 import type { Point } from "../../../types/primitives";
-import { createVectorDocument } from "../document";
+import { createVectorDocument, createVectorExample } from "../document";
 import { junctionSurface } from "../geometry/network";
 import { type PathSurface, surfacesOverlap } from "../geometry/surfaces";
-import { validateVectorDocument } from "./document";
+import { assertVectorDocument, validateVectorDocument } from "./document";
 
 const square = (x: number, y: number, size: number): Point[] => [
   [x, y],
@@ -78,5 +78,16 @@ describe("indexed junction-site validation", () => {
     expect(validateVectorDocument(doc)).toEqual(["junction-site:crossing"]);
     expect(() => vectorRenderData(doc)).toThrow("junction-site:crossing");
     expect(() => serializeVectorDocument(doc)).toThrow("junction-site:crossing");
+  });
+});
+
+describe("validation of repeated content (S4b)", () => {
+  it("skips only content that already passed, so a document changed in place is checked again", () => {
+    const doc = createVectorExample();
+    assertVectorDocument(doc);
+    expect(() => assertVectorDocument(structuredClone(doc))).not.toThrow();
+    const path = Object.values(doc.paths)[0];
+    path.width.leftMeters = -1;
+    expect(() => assertVectorDocument(doc)).toThrow("Invalid vector document");
   });
 });

@@ -534,7 +534,35 @@ export function validateVectorDocument(
   return errors;
 }
 
+/** Content keys of documents that passed validation, newest last. An edit commits the same content several
+ * times (before and after the edit, into history, into the render), so a 50,000-person city was validated four
+ * times per edit. The key is the serialised content, so a document changed in place is always validated again. */
+const validatedContent: string[] = [];
+const VALIDATED_CONTENT_LIMIT = 8;
+function contentKey(value: unknown): string | undefined {
+  let text: string;
+  try {
+    text = JSON.stringify(value);
+  } catch {
+    return undefined;
+  }
+  if (typeof text !== "string") return undefined;
+  let a = 0x811c9dc5,
+    b = 0x9e3779b9;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    a = Math.imul(a ^ code, 0x01000193);
+    b = Math.imul(b ^ code, 0x85ebca6b);
+  }
+  return `${text.length}:${(a >>> 0).toString(16)}:${(b >>> 0).toString(16)}`;
+}
+
 export function assertVectorDocument(value: unknown): asserts value is VectorCityDocument {
+  const key = contentKey(value);
+  if (key !== undefined && validatedContent.includes(key)) return;
   const errors = validateVectorDocument(value);
   if (errors.length) throw new Error(`Invalid vector document: ${errors.join(", ")}`);
+  if (key === undefined) return;
+  validatedContent.push(key);
+  if (validatedContent.length > VALIDATED_CONTENT_LIMIT) validatedContent.shift();
 }

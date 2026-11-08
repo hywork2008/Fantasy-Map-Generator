@@ -1,5 +1,10 @@
 # 追加したドキュメント
 
+2026-11-09
+
+- docs/analytics/ce-meshless-commit-s4b-20261109.json - S4bの5,000・50,000人の確定の費用（同じ内容の検証を省いた後）
+- docs/plan/ce-meshless-block-fabric-scaling.md - S4bの完了と次のS4cを記載
+
 2026-11-08
 
 - docs/analytics/ce-meshless-commit-s4-20261108.json - S4aの5,000・50,000人の確定の費用（複製・検証の工程別・切り出し・履歴への確定・描画・依存更新）
