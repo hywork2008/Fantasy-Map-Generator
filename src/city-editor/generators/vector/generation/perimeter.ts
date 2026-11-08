@@ -78,32 +78,37 @@ const boxOf = (points: Point[], pad = 0) => ({
   maxY: Math.max(...points.map(p => p[1])) + pad
 });
 
-/** CE's coarse-district layout for every reachable skeleton block, kept as district and street-block plans.
- * Generated streets and lanes never become `VectorPath`s; their ends on main roads become explicit mouths. */
-export function planVectorPerimeter(
+/** Everything a district plan reads, in plain data: it crosses to a worker unchanged. */
+export interface PerimeterPlanContext {
+  roads: { points: Point[]; frontage: number }[];
+  frontageReach: number;
+  seed: string;
+  laneWidthMeters: number;
+  walls: [Point, Point][];
+  hub: Point;
+  extentMeters: number;
+}
+/** One reachable skeleton block without holes, with its stable district id. */
+export interface PerimeterDistrictJob {
+  districtId: string;
+  outline: Point[];
+}
+export interface PerimeterDistrictResult {
+  district: DistrictPlan;
+  blocks: VectorBlock[];
+  houses: VectorPerimeterPlan["houses"];
+}
+
+/** District jobs in block order and their shared context. District ids are assigned over every block, so the
+ * ids never depend on how the jobs are split. */
+export function perimeterJobs(
   doc: VectorCityDocument,
   blocks: VectorBlock[],
   settings: VectorUrbanSettings
-): VectorPerimeterPlan {
+): { context: PerimeterPlanContext; jobs: PerimeterDistrictJob[] } {
   const primary = Object.values(doc.paths).filter(p => p.role === "road");
-  const primarySamples = primary.map(path => ({ path, points: samplePath(path).map(p => p.point) }));
-  // Bounding boxes only narrow candidates; the original per-road tests and road order still decide.
-  const primaryIndex = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; index: number }>();
-  primaryIndex.load(primarySamples.map((r, index) => ({ ...boxOf(r.points), index })));
-  const roadsNear = (p: Point, reach: number) =>
-    primaryIndex
-      .search({ minX: p[0] - reach, minY: p[1] - reach, maxX: p[0] + reach, maxY: p[1] + reach })
-      .sort((a, b) => a.index - b.index)
-      .map(item => primarySamples[item.index]);
-  const frontageReach = Math.max(0, ...primary.map(p => p.width.leftMeters + p.width.rightMeters + 0.1)) + 1e-6,
-    endpointReach =
-      Math.max(0, ...primary.map(p => Math.max(p.width.leftMeters, p.width.rightMeters))) +
-      settings.laneWidthMeters / 2 +
-      0.7 +
-      1e-6;
-  const water = allVectorWater(doc);
   // CE orients districts along nearby wall segments; a 0.5 m simplification keeps that lookup small.
-  const wallSegments = Object.values(doc.paths)
+  const walls = Object.values(doc.paths)
     .filter(p => p.role === "wall")
     .flatMap(p => {
       const points = simplifyFreehand(
@@ -112,109 +117,192 @@ export function planVectorPerimeter(
       );
       return points.slice(1).map((b, i): [Point, Point] => [points[i], b]);
     });
-  const parameters = {
-    coverage: 0.9,
-    occupancy: 1,
-    lotArea: 80,
-    laneWidth: settings.laneWidthMeters,
-    orientation: 0
-  };
-  const context = {
-    hub: doc.site!.center,
-    extentMeters: doc.frame.extentMeters,
-    walls: wallSegments,
-    // Skeleton blocks are far coarser than a CE mesh cell, so CE's coarse-mesh street blocks apply.
-    streetCellMeters: COARSE_STREET_CELL_METERS,
-    streetWidthMeters: COARSE_STREET_WIDTH_METERS
-  };
-  const result: VectorPerimeterPlan = {
-    districts: [],
-    houses: [],
-    blocks: [],
-    laneWidthMeters: settings.laneWidthMeters
-  };
-  const districtIds = new Set<string>();
+  const jobs: PerimeterDistrictJob[] = [],
+    districtIds = new Set<string>();
   for (const sourceBlock of blocks) {
     // Blocks never coincide, but a collision must not merge two districts' random streams.
     let districtId = vectorDistrictId(sourceBlock);
     for (let n = 2; districtIds.has(districtId); n++) districtId = `${vectorDistrictId(sourceBlock)}:${n}`;
     districtIds.add(districtId);
-    const outline = simplifyFreehand([...sourceBlock.outer, sourceBlock.outer[0]], 0.05).slice(0, -1);
     if (!sourceBlock.reachable || sourceBlock.holes.length) continue;
-    const face: Face = {
-      id: districtId,
-      boundary: [],
-      properties: { elevation: 1, water: "land", ward: "craftsmen", buildable: true, locked: false }
-    };
-    const boundaries = outline.map((a, i) => {
-      const b = outline[(i + 1) % outline.length],
-        mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-      const road = roadsNear(mid, frontageReach).find(
-        p => nearestOnPolyline(mid, p.points).dist <= p.path.width.leftMeters + p.path.width.rightMeters + 0.1
-      );
-      return { a, b, feature: !!road, barrier: !road, setback: road ? ROAD_FACADE_CLEARANCE_METERS : 3 };
+    jobs.push({
+      districtId,
+      outline: simplifyFreehand([...sourceBlock.outer, sourceBlock.outer[0]], 0.05).slice(0, -1)
     });
-    const plan = planOrganicStreetCells(face, outline, boundaries, parameters, doc.recipe.seed, context);
-    // The CE street plan lists some streets twice (in the fixed inputs, 61 of 355 at 1,000 people). The mesh
-    // editor never noticed; saved records would store, draw and measure them twice.
-    plan.streets = withoutRepeatedStreets(plan.streets);
-    const district: DistrictPlan = {
-      id: districtId,
-      outline,
-      boundaries: boundaries.map(b => ({ feature: b.feature, barrier: b.barrier, setback: b.setback })),
-      streets: plan.streets.map(l => ({ points: l.points, widthMeters: l.widthMeters })),
-      mouths: [],
-      cells: []
-    };
-    const streetIndex = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; index: number }>();
-    streetIndex.load(district.streets.map((l, index) => ({ ...boxOf(l.points), index })));
-    const reach = Math.max(context.streetWidthMeters, settings.laneWidthMeters) + 1;
-    for (const cell of plan.cells) {
-      const nearby = streetIndex
-        .search(boxOf(cell.ring, reach))
-        .sort((a, b) => a.index - b.index)
-        .map(item => plan.streets[item.index]);
-      const local = buildOrganicStreetCell(face, cell, parameters, doc.recipe.seed, context, nearby);
-      const lanes = local.lanes.map(l => ({ points: l.points, widthMeters: l.widthMeters }));
-      const attachments: CellPlan["attachments"] = [];
-      lanes.forEach((lane, laneIndex) => {
-        for (const end of [0, 1] as const) {
-          const p = end === 0 ? lane.points[0] : lane.points.at(-1)!;
-          const street = streetIndex
-            .search(boxOf([p], 1e-3))
-            .sort((a, b) => a.index - b.index)
-            .find(item => nearestOnPolyline(p, district.streets[item.index].points).dist <= 1e-4);
-          if (street)
-            attachments.push({
-              lane: laneIndex,
-              end,
-              street: street.index,
-              t: lineParameter(district.streets[street.index].points, p)
-            });
-        }
-      });
-      district.cells.push({ id: cell.id, districtId, ring: cell.ring, lanes, attachments, mouths: [] });
-      result.blocks.push(
-        ...local.blocks.map((outer, i) => ({
-          id: `${cell.id}:parcel:${i}`,
-          outer,
-          holes: [],
-          areaMeters2: regionArea({ outer, holes: [] }),
-          frontage: [],
-          reachable: true
-        }))
-      );
-      result.houses.push(
-        ...local.buildings.map(b => ({
-          cellId: cell.id,
-          districtId,
-          polygon: b.polygon,
-          draw: b.occupancyDraw ?? growthRandom(JSON.stringify(b.polygon))
-        }))
-      );
-    }
-    result.districts.push(district);
   }
+  return {
+    context: {
+      roads: primary.map(path => ({
+        points: samplePath(path).map(p => p.point),
+        frontage: path.width.leftMeters + path.width.rightMeters
+      })),
+      frontageReach: Math.max(0, ...primary.map(p => p.width.leftMeters + p.width.rightMeters + 0.1)) + 1e-6,
+      seed: doc.recipe.seed,
+      laneWidthMeters: settings.laneWidthMeters,
+      walls,
+      hub: doc.site!.center,
+      extentMeters: doc.frame.extentMeters
+    },
+    jobs
+  };
+}
+
+const roadIndices = new WeakMap<
+  object,
+  RBush<{ minX: number; minY: number; maxX: number; maxY: number; index: number }>
+>();
+/** CE's coarse-district layout of one district: its streets, street blocks, lanes, parcels and candidate lots.
+ * Pure in its arguments, so districts can be planned in any order or worker. */
+export function planPerimeterDistrict(
+  context: PerimeterPlanContext,
+  job: PerimeterDistrictJob
+): PerimeterDistrictResult {
+  let roadIndex = roadIndices.get(context);
+  if (!roadIndex) {
+    // Bounding boxes only narrow candidates; the original per-road tests and road order still decide.
+    roadIndex = new RBush();
+    roadIndex.load(context.roads.map((r, index) => ({ ...boxOf(r.points), index })));
+    roadIndices.set(context, roadIndex);
+  }
+  const index = roadIndex,
+    roadsNear = (p: Point, reach: number) =>
+      index
+        .search({ minX: p[0] - reach, minY: p[1] - reach, maxX: p[0] + reach, maxY: p[1] + reach })
+        .sort((a, b) => a.index - b.index)
+        .map(item => context.roads[item.index]);
+  const parameters = {
+    coverage: 0.9,
+    occupancy: 1,
+    lotArea: 80,
+    laneWidth: context.laneWidthMeters,
+    orientation: 0
+  };
+  const ce = {
+    hub: context.hub,
+    extentMeters: context.extentMeters,
+    walls: context.walls,
+    // Skeleton blocks are far coarser than a CE mesh cell, so CE's coarse-mesh street blocks apply.
+    streetCellMeters: COARSE_STREET_CELL_METERS,
+    streetWidthMeters: COARSE_STREET_WIDTH_METERS
+  };
+  const { districtId, outline } = job,
+    result: PerimeterDistrictResult = {
+      district: { id: districtId, outline, boundaries: [], streets: [], mouths: [], cells: [] },
+      blocks: [],
+      houses: []
+    };
+  const face: Face = {
+    id: districtId,
+    boundary: [],
+    properties: { elevation: 1, water: "land", ward: "craftsmen", buildable: true, locked: false }
+  };
+  const boundaries = outline.map((a, i) => {
+    const b = outline[(i + 1) % outline.length],
+      mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const road = roadsNear(mid, context.frontageReach).find(
+      p => nearestOnPolyline(mid, p.points).dist <= p.frontage + 0.1
+    );
+    return { a, b, feature: !!road, barrier: !road, setback: road ? ROAD_FACADE_CLEARANCE_METERS : 3 };
+  });
+  const plan = planOrganicStreetCells(face, outline, boundaries, parameters, context.seed, ce);
+  // The CE street plan lists some streets twice (in the fixed inputs, 61 of 355 at 1,000 people). The mesh
+  // editor never noticed; saved records would store, draw and measure them twice.
+  plan.streets = withoutRepeatedStreets(plan.streets);
+  const district = result.district;
+  district.boundaries = boundaries.map(b => ({ feature: b.feature, barrier: b.barrier, setback: b.setback }));
+  district.streets = plan.streets.map(l => ({ points: l.points, widthMeters: l.widthMeters }));
+  const streetIndex = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; index: number }>();
+  streetIndex.load(district.streets.map((l, index) => ({ ...boxOf(l.points), index })));
+  const reach = Math.max(ce.streetWidthMeters, context.laneWidthMeters) + 1;
+  for (const cell of plan.cells) {
+    const nearby = streetIndex
+      .search(boxOf(cell.ring, reach))
+      .sort((a, b) => a.index - b.index)
+      .map(item => plan.streets[item.index]);
+    const local = buildOrganicStreetCell(face, cell, parameters, context.seed, ce, nearby);
+    const lanes = local.lanes.map(l => ({ points: l.points, widthMeters: l.widthMeters }));
+    const attachments: CellPlan["attachments"] = [];
+    lanes.forEach((lane, laneIndex) => {
+      for (const end of [0, 1] as const) {
+        const p = end === 0 ? lane.points[0] : lane.points.at(-1)!;
+        const street = streetIndex
+          .search(boxOf([p], 1e-3))
+          .sort((a, b) => a.index - b.index)
+          .find(item => nearestOnPolyline(p, district.streets[item.index].points).dist <= 1e-4);
+        if (street)
+          attachments.push({
+            lane: laneIndex,
+            end,
+            street: street.index,
+            t: lineParameter(district.streets[street.index].points, p)
+          });
+      }
+    });
+    district.cells.push({ id: cell.id, districtId, ring: cell.ring, lanes, attachments, mouths: [] });
+    result.blocks.push(
+      ...local.blocks.map((outer, i) => ({
+        id: `${cell.id}:parcel:${i}`,
+        outer,
+        holes: [],
+        areaMeters2: regionArea({ outer, holes: [] }),
+        frontage: [],
+        reachable: true
+      }))
+    );
+    result.houses.push(
+      ...local.buildings.map(b => ({
+        cellId: cell.id,
+        districtId,
+        polygon: b.polygon,
+        draw: b.occupancyDraw ?? growthRandom(JSON.stringify(b.polygon))
+      }))
+    );
+  }
+  return result;
+}
+
+/** CE's coarse-district layout for every reachable skeleton block, kept as district and street-block plans.
+ * Generated streets and lanes never become `VectorPath`s; their ends on main roads become explicit mouths. */
+export function planVectorPerimeter(
+  doc: VectorCityDocument,
+  blocks: VectorBlock[],
+  settings: VectorUrbanSettings
+): VectorPerimeterPlan {
+  const { context, jobs } = perimeterJobs(doc, blocks, settings);
+  return joinPerimeterPlan(
+    doc,
+    jobs.map(job => planPerimeterDistrict(context, job)),
+    settings
+  );
+}
+
+/** Joins district plans, in job order, to the road graph: street and lane ends on a main road get mouths. */
+export function joinPerimeterPlan(
+  doc: VectorCityDocument,
+  districts: PerimeterDistrictResult[],
+  settings: VectorUrbanSettings
+): VectorPerimeterPlan {
+  const primary = Object.values(doc.paths).filter(p => p.role === "road");
+  const primarySamples = primary.map(path => ({ path, points: samplePath(path).map(p => p.point) }));
+  const primaryIndex = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; index: number }>();
+  primaryIndex.load(primarySamples.map((r, index) => ({ ...boxOf(r.points), index })));
+  const roadsNear = (p: Point, reach: number) =>
+    primaryIndex
+      .search({ minX: p[0] - reach, minY: p[1] - reach, maxX: p[0] + reach, maxY: p[1] + reach })
+      .sort((a, b) => a.index - b.index)
+      .map(item => primarySamples[item.index]);
+  const endpointReach =
+    Math.max(0, ...primary.map(p => Math.max(p.width.leftMeters, p.width.rightMeters))) +
+    settings.laneWidthMeters / 2 +
+    0.7 +
+    1e-6;
+  const water = allVectorWater(doc);
+  const result: VectorPerimeterPlan = {
+    districts: districts.map(d => d.district),
+    houses: districts.flatMap(d => d.houses),
+    blocks: districts.flatMap(d => d.blocks),
+    laneWidthMeters: settings.laneWidthMeters
+  };
   // Street and lane ends on a main road join it through an explicit node. A short connector closes any gap.
   const joiner = createGenerationJoiner(doc);
   const mouth = (p: Point): { target: Point; nodeId: string } | undefined => {

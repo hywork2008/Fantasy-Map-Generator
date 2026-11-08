@@ -1,0 +1,58 @@
+{
+  "format": "ce-meshless-parallel-estimate",
+  "version": 1,
+  "measuredOn": "2026-11-08",
+  "scope": "Node + jsdom, fixed wall-first input (m9-fixed, ellipse wall, maxLanes 8), mode medieval, one run each. districtPlanSerialMs: planPerimeterDistrict per district in series. criticalPath: contiguous runs of districts per worker; balanced: largest outline first to the least loaded worker. Estimates the parallel plan time as the slowest worker's share; worker start-up and message latency are not included. cloneOutMs: structured clone of all district results.",
+  "results": {
+    "5000": {
+      "districts": 6,
+      "totalMs": 849,
+      "districtPlanSerialMs": 388,
+      "maxDistrictMs": 149,
+      "criticalPath": {
+        "2": 310,
+        "4": 266
+      },
+      "balanced": {
+        "2": 208,
+        "3": 163,
+        "4": 149
+      },
+      "perDistrictMs": [
+        149,
+        117,
+        44,
+        50,
+        14,
+        14
+      ],
+      "cloneInMs": 0,
+      "cloneOutMs": 11
+    },
+    "50000": {
+      "districts": 6,
+      "totalMs": 3895,
+      "districtPlanSerialMs": 1844,
+      "maxDistrictMs": 563,
+      "criticalPath": {
+        "2": 1312,
+        "4": 1083
+      },
+      "balanced": {
+        "2": 948,
+        "3": 668,
+        "4": 563
+      },
+      "perDistrictMs": [
+        563,
+        520,
+        229,
+        322,
+        106,
+        105
+      ],
+      "cloneInMs": 0,
+      "cloneOutMs": 119
+    }
+  }
+}

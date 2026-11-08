@@ -20,7 +20,17 @@ import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/document";
 import { vectorUrbanStages } from "../validation/urban";
-import { placeVectorPerimeterHouses, planVectorPerimeter, vectorPerimeterResidual } from "./perimeter";
+import {
+  joinPerimeterPlan,
+  type PerimeterDistrictJob,
+  type PerimeterDistrictResult,
+  type PerimeterPlanContext,
+  perimeterJobs,
+  placeVectorPerimeterHouses,
+  planPerimeterDistrict,
+  type VectorPerimeterPlan,
+  vectorPerimeterResidual
+} from "./perimeter";
 import { deriveVectorBlocks, joinVectorGenerationAnchors } from "./pipeline";
 import { allocateVectorResidents, vectorPlacementDwellings } from "./urbanCapacity";
 import {
@@ -80,12 +90,53 @@ export interface VectorUrbanContinuation {
   /** Lines moved to paths in the source records, by district or street block id. */
   fabricDetachedLines?: Record<string, VectorFabricDetachedLine[]>;
 }
+/** The districts a run must plan: the caller plans them (here, or in workers) and passes the results back. */
+export interface VectorUrbanDistrictRequest {
+  context: PerimeterPlanContext;
+  jobs: PerimeterDistrictJob[];
+}
+type VectorUrbanSteps = Generator<VectorUrbanDistrictRequest, VectorCityDocument, PerimeterDistrictResult[]>;
+
 export function generateVectorUrban(
   input: VectorCityDocument,
   settings: VectorUrbanSettings = DEFAULT_VECTOR_URBAN,
   continuation?: VectorUrbanContinuation,
   run?: VectorUrbanRun
 ): VectorCityDocument {
+  const steps = vectorUrbanSteps(input, settings, continuation, run);
+  let step = steps.next();
+  while (!step.done) {
+    const { context, jobs } = step.value;
+    step = steps.next(jobs.map(job => planPerimeterDistrict(context, job)));
+  }
+  return step.value;
+}
+
+/** Same result as `generateVectorUrban`; `plan` may compute the district plans anywhere, but must return them in
+ * job order. Districts are independent (S2.2 ids), so the document does not depend on how they were split. */
+export async function generateVectorUrbanAsync(
+  input: VectorCityDocument,
+  settings: VectorUrbanSettings,
+  plan: (request: VectorUrbanDistrictRequest) => Promise<PerimeterDistrictResult[]>,
+  continuation?: VectorUrbanContinuation,
+  run?: VectorUrbanRun
+): Promise<VectorCityDocument> {
+  const steps = vectorUrbanSteps(input, settings, continuation, run);
+  let step = steps.next();
+  while (!step.done) {
+    const results = await plan(step.value);
+    if (results.length !== step.value.jobs.length) throw new Error("urban-district-plans");
+    step = steps.next(results);
+  }
+  return step.value;
+}
+
+function* vectorUrbanSteps(
+  input: VectorCityDocument,
+  settings: VectorUrbanSettings,
+  continuation?: VectorUrbanContinuation,
+  run?: VectorUrbanRun
+): VectorUrbanSteps {
   const timed = generationTiming(run?.timings);
   assertVectorDocument(input);
   if (
@@ -318,7 +369,12 @@ export function generateVectorUrban(
       ? bvFacilityAsset(settings.houseModelId, [{ id: "main", position: [0, 0, 4], normalXZ: [0, 1], clearWidth: 1.1 }])
       : undefined;
   timed("lane-candidates");
-  const organic = organicMode ? planVectorPerimeter(doc, blocks, settings) : undefined;
+  let organic: VectorPerimeterPlan | undefined;
+  if (organicMode) {
+    const request = perimeterJobs(doc, blocks, settings),
+      districts = yield request;
+    organic = joinPerimeterPlan(doc, districts, settings);
+  }
   const adoptLane = (
     points: Point[],
     anchor: (typeof laneCandidates)[number]["anchor"],

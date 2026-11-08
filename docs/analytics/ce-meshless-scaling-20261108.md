@@ -568,3 +568,29 @@ S2の完了条件のうち「v7とv8の一致」は、生成のアルゴリズ�
 | `docs/analytics/raw/scaling-s21g-20261108/scaling-50000.json` | `4422bf561f026cbe064e9d8f0cff91fa1d7f59668b62375c4502ce5d3936dc52` |
 
 関連テスト: `generators/vector`、`components/vector`、`services/io/vector`、`renderers/vector`で、38ファイル中34成功・4 skip（計測用）、207件中203成功・4 skip。
+
+## S3 街区単位の並列生成
+
+外周計画を、地区ごとの計画（Workerで並列にできる純粋な処理）と、全体の処理（主要道路への接続、住宅の採用）に分けた。地区の計画をWorkerプールで行えるようにした。生成の出力は変えていない（1,000・5,000人の直列化結果のSHA-256はS2.1gと同じ）。
+
+- 外周計画（`planVectorPerimeter`）を3つに分けた。`perimeterJobs`は地区のジョブ（地区ID・輪郭）と共有の文脈（主要道路の標本・市壁・乱数の種・パラメーター、すべて素のデータ）を作る。地区IDは全街区の順で振るので、ジョブの分け方によらない。`planPerimeterDistrict`は1地区の街路・街路街区・小路・区画・空き地を作る、引数だけに依存する処理である。`joinPerimeterPlan`は地区の計画をジョブ順に結合し、主要道路への接続ノードを作る。
+- 施設住宅の生成を、地区の計画を外から受け取るジェネレーター関数（`vectorUrbanSteps`）にした。`generateVectorUrban`（同期）はその場で計画し、`generateVectorUrbanAsync`は与えられた計画関数（Workerプール）に任せる。依存更新・計測・テストは同期版のままである。
+- Workerプール（`services/vectorDistrictPool.ts`、`vectorDistrictWorker.ts`）: Worker数は`navigator.hardwareConcurrency - 1`で、1以上4以下。地区を輪郭の面積の大きい順に、負荷の最も小さいWorkerへ割り当て、結果を地区の順に戻す。Worker数が1以下、またはWorkerを使えない環境では、その場で計画する。生成Worker（`vectorGenerationWorker.ts`）がこのプールを入れ子のWorkerとして使う。本番ビルド（`vite build`）で、地区のWorkerが別のファイルとして出力され、生成Workerから参照されることを確かめた。
+- 時間の上限: 初期生成Workerの60秒の無応答上限は残す。進捗の通知でも戻らない全体の上限（300秒、`GENERATION_TOTAL_LIMIT_MS`）を加えた。
+
+完了条件（Worker数1・2・4で直列化文書のSHA-256が一致する）: `services/vectorDistrictPool.test.ts`で、構造化複製で往復し、非同期に応答する代わりのWorkerを使って確かめた。1・2・4本とも、同期版と同じSHA-256だった。ブラウザーの実際の入れ子のWorkerでの一致と時間は、まだ測っていない。
+
+並列化の見積もり（Node、固定入力、1回ずつ。並列時の計画の時間を、最も遅いWorkerの持ち分の合計とした。Workerの起動と通信の遅れは含まない）:
+
+| 人口 | 地区 | 生成全体 | 地区の計画（直列） | 最大の地区 | 2本 | 3本 | 4本 | 結果の複製 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 5,000 | 6 | 849 ms | 388 ms | 149 ms | 208 ms | 163 ms | 149 ms | 11 ms |
+| 50,000 | 6 | 3,895 ms | 1,844 ms | 563 ms | 948 ms | 668 ms | 563 ms | 119 ms |
+
+地区を連続で分けると、4本でも50,000人で1,083 msだった。面積の大きい順の割り当てでは、4本で最大の地区1つ分（563 ms）になる。50,000人の生成全体では約1.2秒（約30%）短くなる見込みである。地区が6つしかなく大きさも不揃いなため、最大の地区が並列化の上限を決める。さらに短くするには、街路街区（50,000人で約650）を単位に分ける必要がある。街路街区の小路と空き地は、その地区の街路の計画だけに依存するので、地区の街路の計画の後に街路街区をWorkerへ分けられる。
+
+計測値は[並列化の見積もりのJSON](ce-meshless-parallel-s3-20261108.json)。
+
+テスト: `services/vectorDistrictPool.test.ts`（2件）。Worker数1・2・4で同期版と同じSHA-256になり、2本以上では地区を複数のWorkerへ分けること。Worker数がコア数−1で1以上4以下になること。
+
+関連テスト: `generators/vector`、`components/vector`、`services`、`renderers/vector`で、57ファイル中50成功・7 skip（計測用）、295件中287成功・8 skip。
