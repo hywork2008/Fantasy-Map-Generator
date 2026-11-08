@@ -46,6 +46,11 @@ export interface GoodDemandCalibrationRow {
    * the fallback without a market (docs/plan/town-soap.md §3.4).
    */
   floorFromTownSoap?: boolean;
+  /**
+   * The market's floor is the potash its soft soap floor boils (townSoap.ts), not the per-head
+   * rate, which stays the fallback without a market (docs/plan/town-soap.md §3.5).
+   */
+  floorFromSoapPotash?: boolean;
   typicalRecipeIndex?: number;
   sources: readonly string[];
 }
@@ -475,6 +480,22 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     laborPointsPerLotAtDefaultRate: 0.0002,
     residualWeight: 1,
     sources: ["town soap need: the better-off half of 2 kg a town person a year (docs/plan/town-soap.md §3.2)"]
+  },
+  {
+    goodName: "Potash",
+    domain: "victualling",
+    inlandShare: 0.02,
+    portShare: 0.02,
+    provenances: ["recipeDerived"],
+    annualLotsPerPerson: 0.3 / 120,
+    floorFromSoapPotash: true,
+    fixtureLotsPerMonth: 1.875,
+    laborPointsPerLotAtDefaultRate: 0.0001,
+    residualWeight: 1,
+    sources: [
+      "soft soap ingredient: 0.3 barrel a barrel of soft soap (goods-generator.ts) over the town soap floor (docs/plan/town-soap.md §3.5)",
+      "0.1 person-month a barrel: leached from 24 sacks of hearth ash and boiled down"
+    ]
   },
   {
     goodName: "Charcoal",

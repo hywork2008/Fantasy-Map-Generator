@@ -252,7 +252,7 @@ export const OCCUPATIONAL_CALIBRATION: readonly OccupationalCalibrationRow[] = [
   {
     pool: "chandlery",
     peoplePerThousandUrban: { min: 1, max: 4, inlandTypicalPerThousand: 2 },
-    goodNames: ["Candles", "Soap", "Castile Soap"],
+    goodNames: ["Candles", "Soap", "Castile Soap", "Potash"],
     guildDomain: "victualling",
     sources: [
       "F1 candle makers 0.27 × shoemakers (4/1000), local share with soap boilers; the tallow chandlers also boiled soap (docs/plan/town-soap.md §3.4)"

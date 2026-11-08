@@ -75,3 +75,23 @@ export function getMonthlyTownSoapFloor(
   if (goodName === WHITE_SOAP || stocksRecipe(market, whiteSoap)) return own;
   return own + getMonthlyTownSoapDemand(market, WHITE_SOAP);
 }
+
+/**
+ * Barrels of potash the market's soft soap floor boils in a month (docs/plan/town-soap.md §3.5):
+ * the floor times the least potash a soft soap recipe takes. Glass and the market's own trade are
+ * left to the ordinary production steps.
+ */
+export function getMonthlySoapPotashFloor(
+  market: Pick<Market, "i" | "goods">,
+  softSoap: Pick<Good, "recipes"> | undefined,
+  whiteSoap: Pick<Good, "recipes"> | undefined,
+  potashId: number
+): number {
+  let perBarrel = Number.POSITIVE_INFINITY;
+  for (const recipe of softSoap?.recipes ?? []) {
+    const amount = recipe[potashId];
+    if (amount != null && amount > 0) perBarrel = Math.min(perBarrel, amount);
+  }
+  if (!Number.isFinite(perBarrel)) return 0;
+  return getMonthlyTownSoapFloor(market, SOFT_SOAP, whiteSoap) * perBarrel;
+}
