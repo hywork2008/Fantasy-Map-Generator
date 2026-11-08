@@ -1,3 +1,4 @@
+import RBush from "rbush";
 import type { InfillLane } from "../types/contracts/localInfill";
 import type { DistrictParameters, Face, Point } from "../types/document";
 import { frontageBuildings, occupancyDrawOf } from "./frontageBuildings";
@@ -64,126 +65,31 @@ export function buildOrganicBlocks(
   build: boolean,
   context?: OrganicBlockContext
 ): PerimeterFabric {
-  const fabric: PerimeterFabric = { buildings: [], lanes: [], entrances: new Map(), blocks: [] };
-  const rng = makeRng(`${seed}:organic-network-v1:${face.id}`);
-  const width = parameters?.laneWidth ?? 3;
-  const lotArea = parameters?.lotArea ?? dwellingLotArea(face.properties.ward);
-  const houseDepth = Math.sqrt(Math.max(40, lotArea)) * 1.1;
-  const pairedSpan = 2 * houseDepth + width + 0.7;
-  const micro = context?.extentMeters !== undefined && civicSizeForExtent(context.extentMeters) === "micro";
-  const compact: CompactSplit | undefined = micro ? { laneWidth: width, houseDepth, lotArea } : undefined;
-  const hub = context?.hub ?? polygonCentroid(outline);
-  const preferredAxis: Point | undefined = parameters
-    ? [Math.cos(parameters.orientation), Math.sin(parameters.orientation)]
-    : undefined;
-  const roads: InfillLane[] = [];
-  const entries: Point[] = [];
+  const layout = organicLayout(
+    face,
+    parameters,
+    seed,
+    context,
+    makeRng(`${seed}:organic-network-v1:${face.id}`),
+    polygonCentroid(outline)
+  );
+  const { fabric, roads, entries, width } = layout;
 
   // Boundary edges are offset as one joined ring, including the intersections
   // with road centrelines at gates/bridges. The water/wall itself is never a
   // street endpoint. Different banks are handled on their respective land side.
-  const domains = corridorDomains(outline, boundaries, width, pairedSpan);
+  const domains = corridorDomains(outline, boundaries, width, layout.pairedSpan);
   for (const domain of domains) {
     for (const edge of domain.boundaries) {
-      if (!edge.feature || edge.barrier) addStreet([edge.a, edge.b]);
+      if (!edge.feature || edge.barrier) layout.addStreet([edge.a, edge.b]);
       else entries.push(edge.a, edge.b);
     }
     if (!build) continue;
-    const parcels: Point[][] = [];
-    if (context?.streetCellMeters) partition(domain.ring, 0, context.streetCellMeters);
-    else connectDistrict(domain.ring, 0);
-    for (const parcel of parcels) fill(parcel, domain.boundaries);
-
-    /** Street blocks of a coarse face, each then laid out like a fine-mesh face.
-     * Every cut is a street and a frontage boundary of both children. */
-    function partition(poly: Point[], depth: number, cell: number): void {
-      const frame = localFrame(poly);
-      if (depth < 12 && area(poly) > cell * cell * 1.6 && frame.hi - frame.lo > cell * 1.25) {
-        const split = chooseSplit(poly, frame.axis, rng, Math.max(pairedSpan, cell * 0.45), domain.boundaries);
-        if (split) {
-          const street = context?.streetWidthMeters ?? width;
-          addStreet(split.path, street);
-          for (let i = 1; i < split.path.length; i++)
-            domain.boundaries.push({
-              a: split.path[i - 1],
-              b: split.path[i],
-              feature: true,
-              barrier: false,
-              setback: street / 2 + ORGANIC_LANE_FACADE_CLEARANCE
-            });
-          for (const child of split.parts) partition(child, depth + 1, cell);
-          return;
-        }
-      }
-      connectDistrict(poly, 0);
-    }
-
-    function connectDistrict(poly: Point[], level: number): void {
-      const frame = localFrame(poly, preferredAxis);
-      // Only coarse districts get circumferential links. Never march an offset
-      // through the entire face: the independently chosen attachment points on
-      // either side of an arterial need not line up into a complete ring.
-      // A Micro sector can hold a connector and two blocks without holding
-      // the seven block areas required by the large-district hierarchy. Give
-      // it one circumferential connection before local parcel subdivision.
-      if (
-        level < (micro ? 1 : 3) &&
-        frame.short > pairedSpan * (micro ? 1.1 : 2.1) &&
-        area(poly) > pairedSpan ** 2 * (micro ? 2.2 : 7)
-      ) {
-        const center = polygonCentroid(poly);
-        const radial = unit(sub(center, hub));
-        const wall = nearestWall(center, context?.walls ?? []);
-        let normal: Point = wall ? rotate(unit(sub(wall[1], wall[0])), Math.PI / 2) : radial;
-        if (dot(normal, radial) < 0) normal = [-normal[0], -normal[1]];
-        // Blend a local wall normal with the direction away from the plaza.
-        // This follows polygonal walls without imposing a city-wide grid.
-        normal = unit([normal[0] * 0.65 + radial[0] * 0.35, normal[1] * 0.65 + radial[1] * 0.35]);
-        const split = chooseSplit(poly, normal, rng, pairedSpan, domain.boundaries, { hub, outward: normal }, compact);
-        if (split) {
-          addStreet(split.path);
-          for (const child of split.parts) connectDistrict(child, level + 1);
-          return;
-        }
-      }
-      subdivide(poly, 0);
-    }
-
-    function subdivide(poly: Point[], depth: number): void {
-      const frame = localFrame(poly, preferredAxis);
-      const long = frame.hi - frame.lo;
-      // Back-to-back rows and courts share the same house depth. Their size
-      // distribution belongs to each parcel, never to a district-wide strip.
-      const courtyard = rng() < 0.32;
-      // Keep real house depths and lane widths. A smaller town has shorter
-      // frontages and smaller courts, not houses scaled down with the map.
-      const shortLimit =
-        pairedSpan + (courtyard ? houseDepth * rng.range(micro ? 0.3 : 0.65, micro ? 0.8 : 1.4) : rng.range(0, 3));
-      const longLimit = pairedSpan * rng.range(micro ? 1.4 : 1.65, micro ? 2 : 2.6);
-      const kernel = insetConvexKernel(
-        poly,
-        poly.map(() => 0)
-      );
-      const deepNotch = area(kernel) < area(poly) * 0.82;
-      if (
-        depth >= 16 ||
-        (!deepNotch && frame.short <= shortLimit && long <= longLimit && area(poly) <= shortLimit * longLimit * 0.88)
-      ) {
-        parcels.push(poly);
-        return;
-      }
-      // Recompute the frame from each child's actual edges. Alternating axes
-      // and independent half/third positions produce branching T junctions,
-      // trapezoids and tapered blocks, without a stack of parallel ribbons.
-      let split = chooseSplit(poly, frame.axis, rng, pairedSpan, domain.boundaries, undefined, compact);
-      if (!split && deepNotch) split = splitReflex(poly, pairedSpan * pairedSpan * 0.18);
-      if (!split) {
-        parcels.push(poly);
-        return;
-      }
-      addStreet(split.path);
-      for (const child of split.parts) subdivide(child, depth + 1);
-    }
+    const scope = { boundaries: domain.boundaries, parcels: [] as Point[][] };
+    if (context?.streetCellMeters)
+      layout.partition(domain.ring, 0, context.streetCellMeters, scope, poly => layout.connectDistrict(poly, 0, scope));
+    else layout.connectDistrict(domain.ring, 0, scope);
+    for (const parcel of scope.parcels) layout.fill(parcel, domain.boundaries, roads);
   }
 
   // Insert actual shared junction vertices. Do not replace a two-edge bend by
@@ -191,13 +97,225 @@ export function buildOrganicBlocks(
   fabric.lanes = joinStreetVertices(roads);
   fabric.entrances.set(face.id, entries);
   return fabric;
+}
+
+/** One street block of a coarse district, laid out on its own like a fine-mesh face. */
+export interface OrganicStreetCell {
+  /** Stable for the same district and ring, so a cell's layout does not depend on its siblings. */
+  id: string;
+  ring: Point[];
+  /** District and street boundaries overlapping the ring, with their setbacks. */
+  boundaries: BlockBoundary[];
+}
+export interface OrganicStreetPlan {
+  streets: InfillLane[];
+  entries: Point[];
+  cells: OrganicStreetCell[];
+}
+
+/** First half of `buildOrganicBlocks` with `streetCellMeters`: the district perimeter streets and the street
+ * blocks. Each cell is then built independently by `buildOrganicStreetCell` with its own random stream, so a
+ * cell's layout and cost do not grow with the district. */
+export function planOrganicStreetCells(
+  face: Face,
+  outline: Point[],
+  boundaries: BlockBoundary[],
+  parameters: DistrictParameters | undefined,
+  seed: string,
+  context: OrganicBlockContext & { streetCellMeters: number }
+): OrganicStreetPlan {
+  const layout = organicLayout(
+    face,
+    parameters,
+    seed,
+    context,
+    makeRng(`${seed}:organic-streets-v1:${face.id}`),
+    polygonCentroid(outline)
+  );
+  const cells: OrganicStreetCell[] = [];
+  for (const domain of corridorDomains(outline, boundaries, layout.width, layout.pairedSpan)) {
+    for (const edge of domain.boundaries) {
+      if (!edge.feature || edge.barrier) layout.addStreet([edge.a, edge.b]);
+      else layout.entries.push(edge.a, edge.b);
+    }
+    const scope = { boundaries: domain.boundaries, parcels: [] as Point[][] };
+    const rings: Point[][] = [];
+    layout.partition(domain.ring, 0, context.streetCellMeters, scope, poly => rings.push(poly));
+    // Boundaries are final only after the whole partition; later cuts can border earlier cells.
+    for (const ring of rings)
+      cells.push({
+        id: `${face.id}:cell:${ringHash(ring)}`,
+        ring,
+        boundaries: domain.boundaries.filter(edge =>
+          ring.some((a, i) => overlappingBoundaries(a, ring[(i + 1) % ring.length], [edge]).length)
+        )
+      });
+  }
+  return { streets: layout.roads, entries: layout.entries, cells };
+}
+
+/** Second half: lanes, parcels and houses of one street block. `nearby` are the already planned streets
+ * around the cell, used only to keep facades clear of them. Lanes are returned unjoined; join all cells and
+ * streets of a district with `joinOrganicStreetVertices`. */
+export function buildOrganicStreetCell(
+  face: Face,
+  cell: OrganicStreetCell,
+  parameters: DistrictParameters | undefined,
+  seed: string,
+  context: OrganicBlockContext,
+  nearby: InfillLane[]
+): PerimeterFabric {
+  const layout = organicLayout(
+    face,
+    parameters,
+    seed,
+    context,
+    makeRng(`${seed}:organic-cell-v1:${cell.id}`),
+    polygonCentroid(cell.ring)
+  );
+  const scope = { boundaries: cell.boundaries.slice(), parcels: [] as Point[][] };
+  layout.connectDistrict(cell.ring, 0, scope);
+  const clearance = [...nearby, ...layout.roads];
+  for (const parcel of scope.parcels) layout.fill(parcel, scope.boundaries, clearance);
+  layout.fabric.lanes = layout.roads;
+  return layout.fabric;
+}
+
+function ringHash(ring: Point[]): string {
+  let a = 0x811c9dc5,
+    b = 0x9e3779b9;
+  for (const p of ring)
+    for (const v of p) {
+      const code = Math.round(v * 100);
+      a = Math.imul(a ^ code, 0x01000193);
+      b = Math.imul(b ^ code, 0x85ebca6b);
+    }
+  return `${(a >>> 0).toString(16).padStart(8, "0")}${(b >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+/** Shared layout state of one random stream. The call order of `partition`, `connectDistrict`, `subdivide`
+ * and `fill` decides the random draws, so `buildOrganicBlocks` keeps its original order. */
+function organicLayout(
+  face: Face,
+  parameters: DistrictParameters | undefined,
+  seed: string,
+  context: OrganicBlockContext | undefined,
+  rng: Rng,
+  fallbackHub: Point
+) {
+  const fabric: PerimeterFabric = { buildings: [], lanes: [], entrances: new Map(), blocks: [] };
+  const width = parameters?.laneWidth ?? 3;
+  const lotArea = parameters?.lotArea ?? dwellingLotArea(face.properties.ward);
+  const houseDepth = Math.sqrt(Math.max(40, lotArea)) * 1.1;
+  const pairedSpan = 2 * houseDepth + width + 0.7;
+  const micro = context?.extentMeters !== undefined && civicSizeForExtent(context.extentMeters) === "micro";
+  const compact: CompactSplit | undefined = micro ? { laneWidth: width, houseDepth, lotArea } : undefined;
+  const hub = context?.hub ?? fallbackHub;
+  const preferredAxis: Point | undefined = parameters
+    ? [Math.cos(parameters.orientation), Math.sin(parameters.orientation)]
+    : undefined;
+  const roads: InfillLane[] = [];
+  const entries: Point[] = [];
+  type Scope = { boundaries: BlockBoundary[]; parcels: Point[][] };
 
   function addStreet(points: Point[], widthMeters = width): void {
     if (points.length >= 2 && distance(points[0], points.at(-1)!) > 1e-5)
       roads.push({ faceId: face.id, points, widthMeters });
   }
 
-  function fill(poly: Point[], perimeter: BlockBoundary[]): void {
+  /** Street blocks of a coarse face, each then laid out like a fine-mesh face.
+   * Every cut is a street and a frontage boundary of both children. */
+  function partition(poly: Point[], depth: number, cell: number, scope: Scope, leaf: (poly: Point[]) => void): void {
+    const frame = localFrame(poly);
+    if (depth < 12 && area(poly) > cell * cell * 1.6 && frame.hi - frame.lo > cell * 1.25) {
+      const split = chooseSplit(poly, frame.axis, rng, Math.max(pairedSpan, cell * 0.45), scope.boundaries);
+      if (split) {
+        const street = context?.streetWidthMeters ?? width;
+        addStreet(split.path, street);
+        for (let i = 1; i < split.path.length; i++)
+          scope.boundaries.push({
+            a: split.path[i - 1],
+            b: split.path[i],
+            feature: true,
+            barrier: false,
+            setback: street / 2 + ORGANIC_LANE_FACADE_CLEARANCE
+          });
+        for (const child of split.parts) partition(child, depth + 1, cell, scope, leaf);
+        return;
+      }
+    }
+    leaf(poly);
+  }
+
+  function connectDistrict(poly: Point[], level: number, scope: Scope): void {
+    const frame = localFrame(poly, preferredAxis);
+    // Only coarse districts get circumferential links. Never march an offset
+    // through the entire face: the independently chosen attachment points on
+    // either side of an arterial need not line up into a complete ring.
+    // A Micro sector can hold a connector and two blocks without holding
+    // the seven block areas required by the large-district hierarchy. Give
+    // it one circumferential connection before local parcel subdivision.
+    if (
+      level < (micro ? 1 : 3) &&
+      frame.short > pairedSpan * (micro ? 1.1 : 2.1) &&
+      area(poly) > pairedSpan ** 2 * (micro ? 2.2 : 7)
+    ) {
+      const center = polygonCentroid(poly);
+      const radial = unit(sub(center, hub));
+      const wall = nearestWall(center, context?.walls ?? []);
+      let normal: Point = wall ? rotate(unit(sub(wall[1], wall[0])), Math.PI / 2) : radial;
+      if (dot(normal, radial) < 0) normal = [-normal[0], -normal[1]];
+      // Blend a local wall normal with the direction away from the plaza.
+      // This follows polygonal walls without imposing a city-wide grid.
+      normal = unit([normal[0] * 0.65 + radial[0] * 0.35, normal[1] * 0.65 + radial[1] * 0.35]);
+      const split = chooseSplit(poly, normal, rng, pairedSpan, scope.boundaries, { hub, outward: normal }, compact);
+      if (split) {
+        addStreet(split.path);
+        for (const child of split.parts) connectDistrict(child, level + 1, scope);
+        return;
+      }
+    }
+    subdivide(poly, 0, scope);
+  }
+
+  function subdivide(poly: Point[], depth: number, scope: Scope): void {
+    const frame = localFrame(poly, preferredAxis);
+    const long = frame.hi - frame.lo;
+    // Back-to-back rows and courts share the same house depth. Their size
+    // distribution belongs to each parcel, never to a district-wide strip.
+    const courtyard = rng() < 0.32;
+    // Keep real house depths and lane widths. A smaller town has shorter
+    // frontages and smaller courts, not houses scaled down with the map.
+    const shortLimit =
+      pairedSpan + (courtyard ? houseDepth * rng.range(micro ? 0.3 : 0.65, micro ? 0.8 : 1.4) : rng.range(0, 3));
+    const longLimit = pairedSpan * rng.range(micro ? 1.4 : 1.65, micro ? 2 : 2.6);
+    const kernel = insetConvexKernel(
+      poly,
+      poly.map(() => 0)
+    );
+    const deepNotch = area(kernel) < area(poly) * 0.82;
+    if (
+      depth >= 16 ||
+      (!deepNotch && frame.short <= shortLimit && long <= longLimit && area(poly) <= shortLimit * longLimit * 0.88)
+    ) {
+      scope.parcels.push(poly);
+      return;
+    }
+    // Recompute the frame from each child's actual edges. Alternating axes
+    // and independent half/third positions produce branching T junctions,
+    // trapezoids and tapered blocks, without a stack of parallel ribbons.
+    let split = chooseSplit(poly, frame.axis, rng, pairedSpan, scope.boundaries, undefined, compact);
+    if (!split && deepNotch) split = splitReflex(poly, pairedSpan * pairedSpan * 0.18);
+    if (!split) {
+      scope.parcels.push(poly);
+      return;
+    }
+    addStreet(split.path);
+    for (const child of split.parts) subdivide(child, depth + 1, scope);
+  }
+
+  /** `clearance` are the lanes and streets facades must keep clear of. */
+  function fill(poly: Point[], perimeter: BlockBoundary[], clearance: InfillLane[]): void {
     const sides = parcelSides(poly, perimeter, width);
     // Mild bends leave a court/yard on their concave side. Deep notches have
     // already been divided by a real lane, so a convex kernel cannot erase an
@@ -247,7 +365,7 @@ export function buildOrganicBlocks(
             // Corner mitres can leave less room than the nominal inset on
             // one side. Keep the facade clear of every generated lane.
             p.every(point =>
-              roads.every(
+              clearance.every(
                 lane =>
                   nearestOnPolyline(point, lane.points).dist >= lane.widthMeters / 2 + ORGANIC_LANE_FACADE_CLEARANCE / 7
               )
@@ -261,6 +379,8 @@ export function buildOrganicBlocks(
         }))
     );
   }
+
+  return { fabric, roads, entries, width, pairedSpan, addStreet, partition, connectDistrict, fill };
 }
 
 /** Minimum-area local bounding frame. Unlike the longest single mesh edge,
@@ -585,6 +705,54 @@ function corridorDomains(
       }))
     }
   ];
+}
+
+/** Same result as the district-wide junction join of `buildOrganicBlocks`, with the endpoints indexed so a
+ * coarse district with thousands of lanes does not compare every segment with every endpoint. */
+export function joinOrganicStreetVertices(lanes: InfillLane[]): InfillLane[] {
+  const endpoints = new Map<string, Point>();
+  for (const lane of lanes) for (const p of lane.points) endpoints.set(pointKey(p), p);
+  const index = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; point: Point; order: number }>();
+  index.load(
+    [...endpoints.values()].map((point, order) => ({
+      minX: point[0],
+      minY: point[1],
+      maxX: point[0],
+      maxY: point[1],
+      point,
+      order
+    }))
+  );
+  const seen = new Set<string>();
+  const joined: InfillLane[] = [];
+  const pad = 1e-5;
+  for (const lane of lanes) {
+    for (let i = 1; i < lane.points.length; i++) {
+      const a = lane.points[i - 1],
+        b = lane.points[i];
+      const points = index
+        .search({
+          minX: Math.min(a[0], b[0]) - pad,
+          minY: Math.min(a[1], b[1]) - pad,
+          maxX: Math.max(a[0], b[0]) + pad,
+          maxY: Math.max(a[1], b[1]) + pad
+        })
+        .sort((p, q) => p.order - q.order)
+        .map(item => item.point)
+        .filter(p => onSegment(p, a, b))
+        .sort((p, q) => distance(a, p) - distance(a, q));
+      for (let j = 1; j < points.length; j++) {
+        const p = points[j - 1],
+          q = points[j];
+        if (distance(p, q) < 1e-5) continue;
+        const key = [pointKey(p), pointKey(q)].sort().join(":");
+        if (seen.has(key)) continue;
+        seen.add(key);
+        joined.push({ ...lane, points: [p, q] });
+      }
+    }
+  }
+  return joined;
 }
 
 function joinStreetVertices(lanes: InfillLane[]): InfillLane[] {

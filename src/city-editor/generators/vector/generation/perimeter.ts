@@ -1,17 +1,22 @@
 import RBush from "rbush";
 import { growthRandom, residentialStoreys } from "../../../../utils/urbanMorphology";
-import type { Face, Point } from "../../../types/document";
+import type { InfillLane } from "../../../types/contracts/localInfill";
+import type { DistrictParameters, Face, Point } from "../../../types/document";
 import type { CurveAnchor, VectorCityDocument, VectorPlacement } from "../../../types/vector/document";
 import type { VectorBlock } from "../../../types/vector/generation";
 import type { VectorUrbanSettings } from "../../../types/vector/urban";
 import { nearestOnPolyline, polygonCentroid } from "../../geom";
 import {
-  buildOrganicBlocks,
+  buildOrganicStreetCell,
   COARSE_STREET_CELL_METERS,
   COARSE_STREET_WIDTH_METERS,
+  joinOrganicStreetVertices,
+  type OrganicBlockContext,
+  planOrganicStreetCells,
   ROAD_FACADE_CLEARANCE_METERS
 } from "../../organicBlocks";
 import { dwellingCapacity } from "../../residentialCapacityFormula";
+import type { BlockBoundary, PerimeterFabric } from "../../streetBlockGeometry";
 import { createGenerationJoiner } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { evaluateAnchor } from "../geometry/curves";
@@ -81,13 +86,12 @@ export function planVectorPerimeter(doc: VectorCityDocument, blocks: VectorBlock
       );
       return { a, b, feature: !!road, barrier: !road, setback: road ? ROAD_FACADE_CLEARANCE_METERS : 3 };
     });
-    const fabric = buildOrganicBlocks(
+    const fabric = buildDistrictFabric(
       face,
       block.outer,
       boundaries,
       { coverage: 0.9, occupancy: 1, lotArea: 80, laneWidth: settings.laneWidthMeters, orientation: 0 },
       doc.recipe.seed,
-      true,
       {
         hub: doc.site!.center,
         extentMeters: doc.frame.extentMeters,
@@ -305,6 +309,51 @@ export function placeVectorPerimeterHouses(
     capacity += dwellings;
   }
   return ids;
+}
+
+/** CE's coarse-district layout split in two: the street blocks of the district first, then each street block
+ * on its own random stream. One street block bounds the cost of a layout step and is the future unit of
+ * records and parallel generation. */
+function buildDistrictFabric(
+  face: Face,
+  outline: Point[],
+  boundaries: BlockBoundary[],
+  parameters: DistrictParameters,
+  seed: string,
+  context: OrganicBlockContext & { streetCellMeters: number }
+) {
+  const plan = planOrganicStreetCells(face, outline, boundaries, parameters, seed, context);
+  const streetIndex = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; lane: InfillLane }>();
+  streetIndex.load(
+    plan.streets.map(lane => ({
+      minX: Math.min(...lane.points.map(p => p[0])),
+      minY: Math.min(...lane.points.map(p => p[1])),
+      maxX: Math.max(...lane.points.map(p => p[0])),
+      maxY: Math.max(...lane.points.map(p => p[1])),
+      lane
+    }))
+  );
+  const reach = Math.max(context.streetWidthMeters ?? 0, parameters.laneWidth ?? 0) + 1;
+  const lanes: InfillLane[] = [],
+    buildings: PerimeterFabric["buildings"] = [],
+    blocks: Point[][] = [];
+  for (const cell of plan.cells) {
+    const xs = cell.ring.map(p => p[0]),
+      ys = cell.ring.map(p => p[1]);
+    const nearby = streetIndex
+      .search({
+        minX: Math.min(...xs) - reach,
+        minY: Math.min(...ys) - reach,
+        maxX: Math.max(...xs) + reach,
+        maxY: Math.max(...ys) + reach
+      })
+      .map(item => item.lane);
+    const local = buildOrganicStreetCell(face, cell, parameters, seed, context, nearby);
+    lanes.push(...local.lanes);
+    buildings.push(...local.buildings);
+    blocks.push(...local.blocks);
+  }
+  return { lanes: joinOrganicStreetVertices([...plan.streets, ...lanes]), buildings, blocks };
 }
 
 /** Keep bends as editable vertices, while junctions remain separate street ends. */

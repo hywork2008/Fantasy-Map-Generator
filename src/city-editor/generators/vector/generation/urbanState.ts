@@ -2,7 +2,7 @@ import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorUrbanAlgorithm } from "../../../types/vector/urban";
 
 /** Output-changing revisions bump this; recipe links refuse documents adopted by another version. */
-export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v2";
+export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v3";
 
 /** Ownership evidence excludes the evidence itself and display-only stage selection. */
 function urbanState(doc: VectorCityDocument): string {
