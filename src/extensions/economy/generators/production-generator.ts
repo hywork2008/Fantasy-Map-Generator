@@ -986,8 +986,9 @@ export class ProductionModule {
       const row = getGoodDemandCalibration(good.name);
       if (!row) continue;
       let lots = getCalibratedMonthlyLots({ goodName: good.name, laborPeopleBurg, port, capital });
-      // Forest glasshouses make the market's Glass; its town glaziers keep the finishing work.
-      if (good.name === "Glass" && hasForestGlasshouses(market)) lots = 0;
+      // Forest glasshouses make an inland market's Glass; its town glaziers keep the finishing work.
+      // Port towns keep their glasshouses, as Venice and Barcelona melted plant soda ash shipped in.
+      if (good.name === "Glass" && !port && hasForestGlasshouses(market)) lots = 0;
       // A per-head floor stops when the market already holds months of it; orders do not.
       if (row.annualLotsPerPerson != null) {
         let marketLots = (marketLaborPeople * row.annualLotsPerPerson) / 12;

@@ -6,7 +6,9 @@
  * out again as the Goods editor's placement regeneration does. Otherwise they stay as saved. A
  * goods-flow observer sums each month the goods' flows by direction, category and the
  * market's temperature band; at each month's end it sums their stock and stock value by band.
- * CLAYFLOW_GOODS (comma-separated names) replaces the goods watched.
+ * CLAYFLOW_GOODS (comma-separated names) replaces the goods watched. Each month also sums the
+ * markets' forest glasshouse ledgers by band, and at the start the forest cells' standing hectares
+ * and yearly regrowth (docs/analytics/glass-houses-20261107.md §6).
  *
  *   npx tsx docs/analytics/cold-clay-20261107/clayflow.mts <map.fmg> <out.json> <months> [add|regen] [Clay,White sand]
  */
@@ -19,6 +21,13 @@ import { getGoodCellColumn, getMarketCellColumn } from "../../../src/extensions/
 import { getWorldContext } from "../../../src/extensions/economy/context/economyApi";
 import { Goods } from "../../../src/extensions/economy/generators/goods-generator";
 import { setGoodFlowObserver } from "../../../src/extensions/economy/generators/goodsBalanceLedger";
+import {
+  FOREST_REGROWTH_PER_YEAR,
+  getForestCapacity,
+  getForestStockRatio,
+  getWoodUnitsPerForestCoverage
+} from "../../../src/generators/forestStock";
+import { calculatePhysicalAreaHectares } from "../../../src/extensions/economy/generators/agriculturalLandUse";
 
 const NAMES = process.env.CLAYFLOW_GOODS?.split(",") ?? ["Clay", "Ceramics", "Brick", "White sand", "Glass", "Potash"];
 const [input, output, monthsArg, mode, depositsArg] = process.argv.slice(2);
@@ -109,6 +118,17 @@ for (const name of ["Clay", "White sand"]) {
 }
 const marketsByBand: Record<string, number> = {};
 for (const b of bandByMarket.values()) marketsByBand[b] = (marketsByBand[b] ?? 0) + 1;
+// Forest cells by market band: standing hectares and the Wood units they regrow in a year.
+const forest: Record<string, { standingHa: number; regrowthUnits: number }> = {};
+for (const cellId of pack.cells.i) {
+  if (pack.cells.h[cellId] < 20) continue;
+  if (!(world.biomesData.tags?.[pack.cells.biomeCode[cellId]] ?? []).includes("forest")) continue;
+  const b = bandByMarket.get(cellMarket?.[cellId] ?? 0) ?? "none";
+  const capacity = getForestCapacity(pack.cells, cellId);
+  forest[b] ??= { standingHa: 0, regrowthUnits: 0 };
+  forest[b].standingHa += calculatePhysicalAreaHectares(world, cellId) * capacity * getForestStockRatio(pack.cells, cellId);
+  forest[b].regrowthUnits += getWoodUnitsPerForestCoverage(world, cellId) * capacity * FOREST_REGROWTH_PER_YEAR;
+}
 const byName = new Map(getGoods().map(good => [good.name, good]));
 const nameById = new Map(getGoods().map(good => [good.i, good.name]));
 let flows: Record<string, number> = {};
@@ -136,8 +156,22 @@ for (let month = 1; month <= months; month++) {
       stocks[key].value += row.stock * row.price;
     }
   }
-  snapshots.push({ month, flows, stocks });
-  writeFileSync(output, JSON.stringify({ input, mode: mode ?? "saved", added, depositCells, clayCells, clayByCellBand, marketsByBand, snapshots }));
+  const glasshouses: Record<string, Record<string, number>> = {};
+  for (const market of getMarkets()) {
+    const ledger = market.forestGlasshouses;
+    if (!ledger) continue;
+    const b = bandByMarket.get(market.i) ?? "none";
+    const row = (glasshouses[b] ??= { markets: 0, capacityLots: 0, lots: 0, woodFelled: 0, cumulativeWoodFelled: 0 });
+    if (ledger.capacityLots > 0) row.markets++;
+    row.capacityLots += ledger.capacityLots;
+    row.lots += ledger.lots;
+    row.woodFelled += ledger.woodFelled;
+    row.cumulativeWoodFelled += ledger.cumulativeWoodFelled ?? 0;
+    for (const key of ["houses", "housesGrown", "housesLeft", "housesArrived", "yearShortLots"] as const)
+      row[key] = (row[key] ?? 0) + (ledger[key] ?? 0);
+  }
+  snapshots.push({ month, flows, stocks, glasshouses });
+  writeFileSync(output, JSON.stringify({ input, mode: mode ?? "saved", added, depositCells, clayCells, clayByCellBand, marketsByBand, forest, snapshots }));
   console.log(`[clayflow] ${input} month ${month}`);
 }
 setGoodFlowObserver(null);

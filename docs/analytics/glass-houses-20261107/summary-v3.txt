@@ -1,0 +1,109 @@
+== seed 2102
+  markets by band {'>=8': 7, '4-8': 15, '0-4': 12, '<0': 8}
+  added Clay {'warmEligible': 484, 'warmClay': 25, 'rate': 0.0517, 'newEligible': 1770, 'placed': 88}
+  added White sand {'warmEligible': 484, 'warmClay': 14, 'rate': 0.0289, 'newEligible': 1770, 'placed': 45}
+  v2y3 clay cells by market band {'>=8': 12, '4-8': 51, '0-4': 26, '<0': 24} by cell temp {'>=8': 25, '4-8': 43, '0-4': 36, '<0': 9}
+  v2y3 deposit cells by market band {'Clay': {'>=8': 12, '4-8': 51, '0-4': 26, '<0': 24}, 'White sand': {'>=8': 11, '4-8': 18, '0-4': 12, '<0': 18}}
+  v3 clay cells by market band {'>=8': 12, '4-8': 51, '0-4': 26, '<0': 24} by cell temp {'>=8': 25, '4-8': 43, '0-4': 36, '<0': 9}
+  v3 deposit cells by market band {'Clay': {'>=8': 12, '4-8': 51, '0-4': 26, '<0': 24}, 'White sand': {'>=8': 11, '4-8': 18, '0-4': 12, '<0': 18}}
+  -- Glass: 12-month flows by band (v2y3 -> v3)
+    <0:sink:luxuryPurchase                           28 ->         11
+    <0:source:forestGlass                            39 ->         15
+    0-4:sink:characterLuxury                          5 ->          5
+    0-4:sink:luxuryPurchase                          85 ->         59
+    0-4:sink:recipeInput                              2 ->          2
+    0-4:source:burgCraft                              6 ->          5
+    0-4:source:forestGlass                           75 ->         47
+    0-4:source:navyImport                            49 ->         51
+    4-8:sink:characterLuxury                        185 ->        185
+    4-8:sink:exportDeparture                         18 ->         18
+    4-8:sink:luxuryPurchase                         356 ->        353
+    4-8:sink:recipeInput                            142 ->        158
+    4-8:source:burgCraft                             85 ->         90
+    4-8:source:containerReturn                       34 ->         46
+    4-8:source:forestGlass                          481 ->        438
+    4-8:source:importArrival                         17 ->         20
+    4-8:source:navyImport                           221 ->        242
+    >=8:sink:characterLuxury                         68 ->         67
+    >=8:sink:exportDeparture                          8 ->         11
+    >=8:sink:luxuryPurchase                         345 ->        320
+    >=8:sink:recipeInput                             32 ->         32
+    >=8:source:burgCraft                             53 ->         40
+    >=8:source:forestGlass                          337 ->        329
+    >=8:source:importArrival                          3 ->          3
+    >=8:source:navyImport                           131 ->        130
+    none:source:forestGlass                           1 ->          1
+    month 12   <0: stock        10 price 3.217  ->  stock         5 price 5.606
+    month 12  0-4: stock        38 price 4.133  ->  stock        36 price 4.213
+    month 12  4-8: stock       136 price 3.775  ->  stock       120 price 3.913
+    month 12  >=8: stock        71 price 2.775  ->  stock        71 price 2.790
+  -- Potash: 12-month flows by band (v2y3 -> v3)
+    0-4:sink:exportDeparture                          2 ->          1
+    0-4:sink:marketInvestment                        10 ->          8
+    0-4:sink:recipeInput                             12 ->         11
+    0-4:source:burgCraft                             21 ->         18
+    0-4:source:importArrival                          3 ->          2
+    4-8:sink:exportDeparture                          3 ->          4
+    4-8:sink:marketInvestment                        45 ->         41
+    4-8:sink:recipeInput                            149 ->        155
+    4-8:source:burgCraft                            204 ->        206
+    4-8:source:importArrival                          7 ->          7
+    >=8:sink:exportDeparture                          3 ->          3
+    >=8:sink:marketInvestment                        13 ->         13
+    >=8:sink:recipeInput                             89 ->         84
+    >=8:source:burgCraft                            109 ->        106
+    none:source:burgCraft                             1 ->          1
+    month 12   <0: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  0-4: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  4-8: stock        13 price 1.157  ->  stock        12 price 1.268
+    month 12  >=8: stock         4 price 1.139  ->  stock         6 price 1.119
+== seed 2103
+  markets by band {'4-8': 4, '0-4': 13, '>=8': 7, '<0': 1}
+  added Clay {'warmEligible': 563, 'warmClay': 27, 'rate': 0.048, 'newEligible': 932, 'placed': 42}
+  added White sand {'warmEligible': 563, 'warmClay': 24, 'rate': 0.0426, 'newEligible': 932, 'placed': 48}
+  v2y3 clay cells by market band {'0-4': 38, '4-8': 14, '>=8': 17} by cell temp {'0-4': 24, '4-8': 18, '>=8': 27}
+  v2y3 deposit cells by market band {'Clay': {'0-4': 38, '4-8': 14, '>=8': 17}, 'White sand': {'0-4': 35, '4-8': 22, '>=8': 15}}
+  v3 clay cells by market band {'0-4': 38, '4-8': 14, '>=8': 17} by cell temp {'0-4': 24, '4-8': 18, '>=8': 27}
+  v3 deposit cells by market band {'Clay': {'0-4': 38, '4-8': 14, '>=8': 17}, 'White sand': {'0-4': 35, '4-8': 22, '>=8': 15}}
+  -- Glass: 12-month flows by band (v2y3 -> v3)
+    0-4:sink:characterLuxury                        118 ->        114
+    0-4:sink:luxuryPurchase                         351 ->        358
+    0-4:sink:recipeInput                             37 ->         38
+    0-4:source:burgCraft                             30 ->         30
+    0-4:source:forestGlass                          270 ->        278
+    0-4:source:navyImport                           258 ->        255
+    4-8:sink:characterLuxury                         11 ->         11
+    4-8:sink:luxuryPurchase                         412 ->        387
+    4-8:sink:recipeInput                             45 ->         42
+    4-8:source:burgCraft                             28 ->         25
+    4-8:source:forestGlass                          397 ->        352
+    4-8:source:navyImport                            95 ->        112
+    >=8:sink:characterLuxury                         41 ->         39
+    >=8:sink:luxuryPurchase                         466 ->        471
+    >=8:sink:recipeInput                             45 ->         45
+    >=8:source:burgCraft                             33 ->         33
+    >=8:source:forestGlass                          396 ->        379
+    >=8:source:navyImport                           198 ->        216
+    month 12   <0: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  0-4: stock        51 price 3.136  ->  stock        54 price 3.039
+    month 12  4-8: stock        51 price 2.606  ->  stock        48 price 2.602
+    month 12  >=8: stock        75 price 3.073  ->  stock        73 price 2.975
+  -- Potash: 12-month flows by band (v2y3 -> v3)
+    0-4:sink:exportDeparture                          2 ->          2
+    0-4:sink:marketInvestment                        13 ->          9
+    0-4:sink:recipeInput                             32 ->         35
+    0-4:source:burgCraft                             45 ->         44
+    0-4:source:importArrival                          3 ->          3
+    4-8:sink:marketInvestment                         9 ->         10
+    4-8:sink:recipeInput                             59 ->         51
+    4-8:source:burgCraft                             67 ->         60
+    4-8:source:importArrival                          1 ->          2
+    >=8:sink:exportDeparture                          3 ->          3
+    >=8:sink:marketInvestment                        14 ->         13
+    >=8:sink:recipeInput                             57 ->         55
+    >=8:source:burgCraft                             72 ->         74
+    >=8:source:importArrival                          2 ->          3
+    month 12   <0: stock         0 price 0.000  ->  stock         0 price 0.000
+    month 12  0-4: stock         2 price 1.110  ->  stock         1 price 1.309
+    month 12  4-8: stock         0 price 1.183  ->  stock         0 price 1.220
+    month 12  >=8: stock         0 price 0.000  ->  stock         4 price 1.137

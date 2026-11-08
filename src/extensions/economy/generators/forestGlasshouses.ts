@@ -3,15 +3,19 @@
  * forest, not in towns: a hut burned its own wood for the potash and the furnace, about one stacked
  * cubic metre of wood for a kilogram of glass, and moved on when the woods near it were cut. The
  * market's forest-cell rural people run the huts; they fell the wood on site, buy White sand from the
- * market and sell the glass into it, only as far as the market's stock wants. Where a market has
- * glasshouses, its town glaziers keep the finishing work and no longer make Glass themselves.
+ * market and sell the glass into it, only as far as the market's stock wants and its glassmaker
+ * families (glassmakerHouses.ts) can work. Where a market has glasshouses, its inland town glaziers
+ * keep the finishing work and no longer make Glass themselves; port towns keep their own glasshouses.
  */
 
+import { getForestCapacity, getForestStockRatio } from "../../../generators/forestStock";
 import { rn } from "../../hostUtils";
-import { getGoods, getMarketCellColumn, getMarkets, getWorldContext } from "../economyContext";
+import { getGoods, getMarketCellColumn, getMarkets, getSimulationYear, getWorldContext } from "../economyContext";
+import { calculatePhysicalAreaHectares } from "./agriculturalLandUse";
 import { getCalibratedMonthlyLots } from "./craftDemandCalibration";
 import { laborPeople } from "./craftScale";
 import { getFellableWood, harvestWood } from "./forestStock";
+import { GLASSMAKER_FOUNDING_MONTHS, getFoundingHouses, settleGlassmakerYear } from "./glassmakerHouses";
 import { WAIN_KG } from "./goodMeasureCatalog";
 import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
@@ -36,8 +40,11 @@ export const GLASSHOUSE_LOTS_PER_YEAR = GLASSHOUSE_WOOD_FM_PER_YEAR / GLASSHOUSE
 export const GLASSHOUSE_WORKER_MONTHS_PER_LOT = (GLASSHOUSE_WORKERS * 12) / GLASSHOUSE_LOTS_PER_YEAR;
 /** Wood units felled for one wain of glass. */
 export const GLASSHOUSE_WOOD_UNITS_PER_LOT = (GLASSHOUSE_WOOD_FM_PER_KG * WAIN_KG) / WOOD_FM_PER_UNIT;
-/** Most of the forest cells' rural people that may work in glasshouses (provisional). */
-export const GLASSHOUSE_MAX_RURAL_SHARE = 0.01;
+/**
+ * Standing forest for one hut. No more than 10 huts worked at once in the Spessart, about
+ * 1,700 km² of forest (70% of 2,440 km²); one of the densest forest-glass regions.
+ */
+export const GLASSHOUSE_FOREST_HA_PER_HUT = 17000;
 /** Share of a forest cell's fellable wood the huts may cut in one month, as for rural Wood. */
 const GLASSHOUSE_MONTHLY_FELLING_SHARE = 0.01;
 /** Months of the market's Glass use it keeps in stock from the huts. */
@@ -56,6 +63,24 @@ export interface ForestGlasshouseLedger {
   /** Wood felled at the last settlement, Wood units. */
   woodFelled: number;
   cumulativeLots: number;
+  cumulativeWoodFelled: number;
+  /** Huts' worth of glassmaker families in the market (glassmakerHouses.ts); absent until seeded. */
+  houses?: number;
+  /** Simulation year the houses were last settled in. */
+  housesYear?: number;
+  /** Settlements since the start while the houses are being counted, and the highest running draw in them. */
+  foundingMonths?: number;
+  foundingDraw?: number;
+  /** Settlements since the last yearly settlement. */
+  yearMonths?: number;
+  /** Glass made since the last yearly settlement, wains. */
+  yearLots?: number;
+  /** Glass wanted since the last yearly settlement but not made for want of families, wains. */
+  yearShortLots?: number;
+  /** The last yearly settlement's change in houses. */
+  housesGrown?: number;
+  housesLeft?: number;
+  housesArrived?: number;
 }
 
 function ledgerOf(market: Market): ForestGlasshouseLedger {
@@ -65,7 +90,8 @@ function ledgerOf(market: Market): ForestGlasshouseLedger {
     capacityLots: 0,
     lots: 0,
     woodFelled: 0,
-    cumulativeLots: 0
+    cumulativeLots: 0,
+    cumulativeWoodFelled: 0
   };
   return market.forestGlasshouses;
 }
@@ -89,6 +115,11 @@ export function getForestGlassSandPerLot(glass: Good, goods: readonly Good[]): n
   if (!sand || !potash) return 0;
   const recipe = glass.recipes?.find(entry => (entry[sand.i] ?? 0) > 0 && (entry[potash.i] ?? 0) > 0);
   return recipe && Object.keys(recipe).length === 2 ? recipe[sand.i] : 0;
+}
+
+/** Huts a market's forest holds: its standing forest, and a crew from the people living in it. */
+export function getGlasshouseCount(standingForestHa: number, forestPeople: number): number {
+  return Math.max(0, Math.min(standingForestHa / GLASSHOUSE_FOREST_HA_PER_HUT, forestPeople / GLASSHOUSE_WORKERS));
 }
 
 /** Wains the huts make, given their capacity, the stock room, the sand and the money on both sides. */
@@ -134,6 +165,7 @@ export function settleForestGlasshouses(): void {
   const column = getMarketCellColumn();
   const forestCellsByMarket = new Map<number, { cellId: number; fellable: number }[]>();
   const forestPeopleByMarket = new Map<number, number>();
+  const forestHaByMarket = new Map<number, number>();
   for (const cellId of cells.i) {
     if (cells.h[cellId] < 20) continue;
     const tags = world.biomesData.tags?.[cells.biomeCode[cellId]] ?? [];
@@ -143,6 +175,11 @@ export function settleForestGlasshouses(): void {
     if (!(people > 0) || !(fellable > 0)) continue;
     const marketId = column[cellId];
     forestPeopleByMarket.set(marketId, (forestPeopleByMarket.get(marketId) ?? 0) + people);
+    const standingHa =
+      calculatePhysicalAreaHectares(world, cellId) *
+      getForestCapacity(cells, cellId) *
+      getForestStockRatio(cells, cellId);
+    forestHaByMarket.set(marketId, (forestHaByMarket.get(marketId) ?? 0) + standingHa);
     const list = forestCellsByMarket.get(marketId) ?? [];
     list.push({ cellId, fellable });
     forestCellsByMarket.set(marketId, list);
@@ -153,6 +190,8 @@ export function settleForestGlasshouses(): void {
     townPoints.set(burg.market, (townPoints.get(burg.market) ?? 0) + Math.max(0, burg.population ?? 0));
   }
 
+  const year = getSimulationYear();
+  const forestHutsByMarket = new Map<number, number>();
   for (const market of markets) {
     const ledger = ledgerOf(market);
     ledger.monthlyDraw = rn(
@@ -164,36 +203,64 @@ export function settleForestGlasshouses(): void {
     ledger.woodFelled = 0;
     const forest = forestCellsByMarket.get(market.i) ?? [];
     const fellable = forest.reduce((sum, cell) => sum + cell.fellable, 0);
-    ledger.capacityLots = rn(
-      Math.min(
-        ((forestPeopleByMarket.get(market.i) ?? 0) * GLASSHOUSE_MAX_RURAL_SHARE) / GLASSHOUSE_WORKER_MONTHS_PER_LOT,
-        fellable / GLASSHOUSE_WOOD_UNITS_PER_LOT
-      ),
-      4
-    );
-    if (!(ledger.capacityLots > 0)) continue;
-
+    const forestHuts = getGlasshouseCount(forestHaByMarket.get(market.i) ?? 0, forestPeopleByMarket.get(market.i) ?? 0);
+    forestHutsByMarket.set(market.i, forestHuts);
     const floor = getCalibratedMonthlyLots({
       goodName: glass.name,
       laborPeopleBurg: laborPeople(townPoints.get(market.i) ?? 0, rate),
       port: false
     });
+    // The families start as many as the market's highest running glass use in its first year (§3.5); until
+    // then the huts work as the forest allows. The first settlement comes before any month's use and is not counted.
+    if (ledger.houses === undefined) {
+      if (ledger.foundingMonths === undefined) {
+        ledger.foundingMonths = 0;
+        ledger.foundingDraw = 0;
+      } else {
+        ledger.foundingMonths += 1;
+        ledger.foundingDraw = Math.max(ledger.foundingDraw ?? 0, ledger.monthlyDraw);
+      }
+      if (ledger.foundingMonths >= GLASSMAKER_FOUNDING_MONTHS) {
+        ledger.houses = getFoundingHouses(ledger.foundingDraw ?? 0, GLASSHOUSE_LOTS_PER_YEAR, forestHuts);
+        ledger.housesYear = year;
+        ledger.yearMonths = 0;
+        ledger.yearLots = 0;
+        ledger.yearShortLots = 0;
+        delete ledger.foundingMonths;
+        delete ledger.foundingDraw;
+      }
+    }
+    const founding = ledger.houses === undefined;
+    if (!founding) ledger.yearMonths = (ledger.yearMonths ?? 0) + 1;
+    const woodLots = fellable / GLASSHOUSE_WOOD_UNITS_PER_LOT;
+    const forestCapacity = Math.min(forestHuts * (GLASSHOUSE_LOTS_PER_YEAR / 12), woodLots);
+    ledger.capacityLots = rn(
+      Math.min(Math.min(forestHuts, ledger.houses ?? forestHuts) * (GLASSHOUSE_LOTS_PER_YEAR / 12), woodLots),
+      4
+    );
+    if (!(forestCapacity > 0)) continue;
+
     const row = market.goods[glass.i] ?? { stock: 0, price: glass.value };
     const sandRow = market.goods[sand.i];
     const glassPrice = Math.max(0, row.price ?? glass.value);
     const sandPrice = Math.max(0, sandRow?.price ?? sand.value);
     const treasury = market.marketTreasury;
-    let lots = getForestGlassLots({
-      capacityLots: ledger.capacityLots,
-      targetStock: Math.max(floor, GLASSHOUSE_RESERVE_MONTHS * ledger.monthlyDraw),
-      stock: row.stock,
-      sandStock: sandRow?.stock ?? 0,
-      sandPerLot,
-      ruralCash: getRuralHouseholdWealth(market),
-      treasury: treasury?.balance ?? 0,
-      glassPrice,
-      sandPrice
-    });
+    const quote = (capacityLots: number) =>
+      getForestGlassLots({
+        capacityLots,
+        targetStock: Math.max(floor, GLASSHOUSE_RESERVE_MONTHS * ledger.monthlyDraw),
+        stock: row.stock,
+        sandStock: sandRow?.stock ?? 0,
+        sandPerLot,
+        ruralCash: getRuralHouseholdWealth(market),
+        treasury: treasury?.balance ?? 0,
+        glassPrice,
+        sandPrice
+      });
+    let lots = quote(ledger.capacityLots);
+    // What a forest with enough families would have made: the call for glassmakers to come.
+    if (!founding)
+      ledger.yearShortLots = rn((ledger.yearShortLots ?? 0) + Math.max(0, quote(forestCapacity) - lots), 4);
     if (!(lots > 1e-4) || !sandRow || !treasury) continue;
 
     // Fell the wood from the market's forest cells in proportion to what each can give.
@@ -202,6 +269,7 @@ export function settleForestGlasshouses(): void {
     for (const cell of forest) felled += harvestWood(cell.cellId, (wanted * cell.fellable) / fellable);
     lots = rn(Math.min(lots, felled / GLASSHOUSE_WOOD_UNITS_PER_LOT), 4);
     ledger.woodFelled = rn(felled, 4);
+    ledger.cumulativeWoodFelled = rn(ledger.cumulativeWoodFelled + felled, 4);
     if (!(lots > 0)) continue;
 
     const sandUnits = rn(lots * sandPerLot, 4);
@@ -225,5 +293,46 @@ export function settleForestGlasshouses(): void {
     creditRuralHouseholdWealth(market, glassPaid);
     ledger.lots = lots;
     ledger.cumulativeLots = rn(ledger.cumulativeLots + lots, 4);
+    if (!founding) ledger.yearLots = rn((ledger.yearLots ?? 0) + lots, 4);
+  }
+  settleGlassmakerHouses(markets, forestHutsByMarket, year);
+}
+
+/** Once a year, the families grow, leave idle markets and settle where they are wanted. */
+function settleGlassmakerHouses(markets: readonly Market[], forestHuts: ReadonlyMap<number, number>, year: number) {
+  const due = markets.filter(market => {
+    const ledger = market.forestGlasshouses;
+    return ledger?.houses !== undefined && (ledger.housesYear ?? year) < year;
+  });
+  if (!due.length) return;
+  const burgs = getWorldContext().pack.burgs;
+  const result = settleGlassmakerYear(
+    due.map(market => {
+      const ledger = market.forestGlasshouses!;
+      // A year begun after the founding months counts at its yearly rate.
+      const perYear = 12 / Math.max(1, Math.min(12, ledger.yearMonths ?? 12));
+      return {
+        marketId: market.i,
+        stateId: burgs[market.centerBurgId]?.state ?? 0,
+        houses: ledger.houses ?? 0,
+        usedHuts: ((ledger.yearLots ?? 0) * perYear) / GLASSHOUSE_LOTS_PER_YEAR,
+        shortHuts: ((ledger.yearShortLots ?? 0) * perYear) / GLASSHOUSE_LOTS_PER_YEAR,
+        forestHuts: forestHuts.get(market.i) ?? 0
+      };
+    })
+  );
+  const byId = new Map(result.markets.map(row => [row.marketId, row]));
+  for (const market of due) {
+    const ledger = market.forestGlasshouses!;
+    const row = byId.get(market.i);
+    if (!row) continue;
+    ledger.houses = row.houses;
+    ledger.housesGrown = row.grown;
+    ledger.housesLeft = row.left;
+    ledger.housesArrived = row.arrived;
+    ledger.housesYear = year;
+    ledger.yearMonths = 0;
+    ledger.yearLots = 0;
+    ledger.yearShortLots = 0;
   }
 }
