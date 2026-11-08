@@ -330,6 +330,14 @@ const BARILLA_BARREL_VALUE = 0.45;
  * alkali against potash's 65% (Barker 1977), so 0.5 x 65 / 20 = 1.6 barrels.
  */
 export const BARILLA_BARRELS_PER_GLASS_LOT = 1.6;
+/**
+ * Hard soap of the oil and soda countries for a 120 kg barrel of soap. Marseille boiled a charge of
+ * about 315 livres of oil with 200 livres of Alicante soda (Encyclopedie, "Savon"), and the edict of
+ * 1688 asked five livres of soap from three of oil: 72 kg of oil (0.65 barrel) and 46 kg of barilla
+ * (0.38 barrel) to the barrel (docs/plan/barilla-soap.md).
+ */
+export const SOAP_OIL_BARRELS_PER_BARILLA_SOAP = 0.65;
+export const BARILLA_BARRELS_PER_SOAP = 0.38;
 /** Pressed grape pomace in one 200 L cask of pomace wine: 120 kg, a tenth of a lot, with water (§29). */
 const POMACE_LOTS_PER_POMACE_WINE_CASK = 0.12;
 const shipClassById = new Map(SHIP_CLASS_DEFINITIONS.map(shipClass => [shipClass.id, shipClass]));
@@ -2277,7 +2285,9 @@ export const GOODS_DATA: GoodData[] = [
       { Olives: 1, Potash: 0.3 },
       { Cattle: 1, Potash: 0.3 },
       { Tallow: 1, Potash: 0.3 },
-      { Tallow: 1, "Caustic Soda": 0.15 }
+      { Tallow: 1, "Caustic Soda": 0.15 },
+      // Fifth recipe: the hard white soap of Castile and Marseille, olive oil boiled with barilla lye.
+      { Oil: SOAP_OIL_BARRELS_PER_BARILLA_SOAP, Barilla: BARILLA_BARRELS_PER_SOAP }
     ],
     unit: "barrel",
     demandCoverage: { utilities: 0.4, luxury: 0.6 }
@@ -4726,6 +4736,25 @@ export function migrateBarillaGood(): boolean {
   barilla.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
   goods.push(barilla);
   glass.recipes = [...(glass.recipes ?? []), { [sand.i]: 1, [barilla.i]: BARILLA_BARRELS_PER_GLASS_LOT }];
+  return true;
+}
+
+/**
+ * Adds the hard soap of oil and barilla to Soap in catalogues saved before it, on this save's Oil and
+ * Barilla ids (docs/plan/barilla-soap.md). No-op when Soap already has a barilla recipe or a good is
+ * missing.
+ */
+export function migrateBarillaSoapRecipe(): boolean {
+  const goods = getGoods();
+  const soap = goods.find(good => good.name === "Soap");
+  const oil = goods.find(good => good.name === "Oil");
+  const barilla = goods.find(good => good.name === "Barilla");
+  if (!soap || !oil || !barilla) return false;
+  if ((soap.recipes ?? []).some(recipe => barilla.i in recipe)) return false;
+  soap.recipes = [
+    ...(soap.recipes ?? []),
+    { [oil.i]: SOAP_OIL_BARRELS_PER_BARILLA_SOAP, [barilla.i]: BARILLA_BARRELS_PER_SOAP }
+  ];
   return true;
 }
 

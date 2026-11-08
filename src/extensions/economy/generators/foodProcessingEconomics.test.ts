@@ -83,6 +83,18 @@ describe("food-processing economics", () => {
         makeable
       )
     ).toBeCloseTo(0.75, 6);
+    // Soap follows the same rule: a market holding neither oil nor potash prices it from the cheapest
+    // makeable recipe, not from the mean with scarce oil in it.
+    expect(
+      getRecipeCostBasis(
+        "Soap",
+        recipes,
+        id => price[id],
+        () => 0,
+        undefined,
+        makeable
+      )
+    ).toBeCloseTo(0.75, 6);
     // Holding no lot of any alkali, glass is priced from the cheapest makeable recipe, not sand alone.
     expect(
       getRecipeCostBasis(

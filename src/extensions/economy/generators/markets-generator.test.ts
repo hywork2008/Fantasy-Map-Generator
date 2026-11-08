@@ -351,6 +351,38 @@ describe("MarketsModule", () => {
       expect(getDeals()).toEqual([]);
     });
 
+    it("takes no recipe with an ingredient not yet known as an output's typical recipe for industrial demand", () => {
+      // Soap's caustic-soda recipe before industrial alkali, here an unknown gunpowder-era good, once
+      // cost tallow alone and took Soap's whole demand away from Potash (docs/plan/barilla-soap.md §3.4).
+      setGoods([
+        {
+          i: 0,
+          name: "Soap",
+          tags: [],
+          value: 6,
+          recipes: [
+            { 1: 1, 2: 0.3 },
+            { 1: 1, 3: 0.15 }
+          ]
+        },
+        { i: 1, name: "Tallow", tags: [], value: 2 },
+        { i: 2, name: "Potash", tags: [], value: 0.9 },
+        { i: 3, name: "Gunpowder", tags: [], value: 1 }
+      ] as Good[]);
+      Goods.sync();
+      worldContext.options.gunpowderEraEnabled = false;
+      setEconomyCalibrationState({ applyCalibration: true });
+      try {
+        // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+        const demand = marketsModule["collectIndustrialDemand"](getGoods(), [0.01]);
+        expect(demand[1]).toBeCloseTo(0.01, 9);
+        expect(demand[2]).toBeCloseTo(0.003, 9);
+        expect(demand[3] ?? 0).toBe(0);
+      } finally {
+        setEconomyCalibrationState({ applyCalibration: false });
+      }
+    });
+
     it("does not buy staple Grain off the food-ledger mirror", () => {
       const market: Market = {
         i: 1,

@@ -23,19 +23,22 @@ export function hasViableFoodProcessingMargin(
  * ports. Averaging in the barilla of the far salt shores priced every inland market's glass as if
  * it were melted with dear imported ash (docs/plan/barilla.md §3.3). A market holding no full lot of
  * any alkali prices it from the cheapest alkali known, as glass made there would be.
+ * Soap likewise: the soft soap of tallow and potash in the north, the hard soap of olive oil and
+ * barilla in the south. Averaging in oil a market lacks priced its soap from scarce imported oil
+ * (docs/plan/barilla-soap.md).
  */
-const STOCKED_RECIPE_PRICED_GOODS = new Set(["Beer", "Glass"]);
-const CHEAPEST_RECIPE_FALLBACK_GOODS = new Set(["Glass"]);
+const STOCKED_RECIPE_PRICED_GOODS = new Set(["Beer", "Glass", "Soap"]);
+const CHEAPEST_RECIPE_FALLBACK_GOODS = new Set(["Glass", "Soap"]);
 
 import { cheapestContainerChoiceCosts } from "./returnableContainers";
 
 /**
  * The ingredient cost a manufactured good's price is built on: the mean over its recipes, or for a
  * good priced by its stocked recipe, the cheapest recipe whose every ingredient the market holds a
- * lot of (when none is, the mean, or for Glass the cheapest makeable recipe). `makeable[k]` false
- * marks a recipe with an ingredient not yet known to the world, dropped from its entries: it is
- * never chosen, as production skips it (Glass's Soda Ash before industrial alkali would otherwise
- * price glass as sand alone).
+ * lot of (when none is, the mean, or for Glass and Soap the cheapest makeable recipe).
+ * `makeable[k]` false marks a recipe with an ingredient not yet known to the world, dropped from its
+ * entries: it is never chosen, as production skips it (Glass's Soda Ash before industrial alkali
+ * would otherwise price glass as sand alone, Soap's Caustic Soda as tallow alone).
  */
 export function getRecipeCostBasis(
   goodName: string,

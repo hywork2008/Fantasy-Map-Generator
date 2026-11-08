@@ -22,6 +22,7 @@ import {
   isGoodEnabled,
   migrateAlloySteelGoods,
   migrateBarillaGood,
+  migrateBarillaSoapRecipe,
   migrateBeeswaxByproduct,
   migrateColdLandShoreDeposits,
   migrateElectricalGoods,
@@ -1398,7 +1399,7 @@ describe("GoodsModule", () => {
     expect(clay.distribution).toBe("minTemp(12) && river()");
   });
 
-  it("adds Barilla and the soda-glass recipe to a saved catalogue on that save's own White sand id", () => {
+  it("adds Barilla, the soda-glass recipe and the barilla soap to a saved catalogue on that save's own ids", () => {
     goodsModule.restoreDefaults();
     const sand = getGoods().find(good => good.name === "White sand")!;
     const saved = getGoods()
@@ -1406,6 +1407,9 @@ describe("GoodsModule", () => {
       .map(good => (good.i === sand.i ? { ...good, i: 900 } : good));
     const glass = saved.find(good => good.name === "Glass")!;
     glass.recipes = glass.recipes!.slice(0, 2);
+    const soap = saved.find(good => good.name === "Soap")!;
+    soap.recipes = soap.recipes!.slice(0, 4);
+    const oil = saved.find(good => good.name === "Oil")!;
     setGoods(saved);
 
     expect(migrateBarillaGood()).toBe(true);
@@ -1414,6 +1418,11 @@ describe("GoodsModule", () => {
     expect(glass.recipes!.at(-1)).toEqual({ 900: 1, 901: 1.6 });
     expect(migrateBarillaGood()).toBe(false);
     expect(glass.recipes).toHaveLength(3);
+
+    expect(migrateBarillaSoapRecipe()).toBe(true);
+    expect(soap.recipes!.at(-1)).toEqual({ [oil.i]: 0.65, 901: 0.38 });
+    expect(migrateBarillaSoapRecipe()).toBe(false);
+    expect(soap.recipes).toHaveLength(5);
   });
 
   it("adds Mead to a saved catalogue on that save's own Honey and Barrels ids", () => {

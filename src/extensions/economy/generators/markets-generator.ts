@@ -3534,11 +3534,17 @@ export class MarketsModule {
   private collectIndustrialDemand(goods: Good[], consumerDemandFactors: number[]): number[] {
     // Per-capita demand for ingredients driven by consumer demand for their manufactured outputs.
     const applyCalibration = getEconomyCalibrationState().applyCalibration;
+    // A recipe with an ingredient not yet known to the world is never the typical one: production
+    // skips it, and costing the unknown ingredient at nothing made Glass's soda-ash recipe "sand alone"
+    // and Soap's caustic-soda recipe "tallow alone", so no Potash was asked for them
+    // (docs/plan/barilla-soap.md §3.4).
     const recipeCost = (recipe: Record<string, number>): number => {
       let cost = 0;
       for (const [ingredientIdStr, amount] of Object.entries(recipe)) {
         const ingredient = Goods.get(+ingredientIdStr);
-        if (ingredient && isGoodEnabled(ingredient)) cost += amount * ingredient.value;
+        if (!ingredient) continue;
+        if (!isGoodEnabled(ingredient)) return Number.POSITIVE_INFINITY;
+        cost += amount * ingredient.value;
       }
       return cost;
     };
