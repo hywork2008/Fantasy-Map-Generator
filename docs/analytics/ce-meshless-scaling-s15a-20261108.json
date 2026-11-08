@@ -1,0 +1,178 @@
+{
+  "format": "ce-meshless-scaling-observation",
+  "version": 1,
+  "measuredAtUtc": "2026-11-08T06:25:26.539Z",
+  "environment": {
+    "node": "v24.16.0",
+    "platform": "linux",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 7 5800H with Radeon Graphics"
+  },
+  "scope": "Wall-first synthetic input (seed m9-fixed, 4 branches, ellipse wall), mode medieval, one run per scale in one process. maxRssMegabytes is the process-wide maximum so far, not a per-case peak. Not a statistical benchmark.",
+  "results": [
+    {
+      "population": 1000,
+      "radius": 150,
+      "outcome": "generated",
+      "skeletonMs": 847.5,
+      "totalMs": 1516.6,
+      "phases": {
+        "skeleton:source-validation-and-clone": 1.8,
+        "skeleton:walls-gates-bridges": 533.1,
+        "skeleton:road-free-land-and-ports": 51.9,
+        "skeleton:road-search": 46,
+        "skeleton:road-materialization": 23.2,
+        "skeleton:connections-and-validation": 68.8,
+        "skeleton:land-blocks": 45.2,
+        "skeleton:ledger-validation-and-snapshots": 68.6,
+        "urban:source-validation-and-clone": 68.5,
+        "urban:programme-and-domain": 0.3,
+        "urban:base-blocks": 35,
+        "urban:lane-candidates": 28.1,
+        "urban:ce-perimeter-plan-and-native-connections": 234.1,
+        "urban:road-graph": 3.1,
+        "urban:districts-and-checkpoints": 7,
+        "urban:facilities": 0,
+        "urban:housing-placement": 78,
+        "urban:population-allocation": 6.7,
+        "urban:residual-land": 7.4,
+        "urban:ledger-and-fingerprint": 13.1,
+        "urban:final-validation": 181.4,
+        "urban:save-budget-check": 5.2
+      },
+      "counts": {
+        "paths": 464,
+        "ownedPaths": 449,
+        "nodes": 383,
+        "edges": 523,
+        "placements": 220,
+        "blocks": 117
+      },
+      "housing": {
+        "requiredDwellings": 223,
+        "capacityDwellings": 223,
+        "housingBuildings": 220,
+        "unplacedPopulation": 0,
+        "reasons": []
+      },
+      "serialized": {
+        "bytes": 2095017,
+        "sha256": "7494dd941c5a64a047d60f6112e82b4eed34719d1a04e319f408d93bb3c5c522"
+      },
+      "maxRssMegabytes": 445
+    },
+    {
+      "population": 5000,
+      "radius": 240,
+      "outcome": "generated",
+      "skeletonMs": 987.1,
+      "totalMs": 2392.9,
+      "phases": {
+        "skeleton:source-validation-and-clone": 0.6,
+        "skeleton:walls-gates-bridges": 698.7,
+        "skeleton:road-free-land-and-ports": 20.2,
+        "skeleton:road-search": 51.4,
+        "skeleton:road-materialization": 22.1,
+        "skeleton:connections-and-validation": 77.7,
+        "skeleton:land-blocks": 37.2,
+        "skeleton:ledger-validation-and-snapshots": 78.1,
+        "urban:source-validation-and-clone": 79.5,
+        "urban:programme-and-domain": 0.2,
+        "urban:base-blocks": 29.6,
+        "urban:lane-candidates": 13,
+        "urban:ce-perimeter-plan-and-native-connections": 438.4,
+        "urban:road-graph": 5.3,
+        "urban:districts-and-checkpoints": 10.7,
+        "urban:facilities": 0,
+        "urban:housing-placement": 285.2,
+        "urban:population-allocation": 32.4,
+        "urban:residual-land": 24,
+        "urban:ledger-and-fingerprint": 48.3,
+        "urban:final-validation": 423.4,
+        "urban:save-budget-check": 15.5
+      },
+      "counts": {
+        "paths": 1055,
+        "ownedPaths": 1040,
+        "nodes": 824,
+        "edges": 1161,
+        "placements": 1102,
+        "blocks": 320
+      },
+      "housing": {
+        "requiredDwellings": 1112,
+        "capacityDwellings": 1112,
+        "housingBuildings": 1102,
+        "unplacedPopulation": 0,
+        "reasons": []
+      },
+      "serialized": {
+        "bytes": 6579626,
+        "sha256": "7718dd3af0f6d567f1eb8d39f5166053dd13db61d9af01ed4bb529c87324eb91"
+      },
+      "maxRssMegabytes": 573
+    },
+    {
+      "population": 20000,
+      "radius": 480,
+      "outcome": "failed",
+      "error": "Invalid vector document: path-budget",
+      "skeletonMs": 1097.2,
+      "totalMs": 4386.3,
+      "phases": {
+        "skeleton:source-validation-and-clone": 0.6,
+        "skeleton:walls-gates-bridges": 716,
+        "skeleton:road-free-land-and-ports": 21.9,
+        "skeleton:road-search": 106.4,
+        "skeleton:road-materialization": 64.6,
+        "skeleton:connections-and-validation": 74.8,
+        "skeleton:land-blocks": 31.6,
+        "skeleton:ledger-validation-and-snapshots": 80.5,
+        "urban:source-validation-and-clone": 81.1,
+        "urban:programme-and-domain": 0.2,
+        "urban:base-blocks": 30.3,
+        "urban:lane-candidates": 26.7,
+        "urban:ce-perimeter-plan-and-native-connections": 1756.8,
+        "urban:road-graph": 18.4,
+        "urban:districts-and-checkpoints": 33.1,
+        "urban:facilities": 0,
+        "urban:housing-placement": 771.2,
+        "urban:population-allocation": 217,
+        "urban:residual-land": 89.3,
+        "urban:ledger-and-fingerprint": 257.1
+      },
+      "maxRssMegabytes": 701
+    },
+    {
+      "population": 50000,
+      "radius": 760,
+      "outcome": "failed",
+      "error": "Invalid vector document: entity-tables",
+      "skeletonMs": 1152.6,
+      "totalMs": 11205.3,
+      "phases": {
+        "skeleton:source-validation-and-clone": 0.6,
+        "skeleton:walls-gates-bridges": 720,
+        "skeleton:road-free-land-and-ports": 23.2,
+        "skeleton:road-search": 142.3,
+        "skeleton:road-materialization": 72.5,
+        "skeleton:connections-and-validation": 76.6,
+        "skeleton:land-blocks": 36.6,
+        "skeleton:ledger-validation-and-snapshots": 80,
+        "urban:source-validation-and-clone": 82.6,
+        "urban:programme-and-domain": 0.2,
+        "urban:base-blocks": 33.2,
+        "urban:lane-candidates": 46.9,
+        "urban:ce-perimeter-plan-and-native-connections": 6857.8,
+        "urban:road-graph": 50.7,
+        "urban:districts-and-checkpoints": 69.7,
+        "urban:facilities": 0,
+        "urban:housing-placement": 1598.9,
+        "urban:population-allocation": 473.1,
+        "urban:residual-land": 193.7,
+        "urban:ledger-and-fingerprint": 633.7
+      },
+      "maxRssMegabytes": 755
+    }
+  ]
+}

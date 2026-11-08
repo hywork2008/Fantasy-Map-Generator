@@ -5,7 +5,12 @@ import type { CurveAnchor, VectorCityDocument, VectorPlacement } from "../../../
 import type { VectorBlock } from "../../../types/vector/generation";
 import type { VectorUrbanSettings } from "../../../types/vector/urban";
 import { nearestOnPolyline, polygonCentroid } from "../../geom";
-import { buildOrganicBlocks } from "../../organicBlocks";
+import {
+  buildOrganicBlocks,
+  COARSE_STREET_CELL_METERS,
+  COARSE_STREET_WIDTH_METERS,
+  ROAD_FACADE_CLEARANCE_METERS
+} from "../../organicBlocks";
 import { dwellingCapacity } from "../../residentialCapacityFormula";
 import { createGenerationJoiner } from "../editing/network";
 import { curveSource } from "../editing/paths";
@@ -47,6 +52,16 @@ export function planVectorPerimeter(doc: VectorCityDocument, blocks: VectorBlock
     houses: { polygon: Point[]; district: string; draw?: number }[] = [],
     parcels: VectorBlock[] = [];
   const water = allVectorWater(doc);
+  // CE orients districts along nearby wall segments; a 0.5 m simplification keeps that lookup small.
+  const wallSegments = Object.values(doc.paths)
+    .filter(p => p.role === "wall")
+    .flatMap(p => {
+      const points = simplifyFreehand(
+        samplePath(p).map(s => s.point),
+        0.5
+      );
+      return points.slice(1).map((b, i): [Point, Point] => [points[i], b]);
+    });
   for (const sourceBlock of blocks) {
     const block = {
       ...sourceBlock,
@@ -64,7 +79,7 @@ export function planVectorPerimeter(doc: VectorCityDocument, blocks: VectorBlock
       const road = roadsNear(mid, frontageReach).find(
         p => nearestOnPolyline(mid, p.points).dist <= p.path.width.leftMeters + p.path.width.rightMeters + 0.1
       );
-      return { a, b, feature: !!road, barrier: !road, setback: road ? 0.05 : 3 };
+      return { a, b, feature: !!road, barrier: !road, setback: road ? ROAD_FACADE_CLEARANCE_METERS : 3 };
     });
     const fabric = buildOrganicBlocks(
       face,
@@ -73,7 +88,14 @@ export function planVectorPerimeter(doc: VectorCityDocument, blocks: VectorBlock
       { coverage: 0.9, occupancy: 1, lotArea: 80, laneWidth: settings.laneWidthMeters, orientation: 0 },
       doc.recipe.seed,
       true,
-      { hub: doc.site!.center, extentMeters: doc.frame.extentMeters, walls: [] }
+      {
+        hub: doc.site!.center,
+        extentMeters: doc.frame.extentMeters,
+        walls: wallSegments,
+        // Skeleton blocks are far coarser than a CE mesh cell, so CE's coarse-mesh street blocks apply.
+        streetCellMeters: COARSE_STREET_CELL_METERS,
+        streetWidthMeters: COARSE_STREET_WIDTH_METERS
+      }
     );
     const addLane = (points: Point[], width: number) => {
       const id = `urban-lane:${paths.length}`;

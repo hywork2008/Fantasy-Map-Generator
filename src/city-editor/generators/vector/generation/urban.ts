@@ -28,7 +28,7 @@ import {
   type UrbanSearchStats,
   waterDistance
 } from "./urbanPacking";
-import { matchesVectorUrbanFingerprint, vectorUrbanFingerprint } from "./urbanState";
+import { matchesVectorUrbanFingerprint, VECTOR_URBAN_ALGORITHM, vectorUrbanFingerprint } from "./urbanState";
 
 export const DEFAULT_VECTOR_URBAN: VectorUrbanSettings = {
   mode: "medieval",
@@ -556,7 +556,7 @@ export function generateVectorUrban(
   doc.revision++;
   doc.generation = { ...doc.generation!, blocks, inputRevision: doc.revision };
   doc.urban = {
-    algorithm: "vector-urban-v1",
+    algorithm: VECTOR_URBAN_ALGORITHM,
     inputRevision: doc.revision,
     settings: structuredClone(settings),
     baseGeneration,

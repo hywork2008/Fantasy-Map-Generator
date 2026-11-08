@@ -63,8 +63,11 @@ export interface VectorUrbanCheckpoint {
   assignedPopulation: number;
   unplacedPopulation: number;
 }
+/** v1: skeleton blocks filled without street blocks (to 2026-11-08). v2: CE coarse-mesh street blocks,
+ * road facade clearance and wall orientation in the perimeter fabric. Saved v1 output stays as adopted. */
+export type VectorUrbanAlgorithm = "vector-urban-v1" | "vector-urban-v2";
 export interface VectorUrban {
-  algorithm: "vector-urban-v1";
+  algorithm: VectorUrbanAlgorithm;
   inputRevision: number;
   settings: VectorUrbanSettings;
   baseGeneration: VectorGeneration;

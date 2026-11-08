@@ -45,6 +45,11 @@ const rotate = (v: Point, angle: number): Point => [
 const onSegment = (p: Point, a: Point, b: Point) => nearestOnPolyline(p, [a, b]).dist < 1e-5;
 const pointKey = (p: Point) => `${Math.round(p[0] * 1e6)},${Math.round(p[1] * 1e6)}`;
 export const ORGANIC_LANE_FACADE_CLEARANCE = 0.05;
+/** Street block size and street width drawn inside districts coarser than a fine mesh cell. */
+export const COARSE_STREET_CELL_METERS = 50;
+export const COARSE_STREET_WIDTH_METERS = 5;
+/** Facades stand this far from a road surface edge (CE: road half width + 0.35 m from the centre line). */
+export const ROAD_FACADE_CLEARANCE_METERS = 0.35;
 
 /** Organic streets are a subdivision of connected public space, not rows of
  * rectangles. First join the district perimeter around the hub; then split

@@ -137,9 +137,45 @@ export function frontages(region: VectorPolygon, road: VectorPath): VectorBlock[
     }
   return result;
 }
+/** Clipping can leave a zero-width spike (A, B, A) where a lane end touches a block edge. The spike encloses
+ * no land, so removing it keeps the area while making the ring simple; rings that collapse are dropped. */
+function withoutSpikes(ring: Point[]): Point[] {
+  const same = (a: Point, b: Point) => Math.abs(a[0] - b[0]) <= 1e-9 && Math.abs(a[1] - b[1]) <= 1e-9;
+  const result = ring.slice();
+  let changed = true;
+  while (changed && result.length >= 3) {
+    changed = false;
+    for (let i = 0; i < result.length && result.length >= 3; i++) {
+      const previous = result[(i - 1 + result.length) % result.length],
+        next = result[(i + 1) % result.length];
+      if (same(result[i], next)) {
+        result.splice(i, 1);
+        changed = true;
+        break;
+      }
+      if (same(previous, next)) {
+        // Drop the spike tip and the duplicate that returns to its base.
+        const j = (i + 1) % result.length;
+        result.splice(Math.max(i, j), 1);
+        result.splice(Math.min(i, j), 1);
+        changed = true;
+        break;
+      }
+    }
+  }
+  return result;
+}
+function despike(polygons: VectorPolygon[]): VectorPolygon[] {
+  return polygons.flatMap(p => {
+    const outer = withoutSpikes(p.outer);
+    if (outer.length < 3 || regionArea({ outer, holes: [] }) <= 1e-9) return [];
+    const holes = p.holes.map(withoutSpikes).filter(h => h.length >= 3 && regionArea({ outer: h, holes: [] }) > 1e-9);
+    return [{ outer, holes }];
+  });
+}
 export function deriveVectorBlocks(doc: VectorCityDocument, extra: VectorPolygon[] = []): VectorBlock[] {
   const roads = Object.values(doc.paths).filter(p => p.role === "road"),
-    land = regionBoolean(freeLand(doc), [...roads.map(pathSurface), ...extra], "difference"),
+    land = despike(regionBoolean(freeLand(doc), [...roads.map(pathSurface), ...extra], "difference")),
     reachable = reachablePaths(doc, doc.site!.center);
   return land.map((polygon, i) => {
     const frontage = roads.flatMap(p => frontages(polygon, p));

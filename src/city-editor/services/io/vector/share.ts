@@ -1,7 +1,10 @@
 import { Gunzip, gzipSync, strFromU8, strToU8 } from "fflate";
 import { removeVectorPath } from "../../../generators/vector/editing/paths";
 import { generationFingerprint } from "../../../generators/vector/generation/pipeline";
-import { vectorUrbanFingerprint } from "../../../generators/vector/generation/urbanState";
+import {
+  matchesVectorUrbanFingerprint,
+  VECTOR_URBAN_ALGORITHM
+} from "../../../generators/vector/generation/urbanState";
 import { vectorUrbanStages } from "../../../generators/vector/validation/urban";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorGenerationSettings } from "../../../types/vector/generation";
@@ -136,8 +139,10 @@ export function vectorRecipe(document: VectorCityDocument): VectorRecipe {
   const g = document.urban?.baseGeneration ?? document.generation,
     u = document.urban;
   if (!g) throw new Error("vector-recipe-unavailable");
-  if (u && (u.inputRevision !== document.revision || u.adoptedFingerprint !== vectorUrbanFingerprint(document)))
+  if (u && (u.inputRevision !== document.revision || !matchesVectorUrbanFingerprint(document, u.adoptedFingerprint)))
     throw new Error("vector-recipe-edited");
+  // Replaying a recipe runs the current algorithm, so it would not reproduce older adopted output.
+  if (u && u.algorithm !== VECTOR_URBAN_ALGORITHM) throw new Error("vector-recipe-outdated");
   if (
     !u &&
     (document.generation!.inputRevision !== document.revision ||

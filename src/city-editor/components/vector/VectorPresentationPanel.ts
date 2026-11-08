@@ -146,9 +146,19 @@ export function createVectorPresentationPanel(
   });
   if (glbButton) glbButton.title = text("glbHint");
   const share = async (recipe: boolean) => {
+    let recipeValue: ReturnType<typeof vectorRecipe> | undefined;
+    if (recipe)
+      try {
+        recipeValue = vectorRecipe(displayed);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : "";
+        if (reason !== "vector-recipe-outdated" && reason !== "vector-recipe-edited") throw error;
+        status.textContent = text(reason === "vector-recipe-outdated" ? "recipeOutdated" : "recipeEdited");
+        return;
+      }
     const url = vectorShareUrl(
-      recipe
-        ? { kind: "fmg-vector-city-share", version: 1, mode: "recipe", recipe: vectorRecipe(displayed) }
+      recipeValue
+        ? { kind: "fmg-vector-city-share", version: 1, mode: "recipe", recipe: recipeValue }
         : { kind: "fmg-vector-city-share", version: 1, mode: "document", document: displayed, stage: selected }
     );
     link.value = url;

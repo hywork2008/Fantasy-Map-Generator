@@ -1,8 +1,9 @@
 import { gzipSync, strToU8 } from "fflate";
 import { describe, expect, it } from "vitest";
 import saved from "../../../../../docs/analytics/ce-meshless-m5-synthetic-20261107.json";
-import { generateVectorSkeleton } from "../../../generators/vector/generation/pipeline";
-import { generateVectorUrban } from "../../../generators/vector/generation/urban";
+import { syntheticVectorInput } from "../../../generators/vector/generation/input";
+import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../../../generators/vector/generation/pipeline";
+import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../../../generators/vector/generation/urban";
 import { parseVectorDocument } from "./documentCodec";
 import { decodeVectorShare, encodeVectorShare, vectorRecipe } from "./share";
 
@@ -21,8 +22,20 @@ describe("meshless shares", () => {
     expect(decodeVectorShare(encodeVectorShare(share))).toEqual(share);
     expect(() => vectorRecipe(doc)).toThrow("vector-recipe-edited");
   });
+  it("refuses recipe links for output adopted by an older urban algorithm", () => {
+    const doc = parseVectorDocument(JSON.stringify(saved))!;
+    expect(doc.urban!.algorithm).toBe("vector-urban-v1");
+    expect(() => vectorRecipe(doc)).toThrow("vector-recipe-outdated");
+  });
   it("reproduces geometry from the explicit recipe input and rejects lossy recipe sharing of manual output", () => {
-    const doc = parseVectorDocument(JSON.stringify(saved))!,
+    const doc = generateVectorUrban(
+        generateVectorSkeleton(syntheticVectorInput("share-recipe", 120, true), {
+          ...DEFAULT_VECTOR_GENERATION,
+          branches: 4,
+          wall: "ellipse"
+        }).document,
+        { ...DEFAULT_VECTOR_URBAN, population: 300 }
+      ),
       recipe = vectorRecipe(doc),
       decoded = decodeVectorShare(
         encodeVectorShare({ kind: "fmg-vector-city-share", version: 1, mode: "recipe", recipe })
