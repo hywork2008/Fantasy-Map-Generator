@@ -3,6 +3,9 @@ import type { VectorFabric, VectorFabricCell } from "../../../types/vector/fabri
 import { pointInPolygon, polygonArea } from "../../geom";
 import { cellHouseCount, cellHouseRing, fabricHouseId, unpackPoints } from "./pack";
 
+/** A detached house's entrance connector must end this close to its fabric street or lane. */
+export const FABRIC_ENTRANCE_TOLERANCE_METERS = 0.02;
+
 /** Parses `<cell id>#<index>`. Cell ids themselves never contain `#`. */
 export function parseFabricHouseId(id: string): { cellId: string; index: number } | undefined {
   const at = id.lastIndexOf("#");

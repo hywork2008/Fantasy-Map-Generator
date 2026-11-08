@@ -11,19 +11,35 @@ export function createVectorFabricHousePanel(
   scope: EditorLifetime,
   parent: HTMLElement,
   /** Read-only current document; never mutated. */
-  peek: () => Readonly<VectorCityDocument>
+  peek: () => Readonly<VectorCityDocument>,
+  /** Replace the shown house by a manual placement; returns a status message. */
+  detach?: (id: string) => string
 ) {
   const box = document.createElement("fieldset"),
     legend = document.createElement("legend"),
     list = document.createElement("dl"),
-    note = document.createElement("p");
+    note = document.createElement("p"),
+    action = document.createElement("button"),
+    status = document.createElement("output");
   box.dataset.vectorFabricHouse = "";
   box.hidden = true;
   legend.textContent = text("title");
   note.textContent = text("editLater");
   note.style.cssText = "margin:4px 0 0;font-size:.9em;opacity:.8";
   list.style.cssText = "display:grid;grid-template-columns:auto 1fr;gap:2px 8px;margin:0";
-  box.append(legend, list, note);
+  action.type = "button";
+  action.textContent = text("detach");
+  action.dataset.fabricHouseAction = "detach";
+  action.hidden = !detach;
+  status.setAttribute("aria-live", "polite");
+  box.append(legend, list, note, action, status);
+  scope.listen(action, "click", () => {
+    if (!shown || !detach) return;
+    // A successful detach removes the house from the records; the panel stays to report it.
+    const message = detach(shown);
+    status.textContent = message;
+    box.hidden = false;
+  });
   parent.append(box);
   scope.own(() => box.remove());
   let shown = "";
@@ -49,6 +65,7 @@ export function createVectorFabricHousePanel(
       return false;
     }
     shown = id;
+    status.textContent = "";
     list.replaceChildren();
     row("id", text("id"), info.id);
     row("district", text("district"), info.districtId);

@@ -469,7 +469,9 @@
         "entrance": "Entrance (east, north) {value0}, {value1}",
         "insideWall": "Inside the town wall",
         "outsideWall": "Outside the town wall",
-        "editLater": "Moving or fixing a generated house detaches it into a placement (not yet available)."
+        "editLater": "Detaching keeps the house's shape, dwellings and entrance; the street block leaves its lot to the placement.",
+        "detach": "Detach as a placement",
+        "detached": "Detached. Move or fix it under building placement edits."
       },
       "release": {
         "preview": "Meshless preview. Review population shortages and source conversion notes before adopting a city."

@@ -1,10 +1,16 @@
 import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
+import { fabricLine, nearestFabricLine } from "../fabric/lines";
 import { waterDistance } from "../generation/urbanPacking";
 import { evaluateAnchor } from "../geometry/curves";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { pathSurface } from "../geometry/surfaces";
 import { vectorOccupiedSites } from "../occupancy";
+import { fabricLineSurface } from "./fabricLineSurface";
+
+/** How far a moved detached house may stand from the fabric street or lane its entrance faces. */
+const FABRIC_ACCESS_REACH_METERS = 12;
+
 import { assertVectorDocument } from "../validation/document";
 import { prepareVectorEdit } from "./dependencies";
 /** Explicit rigid placement edits acquire manual ownership; authored dimensions and dwelling capacity stay fixed. */
@@ -58,8 +64,19 @@ export function transformVectorPlacement(
   for (const e of b.entrances) {
     e.point = transform(e.point);
     e.outward = rotate(e.outward);
-    const end = evaluateAnchor(doc.paths[p.accesses[e.accessIndex].pathId], p.accesses[e.accessIndex]),
-      dx = end[0] - e.point[0],
+    let end: Point;
+    if (e.accessIndex !== undefined)
+      end = evaluateAnchor(doc.paths[p.accesses[e.accessIndex].pathId], p.accesses[e.accessIndex]);
+    else {
+      // A detached house faces the nearest fabric street or lane; regeneration may move it again.
+      const hit = nearestFabricLine(source.fabric, e.point, FABRIC_ACCESS_REACH_METERS),
+        line = hit && fabricLine(source.fabric, hit.id);
+      if (!hit || !line) throw new Error("dependency-placement-access");
+      end = hit.point;
+      e.fabricLine = hit.id;
+      roads.push(fabricLineSurface(line));
+    }
+    const dx = end[0] - e.point[0],
       dy = end[1] - e.point[1],
       d = Math.hypot(dx, dy);
     if (d < 0.01 || dx * e.outward[0] + dy * e.outward[1] <= 0) throw new Error("dependency-placement-access");

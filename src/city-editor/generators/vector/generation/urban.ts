@@ -7,6 +7,7 @@ import { facilityPlacementOrder, facilityUseOf } from "../../facilityUses";
 import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
 import { polygonCentroid } from "../../geom";
 import { buildPopulationFacilityRequests } from "../../populationFacilityRequests";
+import { isDetachedFabricHouse, reattachFabricEntrances } from "../editing/fabricHouses";
 import { rebuildRoadGraph } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { featureReservations } from "../environmentState";
@@ -198,12 +199,21 @@ export function generateVectorUrban(
       .filter(r => r.kind !== "district")
       .map(r => ({ outer: r.outer, holes: r.holes }))
   ];
+  const organicMode =
+    settings.mode === "medieval" &&
+    settings.maxLanes > 0 &&
+    (!continuation || continuation.fabricDraw !== undefined) &&
+    run?.housingAttempts === undefined;
+  // A house detached from fabric records is occupancy for the CE plan; cutting it out would give its whole
+  // skeleton block a hole, and a block with holes holds no CE district.
   const deriveLaneBlocks = () =>
     deriveVectorBlocks(
       {
         ...doc,
         placements: Object.fromEntries(
-          Object.entries(doc.placements).filter(([id]) => !continuation?.retainedPlacements.includes(id))
+          Object.entries(doc.placements).filter(
+            ([id, p]) => !continuation?.retainedPlacements.includes(id) && !(organicMode && isDetachedFabricHouse(p))
+          )
         )
       },
       protectedRegions
@@ -281,13 +291,7 @@ export function generateVectorUrban(
       ? bvFacilityAsset(settings.houseModelId, [{ id: "main", position: [0, 0, 4], normalXZ: [0, 1], clearWidth: 1.1 }])
       : undefined;
   timed("lane-candidates");
-  const organic =
-    settings.mode === "medieval" &&
-    settings.maxLanes > 0 &&
-    (!continuation || continuation.fabricDraw !== undefined) &&
-    run?.housingAttempts === undefined
-      ? planVectorPerimeter(doc, blocks, settings)
-      : undefined;
+  const organic = organicMode ? planVectorPerimeter(doc, blocks, settings) : undefined;
   const adoptLane = (
     points: Point[],
     anchor: (typeof laneCandidates)[number]["anchor"],
@@ -491,6 +495,7 @@ export function generateVectorUrban(
   const housingStarted = performance.now();
   if (organic && remaining > 0) {
     const placed = placeVectorPerimeterHouses(doc, organic, remaining, inside, continuation?.fabricDraw);
+    reattachFabricEntrances(doc);
     housingAttempts = organic.houses.length;
     remaining -= placed.dwellings;
     housingStop = remaining > 0 ? "frontage" : "demand-met";

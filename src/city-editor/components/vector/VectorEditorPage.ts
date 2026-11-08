@@ -1,5 +1,6 @@
 import { editorText } from "../../../i18n/editorMessages";
 import { createVectorDocument, createVectorExample } from "../../generators/vector/document";
+import { detachFabricHouse } from "../../generators/vector/editing/fabricHouses";
 import type { VectorDocumentHistory } from "../../generators/vector/history";
 import { assertVectorDocument } from "../../generators/vector/validation/document";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
@@ -352,7 +353,23 @@ export function mountVectorCityEditor(
     (doc, label) => editPanel!.submit(doc, label),
     () => session.history.peek()
   );
-  housePanel = createVectorFabricHousePanel(scope, controls, () => session.history.peek());
+  housePanel = createVectorFabricHousePanel(
+    scope,
+    controls,
+    () => session.history.peek(),
+    id => {
+      // Detaching keeps every record and capacity; it is committed directly, without regeneration.
+      try {
+        const { document: next, placementId } = detachFabricHouse(session.history.document, id);
+        session.history.commit(next, editorText("cityEditor.vector.fabricHouse.detach"));
+        refresh();
+        placementPanel?.select(placementId);
+        return editorText("cityEditor.vector.fabricHouse.detached");
+      } catch (error) {
+        return `${editorText("cityEditor.vector.dependencies.failed")} ${error instanceof Error ? error.message : String(error)}`;
+      }
+    }
+  );
   environmentPanel = createVectorEnvironmentPanel(
     scope,
     controls,

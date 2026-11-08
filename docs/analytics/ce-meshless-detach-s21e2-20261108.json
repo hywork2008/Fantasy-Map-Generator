@@ -1,0 +1,54 @@
+{
+  "format": "ce-meshless-detach-observation",
+  "version": 1,
+  "measuredOn": "2026-11-08",
+  "scope": "Overlapping adopted fabric house pairs (area > 1e-5 m2) in the saved documents; detachFabricHouse on the first house of 20 sampled street blocks; one reconcileVectorEdit fixing a detached house. Node + jsdom, one run each.",
+  "inputs": {
+    "v5": "docs/analytics/raw/scaling-s21d-20261108",
+    "v6": "docs/analytics/raw/scaling-s21e2-20261108"
+  },
+  "results": {
+    "v5-5000": {
+      "overlaps": {
+        "pairs": 132,
+        "maxArea": 0.023383854577502916
+      }
+    },
+    "v5-50000": {
+      "overlaps": {
+        "pairs": 1991,
+        "maxArea": 0.0389123538396843
+      }
+    },
+    "v6-5000": {
+      "overlaps": {
+        "pairs": 0,
+        "maxArea": 0
+      },
+      "detach": {
+        "samples": 20,
+        "ok": 20,
+        "laneEntrances": 18,
+        "medianMs": 295.3187859999998,
+        "maxMs": 436.46197200000006,
+        "errors": []
+      },
+      "fixReconcileMs": 1527.410856999999
+    },
+    "v6-50000": {
+      "overlaps": {
+        "pairs": 0,
+        "maxArea": 0
+      },
+      "detach": {
+        "samples": 20,
+        "ok": 20,
+        "laneEntrances": 20,
+        "medianMs": 1233.2268809999987,
+        "maxMs": 1303.2006329999986,
+        "errors": []
+      },
+      "fixReconcileMs": 4836.354462000003
+    }
+  }
+}

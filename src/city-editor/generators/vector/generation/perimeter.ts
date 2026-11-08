@@ -22,7 +22,7 @@ import { evaluateAnchor } from "../geometry/curves";
 import { gateOpening } from "../geometry/network";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { samplePath, simplifyFreehand } from "../geometry/sampling";
-import { pathSurface } from "../geometry/surfaces";
+import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
 import { vectorDistrictId } from "./districtId";
@@ -362,6 +362,9 @@ export function placeVectorPerimeterHouses(
     if (!best) continue;
     const list = adopted.get(house.cellId) ?? [];
     list.push({ ring, dwellings, entrance: packPoints([best.from, best.to], origin), draw: house.draw });
+    // CE lots may overlap their neighbours by a few square centimetres; an adopted house is occupancy too, so
+    // a later lot never shares land with it and any house can become a placement (S2.1e2).
+    occupied.insert({ ...boxOf(polygon), polygon: site });
     adopted.set(house.cellId, list);
     capacity += dwellings;
     count++;
@@ -442,6 +445,9 @@ export function vectorPerimeterResidual(doc: VectorCityDocument, blocks: VectorB
       maxY: Math.max(...polygon.outer.map(p => p[1])),
       polygon
     });
+  // Set operations can leave slivers that are not simple polygons; residual land is display-only, so they go.
+  const valid = (ring: Point[]) =>
+    ring.length >= 3 && simpleContour(ring, true) && regionArea({ outer: ring, holes: [] }) > 1e-9;
   return blocks.flatMap(block =>
     regionBoolean(
       [block],
@@ -454,6 +460,6 @@ export function vectorPerimeterResidual(doc: VectorCityDocument, blocks: VectorB
         })
         .map(item => item.polygon),
       "difference"
-    )
+    ).filter(p => valid(p.outer) && p.holes.every(valid))
   );
 }

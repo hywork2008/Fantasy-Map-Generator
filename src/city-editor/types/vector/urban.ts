@@ -28,7 +28,10 @@ export interface VectorBuilding {
     outward: [number, number];
     widthMeters: number;
     connector: [number, number][];
-    accessIndex: number;
+    /** Index into the placement's `accesses` (a `VectorPath`). Exactly one of this and `fabricLine`. */
+    accessIndex?: number;
+    /** A street or lane of the fabric records: `<district id>~s<n>` or `<street block id>~l<n>`. */
+    fabricLine?: string;
   }[];
   dwellings: number;
   floorFootprintMeters2: number;
@@ -73,7 +76,8 @@ export type VectorUrbanAlgorithm =
   | "vector-urban-v2"
   | "vector-urban-v3"
   | "vector-urban-v4"
-  | "vector-urban-v5";
+  | "vector-urban-v5"
+  | "vector-urban-v6";
 export interface VectorUrban {
   algorithm: VectorUrbanAlgorithm;
   inputRevision: number;

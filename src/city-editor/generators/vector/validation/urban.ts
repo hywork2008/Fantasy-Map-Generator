@@ -2,8 +2,10 @@ import RBush from "rbush";
 import { residentialStoreys } from "../../../../utils/urbanMorphology";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorStage } from "../../../types/vector/urban";
-import { polygonArea } from "../../geom";
+import { nearestOnPolyline, polygonArea } from "../../geom";
 import { dwellingCapacity } from "../../residentialCapacityFormula";
+import { FABRIC_ENTRANCE_TOLERANCE_METERS } from "../fabric/houses";
+import { fabricLine } from "../fabric/lines";
 import {
   allocateVectorResidents,
   VECTOR_HOUSE_FLOOR_AREA,
@@ -84,7 +86,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
         !b.entrances.length ||
         !b.entrances.every(
           e =>
-            keys(e, "id,point,outward,widthMeters,connector,accessIndex") &&
+            keys(e, "id,point,outward,widthMeters,connector", "accessIndex,fabricLine") &&
             typeof e.id === "string" &&
             point(e.point) &&
             point(e.outward) &&
@@ -94,8 +96,9 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
             Array.isArray(e.connector) &&
             e.connector.length >= 2 &&
             e.connector.every(point) &&
-            nonnegative(e.accessIndex) &&
-            e.accessIndex < p.accesses.length
+            (e.fabricLine === undefined
+              ? nonnegative(e.accessIndex) && e.accessIndex < p.accesses.length
+              : e.accessIndex === undefined && typeof e.fabricLine === "string" && e.fabricLine.length <= 256)
         ) ||
         !nonnegative(b.dwellings) ||
         !finite(b.floorFootprintMeters2) ||
@@ -136,9 +139,14 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       u,
       "algorithm,inputRevision,settings,baseGeneration,baseConnections,baseContext,domain,laneBlocks,residualLand,districts,ownedPaths,ownedPlacements,adoptedFingerprint,checkpoints,assignments,report"
     ) ||
-    !["vector-urban-v1", "vector-urban-v2", "vector-urban-v3", "vector-urban-v4", "vector-urban-v5"].includes(
-      u.algorithm
-    ) ||
+    ![
+      "vector-urban-v1",
+      "vector-urban-v2",
+      "vector-urban-v3",
+      "vector-urban-v4",
+      "vector-urban-v5",
+      "vector-urban-v6"
+    ].includes(u.algorithm) ||
     !nonnegative(u.inputRevision) ||
     !keys(
       u.settings,
@@ -323,6 +331,10 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       )
         errors.push("urban-footprint");
       for (const entrance of b.entrances) {
+        if (entrance.accessIndex === undefined) {
+          errors.push("urban-entrance");
+          continue;
+        }
         const a = p.accesses[entrance.accessIndex],
           end = evaluateAnchor(doc.paths[a.pathId], a),
           last = entrance.connector.at(-1)!;
@@ -334,6 +346,15 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
           errors.push("urban-entrance");
       }
     }
+    // Detached houses keep their entrance on a fabric street or lane.
+    for (const p of Object.values(doc.placements))
+      for (const entrance of p.building?.entrances ?? []) {
+        if (entrance.fabricLine === undefined) continue;
+        const line = fabricLine(doc.fabric, entrance.fabricLine),
+          last = entrance.connector.at(-1)!;
+        if (!line || nearestOnPolyline(last, line.points).dist > FABRIC_ENTRANCE_TOLERANCE_METERS)
+          errors.push(`urban-fabric-entrance:${p.id}`);
+      }
     for (const c of u.checkpoints) {
       if (
         c.placementIds.some(
