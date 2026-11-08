@@ -14,7 +14,7 @@ import { rebuildRoadGraph } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { featureReservations } from "../environmentState";
 import { evaluateAnchor } from "../geometry/curves";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, indexedContains, regionArea, regionBoolean } from "../geometry/regions";
 import { sampledClosedRing } from "../geometry/routing";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
@@ -342,7 +342,8 @@ function* vectorUrbanSteps(
     start: Point;
     end: Point;
   }[] = [];
-  if (!continuation)
+  // The CE perimeter plan lays out its own streets; straight lanes are only for the other modes.
+  if (!continuation && !organicMode)
     for (const block of blocks) {
       if (!block.reachable) continue;
       for (const f of block.frontage) {
@@ -468,7 +469,9 @@ function* vectorUrbanSteps(
   const walls = Object.values(doc.connections.circuits)
     .filter(c => !c.parentCircuitId)
     .map(c => ({ outer: sampledClosedRing(doc, c.pathId), holes: [] }));
-  const inside = (p: Point) => !walls.length || containsRegion(walls, p);
+  // Thousands of district and street-block centres are tested against the wall ring; an edge index keeps it short.
+  const inWalls = walls.length ? indexedContains(walls) : undefined,
+    inside = (p: Point) => !inWalls || inWalls(p);
   const radius = Math.max(
     ...sourceSite.domain
       .flatMap(p => p.outer)

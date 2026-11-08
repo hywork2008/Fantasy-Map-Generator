@@ -12,6 +12,8 @@
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4eの完了と次のS4fを記載
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4fの完了と次のS4gを記載
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4gの完了と次のS4hを記載
+- docs/plan/ce-meshless-block-fabric-scaling.md - S4hの完了と、差分の再生成の要否の判断を記載
+- docs/plan/ce-meshless-block-fabric-scaling.md - S4を現時点の性能で完了とした判定を記載
 
 2026-11-08
 
