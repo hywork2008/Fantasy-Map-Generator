@@ -52,8 +52,35 @@ function stripLanes(doc: VectorCityDocument, ids: Set<string>): void {
       delete doc.connections.edges[e.id];
   rebuildRoadGraph(doc);
 }
-const overlap = (a: VectorPolygon[], b: VectorPolygon[]) =>
-  regionBoolean(a, b, "intersection").some(p => regionArea(p) > 1e-5);
+type Box = { minX: number; minY: number; maxX: number; maxY: number };
+const boxes = new WeakMap<VectorPolygon, Box>();
+const boxOf = (p: VectorPolygon): Box => {
+  let box = boxes.get(p);
+  if (!box) {
+    box = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+    for (const [x, y] of p.outer) {
+      box.minX = Math.min(box.minX, x);
+      box.minY = Math.min(box.minY, y);
+      box.maxX = Math.max(box.maxX, x);
+      box.maxY = Math.max(box.maxY, y);
+    }
+    boxes.set(p, box);
+  }
+  return box;
+};
+/** Polygons of `b` whose bounding boxes meet the bounding box of `a`; holes lie inside their outer rings. */
+const near = (a: VectorPolygon[], b: VectorPolygon[]) => {
+  const boxA = a.map(boxOf);
+  return b.filter(q => {
+    const bq = boxOf(q);
+    return boxA.some(box => box.minX <= bq.maxX && bq.minX <= box.maxX && box.minY <= bq.maxY && bq.minY <= box.maxY);
+  });
+};
+/** Positive-area overlap. Only polygons whose bounding boxes meet can overlap, so the others are left out. */
+const overlap = (a: VectorPolygon[], b: VectorPolygon[]) => {
+  const close = near(a, b);
+  return close.length > 0 && regionBoolean(a, close, "intersection").some(p => regionArea(p) > 1e-5);
+};
 const parts = (p: VectorPlacement) => p.building?.reserved ?? [p.site];
 function obstacles(doc: VectorCityDocument): VectorPolygon[] {
   return [
@@ -227,19 +254,21 @@ export function reconcileVectorEdit(source: VectorCityDocument, candidate: Vecto
     outer: bridgeGeometry(doc, b, vectorWaterSurfaces(doc)).deck,
     holes: []
   }));
-  for (const path of Object.values(doc.paths).filter(p => p.role === "road"))
+  for (const path of Object.values(doc.paths).filter(p => p.role === "road")) {
+    const surface = [pathSurface(path)];
+    // The clipped surface lies inside the road's own, so no water away from the road can meet it.
     if (
-      overlap(
-        regionBoolean(regionBoolean([pathSurface(path)], previous.domain, "intersection"), decks, "difference"),
-        water
-      )
+      near(surface, water).length &&
+      overlap(regionBoolean(regionBoolean(surface, previous.domain, "intersection"), decks, "difference"), water)
     )
       throw new Error(`dependency-unbridged-road:${path.id}`);
-  for (const path of Object.values(doc.paths).filter(p => p.role === "road"))
+  }
+  for (const path of Object.values(doc.paths).filter(p => p.role === "road")) {
+    const surface = [pathSurface(path)];
     if (
       overlap(
-        [pathSurface(path)],
-        nonRoad.filter(
+        surface,
+        near(surface, nonRoad).filter(
           p =>
             !water.includes(p) &&
             !Object.values(doc.environment?.features ?? {}).some(f => f.pathIds.includes(path.id) && p === f.boundary)
@@ -247,6 +276,7 @@ export function reconcileVectorEdit(source: VectorCityDocument, candidate: Vecto
       )
     )
       throw new Error(`dependency-road-obstacle:${path.id}`);
+  }
   const oldObstacles = obstacles(source);
   for (const p of Object.values(doc.placements).filter(p => !previous.ownedPlacements.includes(p.id)))
     if (
