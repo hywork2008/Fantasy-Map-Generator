@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseVectorDocument, serializeVectorDocument } from "../../../services/io/vector/documentCodec";
+import { vectorRecipe } from "../../../services/io/vector/share";
 import { fabricLine, isDetachedFabricLine } from "../fabric/lines";
 import { syntheticVectorInput } from "../generation/input";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../generation/pipeline";
@@ -7,6 +8,7 @@ import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../generation/urban";
 import { matchesVectorUrbanFingerprint } from "../generation/urbanState";
 import { VectorDocumentHistory } from "../history";
 import { reconcileVectorEdit } from "./dependencies";
+import { clearFabricHouse } from "./fabricHouses";
 import { detachFabricLine } from "./fabricLines";
 import { replaceVectorPath } from "./paths";
 
@@ -56,5 +58,19 @@ describe("detaching fabric streets and lanes (S2.1e3c)", () => {
     expect(kept.map(l => l.pathId)).toContain(pathId);
     expect(result.urban!.report.unplacedPopulation).toBe(0);
     expect(parseVectorDocument(serializeVectorDocument(result))).toEqual(result);
+  });
+  it("refuses a recipe link for edited records and keeps the user's marks when regenerating (S2.1e4)", () => {
+    expect(() => vectorRecipe(source)).not.toThrow();
+    const cell = Object.values(source.fabric!.cells).find(c => c.houses.offsets.length >= 2)!,
+      draw = cell.houses.draws[0],
+      cleared = clearFabricHouse(source, `${cell.id}#0`),
+      id = lane(),
+      { document: doc, pathId } = detachFabricLine(cleared, id);
+    expect(() => vectorRecipe(doc)).toThrow("vector-recipe-edited");
+    const again = generateVectorUrban(doc, doc.urban!.settings);
+    expect(again.paths[pathId]).toEqual(doc.paths[pathId]);
+    expect(again.fabric!.cells[cell.id].cleared).toEqual([draw]);
+    expect(again.fabric!.cells[cell.id].houses.draws).not.toContain(draw);
+    expect(again.fabric!.cells[id.split("~")[0]].detachedLines!.map(l => l.pathId)).toEqual([pathId]);
   });
 });

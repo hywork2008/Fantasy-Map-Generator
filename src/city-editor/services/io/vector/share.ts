@@ -1,4 +1,6 @@
 import { Gunzip, gzipSync, strFromU8, strToU8 } from "fflate";
+import { isDetachedFabricHouse } from "../../../generators/vector/editing/fabricHouses";
+import { isDetachedFabricLinePath } from "../../../generators/vector/editing/fabricLines";
 import { removeVectorPath } from "../../../generators/vector/editing/paths";
 import { generationFingerprint } from "../../../generators/vector/generation/pipeline";
 import {
@@ -156,6 +158,16 @@ export function vectorRecipe(document: VectorCityDocument): VectorRecipe {
     (u?.ownedPlacements ?? []).some(
       id => input.placements[id]?.origin !== "automatic" || input.placements[id]?.editPolicy !== "editable"
     )
+  )
+    throw new Error("vector-recipe-edited");
+  // Detached, moved or cleared fabric items are user edits a fresh generation cannot replay.
+  if (
+    Object.values(document.fabric?.cells ?? {}).some(
+      c => c.detached.length || c.cleared?.length || c.detachedLines?.length
+    ) ||
+    Object.values(document.fabric?.districts ?? {}).some(d => d.detachedLines?.length) ||
+    Object.values(document.placements).some(isDetachedFabricHouse) ||
+    Object.values(document.paths).some(isDetachedFabricLinePath)
   )
     throw new Error("vector-recipe-edited");
   // Fabric and the road nodes it joined are urban output; the recipe input is the graph before urban.

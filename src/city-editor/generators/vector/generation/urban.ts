@@ -110,6 +110,9 @@ export function generateVectorUrban(
   )
     throw new Error("invalid-urban-settings");
   const doc = structuredClone(input);
+  let kept:
+    | { cleared: Record<string, number[]>; detachedLines: Record<string, VectorFabricDetachedLine[]> }
+    | undefined;
   if (doc.urban) {
     const previous = doc.urban;
     if (
@@ -124,6 +127,20 @@ export function generateVectorUrban(
     if (!matchesVectorUrbanFingerprint(doc, previous.adoptedFingerprint)) throw new Error("edited-urban");
     for (const id of previous.ownedPaths) delete doc.paths[id];
     for (const id of previous.ownedPlacements) delete doc.placements[id];
+    // Cleared lots and detached lines are the user's; a fresh run of the same districts keeps them.
+    if (doc.fabric && !continuation) {
+      const records = [...Object.values(doc.fabric.districts), ...Object.values(doc.fabric.cells)];
+      kept = {
+        cleared: Object.fromEntries(
+          Object.values(doc.fabric.cells)
+            .filter(c => c.cleared?.length)
+            .map(c => [c.id, c.cleared!])
+        ),
+        detachedLines: Object.fromEntries(
+          records.filter(r => r.detachedLines?.length).map(r => [r.id, r.detachedLines!])
+        )
+      };
+    }
     delete doc.fabric;
     doc.connections = previous.baseConnections;
     doc.generation = previous.baseGeneration;
@@ -510,8 +527,8 @@ export function generateVectorUrban(
       remaining,
       inside,
       continuation?.fabricDraw,
-      continuation?.fabricCleared,
-      continuation?.fabricDetachedLines
+      continuation?.fabricCleared ?? kept?.cleared,
+      continuation?.fabricDetachedLines ?? kept?.detachedLines
     );
     reattachFabricEntrances(doc);
     housingAttempts = organic.houses.length;
