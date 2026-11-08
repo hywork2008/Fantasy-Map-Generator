@@ -279,7 +279,9 @@ export type FoodProcessingLedger = Partial<
     | "Cider"
     | "Perry"
     | "Honey"
-    | "Mead",
+    | "Mead"
+    | "Soap"
+    | "Castile Soap",
     FoodProcessingGoodLedger
   >
 >;

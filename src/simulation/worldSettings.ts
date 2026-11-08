@@ -40,6 +40,8 @@ export const WORLD_SETTING_KEYS = [
   "fmg-household-honey-kg",
   /** Mead a town adult drinks in a year outside the wine country (docs/plan/mead.md §3). */
   "fmg-town-mead-liters",
+  /** Soap a town person uses in a year, white and soft (docs/plan/town-soap.md §3.1). */
+  "fmg-town-soap-kg",
   /** Cost of washing and mending an empty for refilling, a share of its value (docs/plan/returnable-drink-containers.md §3). */
   "fmg-container-reuse-cost"
 ] as const;

@@ -43,6 +43,11 @@ import {
   TREELESS_TOWN_ALE_WOODLAND_LIMITS
 } from "../../../../simulation/townAleSettings";
 import { getTownMeadLiters, setTownMeadLiters, TOWN_MEAD_LITERS_LIMITS } from "../../../../simulation/townMeadSettings";
+import {
+  getTownSoapKilograms,
+  setTownSoapKilograms,
+  TOWN_SOAP_KG_LIMITS
+} from "../../../../simulation/townSoapSettings";
 import { useOptionsState } from "../../../../store/optionsState";
 import { MIN_CURRENCY_EXCHANGE_RATE } from "../../../../utils/currency";
 import { lock } from "../../../../utils/domUtils";
@@ -81,6 +86,7 @@ export const SimulationSettingsTab: React.FC = () => {
   const [treelessTownAleWoodland, setTreelessTownAleWoodlandState] = useState(getTreelessTownAleWoodland);
   const [householdHoneyKilograms, setHouseholdHoneyKilogramsState] = useState(getHouseholdHoneyKilograms);
   const [townMeadLiters, setTownMeadLitersState] = useState(getTownMeadLiters);
+  const [townSoapKilograms, setTownSoapKilogramsState] = useState(getTownSoapKilograms);
   const [containerReuseCost, setContainerReuseCostState] = useState(getContainerReuseCost);
   const generationSpacing = getMarketGenerationSpacing(
     worldContext.graphWidth,
@@ -612,6 +618,23 @@ export const SimulationSettingsTab: React.FC = () => {
                 onChange={v => {
                   const liters = Number(v);
                   if (Number.isFinite(liters)) setTownMeadLitersState(setTownMeadLiters(liters));
+                }}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.townSoapKilogramsTip")}>
+            <td />
+            <td>{t("simulation.townSoapKilograms")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="townSoapKilograms"
+                min={TOWN_SOAP_KG_LIMITS.min}
+                max={TOWN_SOAP_KG_LIMITS.max}
+                step={TOWN_SOAP_KG_LIMITS.step}
+                value={townSoapKilograms}
+                onChange={v => {
+                  const kilograms = Number(v);
+                  if (Number.isFinite(kilograms)) setTownSoapKilogramsState(setTownSoapKilograms(kilograms));
                 }}
               />
             </td>

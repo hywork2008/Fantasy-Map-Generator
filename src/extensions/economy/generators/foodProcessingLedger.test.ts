@@ -44,7 +44,9 @@ vi.mock("../economyContext", () => ({
     { i: 12, name: "Fish", tags: ["food", "freshFood"] },
     { i: 13, name: "Shellfish", tags: ["food", "freshFood"] },
     { i: 14, name: "Iron", tags: ["metal"] },
-    { i: 15, name: "Barrels", tags: ["storage"] }
+    { i: 15, name: "Barrels", tags: ["storage"] },
+    { i: 18, name: "Soap", tags: ["luxury"] },
+    { i: 19, name: "Castile Soap", tags: ["luxury"] }
   ],
   recordCumulativeCellFoodProcessing: vi.fn(),
   getWorldContext: () => ({
@@ -110,7 +112,7 @@ describe("foodProcessingLedger", () => {
     market.goods[5].stock = 1;
     market.goods[6].stock = 4;
     market.goods[7].stock = 0;
-    for (const id of [8, 9, 10, 11]) market.goods[id] = { stock: 0, price: 1 };
+    for (const id of [8, 9, 10, 11, 18, 19]) market.goods[id] = { stock: 0, price: 1 };
     market.foodProcessingLedger = undefined;
     market.returnableContainerLedger = undefined;
     market.marketTreasury = undefined;
@@ -118,6 +120,19 @@ describe("foodProcessingLedger", () => {
     Object.assign(purses, { town: Infinity, rural: Infinity, paidByTown: 0, paidByRural: 0 });
     ruralPopulation.people = 0;
     settings.householdGoodsPayment = "free";
+  });
+
+  it("makes up the white soap the market lacks with soft soap (docs/plan/town-soap.md §3.2)", () => {
+    // 1,000 people of a small town, 2 kg a head: 30% white, 70% soft, in 120 kg barrels a month.
+    const white = getMonthlyHouseholdDemand(market, "Castile Soap");
+    const soft = getMonthlyHouseholdDemand(market, "Soap");
+    expect(white).toBeCloseTo((1_000 * 2 * 0.3) / 12 / 120, 6);
+    expect(soft).toBeCloseTo((1_000 * 2 * 0.7) / 12 / 120, 6);
+    market.goods[19].stock = 0.1;
+    market.goods[18].stock = 10;
+    settleFoodProcessingHouseholds();
+    expect(market.goods[19].stock).toBeCloseTo(0, 6);
+    expect(market.goods[18].stock).toBeCloseTo(10 - soft - (white - 0.1), 6);
   });
 
   it("takes consigned goods out of the consignment unpaid when households take them for free", () => {

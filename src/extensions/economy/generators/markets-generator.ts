@@ -170,6 +170,13 @@ import {
   invalidateTextileDemandCache,
   type TextileMarketOrders
 } from "./textileDemand";
+import {
+  getMonthlyTownSoapDemand,
+  isTownSoapDemandGood,
+  isTownSoapEnabled,
+  isTownSoapGood,
+  type TownSoapGood
+} from "./townSoap";
 import { getGoodCargoSlotsPerUnit, getRouteCargoSlotsPerUnit } from "./tradeCargo";
 import { TradeLogisticsSettings } from "./tradeLogisticsSettings";
 import {
@@ -2396,6 +2403,7 @@ export class MarketsModule {
     const strategicDemandByMarket = this.collectOutstandingStateMetallurgDemand(goods);
     this.addCalibratedMetalInputDemand(goods, strategicDemandByMarket);
     this.addFarmToolsDemand(goods, strategicDemandByMarket);
+    this.addTownSoapDemand(goods, strategicDemandByMarket);
     for (const market of getMarkets()) {
       for (const good of goods.filter(good => isOrchardDrink(good.name))) {
         const demand = strategicDemandByMarket.get(market.i) ?? new Map<number, number>();
@@ -2528,6 +2536,46 @@ export class MarketsModule {
       const demandByGood = demandByMarket.get(marketId) ?? new Map<number, number>();
       demandByGood.set(tools.i, (demandByGood.get(tools.i) || 0) + units);
       demandByMarket.set(marketId, demandByGood);
+    }
+  }
+
+  /**
+   * The towns' soap need of each market and the ingredients of its typical recipe
+   * (docs/plan/town-soap.md §3.3). An ingredient is asked for only where the market holds the
+   * recipe's other ingredients: a market without oil buys its white soap made, not barilla.
+   */
+  private addTownSoapDemand(goods: readonly Good[], demandByMarket: Map<number, Map<number, number>>): void {
+    if (!isTownSoapEnabled()) return;
+    const goodsById = new Map(goods.map(good => [good.i, good]));
+    const soaps = goods.flatMap(good => {
+      if (!isTownSoapGood(good.name)) return [];
+      // The cheapest recipe at base value whose ingredients the world knows.
+      let best: { id: number; amount: number }[] | null = null;
+      let bestCost = Number.POSITIVE_INFINITY;
+      for (const recipe of good.recipes ?? []) {
+        const inputs = Object.entries(recipe).map(([id, amount]) => ({ id: +id, amount }));
+        if (inputs.some(({ id }) => !goodsById.has(id))) continue;
+        const cost = inputs.reduce((sum, { id, amount }) => sum + amount * (goodsById.get(id)?.value ?? 0), 0);
+        if (cost < bestCost) {
+          best = inputs;
+          bestCost = cost;
+        }
+      }
+      return [{ good, name: good.name as TownSoapGood, inputs: best ?? [] }];
+    });
+    for (const market of getMarkets()) {
+      const demandByGood = demandByMarket.get(market.i) ?? new Map<number, number>();
+      for (const { good, name, inputs } of soaps) {
+        const units = getMonthlyTownSoapDemand(market, name);
+        if (!(units > 0)) continue;
+        demandByGood.set(good.i, (demandByGood.get(good.i) || 0) + units);
+        for (const { id, amount } of inputs) {
+          const others = inputs.filter(other => other.id !== id);
+          if (others.some(other => (market.goods[other.id]?.stock ?? 0) <= 0.01)) continue;
+          demandByGood.set(id, (demandByGood.get(id) || 0) + units * amount);
+        }
+      }
+      demandByMarket.set(market.i, demandByGood);
     }
   }
 
@@ -3513,18 +3561,17 @@ export class MarketsModule {
   private collectConsumerDemand(goods: Good[], excludeLuxury = false): number[] {
     const applyCalibration = getEconomyCalibrationState().applyCalibration;
     const categories = excludeLuxury ? DEMAND_PRIORITY.filter(category => category !== "luxury") : DEMAND_PRIORITY;
+    // The towns' soap is asked for by each market's own need (addTownSoapDemand), not per head.
+    const coverageOf = (good: Good, category: DemandCategory) =>
+      isTownSoapDemandGood(good) ? 0 : consumerCoverageForCategory(good, category, applyCalibration);
     const totalCoverageByCategory = Object.fromEntries(
-      categories.map(category => [
-        category,
-        goods.reduce((sum, g) => sum + consumerCoverageForCategory(g, category, applyCalibration), 0) || 1
-      ])
+      categories.map(category => [category, goods.reduce((sum, g) => sum + coverageOf(g, category), 0) || 1])
     ) as Record<DemandCategory, number>;
 
     const demandFactor: number[] = [];
     for (const good of goods) {
       demandFactor[good.i] = categories.reduce((sum, category) => {
-        const share =
-          consumerCoverageForCategory(good, category, applyCalibration) / (totalCoverageByCategory[category] || 1);
+        const share = coverageOf(good, category) / (totalCoverageByCategory[category] || 1);
         return sum + share * DEMAND_TARGET_FACTORS[category];
       }, 0);
     }

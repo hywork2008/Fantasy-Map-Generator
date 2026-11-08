@@ -62,6 +62,7 @@ import {
   returnDrunkContainers,
   rollContainerFillRate
 } from "./returnableContainers";
+import { getMonthlyTownSoapDemand, isTownSoapGood, SOFT_SOAP, WHITE_SOAP } from "./townSoap";
 
 const TRACKED_GOODS = new Set([
   "Milk",
@@ -75,7 +76,10 @@ const TRACKED_GOODS = new Set([
   "Cider",
   "Perry",
   "Honey",
-  "Mead"
+  "Mead",
+  // The towns' soap (townSoap.ts, docs/plan/town-soap.md).
+  "Soap",
+  "Castile Soap"
 ]);
 const BEER_RESERVE_MONTHS = 1;
 
@@ -343,6 +347,9 @@ export function getMonthlyHouseholdDemand(market: Market, goodName: string): num
       return (people * getHouseholdHoneyKilograms()) / 12 / GOOD_MEASURES.Honey.kg;
     case "Mead":
       return getTownMeadDemand(market);
+    case "Soap":
+    case "Castile Soap":
+      return getMonthlyTownSoapDemand(market, goodName);
     default:
       return 0;
   }
@@ -576,15 +583,16 @@ function payForHouseholdGoods(
   return short ? Math.min(units, paid / price) : units;
 }
 
+/** Draws the market's household demand for a good from its stock; returns the demand left unmet. */
 function drawHouseholdDemand(
   market: Market,
   goodName: string,
   demand: number,
   purses: HouseholdGoodsPurses | null
-): void {
+): number {
   const good = getGoods().find(candidate => candidate.name === goodName);
   const ledger = getGoodLedger(market, goodName);
-  if (!good || !ledger || demand <= 0) return;
+  if (!good || !ledger || demand <= 0) return Math.max(0, demand);
   const marketGood = market.goods[good.i];
   // Source-cell household use has already been recorded before the production cycle reaches this
   // market-level settlement. Only the remaining demand may draw from Market stock.
@@ -598,7 +606,7 @@ function drawHouseholdDemand(
       purses,
       consumed,
       marketGood?.price ?? 0,
-      goodName === "Beer" || goodName === "Mead"
+      goodName === "Beer" || goodName === "Mead" || isTownSoapGood(goodName)
     );
   // Taken without payment, the towns' consigned goods bring in nothing to pay them with.
   else if (consumed > 0) releaseConsignedUnpaid(market, good.i, consumed);
@@ -613,7 +621,8 @@ function drawHouseholdDemand(
     });
   }
   ledger.householdConsumption += consumed;
-  ledger.unmetDemand += Math.max(0, remainingDemand - consumed);
+  const unmet = Math.max(0, remainingDemand - consumed);
+  ledger.unmetDemand += unmet;
   if (isReturnedCaskDrink(goodName) && consumed > 0) {
     const row = market.returnableContainerLedger?.orchardCasks?.[goodName];
     if (row) {
@@ -636,6 +645,7 @@ function drawHouseholdDemand(
     containers.beerCasksInService = (containers.beerCasksInService ?? 0) - returned;
     containers.cumulativeBeerCaskReturns = (containers.cumulativeBeerCaskReturns ?? 0) + returned;
   }
+  return unmet;
 }
 
 /**
@@ -656,6 +666,9 @@ export function settleFoodProcessingHouseholds(): void {
     drawHouseholdDemand(market, "Honey", getMonthlyHouseholdDemand(market, "Honey"), purses);
     for (const name of ["Apples", "Pears", "Cider", "Perry", "Mead"] as const)
       drawHouseholdDemand(market, name, getMonthlyHouseholdDemand(market, name), purses);
+    // White soap the market lacks is made up with soft soap (docs/plan/town-soap.md §3.2).
+    const whiteUnmet = drawHouseholdDemand(market, WHITE_SOAP, getMonthlyHouseholdDemand(market, WHITE_SOAP), purses);
+    drawHouseholdDemand(market, SOFT_SOAP, getMonthlyHouseholdDemand(market, SOFT_SOAP) + whiteUnmet, purses);
     const aleDemand = getAleDemandSnapshot(market);
     const beerLedger = getGoodLedger(market, "Beer");
     if (beerLedger) {

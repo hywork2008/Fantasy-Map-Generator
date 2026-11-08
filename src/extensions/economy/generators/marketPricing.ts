@@ -3,6 +3,7 @@ import { getBurgMarketLedger } from "./burgMarketLedgers";
 import { getMintPriceFloor } from "./currencySufficiency";
 import { GOODS_DATA, Goods } from "./goods-generator";
 import type { Good } from "./goodsGeneratorTypes";
+import { isTownSoapDemandGood } from "./townSoap";
 
 export const MARKET_MARGIN = 0.1;
 
@@ -95,7 +96,8 @@ const HOUSEHOLD_DEMAND_PRICED_GOODS: ReadonlySet<string> = new Set([
 ]);
 
 export function isPricedByHouseholdDemand(good: Pick<Good, "name">): boolean {
-  return HOUSEHOLD_DEMAND_PRICED_GOODS.has(good.name);
+  // The towns' soap, while their soap need is on (docs/plan/town-soap.md §3.3).
+  return HOUSEHOLD_DEMAND_PRICED_GOODS.has(good.name) || isTownSoapDemandGood(good);
 }
 
 export const PRICE_FLOOR_FACTOR = 0.25;

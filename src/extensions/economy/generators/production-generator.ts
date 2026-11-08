@@ -179,6 +179,7 @@ import {
 } from "./textileDemand";
 import { HOUSEHOLD_GARMENT_NAMES, hasPhysicalTextileRecipe } from "./textileRecipeContracts";
 import { buyTownLuxuries } from "./townLuxuryPurchases";
+import { isTownSoapDemandGood } from "./townSoap";
 import { TradeSecurity } from "./tradeSecurity";
 import { TransportAssetOrders } from "./transportAssetOrders";
 import { recordUrbanCraftCapacity } from "./urbanCraftCapacity";
@@ -1962,6 +1963,11 @@ export class ProductionModule {
 
     for (const good of goods) {
       const coverage: number[] = Array(DEMAND_PRIORITY.length).fill(0);
+      // The towns' soap is drawn by their households' own need (townSoap.ts), not a category's.
+      if (isTownSoapDemandGood(good)) {
+        demandCoverageByGood[good.i] = coverage;
+        continue;
+      }
       for (let category = 0; category < DEMAND_PRIORITY.length; category++) {
         coverage[category] = good.demandCoverage?.[DEMAND_PRIORITY[category] as DemandCategory] || 0;
       }
