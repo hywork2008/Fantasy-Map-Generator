@@ -1,0 +1,55 @@
+{
+  "format": "ce-meshless-commit-observation",
+  "version": 1,
+  "measuredAtUtc": "2026-11-08T10:39:24.339Z",
+  "input": "docs/analytics/raw/scaling-s21g-20261108",
+  "scope": "Node + jsdom, one run each; validation phases from validateVectorDocument's timing observer.",
+  "rows": {
+    "5000": {
+      "structuredClone": 8,
+      "assertVectorDocument": 121,
+      "validationPhases": {
+        "paths": 0,
+        "references": 1,
+        "sites": 0,
+        "junction-sites": 2,
+        "network": 86,
+        "generation": 2,
+        "urban": 15,
+        "presentation": 0,
+        "environment": 0,
+        "fabric": 4
+      },
+      "jsonStringify": 9,
+      "detachFabricHouse": 278,
+      "historyDocumentGetter": 11,
+      "historyCommit": 121,
+      "vectorRenderData": 232,
+      "renderVectorDocument": 238,
+      "reconcileFix": 1265
+    },
+    "50000": {
+      "structuredClone": 88,
+      "assertVectorDocument": 259,
+      "validationPhases": {
+        "paths": 0,
+        "references": 1,
+        "sites": 0,
+        "junction-sites": 25,
+        "network": 83,
+        "generation": 9,
+        "urban": 128,
+        "presentation": 0,
+        "environment": 0,
+        "fabric": 14
+      },
+      "jsonStringify": 34,
+      "detachFabricHouse": 600,
+      "historyDocumentGetter": 95,
+      "historyCommit": 447,
+      "vectorRenderData": 618,
+      "renderVectorDocument": 713,
+      "reconcileFix": 4003
+    }
+  }
+}

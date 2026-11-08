@@ -2,31 +2,232 @@
   "format": "ce-meshless-parallel-observation",
   "version": 1,
   "measuredOn": "2026-11-08",
-  "environment": { "browser": "Playwright Chromium (headless), Vite dev server", "hardwareConcurrency": 16, "cpu": "AMD Ryzen 7 5800H" },
+  "environment": {
+    "browser": "Playwright Chromium (headless), Vite dev server",
+    "hardwareConcurrency": 16,
+    "cpu": "AMD Ryzen 7 5800H"
+  },
   "input": "Fixed wall-first input (m9-fixed, ellipse wall, 4 branches), mode medieval, maxLanes 8. One run each.",
   "endToEnd": {
     "scope": "startVectorGeneration (task city) in a real generation worker with nested district workers, districtWorkers 1, 2, 4. Pool workers start when the generation starts.",
     "rows": [
-      { "population": 5000, "workers": 1, "ms": 1673, "sha256": "6b238e9bd7d4ab08d7a9cb01b6e41023ce93b59b8458b67a712d8823745dfc17" },
-      { "population": 5000, "workers": 2, "ms": 1767, "sha256": "6b238e9bd7d4ab08d7a9cb01b6e41023ce93b59b8458b67a712d8823745dfc17" },
-      { "population": 5000, "workers": 4, "ms": 2066, "sha256": "6b238e9bd7d4ab08d7a9cb01b6e41023ce93b59b8458b67a712d8823745dfc17" },
-      { "population": 50000, "workers": 1, "ms": 4180, "sha256": "4145c8b3403eb478704e028189c35862f2d85ee58eff43dd7f0bc4147c34ab17" },
-      { "population": 50000, "workers": 2, "ms": 4120, "sha256": "4145c8b3403eb478704e028189c35862f2d85ee58eff43dd7f0bc4147c34ab17" },
-      { "population": 50000, "workers": 4, "ms": 3809, "sha256": "4145c8b3403eb478704e028189c35862f2d85ee58eff43dd7f0bc4147c34ab17" }
+      {
+        "population": 5000,
+        "workers": 1,
+        "ms": 1673,
+        "sha256": "6b238e9bd7d4ab08d7a9cb01b6e41023ce93b59b8458b67a712d8823745dfc17"
+      },
+      {
+        "population": 5000,
+        "workers": 2,
+        "ms": 1767,
+        "sha256": "6b238e9bd7d4ab08d7a9cb01b6e41023ce93b59b8458b67a712d8823745dfc17"
+      },
+      {
+        "population": 5000,
+        "workers": 4,
+        "ms": 2066,
+        "sha256": "6b238e9bd7d4ab08d7a9cb01b6e41023ce93b59b8458b67a712d8823745dfc17"
+      },
+      {
+        "population": 50000,
+        "workers": 1,
+        "ms": 4180,
+        "sha256": "4145c8b3403eb478704e028189c35862f2d85ee58eff43dd7f0bc4147c34ab17"
+      },
+      {
+        "population": 50000,
+        "workers": 2,
+        "ms": 4120,
+        "sha256": "4145c8b3403eb478704e028189c35862f2d85ee58eff43dd7f0bc4147c34ab17"
+      },
+      {
+        "population": 50000,
+        "workers": 4,
+        "ms": 3809,
+        "sha256": "4145c8b3403eb478704e028189c35862f2d85ee58eff43dd7f0bc4147c34ab17"
+      }
     ]
   },
   "warmPool": {
     "scope": "Main thread: generateVectorUrbanAsync on the 50,000-person skeleton with a pool whose workers were started 4 s earlier. calls: [kind, jobs, ms from request to results].",
     "rows": [
-      { "workers": 1, "urbanMs": 2914, "calls": [["streets", 6, 389], ["cells", 654, 906]] },
-      { "workers": 2, "urbanMs": 2227, "calls": [["streets", 6, 174], ["cells", 654, 609]] },
-      { "workers": 4, "urbanMs": 2095, "calls": [["streets", 6, 140], ["cells", 654, 435]] },
-      { "workers": 4, "urbanMs": 2076, "calls": [["streets", 6, 148], ["cells", 654, 458]] }
+      {
+        "workers": 1,
+        "urbanMs": 2914,
+        "calls": [
+          [
+            "streets",
+            6,
+            389
+          ],
+          [
+            "cells",
+            654,
+            906
+          ]
+        ]
+      },
+      {
+        "workers": 2,
+        "urbanMs": 2227,
+        "calls": [
+          [
+            "streets",
+            6,
+            174
+          ],
+          [
+            "cells",
+            654,
+            609
+          ]
+        ]
+      },
+      {
+        "workers": 4,
+        "urbanMs": 2095,
+        "calls": [
+          [
+            "streets",
+            6,
+            140
+          ],
+          [
+            "cells",
+            654,
+            435
+          ]
+        ]
+      },
+      {
+        "workers": 4,
+        "urbanMs": 2076,
+        "calls": [
+          [
+            "streets",
+            6,
+            148
+          ],
+          [
+            "cells",
+            654,
+            458
+          ]
+        ]
+      }
     ]
   },
   "nodeEstimate": {
     "scope": "Node + jsdom, per-job times; balanced = slowest worker's share under the largest-area-first assignment.",
-    "5000": { "streets": { "jobs": 6, "serialMs": 114, "balanced": { "2": 62, "3": 51, "4": 46 } }, "cells": { "jobs": 91, "serialMs": 260, "balanced": { "2": 143, "3": 100, "4": 79 } } },
-    "50000": { "streets": { "jobs": 6, "serialMs": 458, "balanced": { "2": 232, "3": 194, "4": 179 } }, "cells": { "jobs": 646, "serialMs": 1366, "balanced": { "2": 699, "3": 489, "4": 365 } } }
+    "5000": {
+      "streets": {
+        "jobs": 6,
+        "serialMs": 114,
+        "balanced": {
+          "2": 62,
+          "3": 51,
+          "4": 46
+        }
+      },
+      "cells": {
+        "jobs": 91,
+        "serialMs": 260,
+        "balanced": {
+          "2": 143,
+          "3": 100,
+          "4": 79
+        }
+      }
+    },
+    "50000": {
+      "streets": {
+        "jobs": 6,
+        "serialMs": 458,
+        "balanced": {
+          "2": 232,
+          "3": 194,
+          "4": 179
+        }
+      },
+      "cells": {
+        "jobs": 646,
+        "serialMs": 1366,
+        "balanced": {
+          "2": 699,
+          "3": 489,
+          "4": 365
+        }
+      }
+    }
+  },
+  "productionBuild": {
+    "scope": "vite build of a temporary page (removed afterwards) importing startVectorGeneration; served statically; Chromium headless. Task city, districtWorkers 1, 2, 4, two rounds each. Pool workers start with the generation.",
+    "rows": [
+      {
+        "population": 5000,
+        "workers": 1,
+        "ms": 1407
+      },
+      {
+        "population": 5000,
+        "workers": 2,
+        "ms": 1310
+      },
+      {
+        "population": 5000,
+        "workers": 4,
+        "ms": 1297
+      },
+      {
+        "population": 5000,
+        "workers": 1,
+        "ms": 1380
+      },
+      {
+        "population": 5000,
+        "workers": 2,
+        "ms": 1290
+      },
+      {
+        "population": 5000,
+        "workers": 4,
+        "ms": 1320
+      },
+      {
+        "population": 50000,
+        "workers": 1,
+        "ms": 3899
+      },
+      {
+        "population": 50000,
+        "workers": 2,
+        "ms": 3481
+      },
+      {
+        "population": 50000,
+        "workers": 4,
+        "ms": 3111
+      },
+      {
+        "population": 50000,
+        "workers": 1,
+        "ms": 3906
+      },
+      {
+        "population": 50000,
+        "workers": 2,
+        "ms": 3686
+      },
+      {
+        "population": 50000,
+        "workers": 4,
+        "ms": 3254
+      }
+    ],
+    "sha256": {
+      "5000": "6b238e9bd7d4ab08d7a9cb01b6e41023ce93b59b8458b67a712d8823745dfc17",
+      "50000": "4145c8b3403eb478704e028189c35862f2d85ee58eff43dd7f0bc4147c34ab17"
+    }
   }
 }
