@@ -316,6 +316,7 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   Resin: barrelOf(1.1),
   Tallow: barrelOf(0.9),
   Potash: barrelOf(1.0),
+  Barilla: barrelOf(1.0),
   "Sulfuric Acid": barrelOf(1.84),
   Chlorine: barrelOf(1.47),
   "Bleaching Powder": barrelOf(0.6),

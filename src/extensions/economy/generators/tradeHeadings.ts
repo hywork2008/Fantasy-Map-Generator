@@ -291,6 +291,7 @@ export const CATALOG_TRADE_HEADINGS = {
   "Coal Tar": "fuels",
   "Synthetic Dye": "chemicals",
   "Soda Ash": "chemicals",
+  Barilla: "chemicals",
   "Caustic Soda": "chemicals",
   "Phosphate Rock": "crude",
   Bauxite: "crude",

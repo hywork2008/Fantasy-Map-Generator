@@ -311,6 +311,25 @@ const LEGACY_SHORE_DEPOSIT_DISTRIBUTION = "minTemp(8) && (shore(1) || river())";
 const SHORE_DEPOSIT_DISTRIBUTION =
   '(shore(1) || river()) && !(biomeTag("cold") && !biomeTag("forest", "wetland", "desert"))';
 const SHORE_DEPOSIT_GOODS: readonly string[] = ["Clay", "White sand"];
+/**
+ * Barilla, the ash of the saltworts (Salsola, Halogeton, Salicornia) burned on warm salt shores: the
+ * Levant's and Egypt's ash that Murano melted from 1255, and Alicante's and Cartagena's that Spain
+ * shipped to Italy and the north. Narbonne's Salicornia, at about 14 degrees, was the coolest shore
+ * of the trade (docs/plan/barilla.md §2).
+ */
+const BARILLA_DISTRIBUTION =
+  'minTemp(14) && (coastalHabitat("tidalFlat", "coastalDune") || shore(1) && biomeTag("dry", "desert", "scrub"))';
+/**
+ * A 120 L barrel of barilla at half potash's price per kilogram (provisional): kelp sold at about
+ * £8 a ton in the 1770s and barilla, with twice its alkali, was dearer still; pearl ash was £40
+ * (docs/plan/barilla.md §2.3).
+ */
+const BARILLA_BARREL_VALUE = 0.45;
+/**
+ * Barilla for a wain of glass: the alkali of the potash recipe's half barrel. Barilla held about 20%
+ * alkali against potash's 65% (Barker 1977), so 0.5 x 65 / 20 = 1.6 barrels.
+ */
+export const BARILLA_BARRELS_PER_GLASS_LOT = 1.6;
 /** Pressed grape pomace in one 200 L cask of pomace wine: 120 kg, a tenth of a lot, with water (§29). */
 const POMACE_LOTS_PER_POMACE_WINE_CASK = 0.12;
 const shipClassById = new Map(SHIP_CLASS_DEFINITIONS.map(shipClass => [shipClass.id, shipClass]));
@@ -1543,9 +1562,12 @@ export const GOODS_DATA: GoodData[] = [
     // is available (see Soda Ash's own comment below), alongside the original forest/potash-glass
     // recipe. requiredTechnology lives on Soda Ash itself, not here, so this alternative simply
     // has no viable ingredient until chemicalIndustryFoundation is adopted somewhere.
+    // Third recipe: the soda glass of the warm ports, melted with Barilla shipped from the salt
+    // shores, as Murano and Barcelona did (docs/plan/barilla.md).
     recipes: [
       { "White sand": 1, Potash: 0.5 },
-      { "White sand": 1, "Soda Ash": 0.5 }
+      { "White sand": 1, "Soda Ash": 0.5 },
+      { "White sand": 1, Barilla: BARILLA_BARRELS_PER_GLASS_LOT }
     ],
     unit: "wain",
     demandCoverage: { luxury: 1 },
@@ -2565,6 +2587,20 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [{ Ash: POTASH_ASH_PER_UNIT }],
     unit: "barrel",
     demandCoverage: { utilities: 0.3 }
+  },
+  {
+    // Plant soda ash, burned from the saltworts of warm salt shores into hard grey cakes and
+    // shipped to the glasshouses of the ports (docs/plan/barilla.md).
+    name: "Barilla",
+    warEconomyType: "strategic",
+    tags: ["industrial"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#a9a48c",
+    value: BARILLA_BARREL_VALUE,
+    chance: 3,
+    distribution: BARILLA_DISTRIBUTION,
+    unit: "barrel"
   },
   {
     // A bulky, low-value smelter residue. It is locally useful as fill or aggregate, but is
@@ -4670,6 +4706,26 @@ export function migrateWineRecipe(): boolean {
   wine.chance = 0;
   delete wine.distribution;
   delete wine.biomeOutputByTag;
+  return true;
+}
+
+/**
+ * Adds Barilla to catalogues saved before it and the soda-glass recipe to their Glass, on this save's
+ * White sand id (docs/plan/barilla.md). The map's deposits stay as saved; the Goods editor's placement
+ * regeneration lays Barilla out. No-op when Barilla is present or Glass or White sand is missing.
+ */
+export function migrateBarillaGood(): boolean {
+  const goods = getGoods();
+  if (goods.some(good => good.name === "Barilla")) return false;
+  const glass = goods.find(good => good.name === "Glass");
+  const sand = goods.find(good => good.name === "White sand");
+  if (!glass || !sand) return false;
+
+  const barilla = Goods.getDefaultGood("Barilla");
+  if (!barilla) throw new Error("Barilla must be present in the shipped goods catalogue");
+  barilla.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  goods.push(barilla);
+  glass.recipes = [...(glass.recipes ?? []), { [sand.i]: 1, [barilla.i]: BARILLA_BARRELS_PER_GLASS_LOT }];
   return true;
 }
 

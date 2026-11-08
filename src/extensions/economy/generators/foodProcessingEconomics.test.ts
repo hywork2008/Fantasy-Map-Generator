@@ -55,4 +55,44 @@ describe("food-processing economics", () => {
       )
     ).toBeCloseTo(mean, 6);
   });
+
+  it("prices glass from the alkali the market holds, not from barilla it lacks or soda ash not yet known", () => {
+    // White sand 1, Potash 2, Barilla 3; potash 0.9 a barrel, barilla at a scarce 1.2. The soda-ash
+    // recipe has lost its unknown Soda Ash and is left as sand alone.
+    const price = [0, 0.3, 0.9, 1.2];
+    const recipes = [
+      [
+        { goodId: 1, amount: 1 },
+        { goodId: 2, amount: 0.5 }
+      ],
+      [{ goodId: 1, amount: 1 }],
+      [
+        { goodId: 1, amount: 1 },
+        { goodId: 3, amount: 1.6 }
+      ]
+    ];
+    const makeable = [true, false, true];
+    const inland = [0, 50, 20, 0];
+    expect(
+      getRecipeCostBasis(
+        "Glass",
+        recipes,
+        id => price[id],
+        id => inland[id],
+        undefined,
+        makeable
+      )
+    ).toBeCloseTo(0.75, 6);
+    // Holding no lot of any alkali, glass is priced from the cheapest makeable recipe, not sand alone.
+    expect(
+      getRecipeCostBasis(
+        "Glass",
+        recipes,
+        id => price[id],
+        () => 0,
+        undefined,
+        makeable
+      )
+    ).toBeCloseTo(0.75, 6);
+  });
 });

@@ -21,6 +21,7 @@ import {
   getFreshFoodProfile,
   isGoodEnabled,
   migrateAlloySteelGoods,
+  migrateBarillaGood,
   migrateBeeswaxByproduct,
   migrateColdLandShoreDeposits,
   migrateElectricalGoods,
@@ -1395,6 +1396,24 @@ describe("GoodsModule", () => {
     clay.distribution = "minTemp(12) && river()";
     expect(migrateColdLandShoreDeposits()).toBe(false);
     expect(clay.distribution).toBe("minTemp(12) && river()");
+  });
+
+  it("adds Barilla and the soda-glass recipe to a saved catalogue on that save's own White sand id", () => {
+    goodsModule.restoreDefaults();
+    const sand = getGoods().find(good => good.name === "White sand")!;
+    const saved = getGoods()
+      .filter(good => good.name !== "Barilla")
+      .map(good => (good.i === sand.i ? { ...good, i: 900 } : good));
+    const glass = saved.find(good => good.name === "Glass")!;
+    glass.recipes = glass.recipes!.slice(0, 2);
+    setGoods(saved);
+
+    expect(migrateBarillaGood()).toBe(true);
+    const barilla = getGoods().find(good => good.name === "Barilla")!;
+    expect(barilla.i).toBe(901);
+    expect(glass.recipes!.at(-1)).toEqual({ 900: 1, 901: 1.6 });
+    expect(migrateBarillaGood()).toBe(false);
+    expect(glass.recipes).toHaveLength(3);
   });
 
   it("adds Mead to a saved catalogue on that save's own Honey and Barrels ids", () => {

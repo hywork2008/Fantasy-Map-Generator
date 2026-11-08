@@ -1785,20 +1785,26 @@ export class MarketsModule {
         if (!good.recipes?.length) continue;
         const marketGood = this.getMarketGood(market, good);
         const ingredientRows = new Map<number, Market["goods"][number]>();
-        const recipeEntries = good.recipes.map(recipe =>
-          Object.entries(recipe).flatMap(([ingIdStr, amount]) => {
+        const makeable: boolean[] = [];
+        const recipeEntries = good.recipes.map((recipe, index) => {
+          makeable[index] = true;
+          return Object.entries(recipe).flatMap(([ingIdStr, amount]) => {
             const ing = Goods.get(+ingIdStr);
-            if (!ing || !isGoodEnabled(ing)) return [];
+            if (!ing || !isGoodEnabled(ing)) {
+              makeable[index] = false;
+              return [];
+            }
             ingredientRows.set(ing.i, this.getMarketGood(market, ing));
             return [{ goodId: ing.i, amount }];
-          })
-        );
+          });
+        });
         const avgMarketCost = getRecipeCostBasis(
           good.name,
           recipeEntries,
           goodId => ingredientRows.get(goodId)?.price ?? 0,
           goodId => ingredientRows.get(goodId)?.stock ?? 0,
-          isReturnableDrink(good.name) ? isDrinkContainerId : undefined
+          isReturnableDrink(good.name) ? isDrinkContainerId : undefined,
+          makeable
         );
         marketGood.costBasis = rn(avgMarketCost, 2);
 
