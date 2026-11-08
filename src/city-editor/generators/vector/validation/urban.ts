@@ -134,7 +134,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       u,
       "algorithm,inputRevision,settings,baseGeneration,baseConnections,baseContext,domain,laneBlocks,residualLand,districts,ownedPaths,ownedPlacements,adoptedFingerprint,checkpoints,assignments,report"
     ) ||
-    !["vector-urban-v1", "vector-urban-v2", "vector-urban-v3"].includes(u.algorithm) ||
+    !["vector-urban-v1", "vector-urban-v2", "vector-urban-v3", "vector-urban-v4"].includes(u.algorithm) ||
     !nonnegative(u.inputRevision) ||
     !keys(
       u.settings,

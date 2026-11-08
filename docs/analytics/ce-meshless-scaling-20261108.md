@@ -188,3 +188,38 @@ CE_MESHLESS_SELECTION_DOC=<保存文書> CE_MESHLESS_SELECTION_OUT=<新しい出
 関連テスト: `components/vector`、`renderers/vector`、`services/io/vector`、`generators/vector/document.test.ts`、`components/CityEditorPage*`で、36ファイル中33成功・1 skip・2失敗、203件中200成功。失敗の2件（`CityEditorPage.buildingPattern.test.ts`の生成方式の選択肢、`CityEditorPage.generate.test.ts`のBonenfeld）は、本作業の前のコミット`2156508ba`でも同じく失敗しており、本変更とは関係しない。
 
 5,000人で選択は1フレーム（16 ms）以内に収まった。50,000人以上の文書はS2の形式まで保存できないため、16 msの目標はS2で計測する。
+
+## S2.2 安定した地区ID
+
+地区IDを、骨格の街区の並び順（`block:<番号>`）から、輪郭と接道から求めるID（`district:<16桁>`）に変えた（`generation/districtId.ts`）。
+
+- 輪郭は1 cm単位に丸め、反時計回り・最も小さい(x, y)の頂点から始まる順に正規化する。穴も同様に正規化して並べる。
+- 接する道路のIDを重複なしで並べて加える。
+- 地区IDから街路街区IDと乱数を作るため、ほかの地区の増減や並び順に関係なく、同じ輪郭・同じ接道の地区は同じ街路街区と住宅になる。
+- 骨格の生成結果（`generation.blocks`の`block:<番号>`）は変えていない。地区IDを使うのは施設住宅の生成だけである。
+- 出力が変わるため、生成版を`vector-urban-v4`に上げた。
+
+回帰テスト`generation/perimeter.test.ts`は、骨格の街区の順序を逆にしても地区ごとの住宅が一致することを確かめる。地区IDを従来の並び順のIDに戻すと失敗することも確認した。
+
+| 人口 | 合計（S1.5後半→S2.2） | 外周計画 | 結果 |
+| --- | --- | --- | --- |
+| 1,000 | 1,501 → 1,634 ms | 234 → 255 ms | 未収容0、住宅223 |
+| 5,000 | 2,318 → 2,440 ms | 354 → 365 ms | 未収容0、住宅1,104 |
+| 20,000 | 3,523 → 3,728 ms | 943 → 989 ms | 道数上限で失敗（変わらず） |
+| 50,000 | 6,331 → 6,397 ms | 2,034 → 2,064 ms | 記録数上限で失敗（変わらず） |
+
+時間の差は単回計測の揺らぎの範囲である。計測値は[S2.2の計測JSON](ce-meshless-scaling-s22-20261108.json)。
+
+関連テスト: `generators/vector`、`services/io/vector`、`components/vector`で、29ファイル中26成功・3 skip（計測用）、186件中183成功。
+
+## S2.1a 記録の型と占有地の照会
+
+S2.1（native v8）の最初の段階として、出力を変えない準備を行った。
+
+- 記録の型`types/vector/fabric.ts`（`VectorFabric`、`VectorFabricDistrict`、`VectorFabricCell`、`VectorFabricLines`）と、文書の`fabric`欄（任意）を追加した。座標は記録の原点からの整数センチメートルで持つ。まだ生成・保存はしない。
+- 詰め替えの補助`generators/vector/fabric/pack.ts`（`packPoints`、`packLines`、`cellHouseRing`、住宅の論理ID`<街路街区ID>#<番号>`）を追加した。
+- 占有地の照会`generators/vector/occupancy.ts`の`vectorOccupiedSites`を追加した。配置を文書の順に、続いて記録の住宅（切り出したものを除く）を返す。建物と重ならないことを調べる10か所（骨格の空き地、橋・門・道の保護地、景観、施設住宅の探索、外周計画の住宅、残地、壁間道路、施設、配置の移動、交差点と敷地の検証）を、配置を直接読む処理からこの照会に変えた。記録の住宅も、配置と同じく障害物として扱われるようになる。
+
+記録を持たない文書では照会の結果が従来と同じ順序・内容になるため、1,000人・5,000人の直列化文書のSHA-256はS2.2と一致した。配置どうしの関係を扱う依存更新（`dependencies.ts`）は、住宅の切り出しと合わせてS2.1eで変える。
+
+関連テスト: `generators/vector`、`services/io/vector`、`components/vector`、`renderers/vector`で、33ファイル中30成功・3 skip（計測用）、192件中189成功。

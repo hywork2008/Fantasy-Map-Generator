@@ -25,6 +25,8 @@ import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
+import { vectorOccupiedSites } from "../occupancy";
+import { vectorDistrictId } from "./districtId";
 import { nearestRoadAnchor } from "./urbanPacking";
 
 export const PERIMETER_HOUSE_MODEL = "ce-perimeter-house";
@@ -67,9 +69,15 @@ export function planVectorPerimeter(doc: VectorCityDocument, blocks: VectorBlock
       );
       return points.slice(1).map((b, i): [Point, Point] => [points[i], b]);
     });
+  const districtIds = new Set<string>();
   for (const sourceBlock of blocks) {
+    // Blocks never coincide, but a collision must not merge two districts' random streams.
+    let districtId = vectorDistrictId(sourceBlock);
+    for (let n = 2; districtIds.has(districtId); n++) districtId = `${vectorDistrictId(sourceBlock)}:${n}`;
+    districtIds.add(districtId);
     const block = {
       ...sourceBlock,
+      id: districtId,
       outer: simplifyFreehand([...sourceBlock.outer, sourceBlock.outer[0]], 0.05).slice(0, -1)
     };
     if (!block.reachable || block.holes.length) continue;
@@ -230,7 +238,7 @@ export function placeVectorPerimeterHouses(
 
   const storeys = residentialStoreys(doc.context.historicalPeriod).standard;
   const occupied = [
-    ...Object.values(doc.placements).flatMap(p => p.building?.reserved ?? [p.site]),
+    ...vectorOccupiedSites(doc, "reserved"),
     ...Object.values(doc.connections.gates).map(g => ({ outer: gateOpening(doc, g), holes: [] }))
   ];
   let capacity = 0;
@@ -412,15 +420,14 @@ export function vectorPerimeterResidual(doc: VectorCityDocument, blocks: VectorB
     maxY: number;
     polygon: VectorPlacement["site"];
   }>();
-  for (const p of Object.values(doc.placements))
-    for (const polygon of p.building?.reserved ?? [p.site])
-      index.insert({
-        minX: Math.min(...polygon.outer.map(p => p[0])),
-        minY: Math.min(...polygon.outer.map(p => p[1])),
-        maxX: Math.max(...polygon.outer.map(p => p[0])),
-        maxY: Math.max(...polygon.outer.map(p => p[1])),
-        polygon
-      });
+  for (const polygon of vectorOccupiedSites(doc, "reserved"))
+    index.insert({
+      minX: Math.min(...polygon.outer.map(p => p[0])),
+      minY: Math.min(...polygon.outer.map(p => p[1])),
+      maxX: Math.max(...polygon.outer.map(p => p[0])),
+      maxY: Math.max(...polygon.outer.map(p => p[1])),
+      polygon
+    });
   return blocks.flatMap(block =>
     regionBoolean(
       [block],

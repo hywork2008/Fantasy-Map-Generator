@@ -4,6 +4,7 @@ import { waterDistance } from "../generation/urbanPacking";
 import { evaluateAnchor } from "../geometry/curves";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { pathSurface } from "../geometry/surfaces";
+import { vectorOccupiedSites } from "../occupancy";
 import { assertVectorDocument } from "../validation/document";
 import { prepareVectorEdit } from "./dependencies";
 /** Explicit rigid placement edits acquire manual ownership; authored dimensions and dwelling capacity stay fixed. */
@@ -35,12 +36,7 @@ export function transformVectorPlacement(
       outer: r.outer.map(transform),
       holes: r.holes.map(h => h.map(transform))
     }));
-    const obstacles = [
-      ...Object.values(doc.paths).map(pathSurface),
-      ...Object.values(doc.placements)
-        .filter(other => other.id !== id)
-        .map(other => other.site)
-    ];
+    const obstacles = [...Object.values(doc.paths).map(pathSurface), ...vectorOccupiedSites(doc, "site", id)];
     if (regionBoolean([p.site], obstacles, "intersection").some(r => regionArea(r) > 1e-5))
       throw Error("dependency-placement-obstacle");
     const plot = doc.environment?.terrain?.plots.find(plot => `freeform:placement:${plot.ownerId}` === id);

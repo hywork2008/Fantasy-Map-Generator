@@ -13,6 +13,7 @@ import { containsRegion, indexedContains, regionArea, regionBoolean } from "../g
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
+import { vectorOccupiedSites } from "../occupancy";
 import { vectorTerrain } from "../terrain";
 import { reachablePaths } from "./pipeline";
 import {
@@ -78,8 +79,7 @@ export function createUrbanPacker(
       footprints.insert({ ...polygonBounds(placement.site), ring });
   };
   for (const p of Object.values(doc.placements)) indexFootprint(p);
-  for (const p of Object.values(doc.placements))
-    for (const polygon of p.building?.reserved ?? [p.site]) occupied.insert({ ...polygonBounds(polygon), polygon });
+  for (const polygon of vectorOccupiedSites(doc, "reserved")) occupied.insert({ ...polygonBounds(polygon), polygon });
   for (const polygon of [
     ...Object.values(doc.connections.gates).map(g => ({ outer: gateOpening(doc, g), holes: [] })),
     ...Object.values(doc.connections.nodes).flatMap(n => {

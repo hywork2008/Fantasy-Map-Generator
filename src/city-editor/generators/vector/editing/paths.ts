@@ -9,6 +9,7 @@ import type {
 import { evaluateAnchor, pathIsClosed, VECTOR_CONNECTION_EPSILON } from "../geometry/curves";
 import { simplifyFreehand } from "../geometry/sampling";
 import { pathSurface, surfacesOverlap } from "../geometry/surfaces";
+import { vectorOccupiedSites } from "../occupancy";
 import { assertVectorDocument, validateVectorDocument, validateVectorPath } from "../validation/document";
 import { mapDocumentAnchors, pathAnchors } from "./anchors";
 
@@ -111,9 +112,8 @@ export function moveCurveHandle(
 function protectedLand(document: VectorCityDocument, changed: Set<string>): void {
   for (const id of changed) {
     const surface = pathSurface(document.paths[id]);
-    for (const placement of Object.values(document.placements))
-      if ((placement.building?.reserved ?? [placement.site]).some(p => surfacesOverlap(surface, p)))
-        throw new Error("protected-land");
+    if (vectorOccupiedSites(document, "reserved").some(p => surfacesOverlap(surface, p)))
+      throw new Error("protected-land");
     for (const region of Object.values(document.regions))
       if (region.kind === "reservation" && surfacesOverlap(surface, region)) throw new Error("protected-land");
   }

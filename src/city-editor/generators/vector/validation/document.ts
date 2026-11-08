@@ -16,6 +16,7 @@ import { maximumCornerRadius } from "../geometry/presets";
 import { ringInside, verifyWallGapSurface } from "../geometry/routing";
 import { type PathSurface, pathSurface, surfacesOverlap } from "../geometry/surfaces";
 import { vectorWaterSurfaces } from "../geometry/water";
+import { vectorOccupiedSites } from "../occupancy";
 import { validateVectorEnvironment } from "./environment";
 import { validateVectorGeneration } from "./generation";
 import { validateVectorPresentation } from "./presentation";
@@ -410,10 +411,9 @@ export function validateVectorDocument(
     });
     const sites = new RBush<ReturnType<typeof bounds> & { surface: PathSurface }>();
     sites.load(
-      [
-        ...Object.values(doc.placements).map(p => p.site),
-        ...Object.values(doc.regions).filter(r => r.kind === "reservation")
-      ].map(surface => ({ ...bounds(surface), surface }))
+      [...vectorOccupiedSites(doc, "site"), ...Object.values(doc.regions).filter(r => r.kind === "reservation")].map(
+        surface => ({ ...bounds(surface), surface })
+      )
     );
     for (const node of Object.values(doc.connections.nodes)) {
       const junction = junctionSurface(doc, node.id);

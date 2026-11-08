@@ -19,6 +19,7 @@ import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater, vectorWaterSurfaces } from "../geometry/water";
+import { vectorOccupiedSites } from "../occupancy";
 import { assertVectorDocument } from "../validation/document";
 import { connectVectorCivicCentre } from "./civic";
 import { type RouteLink, skeletonRoutes } from "./routes";
@@ -71,7 +72,7 @@ function freeLand(doc: VectorCityDocument): VectorPolygon[] {
     ...Object.values(doc.regions)
       .filter(r => r.kind === "reservation")
       .map(r => ({ outer: r.outer, holes: r.holes })),
-    ...Object.values(doc.placements).flatMap(p => p.building?.reserved ?? [p.site])
+    ...vectorOccupiedSites(doc, "reserved")
   ];
   return regionBoolean(doc.site!.domain, obstacles, "difference");
 }

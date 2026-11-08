@@ -18,6 +18,7 @@ import { containsRegion, regionArea, regionBoolean } from "./geometry/regions";
 import { offsetRing } from "./geometry/routing";
 import { pathSurface } from "./geometry/surfaces";
 import { allVectorWater } from "./geometry/water";
+import { vectorOccupiedSites } from "./occupancy";
 import { assertVectorDocument } from "./validation/document";
 
 export interface VectorFeatureDraft {
@@ -103,7 +104,7 @@ export function addVectorFeature(
   };
   const obstacles = [
     ...featureReservations(doc),
-    ...Object.values(doc.placements).map(p => p.site),
+    ...vectorOccupiedSites(doc, "site"),
     ...Object.values(doc.paths)
       .filter(p => p.role === "wall" || (p.role === "road" && (p.origin !== "automatic" || p.editPolicy === "fixed")))
       .map(pathSurface)

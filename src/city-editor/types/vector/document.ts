@@ -151,6 +151,8 @@ export interface VectorCityDocument {
   generation?: VectorGeneration;
   urban?: VectorUrban;
   environment?: import("./environment").VectorEnvironment;
+  /** Generated districts, street blocks and houses (native v8). Houses here are not in `placements`. */
+  fabric?: import("./fabric").VectorFabric;
   legacyCopy?: {
     sourceJson: string;
     report: { id: string; status: "converted" | "snapshot" | "unsupported"; category: string; reason: string }[];
