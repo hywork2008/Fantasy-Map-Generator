@@ -2,6 +2,7 @@ import type { Point } from "../../../types/primitives";
 import type { CurveAnchor, VectorCityDocument, VectorPath } from "../../../types/vector/document";
 import type { VectorBlock, VectorGenerationSettings, VectorPolygon } from "../../../types/vector/generation";
 import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
+import { pointInPolygon, polygonCentroid } from "../../geom";
 import { mapDocumentAnchors } from "../editing/anchors";
 import {
   createVectorGate,
@@ -174,9 +175,35 @@ function despike(polygons: VectorPolygon[]): VectorPolygon[] {
     return [{ outer, holes }];
   });
 }
+/** The clipping library may return a hole that touches its outer ring at a vertex (a reservation box against a
+ * road, say). A saved block needs every hole strictly inside, so such a hole is grown by 1 cm about its centre
+ * and cut again: it becomes a notch in the outline. Seeds whose skeleton hit this failed to generate at all. */
+function openTouchingHoles(polygons: VectorPolygon[]): VectorPolygon[] {
+  return polygons.flatMap(polygon => {
+    const touching = polygon.holes.filter(h => h.some(p => !pointInPolygon(p, polygon.outer)));
+    if (!touching.length) return [polygon];
+    const grown = touching.map(hole => {
+      const c = polygonCentroid(hole);
+      return {
+        outer: hole.map(p => {
+          const d = Math.hypot(p[0] - c[0], p[1] - c[1]) || 1;
+          return [p[0] + ((p[0] - c[0]) / d) * 0.01, p[1] + ((p[1] - c[1]) / d) * 0.01] as Point;
+        }),
+        holes: []
+      };
+    });
+    return regionBoolean(
+      [{ outer: polygon.outer, holes: polygon.holes.filter(h => !touching.includes(h)) }],
+      grown,
+      "difference"
+    );
+  });
+}
 export function deriveVectorBlocks(doc: VectorCityDocument, extra: VectorPolygon[] = []): VectorBlock[] {
   const roads = Object.values(doc.paths).filter(p => p.role === "road"),
-    land = despike(regionBoolean(freeLand(doc), [...roads.map(pathSurface), ...extra], "difference")),
+    land = openTouchingHoles(
+      despike(regionBoolean(freeLand(doc), [...roads.map(pathSurface), ...extra], "difference"))
+    ),
     reachable = reachablePaths(doc, doc.site!.center);
   return land.map((polygon, i) => {
     const frontage = roads.flatMap(p => frontages(polygon, p));

@@ -11,7 +11,7 @@ import type {
 } from "../../../types/vector/fabric";
 import type { VectorBlock, VectorPolygon } from "../../../types/vector/generation";
 import type { VectorUrbanSettings } from "../../../types/vector/urban";
-import { isSimplePolygon, nearestOnPolyline, polygonCentroid } from "../../geom";
+import { isSimplePolygon, nearestOnPolyline, polygonArea, polygonCentroid } from "../../geom";
 import {
   buildOrganicStreetCell,
   COARSE_STREET_CELL_METERS,
@@ -102,6 +102,74 @@ export interface PerimeterDistrictResult {
   houses: VectorPerimeterPlan["houses"];
 }
 
+/** The ring in whole centimetres without repeated points, or undefined when that is not a simple polygon. */
+function centimetreRing(points: Point[]): Point[] | undefined {
+  const ring: Point[] = [];
+  for (const p of points) {
+    const q: Point = [Math.round(p[0] * 100) / 100 || 0, Math.round(p[1] * 100) / 100 || 0],
+      last = ring.at(-1);
+    if (!last || last[0] !== q[0] || last[1] !== q[1]) ring.push(q);
+  }
+  while (ring.length > 1 && ring[0][0] === ring.at(-1)![0] && ring[0][1] === ring.at(-1)![1]) ring.pop();
+  if (ring.length >= 3 && isSimplePolygon(ring, 1e-12)) return ring;
+  // A notch narrower than the rounding (a road corner, say) can put a vertex onto another edge. Dropping such
+  // vertices removes the notch; a ring that loses more than 1% of its area is not used.
+  const area = Math.abs(polygonArea(ring));
+  for (let guard = 0; guard < 16 && ring.length > 3; guard++) {
+    const k = ring.findIndex((p, i) =>
+      ring.some((a, j) => {
+        const b = ring[(j + 1) % ring.length];
+        return j !== i && (j + 1) % ring.length !== i && nearestOnPolyline(p, [a, b]).dist < 0.01;
+      })
+    );
+    if (k < 0) break;
+    ring.splice(k, 1);
+    if (isSimplePolygon(ring, 1e-12))
+      return Math.abs(Math.abs(polygonArea(ring)) - area) <= area * 0.01 ? ring : undefined;
+  }
+  return undefined;
+}
+
+/** A CE district plan needs a simple outline. A reachable block with holes (a civic precinct or a dead-end road
+ * standing free inside it) is cut by a 0.2 m slit through each hole into parts without holes; the parts become
+ * districts of their own. Without this the whole block, the largest quarter of some cities, stayed empty. */
+function withoutHoles(block: VectorBlock): VectorBlock[] {
+  if (!block.reachable || !block.holes.length) return [block];
+  let parts: VectorPolygon[] = [{ outer: block.outer, holes: block.holes }];
+  for (let guard = 0; guard < 16 && parts.some(p => p.holes.length); guard++)
+    parts = parts.flatMap(part => {
+      if (!part.holes.length) return [part];
+      const [x] = polygonCentroid(part.holes[0]),
+        ys = part.outer.map(p => p[1]),
+        low = Math.min(...ys) - 1,
+        high = Math.max(...ys) + 1;
+      return regionBoolean(
+        [part],
+        [
+          {
+            outer: [
+              [x - 0.1, low],
+              [x + 0.1, low],
+              [x + 0.1, high],
+              [x - 0.1, high]
+            ],
+            holes: []
+          }
+        ],
+        "difference"
+      );
+    });
+  return parts
+    .filter(p => regionArea(p) > 100)
+    .map((p, i) => ({
+      ...block,
+      id: `${block.id}:part:${i}`,
+      outer: p.outer,
+      holes: p.holes,
+      areaMeters2: regionArea(p)
+    }));
+}
+
 /** District jobs in block order and their shared context. District ids are assigned over every block, so the
  * ids never depend on how the jobs are split. */
 export function perimeterJobs(
@@ -122,16 +190,20 @@ export function perimeterJobs(
     });
   const jobs: PerimeterDistrictJob[] = [],
     districtIds = new Set<string>();
-  for (const sourceBlock of blocks) {
+  for (const sourceBlock of blocks.flatMap(withoutHoles)) {
     // Blocks never coincide, but a collision must not merge two districts' random streams.
     let districtId = vectorDistrictId(sourceBlock);
     for (let n = 2; districtIds.has(districtId); n++) districtId = `${vectorDistrictId(sourceBlock)}:${n}`;
     districtIds.add(districtId);
     if (!sourceBlock.reachable || sourceBlock.holes.length) continue;
-    jobs.push({
-      districtId,
-      outline: simplifyFreehand([...sourceBlock.outer, sourceBlock.outer[0]], 0.05).slice(0, -1)
-    });
+    // The record keeps the outline in whole centimetres, so the plan works on that outline. Rounding can fold a
+    // fine outline onto itself; a coarser simplification is tried before the block is left without a district.
+    const outline = [0.05, 0.2, 0.5]
+      .map(tolerance =>
+        centimetreRing(simplifyFreehand([...sourceBlock.outer, sourceBlock.outer[0]], tolerance).slice(0, -1))
+      )
+      .find(ring => ring !== undefined);
+    if (outline) jobs.push({ districtId, outline });
   }
   return {
     context: {

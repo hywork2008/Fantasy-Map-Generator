@@ -5,7 +5,7 @@ export const MESHLESS_DWELLINGS_PER_M2_STOREY = 0.0068;
 /** Rim of the site where no lot is laid out (district streets and setbacks along the boundary). */
 export const MESHLESS_SITE_RIM_METERS = 12;
 /** Covers the fit's spread between seeds and radii (±7%) and the rim an automatic wall takes. */
-const MARGIN = 1.12;
+const MARGIN = 1.15;
 
 /** Radius of a round site whose CE lots, built at `lotOccupancy`, hold `requiredDwellings`, with `reservedM2`
  * of land (civic centre, reservations, placements) that holds no lot. */

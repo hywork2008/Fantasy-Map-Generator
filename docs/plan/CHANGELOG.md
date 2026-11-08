@@ -3,6 +3,8 @@
 2026-11-09
 
 - docs/analytics/ce-meshless-commit-s4b-20261109.json - S4bの5,000・50,000人の確定の費用（同じ内容の検証を省いた後）
+- docs/analytics/ce-meshless-scaling-v9-20261109.json - 生成版v9（穴のある街区の分割、外周に接する穴、1 cmの輪郭）後の固定4規模の計測
+- docs/analytics/ce-meshless-seed-sweep-20261109.json - 12の種 × 5,000・50,000人 × 市壁の有無の生成結果（v9）。48通りすべて生成でき未収容0
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4bの完了と次のS4cを記載
 
 2026-11-08
