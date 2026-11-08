@@ -1,6 +1,7 @@
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
 import { type ContourLine, fieldContours } from "../../generators/terrainField/contours";
 import { curveSource } from "../../generators/vector/editing/paths";
+import { cellHouseCount, cellHouseRing, fabricHouseId, unpackLine } from "../../generators/vector/fabric/pack";
 import { bridgeGeometry, gateOpening, junctionSurface } from "../../generators/vector/geometry/network";
 import { regionBoolean } from "../../generators/vector/geometry/regions";
 import { pathSurface } from "../../generators/vector/geometry/surfaces";
@@ -132,7 +133,8 @@ export function vectorRenderData(
   );
   for (const id of hiddenPaths) hidden.add(id);
   paths = paths.filter(p => !hiddenPaths.has(p.id));
-  const add = (item: VectorRenderSurface) => {
+  /** `contained`: the caller knows the polygons lie inside the frame, so clipping can be skipped. */
+  const add = (item: VectorRenderSurface, contained = false) => {
     if (hiddenPaths.has(item.id)) return;
     if (terrain.hasRelief) {
       if (item.kind === "building") item.elevationMeters += terrain.foundationAt(item.id, item.polygons[0].outer);
@@ -144,9 +146,21 @@ export function vectorRenderData(
               ? terrain.surfaceAt
               : terrain.heightAt;
     }
+    if (contained) {
+      surfaces.push(item);
+      return;
+    }
     const clipped = regionBoolean(item.polygons, [frame], "intersection");
     if (clipped.length) surfaces.push({ ...item, polygons: clipped });
   };
+  const withinFrame = (ring: Point[]) =>
+    ring.every(
+      p =>
+        p[0] > center[0] - extent / 2 &&
+        p[0] < center[0] + extent / 2 &&
+        p[1] > center[1] - extent / 2 &&
+        p[1] < center[1] + extent / 2
+    );
   for (const r of Object.values(doc.regions))
     add({
       id: r.id,
@@ -288,6 +302,57 @@ export function vectorRenderData(
       provisional: b?.provenance === "provisional" || display?.provenance === "massing",
       buildingKind: b?.kind ?? display?.kind ?? "manual"
     });
+  }
+  // Generated districts: streets and lanes from the lane stage, houses with the housing stage.
+  if (doc.fabric && (!urban || ["blocksAndLanes", "facilities", "housing"].includes(stage))) {
+    const line = (id: string, points: Point[], widthMeters: number) => {
+      try {
+        const path: VectorPath = {
+          id,
+          revision: 0,
+          role: "road",
+          origin: "automatic",
+          editPolicy: "editable",
+          source: curveSource(points, "polyline", false),
+          width: { leftMeters: widthMeters / 2, rightMeters: widthMeters / 2, stations: [] }
+        };
+        add({
+          id,
+          kind: "road",
+          polygons: [pathSurface(path)],
+          color: "#c7ae84",
+          heightMeters: 0.04,
+          elevationMeters: 0.02
+        });
+      } catch {
+        warnings.push(`fabric-line:${id}`);
+      }
+    };
+    for (const district of Object.values(doc.fabric.districts))
+      for (let i = 0; i < district.streets.widths.length; i++)
+        line(`${district.id}~s${i}`, unpackLine(district.streets, i, district.origin), district.streets.widths[i]);
+    for (const cell of Object.values(doc.fabric.cells)) {
+      for (let i = 0; i < cell.lanes.widths.length; i++)
+        line(`${cell.id}~l${i}`, unpackLine(cell.lanes, i, cell.origin), cell.lanes.widths[i]);
+      if (urban && stage !== "housing") continue;
+      const detached = new Set(cell.detached);
+      for (let i = 0; i < cellHouseCount(cell); i++) {
+        if (detached.has(i)) continue;
+        const ring = cellHouseRing(cell, i);
+        add(
+          {
+            id: fabricHouseId(cell.id, i),
+            kind: "building",
+            polygons: [{ outer: ring, holes: [] }],
+            color: "#99816b",
+            heightMeters: cell.houses.storeys[i] * 3.2,
+            elevationMeters: 0.1,
+            buildingKind: "housing"
+          },
+          withinFrame(ring)
+        );
+      }
+    }
   }
   for (const feature of Object.values(doc.environment?.features ?? {})) {
     if (hiddenFeatures.has(feature.id)) continue;

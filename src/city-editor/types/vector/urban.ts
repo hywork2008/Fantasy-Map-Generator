@@ -65,9 +65,15 @@ export interface VectorUrbanCheckpoint {
 }
 /** v1: skeleton blocks filled without street blocks (to 2026-11-08). v2: CE coarse-mesh street blocks,
  * road facade clearance and wall orientation in the perimeter fabric. v3: each street block laid out on its
- * own random stream. v4: districts keyed by outline and fronting roads instead of block order. Saved output of
- * an older version stays as adopted. */
-export type VectorUrbanAlgorithm = "vector-urban-v1" | "vector-urban-v2" | "vector-urban-v3" | "vector-urban-v4";
+ * own random stream. v4: districts keyed by outline and fronting roads instead of block order. v5: medieval
+ * districts, street blocks, lanes and houses saved as fabric records (native v8) instead of paths and
+ * placements. Saved output of an older version stays as adopted. */
+export type VectorUrbanAlgorithm =
+  | "vector-urban-v1"
+  | "vector-urban-v2"
+  | "vector-urban-v3"
+  | "vector-urban-v4"
+  | "vector-urban-v5";
 export interface VectorUrban {
   algorithm: VectorUrbanAlgorithm;
   inputRevision: number;

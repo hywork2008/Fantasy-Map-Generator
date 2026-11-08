@@ -1,49 +1,90 @@
 import RBush from "rbush";
 import { growthRandom, residentialStoreys } from "../../../../utils/urbanMorphology";
-import type { InfillLane } from "../../../types/contracts/localInfill";
-import type { DistrictParameters, Face, Point } from "../../../types/document";
-import type { CurveAnchor, VectorCityDocument, VectorPlacement } from "../../../types/vector/document";
-import type { VectorBlock } from "../../../types/vector/generation";
+import type { Face, Point } from "../../../types/document";
+import type { VectorCityDocument, VectorPlacement } from "../../../types/vector/document";
+import type { VectorFabric, VectorFabricCell, VectorFabricDistrict } from "../../../types/vector/fabric";
+import type { VectorBlock, VectorPolygon } from "../../../types/vector/generation";
 import type { VectorUrbanSettings } from "../../../types/vector/urban";
-import { nearestOnPolyline, polygonCentroid } from "../../geom";
+import { isSimplePolygon, nearestOnPolyline, polygonCentroid } from "../../geom";
 import {
   buildOrganicStreetCell,
   COARSE_STREET_CELL_METERS,
   COARSE_STREET_WIDTH_METERS,
-  joinOrganicStreetVertices,
-  type OrganicBlockContext,
   planOrganicStreetCells,
   ROAD_FACADE_CLEARANCE_METERS
 } from "../../organicBlocks";
 import { dwellingCapacity } from "../../residentialCapacityFormula";
-import type { BlockBoundary, PerimeterFabric } from "../../streetBlockGeometry";
 import { createGenerationJoiner } from "../editing/network";
 import { curveSource } from "../editing/paths";
+import { fabricCellHash, fabricDistrictHash } from "../fabric/hash";
+import { packLines, packPoints, unpackPoints } from "../fabric/pack";
 import { evaluateAnchor } from "../geometry/curves";
 import { gateOpening } from "../geometry/network";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { regionArea, regionBoolean } from "../geometry/regions";
 import { samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
 import { vectorDistrictId } from "./districtId";
 import { nearestRoadAnchor } from "./urbanPacking";
+import { VECTOR_URBAN_ALGORITHM } from "./urbanState";
 
 export const PERIMETER_HOUSE_MODEL = "ce-perimeter-house";
-export function planVectorPerimeter(doc: VectorCityDocument, blocks: VectorBlock[], settings: VectorUrbanSettings) {
+type FabricLine = { points: Point[]; widthMeters: number };
+interface CellPlan {
+  id: string;
+  districtId: string;
+  ring: Point[];
+  lanes: FabricLine[];
+  attachments: VectorFabricCell["attachments"];
+  mouths: VectorFabricCell["mouths"];
+}
+interface DistrictPlan {
+  id: string;
+  outline: Point[];
+  boundaries: VectorFabricDistrict["boundaries"];
+  streets: FabricLine[];
+  mouths: VectorFabricDistrict["mouths"];
+  cells: CellPlan[];
+}
+export interface VectorPerimeterPlan {
+  districts: DistrictPlan[];
+  houses: { cellId: string; districtId: string; polygon: Point[]; draw: number }[];
+  /** Parcels of every street block, for district classification and residual land. */
+  blocks: VectorBlock[];
+  laneWidthMeters: number;
+}
+const lineLength = (points: Point[]) =>
+  points.slice(1).reduce((n, p, i) => n + Math.hypot(p[0] - points[i][0], p[1] - points[i][1]), 0);
+/** Fraction of the polyline's length at its closest point to `p`. */
+function lineParameter(points: Point[], p: Point): number {
+  const hit = nearestOnPolyline(p, points),
+    total = lineLength(points);
+  if (total <= 0) return 0;
+  const before = lineLength(points.slice(0, hit.segIndex + 1)),
+    a = points[hit.segIndex],
+    b = points[Math.min(hit.segIndex + 1, points.length - 1)];
+  return Math.min(1, Math.max(0, (before + Math.hypot(b[0] - a[0], b[1] - a[1]) * hit.t) / total));
+}
+const boxOf = (points: Point[], pad = 0) => ({
+  minX: Math.min(...points.map(p => p[0])) - pad,
+  minY: Math.min(...points.map(p => p[1])) - pad,
+  maxX: Math.max(...points.map(p => p[0])) + pad,
+  maxY: Math.max(...points.map(p => p[1])) + pad
+});
+
+/** CE's coarse-district layout for every reachable skeleton block, kept as district and street-block plans.
+ * Generated streets and lanes never become `VectorPath`s; their ends on main roads become explicit mouths. */
+export function planVectorPerimeter(
+  doc: VectorCityDocument,
+  blocks: VectorBlock[],
+  settings: VectorUrbanSettings
+): VectorPerimeterPlan {
   const primary = Object.values(doc.paths).filter(p => p.role === "road");
   const primarySamples = primary.map(path => ({ path, points: samplePath(path).map(p => p.point) }));
   // Bounding boxes only narrow candidates; the original per-road tests and road order still decide.
   const primaryIndex = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; index: number }>();
-  primaryIndex.load(
-    primarySamples.map((r, index) => ({
-      minX: Math.min(...r.points.map(p => p[0])),
-      minY: Math.min(...r.points.map(p => p[1])),
-      maxX: Math.max(...r.points.map(p => p[0])),
-      maxY: Math.max(...r.points.map(p => p[1])),
-      index
-    }))
-  );
+  primaryIndex.load(primarySamples.map((r, index) => ({ ...boxOf(r.points), index })));
   const roadsNear = (p: Point, reach: number) =>
     primaryIndex
       .search({ minX: p[0] - reach, minY: p[1] - reach, maxX: p[0] + reach, maxY: p[1] + reach })
@@ -55,9 +96,6 @@ export function planVectorPerimeter(doc: VectorCityDocument, blocks: VectorBlock
       settings.laneWidthMeters / 2 +
       0.7 +
       1e-6;
-  const paths: string[] = [],
-    houses: { polygon: Point[]; district: string; draw?: number }[] = [],
-    parcels: VectorBlock[] = [];
   const water = allVectorWater(doc);
   // CE orients districts along nearby wall segments; a 0.5 m simplification keeps that lookup small.
   const wallSegments = Object.values(doc.paths)
@@ -69,347 +107,321 @@ export function planVectorPerimeter(doc: VectorCityDocument, blocks: VectorBlock
       );
       return points.slice(1).map((b, i): [Point, Point] => [points[i], b]);
     });
+  const parameters = {
+    coverage: 0.9,
+    occupancy: 1,
+    lotArea: 80,
+    laneWidth: settings.laneWidthMeters,
+    orientation: 0
+  };
+  const context = {
+    hub: doc.site!.center,
+    extentMeters: doc.frame.extentMeters,
+    walls: wallSegments,
+    // Skeleton blocks are far coarser than a CE mesh cell, so CE's coarse-mesh street blocks apply.
+    streetCellMeters: COARSE_STREET_CELL_METERS,
+    streetWidthMeters: COARSE_STREET_WIDTH_METERS
+  };
+  const result: VectorPerimeterPlan = {
+    districts: [],
+    houses: [],
+    blocks: [],
+    laneWidthMeters: settings.laneWidthMeters
+  };
   const districtIds = new Set<string>();
   for (const sourceBlock of blocks) {
     // Blocks never coincide, but a collision must not merge two districts' random streams.
     let districtId = vectorDistrictId(sourceBlock);
     for (let n = 2; districtIds.has(districtId); n++) districtId = `${vectorDistrictId(sourceBlock)}:${n}`;
     districtIds.add(districtId);
-    const block = {
-      ...sourceBlock,
-      id: districtId,
-      outer: simplifyFreehand([...sourceBlock.outer, sourceBlock.outer[0]], 0.05).slice(0, -1)
-    };
-    if (!block.reachable || block.holes.length) continue;
+    const outline = simplifyFreehand([...sourceBlock.outer, sourceBlock.outer[0]], 0.05).slice(0, -1);
+    if (!sourceBlock.reachable || sourceBlock.holes.length) continue;
     const face: Face = {
-      id: block.id,
+      id: districtId,
       boundary: [],
       properties: { elevation: 1, water: "land", ward: "craftsmen", buildable: true, locked: false }
     };
-    const boundaries = block.outer.map((a, i) => {
-      const b = block.outer[(i + 1) % block.outer.length],
+    const boundaries = outline.map((a, i) => {
+      const b = outline[(i + 1) % outline.length],
         mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
       const road = roadsNear(mid, frontageReach).find(
         p => nearestOnPolyline(mid, p.points).dist <= p.path.width.leftMeters + p.path.width.rightMeters + 0.1
       );
       return { a, b, feature: !!road, barrier: !road, setback: road ? ROAD_FACADE_CLEARANCE_METERS : 3 };
     });
-    const fabric = buildDistrictFabric(
-      face,
-      block.outer,
-      boundaries,
-      { coverage: 0.9, occupancy: 1, lotArea: 80, laneWidth: settings.laneWidthMeters, orientation: 0 },
-      doc.recipe.seed,
-      {
-        hub: doc.site!.center,
-        extentMeters: doc.frame.extentMeters,
-        walls: wallSegments,
-        // Skeleton blocks are far coarser than a CE mesh cell, so CE's coarse-mesh street blocks apply.
-        streetCellMeters: COARSE_STREET_CELL_METERS,
-        streetWidthMeters: COARSE_STREET_WIDTH_METERS
-      }
-    );
-    const addLane = (points: Point[], width: number) => {
-      const id = `urban-lane:${paths.length}`;
-      const lane = {
-        id,
-        revision: 0,
-        role: "road" as const,
-        origin: "automatic" as const,
-        editPolicy: "editable" as const,
-        source: curveSource(points, "polyline", false),
-        width: { leftMeters: width / 2, rightMeters: width / 2, stations: [] }
-      };
-      try {
-        pathSurface(lane);
-      } catch (error) {
-        if (points.length <= 2) throw error;
-        for (let i = 1; i < points.length; i++)
-          if (Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]) > 0.01)
-            addLane([points[i - 1], points[i]], width);
-        return;
-      }
-      doc.paths[id] = lane;
-      paths.push(id);
+    const plan = planOrganicStreetCells(face, outline, boundaries, parameters, doc.recipe.seed, context);
+    const district: DistrictPlan = {
+      id: districtId,
+      outline,
+      boundaries: boundaries.map(b => ({ feature: b.feature, barrier: b.barrier, setback: b.setback })),
+      streets: plan.streets.map(l => ({ points: l.points, widthMeters: l.widthMeters })),
+      mouths: [],
+      cells: []
     };
-    for (const lane of mergeLaneChains(fabric.lanes)) addLane(lane.points, lane.widthMeters);
-    parcels.push(
-      ...fabric.blocks.map((outer, i) => ({
-        id: `${block.id}:parcel:${i}`,
-        outer,
-        holes: [],
-        areaMeters2: regionArea({ outer, holes: [] }),
-        frontage: [],
-        reachable: true
-      }))
-    );
-    houses.push(
-      ...fabric.buildings.map(b => ({
-        polygon: b.polygon,
-        district: block.id,
-        draw: b.occupancyDraw ?? growthRandom(JSON.stringify(b.polygon))
-      }))
-    );
+    const streetIndex = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; index: number }>();
+    streetIndex.load(district.streets.map((l, index) => ({ ...boxOf(l.points), index })));
+    const reach = Math.max(context.streetWidthMeters, settings.laneWidthMeters) + 1;
+    for (const cell of plan.cells) {
+      const nearby = streetIndex
+        .search(boxOf(cell.ring, reach))
+        .sort((a, b) => a.index - b.index)
+        .map(item => plan.streets[item.index]);
+      const local = buildOrganicStreetCell(face, cell, parameters, doc.recipe.seed, context, nearby);
+      const lanes = local.lanes.map(l => ({ points: l.points, widthMeters: l.widthMeters }));
+      const attachments: CellPlan["attachments"] = [];
+      lanes.forEach((lane, laneIndex) => {
+        for (const end of [0, 1] as const) {
+          const p = end === 0 ? lane.points[0] : lane.points.at(-1)!;
+          const street = streetIndex
+            .search(boxOf([p], 1e-3))
+            .sort((a, b) => a.index - b.index)
+            .find(item => nearestOnPolyline(p, district.streets[item.index].points).dist <= 1e-4);
+          if (street)
+            attachments.push({
+              lane: laneIndex,
+              end,
+              street: street.index,
+              t: lineParameter(district.streets[street.index].points, p)
+            });
+        }
+      });
+      district.cells.push({ id: cell.id, districtId, ring: cell.ring, lanes, attachments, mouths: [] });
+      result.blocks.push(
+        ...local.blocks.map((outer, i) => ({
+          id: `${cell.id}:parcel:${i}`,
+          outer,
+          holes: [],
+          areaMeters2: regionArea({ outer, holes: [] }),
+          frontage: [],
+          reachable: true
+        }))
+      );
+      result.houses.push(
+        ...local.buildings.map(b => ({
+          cellId: cell.id,
+          districtId,
+          polygon: b.polygon,
+          draw: b.occupancyDraw ?? growthRandom(JSON.stringify(b.polygon))
+        }))
+      );
+    }
+    result.districts.push(district);
   }
-  // CE already inserts shared T junction vertices. Keep those exact points as native road nodes.
-  const junctions = new Map<string, CurveAnchor[]>(),
-    joiner = createGenerationJoiner(doc);
-  const key = (p: Point) => `${Math.round(p[0] * 1e5)},${Math.round(p[1] * 1e5)}`;
-  for (const id of [...paths]) {
-    const path = doc.paths[id];
-    if (path.source.kind !== "curve") continue;
-    const ends = [
-      { pathId: id, segmentId: path.source.segments[0].id, t: 0 },
-      { pathId: id, segmentId: path.source.segments.at(-1)!.id, t: 1 }
-    ];
-    for (const anchor of ends) {
-      const p = evaluateAnchor(path, anchor),
-        list = junctions.get(key(p)) ?? [];
-      list.push(anchor);
-      junctions.set(key(p), list);
-      const road = roadsNear(p, endpointReach)
-        .map(r => ({ ...r, near: nearestOnPolyline(p, r.points) }))
-        .sort((a, b) => a.near.dist - b.near.dist)[0];
-      if (
-        !road ||
-        road.near.dist >
-          Math.max(road.path.width.leftMeters, road.path.width.rightMeters) + settings.laneWidthMeters / 2 + 0.7
-      )
-        continue;
-      const target = nearestRoadAnchor(road.path, p),
-        end = evaluateAnchor(road.path, target);
-      if (
-        Object.values(doc.connections.gates).some(g => {
-          const center = evaluateAnchor(doc.paths[g.wallPathId], g.anchor);
-          return Math.hypot(end[0] - center[0], end[1] - center[1]) < g.widthMeters * 2;
-        })
-      )
-        continue;
-      if (Math.hypot(end[0] - p[0], end[1] - p[1]) < 1e-6) {
-        list.push(target);
-        continue;
-      }
-      const connector = `urban-lane:${paths.length}`;
-      const route = {
-        id: connector,
+  // Street and lane ends on a main road join it through an explicit node. A short connector closes any gap.
+  const joiner = createGenerationJoiner(doc);
+  const mouth = (p: Point): { target: Point; nodeId: string } | undefined => {
+    const road = roadsNear(p, endpointReach)
+      .map(r => ({ ...r, near: nearestOnPolyline(p, r.points) }))
+      .sort((a, b) => a.near.dist - b.near.dist)[0];
+    if (
+      !road ||
+      road.near.dist >
+        Math.max(road.path.width.leftMeters, road.path.width.rightMeters) + settings.laneWidthMeters / 2 + 0.7
+    )
+      return;
+    const anchor = nearestRoadAnchor(road.path, p),
+      target = evaluateAnchor(road.path, anchor);
+    if (
+      Object.values(doc.connections.gates).some(g => {
+        const center = evaluateAnchor(doc.paths[g.wallPathId], g.anchor);
+        return Math.hypot(target[0] - center[0], target[1] - center[1]) < g.widthMeters * 2;
+      })
+    )
+      return;
+    if (Math.hypot(target[0] - p[0], target[1] - p[1]) >= 1e-6) {
+      const connector = {
+        id: "connector",
         revision: 0,
         role: "road" as const,
         origin: "automatic" as const,
         editPolicy: "editable" as const,
-        source: curveSource([p, end], "polyline", false),
+        source: curveSource([p, target], "polyline", false),
         width: { leftMeters: settings.laneWidthMeters / 2, rightMeters: settings.laneWidthMeters / 2, stations: [] }
       };
-      if (regionBoolean([pathSurface(route)], water, "intersection").some(r => regionArea(r) > 1e-5)) continue;
-      doc.paths[connector] = route;
-      paths.push(connector);
-      list.push({ pathId: connector, segmentId: "segment:0", t: 0 });
-      joiner.join([target, { pathId: connector, segmentId: "segment:0", t: 1 }]);
+      if (regionBoolean([pathSurface(connector)], water, "intersection").some(r => regionArea(r) > 1e-5)) return;
     }
+    return { target, nodeId: joiner.ensure(anchor) };
+  };
+  const join = (lines: FabricLine[], add: (index: number, end: 0 | 1, nodeId: string) => void) => {
+    const count = lines.length;
+    for (let i = 0; i < count; i++)
+      for (const end of [0, 1] as const) {
+        const p = end === 0 ? lines[i].points[0] : lines[i].points.at(-1)!,
+          joined = mouth(p);
+        if (!joined) continue;
+        if (Math.hypot(joined.target[0] - p[0], joined.target[1] - p[1]) < 1e-6) add(i, end, joined.nodeId);
+        else {
+          lines.push({ points: [p, joined.target], widthMeters: settings.laneWidthMeters });
+          add(lines.length - 1, 1, joined.nodeId);
+        }
+      }
+  };
+  for (const district of result.districts) {
+    join(district.streets, (street, end, nodeId) => district.mouths.push({ street, end, nodeId }));
+    for (const cell of district.cells) join(cell.lanes, (lane, end, nodeId) => cell.mouths.push({ lane, end, nodeId }));
   }
-  for (const anchors of junctions.values()) if (anchors.length > 1) joiner.join(anchors);
-  return { paths, houses, blocks: parcels };
+  return result;
 }
 
+const roundedOrigin = (points: Point[]): Point => {
+  const c = polygonCentroid(points);
+  return [Math.round(c[0]) || 0, Math.round(c[1]) || 0];
+};
+/** Packed ring without repeated points, or undefined when rounding to centimetres breaks it. */
+function packedRing(points: Point[], origin: Point): number[] | undefined {
+  const packed = packPoints(points, origin),
+    kept: number[] = [];
+  for (let i = 0; i < packed.length; i += 2) {
+    const n = kept.length;
+    if (n >= 2 && kept[n - 2] === packed[i] && kept[n - 1] === packed[i + 1]) continue;
+    kept.push(packed[i], packed[i + 1]);
+  }
+  while (kept.length >= 4 && kept[0] === kept.at(-2) && kept[1] === kept.at(-1)) kept.splice(-2, 2);
+  if (kept.length < 6 || !isSimplePolygon(unpackPoints(kept, origin), 1e-12)) return;
+  return kept;
+}
+
+/** Adopt houses in CE occupancy-draw order until the dwellings are met, and save every planned district and
+ * street block as fabric records. Houses are site, footprint and reservation at once. */
 export function placeVectorPerimeterHouses(
   doc: VectorCityDocument,
-  houses: { polygon: Point[]; district: string; draw?: number }[],
-  required: number
-) {
-  const roads = Object.values(doc.paths)
-    .filter(p => p.role === "road")
-    .map(path => ({ path, samples: samplePath(path) }));
-  const roadIndex = new RBush<{
-    minX: number;
-    minY: number;
-    maxX: number;
-    maxY: number;
-    road: (typeof roads)[number];
-  }>();
-  roadIndex.load(
-    roads.map(road => ({
-      minX: Math.min(...road.samples.map(s => s.point[0])),
-      minY: Math.min(...road.samples.map(s => s.point[1])),
-      maxX: Math.max(...road.samples.map(s => s.point[0])),
-      maxY: Math.max(...road.samples.map(s => s.point[1])),
-      road
-    }))
-  );
-  const ids: string[] = [];
-
+  plan: VectorPerimeterPlan,
+  required: number,
+  inside: (p: Point) => boolean
+): { dwellings: number; houses: number } {
   const storeys = residentialStoreys(doc.context.historicalPeriod).standard;
-  const occupied = [
-    ...vectorOccupiedSites(doc, "reserved"),
-    ...Object.values(doc.connections.gates).map(g => ({ outer: gateOpening(doc, g), holes: [] }))
-  ];
-  let capacity = 0;
+  const occupied = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; polygon: VectorPolygon }>();
+  occupied.load(
+    [
+      ...vectorOccupiedSites(doc, "reserved"),
+      ...Object.values(doc.connections.gates).map(g => ({ outer: gateOpening(doc, g), holes: [] }))
+    ].map(polygon => ({ ...boxOf(polygon.outer), polygon }))
+  );
+  const cells = new Map<string, CellPlan>(),
+    origins = new Map<string, Point>(),
+    rings = new Map<string, number[]>(),
+    districtOf = new Map<string, DistrictPlan>();
+  for (const district of plan.districts)
+    for (const cell of district.cells) {
+      const origin = roundedOrigin(cell.ring),
+        ring = packedRing(cell.ring, origin);
+      // A street block that cannot keep its outline at centimetre precision holds no houses.
+      if (!ring) continue;
+      cells.set(cell.id, cell);
+      origins.set(cell.id, origin);
+      rings.set(cell.id, ring);
+      districtOf.set(cell.id, district);
+    }
+  const lineIndex = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; points: Point[] }>();
+  lineIndex.load([
+    ...plan.districts
+      .flatMap(d => [...d.streets, ...d.cells.flatMap(c => c.lanes)])
+      .map(l => ({ ...boxOf(l.points), points: l.points })),
+    ...Object.values(doc.paths)
+      .filter(p => p.role === "road")
+      .map(p => {
+        const points = samplePath(p).map(s => s.point);
+        return { ...boxOf(points), points };
+      })
+  ]);
+  const adopted = new Map<string, { ring: number[]; dwellings: number; entrance: number[]; draw: number }[]>();
+  let capacity = 0,
+    count = 0;
   // CE occupancy draws spread vacant lots through every district. A population
   // target must never fill one half of the city before the other half.
-  for (const house of houses.slice().sort((a, b) => (a.draw ?? 0) - (b.draw ?? 0))) {
+  for (const house of plan.houses.slice().sort((a, b) => a.draw - b.draw)) {
     if (capacity >= required) break;
-    const site = { outer: house.polygon, holes: [] };
-    if (regionBoolean([site], occupied, "intersection").some(r => regionArea(r) > 1e-5)) continue;
-    const center = polygonCentroid(house.polygon),
-      floor = regionArea(site),
-      dwellings = dwellingCapacity(floor, storeys);
+    const origin = origins.get(house.cellId);
+    if (!origin) continue;
+    const ring = packedRing(house.polygon, origin);
+    if (!ring) continue;
+    const polygon = unpackPoints(ring, origin),
+      site = { outer: polygon, holes: [] };
+    if (
+      occupied
+        .search(boxOf(polygon))
+        .some(o => regionBoolean([site], [o.polygon], "intersection").some(r => regionArea(r) > 1e-5))
+    )
+      continue;
+    const dwellings = dwellingCapacity(regionArea(site), storeys);
     if (dwellings < 1) continue;
-    const near = roadIndex
-      .search({
-        minX: Math.min(...house.polygon.map(p => p[0])) - 20,
-        minY: Math.min(...house.polygon.map(p => p[1])) - 20,
-        maxX: Math.max(...house.polygon.map(p => p[0])) + 20,
-        maxY: Math.max(...house.polygon.map(p => p[1])) + 20
-      })
-      .map(item => item.road);
-    const candidates = house.polygon
-      .map((a, i) => {
-        const b = house.polygon[(i + 1) % house.polygon.length];
-        const point: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-        const road = near
-          .map(r => {
-            const anchor = nearestRoadAnchor(r.path, point, r.samples),
-              end = evaluateAnchor(r.path, anchor);
-            return { anchor, end, distance: Math.hypot(end[0] - point[0], end[1] - point[1]) };
-          })
-          .sort((a, b) => a.distance - b.distance)[0];
-        return { point, road };
-      })
-      .sort((a, b) => (a.road?.distance ?? Infinity) - (b.road?.distance ?? Infinity));
-    const entry = candidates[0];
-    if (!entry?.road) continue;
-    const point: Point = [
-      entry.point[0] + (center[0] - entry.point[0]) * 0.001,
-      entry.point[1] + (center[1] - entry.point[1]) * 0.001
-    ];
-    if (!containsRegion([site], point)) continue;
-    const d = Math.hypot(entry.road.end[0] - point[0], entry.road.end[1] - point[1]);
-    if (d < 0.001) continue;
-    const outward: Point = [(entry.road.end[0] - point[0]) / d, (entry.road.end[1] - point[1]) / d];
-    const id = `urban:perimeter:${ids.length}`;
-    const placement: VectorPlacement = {
-      id,
-      modelId: PERIMETER_HOUSE_MODEL,
-      position: center,
-      facingDegrees: 0,
-      origin: "automatic",
-      editPolicy: "editable",
-      site,
-      accesses: [entry.road.anchor],
-      building: {
-        kind: "housing",
-        label: "CE perimeter house",
-        districtId: house.district,
-        provenance: "provisional",
-        dimensionSource: "CE organicBlocks / perimeterHousing",
-        footprint: [site],
-        reserved: [site],
-        entrances: [
-          { id: "main", point, outward, widthMeters: 1.1, connector: [point, entry.road.end], accessIndex: 0 }
-        ],
-        dwellings,
-        floorFootprintMeters2: floor,
-        storeys,
-        residentialShare: 0.85,
-        heightMeters: storeys * 3.2
+    // The entrance faces the nearest lane, street or road. Never an access drawn across another plot.
+    let best: { from: Point; to: Point; distance: number } | undefined;
+    const lines = lineIndex.search(boxOf(polygon, 12)).map(item => item.points);
+    for (let i = 0; i < polygon.length; i++) {
+      const a = polygon[i],
+        b = polygon[(i + 1) % polygon.length],
+        mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      for (const points of lines) {
+        const hit = nearestOnPolyline(mid, points);
+        if (!best || hit.dist < best.distance) best = { from: mid, to: hit.point, distance: hit.dist };
       }
-    };
-    doc.placements[id] = placement;
-    ids.push(id);
+    }
+    if (!best) continue;
+    const list = adopted.get(house.cellId) ?? [];
+    list.push({ ring, dwellings, entrance: packPoints([best.from, best.to], origin), draw: house.draw });
+    adopted.set(house.cellId, list);
     capacity += dwellings;
+    count++;
   }
-  return ids;
-}
-
-/** CE's coarse-district layout split in two: the street blocks of the district first, then each street block
- * on its own random stream. One street block bounds the cost of a layout step and is the future unit of
- * records and parallel generation. */
-function buildDistrictFabric(
-  face: Face,
-  outline: Point[],
-  boundaries: BlockBoundary[],
-  parameters: DistrictParameters,
-  seed: string,
-  context: OrganicBlockContext & { streetCellMeters: number }
-) {
-  const plan = planOrganicStreetCells(face, outline, boundaries, parameters, seed, context);
-  const streetIndex = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; lane: InfillLane }>();
-  streetIndex.load(
-    plan.streets.map(lane => ({
-      minX: Math.min(...lane.points.map(p => p[0])),
-      minY: Math.min(...lane.points.map(p => p[1])),
-      maxX: Math.max(...lane.points.map(p => p[0])),
-      maxY: Math.max(...lane.points.map(p => p[1])),
-      lane
-    }))
-  );
-  const reach = Math.max(context.streetWidthMeters ?? 0, parameters.laneWidth ?? 0) + 1;
-  const lanes: InfillLane[] = [],
-    buildings: PerimeterFabric["buildings"] = [],
-    blocks: Point[][] = [];
-  for (const cell of plan.cells) {
-    const xs = cell.ring.map(p => p[0]),
-      ys = cell.ring.map(p => p[1]);
-    const nearby = streetIndex
-      .search({
-        minX: Math.min(...xs) - reach,
-        minY: Math.min(...ys) - reach,
-        maxX: Math.max(...xs) + reach,
-        maxY: Math.max(...ys) + reach
-      })
-      .map(item => item.lane);
-    const local = buildOrganicStreetCell(face, cell, parameters, seed, context, nearby);
-    lanes.push(...local.lanes);
-    buildings.push(...local.buildings);
-    blocks.push(...local.blocks);
+  const algorithm = VECTOR_URBAN_ALGORITHM,
+    districts: VectorFabric["districts"] = {},
+    fabricCells: VectorFabric["cells"] = {};
+  for (const district of plan.districts) {
+    const origin = roundedOrigin(district.outline),
+      outline = packPoints(district.outline, origin);
+    const kept = district.cells.filter(c => cells.has(c.id));
+    const record: Omit<VectorFabricDistrict, "hash"> = {
+      id: district.id,
+      seed: doc.recipe.seed,
+      parameters: {
+        lotArea: 80,
+        laneWidthMeters: plan.laneWidthMeters,
+        coverage: 0.9,
+        streetCellMeters: COARSE_STREET_CELL_METERS,
+        streetWidthMeters: COARSE_STREET_WIDTH_METERS
+      },
+      origin,
+      outline,
+      boundaries: district.boundaries,
+      streets: packLines(district.streets, origin),
+      mouths: district.mouths,
+      cellIds: kept.map(c => c.id)
+    };
+    districts[district.id] = { ...record, hash: fabricDistrictHash(record) };
+    for (const cell of kept) {
+      const cellOrigin = origins.get(cell.id)!,
+        houses = adopted.get(cell.id) ?? [];
+      const offsets: number[] = [],
+        coords: number[] = [];
+      for (const h of houses) {
+        offsets.push(coords.length / 2);
+        coords.push(...h.ring);
+      }
+      const value: Omit<VectorFabricCell, "hash"> = {
+        id: cell.id,
+        districtId: district.id,
+        origin: cellOrigin,
+        ring: rings.get(cell.id)!,
+        lanes: packLines(cell.lanes, cellOrigin),
+        attachments: cell.attachments,
+        mouths: cell.mouths,
+        houses: {
+          offsets,
+          coords,
+          storeys: houses.map(() => storeys),
+          dwellings: houses.map(h => h.dwellings),
+          entrances: houses.flatMap(h => h.entrance),
+          draws: houses.map(h => h.draw)
+        },
+        detached: [],
+        inside: inside(polygonCentroid(cell.ring))
+      };
+      fabricCells[cell.id] = { ...value, hash: fabricCellHash(value) };
+    }
   }
-  return { lanes: joinOrganicStreetVertices([...plan.streets, ...lanes]), buildings, blocks };
-}
-
-/** Keep bends as editable vertices, while junctions remain separate street ends. */
-function mergeLaneChains(lanes: { points: Point[]; widthMeters: number }[]) {
-  const key = (p: Point) => `${Math.round(p[0] * 1e5)},${Math.round(p[1] * 1e5)}`;
-  const edges = lanes.map(l => ({ ...l, a: key(l.points[0]), b: key(l.points.at(-1)!) }));
-  const nodes = new Map<string, number[]>();
-  edges.forEach((e, i) => {
-    for (const p of [e.a, e.b]) {
-      const ids = nodes.get(p) ?? [];
-      ids.push(i);
-      nodes.set(p, ids);
-    }
-  });
-  const used = new Set<number>(),
-    result: { points: Point[]; widthMeters: number }[] = [];
-  const walk = (first: number, from: string) => {
-    const points: Point[] = [];
-    let index = first,
-      node = from;
-    while (!used.has(index)) {
-      const edge = edges[index];
-      used.add(index);
-      const ordered = edge.a === node ? edge.points : edge.points.slice().reverse();
-      points.push(...(points.length ? ordered.slice(1) : ordered));
-      node = edge.a === node ? edge.b : edge.a;
-      const adjacent = nodes.get(node)!;
-      if (adjacent.length !== 2) break;
-      const next = adjacent.find(i => !used.has(i));
-      if (next === undefined || edges[next].widthMeters !== edge.widthMeters) break;
-      index = next;
-    }
-    if (key(points[0]) === key(points.at(-1)!)) {
-      const middle = Math.floor(points.length / 2);
-      result.push(
-        { points: points.slice(0, middle + 1), widthMeters: edges[first].widthMeters },
-        { points: points.slice(middle), widthMeters: edges[first].widthMeters }
-      );
-    } else result.push({ points, widthMeters: edges[first].widthMeters });
-  };
-  edges.forEach((e, i) => {
-    if (!used.has(i) && (nodes.get(e.a)!.length !== 2 || nodes.get(e.b)!.length !== 2))
-      walk(i, nodes.get(e.a)!.length !== 2 ? e.a : e.b);
-  });
-  edges.forEach((e, i) => {
-    if (!used.has(i)) walk(i, e.a);
-  });
-  return result;
+  doc.fabric = { algorithm, districts, cells: fabricCells };
+  return { dwellings: capacity, houses: count };
 }
 
 export function vectorPerimeterResidual(doc: VectorCityDocument, blocks: VectorBlock[]) {

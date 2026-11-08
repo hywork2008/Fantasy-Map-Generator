@@ -9,6 +9,7 @@ import {
   VECTOR_HOUSE_FLOOR_AREA,
   VECTOR_HOUSE_SHARE,
   VECTOR_HOUSE_STOREYS,
+  vectorFabricDwellings,
   vectorHouseDwellings,
   vectorPlacementDwellings
 } from "../generation/urbanCapacity";
@@ -16,6 +17,7 @@ import { matchesVectorUrbanFingerprint } from "../generation/urbanState";
 import { evaluateAnchor } from "../geometry/curves";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { simpleContour } from "../geometry/surfaces";
+import { vectorOccupiedSites } from "../occupancy";
 import { validateVectorGeneration } from "./generation";
 
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -134,7 +136,9 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       u,
       "algorithm,inputRevision,settings,baseGeneration,baseConnections,baseContext,domain,laneBlocks,residualLand,districts,ownedPaths,ownedPlacements,adoptedFingerprint,checkpoints,assignments,report"
     ) ||
-    !["vector-urban-v1", "vector-urban-v2", "vector-urban-v3", "vector-urban-v4"].includes(u.algorithm) ||
+    !["vector-urban-v1", "vector-urban-v2", "vector-urban-v3", "vector-urban-v4", "vector-urban-v5"].includes(
+      u.algorithm
+    ) ||
     !nonnegative(u.inputRevision) ||
     !keys(
       u.settings,
@@ -240,6 +244,14 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     generation: u.baseGeneration
   };
   if (validateVectorGeneration(baseline).length) errors.push("urban-baseline");
+  // Fabric records belong to the urban generation that wrote them.
+  if (doc.fabric && (doc.fabric.algorithm !== u.algorithm || u.settings.mode !== "medieval"))
+    errors.push("urban-fabric");
+  const fabricDwellings = vectorFabricDwellings(doc),
+    fabricHouses = Object.values(doc.fabric?.cells ?? {}).reduce(
+      (n, c) => n + c.houses.offsets.length - c.detached.length,
+      0
+    );
   if (u.inputRevision === doc.revision) {
     if (
       !matchesVectorUrbanFingerprint(doc, u.adoptedFingerprint) ||
@@ -252,7 +264,9 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
         c.pathIds.some(id => !doc.paths[id]) ||
         c.placementIds.some(id => !doc.placements[id]) ||
         new Set(c.placementIds).size !== c.placementIds.length ||
-        c.capacityDwellings !== c.placementIds.reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0)
+        c.capacityDwellings !==
+          c.placementIds.reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0) +
+            (c.id === "housing" ? fabricDwellings : 0)
       )
         errors.push("urban-visible-capacity");
     }
@@ -262,9 +276,10 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       new Set(u.ownedPlacements).size !== u.ownedPlacements.length ||
       owned.some(p => !p?.building) ||
       u.settings.population !== r.targetPopulation ||
-      r.capacityDwellings !== Object.values(doc.placements).reduce((n, p) => n + vectorPlacementDwellings(p), 0) ||
+      r.capacityDwellings !==
+        Object.values(doc.placements).reduce((n, p) => n + vectorPlacementDwellings(p), 0) + fabricDwellings ||
       owned.filter(p => p?.building?.kind === "facility").length !== r.placedFacilities ||
-      owned.filter(p => p?.building?.kind === "housing").length !== r.housingBuildings
+      owned.filter(p => p?.building?.kind === "housing").length + fabricHouses !== r.housingBuildings
     )
       errors.push("urban-result");
     const tree = new RBush<{
@@ -329,7 +344,13 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
         )
       )
         errors.push("urban-stage-order");
-      const allocation = allocateVectorResidents(doc, c.placementIds, r.requiredDwellings, r.targetPopulation);
+      const allocation = allocateVectorResidents(
+        doc,
+        c.placementIds,
+        r.requiredDwellings,
+        r.targetPopulation,
+        c.id === "housing"
+      );
       if (
         c.assignedDwellings !== allocation.assignedDwellings ||
         c.assignedPopulation !== allocation.assignedPopulation ||
@@ -341,10 +362,41 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       u.assignments.some(
         a => !doc.placements[a.placementId] || a.dwellings > vectorPlacementDwellings(doc.placements[a.placementId])
       ) ||
-      u.assignments.reduce((n, a) => n + a.dwellings, 0) !== r.assignedDwellings ||
-      u.assignments.reduce((n, a) => n + a.population, 0) !== r.assignedPopulation
+      (doc.fabric
+        ? // Fabric houses hold the rest; their shares are recomputed, never saved.
+          (() => {
+            const housing = u.checkpoints.find(c => c.id === "housing"),
+              allocation = allocateVectorResidents(
+                doc,
+                housing?.placementIds ?? [],
+                r.requiredDwellings,
+                r.targetPopulation,
+                true
+              );
+            return (
+              JSON.stringify(allocation.assignments) !== JSON.stringify(u.assignments) ||
+              allocation.assignedDwellings !== r.assignedDwellings ||
+              allocation.assignedPopulation !== r.assignedPopulation
+            );
+          })()
+        : u.assignments.reduce((n, a) => n + a.dwellings, 0) !== r.assignedDwellings ||
+          u.assignments.reduce((n, a) => n + a.population, 0) !== r.assignedPopulation)
     )
       errors.push("urban-assignment");
+    // Generated houses may not overlap a placement's reserved land.
+    if (doc.fabric) {
+      const fabricHousesOverlap = vectorOccupiedSites({ ...doc, placements: {} }, "reserved").some(house =>
+        tree
+          .search({
+            minX: Math.min(...house.outer.map(p => p[0])),
+            minY: Math.min(...house.outer.map(p => p[1])),
+            maxX: Math.max(...house.outer.map(p => p[0])),
+            maxY: Math.max(...house.outer.map(p => p[1]))
+          })
+          .some(q => regionBoolean([house], [q.polygon], "intersection").some(a => regionArea(a) > 1e-5))
+      );
+      if (fabricHousesOverlap) errors.push("urban-overlap");
+    }
   }
   return errors;
 }

@@ -463,7 +463,29 @@ export function createGenerationJoiner(doc: VectorCityDocument) {
   for (const g of Object.values(gates)) add(gatesByNode, g.nodeId, g);
   const nodeIds = numberedIdAllocator(nodes, "node");
   const key = (a: CurveAnchor) => JSON.stringify(a);
+  const samePosition = (a: CurveAnchor, b: CurveAnchor) => {
+    if (a.pathId !== b.pathId) return false;
+    const path = doc.paths[a.pathId],
+      order = (anchor: CurveAnchor) => {
+        const value = anchorOrder(path, anchor),
+          count = pathSegmentIds(path).length;
+        return pathIsClosed(path) && Math.abs(value - count) < 1e-9 ? 0 : value;
+      };
+    return Math.abs(order(a) - order(b)) < 1e-9;
+  };
   return {
+    /** Node at one curve position: an existing node there, or a new node holding only this anchor. */
+    ensure(anchor: CurveAnchor): string {
+      const existing = [...(byPath.get(anchor.pathId) ?? [])]
+        .map(id => nodes[id])
+        .filter(n => n.anchors.some(a => samePosition(a, anchor)))
+        .sort((a, b) => sequence.get(a.id)! - sequence.get(b.id)!)[0];
+      if (existing) return existing.id;
+      const id = nodeIds.next();
+      nodes[id] = { id, position: evaluateAnchor(doc.paths[anchor.pathId], anchor), anchors: [anchor] };
+      index(nodes[id]);
+      return id;
+    },
     join(anchors: CurveAnchor[]): void {
       const unique = anchors.filter((a, i, all) => all.findIndex(b => key(a) === key(b)) === i);
       if (unique.length < 2) return;

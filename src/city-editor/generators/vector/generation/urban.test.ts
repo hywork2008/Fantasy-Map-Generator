@@ -3,6 +3,7 @@ import { residentialStoreys } from "../../../../utils/urbanMorphology";
 import { renderVectorDocument } from "../../../renderers/vector/documentSvg";
 import { parseVectorDocument, serializeVectorDocument } from "../../../services/io/vector/documentCodec";
 import { dwellingCapacity } from "../../residentialCapacityFormula";
+import { cellHouseCount, cellHouseRing, unpackLine } from "../fabric/pack";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { syntheticVectorInput } from "./input";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
@@ -98,19 +99,27 @@ describe("urban physical constraints and capacity deficits", () => {
     });
     expect(doc.placements.fixed).toEqual(source.placements.fixed);
     expect(doc.urban!.report.reasons).toContain("manual-capacity-unverified");
-    expect(doc.urban!.ownedPaths.length).toBeGreaterThan(0);
-    for (const id of doc.urban!.ownedPaths)
-      expect(
-        Object.values(doc.connections.nodes).some(
-          n => n.anchors.some(a => a.pathId === id) && n.anchors.some(a => a.pathId !== id)
-        )
-      ).toBe(true);
-    for (const p of Object.values(doc.placements).filter(p => p.building?.kind === "housing")) {
-      expect(p.building!.floorFootprintMeters2).toBeCloseTo(regionArea(p.site), 5);
-      expect(p.building!.storeys).toBe(residentialStoreys(doc.context.historicalPeriod).standard);
-      expect(p.building!.dwellings).toBe(dwellingCapacity(regionArea(p.site), p.building!.storeys));
-      expect(regionBoolean(p.building!.reserved, [source.placements.fixed.site], "intersection")).toHaveLength(0);
-    }
+    // Generated streets and lanes stay in fabric; every join to a main road is an explicit node on that road.
+    const fabric = doc.fabric!;
+    const mouths = [
+      ...Object.values(fabric.districts).flatMap(d => d.mouths),
+      ...Object.values(fabric.cells).flatMap(c => c.mouths)
+    ];
+    expect(mouths.length).toBeGreaterThan(0);
+    for (const m of mouths)
+      expect(doc.connections.nodes[m.nodeId].anchors.some(a => doc.paths[a.pathId]?.role === "road")).toBe(true);
+    expect(doc.urban!.ownedPaths).toEqual([]);
+    expect(Object.values(doc.placements).some(p => p.building?.kind === "housing")).toBe(false);
+    let houses = 0;
+    for (const cell of Object.values(fabric.cells))
+      for (let i = 0; i < cellHouseCount(cell); i++) {
+        const site = { outer: cellHouseRing(cell, i), holes: [] };
+        expect(cell.houses.storeys[i]).toBe(residentialStoreys(doc.context.historicalPeriod).standard);
+        expect(cell.houses.dwellings[i]).toBe(dwellingCapacity(regionArea(site), cell.houses.storeys[i]));
+        expect(regionBoolean([site], [source.placements.fixed.site], "intersection")).toHaveLength(0);
+        houses++;
+      }
+    expect(houses).toBe(doc.urban!.report.housingBuildings);
   });
   it("keeps a fixed manual domain and reports unplaced people without shrinking buildings", () => {
     const source = generateVectorSkeleton(syntheticVectorInput("small", 30, false), {
@@ -226,25 +235,25 @@ describe("urban physical constraints and capacity deficits", () => {
       }).document,
       { ...DEFAULT_VECTOR_URBAN, population: 5000, maxLanes: 8 }
     );
-    const house = Object.values(doc.placements).find(p => p.building?.kind === "housing");
-    expect(house?.modelId).toBe("ce-perimeter-house");
-    expect(house?.building?.dimensionSource).toBe("CE organicBlocks / perimeterHousing");
+    expect(Object.values(doc.placements).some(p => p.building?.kind === "housing")).toBe(false);
+    expect(doc.urban!.report.housingBuildings).toBeGreaterThan(0);
     expect(doc.urban!.report.requiredFacilities).toBe(0);
     expect(doc.urban!.report.placedFacilities).toBe(0);
-    for (const id of doc.urban!.ownedPaths) {
-      const path = doc.paths[id];
-      if (path.source.kind !== "curve") continue;
-      for (let i = 1; i < path.source.segments.length; i++) {
-        const a = path.source.segments[i - 1],
-          b = path.source.segments[i];
-        const ux = a.to[0] - a.from[0],
-          uy = a.to[1] - a.from[1],
-          vx = b.to[0] - b.from[0],
-          vy = b.to[1] - b.from[1];
-        expect((ux * vx + uy * vy) / (Math.hypot(ux, uy) * Math.hypot(vx, vy))).toBeGreaterThan(-0.5);
+    // CE's street blocks never fold a lane back on itself.
+    let lanes = 0;
+    for (const cell of Object.values(doc.fabric!.cells))
+      for (let l = 0; l < cell.lanes.widths.length; l++) {
+        const points = unpackLine(cell.lanes, l, cell.origin);
+        lanes++;
+        for (let i = 2; i < points.length; i++) {
+          const ux = points[i - 1][0] - points[i - 2][0],
+            uy = points[i - 1][1] - points[i - 2][1],
+            vx = points[i][0] - points[i - 1][0],
+            vy = points[i][1] - points[i - 1][1];
+          expect((ux * vx + uy * vy) / (Math.hypot(ux, uy) * Math.hypot(vx, vy))).toBeGreaterThan(-0.5);
+        }
       }
-    }
-    expect(doc.urban!.ownedPaths.length).toBeGreaterThan(0);
+    expect(lanes).toBeGreaterThan(0);
     expect(doc.urban!.report.unplacedDwellings).toBe(0);
     expect(doc.urban!.report.unplacedPopulation).toBe(0);
     expect(doc.urban!.report.reasons).not.toContain("housing-capacity-shortfall");

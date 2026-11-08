@@ -59,6 +59,7 @@ function withFabric(edit?: (district: VectorFabricDistrict, cell: VectorFabricCe
       origin
     ),
     attachments: [{ lane: 0, end: 1, street: 0, t: 0 }],
+    mouths: [],
     houses: {
       offsets: [0],
       coords: packPoints(square(-55, -35, 8), origin),
@@ -74,7 +75,7 @@ function withFabric(edit?: (district: VectorFabricDistrict, cell: VectorFabricCe
   edit?.(d, c);
   d.hash = fabricDistrictHash(d);
   c.hash = fabricCellHash(c);
-  doc.fabric = { algorithm: "vector-urban-v4", districts: { [d.id]: d }, cells: { [c.id]: c } };
+  doc.fabric = { algorithm: "vector-urban-v5", districts: { [d.id]: d }, cells: { [c.id]: c } };
   return doc;
 }
 

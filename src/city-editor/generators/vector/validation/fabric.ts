@@ -11,7 +11,7 @@ export const VECTOR_FABRIC_LIMITS = {
   houses: 300000,
   coordinatesPerRecord: 2_000_000
 };
-const ALGORITHMS = ["vector-urban-v4"];
+const ALGORITHMS = ["vector-urban-v5"];
 type RecordValue = Record<string, unknown>;
 const record = (v: unknown): v is RecordValue => !!v && typeof v === "object" && !Array.isArray(v);
 const keys = (v: unknown, required: string[], optional: string[] = []): v is RecordValue =>
@@ -120,7 +120,7 @@ function cellErrors(c: RecordValue, key: string): string[] {
   if (
     !keys(
       c,
-      ["id", "hash", "districtId", "origin", "ring", "lanes", "attachments", "houses", "detached"],
+      ["id", "hash", "districtId", "origin", "ring", "lanes", "attachments", "mouths", "houses", "detached"],
       ["inside"]
     ) ||
     c.id !== key ||
@@ -131,6 +131,7 @@ function cellErrors(c: RecordValue, key: string): string[] {
     !ints(c.ring) ||
     !lines(c.lanes) ||
     !Array.isArray(c.attachments) ||
+    !Array.isArray(c.mouths) ||
     !keys(c.houses, ["offsets", "coords", "storeys", "dwellings", "entrances", "draws"]) ||
     !Array.isArray(c.detached) ||
     (c.inside !== undefined && typeof c.inside !== "boolean")
@@ -170,6 +171,15 @@ function cellErrors(c: RecordValue, key: string): string[] {
         finite(a.t) &&
         a.t >= 0 &&
         a.t <= 1
+    ) ||
+    !cell.mouths.every(
+      m =>
+        keys(m, ["lane", "end", "nodeId"]) &&
+        Number.isSafeInteger(m.lane) &&
+        m.lane >= 0 &&
+        m.lane < cell.lanes.widths.length &&
+        (m.end === 0 || m.end === 1) &&
+        id(m.nodeId)
     )
   )
     return remember(`c:${hash}`, [`${at}:houses`]);
@@ -233,6 +243,16 @@ export function validateVectorFabric(doc: VectorCityDocument): string[] {
       }
     }
   }
+  for (const cell of Object.values(cells))
+    for (const m of cell.mouths) {
+      const node = Object.hasOwn(doc.connections.nodes, m.nodeId) ? doc.connections.nodes[m.nodeId] : undefined,
+        lane = unpackLine(cell.lanes, m.lane, cell.origin),
+        end = m.end === 0 ? lane[0] : lane.at(-1)!;
+      if (!node || Math.hypot(node.position[0] - end[0], node.position[1] - end[1]) > FABRIC_QUANTUM_METERS) {
+        errors.push(`fabric-cell:${cell.id}:mouth`);
+        break;
+      }
+    }
   if (houses > VECTOR_FABRIC_LIMITS.houses) errors.push("fabric-houses");
   for (const district of Object.values(districts)) {
     if (!district.cellIds.every(cellId => Object.hasOwn(cells, cellId) && cells[cellId].districtId === district.id))

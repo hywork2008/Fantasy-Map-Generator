@@ -44,6 +44,8 @@ export interface VectorFabricCell {
   lanes: VectorFabricLines;
   /** Lane ends lying on district streets, as a parameter along the street. */
   attachments: { lane: number; end: 0 | 1; street: number; t: number }[];
+  /** Explicit joins of lane ends to road graph nodes. */
+  mouths: { lane: number; end: 0 | 1; nodeId: string }[];
   houses: {
     offsets: number[];
     coords: number[];

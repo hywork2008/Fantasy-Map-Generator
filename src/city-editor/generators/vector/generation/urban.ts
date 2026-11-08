@@ -113,6 +113,7 @@ export function generateVectorUrban(
     if (!matchesVectorUrbanFingerprint(doc, previous.adoptedFingerprint)) throw new Error("edited-urban");
     for (const id of previous.ownedPaths) delete doc.paths[id];
     for (const id of previous.ownedPlacements) delete doc.placements[id];
+    delete doc.fabric;
     doc.connections = previous.baseConnections;
     doc.generation = previous.baseGeneration;
     doc.context = previous.baseContext;
@@ -280,7 +281,6 @@ export function generateVectorUrban(
     settings.mode === "medieval" && settings.maxLanes > 0 && !continuation && run?.housingAttempts === undefined
       ? planVectorPerimeter(doc, blocks, settings)
       : undefined;
-  if (organic) ownedPaths.push(...organic.paths);
   const adoptLane = (
     points: Point[],
     anchor: (typeof laneCandidates)[number]["anchor"],
@@ -372,7 +372,8 @@ export function generateVectorUrban(
   const pathIds = Object.keys(doc.paths),
     checkpoints: NonNullable<VectorCityDocument["urban"]>["checkpoints"] = [];
   const checkpoint = (id: VectorStage, ids: string[], paths = pathIds) => {
-    const a = allocateVectorResidents(doc, ids, required, settings.population);
+    // Fabric houses are adopted and shown with the housing stage only.
+    const a = allocateVectorResidents(doc, ids, required, settings.population, id === "housing");
     checkpoints.push({
       id,
       pathIds: paths,
@@ -482,10 +483,9 @@ export function generateVectorUrban(
   let housingStop: VectorUrbanProfile["housingStop"] = remaining > 0 ? "frontage" : "demand-met";
   const housingStarted = performance.now();
   if (organic && remaining > 0) {
-    const ids = placeVectorPerimeterHouses(doc, organic.houses, remaining);
+    const placed = placeVectorPerimeterHouses(doc, organic, remaining, inside);
     housingAttempts = organic.houses.length;
-    ownedPlacements.push(...ids);
-    remaining -= ids.reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0);
+    remaining -= placed.dwellings;
     housingStop = remaining > 0 ? "frontage" : "demand-met";
   }
   if (!organic && remaining > 0 && houseAsset) {
@@ -521,7 +521,7 @@ export function generateVectorUrban(
     (a, b) => Number(inside(doc.placements[b].position)) - Number(inside(doc.placements[a].position))
   );
   checkpoint("housing", all);
-  const allocation = allocateVectorResidents(doc, all, required, settings.population);
+  const allocation = allocateVectorResidents(doc, all, required, settings.population, true);
   if (allocation.unplacedDwellings)
     reasons.push(
       housingStop === "budget" || housingStop === "placement-cap"
@@ -547,6 +547,10 @@ export function generateVectorUrban(
   }
   run?.progress?.("validation");
   timed("population-allocation");
+  const fabricDwellings = (inner: boolean) =>
+    Object.values(doc.fabric?.cells ?? {})
+      .filter(c => !!c.inside === inner)
+      .reduce((n, c) => n + c.houses.dwellings.reduce((m, d, i) => m + (c.detached.includes(i) ? 0 : d), 0), 0);
   const residualLand = organic
     ? vectorPerimeterResidual(doc, organic.blocks)
     : deriveVectorBlocks(doc, protectedRegions).map(b => ({ outer: b.outer, holes: b.holes }));
@@ -580,17 +584,22 @@ export function generateVectorUrban(
       assignedPopulation: allocation.assignedPopulation,
       unplacedPopulation: allocation.unplacedPopulation,
       mixedDwellings: facilities.reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0),
-      capacityInside: all
-        .filter(id => inside(doc.placements[id].position))
-        .reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0),
-      capacityOutside: all
-        .filter(id => !inside(doc.placements[id].position))
-        .reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0),
+      capacityInside:
+        all
+          .filter(id => inside(doc.placements[id].position))
+          .reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0) + fabricDwellings(true),
+      capacityOutside:
+        all
+          .filter(id => !inside(doc.placements[id].position))
+          .reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0) + fabricDwellings(false),
       requiredFacilities: requests.length,
       placedFacilities: facilities.length,
       provisionalFacilities: facilities.filter(id => doc.placements[id].building!.provenance === "provisional").length,
       unplacedFacilities,
-      housingBuildings: ownedPlacements.length - facilities.length,
+      housingBuildings:
+        ownedPlacements.length -
+        facilities.length +
+        Object.values(doc.fabric?.cells ?? {}).reduce((n, c) => n + c.houses.offsets.length - c.detached.length, 0),
       reasons
     }
   };

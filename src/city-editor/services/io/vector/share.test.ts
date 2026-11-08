@@ -46,7 +46,10 @@ describe("meshless shares", () => {
     const rebuilt = generateVectorUrban(generateVectorSkeleton(recipe.input, recipe.skeleton).document, recipe.urban);
     expect(Object.keys(rebuilt.paths)).toEqual(Object.keys(doc.paths));
     for (const id of Object.keys(doc.paths)) expect(rebuilt.paths[id].source).toEqual(doc.paths[id].source);
-    doc.paths["urban-lane:0"].editPolicy = "fixed";
+    // Generated districts, street blocks and houses are reproduced record for record.
+    expect(rebuilt.fabric).toEqual(doc.fabric);
+    const generated = Object.keys(doc.generation!.pathRevisions)[0];
+    doc.paths[generated].editPolicy = "fixed";
     expect(() => vectorRecipe(doc)).toThrow();
   });
   it("rejects corrupted, oversized, future and decompression-bomb shares", () => {

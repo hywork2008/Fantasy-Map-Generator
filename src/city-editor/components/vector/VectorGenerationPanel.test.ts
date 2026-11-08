@@ -109,11 +109,13 @@ describe("M4 input, generation and adopted stages", () => {
     expect(generated.urban?.report.requiredFacilities).toBe(0);
     expect(generated.urban?.report.unplacedPopulation).toBe(0);
     expect(Object.keys(generated.paths).length).toBeGreaterThan(4);
-    expect(Object.values(generated.placements).some(p => p.building?.kind === "housing")).toBe(true);
-    expect(map.querySelector("[data-vector-placement]")).not.toBeNull();
+    // Generated houses are fabric records (native v8), drawn as housing buildings.
+    expect(generated.urban!.report.housingBuildings).toBeGreaterThan(0);
+    expect(Object.keys(generated.fabric?.cells ?? {}).length).toBeGreaterThan(0);
+    expect(map.querySelector('[data-vector-building-kind="housing"]')).not.toBeNull();
     expect(root.querySelector<HTMLButtonElement>('[data-generation-action="adopt"]')!.disabled).toBe(true);
-    expect(Object.keys(history.undo()!.placements)).toHaveLength(0);
-    expect(Object.keys(history.redo()!.placements).length).toBeGreaterThan(0);
+    expect(history.undo()!.fabric).toBeUndefined();
+    expect(history.redo()!.fabric).toBeDefined();
   }, 60000);
 
   it("previews input and generation without changing saved history, then adopts one transaction per operation", async () => {

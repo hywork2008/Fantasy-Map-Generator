@@ -36,6 +36,8 @@ export function prepareVectorEdit(input: VectorCityDocument): VectorCityDocument
   const doc = structuredClone(input);
   if (!doc.urban) return doc;
   for (const id of doc.urban.ownedPlacements) if (ownedEditable(doc.placements[id])) delete doc.placements[id];
+  // Generated fabric belongs to the urban result; an edit rebuilds it (per district once S2.1e lands).
+  delete doc.fabric;
   delete doc.urban;
   return doc;
 }
@@ -99,6 +101,7 @@ export function reconcileVectorEdit(source: VectorCityDocument, candidate: Vecto
   );
   let doc = structuredClone(candidate);
   delete doc.urban;
+  delete doc.fabric;
   for (const bridge of Object.values(source.connections.bridges)) {
     if (
       bridge.editPolicy === "fixed" &&

@@ -158,6 +158,11 @@ export function vectorRecipe(document: VectorCityDocument): VectorRecipe {
     )
   )
     throw new Error("vector-recipe-edited");
+  // Fabric and the road nodes it joined are urban output; the recipe input is the graph before urban.
+  if (input.fabric && u) {
+    delete input.fabric;
+    input.connections = structuredClone(u.baseConnections);
+  }
   delete input.urban;
   delete input.generation;
   for (const id of u?.ownedPlacements ?? []) delete input.placements[id];

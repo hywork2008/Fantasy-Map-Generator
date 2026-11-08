@@ -2,11 +2,12 @@
 
 2026-11-08
 
-- docs/analytics/ce-meshless-scaling-20261108.md - 街区構造の大規模化のS0・S1記録。固定4規模の計測手順と基準値、道路グラフ・接続・外周計画の近傍探索の索引化により、1,000・5,000人の出力一致のまま50,000人の失敗までの時間を100.4→12.6秒に短縮。20,000人以上は保存形式の上限で失敗しS2で扱う。外周計画の残る増加は骨格の街区が最大約45 haと大きく、街路の階層がないためと切り分けた。S1.5前半として既存CEの粗いセル用の街路街区・setback・市壁の向きを使い、生成版をv2へ上げた記録を追加。S1.5後半として街路街区ごとに独立した処理にし、50,000人の外周計画を19.6→2.0秒、1回の処理を最大約20 msにした記録（生成版v3）を追加。S2.0として選択とInspectorの表示で文書を複製せず地図全体を描き直さないようにし、5,000人の道のクリックを1,304→9.2 msにした記録を追加。S2.2として地区IDを並び順から輪郭と接道から求めるIDへ変えた記録（生成版v4）を追加。S2.1aとして記録の型と占有地の照会を加え、記録のない文書の出力が一致することを確認した記録を追加。S2.1bとしてnative v8のcodecと記録単位の検証を加えた記録を追加
+- docs/analytics/ce-meshless-scaling-20261108.md - 街区構造の大規模化のS0・S1記録。固定4規模の計測手順と基準値、道路グラフ・接続・外周計画の近傍探索の索引化により、1,000・5,000人の出力一致のまま50,000人の失敗までの時間を100.4→12.6秒に短縮。20,000人以上は保存形式の上限で失敗しS2で扱う。外周計画の残る増加は骨格の街区が最大約45 haと大きく、街路の階層がないためと切り分けた。S1.5前半として既存CEの粗いセル用の街路街区・setback・市壁の向きを使い、生成版をv2へ上げた記録を追加。S1.5後半として街路街区ごとに独立した処理にし、50,000人の外周計画を19.6→2.0秒、1回の処理を最大約20 msにした記録（生成版v3）を追加。S2.0として選択とInspectorの表示で文書を複製せず地図全体を描き直さないようにし、5,000人の道のクリックを1,304→9.2 msにした記録を追加。S2.2として地区IDを並び順から輪郭と接道から求めるIDへ変えた記録（生成版v4）を追加。S2.1aとして記録の型と占有地の照会を加え、記録のない文書の出力が一致することを確認した記録を追加。S2.1bとしてnative v8のcodecと記録単位の検証を加えた記録を追加。S2.1cとして施設住宅の生成が記録を書くようにし、20,000・50,000人が生成・保存できた記録を追加
 - docs/analytics/ce-meshless-scaling-s0-20261108.json - S0の固定4規模の工程時間・件数・文書長・直列化SHA-256
 - docs/analytics/ce-meshless-scaling-s1-20261108.json - S1後の固定4規模の同じ計測
 - docs/analytics/ce-meshless-scaling-s15a-20261108.json - S1.5前半（既存CEの粗いセル用の街路街区、生成版v2）後の固定4規模の計測
 - docs/analytics/ce-meshless-scaling-s15b-20261108.json - S1.5後半（街路街区ごとの処理、生成版v3）後の固定4規模の計測
+- docs/analytics/ce-meshless-scaling-s21c-20261108.json - S2.1c（施設住宅の生成が地区・街路街区の記録を書く、生成版v5）後の固定4規模の計測。20,000・50,000人が初めて生成・保存できた
 - docs/analytics/ce-meshless-scaling-s22-20261108.json - S2.2（輪郭と接道から求める地区ID、生成版v4）後の固定4規模の計測
 - docs/analytics/ce-meshless-selection-after-20261108.json - S2.0後の5,000人文書の選択時間。地図上の道のクリック中央値9.2 ms
 - docs/analytics/ce-meshless-selection-before-20261108.json - S2.0前の5,000人文書の選択時間。地図上の道のクリック中央値1,304 ms
@@ -20,6 +21,7 @@
 - docs/plan/ce-meshless-block-fabric-scaling.md - S2.2の完了と、次のS2.1（記録の型とcodec）を記載
 - docs/plan/ce-meshless-block-fabric-scaling.md - S2.1をa〜fの段階に分け、S2.1aの完了と次のS2.1bを記載
 - docs/plan/ce-meshless-block-fabric-scaling.md - S2.1bの完了と次のS2.1cを記載
+- docs/plan/ce-meshless-block-fabric-scaling.md - S2.1cの完了と次のS2.1dを記載
 - docs/plan/ce-meshless-city-editor.md - §8.2に、街路街区に分けてから`buildOrganicBlocks`へ渡すことと、setbackを既存CEにそろえることを追記
 - docs/plan/ce-meshless-growth-generation.md - 成長段階の街路づくりをS1.5の街路の階層と共通にすることを追記
 - docs/plan/ce-meshless-city-editor.md - §8.2・§8.3を、折り返し小路の廃止と既存CE街区構造への置き換えに合わせて改訂。置き換え前の数値は再計測が必要と追記

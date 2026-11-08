@@ -43,6 +43,7 @@ export function fabricCellHash(c: Omit<VectorFabricCell, "hash">): string {
       c.ring,
       lines(c.lanes),
       c.attachments.map(a => [a.lane, a.end, a.street, a.t]),
+      c.mouths.map(m => [m.lane, m.end, m.nodeId]),
       [h.offsets, h.coords, h.storeys, h.dwellings, h.entrances, h.draws],
       c.detached,
       c.inside ?? null

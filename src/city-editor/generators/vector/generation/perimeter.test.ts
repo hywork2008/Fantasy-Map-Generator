@@ -17,7 +17,7 @@ describe("vector perimeter districts", () => {
       const plan = planVectorPerimeter(structuredClone(doc), order, DEFAULT_VECTOR_URBAN);
       const map = new Map<string, string[]>();
       for (const house of plan.houses)
-        map.set(house.district, [...(map.get(house.district) ?? []), JSON.stringify(house.polygon)]);
+        map.set(house.districtId, [...(map.get(house.districtId) ?? []), JSON.stringify(house.polygon)]);
       return new Map([...map].map(([id, houses]) => [id, houses.sort()]));
     };
     const forward = housesByDistrict(blocks),

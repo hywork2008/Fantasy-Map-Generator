@@ -5,9 +5,10 @@ import type { VectorFabricCell, VectorFabricLines } from "../../../types/vector/
 export const FABRIC_QUANTUM_METERS = 0.01;
 
 export function packPoints(points: Point[], origin: Point): number[] {
+  // `|| 0` keeps -0 out of saved records, so a document equals itself after a JSON round trip.
   return points.flatMap(p => [
-    Math.round((p[0] - origin[0]) / FABRIC_QUANTUM_METERS),
-    Math.round((p[1] - origin[1]) / FABRIC_QUANTUM_METERS)
+    Math.round((p[0] - origin[0]) / FABRIC_QUANTUM_METERS) || 0,
+    Math.round((p[1] - origin[1]) / FABRIC_QUANTUM_METERS) || 0
   ]);
 }
 

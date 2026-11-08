@@ -10,14 +10,37 @@ export function vectorPlacementDwellings(placement: VectorPlacement): number {
 export function vectorHouseDwellings(): number {
   return dwellingCapacity(VECTOR_HOUSE_FLOOR_AREA, VECTOR_HOUSE_STOREYS, VECTOR_HOUSE_SHARE);
 }
-/** Integer people, including the unplaced bucket, use the same largest-remainder allocation as legacy CE. */
-export function allocateVectorResidents(doc: VectorCityDocument, ids: string[], required: number, population: number) {
+/** Dwellings of every adopted fabric house, street blocks inside the town wall first. */
+export function vectorFabricUnits(doc: Readonly<VectorCityDocument>): number[] {
+  const cells = Object.values(doc.fabric?.cells ?? {});
+  const ordered = [...cells.filter(c => c.inside), ...cells.filter(c => !c.inside)];
+  return ordered.flatMap(cell => {
+    const detached = new Set(cell.detached);
+    return cell.houses.dwellings.filter((_, i) => !detached.has(i));
+  });
+}
+export const vectorFabricDwellings = (doc: Readonly<VectorCityDocument>) =>
+  vectorFabricUnits(doc).reduce((n, d) => n + d, 0);
+
+/** Integer people, including the unplaced bucket, use the same largest-remainder allocation as legacy CE.
+ * With `fabric`, generated houses follow the placements; only placements are returned as assignments, because
+ * a house's share is always recomputed from the adopted records. */
+export function allocateVectorResidents(
+  doc: Readonly<VectorCityDocument>,
+  ids: string[],
+  required: number,
+  population: number,
+  fabric = false
+) {
   let remaining = required;
-  const rows = ids.map(id => {
-    const capacity = vectorPlacementDwellings(doc.placements[id]),
-      assigned = Math.min(capacity, remaining);
+  const units = [
+    ...ids.map(id => vectorPlacementDwellings(doc.placements[id])),
+    ...(fabric ? vectorFabricUnits(doc) : [])
+  ];
+  const rows = units.map(capacity => {
+    const assigned = Math.min(capacity, remaining);
     remaining -= assigned;
-    return { placementId: id, dwellings: assigned, population: 0 };
+    return { dwellings: assigned, population: 0 };
   });
   const counts = [...rows.map(r => r.dwellings), remaining],
     sum = counts.reduce((a, b) => a + b, 0),
@@ -32,8 +55,8 @@ export function allocateVectorResidents(doc: VectorCityDocument, ids: string[], 
     row.population = people[i];
   });
   return {
-    assignments: rows,
-    capacity: ids.reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0),
+    assignments: ids.map((placementId, i) => ({ placementId, ...rows[i] })),
+    capacity: units.reduce((n, d) => n + d, 0),
     assignedDwellings: required - remaining,
     unplacedDwellings: remaining,
     assignedPopulation: population - (people.at(-1) ?? population),
