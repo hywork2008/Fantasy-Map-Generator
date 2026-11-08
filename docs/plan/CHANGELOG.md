@@ -8,6 +8,7 @@
 - docs/analytics/ce-meshless-refresh-s4c-20261109.json - S4cの5,000・50,000人のページの組み立てと元に戻す・やり直すの時間、文書全体の複製の回数と呼び出し元
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4bの完了と次のS4cを記載
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4cの完了と次のS4dを記載
+- docs/plan/ce-meshless-block-fabric-scaling.md - S4dの完了と次のS4eを記載
 
 2026-11-08
 

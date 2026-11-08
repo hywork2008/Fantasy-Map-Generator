@@ -247,6 +247,59 @@ const districtFace = (id: string): Face => ({
   properties: { elevation: 1, water: "land", ward: "craftsmen", buildable: true, locked: false }
 });
 
+/** Everything besides the district's own outline and boundaries that its plan reads. */
+const planKeys = new WeakMap<object, string>();
+function planKey(context: PerimeterPlanContext): string {
+  let key = planKeys.get(context);
+  if (key === undefined) {
+    key = JSON.stringify([context.seed, context.laneWidthMeters, context.hub, context.extentMeters, context.walls]);
+    planKeys.set(context, key);
+  }
+  return key;
+}
+/** Street plans of this and the previous generation, by content. Plans are pure in their key, so a dependency
+ * update that leaves a district's outline and road frontage unchanged gets the same plan without recomputing.
+ * Cached plans are shared and must not be mutated. */
+const streetPlans = {
+  current: new Map<string, PerimeterStreetPlan>(),
+  previous: new Map<string, PerimeterStreetPlan>()
+};
+/** Street-block results by the cached street block object they came from, for one context key. */
+const cellResults = new WeakMap<object, { key: string; nearby: string; result: PerimeterCellResult }>();
+const streetPlanKey = (
+  context: PerimeterPlanContext,
+  job: PerimeterDistrictJob,
+  boundaries: PerimeterStreetPlan["boundaries"]
+) => `${planKey(context)}|${job.districtId}|${JSON.stringify(job.outline)}|${JSON.stringify(boundaries)}`;
+/** Keeps plans computed elsewhere (a worker pool) so later dependency updates here can reuse them. */
+export function rememberPerimeterResults(
+  request: PerimeterRequest,
+  results: PerimeterStreetPlan[] | PerimeterCellResult[]
+) {
+  if (request.kind === "streets") {
+    rotatePlanCache();
+    request.jobs.forEach((job, i) => {
+      const plan = results[i] as PerimeterStreetPlan;
+      streetPlans.current.set(streetPlanKey(request.context, job, plan.boundaries), plan);
+    });
+  } else {
+    const key = planKey(request.context);
+    request.jobs.forEach((job, i) => {
+      cellResults.set(job.cell, {
+        key,
+        nearby: job.nearby.map(n => n.index).join(","),
+        // Joining extends the arrays of the result it is given; the cache keeps its own.
+        result: freshCell(results[i] as PerimeterCellResult)
+      });
+    });
+  }
+}
+/** Starts a generation: plans kept from before the previous one are dropped. */
+function rotatePlanCache() {
+  streetPlans.previous = streetPlans.current;
+  streetPlans.current = new Map();
+}
+
 /** A district's streets and street blocks, before any street block is laid out. */
 export interface PerimeterStreetPlan {
   districtId: string;
@@ -283,7 +336,7 @@ export function planPerimeterStreets(context: PerimeterPlanContext, job: Perimet
         .sort((a, b) => a.index - b.index)
         .map(item => context.roads[item.index]);
   const { districtId, outline } = job;
-  const boundaries = outline.map((a, i) => {
+  const fullBoundaries = outline.map((a, i) => {
     const b = outline[(i + 1) % outline.length],
       mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     const road = roadsNear(mid, context.frontageReach).find(
@@ -291,23 +344,32 @@ export function planPerimeterStreets(context: PerimeterPlanContext, job: Perimet
     );
     return { a, b, feature: !!road, barrier: !road, setback: road ? ROAD_FACADE_CLEARANCE_METERS : 3 };
   });
+  const boundaries = fullBoundaries.map(b => ({ feature: b.feature, barrier: b.barrier, setback: b.setback })),
+    key = streetPlanKey(context, job, boundaries),
+    known = streetPlans.current.get(key) ?? streetPlans.previous.get(key);
+  if (known) {
+    streetPlans.current.set(key, known);
+    return known;
+  }
   const plan = planOrganicStreetCells(
     districtFace(districtId),
     outline,
-    boundaries,
+    fullBoundaries,
     ceParameters(context),
     context.seed,
     ceContext(context)
   );
-  return {
+  const result: PerimeterStreetPlan = {
     districtId,
     outline,
-    boundaries: boundaries.map(b => ({ feature: b.feature, barrier: b.barrier, setback: b.setback })),
+    boundaries,
     // The CE street plan lists some streets twice (in the fixed inputs, 61 of 355 at 1,000 people). The mesh
     // editor never noticed; saved records would store, draw and measure them twice.
     streets: withoutRepeatedStreets(plan.streets),
     cells: plan.cells
   };
+  streetPlans.current.set(key, result);
+  return result;
 }
 
 /** Street-block jobs of every district, in district then street-block order. */
@@ -329,6 +391,22 @@ export function perimeterCellJobs(context: PerimeterPlanContext, plans: Perimete
 
 /** Second step: one street block's lanes, parcels and candidate lots on its own random stream. Pure. */
 export function planPerimeterCell(context: PerimeterPlanContext, job: PerimeterCellJob): PerimeterCellResult {
+  const key = planKey(context),
+    nearbyKey = job.nearby.map(n => n.index).join(","),
+    known = cellResults.get(job.cell);
+  // The cell object itself comes from a cached street plan, so its ring and district streets are unchanged.
+  if (known && known.key === key && known.nearby === nearbyKey) return freshCell(known.result);
+  const result = computePerimeterCell(context, job);
+  cellResults.set(job.cell, { key, nearby: nearbyKey, result });
+  return freshCell(result);
+}
+/** A copy whose parts that joining and adoption extend are new arrays; everything else stays shared. */
+const freshCell = (r: PerimeterCellResult): PerimeterCellResult => ({
+  cell: { ...r.cell, lanes: [...r.cell.lanes], attachments: [...r.cell.attachments], mouths: [] },
+  blocks: [...r.blocks],
+  houses: [...r.houses]
+});
+function computePerimeterCell(context: PerimeterPlanContext, job: PerimeterCellJob): PerimeterCellResult {
   const { districtId, cell, nearby } = job,
     local = buildOrganicStreetCell(
       districtFace(districtId),
@@ -394,6 +472,7 @@ export type PerimeterRequest =
   | { kind: "cells"; context: PerimeterPlanContext; jobs: PerimeterCellJob[] };
 /** Answers a request here; workers call the same function. */
 export function planPerimeterRequest(request: PerimeterRequest): PerimeterStreetPlan[] | PerimeterCellResult[] {
+  if (request.kind === "streets") rotatePlanCache();
   return request.kind === "streets"
     ? request.jobs.map(job => planPerimeterStreets(request.context, job))
     : request.jobs.map(job => planPerimeterCell(request.context, job));

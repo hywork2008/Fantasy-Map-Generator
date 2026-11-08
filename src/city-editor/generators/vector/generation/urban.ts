@@ -30,6 +30,7 @@ import {
   perimeterJobs,
   placeVectorPerimeterHouses,
   planPerimeterRequest,
+  rememberPerimeterResults,
   type VectorPerimeterPlan,
   vectorPerimeterResidual
 } from "./perimeter";
@@ -122,6 +123,7 @@ export async function generateVectorUrbanAsync(
   while (!step.done) {
     const results = await plan(step.value);
     if (results.length !== step.value.jobs.length) throw new Error("urban-district-plans");
+    rememberPerimeterResults(step.value, results);
     step = steps.next(results);
   }
   return step.value;
@@ -674,7 +676,8 @@ function* vectorUrbanSteps(
     baseConnections,
     baseContext,
     domain,
-    laneBlocks: blocks,
+    // Organic blocks are shared with the plan cache; the document owns its own copy.
+    laneBlocks: organic ? structuredClone(blocks) : blocks,
     residualLand,
     districts,
     ownedPaths,
