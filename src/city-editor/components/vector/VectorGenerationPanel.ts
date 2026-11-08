@@ -297,6 +297,7 @@ export function createVectorGenerationPanel(
     laneSpacing = number("laneSpacing", 36),
     laneWidth = number("laneWidth", 2.4),
     maxLanes = number("maxLanes", 32),
+    occupancy = number("lotOccupancy", 100),
     expansion = document.createElement("input");
   expansion.type = "checkbox";
   expansion.checked = true;
@@ -322,6 +323,8 @@ export function createVectorGenerationPanel(
       diagnosticList.append(li);
     }
   };
+  /** Percent in the panel, a share in the settings. */
+  const lotOccupancy = () => Math.min(1, Math.max(0.1, Number(occupancy.value) / 100 || 1));
   button("develop", () => {
     run(
       {
@@ -333,7 +336,8 @@ export function createVectorGenerationPanel(
           laneSpacingMeters: Number(laneSpacing.value),
           laneWidthMeters: Number(laneWidth.value),
           maxLanes: Number(maxLanes.value),
-          allowExpansion: expansion.checked
+          allowExpansion: expansion.checked,
+          lotOccupancy: lotOccupancy()
         }
       },
       "develop"
@@ -369,6 +373,7 @@ export function createVectorGenerationPanel(
         ? vectorInputFromEditor({
             ...editorInput,
             seed: seed.value,
+            lotOccupancy: lotOccupancy(),
             settings: {
               ...editorInput.settings,
               population: {
@@ -396,7 +401,7 @@ export function createVectorGenerationPanel(
             seed: seed.value,
             wall: wall.value as VectorGenerationSettings["wall"]
           },
-          urban: { ...DEFAULT_VECTOR_URBAN, population: target }
+          urban: { ...DEFAULT_VECTOR_URBAN, population: target, lotOccupancy: lotOccupancy() }
         },
         "develop",
         source
@@ -478,6 +483,7 @@ export function createVectorGenerationPanel(
       laneWidth.value = String(doc.urban?.settings.laneWidthMeters ?? 2.4);
       maxLanes.value = String(doc.urban?.settings.maxLanes ?? 32);
       expansion.checked = doc.urban?.settings.allowExpansion ?? true;
+      occupancy.value = String(Math.round((doc.urban?.settings.lotOccupancy ?? 1) * 100));
       stage.disabled = !!doc.generation && doc.generation.inputRevision !== doc.revision;
       status.textContent = doc.generation
         ? doc.generation.inputRevision === doc.revision

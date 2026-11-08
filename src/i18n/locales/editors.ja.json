@@ -290,6 +290,7 @@
         "laneSpacing": "小路の間隔 (m)",
         "laneWidth": "小路の幅 (m)",
         "maxLanes": "新設小路の上限",
+        "lotOccupancy": "区画の建築率 (%)",
         "allowExpansion": "自動合成入力の範囲内で郊外を追加",
         "develop": "小路・施設・住宅の候補を生成",
         "capacity": "住戸容量 / 必要住戸",

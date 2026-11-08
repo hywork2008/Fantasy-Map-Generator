@@ -16,7 +16,7 @@ import { createVectorWorkbench } from "./VectorWorkbench";
 const doc = generateVectorUrban(
   generateVectorSkeleton(syntheticVectorInput("m5", 100, false), { ...DEFAULT_VECTOR_GENERATION, branches: 4 })
     .document,
-  { ...DEFAULT_VECTOR_URBAN, mode: "medieval", population: 90, maxLanes: 4 }
+  { ...DEFAULT_VECTOR_URBAN, mode: "medieval", population: 400, maxLanes: 4 }
 );
 afterEach(() => {
   vi.restoreAllMocks();

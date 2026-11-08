@@ -118,6 +118,8 @@ function validateShare(value: unknown): VectorShare | null {
       u.clearanceMeters < 0.2 ||
       u.clearanceMeters > 5 ||
       typeof u.allowExpansion !== "boolean" ||
+      (u.lotOccupancy !== undefined &&
+        (!Number.isFinite(u.lotOccupancy) || u.lotOccupancy < 0.1 || u.lotOccupancy > 1)) ||
       Object.keys(u).some(
         k =>
           ![
@@ -128,7 +130,8 @@ function validateShare(value: unknown): VectorShare | null {
             "laneSpacingMeters",
             "maxLanes",
             "clearanceMeters",
-            "allowExpansion"
+            "allowExpansion",
+            "lotOccupancy"
           ].includes(k)
       ))
   )

@@ -7,6 +7,11 @@ export const VECTOR_HOUSE_SHARE = 0.85;
 export function vectorPlacementDwellings(placement: VectorPlacement): number {
   return placement.building?.dwellings ?? placement.display?.dwellings ?? 0;
 }
+/** Dwellings of a CE perimeter house. A built house holds at least one household: a narrow 15–21 m²
+ * footprint on the period's standard storeys is a 45–63 m² home, which the floor-area formula rounds to zero. */
+export function perimeterHouseDwellings(footprintM2: number, storeys: number, residentialShare = 0.85): number {
+  return Math.max(1, dwellingCapacity(footprintM2, storeys, residentialShare));
+}
 export function vectorHouseDwellings(): number {
   return dwellingCapacity(VECTOR_HOUSE_FLOOR_AREA, VECTOR_HOUSE_STOREYS, VECTOR_HOUSE_SHARE);
 }

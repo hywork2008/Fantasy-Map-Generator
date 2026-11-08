@@ -3,11 +3,11 @@ import { residentialStoreys } from "../../../../utils/urbanMorphology";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorStage } from "../../../types/vector/urban";
 import { nearestOnPolyline, polygonArea } from "../../geom";
-import { dwellingCapacity } from "../../residentialCapacityFormula";
 import { FABRIC_ENTRANCE_TOLERANCE_METERS } from "../fabric/houses";
 import { fabricLine, isDetachedFabricLine } from "../fabric/lines";
 import {
   allocateVectorResidents,
+  perimeterHouseDwellings,
   VECTOR_HOUSE_FLOOR_AREA,
   VECTOR_HOUSE_SHARE,
   VECTOR_HOUSE_STOREYS,
@@ -116,7 +116,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
           (p.modelId === "ce-perimeter-house"
             ? b.storeys !== residentialStoreys(doc.context.historicalPeriod).standard ||
               Math.abs(b.floorFootprintMeters2 - b.footprint.reduce((n, p) => n + regionArea(p), 0)) > 1e-5 ||
-              b.dwellings !== dwellingCapacity(b.floorFootprintMeters2, b.storeys, b.residentialShare)
+              b.dwellings !== perimeterHouseDwellings(b.floorFootprintMeters2, b.storeys, b.residentialShare)
             : b.storeys !== VECTOR_HOUSE_STOREYS ||
               b.floorFootprintMeters2 !== VECTOR_HOUSE_FLOOR_AREA ||
               b.residentialShare !== VECTOR_HOUSE_SHARE ||
@@ -146,12 +146,14 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       "vector-urban-v4",
       "vector-urban-v5",
       "vector-urban-v6",
-      "vector-urban-v7"
+      "vector-urban-v7",
+      "vector-urban-v8"
     ].includes(u.algorithm) ||
     !nonnegative(u.inputRevision) ||
     !keys(
       u.settings,
-      "mode,population,houseModelId,laneWidthMeters,laneSpacingMeters,maxLanes,clearanceMeters,allowExpansion"
+      "mode,population,houseModelId,laneWidthMeters,laneSpacingMeters,maxLanes,clearanceMeters,allowExpansion",
+      "lotOccupancy"
     ) ||
     !["medieval", "medieval-facilities"].includes(u.settings.mode) ||
     !nonnegative(u.settings.population) ||
@@ -169,6 +171,8 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     u.settings.clearanceMeters < 0.2 ||
     u.settings.clearanceMeters > 5 ||
     typeof u.settings.allowExpansion !== "boolean" ||
+    (u.settings.lotOccupancy !== undefined &&
+      (!Number.isFinite(u.settings.lotOccupancy) || u.settings.lotOccupancy < 0.1 || u.settings.lotOccupancy > 1)) ||
     !object(u.baseGeneration) ||
     !object(u.baseContext) ||
     !keys(u.baseConnections, "nodes,edges,gates,circuits,bridges,wallRoads") ||

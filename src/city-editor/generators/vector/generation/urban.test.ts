@@ -2,17 +2,32 @@ import { describe, expect, it } from "vitest";
 import { residentialStoreys } from "../../../../utils/urbanMorphology";
 import { renderVectorDocument } from "../../../renderers/vector/documentSvg";
 import { parseVectorDocument, serializeVectorDocument } from "../../../services/io/vector/documentCodec";
-import { dwellingCapacity } from "../../residentialCapacityFormula";
 import { cellHouseCount, cellHouseRing, unpackLine } from "../fabric/pack";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { syntheticVectorInput } from "./input";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
+import { perimeterHouseDwellings } from "./urbanCapacity";
 
 const skeleton = () =>
   generateVectorSkeleton(syntheticVectorInput("m5", 100, false), { ...DEFAULT_VECTOR_GENERATION, branches: 4 })
     .document;
 describe("meshless urban generation", () => {
+  it("builds only lots drawn below the lot occupancy", () => {
+    const run = (lotOccupancy: number) =>
+      generateVectorUrban(skeleton(), {
+        ...DEFAULT_VECTOR_URBAN,
+        mode: "medieval",
+        population: 400,
+        maxLanes: 4,
+        lotOccupancy
+      });
+    const half = run(0.5),
+      draws = (doc: typeof half) => Object.values(doc.fabric!.cells).flatMap(c => c.houses.draws);
+    expect(half.urban!.settings.lotOccupancy).toBe(0.5);
+    expect(draws(half).every(d => d < 0.5)).toBe(true);
+    expect(parseVectorDocument(serializeVectorDocument(half))).toEqual(half);
+  });
   it("packs authored houses with conserved population and no facilities in ordinary mode", () => {
     const source = skeleton(),
       doc = generateVectorUrban(source, { ...DEFAULT_VECTOR_URBAN, mode: "medieval", population: 90, maxLanes: 4 });
@@ -115,7 +130,7 @@ describe("urban physical constraints and capacity deficits", () => {
       for (let i = 0; i < cellHouseCount(cell); i++) {
         const site = { outer: cellHouseRing(cell, i), holes: [] };
         expect(cell.houses.storeys[i]).toBe(residentialStoreys(doc.context.historicalPeriod).standard);
-        expect(cell.houses.dwellings[i]).toBe(dwellingCapacity(regionArea(site), cell.houses.storeys[i]));
+        expect(cell.houses.dwellings[i]).toBe(perimeterHouseDwellings(regionArea(site), cell.houses.storeys[i]));
         expect(regionBoolean([site], [source.placements.fixed.site], "intersection")).toHaveLength(0);
         houses++;
       }

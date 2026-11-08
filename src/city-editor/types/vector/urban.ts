@@ -11,6 +11,9 @@ export interface VectorUrbanSettings {
   maxLanes: number;
   clearanceMeters: number;
   allowExpansion: boolean;
+  /** Share of CE lots built on (0.1–1), as CE's lot occupancy: 1 leaves no gaps, 0.5 builds every other lot.
+   * Absent means 1. */
+  lotOccupancy?: number;
 }
 export interface VectorBuilding {
   kind: "facility" | "housing";
@@ -78,7 +81,8 @@ export type VectorUrbanAlgorithm =
   | "vector-urban-v4"
   | "vector-urban-v5"
   | "vector-urban-v6"
-  | "vector-urban-v7";
+  | "vector-urban-v7"
+  | "vector-urban-v8";
 export interface VectorUrban {
   algorithm: VectorUrbanAlgorithm;
   inputRevision: number;

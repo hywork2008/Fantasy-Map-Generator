@@ -20,7 +20,7 @@ import {
   planOrganicStreetCells,
   ROAD_FACADE_CLEARANCE_METERS
 } from "../../organicBlocks";
-import { dwellingCapacity } from "../../residentialCapacityFormula";
+
 import { createGenerationJoiner } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { fabricCellHash, fabricDistrictHash } from "../fabric/hash";
@@ -33,6 +33,7 @@ import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
 import { vectorDistrictId } from "./districtId";
+import { perimeterHouseDwellings } from "./urbanCapacity";
 import { nearestRoadAnchor } from "./urbanPacking";
 import { VECTOR_URBAN_ALGORITHM } from "./urbanState";
 
@@ -481,6 +482,9 @@ function withoutRepeatedStreets<T extends { points: Point[] }>(streets: T[]): T[
   return kept;
 }
 
+/** Largest share of a lot that may be trimmed away where it overlaps an adopted neighbour. */
+const MAX_SLIVER_SHARE = 0.02;
+
 const roundedOrigin = (points: Point[]): Point => {
   const c = polygonCentroid(points);
   return [Math.round(c[0]) || 0, Math.round(c[1]) || 0];
@@ -511,7 +515,9 @@ export function placeVectorPerimeterHouses(
   /** Per street block id: draws of lots the user cleared. They stay empty and stay recorded. */
   cleared: Record<string, number[]> = {},
   /** Per district or street block id: lines the user moved to paths. */
-  detachedLines: Record<string, VectorFabricDetachedLine[]> = {}
+  detachedLines: Record<string, VectorFabricDetachedLine[]> = {},
+  /** CE lot occupancy: lots drawn at or above it stay unbuilt, as in CE's mesh editor. */
+  lotOccupancy = 1
 ): { dwellings: number; houses: number } {
   // A detached line stays detached only where the plan drew the same line again; anything else is refused,
   // because the plan's new line would run beside or across the user's road.
@@ -572,19 +578,35 @@ export function placeVectorPerimeterHouses(
   for (const house of plan.houses.slice().sort((a, b) => a.draw - b.draw)) {
     if (capacity >= required && house.draw > keepDraw) break;
     const origin = origins.get(house.cellId);
-    if (!origin || cleared[house.cellId]?.includes(house.draw)) continue;
-    const ring = packedRing(house.polygon, origin);
+    if (!origin || house.draw >= lotOccupancy || cleared[house.cellId]?.includes(house.draw)) continue;
+    let ring = packedRing(house.polygon, origin);
     if (!ring) continue;
-    const polygon = unpackPoints(ring, origin),
+    let polygon = unpackPoints(ring, origin),
       site = { outer: polygon, holes: [] };
-    if (
-      occupied
-        .search(boxOf(polygon))
-        .some(o => regionBoolean([site], [o.polygon], "intersection").some(r => regionArea(r) > 1e-5))
-    )
-      continue;
-    const dwellings = dwellingCapacity(regionArea(site), storeys);
-    if (dwellings < 1) continue;
+    const overlapping = occupied
+      .search(boxOf(polygon))
+      .map(o => o.polygon)
+      .filter(o => regionBoolean([site], [o], "intersection").some(r => regionArea(r) > 1e-5));
+    if (overlapping.length) {
+      // CE lots overlap their neighbours by slivers. Trimming the sliver keeps the row closed; a lot that loses
+      // more than a sliver stays unbuilt, so no house ever shares land with another.
+      const before = regionArea(site),
+        trimmed = regionBoolean([site], overlapping, "difference");
+      const kept = trimmed.length === 1 && !trimmed[0].holes.length ? packedRing(trimmed[0].outer, origin) : undefined;
+      if (!kept) continue;
+      const next = unpackPoints(kept, origin);
+      if (regionArea({ outer: next, holes: [] }) < before * (1 - MAX_SLIVER_SHARE)) continue;
+      ring = kept;
+      polygon = next;
+      site = { outer: polygon, holes: [] };
+      if (
+        occupied
+          .search(boxOf(polygon))
+          .some(o => regionBoolean([site], [o.polygon], "intersection").some(r => regionArea(r) > 1e-5))
+      )
+        continue;
+    }
+    const dwellings = perimeterHouseDwellings(regionArea(site), storeys);
     // The entrance faces the nearest lane, street or road. Never an access drawn across another plot.
     let best: { from: Point; to: Point; distance: number } | undefined;
     const lines = lineIndex.search(boxOf(polygon, 12)).map(item => item.points);

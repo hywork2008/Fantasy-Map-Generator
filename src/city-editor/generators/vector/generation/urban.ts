@@ -153,7 +153,9 @@ function* vectorUrbanSteps(
     !Number.isFinite(settings.clearanceMeters) ||
     settings.clearanceMeters < 0.2 ||
     settings.clearanceMeters > 5 ||
-    typeof settings.allowExpansion !== "boolean"
+    typeof settings.allowExpansion !== "boolean" ||
+    (settings.lotOccupancy !== undefined &&
+      (!Number.isFinite(settings.lotOccupancy) || settings.lotOccupancy < 0.1 || settings.lotOccupancy > 1))
   )
     throw new Error("invalid-urban-settings");
   const doc = structuredClone(input);
@@ -585,7 +587,8 @@ function* vectorUrbanSteps(
       inside,
       continuation?.fabricDraw,
       continuation?.fabricCleared ?? kept?.cleared,
-      continuation?.fabricDetachedLines ?? kept?.detachedLines
+      continuation?.fabricDetachedLines ?? kept?.detachedLines,
+      settings.lotOccupancy ?? 1
     );
     reattachFabricEntrances(doc);
     housingAttempts = organic.houses.length;

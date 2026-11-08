@@ -290,6 +290,7 @@
         "laneSpacing": "Lane spacing (m)",
         "laneWidth": "Lane width (m)",
         "maxLanes": "Maximum new lanes",
+        "lotOccupancy": "Lot occupancy (%)",
         "allowExpansion": "Allow suburbs within automatic synthetic input",
         "develop": "Preview lanes, facilities and housing",
         "capacity": "Dwelling capacity / required",

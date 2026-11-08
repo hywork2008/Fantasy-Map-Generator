@@ -60,13 +60,26 @@ describe("detaching generated houses from fabric records (S2.1e2)", () => {
     const fixed = reconcileVectorEdit(detached, setVectorPlacementPolicy(detached, placementId, "fixed")).document;
     expect(fixed.placements[placementId]).toEqual({ ...p, editPolicy: "fixed" });
     expect(fixed.fabric).toBeDefined();
-    const move = (dx: number) =>
-      transformVectorPlacement(detached, placementId, [p.position[0] + dx, p.position[1]], p.facingDegrees);
-    // A move onto a fabric lane is refused; the record keeps the lane and the house stays where it was.
-    expect(() => reconcileVectorEdit(detached, move(0.3))).toThrow(/dependency-protected-placement/);
-    const result = reconcileVectorEdit(detached, move(-0.3)).document,
+    const move = (dx: number, dy = 0) =>
+      transformVectorPlacement(detached, placementId, [p.position[0] + dx, p.position[1] + dy], p.facingDegrees);
+    // A move onto the lane the entrance faces is refused; the record keeps the lane and the house stays put.
+    const [from, to] = p.building!.entrances[0].connector,
+      reach = Math.hypot(to[0] - p.position[0], to[1] - p.position[1]);
+    expect(() =>
+      reconcileVectorEdit(
+        detached,
+        move(
+          ((to[0] - from[0]) * reach) / Math.hypot(to[0] - from[0], to[1] - from[1]),
+          ((to[1] - from[1]) * reach) / Math.hypot(to[0] - from[0], to[1] - from[1])
+        )
+      )
+    ).toThrow(/dependency-protected-placement|dependency-placement/);
+    // A short step away from the lane stays clear of every street and lane.
+    const away = Math.hypot(to[0] - from[0], to[1] - from[1]),
+      step: [number, number] = [(-(to[0] - from[0]) / away) * 0.05, (-(to[1] - from[1]) / away) * 0.05];
+    const result = reconcileVectorEdit(detached, move(step[0], step[1])).document,
       kept = result.placements[placementId];
-    expect(kept.position).toEqual([p.position[0] - 0.3, p.position[1]]);
+    expect(kept.position).toEqual([p.position[0] + step[0], p.position[1] + step[1]]);
     expect(kept.building!.entrances[0].fabricLine).toBeDefined();
     expect(result.fabric).toBeDefined();
     expect(result.urban!.report.assignedPopulation + result.urban!.report.unplacedPopulation).toBe(200);
