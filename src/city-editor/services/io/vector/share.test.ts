@@ -1,8 +1,9 @@
 import { gzipSync, strToU8 } from "fflate";
 import { describe, expect, it } from "vitest";
 import saved from "../../../../../docs/analytics/ce-meshless-m5-synthetic-20261107.json";
-import { generateVectorSkeleton } from "../../../generators/vector/generation/pipeline";
-import { generateVectorUrban } from "../../../generators/vector/generation/urban";
+import { syntheticVectorInput } from "../../../generators/vector/generation/input";
+import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../../../generators/vector/generation/pipeline";
+import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../../../generators/vector/generation/urban";
 import { parseVectorDocument } from "./documentCodec";
 import { decodeVectorShare, encodeVectorShare, vectorRecipe } from "./share";
 
@@ -22,7 +23,10 @@ describe("meshless shares", () => {
     expect(() => vectorRecipe(doc)).toThrow("vector-recipe-edited");
   });
   it("reproduces geometry from the explicit recipe input and rejects lossy recipe sharing of manual output", () => {
-    const doc = parseVectorDocument(JSON.stringify(saved))!,
+    const doc = generateVectorUrban(
+        generateVectorSkeleton(syntheticVectorInput("share-recipe", 100, false), DEFAULT_VECTOR_GENERATION).document,
+        { ...DEFAULT_VECTOR_URBAN, population: 90, maxLanes: 4 }
+      ),
       recipe = vectorRecipe(doc),
       decoded = decodeVectorShare(
         encodeVectorShare({ kind: "fmg-vector-city-share", version: 1, mode: "recipe", recipe })

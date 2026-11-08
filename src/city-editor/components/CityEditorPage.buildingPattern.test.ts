@@ -9,13 +9,13 @@ afterEach(() => {
 });
 
 describe("building pattern controls", () => {
-  it("offers both generators and restores the current-map choice through history", () => {
+  it("offers all three generators and restores the current-map choice through history", () => {
     root = document.createElement("div");
     document.body.append(root);
     mountCityEditor(root);
     const current = root.querySelector<HTMLSelectElement>(".ce-document-building-pattern")!;
     const future = root.querySelector<HTMLSelectElement>(".ce-generate-building-pattern")!;
-    expect([...future.options].map(o => o.value)).toEqual(["legacy", "medieval"]);
+    expect([...future.options].map(o => o.value)).toEqual(["legacy", "medieval", "medieval-facilities"]);
     expect(current.value).toBe("legacy");
     expect(future.value).toBe("medieval");
     current.value = "medieval";

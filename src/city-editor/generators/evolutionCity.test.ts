@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseDocument } from "../services/io/documentCodec";
 import { buildBlockFabric } from "./blockInfill";
 import { createGridDocument } from "./document";
-import { districtDocument, resolveDistricts } from "./fabricDistricts";
+import { resolveDistricts } from "./fabricDistricts";
 import { generateCityOnDocument } from "./generation/generateCity";
 import { countExternalApproachRoads } from "./generation/routing/roadCounts";
 import { defaultGenerationSettings } from "./generation/settings";
@@ -47,11 +47,18 @@ describe("evolution complete city", () => {
         const fabric = buildBlockFabric(city);
         expect(fabric.buildings.length).toBeGreaterThan(250);
         const districts = resolveDistricts(city, city.fabric);
-        const merged = districtDocument(city, districts);
         for (const building of fabric.buildings) {
           const district = districts.find(d => d.faceIds.includes(building.faceId))!;
-          const polygon = facePoints(merged.mesh, merged.mesh.faces[district.id]);
-          expect(building.polygon.every(p => pointInPolygon(p, polygon))).toBe(true);
+          // Infill uses the original district faces. A merged display boundary can omit
+          // concave pockets, and a clipped corner can sit a few millimetres outside its face.
+          const polygons = district.faceIds.map(id => facePoints(city.mesh, city.mesh.faces[id]));
+          expect(
+            building.polygon.every(p =>
+              polygons.some(
+                polygon => pointInPolygon(p, polygon) || nearestOnPolyline(p, [...polygon, polygon[0]]).dist <= 0.01
+              )
+            )
+          ).toBe(true);
           for (const river of city.featureGroups) {
             if (river.kind !== "river") continue;
             const points = river.vertices.map(v => city.mesh.vertices[v].point);

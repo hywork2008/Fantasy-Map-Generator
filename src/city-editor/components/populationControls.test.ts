@@ -117,7 +117,8 @@ describe("population generation controls", () => {
     const seed = root.querySelector<HTMLInputElement>(".ce-generate-seed")!;
     seed.value = "paris-population";
     seed.dispatchEvent(new Event("change", { bubbles: true }));
-    [...root.querySelectorAll("button")].find(b => b.textContent!.includes("🏘"))!.click();
+    seed.dispatchEvent(new Event("input", { bubbles: true }));
+    seed.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     const svg = root.querySelector<SVGSVGElement>("svg[data-population-report]")!;
     expect(svg).not.toBeNull();
     expect(svg.getAttribute("viewBox")).toBe("-2400 -2400 4800 4800");

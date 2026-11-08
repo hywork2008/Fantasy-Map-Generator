@@ -1040,7 +1040,7 @@ describe("shareable link and FMG site", () => {
     expect(getRiverPaths()).toBe(stage9River);
   });
 
-  it("generates complete city for a small walled burg with zero population (Bonenfeld case)", () => {
+  it("completes a small walled burg with zero population and no housing lots (Bonenfeld case)", () => {
     const descriptor = JSON.parse(
       JSON.stringify(
         synthSite(
@@ -1077,7 +1077,9 @@ describe("shareable link and FMG site", () => {
     panelButton("Seedから生成").click();
 
     expect(root.querySelector(".ce-generate-error")).toBeNull();
-    expect(has(".ce-buildings .ce-building")).toBe(true);
+    // A one-dwelling imported housing target does not guarantee a drawable lot.
+    expect(has(".ce-buildings .ce-building")).toBe(false);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
     expect(has(".ce-feature--wall")).toBe(true);
     expect(has(".ce-feature--road")).toBe(true);
   });

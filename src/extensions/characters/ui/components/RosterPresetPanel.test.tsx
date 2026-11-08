@@ -6,7 +6,10 @@ import { defaultPresetQuery } from "../../roster/presetTypes";
 import { useCharactersUiState } from "../charactersUiState";
 import { RosterPresetPanel } from "./RosterPresetPanel";
 
-vi.mock("../../charactersContext", () => ({ getWorldContext: () => ({ pack: {} }) }));
+vi.mock("../../charactersContext", () => ({
+  getWorldContext: () => ({ pack: {} }),
+  getApi: () => ({ simulationContext: { extensions: {} } })
+}));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 afterEach(() => {
   useCharactersUiState.setState({ presetOpen: false, presetQuery: defaultPresetQuery() });

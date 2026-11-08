@@ -46,7 +46,7 @@ describe("bridge approach frontages", () => {
     settings.walledAreaShare = 1;
     const document = generateCityOnDocument(input, settings, seed)!;
     expect(document).toBeTruthy();
-    expect(document.generationSeed).toBe(seed);
+    expect(document.generationSeed).toBe(gridSeed === "ln431i" ? `${seed}:junction-retry:1` : seed);
     const bankVertices = new Set(bank.flatMap(id => faceVertices(document.mesh, document.mesh.faces[id])));
     expect(document.gates!.some(g => bankVertices.has(g.vertexId))).toBe(false);
     const districts = resolveDistricts(document, document.fabric);
@@ -96,7 +96,10 @@ describe("bridge approach frontages", () => {
     expect(document).toBeTruthy();
 
     const fabric = buildBlockFabric(document);
-    for (const id of ["f16", "f27", "f28"]) {
+    // The unassigned pocket stays empty; both residential pockets receive housing.
+    expect(document.mesh.faces.f16.properties.ward).toBeNull();
+    expect(fabric.buildings.some(b => b.faceId === "f16")).toBe(false);
+    for (const id of ["f27", "f28"]) {
       expect(fabric.buildings.some(b => b.faceId === id)).toBe(true);
     }
   });

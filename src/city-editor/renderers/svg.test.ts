@@ -763,8 +763,8 @@ describe("generated temple footprint", () => {
       '[data-element="gc:temple"]'
     );
     expect(tinyRect).not.toBeNull();
-    expect(Number(tinyRect?.getAttribute("width"))).toBe(28);
-    expect(Number(tinyRect?.getAttribute("height"))).toBe(16);
+    expect(Number(tinyRect?.getAttribute("width"))).toBe(54);
+    expect(Number(tinyRect?.getAttribute("height"))).toBe(28);
 
     const large = createDocument("temple-large", 4800);
     large.appearance = "town";

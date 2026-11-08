@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import routingFixture from "../data/fixtures/river-gates-20260923.json";
 import type { GenerationDebugPreview } from "../types/contracts/generationDebug";
+import type { CityDocument } from "../types/document";
 import { createGridDocument } from "./document";
 import { generateCityAttempt, generateCityOnDocument } from "./generation/generateCity";
 import { generateStageOnDocument } from "./generation/previews";
@@ -23,15 +25,19 @@ vi.mock("./passages", async importOriginal => {
 const input = () => createGridDocument({ size: "tiny", grid: "evolution", seed: "ce-audit-20261002-mesh" });
 describe("rejected generation checkpoints", () => {
   it("captures the routed city and disconnected gate without changing the input", () => {
-    const source = input();
+    const source = structuredClone(routingFixture) as CityDocument;
+    const settings = defaultGenerationSettings();
+    settings.layout = "classic";
+    settings.config.coast = "none";
+    settings.config.features.port = false;
+    settings.config.rivers = ["through"];
     const before = structuredClone(source);
     let preview: GenerationDebugPreview | undefined;
     expect(
       generateCityAttempt(
         source,
-        defaultGenerationSettings(),
-        // Still rejected at gate routing after generator fixes (attempt 2 seed).
-        "ce-audit-20261002:121:junction-retry:1",
+        settings,
+        "gates-b",
         () => {},
         2,
         p => {

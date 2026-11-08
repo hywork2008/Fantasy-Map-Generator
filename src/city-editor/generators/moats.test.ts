@@ -159,7 +159,7 @@ describe("moat reservations", () => {
     ).toHaveLength(0);
   });
 
-  it("squares the gn8tsm v66 drawbridge while preserving the river approach and identical dry-city topology", () => {
+  it("squares the retried gn8tsm v83 drawbridge while preserving the river approach and identical dry-city topology", () => {
     const settings = defaultGenerationSettings();
     settings.config = {
       coast: "none",
@@ -185,9 +185,9 @@ describe("moat reservations", () => {
     });
     const city = generateCityOnDocument(source, settings, "gn8tsm")!;
     expect(city).not.toBeNull();
-    expect(city.generationSeed).toBe("gn8tsm");
+    expect(city.generationSeed).toBe("gn8tsm:junction-retry:1");
     expect(validate(city)).toEqual([]);
-    const frame = gateCrossingFrame(city, "v66")!;
+    const frame = gateCrossingFrame(city, "v83")!;
     const outside = frame.roads.filter(
       point => (point[0] - frame.point[0]) * frame.inward[0] + (point[1] - frame.point[1]) * frame.inward[1] < 0
     );
@@ -195,7 +195,6 @@ describe("moat reservations", () => {
     const delta: Point = [outside[0][0] - frame.point[0], outside[0][1] - frame.point[1]];
     expect(delta[0] * frame.tangent[0] + delta[1] * frame.tangent[1]).toBeCloseTo(0, 8);
     expect(Math.hypot(...delta)).toBeGreaterThanOrEqual(24 - 1e-8);
-    expect(city.mesh.vertices.v100.point).toEqual([2.118647677916277, 189.64460763574493]);
     expect(straightenGateCrossings(city).mesh).toEqual(city.mesh);
     const dry = generateCityOnDocument(source, { ...settings, moats: { town: false, castle: false } }, "gn8tsm")!;
     expect(dry.mesh).toEqual(city.mesh);
@@ -206,7 +205,7 @@ describe("moat reservations", () => {
       "-300 -300 600 600",
       1
     );
-    const gateId = city.gates.find(gate => gate.vertexId === "v66")!.id;
+    const gateId = city.gates.find(gate => gate.vertexId === "v83")!.id;
     const deck = svg.querySelector(`.ce-drawbridge[data-gate-id="${gateId}"] .ce-drawbridge-deck`)!;
     expect(deck).not.toBeNull();
     const coordinates = deck

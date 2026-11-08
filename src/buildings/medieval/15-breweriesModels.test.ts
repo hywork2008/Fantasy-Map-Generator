@@ -6,7 +6,7 @@ describe.each(models)("$id", definition => {
   it("keeps the copper shelter and its equipment clear of the main hall roof", () => {
     const model = definition.create();
     try {
-      const roof = model.group.children.find(child => child.name === "pitched-roof");
+      const roof = model.group.getObjectByName(`${definition.id}-hall-low`)!.getObjectByName("pitched-roof");
       const shelter = model.group.getObjectByName("copper-shelter");
       expect(roof).toBeDefined();
       expect(shelter).toBeDefined();

@@ -20,13 +20,19 @@ describe("medieval structural clearance", () => {
   it("keeps hall door faces clear of posts, buttresses, walls and shop displays", () => {
     for (const definition of models) {
       inspect(definition.id, model => {
+        const courtyard = ["caravanserai", "wayside-courtyard-inn"].includes(definition.id);
+        let exposedDoors = 0;
         for (const door of model.pickables.filter(mesh => mesh.name === "door-leaf")) {
           const center = bounds(door).getCenter(new THREE.Vector3());
           const normal = new THREE.Vector3(0, 0, 1).transformDirection(door.matrixWorld);
           const ray = new THREE.Raycaster(center.clone().addScaledVector(normal, 0.6), normal.clone().negate(), 0, 0.7);
           const first = ray.intersectObjects(model.pickables, false)[0]?.object;
+          // Joined courtyard ranges close internal hall doors with the adjacent range's end wall.
+          if (courtyard && first?.name === "end-wall") continue;
           expect(first?.name, `${definition.id}: doorway at ${center.toArray()}`).toBe("door-leaf");
+          exposedDoors++;
         }
+        if (courtyard) expect(exposedDoors).toBeGreaterThan(0);
       });
     }
   });

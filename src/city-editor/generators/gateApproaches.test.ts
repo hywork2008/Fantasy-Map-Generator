@@ -52,8 +52,16 @@ describe("river-side gate preservation", () => {
       );
       for (const gate of walls.gates) expect(riverVertices.has(gate.vertexId)).toBe(false);
       const wards = generateStageOnDocument(input, settings, seed, 6)!;
-      const complete = generateCityAttempt(input, settings, seed)!;
-      for (const city of [wards, complete]) {
+      const failures: string[] = [];
+      const complete = generateCityAttempt(input, settings, seed, sample => {
+        if (sample.failure) failures.push(sample.failure.reason);
+      });
+      const routingRejected = coast === "none" && seed === "gates-b";
+      if (routingRejected) {
+        expect(complete).toBeNull();
+        expect(failures).toContain("unconnected-gates");
+      }
+      for (const city of routingRejected ? [wards] : [wards, complete!]) {
         expect(city).not.toBeNull();
         expect(city.gates).toEqual(walls.gates);
         expect(validate(city)).toEqual([]);

@@ -42,8 +42,8 @@ describe("generateSubsistenceCapacity", () => {
     generateSubsistenceCapacity(world);
     const { subsistenceCapacity, livelihood } = world.pack.cells;
 
-    expect(subsistenceCapacity?.[0]).toBeGreaterThan(0);
-    expect(subsistenceCapacity?.[0]).toBeLessThan(90);
+    expect(subsistenceCapacity?.[0]).toBeGreaterThan(90);
+    expect(subsistenceCapacity?.[0]).toBeLessThanOrEqual(world.pack.cells.capacity[0]);
     expect(subsistenceCapacity?.[1]).toBeGreaterThan(30);
     expect(subsistenceCapacity?.[2]).toBeGreaterThan(25);
     expect(subsistenceCapacity?.[3]).toBeGreaterThan(15);

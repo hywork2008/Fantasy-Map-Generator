@@ -997,11 +997,12 @@ describe("CE fixed physical crossing handoff", () => {
       await vi.waitFor(() => expect(editorRoot.querySelectorAll("[data-fixed-approach-id]")).toHaveLength(1));
       const scaleLabel = [...editorRoot.querySelectorAll("label")].find(label => label.textContent?.trim() === "Scale");
       const scale = scaleLabel!.querySelector("input")!;
+      const beforeScaling = editorRoot.querySelector("[data-fixed-approach-id]")!.outerHTML;
       scale.value = "2";
       editorRoot.querySelector<HTMLButtonElement>("button[title='Scale all map geometry']")!.click();
-      expect(editorRoot.querySelectorAll("[data-fixed-approach-id]")).toHaveLength(0);
-      editorRoot.querySelector<HTMLButtonElement>("button[title='Undo']")!.click();
+      // Scaling this fixed crossing cannot pass document validation; keep the adopted approach.
       expect(editorRoot.querySelectorAll("[data-fixed-approach-id]")).toHaveLength(1);
+      expect(editorRoot.querySelector("[data-fixed-approach-id]")!.outerHTML).toBe(beforeScaling);
       editorRoot.querySelector<HTMLButtonElement>("button[title='Export city map as SVG']")!.click();
       expect(
         renderStandaloneCitySvg(svgExport.mock.calls.at(-1)![0]).querySelectorAll("[data-fixed-approach-id]")

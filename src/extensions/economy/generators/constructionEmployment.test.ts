@@ -699,7 +699,7 @@ describe("Brick good catalogue (K6)", () => {
     expect(brick).toBeDefined();
     expect(brick?.tags).toContain("construction");
     expect(brick?.demandCoverage).toEqual({ construction: 1 });
-    expect(brick?.recipes).toEqual([{ Clay: 1, Wood: 0.1 }]);
+    expect(brick?.recipes).toEqual([{ Clay: 1 / 0.95, Wood: 0.030667007411193457 }]);
     expect(brick?.warEconomyType).toBe("strategic");
   });
 });

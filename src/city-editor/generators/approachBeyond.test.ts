@@ -47,7 +47,12 @@ describe("approach beyond", () => {
     expect(externalGateRoads(again!).map(road => [road.group.id, road.group.beyond])).toEqual(
       external.map(road => [road.group.id, road.group.beyond])
     );
-    expect(assignApproachBeyonds("beyond-seed", external.length)).toEqual(external.map(road => road.group.beyond));
+    expect(
+      assignApproachBeyonds(city.generationSeed!, external.length, {
+        extentMeters: city.frame.extentMeters,
+        hasWalls: city.featureGroups.some(group => group.kind === "wall")
+      })
+    ).toEqual(external.map(road => road.group.beyond));
 
     const loaded = parseDocument(JSON.stringify(city));
     expect(externalGateRoads(loaded!).map(road => road.group.beyond)).toEqual(external.map(road => road.group.beyond));

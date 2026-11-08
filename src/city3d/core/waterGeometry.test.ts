@@ -304,7 +304,8 @@ describe("water surface geometry", () => {
     const ground = townGroundPolygons(doc, water);
     expect(covers([0, 14], ground.land)).toBe(false);
     expect(covers([10, 15], ground.land)).toBe(true);
-    expect(covers([0, 0], ground.land)).toBe(true);
+    // The explicit channel water area also cuts the land surface.
+    expect(covers([0, 0], ground.land)).toBe(false);
   });
 
   it("keeps a 0.01 m² remainder when minimumArea is 0.001", () => {

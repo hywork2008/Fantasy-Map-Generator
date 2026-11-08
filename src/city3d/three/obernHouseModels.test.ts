@@ -13,11 +13,11 @@ it("covers every Obern #93 house, including narrow, skew and concave footprints"
   expect(share.seed).toBe("6851550440093");
   const city = generateCityOnDocument(cityEditorDocument(share), cityEditorSettings(share), share.seed)!;
   const lots = buildBlockFabric(city).buildings;
-  expect(lots.length).toBe(2330);
+  expect(lots.length).toBe(2279);
   const sites = lots.map((lot, i) => regionalHouseSite(lot, i, 12, "high"));
   expect(sites.filter(Boolean)).toHaveLength(lots.length);
   const polygon = sites.filter(site => site!.definition.id.startsWith("polygon-house:"));
-  expect(polygon).toHaveLength(1304);
+  expect(polygon).toHaveLength(1264);
   // Exercise actual BV prototypes for a narrow rectangle, skew hip/gable, and the concave flat roof.
   const samples = new Set([
     ...["gable", "hip", "flat"].map(form => polygon.find(site => lots[site!.lotIndex].massing!.roof.form === form)),

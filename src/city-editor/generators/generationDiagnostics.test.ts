@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n/index";
+import routingFixture from "../data/fixtures/river-gates-20260923.json";
 import type { GenerationSample } from "../types/contracts/generationDiagnostics";
+import type { CityDocument } from "../types/document";
 import { createGridDocument, createSizedDocument } from "./document";
 import { generateCityAttempt, generateCityOnDocument } from "./generation/generateCity";
 import { defaultGenerationSettings } from "./generation/settings";
@@ -97,12 +99,16 @@ describe("generation failure diagnostics", () => {
 });
 
 it("includes paired routing traces in a real rejected gate-generation sample", () => {
-  // The river-gate fixture now generates; this seed is still rejected at gate routing.
+  const settings = defaultGenerationSettings();
+  settings.layout = "classic";
+  settings.config.coast = "none";
+  settings.config.features.port = false;
+  settings.config.rivers = ["through"];
   const samples: GenerationSample[] = [];
   generateCityAttempt(
-    createGridDocument({ size: "tiny", grid: "evolution", seed: "ce-audit-20261002-mesh" }),
-    defaultGenerationSettings(),
-    "ce-audit-20261002:121:junction-retry:1",
+    structuredClone(routingFixture) as CityDocument,
+    settings,
+    "gates-b",
     sample => samples.push(sample),
     2
   );

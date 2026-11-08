@@ -363,7 +363,8 @@ describe("physical livestock feed budget", () => {
     const before = rows()[0].hayKg;
     expect(before).toBeGreaterThan(0);
     simulationContext.currentMonth = 7;
-    climate.temperatures[6] = 0;
+    // Climate arrays are immutable inputs to the pasture-growth cache.
+    climate.temperatures = climate.temperatures.map((temperature, month) => (month === 6 ? 0 : temperature));
     getMarkets()[0].foodLedger!.ruralHouseholdWealth = 0;
     getMarkets()[0].goods[good("Fodder").i].stock = 0;
     harvestLivestockForage();

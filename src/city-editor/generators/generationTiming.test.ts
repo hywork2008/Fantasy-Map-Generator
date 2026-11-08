@@ -10,7 +10,7 @@ it("keeps skeleton geometry identical with consecutive timing enabled", () => {
   const baseline = generateVectorSkeleton(input, settings);
   const measured = generateVectorSkeleton(input, settings, (phase, ms) => spans.push({ phase, ms }));
   expect(measured).toEqual(baseline);
-  expect(spans.map(s => s.phase)).toContain("road-routing");
+  expect(spans.map(s => s.phase)).toEqual(expect.arrayContaining(["road-search", "road-materialization"]));
   expect(spans.every(s => s.ms >= 0)).toBe(true);
 });
 it("keeps housing, population and ownership identical with timing enabled", () => {

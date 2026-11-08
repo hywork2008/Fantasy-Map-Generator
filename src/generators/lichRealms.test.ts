@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
@@ -12,6 +12,7 @@ import {
 } from "../extensions/characters/charactersContext";
 import { resolveCharacterRaceName } from "../extensions/characters/controllers/characters-overview";
 import { createPerson } from "../extensions/characters/personFactory";
+import { setReferenceEvaluation } from "../extensions/characters/reference/evaluation";
 import { Characters } from "../extensions/nobility/generators/characterLifecycle";
 import { clearNobilityContext, getRulerId, initNobilityContext } from "../extensions/nobility/nobilityContext";
 import { useOptionsState } from "../store/optionsState";
@@ -24,6 +25,13 @@ import { Names } from "./names-generator";
 import { States } from "./states-generator";
 
 describe("Lich undead realms generation", () => {
+  // Exercise eager individual generation rather than the production on-demand roster.
+  beforeEach(() => setReferenceEvaluation(true));
+  afterEach(() => {
+    setReferenceEvaluation(false);
+    clearNobilityContext();
+    clearCharactersContext();
+  });
   function stubGraphData(): void {
     const cellsCount = 500;
     const cells = {

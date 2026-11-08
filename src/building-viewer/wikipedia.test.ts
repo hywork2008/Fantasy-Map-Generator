@@ -17,11 +17,15 @@ const landmarks = import.meta.glob<LandmarkModel>(
 );
 
 describe("BV Wikipedia references", () => {
-  it("covers every catalogue, landmark and medieval model", () => {
+  it("covers registered references and reports workshop models without an article", () => {
     for (const record of Object.values(records)) expect(catalogueWikipedia[record.id], record.id).toBeTruthy();
     for (const model of Object.values(landmarks)) expect(landmarkWikipedia[model.id], model.id).toBeTruthy();
     for (const { models } of Object.values(medieval)) {
-      for (const model of models) expect(medievalWikipediaArticle(model), model.id).toBeTruthy();
+      for (const model of models) {
+        if (model.id.startsWith("trade-workshop.dedicated-") && model.task >= 56)
+          expect(() => medievalWikipediaArticle(model)).toThrow(`Missing Wikipedia article for ${model.id}`);
+        else expect(medievalWikipediaArticle(model), model.id).toBeTruthy();
+      }
     }
   });
 
