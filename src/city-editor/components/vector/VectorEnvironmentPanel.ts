@@ -480,7 +480,7 @@ export function createVectorEnvironmentPanel(
     if (values.some(v => v.id === old)) select.value = old;
   };
   const availability = () => {
-    const doc = read();
+    const doc = peek();
     const bastion = kind.querySelector<HTMLOptionElement>('option[value="bastion"]');
     if (bastion)
       bastion.disabled =
@@ -499,7 +499,7 @@ export function createVectorEnvironmentPanel(
       selected.dispatchEvent(new Event("change"));
     },
     refresh() {
-      const doc = read();
+      const doc = peek();
       availability();
       const landscape = doc.environment?.landscape;
       forestMode.disabled = forestDensity.disabled = burialPreset.disabled = regenerateLandscape.disabled = !landscape;

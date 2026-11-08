@@ -101,7 +101,7 @@ export function mountVectorCityEditor(
   let generationPanel: ReturnType<typeof createVectorGenerationPanel> | undefined;
   let workbench: ReturnType<typeof createVectorWorkbench> | undefined;
   const refresh = () => {
-    const current = session.history.document;
+    const current = session.history.peek();
     stopCopy();
     copyCandidate = undefined;
     adoptCopy.disabled = true;
@@ -331,7 +331,8 @@ export function mountVectorCityEditor(
     (doc, stage) => presentation.rendered(doc, stage),
     undefined,
     () => session.history.currentEntryKey,
-    session.generationInput
+    session.generationInput,
+    () => session.history.peek()
   );
   editPanel = createVectorEditPanel(
     scope,

@@ -84,7 +84,8 @@ export function createVectorPresentationPanel(
   const rendered = (doc: VectorCityDocument, at: VectorStage = doc.urban ? "housing" : "regions") => {
     scope.invalidate("vector-export");
     stopReplay();
-    displayed = structuredClone(doc);
+    // Rendered documents are history snapshots or finished candidates, never edited afterwards.
+    displayed = doc;
     selected = at;
     const values = doc.urban
       ? vectorUrbanStages(doc.urban.settings.mode)

@@ -192,8 +192,9 @@ export function createVectorWorkbench(
   });
   scope.listen(paths, "change", () => selectPath(paths.value));
   function draw() {
+    const shown = peek() as VectorCityDocument;
     const svg = renderVectorDocument(
-      readCurrent(),
+      shown,
       selectedId,
       selectedSegmentId || undefined,
       undefined,
@@ -202,7 +203,7 @@ export function createVectorWorkbench(
     svg.setAttribute("aria-label", editorText("cityEditor.vector.preview"));
     svg.style.cssText = "width:100%;height:100%;min-height:300px;touch-action:none";
     map.replaceChildren(svg);
-    onRender?.(readCurrent());
+    onRender?.(shown);
     preview();
   }
   function preview(path?: VectorPath) {
@@ -300,7 +301,8 @@ export function createVectorWorkbench(
     handles = [];
     drag = undefined;
     pointer = false;
-    const current = read();
+    // Listing reads the snapshot; preparing an edit (`read`) copies the whole document twice.
+    const current = peek();
     if (!current.paths[selectedId]) selectedId = Object.keys(current.paths)[0] ?? "";
     if (selectedHouse && !fabricHouseInfo(peek().fabric, selectedHouse)) selectedHouse = "";
     paths.replaceChildren(
@@ -314,7 +316,7 @@ export function createVectorWorkbench(
     paths.value = selectedId;
     scope.replaceChildren(inspector);
     const path = current.paths[selectedId];
-    if (path) buildInspector(path);
+    if (path) buildInspector(structuredClone(path));
     networkPanel.refresh();
     draw();
   }

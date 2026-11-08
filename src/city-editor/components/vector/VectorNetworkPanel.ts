@@ -136,7 +136,8 @@ export function createVectorNetworkPanel(
       previousBridge = body.querySelector<HTMLSelectElement>('[data-network-field="bridge"]')?.value;
     map.querySelector("[data-network-draft]")?.remove();
     scope.replaceChildren(body);
-    const documentValue = read(),
+    // Listing reads the snapshot; edits still start from `read`.
+    const documentValue = peek(),
       paths = Object.values(documentValue.paths),
       circuits = Object.values(documentValue.connections.circuits),
       gates = Object.values(documentValue.connections.gates),
@@ -295,7 +296,7 @@ export function createVectorNetworkPanel(
     const toSegment = choice("bridgeToSegment", []),
       toT = numeric("bridgeToT", 1);
     const fillBridgeEnd = () => {
-      const path = read().paths[source().pathId];
+      const path = peek().paths[source().pathId];
       toSegment.replaceChildren();
       if (path)
         for (const id of pathSegmentIds(path)) {

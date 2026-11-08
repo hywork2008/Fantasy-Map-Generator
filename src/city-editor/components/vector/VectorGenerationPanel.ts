@@ -29,7 +29,9 @@ export function createVectorGenerationPanel(
   onRender?: (doc: VectorCityDocument, stage: VectorStage) => void,
   start = startVectorGeneration,
   readEntryKey?: () => object,
-  editorInput?: VectorEditorGenerationInput
+  editorInput?: VectorEditorGenerationInput,
+  /** Read-only current document for display; never mutated. Defaults to a copy. */
+  peek: () => Readonly<VectorCityDocument> = read
 ) {
   const details = document.createElement("details"),
     summary = document.createElement("summary"),
@@ -460,7 +462,7 @@ export function createVectorGenerationPanel(
       scope.invalidate("vector-generation-input");
       pending = undefined;
       adopt.disabled = true;
-      const doc = read();
+      const doc = peek();
       fmg.disabled = !linked && !doc.site?.descriptor;
       seed.value =
         doc.generation?.settings.seed ?? (doc.site ? doc.recipe.seed : (editorInput?.seed ?? doc.recipe.seed));
