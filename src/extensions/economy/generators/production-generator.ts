@@ -179,7 +179,13 @@ import {
 } from "./textileDemand";
 import { HOUSEHOLD_GARMENT_NAMES, hasPhysicalTextileRecipe } from "./textileRecipeContracts";
 import { buyTownLuxuries } from "./townLuxuryPurchases";
-import { isTownSoapDemandGood } from "./townSoap";
+import {
+  getMonthlyTownSoapFloor,
+  isTownSoapDemandGood,
+  isTownSoapEnabled,
+  isTownSoapGood,
+  WHITE_SOAP
+} from "./townSoap";
 import { TradeSecurity } from "./tradeSecurity";
 import { TransportAssetOrders } from "./transportAssetOrders";
 import { recordUrbanCraftCapacity } from "./urbanCraftCapacity";
@@ -986,6 +992,8 @@ export class ProductionModule {
     for (const good of index.productiveGoods) {
       const row = getGoodDemandCalibration(good.name);
       if (!row) continue;
+      // Without the town soap need, soap is made by profit as an uncalibrated good.
+      if (row.floorFromTownSoap && !isTownSoapEnabled()) continue;
       let lots = getCalibratedMonthlyLots({ goodName: good.name, laborPeopleBurg, port, capital });
       // Forest glasshouses make an inland market's Glass; its town glaziers keep the finishing work.
       // Port towns keep their glasshouses, as Venice and Barcelona melted plant soda ash shipped in.
@@ -999,6 +1007,18 @@ export class ProductionModule {
           let floor = this.householdContainerLots.get(key);
           if (floor === undefined) {
             floor = getMonthlyHouseholdContainerDemand(market, good);
+            this.householdContainerLots.set(key, floor);
+          }
+          marketLots = floor;
+          lots = (marketLots * laborPeopleBurg) / marketLaborPeople;
+        }
+        // Soap follows the towns' soap need, soft soap also the white the market cannot make.
+        if (row.floorFromTownSoap && market && marketLaborPeople > 0 && isTownSoapGood(good.name)) {
+          const key = `${marketId}:${good.i}`;
+          let floor = this.householdContainerLots.get(key);
+          if (floor === undefined) {
+            const whiteSoap = index.goods.find(candidate => candidate.name === WHITE_SOAP);
+            floor = getMonthlyTownSoapFloor(market, good.name, whiteSoap);
             this.householdContainerLots.set(key, floor);
           }
           marketLots = floor;

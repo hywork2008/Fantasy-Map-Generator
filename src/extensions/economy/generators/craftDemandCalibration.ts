@@ -41,6 +41,11 @@ export interface GoodDemandCalibrationRow {
    * (urban-craft-staffing.md §12 item 20).
    */
   floorFromHouseholdDrinks?: boolean;
+  /**
+   * The market's floor is its towns' soap need (townSoap.ts), not the per-head rate, which stays
+   * the fallback without a market (docs/plan/town-soap.md §3.4).
+   */
+  floorFromTownSoap?: boolean;
   typicalRecipeIndex?: number;
   sources: readonly string[];
 }
@@ -441,6 +446,35 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
       "provisional: 1 kg of tallow and wax candles a person a year in 100 kg blocks",
       "0.15 person-month a block: dipping at ~25 kg a day (guild-halls-and-urban-trades.md D1)"
     ]
+  },
+  {
+    goodName: "Soap",
+    domain: "victualling",
+    inlandShare: 0.05,
+    portShare: 0.05,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 1 / 120,
+    floorFromTownSoap: true,
+    fixtureLotsPerMonth: 6.25,
+    laborPointsPerLotAtDefaultRate: 0.0002,
+    residualWeight: 1,
+    sources: [
+      "town soap need: 2 kg a town person a year (townSoapSettings.ts; 1793 English excise, docs/plan/town-soap.md §2.1), half of it soft, in 120 kg barrels",
+      "0.2 person-month a barrel: boiled down from lye and fat, then cast"
+    ]
+  },
+  {
+    goodName: "Castile Soap",
+    domain: "victualling",
+    inlandShare: 0.05,
+    portShare: 0.05,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 1 / 120,
+    floorFromTownSoap: true,
+    fixtureLotsPerMonth: 6.25,
+    laborPointsPerLotAtDefaultRate: 0.0002,
+    residualWeight: 1,
+    sources: ["town soap need: the better-off half of 2 kg a town person a year (docs/plan/town-soap.md §3.2)"]
   },
   {
     goodName: "Charcoal",

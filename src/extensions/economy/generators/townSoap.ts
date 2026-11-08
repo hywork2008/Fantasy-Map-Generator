@@ -55,3 +55,23 @@ export function getMonthlyTownSoapDemand(market: Pick<Market, "i">, goodName: To
   }
   return (people * kilograms) / 12 / GOOD_MEASURES[goodName].kg;
 }
+
+/** True when the market holds some of every ingredient of one of the good's recipes. */
+function stocksRecipe(market: Pick<Market, "goods">, good: Pick<Good, "recipes"> | undefined): boolean {
+  return (good?.recipes ?? []).some(recipe => Object.keys(recipe).every(id => (market.goods[+id]?.stock ?? 0) > 0.01));
+}
+
+/**
+ * Barrels of a soap the market's soap boilers make in a month (docs/plan/town-soap.md §3.4): its
+ * own share of the towns' need, and for the soft soap also the white share while the market lacks
+ * the white soap's ingredients, as its households make that up with soft soap.
+ */
+export function getMonthlyTownSoapFloor(
+  market: Pick<Market, "i" | "goods">,
+  goodName: TownSoapGood,
+  whiteSoap: Pick<Good, "recipes"> | undefined
+): number {
+  const own = getMonthlyTownSoapDemand(market, goodName);
+  if (goodName === WHITE_SOAP || stocksRecipe(market, whiteSoap)) return own;
+  return own + getMonthlyTownSoapDemand(market, WHITE_SOAP);
+}
