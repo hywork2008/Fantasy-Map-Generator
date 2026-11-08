@@ -1,5 +1,6 @@
 import path from "node:path";
-import ts from "typescript";
+// TypeScript 7's `typescript` package ships the compiler only. Parsing still uses the 6.x API.
+import ts from "@typescript/typescript6";
 
 /** Type-only public contracts are allowed; runtime catalog imports must respect ownership. */
 export function raceBoundaryViolations(filename: string, source: string): string[] {

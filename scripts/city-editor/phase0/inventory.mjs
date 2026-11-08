@@ -2,7 +2,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import ts from 'typescript';
+// TypeScript 7's `typescript` package ships the compiler only. Parsing still uses the 6.x API.
+import ts from '@typescript/typescript6';
 const root = 'src/city-editor';
 const walk = dir => fs.readdirSync(dir, {withFileTypes:true}).flatMap(e => e.isDirectory() ? walk(`${dir}/${e.name}`) : [`${dir}/${e.name}`]);
 const files = walk(root).filter(f => /\.tsx?$/.test(f));

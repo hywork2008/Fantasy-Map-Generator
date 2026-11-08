@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import ts from "typescript";
+// TypeScript 7's `typescript` package ships the compiler only. Parsing still uses the 6.x API.
+import ts from "@typescript/typescript6";
 
 const CE = "src/city-editor/";
 const layers = ["components", "controllers", "services", "renderers", "generators", "state", "types", "data", "utils"];
