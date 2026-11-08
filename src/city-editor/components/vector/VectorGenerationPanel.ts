@@ -363,21 +363,40 @@ export function createVectorGenerationPanel(
     scope.invalidate("vector-generation-input");
     stop();
     try {
+      const target = Number(population.value);
+      // The site is planned for the population in this panel, not the one the editor opened with.
       const source = editorInput
-        ? vectorInputFromEditor({ ...editorInput, seed: seed.value })
+        ? vectorInputFromEditor({
+            ...editorInput,
+            seed: seed.value,
+            settings: {
+              ...editorInput.settings,
+              population: {
+                ...(editorInput.settings.population ?? {
+                  version: 1,
+                  source: "ce-override",
+                  housingDisplay: "auto",
+                  frameMode: "auto",
+                  profileId: "medieval-v1",
+                  profileVersion: 1
+                }),
+                targetPopulation: target
+              }
+            }
+          })
         : linked
           ? vectorInputFromDescriptor(linked)
           : syntheticVectorInput(seed.value, Number(radius.value), river.checked);
-      source.context.targetPopulation = Number(population.value);
+      source.context.targetPopulation = target;
       run(
         {
           kind: "city",
           settings: {
             ...DEFAULT_VECTOR_GENERATION,
             seed: seed.value,
-            wall: editorInput?.settings.config.features.walls ? "ellipse" : "none"
+            wall: wall.value as VectorGenerationSettings["wall"]
           },
-          urban: { ...DEFAULT_VECTOR_URBAN, population: Number(population.value) }
+          urban: { ...DEFAULT_VECTOR_URBAN, population: target }
         },
         "develop",
         source
@@ -443,7 +462,8 @@ export function createVectorGenerationPanel(
       width.value = String(doc.generation?.settings.roadWidthMeters ?? 5);
       clearance.value = String(doc.generation?.settings.clearanceMeters ?? 0.5);
       branches.value = String(doc.generation?.settings.branches ?? 8);
-      wall.value = doc.generation?.settings.wall ?? "none";
+      // Before any generation, the wall follows the editor's settings, as Generate city used to.
+      wall.value = doc.generation?.settings.wall ?? (editorInput?.settings.config.features.walls ? "ellipse" : "none");
       showDiagnostics(doc);
       updateStages(doc);
       mode.value = doc.urban?.settings.mode ?? "medieval";

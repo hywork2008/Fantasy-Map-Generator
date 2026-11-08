@@ -118,6 +118,31 @@ describe("M4 input, generation and adopted stages", () => {
     expect(history.redo()!.fabric).toBeDefined();
   }, 60000);
 
+  it("plans the site for the panel's population and keeps the chosen wall when generating a city", async () => {
+    mount(createVectorDocument(), undefined, {
+      seed: "b5o620",
+      settings: {
+        ...defaultGenerationSettings(),
+        population: defaultPopulationSettings(),
+        historicalPeriod: "ageOfExploration" as const
+      },
+      frame: { extentMeters: 1200, cityRadiusMeters: 300, blockSizeMeters: 50 }
+    });
+    expect(field("population").value).toBe("5000");
+    fill("population", "50000");
+    field("wall").value = "none";
+    field("wall").dispatchEvent(new Event("change", { bubbles: true }));
+    click("city");
+    await vi.waitFor(() => expect(history.index).toBe(1), { timeout: 120000 });
+    const report = history.document.urban!.report;
+    expect(report.targetPopulation).toBe(50000);
+    // The editor opened at 5,000 people; a 50,000-person city needs a site planned for 50,000.
+    expect(report.capacityDwellings).toBeGreaterThanOrEqual(report.requiredDwellings);
+    expect(report.unplacedPopulation).toBe(0);
+    expect(history.document.generation!.settings.wall).toBe("none");
+    expect(Object.values(history.document.paths).some(p => p.role === "wall")).toBe(false);
+    expect(field("wall").value).toBe("none");
+  }, 120000);
   it("previews input and generation without changing saved history, then adopts one transaction per operation", async () => {
     mount();
     click("synthetic");

@@ -662,3 +662,16 @@ Nodeでの見積もり（50,000人）: 地区の街路は6件・直列458 msで�
 計測値は[確定の費用のJSON](ce-meshless-commit-s4-20261108.json)。
 
 関連テスト: `generators/vector`、`components/vector`、`services`、`renderers/vector`で、57ファイル中50成功・7 skip（計測用）、295件中287成功・8 skip。
+
+## UIの「Generate city」の人口と市壁（S4aの後の修正）
+
+UIで人口を5,000人から50,000人に変えて「Generate city」を押すと、住戸の容量が約1,450 / 11,112で止まり、約43,500人が未収容になる不具合があった。原因は2つだった。
+
+- 敷地の半径は、エディターの入力（`vectorInputFromEditor`）が`planPopulation(settings.population)`から決める。ここに渡る人口は、エディターを開いたときの設定（5,000人）のままだった。パネルの人口は、生成後の目標人口にしか使われていなかった。
+- 市壁は、パネルの「Automatic wall」ではなく、エディターの設定（`config.features.walls`）から決めていた。生成後にパネルを文書の値で更新するため、noneを選んでもellipseに戻って見えた。
+
+S2以降の20,000・50,000人の確認は、計測用テスト（`scalingObservation.test.ts`など）で人口に合わせた半径（5,000人で240 m、50,000人で760 m）の合成入力を直接作って行っていた。UIのこの経路は確かめていなかった。
+
+修正（`VectorGenerationPanel.ts`）: 「Generate city」は、パネルの人口でエディターの入力の人口（`targetPopulation`）を上書きして敷地を計画する。人口の設定がない場合は、自動の敷地（`frameMode: "auto"`）として作る。市壁はパネルの選択を使う。生成前のパネルの市壁の初期値は、従来の生成と同じくエディターの設定に合わせる。FMGの都市から作る入力（`vectorInputFromDescriptor`）の敷地は、FMGの都市の範囲で決まり、この修正では変わらない。
+
+テスト: `components/vector/VectorGenerationPanel.test.ts`に1件を加えた。エディターを5,000人で開き、パネルで50,000人と市壁noneを選んで「Generate city」を押すと、住戸の容量が必要数以上で未収容が0になり、市壁の道がなく、パネルの市壁がnoneのままであること。修正前のコードでは、容量1,484 / 11,112で失敗することを確かめた。
