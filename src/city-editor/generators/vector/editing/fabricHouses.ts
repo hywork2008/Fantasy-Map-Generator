@@ -152,7 +152,7 @@ export function clearFabricHouse(source: VectorCityDocument, houseId: string): V
 /** Recomputes the adopted ledger after a change that keeps every record and placement in place: stage
  * capacities, residents, report and fingerprint. `added` manual placements join every stage, as the generator
  * shows manual placements. */
-function refreshUrbanLedger(doc: VectorCityDocument, added: string[]) {
+export function refreshUrbanLedger(doc: VectorCityDocument, added: string[]) {
   const u = doc.urban!,
     r = u.report,
     walls = Object.values(doc.connections.circuits)

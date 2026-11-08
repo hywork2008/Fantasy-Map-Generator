@@ -1,6 +1,7 @@
 import { editorText } from "../../../i18n/editorMessages";
 import { createVectorDocument, createVectorExample } from "../../generators/vector/document";
 import { clearFabricHouse, detachFabricHouse } from "../../generators/vector/editing/fabricHouses";
+import { detachFabricLine } from "../../generators/vector/editing/fabricLines";
 import type { VectorDocumentHistory } from "../../generators/vector/history";
 import { assertVectorDocument } from "../../generators/vector/validation/document";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
@@ -380,6 +381,17 @@ export function mountVectorCityEditor(
       } catch (error) {
         return `${editorText("cityEditor.vector.dependencies.failed")} ${error instanceof Error ? error.message : String(error)}`;
       }
+    },
+    id => {
+      try {
+        const { document: next, pathId } = detachFabricLine(session.history.document, id);
+        session.history.commit(next, editorText("cityEditor.vector.fabricHouse.detachLine"));
+        refresh();
+        workbench?.select(pathId);
+        return editorText("cityEditor.vector.fabricHouse.lineDetached");
+      } catch (error) {
+        return `${editorText("cityEditor.vector.dependencies.failed")} ${error instanceof Error ? error.message : String(error)}`;
+      }
     }
   );
   environmentPanel = createVectorEnvironmentPanel(
@@ -409,7 +421,8 @@ export function mountVectorCityEditor(
     },
     doc => presentation.rendered(doc),
     () => session.history.peek(),
-    id => (id ? housePanel?.select(id) : housePanel?.clear())
+    id => (id ? housePanel?.select(id) : housePanel?.clear()),
+    id => housePanel?.selectLine(id)
   );
   refresh();
   if (session.history.document.legacyCopy) {

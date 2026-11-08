@@ -2,7 +2,12 @@ import RBush from "rbush";
 import { growthRandom, residentialStoreys } from "../../../../utils/urbanMorphology";
 import type { Face, Point } from "../../../types/document";
 import type { VectorCityDocument, VectorPlacement } from "../../../types/vector/document";
-import type { VectorFabric, VectorFabricCell, VectorFabricDistrict } from "../../../types/vector/fabric";
+import type {
+  VectorFabric,
+  VectorFabricCell,
+  VectorFabricDetachedLine,
+  VectorFabricDistrict
+} from "../../../types/vector/fabric";
 import type { VectorBlock, VectorPolygon } from "../../../types/vector/generation";
 import type { VectorUrbanSettings } from "../../../types/vector/urban";
 import { isSimplePolygon, nearestOnPolyline, polygonCentroid } from "../../geom";
@@ -291,8 +296,26 @@ export function placeVectorPerimeterHouses(
   /** Lots drawn at or below this value are adopted even past `required` (an edit keeps the old vacancy). */
   keepDraw = -Infinity,
   /** Per street block id: draws of lots the user cleared. They stay empty and stay recorded. */
-  cleared: Record<string, number[]> = {}
+  cleared: Record<string, number[]> = {},
+  /** Per district or street block id: lines the user moved to paths. */
+  detachedLines: Record<string, VectorFabricDetachedLine[]> = {}
 ): { dwellings: number; houses: number } {
+  // A detached line stays detached only where the plan drew the same line again; anything else is refused,
+  // because the plan's new line would run beside or across the user's road.
+  const carried = (owner: string, planned: FabricLine[]) =>
+    (detachedLines[owner] ?? []).map(l => {
+      const path = doc.paths[l.pathId],
+        line = planned[l.index],
+        points =
+          path?.source.kind === "curve" ? [path.source.segments[0].from, ...path.source.segments.map(s => s.to)] : [];
+      if (
+        !line ||
+        line.points.length !== points.length ||
+        line.points.some((p, i) => Math.hypot(p[0] - points[i][0], p[1] - points[i][1]) > 0.02)
+      )
+        throw new Error(`dependency-protected-path:${l.pathId}`);
+      return structuredClone(l);
+    });
   const storeys = residentialStoreys(doc.context.historicalPeriod).standard;
   const occupied = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; polygon: VectorPolygon }>();
   occupied.load(
@@ -393,7 +416,8 @@ export function placeVectorPerimeterHouses(
       boundaries: district.boundaries,
       streets: packLines(district.streets, origin),
       mouths: district.mouths,
-      cellIds: kept.map(c => c.id)
+      cellIds: kept.map(c => c.id),
+      ...(detachedLines[district.id]?.length ? { detachedLines: carried(district.id, district.streets) } : {})
     };
     districts[district.id] = { ...record, hash: fabricDistrictHash(record) };
     for (const cell of kept) {
@@ -423,11 +447,15 @@ export function placeVectorPerimeterHouses(
         },
         detached: [],
         ...(cleared[cell.id]?.length ? { cleared: [...cleared[cell.id]] } : {}),
+        ...(detachedLines[cell.id]?.length ? { detachedLines: carried(cell.id, cell.lanes) } : {}),
         inside: inside(polygonCentroid(cell.ring))
       };
       fabricCells[cell.id] = { ...value, hash: fabricCellHash(value) };
     }
   }
+  for (const [owner, list] of Object.entries(detachedLines))
+    if (list.length && !districts[owner] && !fabricCells[owner])
+      throw new Error(`dependency-protected-path:${list[0].pathId}`);
   doc.fabric = { algorithm, districts, cells: fabricCells };
   return { dwellings: capacity, houses: count };
 }

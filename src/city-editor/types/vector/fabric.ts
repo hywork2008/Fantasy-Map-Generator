@@ -9,6 +9,15 @@ export interface VectorFabricLines {
   coords: number[];
 }
 
+/** A street or lane moved to a manual `VectorPath`. The record keeps the line, so its index and the
+ * attachments of other lines stay valid; it is no longer drawn or offered as an entrance. */
+export interface VectorFabricDetachedLine {
+  index: number;
+  pathId: string;
+  /** Path ends that end on another fabric line instead of a road graph node. */
+  joins: { end: 0 | 1; line: string }[];
+}
+
 /** One skeleton block laid out as a CE district: its perimeter and street-block streets. */
 export interface VectorFabricDistrict {
   id: string;
@@ -32,6 +41,7 @@ export interface VectorFabricDistrict {
   mouths: { street: number; end: 0 | 1; nodeId: string }[];
   cellIds: string[];
   growthStage?: number;
+  detachedLines?: VectorFabricDetachedLine[];
 }
 
 /** One street block: its lanes and the houses adopted in it. Site = footprint = reserved for these houses. */
@@ -60,6 +70,7 @@ export interface VectorFabricCell {
   detached: number[];
   /** Occupancy draws of lots the user cleared: regeneration keeps them empty. */
   cleared?: number[];
+  detachedLines?: VectorFabricDetachedLine[];
   inside?: boolean;
 }
 

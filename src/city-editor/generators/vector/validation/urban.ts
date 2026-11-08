@@ -5,7 +5,7 @@ import type { VectorStage } from "../../../types/vector/urban";
 import { nearestOnPolyline, polygonArea } from "../../geom";
 import { dwellingCapacity } from "../../residentialCapacityFormula";
 import { FABRIC_ENTRANCE_TOLERANCE_METERS } from "../fabric/houses";
-import { fabricLine } from "../fabric/lines";
+import { fabricLine, isDetachedFabricLine } from "../fabric/lines";
 import {
   allocateVectorResidents,
   VECTOR_HOUSE_FLOOR_AREA,
@@ -346,6 +346,14 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
           errors.push("urban-entrance");
       }
     }
+    // Lines moved to paths keep that road, and their joins end on a fabric line still drawn.
+    for (const record of [...Object.values(doc.fabric?.districts ?? {}), ...Object.values(doc.fabric?.cells ?? {})])
+      for (const l of record.detachedLines ?? [])
+        if (
+          doc.paths[l.pathId]?.role !== "road" ||
+          l.joins.some(j => !fabricLine(doc.fabric, j.line) || isDetachedFabricLine(doc.fabric, j.line))
+        )
+          errors.push(`urban-fabric-detached-line:${l.pathId}`);
     // Detached houses keep their entrance on a fabric street or lane.
     for (const p of Object.values(doc.placements))
       for (const entrance of p.building?.entrances ?? []) {

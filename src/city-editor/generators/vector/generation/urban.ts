@@ -1,6 +1,7 @@
 import { getUrbanDwellings } from "../../../../utils/urbanDwellings";
 import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
+import type { VectorFabricDetachedLine } from "../../../types/vector/fabric";
 import type { VectorStage, VectorUrbanSettings } from "../../../types/vector/urban";
 import { bvFacilityAsset } from "../../bvFacilityAsset";
 import { facilityPlacementOrder, facilityUseOf } from "../../facilityUses";
@@ -8,6 +9,7 @@ import { type GenerationTimingObserver, generationTiming } from "../../generatio
 import { polygonCentroid } from "../../geom";
 import { buildPopulationFacilityRequests } from "../../populationFacilityRequests";
 import { isDetachedFabricHouse, reattachFabricEntrances } from "../editing/fabricHouses";
+import { isDetachedFabricLinePath } from "../editing/fabricLines";
 import { rebuildRoadGraph } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { featureReservations } from "../environmentState";
@@ -75,6 +77,8 @@ export interface VectorUrbanContinuation {
   fabricDraw?: number;
   /** Cleared lots of the source records, by street block id. */
   fabricCleared?: Record<string, number[]>;
+  /** Lines moved to paths in the source records, by district or street block id. */
+  fabricDetachedLines?: Record<string, VectorFabricDetachedLine[]>;
 }
 export function generateVectorUrban(
   input: VectorCityDocument,
@@ -212,6 +216,10 @@ export function generateVectorUrban(
     deriveVectorBlocks(
       {
         ...doc,
+        // A road detached from fabric records lies inside its block: cutting the block would give it a hole.
+        paths: Object.fromEntries(
+          Object.entries(doc.paths).filter(([, p]) => !(organicMode && isDetachedFabricLinePath(p)))
+        ),
         placements: Object.fromEntries(
           Object.entries(doc.placements).filter(
             ([id, p]) => !continuation?.retainedPlacements.includes(id) && !(organicMode && isDetachedFabricHouse(p))
@@ -502,7 +510,8 @@ export function generateVectorUrban(
       remaining,
       inside,
       continuation?.fabricDraw,
-      continuation?.fabricCleared
+      continuation?.fabricCleared,
+      continuation?.fabricDetachedLines
     );
     reattachFabricEntrances(doc);
     housingAttempts = organic.houses.length;

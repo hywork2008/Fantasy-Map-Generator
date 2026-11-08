@@ -326,9 +326,17 @@ export function vectorRenderData(
     };
     const road = (id: string, polygons: VectorPolygon[]) =>
       add({ id, kind: "road", polygons, color: "#c7ae84", heightMeters: 0.04, elevationMeters: 0.02 });
-    const lines = (owner: string, kind: "s" | "l", packed: VectorFabricLines, origin: Point) => {
+    const lines = (
+      owner: string,
+      kind: "s" | "l",
+      packed: VectorFabricLines,
+      origin: Point,
+      detached: { index: number }[] = []
+    ) => {
       const parts: [string, VectorPolygon][] = [];
       for (let i = 0; i < packed.widths.length; i++) {
+        // A line moved to a `VectorPath` is drawn as that path.
+        if (detached.some(l => l.index === i)) continue;
         const id = `${owner}~${kind}${i}`,
           polygon = surface(id, unpackLine(packed, i, origin), packed.widths[i]);
         if (polygon) parts.push([id, polygon]);
@@ -348,9 +356,9 @@ export function vectorRenderData(
       }
     };
     for (const district of Object.values(doc.fabric.districts))
-      lines(district.id, "s", district.streets, district.origin);
+      lines(district.id, "s", district.streets, district.origin, district.detachedLines);
     for (const cell of Object.values(doc.fabric.cells)) {
-      lines(cell.id, "l", cell.lanes, cell.origin);
+      lines(cell.id, "l", cell.lanes, cell.origin, cell.detachedLines);
       if (urban && stage !== "housing") continue;
       // One surface per street block: 2D draws it as one path, 3D batches it by storeys.
       const detached = new Set(cell.detached),

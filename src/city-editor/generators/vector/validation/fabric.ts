@@ -58,14 +58,36 @@ const remember = (key: string, errors: string[]) => {
   return errors;
 };
 
+/** Shape only; paths and joined lines are checked against the document in the urban validation. */
+function detachedLines(v: unknown, owned: unknown): boolean {
+  if (v === undefined) return true;
+  const count = (owned as VectorFabricCell["lanes"] | undefined)?.widths?.length ?? 0;
+  return (
+    Array.isArray(v) &&
+    v.length <= 10000 &&
+    v.every(
+      l =>
+        keys(l, ["index", "pathId", "joins"]) &&
+        Number.isSafeInteger(l.index) &&
+        (l.index as number) >= 0 &&
+        (l.index as number) < count &&
+        id(l.pathId) &&
+        Array.isArray(l.joins) &&
+        l.joins.length <= 2 &&
+        l.joins.every(j => keys(j, ["end", "line"]) && (j.end === 0 || j.end === 1) && typeof j.line === "string")
+    ) &&
+    new Set(v.map(l => (l as { index: number }).index)).size === v.length
+  );
+}
 function districtErrors(d: RecordValue, key: string): string[] {
   const at = `fabric-district:${key}`;
   if (
     !keys(
       d,
       ["id", "hash", "seed", "parameters", "origin", "outline", "boundaries", "streets", "mouths", "cellIds"],
-      ["growthStage"]
+      ["growthStage", "detachedLines"]
     ) ||
+    !detachedLines(d.detachedLines, d.streets) ||
     d.id !== key ||
     !id(d.id) ||
     typeof d.hash !== "string" ||
@@ -121,8 +143,9 @@ function cellErrors(c: RecordValue, key: string): string[] {
     !keys(
       c,
       ["id", "hash", "districtId", "origin", "ring", "lanes", "attachments", "mouths", "houses", "detached"],
-      ["inside", "cleared"]
+      ["inside", "cleared", "detachedLines"]
     ) ||
+    !detachedLines(c.detachedLines, c.lanes) ||
     c.id !== key ||
     !id(c.id) ||
     typeof c.hash !== "string" ||

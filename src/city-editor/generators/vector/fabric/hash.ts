@@ -1,4 +1,9 @@
-import type { VectorFabricCell, VectorFabricDistrict, VectorFabricLines } from "../../../types/vector/fabric";
+import type {
+  VectorFabricCell,
+  VectorFabricDetachedLine,
+  VectorFabricDistrict,
+  VectorFabricLines
+} from "../../../types/vector/fabric";
 
 function fnv64(text: string): string {
   let a = 0x811c9dc5,
@@ -11,6 +16,7 @@ function fnv64(text: string): string {
   return `${(a >>> 0).toString(16).padStart(8, "0")}${(b >>> 0).toString(16).padStart(8, "0")}`;
 }
 const lines = (l: VectorFabricLines) => [l.widths, l.offsets, l.coords];
+const detached = (d: VectorFabricDetachedLine[]) => d.map(l => [l.index, l.pathId, l.joins.map(j => [j.end, j.line])]);
 
 /** Content hash in a fixed field order, so saved key order and the `hash` field itself never matter. */
 export function fabricDistrictHash(d: Omit<VectorFabricDistrict, "hash">): string {
@@ -27,7 +33,8 @@ export function fabricDistrictHash(d: Omit<VectorFabricDistrict, "hash">): strin
       lines(d.streets),
       d.mouths.map(m => [m.street, m.end, m.nodeId]),
       d.cellIds,
-      d.growthStage ?? null
+      d.growthStage ?? null,
+      ...(d.detachedLines ? [detached(d.detachedLines)] : [])
     ])
   );
 }
@@ -48,7 +55,8 @@ export function fabricCellHash(c: Omit<VectorFabricCell, "hash">): string {
       c.detached,
       c.inside ?? null,
       // Absent on records that never cleared a lot, so their hashes stay as they were.
-      ...(c.cleared ? [c.cleared] : [])
+      ...(c.cleared ? [c.cleared] : []),
+      ...(c.detachedLines ? [detached(c.detachedLines)] : [])
     ])
   );
 }

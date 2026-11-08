@@ -350,6 +350,11 @@ export function reconcileVectorEdit(source: VectorCityDocument, candidate: Vecto
     baseContext: doc.context,
     ...(source.fabric
       ? {
+          fabricDetachedLines: Object.fromEntries(
+            [...Object.values(source.fabric.districts), ...Object.values(source.fabric.cells)]
+              .filter(r => r.detachedLines?.length)
+              .map(r => [r.id, r.detachedLines!])
+          ),
           fabricCleared: Object.fromEntries(
             Object.values(source.fabric.cells)
               .filter(c => c.cleared?.length)

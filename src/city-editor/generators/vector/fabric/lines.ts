@@ -58,14 +58,24 @@ function lineIndex(fabric: Readonly<VectorFabric>): RBush<LineItem> {
     });
   for (const d of Object.values(fabric.districts))
     for (let i = 0; i < d.streets.widths.length; i++)
-      add(fabricStreetId(d.id, i), unpackLine(d.streets, i, d.origin), d.streets.widths[i]);
+      if (!d.detachedLines?.some(l => l.index === i))
+        add(fabricStreetId(d.id, i), unpackLine(d.streets, i, d.origin), d.streets.widths[i]);
   for (const c of Object.values(fabric.cells))
     for (let i = 0; i < c.lanes.widths.length; i++)
-      add(fabricLaneId(c.id, i), unpackLine(c.lanes, i, c.origin), c.lanes.widths[i]);
+      if (!c.detachedLines?.some(l => l.index === i))
+        add(fabricLaneId(c.id, i), unpackLine(c.lanes, i, c.origin), c.lanes.widths[i]);
   index = new RBush<LineItem>();
   index.load(items);
   indices.set(fabric, index);
   return index;
+}
+
+/** True when the line was moved to a `VectorPath`; its geometry still resolves through `fabricLine`. */
+export function isDetachedFabricLine(fabric: Readonly<VectorFabric> | undefined, id: string): boolean {
+  const match = /^(.+)~([sl])(0|[1-9]\d*)$/.exec(id);
+  if (!fabric || !match) return false;
+  const record = match[2] === "s" ? fabric.districts[match[1]] : fabric.cells[match[1]];
+  return !!record?.detachedLines?.some(l => l.index === Number(match[3]));
 }
 
 /** Fabric lines whose bounding boxes come within `reach` of the box. */
@@ -83,11 +93,13 @@ export function fabricLinesNear(
 export function nearestFabricLine(
   fabric: Readonly<VectorFabric> | undefined,
   p: Point,
-  reach: number
+  reach: number,
+  exclude?: string
 ): { id: string; point: Point; distance: number } | undefined {
   if (!fabric) return undefined;
   let best: { id: string; point: Point; distance: number } | undefined;
   for (const line of fabricLinesNear(fabric, { minX: p[0], minY: p[1], maxX: p[0], maxY: p[1] }, reach)) {
+    if (line.id === exclude) continue;
     const hit = nearestOnPolyline(p, line.points);
     if (hit.dist <= reach && (!best || hit.dist < best.distance))
       best = { id: line.id, point: hit.point, distance: hit.dist };

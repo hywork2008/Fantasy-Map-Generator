@@ -16,6 +16,7 @@ import {
 } from "../../generators/vector/editing/paths";
 import { splitVectorPath } from "../../generators/vector/editing/splitPath";
 import { fabricHouseInCell, fabricHouseInfo } from "../../generators/vector/fabric/houses";
+import { nearestFabricLine } from "../../generators/vector/fabric/lines";
 import { pathSegmentIds } from "../../generators/vector/geometry/curves";
 import { vectorPathMeasurement } from "../../generators/vector/geometry/measurement";
 import { presetArea, presetDimensionsForArea } from "../../generators/vector/geometry/presets";
@@ -42,7 +43,9 @@ export function createVectorWorkbench(
   /** Read-only current document for selection; never mutated. Defaults to a copy. */
   peek: () => Readonly<VectorCityDocument> = readCurrent,
   /** A generated house was chosen on the map, or `""` when the selection moved to a path. */
-  onSelectHouse?: (id: string) => void
+  onSelectHouse?: (id: string) => void,
+  /** A fabric street or lane was chosen on the map. */
+  onSelectFabricLine?: (id: string) => void
 ) {
   const read = () => prepareVectorEdit(readCurrent());
   const replaceVectorPath = (doc: VectorCityDocument, path: VectorPath) =>
@@ -534,6 +537,15 @@ export function createVectorWorkbench(
           selectHouse(house);
           onSelectHouse?.(house);
           return;
+        }
+        // Fabric streets and lanes share one surface per owner; the line comes from the click point.
+        const surfaceId = target.closest<SVGElement>("[data-vector-surface]")?.dataset.vectorSurface;
+        if (surfaceId && /~[sl]$/.test(surfaceId) && onSelectFabricLine) {
+          const line = nearestFabricLine(peek().fabric, position(event), 8);
+          if (line?.id.startsWith(surfaceId)) {
+            onSelectFabricLine(line.id);
+            return;
+          }
         }
         const hit = target.closest<SVGElement>("[data-vector-path],[data-vector-surface]");
         if (hit) selectPath((hit.dataset.vectorPath ?? hit.dataset.vectorSurface)!);

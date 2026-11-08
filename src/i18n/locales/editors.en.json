@@ -473,7 +473,11 @@
         "detach": "Detach as a placement",
         "detached": "Detached. Move or fix it under building placement edits.",
         "clear": "Remove house, keep the lot empty",
-        "cleared": "Removed. The lot stays empty; regeneration refills the shortfall elsewhere."
+        "cleared": "Removed. The lot stays empty; regeneration refills the shortfall elsewhere.",
+        "lineTitle": "Generated street or lane",
+        "lineWidth": "Width {value0} m, length {value1} m",
+        "detachLine": "Detach as a road",
+        "lineDetached": "Detached. Edit it as a road; undo returns it to the records."
       },
       "release": {
         "preview": "Meshless preview. Review population shortages and source conversion notes before adopting a city."
