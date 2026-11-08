@@ -7,6 +7,7 @@ import type { VectorUrbanSettings } from "../../../types/vector/urban";
 import { nearestOnPolyline, polygonCentroid } from "../../geom";
 import { buildOrganicBlocks } from "../../organicBlocks";
 import { dwellingCapacity } from "../../residentialCapacityFormula";
+import { createGenerationJoiner } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { evaluateAnchor } from "../geometry/curves";
 import { gateOpening } from "../geometry/network";
@@ -14,13 +15,34 @@ import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
-import { joinVectorGenerationAnchors } from "./pipeline";
 import { nearestRoadAnchor } from "./urbanPacking";
 
 export const PERIMETER_HOUSE_MODEL = "ce-perimeter-house";
 export function planVectorPerimeter(doc: VectorCityDocument, blocks: VectorBlock[], settings: VectorUrbanSettings) {
   const primary = Object.values(doc.paths).filter(p => p.role === "road");
   const primarySamples = primary.map(path => ({ path, points: samplePath(path).map(p => p.point) }));
+  // Bounding boxes only narrow candidates; the original per-road tests and road order still decide.
+  const primaryIndex = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; index: number }>();
+  primaryIndex.load(
+    primarySamples.map((r, index) => ({
+      minX: Math.min(...r.points.map(p => p[0])),
+      minY: Math.min(...r.points.map(p => p[1])),
+      maxX: Math.max(...r.points.map(p => p[0])),
+      maxY: Math.max(...r.points.map(p => p[1])),
+      index
+    }))
+  );
+  const roadsNear = (p: Point, reach: number) =>
+    primaryIndex
+      .search({ minX: p[0] - reach, minY: p[1] - reach, maxX: p[0] + reach, maxY: p[1] + reach })
+      .sort((a, b) => a.index - b.index)
+      .map(item => primarySamples[item.index]);
+  const frontageReach = Math.max(0, ...primary.map(p => p.width.leftMeters + p.width.rightMeters + 0.1)) + 1e-6,
+    endpointReach =
+      Math.max(0, ...primary.map(p => Math.max(p.width.leftMeters, p.width.rightMeters))) +
+      settings.laneWidthMeters / 2 +
+      0.7 +
+      1e-6;
   const paths: string[] = [],
     houses: { polygon: Point[]; district: string; draw?: number }[] = [],
     parcels: VectorBlock[] = [];
@@ -39,7 +61,7 @@ export function planVectorPerimeter(doc: VectorCityDocument, blocks: VectorBlock
     const boundaries = block.outer.map((a, i) => {
       const b = block.outer[(i + 1) % block.outer.length],
         mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-      const road = primarySamples.find(
+      const road = roadsNear(mid, frontageReach).find(
         p => nearestOnPolyline(mid, p.points).dist <= p.path.width.leftMeters + p.path.width.rightMeters + 0.1
       );
       return { a, b, feature: !!road, barrier: !road, setback: road ? 0.05 : 3 };
@@ -96,7 +118,8 @@ export function planVectorPerimeter(doc: VectorCityDocument, blocks: VectorBlock
     );
   }
   // CE already inserts shared T junction vertices. Keep those exact points as native road nodes.
-  const junctions = new Map<string, CurveAnchor[]>();
+  const junctions = new Map<string, CurveAnchor[]>(),
+    joiner = createGenerationJoiner(doc);
   const key = (p: Point) => `${Math.round(p[0] * 1e5)},${Math.round(p[1] * 1e5)}`;
   for (const id of [...paths]) {
     const path = doc.paths[id];
@@ -110,7 +133,7 @@ export function planVectorPerimeter(doc: VectorCityDocument, blocks: VectorBlock
         list = junctions.get(key(p)) ?? [];
       list.push(anchor);
       junctions.set(key(p), list);
-      const road = primarySamples
+      const road = roadsNear(p, endpointReach)
         .map(r => ({ ...r, near: nearestOnPolyline(p, r.points) }))
         .sort((a, b) => a.near.dist - b.near.dist)[0];
       if (
@@ -146,10 +169,10 @@ export function planVectorPerimeter(doc: VectorCityDocument, blocks: VectorBlock
       doc.paths[connector] = route;
       paths.push(connector);
       list.push({ pathId: connector, segmentId: "segment:0", t: 0 });
-      joinVectorGenerationAnchors(doc, [target, { pathId: connector, segmentId: "segment:0", t: 1 }]);
+      joiner.join([target, { pathId: connector, segmentId: "segment:0", t: 1 }]);
     }
   }
-  for (const anchors of junctions.values()) if (anchors.length > 1) joinVectorGenerationAnchors(doc, anchors);
+  for (const anchors of junctions.values()) if (anchors.length > 1) joiner.join(anchors);
   return { paths, houses, blocks: parcels };
 }
 

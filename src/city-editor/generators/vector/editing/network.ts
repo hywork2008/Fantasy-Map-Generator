@@ -1,5 +1,12 @@
 import type { Point } from "../../../types/primitives";
-import type { CurveAnchor, VectorBridge, VectorCityDocument, VectorGate } from "../../../types/vector/document";
+import type {
+  CurveAnchor,
+  VectorBridge,
+  VectorCityDocument,
+  VectorGate,
+  VectorNode,
+  VectorRoadEdge
+} from "../../../types/vector/document";
 import { evaluateAnchor, pathIsClosed, pathSegmentIds } from "../geometry/curves";
 import { anchorOrder, distance, dryLandingExtent, unit } from "../geometry/network";
 import { offsetRing, ringInside, sampledClosedRing, wallGapRoute } from "../geometry/routing";
@@ -14,37 +21,124 @@ export function networkId(table: object, prefix: string): string {
 }
 const sameAnchor = (a: CurveAnchor, b: CurveAnchor) =>
   a.pathId === b.pathId && a.segmentId === b.segmentId && a.t === b.t;
-/** All road edges are ranges of original curves; coincidence never merges nodes. */
+/** Smallest free `${prefix}:n` id, matching a linear scan from 1 while ids are freed and reused. */
+function numberedIdAllocator(table: object, prefix: string) {
+  const pattern = new RegExp(`^${prefix}:([1-9]\\d*)$`);
+  const numberOf = (id: string) => {
+    const match = pattern.exec(id);
+    return match && String(Number(match[1])) === match[1] ? Number(match[1]) : undefined;
+  };
+  const used = new Set<number>();
+  for (const id of Object.keys(table)) {
+    const n = numberOf(id);
+    if (n !== undefined) used.add(n);
+  }
+  // Free numbers below `scan` live in the heap; `scan` only passes numbers that were in use.
+  const heap: number[] = [];
+  let scan = 1;
+  const push = (n: number) => {
+    heap.push(n);
+    for (let i = heap.length - 1; i > 0; ) {
+      const parent = (i - 1) >> 1;
+      if (heap[parent] <= heap[i]) break;
+      [heap[parent], heap[i]] = [heap[i], heap[parent]];
+      i = parent;
+    }
+  };
+  const pop = () => {
+    const top = heap[0],
+      last = heap.pop()!;
+    if (heap.length) {
+      heap[0] = last;
+      for (let i = 0; ; ) {
+        const l = 2 * i + 1,
+          r = l + 1;
+        let m = i;
+        if (l < heap.length && heap[l] < heap[m]) m = l;
+        if (r < heap.length && heap[r] < heap[m]) m = r;
+        if (m === i) break;
+        [heap[m], heap[i]] = [heap[i], heap[m]];
+        i = m;
+      }
+    }
+    return top;
+  };
+  return {
+    release(id: string) {
+      const n = numberOf(id);
+      if (n === undefined || !used.delete(n)) return;
+      push(n);
+    },
+    claim(id: string) {
+      const n = numberOf(id);
+      if (n !== undefined) used.add(n);
+    },
+    next(reserved: Set<string> = new Set()): string {
+      const skipped: number[] = [];
+      for (;;) {
+        while (heap.length && used.has(heap[0])) pop();
+        while (used.has(scan)) scan++;
+        const fromHeap = heap.length > 0 && heap[0] < scan,
+          n = fromHeap ? heap[0] : scan;
+        if (fromHeap) pop();
+        else scan++;
+        if (reserved.has(`${prefix}:${n}`)) {
+          skipped.push(n);
+          continue;
+        }
+        for (const s of skipped) push(s);
+        used.add(n);
+        return `${prefix}:${n}`;
+      }
+    }
+  };
+}
+
+/** All road edges are ranges of original curves; coincidence never merges nodes.
+ * Per-road indexes keep the original iteration order, ids and output while avoiding whole-table scans per road. */
 export function rebuildRoadGraph(document: VectorCityDocument): void {
+  const { nodes, edges } = document.connections;
+  const nodesByPath = new Map<string, VectorNode[]>(),
+    edgesByPath = new Map<string, VectorRoadEdge[]>(),
+    bridgesByRoad = new Map<string, VectorBridge[]>();
+  const add = <T>(map: Map<string, T[]>, key: string, value: T) => {
+    const list = map.get(key);
+    if (list) list.push(value);
+    else map.set(key, [value]);
+  };
+  for (const node of Object.values(nodes))
+    for (const pathId of new Set(node.anchors.map(a => a.pathId))) add(nodesByPath, pathId, node);
+  for (const edge of Object.values(edges)) add(edgesByPath, edge.pathId, edge);
+  for (const bridge of Object.values(document.connections.bridges)) add(bridgesByRoad, bridge.roadPathId, bridge);
+  const edgeIds = numberedIdAllocator(edges, "edge");
+  let nodeNumber = 1;
   for (const road of Object.values(document.paths).filter(p => p.role === "road")) {
-    const ids = pathSegmentIds(road);
+    const ids = pathSegmentIds(road),
+      roadNodes = nodesByPath.get(road.id) ?? [];
     for (const anchor of [
       { pathId: road.id, segmentId: ids[0], t: 0 },
       { pathId: road.id, segmentId: ids.at(-1)!, t: 1 },
-      ...Object.values(document.connections.bridges)
-        .filter(b => b.roadPathId === road.id)
-        .flatMap(b => [b.from, b.to])
+      ...(bridgesByRoad.get(road.id) ?? []).flatMap(b => [b.from, b.to])
     ]) {
       const order = anchorOrder(road, anchor);
       if (
-        !Object.values(document.connections.nodes).some(n =>
-          n.anchors.some(a => a.pathId === road.id && Math.abs(anchorOrder(road, a) - order) < 1e-9)
-        )
+        !roadNodes.some(n => n.anchors.some(a => a.pathId === road.id && Math.abs(anchorOrder(road, a) - order) < 1e-9))
       ) {
         const existing =
           pathIsClosed(road) && anchor.t === 1
-            ? Object.values(document.connections.nodes).find(n =>
-                n.anchors.some(a => a.pathId === road.id && anchorOrder(road, a) === 0)
-              )
+            ? roadNodes.find(n => n.anchors.some(a => a.pathId === road.id && anchorOrder(road, a) === 0))
             : undefined;
         if (existing) existing.anchors.push(anchor);
         else {
-          const id = networkId(document.connections.nodes, "node");
-          document.connections.nodes[id] = { id, position: evaluateAnchor(road, anchor), anchors: [anchor] };
+          // Nodes are never removed here, so the smallest free number only moves forward.
+          while (Object.hasOwn(nodes, `node:${nodeNumber}`)) nodeNumber++;
+          const id = `node:${nodeNumber}`;
+          nodes[id] = { id, position: evaluateAnchor(road, anchor), anchors: [anchor] };
+          roadNodes.push(nodes[id]);
         }
       }
     }
-    const entries = Object.values(document.connections.nodes)
+    const entries = roadNodes
       .flatMap(node =>
         node.anchors
           .filter(a => a.pathId === road.id)
@@ -55,9 +149,12 @@ export function rebuildRoadGraph(document: VectorCityDocument): void {
       (entry, i) =>
         i === 0 || entry.node.id !== entries[i - 1].node.id || Math.abs(entry.order - entries[i - 1].order) > 1e-9
     );
-    const old = Object.values(document.connections.edges).filter(e => e.pathId === road.id);
+    const old = edgesByPath.get(road.id) ?? [];
     const reserved = new Set(old.map(e => e.id));
-    for (const edge of old) delete document.connections.edges[edge.id];
+    for (const edge of old) {
+      delete edges[edge.id];
+      edgeIds.release(edge.id);
+    }
     for (let i = 1; i < cuts.length; i++) {
       const a = cuts[i - 1],
         b = cuts[i];
@@ -70,11 +167,8 @@ export function rebuildRoadGraph(document: VectorCityDocument): void {
           sameAnchor(e.to, b.anchor)
       );
       let id = existing?.id;
-      if (!id) {
-        let n = 1;
-        while (Object.hasOwn(document.connections.edges, `edge:${n}`) || reserved.has(`edge:${n}`)) n++;
-        id = `edge:${n}`;
-      }
+      if (id) edgeIds.claim(id);
+      else id = edgeIds.next(reserved);
       document.connections.edges[id] = {
         id,
         pathId: road.id,
@@ -335,35 +429,86 @@ export function createWallGapRoad(
 
 /** Join coincident curve anchors without cloning or validating an unfinished generation draft. */
 export function joinVectorGenerationAnchors(doc: VectorCityDocument, anchors: CurveAnchor[]): void {
-  const unique = anchors.filter((a, i, all) => all.findIndex(b => JSON.stringify(a) === JSON.stringify(b)) === i);
-  if (unique.length < 2) return;
-  const point = evaluateAnchor(doc.paths[unique[0].pathId], unique[0]);
-  if (unique.some(a => distance(point, evaluateAnchor(doc.paths[a.pathId], a)) > 1e-6))
-    throw new Error("connection-conflict");
-  const samePosition = (a: CurveAnchor, b: CurveAnchor) => {
-    if (a.pathId !== b.pathId) return false;
-    const path = doc.paths[a.pathId],
-      order = (anchor: CurveAnchor) => {
-        const value = anchorOrder(path, anchor),
-          count = pathSegmentIds(path).length;
-        return pathIsClosed(path) && Math.abs(value - count) < 1e-9 ? 0 : value;
-      };
-    return Math.abs(order(a) - order(b)) < 1e-9;
+  createGenerationJoiner(doc).join(anchors);
+}
+
+/** Batch form of joinVectorGenerationAnchors for generation loops. Indexes are kept across calls, so every node
+ * mutation in between must go through the same joiner. Node order, node ids and edge/gate rewrites match the
+ * single-call form exactly. */
+export function createGenerationJoiner(doc: VectorCityDocument) {
+  const { nodes, edges, gates } = doc.connections;
+  const sequence = new Map<string, number>(),
+    byPath = new Map<string, Set<string>>(),
+    edgesByNode = new Map<string, Set<VectorRoadEdge>>(),
+    gatesByNode = new Map<string, Set<VectorGate>>();
+  let counter = 0;
+  const add = <T>(map: Map<string, Set<T>>, key: string, value: T) => {
+    const set = map.get(key);
+    if (set) set.add(value);
+    else map.set(key, new Set([value]));
   };
-  const nodes = Object.values(doc.connections.nodes).filter(n =>
-    n.anchors.some(a => unique.some(b => samePosition(a, b)))
-  );
-  const id = nodes[0]?.id ?? networkId(doc.connections.nodes, "node"),
-    all = [...unique, ...nodes.flatMap(n => n.anchors)].filter(
-      (a, i, entries) => entries.findIndex(b => JSON.stringify(a) === JSON.stringify(b)) === i
-    );
-  for (const n of nodes) {
-    delete doc.connections.nodes[n.id];
-    for (const e of Object.values(doc.connections.edges)) {
-      if (e.fromNodeId === n.id) e.fromNodeId = id;
-      if (e.toNodeId === n.id) e.toNodeId = id;
-    }
-    for (const g of Object.values(doc.connections.gates)) if (g.nodeId === n.id) g.nodeId = id;
+  const index = (node: VectorNode) => {
+    sequence.set(node.id, counter++);
+    for (const a of node.anchors) add(byPath, a.pathId, node.id);
+  };
+  const unindex = (node: VectorNode) => {
+    sequence.delete(node.id);
+    for (const a of node.anchors) byPath.get(a.pathId)?.delete(node.id);
+  };
+  for (const node of Object.values(nodes)) index(node);
+  for (const e of Object.values(edges)) {
+    add(edgesByNode, e.fromNodeId, e);
+    add(edgesByNode, e.toNodeId, e);
   }
-  doc.connections.nodes[id] = { id, position: point, anchors: all };
+  for (const g of Object.values(gates)) add(gatesByNode, g.nodeId, g);
+  const nodeIds = numberedIdAllocator(nodes, "node");
+  const key = (a: CurveAnchor) => JSON.stringify(a);
+  return {
+    join(anchors: CurveAnchor[]): void {
+      const unique = anchors.filter((a, i, all) => all.findIndex(b => key(a) === key(b)) === i);
+      if (unique.length < 2) return;
+      const point = evaluateAnchor(doc.paths[unique[0].pathId], unique[0]);
+      if (unique.some(a => distance(point, evaluateAnchor(doc.paths[a.pathId], a)) > 1e-6))
+        throw new Error("connection-conflict");
+      const samePosition = (a: CurveAnchor, b: CurveAnchor) => {
+        if (a.pathId !== b.pathId) return false;
+        const path = doc.paths[a.pathId],
+          order = (anchor: CurveAnchor) => {
+            const value = anchorOrder(path, anchor),
+              count = pathSegmentIds(path).length;
+            return pathIsClosed(path) && Math.abs(value - count) < 1e-9 ? 0 : value;
+          };
+        return Math.abs(order(a) - order(b)) < 1e-9;
+      };
+      const candidates = new Set<string>();
+      for (const a of unique) for (const id of byPath.get(a.pathId) ?? []) candidates.add(id);
+      const found = [...candidates]
+        .map(id => nodes[id])
+        .filter(n => n.anchors.some(a => unique.some(b => samePosition(a, b))))
+        .sort((a, b) => sequence.get(a.id)! - sequence.get(b.id)!);
+      const id = found[0]?.id ?? nodeIds.next(),
+        all = [...unique, ...found.flatMap(n => n.anchors)].filter(
+          (a, i, entries) => entries.findIndex(b => key(a) === key(b)) === i
+        );
+      for (const n of found) {
+        unindex(n);
+        delete nodes[n.id];
+        nodeIds.release(n.id);
+        for (const e of edgesByNode.get(n.id) ?? []) {
+          if (e.fromNodeId === n.id) e.fromNodeId = id;
+          if (e.toNodeId === n.id) e.toNodeId = id;
+          add(edgesByNode, id, e);
+        }
+        if (n.id !== id) edgesByNode.delete(n.id);
+        for (const g of gatesByNode.get(n.id) ?? []) {
+          g.nodeId = id;
+          add(gatesByNode, id, g);
+        }
+        if (n.id !== id) gatesByNode.delete(n.id);
+      }
+      nodeIds.claim(id);
+      nodes[id] = { id, position: point, anchors: all };
+      index(nodes[id]);
+    }
+  };
 }

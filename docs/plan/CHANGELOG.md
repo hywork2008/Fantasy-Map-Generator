@@ -2,8 +2,12 @@
 
 2026-11-08
 
+- docs/analytics/ce-meshless-scaling-20261108.md - 街区構造の大規模化のS0・S1記録。固定4規模の計測手順と基準値、道路グラフ・接続・外周計画の近傍探索の索引化により、1,000・5,000人の出力一致のまま50,000人の失敗までの時間を100.4→12.6秒に短縮。20,000人以上は保存形式の上限で失敗しS2で扱う
+- docs/analytics/ce-meshless-scaling-s0-20261108.json - S0の固定4規模の工程時間・件数・文書長・直列化SHA-256
+- docs/analytics/ce-meshless-scaling-s1-20261108.json - S1後の固定4規模の同じ計測
 - docs/plan/ce-meshless-block-fabric-scaling.md - メッシュなしCEの街区構造を20万人規模へ拡張する設計。20,000人で道数上限、50,000人で記録数上限に達し、道路グラフ再構築が2乗で増える計測を根拠に、2乗処理の除去、街区単位の記録（native v8）、街区並列生成、履歴の差分化の段階と暫定目標を定めた。2次元タイルのはめ込みは不採用
 - docs/plan/ce-meshless-block-fabric-scaling.md - 固定入力を人口で指定し、街区記録に成長段階と内外区分を持たせることを追記
+- docs/plan/ce-meshless-block-fabric-scaling.md - S0完了とS1の主要部分の完了、次のS2への作業を記載
 - docs/plan/ce-meshless-city-editor.md - §8.2・§8.3を、折り返し小路の廃止と既存CE街区構造への置き換えに合わせて改訂。置き換え前の数値は再計測が必要と追記
 - docs/plan/ce-meshless-city-editor.md - §8.1・§9に、壁先行に加えて成長型の生成順序を扱うことと、現行実装の6段階との対応整理が必要なことを追記
 - docs/plan/ce-meshless-growth-generation.md - 核と街道から街区を段階的に増やし、市街地の外形から市壁を求めて街道との交点を門にする成長型の生成。採用済み街区を後の段階で変えない不変条件、壁外の郊外、キャンバスの拡張とFMG入力の再取得、GM0〜GM5の段階と未決事項を定めた
