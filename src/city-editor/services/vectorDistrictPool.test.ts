@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { syntheticVectorInput } from "../generators/vector/generation/input";
-import { planPerimeterDistrict } from "../generators/vector/generation/perimeter";
+import { planPerimeterRequest } from "../generators/vector/generation/perimeter";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../generators/vector/generation/pipeline";
 import {
   DEFAULT_VECTOR_URBAN,
@@ -27,7 +27,7 @@ function fakeWorker(log: number[]): VectorDistrictWorker {
       setTimeout(() => {
         const reply: VectorDistrictReply = {
           id: request.id,
-          results: request.jobs.map(job => planPerimeterDistrict(request.context, job))
+          results: planPerimeterRequest(request)
         };
         worker.onmessage?.({ data: structuredClone(reply) });
       }, Math.random() * 5);
@@ -52,9 +52,9 @@ describe("district planning in a worker pool (S3)", () => {
         doc = await generateVectorUrbanAsync(skeleton, settings, request => pool.plan(request));
       pool.dispose();
       expect(sha(serializeVectorDocument(doc))).toBe(direct);
-      // One worker plans here; more split the districts into one contiguous run per worker.
-      expect(log.length).toBe(count === 1 ? 0 : Math.min(count, log.length));
-      if (count > 1) expect(log.length).toBeGreaterThan(1);
+      // One worker plans here; more split district streets and street blocks across the workers.
+      if (count === 1) expect(log).toEqual([]);
+      else expect(log.length).toBeGreaterThanOrEqual(count === 2 ? 4 : 6);
     }
   });
   it("uses one fewer worker than the cores, from one to four", () => {

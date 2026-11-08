@@ -1,5 +1,6 @@
 import RBush from "rbush";
 import { growthRandom, residentialStoreys } from "../../../../utils/urbanMorphology";
+import type { InfillLane } from "../../../types/contracts/localInfill";
 import type { Face, Point } from "../../../types/document";
 import type { VectorCityDocument, VectorPlacement } from "../../../types/vector/document";
 import type {
@@ -15,6 +16,7 @@ import {
   buildOrganicStreetCell,
   COARSE_STREET_CELL_METERS,
   COARSE_STREET_WIDTH_METERS,
+  type OrganicStreetCell,
   planOrganicStreetCells,
   ROAD_FACADE_CLEARANCE_METERS
 } from "../../organicBlocks";
@@ -151,12 +153,49 @@ const roadIndices = new WeakMap<
   object,
   RBush<{ minX: number; minY: number; maxX: number; maxY: number; index: number }>
 >();
-/** CE's coarse-district layout of one district: its streets, street blocks, lanes, parcels and candidate lots.
- * Pure in its arguments, so districts can be planned in any order or worker. */
-export function planPerimeterDistrict(
-  context: PerimeterPlanContext,
-  job: PerimeterDistrictJob
-): PerimeterDistrictResult {
+const ceParameters = (context: PerimeterPlanContext) => ({
+  coverage: 0.9,
+  occupancy: 1,
+  lotArea: 80,
+  laneWidth: context.laneWidthMeters,
+  orientation: 0
+});
+const ceContext = (context: PerimeterPlanContext) => ({
+  hub: context.hub,
+  extentMeters: context.extentMeters,
+  walls: context.walls,
+  // Skeleton blocks are far coarser than a CE mesh cell, so CE's coarse-mesh street blocks apply.
+  streetCellMeters: COARSE_STREET_CELL_METERS,
+  streetWidthMeters: COARSE_STREET_WIDTH_METERS
+});
+const districtFace = (id: string): Face => ({
+  id,
+  boundary: [],
+  properties: { elevation: 1, water: "land", ward: "craftsmen", buildable: true, locked: false }
+});
+
+/** A district's streets and street blocks, before any street block is laid out. */
+export interface PerimeterStreetPlan {
+  districtId: string;
+  outline: Point[];
+  boundaries: VectorFabricDistrict["boundaries"];
+  streets: InfillLane[];
+  cells: OrganicStreetCell[];
+}
+/** One street block with the district streets near it, by their index in the district. */
+export interface PerimeterCellJob {
+  districtId: string;
+  cell: OrganicStreetCell;
+  nearby: { index: number; street: InfillLane }[];
+}
+export interface PerimeterCellResult {
+  cell: CellPlan;
+  blocks: VectorBlock[];
+  houses: VectorPerimeterPlan["houses"];
+}
+
+/** First step of a district: CE's perimeter streets and street blocks. Pure in its arguments. */
+export function planPerimeterStreets(context: PerimeterPlanContext, job: PerimeterDistrictJob): PerimeterStreetPlan {
   let roadIndex = roadIndices.get(context);
   if (!roadIndex) {
     // Bounding boxes only narrow candidates; the original per-road tests and road order still decide.
@@ -170,32 +209,7 @@ export function planPerimeterDistrict(
         .search({ minX: p[0] - reach, minY: p[1] - reach, maxX: p[0] + reach, maxY: p[1] + reach })
         .sort((a, b) => a.index - b.index)
         .map(item => context.roads[item.index]);
-  const parameters = {
-    coverage: 0.9,
-    occupancy: 1,
-    lotArea: 80,
-    laneWidth: context.laneWidthMeters,
-    orientation: 0
-  };
-  const ce = {
-    hub: context.hub,
-    extentMeters: context.extentMeters,
-    walls: context.walls,
-    // Skeleton blocks are far coarser than a CE mesh cell, so CE's coarse-mesh street blocks apply.
-    streetCellMeters: COARSE_STREET_CELL_METERS,
-    streetWidthMeters: COARSE_STREET_WIDTH_METERS
-  };
-  const { districtId, outline } = job,
-    result: PerimeterDistrictResult = {
-      district: { id: districtId, outline, boundaries: [], streets: [], mouths: [], cells: [] },
-      blocks: [],
-      houses: []
-    };
-  const face: Face = {
-    id: districtId,
-    boundary: [],
-    properties: { elevation: 1, water: "land", ward: "craftsmen", buildable: true, locked: false }
-  };
+  const { districtId, outline } = job;
   const boundaries = outline.map((a, i) => {
     const b = outline[(i + 1) % outline.length],
       mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
@@ -204,61 +218,147 @@ export function planPerimeterDistrict(
     );
     return { a, b, feature: !!road, barrier: !road, setback: road ? ROAD_FACADE_CLEARANCE_METERS : 3 };
   });
-  const plan = planOrganicStreetCells(face, outline, boundaries, parameters, context.seed, ce);
-  // The CE street plan lists some streets twice (in the fixed inputs, 61 of 355 at 1,000 people). The mesh
-  // editor never noticed; saved records would store, draw and measure them twice.
-  plan.streets = withoutRepeatedStreets(plan.streets);
-  const district = result.district;
-  district.boundaries = boundaries.map(b => ({ feature: b.feature, barrier: b.barrier, setback: b.setback }));
-  district.streets = plan.streets.map(l => ({ points: l.points, widthMeters: l.widthMeters }));
-  const streetIndex = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; index: number }>();
-  streetIndex.load(district.streets.map((l, index) => ({ ...boxOf(l.points), index })));
-  const reach = Math.max(ce.streetWidthMeters, context.laneWidthMeters) + 1;
-  for (const cell of plan.cells) {
-    const nearby = streetIndex
-      .search(boxOf(cell.ring, reach))
-      .sort((a, b) => a.index - b.index)
-      .map(item => plan.streets[item.index]);
-    const local = buildOrganicStreetCell(face, cell, parameters, context.seed, ce, nearby);
-    const lanes = local.lanes.map(l => ({ points: l.points, widthMeters: l.widthMeters }));
-    const attachments: CellPlan["attachments"] = [];
-    lanes.forEach((lane, laneIndex) => {
-      for (const end of [0, 1] as const) {
-        const p = end === 0 ? lane.points[0] : lane.points.at(-1)!;
-        const street = streetIndex
-          .search(boxOf([p], 1e-3))
-          .sort((a, b) => a.index - b.index)
-          .find(item => nearestOnPolyline(p, district.streets[item.index].points).dist <= 1e-4);
-        if (street)
-          attachments.push({
-            lane: laneIndex,
-            end,
-            street: street.index,
-            t: lineParameter(district.streets[street.index].points, p)
-          });
-      }
-    });
-    district.cells.push({ id: cell.id, districtId, ring: cell.ring, lanes, attachments, mouths: [] });
-    result.blocks.push(
-      ...local.blocks.map((outer, i) => ({
-        id: `${cell.id}:parcel:${i}`,
-        outer,
-        holes: [],
-        areaMeters2: regionArea({ outer, holes: [] }),
-        frontage: [],
-        reachable: true
-      }))
+  const plan = planOrganicStreetCells(
+    districtFace(districtId),
+    outline,
+    boundaries,
+    ceParameters(context),
+    context.seed,
+    ceContext(context)
+  );
+  return {
+    districtId,
+    outline,
+    boundaries: boundaries.map(b => ({ feature: b.feature, barrier: b.barrier, setback: b.setback })),
+    // The CE street plan lists some streets twice (in the fixed inputs, 61 of 355 at 1,000 people). The mesh
+    // editor never noticed; saved records would store, draw and measure them twice.
+    streets: withoutRepeatedStreets(plan.streets),
+    cells: plan.cells
+  };
+}
+
+/** Street-block jobs of every district, in district then street-block order. */
+export function perimeterCellJobs(context: PerimeterPlanContext, plans: PerimeterStreetPlan[]): PerimeterCellJob[] {
+  const reach = Math.max(COARSE_STREET_WIDTH_METERS, context.laneWidthMeters) + 1;
+  return plans.flatMap(plan => {
+    const streetIndex = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; index: number }>();
+    streetIndex.load(plan.streets.map((l, index) => ({ ...boxOf(l.points), index })));
+    return plan.cells.map(cell => ({
+      districtId: plan.districtId,
+      cell,
+      nearby: streetIndex
+        .search(boxOf(cell.ring, reach))
+        .sort((a, b) => a.index - b.index)
+        .map(item => ({ index: item.index, street: plan.streets[item.index] }))
+    }));
+  });
+}
+
+/** Second step: one street block's lanes, parcels and candidate lots on its own random stream. Pure. */
+export function planPerimeterCell(context: PerimeterPlanContext, job: PerimeterCellJob): PerimeterCellResult {
+  const { districtId, cell, nearby } = job,
+    local = buildOrganicStreetCell(
+      districtFace(districtId),
+      cell,
+      ceParameters(context),
+      context.seed,
+      ceContext(context),
+      nearby.map(n => n.street)
     );
-    result.houses.push(
-      ...local.buildings.map(b => ({
-        cellId: cell.id,
-        districtId,
-        polygon: b.polygon,
-        draw: b.occupancyDraw ?? growthRandom(JSON.stringify(b.polygon))
-      }))
-    );
-  }
-  return result;
+  const lanes = local.lanes.map(l => ({ points: l.points, widthMeters: l.widthMeters }));
+  const attachments: CellPlan["attachments"] = [];
+  lanes.forEach((lane, laneIndex) => {
+    for (const end of [0, 1] as const) {
+      const p = end === 0 ? lane.points[0] : lane.points.at(-1)!;
+      // Lane ends lie on the block, so every street within 0.1 mm is among the nearby streets.
+      const street = nearby.find(n => nearestOnPolyline(p, n.street.points).dist <= 1e-4);
+      if (street)
+        attachments.push({ lane: laneIndex, end, street: street.index, t: lineParameter(street.street.points, p) });
+    }
+  });
+  return {
+    cell: { id: cell.id, districtId, ring: cell.ring, lanes, attachments, mouths: [] },
+    blocks: local.blocks.map((outer, i) => ({
+      id: `${cell.id}:parcel:${i}`,
+      outer,
+      holes: [],
+      areaMeters2: regionArea({ outer, holes: [] }),
+      frontage: [],
+      reachable: true
+    })),
+    houses: local.buildings.map(b => ({
+      cellId: cell.id,
+      districtId,
+      polygon: b.polygon,
+      draw: b.occupancyDraw ?? growthRandom(JSON.stringify(b.polygon))
+    }))
+  };
+}
+
+/** A district's plan from its streets and its street blocks' results in street-block order. */
+export function assemblePerimeterDistrict(
+  plan: PerimeterStreetPlan,
+  cells: PerimeterCellResult[]
+): PerimeterDistrictResult {
+  return {
+    district: {
+      id: plan.districtId,
+      outline: plan.outline,
+      boundaries: plan.boundaries,
+      streets: plan.streets.map(l => ({ points: l.points, widthMeters: l.widthMeters })),
+      mouths: [],
+      cells: cells.map(c => c.cell)
+    },
+    blocks: cells.flatMap(c => c.blocks),
+    houses: cells.flatMap(c => c.houses)
+  };
+}
+
+/** Work a generation hands out: district streets first, then every street block. Both are pure in their
+ * arguments and answered in job order, so where they run never changes the document. */
+export type PerimeterRequest =
+  | { kind: "streets"; context: PerimeterPlanContext; jobs: PerimeterDistrictJob[] }
+  | { kind: "cells"; context: PerimeterPlanContext; jobs: PerimeterCellJob[] };
+/** Answers a request here; workers call the same function. */
+export function planPerimeterRequest(request: PerimeterRequest): PerimeterStreetPlan[] | PerimeterCellResult[] {
+  return request.kind === "streets"
+    ? request.jobs.map(job => planPerimeterStreets(request.context, job))
+    : request.jobs.map(job => planPerimeterCell(request.context, job));
+}
+
+/** Area used to balance work across workers: the district outline or the street-block ring. */
+export function perimeterJobArea(request: PerimeterRequest, index: number): number {
+  const ring = request.kind === "streets" ? request.jobs[index].outline : request.jobs[index].cell.ring;
+  return (
+    Math.abs(
+      ring.reduce((sum, p, i) => sum + p[0] * ring[(i + 1) % ring.length][1] - ring[(i + 1) % ring.length][0] * p[1], 0)
+    ) / 2
+  );
+}
+
+/** Both steps of one district in place. */
+export function planPerimeterDistrict(
+  context: PerimeterPlanContext,
+  job: PerimeterDistrictJob
+): PerimeterDistrictResult {
+  const streets = planPerimeterStreets(context, job);
+  return assemblePerimeterDistrict(
+    streets,
+    perimeterCellJobs(context, [streets]).map(cell => planPerimeterCell(context, cell))
+  );
+}
+
+/** District results from street plans and the flat list of street-block results, both in order. */
+export function assemblePerimeterDistricts(
+  plans: PerimeterStreetPlan[],
+  cells: PerimeterCellResult[]
+): PerimeterDistrictResult[] {
+  let at = 0;
+  return plans.map(plan => {
+    const own = cells.slice(at, at + plan.cells.length);
+    at += plan.cells.length;
+    return assemblePerimeterDistrict(plan, own);
+  });
 }
 
 /** CE's coarse-district layout for every reachable skeleton block, kept as district and street-block plans.
