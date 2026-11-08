@@ -459,6 +459,18 @@
         "length": "長さ {value0} m",
         "area": "面積 {value0} m²"
       },
+      "fabricHouse": {
+        "title": "生成された住宅",
+        "id": "ID",
+        "district": "地区",
+        "storeys": "階数",
+        "dwellings": "住戸数",
+        "area": "建築面積 {value0} m²",
+        "entrance": "入口（東, 北） {value0}, {value1}",
+        "insideWall": "市壁の内側",
+        "outsideWall": "市壁の外側",
+        "editLater": "生成された住宅の移動・固定は、配置への切り出しで行います（未対応）。"
+      },
       "release": {
         "preview": "メッシュなし・試験運用。採用時は人口不足の集計と元文書の変換報告を確認してください。"
       }

@@ -46,7 +46,11 @@ export interface VectorRenderSurface {
   featureKind?: string;
   pieceRole?: string;
   elevations?: { bottom: number[]; top: number[] }[];
+  /** Generated houses of one street block, aligned with `polygons` (a clipped house may repeat its id). */
+  houses?: { ids: string[]; heightsMeters: number[]; elevationsMeters: number[] };
 }
+/** Storey height of generated houses. */
+export const FABRIC_STOREY_METERS = 3.2;
 export interface VectorRenderData {
   revision: number;
   stage: VectorStage;
@@ -133,8 +137,7 @@ export function vectorRenderData(
   );
   for (const id of hiddenPaths) hidden.add(id);
   paths = paths.filter(p => !hiddenPaths.has(p.id));
-  /** `contained`: the caller knows the polygons lie inside the frame, so clipping can be skipped. */
-  const add = (item: VectorRenderSurface, contained = false) => {
+  const add = (item: VectorRenderSurface) => {
     if (hiddenPaths.has(item.id)) return;
     if (terrain.hasRelief) {
       if (item.kind === "building") item.elevationMeters += terrain.foundationAt(item.id, item.polygons[0].outer);
@@ -145,10 +148,6 @@ export function vectorRenderData(
             : ["road", "junction", "access"].includes(item.kind)
               ? terrain.surfaceAt
               : terrain.heightAt;
-    }
-    if (contained) {
-      surfaces.push(item);
-      return;
     }
     const clipped = regionBoolean(item.polygons, [frame], "intersection");
     if (clipped.length) surfaces.push({ ...item, polygons: clipped });
@@ -335,23 +334,36 @@ export function vectorRenderData(
       for (let i = 0; i < cell.lanes.widths.length; i++)
         line(`${cell.id}~l${i}`, unpackLine(cell.lanes, i, cell.origin), cell.lanes.widths[i]);
       if (urban && stage !== "housing") continue;
-      const detached = new Set(cell.detached);
+      // One surface per street block: 2D draws it as one path, 3D batches it by storeys.
+      const detached = new Set(cell.detached),
+        polygons: VectorPolygon[] = [],
+        houses: NonNullable<VectorRenderSurface["houses"]> = { ids: [], heightsMeters: [], elevationsMeters: [] };
       for (let i = 0; i < cellHouseCount(cell); i++) {
         if (detached.has(i)) continue;
-        const ring = cellHouseRing(cell, i);
-        add(
-          {
-            id: fabricHouseId(cell.id, i),
-            kind: "building",
-            polygons: [{ outer: ring, holes: [] }],
-            color: "#99816b",
-            heightMeters: cell.houses.storeys[i] * 3.2,
-            elevationMeters: 0.1,
-            buildingKind: "housing"
-          },
-          withinFrame(ring)
-        );
+        const id = fabricHouseId(cell.id, i),
+          ring = cellHouseRing(cell, i),
+          parts = withinFrame(ring)
+            ? [{ outer: ring, holes: [] }]
+            : regionBoolean([{ outer: ring, holes: [] }], [frame], "intersection"),
+          elevation = 0.1 + (terrain.hasRelief ? terrain.foundationAt(id, ring) : 0);
+        for (const part of parts) {
+          polygons.push(part);
+          houses.ids.push(id);
+          houses.heightsMeters.push(cell.houses.storeys[i] * FABRIC_STOREY_METERS);
+          houses.elevationsMeters.push(elevation);
+        }
       }
+      if (polygons.length)
+        surfaces.push({
+          id: cell.id,
+          kind: "building",
+          polygons,
+          color: "#99816b",
+          heightMeters: Math.max(...houses.heightsMeters),
+          elevationMeters: Math.min(...houses.elevationsMeters),
+          buildingKind: "housing",
+          houses
+        });
     }
   }
   for (const feature of Object.values(doc.environment?.features ?? {})) {

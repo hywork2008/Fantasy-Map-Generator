@@ -1,0 +1,224 @@
+{
+  "format": "ce-meshless-s21d-observation",
+  "version": 1,
+  "measuredOn": "2026-11-08",
+  "inputs": {
+    "5000": "docs/analytics/raw/scaling-s21d-20261108/scaling-5000.json",
+    "50000": "docs/analytics/raw/scaling-s21d-20261108/scaling-50000.json"
+  },
+  "selection": {
+    "5000": {
+      "format": "ce-meshless-selection-observation",
+      "version": 1,
+      "measuredAtUtc": "2026-11-08T08:39:13.382Z",
+      "input": "docs/analytics/raw/scaling-s21d-20261108/scaling-5000.json",
+      "scope": "Workbench, placement and generated-house panels in jsdom, one document, nine selections each. 3D: scene build and a vertical ray pick without WebGL rendering. Excludes layout/paint.",
+      "counts": {
+        "paths": 15,
+        "placements": 0
+      },
+      "initialMs": 418.6664659999999,
+      "mapClickMs": {
+        "median": 25.11304700000028,
+        "max": 25.11304700000028,
+        "samples": [
+          25.11304700000028
+        ]
+      },
+      "workbenchSelectMs": {
+        "median": 2.0729230000001735,
+        "max": 2.0729230000001735,
+        "samples": [
+          2.0729230000001735
+        ]
+      },
+      "placementSelectMs": {
+        "max": null,
+        "samples": []
+      },
+      "fabric": {
+        "cells": 63,
+        "houseMapClickMs": {
+          "median": 2.260201000000052,
+          "max": 3.7292919999999867,
+          "samples": [
+            3.7292919999999867,
+            2.2738970000000336,
+            2.103979999999865,
+            2.5107570000000123,
+            2.3232480000001487,
+            1.9644520000001648,
+            1.7035960000002888,
+            1.893659999999727,
+            2.260201000000052
+          ]
+        },
+        "houseClicksSelected": 9,
+        "houseInspectorMs": {
+          "median": 0.7198880000000827,
+          "max": 0.9939669999998841,
+          "samples": [
+            0.9939669999998841,
+            0.7345550000000003,
+            0.7708920000000035,
+            0.8853859999999258,
+            0.7198880000000827,
+            0.6924269999999524,
+            0.6491759999998976,
+            0.6533340000000862,
+            0.7157499999998436
+          ]
+        },
+        "scene3dBuildMs": 343.37861999999996,
+        "houseMeshes": 16,
+        "house3dPickMs": {
+          "median": 1.3755559999999605,
+          "max": 13.328462999999829,
+          "samples": [
+            13.328462999999829,
+            3.0416839999998047,
+            1.7743780000000697,
+            1.4547040000002198,
+            1.2678169999999227,
+            1.201422999999977,
+            1.1239499999996951,
+            1.0064210000000458,
+            1.3755559999999605
+          ]
+        },
+        "house3dPicksCorrect": 9
+      },
+      "renderCallbacks": 1,
+      "snapshotUnchanged": true,
+      "compareMs": 10.711219000000256
+    },
+    "50000": {
+      "format": "ce-meshless-selection-observation",
+      "version": 1,
+      "measuredAtUtc": "2026-11-08T08:39:20.743Z",
+      "input": "docs/analytics/raw/scaling-s21d-20261108/scaling-50000.json",
+      "scope": "Workbench, placement and generated-house panels in jsdom, one document, nine selections each. 3D: scene build and a vertical ray pick without WebGL rendering. Excludes layout/paint.",
+      "counts": {
+        "paths": 15,
+        "placements": 0
+      },
+      "initialMs": 2181.5163680000005,
+      "mapClickMs": {
+        "median": 27.942817000000105,
+        "max": 27.942817000000105,
+        "samples": [
+          27.942817000000105
+        ]
+      },
+      "workbenchSelectMs": {
+        "median": 3.4947659999997995,
+        "max": 3.4947659999997995,
+        "samples": [
+          3.4947659999997995
+        ]
+      },
+      "placementSelectMs": {
+        "max": null,
+        "samples": []
+      },
+      "fabric": {
+        "cells": 639,
+        "houseMapClickMs": {
+          "median": 4.199235000000044,
+          "max": 8.001902999999402,
+          "samples": [
+            8.001902999999402,
+            4.199235000000044,
+            6.282156999999643,
+            3.754658999999265,
+            3.964367999999922,
+            6.300170000000435,
+            4.315692000000126,
+            3.757644999999684,
+            4.145335000000159
+          ]
+        },
+        "houseClicksSelected": 9,
+        "houseInspectorMs": {
+          "median": 0.6933390000003783,
+          "max": 0.9415200000003097,
+          "samples": [
+            0.9415200000003097,
+            0.6557689999999639,
+            0.7142979999998715,
+            0.7421199999998862,
+            0.6933390000003783,
+            0.6707970000006753,
+            0.6460010000000693,
+            0.6383959999993749,
+            0.7288840000001073
+          ]
+        },
+        "scene3dBuildMs": 1468.7940769999996,
+        "houseMeshes": 127,
+        "house3dPickMs": {
+          "median": 2.4131649999999354,
+          "max": 21.51837499999965,
+          "samples": [
+            21.51837499999965,
+            4.014922000000297,
+            4.101542999999765,
+            2.4131649999999354,
+            2.53349900000012,
+            1.842174000000341,
+            2.1584020000000237,
+            1.8291090000002441,
+            2.1166739999998754
+          ]
+        },
+        "house3dPicksCorrect": 9
+      },
+      "renderCallbacks": 1,
+      "snapshotUnchanged": true,
+      "compareMs": 89.24207099999967
+    }
+  },
+  "render": {
+    "scope": "vectorRenderData, renderVectorDocument (jsdom) and createVectorScene in one process, one run each; before = commit 330d594f9",
+    "before": {
+      "5000": {
+        "dataMs": 271.59436600000004,
+        "svgMs": 284.396471,
+        "sceneMs": 129.96647100000018,
+        "surfaces": 2243,
+        "svgPaths": 2264,
+        "svgBytes": 868803,
+        "meshes": 2249
+      },
+      "50000": {
+        "dataMs": 1046.9648000000002,
+        "svgMs": 1347.9036560000004,
+        "sceneMs": 532.8304090000001,
+        "surfaces": 18058,
+        "svgPaths": 18079,
+        "svgBytes": 5230102,
+        "meshes": 18064
+      }
+    },
+    "after": {
+      "5000": {
+        "dataMs": 271.028636,
+        "svgMs": 278.87296600000013,
+        "sceneMs": 110.3437399999998,
+        "surfaces": 1202,
+        "svgPaths": 1223,
+        "svgBytes": 663190,
+        "meshes": 1161
+      },
+      "50000": {
+        "dataMs": 1037.4421150000003,
+        "svgMs": 1152.0157259999996,
+        "sceneMs": 352.5959299999995,
+        "surfaces": 7645,
+        "svgPaths": 7666,
+        "svgBytes": 3173821,
+        "meshes": 7139
+      }
+    }
+  }
+}

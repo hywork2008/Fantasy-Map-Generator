@@ -1,3 +1,4 @@
+import { fabricHouseInfo } from "../../generators/vector/fabric/houses";
 import { gateOpening } from "../../generators/vector/geometry/network";
 import { evaluatePresetPiece, presetPieces } from "../../generators/vector/geometry/presets";
 import type { VectorCityDocument, VectorPath } from "../../types/vector/document";
@@ -36,7 +37,8 @@ export function renderVectorDocument(
   document: VectorCityDocument,
   selectedId?: string,
   selectedSegmentId?: string,
-  stage: VectorStage = document.urban ? "housing" : "regions"
+  stage: VectorStage = document.urban ? "housing" : "regions",
+  selectedHouseId?: string
 ): SVGSVGElement {
   const data = vectorRenderData(document, stage),
     extent = data.extentMeters,
@@ -86,7 +88,8 @@ export function renderVectorDocument(
         .join(" "),
       "fill-rule": "evenodd",
       fill: surface.color,
-      [attributes[surface.kind]]: surface.id
+      // A street block's generated houses share one path; the house is resolved from the click point.
+      [surface.houses ? "data-vector-fabric-cell" : attributes[surface.kind]]: surface.id
     };
     if (["road", "river", "wall"].includes(surface.kind)) attrs["data-vector-role"] = surface.kind;
     if (surface.kind === "river" && document.site?.water.some(w => w.id === surface.id))
@@ -131,7 +134,7 @@ export function renderVectorDocument(
       })
     );
   svg.dataset.vectorExtent = String(extent);
-  svg.append(vectorSelectionLayer(document, extent, selectedId, selectedSegmentId));
+  svg.append(vectorSelectionLayer(document, extent, selectedId, selectedSegmentId, selectedHouseId));
   const frameClipId = `ce-vector-frame-${sceneId}`,
     defs = element("defs", {}),
     clip = element("clipPath", { id: frameClipId });
@@ -156,9 +159,23 @@ export function vectorSelectionLayer(
   document: Readonly<VectorCityDocument>,
   extent: number,
   selectedId?: string,
-  selectedSegmentId?: string
+  selectedSegmentId?: string,
+  selectedHouseId?: string
 ): SVGGElement {
   const layer = element("g", { "data-vector-selection": "true" }) as SVGGElement;
+  const house = selectedHouseId ? fabricHouseInfo(document.fabric, selectedHouseId) : undefined;
+  if (house)
+    layer.append(
+      element("path", {
+        d: polygon(house.ring),
+        fill: "none",
+        stroke: "#e48b32",
+        "stroke-width": "2",
+        "vector-effect": "non-scaling-stroke",
+        "pointer-events": "none",
+        "data-vector-selected-house": house.id
+      })
+    );
   const selected = selectedId && Object.hasOwn(document.paths, selectedId) ? document.paths[selectedId] : undefined;
   if (!selected) return layer;
   layer.append(
@@ -225,11 +242,12 @@ export function updateVectorSelection(
   svg: SVGSVGElement,
   document: Readonly<VectorCityDocument>,
   selectedId?: string,
-  selectedSegmentId?: string
+  selectedSegmentId?: string,
+  selectedHouseId?: string
 ): boolean {
   const old = svg.querySelector("[data-vector-selection]"),
     extent = Number(svg.dataset.vectorExtent);
   if (!old || !Number.isFinite(extent)) return false;
-  old.replaceWith(vectorSelectionLayer(document, extent, selectedId, selectedSegmentId));
+  old.replaceWith(vectorSelectionLayer(document, extent, selectedId, selectedSegmentId, selectedHouseId));
   return true;
 }

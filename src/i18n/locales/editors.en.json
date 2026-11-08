@@ -459,6 +459,18 @@
         "length": "Length {value0} m",
         "area": "Area {value0} m²"
       },
+      "fabricHouse": {
+        "title": "Generated house",
+        "id": "ID",
+        "district": "District",
+        "storeys": "Storeys",
+        "dwellings": "Dwellings",
+        "area": "Footprint {value0} m²",
+        "entrance": "Entrance (east, north) {value0}, {value1}",
+        "insideWall": "Inside the town wall",
+        "outsideWall": "Outside the town wall",
+        "editLater": "Moving or fixing a generated house detaches it into a placement (not yet available)."
+      },
       "release": {
         "preview": "Meshless preview. Review population shortages and source conversion notes before adopting a city."
       }

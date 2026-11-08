@@ -276,3 +276,53 @@ S2.1（native v8）の最初の段階として、出力を変えない準備を�
 - `environmentIntegration.test.ts`: 手動の敷地が参照する生成小路を道として残す機能は、小路が道である施設モードで確かめるようにした。記録の小路の切り出しはS2.1eで扱う。
 
 関連テスト: `generators/vector`、`services/io/vector`、`components/vector`、`renderers/vector`で、34ファイル中31成功・3 skip（計測用）、197件中194成功。
+
+## S2.1d 記録からの描画・当たり判定・Inspector
+
+記録（`fabric`）の住宅を、街路街区を単位に描き、選択できるようにした。生成は変えていない（5,000・50,000人の直列化結果のSHA-256はS2.1cと同じ）。
+
+- 描画データ（`vectorRenderData`）: 記録の住宅を、1戸1面から街路街区ごとの1面（`polygons`に住宅を並べ、`houses`に住宅ID・高さ・基礎高を同じ順で持つ）に変えた。描画範囲にかかる住宅だけ切り抜く。
+- 2D: 街路街区ごとに住宅を1つの`<path>`（`data-vector-fabric-cell`）で描く。地図のクリックでは、ブラウザーの当たり判定で街路街区を得て、その街路街区の住宅だけを復号して点の内外を調べる（`fabricHouseInCell`）。強調表示は選択の層（`vectorSelectionLayer`）に、選んだ住宅の輪郭だけを描く。地図全体は描き直さない。
+- 3D: 住宅を色・高さ・128 mのタイルごとに1つのメッシュにまとめ（形が住宅ごとに異なるため、インスタンス描画ではなく三角形の結合）、三角形の番号から住宅IDへの表（`fabricHouses`）を持つ。当たり判定は表の二分探索（`vectorPickHouse`）、強調表示はその住宅の三角形の範囲から求めた外接箱で行う。タイルに分けたのは、1つのメッシュでは光線が全住宅の三角形を調べ、50,000人で1回8.6 ms（最大47 ms）かかったためである。
+- Inspector（`VectorFabricHousePanel`）: 選んだ住宅のID・地区・階数・住戸数・建築面積・入口・市壁の内外を表示する。値はその住宅の分だけ求め、街路街区の`hash`と番号をキーに保持する。読み取り専用で、移動・固定（配置への切り出し）はS2.1eで扱う。道を選ぶと住宅の選択は外れる。
+- ページ: 3Dで住宅を選ぶとInspectorと2Dの強調表示へ、2Dで選ぶとInspectorへ渡す。どちらも`peek()`を読み、文書を複製しない。
+
+選択の計測（`selectionObservation.test.ts`を拡張、jsdom、各9回。3DはWebGLの描画なしで真上からの光線による当たり判定。layout/paintを含まない）:
+
+| 操作 | 5,000人（中央値／最大） | 50,000人（中央値／最大） |
+| --- | --- | --- |
+| 地図上の住宅のクリック（強調表示とInspectorを含む） | 2.3 / 3.7 ms | 4.2 / 8.0 ms |
+| Inspectorの表示（`select`） | 0.72 / 0.99 ms | 0.69 / 0.94 ms |
+| 3Dの当たり判定とInspector | 1.4 / 13.3 ms | 2.4 / 21.5 ms |
+| `workbench.select`（道） | 2.1 ms | 3.5 ms |
+
+9回とも、クリックした住宅が選ばれ、3Dの当たり判定も正しい住宅を返した。選択の後、履歴の文書は変わっていない。3Dの最大値はいずれも1回目（初回の実行）で、2回目以降は5,000人で3.0 ms以下、50,000人で4.1 ms以下だった。地図上の道のクリックは、この文書では道が15本のため1回しか測っておらず（初回の25.1 ms・27.9 ms）、S2.0の9回の計測とは比べられない。
+
+描画の比較（同じ文書、1回ずつ。変更前はコミット`330d594f9`）:
+
+| 人口 | 描画面 | SVGの`<path>` | SVGの長さ | 3Dのメッシュ | 3Dの構築 | SVGの作成 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 5,000 | 2,243 → 1,202 | 2,264 → 1,223 | 0.87 → 0.66 MB | 2,249 → 1,161 | 130 → 110 ms | 284 → 279 ms |
+| 50,000 | 18,058 → 7,645 | 18,079 → 7,666 | 5.23 → 3.17 MB | 18,064 → 7,139 | 533 → 353 ms | 1,348 → 1,152 ms |
+
+50,000人の住宅11,052戸は127のメッシュになった。残る約7,000の面・メッシュは記録の街路・小路で、1本ごとに1面になっている。小路は交点で重なるため、1つの`<path>`にまとめるには和の計算が要る。S2.1eの道の切り出しと合わせて扱う。描画データの作成（50,000人で約1.0秒）は変わっておらず、大半は街路・小路の面の計算である。
+
+計測値は[S2.1dの計測JSON](ce-meshless-scaling-s21d-20261108.json)。入力の文書（Git管理外）:
+
+| 文書 | SHA-256 |
+| --- | --- |
+| `docs/analytics/raw/scaling-s21d-20261108/scaling-5000.json` | `a7179063a003415f808d5be22ac264792e68b043ca0c85114b3e1c10b3c1ce50` |
+| `docs/analytics/raw/scaling-s21d-20261108/scaling-50000.json` | `a2380801d522a0e3a2a9714be63c1ca1bbf48ce541946a4467bee89b313aaabf` |
+
+再実行:
+
+```sh
+CE_MESHLESS_SCALING_CASES=5000,50000 CE_MESHLESS_SCALING_OUT=<出力> CE_MESHLESS_SCALING_RAW=docs/analytics/raw/scaling-s21d-20261108 \
+  npx vitest run src/city-editor/generators/vector/scalingObservation.test.ts
+CE_MESHLESS_SELECTION_DOC=docs/analytics/raw/scaling-s21d-20261108/scaling-50000.json CE_MESHLESS_SELECTION_OUT=<出力> \
+  npx vitest run src/city-editor/components/vector/selectionObservation.test.ts
+```
+
+テスト: `components/vector/fabricHouseSelection.test.ts`（2件）で、街路街区ごとに1つの`<path>`で描き住宅の配置としては描かないこと、3Dの結合メッシュの三角形の表がすべての住宅を一度ずつ返すこと、地図のクリックで住宅が選ばれ地図全体を描き直さずに強調表示とInspectorが出ること、道を選ぶと住宅の選択が外れること、文書が変わらないことを確かめた。
+
+関連テスト: `renderers/vector`、`components/vector`、`services/io/vector`、`generators/vector/generation`、`generators/vector/terrain.test.ts`、`generators/vector/m9Acceptance.test.ts`、`i18n`で、25ファイル中23成功・2 skip（計測用）、97件中95成功・2 skip。

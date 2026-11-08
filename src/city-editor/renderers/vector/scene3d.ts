@@ -59,6 +59,54 @@ function elevatedGeometry(
   geometry.computeVertexNormals();
   return geometry;
 }
+const HOUSE_TILE_METERS = 128;
+interface HouseBatch {
+  positions: number[];
+  ids: string[];
+  firstTriangles: number[];
+  triangles: number;
+  color: string;
+}
+/** Appends one house prism as plain triangles, so a hit's `faceIndex` maps back to the house. */
+function appendHousePrism(
+  batch: HouseBatch,
+  id: string,
+  polygon: VectorRenderSurface["polygons"][number],
+  bottom: number,
+  top: number,
+  origin: readonly [number, number]
+) {
+  const rings = [polygon.outer, ...polygon.holes],
+    vertices = rings.flat(),
+    out = batch.positions,
+    before = batch.triangles;
+  const push = (p: readonly number[], y: number) => out.push(p[0] - origin[0], y, -p[1] + origin[1]);
+  for (const [a, b, c] of THREE.ShapeUtils.triangulateShape(
+    rings[0].map(p => new THREE.Vector2(...p)),
+    rings.slice(1).map(r => r.map(p => new THREE.Vector2(...p)))
+  )) {
+    push(vertices[a], top);
+    push(vertices[b], top);
+    push(vertices[c], top);
+    batch.triangles++;
+  }
+  for (const ring of rings)
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i],
+        b = ring[(i + 1) % ring.length];
+      push(a, bottom);
+      push(b, bottom);
+      push(b, top);
+      push(a, bottom);
+      push(b, top);
+      push(a, top);
+      batch.triangles += 2;
+    }
+  if (batch.triangles > before) {
+    batch.ids.push(id);
+    batch.firstTriangles.push(before);
+  }
+}
 /** Uses the adopted footprints as the authority, with authored BV models only when their envelope still matches. */
 export function createVectorScene(data: VectorRenderData) {
   const group = new THREE.Group(),
@@ -147,8 +195,27 @@ export function createVectorScene(data: VectorRenderData) {
       group.add(trees.group);
       disposers.push(() => trees.dispose());
     }
+    // Generated houses share one mesh per colour, height and tile: draw calls grow with area, not houses.
+    const houseBatches = new Map<string, HouseBatch>();
     for (const surface of data.surfaces) {
       if (surface.pieceRole === "landscape-tree") continue;
+      if (surface.houses) {
+        const { ids, heightsMeters, elevationsMeters } = surface.houses;
+        surface.polygons.forEach((polygon, i) => {
+          if (Math.abs(polygonArea(polygon.outer)) < 1e-8) return;
+          // Tiles keep each mesh small, so a pick ray rejects most houses by bounding sphere.
+          const [x, y] = polygon.outer[0],
+            key = `${surface.color}:${heightsMeters[i]}:${Math.floor(x / HOUSE_TILE_METERS)},${Math.floor(y / HOUSE_TILE_METERS)}`;
+          let batch = houseBatches.get(key);
+          if (!batch) {
+            batch = { positions: [], ids: [], firstTriangles: [], triangles: 0, color: surface.color };
+            houseBatches.set(key, batch);
+          }
+          const bottom = elevationsMeters[i] - datum;
+          appendHousePrism(batch, ids[i], polygon, bottom, bottom + heightsMeters[i], data.center);
+        });
+        continue;
+      }
       if (surface.harborShip || surface.harborCrane || surface.harborPile) {
         const ship = surface.harborShip,
           crane = surface.harborCrane,
@@ -270,6 +337,22 @@ export function createVectorScene(data: VectorRenderData) {
         group.add(mesh);
         disposers.push(() => geometry.dispose());
       }
+    }
+    for (const [key, batch] of houseBatches) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(batch.positions, 3));
+      geometry.computeVertexNormals();
+      geometry.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geometry, material(batch.color));
+      mesh.userData = {
+        kind: "building",
+        buildingKind: "housing",
+        representation: "fabric-houses",
+        batch: key,
+        fabricHouses: { ids: batch.ids, firstTriangles: batch.firstTriangles, triangles: batch.triangles }
+      };
+      group.add(mesh);
+      disposers.push(() => geometry.dispose());
     }
     return { group, warnings, dispose };
   } catch (error) {

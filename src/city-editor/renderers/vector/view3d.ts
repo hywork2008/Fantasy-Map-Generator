@@ -1,8 +1,19 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { vectorPickOwner } from "./picking";
+import { vectorPickHouse, vectorPickOwner } from "./picking";
 import type { VectorRenderData } from "./renderData";
 import { createVectorScene } from "./scene3d";
+
+/** World bounds of one picked house's triangles in a batched house mesh. */
+function houseBounds(mesh: THREE.Object3D, range: { firstTriangle: number; endTriangle: number }) {
+  const position = (mesh as THREE.Mesh).geometry.getAttribute("position"),
+    box = new THREE.Box3(),
+    point = new THREE.Vector3();
+  for (let v = range.firstTriangle * 3; v < range.endTriangle * 3; v++)
+    box.expandByPoint(point.fromBufferAttribute(position, v));
+  mesh.updateWorldMatrix(true, false);
+  return box.applyMatrix4(mesh.matrixWorld);
+}
 export function mountVector3d(container: HTMLElement, data: VectorRenderData, onSelect?: (id: string) => void) {
   const model = createVectorScene(data);
   let renderer: THREE.WebGLRenderer;
@@ -16,7 +27,9 @@ export function mountVector3d(container: HTMLElement, data: VectorRenderData, on
   renderer.setClearColor("#dad6cb");
   renderer.domElement.dataset.vector3d = "true";
   renderer.domElement.dataset.vectorStage = data.stage;
-  renderer.domElement.dataset.vectorBuildings = String(data.surfaces.filter(s => s.kind === "building").length);
+  renderer.domElement.dataset.vectorBuildings = String(
+    data.surfaces.reduce((n, s) => n + (s.kind !== "building" ? 0 : s.houses ? new Set(s.houses.ids).size : 1), 0)
+  );
   renderer.domElement.dataset.vectorFacilities = String(
     data.surfaces.filter(s => s.kind === "building" && s.buildingKind === "facility").length
   );
@@ -81,13 +94,17 @@ export function mountVector3d(container: HTMLElement, data: VectorRenderData, on
       camera
     );
     const hit = ray.intersectObject(model.group, true)[0],
-      id = hit ? vectorPickOwner(hit.object) : null;
+      house = hit ? vectorPickHouse(hit.object, hit.faceIndex) : null,
+      id = house?.id ?? (hit ? vectorPickOwner(hit.object) : null);
     if (id) {
       renderer.domElement.dataset.vectorSelected = id;
       let owner = hit.object;
       for (let parent = owner.parent; parent; parent = parent.parent) if (parent.userData.id === id) owner = parent;
       clearSelection();
-      selection = new THREE.Box3Helper(new THREE.Box3().setFromObject(owner, true), 0xe48b32);
+      selection = new THREE.Box3Helper(
+        house ? houseBounds(hit.object, house) : new THREE.Box3().setFromObject(owner, true),
+        0xe48b32
+      );
       for (const material of Array.isArray(selection.material) ? selection.material : [selection.material])
         material.depthTest = false;
       scene.add(selection);

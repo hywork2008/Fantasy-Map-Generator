@@ -15,6 +15,7 @@ import {
   setVectorPathPolicy
 } from "../../generators/vector/editing/paths";
 import { splitVectorPath } from "../../generators/vector/editing/splitPath";
+import { fabricHouseInCell, fabricHouseInfo } from "../../generators/vector/fabric/houses";
 import { pathSegmentIds } from "../../generators/vector/geometry/curves";
 import { vectorPathMeasurement } from "../../generators/vector/geometry/measurement";
 import { presetArea, presetDimensionsForArea } from "../../generators/vector/geometry/presets";
@@ -39,12 +40,15 @@ export function createVectorWorkbench(
   commit: (document: VectorCityDocument, label: string) => void,
   onRender?: (doc: VectorCityDocument) => void,
   /** Read-only current document for selection; never mutated. Defaults to a copy. */
-  peek: () => Readonly<VectorCityDocument> = readCurrent
+  peek: () => Readonly<VectorCityDocument> = readCurrent,
+  /** A generated house was chosen on the map, or `""` when the selection moved to a path. */
+  onSelectHouse?: (id: string) => void
 ) {
   const read = () => prepareVectorEdit(readCurrent());
   const replaceVectorPath = (doc: VectorCityDocument, path: VectorPath) =>
     readCurrent().urban ? replaceVectorPathCandidate(doc, path) : replaceRawVectorPath(doc, path);
   let selectedSegmentId = "";
+  let selectedHouse = "";
   let selectedId = "",
     points: Point[] = [],
     handles: (Point | undefined)[] = [],
@@ -185,7 +189,13 @@ export function createVectorWorkbench(
   });
   scope.listen(paths, "change", () => selectPath(paths.value));
   function draw() {
-    const svg = renderVectorDocument(readCurrent(), selectedId, selectedSegmentId || undefined);
+    const svg = renderVectorDocument(
+      readCurrent(),
+      selectedId,
+      selectedSegmentId || undefined,
+      undefined,
+      selectedHouse || undefined
+    );
     svg.setAttribute("aria-label", editorText("cityEditor.vector.preview"));
     svg.style.cssText = "width:100%;height:100%;min-height:300px;touch-action:none";
     map.replaceChildren(svg);
@@ -232,7 +242,16 @@ export function createVectorWorkbench(
   /** Selection changes only the inspector and the selection layer; the document and drawing stay as they are. */
   function showSelection() {
     const svg = map.querySelector<SVGSVGElement>("svg");
-    if (!svg || !updateVectorSelection(svg, peek(), selectedId, selectedSegmentId || undefined)) draw();
+    if (
+      !svg ||
+      !updateVectorSelection(svg, peek(), selectedId, selectedSegmentId || undefined, selectedHouse || undefined)
+    )
+      draw();
+  }
+  /** Highlights a generated house; the path inspector stays as it is. */
+  function selectHouse(id: string) {
+    selectedHouse = fabricHouseInfo(peek().fabric, id) ? id : "";
+    showSelection();
   }
   function selectPath(id: string) {
     const path = Object.hasOwn(peek().paths, id) ? peek().paths[id] : undefined;
@@ -246,6 +265,10 @@ export function createVectorWorkbench(
     handles = [];
     drag = undefined;
     pointer = false;
+    if (selectedHouse) {
+      selectedHouse = "";
+      onSelectHouse?.("");
+    }
     selectedId = id;
     paths.value = id;
     scope.replaceChildren(inspector);
@@ -276,6 +299,7 @@ export function createVectorWorkbench(
     pointer = false;
     const current = read();
     if (!current.paths[selectedId]) selectedId = Object.keys(current.paths)[0] ?? "";
+    if (selectedHouse && !fabricHouseInfo(peek().fabric, selectedHouse)) selectedHouse = "";
     paths.replaceChildren(
       ...Object.keys(current.paths).map(id => {
         const option = document.createElement("option");
@@ -499,6 +523,18 @@ export function createVectorWorkbench(
           map.setPointerCapture?.(event.pointerId);
           return;
         }
+        // Generated houses: the clicked street block's path, then only that block's houses.
+        const cellId = target.closest<SVGElement>("[data-vector-fabric-cell]")?.dataset.vectorFabricCell,
+          fabric = peek().fabric,
+          house =
+            cellId && fabric && Object.hasOwn(fabric.cells, cellId)
+              ? fabricHouseInCell(fabric.cells[cellId], position(event))
+              : undefined;
+        if (house) {
+          selectHouse(house);
+          onSelectHouse?.(house);
+          return;
+        }
         const hit = target.closest<SVGElement>("[data-vector-path],[data-vector-surface]");
         if (hit) selectPath((hit.dataset.vectorPath ?? hit.dataset.vectorSurface)!);
         return;
@@ -584,6 +620,7 @@ export function createVectorWorkbench(
     select(id: string) {
       if (!Object.hasOwn(peek().paths, id)) return;
       selectPath(id);
-    }
+    },
+    selectHouse
   };
 }

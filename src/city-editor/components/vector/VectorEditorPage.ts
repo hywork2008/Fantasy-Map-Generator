@@ -17,6 +17,7 @@ import { clamp, createEditorControls } from "../editorControls";
 import type { EditorLanguageLifetime } from "../languagePanel";
 import { createVectorEditPanel } from "./VectorEditPanel";
 import { createVectorEnvironmentPanel } from "./VectorEnvironmentPanel";
+import { createVectorFabricHousePanel } from "./VectorFabricHousePanel";
 import { createVectorGenerationPanel } from "./VectorGenerationPanel";
 import { createVectorPlacementPanel } from "./VectorPlacementPanel";
 import { createVectorPresentationPanel } from "./VectorPresentationPanel";
@@ -93,6 +94,7 @@ export function mountVectorCityEditor(
   );
   let environmentPanel: ReturnType<typeof createVectorEnvironmentPanel> | undefined;
   let placementPanel: ReturnType<typeof createVectorPlacementPanel> | undefined;
+  let housePanel: ReturnType<typeof createVectorFabricHousePanel> | undefined;
   let editPanel: ReturnType<typeof createVectorEditPanel> | undefined;
   let generationPanel: ReturnType<typeof createVectorGenerationPanel> | undefined;
   let workbench: ReturnType<typeof createVectorWorkbench> | undefined;
@@ -108,6 +110,7 @@ export function mountVectorCityEditor(
     redo.disabled = !session.history.canRedo;
     editPanel?.refresh();
     placementPanel?.refresh();
+    housePanel?.refresh();
     environmentPanel?.refresh();
     generationPanel?.refresh();
     workbench?.refresh();
@@ -191,6 +194,10 @@ export function mountVectorCityEditor(
     id => {
       // Selection reads the current snapshot without copying it (see the block fabric scaling plan, S2.0).
       const doc = session.history.peek();
+      if (housePanel?.select(id)) {
+        workbench?.selectHouse(id);
+        return;
+      }
       placementPanel?.select(id);
       const pathId = doc.paths[id]
         ? id
@@ -345,6 +352,7 @@ export function mountVectorCityEditor(
     (doc, label) => editPanel!.submit(doc, label),
     () => session.history.peek()
   );
+  housePanel = createVectorFabricHousePanel(scope, controls, () => session.history.peek());
   environmentPanel = createVectorEnvironmentPanel(
     scope,
     controls,
@@ -371,7 +379,8 @@ export function mountVectorCityEditor(
       editPanel!.submit(document, label);
     },
     doc => presentation.rendered(doc),
-    () => session.history.peek()
+    () => session.history.peek(),
+    id => (id ? housePanel?.select(id) : housePanel?.clear())
   );
   refresh();
   if (session.history.document.legacyCopy) {
