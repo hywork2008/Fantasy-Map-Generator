@@ -1,4 +1,5 @@
 import { getUrbanDwellings } from "../../../../utils/urbanDwellings";
+import type { GenerationSettings } from "../../../types/generation";
 import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorFabricDetachedLine } from "../../../types/vector/fabric";
@@ -56,6 +57,13 @@ export const DEFAULT_VECTOR_URBAN: VectorUrbanSettings = {
   clearanceMeters: 0.6,
   allowExpansion: true
 };
+/** The mesh editor's building pattern as a meshless mode: population facilities keep their stage, the
+ * medieval and legacy patterns both build the CE perimeter lots (legacy has no meshless counterpart). */
+export function vectorUrbanMode(
+  settings: Pick<GenerationSettings, "buildingPattern" | "facilityLayout"> | undefined
+): VectorUrbanSettings["mode"] {
+  return settings?.facilityLayout === "population" ? "medieval-facilities" : "medieval";
+}
 export interface VectorUrbanProfile {
   lanesMs: number;
   facilityMs: number;

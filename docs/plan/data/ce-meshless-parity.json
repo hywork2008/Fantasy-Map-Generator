@@ -368,8 +368,8 @@
       "category": "setting",
       "id": "buildingPattern",
       "mesh": "legacy | medieval | ...",
-      "meshless": "missing",
-      "evidence": "Not read; meshless always uses the CE perimeter fabric.",
+      "meshless": "partial",
+      "evidence": "P3b: medieval builds the CE perimeter lots; medieval with population facilities (facilityLayout) selects the meshless facilities mode. legacy (mesh block infill) has no meshless counterpart and builds the perimeter lots; it stays listed as unsupported.",
       "stage": "P3",
       "checked": true
     },
@@ -378,7 +378,7 @@
       "id": "buildingHeightPolicy",
       "mesh": "height variation policy",
       "meshless": "partial",
-      "evidence": "Read only for site sizing in vectorInputFromEditor; houses use the standard storeys.",
+      "evidence": "P3b: storeys follow residentialHeightWeights per street block (15% of houses roll alone, outside the wall the outskirts weights) with the per-house floor-height variation, from context.requestedSettings and the FMG tradition. The site is sized on the mean storeys. Not ported: the growth-pressure height fit (fitMorphologyHeightDistribution), which needs the FMG urban growth; meshless sizes the site instead.",
       "stage": "P3",
       "checked": true
     },
@@ -386,8 +386,8 @@
       "category": "setting",
       "id": "buildingHeightLimit",
       "mesh": "height limit",
-      "meshless": "missing",
-      "evidence": "Not read.",
+      "meshless": "equivalent",
+      "evidence": "P3b: the city limit (maxStoreys, maxHeightMeters) caps every house by storeysWithinLimit with the varied floor heights; a house keeps at least one storey. Per-cell zone limits are cell-specific.",
       "stage": "P3",
       "checked": true
     },
@@ -1000,8 +1000,8 @@
       "category": "3d",
       "id": "house-appearance",
       "mesh": "buildingAppearance / massing by culture and period",
-      "meshless": "partial",
-      "evidence": "P3a: wall and roof materials, roof form and pitch, jetties, floor heights and tint follow the mesh editor's massing rules from the period, biome and civilization of the FMG burg. Appearance profiles (buildingAppearance), height variation and limits are P3b.",
+      "meshless": "equivalent",
+      "evidence": "P3a massing plus P3b appearance: regional roof materials and wall/roof palettes (regionalRoofMaterial, resolveBuildingAppearance), roof colours limited per street block, automatic culture as the mesh editor at high quality (automaticHousingProfile: FMG tradition or climate; standalone by seed). Explicit culture/climate/wall overrides are the building-appearance-controls row.",
       "stage": "P3",
       "checked": true
     },

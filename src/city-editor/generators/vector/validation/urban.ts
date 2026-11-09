@@ -114,7 +114,9 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
           (!finite(b.riverbankDistanceMeters) || b.riverbankDistanceMeters < 0)) ||
         (b.kind === "housing" &&
           (p.modelId === "ce-perimeter-house"
-            ? b.storeys !== residentialStoreys(doc.context.historicalPeriod).standard ||
+            ? // P3b: storeys vary by street block and the height limit, never past the period's maximum.
+              b.storeys < 1 ||
+              b.storeys > residentialStoreys(doc.context.historicalPeriod).maximum ||
               Math.abs(b.floorFootprintMeters2 - b.footprint.reduce((n, p) => n + regionArea(p), 0)) > 1e-5 ||
               b.dwellings !== perimeterHouseDwellings(b.floorFootprintMeters2, b.storeys, b.residentialShare)
             : b.storeys !== VECTOR_HOUSE_STOREYS ||
@@ -148,7 +150,8 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       "vector-urban-v6",
       "vector-urban-v7",
       "vector-urban-v8",
-      "vector-urban-v9"
+      "vector-urban-v9",
+      "vector-urban-v10"
     ].includes(u.algorithm) ||
     !nonnegative(u.inputRevision) ||
     !keys(

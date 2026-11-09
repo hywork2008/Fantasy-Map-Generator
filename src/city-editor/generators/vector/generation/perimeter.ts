@@ -1,5 +1,5 @@
 import RBush from "rbush";
-import { growthRandom, residentialStoreys } from "../../../../utils/urbanMorphology";
+import { growthRandom } from "../../../../utils/urbanMorphology";
 import type { InfillLane } from "../../../types/contracts/localInfill";
 import type { Face, Point } from "../../../types/document";
 import type { VectorCityDocument, VectorPlacement } from "../../../types/vector/document";
@@ -20,7 +20,6 @@ import {
   planOrganicStreetCells,
   ROAD_FACADE_CLEARANCE_METERS
 } from "../../organicBlocks";
-
 import { createGenerationJoiner } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { fabricCellHash, fabricDistrictHash } from "../fabric/hash";
@@ -34,6 +33,7 @@ import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
 import { vectorDistrictId } from "./districtId";
+import { vectorHouseHeightKey, vectorHousingHeights } from "./housingHeights";
 import { perimeterHouseDwellings } from "./urbanCapacity";
 import { nearestRoadAnchor } from "./urbanPacking";
 import { VECTOR_URBAN_ALGORITHM } from "./urbanState";
@@ -765,7 +765,16 @@ export function placeVectorPerimeterHouses(
         throw new Error(`dependency-protected-path:${l.pathId}`);
       return structuredClone(l);
     });
-  const storeys = residentialStoreys(doc.context.historicalPeriod).standard;
+  const heights = vectorHousingHeights(doc),
+    insideCells = new Map<string, boolean>(),
+    cellInside = (id: string) => {
+      let value = insideCells.get(id);
+      if (value === undefined) {
+        value = inside(polygonCentroid(cells.get(id)!.ring));
+        insideCells.set(id, value);
+      }
+      return value;
+    };
   const occupied = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; polygon: VectorPolygon }>();
   occupied.load(
     [
@@ -800,7 +809,10 @@ export function placeVectorPerimeterHouses(
         return { ...boxOf(points), points };
       })
   ]);
-  const adopted = new Map<string, { ring: number[]; dwellings: number; entrance: number[]; draw: number }[]>();
+  const adopted = new Map<
+    string,
+    { ring: number[]; storeys: number; dwellings: number; entrance: number[]; draw: number }[]
+  >();
   let capacity = 0,
     count = 0;
   // CE occupancy draws spread vacant lots through every district. A population
@@ -813,7 +825,12 @@ export function placeVectorPerimeterHouses(
     if (!fit) continue;
     const { ring, polygon } = fit,
       site = { outer: polygon, holes: [] };
-    const dwellings = perimeterHouseDwellings(regionArea(site), storeys);
+    const storeys = heights.storeys(
+        vectorHouseHeightKey(house.cellId, house.draw),
+        house.cellId,
+        cellInside(house.cellId)
+      ),
+      dwellings = perimeterHouseDwellings(regionArea(site), storeys);
     // The entrance faces the nearest lane, street or road. Never an access drawn across another plot.
     let best: { from: Point; to: Point; distance: number } | undefined;
     const lines = lineIndex.search(boxOf(polygon, 12)).map(item => item.points);
@@ -828,7 +845,7 @@ export function placeVectorPerimeterHouses(
     }
     if (!best) continue;
     const list = adopted.get(house.cellId) ?? [];
-    list.push({ ring, dwellings, entrance: packPoints([best.from, best.to], origin), draw: house.draw });
+    list.push({ ring, storeys, dwellings, entrance: packPoints([best.from, best.to], origin), draw: house.draw });
     // CE lots may overlap their neighbours by a few square centimetres; an adopted house is occupancy too, so
     // a later lot never shares land with it and any house can become a placement (S2.1e2).
     occupied.insert({ ...boxOf(polygon), polygon: site });
@@ -882,7 +899,7 @@ export function placeVectorPerimeterHouses(
         houses: {
           offsets,
           coords,
-          storeys: houses.map(() => storeys),
+          storeys: houses.map(h => h.storeys),
           dwellings: houses.map(h => h.dwellings),
           entrances: houses.flatMap(h => h.entrance),
           draws: houses.map(h => h.draw)
@@ -890,7 +907,7 @@ export function placeVectorPerimeterHouses(
         detached: [],
         ...(cleared[cell.id]?.length ? { cleared: [...cleared[cell.id]] } : {}),
         ...(detachedLines[cell.id]?.length ? { detachedLines: carried(cell.id, cell.lanes) } : {}),
-        inside: inside(polygonCentroid(cell.ring))
+        inside: cellInside(cell.id)
       };
       fabricCells[cell.id] = { ...value, hash: fabricCellHash(value) };
     }

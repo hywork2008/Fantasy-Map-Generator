@@ -1,5 +1,9 @@
 import { buildingAppearanceProfile } from "../../buildings/appearance/resolver";
-import { BUILDING_APPEARANCE_PROFILES } from "../../buildings/appearance/types";
+import {
+  BUILDING_APPEARANCE_PROFILES,
+  type BuildingAppearanceContext,
+  type BuildingAppearanceProfile
+} from "../../buildings/appearance/types";
 import type { ModelQuality } from "../../buildings/modelQuality";
 import { growthRandom } from "../../utils/urbanMorphology";
 import type { DistrictFabric } from "../generators/blockInfill.types";
@@ -42,23 +46,38 @@ export function standaloneHousingDocument(
   fmgLinked: boolean
 ): CityDocument {
   if (quality !== "high" || document.buildingAppearanceProfile) return document;
+  const seed = document.generationSeed || document.fabric?.seed || "massing";
   if (fmgLinked || document.fabric?.generation?.settings.descriptor) {
     const refreshed = withBuildingAppearance(document);
     const context = document.buildingAppearanceContext ?? refreshed.buildingAppearanceContext!;
-    // Auto culture can be absent or unsupported in older FMG shares. High quality
-    // still needs a detailed model family; choose one from the saved site conditions.
-    if (buildingAppearanceProfile({ context, rural: false }) !== "legacy")
+    const profile = automaticHousingProfile(context, true, seed);
+    if (!profile)
       return document.buildingAppearanceVersion === refreshed.buildingAppearanceVersion
         ? document
         : { ...refreshed, buildingAppearanceContext: context };
-    const profile = context.arid
-      ? "mediterranean"
-      : context.forest || (context.temperatureC !== undefined && context.temperatureC <= 5)
-        ? "northern-wooded"
-        : "atlantic";
     return { ...refreshed, buildingAppearanceContext: context, buildingAppearanceProfile: profile };
   }
-  const seed = document.generationSeed || document.fabric?.seed || "massing";
-  const profile = profiles[Math.floor(growthRandom(`${seed}:standalone-housing-culture`) * profiles.length)];
-  return withBuildingAppearance(document, profile);
+  return withBuildingAppearance(document, automaticHousingProfile(undefined, false, seed));
+}
+
+/**
+ * The automatic housing culture of a city without a chosen one. An FMG city keeps the culture of its tradition
+ * (undefined); when that has no detailed family, one comes from the site climate. A standalone city draws one
+ * from its seed.
+ */
+export function automaticHousingProfile(
+  context: BuildingAppearanceContext | undefined,
+  fmgLinked: boolean,
+  seed: string
+): BuildingAppearanceProfile | undefined {
+  if (!fmgLinked || !context)
+    return profiles[Math.floor(growthRandom(`${seed}:standalone-housing-culture`) * profiles.length)];
+  // Auto culture can be absent or unsupported in older FMG shares. High quality
+  // still needs a detailed model family; choose one from the saved site conditions.
+  if (buildingAppearanceProfile({ context, rural: false }) !== "legacy") return undefined;
+  return context.arid
+    ? "mediterranean"
+    : context.forest || (context.temperatureC !== undefined && context.temperatureC <= 5)
+      ? "northern-wooded"
+      : "atlantic";
 }

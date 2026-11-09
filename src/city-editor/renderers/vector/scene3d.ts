@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { BuildingAppearance } from "../../../buildings/appearance/types";
 import { placeableObject } from "../../../buildings/placeableObjects";
 import { placementDefinition, placementFootprint } from "../../../buildings/placementModels";
 import { LAND_Y } from "../../../city3d/core/waterGeometry";
@@ -231,7 +232,7 @@ export function createVectorScene(data: VectorRenderData) {
     }
     // Generated houses share one mesh per colour, height and tile: draw calls grow with area, not houses.
     const houseBatches = new Map<string, HouseBatch>();
-    const massingLots: { polygon: Point[]; massing: BuildingMassing }[] = [],
+    const massingLots: { polygon: Point[]; massing: BuildingMassing; appearance?: BuildingAppearance }[] = [],
       massingIds: string[] = [],
       massingElevations: number[] = [];
     // Walls, towers, gates and bridges use the mesh editor's structure massing, one group per owner for picking.
@@ -266,10 +267,14 @@ export function createVectorScene(data: VectorRenderData) {
       if (surface.pieceRole === "landscape-tree") continue;
       if ((surface.kind === "wall" || surface.kind === "bridge") && massed.has(surface.id)) continue;
       if (surface.houses?.massing && surface.houses.massing.length === surface.houses.ids.length) {
-        const { ids, elevationsMeters, massing } = surface.houses;
+        const { ids, elevationsMeters, massing, appearance } = surface.houses;
         surface.polygons.forEach((polygon, i) => {
           if (Math.abs(polygonArea(polygon.outer)) < 1e-8) return;
-          massingLots.push({ polygon: polygon.outer.map(p => [p[0], p[1]] as Point), massing: massing[i] });
+          massingLots.push({
+            polygon: polygon.outer.map(p => [p[0], p[1]] as Point),
+            massing: massing[i],
+            appearance: appearance?.[i]
+          });
           massingIds.push(ids[i]);
           massingElevations.push(elevationsMeters[i] - datum);
         });

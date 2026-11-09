@@ -362,3 +362,62 @@ P3（住宅の外観と高さ）を2つに分けた。P3aは、住宅の階数�
 - `components/vector/fabricHouseSelection.test.ts`を、壁と屋根のメッシュから全住宅が選択できることに改め、量塊の階高と勾配屋根の割合の確認を加えた。
 - 関連テスト（`renderers/vector`、`components/vector`、`CityEditorPage.vector`、`services/io/vector`、旧CEの量塊・高さ・`cityMeshes`・`regionalHouseLod`、アーキテクチャ）は96件中94成功・2 skipだった。
 - ブラウザでの目視は、Chromeがなく行っていない。
+
+## P2a〜P3aのブラウザーでの目視（2026-11-09）
+
+M4 Mac miniのPlaywright Chromium（Vite開発サーバー）で、単独起動のメッシュなし（Generation method: Meshless）を5,000人で生成し、3Dで確かめた。
+
+- P2a: 市壁の帯・円形の塔・門の両側の塔と楣・橋の欄干が、旧CEの量塊で描かれた。水門の開口も切れている。
+- P2b: 街道・幹線・通りの路面の帯が地面の上に描かれ、橋の上には描かれない。
+- P2c-1: 川の水面が地面より下にあり、岸の側面が立つ。
+- P3a: 住宅が壁・屋根（切妻・寄棟）の量塊で描かれた。
+- コンソールのエラーは、開発サーバーにない`favicon.ico`の404だけだった。
+- 寺院（`catalogue:basilica-temple`）は従来どおり外形の押し出しである（構造物化はP6）。
+
+## P3b 住宅の高さの変化・高さの上限・建物パターン・外観の型（2026-11-09）
+
+生成アルゴリズムを`vector-urban-v10`に上げた。保存済みの文書は保存形状のまま表示する。
+
+### 旧CEの規則をセルから切り離す
+
+| 関数 | 内容 |
+| --- | --- |
+| `sampleStoreysFromWeights`（`buildingHeightPolicy.ts`） | 時代の階数の重みから階数を引く。街区で1回引き、15%の住宅は単独で引く |
+| `heightSeed`（同） | 高さの乱数の系列（`<seed>:height-v1`） |
+| `varyFloorHeights`（`buildingFloors.ts`） | 住宅ごとの階高の揺らぎ（全体±5%、階ごと±3 cm） |
+| `storeysWithinLimit`（`buildingHeightLimits.ts`） | 階数・高さの上限に収まる最大の階数 |
+| `automaticHousingProfile`（`standaloneHousingAppearance.ts`） | 外観の型を選ばない都市の自動の型（FMGの都市は伝統、なければ気候。単独起動はseed） |
+
+旧CEの関数はこれらを呼ぶだけになった。旧CEの関連テスト（高さの方針・上限・量塊・外観・`townFacts`）は変更なしで成功した。
+
+### メッシュなしの住宅
+
+`generators/vector/generation/housingHeights.ts`を追加した。設定は文書の`context.requestedSettings`から読む。
+
+- 高さの変化: `buildingHeightPolicy`があり、時代と伝統が対応する場合（中世3期と大航海時代）に有効。
+  - 旧CEの面（セル）の代わりに街路街区のIDで1回引く。住宅の鍵は街路街区IDと区画の抽選値。
+  - 市壁の外の街路街区は旧CEの郊外（`outside`、1〜2階）の重み、内は通常（`ordinary`）の重み。
+  - 商業・富裕の重みは、地区の用途を作るP6で扱う。
+- 高さの上限: `buildingHeightLimit`の階数・高さで、揺らぎを含む階高から階数を絞る。住宅は最低1階とする。
+- 住戸容量: 住宅ごとの階数から計算し、必要量に達するまで区画を採用する（従来どおり）。敷地の大きさは平均の階数で見積もる（`expectedVectorHouseStoreys`）。
+- 旧CEの人口圧による階数の引き上げ（`fitMorphologyHeightDistribution`）は移していない。FMGの都市成長の情報を要し、メッシュなしは敷地の大きさで容量を合わせるため。
+- 3Dの階高は、保存した階数と同じ鍵の揺らぎで描く。
+- 外観の型: 旧CEの高品質時の自動の型と同じ規則で、地域の屋根材（`regionalRoofMaterial`）と壁・屋根の色（`resolveBuildingAppearance`）を決め、街路街区ごとに屋根の色数を8に絞る。型・気候・壁の仕上げを選ぶ操作は、操作の行（`building-appearance-controls`）として残る。
+- 建物パターン: 旧CEの「人口に応じた施設」（`facilityLayout: population`）は施設モード、medievalは外周の区画とした。legacy（旧CEのセルの街区の埋め方）に当たるものはなく、外周の区画を作り、未対応の設定として表示する。
+
+### その他
+
+- 生成設定に`undefined`の項目（高さを一律にした場合など）があると、`requestedSettings`の検査で文書が不正になっていた。JSONとして保存し、`undefined`の項目は省くようにした。
+
+### ブラウザーでの目視
+
+既定の設定（高さの変化あり）で5,000人を生成し、3Dで階数の違う住宅が街区ごとに並び、自動の外観の型の色で描かれることを確かめた。住戸容量は1,112／1,112で、未配置の人口は0だった。
+
+### テスト
+
+- `generators/vector/generation/housingHeights.test.ts`（2件）を追加した。
+  - 後期中世で1〜4階が現れ、時代の上限を超えない。住戸容量の合計が報告と一致し、全員が住む。
+  - 3Dの階高が揺らぎ、全住宅に旧CEの外観（legacy以外）がある。
+  - 方針がなければ標準の階数のまま。階数の上限2、高さの上限7 mで2階までになる。
+- 関連テスト（`generators/vector`、`renderers/vector`、`components/vector`、`CityEditorPage.vector`、`services/io/vector`、`services/vector`、旧CEの高さ・量塊・外観・`townFacts`、`city3d`、アーキテクチャ）は56ファイル中49成功・7 skip（計測用）だった。
+- 型検査（CE・`buildings`・`city3d`の範囲。他の拡張にはTypeScript 7移行による既存のエラーがある）・biome・アーキテクチャの検査はエラーなしである。

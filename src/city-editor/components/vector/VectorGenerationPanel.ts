@@ -7,7 +7,7 @@ import {
 import { siteDisk, syntheticVectorInput, vectorInputFromDescriptor } from "../../generators/vector/generation/input";
 import { DEFAULT_VECTOR_GENERATION, type VectorGenerationResult } from "../../generators/vector/generation/pipeline";
 import { meshlessSettingGaps } from "../../generators/vector/generation/settingSupport";
-import { DEFAULT_VECTOR_URBAN } from "../../generators/vector/generation/urban";
+import { DEFAULT_VECTOR_URBAN, vectorUrbanMode } from "../../generators/vector/generation/urban";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../../generators/vector/validation/document";
 import { vectorUrbanStages } from "../../generators/vector/validation/urban";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
@@ -322,7 +322,7 @@ export function createVectorGenerationPanel(
     option.textContent = value;
     mode.append(option);
   }
-  mode.value = "medieval";
+  mode.value = vectorUrbanMode(editorInput?.settings);
   field("mode", mode);
   const population = number(
       "population",
@@ -437,7 +437,12 @@ export function createVectorGenerationPanel(
             seed: seed.value,
             wall: wall.value as VectorGenerationSettings["wall"]
           },
-          urban: { ...DEFAULT_VECTOR_URBAN, population: target, lotOccupancy: lotOccupancy() }
+          urban: {
+            ...DEFAULT_VECTOR_URBAN,
+            mode: vectorUrbanMode(editorInput?.settings),
+            population: target,
+            lotOccupancy: lotOccupancy()
+          }
         },
         "develop",
         source

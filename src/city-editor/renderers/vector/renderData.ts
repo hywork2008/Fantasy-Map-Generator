@@ -1,10 +1,11 @@
+import type { BuildingAppearance } from "../../../buildings/appearance/types";
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
-import { lotFloorSpecs } from "../../generators/buildingFloors";
 import { lotMassing, massingContext } from "../../generators/buildingMassing";
 import { type ContourLine, fieldContours } from "../../generators/terrainField/contours";
 import type { TownWaterKind } from "../../generators/townWater";
 import { curveSource } from "../../generators/vector/editing/paths";
 import { cellHouseCount, cellHouseRing, fabricHouseId, unpackLine } from "../../generators/vector/fabric/pack";
+import { vectorHouseHeightKey, vectorHousingHeights } from "../../generators/vector/generation/housingHeights";
 import { bridgeGeometry, gateOpening, junctionSurface } from "../../generators/vector/geometry/network";
 import { regionBoolean } from "../../generators/vector/geometry/regions";
 import { pathSurface } from "../../generators/vector/geometry/surfaces";
@@ -22,6 +23,7 @@ import type { VectorLandscapeTree } from "../../types/vector/landscape";
 import type { VectorStage } from "../../types/vector/urban";
 import { vectorDefenseSurfaces } from "./defense";
 import { vectorHarborSurfaces } from "./harbor";
+import { vectorHouseAppearance } from "./houseAppearance";
 import { vectorLandscapeSurfaces } from "./landscape";
 import { vectorRoadRibbons } from "./roadRibbons";
 import { vectorStructures } from "./structureMassing";
@@ -60,6 +62,8 @@ export interface VectorRenderSurface {
     elevationsMeters: number[];
     /** The mesh editor's walls, roof and colour per house (P3a), parallel to `ids`. */
     massing?: BuildingMassing[];
+    /** Regional roof and wall colours per house (P3b), parallel to `massing`. */
+    appearance?: (BuildingAppearance | undefined)[];
   };
 }
 /** Storey height of generated houses. */
@@ -382,7 +386,9 @@ export function vectorRenderData(
         biome: descriptor?.biome,
         civilization: descriptor?.civilization,
         seed: doc.recipe.seed
-      });
+      }),
+      heights = vectorHousingHeights(doc),
+      appearance = vectorHouseAppearance(doc);
     for (const district of Object.values(doc.fabric.districts))
       lines(district.id, "s", district.streets, district.origin, district.detachedLines);
     for (const cell of Object.values(doc.fabric.cells)) {
@@ -395,8 +401,10 @@ export function vectorRenderData(
           ids: [],
           heightsMeters: [],
           elevationsMeters: [],
-          massing: []
-        };
+          massing: [],
+          appearance: []
+        },
+        plain: { id: string; massing: BuildingMassing }[] = [];
       for (let i = 0; i < cellHouseCount(cell); i++) {
         if (detached.has(i)) continue;
         const id = fabricHouseId(cell.id, i),
@@ -411,17 +419,22 @@ export function vectorRenderData(
           houses.heightsMeters.push(cell.houses.storeys[i] * FABRIC_STOREY_METERS);
           houses.elevationsMeters.push(elevation);
           const storeys = cell.houses.storeys[i];
-          houses.massing!.push(
-            lotMassing(
+          plain.push({
+            id,
+            massing: lotMassing(
               massing,
               { polygon: part.outer, role: "main" },
               storeys,
-              lotFloorSpecs({ role: "main" }, storeys, massing.period),
+              heights.floors(vectorHouseHeightKey(cell.id, cell.houses.draws[i]), storeys),
               undefined,
               id
             )
-          );
+          });
         }
+      }
+      for (const styled of appearance(cell.id, !cell.inside, plain)) {
+        houses.massing!.push(styled.massing);
+        houses.appearance!.push(styled.appearance);
       }
       if (polygons.length)
         surfaces.push({

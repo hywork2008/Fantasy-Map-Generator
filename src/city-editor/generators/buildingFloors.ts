@@ -90,10 +90,15 @@ export function buildingFloorSpecs(
   const floors = lotFloorSpecs(lot, storeys, period);
   if (varied && !document.mesh?.faces?.[lot.faceId]?.properties.locked) {
     const seed = document.generationSeed || document.fabric?.seed || "massing";
-    const key = `${seed}:height-v1:${lot.heightKey ?? stableBuildingAppearanceId(lot)}`;
-    const scale = 0.95 + growthRandom(`${key}:floor-scale`) * 0.1;
-    for (const floor of floors)
-      floor.heightMeters = floor.heightMeters * scale + (growthRandom(`${key}:floor:${floor.level}`) - 0.5) * 0.06;
+    return varyFloorHeights(floors, `${seed}:height-v1:${lot.heightKey ?? stableBuildingAppearanceId(lot)}`);
   }
+  return floors;
+}
+
+/** Height variation of each house: ±5% overall and ±3 cm per floor. `key` is the height stream plus the house. */
+export function varyFloorHeights(floors: FloorSpec[], key: string): FloorSpec[] {
+  const scale = 0.95 + growthRandom(`${key}:floor-scale`) * 0.1;
+  for (const floor of floors)
+    floor.heightMeters = floor.heightMeters * scale + (growthRandom(`${key}:floor:${floor.level}`) - 0.5) * 0.06;
   return floors;
 }

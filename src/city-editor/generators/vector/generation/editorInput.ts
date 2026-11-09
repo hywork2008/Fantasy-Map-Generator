@@ -1,5 +1,4 @@
 import { getUrbanDwellings } from "../../../../utils/urbanDwellings";
-import { residentialStoreys } from "../../../../utils/urbanMorphology";
 import type { CityDocument } from "../../../types/document";
 import type { GenerationSettings } from "../../../types/generation";
 import { supportsBuildingHeightVariation } from "../../buildingHeightPolicy";
@@ -8,6 +7,7 @@ import { synthSite } from "../../site/synthSite";
 import { featureReservations } from "../environmentState";
 import { regionArea } from "../geometry/regions";
 import { seedVectorCivicCentre, vectorCivicLayout } from "./civic";
+import { expectedVectorHouseStoreys } from "./housingHeights";
 import { syntheticVectorInput, vectorInputFromDescriptor } from "./input";
 import { MESHLESS_SITE_RIM_METERS, meshlessCityRadius } from "./urbanSizing";
 
@@ -73,7 +73,8 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     doc.context.targetPopulation = settings.population?.targetPopulation ?? descriptor?.burg.population ?? 5000;
     // Every requested setting is kept with the city, including those meshless cannot generate yet.
     const { descriptor: _descriptor, ...requested } = settings;
-    doc.context.requestedSettings = structuredClone(requested);
+    // Saved as plain JSON: a setting cleared to undefined (uniform heights, no limit) is simply absent.
+    doc.context.requestedSettings = JSON.parse(JSON.stringify(requested));
     if (native) {
       // Whole-cell admission leaves a partial-cell rim in mesh first. The continuous
       // site reserves one third of the same street-cell width as its boundary margin.
@@ -93,7 +94,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
   const size = (reservedM2: number) =>
     meshlessCityRadius(
       getUrbanDwellings(settings.population!.targetPopulation),
-      residentialStoreys(period).standard,
+      expectedVectorHouseStoreys(period, settings, settings.descriptor?.civilization?.tradition),
       input.lotOccupancy,
       reservedM2
     );
