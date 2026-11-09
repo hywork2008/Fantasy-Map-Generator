@@ -32,6 +32,7 @@ import { vectorOccupiedSites } from "../occupancy";
 import { assertVectorDocument } from "../validation/document";
 import { CASTLE_FEATURE_ID, CASTLE_SITE_ID, raiseVectorCastle, reserveVectorCastle } from "./castle";
 import { connectVectorCivicCentre } from "./civic";
+import { isFerryRiver, raiseVectorFerries } from "./ferries";
 import { type RouteLink, skeletonRoutes } from "./routes";
 import { GENERATED_HARBOR_ID, raiseVectorHarbor } from "./seaHarbor";
 import { isVectorWallShape, VECTOR_WALL_WIDTH_METERS, vectorUnitWallRing, vectorWallSettings } from "./wallShape";
@@ -645,6 +646,7 @@ function skeleton(
     }
     // So does a generated harbour (P5b).
     if (doc.environment?.harbor?.id === GENERATED_HARBOR_ID) delete doc.environment.harbor;
+    if (doc.environment?.ferries) delete doc.environment.ferries;
     for (const id of [...ids].sort(
       (a, b) => Number(doc.paths[a].role === "wall") - Number(doc.paths[b].role === "wall")
     ))
@@ -980,6 +982,8 @@ function skeleton(
   let bridgeNumber = 0;
   for (const river of Object.values(doc.paths).filter(p => p.role === "river" && p.id !== TOWN_MOAT_ID)) {
     if (Object.values(doc.connections.bridges).some(b => b.riverAnchor.pathId === river.id)) continue;
+    // A river FMG crosses by ferry has no bridge of the period; its roads end at ferry landings (P5b-4).
+    if (isFerryRiver(doc, river)) continue;
     const samples = samplePath(river).filter(s => containsRegion(doc.site!.domain, s.point));
     const candidate = samples.sort((a, b) => distance(a.point, center) - distance(b.point, center))[0];
     // Linear paths need interior candidates too; samples intentionally do not densify straight source segments.
@@ -1173,6 +1177,12 @@ function skeleton(
     if (!doc.environment?.features[CASTLE_FEATURE_ID])
       diagnostics.push({ code: "castle-unplaced", entityId: CASTLE_FEATURE_ID, severity: "warning" });
   }
+  // Ferries where the roads end on the bank of a river no bridge of the period spans (P5b-4); the harbour keeps off
+  // their landings.
+  const ferried = raiseVectorFerries(doc);
+  doc = ferried.document;
+  for (const road of ferried.failures)
+    diagnostics.push({ code: "ferry-unplaced", entityId: road, severity: "warning" });
   // The harbour comes last: its quays link to the laid streets and keep off the walls and precincts (P5b).
   if (settings.port) {
     // The land blocks are cut round the harbour next. Where the polygon kernel cannot cut them round it, or a block's

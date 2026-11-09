@@ -4,6 +4,7 @@ import type { VectorCityDocument } from "../../../types/vector/document";
 import { VECTOR_FEATURE_KINDS } from "../../../types/vector/environment";
 import { parseFreeformCity } from "../../freeform/freeformCity";
 import { validateVectorDefenses } from "../defense";
+import { validateVectorFerries } from "../ferry";
 import { evaluateAnchor } from "../geometry/curves";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { ringInside } from "../geometry/routing";
@@ -123,7 +124,8 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
   if (
     !record(e) ||
     Object.keys(e).some(
-      k => !["features", "defenses", "harbor", "landscape", "terrain", "hidden", "freeformSource"].includes(k)
+      k =>
+        !["features", "defenses", "harbor", "ferries", "landscape", "terrain", "hidden", "freeformSource"].includes(k)
     ) ||
     !record(e.features) ||
     Object.keys(e.features).length > 256 ||
@@ -135,6 +137,7 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
     ...appearanceErrors,
     ...validateVectorDefenses(doc),
     ...validateVectorHarbor(doc),
+    ...validateVectorFerries(doc),
     ...validateVectorLandscape(doc)
   ];
   if (e.freeformSource && !parseFreeformCity(JSON.stringify(e.freeformSource)))

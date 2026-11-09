@@ -22,6 +22,7 @@ import { simplifyFreehand } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument } from "../validation/document";
+import { descriptorRiverCrossing, roadToFerryLanding } from "./ferries";
 
 const copy = (p: readonly number[]): Point => [p[0], p[1]];
 export const siteDisk = (center: Point, radius: number): VectorPolygon => ({
@@ -273,7 +274,8 @@ export function vectorInputFromDescriptor(descriptor: BurgSiteDescriptor): Vecto
     for (const [i, line] of d.waterbody.shoreline.entries()) {
       // As the mesh skeleton does: a shoreline reaching past the window closes on a square around it instead,
       // or the closing walk along the window crosses the shoreline.
-      const shore = line.map(copy),
+      // FMG repeats a shoreline vertex where two of its segments meet; a repeated point is not an edge.
+      const shore = line.map(copy).filter((p, j, all) => !j || p[0] !== all[j - 1][0] || p[1] !== all[j - 1][1]),
         polygon = closeCorridor(
           shore,
           azimuthToVec(d.waterbody.shoreAzimuthDeg),
@@ -293,6 +295,34 @@ export function vectorInputFromDescriptor(descriptor: BurgSiteDescriptor): Vecto
         doc.paths[branchId] = importedPath(branchId, "road", branch.path.map(copy), fixed?.roadWidthMeters ?? 5);
       }
     }
+  // A road over a river FMG crosses by ferry ends on the town bank, where its ferry lands (P5b-4).
+  for (const river of d.rivers) {
+    if (descriptorRiverCrossing(d, river).kind !== "ferry") continue;
+    const channel = [
+      ...site.water.filter(w => w.riverPathId?.startsWith(`fmg-river:${river.riverId}:`)).flatMap(w => w.polygons),
+      ...Object.values(doc.paths)
+        .filter(
+          p =>
+            p.role === "river" &&
+            p.id.startsWith(`fmg-river:${river.riverId}:`) &&
+            !site.water.some(w => w.riverPathId === p.id)
+        )
+        .map(pathSurface)
+    ];
+    if (!channel.length) continue;
+    for (const [i, road] of d.roads.entries()) {
+      const id = `fmg-road:${road.routeId}:${i}`,
+        path = doc.paths[id];
+      if (!path || road.sharedCrossingId !== undefined) continue;
+      const cut = roadToFerryLanding(
+        road.path.map(copy),
+        path.width.leftMeters,
+        p => containsRegion(channel, p),
+        site.center
+      );
+      if (cut) doc.paths[id] = importedPath(id, "road", cut, path.width.leftMeters + path.width.rightMeters);
+    }
+  }
   // Fixed deck and approaches are copied, not refitted to the derived river band or a city mesh.
   for (const crossing of fixed?.crossings ?? []) {
     const roadId = `fmg-crossing:${crossing.id}`,

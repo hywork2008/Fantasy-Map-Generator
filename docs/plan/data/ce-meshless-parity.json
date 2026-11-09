@@ -690,7 +690,7 @@
       "id": "river-port-and-ferry",
       "mesh": "river ports and ferry landings",
       "meshless": "partial",
-      "evidence": "P5b-3: river ports on a fixed river (its site water, or a fixed river path) by the shared harbour planner: bank quays, short piers, barges; 29 of 32 synthesized river towns. Ferries not generated.",
+      "evidence": "P5b-3: river ports on a fixed river (its site water, or a fixed river path) by the shared harbour planner: bank quays, short piers, barges; 29 of 32 synthesized river towns. P5b-4: ferries where FMG crosses a river by ferry (the period has no bridge for it): the road ends on the town bank, and the mesh editor's figure-of-eight crossing (planFerryCrossing) is stored with jetties, landings and towpaths, whose ground is kept from houses and the harbour. Not yet: the far-bank road, ferry boats.",
       "stage": "P5",
       "checked": true
     },

@@ -46,6 +46,8 @@ export interface VectorEnvironment {
   features: Record<string, VectorFeature>;
   landscape?: import("./landscape").VectorLandscape;
   harbor?: import("./harbor").VectorHarborPlan;
+  /** Ferries where roads meet rivers no bridge of the period spans (P5b-4), by id. */
+  ferries?: Record<string, import("./ferry").VectorFerry>;
   defenses?: Record<string, import("./defense").VectorDefensePlan>;
   /** Freeform's authored ledger is the height/earthwork authority, not a synthetic cell mesh. */
   terrain?: FreeformCity;
