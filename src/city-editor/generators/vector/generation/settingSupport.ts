@@ -23,7 +23,7 @@ export const MESHLESS_SETTING_SUPPORT: Record<string, { state: MeshlessSettingSt
   "config.features.citadel": { state: "partial", stage: "P4" },
   "config.features.plaza": { state: "partial", stage: "P6" },
   "config.features.temple": { state: "partial", stage: "P6" },
-  "config.features.port": { state: "missing", stage: "P5" },
+  "config.features.port": { state: "partial", stage: "P5" },
   "config.features.shanty": { state: "missing", stage: "P6" },
   "config.wall.envelope": { state: "missing", stage: "P4" },
   "config.wall.coast": { state: "missing", stage: "P5" },

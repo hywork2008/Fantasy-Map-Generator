@@ -79,7 +79,9 @@ function trimToWindow(points: Point[], widths: number[], half: number) {
 function seal(doc: VectorCityDocument, site: VectorSite): VectorCityDocument {
   doc.site = site;
   const heightfield = site.descriptor?.terrain.heightfield;
-  if (heightfield && doc.frame.extentMeters <= 10000) {
+  // Level ground needs no terrain: the site stands on the flat datum.
+  const level = !!heightfield && heightfield.elevationsMeters.every(h => h === heightfield.elevationsMeters[0]);
+  if (heightfield && !level && doc.frame.extentMeters <= 10000) {
     const coarse = coarseFromHeightfield(heightfield.size, heightfield.spacingMeters, heightfield.elevationsMeters);
     if (coarse)
       doc.environment = {

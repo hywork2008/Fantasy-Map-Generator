@@ -125,8 +125,8 @@
       "category": "setting",
       "id": "config.features.port",
       "mesh": "CityProgram",
-      "meshless": "missing",
-      "evidence": "Not read; harbour only authored or converted.",
+      "meshless": "partial",
+      "evidence": "P5b: read as the skeleton's port setting. A sea harbour is generated on the coast of an unwalled town with no river; walled towns wait for the sea-side wall modes (config.wall.coast), river towns for river ports.",
       "stage": "P5",
       "checked": true
     },
@@ -669,8 +669,8 @@
       "category": "generated",
       "id": "harbor",
       "mesh": "harbour ward, quays, cargo, cranes, warehouses",
-      "meshless": "converted-only",
-      "evidence": "Authored or converted legacy harbour only.",
+      "meshless": "partial",
+      "evidence": "P5b: generated on sea coasts by the mesh editor's harbour planner on cell-free shores (planHarborOnShores): quays, loading yards, cranes, crane quays, cargo piles, piers, street accesses; stored as a fixed harbour plan. Not yet: walled coasts, river ports, harbour presets, warehouses.",
       "stage": "P5",
       "checked": true,
       "census": "harbors"
@@ -679,8 +679,8 @@
       "category": "generated",
       "id": "ships",
       "mesh": "ships",
-      "meshless": "converted-only",
-      "evidence": "Only inside a converted or authored harbour.",
+      "meshless": "partial",
+      "evidence": "P5b: generated with the harbour by the mesh editor's ship planner (planShipsAtPiers): pier berths, anchorage, crane quays and lighters; ships the stored plan cannot re-solve are left out.",
       "stage": "P5",
       "checked": true,
       "census": "ships"

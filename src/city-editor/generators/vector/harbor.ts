@@ -286,7 +286,9 @@ export function validateVectorHarbor(doc: VectorCityDocument): string[] {
         !record(a.road) ||
         !keys(a.road, ["pathId", "segmentId", "t"]) ||
         doc.paths[a.road.pathId]?.role !== "road" ||
-        doc.paths[a.road.pathId].editPolicy !== "fixed"
+        // A generated harbour hangs off the generated streets, which its generation owns (P5b).
+        (doc.paths[a.road.pathId].editPolicy !== "fixed" &&
+          !(p.id === "harbor:generated" && doc.paths[a.road.pathId].origin === "automatic"))
       )
         fail();
       const target = evaluateAnchor(doc.paths[a.road.pathId], a.road),

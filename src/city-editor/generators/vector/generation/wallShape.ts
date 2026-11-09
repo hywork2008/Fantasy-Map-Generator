@@ -44,16 +44,18 @@ export function vectorWallChoice(
   extentMeters = 1200
 ): Pick<
   VectorGenerationSettings,
-  "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat" | "layout" | "castle"
+  "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat" | "layout" | "castle" | "port"
 > {
   const resolved = resolveEffectiveLayout(settings.layout ?? settings.config.layout, extentMeters, seed),
     castle = vectorCastleChoice(settings),
     layout = {
       ...(resolved !== "organic" ? { layout: resolved } : {}),
-      ...(castle ? { castle } : {})
+      ...(castle ? { castle } : {}),
+      ...(settings.config.features.port ? { port: true } : {})
     };
   // A bastioned town brings its own trace as input geometry (P4c); the skeleton keeps it.
-  if (settings.townFortification?.kind === "bastioned") return { wall: "none" };
+  if (settings.townFortification?.kind === "bastioned")
+    return { wall: "none", ...(settings.config.features.port ? { port: true } : {}) };
   if (!settings.config.features.walls) return { wall: "none", ...layout };
   const rng = makeRng(`${seed}:vector-wall:choice`),
     wall = resolveWallShape(settings.wallShape, rng, bastionEra(period)),
@@ -106,7 +108,7 @@ export function vectorWallSettings(
   s: Partial<
     Pick<
       VectorGenerationSettings,
-      "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat" | "layout" | "castle"
+      "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat" | "layout" | "castle" | "port"
     >
   >
 ) {
@@ -128,6 +130,7 @@ export function vectorWallSettings(
         (s.castle.moat === undefined || typeof s.castle.moat === "boolean") &&
         (s.castle.style === undefined || (typeof s.castle.style === "string" && s.castle.style.length <= 64)))) &&
     (s.townMoat === undefined || (typeof s.townMoat === "boolean" && s.wall !== "none")) &&
+    (s.port === undefined || typeof s.port === "boolean") &&
     (s.innerWall === undefined ||
       (s.wall !== "none" &&
         typeof s.innerWall === "object" &&

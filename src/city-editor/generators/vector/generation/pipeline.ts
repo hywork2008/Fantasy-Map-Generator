@@ -33,6 +33,7 @@ import { assertVectorDocument } from "../validation/document";
 import { CASTLE_FEATURE_ID, CASTLE_SITE_ID, raiseVectorCastle, reserveVectorCastle } from "./castle";
 import { connectVectorCivicCentre } from "./civic";
 import { type RouteLink, skeletonRoutes } from "./routes";
+import { GENERATED_HARBOR_ID, raiseVectorHarbor } from "./seaHarbor";
 import { isVectorWallShape, VECTOR_WALL_WIDTH_METERS, vectorUnitWallRing, vectorWallSettings } from "./wallShape";
 
 /** Sine of the shallowest angle a road or river may cross a generated wall shape at (20 degrees). */
@@ -629,6 +630,8 @@ function skeleton(
         delete doc.placements[placement];
       delete doc.environment.features[CASTLE_FEATURE_ID];
     }
+    // So does a generated harbour (P5b).
+    if (doc.environment?.harbor?.id === GENERATED_HARBOR_ID) delete doc.environment.harbor;
     for (const id of [...ids].sort(
       (a, b) => Number(doc.paths[a].role === "wall") - Number(doc.paths[b].role === "wall")
     ))
@@ -1023,6 +1026,12 @@ function skeleton(
     doc = raiseVectorCastle(doc, settings);
     if (!doc.environment?.features[CASTLE_FEATURE_ID])
       diagnostics.push({ code: "castle-unplaced", entityId: CASTLE_FEATURE_ID, severity: "warning" });
+  }
+  // The harbour comes last: its quays link to the laid streets and keep off the walls and precincts (P5b).
+  if (settings.port) {
+    const harbor = raiseVectorHarbor(doc, settings);
+    if ("document" in harbor) doc = harbor.document;
+    else diagnostics.push({ code: "harbor-unplaced", entityId: harbor.failure, severity: "warning" });
   }
   doc.revision++;
   assertVectorDocument(doc);

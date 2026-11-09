@@ -290,7 +290,8 @@
           "inner-first-fallback": "The old town could not be walled before its streets; its wall was cut into the streets instead",
           "inner-wall-unplaced": "No old-town wall line crossed the streets cleanly; the town keeps its outer wall alone",
           "town-moat-unplaced": "No turn of the wall let every road cross the town moat squarely; the wall stands without a moat",
-          "castle-unplaced": "No castle precinct fitted inside the town wall clear of streets, water and the civic centre"
+          "castle-unplaced": "No castle precinct fitted inside the town wall clear of streets, water and the civic centre",
+          "harbor-unplaced": "No sea harbour was raised: no straight shore in the town reached a street clear of walls and precincts, or the site has a river or relief"
         },
         "blocksAndLanes": "Blocks and lanes",
         "facilities": "Facilities",

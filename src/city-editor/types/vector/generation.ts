@@ -54,6 +54,8 @@ export interface VectorGenerationSettings {
   /** A wet town moat round the outer wall, bridged on every road (P4c-2). */
   townMoat?: boolean;
   innerWall?: { share: number; state: "standing" | "razed"; order?: "outer-first" | "inner-first" };
+  /** A sea harbour raised on the coast by the mesh editor's harbour and ship planners (P5b). */
+  port?: boolean;
 }
 export interface VectorBlock extends VectorPolygon {
   id: string;

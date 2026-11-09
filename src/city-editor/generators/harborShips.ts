@@ -4,9 +4,14 @@ import type { CityDocument, CityElement, Id, Point } from "../types/document";
 import type { ShipType } from "../types/ships";
 import { buildHarborPlan } from "./blockInfill";
 import { pointInPolygon, polygonCentroid } from "./geom";
-import { cargoShipGeometry, polygonsOverlap, shipFootprint, solveCargoBerth } from "./harborCargo";
+import { type CargoQuay, cargoShipGeometry, polygonsOverlap, shipFootprint, solveCargoBerth } from "./harborCargo";
 import { harborRootIsDry, pruneInvalidHarbors } from "./harborLand";
-import { harborWaterField, SEA_CHANNEL_HALF_WIDTH, seaBerthIsNavigable } from "./harborNavigation";
+import {
+  type HarborWaterField,
+  harborWaterField,
+  SEA_CHANNEL_HALF_WIDTH,
+  seaBerthIsNavigable
+} from "./harborNavigation";
 import { faceNeighbors, facePoints } from "./mesh";
 import { corridor, distance } from "./parcelGeometry";
 import { makeRng } from "./prng";
@@ -66,7 +71,7 @@ function distSegmentToSegment(a: Point, b: Point, c: Point, d: Point): number {
   );
 }
 
-interface KnownPier {
+export interface KnownPier {
   id: string;
   landFaceId?: Id;
   waterFaceId: Id;
@@ -278,14 +283,6 @@ export function planHarborShips(
     }
   }
 
-  // A ship must be able to leave: drop sea piers whose head is boxed in (this
-  // also covers the mesh-shore fallback above) and keep hulls on open water.
-  const field = harborWaterField(document);
-  const seaBerth = (pier: KnownPier) => !pier.riverId && !pier.id.startsWith("pier:bank:");
-  for (let i = knownPiers.length - 1; i >= 0; i--)
-    if (seaBerth(knownPiers[i]) && !seaBerthIsNavigable(field, knownPiers[i].end)) knownPiers.splice(i, 1);
-  const onOpenWater = (p: Point) => field.navigable(p, SEA_CHANNEL_HALF_WIDTH);
-
   const waterPolygons = new Map<Id, Point[]>();
   for (const face of Object.values(document.mesh.faces)) {
     if (face.properties.water !== "land") {
@@ -298,8 +295,6 @@ export function planHarborShips(
     .map(f => facePoints(document.mesh, f));
 
   const physicalWater = documentWaterPolygons(document);
-  const onDryLand = (p: Point, land: Point[]) =>
-    pointInPolygon(p, land) && !physicalWater.some(w => pointInPolygon(p, w));
 
   const ribbonWater = document.featureGroups.flatMap(group =>
     group.kind === "river"
@@ -315,9 +310,6 @@ export function planHarborShips(
       : []
   );
   physicalWater.push(...ribbonWater);
-  for (const pier of knownPiers) {
-    if (pier.riverId && !pier.water) pier.water = physicalWater.find(w => pointInPolygon(pier.end, w));
-  }
 
   // 水上を渡る橋・道路（FMG固定橋、枠外へ続く道路と橋、対岸連絡路、道路グループ）。船を重ねない。
   const crossingLines: Array<{ a: Point; b: Point; halfWidth: number }> = [];
@@ -347,6 +339,75 @@ export function planHarborShips(
             group.style.widthMeters
           );
       }
+
+  const fixedShips = document.elements.filter(
+    e => e.kind === "ship" && e.point && (e.locked || !e.id.startsWith(GEN_PREFIX))
+  );
+  return planShipsAtPiers({
+    piers: knownPiers,
+    rng,
+    exploration,
+    typesForWater,
+    waterField: (minimumDepth, obstacles) => harborWaterField(document, minimumDepth, obstacles),
+    waterPolygons,
+    landPolygons,
+    physicalWater,
+    crossingLines,
+    anchorage: coastalHarborFaces.length
+      ? {
+          landId: coastalHarborFaces[0].id,
+          center: polygonCentroid(facePoints(document.mesh, coastalHarborFaces[0])),
+          sea: id => document.mesh.faces[id]?.properties.water === "sea",
+          depth: id => document.mesh.faces[id]?.properties.depth ?? 3
+        }
+      : undefined,
+    harborPiers: fabricHarbor?.piers.map(p => p.polygon) ?? [],
+    cargoQuays: fabricHarbor?.cargoQuays ?? [],
+    cargoWater: quay =>
+      !document.waterAccess ||
+      (!!document.waterAccess.port?.sea && !!document.coastalOceanFaceIds?.includes(quay.waterFaceId)),
+    waterDepth: id => document.mesh.faces[id]?.properties.depth ?? 3,
+    fixedShips
+  });
+}
+
+/** Cell-free inputs of the ship planner. The mesh editor builds them from its cells; meshless from polygons. */
+export interface HarborShipSite {
+  piers: KnownPier[];
+  rng: () => number;
+  exploration: boolean;
+  typesForWater: (waterId: Id) => ShipType[];
+  waterField: (minimumDepth?: number, obstacles?: readonly Point[][]) => HarborWaterField;
+  /** Water owners in a stable order; anchorages are tried in it. */
+  waterPolygons: Map<Id, Point[]>;
+  landPolygons: Point[][];
+  physicalWater: Point[][];
+  crossingLines: Array<{ a: Point; b: Point; halfWidth: number }>;
+  anchorage?: { landId: Id; center: Point; sea: (waterId: Id) => boolean; depth: (waterId: Id) => number };
+  harborPiers: Point[][];
+  cargoQuays: CargoQuay[];
+  cargoWater: (quay: CargoQuay) => boolean;
+  waterDepth: (waterId: Id) => number;
+  fixedShips: CityElement[];
+}
+
+/** Moor ships at the piers, at an anchorage and at each crane quay (the mesh editor's rules). */
+export function planShipsAtPiers(site: HarborShipSite): CityElement[] {
+  const { rng, exploration, typesForWater, waterPolygons, landPolygons, physicalWater, crossingLines } = site;
+  const knownPiers = site.piers;
+  // A ship must be able to leave: drop sea piers whose head is boxed in (this
+  // also covers the mesh-shore fallback above) and keep hulls on open water.
+  const field = site.waterField();
+  const seaBerth = (pier: KnownPier) => !pier.riverId && !pier.id.startsWith("pier:bank:");
+  for (let i = knownPiers.length - 1; i >= 0; i--)
+    if (seaBerth(knownPiers[i]) && !seaBerthIsNavigable(field, knownPiers[i].end)) knownPiers.splice(i, 1);
+  const onOpenWater = (p: Point) => field.navigable(p, SEA_CHANNEL_HALF_WIDTH);
+
+  const onDryLand = (p: Point, land: Point[]) =>
+    pointInPolygon(p, land) && !physicalWater.some(w => pointInPolygon(p, w));
+  for (const pier of knownPiers) {
+    if (pier.riverId && !pier.water) pier.water = physicalWater.find(w => pointInPolygon(pier.end, w));
+  }
 
   // 桟橋の左右（side = 1 または -1）について、他桟橋や陸地との離隔を計測し候補バースを作成
   const berths: PierBerth[] = [];
@@ -532,18 +593,13 @@ export function planHarborShips(
   }
 
   // 桟橋だけでは目標隻数に満たず、かつ桟橋が存在する場合にのみ、十分な水域があれば泊地（Anchorage）に配置
-  if (
-    placedShips.length < targetCount &&
-    knownPiers.length > 0 &&
-    placedShips.length < 2 &&
-    coastalHarborFaces.length > 0
-  ) {
-    const harborCenter = polygonCentroid(facePoints(document.mesh, coastalHarborFaces[0]));
+  if (placedShips.length < targetCount && knownPiers.length > 0 && placedShips.length < 2 && site.anchorage) {
+    const anchorage = site.anchorage;
+    const harborCenter = anchorage.center;
     for (const [waterId, waterPoly] of waterPolygons) {
       if (placedShips.length >= targetCount) break;
-      const waterFace = document.mesh.faces[waterId];
-      if (waterFace?.properties.water !== "sea") continue;
-      const depth = waterFace.properties.depth ?? 3;
+      if (!anchorage.sea(waterId)) continue;
+      const depth = anchorage.depth(waterId);
       if (depth < 3.0) continue;
 
       const waterCenter = polygonCentroid(waterPoly);
@@ -612,7 +668,7 @@ export function planHarborShips(
         kind: "ship",
         shipState: { ...MOORED_SHIP_STATE },
         faceIds: [waterId],
-        harborFaceId: coastalHarborFaces[0].id,
+        harborFaceId: anchorage.landId,
         point: anchorPt,
         rotation,
         sizeMeters,
@@ -624,21 +680,15 @@ export function planHarborShips(
   }
 
   // Waiting piers do not imply crane access. Solve each dedicated quay separately.
-  const fixedShips = document.elements.filter(
-    e => e.kind === "ship" && e.point && (e.locked || !e.id.startsWith(GEN_PREFIX))
-  );
+  const fixedShips = site.fixedShips;
   const occupied = (except?: CityElement) => [...fixedShips, ...placedShips].filter(s => s !== except && s.point);
   const footprint = (s: CityElement) => {
     const type = normalizeShipType(s.shipType),
       length = s.sizeMeters ?? SHIP_DIMENSIONS[type].defaultSizeMeters;
     return shipFootprint(s.point!, s.rotation ?? 0, length + 2, cargoShipGeometry(type, length).beam + 2);
   };
-  for (const quay of fabricHarbor?.cargoQuays ?? []) {
-    if (
-      document.waterAccess &&
-      (!document.waterAccess.port?.sea || !document.coastalOceanFaceIds?.includes(quay.waterFaceId))
-    )
-      continue;
+  for (const quay of site.cargoQuays) {
+    if (!site.cargoWater(quay)) continue;
     const tryShip = (ship: CityElement) => {
       const type = normalizeShipType(ship.shipType),
         length = ship.sizeMeters ?? SHIP_DIMENSIONS[type].defaultSizeMeters;
@@ -656,14 +706,14 @@ export function planHarborShips(
       });
       let cargoField: ReturnType<typeof harborWaterField> | undefined;
       const navigation = () =>
-        (cargoField ??= harborWaterField(document, cargoShipGeometry(type, length).draft + 0.5, [
-          ...(fabricHarbor?.piers.map(p => p.polygon) ?? []),
+        (cargoField ??= site.waterField(cargoShipGeometry(type, length).draft + 0.5, [
+          ...site.harborPiers,
           ...others,
           ...crossingLines.map(line => corridor(line.a, line.b, line.halfWidth * 2 + 1))
         ]));
       const currentQuay = {
         ...quay,
-        depth: Math.min(quay.depth, document.mesh.faces[quay.waterFaceId]?.properties.depth ?? 3)
+        depth: Math.min(quay.depth, site.waterDepth(quay.waterFaceId))
       };
       const result = solveCargoBerth(
         currentQuay,
@@ -681,10 +731,7 @@ export function planHarborShips(
               if (!pointInPolygon(p, quay.water) || landPolygons.some(l => onDryLand(p, l))) return false;
             }
           }
-          if (
-            fabricHarbor?.piers.some(p => polygonsOverlap(polygon, p.polygon)) ||
-            others.some(p => polygonsOverlap(polygon, p))
-          )
+          if (site.harborPiers.some(p => polygonsOverlap(polygon, p)) || others.some(p => polygonsOverlap(polygon, p)))
             return false;
           if (crossingLines.some(line => polygonsOverlap(polygon, corridor(line.a, line.b, line.halfWidth * 2 + 1))))
             return false;

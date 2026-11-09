@@ -83,6 +83,11 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
   }
   if (descriptor) {
     descriptor.historicalPeriod = period;
+    // Without relief the mesh editor's synthesized town is flat; the synthesized descriptor's gentle tilt is not
+    // carried into the site, so its water and harbour stand on the flat datum (P5b). Relief is P8.
+    const field = descriptor.terrain.heightfield;
+    if (!settings.descriptor && !settings.config.relief && field)
+      field.elevationsMeters = field.elevationsMeters.map(() => descriptor!.terrain.elevationMeters);
     if (settings.population) {
       descriptor.burg.population = settings.population.targetPopulation;
       descriptor.burg.dwellings = getUrbanDwellings(descriptor.burg.population);
