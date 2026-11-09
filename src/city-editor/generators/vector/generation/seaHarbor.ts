@@ -31,7 +31,7 @@ const SEA_DEPTH_METERS = 6;
 /** The mesh editor's flat quay height over the sea where land cells have no elevation (`flatSeaDropMeters`). */
 const WATER_BELOW_QUAY_METERS = 1;
 /** Shore chords about the length of a mesh editor's harbour cell edge, straight to within a deck's tolerance. */
-const SHORE_CHORD = { min: 12, max: 48, deviation: 1.5 };
+const SHORE_CHORD = { min: 12, max: 60, deviation: 1.5 };
 /** Land behind a shore that its quay, yard and crane may use (a harbour cell's depth). */
 const SHORE_LAND_DEPTH = 40;
 
@@ -54,6 +54,14 @@ export type VectorHarborOutcome = { document: VectorCityDocument } | { failure: 
  * an anchorage and under the cranes. The plan is kept only when it validates as a fixed harbour.
  */
 export function raiseVectorHarbor(doc: VectorCityDocument, settings: VectorGenerationSettings): VectorHarborOutcome {
+  try {
+    return raise(doc, settings);
+  } catch {
+    // A polygon operation that fails on the coast leaves the town without a harbour, not without a skeleton.
+    return { failure: "harbor-geometry" };
+  }
+}
+function raise(doc: VectorCityDocument, settings: VectorGenerationSettings): VectorHarborOutcome {
   const site = doc.site;
   if (!site) return { failure: "harbor-site" };
   if (doc.environment?.harbor) return { failure: "harbor-exists" };
@@ -93,7 +101,15 @@ export function raiseVectorHarbor(doc: VectorCityDocument, settings: VectorGener
     waterIds: string[] = [];
   seas.forEach((sea, k) => {
     const waterId = `harbor-water:${water.indexOf(sea)}`,
-      outline = sea.outer,
+      // Long straight edges are split so no shore runs longer than a harbour cell's edge.
+      outline = sea.outer.flatMap((a, i) => {
+        const b = sea.outer[(i + 1) % sea.outer.length],
+          parts = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / (SHORE_CHORD.max / 2)));
+        return Array.from(
+          { length: parts },
+          (_, k): Point => [a[0] + ((b[0] - a[0]) * k) / parts, a[1] + ((b[1] - a[1]) * k) / parts]
+        );
+      }),
       n = outline.length,
       coastal = outline.map((a, i) => {
         const b = outline[(i + 1) % n],

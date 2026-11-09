@@ -56,6 +56,8 @@ export interface VectorGenerationSettings {
   innerWall?: { share: number; state: "standing" | "razed"; order?: "outer-first" | "inner-first" };
   /** A sea harbour raised on the coast by the mesh editor's harbour and ship planners (P5b). */
   port?: boolean;
+  /** The sea side of the town wall (P5b-2): absent or `seaWall` closes it along the shore. */
+  wallCoast?: "seaWall" | "open" | "opening";
 }
 export interface VectorBlock extends VectorPolygon {
   id: string;

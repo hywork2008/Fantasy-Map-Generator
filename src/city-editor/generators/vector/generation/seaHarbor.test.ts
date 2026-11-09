@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { defaultGenerationSettings } from "../../generation/settings";
 import { defaultPopulationSettings } from "../../populationPlan";
+import { pathIsClosed } from "../geometry/curves";
+import { regionArea, regionBoolean } from "../geometry/regions";
+import { pathSurface } from "../geometry/surfaces";
 import { validateVectorHarbor } from "../harbor";
 import { vectorInputFromEditor } from "./editorInput";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
@@ -35,6 +38,33 @@ describe("generated sea harbour (feature parity P5b)", () => {
     // The houses keep off the harbour and the whole town is housed.
     const city = generateVectorUrban(skeleton, { ...DEFAULT_VECTOR_URBAN, population: 5000, lotOccupancy: 1 });
     expect(city.environment?.harbor).toEqual(harbor);
+    expect(city.urban!.report.unplacedPopulation).toBe(0);
+  });
+
+  it.each(["auto", "opening"] as const)("opens the sea side of a walled port town (%s) and berths inside it", coast => {
+    const seed = "w2",
+      settings = { ...defaultGenerationSettings(), population: defaultPopulationSettings(5000) };
+    settings.config = {
+      ...settings.config,
+      coast: "straight",
+      rivers: [],
+      features: { ...settings.config.features, port: true, walls: true },
+      wall: { ...settings.config.wall, coast }
+    };
+    const doc = vectorInputFromEditor({ settings, seed, frame, lotOccupancy: 1 }),
+      wall = vectorWallChoice(settings, seed, "lateMedieval");
+    expect(wall.wallCoast).toBe(coast === "auto" ? "open" : "opening");
+    const skeleton = generateVectorSkeleton(doc, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall }).document,
+      sea = skeleton.site!.water.filter(w => !w.riverPathId).flatMap(w => w.polygons),
+      walls = Object.values(skeleton.paths).filter(p => p.role === "wall");
+    expect(walls.length).toBe(1);
+    // An open line whose ends stand at the shore and whose body keeps off the sea.
+    expect(pathIsClosed(walls[0])).toBe(false);
+    expect(
+      regionBoolean([pathSurface(walls[0])], sea, "intersection").reduce((n, r) => n + regionArea(r), 0)
+    ).toBeLessThan(1);
+    expect(skeleton.environment?.harbor?.piers.length).toBeGreaterThan(0);
+    const city = generateVectorUrban(skeleton, { ...DEFAULT_VECTOR_URBAN, population: 5000, lotOccupancy: 1 });
     expect(city.urban!.report.unplacedPopulation).toBe(0);
   });
 });

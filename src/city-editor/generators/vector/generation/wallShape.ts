@@ -44,7 +44,7 @@ export function vectorWallChoice(
   extentMeters = 1200
 ): Pick<
   VectorGenerationSettings,
-  "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat" | "layout" | "castle" | "port"
+  "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat" | "layout" | "castle" | "port" | "wallCoast"
 > {
   const resolved = resolveEffectiveLayout(settings.layout ?? settings.config.layout, extentMeters, seed),
     castle = vectorCastleChoice(settings),
@@ -75,6 +75,12 @@ export function vectorWallChoice(
           ? "stone"
           : "wood",
     ...(settings.moats?.town ? { townMoat: true } : {}),
+    // The mesh editor's Wall coast: `auto` leaves a port's waterfront open and walls any other shore.
+    ...(() => {
+      const coast = settings.config.wall?.coast ?? "auto",
+        resolved = coast === "auto" ? (settings.config.features.port ? "open" : "seaWall") : coast;
+      return resolved === "seaWall" ? {} : { wallCoast: resolved };
+    })(),
     // The mesh editor's old town takes the walled share, 45% by default (`innerWalledAreaShare`).
     // Circulade and Bram towns keep one wall, as in the mesh editor.
     ...(settings.townWallRings === "double" && (!layout.layout || layout.layout === "classic")
@@ -108,7 +114,7 @@ export function vectorWallSettings(
   s: Partial<
     Pick<
       VectorGenerationSettings,
-      "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat" | "layout" | "castle" | "port"
+      "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat" | "layout" | "castle" | "port" | "wallCoast"
     >
   >
 ) {
@@ -131,6 +137,7 @@ export function vectorWallSettings(
         (s.castle.style === undefined || (typeof s.castle.style === "string" && s.castle.style.length <= 64)))) &&
     (s.townMoat === undefined || (typeof s.townMoat === "boolean" && s.wall !== "none")) &&
     (s.port === undefined || typeof s.port === "boolean") &&
+    (s.wallCoast === undefined || (["seaWall", "open", "opening"].includes(s.wallCoast) && s.wall !== "none")) &&
     (s.innerWall === undefined ||
       (s.wall !== "none" &&
         typeof s.innerWall === "object" &&

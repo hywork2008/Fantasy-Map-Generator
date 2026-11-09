@@ -126,7 +126,7 @@
       "id": "config.features.port",
       "mesh": "CityProgram",
       "meshless": "partial",
-      "evidence": "P5b: read as the skeleton's port setting. A sea harbour is generated on the coast of an unwalled town with no river; walled towns wait for the sea-side wall modes (config.wall.coast), river towns for river ports.",
+      "evidence": "P5b: read as the skeleton's port setting. A sea harbour is generated on the coast of a town with no river, inside an open or opening waterfront of a walled town (P5b-2); a closed sea wall leaves no room for it. River towns wait for river ports.",
       "stage": "P5",
       "checked": true
     },
@@ -152,8 +152,8 @@
       "category": "setting",
       "id": "config.wall.coast",
       "mesh": "WallChoice",
-      "meshless": "missing",
-      "evidence": "Not read by meshless generation.",
+      "meshless": "partial",
+      "evidence": "P5b-2: read as the skeleton's wallCoast. auto resolves as the mesh editor (a port leaves its waterfront open, any other shore is walled); open drops the wall's longest sea-side run and opening a gap of about 120 m nearest the centre, each end carried to the shore. An open line has no circuit, so no old-town wall or town moat rides on it (diagnostics). seaWall keeps the closed line 6 m off the sea, as before.",
       "stage": "P5",
       "checked": true
     },

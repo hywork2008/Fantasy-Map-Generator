@@ -657,7 +657,12 @@ function skeleton(
       half = (maxX - minX) / 2,
       halfY = (maxY - minY) / 2,
       shape = settings.wall,
-      inner = settings.innerWall,
+      // The sea side of a walled harbour town (P5b-2, the mesh editor's Wall coast): `open` leaves the waterfront
+      // unwalled, `opening` keeps the sea wall with one harbour gap; either leaves an open wall line ending at the
+      // shore, which has no circuit, so no old-town wall or town moat rides on it.
+      seaWater = doc.site!.water.some(w => !w.riverPathId),
+      openCoast = seaWater && (settings.wallCoast === "open" || settings.wallCoast === "opening"),
+      inner = openCoast ? undefined : settings.innerWall,
       innerId = "auto-inner-wall",
       // The old town takes `share` of the walled area; outlines scale about the centre.
       innerScale = Math.sqrt(inner?.share ?? 1);
@@ -710,6 +715,121 @@ function skeleton(
           ([x, y]) => [center[0] + x * half * scale, center[1] + y * halfY * scale] as Point
         )
       );
+    /** The pulled ring opened where it runs along the sea, its ends carried out to the shore. */
+    const opened = (ring: Point[]): Point[] | undefined => {
+      const dense = densify([...ring, ring[0]], 4).slice(0, -1),
+        n = dense.length,
+        seaside = dense.map(p =>
+          seaRings.some(w => [w.outer, ...w.holes].some(r => ringDistance(p, r) < seaClearance + 1.5))
+        );
+      if (!seaside.some(Boolean) || seaside.every(Boolean)) return undefined;
+      // The longest run of the line along the sea, walked from a dry point so no run is split across the seam.
+      const startAt = seaside.findIndex(w => !w);
+      let best: [number, number] = [0, 0];
+      for (let k = 0, run = -1; k <= n; k++) {
+        const i = (startAt + k) % n;
+        if (k < n && seaside[i]) {
+          if (run < 0) run = k;
+        } else if (run >= 0) {
+          if (k - run > best[1] - best[0]) best = [run, k];
+          run = -1;
+        }
+      }
+      let [from, to] = best;
+      if (settings.wallCoast === "opening") {
+        // One harbour gap of up to 120 m, centred on the sea-side point nearest the town centre.
+        const mid = Array.from({ length: to - from }, (_, k) => from + k).sort(
+            (a, b) => distance(dense[(startAt + a) % n], center) - distance(dense[(startAt + b) % n], center)
+          )[0],
+          half = 15;
+        from = Math.max(from, mid - half);
+        to = Math.min(to, mid + half);
+      }
+      if (to - from < 3) return undefined;
+      // The kept line is eased by the wall's thickness again: the 4 m samples are finer than the wall is wide.
+      const kept = simplifyFreehand(
+        Array.from({ length: n - (to - from) + 2 }, (_, k) => dense[(startAt + to - 1 + k) % n]),
+        4.5
+      );
+      // Each end is carried straight to the nearest shore, stopping its half width and a little short of the water.
+      const halfWall = settings.wallMaterial ? VECTOR_WALL_WIDTH_METERS[settings.wallMaterial] / 2 : 1;
+      const reachShore = (end: Point): Point => {
+        let best: Point = end,
+          bestD = Infinity;
+        for (const r of seaRings.flatMap(w => [w.outer, ...w.holes]))
+          for (let k = 0; k < r.length; k++) {
+            const a = r[k],
+              b = r[(k + 1) % r.length],
+              dx = b[0] - a[0],
+              dy = b[1] - a[1],
+              t = Math.max(0, Math.min(1, ((end[0] - a[0]) * dx + (end[1] - a[1]) * dy) / (dx * dx + dy * dy || 1))),
+              q: Point = [a[0] + dx * t, a[1] + dy * t],
+              d = distance(end, q);
+            if (d < bestD) {
+              bestD = d;
+              best = q;
+            }
+          }
+        const stop = halfWall + 0.5;
+        if (bestD <= stop) return end;
+        return [
+          end[0] + ((best[0] - end[0]) * (bestD - stop)) / bestD,
+          end[1] + ((best[1] - end[1]) * (bestD - stop)) / bestD
+        ];
+      };
+      // An end that would turn back on the line (a fold no wall's width can take) is carried from an earlier point.
+      const turn = (a: Point, b: Point, c: Point) => {
+        const u: Point = [b[0] - a[0], b[1] - a[1]],
+          v: Point = [c[0] - b[0], c[1] - b[1]];
+        return Math.acos(
+          Math.max(-1, Math.min(1, (u[0] * v[0] + u[1] * v[1]) / (Math.hypot(...u) * Math.hypot(...v) || 1)))
+        );
+      };
+      // A stub shorter than the wall is wide cannot take its width: the end then runs to the shore itself.
+      // A run to the shore must not cross the water on its way.
+      const dry = (a: Point, b: Point) => {
+        const d = distance(a, b) || 1,
+          n: Point = [(-(b[1] - a[1]) / d) * halfWall, ((b[0] - a[0]) / d) * halfWall],
+          strip = {
+            outer: [
+              [a[0] + n[0], a[1] + n[1]],
+              [b[0] + n[0], b[1] + n[1]],
+              [b[0] - n[0], b[1] - n[1]],
+              [a[0] - n[0], a[1] - n[1]]
+            ] as Point[],
+            holes: []
+          };
+        return regionBoolean([strip], seaRings, "intersection").reduce((sum, r) => sum + regionArea(r), 0) < 0.2;
+      };
+      const carry = (line: Point[]) => {
+        for (let tries = 0; tries < 8 && line.length > 3; tries++) {
+          const shore = reachShore(line[0]),
+            stub = distance(shore, line[0]);
+          if (stub < 0.5) return;
+          if (stub >= 4 * halfWall && turn(shore, line[0], line[1]) < (2 * Math.PI) / 3 && dry(shore, line[0])) {
+            line.unshift(shore);
+            return;
+          }
+          if (stub < 4 * halfWall && turn(shore, line[1], line[2]) < (2 * Math.PI) / 3 && dry(shore, line[1])) {
+            line[0] = shore;
+            return;
+          }
+          line.shift();
+        }
+        line.unshift(reachShore(line[0]));
+      };
+      carry(kept);
+      kept.reverse();
+      carry(kept);
+      kept.reverse();
+      return kept.filter((p, i) => i === 0 || distance(p, kept[i - 1]) > 0.05);
+    };
+    /** The outer wall's line: the ring, or opened on the sea side. */
+    const outerSource = (rotation: number, scale = 1) => {
+      const ring = ringAt(rotation, scale),
+        open = openCoast ? opened(ring) : undefined;
+      return open ? curveSource(open, "polyline", false) : curveSource(ring, "polyline", true);
+    };
     const preset = (pathId: string, scale: number) =>
       wallPath(
         {
@@ -743,16 +863,24 @@ function skeleton(
           outer: bridgeGeometry(doc, b, vectorWaterSurfaces(doc)).deck,
           holes: []
         })),
-        steepEnough = (path: VectorPath) =>
-          wallCrossingsFit(path, crossers, settings) &&
-          !regionBoolean([pathSurface(path)], siteDecks, "intersection").some(r => regionArea(r) > 1e-5);
+        steepEnough = (path: VectorPath) => {
+          try {
+            return (
+              wallCrossingsFit(path, crossers, settings) &&
+              !regionBoolean([pathSurface(path)], siteDecks, "intersection").some(r => regionArea(r) > 1e-5)
+            );
+          } catch {
+            // An outline the polygon operations cannot take is no candidate.
+            return false;
+          }
+        };
       // A wall that cannot clear the site's own bridges at any turn is drawn a little inside the site edge.
       const turns = [1, 0.94, 0.88].flatMap(scale =>
           Array.from({ length: 48 }, (_, k) => ({ rotation: (k * Math.PI) / 24, scale }))
         ),
         fits = turns.filter(
           ({ rotation, scale }) =>
-            steepEnough(wallPath(curveSource(ringAt(rotation, scale), "polyline", true))) &&
+            steepEnough(wallPath(outerSource(rotation, scale))) &&
             (!inner ||
               steepEnough(wallPath(curveSource(ringAt(rotation, innerScale * scale), "polyline", true), innerId)))
         );
@@ -763,16 +891,20 @@ function skeleton(
     let failure: unknown;
     // A town moat that no rotation can bridge squarely gives way to the wall alone, as the mesh editor's
     // fallback drops a moat it cannot fit.
-    for (const withMoat of settings.townMoat ? [true, false] : [false]) {
+    if (openCoast && settings.innerWall)
+      diagnostics.push({ code: "inner-wall-unplaced", entityId: innerId, severity: "warning" });
+    if (openCoast && settings.townMoat)
+      diagnostics.push({ code: "town-moat-unplaced", entityId: TOWN_MOAT_ID, severity: "warning" });
+    for (const withMoat of settings.townMoat && !openCoast ? [true, false] : [false]) {
       failure = undefined;
-      if (!withMoat && settings.townMoat)
+      if (!withMoat && settings.townMoat && !openCoast)
         diagnostics.push({ code: "town-moat-unplaced", entityId: TOWN_MOAT_ID, severity: "warning" });
       for (const { rotation, scale: outerScale } of attempts) {
         try {
           const tried = new Set(extended);
           let next = structuredClone(start);
           if (isVectorWallShape(shape)) {
-            next.paths[id] = wallPath(curveSource(ringAt(rotation, outerScale), "polyline", true));
+            next.paths[id] = wallPath(outerSource(rotation, outerScale));
             if (inner)
               next.paths[innerId] = wallPath(
                 curveSource(ringAt(rotation, innerScale * outerScale), "polyline", true),
@@ -782,7 +914,8 @@ function skeleton(
             next.paths[id] = preset(id, 1);
             if (inner) next.paths[innerId] = preset(innerId, innerScale);
           }
-          next = setWallCircuit(next, id);
+          const outerClosed = pathIsClosed(next.paths[id]);
+          if (outerClosed) next = setWallCircuit(next, id);
           if (isVectorWallShape(shape) || inner) extendApproachesThroughWall(next, id, center, settings, tried);
           next = gateWall(next, id, settings);
           if (withMoat) {
@@ -1030,7 +1163,17 @@ function skeleton(
   // The harbour comes last: its quays link to the laid streets and keep off the walls and precincts (P5b).
   if (settings.port) {
     const harbor = raiseVectorHarbor(doc, settings);
-    if ("document" in harbor) doc = harbor.document;
+    let fits = "document" in harbor;
+    if ("document" in harbor)
+      try {
+        // The land blocks are cut round the harbour next; a plan the polygon kernel cannot cut them round is dropped.
+        deriveVectorBlocks(harbor.document);
+      } catch {
+        fits = false;
+      }
+    if ("document" in harbor && fits) doc = harbor.document;
+    else if ("document" in harbor)
+      diagnostics.push({ code: "harbor-unplaced", entityId: "harbor-geometry", severity: "warning" });
     else diagnostics.push({ code: "harbor-unplaced", entityId: harbor.failure, severity: "warning" });
   }
   doc.revision++;

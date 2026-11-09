@@ -101,7 +101,8 @@ function validateShare(value: unknown): VectorShare | null {
           "townMoat",
           "layout",
           "castle",
-          "port"
+          "port",
+          "wallCoast"
         ].includes(k)
     ) ||
     typeof s.seed !== "string" ||
