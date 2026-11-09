@@ -20,7 +20,7 @@ import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { vectorWaterSurfaces } from "../geometry/water";
-import { validateVectorHarbor } from "../harbor";
+import { validateVectorHarbor, vectorHarborWater } from "../harbor";
 import { vectorOccupiedSites } from "../occupancy";
 
 export const GENERATED_HARBOR_ID = "harbor:generated";
@@ -28,12 +28,16 @@ export const GENERATED_HARBOR_ID = "harbor:generated";
  * stored plan checks each hull's real draft (a galleon's is over 3 m), so a sea port's water is 6 m deep, as the
  * mesh editor's harbour fixtures (P5b). */
 const SEA_DEPTH_METERS = 6;
+/** A navigable river's channel: enough for the river barges that berth at its short bank piers (P5b-3). */
+const RIVER_DEPTH_METERS = 3;
 /** The mesh editor's flat quay height over the sea where land cells have no elevation (`flatSeaDropMeters`). */
 const WATER_BELOW_QUAY_METERS = 1;
 /** Shore chords about the length of a mesh editor's harbour cell edge, straight to within a deck's tolerance. */
 const SHORE_CHORD = { min: 12, max: 60, deviation: 1.5 };
 /** Land behind a shore that its quay, yard and crane may use (a harbour cell's depth). */
 const SHORE_LAND_DEPTH = 40;
+/** A shore this near a point where the land blocks could not be cut round the harbour is left out on a retry. */
+const FAULT_RADIUS = 30;
 
 const area = (regions: VectorPolygon[]) => regions.reduce((n, r) => n + regionArea(r), 0);
 const ring = (outer: Point[]): VectorPolygon => ({ outer, holes: [] });
@@ -44,6 +48,30 @@ const segments = (points: Point[], width: number): ParcelFrontage[] =>
   });
 const roadWidth = (road: VectorPath) => road.width.leftMeters + road.width.rightMeters;
 
+/**
+ * Convex pieces of a region for the planner's barrier test, which knows no holes: a region with holes (a closed
+ * wall's ring) is first cut through each hole, so its convex pieces do not cover the town inside it.
+ */
+function solidParts(region: VectorPolygon, depth = 0): Point[][] {
+  const hole = region.holes[0];
+  if (!hole || depth > 8) return convexInfillParts(region.outer);
+  const x = polygonCentroid(hole)[0],
+    ys = region.outer.map(p => p[1]),
+    xs = region.outer.map(p => p[0]),
+    y0 = Math.min(...ys) - 1,
+    y1 = Math.max(...ys) + 1,
+    side = (a: number, b: number) =>
+      ring([
+        [a, y0],
+        [b, y0],
+        [b, y1],
+        [a, y1]
+      ]);
+  return [side(Math.min(...xs) - 1, x), side(x, Math.max(...xs) + 1)].flatMap(box =>
+    regionBoolean([region], [box], "intersection").flatMap(part => solidParts(part, depth + 1))
+  );
+}
+
 export type VectorHarborOutcome = { document: VectorCityDocument } | { failure: string };
 
 /**
@@ -53,23 +81,33 @@ export type VectorHarborOutcome = { document: VectorCityDocument } | { failure: 
  * quays, cargo piles and piers on them and links each quay to the nearest street, and ships moor at the piers, at
  * an anchorage and under the cranes. The plan is kept only when it validates as a fixed harbour.
  */
-export function raiseVectorHarbor(doc: VectorCityDocument, settings: VectorGenerationSettings): VectorHarborOutcome {
+export function raiseVectorHarbor(
+  doc: VectorCityDocument,
+  settings: VectorGenerationSettings,
+  avoid: readonly Point[] = []
+): VectorHarborOutcome {
   try {
-    return raise(doc, settings);
+    return raise(doc, settings, avoid);
   } catch {
     // A polygon operation that fails on the coast leaves the town without a harbour, not without a skeleton.
     return { failure: "harbor-geometry" };
   }
 }
-function raise(doc: VectorCityDocument, settings: VectorGenerationSettings): VectorHarborOutcome {
+function raise(
+  doc: VectorCityDocument,
+  settings: VectorGenerationSettings,
+  avoid: readonly Point[]
+): VectorHarborOutcome {
   const site = doc.site;
   if (!site) return { failure: "harbor-site" };
   if (doc.environment?.harbor) return { failure: "harbor-exists" };
   if (doc.environment?.terrain) return { failure: "harbor-relief" };
-  if (Object.values(doc.paths).some(p => p.role === "river")) return { failure: "harbor-river" };
-  const seas = site.water.filter(w => !w.riverPathId).flatMap(w => w.polygons);
-  if (!seas.length) return { failure: "harbor-no-sea" };
-  const water = site.water.flatMap(w => w.polygons),
+  // A river port needs the river's fixed physical water, which the stored plan's navigation is checked against.
+  const bodies = vectorHarborWater(doc);
+  if (!bodies) return { failure: "harbor-river" };
+  if (!bodies.length) return { failure: "harbor-no-sea" };
+  const water = bodies.map(b => b.polygon),
+    depthOf = (k: number) => (bodies[k].river ? RIVER_DEPTH_METERS : SEA_DEPTH_METERS),
     land = regionBoolean(site.domain, water, "difference"),
     onLand = (p: Point) => containsRegion(land, p),
     roads = Object.values(doc.paths).filter(p => p.role === "road"),
@@ -99,8 +137,8 @@ function raise(doc: VectorCityDocument, settings: VectorGenerationSettings): Vec
   const shores: HarborShore[] = [],
     lands = new Map<string, Point[]>(),
     waterIds: string[] = [];
-  seas.forEach((sea, k) => {
-    const waterId = `harbor-water:${water.indexOf(sea)}`,
+  bodies.forEach(({ polygon: sea, river }, k) => {
+    const waterId = `harbor-water:${k}`,
       // Long straight edges are split so no shore runs longer than a harbour cell's edge.
       outline = sea.outer.flatMap((a, i) => {
         const b = sea.outer[(i + 1) % sea.outer.length],
@@ -149,7 +187,12 @@ function raise(doc: VectorCityDocument, settings: VectorGenerationSettings): Vec
         mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
       steps += j - i;
       i = j;
-      if (length < SHORE_CHORD.min || Math.hypot(mid[0] - hub[0], mid[1] - hub[1]) > reach) continue;
+      if (
+        length < SHORE_CHORD.min ||
+        Math.hypot(mid[0] - hub[0], mid[1] - hub[1]) > reach ||
+        avoid.some(p => pointSegmentDistance(p, a, b) < FAULT_RADIUS)
+      )
+        continue;
       let inward: Point = [-(b[1] - a[1]) / length, (b[0] - a[0]) / length];
       if (!onLand([mid[0] + inward[0], mid[1] + inward[1]])) inward = [-inward[0], -inward[1]];
       if (!onLand([mid[0] + inward[0], mid[1] + inward[1]])) continue;
@@ -162,7 +205,19 @@ function raise(doc: VectorCityDocument, settings: VectorGenerationSettings): Vec
       const id = `shore:${k}:${shores.length}`,
         landId = `harbor-land:${shores.length}`;
       lands.set(landId, piece.outer);
-      shores.push({ id, landId, waterId, a, b, inward, length, depth: SEA_DEPTH_METERS, water: outline });
+      // A river shore takes the planner's short bank piers (a quarter of the channel) and barges.
+      shores.push({
+        id,
+        landId,
+        waterId,
+        ...(river ? { riverId: river } : {}),
+        a,
+        b,
+        inward,
+        length,
+        depth: depthOf(k),
+        water: outline
+      });
     }
   });
   if (!shores.length) return { failure: "harbor-no-shore" };
@@ -177,7 +232,7 @@ function raise(doc: VectorCityDocument, settings: VectorGenerationSettings): Vec
     extent = doc.frame.extentMeters,
     navigationMasks = (minimumDepth = 0) => [
       ...land.map(polygon => ({ polygon, water: false })),
-      ...water.map(polygon => ({ polygon, water: SEA_DEPTH_METERS >= minimumDepth }))
+      ...water.map((polygon, k) => ({ polygon, water: depthOf(k) >= minimumDepth }))
     ],
     waterField = (minimumDepth = 0, obstacles: readonly Point[][] = []): HarborWaterField =>
       polygonHarborWaterField(
@@ -192,7 +247,7 @@ function raise(doc: VectorCityDocument, settings: VectorGenerationSettings): Vec
     bankSpaces: [],
     streets,
     throughStreets: streets,
-    barriers: blocked.flatMap(r => convexInfillParts(r.outer)),
+    barriers: blocked.flatMap(solidParts),
     // Harbour spaces keep off the streets; the cart path to a street stops at its kerb.
     isFree: polygon => !overlaps(polygon, blocked) && !overlaps(polygon, roadSurfaces),
     pathIsFree: (from, to) => {
@@ -214,7 +269,8 @@ function raise(doc: VectorCityDocument, settings: VectorGenerationSettings): Vec
     preset: () => "dense",
     flatSite: () => true,
     waterBelowQuay: WATER_BELOW_QUAY_METERS,
-    cargoWater: () => true,
+    // Sea-going ships unload at a crane on the sea, not on the river.
+    cargoWater: shore => !shore.riverId,
     waterField: () => (field ??= waterField())
   });
 
@@ -251,6 +307,7 @@ function raise(doc: VectorCityDocument, settings: VectorGenerationSettings): Vec
         id: p.id,
         landFaceId: p.landFaceId,
         waterFaceId: p.waterFaceId,
+        ...(p.riverId ? { riverId: p.riverId } : {}),
         water: shores.find(s => s.landId === p.landFaceId)?.water,
         depth: p.depth,
         start: p.start,
@@ -263,7 +320,8 @@ function raise(doc: VectorCityDocument, settings: VectorGenerationSettings): Vec
       }
     ];
   });
-  const firstLand = lands.get([...usedLands][0] ?? shores[0].landId)!,
+  const seaLand = [...usedLands].find(id => shores.some(s => s.landId === id && !s.riverId)),
+    firstLand = seaLand ? lands.get(seaLand) : undefined,
     crossingLines = [
       ...streets.map(s => ({ a: s.a, b: s.b, halfWidth: s.widthMeters / 2 })),
       ...decks.flatMap(d => segments([...d.outer, d.outer[0]], 0).map(s => ({ a: s.a, b: s.b, halfWidth: 0.5 })))
@@ -274,20 +332,25 @@ function raise(doc: VectorCityDocument, settings: VectorGenerationSettings): Vec
     exploration: isExplorationOrLater(period),
     typesForWater: () => allowedShipTypesForPeriod(period),
     waterField,
-    waterPolygons: new Map(seas.flatMap((s, k) => (waterIds[k] ? [[waterIds[k], s.outer] as [string, Point[]]] : []))),
+    waterPolygons: new Map(water.flatMap((s, k) => (waterIds[k] ? [[waterIds[k], s.outer] as [string, Point[]]] : []))),
     landPolygons: land.map(l => l.outer),
     physicalWater: water.map(w => w.outer),
     crossingLines,
-    anchorage: {
-      landId: [...usedLands][0] ?? shores[0].landId,
-      center: polygonCentroid(firstLand),
-      sea: () => true,
-      depth: () => SEA_DEPTH_METERS
-    },
+    // Only a sea port has a roadstead.
+    ...(seaLand && firstLand
+      ? {
+          anchorage: {
+            landId: seaLand,
+            center: polygonCentroid(firstLand),
+            sea: id => !bodies[waterIds.indexOf(id)]?.river,
+            depth: id => depthOf(waterIds.indexOf(id))
+          }
+        }
+      : {}),
     harborPiers: plan.piers.map(p => p.polygon),
     cargoQuays: plan.cargoQuays ?? [],
     cargoWater: () => true,
-    waterDepth: () => SEA_DEPTH_METERS,
+    waterDepth: id => depthOf(waterIds.indexOf(id)),
     fixedShips: []
   });
   const ships: VectorHarborShip[] = elements.flatMap(e => {
@@ -332,7 +395,7 @@ function raise(doc: VectorCityDocument, settings: VectorGenerationSettings): Vec
       depths: water.map((polygon, i) => ({
         id: `harbor-water:${i}`,
         polygon,
-        depthMeters: SEA_DEPTH_METERS,
+        depthMeters: depthOf(i),
         levelMeters: -WATER_BELOW_QUAY_METERS
       }))
     },

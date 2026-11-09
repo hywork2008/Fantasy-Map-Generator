@@ -25,8 +25,8 @@ import { pathIntersections } from "../geometry/intersections";
 import { bridgeGeometry, distance, gateOpening, unit, widthAt } from "../geometry/network";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { compactRing, offsetRing } from "../geometry/routing";
-import { samplePath, simplifyFreehand } from "../geometry/sampling";
-import { pathSurface } from "../geometry/surfaces";
+import { pointSegmentDistance, samplePath, simplifyFreehand } from "../geometry/sampling";
+import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater, vectorWaterSurfaces } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
 import { assertVectorDocument } from "../validation/document";
@@ -40,6 +40,19 @@ import { isVectorWallShape, VECTOR_WALL_WIDTH_METERS, vectorUnitWallRing, vector
 const WALL_CROSSING_SINE = Math.sin((20 * Math.PI) / 180);
 /** Side street width relative to a main street (5 m to 3 m by default). */
 const MINOR_STREET_WIDTH_RATIO = 0.6;
+/** Where a ring touches itself: a vertex on a non-adjacent edge (a pinch the validator rejects). */
+function contourFaults(ring: Point[]): Point[] {
+  if (simpleContour(ring, true)) return [];
+  const n = ring.length,
+    faults: Point[] = [];
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < n; j++) {
+      if (j === i || (j + 1) % n === i) continue;
+      if (pointSegmentDistance(ring[i], ring[j], ring[(j + 1) % n]) < 0.05) faults.push(ring[i]);
+    }
+  return faults.length ? faults : [polygonCentroid(ring)];
+}
+
 export const DEFAULT_VECTOR_GENERATION: VectorGenerationSettings = {
   seed: "meshless",
   roadWidthMeters: 5,
@@ -1162,19 +1175,31 @@ function skeleton(
   }
   // The harbour comes last: its quays link to the laid streets and keep off the walls and precincts (P5b).
   if (settings.port) {
-    const harbor = raiseVectorHarbor(doc, settings);
-    let fits = "document" in harbor;
-    if ("document" in harbor)
-      try {
-        // The land blocks are cut round the harbour next; a plan the polygon kernel cannot cut them round is dropped.
-        deriveVectorBlocks(harbor.document);
-      } catch {
-        fits = false;
+    // The land blocks are cut round the harbour next. Where the polygon kernel cannot cut them round it, or a block's
+    // outline would touch itself, the shores at the fault are left out and the harbour is raised again.
+    const avoid: Point[] = [];
+    let outcome = "harbor-geometry";
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const harbor = raiseVectorHarbor(doc, settings, avoid);
+      if (!("document" in harbor)) {
+        outcome = attempt ? "harbor-geometry" : harbor.failure;
+        break;
       }
-    if ("document" in harbor && fits) doc = harbor.document;
-    else if ("document" in harbor)
-      diagnostics.push({ code: "harbor-unplaced", entityId: "harbor-geometry", severity: "warning" });
-    else diagnostics.push({ code: "harbor-unplaced", entityId: harbor.failure, severity: "warning" });
+      let faults: Point[];
+      try {
+        faults = deriveVectorBlocks(harbor.document).flatMap(b => [b.outer, ...b.holes].flatMap(contourFaults));
+      } catch (error) {
+        faults = [...String(error).matchAll(/\[(-?[\d.]+),\s*(-?[\d.]+)\]/g)].map(m => [Number(m[1]), Number(m[2])]);
+        if (!faults.length) break;
+      }
+      if (!faults.length) {
+        doc = harbor.document;
+        outcome = "";
+        break;
+      }
+      avoid.push(...faults);
+    }
+    if (outcome) diagnostics.push({ code: "harbor-unplaced", entityId: outcome, severity: "warning" });
   }
   doc.revision++;
   assertVectorDocument(doc);

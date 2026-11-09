@@ -11,7 +11,7 @@ import { defenseAccessSurface } from "./defense";
 import { evaluateAnchor } from "./geometry/curves";
 import { containsRegion, regionArea, regionBoolean } from "./geometry/regions";
 import { ringInside } from "./geometry/routing";
-import { simpleContour } from "./geometry/surfaces";
+import { pathSurface, simpleContour } from "./geometry/surfaces";
 
 export const vectorShipFootprint = (s: VectorHarborShip, margin = 0) => ({
   outer: shipFootprint(s.point, s.rotation, s.length + margin, cargoShipGeometry(s.type, s.length).beam + margin),
@@ -26,6 +26,21 @@ const circle = (p: Point, r: number): VectorPolygon => ({
 });
 const inside = (p: VectorPolygon[], domain: VectorPolygon[]) =>
   regionBoolean(p, domain, "difference").reduce((n, r) => n + regionArea(r), 0) < 1e-5;
+
+/**
+ * The physical water a harbour plan navigates: the site's water, and the channel of each fixed river the site draws
+ * only as a path (P5b-3). A river the user may still move has no fixed water, so a harbour plan cannot take it.
+ */
+export function vectorHarborWater(doc: VectorCityDocument): { polygon: VectorPolygon; river?: string }[] | undefined {
+  const site = doc.site?.water ?? [],
+    represented = new Set(site.flatMap(w => (w.riverPathId ? [w.riverPathId] : []))),
+    rivers = Object.values(doc.paths).filter(p => p.role === "river" && !represented.has(p.id));
+  if (rivers.some(p => p.editPolicy !== "fixed")) return;
+  return [
+    ...site.flatMap(w => w.polygons.map(polygon => ({ polygon, river: w.riverPathId }))),
+    ...rivers.map(p => ({ polygon: pathSurface(p), river: p.id }))
+  ];
+}
 
 /** Rebuild the shared raster solver from polygon ownership and depth, with no source document. */
 export function vectorHarborNavigation(plan: VectorHarborPlan, minimumDepth = 0, movingShipId?: string) {
@@ -237,12 +252,13 @@ export function validateVectorHarbor(doc: VectorCityDocument): string[] {
       )
     )
       fail();
-    const siteWater = doc.site?.water.flatMap(w => w.polygons) ?? [];
+    const physical = vectorHarborWater(doc),
+      siteWater = physical?.map(w => w.polygon) ?? [];
     if (
+      !physical ||
       regionBoolean(n.land, n.water, "intersection").some(r => regionArea(r) > 1e-5) ||
       !inside(n.water, siteWater) ||
-      !inside(siteWater, n.water) ||
-      Object.values(doc.paths).some(path => path.role === "river")
+      !inside(siteWater, n.water)
     )
       fail();
     const ids = [

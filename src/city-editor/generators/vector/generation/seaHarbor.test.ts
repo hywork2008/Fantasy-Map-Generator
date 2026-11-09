@@ -41,6 +41,28 @@ describe("generated sea harbour (feature parity P5b)", () => {
     expect(city.urban!.report.unplacedPopulation).toBe(0);
   });
 
+  it("raises a river port with short bank piers and a barge on an inland river town (P5b-3)", () => {
+    const seed = "w2",
+      settings = { ...defaultGenerationSettings(), population: defaultPopulationSettings(5000) };
+    settings.config = {
+      ...settings.config,
+      coast: "none",
+      rivers: ["through"],
+      features: { ...settings.config.features, port: true, walls: false }
+    };
+    const doc = vectorInputFromEditor({ settings, seed, frame, lotOccupancy: 1 }),
+      wall = vectorWallChoice(settings, seed, "ageOfExploration"),
+      skeleton = generateVectorSkeleton(doc, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall }).document,
+      harbor = skeleton.environment?.harbor;
+    expect(validateVectorHarbor(skeleton)).toEqual([]);
+    expect(harbor!.piers.length).toBeGreaterThan(0);
+    // A river pier reaches at most a quarter of the way across, leaving the fairway open.
+    for (const pier of harbor!.piers) expect(pier.depthMeters).toBeLessThan(6);
+    expect(harbor!.ships.map(s => s.type)).toEqual(["barge"]);
+    const city = generateVectorUrban(skeleton, { ...DEFAULT_VECTOR_URBAN, population: 5000, lotOccupancy: 1 });
+    expect(city.urban!.report.unplacedPopulation).toBe(0);
+  });
+
   it.each(["auto", "opening"] as const)("opens the sea side of a walled port town (%s) and berths inside it", coast => {
     const seed = "w2",
       settings = { ...defaultGenerationSettings(), population: defaultPopulationSettings(5000) };
