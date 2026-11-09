@@ -24,6 +24,7 @@ import {
 import { createGenerationJoiner } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { fabricCellHash, fabricDistrictHash } from "../fabric/hash";
+import { fabricLine, isDetachedFabricLine } from "../fabric/lines";
 import { packLines, packPoints, unpackPoints } from "../fabric/pack";
 import { evaluateAnchor } from "../geometry/curves";
 import { gateOpening } from "../geometry/network";
@@ -898,6 +899,23 @@ export function placeVectorPerimeterHouses(
     if (list.length && !districts[owner] && !fabricCells[owner])
       throw new Error(`dependency-protected-path:${list[0].pathId}`);
   doc.fabric = { algorithm, districts, cells: fabricCells };
+  // A join kept from the edited plan ends on a line the new plan may no longer draw; that join goes,
+  // as when the line it ended on is detached. The user's road itself stays.
+  for (const r of [...Object.values(districts), ...Object.values(fabricCells)]) {
+    if (!r.detachedLines?.length) continue;
+    let changed = false;
+    for (const l of r.detachedLines) {
+      const joins = l.joins.filter(j => fabricLine(doc.fabric, j.line) && !isDetachedFabricLine(doc.fabric, j.line));
+      if (joins.length !== l.joins.length) {
+        l.joins = joins;
+        changed = true;
+      }
+    }
+    if (!changed) continue;
+    const { hash: _hash, ...record } = r;
+    r.hash =
+      "cellIds" in record ? fabricDistrictHash(record) : fabricCellHash(record as Omit<VectorFabricCell, "hash">);
+  }
   return { dwellings: capacity, houses: count };
 }
 

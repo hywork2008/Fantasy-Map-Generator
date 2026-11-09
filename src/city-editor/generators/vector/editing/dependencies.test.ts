@@ -21,24 +21,23 @@ const city = () =>
 describe("meshless dependency transactions", () => {
   it("relocates only affected automatic placements and commits shape, population and checkpoints together", () => {
     const source = city(),
-      usedRoads = new Set(Object.values(source.placements).flatMap(p => p.accesses.map(a => a.pathId))),
-      path = structuredClone(
-        source.paths[
-          Object.keys(source.generation!.pathRevisions).find(
-            id => source.paths[id].role === "road" && usedRoads.has(id)
-          )!
-        ]
-      );
-    path.width.leftMeters += 3;
-    path.width.rightMeters += 3;
-    const candidate = replaceVectorPath(prepareVectorEdit(source), path),
-      result = reconcileVectorEdit(source, candidate);
+      widened = (id: string) => {
+        const path = structuredClone(source.paths[id]);
+        path.width.leftMeters += 3;
+        path.width.rightMeters += 3;
+        return { path, result: reconcileVectorEdit(source, replaceVectorPath(prepareVectorEdit(source), path)) };
+      };
+    // The first generated road whose widening reaches a placement (facilities may front a lane instead).
+    const { path, result } = Object.keys(source.generation!.pathRevisions)
+      .filter(id => source.paths[id].role === "road")
+      .map(widened)
+      .find(c => c.result.impact.relocatedPlacements.length > 0)!;
     expect(result.impact.changedPaths).toContain(path.id);
     expect(result.impact.relocatedPlacements.length).toBeGreaterThan(0);
     expect(result.impact.retainedPlacements.length).toBeGreaterThan(0);
     for (const id of result.impact.retainedPlacements)
       expect(result.document.placements[id]).toEqual(source.placements[id]);
-    expect(source.paths[path.id].width).not.toEqual(candidate.paths[path.id].width);
+    expect(source.paths[path.id].width).not.toEqual(path.width);
     const report = result.document.urban!.report;
     expect(report.assignedPopulation + report.unplacedPopulation).toBe(200);
     expect(result.document.urban!.inputRevision).toBe(result.document.revision);

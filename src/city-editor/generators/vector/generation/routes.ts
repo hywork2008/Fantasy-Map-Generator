@@ -13,6 +13,8 @@ export interface RouteEdge {
   a: number;
   b: number;
   pathId?: string;
+  /** A side street that joins the nearest existing road instead of running to the centre. */
+  minor?: boolean;
 }
 /** Navigation vertices come from actual boundaries and ports, never a generated cell lattice. */
 export function skeletonRoutes(
@@ -20,7 +22,13 @@ export function skeletonRoutes(
   ports: Point[],
   links: RouteLink[],
   radius: number,
-  timings?: GenerationTimingObserver
+  timings?: GenerationTimingObserver,
+  /**
+   * Ports before this index are main streets routed to port 0. Later ports are side streets joined
+   * to the nearest point of the network built so far, so they meet it in T junctions instead of
+   * converging on the centre.
+   */
+  mainCount = ports.length
 ) {
   const timed = generationTiming(timings);
   const rawInside = indexedContains(regions);
@@ -159,48 +167,97 @@ export function skeletonRoutes(
   // Certified bridge links stay explicit; dry visibility is evaluated only when
   // an edge could improve the current shortest path, in the same point order.
   for (const link of linkEdges) put(link.a, link.b, link.cost, link.pathId);
-  const costs = points.map(() => Infinity),
-    previous = points.map(() => undefined as { from: number; pathId?: string } | undefined),
-    visited = new Set<number>();
-  costs[0] = 0;
-  for (let step = 0; step < points.length; step++) {
-    let at = -1;
-    for (let i = 0; i < points.length; i++) if (!visited.has(i) && (at < 0 || costs[i] < costs[at])) at = i;
-    if (at < 0 || !Number.isFinite(costs[at])) break;
-    visited.add(at);
-    for (let to = 0; to < points.length; to++) {
-      if (to === at) continue;
-      const cost = costs[at] + Math.hypot(points[at][0] - points[to][0], points[at][1] - points[to][1]);
-      if (cost < costs[to] - 1e-8 && visible(points[Math.min(at, to)], points[Math.max(at, to)])) {
-        costs[to] = cost;
-        previous[to] = { from: at };
+  const search = (sources: number[]) => {
+    const costs = points.map(() => Infinity),
+      previous = points.map(() => undefined as { from: number; pathId?: string } | undefined),
+      visited = new Set<number>();
+    for (const i of sources) costs[i] = 0;
+    for (let step = 0; step < points.length; step++) {
+      let at = -1;
+      for (let i = 0; i < points.length; i++) if (!visited.has(i) && (at < 0 || costs[i] < costs[at])) at = i;
+      if (at < 0 || !Number.isFinite(costs[at])) break;
+      visited.add(at);
+      for (let to = 0; to < points.length; to++) {
+        if (to === at) continue;
+        const cost = costs[at] + Math.hypot(points[at][0] - points[to][0], points[at][1] - points[to][1]);
+        if (cost < costs[to] - 1e-8 && visible(points[Math.min(at, to)], points[Math.max(at, to)])) {
+          costs[to] = cost;
+          previous[to] = { from: at };
+        }
+      }
+      for (const edge of adjacency.get(at) ?? []) {
+        const cost = costs[at] + edge.cost;
+        if (cost < costs[edge.to] - 1e-8) {
+          costs[edge.to] = cost;
+          previous[edge.to] = { from: at, pathId: edge.pathId };
+        }
       }
     }
-    for (const edge of adjacency.get(at) ?? []) {
-      const cost = costs[at] + edge.cost;
-      if (cost < costs[edge.to] - 1e-8) {
-        costs[edge.to] = cost;
-        previous[edge.to] = { from: at, pathId: edge.pathId };
-      }
-    }
-  }
+    return { costs, previous };
+  };
+  const { costs, previous } = search([0]);
   timed("shortest-paths-and-visibility");
   const selected = new Map<string, RouteEdge>(),
     unreachable: number[] = [];
-  for (let destination = 1; destination < ports.length; destination++) {
+  const key = (edge: RouteEdge) => `${Math.min(edge.a, edge.b)}:${Math.max(edge.a, edge.b)}:${edge.pathId ?? "dry"}`;
+  const select = (edge: RouteEdge) => selected.set(key(edge), edge);
+  const trace = (destination: number, prev: typeof previous, minor: boolean) => {
+    for (let at = destination; ; ) {
+      const p = prev[at];
+      if (!p) break;
+      select({ a: p.from, b: at, pathId: p.pathId, ...(minor && !p.pathId ? { minor } : {}) });
+      at = p.from;
+    }
+  };
+  for (let destination = 1; destination < Math.min(mainCount, ports.length); destination++) {
     if (!Number.isFinite(costs[destination])) {
       unreachable.push(destination);
       continue;
     }
-    for (let at = destination; at !== 0; ) {
-      const p = previous[at];
-      if (!p) break;
-      const edge = { a: p.from, b: at, pathId: p.pathId },
-        key = `${Math.min(edge.a, edge.b)}:${Math.max(edge.a, edge.b)}:${edge.pathId ?? "dry"}`;
-      selected.set(key, edge);
-      at = p.from;
-    }
+    trace(destination, previous, false);
   }
   timed("selected-edges");
+  for (let port = mainCount; port < ports.length; port++) {
+    const target = points[port],
+      network = new Set<number>([0]);
+    for (const edge of selected.values()) network.add(edge.a).add(edge.b);
+    if (network.has(port)) continue;
+    // The nearest visible point on a dry street: its foot splits that street into a T junction.
+    let best: { edge?: RouteEdge; point: Point; distance: number } | undefined;
+    for (const edge of selected.values()) {
+      if (edge.pathId) continue;
+      const a = points[edge.a],
+        b = points[edge.b],
+        dx = b[0] - a[0],
+        dy = b[1] - a[1],
+        t = Math.max(0, Math.min(1, ((target[0] - a[0]) * dx + (target[1] - a[1]) * dy) / (dx * dx + dy * dy || 1))),
+        foot: Point = [a[0] + dx * t, a[1] + dy * t],
+        d = Math.hypot(foot[0] - target[0], foot[1] - target[1]);
+      if ((!best || d < best.distance) && visible(target, foot))
+        best = {
+          edge: t > 1e-6 && t < 1 - 1e-6 ? edge : undefined,
+          point: t <= 1e-6 ? a : t >= 1 - 1e-6 ? b : foot,
+          distance: d
+        };
+    }
+    if (best) {
+      if (best.distance < 1e-6) continue;
+      const at = index(best.point);
+      if (best.edge) {
+        selected.delete(key(best.edge));
+        select({ ...best.edge, b: at });
+        select({ ...best.edge, a: at });
+      }
+      select({ a: at, b: port, minor: true });
+      continue;
+    }
+    // Hidden behind an obstacle: route around it to whichever network point is closest.
+    const around = search([...network]);
+    if (!Number.isFinite(around.costs[port])) {
+      unreachable.push(port);
+      continue;
+    }
+    trace(port, around.previous, true);
+  }
   return { points, edges: [...selected.values()], unreachable };
 }

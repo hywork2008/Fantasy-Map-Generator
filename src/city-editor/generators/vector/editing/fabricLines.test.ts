@@ -6,6 +6,7 @@ import { syntheticVectorInput } from "../generation/input";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../generation/pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../generation/urban";
 import { matchesVectorUrbanFingerprint } from "../generation/urbanState";
+import { samplePath } from "../geometry/sampling";
 import { VectorDocumentHistory } from "../history";
 import { reconcileVectorEdit } from "./dependencies";
 import { clearFabricHouse } from "./fabricHouses";
@@ -49,7 +50,15 @@ describe("detaching fabric streets and lanes (S2.1e3c)", () => {
   it("keeps the detached road through regeneration without cutting its district", () => {
     const id = lane(),
       { document: doc, pathId } = detachFabricLine(source, id),
-      road = Object.keys(doc.generation!.pathRevisions).find(k => doc.paths[k].role === "road")!,
+      detached = samplePath(doc.paths[pathId]).map(s => s.point),
+      gap = (k: string) =>
+        Math.min(
+          ...samplePath(doc.paths[k]).flatMap(s => detached.map(q => Math.hypot(s.point[0] - q[0], s.point[1] - q[1])))
+        ),
+      // The generated road farthest from the detached lane: an edit beside it would redraw its district.
+      road = Object.keys(doc.generation!.pathRevisions)
+        .filter(k => doc.paths[k].role === "road")
+        .sort((a, b) => gap(b) - gap(a))[0],
       path = structuredClone(doc.paths[road]);
     path.width.leftMeters += 0.5;
     const result = reconcileVectorEdit(doc, replaceVectorPath(structuredClone(doc), path)).document;

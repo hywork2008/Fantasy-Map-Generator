@@ -25,6 +25,8 @@ import { assertVectorDocument } from "../validation/document";
 import { connectVectorCivicCentre } from "./civic";
 import { type RouteLink, skeletonRoutes } from "./routes";
 
+/** Side street width relative to a main street (5 m to 3 m by default). */
+const MINOR_STREET_WIDTH_RATIO = 0.6;
 export const DEFAULT_VECTOR_GENERATION: VectorGenerationSettings = {
   seed: "meshless",
   roadWidthMeters: 5,
@@ -414,7 +416,8 @@ export function generateVectorSkeleton(
     ports,
     links,
     settings.roadWidthMeters / 2 + settings.clearanceMeters + 0.011,
-    routingTimings
+    routingTimings,
+    required
   );
   timed("road-search");
   if (route.unreachable.some(i => i < required)) throw new Error("fixed-port-unreachable");
@@ -435,6 +438,8 @@ export function generateVectorSkeleton(
     const from = route.points[edge.a],
       to = route.points[edge.b];
     if (distance(from, to) < 1e-6) continue;
+    // Side streets are narrower than the main streets that run from the gates to the centre.
+    const half = (settings.roadWidthMeters * (edge.minor ? MINOR_STREET_WIDTH_RATIO : 1)) / 2;
     let id = `auto-road:${number++}`;
     while (Object.hasOwn(doc.paths, id)) id = `auto-road:${number++}`;
     doc.paths[id] = {
@@ -444,7 +449,7 @@ export function generateVectorSkeleton(
       origin: "automatic",
       editPolicy: "editable",
       source: curveSource([from, to], "polyline", false),
-      width: { leftMeters: settings.roadWidthMeters / 2, rightMeters: settings.roadWidthMeters / 2, stations: [] }
+      width: { leftMeters: half, rightMeters: half, stations: [] }
     };
     bindings[edge.a].push({ pathId: id, segmentId: "segment:0", t: 0 });
     bindings[edge.b].push({ pathId: id, segmentId: "segment:0", t: 1 });
