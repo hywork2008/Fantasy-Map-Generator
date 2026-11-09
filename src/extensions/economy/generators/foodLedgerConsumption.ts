@@ -1,3 +1,4 @@
+import { isGrainRepaymentMonth } from "../../../simulation/marketSettings";
 import type { Burg } from "../../hostTypes";
 import { minmax, rn } from "../../hostUtils";
 import {
@@ -390,7 +391,10 @@ function settleGrainPrice(
   return rn(basePrice * priceMultiplier, 2);
 }
 
-/** Urban retail revenue repays outstanding rural debt first, remainder becomes merchant capital. */
+/**
+ * Urban retail revenue repays outstanding rural debt first, remainder becomes merchant capital. With
+ * quarter-day repayment the debt is repaid only in those months (docs/plan/grain-quarter-day-payment.md).
+ */
 function settleUrbanRevenue(market: Market, revenue: number): void {
   if (revenue <= 0) return;
   const treasury = market.marketTreasury ?? {
@@ -398,7 +402,7 @@ function settleUrbanRevenue(market: Market, revenue: number): void {
     ruralGrainPayable: 0
   };
 
-  const repayment = Math.min(treasury.ruralGrainPayable, revenue);
+  const repayment = isGrainRepaymentMonth(getSimulationMonth()) ? Math.min(treasury.ruralGrainPayable, revenue) : 0;
   treasury.ruralGrainPayable = rn(treasury.ruralGrainPayable - repayment, 2);
   treasury.balance = rn(treasury.balance + (revenue - repayment), 2);
   market.marketTreasury = treasury;

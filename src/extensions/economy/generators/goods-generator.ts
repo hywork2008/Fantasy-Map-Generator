@@ -2290,11 +2290,11 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e0e4cc",
     value: 6,
     chance: 0,
-    // Fourth recipe: hard/curd soap once industrial Caustic Soda is available (see its own
-    // comment above) — NaOH is a stronger saponifying alkali than wood-ash Potash, hence the
-    // lower ratio, alongside the three existing Potash soft-soap recipes.
+    // The cheap soft (black) soap of animal fat and wood-ash lye. Olive oil soap is the dearer white
+    // hard soap, Castile Soap (docs/plan/soap-by-period.md §3.2). Third recipe: hard/curd soap once
+    // industrial Caustic Soda is available (see its own comment above) — NaOH is a stronger
+    // saponifying alkali than wood-ash Potash, hence the lower ratio.
     recipes: [
-      { Olives: 1, Potash: 0.3 },
       { Cattle: 1, Potash: 0.3 },
       { Tallow: 1, Potash: 0.3 },
       { Tallow: 1, "Caustic Soda": 0.15 }
@@ -4793,6 +4793,20 @@ export function migrateCastileSoapGood(): boolean {
     { [oil.i]: SOAP_OIL_BARRELS_PER_BARILLA_SOAP, [sodaAsh.i]: SODA_ASH_BARRELS_PER_CASTILE_SOAP }
   ];
   goods.push(castile);
+  return true;
+}
+
+/**
+ * Takes the olive and potash recipe from Soap in catalogues saved before docs/plan/soap-by-period.md
+ * §3.2: olive oil soap is the white hard soap, Castile Soap, not the cheap soft soap of fat and lye.
+ * No-op when Soap or Olives is missing or Soap has no Olives recipe.
+ */
+export function migrateOliveSoapRecipe(): boolean {
+  const goods = getGoods();
+  const olives = goods.find(good => good.name === "Olives");
+  const soap = goods.find(good => good.name === "Soap");
+  if (!olives || !soap?.recipes?.some(recipe => olives.i in recipe)) return false;
+  soap.recipes = soap.recipes.filter(recipe => !(olives.i in recipe));
   return true;
 }
 

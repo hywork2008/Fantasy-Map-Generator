@@ -26,6 +26,8 @@ import {
 import {
   CRAFT_SALE_PAYMENT_MODES,
   type CraftSalePaymentMode,
+  GRAIN_REPAYMENT_MODES,
+  type GrainRepaymentMode,
   getMarketGenerationSpacing,
   getMarketSettings,
   HAY_PAYMENT_MODES,
@@ -537,6 +539,31 @@ export const SimulationSettingsTab: React.FC = () => {
                 {CRAFT_SALE_PAYMENT_MODES.map(mode => (
                   <option key={mode} value={mode}>
                     {t(`simulation.craftSalePayment_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.grainRepaymentTip")}>
+            <td />
+            <td>
+              <label htmlFor="grainRepayment">{t("simulation.grainRepayment")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="grainRepayment"
+                value={marketSettings.grainRepayment}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      grainRepayment: e.target.value as GrainRepaymentMode
+                    })
+                  )
+                }
+              >
+                {GRAIN_REPAYMENT_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.grainRepayment_${mode}`)}
                   </option>
                 ))}
               </select>

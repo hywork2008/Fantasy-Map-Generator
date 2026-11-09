@@ -59,6 +59,18 @@ export type CraftSalePaymentMode = (typeof CRAFT_SALE_PAYMENT_MODES)[number];
 export const HOUSEHOLD_GOODS_PAYMENT_MODES = ["free", "pay"] as const;
 export type HouseholdGoodsPaymentMode = (typeof HOUSEHOLD_GOODS_PAYMENT_MODES)[number];
 
+/**
+ * When a market repays the farms the grain it bought on credit (docs/plan/grain-quarter-day-payment.md):
+ * `monthly` repays it first from every month's retail and cash; `quarterDays` repays it only in the
+ * months of the English quarter days (Lady Day, Midsummer, Michaelmas, Christmas), so the cash in
+ * between buys the towns' goods.
+ */
+export const GRAIN_REPAYMENT_MODES = ["quarterDays", "monthly"] as const;
+export type GrainRepaymentMode = (typeof GRAIN_REPAYMENT_MODES)[number];
+
+/** Calendar months of the English quarter days: Lady Day (25 Mar), Midsummer, Michaelmas, Christmas. */
+export const QUARTER_DAY_MONTHS: readonly number[] = [3, 6, 9, 12];
+
 export type MarketSettings = {
   /** A town promoted during the run opens a market only this many generation spacings from every market centre. */
   foundingSpacingFactor: number;
@@ -71,6 +83,7 @@ export type MarketSettings = {
   hayPayment: HayPaymentMode;
   craftSalePayment: CraftSalePaymentMode;
   householdGoodsPayment: HouseholdGoodsPaymentMode;
+  grainRepayment: GrainRepaymentMode;
   /**
    * Weight of a rural person against a town person in the wages a market pays from its surplus:
    * carters, threshers and hay hands in its countryside as well as dealers and porters in its towns.
@@ -99,6 +112,7 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   hayPayment: "onCredit",
   craftSalePayment: "consignment",
   householdGoodsPayment: "free",
+  grainRepayment: "quarterDays",
   surplusRuralWeight: 1,
   surplusReserveFactor: 0.25,
   harvestReserveMonths: 4,
@@ -146,6 +160,11 @@ const householdGoodsPaymentMode = (value: unknown): HouseholdGoodsPaymentMode =>
     ? (value as HouseholdGoodsPaymentMode)
     : DEFAULT_MARKET_SETTINGS.householdGoodsPayment;
 
+const grainRepaymentMode = (value: unknown): GrainRepaymentMode =>
+  GRAIN_REPAYMENT_MODES.includes(value as GrainRepaymentMode)
+    ? (value as GrainRepaymentMode)
+    : DEFAULT_MARKET_SETTINGS.grainRepayment;
+
 const clamp = (key: NumericMarketSetting, value: unknown): number => {
   const { min, max, step } = MARKET_SETTING_LIMITS[key];
   if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_MARKET_SETTINGS[key];
@@ -170,6 +189,7 @@ export function getMarketSettings(): MarketSettings {
     hayPayment: hayPaymentMode(parsed.hayPayment),
     craftSalePayment: craftSalePaymentMode(parsed.craftSalePayment),
     householdGoodsPayment: householdGoodsPaymentMode(parsed.householdGoodsPayment),
+    grainRepayment: grainRepaymentMode(parsed.grainRepayment),
     surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor),
     harvestReserveMonths: clamp("harvestReserveMonths", parsed.harvestReserveMonths),
@@ -190,6 +210,7 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     hayPayment: hayPaymentMode(next.hayPayment),
     craftSalePayment: craftSalePaymentMode(next.craftSalePayment),
     householdGoodsPayment: householdGoodsPaymentMode(next.householdGoodsPayment),
+    grainRepayment: grainRepaymentMode(next.grainRepayment),
     surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor),
     harvestReserveMonths: clamp("harvestReserveMonths", next.harvestReserveMonths),
@@ -204,4 +225,9 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
 /** Distance between market centres at map generation: it scales with map size over the burg count. */
 export function getMarketGenerationSpacing(graphWidth: number, graphHeight: number, burgSlots: number): number {
   return ((graphWidth + graphHeight) * 2) / pow(Math.max(1, burgSlots), 0.6);
+}
+
+/** Whether a market repays the farms' grain credit in this calendar month. */
+export function isGrainRepaymentMonth(calendarMonth: number): boolean {
+  return getMarketSettings().grainRepayment === "monthly" || QUARTER_DAY_MONTHS.includes(calendarMonth);
 }

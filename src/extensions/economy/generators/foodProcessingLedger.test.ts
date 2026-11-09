@@ -52,6 +52,7 @@ vi.mock("../economyContext", () => ({
   getWorldContext: () => ({
     populationRate: 1_000,
     urbanization: 1,
+    options: { historicalPeriod: "preIndustrialEra" },
     pack: { burgs: [{ i: 1, market: 1, population: 1 }] }
   })
 }));
@@ -123,7 +124,7 @@ describe("foodProcessingLedger", () => {
   });
 
   it("makes up the white soap the market lacks with soft soap (docs/plan/town-soap.md §3.2)", () => {
-    // 1,000 people of a small town, 2 kg a head: 30% white, 70% soft, in 120 kg barrels a month.
+    // 1,000 people of a small town, 2 kg a head in the 1790s: 30% white, 70% soft, in 120 kg barrels a month.
     const white = getMonthlyHouseholdDemand(market, "Castile Soap");
     const soft = getMonthlyHouseholdDemand(market, "Soap");
     expect(white).toBeCloseTo((1_000 * 2 * 0.3) / 12 / 120, 6);

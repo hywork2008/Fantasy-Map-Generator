@@ -5,6 +5,7 @@
  * households still washed. Country households boiled their own soft soap and buy none.
  */
 import { getTownSoapKilograms } from "../../../simulation/townSoapSettings";
+import type { HistoricalPeriod } from "../../../types/historicalPeriod";
 import type { Burg } from "../../hostTypes";
 import { getWorldContext } from "../economyContext";
 import { GOOD_MEASURES } from "./goodMeasureCatalog";
@@ -38,6 +39,35 @@ export const WHITE_SOAP_SHARES: Readonly<Record<TownStanding, number>> = Object.
   Object.entries(LUXURY_TIER_SHARES).map(([standing, shares]) => [standing, 1 - shares.common])
 ) as Record<TownStanding, number>;
 
+/**
+ * Share of the 1790s town soap (townSoapSettings.ts) a town person used, by the map's historical
+ * period (docs/plan/soap-by-period.md §3.1). Medieval laundry was bucked in wood-ash lye, soap was
+ * bought by the households that paid washerwomen and by the cloth trades, and the poorest rarely used
+ * it; Provence's soap in 1754 was about 0.6 kg a head of France. Only the 1754 and 1793 levels have
+ * a source; the older shares are assumptions.
+ */
+export const TOWN_SOAP_PERIOD_SHARES: Readonly<Record<HistoricalPeriod, number>> = {
+  classicalAntiquity: 0.05,
+  lateAntiquity: 0.05,
+  earlyMedieval: 0.05,
+  highMedieval: 0.1,
+  lateMedieval: 0.15,
+  ageOfExploration: 0.2,
+  maritimeEra: 0.3,
+  preIndustrialEra: 1,
+  steamEra: 1,
+  industrialChemistryEra: 1,
+  petroleumEra: 1,
+  rocketryEra: 1
+};
+
+/** Kilograms of soap a town person uses in a year on this map: the 1790s setting times its period's share. */
+export function getTownSoapKilogramsForPeriod(): number {
+  // Undefined is a legacy map, read as "highMedieval" (WorldState.historicalPeriod).
+  const period = getWorldContext().options?.historicalPeriod ?? "highMedieval";
+  return getTownSoapKilograms() * (TOWN_SOAP_PERIOD_SHARES[period] ?? 1);
+}
+
 function townPeople(burg: Pick<Burg, "population">): number {
   const world = getWorldContext();
   return (burg.population ?? 0) * Math.max(1, world.populationRate || 1) * (world.urbanization ?? 1);
@@ -45,7 +75,7 @@ function townPeople(burg: Pick<Burg, "population">): number {
 
 /** Barrels of white (Castile) or soft soap the market's towns use in a month. */
 export function getMonthlyTownSoapDemand(market: Pick<Market, "i">, goodName: TownSoapGood): number {
-  const kilograms = getTownSoapKilograms();
+  const kilograms = getTownSoapKilogramsForPeriod();
   if (!(kilograms > 0)) return 0;
   let people = 0;
   for (const burg of getWorldContext().pack.burgs) {

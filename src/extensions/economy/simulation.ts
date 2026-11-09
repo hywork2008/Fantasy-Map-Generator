@@ -152,6 +152,7 @@ import {
   migrateMeatGood,
   migrateMercuryChainGoods,
   migrateNaturalGasChainGoods,
+  migrateOliveSoapRecipe,
   migrateOrdinaryWoolGoods,
   migratePeatFuelValue,
   migratePerennialFruitGoods,
@@ -382,7 +383,9 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateBarillaGood,
   // docs/plan/castile-soap.md: after Barilla, add the hard soap as its own good and take the
   // barilla recipe saves of docs/plan/barilla-soap.md gave Soap.
-  migrateCastileSoapGood
+  migrateCastileSoapGood,
+  // docs/plan/soap-by-period.md §3.2: olive oil soap is Castile Soap, not the soft soap.
+  migrateOliveSoapRecipe
 ];
 
 /**

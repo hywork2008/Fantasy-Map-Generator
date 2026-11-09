@@ -15,7 +15,7 @@
  * would misattribute rural cash split across states.
  */
 
-import { getMarketSettings } from "../../../simulation/marketSettings";
+import { getMarketSettings, isGrainRepaymentMonth } from "../../../simulation/marketSettings";
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -531,6 +531,7 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
   const ruralPopulation = getRuralPopulationByMarket(getMarketCellColumn());
   const { surplusRuralWeight, surplusReserveFactor, harvestReserveMonths, merchantProfitShare, merchantProfitUse } =
     getMarketSettings();
+  const repayGrainNow = isGrainRepaymentMonth(getSimulationMonth());
   let paid = 0;
   // Open-account cargo on its way is paid for on arrival; that cash is not surplus (§12).
   const openAccount = isLongDistanceTradeEnabled() ? getOpenAccountCommitments() : null;
@@ -545,8 +546,11 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
       (openAccount?.get(market.i) ?? 0) +
       saltOwed;
     // Farmers are paid what they are owed from any cash, before the market keeps a reserve or
-    // anyone takes a profit.
-    const repay = rn(Math.min(Math.max(0, treasury.balance), Math.max(0, treasury.ruralGrainPayable)), 2);
+    // anyone takes a profit; with quarter-day repayment only in those months
+    // (docs/plan/grain-quarter-day-payment.md).
+    const repay = repayGrainNow
+      ? rn(Math.min(Math.max(0, treasury.balance), Math.max(0, treasury.ruralGrainPayable)), 2)
+      : 0;
     if (repay > 0) {
       treasury.ruralGrainPayable = rn(treasury.ruralGrainPayable - repay, 2);
       treasury.balance = rn(treasury.balance - repay, 2);

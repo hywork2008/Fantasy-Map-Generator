@@ -44,6 +44,7 @@ import {
   migrateMeadGood,
   migrateMercuryChainGoods,
   migrateNaturalGasChainGoods,
+  migrateOliveSoapRecipe,
   migrateOrdinaryWoolGoods,
   migratePerennialFruitGoods,
   migratePetroleumChainGoods,
@@ -1422,7 +1423,7 @@ describe("GoodsModule", () => {
     // A save of docs/plan/barilla-soap.md made the hard soap a fifth Soap recipe.
     soap.recipes = [...soap.recipes!, { [oil.i]: 0.65, 901: 0.38 }];
     expect(migrateCastileSoapGood()).toBe(true);
-    expect(soap.recipes).toHaveLength(4);
+    expect(soap.recipes).toHaveLength(3);
     expect(soap.recipes!.some(recipe => 901 in recipe)).toBe(false);
     const castile = getGoods().find(good => good.name === "Castile Soap")!;
     expect(castile.i).toBe(902);
@@ -1432,6 +1433,19 @@ describe("GoodsModule", () => {
     ]);
     expect(migrateCastileSoapGood()).toBe(false);
     expect(getGoods().filter(good => good.name === "Castile Soap")).toHaveLength(1);
+  });
+
+  it("takes the olive recipe from Soap in a saved catalogue", () => {
+    goodsModule.restoreDefaults();
+    const soap = getGoods().find(good => good.name === "Soap")!;
+    const olives = getGoods().find(good => good.name === "Olives")!;
+    const potash = getGoods().find(good => good.name === "Potash")!;
+    soap.recipes = [{ [olives.i]: 1, [potash.i]: 0.3 }, ...soap.recipes!];
+
+    expect(migrateOliveSoapRecipe()).toBe(true);
+    expect(soap.recipes!.some(recipe => olives.i in recipe)).toBe(false);
+    expect(soap.recipes).toHaveLength(3);
+    expect(migrateOliveSoapRecipe()).toBe(false);
   });
 
   it("adds Mead to a saved catalogue on that save's own Honey and Barrels ids", () => {
