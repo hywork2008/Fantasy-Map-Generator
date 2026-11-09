@@ -372,7 +372,8 @@ export function vectorRenderData(
           regionBoolean(
             parts.map(p => p[1]),
             [],
-            "union"
+            "union",
+            false
           )
         );
       } catch {

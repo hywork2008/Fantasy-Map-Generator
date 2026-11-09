@@ -45,7 +45,10 @@ export function indexedContains(polygons: VectorPolygon[]) {
 export function regionBoolean(
   a: VectorPolygon[],
   b: VectorPolygon[],
-  operation: "union" | "difference" | "intersection"
+  operation: "union" | "difference" | "intersection",
+  /** False skips the lattice retry and lets a kernel failure throw: for display-only results with their own
+   * fallback, because the sweep kernel can loop without end on a retried lattice (coast-and-river streets). */
+  retry = true
 ): VectorPolygon[] {
   const toClip = (polygons: VectorPolygon[]): MultiPolygon => polygons.map(p => [p.outer, ...p.holes]);
   const count = [...a, ...b].reduce((n, p) => n + p.outer.length + p.holes.reduce((n, h) => n + h.length, 0), 0);
@@ -66,6 +69,7 @@ export function regionBoolean(
     // sub-micrometer lattice, far below the 5mm sampling tolerance. Source paths
     // and surveyed input rings are never changed by this numerical fallback.
     if (
+      !retry ||
       !(error instanceof Error) ||
       (!/^Unable to (complete output ring|find segment)/.test(error.message) &&
         !(error instanceof RangeError && error.stack?.includes("RingOut")) &&

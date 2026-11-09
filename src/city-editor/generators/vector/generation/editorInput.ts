@@ -5,7 +5,8 @@ import { supportsBuildingHeightVariation } from "../../buildingHeightPolicy";
 import { planPopulation } from "../../populationPlan";
 import { synthSite } from "../../site/synthSite";
 import { featureReservations } from "../environmentState";
-import { regionArea } from "../geometry/regions";
+import { regionArea, regionBoolean } from "../geometry/regions";
+import { allVectorWater } from "../geometry/water";
 import { seedVectorCivicCentre, vectorCivicLayout } from "./civic";
 import { fortifyVectorInput } from "./fortress";
 import { expectedVectorHouseStoreys } from "./housingHeights";
@@ -47,9 +48,39 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     !settings.config.relief &&
     settings.config.rivers.length <= 1 &&
     settings.config.rivers.every(r => r === "through" || r === "straight");
-  const descriptor = native
+  let descriptor = native
     ? undefined
     : structuredClone(settings.descriptor ?? synthSite("largeTown", settings.config, seed, frame));
+  // A synthesized coast or river takes land from the round site the population was planned on. The site is
+  // synthesized again on a larger frame until its dry land holds the CE perimeter lots it needs (P5a).
+  if (descriptor && !settings.descriptor && settings.population && input.lotOccupancy !== undefined) {
+    const need =
+      Math.PI *
+      meshlessCityRadius(
+        getUrbanDwellings(settings.population.targetPopulation),
+        expectedVectorHouseStoreys(period, settings, undefined),
+        input.lotOccupancy,
+        0
+      ) **
+        2;
+    let scale = 1;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const probe = vectorInputFromDescriptor(descriptor),
+        dry =
+          probe.site!.domain.reduce((n, d) => n + regionArea(d), 0) -
+          regionBoolean(probe.site!.domain, allVectorWater(probe), "intersection").reduce(
+            (n, d) => n + regionArea(d),
+            0
+          );
+      if (dry >= need) break;
+      scale *= Math.min(1.6, Math.sqrt(need / Math.max(1, dry)) * 1.05);
+      descriptor = synthSite("largeTown", settings.config, seed, {
+        ...frame,
+        cityRadiusMeters: frame.cityRadiusMeters * scale,
+        extentMeters: Math.max(frame.extentMeters, frame.cityRadiusMeters * scale * 3)
+      });
+    }
+  }
   if (descriptor) {
     descriptor.historicalPeriod = period;
     if (settings.population) {
