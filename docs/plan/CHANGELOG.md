@@ -3,6 +3,8 @@
 2026-11-09
 
 - docs/analytics/ce-meshless-commit-s4b-20261109.json - S4bの5,000・50,000人の確定の費用（同じ内容の検証を省いた後）
+- docs/analytics/ce-meshless-parity-p0-20261109.json - 機能同等化P0の比較結果。固定8件の旧CE・メッシュなしの要素の集計と差
+- docs/analytics/ce-meshless-parity-p0-20261109.md - 機能同等化P0の記録。対応表の集計、比較の結果、見つかった生成の失敗
 - docs/analytics/ce-meshless-scaling-v9-20261109.json - 生成版v9（穴のある街区の分割、外周に接する穴、1 cmの輪郭）後の固定4規模の計測
 - docs/analytics/ce-meshless-seed-sweep-20261109.json - 12の種 × 5,000・50,000人 × 市壁の有無の生成結果（v9）。48通りすべて生成でき未収容0
 - docs/analytics/ce-meshless-refresh-s4c-20261109.json - S4cの5,000・50,000人のページの組み立てと元に戻す・やり直すの時間、文書全体の複製の回数と呼び出し元
@@ -14,7 +16,10 @@
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4gの完了と次のS4hを記載
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4hの完了と、差分の再生成の要否の判断を記載
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4を現時点の性能で完了とした判定を記載
+- docs/plan/ce-meshless-feature-parity.md - P0の完了と、次のP0b（生成の失敗の修正）を記載
 - docs/plan/ce-meshless-feature-parity.md - メッシュなしCEをメッシュありと同等の機能（ランダム生成・3D表示・操作）にするロードマップ。既存の設計・受入の点検結果、同等性の定義、P0〜P10
+- docs/plan/data/ce-meshless-parity-cases.json - 機能同等化の比較の固定ケース8件
+- docs/plan/data/ce-meshless-parity.json - 機能同等化の対応表127行（生成設定・生成要素・3Dの部品・操作）
 
 2026-11-08
 

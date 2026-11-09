@@ -1,0 +1,1180 @@
+{
+  "format": "ce-meshless-parity",
+  "version": 1,
+  "createdAt": "2026-11-09",
+  "definition": "docs/plan/ce-meshless-feature-parity.md",
+  "states": {
+    "equivalent": "Generated or usable with the same effect as the mesh editor",
+    "partial": "Present but narrower than the mesh editor",
+    "authored-only": "Only by manual authoring, not generated",
+    "converted-only": "Only by converting a mesh-editor document",
+    "missing": "Absent",
+    "not-applicable": "Cell-specific; replaced or dropped by section 3.4 of the definition"
+  },
+  "observation": "docs/analytics/ce-meshless-parity-p0-20261109.json",
+  "rows": [
+    {
+      "category": "setting",
+      "id": "seed",
+      "mesh": "GenerationSettings / generateCityOnDocument seed",
+      "meshless": "equivalent",
+      "evidence": "Both editors take the seed.",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "population.targetPopulation",
+      "mesh": "settings.population",
+      "meshless": "equivalent",
+      "evidence": "vectorInputFromEditor and VectorUrbanSettings.population; unplaced population reported.",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "historicalPeriod",
+      "mesh": "settings.historicalPeriod",
+      "meshless": "partial",
+      "evidence": "Read for storeys (residentialStoreys standard only) and bastion era of authored bastions; no period-specific generation.",
+      "stage": "P3",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "descriptor",
+      "mesh": "FMG BurgSiteDescriptor",
+      "meshless": "partial",
+      "evidence": "vectorInputFromDescriptor reads site, water, fixed crossings and heights (M4, M8); only these parts are generated from it.",
+      "stage": "P1",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "generationMethod",
+      "mesh": "mesh-first | skeleton-first",
+      "meshless": "not-applicable",
+      "evidence": "Cell methods. Meshless has wall-first and the planned growth order (ce-meshless-growth-generation.md).",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.coast",
+      "mesh": "none | straight | bay | cape",
+      "meshless": "missing",
+      "evidence": "Synthetic coast is not generated; the parity case coastal-port fails with site-input. FMG water arrives only through a descriptor.",
+      "stage": "P5",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.rivers",
+      "mesh": "through | beside | toCoast | straight | meander | greatBend",
+      "meshless": "partial",
+      "evidence": "Native input only for at most one through/straight river; other shapes fall back to the synthesized descriptor.",
+      "stage": "P5",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.relief",
+      "mesh": "boolean",
+      "meshless": "missing",
+      "evidence": "The parity case relief-polygon fails with width-fold. FMG heights are read (M8).",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.features.walls",
+      "mesh": "CityProgram",
+      "meshless": "partial",
+      "evidence": "Only ellipse (panel: walls ? ellipse : none); rectangle preset exists in VectorGenerationSettings.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.features.citadel",
+      "mesh": "CityProgram",
+      "meshless": "missing",
+      "evidence": "Not read; castles only as authored features.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.features.plaza",
+      "mesh": "CityProgram",
+      "meshless": "partial",
+      "evidence": "seedVectorCivicCentre reserves it, sized by frame extent; fails with civic-site-space at 600-3000 people (parity cases).",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.features.temple",
+      "mesh": "CityProgram",
+      "meshless": "partial",
+      "evidence": "As plaza; adds a cemetery.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.features.port",
+      "mesh": "CityProgram",
+      "meshless": "missing",
+      "evidence": "Not read; harbour only authored or converted.",
+      "stage": "P5",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.features.shanty",
+      "mesh": "CityProgram",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.wall.envelope",
+      "mesh": "WallChoice",
+      "meshless": "missing",
+      "evidence": "Not read by meshless generation.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.wall.coast",
+      "mesh": "WallChoice",
+      "meshless": "missing",
+      "evidence": "Not read by meshless generation.",
+      "stage": "P5",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.wall.line",
+      "mesh": "WallChoice",
+      "meshless": "missing",
+      "evidence": "Not read by meshless generation.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.wall.material",
+      "mesh": "WallChoice",
+      "meshless": "missing",
+      "evidence": "Not read by meshless generation.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "layout",
+      "mesh": "auto | organic | circulade | bram | classic",
+      "meshless": "missing",
+      "evidence": "Not read; skeleton layout only (parity case circulade).",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "wallShape",
+      "mesh": "organic | round | oval | square | polygon | bastioned",
+      "meshless": "partial",
+      "evidence": "Skeleton offers none / rectangle / ellipse; wall presets can be edited to ratio/rotation (M2).",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "wallSides",
+      "mesh": "polygon sides",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "townWallRings",
+      "mesh": "single | double | razed",
+      "meshless": "authored-only",
+      "evidence": "Double walls can be drawn and connected (M3); not generated (parity case double-wall: 2 vs 1 circuits).",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "townWallBuildOrder",
+      "mesh": "GenerationSettings",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "innerWallState",
+      "mesh": "GenerationSettings",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "townWallDefensePolicy",
+      "mesh": "GenerationSettings",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "walledAreaShare",
+      "mesh": "GenerationSettings",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "townFortification",
+      "mesh": "bastioned town: outworks, ditch, street plan",
+      "meshless": "converted-only",
+      "evidence": "Legacy bastioned plans convert (M9 defense acceptance); not generated (parity case bastioned).",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "moats",
+      "mesh": "town / castle moats",
+      "meshless": "authored-only",
+      "evidence": "Moat as an authored environment feature.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "castle",
+      "mesh": "castle settings",
+      "meshless": "authored-only",
+      "evidence": "Castle only as an authored feature.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "castleStreetLinks",
+      "mesh": "castle settings",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "castleOutward",
+      "mesh": "castle settings",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "legacyCastles",
+      "mesh": "castle settings",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "riverPlacement",
+      "mesh": "through | outside | outsideNear",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P5",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "elevationPreset",
+      "mesh": "terrain settings",
+      "meshless": "missing",
+      "evidence": "Not read; terrain comes from FMG heights or authored Freeform grading.",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "elevationRelief",
+      "mesh": "terrain settings",
+      "meshless": "missing",
+      "evidence": "Not read; terrain comes from FMG heights or authored Freeform grading.",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "elevationRotation",
+      "mesh": "terrain settings",
+      "meshless": "missing",
+      "evidence": "Not read; terrain comes from FMG heights or authored Freeform grading.",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "terrainField",
+      "mesh": "terrain settings",
+      "meshless": "missing",
+      "evidence": "Not read; terrain comes from FMG heights or authored Freeform grading.",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "riverDropMeters",
+      "mesh": "terrain settings",
+      "meshless": "missing",
+      "evidence": "Not read; terrain comes from FMG heights or authored Freeform grading.",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "terraces",
+      "mesh": "terrain settings",
+      "meshless": "missing",
+      "evidence": "Not read; terrain comes from FMG heights or authored Freeform grading.",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "buildingPattern",
+      "mesh": "legacy | medieval | ...",
+      "meshless": "missing",
+      "evidence": "Not read; meshless always uses the CE perimeter fabric.",
+      "stage": "P3",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "buildingHeightPolicy",
+      "mesh": "height variation policy",
+      "meshless": "partial",
+      "evidence": "Read only for site sizing in vectorInputFromEditor; houses use the standard storeys.",
+      "stage": "P3",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "buildingHeightLimit",
+      "mesh": "height limit",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P3",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "housingAreaScale",
+      "mesh": "housing area scale and passes",
+      "meshless": "not-applicable",
+      "evidence": "Mesh lot tuning; meshless sizes the site by lot occupancy (lotOccupancy).",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "forestSettings",
+      "mesh": "automatic forest mode and density",
+      "meshless": "authored-only",
+      "evidence": "Forest regenerates inside an authored forest feature; no automatic placement.",
+      "stage": "P7",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "burialProfile",
+      "mesh": "burial culture",
+      "meshless": "missing",
+      "evidence": "Civic cemetery is a fixed box; culture not read.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "streets",
+      "mesh": "farNode, manualBearings, avoidSea, foldSmoothing",
+      "meshless": "missing",
+      "evidence": "Not read; skeleton has branches and road width.",
+      "stage": "P9",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "approachGrowthSource",
+      "mesh": "neighbors | traffic",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P9",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "approachCommerce",
+      "mesh": "off | on",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "urbanCoreMode",
+      "mesh": "legacy | compact",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P9",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "urbanNPatches",
+      "mesh": "cell count of the urban core",
+      "meshless": "not-applicable",
+      "evidence": "Counted in cells; replace by an area if the behaviour is kept.",
+      "stage": "P9",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "facilityLayout",
+      "mesh": "population facilities",
+      "meshless": "partial",
+      "evidence": "medieval-facilities mode places BV facilities; not the mesh editor's population facility rules.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "mode",
+      "mesh": "city | fort | terrain",
+      "meshless": "missing",
+      "evidence": "Only city.",
+      "stage": "P9",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "wall-circuit",
+      "mesh": "defenseCircuits",
+      "meshless": "partial",
+      "evidence": "Generated as one circuit; double rings not generated.",
+      "stage": "P4",
+      "checked": true,
+      "census": "wallCircuits"
+    },
+    {
+      "category": "generated",
+      "id": "gates",
+      "mesh": "gates",
+      "meshless": "equivalent",
+      "evidence": "Generated on the wall curve with shared nodes.",
+      "stage": "-",
+      "checked": true,
+      "census": "gates"
+    },
+    {
+      "category": "generated",
+      "id": "main-roads",
+      "mesh": "road feature groups",
+      "meshless": "equivalent",
+      "evidence": "Skeleton roads with fixed crossings.",
+      "stage": "-",
+      "checked": true,
+      "census": "roads"
+    },
+    {
+      "category": "generated",
+      "id": "rivers",
+      "mesh": "river feature groups",
+      "meshless": "partial",
+      "evidence": "One synthetic river; FMG rivers via descriptor.",
+      "stage": "P5",
+      "checked": true,
+      "census": "rivers"
+    },
+    {
+      "category": "generated",
+      "id": "bridges",
+      "mesh": "bridge decks",
+      "meshless": "equivalent",
+      "evidence": "Generated under bridgeSkewPolicy; count may differ by layout.",
+      "stage": "-",
+      "checked": true,
+      "census": "bridges"
+    },
+    {
+      "category": "generated",
+      "id": "double-walls",
+      "mesh": "inner town wall",
+      "meshless": "authored-only",
+      "evidence": "Authored only.",
+      "stage": "P4",
+      "checked": true,
+      "census": "wallCircuits"
+    },
+    {
+      "category": "generated",
+      "id": "castle",
+      "mesh": "castles / citadel",
+      "meshless": "authored-only",
+      "evidence": "Authored feature only.",
+      "stage": "P4",
+      "checked": true,
+      "census": "castles"
+    },
+    {
+      "category": "generated",
+      "id": "bastioned-town",
+      "mesh": "bastionedTown",
+      "meshless": "converted-only",
+      "evidence": "Converted legacy plans only.",
+      "stage": "P4",
+      "checked": true,
+      "census": "bastionedTown"
+    },
+    {
+      "category": "generated",
+      "id": "moat",
+      "mesh": "castle and town moats",
+      "meshless": "authored-only",
+      "evidence": "Authored feature only.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "plaza",
+      "mesh": "plaza element",
+      "meshless": "partial",
+      "evidence": "Reserved as a civic feature; fails on small sites.",
+      "stage": "P6",
+      "checked": true,
+      "census": "plazas"
+    },
+    {
+      "category": "generated",
+      "id": "market",
+      "mesh": "markets / market wards",
+      "meshless": "missing",
+      "evidence": "Not generated (parity cases double-wall, bastioned, circulade).",
+      "stage": "P6",
+      "checked": true,
+      "census": "markets"
+    },
+    {
+      "category": "generated",
+      "id": "temple",
+      "mesh": "temple element",
+      "meshless": "partial",
+      "evidence": "Reserved as a civic feature.",
+      "stage": "P6",
+      "checked": true,
+      "census": "temples"
+    },
+    {
+      "category": "generated",
+      "id": "monastery",
+      "mesh": "monastery layout",
+      "meshless": "missing",
+      "evidence": "Not generated.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "cemetery",
+      "mesh": "cemetery plans by burial culture",
+      "meshless": "partial",
+      "evidence": "Fixed box beside the temple; no culture layout.",
+      "stage": "P6",
+      "checked": true,
+      "census": "cemeteries"
+    },
+    {
+      "category": "generated",
+      "id": "guild-facilities",
+      "mesh": "guild facilities",
+      "meshless": "missing",
+      "evidence": "Not generated.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "gate-plaza-and-inn",
+      "mesh": "gate plaza buildings and inn",
+      "meshless": "missing",
+      "evidence": "Not generated.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "landmarks",
+      "mesh": "landmark instances",
+      "meshless": "missing",
+      "evidence": "Not generated.",
+      "stage": "P6",
+      "checked": true,
+      "census": "landmarks"
+    },
+    {
+      "category": "generated",
+      "id": "economic-wards",
+      "mesh": "merchant / craftsmen / patriciate wards and craft streets",
+      "meshless": "missing",
+      "evidence": "Districts have one use (residential in medieval).",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "shanty",
+      "mesh": "shanty town",
+      "meshless": "missing",
+      "evidence": "Not generated.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "harbor",
+      "mesh": "harbour ward, quays, cargo, cranes, warehouses",
+      "meshless": "converted-only",
+      "evidence": "Authored or converted legacy harbour only.",
+      "stage": "P5",
+      "checked": true,
+      "census": "harbors"
+    },
+    {
+      "category": "generated",
+      "id": "ships",
+      "mesh": "ships",
+      "meshless": "converted-only",
+      "evidence": "Only inside a converted or authored harbour.",
+      "stage": "P5",
+      "checked": true,
+      "census": "ships"
+    },
+    {
+      "category": "generated",
+      "id": "river-port-and-ferry",
+      "mesh": "river ports and ferry landings",
+      "meshless": "missing",
+      "evidence": "Not generated.",
+      "stage": "P5",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "houses",
+      "mesh": "perimeter houses",
+      "meshless": "equivalent",
+      "evidence": "CE perimeter fabric (buildOrganicBlocks) on street blocks.",
+      "stage": "-",
+      "checked": true,
+      "census": "houses"
+    },
+    {
+      "category": "generated",
+      "id": "population-facilities",
+      "mesh": "population facility allocation",
+      "meshless": "partial",
+      "evidence": "Facilities mode only, own search.",
+      "stage": "P6",
+      "checked": true,
+      "census": "facilities"
+    },
+    {
+      "category": "generated",
+      "id": "parks",
+      "mesh": "park wards and lawns",
+      "meshless": "missing",
+      "evidence": "Not generated; authored park feature exists.",
+      "stage": "P7",
+      "checked": true,
+      "census": "parks"
+    },
+    {
+      "category": "generated",
+      "id": "rural-fields",
+      "mesh": "rural fields and farms",
+      "meshless": "missing",
+      "evidence": "Not generated; authored farmland feature exists.",
+      "stage": "P7",
+      "checked": true,
+      "census": "farms"
+    },
+    {
+      "category": "generated",
+      "id": "farm-sheds-and-roadside-farms",
+      "mesh": "farm sheds, roadside farms",
+      "meshless": "missing",
+      "evidence": "Not generated.",
+      "stage": "P7",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "suburban-landuse",
+      "mesh": "suburban land use",
+      "meshless": "missing",
+      "evidence": "Not generated.",
+      "stage": "P7",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "forest",
+      "mesh": "automatic woodland",
+      "meshless": "authored-only",
+      "evidence": "Regenerates inside an authored forest feature.",
+      "stage": "P7",
+      "checked": true,
+      "census": "forests"
+    },
+    {
+      "category": "generated",
+      "id": "wells-and-water",
+      "mesh": "wells, domestic water, watermills",
+      "meshless": "missing",
+      "evidence": "Not generated.",
+      "stage": "P7",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "terraces-and-grading",
+      "mesh": "terraces, road grading",
+      "meshless": "partial",
+      "evidence": "Authored Freeform grading (M8); not generated.",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "bridgeMeshes",
+      "mesh": "city3d/three/bridgeMeshes (Bridges)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "buildingDetails",
+      "mesh": "city3d/three/buildingDetails (Building details)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "bvInstances",
+      "mesh": "city3d/three/bvInstances",
+      "meshless": "equivalent",
+      "evidence": "Used by renderers/vector/scene3d.ts (BV prototypes for placements).",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "cityMeshes",
+      "mesh": "city3d/three/cityMeshes (City massing)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "craneMeshes",
+      "mesh": "city3d/three/craneMeshes",
+      "meshless": "equivalent",
+      "evidence": "Used by renderers/vector/scene3d.ts (Cranes and harbour cargo).",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "facilityMeshes",
+      "mesh": "city3d/three/facilityMeshes (Facilities)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "farmMeshes",
+      "mesh": "city3d/three/farmMeshes (Farms)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "forestMeshes",
+      "mesh": "city3d/three/forestMeshes (Forest (with ground texture and tree details))",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "friaryMeshes",
+      "mesh": "city3d/three/friaryMeshes (Monasteries)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "groundSurfaceGeometry",
+      "mesh": "city3d/three/groundSurfaceGeometry (Ground surface)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "objectMeshes",
+      "mesh": "city3d/three/objectMeshes (Objects)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "openSpaceMeshes",
+      "mesh": "city3d/three/openSpaceMeshes (Open spaces (with tree LOD))",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "pierMeshes",
+      "mesh": "city3d/three/pierMeshes (Piers)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "regionalHouseLod",
+      "mesh": "city3d/three/regionalHouseLod (Distant-house LOD)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "riverHydraulicMesh",
+      "mesh": "city3d/three/riverHydraulicMesh (River hydraulics)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "roadMeshes",
+      "mesh": "city3d/three/roadMeshes (Roads)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "shipMeshes",
+      "mesh": "city3d/three/shipMeshes",
+      "meshless": "equivalent",
+      "evidence": "Used by renderers/vector/scene3d.ts (Ships).",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "specialBuildingMeshes",
+      "mesh": "city3d/three/specialBuildingMeshes (Special buildings)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "structureMeshes",
+      "mesh": "city3d/three/structureMeshes (Structures)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "terrainFieldMesh",
+      "mesh": "city3d/three/terrainFieldMesh (Terrain field)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "townWallMeshes",
+      "mesh": "city3d/three/townWallMeshes (Town walls)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "waterMeshes",
+      "mesh": "city3d/three/waterMeshes (Water)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "wellMeshes",
+      "mesh": "city3d/three/wellMeshes (Wells)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "treeSeason",
+      "mesh": "city3d/three/treeSeason (Tree seasons)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "house-appearance",
+      "mesh": "buildingAppearance / massing by culture and period",
+      "meshless": "missing",
+      "evidence": "Fabric houses are extruded polygons; placements use the single house:mediterranean model.",
+      "stage": "P3",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "local-origin-and-picking",
+      "mesh": "precision and logical-id picking",
+      "meshless": "equivalent",
+      "evidence": "M9 local render origin and logical ids.",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "generation-stage-slider",
+      "mesh": "generation stage slider",
+      "meshless": "partial",
+      "evidence": "Six meshless stages; mesh stages such as castle, harbour, farms are absent because those elements are not generated.",
+      "stage": "P1",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "road-wall-river-drawing",
+      "mesh": "way / route tools on mesh edges",
+      "meshless": "equivalent",
+      "evidence": "Curves, presets, freehand, Bézier (M2).",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "ward-brush",
+      "mesh": "ward brush over faces",
+      "meshless": "not-applicable",
+      "evidence": "Cell painting; meshless edits district regions (M8). Region drawing replaces it.",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "freeform-ledger",
+      "mesh": "ledger tool",
+      "meshless": "partial",
+      "evidence": "Freeform grading and pads (M8).",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "object-placement",
+      "mesh": "object controls and placement palette",
+      "meshless": "partial",
+      "evidence": "Placement panel with BV models; palette and quality controls not compared.",
+      "stage": "P2",
+      "checked": false
+    },
+    {
+      "category": "operation",
+      "id": "market-area",
+      "mesh": "market area controls",
+      "meshless": "missing",
+      "evidence": "No market generation to edit.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "forest-controls",
+      "mesh": "forest controls",
+      "meshless": "partial",
+      "evidence": "Forest feature mode and density.",
+      "stage": "P7",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "biome-controls",
+      "mesh": "biome controls",
+      "meshless": "missing",
+      "evidence": "Not present in meshless panels.",
+      "stage": "P7",
+      "checked": false
+    },
+    {
+      "category": "operation",
+      "id": "building-appearance-controls",
+      "mesh": "building appearance, height limit",
+      "meshless": "missing",
+      "evidence": "Not present.",
+      "stage": "P3",
+      "checked": false
+    },
+    {
+      "category": "operation",
+      "id": "facility-panel",
+      "mesh": "facility panel",
+      "meshless": "partial",
+      "evidence": "Urban report lists facilities; not the same panel.",
+      "stage": "P6",
+      "checked": false
+    },
+    {
+      "category": "operation",
+      "id": "castle-style",
+      "mesh": "castle style",
+      "meshless": "missing",
+      "evidence": "Not present.",
+      "stage": "P4",
+      "checked": false
+    },
+    {
+      "category": "operation",
+      "id": "ship-editing",
+      "mesh": "ship placement and state",
+      "meshless": "partial",
+      "evidence": "Harbour ships keep display state (M9 harbor acceptance).",
+      "stage": "P5",
+      "checked": false
+    },
+    {
+      "category": "operation",
+      "id": "measure-and-inspector",
+      "mesh": "measurement and inspector",
+      "meshless": "equivalent",
+      "evidence": "Metre length and area; inspectors per path, placement and fabric house.",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "layers-locks",
+      "mesh": "layers and locks",
+      "meshless": "equivalent",
+      "evidence": "Fixed / editable policy and hidden layers.",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "undo-redo",
+      "mesh": "undo / redo",
+      "meshless": "equivalent",
+      "evidence": "Vector history.",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "save-share-export",
+      "mesh": "save, share, SVG / PNG / GLB",
+      "meshless": "equivalent",
+      "evidence": "Native codec, document and recipe share, SVG, PNG, GLB (M7).",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "render-quality-and-performance",
+      "mesh": "render quality and performance panels",
+      "meshless": "missing",
+      "evidence": "Not present.",
+      "stage": "P2",
+      "checked": false
+    },
+    {
+      "category": "operation",
+      "id": "fmg-handoff",
+      "mesh": "open from FMG burg and province menus",
+      "meshless": "partial",
+      "evidence": "FMG descriptor input; method selection on hand-off not compared.",
+      "stage": "P1",
+      "checked": false
+    }
+  ]
+}
