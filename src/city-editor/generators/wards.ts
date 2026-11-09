@@ -539,7 +539,8 @@ function fillInner(
   rng: Rng,
   economy?: BurgSiteEconomy,
   commerce?: ApproachCommercePlan | null,
-  rivers: Point[][] = []
+  rivers: Point[][] = [],
+  touchesBorder?: (cell: Cell) => boolean
 ): void {
   const remaining = unassigned.slice();
   const queue = scaleMix(remaining.length, rng, economy);
@@ -562,7 +563,8 @@ function fillInner(
       commerce,
       slot.craftDomain,
       rivers,
-      craftDomains
+      craftDomains,
+      touchesBorder
     );
     if (pick === null) {
       // This kind cannot sit anywhere left (e.g. MilitaryWard with no wall). Skip
@@ -580,6 +582,54 @@ function fillInner(
     occupied.add(pick);
     remaining.splice(remaining.indexOf(pick), 1);
   }
+}
+
+/** A piece of town land the ward mix can take: a mesh cell, or a meshless street block. */
+export interface WardSpot {
+  id: number;
+  polygon: Point[];
+  centroid: Point;
+  /** Spots across a street or a shared edge. */
+  neighbors: number[];
+}
+
+/**
+ * The mesh editor's inner ward mix (`fillInner`) on any town land: the economy's (or the documented) shuffled mix,
+ * each ward taking the spot `rateLocation` scores best: administration by the plaza, merchants near it, slums far
+ * out, patricians away from slums, the military by the wall. Spots already given a ward in `assigned` keep it.
+ */
+export function assignWardMix(
+  spots: readonly WardSpot[],
+  options: {
+    seed: string;
+    plazaAnchor: Point;
+    walled: boolean;
+    touchesWall: (spot: WardSpot) => boolean;
+    economy?: BurgSiteEconomy;
+    rivers?: Point[][];
+    assigned?: Map<number, WardKind>;
+  }
+): { wards: Map<number, WardKind>; craftDomains: Map<number, NonNullable<WardMixSlot["craftDomain"]>> } {
+  const cells: Cell[] = spots.map(s => ({ ...s, site: s.centroid, onBorder: false })),
+    assigned = new Map(options.assigned ?? []),
+    craftDomains = new Map<number, NonNullable<WardMixSlot["craftDomain"]>>();
+  fillInner(
+    cells.filter(c => !assigned.has(c.id)).map(c => c.id),
+    assigned,
+    craftDomains,
+    new Set(assigned.keys()),
+    new Map(cells.map(c => [c.id, c])),
+    new Set(),
+    { kind: "plaza", cellIds: [], anchor: options.plazaAnchor },
+    [],
+    options.walled,
+    makeRng(`${options.seed}:program:wards`),
+    options.economy,
+    null,
+    options.rivers ?? [],
+    options.touchesWall
+  );
+  return { wards: assigned, craftDomains };
 }
 
 function scaleMix(n: number, rng: Rng, economy?: BurgSiteEconomy): WardMixSlot[] {
@@ -614,7 +664,8 @@ function pickFor(
   commerce?: ApproachCommercePlan | null,
   craftDomain?: NonNullable<WardMixSlot["craftDomain"]>,
   rivers: Point[][] = [],
-  craftDomains?: Map<number, NonNullable<WardMixSlot["craftDomain"]>>
+  craftDomains?: Map<number, NonNullable<WardMixSlot["craftDomain"]>>,
+  touchesBorder?: (cell: Cell) => boolean
 ): number | null {
   if (!ids.length) return null;
   const rate = rateLocation(
@@ -629,7 +680,8 @@ function pickFor(
     commerce,
     craftDomain,
     rivers,
-    craftDomains
+    craftDomains,
+    touchesBorder
   );
   if (!rate) {
     return ids[rng.int(0, ids.length)];
@@ -659,7 +711,8 @@ function rateLocation(
   commerce?: ApproachCommercePlan | null,
   craftDomain?: NonNullable<WardMixSlot["craftDomain"]>,
   rivers: Point[][] = [],
-  craftDomains?: Map<number, NonNullable<WardMixSlot["craftDomain"]>>
+  craftDomains?: Map<number, NonNullable<WardMixSlot["craftDomain"]>>,
+  touchesBorder: (cell: Cell) => boolean = cell => borders.some(b => cellTouchesLoop(cell, b.points, QUANTUM * 2))
 ): ((cell: Cell) => number) | null {
   const plazaAnchor = plaza?.anchor ?? origin;
   const plazaSet = new Set(plaza?.cellIds ?? []);
@@ -692,7 +745,7 @@ function rateLocation(
     case "military":
       return cell => {
         if (cell.neighbors.some(n => citadelIds.has(n) || assigned.get(n) === "castle")) return 0;
-        if (walled && borders.some(b => cellTouchesLoop(cell, b.points, QUANTUM * 2))) return 1;
+        if (walled && touchesBorder(cell)) return 1;
         return citadelIds.size === 0 && !walled ? dist(cell.centroid, origin) : Number.POSITIVE_INFINITY;
       };
     case "slum":

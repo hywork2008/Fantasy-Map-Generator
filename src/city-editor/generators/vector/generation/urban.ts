@@ -46,6 +46,7 @@ import {
   waterDistance
 } from "./urbanPacking";
 import { matchesVectorUrbanFingerprint, VECTOR_URBAN_ALGORITHM, vectorUrbanFingerprint } from "./urbanState";
+import { assignVectorWards, wardHeightKind } from "./wards";
 
 export const DEFAULT_VECTOR_URBAN: VectorUrbanSettings = {
   mode: "medieval",
@@ -487,10 +488,11 @@ function* vectorUrbanSteps(
   );
   const core = (p: Point) =>
     walls.length ? inside(p) : Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]) < radius * 0.65;
-  const districts = blocks.map(b => {
+  const planned = blocks.map(b => {
     const center = polygonCentroid(b.outer);
     return {
       id: b.id,
+      core: core(center),
       use:
         settings.mode === "medieval"
           ? ("residential" as const)
@@ -506,6 +508,13 @@ function* vectorUrbanSteps(
       polygon: { outer: b.outer, holes: b.holes }
     };
   });
+  // The economic wards of the town's districts, by the mesh editor's ward mix (P6g).
+  const wards = assignVectorWards(doc, planned);
+  const districts = planned.map(({ core: _core, ...d }) => {
+    const ward = wards.get(d.id);
+    return ward ? { ...d, ...ward } : d;
+  });
+  timed("wards");
   const pathIds = Object.keys(doc.paths),
     checkpoints: NonNullable<VectorCityDocument["urban"]>["checkpoints"] = [];
   const checkpoint = (id: VectorStage, ids: string[], paths = pathIds) => {
@@ -628,7 +637,8 @@ function* vectorUrbanSteps(
       continuation?.fabricDraw,
       continuation?.fabricCleared ?? kept?.cleared,
       continuation?.fabricDetachedLines ?? kept?.detachedLines,
-      settings.lotOccupancy ?? 1
+      settings.lotOccupancy ?? 1,
+      id => wardHeightKind(wards.get(id)?.ward)
     );
     reattachFabricEntrances(doc);
     housingAttempts = organic.houses.length;

@@ -660,8 +660,8 @@
       "category": "generated",
       "id": "economic-wards",
       "mesh": "merchant / craftsmen / patriciate wards and craft streets",
-      "meshless": "missing",
-      "evidence": "Districts have one use (residential in medieval).",
+      "meshless": "partial",
+      "evidence": "P6g: the mesh editor's inner ward mix (fillInner via the new cell-free assignWardMix): the FMG economy's craftsman streets by guild practitioners, merchant streets by commerce rank, market, patriciate, slum, administration, military and park (or the documented 35-slot mix without an economy), each street block of the town (inside the wall, or the core of an open town) scored by rateLocation; stored on urban.districts (ward, craftDomain) and feeding the house storeys (patriciate rich, merchant and market commercial; vector-urban-v14). Not yet: gate wards, the approachCommerce market street, ward-specific lot sizes, gardens and archetypes (medievalFabric), ward tints.",
       "stage": "P6",
       "checked": true
     },

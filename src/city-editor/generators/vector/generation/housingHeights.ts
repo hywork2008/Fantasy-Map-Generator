@@ -5,6 +5,7 @@ import { lotFloorSpecs, varyFloorHeights } from "../../buildingFloors";
 import { storeysWithinLimit } from "../../buildingHeightLimits";
 import {
   heightSeed,
+  type ResidentialHeightKind,
   residentialHeightWeights,
   sampleStoreysFromWeights,
   supportsBuildingHeightVariation
@@ -19,7 +20,7 @@ export interface VectorHousingHeights {
   /** True when storeys follow the period weights instead of the standard storeys. */
   varied: boolean;
   /** Storeys of one house, never below one. `inside` is false outside the town wall (the mesh outskirts). */
-  storeys(houseKey: string, blockId: string, inside: boolean): number;
+  storeys(houseKey: string, blockId: string, inside: boolean, kind?: ResidentialHeightKind): number;
   /** Mean storeys of a walled house, for sizing the site before any house exists. */
   expectedStoreys: number;
   /** Floor uses and heights of a house, with its variation when heights vary. */
@@ -51,16 +52,11 @@ export function vectorHousingHeights(
     standard = residentialStoreys(period).standard;
   return {
     varied,
-    storeys: (key, blockId, inside) =>
+    storeys: (key, blockId, inside, kind = "ordinary") =>
       capped(
         key,
         varied
-          ? sampleStoreysFromWeights(
-              seed,
-              key,
-              blockId,
-              residentialHeightWeights(period, inside ? "ordinary" : "outside")
-            )
+          ? sampleStoreysFromWeights(seed, key, blockId, residentialHeightWeights(period, inside ? kind : "outside"))
           : standard
       ),
     expectedStoreys: expectedVectorHouseStoreys(period, requested, tradition),

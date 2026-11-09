@@ -11,6 +11,7 @@ import type {
 } from "../../../types/vector/fabric";
 import type { VectorBlock, VectorPolygon } from "../../../types/vector/generation";
 import type { VectorUrbanSettings } from "../../../types/vector/urban";
+import type { ResidentialHeightKind } from "../../buildingHeightPolicy";
 import { isSimplePolygon, nearestOnPolyline, polygonArea, polygonCentroid } from "../../geom";
 import {
   buildOrganicStreetCell,
@@ -772,7 +773,9 @@ export function placeVectorPerimeterHouses(
   /** Per district or street block id: lines the user moved to paths. */
   detachedLines: Record<string, VectorFabricDetachedLine[]> = {},
   /** CE lot occupancy: lots drawn at or above it stay unbuilt, as in CE's mesh editor. */
-  lotOccupancy = 1
+  lotOccupancy = 1,
+  /** The height kind of a street block's ward (P6g); ordinary when absent. */
+  heightKind: (cellId: string) => ResidentialHeightKind = () => "ordinary"
 ): { dwellings: number; houses: number } {
   // A detached line stays detached only where the plan drew the same line again; anything else is refused,
   // because the plan's new line would run beside or across the user's road.
@@ -863,7 +866,8 @@ export function placeVectorPerimeterHouses(
     const storeys = heights.storeys(
         vectorHouseHeightKey(house.cellId, house.draw),
         house.cellId,
-        cellInside(house.cellId)
+        cellInside(house.cellId),
+        heightKind(house.cellId)
       ),
       dwellings = perimeterHouseDwellings(regionArea(site), storeys);
     // The entrance faces the nearest lane, street or road. Never an access drawn across another plot.

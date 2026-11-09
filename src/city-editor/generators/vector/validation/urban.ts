@@ -27,6 +27,24 @@ const keys = (v: unknown, names: string, optional = "") =>
   object(v) &&
   names.split(",").every(k => Object.hasOwn(v, k)) &&
   Object.keys(v).every(k => [...names.split(","), ...optional.split(",")].includes(k));
+const WARD_KINDS = new Set([
+  "castle",
+  "market",
+  "gate",
+  "cathedral",
+  "administration",
+  "merchant",
+  "craftsmen",
+  "military",
+  "patriciate",
+  "park",
+  "slum",
+  "farm",
+  "cemetery",
+  "empty",
+  "harbor",
+  "shanty"
+]);
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 1e8;
 const point = (v: unknown): v is [number, number] => Array.isArray(v) && v.length === 2 && v.every(finite);
 const id = (v: unknown): v is string =>
@@ -154,7 +172,8 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       "vector-urban-v10",
       "vector-urban-v11",
       "vector-urban-v12",
-      "vector-urban-v13"
+      "vector-urban-v13",
+      "vector-urban-v14"
     ].includes(u.algorithm) ||
     !nonnegative(u.inputRevision) ||
     !keys(
@@ -193,7 +212,9 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     !Array.isArray(u.districts) ||
     !u.districts.every(
       d =>
-        keys(d, "id,use,inside,polygon") &&
+        keys(d, "id,use,inside,polygon", "ward,craftDomain") &&
+        (d.ward === undefined || WARD_KINDS.has(d.ward)) &&
+        (d.craftDomain === undefined || (d.ward === "craftsmen" && typeof d.craftDomain === "string")) &&
         id(d.id) &&
         ["commerce", "craft", "hazard", "river", "residential"].includes(d.use) &&
         typeof d.inside === "boolean" &&
