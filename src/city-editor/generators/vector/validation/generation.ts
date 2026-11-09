@@ -106,7 +106,7 @@ export function validateVectorGeneration(doc: VectorCityDocument): string[] {
             a => keys(a, "pathId,segmentId,t") && id(a.pathId) && id(a.segmentId) && finite(a.t) && a.t >= 0 && a.t <= 1
           )
       ) ||
-      !keys(g.settings, "seed,roadWidthMeters,clearanceMeters,branches,wall", "wallSides,wallMaterial") ||
+      !keys(g.settings, "seed,roadWidthMeters,clearanceMeters,branches,wall", "wallSides,wallMaterial,innerWall") ||
       typeof g.settings.seed !== "string" ||
       g.settings.seed.length > 256 ||
       !finite(g.settings.roadWidthMeters) ||

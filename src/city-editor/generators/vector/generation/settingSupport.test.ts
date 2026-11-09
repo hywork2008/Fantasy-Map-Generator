@@ -20,7 +20,7 @@ describe("mesh-editor settings in meshless (feature parity P1)", () => {
     const settings = defaultGenerationSettings();
     settings.population = defaultPopulationSettings(3000);
     settings.config.features = { walls: true, citadel: true, plaza: true, temple: true, port: false, shanty: true };
-    settings.townWallRings = "double";
+    settings.moats = { town: true };
     const input = vectorInputFromEditor({
       seed: "p1",
       settings,
@@ -29,12 +29,10 @@ describe("mesh-editor settings in meshless (feature parity P1)", () => {
     });
     expect(input.context.requestedSettings).toEqual(settings);
     const gaps = meshlessSettingGaps(input.context.requestedSettings!).map(g => g.id);
-    expect(gaps).toEqual(
-      expect.arrayContaining(["config.features.citadel", "config.features.shanty", "townWallRings"])
-    );
+    expect(gaps).toEqual(expect.arrayContaining(["config.features.citadel", "config.features.shanty", "moats"]));
     // Equivalent settings and features left off are not listed.
     expect(gaps).not.toContain("population.targetPopulation");
     expect(gaps).not.toContain("config.features.port");
-    expect(meshlessSettingGaps(defaultGenerationSettings()).map(g => g.id)).not.toContain("townWallRings");
+    expect(meshlessSettingGaps(defaultGenerationSettings()).map(g => g.id)).not.toContain("moats");
   });
 });

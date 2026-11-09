@@ -1,3 +1,4 @@
+import type { WallShape } from "../../../types/generation";
 import type { Point } from "../../../types/primitives";
 import type { CurveAnchor, VectorCityDocument, VectorPath } from "../../../types/vector/document";
 import type { VectorBlock, VectorGenerationSettings, VectorPolygon } from "../../../types/vector/generation";
@@ -107,7 +108,9 @@ function extendApproachesThroughWall(
     water = allVectorWater(doc),
     inset = wall.width.leftMeters + wall.width.rightMeters + settings.clearanceMeters + settings.roadWidthMeters;
   let number = 0;
-  for (const road of Object.values(doc.paths).filter(p => p.role === "road" && !pathIsClosed(p))) {
+  for (const road of Object.values(doc.paths).filter(
+    p => p.role === "road" && !pathIsClosed(p) && !extended.has(p.id)
+  )) {
     const inner = roadEndpoints(road).sort(
         (a, b) => distance(evaluateAnchor(road, a), center) - distance(evaluateAnchor(road, b), center)
       )[0],
@@ -146,6 +149,155 @@ function extendApproachesThroughWall(
     extended.add(road.id);
   }
 }
+/**
+ * Whether every road and river crosses `wall` at 20 degrees or more and away from its corners, so each gate
+ * opening lies on one straight run (P4a). With `blocked`, gates must also keep apart from one another and off
+ * those sites (P4b: an old-town wall cut into laid streets).
+ */
+function wallCrossingsFit(
+  wall: VectorPath,
+  crossers: VectorPath[],
+  settings: VectorGenerationSettings,
+  blocked?: VectorPolygon[],
+  /** Let the wall itself cross the blocked sites; only its gates must keep off them. */
+  crossSites = false
+): boolean {
+  const ring = samplePath(wall)
+      .map(s => s.point)
+      .filter((p, i, all) => i === 0 || distance(p, all[i - 1]) > 1e-6),
+    thickness = wall.width.leftMeters + wall.width.rightMeters,
+    corners = (distance(ring[0], ring.at(-1)!) <= 1e-6 ? ring.slice(0, -1) : ring).filter((p, i, all) => {
+      const a = all[(i + all.length - 1) % all.length],
+        b = all[(i + 1) % all.length],
+        u = unit([p[0] - a[0], p[1] - a[1]]),
+        v = unit([b[0] - p[0], b[1] - p[1]]);
+      return u[0] * v[0] + u[1] * v[1] < Math.cos((15 * Math.PI) / 180);
+    }),
+    gates: { at: Point; opening: number }[] = [];
+  if (
+    blocked &&
+    !crossSites &&
+    regionBoolean([pathSurface(wall)], blocked, "intersection").some(r => regionArea(r) > 1e-5)
+  )
+    return false;
+  for (const other of crossers)
+    for (const hit of pathIntersections(wall, other)) {
+      const a = unit(evaluateAnchor(wall, hit.a, true)),
+        b = unit(evaluateAnchor(other, hit.b, true)),
+        sine = Math.abs(a[0] * b[1] - a[1] * b[0]);
+      if (sine < WALL_CROSSING_SINE) return false;
+      const width = widthAt(other, hit.b),
+        at = evaluateAnchor(wall, hit.a),
+        opening = (width.left + width.right) / sine + 2 * settings.clearanceMeters + 0.1;
+      if (corners.some(c => distance(c, at) < opening * 0.75 + thickness)) return false;
+      if (blocked) {
+        if (gates.some(g => distance(g.at, at) < (g.opening + opening) / 2 + thickness)) return false;
+        const reach = opening / 2 + thickness;
+        if (blocked.some(r => containsRegion([r], at) || ringDistance(at, r.outer) < reach)) return false;
+      }
+      gates.push({ at, opening });
+    }
+  return true;
+}
+/** Gates wherever a road or river crosses the wall. */
+function gateWall(doc: VectorCityDocument, id: string, settings: VectorGenerationSettings): VectorCityDocument {
+  for (const path of Object.values(doc.paths).filter(p => p.id !== id && (p.role === "road" || p.role === "river")))
+    for (const hit of pathIntersections(doc.paths[id], path)) {
+      const tangent = unit(evaluateAnchor(doc.paths[id], hit.a, true)),
+        axis = unit(evaluateAnchor(path, hit.b, true)),
+        width = widthAt(path, hit.b),
+        angle = Math.abs(tangent[0] * axis[1] - tangent[1] * axis[0]);
+      if (angle < 0.1) throw new Error("gate-access");
+      const opening = (width.left + width.right) / angle + 2 * settings.clearanceMeters + 0.1;
+      const prior = Object.values(doc.connections.gates).find(
+        g =>
+          g.wallPathId === id &&
+          distance(evaluateAnchor(doc.paths[id], g.anchor), evaluateAnchor(doc.paths[id], hit.a)) < 1e-5
+      );
+      if (prior) {
+        prior.widthMeters = Math.max(prior.widthMeters, opening);
+        joinVectorGenerationAnchors(doc, [prior.anchor, hit.b]);
+      } else doc = createVectorGate(doc, hit.a, hit.b, opening, path.role === "road" ? "passage" : "water");
+    }
+  return doc;
+}
+/** The line of a razed wall as open road runs, cut back from water by the road's clearance (P4b). The runs are
+ * reached by the street routing, so their ends are no route ports. */
+function boulevard(
+  doc: VectorCityDocument,
+  line: VectorPath,
+  settings: VectorGenerationSettings,
+  extended: Set<string>
+) {
+  const points = samplePath(line).map(s => s.point),
+    ring = distance(points[0], points.at(-1)!) < 1e-6 ? points : [...points, points[0]],
+    half = settings.roadWidthMeters / 2,
+    keepOff = [...allVectorWater(doc).map(w => ({ outer: w.outer, holes: w.holes })), ...featureReservations(doc)],
+    clear = (p: Point) =>
+      !keepOff.some(w => containsRegion([w], p)) &&
+      keepOff.every(w => ringDistance(p, w.outer) > half + settings.clearanceMeters + 1),
+    dense = densify(ring, 2);
+  let run: Point[] = [],
+    number = 0;
+  const flush = () => {
+    if (
+      run.length >= 2 &&
+      samplePath({ ...line, source: curveSource(run, "freehand", false, 0.1) }).at(-1)!.distance > 10
+    ) {
+      const id = `auto-boulevard:${number++}`;
+      doc.paths[id] = {
+        id,
+        revision: 0,
+        role: "road",
+        origin: "automatic",
+        editPolicy: "editable",
+        source: curveSource(run, "freehand", false, 0.1),
+        width: { leftMeters: half, rightMeters: half, stations: [] }
+      };
+      extended.add(id);
+    }
+    run = [];
+  };
+  const allClear = dense.every(clear);
+  if (allClear) {
+    const id = "auto-boulevard:0";
+    doc.paths[id] = {
+      id,
+      revision: 0,
+      role: "road",
+      origin: "automatic",
+      editPolicy: "editable",
+      source: curveSource(dense, "freehand", true, 0.1),
+      width: { leftMeters: half, rightMeters: half, stations: [] }
+    };
+    return;
+  }
+  // Start the walk at a blocked point so no run is split across the ring's seam.
+  const start = dense.findIndex(p => !clear(p));
+  for (let i = 1; i <= dense.length; i++) {
+    const p = dense[(start + i) % dense.length];
+    if (!clear(p)) flush();
+    else if (!run.length || distance(run.at(-1)!, p) > 1e-3) run.push(p);
+  }
+  flush();
+}
+function densify(ring: Point[], step: number): Point[] {
+  const out: Point[] = [];
+  for (let i = 0; i < ring.length - 1; i++) {
+    const a = ring[i],
+      b = ring[i + 1],
+      n = Math.max(1, Math.ceil(distance(a, b) / step));
+    for (let k = 0; k < n; k++) {
+      const p: Point = [a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n];
+      if (!out.length || distance(out.at(-1)!, p) > 1e-3) out.push(p);
+    }
+  }
+  // The closing point repeats the first; the ring is returned open.
+  while (out.length > 1 && distance(out[0], out.at(-1)!) <= 1e-3) out.pop();
+  return out;
+}
+const ringDistance = (p: Point, ring: Point[]) =>
+  Math.min(...ring.map((a, i) => distanceToSegment(p, a, ring[(i + 1) % ring.length])));
 function distanceToSegment(p: Point, a: Point, b: Point): number {
   const dx = b[0] - a[0],
     dy = b[1] - a[1],
@@ -306,6 +458,28 @@ export function generateVectorSkeleton(
   timings?: GenerationTimingObserver,
   routingTimings?: GenerationTimingObserver
 ): VectorGenerationResult {
+  try {
+    return skeleton(input, settings, timings, routingTimings);
+  } catch (error) {
+    // An old town walled before its streets can leave land between the walls that no approach reaches (a river
+    // cutting the ring). The mesh editor then falls back too; here the old-town wall is cut into the laid streets.
+    if (settings.innerWall?.order !== "inner-first" || String(error) !== "Error: fixed-port-unreachable") throw error;
+    const result = skeleton(input, { ...settings, innerWall: { ...settings.innerWall, order: "outer-first" } });
+    for (const doc of [result.document, ...result.stages.map(s => s.document)])
+      doc.generation?.diagnostics.push({
+        code: "inner-first-fallback",
+        entityId: "auto-inner-wall",
+        severity: "warning"
+      });
+    return result;
+  }
+}
+function skeleton(
+  input: VectorCityDocument,
+  settings: VectorGenerationSettings,
+  timings?: GenerationTimingObserver,
+  routingTimings?: GenerationTimingObserver
+): VectorGenerationResult {
   const timed = generationTiming(timings);
   assertVectorDocument(input);
   if (input.urban) throw new Error("urban-generated");
@@ -354,6 +528,7 @@ export function generateVectorSkeleton(
   timed("source-validation-and-clone");
   /** Fixed roads continued through a wall shape by a generated approach; their own ends are no route ports. */
   const extended = new Set<string>();
+  let deferredInner: { make: (scale: number) => VectorPath; parent: string; scale: number } | undefined;
   if (settings.wall !== "none" && !Object.values(doc.paths).some(p => p.role === "wall")) {
     const ring = doc.site!.domain[0].outer,
       minX = Math.min(...ring.map(p => p[0])),
@@ -364,9 +539,14 @@ export function generateVectorSkeleton(
       center: Point = [(minX + maxX) / 2, (minY + maxY) / 2],
       half = (maxX - minX) / 2,
       halfY = (maxY - minY) / 2,
-      shape = settings.wall;
-    const wallPath = (source: VectorPath["source"]): VectorPath => ({
-      id,
+      shape = settings.wall,
+      inner = settings.innerWall,
+      innerId = "auto-inner-wall",
+      // The old town takes `share` of the walled area; outlines scale about the centre.
+      innerScale = Math.sqrt(inner?.share ?? 1);
+    const attempts: number[] = [];
+    const wallPath = (source: VectorPath["source"], pathId = id): VectorPath => ({
+      id: pathId,
       revision: 0,
       role: "wall",
       origin: "automatic",
@@ -380,8 +560,24 @@ export function generateVectorSkeleton(
           }
         : { leftMeters: 1, rightMeters: 1, stations: [] }
     });
+    const ringAt = (rotation: number, scale = 1) =>
+      vectorUnitWallRing(settings.seed, shape as WallShape, settings.wallSides, rotation).map(
+        ([x, y]) => [center[0] + x * half * scale, center[1] + y * halfY * scale] as Point
+      );
+    const preset = (pathId: string, scale: number) =>
+      wallPath(
+        {
+          kind: "preset",
+          preset: shape as "rectangle" | "ellipse",
+          center,
+          widthMeters: (maxX - minX) * scale,
+          heightMeters: (maxY - minY) * scale,
+          bearingDegrees: 90
+        },
+        pathId
+      );
     if (isVectorWallShape(shape)) {
-      // A shape is turned until every road and river crosses it at a gate-worthy angle (P4a); the mesh editor
+      // A shape is turned (48 steps) until every road and river crosses it at a gate-worthy angle (P4a); the mesh editor
       // squares the wall at rivers instead, which an outline drawn on the site has no cells to do.
       const fixed = Object.values(doc.paths).filter(p => p.role === "road" || p.role === "river"),
         // An approach continued through the wall runs from the road's inner end toward the centre.
@@ -396,51 +592,72 @@ export function generateVectorSkeleton(
               : [];
           }),
         crossers = [...fixed, ...approaches],
-        ringAt = (rotation: number) =>
-          vectorUnitWallRing(settings.seed, shape, settings.wallSides, rotation).map(
-            ([x, y]) => [center[0] + x * half, center[1] + y * halfY] as Point
-          ),
-        steepEnough = (path: VectorPath) =>
-          crossers.every(other =>
-            pathIntersections(path, other).every(hit => {
-              const a = unit(evaluateAnchor(path, hit.a, true)),
-                b = unit(evaluateAnchor(other, hit.b, true));
-              return Math.abs(a[0] * b[1] - a[1] * b[0]) >= WALL_CROSSING_SINE;
-            })
-          );
-      let chosen: VectorPath | undefined;
-      for (let k = 0; k < 16 && !chosen; k++) {
-        const candidate = wallPath(curveSource(ringAt((k * Math.PI) / 16), "polyline", true));
-        if (steepEnough(candidate)) chosen = candidate;
-      }
-      doc.paths[id] = chosen ?? wallPath(curveSource(ringAt(0), "polyline", true));
-    } else
-      doc.paths[id] = wallPath({
-        kind: "preset",
-        preset: shape,
-        center,
-        widthMeters: maxX - minX,
-        heightMeters: maxY - minY,
-        bearingDegrees: 90
-      });
-    doc = setWallCircuit(doc, id);
-    if (isVectorWallShape(shape)) extendApproachesThroughWall(doc, id, center, settings, extended);
-    for (const path of Object.values(doc.paths).filter(p => p.id !== id && (p.role === "road" || p.role === "river")))
-      for (const hit of pathIntersections(doc.paths[id], path)) {
-        const tangent = unit(evaluateAnchor(doc.paths[id], hit.a, true)),
-          axis = unit(evaluateAnchor(path, hit.b, true)),
-          width = widthAt(path, hit.b),
-          angle = Math.abs(tangent[0] * axis[1] - tangent[1] * axis[0]);
-        if (angle < 0.1) throw new Error("gate-access");
-        const opening = (width.left + width.right) / angle + 2 * settings.clearanceMeters + 0.1;
-        const prior = Object.values(doc.connections.gates).find(
-          g => distance(evaluateAnchor(doc.paths[id], g.anchor), evaluateAnchor(doc.paths[id], hit.a)) < 1e-5
+        steepEnough = (path: VectorPath) => wallCrossingsFit(path, crossers, settings);
+      const rotations = Array.from({ length: 48 }, (_, k) => (k * Math.PI) / 24),
+        fits = rotations.filter(
+          rotation =>
+            steepEnough(wallPath(curveSource(ringAt(rotation), "polyline", true))) &&
+            (!inner || steepEnough(wallPath(curveSource(ringAt(rotation, innerScale), "polyline", true), innerId)))
         );
-        if (prior) {
-          prior.widthMeters = Math.max(prior.widthMeters, opening);
-          joinVectorGenerationAnchors(doc, [prior.anchor, hit.b]);
-        } else doc = createVectorGate(doc, hit.a, hit.b, opening, path.role === "road" ? "passage" : "water");
+      // The checks above are geometric; a rotation whose gates still fail validation gives way to the next one.
+      attempts.push(...fits, ...rotations.filter(r => !fits.includes(r)));
+    } else attempts.push(0);
+    const start = doc;
+    let failure: unknown;
+    for (const rotation of attempts) {
+      try {
+        const tried = new Set(extended);
+        let next = structuredClone(start);
+        if (isVectorWallShape(shape)) {
+          next.paths[id] = wallPath(curveSource(ringAt(rotation), "polyline", true));
+          if (inner)
+            next.paths[innerId] = wallPath(curveSource(ringAt(rotation, innerScale), "polyline", true), innerId);
+        } else {
+          next.paths[id] = preset(id, 1);
+          if (inner) next.paths[innerId] = preset(innerId, innerScale);
+        }
+        next = setWallCircuit(next, id);
+        if (isVectorWallShape(shape) || inner) extendApproachesThroughWall(next, id, center, settings, tried);
+        next = gateWall(next, id, settings);
+        deferredInner = undefined;
+        if (inner) {
+          const outerCircuit = Object.values(next.connections.circuits).find(c => c.pathId === id)!.id;
+          if (inner.state === "razed") {
+            // A razed old-town wall leaves its line as a boulevard as wide as the main roads (mesh editor §4.3),
+            // broken where water runs through it.
+            const line = next.paths[innerId];
+            delete next.paths[innerId];
+            boulevard(next, line, settings, tried);
+          } else if (inner.order === "inner-first") {
+            // The old town is walled before any street: gates open only where the approaches run in, and the
+            // streets reach the old town through them (mesh editor inner-first).
+            next = setWallCircuit(next, innerId, outerCircuit);
+            extendApproachesThroughWall(next, innerId, center, settings, tried);
+            next = gateWall(next, innerId, settings);
+          } else {
+            // Outer-first, the mesh editor's historical order: the old-town wall is cut into the streets
+            // afterwards, with a gate wherever a street crosses it.
+            const turned = rotation;
+            deferredInner = {
+              make: scale =>
+                isVectorWallShape(shape)
+                  ? wallPath(curveSource(ringAt(turned, innerScale * scale), "polyline", true), innerId)
+                  : preset(innerId, innerScale * scale),
+              parent: outerCircuit,
+              scale: innerScale
+            };
+            delete next.paths[innerId];
+          }
+        }
+        doc = next;
+        for (const road of tried) extended.add(road);
+        failure = undefined;
+        break;
+      } catch (error) {
+        failure ??= error;
       }
+    }
+    if (failure) throw failure;
   }
   let bridgeNumber = 0;
   for (const river of Object.values(doc.paths).filter(p => p.role === "river")) {
@@ -593,6 +810,42 @@ export function generateVectorSkeleton(
         if (containsRegion(free, evaluateAnchor(roads[i], hit.a))) joinVectorGenerationAnchors(doc, [hit.a, hit.b]);
   rebuildRoadGraph(doc);
   connectVectorCivicCentre(doc);
+  if (deferredInner) {
+    // The line is eased in or out a little until every street crosses it steeply, clear of its corners, of the
+    // next gate and of protected sites; the streets were laid without it.
+    const crossers = Object.values(doc.paths).filter(p => p.role === "road" || p.role === "river"),
+      blocked = [...vectorOccupiedSites(doc, "reserved"), ...featureReservations(doc)],
+      // The old town takes in the civic centre, so the line may also grow until it clears those sites.
+      candidates = [0, ...Array.from({ length: 40 }, (_, i) => (i % 4 === 3 ? -1 : 1) * 0.02 * (1 + (i >> 1)))]
+        .filter(d => deferredInner!.scale * (1 + d) <= 0.9)
+        .map(d => deferredInner!.make(1 + d)),
+      // A line clear of the civic sites is preferred; one through a precinct too large for the old town comes next.
+      // A line whose gates still fail validation gives way to the next one.
+      clear = candidates.filter(c => wallCrossingsFit(c, crossers, settings, blocked)),
+      ordered = [
+        ...clear,
+        ...candidates.filter(c => !clear.includes(c) && wallCrossingsFit(c, crossers, settings, blocked, true))
+      ];
+    let placed = false;
+    for (const path of ordered)
+      try {
+        let next = structuredClone(doc);
+        next.paths[path.id] = path;
+        next = setWallCircuit(next, path.id, deferredInner.parent);
+        next = gateWall(next, path.id, settings);
+        rebuildRoadGraph(next);
+        assertVectorDocument(next);
+        doc = next;
+        placed = true;
+        break;
+      } catch {
+        // the next line
+      }
+    // As the mesh editor's single-wall fallback: no line through the streets takes gates cleanly, so the town
+    // keeps its outer wall alone.
+    if (!placed) diagnostics.push({ code: "inner-wall-unplaced", entityId: "auto-inner-wall", severity: "warning" });
+  }
+  if (deferredInner) rebuildRoadGraph(doc);
   doc.revision++;
   assertVectorDocument(doc);
   timed("connections-and-validation");

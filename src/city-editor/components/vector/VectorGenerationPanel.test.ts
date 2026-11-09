@@ -316,7 +316,7 @@ describe("settings meshless does not generate (feature parity P1)", () => {
     const settings = defaultGenerationSettings();
     settings.population = defaultPopulationSettings(3000);
     settings.config.features.citadel = true;
-    settings.townWallRings = "double";
+    settings.moats = { town: true };
     mount(createVectorDocument(), undefined, {
       seed: "p1",
       settings,
@@ -325,7 +325,7 @@ describe("settings meshless does not generate (feature parity P1)", () => {
     const box = panel.querySelector<HTMLElement>("[data-vector-setting-gaps]")!,
       ids = [...box.querySelectorAll<HTMLElement>("[data-setting-gap]")].map(li => li.dataset.settingGap);
     expect(box.hidden).toBe(false);
-    expect(ids).toEqual(expect.arrayContaining(["config.features.citadel", "townWallRings"]));
+    expect(ids).toEqual(expect.arrayContaining(["config.features.citadel", "moats"]));
     expect(box.textContent).not.toContain("{{");
     scope.dispose();
     panel.replaceChildren();

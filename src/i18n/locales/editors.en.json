@@ -286,7 +286,9 @@
         "diagnostics": {
           "bridge-unavailable": "No legal automatic bridge at the candidate site",
           "branch-unreachable": "Optional road target is unreachable",
-          "land-without-frontage": "Land retained without reachable road frontage"
+          "land-without-frontage": "Land retained without reachable road frontage",
+          "inner-first-fallback": "The old town could not be walled before its streets; its wall was cut into the streets instead",
+          "inner-wall-unplaced": "No old-town wall line crossed the streets cleanly; the town keeps its outer wall alone"
         },
         "blocksAndLanes": "Blocks and lanes",
         "facilities": "Facilities",

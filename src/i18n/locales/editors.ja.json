@@ -286,7 +286,9 @@
         "diagnostics": {
           "bridge-unavailable": "候補地点に適法な自動橋を置けません",
           "branch-unreachable": "追加道路の目標点へ到達できません",
-          "land-without-frontage": "到達可能な接道がない土地を保持しています"
+          "land-without-frontage": "到達可能な接道がない土地を保持しています",
+          "inner-first-fallback": "旧市街を街路より先に囲めなかったため、街路の後に旧市街の壁を築きました",
+          "inner-wall-unplaced": "街路と整合する旧市街の壁の位置がなく、外側の市壁のみとしました"
         },
         "blocksAndLanes": "街区と小路",
         "facilities": "施設",

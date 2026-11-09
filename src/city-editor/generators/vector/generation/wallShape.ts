@@ -4,6 +4,7 @@ import type { VectorGenerationSettings } from "../../../types/vector/generation"
 import { bastionEra, resolveWallShape, unitWallShape } from "../../generation/skeleton/wallShapes";
 import { polygonArea } from "../../geom";
 import { makeRng } from "../../prng";
+import { DEFAULT_INNER_WALLED_AREA_SHARE } from "../../settlementExtent";
 
 export const VECTOR_WALL_SHAPES: readonly WallShape[] = ["organic", "round", "oval", "square", "polygon", "bastioned"];
 export const isVectorWallShape = (wall: string): wall is WallShape =>
@@ -19,10 +20,21 @@ export const VECTOR_WALL_SIDES = { min: 3, max: 12 } as const;
  * people. Without town walls the city has none.
  */
 export function vectorWallChoice(
-  settings: Pick<GenerationSettings, "config" | "wallShape" | "wallSides" | "population" | "descriptor">,
+  settings: Pick<
+    GenerationSettings,
+    | "config"
+    | "wallShape"
+    | "wallSides"
+    | "population"
+    | "descriptor"
+    | "townWallRings"
+    | "innerWallState"
+    | "walledAreaShare"
+    | "townWallBuildOrder"
+  >,
   seed: string,
   period: HistoricalPeriod
-): Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial"> {
+): Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial" | "innerWall"> {
   if (!settings.config.features.walls) return { wall: "none" };
   const rng = makeRng(`${seed}:vector-wall:choice`),
     wall = resolveWallShape(settings.wallShape, rng, bastionEra(period)),
@@ -39,7 +51,17 @@ export function vectorWallChoice(
         ? choice
         : population === undefined || population >= 1500
           ? "stone"
-          : "wood"
+          : "wood",
+    // The mesh editor's old town takes the walled share, 45% by default (`innerWalledAreaShare`).
+    ...(settings.townWallRings === "double"
+      ? {
+          innerWall: {
+            share: Math.max(0.1, Math.min(0.8, settings.walledAreaShare ?? DEFAULT_INNER_WALLED_AREA_SHARE)),
+            state: settings.innerWallState === "razed" ? ("razed" as const) : ("standing" as const),
+            ...(settings.townWallBuildOrder === "inner-first" ? { order: "inner-first" as const } : {})
+          }
+        }
+      : {})
   };
 }
 
@@ -58,7 +80,9 @@ export function vectorWallAreaShare(seed: string, shape: WallShape, sides?: numb
 }
 
 /** The wall fields of saved or shared skeleton settings. */
-export function vectorWallSettings(s: Partial<Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial">>) {
+export function vectorWallSettings(
+  s: Partial<Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial" | "innerWall">>
+) {
   return (
     typeof s.wall === "string" &&
     (["none", "rectangle", "ellipse"].includes(s.wall) || isVectorWallShape(s.wall)) &&
@@ -66,6 +90,18 @@ export function vectorWallSettings(s: Partial<Pick<VectorGenerationSettings, "wa
       (Number.isInteger(s.wallSides) &&
         s.wallSides >= VECTOR_WALL_SIDES.min &&
         s.wallSides <= VECTOR_WALL_SIDES.max)) &&
-    (s.wallMaterial === undefined || s.wallMaterial === "stone" || s.wallMaterial === "wood")
+    (s.wallMaterial === undefined || s.wallMaterial === "stone" || s.wallMaterial === "wood") &&
+    (s.innerWall === undefined ||
+      (s.wall !== "none" &&
+        typeof s.innerWall === "object" &&
+        s.innerWall !== null &&
+        Object.keys(s.innerWall).every(k => ["share", "state", "order"].includes(k)) &&
+        (s.innerWall.order === undefined ||
+          s.innerWall.order === "outer-first" ||
+          s.innerWall.order === "inner-first") &&
+        Number.isFinite(s.innerWall.share) &&
+        s.innerWall.share >= 0.1 &&
+        s.innerWall.share <= 0.8 &&
+        (s.innerWall.state === "standing" || s.innerWall.state === "razed")))
   );
 }

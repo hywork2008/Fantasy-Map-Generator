@@ -88,7 +88,17 @@ function validateShare(value: unknown): VectorShare | null {
     !s ||
     !["seed", "roadWidthMeters", "clearanceMeters", "branches", "wall"].every(k => Object.hasOwn(s, k)) ||
     Object.keys(s).some(
-      k => !["seed", "roadWidthMeters", "clearanceMeters", "branches", "wall", "wallSides", "wallMaterial"].includes(k)
+      k =>
+        ![
+          "seed",
+          "roadWidthMeters",
+          "clearanceMeters",
+          "branches",
+          "wall",
+          "wallSides",
+          "wallMaterial",
+          "innerWall"
+        ].includes(k)
     ) ||
     typeof s.seed !== "string" ||
     s.seed.length > 256 ||

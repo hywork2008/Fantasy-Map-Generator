@@ -39,6 +39,9 @@ export interface VectorGenerationSettings {
   wallSides?: number;
   /** Generated wall material; sets its thickness and 3D body. Absent keeps the 2 m wall of a preset. */
   wallMaterial?: "stone" | "wood";
+  /** Double walls (P4b): an old-town wall of the same outline holding `share` of the walled area, standing or
+   * razed to a boulevard; built after the streets (outer-first, default) or before them. */
+  innerWall?: { share: number; state: "standing" | "razed"; order?: "outer-first" | "inner-first" };
 }
 export interface VectorBlock extends VectorPolygon {
   id: string;
