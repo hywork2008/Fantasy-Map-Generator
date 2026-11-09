@@ -289,7 +289,8 @@
           "land-without-frontage": "Land retained without reachable road frontage",
           "inner-first-fallback": "The old town could not be walled before its streets; its wall was cut into the streets instead",
           "inner-wall-unplaced": "No old-town wall line crossed the streets cleanly; the town keeps its outer wall alone",
-          "town-moat-unplaced": "No turn of the wall let every road cross the town moat squarely; the wall stands without a moat"
+          "town-moat-unplaced": "No turn of the wall let every road cross the town moat squarely; the wall stands without a moat",
+          "castle-unplaced": "No castle precinct fitted inside the town wall clear of streets, water and the civic centre"
         },
         "blocksAndLanes": "Blocks and lanes",
         "facilities": "Facilities",

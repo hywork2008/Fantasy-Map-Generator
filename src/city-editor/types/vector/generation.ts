@@ -44,6 +44,13 @@ export interface VectorGenerationSettings {
   /** The mesh editor's concentric town plans (P4d): ring and radial streets laid before the routed streets.
    * Absent is the organic plan. */
   layout?: "circulade" | "bram";
+  /** A castle raised by the mesh editor's siting and style rules (P4e). */
+  castle?: {
+    position: "auto" | "edge" | "central";
+    size: "auto" | "small" | "standard" | "large";
+    moat?: boolean;
+    style?: string;
+  };
   /** A wet town moat round the outer wall, bridged on every road (P4c-2). */
   townMoat?: boolean;
   innerWall?: { share: number; state: "standing" | "razed"; order?: "outer-first" | "inner-first" };

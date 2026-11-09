@@ -98,8 +98,8 @@
       "category": "setting",
       "id": "config.features.citadel",
       "mesh": "CityProgram",
-      "meshless": "missing",
-      "evidence": "Not read; castles only as authored features.",
+      "meshless": "partial",
+      "evidence": "P4e: a castle precinct is sited before the streets by the mesh editor's rules on the site (size by town radius with step-down, edge in 85% of towns, backed away from the approach roads, inside the wall, clear of water, roads and the civic centre) and raised after them as a castle feature (curtain, gate, approach, moat) with works from the mesh editor's style builder (buildFortressPlanOnRing, resolveCastleStyle). A detached castle outside the town and the mesh editor's relief/terrain siting are not generated; when no site fits, castle-unplaced.",
       "stage": "P4",
       "checked": true
     },
@@ -261,7 +261,7 @@
       "id": "moats",
       "mesh": "town / castle moats",
       "meshless": "partial",
-      "evidence": "P4c-2: moats.town gives the outer wall a 12 m wet moat (the mesh editor's town moat width) a 6 m berm outside its foot, with a straight bridge on every road; the wall is turned until every bridge meets the shared skew policy, else the wall stands alone with the town-moat-unplaced diagnostic (1 in 30 sampled towns, a bastioned outline). Castle moats are P4e.",
+      "evidence": "P4c-2 town moat (12 m, bridged on every road, rotated to meet the skew policy) and P4e castle moat (8 m, bridged on the castle approach by the castle feature).",
       "stage": "P4",
       "checked": true
     },
@@ -269,8 +269,8 @@
       "category": "setting",
       "id": "castle",
       "mesh": "castle settings",
-      "meshless": "authored-only",
-      "evidence": "Castle only as an authored feature.",
+      "meshless": "partial",
+      "evidence": "P4e: position and size are read; form, relationship (detached) and ground are not. Style follows the setting or resolveCastleStyle by period and culture; the style's pieces are kept only where they fit inside the castle precinct, else the feature's keep and corner towers stand.",
       "stage": "P4",
       "checked": true
     },
@@ -545,8 +545,8 @@
       "category": "generated",
       "id": "castle",
       "mesh": "castles / citadel",
-      "meshless": "authored-only",
-      "evidence": "Authored feature only.",
+      "meshless": "partial",
+      "evidence": "P4e: position and size are read; form, relationship (detached) and ground are not. Style follows the setting or resolveCastleStyle by period and culture; the style's pieces are kept only where they fit inside the castle precinct, else the feature's keep and corner towers stand.",
       "stage": "P4",
       "checked": true,
       "census": "castles"

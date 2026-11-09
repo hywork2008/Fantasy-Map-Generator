@@ -99,7 +99,8 @@ function validateShare(value: unknown): VectorShare | null {
           "wallMaterial",
           "innerWall",
           "townMoat",
-          "layout"
+          "layout",
+          "castle"
         ].includes(k)
     ) ||
     typeof s.seed !== "string" ||

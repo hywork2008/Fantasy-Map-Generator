@@ -6,6 +6,7 @@ import { bastionEra, resolveWallShape, unitWallShape } from "../../generation/sk
 import { polygonArea } from "../../geom";
 import { makeRng } from "../../prng";
 import { DEFAULT_INNER_WALLED_AREA_SHARE } from "../../settlementExtent";
+import { vectorCastleChoice } from "./castleChoice";
 
 export const VECTOR_WALL_SHAPES: readonly WallShape[] = ["organic", "round", "oval", "square", "polygon", "bastioned"];
 export const isVectorWallShape = (wall: string): wall is WallShape =>
@@ -35,14 +36,22 @@ export function vectorWallChoice(
     | "townFortification"
     | "moats"
     | "layout"
+    | "castle"
   >,
   seed: string,
   period: HistoricalPeriod,
   /** The mesh editor's map extent: `auto` draws a concentric plan only on small maps (700 m or less). */
   extentMeters = 1200
-): Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat" | "layout"> {
+): Pick<
+  VectorGenerationSettings,
+  "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat" | "layout" | "castle"
+> {
   const resolved = resolveEffectiveLayout(settings.layout ?? settings.config.layout, extentMeters, seed),
-    layout = resolved === "circulade" || resolved === "bram" ? { layout: resolved } : {};
+    castle = vectorCastleChoice(settings),
+    layout = {
+      ...(resolved === "circulade" || resolved === "bram" ? { layout: resolved } : {}),
+      ...(castle ? { castle } : {})
+    };
   // A bastioned town brings its own trace as input geometry (P4c); the skeleton keeps it.
   if (settings.townFortification?.kind === "bastioned") return { wall: "none" };
   if (!settings.config.features.walls) return { wall: "none", ...layout };
@@ -66,7 +75,7 @@ export function vectorWallChoice(
     ...(settings.moats?.town ? { townMoat: true } : {}),
     // The mesh editor's old town takes the walled share, 45% by default (`innerWalledAreaShare`).
     // Circulade and Bram towns keep one wall, as in the mesh editor.
-    ...(settings.townWallRings === "double" && !("layout" in layout)
+    ...(settings.townWallRings === "double" && !layout.layout
       ? {
           innerWall: {
             share: Math.max(0.1, Math.min(0.8, settings.walledAreaShare ?? DEFAULT_INNER_WALLED_AREA_SHARE)),
@@ -95,7 +104,10 @@ export function vectorWallAreaShare(seed: string, shape: WallShape, sides?: numb
 /** The wall fields of saved or shared skeleton settings. */
 export function vectorWallSettings(
   s: Partial<
-    Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat" | "layout">
+    Pick<
+      VectorGenerationSettings,
+      "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat" | "layout" | "castle"
+    >
   >
 ) {
   return (
@@ -107,6 +119,14 @@ export function vectorWallSettings(
         s.wallSides <= VECTOR_WALL_SIDES.max)) &&
     (s.wallMaterial === undefined || s.wallMaterial === "stone" || s.wallMaterial === "wood") &&
     (s.layout === undefined || s.layout === "circulade" || s.layout === "bram") &&
+    (s.castle === undefined ||
+      (typeof s.castle === "object" &&
+        s.castle !== null &&
+        Object.keys(s.castle).every(k => ["position", "size", "moat", "style"].includes(k)) &&
+        ["auto", "edge", "central"].includes(s.castle.position) &&
+        ["auto", "small", "standard", "large"].includes(s.castle.size) &&
+        (s.castle.moat === undefined || typeof s.castle.moat === "boolean") &&
+        (s.castle.style === undefined || (typeof s.castle.style === "string" && s.castle.style.length <= 64)))) &&
     (s.townMoat === undefined || (typeof s.townMoat === "boolean" && s.wall !== "none")) &&
     (s.innerWall === undefined ||
       (s.wall !== "none" &&

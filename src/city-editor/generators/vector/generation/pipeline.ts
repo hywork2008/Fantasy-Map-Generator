@@ -30,6 +30,7 @@ import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater, vectorWaterSurfaces } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
 import { assertVectorDocument } from "../validation/document";
+import { CASTLE_FEATURE_ID, CASTLE_SITE_ID, raiseVectorCastle, reserveVectorCastle } from "./castle";
 import { connectVectorCivicCentre } from "./civic";
 import { type RouteLink, skeletonRoutes } from "./routes";
 import { isVectorWallShape, VECTOR_WALL_WIDTH_METERS, vectorUnitWallRing, vectorWallSettings } from "./wallShape";
@@ -620,6 +621,12 @@ function skeleton(
     )
       throw new Error("edited-generation");
     delete doc.generation;
+    // A generated castle goes with the paths it owns.
+    if (doc.environment?.features[CASTLE_FEATURE_ID]) {
+      for (const placement of doc.environment.features[CASTLE_FEATURE_ID].placementIds)
+        delete doc.placements[placement];
+      delete doc.environment.features[CASTLE_FEATURE_ID];
+    }
     for (const id of [...ids].sort(
       (a, b) => Number(doc.paths[a].role === "wall") - Number(doc.paths[b].role === "wall")
     ))
@@ -829,6 +836,9 @@ function skeleton(
   }
   timed("walls-gates-bridges");
   if (settings.layout) layConcentricStreets(doc, settings, extended);
+  // The castle precinct is reserved before the streets are routed, as the mesh editor sites it (P4e).
+  if (settings.castle && !reserveVectorCastle(doc, settings))
+    diagnostics.push({ code: "castle-unplaced", entityId: CASTLE_FEATURE_ID, severity: "warning" });
   const free = freeLand(doc);
   if (!containsRegion(free, center)) throw new Error("site-center-blocked");
   const ports: Point[] = [[...center]],
@@ -964,6 +974,11 @@ function skeleton(
     if (!placed) diagnostics.push({ code: "inner-wall-unplaced", entityId: "auto-inner-wall", severity: "warning" });
   }
   if (deferredInner) rebuildRoadGraph(doc);
+  if (doc.regions[CASTLE_SITE_ID]) {
+    doc = raiseVectorCastle(doc, settings);
+    if (!doc.environment?.features[CASTLE_FEATURE_ID])
+      diagnostics.push({ code: "castle-unplaced", entityId: CASTLE_FEATURE_ID, severity: "warning" });
+  }
   doc.revision++;
   assertVectorDocument(doc);
   timed("connections-and-validation");
