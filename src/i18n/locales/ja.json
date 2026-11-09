@@ -2101,6 +2101,8 @@
     "marketDissolveCargo_handOver": "引き継ぎ",
     "marketSurplusReserveFactor": "市場の準備金",
     "marketSurplusReserveFactorTip": "市場が余りを給与と商人の利益として払い出す前に手元に置くお金です。町の家計の運転資金の何倍かで決めます（塩の掛けと後払いの荷の代金は別に足します）。0で、負っている分を除いてすべて払い出します。",
+    "marketHarvestReserveMonths": "収穫の準備金（か月）",
+    "marketHarvestReserveMonthsTip": "市場が余りを払い出す前に、これから何か月分の収穫の買い取りのお金を手元に置くかです。1年前のその月々に農家へ払った額を使います。小さな農家は収穫の直後に穀物を売って地代と借りを払ったので、買い手はその時にお金が要りました。準備金が無いと、市場は春のお金を商人に払い出し、収穫の時にお金が無く、秋まで町の産物を委託で預かります。0で、収穫の準備金を置きません。",
     "merchantProfitShare": "払い出しの商人の取り分",
     "merchantProfitShareTip": "市場の余りの払い出しのうち、市場の管理者と競争相手の商人が利益として取る割合です。残りは町と農村の給与として払います。",
     "merchantProfitUse": "商人の利益",

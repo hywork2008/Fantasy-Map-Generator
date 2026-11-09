@@ -2101,6 +2101,8 @@
     "marketDissolveCargo_handOver": "Hand over",
     "marketSurplusReserveFactor": "Market cash reserve",
     "marketSurplusReserveFactorTip": "Cash a market keeps before it pays out its surplus as wages and merchant profit, in times the working cash of its towns' households (plus salt owed and cargo bought on open account). 0 = pay out everything above what it owes.",
+    "marketHarvestReserveMonths": "Harvest cash reserve (months)",
+    "marketHarvestReserveMonthsTip": "Months ahead of its harvest buying a market keeps in cash before paying out its surplus: what it paid the farms in those calendar months a year ago. Small farmers sold right after the harvest to pay their rents and debts, so the buyer needed the cash then. Without it a market pays out its spring cash to its merchants, has none at the harvest, and takes its towns' goods on consignment until the autumn. 0 = no harvest reserve.",
     "merchantProfitShare": "Merchants' share of the payout",
     "merchantProfitShareTip": "Share of a market's surplus payout its manager and rival merchants take as profit. The rest is paid as wages in its towns and countryside.",
     "merchantProfitUse": "Merchant profit",

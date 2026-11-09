@@ -400,6 +400,20 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
+          <tr data-tip={t("simulation.marketHarvestReserveMonthsTip")}>
+            <td />
+            <td>{t("simulation.marketHarvestReserveMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="marketHarvestReserveMonths"
+                min={MARKET_SETTING_LIMITS.harvestReserveMonths.min}
+                max={MARKET_SETTING_LIMITS.harvestReserveMonths.max}
+                step={MARKET_SETTING_LIMITS.harvestReserveMonths.step}
+                value={marketSettings.harvestReserveMonths}
+                onChange={v => updateMarketSetting("harvestReserveMonths", v)}
+              />
+            </td>
+          </tr>
           <tr data-tip={t("simulation.marketSurplusRuralWeightTip")}>
             <td />
             <td>{t("simulation.marketSurplusRuralWeight")}</td>

@@ -78,6 +78,11 @@ export type MarketSettings = {
   surplusRuralWeight: number;
   /** Cash a market keeps before paying out its surplus, per member-town population point, as times the town working cash. */
   surplusReserveFactor: number;
+  /**
+   * Months ahead of its harvest buying a market keeps in cash before paying out its surplus: the
+   * farmgate payments it made in those calendar months a year ago (docs/plan/harvest-cash-reserve.md).
+   */
+  harvestReserveMonths: number;
   /** Share of that payout the market's manager and rival merchants take as profit. */
   merchantProfitShare: number;
   merchantProfitUse: MerchantProfitUse;
@@ -96,6 +101,7 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   householdGoodsPayment: "free",
   surplusRuralWeight: 1,
   surplusReserveFactor: 0.25,
+  harvestReserveMonths: 4,
   merchantProfitShare: 1 / 3,
   merchantProfitUse: "houseCapital",
   merchantReserveYears: 5
@@ -107,6 +113,7 @@ export const MARKET_SETTING_LIMITS = {
   dissolveMonths: { min: 1, max: 60, step: 1 },
   surplusRuralWeight: { min: 0, max: 1, step: 0.05 },
   surplusReserveFactor: { min: 0, max: 2, step: 0.05 },
+  harvestReserveMonths: { min: 0, max: 12, step: 1 },
   merchantProfitShare: { min: 0, max: 1, step: 0.01 },
   merchantReserveYears: { min: 0, max: 10, step: 0.5 }
 } as const;
@@ -165,6 +172,7 @@ export function getMarketSettings(): MarketSettings {
     householdGoodsPayment: householdGoodsPaymentMode(parsed.householdGoodsPayment),
     surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor),
+    harvestReserveMonths: clamp("harvestReserveMonths", parsed.harvestReserveMonths),
     merchantProfitShare: clamp("merchantProfitShare", parsed.merchantProfitShare),
     merchantProfitUse: profitUse(parsed.merchantProfitUse),
     merchantReserveYears: clamp("merchantReserveYears", parsed.merchantReserveYears)
@@ -184,6 +192,7 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     householdGoodsPayment: householdGoodsPaymentMode(next.householdGoodsPayment),
     surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor),
+    harvestReserveMonths: clamp("harvestReserveMonths", next.harvestReserveMonths),
     merchantProfitShare: clamp("merchantProfitShare", next.merchantProfitShare),
     merchantProfitUse: profitUse(next.merchantProfitUse),
     merchantReserveYears: clamp("merchantReserveYears", next.merchantReserveYears)

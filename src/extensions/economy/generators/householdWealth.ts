@@ -18,9 +18,16 @@
 import { getMarketSettings } from "../../../simulation/marketSettings";
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
-import { getMarketCellColumn, getMarkets, getWorldContext, isEconomyContextReady } from "../economyContext";
+import {
+  getMarketCellColumn,
+  getMarkets,
+  getSimulationMonth,
+  getWorldContext,
+  isEconomyContextReady
+} from "../economyContext";
 import { creditHouseholdWealth, debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import { getEconomyStartProfile } from "./economyStartMode";
+import { getHarvestCashReserve } from "./harvestCashReserve";
 import type { Market } from "./marketTypes";
 import {
   getOpenAccountCommitments,
@@ -522,7 +529,8 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
     if ((burg.population ?? 0) > 0) memberTowns.set(burg.market, [...(memberTowns.get(burg.market) ?? []), burg]);
   }
   const ruralPopulation = getRuralPopulationByMarket(getMarketCellColumn());
-  const { surplusRuralWeight, surplusReserveFactor, merchantProfitShare, merchantProfitUse } = getMarketSettings();
+  const { surplusRuralWeight, surplusReserveFactor, harvestReserveMonths, merchantProfitShare, merchantProfitUse } =
+    getMarketSettings();
   let paid = 0;
   // Open-account cargo on its way is paid for on arrival; that cash is not surplus (§12).
   const openAccount = isLongDistanceTradeEnabled() ? getOpenAccountCommitments() : null;
@@ -533,6 +541,7 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
     const saltOwed = Object.values(treasury.saltPayables ?? {}).reduce((sum, owed) => sum + Math.max(0, owed), 0);
     const reserve =
       (memberPopulation.get(market.i) ?? 0) * profile.burgTreasuryPerPopulation * surplusReserveFactor +
+      getHarvestCashReserve(treasury, getSimulationMonth(), harvestReserveMonths) +
       (openAccount?.get(market.i) ?? 0) +
       saltOwed;
     // Farmers are paid what they are owed from any cash, before the market keeps a reserve or

@@ -27,6 +27,7 @@ import {
   getStorageClimateLossMultiplier,
   OVERFLOW_QUARTERLY_LOSS
 } from "./grainStorage";
+import { recordFarmgateCost } from "./harvestCashReserve";
 import { creditRuralHouseholdWealth } from "./householdWealth";
 import type { FoodLedger, Market } from "./marketTypes";
 import { getCellHarvestWeights, getCropHarvestWeight, getCurrentCropMix } from "./production-utils";
@@ -471,16 +472,19 @@ export class FoodProductionModule {
   /** Pays the farmgate cost from the market's treasury; any shortfall accrues as rural debt. */
   private settleFarmgatePayment(
     market: Market,
+    months: readonly number[],
     producedThisQuarter: number,
     farmgateUnitCost: number,
     annualUrbanDemand: number
   ): void {
-    if (producedThisQuarter <= 0) return;
-    const cost = rn(producedThisQuarter * farmgateUnitCost, 2);
+    const cost = producedThisQuarter > 0 ? rn(producedThisQuarter * farmgateUnitCost, 2) : 0;
     const treasury = market.marketTreasury ?? {
       balance: 0,
       ruralGrainPayable: 0
     };
+    recordFarmgateCost(treasury, months, cost);
+    market.marketTreasury = treasury;
+    if (producedThisQuarter <= 0) return;
 
     const paidFromBalance = Math.min(Math.max(0, treasury.balance), cost);
     treasury.balance = rn(treasury.balance - paidFromBalance, 2);
@@ -704,7 +708,7 @@ export class FoodProductionModule {
 
       const previousPrice = stapleFoodGood ? (market.goods[stapleFoodGood.i]?.price ?? stapleFoodGood.value) : 1;
       const farmgateUnitCost = rn(previousPrice * FARMGATE_PRICE_SHARE, 2);
-      this.settleFarmgatePayment(market, foodProduced, farmgateUnitCost, annualPurchaseDemand);
+      this.settleFarmgatePayment(market, months, foodProduced, farmgateUnitCost, annualPurchaseDemand);
 
       // A market with catalogued, cell-suitable crops ages and caps stock per named crop (Wheat,
       // Rye, Barley, ...) so each one's own bucket-and-overflow bookkeeping stays real — rather

@@ -319,6 +319,8 @@ export interface MarketTreasury {
   balance: number;
   /** Aggregate unpaid farmgate debt owed to rural Grain producers when balance was insufficient. */
   ruralGrainPayable: number;
+  /** Farmgate cost of the harvest bought in each calendar month, last seen (index 0 = January; harvestCashReserve.ts). */
+  farmgateCostByMonth?: number[];
   /** Hay bought at the cut on credit, repaid to the farms as the Fodder sells (Simulation settings `hayPayment`). */
   ruralHayPayable?: number;
   /** Lots of the Fodder stock that are the farms' hay, sold for them on credit: its proceeds go to them. */
