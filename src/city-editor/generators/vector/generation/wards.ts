@@ -5,7 +5,7 @@ import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorPolygon } from "../../../types/vector/generation";
 import type { ResidentialHeightKind } from "../../buildingHeightPolicy";
-import { convexHull, polygonCentroid } from "../../geom";
+import { convexHull, nearestOnPolyline, polygonCentroid } from "../../geom";
 import { assignWardMix, pickShantySpots, type WardSpot } from "../../wards";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { CIVIC_PLAZA_ID } from "./market";
@@ -13,6 +13,8 @@ import { CIVIC_PLAZA_ID } from "./market";
 /** Street blocks this close are neighbours across a street; one this close to the wall line lies along it. */
 const NEIGHBOUR_METERS = 14;
 const WALL_METERS = 30;
+/** The widest glacis an approach band keeps (frontier 70 m aside): rural 30 m. */
+const SHANTY_GLACIS_METERS = 35;
 
 export interface VectorWard {
   ward: WardKind;
@@ -116,7 +118,12 @@ export function assignVectorWards(
   if (options.shanty) {
     const center = site?.center ?? [0, 0],
       local = (p: Point): Point => [p[0] - center[0], p[1] - center[1]],
-      beyond = group(false),
+      // Blocks wholly in the glacis hold no house (P7a), so the shanty takes land reaching past it.
+      beyond = group(false).filter(
+        d =>
+          !walls.length ||
+          d.ring.some(q => Math.min(...walls.map(w => nearestOnPolyline(q, w).dist)) >= SHANTY_GLACIS_METERS)
+      ),
       descriptorRoads = site?.descriptor?.roads ?? [],
       owned = new Set(doc.urban?.ownedPaths ?? []),
       roads = Object.values(doc.paths)

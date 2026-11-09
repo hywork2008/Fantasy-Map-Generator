@@ -26,7 +26,11 @@ export const wantsShanty = (doc: VectorCityDocument) =>
  * site ends at the wall, so the site grows by a strip along each of those roads from the wall out to that band's
  * outer edge, clear of water and reserved ground. The urban stage then picks the shanty blocks on it.
  */
-export function raiseVectorShantyLand(doc: VectorCityDocument): { document: VectorCityDocument; grown: boolean } {
+export function raiseVectorShantyLand(doc: VectorCityDocument): {
+  document: VectorCityDocument;
+  grown: boolean;
+  added?: boolean;
+} {
   const site = doc.site;
   if (!site || !wantsShanty(doc)) return { document: doc, grown: false };
   const wall = Object.values(doc.paths).find(p => p.role === "wall" && pathIsClosed(p) && !p.id.includes("inner"));
@@ -109,6 +113,7 @@ export function raiseVectorShantyLand(doc: VectorCityDocument): { document: Vect
     return { document: doc, grown: false };
   return {
     document: { ...doc, site: { ...site, domain } },
-    grown: true
+    grown: true,
+    added: true
   };
 }

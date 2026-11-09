@@ -738,7 +738,7 @@
       "id": "rural-fields",
       "mesh": "rural fields and farms",
       "meshless": "missing",
-      "evidence": "Not generated; authored farmland feature exists.",
+      "evidence": "Not generated; authored farmland feature exists. Skipped in P7 by the user's decision (2026-11-10): the mesh editor's farmland shapes and layout are poor and a fundamental overhaul is planned, so they are not ported; an agreed exception until that overhaul.",
       "stage": "P7",
       "checked": true,
       "census": "farms"
@@ -748,7 +748,7 @@
       "id": "farm-sheds-and-roadside-farms",
       "mesh": "farm sheds, roadside farms",
       "meshless": "missing",
-      "evidence": "Not generated.",
+      "evidence": "Not generated. Skipped in P7 by the user's decision (2026-11-10): the mesh editor's farmland shapes and layout are poor and a fundamental overhaul is planned, so they are not ported; an agreed exception until that overhaul.",
       "stage": "P7",
       "checked": true
     },
@@ -756,8 +756,8 @@
       "category": "generated",
       "id": "suburban-landuse",
       "mesh": "suburban land use",
-      "meshless": "missing",
-      "evidence": "Not generated.",
+      "meshless": "partial",
+      "evidence": "P7a: the mesh editor's approach bands (suburbanProfile: trade from traffic rank 0.5, else rural; glacis clearance and ribbon length) and its lot rule, cut cell-free (suburbanLotKept): beyond the wall a house stands within 20 m of an approach, between the clearance and the ribbon's end from the gate, clear of the glacis, 20-220 m2, thinned by the band's spacing; the shanty and residential outskirts (when the town cannot house the demand otherwise) keep their blocks and clear the glacis. Ribbon houses stand whatever the demand; a site ending at the wall grows a strip along each band (vector-urban-v15). Not yet: the approachBeyond neighbour profiles (granary, frontier), barbican slack, kitchen gardens and field rows (farmland is skipped), open towns, the urban-morphology growth system (shapeUrbanGrowthFabric) for FMG burgs with a profile.",
       "stage": "P7",
       "checked": true
     },
@@ -848,7 +848,7 @@
       "id": "farmMeshes",
       "mesh": "city3d/three/farmMeshes (Farms)",
       "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses. Skipped in P7 by the user's decision (2026-11-10): the mesh editor's farmland shapes and layout are poor and a fundamental overhaul is planned, so they are not ported; an agreed exception until that overhaul.",
       "stage": "P2",
       "checked": true
     },

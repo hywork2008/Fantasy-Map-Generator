@@ -777,7 +777,10 @@ export function placeVectorPerimeterHouses(
   /** The height kind of a street block's ward (P6g); ordinary when absent. */
   heightKind: (cellId: string) => ResidentialHeightKind = () => "ordinary",
   /** Street blocks built up whatever the demand: the mesh editor's shanty cells always hold houses (P6h). */
-  alwaysBuilt: (cellId: string) => boolean = () => false
+  alwaysBuilt: (cellId: string) => boolean = () => false,
+  /** Whether a lot beyond the town keeps its house (P7a): as roadside ribbon first, then, while the ribbon leaves
+   * people unhoused, as a residential suburb (the mesh editor's residential outskirts). */
+  keepsLot: (cellId: string, polygon: Point[], residential: boolean) => boolean = () => true
 ): { dwellings: number; houses: number } {
   // A detached line stays detached only where the plan drew the same line again; anything else is refused,
   // because the plan's new line would run beside or across the user's road.
@@ -856,47 +859,56 @@ export function placeVectorPerimeterHouses(
   // CE occupancy draws spread vacant lots through every district. A population
   // target must never fill one half of the city before the other half.
   const shanty = plan.houses.some(h => alwaysBuilt(h.cellId));
-  for (const house of plan.houses.slice().sort((a, b) => a.draw - b.draw)) {
-    if (capacity >= required && house.draw > keepDraw && !alwaysBuilt(house.cellId)) {
-      if (!shanty) break;
-      continue;
-    }
-    const origin = origins.get(house.cellId);
-    if (!origin || house.draw >= lotOccupancy || cleared[house.cellId]?.includes(house.draw)) continue;
-    const fit = fittedLot(house, origin, occupied);
-    if (!fit) continue;
-    const lot = { outer: fit.polygon, holes: [] };
-    if (protectedIndex.search(boxOf(fit.polygon)).some(o => surfacesOverlap(lot, o.polygon))) continue;
-    const { ring, polygon } = fit,
-      site = { outer: polygon, holes: [] };
-    const storeys = heights.storeys(
-        vectorHouseHeightKey(house.cellId, house.draw),
-        house.cellId,
-        cellInside(house.cellId),
-        heightKind(house.cellId)
-      ),
-      dwellings = perimeterHouseDwellings(regionArea(site), storeys);
-    // The entrance faces the nearest lane, street or road. Never an access drawn across another plot.
-    let best: { from: Point; to: Point; distance: number } | undefined;
-    const lines = lineIndex.search(boxOf(polygon, 12)).map(item => item.points);
-    for (let i = 0; i < polygon.length; i++) {
-      const a = polygon[i],
-        b = polygon[(i + 1) % polygon.length],
-        mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-      for (const points of lines) {
-        const hit = nearestOnPolyline(mid, points);
-        if (!best || hit.dist < best.distance) best = { from: mid, to: hit.point, distance: hit.dist };
+  const held: typeof plan.houses = [],
+    order = plan.houses.slice().sort((a, b) => a.draw - b.draw);
+  for (let pass = 0; pass < 2; pass++) {
+    if (pass && capacity >= required) break;
+    for (const house of pass ? held.splice(0) : order) {
+      if (capacity >= required && house.draw > keepDraw && !alwaysBuilt(house.cellId)) {
+        if (!shanty) break;
+        continue;
       }
+      const origin = origins.get(house.cellId);
+      if (!origin || house.draw >= lotOccupancy || cleared[house.cellId]?.includes(house.draw)) continue;
+      const fit = fittedLot(house, origin, occupied);
+      if (!fit) continue;
+      const lot = { outer: fit.polygon, holes: [] };
+      if (protectedIndex.search(boxOf(fit.polygon)).some(o => surfacesOverlap(lot, o.polygon))) continue;
+      const { ring, polygon } = fit,
+        site = { outer: polygon, holes: [] };
+      if (!keepsLot(house.cellId, polygon, pass === 1)) {
+        if (!pass) held.push(house);
+        continue;
+      }
+      const storeys = heights.storeys(
+          vectorHouseHeightKey(house.cellId, house.draw),
+          house.cellId,
+          cellInside(house.cellId),
+          heightKind(house.cellId)
+        ),
+        dwellings = perimeterHouseDwellings(regionArea(site), storeys);
+      // The entrance faces the nearest lane, street or road. Never an access drawn across another plot.
+      let best: { from: Point; to: Point; distance: number } | undefined;
+      const lines = lineIndex.search(boxOf(polygon, 12)).map(item => item.points);
+      for (let i = 0; i < polygon.length; i++) {
+        const a = polygon[i],
+          b = polygon[(i + 1) % polygon.length],
+          mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        for (const points of lines) {
+          const hit = nearestOnPolyline(mid, points);
+          if (!best || hit.dist < best.distance) best = { from: mid, to: hit.point, distance: hit.dist };
+        }
+      }
+      if (!best) continue;
+      const list = adopted.get(house.cellId) ?? [];
+      list.push({ ring, storeys, dwellings, entrance: packPoints([best.from, best.to], origin), draw: house.draw });
+      // CE lots may overlap their neighbours by a few square centimetres; an adopted house is occupancy too, so
+      // a later lot never shares land with it and any house can become a placement (S2.1e2).
+      occupied.insert({ ...boxOf(polygon), polygon: site });
+      adopted.set(house.cellId, list);
+      capacity += dwellings;
+      count++;
     }
-    if (!best) continue;
-    const list = adopted.get(house.cellId) ?? [];
-    list.push({ ring, storeys, dwellings, entrance: packPoints([best.from, best.to], origin), draw: house.draw });
-    // CE lots may overlap their neighbours by a few square centimetres; an adopted house is occupancy too, so
-    // a later lot never shares land with it and any house can become a placement (S2.1e2).
-    occupied.insert({ ...boxOf(polygon), polygon: site });
-    adopted.set(house.cellId, list);
-    capacity += dwellings;
-    count++;
   }
   const algorithm = VECTOR_URBAN_ALGORITHM,
     districts: VectorFabric["districts"] = {},

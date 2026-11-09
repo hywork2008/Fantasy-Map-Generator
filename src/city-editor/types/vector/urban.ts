@@ -75,7 +75,7 @@ export interface VectorUrbanCheckpoint {
  * districts, street blocks, lanes and houses saved as fabric records (native v8) instead of paths and
  * placements. v10: house storeys by the mesh editor's height variation and height limit (P3b). v11: lots kept off gate openings
  * and junction discs exactly (P4a). v12: wall shapes turned in 48 steps and checked against their gates; double
- * walls (P4b). v14: house storeys by the economic ward of the street block (P6g). Saved output of
+ * walls (P4b). v14: house storeys by the economic ward of the street block (P6g). v15: roadside ribbon beyond the wall (P7a). Saved output of
  * an older version stays as adopted. */
 export type VectorUrbanAlgorithm =
   | "vector-urban-v1"
@@ -91,7 +91,8 @@ export type VectorUrbanAlgorithm =
   | "vector-urban-v11"
   | "vector-urban-v12"
   | "vector-urban-v13"
-  | "vector-urban-v14";
+  | "vector-urban-v14"
+  | "vector-urban-v15";
 export interface VectorUrban {
   algorithm: VectorUrbanAlgorithm;
   inputRevision: number;

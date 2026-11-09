@@ -36,6 +36,7 @@ import {
   vectorPerimeterResidual
 } from "./perimeter";
 import { deriveVectorBlocks, joinVectorGenerationAnchors } from "./pipeline";
+import { vectorApproachBands, vectorSuburbanLots } from "./suburbs";
 import { allocateVectorResidents, vectorPlacementDwellings } from "./urbanCapacity";
 import {
   createUrbanPacker,
@@ -46,7 +47,7 @@ import {
   waterDistance
 } from "./urbanPacking";
 import { matchesVectorUrbanFingerprint, VECTOR_URBAN_ALGORITHM, vectorUrbanFingerprint } from "./urbanState";
-import { assignVectorWards, wardHeightKind } from "./wards";
+import { assignVectorWards, streetBlockOf, wardHeightKind } from "./wards";
 
 export const DEFAULT_VECTOR_URBAN: VectorUrbanSettings = {
   mode: "medieval",
@@ -631,6 +632,9 @@ function* vectorUrbanSteps(
   let housingAttempts = 0;
   let housingStop: VectorUrbanProfile["housingStop"] = remaining > 0 ? "frontage" : "demand-met";
   const housingStarted = performance.now();
+  const suburbanLots = vectorSuburbanLots(doc, (id: string) => wards.get(id)?.ward === "shanty"),
+    ribbon = !sourceSite.descriptor?.urbanMorphology && vectorApproachBands(doc).bands.length > 0,
+    outsideBlocks = new Set(districts.filter(d => !d.inside).map(d => streetBlockOf(d.id)));
   if (organic && remaining > 0) {
     const placed = placeVectorPerimeterHouses(
       doc,
@@ -642,7 +646,9 @@ function* vectorUrbanSteps(
       continuation?.fabricDetachedLines ?? kept?.detachedLines,
       settings.lotOccupancy ?? 1,
       id => wardHeightKind(wards.get(id)?.ward),
-      id => wards.get(id)?.ward === "shanty"
+      // The shanty, and the roadside ribbon beyond the wall, stand whatever the demand (P6h, P7a).
+      id => wards.get(id)?.ward === "shanty" || (ribbon && outsideBlocks.has(id)),
+      suburbanLots
     );
     reattachFabricEntrances(doc);
     housingAttempts = organic.houses.length;
