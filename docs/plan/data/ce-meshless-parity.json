@@ -179,8 +179,8 @@
       "category": "setting",
       "id": "layout",
       "mesh": "auto | organic | circulade | bram | classic",
-      "meshless": "missing",
-      "evidence": "Not read; skeleton layout only (parity case circulade).",
+      "meshless": "partial",
+      "evidence": "P4d: circulade and bram are laid from the mesh editor's vector planners (planCirculadeLayout, planPolygonalCirculadeLayout) around the site centre, sized to the built-up disc, before the routed streets; auto resolves as resolveEffectiveLayout (concentric plans only on maps of 700 m or less); both keep one wall. Rings break at water, the civic precinct and walls, because meshless keeps its own civic centre instead of the planner's small plaza and temple (P6). classic (grid infill of blocks) is not yet generated.",
       "stage": "P4",
       "checked": true
     },

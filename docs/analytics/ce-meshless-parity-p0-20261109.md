@@ -603,3 +603,43 @@ P4（市壁・防御の生成）を次の区切りに分けた。P4a 形状・�
   - 堀の幅・橋・壁との非重複・全員の居住。
   - 置けない場合の診断。
 - 関連テストは61ファイル中54成功・7 skip（計測用）。型検査・biome・アーキテクチャの検査はエラーなし。
+
+## P4d 町割り circulade・bram（2026-11-09）
+
+### 旧CEの計画器の再利用
+
+旧CEのcirculade（`planCirculadeLayout`）とbram（`planPolygonalCirculadeLayout`）の計画器は、中心と半径とseedから、次を返す。セルは使わない。
+
+- 環状の街路
+- 放射状の路地
+- 中心を通る街路
+- 小さな広場と寺院
+
+### 生成
+
+- 設定: `vectorWallChoice`が旧CEの`layout`（`config.layout`）を旧CEの`resolveEffectiveLayout`で解決し、骨格の設定`layout`にする。
+  - `auto`は700 m以下の地図でだけcirculade・bram・organicから引く。
+  - circulade・bramでは、旧CEと同じく二重市壁にしない。
+- 骨格: 経路探索の前に、敷地の中心を中心として、建物の円（旧CEの`urbanDiskRadiusMeters`）に合わせた計画を敷く。
+  - 環と放射は副道の幅、中心を通る街路は幹線の幅とする。
+  - 水面・広場と寺院の区域・壁・敷地の縁に掛かる所で切る（`layRoadRuns`。P4bの取り壊しの環状道路と共通にした）。
+  - 経路探索の街路は、交差する所で環と放射に接続する。
+- 広場と寺院: メッシュなしは人口に合わせた自前の中心（P0b）を保つ。計画器の小さな広場と寺院は使わず、環は中心の区域の所で途切れる。中心の施設の規則はP6で扱う。
+- classic（旧CEの街区の中を格子状に埋める方式）は、住宅の区画の生成器の側の作業なので、P4eの後に回す。
+
+### その他
+
+- 共有の検査（`share.ts`）が、P4c-2で加えた骨格の設定`townMoat`を受け付けていなかった。堀のある都市のrecipeの共有が拒否されていたので直し、`layout`と合わせて受け付けるようにした。
+
+### 確認
+
+- circulade・bram各15件（5,000人、一部1,500人、形状`auto`、川1本）で、生成・住宅・描画データがすべて成功し、未配置の人口は0だった。
+  - 環は4〜8本、放射は3〜5本の区間に分かれた。川・中心の区域で切れるため。
+- ブラウザー（Playwright Chromium）で、旧CEの町割りにcirculadeとbramを選び、5,000人を生成した。2Dで同心の環と放射を確かめた。
+
+### テスト
+
+- `generators/vector/generation/concentricLayout.test.ts`（3件）を追加した。
+  - `auto`の解決と、二重市壁にしないこと。
+  - circulade・bramそれぞれで、環・放射・中心の街路が敷地の中にあり、全員が住むこと。
+- 関連テスト（`generators/vector`、`generators/bastionedTown`、`renderers/vector`、`components/vector`、`CityEditorPage.vector`、`services/io/vector`、`services/vector`、アーキテクチャ、`i18n`）は62ファイル中55成功・7 skip（計測用）。型検査・biome・アーキテクチャの検査はエラーなし。

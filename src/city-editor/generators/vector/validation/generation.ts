@@ -109,7 +109,7 @@ export function validateVectorGeneration(doc: VectorCityDocument): string[] {
       !keys(
         g.settings,
         "seed,roadWidthMeters,clearanceMeters,branches,wall",
-        "wallSides,wallMaterial,innerWall,townMoat"
+        "wallSides,wallMaterial,innerWall,townMoat,layout"
       ) ||
       typeof g.settings.seed !== "string" ||
       g.settings.seed.length > 256 ||

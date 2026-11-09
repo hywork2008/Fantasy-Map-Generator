@@ -1,6 +1,7 @@
 import type { GenerationSettings, WallShape } from "../../../types/generation";
 import type { HistoricalPeriod, Point } from "../../../types/primitives";
 import type { VectorGenerationSettings } from "../../../types/vector/generation";
+import { resolveEffectiveLayout } from "../../generation/settings";
 import { bastionEra, resolveWallShape, unitWallShape } from "../../generation/skeleton/wallShapes";
 import { polygonArea } from "../../geom";
 import { makeRng } from "../../prng";
@@ -33,18 +34,25 @@ export function vectorWallChoice(
     | "townWallBuildOrder"
     | "townFortification"
     | "moats"
+    | "layout"
   >,
   seed: string,
-  period: HistoricalPeriod
-): Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat"> {
+  period: HistoricalPeriod,
+  /** The mesh editor's map extent: `auto` draws a concentric plan only on small maps (700 m or less). */
+  extentMeters = 1200
+): Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat" | "layout"> {
+  const resolved = resolveEffectiveLayout(settings.layout ?? settings.config.layout, extentMeters, seed),
+    layout = resolved === "circulade" || resolved === "bram" ? { layout: resolved } : {};
   // A bastioned town brings its own trace as input geometry (P4c); the skeleton keeps it.
-  if (!settings.config.features.walls || settings.townFortification?.kind === "bastioned") return { wall: "none" };
+  if (settings.townFortification?.kind === "bastioned") return { wall: "none" };
+  if (!settings.config.features.walls) return { wall: "none", ...layout };
   const rng = makeRng(`${seed}:vector-wall:choice`),
     wall = resolveWallShape(settings.wallShape, rng, bastionEra(period)),
     sides = settings.wallSides ?? 5 + Math.floor(rng() * 4),
     choice = settings.config.wall?.material,
     population = settings.population?.targetPopulation ?? settings.descriptor?.burg.population;
   return {
+    ...layout,
     wall,
     ...(wall === "polygon" || wall === "bastioned"
       ? { wallSides: Math.min(VECTOR_WALL_SIDES.max, Math.max(VECTOR_WALL_SIDES.min, Math.round(sides))) }
@@ -57,7 +65,8 @@ export function vectorWallChoice(
           : "wood",
     ...(settings.moats?.town ? { townMoat: true } : {}),
     // The mesh editor's old town takes the walled share, 45% by default (`innerWalledAreaShare`).
-    ...(settings.townWallRings === "double"
+    // Circulade and Bram towns keep one wall, as in the mesh editor.
+    ...(settings.townWallRings === "double" && !("layout" in layout)
       ? {
           innerWall: {
             share: Math.max(0.1, Math.min(0.8, settings.walledAreaShare ?? DEFAULT_INNER_WALLED_AREA_SHARE)),
@@ -85,7 +94,9 @@ export function vectorWallAreaShare(seed: string, shape: WallShape, sides?: numb
 
 /** The wall fields of saved or shared skeleton settings. */
 export function vectorWallSettings(
-  s: Partial<Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat">>
+  s: Partial<
+    Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat" | "layout">
+  >
 ) {
   return (
     typeof s.wall === "string" &&
@@ -95,6 +106,7 @@ export function vectorWallSettings(
         s.wallSides >= VECTOR_WALL_SIDES.min &&
         s.wallSides <= VECTOR_WALL_SIDES.max)) &&
     (s.wallMaterial === undefined || s.wallMaterial === "stone" || s.wallMaterial === "wood") &&
+    (s.layout === undefined || s.layout === "circulade" || s.layout === "bram") &&
     (s.townMoat === undefined || (typeof s.townMoat === "boolean" && s.wall !== "none")) &&
     (s.innerWall === undefined ||
       (s.wall !== "none" &&

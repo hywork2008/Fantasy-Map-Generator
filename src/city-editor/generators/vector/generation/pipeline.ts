@@ -2,8 +2,14 @@ import type { WallShape } from "../../../types/generation";
 import type { Point } from "../../../types/primitives";
 import type { CurveAnchor, VectorCityDocument, VectorPath } from "../../../types/vector/document";
 import type { VectorBlock, VectorGenerationSettings, VectorPolygon } from "../../../types/vector/generation";
+import { planCirculadeLayout } from "../../circuladeLayout";
 import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
 import { pointInPolygon, polygonCentroid } from "../../geom";
+import {
+  bramCoreRadiusMeters,
+  planPolygonalCirculadeLayout,
+  urbanDiskRadiusMeters
+} from "../../polygonalCirculadeLayout";
 import { mapDocumentAnchors } from "../editing/anchors";
 import {
   createVectorGate,
@@ -280,6 +286,27 @@ function gateWall(doc: VectorCityDocument, id: string, settings: VectorGeneratio
     }
   return doc;
 }
+/**
+ * The mesh editor's concentric plans (P4d), laid before the routed streets: a circulade's organic rings, spokes
+ * and through street (`planCirculadeLayout`), or Bram's sixteen-sided core (`planPolygonalCirculadeLayout`), around
+ * the site centre and sized to the built-up disc as the mesh editor sizes them. Rings and spokes are side streets;
+ * the through street is a main street. Each line breaks where it would cross water, a civic precinct or a wall.
+ */
+function layConcentricStreets(doc: VectorCityDocument, settings: VectorGenerationSettings, extended: Set<string>) {
+  const hub = doc.site!.center,
+    radius = Math.max(...doc.site!.domain.flatMap(d => d.outer.map(p => distance(p, hub)))),
+    walled = Object.values(doc.paths).some(p => p.role === "wall"),
+    urban = urbanDiskRadiusMeters(radius, walled),
+    plan =
+      settings.layout === "bram"
+        ? planPolygonalCirculadeLayout(hub, settings.seed, bramCoreRadiusMeters(urban), true, 16)
+        : planCirculadeLayout(hub, urban, settings.seed, true),
+    main = settings.roadWidthMeters / 2,
+    side = main * MINOR_STREET_WIDTH_RATIO;
+  for (const ring of plan.ringRoads) layRoadRuns(doc, ring, true, "auto-ring", side, settings, extended);
+  for (const spoke of plan.radialRoads) layRoadRuns(doc, spoke, false, "auto-spoke", side, settings, extended);
+  layRoadRuns(doc, plan.throughRoad, false, "auto-through", main, settings, extended);
+}
 /** The line of a razed wall as open road runs, cut back from water by the road's clearance (P4b). The runs are
  * reached by the street routing, so their ends are no route ports. */
 function boulevard(
@@ -288,59 +315,74 @@ function boulevard(
   settings: VectorGenerationSettings,
   extended: Set<string>
 ) {
-  const points = samplePath(line).map(s => s.point),
-    ring = distance(points[0], points.at(-1)!) < 1e-6 ? points : [...points, points[0]],
-    half = settings.roadWidthMeters / 2,
-    keepOff = [...allVectorWater(doc).map(w => ({ outer: w.outer, holes: w.holes })), ...featureReservations(doc)],
+  const points = samplePath(line).map(s => s.point);
+  layRoadRuns(doc, points, true, "auto-boulevard", settings.roadWidthMeters / 2, settings, extended);
+}
+/**
+ * Lay `points` as generated roads, broken wherever they would enter water, a reserved precinct, a wall or the
+ * site edge (kept off by the road's clearance). A closed line that stays clear is one closed road. Runs shorter
+ * than 10 m are dropped; the ends of the runs are no route ports, the street routing reaches them.
+ */
+function layRoadRuns(
+  doc: VectorCityDocument,
+  points: Point[],
+  closed: boolean,
+  prefix: string,
+  half: number,
+  settings: VectorGenerationSettings,
+  extended: Set<string>
+) {
+  const line = closed && distance(points[0], points.at(-1)!) >= 1e-6 ? [...points, points[0]] : points,
+    keepOff = [
+      ...allVectorWater(doc).map(w => ({ outer: w.outer, holes: w.holes })),
+      ...featureReservations(doc),
+      ...walls(doc)
+    ],
+    reach = half + settings.clearanceMeters + 1,
     clear = (p: Point) =>
+      containsRegion(doc.site!.domain, p) &&
+      doc.site!.domain.every(d => ringDistance(p, d.outer) > reach) &&
       !keepOff.some(w => containsRegion([w], p)) &&
-      keepOff.every(w => ringDistance(p, w.outer) > half + settings.clearanceMeters + 1),
-    dense = densify(ring, 2);
-  let run: Point[] = [],
-    number = 0;
-  const flush = () => {
-    if (
-      run.length >= 2 &&
-      samplePath({ ...line, source: curveSource(run, "freehand", false, 0.1) }).at(-1)!.distance > 10
-    ) {
-      const id = `auto-boulevard:${number++}`;
-      doc.paths[id] = {
-        id,
-        revision: 0,
-        role: "road",
-        origin: "automatic",
-        editPolicy: "editable",
-        source: curveSource(run, "freehand", false, 0.1),
-        width: { leftMeters: half, rightMeters: half, stations: [] }
-      };
-      extended.add(id);
-    }
-    run = [];
-  };
-  const allClear = dense.every(clear);
-  if (allClear) {
-    const id = "auto-boulevard:0";
+      keepOff.every(w => ringDistance(p, w.outer) > reach && w.holes.every(h => ringDistance(p, h) > reach)),
+    dense = densify(line, 2, closed);
+  let number = 0;
+  const road = (run: Point[], isClosed: boolean) => {
+    let id = `${prefix}:${number++}`;
+    while (Object.hasOwn(doc.paths, id)) id = `${prefix}:${number++}`;
     doc.paths[id] = {
       id,
       revision: 0,
       role: "road",
       origin: "automatic",
       editPolicy: "editable",
-      source: curveSource(dense, "freehand", true, 0.1),
+      source: curveSource(run, "freehand", isClosed, 0.1),
       width: { leftMeters: half, rightMeters: half, stations: [] }
     };
+    extended.add(id);
+  };
+  if (closed && dense.every(clear)) {
+    road(dense, true);
     return;
   }
-  // Start the walk at a blocked point so no run is split across the ring's seam.
-  const start = dense.findIndex(p => !clear(p));
+  let run: Point[] = [];
+  const flush = () => {
+    if (run.length >= 2) {
+      let length = 0;
+      for (let i = 1; i < run.length; i++) length += distance(run[i - 1], run[i]);
+      if (length > 10) road(run, false);
+    }
+    run = [];
+  };
+  // A closed line starts its walk at a blocked point so no run is split across the seam.
+  const start = closed ? dense.findIndex(p => !clear(p)) : -1;
   for (let i = 1; i <= dense.length; i++) {
-    const p = dense[(start + i) % dense.length];
+    const p = dense[closed ? (start + i) % dense.length : i - 1];
     if (!clear(p)) flush();
     else if (!run.length || distance(run.at(-1)!, p) > 1e-3) run.push(p);
   }
   flush();
 }
-function densify(ring: Point[], step: number): Point[] {
+function densify(ring: Point[], step: number, closed = true): Point[] {
   const out: Point[] = [];
   for (let i = 0; i < ring.length - 1; i++) {
     const a = ring[i],
@@ -350,6 +392,10 @@ function densify(ring: Point[], step: number): Point[] {
       const p: Point = [a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n];
       if (!out.length || distance(out.at(-1)!, p) > 1e-3) out.push(p);
     }
+  }
+  if (!closed) {
+    if (distance(out.at(-1)!, ring.at(-1)!) > 1e-3) out.push(ring.at(-1)!);
+    return out;
   }
   // The closing point repeats the first; the ring is returned open.
   while (out.length > 1 && distance(out[0], out.at(-1)!) <= 1e-3) out.pop();
@@ -782,6 +828,7 @@ function skeleton(
       throw new Error(`unbridged-road:${road.id}`);
   }
   timed("walls-gates-bridges");
+  if (settings.layout) layConcentricStreets(doc, settings, extended);
   const free = freeLand(doc);
   if (!containsRegion(free, center)) throw new Error("site-center-blocked");
   const ports: Point[] = [[...center]],

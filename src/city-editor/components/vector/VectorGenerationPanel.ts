@@ -442,7 +442,12 @@ export function createVectorGenerationPanel(
       // The editor's wall settings decide the wall, resolved on this seed (P4a).
       const editorWall =
         editorInput && !wallPicked
-          ? vectorWallChoice(editorInput.settings, seed.value, source.context.historicalPeriod)
+          ? vectorWallChoice(
+              editorInput.settings,
+              seed.value,
+              source.context.historicalPeriod,
+              editorInput.frame.extentMeters
+            )
           : undefined;
       if (editorWall) wall.value = editorWall.wall;
       run(
@@ -527,7 +532,14 @@ export function createVectorGenerationPanel(
       // Before any generation, the wall follows the editor's settings, as Generate city used to.
       wall.value =
         doc.generation?.settings.wall ??
-        (editorInput ? vectorWallChoice(editorInput.settings, seed.value, doc.context.historicalPeriod).wall : "none");
+        (editorInput
+          ? vectorWallChoice(
+              editorInput.settings,
+              seed.value,
+              doc.context.historicalPeriod,
+              editorInput.frame.extentMeters
+            ).wall
+          : "none");
       showDiagnostics(doc);
       showSettingGaps(doc);
       updateStages(doc);

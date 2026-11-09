@@ -41,6 +41,9 @@ export interface VectorGenerationSettings {
   wallMaterial?: "stone" | "wood";
   /** Double walls (P4b): an old-town wall of the same outline holding `share` of the walled area, standing or
    * razed to a boulevard; built after the streets (outer-first, default) or before them. */
+  /** The mesh editor's concentric town plans (P4d): ring and radial streets laid before the routed streets.
+   * Absent is the organic plan. */
+  layout?: "circulade" | "bram";
   /** A wet town moat round the outer wall, bridged on every road (P4c-2). */
   townMoat?: boolean;
   innerWall?: { share: number; state: "standing" | "razed"; order?: "outer-first" | "inner-first" };

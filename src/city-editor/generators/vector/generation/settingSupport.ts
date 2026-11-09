@@ -29,7 +29,7 @@ export const MESHLESS_SETTING_SUPPORT: Record<string, { state: MeshlessSettingSt
   "config.wall.coast": { state: "missing", stage: "P5" },
   "config.wall.line": { state: "missing", stage: "P4" },
   "config.wall.material": { state: "equivalent", stage: "P4" },
-  layout: { state: "missing", stage: "P4" },
+  layout: { state: "partial", stage: "P4" },
   wallShape: { state: "equivalent", stage: "P4" },
   wallSides: { state: "equivalent", stage: "P4" },
   townWallRings: { state: "equivalent", stage: "P4" },

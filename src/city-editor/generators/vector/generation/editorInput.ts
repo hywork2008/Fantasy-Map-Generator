@@ -102,7 +102,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
   // will actually hold at the chosen occupancy, plus the land the civic centre takes before any lot.
   // A wall shape narrower than the round site it is drawn in would leave the houses it was sized for outside it:
   // the site grows so the walled area matches (P4a).
-  const wall = vectorWallChoice(settings, seed, period),
+  const wall = vectorWallChoice(settings, seed, period, input.frame.extentMeters),
     wallScale = isVectorWallShape(wall.wall) ? 1 / Math.sqrt(vectorWallAreaShare(seed, wall.wall, wall.wallSides)) : 1;
   const size = (reservedM2: number) =>
     wallScale *
