@@ -811,8 +811,8 @@
       "category": "3d",
       "id": "cityMeshes",
       "mesh": "city3d/three/cityMeshes (City massing)",
-      "meshless": "missing",
-      "evidence": "Not used: house lots need massing and appearance, which the mesh editor assigns from its document (assignBuildingMassing, assignBuildingAppearances). Moved to P3 with the house appearance.",
+      "meshless": "equivalent",
+      "evidence": "P3a: fabric houses are drawn by createCityMassing with BuildingMassing from the mesh editor's rules (lotMassing, lotFloorSpecs). One wall and one roof mesh; the buildingIndex attribute maps triangles back to house ids for picking.",
       "stage": "P3",
       "checked": true
     },
@@ -849,7 +849,7 @@
       "mesh": "city3d/three/forestMeshes (Forest (with ground texture and tree details))",
       "meshless": "missing",
       "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
-      "stage": "P2",
+      "stage": "P7",
       "checked": true
     },
     {
@@ -885,7 +885,7 @@
       "mesh": "city3d/three/openSpaceMeshes (Open spaces (with tree LOD))",
       "meshless": "missing",
       "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
-      "stage": "P2",
+      "stage": "P6",
       "checked": true
     },
     {
@@ -993,15 +993,15 @@
       "mesh": "city3d/three/treeSeason (Tree seasons)",
       "meshless": "missing",
       "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
-      "stage": "P2",
+      "stage": "P7",
       "checked": true
     },
     {
       "category": "3d",
       "id": "house-appearance",
       "mesh": "buildingAppearance / massing by culture and period",
-      "meshless": "missing",
-      "evidence": "Fabric houses are extruded polygons; placements use the single house:mediterranean model.",
+      "meshless": "partial",
+      "evidence": "P3a: wall and roof materials, roof form and pitch, jetties, floor heights and tint follow the mesh editor's massing rules from the period, biome and civilization of the FMG burg. Appearance profiles (buildingAppearance), height variation and limits are P3b.",
       "stage": "P3",
       "checked": true
     },

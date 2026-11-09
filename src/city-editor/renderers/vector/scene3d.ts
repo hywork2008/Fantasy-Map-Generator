@@ -3,6 +3,7 @@ import { placeableObject } from "../../../buildings/placeableObjects";
 import { placementDefinition, placementFootprint } from "../../../buildings/placementModels";
 import { LAND_Y } from "../../../city3d/core/waterGeometry";
 import { createBvPrototypeCache } from "../../../city3d/three/bvInstances";
+import { createCityMassing } from "../../../city3d/three/cityMeshes";
 import { createTownCranes, createTownHarborCargo } from "../../../city3d/three/craneMeshes";
 import { createTownRoads } from "../../../city3d/three/roadMeshes";
 import { createTownShips } from "../../../city3d/three/shipMeshes";
@@ -11,6 +12,7 @@ import { createTownWaterParts } from "../../../city3d/three/waterMeshes";
 import { polygonArea } from "../../generators/geom";
 import type { TownWaterPart } from "../../generators/townWater";
 import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
+import type { BuildingMassing } from "../../types/contracts/buildingMassing";
 import type { Point } from "../../types/primitives";
 import { createVectorLandscapeTrees } from "./landscapeTrees";
 import type { VectorRenderData, VectorRenderSurface } from "./renderData";
@@ -229,6 +231,9 @@ export function createVectorScene(data: VectorRenderData) {
     }
     // Generated houses share one mesh per colour, height and tile: draw calls grow with area, not houses.
     const houseBatches = new Map<string, HouseBatch>();
+    const massingLots: { polygon: Point[]; massing: BuildingMassing }[] = [],
+      massingIds: string[] = [],
+      massingElevations: number[] = [];
     // Walls, towers, gates and bridges use the mesh editor's structure massing, one group per owner for picking.
     const massed = new Set<string>();
     for (const owner of data.structures ?? []) {
@@ -260,6 +265,16 @@ export function createVectorScene(data: VectorRenderData) {
     for (const surface of data.surfaces) {
       if (surface.pieceRole === "landscape-tree") continue;
       if ((surface.kind === "wall" || surface.kind === "bridge") && massed.has(surface.id)) continue;
+      if (surface.houses?.massing && surface.houses.massing.length === surface.houses.ids.length) {
+        const { ids, elevationsMeters, massing } = surface.houses;
+        surface.polygons.forEach((polygon, i) => {
+          if (Math.abs(polygonArea(polygon.outer)) < 1e-8) return;
+          massingLots.push({ polygon: polygon.outer.map(p => [p[0], p[1]] as Point), massing: massing[i] });
+          massingIds.push(ids[i]);
+          massingElevations.push(elevationsMeters[i] - datum);
+        });
+        continue;
+      }
       if (surface.houses) {
         const { ids, heightsMeters, elevationsMeters } = surface.houses;
         surface.polygons.forEach((polygon, i) => {
@@ -401,6 +416,37 @@ export function createVectorScene(data: VectorRenderData) {
         group.add(mesh);
         disposers.push(() => geometry.dispose());
       }
+    }
+    if (massingLots.length) {
+      // Houses use the mesh editor's walls and roofs. Each lot's triangles are contiguous, so the same house table
+      // as the prism batches maps a hit back to its house id.
+      const elevation = new Map(massingLots.map((lot, i) => [lot.polygon, massingElevations[i]])),
+        meshes = createCityMassing(massingLots, ring => elevation.get(ring) ?? 0),
+        holder = new THREE.Group();
+      holder.position.set(-data.center[0], 0, data.center[1]);
+      for (const mesh of meshes.pickables) {
+        const index = mesh.geometry.getAttribute("buildingIndex"),
+          ids: string[] = [],
+          firstTriangles: number[] = [];
+        for (let v = 0, last = -1; v < index.count; v += 3) {
+          const lot = index.getX(v);
+          if (lot === last) continue;
+          last = lot;
+          ids.push(massingIds[lot]);
+          firstTriangles.push(v / 3);
+        }
+        mesh.userData = {
+          ...mesh.userData,
+          kind: "building",
+          buildingKind: "housing",
+          representation: "fabric-massing",
+          fabricHouses: { ids, firstTriangles, triangles: index.count / 3 }
+        };
+        mesh.geometry.computeBoundingSphere();
+      }
+      holder.add(meshes.group);
+      group.add(holder);
+      disposers.push(() => meshes.dispose());
     }
     for (const [key, batch] of houseBatches) {
       const geometry = new THREE.BufferGeometry();

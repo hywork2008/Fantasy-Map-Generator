@@ -71,6 +71,15 @@ function floorSpecs(uses: FloorUse[], period: string): FloorSpec[] {
   return floors.map(floor => ({ ...floor, heightMeters: floor.heightMeters * scale }));
 }
 
+/** Floor uses and heights of a lot from its role and uses alone, without height variation or cells. */
+export function lotFloorSpecs(
+  lot: Pick<BuildingLot, "role" | "uses" | "residentialFloorShare">,
+  storeys: number,
+  period: string
+): FloorSpec[] {
+  return floorSpecs(floorUses(lot as BuildingLot, storeys), period);
+}
+
 export function buildingFloorSpecs(
   document: CityDocument,
   lot: BuildingLot,
@@ -78,7 +87,7 @@ export function buildingFloorSpecs(
   varied: boolean
 ): FloorSpec[] {
   const period = document.urbanMorphology?.period ?? document.historicalPeriod ?? "ageOfExploration";
-  const floors = floorSpecs(floorUses(lot, storeys), period);
+  const floors = lotFloorSpecs(lot, storeys, period);
   if (varied && !document.mesh?.faces?.[lot.faceId]?.properties.locked) {
     const seed = document.generationSeed || document.fabric?.seed || "massing";
     const key = `${seed}:height-v1:${lot.heightKey ?? stableBuildingAppearanceId(lot)}`;

@@ -1,4 +1,6 @@
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
+import { lotFloorSpecs } from "../../generators/buildingFloors";
+import { lotMassing, massingContext } from "../../generators/buildingMassing";
 import { type ContourLine, fieldContours } from "../../generators/terrainField/contours";
 import type { TownWaterKind } from "../../generators/townWater";
 import { curveSource } from "../../generators/vector/editing/paths";
@@ -9,6 +11,7 @@ import { pathSurface } from "../../generators/vector/geometry/surfaces";
 import { vectorWaterSurfaces } from "../../generators/vector/geometry/water";
 import { vectorTerrain } from "../../generators/vector/terrain";
 import { assertVectorDocument } from "../../generators/vector/validation/document";
+import type { BuildingMassing } from "../../types/contracts/buildingMassing";
 import type { HarborCargoPile, HarborCrane } from "../../types/contracts/harborFabric";
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument, VectorPath, VectorPlacement } from "../../types/vector/document";
@@ -51,7 +54,13 @@ export interface VectorRenderSurface {
   pieceRole?: string;
   elevations?: { bottom: number[]; top: number[] }[];
   /** Generated houses of one street block, aligned with `polygons` (a clipped house may repeat its id). */
-  houses?: { ids: string[]; heightsMeters: number[]; elevationsMeters: number[] };
+  houses?: {
+    ids: string[];
+    heightsMeters: number[];
+    elevationsMeters: number[];
+    /** The mesh editor's walls, roof and colour per house (P3a), parallel to `ids`. */
+    massing?: BuildingMassing[];
+  };
 }
 /** Storey height of generated houses. */
 export const FABRIC_STOREY_METERS = 3.2;
@@ -366,6 +375,14 @@ export function vectorRenderData(
         for (const [id, polygon] of parts) road(id, [polygon]);
       }
     };
+    // The mesh editor's massing rules read the period, climate and culture of the FMG burg.
+    const descriptor = doc.site?.descriptor,
+      massing = massingContext({
+        period: doc.context.historicalPeriod,
+        biome: descriptor?.biome,
+        civilization: descriptor?.civilization,
+        seed: doc.recipe.seed
+      });
     for (const district of Object.values(doc.fabric.districts))
       lines(district.id, "s", district.streets, district.origin, district.detachedLines);
     for (const cell of Object.values(doc.fabric.cells)) {
@@ -374,7 +391,12 @@ export function vectorRenderData(
       // One surface per street block: 2D draws it as one path, 3D batches it by storeys.
       const detached = new Set(cell.detached),
         polygons: VectorPolygon[] = [],
-        houses: NonNullable<VectorRenderSurface["houses"]> = { ids: [], heightsMeters: [], elevationsMeters: [] };
+        houses: NonNullable<VectorRenderSurface["houses"]> = {
+          ids: [],
+          heightsMeters: [],
+          elevationsMeters: [],
+          massing: []
+        };
       for (let i = 0; i < cellHouseCount(cell); i++) {
         if (detached.has(i)) continue;
         const id = fabricHouseId(cell.id, i),
@@ -388,6 +410,17 @@ export function vectorRenderData(
           houses.ids.push(id);
           houses.heightsMeters.push(cell.houses.storeys[i] * FABRIC_STOREY_METERS);
           houses.elevationsMeters.push(elevation);
+          const storeys = cell.houses.storeys[i];
+          houses.massing!.push(
+            lotMassing(
+              massing,
+              { polygon: part.outer, role: "main" },
+              storeys,
+              lotFloorSpecs({ role: "main" }, storeys, massing.period),
+              undefined,
+              id
+            )
+          );
         }
       }
       if (polygons.length)

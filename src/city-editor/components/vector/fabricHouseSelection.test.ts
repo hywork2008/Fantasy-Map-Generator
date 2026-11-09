@@ -1,4 +1,4 @@
-import type * as THREE from "three";
+import * as THREE from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { polygonCentroid } from "../../generators/geom";
 import { fabricHouseInfo } from "../../generators/vector/fabric/houses";
@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe("generated houses drawn and selected from fabric records", () => {
-  it("draws one 2D path per street block and batched 3D meshes that map back to every house", () => {
+  it("draws one 2D path per street block and 3D wall and roof meshes that map back to every house", () => {
     const before = JSON.stringify(doc),
       data = vectorRenderData(doc),
       blocks = data.surfaces.filter(s => s.houses),
@@ -35,7 +35,12 @@ describe("generated houses drawn and selected from fabric records", () => {
     expect(svg.querySelectorAll("[data-vector-fabric-cell]")).toHaveLength(blocks.length);
     expect(svg.querySelector('[data-vector-placement][data-vector-building-kind="housing"]')).toBeNull();
     const scene = createVectorScene(data),
-      meshes = scene.group.children.filter(o => o.userData.representation === "fabric-houses") as THREE.Mesh[];
+      meshes: THREE.Mesh[] = [];
+    // The mesh editor's wall and roof meshes (P3a), each mapping its triangles back to the houses.
+    scene.group.traverse(o => {
+      if (o instanceof THREE.Mesh && o.userData.representation === "fabric-massing") meshes.push(o);
+    });
+    expect(meshes.map(m => m.userData.surface).sort()).toEqual(["roof", "wall"]);
     expect(meshes.length).toBeLessThan(ids.size);
     const picked = new Set<string>();
     for (const mesh of meshes) {
@@ -53,6 +58,11 @@ describe("generated houses drawn and selected from fabric records", () => {
       });
     }
     expect(picked).toEqual(ids);
+    // The mesh editor's massing rules: its floor heights (3.2 m ground, 2.9 m above) and a pitched roof on most houses.
+    const massing = blocks.flatMap(s => s.houses!.massing!);
+    expect(massing).toHaveLength(blocks.flatMap(s => s.houses!.ids).length);
+    for (const m of massing) expect(m.eaveHeightMeters).toBeCloseTo(3.2 + 2.9 * (m.storeys - 1), 9);
+    expect(massing.filter(m => m.roof.form !== "flat").length).toBeGreaterThan(massing.length / 2);
     scene.dispose();
     expect(JSON.stringify(doc)).toBe(before);
   });

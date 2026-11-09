@@ -323,3 +323,42 @@ P2cは水面・地形・樹木である。今回は平坦な敷地の水面を�
 - `renderers/vector/renderData.test.ts`の「地面より下に何もない」の確認を、水面の深さまでに改めた。
 - 関連テスト（`renderers/vector`、`city3d/three/waterMeshes`、`components/vector`、`CityEditorPage.vector`、`services/io/vector`）はすべて成功した。
 - ブラウザでの目視は、この環境にPlaywrightのChromeがなく行っていない。
+
+## P2c-2の移動（2026-11-09）
+
+樹木の詳細度の切り替えと季節（P2c-2）は、P6（墓地・公園の樹木、`openSpaceMeshes`）とP7（森林、`forestMeshes`・`treeSeason`）へ移した。メッシュなしのランダム生成は樹木を作らないため、P2の時点では確かめる対象がない（2026-11-09指示）。
+
+## P3a 住宅を旧CEの量塊の規則と部品で描く（2026-11-09）
+
+P3（住宅の外観と高さ）を2つに分けた。P3aは、住宅の階数はそのままに、壁・屋根・色を旧CEの規則と部品で描く。高さの変化・高さの上限・建物パターン・外観の型（`buildingAppearance`）はP3bで扱う。これらは住戸の容量を変えるので、生成の側の変更が要る。
+
+### 旧CEの規則をセルから切り離す
+
+| 関数 | 内容 |
+| --- | --- |
+| `massingContext`（`buildingMassing.ts`） | 時代・生態域・文明（信仰・築城）・seedから、気候（乾燥・森林）と伝統（地中海・東アジア）を決める |
+| `lotMassing`（同） | 壁の材料、屋根の材料・形・勾配・棟の向き、張り出し、軒高、色の揺らぎ |
+| `lotFloorSpecs`（`buildingFloors.ts`） | 用途ごとの階高（地上階3.2 m、上階2.9 mなど）。高さの変化は含まない |
+
+旧CEの`assignBuildingMassing`と`buildingFloorSpecs`は、これらを呼ぶだけになった。処理の移動のみで、旧CEの関連テスト（`buildingMassing`・`buildingHeightLimits`・`buildingHeightPolicy`・`cityMeshes`・`regionalHouseLod`）は変更なしで成功した。
+
+### メッシュなしの住宅
+
+- 描画データの住宅（`houses`）に、住宅ごとの`massing`を加えた。
+  - 時代は文書の`context.historicalPeriod`、生態域と文明は敷地のFMGの都市情報（`site.descriptor`）から読む。
+  - 住宅は用途`main`の住居とし、階数は記録の階数のまま。
+  - 色の揺らぎの鍵は住宅のID。
+- 3Dは、全住宅を旧CEの`createCityMassing`で描く（壁1つ・屋根1つのメッシュ）。
+  - 住宅ごとの三角形は連続しているので、頂点の`buildingIndex`から従来と同じ住宅の表（`fabricHouses`）を作り、選択と選択枠に使う。
+  - 従来の角柱の住宅は、`massing`のある住宅では作らない。
+- 軒高は旧CEの階高に合わせて、従来の1階3.2 m一律から、地上階3.2 m・上階2.9 mになった。屋根の分だけ全体は高くなる。
+
+### 時間
+
+5万人・8,930戸の都市（後期中世、楕円の市壁）で、3Dのシーンの構築は1,991 msから3,701 msになった。増えた分は旧CEの壁と屋根の組み立て（`buildingSurfaces`）で、旧CEでも同じだけかかる。描画データの作成は465 msから478 msだった。壁・屋根の組は、木骨・草葺きの切妻6,195、寄棟2,349、陸屋根386だった。
+
+### テスト
+
+- `components/vector/fabricHouseSelection.test.ts`を、壁と屋根のメッシュから全住宅が選択できることに改め、量塊の階高と勾配屋根の割合の確認を加えた。
+- 関連テスト（`renderers/vector`、`components/vector`、`CityEditorPage.vector`、`services/io/vector`、旧CEの量塊・高さ・`cityMeshes`・`regionalHouseLod`、アーキテクチャ）は96件中94成功・2 skipだった。
+- ブラウザでの目視は、Chromeがなく行っていない。
