@@ -67,7 +67,7 @@ export function mountVector3d(container: HTMLElement, data: VectorRenderData, on
       draw();
     };
   controls.addEventListener("change", draw);
-  let selection: THREE.Box3Helper | undefined;
+  let selection: THREE.Box3Helper | THREE.LineSegments | undefined;
   const clearSelection = () => {
     if (!selection) return;
     selection.geometry.dispose();
@@ -101,10 +101,20 @@ export function mountVector3d(container: HTMLElement, data: VectorRenderData, on
       let owner = hit.object;
       for (let parent = owner.parent; parent; parent = parent.parent) if (parent.userData.id === id) owner = parent;
       clearSelection();
-      selection = new THREE.Box3Helper(
-        house ? houseBounds(hit.object, house) : new THREE.Box3().setFromObject(owner, true),
-        0xe48b32
-      );
+      // A flat surface kept only as a pick target (river, road) is outlined itself: its bounding box spans far
+      // beyond a long diagonal river.
+      if (!house && owner instanceof THREE.Mesh && !owner.visible) {
+        owner.updateMatrixWorld(true);
+        selection = new THREE.LineSegments(
+          new THREE.EdgesGeometry(owner.geometry),
+          new THREE.LineBasicMaterial({ color: 0xe48b32 })
+        );
+        selection.applyMatrix4(owner.matrixWorld);
+      } else
+        selection = new THREE.Box3Helper(
+          house ? houseBounds(hit.object, house) : new THREE.Box3().setFromObject(owner, true),
+          0xe48b32
+        );
       for (const material of Array.isArray(selection.material) ? selection.material : [selection.material])
         material.depthTest = false;
       scene.add(selection);

@@ -7,8 +7,11 @@ import { createTownCranes, createTownHarborCargo } from "../../../city3d/three/c
 import { createTownRoads } from "../../../city3d/three/roadMeshes";
 import { createTownShips } from "../../../city3d/three/shipMeshes";
 import { createStructureMassing } from "../../../city3d/three/structureMeshes";
+import { createTownWaterParts } from "../../../city3d/three/waterMeshes";
 import { polygonArea } from "../../generators/geom";
+import type { TownWaterPart } from "../../generators/townWater";
 import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
+import type { Point } from "../../types/primitives";
 import { createVectorLandscapeTrees } from "./landscapeTrees";
 import type { VectorRenderData, VectorRenderSurface } from "./renderData";
 import { projectTerrainGeometry } from "./terrainGeometry";
@@ -148,9 +151,27 @@ export function createVectorScene(data: VectorRenderData) {
     materials.clear();
   };
   try {
+    // Flat water uses the mesh editor's water tops and bank skirts, sunk below a ground cut open for it.
+    const waterParts: TownWaterPart[] = data.terrain
+      ? []
+      : (data.water ?? []).flatMap(w =>
+          w.polygons.flatMap(p => {
+            if (!p.holes.length) return [{ kind: w.kind, polygon: p.outer.map(q => [q[0], q[1]] as Point) }];
+            // Parts are plain rings; an island splits the water into its triangles, which share unskirted edges.
+            const vertices = [p.outer, ...p.holes].flat();
+            return THREE.ShapeUtils.triangulateShape(
+              p.outer.map(q => new THREE.Vector2(...q)),
+              p.holes.map(h => h.map(q => new THREE.Vector2(...q)))
+            ).map(t => ({ kind: w.kind, polygon: t.map(i => [vertices[i][0], vertices[i][1]] as Point) }));
+          })
+        );
+    const cutouts = [
+      ...(data.groundCutouts ?? []),
+      ...(waterParts.length ? (data.water ?? []).flatMap(w => w.polygons) : [])
+    ];
     const groundGeometry = data.terrain
       ? new THREE.BufferGeometry()
-      : data.groundCutouts?.length
+      : cutouts.length
         ? (() => {
             const half = data.extentMeters / 2,
               [x, y] = data.center;
@@ -166,7 +187,7 @@ export function createVectorScene(data: VectorRenderData) {
                   holes: []
                 }
               ],
-              data.groundCutouts,
+              cutouts,
               "difference"
             );
             const geometry = new THREE.ShapeGeometry(polygons.map(p => shape(p, data.center)));
@@ -187,11 +208,20 @@ export function createVectorScene(data: VectorRenderData) {
     }
     const ground = new THREE.Mesh(groundGeometry, material("#ece6d9"));
     if (!data.terrain) {
-      if (!data.groundCutouts?.length) ground.rotation.x = -Math.PI / 2;
+      if (!cutouts.length) ground.rotation.x = -Math.PI / 2;
       ground.position.set(0, -0.01, 0);
     }
     group.add(ground);
     disposers.push(() => ground.geometry.dispose());
+    if (waterParts.length) {
+      const water = createTownWaterParts(waterParts),
+        holder = new THREE.Group();
+      // The mesh editor's land lies at LAND_Y; here the land is at the datum.
+      holder.position.set(-data.center[0], -datum - LAND_Y, data.center[1]);
+      holder.add(water.parent);
+      group.add(holder);
+      disposers.push(() => water.dispose());
+    }
     if (data.landscapeTrees?.length) {
       const trees = createVectorLandscapeTrees(data.landscapeTrees, data.center, datum);
       group.add(trees.group);
@@ -358,7 +388,8 @@ export function createVectorScene(data: VectorRenderData) {
         }
         const mesh = new THREE.Mesh(geometry, material(surface.color));
         // Hidden meshes are not drawn or exported, but the pick ray still finds them.
-        if (roadsDrawn && surface.kind === "road") mesh.visible = false;
+        if ((roadsDrawn && surface.kind === "road") || (waterParts.length && surface.kind === "river"))
+          mesh.visible = false;
         mesh.position.y = surface.elevations ? 0 : surface.elevationMeters - (surface.heightAt ? 0 : datum);
         mesh.userData = {
           id: surface.id,

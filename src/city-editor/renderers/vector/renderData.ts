@@ -1,5 +1,6 @@
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
 import { type ContourLine, fieldContours } from "../../generators/terrainField/contours";
+import type { TownWaterKind } from "../../generators/townWater";
 import { curveSource } from "../../generators/vector/editing/paths";
 import { cellHouseCount, cellHouseRing, fabricHouseId, unpackLine } from "../../generators/vector/fabric/pack";
 import { bridgeGeometry, gateOpening, junctionSurface } from "../../generators/vector/geometry/network";
@@ -72,6 +73,9 @@ export interface VectorRenderData {
   structures?: ReturnType<typeof vectorStructures>;
   /** Roads of this stage as the mesh editor's wearing-course ribbons, for 3D. */
   roads?: ReturnType<typeof vectorRoadRibbons>;
+  /** Flat sites only: the drawn water by the mesh editor's water kind, for its water and bank meshes in 3D.
+   * The `river` surfaces stay as pick targets. Relief and harbours keep their own surfaces. */
+  water?: { id: string; kind: TownWaterKind; polygons: VectorPolygon[] }[];
 }
 /** Adopted geometry only. The same clipped surfaces feed screen SVG, exports and 3D. */
 export function vectorRenderData(
@@ -494,7 +498,19 @@ export function vectorRenderData(
   const drawn = new Set(surfaces.filter(s => s.kind === "wall" || s.kind === "bridge").map(s => s.id)),
     // Fabric lines are drawn per record (`<record>~l`), or per line (`<record>~l3`) when the union fails.
     roadOwners = new Set(surfaces.filter(s => s.kind === "road").map(s => s.id.replace(/(~[sl])\d+$/, "$1")));
+  const siteWater = new Map((doc.site?.water ?? []).map(w => [w.id, w]));
+  const water =
+    terrain.hasRelief || doc.environment?.harbor
+      ? undefined
+      : surfaces
+          .filter(s => s.kind === "river")
+          .map(s => {
+            const w = siteWater.get(s.id),
+              kind: TownWaterKind = !w || w.riverPathId ? "river" : w.id.startsWith("fmg-coast:") ? "ocean" : "lake";
+            return { id: s.id, kind, polygons: s.polygons };
+          });
   return {
+    water,
     structures: vectorStructures(doc).filter(s => drawn.has(s.owner)),
     roads: vectorRoadRibbons(doc, id => roadOwners.has(id)),
     revision: doc.revision,

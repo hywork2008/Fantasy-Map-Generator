@@ -286,3 +286,40 @@ P2（3D表示の共有）の最初の区切りとして、市壁・塔・門・�
   - 3Dで道路の輪郭が隠れ、旧CEの路面の部品が見え、地面より上にあること。
 - 関連テストは134ファイル中121成功・10 skip・3失敗だった。失敗の3件は、P2aと同じく以前からのものである。
 - 型検査・biome・アーキテクチャの検査はエラーなしである。
+
+## P2c-1 水面を旧CEの水面・岸の部品で描く（2026-11-09）
+
+P2cは水面・地形・樹木である。今回は平坦な敷地の水面を扱った。樹木と地形は次に回す（後述）。
+
+### 水面
+
+`city3d/three/waterMeshes.ts`に`createTownWaterParts`を追加した。
+
+- 旧CEの`createTownWater`の平坦な場合と同じ部品で描く。
+  - 水面: `waterSurfaceGeometry`の上面。内水は`WATER_Y`（地面の1 m下）、海は地面の`seaDropMeters`（既定1 m）下。
+  - 色: `TOWN_WATER_COLOR`。
+  - 岸: `bankMesh`の岸の側面（地面の色）。
+- 入力は分類済みの`TownWaterPart`だけで、旧CEのセルの文書を読まない。`createTownWater`の動作は変えていない。
+
+メッシュなしの描画データ（`vectorRenderData`）に`water`を加えた。
+
+- その段階で描く`river`の面から作る。種類は、川の道・川に結び付いた水面が`river`、`fmg-coast:`が`ocean`、それ以外が`lake`である。
+- 起伏のある敷地と港のある敷地では作らない。起伏の川（`riverHydraulicMesh`・岸壁）はP8、港の水面はP5で扱う。
+
+3D（`scene3d.ts`）では、次のように描く。
+
+- 地面に水面の穴を開け、その下に旧CEの水面と岸を置く。旧CEの地面は`LAND_Y`にあるので、道路と同じく0.2 m持ち上げた。
+- 島を含む水面は、三角形に分けて部品へ渡す（`TownWaterPart`の輪郭は穴を持たないため）。三角形どうしの辺は両側が水なので岸が立たない。
+- 従来の水面の平面は、隠したまま選択の対象として残す。
+
+### 次に回したもの
+
+- 樹木（`openSpaceTreeLod`・`forestMeshes`・季節）: 旧CEの樹木はカメラに応じて詳細度を切り替える（`update(camera, viewportHeight)`）。メッシュなしの3Dビューにこの更新の呼び出しと月の状態を加える必要があるので、別の区切りとする。
+- 地形（`terrainFieldMesh`・`groundSurfaceGeometry`）: 旧CEの地形の部品はセルの文書と`CityTerrain`を読む。メッシュなしの起伏は独自の`vectorTerrain`なので、P8で扱う。
+
+### テスト
+
+- `renderers/vector/structureMassing.test.ts`に1件を加えた。川が`river`として渡ること、水面が地面の1 m下にあること、岸があること、水面の平面が隠れて選択できること、地面に穴があること。
+- `renderers/vector/renderData.test.ts`の「地面より下に何もない」の確認を、水面の深さまでに改めた。
+- 関連テスト（`renderers/vector`、`city3d/three/waterMeshes`、`components/vector`、`CityEditorPage.vector`、`services/io/vector`）はすべて成功した。
+- ブラウザでの目視は、この環境にPlaywrightのChromeがなく行っていない。

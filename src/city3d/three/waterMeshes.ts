@@ -270,6 +270,36 @@ export function createTownWater(
   };
 }
 
+/**
+ * Flat water from classified parts alone, for callers without a cell document (meshless CE). Same tops,
+ * colours and bank skirts as the flat branch of `createTownWater`; land lies at LAND_Y and inland water
+ * WATER_Y. The sea sits `seaDropMeters` below the land, as `flatSeaDropMeters` does with no land faces.
+ */
+export function createTownWaterParts(parts: readonly TownWaterPart[], seaDropMeters = 1) {
+  const parent = new THREE.Object3D();
+  parent.name = "ce-water";
+  const level = (kind: TownWaterKind) => (kind === "ocean" ? LAND_Y - seaDropMeters : WATER_Y);
+  for (const kind of KINDS) {
+    const own = parts.filter(part => part.kind === kind);
+    if (!own.length) continue;
+    const top = waterSurfaceGeometry(townWaterTriangles(own), [], () => false, { waterY: level(kind) }).top;
+    const mesh = meshFrom(`ce-water-${kind}`, top, TOWN_WATER_COLOR[kind], THREE.FrontSide);
+    if (mesh) parent.add(mesh);
+  }
+  const bank = bankMesh(
+    parts.map(part => part.polygon),
+    parts.map(part => level(part.kind))
+  );
+  if (bank) parent.add(bank);
+  return {
+    parent,
+    dispose() {
+      parent.removeFromParent();
+      for (const object of [...parent.children]) disposeMesh(object);
+    }
+  };
+}
+
 /** Vertical quay from just below the corridor water to the bank ground. */
 function quayMesh(document: CityDocument, terrain: CityTerrain): THREE.Mesh | null {
   const corridors = (

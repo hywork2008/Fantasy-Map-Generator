@@ -9,6 +9,7 @@
 - docs/analytics/ce-meshless-parity-p0-20261109.md - P1の節（設定の保存、未対応の設定の表示、文言の置換の不具合）を追加
 - docs/analytics/ce-meshless-parity-p0-20261109.md - P2aの節（市壁・塔・門・橋を旧CEの構造物の量塊で描く）を追加
 - docs/analytics/ce-meshless-parity-p0-20261109.md - P2bの節（道路を旧CEの路面の部品で描く、住宅はP3へ）を追加
+- docs/analytics/ce-meshless-parity-p0-20261109.md - P2c-1の節（平坦な敷地の水面を旧CEの水面・岸の部品で描く、樹木と地形は次へ）を追加
 - docs/analytics/ce-meshless-parity-p0b-20261109.json - 機能同等化P0bの比較結果。固定8件中6件でメッシュなしの生成が成功
 - docs/analytics/ce-meshless-scaling-v9-20261109.json - 生成版v9（穴のある街区の分割、外周に接する穴、1 cmの輪郭）後の固定4規模の計測
 - docs/analytics/ce-meshless-seed-sweep-20261109.json - 12の種 × 5,000・50,000人 × 市壁の有無の生成結果（v9）。48通りすべて生成でき未収容0
@@ -26,6 +27,7 @@
 - docs/plan/ce-meshless-feature-parity.md - P1の完了と次のP2を記載
 - docs/plan/ce-meshless-feature-parity.md - P2aの完了と次のP2b、門のバービカンの扱いを記載
 - docs/plan/ce-meshless-feature-parity.md - P2bの完了と次のP2c、住宅の描画をP3で行うことを記載
+- docs/plan/ce-meshless-feature-parity.md - 敷地のseed化、道路骨格の枝分かれ化、P2c-1（水面）の完了と次のP2c-2（樹木）を記載
 - docs/plan/ce-meshless-feature-parity.md - メッシュなしCEをメッシュありと同等の機能（ランダム生成・3D表示・操作）にするロードマップ。既存の設計・受入の点検結果、同等性の定義、P0〜P10
 - docs/plan/data/ce-meshless-parity-cases.json - 機能同等化の比較の固定ケース8件
 - docs/plan/data/ce-meshless-parity.json - 機能同等化の対応表127行（生成設定・生成要素・3Dの部品・操作）

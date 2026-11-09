@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { syntheticVectorInput } from "../../generators/vector/generation/input";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../../generators/vector/generation/pipeline";
-import { containsRegion } from "../../generators/vector/geometry/regions";
+import { containsRegion, regionArea } from "../../generators/vector/geometry/regions";
 import { vectorPickOwner } from "./picking";
 import { vectorRenderData } from "./renderData";
 import { createVectorScene } from "./scene3d";
@@ -76,6 +76,51 @@ describe("meshless roads as the mesh editor's wearing-course ribbons (feature pa
     expect(road.visible).toBe(true);
     // Just above the land, as in the mesh editor.
     expect(new THREE.Box3().setFromObject(road).max.y).toBeGreaterThan(0);
+    scene.dispose();
+  });
+});
+
+describe("meshless water as the mesh editor's water and bank meshes (feature parity P2c)", () => {
+  it("sinks the river below a ground cut open for it, with banks, and keeps the river outline as a hidden pick target", () => {
+    const data = vectorRenderData(city, "regions");
+    expect(data.water?.map(w => w.kind)).toEqual(["river"]);
+    const scene = createVectorScene(data),
+      meshes: THREE.Mesh[] = [];
+    scene.group.traverse(o => {
+      if (o instanceof THREE.Mesh) meshes.push(o);
+    });
+    scene.group.updateMatrixWorld(true);
+    const top = meshes.find(m => m.name === "ce-water-river")!,
+      bank = meshes.find(m => m.name === "ce-bank")!;
+    expect(top.visible).toBe(true);
+    expect(bank).toBeDefined();
+    // One metre below the land at the datum, as the mesh editor's water lies below its land.
+    const box = new THREE.Box3().setFromObject(top);
+    expect(box.max.y - scene.group.position.y).toBeCloseTo(-1, 5);
+    const outline = meshes.find(m => m.userData.kind === "river")!;
+    expect(outline.visible).toBe(false);
+    expect(vectorPickOwner(outline)).toBe(outline.userData.id);
+    // The ground is cut open where the river runs: its area is the window less the water.
+    const ground = meshes.find(m => m.geometry.type === "ShapeGeometry" && m.userData.id === undefined)!,
+      position = ground.geometry.getAttribute("position"),
+      index = ground.geometry.getIndex()!;
+    let area = 0;
+    for (let i = 0; i < index.count; i += 3) {
+      const [a, b, c] = [0, 1, 2].map(k => new THREE.Vector3().fromBufferAttribute(position, index.getX(i + k)));
+      area += b.sub(a).cross(c.sub(a)).length() / 2;
+    }
+    const water = data.water!.flatMap(w => w.polygons).reduce((n, p) => n + regionArea(p), 0),
+      window = regionArea({
+        outer: [
+          [-1, -1],
+          [1, -1],
+          [1, 1],
+          [-1, 1]
+        ].map(([x, y]) => [(x * data.extentMeters) / 2, (y * data.extentMeters) / 2] as [number, number]),
+        holes: []
+      });
+    expect(water).toBeGreaterThan(0);
+    expect(area).toBeLessThan(window - water * 0.9);
     scene.dispose();
   });
 });

@@ -973,8 +973,8 @@
       "category": "3d",
       "id": "waterMeshes",
       "mesh": "city3d/three/waterMeshes (Water)",
-      "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "meshless": "partial",
+      "evidence": "P2c: on flat sites without a harbour, river, lake and coast water is drawn by createTownWaterParts (the flat branch of createTownWater: same water tops at WATER_Y, TOWN_WATER_COLOR and bank skirts) under a ground cut open for it; the flat outlines stay as hidden pick targets. Relief (riverHydraulicMesh, quays) is P8; harbour water keeps its own surfaces (P5).",
       "stage": "P2",
       "checked": true
     },
