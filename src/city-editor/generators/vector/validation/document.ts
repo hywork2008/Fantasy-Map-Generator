@@ -93,6 +93,23 @@ function segment(v: unknown, legacy = false): v is VectorSegment {
   );
 }
 
+/** Requested mesh-editor settings: plain finite JSON within a small budget, never an FMG descriptor. */
+function requestedSettings(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.hasOwn(value, "descriptor")) return false;
+  let budget = 4000;
+  const plain = (v: unknown, depth: number): boolean => {
+    if (--budget < 0 || depth > 6) return false;
+    if (v === null || typeof v === "boolean" || typeof v === "string") return typeof v !== "string" || v.length <= 256;
+    if (typeof v === "number") return Number.isFinite(v);
+    if (Array.isArray(v)) return v.length <= 64 && v.every(x => plain(x, depth + 1));
+    if (typeof v === "object")
+      return Object.entries(v).every(
+        ([k, x]) => !["__proto__", "constructor", "prototype"].includes(k) && plain(x, depth + 1)
+      );
+    return false;
+  };
+  return plain(value, 0) && "config" in value;
+}
 export function validateVectorPath(value: unknown): string[] {
   if (!record(value) || !id(value.id) || !validPath(value, false)) return ["invalid-path"];
   try {
@@ -216,8 +233,9 @@ export function validateVectorDocument(
     !keys(
       value.context,
       ["historicalPeriod", "targetPopulation"],
-      legacy === true || legacy === 2 ? [] : ["bridgeSkewTier"]
+      legacy === true || legacy === 2 ? [] : legacy ? ["bridgeSkewTier"] : ["bridgeSkewTier", "requestedSettings"]
     ) ||
+    (value.context.requestedSettings !== undefined && !requestedSettings(value.context.requestedSettings)) ||
     (value.context.bridgeSkewTier !== undefined && ![0, 1, 2].includes(value.context.bridgeSkewTier as number)) ||
     !isHistoricalPeriod(value.context.historicalPeriod) ||
     !Number.isSafeInteger(value.context.targetPopulation) ||

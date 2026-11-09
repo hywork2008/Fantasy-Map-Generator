@@ -305,3 +305,26 @@ describe("M5 adopted urban checkpoints", () => {
     expect(field("stage").querySelectorAll("option")).toHaveLength(5);
   });
 });
+
+describe("settings meshless does not generate (feature parity P1)", () => {
+  it("lists the requested settings meshless cannot generate yet, and nothing for a default city", () => {
+    const settings = defaultGenerationSettings();
+    settings.population = defaultPopulationSettings(3000);
+    settings.config.features.citadel = true;
+    settings.townWallRings = "double";
+    mount(createVectorDocument(), undefined, {
+      seed: "p1",
+      settings,
+      frame: { extentMeters: 1200, cityRadiusMeters: 300, blockSizeMeters: 50 }
+    });
+    const box = panel.querySelector<HTMLElement>("[data-vector-setting-gaps]")!,
+      ids = [...box.querySelectorAll<HTMLElement>("[data-setting-gap]")].map(li => li.dataset.settingGap);
+    expect(box.hidden).toBe(false);
+    expect(ids).toEqual(expect.arrayContaining(["config.features.citadel", "townWallRings"]));
+    expect(box.textContent).not.toContain("{{");
+    scope.dispose();
+    panel.replaceChildren();
+    mount();
+    expect(panel.querySelector<HTMLElement>("[data-vector-setting-gaps]")!.hidden).toBe(true);
+  });
+});

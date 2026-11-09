@@ -132,7 +132,14 @@ export interface VectorCityDocument {
   version: 8;
   revision: number;
   frame: { extentMeters: number };
-  context: { historicalPeriod: HistoricalPeriod; targetPopulation: number; bridgeSkewTier?: 0 | 1 | 2 };
+  context: {
+    historicalPeriod: HistoricalPeriod;
+    targetPopulation: number;
+    bridgeSkewTier?: 0 | 1 | 2;
+    /** Mesh-editor generation settings the city was requested with (native v8), without the FMG descriptor,
+     * which the site keeps. Kept as given, so settings meshless cannot generate yet are shown, not lost. */
+    requestedSettings?: Omit<import("../generation").GenerationSettings, "descriptor">;
+  };
   paths: Record<string, VectorPath>;
   connections: {
     nodes: Record<string, VectorNode>;

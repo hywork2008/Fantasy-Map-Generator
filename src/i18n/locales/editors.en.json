@@ -313,7 +313,19 @@
           "budget": "This facility hit its search allowance",
           "unsearched": "Not searched; the shared attempt budget was already spent"
         },
-        "running": "Generating candidate… You can cancel or continue editing."
+        "running": "Generating candidate… You can cancel or continue editing.",
+        "settingGaps": {
+          "title": "Settings not generated as in the mesh editor yet",
+          "item": "{{value0}}: {{value1}} (planned in {{value2}})",
+          "states": {
+            "partial": "partly supported",
+            "authored-only": "can be placed by hand, not generated",
+            "converted-only": "only when copied from a mesh document",
+            "missing": "not supported yet",
+            "equivalent": "supported",
+            "not-applicable": "cell-specific; not used"
+          }
+        }
       },
       "dependencies": {
         "title": "Edit dependencies",
@@ -457,8 +469,8 @@
         "terrainLimit": "Terrain editing supports frames up to 10 km."
       },
       "measurement": {
-        "length": "Length {value0} m",
-        "area": "Area {value0} m²"
+        "length": "Length {{value0}} m",
+        "area": "Area {{value0}} m²"
       },
       "fabricHouse": {
         "title": "Generated house",
@@ -466,8 +478,8 @@
         "district": "District",
         "storeys": "Storeys",
         "dwellings": "Dwellings",
-        "area": "Footprint {value0} m²",
-        "entrance": "Entrance (east, north) {value0}, {value1}",
+        "area": "Footprint {{value0}} m²",
+        "entrance": "Entrance (east, north) {{value0}}, {{value1}}",
         "insideWall": "Inside the town wall",
         "outsideWall": "Outside the town wall",
         "editLater": "Detaching keeps the house's shape, dwellings and entrance; the street block leaves its lot to the placement.",
@@ -476,7 +488,7 @@
         "clear": "Remove house, keep the lot empty",
         "cleared": "Removed. The lot stays empty; regeneration refills the shortfall elsewhere.",
         "lineTitle": "Generated street or lane",
-        "lineWidth": "Width {value0} m, length {value1} m",
+        "lineWidth": "Width {{value0}} m, length {{value1}} m",
         "detachLine": "Detach as a road",
         "lineDetached": "Detached. Edit it as a road; undo returns it to the records."
       },

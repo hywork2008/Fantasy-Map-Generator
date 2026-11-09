@@ -5,6 +5,7 @@ import {
 } from "../../generators/vector/generation/editorInput";
 import { siteDisk, syntheticVectorInput, vectorInputFromDescriptor } from "../../generators/vector/generation/input";
 import { DEFAULT_VECTOR_GENERATION, type VectorGenerationResult } from "../../generators/vector/generation/pipeline";
+import { meshlessSettingGaps } from "../../generators/vector/generation/settingSupport";
 import { DEFAULT_VECTOR_URBAN } from "../../generators/vector/generation/urban";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../../generators/vector/validation/document";
 import { vectorUrbanStages } from "../../generators/vector/validation/urban";
@@ -13,6 +14,7 @@ import type { EditorLifetime } from "../../services/editorLifetime";
 import { parseIncomingPayload } from "../../services/io/incomingCity";
 import { startVectorGeneration, type VectorGenerationTask } from "../../services/vectorGenerationWorkerClient";
 import type { BurgSiteDescriptor } from "../../types/contracts/burgSiteDescriptor";
+import type { GenerationSettings } from "../../types/generation";
 import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorGenerationSettings } from "../../types/vector/generation";
 import type { VectorStage } from "../../types/vector/urban";
@@ -51,6 +53,32 @@ export function createVectorGenerationPanel(
         const li = document.createElement("li"),
           key = `cityEditor.vector.generation.diagnostics.${d.code}` as EditorMessageKey;
         li.textContent = `${editorText(key)} (${d.entityId})`;
+        return li;
+      })
+    );
+  };
+  // Settings the city was requested with that meshless does not generate yet (feature parity P1).
+  const gapBox = document.createElement("div"),
+    gapTitle = document.createElement("p"),
+    gapList = document.createElement("ul");
+  gapBox.dataset.vectorSettingGaps = "";
+  gapTitle.textContent = text("settingGaps.title");
+  gapTitle.style.cssText = "margin:4px 0 0;font-weight:bold";
+  gapList.className = "ce-vector-generation-setting-gaps";
+  gapBox.append(gapTitle, gapList);
+  const showSettingGaps = (doc: Readonly<VectorCityDocument>) => {
+    const requested = doc.context.requestedSettings ?? editorInput?.settings,
+      gaps = requested ? meshlessSettingGaps(requested as GenerationSettings) : [];
+    gapBox.hidden = !gaps.length;
+    gapList.replaceChildren(
+      ...gaps.map(g => {
+        const li = document.createElement("li");
+        li.dataset.settingGap = g.id;
+        li.textContent = editorText("cityEditor.vector.generation.settingGaps.item" as EditorMessageKey, {
+          value0: g.id,
+          value1: text(`settingGaps.states.${g.state}`),
+          value2: g.stage
+        });
         return li;
       })
     );
@@ -417,7 +445,7 @@ export function createVectorGenerationPanel(
   status.style.cssText = "display:block;margin:8px 0";
   parent.insertBefore(generateCity, firstAction);
   parent.insertBefore(status, firstAction);
-  body.append(diagnosticList);
+  body.append(diagnosticList, gapBox);
   scope.listen(stage, "change", () => {
     const doc = pending?.stages.find(s => s.id === stage.value)?.document ?? pending?.document ?? read();
     draw(doc);
@@ -472,6 +500,7 @@ export function createVectorGenerationPanel(
       // Before any generation, the wall follows the editor's settings, as Generate city used to.
       wall.value = doc.generation?.settings.wall ?? (editorInput?.settings.config.features.walls ? "ellipse" : "none");
       showDiagnostics(doc);
+      showSettingGaps(doc);
       updateStages(doc);
       mode.value = doc.urban?.settings.mode ?? "medieval";
       population.value = String(

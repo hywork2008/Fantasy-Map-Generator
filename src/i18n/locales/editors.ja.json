@@ -313,7 +313,19 @@
           "budget": "この施設の探索上限",
           "unsearched": "共有の探索予算が尽きたため未探索"
         },
-        "running": "候補を生成中です。取消や別の編集ができます。"
+        "running": "候補を生成中です。取消や別の編集ができます。",
+        "settingGaps": {
+          "title": "メッシュありと同じには生成されない設定",
+          "item": "{{value0}}: {{value1}}（{{value2}}で対応予定）",
+          "states": {
+            "partial": "一部のみ対応",
+            "authored-only": "手で置けるが生成されない",
+            "converted-only": "メッシュありの文書の変換時のみ",
+            "missing": "未対応",
+            "equivalent": "対応済み",
+            "not-applicable": "セル固有のため使わない"
+          }
+        }
       },
       "dependencies": {
         "title": "編集の依存更新",
@@ -457,8 +469,8 @@
         "terrainLimit": "地形編集は10 km以内のフレームに対応します。"
       },
       "measurement": {
-        "length": "長さ {value0} m",
-        "area": "面積 {value0} m²"
+        "length": "長さ {{value0}} m",
+        "area": "面積 {{value0}} m²"
       },
       "fabricHouse": {
         "title": "生成された住宅",
@@ -466,8 +478,8 @@
         "district": "地区",
         "storeys": "階数",
         "dwellings": "住戸数",
-        "area": "建築面積 {value0} m²",
-        "entrance": "入口（東, 北） {value0}, {value1}",
+        "area": "建築面積 {{value0}} m²",
+        "entrance": "入口（東, 北） {{value0}}, {{value1}}",
         "insideWall": "市壁の内側",
         "outsideWall": "市壁の外側",
         "editLater": "切り出すと、住宅の形・住戸数・入口はそのままで、街路街区の空き地が配置に移ります。",
@@ -476,7 +488,7 @@
         "clear": "住宅を削除（空き地のまま残す）",
         "cleared": "削除しました。空き地は空いたまま残り、不足分は再生成でほかの空き地から補います。",
         "lineTitle": "生成された街路・小路",
-        "lineWidth": "幅 {value0} m、長さ {value1} m",
+        "lineWidth": "幅 {{value0}} m、長さ {{value1}} m",
         "detachLine": "道として切り出す",
         "lineDetached": "切り出しました。道として編集でき、元に戻すと記録へ戻ります。"
       },

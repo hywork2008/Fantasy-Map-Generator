@@ -148,3 +148,48 @@
 - `generation/civic.test.ts`に1件を加えた。600人では礼拝堂、3,000人ではバシリカが敷地に収まり、未収容が0であること。
 - 関連テストは63ファイル中53成功・10 skip（計測用）だった。対象は`generators/vector`、`services`、`components/vector`、`renderers/vector`、`housing`、`civicPlacement`である。
 - 型検査・biome・アーキテクチャの検査はエラーなしである。
+
+## P1 設定の受け渡し（2026-11-09）
+
+P0bの残り2件（海岸の`gate-access`、起伏の`unbridged-road`）は、P5（水辺）とP8（地形）で扱うことにした（2026-11-09合意）。
+
+### 設定を文書に残す
+
+- メッシュなしの文書の`context`に、任意の`requestedSettings`を加えた（native v8のみ）。
+  - 中身: 旧CEの`GenerationSettings`から、FMGの都市情報（`descriptor`）を除いたもの。都市情報は敷地（`site.descriptor`）が持つ。
+  - 未対応の設定も、そのまま保存する。
+- 書き込むのは`vectorInputFromEditor`である。つまり、旧CEから開いたエディターの生成パネルで作った都市が対象になる。
+  - 合成入力・FMG連携だけで開いた場合は、設定がないので保存しない。
+- 検証は次のとおり。
+  - 平らなJSONの値だけを受け付け、数値は有限値に限る。
+  - 予算は4,000項目、深さは6段まで。
+  - `descriptor`と、プロトタイプを汚染するキーは拒否する。
+  - 必ず`config`を持つこと。
+- 文書の版は上げていない。任意の項目で、v7・v8の既存文書はそのまま読める。
+
+### 未対応の設定を示す
+
+- `generation/settingSupport.ts`に、対応表の生成設定52行と同じ状態・段階の表（`MESHLESS_SETTING_SUPPORT`）を置いた。
+  - 表と`docs/plan/data/ce-meshless-parity.json`の一致は、テストで保つ。
+- `meshlessSettingGaps`は、次の設定を表の順に返す。
+  - 都市の要素（`config.features.*`）は、オンにしたもの。
+  - その他の設定は、指定されていて、エディターの既定値と異なるもの。
+  - 同等とセル固有の行は返さない。
+- 生成パネルに「メッシュありと同じには生成されない設定」の一覧を加えた。
+  - 各行は「設定のID: 状態（対応予定の段階）」の形である。
+  - 文書の`requestedSettings`がなければ、エディターの入力の設定を使う。
+  - 該当がなければ隠す。
+- 設定はIDのまま示す。旧CEの画面の項目名との対応はまだない。
+
+### 既存の文言の不具合
+
+- vectorの節の5つの文言（計測の長さ・面積、住宅のインスペクターの面積・入口・線幅）が、`{value0}`のように波括弧1つで書かれていた。
+- i18nextは`{{value0}}`しか置き換えないので、画面に「{value0}」がそのまま出ていた。英語・日本語とも`{{value0}}`へ直した。
+
+### テスト
+
+- 次の2ファイルに、テストを追加した。
+  - `generation/settingSupport.test.ts`（2件）: 対応表との一致。設定が文書に残ること。城塞・貧民街・二重市壁が一覧に出て、同等の設定とオフの要素は出ないこと。
+  - `components/vector/VectorGenerationPanel.test.ts`（1件）: 旧CEの設定で開いた生成パネルに一覧が出て、文言に置換漏れがないこと。既定の都市では一覧を隠すこと。
+- 関連テストは65ファイル中55成功・10 skip（計測用）だった。対象は`generators/vector`、`services`、`components/vector`、`renderers/vector`、`i18n`である。
+- 型検査・biome・アーキテクチャの検査はエラーなしである。

@@ -6,6 +6,7 @@
 - docs/analytics/ce-meshless-parity-p0-20261109.json - 機能同等化P0の比較結果。固定8件の旧CE・メッシュなしの要素の集計と差
 - docs/analytics/ce-meshless-parity-p0-20261109.md - 機能同等化P0の記録。対応表の集計、比較の結果、見つかった生成の失敗
 - docs/analytics/ce-meshless-parity-p0-20261109.md - P0bの節（広場と寺院の人口による大きさ、小さい敷地の補正、海岸と川の入力の修正、残る2件）を追加
+- docs/analytics/ce-meshless-parity-p0-20261109.md - P1の節（設定の保存、未対応の設定の表示、文言の置換の不具合）を追加
 - docs/analytics/ce-meshless-parity-p0b-20261109.json - 機能同等化P0bの比較結果。固定8件中6件でメッシュなしの生成が成功
 - docs/analytics/ce-meshless-scaling-v9-20261109.json - 生成版v9（穴のある街区の分割、外周に接する穴、1 cmの輪郭）後の固定4規模の計測
 - docs/analytics/ce-meshless-seed-sweep-20261109.json - 12の種 × 5,000・50,000人 × 市壁の有無の生成結果（v9）。48通りすべて生成でき未収容0
@@ -20,6 +21,7 @@
 - docs/plan/ce-meshless-block-fabric-scaling.md - S4を現時点の性能で完了とした判定を記載
 - docs/plan/ce-meshless-feature-parity.md - P0の完了と、次のP0b（生成の失敗の修正）を記載
 - docs/plan/ce-meshless-feature-parity.md - P0bの結果（8件中6件）と残る2件の扱いを記載
+- docs/plan/ce-meshless-feature-parity.md - P1の完了と次のP2を記載
 - docs/plan/ce-meshless-feature-parity.md - メッシュなしCEをメッシュありと同等の機能（ランダム生成・3D表示・操作）にするロードマップ。既存の設計・受入の点検結果、同等性の定義、P0〜P10
 - docs/plan/data/ce-meshless-parity-cases.json - 機能同等化の比較の固定ケース8件
 - docs/plan/data/ce-meshless-parity.json - 機能同等化の対応表127行（生成設定・生成要素・3Dの部品・操作）

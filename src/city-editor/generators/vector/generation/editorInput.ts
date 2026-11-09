@@ -61,6 +61,9 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     doc.recipe.seed = seed;
     doc.context.historicalPeriod = period;
     doc.context.targetPopulation = settings.population?.targetPopulation ?? descriptor?.burg.population ?? 5000;
+    // Every requested setting is kept with the city, including those meshless cannot generate yet.
+    const { descriptor: _descriptor, ...requested } = settings;
+    doc.context.requestedSettings = structuredClone(requested);
     if (native) {
       // Whole-cell admission leaves a partial-cell rim in mesh first. The continuous
       // site reserves one third of the same street-cell width as its boundary margin.
