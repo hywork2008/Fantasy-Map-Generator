@@ -7,7 +7,7 @@ import { synthSite } from "../../site/synthSite";
 import { featureReservations } from "../environmentState";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { allVectorWater } from "../geometry/water";
-import { seedVectorCivicCentre, vectorCivicLayout } from "./civic";
+import { seedVectorCivicCentre, vectorBurial, vectorCivicLayout } from "./civic";
 import { fortifyVectorInput } from "./fortress";
 import { expectedVectorHouseStoreys } from "./housingHeights";
 import { syntheticVectorInput, vectorInputFromDescriptor } from "./input";
@@ -30,6 +30,9 @@ const CIVIC_LAND_FACTOR = 1.5;
 export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
   const { settings, seed } = input;
   const period = settings.historicalPeriod ?? settings.descriptor?.historicalPeriod ?? "ageOfExploration";
+  // The burial culture sites the cemetery: beside the church, outside the town or on a bank (P6a).
+  const burial = vectorBurial(settings.burialProfile ?? settings.descriptor?.burialProfile, period),
+    civicOptions = { ...settings.config.features, burial: burial.site };
   const frame = settings.population
     ? planPopulation(
         settings.population,
@@ -105,7 +108,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
           settings.config.rivers.length > 0,
           true,
           civic
-            ? vectorCivicLayout(settings.population?.targetPopulation ?? 5000, settings.config.features).specs.map(
+            ? vectorCivicLayout(settings.population?.targetPopulation ?? 5000, civicOptions).specs.map(
                 s => s.boundary.outer
               )
             : []
@@ -129,7 +132,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
         if ("failure" in fortified) throw new Error(fortified.failure);
         doc = fortified.document;
       }
-      if (civic) seedVectorCivicCentre(doc, settings.config.features);
+      if (civic) seedVectorCivicCentre(doc, civicOptions, burial.profile);
     }
     return doc;
   };
@@ -162,7 +165,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     ...Object.values(first.regions).filter(r => r.kind === "reservation"),
     ...Object.values(first.placements).map(p => p.site)
   ].reduce((n, r) => n + regionArea({ outer: r.outer, holes: r.holes }), 0);
-  const civic = vectorCivicLayout(settings.population.targetPopulation, settings.config.features);
+  const civic = vectorCivicLayout(settings.population.targetPopulation, civicOptions);
   if (!reserved && !civic.specs.length) return build(size(0));
   // The civic centre takes its area from the houses' land, and more: lots stop short of its setbacks and the
   // streets that front it. Its farthest corner must stay inside the rim.

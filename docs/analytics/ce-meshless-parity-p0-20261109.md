@@ -895,3 +895,13 @@ P4（市壁・防御の生成）を次の区切りに分けた。P4a 形状・�
 - Batonykutは、708 mの川が町の範囲（半径164 m）の外にあり、渡し場の試験に使えない。
 - テスト: `ferries.test.ts`（1件）。道路が水に入らず、橋がなく、桟橋が水に届き、住宅の生成後も渡し場が残り、全員が住むこと。
 
+## P6a 文化別の墓地（2026-11-10）
+
+- 埋葬文化は旧CEと同じく、設定の`burialProfile`、次にFMGの記述子の`burialProfile`から取る。ないときは近世以降（`MODERN_BURIAL_PERIODS`）なら町の外、それ以前は教会の隣で、区画の様式は`medieval_parish`（これまでと同じ）。
+- 立地（旧CE`wards.ts`の`zoning`）: `intramural_core`・`household_intramural`・`subterranean_network`は教会の隣。`extramural_highway`・`extramural_sanitary`・`topographic_hill`・`isolated_highland`は、町の円の外で入口の道路沿い（中心が道路から奥行きの半分＋8 m）に置き、町の縁から約120 mを最も高く採点する（旧CEの`gateScore`）。丘・高地の文化は遠いほど加点する（起伏はP8）。`riverfront_ghat`は町の中の川岸で中心に最も近い所。川がない時は旧CEと同じく墓地を置かない。
+- 町の外の墓地は敷地（domain）に加え、住宅の用地には数えない。川岸の墓地は町の中の土地を使うので、敷地の大きさに面積を足す。
+- 区画の中身は旧CEの`layoutCultureCemeteryOnSite`で文化ごとに描く。門は道路または川の側。
+- 置けない時は`cemetery-unplaced`。
+- 合成の敷地（全30文化×川なし・川throughで市壁あり／なし×2 seed、5,000人）: 川なしのghat 2件を除き全件で墓地ができ、未配置の人口は0。町の外の文化の墓地は中心から250〜300 m（市壁の外）、教会の隣は99 m、ghatは川岸。川meanderの敷地は、文化によらず（これまでも）教会が置けず墓地もない。
+- テスト: `cemetery.test.ts`（2件）。街道沿いの墓地が市壁の外で道路に掛からず全員が住むこと、ghatが川岸にあり、川のない町では診断が出ること。
+

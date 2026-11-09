@@ -413,8 +413,8 @@
       "category": "setting",
       "id": "burialProfile",
       "mesh": "burial culture",
-      "meshless": "missing",
-      "evidence": "Civic cemetery is a fixed box; culture not read.",
+      "meshless": "partial",
+      "evidence": "P6a: settings, then the FMG descriptor, as the mesh editor resolves it (none: churchyard, extramural in modern periods). Zoning sites the cemetery: beside the church, outside the town beside an approach road (scored as wards.ts: about 120 m out), or on a river bank; the culture lays it out (layoutCultureCemeteryOnSite). Not yet: hill and highland by relief (P8), household and catacomb forms as their own layouts.",
       "stage": "P6",
       "checked": true
     },
@@ -614,7 +614,7 @@
       "id": "cemetery",
       "mesh": "cemetery plans by burial culture",
       "meshless": "partial",
-      "evidence": "Fixed box beside the temple; no culture layout.",
+      "evidence": "P6a: sited by burial culture zoning (churchyard, extramural roadside, riverbank) and laid out by the culture; cemetery-unplaced when no ground fits. Standalone towns only (FMG cities have no civic centre yet).",
       "stage": "P6",
       "checked": true,
       "census": "cemeteries"

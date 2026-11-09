@@ -1177,6 +1177,10 @@ function skeleton(
     if (!doc.environment?.features[CASTLE_FEATURE_ID])
       diagnostics.push({ code: "castle-unplaced", entityId: CASTLE_FEATURE_ID, severity: "warning" });
   }
+  // A burial culture with nowhere to bury (a riverbank rite with no river, no room beside an approach road) leaves the
+  // church without a cemetery, as the mesh editor's zoning does; it is said rather than moved into the town (P6a).
+  if (doc.environment?.features["feature:civic-church"] && !doc.environment.features["feature:civic-cemetery"])
+    diagnostics.push({ code: "cemetery-unplaced", entityId: "feature:civic-church", severity: "warning" });
   // Ferries where the roads end on the bank of a river no bridge of the period spans (P5b-4); the harbour keeps off
   // their landings.
   const ferried = raiseVectorFerries(doc);

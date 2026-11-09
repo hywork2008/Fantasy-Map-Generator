@@ -292,7 +292,8 @@
           "town-moat-unplaced": "No turn of the wall let every road cross the town moat squarely; the wall stands without a moat",
           "castle-unplaced": "No castle precinct fitted inside the town wall clear of streets, water and the civic centre",
           "harbor-unplaced": "No harbour was raised: no straight sea or river shore in the town reached a street clear of walls and precincts, or the site has relief or a river that may still be moved",
-          "ferry-unplaced": "No ferry was laid where this road meets a river no bridge of the period spans"
+          "ferry-unplaced": "No ferry was laid where this road meets a river no bridge of the period spans",
+          "cemetery-unplaced": "No cemetery was sited: the burial culture buries outside the town or on a river bank, and no such ground was free"
         },
         "blocksAndLanes": "Blocks and lanes",
         "facilities": "Facilities",
