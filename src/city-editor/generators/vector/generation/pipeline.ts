@@ -40,6 +40,7 @@ import { CIVIC_PLAZA_ID, raiseVectorPlazaMarket } from "./market";
 import { raiseVectorMonasteries } from "./monasteries";
 import { type RouteLink, skeletonRoutes } from "./routes";
 import { GENERATED_HARBOR_ID, raiseVectorHarbor } from "./seaHarbor";
+import { raiseVectorShantyLand, wantsShanty } from "./shanty";
 import { isVectorWallShape, VECTOR_WALL_WIDTH_METERS, vectorUnitWallRing, vectorWallSettings } from "./wallShape";
 
 /** Sine of the shallowest angle a road or river may cross a generated wall shape at (20 degrees). */
@@ -1252,6 +1253,11 @@ function skeleton(
   doc = lodged.document;
   if (lodged.placed < lodged.wanted)
     diagnostics.push({ code: "inn-unplaced", entityId: String(lodged.wanted - lodged.placed), severity: "warning" });
+  // Land for the extramural shanty along the busiest approaches beyond the wall (P6h), before the open landmarks.
+  const faubourg = raiseVectorShantyLand(doc);
+  doc = faubourg.document;
+  if (wantsShanty(doc) && !faubourg.grown && Object.values(doc.paths).some(p => p.role === "wall"))
+    diagnostics.push({ code: "shanty-unplaced", entityId: "land", severity: "warning" });
   // The gallows and the windmills on open ground beyond the town (P6f).
   const marks = raiseVectorOpenLandmarks(doc, deriveVectorBlocks(doc));
   doc = marks.document;

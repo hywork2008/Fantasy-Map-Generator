@@ -134,8 +134,8 @@
       "category": "setting",
       "id": "config.features.shanty",
       "mesh": "CityProgram",
-      "meshless": "missing",
-      "evidence": "Not read.",
+      "meshless": "partial",
+      "evidence": "P6h: read from the requested settings, else the FMG burg's shanty flag; raises the extramural shanty.",
       "stage": "P6",
       "checked": true
     },
@@ -669,8 +669,8 @@
       "category": "generated",
       "id": "shanty",
       "mesh": "shanty town",
-      "meshless": "missing",
-      "evidence": "Not generated.",
+      "meshless": "partial",
+      "evidence": "P6h: the mesh editor's pickShanty (cell-free pickShantySpots): 3-6 street blocks beyond the wall in the band out to 1.8 times its reach, in the cone of the busiest approaches, nearest the wall first; ward shanty on urban.districts, built up whatever the demand. A site ending at the wall first grows by a strip along the two busiest approaches (land of its own, so blocks inside the wall never merge with it). Not yet: an open town's shanty band, ward-specific shanty fabric.",
       "stage": "P6",
       "checked": true
     },

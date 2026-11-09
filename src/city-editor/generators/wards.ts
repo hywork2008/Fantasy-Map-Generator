@@ -914,6 +914,30 @@ function placeTemple(
   };
 }
 
+/**
+ * The mesh editor's extramural shanty (`pickShanty`) on any land outside the town: 3-6 spots in the band just
+ * beyond the wall (or the town radius), in the cone of the busiest approach roads, nearest the wall first. Points
+ * are relative to the town centre; `roadEnds` are the outer ends of the approach roads, busiest first.
+ */
+export function pickShantySpots(
+  spots: readonly WardSpot[],
+  options: { seed: string; walls: Point[][]; roadEnds: Point[]; cityRadiusMeters: number; walled: boolean }
+): number[] {
+  const cells: Cell[] = spots.map(s => ({ ...s, site: s.centroid, onBorder: false })),
+    none = new Set<number>();
+  return pickShanty(
+    cells,
+    none,
+    none,
+    none,
+    options.walls.map(points => ({ points, segments: [], urbanCellIds: [] })),
+    { roadPaths: options.roadEnds.map(end => [[0, 0] as Point, end]), roadBearings: [] } as unknown as CityGeography,
+    { cityRadiusMeters: options.cityRadiusMeters } as CityParams,
+    options.walled,
+    makeRng(`${options.seed}:program:shanty`)
+  );
+}
+
 function pickShanty(
   cells: Cell[],
   urban: Set<number>,

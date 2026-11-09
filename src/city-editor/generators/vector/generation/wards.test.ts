@@ -30,9 +30,9 @@ describe("economic wards by the mesh editor's ward mix (feature parity P6g)", ()
         { ...DEFAULT_VECTOR_URBAN, population: 3000, lotOccupancy: 1 }
       ),
       districts = doc.urban!.districts;
-    // Inside the wall every district takes a ward; outside none does.
+    // Inside the wall every district takes a ward; outside only the shanty (on by default) does.
     expect(districts.filter(d => d.inside).every(d => d.ward)).toBe(true);
-    expect(districts.filter(d => !d.inside).some(d => d.ward)).toBe(false);
+    expect(districts.filter(d => !d.inside).every(d => d.ward === undefined || d.ward === "shanty")).toBe(true);
     const kinds = new Set(districts.map(d => d.ward));
     for (const k of ["craftsmen", "patriciate", "market", "slum"]) expect(kinds).toContain(k);
     const mean = (wards: string[]) => {
@@ -58,5 +58,49 @@ describe("economic wards by the mesh editor's ward mix (feature parity P6g)", ()
       crafts = city.urban!.districts.filter(x => x.ward === "craftsmen");
     expect(crafts.length).toBeGreaterThan(0);
     for (const x of crafts) expect(domains).toContain(x.craftDomain);
+  });
+
+  it("builds the extramural shanty on 3-6 street blocks beyond the wall when asked (P6h)", () => {
+    const build = (shanty: boolean) => {
+      const base = defaultGenerationSettings(),
+        settings = {
+          ...base,
+          config: { ...base.config, features: { ...base.config.features, walls: true, shanty } },
+          population: defaultPopulationSettings(3000),
+          historicalPeriod: "lateMedieval" as const,
+          buildingPattern: "medieval" as const
+        },
+        seed = "p6h-shanty",
+        input = vectorInputFromEditor({
+          settings,
+          seed,
+          frame: { extentMeters: 1200, cityRadiusMeters: 396, blockSizeMeters: 50 },
+          lotOccupancy: 1
+        });
+      return generateVectorUrban(
+        generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, wall: "ellipse" }).document,
+        { ...DEFAULT_VECTOR_URBAN, population: 3000, lotOccupancy: 1 }
+      );
+    };
+    const off = build(false);
+    expect(off.urban!.districts.some(d => d.ward === "shanty")).toBe(false);
+    const doc = build(true),
+      blocks = new Set(doc.urban!.districts.filter(d => d.ward === "shanty").map(d => streetBlockOf(d.id)));
+    // The faubourg is land of its own: the town's street blocks inside the wall stay as they were.
+    const insideIds = (d: typeof doc) =>
+      d
+        .urban!.districts.filter(x => x.inside)
+        .map(x => x.id)
+        .sort();
+    expect(insideIds(doc)).toEqual(insideIds(off));
+    expect(blocks.size).toBeGreaterThanOrEqual(3);
+    expect(blocks.size).toBeLessThanOrEqual(6);
+    for (const id of blocks) {
+      const c = doc.fabric!.cells[id];
+      expect(c && !c.inside).toBe(true);
+      // Built up whatever the demand.
+      expect(cellHouseCount(c)).toBeGreaterThan(0);
+    }
+    expect(doc.urban!.report.unplacedPopulation).toBe(0);
   });
 });

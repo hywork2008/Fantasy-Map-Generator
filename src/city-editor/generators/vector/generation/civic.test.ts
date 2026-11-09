@@ -89,7 +89,8 @@ describe("default standalone civic land and city envelope", () => {
       area = regionArea(wall);
     expect(Math.abs(area / meshArea - 1)).toBeLessThan(0.05);
     expect(city.frame.extentMeters).toBe(mesh.frame.extentMeters);
-    expect(city.urban!.domain).toEqual(input.site!.domain);
+    // The skeleton may grow the site (the shanty faubourg, P6h); the urban stage keeps it.
+    expect(city.urban!.domain).toEqual(skeleton.site!.domain);
     expect(city.urban!.report.unplacedPopulation).toBe(0);
     expect(city.urban!.report.requiredFacilities).toBe(0);
     const reserved = featureReservations(city);

@@ -775,7 +775,9 @@ export function placeVectorPerimeterHouses(
   /** CE lot occupancy: lots drawn at or above it stay unbuilt, as in CE's mesh editor. */
   lotOccupancy = 1,
   /** The height kind of a street block's ward (P6g); ordinary when absent. */
-  heightKind: (cellId: string) => ResidentialHeightKind = () => "ordinary"
+  heightKind: (cellId: string) => ResidentialHeightKind = () => "ordinary",
+  /** Street blocks built up whatever the demand: the mesh editor's shanty cells always hold houses (P6h). */
+  alwaysBuilt: (cellId: string) => boolean = () => false
 ): { dwellings: number; houses: number } {
   // A detached line stays detached only where the plan drew the same line again; anything else is refused,
   // because the plan's new line would run beside or across the user's road.
@@ -853,8 +855,12 @@ export function placeVectorPerimeterHouses(
     count = 0;
   // CE occupancy draws spread vacant lots through every district. A population
   // target must never fill one half of the city before the other half.
+  const shanty = plan.houses.some(h => alwaysBuilt(h.cellId));
   for (const house of plan.houses.slice().sort((a, b) => a.draw - b.draw)) {
-    if (capacity >= required && house.draw > keepDraw) break;
+    if (capacity >= required && house.draw > keepDraw && !alwaysBuilt(house.cellId)) {
+      if (!shanty) break;
+      continue;
+    }
     const origin = origins.get(house.cellId);
     if (!origin || house.draw >= lotOccupancy || cleared[house.cellId]?.includes(house.draw)) continue;
     const fit = fittedLot(house, origin, occupied);

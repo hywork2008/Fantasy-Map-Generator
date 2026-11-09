@@ -509,7 +509,10 @@ function* vectorUrbanSteps(
     };
   });
   // The economic wards of the town's districts, by the mesh editor's ward mix (P6g).
-  const wards = assignVectorWards(doc, planned);
+  const wards = assignVectorWards(doc, planned, {
+    shanty: doc.context.requestedSettings?.config?.features?.shanty ?? sourceSite.descriptor?.burg.shanty ?? false,
+    cityRadiusMeters: radius * 0.65
+  });
   const districts = planned.map(({ core: _core, ...d }) => {
     const ward = wards.get(d.id);
     return ward ? { ...d, ...ward } : d;
@@ -638,7 +641,8 @@ function* vectorUrbanSteps(
       continuation?.fabricCleared ?? kept?.cleared,
       continuation?.fabricDetachedLines ?? kept?.detachedLines,
       settings.lotOccupancy ?? 1,
-      id => wardHeightKind(wards.get(id)?.ward)
+      id => wardHeightKind(wards.get(id)?.ward),
+      id => wards.get(id)?.ward === "shanty"
     );
     reattachFabricEntrances(doc);
     housingAttempts = organic.houses.length;

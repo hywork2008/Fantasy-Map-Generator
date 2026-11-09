@@ -6,7 +6,7 @@ import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorPolygon } from "../../../types/vector/generation";
 import type { ResidentialHeightKind } from "../../buildingHeightPolicy";
 import { convexHull, polygonCentroid } from "../../geom";
-import { assignWardMix, type WardSpot } from "../../wards";
+import { assignWardMix, pickShantySpots, type WardSpot } from "../../wards";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { CIVIC_PLAZA_ID } from "./market";
 
@@ -59,56 +59,92 @@ export const streetBlockOf = (districtId: string) => districtId.replace(/:parcel
  */
 export function assignVectorWards(
   doc: VectorCityDocument,
-  districts: readonly { id: string; inside: boolean; core: boolean; polygon: VectorPolygon }[]
+  districts: readonly { id: string; inside: boolean; core: boolean; polygon: VectorPolygon }[],
+  options: { shanty?: boolean; cityRadiusMeters?: number } = {}
 ): Map<string, VectorWard> {
   // A ward is a street block, as a mesh cell is in the mesh editor; its parcels share it.
-  const groups = new Map<string, Point[]>();
-  for (const d of districts) {
-    if (!d.core) continue;
-    const key = streetBlockOf(d.id);
-    groups.set(key, [...(groups.get(key) ?? []), ...d.polygon.outer]);
-  }
-  const town = [...groups].map(([id, points]) => ({ id, ring: convexHull(points) })).filter(t => t.ring.length >= 3);
-  if (!town.length) return new Map();
-  const spots: WardSpot[] = town.map((d, i) => ({
-    id: i,
-    polygon: d.ring,
-    centroid: polygonCentroid(d.ring),
-    neighbors: []
-  }));
-  const index = new RBush<ReturnType<typeof box> & { id: number }>();
-  index.load(spots.map(s => ({ ...box(s.polygon), id: s.id })));
-  for (const s of spots)
-    s.neighbors = index
-      .search(box(s.polygon, NEIGHBOUR_METERS))
-      .filter(o => o.id !== s.id && ringGap(s.polygon, spots[o.id].polygon) <= NEIGHBOUR_METERS)
-      .map(o => o.id)
-      .sort((a, b) => a - b);
-  const walls = Object.values(doc.paths)
+  const group = (core: boolean) => {
+    const groups = new Map<string, Point[]>();
+    for (const d of districts) {
+      if (d.core !== core) continue;
+      const key = streetBlockOf(d.id);
+      groups.set(key, [...(groups.get(key) ?? []), ...d.polygon.outer]);
+    }
+    return [...groups].map(([id, points]) => ({ id, ring: convexHull(points) })).filter(t => t.ring.length >= 3);
+  };
+  const town = group(true),
+    out = new Map<string, VectorWard>(),
+    walls = Object.values(doc.paths)
       .filter(p => p.role === "wall")
       .map(p => samplePath(p).map(q => q.point)),
-    plaza = doc.environment?.features[CIVIC_PLAZA_ID],
     site = doc.site;
-  const { wards, craftDomains } = assignWardMix(spots, {
-    seed: doc.recipe.seed,
-    plazaAnchor: plaza ? polygonCentroid(plaza.boundary.outer) : (site?.center ?? [0, 0]),
-    walled: walls.length > 0,
-    touchesWall: spot =>
-      walls.some(line =>
-        spot.polygon.some(p => line.slice(1).some((b, i) => pointSegmentDistance(p, line[i], b) <= WALL_METERS))
-      ),
-    economy: site?.descriptor?.economy,
-    rivers: Object.values(doc.paths)
-      .filter(p => p.role === "river" && p.id !== "town-moat")
-      .map(p => samplePath(p).map(q => q.point))
-  });
-  const out = new Map<string, VectorWard>();
-  for (const [i, ward] of wards) {
-    const craftDomain = craftDomains.get(i);
-    out.set(town[i].id, craftDomain ? { ward, craftDomain } : { ward });
+  if (town.length) {
+    const spots: WardSpot[] = town.map((d, i) => ({
+      id: i,
+      polygon: d.ring,
+      centroid: polygonCentroid(d.ring),
+      neighbors: []
+    }));
+    const index = new RBush<ReturnType<typeof box> & { id: number }>();
+    index.load(spots.map(s => ({ ...box(s.polygon), id: s.id })));
+    for (const s of spots)
+      s.neighbors = index
+        .search(box(s.polygon, NEIGHBOUR_METERS))
+        .filter(o => o.id !== s.id && ringGap(s.polygon, spots[o.id].polygon) <= NEIGHBOUR_METERS)
+        .map(o => o.id)
+        .sort((a, b) => a - b);
+    const plaza = doc.environment?.features[CIVIC_PLAZA_ID];
+    const { wards, craftDomains } = assignWardMix(spots, {
+      seed: doc.recipe.seed,
+      plazaAnchor: plaza ? polygonCentroid(plaza.boundary.outer) : (site?.center ?? [0, 0]),
+      walled: walls.length > 0,
+      touchesWall: spot =>
+        walls.some(line =>
+          spot.polygon.some(p => line.slice(1).some((b, i) => pointSegmentDistance(p, line[i], b) <= WALL_METERS))
+        ),
+      economy: site?.descriptor?.economy,
+      rivers: Object.values(doc.paths)
+        .filter(p => p.role === "river" && p.id !== "town-moat")
+        .map(p => samplePath(p).map(q => q.point))
+    });
+    for (const [i, ward] of wards) {
+      const craftDomain = craftDomains.get(i);
+      out.set(town[i].id, craftDomain ? { ward, craftDomain } : { ward });
+    }
+  }
+  // The extramural shanty (P6h): street blocks beyond the wall on the busiest approaches.
+  if (options.shanty) {
+    const center = site?.center ?? [0, 0],
+      local = (p: Point): Point => [p[0] - center[0], p[1] - center[1]],
+      beyond = group(false),
+      descriptorRoads = site?.descriptor?.roads ?? [],
+      owned = new Set(doc.urban?.ownedPaths ?? []),
+      roads = Object.values(doc.paths)
+        .filter(p => p.role === "road" && !owned.has(p.id))
+        .map(p => {
+          const fmg = descriptorRoads.findIndex((r, i) => p.id === `fmg-road:${r.routeId}:${i}`),
+            line = samplePath(p).map(q => local(q.point)),
+            end = [line[0], line.at(-1)!].sort((a, b) => Math.hypot(...b) - Math.hypot(...a))[0];
+          return { end, traffic: fmg >= 0 ? (descriptorRoads[fmg].traffic ?? 0) : 0 };
+        })
+        .sort((a, b) => b.traffic - a.traffic);
+    const picked = pickShantySpots(
+      beyond.map((d, i) => {
+        const ring = d.ring.map(local);
+        return { id: i, polygon: ring, centroid: polygonCentroid(ring), neighbors: [] };
+      }),
+      {
+        seed: doc.recipe.seed,
+        walls: walls.map(line => line.map(local)),
+        roadEnds: roads.map(r => r.end),
+        cityRadiusMeters: options.cityRadiusMeters ?? 0,
+        walled: walls.length > 0
+      }
+    );
+    for (const i of picked) out.set(beyond[i].id, { ward: "shanty" });
   }
   for (const d of districts) {
-    const ward = d.core ? out.get(streetBlockOf(d.id)) : undefined;
+    const ward = out.get(streetBlockOf(d.id));
     if (ward && d.id !== streetBlockOf(d.id)) out.set(d.id, ward);
   }
   return out;
