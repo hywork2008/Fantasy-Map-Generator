@@ -9,6 +9,11 @@ import {
   setContainerReuseCost
 } from "../../../../simulation/containerReuseSettings";
 import {
+  CRAFT_CREDIT_MONTHS_LIMITS,
+  getCraftCreditMonths,
+  setCraftCreditMonths
+} from "../../../../simulation/craftCreditSettings";
+import {
   CRAFT_EMPLOYMENT_SHARE_LIMITS,
   getCraftEmploymentShare,
   setCraftEmploymentShare
@@ -87,6 +92,7 @@ export const SimulationSettingsTab: React.FC = () => {
   const [householdHoneyKilograms, setHouseholdHoneyKilogramsState] = useState(getHouseholdHoneyKilograms);
   const [townMeadLiters, setTownMeadLitersState] = useState(getTownMeadLiters);
   const [townSoapKilograms, setTownSoapKilogramsState] = useState(getTownSoapKilograms);
+  const [craftCreditMonths, setCraftCreditMonthsState] = useState(getCraftCreditMonths);
   const [containerReuseCost, setContainerReuseCostState] = useState(getContainerReuseCost);
   const generationSpacing = getMarketGenerationSpacing(
     worldContext.graphWidth,
@@ -635,6 +641,23 @@ export const SimulationSettingsTab: React.FC = () => {
                 onChange={v => {
                   const kilograms = Number(v);
                   if (Number.isFinite(kilograms)) setTownSoapKilogramsState(setTownSoapKilograms(kilograms));
+                }}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.craftCreditMonthsTip")}>
+            <td />
+            <td>{t("simulation.craftCreditMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="craftCreditMonths"
+                min={CRAFT_CREDIT_MONTHS_LIMITS.min}
+                max={CRAFT_CREDIT_MONTHS_LIMITS.max}
+                step={CRAFT_CREDIT_MONTHS_LIMITS.step}
+                value={craftCreditMonths}
+                onChange={v => {
+                  const months = Number(v);
+                  if (Number.isFinite(months)) setCraftCreditMonthsState(setCraftCreditMonths(months));
                 }}
               />
             </td>

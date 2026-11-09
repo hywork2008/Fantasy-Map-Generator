@@ -42,6 +42,8 @@ export const WORLD_SETTING_KEYS = [
   "fmg-town-mead-liters",
   /** Soap a town person uses in a year, white and soft (docs/plan/town-soap.md §3.1). */
   "fmg-town-soap-kg",
+  /** Months of craft spending a town's workshops may owe its households (docs/plan/craft-book-credit.md). */
+  "fmg-craft-credit-months",
   /** Cost of washing and mending an empty for refilling, a share of its value (docs/plan/returnable-drink-containers.md §3). */
   "fmg-container-reuse-cost"
 ] as const;

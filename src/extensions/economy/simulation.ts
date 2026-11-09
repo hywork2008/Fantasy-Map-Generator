@@ -85,6 +85,7 @@ import {
   resignConstructionJob,
   tickConstructionHiring
 } from "./generators/constructionHire";
+import { settleCraftCredit } from "./generators/craftCredit";
 import { DamSites } from "./generators/damSites";
 import { Dams } from "./generators/dams";
 import {
@@ -882,6 +883,7 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
       }
       measureTickStep("production:householdSpending", () => spendUrbanHouseholdSurplus());
       measureTickStep("production:ruralSpending", () => spendRuralHouseholdsInTowns());
+      measureTickStep("production:craftCredit", () => settleCraftCredit());
       const creditCharacter = (characterId: number, amount: number) => {
         const merchant = hasCharactersContext()
           ? getSimulationCharacters().find(c => c.i === characterId && !c.dead)

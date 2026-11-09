@@ -42,6 +42,7 @@ import {
   ConstructionOperations,
   getConstructionProductivityMultiplier
 } from "./constructionEmployment";
+import { drawCraftCredit, recordCraftSpend } from "./craftCredit";
 import {
   calibratedReserveFactor,
   domainShare,
@@ -543,6 +544,8 @@ export class ProductionModule {
           (cycle.saltWorkersByBurg.get(burg.i) ?? 0)
       )
     );
+    // Book credit tides the workshops over the months the purse is low (craftCredit.ts).
+    drawCraftCredit(burg);
     const craftWorkersUsed = this.runWorkerLoop(cycle.index, state);
     recordUrbanCraftCapacity(
       burg.i,
@@ -1760,6 +1763,7 @@ export class ProductionModule {
           state.burg.treasury = physicalRecipe
             ? (state.burg.treasury || 0) - marketCost
             : rn((state.burg.treasury || 0) - marketCost, 2);
+        recordCraftSpend(state.burg.i, marketCost);
       }
       recipe.push({ goodId: ingredientId, units: physicalRecipe ? amount : rn(amount, 2) });
 
@@ -1773,7 +1777,10 @@ export class ProductionModule {
     const wageBill = rn(laborUsed * wageRate, 2);
     if (wageBill > 0) {
       if (fundingState) fundingState.treasury = rn(Math.max(0, (fundingState.treasury ?? 0) - wageBill), 2);
-      else state.burg.treasury = rn((state.burg.treasury || 0) - wageBill, 2);
+      else {
+        state.burg.treasury = rn((state.burg.treasury || 0) - wageBill, 2);
+        recordCraftSpend(state.burg.i, wageBill);
+      }
       creditHouseholdWealth(state.burg.i, wageBill);
     }
 
@@ -1805,7 +1812,10 @@ export class ProductionModule {
       const reuseBill = rn(draw.reused * (Goods.get(containerUse.goodId)?.value ?? 0) * getContainerReuseCost(), 2);
       if (reuseBill > 0) {
         if (fundingState) fundingState.treasury = rn(Math.max(0, (fundingState.treasury ?? 0) - reuseBill), 2);
-        else state.burg.treasury = rn((state.burg.treasury || 0) - reuseBill, 2);
+        else {
+          state.burg.treasury = rn((state.burg.treasury || 0) - reuseBill, 2);
+          recordCraftSpend(state.burg.i, reuseBill);
+        }
         creditHouseholdWealth(state.burg.i, reuseBill);
       }
     }
