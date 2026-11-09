@@ -189,7 +189,7 @@
       "id": "wallShape",
       "mesh": "organic | round | oval | square | polygon | bastioned",
       "meshless": "equivalent",
-      "evidence": "P4a: the skeleton-first shape families (unitWallShape: organic, round, oval, square, polygon, bastioned outline; auto by seed, bastioned only from the age of exploration) drawn as a closed wall on the site; the site grows by the shape's area share. The outline is turned (16 steps) until roads and rivers cross it at 20 degrees or more, where the mesh editor squares it at rivers. Approach roads that end outside or in the wall are continued to just inside it.",
+      "evidence": "P4a: the skeleton-first shape families (unitWallShape: organic, round, oval, square, polygon, bastioned outline; auto by seed, bastioned only from the age of exploration) drawn as a closed wall on the site; the site grows by the shape's area share. The outline is turned (48 steps, each checked by building its gates) until roads and rivers cross it at 20 degrees or more, where the mesh editor squares it at rivers. Approach roads that end outside or in the wall are continued to just inside it.",
       "stage": "P4",
       "checked": true
     },
@@ -251,8 +251,8 @@
       "category": "setting",
       "id": "townFortification",
       "mesh": "bastioned town: outworks, ditch, street plan",
-      "meshless": "converted-only",
-      "evidence": "Legacy bastioned plans convert (M9 defense acceptance); not generated (parity case bastioned).",
+      "meshless": "partial",
+      "evidence": "P4c: standalone sites are planned by the mesh editor's cell-free fortress planner (planBastionedTownFromInputs) on skeleton inputs built from the meshless site: trace as a fixed wall with gates, gate routes replacing the approach roads (ending inside the built-up disc), ring street, works as a fixed defense plan (bastions, curtains, ravelins, dry or wet ditch, covered way, glacis, accesses). Outworks none/ravelins, ditch dry/wet and street plan radial/organic (chords inside the town are left to the skeleton). Not yet: a river or coast through the works (sluices, fortress-water-conflict until P5) and FMG-linked sites, whose fixed roads cannot be rerouted.",
       "stage": "P4",
       "checked": true
     },

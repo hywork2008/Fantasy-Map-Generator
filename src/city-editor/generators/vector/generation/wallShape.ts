@@ -31,11 +31,13 @@ export function vectorWallChoice(
     | "innerWallState"
     | "walledAreaShare"
     | "townWallBuildOrder"
+    | "townFortification"
   >,
   seed: string,
   period: HistoricalPeriod
 ): Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial" | "innerWall"> {
-  if (!settings.config.features.walls) return { wall: "none" };
+  // A bastioned town brings its own trace as input geometry (P4c); the skeleton keeps it.
+  if (!settings.config.features.walls || settings.townFortification?.kind === "bastioned") return { wall: "none" };
   const rng = makeRng(`${seed}:vector-wall:choice`),
     wall = resolveWallShape(settings.wallShape, rng, bastionEra(period)),
     sides = settings.wallSides ?? 5 + Math.floor(rng() * 4),

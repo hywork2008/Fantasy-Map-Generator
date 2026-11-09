@@ -508,3 +508,63 @@ P4（市壁・防御の生成）を次の区切りに分けた。P4a 形状・�
 - P1の試験で「未対応の設定」の例に使っていた二重市壁を、堀（`moats`）に替えた。
 - 関連テスト（`generators/vector`、`renderers/vector`、`components/vector`、`CityEditorPage.vector`、`services/io/vector`、`services/vector`、アーキテクチャ、`i18n`）は56ファイル中49成功・7 skip（計測用）。
 - 型検査（CE・`i18n`）・biome・アーキテクチャの検査はエラーなし。
+
+## P4c 稜堡式の町（2026-11-09）
+
+### 旧CEの計画器の再利用
+
+旧CEの稜堡式の町の計画（`bastionedTown/plan.ts`）は、骨格の入力（`SkeletonInputs`）だけを読み、セルを使わない。そこで`planBastionedTown`を分け、入力から計画する`planBastionedTownFromInputs`を公開した。旧CEは従来どおり`prepareSkeletonRun`で入力を作ってこれを呼ぶ。
+
+### メッシュなしへの採用
+
+`generators/vector/generation/fortress.ts`の`fortifyVectorInput`を追加した。旧CEの防御を変換して採用する方式（M9）と同じく、入力の形状として採用する。
+
+1. メッシュなしの敷地から骨格の入力を作る。
+   - 中心・半径は敷地から取る。
+   - 道路は外部道路で、中心側を先頭にする。
+   - 川・湖、時代の橋の角度の上限、稜堡の時代を入れる。
+   - 枠は旧CEの`fortressFrameExtent`で広げる。
+2. 計画器で、外形・門・経路・工事を得る。
+3. 文書を組み立てる。
+   - 外形は固定の市壁（`fortress-wall`）とし、経路が通る門を作る。
+   - 外部道路は計画の経路で置き換える。
+   - 門の経路は、町の中では敷地半径の0.85倍で止め、中心までは骨格の経路探索に任せる。合成の敷地の外部道路と同じ扱いで、中心の広場・寺院を避けるため。
+   - 環状の街路は残す。organicの町割りの弦は、稜堡を切るものと町の中に入るものを作らない。
+   - 工事は固定の防御プラン（`environment.defenses`）とする。対象は稜堡・幕壁・外堡・堀・掩護道・斜堤・通路で、稜堡と幕壁の壁区間は外形の線分のアンカーで持つ。
+   - 市民の通路は、予約地として中心の街路の集まりを塞がないよう、門の手前の陸の点だけを残す。
+4. 文書を検証する。通らなければ旧CEの失敗理由（`fortress-*`）で生成を止める。生成パネルは旧CEの失敗の文言を示す。
+
+`vectorWallChoice`は稜堡式の町では骨格の市壁を作らない（`wall: none`。既存の壁を保つ）。敷地の大きさの見積もりからは、防御の予約地を除く（工事は町の円の外にある）。
+
+### 対応する範囲
+
+| 設定 | 対応 |
+| --- | --- |
+| 外堡 none／ravelins | 対応 |
+| 堀 dry／wet | 対応（水堀は閉じた水盤） |
+| 町割り radial／organic | 対応。organicの町の中の弦は骨格の経路に任せる |
+| 川・海岸が工事を横切る | 未対応。水門（`sluices`）の採用はP5。`fortress-water-conflict`で止める |
+| FMGの都市 | 未対応。外部道路が固定で経路に置き換えられない |
+
+旧CEの既定の敷地には川が1本あるため、稜堡式の町は川を0本にした場合だけ生成できる。
+
+### その他
+
+- 多角形の演算（polygon-clipping）が、ほぼ重なる辺で`TypeError`を出すことがあった。従来の再試行（座標を微小な格子に丸めてやり直す）の対象に加えた。
+
+### 確認
+
+- 外堡2種×堀2種×町割り2種×seed 5件の計40件で、入力・骨格・住宅・描画データがすべて成功し、全員が住んだ。
+- 川のある敷地では`fortress-water-conflict`で止まった。
+- ブラウザー（Playwright Chromium）で、川0本・稜堡式（ravelins・乾堀・radial）の5,000人を生成した。3Dで次を確かめた。
+  - 稜堡・幕壁・外堡・堀・橋と、内側の町。
+  - 未配置の人口は0。
+  - 旧CEの砲兵規格の離隔（`urbanSetback`）により、町と工事の間に広い空き地が残る。
+
+### テスト
+
+- `generators/vector/generation/fortress.test.ts`（2件）を追加した。
+  - 外形・門・経路・工事の採用、市民の通路の門と道路の参照、骨格と住宅の生成、描画データ。
+  - 水堀、organicの町割り、川のある敷地での失敗。
+- 関連テスト（`generators/vector`、`generators/bastionedTown`、`renderers/vector`、`components/vector`、`CityEditorPage.vector`、`services/io/vector`、`services/vector`、アーキテクチャ、`i18n`）は60ファイル中53成功・7 skip（計測用）。
+- 型検査（CE・`i18n`）・biome・アーキテクチャの検査はエラーなし。

@@ -68,7 +68,9 @@ export function regionBoolean(
     if (
       !(error instanceof Error) ||
       (!/^Unable to (complete output ring|find segment)/.test(error.message) &&
-        !(error instanceof RangeError && error.stack?.includes("RingOut")))
+        !(error instanceof RangeError && error.stack?.includes("RingOut")) &&
+        // The same lost edge can surface as a missing ring of a segment in the result sweep.
+        !(error instanceof TypeError && error.stack?.includes("polygon-clipping")))
     )
       throw error;
     const rounded = (polygons: VectorPolygon[], step: number): MultiPolygon =>

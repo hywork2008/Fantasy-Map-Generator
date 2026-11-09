@@ -7,6 +7,7 @@ import { synthSite } from "../../site/synthSite";
 import { featureReservations } from "../environmentState";
 import { regionArea } from "../geometry/regions";
 import { seedVectorCivicCentre, vectorCivicLayout } from "./civic";
+import { fortifyVectorInput } from "./fortress";
 import { expectedVectorHouseStoreys } from "./housingHeights";
 import { syntheticVectorInput, vectorInputFromDescriptor } from "./input";
 import { MESHLESS_SITE_RIM_METERS, meshlessCityRadius } from "./urbanSizing";
@@ -56,7 +57,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     }
   }
   const build = (radius: number, civic = true) => {
-    const doc = descriptor
+    let doc = descriptor
       ? vectorInputFromDescriptor(descriptor)
       : syntheticVectorInput(
           seed,
@@ -81,6 +82,13 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
       // site reserves one third of the same street-cell width as its boundary margin.
       doc.frame.extentMeters = Math.max(input.frame.extentMeters, frame.extentMeters, doc.frame.extentMeters);
       doc.site!.id = "standalone-ce-site";
+      // A bastioned town replaces the approach roads with the fortress routes, so it comes before the civic
+      // centre that takes its access from them (P4c).
+      if (settings.townFortification) {
+        const fortified = fortifyVectorInput(doc, settings, seed);
+        if ("failure" in fortified) throw new Error(fortified.failure);
+        doc = fortified.document;
+      }
       if (civic) seedVectorCivicCentre(doc, settings.config.features);
     }
     return doc;
@@ -107,7 +115,10 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
   // The first pass leaves the civic centre out: on a site sized for houses alone it may not fit yet.
   const first = build(size(0), false);
   const reserved = [
-    ...featureReservations(first),
+    // Fortress works lie outside the built-up disc and take none of its land.
+    ...featureReservations(
+      first.environment ? { ...first, environment: { ...first.environment, defenses: undefined } } : first
+    ),
     ...Object.values(first.regions).filter(r => r.kind === "reservation"),
     ...Object.values(first.placements).map(p => p.site)
   ].reduce((n, r) => n + regionArea({ outer: r.outer, holes: r.holes }), 0);

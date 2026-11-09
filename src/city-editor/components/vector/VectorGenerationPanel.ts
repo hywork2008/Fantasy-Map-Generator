@@ -1,4 +1,5 @@
 import { type EditorMessageKey, editorText } from "../../../i18n/editorMessages";
+import { type FortressFailureReason, fortressFailureMessage } from "../../generators/bastionedTown/validate";
 import { randomSeed } from "../../generators/generation/settings";
 import {
   type VectorEditorGenerationInput,
@@ -143,13 +144,18 @@ export function createVectorGenerationPanel(
     pending = undefined;
     adopt.disabled = true;
     const message = error instanceof Error ? error.message : "invalid-input",
+      fortress = message.match(/^fortress-[a-z-]+$/)?.[0] as FortressFailureReason | undefined,
       match =
         message.match(
           /urban-[a-z-]+|edited-urban|invalid-urban-settings|site-[a-z-]+|fixed-[a-z-]+|urban-generated|edited-generation|unbridged-road|bridge-[a-z-]+|generation-timeout|generation-worker|gate-access|region-[a-z-]+|route-budget|coastal-coverage-missing|invalid-generation-settings/
         )?.[0] ?? "invalid-input",
       key = `cityEditor.vector.generation.errors.${match}` as EditorMessageKey,
       translated = editorText(key);
-    status.textContent = translated === key ? `${text("errors.invalid-input")} (${message.slice(0, 180)})` : translated;
+    status.textContent = fortress
+      ? fortressFailureMessage(fortress)
+      : translated === key
+        ? `${text("errors.invalid-input")} (${message.slice(0, 180)})`
+        : translated;
     restore();
   };
   const seed = input("seed", editorInput?.seed ?? read().recipe.seed),
