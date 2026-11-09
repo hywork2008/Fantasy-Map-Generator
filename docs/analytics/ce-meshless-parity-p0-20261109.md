@@ -250,3 +250,39 @@ P2（3D表示の共有）の最初の区切りとして、市壁・塔・門・�
 - 関連テストは134ファイル中121成功・10 skip・3失敗だった。対象は`generators/vector`、`services`、`components/vector`、`renderers`、`city3d`である。
   - 失敗の3件（`renderers/svg.test.ts`の寺院の大きさ、`city3d/core/waterGeometry.test.ts`、`city3d/three/obernHouseModels.test.ts`）は、HEADの別のworktreeでも同じく失敗した。今回の変更とは関係しない。
 - 型検査・biome・アーキテクチャの検査はエラーなしである。
+
+## P2b 道路を旧CEの路面の部品で描く（2026-11-09）
+
+### 道路
+
+`renderers/vector/roadRibbons.ts`の`vectorRoadRibbons`を追加した。
+
+- メッシュなしの道路を、旧CEの路面の帯（`RoadRibbon`）にする。
+  - 対象: 主要道路、記録の地区の街路、記録の街路街区の小路、施設モードの小路。
+- 路面の種類は、旧CEと同じ`classifyRoadSurface`で決める。
+  - 主要道路: 外周の市壁の外は街道（`highway`）、内は幹線（`arterial`）。市壁がなければ幹線とする。
+  - 街路・小路: 通り（`street`）。
+  - 時代・文化圏（`roadSphere`）・財力（`roadMeans`）・湿地・山地・乾燥地は、敷地のFMGの都市情報と目標人口から決める。
+- 水面の上の区間は除く（`dryRuns`）。橋の上は橋の量塊が描く。
+- 描画データ（`vectorRenderData`）に`roads`を加えた。その段階で描く道路の所有者だけを含める。
+
+3D（`scene3d.ts`）では、次のように描く。
+
+- 道路は、旧CEの`createTownRoads`で描く。
+- 旧CEの地面は`LAND_Y`（-0.2 m）にあり、路面はその5 cm上にある。メッシュなしの地面は基準高なので、道路のグループを0.2 m持ち上げた。
+- 従来の道路の輪郭は、隠したまま残す（`visible = false`）。
+  - 描画とGLBの出力には含まれない。
+  - 選択の光線は当たるので、道路・記録の線のIDによる選択（M9、S2.1d）は保たれる。
+
+### 住宅はP3へ回した
+
+旧CEの住宅の部品（遠景の簡略化`createTownRegionalHouseLod`、建物の細部`createTownBuildingDetails`）は、量塊と外観を付けた区画を受け取る。量塊と外観は、旧CEの文書から文化・時代・セルの区分を読んで決まる（`assignBuildingMassing`、`assignBuildingAppearances`）。これはロードマップのP3（住宅の外観と高さ）そのものなので、住宅の描画はP3で合わせて行う。
+
+### テスト
+
+- `renderers/vector/structureMassing.test.ts`に1件を加えた。
+  - 道路の帯ができること。
+  - 帯の区間の中点が水面にないこと。
+  - 3Dで道路の輪郭が隠れ、旧CEの路面の部品が見え、地面より上にあること。
+- 関連テストは134ファイル中121成功・10 skip・3失敗だった。失敗の3件は、P2aと同じく以前からのものである。
+- 型検査・biome・アーキテクチャの検査はエラーなしである。

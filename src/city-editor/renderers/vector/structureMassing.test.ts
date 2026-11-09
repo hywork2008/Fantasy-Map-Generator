@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { syntheticVectorInput } from "../../generators/vector/generation/input";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../../generators/vector/generation/pipeline";
+import { containsRegion } from "../../generators/vector/geometry/regions";
 import { vectorPickOwner } from "./picking";
 import { vectorRenderData } from "./renderData";
 import { createVectorScene } from "./scene3d";
@@ -41,8 +42,40 @@ describe("meshless walls, gates and bridges as the mesh editor's structure massi
     });
     expect(meshes.some(m => m.userData.representation === "footprint" && m.userData.kind === "wall")).toBe(false);
     const wallMesh = meshes.find(m => vectorPickOwner(m) === wallId);
+    scene.group.updateMatrixWorld(true);
     expect(wallMesh).toBeDefined();
     expect(new THREE.Box3().setFromObject(wallMesh!).max.y).toBeGreaterThan(4);
+    scene.dispose();
+  });
+});
+
+describe("meshless roads as the mesh editor's wearing-course ribbons (feature parity P2b)", () => {
+  it("classifies main roads by the wall, keeps outlines only as hidden pick targets, and leaves water to bridges", () => {
+    const data = vectorRenderData(city, "regions"),
+      roads = data.roads!;
+    expect(roads.ribbons.length).toBeGreaterThan(0);
+    expect(new Set(roads.ribbons.map(r => r.surface)).size).toBeGreaterThan(0);
+    // Runs end on the bank, so their segment midpoints are dry.
+    for (const ribbon of roads.ribbons)
+      for (let i = 1; i < ribbon.centerline.length; i++) {
+        const a = ribbon.centerline[i - 1],
+          b = ribbon.centerline[i],
+          mid: [number, number] = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        expect(roads.water.polygons.some(w => containsRegion([{ outer: w, holes: [] }], mid))).toBe(false);
+      }
+    const scene = createVectorScene(data),
+      meshes: THREE.Mesh[] = [];
+    scene.group.traverse(o => {
+      if (o instanceof THREE.Mesh) meshes.push(o);
+    });
+    const outlines = meshes.filter(m => m.userData.kind === "road");
+    expect(outlines.length).toBeGreaterThan(0);
+    expect(outlines.every(m => !m.visible)).toBe(true);
+    const road = meshes.find(m => m.name.startsWith("ce-road-"))!;
+    scene.group.updateMatrixWorld(true);
+    expect(road.visible).toBe(true);
+    // Just above the land, as in the mesh editor.
+    expect(new THREE.Box3().setFromObject(road).max.y).toBeGreaterThan(0);
     scene.dispose();
   });
 });

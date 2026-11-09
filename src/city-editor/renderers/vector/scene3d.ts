@@ -4,6 +4,7 @@ import { placementDefinition, placementFootprint } from "../../../buildings/plac
 import { LAND_Y } from "../../../city3d/core/waterGeometry";
 import { createBvPrototypeCache } from "../../../city3d/three/bvInstances";
 import { createTownCranes, createTownHarborCargo } from "../../../city3d/three/craneMeshes";
+import { createTownRoads } from "../../../city3d/three/roadMeshes";
 import { createTownShips } from "../../../city3d/three/shipMeshes";
 import { createStructureMassing } from "../../../city3d/three/structureMeshes";
 import { polygonArea } from "../../generators/geom";
@@ -212,6 +213,20 @@ export function createVectorScene(data: VectorRenderData) {
       disposers.push(() => meshes.dispose());
       massed.add(owner.owner);
     }
+    // Roads use the mesh editor's wearing-course meshes. Their outlines stay as hidden pick targets, so a road
+    // or fabric line is still selected by its own id.
+    let roadsDrawn = false;
+    if (data.roads?.ribbons.length) {
+      const heightAt = data.surfaces.find(s => s.kind === "road" && s.heightAt)?.heightAt,
+        roads = createTownRoads(data.roads.ribbons, data.roads.water, heightAt),
+        holder = new THREE.Group();
+      // The mesh editor's land lies at LAND_Y and its roads just above; here the land is at the datum.
+      holder.position.set(-data.center[0], -datum - LAND_Y, data.center[1]);
+      holder.add(roads.parent);
+      group.add(holder);
+      disposers.push(() => roads.dispose());
+      roadsDrawn = true;
+    }
     for (const surface of data.surfaces) {
       if (surface.pieceRole === "landscape-tree") continue;
       if ((surface.kind === "wall" || surface.kind === "bridge") && massed.has(surface.id)) continue;
@@ -342,6 +357,8 @@ export function createVectorScene(data: VectorRenderData) {
           }
         }
         const mesh = new THREE.Mesh(geometry, material(surface.color));
+        // Hidden meshes are not drawn or exported, but the pick ray still finds them.
+        if (roadsDrawn && surface.kind === "road") mesh.visible = false;
         mesh.position.y = surface.elevations ? 0 : surface.elevationMeters - (surface.heightAt ? 0 : datum);
         mesh.userData = {
           id: surface.id,

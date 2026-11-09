@@ -19,6 +19,7 @@ import type { VectorStage } from "../../types/vector/urban";
 import { vectorDefenseSurfaces } from "./defense";
 import { vectorHarborSurfaces } from "./harbor";
 import { vectorLandscapeSurfaces } from "./landscape";
+import { vectorRoadRibbons } from "./roadRibbons";
 import { vectorStructures } from "./structureMassing";
 export type VectorSurfaceKind =
   | "region"
@@ -69,6 +70,8 @@ export interface VectorRenderData {
   /** Walls (with towers and gates) and bridges as the mesh editor's structure massing, for 3D. Only owners
    * drawn in this stage; the 2D view keeps the surfaces. */
   structures?: ReturnType<typeof vectorStructures>;
+  /** Roads of this stage as the mesh editor's wearing-course ribbons, for 3D. */
+  roads?: ReturnType<typeof vectorRoadRibbons>;
 }
 /** Adopted geometry only. The same clipped surfaces feed screen SVG, exports and 3D. */
 export function vectorRenderData(
@@ -488,9 +491,12 @@ export function vectorRenderData(
     );
   }
   if (doc.urban && !urban) warnings.push("stale-stages");
-  const drawn = new Set(surfaces.filter(s => s.kind === "wall" || s.kind === "bridge").map(s => s.id));
+  const drawn = new Set(surfaces.filter(s => s.kind === "wall" || s.kind === "bridge").map(s => s.id)),
+    // Fabric lines are drawn per record (`<record>~l`), or per line (`<record>~l3`) when the union fails.
+    roadOwners = new Set(surfaces.filter(s => s.kind === "road").map(s => s.id.replace(/(~[sl])\d+$/, "$1")));
   return {
     structures: vectorStructures(doc).filter(s => drawn.has(s.owner)),
+    roads: vectorRoadRibbons(doc, id => roadOwners.has(id)),
     revision: doc.revision,
     stage,
     center,

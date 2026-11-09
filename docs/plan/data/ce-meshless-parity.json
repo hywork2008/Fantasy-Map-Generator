@@ -794,8 +794,8 @@
       "id": "buildingDetails",
       "mesh": "city3d/three/buildingDetails (Building details)",
       "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
-      "stage": "P2",
+      "evidence": "Not used: house lots need massing and appearance, which the mesh editor assigns from its document (assignBuildingMassing, assignBuildingAppearances). Moved to P3 with the house appearance.",
+      "stage": "P3",
       "checked": true
     },
     {
@@ -812,8 +812,8 @@
       "id": "cityMeshes",
       "mesh": "city3d/three/cityMeshes (City massing)",
       "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
-      "stage": "P2",
+      "evidence": "Not used: house lots need massing and appearance, which the mesh editor assigns from its document (assignBuildingMassing, assignBuildingAppearances). Moved to P3 with the house appearance.",
+      "stage": "P3",
       "checked": true
     },
     {
@@ -902,8 +902,8 @@
       "id": "regionalHouseLod",
       "mesh": "city3d/three/regionalHouseLod (Distant-house LOD)",
       "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
-      "stage": "P2",
+      "evidence": "Not used: house lots need massing and appearance, which the mesh editor assigns from its document (assignBuildingMassing, assignBuildingAppearances). Moved to P3 with the house appearance.",
+      "stage": "P3",
       "checked": true
     },
     {
@@ -919,8 +919,8 @@
       "category": "3d",
       "id": "roadMeshes",
       "mesh": "city3d/three/roadMeshes (Roads)",
-      "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "meshless": "equivalent",
+      "evidence": "P2b: main roads, district streets and lanes become RoadRibbons with classifyRoadSurface (highway outside the wall, arterial inside, street for fabric lines; dry runs only) and are drawn by createTownRoads. Outlines stay as hidden pick targets.",
       "stage": "P2",
       "checked": true
     },
