@@ -5,6 +5,7 @@ import { LAND_Y } from "../../../city3d/core/waterGeometry";
 import { createBvPrototypeCache } from "../../../city3d/three/bvInstances";
 import { createTownCranes, createTownHarborCargo } from "../../../city3d/three/craneMeshes";
 import { createTownShips } from "../../../city3d/three/shipMeshes";
+import { createStructureMassing } from "../../../city3d/three/structureMeshes";
 import { polygonArea } from "../../generators/geom";
 import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
 import { createVectorLandscapeTrees } from "./landscapeTrees";
@@ -197,8 +198,23 @@ export function createVectorScene(data: VectorRenderData) {
     }
     // Generated houses share one mesh per colour, height and tile: draw calls grow with area, not houses.
     const houseBatches = new Map<string, HouseBatch>();
+    // Walls, towers, gates and bridges use the mesh editor's structure massing, one group per owner for picking.
+    const massed = new Set<string>();
+    for (const owner of data.structures ?? []) {
+      if (!owner.parts.length) continue;
+      const meshes = createStructureMassing(owner.parts),
+        holder = new THREE.Group();
+      // Massing is in plan metres at absolute heights; the scene group sits at the centre and the datum.
+      holder.position.set(-data.center[0], -datum, data.center[1]);
+      holder.userData = { id: owner.owner, kind: owner.kind, representation: "structure-massing" };
+      holder.add(meshes.group);
+      group.add(holder);
+      disposers.push(() => meshes.dispose());
+      massed.add(owner.owner);
+    }
     for (const surface of data.surfaces) {
       if (surface.pieceRole === "landscape-tree") continue;
+      if ((surface.kind === "wall" || surface.kind === "bridge") && massed.has(surface.id)) continue;
       if (surface.houses) {
         const { ids, heightsMeters, elevationsMeters } = surface.houses;
         surface.polygons.forEach((polygon, i) => {

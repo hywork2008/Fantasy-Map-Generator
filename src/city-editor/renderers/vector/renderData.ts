@@ -19,6 +19,7 @@ import type { VectorStage } from "../../types/vector/urban";
 import { vectorDefenseSurfaces } from "./defense";
 import { vectorHarborSurfaces } from "./harbor";
 import { vectorLandscapeSurfaces } from "./landscape";
+import { vectorStructures } from "./structureMassing";
 export type VectorSurfaceKind =
   | "region"
   | "block"
@@ -65,6 +66,9 @@ export interface VectorRenderData {
   groundCutouts?: VectorPolygon[];
   landscapeTrees?: (VectorLandscapeTree & { elevationMeters: number })[];
   terrain?: { points: [number, number, number][]; indices: number[] };
+  /** Walls (with towers and gates) and bridges as the mesh editor's structure massing, for 3D. Only owners
+   * drawn in this stage; the 2D view keeps the surfaces. */
+  structures?: ReturnType<typeof vectorStructures>;
 }
 /** Adopted geometry only. The same clipped surfaces feed screen SVG, exports and 3D. */
 export function vectorRenderData(
@@ -484,7 +488,9 @@ export function vectorRenderData(
     );
   }
   if (doc.urban && !urban) warnings.push("stale-stages");
+  const drawn = new Set(surfaces.filter(s => s.kind === "wall" || s.kind === "bridge").map(s => s.id));
   return {
+    structures: vectorStructures(doc).filter(s => drawn.has(s.owner)),
     revision: doc.revision,
     stage,
     center,

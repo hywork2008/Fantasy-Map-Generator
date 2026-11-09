@@ -193,3 +193,60 @@ P0bの残り2件（海岸の`gate-access`、起伏の`unbridged-road`）は、P5
   - `components/vector/VectorGenerationPanel.test.ts`（1件）: 旧CEの設定で開いた生成パネルに一覧が出て、文言に置換漏れがないこと。既定の都市では一覧を隠すこと。
 - 関連テストは65ファイル中55成功・10 skip（計測用）だった。対象は`generators/vector`、`services`、`components/vector`、`renderers/vector`、`i18n`である。
 - 型検査・biome・アーキテクチャの検査はエラーなしである。
+
+## P2a 市壁・門・橋を旧CEの構造物の量塊で描く（2026-11-09）
+
+P2（3D表示の共有）の最初の区切りとして、市壁・塔・門・橋を、旧CEと同じ構造物の量塊（`StructureMassing`、`createStructureMassing`）で描くようにした。門のバービカンは設けない。後でオプションとして作り込む予定である（2026-11-09指示）。
+
+### 旧CEの計算をセルから切り離す
+
+`renderers/structureMassing.ts`の次の処理を、セルのない入力で使える関数として公開した。旧CEの関数は、これらを呼ぶだけになった。
+
+| 関数 | 内容 |
+| --- | --- |
+| `wallBodyHeight` | 材料と壁上通路の有無からの壁の高さ（石造8 m・5 m、木造4.5 m・3.2 m） |
+| `curtainTowersAlong` | 壁の中心線に沿った円形の塔。間隔の半分から始め、川と門の近くは除く |
+| `gateMassesAt` | 門の両側の塔（壁厚×1.6の正方形、壁より2.5 m高い）と、開口の上の楣 |
+| `wallRunsWithOpenings` | 門の開口で切った壁の帯。壁上通路の外側に胸壁を付ける |
+
+- 旧CEの出力は変わっていない。3,000人の旧CEの都市2つ（一重・二重市壁、城塞あり）で、変更前後の`collectCityStructures`の結果のSHA-256が一致した。
+
+### メッシュなしの構造物
+
+`renderers/vector/structureMassing.ts`の`vectorStructures`を追加した。
+
+- 壁:
+  - 壁の道の中心線を標本化する。
+  - 門ごとに、その中心を頂点として加えて開口を切る。
+  - 壁厚は道の幅、材料は壁の地物の文化（timberなら木造）から決める。
+  - 塔の間隔は、旧CEの既定（街路セル50 m×1.4 = 70 m）とした。
+- 門: 通行用の門（`passage`）に、両側の塔と楣を置く。
+  - 町の内側の向きは、敷地の中心が壁の内側にあればその中心、なければ壁の重心から決める。
+  - 水門は開口だけにする。
+- 橋: 橋の両端（`bridgeGeometry`）を中心線にし、道路の幅、旧CEと同じ厚さ・欄干にした。
+- 起伏のある都市では、壁の帯は頂点ごとに、塔・門は中心で、地面の高さに置く。
+- 稜堡式の防御が持つ壁と、非表示の道は対象外とする。
+
+描画データ（`vectorRenderData`）に`structures`を加えた。中身は、その段階で描く壁・橋の所有者だけである。
+
+- 3D（`scene3d.ts`）は、所有者ごとに量塊のグループを作る。
+  - 壁の道・橋のIDで選択できるようにし、論理IDによる選択（M9）を保つ。
+  - 同じ所有者の押し出しの多角形は描かない。
+- 2D・SVGの出力は従来どおりである。
+
+### 未対応のまま
+
+- 旧CEの高品質時のBVの壁の部品（`createTownWalls`）とBVの橋（`createTownBridges`）は、旧CEの文書を読む。入力を切り離すまで、メッシュなしは量塊のままである。
+- 寺院・目印となる建物の構造物化、道路・住宅・水面・地形・樹木は、P2の次の区切り以降で扱う。
+- ブラウザーでの目視は、Chromeが使えないため行っていない。
+
+### テスト
+
+- `renderers/vector/structureMassing.test.ts`（2件）を追加した。
+  - 壁の帯の数が門の数と等しいこと。
+  - 塔があり、通行用の門ごとに両側の塔2つと楣1つがあり、バービカンがないこと。
+  - 橋の数が一致すること。
+  - 3Dで壁の押し出しの多角形が消え、量塊が壁の道のIDで選択でき、高さが4 mを超えること。
+- 関連テストは134ファイル中121成功・10 skip・3失敗だった。対象は`generators/vector`、`services`、`components/vector`、`renderers`、`city3d`である。
+  - 失敗の3件（`renderers/svg.test.ts`の寺院の大きさ、`city3d/core/waterGeometry.test.ts`、`city3d/three/obernHouseModels.test.ts`）は、HEADの別のworktreeでも同じく失敗した。今回の変更とは関係しない。
+- 型検査・biome・アーキテクチャの検査はエラーなしである。

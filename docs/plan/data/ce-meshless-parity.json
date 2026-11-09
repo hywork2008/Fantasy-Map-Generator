@@ -946,8 +946,8 @@
       "category": "3d",
       "id": "structureMeshes",
       "mesh": "city3d/three/structureMeshes (Structures)",
-      "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "meshless": "partial",
+      "evidence": "P2a: meshless walls, curtain towers, gate flanks and lintels (no barbican) and bridge decks use createStructureMassing via the cell-free wall/gate helpers shared with renderers/structureMassing.ts. Landmarks and temples are not yet structures.",
       "stage": "P2",
       "checked": true
     },
@@ -965,7 +965,7 @@
       "id": "townWallMeshes",
       "mesh": "city3d/three/townWallMeshes (Town walls)",
       "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "evidence": "Not used: the BV curtain pieces at high quality read a CityDocument (appearance context, wall groups). The walls themselves are drawn as shared structure massing (P2a).",
       "stage": "P2",
       "checked": true
     },

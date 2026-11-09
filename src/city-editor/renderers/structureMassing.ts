@@ -273,9 +273,38 @@ function curtainTowers(
   out: StructureMassing[]
 ): void {
   if (isNewStyleCastleWall(document, group.id)) return;
-  const spacing = castleWallIds(document).has(group.id) ? 32 : Math.max(45, document.frame.blockSizeMeters * 1.4);
-  const radius = group.style.widthMeters * 0.8;
-  const material: StructureMaterial = group.wallMaterial === "wood" ? "wood" : "stone";
+  curtainTowersAlong(
+    {
+      wallId: group.id,
+      points,
+      material: group.wallMaterial === "wood" ? "wood" : "stone",
+      widthMeters: group.style.widthMeters,
+      height,
+      spacing: castleWallIds(document).has(group.id) ? 32 : Math.max(45, document.frame.blockSizeMeters * 1.4),
+      skip: position =>
+        inRiver(document, position, group.style.widthMeters) ||
+        nearGate(document, position, group.style.widthMeters * 3)
+    },
+    out
+  );
+}
+
+/** Round towers every `spacing` metres along a wall centre line, starting half a spacing in; cell-free. */
+export function curtainTowersAlong(
+  wall: {
+    wallId: string;
+    points: Point[];
+    material: StructureMaterial;
+    widthMeters: number;
+    height: number;
+    spacing: number;
+    /** True where no tower may stand (a river, a gate). */
+    skip: (position: Point) => boolean;
+  },
+  out: StructureMassing[]
+): void {
+  const { points, spacing, material } = wall;
+  const radius = wall.widthMeters * 0.8;
   let until = spacing / 2;
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1];
@@ -285,15 +314,14 @@ function curtainTowers(
       const t = until / length;
       const position: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
       until += spacing;
-      if (inRiver(document, position, group.style.widthMeters)) continue;
-      if (nearGate(document, position, group.style.widthMeters * 3)) continue;
+      if (wall.skip(position)) continue;
       out.push(
         blank({
-          id: `tower-${group.id}-${i}-${Math.round(until)}`,
+          id: `tower-${wall.wallId}-${i}-${Math.round(until)}`,
           kind: "tower",
           material,
           footprint: circle(position, radius),
-          heightMeters: height + 4,
+          heightMeters: wall.height + 4,
           roof: material === "wood" ? "flat" : "pyramid"
         })
       );
@@ -639,17 +667,45 @@ function addGateMasses(
   wallHeight: number,
   opening: number
 ): void {
-  const material: StructureMaterial = wall.wallMaterial === "wood" ? "wood" : "stone";
-  const side = wall.style.widthMeters * GATE_TOWER_SCALE;
-  const along = frame.tangent;
-  const across = frame.inward;
+  gateMassesAt(out, {
+    gateId: gate.id,
+    point: frame.point,
+    tangent: frame.tangent,
+    inward: frame.inward,
+    material: wall.wallMaterial === "wood" ? "wood" : "stone",
+    wallWidth: wall.style.widthMeters,
+    wallHeight,
+    opening
+  });
+}
+
+/** A gate's two flanking towers and the lintel over its opening; cell-free. No barbican. */
+export function gateMassesAt(
+  out: StructureMassing[],
+  gate: {
+    gateId: string;
+    point: Point;
+    /** Unit vector along the wall. */
+    tangent: Point;
+    /** Unit vector into the town. */
+    inward: Point;
+    material: StructureMaterial;
+    wallWidth: number;
+    wallHeight: number;
+    opening: number;
+  }
+): void {
+  const { material, wallHeight, opening } = gate;
+  const side = gate.wallWidth * GATE_TOWER_SCALE;
+  const along = gate.tangent;
+  const across = gate.inward;
   for (const sign of [-1, 1]) {
     const center: Point = [
-      frame.point[0] + along[0] * sign * (opening / 2 + side / 2),
-      frame.point[1] + along[1] * sign * (opening / 2 + side / 2)
+      gate.point[0] + along[0] * sign * (opening / 2 + side / 2),
+      gate.point[1] + along[1] * sign * (opening / 2 + side / 2)
     ];
     pushFootprint(out, {
-      id: `gate:${gate.id}:flank:${sign < 0 ? 0 : 1}`,
+      id: `gate:${gate.gateId}:flank:${sign < 0 ? 0 : 1}`,
       kind: "gate",
       material,
       ring: square(center, along, across, side),
@@ -660,14 +716,14 @@ function addGateMasses(
   const half = opening / 2;
   out.push(
     blank({
-      id: `gate:${gate.id}:lintel`,
+      id: `gate:${gate.gateId}:lintel`,
       kind: "gate",
       material,
       centerline: [
-        [frame.point[0] - along[0] * half, frame.point[1] - along[1] * half],
-        [frame.point[0] + along[0] * half, frame.point[1] + along[1] * half]
+        [gate.point[0] - along[0] * half, gate.point[1] - along[1] * half],
+        [gate.point[0] + along[0] * half, gate.point[1] + along[1] * half]
       ],
-      widthMeters: wall.style.widthMeters,
+      widthMeters: gate.wallWidth,
       heightMeters: 1.2,
       baseElevationMeters: Math.max(0, wallHeight - 1.2),
       roof: "none"
@@ -710,6 +766,49 @@ function addLandmarks(document: CityDocument, out: StructureMassing[]): void {
 }
 
 /** Walls, towers, gates, bridges, and landmarks for the CE 3D view. Not saved. */
+/** Curtain body height above the footing, before any castle or bastion adjustment. */
+export function wallBodyHeight(material: StructureMaterial, hasWalkway: boolean): number {
+  return material === "wood" ? (hasWalkway ? WOOD_WALK : WOOD_BARE) : hasWalkway ? STONE_WALK : STONE_BARE;
+}
+
+/** Wall ribbons between gate openings, with the walk's outer parapet; cell-free. */
+export function wallRunsWithOpenings(
+  wall: {
+    wallId: string;
+    name?: string;
+    points: Point[];
+    /** Openings by vertex index of `points` and half width. */
+    gaps: { index: number; half: number }[];
+    material: StructureMaterial;
+    widthMeters: number;
+    walkway: Parameters<typeof resolveWallGeometry>[2];
+    height: number;
+    /** A point inside the town: the parapet faces away from it. */
+    anchor: Point;
+  },
+  out: StructureMassing[]
+): void {
+  const { material } = wall;
+  const profile = resolveWallGeometry(wall.widthMeters, material, wall.walkway);
+  cutWallOpenings(wall.points, wall.gaps).forEach((centerline, index) => {
+    out.push(
+      blank({
+        id: `wall:${wall.wallId}:${index}`,
+        kind: "wall",
+        name: wall.name,
+        material,
+        centerline,
+        widthMeters: wall.widthMeters,
+        heightMeters: wall.height,
+        anchor: wall.anchor,
+        parapet: profile.hasWalkway ? "outer" : "none",
+        parapetMeters: profile.hasWalkway ? (material === "wood" ? WOOD_LIP : STONE_LIP) : 0,
+        parapetWidthMeters: profile.hasWalkway ? profile.parapetWidth : 0
+      })
+    );
+  });
+}
+
 export function collectCityStructures(document: CityDocument): StructureMassing[] {
   const castle = castleWallIds(document);
   const bastionWalls = new Set<Id>();
@@ -734,40 +833,27 @@ export function collectCityStructures(document: CityDocument): StructureMassing[
     const profile = resolveWallGeometry(group.style.widthMeters, material, group.walkway);
     const body = bastionWalls.has(group.id)
       ? BASTION_HEIGHT - (profile.hasWalkway ? (material === "wood" ? WOOD_LIP : STONE_LIP) : 0)
-      : (material === "wood"
-          ? profile.hasWalkway
-            ? WOOD_WALK
-            : WOOD_BARE
-          : profile.hasWalkway
-            ? STONE_WALK
-            : STONE_BARE) + (castle.has(group.id) ? 2 : 0);
+      : wallBodyHeight(material, profile.hasWalkway) + (castle.has(group.id) ? 2 : 0);
     prepared.set(group.id, { group, points, height: body });
     curtainTowers(document, group, points, body, out);
   }
   cornerTowers(document, out);
   const gaps = addGates(document, prepared, out);
-  for (const [id, item] of prepared) {
-    const runs = cutWallOpenings(item.points, gaps.get(id) ?? []);
-    const material: StructureMaterial = item.group.wallMaterial === "wood" ? "wood" : "stone";
-    const profile = resolveWallGeometry(item.group.style.widthMeters, material, item.group.walkway);
-    runs.forEach((centerline, index) => {
-      out.push(
-        blank({
-          id: `wall:${id}:${index}`,
-          kind: "wall",
-          name: item.group.name,
-          material,
-          centerline,
-          widthMeters: item.group.style.widthMeters,
-          heightMeters: item.height,
-          anchor: wallInteriorPoint(document, item.group),
-          parapet: profile.hasWalkway ? "outer" : "none",
-          parapetMeters: profile.hasWalkway ? (material === "wood" ? WOOD_LIP : STONE_LIP) : 0,
-          parapetWidthMeters: profile.hasWalkway ? profile.parapetWidth : 0
-        })
-      );
-    });
-  }
+  for (const [id, item] of prepared)
+    wallRunsWithOpenings(
+      {
+        wallId: id,
+        name: item.group.name,
+        points: item.points,
+        gaps: gaps.get(id) ?? [],
+        material: item.group.wallMaterial === "wood" ? "wood" : "stone",
+        widthMeters: item.group.style.widthMeters,
+        walkway: item.group.walkway,
+        height: item.height,
+        anchor: wallInteriorPoint(document, item.group)
+      },
+      out
+    );
   addBridges(document, out);
   addLandmarks(document, out);
   addTemples(document, out);
