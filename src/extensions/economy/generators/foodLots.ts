@@ -57,6 +57,13 @@ export function isReturnedCaskDrink(name: string): name is ReturnedCaskDrink {
   return isOrchardDrink(name) || name === "Mead";
 }
 export const LITERS_PER_WINE_LOT = 200;
+/**
+ * Drinks pressed in the fruit's own cell up to the market's drink headroom (docs/plan/vintage-and-orchard-yield.md):
+ * the orchard drinks, and Wine, which a cheese-sized export allowance otherwise left unpressed.
+ */
+export function isCellPressedDrink(name: string): boolean {
+  return isOrchardDrink(name) || name === "Wine";
+}
 export const KILOGRAMS_PER_RAISINS_LOT = 250;
 
 /** Ten litres of whole milk make approximately one kilogram of hard cheese. */
@@ -85,7 +92,9 @@ export const WINE_TARGETS = {
   /** Wine-country residents; this is not a claim that all medieval Germans drank this amount. */
   regionalLitersPerAdultYear: 8,
   importedLitersPerAdultYear: 1,
-  adultShare: 0.65
+  adultShare: 0.65,
+  /** The vintage comes once a year, so the cellars hold a year's wine as the orchard drinks do. */
+  reserveMonths: 12
 } as const;
 
 export const ALE_TARGETS = {

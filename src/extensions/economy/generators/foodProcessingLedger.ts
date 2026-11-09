@@ -497,7 +497,9 @@ export function getFoodProcessingProductionHeadroom(
       ? MEAD_TARGETS.reserveMonths
       : goodName === "Beer"
         ? BEER_RESERVE_MONTHS
-        : 3;
+        : goodName === "Wine"
+          ? WINE_TARGETS.reserveMonths
+          : 3;
   const householdHeadroom = Math.max(0, getMonthlyHouseholdDemand(market, goodName) * reserveMonths - heldStock);
   if (goodName !== "Cheese") return householdHeadroom;
 

@@ -54,7 +54,7 @@ import { ExportStaging } from "./exportStaging";
 import { getFarmToolsDemandByMarket } from "./farmToolsDemand";
 import { withRegionalDemandShareCache } from "./faunaPopulation";
 import type { FaunaCohorts } from "./faunaPopulationTypes";
-import { isOrchardDrink } from "./foodLots";
+import { isCellPressedDrink, isOrchardDrink } from "./foodLots";
 import { getRecipeCostBasis, hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
   ensureContainerCirculation,
@@ -63,7 +63,8 @@ import {
   recordCellFoodHouseholdConsumption,
   recordFoodMarketIntake,
   recordFoodProcessingConsumption,
-  recordOrchardCaskFilling
+  recordOrchardCaskFilling,
+  recordWineCaskFilling
 } from "./foodProcessingLedger";
 import { getFellableWood, harvestWood, woodUnitsForCoverage } from "./forestStock";
 import type { DemandCategory, Good } from "./goods-generator";
@@ -1340,7 +1341,7 @@ export class MarketsModule {
         if (!market) continue;
         const commercialGood = commercialPath ? Goods.get(commercialPath.outputGoodId) : undefined;
         const exportDemandUnits =
-          commercialPath && commercialGood && isOrchardDrink(commercialGood.name)
+          commercialPath && commercialGood && isCellPressedDrink(commercialGood.name)
             ? Math.min(
                 getFoodProcessingProductionHeadroom(market, commercialGood.name, 0),
                 this.getOrchardMaterialCapacity(market, commercialGood, sourceGood.i)
@@ -1425,7 +1426,7 @@ export class MarketsModule {
           outcome.exportOutputUnits * commercialPath.inputPerOutput
         );
         const commercialGood = Goods.get(commercialPath.outputGoodId);
-        if (commercialGood && isOrchardDrink(commercialGood.name)) {
+        if (commercialGood && isCellPressedDrink(commercialGood.name)) {
           const recipe = commercialGood.recipes?.find(recipe => recipe[sourceGood.i] > 0);
           let replacementCasks = 0;
           for (const [id, amount] of Object.entries(recipe ?? {})) {
@@ -1472,7 +1473,10 @@ export class MarketsModule {
               });
             }
           }
-          recordOrchardCaskFilling(market, commercialGood.name, outcome.exportOutputUnits, replacementCasks);
+          if (commercialGood.name === "Wine")
+            recordWineCaskFilling(market, outcome.exportOutputUnits, replacementCasks);
+          else if (isOrchardDrink(commercialGood.name))
+            recordOrchardCaskFilling(market, commercialGood.name, outcome.exportOutputUnits, replacementCasks);
         }
         this.addRuralOutput(
           entry.marketId,
