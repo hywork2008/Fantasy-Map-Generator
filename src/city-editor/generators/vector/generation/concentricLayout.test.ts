@@ -25,6 +25,29 @@ function city(layout: "circulade" | "bram", seed = "c4") {
   return { wall, urban: generateVectorUrban(skeleton, { ...DEFAULT_VECTOR_URBAN, population: 5000, lotOccupancy: 1 }) };
 }
 
+describe("meshless classic plan from the mesh editor's classic block infill (feature parity P4d)", () => {
+  it("fills each district by classic rows and lanes without organic streets, and houses everyone", () => {
+    const seed = "q0",
+      settings = {
+        ...defaultGenerationSettings(),
+        population: defaultPopulationSettings(5000),
+        layout: "classic" as const
+      },
+      wall = vectorWallChoice(settings, seed, "lateMedieval", frame.extentMeters);
+    expect(wall.layout).toBe("classic");
+    const skeleton = generateVectorSkeleton(vectorInputFromEditor({ settings, seed, frame, lotOccupancy: 1 }), {
+        ...DEFAULT_VECTOR_GENERATION,
+        seed,
+        ...wall
+      }).document,
+      urban = generateVectorUrban(skeleton, { ...DEFAULT_VECTOR_URBAN, population: 5000, lotOccupancy: 1 });
+    // One street block per district: the classic plan lays no district streets.
+    for (const district of Object.values(urban.fabric!.districts)) expect(district.cellIds).toHaveLength(1);
+    expect(Object.values(urban.paths).some(p => p.id.startsWith("auto-ring:"))).toBe(false);
+    expect(urban.urban!.report.unplacedPopulation).toBe(0);
+  });
+});
+
 describe("meshless concentric town plans from the mesh editor's planners (feature parity P4d)", () => {
   it("resolves the layout as the mesh editor does and keeps one wall", () => {
     const settings = { ...defaultGenerationSettings(), layout: "auto" as const };

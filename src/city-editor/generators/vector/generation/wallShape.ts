@@ -49,7 +49,7 @@ export function vectorWallChoice(
   const resolved = resolveEffectiveLayout(settings.layout ?? settings.config.layout, extentMeters, seed),
     castle = vectorCastleChoice(settings),
     layout = {
-      ...(resolved === "circulade" || resolved === "bram" ? { layout: resolved } : {}),
+      ...(resolved !== "organic" ? { layout: resolved } : {}),
       ...(castle ? { castle } : {})
     };
   // A bastioned town brings its own trace as input geometry (P4c); the skeleton keeps it.
@@ -75,7 +75,7 @@ export function vectorWallChoice(
     ...(settings.moats?.town ? { townMoat: true } : {}),
     // The mesh editor's old town takes the walled share, 45% by default (`innerWalledAreaShare`).
     // Circulade and Bram towns keep one wall, as in the mesh editor.
-    ...(settings.townWallRings === "double" && !layout.layout
+    ...(settings.townWallRings === "double" && (!layout.layout || layout.layout === "classic")
       ? {
           innerWall: {
             share: Math.max(0.1, Math.min(0.8, settings.walledAreaShare ?? DEFAULT_INNER_WALLED_AREA_SHARE)),
@@ -118,7 +118,7 @@ export function vectorWallSettings(
         s.wallSides >= VECTOR_WALL_SIDES.min &&
         s.wallSides <= VECTOR_WALL_SIDES.max)) &&
     (s.wallMaterial === undefined || s.wallMaterial === "stone" || s.wallMaterial === "wood") &&
-    (s.layout === undefined || s.layout === "circulade" || s.layout === "bram") &&
+    (s.layout === undefined || s.layout === "circulade" || s.layout === "bram" || s.layout === "classic") &&
     (s.castle === undefined ||
       (typeof s.castle === "object" &&
         s.castle !== null &&

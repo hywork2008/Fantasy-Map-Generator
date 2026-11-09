@@ -698,3 +698,24 @@ P4（市壁・防御の生成）を次の区切りに分けた。P4a 形状・�
   - 設定の読み取り。
   - 城の幕壁・門・堀・部品、道の生成の記録、全員の居住。
 - 関連テスト（旧CEの城の生成・城のSVGを含む）は66ファイル中59成功・7 skip（計測用）。型検査・biome・アーキテクチャの検査はエラーなし。
+
+## P4d classic 町割り（2026-11-09）
+
+旧CEのclassicの町割りは、地区（セル）ごとに独立した街区の埋め方をする。`buildPerimeterBlocks`の`classic`で、ボロノイ状の近隣に住宅の列と路地を置く。この関数は外形と境界と乱数の種だけを読み、セルを使わない。
+
+- 設定: `vectorWallChoice`が`layout: classic`を解決し、骨格の設定`layout`に`classic`を加えた。classicは同心の街路を敷かず、二重市壁も旧CEと同じく認める。
+- 住宅: 外周の計画（`perimeter.ts`）の文脈に`classic`を加えた。
+  - classicでは、地区ごとに有機的な街路を作らない。地区全体を1つの街路街区とし、`buildPerimeterBlocks`のclassicで路地と区画を作る。
+  - 区画は従来どおり抽選値の順に採用し、高さ（P3b）と住戸容量で全員が住むまで置く。
+  - 計画の鍵に`classic`を含め、organicの計画と混ざらないようにした。
+- 違い: 旧CEはメッシュのセルごとにclassicで埋め、メッシュなしは骨格の地区ごとに埋める。地区がセルより大きいので、classicの近隣の分割が地区の中で行われる。
+
+### 確認
+
+- classicの12件（5,000人、1件は20,000人、川1本、形状`auto`）で、生成・住宅・描画データがすべて成功し、未配置の人口は0だった。住宅の生成時間は90〜320 msだった。
+- ブラウザー（Playwright Chromium）で旧CEの町割りにclassicを選び、5,000人を生成した。2Dで、地区ごとのボロノイ状の近隣と路地、住宅の列を確かめた。
+
+### テスト
+
+- `generators/vector/generation/concentricLayout.test.ts`に1件を加えた。classicの解決、地区ごとに街路街区が1つであること、同心の街路がないこと、全員の居住を確かめる。
+- 関連テスト（`generators/vector`、`generators/bastionedTown`、`blockInfill`、`renderers/vector`、`components/vector`、`CityEditorPage.vector`、`services/io/vector`、`services/vector`、アーキテクチャ、`i18n`）は65ファイル中58成功・7 skip（計測用）。型検査・biome・アーキテクチャの検査はエラーなし。

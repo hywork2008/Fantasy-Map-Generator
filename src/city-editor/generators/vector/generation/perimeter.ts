@@ -20,6 +20,7 @@ import {
   planOrganicStreetCells,
   ROAD_FACADE_CLEARANCE_METERS
 } from "../../organicBlocks";
+import { buildPerimeterBlocks } from "../../perimeterBlocks";
 import { createGenerationJoiner } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { fabricCellHash, fabricDistrictHash } from "../fabric/hash";
@@ -91,6 +92,8 @@ export interface PerimeterPlanContext {
   walls: [Point, Point][];
   hub: Point;
   extentMeters: number;
+  /** The mesh editor's classic plan (P4d): each district filled by its classic block infill, no organic streets. */
+  classic?: boolean;
 }
 /** One reachable skeleton block without holes, with its stable district id. */
 export interface PerimeterDistrictJob {
@@ -217,7 +220,8 @@ export function perimeterJobs(
       laneWidthMeters: settings.laneWidthMeters,
       walls,
       hub: doc.site!.center,
-      extentMeters: doc.frame.extentMeters
+      extentMeters: doc.frame.extentMeters,
+      ...(doc.generation?.settings.layout === "classic" ? { classic: true } : {})
     },
     jobs
   };
@@ -253,7 +257,14 @@ const planKeys = new WeakMap<object, string>();
 function planKey(context: PerimeterPlanContext): string {
   let key = planKeys.get(context);
   if (key === undefined) {
-    key = JSON.stringify([context.seed, context.laneWidthMeters, context.hub, context.extentMeters, context.walls]);
+    key = JSON.stringify([
+      context.seed,
+      context.laneWidthMeters,
+      context.hub,
+      context.extentMeters,
+      context.walls,
+      !!context.classic
+    ]);
     planKeys.set(context, key);
   }
   return key;
@@ -376,14 +387,18 @@ export function planPerimeterStreets(context: PerimeterPlanContext, job: Perimet
     keepStreetPlan(context, key, known);
     return known;
   }
-  const plan = planOrganicStreetCells(
-    districtFace(districtId),
-    outline,
-    fullBoundaries,
-    ceParameters(context),
-    context.seed,
-    ceContext(context)
-  );
+  // Classic keeps the district whole: the mesh editor fills each block by its own rows and lanes, with no
+  // organic streets between them.
+  const plan = context.classic
+    ? { streets: [], cells: [{ id: `${districtId}:classic`, ring: outline, boundaries: fullBoundaries }] }
+    : planOrganicStreetCells(
+        districtFace(districtId),
+        outline,
+        fullBoundaries,
+        ceParameters(context),
+        context.seed,
+        ceContext(context)
+      );
   const result: PerimeterStreetPlan = {
     districtId,
     outline,
@@ -433,14 +448,24 @@ const freshCell = (r: PerimeterCellResult): PerimeterCellResult => ({
 });
 function computePerimeterCell(context: PerimeterPlanContext, job: PerimeterCellJob): PerimeterCellResult {
   const { districtId, cell, nearby } = job,
-    local = buildOrganicStreetCell(
-      districtFace(districtId),
-      cell,
-      ceParameters(context),
-      context.seed,
-      ceContext(context),
-      nearby.map(n => n.street)
-    );
+    local = context.classic
+      ? buildPerimeterBlocks(
+          districtFace(districtId),
+          cell.ring,
+          cell.boundaries,
+          ceParameters(context),
+          context.seed,
+          true,
+          true
+        )
+      : buildOrganicStreetCell(
+          districtFace(districtId),
+          cell,
+          ceParameters(context),
+          context.seed,
+          ceContext(context),
+          nearby.map(n => n.street)
+        );
   const lanes = local.lanes.map(l => ({ points: l.points, widthMeters: l.widthMeters }));
   const attachments: CellPlan["attachments"] = [];
   lanes.forEach((lane, laneIndex) => {

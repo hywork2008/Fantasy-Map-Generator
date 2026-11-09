@@ -835,7 +835,7 @@ function skeleton(
       throw new Error(`unbridged-road:${road.id}`);
   }
   timed("walls-gates-bridges");
-  if (settings.layout) layConcentricStreets(doc, settings, extended);
+  if (settings.layout === "circulade" || settings.layout === "bram") layConcentricStreets(doc, settings, extended);
   // The castle precinct is reserved before the streets are routed, as the mesh editor sites it (P4e).
   if (settings.castle && !reserveVectorCastle(doc, settings))
     diagnostics.push({ code: "castle-unplaced", entityId: CASTLE_FEATURE_ID, severity: "warning" });

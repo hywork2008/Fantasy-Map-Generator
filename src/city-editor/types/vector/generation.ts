@@ -43,7 +43,7 @@ export interface VectorGenerationSettings {
    * razed to a boulevard; built after the streets (outer-first, default) or before them. */
   /** The mesh editor's concentric town plans (P4d): ring and radial streets laid before the routed streets.
    * Absent is the organic plan. */
-  layout?: "circulade" | "bram";
+  layout?: "circulade" | "bram" | "classic";
   /** A castle raised by the mesh editor's siting and style rules (P4e). */
   castle?: {
     position: "auto" | "edge" | "central";
