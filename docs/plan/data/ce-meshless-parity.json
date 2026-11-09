@@ -623,8 +623,8 @@
       "category": "generated",
       "id": "guild-facilities",
       "mesh": "guild facilities",
-      "meshless": "missing",
-      "evidence": "Not generated.",
+      "meshless": "partial",
+      "evidence": "P6d: the FMG economy's guilds (planGuildFacilities) placed by the mesh editor's rules (placeGuildWorks, now given a cell-free view): a chapter's hall (with a belfry for a prestigious cloth guild) in a core land block, yards beside the approach roads beyond the town (the site grows to take them), a bleaching field on a river bank upstream; stored as environment.guilds and drawn as massing. Not yet: tanneries, craftsman streets, the catalogue's hall models, standalone towns (no economy).",
       "stage": "P6",
       "checked": true
     },

@@ -10,6 +10,7 @@ import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { ringInside } from "../geometry/routing";
 import { simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
+import { validateVectorGuilds } from "../guild";
 import { validateVectorHarbor } from "../harbor";
 import { validateVectorMonasteries } from "../monastery";
 import { validateVectorLandscape } from "./landscape";
@@ -132,6 +133,7 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
           "harbor",
           "ferries",
           "monasteries",
+          "guilds",
           "landscape",
           "terrain",
           "hidden",
@@ -150,6 +152,7 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
     ...validateVectorHarbor(doc),
     ...validateVectorFerries(doc),
     ...validateVectorMonasteries(doc),
+    ...validateVectorGuilds(doc),
     ...validateVectorLandscape(doc)
   ];
   if (e.freeformSource && !parseFreeformCity(JSON.stringify(e.freeformSource)))

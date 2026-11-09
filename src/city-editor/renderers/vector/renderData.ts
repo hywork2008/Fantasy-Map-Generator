@@ -23,6 +23,7 @@ import type { VectorLandscapeTree } from "../../types/vector/landscape";
 import type { VectorStage } from "../../types/vector/urban";
 import { vectorDefenseSurfaces } from "./defense";
 import { vectorFerrySurfaces } from "./ferry";
+import { vectorGuildSurfaces } from "./guild";
 import { vectorHarborSurfaces } from "./harbor";
 import { vectorHouseAppearance } from "./houseAppearance";
 import { vectorLandscapeSurfaces } from "./landscape";
@@ -510,6 +511,7 @@ export function vectorRenderData(
   for (const ferry of Object.values(doc.environment?.ferries ?? {})) surfaces.push(...vectorFerrySurfaces(ferry));
   for (const house of Object.values(doc.environment?.monasteries ?? {}))
     surfaces.push(...vectorMonasterySurfaces(house));
+  if (doc.environment?.guilds) surfaces.push(...vectorGuildSurfaces(doc.environment.guilds));
   if (doc.environment?.landscape)
     for (const surface of vectorLandscapeSurfaces(doc.environment.landscape)) add(surface);
   let terrainMesh: VectorRenderData["terrain"], contours: ContourLine[] | undefined;

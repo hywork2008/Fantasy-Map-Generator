@@ -33,6 +33,7 @@ import { assertVectorDocument } from "../validation/document";
 import { CASTLE_FEATURE_ID, CASTLE_SITE_ID, raiseVectorCastle, reserveVectorCastle } from "./castle";
 import { connectVectorCivicCentre } from "./civic";
 import { isFerryRiver, raiseVectorFerries } from "./ferries";
+import { raiseVectorGuilds } from "./guilds";
 import { CIVIC_PLAZA_ID, raiseVectorPlazaMarket } from "./market";
 import { raiseVectorMonasteries } from "./monasteries";
 import { type RouteLink, skeletonRoutes } from "./routes";
@@ -650,6 +651,7 @@ function skeleton(
     if (doc.environment?.harbor?.id === GENERATED_HARBOR_ID) delete doc.environment.harbor;
     if (doc.environment?.ferries) delete doc.environment.ferries;
     if (doc.environment?.monasteries) delete doc.environment.monasteries;
+    if (doc.environment?.guilds) delete doc.environment.guilds;
     // The plaza's market day is laid again on the new streets.
     for (const id of Object.keys(doc.placements)) if (id.startsWith("civic:market-stall:")) delete doc.placements[id];
     const plaza = doc.environment?.features[CIVIC_PLAZA_ID];
@@ -1236,6 +1238,11 @@ function skeleton(
   const founded = Object.keys(doc.environment?.monasteries ?? {}).length;
   if (founded < housed.wanted)
     diagnostics.push({ code: "monastery-unplaced", entityId: String(housed.wanted - founded), severity: "warning" });
+  // The guilds of an FMG town's economy: halls in the core, yards outside the town (P6d).
+  const guilds = raiseVectorGuilds(doc, deriveVectorBlocks(doc));
+  doc = guilds.document;
+  if (guilds.placed < guilds.wanted)
+    diagnostics.push({ code: "guild-unplaced", entityId: String(guilds.wanted - guilds.placed), severity: "warning" });
   doc.revision++;
   assertVectorDocument(doc);
   timed("connections-and-validation");

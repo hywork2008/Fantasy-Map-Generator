@@ -50,6 +50,8 @@ export interface VectorEnvironment {
   ferries?: Record<string, import("./ferry").VectorFerry>;
   /** Religious houses laid by the mesh editor's precinct planner (`fitMonastery`, P6c), by id. */
   monasteries?: Record<string, import("./monastery").Monastery>;
+  /** Guild halls in the town and their yards outside it, by the mesh editor's guild rules (P6d). */
+  guilds?: import("./guild").VectorGuildWorks;
   defenses?: Record<string, import("./defense").VectorDefensePlan>;
   /** Freeform's authored ledger is the height/earthwork authority, not a synthetic cell mesh. */
   terrain?: FreeformCity;

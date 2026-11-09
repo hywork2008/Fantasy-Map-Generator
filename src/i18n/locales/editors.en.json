@@ -295,7 +295,8 @@
           "ferry-unplaced": "No ferry was laid where this road meets a river no bridge of the period spans",
           "cemetery-unplaced": "No cemetery was sited: the burial culture buries outside the town or on a river bank, and no such ground was free",
           "market-unplaced": "No market stalls fit on the plaza: it is too small or its aisles cannot reach the streets",
-          "monastery-unplaced": "Not every religious house the faith and size call for found a land block (count shown); a walled town's abbey needs ground outside its walls"
+          "monastery-unplaced": "Not every religious house the faith and size call for found a land block (count shown); a walled town's abbey needs ground outside its walls",
+          "guild-unplaced": "Not every guild hall or yard the town's economy calls for found ground (count shown)"
         },
         "blocksAndLanes": "Blocks and lanes",
         "facilities": "Facilities",
