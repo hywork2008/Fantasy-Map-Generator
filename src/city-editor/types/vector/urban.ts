@@ -73,7 +73,8 @@ export interface VectorUrbanCheckpoint {
  * road facade clearance and wall orientation in the perimeter fabric. v3: each street block laid out on its
  * own random stream. v4: districts keyed by outline and fronting roads instead of block order. v5: medieval
  * districts, street blocks, lanes and houses saved as fabric records (native v8) instead of paths and
- * placements. v10: house storeys by the mesh editor's height variation and height limit (P3b). Saved output of
+ * placements. v10: house storeys by the mesh editor's height variation and height limit (P3b). v11: lots kept off gate openings
+ * and junction discs exactly (P4a). Saved output of
  * an older version stays as adopted. */
 export type VectorUrbanAlgorithm =
   | "vector-urban-v1"
@@ -85,7 +86,8 @@ export type VectorUrbanAlgorithm =
   | "vector-urban-v7"
   | "vector-urban-v8"
   | "vector-urban-v9"
-  | "vector-urban-v10";
+  | "vector-urban-v10"
+  | "vector-urban-v11";
 export interface VectorUrban {
   algorithm: VectorUrbanAlgorithm;
   inputRevision: number;

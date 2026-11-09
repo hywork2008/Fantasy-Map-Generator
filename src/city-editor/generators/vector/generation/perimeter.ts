@@ -26,10 +26,10 @@ import { fabricCellHash, fabricDistrictHash } from "../fabric/hash";
 import { fabricLine, isDetachedFabricLine } from "../fabric/lines";
 import { packLines, packPoints, unpackPoints } from "../fabric/pack";
 import { evaluateAnchor } from "../geometry/curves";
-import { gateOpening } from "../geometry/network";
+import { gateOpening, junctionSurface } from "../geometry/network";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { samplePath, simplifyFreehand } from "../geometry/sampling";
-import { pathSurface, simpleContour } from "../geometry/surfaces";
+import { pathSurface, simpleContour, surfacesOverlap } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
 import { vectorDistrictId } from "./districtId";
@@ -775,12 +775,20 @@ export function placeVectorPerimeterHouses(
       }
       return value;
     };
+  // Gate openings and junction discs are checked exactly as validation does: a lot may share a sliver with a
+  // neighbour, never with them (P4a: wall shapes bring lots up to water gates and road ends).
+  const protectedLand: VectorPolygon[] = [
+      ...Object.values(doc.connections.gates).map(g => ({ outer: gateOpening(doc, g), holes: [] })),
+      ...Object.keys(doc.connections.nodes).flatMap(id => {
+        const junction = junctionSurface(doc, id);
+        return junction ? [junction] : [];
+      })
+    ],
+    protectedIndex = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; polygon: VectorPolygon }>();
+  protectedIndex.load(protectedLand.map(polygon => ({ ...boxOf(polygon.outer), polygon })));
   const occupied = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; polygon: VectorPolygon }>();
   occupied.load(
-    [
-      ...vectorOccupiedSites(doc, "reserved"),
-      ...Object.values(doc.connections.gates).map(g => ({ outer: gateOpening(doc, g), holes: [] }))
-    ].map(polygon => ({ ...boxOf(polygon.outer), polygon }))
+    [...vectorOccupiedSites(doc, "reserved"), ...protectedLand].map(polygon => ({ ...boxOf(polygon.outer), polygon }))
   );
   const cells = new Map<string, CellPlan>(),
     origins = new Map<string, Point>(),
@@ -823,6 +831,8 @@ export function placeVectorPerimeterHouses(
     if (!origin || house.draw >= lotOccupancy || cleared[house.cellId]?.includes(house.draw)) continue;
     const fit = fittedLot(house, origin, occupied);
     if (!fit) continue;
+    const lot = { outer: fit.polygon, holes: [] };
+    if (protectedIndex.search(boxOf(fit.polygon)).some(o => surfacesOverlap(lot, o.polygon))) continue;
     const { ring, polygon } = fit,
       site = { outer: polygon, holes: [] };
     const storeys = heights.storeys(

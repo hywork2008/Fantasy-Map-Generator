@@ -137,7 +137,13 @@ export function skeletonRoutes(
       linkEdges.push({ a: index(link.from), b: index(link.to), cost: link.cost, pathId: link.pathId });
   for (const polygon of regions)
     for (const [i, ring] of [polygon.outer, ...polygon.holes].entries()) {
-      const compact = compactRing(ring, 0.02);
+      let compact: Point[];
+      try {
+        compact = compactRing(ring, 0.02);
+      } catch {
+        // A sliver that simplifies to under three points (a wall shape grazing the site edge) holds no route.
+        continue;
+      }
       let offset: Point[];
       try {
         offset = offsetRing(compact, i === 0 ? -radius - 0.04 : radius + 0.04);

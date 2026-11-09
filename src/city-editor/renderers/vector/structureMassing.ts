@@ -43,7 +43,10 @@ export function vectorStructures(
     if (points.length < 2) continue;
     const widthMeters = wall.width.leftMeters + wall.width.rightMeters,
       feature = Object.values(doc.environment?.features ?? {}).find(f => f.pathIds.includes(wall.id)),
-      material: StructureMaterial = feature?.settings.culture === "timber" ? "wood" : "stone",
+      generated =
+        doc.generation?.pathRevisions[wall.id] !== undefined ? doc.generation.settings.wallMaterial : undefined,
+      material: StructureMaterial =
+        feature?.settings.culture === "timber" || (!feature && generated === "wood") ? "wood" : "stone",
       profile = resolveWallGeometry(widthMeters, material, undefined),
       height = wallBodyHeight(material, profile.hasWalkway),
       ring = { outer: points, holes: [] },

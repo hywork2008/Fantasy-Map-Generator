@@ -8,6 +8,7 @@ import { siteDisk, syntheticVectorInput, vectorInputFromDescriptor } from "../..
 import { DEFAULT_VECTOR_GENERATION, type VectorGenerationResult } from "../../generators/vector/generation/pipeline";
 import { meshlessSettingGaps } from "../../generators/vector/generation/settingSupport";
 import { DEFAULT_VECTOR_URBAN, vectorUrbanMode } from "../../generators/vector/generation/urban";
+import { VECTOR_WALL_SHAPES, vectorWallChoice } from "../../generators/vector/generation/wallShape";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../../generators/vector/validation/document";
 import { vectorUrbanStages } from "../../generators/vector/validation/urban";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
@@ -167,13 +168,16 @@ export function createVectorGenerationPanel(
     branches = number("branches", 8),
     wall = document.createElement("select");
   wall.dataset.generationField = "wall";
-  for (const value of ["none", "rectangle", "ellipse"]) {
+  for (const value of ["none", "rectangle", "ellipse", ...VECTOR_WALL_SHAPES]) {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = text(value);
     wall.append(option);
   }
   field("wall", wall);
+  // A wall picked in the panel wins over the editor's wall settings until the next document change.
+  let wallPicked = false;
+  scope.listen(wall, "change", () => (wallPicked = true));
   const stage = document.createElement("select");
   stage.dataset.generationField = "stage";
   const updateStages = (doc: VectorCityDocument) => {
@@ -429,13 +433,19 @@ export function createVectorGenerationPanel(
           ? vectorInputFromDescriptor(linked)
           : syntheticVectorInput(seed.value, Number(radius.value), river.checked, true);
       source.context.targetPopulation = target;
+      // The editor's wall settings decide the wall, resolved on this seed (P4a).
+      const editorWall =
+        editorInput && !wallPicked
+          ? vectorWallChoice(editorInput.settings, seed.value, source.context.historicalPeriod)
+          : undefined;
+      if (editorWall) wall.value = editorWall.wall;
       run(
         {
           kind: "city",
           settings: {
             ...DEFAULT_VECTOR_GENERATION,
             seed: seed.value,
-            wall: wall.value as VectorGenerationSettings["wall"]
+            ...(editorWall ?? { wall: wall.value as VectorGenerationSettings["wall"] })
           },
           urban: {
             ...DEFAULT_VECTOR_URBAN,
@@ -509,11 +519,13 @@ export function createVectorGenerationPanel(
       clearance.value = String(doc.generation?.settings.clearanceMeters ?? 0.5);
       branches.value = String(doc.generation?.settings.branches ?? 8);
       // Before any generation, the wall follows the editor's settings, as Generate city used to.
-      wall.value = doc.generation?.settings.wall ?? (editorInput?.settings.config.features.walls ? "ellipse" : "none");
+      wall.value =
+        doc.generation?.settings.wall ??
+        (editorInput ? vectorWallChoice(editorInput.settings, seed.value, doc.context.historicalPeriod).wall : "none");
       showDiagnostics(doc);
       showSettingGaps(doc);
       updateStages(doc);
-      mode.value = doc.urban?.settings.mode ?? "medieval";
+      mode.value = doc.urban?.settings.mode ?? vectorUrbanMode(editorInput?.settings);
       population.value = String(
         doc.urban?.settings.population ??
           (doc.context.targetPopulation ||

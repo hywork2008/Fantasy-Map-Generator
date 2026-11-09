@@ -24,7 +24,10 @@ import { vectorOccupiedSites } from "../occupancy";
 import { assertVectorDocument } from "../validation/document";
 import { connectVectorCivicCentre } from "./civic";
 import { type RouteLink, skeletonRoutes } from "./routes";
+import { isVectorWallShape, VECTOR_WALL_WIDTH_METERS, vectorUnitWallRing, vectorWallSettings } from "./wallShape";
 
+/** Sine of the shallowest angle a road or river may cross a generated wall shape at (20 degrees). */
+const WALL_CROSSING_SINE = Math.sin((20 * Math.PI) / 180);
 /** Side street width relative to a main street (5 m to 3 m by default). */
 const MINOR_STREET_WIDTH_RATIO = 0.6;
 export const DEFAULT_VECTOR_GENERATION: VectorGenerationSettings = {
@@ -85,6 +88,79 @@ function roadEndpoints(path: VectorPath): CurveAnchor[] {
     { pathId: path.id, segmentId: ids[0], t: 0 },
     { pathId: path.id, segmentId: ids.at(-1)!, t: 1 }
   ];
+}
+/**
+ * A wall shape can pass inside the end of an approach road that a site-sized ellipse always enclosed: a square's
+ * sides run 0.71 of the way out. Such a road is continued straight toward the centre until just inside the wall,
+ * so it reaches the town through a gate as the mesh editor's approach roads do (P4a). A continuation that would
+ * cross water or miss the wall is not drawn.
+ */
+function extendApproachesThroughWall(
+  doc: VectorCityDocument,
+  wallId: string,
+  center: Point,
+  settings: VectorGenerationSettings,
+  extended: Set<string>
+) {
+  const wall = doc.paths[wallId],
+    ring = samplePath(wall).map(s => s.point),
+    water = allVectorWater(doc),
+    inset = wall.width.leftMeters + wall.width.rightMeters + settings.clearanceMeters + settings.roadWidthMeters;
+  let number = 0;
+  for (const road of Object.values(doc.paths).filter(p => p.role === "road" && !pathIsClosed(p))) {
+    const inner = roadEndpoints(road).sort(
+        (a, b) => distance(evaluateAnchor(road, a), center) - distance(evaluateAnchor(road, b), center)
+      )[0],
+      from = evaluateAnchor(road, inner),
+      dir = unit([center[0] - from[0], center[1] - from[1]]),
+      inside = pointInPolygon(from, ring),
+      // An end inside the wall but within the gate's reach stops in the gate itself; it is carried on too.
+      clear = ring.every((p, i) => distanceToSegment(from, p, ring[(i + 1) % ring.length]) >= inset);
+    if (inside && clear) continue;
+    let hit: Point | undefined = inside ? from : undefined,
+      best = Infinity;
+    for (let i = 0; i < ring.length && !inside; i++) {
+      const t = segmentHit(from, center, ring[i], ring[(i + 1) % ring.length]);
+      if (t !== undefined && t < best) {
+        best = t;
+        hit = [from[0] + (center[0] - from[0]) * t, from[1] + (center[1] - from[1]) * t];
+      }
+    }
+    if (!hit) continue;
+    const to: Point = [hit[0] + dir[0] * inset, hit[1] + dir[1] * inset];
+    if (distance(from, center) <= distance(to, from)) continue;
+    let id = `auto-approach:${number++}`;
+    while (Object.hasOwn(doc.paths, id)) id = `auto-approach:${number++}`;
+    const path: VectorPath = {
+      id,
+      revision: 0,
+      role: "road",
+      origin: "automatic",
+      editPolicy: "editable",
+      source: curveSource([from, to], "polyline", false),
+      width: { leftMeters: road.width.leftMeters, rightMeters: road.width.rightMeters, stations: [] }
+    };
+    if (regionBoolean([pathSurface(path)], water, "intersection").some(r => regionArea(r) > 1e-5)) continue;
+    doc.paths[id] = path;
+    joinVectorGenerationAnchors(doc, [inner, { pathId: id, segmentId: pathSegmentIds(path)[0], t: 0 }]);
+    extended.add(road.id);
+  }
+}
+function distanceToSegment(p: Point, a: Point, b: Point): number {
+  const dx = b[0] - a[0],
+    dy = b[1] - a[1],
+    t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+}
+/** Parameter along `a`→`b` where it crosses segment `c`→`d`, if it does. */
+function segmentHit(a: Point, b: Point, c: Point, d: Point): number | undefined {
+  const r: Point = [b[0] - a[0], b[1] - a[1]],
+    q: Point = [d[0] - c[0], d[1] - c[1]],
+    den = r[0] * q[1] - r[1] * q[0];
+  if (Math.abs(den) < 1e-12) return undefined;
+  const t = ((c[0] - a[0]) * q[1] - (c[1] - a[1]) * q[0]) / den,
+    u = ((c[0] - a[0]) * r[1] - (c[1] - a[1]) * r[0]) / den;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? t : undefined;
 }
 export function reachablePaths(doc: VectorCityDocument, center: Point): Set<string> {
   const nodes = Object.values(doc.connections.nodes);
@@ -246,7 +322,7 @@ export function generateVectorSkeleton(
       settings.branches >= 0 &&
       settings.branches <= 24 &&
       settings.seed.length <= 256 &&
-      ["none", "rectangle", "ellipse"].includes(settings.wall)
+      vectorWallSettings(settings)
     )
   )
     throw new Error("invalid-generation-settings");
@@ -276,30 +352,79 @@ export function generateVectorSkeleton(
     center = doc.site!.center;
   const diagnostics: { code: string; entityId: string; severity: "warning" | "error" }[] = [];
   timed("source-validation-and-clone");
+  /** Fixed roads continued through a wall shape by a generated approach; their own ends are no route ports. */
+  const extended = new Set<string>();
   if (settings.wall !== "none" && !Object.values(doc.paths).some(p => p.role === "wall")) {
     const ring = doc.site!.domain[0].outer,
       minX = Math.min(...ring.map(p => p[0])),
       maxX = Math.max(...ring.map(p => p[0])),
       minY = Math.min(...ring.map(p => p[1])),
       maxY = Math.max(...ring.map(p => p[1]));
-    const id = "auto-wall";
-    doc.paths[id] = {
+    const id = "auto-wall",
+      center: Point = [(minX + maxX) / 2, (minY + maxY) / 2],
+      half = (maxX - minX) / 2,
+      halfY = (maxY - minY) / 2,
+      shape = settings.wall;
+    const wallPath = (source: VectorPath["source"]): VectorPath => ({
       id,
       revision: 0,
       role: "wall",
       origin: "automatic",
       editPolicy: "editable",
-      source: {
+      source,
+      width: settings.wallMaterial
+        ? {
+            leftMeters: VECTOR_WALL_WIDTH_METERS[settings.wallMaterial] / 2,
+            rightMeters: VECTOR_WALL_WIDTH_METERS[settings.wallMaterial] / 2,
+            stations: []
+          }
+        : { leftMeters: 1, rightMeters: 1, stations: [] }
+    });
+    if (isVectorWallShape(shape)) {
+      // A shape is turned until every road and river crosses it at a gate-worthy angle (P4a); the mesh editor
+      // squares the wall at rivers instead, which an outline drawn on the site has no cells to do.
+      const fixed = Object.values(doc.paths).filter(p => p.role === "road" || p.role === "river"),
+        // An approach continued through the wall runs from the road's inner end toward the centre.
+        approaches = fixed
+          .filter(p => p.role === "road" && !pathIsClosed(p))
+          .flatMap((road, i): VectorPath[] => {
+            const end = roadEndpoints(road)
+              .map(a => evaluateAnchor(road, a))
+              .sort((a, b) => distance(a, center) - distance(b, center))[0];
+            return distance(end, center) > 1
+              ? [{ ...road, id: `approach-probe:${i}`, source: curveSource([end, center], "polyline", false) }]
+              : [];
+          }),
+        crossers = [...fixed, ...approaches],
+        ringAt = (rotation: number) =>
+          vectorUnitWallRing(settings.seed, shape, settings.wallSides, rotation).map(
+            ([x, y]) => [center[0] + x * half, center[1] + y * halfY] as Point
+          ),
+        steepEnough = (path: VectorPath) =>
+          crossers.every(other =>
+            pathIntersections(path, other).every(hit => {
+              const a = unit(evaluateAnchor(path, hit.a, true)),
+                b = unit(evaluateAnchor(other, hit.b, true));
+              return Math.abs(a[0] * b[1] - a[1] * b[0]) >= WALL_CROSSING_SINE;
+            })
+          );
+      let chosen: VectorPath | undefined;
+      for (let k = 0; k < 16 && !chosen; k++) {
+        const candidate = wallPath(curveSource(ringAt((k * Math.PI) / 16), "polyline", true));
+        if (steepEnough(candidate)) chosen = candidate;
+      }
+      doc.paths[id] = chosen ?? wallPath(curveSource(ringAt(0), "polyline", true));
+    } else
+      doc.paths[id] = wallPath({
         kind: "preset",
-        preset: settings.wall,
-        center: [(minX + maxX) / 2, (minY + maxY) / 2],
+        preset: shape,
+        center,
         widthMeters: maxX - minX,
         heightMeters: maxY - minY,
         bearingDegrees: 90
-      },
-      width: { leftMeters: 1, rightMeters: 1, stations: [] }
-    };
+      });
     doc = setWallCircuit(doc, id);
+    if (isVectorWallShape(shape)) extendApproachesThroughWall(doc, id, center, settings, extended);
     for (const path of Object.values(doc.paths).filter(p => p.id !== id && (p.role === "road" || p.role === "river")))
       for (const hit of pathIntersections(doc.paths[id], path)) {
         const tangent = unit(evaluateAnchor(doc.paths[id], hit.a, true)),
@@ -373,7 +498,9 @@ export function generateVectorSkeleton(
   if (!containsRegion(free, center)) throw new Error("site-center-blocked");
   const ports: Point[] = [[...center]],
     bindings: CurveAnchor[][] = [[]];
-  for (const road of Object.values(doc.paths).filter(p => p.role === "road" && !pathIsClosed(p))) {
+  for (const road of Object.values(doc.paths).filter(
+    p => p.role === "road" && !pathIsClosed(p) && !extended.has(p.id)
+  )) {
     const endpoints = roadEndpoints(road).sort(
       (a, b) => distance(evaluateAnchor(road, a), center) - distance(evaluateAnchor(road, b), center)
     );

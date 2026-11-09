@@ -7,6 +7,7 @@ import {
   matchesVectorUrbanFingerprint,
   VECTOR_URBAN_ALGORITHM
 } from "../../../generators/vector/generation/urbanState";
+import { vectorWallSettings } from "../../../generators/vector/generation/wallShape";
 import { vectorUrbanStages } from "../../../generators/vector/validation/urban";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorGenerationSettings } from "../../../types/vector/generation";
@@ -85,7 +86,10 @@ function validateShare(value: unknown): VectorShare | null {
     input.urban ||
     input.generation ||
     !s ||
-    Object.keys(s).sort().join() !== ["seed", "roadWidthMeters", "clearanceMeters", "branches", "wall"].sort().join() ||
+    !["seed", "roadWidthMeters", "clearanceMeters", "branches", "wall"].every(k => Object.hasOwn(s, k)) ||
+    Object.keys(s).some(
+      k => !["seed", "roadWidthMeters", "clearanceMeters", "branches", "wall", "wallSides", "wallMaterial"].includes(k)
+    ) ||
     typeof s.seed !== "string" ||
     s.seed.length > 256 ||
     !Number.isFinite(s.roadWidthMeters) ||
@@ -97,7 +101,7 @@ function validateShare(value: unknown): VectorShare | null {
     !Number.isInteger(s.branches) ||
     s.branches < 0 ||
     s.branches > 24 ||
-    !["none", "rectangle", "ellipse"].includes(s.wall)
+    !vectorWallSettings(s)
   )
     return null;
   if (

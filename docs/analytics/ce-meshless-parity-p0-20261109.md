@@ -421,3 +421,41 @@ M4 Mac miniのPlaywright Chromium（Vite開発サーバー）で、単独起動�
   - 方針がなければ標準の階数のまま。階数の上限2、高さの上限7 mで2階までになる。
 - 関連テスト（`generators/vector`、`renderers/vector`、`components/vector`、`CityEditorPage.vector`、`services/io/vector`、`services/vector`、旧CEの高さ・量塊・外観・`townFacts`、`city3d`、アーキテクチャ）は56ファイル中49成功・7 skip（計測用）だった。
 - 型検査（CE・`buildings`・`city3d`の範囲。他の拡張にはTypeScript 7移行による既存のエラーがある）・biome・アーキテクチャの検査はエラーなしである。
+
+## P4a 市壁の形状・辺数・材質（2026-11-09、`vector-urban-v11`）
+
+P4（市壁・防御の生成）を次の区切りに分けた。P4a 形状・辺数・材質、P4b 二重・取り壊し・内側先行、P4c 稜堡式の町と堀、P4d 町割り4種、P4e 城・城塞と堀。
+
+### 旧CEの規則の再利用
+
+旧CEのskeleton-first生成の市壁の形（`generation/skeleton/wallShapes.ts`の`unitWallShape`・`resolveWallShape`・`bastionEra`）はセルに依存しないので、そのまま呼ぶ。材質は`resolveWallMaterial`と同じ規則（指定がなければ1,500人以上で石造）とした。
+
+`generators/vector/generation/wallShape.ts`を追加した。
+
+- `vectorWallChoice`: 旧CEの設定（市壁の有無・`wallShape`・`wallSides`・`config.wall.material`・人口）から、形状・辺数・材質を決める。`auto`はseedで引き、稜堡形は大航海時代以降だけ。
+- `vectorUnitWallRing`: 単位の外形。最も遠い頂点を半径1にそろえ、敷地の外接矩形に合わせて置く（従来の楕円と同じ範囲）。
+- 骨格の設定（`VectorGenerationSettings`）に`wallSides`・`wallMaterial`を加え、`wall`に6種を加えた。保存・共有の検査も受け付ける。
+
+### 生成
+
+- 敷地の大きさ: 形の面積が円より小さい分（方形で約0.64）、敷地の半径を面積比の平方根の逆数だけ広げ、壁の内側の面積を従来の円に合わせた。
+- 壁の厚さ: 石造4.5 m、木造2.4 m（旧CEの`edgeGroupStyle`）。3Dの壁の量塊も材質で変わる。
+- 河川・道路との交差: 旧CEは川の所で壁を直角に付け替える（`squareRiverCrossings`、セルの上の処理）。メッシュなしでは外形を16段階回し、道路・川・入口の道路の延長がいずれも20°以上で壁と交わる向きを選ぶ。
+- 入口の道路: 方形の辺は中心から半径の0.71倍の所を通るので、外部道路の端が壁の外や門の中に残る。その道路は、中心へ向けて壁のすぐ内側まで延ばす（`auto-approach:*`、川を横切る延長は作らない）。門は従来どおり交差から作る。
+- 住宅の区画: 門の開口と道路の接続点の円盤には、検証と同じ厳密な重なり判定で区画を置かない。壁の形が川の水門や道路の端に住宅を近づけるため、検証で`gate-access`・`junction-site`になる場合があった。
+- 経路探索: 壁の形と敷地の縁の間にできる、単純化すると3点未満になる細片の土地は経路の対象から外す（従来は`offset-split`で生成が失敗した）。
+- 生成パネルの市壁の欄に6種を加えた。旧CEの設定から開いた場合はその設定で決め、パネルで市壁を選び直した場合はそちらを使う（敷地の大きさは旧CEの設定のまま）。
+
+### 確認
+
+- 既定の設定（5,000人、`auto`）でseed 40件、1,000人・20,000人で各20件、6種×11件の生成（骨格と住宅）がすべて成功した。比較として、同じ40件を従来の楕円で生成してもすべて成功した。
+- ブラウザー（Playwright Chromium）で`auto`（円形）、方形、稜堡形の5,000人を生成し、3Dで壁・塔・門が形に沿い、未配置の人口が0であることを確かめた。修正の前は、`auto`のseed `10usg4n`が`offset-split`で失敗していた。
+
+### テスト
+
+- `generators/vector/generation/wallShape.test.ts`（3件）を追加した。
+  - 形状・辺数・材質の決め方（市壁なし、木造、高中世に稜堡形を引かないこと）。
+  - 6種すべてで、閉じた石造の壁ができ、壁の内側の面積が敷地の55%を超え、通行用の門があり、3,000人が全員住む。
+  - 木造の壁の厚さと3Dの材質。
+- 関連テスト（`generators/vector`、`renderers/vector`、`components/vector`、`CityEditorPage.vector`、`services/io/vector`、`services/vector`、アーキテクチャ、`i18n`）は55ファイル中48成功・7 skip（計測用）。
+- 型検査（CE・`i18n`の範囲）・biome・アーキテクチャの検査はエラーなし。

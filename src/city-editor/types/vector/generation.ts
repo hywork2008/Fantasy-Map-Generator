@@ -34,7 +34,11 @@ export interface VectorGenerationSettings {
   roadWidthMeters: number;
   clearanceMeters: number;
   branches: number;
-  wall: "none" | "rectangle" | "ellipse";
+  wall: "none" | "rectangle" | "ellipse" | import("../generation").WallShape;
+  /** `polygon` and `bastioned` walls: number of sides (3–12). */
+  wallSides?: number;
+  /** Generated wall material; sets its thickness and 3D body. Absent keeps the 2 m wall of a preset. */
+  wallMaterial?: "stone" | "wood";
 }
 export interface VectorBlock extends VectorPolygon {
   id: string;

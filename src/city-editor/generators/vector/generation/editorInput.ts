@@ -10,6 +10,7 @@ import { seedVectorCivicCentre, vectorCivicLayout } from "./civic";
 import { expectedVectorHouseStoreys } from "./housingHeights";
 import { syntheticVectorInput, vectorInputFromDescriptor } from "./input";
 import { MESHLESS_SITE_RIM_METERS, meshlessCityRadius } from "./urbanSizing";
+import { isVectorWallShape, vectorWallAreaShare, vectorWallChoice } from "./wallShape";
 
 export interface VectorEditorGenerationInput {
   seed: string;
@@ -91,7 +92,12 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
   if (!native || input.lotOccupancy === undefined || !settings.population) return build(meshRadius);
   // The mesh plan sizes cells for the mesh editor's lots. The native site is sized for the CE perimeter lots it
   // will actually hold at the chosen occupancy, plus the land the civic centre takes before any lot.
+  // A wall shape narrower than the round site it is drawn in would leave the houses it was sized for outside it:
+  // the site grows so the walled area matches (P4a).
+  const wall = vectorWallChoice(settings, seed, period),
+    wallScale = isVectorWallShape(wall.wall) ? 1 / Math.sqrt(vectorWallAreaShare(seed, wall.wall, wall.wallSides)) : 1;
   const size = (reservedM2: number) =>
+    wallScale *
     meshlessCityRadius(
       getUrbanDwellings(settings.population!.targetPopulation),
       expectedVectorHouseStoreys(period, settings, settings.descriptor?.civilization?.tradition),

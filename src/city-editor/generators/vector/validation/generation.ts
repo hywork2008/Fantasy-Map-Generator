@@ -4,6 +4,9 @@ import { pointInPolygon, polygonArea } from "../../geom";
 import { simpleContour } from "../geometry/surfaces";
 
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+
+import { vectorWallSettings } from "../generation/wallShape";
+
 const keys = (v: unknown, names: string, optional = "") =>
   object(v) &&
   names.split(",").every(k => Object.hasOwn(v, k)) &&
@@ -103,7 +106,7 @@ export function validateVectorGeneration(doc: VectorCityDocument): string[] {
             a => keys(a, "pathId,segmentId,t") && id(a.pathId) && id(a.segmentId) && finite(a.t) && a.t >= 0 && a.t <= 1
           )
       ) ||
-      !keys(g.settings, "seed,roadWidthMeters,clearanceMeters,branches,wall") ||
+      !keys(g.settings, "seed,roadWidthMeters,clearanceMeters,branches,wall", "wallSides,wallMaterial") ||
       typeof g.settings.seed !== "string" ||
       g.settings.seed.length > 256 ||
       !finite(g.settings.roadWidthMeters) ||
@@ -113,7 +116,7 @@ export function validateVectorGeneration(doc: VectorCityDocument): string[] {
       !Number.isInteger(g.settings.branches) ||
       g.settings.branches < 0 ||
       g.settings.branches > 24 ||
-      !["none", "rectangle", "ellipse"].includes(g.settings.wall) ||
+      !vectorWallSettings(g.settings) ||
       !object(g.pathRevisions) ||
       Object.entries(g.pathRevisions).some(([key, value]) => !id(key) || !Number.isSafeInteger(value)) ||
       typeof g.connectionFingerprint !== "string" ||

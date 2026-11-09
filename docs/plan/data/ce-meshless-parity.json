@@ -170,8 +170,8 @@
       "category": "setting",
       "id": "config.wall.material",
       "mesh": "WallChoice",
-      "meshless": "missing",
-      "evidence": "Not read by meshless generation.",
+      "meshless": "equivalent",
+      "evidence": "P4a: stone or wood as chosen, else stone from 1,500 people (resolveWallMaterial); sets the wall thickness (4.5 / 2.4 m) and the 3D wall body.",
       "stage": "P4",
       "checked": true
     },
@@ -188,8 +188,8 @@
       "category": "setting",
       "id": "wallShape",
       "mesh": "organic | round | oval | square | polygon | bastioned",
-      "meshless": "partial",
-      "evidence": "Skeleton offers none / rectangle / ellipse; wall presets can be edited to ratio/rotation (M2).",
+      "meshless": "equivalent",
+      "evidence": "P4a: the skeleton-first shape families (unitWallShape: organic, round, oval, square, polygon, bastioned outline; auto by seed, bastioned only from the age of exploration) drawn as a closed wall on the site; the site grows by the shape's area share. The outline is turned (16 steps) until roads and rivers cross it at 20 degrees or more, where the mesh editor squares it at rivers. Approach roads that end outside or in the wall are continued to just inside it.",
       "stage": "P4",
       "checked": true
     },
@@ -197,8 +197,8 @@
       "category": "setting",
       "id": "wallSides",
       "mesh": "polygon sides",
-      "meshless": "missing",
-      "evidence": "Not read.",
+      "meshless": "equivalent",
+      "evidence": "P4a: polygon and bastioned outlines take the side count (3-12; unset 5-8 from the seed, as the skeleton).",
       "stage": "P4",
       "checked": true
     },
