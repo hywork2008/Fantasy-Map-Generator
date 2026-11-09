@@ -575,7 +575,7 @@
       "id": "plaza",
       "mesh": "plaza element",
       "meshless": "partial",
-      "evidence": "Reserved as a civic feature sized by population (P0b).",
+      "evidence": "Reserved as a civic feature sized by population (P0b); holds a market day with aisles and stalls (P6b). Coastal sites get no civic centre yet.",
       "stage": "P6",
       "checked": true,
       "census": "plazas"
@@ -584,8 +584,8 @@
       "category": "generated",
       "id": "market",
       "mesh": "markets / market wards",
-      "meshless": "missing",
-      "evidence": "Not generated (parity cases double-wall, bastioned, circulade).",
+      "meshless": "partial",
+      "evidence": "P6b: a market day on the civic plaza by the mesh editor's market rules (layoutMarketStalls, cut from placeMarketInArea): aisles from each street meeting the plaza to a hub, six catalogue stalls in two rows along the long sides. Not yet: harbour and street markets, market halls, the market-area operation; a plaza under about 1,000 people is too small for a stall (market-unplaced).",
       "stage": "P6",
       "checked": true,
       "census": "markets"

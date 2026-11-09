@@ -33,6 +33,7 @@ import { assertVectorDocument } from "../validation/document";
 import { CASTLE_FEATURE_ID, CASTLE_SITE_ID, raiseVectorCastle, reserveVectorCastle } from "./castle";
 import { connectVectorCivicCentre } from "./civic";
 import { isFerryRiver, raiseVectorFerries } from "./ferries";
+import { CIVIC_PLAZA_ID, raiseVectorPlazaMarket } from "./market";
 import { type RouteLink, skeletonRoutes } from "./routes";
 import { GENERATED_HARBOR_ID, raiseVectorHarbor } from "./seaHarbor";
 import { isVectorWallShape, VECTOR_WALL_WIDTH_METERS, vectorUnitWallRing, vectorWallSettings } from "./wallShape";
@@ -647,6 +648,14 @@ function skeleton(
     // So does a generated harbour (P5b).
     if (doc.environment?.harbor?.id === GENERATED_HARBOR_ID) delete doc.environment.harbor;
     if (doc.environment?.ferries) delete doc.environment.ferries;
+    // The plaza's market day is laid again on the new streets.
+    for (const id of Object.keys(doc.placements)) if (id.startsWith("civic:market-stall:")) delete doc.placements[id];
+    const plaza = doc.environment?.features[CIVIC_PLAZA_ID];
+    if (plaza) {
+      plaza.pieces = plaza.pieces.filter(p => !p.id.includes(":aisle:"));
+      plaza.placementIds = plaza.placementIds.filter(id => !id.startsWith("civic:market-stall:"));
+      plaza.settings.activity = "closed";
+    }
     for (const id of [...ids].sort(
       (a, b) => Number(doc.paths[a].role === "wall") - Number(doc.paths[b].role === "wall")
     ))
@@ -1136,6 +1145,9 @@ function skeleton(
         if (containsRegion(free, evaluateAnchor(roads[i], hit.a))) joinVectorGenerationAnchors(doc, [hit.a, hit.b]);
   rebuildRoadGraph(doc);
   connectVectorCivicCentre(doc);
+  // The civic plaza holds a market day once its streets are laid (P6b).
+  if (doc.environment?.features[CIVIC_PLAZA_ID] && !raiseVectorPlazaMarket(doc))
+    diagnostics.push({ code: "market-unplaced", entityId: CIVIC_PLAZA_ID, severity: "warning" });
   if (deferredInner) {
     // The line is eased in or out a little until every street crosses it steeply, clear of its corners, of the
     // next gate and of protected sites; the streets were laid without it.

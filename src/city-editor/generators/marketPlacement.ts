@@ -65,18 +65,6 @@ export function placeMarketInArea(
   if (!document.terrain?.field) return fail("field");
   const { anchor: plaza, boundary } = area;
   const isPort = area.setting === "river-port" || area.setting === "sea-port";
-  const center = polygonCentroid(boundary);
-  const frame = longestFrame(boundary);
-  const u = frame.axis;
-  const v: Point = [-u[1], u[0]];
-  const project = (point: Point, axis: Point) => (point[0] - center[0]) * axis[0] + (point[1] - center[1]) * axis[1];
-  const range = (axis: Point) => {
-    const values = boundary.map(point => project(point, axis));
-    return [Math.min(...values), Math.max(...values)];
-  };
-  const [u0, u1] = range(u);
-  const [v0, v1] = range(v);
-  const at = (x: number, y: number): Point => [center[0] + u[0] * x + v[0] * y, center[1] + u[1] * x + v[1] * y];
   const accessPaths: Point[][] = [];
   const accessTargets: Point[] = [...(area.streetAccess ?? [])];
   const reservations: Point[][] = [];
@@ -270,77 +258,37 @@ export function placeMarketInArea(
     }
     return true;
   };
-  const hub = [0, 4, -4, 8, -8]
-    .flatMap(x => [0, 4, -4, 8, -8].map(y => at(x, y)))
-    .sort((a, b) => Math.hypot(a[0] - center[0], a[1] - center[1]) - Math.hypot(b[0] - center[0], b[1] - center[1]))
-    .find(
-      point =>
-        square(point, 2.1).every(p => pointInPolygon(p, boundary)) &&
-        !solidIndex.query(bounds(square(point, 2.1))).some(solid => polygonOverlaps(square(point, 2.1), solid)) &&
-        !isWet(square(point, 2.1))
-    );
-  if (!hub || accessTargets.length > 128) return fail("space");
-  const edgeTargets: Point[] = [];
-  for (const [a, b] of [
-    [at(u0 - 1, 0), at(u1 + 1, 0)],
-    [at(0, v0 - 1), at(0, v1 + 1)]
-  ]) {
-    for (let i = 0; i < boundary.length; i++) {
-      const hit = segmentSegmentHit(a, b, boundary[i], boundary[(i + 1) % boundary.length]);
-      if (hit) edgeTargets.push([a[0] + (b[0] - a[0]) * hit.t, a[1] + (b[1] - a[1]) * hit.t]);
-    }
-  }
-  for (const target of [...edgeTargets, ...accessTargets]) {
-    if (Math.hypot(target[0] - hub[0], target[1] - hub[1]) < 0.1) continue;
-    const route = accessRoute(target, hub, boundary, solids, clearAccess);
-    if (!route) return fail("space");
-    accessPaths.push(route);
-    reserveLine(route, AISLE_WIDTH);
-  }
   const fixedRoads = new FixedRoadReservation(document);
-  const footprint = placementFootprint(PRODUCE, "high")!;
-  const halfU = footprint.halfX + PLOT_MARGIN;
-  const halfV = footprint.halfZ + PLOT_MARGIN;
-  const step = halfU * 2 + 0.2;
-  const columns = Math.min(32, Math.ceil((u1 - u0) / step));
-  const offsets = Array.from({ length: columns * 2 + 1 }, (_, i) => (i - columns) * step).sort(
-    (a, b) => Math.abs(a) - Math.abs(b) || a - b
-  );
   let current = document;
   const stallElementIds: string[] = [];
   const marketId = `${isPort ? "harbor" : area.setting === "plaza" ? "plaza" : "area"}-market:${plaza.id}`;
-  for (const x of offsets) {
-    for (const side of [-1, 1]) {
-      if (stallElementIds.length >= STALL_LIMIT) break;
-      const y = side < 0 ? v0 + halfV + EDGE_WALK : v1 - halfV - EDGE_WALK;
-      const facing = (Math.atan2(-side * v[0], -side * v[1]) * 180) / Math.PI;
-      const position = at(x, y);
-      const modelId = (isPort ? PORT_GOODS : PLAZA_GOODS)[stallElementIds.length];
-      const modelFootprint = placementFootprint(modelId, "high")!;
-      const plot = planBoxCorners(
-        planBox(
-          position,
-          { halfX: modelFootprint.halfX + PLOT_MARGIN, halfZ: modelFootprint.halfZ + PLOT_MARGIN },
-          rotationFromFacing("+z", facing)
-        )
-      );
-      if (!plot.every(point => pointInPolygon(point, boundary))) continue;
-      if (index.query(bounds(plot)).some(polygon => polygonOverlaps(plot, polygon))) continue;
-      if (fixedRoads.hitsPolygon(plot) || moats.hitsPolygon(plot) || landmarkReservationHits(document, plot)) continue;
+  const layout = layoutMarketStalls({
+    boundary,
+    port: isPort,
+    accessTargets,
+    solids,
+    clearAccess,
+    wet: isWet,
+    reserved: plot => index.query(bounds(plot)).some(polygon => polygonOverlaps(plot, polygon)),
+    reserveAccess: route => reserveLine(route, AISLE_WIDTH),
+    plotFree: plot =>
+      !fixedRoads.hitsPolygon(plot) && !moats.hitsPolygon(plot) && !landmarkReservationHits(document, plot),
+    accept: stall => {
       const id = `${marketId}:stall-${stallElementIds.length + 1}`;
-      if (document.elements.some(item => item.id === id)) continue;
+      if (document.elements.some(item => item.id === id)) return false;
       const result = commitPlacement(current, {
         id,
-        modelId,
+        modelId: stall.modelId,
         quality: "high",
-        palette: placementPalette(modelId, isPort ? "woad" : stallElementIds.length % 2 ? "madder" : "ochre"),
-        position,
-        facingDegrees: (facing + 360) % 360,
-        footprint: modelFootprint,
+        palette: placementPalette(stall.modelId, stall.palette),
+        position: stall.position,
+        facingDegrees: stall.facingDegrees,
+        footprint: stall.footprint,
         marginMeters: PLOT_MARGIN
       });
       // A temporary market must not introduce a retaining wall or steep earthwork.
-      if (!result.preview.ok || result.preview.edge.kind !== "slope" || result.preview.edge.runMeters > 0.5) continue;
+      if (!result.preview.ok || result.preview.edge.kind !== "slope" || result.preview.edge.runMeters > 0.5)
+        return false;
       current = area.harborFaceId
         ? {
             ...result.document,
@@ -350,9 +298,11 @@ export function placeMarketInArea(
           }
         : result.document;
       stallElementIds.push(id);
+      return true;
     }
-    if (stallElementIds.length >= STALL_LIMIT) break;
-  }
+  });
+  if (!layout) return fail("space");
+  accessPaths.push(...layout.accessPaths);
   if (!stallElementIds.length) return fail("space");
   const market: MarketSite = {
     version: 1,
@@ -377,6 +327,118 @@ function square(point: Point, half: number): Point[] {
     [point[0] + half, point[1] + half],
     [point[0] - half, point[1] + half]
   ];
+}
+
+export interface MarketStall {
+  modelId: string;
+  position: Point;
+  facingDegrees: number;
+  palette: "woad" | "madder" | "ochre";
+  footprint: NonNullable<ReturnType<typeof placementFootprint>>;
+  /** The stall's plot: its footprint with the plot margin. */
+  plot: Point[];
+}
+
+/**
+ * The mesh editor's market layout in a convex area with no town mesh (shared with meshless markets, P6b): a hub
+ * near the middle, aisles from every street entrance and from the long and short axes' edges to it, and up to six
+ * stalls in two rows along the long sides, the nearest the middle first. `accept` takes or refuses each stall.
+ */
+export function layoutMarketStalls(input: {
+  boundary: Point[];
+  port: boolean;
+  accessTargets: Point[];
+  /** Solid obstacles the aisles walk round. */
+  solids: Point[][];
+  clearAccess: (line: Point[]) => boolean;
+  wet: (polygon: Point[]) => boolean;
+  /** A plot overlapping reserved ground (aisles included as they are laid). */
+  reserved: (plot: Point[]) => boolean;
+  reserveAccess: (route: Point[]) => void;
+  plotFree?: (plot: Point[]) => boolean;
+  accept: (stall: MarketStall) => boolean;
+}): { hub: Point; accessPaths: Point[][]; stalls: MarketStall[] } | null {
+  const { boundary } = input;
+  const center = polygonCentroid(boundary);
+  const u = longestFrame(boundary).axis;
+  const v: Point = [-u[1], u[0]];
+  const project = (point: Point, axis: Point) => (point[0] - center[0]) * axis[0] + (point[1] - center[1]) * axis[1];
+  const range = (axis: Point) => {
+    const values = boundary.map(point => project(point, axis));
+    return [Math.min(...values), Math.max(...values)];
+  };
+  const [u0, u1] = range(u);
+  const [v0, v1] = range(v);
+  const at = (x: number, y: number): Point => [center[0] + u[0] * x + v[0] * y, center[1] + u[1] * x + v[1] * y];
+  const overlapsSolid = (polygon: Point[]) => input.solids.some(solid => polygonOverlaps(polygon, solid));
+  const hub = [0, 4, -4, 8, -8]
+    .flatMap(x => [0, 4, -4, 8, -8].map(y => at(x, y)))
+    .sort((a, b) => Math.hypot(a[0] - center[0], a[1] - center[1]) - Math.hypot(b[0] - center[0], b[1] - center[1]))
+    .find(
+      point =>
+        square(point, 2.1).every(p => pointInPolygon(p, boundary)) &&
+        !overlapsSolid(square(point, 2.1)) &&
+        !input.wet(square(point, 2.1))
+    );
+  if (!hub || input.accessTargets.length > 128) return null;
+  const edgeTargets: Point[] = [];
+  for (const [a, b] of [
+    [at(u0 - 1, 0), at(u1 + 1, 0)],
+    [at(0, v0 - 1), at(0, v1 + 1)]
+  ]) {
+    for (let i = 0; i < boundary.length; i++) {
+      const hit = segmentSegmentHit(a, b, boundary[i], boundary[(i + 1) % boundary.length]);
+      if (hit) edgeTargets.push([a[0] + (b[0] - a[0]) * hit.t, a[1] + (b[1] - a[1]) * hit.t]);
+    }
+  }
+  const accessPaths: Point[][] = [];
+  for (const target of [...edgeTargets, ...input.accessTargets]) {
+    if (Math.hypot(target[0] - hub[0], target[1] - hub[1]) < 0.1) continue;
+    const route = accessRoute(target, hub, boundary, input.solids, input.clearAccess);
+    if (!route) return null;
+    accessPaths.push(route);
+    input.reserveAccess(route);
+  }
+  const footprint = placementFootprint(PRODUCE, "high")!;
+  const halfU = footprint.halfX + PLOT_MARGIN;
+  const halfV = footprint.halfZ + PLOT_MARGIN;
+  const step = halfU * 2 + 0.2;
+  const columns = Math.min(32, Math.ceil((u1 - u0) / step));
+  const offsets = Array.from({ length: columns * 2 + 1 }, (_, i) => (i - columns) * step).sort(
+    (a, b) => Math.abs(a) - Math.abs(b) || a - b
+  );
+  const stalls: MarketStall[] = [];
+  for (const x of offsets) {
+    for (const side of [-1, 1]) {
+      if (stalls.length >= STALL_LIMIT) break;
+      const y = side < 0 ? v0 + halfV + EDGE_WALK : v1 - halfV - EDGE_WALK;
+      const facing = (Math.atan2(-side * v[0], -side * v[1]) * 180) / Math.PI;
+      const position = at(x, y);
+      const modelId = (input.port ? PORT_GOODS : PLAZA_GOODS)[stalls.length];
+      const modelFootprint = placementFootprint(modelId, "high")!;
+      const plot = planBoxCorners(
+        planBox(
+          position,
+          { halfX: modelFootprint.halfX + PLOT_MARGIN, halfZ: modelFootprint.halfZ + PLOT_MARGIN },
+          rotationFromFacing("+z", facing)
+        )
+      );
+      if (!plot.every(point => pointInPolygon(point, boundary))) continue;
+      if (input.reserved(plot)) continue;
+      if (input.plotFree && !input.plotFree(plot)) continue;
+      const stall: MarketStall = {
+        modelId,
+        position,
+        facingDegrees: (facing + 360) % 360,
+        palette: input.port ? "woad" : stalls.length % 2 ? "madder" : "ochre",
+        footprint: modelFootprint,
+        plot
+      };
+      if (input.accept(stall)) stalls.push(stall);
+    }
+    if (stalls.length >= STALL_LIMIT) break;
+  }
+  return stalls.length ? { hub, accessPaths, stalls } : null;
 }
 
 /** Shortest visibility route around conservative obstacle boxes. Never cuts through a well. */
