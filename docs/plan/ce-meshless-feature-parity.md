@@ -1,7 +1,7 @@
 # メッシュなしCE 機能同等化のロードマップ
 
 作成日: 2026-11-09  
-状態: P0・P0b・P1・P2a・P2b完了（2026-11-09、[記録](../analytics/ce-meshless-parity-p0-20261109.md)）。P2aで市壁・塔・門・橋、P2bで道路を旧CEの部品で描く。住宅の描画はP3で外観と合わせて行う。P0bの残り2件（海岸・起伏）はP5・P8で扱う。次はP2c（水面・地形・樹木）。門のバービカンは後でオプションとして作る。  
+状態: P0・P0b・P1・P2a・P2b完了（2026-11-09、[記録](../analytics/ce-meshless-parity-p0-20261109.md)）。P2aで市壁・塔・門・橋、P2bで道路を旧CEの部品で描く。住宅の描画はP3で外観と合わせて行う。P0bの残り2件（海岸・起伏）はP5・P8で扱う。次はP2c（水面・地形・樹木）。門のバービカンは後でオプションとして作る。 P2cの前に、単独起動の敷地をseedで変える作業（川の向き・位置・湾曲、外部道路の本数と方位）と、Generate cityを押すたびにseedを引き直す作業を入れた（2026-11-09）。入力欄でseedを打った時はそのseedを再現する。  
 関係する設計: [メッシュなしCE設計](ce-meshless-city-editor.md)、[公開判断](ce-meshless-release-acceptance.md)、[成長型の都市生成](ce-meshless-growth-generation.md)、[街区構造の大規模化](ce-meshless-block-fabric-scaling.md)
 
 ## 1. 目的

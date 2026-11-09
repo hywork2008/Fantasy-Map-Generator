@@ -1,4 +1,5 @@
 import { type EditorMessageKey, editorText } from "../../../i18n/editorMessages";
+import { randomSeed } from "../../generators/generation/settings";
 import {
   type VectorEditorGenerationInput,
   vectorInputFromEditor
@@ -155,6 +156,9 @@ export function createVectorGenerationPanel(
     cx = number("centerX", 0),
     cy = number("centerY", 0),
     river = document.createElement("input");
+  // A typed seed is reproduced once; otherwise every Generate city press draws a new one.
+  let seedTyped = false;
+  scope.listen(seed, "input", () => (seedTyped = true));
   river.type = "checkbox";
   river.checked = true;
   field("river", river);
@@ -396,6 +400,8 @@ export function createVectorGenerationPanel(
     scope.invalidate("import");
     scope.invalidate("vector-generation-input");
     stop();
+    if (!seedTyped) seed.value = randomSeed();
+    seedTyped = false;
     try {
       const target = Number(population.value);
       // The site is planned for the population in this panel, not the one the editor opened with.
@@ -421,7 +427,7 @@ export function createVectorGenerationPanel(
           })
         : linked
           ? vectorInputFromDescriptor(linked)
-          : syntheticVectorInput(seed.value, Number(radius.value), river.checked);
+          : syntheticVectorInput(seed.value, Number(radius.value), river.checked, true);
       source.context.targetPopulation = target;
       run(
         {

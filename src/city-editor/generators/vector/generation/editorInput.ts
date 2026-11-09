@@ -57,7 +57,17 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
   const build = (radius: number, civic = true) => {
     const doc = descriptor
       ? vectorInputFromDescriptor(descriptor)
-      : syntheticVectorInput(seed, radius, settings.config.rivers.length > 0);
+      : syntheticVectorInput(
+          seed,
+          radius,
+          settings.config.rivers.length > 0,
+          true,
+          civic
+            ? vectorCivicLayout(settings.population?.targetPopulation ?? 5000, settings.config.features).specs.map(
+                s => s.boundary.outer
+              )
+            : []
+        );
     doc.recipe.seed = seed;
     doc.context.historicalPeriod = period;
     doc.context.targetPopulation = settings.population?.targetPopulation ?? descriptor?.burg.population ?? 5000;

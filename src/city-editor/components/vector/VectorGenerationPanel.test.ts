@@ -85,7 +85,7 @@ const fill = (key: string, value: string) => {
 };
 
 describe("M4 input, generation and adopted stages", () => {
-  it("generates and commits a default CE city with one action, retaining seed and population", async () => {
+  it("generates and commits a default CE city with one action, retaining a typed seed and population", async () => {
     const settings = {
       ...defaultGenerationSettings(),
       population: defaultPopulationSettings(),
@@ -98,6 +98,8 @@ describe("M4 input, generation and adopted stages", () => {
     });
     expect(field("seed").value).toBe("b5o620");
     expect(field("population").value).toBe("5000");
+    // A typed seed is reproduced; an untouched seed is redrawn on every press (see the next case).
+    fill("seed", "b5o620");
     click("city");
     await vi.waitFor(() => expect(history.index).toBe(1), { timeout: 60000 });
     const generated = history.document;
@@ -142,6 +144,9 @@ describe("M4 input, generation and adopted stages", () => {
     expect(history.document.generation!.settings.wall).toBe("none");
     expect(Object.values(history.document.paths).some(p => p.role === "wall")).toBe(false);
     expect(field("wall").value).toBe("none");
+    // Generate city without a typed seed draws a new one and records it.
+    expect(field("seed").value).not.toBe("b5o620");
+    expect(history.document.recipe.seed).toBe(field("seed").value);
   }, 120000);
   it("previews input and generation without changing saved history, then adopts one transaction per operation", async () => {
     mount();
