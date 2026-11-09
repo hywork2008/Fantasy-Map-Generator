@@ -604,8 +604,8 @@
       "category": "generated",
       "id": "monastery",
       "mesh": "monastery layout",
-      "meshless": "missing",
-      "evidence": "Not generated.",
+      "meshless": "partial",
+      "evidence": "P6c: the mesh editor's founding rules (monasteryKindsFor: faith and period; monasteryCountFor: town size) and precinct planner (fitMonastery) on the meshless land blocks, scored as placeMonasteries; stored as fixed precincts (environment.monasteries) drawn as massing. Not yet: a walled town's abbey outside the walls (the site has no ground there: monastery-unplaced), the catalogue's precinct models, FMG cities.",
       "stage": "P6",
       "checked": true
     },

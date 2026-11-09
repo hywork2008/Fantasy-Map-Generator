@@ -1,6 +1,7 @@
 import { getUrbanDwellings } from "../../../../utils/urbanDwellings";
 import type { CityDocument } from "../../../types/document";
 import type { GenerationSettings } from "../../../types/generation";
+import { monasteryCountFor, monasteryKindsFor } from "../../aerialLandmarks";
 import { supportsBuildingHeightVariation } from "../../buildingHeightPolicy";
 import { planPopulation } from "../../populationPlan";
 import { synthSite } from "../../site/synthSite";
@@ -27,6 +28,9 @@ export interface VectorEditorGenerationInput {
 const CIVIC_LAND_FACTOR = 1.5;
 
 /** The standalone default uses native input geometry, never a mesh or a legacy city conversion. */
+/** The land block a religious house takes: its precinct (about 4,000–5,600 m²) with its street verges. */
+const MONASTERY_BLOCK_M2 = 5500;
+
 export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
   const { settings, seed } = input;
   const period = settings.historicalPeriod ?? settings.descriptor?.historicalPeriod ?? "ageOfExploration";
@@ -166,10 +170,19 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     ...Object.values(first.placements).map(p => p.site)
   ].reduce((n, r) => n + regionArea({ outer: r.outer, holes: r.holes }), 0);
   const civic = vectorCivicLayout(settings.population.targetPopulation, civicOptions);
-  if (!reserved && !civic.specs.length) return build(size(0));
+  // The religious houses the skeleton will found take whole blocks of the houses' land too (P6c); a walled town's
+  // abbey stands outside the walls.
+  const walled = wall.wall !== "none",
+    houses = monasteryKindsFor(settings.descriptor?.civilization?.faith, period, walled)
+      .slice(0, monasteryCountFor(getUrbanDwellings(settings.population.targetPopulation), period))
+      .filter(kind => !(kind === "abbey" && walled)).length;
+  if (!reserved && !civic.specs.length && !houses) return build(size(0));
   // The civic centre takes its area from the houses' land, and more: lots stop short of its setbacks and the
   // streets that front it. Its farthest corner must stay inside the rim.
   return build(
-    Math.max(size(reserved + civic.areaM2 * CIVIC_LAND_FACTOR), civic.radiusMeters + MESHLESS_SITE_RIM_METERS)
+    Math.max(
+      size(reserved + (civic.areaM2 + houses * MONASTERY_BLOCK_M2) * CIVIC_LAND_FACTOR),
+      civic.radiusMeters + MESHLESS_SITE_RIM_METERS
+    )
   );
 }

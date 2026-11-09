@@ -48,6 +48,8 @@ export interface VectorEnvironment {
   harbor?: import("./harbor").VectorHarborPlan;
   /** Ferries where roads meet rivers no bridge of the period spans (P5b-4), by id. */
   ferries?: Record<string, import("./ferry").VectorFerry>;
+  /** Religious houses laid by the mesh editor's precinct planner (`fitMonastery`, P6c), by id. */
+  monasteries?: Record<string, import("./monastery").Monastery>;
   defenses?: Record<string, import("./defense").VectorDefensePlan>;
   /** Freeform's authored ledger is the height/earthwork authority, not a synthetic cell mesh. */
   terrain?: FreeformCity;

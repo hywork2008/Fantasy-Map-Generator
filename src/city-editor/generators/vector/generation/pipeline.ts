@@ -34,6 +34,7 @@ import { CASTLE_FEATURE_ID, CASTLE_SITE_ID, raiseVectorCastle, reserveVectorCast
 import { connectVectorCivicCentre } from "./civic";
 import { isFerryRiver, raiseVectorFerries } from "./ferries";
 import { CIVIC_PLAZA_ID, raiseVectorPlazaMarket } from "./market";
+import { raiseVectorMonasteries } from "./monasteries";
 import { type RouteLink, skeletonRoutes } from "./routes";
 import { GENERATED_HARBOR_ID, raiseVectorHarbor } from "./seaHarbor";
 import { isVectorWallShape, VECTOR_WALL_WIDTH_METERS, vectorUnitWallRing, vectorWallSettings } from "./wallShape";
@@ -648,6 +649,7 @@ function skeleton(
     // So does a generated harbour (P5b).
     if (doc.environment?.harbor?.id === GENERATED_HARBOR_ID) delete doc.environment.harbor;
     if (doc.environment?.ferries) delete doc.environment.ferries;
+    if (doc.environment?.monasteries) delete doc.environment.monasteries;
     // The plaza's market day is laid again on the new streets.
     for (const id of Object.keys(doc.placements)) if (id.startsWith("civic:market-stall:")) delete doc.placements[id];
     const plaza = doc.environment?.features[CIVIC_PLAZA_ID];
@@ -1227,6 +1229,13 @@ function skeleton(
     }
     if (outcome) diagnostics.push({ code: "harbor-unplaced", entityId: outcome, severity: "warning" });
   }
+  // Religious houses take whole land blocks between the streets (P6c), after the harbour has its
+  // shore, as the mesh editor keeps harbour wards from them.
+  const housed = raiseVectorMonasteries(doc, deriveVectorBlocks(doc));
+  doc = housed.document;
+  const founded = Object.keys(doc.environment?.monasteries ?? {}).length;
+  if (founded < housed.wanted)
+    diagnostics.push({ code: "monastery-unplaced", entityId: String(housed.wanted - founded), severity: "warning" });
   doc.revision++;
   assertVectorDocument(doc);
   timed("connections-and-validation");

@@ -26,6 +26,7 @@ import { vectorFerrySurfaces } from "./ferry";
 import { vectorHarborSurfaces } from "./harbor";
 import { vectorHouseAppearance } from "./houseAppearance";
 import { vectorLandscapeSurfaces } from "./landscape";
+import { vectorMonasterySurfaces } from "./monastery";
 import { vectorRoadRibbons } from "./roadRibbons";
 import { vectorStructures } from "./structureMassing";
 export type VectorSurfaceKind =
@@ -507,6 +508,8 @@ export function vectorRenderData(
     surfaces.push(...vectorDefenseSurfaces(plan, frame));
   if (doc.environment?.harbor) surfaces.push(...vectorHarborSurfaces(doc.environment.harbor));
   for (const ferry of Object.values(doc.environment?.ferries ?? {})) surfaces.push(...vectorFerrySurfaces(ferry));
+  for (const house of Object.values(doc.environment?.monasteries ?? {}))
+    surfaces.push(...vectorMonasterySurfaces(house));
   if (doc.environment?.landscape)
     for (const surface of vectorLandscapeSurfaces(doc.environment.landscape)) add(surface);
   let terrainMesh: VectorRenderData["terrain"], contours: ContourLine[] | undefined;

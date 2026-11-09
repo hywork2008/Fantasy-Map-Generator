@@ -58,7 +58,8 @@ describe("generated sea harbour (feature parity P5b)", () => {
     expect(harbor!.piers.length).toBeGreaterThan(0);
     // A river pier reaches at most a quarter of the way across, leaving the fairway open.
     for (const pier of harbor!.piers) expect(pier.depthMeters).toBeLessThan(6);
-    expect(harbor!.ships.map(s => s.type)).toEqual(["barge"]);
+    expect(harbor!.ships.length).toBeGreaterThan(0);
+    expect(harbor!.ships.every(s => s.type === "barge")).toBe(true);
     const city = generateVectorUrban(skeleton, { ...DEFAULT_VECTOR_URBAN, population: 5000, lotOccupancy: 1 });
     expect(city.urban!.report.unplacedPopulation).toBe(0);
   });

@@ -449,7 +449,7 @@ class Site {
 // ---------------------------------------------------------------------------
 // 1. Monastery: cloister quadrangle, church, herb garden, orchard
 
-const MONASTERY_NAMES: Record<MonasteryKind, string> = {
+export const MONASTERY_NAMES: Record<MonasteryKind, string> = {
   abbey: "Abbey",
   friary: "Friary",
   orthodoxMonastery: "Monastery"
@@ -457,14 +457,28 @@ const MONASTERY_NAMES: Record<MonasteryKind, string> = {
 
 /** Houses in founding order. Without FMG civilization the town is taken as Latin Catholic. */
 function monasteryKinds(document: CityDocument, walled: boolean): MonasteryKind[] {
-  const houses = religiousHousesFor(document.civilization?.faith ?? "latinCatholic", document.historicalPeriod);
+  return monasteryKindsFor(document.civilization?.faith, document.historicalPeriod, walled);
+}
+
+/** The religious houses a town founds, in order, from its faith and period (shared with meshless, P6c). */
+export function monasteryKindsFor(
+  faith: Parameters<typeof religiousHousesFor>[0] | undefined,
+  period: HistoricalPeriod | undefined,
+  walled: boolean
+): MonasteryKind[] {
+  const houses = religiousHousesFor(faith ?? "latinCatholic", period);
   if (houses.includes("friary")) return walled ? ["friary", "abbey", "friary"] : ["abbey", "friary", "friary"];
   if (houses.includes("orthodoxMonastery")) return ["orthodoxMonastery", "orthodoxMonastery"];
   return houses.includes("abbey") ? ["abbey"] : [];
 }
 
 function monasteryCount(buildings: number, document: CityDocument): number {
-  if (!periodAtLeast(document, "earlyMedieval")) return 0;
+  return monasteryCountFor(buildings, document.historicalPeriod);
+}
+
+/** How many religious houses a town of this many buildings holds (none before the early middle ages). */
+export function monasteryCountFor(buildings: number, period: HistoricalPeriod | undefined): number {
+  if (PERIOD_ORDER.indexOf(period ?? "ageOfExploration") < PERIOD_ORDER.indexOf("earlyMedieval")) return 0;
   if (buildings < 250) return 0;
   if (buildings < 1500) return 1;
   if (buildings < 5000) return 2;

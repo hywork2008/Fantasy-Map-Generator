@@ -11,6 +11,7 @@ import { ringInside } from "../geometry/routing";
 import { simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { validateVectorHarbor } from "../harbor";
+import { validateVectorMonasteries } from "../monastery";
 import { validateVectorLandscape } from "./landscape";
 
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -125,7 +126,17 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
     !record(e) ||
     Object.keys(e).some(
       k =>
-        !["features", "defenses", "harbor", "ferries", "landscape", "terrain", "hidden", "freeformSource"].includes(k)
+        ![
+          "features",
+          "defenses",
+          "harbor",
+          "ferries",
+          "monasteries",
+          "landscape",
+          "terrain",
+          "hidden",
+          "freeformSource"
+        ].includes(k)
     ) ||
     !record(e.features) ||
     Object.keys(e.features).length > 256 ||
@@ -138,6 +149,7 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
     ...validateVectorDefenses(doc),
     ...validateVectorHarbor(doc),
     ...validateVectorFerries(doc),
+    ...validateVectorMonasteries(doc),
     ...validateVectorLandscape(doc)
   ];
   if (e.freeformSource && !parseFreeformCity(JSON.stringify(e.freeformSource)))
