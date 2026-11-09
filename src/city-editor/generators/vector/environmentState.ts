@@ -4,6 +4,7 @@ import { ferryReservations } from "./ferry";
 import { guildReservations } from "./guild";
 import { harborReservations } from "./harbor";
 import { innReservations } from "./inn";
+import { openLandmarkReservations } from "./landmark";
 import { monasteryReservations } from "./monastery";
 export const featureReservations = (doc: VectorCityDocument) => [
   ...Object.values(doc.environment?.features ?? {}).map(f => f.boundary),
@@ -13,6 +14,7 @@ export const featureReservations = (doc: VectorCityDocument) => [
   ...Object.values(doc.environment?.monasteries ?? {}).flatMap(monasteryReservations),
   ...guildReservations(doc),
   ...innReservations(doc),
+  ...openLandmarkReservations(doc),
   ...(doc.environment?.landscape
     ? [
         ...doc.environment.landscape.parks.flatMap(p => p.lawns),

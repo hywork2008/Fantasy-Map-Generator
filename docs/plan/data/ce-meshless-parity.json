@@ -642,10 +642,19 @@
       "id": "landmarks",
       "mesh": "landmark instances",
       "meshless": "missing",
-      "evidence": "Not generated.",
+      "evidence": "Not generated. P6f took the mesh editor's free-standing aerial landmarks (windmills, gallows) as its own row; placed asset instances stay here.",
       "stage": "P6",
       "checked": true,
       "census": "landmarks"
+    },
+    {
+      "category": "generated",
+      "id": "windmills-and-gallows",
+      "mesh": "windmills and the gallows (aerial landmarks)",
+      "meshless": "partial",
+      "evidence": "P6f: the mesh editor's rules, cut cell-free (placeWindmillsAroundTown, placeGallowsOnApproach, windmillCountFor): post mills from the high medieval period and tower mills from the late, beyond the town edge or the walls' glacis, as many as the FMG economy's wind capacity or one per ~1,400 buildings (fewer on a river), facing into the FMG prevailing wind; the gallows mound 130-520 m out beside an approach road for 400+ buildings. Stored as environment.landmarks and drawn flat (mound, tower, sails, pillars). Not yet: elevation scoring (flat site until P8), fields and buildings as obstacles, 3D mill and gallows models, the facility-count overrides.",
+      "stage": "P6",
+      "checked": true
     },
     {
       "category": "generated",

@@ -27,6 +27,7 @@ import { vectorGuildSurfaces } from "./guild";
 import { vectorHarborSurfaces } from "./harbor";
 import { vectorHouseAppearance } from "./houseAppearance";
 import { vectorInnSurfaces } from "./inn";
+import { vectorOpenLandmarkSurfaces } from "./landmark";
 import { vectorLandscapeSurfaces } from "./landscape";
 import { vectorMonasterySurfaces } from "./monastery";
 import { vectorRoadRibbons } from "./roadRibbons";
@@ -514,6 +515,7 @@ export function vectorRenderData(
     surfaces.push(...vectorMonasterySurfaces(house));
   if (doc.environment?.guilds) surfaces.push(...vectorGuildSurfaces(doc.environment.guilds));
   if (doc.environment?.inns) surfaces.push(...vectorInnSurfaces(doc.environment.inns));
+  if (doc.environment?.landmarks) surfaces.push(...vectorOpenLandmarkSurfaces(doc.environment.landmarks));
   if (doc.environment?.landscape)
     for (const surface of vectorLandscapeSurfaces(doc.environment.landscape)) add(surface);
   let terrainMesh: VectorRenderData["terrain"], contours: ContourLine[] | undefined;

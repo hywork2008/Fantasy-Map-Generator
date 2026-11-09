@@ -13,6 +13,7 @@ import { allVectorWater } from "../geometry/water";
 import { validateVectorGuilds } from "../guild";
 import { validateVectorHarbor } from "../harbor";
 import { validateVectorInns } from "../inn";
+import { validateVectorOpenLandmarks } from "../landmark";
 import { validateVectorMonasteries } from "../monastery";
 import { validateVectorLandscape } from "./landscape";
 
@@ -136,6 +137,7 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
           "monasteries",
           "guilds",
           "inns",
+          "landmarks",
           "landscape",
           "terrain",
           "hidden",
@@ -156,6 +158,7 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
     ...validateVectorMonasteries(doc),
     ...validateVectorGuilds(doc),
     ...validateVectorInns(doc),
+    ...validateVectorOpenLandmarks(doc),
     ...validateVectorLandscape(doc)
   ];
   if (e.freeformSource && !parseFreeformCity(JSON.stringify(e.freeformSource)))

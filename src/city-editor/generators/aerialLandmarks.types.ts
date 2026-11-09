@@ -1,4 +1,5 @@
 import type { Id, Point } from "../types/primitives";
+import type { Gallows, Windmill } from "../types/vector/landmark";
 import type { BuildingLot } from "./buildingLots.types";
 import type { DomesticWaterPoint } from "./domesticWater";
 import type { GateInn } from "./gateInnPlacement";
@@ -6,20 +7,6 @@ import type { GuildHall, GuildYard } from "./guildFacilityPlacement";
 import type { Monastery } from "./monasteryLayout";
 import type { QuayWarehouse } from "./quayWarehousePlacement";
 import type { StorageYard } from "./storageYardPlacement";
-
-export interface Windmill {
-  id: Id;
-  kind: "post" | "tower";
-  name: string;
-  center: Point;
-  /** Mound (post mill) or tower (tower mill) radius. */
-  baseRadius: number;
-  /** Direction the sails face (radians, CCW from +X / east); one prevailing wind for the whole town. */
-  facing: number;
-  /** Angle of the first sail in the sail plane. */
-  sailAngle: number;
-  sailLength: number;
-}
 
 export interface Barbican {
   id: Id;
@@ -52,14 +39,7 @@ export interface Tannery {
   racks: Array<[Point, Point]>;
 }
 
-export interface Gallows {
-  id: Id;
-  name: string;
-  center: Point;
-  moundRadius: number;
-  pillars: Point[];
-  path: Point[];
-}
+export type { Gallows, Windmill };
 
 export interface AerialLandmarkPlan {
   domesticWater: DomesticWaterPoint[];

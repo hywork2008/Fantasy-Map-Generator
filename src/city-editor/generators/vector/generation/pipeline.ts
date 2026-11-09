@@ -35,6 +35,7 @@ import { connectVectorCivicCentre } from "./civic";
 import { isFerryRiver, raiseVectorFerries } from "./ferries";
 import { raiseVectorGuilds } from "./guilds";
 import { raiseVectorInns } from "./inns";
+import { raiseVectorOpenLandmarks } from "./landmarks";
 import { CIVIC_PLAZA_ID, raiseVectorPlazaMarket } from "./market";
 import { raiseVectorMonasteries } from "./monasteries";
 import { type RouteLink, skeletonRoutes } from "./routes";
@@ -654,6 +655,7 @@ function skeleton(
     if (doc.environment?.monasteries) delete doc.environment.monasteries;
     if (doc.environment?.guilds) delete doc.environment.guilds;
     if (doc.environment?.inns) delete doc.environment.inns;
+    if (doc.environment?.landmarks) delete doc.environment.landmarks;
     // The plaza's market day is laid again on the new streets.
     for (const id of Object.keys(doc.placements)) if (id.startsWith("civic:market-stall:")) delete doc.placements[id];
     const plaza = doc.environment?.features[CIVIC_PLAZA_ID];
@@ -1250,6 +1252,11 @@ function skeleton(
   doc = lodged.document;
   if (lodged.placed < lodged.wanted)
     diagnostics.push({ code: "inn-unplaced", entityId: String(lodged.wanted - lodged.placed), severity: "warning" });
+  // The gallows and the windmills on open ground beyond the town (P6f).
+  const marks = raiseVectorOpenLandmarks(doc, deriveVectorBlocks(doc));
+  doc = marks.document;
+  if (marks.placed < marks.wanted)
+    diagnostics.push({ code: "landmark-unplaced", entityId: String(marks.wanted - marks.placed), severity: "warning" });
   doc.revision++;
   assertVectorDocument(doc);
   timed("connections-and-validation");

@@ -641,20 +641,59 @@ export function windmillFacingRadians(blowTowardDeg: number): number {
 }
 
 function windmillCount(buildings: number, document: CityDocument, hasRiver: boolean): number {
+  return windmillCountFor(buildings, document.historicalPeriod, hasRiver, economyOnDocument(document)?.mills?.wind);
+}
+
+/** The mills a town keeps: the economy's wind-mill capacity when recorded, else one per ~1,400 buildings, fewer on a river. */
+export function windmillCountFor(
+  buildings: number,
+  period: HistoricalPeriod | undefined,
+  hasRiver: boolean,
+  fromCapacity?: number
+): number {
   // Post mills spread across Europe from the late 12th century.
-  if (!periodAtLeast(document, "highMedieval")) return 0;
-  const fromCapacity = economyOnDocument(document)?.mills?.wind;
+  if (PERIOD_ORDER.indexOf(period ?? "ageOfExploration") < PERIOD_ORDER.indexOf("highMedieval")) return 0;
   if (typeof fromCapacity === "number" && Number.isFinite(fromCapacity)) return Math.max(0, Math.round(fromCapacity));
   if (buildings < 40) return 0;
   const base = Math.max(1, Math.min(8, Math.round(buildings / 1400) + 1));
   return hasRiver ? Math.max(1, Math.ceil(base * 0.6)) : base;
 }
 
-function placeWindmills(site: Site, input: AerialLandmarkInput, rng: Rng): Windmill[] {
+/** The open-ground view the windmills and the gallows need; the mesh editor's `Site` and a meshless view both fit. */
+export interface AerialOpenSite {
+  town: Point[];
+  walled: boolean;
+  /** Road centrelines. */
+  roads: Point[][];
+  insideTown(point: Point): boolean;
+  townDistance(point: Point): number;
+  clearsGlacis(polygon: Point[], minClearance?: number): boolean;
+  elevation(point: Point): number;
+  inFrame(polygon: Point[], margin?: number): boolean;
+  hitsWater(polygon: Point[], clearance?: number): boolean;
+  hitsRoutes(polygon: Point[], clearance: number): boolean;
+  hitsBlocked(polygon: Point[]): boolean;
+  buildingsIn(polygon: Point[], clearance?: number): readonly unknown[];
+  hitsLanes(polygon: Point[]): boolean;
+  farmsIn(polygon: Point[]): readonly unknown[];
+  claim(polygon: Point[]): void;
+}
+
+export interface WindmillPlan {
+  count: number;
+  /** Tower mills are possible (late medieval on). */
+  towerMills: boolean;
+  gates: Point[];
+  /** Sail facing, radians CCW from east. */
+  facing: number;
+}
+
+/** How many mills, which kinds and which way they face, read from the mesh document. Draws the seeded facing. */
+function windmillPlan(site: Site, input: AerialLandmarkInput, rng: Rng): WindmillPlan | null {
   const document = site.document;
   const hasRiver = document.featureGroups.some(g => g.kind === "river");
   const count = windmillCount(input.buildings.length, document, hasRiver);
-  if (!count || site.town.length < 3) return [];
+  if (!count || site.town.length < 3) return null;
   const towerMills = periodAtLeast(document, "lateMedieval");
   const gates = townGates(document)
     .map(g => document.mesh.vertices[g.vertexId]?.point)
@@ -664,6 +703,21 @@ function placeWindmills(site: Site, input: AerialLandmarkInput, rng: Rng): Windm
   const seededFacing = rng.range(0, Math.PI * 2);
   const blowToward = prevailingWindDegOnDocument(document);
   const facing = blowToward === undefined ? seededFacing : windmillFacingRadians(blowToward);
+  return { count, towerMills, gates, facing };
+}
+
+function placeWindmills(site: Site, input: AerialLandmarkInput, rng: Rng): Windmill[] {
+  const plan = windmillPlan(site, input, rng);
+  return plan ? placeWindmillsAroundTown(site, plan, rng) : [];
+}
+
+/**
+ * Windmills just beyond the town edge (the walls' glacis when walled), on the highest free ground, apart from each
+ * other and the gates, clear of water, roads, buildings and claimed ground. The caller has drawn the facing from `rng`.
+ */
+export function placeWindmillsAroundTown(site: AerialOpenSite, plan: WindmillPlan, rng: Rng): Windmill[] {
+  const { count, towerMills, gates, facing } = plan;
+  if (!count || site.town.length < 3) return [];
   const ring = [...site.town, site.town[0]];
   const perimeter = ring.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - ring[i][0], p[1] - ring[i][1]), 0);
   type Candidate = { center: Point; score: number };
@@ -719,7 +773,7 @@ function placeWindmills(site: Site, input: AerialLandmarkInput, rng: Rng): Windm
     const baseRadius = kind === "tower" ? 3.6 : 5;
     const sweep = circle(center, sailLength + 1.2, 12);
     const base = circle(center, baseRadius + 0.8, 10);
-    if (!site.inFrame(sweep)) continue;
+    if (!site.inFrame(sweep, 6)) continue;
     if (site.hitsWater(sweep, 2) || site.hitsRoutes(sweep, 2) || site.hitsBlocked(sweep)) continue;
     if (site.buildingsIn(sweep, 2).length || site.hitsLanes(base)) continue;
     if (site.farmsIn(base).length && rng() < 0.7) continue;
@@ -1100,10 +1154,18 @@ function layoutTannery(
 function placeGallows(site: Site, input: AerialLandmarkInput, rng: Rng): Gallows[] {
   if (
     site.document.facilityCounts?.gallows === 0 ||
-    (site.document.facilityCounts?.gallows === undefined && input.buildings.length < 400) ||
-    site.town.length < 3
+    (site.document.facilityCounts?.gallows === undefined && input.buildings.length < 400)
   )
     return [];
+  return placeGallowsOnApproach(site, rng);
+}
+
+/**
+ * The permanent gallows on a mound beside an approach road, 130-520 m beyond the town (best near 250 m), on high
+ * ground and preferring a road fork, clear of water, roads, buildings and fields.
+ */
+export function placeGallowsOnApproach(site: AerialOpenSite, rng: Rng): Gallows[] {
+  if (site.town.length < 3) return [];
   const approach = site.roads.filter(r => r.some(p => !site.insideTown(p) && site.townDistance(p) > 100));
   if (!approach.length) return [];
   // Road forks outside town draw the gallows: a crossroads is a traditional site.

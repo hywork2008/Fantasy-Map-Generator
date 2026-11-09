@@ -297,7 +297,8 @@
           "market-unplaced": "No market stalls fit on the plaza: it is too small or its aisles cannot reach the streets",
           "monastery-unplaced": "Not every religious house the faith and size call for found a land block (count shown); a walled town's abbey needs ground outside its walls",
           "guild-unplaced": "Not every guild hall or yard the town's economy calls for found ground (count shown)",
-          "inn-unplaced": "Not every inn or caravanserai the town's economy lists found ground on its busiest approach (count shown)"
+          "inn-unplaced": "Not every inn or caravanserai the town's economy lists found ground on its busiest approach (count shown)",
+          "landmark-unplaced": "Not every windmill or the gallows found open ground beyond the town (count shown)"
         },
         "blocksAndLanes": "Blocks and lanes",
         "facilities": "Facilities",
