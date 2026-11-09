@@ -10,6 +10,7 @@ import { seedVectorCivicCentre, vectorCivicLayout } from "./civic";
 import { fortifyVectorInput } from "./fortress";
 import { expectedVectorHouseStoreys } from "./housingHeights";
 import { syntheticVectorInput, vectorInputFromDescriptor } from "./input";
+import { bridgeSyntheticCrossings } from "./syntheticCrossings";
 import { MESHLESS_SITE_RIM_METERS, meshlessCityRadius } from "./urbanSizing";
 import { isVectorWallShape, vectorWallAreaShare, vectorWallChoice } from "./wallShape";
 
@@ -58,7 +59,10 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
   }
   const build = (radius: number, civic = true) => {
     let doc = descriptor
-      ? vectorInputFromDescriptor(descriptor)
+      ? // A synthesized site's roads run over its rivers; an FMG city's bring their certified crossings (P5a).
+        settings.descriptor
+        ? vectorInputFromDescriptor(descriptor)
+        : bridgeSyntheticCrossings(vectorInputFromDescriptor(descriptor))
       : syntheticVectorInput(
           seed,
           radius,

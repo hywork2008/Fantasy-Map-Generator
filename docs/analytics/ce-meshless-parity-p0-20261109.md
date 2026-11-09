@@ -719,3 +719,49 @@ P4（市壁・防御の生成）を次の区切りに分けた。P4a 形状・�
 
 - `generators/vector/generation/concentricLayout.test.ts`に1件を加えた。classicの解決、地区ごとに街路街区が1つであること、同心の街路がないこと、全員の居住を確かめる。
 - 関連テスト（`generators/vector`、`generators/bastionedTown`、`blockInfill`、`renderers/vector`、`components/vector`、`CityEditorPage.vector`、`services/io/vector`、`services/vector`、アーキテクチャ、`i18n`）は65ファイル中58成功・7 skip（計測用）。型検査・biome・アーキテクチャの検査はエラーなし。
+
+## P5a 合成の敷地の海岸・川（途中、2026-11-09）
+
+### 状況の確認
+
+旧CEの設定の海岸4種（none・straight・bay・cape）と、川の組8通りを2件ずつ、計64件で生成した。
+
+- 川の組は、なし・through・beside・toCoast・straight・meander・greatBend・through+besideの8通り。
+- 単独起動の敷地（川1本まで）以外は、旧CEの合成の都市情報（`synthSite`）を経る。
+
+変更前に成功したのは6件だけだった。失敗の原因は次の2つ。
+
+1. P4aの不具合: FMG・合成の都市情報の道路は中心まで届くので、入口の道路を延ばす処理で向きが0になり、`degenerate-tangent`で落ちた。中心に届く道路は延ばさないよう直した。
+2. 合成の都市情報の道路が、川や海の上をそのまま通っていた（`unbridged-road`）。実際のFMGの都市は、認証済みの橋（`fixedCrossings`）を持つ。
+
+### 旧CEの規則の再利用
+
+- `generators/vector/generation/skeletonInputs.ts`（`vectorSkeletonInputs`）: メッシュなしの敷地から旧CEの骨格の入力（K1）を作る。
+  - 旧CEと同じく、道路は中心から最初の乾いた区間だけを残す（`dryRuns`）。
+  - 岸で切れる道路や岸で終わる道路は、路面が水に掛からないよう、半幅と余裕の分だけ手前で止める。
+  - 乾いた区間のない道路は除く。
+- `generators/vector/generation/syntheticCrossings.ts`（`bridgeSyntheticCrossings`）: 合成の都市情報にだけ、次を適用する。
+  - 旧CEの`planSkeletonCrossings`で、時代の角度の上限に合わせて橋の足を川の法線へ向けた経路を得る。
+  - 道路をその経路に置き換える。
+  - 橋の位置では、道路を橋の長さより少し長くまっすぐ敷き直し、固定の橋を架ける。
+  - 交点と道路網は新しい経路に付け替える。
+  - 実際のFMGの都市（`settings.descriptor`あり）には適用しない。
+
+### 結果
+
+64件中41件が成功した（変更前は6件）。残りの23件の原因は次のとおり。
+
+| 原因 | 件数の目安 | 内容 |
+| --- | --- | --- |
+| `bridge-skew` | 3 | 計画器の川の向き（中心線の弦）と、検証の川の向き（標本点）が蛇行で食い違う |
+| `bridge-multiple-channels`・`bridge-landing` | 7 | 河口で橋が海の水面にも掛かる、川幅の変化で岸に掛かる |
+| `unbridged-road` | 8 | 海岸沿いを走る道路の路面が海に掛かる。計画器が橋を出さない交差 |
+| 交点・幅 | 4 | 敷き直した道路の交点が外れる（`node`）、川の幅の折れ（`width-fold`） |
+| `gate-access` | 1 | 蛇行する川と市壁の交差が浅い |
+
+診断用の生成の一覧は作業用の一時ファイルとして残した（リポジトリ外）。
+
+### テスト
+
+- 関連テスト（`generators/vector`、`generators/bastionedTown`、`renderers/vector`、`components/vector`、`CityEditorPage.vector`、`services/io/vector`、`services/vector`、アーキテクチャ、`i18n`）は63ファイル中56成功・7 skip（計測用）。
+- P5aの試験は、残りの失敗を直してから加える。

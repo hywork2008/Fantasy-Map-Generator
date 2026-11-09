@@ -122,8 +122,10 @@ function extendApproachesThroughWall(
     const inner = roadEndpoints(road).sort(
         (a, b) => distance(evaluateAnchor(road, a), center) - distance(evaluateAnchor(road, b), center)
       )[0],
-      from = evaluateAnchor(road, inner),
-      dir = unit([center[0] - from[0], center[1] - from[1]]),
+      from = evaluateAnchor(road, inner);
+    // A road that already reaches the centre (an FMG road) needs no continuation.
+    if (distance(from, center) < 1) continue;
+    const dir = unit([center[0] - from[0], center[1] - from[1]]),
       inside = pointInPolygon(from, ring),
       // An end inside the wall but within the gate's reach stops in the gate itself; it is carried on too.
       clear = ring.every((p, i) => distanceToSegment(from, p, ring[(i + 1) % ring.length]) >= inset);
