@@ -91,7 +91,12 @@ export function regionBoolean(
     try {
       result = run(rounded(a, 1e-8), rounded(b, 1e-8));
     } catch {
-      result = run(rounded(a, 1e-7), rounded(b, 1e-7));
+      try {
+        result = run(rounded(a, 1e-7), rounded(b, 1e-7));
+      } catch {
+        // Still far below the sampling tolerance; reached only where both finer lattices fail.
+        result = run(rounded(a, 1e-6), rounded(b, 1e-6));
+      }
     }
   }
   let points = 0;

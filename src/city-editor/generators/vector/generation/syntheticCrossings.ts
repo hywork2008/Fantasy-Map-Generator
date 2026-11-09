@@ -2,13 +2,14 @@ import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument, VectorPath } from "../../../types/vector/document";
 import type { VectorPolygon } from "../../../types/vector/generation";
 import { planSkeletonCrossings } from "../../generation/skeleton/crossings";
+import { dryRuns } from "../../generation/skeleton/inputs";
 import { rebuildRoadGraph } from "../editing/network";
 import { curveSource, removeVectorPath } from "../editing/paths";
 import { evaluateAnchor } from "../geometry/curves";
 import { pathIntersections } from "../geometry/intersections";
 import { bridgeGeometry, distance, nearestRoadAnchor, unit } from "../geometry/network";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
-import { samplePath } from "../geometry/sampling";
+import { samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater, vectorWaterSurfaces } from "../geometry/water";
 import { vectorSkeletonInputs } from "./skeletonInputs";
@@ -20,10 +21,12 @@ import { vectorSkeletonInputs } from "./skeletonInputs";
  * skew limit); meshless runs the same planner, lays the roads along its routes and spans each leg with a straight
  * bridge. Water the planner cannot cross squarely is left to the skeleton, which then refuses the road.
  */
-export function bridgeSyntheticCrossings(input: VectorCityDocument): VectorCityDocument {
+export function bridgeSyntheticCrossings(source: VectorCityDocument): VectorCityDocument {
+  let input = source;
   if (!input.site) return input;
+  input = riversToTheShore(input);
   const { inputs, roadIds, droppedRoadIds, riverIds } = vectorSkeletonInputs(input, { walls: false }),
-    { routes, bridges } = planSkeletonCrossings(inputs, input.site.center, null);
+    { routes, bridges } = planSkeletonCrossings(inputs, input.site!.center, null);
   let doc = structuredClone(input);
   // A road with no dry run from the centre (all at sea) is not part of the site.
   for (const id of droppedRoadIds) {
@@ -91,7 +94,14 @@ export function bridgeSyntheticCrossings(input: VectorCityDocument): VectorCityD
     if (!before.length || !after.length) continue;
     const a: Point = [at[0] - axis[0] * leg, at[1] - axis[1] * leg],
       b: Point = [at[0] + axis[0] * leg, at[1] + axis[1] * leg];
-    doc.paths[road.id] = { ...road, source: curveSource([...before, a, b, ...after], "polyline", false) };
+    const relaidRoad = { ...road, source: curveSource([...before, a, b, ...after], "polyline", false) };
+    try {
+      // A leg that folds the road back over itself (a crossing on a bend) is not laid; the road is cut instead.
+      pathSurface(relaidRoad);
+    } catch {
+      continue;
+    }
+    doc.paths[road.id] = relaidRoad;
     planned.push({ roadId: road.id, riverId: river.id, at, span });
   }
   // Anchors are taken once every leg is laid, so two bridges on one road keep their own legs. A bridge the
@@ -137,12 +147,17 @@ export function bridgeSyntheticCrossings(input: VectorCityDocument): VectorCityD
   for (let pass = 0; pass < 4; pass++) {
     let cut = false;
     for (const road of Object.values(doc.paths).filter(p => p.role === "road" && relaid.has(p.id))) {
-      const exposed = regionBoolean(
-        regionBoolean(regionBoolean([pathSurface(road)], input.site!.domain, "intersection"), decks, "difference"),
-        water,
-        "intersection"
-      );
-      if (!exposed.some(r => regionArea(r) > 1e-5)) continue;
+      let wet = true;
+      try {
+        wet = regionBoolean(
+          regionBoolean(regionBoolean([pathSurface(road)], input.site!.domain, "intersection"), decks, "difference"),
+          water,
+          "intersection"
+        ).some(r => regionArea(r) > 1e-5);
+      } catch {
+        // A surface that cannot be built is cut back like a wet one.
+      }
+      if (!wet) continue;
       cut = true;
       const dry = dryPrefix(road, input.site!.center, water, decks, 1 + pass * 2);
       if (!dry || dry === "whole") {
@@ -150,11 +165,13 @@ export function bridgeSyntheticCrossings(input: VectorCityDocument): VectorCityD
         doc.paths[road.id].editPolicy = "editable";
         for (const b of Object.values(doc.connections.bridges))
           if (b.roadPathId === road.id) delete doc.connections.bridges[b.id];
-        doc = removeVectorPath(doc, road.id);
+        // Removed outright: the junctions are mended below, once every road has its final course.
+        delete doc.paths[road.id];
         relaid.delete(road.id);
         continue;
       }
       doc.paths[road.id] = { ...road, source: curveSource(dry, "polyline", false) };
+      // The cut road keeps its junctions only where it still runs; the graph is rebuilt below.
     }
     if (!cut) break;
     decks = placeBridges();
@@ -171,6 +188,9 @@ export function bridgeSyntheticCrossings(input: VectorCityDocument): VectorCityD
     });
     if (!node.anchors.length) delete doc.connections.nodes[node.id];
   }
+  for (const edge of Object.values(doc.connections.edges))
+    if (!doc.paths[edge.pathId] || !doc.connections.nodes[edge.fromNodeId] || !doc.connections.nodes[edge.toNodeId])
+      delete doc.connections.edges[edge.id];
   rebuildRoadGraph(doc);
   doc.site!.fixedPaths = Object.values(doc.paths)
     .filter(p => p.editPolicy === "fixed" && p.origin === "imported")
@@ -225,4 +245,59 @@ function dryPrefix(
     out.push(b);
   }
   return "whole";
+}
+
+/**
+ * A synthesized river drawn on past the coastline ends at the shore, a little into the sea so its mouth meets it:
+ * its channel over open water would be a second water surface lying on the sea. The longest stretch over land
+ * is kept.
+ */
+function riversToTheShore(input: VectorCityDocument): VectorCityDocument {
+  const sea = input.site!.water.filter(w => !w.riverPathId).flatMap(w => w.polygons);
+  if (!sea.length) return input;
+  const doc = structuredClone(input),
+    seaRings = sea.map(p => ({ kind: "sea" as const, polygon: p.outer }));
+  for (const river of Object.values(doc.paths).filter(p => p.role === "river")) {
+    const points = samplePath(river)
+        .map(s => s.point)
+        .filter((p, i, all) => i === 0 || distance(p, all[i - 1]) > 1e-6),
+      runs = dryRuns(points, seaRings);
+    if (runs.length === 1 && runs[0].length === points.length) continue;
+    const run = runs.sort((a, b) => length(b) - length(a))[0];
+    if (!run || length(run) < 20) continue;
+    const half = Math.max(river.width.leftMeters, river.width.rightMeters),
+      extend = (line: Point[], atEnd: boolean) => {
+        const [a, b] = atEnd ? [line.at(-2)!, line.at(-1)!] : [line[1], line[0]],
+          d = unit([b[0] - a[0], b[1] - a[1]]),
+          tip: Point = [b[0] + d[0] * half, b[1] + d[1] * half];
+        return atEnd ? [...line, tip] : [tip, ...line];
+      };
+    let line = run;
+    // A cut end lies on the shore; it reaches on into the sea by the channel's half width.
+    if (distance(run.at(-1)!, points.at(-1)!) > 1e-6) line = extend(line, true);
+    if (distance(run[0], points[0]) > 1e-6) line = extend(line, false);
+    // The channel keeps its widest width, so its course is eased until the banks stay apart.
+    for (const tolerance of [0.5, 2, 5, 10, 20]) {
+      doc.paths[river.id] = {
+        ...river,
+        source: curveSource(simplifyFreehand(line, tolerance), "polyline", false),
+        width: { leftMeters: half, rightMeters: half, stations: [] }
+      };
+      try {
+        pathSurface(doc.paths[river.id]);
+        break;
+      } catch {
+        // ease further
+      }
+    }
+    doc.site!.fixedPaths = doc.site!.fixedPaths.map(p =>
+      p.id === river.id ? structuredClone(doc.paths[river.id]) : p
+    );
+  }
+  return doc;
+}
+function length(line: Point[]): number {
+  let n = 0;
+  for (let i = 1; i < line.length; i++) n += distance(line[i - 1], line[i]);
+  return n;
 }

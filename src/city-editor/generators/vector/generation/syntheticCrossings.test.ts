@@ -35,6 +35,23 @@ describe("synthesized coast and river sites (feature parity P5a)", () => {
     }
   });
 
+  it("keeps the town wall and the river off the sea", () => {
+    const seed = "w1",
+      { settings, doc } = input("cape", ["through"], seed),
+      wall = vectorWallChoice(settings, seed, "lateMedieval"),
+      skeleton = generateVectorSkeleton(doc, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall }).document,
+      sea = skeleton.site!.water.filter(w => !w.riverPathId).flatMap(w => w.polygons);
+    for (const path of Object.values(skeleton.paths).filter(p => p.role === "wall"))
+      expect(
+        regionBoolean([pathSurface(path)], sea, "intersection").reduce((n, r) => n + regionArea(r), 0)
+      ).toBeLessThan(1);
+    // A river reaches the shore and only its mouth (half its width) lies over the sea.
+    for (const river of Object.values(skeleton.paths).filter(p => p.role === "river"))
+      expect(
+        regionBoolean([pathSurface(river)], sea, "intersection").reduce((n, r) => n + regionArea(r), 0)
+      ).toBeLessThan((river.width.leftMeters + river.width.rightMeters) ** 2 * 2);
+  });
+
   it("grows a synthesized coastal site until its dry land houses the town", () => {
     const seed = "w1",
       { settings, doc } = input("cape", ["through"], seed),

@@ -25,7 +25,7 @@ import { pathIntersections } from "../geometry/intersections";
 import { bridgeGeometry, distance, gateOpening, unit, widthAt } from "../geometry/network";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { compactRing, offsetRing } from "../geometry/routing";
-import { samplePath } from "../geometry/sampling";
+import { samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater, vectorWaterSurfaces } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
@@ -658,7 +658,7 @@ function skeleton(
       innerId = "auto-inner-wall",
       // The old town takes `share` of the walled area; outlines scale about the centre.
       innerScale = Math.sqrt(inner?.share ?? 1);
-    const attempts: number[] = [];
+    const attempts: { rotation: number; scale: number }[] = [];
     const wallPath = (source: VectorPath["source"], pathId = id): VectorPath => ({
       id: pathId,
       revision: 0,
@@ -674,9 +674,38 @@ function skeleton(
           }
         : { leftMeters: 1, rightMeters: 1, stations: [] }
     });
+    // Standing water (sea, lake) the wall must keep off: as the mesh editor's `placeRing`, the outline is pulled in
+    // ray by ray to stay clear of it, and straight sides survive where the water does not reach them (P5a).
+    const seaRings = doc.site!.water.filter(w => !w.riverPathId).flatMap(w => w.polygons),
+      seaClearance = 6;
+    const clearOfSea = (ring: Point[]): Point[] => {
+      if (!seaRings.length) return ring;
+      const wet = (p: Point) =>
+        containsRegion(seaRings, p) ||
+        seaRings.some(w => [w.outer, ...w.holes].some(r => ringDistance(p, r) < seaClearance));
+      const dense = densify([...ring, ring[0]], 4);
+      if (!dense.some(wet)) return ring;
+      const pulled = dense.map(p => {
+        if (!wet(p)) return p;
+        let lo = 0,
+          hi = 1;
+        for (let i = 0; i < 20; i++) {
+          const mid = (lo + hi) / 2,
+            q: Point = [center[0] + (p[0] - center[0]) * mid, center[1] + (p[1] - center[1]) * mid];
+          if (wet(q)) hi = mid;
+          else lo = mid;
+        }
+        return [center[0] + (p[0] - center[0]) * lo, center[1] + (p[1] - center[1]) * lo] as Point;
+      });
+      // Eased by the wall's own thickness, so the pulled line has no kinks narrower than the wall.
+      const simple = simplifyFreehand([...pulled, pulled[0]], 4.5).slice(0, -1);
+      return simple.filter((p, i) => i === 0 || distance(p, simple[i - 1]) > 0.05);
+    };
     const ringAt = (rotation: number, scale = 1) =>
-      vectorUnitWallRing(settings.seed, shape as WallShape, settings.wallSides, rotation).map(
-        ([x, y]) => [center[0] + x * half * scale, center[1] + y * halfY * scale] as Point
+      clearOfSea(
+        vectorUnitWallRing(settings.seed, shape as WallShape, settings.wallSides, rotation).map(
+          ([x, y]) => [center[0] + x * half * scale, center[1] + y * halfY * scale] as Point
+        )
       );
     const preset = (pathId: string, scale: number) =>
       wallPath(
@@ -706,16 +735,27 @@ function skeleton(
               : [];
           }),
         crossers = [...fixed, ...approaches],
-        steepEnough = (path: VectorPath) => wallCrossingsFit(path, crossers, settings);
-      const rotations = Array.from({ length: 48 }, (_, k) => (k * Math.PI) / 24),
-        fits = rotations.filter(
-          rotation =>
-            steepEnough(wallPath(curveSource(ringAt(rotation), "polyline", true))) &&
-            (!inner || steepEnough(wallPath(curveSource(ringAt(rotation, innerScale), "polyline", true), innerId)))
+        // The site's own bridges (a synthesized river, an FMG crossing) stand clear of the wall.
+        siteDecks = Object.values(doc.connections.bridges).map(b => ({
+          outer: bridgeGeometry(doc, b, vectorWaterSurfaces(doc)).deck,
+          holes: []
+        })),
+        steepEnough = (path: VectorPath) =>
+          wallCrossingsFit(path, crossers, settings) &&
+          !regionBoolean([pathSurface(path)], siteDecks, "intersection").some(r => regionArea(r) > 1e-5);
+      // A wall that cannot clear the site's own bridges at any turn is drawn a little inside the site edge.
+      const turns = [1, 0.94, 0.88].flatMap(scale =>
+          Array.from({ length: 48 }, (_, k) => ({ rotation: (k * Math.PI) / 24, scale }))
+        ),
+        fits = turns.filter(
+          ({ rotation, scale }) =>
+            steepEnough(wallPath(curveSource(ringAt(rotation, scale), "polyline", true))) &&
+            (!inner ||
+              steepEnough(wallPath(curveSource(ringAt(rotation, innerScale * scale), "polyline", true), innerId)))
         );
       // The checks above are geometric; a rotation whose gates still fail validation gives way to the next one.
-      attempts.push(...fits, ...rotations.filter(r => !fits.includes(r)));
-    } else attempts.push(0);
+      attempts.push(...fits, ...turns.filter(t => t.scale === 1 && !fits.includes(t)));
+    } else attempts.push({ rotation: 0, scale: 1 });
     const start = doc;
     let failure: unknown;
     // A town moat that no rotation can bridge squarely gives way to the wall alone, as the mesh editor's
@@ -724,14 +764,17 @@ function skeleton(
       failure = undefined;
       if (!withMoat && settings.townMoat)
         diagnostics.push({ code: "town-moat-unplaced", entityId: TOWN_MOAT_ID, severity: "warning" });
-      for (const rotation of attempts) {
+      for (const { rotation, scale: outerScale } of attempts) {
         try {
           const tried = new Set(extended);
           let next = structuredClone(start);
           if (isVectorWallShape(shape)) {
-            next.paths[id] = wallPath(curveSource(ringAt(rotation), "polyline", true));
+            next.paths[id] = wallPath(curveSource(ringAt(rotation, outerScale), "polyline", true));
             if (inner)
-              next.paths[innerId] = wallPath(curveSource(ringAt(rotation, innerScale), "polyline", true), innerId);
+              next.paths[innerId] = wallPath(
+                curveSource(ringAt(rotation, innerScale * outerScale), "polyline", true),
+                innerId
+              );
           } else {
             next.paths[id] = preset(id, 1);
             if (inner) next.paths[innerId] = preset(innerId, innerScale);
@@ -765,7 +808,7 @@ function skeleton(
               deferredInner = {
                 make: scale =>
                   isVectorWallShape(shape)
-                    ? wallPath(curveSource(ringAt(turned, innerScale * scale), "polyline", true), innerId)
+                    ? wallPath(curveSource(ringAt(turned, innerScale * outerScale * scale), "polyline", true), innerId)
                     : preset(innerId, innerScale * scale),
                 parent: outerCircuit,
                 scale: innerScale

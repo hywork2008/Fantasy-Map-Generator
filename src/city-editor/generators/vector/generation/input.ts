@@ -18,6 +18,8 @@ import { createVectorDocument } from "../document";
 import { connectVectorAnchors, rebuildRoadGraph } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { containsRegion, regionBoolean } from "../geometry/regions";
+import { simplifyFreehand } from "../geometry/sampling";
+import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument } from "../validation/document";
 
@@ -221,6 +223,23 @@ export function vectorInputFromDescriptor(descriptor: BurgSiteDescriptor): Vecto
               rightMeters: width / 2
             });
         });
+        // A drawn course can bend tighter than its own width, which folds the channel's banks. Such a course is
+        // eased until its banks stay apart (an unsurveyed river only; surveyed banks are kept as given).
+        if (!surveyed?.rings.length)
+          for (const tolerance of [0, 2, 5, 10, 20]) {
+            try {
+              pathSurface(doc.paths[id]);
+              break;
+            } catch {
+              const eased = simplifyFreehand(segment.points.map(copy), tolerance || 1);
+              doc.paths[id] = importedPath(
+                id,
+                "river",
+                eased.length >= 2 ? eased : segment.points.map(copy),
+                Math.max(river.widthMeters, ...segment.widthsMeters)
+              );
+            }
+          }
         if (surveyed?.rings.length)
           site.water.push({
             id: `water:${id}`,
