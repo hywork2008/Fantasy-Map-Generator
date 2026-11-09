@@ -1,7 +1,7 @@
 import { worldSettings } from "./worldSettings";
 
 /**
- * Months of its own craft spending a town's workshops may owe its households (docs/plan/craft-book-credit.md).
+ * Months of its own craft spending a town's workshops may owe its market's dealers (docs/plan/craft-book-credit.md).
  * Town trade ran on book credit reckoned at the quarter days (Lady Day, Midsummer, Michaelmas,
  * Christmas) and carried on from one reckoning to the next: three months is one quarter. 0 turns
  * the credit off: a town makes only what its purse pays for. Saved with the world; the Simulation
