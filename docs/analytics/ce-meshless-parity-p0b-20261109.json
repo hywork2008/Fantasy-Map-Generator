@@ -1,0 +1,633 @@
+{
+  "format": "ce-meshless-parity-observation",
+  "version": 1,
+  "measuredAtUtc": "2026-11-09T00:26:59.495Z",
+  "cases": "docs/plan/data/ce-meshless-parity-cases.json",
+  "scope": "Element kinds and counts only. Positions and shapes are not compared. Mesh houses are the stored housing capacity's building counts; mesh woodland is derived for display from the district fabric.",
+  "rows": [
+    {
+      "id": "inland-walled",
+      "covers": [
+        "walls",
+        "gates",
+        "roads",
+        "river-through",
+        "bridges",
+        "plaza",
+        "temple",
+        "cemetery",
+        "houses",
+        "farms",
+        "forest"
+      ],
+      "mesh": {
+        "wallCircuits": 1,
+        "wallPaths": 1,
+        "gates": 4,
+        "roads": 10,
+        "rivers": 1,
+        "bridges": 1,
+        "castles": 0,
+        "bastionedTown": 0,
+        "plazas": 1,
+        "temples": 1,
+        "markets": 1,
+        "cemeteries": 1,
+        "harbors": 0,
+        "ships": 0,
+        "parks": 2,
+        "farms": 108,
+        "forests": 0,
+        "landmarks": 0,
+        "houses": 777,
+        "facilities": 0,
+        "targetPopulation": 3000,
+        "assignedPopulation": 3000,
+        "unplacedPopulation": 0,
+        "forestAreaM2": 0,
+        "layout": "organic",
+        "uses": {
+          "market": 3,
+          "craftsmen": 49,
+          "merchant": 8,
+          "none": 6,
+          "cemetery": 1,
+          "farm": 98,
+          "park": 2
+        }
+      },
+      "meshMs": 4392,
+      "meshless": {
+        "wallCircuits": 1,
+        "wallPaths": 1,
+        "gates": 6,
+        "roads": 20,
+        "rivers": 1,
+        "bridges": 1,
+        "castles": 0,
+        "bastionedTown": 0,
+        "plazas": 1,
+        "temples": 1,
+        "markets": 0,
+        "cemeteries": 1,
+        "harbors": 0,
+        "ships": 0,
+        "parks": 0,
+        "farms": 0,
+        "forests": 0,
+        "landmarks": 0,
+        "houses": 580,
+        "facilities": 0,
+        "targetPopulation": 3000,
+        "assignedPopulation": 3000,
+        "unplacedPopulation": 0,
+        "layout": "skeleton",
+        "uses": {
+          "residential": 99
+        }
+      },
+      "meshlessMs": 1449,
+      "missing": [
+        "markets",
+        "parks",
+        "farms"
+      ],
+      "extra": [
+        "layout:organic->skeleton"
+      ],
+      "fewer": []
+    },
+    {
+      "id": "citadel-shanty",
+      "covers": [
+        "castle",
+        "shanty",
+        "wards"
+      ],
+      "mesh": {
+        "wallCircuits": 2,
+        "wallPaths": 4,
+        "gates": 4,
+        "roads": 29,
+        "rivers": 0,
+        "bridges": 0,
+        "castles": 1,
+        "bastionedTown": 0,
+        "plazas": 1,
+        "temples": 1,
+        "markets": 1,
+        "cemeteries": 1,
+        "harbors": 0,
+        "ships": 0,
+        "parks": 3,
+        "farms": 622,
+        "forests": 0,
+        "landmarks": 0,
+        "houses": 1887,
+        "facilities": 0,
+        "targetPopulation": 3000,
+        "assignedPopulation": 3000,
+        "unplacedPopulation": 0,
+        "forestAreaM2": 0,
+        "layout": "organic",
+        "uses": {
+          "market": 5,
+          "merchant": 13,
+          "none": 4,
+          "craftsmen": 69,
+          "park": 3,
+          "farm": 508,
+          "empty": 2,
+          "castle": 1,
+          "cemetery": 1
+        }
+      },
+      "meshMs": 7754,
+      "meshless": {
+        "wallCircuits": 1,
+        "wallPaths": 1,
+        "gates": 4,
+        "roads": 21,
+        "rivers": 0,
+        "bridges": 0,
+        "castles": 0,
+        "bastionedTown": 0,
+        "plazas": 1,
+        "temples": 1,
+        "markets": 0,
+        "cemeteries": 1,
+        "harbors": 0,
+        "ships": 0,
+        "parks": 0,
+        "farms": 0,
+        "forests": 0,
+        "landmarks": 0,
+        "houses": 560,
+        "facilities": 0,
+        "targetPopulation": 3000,
+        "assignedPopulation": 3000,
+        "unplacedPopulation": 0,
+        "layout": "skeleton",
+        "uses": {
+          "residential": 107
+        }
+      },
+      "meshlessMs": 1049,
+      "missing": [
+        "castles",
+        "markets",
+        "parks",
+        "farms"
+      ],
+      "extra": [
+        "layout:organic->skeleton"
+      ],
+      "fewer": [
+        "wallCircuits"
+      ]
+    },
+    {
+      "id": "coastal-port",
+      "covers": [
+        "coast",
+        "river-to-coast",
+        "harbor",
+        "ships",
+        "sea-wall"
+      ],
+      "mesh": {
+        "wallCircuits": 1,
+        "wallPaths": 1,
+        "gates": 5,
+        "roads": 25,
+        "rivers": 1,
+        "bridges": 1,
+        "castles": 0,
+        "bastionedTown": 0,
+        "plazas": 1,
+        "temples": 1,
+        "markets": 1,
+        "cemeteries": 1,
+        "harbors": 2,
+        "ships": 2,
+        "parks": 1,
+        "farms": 383,
+        "forests": 0,
+        "landmarks": 0,
+        "houses": 904,
+        "facilities": 0,
+        "targetPopulation": 3000,
+        "assignedPopulation": 3000,
+        "unplacedPopulation": 0,
+        "forestAreaM2": 0,
+        "layout": "organic",
+        "uses": {
+          "market": 3,
+          "merchant": 8,
+          "none": 232,
+          "harbor": 4,
+          "craftsmen": 52,
+          "cemetery": 1,
+          "farm": 321,
+          "park": 1,
+          "empty": 1
+        }
+      },
+      "meshMs": 7484,
+      "meshless": {
+        "error": "Invalid vector document: gate-access:gate:1, gate-access:gate:9"
+      },
+      "meshlessMs": 988
+    },
+    {
+      "id": "open-village",
+      "covers": [
+        "no-walls",
+        "small-settlement",
+        "temple-only"
+      ],
+      "mesh": {
+        "wallCircuits": 0,
+        "wallPaths": 0,
+        "gates": 0,
+        "roads": 6,
+        "rivers": 0,
+        "bridges": 0,
+        "castles": 0,
+        "bastionedTown": 0,
+        "plazas": 0,
+        "temples": 1,
+        "markets": 0,
+        "cemeteries": 0,
+        "harbors": 0,
+        "ships": 0,
+        "parks": 0,
+        "farms": 39,
+        "forests": 0,
+        "landmarks": 0,
+        "houses": 236,
+        "facilities": 0,
+        "targetPopulation": 600,
+        "assignedPopulation": 600,
+        "unplacedPopulation": 0,
+        "forestAreaM2": 0,
+        "layout": "organic",
+        "uses": {
+          "none": 3,
+          "merchant": 3,
+          "craftsmen": 6,
+          "farm": 35
+        }
+      },
+      "meshMs": 331,
+      "meshless": {
+        "wallCircuits": 0,
+        "wallPaths": 0,
+        "gates": 0,
+        "roads": 17,
+        "rivers": 0,
+        "bridges": 0,
+        "castles": 0,
+        "bastionedTown": 0,
+        "plazas": 0,
+        "temples": 1,
+        "markets": 0,
+        "cemeteries": 1,
+        "harbors": 0,
+        "ships": 0,
+        "parks": 0,
+        "farms": 0,
+        "forests": 0,
+        "landmarks": 0,
+        "houses": 119,
+        "facilities": 0,
+        "targetPopulation": 600,
+        "assignedPopulation": 600,
+        "unplacedPopulation": 0,
+        "layout": "skeleton",
+        "uses": {
+          "residential": 46
+        }
+      },
+      "meshlessMs": 177,
+      "missing": [
+        "farms"
+      ],
+      "extra": [
+        "cemeteries",
+        "layout:organic->skeleton"
+      ],
+      "fewer": []
+    },
+    {
+      "id": "double-wall",
+      "covers": [
+        "double-walls",
+        "inner-gates"
+      ],
+      "mesh": {
+        "wallCircuits": 2,
+        "wallPaths": 2,
+        "gates": 7,
+        "roads": 10,
+        "rivers": 1,
+        "bridges": 2,
+        "castles": 0,
+        "bastionedTown": 0,
+        "plazas": 1,
+        "temples": 1,
+        "markets": 1,
+        "cemeteries": 1,
+        "harbors": 0,
+        "ships": 0,
+        "parks": 2,
+        "farms": 668,
+        "forests": 0,
+        "landmarks": 0,
+        "houses": 1153,
+        "facilities": 0,
+        "targetPopulation": 5000,
+        "assignedPopulation": 5000,
+        "unplacedPopulation": 0,
+        "forestAreaM2": 0,
+        "layout": "organic",
+        "uses": {
+          "market": 4,
+          "craftsmen": 74,
+          "merchant": 14,
+          "farm": 519,
+          "none": 6,
+          "park": 2,
+          "empty": 1,
+          "cemetery": 1
+        }
+      },
+      "meshMs": 9070,
+      "meshless": {
+        "wallCircuits": 1,
+        "wallPaths": 1,
+        "gates": 6,
+        "roads": 22,
+        "rivers": 1,
+        "bridges": 1,
+        "castles": 0,
+        "bastionedTown": 0,
+        "plazas": 1,
+        "temples": 1,
+        "markets": 0,
+        "cemeteries": 1,
+        "harbors": 0,
+        "ships": 0,
+        "parks": 0,
+        "farms": 0,
+        "forests": 0,
+        "landmarks": 0,
+        "houses": 936,
+        "facilities": 0,
+        "targetPopulation": 5000,
+        "assignedPopulation": 5000,
+        "unplacedPopulation": 0,
+        "layout": "skeleton",
+        "uses": {
+          "residential": 136
+        }
+      },
+      "meshlessMs": 1611,
+      "missing": [
+        "markets",
+        "parks",
+        "farms"
+      ],
+      "extra": [
+        "layout:organic->skeleton"
+      ],
+      "fewer": [
+        "wallCircuits",
+        "bridges"
+      ]
+    },
+    {
+      "id": "bastioned",
+      "covers": [
+        "bastioned-town",
+        "ravelins",
+        "wet-ditch",
+        "radial-streets",
+        "period-age-of-exploration"
+      ],
+      "mesh": {
+        "wallCircuits": 1,
+        "wallPaths": 1,
+        "gates": 4,
+        "roads": 10,
+        "rivers": 0,
+        "bridges": 0,
+        "castles": 0,
+        "bastionedTown": 1,
+        "plazas": 1,
+        "temples": 1,
+        "markets": 1,
+        "cemeteries": 1,
+        "harbors": 0,
+        "ships": 0,
+        "parks": 5,
+        "farms": 312,
+        "forests": 0,
+        "landmarks": 0,
+        "houses": 0,
+        "facilities": 0,
+        "targetPopulation": 0,
+        "assignedPopulation": 0,
+        "unplacedPopulation": 0,
+        "forestAreaM2": 0,
+        "layout": "bastioned",
+        "uses": {
+          "none": 416,
+          "farm": 279,
+          "craftsmen": 136,
+          "cemetery": 1,
+          "market": 12,
+          "merchant": 26,
+          "park": 5
+        }
+      },
+      "meshMs": 6303,
+      "meshless": {
+        "wallCircuits": 1,
+        "wallPaths": 1,
+        "gates": 4,
+        "roads": 22,
+        "rivers": 0,
+        "bridges": 0,
+        "castles": 0,
+        "bastionedTown": 0,
+        "plazas": 1,
+        "temples": 1,
+        "markets": 0,
+        "cemeteries": 1,
+        "harbors": 0,
+        "ships": 0,
+        "parks": 0,
+        "farms": 0,
+        "forests": 0,
+        "landmarks": 0,
+        "houses": 880,
+        "facilities": 0,
+        "targetPopulation": 5000,
+        "assignedPopulation": 5000,
+        "unplacedPopulation": 0,
+        "layout": "skeleton",
+        "uses": {
+          "residential": 829
+        }
+      },
+      "meshlessMs": 1984,
+      "missing": [
+        "bastionedTown",
+        "markets",
+        "parks",
+        "farms"
+      ],
+      "extra": [
+        "houses",
+        "layout:bastioned->skeleton"
+      ],
+      "fewer": []
+    },
+    {
+      "id": "circulade",
+      "covers": [
+        "layout-circulade"
+      ],
+      "mesh": {
+        "wallCircuits": 1,
+        "wallPaths": 1,
+        "gates": 2,
+        "roads": 4,
+        "rivers": 0,
+        "bridges": 0,
+        "castles": 0,
+        "bastionedTown": 0,
+        "plazas": 1,
+        "temples": 1,
+        "markets": 1,
+        "cemeteries": 1,
+        "harbors": 0,
+        "ships": 0,
+        "parks": 5,
+        "farms": 533,
+        "forests": 0,
+        "landmarks": 0,
+        "houses": 0,
+        "facilities": 0,
+        "targetPopulation": 0,
+        "assignedPopulation": 0,
+        "unplacedPopulation": 0,
+        "forestAreaM2": 0,
+        "layout": "circulade",
+        "uses": {
+          "merchant": 22,
+          "craftsmen": 121,
+          "market": 9,
+          "park": 5,
+          "farm": 434,
+          "none": 1,
+          "cemetery": 1,
+          "empty": 1
+        }
+      },
+      "meshMs": 4496,
+      "meshless": {
+        "wallCircuits": 1,
+        "wallPaths": 1,
+        "gates": 4,
+        "roads": 22,
+        "rivers": 0,
+        "bridges": 0,
+        "castles": 0,
+        "bastionedTown": 0,
+        "plazas": 1,
+        "temples": 1,
+        "markets": 0,
+        "cemeteries": 1,
+        "harbors": 0,
+        "ships": 0,
+        "parks": 0,
+        "farms": 0,
+        "forests": 0,
+        "landmarks": 0,
+        "houses": 526,
+        "facilities": 0,
+        "targetPopulation": 3000,
+        "assignedPopulation": 3000,
+        "unplacedPopulation": 0,
+        "layout": "skeleton",
+        "uses": {
+          "residential": 830
+        }
+      },
+      "meshlessMs": 1846,
+      "missing": [
+        "markets",
+        "parks",
+        "farms"
+      ],
+      "extra": [
+        "houses",
+        "layout:circulade->skeleton"
+      ],
+      "fewer": []
+    },
+    {
+      "id": "relief-polygon",
+      "covers": [
+        "relief",
+        "elevation-preset",
+        "skeleton-first",
+        "wall-shape-polygon"
+      ],
+      "mesh": {
+        "wallCircuits": 1,
+        "wallPaths": 1,
+        "gates": 5,
+        "roads": 10,
+        "rivers": 1,
+        "bridges": 2,
+        "castles": 0,
+        "bastionedTown": 0,
+        "plazas": 1,
+        "temples": 1,
+        "markets": 1,
+        "cemeteries": 1,
+        "harbors": 0,
+        "ships": 0,
+        "parks": 9,
+        "farms": 571,
+        "forests": 0,
+        "landmarks": 0,
+        "houses": 0,
+        "facilities": 0,
+        "targetPopulation": 0,
+        "assignedPopulation": 0,
+        "unplacedPopulation": 0,
+        "forestAreaM2": 0,
+        "layout": "organic",
+        "uses": {
+          "farm": 533,
+          "craftsmen": 255,
+          "none": 21,
+          "merchant": 42,
+          "market": 18,
+          "park": 9,
+          "cemetery": 1,
+          "empty": 1
+        }
+      },
+      "meshMs": 6622,
+      "meshless": {
+        "error": "unbridged-road:fmg-road:2:1"
+      },
+      "meshlessMs": 682
+    }
+  ]
+}

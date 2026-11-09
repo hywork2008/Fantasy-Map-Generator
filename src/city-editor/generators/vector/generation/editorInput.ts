@@ -7,9 +7,9 @@ import { planPopulation } from "../../populationPlan";
 import { synthSite } from "../../site/synthSite";
 import { featureReservations } from "../environmentState";
 import { regionArea } from "../geometry/regions";
-import { seedVectorCivicCentre } from "./civic";
+import { seedVectorCivicCentre, vectorCivicLayout } from "./civic";
 import { syntheticVectorInput, vectorInputFromDescriptor } from "./input";
-import { meshlessCityRadius } from "./urbanSizing";
+import { MESHLESS_SITE_RIM_METERS, meshlessCityRadius } from "./urbanSizing";
 
 export interface VectorEditorGenerationInput {
   seed: string;
@@ -18,6 +18,9 @@ export interface VectorEditorGenerationInput {
   /** Meshless lot occupancy: the native site is sized so its CE lots at this occupancy hold the population. */
   lotOccupancy?: number;
 }
+
+/** Housing land lost per square metre of civic precinct, counting its setbacks and fronting streets. */
+const CIVIC_LAND_FACTOR = 1.5;
 
 /** The standalone default uses native input geometry, never a mesh or a legacy city conversion. */
 export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
@@ -51,7 +54,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
       descriptor.burg.dwellings = getUrbanDwellings(descriptor.burg.population);
     }
   }
-  const build = (radius: number) => {
+  const build = (radius: number, civic = true) => {
     const doc = descriptor
       ? vectorInputFromDescriptor(descriptor)
       : syntheticVectorInput(seed, radius, settings.config.rivers.length > 0);
@@ -63,7 +66,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
       // site reserves one third of the same street-cell width as its boundary margin.
       doc.frame.extentMeters = Math.max(input.frame.extentMeters, frame.extentMeters, doc.frame.extentMeters);
       doc.site!.id = "standalone-ce-site";
-      seedVectorCivicCentre(doc, settings.config.features);
+      if (civic) seedVectorCivicCentre(doc, settings.config.features);
     }
     return doc;
   };
@@ -81,11 +84,18 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
       input.lotOccupancy,
       reservedM2
     );
-  const first = build(size(0));
+  // The first pass leaves the civic centre out: on a site sized for houses alone it may not fit yet.
+  const first = build(size(0), false);
   const reserved = [
     ...featureReservations(first),
     ...Object.values(first.regions).filter(r => r.kind === "reservation"),
     ...Object.values(first.placements).map(p => p.site)
   ].reduce((n, r) => n + regionArea({ outer: r.outer, holes: r.holes }), 0);
-  return reserved > 0 ? build(size(reserved)) : first;
+  const civic = vectorCivicLayout(settings.population.targetPopulation, settings.config.features);
+  if (!reserved && !civic.specs.length) return build(size(0));
+  // The civic centre takes its area from the houses' land, and more: lots stop short of its setbacks and the
+  // streets that front it. Its farthest corner must stay inside the rim.
+  return build(
+    Math.max(size(reserved + civic.areaM2 * CIVIC_LAND_FACTOR), civic.radiusMeters + MESHLESS_SITE_RIM_METERS)
+  );
 }

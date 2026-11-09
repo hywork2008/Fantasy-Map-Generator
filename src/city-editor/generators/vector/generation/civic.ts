@@ -5,7 +5,7 @@ import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorFeature } from "../../../types/vector/environment";
 import { layoutCultureCemeteryOnSite } from "../../cultureCemeteryLayout";
 import { nearestOnPolyline, polygonCentroid } from "../../geom";
-import { plazaFootprintMeters, templeReservationMeters } from "../../housing";
+import { civicSizeForPopulation } from "../../housing";
 import { insetConvexKernel } from "../../lotGeometry";
 import { joinVectorGenerationAnchors, rebuildRoadGraph } from "../editing/network";
 import { curveSource } from "../editing/paths";
@@ -24,12 +24,14 @@ const box = (center: Point, width: number, height: number) => ({
   holes: [] as Point[][]
 });
 
-/** Reserve central civic land before routing or housing. No facility search or city mesh is used. */
-export function seedVectorCivicCentre(doc: VectorCityDocument, options: { plaza: boolean; temple: boolean }) {
-  if (!doc.site || (!options.plaza && !options.temple)) return;
-  const side = plazaFootprintMeters(doc.frame.extentMeters),
-    church = templeReservationMeters(doc.frame.extentMeters),
-    road = Object.values(doc.paths).find(p => p.role === "road")!;
+type CivicOptions = { plaza: boolean; temple: boolean };
+/** Plaza, church and churchyard around the site centre, from the target population alone. */
+export function vectorCivicLayout(population: number, options: CivicOptions) {
+  // Sized by the target population: the map window says nothing about how large the town is.
+  const civic = civicSizeForPopulation(population),
+    side = civic.plazaSideMeters,
+    church = civic.temple,
+    graveDepth = church.type === "chapel" ? (church.length < 20 ? 20 : 30) : 40;
   const plazaCenter: Point = [0, -side / 2 - 8],
     churchCenter: Point = [-side / 2 - 8 - church.length / 2, plazaCenter[1]];
   const specs: { id: string; kind: VectorFeature["kind"]; boundary: ReturnType<typeof box>; center: Point }[] = [];
@@ -47,9 +49,40 @@ export function seedVectorCivicCentre(doc: VectorCityDocument, options: { plaza:
       boundary: box(churchCenter, church.length + 4, church.width + 4),
       center: churchCenter
     });
-    const center: Point = [churchCenter[0], churchCenter[1] - church.width / 2 - 8 - 20];
-    specs.push({ id: "feature:civic-cemetery", kind: "cemetery", boundary: box(center, church.length, 40), center });
+    const center: Point = [churchCenter[0], churchCenter[1] - church.width / 2 - 8 - graveDepth / 2];
+    specs.push({
+      id: "feature:civic-cemetery",
+      kind: "cemetery",
+      boundary: box(center, Math.max(church.length, 20), graveDepth),
+      center
+    });
   }
+  return {
+    church,
+    churchCenter,
+    specs,
+    // The site sizing has always counted the church building on top of its precinct (the building is a reserved
+    // placement inside the reserved precinct); it stays counted so the housing land is unchanged.
+    areaM2:
+      specs.reduce((n, s) => n + regionArea(s.boundary), 0) +
+      (options.temple
+        ? church.type === "basilica"
+          ? (placementFootprint("catalogue:basilica-temple", "low")?.halfX ?? 0) *
+            2 *
+            (placementFootprint("catalogue:basilica-temple", "low")?.halfZ ?? 0) *
+            2
+          : church.length * church.width
+        : 0),
+    /** Farthest civic corner from the site centre. */
+    radiusMeters: Math.max(0, ...specs.flatMap(s => s.boundary.outer.map(p => Math.hypot(p[0], p[1]))))
+  };
+}
+
+/** Reserve central civic land before routing or housing. No facility search or city mesh is used. */
+export function seedVectorCivicCentre(doc: VectorCityDocument, options: CivicOptions) {
+  if (!doc.site || (!options.plaza && !options.temple)) return;
+  const { church, churchCenter, specs } = vectorCivicLayout(doc.context.targetPopulation ?? 0, options),
+    road = Object.values(doc.paths).find(p => p.role === "road")!;
   const water = allVectorWater(doc);
   if (
     specs.some(
@@ -77,16 +110,26 @@ export function seedVectorCivicCentre(doc: VectorCityDocument, options: { plaza:
         s.kind === "market"
           ? [{ id: `${s.id}:ground`, role: "ground", polygon: s.boundary, heightMeters: 0.02, color: "#d9cfba" }]
           : [],
-      settings: { density: 0, heightMeters: 46, activity: "closed", culture: "stone", moatWidthMeters: 0 },
+      settings: {
+        density: 0,
+        heightMeters: church.heightMeters,
+        activity: "closed",
+        culture: "stone",
+        moatWidthMeters: 0
+      },
       editPolicy: "editable"
     };
   }
   if (options.temple) {
     const f = doc.environment.features["feature:civic-church"],
-      modelId = "catalogue:basilica-temple",
-      footprint = placementFootprint(modelId, "low");
-    if (!footprint) throw Error("civic-church-model");
-    const site = box(churchCenter, footprint.halfX * 2, footprint.halfZ * 2),
+      basilica = church.type === "basilica",
+      // Only the basilica has a catalogue model; a chapel is drawn as its massing.
+      modelId = basilica ? "catalogue:basilica-temple" : "ce-civic-chapel",
+      footprint = basilica ? placementFootprint(modelId, "low") : undefined;
+    if (basilica && !footprint) throw Error("civic-church-model");
+    const site = footprint
+        ? box(churchCenter, footprint.halfX * 2, footprint.halfZ * 2)
+        : box(churchCenter, church.length, church.width),
       id = "civic:church";
     doc.placements[id] = {
       id,
@@ -100,10 +143,12 @@ export function seedVectorCivicCentre(doc: VectorCityDocument, options: { plaza:
       appearance: { quality: "low" },
       display: {
         kind: "landmark",
-        heightMeters: 46,
+        heightMeters: church.heightMeters,
         footprint: [site],
         provenance: "copied",
-        note: "Central CE basilica at catalogue dimensions; excluded from residential capacity.",
+        note: basilica
+          ? "Central CE basilica at catalogue dimensions; excluded from residential capacity."
+          : "Parish chapel sized for the population; excluded from residential capacity.",
         dwellings: 0
       }
     };

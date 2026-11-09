@@ -11,7 +11,7 @@
     "missing": "Absent",
     "not-applicable": "Cell-specific; replaced or dropped by section 3.4 of the definition"
   },
-  "observation": "docs/analytics/ce-meshless-parity-p0-20261109.json",
+  "observation": "docs/analytics/ce-meshless-parity-p0b-20261109.json",
   "rows": [
     {
       "category": "setting",
@@ -63,7 +63,7 @@
       "id": "config.coast",
       "mesh": "none | straight | bay | cape",
       "meshless": "missing",
-      "evidence": "Synthetic coast is not generated; the parity case coastal-port fails with site-input. FMG water arrives only through a descriptor.",
+      "evidence": "Synthetic coast reaches the input since P0b, but the skeleton fails (parity case coastal-port: gate-access). FMG water arrives only through a descriptor.",
       "stage": "P5",
       "checked": true
     },
@@ -81,7 +81,7 @@
       "id": "config.relief",
       "mesh": "boolean",
       "meshless": "missing",
-      "evidence": "The parity case relief-polygon fails with width-fold. FMG heights are read (M8).",
+      "evidence": "Relief goes through the synthesized descriptor; the skeleton fails on its imported roads crossing the river without fixed crossings (parity case relief-polygon: unbridged-road). FMG heights are read (M8).",
       "stage": "P8",
       "checked": true
     },
@@ -108,7 +108,7 @@
       "id": "config.features.plaza",
       "mesh": "CityProgram",
       "meshless": "partial",
-      "evidence": "seedVectorCivicCentre reserves it, sized by frame extent; fails with civic-site-space at 600-3000 people (parity cases).",
+      "evidence": "seedVectorCivicCentre reserves it, sized by population (civicSizeForPopulation, P0b). Not the mesh editor's plaza or market rules.",
       "stage": "P6",
       "checked": true
     },
@@ -117,7 +117,7 @@
       "id": "config.features.temple",
       "mesh": "CityProgram",
       "meshless": "partial",
-      "evidence": "As plaza; adds a cemetery.",
+      "evidence": "As plaza: a chapel below 3,000 people (drawn as massing), the catalogue basilica above; adds a cemetery.",
       "stage": "P6",
       "checked": true
     },
@@ -575,7 +575,7 @@
       "id": "plaza",
       "mesh": "plaza element",
       "meshless": "partial",
-      "evidence": "Reserved as a civic feature; fails on small sites.",
+      "evidence": "Reserved as a civic feature sized by population (P0b).",
       "stage": "P6",
       "checked": true,
       "census": "plazas"
@@ -595,7 +595,7 @@
       "id": "temple",
       "mesh": "temple element",
       "meshless": "partial",
-      "evidence": "Reserved as a civic feature.",
+      "evidence": "Chapel or basilica by population (P0b); a chapel has no catalogue model.",
       "stage": "P6",
       "checked": true,
       "census": "temples"

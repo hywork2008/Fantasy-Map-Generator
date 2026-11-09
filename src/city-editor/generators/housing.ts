@@ -73,6 +73,31 @@ export function templeReservationMeters(extentMeters: number, sizeMeters?: numbe
   };
 }
 
+/** Civic centre sized by the town's population rather than its map window (provisional values). The market
+ * square grows from a village green to a city square; a basilica is reserved only from town size up, smaller
+ * places get a chapel. The basilica keeps its catalogue model's dimensions. */
+export interface PopulationCivicSize {
+  plazaSideMeters: number;
+  temple: { type: "chapel" | "basilica"; length: number; width: number; heightMeters: number };
+}
+const POPULATION_PLAZA_M: [maxPopulation: number, side: number][] = [
+  [1000, 18],
+  [3000, 30],
+  [8000, 48],
+  [25000, 64],
+  [Infinity, 88]
+];
+export function civicSizeForPopulation(population: number): PopulationCivicSize {
+  const plazaSideMeters = POPULATION_PLAZA_M.find(([max]) => population < max)![1];
+  const temple =
+    population < 1000
+      ? { type: "chapel" as const, length: 14, width: 8, heightMeters: 10 }
+      : population < 3000
+        ? { type: "chapel" as const, length: 22, width: 10, heightMeters: 12 }
+        : { type: "basilica" as const, ...BASILICA_RESERVATION_METERS, heightMeters: 46 };
+  return { plazaSideMeters, temple };
+}
+
 export function plazaFootprintMeters(extentMeters: number): number {
   return PLAZA_FOOTPRINT_M[civicSizeForExtent(extentMeters)];
 }

@@ -40,6 +40,39 @@ const importedPath = (id: string, role: VectorPath["role"], points: Point[], wid
   source: curveSource(points, "polyline", false),
   width: { leftMeters: width / 2, rightMeters: width / 2, stations: [] }
 });
+/** Where the segment from inside point `a` to `b` leaves the square window of half size `half`. */
+function windowExit(a: Point, b: Point, half: number): Point {
+  let t = 1;
+  for (const axis of [0, 1])
+    if (b[axis] !== a[axis]) {
+      const edge = b[axis] > a[axis] ? half : -half,
+        at = (edge - a[axis]) / (b[axis] - a[axis]);
+      if (at >= 0 && at < t) t = at;
+    }
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+}
+/**
+ * A river course cut at the window. The synthesized course can step past the window and then end on its edge,
+ * turning back on itself; a ribbon around that end folds. Leading and trailing points outside or on the edge give
+ * way to the point where the course crosses the edge, with the width of the inside neighbour.
+ */
+function trimToWindow(points: Point[], widths: number[], half: number) {
+  const inside = (p: Point) => Math.abs(p[0]) < half - 1e-6 && Math.abs(p[1]) < half - 1e-6,
+    first = points.findIndex(inside),
+    last = points.findLastIndex(inside);
+  if (first < 0 || (first === 0 && last === points.length - 1)) return { points, widthsMeters: widths };
+  const kept = points.slice(first, last + 1),
+    keptWidths = widths.slice(first, last + 1);
+  if (first > 0) {
+    kept.unshift(windowExit(points[first], points[first - 1], half));
+    keptWidths.unshift(widths[first]);
+  }
+  if (last < points.length - 1) {
+    kept.push(windowExit(points[last], points[last + 1], half));
+    keptWidths.push(widths[last]);
+  }
+  return { points: kept, widthsMeters: keptWidths };
+}
 function seal(doc: VectorCityDocument, site: VectorSite): VectorCityDocument {
   doc.site = site;
   const heightfield = site.descriptor?.terrain.heightfield;
@@ -172,7 +205,11 @@ export function vectorInputFromDescriptor(descriptor: BurgSiteDescriptor): Vecto
       }
     } else
       for (let i = 0; i < river.segments.length; i++) {
-        const segment = river.segments[i],
+        const segment = trimToWindow(
+            river.segments[i].points,
+            river.segments[i].widthsMeters,
+            doc.frame.extentMeters / 2
+          ),
           id = `fmg-river:${river.riverId}:segment:${i}`;
         doc.paths[id] = importedPath(id, "river", segment.points.map(copy), river.widthMeters);
         segment.widthsMeters.forEach((width, j) => {
@@ -212,11 +249,14 @@ export function vectorInputFromDescriptor(descriptor: BurgSiteDescriptor): Vecto
       site.water.push({ id: `fmg-regional-water:${i}`, polygons: [{ outer: feature.ring.map(copy), holes: [] }] });
   if (d.waterbody && !site.water.some(w => !w.riverPathId)) {
     for (const [i, line] of d.waterbody.shoreline.entries()) {
-      const polygon = closeCorridor(
-        line.map(copy),
-        azimuthToVec(d.waterbody.shoreAzimuthDeg),
-        doc.frame.extentMeters / 2
-      );
+      // As the mesh skeleton does: a shoreline reaching past the window closes on a square around it instead,
+      // or the closing walk along the window crosses the shoreline.
+      const shore = line.map(copy),
+        polygon = closeCorridor(
+          shore,
+          azimuthToVec(d.waterbody.shoreAzimuthDeg),
+          Math.max(doc.frame.extentMeters / 2, ...shore.map(p => Math.max(Math.abs(p[0]), Math.abs(p[1])))) + 1
+        );
       if (!polygon) throw new Error("coastal-coverage-missing");
       site.water.push({ id: `fmg-coast:${i}`, polygons: [{ outer: polygon, holes: [] }] });
     }
