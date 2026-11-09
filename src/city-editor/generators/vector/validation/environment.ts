@@ -12,6 +12,7 @@ import { simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { validateVectorGuilds } from "../guild";
 import { validateVectorHarbor } from "../harbor";
+import { validateVectorInns } from "../inn";
 import { validateVectorMonasteries } from "../monastery";
 import { validateVectorLandscape } from "./landscape";
 
@@ -134,6 +135,7 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
           "ferries",
           "monasteries",
           "guilds",
+          "inns",
           "landscape",
           "terrain",
           "hidden",
@@ -153,6 +155,7 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
     ...validateVectorFerries(doc),
     ...validateVectorMonasteries(doc),
     ...validateVectorGuilds(doc),
+    ...validateVectorInns(doc),
     ...validateVectorLandscape(doc)
   ];
   if (e.freeformSource && !parseFreeformCity(JSON.stringify(e.freeformSource)))

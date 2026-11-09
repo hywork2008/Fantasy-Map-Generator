@@ -52,6 +52,8 @@ export interface VectorEnvironment {
   monasteries?: Record<string, import("./monastery").Monastery>;
   /** Guild halls in the town and their yards outside it, by the mesh editor's guild rules (P6d). */
   guilds?: import("./guild").VectorGuildWorks;
+  /** Wayside inns and caravanserais on the busiest approach, by the mesh editor's inn rules (P6e). */
+  inns?: import("./inn").GateInn[];
   defenses?: Record<string, import("./defense").VectorDefensePlan>;
   /** Freeform's authored ledger is the height/earthwork authority, not a synthetic cell mesh. */
   terrain?: FreeformCity;

@@ -34,6 +34,7 @@ import { CASTLE_FEATURE_ID, CASTLE_SITE_ID, raiseVectorCastle, reserveVectorCast
 import { connectVectorCivicCentre } from "./civic";
 import { isFerryRiver, raiseVectorFerries } from "./ferries";
 import { raiseVectorGuilds } from "./guilds";
+import { raiseVectorInns } from "./inns";
 import { CIVIC_PLAZA_ID, raiseVectorPlazaMarket } from "./market";
 import { raiseVectorMonasteries } from "./monasteries";
 import { type RouteLink, skeletonRoutes } from "./routes";
@@ -652,6 +653,7 @@ function skeleton(
     if (doc.environment?.ferries) delete doc.environment.ferries;
     if (doc.environment?.monasteries) delete doc.environment.monasteries;
     if (doc.environment?.guilds) delete doc.environment.guilds;
+    if (doc.environment?.inns) delete doc.environment.inns;
     // The plaza's market day is laid again on the new streets.
     for (const id of Object.keys(doc.placements)) if (id.startsWith("civic:market-stall:")) delete doc.placements[id];
     const plaza = doc.environment?.features[CIVIC_PLAZA_ID];
@@ -1243,6 +1245,11 @@ function skeleton(
   doc = guilds.document;
   if (guilds.placed < guilds.wanted)
     diagnostics.push({ code: "guild-unplaced", entityId: String(guilds.wanted - guilds.placed), severity: "warning" });
+  // Inns and caravanserais on the busiest approach, beyond the town (P6e).
+  const lodged = raiseVectorInns(doc, deriveVectorBlocks(doc));
+  doc = lodged.document;
+  if (lodged.placed < lodged.wanted)
+    diagnostics.push({ code: "inn-unplaced", entityId: String(lodged.wanted - lodged.placed), severity: "warning" });
   doc.revision++;
   assertVectorDocument(doc);
   timed("connections-and-validation");

@@ -632,8 +632,8 @@
       "category": "generated",
       "id": "gate-plaza-and-inn",
       "mesh": "gate plaza buildings and inn",
-      "meshless": "missing",
-      "evidence": "Not generated.",
+      "meshless": "partial",
+      "evidence": "P6e: the FMG economy's inns and caravanserais on the approach with the most recorded traffic, by the mesh editor's rules (placeInnsOnApproach, cut from placeGateInns): largest yard first, beyond the town edge beside the road; stored as environment.inns and drawn as a ring of rooms round the stable yard. Not yet: the gate plaza and commerce facilities (approachCommerce), the commerce inn's seat and through-yard, standalone towns (no economy).",
       "stage": "P6",
       "checked": true
     },

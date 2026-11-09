@@ -27,21 +27,12 @@ const grown = (polygon: Point[], by: number) =>
     : polygon;
 
 /**
- * The guilds of an FMG town's economy (`planGuildFacilities`) placed by the mesh editor's rules (`placeGuildWorks`,
- * P6d): each chapter's hall in a land block of the town core, the trades with dirty or bulky work toward the edge,
- * and its yards outside the town, a bleaching field upstream on a river bank. The meshless view gives the planner
- * the land blocks inside the town and square pieces beside the approach roads beyond it; the site grows to take
- * the yards placed there.
+ * The mesh editor's town view for its works (guild yards, inns) on a meshless site (P6d, P6e): the outer wall or the
+ * site outline as the town, its land blocks inside, square pieces beside the approach roads beyond it, and the
+ * site's water, roads, walls and reserved ground as obstacles. Claimed pieces block the next.
  */
-export function raiseVectorGuilds(
-  doc: VectorCityDocument,
-  blocks: VectorBlock[]
-): { document: VectorCityDocument; wanted: number; placed: number } {
-  const site = doc.site!,
-    economy = site.descriptor?.economy,
-    plan = planGuildFacilities(economy, doc.context.historicalPeriod ?? "ageOfExploration"),
-    wanted = plan.reduce((n, f) => n + (f.hall ? 1 : 0) + f.ancillary.filter(k => k !== "tannery").length, 0);
-  if (!wanted) return { document: doc, wanted: 0, placed: 0 };
+export function vectorWorksSite(doc: VectorCityDocument, blocks: VectorBlock[]) {
+  const site = doc.site!;
   const walls = Object.values(doc.paths).filter(p => p.role === "wall"),
     outerWall = walls.find(w => pathIsClosed(w) && !w.id.includes("inner")),
     town = outerWall
@@ -140,6 +131,26 @@ export function raiseVectorGuilds(
     approachClearance: () => 0,
     outworkReach: () => 0
   };
+  return { view, town, insideTown, roads };
+}
+
+/**
+ * The guilds of an FMG town's economy (`planGuildFacilities`) placed by the mesh editor's rules (`placeGuildWorks`,
+ * P6d): each chapter's hall in a land block of the town core, the trades with dirty or bulky work toward the edge,
+ * and its yards outside the town, a bleaching field upstream on a river bank. The meshless view gives the planner
+ * the land blocks inside the town and square pieces beside the approach roads beyond it; the site grows to take
+ * the yards placed there.
+ */
+export function raiseVectorGuilds(
+  doc: VectorCityDocument,
+  blocks: VectorBlock[]
+): { document: VectorCityDocument; wanted: number; placed: number } {
+  const site = doc.site!,
+    economy = site.descriptor?.economy,
+    plan = planGuildFacilities(economy, doc.context.historicalPeriod ?? "ageOfExploration"),
+    wanted = plan.reduce((n, f) => n + (f.hall ? 1 : 0) + f.ancillary.filter(k => k !== "tannery").length, 0);
+  if (!wanted) return { document: doc, wanted: 0, placed: 0 };
+  const { view } = vectorWorksSite(doc, blocks);
   const works = placeGuildWorks(view, plan, economy?.year ?? 0);
   const placed = works.halls.length + works.yards.length;
   if (!placed) return { document: doc, wanted, placed };
