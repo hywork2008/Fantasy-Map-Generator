@@ -260,8 +260,8 @@
       "category": "setting",
       "id": "moats",
       "mesh": "town / castle moats",
-      "meshless": "authored-only",
-      "evidence": "Moat as an authored environment feature.",
+      "meshless": "partial",
+      "evidence": "P4c-2: moats.town gives the outer wall a 12 m wet moat (the mesh editor's town moat width) a 6 m berm outside its foot, with a straight bridge on every road; the wall is turned until every bridge meets the shared skew policy, else the wall stands alone with the town-moat-unplaced diagnostic (1 in 30 sampled towns, a bastioned outline). Castle moats are P4e.",
       "stage": "P4",
       "checked": true
     },

@@ -32,10 +32,11 @@ export function vectorWallChoice(
     | "walledAreaShare"
     | "townWallBuildOrder"
     | "townFortification"
+    | "moats"
   >,
   seed: string,
   period: HistoricalPeriod
-): Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial" | "innerWall"> {
+): Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat"> {
   // A bastioned town brings its own trace as input geometry (P4c); the skeleton keeps it.
   if (!settings.config.features.walls || settings.townFortification?.kind === "bastioned") return { wall: "none" };
   const rng = makeRng(`${seed}:vector-wall:choice`),
@@ -54,6 +55,7 @@ export function vectorWallChoice(
         : population === undefined || population >= 1500
           ? "stone"
           : "wood",
+    ...(settings.moats?.town ? { townMoat: true } : {}),
     // The mesh editor's old town takes the walled share, 45% by default (`innerWalledAreaShare`).
     ...(settings.townWallRings === "double"
       ? {
@@ -83,7 +85,7 @@ export function vectorWallAreaShare(seed: string, shape: WallShape, sides?: numb
 
 /** The wall fields of saved or shared skeleton settings. */
 export function vectorWallSettings(
-  s: Partial<Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial" | "innerWall">>
+  s: Partial<Pick<VectorGenerationSettings, "wall" | "wallSides" | "wallMaterial" | "innerWall" | "townMoat">>
 ) {
   return (
     typeof s.wall === "string" &&
@@ -93,6 +95,7 @@ export function vectorWallSettings(
         s.wallSides >= VECTOR_WALL_SIDES.min &&
         s.wallSides <= VECTOR_WALL_SIDES.max)) &&
     (s.wallMaterial === undefined || s.wallMaterial === "stone" || s.wallMaterial === "wood") &&
+    (s.townMoat === undefined || (typeof s.townMoat === "boolean" && s.wall !== "none")) &&
     (s.innerWall === undefined ||
       (s.wall !== "none" &&
         typeof s.innerWall === "object" &&

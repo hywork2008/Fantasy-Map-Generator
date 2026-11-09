@@ -38,7 +38,7 @@ export const MESHLESS_SETTING_SUPPORT: Record<string, { state: MeshlessSettingSt
   townWallDefensePolicy: { state: "missing", stage: "P4" },
   walledAreaShare: { state: "partial", stage: "P4" },
   townFortification: { state: "partial", stage: "P4" },
-  moats: { state: "authored-only", stage: "P4" },
+  moats: { state: "partial", stage: "P4" },
   castle: { state: "authored-only", stage: "P4" },
   castleStreetLinks: { state: "missing", stage: "P4" },
   castleOutward: { state: "missing", stage: "P4" },

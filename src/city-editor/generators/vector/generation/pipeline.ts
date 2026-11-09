@@ -18,6 +18,7 @@ import { evaluateAnchor, pathIsClosed, pathSegmentIds } from "../geometry/curves
 import { pathIntersections } from "../geometry/intersections";
 import { bridgeGeometry, distance, gateOpening, unit, widthAt } from "../geometry/network";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { compactRing, offsetRing } from "../geometry/routing";
 import { samplePath } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater, vectorWaterSurfaces } from "../geometry/water";
@@ -198,6 +199,64 @@ function wallCrossingsFit(
       gates.push({ at, opening });
     }
   return true;
+}
+export const TOWN_MOAT_ID = "auto-moat";
+/** The mesh editor's town moat (`circuits.ts`: 12 m) and the berm between it and the wall foot. */
+const TOWN_MOAT_WIDTH_METERS = 12,
+  MOAT_BERM_METERS = 6;
+/**
+ * A wet moat round the outer wall (P4c-2): a closed water course a berm outside the wall foot, with a straight
+ * bridge wherever a road crosses it. The bridges keep to the shared skew policy through document validation; a
+ * wall turned so that a road meets the moat obliquely is rejected and the next rotation tried.
+ */
+function addTownMoat(doc: VectorCityDocument, wallId: string, settings: VectorGenerationSettings): VectorCityDocument {
+  const wall = doc.paths[wallId],
+    sampled = samplePath(wall)
+      .map(s => s.point)
+      .filter((p, i, all) => i === 0 || distance(p, all[i - 1]) > 1e-6),
+    ring = compactRing(distance(sampled[0], sampled.at(-1)!) < 1e-6 ? sampled.slice(0, -1) : sampled, 0.05),
+    half = TOWN_MOAT_WIDTH_METERS / 2,
+    line = offsetRing(ring, Math.max(wall.width.leftMeters, wall.width.rightMeters) + MOAT_BERM_METERS + half);
+  doc.paths[TOWN_MOAT_ID] = {
+    id: TOWN_MOAT_ID,
+    revision: 0,
+    role: "river",
+    origin: "automatic",
+    editPolicy: "editable",
+    source: curveSource(line, "polyline", true),
+    width: { leftMeters: half, rightMeters: half, stations: [] }
+  };
+  const moat = doc.paths[TOWN_MOAT_ID];
+  let number = 0;
+  for (const road of Object.values(doc.paths).filter(p => p.role === "road"))
+    for (const hit of pathIntersections(moat, road)) {
+      const segment =
+        road.source.kind === "curve" ? road.source.segments.find(s => s.id === hit.b.segmentId) : undefined;
+      if (!segment || segment.kind !== "line") throw new Error("moat-bridge");
+      const tangent = unit(evaluateAnchor(moat, hit.a, true)),
+        axis = unit(evaluateAnchor(road, hit.b, true)),
+        sine = Math.abs(tangent[0] * axis[1] - tangent[1] * axis[0]),
+        width = widthAt(road, hit.b),
+        // Water plus a dry landing each side, measured along the road, plus the deck's own half width.
+        cosine = Math.sqrt(Math.max(0, 1 - sine * sine)),
+        span =
+          (half + 1.2 + (Math.max(width.left, width.right) * cosine) / Math.max(sine, 0.1)) / Math.max(sine, 0.1) + 0.5,
+        dt = span / distance(segment.from, segment.to);
+      if (hit.b.t - dt <= 0 || hit.b.t + dt >= 1) throw new Error("moat-bridge");
+      let bridgeId = `auto-moat-bridge:${number++}`;
+      while (Object.hasOwn(doc.connections.bridges, bridgeId)) bridgeId = `auto-moat-bridge:${number++}`;
+      doc.connections.bridges[bridgeId] = {
+        id: bridgeId,
+        roadPathId: road.id,
+        riverAnchor: hit.a,
+        from: { ...hit.b, t: hit.b.t - dt },
+        to: { ...hit.b, t: hit.b.t + dt },
+        structure: settings.wallMaterial === "wood" ? "timber" : "stone",
+        dryLandingMeters: 1,
+        editPolicy: "editable"
+      };
+    }
+  return doc;
 }
 /** Gates wherever a road or river crosses the wall. */
 function gateWall(doc: VectorCityDocument, id: string, settings: VectorGenerationSettings): VectorCityDocument {
@@ -604,63 +663,75 @@ function skeleton(
     } else attempts.push(0);
     const start = doc;
     let failure: unknown;
-    for (const rotation of attempts) {
-      try {
-        const tried = new Set(extended);
-        let next = structuredClone(start);
-        if (isVectorWallShape(shape)) {
-          next.paths[id] = wallPath(curveSource(ringAt(rotation), "polyline", true));
-          if (inner)
-            next.paths[innerId] = wallPath(curveSource(ringAt(rotation, innerScale), "polyline", true), innerId);
-        } else {
-          next.paths[id] = preset(id, 1);
-          if (inner) next.paths[innerId] = preset(innerId, innerScale);
-        }
-        next = setWallCircuit(next, id);
-        if (isVectorWallShape(shape) || inner) extendApproachesThroughWall(next, id, center, settings, tried);
-        next = gateWall(next, id, settings);
-        deferredInner = undefined;
-        if (inner) {
-          const outerCircuit = Object.values(next.connections.circuits).find(c => c.pathId === id)!.id;
-          if (inner.state === "razed") {
-            // A razed old-town wall leaves its line as a boulevard as wide as the main roads (mesh editor §4.3),
-            // broken where water runs through it.
-            const line = next.paths[innerId];
-            delete next.paths[innerId];
-            boulevard(next, line, settings, tried);
-          } else if (inner.order === "inner-first") {
-            // The old town is walled before any street: gates open only where the approaches run in, and the
-            // streets reach the old town through them (mesh editor inner-first).
-            next = setWallCircuit(next, innerId, outerCircuit);
-            extendApproachesThroughWall(next, innerId, center, settings, tried);
-            next = gateWall(next, innerId, settings);
+    // A town moat that no rotation can bridge squarely gives way to the wall alone, as the mesh editor's
+    // fallback drops a moat it cannot fit.
+    for (const withMoat of settings.townMoat ? [true, false] : [false]) {
+      failure = undefined;
+      if (!withMoat && settings.townMoat)
+        diagnostics.push({ code: "town-moat-unplaced", entityId: TOWN_MOAT_ID, severity: "warning" });
+      for (const rotation of attempts) {
+        try {
+          const tried = new Set(extended);
+          let next = structuredClone(start);
+          if (isVectorWallShape(shape)) {
+            next.paths[id] = wallPath(curveSource(ringAt(rotation), "polyline", true));
+            if (inner)
+              next.paths[innerId] = wallPath(curveSource(ringAt(rotation, innerScale), "polyline", true), innerId);
           } else {
-            // Outer-first, the mesh editor's historical order: the old-town wall is cut into the streets
-            // afterwards, with a gate wherever a street crosses it.
-            const turned = rotation;
-            deferredInner = {
-              make: scale =>
-                isVectorWallShape(shape)
-                  ? wallPath(curveSource(ringAt(turned, innerScale * scale), "polyline", true), innerId)
-                  : preset(innerId, innerScale * scale),
-              parent: outerCircuit,
-              scale: innerScale
-            };
-            delete next.paths[innerId];
+            next.paths[id] = preset(id, 1);
+            if (inner) next.paths[innerId] = preset(innerId, innerScale);
           }
+          next = setWallCircuit(next, id);
+          if (isVectorWallShape(shape) || inner) extendApproachesThroughWall(next, id, center, settings, tried);
+          next = gateWall(next, id, settings);
+          if (withMoat) {
+            next = addTownMoat(next, id, settings);
+            assertVectorDocument(next);
+          }
+          deferredInner = undefined;
+          if (inner) {
+            const outerCircuit = Object.values(next.connections.circuits).find(c => c.pathId === id)!.id;
+            if (inner.state === "razed") {
+              // A razed old-town wall leaves its line as a boulevard as wide as the main roads (mesh editor §4.3),
+              // broken where water runs through it.
+              const line = next.paths[innerId];
+              delete next.paths[innerId];
+              boulevard(next, line, settings, tried);
+            } else if (inner.order === "inner-first") {
+              // The old town is walled before any street: gates open only where the approaches run in, and the
+              // streets reach the old town through them (mesh editor inner-first).
+              next = setWallCircuit(next, innerId, outerCircuit);
+              extendApproachesThroughWall(next, innerId, center, settings, tried);
+              next = gateWall(next, innerId, settings);
+            } else {
+              // Outer-first, the mesh editor's historical order: the old-town wall is cut into the streets
+              // afterwards, with a gate wherever a street crosses it.
+              const turned = rotation;
+              deferredInner = {
+                make: scale =>
+                  isVectorWallShape(shape)
+                    ? wallPath(curveSource(ringAt(turned, innerScale * scale), "polyline", true), innerId)
+                    : preset(innerId, innerScale * scale),
+                parent: outerCircuit,
+                scale: innerScale
+              };
+              delete next.paths[innerId];
+            }
+          }
+          doc = next;
+          for (const road of tried) extended.add(road);
+          failure = undefined;
+          break;
+        } catch (error) {
+          failure ??= error;
         }
-        doc = next;
-        for (const road of tried) extended.add(road);
-        failure = undefined;
-        break;
-      } catch (error) {
-        failure ??= error;
       }
+      if (!failure) break;
     }
     if (failure) throw failure;
   }
   let bridgeNumber = 0;
-  for (const river of Object.values(doc.paths).filter(p => p.role === "river")) {
+  for (const river of Object.values(doc.paths).filter(p => p.role === "river" && p.id !== TOWN_MOAT_ID)) {
     if (Object.values(doc.connections.bridges).some(b => b.riverAnchor.pathId === river.id)) continue;
     const samples = samplePath(river).filter(s => containsRegion(doc.site!.domain, s.point));
     const candidate = samples.sort((a, b) => distance(a.point, center) - distance(b.point, center))[0];
