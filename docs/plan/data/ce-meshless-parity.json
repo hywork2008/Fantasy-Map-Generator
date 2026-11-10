@@ -404,8 +404,8 @@
       "category": "setting",
       "id": "forestSettings",
       "mesh": "automatic forest mode and density",
-      "meshless": "authored-only",
-      "evidence": "Forest regenerates inside an authored forest feature; no automatic placement.",
+      "meshless": "partial",
+      "evidence": "P7b: read from the requested settings; surroundings raises the woodland, legacy none, farmland none (meshless raises no fields, farmland is skipped); the density is stored for the trees. Per-cell land-cover overrides (forest/open) have no meshless cells.",
       "stage": "P7",
       "checked": true
     },
@@ -727,8 +727,8 @@
       "category": "generated",
       "id": "parks",
       "mesh": "park wards and lawns",
-      "meshless": "missing",
-      "evidence": "Not generated; authored park feature exists.",
+      "meshless": "partial",
+      "evidence": "P7c: park wards (assigned by the P6g ward mix) laid out by the mesh editor's park fabric through the cell-free layoutParkLawn: lawns inset 2.8 m from streets, the wall's and rivers' margins and 6 m off water, a walkway, grass tufts and canopies 11 m off the wall; a small park by the wall stays a bare esplanade; no house on a park block; stored as urban.parks (vector-urban-v16) and drawn as lawn, walk and canopy. Not yet: tree LOD and seasons (openSpaceTreeLod, P2c-2), parks of open towns' outskirts, census of the parks.",
       "stage": "P7",
       "checked": true,
       "census": "parks"
@@ -765,8 +765,8 @@
       "category": "generated",
       "id": "forest",
       "mesh": "automatic woodland",
-      "meshless": "authored-only",
-      "evidence": "Regenerates inside an authored forest feature.",
+      "meshless": "partial",
+      "evidence": "P7b: forestLandCover/buildForestPlan rules on meshless land: the surroundings mode covers the frame beyond the site's land (the mesh editor's outskirts with no ward), in a tree-bearing climate (treeBiomeForClimate on the FMG biome and temperature), clear of water, roads plus 4 m, the wall's glacis on both sides and every reservation; stored as environment.forest (regions, area, density) and drawn as a woodland surface. Not yet: trees in the woodland (forestMeshes, tree LOD and seasons, P2c-2), coast clearance strips, census of the regions, farmland mode.",
       "stage": "P7",
       "checked": true,
       "census": "forests"

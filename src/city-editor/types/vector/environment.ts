@@ -56,6 +56,8 @@ export interface VectorEnvironment {
   inns?: import("./inn").GateInn[];
   /** Windmills and the gallows beyond the town, by the mesh editor's aerial-landmark rules (P6f). */
   landmarks?: import("./landmark").VectorOpenLandmarks;
+  /** Woodland raised by the forest settings, by the mesh editor's land-cover rules (P7b). */
+  forest?: import("./forest").VectorForest;
   defenses?: Record<string, import("./defense").VectorDefensePlan>;
   /** Freeform's authored ledger is the height/earthwork authority, not a synthetic cell mesh. */
   terrain?: FreeformCity;

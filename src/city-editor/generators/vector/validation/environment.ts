@@ -5,6 +5,7 @@ import { VECTOR_FEATURE_KINDS } from "../../../types/vector/environment";
 import { parseFreeformCity } from "../../freeform/freeformCity";
 import { validateVectorDefenses } from "../defense";
 import { validateVectorFerries } from "../ferry";
+import { validateVectorForest } from "../forest";
 import { evaluateAnchor } from "../geometry/curves";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { ringInside } from "../geometry/routing";
@@ -138,6 +139,7 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
           "guilds",
           "inns",
           "landmarks",
+          "forest",
           "landscape",
           "terrain",
           "hidden",
@@ -159,6 +161,7 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
     ...validateVectorGuilds(doc),
     ...validateVectorInns(doc),
     ...validateVectorOpenLandmarks(doc),
+    ...validateVectorForest(doc),
     ...validateVectorLandscape(doc)
   ];
   if (e.freeformSource && !parseFreeformCity(JSON.stringify(e.freeformSource)))

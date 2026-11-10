@@ -1,6 +1,7 @@
 import type { VectorCityDocument } from "../../types/vector/document";
 import { defenseReservations } from "./defense";
 import { ferryReservations } from "./ferry";
+import { forestReservations } from "./forest";
 import { guildReservations } from "./guild";
 import { harborReservations } from "./harbor";
 import { innReservations } from "./inn";
@@ -15,6 +16,7 @@ export const featureReservations = (doc: VectorCityDocument) => [
   ...guildReservations(doc),
   ...innReservations(doc),
   ...openLandmarkReservations(doc),
+  ...forestReservations(doc),
   ...(doc.environment?.landscape
     ? [
         ...doc.environment.landscape.parks.flatMap(p => p.lawns),

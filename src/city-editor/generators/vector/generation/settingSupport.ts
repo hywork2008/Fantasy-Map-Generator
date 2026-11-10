@@ -54,7 +54,7 @@ export const MESHLESS_SETTING_SUPPORT: Record<string, { state: MeshlessSettingSt
   buildingHeightPolicy: { state: "partial", stage: "P3" },
   buildingHeightLimit: { state: "equivalent", stage: "P3" },
   housingAreaScale: { state: "not-applicable", stage: "-" },
-  forestSettings: { state: "authored-only", stage: "P7" },
+  forestSettings: { state: "partial", stage: "P7" },
   burialProfile: { state: "partial", stage: "P6" },
   streets: { state: "missing", stage: "P9" },
   approachGrowthSource: { state: "missing", stage: "P9" },

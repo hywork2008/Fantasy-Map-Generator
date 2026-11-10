@@ -33,6 +33,7 @@ import { assertVectorDocument } from "../validation/document";
 import { CASTLE_FEATURE_ID, CASTLE_SITE_ID, raiseVectorCastle, reserveVectorCastle } from "./castle";
 import { connectVectorCivicCentre } from "./civic";
 import { isFerryRiver, raiseVectorFerries } from "./ferries";
+import { raiseVectorForest } from "./forest";
 import { raiseVectorGuilds } from "./guilds";
 import { raiseVectorInns } from "./inns";
 import { raiseVectorOpenLandmarks } from "./landmarks";
@@ -658,6 +659,7 @@ function skeleton(
     if (doc.environment?.guilds) delete doc.environment.guilds;
     if (doc.environment?.inns) delete doc.environment.inns;
     if (doc.environment?.landmarks) delete doc.environment.landmarks;
+    if (doc.environment?.forest) delete doc.environment.forest;
     // The plaza's market day is laid again on the new streets.
     for (const id of Object.keys(doc.placements)) if (id.startsWith("civic:market-stall:")) delete doc.placements[id];
     const plaza = doc.environment?.features[CIVIC_PLAZA_ID];
@@ -1266,6 +1268,8 @@ function skeleton(
   doc = marks.document;
   if (marks.placed < marks.wanted)
     diagnostics.push({ code: "landmark-unplaced", entityId: String(marks.wanted - marks.placed), severity: "warning" });
+  // Woodland over the countryside by the forest settings, last: it keeps clear of everything raised before (P7b).
+  doc = raiseVectorForest(doc);
   doc.revision++;
   assertVectorDocument(doc);
   timed("connections-and-validation");

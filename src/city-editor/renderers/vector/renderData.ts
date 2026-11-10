@@ -516,6 +516,80 @@ export function vectorRenderData(
   if (doc.environment?.guilds) surfaces.push(...vectorGuildSurfaces(doc.environment.guilds));
   if (doc.environment?.inns) surfaces.push(...vectorInnSurfaces(doc.environment.inns));
   if (doc.environment?.landmarks) surfaces.push(...vectorOpenLandmarkSurfaces(doc.environment.landmarks));
+  if (doc.environment?.forest)
+    surfaces.push({
+      id: "environment:forest",
+      kind: "feature",
+      featureKind: "forest",
+      pieceRole: `forest-${doc.environment.forest.density}`,
+      polygons: doc.environment.forest.regions,
+      color: "#5f7f4e",
+      elevationMeters: 0.01,
+      heightMeters: 0
+    });
+  // Park wards (P7c): the mesh editor's lawn, walkway and canopy colours (openSpaceSites).
+  for (const park of doc.urban?.parks ?? []) {
+    surfaces.push({
+      id: `urban:park:${park.id}`,
+      kind: "feature",
+      featureKind: "park",
+      pieceRole: "lawn",
+      polygons: park.lawns.map(outer => ({ outer, holes: [] })),
+      color: "#7ea867",
+      elevationMeters: 0.025,
+      heightMeters: 0
+    });
+    const walk = park.paths.flatMap(line =>
+      line.slice(1).flatMap((b, i) => {
+        const a = line[i],
+          l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (l < 1e-6) return [];
+        const n: Point = [(-(b[1] - a[1]) / l) * 0.9, ((b[0] - a[0]) / l) * 0.9];
+        return [
+          {
+            outer: [
+              [a[0] + n[0], a[1] + n[1]],
+              [b[0] + n[0], b[1] + n[1]],
+              [b[0] - n[0], b[1] - n[1]],
+              [a[0] - n[0], a[1] - n[1]]
+            ] as Point[],
+            holes: []
+          }
+        ];
+      })
+    );
+    if (walk.length)
+      surfaces.push({
+        id: `urban:park:${park.id}:walk`,
+        kind: "feature",
+        featureKind: "park",
+        pieceRole: "walk",
+        polygons: walk,
+        color: "#d8d1bf",
+        elevationMeters: 0.045,
+        heightMeters: 0
+      });
+    if (park.trees.length)
+      surfaces.push({
+        id: `urban:park:${park.id}:trees`,
+        kind: "feature",
+        featureKind: "park",
+        pieceRole: "canopy",
+        polygons: park.trees.map(t => ({
+          outer: Array.from(
+            { length: 10 },
+            (_, k): Point => [
+              t.center[0] + Math.cos((k / 10) * Math.PI * 2) * t.radius,
+              t.center[1] + Math.sin((k / 10) * Math.PI * 2) * t.radius
+            ]
+          ),
+          holes: []
+        })),
+        color: "#4f7a45",
+        elevationMeters: 0.07,
+        heightMeters: 0
+      });
+  }
   if (doc.environment?.landscape)
     for (const surface of vectorLandscapeSurfaces(doc.environment.landscape)) add(surface);
   let terrainMesh: VectorRenderData["terrain"], contours: ContourLine[] | undefined;

@@ -157,7 +157,8 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     !doc.site ||
     !keys(
       u,
-      "algorithm,inputRevision,settings,baseGeneration,baseConnections,baseContext,domain,laneBlocks,residualLand,districts,ownedPaths,ownedPlacements,adoptedFingerprint,checkpoints,assignments,report"
+      "algorithm,inputRevision,settings,baseGeneration,baseConnections,baseContext,domain,laneBlocks,residualLand,districts,ownedPaths,ownedPlacements,adoptedFingerprint,checkpoints,assignments,report",
+      "parks"
     ) ||
     ![
       "vector-urban-v1",
@@ -174,7 +175,8 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       "vector-urban-v12",
       "vector-urban-v13",
       "vector-urban-v14",
-      "vector-urban-v15"
+      "vector-urban-v15",
+      "vector-urban-v16"
     ].includes(u.algorithm) ||
     !nonnegative(u.inputRevision) ||
     !keys(
@@ -221,6 +223,29 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
         typeof d.inside === "boolean" &&
         polygon(d.polygon)
     ) ||
+    (u.parks !== undefined &&
+      (!Array.isArray(u.parks) ||
+        u.parks.length > 2000 ||
+        !u.parks.every(
+          k =>
+            keys(k, "id,lawns,paths,tufts,trees") &&
+            id(k.id) &&
+            Array.isArray(k.lawns) &&
+            k.lawns.length > 0 &&
+            k.lawns.every(l => polygon({ outer: l, holes: [] })) &&
+            [k.paths, k.tufts, k.trees].every(Array.isArray) &&
+            k.paths.every(l => Array.isArray(l) && l.length >= 2 && l.every(point)) &&
+            k.tufts.every(point) &&
+            k.trees.every(
+              t =>
+                keys(t, "center,radius,subCircles") &&
+                point(t.center) &&
+                finite(t.radius) &&
+                t.radius > 0 &&
+                Array.isArray(t.subCircles) &&
+                t.subCircles.every(c => keys(c, "offset,radius") && point(c.offset) && finite(c.radius) && c.radius > 0)
+            )
+        ))) ||
     !Array.isArray(u.ownedPaths) ||
     !u.ownedPaths.every(id) ||
     !Array.isArray(u.ownedPlacements) ||

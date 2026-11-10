@@ -75,7 +75,7 @@ export interface VectorUrbanCheckpoint {
  * districts, street blocks, lanes and houses saved as fabric records (native v8) instead of paths and
  * placements. v10: house storeys by the mesh editor's height variation and height limit (P3b). v11: lots kept off gate openings
  * and junction discs exactly (P4a). v12: wall shapes turned in 48 steps and checked against their gates; double
- * walls (P4b). v14: house storeys by the economic ward of the street block (P6g). v15: roadside ribbon beyond the wall (P7a). Saved output of
+ * walls (P4b). v14: house storeys by the economic ward of the street block (P6g). v15: roadside ribbon beyond the wall (P7a). v16: park wards laid out as lawns (P7c). Saved output of
  * an older version stays as adopted. */
 export type VectorUrbanAlgorithm =
   | "vector-urban-v1"
@@ -92,7 +92,8 @@ export type VectorUrbanAlgorithm =
   | "vector-urban-v12"
   | "vector-urban-v13"
   | "vector-urban-v14"
-  | "vector-urban-v15";
+  | "vector-urban-v15"
+  | "vector-urban-v16";
 export interface VectorUrban {
   algorithm: VectorUrbanAlgorithm;
   inputRevision: number;
@@ -112,10 +113,22 @@ export interface VectorUrban {
     ward?: import("../geometry").WardKind;
     craftDomain?: import("../contracts/burgSiteEconomy").GuildDomain;
   }[];
+  /** Park wards laid out as lawns by the mesh editor's park fabric (P7c); no house stands on them. */
+  parks?: VectorPark[];
   ownedPaths: string[];
   ownedPlacements: string[];
   adoptedFingerprint: string;
   checkpoints: VectorUrbanCheckpoint[];
   assignments: { placementId: string; dwellings: number; population: number }[];
   report: VectorUrbanReport;
+}
+
+/** A park ward's lawn, by the mesh editor's park fabric (`layoutParkLawn`): lawns, a walkway, tufts and canopies. */
+export interface VectorPark {
+  /** The street block of the park ward. */
+  id: string;
+  lawns: [number, number][][];
+  paths: [number, number][][];
+  tufts: [number, number][];
+  trees: { center: [number, number]; radius: number; subCircles: { offset: [number, number]; radius: number }[] }[];
 }

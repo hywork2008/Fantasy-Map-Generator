@@ -21,6 +21,7 @@ import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/document";
 import { vectorUrbanStages } from "../validation/urban";
+import { layoutVectorParks } from "./parks";
 import {
   assemblePerimeterDistricts,
   joinPerimeterPlan,
@@ -648,7 +649,10 @@ function* vectorUrbanSteps(
       id => wardHeightKind(wards.get(id)?.ward),
       // The shanty, and the roadside ribbon beyond the wall, stand whatever the demand (P6h, P7a).
       id => wards.get(id)?.ward === "shanty" || (ribbon && outsideBlocks.has(id)),
-      suburbanLots
+      // A park ward holds no house while the rest of the town houses the demand; its block becomes the park's
+      // lawn (P7c). A town short of room builds on it in the second pass instead.
+      (id, polygon, residential) =>
+        (residential || wards.get(id)?.ward !== "park") && suburbanLots(id, polygon, residential)
     );
     reattachFabricEntrances(doc);
     housingAttempts = organic.houses.length;
@@ -688,6 +692,13 @@ function* vectorUrbanSteps(
     (a, b) => Number(inside(doc.placements[b].position)) - Number(inside(doc.placements[a].position))
   );
   checkpoint("housing", all);
+  const parks = organic
+    ? layoutVectorParks(doc, districts, id => {
+        const c = doc.fabric?.cells[id];
+        return !c || c.houses.offsets.length === c.detached.length;
+      })
+    : [];
+  timed("parks");
   const allocation = allocateVectorResidents(doc, all, required, settings.population, true);
   if (allocation.unplacedDwellings)
     reasons.push(
@@ -738,6 +749,7 @@ function* vectorUrbanSteps(
     laneBlocks: organic ? structuredClone(blocks) : blocks,
     residualLand,
     districts,
+    ...(parks.length ? { parks } : {}),
     ownedPaths,
     ownedPlacements,
     adoptedFingerprint: vectorUrbanFingerprint(doc),
