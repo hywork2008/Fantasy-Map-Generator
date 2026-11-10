@@ -46,6 +46,9 @@ function definitionsFor(profile: BuildingAppearanceProfile) {
   return definitions;
 }
 
+/** Longest mitre offset, in wall half-widths, before a sharp corner is treated as a bevel. */
+const MAX_MITER = 1.5;
+
 /** A sampled ribbon maps BV stonework onto the exact CE miter offsets and terrain levels. */
 function ribbon(part: StructureMassing) {
   const line = part.centerline;
@@ -58,16 +61,16 @@ function ribbon(part: StructureMassing) {
   const total = cum[cum.length - 1];
   if (!(total > 0.1)) return;
   const anchor = part.anchor ?? [0, 0];
-  let sign = 1;
+  // The outer side is the side facing away from the anchor over most of the run's length, so a meandering run
+  // cannot flip on the strength of its first segment alone.
+  let vote = 0;
   for (let i = 1; i < line.length; i++) {
     const a = line[i - 1],
       b = line[i];
     const away = -(b[1] - a[1]) * ((a[0] + b[0]) / 2 - anchor[0]) + (b[0] - a[0]) * ((a[1] + b[1]) / 2 - anchor[1]);
-    if (Math.abs(away) > 1e-4) {
-      sign = Math.sign(away);
-      break;
-    }
+    vote += Math.sign(away) * Math.hypot(b[0] - a[0], b[1] - a[1]);
   }
+  const sign = vote < 0 ? -1 : 1;
   const at = (s: number) => {
     const target = Math.max(0, Math.min(total, s));
     let lo = 0,
@@ -83,11 +86,21 @@ function ribbon(part: StructureMassing) {
       b = line[lo + 1];
     const u = offsets[lo % offsets.length],
       v = offsets[(lo + 1) % offsets.length];
+    // Interpolate the offset's direction and length apart: a straight lerp of two opposed mitre vectors shrinks
+    // or shears the ribbon across a corner.
+    let ox = lerp(u[0] - a[0], v[0] - b[0]),
+      oy = lerp(u[1] - a[1], v[1] - b[1]);
+    const olen = Math.hypot(ox, oy);
+    if (olen > 1e-9) {
+      const keep = Math.min(olen, MAX_MITER);
+      ox = (ox / olen) * keep;
+      oy = (oy / olen) * keep;
+    }
     return {
       x: lerp(a[0], b[0]),
       z: -lerp(a[1], b[1]),
-      nx: lerp(u[0] - a[0], v[0] - b[0]) * sign,
-      nz: -lerp(u[1] - a[1], v[1] - b[1]) * sign,
+      nx: ox * sign,
+      nz: -oy * sign,
       base: part.baseElevationsMeters
         ? lerp(part.baseElevationsMeters[lo], part.baseElevationsMeters[lo + 1])
         : part.baseElevationMeters,

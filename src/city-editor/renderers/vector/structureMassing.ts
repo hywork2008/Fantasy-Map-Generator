@@ -16,6 +16,39 @@ import { resolveWallGeometry } from "../wallSvg";
 /** The mesh editor's curtain tower spacing at its default 50 m street cell. */
 const TOWER_SPACING_METERS = Math.max(45, 50 * 1.4);
 
+/** Straightening tolerance: curved walls become short straight runs the straight-module masonry can follow. */
+const WALL_STRAIGHTEN_METERS = 0.4;
+
+/** Ramer-Douglas-Peucker; keeps both ends, so a closed ring keeps its seam. */
+function straighten(points: Point[], tolerance: number): Point[] {
+  if (points.length < 3) return points;
+  const keep = new Array<boolean>(points.length).fill(false);
+  keep[0] = keep[points.length - 1] = true;
+  const stack: [number, number][] = [[0, points.length - 1]];
+  while (stack.length) {
+    const [lo, hi] = stack.pop()!;
+    const a = points[lo],
+      b = points[hi],
+      dx = b[0] - a[0],
+      dy = b[1] - a[1],
+      len = Math.hypot(dx, dy);
+    let far = -1,
+      worst = tolerance;
+    for (let i = lo + 1; i < hi; i++) {
+      const p = points[i],
+        d = len < 1e-9 ? Math.hypot(p[0] - a[0], p[1] - a[1]) : Math.abs(dx * (p[1] - a[1]) - dy * (p[0] - a[0])) / len;
+      if (d > worst) {
+        worst = d;
+        far = i;
+      }
+    }
+    if (far < 0) continue;
+    keep[far] = true;
+    stack.push([lo, far], [far, hi]);
+  }
+  return points.filter((_, i) => keep[i]);
+}
+
 const unit = (v: Point): Point => {
   const n = Math.hypot(v[0], v[1]) || 1;
   return [v[0] / n, v[1] / n];
@@ -46,9 +79,10 @@ export function vectorStructures(doc: VectorCityDocument): VectorStructureOwner[
   for (const wall of Object.values(doc.paths)) {
     // Bastioned defences draw their own works.
     if (wall.role !== "wall" || defenseWalls.has(wall.id) || hidden.has(wall.id)) continue;
-    const points = samplePath(wall).map(s => s.point);
+    let points = samplePath(wall).map(s => s.point);
     if (pathIsClosed(wall) && Math.hypot(points[0][0] - points.at(-1)![0], points[0][1] - points.at(-1)![1]) > 1e-6)
       points.push(points[0]);
+    points = straighten(points, WALL_STRAIGHTEN_METERS);
     if (points.length < 2) continue;
     const widthMeters = wall.width.leftMeters + wall.width.rightMeters,
       feature = Object.values(doc.environment?.features ?? {}).find(f => f.pathIds.includes(wall.id)),
