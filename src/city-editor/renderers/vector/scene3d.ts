@@ -9,6 +9,7 @@ import { createCityMassing } from "../../../city3d/three/cityMeshes";
 import { createTownCranes, createTownHarborCargo } from "../../../city3d/three/craneMeshes";
 import { createFacilityLayer } from "../../../city3d/three/facilityMeshes";
 import { createTownMonasteries } from "../../../city3d/three/friaryMeshes";
+import { createTownOpenSpaces } from "../../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../../city3d/three/pierMeshes";
 import { createTownRoads } from "../../../city3d/three/roadMeshes";
 import { createTownShips } from "../../../city3d/three/shipMeshes";
@@ -273,8 +274,21 @@ export function createVectorScene(data: VectorRenderData) {
       disposers.push(() => houses.dispose());
       bvKinds.add("monastery");
     }
+    if (data.openSpaces && !data.terrain) {
+      const spaces = createTownOpenSpaces(data.openSpaces, undefined, false),
+        holder = new THREE.Group();
+      holder.position.set(-data.center[0], -datum, data.center[1]);
+      holder.userData = { kind: "feature", featureKind: "cemetery", representation: "bv-open-space" };
+      holder.add(spaces.group);
+      group.add(holder);
+      disposers.push(() => spaces.dispose());
+      bvKinds.add("cemetery");
+    }
     const replacedByBv = (surface: VectorRenderSurface) => {
       if (surface.kind !== "feature") return false;
+      // Cemetery parts are the open-space models; the ground and paths stay.
+      if (surface.featureKind === "landscape" && /^cemetery-/.test(surface.pieceRole ?? ""))
+        return bvKinds.has("cemetery") && !["cemetery-ground", "cemetery-access"].includes(surface.pieceRole!);
       if (surface.featureKind === "monastery") return bvKinds.has("monastery") && surface.heightMeters > 0;
       if (!bvOwners.has(surface.id) && ![...bvOwners].some(id => surface.id.startsWith(`${id}:`))) return false;
       // Sails, hubs and pillars belong to the model; mounds, yards and courts stay as its ground.

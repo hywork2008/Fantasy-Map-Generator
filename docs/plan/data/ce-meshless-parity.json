@@ -893,7 +893,7 @@
       "id": "openSpaceMeshes",
       "mesh": "city3d/three/openSpaceMeshes (Open spaces (with tree LOD))",
       "meshless": "partial",
-      "evidence": "P2d-1: park trees (urban.parks) stand as the species BV trees of the landscape-tree layer (garden_parkland adapted to the climate, at the saved canopy radius); the 2D plan keeps the crowns. Not yet: createTownOpenSpaces for churchyards and graves, the camera tree LOD (openSpaceTreeLod) and seasons.",
+      "evidence": "P2d-1: park trees stand as the species BV trees of the landscape-tree layer (garden_parkland adapted to the climate). P2d-5: cemeteries (environment.landscape.cemeteries, the mesh editor's culture cemetery plans) go through collectOpenSpacePlan to createTownOpenSpaces: graves and ledgers on the plots, chapels, cottages, cloisters, ossuaries, boundary walls with the gate gap, and churchyard trees adapted to the climate; their raised part outlines leave 3D, the ground and paths stay. Not yet: the camera tree LOD (openSpaceTreeLod) and seasons (P2d-8), relief (P8).",
       "stage": "P6",
       "checked": true
     },

@@ -45,7 +45,7 @@ describe("meshless facilities and religious houses as the mesh editor's BV model
     }
   });
 
-  it("draws a Latin town's abbey and friary, its church and market stalls as the mesh editor's models", () => {
+  it("draws a Latin town's abbey and friary, church, market stalls and churchyard as the mesh editor's models", () => {
     const seed = "k1",
       settings = {
         ...defaultGenerationSettings(),
@@ -77,6 +77,17 @@ describe("meshless facilities and religious houses as the mesh editor's BV model
       expect(bv).toContain("catalogue:basilica-temple");
       expect(bv.filter(id => /stall|table|booth/.test(id)).length).toBeGreaterThan(0);
       expect(scene.warnings.filter(w => w.startsWith("massing:"))).toEqual([]);
+      // The churchyard's graves, markers and walls are the mesh editor's open-space models (P2d-5).
+      expect(doc.environment?.landscape?.cemeteries.length).toBeGreaterThan(0);
+      expect(all.some(o => o.name === "ce-open-spaces" && o.children.length > 0)).toBe(true);
+      expect(
+        all.some(
+          o =>
+            o.userData.representation === "footprint" &&
+            /^cemetery-/.test(o.userData.pieceRole ?? "") &&
+            !["cemetery-ground", "cemetery-access"].includes(o.userData.pieceRole)
+        )
+      ).toBe(false);
       expect(
         all.some(
           o =>

@@ -1,6 +1,6 @@
 import { buildingAppearanceProfile, normalizeBuildingAppearanceContext } from "../../../buildings/appearance/resolver";
 import type { BuildingAppearance, BuildingAppearanceProfile } from "../../../buildings/appearance/types";
-import { treeLodProfile } from "../../../buildings/landscape/trees";
+import { TREE_SPECIES, type TreeSpecies, treeLodProfile } from "../../../buildings/landscape/trees";
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
 import type { FacilityPlans } from "../../../city3d/three/facilityMeshes";
 import { lotMassing, massingContext } from "../../generators/buildingMassing";
@@ -19,6 +19,7 @@ import { vectorTerrain } from "../../generators/vector/terrain";
 import { assertVectorDocument } from "../../generators/vector/validation/document";
 import type { BuildingMassing } from "../../types/contracts/buildingMassing";
 import type { HarborCargoPile, HarborCrane } from "../../types/contracts/harborFabric";
+import type { CemeteryPlan } from "../../types/document";
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument, VectorPath, VectorPlacement } from "../../types/vector/document";
 import type { VectorFabricLines } from "../../types/vector/fabric";
@@ -27,6 +28,7 @@ import type { VectorHarborShip } from "../../types/vector/harbor";
 import type { VectorLandscapeTree } from "../../types/vector/landscape";
 import type { Monastery } from "../../types/vector/monastery";
 import type { VectorStage } from "../../types/vector/urban";
+import { collectOpenSpacePlan, type OpenSpacePlan } from "../openSpaceSites";
 import { automaticHousingProfile } from "../standaloneHousingAppearance";
 import { vectorDefenseSurfaces } from "./defense";
 import { vectorFerrySurfaces } from "./ferry";
@@ -103,6 +105,8 @@ export interface VectorRenderData {
   /** Facility plans and religious houses drawn as the mesh editor's BV facilities in 3D (P2d-4). */
   facilities?: FacilityPlans;
   monasteries?: Monastery[];
+  /** Cemeteries' graves, markers, chapels, walls and trees as the mesh editor's open-space models in 3D (P2d-5). */
+  openSpaces?: OpenSpacePlan;
   /** Harbour piers as the mesh editor's timber piers in 3D (P2d-3). */
   piers?: { id: string; deck: Point[]; depth: number }[];
   /** Roads of this stage as the mesh editor's wearing-course ribbons, for 3D. */
@@ -740,6 +744,7 @@ export function vectorRenderData(
         }).arid === true
     },
     monasteries: Object.values(doc.environment?.monasteries ?? {}),
+    openSpaces: vectorOpenSpaces(doc),
     piers: (doc.environment?.harbor?.piers ?? []).flatMap(p =>
       p.polygon.outer.length === 4 ? [{ id: p.id, deck: p.polygon.outer, depth: p.depthMeters }] : []
     ),
@@ -813,4 +818,26 @@ function vectorWallProfile(doc: VectorCityDocument): BuildingAppearanceProfile {
     context,
     rural: false
   });
+}
+
+/**
+ * The cemeteries as the mesh editor's open-space plan (P2d-5): graves and ledgers on its plots, chapels, cottages,
+ * ossuaries and boundary walls, and churchyard trees adapted to the town's climate. Only the models: the ground
+ * and paths stay the 2D surfaces.
+ */
+function vectorOpenSpaces(doc: VectorCityDocument): OpenSpacePlan | undefined {
+  const cemeteries = doc.environment?.landscape?.cemeteries ?? [];
+  if (!cemeteries.length) return undefined;
+  const plan = collectOpenSpacePlan(
+      [],
+      cemeteries.map(c => ({ ...c, faceId: c.id }) as unknown as CemeteryPlan)
+    ),
+    climate = { ...vectorLandscapeClimate(doc), seed: doc.recipe.seed },
+    trees = new Set<string>(TREE_SPECIES);
+  const sites = plan.sites.flatMap(site => {
+    if (!trees.has(site.model)) return [site];
+    const model = treeSpeciesForClimate(site.model as TreeSpecies, climate, site.point);
+    return model ? [{ ...site, model }] : [];
+  });
+  return sites.length ? { sites, surfaces: [] } : undefined;
 }
