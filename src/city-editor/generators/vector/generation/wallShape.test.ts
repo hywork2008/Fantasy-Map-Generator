@@ -1,14 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { vectorStructures } from "../../../renderers/vector/structureMassing";
 import { defaultGenerationSettings } from "../../generation/settings";
+import { pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
 import { defaultPopulationSettings } from "../../populationPlan";
+import { cellHouseRing } from "../fabric/pack";
 import { pathIsClosed } from "../geometry/curves";
 import { regionArea } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
+import { BASTION_REGION_PREFIX } from "./bastions";
 import { vectorInputFromEditor } from "./editorInput";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
-import { VECTOR_WALL_SHAPES, VECTOR_WALL_WIDTH_METERS, vectorWallChoice } from "./wallShape";
+import {
+  VECTOR_WALL_SHAPES,
+  VECTOR_WALL_WIDTH_METERS,
+  vectorUnitWallRing,
+  vectorWallAreaShare,
+  vectorWallChoice
+} from "./wallShape";
 
 const frame = { extentMeters: 1200, cityRadiusMeters: 396, blockSizeMeters: 50 };
 const settingsFor = (extra: Partial<ReturnType<typeof defaultGenerationSettings>>) => ({
@@ -69,5 +78,26 @@ describe("meshless wall shapes from the mesh editor's settings (feature parity P
     const parts = vectorStructures(doc).find(s => s.owner === "auto-wall")!.parts;
     expect(parts.length).toBeGreaterThan(0);
     expect(parts.every(part => part.material === "wood")).toBe(true);
+  });
+
+  it("keeps houses off the bastions, the gun platforms, and walls more land to make up for them", () => {
+    expect(vectorWallAreaShare("s", "bastioned", 6)).toBeLessThan(
+      Math.abs(polygonArea(vectorUnitWallRing("s", "bastioned", 6))) / Math.PI - 0.05
+    );
+    const seed = "p4a-bastioned",
+      settings = settingsFor({ wallShape: "bastioned", wallSides: 6 }),
+      input = vectorInputFromEditor({ settings, seed, frame, lotOccupancy: 1 }),
+      wall = vectorWallChoice(settings, seed, "ageOfExploration"),
+      skeleton = generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall }).document,
+      bastions = Object.values(skeleton.regions).filter(r => r.id.startsWith(BASTION_REGION_PREFIX));
+    expect(bastions.length).toBeGreaterThan(0);
+    expect(bastions.every(r => r.kind === "reservation")).toBe(true);
+    const city = generateVectorUrban(skeleton, { ...DEFAULT_VECTOR_URBAN, population: 3000, lotOccupancy: 1 });
+    for (const cell of Object.values(city.fabric?.cells ?? {}))
+      for (let i = 0; i < cell.houses.offsets.length; i++) {
+        const centre = polygonCentroid(cellHouseRing(cell, i));
+        expect(bastions.some(b => pointInPolygon(centre, b.outer))).toBe(false);
+      }
+    expect(city.urban!.report.unplacedPopulation).toBe(0);
   });
 });

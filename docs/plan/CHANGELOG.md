@@ -3,7 +3,16 @@
 2026-11-10
 
 - docs/analytics/bv-town-church-b0-20261110.md - BVの人口段階の教会モデルB0。既存3モデルの実測と、教区教会・主要教会の規模の史料確認
+- docs/analytics/ce-meshless-gate-ribbon-w0-20261110.json - 門の街道沿いの市街W0の全量（26件の外周の街区・小路・住宅、市壁の外を拒んだ時の未収容、全区画を建てた時の住戸密度）
+- docs/analytics/ce-meshless-gate-ribbon-w0-20261110.md - 門の街道沿いの市街W0の記録。外周の層の量、湾の町の不足（12%）、帯1 mあたりの住戸数の暫定値
+- docs/analytics/ce-meshless-gate-ribbon-w0-20261110.md - 追加計測の節（市壁の内側の全区画の住戸は必要の1.34〜2.65倍、稜堡の上の住戸9〜12%）を追加
+- docs/analytics/ce-meshless-gate-ribbon-w1a-20261110.json - W1aの較正の前後（円形の市壁×人口14段×2 seed）と、W0と同じ26件の観測
+- docs/analytics/ce-meshless-gate-ribbon-w1a-20261110.md - W1aの記録。内側の大きさの較正（目標の充足率0.8）、稜堡の予約、海岸の町の市壁の形の係数、結果と残り
 - docs/plan/bv-town-church-tiers.md - 広場と寺院を人口に合わせるためのBVの3Dモデル追加計画（中世ヨーロッパのキリスト教）。教会の段階T1〜T5、広場・墓地の付属物、作業の区切りB0〜B6
+- docs/plan/ce-meshless-gate-ribbon-growth.md - メッシュなしCEの市壁のある町で、市壁の外周に円形を保つために作る街区・小路・建物をやめ、内側に収まらない住戸を門につながる街道沿いの帯へ置く計画。防御クリアランス、堀・バービカンの余地、段階W0〜W4
+- docs/plan/ce-meshless-gate-ribbon-growth.md - 決定事項（交通量の比で配る、バービカンの余裕、川の下流の帯を伸ばさない、沿道の建物の並び方）とW0の完了、次のW1・W2を記載
+- docs/plan/ce-meshless-gate-ribbon-growth.md - 市壁の内側の大きさの較正（§3.6）と稜堡に住宅を建てない規則（§3.7）、段階W1aを追加
+- docs/plan/ce-meshless-gate-ribbon-growth.md - W1aの完了（目標の充足率はW2まで0.8）と次のW1・W2を記載
 
 2026-11-09
 

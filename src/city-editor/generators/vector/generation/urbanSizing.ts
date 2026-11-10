@@ -43,3 +43,49 @@ export function meshlessCityRadius(
   }
   return MESHLESS_SITE_RIM_METERS + Math.sqrt(perStorey / MESHLESS_DWELLINGS_PER_M2_STOREY / Math.PI + reserved);
 }
+
+/** Share of the interior's CE lots a walled town should build at the chosen occupancy (gate-ribbon plan §3.6). A
+ * fuller interior leaves fewer vacant lots scattered through the town. The plan's aim is 0.9, with what the estimate
+ * misses going to the roadside beyond the gates (W2); until that roadside exists, the old town, the classic plan and
+ * other periods take up to a tenth more land than the default town measured below, so the aim stays at 0.8. */
+export const MESHLESS_TARGET_FILL = 0.8;
+
+/** Share of the interior's lots a town of default settings actually built when sized by `meshlessCityRadius` alone,
+ * by required dwellings (measured 2026-11-10, generation v17, round walls, two seeds, lot occupancy 1, every lot
+ * inside the wall offered), refined once by the fill the corrected sizing reached (docs/analytics/
+ * ce-meshless-gate-ribbon-w1a-20261110.md). The fit and the reserved civic and monastery land it adds leave room the
+ * lots then take. Below about 50 dwellings the civic centre's own size sets the site, so the fill stays low. Towns of 100–250
+ * dwellings vary most between seeds; their values lean to the larger site, so the seeds that fill least still house
+ * everyone inside the wall. */
+const MEASURED_FILL: [requiredDwellings: number, fill: number][] = [
+  [23, 0.258],
+  [45, 0.365],
+  [78, 0.414],
+  [112, 0.65],
+  [167, 0.6],
+  [223, 0.55],
+  [334, 0.591],
+  [445, 0.642],
+  [667, 0.69],
+  [1112, 0.755],
+  [1778, 0.723],
+  [2667, 0.678],
+  [4445, 0.732],
+  [6667, 0.715]
+];
+
+/** Factor on the site radius so the interior builds `MESHLESS_TARGET_FILL` of its lots. */
+export function meshlessSiteFillScale(requiredDwellings: number): number {
+  const t = MEASURED_FILL,
+    n = Math.max(1, requiredDwellings);
+  let fill: number;
+  if (n <= t[0][0]) fill = t[0][1];
+  else if (n >= t.at(-1)![0]) fill = t.at(-1)![1];
+  else {
+    const i = t.findIndex(([d]) => d >= n),
+      [d0, f0] = t[i - 1],
+      [d1, f1] = t[i];
+    fill = f0 + ((f1 - f0) * (n - d0)) / (d1 - d0);
+  }
+  return Math.min(1, Math.sqrt(fill / MESHLESS_TARGET_FILL));
+}

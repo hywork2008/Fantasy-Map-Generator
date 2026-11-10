@@ -6,6 +6,7 @@ import { bastionEra, resolveWallShape, unitWallShape } from "../../generation/sk
 import { polygonArea } from "../../geom";
 import { makeRng } from "../../prng";
 import { DEFAULT_INNER_WALLED_AREA_SHARE } from "../../settlementExtent";
+import { unitBastionedTownArea } from "./bastions";
 import { vectorCastleChoice } from "./castleChoice";
 
 export const VECTOR_WALL_SHAPES: readonly WallShape[] = ["organic", "round", "oval", "square", "polygon", "bastioned"];
@@ -104,9 +105,11 @@ export function vectorUnitWallRing(seed: string, shape: WallShape, sides = 6, ro
   return ring.map(([x, y]) => [(x * cos - y * sin) / reach, (x * sin + y * cos) / reach]);
 }
 
-/** Share of the inscribed circle the outline covers; the site grows by its inverse square root. */
+/** Share of the inscribed circle the outline covers as town land; the site grows by its inverse square root. */
 export function vectorWallAreaShare(seed: string, shape: WallShape, sides?: number): number {
-  return Math.abs(polygonArea(vectorUnitWallRing(seed, shape, sides))) / Math.PI;
+  const ring = vectorUnitWallRing(seed, shape, sides);
+  // A bastion is a gun platform, not town (gate-ribbon plan §3.7): only the land inside the gorges counts.
+  return (shape === "bastioned" ? unitBastionedTownArea(ring) : Math.abs(polygonArea(ring))) / Math.PI;
 }
 
 /** The wall fields of saved or shared skeleton settings. */

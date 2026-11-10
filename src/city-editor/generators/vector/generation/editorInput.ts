@@ -13,7 +13,7 @@ import { fortifyVectorInput } from "./fortress";
 import { expectedVectorHouseStoreys } from "./housingHeights";
 import { syntheticVectorInput, vectorInputFromDescriptor } from "./input";
 import { bridgeSyntheticCrossings } from "./syntheticCrossings";
-import { MESHLESS_SITE_RIM_METERS, meshlessCityRadius } from "./urbanSizing";
+import { MESHLESS_SITE_RIM_METERS, meshlessCityRadius, meshlessSiteFillScale } from "./urbanSizing";
 import { isVectorWallShape, vectorWallAreaShare, vectorWallChoice } from "./wallShape";
 
 export interface VectorEditorGenerationInput {
@@ -55,21 +55,32 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     !settings.config.relief &&
     settings.config.rivers.length <= 1 &&
     settings.config.rivers.every(r => r === "through" || r === "straight");
+  // A wall shape narrower than the round site it is drawn in would leave the houses it was sized for outside it:
+  // the site grows so the walled area matches (P4a). A walled town is sized to fill its interior (gate-ribbon §3.6);
+  // what the estimate misses goes to the roadside beyond the gates.
+  const wall = vectorWallChoice(settings, seed, period, input.frame.extentMeters),
+    walledScale = (dwellings: number) =>
+      wall.wall === "none"
+        ? 1
+        : meshlessSiteFillScale(dwellings) *
+          (isVectorWallShape(wall.wall) ? 1 / Math.sqrt(vectorWallAreaShare(seed, wall.wall, wall.wallSides)) : 1);
   let descriptor = native
     ? undefined
     : structuredClone(settings.descriptor ?? synthSite("largeTown", settings.config, seed, frame));
   // A synthesized coast or river takes land from the round site the population was planned on. The site is
   // synthesized again on a larger frame until its dry land holds the CE perimeter lots it needs (P5a).
   if (descriptor && !settings.descriptor && settings.population && input.lotOccupancy !== undefined) {
-    const need =
-      Math.PI *
-      meshlessCityRadius(
-        getUrbanDwellings(settings.population.targetPopulation),
-        expectedVectorHouseStoreys(period, settings, undefined),
-        input.lotOccupancy,
-        0
-      ) **
-        2;
+    const dwellings = getUrbanDwellings(settings.population.targetPopulation),
+      need =
+        Math.PI *
+        (walledScale(dwellings) *
+          meshlessCityRadius(
+            dwellings,
+            expectedVectorHouseStoreys(period, settings, undefined),
+            input.lotOccupancy,
+            0
+          )) **
+          2;
     let scale = 1;
     for (let attempt = 0; attempt < 3; attempt++) {
       const probe = vectorInputFromDescriptor(descriptor),
@@ -147,17 +158,17 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
   if (!native || input.lotOccupancy === undefined || !settings.population) return build(meshRadius);
   // The mesh plan sizes cells for the mesh editor's lots. The native site is sized for the CE perimeter lots it
   // will actually hold at the chosen occupancy, plus the land the civic centre takes before any lot.
-  // A wall shape narrower than the round site it is drawn in would leave the houses it was sized for outside it:
-  // the site grows so the walled area matches (P4a).
-  const wall = vectorWallChoice(settings, seed, period, input.frame.extentMeters),
-    wallScale = isVectorWallShape(wall.wall) ? 1 / Math.sqrt(vectorWallAreaShare(seed, wall.wall, wall.wallSides)) : 1;
+  // A synthetic site is at least 30 m across its radius.
   const size = (reservedM2: number) =>
-    wallScale *
-    meshlessCityRadius(
-      getUrbanDwellings(settings.population!.targetPopulation),
-      expectedVectorHouseStoreys(period, settings, settings.descriptor?.civilization?.tradition),
-      input.lotOccupancy,
-      reservedM2
+    Math.max(
+      30,
+      walledScale(getUrbanDwellings(settings.population!.targetPopulation)) *
+        meshlessCityRadius(
+          getUrbanDwellings(settings.population!.targetPopulation),
+          expectedVectorHouseStoreys(period, settings, settings.descriptor?.civilization?.tradition),
+          input.lotOccupancy,
+          reservedM2
+        )
     );
   // The first pass leaves the civic centre out: on a site sized for houses alone it may not fit yet.
   const first = build(size(0), false);

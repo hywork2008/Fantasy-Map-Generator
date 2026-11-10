@@ -31,7 +31,7 @@ describe("park wards laid out by the mesh editor's park fabric (feature parity P
     });
   };
   it("turns each park ward into a lawn with no house, trees kept off the wall", () => {
-    const doc = build("ellipse", "p7c-c"),
+    const doc = build("ellipse", "p7c-d"),
       parkBlocks = new Set(doc.urban!.districts.filter(d => d.ward === "park").map(d => streetBlockOf(d.id))),
       parks = doc.urban!.parks ?? [];
     expect(parkBlocks.size).toBeGreaterThan(0);

@@ -29,7 +29,7 @@ describe("meshless trees with the mesh editor's tree LOD and seasons (feature pa
   });
 
   it("switches park trees by the camera with the open spaces' tree LOD", () => {
-    const seed = "p7c-c",
+    const seed = "p7c-d",
       input = vectorInputFromEditor({
         settings: {
           ...defaultGenerationSettings(),

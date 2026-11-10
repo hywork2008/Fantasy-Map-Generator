@@ -30,6 +30,7 @@ import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater, vectorWaterSurfaces } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
 import { assertVectorDocument } from "../validation/document";
+import { BASTION_REGION_PREFIX, reserveVectorBastions } from "./bastions";
 import { CASTLE_FEATURE_ID, CASTLE_SITE_ID, raiseVectorCastle, reserveVectorCastle } from "./castle";
 import { connectVectorCivicCentre } from "./civic";
 import { raiseVectorPlazaFurniture } from "./civicFurniture";
@@ -682,6 +683,7 @@ function skeleton(
         delete doc.placements[placement];
       delete doc.environment.features[CASTLE_FEATURE_ID];
     }
+    for (const id of Object.keys(doc.regions)) if (id.startsWith(BASTION_REGION_PREFIX)) delete doc.regions[id];
     // So does a generated harbour (P5b).
     if (doc.environment?.harbor?.id === GENERATED_HARBOR_ID) delete doc.environment.harbor;
     if (doc.environment?.ferries) delete doc.environment.ferries;
@@ -1088,6 +1090,9 @@ function skeleton(
   // The castle precinct is reserved before the streets are routed, as the mesh editor sites it (P4e).
   if (settings.castle && !reserveVectorCastle(doc, settings))
     diagnostics.push({ code: "castle-unplaced", entityId: CASTLE_FEATURE_ID, severity: "warning" });
+  // A bastioned wall's bastions are gun platforms: reserved before the streets, so no block or house stands there.
+  if (settings.wall === "bastioned" && doc.paths["auto-wall"])
+    reserveVectorBastions(doc, "auto-wall", settings.wallSides ?? 6);
   const free = freeLand(doc);
   if (!containsRegion(free, center)) throw new Error("site-center-blocked");
   const ports: Point[] = [[...center]],

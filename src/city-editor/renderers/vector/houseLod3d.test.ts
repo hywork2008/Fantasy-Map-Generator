@@ -10,7 +10,7 @@ import { createVectorScene } from "./scene3d";
 
 describe("meshless houses with the mesh editor's housing LOD and façade details (feature parity P2d-7)", () => {
   it("gives the houses near the camera their detailed regional model and façades, picked by the house", () => {
-    const seed = "p7c-c",
+    const seed = "p7c-d",
       input = vectorInputFromEditor({
         settings: {
           ...defaultGenerationSettings(),
