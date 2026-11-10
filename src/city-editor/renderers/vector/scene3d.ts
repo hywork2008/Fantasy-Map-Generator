@@ -11,6 +11,7 @@ import { createTownCranes, createTownHarborCargo } from "../../../city3d/three/c
 import { createFacilityLayer } from "../../../city3d/three/facilityMeshes";
 import { createTownForest } from "../../../city3d/three/forestMeshes";
 import { createTownMonasteries } from "../../../city3d/three/friaryMeshes";
+import { createTownObjects } from "../../../city3d/three/objectMeshes";
 import { createTownOpenSpaces } from "../../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../../city3d/three/pierMeshes";
 import { createTownRegionalHouseLod } from "../../../city3d/three/regionalHouseLod";
@@ -26,7 +27,7 @@ import { polygonArea } from "../../generators/geom";
 import type { TownWaterPart } from "../../generators/townWater";
 import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
 import type { BuildingMassing } from "../../types/contracts/buildingMassing";
-import type { CityDocument } from "../../types/document";
+import type { CityDocument, CityElement } from "../../types/document";
 import type { Point } from "../../types/primitives";
 import { createVectorLandscapeTrees } from "./landscapeTrees";
 import type { VectorRenderData, VectorRenderSurface } from "./renderData";
@@ -481,6 +482,19 @@ export function createVectorScene(
         wells.group.userData = { kind: "feature", featureKind: "well", representation: "bv-well" };
         return { object: wells.group, dispose: () => wells.dispose() };
       });
+    // Catalogue placements (church, stalls, civic furniture) for the object layer.
+    const objectItems: CityElement[] = [],
+      objectHeights = new Map<string, number>(),
+      objectMarkers: {
+        id: string;
+        modelId: string;
+        position: readonly [number, number];
+        angle: number;
+        elevation: number;
+        width: number;
+        depth: number;
+        height: number;
+      }[] = [];
     // Generated houses share one mesh per colour, height and tile: draw calls grow with area, not houses.
     const houseBatches = new Map<string, HouseBatch>();
     const massingLots: { polygon: Point[]; massing: BuildingMassing; appearance?: BuildingAppearance }[] = [],
@@ -652,19 +666,29 @@ export function createVectorScene(
             if (savedHeight !== undefined && Math.abs(measuredBounds.max.y - measuredBounds.min.y - savedHeight) > 0.01)
               warnings.push(`model-height-mismatch:${p.id}`);
             else {
-              const instance = model.group.clone(true),
-                bounds = new THREE.Box3().setFromObject(model.group, true),
-                wrapper = new THREE.Group();
-              instance.position.add(new THREE.Vector3(-footprint.centerX, -bounds.min.y, -footprint.centerZ));
-              wrapper.add(instance);
-              wrapper.position.set(
-                p.position[0] - data.center[0],
-                surface.elevationMeters - datum,
-                -p.position[1] + data.center[1]
-              );
-              wrapper.rotation.y = angle;
-              wrapper.userData = { id: p.id, kind: "building", representation: "bv", modelId: p.modelId };
-              group.add(wrapper);
+              // Drawn with the mesh editor's object layer below: instanced by model, market stalls by the camera.
+              objectItems.push({
+                id: p.id,
+                kind: "object",
+                point: [p.position[0], p.position[1]],
+                objectType: p.modelId,
+                objectQuality: level,
+                ...(p.appearance?.palette ? { objectPalette: p.appearance.palette } : {}),
+                ...(p.appearance?.activity ? { objectMarketActivity: p.appearance.activity } : {}),
+                rotation: angle,
+                locked: false
+              } as CityElement);
+              objectHeights.set(p.id, surface.elevationMeters);
+              objectMarkers.push({
+                id: p.id,
+                modelId: p.modelId,
+                position: p.position,
+                angle,
+                elevation: surface.elevationMeters - datum,
+                width: footprint.halfX * 2,
+                depth: footprint.halfZ * 2,
+                height: measuredBounds.max.y - measuredBounds.min.y
+              });
               placed = true;
               if (savedHeight === undefined && !laid) warnings.push(`height-unverified:${p.id}`);
             }
@@ -712,6 +736,54 @@ export function createVectorScene(
         };
         group.add(mesh);
         disposers.push(() => geometry.dispose());
+      }
+    }
+    if (objectItems.length)
+      layer("objects", [objectItems, [...objectHeights]], () => {
+        const heights = new Map(objectItems.map(item => [item.point!.join(","), objectHeights.get(item.id)! - datum])),
+          objects = createTownObjects(objectItems, point => heights.get(point.join(",")) ?? 0, harborCache, {
+            lod: true
+          }),
+          holder = new THREE.Group(),
+          modelOf = new Map(objectItems.map(item => [item.id, item.objectType!]));
+        holder.position.set(-data.center[0], 0, data.center[1]);
+        holder.add(objects.group);
+        // Each instanced batch is one model: keep the catalogue id on it for the scene's readers.
+        for (const mesh of objects.pickables) {
+          const site = objects.resolve({ object: mesh, instanceId: 0 });
+          mesh.userData = {
+            ...mesh.userData,
+            representation: "bv-instances",
+            modelId: site && modelOf.get(site.id)
+          };
+        }
+        return {
+          object: holder,
+          dispose: () => objects.dispose(),
+          cameraUpdate: (camera, height) => ({ changed: objects.update(camera, height), pending: false }),
+          resolve: hit => objects.resolve(hit)?.id
+        };
+      });
+    // Each placement keeps an owner node with its id: an invisible envelope that the pick ray and the selection
+    // outline find, while the instanced models above draw it.
+    if (objectMarkers.length) {
+      const box = new THREE.BoxGeometry(1, 1, 1),
+        hidden = new THREE.MeshBasicMaterial();
+      disposers.push(() => {
+        box.dispose();
+        hidden.dispose();
+      });
+      for (const m of objectMarkers) {
+        const owner = new THREE.Group(),
+          envelope = new THREE.Mesh(box, hidden);
+        envelope.scale.set(m.width, m.height, m.depth);
+        envelope.position.y = m.height / 2;
+        envelope.visible = false;
+        owner.add(envelope);
+        owner.position.set(m.position[0] - data.center[0], m.elevation, -m.position[1] + data.center[1]);
+        owner.rotation.y = m.angle;
+        owner.userData = { id: m.id, kind: "building", representation: "bv", modelId: m.modelId };
+        group.add(owner);
       }
     }
     if (massingLots.length) {
