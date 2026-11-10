@@ -1,0 +1,289 @@
+{
+  "method": "One BV ship, no ground. Unique CPU attribute/index buffers include line geometry but exclude JS objects, transient allocations and GPU memory; no FPS benchmark. Fingerprints cover meshes, not lines. No raster previews are stored.",
+  "rows": [
+    {
+      "quality": "low",
+      "sails": "set",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 49,
+        "triangles": 1642,
+        "vertices": 460,
+        "geometries": 9,
+        "materials": 6
+      },
+      "lineSegments": 19,
+      "attributeBytes": 15356,
+      "dimensionsXYZ": [
+        14.860494132056697,
+        15.5,
+        4.3357254290171605
+      ],
+      "fingerprint": "e3a89818a2d191d5ec3f80d800f72a58e6376ebc850456db436291373565420d",
+      "sourceParts": [],
+      "parts": []
+    },
+    {
+      "quality": "low",
+      "sails": "furled",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 59,
+        "triangles": 2308,
+        "vertices": 880,
+        "geometries": 19,
+        "materials": 7
+      },
+      "lineSegments": 10,
+      "attributeBytes": 32816,
+      "dimensionsXYZ": [
+        14.860494132056697,
+        15.5,
+        4.3357254290171605
+      ],
+      "fingerprint": "9508a918e7788b193ec3f49f5fdee3c129d688fc2cf11615a1c08cb911e1fa39",
+      "sourceParts": [],
+      "parts": []
+    },
+    {
+      "quality": "high",
+      "sails": "set",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 5,
+        "triangles": 10570,
+        "vertices": 31710,
+        "geometries": 5,
+        "materials": 5
+      },
+      "lineSegments": 2357,
+      "attributeBytes": 817608,
+      "dimensionsXYZ": [
+        14.873756885528564,
+        15.500000238418579,
+        4.287063121795654
+      ],
+      "fingerprint": "08efe8c07e10004f18aed2621906c936fe815e8848748d96b9ba704ea871cc72",
+      "sourceParts": [
+        {
+          "id": "hull",
+          "role": "Hull and rudder",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 9,
+          "triangles": 2398
+        },
+        {
+          "id": "deck",
+          "role": "Deck and cap rails",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 129,
+          "triangles": 1664
+        },
+        {
+          "id": "cabin",
+          "role": "Cabin and joinery",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 66,
+          "triangles": 1068
+        },
+        {
+          "id": "fittings",
+          "role": "Deck equipment",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 34,
+          "triangles": 1488
+        },
+        {
+          "id": "spars",
+          "role": "Fixed spars",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 1008
+        },
+        {
+          "id": "standing-rigging",
+          "role": "Standing rigging and deadeyes",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 8,
+          "triangles": 1200
+        },
+        {
+          "id": "mainsail",
+          "role": "Mainsail and movable gaff",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 904
+        },
+        {
+          "id": "jib",
+          "role": "Jib and sheets",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 1,
+          "triangles": 840
+        }
+      ],
+      "parts": [
+        {
+          "id": "hull",
+          "fingerprint": "46eac0062a5d568ab3cdbe6ab7e977af76ffcf38b5a88bfbebd97feefb3df33c"
+        },
+        {
+          "id": "deck",
+          "fingerprint": "4ad33db5711429782c76d45d9a13372133393f91c8b683e291be42a8ea8781e8"
+        },
+        {
+          "id": "cabin",
+          "fingerprint": "8b0a6e70c90d8c1b279b4687bc9361dac4b3f96bf44852ce0a267d376cff5f41"
+        },
+        {
+          "id": "fittings",
+          "fingerprint": "d07359586796a386c185878e9a968c7885b982e335eb6e025903c82527555ec7"
+        },
+        {
+          "id": "spars",
+          "fingerprint": "fb890cea00d6f415c1c2f3edcd62a158d6cb8fd77b39bcce289164c2fcdcda7c"
+        },
+        {
+          "id": "standing-rigging",
+          "fingerprint": "4972c03e5e32fa9f84edc995dbe0a63cb7c6795a4d0665799fcce83d2a0d3b93"
+        },
+        {
+          "id": "mainsail",
+          "fingerprint": "0c23766324107990731756ac7455aa7e8917be5de9d3ba17e2ee3d59690bbb97"
+        },
+        {
+          "id": "jib",
+          "fingerprint": "a80d36909fb0e665c7e2043c0730cc246d686722606dccfe995d8f19e11ea2bd"
+        }
+      ]
+    },
+    {
+      "quality": "high",
+      "sails": "furled",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 6,
+        "triangles": 10522,
+        "vertices": 31566,
+        "geometries": 6,
+        "materials": 6
+      },
+      "lineSegments": 1768,
+      "attributeBytes": 800016,
+      "dimensionsXYZ": [
+        14.873756885528564,
+        15.500000238418579,
+        4.287063121795654
+      ],
+      "fingerprint": "ddd13d17b6c2fa1e5e6c9d6e245c238b004fbb308fe4ded2fc12cf383d12c80c",
+      "sourceParts": [
+        {
+          "id": "hull",
+          "role": "Hull and rudder",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 9,
+          "triangles": 2398
+        },
+        {
+          "id": "deck",
+          "role": "Deck and cap rails",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 129,
+          "triangles": 1664
+        },
+        {
+          "id": "cabin",
+          "role": "Cabin and joinery",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 66,
+          "triangles": 1068
+        },
+        {
+          "id": "fittings",
+          "role": "Deck equipment",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 34,
+          "triangles": 1488
+        },
+        {
+          "id": "spars",
+          "role": "Fixed spars",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 1008
+        },
+        {
+          "id": "standing-rigging",
+          "role": "Standing rigging and deadeyes",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 8,
+          "triangles": 1200
+        },
+        {
+          "id": "mainsail",
+          "role": "Mainsail and movable gaff",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1000
+        },
+        {
+          "id": "jib",
+          "role": "Jib and sheets",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 696
+        }
+      ],
+      "parts": [
+        {
+          "id": "hull",
+          "fingerprint": "46eac0062a5d568ab3cdbe6ab7e977af76ffcf38b5a88bfbebd97feefb3df33c"
+        },
+        {
+          "id": "deck",
+          "fingerprint": "4ad33db5711429782c76d45d9a13372133393f91c8b683e291be42a8ea8781e8"
+        },
+        {
+          "id": "cabin",
+          "fingerprint": "8b0a6e70c90d8c1b279b4687bc9361dac4b3f96bf44852ce0a267d376cff5f41"
+        },
+        {
+          "id": "fittings",
+          "fingerprint": "d07359586796a386c185878e9a968c7885b982e335eb6e025903c82527555ec7"
+        },
+        {
+          "id": "spars",
+          "fingerprint": "fb890cea00d6f415c1c2f3edcd62a158d6cb8fd77b39bcce289164c2fcdcda7c"
+        },
+        {
+          "id": "standing-rigging",
+          "fingerprint": "4972c03e5e32fa9f84edc995dbe0a63cb7c6795a4d0665799fcce83d2a0d3b93"
+        },
+        {
+          "id": "mainsail",
+          "fingerprint": "6d7a76c14cf7fd128dcf8ece32ca43437758e6c7cd8735b7096ee5babe927db3"
+        },
+        {
+          "id": "jib",
+          "fingerprint": "9e98042891617f55ea7951361297b50c6be6868843f9bb1db39a8d7db1631d34"
+        }
+      ]
+    }
+  ]
+}

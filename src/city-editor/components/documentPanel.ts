@@ -14,18 +14,34 @@ import {
   resolveMaxPatches
 } from "../generators/document";
 import { finishRiver, smoothFeatureGroups } from "../generators/features";
+import { placeFreeformBuildings } from "../generators/freeform/autoPlace";
+import {
+  convertDocumentToFreeform,
+  createFreeformCity,
+  freeformFrameMeters,
+  freeformSeed,
+  materializeFreeform
+} from "../generators/freeform/freeformCity";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { randomSeed } from "../generators/generation/settings";
+import { placeHarborMarket } from "../generators/harborMarket";
 import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } from "../generators/hexGrid";
 import { DocumentHistory } from "../generators/history";
 import { scaleDocument } from "../generators/mesh";
+import { placePlazaMarket } from "../generators/plazaMarket";
 import { writeMaxPatchesPreference } from "../services/browserPreferences";
-import { exportCityMap, exportCitySvg, exportGenerationDebugSvg } from "../services/io/cityEditorFile";
+import {
+  exportBuildingInventoryCsv,
+  exportCityMap,
+  exportCitySvg,
+  exportGenerationDebugSvg
+} from "../services/io/cityEditorFile";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { FixedApproachProvider } from "../types/contracts/fixedApproachAdoption";
 import type { CityDocument } from "../types/document";
 import { formatDistance } from "../utils/editorUnits";
 import { div, text } from "./editorControls";
+import { buildMarketAreaControls } from "./marketAreaControls";
 export interface DocumentPanelContext {
   select: (values: string[], selected: string) => HTMLSelectElement;
   panelEventContext: () => {
@@ -149,6 +165,8 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     gridKindLabel: { get: () => gridKindLabel },
     syncGridKindUi: { get: () => syncGridKindUi },
     newButton: { get: () => newButton },
+    freeformButton: { get: () => freeformButton },
+    convertButton: { get: () => convertButton },
     sizeLabel: { get: () => sizeLabel },
     undoButton: { get: () => undoButton },
     redoButton: { get: () => redoButton },
@@ -235,38 +253,14 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     hexSizeLabel.hidden = ctx.documents.gridKind !== "hex";
   };
   syncGridKindUi();
-  const newButton = ctx.makeIconButton("🆕", editorText("cityEditor.messages.generateANewGrid"), () => {
-    const housing = ctx.documents.documentState;
-    ctx.documents.gridSeed = randomSeed();
-    ctx.documents.documentState = createGridDocument({
-      size: size.value as CitySizePreset,
-      grid: ctx.documents.gridKind,
-      seed: ctx.documents.gridSeed,
-      hexSizeMeters: ctx.documents.hexSizeMeters,
-      patchParams: { ...ctx.generation.gridEvoParams },
-      ...ctx.importedFrame(),
-      measureBlockSize: ctx.documents.measureTownCells
-    });
-    ctx.documents.documentState = withBuildingAppearance({
-      ...ctx.documents.documentState,
-      biome: housing.biome,
-      buildingHeightPolicy: housing.buildingHeightPolicy,
-      buildingHeightLimit: housing.buildingHeightLimit,
-      buildingAppearanceProfile: housing.buildingAppearanceProfile,
-      buildingAppearanceClimate: housing.buildingAppearanceClimate,
-      buildingWallFinish: housing.buildingWallFinish
-    });
-    ctx.documents.history = new DocumentHistory(
-      ctx.documents.documentState,
-      editorText("cityEditor.messages.newGrid"),
-      undefined,
-      ctx.fixedApproachProvider
-    );
+  const openFreshDocument = (next: CityDocument, label: string): void => {
+    ctx.documents.documentState = next;
+    ctx.documents.history = new DocumentHistory(next, label, undefined, ctx.fixedApproachProvider);
     ctx.generationLog.reset();
     ctx.documents.referenceImage = null;
     ctx.interaction.selection = emptySelection();
     ctx.interaction.activeGroupId = null;
-    ctx.display.halfView = ctx.documents.documentState.frame.extentMeters / 2;
+    ctx.display.halfView = next.frame.extentMeters / 2;
     ctx.display.viewCenter = [0, 0];
     // A fresh mesh may reuse the old town's face ids — drop any stale step state.
     ctx.generation.activeStepStage = null;
@@ -283,6 +277,138 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     ctx.clearMeasurement();
     ctx.rebuildEditorIndexes();
     ctx.refresh();
+  };
+  const keptAppearance = (next: CityDocument, housing: CityDocument): CityDocument =>
+    withBuildingAppearance({
+      ...next,
+      biome: housing.biome,
+      buildingHeightPolicy: housing.buildingHeightPolicy,
+      buildingHeightLimit: housing.buildingHeightLimit,
+      buildingAppearanceProfile: housing.buildingAppearanceProfile,
+      buildingAppearanceClimate: housing.buildingAppearanceClimate,
+      buildingWallFinish: housing.buildingWallFinish
+    });
+  const newButton = ctx.makeIconButton("🆕", editorText("cityEditor.messages.generateANewGrid"), () => {
+    const housing = ctx.documents.documentState;
+    ctx.documents.gridSeed = randomSeed();
+    openFreshDocument(
+      keptAppearance(
+        createGridDocument({
+          size: size.value as CitySizePreset,
+          grid: ctx.documents.gridKind,
+          seed: ctx.documents.gridSeed,
+          hexSizeMeters: ctx.documents.hexSizeMeters,
+          patchParams: { ...ctx.generation.gridEvoParams },
+          ...ctx.importedFrame(),
+          measureBlockSize: ctx.documents.measureTownCells
+        }),
+        housing
+      ),
+      editorText("cityEditor.messages.newGrid")
+    );
+  });
+  const freeformButton = ctx.makeIconButton("◌", editorText("cityEditor.messages.freeformCity"), () => {
+    const housing = ctx.documents.documentState;
+    const requested = CITY_SIZE_PRESETS[size.value as CitySizePreset].extentMeters;
+    const extent = freeformFrameMeters(requested);
+    openFreshDocument(
+      keptAppearance(materializeFreeform(createFreeformCity(extent, freeformSeed(randomSeed())), housing), housing),
+      editorText("cityEditor.messages.freeformCity")
+    );
+    if (extent < requested) ctx.showNotice(editorText("cityEditor.messages.freeformFrame"));
+  });
+  const convertButton = ctx.makeIconButton("⇄", editorText("cityEditor.messages.convertToFreeform"), () => {
+    const current = ctx.documents.documentState;
+    if (current.freeform) {
+      ctx.showNotice(editorText("cityEditor.messages.freeformAlready"));
+      return;
+    }
+    const next = convertDocumentToFreeform(current);
+    if (!next) {
+      ctx.showNotice(editorText("cityEditor.messages.freeformNoHeight"));
+      return;
+    }
+    ctx.generation.failurePreview = null;
+    ctx.generation.failureRenderContext = null;
+    ctx.generation.activeStepStage = null;
+    ctx.generation.urbanCoreHighlight = null;
+    ctx.generation.stepOverlayPaths = null;
+    ctx.stepStatus.textContent = "";
+    ctx.commit(next, editorText("cityEditor.messages.freeformConverted"));
+  });
+  const placeButton = ctx.makeIconButton("🏠", editorText("cityEditor.messages.placeFreeform"), () => {
+    const current = ctx.documents.documentState;
+    if (!current.freeform) {
+      ctx.showNotice(editorText("cityEditor.messages.freeformPlaceNeedsCity"));
+      return;
+    }
+    const result = placeFreeformBuildings(current);
+    if (result.placed === 0) {
+      const key =
+        result.reason === "full"
+          ? "cityEditor.messages.freeformPlaceFull"
+          : result.reason === "ledger"
+            ? "cityEditor.messages.buildingNeedsField"
+            : "cityEditor.messages.freeformPlaceNone";
+      ctx.showNotice(editorText(key));
+      return;
+    }
+    const message = editorText("cityEditor.messages.freeformPlaced", { value0: result.placed });
+    ctx.commit(result.document, message);
+    ctx.showNotice(message);
+  });
+  const marketButton = ctx.makeIconButton("▤", editorText("cityEditor.messages.populatePlazaMarket"), () => {
+    const current = ctx.documents.documentState;
+    const selected = ctx.interaction.inspectedInfo;
+    const result = placePlazaMarket(
+      current,
+      selected?.kind === "plaza" && typeof selected.id === "string" ? selected.id : undefined
+    );
+    if (!result.placed) {
+      const key =
+        result.reason === "field"
+          ? "cityEditor.messages.buildingNeedsField"
+          : result.reason === "existing"
+            ? "cityEditor.messages.marketAlreadyPopulated"
+            : result.reason === "locked"
+              ? "cityEditor.messages.marketPlazaLocked"
+              : result.reason === "freeform"
+                ? "cityEditor.messages.marketNeedsMesh"
+                : result.reason === "plaza"
+                  ? "cityEditor.messages.marketNeedsPlaza"
+                  : "cityEditor.messages.marketNoSpace";
+      ctx.showNotice(editorText(key));
+      return;
+    }
+    const message = editorText("cityEditor.messages.marketPopulated", { value0: result.placed });
+    ctx.commit(result.document, message);
+    ctx.showNotice(message);
+  });
+  const harborMarketButton = ctx.makeIconButton("▤", editorText("cityEditor.messages.populateHarborMarket"), () => {
+    const selected = ctx.interaction.inspectedInfo;
+    const result = placeHarborMarket(
+      ctx.documents.documentState,
+      selected?.kind === "harbor" && typeof selected.id === "string" ? selected.id : undefined
+    );
+    if (!result.placed) {
+      const key =
+        result.reason === "field"
+          ? "cityEditor.messages.buildingNeedsField"
+          : result.reason === "existing"
+            ? "cityEditor.messages.harborMarketAlreadyPopulated"
+            : result.reason === "locked"
+              ? "cityEditor.messages.harborMarketLocked"
+              : result.reason === "freeform"
+                ? "cityEditor.messages.marketNeedsMesh"
+                : result.reason === "harbor"
+                  ? "cityEditor.messages.harborMarketNeedsPort"
+                  : "cityEditor.messages.marketNoSpace";
+      ctx.showNotice(editorText(key));
+      return;
+    }
+    const message = editorText("cityEditor.messages.marketPopulated", { value0: result.placed });
+    ctx.commit(result.document, message);
+    ctx.showNotice(message);
   });
   const sizeLabel = ctx.label(editorText("cityEditor.messages.mapSize"), size);
   sizeLabel.className = "ce-size-choice";
@@ -315,6 +441,14 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     );
     ctx.showNotice(editorText("cityEditor.messages.sVGExported"));
   });
+  const exportBuildingInventoryButton = ctx.makeIconButton(
+    "🏘️",
+    editorText("cityEditor.messages.exportBuildingInventoryCsv"),
+    () => {
+      exportBuildingInventoryCsv(ctx.documents.documentState);
+      ctx.showNotice(editorText("cityEditor.messages.buildingInventoryExported"));
+    }
+  );
   const importButton = ctx.makeIconButton(
     "📤",
     editorText("cityEditor.messages.importCityMapOrSVGReference"),
@@ -372,7 +506,7 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     else ctx.showNotice(editorText("cityEditor.messages.noMovableRiverRoadOrWallVerticesToSmooth"));
   });
   const actions = div("ce-icon-row");
-  actions.append(undoButton, redoButton, importButton, exportButton, exportSvgButton);
+  actions.append(undoButton, redoButton, importButton, exportButton, exportSvgButton, exportBuildingInventoryButton);
   ctx.toolbar.content.append(
     ctx.divider(),
     actions,
@@ -384,7 +518,26 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     ctx.label(editorText("cityEditor.messages.cellIDs"), showLabelsInput)
   );
   const documentActions = div("ce-icon-row");
-  documentActions.append(newButton, scaleButton, finishButton, smoothGroupsButton);
+  documentActions.append(
+    newButton,
+    freeformButton,
+    convertButton,
+    placeButton,
+    marketButton,
+    harborMarketButton,
+    scaleButton,
+    finishButton,
+    smoothGroupsButton
+  );
+  const marketAreaControls = buildMarketAreaControls({
+    getDocument: () => ctx.documents.documentState,
+    selected: () => ctx.interaction.inspectedInfo,
+    commit: (document, label) => ctx.commit(document, label),
+    notice: message => ctx.showNotice(message),
+    map: ctx.panelEventContext().map
+  });
+  marketAreaControls.root.style.flexBasis = "100%";
+  documentActions.append(marketAreaControls.root);
   const gridParamLabels: HTMLLabelElement[] = [];
   const gridParamControls: Partial<
     Record<
@@ -519,6 +672,7 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     finishButton,
     smoothingModeInput,
     documentActions,
+    syncMarketControls: marketAreaControls.sync,
     syncGridParamControls,
     gridEvoSlider,
     gridEvoFirstButton,

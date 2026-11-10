@@ -5,7 +5,7 @@ import { isGoodEnabled } from "./goods-generator";
 import { type GoodFlowCategory, recordGoodFlow } from "./goodsBalanceLedger";
 import type { Good } from "./goodsGeneratorTypes";
 import type { getCraftDomainForGood } from "./guildKnowledgeTypes";
-import { applyMarketPressure, customerBuyPrice } from "./marketPricing";
+import { applyMarketPressure, customerBuyPrice, hasSettledPrice } from "./marketPricing";
 import type { Deal, Market } from "./marketTypes";
 
 export type MarketPurchaseOptions = {
@@ -86,6 +86,6 @@ export function buyMarketGoods(
     guildDomain: flow?.guildDomain ?? undefined,
     relatedGoodId: flow?.relatedGoodId
   });
-  marketGood.price = rn(applyMarketPressure(good.value, marketGood.price, actualUnits), 2);
+  if (!hasSettledPrice(good)) marketGood.price = rn(applyMarketPressure(good.value, marketGood.price, actualUnits), 2);
   return deal;
 }

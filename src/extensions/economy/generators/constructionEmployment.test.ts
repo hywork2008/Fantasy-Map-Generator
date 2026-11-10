@@ -28,7 +28,9 @@ import {
   getRequiredDwellings,
   getTargetBuildingStock,
   MAX_CONSTRUCTION_CAPACITY_SHARE,
-  normalizeConstructionOperation
+  normalizeConstructionOperation,
+  SHANTY_START_HOUSED_SHARE,
+  seedStartHousing
 } from "./constructionEmployment";
 import type { ConstructionOperation, LegacyConstructionOperation } from "./constructionEmploymentTypes";
 import { Goods } from "./goods-generator";
@@ -121,6 +123,12 @@ function setUpWorld(
   setQuarryOperations([]);
   Goods.sync();
   Markets.sync();
+}
+
+/** Growth tests start from a town with no dwellings yet. */
+function emptyTown(operation: { dwellingStock: number; buildingStock: number }): void {
+  operation.dwellingStock = 0;
+  operation.buildingStock = 0;
 }
 
 describe("getTargetBuildingStock / getMasonShare (K17)", () => {
@@ -411,7 +419,7 @@ describe("ConstructionOperationsModule", () => {
     optionsStore.setState({ culturesSet: "world" });
   });
 
-  it("creates one operation per market Burg with dwellingStock seeded at 0", () => {
+  it("creates one operation per market Burg, housed at the start and a shanty town only in part", () => {
     setUpWorld();
 
     ConstructionOperations.generate();
@@ -421,10 +429,27 @@ describe("ConstructionOperationsModule", () => {
     expect(operations[0]).toMatchObject({
       burgId: 1,
       marketId: 1,
-      buildingStock: 0,
-      dwellingStock: 0,
+      buildingStock: 1,
+      dwellingStock: getRequiredDwellings(5, 1000),
       hasQuarryAccess: false
     });
+
+    setUpWorld();
+    worldContext.pack.burgs[1].shanty = 1;
+    ConstructionOperations.generate();
+    expect(getConstructionOperations()[0].buildingStock).toBeCloseTo(SHANTY_START_HOUSED_SHARE, 6);
+  });
+
+  it("houses a loaded world-birth save that stored no dwellings, and keeps built ones", () => {
+    setUpWorld();
+    ConstructionOperations.generate();
+    const [op] = getConstructionOperations();
+    emptyTown(op);
+    seedStartHousing();
+    expect(op.buildingStock).toBeCloseTo(1, 6);
+    op.dwellingStock *= 0.4;
+    seedStartHousing();
+    expect(op.dwellingStock).toBeCloseTo(getRequiredDwellings(5, 1000) * 0.4, 4);
   });
 
   it("skips forts even when they have a market (K8)", () => {
@@ -499,6 +524,7 @@ describe("ConstructionOperationsModule", () => {
     setUpWorld();
     ConstructionOperations.generate();
     const [operation] = getConstructionOperations();
+    emptyTown(operation);
     operation.carpenterWorkers = 100;
     const required = getRequiredDwellings(5, 1000);
 
@@ -515,6 +541,7 @@ describe("ConstructionOperationsModule", () => {
     setUpWorld();
     ConstructionOperations.generate();
     const [operation] = getConstructionOperations();
+    emptyTown(operation);
     worldContext.pack.burgs[1].demographics = {
       capacity: 1000,
       effectiveCapacity: 1000,
@@ -581,6 +608,7 @@ describe("ConstructionOperationsModule", () => {
       getMarkets()[0].goods[2].stock = woodStock;
       ConstructionOperations.generate();
       const [operation] = getConstructionOperations();
+      emptyTown(operation);
       operation.masonWorkers = 100;
       operation.carpenterWorkers = 100;
       operation.hasQuarryAccess = false;

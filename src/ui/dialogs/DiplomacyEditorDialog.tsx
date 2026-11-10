@@ -165,10 +165,18 @@ export const DiplomacyEditorContent: React.FC = () => {
         </table>
       </div>
       <div className="info-line">
-        Conflict policy: {conflictAutonomy === "autonomous" ? "Autonomous" : "Player-directed"}.{" "}
+        Conflict policy:{" "}
+        {conflictAutonomy === "autonomous"
+          ? "Autonomous"
+          : conflictAutonomy === "peace"
+            ? "Peace (calibration)"
+            : "Player-directed"}
+        .{" "}
         {conflictAutonomy === "autonomous"
           ? "Rulers may advance eligible conflicts."
-          : "Only explicitly authorized Enemy relationships advance."}
+          : conflictAutonomy === "peace"
+            ? "No conflict advances and no state is at war."
+            : "Only explicitly authorized Enemy relationships advance."}
         <br />
         Click on state name to see relations.
         <br />

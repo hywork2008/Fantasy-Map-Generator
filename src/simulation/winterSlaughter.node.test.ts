@@ -44,7 +44,10 @@ it("keeps private processing, source debits and payments exactly once across rea
     calendar[cell * 12 + month] = 100;
     calendar[cell * 12 + ((month + 1) % 12)] = 100;
     setHusbandryMonthlyWorkDays(calendar);
-    getOrCreateFaunaStockTable()![`${cell}:Pig`] = { young: 5, breeding: 10, old: 100 };
+    // Only the test herd: the fixture's own herds in the cell would take its labour for their care.
+    const herds = getOrCreateFaunaStockTable()!;
+    for (const key of Object.keys(herds)) if (key.startsWith(`${cell}:`)) delete herds[key];
+    herds[`${cell}:Pig`] = { young: 5, breeding: 10, old: 100 };
     const marketId = getMarketCellColumn()[cell];
     let market = getMarkets().find(market => market.i === marketId)!;
     const salt = getGoods().find(good => good.name === "Salt")!;

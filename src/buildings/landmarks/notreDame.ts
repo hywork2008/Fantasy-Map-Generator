@@ -1,4 +1,6 @@
+import type { ModelPartFactory } from "../modelParts";
 import { ArchitectureKit, type LandmarkModel } from "./architectureKit";
+import { assembleLandmarkParts, type LandmarkComponent, landmarkPartFactories } from "./components/assembly";
 import { model as highDetail } from "./notreDame/highDetail";
 
 export const model: LandmarkModel = {
@@ -25,37 +27,94 @@ export const model: LandmarkModel = {
   ],
   highDetail,
   create() {
-    const k = new ArchitectureKit(this.id);
-    k.nave("nave-and-choir", -8, 0, 100, 14, 35, 10);
-    for (const side of [-1, 1]) {
-      k.nave("double-aisle", -8, side * 12, 100, 10, 14, 4);
-      k.crossNave("transept", 3, side * 13, 23, 14, 32, 9);
-      k.rose(3, 23, side * 24.5, 5.5, side > 0 ? 0 : Math.PI);
-    }
-    k.apse("outer-ambulatory", 42, 0, 17, 14, 4);
-    k.apse("choir-apse", 42, 0, 7, 35, 10);
-    k.radialChapels(42, 17, 7, 5, 9);
-    k.bays([-44, -36, -28, -20, 18, 26, 34], 7, 35, 17, 14, true, true);
-    for (const x of [-41, -33, -25, 21, 29, 37]) for (const s of [-1, 1]) k.flyer(x, 7.2, 20.2, 25, 32, s);
-    for (let i = 1; i < 8; i++) {
-      const a = (i * Math.PI) / 8;
-      k.beam(
-        "chevet-flying-buttress",
-        [42 + Math.sin(a) * 7, 31, Math.cos(a) * 7],
-        [42 + Math.sin(a) * 22, 16, Math.cos(a) * 22],
-        1.2,
-        "plaster"
-      );
-      k.block("chevet-pier", 42 + Math.sin(a) * 22, Math.cos(a) * 22, 1.7, 1.7, 17);
-    }
-    k.block("west-screen", -59, 0, 7, 40, 43);
-    for (const z of [-13, 13]) k.tower("west-tower", -54, z, 13, 68.3);
-    for (const z of [-13, 0, 13]) k.opening("west-portal", -62.5, 0.1, z, z ? 6 : 7.5, 12, -Math.PI / 2, true, true);
-    k.rose(-62.5, 28, 0, 4.5, -Math.PI / 2);
-    k.arcade("kings-gallery", -20, -62.9, 40, 28, 15, 4, Math.PI / 2);
-    k.arcade("west-gallery", -20, -62.9, 40, 14, 37, 5, Math.PI / 2, true);
-    k.tower("crossing-lantern", 3, 0, 6, 12, 0, true, 44);
-    k.spire("restored-crossing-spire", 3, 56.7, 0, 4.2, 39.3);
-    return k.finish();
-  }
+    return assembleParts(parts());
+  },
+  parts,
+  assembleParts
 };
+
+function parts() {
+  const components: LandmarkComponent[] = [
+    {
+      id: "longitudinal-body",
+      build(k) {
+        k.nave("nave-and-choir", -8, 0, 100, 14, 35, 10);
+        for (const side of [-1, 1]) {
+          k.nave("double-aisle", -8, side * 12, 100, 10, 14, 4);
+        }
+        k.bays([-44, -36, -28, -20, 18, 26, 34], 7, 35, 17, 14, true, true);
+        for (const x of [-41, -33, -25, 21, 29, 37]) for (const s of [-1, 1]) k.flyer(x, 7.2, 20.2, 25, 32, s);
+      }
+    },
+    {
+      id: "ambulatory",
+      build(k) {
+        k.apse("outer-ambulatory", 42, 0, 17, 14, 4);
+      }
+    },
+    {
+      id: "choir-apse",
+      build(k) {
+        k.apse("choir-apse", 42, 0, 7, 35, 10);
+      }
+    },
+    {
+      id: "radiating-chapels",
+      build(k) {
+        k.radialChapels(42, 17, 7, 5, 9);
+      }
+    },
+    {
+      id: "chevet-flying-buttresses",
+      build(k) {
+        for (let i = 1; i < 8; i++) {
+          const a = (i * Math.PI) / 8;
+          k.beam(
+            "chevet-flying-buttress",
+            [42 + Math.sin(a) * 7, 31, Math.cos(a) * 7],
+            [42 + Math.sin(a) * 22, 16, Math.cos(a) * 22],
+            1.2,
+            "plaster"
+          );
+          k.block("chevet-pier", 42 + Math.sin(a) * 22, Math.cos(a) * 22, 1.7, 1.7, 17);
+        }
+      }
+    },
+    {
+      id: "west-front",
+      build(k) {
+        k.block("west-screen", -59, 0, 7, 40, 43);
+        for (const z of [-13, 0, 13])
+          k.opening("west-portal", -62.5, 0.1, z, z ? 6 : 7.5, 12, -Math.PI / 2, true, true);
+        k.rose(-62.5, 28, 0, 4.5, -Math.PI / 2);
+        k.arcade("kings-gallery", -20, -62.9, 40, 28, 15, 4, Math.PI / 2);
+        k.arcade("west-gallery", -20, -62.9, 40, 14, 37, 5, Math.PI / 2, true);
+      }
+    }
+  ];
+  for (const z of [-13, 13])
+    components.push({
+      id: `${z < 0 ? "north" : "south"}-west-tower`,
+      build: k => k.tower("west-tower", -54, z, 13, 68.3)
+    });
+  for (const side of [-1, 1])
+    components.push({
+      id: `${side < 0 ? "north" : "south"}-transept`,
+      build(k) {
+        k.crossNave("transept", 3, side * 13, 23, 14, 32, 9);
+        k.rose(3, 23, side * 24.5, 5.5, side > 0 ? 0 : Math.PI);
+      }
+    });
+  components.push({
+    id: "crossing-spire",
+    build(k) {
+      k.tower("crossing-lantern", 3, 0, 6, 12, 0, true, 44);
+      k.spire("restored-crossing-spire", 3, 56.7, 0, 4.2, 39.3);
+    }
+  });
+  return landmarkPartFactories("notre-dame-paris", "low", components, () => new ArchitectureKit("notre-dame-paris"));
+}
+
+function assembleParts(selected: readonly ModelPartFactory[]) {
+  return assembleLandmarkParts("notre-dame-paris", selected);
+}

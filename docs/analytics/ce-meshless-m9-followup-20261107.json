@@ -1,0 +1,647 @@
+{
+  "format": "ce-meshless-m9-acceptance",
+  "version": 1,
+  "measuredAtUtc": "2026-11-07T06:08:45.709Z",
+  "environment": {
+    "node": "v22.23.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M4"
+  },
+  "scope": "Six saved inputs and three fixed population scales; one seed; one ordered run after compatibility fixtures, shared caches may be warm; not a statistical benchmark",
+  "thresholds": {
+    "curveMeters": 0.005,
+    "workerMs": 60000,
+    "renderAndSceneMs": 10000,
+    "nativeBytes": 8388608
+  },
+  "inputs": [
+    {
+      "path": "docs/analytics/ce-meshless-m3-input-20261107.json",
+      "sha256": "bdf5f52bd64e18c93f3b3b3557cebb0f5382a123d670abdc00503d8077bb475b",
+      "bytes": 9204
+    },
+    {
+      "path": "docs/analytics/ce-meshless-m4-fmg-20261107.json",
+      "sha256": "dc811b27b6254603812f1619f3842fae4072f976b47d16595810dfd2293a2793",
+      "bytes": 233171
+    },
+    {
+      "path": "docs/analytics/ce-meshless-m5-synthetic-20261107.json",
+      "sha256": "64e0dcbbf16fd208f37df42e58e92628ebe05e2b56be6c8cc76dcbfe0b16a343",
+      "bytes": 1018342
+    },
+    {
+      "path": "docs/analytics/ce-meshless-m6-edit-20261107.json",
+      "sha256": "97e2bae917f592f38613f0cb356a2151e592bcd477d2f5134418ba130840fb43",
+      "bytes": 1032301
+    },
+    {
+      "path": "docs/analytics/ce-meshless-m8-sites-20261107.json",
+      "sha256": "be9761ae6b5092e8b8af87eebcdc200b221d9d2712cf8ae9edc5006a9ca597ff",
+      "bytes": 325093
+    },
+    {
+      "path": "docs/analytics/ce-meshless-m8-freeform-edit-20261107.json",
+      "sha256": "4896d905ba32c474aeb2af4d030bc40188a6e8a869e8935d805a11da1a7f2338",
+      "bytes": 10546
+    }
+  ],
+  "coverage": {
+    "path": "docs/plan/data/ce-meshless-m9-coverage.json",
+    "sha256": "619d239df751ebdb5214f6389572a7fbce083fb82cf9eb524d0fb11991e992dd",
+    "verified": 11,
+    "limited": 5,
+    "releaseChannel": "preview"
+  },
+  "checks": [
+    {
+      "id": "docs/analytics/ce-meshless-m3-input-20261107.json",
+      "fromVersion": 3,
+      "toVersion": 7,
+      "parseMs": 3.9881659999996373,
+      "renderMs": 4.471958000000086,
+      "sceneMs": 3.7932919999998376,
+      "surfaces": 8,
+      "paths": 6,
+      "placements": 0
+    },
+    {
+      "id": "docs/analytics/ce-meshless-m4-fmg-20261107.json",
+      "fromVersion": 4,
+      "toVersion": 7,
+      "parseMs": 25.51474999999982,
+      "renderMs": 12.475832999999966,
+      "sceneMs": 3.148290999999972,
+      "surfaces": 22,
+      "paths": 13,
+      "placements": 0
+    },
+    {
+      "id": "docs/analytics/ce-meshless-m5-synthetic-20261107.json",
+      "fromVersion": 5,
+      "toVersion": 7,
+      "parseMs": 156.99679099999958,
+      "renderMs": 65.43854199999987,
+      "sceneMs": 278.57229199999983,
+      "surfaces": 303,
+      "paths": 27,
+      "placements": 127
+    },
+    {
+      "id": "docs/analytics/ce-meshless-m6-edit-20261107.json",
+      "fromVersion": 5,
+      "toVersion": 7,
+      "parseMs": 116.92566699999998,
+      "renderMs": 63.93008400000008,
+      "sceneMs": 122.3489169999998,
+      "surfaces": 304,
+      "paths": 27,
+      "placements": 127
+    },
+    {
+      "id": "docs/analytics/ce-meshless-m8-sites-20261107.json",
+      "fromVersion": 7,
+      "toVersion": 7,
+      "parseMs": 6.551875000000109,
+      "renderMs": 41.03041699999994,
+      "sceneMs": 126.96641599999975,
+      "surfaces": 462,
+      "paths": 16,
+      "placements": 0
+    },
+    {
+      "id": "docs/analytics/ce-meshless-m8-freeform-edit-20261107.json",
+      "fromVersion": 7,
+      "toVersion": 7,
+      "parseMs": 0.54950000000008,
+      "renderMs": 10.316208999999617,
+      "sceneMs": 41.88074999999981,
+      "surfaces": 4,
+      "paths": 2,
+      "placements": 1
+    },
+    {
+      "id": "independent-cubic-distance",
+      "referencePoints": 4097,
+      "samples": 2255,
+      "maxErrorMeters": 0.001038175968271768,
+      "limitMeters": 0.005
+    }
+  ],
+  "scales": [
+    {
+      "population": 500,
+      "radiusMeters": 150,
+      "skeletonSettings": {
+        "seed": "meshless",
+        "roadWidthMeters": 5,
+        "clearanceMeters": 0.5,
+        "branches": 4,
+        "wall": "ellipse"
+      },
+      "urbanSettings": {
+        "mode": "medieval-facilities",
+        "population": 500,
+        "houseModelId": "house:mediterranean",
+        "laneWidthMeters": 2.4,
+        "laneSpacingMeters": 36,
+        "maxLanes": 8,
+        "clearanceMeters": 0.6,
+        "allowExpansion": true
+      },
+      "seed": "m9-fixed",
+      "inputSha256": "75acdee3fd8b2b990afc384568f2ccef2daf623e834cdf6b109e7b51c863c20a",
+      "skeletonMs": 8338.231542,
+      "urbanMs": 823.6447079999998,
+      "renderMs": 141.47412499999882,
+      "sceneMs": 113.86462500000016,
+      "serializeMs": 124.23954200000117,
+      "bytes": 1826009,
+      "paths": 23,
+      "placements": 123,
+      "report": {
+        "targetPopulation": 500,
+        "requiredDwellings": 112,
+        "capacityDwellings": 112,
+        "assignedDwellings": 112,
+        "unplacedDwellings": 0,
+        "assignedPopulation": 500,
+        "unplacedPopulation": 0,
+        "mixedDwellings": 13,
+        "capacityInside": 112,
+        "capacityOutside": 0,
+        "requiredFacilities": 28,
+        "placedFacilities": 24,
+        "provisionalFacilities": 0,
+        "unplacedFacilities": [
+          {
+            "id": "population-facility:workshop:tanning:0",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:1",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:0",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:cooperage:0",
+            "reason": "district"
+          }
+        ],
+        "housingBuildings": 99,
+        "reasons": [
+          "facility-space-shortfall"
+        ]
+      },
+      "profile": {
+        "lanesMs": 23.28150000000096,
+        "facilityMs": 14.299165999998877,
+        "housingMs": 381.5439170000009,
+        "facilityAttempts": 789,
+        "housingAttempts": 507,
+        "regionMs": 384.02504600003704,
+        "curveMs": 0.7657479999925272,
+        "starvedFacilities": 0,
+        "cappedFacilities": 0,
+        "housingStop": "demand-met"
+      }
+    },
+    {
+      "population": 1000,
+      "radiusMeters": 150,
+      "skeletonSettings": {
+        "seed": "meshless",
+        "roadWidthMeters": 5,
+        "clearanceMeters": 0.5,
+        "branches": 4,
+        "wall": "ellipse"
+      },
+      "urbanSettings": {
+        "mode": "medieval-facilities",
+        "population": 1000,
+        "houseModelId": "house:mediterranean",
+        "laneWidthMeters": 2.4,
+        "laneSpacingMeters": 36,
+        "maxLanes": 8,
+        "clearanceMeters": 0.6,
+        "allowExpansion": true
+      },
+      "seed": "m9-fixed",
+      "inputSha256": "75acdee3fd8b2b990afc384568f2ccef2daf623e834cdf6b109e7b51c863c20a",
+      "skeletonMs": 8299.023333000001,
+      "urbanMs": 1142.9867909999994,
+      "renderMs": 196.8495839999996,
+      "sceneMs": 136.31454200000007,
+      "serializeMs": 176.46237499999916,
+      "bytes": 2493666,
+      "paths": 23,
+      "placements": 239,
+      "report": {
+        "targetPopulation": 1000,
+        "requiredDwellings": 223,
+        "capacityDwellings": 223,
+        "assignedDwellings": 223,
+        "unplacedDwellings": 0,
+        "assignedPopulation": 1000,
+        "unplacedPopulation": 0,
+        "mixedDwellings": 28,
+        "capacityInside": 223,
+        "capacityOutside": 0,
+        "requiredFacilities": 53,
+        "placedFacilities": 44,
+        "provisionalFacilities": 0,
+        "unplacedFacilities": [
+          {
+            "id": "population-facility:workshop:tanning:0",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:1",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:2",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:3",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:0",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:1",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:cooperage:0",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:cooperage:1",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:smithing:0",
+            "reason": "district"
+          }
+        ],
+        "housingBuildings": 195,
+        "reasons": [
+          "facility-space-shortfall"
+        ]
+      },
+      "profile": {
+        "lanesMs": 18.88983300000109,
+        "facilityMs": 33.248790999998164,
+        "housingMs": 589.5771669999995,
+        "facilityAttempts": 1174,
+        "housingAttempts": 1631,
+        "regionMs": 582.460450999879,
+        "curveMs": 0.7003189999995811,
+        "starvedFacilities": 0,
+        "cappedFacilities": 0,
+        "housingStop": "demand-met"
+      }
+    },
+    {
+      "population": 5000,
+      "radiusMeters": 240,
+      "skeletonSettings": {
+        "seed": "meshless",
+        "roadWidthMeters": 5,
+        "clearanceMeters": 0.5,
+        "branches": 4,
+        "wall": "ellipse"
+      },
+      "urbanSettings": {
+        "mode": "medieval-facilities",
+        "population": 5000,
+        "houseModelId": "house:mediterranean",
+        "laneWidthMeters": 2.4,
+        "laneSpacingMeters": 36,
+        "maxLanes": 8,
+        "clearanceMeters": 0.6,
+        "allowExpansion": true
+      },
+      "seed": "m9-fixed",
+      "inputSha256": "db22998562e624dbbfb1e97e561248ef27118be805f4f61648358440f796831d",
+      "skeletonMs": 11080.101624999996,
+      "urbanMs": 6851.6319589999985,
+      "renderMs": 408.55529200000456,
+      "sceneMs": 366.0032080000019,
+      "serializeMs": 375.64104199999565,
+      "bytes": 4895085,
+      "paths": 23,
+      "placements": 637,
+      "report": {
+        "targetPopulation": 5000,
+        "requiredDwellings": 1112,
+        "capacityDwellings": 565,
+        "assignedDwellings": 565,
+        "unplacedDwellings": 547,
+        "assignedPopulation": 2540,
+        "unplacedPopulation": 2460,
+        "mixedDwellings": 155,
+        "capacityInside": 565,
+        "capacityOutside": 0,
+        "requiredFacilities": 294,
+        "placedFacilities": 227,
+        "provisionalFacilities": 0,
+        "unplacedFacilities": [
+          {
+            "id": "population-facility:workshop:tanning:0",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:1",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:10",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:11",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:12",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:13",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:14",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:15",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:16",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:17",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:18",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:19",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:2",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:20",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:21",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:3",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:4",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:5",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:6",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:7",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:8",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:tanning:9",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:milling:0",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:milling:1",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:milling:2",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:limeAndTile:0",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:limeAndTile:1",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:limeAndTile:2",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:limeAndTile:3",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:ropemaking:0",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:ropemaking:1",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:0",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:1",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:10",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:11",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:2",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:3",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:4",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:5",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:6",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:7",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:8",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:butchery:9",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:cooperage:0",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:cooperage:1",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:cooperage:2",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:cooperage:3",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:cooperage:4",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:cooperage:5",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:cooperage:6",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:cooperage:7",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:cooperage:8",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:cooperage:9",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:smithing:0",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:smithing:1",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:smithing:2",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:smithing:3",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:smithing:4",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:smithing:5",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:chandlery:0",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:chandlery:1",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:chandlery:2",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:chandlery:3",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:pottery:0",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:pottery:1",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:pottery:2",
+            "reason": "district"
+          },
+          {
+            "id": "population-facility:workshop:pottery:3",
+            "reason": "district"
+          }
+        ],
+        "housingBuildings": 410,
+        "reasons": [
+          "housing-capacity-shortfall",
+          "facility-space-shortfall"
+        ]
+      },
+      "profile": {
+        "lanesMs": 27.843832999998995,
+        "facilityMs": 259.8730839999989,
+        "housingMs": 5800.494916999996,
+        "facilityAttempts": 6504,
+        "housingAttempts": 10183,
+        "regionMs": 5616.185672999833,
+        "curveMs": 2.887062999951013,
+        "starvedFacilities": 0,
+        "cappedFacilities": 0,
+        "housingStop": "frontage"
+      }
+    }
+  ]
+}

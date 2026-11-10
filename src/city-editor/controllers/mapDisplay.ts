@@ -6,10 +6,14 @@ import { placeLandmark, transformLandmarkPolygons } from "../generators/landmark
 import { facePoints, validate } from "../generators/mesh";
 import { ruralFieldOverlay, storeRuralFieldOverlay } from "../generators/ruralFieldOverlay";
 import { defaultWalledAreaShare } from "../generators/settlementExtent";
+import { BRUSH_SHIP_STATE } from "../generators/shipDisplayState";
 import { renderApproachLabels } from "../renderers/approachLabelSvg";
 import { syncCellReliefFace } from "../renderers/cellElevationSvg";
 import { type RenderQuality, renderEditorSvg } from "../renderers/editorSvg";
 import { updateForestScale } from "../renderers/forestSvg";
+import { renderLedgerDraft } from "../renderers/freeform/citySvg";
+import { renderFootprintSvg } from "../renderers/freeform/footprintSvg";
+import { renderWayOverlay } from "../renderers/freeform/waySvg";
 import { renderGenerationDebugSvg } from "../renderers/generationDebugSvg";
 import { faceClassName, renderFaceWardLandmark } from "../renderers/landmarkSvg";
 import { renderObjectRotationHandle, renderObjectSvg } from "../renderers/objectSvg";
@@ -28,7 +32,10 @@ import type { DisplayState, DocumentsState, GenerationState, InteractionState } 
 import type { InfillLane } from "../types/contracts/localInfill";
 import type { CityDocument, Id, LandmarkAsset, Tool, WardKind } from "../types/document";
 import { formatDistance, niceScale } from "../utils/editorUnits";
+import { placementLabel, previewBuilding } from "./tools/buildingTool";
+import { ledgerActive, ledgerPreviewLine, ledgerPreviewOk, ledgerStatusText } from "./tools/ledgerTool";
 import { isBrushTool } from "./tools/toolTypes";
+import { currentWayPreview, rubberCenterline, wayStatusText } from "./tools/wayTool";
 export interface MapDisplayContext {
   scope: import("../services/editorLifetime").EditorLifetime;
   documents: DocumentsState;
@@ -37,6 +44,16 @@ export interface MapDisplayContext {
   landmarkControls: HTMLDivElement;
   shipControls: HTMLDivElement;
   objectControls: HTMLDivElement;
+  buildingControls: HTMLDivElement;
+  buildingStatus: HTMLOutputElement;
+  syncBuildingFacing: (degrees: number) => void;
+  syncBuildingModel: () => void;
+  wayControls: HTMLDivElement;
+  wayStatus: HTMLOutputElement;
+  syncWayList: () => void;
+  ledgerControls: HTMLDivElement;
+  ledgerStatus: HTMLOutputElement;
+  syncLedgerList: () => void;
   elevationControls: HTMLDivElement;
   currentBuildingPatternSelect: HTMLSelectElement;
   historicalPeriodSelect: HTMLSelectElement;
@@ -200,6 +217,17 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     ctx.landmarkSelect.value = ctx.interaction.landmarkAssetId;
     ctx.landmarkControls.hidden = ctx.interaction.tool !== "landmark";
     ctx.objectControls.hidden = ctx.interaction.tool !== "object";
+    ctx.buildingControls.hidden = ctx.interaction.tool !== "building";
+    ctx.wayControls.hidden = ctx.interaction.tool !== "way";
+    ctx.syncWayList();
+    const freeform = Boolean(ctx.documents.documentState.freeform);
+    const meshTools = new Set<Tool>(["vertex", "road", "wall", "wardWall", "junction", "face", "elevation"]);
+    for (const [id, button] of ctx.toolButtons) {
+      button.hidden = (freeform && meshTools.has(id)) || (!freeform && id === "zone");
+      if (button.hidden && id === ctx.interaction.tool) ctx.interaction.tool = "select";
+    }
+    ctx.ledgerControls.hidden = !ledgerActive(ctx.documents.documentState, ctx.interaction);
+    ctx.syncLedgerList();
     ctx.shipControls.hidden = ctx.interaction.tool !== "ship";
     ctx.elevationControls.hidden = ctx.interaction.tool !== "elevation";
     ctx.currentBuildingPatternSelect.value =
@@ -245,7 +273,9 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     ctx.blockMeshInput.checked = ctx.display.showBlockMesh || ctx.interaction.tool !== "select";
     ctx.gridLinesInput.checked = ctx.display.showGridLines;
     for (const [kind, button] of ctx.paintButtons) {
-      if (kind === "farm") button.hidden = ctx.documents.documentState.gridKind !== "evolution";
+      if (freeform) button.hidden = true;
+      else if (kind === "farm") button.hidden = ctx.documents.documentState.gridKind !== "evolution";
+      else button.hidden = false;
       button.classList.toggle(
         "is-active",
         kind === "sea"
@@ -488,6 +518,9 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     updateHoverOverlay();
     ctx.updateMeasureOverlay();
     updateLandmarkPreview();
+    updateBuildingPreview();
+    updateWayPreview();
+    updateLedgerPreview();
     svg.setAttribute("data-redraw-cpu-ms", String(performance.now() - renderStart));
   }
   function selectedLandmarkAsset(): LandmarkAsset | null {
@@ -521,6 +554,78 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     } else ctx.interaction.landmarkLanes = [];
     return ctx.interaction.landmarkLanes;
   }
+  function updateBuildingPreview(): void {
+    const svg = ctx.map.querySelector("svg");
+    svg?.querySelector(".ce-building-preview")?.remove();
+    ctx.syncBuildingModel();
+    if (ctx.interaction.tool !== "building") {
+      ctx.buildingStatus.textContent = "";
+      return;
+    }
+    const preview = previewBuilding(ctx.documents.documentState, ctx.interaction);
+    const label = preview ? placementLabel(preview) : "";
+    ctx.buildingStatus.textContent = label;
+    ctx.buildingStatus.style.color = preview && !preview.ok ? "#c62828" : "#2e7d32";
+    ctx.syncBuildingFacing(preview?.facingDegrees ?? ctx.interaction.buildingFacingDegrees);
+    if (!svg || !preview) return;
+    svg.querySelector(".ce-map-scene")?.appendChild(
+      renderFootprintSvg({
+        building: preview.building,
+        plot: preview.plot,
+        ok: preview.ok,
+        facingDegrees: preview.facingDegrees,
+        label
+      })
+    );
+  }
+  function updateLedgerPreview(): void {
+    const svg = ctx.map.querySelector("svg");
+    svg?.querySelector(".ce-ledger-draft")?.remove();
+    const drawing = ledgerActive(ctx.documents.documentState, ctx.interaction);
+    if (!drawing) {
+      ctx.ledgerStatus.textContent = "";
+      return;
+    }
+    const points = ledgerPreviewLine(ctx.interaction);
+    const ok = ledgerPreviewOk(ctx.documents.documentState, ctx.interaction);
+    ctx.ledgerStatus.textContent = ledgerStatusText(ctx.documents.documentState, ctx.interaction);
+    ctx.ledgerStatus.style.color = ok ? "#2e7d32" : "#c62828";
+    if (!svg || points.length < 2) return;
+    svg.querySelector(".ce-map-scene")?.appendChild(
+      renderLedgerDraft({
+        kind: ctx.interaction.tool === "zone" ? "zone" : "river",
+        points,
+        widthMeters: ctx.interaction.riverWidthMeters,
+        ok
+      })
+    );
+  }
+  function updateWayPreview(): void {
+    const svg = ctx.map.querySelector("svg");
+    svg?.querySelector(".ce-way-overlay")?.remove();
+    const drawing = ctx.interaction.tool === "way";
+    const preview = drawing ? currentWayPreview(ctx.documents.documentState, ctx.interaction) : null;
+    if (drawing) {
+      ctx.wayStatus.textContent = wayStatusText(preview, ctx.interaction.wayPoints?.length ?? 0);
+      ctx.wayStatus.style.color = preview && !preview.ok ? "#c62828" : "#2e7d32";
+    }
+    const ways = ctx.documents.documentState.terrain?.ways ?? [];
+    const rubber = drawing ? rubberCenterline(ctx.interaction) : [];
+    if (!svg || (!ways.length && rubber.length < 2)) return;
+    svg.querySelector(".ce-map-scene")?.appendChild(
+      renderWayOverlay({
+        ways,
+        draft:
+          rubber.length >= 2
+            ? {
+                centerline: rubber,
+                widthMeters: ctx.interaction.wayWidthMeters,
+                ok: preview?.ok !== false
+              }
+            : null
+      })
+    );
+  }
   function updateShipPreview(): void {
     const svg = ctx.map.querySelector("svg");
     if (!svg) return;
@@ -545,6 +650,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     if (ctx.interaction.tool !== "ship" || !ctx.interaction.shipHoverPoint) return;
     const preview = renderShipSvg({
       type: ctx.interaction.shipType,
+      state: BRUSH_SHIP_STATE,
       point: ctx.interaction.shipHoverPoint,
       sizeMeters: ctx.interaction.shipSizeMeters,
       rotation: (ctx.interaction.shipAngleDegrees * Math.PI) / 180,
@@ -784,6 +890,14 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
   function zoomFactor(): number {
     return ctx.documents.documentState.frame.extentMeters / 2 / ctx.display.halfView;
   }
+  function adopt3dView(center: readonly [number, number], halfView: number): void {
+    if (!center.every(Number.isFinite) || !Number.isFinite(halfView) || halfView <= 0) return;
+    ctx.display.viewCenter = [center[0], center[1]];
+    ctx.display.halfView = halfView;
+    updateViewport(true);
+    refreshScaleBar();
+    refreshJunctionGapScale();
+  }
   function hoverGenerationLogObjects(ids: string[], seed: string): void {
     ctx.generation.generationLogHover = { ids, seed };
     updateGenerationLogHover();
@@ -852,6 +966,9 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     selectedLandmarkAsset,
     preservedLandmarkLanes,
     updateShipPreview,
+    updateBuildingPreview,
+    updateWayPreview,
+    updateLedgerPreview,
     updateLandmarkPreview,
     patchFaceRender,
     updateRoutePreview,
@@ -860,6 +977,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     refreshScaleBar,
     refreshJunctionGapScale,
     zoomFactor,
+    adopt3dView,
     hoverGenerationLogObjects,
     updateGenerationLogHover
   };

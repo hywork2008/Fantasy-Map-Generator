@@ -57,6 +57,13 @@ describe("trade corridor ledger", () => {
     expect(dust).toEqual([]);
   });
 
+  it("keeps unpriced shipment value alongside paid trade and decays both", () => {
+    const paid = applyCorridorMovement([], movement({ value: 40 }));
+    const mixed = applyCorridorMovement(paid, movement({ value: 0, unpricedValue: 20 }));
+    expect(mixed[0]).toMatchObject({ value: 40, unpricedValue: 20 });
+    expect(decayCorridors(mixed)[0]).toMatchObject({ value: 28, unpricedValue: 14 });
+  });
+
   it("flags a sea pair whose harbour works are thin, and ranks cargo", () => {
     let corridors: TradeCorridor[] = [];
     corridors = applyCorridorMovement(

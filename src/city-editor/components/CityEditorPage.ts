@@ -14,8 +14,16 @@ import { createMapDisplayController } from "../controllers/mapDisplay";
 import { bindPanelEvents } from "../controllers/panelEvents";
 import { createSpatialIndexController } from "../controllers/spatialIndex";
 import { createBrushesController } from "../controllers/tools/brushes";
+import {
+  aimBuilding,
+  applyBuildingPlace,
+  buildingModelName,
+  cancelBuildingGesture,
+  previewBuilding
+} from "../controllers/tools/buildingTool";
 import { createDragCompletionController } from "../controllers/tools/dragCompletion";
 import { bindKeyboard } from "../controllers/tools/keyboard";
+import { cancelLedger, commitDrawnLedger, ledgerRejectText } from "../controllers/tools/ledgerTool";
 import { bindMapAuxiliary } from "../controllers/tools/mapAuxiliary";
 import { bindMapClick } from "../controllers/tools/mapClick";
 import { bindMapContext } from "../controllers/tools/mapContext";
@@ -23,6 +31,7 @@ import { bindPointerDown } from "../controllers/tools/pointerDown";
 import { bindPointerMove } from "../controllers/tools/pointerMove";
 import { createRoutesController } from "../controllers/tools/routes";
 import { createSelectionController } from "../controllers/tools/selection";
+import { cancelWay, commitDrawnWay, wayRejectText } from "../controllers/tools/wayTool";
 import { cityFixedApproachProvider } from "../generators/automaticFixedApproaches";
 import { withCastleStyle } from "../generators/castleAppearance";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
@@ -39,6 +48,9 @@ import {
   presetAmplitude
 } from "../generators/elevationPreset";
 import { restoreFixedCrossingApproaches } from "../generators/fixedApproachAdoption";
+import { removeRiver, removeZone } from "../generators/freeform/commitLedger";
+import { removeWay } from "../generators/freeform/commitWay";
+import { snapFacing } from "../generators/freeform/facing";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { defaultGenerationSettings, randomGeography, randomSeed } from "../generators/generation/settings";
 import { DEFAULT_HEX_SIZE_METERS } from "../generators/hexGrid";
@@ -57,7 +69,10 @@ import { RIVER_DROP_MIN, riverDropMeters, riverDropUpperFor } from "../generator
 import { regenerateRuralLand } from "../generators/roadsideFarms";
 import { DEFAULT_TERRACE_STEP_METERS } from "../generators/terracePlanning";
 import { DEFAULT_CASTLE_RISE_METERS } from "../generators/terrainEditing";
+import { convertCellsToField } from "../generators/terrainField/cellsToField";
 import { installNaturalTerrainField } from "../generators/terrainGeneration";
+import { createVectorDocument } from "../generators/vector/document";
+import { VectorDocumentHistory } from "../generators/vector/history";
 import { CASTLE_STYLE_PROFILES } from "../renderers/castlePatterns";
 import { type City3dMountOptions, mountCity3d } from "../renderers/cityView";
 import { clearRenderDerivedCaches } from "../renderers/derivedCaches";
@@ -73,6 +88,7 @@ import { beginEditorMount } from "../services/editorLifetime";
 import { readForestViewPreferences } from "../services/forestViewPreferences";
 import { type ImportedCityMap, pickCityMap } from "../services/io/cityEditorFile";
 import { type CityEditorShare, readIncomingCity } from "../services/io/incomingCity";
+import { decodeVectorShare } from "../services/io/vector/share";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import { createDocumentsState } from "../state/editorSession";
 import type { FixedApproachProvider } from "../types/contracts/fixedApproachAdoption";
@@ -90,8 +106,12 @@ import type {
   WardKind
 } from "../types/document";
 import type { ContextMenuAction, RoutePaintKind, RouteStroke } from "../types/editor";
+import type { EditorDocument } from "../types/editorDocument";
 import type { GenerationSettings, GenerationStage } from "../types/generation";
 import type { RenderSelection } from "../types/selection";
+import type { TerrainTemplateId } from "../types/terrain";
+import type { VectorCityDocument } from "../types/vector/document";
+import { buildBuildingControls } from "./buildingControls";
 import { buildDocumentPanel } from "./documentPanel";
 import { createEditorControls, div, text } from "./editorControls";
 import { buildFacilityPanel } from "./facilityPanel";
@@ -104,15 +124,21 @@ import {
   restoreLanguageControls,
   restoreLanguageUi
 } from "./languagePanel";
+import { buildLedgerControls } from "./ledgerControls";
 import { mountModelAuthorsPanel } from "./modelAuthorsPanel";
 import { buildObjectControls } from "./objectControls";
 import { mountOperationHelp } from "./operationHelp";
 import { mountPerformancePanel } from "./performancePanel";
+import { mountVectorCityEditor, type VectorEditorSession } from "./vector/VectorEditorPage";
+import { buildWayControls } from "./wayControls";
 
 const TOOLS: Array<[Tool, EditorMessageKey, string]> = [
   ["select", "cityEditor.messages.selectAndMove", "↖"],
   ["landmark", "cityEditor.messages.placeHistoricLandmark", "⌂"],
   ["object", "cityEditor.messages.placeObjects", "⚒"],
+  ["building", "cityEditor.messages.placeBuilding", "▢"],
+  ["way", "cityEditor.messages.drawWay", "∿"],
+  ["zone", "cityEditor.messages.drawZone", "▨"],
   ["ship", "cityEditor.messages.placeShips", "⛵"],
   ["vertex", "cityEditor.messages.editVertices", "⌘"],
   ["road", "cityEditor.messages.drawRoad", "╱"],
@@ -142,6 +168,7 @@ const PAINT_BRUSHES: Array<{ kind: WardKind | "sea" | "erase"; label: string }> 
 export interface CityEditorOptions {
   /** Complete current water/support/passage contract; retained only in this editor session. */
   fixedApproachProvider?: FixedApproachProvider;
+  initialDocument?: EditorDocument;
 }
 
 interface CityEditorLanguageSession {
@@ -158,13 +185,91 @@ interface CityEditorLanguageSession {
   city3d?: ReturnType<typeof mountCity3d>;
 }
 const languageSessions = new WeakMap<HTMLElement, CityEditorLanguageSession>();
+const meshModeSessions = new WeakMap<HTMLElement, CityEditorLanguageSession>();
+const vectorModeSessions = new WeakMap<HTMLElement, VectorEditorSession>();
+const editorLifetimes = new WeakMap<HTMLElement, EditorLanguageLifetime>();
+
+/** Mode handoffs retain sessions; explicitly closing the editor releases them. */
+function editorDisposer(root: HTMLElement, lifetime: EditorLanguageLifetime): () => void {
+  return () => {
+    if (editorLifetimes.get(root) !== lifetime) return;
+    lifetime.dispose();
+    languageSessions.delete(root);
+    meshModeSessions.delete(root);
+    vectorModeSessions.delete(root);
+    editorLifetimes.delete(root);
+  };
+}
+
+function mountVectorMode(root: HTMLElement, options: CityEditorOptions, session: VectorEditorSession): () => void {
+  const lifetime = editorLifetimes.get(root) ?? new EditorLanguageLifetime();
+  editorLifetimes.set(root, lifetime);
+  vectorModeSessions.set(root, session);
+  mountVectorCityEditor(root, session, {
+    lifetime,
+    fixedApproachProvider: options.fixedApproachProvider,
+    openSharedLink() {
+      mountCityEditorSession(root, { fixedApproachProvider: options.fixedApproachProvider });
+    },
+    returnToMesh() {
+      const previous = meshModeSessions.get(root);
+      if (previous) {
+        languageSessions.set(root, previous);
+        meshModeSessions.delete(root);
+      }
+      mountCityEditorSession(root, { fixedApproachProvider: options.fixedApproachProvider });
+    },
+    openMeshDocument(document) {
+      meshModeSessions.delete(root);
+      mountCityEditorSession(root, { fixedApproachProvider: options.fixedApproachProvider, initialDocument: document });
+    }
+  });
+  return editorDisposer(root, lifetime);
+}
 
 export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): () => void {
+  const previous = editorLifetimes.get(root);
+  if (previous) editorDisposer(root, previous)();
+  return mountCityEditorSession(root, options);
+}
+
+/** Only explicit UI handoffs share a session and its original dispose handle. */
+function mountCityEditorSession(root: HTMLElement, options: CityEditorOptions): () => void {
+  const initialDocument = options.initialDocument;
+  if (!initialDocument && typeof location !== "undefined" && location.hash.startsWith("#vector.")) {
+    const share = decodeVectorShare(location.hash);
+    globalThis.history.replaceState(null, "", location.href.split("#")[0]);
+    if (share?.mode === "document")
+      return mountVectorMode(root, options, {
+        history: new VectorDocumentHistory(share.document),
+        sharedStage: share.stage
+      });
+    if (share?.mode === "recipe")
+      return mountVectorMode(root, options, {
+        history: new VectorDocumentHistory(share.recipe.input),
+        sharedRecipe: share.recipe
+      });
+    return mountVectorMode(root, options, {
+      history: new VectorDocumentHistory(createVectorDocument()),
+      shareError: true
+    });
+  }
+  if (initialDocument?.format === "fmg-vector-city")
+    return mountVectorMode(root, options, { history: new VectorDocumentHistory(initialDocument) });
   const retainedLanguage = languageSessions.get(root);
   languageSessions.delete(root);
   const scope = beginEditorMount(root);
-  const languageLifetime = retainedLanguage?.lifetime ?? new EditorLanguageLifetime();
+  scope.listen(window, "hashchange", () => {
+    if (location.hash.startsWith("#vector."))
+      mountCityEditorSession(root, { fixedApproachProvider: options.fixedApproachProvider });
+  });
+  const languageLifetime = retainedLanguage?.lifetime ?? editorLifetimes.get(root) ?? new EditorLanguageLifetime();
+  editorLifetimes.set(root, languageLifetime);
   languageLifetime.attach(scope);
+  root.dataset.documentFormat = "fmg-city-editor";
+  scope.own(() => {
+    delete root.dataset.documentFormat;
+  });
   // A language rebuild hands the live 3D scene and derived caches to the next mount.
   let languageHandoff = false;
   let syncCity3d = (): void => {};
@@ -307,6 +412,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       },
       get updateShipPreview() {
         return updateShipPreview;
+      },
+      get updateBuildingPreview() {
+        return updateBuildingPreview;
       },
       get shipAngle() {
         return shipAngle;
@@ -500,6 +608,44 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         },
         get objectControls() {
           return objectControls;
+        },
+        get buildingControls() {
+          return buildingUi.controls;
+        },
+        get buildingStatus() {
+          return buildingUi.status;
+        },
+        get syncBuildingFacing() {
+          return buildingUi.syncFacing;
+        },
+        get syncBuildingModel() {
+          return buildingUi.syncFromInteraction;
+        },
+        get wayControls() {
+          return wayUi.controls;
+        },
+        get wayStatus() {
+          return wayUi.status;
+        },
+        get syncWayList() {
+          return () => wayUi.sync(documents.documentState.terrain?.ways ?? []);
+        },
+        get ledgerControls() {
+          return ledgerUi.controls;
+        },
+        get ledgerStatus() {
+          return ledgerUi.status;
+        },
+        get syncLedgerList() {
+          return () =>
+            ledgerUi.sync(
+              interaction.tool,
+              (documents.documentState.terrain?.features ?? []).filter(
+                (feature): feature is import("../types/terrain").TerrainRiverCorridor =>
+                  feature.kind === "riverCorridor"
+              ),
+              documents.documentState.freeform?.zones ?? []
+            );
         },
         get shipControls() {
           return shipControls;
@@ -1004,6 +1150,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   function getDocumentIOController() {
     if (!documentIOController)
       documentIOController = createDocumentIOController({
+        openVectorDocument,
         get fixedApproachProvider() {
           return fixedApproachProvider;
         },
@@ -1326,11 +1473,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     return result;
   }
   documents.gridSeed = randomSeed();
-  documents.documentState = createGridDocument({
-    size: DEFAULT_CITY_SIZE,
-    grid: DEFAULT_GRID_KIND,
-    seed: documents.gridSeed
-  });
+  documents.documentState = initialDocument
+    ? clone(initialDocument)
+    : createGridDocument({
+        size: DEFAULT_CITY_SIZE,
+        grid: DEFAULT_GRID_KIND,
+        seed: documents.gridSeed
+      });
   documents.gridKind = DEFAULT_GRID_KIND;
   /** Fitted hamlet import: the scale bar's cell length follows the mesh, not 50 m. */
   documents.measureTownCells = false;
@@ -1353,6 +1502,27 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   interaction.objectType = "trebuchet";
   interaction.objectScale = 1;
   interaction.objectAngleDegrees = 0;
+  interaction.buildingModelId = "house:mediterranean";
+  interaction.buildingQuality = undefined;
+  interaction.buildingPalette = undefined;
+  interaction.buildingFacingDegrees = 0;
+  interaction.buildingHoverPoint = null;
+  interaction.buildingAnchor = null;
+  interaction.buildingGesture = "move";
+  interaction.buildingShift = false;
+  interaction.buildingCtrl = false;
+  interaction.buildingFine = false;
+  interaction.buildingEditId = null;
+  interaction.wayProfile = "stepped";
+  interaction.waySurface = "dirt";
+  interaction.wayGrade = "cart";
+  interaction.wayWidthMeters = 2;
+  interaction.wayPoints = [];
+  interaction.wayHoverPoint = null;
+  interaction.riverWidthMeters = 8;
+  interaction.zoneKind = "park";
+  interaction.ledgerPoints = [];
+  interaction.ledgerHover = null;
   interaction.shipType = "small";
   interaction.shipSizeMeters = SHIP_SPECS.small.defaultSizeMeters;
   interaction.shipAngleDegrees = 0;
@@ -1713,6 +1883,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   for (const [id, labelKey, icon] of TOOLS) {
     const button = makeIconButton(icon, editorText(labelKey), () => {
       interaction.tool = id;
+      if (id !== "way") cancelWay(interaction);
+      cancelLedger(interaction);
+      if (id === "building") {
+        interaction.buildingEditId = null;
+        interaction.buildingGesture = "move";
+        interaction.buildingShift = false;
+      }
       if (id !== "select") {
         interaction.inspectedInfo = null;
         interaction.selection.inspectedId = null;
@@ -1790,6 +1967,25 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (interaction.tool === "object") updateShipPreview();
   });
   toolbar.content.appendChild(objectControls);
+  const buildingUi = buildBuildingControls(scope, interaction, () => updateBuildingPreview());
+  toolbar.content.appendChild(buildingUi.controls);
+  const wayUi = buildWayControls(
+    scope,
+    interaction,
+    () => updateWayPreview(),
+    id => {
+      commit(removeWay(documents.documentState, id), editorText("cityEditor.messages.wayDelete"));
+    }
+  );
+  toolbar.content.appendChild(wayUi.controls);
+  const ledgerUi = buildLedgerControls(
+    scope,
+    interaction,
+    () => updateLedgerPreview(),
+    id => commit(removeRiver(documents.documentState, id), editorText("cityEditor.messages.freeRiverDelete")),
+    id => commit(removeZone(documents.documentState, id), editorText("cityEditor.messages.zoneDelete"))
+  );
+  toolbar.content.appendChild(ledgerUi.controls);
 
   const elevationControls = div("ce-elevation-controls");
   const elevationMode = select(["raise", "lower", "smooth"], interaction.elevationBrush);
@@ -1863,6 +2059,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     finishButton,
     smoothingModeInput,
     documentActions,
+    syncMarketControls,
     syncGridParamControls,
     gridEvoSlider,
     gridEvoFirstButton,
@@ -2101,6 +2298,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     seedLabel,
     copyLinkButton
   } = buildGenerationPanel({
+    openVectorDocument,
     restoringSession: !!retainedLanguage,
     get select() {
       return select;
@@ -2189,8 +2387,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     get makeButton() {
       return makeButton;
     },
-    get useStandaloneSite() {
-      return useStandaloneSite;
+    get applyStandaloneSite() {
+      return applyStandaloneSite;
     },
     get copyShareLink() {
       return copyShareLink;
@@ -2333,23 +2531,27 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   castleControls.append(label(editorText("cityEditor.messages.castleGroundRise"), riseInput));
   // Terraces level the site's relief into flat steps; streets cross them as ramps or stairs.
   const terrainFieldSelect = select(
-    ["off", "crag", "spur", "meander", "escarpment", "noise"],
-    generation.generateSettings.terrainField?.template ?? "off"
+    ["off", "dome", "crag", "spur", "meander", "escarpment", "noise"],
+    generation.generateSettings.terrainField?.template === "cells"
+      ? "off"
+      : (generation.generateSettings.terrainField?.template ?? "off")
   );
   terrainFieldSelect.className = "ce-terrain-field";
   const terrainFieldLabel = (value: string) =>
     editorText(
       value === "off"
         ? "cityEditor.messages.terrainFieldOff"
-        : value === "crag"
-          ? "cityEditor.messages.terrainFieldCrag"
-          : value === "spur"
-            ? "cityEditor.messages.terrainFieldSpur"
-            : value === "meander"
-              ? "cityEditor.messages.terrainFieldMeander"
-              : value === "escarpment"
-                ? "cityEditor.messages.terrainFieldEscarpment"
-                : "cityEditor.messages.terrainFieldNoise"
+        : value === "dome"
+          ? "cityEditor.messages.terrainFieldDome"
+          : value === "crag"
+            ? "cityEditor.messages.terrainFieldCrag"
+            : value === "spur"
+              ? "cityEditor.messages.terrainFieldSpur"
+              : value === "meander"
+                ? "cityEditor.messages.terrainFieldMeander"
+                : value === "escarpment"
+                  ? "cityEditor.messages.terrainFieldEscarpment"
+                  : "cityEditor.messages.terrainFieldNoise"
     );
   for (const option of terrainFieldSelect.options) option.textContent = terrainFieldLabel(option.value);
   scope.listen(terrainFieldSelect, "change", () => {
@@ -2357,7 +2559,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (template === "off") delete generation.generateSettings.terrainField;
     else {
       generation.generateSettings.terrainField = {
-        template: template as "noise" | "crag" | "spur" | "meander" | "escarpment"
+        template: template as TerrainTemplateId
       };
       generation.generateSettings.elevationPreset = "flat";
       const castle = generation.generateSettings.castle ?? {};
@@ -2369,6 +2571,18 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     }
     syncGenerateControls();
   });
+  const convertCellsButton = makeButton(editorText("cityEditor.messages.convertCellElevations"), () => {
+    const next = convertCellsToField(documents.documentState);
+    if (!next) {
+      showNotice(editorText("cityEditor.messages.buildingNeedsField"));
+      return;
+    }
+    commit(next, editorText("cityEditor.messages.convertCellElevations"));
+    generation.generateSettings.elevationPreset = "flat";
+    delete generation.generateSettings.terrainField;
+    syncGenerateControls();
+  });
+  convertCellsButton.className = "ce-convert-cells";
   const terraceSelect = select(["natural", "terraces"], generation.generateSettings.terraces ? "terraces" : "natural");
   for (const option of terraceSelect.options)
     option.textContent = editorText(
@@ -2747,6 +2961,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       updateElevationReliefButton,
       standaloneSettings(
         label(editorText("cityEditor.messages.terrainField"), terrainFieldSelect),
+        convertCellsButton,
         (() => {
           const controls = div("ce-city-generation-controls");
           controls.append(
@@ -2767,11 +2982,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     )
   );
   cityElements.append(
+    wallShapeControls,
     generationSection(
       "cityEditor.messages.walls",
       [
         fortificationControls,
-        wallShapeControls,
         label(editorText("cityEditor.messages.wallMaterial"), wallMaterialSelect),
         label(editorText("cityEditor.messages.coastalWalls"), seaWallSelect),
         moatInputs.get("town")!.closest("label")!,
@@ -2787,12 +3002,21 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       "citadel"
     ),
     generationSection("cityEditor.generationWorkspace.housing", [
-      standaloneSettings(label(editorText("cityEditor.messages.buildingGeneration"), buildingPatternSelect)),
+      label(editorText("cityEditor.messages.buildingGeneration"), buildingPatternSelect),
       label(editorText("cityEditor.messages.urbanCoreAllocationMode"), urbanCoreModeSelect),
       housingSummary
     ]),
     generationSection("cityEditor.generationWorkspace.streets", [
       toggleLabel(editorText("cityEditor.messages.avoidSea"), avoidSeaInput),
+      (() => {
+        const input = checkbox(generation.generateSettings.approachCommerce === "on", checked => {
+          if (checked) generation.generateSettings.approachCommerce = "on";
+          else delete generation.generateSettings.approachCommerce;
+        });
+        input.className = "ce-approach-commerce";
+        input.title = editorText("cityEditor.messages.approachCommerceHint");
+        return toggleLabel(editorText("cityEditor.messages.approachCommerce"), input);
+      })(),
       label(editorText("cityEditor.messages.streetFarEnd"), farNodeSelect),
       bearingsLabel
     ])
@@ -2890,6 +3114,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     },
     get updateShipPreview() {
       return updateShipPreview;
+    },
+    get updateBuildingPreview() {
+      return updateBuildingPreview;
+    },
+    get updateWayPreview() {
+      return updateWayPreview;
+    },
+    get updateLedgerPreview() {
+      return updateLedgerPreview;
     },
     get updateCircularWallPreview() {
       return updateCircularWallPreview;
@@ -3058,6 +3291,21 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     },
     get refreshScaleBar() {
       return refreshScaleBar;
+    },
+    get updateBuildingPreview() {
+      return updateBuildingPreview;
+    },
+    get updateWayPreview() {
+      return updateWayPreview;
+    },
+    get finishWay() {
+      return finishWay;
+    },
+    get updateLedgerPreview() {
+      return updateLedgerPreview;
+    },
+    get finishLedger() {
+      return finishLedger;
     }
   });
 
@@ -3070,12 +3318,61 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     getDocument: () => documents.documentState,
     getViewHalfSize: () => display.halfView,
     getViewCenter: () => display.viewCenter,
+    onReturnTo2d: (center, halfView) => getMapDisplayController().adopt3dView(center, halfView),
     getModelQuality: readModelQualityPreference,
     getSimplification: readSimplificationPreferences,
     getForestQuality: () => readForestViewPreferences().quality,
     isFmgLinked: () => Boolean(generation.generateSettings.descriptor),
     getTerrainSpacing: readTerrainSpacingPreference,
-    getRiverDropMeters: () => riverDropMeters(generation.generateSettings.riverDropMeters)
+    getRiverDropMeters: () => riverDropMeters(generation.generateSettings.riverDropMeters),
+    placement: {
+      active: () => interaction.tool === "building",
+      rotating: () => interaction.tool === "building" && interaction.buildingGesture === "rotate",
+      hover(point, ctrl) {
+        aimBuilding(interaction, point, ctrl);
+        updateBuildingPreview();
+      },
+      place(point, _shift, ctrl) {
+        aimBuilding(interaction, point, ctrl);
+        const placed = applyBuildingPlace(documents.documentState, interaction);
+        if (!placed) return;
+        if ("error" in placed) {
+          showNotice(placed.error);
+          return;
+        }
+        commit(
+          placed.document,
+          editorText(placed.editing ? "cityEditor.messages.updateObject" : "cityEditor.messages.placeCityEditorPage", {
+            value0: buildingModelName(interaction.buildingModelId)
+          })
+        );
+      },
+      cancel() {
+        cancelBuildingGesture(interaction);
+        updateBuildingPreview();
+      },
+      wheel(delta, ctrl, fine) {
+        interaction.buildingCtrl = ctrl;
+        interaction.buildingFine = fine;
+        interaction.buildingFacingDegrees = snapFacing(
+          interaction.buildingFacingDegrees + delta,
+          ctrl ? 15 : null,
+          !fine
+        );
+        updateBuildingPreview();
+      },
+      ghost() {
+        const preview = previewBuilding(documents.documentState, interaction);
+        if (!preview) return null;
+        return {
+          building: preview.building,
+          plot: preview.plot,
+          level: preview.level,
+          ok: preview.ok,
+          facingDegrees: preview.facingDegrees
+        };
+      }
+    }
   };
   const city3d = retainedLanguage?.city3d ?? mountCity3d(city3dOptions);
   if (retainedLanguage?.city3d) city3d.adopt(city3dOptions);
@@ -3115,29 +3412,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     showError: showNotice,
     async changeLanguage(language) {
       if (generation.generationJob) return;
-      const retained: CityEditorLanguageSession = {
-        documents: { ...documents },
-        generation: { ...generation },
-        display: { ...display },
-        interaction: { ...interaction },
-        ui: captureLanguageUi(root),
-        lifetime: languageLifetime,
-        camera: city3d.getPerformance?.()?.camera ?? null,
-        cityModeGrid,
-        stepStatus: stepStatus.textContent ?? "",
-        failureSummary: {
-          text: failureDebugSummary.textContent ?? "",
-          hidden: Boolean(failureDebugSummary.hidden),
-          closeHidden: Boolean(closeFailurePreview.hidden)
-        }
-      };
+      const retained = captureSession();
       await changeLanguage(language);
       if (!scope.active) return;
       retained.city3d = city3d;
       languageHandoff = true;
       languageSessions.set(root, retained);
       setEditorPageMetadata("cityEditor");
-      mountCityEditor(root, options);
+      mountCityEditorSession(root, options);
       root.querySelector<HTMLSelectElement>(".ce-language select")?.focus({ preventScroll: true });
     }
   });
@@ -3154,10 +3436,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       for (const sample of generation.generationSamples) generationLog.append(sample, generation.generateSeed);
       if (retainedLanguage.camera) city3d.restoreView(retainedLanguage.camera);
       restoreLanguageUi(root, retainedLanguage.ui);
-      return languageLifetime.dispose.bind(languageLifetime);
+      return editorDisposer(root, languageLifetime);
     }
-    const incoming = readIncomingCity();
-    if (incoming) applyShare(incoming.share, incoming.origin);
+    const incoming = initialDocument ? null : readIncomingCity();
+    if (initialDocument) applyImportedMap({ document: clone(initialDocument), source: "city-editor" });
+    else if (incoming) applyShare(incoming.share, incoming.origin);
     else refresh();
   } catch (error) {
     refresh();
@@ -3165,7 +3448,42 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   }
 
   // The bound handle follows language rebuilds without retaining this mount's closures.
-  return languageLifetime.dispose.bind(languageLifetime);
+  return editorDisposer(root, languageLifetime);
+
+  function captureSession(): CityEditorLanguageSession {
+    return {
+      documents: { ...documents },
+      generation: { ...generation, generationJob: null },
+      display: { ...display },
+      interaction: { ...interaction },
+      ui: captureLanguageUi(root),
+      lifetime: languageLifetime,
+      camera: city3d.getPerformance?.()?.camera ?? null,
+      cityModeGrid,
+      stepStatus: stepStatus.textContent ?? "",
+      failureSummary: {
+        text: failureDebugSummary.textContent ?? "",
+        hidden: Boolean(failureDebugSummary.hidden),
+        closeHidden: Boolean(closeFailurePreview.hidden)
+      }
+    };
+  }
+
+  function openVectorDocument(document?: VectorCityDocument): void {
+    if (!scope.active || generation.generationJob) return;
+    meshModeSessions.set(root, captureSession());
+    const session: VectorEditorSession = document
+      ? { history: new VectorDocumentHistory(document) }
+      : (vectorModeSessions.get(root) ?? { history: new VectorDocumentHistory(createVectorDocument()) });
+    session.generationInput = structuredClone({
+      seed: generation.generateSeed,
+      settings: generation.generateSettings,
+      frame: documents.documentState.frame
+    });
+    session.sourceDescriptor ??= generation.generateSettings.descriptor;
+    session.sourceDocument = clone(documents.documentState);
+    mountVectorMode(root, options, session);
+  }
 
   function appendSelectedEdge(edgeId: Id, kind: "road" | "wall"): void {
     getRoutesController().appendSelectedEdge(edgeId, kind);
@@ -3239,6 +3557,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     appearanceControls.sync();
     forestControls.sync();
     getMapDisplayController().refresh();
+    syncMarketControls();
     syncCity3d();
   }
 
@@ -3295,6 +3614,41 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   function updateShipPreview(): void {
     getMapDisplayController().updateShipPreview();
+  }
+
+  function updateBuildingPreview(): void {
+    getMapDisplayController().updateBuildingPreview();
+  }
+
+  function updateWayPreview(): void {
+    getMapDisplayController().updateWayPreview();
+  }
+
+  function updateLedgerPreview(): void {
+    getMapDisplayController().updateLedgerPreview();
+  }
+
+  function finishLedger(): void {
+    const placed = commitDrawnLedger(documents.documentState, interaction);
+    if ("error" in placed) {
+      showNotice(ledgerRejectText(placed.error));
+      updateLedgerPreview();
+      return;
+    }
+    commit(
+      placed.document,
+      editorText(interaction.tool === "zone" ? "cityEditor.messages.zoneFinish" : "cityEditor.messages.freeRiverFinish")
+    );
+  }
+
+  function finishWay(): void {
+    const placed = commitDrawnWay(documents.documentState, interaction);
+    if ("error" in placed) {
+      showNotice(wayRejectText(placed.preview));
+      updateWayPreview();
+      return;
+    }
+    commit(placed.document, editorText("cityEditor.messages.wayFinish"));
   }
 
   function updateLandmarkPreview(): void {
@@ -3499,9 +3853,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     return getDocumentIOController().copyShareLink(button);
   }
 
-  // biome-ignore lint/correctness/noComponentHookFactories: This is an editor action, not a React hook.
-  function useStandaloneSite(): void {
-    getDocumentIOController().useStandaloneSite();
+  function applyStandaloneSite(): void {
+    getDocumentIOController().applyStandaloneSite();
   }
 
   function applyShare(share: CityEditorShare, origin: IncomingOrigin): void {

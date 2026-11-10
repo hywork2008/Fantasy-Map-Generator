@@ -2,6 +2,7 @@ import { editorText } from "../../../../i18n/editorMessages";
 import type { RoadRoutingTrace } from "../../../types/contracts/generationDiagnostics";
 import type { CityDocument, EdgeRef, Id, Point } from "../../../types/document";
 import type { Cell, CityProgram } from "../../../types/geometry";
+import { marketStreetWidthMeters } from "../../approachCommerce";
 import { orientedRectPolylineDistance, templeRectForElement } from "../../civicPlacement";
 import { townMeshExtentMeters } from "../../document";
 import { featureGroupVertices } from "../../features";
@@ -512,6 +513,15 @@ export function applyRoads(input: ApplyRoadsInput) {
           return;
         }
       }
+      const roadWidth = defaultRoadWidthMeters(townExtentMeters(source.frame));
+      // The gate-to-plaza street of a commerce axis is one step wider (cobbled scale).
+      const streetIndex = i - approachRoadCount;
+      const marketStreet =
+        !isApproach &&
+        streetIndex >= 0 &&
+        streetIndex < plan.gates.length &&
+        !!plan.approachCommerce?.gateIndexes.includes(streetIndex);
+      const streetWidth = marketStreet ? marketStreetWidthMeters(roadWidth) : roadWidth;
       if (access.length) {
         appendGeneratedGroup(next, {
           id: `${GEN_PREFIX}road-${i}:access`,
@@ -519,7 +529,7 @@ export function applyRoads(input: ApplyRoadsInput) {
           name: "Street access",
           roadRole: "street",
           segments: access,
-          style: { widthMeters: defaultRoadWidthMeters(townExtentMeters(source.frame)), color: "#735238" },
+          style: { widthMeters: roadWidth, color: "#735238" },
           locked: false
         });
         network.add(access);
@@ -539,7 +549,7 @@ export function applyRoads(input: ApplyRoadsInput) {
             }
           : {}),
         segments,
-        style: { widthMeters: defaultRoadWidthMeters(townExtentMeters(source.frame)), color: "#735238" },
+        style: { widthMeters: streetWidth, color: "#735238" },
         locked: false
       });
       network.add(segments);

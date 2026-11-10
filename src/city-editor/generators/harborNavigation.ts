@@ -89,7 +89,11 @@ function edt1d(
   for (let q = 0; q < n; q++) f[offset + q * stride] = d[q];
 }
 
-export function harborWaterField(document: CityDocument): HarborWaterField {
+export function harborWaterField(
+  document: CityDocument,
+  minimumDepth = 0,
+  obstacles: readonly Point[][] = []
+): HarborWaterField {
   const extent = document.frame.extentMeters;
   const cell = Math.max(2, extent / 700);
   const size = Math.ceil(extent / cell);
@@ -104,6 +108,42 @@ export function harborWaterField(document: CityDocument): HarborWaterField {
     if (face.properties.water !== "land") fillPolygon(wet, size, origin, cell, facePoints(document.mesh, face), 1);
   for (const polygon of waterPolygons(document)) fillPolygon(wet, size, origin, cell, polygon, 1);
 
+  // Cargo approaches also need a draft-safe route around fixed structures and vessels.
+  if (minimumDepth > 0)
+    for (const face of faces)
+      if (face.properties.water !== "land" && (face.properties.depth ?? 3) < minimumDepth)
+        fillPolygon(wet, size, origin, cell, facePoints(document.mesh, face), 0);
+  for (const polygon of obstacles) fillPolygon(wet, size, origin, cell, polygon, 0);
+
+  return navigationFromRaster(extent, wet, size, cell, origin, true);
+}
+
+/** Cell-free adapter for persisted polygon water and depth domains. */
+export function polygonHarborWaterField(
+  extent: number,
+  initialWater: boolean,
+  masks: readonly { polygon: { outer: Point[]; holes: Point[][] }; water: boolean }[],
+  openBoundary = initialWater
+): HarborWaterField {
+  const cell = Math.max(2, extent / 700),
+    size = Math.ceil(extent / cell),
+    origin = -extent / 2;
+  const wet = new Uint8Array(size * size).fill(initialWater ? 1 : 0);
+  for (const mask of masks) {
+    fillPolygon(wet, size, origin, cell, mask.polygon.outer, mask.water ? 1 : 0);
+    for (const hole of mask.polygon.holes) fillPolygon(wet, size, origin, cell, hole, mask.water ? 0 : 1);
+  }
+  return navigationFromRaster(extent, wet, size, cell, origin, openBoundary);
+}
+
+function navigationFromRaster(
+  extent: number,
+  wet: Uint8Array,
+  size: number,
+  cell: number,
+  origin: number,
+  openBoundary: boolean
+): HarborWaterField {
   const dist = new Float64Array(size * size);
   for (let i = 0; i < dist.length; i++) dist[i] = wet[i] ? FAR : 0;
   const d = new Float64Array(size),
@@ -151,7 +191,7 @@ export function harborWaterField(document: CityDocument): HarborWaterField {
             stack.push(j);
           }
       }
-      const state = touchesFrame || members.length * cell * cell >= OPEN_LAKE_AREA ? 1 : 2;
+      const state = (touchesFrame && openBoundary) || members.length * cell * cell >= OPEN_LAKE_AREA ? 1 : 2;
       for (const i of members) mask[i] = state;
     }
     open.set(key, mask);
@@ -160,11 +200,11 @@ export function harborWaterField(document: CityDocument): HarborWaterField {
   const field: HarborWaterField = {
     clearance: p => {
       const i = index(p);
-      return i < 0 ? extent : clearanceGrid[i];
+      return i < 0 ? (openBoundary ? extent : 0) : clearanceGrid[i];
     },
     navigable: (p, halfWidth) => {
       const i = index(p);
-      return i < 0 || openMask(halfWidth)[i] === 1;
+      return i < 0 ? openBoundary : openMask(halfWidth)[i] === 1;
     }
   };
   return field;

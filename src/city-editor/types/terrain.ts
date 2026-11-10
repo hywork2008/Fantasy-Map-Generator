@@ -1,4 +1,7 @@
+import type { TerrainRiverCorridor } from "./contracts/riverHydraulics";
 import type { Id, Point } from "./primitives";
+
+export type { TerrainRiverCorridor } from "./contracts/riverHydraulics";
 
 export interface TerrainPatch {
   faceId: string;
@@ -50,7 +53,7 @@ export interface CityTerrain {
   roads?: {
     ribbons: import("../../utils/roadSurface").RoadRibbon[];
     /** Flights of steps on lanes and paths too steep to walk as a slope, heights in the local frame. */
-    stairs: Array<{ centerline: Point[]; elevations: number[]; widthMeters: number }>;
+    stairs: Array<{ centerline: Point[]; elevations: number[]; widthMeters: number; riserMeters?: number }>;
     /** Where a road met a cliff between levels and was stopped. */
     cliffBreaks: Point[];
   };
@@ -88,28 +91,6 @@ export interface TerrainPlatform {
   edge: { kind: "cliff" } | { kind: "slope"; runMeters: number } | { kind: "wall" };
 }
 
-/**
- * A river as its own height layer: a centre line, a bed profile, and banks.
- * The bed never rises downstream. Water level is the bed plus depth, not a guess from the ground.
- */
-export interface TerrainRiverCorridor {
-  kind: "riverCorridor";
-  id: Id;
-  /** Source feature group or river flow, so an edit of that line can rebuild the corridor. */
-  sourceId: Id;
-  /** Upstream first. */
-  centerline: Point[];
-  /** Water width at each centre-line point, in metres. */
-  widthsMeters: number[];
-  /** Absolute bed height at each centre-line point. Never rises downstream. */
-  bedMeters: number[];
-  /** Water depth above the bed. The surface is level across the width. */
-  depthMeters: number;
-  /** Derived local water depths for the hydraulic model; absent on legacy saved corridors. */
-  depthsMeters?: number[];
-  bank: { kind: "slope"; runMeters: number } | { kind: "quay"; heightMeters: number };
-}
-
 /** A level-floored ring excavation, such as a moat, measured from an absolute rim. */
 export interface TerrainRingCut {
   kind: "ringCut";
@@ -132,11 +113,13 @@ export type TerrainBase =
   | { kind: "flat"; elevationMeters: number }
   | { kind: "field"; field: TerrainField };
 
-export type TerrainTemplateId = "noise" | "crag" | "spur" | "meander" | "escarpment";
+export type TerrainTemplateId = "noise" | "crag" | "spur" | "meander" | "escarpment" | "dome" | "cells";
 
 export type TerrainFieldPart =
   | { kind: "offset"; meters: number }
   | { kind: "hill"; center: Point; radiusMeters: number; heightMeters: number }
+  /** Spherical cap: `H · (1 − r²/R²)` inside the base radius, and 0 outside. The rim is level with the cap's base. */
+  | { kind: "dome"; center: Point; radiusMeters: number; heightMeters: number }
   | { kind: "range"; points: Point[]; radiusMeters: number; heightMeters: number }
   | { kind: "trough"; points: Point[]; radiusMeters: number; depthMeters: number }
   | { kind: "pit"; center: Point; radiusMeters: number; depthMeters: number }
@@ -205,6 +188,38 @@ export interface TerrainRamp {
   widthMeters: number;
 }
 
+/** A flat landing of a stepped way. Distances are metres along the way centre line. */
+export interface FreeformWayLanding {
+  fromMeters: number;
+  toMeters: number;
+  levelMeters: number;
+}
+
+/** One flight between landings. Rise is `steps` times 0.17 m and run is `steps` times 0.30 m. */
+export interface FreeformWayFlight {
+  fromMeters: number;
+  toMeters: number;
+  fromLevelMeters: number;
+  toLevelMeters: number;
+  steps: number;
+}
+
+/**
+ * A freehand way on the height field. The centre line is the saved ledger.
+ * A stepped way also stores the landings and flights chosen when it was drawn.
+ */
+export interface FreeformWay {
+  id: Id;
+  centerline: Point[];
+  widthMeters: number;
+  profile: "slope" | "stepped";
+  surface: "dirt" | "paved" | "cobble";
+  /** Cart roads climb at 10%. A castle approach climbs at 8%. Absent means cart. */
+  grade?: "cart" | "approach";
+  landings?: FreeformWayLanding[];
+  flights?: FreeformWayFlight[];
+}
+
 /** Saved earthworks. Pads and river corridors store their finished heights; the field stores a recipe. */
 export interface CityTerrainLayer {
   version: 1;
@@ -212,6 +227,8 @@ export interface CityTerrainLayer {
   ramps?: TerrainRamp[];
   /** Height-field recipe. Absent documents keep cell elevations. */
   field?: TerrainFieldRecipe;
+  /** Freehand ways. Absent on documents saved before freeform roads. */
+  ways?: FreeformWay[];
 }
 
 /** Derived, unpersisted grading model: a base field plus vector earthworks in absolute metres. */

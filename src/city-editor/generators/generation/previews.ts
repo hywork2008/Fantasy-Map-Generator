@@ -12,6 +12,7 @@ import { generationSettingIssues } from "../generationSettingIssues";
 import { pointInPolygon, polygonCentroid } from "../geom";
 import { spawnHarborShips } from "../harborShips";
 import { clone, facePoints } from "../mesh";
+import { withoutGeneratedFacilities } from "../populationFacilities";
 import { preparePopulationGeneration } from "../populationGeneration";
 import { cultivateRoadside } from "../roadsideFarms";
 import { generateRuralFieldStage } from "../ruralFieldStage";
@@ -120,9 +121,11 @@ export function generateStageOnDocument(
         wallCheckpoint === "firstInnerGates")
         ? wallCheckpoint
         : undefined;
-    // Farmland replays the finished town, including appearance and housing fitting.
+    // Facilities previews reuse the fitted town so housing expansion cannot move
+    // their reservations between the facility and housing stages.
+    // Farmland also replays the finished appearance and housing fitting.
     const full =
-      stageStep >= 10
+      stageStep >= 10 || (!stopAfter && settings.facilityLayout === "population")
         ? generateCityOnDocument(document, settings, seed, observer, onRejected)
         : (generateCityAttempt(document, settings, seed, observer, 1, onRejected, undefined, stopAfter) ??
           (onRejected
@@ -130,7 +133,7 @@ export function generateStageOnDocument(
             : generateCityOnDocument(document, settings, seed, observer, undefined, undefined, stopAfter)));
     if (!full) return null;
     if (stageStep === 7) {
-      const res = clone(full);
+      const res = clone(withoutGeneratedFacilities(full));
       delete res.appearance;
       delete res.fabric;
       delete res.ruralFieldSnapshot;
@@ -139,7 +142,7 @@ export function generateStageOnDocument(
       return res;
     }
     if (stageStep === 8) {
-      const res = clone(full);
+      const res = clone(withoutGeneratedFacilities(full));
       delete res.ruralFieldSnapshot;
       syncDocumentCemeteries(res);
       res.generationSeed = full.generationSeed ?? seed;

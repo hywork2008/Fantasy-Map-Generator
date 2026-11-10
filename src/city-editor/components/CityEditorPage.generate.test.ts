@@ -285,11 +285,25 @@ describe("Generate panel", () => {
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("住居・完成都市");
     expect(nPatchesInput().placeholder).toBe("auto");
     expect(root.querySelector(".ce-generate-avoidsea")).toBeTruthy();
+    expect(root.querySelector<HTMLInputElement>(".ce-approach-commerce")?.checked).toBe(false);
     expect(root.querySelector(".ce-generate-farnode")).toBeTruthy();
     expect(root.querySelector(".ce-generate-seed")).toBeTruthy();
     expect(panelButton("Copy shareable link")).toBeTruthy();
     expect([...root.querySelectorAll(".ce-generate label")].some(l => l.textContent?.includes("Map size"))).toBe(false);
     expect(panelButton("新しい都市")).toBeTruthy();
+  });
+
+  it("toggles quarters by gate traffic without regenerating the mesh", () => {
+    const before = meshFingerprint();
+    const box = root.querySelector<HTMLInputElement>(".ce-approach-commerce");
+    expect(box).toBeTruthy();
+    expect(box?.checked).toBe(false);
+    box!.click();
+    expect(box?.checked).toBe(true);
+    expect(meshFingerprint()).toBe(before);
+    box!.click();
+    expect(box?.checked).toBe(false);
+    expect(meshFingerprint()).toBe(before);
   });
 
   it("exposes Avoid sea and the three far-end modes (Phase G2)", () => {

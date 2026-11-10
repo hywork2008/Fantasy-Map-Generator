@@ -20,9 +20,9 @@ import {
   LIVING_COST_BY_TIER,
   type LifestyleTier,
   SURPLUS_WEALTH_SPEND_SHARE,
-  WEALTH_RESERVE_YEARS,
   WEALTH_UPKEEP_MAX_MULT,
-  WEALTH_UPKEEP_RATE
+  WEALTH_UPKEEP_RATE,
+  wealthReserveYears
 } from "./characterLivingCosts";
 import { buyCharacterLuxuries, characterLuxuryBudget } from "./characterLuxuryPurchases";
 import { isLuxuryValueDemandEnabled } from "./luxuryDemand";
@@ -365,7 +365,8 @@ function spendingForCash(tierName: LifestyleTier, balance: number) {
   const wealth = balance / 100,
     base = nominal(LIVING_COST_BY_TIER[tierName]);
   const lifestyle = minor(base + Math.min(wealth * WEALTH_UPKEEP_RATE, base * WEALTH_UPKEEP_MAX_MULT)) / 100;
-  const surplus = Math.max(0, wealth - lifestyle - lifestyle * 12 * WEALTH_RESERVE_YEARS) * SURPLUS_WEALTH_SPEND_SHARE;
+  const surplus =
+    Math.max(0, wealth - lifestyle - lifestyle * 12 * wealthReserveYears(tierName)) * SURPLUS_WEALTH_SPEND_SHARE;
   return { lifestyle, surplus, paid: Math.min(balance, minor(lifestyle + surplus)) };
 }
 /** Financial cadence is independent of memo/AI mode and runs once per production month. */
@@ -378,6 +379,9 @@ export function settleRosterCash(): void {
     key = `${clock.currentYear}:${clock.currentMonth}`;
   if (s.lastCycle === key) return;
   s.lastCycle = key;
+  // Regiments and towns change while the world runs, and a load rebuilds the roster from them; the
+  // month rebuilds it too, or a saved and reloaded world pays a different payroll.
+  buildWorldRoster();
   ensureCurrentPools(roster);
   // Resolve retired cohorts before inheritance, independently of detail generation timing.
   for (const appointment of roster.appointments) {

@@ -1,0 +1,1289 @@
+{
+  "method": "One BV ship; no ground, optional stern ensign off. Unique CPU attribute/index buffers include lines, exclude objects, transient allocations and GPU memory; no FPS benchmark. Fingerprints cover world-space mesh triangles, normals and materials, not vertex colors or line geometry. No raster previews are stored.",
+  "rows": [
+    {
+      "author": "Codex GPT-6.1 Sol",
+      "quality": "low",
+      "sails": "set",
+      "gunports": "open",
+      "metrics": {
+        "meshes": 200,
+        "triangles": 4798,
+        "vertices": 727,
+        "geometries": 16,
+        "materials": 9
+      },
+      "lineSegments": 126,
+      "attributeBytes": 26780,
+      "dimensionsXYZ": [
+        57.103529411764704,
+        42.200000047683716,
+        20.399999999999995
+      ],
+      "fingerprint": "fdef4645faac8674e3ee4ba554ccc2a95ad925720907a1171880668ddfbffa24",
+      "parts": []
+    },
+    {
+      "author": "Codex GPT-6.1 Sol",
+      "quality": "low",
+      "sails": "set",
+      "gunports": "closed",
+      "metrics": {
+        "meshes": 160,
+        "triangles": 5862,
+        "vertices": 6271,
+        "geometries": 18,
+        "materials": 10
+      },
+      "lineSegments": 126,
+      "attributeBytes": 159836,
+      "dimensionsXYZ": [
+        57.103529411764704,
+        42.200000047683716,
+        20.399999999999995
+      ],
+      "fingerprint": "7822f707ad3132f06fffee31dcb481e12746a6bc62faccf4d31ef0ba97e81540",
+      "parts": []
+    },
+    {
+      "author": "Codex GPT-6.1 Sol",
+      "quality": "low",
+      "sails": "furled",
+      "gunports": "open",
+      "metrics": {
+        "meshes": 225,
+        "triangles": 6667,
+        "vertices": 1910,
+        "geometries": 41,
+        "materials": 10
+      },
+      "lineSegments": 118,
+      "attributeBytes": 75194,
+      "dimensionsXYZ": [
+        57.103529411764704,
+        42.200000047683716,
+        20.399999999999995
+      ],
+      "fingerprint": "d0a4cda1ba12fb5b188fa1237ca8abc06c3d90e2fd9800658f594949c6f9d5fc",
+      "parts": []
+    },
+    {
+      "author": "Codex GPT-6.1 Sol",
+      "quality": "low",
+      "sails": "furled",
+      "gunports": "closed",
+      "metrics": {
+        "meshes": 185,
+        "triangles": 7731,
+        "vertices": 7454,
+        "geometries": 43,
+        "materials": 11
+      },
+      "lineSegments": 118,
+      "attributeBytes": 208250,
+      "dimensionsXYZ": [
+        57.103529411764704,
+        42.200000047683716,
+        20.399999999999995
+      ],
+      "fingerprint": "3cee9209735c78188d2990b13854f78b7290860d610ff380e0c8670b39d88577",
+      "parts": []
+    },
+    {
+      "author": "Codex GPT-6.1 Sol",
+      "quality": "high",
+      "sails": "set",
+      "gunports": "open",
+      "metrics": {
+        "meshes": 6,
+        "triangles": 33411,
+        "vertices": 100233,
+        "geometries": 6,
+        "materials": 6
+      },
+      "lineSegments": 4854,
+      "attributeBytes": 2522088,
+      "dimensionsXYZ": [
+        57.02793884277344,
+        42.200000047683716,
+        20
+      ],
+      "fingerprint": "a8a43efb38ba4ed8897916178fd8f5277040adf2dd360bac99763f25efa34f7c",
+      "parts": [
+        {
+          "id": "hull",
+          "role": "Hull and rudder",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 10,
+          "triangles": 4382
+        },
+        {
+          "id": "deck",
+          "role": "Main deck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 161,
+          "triangles": 2080
+        },
+        {
+          "id": "forecastle",
+          "role": "Forecastle",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 134,
+          "triangles": 1620
+        },
+        {
+          "id": "sterncastle",
+          "role": "Quarterdeck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 134,
+          "triangles": 1620
+        },
+        {
+          "id": "poop",
+          "role": "Poop deck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 133,
+          "triangles": 1608
+        },
+        {
+          "id": "equipment",
+          "role": "Hatches and deck equipment",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 97,
+          "triangles": 1352
+        },
+        {
+          "id": "spars",
+          "role": "Masts and bowsprit",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 13,
+          "triangles": 2152
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 36,
+          "triangles": 5400
+        },
+        {
+          "id": "square-0",
+          "role": "Square sail 1",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 1504
+        },
+        {
+          "id": "square-1",
+          "role": "Square sail 2",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 1504
+        },
+        {
+          "id": "square-2",
+          "role": "Square sail 3",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 1504
+        },
+        {
+          "id": "square-3",
+          "role": "Square sail 4",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 1504
+        },
+        {
+          "id": "mizzen",
+          "role": "Lateen mizzen",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 4,
+          "triangles": 1180
+        },
+        {
+          "id": "flags",
+          "role": "Pennants",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 3,
+          "triangles": 9
+        },
+        {
+          "id": "port-frames",
+          "role": "Gunport frames and chambers",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 126,
+          "triangles": 1512
+        },
+        {
+          "id": "armament",
+          "role": "Gunport lids and guns",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 126,
+          "triangles": 4480
+        }
+      ]
+    },
+    {
+      "author": "Codex GPT-6.1 Sol",
+      "quality": "high",
+      "sails": "set",
+      "gunports": "closed",
+      "metrics": {
+        "meshes": 6,
+        "triangles": 33411,
+        "vertices": 100233,
+        "geometries": 6,
+        "materials": 6
+      },
+      "lineSegments": 4854,
+      "attributeBytes": 2522088,
+      "dimensionsXYZ": [
+        57.02793884277344,
+        42.200000047683716,
+        20
+      ],
+      "fingerprint": "a9805954be6a0b302cca89d843588f038ede1d5d2c5767e3373a3eca256ae5d3",
+      "parts": [
+        {
+          "id": "hull",
+          "role": "Hull and rudder",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 10,
+          "triangles": 4382
+        },
+        {
+          "id": "deck",
+          "role": "Main deck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 161,
+          "triangles": 2080
+        },
+        {
+          "id": "forecastle",
+          "role": "Forecastle",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 134,
+          "triangles": 1620
+        },
+        {
+          "id": "sterncastle",
+          "role": "Quarterdeck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 134,
+          "triangles": 1620
+        },
+        {
+          "id": "poop",
+          "role": "Poop deck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 133,
+          "triangles": 1608
+        },
+        {
+          "id": "equipment",
+          "role": "Hatches and deck equipment",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 97,
+          "triangles": 1352
+        },
+        {
+          "id": "spars",
+          "role": "Masts and bowsprit",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 13,
+          "triangles": 2152
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 36,
+          "triangles": 5400
+        },
+        {
+          "id": "square-0",
+          "role": "Square sail 1",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 1504
+        },
+        {
+          "id": "square-1",
+          "role": "Square sail 2",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 1504
+        },
+        {
+          "id": "square-2",
+          "role": "Square sail 3",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 1504
+        },
+        {
+          "id": "square-3",
+          "role": "Square sail 4",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 1504
+        },
+        {
+          "id": "mizzen",
+          "role": "Lateen mizzen",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 4,
+          "triangles": 1180
+        },
+        {
+          "id": "flags",
+          "role": "Pennants",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 3,
+          "triangles": 9
+        },
+        {
+          "id": "port-frames",
+          "role": "Gunport frames and chambers",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 126,
+          "triangles": 1512
+        },
+        {
+          "id": "armament",
+          "role": "Gunport lids and guns",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 126,
+          "triangles": 4480
+        }
+      ]
+    },
+    {
+      "author": "Codex GPT-6.1 Sol",
+      "quality": "high",
+      "sails": "furled",
+      "gunports": "open",
+      "metrics": {
+        "meshes": 7,
+        "triangles": 31815,
+        "vertices": 95445,
+        "geometries": 7,
+        "materials": 7
+      },
+      "lineSegments": 3555,
+      "attributeBytes": 2376000,
+      "dimensionsXYZ": [
+        57.02793884277344,
+        42.200000047683716,
+        20
+      ],
+      "fingerprint": "21746bf17a9fd19825b56d48a6fd25fee0b4f0b85e894e2226db6b3faad74d96",
+      "parts": [
+        {
+          "id": "hull",
+          "role": "Hull and rudder",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 10,
+          "triangles": 4382
+        },
+        {
+          "id": "deck",
+          "role": "Main deck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 161,
+          "triangles": 2080
+        },
+        {
+          "id": "forecastle",
+          "role": "Forecastle",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 134,
+          "triangles": 1620
+        },
+        {
+          "id": "sterncastle",
+          "role": "Quarterdeck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 134,
+          "triangles": 1620
+        },
+        {
+          "id": "poop",
+          "role": "Poop deck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 133,
+          "triangles": 1608
+        },
+        {
+          "id": "equipment",
+          "role": "Hatches and deck equipment",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 97,
+          "triangles": 1352
+        },
+        {
+          "id": "spars",
+          "role": "Masts and bowsprit",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 13,
+          "triangles": 2152
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 36,
+          "triangles": 5400
+        },
+        {
+          "id": "square-0",
+          "role": "Square sail 1",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1120
+        },
+        {
+          "id": "square-1",
+          "role": "Square sail 2",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1120
+        },
+        {
+          "id": "square-2",
+          "role": "Square sail 3",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1120
+        },
+        {
+          "id": "square-3",
+          "role": "Square sail 4",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1120
+        },
+        {
+          "id": "mizzen",
+          "role": "Lateen mizzen",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1120
+        },
+        {
+          "id": "flags",
+          "role": "Pennants",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 3,
+          "triangles": 9
+        },
+        {
+          "id": "port-frames",
+          "role": "Gunport frames and chambers",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 126,
+          "triangles": 1512
+        },
+        {
+          "id": "armament",
+          "role": "Gunport lids and guns",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 126,
+          "triangles": 4480
+        }
+      ]
+    },
+    {
+      "author": "Codex GPT-6.1 Sol",
+      "quality": "high",
+      "sails": "furled",
+      "gunports": "closed",
+      "metrics": {
+        "meshes": 7,
+        "triangles": 31815,
+        "vertices": 95445,
+        "geometries": 7,
+        "materials": 7
+      },
+      "lineSegments": 3555,
+      "attributeBytes": 2376000,
+      "dimensionsXYZ": [
+        57.02793884277344,
+        42.200000047683716,
+        20
+      ],
+      "fingerprint": "20900791507fbc884b362ed8d72f80d25114ba7ba38cd3534901e196eafa82d0",
+      "parts": [
+        {
+          "id": "hull",
+          "role": "Hull and rudder",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 10,
+          "triangles": 4382
+        },
+        {
+          "id": "deck",
+          "role": "Main deck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 161,
+          "triangles": 2080
+        },
+        {
+          "id": "forecastle",
+          "role": "Forecastle",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 134,
+          "triangles": 1620
+        },
+        {
+          "id": "sterncastle",
+          "role": "Quarterdeck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 134,
+          "triangles": 1620
+        },
+        {
+          "id": "poop",
+          "role": "Poop deck",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 133,
+          "triangles": 1608
+        },
+        {
+          "id": "equipment",
+          "role": "Hatches and deck equipment",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 97,
+          "triangles": 1352
+        },
+        {
+          "id": "spars",
+          "role": "Masts and bowsprit",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 13,
+          "triangles": 2152
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 36,
+          "triangles": 5400
+        },
+        {
+          "id": "square-0",
+          "role": "Square sail 1",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1120
+        },
+        {
+          "id": "square-1",
+          "role": "Square sail 2",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1120
+        },
+        {
+          "id": "square-2",
+          "role": "Square sail 3",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1120
+        },
+        {
+          "id": "square-3",
+          "role": "Square sail 4",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1120
+        },
+        {
+          "id": "mizzen",
+          "role": "Lateen mizzen",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 7,
+          "triangles": 1120
+        },
+        {
+          "id": "flags",
+          "role": "Pennants",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 3,
+          "triangles": 9
+        },
+        {
+          "id": "port-frames",
+          "role": "Gunport frames and chambers",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 126,
+          "triangles": 1512
+        },
+        {
+          "id": "armament",
+          "role": "Gunport lids and guns",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 126,
+          "triangles": 4480
+        }
+      ]
+    },
+    {
+      "author": "Claude Opus 5.5",
+      "quality": "low",
+      "sails": "set",
+      "gunports": "open",
+      "metrics": {
+        "meshes": 3,
+        "triangles": 17284,
+        "vertices": 51852,
+        "geometries": 3,
+        "materials": 3
+      },
+      "lineSegments": 110,
+      "attributeBytes": 1869312,
+      "dimensionsXYZ": [
+        61.57271766662598,
+        46.22015690803528,
+        22.399999618530273
+      ],
+      "fingerprint": "3cdbc83a5aa4a7c36fbbf16d44998e3bcb40331c32a3fe581f03fa40122c2b7d",
+      "parts": [
+        {
+          "id": "structure",
+          "role": "Hull and deck equipment",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 261,
+          "triangles": 12692
+        },
+        {
+          "id": "armament",
+          "role": "Gunports and guns",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 84,
+          "triangles": 1360
+        },
+        {
+          "id": "spars",
+          "role": "Masts, yards and fittings",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 80,
+          "triangles": 2324
+        },
+        {
+          "id": "sails",
+          "role": "Sails and running rigging",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 10,
+          "triangles": 836
+        },
+        {
+          "id": "flags",
+          "role": "Pennants and stern ensign",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 6,
+          "triangles": 72
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 0,
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "author": "Claude Opus 5.5",
+      "quality": "low",
+      "sails": "set",
+      "gunports": "closed",
+      "metrics": {
+        "meshes": 3,
+        "triangles": 17572,
+        "vertices": 52716,
+        "geometries": 3,
+        "materials": 3
+      },
+      "lineSegments": 110,
+      "attributeBytes": 1900416,
+      "dimensionsXYZ": [
+        61.57271766662598,
+        46.22015690803528,
+        22.399999618530273
+      ],
+      "fingerprint": "6e78f42fbf24250850e9a92acae69597cea69d194d24b985e2ffbb125f1ab4b6",
+      "parts": [
+        {
+          "id": "structure",
+          "role": "Hull and deck equipment",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 261,
+          "triangles": 12692
+        },
+        {
+          "id": "armament",
+          "role": "Gunports and guns",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 108,
+          "triangles": 1648,
+          "basedOn": [
+            "ship.galleon@low#claude-opus-5.5"
+          ]
+        },
+        {
+          "id": "spars",
+          "role": "Masts, yards and fittings",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 80,
+          "triangles": 2324
+        },
+        {
+          "id": "sails",
+          "role": "Sails and running rigging",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 10,
+          "triangles": 836
+        },
+        {
+          "id": "flags",
+          "role": "Pennants and stern ensign",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 6,
+          "triangles": 72
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 0,
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "author": "Claude Opus 5.5",
+      "quality": "low",
+      "sails": "furled",
+      "gunports": "open",
+      "metrics": {
+        "meshes": 3,
+        "triangles": 21232,
+        "vertices": 63696,
+        "geometries": 3,
+        "materials": 3
+      },
+      "lineSegments": 110,
+      "attributeBytes": 2295696,
+      "dimensionsXYZ": [
+        61.57271766662598,
+        46.22015690803528,
+        22.399999618530273
+      ],
+      "fingerprint": "0483a3de91d558518ed5820427b88c467b4f8dc7bda9304ecfce7631236508ae",
+      "parts": [
+        {
+          "id": "structure",
+          "role": "Hull and deck equipment",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 261,
+          "triangles": 12692
+        },
+        {
+          "id": "armament",
+          "role": "Gunports and guns",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 84,
+          "triangles": 1360
+        },
+        {
+          "id": "spars",
+          "role": "Masts, yards and fittings",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 80,
+          "triangles": 2324
+        },
+        {
+          "id": "sails",
+          "role": "Sails and running rigging",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 55,
+          "triangles": 4784,
+          "basedOn": [
+            "ship.galleon@low#claude-opus-5.5"
+          ]
+        },
+        {
+          "id": "flags",
+          "role": "Pennants and stern ensign",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 6,
+          "triangles": 72
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 0,
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "author": "Claude Opus 5.5",
+      "quality": "low",
+      "sails": "furled",
+      "gunports": "closed",
+      "metrics": {
+        "meshes": 3,
+        "triangles": 21520,
+        "vertices": 64560,
+        "geometries": 3,
+        "materials": 3
+      },
+      "lineSegments": 110,
+      "attributeBytes": 2326800,
+      "dimensionsXYZ": [
+        61.57271766662598,
+        46.22015690803528,
+        22.399999618530273
+      ],
+      "fingerprint": "744716399825c0528cb0a2a7a60f799d2717cf50748ac5c6b1b7da87f6e13a17",
+      "parts": [
+        {
+          "id": "structure",
+          "role": "Hull and deck equipment",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 261,
+          "triangles": 12692
+        },
+        {
+          "id": "armament",
+          "role": "Gunports and guns",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 108,
+          "triangles": 1648,
+          "basedOn": [
+            "ship.galleon@low#claude-opus-5.5"
+          ]
+        },
+        {
+          "id": "spars",
+          "role": "Masts, yards and fittings",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 80,
+          "triangles": 2324
+        },
+        {
+          "id": "sails",
+          "role": "Sails and running rigging",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 55,
+          "triangles": 4784,
+          "basedOn": [
+            "ship.galleon@low#claude-opus-5.5"
+          ]
+        },
+        {
+          "id": "flags",
+          "role": "Pennants and stern ensign",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 6,
+          "triangles": 72
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "low",
+          "author": "Claude Opus 5.5",
+          "meshes": 0,
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "author": "Claude Opus 5.5",
+      "quality": "high",
+      "sails": "set",
+      "gunports": "open",
+      "metrics": {
+        "meshes": 3,
+        "triangles": 50736,
+        "vertices": 152208,
+        "geometries": 3,
+        "materials": 3
+      },
+      "lineSegments": 5043,
+      "attributeBytes": 5600520,
+      "dimensionsXYZ": [
+        62.57014465332031,
+        46.190550565719604,
+        22.399999618530273
+      ],
+      "fingerprint": "b1b7af45569aaa31b20e7b92fce7eea2d4055878cd4485e0f80f1c340ab17e56",
+      "parts": [
+        {
+          "id": "structure",
+          "role": "Hull and deck equipment",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 465,
+          "triangles": 37100
+        },
+        {
+          "id": "armament",
+          "role": "Gunports and guns",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 130,
+          "triangles": 3056
+        },
+        {
+          "id": "spars",
+          "role": "Masts, yards and fittings",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 165,
+          "triangles": 7088
+        },
+        {
+          "id": "sails",
+          "role": "Sails and running rigging",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 10,
+          "triangles": 3300
+        },
+        {
+          "id": "flags",
+          "role": "Pennants and stern ensign",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 6,
+          "triangles": 192
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 0,
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "author": "Claude Opus 5.5",
+      "quality": "high",
+      "sails": "set",
+      "gunports": "closed",
+      "metrics": {
+        "meshes": 3,
+        "triangles": 49744,
+        "vertices": 149232,
+        "geometries": 3,
+        "materials": 3
+      },
+      "lineSegments": 5043,
+      "attributeBytes": 5493384,
+      "dimensionsXYZ": [
+        62.57014465332031,
+        46.190550565719604,
+        22.399999618530273
+      ],
+      "fingerprint": "10bfbaa3896285cf1199843ffdc5c3cc28f9f65920de8c938015353ac5396f93",
+      "parts": [
+        {
+          "id": "structure",
+          "role": "Hull and deck equipment",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 465,
+          "triangles": 37100
+        },
+        {
+          "id": "armament",
+          "role": "Gunports and guns",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 108,
+          "triangles": 2064,
+          "basedOn": [
+            "ship.galleon@high#claude-opus-5.5"
+          ]
+        },
+        {
+          "id": "spars",
+          "role": "Masts, yards and fittings",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 165,
+          "triangles": 7088
+        },
+        {
+          "id": "sails",
+          "role": "Sails and running rigging",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 10,
+          "triangles": 3300
+        },
+        {
+          "id": "flags",
+          "role": "Pennants and stern ensign",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 6,
+          "triangles": 192
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 0,
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "author": "Claude Opus 5.5",
+      "quality": "high",
+      "sails": "furled",
+      "gunports": "open",
+      "metrics": {
+        "meshes": 3,
+        "triangles": 57188,
+        "vertices": 171564,
+        "geometries": 3,
+        "materials": 3
+      },
+      "lineSegments": 4538,
+      "attributeBytes": 6285216,
+      "dimensionsXYZ": [
+        62.57014465332031,
+        46.190550565719604,
+        22.399999618530273
+      ],
+      "fingerprint": "d52039c489b0d4663f71b18b5d2bd1447a5cd32cde8283caf89df2d46bef3c05",
+      "parts": [
+        {
+          "id": "structure",
+          "role": "Hull and deck equipment",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 465,
+          "triangles": 37100
+        },
+        {
+          "id": "armament",
+          "role": "Gunports and guns",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 130,
+          "triangles": 3056
+        },
+        {
+          "id": "spars",
+          "role": "Masts, yards and fittings",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 165,
+          "triangles": 7088
+        },
+        {
+          "id": "sails",
+          "role": "Sails and running rigging",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 55,
+          "triangles": 9752,
+          "basedOn": [
+            "ship.galleon@high#claude-opus-5.5"
+          ]
+        },
+        {
+          "id": "flags",
+          "role": "Pennants and stern ensign",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 6,
+          "triangles": 192
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 0,
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "author": "Claude Opus 5.5",
+      "quality": "high",
+      "sails": "furled",
+      "gunports": "closed",
+      "metrics": {
+        "meshes": 3,
+        "triangles": 56196,
+        "vertices": 168588,
+        "geometries": 3,
+        "materials": 3
+      },
+      "lineSegments": 4538,
+      "attributeBytes": 6178080,
+      "dimensionsXYZ": [
+        62.57014465332031,
+        46.190550565719604,
+        22.399999618530273
+      ],
+      "fingerprint": "ad75cd134c1f61df306403a2c6b391e88ff1aa6a9fc1eaa873883b409a094ea2",
+      "parts": [
+        {
+          "id": "structure",
+          "role": "Hull and deck equipment",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 465,
+          "triangles": 37100
+        },
+        {
+          "id": "armament",
+          "role": "Gunports and guns",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 108,
+          "triangles": 2064,
+          "basedOn": [
+            "ship.galleon@high#claude-opus-5.5"
+          ]
+        },
+        {
+          "id": "spars",
+          "role": "Masts, yards and fittings",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 165,
+          "triangles": 7088
+        },
+        {
+          "id": "sails",
+          "role": "Sails and running rigging",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 55,
+          "triangles": 9752,
+          "basedOn": [
+            "ship.galleon@high#claude-opus-5.5"
+          ]
+        },
+        {
+          "id": "flags",
+          "role": "Pennants and stern ensign",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 6,
+          "triangles": 192
+        },
+        {
+          "id": "rigging",
+          "role": "Standing rigging",
+          "quality": "high",
+          "author": "Claude Opus 5.5",
+          "meshes": 0,
+          "triangles": 0
+        }
+      ]
+    }
+  ]
+}

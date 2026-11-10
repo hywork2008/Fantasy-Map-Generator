@@ -1,0 +1,188 @@
+{
+  "method": "Fixed BV variant geometry. Dimensions X/Y/Z metres. Unique CPU attribute/index ArrayBuffers exclude JS objects, transient allocations and GPU memory; no FPS benchmark.",
+  "rows": [
+    {
+      "id": "medieval.sand-storage-yard@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 124,
+        "triangles": 45256,
+        "vertices": 27754,
+        "geometries": 81,
+        "materials": 15
+      },
+      "attributeBytes": 1156448,
+      "dimensions": [
+        9.510000190734864,
+        3.380000000104309,
+        7.127691919637231
+      ],
+      "fingerprint": "a9465d965b7b03902fd3e0f39342e50d19da3427ce8e051a12e66708df89c359",
+      "sourceParts": [],
+      "parts": [
+        {
+          "id": "sand-storage-yard:legacy",
+          "role": "legacy-assembly",
+          "quality": "low",
+          "metrics": {
+            "meshes": 12,
+            "triangles": 45256,
+            "vertices": 135768,
+            "geometries": 12,
+            "materials": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "medieval.sand-storage-yard@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 13,
+        "triangles": 19932,
+        "vertices": 59796,
+        "geometries": 13,
+        "materials": 13
+      },
+      "attributeBytes": 1435104,
+      "dimensions": [
+        11,
+        4.530839920043945,
+        8.5
+      ],
+      "fingerprint": "a83f20d47808ce122cc301a7c0f9df6c7c2a3c95770dbf79d2c981355e651e2c",
+      "sourceParts": [
+        {
+          "id": "sand-yard:shelter",
+          "role": "shelter",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 565,
+          "triangles": 6892
+        },
+        {
+          "id": "sand-yard:retaining-bays",
+          "role": "retaining-bays",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 129,
+          "triangles": 1548
+        },
+        {
+          "id": "sand-yard:sand-stock",
+          "role": "sand-stock",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 1280
+        },
+        {
+          "id": "sand-yard:wheelbarrow",
+          "role": "wheelbarrow",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "medieval.wooden-wheelbarrow@high#codex-gpt-6.1-sol"
+          ],
+          "meshes": 3,
+          "triangles": 7376
+        },
+        {
+          "id": "sand-yard:loading-tools",
+          "role": "loading-tools",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 41,
+          "triangles": 604
+        },
+        {
+          "id": "sand-yard:barrel",
+          "role": "barrel",
+          "quality": "low",
+          "author": "Codex GPT-6.1 Sol",
+          "basedOn": [
+            "container.barrel-empty@default#codex-gpt-6.1-sol"
+          ],
+          "meshes": 23,
+          "triangles": 2232
+        }
+      ],
+      "parts": [
+        {
+          "id": "sand-yard:shelter",
+          "role": "shelter",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 6892,
+            "vertices": 20676,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "sand-yard:retaining-bays",
+          "role": "retaining-bays",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 1548,
+            "vertices": 4644,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "sand-yard:sand-stock",
+          "role": "sand-stock",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 1280,
+            "vertices": 3840,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "sand-yard:wheelbarrow",
+          "role": "wheelbarrow",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 7376,
+            "vertices": 22128,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "sand-yard:loading-tools",
+          "role": "loading-tools",
+          "quality": "high",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 604,
+            "vertices": 1812,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "sand-yard:barrel",
+          "role": "barrel",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 2232,
+            "vertices": 6696,
+            "geometries": 4,
+            "materials": 4
+          }
+        }
+      ]
+    }
+  ]
+}

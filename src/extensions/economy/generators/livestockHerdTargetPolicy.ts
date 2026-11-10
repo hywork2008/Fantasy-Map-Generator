@@ -92,3 +92,12 @@ export const YARD_HEADS_PER_RURAL_PERSON: Readonly<Record<string, number>> = {
   Pig: 0.2,
   Chicken: 1
 };
+
+/**
+ * Yard birds a townsperson buys in a year. Hens were kept for the household's eggs and pot; the
+ * farm sends to market only what the towns take and eats the rest of the flock's increase. The
+ * market takes at most one month of this. Unverified placeholder, like the flock size above.
+ */
+export const HOME_EATEN_YARD_MARKET_HEADS_PER_TOWNSPERSON_YEAR: Readonly<Record<string, number>> = {
+  Chicken: 2
+};

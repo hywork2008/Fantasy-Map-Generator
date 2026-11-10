@@ -1,5 +1,9 @@
+import { DEFAULT_AUTHOR } from "../authors";
+import { assembleCivicHallParts } from "./civicHallParts";
 import { assemblyHall } from "./civicParts";
+import { createHighGuildHall, guildHallPartFactories } from "./guildHallParts";
 import type { MedievalModel } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -47,3 +51,20 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, { "instrument-makers-guild-hall": () => createHighGuildHall("instruments") });
+for (const model of models) {
+  model.parts = variantId =>
+    model.variants?.find(variant => variant.id === variantId)?.level === "high"
+      ? guildHallPartFactories("instruments")
+      : [
+          {
+            id: `${model.id}:legacy`,
+            role: "legacy-assembly",
+            quality: "low",
+            author: DEFAULT_AUTHOR,
+            create: () => model.create()
+          }
+        ];
+  model.assembleParts = parts => assembleCivicHallParts(model.id, parts);
+}

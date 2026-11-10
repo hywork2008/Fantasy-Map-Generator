@@ -1263,6 +1263,14 @@ function getGenerationStages(): Array<() => Promise<void>> {
       step("Ice.generate", () => Ice.generate(worldContext, viewContext, appServices, state));
     },
     async () => {
+      // Generation Settings stays editable while earlier stages are paused for review, so the
+      // snapshot `prepareGenerationStage` took can be stale (e.g. Frontier picked by randomization,
+      // then switched back to Standard). Settlement options are first consumed from here on.
+      const liveOptions = useOptionsState.getState();
+      worldContext.options.initialSettlementPattern = liveOptions.initialSettlementPattern;
+      worldContext.options.initialPolityRealmSize = liveOptions.initialPolityRealmSize;
+      worldContext.options.frontierStartMode = liveOptions.frontierStartMode;
+      worldContext.options.frontierPolitySpacing = liveOptions.frontierPolitySpacing;
       const state = getWorldState();
       step("Threats.generate", () => Threats.generate(worldContext, viewContext, appServices, state));
       step("rankCells", rankCells);

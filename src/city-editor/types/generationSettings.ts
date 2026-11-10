@@ -24,6 +24,8 @@ export type WallShape = "organic" | "round" | "oval" | "square" | "polygon" | "b
 export type WallShapeChoice = "auto" | WallShape;
 
 export interface GenerationSettings {
+  /** Opt-in population-based facilities; absent retains the existing buildings. */
+  facilityLayout?: "population";
   forestSettings?: import("./contracts/forest").ForestSettings;
   buildingHeightLimit?: import("./contracts/buildingHeightLimits").BuildingHeightLimit;
 
@@ -99,6 +101,13 @@ export interface GenerationSettings {
    * (docs/plan/approach-traffic-observatory.md O4).
    */
   approachGrowthSource?: "neighbors" | "traffic";
+  /**
+   * Place the market street, merchant quarters and gate wards from each gate's
+   * measured cargo (docs/plan/approach-commerce-quarters.md §6.1). Unset and
+   * "off" keep the layout from before that switch. Saved on the generation recipe
+   * so reopening a town does not re-roll it.
+   */
+  approachCommerce?: "off" | "on";
   /** Lab-only factorial comparison. UI never sets "legacy" on inner-first towns. */
   townWallDefensePolicy?: "legacy" | "closed";
   /** Double walls only: "razed" turns the old-town wall into a ring road (§4.3). Default "standing". */

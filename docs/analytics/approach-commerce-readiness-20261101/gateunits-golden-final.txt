@@ -1,0 +1,23 @@
+rows 244 burgPop 241
+1 Wood pile 60 924034 units 15401
+24 Grain wain 3.1317829457364343 104576 units 33392
+50 Fodder bale 5 124691 units 24938
+137 Chicken head 2 1576 units 788
+142 Tallow barrel 3 24401 units 8134
+214 Meat wain 3 2668 units 889
+top 1 [ 'Wood/pile/60' ] 924034
+top 50 [ 'Fodder/bale/5' ] 124691
+top 24 [ 'Grain/wain/3.1317829457364343' ] 104576
+top 142 [ 'Tallow/barrel/3' ] 24401
+top 27 [ 'Barley/wain/3.45086271567892' ] 20529
+top 47 [ 'Salt/bag/0.404' ] 14428
+urbanSupplied(last) 0
+tal burg:59:route:19:edge:258 10465 in 53815 out 58382 partners {"0":62838.323,"7":370.725,"27":495.875,"32":539.086,"34":321.854,"56":785.611,"60":234.843,"96":44197.334}
+tal burg:96:route:74:edge:58 10465 in 69171 out 0 partners {"0":2035.673,"7":1267.286,"23":12546.055,"26":764.818,"32":2914.799,"34":2260.565,"56":2975.785,"59":44197.334}
+tal burg:2:route:58:edge:1545 1735 in 39164 out 14338 partners {"0":47108.264,"12":459.156,"39":118.46,"55":118.422,"73":151.672,"76":118.239,"79":118.499,"97":5308.042}
+tal burg:97:route:75:edge:1506 1735 in 12497 out 0 partners {"0":1777.879,"2":5308.042,"12":149.573,"39":1.972,"55":1.901,"73":2.171,"74":16.342,"76":5237.537}
+mkt 1 2 tallowStock 23983 price 0.92
+mkt 2 49 tallowStock 12927 price 0.5
+mkt 3 94 tallowStock 8843 price 0.5
+mkt 4 59 tallowStock 29910 price 0.5
+mkt 5 91 tallowStock 19296 price 0.5

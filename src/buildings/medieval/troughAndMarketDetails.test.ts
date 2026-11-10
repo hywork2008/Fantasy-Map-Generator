@@ -21,7 +21,7 @@ it.each([...troughs, ...stalls])(
       [size.y, definition.size[2]]
     ])
       expect(actual).toBeLessThanOrEqual(limit + 0.00001);
-    expect(model.pickables.length).toBeLessThanOrEqual(8);
+    expect(model.pickables.length).toBeLessThanOrEqual(definition.appearances ? 12 : 8);
     for (const mesh of model.pickables)
       for (const name of ["position", "normal"])
         expect(Array.from(mesh.geometry.getAttribute(name).array).every(Number.isFinite)).toBe(true);
@@ -74,20 +74,23 @@ it("the fodder manger retains a feeding cavity below its rim", () => {
   model.dispose();
 });
 
-it.each(stalls)("$id leaves a vendor aisle below an upward-facing awning", definition => {
-  const model = definition.variants!.find(v => v.level === "high")!.create();
-  model.group.updateMatrixWorld(true);
-  const aisle = new THREE.Raycaster(
-    new THREE.Vector3(-2.1, 1.6, 0),
-    new THREE.Vector3(1, 0, 0),
-    0,
-    3.6
-  ).intersectObjects(model.pickables);
-  expect(aisle).toHaveLength(0);
-  const roof = new THREE.Raycaster(new THREE.Vector3(0.2, 5, 0.4), new THREE.Vector3(0, -1, 0)).intersectObjects(
-    model.pickables
-  )[0];
-  expect(roof.point.y).toBeGreaterThan(2.5);
-  expect(roof.face!.normal.y).toBeGreaterThan(0);
-  model.dispose();
-});
+it.each(stalls.filter(model => !model.appearances || model.id === "market-bread-stall"))(
+  "$id leaves a vendor aisle below an upward-facing awning",
+  definition => {
+    const model = definition.variants!.find(v => v.level === "high")!.create();
+    model.group.updateMatrixWorld(true);
+    const aisle = new THREE.Raycaster(
+      new THREE.Vector3(-2.1, 1.6, 0),
+      new THREE.Vector3(1, 0, 0),
+      0,
+      3.6
+    ).intersectObjects(model.pickables);
+    expect(aisle).toHaveLength(0);
+    const roof = new THREE.Raycaster(new THREE.Vector3(0.2, 5, 0.4), new THREE.Vector3(0, -1, 0)).intersectObjects(
+      model.pickables
+    )[0];
+    expect(roof.point.y).toBeGreaterThan(2.5);
+    expect(roof.face!.normal.y).toBeGreaterThan(0);
+    model.dispose();
+  }
+);

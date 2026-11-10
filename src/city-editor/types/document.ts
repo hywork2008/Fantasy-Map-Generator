@@ -192,7 +192,13 @@ export interface CityElement {
   objectType?: string;
   /** Uniform multiplier of the authored meter dimensions. */
   objectScale?: number;
+  /** Optional explicit BV tier for placed models that support quality selection. */
+  objectQuality?: import("../../buildings/placementContract").PlacementQuality;
+  objectPalette?: import("../../buildings/medieval/marketAppearance").MarketPalette;
+  objectMarketActivity?: "market-day" | "closed";
   shipType?: "small" | "medium" | "large" | "barge";
+  shipState?: import("./ships").ShipDisplayState;
+  harborOperation?: import("./contracts/harborCargo").CargoBerthAssignment;
   /** The dry harbour ward owning an element placed in a neighbouring water cell. */
   harborFaceId?: Id;
   harborKind?: "river" | "sea";
@@ -205,6 +211,10 @@ export interface LandmarkPolygon {
 }
 
 export interface LandmarkAsset {
+  /** Fixed dwelling capacity in a mixed residential workshop. */
+  residentialDwellings?: number;
+  /** BV models retain authored meter scale; no separate saved model instance is needed. */
+  bvModel?: { id: string; quality: "low" | "high"; heightMeters: number };
   id: string;
   revision: string;
   name: string;
@@ -520,6 +530,30 @@ export interface BastionedTownPlan {
 }
 
 export interface CityDocument {
+  facilityReport?: {
+    population: number;
+    required: number;
+    placed: number;
+    provisional: number;
+    sites: {
+      id: string;
+      assetId: string;
+      areaM2: number;
+      zone: "core" | "outskirts";
+      provisional: boolean;
+      riverbankMaxDistanceMeters?: number;
+    }[];
+    unplaced: { id: string; reason: string }[];
+    housing?: {
+      requiredDwellings: number;
+      assignedDwellings: number;
+      unplacedDwellings: number;
+      areaScale: number;
+      expansionPasses: number;
+      coreCells: number;
+      expansionLimited: boolean;
+    };
+  };
   buildingHeightLimit?: import("./contracts/buildingHeightLimits").BuildingHeightLimit;
 
   /** Accepted automatic core-area calibration, also retained on grids without a generation recipe. */
@@ -531,6 +565,11 @@ export interface CityDocument {
   fortSite?: import("./fortSite").FortSite;
   /** Earthworks over the cell elevations, such as a castle platform. Ignored by fort sites. */
   terrain?: import("./terrain").CityTerrainLayer;
+  /**
+   * Mesh-free city. When set, the ledger is the saved document and `mesh` is only an empty view shell.
+   * Roads, rivers, plots, and zones are read from here, not from cell edges.
+   */
+  freeform?: import("./freeformCity").FreeformCity;
   /** Optional finishing decoration, independent of city generation stages. */
   vacantLotTrees?: { seed: string; visible: boolean };
   /** CE overrides for automatically placed facilities; absent entries follow FMG/defaults. */
@@ -655,6 +694,13 @@ export interface CityDocument {
   mesh: Mesh;
   featureGroups: FeatureGroup[];
   gates: CityGate[];
+  /**
+   * Open market ground just inside the main gate when `approachCommerce` is on.
+   * Buildings stay outside these disks. Absent keeps every gate's ordinary plaza.
+   */
+  marketFunnel?: { center: Point; radius: number }[];
+  /** Explicitly populated plaza markets; rendering never generates their stalls. */
+  markets?: import("./contracts/market").MarketSite[];
   /** Imported point decorations such as trees; Ward landmarks are derived at render time. */
   elements: CityElement[];
   /** Urban morphology layout (circulade, bram, organic or classic) */
@@ -677,7 +723,10 @@ export type Tool =
   | "face"
   | "landmark"
   | "ship"
-  | "object";
+  | "object"
+  | "building"
+  | "way"
+  | "zone";
 
 export type { CastleSettings } from "./castle";
 export type {

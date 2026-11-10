@@ -1,10 +1,15 @@
 import type { KrakPhase } from "../../buildings/fortresses/krak";
+import type { MarketPalette } from "../../buildings/medieval/marketAppearance";
 import { placeableObject } from "../../buildings/placeableObjects";
+import { facingFromRotation, frontAxisOf, type PlacementQuality } from "../../buildings/placementContract";
+import { placementFootprint } from "../../buildings/placementModels";
 import { editorHtml, editorText } from "../../i18n/editorMessages";
 import { buildingHeightLimitControls } from "../components/buildingHeightLimitControls";
 import type { createEditorControls, FloatingWindow } from "../components/editorControls";
 import { div, text } from "../components/editorControls";
 import { populateFortSiteInspector } from "../components/fortSiteInspector";
+import { syncPlacementPaletteControl } from "../components/placementPaletteControl";
+import { syncPlacementQualityControl } from "../components/placementQualityControl";
 import {
   evaluateApproachBeyond,
   normalizeApproachBeyond,
@@ -34,6 +39,8 @@ import {
 } from "../generators/features";
 import { reservedCastleFaces } from "../generators/fortifications";
 import { fortressPlacement, setCastleFortress } from "../generators/fortressPlacement";
+import { commitPlacement, isPlotPlacement, removePlacement } from "../generators/freeform/commitPlacement";
+import { connectEntrance } from "../generators/freeform/entrance";
 import { transformPlacedLandmark } from "../generators/landmarks";
 import {
   clone,
@@ -70,6 +77,8 @@ import type {
 } from "../types/document";
 import type { ContextMenuAction } from "../types/editor";
 import type { RenderSelection } from "../types/selection";
+import { buildingModelName, placementFailureText } from "./tools/buildingTool";
+import { entranceErrorText } from "./tools/wayTool";
 
 export interface InspectorContext {
   controls: ReturnType<typeof createEditorControls>;
@@ -83,7 +92,22 @@ export interface InspectorContext {
   preservedLandmarkLanes: () => InfillLane[];
   refresh: () => void;
   documents: Pick<DocumentsState, "documentState">;
-  interaction: Pick<InteractionState, "selection" | "activeGroupId" | "inspectedInfo">;
+  interaction: Pick<
+    InteractionState,
+    | "selection"
+    | "activeGroupId"
+    | "inspectedInfo"
+    | "tool"
+    | "buildingModelId"
+    | "buildingQuality"
+    | "buildingPalette"
+    | "buildingFacingDegrees"
+    | "buildingHoverPoint"
+    | "buildingAnchor"
+    | "buildingGesture"
+    | "buildingShift"
+    | "buildingEditId"
+  >;
 }
 
 /** Live getters prevent snapshots of the current document or UI state. */
@@ -1121,7 +1145,92 @@ export function createInspectorController(ctx: InspectorContext) {
 
       if (ctx.interaction.inspectedInfo.layer === "elements" && ctx.interaction.inspectedInfo.kind === "object") {
         const item = ctx.documents.documentState.elements.find(e => e.id === ctx.interaction.inspectedInfo?.id);
-        if (item?.point && !item.locked) {
+        if (item?.point && !item.locked && item.objectType && isPlotPlacement(ctx.documents.documentState, item.id)) {
+          const facing = facingFromRotation(frontAxisOf(item.objectType), item.rotation ?? 0);
+          const x = numberInput(String(item.point[0]), "-100000", "0.1");
+          const y = numberInput(String(item.point[1]), "-100000", "0.1");
+          const angle = numberInput(String(facing), "0", "1");
+          angle.max = "359";
+          angle.setAttribute("aria-label", editorText("cityEditor.messages.buildingFacing"));
+          const quality = document.createElement("select");
+          quality.setAttribute("aria-label", editorText("cityEditor.messages.modelQuality"));
+          syncPlacementQualityControl(quality, item.objectType, item.objectQuality);
+          const palette = document.createElement("select");
+          palette.setAttribute("aria-label", editorText("cityEditor.messages.marketPalette"));
+          syncPlacementPaletteControl(palette, item.objectType, item.objectPalette);
+          const apply = () => {
+            const level = quality.disabled ? item.objectQuality : (quality.value as PlacementQuality);
+            const footprint = placementFootprint(item.objectType ?? "", level);
+            const position: Point = [Number(x.value), Number(y.value)];
+            const facingDegrees = Number(angle.value);
+            if (
+              !footprint ||
+              !item.objectType ||
+              !Number.isFinite(facingDegrees) ||
+              position.some(value => !Number.isFinite(value))
+            ) {
+              ctx.showNotice(editorText("cityEditor.messages.buildingNeedsField"));
+              return;
+            }
+            const result = commitPlacement(ctx.documents.documentState, {
+              id: item.id,
+              modelId: item.objectType,
+              quality: level,
+              palette: palette.disabled ? item.objectPalette : (palette.value as MarketPalette),
+              position,
+              facingDegrees,
+              footprint
+            });
+            if (!result.preview.ok) {
+              ctx.showNotice(placementFailureText(result.preview.reason));
+              return;
+            }
+            ctx.commit(result.document, editorText("cityEditor.messages.updateObject"));
+          };
+          ctx.inspector.content.append(
+            divider(),
+            text(buildingModelName(item.objectType)),
+            label(editorText("cityEditor.messages.xM"), x),
+            label(editorText("cityEditor.messages.yM"), y),
+            label(editorText("cityEditor.messages.buildingFacing"), angle),
+            ...(!quality.disabled ? [label(editorText("cityEditor.messages.modelQuality"), quality)] : []),
+            ...(!palette.disabled ? [label(editorText("cityEditor.messages.marketPalette"), palette)] : []),
+            makeButton(editorText("cityEditor.messages.updateObject"), apply),
+            makeButton(editorText("cityEditor.messages.moveBuildingOnMap"), () => {
+              ctx.interaction.tool = "building";
+              ctx.interaction.buildingEditId = item.id;
+              ctx.interaction.buildingModelId = item.objectType ?? ctx.interaction.buildingModelId;
+              ctx.interaction.buildingQuality = item.objectQuality;
+              ctx.interaction.buildingPalette = item.objectPalette;
+              ctx.interaction.buildingFacingDegrees = facingFromRotation(
+                frontAxisOf(item.objectType ?? ""),
+                item.rotation ?? 0
+              );
+              ctx.interaction.buildingHoverPoint = item.point ?? null;
+              ctx.interaction.buildingAnchor = item.point ?? null;
+              ctx.interaction.buildingGesture = "move";
+              ctx.interaction.buildingShift = false;
+              ctx.refresh();
+            }),
+            makeButton(editorText("cityEditor.messages.connectEntrance"), () => {
+              const connected = connectEntrance(ctx.documents.documentState, item.id);
+              if ("error" in connected) {
+                ctx.showNotice(entranceErrorText(connected.error));
+                return;
+              }
+              ctx.commit(connected.document, editorText("cityEditor.messages.wayConnected"));
+            }),
+            makeButton(editorText("cityEditor.messages.deleteObject"), () => {
+              ctx.commit(
+                removePlacement(ctx.documents.documentState, item.id),
+                editorText("cityEditor.messages.deleteObject")
+              );
+              ctx.interaction.inspectedInfo = null;
+              ctx.interaction.selection.inspectedId = null;
+              ctx.refresh();
+            })
+          );
+        } else if (item?.point && !item.locked) {
           const x = numberInput(String(item.point[0]), "-100000", "0.1");
           const y = numberInput(String(item.point[1]), "-100000", "0.1");
           const scale = numberInput(String(objectScale(item.objectScale)), "0.1", "0.1");

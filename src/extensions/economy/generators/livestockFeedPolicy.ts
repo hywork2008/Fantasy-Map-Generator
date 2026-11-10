@@ -17,6 +17,8 @@ export const HAY_RESERVE_MONTHS = 3;
 /** Monthly loss of grass left standing on a meadow shut up for the main cut (authored). */
 export const STANDING_GRASS_LOSS_PER_MONTH = 0.1;
 export const LIVESTOCK_FEED_CASH_SHARE = 0.05;
+/** Years of the herds' Fodder purchases a market stocks from spare grass (docs/plan/fodder-purchase-demand-cap.md). */
+export const FODDER_STOCK_YEARS = 1;
 
 export interface LivestockHayPlan {
   readonly seasonalGapKg: number;

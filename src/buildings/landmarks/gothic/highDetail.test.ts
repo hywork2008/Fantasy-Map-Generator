@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { modelParts } from "../../modelParts";
 import { model as amiens } from "../amiens";
 import type { LandmarkModel } from "../architectureKit";
 import { model as bruges } from "../brugesCityHall";
@@ -37,6 +38,14 @@ for (const low of models) {
     }
   });
   checkLandmark(high, assembly => {
+    if (low.parts) {
+      // Component models batch across feature names; their tests verify world-space geometry.
+      expect(modelParts(assembly.group).map(part => part.role)).toContain(
+        low === salisbury ? "crossing-tower-and-spire" : "crossing-turret-and-spire"
+      );
+      expect(modelParts(assembly.group).every(part => part.quality === "high")).toBe(true);
+      return;
+    }
     const names = new Set(assembly.pickables.map(m => m.name));
     expect(names.has("paired-lancet-tracery")).toBe(true);
     expect(names.has("roof-standing-seam")).toBe(true);

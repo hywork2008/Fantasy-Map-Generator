@@ -1,3 +1,4 @@
+import { DEFAULT_AUTHOR } from "../authors";
 import {
   assembleMonasteryParts,
   createMonastery,
@@ -5,7 +6,9 @@ import {
   monasteryPreviewPlan
 } from "../monasteries/friary";
 import { MONASTERY_VARIANTS } from "../siteVariants";
+import { abbeyDomesticPartFactories, assembleDomesticParts, createHighAbbeyDomestic } from "./abbeyDomesticParts";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 export function cloister(k: ModelKit, size = 10) {
   for (const side of [-1, 1]) {
@@ -69,3 +72,21 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+const domestic = models.filter(model => model.id === "abbey-domestic-range");
+registerHighVariants(domestic, { "abbey-domestic-range": createHighAbbeyDomestic });
+for (const model of domestic) {
+  model.parts = variantId =>
+    model.variants?.find(v => v.id === variantId)?.level === "high"
+      ? abbeyDomesticPartFactories()
+      : [
+          {
+            id: "abbey-domestic:legacy",
+            role: "legacy-assembly",
+            quality: "low",
+            author: DEFAULT_AUTHOR,
+            create: () => model.create()
+          }
+        ];
+  model.assembleParts = parts => assembleDomesticParts(model.id, parts);
+}

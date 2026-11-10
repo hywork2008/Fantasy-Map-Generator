@@ -6,13 +6,7 @@ import * as trees from "../landscape/trees";
 import { models } from "../medieval/33-friariesModels";
 import { type ModelPartRange, modelParts } from "../modelParts";
 import { FRIARY_VARIANTS, MONASTERY_VARIANTS } from "../siteVariants";
-import {
-  createFriary,
-  createMonastery,
-  friaryPreviewPlan,
-  monasteryPartFactories,
-  monasteryPreviewPlan
-} from "./friary";
+import { createFriary, friaryPreviewPlan, monasteryPartFactories, monasteryPreviewPlan } from "./friary";
 
 it("registers a real High edition with a bounded assembly and independent Low site props", () => {
   const definition = models[0],
@@ -218,9 +212,6 @@ it("preserves gate access, fitted rotation and elevation without mutating the sa
   } finally {
     model.dispose();
   }
-  expect(() =>
-    createMonastery(monasteryPreviewPlan("orthodoxMonastery"), 0, 0, { architectureQuality: "high" })
-  ).toThrow("not yet available");
 });
 
 it("owns the High buffers independently and disposes each final resource once", () => {

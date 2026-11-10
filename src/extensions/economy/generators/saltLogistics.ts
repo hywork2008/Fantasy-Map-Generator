@@ -23,9 +23,13 @@ import {
   buyHouseholdSalt,
   paySaltWholesale,
   priceSalt,
+  repaySaltPayables,
+  SALT_CREDIT_MONTHS,
+  saltCreditRoom,
   saltFreightPerBag,
   saltInvoice,
-  saltMarketCash
+  saltMarketCash,
+  saltPayable
 } from "./saltFinance";
 import type { SaltShipment, Saltworks, StateSaltLedger } from "./saltLogisticsTypes";
 import { getSaltworksOperator, migrateSaltworksOwnership } from "./saltOwnership";
@@ -47,6 +51,17 @@ export const SALT_LIVESTOCK_ANNUAL_KG: Readonly<Record<string, number>> = {
 };
 /** No measured natural salt source exists yet; never fabricate a credit from forage mass alone. */
 export const SALT_LIVESTOCK_NATURAL_SHARE = 0;
+/**
+ * Share of the herds' physiological salt need that farmers bought; the rest went unsalted by custom.
+ * With 3.6 kg a person for households it puts bought salt near the 18 livres (8.8 kg) a head that
+ * Necker found in the cheap-salt pays rédimés (docs/plan/salt-supply-calibration.md §3.10).
+ */
+export const SALT_LIVESTOCK_PURCHASED_SHARE = 0.4;
+/**
+ * Share of a Market's rural household wallet a month's livestock salt may take, across all states, as for bought Fodder
+ * (docs/plan/livestock-salt-cash-share.md). Uncapped, salt took the whole purse before the towns saw any of it.
+ */
+export const SALT_LIVESTOCK_CASH_SHARE = 0.05;
 
 function livestockSalt(cellId: number): { total: number; natural: number; purchase: number } {
   const stocks = getOrCreateFaunaStockTable();
@@ -59,7 +74,11 @@ function livestockSalt(cellId: number): { total: number; natural: number; purcha
         12 /
         SALT_KILOGRAMS_PER_BAG;
   }
-  return { total, natural: total * SALT_LIVESTOCK_NATURAL_SHARE, purchase: total * (1 - SALT_LIVESTOCK_NATURAL_SHARE) };
+  return {
+    total,
+    natural: total * SALT_LIVESTOCK_NATURAL_SHARE,
+    purchase: total * (1 - SALT_LIVESTOCK_NATURAL_SHARE) * SALT_LIVESTOCK_PURCHASED_SHARE
+  };
 }
 
 function statePopulation(stateId: number): number {
@@ -81,6 +100,16 @@ function statePopulation(stateId: number): number {
       0
     )
   );
+}
+
+/** Rural households first pay down the livestock salt they owe, from the month's allowance. */
+function repayRuralSaltReceivable(market: Market, allowance: number): number {
+  const owed = market.marketTreasury?.ruralSaltReceivable ?? 0;
+  if (!(owed > 0) || !market.marketTreasury) return 0;
+  const paid = debitRuralHouseholdWealth(market, Math.min(owed, allowance));
+  market.marketTreasury.ruralSaltReceivable = rn(owed - paid, 2);
+  market.marketTreasury.balance += paid;
+  return paid;
 }
 
 const SALTWORK_ANNUAL_CAPACITY_BAGS = 900;
@@ -262,6 +291,31 @@ function marketTravelDays(from: Market, to: Market): number {
   return Math.max(1, Math.round(distance / 20));
 }
 
+/**
+ * World birth (docs/plan/start-provisioning.md §3.2): last year's salt already sits in each market,
+ * a reserve of its people's and herds' need, and the works are sized to the herds placed after them.
+ */
+export function seedWorldBirthSaltStock(): void {
+  const salt = getGoods().find(good => good.name === "Salt" && isGoodEnabled(good));
+  if (!salt) return;
+  const demandsByStateId = new Map<number, MarketDemand[]>();
+  for (const state of getWorldContext().pack.states ?? []) {
+    if (!state?.i || state.removed) continue;
+    demandsByStateId.set(state.i, stateMarketDemands(state.i));
+  }
+  resizeSaltworksToNeed(getSaltworks(), demandsByStateId);
+  const needByMarket = new Map<number, number>();
+  for (const demands of demandsByStateId.values())
+    for (const demand of demands)
+      needByMarket.set(demand.market.i, (needByMarket.get(demand.market.i) ?? 0) + demand.provisionBags);
+  for (const market of getMarkets()) {
+    const reserve = (needByMarket.get(market.i) ?? 0) * SALT_MARKET_RESERVE_MONTHS;
+    if (!(reserve > 0)) continue;
+    const good = getMarketGood(market, salt.i, salt.value);
+    good.stock = rn(Math.max(good.stock, reserve), 4);
+  }
+}
+
 function addSaltMarketOutput(market: Market, saltGoodId: number, bags: number): void {
   if (bags <= 0) return;
   const cumulativeIntake = getOrCreateCumulativeMarketIntake();
@@ -305,6 +359,71 @@ function advanceShipments(
   return { inTransit, delivered };
 }
 
+/**
+ * Annual Salt each producing state's works must make: its own provision plus the whole provision of
+ * every landlocked state contracted to it (the nearest producer by travel time).
+ */
+function annualCapacityNeedByProducer(
+  demandsByStateId: ReadonlyMap<number, MarketDemand[]>,
+  producerStateIds: readonly number[]
+): Map<number, number> {
+  const annualCapacityNeedByProducerId = new Map<number, number>();
+  for (const stateId of producerStateIds) {
+    const annualNeed = (demandsByStateId.get(stateId) ?? []).reduce(
+      (sum, demand) => sum + demand.provisionBags * 12,
+      0
+    );
+    annualCapacityNeedByProducerId.set(stateId, annualNeed);
+  }
+  // A landlocked state's entire normal provision is contracted to the nearest salt-producing
+  // country at generation time. The receiving state's works therefore have real export capacity,
+  // rather than silently manufacturing only their own domestic ration.
+  for (const [stateId, demands] of demandsByStateId) {
+    if (producerStateIds.includes(stateId)) continue;
+    const annualNeed = demands.reduce((sum, demand) => sum + demand.provisionBags * 12, 0);
+    const destination = demands[0]?.market;
+    if (!destination || annualNeed <= 0) continue;
+    const supplierStateId = producerStateIds
+      .map(candidateStateId => ({
+        stateId: candidateStateId,
+        market: demandsByStateId.get(candidateStateId)?.[0]?.market
+      }))
+      .filter((candidate): candidate is { stateId: number; market: Market } => candidate.market !== undefined)
+      .toSorted(
+        (left, right) =>
+          marketTravelDays(left.market, destination) - marketTravelDays(right.market, destination) ||
+          left.stateId - right.stateId
+      )[0]?.stateId;
+    if (supplierStateId === undefined) continue;
+    annualCapacityNeedByProducerId.set(
+      supplierStateId,
+      (annualCapacityNeedByProducerId.get(supplierStateId) ?? 0) + annualNeed
+    );
+  }
+  return annualCapacityNeedByProducerId;
+}
+
+/**
+ * Keeps each producer's installed capacity at the current provision of the states it serves, people and
+ * herds, with the operating reserve (docs/plan/salt-supply-calibration.md §3.7). Sized once at
+ * generation, capacity missed herds placed later and stayed at the human ration on old saves.
+ */
+function resizeSaltworksToNeed(operations: Saltworks[], demandsByStateId: ReadonlyMap<number, MarketDemand[]>): void {
+  const producers = [...new Set(operations.filter(o => o.active && o.stateId > 0).map(o => o.stateId))];
+  const states = new Map([...demandsByStateId].filter(([stateId]) => stateId > 0));
+  const need = annualCapacityNeedByProducer(states, producers);
+  for (const stateId of producers) {
+    const works = operations.filter(o => o.active && o.stateId === stateId);
+    const target = (need.get(stateId) ?? 0) * SALTWORK_OPERATING_RESERVE;
+    const installed = works.reduce((sum, o) => sum + Math.max(0, o.annualCapacityBags), 0);
+    for (const operation of works)
+      operation.annualCapacityBags = rn(
+        installed > 0 ? (target * Math.max(0, operation.annualCapacityBags)) / installed : target / works.length,
+        2
+      );
+  }
+}
+
 /** State-owned saltworks replace Salt's former biome-scatter production. */
 export class SaltLogisticsModule {
   generate(): void {
@@ -317,40 +436,7 @@ export class SaltLogisticsModule {
       if (demands.length) demandsByStateId.set(state.i, demands);
     }
     const producerStateIds = [...demandsByStateId.keys()].filter(id => id > 0 && stateCandidateCells(id).length > 0);
-    const annualCapacityNeedByProducerId = new Map<number, number>();
-    for (const stateId of producerStateIds) {
-      const annualNeed = (demandsByStateId.get(stateId) ?? []).reduce(
-        (sum, demand) => sum + demand.provisionBags * 12,
-        0
-      );
-      annualCapacityNeedByProducerId.set(stateId, annualNeed);
-    }
-    // A landlocked state's entire normal provision is contracted to the nearest salt-producing
-    // country at generation time. The receiving state's works therefore have real export capacity,
-    // rather than silently manufacturing only their own domestic ration.
-    for (const [stateId, demands] of demandsByStateId) {
-      if (producerStateIds.includes(stateId)) continue;
-      const annualNeed = demands.reduce((sum, demand) => sum + demand.provisionBags * 12, 0);
-      const destination = demands[0]?.market;
-      if (!destination || annualNeed <= 0) continue;
-      const supplierStateId = producerStateIds
-        .map(candidateStateId => ({
-          stateId: candidateStateId,
-          market: demandsByStateId.get(candidateStateId)?.[0]?.market
-        }))
-        .filter((candidate): candidate is { stateId: number; market: Market } => candidate.market !== undefined)
-        .toSorted(
-          (left, right) =>
-            marketTravelDays(left.market, destination) - marketTravelDays(right.market, destination) ||
-            left.stateId - right.stateId
-        )[0]?.stateId;
-      if (supplierStateId === undefined) continue;
-      annualCapacityNeedByProducerId.set(
-        supplierStateId,
-        (annualCapacityNeedByProducerId.get(supplierStateId) ?? 0) + annualNeed
-      );
-    }
-
+    const annualCapacityNeedByProducerId = annualCapacityNeedByProducer(demandsByStateId, producerStateIds);
     for (const stateId of producerStateIds) {
       const demands = demandsByStateId.get(stateId) ?? [];
       const annualNeed = annualCapacityNeedByProducerId.get(stateId) ?? 0;
@@ -428,12 +514,16 @@ export class SaltLogisticsModule {
         active: true
       });
     }
+    // The debt itself is not spent cash: repay from free cash before it is set aside.
+    for (const market of getMarkets())
+      repaySaltPayables(
+        market,
+        operations,
+        Math.max(0, saltMarketCash(market, committedCash) + saltPayable(market) - 0.02)
+      );
     const advanced = advanceShipments(getSaltShipments(), marketsById, salt.i, salt.value);
     const shipments: SaltShipment[] = [...advanced.inTransit, ...advanced.delivered];
     let nextShipmentId = shipments.reduce((maximum, shipment) => Math.max(maximum, shipment.i), 0) + 1;
-    const remainingCapacityBySaltworksId = new Map(
-      operations.map(operation => [operation.i, production.capacity(operation)])
-    );
 
     for (const operation of operations) {
       operation.monthlyOutputBags = 0;
@@ -442,7 +532,11 @@ export class SaltLogisticsModule {
     const ledgers: StateSaltLedger[] = [];
     const demandsByStateId = new Map<number, MarketDemand[]>();
     const marketReserveBagsById = new Map<number, number>();
+    const pricedNeedBagsById = new Map<number, number>();
+    const livestockNeedBagsById = new Map<number, number>();
     const remainingHouseholdByMarket = new Map<number, number>();
+    // One month's livestock salt allowance per Market, shared by every state whose herds buy there.
+    const livestockAllowanceByMarket = new Map<number, number>();
     for (const state of [
       { i: 0, removed: false },
       ...(getWorldContext().pack.states ?? []).filter(state => state?.i)
@@ -456,11 +550,29 @@ export class SaltLogisticsModule {
           demand.market.i,
           (remainingHouseholdByMarket.get(demand.market.i) ?? 0) + demand.householdBags
         );
-        marketReserveBagsById.set(
+        pricedNeedBagsById.set(
           demand.market.i,
-          (marketReserveBagsById.get(demand.market.i) ?? 0) + demand.provisionBags * SALT_MARKET_RESERVE_MONTHS
+          (pricedNeedBagsById.get(demand.market.i) ?? 0) + demand.householdBags + demand.processingBags
+        );
+        livestockNeedBagsById.set(
+          demand.market.i,
+          (livestockNeedBagsById.get(demand.market.i) ?? 0) + demand.livestockBags
         );
       }
+    }
+    resizeSaltworksToNeed(operations, demandsByStateId);
+    const remainingCapacityBySaltworksId = new Map(
+      operations.map(operation => [operation.i, production.capacity(operation)])
+    );
+    // Price, orders, reserves and credit all follow the full physical need: herds take their salt on
+    // account and repay from the month's allowance (docs/plan/salt-supply-calibration.md §3.8–3.9).
+    const livestockCreditRoomByMarket = new Map<number, number>();
+    for (const market of getMarkets()) {
+      const need = (pricedNeedBagsById.get(market.i) ?? 0) + (livestockNeedBagsById.get(market.i) ?? 0);
+      pricedNeedBagsById.set(market.i, need);
+      marketReserveBagsById.set(market.i, need * SALT_MARKET_RESERVE_MONTHS);
+      const allowance = getRuralHouseholdWealth(market) * SALT_LIVESTOCK_CASH_SHARE;
+      livestockAllowanceByMarket.set(market.i, Math.max(0, allowance - repayRuralSaltReceivable(market, allowance)));
     }
     // Secure each salt-producing state's domestic reserve before landlocked buyers enter the same
     // merchant pool. This makes foreign Salt an actual surplus purchase rather than an implicit levy.
@@ -469,8 +581,18 @@ export class SaltLogisticsModule {
       const rightProduces = operations.some(operation => operation.active && operation.stateId === right);
       return Number(left === 0) - Number(right === 0) || Number(rightProduces) - Number(leftProduces) || left - right;
     });
-    for (const market of getMarkets())
-      priceSalt(market, salt, (marketReserveBagsById.get(market.i) ?? 0) / SALT_MARKET_RESERVE_MONTHS);
+    for (const market of getMarkets()) {
+      priceSalt(market, salt, pricedNeedBagsById.get(market.i) ?? 0);
+      const price = Math.max(0.0001, market.goods[salt.i]?.price ?? salt.value);
+      livestockCreditRoomByMarket.set(
+        market.i,
+        Math.max(
+          0,
+          (livestockNeedBagsById.get(market.i) ?? 0) * price * SALT_CREDIT_MONTHS -
+            (market.marketTreasury?.ruralSaltReceivable ?? 0)
+        )
+      );
+    }
     const dispatchedShipmentIds = new Set<number>();
     for (const stateId of stateIds) {
       const stateOperations = operations.filter(operation => operation.active && operation.stateId === stateId);
@@ -520,11 +642,15 @@ export class SaltLogisticsModule {
 
       for (const demand of demands) {
         const destinationGood = getMarketGood(demand.market, salt.i, salt.value);
-        const reserveBags = demand.provisionBags * SALT_MARKET_RESERVE_MONTHS;
+        const needBags = demand.householdBags + demand.processingBags + demand.livestockBags;
+        const reserveBags = needBags * SALT_MARKET_RESERVE_MONTHS;
         const inboundBags = inboundBagsByMarketId.get(demand.market.i) ?? 0;
+        // A market split between states is stocked by each for its own people: each counts only its
+        // share of the stock, or every state would count the whole shelf as its own reserve.
+        const stockShare = Math.min(1, needBags / Math.max(1e-9, pricedNeedBagsById.get(demand.market.i) ?? 0));
         let remaining = Math.max(
           0,
-          demand.householdBags + demand.livestockBags + reserveBags - destinationGood.stock - inboundBags
+          demand.householdBags + demand.livestockBags + reserveBags - destinationGood.stock * stockShare - inboundBags
         );
         // Neutral households can use existing local retail stock, but do not order state-funded cargo.
         const supplierOperations = (
@@ -612,10 +738,26 @@ export class SaltLogisticsModule {
             (source.goods[salt.i]?.price ?? salt.value) * 0.8,
             production.unitCost(operation) * 1.05
           );
-          const cashLimit = Math.max(0, saltMarketCash(demand.market, committedCash) - 0.02) / (quote + freight);
+          const cash = Math.max(0, saltMarketCash(demand.market, committedCash) - 0.02);
+          const credit = saltCreditRoom(
+            demand.market,
+            (demand.householdBags + demand.processingBags + demand.livestockBags) * (quote + freight),
+            stockShare
+          );
+          const cashLimit = (cash + credit) / (quote + freight);
           const output = production.produce(operation, Math.min(remaining, remainingCapacity, cashLimit));
           if (output <= 0) continue;
-          const payment = paySaltWholesale(operation, source, demand.market, stateId, output, quote, freight, true);
+          const payment = paySaltWholesale(
+            operation,
+            source,
+            demand.market,
+            stateId,
+            output,
+            quote,
+            freight,
+            true,
+            cash
+          );
           demand.market.saltLandedUnitCost = production.unitCost(operation) * 1.05 + freight;
           const sourceGood = getMarketGood(source, salt.i, salt.value);
           sourceGood.stock = rn(sourceGood.stock + output, 4);
@@ -690,17 +832,27 @@ export class SaltLogisticsModule {
           (remainingHouseholdByMarket.get(demand.market.i) ?? 0) - demand.householdBags
         );
         remainingHouseholdByMarket.set(demand.market.i, pendingHouseholds);
+        const livestockAllowance = livestockAllowanceByMarket.get(demand.market.i) ?? 0;
+        const livestockCredit = livestockCreditRoomByMarket.get(demand.market.i) ?? 0;
         const livestockLimit = Math.min(
           demand.livestockBags,
           Math.max(0, destinationGood.stock - pendingHouseholds),
-          getRuralHouseholdWealth(demand.market) / Math.max(0.0001, destinationGood.price)
+          (livestockAllowance + livestockCredit) / Math.max(0.0001, destinationGood.price)
         );
         const livestockBill = saltInvoice(livestockLimit * destinationGood.price);
-        const paid = debitRuralHouseholdWealth(demand.market, livestockBill);
-        const livestock = livestockBill > 0 ? (livestockLimit * paid) / livestockBill : 0;
+        const paid = debitRuralHouseholdWealth(demand.market, Math.min(livestockBill, livestockAllowance));
+        const owed = Math.min(livestockCredit, Math.max(0, livestockBill - paid));
+        const livestock = livestockBill > 0 ? (livestockLimit * (paid + owed)) / livestockBill : 0;
+        livestockAllowanceByMarket.set(demand.market.i, Math.max(0, livestockAllowance - paid));
+        livestockCreditRoomByMarket.set(demand.market.i, Math.max(0, livestockCredit - owed));
         livestockPaid += paid;
         demand.market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
         demand.market.marketTreasury.balance += paid;
+        if (owed > 0)
+          demand.market.marketTreasury.ruralSaltReceivable = rn(
+            (demand.market.marketTreasury.ruralSaltReceivable ?? 0) + owed,
+            2
+          );
         destinationGood.stock = rn(destinationGood.stock - livestock, 4);
         livestockSupplied += livestock;
         livestockUnmet += demand.livestockBags - livestock;

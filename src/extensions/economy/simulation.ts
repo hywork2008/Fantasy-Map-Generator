@@ -1,5 +1,6 @@
 import { MEAN_DAYS_PER_MONTH, MEAN_DAYS_PER_YEAR } from "../../runtime/calendarDuration";
 import type { DataTopic } from "../../runtime/worldRuntime";
+import { registerDayFinalizer } from "../../runtime/worldRuntime";
 import { simEvents } from "../../simulation/events";
 import { isRepairAtVersion } from "../../simulation/loadRepairs";
 import { prepareMasterReference } from "../../simulation/masterReference";
@@ -140,9 +141,11 @@ import {
   migrateLiveDogsGood,
   migrateLivestockFeedDemand,
   migrateMeasuredCargoSlots,
+  migrateMeatGood,
   migrateMercuryChainGoods,
   migrateNaturalGasChainGoods,
   migrateOrdinaryWoolGoods,
+  migratePeatFuelValue,
   migratePerennialFruitGoods,
   migratePetroleumChainGoods,
   migratePhosphateGoods,
@@ -154,7 +157,9 @@ import {
   migrateSmeltingFuelAndAshGoods,
   migrateStapleCropGoods,
   migrateSyntheticAmmoniaGoods,
+  migrateTallowByproduct,
   migrateTextileQualityGoods,
+  migrateUntaxedSaltValue,
   migrateWeightRepricing,
   migrateWineRecipe,
   migrateWoodPhysicalRecipes,
@@ -226,7 +231,9 @@ import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
 import { SaltLogistics } from "./generators/saltLogistics";
 import { migrateSaltworksOwnership } from "./generators/saltOwnership";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
+import { clearPrepaidStapleBills, recordStapleBillPaid } from "./generators/slaughter";
 import { SmelterOperations } from "./generators/smelterOperations";
+import { settleStartProvisioning } from "./generators/startProvisioning";
 import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
 import { clearStateFiscalReports } from "./generators/stateFiscalReport";
 import { StateSecretKnowledge } from "./generators/stateSecretKnowledge";
@@ -263,6 +270,7 @@ import {
 import { clearCullHireState, rebuildCullJobPostings, tickCullJobBoard } from "./generators/threatCullJobPostings";
 import { payTownWorks } from "./generators/townWorks";
 import { TradeAnimation } from "./generators/trade-animation";
+import { assignedTradeHeading } from "./generators/tradeHeadings";
 import { TradeSecurity } from "./generators/tradeSecurity";
 import { TransportAssetOrders } from "./generators/transportAssetOrders";
 import { clearTreasuryAllocationSnapshots } from "./generators/treasuryAllocation";
@@ -346,6 +354,7 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateRennetBarrel,
   migrateRennetCalfContract,
   migrateLeatherByproduct,
+  migrateTallowByproduct,
   migrateMeasuredCargoSlots,
   migrateWeightRepricing,
   migrateTextileQualityGoods,
@@ -353,7 +362,10 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateOrdinaryWoolGoods,
   migrateLivestockFeedDemand,
   migrateWoolBlanketGoods,
-  migrateWoodPhysicalRecipes
+  migrateWoodPhysicalRecipes,
+  migratePeatFuelValue,
+  migrateMeatGood,
+  migrateUntaxedSaltValue
 ];
 
 /**
@@ -690,6 +702,7 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
         i: nextId,
         name: value.name,
         tags: [...value.tags],
+        tradeHeading: assignedTradeHeading({ name: value.name, tags: value.tags }),
         value: value.value,
         unit: value.unit,
         icon: value.icon,
@@ -823,6 +836,7 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
       // rate. refreshStateEconomySummaries()/synchronizePlayerCommerce() still run for real so
       // Overview dialogs reflect the new treasury/stock (§4.6).
       if (isFastForwardSettlementPayload(value)) {
+        clearPrepaidStapleBills();
         measureTickStep("production:fastForward", () =>
           applyFastForwardEconomySettlement(value.monthsElapsed, resolveFastAdvanceRates(), api.appServices.rng)
         );
@@ -867,6 +881,12 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
       measureTickStep("production:marketPayout", () => payOutMarketSurplus(creditCharacter));
       measureTickStep("production:townWorks", () => payTownWorks());
       measureTickStep("production:taxes", () => Taxes.collectTaxes());
+      // Once a month, after the month's money has moved (docs/plan/market-founding-viability.md §3.2).
+      if (skipFoodConsumption)
+        measureTickStep("production:marketDissolution", () => {
+          if (Markets.dissolveUnviableMarkets().length && MineOperations.reanchorOperations())
+            SmelterOperations.generate();
+        });
       measureTickStep("production:stateSummaries", () => refreshStateEconomySummaries());
       measureTickStep("production:playerCommerce", () => synchronizePlayerCommerce());
       return { changed: true };
@@ -1729,6 +1749,7 @@ function register(api: SimulationExtensionAPI): () => void {
           QuarryOperations.generate();
           VolcanicOperations.generate();
           ConstructionOperations.generate();
+          settleStartProvisioning();
           Minting.generate();
           MilitaryResources.generate();
           TradeSecurity.generate();
@@ -1826,6 +1847,8 @@ function register(api: SimulationExtensionAPI): () => void {
     // keeps the herds it has grown.
     if (isUnadvancedWorld()) settleWorldBirthHerds(() => DevelopmentPotential.replanWorldBirth());
     else markWorldBirthHerdsSettled();
+    // Last year's salt, clothes and bedding for a world saved at birth (start-provisioning.md).
+    settleStartProvisioning();
     if (MineOperations.reanchorOperations() || (!getSmelterOperations().length && getMineOperations().length)) {
       SmelterOperations.generate();
     }
@@ -1908,40 +1931,47 @@ function register(api: SimulationExtensionAPI): () => void {
     });
   };
 
+  // Runs from the day finalizer right after the day that made the settlement due, and from the
+  // microtask for anything queued outside a day (map edits, regeneration).
+  const drainProductionSettlement = () => {
+    productionSettlementScheduled = false;
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+
+    // A periodic settlement must run even when no external producer marked the
+    // economy dirty: it is what accrues ordinary rural/urban output and demand.
+    // When only dirty (no monthly due), one settle is enough to absorb producer
+    // changes; when N months are due, run N full produce/tax cycles.
+    const dueSettlements = productionSettlementsDue;
+    const times = Math.max(dueSettlements, productionDirty ? 1 : 0);
+    const settlementsWithFoodAlreadyApplied = Math.min(dueSettlements, foodSettlementsAlreadyApplied);
+    const fastForward = productionSettlementsFastForward && !winterSlaughterNeedsPhysicalSettlement();
+    if (times === 0) return;
+    const feedPeriods = productionFeedPeriods;
+    productionFeedPeriods = [];
+    productionSettlementsDue = 0;
+    productionDirty = false;
+    productionSettlementsFastForward = false;
+    foodSettlementsAlreadyApplied -= settlementsWithFoodAlreadyApplied;
+
+    // Runs after the advance has returned, so it gets its own reproducible stream (track R).
+    runWithSimulationRandom("economy.productionSettlement", () => {
+      if (fastForward) {
+        runOneFastForwardSettlement(times);
+      } else {
+        for (let i = 0; i < times; i++)
+          runOneProductionSettlement(i < settlementsWithFoodAlreadyApplied, feedPeriods[i]);
+      }
+    });
+  };
+
   const scheduleProductionSettlement = () => {
     if (productionSettlementScheduled) return;
     productionSettlementScheduled = true;
-    queueMicrotask(() => {
-      productionSettlementScheduled = false;
-      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
-
-      // A periodic settlement must run even when no external producer marked the
-      // economy dirty: it is what accrues ordinary rural/urban output and demand.
-      // When only dirty (no monthly due), one settle is enough to absorb producer
-      // changes; when N months are due, run N full produce/tax cycles.
-      const dueSettlements = productionSettlementsDue;
-      const times = Math.max(dueSettlements, productionDirty ? 1 : 0);
-      const settlementsWithFoodAlreadyApplied = Math.min(dueSettlements, foodSettlementsAlreadyApplied);
-      const fastForward = productionSettlementsFastForward && !winterSlaughterNeedsPhysicalSettlement();
-      if (times === 0) return;
-      const feedPeriods = productionFeedPeriods;
-      productionFeedPeriods = [];
-      productionSettlementsDue = 0;
-      productionDirty = false;
-      productionSettlementsFastForward = false;
-      foodSettlementsAlreadyApplied -= settlementsWithFoodAlreadyApplied;
-
-      // Runs after the advance has returned, so it gets its own reproducible stream (track R).
-      runWithSimulationRandom("economy.productionSettlement", () => {
-        if (fastForward) {
-          runOneFastForwardSettlement(times);
-        } else {
-          for (let i = 0; i < times; i++)
-            runOneProductionSettlement(i < settlementsWithFoodAlreadyApplied, feedPeriods[i]);
-        }
-      });
-    });
+    queueMicrotask(drainProductionSettlement);
   };
+  const unregisterDayFinalizer = registerDayFinalizer(() => {
+    if (productionSettlementScheduled) drainProductionSettlement();
+  });
 
   // Core owns burg creation; the extension only enriches the newly created
   // settlement after it announces the completed promotion transaction.
@@ -1954,7 +1984,7 @@ function register(api: SimulationExtensionAPI): () => void {
     // Frontier polities share one market with their founding merchants. A new
     // village joins that catchment; only a state that still has no market
     // (typically a seaborne beachhead that founded a new polity) opens one.
-    const createdMarket = burg ? Markets.addMarket(burgId) : null;
+    const createdMarket = burg ? Markets.addMarket(burgId, { spaced: true }) : null;
     if (createdMarket || Markets.usesStateBoundedTerritories()) Markets.expandTerritories();
     if (burg) burg.market = getMarketCellColumn()[cellId] || 0;
     // A new catchment can cover an already-opened mine that was still paying labour
@@ -2548,6 +2578,7 @@ function register(api: SimulationExtensionAPI): () => void {
       // Day, Month, and Year rather than overfilling storage first.
       const settlementMonth = (firstSettlementMonth + settledMonths) % 12 || 12;
       measureTickStep("food:consumption", () => settleMonthlyFoodConsumption(settlementMonth));
+      recordStapleBillPaid();
       measureTickStep("food:production", () =>
         FoodProduction.generateMonthlyLedger(
           settlementMonth,
@@ -2695,6 +2726,7 @@ function register(api: SimulationExtensionAPI): () => void {
     // `after`, and the tick systems form a linear chain (see registerEconomyTickSystem).
     for (const unregister of _unregisterTickSystems.reverse()) unregister();
     unregisterMarketTerritorySystem();
+    unregisterDayFinalizer();
     unsubscribe();
     unregisterMapReadyTask();
     for (const [type, listener] of listeners) api.events.removeEventListener(type, listener);

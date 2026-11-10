@@ -1,6 +1,6 @@
 import { editorOptionText, editorText } from "../../i18n/editorMessages";
 import { inferredWallSettings, supportsUrbanMorphology } from "../../utils/urbanMorphology";
-import { GENERATION_STAGES, generationStages } from "../controllers/generationStages";
+import { generationStages } from "../controllers/generationStages";
 import type { PanelEventsContext } from "../controllers/panelEvents";
 import { bindPanelEvents } from "../controllers/panelEvents";
 import { removeBastionedTown } from "../generators/bastionedTown/edit";
@@ -24,6 +24,7 @@ import { renderGenerationSettingFeedback } from "./generationSettingFeedback";
 import { syncGenerationSections } from "./generationWorkspace";
 import { buildPopulationControls } from "./populationControls";
 export interface GenerationPanelContext {
+  openVectorDocument: () => void;
   restoringSession?: boolean;
   select: (values: string[], selected: string) => HTMLSelectElement;
   syncCity3d: () => void;
@@ -121,7 +122,7 @@ export interface GenerationPanelContext {
   refresh: () => void;
   redrawMap: () => void;
   makeButton: (value: string, onClick: () => void) => HTMLButtonElement;
-  useStandaloneSite: () => void;
+  applyStandaloneSite: () => void;
   copyShareLink: (button: HTMLButtonElement) => Promise<void>;
 }
 export function buildGenerationPanel(ctx: GenerationPanelContext) {
@@ -340,14 +341,17 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
               : editorText("cityEditor.messages.classic");
   }
   const buildingPatternSelect = ctx.select(
-    ["legacy", "medieval"],
-    ctx.generation.generateSettings.buildingPattern ?? "legacy"
+    ["legacy", "medieval", "medieval-facilities"],
+    ctx.generation.generateSettings.facilityLayout === "population"
+      ? "medieval-facilities"
+      : (ctx.generation.generateSettings.buildingPattern ?? "legacy")
   );
   bindPanelEvents(events, "buildingPatternSelect:change");
   buildingPatternSelect.className = "ce-generate-building-pattern";
   buildingPatternSelect.setAttribute("aria-label", editorText("cityEditor.messages.buildingGeneration"));
   buildingPatternSelect.options[0].textContent = editorText("cityEditor.messages.legacyHousing");
   buildingPatternSelect.options[1].textContent = editorText("cityEditor.messages.medievalLotsStoresHousesAndGardens");
+  buildingPatternSelect.options[2].textContent = editorText("cityEditor.messages.populationFacilities");
   const coastSelect = ctx.select(["none", "straight", "bay", "cape"], ctx.generation.generateSettings.config.coast);
   coastSelect.className = "ce-generate-coast";
   bindPanelEvents(events, "coastSelect:change");
@@ -437,7 +441,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   stageSlider.type = "range";
   stageSlider.className = "ce-generate-stage-slider";
   stageSlider.min = "1";
-  stageSlider.max = String(GENERATION_STAGES.length);
+  stageSlider.max = String(generationStages(ctx.generation.generateSettings).length);
   stageSlider.step = "1";
   stageSlider.value = String(ctx.generation.currentStageStep);
   stageSlider.setAttribute("aria-label", editorText("cityEditor.messages.generationStageSlider"));
@@ -636,7 +640,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   importedHeading.dataset.i18nKey = "cityEditor.fmgParameters.title";
   const importedText = div("ce-imported-body");
   const standaloneButton = ctx.makeButton(editorText("cityEditor.messages.useStandaloneSite"), () =>
-    ctx.useStandaloneSite()
+    ctx.applyStandaloneSite()
   );
   importedBox.append(importedHeading, importedText, standaloneButton);
   importedBox.hidden = true;
@@ -654,12 +658,13 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   );
   const skeletonControls = div("ce-skeleton-controls");
   const methodSelect = ctx.select(
-    ["mesh-first", "skeleton-first"],
+    ["mesh-first", "skeleton-first", "vector-first"],
     ctx.generation.generateSettings.generationMethod ?? "mesh-first"
   );
   methodSelect.className = "ce-generation-method";
   methodSelect.options[0].textContent = editorText("cityEditor.messages.meshFirst");
   methodSelect.options[1].textContent = editorText("cityEditor.messages.skeletonFirst");
+  methodSelect.options[2].textContent = editorText("cityEditor.vector.method");
   const shapeSelect = ctx.select(
     ["auto", "organic", "round", "oval", "square", "polygon", "bastioned"],
     ctx.generation.generateSettings.wallShape ?? "auto"
@@ -892,6 +897,11 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   ctx.panelEventContext().scope.listen(methodSelect, "change", () => {
     if (methodSelect.selectedOptions[0]?.disabled) {
       syncSkeletonControls();
+      return;
+    }
+    if (methodSelect.value === "vector-first") {
+      syncSkeletonControls();
+      ctx.openVectorDocument();
       return;
     }
     ctx.generation.generateSettings.generationMethod = methodSelect.value as "mesh-first" | "skeleton-first";

@@ -8,9 +8,9 @@ import { clone, facePoints } from "./mesh";
 import { bounds, corridor, intersectConvex, PlotIndex, plotArea } from "./parcelGeometry";
 
 /** Resolves ownership only. No fabric lookup, clipping, renderer or cache dependency. */
-export function forestLandCover(document: CityDocument): Set<Id> {
+export function forestLandCover(document: CityDocument, options: { ignoreTreeClimate?: boolean } = {}): Set<Id> {
   const selected = new Set<Id>();
-  if (!landscapeHasTrees(document)) return selected;
+  if (!options.ignoreTreeClimate && !landscapeHasTrees(document)) return selected;
   const protectedFaces = new Set(document.elements.flatMap(element => element.faceIds));
   for (const face of Object.values(document.mesh.faces).sort((a, b) => a.id.localeCompare(b.id))) {
     const p = face.properties;

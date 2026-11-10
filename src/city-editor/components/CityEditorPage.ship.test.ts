@@ -72,6 +72,9 @@ describe("City Editor Ship Tool", () => {
     const shipNode = root.querySelector(".ce-ship--small");
     expect(shipNode).not.toBeNull();
     expect(shipNode?.getAttribute("data-ship-type")).toBe("small");
+    expect(shipNode?.getAttribute("data-ship-sails")).toBe("set");
+    expect(shipNode?.getAttribute("data-ship-gunports")).toBe("closed");
+    expect(shipNode?.querySelector(".ce-ship-set-sail")).not.toBeNull();
     expect(shipNode?.getAttribute("data-ship-length")).toBe("16");
   });
 

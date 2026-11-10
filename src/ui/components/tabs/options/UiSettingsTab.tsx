@@ -39,7 +39,7 @@ export const UiSettingsTab: React.FC = () => {
                 max="3"
                 step="0.1"
                 value={options.uiSize}
-                onChange={v => {
+                onCommit={v => {
                   updateOption("uiSize", Number(v));
                   document.dispatchEvent(new CustomEvent("react-change-ui-size", { detail: { size: Number(v) } }));
                 }}

@@ -215,11 +215,14 @@ function yardFits(site: GuildSiteView, spot: FaceSpot, polygon: Point[]): boolea
   return site.townDistance(centroid(polygon)) >= 8 && site.clearsGlacis(polygon);
 }
 
+const BULK_YARDS = new Set<GuildYardKind>(["timberYard", "stoneYard", "limeKiln", "smithyYard"]);
+
 function placeOpenYard(
   site: GuildSiteView,
   facility: PlannedGuildFacility,
   kind: GuildYardKind,
-  year: number
+  year: number,
+  bulkGate?: Point
 ): GuildYard | null {
   const [length, depth] = YARD_SIZE[kind];
   const prefer = kind === "limeKiln" || kind === "smithyYard" ? Math.PI / 5 : kind === "timberYard" ? Math.PI / 2 : 0;
@@ -233,7 +236,14 @@ function placeOpenYard(
       const polygon = orient(rect(at, -length / 2, -depth / 2, length / 2, depth / 2));
       if (!yardFits(site, spot, polygon)) continue;
       const anglePenalty = Math.abs(Math.atan2(Math.sin(radial - prefer), Math.cos(radial - prefer)));
-      const score = -away * 0.02 - site.buildingsIn(polygon).length * 0.4 - anglePenalty;
+      const gateDistance =
+        bulkGate && BULK_YARDS.has(kind)
+          ? Math.hypot(spot.centre[0] - bulkGate[0], spot.centre[1] - bulkGate[1])
+          : null;
+      const score =
+        gateDistance == null
+          ? -away * 0.02 - site.buildingsIn(polygon).length * 0.4 - anglePenalty
+          : -gateDistance - site.buildingsIn(polygon).length * 0.4;
       if (best && score <= best.score) continue;
       best = {
         score,
@@ -329,7 +339,8 @@ function placeBleaching(site: GuildSiteView, facility: PlannedGuildFacility, yea
 export function placeGuildWorks(
   site: GuildSiteView,
   facilities: readonly PlannedGuildFacility[],
-  year: number
+  year: number,
+  bulkGate?: Point
 ): { halls: GuildHall[]; yards: GuildYard[] } {
   const halls: GuildHall[] = [];
   const yards: GuildYard[] = [];
@@ -346,7 +357,9 @@ export function placeGuildWorks(
     for (const kind of facility.ancillary) {
       if (kind === "tannery") continue;
       const yard =
-        kind === "bleachingField" ? placeBleaching(site, facility, year) : placeOpenYard(site, facility, kind, year);
+        kind === "bleachingField"
+          ? placeBleaching(site, facility, year)
+          : placeOpenYard(site, facility, kind, year, bulkGate);
       if (yard) {
         if (yards.some(existing => existing.id === yard.id)) yard.id += `-${yards.length}`;
         yards.push(yard);

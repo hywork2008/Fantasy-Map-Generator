@@ -146,3 +146,6 @@ export function createHighShopComponent(kind: ShopHouseKind, part: HighShopPart)
   }
   return compactModel(k.finish());
 }
+
+/** The same fitted shutters can dress other compatible shop apertures. */
+export { shopShutters as addShopShutters };

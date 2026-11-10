@@ -278,12 +278,15 @@ buildFruitLayer(sites: FruitSite[], spec: FruitSpec, quality, { stage, density }
 | `climate.monthlyMeanTemperatureC[12]` | `getCellClimateNormals` | 本体 |
 | 多年生作物ごとの `harvestWeights[12]` | 経済拡張の `getSeasonalCropPlan` | 経済拡張。[FMG経済→CE](fmg-economy-to-city-editor.md) の `descriptor.economy` に載せ、本体から拡張を呼ばない |
 
-記述子に月別気温がない旧ファイルでは、全樹木を `defaultAppearance` で描く。
+記述子に月別気温がない旧ファイルおよびCE単体では、表示専用の緯度・月から推定した気温周期で樹木の姿を判定する（§8.2）。表示設定を渡さない描画APIは従来どおり `defaultAppearance` にフォールバックする。
 
 ### 8.2 表示の月
 
 - CEの表示の月は、既定で記述子の月とする。CE上で月を変えるのは**表示の設定**で、配置・保存される都市の内容・Undo/Redoの対象にしない。
 - 自然林・公園・墓地の木は気温の規則、果樹園の木は作物暦の規則で姿を決める（§5.2）。
+- 月別気温がないCE単体・旧ファイルでは、3Dの照明設定内の「樹木」に緯度（−90〜90°、負は南緯）・月（1〜12）のスライダーを表示する。初期値は北緯45°・7月。FMG由来の月別気温がある場合は、従来の地図の月／表示月の選択を使う。
+- 単体の季節プレビューは海抜0mの簡易気候とし、年平均気温を `30 − 36 sin²(latitude)` °C、気温周期を共通の `getMonthlyMeanTemperaturesC`（大陸度0.5・地球の地軸傾斜・平年）から推定する。南半球の季節反転と赤道付近の小さな年較差を反映する。実在地点の気候や雨季・乾季を再現するものではない。
+- 緯度・月は表示専用で都市や記述子へ保存せず、配置・樹種・経済の気候・作物暦を変更しない。
 
 ### 8.3 描画と予算
 

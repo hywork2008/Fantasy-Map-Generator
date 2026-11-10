@@ -30,10 +30,6 @@ Medieval 33 Friaries、32 Abbey、41 Orthodoxの`Model options > View`へ`Comple
 | Orthodox 全体 | 195 | 3,086 |
 | Orthodox ドーム単体 | 6 | 352 |
 
-- [回廊単体](bv-friary-cloister-p2-20261101.png)
-- [井戸単体](bv-friary-well-p2-20261101.png)
-- [全体へ戻した表示](bv-friary-full-p2-20261101.png)
-
 ## 形状の維持と負荷
 
 分割前のP1コードで、修道院三種の固定計画を標高3・基礎下端−1にしてハッシュを採取した。各pickableの名前・材質RGBと、indexを展開したワールド座標（小数5桁）を順番にSHA-256へ入力した。P2で再計測し、三種とも一致した。法線と資源の同一性はこのハッシュの対象外である。

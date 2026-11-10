@@ -57,8 +57,4 @@ Lowの部品別資源所有によりユニーク数は増える。Roadsideはgeo
 
 実BVで2モデル×2品質×3構成を巡回し、厩舎単体のHigh→Lowと全体へ戻す操作を確認した。全体の比較値が単体・別構成の値で上書きされず、Node計測と一致することも確認した。CEの対話操作・GPU FPSは今回測定していない。
 
-- [Courtyard High・厩舎単体](bv-inn-stable-p3-20261101.png)
-- [Courtyard High・宿泊棟と中庭](bv-inn-lodging-court-p3-20261101.png)
-- [Courtyard High・標準へ戻した表示](bv-inn-standard-p3-20261101.png)
-
 部品化後の指摘により、Highの専用樽を削除してStorage propsの閉じた樽に共通化した。上表は変更前の値で、変更後の値は[共有樽の修正記録](bv-inn-shared-barrel-20261101.md)を参照。後続の[Breweries部品化](bv-brewery-parts-p3-20261101.md)も完了し、次はP4 Friary Highへ進む。

@@ -1,0 +1,142 @@
+{
+  "id": "guild-market-arcade",
+  "kind": "hall",
+  "plannedFamilyPattern": "medieval.trade-hall.guild-market-arcade.{role}",
+  "status": "built-bv-preview",
+  "supportedQualities": [
+    "low",
+    "high"
+  ],
+  "coordinateFrame": {
+    "origin": "main-body-center-at-foundation-contact",
+    "front": "+Z",
+    "up": "+Y",
+    "metersPerUnit": 1
+  },
+  "body": {
+    "width": 15,
+    "depth": 7,
+    "wallThickness": 0.18,
+    "eaveHeight": 6.69,
+    "roofRise": 2.2,
+    "upperWallTop": 6.57,
+    "roofBearingOffset": 0.12,
+    "planningInset": 0.3
+  },
+  "envelope": {
+    "min": [
+      -7.9,
+      0,
+      -3.9
+    ],
+    "max": [
+      9.3,
+      9.2,
+      5.0
+    ]
+  },
+  "floors": [
+    {
+      "level": 0,
+      "elevation": 0.14,
+      "use": "inspection-market",
+      "clearFloorAreaM2": 92.16,
+      "deductionsM2": {
+        "stair": 0,
+        "circulation": 12,
+        "serviceOrStorage": 8
+      },
+      "netUseAreaM2": 72.16
+    },
+    {
+      "level": 1,
+      "elevation": 3.32,
+      "use": "assembly",
+      "clearFloorAreaM2": 92.16,
+      "deductionsM2": {
+        "stair": 0,
+        "circulation": 12,
+        "serviceOrStorage": 8
+      },
+      "netUseAreaM2": 72.16
+    }
+  ],
+  "stairs": {
+    "kind": "external-east",
+    "boundsXZ": [
+      7.5,
+      -3.05,
+      9.22,
+      3.6
+    ],
+    "rise": 3.32,
+    "run": 5.7,
+    "clearWidth": 1.28,
+    "landingDepth": 1.5,
+    "doorPosition": [
+      7.5,
+      3.32,
+      -2.3
+    ],
+    "risers": 18,
+    "treadWidth": 1.42,
+    "flightTreads": 17,
+    "flightRun": 5.15,
+    "treadDepth": 0.30294117647058827,
+    "landingFit": "flush"
+  },
+  "ports": {
+    "main": {
+      "position": [
+        5.625,
+        0.14,
+        3.5
+      ],
+      "clearWidth": 2,
+      "clearHeight": 2.1
+    },
+    "upper": {
+      "position": [
+        7.5,
+        3.32,
+        -2.3
+      ],
+      "clearWidth": 1.1,
+      "clearHeight": 2.1
+    },
+    "stairFoot": {
+      "position": [
+        8.36,
+        0,
+        3.6
+      ],
+      "clearWidth": 1.28,
+      "clearHeight": 2.1
+    },
+    "keepClearHeight": 2.1
+  },
+  "capacity": {
+    "netResidentialAreaM2": 0,
+    "dwellings": 0,
+    "workshops": 0,
+    "laborPeople": 0,
+    "simultaneousWorkplaces": 0,
+    "assemblyNetAreaM2": 72.16,
+    "assemblySeats": 36,
+    "assemblyAttendance": "delegated-or-scheduled"
+  },
+  "operations": null,
+  "notes": [
+    "Version 2 uses the east outer arcade bay; the provisional central entrance intersects a pier.",
+    "The finished ground surface is 0.14 m above foundation contact.",
+    "1.42 m is the tread width; clear width between handrails is 1.28 m.",
+    "The conservative planning inset of 0.3 m is distinct from the 0.18 m upper wall geometry.",
+    "Upper wall top is 6.57 m; the roof bearing adds 0.12 m.",
+    "Inner 92.16 m2 planning floor excludes all 12 pier pads.",
+    "18 risers comprise 17 flight treads and the upper landing; flight run is 5.15 m within the original footprint.",
+    "New doors fold fully open; the upper passage has no raised threshold or sill.",
+    "BV preview only; not yet enabled for City Editor placement."
+  ],
+  "placementSpecVersion": 2,
+  "supersedes": "ce-medieval-trade-forms-v1.json#guild-market-arcade"
+}

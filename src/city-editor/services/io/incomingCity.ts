@@ -521,6 +521,7 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
   const config = isRecord(raw.config)
     ? (raw.config as unknown as GenerationSettings["config"])
     : structuredClone(DEFAULT_SITE_CONFIG);
+  if (raw.facilityLayout !== undefined && raw.facilityLayout !== "population") return null;
   if (raw.buildingPattern !== undefined && !["legacy", "medieval"].includes(String(raw.buildingPattern))) return null;
   if (
     !validBuildingHeightPolicy(raw.buildingHeightPolicy) ||
@@ -578,13 +579,16 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
       template !== "crag" &&
       template !== "spur" &&
       template !== "meander" &&
-      template !== "escarpment"
+      template !== "escarpment" &&
+      template !== "dome" &&
+      template !== "cells"
     )
       return null;
     const sample = raw.terrainField.sampleMeters;
     if (sample !== undefined && (!isFiniteNumber(sample) || sample <= 0 || sample > 16)) return null;
     settings.terrainField = { template, ...(sample !== undefined ? { sampleMeters: sample } : {}) };
   }
+  if (raw.facilityLayout === "population") settings.facilityLayout = "population";
   if (raw.buildingPattern !== undefined) settings.buildingPattern = raw.buildingPattern as "legacy" | "medieval";
   if (["auto", "organic", "classic", "circulade", "bram"].includes(String(raw.layout)))
     settings.layout = raw.layout as GenerationSettings["layout"];

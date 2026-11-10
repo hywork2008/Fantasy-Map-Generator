@@ -24,6 +24,7 @@ BVの既存カテゴリとモデルIDを維持し、横断的な構成区分を�
 | 10 Bakeries | 平屋／二階建ての作業・居住棟、独立上屋 | パン窯、薪、捏ね台、冷却台、道具 | 住居併設／独立共同窯、窯の位置、作業庭 |
 | 12 Inns | 宿泊棟、厩舎、サービス棟 | 中庭、卓、看板、樽、門 | 街道宿／中庭宿、翼の数と配置 |
 | 15 Breweries | 醸造棟、釜の上屋 | 炉・釜、桶・樽、麦芽台、作業庭 | 棟の規模、設備位置、設備数 |
+| 26 Civic Halls / 27 Cloth Hall | 集会棟・回廊または柱のある交易階・屋根・バルコニー | 共通外階段（段・支持柱付き踊り場・手すり） | 扉の接続点、床高、階段幅・走行長、入口幅と空地 |
 | Gothic G07 Salisbury | 身廊・内陣・翼廊・塔・回廊・参事会室 | 固有建築に属する細部 | 部品表示・品質検証に使う。任意交換は既定では許可しない |
 
 住宅系はすべて「完成済み住宅の横に物を置くだけ」で成立するわけではない。店舗の大きな開口は外殻の生成入力に渡す必要がある。パン窯・炉の離隔、煙突と屋根の貫通、共用壁の重複除去、庇の支持、入口から中庭への通路も組み合わせ契約に含める。
@@ -31,6 +32,12 @@ BVの既存カテゴリとモデルIDを維持し、横断的な構成区分を�
 調査開始時のHighには`house`、`oven`、`lodging`、`stable`、`serviceWing`、`brewingHall`等の関数があるが、多くは非公開で、位置が固定されていた。最後の`compactModel`で材質ごとに結合され、部品の意味も失われていた。この状態から描画後のメッシュ名だけで分割する方法は採用しない。P3のShop Housesでは生成境界を明示し、材質結合後にも台帳と部品範囲を残す方式を導入した。
 
 ## 部品生成と配置の契約
+
+### 今後の接続方針（ユーザー指示・2026-11-01）
+
+Notre-Dame以降の制作では、母体の壁・屋根を基本的に連続させ、付属パーツの一部を母体へ埋め込む重ね合わせで接続する。特定の付属パーツの輪郭に合わせた差し込み穴を母体へ作ることを既定にしない。小型の礼拝堂や別の屋根付き作業場に置き換えても、母体に前の部品用の穴が残らず、隙間が開かない構成を優先する。接触・支持は維持し、接合のために意図した重なりを不具合と判定しない。
+
+実際の出入口・窓などに必要な開口は接合用の差し込み穴とは区別する。将来の寸法・接続契約には、接合面・埋め込みの許容範囲・交換可能な寸法を記録する。この指示は今後の制作の指針であり、Notre-Dameの既存部品を今回修正する指示ではない。過去のP4／P5で行った切り欠き・重複除去の記録は履歴として残す。
 
 次の内容は実装予定であり、現行の保存形式にはまだ追加しない。
 
@@ -42,6 +49,8 @@ BVの既存カテゴリとモデルIDを維持し、横断的な構成区分を�
 寸法は幅・奥行・ベイ数・階数等の限定した入力で再生成し、完成した全施設の非等方拡縮で合わせない。教会堂と回廊の接続面や標高は計画から決定する。既存CEの敷地・回廊の開口・門の通路・基礎標高を維持する。
 
 ## BVの表示・品質パラメーター
+
+BVの完成モデルのスクリーンショットはリポジトリへ追加せず、ドキュメントにもPNG参照を置かない。角度・ズーム・部品選択はBVで確認する。検証記録にはモデルID・品質・部品・計測値・実行したテストと結果を残す。確認用に画像が必要な場合は一時領域だけを使う。
 
 用途のカテゴリは現行のまま、選択モデルに応じて以下を表示する案とする。
 
@@ -78,7 +87,7 @@ High不足の監査では部品のHigh対応と組み合わせプリセットの
 | P2 | Friaryを教会堂・居住棟・回廊・外構・植栽に分割しBVへ部品表示を追加 | **完了**。独立factoryと生成前の部分選択、BVの全体／単体切替を追加。修道院三種の頂点・色・順序がP1と一致。品質の独立指定APIを維持し、資源解放も検証。[実装記録](../analytics/bv-monastery-parts-p2-20261101.md) |
 | P3 | Shop Houses→Bakeries→Inns→Breweriesの順に部品化 | **完了**。[Shop Houses](../analytics/bv-shop-house-parts-p3-20261101.md) 2モデル、[Bakeries](../analytics/bv-bakery-parts-p3-20261101.md) 3モデル、[Inns](../analytics/bv-inn-parts-p3-20261101.md) 2モデル、[Breweries](../analytics/bv-brewery-parts-p3-20261101.md) 2モデルのLow/Highを部品化し、各3構成と単体表示に対応。分割前後の形状を検証し、専用樽から共通Storage propsへの意図的な変更は別に計測 |
 | P4 | 部品単位でFriary Highを制作し合成 | **完了**。教会堂・内陣・後陣・居住棟・門棟・鐘架・回廊・囲壁を詳細化しHighを明示登録。Highは38,983三角形・13メッシュ、樹木・井戸はLow。CEはFriary・AbbeyともModel qualityのHighでHigh、Low／StandardでLowを採用。[実装記録](../analytics/bv-friary-high-p4-20261101.md) |
-| P5 | G07等の固有建築へ部品表示を展開、CEのLOD／バッチを評価 | **次の作業**。Salisbury等の固有建築の配置を維持したまま部品を検査可能にする。一般施設への流用は互換性を個別確認 |
+| P5 | G07等の固有建築へ部品表示を展開、CEのLOD／バッチを評価 | **進行中**。SalisburyのLow／Highを12部品へ分割し、形状を維持してBV単体表示と部品別計測に対応。参事会室を実際にHigh化（15,448三角形・5メッシュ）。Cologneも12部品へ分け、形状維持でHighを62→7メッシュへ結合。共通の部品factory・合成処理を両モデルで使う。Notre-DameもLow／専用Highの形状を維持して11部品化（Highは104→10メッシュ）。未詳細化の周歩廊をLowと明示した後、開口付きアーチ・上層窓・切り欠き付き環状屋根を持つ実際のHigh（10,354三角形・5メッシュ）を制作した。Medieval 36のHigh（7,148三角形・5メッシュ）も制作済み。Medieval 37も同じ会館本体・東階段でHigh化（35,024三角形・11メッシュ）。Medieval 38も共通印刷機を使い工房5部品・会館4部品でHigh化した。Medieval 39も共通本体・階段と楽器用途部品・ハープの4部品でHigh化（39,876三角形・13メッシュ）。Medieval 40も6部品でHigh化（19,932三角形・13メッシュ、共通樽はLowと明示）。Medieval 41も共通修道院部品とドラム・ドーム・鐘楼でHigh化（57,329三角形・14メッシュ）し、CE三品質へ接続した。Medieval 42も8部品のHigh（50,070三角形・9メッシュ）を制作し、共通階段と槽を再利用した。樹木43を除外し、Medieval 44の納骨堂と共通納骨棚もHigh化した。Medieval 44の説教十字架も3部品でHigh化（740三角形・3メッシュ）した。Mausoleum domeも5部品でHigh化（41,948三角形・6メッシュ）した。Stupa chortenも6部品でHigh化（6,832三角形・4メッシュ）した。次はCremation pyre platformへ進む。CEのLOD評価は継続課題。[Salisbury](../analytics/bv-salisbury-parts-p5-20261101.md)・[Cologne](../analytics/bv-cologne-parts-p5-20261101.md)・[Notre-Dame](../analytics/bv-notre-dame-parts-p5-20261101.md) |
 
 P0〜P1を実装した。`ModelPartTracker`は生成中の明示的な境界から役割・品質・作者・依存元・メッシュ数・三角形数を記録する。部品IDは同じ保存計画と配列順に対して決定的で、編集で配列順を変えた前後の永続識別子を保証するものではない。BVでは部品別負荷表を表示し、CEでは非index化した結合メッシュの頂点範囲を部品IDへ対応付ける。井戸は既定Lowと既存の`default`をAPIで独立指定できる。任意指定した植栽・井戸の品質と依存元は台帳へ記録される。
 
@@ -94,4 +103,56 @@ P3のBreweriesは醸造棟・上屋・加熱ユニット・仕込み桶・麦芽
 
 P4でFriary専用の`friaryDetails.ts`を追加した。壁は厚みを持つ開口付き外殻とし、隣接する棟の共有面を除く。屋根は隣接棟の高い面へ交わる箇所と鐘架の位置を切り欠き、重複する居住棟の床は一度だけ生成する。Highの部品も既存計画から寸法・向き・標高を求め、部品単体で生成・検査できる。登録の`default`と`low`はLow建築に固定し、`high`だけが詳細建築を生成する。CEはModel quality設定を渡し、変更時には修道院レイヤーを再生成する。StandardはLowへフォールバックする。CE画面で実際の対象がAbbeyだったことを確認し、Abbeyも共通の詳細外殻・回廊と専用の開口付き石造交差塔でHigh化した。FriaryとAbbeyの両方を設定で切り替える。[修正記録](../analytics/ce-abbey-quality-20261101.md)。OrthodoxのHighは未対応で、CEでは既存defaultを使い、直接生成APIで未実装のHighを指定すると拒否する。
 
-修道院の植栽・井戸品質はAPI指定でき、BVでは既定Low。CEではModel qualityに追従し、植栽はLow／Medium／High、井戸はHighで既存詳細版default、それ以外でLowを使う。Friary・Abbey・Orthodoxに共通で、実際の依存元IDをCE採用モデル一覧へ記録する。主要建築のHighから付属物の品質を独立させる。住宅系も共通容器の品質は親のHighを継承しない。任意の混在品質を選ぶUI、自由な住宅と設備の交換、分解表示は未実装。次はP5のSalisbury等の部品検査へ展開する。その後、監査に残る非樹木High候補の制作を再開する。
+修道院の植栽・井戸品質はAPI指定でき、BVでは既定Low。CEではModel qualityに追従し、植栽はLow／Medium／High、井戸はHighで既存詳細版default、それ以外でLowを使う。Friary・Abbey・Orthodoxに共通で、実際の依存元IDをCE採用モデル一覧へ記録する。主要建築のHighから付属物の品質を独立させる。住宅系も共通容器の品質は親のHighを継承しない。任意の混在品質を選ぶUI、自由な住宅と設備の交換、分解表示は未実装。P5ではSalisburyを12部品へ分け、全体Highの中でも参事会室は未詳細化のLowと明示した。その後、参事会室を実際にHigh化し、開口・奥まった窓・扶壁・屋根・回廊への入口通路を追加した。Low全体と他11部品の形状を維持し、既存のGothicDetailKitとModelKitを再利用した。ギルドホールの共通基盤（GUILD_HALL_PROFILE・共通建築・外階段）は変更・重複実装せず維持する。[制作記録](../analytics/bv-salisbury-chapter-high-20261101.md)。Cologneにも同じ部品表示を展開し、部品factoryと合成処理をSalisburyと共通化した。Notre-DameもLow／専用Highの形状を維持して11部品化した。周歩廊の単純な外殻は全体Highでも部品Lowとし、選択肢に品質を併記する。放射状礼拝堂の窓が五角形の壁面と一致していなかったため、辺の中央と外向き法線に合わせて14枚を修正した。[修正と回帰検証](../analytics/bv-notre-dame-chapel-window-fix-20261101.md)。周歩廊も開口付きアーチと上層ギャラリー・窓・環状屋根でHigh化した。共通の凸多角形切り欠き処理と礼拝堂の計画を再利用し、Lowと他10部品は不変。[制作記録](../analytics/bv-notre-dame-ambulatory-high-20261101.md)。監査の未対応一覧へ戻り、Medieval 36 Permanent timber gallowsをHigh化した。基礎・フレーム・ロープ・共通梯子の4部品とし、接合には連続した母体への重ね合わせを用いる。[制作記録](../analytics/bv-gallows-high-20261101.md)。Medieval 37 Glassworkers' guild hallも共通会館本体と東側外階段へガラスの用途部品だけを加えてHigh化した。既存4職種とLowの形状は維持し、実際の形状署名も照合した。[制作記録](../analytics/bv-glassworkers-guild-high-20261102.md)。Medieval 38も共通上屋・作業台・会館本体・階段を再利用し、同一の印刷機を独立部品として両施設に配置した。[制作記録](../analytics/bv-printing-high-20261102.md)。Medieval 39も同じ会館基盤にリュートの共通factoryと独立ハープを加えてHigh化した。[制作記録](../analytics/bv-instrument-guild-high-20261102.md)。Medieval 40の砂置場も共通上屋・High手押し車・Low樽を再利用して6部品化した。[制作記録](../analytics/bv-sand-yard-high-20261102.md)。Medieval 41もHigh化し、共通部品・窓付きドラム・鐘楼と中庭側入口を制作した。Medieval 42も共通部品を再利用してHigh化した。樹木43を除外し、Medieval 44の納骨堂と共通納骨棚もHigh化した。Medieval 44の説教十字架もHigh化した。Mausoleum domeもHigh化した。Stupa chortenもHigh化した。次はCremation pyre platformを制作する。
+
+26 Civic Hallsと27 Cloth HallのHighにも同じ部品契約を適用した。`exteriorStair.ts`は寸法から階段・踊り場・支持柱・手すりを再生成し、扉接続点と通路の空地を返す。`civicHallParts.ts`が建築本体と共通外階段を独立factoryにし、接続点を実際の上階扉へ合わせる。BVのViewから単体表示でき、結合後も部品台帳と頂点範囲を保持する。入口側の手すりは通路の手前で止め、踊り場の外側・奥側を囲う。Lowの元の生成関数は維持し、Low階段の分割は未対応。[実装・通路検証記録](../analytics/bv-shared-exterior-stair-20261101.md)。
+
+## 会館・ギルドホールの統一契約（2026-11-01）
+
+Highの織物商人会館と職人ギルド会館4種は、`civicHallProfile.ts`の`GUILD_HALL_PROFILE`と共通建築factoryを使う。外形は幅15 m・奥行7 m、2階床高3.32 m、上階壁高3.25 m、屋根の立上り2.2 mで統一する。外階段は東側、扉はZ=-2.3 m、1階は石造アーチ回廊とする。職種によって変えるのは紋章・展示台・見本などの用途部品であり、建物の高さ・階段の面・柱の種類を個別に変えない。
+
+2026-11-02にMedieval 37のガラス職人会館も同じ共通factoryへ追加した。`glassworking`は紋章・検品台・器・パネルの用途部品だけを選び、建築本体・寸法・外階段は変えない。実物の形状・法線・材質を含む署名で、既存会館と本体・階段が同一であることを検証する。
+
+市庁舎の高い上階と鐘楼、市場会館の木柱支持は、職人ギルドの差ではなく用途の異なる名前付き構成として`civicHallProfile`へ明示する。新しい階高・階段位置・支持構造が必要な場合は、既存部品の契約と互換性を確認したうえで構成を定義し、理由を記録する。Low/defaultの互換入口は維持し、古い前面階段を持つLow形状を今回一括変更しない。
+
+[High不足監査](../analytics/bv-non-tree-high-quality-audit-20261031.md)の先頭にもこの設計への参照と制作規則を置く。監査の生成スクリプトにも同じ規則を含め、再生成で失われないようにする。制作開始時に既存の階段・支持部・床・屋根を確認し、部品単体表示、突出と接合の両方、入口通路、屋根貫通、資源所有を関連テストで確認する。
+
+30 Lime Kilnと31 Bleaching FieldのHighをそれぞれ3部品に分けた。窯は本体（炉・焚口通路・装入石の支持を含む）／地形一体の投入土手と足場／支持物付き資材、漂白場は草地・布・囲い／脚・横木・布を一体にした乾燥枠／桶・液面・道具・台を含む洗浄設備とする。共通ModelKitの桶・柵・梁と同一の乾燥枠factoryを再利用した。投入土手は建物の扉へ接続する会館用階段とは契約が異なるため、土手を含む機能部品として扱う。BV単体表示、台帳、統合後の頂点範囲、開口と支持接触を検証した。[作製・資料・検証記録](../analytics/bv-kiln-bleaching-high-20261101.md)。
+
+32の生活棟のみのHighは既存`createHighFriaryBuilding`・`createHighFriaryCloister`を生活棟専用計画へ適用し、主教会を含めず8部品へ分割した。34の陶工房は共通上屋・作業台を用いた3部品とし、深いアーチ開口を`masonryArchPassage.ts`へ共通化して石灰窯にも適用した。窯の焼成方式と内部支持は用途ごとに保ち、外形だけで窯全体を交換しない。BVの部品表示と支持・開口・突出の検査を行った。[記録](../analytics/bv-domestic-pottery-high-20261101.md)。
+
+35港湾クレーンのHigh制作は、[CEの港湾クレーン・荷役係留・艀輸送](ce-harbor-cranes-and-cargo-berths.md)の配置契約を先に定める。岸壁基礎・クレーン・吊り具・船の荷口・係留枠を組にして、旋回半径・甲板高・水深・陸側荷下ろし経路を検証する。桟橋沿いの待機船すべてを陸上クレーンで荷役できるとは扱わない。ジブの寸法入力は建造仕様であり、無制限の伸縮による配置補正には使わない。
+
+港湾クレーン（Medieval 35）のHighは基礎・支持架構・駆動部・吊り具の4部品とした。寸法型・建造プロファイルをBVとCEの共通入力とし、BVの比較用／CE寸法構成、部品単体、CEのLow／Highで吊りロープの位置を一致させる。CEの品質変更時は寸法別プロトタイプを解放・再生成し、実際に描いたvariantを作者一覧へ記録する。[実装・検証記録](../analytics/bv-harbor-cranes-high-20261101.md)。
+
+2026-11-02にMedieval 38も共通会館factoryの`printing`へ追加した。印刷機は工房と会館で同一factoryを使い、BVで独立選択できる。本体・東階段は既存職種と同一。完成画像PNGは保存・参照せず、BVで角度・ズーム・部品を確認する。既存制作記録と監査再生成からもPNG参照を除いた。
+
+2026-11-02にMedieval 39を共通会館factoryの`instruments`へ追加した。本体・東階段は不変で、リュートは検品台と壁紋章で同じfactoryを使う。ハープは独立した4番目の部品。響孔の開口、楽器の支持と弦の取付、Low互換と部品単体表示を検証した。
+
+2026-11-02にMedieval 40を6部品でHigh化した。既存Lowの45,256三角形中41,448が空籠と判明したため、Highでは籠を省き共通樽をLowと明示して使う。専用砂山・板壁・道具架と篩を追加し、既存上屋・High手押し車を再利用した。Lowの形状・CE互換IDは維持し、共通上屋を収める登録高さ上限のみ5 mへ拡張した。
+
+2026-11-02にMedieval 41の正教会修道院を14部品のHighへ対応させた。Lowと互換defaultの形状は維持し、共通石造開口へ丸アーチ指定を追加。窓付きドラム・ドーム・鐘楼と中庭側入口を作り、屋根に専用穴を開けずドラム下部を重ねる。固定BVは57,329三角形・14メッシュで、付属の木と井戸はLowのまま。CEはLow／StandardでLow建築、HighでHigh建築を採用し、付属物の既存品質方針は別に維持する。関連35件・型検査・実BVを検証した。[制作記録](../analytics/bv-orthodox-high-20261102.md)。Medieval 42も共通部品を再利用してHigh化した。樹木43を除外し、Medieval 44の納骨堂と共通納骨棚もHigh化した。Medieval 44の説教十字架もHigh化した。Mausoleum domeもHigh化した。Stupa chortenもHigh化した。次はCremation pyre platformを制作する。
+
+2026-11-02にMedieval 42隊商宿を8部品でHigh化した。共通の開口付き石造壁・外階段・給餌槽・水槽・屋根面を再利用し、門のヴォールト、宿泊棟、上階回廊、サービス棟を作製。連続した母体への重なりを使い、階段と回廊の床上面3 m・手すり開口・上階入口を検証した。給餌槽4基の干し草だけで50,400三角形あったため共通factoryへ空の状態を追加し、従来の干し草入りHighは維持した。最終50,070三角形・9メッシュ、関連10件・型検査・実BVを検証。[制作記録](../analytics/bv-caravanserai-high-20261102.md)。Medieval 44のOssuary charnel houseと共通納骨棚もHigh化した。Preaching cross calvaryもHigh化した。Mausoleum domeもHigh化した。Stupa chortenもHigh化した。次はCremation pyre platformを制作する。
+
+2026-11-02にMedieval 44の納骨堂を石造本体・屋根・扉・換気格子・納骨棚の5部品でHigh化した。棚も単独Highを作り、共通factoryの枠と収納骨の2部品を納骨堂2台へ再利用。既存cemeteryファミリーのLow/defaultを維持し、CEはdefaultのまま。納骨堂35,372三角形・7メッシュ、棚8,436三角形・3メッシュ、関連16件・型検査・実BVを検証。[制作記録](../analytics/bv-ossuary-high-20261102.md)。Medieval 44のPreaching cross calvaryもHigh化した。Mausoleum domeもHigh化した。Stupa chortenもHigh化した。次はCremation pyre platformを制作する。
+
+2026-11-02にMedieval 44のPreaching cross calvaryを台座・八角柱・頭部の3部品でHigh化した。両面に実際の彫り込みを設け、連続した石造芯と重ね合わせ支持を維持。740三角形・3メッシュ、関連13件・型検査・実BVを検証した。墓地施設のHigh登録を共通一覧へまとめ、納骨堂・棚の既存4形状とLow/defaultを維持。[制作記録](../analytics/bv-preaching-cross-high-20261102.md)。同44のMausoleum domeもHigh化した。Stupa chortenもHigh化した。次はCremation pyre platformを制作する。
+
+2026-11-02にMedieval 44のMausoleum domeを基壇・円形壁・ドーム・扉・石棺の5部品でHigh化した。共通の石造アーチと窓・目地を同じ曲面へ変換し、入口と室内空間、厚さ0.2 mの半球殻、コーニスへの重ね合わせを作製。41,948三角形・6メッシュ、関連8件・型検査・既存6形状・実BVを検証した。コーニス上面のちらつきも解消。[制作記録](../analytics/bv-mausoleum-high-20261102.md)。同44のStupa chortenもHigh化した。次はCremation pyre platformを制作する。
+
+2026-11-02にMedieval 44のStupa chortenを基壇・テラス・壺形の胴・四角い上部・13輪相輪・傘蓋と日月の6部品でHigh化した。一次資料に基づきチベット風の外観に範囲を定め、共通の面取り石材と回転面を使い、各部を重ねて支持。6,832三角形・4メッシュ、関連12件・型検査・既存8形状・実BVを検証した。[制作記録](../analytics/bv-stupa-high-20261102.md)。次は同44のCremation pyre platformを制作する。
+
+## 優先順位の変更とMedieval 45以降（2026-11-02）
+
+ユーザー指示により、Medieval 44の未着手分（Cremation pyre platform以降）は保留し、45以降を優先する。45の3住居は階・張り出し量・角家指定から共通生成するHighを作製し、本体・支持材・階段・屋根・煙突・商店設備を独立部品化した。町屋16,016、商人住宅20,738、角商店住宅16,872三角形で各8メッシュ。共通建具・跳ね上げ戸・階段・瓦屋根を再利用し、Lowと互換defaultを維持。関連23件・型検査・実BVを検証した。[制作記録](../analytics/bv-jettied-high-20261102.md)。46・47は既に明示的な詳細factoryでHigh対応済み。当時の次候補は未対応一覧の`medieval-town-gatehouse`（Gatehouse with guard quarters）。44へは自動的に戻らない。
+
+2026-11-03のユーザー指示でShipsを優先した。[Shipsの調査・状態別部品設計](bv-ships-models.md)に、Codexの未High対応5船種、既存Opus Highの根拠と負荷、展帆／畳帆・砲門開閉・旗の独立指定、索具を含む所有と部品化、CEの寸法・保存・荷役への接続を記録。今回は調査まで完了し、次はSloop Highと畳帆共通基盤を制作する。門楼と44残件は保留。
+
+S1としてSloop Highを8部品で作製し、Low／Highの展帆・畳帆とBV部品選択を実装した。固定部品と既存Low/defaultを維持し、材質結合時にも索具と部品IDを保持・解放する共通処理を追加。関連15件・実BVで検証し、CEは従来Lowのまま。詳細と計測は[Ships設計書§8](bv-ships-models.md#8-s1-sloop-high制作検証2026-11-03)。次はCaravel／Carrack High。
+
+S2でCaravel（8部品）とCarrack（13部品）もHigh化し、両品質で展帆／畳帆に対応。共有する船体・船楼・甲板設備・帆布とS1の組立・索具処理を利用し、前後のラテン帆の干渉を回避した。CaravelをBVへ追加し、既存Low/defaultとCE採用を維持。関連29件・実BV・計測を[Ships設計書§9](bv-ships-models.md)に記録。次はガレオンHighと砲門開閉。
+
+S3でCodex Galleon Highを16部品で作製し、両作者・両品質の展帆／畳帆と砲門開／閉を独立指定にした。Opusも元形状を維持して6部品の台帳・単独表示を追加。Highの実砲門開口・閉蓋・格納砲身と、Opus船尾を含む28門の閉鎖、船首支持、所有・解放を関連41件と実BVで検証した。旧Low/defaultとCE実配置を維持。詳細・負荷は[Ships設計書§10](bv-ships-models.md)。次はBarge High。
+
+ユーザー指示でS4より先にCEの船状態を接続した。港湾の生成船は畳帆・砲門閉、船ブラシの追加船は展帆・砲門閉で保存し、旧形式の補完を2D／3Dで共有。状態別にインスタンスを分け、既存default採用・寸法・クレーン回廊を維持。関連43件と実CEの生成船・ブラシ・保存／再読込・3Dを検証。詳細は[Ships設計書§11](bv-ships-models.md)。次はBarge Highへ戻る。

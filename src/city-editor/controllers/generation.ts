@@ -14,6 +14,7 @@ import { randomSeed } from "../generators/generation/settings";
 import { generateSkeletonPreview } from "../generators/generation/skeleton/previews";
 import { generationPhaseLabel, logGenerationFailures } from "../generators/generationDiagnostics";
 import { clone } from "../generators/mesh";
+import { withoutGeneratedFacilities } from "../generators/populationFacilities";
 import { RIVER_DROP_MIN, riverDropMeters, riverDropUpperFor } from "../generators/riverSurface";
 import { generateRuralFieldStage } from "../generators/ruralFieldStage";
 import { WALL_COAST_CHOICES, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
@@ -144,7 +145,10 @@ export function createGenerationController(ctx: GenerationContext) {
     if (!ctx.generation.generationHistory.has(ctx.documents.history.currentEntryKey))
       ctx.rememberGenerationState(
         ctx.generation.generateSeed,
-        ctx.generation.lastGeneratedStep ?? (ctx.documents.documentState.appearance === "town" ? 16 : 1)
+        ctx.generation.lastGeneratedStep ??
+          (ctx.documents.documentState.appearance === "town"
+            ? generationStages(ctx.generation.generateSettings).find(s => s.id === "buildings")!.step
+            : 1)
       );
     ctx.clearFailurePreview();
     ctx.generation.generationSamples = [];
@@ -490,7 +494,10 @@ export function createGenerationController(ctx: GenerationContext) {
     if (!ctx.generation.generationHistory.has(ctx.documents.history.currentEntryKey))
       ctx.rememberGenerationState(
         undefined,
-        ctx.generation.lastGeneratedStep ?? (ctx.documents.documentState.appearance === "town" ? 16 : 1)
+        ctx.generation.lastGeneratedStep ??
+          (ctx.documents.documentState.appearance === "town"
+            ? generationStages(ctx.generation.generateSettings).find(s => s.id === "buildings")!.step
+            : 1)
       );
     const source = clone({
       ...inheritBuildingAppearance(ctx.generation.completeSource, ctx.documents.documentState),
@@ -523,7 +530,7 @@ export function createGenerationController(ctx: GenerationContext) {
         );
         next = preview.document;
         skeletonOverlay = preview.overlayPaths;
-      } else if (finished && ["blocks", "buildings", "farmland", "conceal"].includes(stage.id)) {
+      } else if (finished && ["blocks", "facilities", "buildings", "farmland", "conceal"].includes(stage.id)) {
         next = clone(finished);
       } else if (finished && stage.id === "geometry") {
         const s7 = clone(finished);
@@ -552,6 +559,9 @@ export function createGenerationController(ctx: GenerationContext) {
           }
         );
       }
+      // Cached completed cities also carry facility reservations. Reveal them
+      // at the facilities stage, after geometry and blocks-and-lanes previews.
+      if (next && ["geometry", "blocks"].includes(stage.id)) next = withoutGeneratedFacilities(next);
       if (next && ["farmland", "conceal"].includes(stage.id))
         next = generateRuralFieldStage(
           ctx.documentForOutput({ ...next, ruralFieldSettings: ctx.documents.documentState.ruralFieldSettings })
@@ -611,7 +621,7 @@ export function createGenerationController(ctx: GenerationContext) {
     ctx.generation.urbanCoreHighlight =
       stage.id === "urban" ? buildableLandFaceIds(next, ctx.generation.generateSettings.urbanCoreMode) : null;
     ctx.generation.stepOverlayPaths = skeletonOverlay;
-    ctx.display.hideBuildings = stage.id === "blocks";
+    ctx.display.hideBuildings = stage.id === "blocks" || stage.id === "facilities";
     ctx.display.hideStreetLines = stage.id === "conceal";
     // Re-pressing the same stage on the same town is a no-op: keep the history
     // (and the undo timeline) clean.
@@ -770,7 +780,39 @@ export function createGenerationController(ctx: GenerationContext) {
           DEFAULT_CASTLE_SETTINGS[key] ??
           (key === "groundRiseMeters" ? DEFAULT_CASTLE_RISE_METERS : "auto")
       );
-    ctx.buildingPatternSelect.value = ctx.generation.generateSettings.buildingPattern ?? "legacy";
+    ctx.buildingPatternSelect.value =
+      ctx.generation.generateSettings.facilityLayout === "population"
+        ? "medieval-facilities"
+        : (ctx.generation.generateSettings.buildingPattern ?? "legacy");
+    const parent = ctx.buildingPatternSelect.parentElement;
+    if (parent) {
+      let summary = parent.querySelector<HTMLElement>(".ce-facility-summary");
+      if (!summary) {
+        summary = document.createElement("span");
+        summary.className = "ce-facility-summary";
+        parent.append(summary);
+      }
+      const report = ctx.documents.documentState.facilityReport;
+      summary.textContent = report
+        ? report.population === 0
+          ? editorText("cityEditor.messages.populationFacilitiesNeedPopulation")
+          : editorText("cityEditor.messages.populationFacilitySummary", {
+              placed: report.placed,
+              required: report.required,
+              unplaced: report.unplaced.length,
+              provisional: report.provisional
+            })
+        : "";
+      summary.title = report?.unplaced.map(r => `${r.id}: ${r.reason}`).join("\n") ?? "";
+      if (report?.population && report.housing) {
+        summary.textContent += ` / ${editorText("cityEditor.messages.populationFacilityHousingSummary", {
+          assigned: report.housing.assignedDwellings,
+          required: report.housing.requiredDwellings,
+          unplaced: report.housing.unplacedDwellings,
+          cells: report.housing.coreCells
+        })}`;
+      }
+    }
     ctx.layoutSelect.value =
       ctx.generation.generateSettings.layout ?? ctx.generation.generateSettings.config.layout ?? "auto";
     ctx.coastSelect.value = ctx.generation.generateSettings.config.coast;
@@ -832,14 +874,28 @@ export function createGenerationController(ctx: GenerationContext) {
       if (riverDropValue)
         riverDropValue.textContent = editorText("cityEditor.messages.riverDropValue", { value0: String(drop) });
     }
-    const terrainField = ctx.root.querySelector<HTMLSelectElement>(".ce-terrain-field");
+    // The height-field drawing uses the same class on an SVG group. A plain
+    // class query would bind the sync to that group once a field exists.
+    const terrainField = ctx.root.querySelector<HTMLSelectElement>("select.ce-terrain-field");
     if (terrainField) {
       const allowed = fieldModeAllowed(ctx.documents.documentState.frame.extentMeters);
       terrainField.disabled = !allowed;
       const template = ctx.generation.generateSettings.terrainField?.template ?? "off";
-      terrainField.value = allowed ? template : "off";
+      let cells = terrainField.querySelector<HTMLOptionElement>('option[value="cells"]');
+      if (template === "cells") {
+        if (!cells) {
+          cells = document.createElement("option");
+          cells.value = "cells";
+          cells.textContent = editorText("cityEditor.messages.convertCellElevations");
+          terrainField.append(cells);
+        }
+      } else cells?.remove();
+      const known = [...terrainField.options].some(option => option.value === template);
+      terrainField.value = allowed && known ? template : "off";
       if (!allowed) delete ctx.generation.generateSettings.terrainField;
     }
+    const convertCells = ctx.root.querySelector<HTMLButtonElement>(".ce-convert-cells");
+    if (convertCells) convertCells.disabled = !fieldModeAllowed(ctx.documents.documentState.frame.extentMeters);
     for (const [key, input] of ctx.featureInputs)
       input.checked = (ctx.generation.generateSettings.descriptor?.burg ??
         ctx.generation.generateSettings.config.features)[key];
@@ -859,6 +915,8 @@ export function createGenerationController(ctx: GenerationContext) {
       ctx.generation.generateSettings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
     }
     ctx.avoidSeaInput.checked = ctx.generation.generateSettings.streets.avoidSea !== false;
+    const approachCommerce = ctx.root.querySelector<HTMLInputElement>(".ce-approach-commerce");
+    if (approachCommerce) approachCommerce.checked = ctx.generation.generateSettings.approachCommerce === "on";
     ctx.farNodeSelect.value = ctx.generation.generateSettings.streets.farNode ?? "descriptorEnd";
     ctx.bearingsInput.value =
       ctx.generation.generateSettings.streets.manualBearings?.map(n => String(n)).join(", ") ?? "";

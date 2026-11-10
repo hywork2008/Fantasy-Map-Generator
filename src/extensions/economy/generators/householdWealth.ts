@@ -15,6 +15,7 @@
  * would misattribute rural cash split across states.
  */
 
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getMarketCellColumn, getMarkets, getWorldContext, isEconomyContextReady } from "../economyContext";
@@ -65,7 +66,7 @@ function ensureRuralHouseholdWealthSeeded(market: Market): number {
 const pendingFarmMoves = new Map<number, Map<number, number>>();
 
 /** Rural population points per market in a market-cell column. */
-function getRuralPopulationByMarket(column: ArrayLike<number>): Map<number, number> {
+export function getRuralPopulationByMarket(column: ArrayLike<number>): Map<number, number> {
   const { pack } = getWorldContext();
   const population = new Map<number, number>();
   for (const cellId of pack.cells?.i ?? []) {
@@ -173,6 +174,14 @@ export function getRuralHouseholdWealth(market: Market | undefined): number {
   return Math.max(0, ensureRuralHouseholdWealthSeeded(market));
 }
 
+/** Audit hook: each rural household credit (+) or debit (-) actually applied, by Market. */
+export type RuralHouseholdWealthFlowObserver = (marketId: number, amount: number) => void;
+let ruralFlowObserver: RuralHouseholdWealthFlowObserver | null = null;
+
+export function setRuralHouseholdWealthFlowObserver(observer: RuralHouseholdWealthFlowObserver | null): void {
+  ruralFlowObserver = observer;
+}
+
 /**
  * Credits a Market's rural household wallet — the farmgate payment's immediate cash portion
  * (foodProduction.ts's `settleFarmgatePayment`) and, later, its deferred `ruralGrainPayable` IOU
@@ -182,6 +191,7 @@ export function creditRuralHouseholdWealth(market: Market | undefined, amount: n
   if (!market?.foodLedger || !(amount > 0) || !Number.isFinite(amount)) return;
   const current = ensureRuralHouseholdWealthSeeded(market);
   market.foodLedger.ruralHouseholdWealth = rn(current + amount, 2);
+  ruralFlowObserver?.(market.i, amount);
 }
 
 /** Debits up to `amount` from a Market's rural household wallet. Returns the amount actually debited. */
@@ -191,6 +201,7 @@ export function debitRuralHouseholdWealth(market: Market | undefined, amount: nu
   const debited = rn(Math.min(available, amount), 2);
   if (debited <= 0) return 0;
   market.foodLedger.ruralHouseholdWealth = rn(available - debited, 2);
+  ruralFlowObserver?.(market.i, -debited);
   return debited;
 }
 
@@ -444,18 +455,42 @@ export function spendRuralHouseholdsInTowns(): number {
 }
 
 /** Spreads a market's wage bill over its member towns by population; false when it has none. */
-function payMarketTownWages(towns: Burg[] | undefined, population: number, amount: number): boolean {
-  if (!towns?.length || !(population > 0) || !(amount > 0)) return false;
-  for (const burg of towns) creditHouseholdWealth(burg.i, rn((amount * (burg.population ?? 0)) / population, 2));
+/**
+ * Pays a market's surplus wages in its towns, by town population, and in its countryside, by rural
+ * population times `ruralWeight`. Returns false when there is no one to pay.
+ */
+function payMarketWages(
+  market: Market,
+  towns: Burg[] | undefined,
+  townPopulation: number,
+  ruralPopulation: number,
+  ruralWeight: number,
+  amount: number
+): boolean {
+  const rural = market.foodLedger ? Math.max(0, ruralPopulation) * Math.max(0, ruralWeight) : 0;
+  const town = towns?.length ? Math.max(0, townPopulation) : 0;
+  const total = town + rural;
+  if (!(total > 0) || !(amount > 0)) return false;
+  if (rural > 0) creditRuralHouseholdWealth(market, rn((amount * rural) / total, 2));
+  if (town > 0)
+    for (const burg of towns!) creditHouseholdWealth(burg.i, rn((amount * (burg.population ?? 0)) / total, 2));
   return true;
 }
 
-/** Months of operating cash a market keeps (per member-town population point, as town working cash). */
-export const MARKET_CASH_RESERVE_PER_POPULATION_FACTOR = 1;
+/** Pays the farms up to `amount` of the hay the market owes them; returns what it paid. */
+export function repayRuralHay(market: Market, amount: number): number {
+  const treasury = market.marketTreasury;
+  if (!treasury?.ruralHayPayable) return 0;
+  const repay = rn(Math.min(Math.max(0, amount), Math.max(0, treasury.balance), treasury.ruralHayPayable), 2);
+  if (!(repay > 0)) return 0;
+  treasury.ruralHayPayable = rn(treasury.ruralHayPayable - repay, 2);
+  treasury.balance = rn(treasury.balance - repay, 2);
+  creditRuralHouseholdWealth(market, repay);
+  return repay;
+}
+
 /** Share of a market's cash above its reserve paid out each month. */
 export const MARKET_SURPLUS_PAYOUT_SHARE = 0.2;
-/** Part of that payout kept by the market's merchants as profit; the rest is paid as wages in its towns. */
-export const MARKET_MERCHANT_PROFIT_SHARE = 1 / 3;
 
 /**
  * A market's margin (retail minus farmgate) used to pile up in `marketTreasury.balance` with no
@@ -463,7 +498,9 @@ export const MARKET_MERCHANT_PROFIT_SHARE = 1 / 3;
  * §5.2): profit to the market's merchants, and the wages of the grain dealers, measurers, porters
  * and carters in every member town, by town population — the grain is sold where people live, so
  * this work grows with the town (docs/plan/farm-labour-calibration.md §12). It used to go to the
- * centre town alone.
+ * centre town alone. The countryside's carters, threshers and hay hands are paid too, by rural
+ * population (Simulation settings `surplusRuralWeight`): the margin is made on grain and hay bought
+ * from the farms, and with the towns alone it never went back (docs/analytics/hay-trade-modes-20261101.md §8).
  */
 export function payOutMarketSurplus(creditMerchant: (characterId: number, amount: number) => boolean): number {
   if (!isEconomyContextReady()) return 0;
@@ -476,17 +513,20 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
     memberPopulation.set(burg.market, (memberPopulation.get(burg.market) ?? 0) + (burg.population ?? 0));
     if ((burg.population ?? 0) > 0) memberTowns.set(burg.market, [...(memberTowns.get(burg.market) ?? []), burg]);
   }
+  const ruralPopulation = getRuralPopulationByMarket(getMarketCellColumn());
+  const { surplusRuralWeight, surplusReserveFactor, merchantProfitShare, merchantProfitUse } = getMarketSettings();
   let paid = 0;
   // Open-account cargo on its way is paid for on arrival; that cash is not surplus (§12).
   const openAccount = isLongDistanceTradeEnabled() ? getOpenAccountCommitments() : null;
   for (const market of getMarkets()) {
     const treasury = market.marketTreasury;
     if (!treasury) continue;
+    // Salt bought on credit is owed to the works and repaid from this cash (salt-supply-calibration.md §3.4).
+    const saltOwed = Object.values(treasury.saltPayables ?? {}).reduce((sum, owed) => sum + Math.max(0, owed), 0);
     const reserve =
-      (memberPopulation.get(market.i) ?? 0) *
-        profile.burgTreasuryPerPopulation *
-        MARKET_CASH_RESERVE_PER_POPULATION_FACTOR +
-      (openAccount?.get(market.i) ?? 0);
+      (memberPopulation.get(market.i) ?? 0) * profile.burgTreasuryPerPopulation * surplusReserveFactor +
+      (openAccount?.get(market.i) ?? 0) +
+      saltOwed;
     // Farmers are paid what they are owed from any cash, before the market keeps a reserve or
     // anyone takes a profit.
     const repay = rn(Math.min(Math.max(0, treasury.balance), Math.max(0, treasury.ruralGrainPayable)), 2);
@@ -496,6 +536,8 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
       creditRuralHouseholdWealth(market, repay);
       paid = rn(paid + repay, 2);
     }
+    // And for the hay it bought on credit, from cash the Fodder sales alone did not repay (army orders).
+    paid = rn(paid + repayRuralHay(market, Number.POSITIVE_INFINITY), 2);
     // Then the houses whose cargo it bought on credit (long-distance-merchant-reach-capital.md §5.1).
     MerchantTradeCapital.repayPayables(market);
     const excess = treasury.balance - reserve;
@@ -507,14 +549,33 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
     const merchants = [market.managerCharacterId, ...(market.rivalCharacterIds ?? [])].filter(
       (id): id is number => typeof id === "number"
     );
-    let profit = merchants.length ? rn(payout * MARKET_MERCHANT_PROFIT_SHARE, 2) : 0;
+    // The merchants' profit (Simulation settings `merchantProfitShare`). Kept as wealth, it sat
+    // under their years of reserve and left the towns and countryside; as a stake in their own
+    // house it goes back out through its trade, and what the house does not want is paid as wages
+    // (docs/analytics/hay-trade-modes-20261101.md §12).
+    let profit = merchants.length ? rn(payout * merchantProfitShare, 2) : 0;
     if (profit > 0) {
       const each = rn(profit / merchants.length, 2);
       profit = 0;
-      for (const id of merchants) if (creditMerchant(id, each)) profit = rn(profit + each, 2);
+      for (const id of merchants) {
+        if (merchantProfitUse === "wealth") {
+          if (creditMerchant(id, each)) profit = rn(profit + each, 2);
+        } else if (creditMerchant(id, 0)) {
+          profit = rn(profit + MerchantTradeCapital.investFromCharacter(market, id, each), 2);
+        }
+      }
     }
     const local = rn(payout - profit, 2);
-    if (!payMarketTownWages(memberTowns.get(market.i), memberPopulation.get(market.i) ?? 0, local)) {
+    if (
+      !payMarketWages(
+        market,
+        memberTowns.get(market.i),
+        memberPopulation.get(market.i) ?? 0,
+        ruralPopulation.get(market.i) ?? 0,
+        surplusRuralWeight,
+        local
+      )
+    ) {
       if (!(profit > 0)) continue;
       treasury.balance = rn(treasury.balance - profit, 2);
       paid = rn(paid + profit, 2);

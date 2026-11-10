@@ -1,0 +1,480 @@
+{
+ "schemaVersion": 1,
+ "inputSha256": "5592c9acbdf7a96f94c60293d5b784c1e799268f93200719be55375bb33c352b",
+ "months": 144,
+ "notes": [
+  "Settled land cells; 'wet' = annual rainfall >= 2000 mm (100 mm proxy). People are rural; urbanPeople is burg population x populationRate.",
+  "Herd values are supported heads (carrying capacity after winter feed), real animals.",
+  "lastTwelveMonths sums the monthly Food Ledger settlement (food-ledger units) and the livestock feed ledgers (kg DM) since the previous sample."
+ ],
+ "years": [
+  {
+   "month": 12,
+   "date": [
+    1301,
+    1
+   ],
+   "world": {
+    "people": 3694097.693361342,
+    "cultivatedHa": 4308901.195487976,
+    "pastureKeptHa": 32817511.813870296,
+    "Cattle": 2445738.2332357764,
+    "Horses": 728028.9812865152,
+    "Camels": 41114.525954322206,
+    "Sheep": 8030263.97095342,
+    "Goats": 160346.65122185653,
+    "urbanPeople": 606430.7980224859
+   },
+   "wet": {
+    "people": 1274845.5022946,
+    "cultivatedHa": 2162280.5737075806,
+    "pastureKeptHa": 13036418.236718386,
+    "Cattle": 1070554.451531779,
+    "Horses": 326725.2902399373,
+    "Camels": 561.9345122080197,
+    "Sheep": 3303271.7110333564,
+    "Goats": 2191.544597611277
+   },
+   "lastTwelveMonths": {
+    "ruralNeed": 1059054.7400000005,
+    "ruralSupplied": 1059054.7600000005,
+    "urbanNeed": 262498.29999999993,
+    "urbanSupplied": 259097.4499999999,
+    "feedRequiredKg": 12614019916.334335,
+    "feedUnmetKg": 24119995.687703755,
+    "ruralMetShare": 1.000000018884765,
+    "urbanMetShare": 0.9870442970487807,
+    "feedUnmetShare": 0.0019121577298661094
+   }
+  },
+  {
+   "month": 24,
+   "date": [
+    1302,
+    1
+   ],
+   "world": {
+    "people": 3698816.5472000837,
+    "cultivatedHa": 4438244.825965881,
+    "pastureKeptHa": 33204534.243716642,
+    "Cattle": 2492383.3241600427,
+    "Horses": 737969.2067332091,
+    "Camels": 40791.61508632524,
+    "Sheep": 8008731.468171063,
+    "Goats": 159087.29883666846,
+    "urbanPeople": 594096.7550739197
+   },
+   "wet": {
+    "people": 1277655.2620902658,
+    "cultivatedHa": 2198674.80960083,
+    "pastureKeptHa": 13189900.822577743,
+    "Cattle": 1082621.1928054488,
+    "Horses": 329392.9618880688,
+    "Camels": 562.2228707747327,
+    "Sheep": 3302845.6963175377,
+    "Goats": 2192.6691960214575
+   },
+   "lastTwelveMonths": {
+    "ruralNeed": 1083135.84,
+    "ruralSupplied": 1080854.69,
+    "urbanNeed": 257592.25,
+    "urbanSupplied": 246259.24999999997,
+    "feedRequiredKg": 13193452199.216341,
+    "feedUnmetKg": 96769527.48209274,
+    "ruralMetShare": 0.9978939391387879,
+    "urbanMetShare": 0.9560041111485301,
+    "feedUnmetShare": 0.0073346631359941265
+   }
+  },
+  {
+   "month": 36,
+   "date": [
+    1303,
+    1
+   ],
+   "world": {
+    "people": 3708346.736252308,
+    "cultivatedHa": 4536529.023628235,
+    "pastureKeptHa": 33826540.80896171,
+    "Cattle": 2552211.5204797713,
+    "Horses": 752250.3417638539,
+    "Camels": 41170.946270347755,
+    "Sheep": 8054065.315800533,
+    "Goats": 160566.69045435626,
+    "urbanPeople": 580027.5677910717
+   },
+   "wet": {
+    "people": 1283070.8321332932,
+    "cultivatedHa": 2220617.5258789062,
+    "pastureKeptHa": 13378808.53811452,
+    "Cattle": 1100812.2127002105,
+    "Horses": 334012.46608389413,
+    "Camels": 563.2358644339771,
+    "Sheep": 3324371.3549548713,
+    "Goats": 2196.6198712925107
+   },
+   "lastTwelveMonths": {
+    "ruralNeed": 1096446.8200000008,
+    "ruralSupplied": 1057123.0300000005,
+    "urbanNeed": 251891.07000000004,
+    "urbanSupplied": 203513.75,
+    "feedRequiredKg": 13422598682.363686,
+    "feedUnmetKg": 68444780.8971966,
+    "ruralMetShare": 0.9641352509919265,
+    "urbanMetShare": 0.8079434892233376,
+    "feedUnmetShare": 0.00509921979468313
+   }
+  },
+  {
+   "month": 48,
+   "date": [
+    1304,
+    1
+   ],
+   "world": {
+    "people": 3723597.952865064,
+    "cultivatedHa": 4650695.880355835,
+    "pastureKeptHa": 34614011.924600884,
+    "Cattle": 2611824.6527144383,
+    "Horses": 767228.7374579052,
+    "Camels": 41655.08841860458,
+    "Sheep": 8106382.6825958425,
+    "Goats": 162454.84483255795,
+    "urbanPeople": 570509.2226535176
+   },
+   "wet": {
+    "people": 1290419.1097095609,
+    "cultivatedHa": 2254894.3174819946,
+    "pastureKeptHa": 13615696.109877674,
+    "Cattle": 1119957.375679531,
+    "Horses": 339001.394283035,
+    "Camels": 563.6872229317356,
+    "Sheep": 3350744.5751853273,
+    "Goats": 2198.380169433769
+   },
+   "lastTwelveMonths": {
+    "ruralNeed": 1120887.6899999997,
+    "ruralSupplied": 1079653.7199999997,
+    "urbanNeed": 246990.9200000002,
+    "urbanSupplied": 211771.17000000013,
+    "feedRequiredKg": 13638195641.62637,
+    "feedUnmetKg": 55272429.19762942,
+    "ruralMetShare": 0.9632131119220338,
+    "urbanMetShare": 0.8574046770626222,
+    "feedUnmetShare": 0.004052766997191875
+   }
+  },
+  {
+   "month": 60,
+   "date": [
+    1305,
+    1
+   ],
+   "world": {
+    "people": 3742736.2753525376,
+    "cultivatedHa": 4748099.489631653,
+    "pastureKeptHa": 35195401.91876932,
+    "Cattle": 2677886.528371045,
+    "Horses": 783497.2685019963,
+    "Camels": 42369.884989024256,
+    "Sheep": 8198490.134564495,
+    "Goats": 165242.55145719447,
+    "urbanPeople": 564396.1108181349
+   },
+   "wet": {
+    "people": 1298852.5876700878,
+    "cultivatedHa": 2280487.926109314,
+    "pastureKeptHa": 13780689.522747884,
+    "Cattle": 1139346.45571857,
+    "Horses": 344131.24485098047,
+    "Camels": 569.6252143803546,
+    "Sheep": 3382325.071597293,
+    "Goats": 2221.5383360833825
+   },
+   "lastTwelveMonths": {
+    "ruralNeed": 1134179.7100000002,
+    "ruralSupplied": 1122183.5899999999,
+    "urbanNeed": 243816.56000000006,
+    "urbanSupplied": 223242.58,
+    "feedRequiredKg": 13856351662.633123,
+    "feedUnmetKg": 82288418.59577908,
+    "ruralMetShare": 0.9894230871049524,
+    "urbanMetShare": 0.9156169703977447,
+    "feedUnmetShare": 0.005938678564119367
+   }
+  },
+  {
+   "month": 72,
+   "date": [
+    1306,
+    1
+   ],
+   "world": {
+    "people": 3764761.043600738,
+    "cultivatedHa": 4835069.5249557495,
+    "pastureKeptHa": 35891962.96474204,
+    "Cattle": 2742060.5359141976,
+    "Horses": 800454.5746102497,
+    "Camels": 42982.07459002159,
+    "Sheep": 8313360.758627096,
+    "Goats": 167630.09090108424,
+    "urbanPeople": 561789.6805027999
+   },
+   "wet": {
+    "people": 1308280.3147733212,
+    "cultivatedHa": 2312078.017364502,
+    "pastureKeptHa": 14034806.050643805,
+    "Cattle": 1167030.5113071662,
+    "Horses": 351883.23840748856,
+    "Camels": 572.8568254257602,
+    "Sheep": 3441795.2225126536,
+    "Goats": 2234.141619160465
+   },
+   "lastTwelveMonths": {
+    "ruralNeed": 1146702.559999998,
+    "ruralSupplied": 1141533.349999998,
+    "urbanNeed": 242024.33000000022,
+    "urbanSupplied": 231719.52000000016,
+    "feedRequiredKg": 14095606999.783129,
+    "feedUnmetKg": 50288301.61750386,
+    "ruralMetShare": 0.9954921091307235,
+    "urbanMetShare": 0.9574224211260081,
+    "feedUnmetShare": 0.003567657754524341
+   }
+  },
+  {
+   "month": 84,
+   "date": [
+    1307,
+    1
+   ],
+   "world": {
+    "people": 3790691.531173885,
+    "cultivatedHa": 4924719.470489502,
+    "pastureKeptHa": 36466407.38669298,
+    "Cattle": 2792843.3438841593,
+    "Horses": 813727.3733447517,
+    "Camels": 43407.13408975063,
+    "Sheep": 8400892.601076387,
+    "Goats": 169287.82295002745,
+    "urbanPeople": 563661.0228254641
+   },
+   "wet": {
+    "people": 1318866.5492907166,
+    "cultivatedHa": 2349189.8993148804,
+    "pastureKeptHa": 14245192.077016672,
+    "Cattle": 1187804.7292460604,
+    "Horses": 357618.1437485244,
+    "Camels": 576.8415335269798,
+    "Sheep": 3483376.148115864,
+    "Goats": 2249.6819807552215
+   },
+   "lastTwelveMonths": {
+    "ruralNeed": 1158916.3000000003,
+    "ruralSupplied": 1157410.5699999998,
+    "urbanNeed": 241916.20000000016,
+    "urbanSupplied": 236389.38000000018,
+    "feedRequiredKg": 14368642840.789734,
+    "feedUnmetKg": 54825566.30581614,
+    "ruralMetShare": 0.9987007430993934,
+    "urbanMetShare": 0.9771539896873381,
+    "feedUnmetShare": 0.0038156398564085123
+   }
+  },
+  {
+   "month": 96,
+   "date": [
+    1308,
+    1
+   ],
+   "world": {
+    "people": 3818441.3054287434,
+    "cultivatedHa": 5007753.991355896,
+    "pastureKeptHa": 37159830.59143842,
+    "Cattle": 2835385.9053174397,
+    "Horses": 825519.9140333585,
+    "Camels": 43608.8464790593,
+    "Sheep": 8480979.065553535,
+    "Goats": 170074.50126833105,
+    "urbanPeople": 566820.8139517491
+   },
+   "wet": {
+    "people": 1330194.779112935,
+    "cultivatedHa": 2388653.307258606,
+    "pastureKeptHa": 14549531.202628301,
+    "Cattle": 1209280.0769273401,
+    "Horses": 363665.9145962406,
+    "Camels": 577.9469038125449,
+    "Sheep": 3529770.8602074618,
+    "Goats": 2253.992924868925
+   },
+   "lastTwelveMonths": {
+    "ruralNeed": 1171271.8799999997,
+    "ruralSupplied": 1170750.7899999998,
+    "urbanNeed": 243078.70999999982,
+    "urbanSupplied": 239204.80999999982,
+    "feedRequiredKg": 14615564392.556097,
+    "feedUnmetKg": 52886201.50980882,
+    "ruralMetShare": 0.9995551075639245,
+    "urbanMetShare": 0.9840631867760036,
+    "feedUnmetShare": 0.0036184850676546213
+   }
+  },
+  {
+   "month": 108,
+   "date": [
+    1309,
+    1
+   ],
+   "world": {
+    "people": 3848159.443743527,
+    "cultivatedHa": 4947040.070716858,
+    "pastureKeptHa": 37618920.36488422,
+    "Cattle": 2866301.454037332,
+    "Horses": 835874.5476520429,
+    "Camels": 44401.9810431588,
+    "Sheep": 8666732.448329046,
+    "Goats": 173167.72606831935,
+    "urbanPeople": 570302.6348395867
+   },
+   "wet": {
+    "people": 1342262.910157442,
+    "cultivatedHa": 2380506.5213165283,
+    "pastureKeptHa": 14747951.46634342,
+    "Cattle": 1227833.0455613376,
+    "Horses": 369542.9514817304,
+    "Camels": 584.5090373311132,
+    "Sheep": 3596052.7303690664,
+    "Goats": 2279.585245591341
+   },
+   "lastTwelveMonths": {
+    "ruralNeed": 1183869.9400000002,
+    "ruralSupplied": 1183793.6100000008,
+    "urbanNeed": 244542.1399999998,
+    "urbanSupplied": 239607.3699999999,
+    "feedRequiredKg": 14834192525.051937,
+    "feedUnmetKg": 80820809.24470155,
+    "ruralMetShare": 0.9999355250121484,
+    "urbanMetShare": 0.9798203696099171,
+    "feedUnmetShare": 0.005448278300838527
+   }
+  },
+  {
+   "month": 120,
+   "date": [
+    1310,
+    1
+   ],
+   "world": {
+    "people": 3878440.2358978987,
+    "cultivatedHa": 5024918.721809387,
+    "pastureKeptHa": 38048998.610687755,
+    "Cattle": 2912246.889650323,
+    "Horses": 848593.2090833852,
+    "Camels": 44602.39435445573,
+    "Sheep": 8762899.672736777,
+    "Goats": 173949.3379823773,
+    "urbanPeople": 575029.365755823
+   },
+   "wet": {
+    "people": 1354495.8166331053,
+    "cultivatedHa": 2416185.3512802124,
+    "pastureKeptHa": 15031170.298745438,
+    "Cattle": 1257247.2354207793,
+    "Horses": 378123.3334262953,
+    "Camels": 588.9871241859519,
+    "Sheep": 3671997.2161008604,
+    "Goats": 2297.049784325212
+   },
+   "lastTwelveMonths": {
+    "ruralNeed": 1196611.7799999998,
+    "ruralSupplied": 1196368.78,
+    "urbanNeed": 246294.03999999986,
+    "urbanSupplied": 241318.96999999986,
+    "feedRequiredKg": 15044597377.18308,
+    "feedUnmetKg": 35748893.74082699,
+    "ruralMetShare": 0.9997969266189242,
+    "urbanMetShare": 0.9798002826215364,
+    "feedUnmetShare": 0.002376194779066965
+   }
+  },
+  {
+   "month": 132,
+   "date": [
+    1311,
+    1
+   ],
+   "world": {
+    "people": 3911948.250681162,
+    "cultivatedHa": 5107814.223167419,
+    "pastureKeptHa": 38568302.20666628,
+    "Cattle": 2954781.355947431,
+    "Horses": 860291.4776762329,
+    "Camels": 45052.65340498284,
+    "Sheep": 8850227.813932879,
+    "Goats": 175705.34827943303,
+    "urbanPeople": 582664.0939075355
+   },
+   "wet": {
+    "people": 1367553.2966256142,
+    "cultivatedHa": 2453320.168800354,
+    "pastureKeptHa": 15285997.427107744,
+    "Cattle": 1278659.992455417,
+    "Horses": 384332.91089549934,
+    "Camels": 591.3887933174149,
+    "Sheep": 3725928.409083259,
+    "Goats": 2306.416293937918
+   },
+   "lastTwelveMonths": {
+    "ruralNeed": 1209616.6300000001,
+    "ruralSupplied": 1209616.4900000002,
+    "urbanNeed": 249030.04000000012,
+    "urbanSupplied": 246998.36000000007,
+    "feedRequiredKg": 15272252479.225624,
+    "feedUnmetKg": 41742448.767399706,
+    "ruralMetShare": 0.9999998842608505,
+    "urbanMetShare": 0.991841626817391,
+    "feedUnmetShare": 0.0027332214959241066
+   }
+  },
+  {
+   "month": 144,
+   "date": [
+    1312,
+    1
+   ],
+   "world": {
+    "people": 3946032.6229408383,
+    "cultivatedHa": 5187136.159172058,
+    "pastureKeptHa": 39174904.19683376,
+    "Cattle": 2986837.393007083,
+    "Horses": 869653.0933962263,
+    "Camels": 45317.26893651772,
+    "Sheep": 8920247.805337714,
+    "Goats": 176737.3488524188,
+    "urbanPeople": 591410.7438190794
+   },
+   "wet": {
+    "people": 1380539.3628403544,
+    "cultivatedHa": 2488831.5988082886,
+    "pastureKeptHa": 15557938.596531471,
+    "Cattle": 1295462.0394364302,
+    "Horses": 389315.0407778672,
+    "Camels": 598.5778300256326,
+    "Sheep": 3771295.4539213125,
+    "Goats": 2334.4535370999674
+   },
+   "lastTwelveMonths": {
+    "ruralNeed": 1223411.83,
+    "ruralSupplied": 1223411.8200000003,
+    "urbanNeed": 252455.62,
+    "urbanSupplied": 250531.75000000003,
+    "feedRequiredKg": 15483246669.376923,
+    "feedUnmetKg": 41730576.397446,
+    "ruralMetShare": 0.9999999918261377,
+    "urbanMetShare": 0.9923793734518568,
+    "feedUnmetShare": 0.0026952083945017535
+   }
+  }
+ ]
+}

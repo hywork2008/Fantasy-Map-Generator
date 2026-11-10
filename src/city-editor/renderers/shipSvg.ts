@@ -1,6 +1,7 @@
+import { BRUSH_SHIP_STATE } from "../generators/shipDisplayState";
 import { normalizeShipType } from "../generators/ships";
 import type { Point } from "../types/document";
-import type { ShipClassKey } from "../types/ships";
+import type { ShipClassKey, ShipDisplayState } from "../types/ships";
 import { SHIP_SPECS } from "./shipSpecifications";
 
 export interface RenderShipOptions {
@@ -13,6 +14,7 @@ export interface RenderShipOptions {
   className?: string;
   isPickSelected?: boolean;
   opacity?: number;
+  state?: ShipDisplayState;
 }
 
 const NS = "http://www.w3.org/2000/svg";
@@ -31,6 +33,7 @@ function element(name: string, attrs: Record<string, string>, content?: string):
  */
 export function renderShipSvg(options: RenderShipOptions): SVGGElement {
   const type = normalizeShipType(options.type);
+  const state = options.state ?? BRUSH_SHIP_STATE;
   const spec = SHIP_SPECS[type];
   const length = options.sizeMeters && options.sizeMeters > 0 ? options.sizeMeters : spec.defaultSizeMeters;
   const scaleY = length / spec.baseLengthMeters;
@@ -47,6 +50,8 @@ export function renderShipSvg(options: RenderShipOptions): SVGGElement {
     transform: `translate(${posX} ${posY}) rotate(${deg}) scale(${scaleX.toFixed(4)} ${scaleY.toFixed(4)})`,
     "data-ship-type": type,
     "data-ship-length": String(length),
+    "data-ship-sails": state.sails,
+    "data-ship-gunports": state.gunports,
     ...(options.id ? { "data-element": options.id, id: options.id } : {})
   }) as SVGGElement;
 
@@ -70,6 +75,31 @@ export function renderShipSvg(options: RenderShipOptions): SVGGElement {
       break;
   }
 
+  if (state.sails === "set") {
+    for (const sail of group.querySelectorAll(".ce-ship-furled-sail")) sail.remove();
+    for (const yard of group.querySelectorAll("line.ce-ship-yard")) {
+      const ax = Number(yard.getAttribute("x1")),
+        ay = Number(yard.getAttribute("y1"));
+      const bx = Number(yard.getAttribute("x2")),
+        by = Number(yard.getAttribute("y2"));
+      const dx = bx - ax,
+        dy = by - ay,
+        length = Math.hypot(dx, dy);
+      if (!length) continue;
+      // Projected cloth belly keeps a top-down sail distinct from its tied bundle.
+      const mx = (ax + bx) / 2 - dy * 0.15,
+        my = (ay + by) / 2 + dx * 0.15;
+      group.appendChild(
+        element("path", {
+          d: `M ${ax},${ay} Q ${mx},${my} ${bx},${by} L ${bx - dy * 0.025},${by + dx * 0.025} Q ${mx - dy * 0.04},${my + dx * 0.04} ${ax - dy * 0.025},${ay + dx * 0.025} Z`,
+          class: "ce-ship-set-sail",
+          fill: "#e8e0ce",
+          stroke: "#7d7260",
+          "stroke-width": "0.15"
+        })
+      );
+    }
+  }
   return group;
 }
 

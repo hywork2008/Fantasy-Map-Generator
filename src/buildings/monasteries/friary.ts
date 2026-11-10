@@ -15,6 +15,7 @@ import {
   createMonasteryWell,
   monasteryContext
 } from "./monasteryComponents";
+import { createHighOrthodoxBuilding } from "./orthodoxDetails";
 
 /** A fixed example of the same fitted programme used by generated CE religious houses. */
 export function monasteryPreviewPlan(kind: MonasteryKind = "friary"): Monastery {
@@ -44,7 +45,7 @@ export function monasteryPreviewPlan(kind: MonasteryKind = "friary"): Monastery 
 }
 
 export interface MonasteryRenderOptions {
-  /** Detailed architecture is currently available for the friary programme only. */
+  /** Building detail is independent of vegetation and well quality. */
   architectureQuality?: "low" | "high";
   /** Omitted means all parts; an empty array intentionally creates an empty assembly. */
   partIds?: readonly string[];
@@ -61,8 +62,6 @@ export function monasteryPartFactories(
   foundationBottom = elevation,
   options: MonasteryRenderOptions = {}
 ): ModelPartFactory[] {
-  if (options.architectureQuality === "high" && plan.kind === "orthodoxMonastery")
-    throw new Error("High architecture is not yet available for this monastery programme");
   const high = options.architectureQuality === "high";
   const context = monasteryContext(plan, elevation, foundationBottom);
   const { scale } = context;
@@ -104,7 +103,12 @@ export function monasteryPartFactories(
     add(
       `building:${index}`,
       building.role,
-      () => (high ? createHighFriaryBuilding(context, index) : createMonasteryBuilding(context, index)),
+      () =>
+        high
+          ? plan.kind === "orthodoxMonastery"
+            ? createHighOrthodoxBuilding(context, index)
+            : createHighFriaryBuilding(context, index)
+          : createMonasteryBuilding(context, index),
       high ? "high" : "low"
     );
   if (plan.walk)

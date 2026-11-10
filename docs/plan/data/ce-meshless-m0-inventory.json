@@ -1,0 +1,218 @@
+{
+  "format": "ce-meshless-m0-inventory",
+  "version": 1,
+  "features": [
+    {
+      "id": "entry-and-settings",
+      "calls": [
+        { "path": "src/city-editor/components/CityEditorPage.ts", "symbol": "mountCityEditor" },
+        { "path": "src/city-editor/services/io/shareRequest.ts", "symbol": "cityEditorDocument" }
+      ],
+      "meshDependencies": ["CityDocument construction", "grid controls", "document and scene indexes"],
+      "decision": "Share the host UI; dispatch by document format before creating indexes or a grid.",
+      "implementationPhase": "M1-M4",
+      "fixtureIds": ["document-formats", "fmg-fixed-crossing"],
+      "acceptance": "Legacy, Freeform and vector entry points retain their document format and settings."
+    },
+    {
+      "id": "generation-and-stages",
+      "calls": [
+        { "path": "src/city-editor/controllers/generation.ts", "symbol": "createGenerationController" },
+        { "path": "src/city-editor/services/generationWorker.ts", "symbol": "generateCityOnDocument" },
+        { "path": "src/city-editor/generators/generation/skeleton/toPlan.ts", "symbol": "buildConformingMesh" }
+      ],
+      "meshDependencies": ["K6 Voronoi reconstruction", "cellSize-based route lead lengths", "CityDocument Worker contract"],
+      "decision": "Use a vector Worker and separate stage run; extract input normalization without K6 or cellSize.",
+      "implementationPhase": "M4-M6",
+      "fixtureIds": ["facility-stage-playback", "edit-undo-stale-job"],
+      "acceptance": "No conforming mesh is generated; stages use the same run and stale jobs are rejected."
+    },
+    {
+      "id": "road-river-wall-drawing",
+      "calls": [
+        { "path": "src/city-editor/controllers/tools/routes.ts", "symbol": "closestMeshEdgeId" },
+        { "path": "src/city-editor/controllers/tools/ledgerTool.ts", "symbol": "commitDrawnLedger" },
+        { "path": "src/city-editor/controllers/tools/wayTool.ts", "symbol": "commitDrawnWay" }
+      ],
+      "meshDependencies": ["edge and vertex picking", "feature group segment references"],
+      "decision": "Keep legacy route tools; reuse gesture semantics and add curve commands and graph anchors.",
+      "implementationPhase": "M2-M3",
+      "fixtureIds": ["curves-and-freehand"],
+      "acceptance": "Freehand and cubic paths preserve geometry, width and connections through edits and reload."
+    },
+    {
+      "id": "wall-presets-and-double-walls",
+      "calls": [
+        { "path": "src/city-editor/generators/generation/skeleton/wallShapes.ts", "symbol": "unitWallShape" },
+        { "path": "src/city-editor/generators/generation/assembly/skeleton.ts", "symbol": "applySkeletonFeatures" },
+        { "path": "src/city-editor/generators/innerTownWall.ts", "symbol": "planInnerTown" }
+      ],
+      "meshDependencies": ["edge chains", "vertexId gates", "interior cell membership"],
+      "decision": "Share shape mathematics; use independent wall circuits, curve anchors and real clearances.",
+      "implementationPhase": "M2-M3",
+      "fixtureIds": ["wall-presets", "double-wall-gap"],
+      "acceptance": "Ratio changes preserve requested area and physical wall dimensions; narrow viable corridors remain usable."
+    },
+    {
+      "id": "bridges-and-gates",
+      "calls": [
+        { "path": "src/utils/bridgeSkewPolicy.ts", "symbol": "resolveBridgeSkewLimit" },
+        { "path": "src/city-editor/generators/bridgeDeck.ts", "symbol": "riverRibbons" },
+        { "path": "src/city-editor/generators/freeform/validateWay.ts", "symbol": "riverCrossing" }
+      ],
+      "meshDependencies": ["river vertex ribbons", "road edge references", "gate vertexId"],
+      "decision": "Retain shared policy; replace geometry adapters and explicitly resolve the over-30-degree API discrepancy before M3 acceptance.",
+      "implementationPhase": "M3",
+      "fixtureIds": ["bridge-policy", "double-wall-gap", "fmg-fixed-crossing"],
+      "acceptance": "All modes use the same lawful angle and material rules, with shared gate nodes and dry straight bridge approaches."
+    },
+    {
+      "id": "districts-and-local-infill",
+      "calls": [
+        { "path": "src/city-editor/controllers/tools/brushes.ts", "symbol": "faceIdsWithinWardBrush" },
+        { "path": "src/city-editor/generators/fabricDistricts.ts", "symbol": "districtDocument" },
+        { "path": "src/city-editor/generators/localInfill.ts", "symbol": "buildLocalFabric" },
+        { "path": "src/city-editor/generators/organicBlocks.ts", "symbol": "buildOrganicBlocks" }
+      ],
+      "meshDependencies": ["face adjacency", "shared boundary portals", "Face properties", "face ownership"],
+      "decision": "Use semantic regions and frontage intervals; extract polygon infill without synthetic cells.",
+      "implementationPhase": "M4-M5",
+      "fixtureIds": ["holes-and-open-roads", "double-wall-gap"],
+      "acceptance": "Holes and disconnected land remain valid, and each served parcel reaches a real road."
+    },
+    {
+      "id": "facilities-housing-and-population",
+      "calls": [
+        { "path": "src/city-editor/generators/populationFacilities.ts", "symbol": "populationFacilityRequests" },
+        { "path": "src/city-editor/generators/allocateBVFacilities.ts", "symbol": "allocateBVFacilities" },
+        { "path": "src/city-editor/generators/populationHousingFit.ts", "symbol": "fitPopulationHousing" },
+        { "path": "src/city-editor/generators/residentialCapacity.ts", "symbol": "measureHousingCapacity" }
+      ],
+      "meshDependencies": ["face-based site candidates", "faceNeighbors", "settlement and height lookup by faceId"],
+      "decision": "Share demand, BV footprints and capacity formulas; replace land allocation and zone ownership.",
+      "implementationPhase": "M5",
+      "fixtureIds": ["riverside-tannery", "facility-stage-playback"],
+      "acceptance": "Facilities reserve physical sites before housing, frontage stays connected and mixed-use dwellings count once."
+    },
+    {
+      "id": "castle-moat-and-bastions",
+      "calls": [
+        { "path": "src/city-editor/generators/castleLayout.ts", "symbol": "layoutCastle" },
+        { "path": "src/city-editor/generators/moats.ts", "symbol": "MoatReservation" },
+        { "path": "src/city-editor/generators/bastionedTown/plan.ts", "symbol": "planBastionedTown" }
+      ],
+      "meshDependencies": ["castle faceId", "defense circuit boundaries", "mesh materialization"],
+      "decision": "Retain assets and defense rules; model circuits, reservations and access as independent regions and paths.",
+      "implementationPhase": "M8",
+      "fixtureIds": ["wall-presets", "double-wall-gap", "document-formats"],
+      "acceptance": "Defense dimensions and entrance access remain valid; unsupported conversions report all omitted entities."
+    },
+    {
+      "id": "harbor-ships-and-market",
+      "calls": [
+        { "path": "src/city-editor/generators/harborFabric.ts", "symbol": "planHarbor" },
+        { "path": "src/city-editor/generators/marketPlacement.ts", "symbol": "placeMarketInArea" },
+        { "path": "src/city-editor/renderers/cityElementsSvg.ts", "symbol": "renderCityElements" }
+      ],
+      "meshDependencies": ["harbor ward and face-based shoreline", "market anchor elements", "document scene context"],
+      "decision": "Share assets and cargo/activity settings; supply shoreline and access regions without faceId.",
+      "implementationPhase": "M8",
+      "fixtureIds": ["holes-and-open-roads", "variable-river-width", "document-formats"],
+      "acceptance": "Quays, ships and markets retain access, activity, dimensions, save state and collision reservations."
+    },
+    {
+      "id": "temple-cemetery-park-farm-forest",
+      "calls": [
+        { "path": "src/city-editor/generators/cemeteryLayout.ts", "symbol": "computeCemeteryBoundary" },
+        { "path": "src/city-editor/generators/aerialLandmarks.ts", "symbol": "buildAerialLandmarkPlan" },
+        { "path": "src/city-editor/generators/ruralFieldStage.ts", "symbol": "generateRuralFieldStage" },
+        { "path": "src/city-editor/generators/forestPlan.ts", "symbol": "buildForestPlan" }
+      ],
+      "meshDependencies": ["ward and settlement properties", "farm sourceFaceIds", "face-based keep-out areas"],
+      "decision": "Retain cultural and landscape settings; replace land and exclusion adapters with polygon regions.",
+      "implementationPhase": "M8",
+      "fixtureIds": ["holes-and-open-roads", "variable-river-width"],
+      "acceptance": "Land uses remain disjoint from water, roads and reserved facilities in 2D, 3D and saved documents."
+    },
+    {
+      "id": "terrain-and-freeform-placement",
+      "calls": [
+        { "path": "src/city-editor/generators/freeform/freeformCity.ts", "symbol": "materializeFreeform" },
+        { "path": "src/city-editor/generators/freeform/commitPlacement.ts", "symbol": "commitPlacement" },
+        { "path": "src/city-editor/generators/terrainField/build.ts", "symbol": "terrainFieldForDocument" }
+      ],
+      "meshDependencies": ["CityDocument projection", "mesh fallback for water rings and heights"],
+      "decision": "Share height fields, BV contracts and slope calculations; expose explicit water and terrain inputs.",
+      "implementationPhase": "M7-M8",
+      "fixtureIds": ["variable-river-width", "document-formats"],
+      "acceptance": "Pads, gradients, stairs, river surfaces and placement orientation survive save and reload without cell heights."
+    },
+    {
+      "id": "two-and-three-dimensional-view",
+      "calls": [
+        { "path": "src/city-editor/renderers/editorSvg.ts", "symbol": "renderEditorSvg" },
+        { "path": "src/city-editor/renderers/townFacts.ts", "symbol": "prepareTownFacts" },
+        { "path": "src/city-editor/renderers/townFabricSvg.ts", "symbol": "renderTownFabric" },
+        { "path": "src/city-editor/renderers/cityView.ts", "symbol": "mountCity3d" }
+      ],
+      "meshDependencies": ["render-time fabric generation", "face-based metadata", "CityDocument scene preparation"],
+      "decision": "Pass accepted geometry and semantic ownership to shared drawing components; keep legacy rendering unchanged.",
+      "implementationPhase": "M7",
+      "fixtureIds": ["curves-and-freehand", "facility-stage-playback"],
+      "acceptance": "2D, 3D and export use the same accepted geometry; quality settings do not alter capacity or topology."
+    },
+    {
+      "id": "selection-and-measurement",
+      "calls": [
+        { "path": "src/city-editor/controllers/mapDisplay.ts", "symbol": "createMapDisplayController" },
+        { "path": "src/city-editor/controllers/tools/selection.ts", "symbol": "createSelectionController" },
+        { "path": "src/city-editor/renderers/pickInfo.ts", "symbol": "parsePickInfo" }
+      ],
+      "meshDependencies": ["face and edge picking", "face buckets", "vertex drag"],
+      "decision": "Share viewport and measurement math; use entity, segment, anchor and region IDs for vector picking.",
+      "implementationPhase": "M2-M7",
+      "fixtureIds": ["curves-and-freehand", "wall-presets"],
+      "acceptance": "Selection remains stable across curve edits and display quality; measurements use meters and accepted curves."
+    },
+    {
+      "id": "history-and-transactions",
+      "calls": [
+        { "path": "src/city-editor/generators/history.ts", "symbol": "diffDocument" },
+        { "path": "src/city-editor/controllers/editing.ts", "symbol": "captureFreeform" },
+        { "path": "src/city-editor/controllers/generationPlayback.ts", "symbol": "rememberGenerationState" }
+      ],
+      "meshDependencies": ["mesh checkpoint sizing", "mesh clone and patch", "face highlight playback"],
+      "decision": "Add vector history behind the same history UI surface; keep mesh delta history unchanged.",
+      "implementationPhase": "M1-M6",
+      "fixtureIds": ["edit-undo-stale-job", "document-formats"],
+      "acceptance": "Curves, anchors, graph nodes, placements and revisions undo atomically; replaced jobs cannot adopt old results."
+    },
+    {
+      "id": "files-sharing-and-export",
+      "calls": [
+        { "path": "src/city-editor/services/io/cityEditorFile.ts", "symbol": "readCityMap" },
+        { "path": "src/city-editor/services/io/documentCodec.ts", "symbol": "parseDocument" },
+        { "path": "src/city-editor/services/io/incomingCity.ts", "symbol": "parseIncomingPayload" },
+        { "path": "src/city-editor/renderers/standaloneSvg.ts", "symbol": "renderStandaloneCitySvg" }
+      ],
+      "meshDependencies": ["native document validation", "recipe input validation", "CityDocument export"],
+      "decision": "Dispatch native format versus share envelope explicitly; add vector codec and export adapters.",
+      "implementationPhase": "M1-M7",
+      "fixtureIds": ["document-formats", "fmg-fixed-crossing"],
+      "acceptance": "Native and shared formats remain distinct and complete; edits are never reduced to a generation recipe alone."
+    },
+    {
+      "id": "layers-locks-and-manual-edits",
+      "calls": [
+        { "path": "src/city-editor/controllers/layers.ts", "symbol": "createLayersController" },
+        { "path": "src/city-editor/generators/features.ts", "symbol": "smoothFeatureGroups" },
+        { "path": "src/city-editor/controllers/tools/dragCompletion.ts", "symbol": "createDragCompletionController" }
+      ],
+      "meshDependencies": ["group edge and vertex locking", "mesh deformation", "shared geometry selection"],
+      "decision": "Retain layer semantics; define separate origin and editPolicy and apply validated curve commands.",
+      "implementationPhase": "M2-M6",
+      "fixtureIds": ["edit-undo-stale-job", "variable-river-width"],
+      "acceptance": "Locked, imported and manual geometry is protected during generation and related automatic updates."
+    }
+  ]
+}

@@ -1,10 +1,18 @@
 # 門ごとの物流に応じた商業区・職人区・門前施設の配置 (Approach Commerce Quarters) 設計
 
-2026-10-17 設計。未実装。
+2026-10-17 設計。C0・C1・C2・C3・C4 実装済み。
 
 ## 状態
 
-- 設計のみ。実装は §9 の段階計画に従う。
+- 実装は §9 の段階計画に従う。C0 から C4 まで実装済み(2026-11-01)。
+- C0: 算出は `src/services/approachProfile.ts` の `approachProfiles()` に一本化し、descriptor(`burgApproachProfiles` → `roads[].approachProfile`)と `observe/gates`(各門の `profile`、`axisPartner`、`wagonsPerYear`)が同じ関数を呼ぶ。軸の判定のため、台帳の通過に「同じ町で抜けた先の門」を `through.partners` として記録する(記録のみ)。`CARGO_CLASSES` は同じファイルへ移した。
+  - `share` は全経路(陸・川・海・道の外)の積載枠の比で、O4 の `approachTraffic.share`(陸の道路のみ、通過は荷馬車数)とは別の値。O4 はそのまま残す。
+  - `wagonsPerYear` は減衰累計 S から年流量 S × (1 − 0.7) を出し、`WAGON_CARGO_SLOTS` = 51 で割る。
+  - 共有の渡河(`crossing:<c>`)の道路には台帳の行がないため、`approachProfile` を載せない。
+  - `generateCity` は `approachCommerce` が on のときだけ `approachProfile` を残す。off と未設定では生成前に取り除く。
+- C2: `approachCommerce` が on で陸の主門が決まるとき、その門外に街道宿を 1 軒置く。`stableSpaces` は主門の `wagonsPerYear` を四捨五入した値で、中庭面積は既存の `courtAreaM2`。短辺が 16 m 未満の中庭は入口と出口を分け、長辺も 8 m 未満、または台数が 0、主門が海のみのときは置かず、経済モデルの従来配置に戻る。off と未設定は `busiestGroup` のまま。隊商宿は残す。
+- C3: `approachCommerce` が on のとき、家畜が 0.2 以上の陸門の外に家畜市、穀物が主の陸門の内側に穀物市と穀倉、嵩物が 0.2 以上の門へ既存の木材・石・石灰・鍛冶のギルド置き場を寄せる。生鮮は広場に小売市場を 1 つ。高価品は市場通りの中心寄りに隊商宿を置く。職人は嵩物門・流出門・下流に寄り、同職は隣り合う。off と未設定は従来の無作為と既存の置き場のまま。ハーンの呼称と文化別の宿の位置は C4。
+- C4: 台帳が空の門は prior（同じ市場の都市の人口を、その門の先の端の流れとし、市場中心からの最短路が町を抜ける人口を通過とする）で埋める。台帳の年流量が prior の基準量に満たない間は blend する。重みは年流量 / (年流量 + 基準量)。基準量以上は ledger のまま。算出は `src/services/approachPrior.ts` で、descriptor の `burgApproachProfiles` と `observe/gates?prior=1` が同じ関数を使う。`approachCommerce` が on のとき、欧州は門外の宿、隊商宿の文化は荷解きを門・ハーンを中心、日本は宿と問屋場を市場通りの中央、枡形を軸の両端に置く。off と未設定は従来のまま。
 - 前提: [approach-traffic-observatory.md](approach-traffic-observatory.md)(出入り口台帳 `approachTraffic`、観測 API、CE プローブ、O4 の `approachGrowthSource`)。
 - 調査用に追加した API: `GET /api/sim/channels/:id/observe/goods`(品目カタログと貨物区分)と `observe/gates[?burg=b]`(門ごとの占有率・流入比・通過比・平均積載・貨物区分の積載枠と価値)。実装は `scripts/lib/observeViews.mts` の `goods()` / `gates()`。
 - 計測の修正(§4.1): 市場内の出荷を経路付きで記録、台帳に品目別の価値 `goodsValue`。`npm run observe -- run` は 1 年ずつ進めるようにした(大きな地図で HTTP がタイムアウトしたため)。
@@ -167,6 +175,13 @@ baseline(province 3000 cells、seed 101–103、warmup 2 年 + 10 年)の最終�
 - §4.4 になかった関門として、**商人の運転資金不足**(`ExportStaging.bookFromRetail` が商人の交易資本を確保できない)が年々増える。3 年目には高額品で成立の 6〜43 倍、全品目で 5〜7 倍の組がここで止まる。
 - province 地図(3 地図、15 年、luxury-value-demand.md §10・§14)では、市場間の高額品の運び込みは `off`・`on` とも 15 年続く。ただし市場どうしが近いため、遠距離の検証にはならない。
 - 結論: 高額品の継続的な需要(候補 (1))は luxury-value-demand.md で入ったが、遠距離交易は増えていない。遠距離交易を太くするには、商会の到達範囲(候補 (2))と、商人の運転資金(新しい関門)の見直しが要る。設計は [long-distance-merchant-reach-capital.md](long-distance-merchant-reach-capital.md)。
+
+### 4.6 お金の循環の是正の後の再計測(2026-11-01)
+
+[approach-commerce-readiness-20261101.md](../analytics/approach-commerce-readiness-20261101.md)。
+
+- 市場間の交易は3年目も続く(golden の高額品 31・57・55 件/年)。§4.5・§10 の「遠距離交易が細い」は、3年目に消える状態ではなくなった。
+- 門の台帳は小売の出荷だけを記録し、町の主食・農村の穀物・肉・干し草の流れを記録していない。門の荷は獣脂(積載枠70%)・鶏(17%)に見え、穀物は1%(§4.2 は91%)。**C0 の前に、出荷を作らない流れを門と一緒に台帳へ記録する**(記録のみ、経済の値は変えない)。
 
 ## 5. 門の性格(Approach Profile)の算出
 

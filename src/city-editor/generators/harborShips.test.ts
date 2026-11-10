@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { CityDocument, Point } from "../types/document";
+import { buildHarborPlan } from "./blockInfill";
 import { createFabricPlan } from "./fabricDistricts";
 import { polygonCentroid } from "./geom";
+import { activeCargoAssignment, polygonsOverlap } from "./harborCargo";
+import { harborWaterField } from "./harborNavigation";
 import { allowedShipTypesForPeriod, isExplorationOrLater, planHarborShips, spawnHarborShips } from "./harborShips";
 import { meshFromCells } from "./mesh";
 
@@ -102,10 +105,12 @@ describe("harborShips", () => {
 
     for (const ship of ships) {
       expect(ship.kind).toBe("ship");
+      expect(ship.shipState).toEqual({ sails: "furled", gunports: "closed" });
       expect(ship.point).toBeDefined();
       expect(ship.rotation).toBeDefined();
       expect(ship.sizeMeters).toBeGreaterThan(10);
-      expect(["large", "medium", "small"]).toContain(ship.shipType);
+      expect(["large", "medium", "small", "barge"]).toContain(ship.shipType);
+      if (ship.shipType === "barge") expect(activeCargoAssignment(ship)).toBeDefined();
       // 水面（X <= 0）に停泊していること
       expect(ship.point![0]).toBeLessThanOrEqual(0);
     }
@@ -252,7 +257,7 @@ describe("harborShips", () => {
     }
   });
 
-  it("never spawns ships when there are no piers (preventing ghost galleons on shores without docks)", () => {
+  it("allows only a validated shallow-draft cargo lighter where waiting piers cannot be built", () => {
     const doc = harborFixture("ageOfExploration");
     // fabric の piers を空にし、メッシュ岸辺からも桟橋が作られないようにする
     if (doc.fabric?.harbor) {
@@ -265,7 +270,10 @@ describe("harborShips", () => {
       }
     }
     const ships = planHarborShips(doc, "seed-no-piers");
-    expect(ships.length).toBe(0);
+    expect(ships.length).toBeGreaterThan(0);
+    expect(ships.every(s => s.shipType === "barge" && activeCargoAssignment(s))).toBe(true);
+    for (const f of Object.values(doc.mesh.faces)) if (f.properties.water === "sea") f.properties.depth = 1;
+    expect(planHarborShips(doc, "seed-too-shallow")).toEqual([]);
   });
 
   it("never spawns ships if harbor ward face is strictly inland without any sea contact", () => {
@@ -400,4 +408,43 @@ describe("imported straight coastline", () => {
     const sea = Object.values(doc.mesh.faces)[0].id;
     expect(ships.every(ship => ship.faceIds.includes(sea) && ship.point![0] < 30)).toBe(true);
   });
+});
+
+describe("cargo-quay generation", () => {
+  it("reserves a broadside berth and generates a connected ship without crossing a waiting pier", () => {
+    const document = harborFixture();
+    const harbor = buildHarborPlan(document);
+    expect(harbor.cargoQuays?.length).toBeGreaterThan(0);
+    for (const quay of harbor.cargoQuays ?? [])
+      expect(harbor.piers.some(p => polygonsOverlap(quay.reservedWater, p.polygon))).toBe(false);
+    const ships = planHarborShips(document, "cargo-test", undefined, harbor);
+    const cargo = ships.filter(s => activeCargoAssignment(s));
+    expect(cargo.length).toBeGreaterThan(0);
+    expect(cargo.some(s => s.harborOperation?.kind === "lighter-transfer")).toBe(true);
+    expect(planHarborShips(document, "cargo-test", undefined, harbor)).toEqual(ships);
+    for (const ship of cargo) {
+      const a = ship.harborOperation!;
+      expect(harbor.cargoQuays!.some(q => q.id === a.berthId && q.craneId === a.craneId)).toBe(true);
+      if (a.kind === "lighter-transfer") {
+        expect(ship.shipType).toBe("barge");
+        expect(ships.some(s => s.id === a.sourceShipId && !s.harborOperation)).toBe(true);
+      }
+    }
+  });
+});
+
+it("uses draft and structural obstacles when finding a cargo approach to open water", () => {
+  const document = harborFixture();
+  expect(harborWaterField(document, 1.2).navigable([-50, 80], 4)).toBe(true);
+  expect(harborWaterField(document, 7).navigable([-50, 80], 4)).toBe(false);
+  expect(
+    harborWaterField(document, 1.2, [
+      [
+        [-60, 60],
+        [-40, 60],
+        [-40, 100],
+        [-60, 100]
+      ]
+    ]).navigable([-50, 80], 4)
+  ).toBe(false);
 });

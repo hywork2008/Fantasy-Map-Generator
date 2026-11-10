@@ -1,10 +1,14 @@
+import { facingFromRotation, frontAxisOf } from "../../../buildings/placementContract";
+import { placementFootprint } from "../../../buildings/placementModels";
 import { editorText } from "../../../i18n/editorMessages";
 import { settleRiverGrades } from "../../generators/elevationPreset";
 import { encloseCircleWithWalls, rerouteGroupAcrossFace } from "../../generators/features";
+import { commitPlacement, isPlotPlacement } from "../../generators/freeform/commitPlacement";
 import { mergeVertices } from "../../generators/mesh";
 import type { DocumentsState, InteractionState } from "../../state/editorSession";
 import type { CityDocument, Id, Point } from "../../types/document";
 import type { RouteStroke } from "../../types/editor";
+import { placementFailureText } from "./buildingTool";
 export interface DragCompletionContext {
   interaction: InteractionState;
   map: HTMLDivElement;
@@ -38,7 +42,33 @@ export function createDragCompletionController(ctx: DragCompletionContext) {
       if (wasMoved && before) {
         // Live dragging updates the displayed document; commit against its pre-drag state.
         const next = ctx.documents.documentState;
+        const movedId = ctx.interaction.selection.inspectedId;
+        const moved = movedId ? next.elements.find(item => item.id === movedId) : undefined;
         ctx.documents.documentState = before;
+        if (moved?.kind === "object" && moved.point && moved.objectType && isPlotPlacement(before, moved.id)) {
+          const footprint = placementFootprint(moved.objectType, moved.objectQuality);
+          const result = footprint
+            ? commitPlacement(before, {
+                id: moved.id,
+                modelId: moved.objectType,
+                quality: moved.objectQuality,
+                palette: moved.objectPalette,
+                position: moved.point,
+                facingDegrees: facingFromRotation(frontAxisOf(moved.objectType), moved.rotation ?? 0),
+                footprint
+              })
+            : null;
+          if (!result?.preview.ok) {
+            ctx.showNotice(placementFailureText(result?.preview.reason));
+            ctx.refresh();
+            return;
+          }
+          ctx.commit(
+            result.document,
+            editorText(dragMode === "move" ? "cityEditor.messages.moveObject" : "cityEditor.messages.rotateObject")
+          );
+          return;
+        }
         ctx.commit(
           next,
           dragMode === "move"

@@ -1,0 +1,122 @@
+{
+  "method": "Fixed BV variant geometry. Dimensions X/Y/Z metres. Unique CPU attribute/index ArrayBuffers exclude JS objects, transient allocations and GPU memory; no FPS benchmark.",
+  "rows": [
+    {
+      "id": "cemetery.preaching_cross_calvary@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 3,
+        "triangles": 36,
+        "vertices": 24,
+        "geometries": 1,
+        "materials": 1
+      },
+      "attributeBytes": 840,
+      "dimensions": [
+        2,
+        4.4,
+        2
+      ],
+      "fingerprint": "692be8898970dcbe7559df548dba35eca203e77036629af6b5c3c42eccfe0325",
+      "sourceParts": [],
+      "parts": [
+        {
+          "id": "preaching-cross-calvary:legacy",
+          "role": "legacy-assembly",
+          "quality": "low",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 36,
+            "vertices": 108,
+            "geometries": 1,
+            "materials": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "cemetery.preaching_cross_calvary@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 3,
+        "triangles": 740,
+        "vertices": 2220,
+        "geometries": 3,
+        "materials": 3
+      },
+      "attributeBytes": 53280,
+      "dimensions": [
+        2.624000072479248,
+        4.938000202283264,
+        2.624000072479248
+      ],
+      "fingerprint": "ddd5970bc242a0ecb1a0e2ba0313f18230cc6435262e67a785d5b281e7e30dca",
+      "sourceParts": [
+        {
+          "id": "preaching-cross:stepped-base",
+          "role": "stepped-base",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 10,
+          "triangles": 248
+        },
+        {
+          "id": "preaching-cross:shaft",
+          "role": "shaft",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 4,
+          "triangles": 140
+        },
+        {
+          "id": "preaching-cross:cross-head",
+          "role": "cross-head",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 352
+        }
+      ],
+      "parts": [
+        {
+          "id": "preaching-cross:stepped-base",
+          "role": "stepped-base",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 248,
+            "vertices": 744,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "preaching-cross:shaft",
+          "role": "shaft",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 140,
+            "vertices": 420,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "preaching-cross:cross-head",
+          "role": "cross-head",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 352,
+            "vertices": 1056,
+            "geometries": 3,
+            "materials": 3
+          }
+        }
+      ]
+    }
+  ]
+}

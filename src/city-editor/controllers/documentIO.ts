@@ -29,11 +29,13 @@ import type { GenerationSample } from "../types/contracts/generationDiagnostics"
 import type { IncomingOrigin } from "../types/contracts/incomingCity";
 import type { Id } from "../types/document";
 import type { GenerationStage } from "../types/generation";
+import type { VectorCityDocument } from "../types/vector/document";
 import { formatDistance } from "../utils/editorUnits";
 import { generationStages } from "./generationStages";
 import { emptySelection } from "./tools/toolTypes";
 
 export interface DocumentIOContext {
+  openVectorDocument: (document: VectorCityDocument) => void;
   fixedApproachProvider: FixedApproachProvider;
   scope: import("../services/editorLifetime").EditorLifetime;
   showNotice: (value: string, redraw?: boolean) => void;
@@ -94,6 +96,10 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
     if (!ctx.scope.active) return;
     if (!parsed) {
       ctx.showNotice(editorText("cityEditor.messages.importFailedSelectACityEditorMFCGJSONOrSVG"));
+      return;
+    }
+    if (parsed.source === "vector-city") {
+      ctx.openVectorDocument(parsed.document);
       return;
     }
     // Lift the (possibly multi-MB) backdrop out of the edited document before it
@@ -173,6 +179,8 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
         clone(recipe.settings)
       );
       ctx.generation.generateSettings.legacyCastles = recipe.algorithm === "evolution-city-v3";
+      if (recipe.settings.approachCommerce === "on") ctx.generation.generateSettings.approachCommerce = "on";
+      else delete ctx.generation.generateSettings.approachCommerce;
       ctx.generation.completeResultSettings = JSON.stringify(ctx.generation.generateSettings);
       ctx.documents.importedOrigin = ctx.generation.generateSettings.descriptor
         ? (ctx.documents.importedOrigin ?? "link")
@@ -261,8 +269,7 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
     }
   }
 
-  // biome-ignore lint/correctness/noComponentHookFactories: This is a document action, not a React hook.
-  function useStandaloneSite(): void {
+  function applyStandaloneSite(): void {
     delete ctx.generation.generateSettings.descriptor;
     ctx.documents.importedOrigin = null;
     ctx.documents.measureTownCells = false;
@@ -378,5 +385,13 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
       : {};
   }
 
-  return { importMapFile, applyImportedMap, currentShare, copyShareLink, useStandaloneSite, applyShare, importedFrame };
+  return {
+    importMapFile,
+    applyImportedMap,
+    currentShare,
+    copyShareLink,
+    applyStandaloneSite,
+    applyShare,
+    importedFrame
+  };
 }

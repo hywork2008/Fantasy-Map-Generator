@@ -1,0 +1,119 @@
+{
+  "seed": "b5o620",
+  "population": 5000,
+  "mesh": {
+    "wallAreaM2": 120351.29525639136,
+    "frameExtentMeters": 1200,
+    "population": {
+      "targetPopulation": 5000,
+      "assignedPopulation": 5000,
+      "unplacedPopulation": 0,
+      "estimatedBuildings": 1536,
+      "wallEnvelopeAreaM2": 120351.29525639136,
+      "displayGroups": 1536,
+      "coreLandAreaM2": 120351.29525639131,
+      "outsideDevelopedAreaM2": 0,
+      "residentialFootprintM2": 50887.803378655924,
+      "frameAreaM2": 1440000,
+      "reasons": []
+    },
+    "centralElements": [
+      {
+        "kind": "plaza",
+        "point": [
+          -2.0687002860783514,
+          11.08145719837185
+        ],
+        "sizeMeters": 48
+      },
+      {
+        "kind": "temple",
+        "point": [
+          29.290367527396764,
+          -96.79356778559422
+        ],
+        "sizeMeters": 54
+      }
+    ],
+    "cemeteryAreaM2": 1319.2725628709795
+  },
+  "meshless": {
+    "previousDomainAreaM2": 131851.85185185185,
+    "wallAreaM2": 121903.22655276634,
+    "frameExtentMeters": 1200,
+    "ratioToMesh": 1.0128950111676722,
+    "siteAreaM2": 121857.33525586448,
+    "civicReservedAreaM2": 7324,
+    "waterAreaM2": 6011.163880020668,
+    "roadAreaM2": 29349.620232403788,
+    "housingFootprintAreaM2": 31881.212850412812,
+    "population": {
+      "targetPopulation": 5000,
+      "requiredDwellings": 1112,
+      "capacityDwellings": 1112,
+      "assignedDwellings": 1112,
+      "unplacedDwellings": 0,
+      "assignedPopulation": 5000,
+      "unplacedPopulation": 0,
+      "mixedDwellings": 0,
+      "capacityInside": 1112,
+      "capacityOutside": 0,
+      "requiredFacilities": 0,
+      "placedFacilities": 0,
+      "provisionalFacilities": 0,
+      "unplacedFacilities": [],
+      "housingBuildings": 890,
+      "reasons": []
+    },
+    "civicFeatures": [
+      {
+        "id": "feature:civic-plaza",
+        "kind": "market",
+        "areaM2": 2304,
+        "connector": [
+          [
+            24,
+            -32
+          ],
+          [
+            27.051000000000002,
+            -32
+          ]
+        ]
+      },
+      {
+        "id": "feature:civic-church",
+        "kind": "temple",
+        "areaM2": 2380,
+        "connector": [
+          [
+            -67.79892137587653,
+            -15
+          ],
+          [
+            -67.79892137587653,
+            -7.861440563607812
+          ]
+        ]
+      },
+      {
+        "id": "feature:civic-cemetery",
+        "kind": "cemetery",
+        "areaM2": 2640,
+        "connector": [
+          [
+            -39.82711335932616,
+            -95
+          ],
+          [
+            -39.82711335932616,
+            -108.82391882878409
+          ]
+        ]
+      }
+    ],
+    "cemeteryParts": 340
+  },
+  "savedSha256": "4f810677accecf2a2ae94ba1506981fcfdd391b332155936f69cf9b474485e74",
+  "savedBytes": 5588164
+}

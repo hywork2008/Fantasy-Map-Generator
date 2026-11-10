@@ -27,6 +27,7 @@ import { fixedDocumentGeometry, fixedDocumentLayers } from "./fixedDocumentGeome
 import { type ForestSvgOptions, renderForestLayer } from "./forestSvg";
 import { renderFortSiteGround, renderFortSiteObjects } from "./fortSiteSvg";
 import { appendFrameRoads } from "./frameRoadSvg";
+import { renderFreeformCitySvg } from "./freeform/citySvg";
 import { renderGateLayer } from "./gateLayerSvg";
 import { faceClassName, renderFaceWardLandmark } from "./landmarkSvg";
 import {
@@ -35,6 +36,7 @@ import {
   type LandscapeKeepOut,
   renderLandscapeLayer
 } from "./landscape";
+import { renderMarketAreas } from "./marketSvg";
 import { renderMoats } from "./moatSvg";
 import { appendFaceSelectionLabels, type GridOverlay, renderGridOverlay } from "./overlays/editorOverlays";
 import { renderPreviewSymbols } from "./previewSymbols";
@@ -86,6 +88,7 @@ export function renderEditorSvg(
   housingView?: HousingViewOptions,
   forestView?: ForestSvgOptions
 ): SVGSVGElement {
+  if (document.freeform) return renderFreeformCitySvg(document, tool, selection, viewBox, zoom);
   const fixedMode = document.importedFixedCrossings !== undefined;
   const fixedGeometry = fixedDocumentGeometry(document);
   const fixedLayers = fixedGeometry ? fixedDocumentLayers(fixedGeometry) : null;
@@ -363,7 +366,8 @@ export function renderEditorSvg(
 
   renderGateLayer(ctx, svg);
 
-  renderCityElements(ctx, svg, castleFaces, townPlans.aerial?.domesticWater);
+  svg.appendChild(renderMarketAreas(document));
+  renderCityElements(ctx, svg, castleFaces, townPlans.aerial?.domesticWater, townPlans.harbor);
 
   if (showSelectionLabels && selection.faceId) appendFaceSelectionLabels(svg, document, selection.faceId, zoom);
 

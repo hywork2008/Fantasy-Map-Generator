@@ -12,6 +12,7 @@ import { rulers } from "../store/editorState";
 import { generationProgressStore } from "../store/generationProgressState";
 import { useMapReadyTaskState } from "../store/mapReadyTaskState";
 import { useOptionsState } from "../store/optionsState";
+import { useTimeSimulationState } from "../store/timeSimulationState";
 import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
 import { createObjectURL, link, parseError, ra, revokeObjectURL, rn } from "../utils";
 import { ERROR } from "../utils/debug";
@@ -343,7 +344,8 @@ function prepareMapDataFromSvg(): string {
     races, // [56] pack.races (species table; optional on legacy maps)
     JSON.stringify(worldContext.pack.lavaFlows ?? []), // [57] pack.lavaFlows (optional on legacy maps)
     undergroundRealm, // [58] underground realm state (optional on legacy/non-Fantasy maps)
-    JSON.stringify(worldContext.pack.languageWorld ?? null) // [59] world languages
+    JSON.stringify(worldContext.pack.languageWorld ?? null), // [59] world languages
+    JSON.stringify(worldContext.pack.prunedRoutes ?? []) // [60] routes removed by generation (debug record)
   ].join("\r\n");
 
   return mapData;
@@ -441,6 +443,7 @@ export async function initiateAutosave(): Promise<void> {
     if (!timeoutMinutes) return;
     if (generationProgressStore.getState().isOpen) return;
     if (useMapReadyTaskState.getState().isRunning) return;
+    if (useTimeSimulationState.getState().isRunning) return;
 
     const diffInMinutes = (Date.now() - lastSavedAt) / MINUTE;
     if (diffInMinutes < timeoutMinutes) return;

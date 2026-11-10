@@ -1,20 +1,9 @@
 import type * as THREE from "three";
 import type { CityStructureMeshes } from "../city3d/three/structureMeshes";
-import type { Author } from "./authors";
 import { ModelKit } from "./medieval/modelKit";
+import type { ModelPart, ModelPartDefinition, ModelPartFactory } from "./modelPartTypes";
 
-export interface ModelPartDefinition {
-  id: string;
-  role: string;
-  quality: "low" | "medium" | "high" | "ultra" | "default";
-  author: Author;
-  basedOn?: readonly string[];
-}
-
-export interface ModelPartFactory extends ModelPartDefinition {
-  /** Return an assembly-origin group; fitted position and scale belong to its children. */
-  create(): CityStructureMeshes;
-}
+export type { ModelPart, ModelPartDefinition, ModelPartFactory, ModelPartRange } from "./modelPartTypes";
 
 /** Build only the chosen components; the returned assembly owns their resources. */
 export function createModelAssembly(name: string, factories: readonly ModelPartFactory[]): CityStructureMeshes {
@@ -31,19 +20,6 @@ export function createModelAssembly(name: string, factories: readonly ModelPartF
     kit.finish().dispose();
     throw error;
   }
-}
-
-/** JSON-safe source ledger; counts describe the unmerged part, not the CE draw batch. */
-export interface ModelPart extends ModelPartDefinition {
-  meshes: number;
-  triangles: number;
-}
-
-export interface ModelPartRange {
-  partId: string;
-  /** Vertex interval in the non-indexed CE assembly, suitable for face picking. */
-  start: number;
-  count: number;
 }
 
 export function modelParts(root: THREE.Object3D): readonly ModelPart[] {

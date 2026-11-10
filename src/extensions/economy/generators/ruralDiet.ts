@@ -14,11 +14,12 @@ export const NON_GRAIN_DIET_SHARE_MAX = 0.6;
 
 /**
  * Wet, cool lands lived on milk and meat more than on grain (docs/plan/wet-region-pastoral-economy.md
- * §2.1): dairy gave 30-50% of the food in medieval Ireland and highland Scotland (Kelly 1997, Early
- * Irish Farming; Dodgshon 1998), grain about half on Norwegian farms. Reached where the crop mix's
- * wet-side rainfall suitability falls to WET_TOLERANCE_AT_MAX.
+ * §2.1). Reached where the crop mix's wet-side rainfall suitability falls to WET_TOLERANCE_AT_MAX.
+ * Dairy gave 30-50% of the food in medieval Ireland (Kelly 1997), but only where cows outnumbered
+ * people; herds of about one cow and three sheep per person give 17-25% at historical milk yields
+ * (360-700 L a cow, part left to the calf; McCormick 2008), so the share is held there (§3.7).
  */
-export const WET_PASTORAL_DIET_SHARE_MAX = 0.5;
+export const WET_PASTORAL_DIET_SHARE_MAX = 0.25;
 /** Grain never falls below this share of a rural diet. */
 export const GRAIN_DIET_SHARE_FLOOR = 1 - NON_GRAIN_DIET_SHARE_MAX;
 
@@ -26,13 +27,15 @@ interface RuralDietCells {
   readonly subsistenceNonAgriculturalCapacity?: ArrayLike<number>;
   /** Milk-and-meat share of the diet from too much rain for grain (getWetPastoralDietShare). */
   readonly wetPastoralDietShare?: ArrayLike<number>;
+  /** The part of it the cell's herds actually supply (herdDiet.ts calculateHerdDietShare). */
+  readonly herdDietShare?: ArrayLike<number>;
 }
 
 /** Milk-and-meat share of the diet for a crop mix's wet-side rainfall suitability `p` (0..1). */
 export function getWetPastoralDietShare(p: number): number {
   if (!(p < 1)) return 0;
   return Math.min(
-    1 - GRAIN_DIET_SHARE_FLOOR,
+    WET_PASTORAL_DIET_SHARE_MAX,
     (WET_PASTORAL_DIET_SHARE_MAX * (1 - Math.max(0, p))) / (1 - WET_TOLERANCE_AT_MAX)
   );
 }
@@ -52,7 +55,7 @@ function getLivelihoodGrainDietShare(
  * Share (0.4..1) of a rural resident's food need that must be grain. The cell's fishing, herding
  * and foraging capacity, against that plus its field capacity (`ruralFoodCapacity`, both in rural
  * population points), stands for the households living by those trades. Too much rain for grain
- * lowers it too; the stronger of the two applies, so the same herding households are not counted twice.
+ * lowers it too, as far as the herds feed them; the stronger of the two applies, so the same herding households are not counted twice.
  * Maps without either column eat grain only, as before.
  */
 export function getRuralGrainDietShare(
@@ -61,7 +64,10 @@ export function getRuralGrainDietShare(
   ruralFoodCapacity: ArrayLike<number> | undefined
 ): number {
   const livelihood = getLivelihoodGrainDietShare(cells, cellId, ruralFoodCapacity);
-  const wet = Math.max(0, cells.wetPastoralDietShare?.[cellId] ?? 0);
+  const wet = Math.max(
+    0,
+    Math.min(cells.wetPastoralDietShare?.[cellId] ?? 0, cells.herdDietShare?.[cellId] ?? Number.POSITIVE_INFINITY)
+  );
   return Math.max(GRAIN_DIET_SHARE_FLOOR, Math.min(livelihood, 1 - wet));
 }
 

@@ -55,3 +55,18 @@ it("continues a saved world exactly: 17 days + save/load + 30 days equals 47 day
   const continued = await hashArchiveBytes(await advanceFrom(await advanceFrom(fixture, 17), 30));
   expect(diffWorldHashes(straight, continued)).toEqual([]);
 }, 300_000);
+
+it("settles each month inside a multi-month advance: 75 days equals 30 + 45 days", async () => {
+  const bytes = readFileSync(resolve(__dirname, "../../tests/fixtures/sim-golden.fmg"));
+  const fixture = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const advanceBy = async (steps: readonly number[]) => {
+    const host = createNodeSimulationHost();
+    await loadWorld(host, fixture);
+    for (const days of steps) await advanceWorld(host, { days });
+    const saved = await host.saveArchive();
+    host.dispose();
+    return hashArchiveBytes(saved);
+  };
+  // Two settlements fall inside the single advance; they must not wait for it to return.
+  expect(diffWorldHashes(await advanceBy([75]), await advanceBy([30, 45]))).toEqual([]);
+}, 300_000);

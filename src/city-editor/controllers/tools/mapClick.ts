@@ -3,6 +3,7 @@ import { editorText } from "../../../i18n/editorMessages";
 import { appendEdge, groupUsesEdge } from "../../generators/features";
 import { placeLandmark } from "../../generators/landmarks";
 import { canPlaceObject } from "../../generators/objectPlacement";
+import { BRUSH_SHIP_STATE } from "../../generators/shipDisplayState";
 import { parsePickInfo } from "../../renderers/pickInfo";
 import { SHIP_SPECS } from "../../renderers/shipSpecifications";
 import type { DocumentsState, InteractionState } from "../../state/editorSession";
@@ -10,7 +11,10 @@ import type { InfillLane } from "../../types/contracts/localInfill";
 import type { CityDocument, CityElement, Id, LandmarkAsset, Point } from "../../types/document";
 import type { RenderSelection } from "../../types/selection";
 import { pointInPolygon } from "../editorGeometry";
+import { aimBuilding, applyBuildingPlace, buildingModelName } from "./buildingTool";
+import { clickLedger, commitDrawnLedger, ledgerActive, ledgerRejectText } from "./ledgerTool";
 import { targetId } from "./toolTypes";
+import { clickWay, commitDrawnWay, wayRejectText } from "./wayTool";
 export interface MapClickContext {
   scope: import("../../services/editorLifetime").EditorLifetime;
   map: HTMLDivElement;
@@ -95,11 +99,57 @@ export function bindMapClick(ctx: MapClickContext) {
       );
       return;
     }
+    if (ctx.interaction.tool === "building") {
+      const pointer = event as PointerEvent;
+      aimBuilding(ctx.interaction, ctx.localPoint(pointer), pointer.ctrlKey || pointer.metaKey);
+      const placed = applyBuildingPlace(ctx.documents.documentState, ctx.interaction);
+      if (!placed) return;
+      if ("error" in placed) {
+        ctx.showNotice(placed.error);
+        return;
+      }
+      ctx.commit(
+        placed.document,
+        editorText(placed.editing ? "cityEditor.messages.updateObject" : "cityEditor.messages.placeCityEditorPage", {
+          value0: buildingModelName(ctx.interaction.buildingModelId)
+        })
+      );
+      return;
+    }
+    if (ctx.interaction.tool === "way") {
+      const point = ctx.localPoint(event as PointerEvent);
+      if (clickWay(ctx.interaction, point) === "finish") {
+        const placed = commitDrawnWay(ctx.documents.documentState, ctx.interaction);
+        if ("error" in placed) ctx.showNotice(wayRejectText(placed.preview));
+        else ctx.commit(placed.document, editorText("cityEditor.messages.wayFinish"));
+        return;
+      }
+      ctx.refresh();
+      return;
+    }
+    if (ledgerActive(ctx.documents.documentState, ctx.interaction)) {
+      const point = ctx.localPoint(event as PointerEvent);
+      if (clickLedger(ctx.interaction, point) === "finish") {
+        const placed = commitDrawnLedger(ctx.documents.documentState, ctx.interaction);
+        if ("error" in placed) ctx.showNotice(ledgerRejectText(placed.error));
+        else
+          ctx.commit(
+            placed.document,
+            editorText(
+              ctx.interaction.tool === "zone" ? "cityEditor.messages.zoneFinish" : "cityEditor.messages.freeRiverFinish"
+            )
+          );
+        return;
+      }
+      ctx.refresh();
+      return;
+    }
     if (ctx.interaction.tool === "ship") {
       const p = ctx.localPoint(event as PointerEvent);
       const newElement: CityElement = {
         id: `ship-${crypto.randomUUID()}`,
         kind: "ship",
+        shipState: { ...BRUSH_SHIP_STATE },
         shipType: ctx.interaction.shipType,
         faceIds: [],
         point: p,

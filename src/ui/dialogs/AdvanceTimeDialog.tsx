@@ -43,6 +43,21 @@ export const AdvanceTimeDialog: React.FC = () => {
    */
   const yearsPerGeneration = isOpen && historyProfile !== "off" ? yearsPerRulerGeneration(worldContext.pack) : 0;
 
+  // The dialog stays mounted across map loads, so re-read the clock restored from the loaded map.
+  useEffect(() => {
+    if (!isOpen) return;
+    const readClock = () =>
+      setSimulationClock({
+        currentYear: simulationContext.currentYear,
+        currentMonth: simulationContext.currentMonth,
+        currentDay: simulationContext.currentDay,
+        era: simulationContext.era
+      });
+    readClock();
+    document.addEventListener("fmg:world-loaded", readClock);
+    return () => document.removeEventListener("fmg:world-loaded", readClock);
+  }, [isOpen]);
+
   useEffect(() => {
     const onSimulationUpdated = (e: Event) => {
       const detail = (e as CustomEvent).detail as {

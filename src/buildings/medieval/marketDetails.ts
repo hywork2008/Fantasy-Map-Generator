@@ -38,7 +38,7 @@ function fabric(
   return k.add(name, geometry, surface);
 }
 
-function frame(k: ModelKit, pitched: boolean) {
+export function frame(k: ModelKit, pitched: boolean) {
   for (const x of [-1.85, 1.85])
     for (const z of [-1.3, 1.3]) {
       const h = pitched ? 2.55 : 2.95 - z * 0.1;
@@ -73,7 +73,7 @@ function frame(k: ModelKit, pitched: boolean) {
   if (pitched) k.beam("ridge-pole", [-2.05, 3.24, 0], [2.05, 3.24, 0], 0.1);
 }
 
-function counter(k: ModelKit) {
+export function counter(k: ModelKit) {
   for (let x = -1.7; x < 1.8; x += 0.24) k.box("counter-top-plank", [x, 0.94, 1.02], [0.23, 0.09, 0.82], "wood");
   for (const x of [-1.5, 1.5]) {
     for (const z of [0.72, 1.32]) k.box("counter-leg", [x, 0.45, z], [0.1, 0.9, 0.1]);
@@ -82,7 +82,7 @@ function counter(k: ModelKit) {
   k.beam("counter-stretcher", [-1.55, 0.3, 1.02], [1.55, 0.3, 1.02], 0.1);
 }
 
-function awning(k: ModelKit, pitched: boolean) {
+export function awning(k: ModelKit, pitched: boolean) {
   const width = 4.2,
     count = 6;
   for (let stripe = 0; stripe < count; stripe++) {

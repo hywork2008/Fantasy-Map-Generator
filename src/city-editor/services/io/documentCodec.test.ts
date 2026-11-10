@@ -110,3 +110,69 @@ it("persists the elevation tint switch and rejects invalid values", () => {
   }
   expect(parseDocument(JSON.stringify({ ...document, showElevationTint: "false" }))).toBeNull();
 });
+
+it("preserves cargo berth assignments while legacy ships need no new fields", () => {
+  const document = createDocument("cargo-berth-codec", 400);
+  const point: [number, number] = [10, 20];
+  const assignment = {
+    kind: "cargo-quay" as const,
+    shipType: "barge" as const,
+    berthId: "q",
+    craneId: "c",
+    cargoAccessId: "barge:deck-handover",
+    point,
+    rotation: 0,
+    length: 18,
+    hook: point,
+    landDrop: [28, 20] as [number, number],
+    swingAngleRad: Math.PI
+  };
+  document.elements.push({
+    id: "cargo-barge",
+    kind: "ship",
+    locked: false,
+    faceIds: [Object.keys(document.mesh.faces)[0]],
+    point,
+    rotation: 0,
+    sizeMeters: 18,
+    shipType: "barge",
+    harborOperation: assignment
+  });
+  const saved = parseDocument(serializeDocument(document))!;
+  expect(saved).not.toBeNull();
+  expect(saved.elements.find(e => e.id === "cargo-barge")?.harborOperation).toEqual(assignment);
+  delete document.elements.find(e => e.id === "cargo-barge")!.harborOperation;
+  expect(
+    parseDocument(serializeDocument(document))!.elements.find(e => e.id === "cargo-barge")?.harborOperation
+  ).toBeUndefined();
+});
+
+it("persists ship state and rejects malformed states while accepting legacy ships", () => {
+  const city = createDocument("ship-state-codec", 400);
+  city.elements.push({
+    id: "ship-state",
+    kind: "ship",
+    faceIds: [],
+    point: [0, 0],
+    locked: false,
+    shipType: "large",
+    shipState: { sails: "furled", gunports: "closed" }
+  });
+  expect(parseDocument(serializeDocument(city))!.elements.find(e => e.id === "ship-state")!.shipState).toEqual({
+    sails: "furled",
+    gunports: "closed"
+  });
+  for (const invalid of [
+    null,
+    "furled",
+    { sails: "broken", gunports: "closed" },
+    { sails: "set", gunports: "ajar" },
+    { sails: "set" }
+  ]) {
+    const copy = JSON.parse(JSON.stringify(city));
+    copy.elements.find((e: { id: string }) => e.id === "ship-state").shipState = invalid;
+    expect(parseDocument(JSON.stringify(copy))).toBeNull();
+  }
+  delete city.elements.find(e => e.id === "ship-state")!.shipState;
+  expect(parseDocument(serializeDocument(city))).not.toBeNull();
+});

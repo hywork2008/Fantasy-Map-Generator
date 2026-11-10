@@ -704,6 +704,7 @@ function addLandmarks(document: CityDocument, out: StructureMassing[]): void {
       item => item.id === instance.assetId && item.revision === instance.assetRevision
     );
     const parts = asset ? transformLandmarkPolygons(asset.footprint, instance) : instance.site;
+    if (asset?.bvModel) continue;
     addLandmarkPolygons(out, `landmark:${instance.id}`, asset?.name, parts, SACRED.test(asset?.name ?? ""));
   }
 }

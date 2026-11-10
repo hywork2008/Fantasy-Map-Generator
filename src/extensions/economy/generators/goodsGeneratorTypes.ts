@@ -2,6 +2,7 @@ import type { PerennialCropProfile } from "../../../data/perennialCrops";
 import type { StapleCropKind, StapleCropProfile, StapleSoilType } from "../../../data/stapleCrops";
 import type { BiomeTag } from "../../../types/biome";
 import type { CultureType } from "../../hostTypes";
+import type { TradeHeadingId } from "./tradeHeadings";
 
 export type WarEconomyType = "military" | "essential" | "strategic" | "luxury";
 export type TradeScale = 1 | 2 | 3 | 4 | 5;
@@ -123,7 +124,13 @@ export interface Good {
 
   // lore
   name: string;
+  /** Simulation tags. A good may carry several. Trade charts do not split a shipment across them. */
   tags: string[];
+  /**
+   * One customs-style heading for trade statistics. Absent on older saves; the catalogue name
+   * still resolves it. Does not replace `tags`.
+   */
+  tradeHeading?: TradeHeadingId;
   value: number;
   unit: string;
   /** Smallest amount a Character may buy or sell over a retail counter. Defaults by cargo type. */

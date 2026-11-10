@@ -1,0 +1,142 @@
+{
+  "method": "Fixed BV variant geometry. Dimensions X/Y/Z metres. Unique CPU attribute/index ArrayBuffers exclude JS objects, transient allocations and GPU memory; no FPS benchmark.",
+  "rows": [
+    {
+      "id": "medieval.permanent-town-gallows@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 23,
+        "triangles": 1164,
+        "vertices": 1142,
+        "geometries": 15,
+        "materials": 4
+      },
+      "attributeBytes": 42952,
+      "dimensions": [
+        5.6,
+        4.45,
+        2.710741094811849
+      ],
+      "fingerprint": "17486207b629a73fe0ace5a9d2282730e5701f9eafe40bcb44c7a8ed63cd21c6",
+      "sourceParts": [],
+      "parts": [
+        {
+          "id": "permanent-town-gallows:legacy",
+          "role": "legacy-assembly",
+          "quality": "low",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 1164,
+            "vertices": 3492,
+            "geometries": 4,
+            "materials": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": "medieval.permanent-town-gallows@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 5,
+        "triangles": 7148,
+        "vertices": 21444,
+        "geometries": 5,
+        "materials": 5
+      },
+      "attributeBytes": 514656,
+      "dimensions": [
+        5.849999904632568,
+        4.607102870941162,
+        3.884999990463257
+      ],
+      "fingerprint": "182362202c27be4f904efbc38248ae5e9655c816cf3c3e5b5071aff121e3d105",
+      "sourceParts": [
+        {
+          "id": "permanent-town-gallows:foundation",
+          "role": "foundation",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 16,
+          "triangles": 192
+        },
+        {
+          "id": "permanent-town-gallows:frame",
+          "role": "frame",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 59,
+          "triangles": 1524
+        },
+        {
+          "id": "permanent-town-gallows:rope-dressing",
+          "role": "rope-dressing",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 18,
+          "triangles": 3920
+        },
+        {
+          "id": "permanent-town-gallows:access-ladder",
+          "role": "access-ladder",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 42,
+          "triangles": 1512
+        }
+      ],
+      "parts": [
+        {
+          "id": "permanent-town-gallows:foundation",
+          "role": "foundation",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 192,
+            "vertices": 576,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "permanent-town-gallows:frame",
+          "role": "frame",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 1524,
+            "vertices": 4572,
+            "geometries": 3,
+            "materials": 3
+          }
+        },
+        {
+          "id": "permanent-town-gallows:rope-dressing",
+          "role": "rope-dressing",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 3920,
+            "vertices": 11760,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "permanent-town-gallows:access-ladder",
+          "role": "access-ladder",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 1512,
+            "vertices": 4536,
+            "geometries": 2,
+            "materials": 2
+          }
+        }
+      ]
+    }
+  ]
+}

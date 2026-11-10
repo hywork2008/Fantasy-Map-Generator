@@ -1,0 +1,70 @@
+good,lot_unit,lot_content,lot_kg,lots_per_person_year,kg_per_person_year,basis,person_months_per_lot,domain,town_buys_floor,sources
+Barrels,barrel,1 empty barrel,25,0.078,1.95,per person,1.06,woodworking,,urban ale fillings: 0.65 adults × 300 L / 200 L cask × 0.08 turnover (foodLots.ts ALE_TARGETS.urbanLitersPerAdultYear; urban-craft-staffing.md §10.5). It was 48 L
+Ropes,coil,450 kg,450,0.002,0.9,per person,3.96,woodworking,,0.002 coil/person/year; port adds strategic shipbuilding orders at runtime
+Arrows,quiver,100 kg,100,0.0011,0.1067,per person,4.95,woodworking,,peacetime 0.8 quiver/month at the 9000-person fixture; military ledger adds at runtime
+Garments,wardrobe lot,"1,000 wardrobes, 4 t",4000,0.0003,1,per person,972,textiles,,four-year wardrobe replacement ceiling shared with Linen Garments; never additive
+Cloth,wardrobe bolt,"1,000 wardrobes of cloth, 4 t",4000,0.0003,1,"floor at the 9,000-person fixture",259,textiles,,Garments+Sails recipe input
+Wool Garments,wardrobe lot,"1,000 wool wardrobes, 4 t",4000,0.0003,1,per person,972,textiles,,model: ordinary wool shares the four-year wardrobe replacement ceiling with Garments and Linen Garments
+Wool Blankets,blanket lot,"100 wool blankets, 250 kg",250,0.0005,0.125,per person,15.1875,textiles,,"model: 100 blankets of 2.5 kg; two per five-person household, eight-year replacement; separate bedding orders"
+Wool Cloth,wardrobe bolt,4 t ordinary finished wool fabric,4000,0.0003,1,"floor at the 9,000-person fixture",259,textiles,,model: same weaving labor as Cloth; Wool Garments recipe input
+Linen,bale,"200 kg, 10 bolts",200,0.003,0.6,"floor at the 9,000-person fixture",12.95,textiles,,model: Cloth weaving labor / 20 for a 200 kg bale; shared ceiling of 0.1875 wardrobes x 12 bales
+Linen Garments,wardrobe lot,"1,000 lighter linen wardrobes, 2.16 t",2160,0.0003,0.54,per person,972,textiles,,four-year wardrobe replacement ceiling shared with Garments; never additive
+Fine Wool Cloth,bale,200 kg selected finished wool fabric,200,0.0001,0.0267,"floor at the 9,000-person fixture",19.425,textiles,,"model: Cloth labor / 20 bales, with 50% extra finishing work; 0.1 bale/month per 9000 people is a provisional production ceiling"
+Fine Wool Garments,wardrobe lot,"50 fine wardrobes, 180 kg",180,0.0001,0.024,"floor at the 9,000-person fixture",72.9,textiles,,"model: Garments labor / 20 wardrobe groups, with 50% extra tailoring work; 0.1 lot/month per 9000 people ceiling"
+Sails,set,"one ship's sails, 1 t",1000,0.0001,0.0667,"floor at the 9,000-person fixture",243,textiles,,inland floor 0.05 lot/month; port uses shipbuilding orders at runtime
+Boots,pair,20 pairs,30,0.0125,0.375,per person,20.2,leather,yes,0.25 pair/person/year ÷ itemsPerUnit 20
+Leather,roll,"1 hide, 25 kg",25,0.0125,0.3125,"floor at the 9,000-person fixture",0.05,leather,,"Boots + Harnesses input / provisional: 0.05 person-month a hide, about 240 hides a tanner a year; counted on the hides slaughter gives (urban-craft-staffing.md §10.4). It was 8.64 person-months"
+Tools,set,500 kg of tools,500,0.02,10,per person,2.52,metallurgy,,0.02 set/person/year replacement
+Arms,set,500 kg of arms,500,0.0005,0.2667,"floor at the 9,000-person fixture",67.5,metallurgy,,peacetime floor; military ledger at runtime
+Harnesses,set,100 sets,1000,0.0004,0.4,"floor at the 9,000-person fixture",54,metallurgy,,mounted demand floor
+Bullets,pouch,1 t of shot,1000,0.0004,0.4,"floor at the 9,000-person fixture",54,metallurgy,,military ledger + hunting residual 0.4
+Bronze,wagon,1 t,1000,0.0027,2.6667,"floor at the 9,000-person fixture",5.4,metallurgy,,Tools/Arms bronze recipes
+Roman Concrete,pallet,1 t,1000,0.0003,0.2667,"floor at the 9,000-person fixture",49.5,masonry,,construction-op stone substitute; not house masons
+Lime,sack,50 kg,50,0.0003,0.0133,"floor at the 9,000-person fixture",40.5,masonry,,Roman Concrete input
+Ceramics,wain,465 kg,465.1163,0.15,69.7674,per person,0.672,glassware,,0.15 wain/person/year
+Glass,wain,465 kg,465.1163,0.0013,0.6202,"floor at the 9,000-person fixture",27,glassware,,luxury residual + liquor 0.25 derived
+Lab Glassware,crate,465 kg,465.1163,0.0001,0.031,"floor at the 9,000-person fixture",108,glassware,,authored floor 0.108 pt/lot; ratio misses when workshop consumption is 0
+Books,volume,200 kg,200,0.0005,0.1067,"floor at the 9,000-person fixture",33.8,printing,,luxury residual; capital ×2 applied by the caller
+Paper,ream,200 kg,200,0.0005,0.1067,"floor at the 9,000-person fixture",14.1,printing,,Books input
+Ink,barrel,120 L,132,0,0.0003,"floor at the 9,000-person fixture",2028,printing,,"Books × 0.5 L, in 120 L barrels"
+Liquor,vessel,100 L,95,0.0003,0.0316,per person,36,instruments,,"provisional instruments map; annualLotsPerPerson authored, no vessel-liter contract"
+Preserved food,wain,465 kg,465.1163,0.0111,5.168,per person,0.5,victualling,,"provisional: 10 kg of salted meat and fish a person a year in 0.9 t wains (urban-craft-staffing.md §10.2) / 0.5 person-month a wain: dressing, salting, packing at ~60 kg a day (guild-halls-and-urban-trades.md D1)"
+Candles,block,100 kg,100,0.01,1,per person,0.15,victualling,yes,provisional: 1 kg of tallow and wax candles a person a year in 100 kg blocks / 0.15 person-month a block: dipping at ~25 kg a day (guild-halls-and-urban-trades.md D1)
+Charcoal,sack,50 kg,50,0.0232,1.16,per person,0.02,(none),,"the towns' own forging: Tools 0.02 + Bronze 0.0027 + Arms 0.0005 lots a person a year, one 50 kg sack each; forge orders add at runtime / 0.6 person-day a sack: an earth kiln of ~1 t takes two colliers about a week (urban-craft-staffing.md §10.3). It was 21.5 person-months, and at that a winning step made a town's colliers 1,000 strong"
+Tar,barrel,120 L,144,0.0035,0.5,per person,0.1,(none),,"provisional: 0.5 kg a person a year for boats, carts, roofs and cordage, in 144 kg barrels; shipbuilding orders add at runtime / 0.1 person-month a barrel: tending the kiln and casking, the wood being the forester's"
+Bread,loaf,20 loaves,20,,,no per-head target (labor only),0.003,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Meat,wain,465 kg,465.1163,,,no per-head target (labor only),1.1628,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Stockfish,bundle,25 kg,25,,,no per-head target (labor only),0.01,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Smoked Cheese,wain,465 kg,465.1163,,,no per-head target (labor only),0.1,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Dried Fruits,250 kg dried-fruit lot,250 kg,250,,,no per-head target (labor only),0.4,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Raisins,250 kg raisins lot,250 kg,250,,,no per-head target (labor only),0.15,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Vinegar,barrel,120 L,121.2,,,no per-head target (labor only),0.05,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Soap,barrel,120 L,120,,,no per-head target (labor only),0.2,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Cheese,"1,000 kg cheese lot",1000 kg,1000,,,no per-head target (labor only),2,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Egg,basket,30 kg (about 500 eggs),30,,,no per-head target (labor only),0.01,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Beer,"1,000 L ale tun",1000 L,1010,,,no per-head target (labor only),0.2,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Cider,"1,000 L cider tun",1000 L,1010,,,no per-head target (labor only),0.15,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Perry,"1,000 L perry tun",1000 L,1010,,,no per-head target (labor only),0.15,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Wine,200 L cask,200 L,198,,,no per-head target (labor only),0.05,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Pomace Wine,200 L cask,200 L,200,,,no per-head target (labor only),0.03,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Oil,barrel,120 L,110.4,,,no per-head target (labor only),0.1,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Ash,sack,50 kg,50,,,no per-head target (labor only),0.02,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Potash,barrel,120 L,120,,,no per-head target (labor only),0.1,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Saltpeter,barrel,1 t,1000,,,no per-head target (labor only),3,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Brick,wain,465 kg,465.1163,,,no per-head target (labor only),0.3,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Slaked Lime,sack,50 kg,50,,,no per-head target (labor only),0.02,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Timber,beam,7.5 m³,4875,,,no per-head target (labor only),0.5,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Spinning Wheel,wheel,1 wheel,8,,,no per-head target (labor only),0.1,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Instruments,set,10 kg,10,,,no per-head target (labor only),1,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Ivory,tusk,"1 tusk, 20 kg",20,,,no per-head target (labor only),0.05,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Jewelry,piece,0.2 kg,0.2,,,no per-head target (labor only),0.5,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Artworks,piece,5 kg,5,,,no per-head target (labor only),1,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Sculptures,piece,200 kg,200,,,no per-head target (labor only),3,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Tapestries,hanging,20 kg,20,,,no per-head target (labor only),10,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Relics,relic,2 kg,2,,,no per-head target (labor only),2,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Perfume,bottle,1 L,0.9,,,no per-head target (labor only),0.2,,,craftDemandCalibration.ts UNCALIBRATED_LABOR_POINTS_PER_LOT
+Ale (Beer) - towns outside wine country,"1,000 L ale tun",1000 L,,0.195,,300 L an adult a year × adult share 0.65,,brewing,,A1 Unger 2004 ~300 L a head; A2 Bennett ~2 pints a person a day
+Ale (Beer) - countryside and wine-country towns,"1,000 L ale tun",1000 L,,0.0312,,48 L an adult a year × adult share 0.65,,brewing,,A3 Cornell 2022: ~70 L an adult a year across England 1300
+"Meat (fresh, towns)",wain,,,,25,"per townsperson, provisional (livestock-meat-sales.md §2.1)",2.5 per tonne,victualling,,"F2 3.3, F3 4.4, E1 9.5 butchers a thousand over 25-50 kg a head"
+Hides (tanning),roll,1 cattle hide,,,,one hide per slaughtered cattle head,0.05 per hide,leather,,provisional: ~240 hides a tanner a year
+Bread (bakers),,,,,,bakers = 12 a thousand × share of townsfolk the staple fed,,baking,,E1 bakers 2.7% of urban employed; F1 0.54 × shoemakers

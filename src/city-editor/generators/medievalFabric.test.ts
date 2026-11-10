@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { harborCraneFoundationFootprint } from "../../buildings/medieval/harborCraneDimensions";
 import { renderStandaloneCitySvg } from "../renderers/standaloneSvg";
 import { parseDocument } from "../services/io/documentCodec";
 import { buildShare, decodeShare, encodeShare } from "../services/io/incomingCity";
@@ -14,7 +15,7 @@ import { DocumentHistory } from "./history";
 import { FabricCache } from "./localInfill";
 import { buildMedievalFabric } from "./medievalFabric";
 import { meshFromCells } from "./mesh";
-import { intersectConvex, plotArea } from "./parcelGeometry";
+import { corridor, intersectConvex, plotArea } from "./parcelGeometry";
 import { gatePlazaDisks } from "./passages";
 
 function fixture(wards: WardKind[] = ["craftsmen", "patriciate"], harbor = false): CityDocument {
@@ -361,9 +362,20 @@ describe("medieval parcel fabric", () => {
     expect(fabric.harbor!.cranes.length).toBeGreaterThan(0);
     expect(fabric.harbor!.cargoPiles.length).toBeGreaterThan(0);
     const equipment = [
-      ...fabric.harbor!.cranes.map(c => ({ point: c.point, radius: c.radiusMeters })),
       ...fabric.harbor!.cargoPiles.map(c => ({ point: c.point, radius: Math.hypot(c.widthMeters, c.heightMeters) / 2 }))
     ];
+    // The enclosing radius is a broad-phase bound, not the installed foundation.
+    for (const crane of fabric.harbor!.cranes)
+      for (const segment of road.segments) {
+        const edge = document.mesh.edges[segment.edgeId];
+        const footprint = harborCraneFoundationFootprint(crane.point, crane.armAngleRad, 0.4);
+        const roadReserve = corridor(
+          document.mesh.vertices[edge.a].point,
+          document.mesh.vertices[edge.b].point,
+          road.style.widthMeters + 1.6
+        );
+        expect(plotArea(intersectConvex(footprint, roadReserve))).toBeLessThanOrEqual(0.01);
+      }
     for (const item of equipment)
       for (const segment of road.segments) {
         const edge = document.mesh.edges[segment.edgeId];

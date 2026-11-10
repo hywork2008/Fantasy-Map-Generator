@@ -1,0 +1,156 @@
+{
+ "slots": [
+  {
+   "good": "Tallow",
+   "cls": "bulk",
+   "share": 0.703
+  },
+  {
+   "good": "Chicken",
+   "cls": "livestock",
+   "share": 0.168
+  },
+  {
+   "good": "Fodder",
+   "cls": "other",
+   "share": 0.087
+  },
+  {
+   "good": "Wood",
+   "cls": "bulk",
+   "share": 0.022
+  },
+  {
+   "good": "Barley",
+   "cls": "grain",
+   "share": 0.006
+  },
+  {
+   "good": "Salt",
+   "cls": "bulk",
+   "share": 0.005
+  },
+  {
+   "good": "Wheat",
+   "cls": "grain",
+   "share": 0.003
+  },
+  {
+   "good": "Leather",
+   "cls": "manufactured",
+   "share": 0.002
+  },
+  {
+   "good": "Garments",
+   "cls": "manufactured",
+   "share": 0.002
+  },
+  {
+   "good": "Stone",
+   "cls": "bulk",
+   "share": 0.001
+  },
+  {
+   "good": "Wool",
+   "cls": "manufactured",
+   "share": 0
+  },
+  {
+   "good": "Camels",
+   "cls": "livestock",
+   "share": 0
+  },
+  {
+   "good": "Horses",
+   "cls": "livestock",
+   "share": 0
+  },
+  {
+   "good": "Wool Blankets",
+   "cls": "manufactured",
+   "share": 0
+  },
+  {
+   "good": "Honey",
+   "cls": "provisions",
+   "share": 0
+  }
+ ],
+ "value": [
+  {
+   "good": "Tallow",
+   "cls": "bulk",
+   "share": 0.802
+  },
+  {
+   "good": "Chicken",
+   "cls": "livestock",
+   "share": 0.144
+  },
+  {
+   "good": "Fodder",
+   "cls": "other",
+   "share": 0.03
+  },
+  {
+   "good": "Garments",
+   "cls": "manufactured",
+   "share": 0.007
+  },
+  {
+   "good": "Leather",
+   "cls": "manufactured",
+   "share": 0.003
+  },
+  {
+   "good": "Barley",
+   "cls": "grain",
+   "share": 0.003
+  },
+  {
+   "good": "Horses",
+   "cls": "livestock",
+   "share": 0.002
+  },
+  {
+   "good": "Wheat",
+   "cls": "grain",
+   "share": 0.001
+  },
+  {
+   "good": "Camels",
+   "cls": "livestock",
+   "share": 0.001
+  },
+  {
+   "good": "Wool",
+   "cls": "manufactured",
+   "share": 0.001
+  },
+  {
+   "good": "Wool Blankets",
+   "cls": "manufactured",
+   "share": 0.001
+  },
+  {
+   "good": "Salt",
+   "cls": "bulk",
+   "share": 0
+  },
+  {
+   "good": "Relics",
+   "cls": "luxury",
+   "share": 0
+  },
+  {
+   "good": "Sculptures",
+   "cls": "luxury",
+   "share": 0
+  },
+  {
+   "good": "Jewelry",
+   "cls": "luxury",
+   "share": 0
+  }
+ ]
+}

@@ -29,6 +29,7 @@ export function refreshDiplomacyEditorData(): void {
   };
   const getConflictStatus = (subjectId: number, objectId: number, relation: string): ConflictStatus => {
     if (relation !== "Enemy") return "none";
+    if (worldContext.options.conflictAutonomy === "peace") return "suspended";
     if (worldContext.options.conflictAutonomy !== "playerDirected") return "autonomous";
     return hasPlayerConflictAuthorization(subjectId, objectId) ? "player" : "suspended";
   };

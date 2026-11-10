@@ -686,3 +686,65 @@
 .alert-dialog {
   z-index: 1000;
 }
+
+/* Data Charts. The plot viewport stays a fixed height, like a virtualized
+   table body, so a burg chart cannot push the remove button off screen. */
+.fmg-charts-dialog__form,
+.fmg-chart-figure__axis,
+.fmg-chart-figure__legend,
+.fmg-chart-figure__caption {
+  flex-shrink: 0;
+}
+
+.fmg-chart-board {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  gap: 0.75rem;
+  grid-auto-rows: minmax(14rem, 1fr);
+}
+
+.fmg-chart-figure {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  margin: 0;
+}
+
+.fmg-chart-figure__view,
+.fmg-chart-figure__plot {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(22rem, 40vh);
+  overflow: auto;
+}
+
+.fmg-chart-figure__plot {
+  overflow-anchor: none;
+}
+
+.fmg-chart-figure__legend {
+  max-height: 6.5rem;
+  overflow: auto;
+}
+
+.fmg-chart-figure__spacer {
+  position: relative;
+  width: 100%;
+}
+
+.fmg-chart-figure__window {
+  position: absolute;
+  left: 0;
+  width: 100%;
+}
+
+.fmg-chart-figure svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}

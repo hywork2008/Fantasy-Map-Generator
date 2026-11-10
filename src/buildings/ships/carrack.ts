@@ -1,5 +1,8 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { ModelKit } from "../medieval/modelKit";
+import { meshProjection } from "../meshProjection";
+import { addSailBundle, type SailingShipState } from "./sailingAssembly";
 
 /** An illustrative merchant carrack, not a reconstruction of a specific vessel. */
 export const CARRACK = {
@@ -14,7 +17,7 @@ export const CARRACK = {
 } as const;
 
 // Bow faces +X; waterline is Y=0. Each station gives X, half beam and deck height.
-const STATIONS = [
+export const CARRACK_STATIONS = [
   [-18, 0.35, 7.4],
   [-16, 3.8, 6.6],
   [-12, 5.4, 5.7],
@@ -68,7 +71,9 @@ export interface CarrackMeshes extends CityStructureMeshes {
   elevation: string;
 }
 
-export function createCarrack(): CarrackMeshes {
+export function createCarrack({ sails = "set" }: SailingShipState = {}): CarrackMeshes {
+  const furled = sails === "furled";
+  const bundles = new ModelKit("carrack-furled-canvas");
   const group = new THREE.Group();
   group.name = "carrack";
   const pickables: THREE.Mesh[] = [];
@@ -118,7 +123,7 @@ export function createCarrack(): CarrackMeshes {
   function line(a: THREE.Vector3, b: THREE.Vector3) {
     ropes.push(...a.toArray(), ...b.toArray());
   }
-  const rings = STATIONS.map(([x, beam, sheer]) => [
+  const rings = CARRACK_STATIONS.map(([x, beam, sheer]) => [
     [x, sheer, -beam * 0.82],
     [x, 1.3, -beam],
     [x, -1.6, -beam * 0.78],
@@ -146,14 +151,14 @@ export function createCarrack(): CarrackMeshes {
   surface("stem", rings.at(-1)!.flat(), [0, 7, 1, 1, 7, 6, 1, 6, 2, 2, 6, 5, 2, 5, 3, 3, 5, 4], wood);
   surface(
     "main-deck",
-    STATIONS.flatMap(([x, b, y]) => [x, y, -b * 0.82, x, y, b * 0.82]),
+    CARRACK_STATIONS.flatMap(([x, b, y]) => [x, y, -b * 0.82, x, y, b * 0.82]),
     deckIndices,
     deck
   );
   for (const side of [-1, 1]) {
-    for (let i = 0; i < STATIONS.length - 1; i++) {
-      const [x, b, y] = STATIONS[i],
-        [nx, nb, ny] = STATIONS[i + 1];
+    for (let i = 0; i < CARRACK_STATIONS.length - 1; i++) {
+      const [x, b, y] = CARRACK_STATIONS[i],
+        [nx, nb, ny] = CARRACK_STATIONS[i + 1];
       spar("bulwark", v(x, y + 0.3, side * b * 0.82), v(nx, ny + 0.3, side * nb * 0.82), 0.22, red);
       for (const offset of [1, 2.5, 4]) {
         // Interpolate along the topside slope so the wales sit on the hull.
@@ -162,7 +167,7 @@ export function createCarrack(): CarrackMeshes {
         spar("hull-wale", v(x, y - offset, side * z), v(nx, ny - offset, side * nz), 0.12, trim);
       }
     }
-    for (const [x, b, y] of STATIONS.slice(1, -1)) {
+    for (const [x, b, y] of CARRACK_STATIONS.slice(1, -1)) {
       spar("vertical-fender", v(x, 1.4, side * b), v(x, y, side * b * 0.82), 0.13, trim);
     }
   }
@@ -215,31 +220,41 @@ export function createCarrack(): CarrackMeshes {
     }
     for (const s of mast.sails) {
       spar("yard", v(mast.x, s.y, -s.width / 2 - 0.5), v(mast.x, s.y, s.width / 2 + 0.5), 0.14);
-      const points: number[] = [],
-        indices: number[] = [];
-      const cols = 12,
-        rows = 8;
-      for (let row = 0; row <= rows; row++) {
-        const t = row / rows;
-        for (let col = 0; col <= cols; col++) {
-          const u = col / cols;
-          points.push(
-            mast.x + 2 * Math.sin(Math.PI * u) * Math.sin(Math.PI * t),
-            s.y - s.drop * t + 0.6 * Math.sin(Math.PI * u) * t,
-            (u - 0.5) * s.width * (1 - 0.1 * t)
-          );
+      if (!furled) {
+        const points: number[] = [],
+          indices: number[] = [];
+        const cols = 12,
+          rows = 8;
+        for (let row = 0; row <= rows; row++) {
+          const t = row / rows;
+          for (let col = 0; col <= cols; col++) {
+            const u = col / cols;
+            points.push(
+              mast.x + 2 * Math.sin(Math.PI * u) * Math.sin(Math.PI * t),
+              s.y - s.drop * t + 0.6 * Math.sin(Math.PI * u) * t,
+              (u - 0.5) * s.width * (1 - 0.1 * t)
+            );
+          }
         }
-      }
-      for (let r = 0; r < rows; r++)
-        for (let c = 0; c < cols; c++) {
-          const a = r * (cols + 1) + c;
-          indices.push(a, a + cols + 1, a + 1, a + 1, a + cols + 1, a + cols + 2);
+        for (let r = 0; r < rows; r++)
+          for (let c = 0; c < cols; c++) {
+            const a = r * (cols + 1) + c;
+            indices.push(a, a + cols + 1, a + 1, a + 1, a + cols + 1, a + cols + 2);
+          }
+        surface("square-sail", points, indices, sail);
+        for (const side of [-1, 1]) {
+          line(v(mast.x, s.y, (side * s.width) / 2), v(mast.x, s.y - s.drop, side * s.width * 0.45));
+          line(v(mast.x, s.y - s.drop, side * s.width * 0.45), v(mast.x - 2, 7, side * 4));
         }
-      surface("square-sail", points, indices, sail);
-      for (const side of [-1, 1]) {
-        line(v(mast.x, s.y, (side * s.width) / 2), v(mast.x, s.y - s.drop, side * s.width * 0.45));
-        line(v(mast.x, s.y - s.drop, side * s.width * 0.45), v(mast.x - 2, 7, side * 4));
-      }
+      } else
+        addSailBundle(
+          bundles,
+          "furled-square",
+          [mast.x, s.y + 0.18, -s.width / 2],
+          [mast.x, s.y + 0.18, s.width / 2],
+          0.25,
+          false
+        );
     }
     surface(
       "pennant",
@@ -265,7 +280,13 @@ export function createCarrack(): CarrackMeshes {
     );
   }
   spar("lateen-yard", v(-18, 14), v(-8, 25), 0.13);
-  surface("lateen-sail", [-18, 14, 0, -8, 25, 0, -7, 12.5, 0, -11, 17, 1.2], [0, 1, 3, 1, 2, 3, 2, 0, 3], sail);
+  if (!furled)
+    surface("lateen-sail", [-18, 14, 0, -8, 25, 0, -7, 12.5, 0, -11, 17, 1.2], [0, 1, 3, 1, 2, 3, 2, 0, 3], sail);
+  else addSailBundle(bundles, "furled-lateen", [-17.7, 14.45, 0], [-8.3, 24.79, 0], 0.28, false);
+  if (furled) {
+    group.add(bundles.group);
+    pickables.push(...bundles.pickables);
+  }
   line(v(24, 14), v(10, 26.8));
   line(v(18, 8), v(10, 26.8));
   line(v(10, 26.8), v(-2, 32.8));
@@ -276,27 +297,29 @@ export function createCarrack(): CarrackMeshes {
   const lines = new THREE.LineSegments(rigging, rope);
   lines.name = "standing-rigging";
   group.add(lines);
-  return {
+  const model = {
     group,
     pickables,
     plan: carrackPlan(),
     elevation: carrackElevation(),
     dispose() {
+      bundles.finish().dispose();
       for (const geometry of geometries) geometry.dispose();
       for (const material of materials) material.dispose();
     }
   };
+  return furled ? { ...model, plan: meshProjection(model, "top"), elevation: meshProjection(model, "side") } : model;
 }
 
 function carrackPlan(): string {
   const outline = [
-    ...STATIONS.map(([x, b]) => `${x},${-b * 0.82}`),
-    ...[...STATIONS].reverse().map(([x, b]) => `${x},${b * 0.82}`)
+    ...CARRACK_STATIONS.map(([x, b]) => `${x},${-b * 0.82}`),
+    ...[...CARRACK_STATIONS].reverse().map(([x, b]) => `${x},${b * 0.82}`)
   ].join(" ");
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-21 -11 47 22"><g stroke="#604530" stroke-width="0.16"><polygon points="${outline}" fill="#c09a63"/>${CASTLES.map(c => `<rect x="${c.x - c.width / 2}" y="${-c.depth / 2}" width="${c.width}" height="${c.depth}" fill="#d1b075"/>`).join("")}<rect x="-0.05" y="-1.65" width="4.5" height="3.3" fill="#74482d"/><path d="M12,0 H24" stroke-width="0.45"/>${MASTS.map(m => `<circle cx="${m.x}" r="0.5" fill="#74482d"/>${m.sails.map(s => `<path d="M${m.x},${-s.width / 2} V${s.width / 2}" stroke-width="0.3"/>`).join("")}`).join("")}</g></svg>`;
 }
 
 function carrackElevation(): string {
-  const sheer = STATIONS.map(([x, , y]) => `${x},${-y}`).join(" L");
+  const sheer = CARRACK_STATIONS.map(([x, , y]) => `${x},${-y}`).join(" L");
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-21 -35 47 40"><g stroke="#604530" stroke-width="0.2"><path d="M${sheer} L14,0 L9,2 L2,3.5 L-6,3.5 L-12,2 L-18,0 Z" fill="#74482d"/>${CASTLES.map(c => `<rect x="${c.x - c.width / 2}" y="${-c.base - c.height}" width="${c.width}" height="${c.height}" fill="#80392d"/>`).join("")}<path d="M12,-7.5 L24,-14 L10,-26.8 L-2,-32.8 L-12.5,-23.8" fill="none"/>${MASTS.map(m => `<path d="M${m.x},-5.1 V${-m.top}" stroke-width="0.4"/>${m.sails.map(s => `<path d="M${m.x},${-s.y} Q${m.x + 4},${-s.y + s.drop / 2} ${m.x},${-s.y + s.drop}" fill="none" stroke="#d1b075" stroke-width="0.8"/>`).join("")}`).join("")}<path d="M-18,-14 L-8,-25 L-7,-12.5 Z" fill="#f1e4c5"/><path d="M-18.5,-3 V3" stroke-width="0.8"/></g><path d="M-20,0 H25" stroke="#8faeb4" stroke-width="0.15" stroke-dasharray="1 1"/></svg>`;
 }

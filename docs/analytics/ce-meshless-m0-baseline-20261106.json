@@ -1,0 +1,830 @@
+{
+  "format": "ce-meshless-m0-observation",
+  "version": 1,
+  "measuredAtUtc": "2026-11-06T08:29:56.714Z",
+  "environment": {
+    "node": "v22.23.1",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "cpu": "Apple M4"
+  },
+  "scope": "Bounded existing-kernel and analytic-reference lab; no meshless generator, browser frame or full-city performance claim",
+  "precision": {
+    "positionMeters": 0.005,
+    "connectionMeters": 0.000001,
+    "tangentDegrees": 0.1,
+    "areaRelative": 0.00001,
+    "curveSamples": [
+      16,
+      64,
+      256,
+      1024
+    ],
+    "referenceSamples": 2048
+  },
+  "checks": [
+    {
+      "id": "feature-inventory-source-references",
+      "status": "measured",
+      "measured": {
+        "features": 16,
+        "sourceFiles": 52
+      }
+    },
+    {
+      "id": "wall-preset-area-reference",
+      "status": "measured",
+      "measured": [
+        {
+          "ratio": 1,
+          "semiAxesMeters": [
+            100,
+            100
+          ],
+          "relativeAreaError": 0.000006274913674442217
+        },
+        {
+          "ratio": 2,
+          "semiAxesMeters": [
+            141.4213562373095,
+            70.71067811865476
+          ],
+          "relativeAreaError": 0.000006274913674886307
+        },
+        {
+          "ratio": 0.5,
+          "semiAxesMeters": [
+            70.71067811865476,
+            141.4213562373095
+          ],
+          "relativeAreaError": 0.000006274913674775284
+        }
+      ]
+    },
+    {
+      "id": "wall-preset-editing-widths-and-undo",
+      "status": "prepared-not-implemented",
+      "requiredPhase": "M2"
+    },
+    {
+      "id": "curve-sampling-and-simplification",
+      "status": "measured",
+      "measured": {
+        "curveRows": [
+          {
+            "segments": 16,
+            "maxPositionMeters": 0.2924682011994985,
+            "maxTangentDegrees": 6.0064082728311945
+          },
+          {
+            "segments": 64,
+            "maxPositionMeters": 0.018308531857566843,
+            "maxTangentDegrees": 1.4949745432612078
+          },
+          {
+            "segments": 256,
+            "maxPositionMeters": 0.0011444013453512922,
+            "maxTangentDegrees": 0.3732006180578164
+          },
+          {
+            "segments": 1024,
+            "maxPositionMeters": 0.00007152554316915015,
+            "maxTangentDegrees": 0.09326615586350644
+          }
+        ],
+        "simplifiedPoints": 3,
+        "simplifyError": 0.003
+      }
+    },
+    {
+      "id": "curve-anchors-and-certified-adaptive-error-bound",
+      "status": "prepared-not-implemented",
+      "requiredPhase": "M1-M2"
+    },
+    {
+      "id": "double-wall-gap-width-reference",
+      "status": "measured",
+      "measured": [
+        5,
+        3
+      ]
+    },
+    {
+      "id": "double-wall-routing-and-shared-gate-nodes",
+      "status": "prepared-not-implemented",
+      "requiredPhase": "M3"
+    },
+    {
+      "id": "variable-width-reference",
+      "status": "measured",
+      "measured": {
+        "bridgeLengthsMeters": [
+          24,
+          44
+        ],
+        "buildingConflictsAfterWidening": true
+      }
+    },
+    {
+      "id": "river-width-transaction-and-preserved-locked-building",
+      "status": "prepared-not-implemented",
+      "requiredPhase": "M6"
+    },
+    {
+      "id": "bridge-policy-absolute-override",
+      "status": "known-gap",
+      "measured": {
+        "policyRows": [
+          {
+            "period": "highMedieval",
+            "structure": "stone",
+            "expected": 15,
+            "actual": 15
+          },
+          {
+            "period": "highMedieval",
+            "structure": "timber",
+            "expected": 20,
+            "actual": 20
+          },
+          {
+            "period": "ageOfExploration",
+            "structure": "stone",
+            "expected": 25,
+            "actual": 25
+          },
+          {
+            "period": "preIndustrialEra",
+            "structure": "stone",
+            "expected": 30,
+            "actual": 30
+          }
+        ],
+        "angleRows": [
+          {
+            "requested": 0,
+            "measured": 0,
+            "permittedMedievalStone": true
+          },
+          {
+            "requested": 10,
+            "measured": 10.000000000000002,
+            "permittedMedievalStone": true
+          },
+          {
+            "requested": 15,
+            "measured": 15.000000000000002,
+            "permittedMedievalStone": true
+          },
+          {
+            "requested": 15.00001,
+            "measured": 15.000010000000001,
+            "permittedMedievalStone": false
+          },
+          {
+            "requested": 20,
+            "measured": 20,
+            "permittedMedievalStone": false
+          },
+          {
+            "requested": 25,
+            "measured": 25.000000000000007,
+            "permittedMedievalStone": false
+          },
+          {
+            "requested": 30,
+            "measured": 29.999999999999996,
+            "permittedMedievalStone": false
+          },
+          {
+            "requested": 45,
+            "measured": 44.99999999999999,
+            "permittedMedievalStone": false
+          },
+          {
+            "requested": 89,
+            "measured": 89.0000000000001,
+            "permittedMedievalStone": false
+          },
+          {
+            "requested": 90,
+            "measured": 90,
+            "permittedMedievalStone": false
+          }
+        ],
+        "overrides": [
+          {
+            "inputDegrees": 0,
+            "actualDegrees": 0,
+            "exceedsAbsoluteMaximum": false
+          },
+          {
+            "inputDegrees": 15,
+            "actualDegrees": 15,
+            "exceedsAbsoluteMaximum": false
+          },
+          {
+            "inputDegrees": 30,
+            "actualDegrees": 30,
+            "exceedsAbsoluteMaximum": false
+          },
+          {
+            "inputDegrees": 45,
+            "actualDegrees": 45,
+            "exceedsAbsoluteMaximum": true
+          },
+          {
+            "inputDegrees": 89,
+            "actualDegrees": 89,
+            "exceedsAbsoluteMaximum": true
+          },
+          {
+            "inputDegrees": 120,
+            "actualDegrees": 89,
+            "exceedsAbsoluteMaximum": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "bridge-zero-axis-rejection",
+      "status": "measured",
+      "measured": {
+        "skewDegrees": 90,
+        "permitted": false
+      }
+    },
+    {
+      "id": "riverside-tannery-distance-reference",
+      "status": "measured",
+      "measured": {
+        "bankToRoadEdgeMeters": 14,
+        "entranceAccessMeters": 2,
+        "siteArea": 120,
+        "siteToBankMeters": 2
+      }
+    },
+    {
+      "id": "riverside-tannery-placement-and-access",
+      "status": "prepared-not-implemented",
+      "requiredPhase": "M5"
+    },
+    {
+      "id": "fmg-fixed-input",
+      "status": "measured",
+      "measured": {
+        "path": "src/city-editor/data/fixtures/gothengsfeld-20261012.json",
+        "bytes": 84500,
+        "sha256": "c69f6c64cfc20217107fd740899191284cefbae36771b0c420fabb95656c5e8c",
+        "crossings": 1,
+        "fixedPayloadSha256": "5ba2c0ba664b6d064ad38ef20fe2d15f2712a34887f9f62023273dddb798db34"
+      }
+    },
+    {
+      "id": "fmg-fixed-crossing-vector-import",
+      "status": "prepared-not-implemented",
+      "requiredPhase": "M4"
+    },
+    {
+      "id": "small-residual-default-area",
+      "status": "known-gap",
+      "measured": {
+        "defaultThinArea": 0,
+        "explicitThinArea": 0.5000000000000036
+      }
+    },
+    {
+      "id": "hole-and-disconnected-components",
+      "status": "measured",
+      "measured": {
+        "convexPieces": 4,
+        "triangles": 8,
+        "remainingArea": 300,
+        "splitComponents": 2,
+        "upperArea": 16
+      }
+    },
+    {
+      "id": "general-multipolygon-boolean-and-open-road-domain",
+      "status": "prepared-not-implemented",
+      "requiredPhase": "M4"
+    },
+    {
+      "id": "collinear-overlap-classification",
+      "status": "known-gap",
+      "measured": null
+    },
+    {
+      "id": "facility-stage-playback",
+      "status": "prepared-not-implemented",
+      "requiredPhase": "M5"
+    },
+    {
+      "id": "edit-undo-stale-job",
+      "status": "prepared-not-implemented",
+      "requiredPhase": "M6"
+    },
+    {
+      "id": "document-formats",
+      "status": "prepared-not-implemented",
+      "requiredPhase": "M1"
+    },
+    {
+      "id": "spatial-index-candidates",
+      "status": "measured",
+      "measured": {
+        "records": 400,
+        "exactHits": 9,
+        "rbushCandidates": 9,
+        "bucketCandidates": 16
+      }
+    }
+  ],
+  "timings": [
+    {
+      "name": "cubic-uniform-1024-lab",
+      "medianMs": 0.10839584999999943,
+      "p95Ms": 0.11931665000000038,
+      "samples": 21,
+      "iterations": 20
+    },
+    {
+      "name": "current-freehand-simplification",
+      "medianMs": 0.0012354500000000713,
+      "p95Ms": 0.0019833500000004277,
+      "samples": 21,
+      "iterations": 20
+    },
+    {
+      "name": "current-convex-hole-difference",
+      "medianMs": 0.004212499999999864,
+      "p95Ms": 0.009535400000000038,
+      "samples": 21,
+      "iterations": 20
+    },
+    {
+      "name": "three-hole-triangulation",
+      "medianMs": 0.005985400000000141,
+      "p95Ms": 0.008212500000000489,
+      "samples": 21,
+      "iterations": 20
+    },
+    {
+      "name": "current-disconnected-half-plane",
+      "medianMs": 0.0075645499999993145,
+      "p95Ms": 0.01214585000000028,
+      "samples": 21,
+      "iterations": 20
+    },
+    {
+      "name": "rbush-load-query-400",
+      "medianMs": 0.03279585000000083,
+      "p95Ms": 0.041418749999999706,
+      "samples": 21,
+      "iterations": 20
+    },
+    {
+      "name": "buckets-build-query-400",
+      "medianMs": 0.03557710000000043,
+      "p95Ms": 0.06218335000000082,
+      "samples": 21,
+      "iterations": 20
+    }
+  ],
+  "bundles": [
+    {
+      "name": "existingConvex",
+      "minifiedBytes": 1125,
+      "gzipBytes": 582
+    },
+    {
+      "name": "existingBuckets",
+      "minifiedBytes": 470,
+      "gzipBytes": 272
+    },
+    {
+      "name": "rbush",
+      "minifiedBytes": 5744,
+      "gzipBytes": 2213
+    },
+    {
+      "name": "threeTriangulation",
+      "minifiedBytes": 248672,
+      "gzipBytes": 57806
+    }
+  ],
+  "inputs": [
+    {
+      "path": "docs/plan/data/ce-meshless-m0-cases.json",
+      "bytes": 7413,
+      "sha256": "8fbdb710e862dd9856a8a3ab6034ac0a8313433cfbe55e846ab624698f5c9377"
+    },
+    {
+      "path": "docs/plan/data/ce-meshless-m0-inventory.json",
+      "bytes": 13820,
+      "sha256": "f15175f0f1b50fb8f609023732531068ae62bd551265d9a337d00e03892cb8f5"
+    },
+    {
+      "path": "src/city-editor/data/fixtures/gothengsfeld-20261012.json",
+      "bytes": 84500,
+      "sha256": "c69f6c64cfc20217107fd740899191284cefbae36771b0c420fabb95656c5e8c"
+    },
+    {
+      "path": "scripts/city-editor/meshless/m0Baseline.ts",
+      "bytes": 18502,
+      "sha256": "6715234b9df0c2680d1f63a03b738e97af7c3d8b6c5e7867ee70a289fdca6a92"
+    },
+    {
+      "path": "src/utils/bridgeSkewPolicy.ts",
+      "bytes": 4888,
+      "sha256": "ec761631403a64628b6b56926882b4f22b9f2b955057a5c2fe28985c3371cea2"
+    },
+    {
+      "path": "src/city-editor/generators/geom.ts",
+      "bytes": 23985,
+      "sha256": "d3388aeb0ad8696d134f899a97fd986d2b4740a03c863c23f86a84ba9dfa0e4f"
+    },
+    {
+      "path": "src/city-editor/generators/lotGeometry.ts",
+      "bytes": 6811,
+      "sha256": "c2a76c83988eab526d69677fd90b5f40ff586e464f699ba006a2c84d2e858102"
+    },
+    {
+      "path": "src/city-editor/generators/parcelGeometry.ts",
+      "bytes": 3469,
+      "sha256": "23a612be19e33e107fa821490b716cfea9aff8c781d6e1665ad3b312fa7e61ef"
+    },
+    {
+      "path": "src/city-editor/generators/streetBlockGeometry.ts",
+      "bytes": 4837,
+      "sha256": "e8778f69d4031b3da38fb561d0a24cda7fb35d4a3dce5cec11821cc090e9a4ff"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 593535,
+      "sha256": "58694cc871fe31493c3b6b69c4379f5a4260d9f2d15f8a0982683b176a380836"
+    },
+    {
+      "path": "src/city-editor/components/CityEditorPage.ts",
+      "bytes": 129129,
+      "sha256": "4072b1b36a88ab7be3b3a8c31129dacea61e25093bc1076d5daa1b1d322633bc"
+    },
+    {
+      "path": "src/city-editor/services/io/shareRequest.ts",
+      "bytes": 2456,
+      "sha256": "4ca12ee62e1ee363cb47b032a0030d59ac02732abe6ff4899ecefe5895ddea50"
+    },
+    {
+      "path": "src/city-editor/controllers/generation.ts",
+      "bytes": 45749,
+      "sha256": "7699af80561edc7c992e159ed95509e727096b6abe9595aa8b55dcc4af2d9711"
+    },
+    {
+      "path": "src/city-editor/services/generationWorker.ts",
+      "bytes": 1625,
+      "sha256": "ef2a31c5cb068d7f3ebc0f7d1441d3e7810601ff254f85127ebb843bd35ee62c"
+    },
+    {
+      "path": "src/city-editor/generators/generation/skeleton/toPlan.ts",
+      "bytes": 10180,
+      "sha256": "b59ba205fc5a1ecbb7e5ab1b3f67cd70ef8a805a738479d01783ee60d6fad07d"
+    },
+    {
+      "path": "src/city-editor/controllers/tools/routes.ts",
+      "bytes": 14875,
+      "sha256": "fdc32cb5c223df5402a32ba5a728248ed6163c28255969672efa18c5d18f9854"
+    },
+    {
+      "path": "src/city-editor/controllers/tools/ledgerTool.ts",
+      "bytes": 4496,
+      "sha256": "8725433c26f9f7f26ac601766f6ca3bdc9a63d216cff63b5aa624412377d731f"
+    },
+    {
+      "path": "src/city-editor/controllers/tools/wayTool.ts",
+      "bytes": 5906,
+      "sha256": "4204c8e1d772693cd7deb5b545f2293a67cf15631a6a4847efb34fe119339058"
+    },
+    {
+      "path": "src/city-editor/generators/generation/skeleton/wallShapes.ts",
+      "bytes": 12698,
+      "sha256": "7ec4a7b8c2dc46fb1a1b8c88bb86ea90e67163e63ef167fb4ecaf248333195f0"
+    },
+    {
+      "path": "src/city-editor/generators/generation/assembly/skeleton.ts",
+      "bytes": 6851,
+      "sha256": "881d40434ff2ab17d79562cce215f17c35be6898ce6698f1695fabb11a3d7686"
+    },
+    {
+      "path": "src/city-editor/generators/innerTownWall.ts",
+      "bytes": 61406,
+      "sha256": "a93ebc32135a17de12cc3ff6f8cf3d88a8e69c88fb47bf36ec9f269ebd8cfbca"
+    },
+    {
+      "path": "src/city-editor/generators/bridgeDeck.ts",
+      "bytes": 13655,
+      "sha256": "30639cdc6a55d83a4eddc7d99fe9dc5c933dc9715b3c380e35b76a88fb9012f5"
+    },
+    {
+      "path": "src/city-editor/generators/freeform/validateWay.ts",
+      "bytes": 6334,
+      "sha256": "a7156e5f760d0040e70119a76e22a4e83bab92624167bc2f928178c42a6746da"
+    },
+    {
+      "path": "src/city-editor/controllers/tools/brushes.ts",
+      "bytes": 16083,
+      "sha256": "b5fab5d7c6c1ca8021206fcd1aa947a909adb1123e96c42053314ada29a8dc3d"
+    },
+    {
+      "path": "src/city-editor/generators/fabricDistricts.ts",
+      "bytes": 14318,
+      "sha256": "c9965216c61b441667dfad9f24d72d0a6d95268f04fcb42c5e83d9532d72bd50"
+    },
+    {
+      "path": "src/city-editor/generators/localInfill.ts",
+      "bytes": 27067,
+      "sha256": "79c47f800609208893d76f09a3284923e95b52a879346fe470a484d61b259d91"
+    },
+    {
+      "path": "src/city-editor/generators/organicBlocks.ts",
+      "bytes": 25873,
+      "sha256": "470255494846e49a2c5f434a7c09ce4ab6585914f7b45bb2b79d22436c2d9039"
+    },
+    {
+      "path": "src/city-editor/generators/populationFacilities.ts",
+      "bytes": 9575,
+      "sha256": "23e9abaeec068d8677eb06b00ee8966a5db34f46b509e0fd914e992a18e39d0b"
+    },
+    {
+      "path": "src/city-editor/generators/allocateBVFacilities.ts",
+      "bytes": 19351,
+      "sha256": "4e345a8d298af55b673f20763068527a6493e375ab88f49183e967b26f5981ef"
+    },
+    {
+      "path": "src/city-editor/generators/populationHousingFit.ts",
+      "bytes": 2399,
+      "sha256": "081e97f974419ccc51e7151e4041cfa4a6f0262f6b1dba8ef5ef3eb9307b8119"
+    },
+    {
+      "path": "src/city-editor/generators/residentialCapacity.ts",
+      "bytes": 5191,
+      "sha256": "0e38afdb2f979b7d68f90dba772378a926539ef526e7824522873df648c932a1"
+    },
+    {
+      "path": "src/city-editor/generators/castleLayout.ts",
+      "bytes": 7438,
+      "sha256": "a301d96fa1dc1ad067df35e71e4ad5fa1fa2670d83e4b07e6aadad2df30881a8"
+    },
+    {
+      "path": "src/city-editor/generators/moats.ts",
+      "bytes": 7627,
+      "sha256": "3ec4a4945a68218d9bbcfa8f1e7e6e0e340f2673b083e3f3a84d33c2a92ff95c"
+    },
+    {
+      "path": "src/city-editor/generators/bastionedTown/plan.ts",
+      "bytes": 40634,
+      "sha256": "2be0c4270de512a4192c40a6faee579b523e0906af5a6b329dcd09e361f9da8d"
+    },
+    {
+      "path": "src/city-editor/generators/harborFabric.ts",
+      "bytes": 35204,
+      "sha256": "e71552dc76cced066e5e8dd2f9149e89d23cb6652b7991dbe02b2ddbd609fde2"
+    },
+    {
+      "path": "src/city-editor/generators/marketPlacement.ts",
+      "bytes": 17931,
+      "sha256": "a02e956db4a87c107632f216791100a62fd45d908af3537e1c6584789b89ce86"
+    },
+    {
+      "path": "src/city-editor/renderers/cityElementsSvg.ts",
+      "bytes": 10870,
+      "sha256": "6422c96ba69e4824edaaefc8a21c3fa9198faf25eb3c1abe764405bdec76fe5f"
+    },
+    {
+      "path": "src/city-editor/generators/cemeteryLayout.ts",
+      "bytes": 26802,
+      "sha256": "ff32704acf0b698d3a6cb32a60b919af066d5f2ac63af253c9ec389dd893d323"
+    },
+    {
+      "path": "src/city-editor/generators/aerialLandmarks.ts",
+      "bytes": 54886,
+      "sha256": "054a3b58c2e2b730cbfbbcba642055c3949a10d5a3521a9ed1523ea78c970fde"
+    },
+    {
+      "path": "src/city-editor/generators/ruralFieldStage.ts",
+      "bytes": 2226,
+      "sha256": "19468ac0e205b5bfbad5a2919f20df470e06e551117ed2bbe87458084bf62625"
+    },
+    {
+      "path": "src/city-editor/generators/forestPlan.ts",
+      "bytes": 9593,
+      "sha256": "739b9ba9cf0a2b9daf848a64c0d3abe182a1cef4b615664591f32584074863a9"
+    },
+    {
+      "path": "src/city-editor/generators/freeform/freeformCity.ts",
+      "bytes": 21951,
+      "sha256": "33cd0ff429250c0d02f3cc949992952620bcbfa8ef699a03cdb04e166c65992d"
+    },
+    {
+      "path": "src/city-editor/generators/freeform/commitPlacement.ts",
+      "bytes": 11979,
+      "sha256": "08621b457a0851cb7769e2b5f06cc5c0d96b32ebc9e831e87cc63884e837ee88"
+    },
+    {
+      "path": "src/city-editor/generators/terrainField/build.ts",
+      "bytes": 4087,
+      "sha256": "a59a3ce9f2f64c5623bd6fbbac40492f3959466ed29bed53ddb2355697eb6fa1"
+    },
+    {
+      "path": "src/city-editor/renderers/editorSvg.ts",
+      "bytes": 18493,
+      "sha256": "3ee832a2fadde1ccdbeb59d93479952609a6207b7aa5fca99b8ac6abbc99a47a"
+    },
+    {
+      "path": "src/city-editor/renderers/townFacts.ts",
+      "bytes": 5906,
+      "sha256": "83f7523e59c5c503f923c9c8adbd0964a5bef1a33ed8146c153efc5cf48df645"
+    },
+    {
+      "path": "src/city-editor/renderers/townFabricSvg.ts",
+      "bytes": 21529,
+      "sha256": "fb3bb97efaa6f3336ae1a9c7bb86e7d009905b183170699b153d2087ea72435b"
+    },
+    {
+      "path": "src/city-editor/renderers/cityView.ts",
+      "bytes": 56555,
+      "sha256": "15008d3a3ed582788f385c1ce105dbcd9689c0605c29bce8d21266f354f1c32a"
+    },
+    {
+      "path": "src/city-editor/controllers/mapDisplay.ts",
+      "bytes": 44458,
+      "sha256": "5978b88ef274b8d69f1503fac9c04289f2cfcc90e56e6f1dc24eedd511362c65"
+    },
+    {
+      "path": "src/city-editor/controllers/tools/selection.ts",
+      "bytes": 5854,
+      "sha256": "da270a969dd68d693d2d376d1d10eb4457708c47a4c46d3ebbb89a44bb32942e"
+    },
+    {
+      "path": "src/city-editor/renderers/pickInfo.ts",
+      "bytes": 1073,
+      "sha256": "53d7b2fdaae55aca83bbfcbef8f2b7b0ada7d29311f1690b36925996efda40da"
+    },
+    {
+      "path": "src/city-editor/generators/history.ts",
+      "bytes": 11427,
+      "sha256": "fa66a37042d8ef0116ae6ec090b2ec88b0d2f7075572257e879114de0d9788c5"
+    },
+    {
+      "path": "src/city-editor/controllers/editing.ts",
+      "bytes": 7902,
+      "sha256": "5a991c09643fe702c685aabbacc1e788ae27cb6286575fdb1757313be7f81d41"
+    },
+    {
+      "path": "src/city-editor/controllers/generationPlayback.ts",
+      "bytes": 5867,
+      "sha256": "618fb9c986e3a092af02f5e6423b2e2702768c1d2769ba1373165d1648c65b5d"
+    },
+    {
+      "path": "src/city-editor/services/io/cityEditorFile.ts",
+      "bytes": 4796,
+      "sha256": "f5f075482490136d4d86606bf8d602e1cd2e8df2c51ea9fef84136ae21910605"
+    },
+    {
+      "path": "src/city-editor/services/io/documentCodec.ts",
+      "bytes": 13913,
+      "sha256": "10671e431255a3c5684518e19419f9b38da5f1e8708dd79d8fcbac0841f7fb82"
+    },
+    {
+      "path": "src/city-editor/services/io/incomingCity.ts",
+      "bytes": 31097,
+      "sha256": "33ef0efd64da10343b13b4fe4ce9aae77e780b8293a03b2169bc04080faac47a"
+    },
+    {
+      "path": "src/city-editor/renderers/standaloneSvg.ts",
+      "bytes": 9295,
+      "sha256": "80d6d0c68c68e9c8ed524e38e2bc2695b83542800e80ea9b411a4fa7e7545da6"
+    },
+    {
+      "path": "src/city-editor/controllers/layers.ts",
+      "bytes": 5107,
+      "sha256": "442fd5c55d387f3faffea149e3a8d6a5c1771b4129baf6e3aeabd6ab9617616d"
+    },
+    {
+      "path": "src/city-editor/generators/features.ts",
+      "bytes": 38938,
+      "sha256": "d0523aa06a308e6a8d0ad550d86dd881b9237a2bcf373b5b36adf1c89c41f852"
+    },
+    {
+      "path": "src/city-editor/controllers/tools/dragCompletion.ts",
+      "bytes": 10328,
+      "sha256": "ba382cb97b3827d2d8eb396e9f6d8397585808b015c007684724c3ed4926bd93"
+    }
+  ],
+  "preparedCases": [
+    {
+      "id": "wall-presets",
+      "implementationPhase": "M2",
+      "acceptance": [
+        "Area-preserving ratio changes",
+        "Rotation preserves area",
+        "Wall and gate dimensions do not scale",
+        "Undo and codec preserve the preset source"
+      ]
+    },
+    {
+      "id": "curves-and-freehand",
+      "implementationPhase": "M2",
+      "acceptance": [
+        "Cubic position and tangent precision are independent",
+        "Freehand simplification preserves endpoints",
+        "Self-intersecting walls are rejected",
+        "Segment splitting remaps anchors"
+      ]
+    },
+    {
+      "id": "double-wall-gap",
+      "implementationPhase": "M3",
+      "acceptance": [
+        "Route through the eight-meter wall gap without cell splitting",
+        "Reject the six-meter gap for this road width and clearance",
+        "Door and route nodes share coordinates"
+      ]
+    },
+    {
+      "id": "variable-river-width",
+      "implementationPhase": "M6",
+      "acceptance": [
+        "Bank and bridge length change together",
+        "The locked building is not silently removed",
+        "Undo restores widths, bridges and placements atomically"
+      ]
+    },
+    {
+      "id": "bridge-policy",
+      "implementationPhase": "M3",
+      "acceptance": [
+        "Use the shared bridge policy",
+        "Reject nearly parallel and bent spans",
+        "Preserve valid state technology overrides",
+        "Diagnose overrides above the absolute maximum"
+      ]
+    },
+    {
+      "id": "riverside-tannery",
+      "implementationPhase": "M5",
+      "acceptance": [
+        "Satisfy riverbank and frontage constraints together",
+        "Preserve the BV site dimensions",
+        "A two-meter access does not cross another facility"
+      ]
+    },
+    {
+      "id": "fmg-fixed-crossing",
+      "implementationPhase": "M4",
+      "acceptance": [
+        "Preserve surveyed bank rings and fixed crossing identifiers",
+        "Keep all shared route references",
+        "Do not reroute imported fixed geometry to fit a cell"
+      ]
+    },
+    {
+      "id": "holes-and-open-roads",
+      "implementationPhase": "M4",
+      "acceptance": [
+        "Keep the hole empty",
+        "Preserve two disconnected components",
+        "Do not discard narrow residuals using a one-square-meter default",
+        "Open roads can serve land without enclosing a graph cycle"
+      ]
+    },
+    {
+      "id": "facility-stage-playback",
+      "implementationPhase": "M5",
+      "acceptance": [
+        "Stage snapshots belong to the same run",
+        "Facilities precede housing",
+        "Returning to a stage preserves placements and IDs",
+        "Housing capacity includes mixed-use facilities"
+      ]
+    },
+    {
+      "id": "edit-undo-stale-job",
+      "implementationPhase": "M6",
+      "acceptance": [
+        "Match both job ID and input revision before adoption",
+        "Undo restores curves, connections and placements together",
+        "Keep manual and imported fixed entities"
+      ]
+    },
+    {
+      "id": "document-formats",
+      "implementationPhase": "M1",
+      "acceptance": [
+        "Legacy share fixture remains readable",
+        "Native document and share envelope are distinguished",
+        "Vector codec rejects dangling references",
+        "Conversion reports unsupported entities without losing the source"
+      ]
+    }
+  ]
+}

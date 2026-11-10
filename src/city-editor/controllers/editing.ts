@@ -3,11 +3,13 @@ import { bastionedEditRejection } from "../generators/bastionedTown/edit";
 import { refreshCastleLayouts } from "../generators/castleLayout";
 import { sizePresetForExtent } from "../generators/document";
 import { validateFortifications } from "../generators/fortifications";
+import { captureFreeform } from "../generators/freeform/freeformCity";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { defaultGenerationSettings } from "../generators/generation/settings";
 import { clone } from "../generators/mesh";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { CityDocument } from "../types/document";
+import { generationStages } from "./generationStages";
 import { emptySelection } from "./tools/toolTypes";
 export interface EditingContext {
   scope: import("../services/editorLifetime").EditorLifetime;
@@ -33,6 +35,7 @@ export function createEditingController(ctx: EditingContext) {
     // A no-op edit (re-selecting the same ward, scale ×1, re-applying "sea" to a
     // sea cell) returns the document unchanged. Skip the snapshot so it does not
     // add an empty undo step or a History-panel row.
+    if (next.freeform) next = captureFreeform(next);
     if (next === ctx.documents.documentState) {
       ctx.refresh();
       return;
@@ -109,6 +112,8 @@ export function createEditingController(ctx: EditingContext) {
       ctx.generation.generateSettings.forestSettings = next.forestSettings;
       ctx.generation.completeSource = recipe ? clone(recipe.input) : null;
       ctx.generation.completeResult = recipe ? next : null;
+      if (recipe?.settings.approachCommerce === "on") ctx.generation.generateSettings.approachCommerce = "on";
+      else delete ctx.generation.generateSettings.approachCommerce;
       ctx.generation.completeResultSettings = recipe ? JSON.stringify(ctx.generation.generateSettings) : null;
       ctx.generation.lastGeneratedStep = null;
       ctx.generation.activeStepStage = null;
@@ -123,7 +128,11 @@ export function createEditingController(ctx: EditingContext) {
         town: next.defenseCircuits?.some(c => c.scope === "town" && c.moat?.enabled) ?? false,
         castle: next.defenseCircuits?.some(c => c.scope === "castle" && c.moat?.enabled) ?? false
       };
-      ctx.syncStageUi(next.appearance === "town" ? 16 : 1);
+      ctx.syncStageUi(
+        next.appearance === "town"
+          ? generationStages(ctx.generation.generateSettings).find(stage => stage.id === "buildings")!.step
+          : 1
+      );
     }
     if (next.castleStyle !== undefined || !playback)
       ctx.generation.generateSettings.castle = {

@@ -3,7 +3,7 @@ export type { FuneralMaterialDemand, IntelligenceReport, StrategicGoal } from ".
 export { addFrontierApplicants, simulationContext } from "../context/simulationContext";
 export type { WorldContext } from "../context/worldContext";
 export { worldContext } from "../context/worldContext";
-export { isStateInActiveConflict } from "../generators/activeConflict";
+export { isPeaceMode, isStateInActiveConflict } from "../generators/activeConflict";
 export { Burgs } from "../generators/burgs-generator";
 export {
   type CellClimateNormals,

@@ -25,6 +25,7 @@ import {
   meetsTechnologyRequirement,
   type TechnologyRequirementKind
 } from "../utils/technologyRequirementEase";
+import { isPeaceMode } from "./activeConflict";
 import { evaluateStateGremlinStatus } from "./gremlins";
 import { getActiveTechnologyDefinitions, getTechnologyDefinition } from "./technologyDefinitions";
 import {
@@ -828,7 +829,7 @@ export function buildStateSignals(): Map<number, TechnologySignals> {
     const signals = map.get(state.i);
     if (!signals) continue;
     signals.treasury = Math.max(0, Number(state.treasury) || 0) / moneyScale;
-    signals.atWar = Boolean(state.diplomacy && (state.diplomacy as unknown[]).includes("Enemy"));
+    signals.atWar = !isPeaceMode() && Boolean(state.diplomacy && (state.diplomacy as unknown[]).includes("Enemy"));
     // Urban population stays in population-point units (docs/plan/craft-demand-calibration.md
     // PR 4: "urbanPopulation はポイントのまま" — a scale gate, not restated in people).
   }

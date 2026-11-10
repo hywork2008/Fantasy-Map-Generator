@@ -48,3 +48,31 @@ it("places farmland immediately before concealment for every generation order", 
     expect(stages.at(-1)!.processStep).toBe(11);
   }
 });
+
+it("inserts occupational facilities before housing for each generation order in facilities mode", () => {
+  const settings = defaultGenerationSettings();
+  for (const value of [
+    settings,
+    { ...settings, townWallRings: "double" as const, townWallBuildOrder: "inner-first" as const },
+    { ...settings, generationMethod: "skeleton-first" as const }
+  ]) {
+    const original = generationStages(value);
+    const stages = generationStages({ ...value, facilityLayout: "population" });
+    expect(stages.map(stage => stage.id)).toEqual(
+      original.flatMap(stage => (stage.id === "buildings" ? ["facilities", "buildings"] : [stage.id]))
+    );
+    expect(stages.map(stage => stage.step)).toEqual(stages.map((_, index) => index + 1));
+    expect(stages.slice(-6).map(stage => stage.id)).toEqual([
+      "geometry",
+      "blocks",
+      "facilities",
+      "buildings",
+      "farmland",
+      "conceal"
+    ]);
+  }
+  const stages = generationStages({ ...settings, facilityLayout: "population" });
+  expect(stages.find(stage => stage.id === "facilities")!.step).toBe(16);
+  expect(stages.find(stage => stage.id === "buildings")!.step).toBe(17);
+  expect(stages).toHaveLength(19);
+});

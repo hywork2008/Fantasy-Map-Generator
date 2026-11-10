@@ -23,7 +23,7 @@ type Lots = ReturnType<typeof buildCityBuildings>;
 
 /** What the town view needs to know exists, decided once before any DOM is written. */
 export interface TownFacts {
-  /** Null for plain layouts that have no block fabric. */
+  /** Null for plain layouts without a port or block fabric. */
   fabric: DistrictFabric | null;
   lots: Lots;
   housing: ReturnType<typeof measureHousingCapacity> | null;
@@ -49,6 +49,9 @@ export function prepareTownFacts(
     assignBuildingAppearances(appearanceDocument, assignBuildingMassing(document, buildCityBuildings(document)));
   const usesFabric =
     document.populationPlan ||
+    Object.values(document.mesh.faces).some(
+      face => face.properties.water === "land" && face.properties.ward === "harbor"
+    ) ||
     document.urbanMorphology ||
     document.buildingPattern === "medieval" ||
     document.fabric?.version === 5 ||

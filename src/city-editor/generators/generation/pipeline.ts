@@ -424,6 +424,7 @@ export function runPlan(
     openWaterfront: empty.openWaterfront,
     streets: complete ? streetResult.streets : gateStreets,
     wards: new Map(warded.wards.map(w => [w.cellId, w.kind])),
+    ...(warded.approachCommerce ? { approachCommerce: warded.approachCommerce } : {}),
     wardOrder: warded.assignmentOrder,
     templeHarbor: warded.precincts,
     mesh: meshModified ? currentMesh : undefined,

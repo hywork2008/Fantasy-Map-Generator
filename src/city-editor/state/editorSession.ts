@@ -72,6 +72,29 @@ export interface InteractionState {
   objectType: string;
   objectScale: number;
   objectAngleDegrees: number;
+  buildingModelId: string;
+  buildingQuality?: import("../../buildings/placementContract").PlacementQuality;
+  buildingPalette?: import("../../buildings/medieval/marketAppearance").MarketPalette;
+  buildingFacingDegrees: number;
+  buildingHoverPoint: Point | null;
+  buildingAnchor: Point | null;
+  buildingGesture: "move" | "rotate";
+  buildingShift: boolean;
+  buildingCtrl: boolean;
+  /** Alt + wheel: 1° steps that cardinal snapping must not undo. Cleared when the cursor aims again. */
+  buildingFine: boolean;
+  buildingEditId: string | null;
+  wayProfile: "slope" | "stepped";
+  waySurface: "dirt" | "paved" | "cobble";
+  wayGrade: "cart" | "approach";
+  wayWidthMeters: number;
+  wayPoints: Point[];
+  wayHoverPoint: Point | null;
+  /** Freeform river width, and the land-use kind drawn by the zone tool. */
+  riverWidthMeters: number;
+  zoneKind: "forest" | "farm" | "park";
+  ledgerPoints: Point[];
+  ledgerHover: Point | null;
   shipType: ShipType;
   shipSizeMeters: number;
   shipAngleDegrees: number;

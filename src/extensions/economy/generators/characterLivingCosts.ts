@@ -1,3 +1,4 @@
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import { getSimulationCharacters as getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { Character, CharacterRole, TitleHolding } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
@@ -137,6 +138,16 @@ export function resolveLifestyleTier(character: Character): LifestyleTier {
 
 /** Years of living costs a character keeps before spending the rest. */
 export const WEALTH_RESERVE_YEARS = 5;
+
+/**
+ * Reserve years for a lifestyle tier: market merchants keep Simulation settings
+ * `merchantReserveYears` (docs/analytics/hay-trade-modes-20261101.md §12), everyone else five.
+ */
+export function wealthReserveYears(tier: LifestyleTier): number {
+  return tier === "marketManager" || tier === "marketRival"
+    ? getMarketSettings().merchantReserveYears
+    : WEALTH_RESERVE_YEARS;
+}
 /** Share of wealth above that reserve spent each production cycle. */
 export const SURPLUS_WEALTH_SPEND_SHARE = 0.1;
 const CYCLES_PER_YEAR = 12;
@@ -182,7 +193,7 @@ export function applyCharacterLivingCosts(): LivingCostSummary {
     if (!(lifestyleCost > 0)) continue;
     // Beyond a few years' living, a household of means spends on building, retainers, gifts and
     // fine goods in its town rather than hoarding (docs/plan/initial-wealth-calibration.md §8).
-    const reserve = lifestyleCost * CYCLES_PER_YEAR * WEALTH_RESERVE_YEARS;
+    const reserve = lifestyleCost * CYCLES_PER_YEAR * wealthReserveYears(resolveLifestyleTier(character));
     let surplusSpend = Math.max(0, wealth - lifestyleCost - reserve) * SURPLUS_WEALTH_SPEND_SHARE;
     // A market's merchants put part of it into their own house while it is short of capital
     // (commenda, docs/plan/long-distance-merchant-reach-capital.md §5.2).

@@ -1,4 +1,4 @@
-import { historyModeForcesAutonomousConflict, type StrategicGoal, simulationContext } from "../hostCore";
+import { historyModeForcesAutonomousConflict, isPeaceMode, type StrategicGoal, simulationContext } from "../hostCore";
 import type { ChronicleEvent, ConflictAutonomy } from "../hostTypes";
 import { normalizeConflictAutonomy } from "../hostUtils";
 import {
@@ -14,7 +14,9 @@ export interface PlayerConflictIntent {
   defenderStateId: number;
 }
 
-export type StartPlayerConflictResult = { started: true } | { started: false; reason: "invalid-state" | "same-state" };
+export type StartPlayerConflictResult =
+  | { started: true }
+  | { started: false; reason: "invalid-state" | "same-state" | "peace" };
 
 export interface SuspendedConflictSummary {
   goalCount: number;
@@ -35,18 +37,21 @@ export function getConflictAutonomy(): ConflictAutonomy {
  * this override lapses the moment the run's bracket closes.
  */
 export function mayAdvanceAutonomousConflict(): boolean {
+  if (isPeaceMode()) return false;
   return historyModeForcesAutonomousConflict() || getConflictAutonomy() === "autonomous";
 }
 
 /** True when this state pair may fight under the map's current conflict-autonomy policy. */
 export function mayAdvanceConflict(attackerStateId: number, defenderStateId: number): boolean {
   if (!hasNobilityContext()) return true;
+  if (isPeaceMode()) return false;
   return mayAdvanceAutonomousConflict() || isPlayerConflictAuthorized(attackerStateId, defenderStateId);
 }
 
 /** Avoids running the political-AI branch in player-directed mode until the player starts a conflict. */
 export function mayAdvanceAnyConflict(): boolean {
   if (mayAdvanceAutonomousConflict()) return true;
+  if (isPeaceMode()) return false;
   return getWorldContext().pack.states.some(state => Object.keys(getConflictAuthorizations(state)).length > 0);
 }
 
@@ -79,6 +84,7 @@ export function startPlayerConflict({
   defenderStateId
 }: PlayerConflictIntent): StartPlayerConflictResult {
   if (attackerStateId === defenderStateId) return { started: false, reason: "same-state" };
+  if (isPeaceMode()) return { started: false, reason: "peace" };
 
   const { pack } = getWorldContext();
   const attacker = pack.states[attackerStateId];
@@ -211,5 +217,5 @@ function clearAutonomousConflictState(): SuspendedConflictSummary | null {
  * fmg:conflict-autonomy-changed; this function owns Nobility's mode-transition cleanup.
  */
 export function applyConflictAutonomy(value: unknown): SuspendedConflictSummary | null {
-  return normalizeConflictAutonomy(value) === "playerDirected" ? clearAutonomousConflictState() : null;
+  return normalizeConflictAutonomy(value) === "autonomous" ? null : clearAutonomousConflictState();
 }

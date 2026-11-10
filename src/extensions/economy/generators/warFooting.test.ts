@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { stateHasEnemy, worldContext } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { BASELINE_ALLOCATION_BY_FORM } from "./treasuryAllocation";
 import {
   applyWarFootingPoliticalCost,
   applyWarFootingToBaseline,
+  isWarFootingActive,
   MOBILIZATION_BOOST_CAP,
   setWarFooting,
   setWarFootingByPlayer,
@@ -80,6 +82,30 @@ describe("warFooting (PR-6)", () => {
       expect(setWarFooting(state, false)).toBe(false);
       expect(state.warFooting).toBe(false);
       expect(state.militaryMobilizationBoost).toBe(0);
+    });
+  });
+
+  describe("peace mode (calibration)", () => {
+    const originalOptions = worldContext.options;
+    afterEach(() => {
+      worldContext.options = originalOptions;
+    });
+
+    it("treats an Enemy relation as peace and demobilizes even a player-locked state", () => {
+      worldContext.options = { conflictAutonomy: "peace" } as never;
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: ["Enemy"],
+        warFooting: true,
+        warFootingPlayerLocked: true
+      } as unknown as State;
+      expect(stateHasEnemy(state)).toBe(false);
+      expect(isWarFootingActive(state)).toBe(false);
+      expect(shouldAiEnableWarFooting(state)).toBe(false);
+      expect(syncWarFootingFromDiplomacy(state)).toEqual({ changed: true, warFooting: false });
+      expect(state.warFooting).toBe(false);
+      expect(state.warFootingPlayerLocked).toBe(false);
     });
   });
 

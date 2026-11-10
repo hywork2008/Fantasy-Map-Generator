@@ -1,36 +1,43 @@
 /**
  * Slaughter of the food herd (docs/plan/fmg-economy-to-city-editor.md §8.1).
  *
- * Cattle, sheep, pigs and goats reach the market as live heads. Tallow and Leather
- * already price a single-ingredient recipe for some of them, but those recipes lose
- * the labor ranking, so the heads are sold alive. This pass runs after that craft
- * and before household demand, and turns whatever heads remain into the products
- * those recipes already price.
- *
- * Yield per head is the inverse of the recipe coefficient: `{ Pig: 0.5 }` on Tallow
- * is two barrels per head. A species with both a Tallow recipe and a Leather recipe
- * yields both, because one carcass has both fat and a hide. Horses, camels and
+ * Cattle, sheep, pigs and goats reach the market as live heads. This pass runs after
+ * craft and before household demand, and turns whatever heads remain into their
+ * carcass byproducts: rendered tallow by weight (TALLOW_KG_PER_HEAD) and a hide per
+ * cow. One carcass gives both. Horses, camels and
  * other draft animals are not food-tagged and stay in the market. Chickens stay
  * too: their catalog product is eggs, not a hide or tallow.
  *
- * No catalog good states how much meat one head yields. Game is hunted meat.
- * This pass does not invent that ratio and does not add a Meat good.
+ * The carcasses' Meat (MEAT_KG_PER_HEAD) is sold fresh to the market's towns the same month
+ * (sellMeat); what they do not buy is eaten by the farm families and never stands in stock.
  */
 
+import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
+import { getSimulationYear } from "../context/economyApi";
 import { isWinterSlaughterExperimentEnabled } from "../context/winterSlaughter";
 import {
   getGoods,
   getMarkets,
   getOrCreateCumulativeGoodsSales,
-  getOrCreateMarketGoodProductionTotals
+  getOrCreateMarketGoodProductionTotals,
+  getWorldContext
 } from "../economyContext";
+import { recordCountrysideFlow } from "./approachLedger";
+import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
+import { getMarketPriceLevel } from "./currencySufficiency";
+import { GROSS_FOOD_NEED } from "./foodConstants";
 import { recordFoodMarketIntake } from "./foodProcessingLedger";
+import { FARMGATE_PRICE_SHARE } from "./foodProduction";
+import { GOOD_MEASURES, WAIN_KG } from "./goodMeasureCatalog";
 import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
+import { HERD_MEAT_OFFTAKE } from "./herdDiet";
+import { creditRuralHouseholdWealth } from "./householdWealth";
 import type { Market } from "./marketTypes";
 import { rennetBarrelsFromCalfAbomasa } from "./rennet";
+import { EXPERIMENTAL_CARCASS_PROFILES } from "./winterSlaughterPolicy";
 
 /**
  * Heads that give one roll (a hide) of Leather when the catalogue's Leather has no recipe: a hide is
@@ -39,11 +46,60 @@ import { rennetBarrelsFromCalfAbomasa } from "./rennet";
  */
 const LEATHER_HEADS_PER_ROLL: Readonly<Record<string, number>> = { Cattle: 1 };
 
+/**
+ * Rendered tallow a slaughtered head gives: the loose suet and caul fat, about 5% of the live weight.
+ * An animal's fat is about a tenth of its weight (Lowengard, after Arthur Young 1788); the other half
+ * is the carcass fat sold with the meat. Live weight is the carcass over a dressing share of 0.55
+ * for cattle and 0.5 for small stock. A pig gives none: its fat is lard and is sold with the meat
+ * (MEAT_KG_PER_HEAD counts it). Model values, not a catalogue recipe.
+ */
+const TALLOW_KG_PER_HEAD: Readonly<Record<string, number>> = {
+  Cattle: (EXPERIMENTAL_CARCASS_PROFILES.Cattle.carcassKgPerHead / 0.55) * 0.05,
+  Sheep: (EXPERIMENTAL_CARCASS_PROFILES.Sheep.carcassKgPerHead / 0.5) * 0.05,
+  Goats: (EXPERIMENTAL_CARCASS_PROFILES.Sheep.carcassKgPerHead / 0.5) * 0.05,
+  Pig: 0
+};
+
 export interface SlaughterResult {
   heads: number;
   tallow: number;
   leather: number;
   rennet: number;
+  /** Wains of Meat the carcasses gave, and the part the towns bought. */
+  meat: number;
+  meatSold: number;
+}
+
+/** Edible lean and fat a slaughtered head gives (herdDiet.ts; the pig after winterSlaughterPolicy.ts). */
+const MEAT_KG_PER_HEAD: Readonly<Record<string, number>> = {
+  Cattle: HERD_MEAT_OFFTAKE.Cattle.edibleKg,
+  Sheep: HERD_MEAT_OFFTAKE.Sheep.edibleKg,
+  Goats: HERD_MEAT_OFFTAKE.Goats.edibleKg,
+  Pig: EXPERIMENTAL_CARCASS_PROFILES.Pig.leanKgPerHead + EXPERIMENTAL_CARCASS_PROFILES.Pig.edibleFatKgPerHead
+};
+/** Meat a townsperson buys in a year (provisional; docs/plan/livestock-meat-sales.md §2.1). */
+export const URBAN_MEAT_KG_PER_PERSON_YEAR = 25;
+/**
+ * Share of a town household purse, after this month's staple bill, the month's meat may take
+ * (provisional). When the staple is not yet paid, its bill is held back from the purse first.
+ */
+export const MEAT_HOUSEHOLD_CASH_SHARE = 0.1;
+
+/**
+ * Calendar months whose staple bill households have paid ahead of their production settlement.
+ * The food calendar settles consumption first and queues production after it (simulation.ts), so
+ * those settlements must not hold the bill back a second time. Session state, like the queue.
+ */
+let prepaidStapleMonths = 0;
+
+/** The food calendar paid a month's staple bill; its production settlement is still queued. */
+export function recordStapleBillPaid(): void {
+  prepaidStapleMonths++;
+}
+
+/** Drops prepaid months whose settlement will not run slaughter (Fast-Forward, reset). */
+export function clearPrepaidStapleBills(): void {
+  prepaidStapleMonths = 0;
 }
 
 /** Heads of `animal` one unit of `output` consumes, when the recipe is that animal alone. */
@@ -97,18 +153,23 @@ export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, 
   const animals = goods.filter(
     good => good.tags?.includes("liveAnimal") && good.tags.includes("food") && isGoodEnabled(good)
   );
-  const result: SlaughterResult = { heads: 0, tallow: 0, leather: 0, rennet: 0 };
+  const meat = goods.find(good => good.name === "Meat" && isGoodEnabled(good));
+  const result: SlaughterResult = { heads: 0, tallow: 0, leather: 0, rennet: 0, meat: 0, meatSold: 0 };
   // Keep unowned market animals alive; the experiment may process only its own rural herds.
   if (isWinterSlaughterExperimentEnabled()) return result;
   if (!animals.length || (!tallow && !leather)) return result;
 
+  const stapleBillPaid = prepaidStapleMonths > 0;
+  if (stapleBillPaid) prepaidStapleMonths--;
+  const townsByMarket = meat ? getTownsByMarket() : undefined;
   for (const market of getMarkets()) {
+    let meatKg = 0;
     for (const animal of animals) {
-      const tallowHeads = tallow ? singleIngredientHeads(tallow, animal.i) : undefined;
+      const tallowKg = tallow ? TALLOW_KG_PER_HEAD[animal.name] : undefined;
       const leatherHeads = leather
         ? (singleIngredientHeads(leather, animal.i) ?? LEATHER_HEADS_PER_ROLL[animal.name])
         : undefined;
-      if (tallowHeads === undefined && leatherHeads === undefined) continue;
+      if (tallowKg === undefined && leatherHeads === undefined) continue;
       const row = market.goods[animal.i];
       const heads = row?.stock ?? 0;
       if (!(heads > 0.001)) continue;
@@ -120,9 +181,9 @@ export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, 
         units: heads,
         marketId: market.i,
         burgId: market.centerBurgId,
-        relatedGoodId: tallowHeads !== undefined ? tallow?.i : leather?.i
+        relatedGoodId: tallowKg !== undefined ? tallow?.i : leather?.i
       });
-      const tallowUnits = tallow && tallowHeads ? rn(heads / tallowHeads, 2) : 0;
+      const tallowUnits = tallow && tallowKg ? rn((heads * tallowKg) / GOOD_MEASURES.Tallow.kg, 2) : 0;
       const leatherUnits = leather && leatherHeads ? rn(heads / leatherHeads, 2) : 0;
       const eligibleCalves = eligibleCalfHeadsByMarket?.get(market.i) ?? 0;
       const rennetUnits =
@@ -136,7 +197,111 @@ export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, 
       result.tallow = rn(result.tallow + tallowUnits, 2);
       result.leather = rn(result.leather + leatherUnits, 2);
       result.rennet += rennetUnits;
+      meatKg += heads * (MEAT_KG_PER_HEAD[animal.name] ?? 0);
+    }
+    if (meat && meatKg > 0) {
+      const units = meatKg / WAIN_KG;
+      result.meat += units;
+      result.meatSold += sellMeat(market, meat, units, townsByMarket?.get(market.i) ?? [], stapleBillPaid);
     }
   }
   return result;
+}
+
+function getTownsByMarket(): Map<number, Burg[]> {
+  const towns = new Map<number, Burg[]>();
+  for (const burg of getWorldContext().pack.burgs ?? []) {
+    if (!burg?.i || burg.removed || !burg.market || !((burg.population ?? 0) > 0)) continue;
+    towns.set(burg.market, [...(towns.get(burg.market) ?? []), burg]);
+  }
+  return towns;
+}
+
+/**
+ * The market's towns buy this month's fresh Meat from their household purses, each its share of
+ * what the carcasses gave, up to its people's need and the cash left after the staple bill (held
+ * back unless `stapleBillPaid` says the purse has already paid it this month). The
+ * farm families who sent the herds are paid FARMGATE_PRICE_SHARE of what sold; the rest is the
+ * market's margin. Meat the towns did not buy is eaten by those families and never stands in stock
+ * (docs/plan/livestock-meat-sales.md §3). Returns the wains sold.
+ */
+function sellMeat(market: Market, meat: Good, units: number, towns: readonly Burg[], stapleBillPaid: boolean): number {
+  const world = getWorldContext();
+  const rate = Math.max(1, world.populationRate ?? 1);
+  const urbanization = Math.max(1, world.urbanization ?? 1);
+  // Priced at its value in this market's money, not from an empty shelf (marketPricing.ts hasSettledPrice).
+  const price = Math.max(0.0001, rn(meat.value * getMarketPriceLevel(market), 2));
+  const row = market.goods[meat.i] ?? { stock: 0, price };
+  row.price = price;
+  market.goods[meat.i] = row;
+  recordGoodFlow({
+    direction: "source",
+    category: "burgCraft",
+    goodId: meat.i,
+    units,
+    marketId: market.i,
+    burgId: market.centerBurgId
+  });
+  const staple = getGoods().find(good => good.tags.includes("stapleFood"));
+  const staplePrice = staple && !stapleBillPaid ? (market.goods[staple.i]?.price ?? staple.value) : 0;
+  const people = towns.map(burg => (burg.population ?? 0) * rate * urbanization);
+  const wanted = people.map(count => (count * URBAN_MEAT_KG_PER_PERSON_YEAR) / 12 / WAIN_KG);
+  const totalWanted = wanted.reduce((sum, value) => sum + value, 0);
+  const offered = totalWanted > 0 ? Math.min(1, units / totalWanted) : 0;
+  let sold = 0;
+  let revenue = 0;
+  towns.forEach((burg, index) => {
+    const stapleBill = (people[index] * GROSS_FOOD_NEED * staplePrice) / 12;
+    const budget = Math.max(0, getHouseholdWealth(burg.i) - stapleBill) * MEAT_HOUSEHOLD_CASH_SHARE;
+    const buy = Math.min(wanted[index] * offered, budget / price);
+    const paid = buy > 0 ? debitHouseholdWealth(burg.i, rn(buy * price, 2)) : 0;
+    if (!(paid > 0)) return;
+    const bought = paid / price;
+    sold += bought;
+    recordCountrysideFlow(market.i, burg.i ?? 0, meat.i, bought, "inbound");
+    revenue += paid;
+    recordGoodFlow({
+      direction: "sink",
+      category: "householdFood",
+      goodId: meat.i,
+      units: bought,
+      marketId: market.i,
+      burgId: burg.i
+    });
+  });
+  const eatenAtHome = units - sold;
+  if (eatenAtHome > 0)
+    recordGoodFlow({
+      direction: "sink",
+      category: "householdFood",
+      goodId: meat.i,
+      units: eatenAtHome,
+      marketId: market.i
+    });
+  if (revenue > 0) {
+    // A market without a farm purse yet keeps the whole price, as for heating Wood (heating.ts).
+    const farmers = market.foodLedger ? rn(revenue * FARMGATE_PRICE_SHARE, 2) : 0;
+    creditRuralHouseholdWealth(market, farmers);
+    const treasury = market.marketTreasury ?? { balance: 0, ruralGrainPayable: 0 };
+    treasury.balance = rn(treasury.balance + revenue - farmers, 2);
+    market.marketTreasury = treasury;
+  }
+  recordMeatSales(market, units * WAIN_KG, sold * WAIN_KG);
+  const sales = getOrCreateCumulativeGoodsSales();
+  if (sales) sales[meat.i] = rn((sales[meat.i] ?? 0) + sold, 4);
+  return sold;
+}
+
+/** Keeps the year's meat produced and sold; a new year closes the last one's sold share. */
+function recordMeatSales(market: Market, producedKg: number, soldKg: number): void {
+  const year = getSimulationYear();
+  const sales = market.meatSales;
+  if (!sales || sales.year !== year) {
+    const lastSoldShare =
+      sales && sales.producedKg > 0 ? rn(Math.min(1, sales.soldKg / sales.producedKg), 4) : sales?.lastSoldShare;
+    market.meatSales = { year, producedKg: 0, soldKg: 0, lastSoldShare };
+  }
+  const ledger = market.meatSales!;
+  ledger.producedKg = rn(ledger.producedKg + producedKg, 2);
+  ledger.soldKg = rn(ledger.soldKg + soldKg, 2);
 }

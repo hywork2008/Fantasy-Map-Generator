@@ -1,0 +1,515 @@
+{
+ "spacingStart": 160.0300998244799,
+ "start": [
+  {
+   "i": 1,
+   "center": 16,
+   "pop": 15.211340377532423,
+   "state": 16,
+   "towns": 30,
+   "townPop": 92.64
+  },
+  {
+   "i": 2,
+   "center": 28,
+   "pop": 12.315904494166023,
+   "state": 28,
+   "towns": 17,
+   "townPop": 22.43
+  },
+  {
+   "i": 3,
+   "center": 5,
+   "pop": 12.051875550103732,
+   "state": 5,
+   "towns": 28,
+   "townPop": 32.01
+  },
+  {
+   "i": 4,
+   "center": 4,
+   "pop": 14.577021389560407,
+   "state": 4,
+   "towns": 21,
+   "townPop": 60.85
+  },
+  {
+   "i": 5,
+   "center": 21,
+   "pop": 7.714776661820271,
+   "state": 21,
+   "towns": 16,
+   "townPop": 32.04
+  },
+  {
+   "i": 6,
+   "center": 24,
+   "pop": 8.47529837179389,
+   "state": 24,
+   "towns": 38,
+   "townPop": 79.5
+  },
+  {
+   "i": 7,
+   "center": 9,
+   "pop": 4.10338988107655,
+   "state": 9,
+   "towns": 27,
+   "townPop": 51.85
+  },
+  {
+   "i": 8,
+   "center": 10,
+   "pop": 1.2900673621936776,
+   "state": 10,
+   "towns": 24,
+   "townPop": 23.99
+  },
+  {
+   "i": 9,
+   "center": 18,
+   "pop": 1.1231182501234571,
+   "state": 18,
+   "towns": 25,
+   "townPop": 24.84
+  },
+  {
+   "i": 10,
+   "center": 400,
+   "pop": 2.187944943700805,
+   "state": 5,
+   "towns": 12,
+   "townPop": 9.44
+  },
+  {
+   "i": 11,
+   "center": 40,
+   "pop": 2.939372408229039,
+   "state": 6,
+   "towns": 13,
+   "townPop": 20.36
+  },
+  {
+   "i": 12,
+   "center": 61,
+   "pop": 1.8008779848548315,
+   "state": 15,
+   "towns": 31,
+   "townPop": 42.96
+  },
+  {
+   "i": 13,
+   "center": 407,
+   "pop": 1.0755398006832246,
+   "state": 28,
+   "towns": 7,
+   "townPop": 12.27
+  },
+  {
+   "i": 14,
+   "center": 159,
+   "pop": 2.9535672878373895,
+   "state": 28,
+   "towns": 12,
+   "townPop": 11.52
+  },
+  {
+   "i": 15,
+   "center": 145,
+   "pop": 0.8468065911730344,
+   "state": 28,
+   "towns": 20,
+   "townPop": 18.26
+  },
+  {
+   "i": 16,
+   "center": 349,
+   "pop": 0.9031162411114926,
+   "state": 10,
+   "towns": 23,
+   "townPop": 19.42
+  },
+  {
+   "i": 17,
+   "center": 166,
+   "pop": 0.3188959814951881,
+   "state": 17,
+   "towns": 65,
+   "townPop": 66.19
+  }
+ ],
+ "events": [
+  {
+   "month": 12,
+   "kind": "add",
+   "market": 18,
+   "burg": 410,
+   "pop": 1.2516976833343505,
+   "state": 8,
+   "nearestMarketDistance": 70.1,
+   "spacingNow": 161.2
+  },
+  {
+   "month": 12,
+   "kind": "add",
+   "market": 19,
+   "burg": 411,
+   "pop": 0.9103860139846801,
+   "state": 15,
+   "nearestMarketDistance": 167.1,
+   "spacingNow": 161.2
+  },
+  {
+   "month": 12,
+   "kind": "add",
+   "market": 20,
+   "burg": 412,
+   "pop": 0.809497332572937,
+   "state": 18,
+   "nearestMarketDistance": 51.2,
+   "spacingNow": 161.2
+  },
+  {
+   "month": 12,
+   "kind": "add",
+   "market": 21,
+   "burg": 413,
+   "pop": 0.6081737279891968,
+   "state": 20,
+   "nearestMarketDistance": 99.8,
+   "spacingNow": 161.2
+  },
+  {
+   "month": 12,
+   "kind": "add",
+   "market": 22,
+   "burg": 414,
+   "pop": 1.022935438156128,
+   "state": 28,
+   "nearestMarketDistance": 44.5,
+   "spacingNow": 161.2
+  },
+  {
+   "month": 24,
+   "kind": "add",
+   "market": 23,
+   "burg": 415,
+   "pop": 0.7269598960876464,
+   "state": 15,
+   "nearestMarketDistance": 29.1,
+   "spacingNow": 160.7
+  },
+  {
+   "month": 24,
+   "kind": "add",
+   "market": 24,
+   "burg": 416,
+   "pop": 0.6474312543869019,
+   "state": 28,
+   "nearestMarketDistance": 120.9,
+   "spacingNow": 160.7
+  },
+  {
+   "month": 36,
+   "kind": "add",
+   "market": 25,
+   "burg": 417,
+   "pop": 0.6043688535690307,
+   "state": 15,
+   "nearestMarketDistance": 51.9,
+   "spacingNow": 160.3
+  },
+  {
+   "month": 36,
+   "kind": "add",
+   "market": 26,
+   "burg": 418,
+   "pop": 0.6145495891571044,
+   "state": 28,
+   "nearestMarketDistance": 61.3,
+   "spacingNow": 160.3
+  },
+  {
+   "month": 48,
+   "kind": "add",
+   "market": 27,
+   "burg": 419,
+   "pop": 0.6028227567672729,
+   "state": 28,
+   "nearestMarketDistance": 65.1,
+   "spacingNow": 160
+  }
+ ],
+ "end": [
+  {
+   "i": 1,
+   "center": 16,
+   "pop": 15.823453383881288,
+   "state": 16,
+   "towns": 23,
+   "townPop": 88.24,
+   "ruralPeople": 351621,
+   "ruralPurse": 58615
+  },
+  {
+   "i": 2,
+   "center": 28,
+   "pop": 12.489418609570498,
+   "state": 28,
+   "towns": 16,
+   "townPop": 22.2,
+   "ruralPeople": 113828,
+   "ruralPurse": 13729.6
+  },
+  {
+   "i": 3,
+   "center": 5,
+   "pop": 10.845437507716422,
+   "state": 5,
+   "towns": 28,
+   "townPop": 30.55,
+   "ruralPeople": 185829,
+   "ruralPurse": 22791.3
+  },
+  {
+   "i": 4,
+   "center": 4,
+   "pop": 14.218590180335891,
+   "state": 4,
+   "towns": 15,
+   "townPop": 50.62,
+   "ruralPeople": 309876,
+   "ruralPurse": 36003.5
+  },
+  {
+   "i": 5,
+   "center": 21,
+   "pop": 8.167608970623249,
+   "state": 21,
+   "towns": 15,
+   "townPop": 31.06,
+   "ruralPeople": 146594,
+   "ruralPurse": 18536.4
+  },
+  {
+   "i": 6,
+   "center": 24,
+   "pop": 8.890189586674571,
+   "state": 24,
+   "towns": 24,
+   "townPop": 41.87,
+   "ruralPeople": 230782,
+   "ruralPurse": 30453
+  },
+  {
+   "i": 7,
+   "center": 9,
+   "pop": 4.410111320470135,
+   "state": 9,
+   "towns": 20,
+   "townPop": 44.2,
+   "ruralPeople": 239442,
+   "ruralPurse": 40868.2
+  },
+  {
+   "i": 8,
+   "center": 10,
+   "pop": 1.1813375330718063,
+   "state": 10,
+   "towns": 25,
+   "townPop": 23.71,
+   "ruralPeople": 122997,
+   "ruralPurse": 11674.8
+  },
+  {
+   "i": 9,
+   "center": 18,
+   "pop": 1.1784889803070824,
+   "state": 18,
+   "towns": 20,
+   "townPop": 23.89,
+   "ruralPeople": 167887,
+   "ruralPurse": 15007
+  },
+  {
+   "i": 10,
+   "center": 400,
+   "pop": 2.41573105482903,
+   "state": 5,
+   "towns": 12,
+   "townPop": 10.25,
+   "ruralPeople": 120562,
+   "ruralPurse": 5797.1
+  },
+  {
+   "i": 11,
+   "center": 40,
+   "pop": 3.0019617684078477,
+   "state": 6,
+   "towns": 15,
+   "townPop": 23.76,
+   "ruralPeople": 104324,
+   "ruralPurse": 13607.5
+  },
+  {
+   "i": 12,
+   "center": 61,
+   "pop": 1.9001976187064162,
+   "state": 15,
+   "towns": 31,
+   "townPop": 45.03,
+   "ruralPeople": 271312,
+   "ruralPurse": 28729.5
+  },
+  {
+   "i": 13,
+   "center": 407,
+   "pop": 1.2812465663767754,
+   "state": 28,
+   "towns": 2,
+   "townPop": 1.51,
+   "ruralPeople": 44315,
+   "ruralPurse": 2463.8
+  },
+  {
+   "i": 14,
+   "center": 159,
+   "pop": 2.80938042764014,
+   "state": 28,
+   "towns": 12,
+   "townPop": 9.98,
+   "ruralPeople": 45021,
+   "ruralPurse": 4648.5
+  },
+  {
+   "i": 15,
+   "center": 145,
+   "pop": 0.8600516634495754,
+   "state": 28,
+   "towns": 20,
+   "townPop": 18.47,
+   "ruralPeople": 106653,
+   "ruralPurse": 8745
+  },
+  {
+   "i": 16,
+   "center": 349,
+   "pop": 0.9347504049713289,
+   "state": 10,
+   "towns": 22,
+   "townPop": 18.23,
+   "ruralPeople": 159070,
+   "ruralPurse": 8648.3
+  },
+  {
+   "i": 17,
+   "center": 166,
+   "pop": 0.33971742573965463,
+   "state": 17,
+   "towns": 65,
+   "townPop": 69.16,
+   "ruralPeople": 425490,
+   "ruralPurse": 48776.4
+  },
+  {
+   "i": 18,
+   "center": 410,
+   "pop": 1.3306782654560398,
+   "state": 8,
+   "towns": 30,
+   "townPop": 65.98,
+   "ruralPeople": 391007,
+   "ruralPurse": 49073.5
+  },
+  {
+   "i": 19,
+   "center": 411,
+   "pop": 1.0195736601580363,
+   "state": 15,
+   "towns": 1,
+   "townPop": 1.02,
+   "ruralPeople": 18419,
+   "ruralPurse": 318.3
+  },
+  {
+   "i": 20,
+   "center": 412,
+   "pop": 0.7944470329875298,
+   "state": 18,
+   "towns": 7,
+   "townPop": 5.32,
+   "ruralPeople": 68843,
+   "ruralPurse": 4086.9
+  },
+  {
+   "i": 21,
+   "center": 413,
+   "pop": 0.6400526570626266,
+   "state": 20,
+   "towns": 9,
+   "townPop": 16.95,
+   "ruralPeople": 86835,
+   "ruralPurse": 6192.7
+  },
+  {
+   "i": 22,
+   "center": 414,
+   "pop": 1.0389416077812068,
+   "state": 28,
+   "towns": 1,
+   "townPop": 1.04,
+   "ruralPeople": 17521,
+   "ruralPurse": 380.5
+  },
+  {
+   "i": 23,
+   "center": 415,
+   "pop": 0.7447773156280222,
+   "state": 15,
+   "towns": 1,
+   "townPop": 0.74,
+   "ruralPeople": 9329,
+   "ruralPurse": 129.1
+  },
+  {
+   "i": 24,
+   "center": 416,
+   "pop": 0.4985604303817511,
+   "state": 28,
+   "towns": 1,
+   "townPop": 0.5,
+   "ruralPeople": 24790,
+   "ruralPurse": 108.3
+  },
+  {
+   "i": 25,
+   "center": 417,
+   "pop": 0.6119983215735804,
+   "state": 15,
+   "towns": 1,
+   "townPop": 0.61,
+   "ruralPeople": 15530,
+   "ruralPurse": 130.1
+  },
+  {
+   "i": 26,
+   "center": 418,
+   "pop": 0.6525401057646576,
+   "state": 28,
+   "towns": 2,
+   "townPop": 1.07,
+   "ruralPeople": 25942,
+   "ruralPurse": 546
+  },
+  {
+   "i": 27,
+   "center": 419,
+   "pop": 0.6342797548898034,
+   "state": 28,
+   "towns": 1,
+   "townPop": 0.63,
+   "ruralPeople": 21246,
+   "ruralPurse": 182.7
+  }
+ ]
+}

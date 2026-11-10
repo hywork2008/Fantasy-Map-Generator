@@ -1,5 +1,6 @@
 import { type Author, DEFAULT_AUTHOR } from "../buildings/authors";
 import { createPolygonHouses, POLYGON_HOUSES } from "../buildings/houses/polygonHouses";
+import type { GalleonState } from "../buildings/ships/galleonArmament";
 import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import "./viewer.css";
 import * as THREE from "three";
@@ -45,10 +46,19 @@ import {
 } from "../buildings/props/medievalContainers";
 import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { BARGE, createBarge } from "../buildings/ships/barge";
+import { CARAVEL, createCaravel } from "../buildings/ships/caravel";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
-import { createOpusGalleon, OPUS_GALLEON, type OpusGalleonQuality } from "../buildings/ships/opusGalleon";
+import { createMerchantShipHigh, merchantShipParts } from "../buildings/ships/merchantShipHigh";
+import {
+  createOpusGalleon,
+  OPUS_GALLEON,
+  type OpusGalleonQuality,
+  opusGalleonParts
+} from "../buildings/ships/opusGalleon";
+import { assembleSailingParts, type SailingShipState } from "../buildings/ships/sailingAssembly";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
+import { createSloopHigh, sloopHighParts } from "../buildings/ships/sloopHigh";
 import { BATTERING_RAM, createBatteringRam } from "../buildings/siege/batteringRam";
 import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "../buildings/siege/earlyFieldCannon";
 import { createSiegeTower, SIEGE_TOWER } from "../buildings/siege/siegeTower";
@@ -276,7 +286,7 @@ function listAuthors(id: string): void {
     authorSelect.append(option);
   }
   authorSelect.value = variant?.primary ? variant.author : DEFAULT_AUTHOR;
-  showQuality(variant?.primary === true && variant.quality === true);
+  showQuality(variant?.quality === true);
 }
 authorSelect.addEventListener("change", () => {
   const level = LEVEL_AUTHORS[selectedId];
@@ -954,6 +964,7 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
     category.append(button);
     button.textContent = `${model.task} · ${model.name}`;
     button.dataset.id = model.id;
+    let selectedPart = "all";
     const showLandmark = (definition: LandmarkModel = model, keepControls = false) => {
       selection++;
       for (const other of list.querySelectorAll("button")) other.setAttribute("aria-current", String(other === button));
@@ -1030,8 +1041,9 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
       if (model.highDetail || model.ultraDetail) {
         modelOptions.hidden = false;
         const row = document.createElement("label");
-        row.textContent = "Resolution: ";
+        row.textContent = model.parts ? "Assembly resolution: " : "Resolution: ";
         const resolution = document.createElement("select");
+        resolution.setAttribute("aria-label", "Landmark resolution");
         for (const [value, title] of [
           ["low", "Low resolution (default)"],
           ...(model.highDetail ? [["high", "High resolution"]] : []),
@@ -1069,7 +1081,35 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
           quality: definition === model ? "low" : "high"
         };
       }
-      massing = definition.create();
+      const partFactories = definition.parts?.();
+      if (!partFactories?.some(part => part.id === selectedPart)) selectedPart = "all";
+      const partFactory = partFactories?.find(part => part.id === selectedPart);
+      if (partFactories) {
+        modelOptions.hidden = false;
+        const row = document.createElement("label");
+        row.textContent = "View: ";
+        const select = document.createElement("select");
+        select.setAttribute("aria-label", "Assembly part");
+        select.add(new Option("Complete assembly", "all"));
+        for (const part of partFactories)
+          select.add(new Option(`${label(part.role)} · ${label(part.quality)}`, part.id));
+        select.value = selectedPart;
+        select.addEventListener("change", () => {
+          selectedPart = select.value;
+          showLandmark(definition);
+        });
+        row.append(select);
+        const paragraph = document.createElement("p");
+        paragraph.append(row);
+        optionFields.append(paragraph);
+      }
+      if (partFactory) {
+        comparisonVariants = null;
+        comparisonModel = { path: null, quality: partFactory.quality === "low" ? "low" : "high", viewOnly: true };
+      }
+      massing = partFactory
+        ? (definition.assembleParts ?? (parts => createModelAssembly(model.id, parts)))([partFactory])
+        : definition.create();
       scene.add(massing.group);
       ground.visible = !definition.floating;
       if (!keepControls) {
@@ -1103,6 +1143,19 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
         fact("Dimensions", definition.dimensions),
         fact("Note", definition.note, landmarkWikipedia[model.id])
       );
+      if (partFactory) {
+        appendFacts(
+          fact("View", `Single part: ${label(partFactory.role)}; fitted position retained`),
+          fact("Part quality", partFactory.quality),
+          fact("Part author", partFactory.author),
+          fact(
+            "Assembly",
+            "Fixed landmark exterior study; components are for inspection and are not interchangeable building presets."
+          )
+        );
+      }
+      const partsPanel = modelPartsPanel(massing.group);
+      if (partsPanel) facts.append(partsPanel);
       for (const source of definition.sources) {
         const row = document.createElement("p");
         const link = document.createElement("a");
@@ -1114,7 +1167,10 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
         appendFacts(row);
       }
     };
-    button.addEventListener("click", () => showLandmark());
+    button.addEventListener("click", () => {
+      selectedPart = "all";
+      showLandmark();
+    });
   }
 }
 const assemblies = modelCategory("Fortress assemblies");
@@ -1238,54 +1294,44 @@ const shipsHeading = modelCategory("Ships");
 const carrackButton = document.createElement("button");
 carrackButton.type = "button";
 carrackButton.textContent = "Carrack · High-castled merchant ship";
-carrackButton.addEventListener("click", () => {
-  selection++;
-  for (const button of list.querySelectorAll("button")) {
-    button.setAttribute("aria-current", button === carrackButton ? "true" : "false");
-  }
-  clearMesh();
-  floors.replaceChildren();
-  facts.replaceChildren();
-  banner.hidden = true;
-  roofTitle.textContent = "Ship elevation";
-  levelTitle.textContent = "Deck plan";
-  const model = createCarrack();
-  massing = model;
-  scene.add(model.group);
-  frame({ occupancyMeters: { width: CARRACK.length, depth: CARRACK.beam } }, CARRACK.height);
-  camera.position.set(43, 28, 54);
-  controls.target.set(1, 14, 0);
-  controls.update();
-  mountPlan(roofHost, model.elevation);
-  mountPlan(levelHost, model.plan);
-  appendFacts(
-    fact("Model", CARRACK.name),
-    fact("Period", "Late medieval / early modern · imagined merchant vessel"),
-    fact(
-      "Dimensions",
-      `${CARRACK.length} m overall length × ${CARRACK.beam} m beam; ${CARRACK.height} m above water; ${CARRACK.draft} m draft`
-    ),
-    fact("Rig", "Three masts; square-rigged fore and main masts; lateen mizzen"),
-    fact("Hull", "Broad round-bilged hull; high forecastle and stepped sterncastle"),
-    fact("Note", CARRACK.note, "Carrack")
-  );
-  const source = document.createElement("a");
-  source.href = CARRACK.source;
-  source.textContent = "Mariners’ Museum · Carrack";
-  source.target = "_blank";
-  source.rel = "noreferrer";
-  appendFacts(source);
-});
+carrackButton.dataset.id = "carrack";
+AUTHORED_VARIANTS.carrack = {
+  author: CARRACK.author,
+  primary: true,
+  quality: true,
+  show: () => showSailingShip("carrack")
+};
+carrackButton.addEventListener("click", () => showSailingShip("carrack"));
 shipsHeading.append(carrackButton);
+const caravelButton = document.createElement("button");
+caravelButton.type = "button";
+caravelButton.dataset.id = "caravel";
+caravelButton.textContent = "Caravel · Two-masted lateen ship";
+AUTHORED_VARIANTS.caravel = {
+  author: CARAVEL.author,
+  primary: true,
+  quality: true,
+  show: () => showSailingShip("caravel")
+};
+caravelButton.addEventListener("click", () => showSailingShip("caravel"));
+shipsHeading.append(caravelButton);
 
 const galleonButton = document.createElement("button");
 galleonButton.type = "button";
 galleonButton.textContent = "Galleon · Three-masted sailing ship";
 galleonButton.dataset.id = "galleon";
-AUTHORED_VARIANTS[galleonButton.dataset.id] = { author: OPUS_GALLEON.author, show: () => showOpusGalleon() };
-let opusGalleonEnsign = false;
-function showOpusGalleon(): void {
+AUTHORED_VARIANTS.galleon = { author: OPUS_GALLEON.author, quality: true, show: () => showGalleon() };
+const galleonState: Required<GalleonState> & { ensign: boolean } = { sails: "set", gunports: "open", ensign: false };
+const galleonPartsSelected = { codex: "all", opus: "all" };
+function showGalleon(author: string = authorSelect.value): void {
+  const opus = author === OPUS_GALLEON.author,
+    key = opus ? "opus" : "codex";
+  const quality = qualitySelect.value as OpusGalleonQuality,
+    high = quality === "high";
+  const info = opus ? OPUS_GALLEON : GALLEON;
   selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === galleonButton ? "true" : "false");
   clearMesh();
   floors.replaceChildren();
   facts.replaceChildren();
@@ -1293,89 +1339,152 @@ function showOpusGalleon(): void {
   roofTitle.textContent = "Ship elevation";
   levelTitle.textContent = "Deck plan";
   showQuality(true);
-  const quality = qualitySelect.value as OpusGalleonQuality;
-  comparisonModel = { path: null, quality };
-  const model = createOpusGalleon(quality, { ensign: opusGalleonEnsign });
-  const ensignToggle = document.createElement("input");
-  ensignToggle.type = "checkbox";
-  ensignToggle.checked = opusGalleonEnsign;
-  ensignToggle.addEventListener("change", () => {
-    opusGalleonEnsign = ensignToggle.checked;
-    showOpusGalleon();
+  const parts: readonly ModelPartFactory[] = opus
+    ? opusGalleonParts(quality, galleonState)
+    : high
+      ? merchantShipParts("galleon", galleonState)
+      : [
+          {
+            id: "low-assembly",
+            role: "Legacy assembly",
+            author: GALLEON.author,
+            quality: "low",
+            create: () => createGalleon(galleonState)
+          }
+        ];
+  if (!parts.some(p => p.id === galleonPartsSelected[key])) galleonPartsSelected[key] = "all";
+  const chosen = parts.find(p => p.id === galleonPartsSelected[key]);
+  const model = chosen
+    ? opus
+      ? chosen.create()
+      : assembleSailingParts("galleon-part", [chosen])
+    : opus
+      ? createOpusGalleon(quality, galleonState)
+      : high
+        ? createMerchantShipHigh("galleon", galleonState)
+        : createGalleon(galleonState);
+  comparisonModel = { path: null, quality, viewOnly: true };
+  for (const [label, field, options] of [
+    [
+      "Sails",
+      "sails",
+      [
+        ["Set", "set"],
+        ["Furled · moored", "furled"]
+      ]
+    ],
+    [
+      "Gunports",
+      "gunports",
+      [
+        ["Open", "open"],
+        ["Closed", "closed"]
+      ]
+    ]
+  ] as const) {
+    const input = document.createElement("select");
+    input.setAttribute("aria-label", label);
+    for (const [name, value] of options) input.add(new Option(name, value));
+    input.value = galleonState[field];
+    input.addEventListener("change", () => {
+      if (field === "sails") galleonState.sails = input.value as "set" | "furled";
+      else galleonState.gunports = input.value as "open" | "closed";
+      showGalleon(author);
+    });
+    const row = document.createElement("label");
+    row.append(label, input);
+    optionFields.append(row);
+  }
+  const partSelect = document.createElement("select");
+  partSelect.setAttribute("aria-label", "Assembly part");
+  partSelect.add(new Option("Complete ship", "all"));
+  for (const part of parts) partSelect.add(new Option(`${part.role} · ${part.quality}`, part.id));
+  partSelect.value = galleonPartsSelected[key];
+  partSelect.addEventListener("change", () => {
+    galleonPartsSelected[key] = partSelect.value;
+    showGalleon(author);
   });
-  const ensignRow = document.createElement("label");
-  ensignRow.append(ensignToggle, " Stern ensign");
-  const ensignParagraph = document.createElement("p");
-  ensignParagraph.append(ensignRow);
-  optionFields.append(ensignParagraph);
+  const partRow = document.createElement("label");
+  partRow.append("Assembly part", partSelect);
+  optionFields.append(partRow);
+  if (opus) {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = galleonState.ensign;
+    input.addEventListener("change", () => {
+      galleonState.ensign = input.checked;
+      showGalleon(author);
+    });
+    const row = document.createElement("label");
+    row.append(input, " Stern ensign");
+    optionFields.append(row);
+  }
   modelOptions.hidden = false;
   massing = model;
   scene.add(model.group);
-  frame({ occupancyMeters: { width: OPUS_GALLEON.length, depth: OPUS_GALLEON.beam } }, OPUS_GALLEON.height);
-  camera.position.set(52, 30, 64);
-  controls.target.set(4, 16, 0);
+  frame({ occupancyMeters: { width: info.length, depth: info.beam } }, info.height);
+  camera.position.set(info.length * 0.92, info.height * 0.8, info.length * 1.15);
+  controls.target.set(2, info.height * 0.43, 0);
   controls.update();
   mountPlan(roofHost, meshProjection(model, "side"));
   mountPlan(levelHost, meshProjection(model, "top"));
   appendFacts(
-    fact("Model", OPUS_GALLEON.name),
-    ...adoptionFacts("ship.galleon", "default", OPUS_GALLEON.author),
+    fact("Model", info.name),
+    fact("Quality", high ? "High" : "Low"),
+    fact("Sails", galleonState.sails),
+    fact("Gunports", galleonState.gunports),
     fact(
-      "Quality",
-      quality === "high" ? "High" : "Low — ratlines, running rigging, deck seams, balusters and gratings omitted"
+      "CE adoption",
+      opus ? "BV-only comparison" : "Legacy default (Low); sail and gunport states supported in CE; High is BV-only"
     ),
-    fact("Period", "Age of sail · imagined late-16th-century race-built galleon"),
     fact(
       "Dimensions",
-      `${OPUS_GALLEON.length} m over spars × ${OPUS_GALLEON.beam} m beam; ${OPUS_GALLEON.height} m above water; ${OPUS_GALLEON.draft} m draft`
+      `${info.length} m over spars × ${info.beam} m hull beam; ${info.height} m above water; ${info.draft} m draft`
     ),
-    fact("Rig", "Fore and main: course, topsail, topgallant; lateen mizzen with topsail; spritsail"),
-    fact("Armament", `${OPUS_GALLEON.guns} guns on two tiers, including two stern chasers`),
-    fact("Note", OPUS_GALLEON.note, "Galleon")
+    fact("Armament", opus ? "28 guns, including two stern chasers" : "14 broadside guns"),
+    fact("Note", info.note, "Galleon")
   );
+  const panel = modelPartsPanel(model.group);
+  if (panel) facts.append(panel);
 }
-galleonButton.addEventListener("click", () => {
-  selection++;
-  for (const button of list.querySelectorAll("button")) {
-    button.setAttribute("aria-current", button === galleonButton ? "true" : "false");
-  }
-  clearMesh();
-  floors.replaceChildren();
-  facts.replaceChildren();
-  banner.hidden = true;
-  roofTitle.textContent = "Ship elevation";
-  levelTitle.textContent = "Deck plan";
-  const model = createGalleon();
-  massing = model;
-  scene.add(model.group);
-  frame({ occupancyMeters: { width: GALLEON.length, depth: GALLEON.beam } }, GALLEON.height);
-  camera.position.set(54, 32, 67);
-  controls.target.set(2, 17, 0);
-  controls.update();
-  mountPlan(roofHost, model.elevation);
-  mountPlan(levelHost, model.plan);
-  appendFacts(
-    fact("Model", GALLEON.name),
-    ...adoptionFacts("ship.galleon", "default", GALLEON.author),
-    fact("Period", "Age of sail · imagined early modern vessel"),
-    fact(
-      "Dimensions",
-      `${GALLEON.length} m overall length × ${GALLEON.beam} m beam; ${GALLEON.height} m above water; ${GALLEON.draft} m draft`
-    ),
-    fact("Rig", "Three masts; square-rigged fore and main masts; lateen mizzen"),
-    fact("Armament", "14 broadside guns"),
-    fact("Note", GALLEON.note, "Galleon")
-  );
-});
+galleonButton.addEventListener("click", () => showGalleon(GALLEON.author));
 shipsHeading.append(galleonButton);
 
 const sloopButton = document.createElement("button");
 sloopButton.type = "button";
 sloopButton.textContent = "Sloop · Small coastal sailing ship";
-sloopButton.addEventListener("click", () => {
+sloopButton.dataset.id = "sloop";
+AUTHORED_VARIANTS.sloop = { author: SLOOP.author, primary: true, quality: true, show: () => showSailingShip("sloop") };
+type SailingStudy = "sloop" | "caravel" | "carrack";
+const sailingStudies = {
+  sloop: { info: SLOOP, button: sloopButton, low: createSloop, high: createSloopHigh, parts: sloopHighParts },
+  caravel: {
+    info: CARAVEL,
+    button: caravelButton,
+    low: createCaravel,
+    high: (state: SailingShipState) => createMerchantShipHigh("caravel", state),
+    parts: (state: SailingShipState) => merchantShipParts("caravel", state)
+  },
+  carrack: {
+    info: CARRACK,
+    button: carrackButton,
+    low: createCarrack,
+    high: (state: SailingShipState) => createMerchantShipHigh("carrack", state),
+    parts: (state: SailingShipState) => merchantShipParts("carrack", state)
+  }
+};
+const sailingStates: Record<SailingStudy, { sails: "set" | "furled"; part: string }> = {
+  sloop: { sails: "set", part: "all" },
+  caravel: { sails: "set", part: "all" },
+  carrack: { sails: "set", part: "all" }
+};
+function showSailingShip(kind: SailingStudy): void {
+  const study = sailingStudies[kind],
+    saved = sailingStates[kind],
+    info = study.info;
   selection++;
   for (const button of list.querySelectorAll("button")) {
-    button.setAttribute("aria-current", button === sloopButton ? "true" : "false");
+    button.setAttribute("aria-current", button === study.button ? "true" : "false");
   }
   clearMesh();
   floors.replaceChildren();
@@ -1383,27 +1492,100 @@ sloopButton.addEventListener("click", () => {
   banner.hidden = true;
   roofTitle.textContent = "Ship elevation";
   levelTitle.textContent = "Deck plan";
-  const model = createSloop();
+  showQuality(true);
+  const high = qualitySelect.value === "high";
+  const state = { sails: saved.sails };
+  const parts: readonly ModelPartFactory[] = high
+    ? study.parts(state)
+    : [
+        {
+          id: "low-assembly",
+          role: "Legacy assembly",
+          author: info.author,
+          quality: "low",
+          create: () => study.low(state)
+        }
+      ];
+  if (!parts.some(part => part.id === saved.part)) saved.part = "all";
+  const chosen = parts.find(part => part.id === saved.part);
+  const model = chosen ? assembleSailingParts(`${kind}-part`, [chosen]) : high ? study.high(state) : study.low(state);
+  comparisonModel = { path: null, quality: high ? "high" : "low", viewOnly: true };
+  const sailsSelect = document.createElement("select");
+  sailsSelect.setAttribute("aria-label", "Sails");
+  sailsSelect.add(new Option("Set", "set"));
+  sailsSelect.add(new Option("Furled · moored", "furled"));
+  sailsSelect.value = saved.sails;
+  sailsSelect.addEventListener("change", () => {
+    saved.sails = sailsSelect.value as "set" | "furled";
+    showSailingShip(kind);
+  });
+  const partSelect = document.createElement("select");
+  partSelect.setAttribute("aria-label", "Assembly part");
+  partSelect.add(new Option("Complete ship", "all"));
+  for (const part of parts) partSelect.add(new Option(`${part.role} · ${part.quality}`, part.id));
+  partSelect.value = saved.part;
+  partSelect.addEventListener("change", () => {
+    saved.part = partSelect.value;
+    showSailingShip(kind);
+  });
+  for (const [label, input] of [
+    ["Sails", sailsSelect],
+    ["Assembly part", partSelect]
+  ] as const) {
+    const row = document.createElement("label");
+    row.append(label, input);
+    optionFields.append(row);
+  }
+  modelOptions.hidden = false;
   massing = model;
   scene.add(model.group);
-  frame({ occupancyMeters: { width: SLOOP.length, depth: SLOOP.beam } }, SLOOP.height);
-  camera.position.set(19, 13, 23);
-  controls.target.set(1, 6, 0);
+  frame({ occupancyMeters: { width: info.length, depth: info.beam } }, info.height);
+  camera.position.set(info.length * 1.2, info.height * 0.9, info.length * 1.5);
+  controls.target.set(1, info.height * 0.43, 0);
   controls.update();
-  mountPlan(roofHost, model.elevation);
-  mountPlan(levelHost, model.plan);
+  mountPlan(roofHost, meshProjection(model, "side"));
+  mountPlan(levelHost, meshProjection(model, "top"));
   appendFacts(
-    fact("Model", SLOOP.name),
-    fact("Period", "Age of sail · imagined coastal vessel"),
+    fact("Model", info.name),
+    fact("Quality", high ? "High" : "Low"),
+    fact("Sails", saved.sails === "furled" ? "Furled" : "Set"),
+    fact(
+      "CE adoption",
+      kind === "carrack" ? "BV-only model" : "Legacy default (Low); sail states supported in CE; High is BV-only"
+    ),
+    fact(
+      "Period",
+      kind === "sloop"
+        ? "Age of sail · imagined coastal vessel"
+        : "Late medieval / early modern · imagined merchant vessel"
+    ),
     fact(
       "Dimensions",
-      `${SLOOP.length} m overall length × ${SLOOP.beam} m beam; ${SLOOP.height} m above water; ${SLOOP.draft} m draft`
+      `${info.length} m overall length × ${info.beam} m beam; ${info.height} m above water; ${info.draft} m draft`
     ),
-    fact("Rig", "One mast; gaff mainsail and jib"),
-    fact("Hull", "Small wooden hull with keel, low cabin and tiller steering"),
-    fact("Note", SLOOP.note, "Sloop")
+    fact(
+      "Rig",
+      kind === "sloop"
+        ? "One mast; gaff mainsail and jib"
+        : kind === "caravel"
+          ? "Two masts; lateen sails"
+          : "Three masts; square fore and main, lateen mizzen"
+    ),
+
+    fact("Note", info.note, info.name)
   );
-});
+  if (kind === "carrack") {
+    const source = document.createElement("a");
+    source.href = CARRACK.source;
+    source.textContent = "Mariners’ Museum · Carrack";
+    source.target = "_blank";
+    source.rel = "noreferrer";
+    appendFacts(source);
+  }
+  const panel = modelPartsPanel(model.group);
+  if (panel) facts.append(panel);
+}
+sloopButton.addEventListener("click", () => showSailingShip("sloop"));
 shipsHeading.append(sloopButton);
 
 const bargeButton = document.createElement("button");
@@ -2555,6 +2737,9 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
     const editionLabel = (entry: Variant) => (entry.edition ? label(entry.edition) : "Standard");
     // The previewed season persists across quality and edition switches of the same tree.
     let season = definition.seasons?.default;
+    let appearance = definition.appearances?.default;
+    let marketActivity: "market-day" | "closed" = "market-day";
+    let marketDetail: "near" | "distant" = "near";
     let selectedPart = "all";
     let selectedPartPreset = definition.partPresets?.[0]?.id;
     const showModel = (variant: Variant | undefined = definition.variants && adopted(levels.at(-1)!)) => {
@@ -2621,6 +2806,61 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
           optionFields.append(document.createElement("br"), editionRow);
         }
       }
+      if (variant && definition.marketDisplay) {
+        for (const [title, aria, entries, value, change] of [
+          [
+            "Activity",
+            "Market activity",
+            [
+              ["market-day", "Market day"],
+              ["closed", "Closed"]
+            ],
+            marketActivity,
+            (value: string) => {
+              marketActivity = value as typeof marketActivity;
+            }
+          ],
+          [
+            "Detail",
+            "Market distance representation",
+            [
+              ["near", "Near"],
+              ["distant", "Distant"]
+            ],
+            marketDetail,
+            (value: string) => {
+              marketDetail = value as typeof marketDetail;
+            }
+          ]
+        ] as const) {
+          const row = document.createElement("label");
+          row.textContent = `${title}: `;
+          const select = document.createElement("select");
+          select.setAttribute("aria-label", aria);
+          for (const [id, label] of entries) select.add(new Option(label, id));
+          select.value = value;
+          select.addEventListener("change", () => {
+            change(select.value);
+            showModel(variant);
+          });
+          row.append(select);
+          optionFields.append(document.createElement("br"), row);
+        }
+      }
+      if (variant && definition.appearances) {
+        const row = document.createElement("label");
+        row.textContent = "Palette: ";
+        const select = document.createElement("select");
+        select.setAttribute("aria-label", "Model palette");
+        for (const option of definition.appearances.options) select.add(new Option(option.label, option.id));
+        select.value = appearance!;
+        select.addEventListener("change", () => {
+          appearance = select.value;
+          showModel(variant);
+        });
+        row.append(select);
+        optionFields.append(document.createElement("br"), row);
+      }
       if (variant && definition.seasons) {
         const seasonRow = document.createElement("label");
         seasonRow.textContent = "Season: ";
@@ -2684,7 +2924,12 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         row.append(select);
         optionFields.append(row);
       }
-      if (partFactory || customAssembly) {
+      if (
+        partFactory ||
+        customAssembly ||
+        (definition.appearances && appearance !== definition.appearances.default) ||
+        (definition.marketDisplay && (marketActivity === "closed" || marketDetail === "distant"))
+      ) {
         // Components and custom compositions must not overwrite the registered assembly's metrics.
         comparisonVariants = null;
         comparisonModel = {
@@ -2700,14 +2945,19 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         : customAssembly
           ? assemble(partFactories!)
           : variant
-            ? definition.seasons && season !== definition.seasons.default
-              ? definition.seasons.create(variant.id, season!)
-              : variant.create()
+            ? definition.marketDisplay
+              ? definition.marketDisplay.create(variant.id, appearance ?? "ochre", marketActivity, marketDetail)
+              : definition.appearances
+                ? definition.appearances.create(variant.id, appearance!)
+                : definition.seasons && season !== definition.seasons.default
+                  ? definition.seasons.create(variant.id, season!)
+                  : variant.create()
             : definition.create();
       massing = model;
       scene.add(model.group);
       ground.visible = true;
       const bounds = new THREE.Box3().setFromObject(model.group, true);
+      if (bounds.isEmpty()) bounds.set(new THREE.Vector3(), new THREE.Vector3());
       const center = bounds.getCenter(new THREE.Vector3());
       const size = bounds.getSize(new THREE.Vector3());
       const radius = Math.max(size.x, size.y, size.z, 0.6);
@@ -2722,6 +2972,27 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       appendFacts(
         fact("Model", definition.name),
         fact("Task", String(task).padStart(2, "0")),
+        ...(definition.marketDisplay
+          ? [
+              fact(
+                "Activity",
+                marketActivity === "closed"
+                  ? definition.id === "market-fish-booth"
+                    ? "Closed; shutters shut"
+                    : "Closed; temporary pitch packed away"
+                  : "Market day"
+              ),
+              fact("Representation", marketDetail === "distant" ? "Distant silhouette" : "Near model")
+            ]
+          : []),
+        ...(definition.appearances
+          ? [
+              fact(
+                "Palette",
+                definition.appearances.options.find(option => option.id === appearance)?.label ?? appearance!
+              )
+            ]
+          : []),
         ...(definition.partPresets
           ? [fact("Composition", definition.partPresets.find(preset => preset.id === selectedPartPreset)!.name)]
           : []),
@@ -2743,15 +3014,17 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
                 : []),
               fact(
                 "CE adoption",
-                partFactory || customAssembly
-                  ? "Component preview; CE placement uses its registered assembly"
-                  : variant.family === "monastery.friary" || variant.family === "monastery.abbey"
-                    ? variant.level === "high"
-                      ? "CE uses this architecture at High model quality"
-                      : "CE uses Low architecture at Low or Standard model quality"
-                    : variant === adopted(variant.level)
-                      ? "Adopted"
-                      : `Not adopted; CE uses ${adopted(variant.level).author}`
+                definition.cePlacementStatus === "preview-only"
+                  ? "Not enabled; BV preview only"
+                  : partFactory || customAssembly
+                    ? "Component preview; CE placement uses its registered assembly"
+                    : variant.family === "monastery.friary" || variant.family === "monastery.abbey"
+                      ? variant.level === "high"
+                        ? "CE uses this architecture at High model quality"
+                        : "CE uses Low architecture at Low or Standard model quality"
+                      : variant === adopted(variant.level)
+                        ? "Adopted"
+                        : `Not adopted; CE uses ${adopted(variant.level).author}`
               ),
               ...(displayedDependencies
                 ? [

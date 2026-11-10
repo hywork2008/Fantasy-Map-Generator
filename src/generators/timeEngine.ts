@@ -1134,7 +1134,7 @@ function advanceTimeMutationInSimulationRng(deltaYears: number, deltaMonths: num
       // skips advanceAllRegimentMovement's route-graph rebuild, the dominant cost of this block.
       // Advance Day (isBulkAdvance === false) and autonomous-policy maps are unaffected.
       const skipMovement =
-        bulkAdvance && normalizeConflictAutonomy(worldContext.options.conflictAutonomy) === "playerDirected";
+        bulkAdvance && normalizeConflictAutonomy(worldContext.options.conflictAutonomy) !== "autonomous";
       if (skipMovement) return;
       const regimentsMoved = advanceAllRegimentMovement(worldContext.pack, worldContext, effectiveDeltaYears);
       if (regimentsMoved) topics.push("simulation.military");

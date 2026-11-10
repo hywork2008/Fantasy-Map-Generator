@@ -1,0 +1,182 @@
+{
+  "method": "Fixed BV variant geometry. Dimensions X/Y/Z metres. Unique CPU attribute/index ArrayBuffers exclude JS objects, transient allocations and GPU memory; no FPS benchmark.",
+  "rows": [
+    {
+      "id": "cemetery.stupa_chorten@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 5,
+        "triangles": 268,
+        "vertices": 241,
+        "geometries": 3,
+        "materials": 2
+      },
+      "attributeBytes": 9176,
+      "dimensions": [
+        6,
+        6.5,
+        6
+      ],
+      "fingerprint": "c10347f4a370a84dc46f9cf69af50df8e0c5e5d82cffc6664c7bb051639519a3",
+      "sourceParts": [],
+      "parts": [
+        {
+          "id": "stupa-chorten:legacy",
+          "role": "legacy-assembly",
+          "quality": "low",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 268,
+            "vertices": 804,
+            "geometries": 2,
+            "materials": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "cemetery.stupa_chorten@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 4,
+        "triangles": 6832,
+        "vertices": 20496,
+        "geometries": 4,
+        "materials": 4
+      },
+      "attributeBytes": 491904,
+      "dimensions": [
+        6.02400016784668,
+        7.449999809369445,
+        6.02400016784668
+      ],
+      "fingerprint": "0959b96736b72e29da7ebcd08f52b5ca113760597288674dd274784f158eed5a",
+      "sourceParts": [
+        {
+          "id": "stupa:throne",
+          "role": "throne",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 6,
+          "triangles": 264
+        },
+        {
+          "id": "stupa:terraces",
+          "role": "terraces",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 8,
+          "triangles": 224
+        },
+        {
+          "id": "stupa:bumpa",
+          "role": "bumpa",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 1632
+        },
+        {
+          "id": "stupa:harmika",
+          "role": "harmika",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 3,
+          "triangles": 132
+        },
+        {
+          "id": "stupa:spire",
+          "role": "spire",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 14,
+          "triangles": 2688
+        },
+        {
+          "id": "stupa:crown",
+          "role": "crown",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 5,
+          "triangles": 1892
+        }
+      ],
+      "parts": [
+        {
+          "id": "stupa:throne",
+          "role": "throne",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 264,
+            "vertices": 792,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "stupa:terraces",
+          "role": "terraces",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 224,
+            "vertices": 672,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "stupa:bumpa",
+          "role": "bumpa",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 1632,
+            "vertices": 4896,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "stupa:harmika",
+          "role": "harmika",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 132,
+            "vertices": 396,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "stupa:spire",
+          "role": "spire",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 2688,
+            "vertices": 8064,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "stupa:crown",
+          "role": "crown",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 1892,
+            "vertices": 5676,
+            "geometries": 1,
+            "materials": 1
+          }
+        }
+      ]
+    }
+  ]
+}

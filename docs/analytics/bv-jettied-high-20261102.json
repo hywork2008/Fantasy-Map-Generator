@@ -1,0 +1,616 @@
+{
+  "method": "Fixed BV variant geometry. Dimensions X/Y/Z metres. Unique CPU attribute/index ArrayBuffers exclude JS objects, transient allocations and GPU memory; no FPS benchmark.",
+  "rows": [
+    {
+      "id": "medieval.jettied-town-house@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 116,
+        "triangles": 1362,
+        "vertices": 42,
+        "geometries": 4,
+        "materials": 7
+      },
+      "attributeBytes": 1272,
+      "dimensions": [
+        5.85,
+        8.28,
+        7.19889868997573
+      ],
+      "fingerprint": "5a98e9e9ea0ddd5caecf9ce0d0192f17014996590d1d6267e1454038ebf1d88d",
+      "sourceParts": [],
+      "parts": [
+        {
+          "id": "jettied-town-house:legacy",
+          "role": "legacy-assembly",
+          "quality": "low",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 1362,
+            "vertices": 4086,
+            "geometries": 7,
+            "materials": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": "medieval.jettied-town-house@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 8,
+        "triangles": 16016,
+        "vertices": 48048,
+        "geometries": 8,
+        "materials": 8
+      },
+      "attributeBytes": 1153152,
+      "dimensions": [
+        5.929999828338623,
+        8.27083969116211,
+        7.2099997997283936
+      ],
+      "fingerprint": "b8a658dc8bba8a5911d35c1422bf883d4d82b78cdab2d0a3ac03ccd902d7dc2d",
+      "sourceParts": [
+        {
+          "id": "jettied-town-house:storey-0",
+          "role": "storey-0",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 298,
+          "triangles": 4200
+        },
+        {
+          "id": "jettied-town-house:storey-1",
+          "role": "storey-1",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 319,
+          "triangles": 3828
+        },
+        {
+          "id": "jettied-town-house:jetty-1",
+          "role": "jetty-1",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 15,
+          "triangles": 180
+        },
+        {
+          "id": "jettied-town-house:stairs",
+          "role": "stairs",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 432
+        },
+        {
+          "id": "jettied-town-house:roof",
+          "role": "roof",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 573,
+          "triangles": 6956
+        },
+        {
+          "id": "jettied-town-house:chimney",
+          "role": "chimney",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 35,
+          "triangles": 420
+        }
+      ],
+      "parts": [
+        {
+          "id": "jettied-town-house:storey-0",
+          "role": "storey-0",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 4200,
+            "vertices": 12600,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "jettied-town-house:storey-1",
+          "role": "storey-1",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 3828,
+            "vertices": 11484,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "jettied-town-house:jetty-1",
+          "role": "jetty-1",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 180,
+            "vertices": 540,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "jettied-town-house:stairs",
+          "role": "stairs",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 432,
+            "vertices": 1296,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "jettied-town-house:roof",
+          "role": "roof",
+          "quality": "high",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 6956,
+            "vertices": 20868,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "jettied-town-house:chimney",
+          "role": "chimney",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 420,
+            "vertices": 1260,
+            "geometries": 2,
+            "materials": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "medieval.double-jettied-merchant-house@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 178,
+        "triangles": 2106,
+        "vertices": 42,
+        "geometries": 4,
+        "materials": 7
+      },
+      "attributeBytes": 1272,
+      "dimensions": [
+        5.85,
+        10.93,
+        7.6758934570129576
+      ],
+      "fingerprint": "0996bfa41082f19c206dc8d324ff154a82f7c4d3d715f8bbcdd243e7d90582ea",
+      "sourceParts": [],
+      "parts": [
+        {
+          "id": "double-jettied-merchant-house:legacy",
+          "role": "legacy-assembly",
+          "quality": "low",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 2106,
+            "vertices": 6318,
+            "geometries": 7,
+            "materials": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": "medieval.double-jettied-merchant-house@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 8,
+        "triangles": 20738,
+        "vertices": 62214,
+        "geometries": 8,
+        "materials": 8
+      },
+      "attributeBytes": 1493136,
+      "dimensions": [
+        5.929999828338623,
+        10.9208402633667,
+        7.680000066757202
+      ],
+      "fingerprint": "bff9c077dc64b52276ab77f5ed4df28bb0bd96a8a7b72f953a859ce6b1eb83b4",
+      "sourceParts": [
+        {
+          "id": "double-jettied-merchant-house:storey-0",
+          "role": "storey-0",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 280,
+          "triangles": 3984
+        },
+        {
+          "id": "double-jettied-merchant-house:storey-1",
+          "role": "storey-1",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 319,
+          "triangles": 3828
+        },
+        {
+          "id": "double-jettied-merchant-house:jetty-1",
+          "role": "jetty-1",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 15,
+          "triangles": 180
+        },
+        {
+          "id": "double-jettied-merchant-house:storey-2",
+          "role": "storey-2",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 319,
+          "triangles": 3828
+        },
+        {
+          "id": "double-jettied-merchant-house:jetty-2",
+          "role": "jetty-2",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 16,
+          "triangles": 192
+        },
+        {
+          "id": "double-jettied-merchant-house:stairs",
+          "role": "stairs",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 4,
+          "triangles": 864
+        },
+        {
+          "id": "double-jettied-merchant-house:roof",
+          "role": "roof",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 575,
+          "triangles": 7002
+        },
+        {
+          "id": "double-jettied-merchant-house:chimney",
+          "role": "chimney",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 35,
+          "triangles": 420
+        },
+        {
+          "id": "double-jettied-merchant-house:shop-fittings",
+          "role": "shop-fittings",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 32,
+          "triangles": 440
+        }
+      ],
+      "parts": [
+        {
+          "id": "double-jettied-merchant-house:storey-0",
+          "role": "storey-0",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 3984,
+            "vertices": 11952,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "double-jettied-merchant-house:storey-1",
+          "role": "storey-1",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 3828,
+            "vertices": 11484,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "double-jettied-merchant-house:jetty-1",
+          "role": "jetty-1",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 180,
+            "vertices": 540,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "double-jettied-merchant-house:storey-2",
+          "role": "storey-2",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 3828,
+            "vertices": 11484,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "double-jettied-merchant-house:jetty-2",
+          "role": "jetty-2",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 192,
+            "vertices": 576,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "double-jettied-merchant-house:stairs",
+          "role": "stairs",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 864,
+            "vertices": 2592,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "double-jettied-merchant-house:roof",
+          "role": "roof",
+          "quality": "high",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 7002,
+            "vertices": 21006,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "double-jettied-merchant-house:chimney",
+          "role": "chimney",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 420,
+            "vertices": 1260,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "double-jettied-merchant-house:shop-fittings",
+          "role": "shop-fittings",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 440,
+            "vertices": 1320,
+            "geometries": 3,
+            "materials": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "medieval.corner-jettied-shop-house@low#codex-gpt-6.1-sol",
+      "quality": "low",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 122,
+        "triangles": 1434,
+        "vertices": 42,
+        "geometries": 4,
+        "materials": 7
+      },
+      "attributeBytes": 1272,
+      "dimensions": [
+        6.329999999999998,
+        8.28,
+        7.229449344987865
+      ],
+      "fingerprint": "69313ad48434fc3605667eb2e5e1c0b62c46a2f4298873d8f69d8fb754f8e127",
+      "sourceParts": [],
+      "parts": [
+        {
+          "id": "corner-jettied-shop-house:legacy",
+          "role": "legacy-assembly",
+          "quality": "low",
+          "metrics": {
+            "meshes": 7,
+            "triangles": 1434,
+            "vertices": 4302,
+            "geometries": 7,
+            "materials": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": "medieval.corner-jettied-shop-house@high#codex-gpt-6.1-sol",
+      "quality": "high",
+      "author": "Codex GPT-6.1 Sol",
+      "metrics": {
+        "meshes": 8,
+        "triangles": 16872,
+        "vertices": 50616,
+        "geometries": 8,
+        "materials": 8
+      },
+      "attributeBytes": 1214784,
+      "dimensions": [
+        6.474999904632568,
+        8.27083969116211,
+        7.269999980926514
+      ],
+      "fingerprint": "4b6418131bfb24b07a2ebaadc621d189c6786fa0a103346fdee2f0e231adb71c",
+      "sourceParts": [
+        {
+          "id": "corner-jettied-shop-house:storey-0",
+          "role": "storey-0",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 229,
+          "triangles": 3372
+        },
+        {
+          "id": "corner-jettied-shop-house:storey-1",
+          "role": "storey-1",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 319,
+          "triangles": 3828
+        },
+        {
+          "id": "corner-jettied-shop-house:jetty-1",
+          "role": "jetty-1",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 26,
+          "triangles": 312
+        },
+        {
+          "id": "corner-jettied-shop-house:stairs",
+          "role": "stairs",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 2,
+          "triangles": 432
+        },
+        {
+          "id": "corner-jettied-shop-house:roof",
+          "role": "roof",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 629,
+          "triangles": 7628
+        },
+        {
+          "id": "corner-jettied-shop-house:chimney",
+          "role": "chimney",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 35,
+          "triangles": 420
+        },
+        {
+          "id": "corner-jettied-shop-house:shop-fittings",
+          "role": "shop-fittings",
+          "quality": "high",
+          "author": "Codex GPT-6.1 Sol",
+          "meshes": 64,
+          "triangles": 880
+        }
+      ],
+      "parts": [
+        {
+          "id": "corner-jettied-shop-house:storey-0",
+          "role": "storey-0",
+          "quality": "high",
+          "metrics": {
+            "meshes": 6,
+            "triangles": 3372,
+            "vertices": 10116,
+            "geometries": 6,
+            "materials": 6
+          }
+        },
+        {
+          "id": "corner-jettied-shop-house:storey-1",
+          "role": "storey-1",
+          "quality": "high",
+          "metrics": {
+            "meshes": 5,
+            "triangles": 3828,
+            "vertices": 11484,
+            "geometries": 5,
+            "materials": 5
+          }
+        },
+        {
+          "id": "corner-jettied-shop-house:jetty-1",
+          "role": "jetty-1",
+          "quality": "high",
+          "metrics": {
+            "meshes": 1,
+            "triangles": 312,
+            "vertices": 936,
+            "geometries": 1,
+            "materials": 1
+          }
+        },
+        {
+          "id": "corner-jettied-shop-house:stairs",
+          "role": "stairs",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 432,
+            "vertices": 1296,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "corner-jettied-shop-house:roof",
+          "role": "roof",
+          "quality": "high",
+          "metrics": {
+            "meshes": 4,
+            "triangles": 7628,
+            "vertices": 22884,
+            "geometries": 4,
+            "materials": 4
+          }
+        },
+        {
+          "id": "corner-jettied-shop-house:chimney",
+          "role": "chimney",
+          "quality": "high",
+          "metrics": {
+            "meshes": 2,
+            "triangles": 420,
+            "vertices": 1260,
+            "geometries": 2,
+            "materials": 2
+          }
+        },
+        {
+          "id": "corner-jettied-shop-house:shop-fittings",
+          "role": "shop-fittings",
+          "quality": "high",
+          "metrics": {
+            "meshes": 3,
+            "triangles": 880,
+            "vertices": 2640,
+            "geometries": 3,
+            "materials": 3
+          }
+        }
+      ]
+    }
+  ]
+}

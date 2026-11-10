@@ -923,6 +923,21 @@ it("preserves legacy timber on migration and does not reapply clearing on extens
   expect(world.pack.landUse!.revision).toBe(revision);
   expect(world.pack.cells.forestStock[0]).toBeCloseTo(0.4, 6);
 });
+it("sizes world-birth fields to the people without the yearly clearance cap", () => {
+  const world = createWorld();
+  world.pack.cells.forestStock = new Float32Array([0.9, 0]);
+  reconcileForestClearanceForAgriculture(world, undefined, undefined, { year: 1 });
+  const area = world.pack.landUse!.cells[0].allocatedAreaHa;
+  // More people at birth than the first plan was sized for, in the same year.
+  world.pack.cells.pop[0] = 4;
+  world.pack.cells.maleAdults[0] = 2;
+  world.pack.cells.femaleAdults[0] = 2;
+  world.pack.landUse!.needsAnnualReconciliation = true;
+  reconcileForestClearanceForAgriculture(world, undefined, undefined, { annual: true, year: 1, worldBirth: true });
+  const budget = world.pack.landUse!.cells[0];
+  expect(budget.allocatedAreaHa).toBeGreaterThan(area + 2.000001);
+  expect(budget.allocatedAreaHa).toBeGreaterThanOrEqual(budget.requiredAreaHa);
+});
 it("caps yearly field expansion and applies each year's revision once", () => {
   const world = createWorld();
   world.pack.cells.forestStock = new Float32Array([0.9, 0]);

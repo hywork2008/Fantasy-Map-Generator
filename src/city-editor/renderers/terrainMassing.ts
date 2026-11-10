@@ -388,7 +388,7 @@ export function stairStructures(terrain: CityTerrain): StructureMassing[] {
       if (length < 1e-6) continue;
       const nx = -dy / length,
         ny = dx / length;
-      const steps = Math.max(1, Math.ceil(Math.abs(zb - za) / STAIR_RISER_METERS));
+      const steps = Math.max(1, Math.ceil(Math.abs(zb - za) / (flight.riserMeters ?? STAIR_RISER_METERS)));
       for (let k = 0; k < steps; k++) {
         const t0 = k / steps,
           t1 = (k + 1) / steps;

@@ -98,10 +98,31 @@ export interface Market {
   heatingLedger?: HeatingLedger;
   /** Rural woodcutting for own fuel and for sale (docs/plan/farm-labour-calibration.md §19). */
   woodSupply?: WoodSupplyLedger;
+  /** Rural peat cutting for hearths and for sale (docs/plan/saltworks-fuel-procurement.md F2). */
+  peatSupply?: {
+    monthKey: number;
+    potential: number;
+    ruralFuelPeat: number;
+    marketPeat: number;
+    stockAfterSupply: number;
+    smoothedDraw: number;
+  };
+  /**
+   * Fresh Meat the slaughtered offtake gave and the towns bought, in kg, this simulation year and
+   * the share sold in the last complete one (docs/plan/livestock-meat-sales.md §3.3).
+   */
+  meatSales?: { year: number; producedKg: number; soldKg: number; lastSoldShare?: number };
   /** Physical intake, household use, processing and spoilage for dairy, vine, and ale goods. */
   foodProcessingLedger?: FoodProcessingLedger;
   /** Returnable containers remain in circulation; recipe inputs only cover loss and repair. */
   returnableContainerLedger?: ReturnableContainerLedger;
+  /**
+   * Consecutive months its rural purse per head stayed below the dissolve share of the median
+   * market's (docs/plan/market-founding-viability.md §3.2). Absent when above it.
+   */
+  lowRuralWealthMonths?: number;
+  /** Winding down to be dissolved: no new trade is booked with it (market-founding-viability.md §3.2). */
+  dissolving?: boolean;
 }
 
 export interface TextileLedger {
@@ -275,6 +296,10 @@ export interface MarketTreasury {
   balance: number;
   /** Aggregate unpaid farmgate debt owed to rural Grain producers when balance was insufficient. */
   ruralGrainPayable: number;
+  /** Hay bought at the cut on credit, repaid to the farms as the Fodder sells (Simulation settings `hayPayment`). */
+  ruralHayPayable?: number;
+  /** Lots of the Fodder stock that are the farms' hay, sold for them on credit: its proceeds go to them. */
+  ruralHayConsignedLots?: number;
   /**
    * Merchant company working capital for inter-market trade (export warehouse booking).
    * Soft ledger: not full B2B settlement between markets.
@@ -290,6 +315,10 @@ export interface MarketTreasury {
   tradeCapitalPaid?: boolean;
   /** Unpaid purchases of arrived inter-market cargo, by creditor (exporting) market id (§5.1). */
   tradePayables?: Record<string, number>;
+  /** Salt bought on credit from saltworks, by saltworks id (docs/plan/salt-supply-calibration.md §3.2). */
+  saltPayables?: Record<string, number>;
+  /** Livestock salt the rural households took on account and still owe this market (salt-supply-calibration.md §3.9). */
+  ruralSaltReceivable?: number;
   /**
    * Cash this market has put up for cargo bought on escrow terms and still on the way: taken
    * out of `balance` at booking, paid to the seller on arrival, returned if the cargo never comes
@@ -409,6 +438,13 @@ export interface FoodLedger {
    * Market, not literally 0.
    */
   ruralHouseholdWealth?: number;
+  /**
+   * Fodder lots sold to the catchment's herds over roughly the last year (×11/12 each month plus the
+   * month's sales). Caps how much spare grass the market buys (docs/plan/fodder-purchase-demand-cap.md).
+   */
+  fodderAnnualUseLots?: number;
+  /** Feed period of the market's last hay purchase from its farms: its stock must last a year from it. */
+  fodderCutPeriod?: number;
   /**
    * Grain the catchment's farm families bought from this market over roughly the last year (monthly
    * exponential average × 12), once their own larders ran out. Stocked like urban demand

@@ -1,5 +1,9 @@
 import * as THREE from "three";
+import { DEFAULT_AUTHOR } from "../authors";
+import { caravanseraiPartFactories } from "./caravanseraiParts";
+import { assembleCivicHallParts } from "./civicHallParts";
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
 
 export const models: MedievalModel[] = [
   {
@@ -45,3 +49,22 @@ export const models: MedievalModel[] = [
     }
   }
 ];
+
+registerHighVariants(models, {
+  "balkan-caravanserai": () => assembleCivicHallParts("balkan-caravanserai-high", caravanseraiPartFactories())
+});
+for (const model of models) {
+  model.parts = variantId =>
+    model.variants?.find(variant => variant.id === variantId)?.level === "high"
+      ? caravanseraiPartFactories()
+      : [
+          {
+            id: `${model.id}:legacy`,
+            role: "legacy-assembly",
+            quality: "low",
+            author: DEFAULT_AUTHOR,
+            create: () => model.create()
+          }
+        ];
+  model.assembleParts = parts => assembleCivicHallParts(model.id, parts);
+}

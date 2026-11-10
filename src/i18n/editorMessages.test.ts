@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import ts from "typescript";
+// TypeScript 7's `typescript` package ships the compiler only. Parsing still uses the 6.x API.
+import ts from "@typescript/typescript6";
 import { afterEach, describe, expect, it } from "vitest";
 import { mountCityEditor } from "../city-editor/components/CityEditorPage";
 import { GENERATION_STAGES } from "../city-editor/controllers/generationStages";

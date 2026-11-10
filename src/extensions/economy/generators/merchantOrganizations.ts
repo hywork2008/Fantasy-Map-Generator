@@ -155,6 +155,8 @@ export function isMarketTradePermitted(
   durationDays: number,
   cargo: TradeCargo = {}
 ): boolean {
+  // A market winding down to be dissolved takes no new trade (market-founding-viability.md §3.2).
+  if (source.dissolving || target.dissolving) return false;
   const organizations = getMerchantOrganizations();
   if (!organizations.length) return true;
 

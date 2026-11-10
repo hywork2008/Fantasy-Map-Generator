@@ -256,6 +256,7 @@ export function planSkeletonCity(
     frameRoads: outerFrameRoads(settings.descriptor),
     riverPort: geo.riverPort,
     wards: new Map(warded.wards.map(w => [w.cellId, w.kind])),
+    ...(warded.approachCommerce ? { approachCommerce: warded.approachCommerce } : {}),
     wardOrder: warded.assignmentOrder,
     templeHarbor: warded.precincts,
     fmgElevations,

@@ -1,4 +1,6 @@
 import { type MedievalModel, ModelKit } from "./modelKit";
+import { registerHighVariants } from "./qualityVariants";
+import { createHighTextileWorkshop } from "./textileWorkshopDetails";
 
 function workshop(kind: "weaver" | "tailor" | "cobbler") {
   const k = new ModelKit(`${kind}-workshop`);
@@ -63,3 +65,9 @@ export const models: MedievalModel[] = [
     create: () => workshop("cobbler")
   }
 ];
+
+registerHighVariants(models, {
+  "weavers-workshop": () => createHighTextileWorkshop("weaver"),
+  "tailors-workshop": () => createHighTextileWorkshop("tailor"),
+  "cobblers-workshop": () => createHighTextileWorkshop("cobbler")
+});

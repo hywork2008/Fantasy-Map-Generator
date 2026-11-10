@@ -60,3 +60,52 @@ it("creates an empty group when all ships are removed", () => {
   expect(ships.group.children).toHaveLength(0);
   ships.dispose();
 });
+
+it("separates sailing states in one fleet and draws the closed-gunport BV geometry for each", () => {
+  const fleet = createTownShips(
+    [
+      {
+        id: "pier-1",
+        type: "large",
+        length: 47,
+        point: [0, 0],
+        rotation: 0,
+        state: { sails: "furled", gunports: "closed" }
+      },
+      {
+        id: "brush",
+        type: "large",
+        length: 47,
+        point: [100, 0],
+        rotation: 0,
+        state: { sails: "set", gunports: "closed" }
+      },
+      {
+        id: "pier-2",
+        type: "large",
+        length: 47,
+        point: [200, 0],
+        rotation: 0,
+        state: { sails: "furled", gunports: "closed" }
+      }
+    ],
+    () => 0
+  );
+  for (const sails of ["set", "furled"] as const) {
+    const meshes = fleet.pickables.filter(m => m.userData.shipState.sails === sails) as THREE.InstancedMesh[];
+    expect(meshes.length).toBeGreaterThan(0);
+    for (const mesh of meshes) {
+      expect(mesh.userData.shipState.gunports).toBe("closed");
+      expect(mesh.count).toBe(sails === "furled" ? 2 : 1);
+      expect(mesh.userData.shipIds).toEqual(sails === "furled" ? ["pier-1", "pier-2"] : ["brush"]);
+    }
+    const source = createGalleon({ sails, gunports: "closed" });
+    const triangles = source.pickables.reduce(
+      (n, m) => n + (m.geometry.index?.count ?? m.geometry.getAttribute("position").count) / 3,
+      0
+    );
+    expect(meshes.reduce((n, m) => n + m.geometry.getAttribute("position").count / 3, 0)).toBe(triangles);
+    source.dispose();
+  }
+  fleet.dispose();
+});

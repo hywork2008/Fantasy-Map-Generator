@@ -84,7 +84,7 @@ export function bridgeSkewLimitForPeriod(period?: string, structure: BridgeStruc
   return bridgeSkewLimitForTier(bridgeSkewTierForPeriod(period), structure);
 }
 
-/** An explicit per-burg limit (exported by FMG from the owning state's technology) wins;
+/** An explicit per-burg limit (exported by FMG from the owning state's technology) wins within the absolute ceiling;
  * otherwise the period default applies. */
 export function resolveBridgeSkewLimit(
   period?: string,
@@ -92,7 +92,8 @@ export function resolveBridgeSkewLimit(
   structure: BridgeStructure = "stone"
 ): number {
   const explicit = transport?.maxBridgeSkewDegrees;
-  if (explicit !== undefined && Number.isFinite(explicit) && explicit >= 0) return Math.min(explicit, 89);
+  if (explicit !== undefined && Number.isFinite(explicit) && explicit >= 0)
+    return Math.min(explicit, BRIDGE_SKEW_MAX_DEGREES);
   return bridgeSkewLimitForPeriod(period, structure);
 }
 
@@ -107,5 +108,11 @@ export function bridgeSkewDegrees(axis: readonly [number, number], riverTangent:
 
 /** Small tolerance so a float-perfect square crossing never fails on rounding. */
 export function withinBridgeSkewLimit(skewDegrees: number, limitDegrees: number): boolean {
-  return skewDegrees <= limitDegrees + 1e-6;
+  return (
+    Number.isFinite(skewDegrees) &&
+    Number.isFinite(limitDegrees) &&
+    skewDegrees >= 0 &&
+    limitDegrees >= 0 &&
+    skewDegrees <= Math.min(limitDegrees, BRIDGE_SKEW_MAX_DEGREES) + 1e-6
+  );
 }

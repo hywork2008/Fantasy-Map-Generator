@@ -342,6 +342,10 @@ export function getBurgSiteDescriptor(
   // under urban morphology; CE reads it only when asked to (`approachGrowthSource`).
   const approachRows = burgEconomyExtensions.getBurgApproachTraffic?.(burgId);
   if (approachRows?.length) attachApproachTraffic(roads, approachRows);
+  const profiles = burgEconomyExtensions.getBurgApproachProfiles?.(burgId);
+  if (profiles)
+    for (const road of roads)
+      if (road.approachId && profiles[road.approachId]) road.approachProfile = profiles[road.approachId];
   const waterbody = measureProcessing(profiler, "coastline", () =>
     collectWaterbody(burg, toLocal, half, metersPerMapUnit)
   );

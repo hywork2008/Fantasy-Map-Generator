@@ -1,9 +1,13 @@
 import { objectDrawing, placeableObject } from "../../buildings/placeableObjects";
+import { placementCatalog } from "../../buildings/placementModels";
 import { editorText } from "../../i18n/editorMessages";
 import type { DomesticWaterPoint } from "../generators/domesticWater";
+import { activeCargoAssignment } from "../generators/harborCargo";
+import type { HarborPlan } from "../generators/harborFabric";
 import { templeFootprintMeters } from "../generators/housing";
 import { accessCorridor, transformLandmarkPolygons } from "../generators/landmarks";
 import { townExtentMeters } from "../generators/settlementExtent";
+import { resolveShipDisplayState } from "../generators/shipDisplayState";
 import type { Id } from "../types/document";
 import type { SvgPickInfo } from "../types/selection";
 import { shipHasHarborLand } from "./harborPierFacts";
@@ -19,9 +23,11 @@ export function renderCityElements(
   ctx: RenderContext,
   svg: SVGSVGElement,
   castleFaces: Set<Id>,
-  domesticWater?: readonly DomesticWaterPoint[]
+  domesticWater?: readonly DomesticWaterPoint[],
+  harbor?: HarborPlan
 ): void {
   const { document, tool, selection, town } = ctx;
+  const placementNames = new Map(placementCatalog().map(item => [item.id, item.name]));
   const elements = element("g", { class: "ce-elements" });
   for (const cityElement of document.elements) {
     // Cell landmarks are determined by Ward. Keep only point decorations from
@@ -40,7 +46,11 @@ export function renderCityElements(
     if (cityElement.kind === "object") {
       const node = renderObjectSvg(cityElement, isPickSelected);
       const definition = placeableObject(cityElement.objectType);
-      pickInfo.label = definition?.name ?? cityElement.objectType ?? "Object";
+      pickInfo.label =
+        definition?.name ??
+        (cityElement.objectType ? placementNames.get(cityElement.objectType) : undefined) ??
+        cityElement.objectType ??
+        "Object";
       delete pickInfo.sizeMeters;
       if (definition) {
         const { bounds } = objectDrawing(definition);
@@ -60,12 +70,20 @@ export function renderCityElements(
       if (!shipHasHarborLand(document, cityElement)) continue;
       const shipNode = renderShipSvg({
         type: cityElement.shipType ?? "small",
+        state: resolveShipDisplayState(cityElement),
         point: p,
         sizeMeters: cityElement.sizeMeters,
         rotation: cityElement.rotation,
         id: cityElement.id,
         className: isPickSelected ? "ce-is-selected cg-is-selected" : ""
       });
+      const operation = activeCargoAssignment(cityElement, harbor?.cargoQuays ?? []);
+      shipNode.setAttribute("data-harbor-operation", operation?.kind ?? "waiting");
+      if (operation) {
+        shipNode.setAttribute("data-berth-id", operation.berthId);
+        shipNode.setAttribute("data-crane-id", operation.craneId);
+        if (operation.sourceShipId) shipNode.setAttribute("data-source-ship-id", operation.sourceShipId);
+      }
       shipNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
       if (tool === "select") {
         shipNode.style.pointerEvents = "all";

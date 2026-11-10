@@ -1,0 +1,23 @@
+Temporary diagnostics used with haycap.mts (applied to HEAD 41c8d86bb, reverted after the run).
+
+--- a/src/extensions/economy/generators/livestockFeed.ts
++++ b/src/extensions/economy/generators/livestockFeed.ts
+@@ harvestLivestockForage, before `if (!(bill > 0) || !treasury) continue;`
++    {
++      const g = ((globalThis as any).__diagHay ??= {});
++      const r = (g[market.i] ??= { offered: 0, wanted: 0, bill: 0, cashCapped: 0, months: 0 });
++      r.offered += (offeredKg / FODDER_DM_KG_PER_LOT) * price;
++      r.wanted += (totalKg / FODDER_DM_KG_PER_LOT) * price;
++      r.bill += Math.max(0, bill);
++      r.months += 1;
++      if ((treasury?.balance ?? 0) < (totalKg / FODDER_DM_KG_PER_LOT) * price) r.cashCapped += 1;
++    }
+--- a/src/extensions/economy/generators/foodProduction.ts
++++ b/src/extensions/economy/generators/foodProduction.ts
+@@ settleFarmgatePayment, after `const paidFromBalance = ...`
++    {
++      const g = ((globalThis as any).__diagGrain ??= {});
++      const r = (g[market.i] ??= { cost: 0, paid: 0 });
++      r.cost += cost;
++      r.paid += paidFromBalance;
++    }

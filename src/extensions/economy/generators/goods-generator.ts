@@ -42,6 +42,7 @@ import {
 import { RENNET_BARRELS_PER_CHEESE_LOT } from "./rennet";
 import { TEXTILE_RECIPES } from "./textileRecipeContracts";
 import { getDefaultGoodCargoProfile } from "./tradeCargo";
+import { catalogTradeHeading } from "./tradeHeadings";
 import {
   CHARCOAL_WOOD_PER_LOT,
   LEGACY_WOOD_RECIPES,
@@ -253,6 +254,16 @@ const shipGoodValue = (shipClassId: string): number => {
 
 /** Ink in a book or an artwork: the half litre it took of the 1 L bottle, in 120 L barrels. */
 const INK_BARRELS_PER_BOOK = 0.5 / 120;
+
+/** Value of a 200 kg Peat bale: Wood's value (1 per 6,500 kg pile) for the same heat. */
+const PEAT_BALE_VALUE = 0.03;
+const LEGACY_PEAT_BALE_VALUE = 2;
+/** Salt's base value per 60 kg bag before and after docs/plan/salt-untaxed-value.md (0.08 was its first V1 step). */
+const TAXED_SALT_BAG_VALUES: readonly number[] = [0.45, 0.08];
+export const UNTAXED_SALT_BAG_VALUE = 0.04;
+
+/** Value of a wain of fresh Meat: 2.5 times grain's value per kilogram. */
+export const MEAT_WAIN_VALUE = 2.5;
 
 export const GOODS_DATA: GoodData[] = [
   {
@@ -836,9 +847,10 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["preservative", "mineral"],
     icon: "good-salt",
     color: "#E5E4E5",
-    // A 60 kg bag at 3.5 times the grain price per kilogram, as the sources put it
-    // (goods-physical-units.md §22); it was 3, 23 times.
-    value: 0.45,
+    // A 60 kg bag at 0.31 times the grain price per kilogram: untaxed salt, mid-range of the sources
+    // and above the saltworks' boiling cost. The 0.45 of goods-physical-units.md §22 was the price under
+    // a heavy salt tax, which saltPolicy.taxRate models on its own (docs/plan/salt-untaxed-value.md).
+    value: UNTAXED_SALT_BAG_VALUE,
     // Salt is supplied only by the state saltworks network. Keeping it out of the ordinary
     // per-cell bonus-good roll prevents climate-independent salt appearing in every market.
     chance: 0,
@@ -2184,7 +2196,9 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["fuel"],
     icon: "good-peat",
     color: "#5c4938",
-    value: 2,
+    // A 200 kg bale gives the heat of 200/6,500 of a Wood pile; priced at Wood's value per heat
+    // (docs/plan/saltworks-fuel-procurement.md §2.3).
+    value: PEAT_BALE_VALUE,
     chance: 3,
     distribution: 'biomeTag("wetland") && biomeTag("cold") || biomeTag("wetland") && random(35)',
     unit: "bale",
@@ -2363,14 +2377,23 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e8d9b8",
     value: 2,
     chance: 0,
-    // Cattle leg reduced 0.4 -> 0.3 (2026-08-12, goods-generator.test.ts margin regression test):
-    // Cattle's own value (5) made { Cattle: 0.4 } cost exactly 2 — this good's own value — the same
-    // dead-recipe tie found in Preserved food/Jewelry/Vinegar/Ash/Egg above. 0.3 costs 1.5, a 33%
-    // margin matching the Goats leg's own 1.5-cost/33% margin, without touching Tallow's shared value
-    // (Candles/Soap below both price their own { Tallow } legs off it).
-    recipes: [{ Cattle: 0.3 }, { Sheep: 0.5 }, { Pig: 0.5 }, { Goats: 0.5 }],
+    // No recipe: tallow is rendered from the slaughtered herd by weight (slaughter.ts). The old
+    // { Cattle: 0.3 } leg gave a cow 3.3 barrels, 360 kg (goods-physical-units.md §40).
     unit: "barrel",
     demandCoverage: { utilities: 0.3 }
+  },
+  {
+    // Fresh meat of the slaughtered herd offtake, sold to the towns the month it is killed
+    // (docs/plan/livestock-meat-sales.md). No recipe or demand coverage: slaughter.ts makes and
+    // settles it, so it never stands in stock for craft or trade.
+    name: "Meat",
+    tags: ["food", "freshFood"],
+    icon: "good-game",
+    color: "#b5524a",
+    // A wain at 2.5 times grain by the kilogram, from c.1300 English livestock and wheat prices (§2.2).
+    value: MEAT_WAIN_VALUE,
+    chance: 0,
+    unit: "wain"
   },
   {
     name: "Beeswax",
@@ -3504,6 +3527,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Chicken: tradeProfile(2, 2, 1, -2, -2, 1, 5),
   Fish: tradeProfile(3, 3, 1, -1, -2, 1, 5),
   Game: tradeProfile(3, 3, 2, 0, -2, 1, 5),
+  Meat: tradeProfile(3, 3, 2, 0, -2, 1, 5),
   // durability bumped to the 1-5 scale's max (Phase 5, §9.4): wine ages/stores better than most
   // goods, and viticultureAllocation.ts's reallocation-speed smoothing needs Wine and Raisins to
   // actually differ (both were 4 pre-Phase-5) for "Wine reallocates slower than Raisins" to hold.
@@ -3862,7 +3886,7 @@ export class GoodsModule {
   /** True only while a catalogue entry still exactly matches its shipped definition. */
   isUnmodifiedDefault(good: Readonly<Good>): boolean {
     const defaultGood = this.defaultGoods[good.i - 1];
-    return defaultGood?.name === good.name && JSON.stringify(defaultGood) === JSON.stringify(good);
+    return defaultGood?.name === good.name && catalogueIdentity(defaultGood) === catalogueIdentity(good);
   }
 
   sync() {
@@ -3912,9 +3936,15 @@ export class GoodsModule {
         ? { ...good.cargo, cargoSlotsPerUnit: measuredCargoSlotsPerUnit(good) ?? good.cargo.cargoSlotsPerUnit }
         : getDefaultGoodCargoProfile({ ...good, trade }),
       ...(recipes && { recipes }),
-      ...(byproducts && { byproducts })
+      ...(byproducts && { byproducts }),
+      tradeHeading: catalogTradeHeading(good.name)
     };
   });
+}
+
+function catalogueIdentity(good: Readonly<Good>): string {
+  const { tradeHeading: _tradeHeading, ...identity } = good;
+  return JSON.stringify(identity);
 }
 
 export const Goods = new GoodsModule();
@@ -4921,6 +4951,14 @@ export function migrateLeatherByproduct(): boolean {
   return true;
 }
 
+/** Drops a saved catalogue's Tallow recipes: tallow is rendered from the carcass by weight now (§40). */
+export function migrateTallowByproduct(): boolean {
+  const tallow = getGoods().find(good => good.name === "Tallow");
+  if (!tallow?.recipes?.length) return false;
+  delete tallow.recipes;
+  return true;
+}
+
 /** Removes age-blind livestock recipes without changing existing rennet stock or custom non-animal recipes. */
 export function migrateRennetCalfContract(): boolean {
   const goods = getGoods();
@@ -4955,7 +4993,8 @@ export function migrateInkBarrel(): boolean {
  * weight as it switches their cargo slots: the textiles, whose unit was 5 to 23 times a wain of
  * grain at a price per kilogram below the sources' (the Wool -> Cloth -> Garments chain keeps its
  * margins), the Flour and Bread whose sack and loaf lot cost 14 and 47 times as much per
- * kilogram, and Salt, whose bag cost 23 times as much (§22).
+ * kilogram, and Salt, whose bag cost 23 times as much (§22; since docs/plan/salt-untaxed-value.md
+ * to the untaxed value).
  */
 export const WEIGHT_REPRICING: Readonly<Record<string, readonly [before: number, after: number]>> = {
   Wool: [2, 13],
@@ -4963,7 +5002,7 @@ export const WEIGHT_REPRICING: Readonly<Record<string, readonly [before: number,
   Garments: [20, 130],
   Flour: [1.5, 0.16],
   Bread: [2, 0.08],
-  Salt: [3, 0.45],
+  Salt: [3, UNTAXED_SALT_BAG_VALUE],
   Flax: [1, 0.3],
   Linen: [6, 8],
   Ink: [7, 3.4],
@@ -5137,6 +5176,7 @@ export function migrateLegacyOreIngotGoods(): boolean {
     ingotIdByLegacyGoodId.set(ore.i, ingotId);
     ore.name = `${legacyName} Ore`;
     ore.tags = ["ore", "mineral"];
+    ore.tradeHeading = catalogTradeHeading(ore.name);
     ore.warEconomyType = undefined;
     ore.value = ingotValue / 2;
     ore.chance = 0;
@@ -5150,6 +5190,7 @@ export function migrateLegacyOreIngotGoods(): boolean {
       i: ingotId,
       name: `${legacyName} Ingot`,
       tags: [...ingotProperties.tags],
+      tradeHeading: catalogTradeHeading(`${legacyName} Ingot`),
       warEconomyType: ingotProperties.warEconomyType,
       icon: ore.icon,
       color: ore.color,
@@ -5290,6 +5331,32 @@ export function migrateWoolBlanketGoods(): boolean {
   const cloth = goods.find(entry => entry.name === "Wool Cloth");
   good.recipes = cloth ? [{ [cloth.i]: TEXTILE_RECIPES[good.name][0]["Wool Cloth"] }] : [];
   goods.push(good);
+  return true;
+}
+
+/** Adds fresh Meat for the slaughtered offtake (docs/plan/livestock-meat-sales.md). */
+export function migrateMeatGood(): boolean {
+  const goods = getGoods();
+  if (goods.some(good => good.name === "Meat")) return false;
+  const good = Goods.getDefaultGood("Meat")!;
+  good.i = Math.max(0, ...goods.map(entry => entry.i)) + 1;
+  goods.push(good);
+  return true;
+}
+
+/** Reprices Salt from the heavily taxed price to the untaxed one (docs/plan/salt-untaxed-value.md). */
+export function migrateUntaxedSaltValue(): boolean {
+  const salt = getGoods().find(good => good.name === "Salt");
+  if (!salt || !TAXED_SALT_BAG_VALUES.includes(salt.value)) return false;
+  salt.value = UNTAXED_SALT_BAG_VALUE;
+  return true;
+}
+
+/** Reprices Peat from its old luxury-like value to fuel at Wood's value per heat. */
+export function migratePeatFuelValue(): boolean {
+  const peat = getGoods().find(good => good.name === "Peat");
+  if (!peat || peat.value !== LEGACY_PEAT_BALE_VALUE) return false;
+  peat.value = PEAT_BALE_VALUE;
   return true;
 }
 
