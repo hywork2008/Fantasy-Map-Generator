@@ -300,7 +300,9 @@ function raise(
   const knownPiers: KnownPier[] = plan.piers.flatMap(p => {
     if (!p.start || !p.end || !p.width) return [];
     const length = Math.hypot(p.end[0] - p.start[0], p.end[1] - p.start[1]);
-    if (length < 5) return [];
+    // A river pier reaches only a quarter of the channel and can be shorter than a sea pier's 5 m; its barge
+    // lies along the bank beside it (the planner turns a river hull parallel to the shore), so it still berths.
+    if (length < (p.riverId ? 1 : 5)) return [];
     const dir: Point = [(p.end[0] - p.start[0]) / length, (p.end[1] - p.start[1]) / length];
     return [
       {
