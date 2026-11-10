@@ -14,7 +14,7 @@ import { RosterPresetPanel } from "./RosterPresetPanel";
 /** Organization and genealogy views share stable slots; rendering never generates a person. */
 export function OrganizationRosterPanel() {
   const { t, i18n } = useTranslation();
-  const tr = (key: string, values?: Record<string, unknown>) => String(t(`roster.${key}`, values));
+  const tr = (key: string, values?: Record<string, unknown>) => String(t(`roster.${key}`, values ?? {}));
   const [revision, refresh] = useState(0);
   const { organizationId, slotId, roleId, includeChildren } = useCharactersUiState(state => state.rosterNavigation);
   const selectionProfile = useCharactersUiState(state => state.presetQuery.profile);

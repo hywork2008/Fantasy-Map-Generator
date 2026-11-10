@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-
+import { toTranslate } from "../../../../utils/translate";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import {
   openCouncilSession,
@@ -193,8 +193,13 @@ export const CouncilSessionDialog: React.FC = () => {
                     <tr key={entry.id}>
                       <td>{t("extensions.councilSession.dateFmt", { year: entry.year, month: entry.month })}</td>
                       <td>{councilKindLabel(entry.kind, t)}</td>
-                      <td data-tip={localizeFactionDetail(entry.factionDetail, t) || councilLogSummary(entry, t)}>
-                        {councilLogSummary(entry, t)}
+                      <td
+                        data-tip={
+                          localizeFactionDetail(entry.factionDetail, toTranslate(t)) ||
+                          councilLogSummary(entry, toTranslate(t))
+                        }
+                      >
+                        {councilLogSummary(entry, toTranslate(t))}
                       </td>
                     </tr>
                   ))

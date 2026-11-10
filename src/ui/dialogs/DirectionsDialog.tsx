@@ -14,6 +14,7 @@ import { useOptionsState } from "../../store/optionsState";
 import { rn } from "../../utils";
 import { Dialog } from "./Dialog";
 import "./directionsDialog.css";
+import { toTranslate } from "../../utils/translate";
 import { closeDialog } from "./dialogService";
 
 // This dialog is a compact route-picker + summary chart, not the dedicated full-width
@@ -174,7 +175,7 @@ export const DirectionsDialog: React.FC = () => {
                   <span className="directions-mode__label">{t(`directions.mode.${mode}`)}</span>
                   {route && (
                     <span className="directions-mode__summary">
-                      {formatDuration(route.durationDays, t)} · {rn(route.distanceKm)} {distanceUnit}
+                      {formatDuration(route.durationDays, toTranslate(t))} · {rn(route.distanceKm)} {distanceUnit}
                     </span>
                   )}
                 </button>

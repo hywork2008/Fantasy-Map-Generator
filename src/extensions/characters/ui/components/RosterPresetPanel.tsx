@@ -18,7 +18,7 @@ interface Props {
 }
 export function RosterPresetPanel({ roster, organizationId, command }: Props) {
   const { t } = useTranslation();
-  const tr = (key: string, values?: Record<string, unknown>) => String(t(`rosterPresets.${key}`, values));
+  const tr = (key: string, values?: Record<string, unknown>) => String(t(`rosterPresets.${key}`, values ?? {}));
   const query = useCharactersUiState(s => s.presetQuery);
   const setQuery = useCharactersUiState(s => s.setPresetQuery);
   const open = useCharactersUiState(s => s.presetOpen);
