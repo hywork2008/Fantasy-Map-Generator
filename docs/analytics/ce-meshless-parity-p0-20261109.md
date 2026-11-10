@@ -1007,3 +1007,9 @@ P4（市壁・防御の生成）を次の区切りに分けた。P4a 形状・�
 - 公園の樹冠は、描画データの`landscapeTrees`に足し、既存の景観の樹木の層（樹種のBVの木、保存した樹冠の半径）で立てる。樹種は旧CEの公園と同じ`garden_parkland`を、町の気候で`treeSpeciesForClimate`が置き換えたもの。高さは樹種の詳細度の定義の値。2Dの平面図は円の樹冠のまま（役割`landscape-tree`は3Dで描かない）。
 - 井戸と広場の水盤は旧CEの`createTownWells`（BVの部品、共有のプロトタイプのキャッシュ）で描き、平らな円は2Dだけに残す。貯水槽・池は旧CEの`collectWellSites`と同じく部品を持たないので面のまま。
 - テスト`renderers/vector/openSpace3d.test.ts`：seed `p7c-c`の町で、公園の樹冠の数だけ3Dの木があり、井戸の層（`ce-wells`）があり、平らな樹冠・井戸の面が3Dに残らない。
+
+## P2d-2 市壁・塔・門の3D（2026-11-10）
+
+- 旧CEの`createTownWalls`は、文書（外観の文脈・市壁の組・門の頂点）から石の市壁と門の位置を読む。これを呼び出し側に出し、構造の量塊とBVの部品だけで描く`createTownWallParts`（外観の型・市壁のID・門の中心と向き）を切り出した。旧CEは従来どおり`createTownWalls`を呼ぶ。
+- メッシュなしは、`vectorStructures`が市壁ごとに材質と通路の門の中心・接線・内向きの法線を返し、3Dで石の市壁を所有者ごとに`createTownWallParts`へ渡す。置き換えた部品は量塊から外す。旧CEは高品質の時だけBVにするが、メッシュなしに品質の設定が無いので常に高品質とした。塔と門の外観の型は住宅と同じ自動の文化。
+- テスト（`renderers/vector/structureMassing.test.ts`に1件）：楕円の市壁の合成の町で、BVの石積み（`codex-town-defenses`）が市壁のIDで選択でき、門の数だけ門楼、塔と幕壁も置き換わる。

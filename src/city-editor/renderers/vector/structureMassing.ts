@@ -1,3 +1,4 @@
+import type { TownWallGate } from "../../../city3d/three/townWallMeshes";
 import { nearestOnPolyline, polygonCentroid } from "../../generators/geom";
 import { evaluateAnchor, pathIsClosed } from "../../generators/vector/geometry/curves";
 import { bridgeGeometry } from "../../generators/vector/geometry/network";
@@ -24,16 +25,22 @@ const unit = (v: Point): Point => {
  * with the same 3D parts. Each structure carries its owner (wall path or bridge id) for picking. Gates get their
  * flanking towers and lintel only: barbicans are a later option.
  */
-export function vectorStructures(
-  doc: VectorCityDocument
-): { owner: string; kind: "wall" | "bridge"; parts: StructureMassing[] }[] {
+export interface VectorStructureOwner {
+  owner: string;
+  kind: "wall" | "bridge";
+  parts: StructureMassing[];
+  material?: StructureMaterial;
+  gates?: TownWallGate[];
+}
+
+export function vectorStructures(doc: VectorCityDocument): VectorStructureOwner[] {
   const terrain = vectorTerrain(doc),
     ground = (p: Point) => (terrain.hasRelief ? terrain.heightAt(p) : 0),
     waters = vectorWaterSurfaces(doc),
     water = [...waters.values()],
     defenseWalls = new Set(Object.values(doc.environment?.defenses ?? {}).flatMap(p => p.circuit.wallPathIds)),
     hidden = new Set(doc.environment?.hidden ?? []),
-    out: { owner: string; kind: "wall" | "bridge"; parts: StructureMassing[] }[] = [];
+    out: VectorStructureOwner[] = [];
   for (const wall of Object.values(doc.paths)) {
     // Bastioned defences draw their own works.
     if (wall.role !== "wall" || defenseWalls.has(wall.id) || hidden.has(wall.id)) continue;
@@ -118,7 +125,16 @@ export function vectorStructures(
     for (const part of parts)
       if (part.centerline) part.baseElevationsMeters = part.centerline.map(p => ground(p) + part.baseElevationMeters);
       else if (part.footprint) part.baseElevationMeters += ground(polygonCentroid(part.footprint));
-    out.push({ owner: wall.id, kind: "wall", parts });
+    out.push({
+      owner: wall.id,
+      kind: "wall",
+      parts,
+      material,
+      // Passage gates' crossings, for the mesh editor's BV gatehouse (P2d-2).
+      gates: gates
+        .filter(g => g.gate.kind === "passage")
+        .map(g => ({ id: g.gate.id, frame: { point: g.point, tangent: g.tangent, inward: g.inward } }))
+    });
   }
   for (const bridge of Object.values(doc.connections.bridges)) {
     if (hidden.has(bridge.roadPathId)) continue;

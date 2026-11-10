@@ -99,6 +99,12 @@ function ribbon(part: StructureMassing) {
   return { total, at };
 }
 
+/** A town gate's crossing: its centre, the wall's tangent and the inward normal, in plan metres. */
+export interface TownWallGate {
+  id: string;
+  frame: { point: [number, number]; tangent: [number, number]; inward: [number, number] };
+}
+
 /** High-quality stone town defenses only. The ordinary layer retains every unaccepted part. */
 export function createTownWalls(
   city: CityDocument,
@@ -117,6 +123,37 @@ export function createTownWalls(
     city.buildingAppearanceVersion === BUILDING_APPEARANCE_VERSION
       ? buildingAppearanceProfile({ profile: city.buildingAppearanceProfile, context, rural: false })
       : "legacy";
+  const castles = castleWallIds(city);
+  const wallIds = city.featureGroups
+    .filter(wall => wall.kind === "wall" && wall.wallMaterial !== "wood" && !castles.has(wall.id))
+    .map(wall => wall.id);
+  const gates: TownWallGate[] = [];
+  for (const gate of city.gates ?? []) {
+    if (gate.ownerCastleId || (gate.role && gate.role !== "town")) continue;
+    if (
+      !city.featureGroups.some(
+        wall => wallIds.includes(wall.id) && featureGroupVertices(city, wall).includes(gate.vertexId)
+      )
+    )
+      continue;
+    const frame = quality === "high" ? gateCrossingFrame(city, gate.vertexId) : null;
+    if (frame) gates.push({ id: gate.id, frame });
+  }
+  return createTownWallParts(structures, cache, quality, { profile, wallIds, gates });
+}
+
+/**
+ * The BV stonework of town walls without cells: stone curtain runs of `wallIds` (ids `wall:<id>:…`), their curtain
+ * towers (`tower-<id>-…`) and the gates' flank pair and lintel (`gate:<id>:…`) at the given crossings. Shared by
+ * the mesh editor and the meshless editor (P2d-2).
+ */
+export function createTownWallParts(
+  structures: readonly StructureMassing[],
+  cache: BvPrototypeCache,
+  quality: ModelQuality,
+  town: { profile: BuildingAppearanceProfile; wallIds: readonly string[]; gates: readonly TownWallGate[] }
+) {
+  const { profile, wallIds } = town;
   const definitions = definitionsFor(profile);
   const group = new THREE.Group();
   group.name = "ce-codex-town-walls";
@@ -144,10 +181,6 @@ export function createTownWalls(
     return true;
   };
   if (quality === "high") {
-    const castles = castleWallIds(city);
-    const wallIds = city.featureGroups
-      .filter(wall => wall.kind === "wall" && wall.wallMaterial !== "wood" && !castles.has(wall.id))
-      .map(wall => wall.id);
     const walls = structures.filter(
       part =>
         part.kind === "wall" &&
@@ -226,14 +259,7 @@ export function createTownWalls(
       )
         replaced.add(part.id);
     }
-    for (const gate of city.gates ?? []) {
-      if (gate.ownerCastleId || (gate.role && gate.role !== "town")) continue;
-      if (
-        !city.featureGroups.some(
-          wall => wallIds.includes(wall.id) && featureGroupVertices(city, wall).includes(gate.vertexId)
-        )
-      )
-        continue;
+    for (const gate of town.gates) {
       const own = structures.filter(
         part =>
           part.kind === "gate" &&
@@ -242,7 +268,7 @@ export function createTownWalls(
       );
       const lintel = own.find(part => part.id.endsWith(":lintel"));
       const flanks = own.filter(part => part.footprint?.length);
-      const frame = gateCrossingFrame(city, gate.vertexId);
+      const frame = gate.frame;
       if (!lintel?.centerline || flanks.length !== 2 || !frame) continue;
       // Match the existing opening and tower footprints independently; widening the road must not swell the towers.
       const [a, b] = lintel.centerline;

@@ -1,4 +1,5 @@
-import type { BuildingAppearance } from "../../../buildings/appearance/types";
+import { buildingAppearanceProfile, normalizeBuildingAppearanceContext } from "../../../buildings/appearance/resolver";
+import type { BuildingAppearance, BuildingAppearanceProfile } from "../../../buildings/appearance/types";
 import { treeLodProfile } from "../../../buildings/landscape/trees";
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
 import { lotMassing, massingContext } from "../../generators/buildingMassing";
@@ -24,6 +25,7 @@ import type { VectorPolygon } from "../../types/vector/generation";
 import type { VectorHarborShip } from "../../types/vector/harbor";
 import type { VectorLandscapeTree } from "../../types/vector/landscape";
 import type { VectorStage } from "../../types/vector/urban";
+import { automaticHousingProfile } from "../standaloneHousingAppearance";
 import { vectorDefenseSurfaces } from "./defense";
 import { vectorFerrySurfaces } from "./ferry";
 import { vectorGuildSurfaces } from "./guild";
@@ -94,6 +96,8 @@ export interface VectorRenderData {
   /** Walls (with towers and gates) and bridges as the mesh editor's structure massing, for 3D. Only owners
    * drawn in this stage; the 2D view keeps the surfaces. */
   structures?: ReturnType<typeof vectorStructures>;
+  /** The culture profile of the mesh editor's BV town towers and gates (P2d-2). */
+  wallProfile?: BuildingAppearanceProfile;
   /** Roads of this stage as the mesh editor's wearing-course ribbons, for 3D. */
   roads?: ReturnType<typeof vectorRoadRibbons>;
   /** Flat sites only: the drawn water by the mesh editor's water kind, for its water and bank meshes in 3D.
@@ -709,6 +713,7 @@ export function vectorRenderData(
   return {
     water,
     structures: vectorStructures(doc).filter(s => drawn.has(s.owner)),
+    wallProfile: vectorWallProfile(doc),
     roads: vectorRoadRibbons(doc, id => roadOwners.has(id)),
     revision: doc.revision,
     stage,
@@ -763,4 +768,20 @@ function vectorParkTrees(doc: VectorCityDocument): VectorLandscapeTree[] {
       ];
     })
   );
+}
+
+/** The town's appearance profile as the mesh editor reads it for its towers and gates: the houses' automatic one. */
+function vectorWallProfile(doc: VectorCityDocument): BuildingAppearanceProfile {
+  const descriptor = doc.site?.descriptor,
+    context = normalizeBuildingAppearanceContext({
+      period: doc.context.historicalPeriod,
+      tradition: descriptor?.civilization?.tradition,
+      temperatureC: descriptor?.climate?.temperatureC,
+      biome: descriptor?.biome ?? (descriptor?.climate?.biomeKey ? { key: descriptor.climate.biomeKey } : undefined)
+    });
+  return buildingAppearanceProfile({
+    profile: automaticHousingProfile(context, !!descriptor, doc.recipe.seed),
+    context,
+    rural: false
+  });
 }

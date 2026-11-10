@@ -973,8 +973,8 @@
       "category": "3d",
       "id": "townWallMeshes",
       "mesh": "city3d/three/townWallMeshes (Town walls)",
-      "meshless": "missing",
-      "evidence": "Not used: the BV curtain pieces at high quality read a CityDocument (appearance context, wall groups). The walls themselves are drawn as shared structure massing (P2a).",
+      "meshless": "equivalent",
+      "evidence": "P2d-2: the cell-free createTownWallParts (split out of createTownWalls, which the mesh editor still calls) draws each meshless stone wall's curtain runs, curtain towers and passage gatehouses as the BV stonework, with the houses' automatic culture profile for towers and gates and the gate crossings from the wall's anchors; replaced parts leave the structure massing, which keeps timber walls and bridges. Always at high quality: the meshless view has no quality setting.",
       "stage": "P2",
       "checked": true
     },

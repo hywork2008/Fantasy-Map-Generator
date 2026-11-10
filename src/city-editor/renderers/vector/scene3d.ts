@@ -9,6 +9,7 @@ import { createTownCranes, createTownHarborCargo } from "../../../city3d/three/c
 import { createTownRoads } from "../../../city3d/three/roadMeshes";
 import { createTownShips } from "../../../city3d/three/shipMeshes";
 import { createStructureMassing } from "../../../city3d/three/structureMeshes";
+import { createTownWallParts } from "../../../city3d/three/townWallMeshes";
 import { createTownWaterParts } from "../../../city3d/three/waterMeshes";
 import { createTownWells } from "../../../city3d/three/wellMeshes";
 import { polygonArea } from "../../generators/geom";
@@ -256,8 +257,22 @@ export function createVectorScene(data: VectorRenderData) {
     const massed = new Set<string>();
     for (const owner of data.structures ?? []) {
       if (!owner.parts.length) continue;
-      const meshes = createStructureMassing(owner.parts),
+      // Stone town walls take the mesh editor's BV curtain, towers and gatehouses (P2d-2); the massing keeps the
+      // rest (timber walls, footings, bridges).
+      const stonework =
+        owner.kind === "wall" && owner.material === "stone"
+          ? createTownWallParts(owner.parts, harborCache, "high", {
+              profile: data.wallProfile ?? "legacy",
+              wallIds: [owner.owner],
+              gates: owner.gates ?? []
+            })
+          : undefined;
+      const meshes = createStructureMassing(owner.parts.filter(p => !stonework?.replaced.has(p.id))),
         holder = new THREE.Group();
+      if (stonework) {
+        holder.add(stonework.group);
+        disposers.push(() => stonework.dispose());
+      }
       // Massing is in plan metres at absolute heights; the scene group sits at the centre and the datum.
       holder.position.set(-data.center[0], -datum, data.center[1]);
       holder.userData = { id: owner.owner, kind: owner.kind, representation: "structure-massing" };

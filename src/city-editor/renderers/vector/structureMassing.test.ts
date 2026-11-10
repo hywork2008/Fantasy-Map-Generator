@@ -49,6 +49,31 @@ describe("meshless walls, gates and bridges as the mesh editor's structure massi
   });
 });
 
+describe("meshless stone walls as the mesh editor's BV town walls (feature parity P2d-2)", () => {
+  it("replaces the stone curtain, curtain towers and passage gates with BV stonework picked by the wall", () => {
+    const data = vectorRenderData(city, "regions"),
+      wall = data.structures!.find(s => s.kind === "wall" && s.material === "stone")!,
+      scene = createVectorScene(data);
+    expect(wall.gates!.length).toBeGreaterThan(0);
+    const meshes: THREE.Mesh[] = [];
+    scene.group.traverse(o => {
+      if (o instanceof THREE.Mesh) meshes.push(o);
+    });
+    const stone = meshes.find(m => m.name === "codex-town-defenses");
+    expect(stone).toBeDefined();
+    expect(vectorPickOwner(stone!)).toBe(wall.owner);
+    // Each gate's flanks and lintel are one BV gatehouse: one replaced lintel per passage.
+    const ids = new Set<number>(),
+      index = stone!.geometry.getAttribute("buildingIndex");
+    for (let i = 0; i < index.count; i++) ids.add(index.getX(i));
+    const replaced = [...ids].map(i => wall.parts[i].kind);
+    expect(replaced.filter(k => k === "gate")).toHaveLength(wall.gates!.length);
+    expect(replaced.filter(k => k === "tower").length).toBeGreaterThan(0);
+    expect(replaced.filter(k => k === "wall").length).toBeGreaterThan(0);
+    scene.dispose();
+  });
+});
+
 describe("meshless roads as the mesh editor's wearing-course ribbons (feature parity P2b)", () => {
   it("classifies main roads by the wall, keeps outlines only as hidden pick targets, and leaves water to bridges", () => {
     const data = vectorRenderData(city, "regions"),
