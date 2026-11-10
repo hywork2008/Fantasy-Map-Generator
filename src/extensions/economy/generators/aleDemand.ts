@@ -31,18 +31,19 @@ export function getAleDemandMultiplier(waterRisk: number): number {
 }
 
 /**
- * Town ale a head a year (docs/plan/low-habitability-site-bonus.md §4). Wine-country towns and
- * treeless pastoral lands drink the country level; between no woodland and `fullAleWoodland` the
+ * Town ale a head a year (docs/plan/low-habitability-site-bonus.md §4). Wine-country towns (by the
+ * share of their wine the market makes) and treeless pastoral lands drink the country level; between no woodland and `fullAleWoodland` the
  * town level rises linearly. Martin (1703) on Shetland: "they can spare no corn for drink, so that
  * they have no other than bland"; Iceland drank whey and water (blanda) and kept ale for feasts.
  */
 export function getTownAleLitersPerAdultYear(
-  wineCountry: boolean,
+  wineCountryShare: number,
   woodlandShare: number,
   fullAleWoodland: number,
   litres: { readonly baseline: number; readonly urban: number }
 ): number {
-  if (wineCountry) return litres.baseline;
-  if (!(fullAleWoodland > 0)) return litres.urban;
-  return litres.baseline + (litres.urban - litres.baseline) * clamp01(woodlandShare / fullAleWoodland);
+  const woodlandLitres = !(fullAleWoodland > 0)
+    ? litres.urban
+    : litres.baseline + (litres.urban - litres.baseline) * clamp01(woodlandShare / fullAleWoodland);
+  return woodlandLitres + (litres.baseline - woodlandLitres) * clamp01(wineCountryShare);
 }

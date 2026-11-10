@@ -60,6 +60,7 @@ import {
   ensureContainerCirculation,
   getFoodProcessingProductionHeadroom,
   getMonthlyHouseholdDemand,
+  recordCellFoodHarvest,
   recordCellFoodHouseholdConsumption,
   recordFoodMarketIntake,
   recordFoodProcessingConsumption,
@@ -1326,6 +1327,7 @@ export class MarketsModule {
     };
 
     const reserves = getOrCreateCellFoodReserves();
+    const freshGrapesSentByMarket = new Map<number, number>();
     for (const [cellId, cellEntries] of entriesByCell) {
       const residentWorkforce = getRuralCellPopulation(cellId);
       const inputs: CellFreshFoodInput[] = [];
@@ -1385,6 +1387,23 @@ export class MarketsModule {
         // The planner deliberately leaves unhandled potential unproduced. H therefore records
         // only the actual harvest that was eaten, preserved, sold, or (only when supplies fail) spoiled.
         recordCumulativeCellFoodHarvest(sourceGood.i, outcome.producedUnits);
+        const harvestedHere = harvestedBySourceGood.get(outcome.sourceGoodId) ?? 0;
+        recordCellFoodHarvest(market, sourceGood.name, harvestedHere);
+        // The vintage's fresh grapes the cell did not eat or press go to the market's towns, up to
+        // their demand this month; what they leave spoils there (docs/plan/grape-season-and-wine-country.md).
+        if (sourceGood.name === "Grapes") {
+          const left = Math.max(0, harvestedHere - outcome.producedUnits);
+          const wanted = Math.max(
+            0,
+            getMonthlyHouseholdDemand(market, "Grapes") - (freshGrapesSentByMarket.get(market.i) ?? 0)
+          );
+          const sent = Math.min(left, wanted);
+          if (sent > 0) {
+            freshGrapesSentByMarket.set(market.i, (freshGrapesSentByMarket.get(market.i) ?? 0) + sent);
+            recordCumulativeCellFoodHarvest(sourceGood.i, sent);
+            this.addRuralOutput(entry.marketId, entry.collectionBurgId, sourceGood.i, sent);
+          }
+        }
         recordCellFoodHouseholdConsumption(market, sourceGood.name, outcome.eatenFreshUnits);
         if (outcome.reserveInputUnits > 0) {
           recordFoodProcessingConsumption(market, sourceGood.name, outcome.reserveInputUnits);

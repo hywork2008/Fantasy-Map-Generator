@@ -118,5 +118,10 @@ export const ALE_TARGETS = {
 
 export const GRAPE_TARGETS = {
   freshKilogramsPerPersonYear: 2,
+  /**
+   * The vintage's 45 days: the towns eat their fresh grapes then, as the country does from the vines
+   * (docs/plan/grape-season-and-wine-country.md).
+   */
+  harvestMonths: 45 / (365 / 12),
   raisinsKilogramsPerPersonYear: 0.5
 } as const;

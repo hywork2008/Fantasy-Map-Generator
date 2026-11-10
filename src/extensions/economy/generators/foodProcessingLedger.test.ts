@@ -93,6 +93,7 @@ import {
   getMonthlyHouseholdContainerDemand,
   getMonthlyHouseholdDemand,
   recordBeerCaskFilling,
+  recordCellFoodHarvest,
   recordCellFoodHouseholdConsumption,
   recordFoodDeliveredExport,
   recordFoodMarketIntake,
@@ -121,6 +122,26 @@ describe("foodProcessingLedger", () => {
     Object.assign(purses, { town: Infinity, rural: Infinity, paidByTown: 0, paidByRural: 0 });
     ruralPopulation.people = 0;
     settings.householdGoodsPayment = "free";
+  });
+
+  it("drinks wine-country wine as far as the market made it, and eats fresh grapes in the vintage only", () => {
+    market.foodProcessingLedger = undefined;
+    const imported = (1_000 * 0.65 * 1) / 12 / 200;
+    const extra = (1_000 * 0.65 * 7) / 12 / 200;
+    // 1,000 townsfolk, no grapes yet: imported wine, no fresh grapes.
+    expect(getMonthlyHouseholdDemand(market, "Wine")).toBeCloseTo(imported, 6);
+    expect(getMonthlyHouseholdDemand(market, "Grapes")).toBe(0);
+    recordCellFoodHarvest(market, "Grapes", 5);
+    // Vines alone are not wine country yet: no wine made, so the towns still drink imported wine.
+    expect(getMonthlyHouseholdDemand(market, "Wine")).toBeCloseTo(imported, 6);
+    // 2 kg a head over the 45 days of the vintage.
+    expect(getMonthlyHouseholdDemand(market, "Grapes")).toBeCloseTo((1_000 * 2) / (45 / (365 / 12)) / 1_000, 6);
+    // Half a year of wine-country drinking made in the cellars.
+    recordWineCaskFilling(market, extra * 6, 0);
+    settleFoodProcessingHouseholds();
+    expect(getMonthlyHouseholdDemand(market, "Grapes")).toBe(0);
+    expect(getMonthlyHouseholdDemand(market, "Wine")).toBeCloseTo(imported + extra / 2, 6);
+    market.foodProcessingLedger = undefined;
   });
 
   it("makes up the white soap the market lacks with soft soap (docs/plan/town-soap.md §3.2)", () => {

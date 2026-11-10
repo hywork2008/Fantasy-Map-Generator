@@ -258,6 +258,14 @@ export type FoodProcessingGoodLedger = {
   deliveredExport: number;
   /** Household demand that could not be met this cycle. */
   unmetDemand: number;
+  /** Harvest the market's own cells took in and handled, all cycles (docs/plan/grape-season-and-wine-country.md). */
+  cellHarvest?: number;
+  /** The same in the current production cycle. */
+  cellHarvestThisCycle?: number;
+  /** Wine only: wine made in the market in the current production cycle. */
+  madeThisCycle?: number;
+  /** Wine only: wine made in each of the last 12 production cycles, oldest first. */
+  madeMonths?: number[];
   /** Beer only: ordinary household demand before unsafe-water substitution is applied. */
   baselineHouseholdDemand?: number;
   /** Beer only: demand added because drinking water is unsafe or insecure. */

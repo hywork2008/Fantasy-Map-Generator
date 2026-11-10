@@ -151,6 +151,55 @@ export function recordFoodProcessingConsumption(market: Market, goodName: string
  * household use visible in the existing market-level diagnostics without putting raw stock into
  * the market pool.
  */
+/** The market's own cells harvested this much of the good (eaten, preserved, pressed or sent on). */
+export function recordCellFoodHarvest(market: Market, goodName: string, units: number): void {
+  const ledger = getGoodLedger(market, goodName);
+  if (!ledger || units <= 0) return;
+  ledger.cellHarvest = (ledger.cellHarvest ?? 0) + units;
+  ledger.cellHarvestThisCycle = (ledger.cellHarvestThisCycle ?? 0) + units;
+}
+
+/**
+ * Wine country is a market whose own vines bear: grapes are eaten, pressed or dried in their cells and
+ * rarely reach the market, so their intake alone missed it (docs/plan/grape-season-and-wine-country.md).
+ */
+export function isWineCountry(market: Market): boolean {
+  const ledger = getGoodLedger(market, "Grapes");
+  return (ledger?.marketIntake ?? 0) + (ledger?.cellHarvest ?? 0) > 0;
+}
+
+/** Wine-country wine a month for the market's people, above the imported wine everyone drinks. */
+function getWineCountryExtraDemand(market: Market): number {
+  return (
+    (getMarketPeople(market) *
+      WINE_TARGETS.adultShare *
+      (WINE_TARGETS.regionalLitersPerAdultYear - WINE_TARGETS.importedLitersPerAdultYear)) /
+    12 /
+    LITERS_PER_WINE_LOT
+  );
+}
+
+/**
+ * How far the market lives as wine country: the wine it made over the last 12 cycles against a year
+ * of wine-country drinking. A few vines do not turn a whole market from ale and mead
+ * (docs/plan/grape-season-and-wine-country.md §2.1).
+ */
+export function getWineCountryShare(market: Market): number {
+  if (!isWineCountry(market)) return 0;
+  const made = (getGoodLedger(market, "Wine")?.madeMonths ?? []).reduce((sum, units) => sum + units, 0);
+  const extraYear = getWineCountryExtraDemand(market) * 12;
+  return extraYear > 0 ? Math.min(1, made / extraYear) : 0;
+}
+
+/** The towns' people of the market. */
+function getMarketTownPeople(market: Market): number {
+  let people = 0;
+  for (const burg of getWorldContext().pack.burgs) {
+    if (burg.i && !burg.removed && burg.market === market.i) people += getBurgPeople(burg.population);
+  }
+  return people;
+}
+
 export function recordCellFoodHouseholdConsumption(market: Market, goodName: string, units: number): void {
   const ledger = getGoodLedger(market, goodName);
   if (!ledger || units <= 0) return;
@@ -160,6 +209,8 @@ export function recordCellFoodHouseholdConsumption(market: Market, goodName: str
 
 export function recordWineCaskFilling(market: Market, wineLots: number, replacementCasks: number): void {
   if (wineLots <= 0) return;
+  const wineLedger = getGoodLedger(market, "Wine");
+  if (wineLedger) wineLedger.madeThisCycle = (wineLedger.madeThisCycle ?? 0) + wineLots;
   const containers = market.returnableContainerLedger ?? {
     wineCasksInService: 0,
     cumulativeWineCaskReturns: 0,
@@ -254,12 +305,16 @@ function calculateAleDemand(
   let baselineDemand = 0;
   let waterSafetyDemand = 0;
   let riskWeightedPeople = 0;
-  // A market that takes in grapes is wine country, and its towns drink wine (WINE_TARGETS).
-  const wineCountry = (getGoodLedger(market, "Grapes")?.marketIntake ?? 0) > 0;
-  const urbanLiters = getTownAleLitersPerAdultYear(wineCountry, woodlandShare, getTreelessTownAleWoodland(), {
-    baseline: ALE_TARGETS.baselineLitersPerAdultYear,
-    urban: ALE_TARGETS.urbanLitersPerAdultYear
-  });
+  // Wine-country towns drink wine in place of ale, as far as their market makes it (WINE_TARGETS).
+  const urbanLiters = getTownAleLitersPerAdultYear(
+    getWineCountryShare(market),
+    woodlandShare,
+    getTreelessTownAleWoodland(),
+    {
+      baseline: ALE_TARGETS.baselineLitersPerAdultYear,
+      urban: ALE_TARGETS.urbanLitersPerAdultYear
+    }
+  );
 
   for (const burg of world.pack.burgs) {
     if (!burg.i || burg.removed || burg.market !== market.i) continue;
@@ -299,8 +354,7 @@ export function getAleDemandSnapshot(market: Market): AleDemandSnapshot {
  * theirs at home within the household honey, and the wine country drinks wine (docs/plan/mead.md §3).
  */
 function getTownMeadDemand(market: Market): number {
-  if ((getGoodLedger(market, "Grapes")?.marketIntake ?? 0) > 0) return 0;
-  const liters = getTownMeadLiters();
+  const liters = getTownMeadLiters() * (1 - getWineCountryShare(market));
   if (!(liters > 0)) return 0;
   let people = 0;
   for (const burg of getWorldContext().pack.burgs) {
@@ -329,17 +383,22 @@ export function getMonthlyHouseholdDemand(market: Market, goodName: string): num
       return (people * DAIRY_TARGETS.freshMilkLitersPerPersonYear) / 12 / LITERS_PER_MILK_LOT;
     case "Cheese":
       return (people * DAIRY_TARGETS.cheeseKilogramsPerPersonYear) / 12 / KILOGRAMS_PER_CHEESE_LOT;
-    case "Grapes":
-      return (people * GRAPE_TARGETS.freshKilogramsPerPersonYear) / 12 / KILOGRAMS_PER_GRAPES_LOT;
+    case "Grapes": {
+      // Fresh grapes do not travel or keep: the wine country's towns eat theirs in the vintage, and
+      // the country people theirs in the vineyard cells (docs/plan/grape-season-and-wine-country.md).
+      if (!((getGoodLedger(market, "Grapes")?.cellHarvestThisCycle ?? 0) > 0)) return 0;
+      return (
+        (getMarketTownPeople(market) * GRAPE_TARGETS.freshKilogramsPerPersonYear) /
+        GRAPE_TARGETS.harvestMonths /
+        KILOGRAMS_PER_GRAPES_LOT
+      );
+    }
     case "Raisins":
       return (people * GRAPE_TARGETS.raisinsKilogramsPerPersonYear) / 12 / KILOGRAMS_PER_RAISINS_LOT;
     case "Wine": {
-      const grapesLedger = getGoodLedger(market, "Grapes");
-      const wineLiters =
-        grapesLedger && grapesLedger.marketIntake > 0
-          ? WINE_TARGETS.regionalLitersPerAdultYear
-          : WINE_TARGETS.importedLitersPerAdultYear;
-      return (people * WINE_TARGETS.adultShare * wineLiters) / 12 / LITERS_PER_WINE_LOT;
+      const imported =
+        (people * WINE_TARGETS.adultShare * WINE_TARGETS.importedLitersPerAdultYear) / 12 / LITERS_PER_WINE_LOT;
+      return imported + getWineCountryExtraDemand(market) * getWineCountryShare(market);
     }
     case "Beer":
       return getAleDemandSnapshot(market).monthlyDemand;
@@ -500,7 +559,13 @@ export function getFoodProcessingProductionHeadroom(
         : goodName === "Wine"
           ? WINE_TARGETS.reserveMonths
           : 3;
-  const householdHeadroom = Math.max(0, getMonthlyHouseholdDemand(market, goodName) * reserveMonths - heldStock);
+  // The wine country presses for all the drinking its vines could serve, or its share could never grow.
+  const monthlyDemand =
+    goodName === "Wine" && isWineCountry(market)
+      ? getMonthlyHouseholdDemand(market, goodName) +
+        getWineCountryExtraDemand(market) * (1 - getWineCountryShare(market))
+      : getMonthlyHouseholdDemand(market, goodName);
+  const householdHeadroom = Math.max(0, monthlyDemand * reserveMonths - heldStock);
   if (goodName !== "Cheese") return householdHeadroom;
 
   const milk = getGoods().find(candidate => candidate.name === "Milk");
@@ -598,7 +663,9 @@ function drawHouseholdDemand(
   const marketGood = market.goods[good.i];
   // Source-cell household use has already been recorded before the production cycle reaches this
   // market-level settlement. Only the remaining demand may draw from Market stock.
-  const remainingDemand = Math.max(0, demand - (ledger.localHouseholdConsumptionThisCycle ?? 0));
+  // The market's fresh grapes are the towns' alone; the vineyard cells' own eating is outside it.
+  const localUse = goodName === "Grapes" ? 0 : (ledger.localHouseholdConsumptionThisCycle ?? 0);
+  const remainingDemand = Math.max(0, demand - localUse);
   const available = Math.max(0, marketGood?.stock ?? 0);
   let consumed = Math.min(available, remainingDemand);
   // Households pay the market for what they take, and take only what they can pay for.
@@ -709,6 +776,12 @@ export function settleFoodProcessingHouseholds(): void {
     // never suppress household demand in later cycles.
     for (const ledger of Object.values(market.foodProcessingLedger ?? {})) {
       ledger.localHouseholdConsumptionThisCycle = 0;
+      ledger.cellHarvestThisCycle = 0;
+    }
+    const wineLedger = getGoodLedger(market, "Wine");
+    if (wineLedger && (wineLedger.madeThisCycle !== undefined || wineLedger.madeMonths)) {
+      wineLedger.madeMonths = [...(wineLedger.madeMonths ?? []), wineLedger.madeThisCycle ?? 0].slice(-12);
+      wineLedger.madeThisCycle = 0;
     }
   }
 }
