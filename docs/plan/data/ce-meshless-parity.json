@@ -838,8 +838,8 @@
       "category": "3d",
       "id": "facilityMeshes",
       "mesh": "city3d/three/facilityMeshes (Facilities)",
-      "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "meshless": "partial",
+      "evidence": "P2d-4: the cell-free createFacilityLayer (split out of createTownFacilities, whose castle garrisons stay in the mesh editor's callback) draws the meshless inns (courtyard lodgings), guild halls and yards, windmills and gallows as the BV facilities; their raised massing gives way and mounds, yards and courts stay as ground. Not yet: watermills, storage yards, tanneries and quay warehouses (not generated meshless), castle garrisons, relief (P8).",
       "stage": "P2",
       "checked": true
     },
@@ -865,8 +865,8 @@
       "category": "3d",
       "id": "friaryMeshes",
       "mesh": "city3d/three/friaryMeshes (Monasteries)",
-      "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "meshless": "equivalent",
+      "evidence": "P2d-4: the P6c religious houses (environment.monasteries, the mesh editor's fitMonastery plans) drawn by createTownMonasteries at high quality; their raised massing gives way. Relief keeps the massing until P8.",
       "stage": "P2",
       "checked": true
     },
@@ -946,8 +946,8 @@
       "category": "3d",
       "id": "specialBuildingMeshes",
       "mesh": "city3d/three/specialBuildingMeshes (Special buildings)",
-      "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "meshless": "equivalent",
+      "evidence": "P2d-4: the meshless civic church is a placement of the catalogue basilica (or the parish chapel massing, as the mesh editor draws a small chapel) and the market stalls are placements of the stall models; pieces laid by the mesh editor's rules now stand as their models at their position and facing, without the catalogue-envelope and display-height checks that sent them to massing.",
       "stage": "P2",
       "checked": true
     },

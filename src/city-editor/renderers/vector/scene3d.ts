@@ -7,6 +7,8 @@ import { createTownBridgesAt } from "../../../city3d/three/bridgeMeshes";
 import { createBvPrototypeCache } from "../../../city3d/three/bvInstances";
 import { createCityMassing } from "../../../city3d/three/cityMeshes";
 import { createTownCranes, createTownHarborCargo } from "../../../city3d/three/craneMeshes";
+import { createFacilityLayer } from "../../../city3d/three/facilityMeshes";
+import { createTownMonasteries } from "../../../city3d/three/friaryMeshes";
 import { createTownPiers } from "../../../city3d/three/pierMeshes";
 import { createTownRoads } from "../../../city3d/three/roadMeshes";
 import { createTownShips } from "../../../city3d/three/shipMeshes";
@@ -247,6 +249,37 @@ export function createVectorScene(data: VectorRenderData) {
       group.add(holder);
       disposers.push(() => piers.dispose());
     }
+    // Inns, guild halls and yards, windmills and gallows as the mesh editor's BV facilities, religious houses as its
+    // fitted friary assemblies (P2d-4). Their raised massing gives way; ground pieces stay under the models.
+    const bvOwners = new Set<string>(),
+      bvKinds = new Set<string>();
+    if (data.facilities && Object.values(data.facilities.aerial ?? {}).some(list => list?.length) && !data.terrain) {
+      const facilities = createFacilityLayer(data.facilities, harborCache, "high"),
+        holder = new THREE.Group();
+      holder.position.set(-data.center[0], -datum, data.center[1]);
+      holder.userData = { kind: "feature", representation: "bv-facility" };
+      holder.add(facilities.group);
+      group.add(holder);
+      disposers.push(() => facilities.dispose());
+      for (const site of facilities.accepted) bvOwners.add(site.id);
+    }
+    if (data.monasteries?.length && !data.terrain) {
+      const houses = createTownMonasteries(data.monasteries, undefined, "high"),
+        holder = new THREE.Group();
+      holder.position.set(-data.center[0], -datum, data.center[1]);
+      holder.userData = { kind: "feature", featureKind: "monastery", representation: "bv-monastery" };
+      holder.add(houses.group);
+      group.add(holder);
+      disposers.push(() => houses.dispose());
+      bvKinds.add("monastery");
+    }
+    const replacedByBv = (surface: VectorRenderSurface) => {
+      if (surface.kind !== "feature") return false;
+      if (surface.featureKind === "monastery") return bvKinds.has("monastery") && surface.heightMeters > 0;
+      if (!bvOwners.has(surface.id) && ![...bvOwners].some(id => surface.id.startsWith(`${id}:`))) return false;
+      // Sails, hubs and pillars belong to the model; mounds, yards and courts stay as its ground.
+      return surface.heightMeters > 0 || /sail|^windmill-(post|tower)$/.test(surface.pieceRole ?? "");
+    };
     if (data.wells?.length) {
       const local = data.wells.map(w => ({
           id: w.id,
@@ -327,6 +360,7 @@ export function createVectorScene(data: VectorRenderData) {
       roadsDrawn = true;
     }
     for (const surface of data.surfaces) {
+      if (replacedByBv(surface)) continue;
       if (surface.pieceRole === "pier" && data.piers?.some(p => p.id === surface.id) && !data.terrain) continue;
       if (surface.pieceRole === "landscape-tree" || (surface.pieceRole === "bv-well" && data.wells?.length)) continue;
       if ((surface.kind === "wall" || surface.kind === "bridge") && massed.has(surface.id)) continue;
@@ -409,10 +443,14 @@ export function createVectorScene(data: VectorRenderData) {
               }),
             width = Math.max(...local.map(p => p[0])) - Math.min(...local.map(p => p[0])),
             depth = Math.max(...local.map(p => p[1])) - Math.min(...local.map(p => p[1]));
+          // Pieces laid by the mesh editor's own rules (market stalls, the civic church) are its models: they stand
+          // at their position and facing even where the saved plot is the layout's, not the catalogue envelope (P2d-4).
+          const laid = p.display?.provenance === "copied" && !p.building;
           if (
-            Math.abs(area - expected) < 0.01 &&
-            Math.abs(width - footprint.halfX * 2) < 0.01 &&
-            Math.abs(depth - footprint.halfZ * 2) < 0.01
+            laid ||
+            (Math.abs(area - expected) < 0.01 &&
+              Math.abs(width - footprint.halfX * 2) < 0.01 &&
+              Math.abs(depth - footprint.halfZ * 2) < 0.01)
           ) {
             let model = prototypes.get(definition.id);
             if (!model) {
@@ -420,7 +458,8 @@ export function createVectorScene(data: VectorRenderData) {
               prototypes.set(definition.id, model);
             }
             const measuredBounds = new THREE.Box3().setFromObject(model.group, true);
-            const savedHeight = p.building?.heightMeters ?? p.display?.heightMeters;
+            // A laid piece's display height is the plan's estimate; the model is the authority.
+            const savedHeight = laid ? undefined : (p.building?.heightMeters ?? p.display?.heightMeters);
             if (savedHeight !== undefined && Math.abs(measuredBounds.max.y - measuredBounds.min.y - savedHeight) > 0.01)
               warnings.push(`model-height-mismatch:${p.id}`);
             else {
@@ -438,7 +477,7 @@ export function createVectorScene(data: VectorRenderData) {
               wrapper.userData = { id: p.id, kind: "building", representation: "bv", modelId: p.modelId };
               group.add(wrapper);
               placed = true;
-              if (savedHeight === undefined) warnings.push(`height-unverified:${p.id}`);
+              if (savedHeight === undefined && !laid) warnings.push(`height-unverified:${p.id}`);
             }
           }
         }

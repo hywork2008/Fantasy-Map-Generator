@@ -2,6 +2,7 @@ import { buildingAppearanceProfile, normalizeBuildingAppearanceContext } from ".
 import type { BuildingAppearance, BuildingAppearanceProfile } from "../../../buildings/appearance/types";
 import { treeLodProfile } from "../../../buildings/landscape/trees";
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
+import type { FacilityPlans } from "../../../city3d/three/facilityMeshes";
 import { lotMassing, massingContext } from "../../generators/buildingMassing";
 import { treeSpeciesForClimate } from "../../generators/landscapeTreeSpecies";
 import { type ContourLine, fieldContours } from "../../generators/terrainField/contours";
@@ -24,6 +25,7 @@ import type { VectorFabricLines } from "../../types/vector/fabric";
 import type { VectorPolygon } from "../../types/vector/generation";
 import type { VectorHarborShip } from "../../types/vector/harbor";
 import type { VectorLandscapeTree } from "../../types/vector/landscape";
+import type { Monastery } from "../../types/vector/monastery";
 import type { VectorStage } from "../../types/vector/urban";
 import { automaticHousingProfile } from "../standaloneHousingAppearance";
 import { vectorDefenseSurfaces } from "./defense";
@@ -98,6 +100,9 @@ export interface VectorRenderData {
   structures?: ReturnType<typeof vectorStructures>;
   /** The culture profile of the mesh editor's BV town towers and gates (P2d-2). */
   wallProfile?: BuildingAppearanceProfile;
+  /** Facility plans and religious houses drawn as the mesh editor's BV facilities in 3D (P2d-4). */
+  facilities?: FacilityPlans;
+  monasteries?: Monastery[];
   /** Harbour piers as the mesh editor's timber piers in 3D (P2d-3). */
   piers?: { id: string; deck: Point[]; depth: number }[];
   /** Roads of this stage as the mesh editor's wearing-course ribbons, for 3D. */
@@ -716,6 +721,25 @@ export function vectorRenderData(
     water,
     structures: vectorStructures(doc).filter(s => drawn.has(s.owner)),
     wallProfile: vectorWallProfile(doc),
+    facilities: {
+      aerial: {
+        windmills: doc.environment?.landmarks?.windmills ?? [],
+        gallows: doc.environment?.landmarks?.gallows ?? [],
+        gateInns: doc.environment?.inns ?? [],
+        guildHalls: doc.environment?.guilds?.halls ?? [],
+        guildYards: doc.environment?.guilds?.yards ?? []
+      },
+      arid:
+        normalizeBuildingAppearanceContext({
+          period: doc.context.historicalPeriod,
+          tradition: doc.site?.descriptor?.civilization?.tradition,
+          temperatureC: doc.site?.descriptor?.climate?.temperatureC,
+          biome:
+            doc.site?.descriptor?.biome ??
+            (doc.site?.descriptor?.climate?.biomeKey ? { key: doc.site.descriptor.climate.biomeKey } : undefined)
+        }).arid === true
+    },
+    monasteries: Object.values(doc.environment?.monasteries ?? {}),
     piers: (doc.environment?.harbor?.piers ?? []).flatMap(p =>
       p.polygon.outer.length === 4 ? [{ id: p.id, deck: p.polygon.outer, depth: p.depthMeters }] : []
     ),
