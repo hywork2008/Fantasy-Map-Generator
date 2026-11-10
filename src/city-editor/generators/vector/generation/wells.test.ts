@@ -29,13 +29,17 @@ describe("water points by the mesh editor's rules (feature parity P7d)", () => {
     }
   });
 
-  it("sets one public basin on the civic plaza", () => {
+  // A village green keeps the public basin in its middle; a larger Christian square has a market cross there instead.
+  it.each([
+    [600, 1],
+    [3000, 0]
+  ] as const)("a town of %i sets %i public basin on the civic plaza", (population, basins) => {
     const base = defaultGenerationSettings(),
       seed = "p7d-water",
       input = vectorInputFromEditor({
         settings: {
           ...base,
-          population: defaultPopulationSettings(3000),
+          population: defaultPopulationSettings(population),
           historicalPeriod: "lateMedieval" as const,
           buildingPattern: "medieval" as const
         },
@@ -45,11 +49,14 @@ describe("water points by the mesh editor's rules (feature parity P7d)", () => {
       }),
       doc = generateVectorUrban(
         generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, wall: "ellipse" }).document,
-        { ...DEFAULT_VECTOR_URBAN, population: 3000, lotOccupancy: 1 }
+        { ...DEFAULT_VECTOR_URBAN, population, lotOccupancy: 1 }
       ),
       wells = doc.urban!.wells ?? [];
     expect(doc.environment?.features["feature:civic-plaza"]).toBeDefined();
-    expect(wells.filter(w => w.kind === "publicBasin" && w.placement === "plaza")).toHaveLength(1);
+    expect(wells.filter(w => w.kind === "publicBasin" && w.placement === "plaza")).toHaveLength(basins);
+    expect(doc.placements["civic:plaza-furniture"]?.modelId).toBe(
+      basins ? "pillory-and-stocks" : "market-cross-canopied"
+    );
     expect(validateVectorUrban(doc)).toEqual([]);
   });
 });

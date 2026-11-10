@@ -4,7 +4,7 @@ import { registerHighVariants } from "./qualityVariants";
 
 /**
  * Furniture of a Christian churchyard (docs/plan/bv-town-church-tiers.md). The churchyard's depth grows with
- * the town (20 / 30 / 40 m, `vectorCivicLayout`). Placeable in CE; automatic placement is not yet wired.
+ * the town (20 / 30 / 40 m, `vectorCivicLayout`). The civic centre places them (`civicFurniture.ts`).
  */
 export const models: MedievalModel[] = [
   {

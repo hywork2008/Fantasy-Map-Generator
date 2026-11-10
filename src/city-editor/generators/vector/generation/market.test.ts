@@ -28,7 +28,9 @@ describe("market day on the civic plaza (feature parity P6b)", () => {
         ...vectorWallChoice(settings, seed, "lateMedieval")
       }).document,
       plaza = skeleton.environment!.features[CIVIC_PLAZA_ID],
-      stalls = plaza.placementIds.map(id => skeleton.placements[id]);
+      // The square's furniture (B6b) is listed with the plaza too; the stalls are the rest.
+      stalls = plaza.placementIds.filter(id => id !== "civic:plaza-furniture").map(id => skeleton.placements[id]);
+    expect(skeleton.placements["civic:plaza-furniture"]?.modelId).toMatch(/^(pillory-and-stocks|market-cross-)/);
     expect(plaza.settings.activity).toBe("market-day");
     expect(stalls.map(s => s.modelId)).toEqual([
       "market-produce-stall",

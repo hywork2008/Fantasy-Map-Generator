@@ -8,7 +8,7 @@ import { registerHighVariants } from "./qualityVariants";
 
 /**
  * Furniture for the town square sized by population (`civicSizeForPopulation`, docs/plan/bv-town-church-tiers.md):
- * a village green gets the stocks, a market town a stone cross, a city the canopied cross. Placeable in CE; automatic placement is not yet wired.
+ * a village green gets the stocks, a market town a stone cross, a city the canopied cross. The civic centre places them (`civicFurniture.ts`).
  */
 export const models: MedievalModel[] = [
   {

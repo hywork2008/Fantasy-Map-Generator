@@ -121,9 +121,12 @@ export function layoutVectorWells(
   const streets = fabricLinesNear(fabric, { minX: -half, minY: -half, maxX: half, maxY: half }, half);
   return layoutDomesticWater(site, [...roads, ...streets], houses.length, {
     blocks,
-    plazas: plaza
-      ? [{ center: polygonCentroid(plaza.boundary.outer), sizeMeters: Math.sqrt(regionArea(plaza.boundary)) }]
-      : [],
+    // A market cross stands in the middle of a Christian square in place of the public basin (B6b); a village green
+    // with only the stocks keeps its basin there.
+    plazas:
+      plaza && !doc.placements["civic:plaza-furniture"]?.modelId.startsWith("market-cross-")
+        ? [{ center: polygonCentroid(plaza.boundary.outer), sizeMeters: Math.sqrt(regionArea(plaza.boundary)) }]
+        : [],
     springs: []
   });
 }

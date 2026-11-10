@@ -32,6 +32,7 @@ import { vectorOccupiedSites } from "../occupancy";
 import { assertVectorDocument } from "../validation/document";
 import { CASTLE_FEATURE_ID, CASTLE_SITE_ID, raiseVectorCastle, reserveVectorCastle } from "./castle";
 import { connectVectorCivicCentre } from "./civic";
+import { raiseVectorPlazaFurniture } from "./civicFurniture";
 import { isFerryRiver, raiseVectorFerries } from "./ferries";
 import { raiseVectorForest } from "./forest";
 import { raiseVectorGuilds } from "./guilds";
@@ -1189,6 +1190,9 @@ function skeleton(
   // The civic plaza holds a market day once its streets are laid (P6b).
   if (doc.environment?.features[CIVIC_PLAZA_ID] && !raiseVectorPlazaMarket(doc))
     diagnostics.push({ code: "market-unplaced", entityId: CIVIC_PLAZA_ID, severity: "warning" });
+  // The square's stocks or cross (B6b), after its stalls and aisles.
+  if (doc.environment?.features[CIVIC_PLAZA_ID] && doc.placements["civic:church"] && !raiseVectorPlazaFurniture(doc))
+    diagnostics.push({ code: "plaza-furniture-unplaced", entityId: CIVIC_PLAZA_ID, severity: "warning" });
   if (deferredInner) {
     // The line is eased in or out a little until every street crosses it steeply, clear of its corners, of the
     // next gate and of protected sites; the streets were laid without it.

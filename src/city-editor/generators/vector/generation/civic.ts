@@ -19,6 +19,7 @@ import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
+import { raiseVectorChurchyardFurniture } from "./civicFurniture";
 
 const box = (center: Point, width: number, height: number) => ({
   outer: [
@@ -257,6 +258,8 @@ export function seedVectorCivicCentre(
       cemeteries: [plan],
       trees: []
     };
+    // A Christian churchyard's cross and lych-gate (B6b); a yard full of graves keeps neither.
+    raiseVectorChurchyardFurniture(doc);
   }
 }
 
