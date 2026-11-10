@@ -20,6 +20,13 @@ export type CellFreshFoodInput = {
   commercialPath: CellFoodPreservationPath | null;
   /** Confirmed demand for the commercial output, expressed in output units. */
   exportDemandUnits: number;
+  /**
+   * A second commercial output sold before `commercialPath` takes the rest, such as the vintage's
+   * raisins ahead of its wine (docs/plan/raisin-trade.md §3.1).
+   */
+  marketDriedPath?: CellFoodPreservationPath | null;
+  /** Confirmed demand for `marketDriedPath`, in output units. */
+  marketDriedDemandUnits?: number;
   /** A missing physical preservation supply is the only permitted source of fresh-food spoilage. */
   preservationSuppliesAvailable: boolean;
 };
@@ -35,6 +42,10 @@ export type CellFreshFoodOutcome = {
   /** Shelf-stable food output held in the source cell's private reserve, not Market stock. */
   reserveOutputUnits: number;
   exportOutputUnits: number;
+  /** Output of `marketDriedPath` for the market. */
+  marketDriedOutputUnits: number;
+  /** Fresh input those units used. */
+  marketDriedInputUnits: number;
   spoiledForMissingSuppliesUnits: number;
 };
 

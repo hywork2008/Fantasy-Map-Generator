@@ -1328,6 +1328,7 @@ export class MarketsModule {
 
     const reserves = getOrCreateCellFoodReserves();
     const freshGrapesSentByMarket = new Map<number, number>();
+    const raisinsDriedByMarket = new Map<number, number>();
     for (const [cellId, cellEntries] of entriesByCell) {
       const residentWorkforce = getRuralCellPopulation(cellId);
       const inputs: CellFreshFoodInput[] = [];
@@ -1356,6 +1357,17 @@ export class MarketsModule {
           residentWorkforce,
           this.worldContext.populationRate
         );
+        // The vintage dries the towns' raisins for the market before it presses the rest
+        // (docs/plan/raisin-trade.md §3.1).
+        const reserveGood = reservePath ? Goods.get(reservePath.outputGoodId) : undefined;
+        const marketDriedPath =
+          reservePath && reserveGood?.name === "Raisins" && commercialPath !== reservePath ? reservePath : null;
+        const marketDriedDemandUnits = marketDriedPath
+          ? Math.max(
+              0,
+              getFoodProcessingProductionHeadroom(market, "Raisins", 0) - (raisinsDriedByMarket.get(market.i) ?? 0)
+            )
+          : 0;
         inputs.push({
           sourceGoodId: sourceGood.i,
           harvestedUnits: entry.monthlyUnits[monthIndex] ?? 0,
@@ -1366,6 +1378,8 @@ export class MarketsModule {
           reservePath,
           commercialPath,
           exportDemandUnits,
+          marketDriedPath,
+          marketDriedDemandUnits,
           // Food-preservation supplies are reserved ahead of all non-food work. A future local
           // disaster/siege system may set this false; the planner then records the sole valid spoilage path.
           preservationSuppliesAvailable: reservePath !== null && commercialPath !== null
@@ -1436,6 +1450,20 @@ export class MarketsModule {
             this.addRuralOutput(entry.marketId, entry.collectionBurgId, sourceGood.i, chilled);
             coldStorageCapacityByState.set(stateId, availableColdStorage - chilled);
           }
+        }
+
+        if (reservePath && outcome.marketDriedOutputUnits > 0) {
+          raisinsDriedByMarket.set(
+            market.i,
+            (raisinsDriedByMarket.get(market.i) ?? 0) + outcome.marketDriedOutputUnits
+          );
+          recordFoodProcessingConsumption(market, sourceGood.name, outcome.marketDriedInputUnits);
+          this.addRuralOutput(
+            entry.marketId,
+            entry.collectionBurgId,
+            reservePath.outputGoodId,
+            outcome.marketDriedOutputUnits
+          );
         }
 
         if (!commercialPath || outcome.exportOutputUnits <= 0) continue;

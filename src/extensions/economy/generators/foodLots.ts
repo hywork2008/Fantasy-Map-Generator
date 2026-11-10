@@ -123,5 +123,13 @@ export const GRAPE_TARGETS = {
    * (docs/plan/grape-season-and-wine-country.md).
    */
   harvestMonths: 45 / (365 / 12),
-  raisinsKilogramsPerPersonYear: 0.5
+  /** Town people's raisins: country people eat theirs from the vineyard cells' stores. */
+  raisinsKilogramsPerPersonYear: 0.5,
+  /**
+   * Shipped from the vintage and eaten from Christmas to Lent: the towns eat this multiple of the
+   * year's mean from October to March and the rest of the year the remainder (docs/plan/raisin-trade.md §3.3).
+   */
+  raisinsWinterWeight: 1.5,
+  /** The vintage dries a year's raisins once; stock above this many months of mean demand spoils. */
+  raisinsReserveMonths: 12
 } as const;

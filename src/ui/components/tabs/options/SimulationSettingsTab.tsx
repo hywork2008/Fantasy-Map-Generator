@@ -45,6 +45,11 @@ import {
   setMarketSettings
 } from "../../../../simulation/marketSettings";
 import {
+  getRaisinStorageLoss,
+  RAISIN_STORAGE_LOSS_LIMITS,
+  setRaisinStorageLoss
+} from "../../../../simulation/raisinStorageSettings";
+import {
   getTreelessTownAleWoodland,
   setTreelessTownAleWoodland,
   TREELESS_TOWN_ALE_WOODLAND_LIMITS
@@ -95,6 +100,7 @@ export const SimulationSettingsTab: React.FC = () => {
   const [townMeadLiters, setTownMeadLitersState] = useState(getTownMeadLiters);
   const [townSoapKilograms, setTownSoapKilogramsState] = useState(getTownSoapKilograms);
   const [craftCreditMonths, setCraftCreditMonthsState] = useState(getCraftCreditMonths);
+  const [raisinStorageLoss, setRaisinStorageLossState] = useState(getRaisinStorageLoss);
   const [containerReuseCost, setContainerReuseCostState] = useState(getContainerReuseCost);
   const generationSpacing = getMarketGenerationSpacing(
     worldContext.graphWidth,
@@ -699,6 +705,23 @@ export const SimulationSettingsTab: React.FC = () => {
                 onChange={v => {
                   const months = Number(v);
                   if (Number.isFinite(months)) setCraftCreditMonthsState(setCraftCreditMonths(months));
+                }}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.raisinStorageLossTip")}>
+            <td />
+            <td>{t("simulation.raisinStorageLoss")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="raisinStorageLoss"
+                min={RAISIN_STORAGE_LOSS_LIMITS.min * 100}
+                max={RAISIN_STORAGE_LOSS_LIMITS.max * 100}
+                step={RAISIN_STORAGE_LOSS_LIMITS.step * 100}
+                value={Math.round(raisinStorageLoss * 1000) / 10}
+                onChange={v => {
+                  const percent = Number(v);
+                  if (Number.isFinite(percent)) setRaisinStorageLossState(setRaisinStorageLoss(percent / 100));
                 }}
               />
             </td>

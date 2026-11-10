@@ -1,11 +1,14 @@
 import { getHouseholdHoneyKilograms } from "../../../simulation/householdHoneySettings";
 import { getMarketSettings } from "../../../simulation/marketSettings";
+import { getRaisinStorageLoss } from "../../../simulation/raisinStorageSettings";
 import { getTreelessTownAleWoodland } from "../../../simulation/townAleSettings";
 import { getTownMeadLiters } from "../../../simulation/townMeadSettings";
+import { getSeasonalTemperatureOffset } from "../../../utils/seasonUtils";
 import { rn } from "../../hostUtils";
 import {
   getGoods,
   getMarkets,
+  getSimulationMonth,
   getUrbanWaterSystems,
   getWorldContext,
   recordCumulativeCellFoodProcessing
@@ -41,6 +44,7 @@ import {
 import { GOOD_MEASURES } from "./goodMeasureCatalog";
 import { isFreshFoodGood } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
+import { getStorageClimateLossMultiplier } from "./grainStorage";
 import {
   debitRuralHouseholdWealth,
   getRuralHouseholdWealth,
@@ -363,6 +367,87 @@ function getTownMeadDemand(market: Market): number {
   return (people * MEAD_TARGETS.adultShare * liters) / 12 / LITERS_PER_MEAD_LOT;
 }
 
+/** The towns' raisins a month, the year's mean (docs/plan/raisin-trade.md §3.3). */
+export function getMeanMonthlyRaisinDemand(market: Market): number {
+  return (getMarketTownPeople(market) * GRAPE_TARGETS.raisinsKilogramsPerPersonYear) / 12 / KILOGRAMS_PER_RAISINS_LOT;
+}
+
+type MarketClimate = { latitude: number; annualTemperature: number; precipitation: number };
+
+/** The market's central burg climate; undefined where the map lacks coordinates (test fixtures). */
+function getMarketClimate(market: Market): MarketClimate | undefined {
+  const world = getWorldContext();
+  const burg = world.pack?.burgs?.[market.centerBurgId];
+  if (!burg) return undefined;
+  const gridCell = world.pack?.cells?.g?.[burg.cell] ?? burg.cell;
+  const annualTemperature = world.grid?.cells?.temp?.[gridCell];
+  const precipitation = world.grid?.cells?.prec?.[gridCell] ?? Number.NaN;
+  const point = world.pack?.cells?.p?.[burg.cell];
+  const { latN, latT } = world.mapCoordinates ?? {};
+  if (
+    annualTemperature === undefined ||
+    !Number.isFinite(annualTemperature) ||
+    !point ||
+    !Number.isFinite(latN) ||
+    !Number.isFinite(latT) ||
+    !world.graphHeight
+  )
+    return undefined;
+  return { latitude: latN! - (point[1] / world.graphHeight) * latT!, annualTemperature, precipitation };
+}
+
+/** Months of the raisin season, October to March, counted in the market's own hemisphere. */
+function isRaisinSeasonMonth(month: number, latitude: number): boolean {
+  const northernMonth = latitude >= 0 ? month : ((month + 5) % 12) + 1;
+  return northernMonth >= 10 || northernMonth <= 3;
+}
+
+function getRaisinSeasonWeight(market: Market): number {
+  const latitude = getMarketClimate(market)?.latitude ?? 1;
+  const winter = GRAPE_TARGETS.raisinsWinterWeight;
+  return isRaisinSeasonMonth(getSimulationMonth(), latitude) ? winter : 2 - winter;
+}
+
+/**
+ * Stored raisins lose a share each month, more in warm damp months; stock above a year of the towns'
+ * raisins is old fruit past the next vintage and spoils (docs/plan/raisin-trade.md §3.2).
+ */
+function spoilStoredRaisins(market: Market): void {
+  const good = getGoods().find(candidate => candidate.name === "Raisins");
+  const ledger = getGoodLedger(market, "Raisins");
+  if (!good || !ledger) return;
+  const stock = Math.max(0, market.goods[good.i]?.stock ?? 0);
+  if (stock <= 0) return;
+  const climate = getMarketClimate(market);
+  const world = getWorldContext();
+  const temperature = climate
+    ? climate.annualTemperature +
+      getSeasonalTemperatureOffset(
+        climate.latitude,
+        1,
+        getSimulationMonth(),
+        15,
+        {
+          temperatureEquator: world.options?.temperatureEquator,
+          temperatureNorthPole: world.options?.temperatureNorthPole,
+          temperatureSouthPole: world.options?.temperatureSouthPole
+        },
+        world.options?.axialTilt
+      )
+    : Number.NaN;
+  const rate = Math.min(
+    1,
+    getRaisinStorageLoss() * getStorageClimateLossMultiplier(temperature, climate?.precipitation ?? Number.NaN)
+  );
+  const kept = stock * (1 - rate);
+  const cap = getMeanMonthlyRaisinDemand(market) * GRAPE_TARGETS.raisinsReserveMonths;
+  const lost = stock - Math.min(kept, cap);
+  if (!(lost > 0)) return;
+  market.goods[good.i].stock = stock - lost;
+  ledger.spoilage += lost;
+  recordGoodFlow({ direction: "sink", category: "spoilage", goodId: good.i, units: lost, marketId: market.i });
+}
+
 export function getMonthlyHouseholdDemand(market: Market, goodName: string): number {
   const people = getMarketPeople(market);
   switch (goodName) {
@@ -394,7 +479,7 @@ export function getMonthlyHouseholdDemand(market: Market, goodName: string): num
       );
     }
     case "Raisins":
-      return (people * GRAPE_TARGETS.raisinsKilogramsPerPersonYear) / 12 / KILOGRAMS_PER_RAISINS_LOT;
+      return getMeanMonthlyRaisinDemand(market) * getRaisinSeasonWeight(market);
     case "Wine": {
       const imported =
         (people * WINE_TARGETS.adultShare * WINE_TARGETS.importedLitersPerAdultYear) / 12 / LITERS_PER_WINE_LOT;
@@ -558,13 +643,17 @@ export function getFoodProcessingProductionHeadroom(
         ? BEER_RESERVE_MONTHS
         : goodName === "Wine"
           ? WINE_TARGETS.reserveMonths
-          : 3;
+          : goodName === "Raisins"
+            ? GRAPE_TARGETS.raisinsReserveMonths
+            : 3;
   // The wine country presses for all the drinking its vines could serve, or its share could never grow.
   const monthlyDemand =
-    goodName === "Wine" && isWineCountry(market)
-      ? getMonthlyHouseholdDemand(market, goodName) +
-        getWineCountryExtraDemand(market) * (1 - getWineCountryShare(market))
-      : getMonthlyHouseholdDemand(market, goodName);
+    goodName === "Raisins"
+      ? getMeanMonthlyRaisinDemand(market)
+      : goodName === "Wine" && isWineCountry(market)
+        ? getMonthlyHouseholdDemand(market, goodName) +
+          getWineCountryExtraDemand(market) * (1 - getWineCountryShare(market))
+        : getMonthlyHouseholdDemand(market, goodName);
   const householdHeadroom = Math.max(0, monthlyDemand * reserveMonths - heldStock);
   if (goodName !== "Cheese") return householdHeadroom;
 
@@ -759,6 +848,8 @@ export function settleFoodProcessingHouseholds(): void {
       ledger.spoilage += remaining;
       recordGoodFlow({ direction: "sink", category: "spoilage", goodId: good.i, units: remaining, marketId: market.i });
     }
+
+    spoilStoredRaisins(market);
 
     // Raw fish/meat/shellfish shares the no-cold-chain lifecycle even though these goods do not
     // have the specialised Milk/Grapes household ledger. Preserve this tag-driven path so future

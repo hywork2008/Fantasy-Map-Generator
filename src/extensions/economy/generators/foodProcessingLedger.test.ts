@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { recordCumulativeCellFoodProcessing } from "../economyContext";
 import type { Market } from "./marketTypes";
 
+let simulationMonth = 1;
 const market: Market = {
   i: 1,
   centerBurgId: 1,
@@ -20,6 +21,7 @@ const urbanWaterSystems: unknown[] = [];
 
 vi.mock("../economyContext", () => ({
   getMarkets: () => [market],
+  getSimulationMonth: () => simulationMonth,
   getUrbanWaterSystems: () => urbanWaterSystems,
   getGoods: () => [
     { i: 1, name: "Milk", tags: ["food", "freshFood"] },
@@ -142,6 +144,25 @@ describe("foodProcessingLedger", () => {
     expect(getMonthlyHouseholdDemand(market, "Grapes")).toBe(0);
     expect(getMonthlyHouseholdDemand(market, "Wine")).toBeCloseTo(imported + extra / 2, 6);
     market.foodProcessingLedger = undefined;
+  });
+
+  it("puts the towns' raisins from Christmas to Lent, and spoils stock beyond a year of them", () => {
+    // 1,000 townsfolk at 0.5 kg a year in 250 kg lots: 1/6 lot a month on the year's mean.
+    const mean = (1_000 * 0.5) / 12 / 250;
+    simulationMonth = 7;
+    expect(getMonthlyHouseholdDemand(market, "Raisins")).toBeCloseTo(mean * 0.5, 6);
+    simulationMonth = 1;
+    expect(getMonthlyHouseholdDemand(market, "Raisins")).toBeCloseTo(mean * 1.5, 6);
+    market.goods[4].stock = 5;
+    settleFoodProcessingHouseholds();
+    // A year of the mean is kept; the rest is old fruit past the next vintage.
+    expect(market.goods[4].stock).toBeCloseTo(mean * 12, 6);
+    expect(market.foodProcessingLedger?.Raisins?.spoilage).toBeCloseTo(5 - mean * 1.5 - mean * 12, 6);
+    market.goods[4].stock = 1;
+    settleFoodProcessingHouseholds();
+    // Under the cap, a month's storage loss only.
+    expect(market.goods[4].stock).toBeLessThan(1 - mean * 1.5);
+    expect(market.goods[4].stock).toBeGreaterThan((1 - mean * 1.5) * 0.95);
   });
 
   it("makes up the white soap the market lacks with soft soap (docs/plan/town-soap.md §3.2)", () => {

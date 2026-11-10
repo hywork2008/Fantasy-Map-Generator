@@ -44,6 +44,8 @@ export const WORLD_SETTING_KEYS = [
   "fmg-town-soap-kg",
   /** Months of craft spending a town's workshops may owe its market's dealers (docs/plan/craft-book-credit.md). */
   "fmg-craft-credit-months",
+  /** Monthly share of raisins lost in a temperate store (docs/plan/raisin-trade.md §3.2). */
+  "fmg-raisin-storage-loss",
   /** Cost of washing and mending an empty for refilling, a share of its value (docs/plan/returnable-drink-containers.md §3). */
   "fmg-container-reuse-cost"
 ] as const;

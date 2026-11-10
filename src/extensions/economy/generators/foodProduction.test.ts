@@ -13,6 +13,7 @@ import type { Good } from "./goodsGeneratorTypes";
 // Mock economy context
 vi.mock("../economyContext", () => ({
   getWorldContext: vi.fn(),
+  getSimulationMonth: () => 1,
   getMarkets: vi.fn(),
   getMarketCellColumn: vi.fn(),
   getGoods: vi.fn(() => []),
