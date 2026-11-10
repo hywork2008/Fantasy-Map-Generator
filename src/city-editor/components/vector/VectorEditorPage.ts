@@ -27,6 +27,7 @@ import { createVectorGenerationPanel } from "./VectorGenerationPanel";
 import { createVectorPlacementPanel } from "./VectorPlacementPanel";
 import { createVectorPresentationPanel } from "./VectorPresentationPanel";
 import { createVectorWorkbench } from "./VectorWorkbench";
+import { attachVectorMeasure } from "./vectorMeasure";
 
 export interface VectorEditorSession {
   generationInput?: import("../../generators/vector/generation/editorInput").VectorEditorGenerationInput;
@@ -97,6 +98,9 @@ export function mountVectorCityEditor(
     },
     { passive: false }
   );
+  attachVectorMeasure(scope, map, text => {
+    status.textContent = text;
+  });
   let environmentPanel: ReturnType<typeof createVectorEnvironmentPanel> | undefined;
   let placementPanel: ReturnType<typeof createVectorPlacementPanel> | undefined;
   let housePanel: ReturnType<typeof createVectorFabricHousePanel> | undefined;
