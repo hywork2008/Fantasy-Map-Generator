@@ -347,25 +347,14 @@ describe("foodProcessingLedger", () => {
     );
   });
 
-  it("keeps the next vintage's empty casks where its own vines bear, and has the coopers make up the rest", () => {
-    market.goods[5].stock = 0;
+  it("counts new casks in the market's stock against the coopers' shortfall of empties", () => {
     market.goods[15] = { stock: 0, price: 1 };
     const circulation = ensureContainerCirculation(market);
     circulation.empties.Barrels = 0;
-    const withoutVines = getMonthlyHouseholdContainerDemand(market, { i: 15 });
-    recordCellFoodHarvest(market, "Grapes", 5);
-    // A year of wine-country wine in 200 L casks, made up over three months of new casks.
-    expect(getMonthlyHouseholdContainerDemand(market, { i: 15 })).toBeGreaterThan(withoutVines);
-    circulation.empties.Barrels = 1_000;
-    settleFoodProcessingHouseholds();
-    const kept = market.returnableContainerLedger!.circulation!.empties.Barrels!;
-    market.foodProcessingLedger = undefined;
-    market.returnableContainerLedger = undefined;
-    const fresh = ensureContainerCirculation(market);
-    fresh.empties.Barrels = 1_000;
-    settleFoodProcessingHouseholds();
-    // Without vines, the market keeps only twice a month's filling and puts the rest back in stock.
-    expect(kept).toBeGreaterThan(market.returnableContainerLedger!.circulation!.empties.Barrels!);
+    refreshAleHouseholdDemand();
+    const short = getMonthlyHouseholdContainerDemand(market, { i: 15 });
+    market.goods[15].stock = 1e9;
+    expect(getMonthlyHouseholdContainerDemand(market, { i: 15 })).toBeLessThan(short);
   });
 
   it("sells ale to the towns only: country households brew their own", () => {
