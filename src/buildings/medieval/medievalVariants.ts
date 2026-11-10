@@ -13,6 +13,7 @@ import { models as smithies } from "./11-smithiesModels";
 import { models as inns } from "./12-innsModels";
 import { models as fuel } from "./13-fuel-storageModels";
 import { models as churches } from "./14-parish-churchesModels";
+import { models as townChurches } from "./14-town-churchesModels";
 import { models as breweries } from "./15-breweriesModels";
 import { models as granaries } from "./16-granariesModels";
 import { models as warehouses } from "./17-warehousesModels";
@@ -71,6 +72,7 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   inns,
   fuel,
   churches,
+  townChurches,
   breweries,
   granaries,
   warehouses,
