@@ -12,7 +12,7 @@ import type {
 import type { VectorBlock, VectorPolygon } from "../../../types/vector/generation";
 import type { VectorUrbanSettings } from "../../../types/vector/urban";
 import type { ResidentialHeightKind } from "../../buildingHeightPolicy";
-import { isSimplePolygon, nearestOnPolyline, polygonArea, polygonCentroid } from "../../geom";
+import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
 import {
   buildOrganicStreetCell,
   COARSE_STREET_CELL_METERS,
@@ -705,6 +705,50 @@ function packedRing(points: Point[], origin: Point): number[] | undefined {
   return kept;
 }
 
+/** Area a near-rectangular lot may give up to be squared (v17). */
+const SQUARING_LOSS = 0.03;
+/**
+ * A four-sided lot within `SQUARING_LOSS` of a rectangle becomes the rectangle inscribed in it, square to its
+ * longest side: block subdivision leaves lots a little skewed, and only a right-angled house takes the detailed
+ * regional model (chimneys, quoins). The rectangle lies inside the lot, so no neighbour or street is touched.
+ * Other lots are kept as drawn.
+ */
+export function squaredLot(polygon: Point[]): Point[] {
+  if (polygon.length !== 4) return polygon;
+  let longest = 0,
+    axis: Point = [1, 0];
+  for (let i = 0; i < 4; i++) {
+    const a = polygon[i],
+      b = polygon[(i + 1) % 4],
+      length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (length > longest) {
+      longest = length;
+      axis = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+    }
+  }
+  const normal: Point = [-axis[1], axis[0]],
+    u = polygon.map(p => p[0] * axis[0] + p[1] * axis[1]),
+    v = polygon.map(p => p[0] * normal[0] + p[1] * normal[1]),
+    byU = [...u].sort((a, b) => a - b),
+    byV = [...v].sort((a, b) => a - b),
+    // The inner extremes: the second-lowest and second-highest coordinate on each axis.
+    [u0, u1, v0, v1] = [byU[1], byU[2], byV[1], byV[2]];
+  if (!(u1 - u0 > 1 && v1 - v0 > 1)) return polygon;
+  const corners: Point[] = [
+    [u0, v0],
+    [u1, v0],
+    [u1, v1],
+    [u0, v1]
+  ].map(([a, b]) => [a * axis[0] + b * normal[0], a * axis[1] + b * normal[1]]);
+  const area = Math.abs(polygonArea(polygon)),
+    kept = (u1 - u0) * (v1 - v0);
+  if (kept < area * (1 - SQUARING_LOSS) || kept > area * (1 + 1e-9)) return polygon;
+  if (!corners.every(c => pointInPolygon(c, polygon) || nearestOnPolyline(c, [...polygon, polygon[0]]).dist < 1e-6))
+    return polygon;
+  // Keep the lot's winding.
+  return Math.sign(polygonArea(corners)) === Math.sign(polygonArea(polygon)) ? corners : corners.reverse();
+}
+
 /** Adopt houses in CE occupancy-draw order until the dwellings are met, and save every planned district and
  * street block as fabric records. Houses are site, footprint and reservation at once. */
 type OccupiedIndex = RBush<{ minX: number; minY: number; maxX: number; maxY: number; polygon: VectorPolygon }>;
@@ -874,7 +918,7 @@ export function placeVectorPerimeterHouses(
       if (!fit) continue;
       const lot = { outer: fit.polygon, holes: [] };
       if (protectedIndex.search(boxOf(fit.polygon)).some(o => surfacesOverlap(lot, o.polygon))) continue;
-      const { ring, polygon } = fit,
+      let { ring, polygon } = fit,
         site = { outer: polygon, holes: [] };
       if (!keepsLot(house.cellId, polygon, pass === 1)) {
         if (!pass) held.push(house);
@@ -887,6 +931,27 @@ export function placeVectorPerimeterHouses(
           heightKind(house.cellId)
         ),
         dwellings = perimeterHouseDwellings(regionArea(site), storeys);
+      // A near-rectangular lot is squared (v17) when that costs it no dwelling and touches nothing it did not.
+      const square = squaredLot(polygon);
+      if (square !== polygon) {
+        const squareRing = packedRing(square, origin),
+          squarePolygon = squareRing && unpackPoints(squareRing, origin),
+          squareSite = squarePolygon && { outer: squarePolygon, holes: [] };
+        if (
+          squareRing &&
+          squarePolygon &&
+          squareSite &&
+          perimeterHouseDwellings(regionArea(squareSite), storeys) === dwellings &&
+          !occupied
+            .search(boxOf(squarePolygon))
+            .some(o => regionBoolean([squareSite], [o.polygon], "intersection").some(r => regionArea(r) > 1e-5)) &&
+          !protectedIndex.search(boxOf(squarePolygon)).some(o => surfacesOverlap(squareSite, o.polygon))
+        ) {
+          ring = squareRing;
+          polygon = squarePolygon;
+          site = squareSite;
+        }
+      }
       // The entrance faces the nearest lane, street or road. Never an access drawn across another plot.
       let best: { from: Point; to: Point; distance: number } | undefined;
       const lines = lineIndex.search(boxOf(polygon, 12)).map(item => item.points);
