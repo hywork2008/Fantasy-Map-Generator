@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import {
+  COLLEGIATE_CHURCH,
   createTownChurch,
   LARGE_TOWN_PARISH_CHURCH,
   MARKET_TOWN_PARISH_CHURCH,
@@ -9,7 +10,8 @@ import {
 
 const TIERS: [string, TownChurchSpec, length: number, width: number, height: number][] = [
   ["T2 market-town parish church", MARKET_TOWN_PARISH_CHURCH, 22, 10, 14],
-  ["T3 large town parish church", LARGE_TOWN_PARISH_CHURCH, 36, 20, 28]
+  ["T3 large town parish church", LARGE_TOWN_PARISH_CHURCH, 36, 20, 28],
+  ["T4 collegiate church", COLLEGIATE_CHURCH, 52, 28, 36]
 ];
 
 describe.each(TIERS)("%s", (_name, spec, length, width, height) => {

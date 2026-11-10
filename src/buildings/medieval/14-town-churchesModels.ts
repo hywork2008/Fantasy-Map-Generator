@@ -1,4 +1,9 @@
-import { createTownChurch, LARGE_TOWN_PARISH_CHURCH, MARKET_TOWN_PARISH_CHURCH } from "../churches/townChurch";
+import {
+  COLLEGIATE_CHURCH,
+  createTownChurch,
+  LARGE_TOWN_PARISH_CHURCH,
+  MARKET_TOWN_PARISH_CHURCH
+} from "../churches/townChurch";
 import type { MedievalModel } from "./modelKit";
 import { registerHighVariants } from "./qualityVariants";
 
@@ -26,10 +31,21 @@ export const models: MedievalModel[] = [
     size: [36, 20, 28],
     note: "Principal church of a town (T3): six-bay aisled nave with a clerestory, lean-to aisles, lower chancel, west tower with a timber spire and corner pinnacles, south porch and buttresses. Plan frame: west front at -X, south porch at +Z.",
     create: () => createTownChurch(LARGE_TOWN_PARISH_CHURCH, "low")
+  },
+  {
+    author: "Claude Sonnet 5.5",
+    id: "town-church-collegiate",
+    name: "Collegiate church",
+    task: 14,
+    cePlacementStatus: "preview-only",
+    size: [51.5, 28, 35.7],
+    note: "Great church of a city (T4): seven-bay aisled nave with a clerestory, transepts, a crossing tower, a chancel closed by a five-sided apse, and a lower west tower. Plan frame: west front at -X, south porch at +Z. Chantry chapels are not modelled.",
+    create: () => createTownChurch(COLLEGIATE_CHURCH, "low")
   }
 ];
 
 registerHighVariants(models, {
   "town-church-parish": () => createTownChurch(MARKET_TOWN_PARISH_CHURCH, "high"),
-  "town-church-large": () => createTownChurch(LARGE_TOWN_PARISH_CHURCH, "high")
+  "town-church-large": () => createTownChurch(LARGE_TOWN_PARISH_CHURCH, "high"),
+  "town-church-collegiate": () => createTownChurch(COLLEGIATE_CHURCH, "high")
 });
