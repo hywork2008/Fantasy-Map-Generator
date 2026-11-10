@@ -63,6 +63,7 @@ import {
   isDrinkContainer,
   isReturnableDrink,
   RETURNABLE_DRINKS,
+  type ReturnableDrink,
   returnDrunkContainers,
   rollContainerFillRate
 } from "./returnableContainers";
@@ -577,7 +578,7 @@ export function getMonthlyHouseholdContainerDemand(market: Market, container: { 
     units += (demand * share * amounts.reduce((sum, amount) => sum + amount, 0)) / amounts.length;
   }
   if (isDrinkContainer(containerName) && circulation) {
-    const target = getMonthlyContainerFillNeed(market, containerName, circulation) * CONTAINER_EMPTIES_TARGET_MONTHS;
+    const target = getContainerEmptiesTarget(market, containerName, circulation);
     units += Math.max(0, target - (circulation.empties[containerName] ?? 0)) / CONTAINER_DEFICIT_MONTHS;
   }
   return units;
@@ -592,8 +593,10 @@ function releaseSurplusContainers(market: Market): void {
   if (!circulation) return;
   for (const container of DRINK_CONTAINERS) {
     const empties = circulation.empties[container] ?? 0;
-    const target = getMonthlyContainerFillNeed(market, container, circulation) * CONTAINER_EMPTIES_TARGET_MONTHS;
-    if (!(empties > 2 * target + 1e-6)) continue;
+    const monthly = getMonthlyContainerFillNeed(market, container, circulation) * CONTAINER_EMPTIES_TARGET_MONTHS;
+    const vintage = getVintageCaskEmptiesTarget(market, container, circulation);
+    const target = monthly + vintage;
+    if (!(empties > 2 * monthly + vintage + 1e-6)) continue;
     const good = getGoods().find(candidate => candidate.name === container);
     const row = good ? market.goods[good.i] : undefined;
     if (!good || !row) continue;
@@ -609,6 +612,58 @@ function releaseSurplusContainers(market: Market): void {
       marketId: market.i
     });
   }
+}
+
+/** The monthly demand a processed food's stock is held to. */
+function getProcessingMonthlyDemand(market: Market, goodName: string): number {
+  if (goodName === "Raisins") return getMeanMonthlyRaisinDemand(market);
+  // The wine country presses for all the drinking its vines could serve, or its share could never grow.
+  if (goodName === "Wine" && isWineCountry(market))
+    return (
+      getMonthlyHouseholdDemand(market, goodName) +
+      getWineCountryExtraDemand(market) * (1 - getWineCountryShare(market))
+    );
+  return getMonthlyHouseholdDemand(market, goodName);
+}
+
+const PRESSED_DRINK_FRUIT: Readonly<Record<string, string>> = { Wine: "Grapes", Cider: "Apples", Perry: "Pears" };
+
+/**
+ * Empty casks the market keeps for its next vintage: a year of the drinks its own vines and orchards
+ * press (they fill their casks once a year), less the casks still full from the last
+ * (docs/plan/vintage-casks.md). The empties come back as the drink is drunk; without this they were
+ * put back in stock and brewed into ale, and the vintage found too few.
+ */
+function getVintageCaskEmptiesTarget(
+  market: Market,
+  container: DrinkContainer,
+  circulation: ContainerCirculation | undefined
+): number {
+  if (container !== "Barrels") return 0;
+  let units = 0;
+  for (const [drink, fruit] of Object.entries(PRESSED_DRINK_FRUIT) as [ReturnableDrink, string][]) {
+    const harvested = (getGoodLedger(market, fruit)?.cellHarvest ?? 0) > 0;
+    if (!harvested) continue;
+    const yearLots =
+      getProcessingMonthlyDemand(market, drink) *
+      (drink === "Wine" ? WINE_TARGETS.reserveMonths : ORCHARD_TARGETS.reserveMonths) *
+      getFilledMix(circulation, drink)[container];
+    const fullLots = circulation?.filled?.[drink]?.[container] ?? 0;
+    units += Math.max(0, yearLots - fullLots) * getContainerSetPerLot(drink, container);
+  }
+  return units;
+}
+
+/** Empties of `container` the market keeps: a month of filling, and the casks of the next vintage. */
+function getContainerEmptiesTarget(
+  market: Market,
+  container: DrinkContainer,
+  circulation: ContainerCirculation | undefined
+): number {
+  return (
+    getMonthlyContainerFillNeed(market, container, circulation) * CONTAINER_EMPTIES_TARGET_MONTHS +
+    getVintageCaskEmptiesTarget(market, container, circulation)
+  );
 }
 
 /**
@@ -646,14 +701,7 @@ export function getFoodProcessingProductionHeadroom(
           : goodName === "Raisins"
             ? GRAPE_TARGETS.raisinsReserveMonths
             : 3;
-  // The wine country presses for all the drinking its vines could serve, or its share could never grow.
-  const monthlyDemand =
-    goodName === "Raisins"
-      ? getMeanMonthlyRaisinDemand(market)
-      : goodName === "Wine" && isWineCountry(market)
-        ? getMonthlyHouseholdDemand(market, goodName) +
-          getWineCountryExtraDemand(market) * (1 - getWineCountryShare(market))
-        : getMonthlyHouseholdDemand(market, goodName);
+  const monthlyDemand = getProcessingMonthlyDemand(market, goodName);
   const householdHeadroom = Math.max(0, monthlyDemand * reserveMonths - heldStock);
   if (goodName !== "Cheese") return householdHeadroom;
 
