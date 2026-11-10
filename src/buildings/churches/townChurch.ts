@@ -22,7 +22,16 @@ export interface TownChurchSpec {
   chancelWidthMeters: number;
   chancelEaveMeters: number;
   chancelRiseMeters: number;
-  tower: { sizeMeters: number; lowerStageMeters: number; belfryStageMeters: number; roofRiseMeters: number };
+  /** Lean-to side aisles; the nave then rises into a clerestory above their roofs. */
+  aisles?: { widthMeters: number; eaveMeters: number; riseMeters: number };
+  tower: {
+    sizeMeters: number;
+    lowerStageMeters: number;
+    belfryStageMeters: number;
+    roofRiseMeters: number;
+    roof: "pyramid" | "spire";
+    doorMeters: readonly [width: number, height: number];
+  };
   porch: { widthMeters: number; depthMeters: number; eaveMeters: number; riseMeters: number };
 }
 export type TownChurchDetail = "low" | "high";
@@ -38,8 +47,38 @@ export const MARKET_TOWN_PARISH_CHURCH: TownChurchSpec = {
   chancelWidthMeters: 5,
   chancelEaveMeters: 4,
   chancelRiseMeters: 2.2,
-  tower: { sizeMeters: 4.2, lowerStageMeters: 7, belfryStageMeters: 2.6, roofRiseMeters: 3.2 },
+  tower: {
+    sizeMeters: 4.2,
+    lowerStageMeters: 7,
+    belfryStageMeters: 2.6,
+    roofRiseMeters: 3.2,
+    roof: "pyramid",
+    doorMeters: [1.5, 2.5]
+  },
   porch: { widthMeters: 3, depthMeters: 2.7, eaveMeters: 3.2, riseMeters: 1.6 }
+};
+
+/** T3: the principal church of a town of 3,000-8,000 people (36 x 20 m on the ground). */
+export const LARGE_TOWN_PARISH_CHURCH: TownChurchSpec = {
+  naveBays: 6,
+  bayLengthMeters: 3.8,
+  naveWidthMeters: 7.6,
+  naveEaveMeters: 9,
+  naveRiseMeters: 3.6,
+  aisles: { widthMeters: 4.2, eaveMeters: 4.2, riseMeters: 2.1 },
+  chancelLengthMeters: 5.8,
+  chancelWidthMeters: 6,
+  chancelEaveMeters: 6.4,
+  chancelRiseMeters: 2.6,
+  tower: {
+    sizeMeters: 6.2,
+    lowerStageMeters: 13,
+    belfryStageMeters: 4.2,
+    roofRiseMeters: 9.5,
+    roof: "spire",
+    doorMeters: [2.2, 3.3]
+  },
+  porch: { widthMeters: 3.6, depthMeters: 3, eaveMeters: 3.8, riseMeters: 1.9 }
 };
 
 const EMBED = 0.3;
@@ -100,18 +139,22 @@ function roof(
   else k.roof(x, z, length + 0.6, depth + 0.7, eave + 0.12, rise, "tile", true);
 }
 
+const outerHalf = (spec: TownChurchSpec) => spec.naveWidthMeters / 2 + (spec.aisles?.widthMeters ?? 0);
+
 function buildTower(k: HouseDetailKit, detail: TownChurchDetail, spec: TownChurchSpec, xEast: number) {
   const t = spec.tower,
     s = t.sizeMeters,
     cx = xEast - s / 2,
     top = t.lowerStageMeters + t.belfryStageMeters;
-  const door: Aperture = { u: 0, base: 0, width: 1.5, height: 2.5, door: true, pointed: true };
-  const slit: Aperture = { u: 0, base: 3.4, width: 0.45, height: 1.4, glass: true };
-  const belfry: Aperture[] = [-0.7, 0.7].map(u => ({
+  const door: Aperture = { u: 0, base: 0, width: t.doorMeters[0], height: t.doorMeters[1], door: true, pointed: true };
+  const slit: Aperture = { u: 0, base: t.doorMeters[1] + 0.9, width: 0.45, height: 1.4, glass: true };
+  const bayU = s / 6,
+    belfryHeight = t.belfryStageMeters - 0.9;
+  const belfry: Aperture[] = [-bayU, bayU].map(u => ({
     u,
     base: t.lowerStageMeters + 0.4,
-    width: 0.7,
-    height: t.belfryStageMeters - 0.9,
+    width: bayU,
+    height: belfryHeight,
     pointed: true
   }));
   k.box("tower-plinth", [cx, 0.1, 0], [s + 0.3, 0.2, s + 0.3], "stone");
@@ -128,11 +171,11 @@ function buildTower(k: HouseDetailKit, detail: TownChurchDetail, spec: TownChurc
   }
   k.box("belfry-floor", [cx, t.lowerStageMeters, 0], [s - 0.4, 0.14, s - 0.4], "wood");
   if (detail === "high") {
-    for (const u of [-0.7, 0.7])
+    for (const u of [-bayU, bayU])
       for (const side of [-1, 1])
-        for (let row = 0; row < 4; row++) {
+        for (let row = 0; row < Math.round((belfryHeight - 0.5) / 0.3); row++) {
           const y = t.lowerStageMeters + 0.7 + row * 0.3;
-          k.box("belfry-louvre", [cx + u, y, side * (s / 2 - 0.11)], [0.62, 0.05, 0.12], "wood").rotation.x =
+          k.box("belfry-louvre", [cx + u, y, side * (s / 2 - 0.11)], [bayU - 0.08, 0.05, 0.12], "wood").rotation.x =
             side * 0.32;
         }
     addParishBell(k, cx, t.lowerStageMeters + 0.5, 0, 1.1);
@@ -140,16 +183,40 @@ function buildTower(k: HouseDetailKit, detail: TownChurchDetail, spec: TownChurc
   k.box("tower-cornice", [cx, top + 0.1, 0], [s + 0.3, 0.2, s + 0.3], "stone");
   // West corner buttresses, two per corner, stepping back from the faces.
   for (const side of [-1, 1]) {
-    k.box("tower-buttress", [cx - s / 2 - 0.22, 2.6, side * (s / 2 - 0.2)], [0.45, 5.2, 0.42], "stone");
-    k.box("tower-buttress", [cx - s / 2 + 0.2, 2.6, side * (s / 2 + 0.22)], [0.42, 5.2, 0.45], "stone");
+    const h = t.lowerStageMeters * 0.74;
+    k.box("tower-buttress", [cx - s / 2 - 0.22, h / 2, side * (s / 2 - 0.2)], [0.45, h, 0.42], "stone");
+    k.box("tower-buttress", [cx - s / 2 + 0.2, h / 2, side * (s / 2 + 0.22)], [0.42, h, 0.45], "stone");
   }
-  const pyramid = k.add(
+  const spire = t.roof === "spire";
+  // A spire is octagonal, with its flats on the tower faces; corner pinnacles hide the change of plan.
+  const roofMesh = k.add(
     "tower-roof",
-    new THREE.ConeGeometry(((s + 0.5) / 2) * Math.SQRT2, t.roofRiseMeters, 4),
+    spire
+      ? new THREE.ConeGeometry((s / 2 + 0.1) / Math.cos(Math.PI / 8), t.roofRiseMeters, 8)
+      : new THREE.ConeGeometry(((s + 0.5) / 2) * Math.SQRT2, t.roofRiseMeters, 4),
     "wood"
   );
-  pyramid.position.set(cx, top + 0.2 + t.roofRiseMeters / 2, 0);
-  pyramid.rotation.y = Math.PI / 4;
+  roofMesh.position.set(cx, top + 0.2 + t.roofRiseMeters / 2, 0);
+  roofMesh.rotation.y = spire ? Math.PI / 8 : Math.PI / 4;
+  if (spire)
+    for (const sx of [-1, 1])
+      for (const sz of [-1, 1]) {
+        k.box(
+          "corner-pinnacle",
+          [cx + (sx * (s - 0.5)) / 2, top + 0.2 + 0.6, (sz * (s - 0.5)) / 2],
+          [0.5, 1.2, 0.5],
+          "stone"
+        );
+        k.cylinder(
+          "pinnacle-cap",
+          [cx + (sx * (s - 0.5)) / 2, top + 0.2 + 1.5, (sz * (s - 0.5)) / 2],
+          0.02,
+          0.6,
+          "stone",
+          0.3,
+          4
+        );
+      }
   const apex = top + 0.2 + t.roofRiseMeters;
   k.beam("tower-cross", [cx, apex - 0.1, 0], [cx, apex + 0.9, 0], 0.07, "iron");
   k.beam("tower-cross-arm", [cx - 0.28, apex + 0.6, 0], [cx + 0.28, apex + 0.6, 0], 0.07, "iron");
@@ -157,7 +224,7 @@ function buildTower(k: HouseDetailKit, detail: TownChurchDetail, spec: TownChurc
 
 function buildPorch(k: HouseDetailKit, detail: TownChurchDetail, spec: TownChurchSpec, x: number) {
   const p = spec.porch,
-    wallZ = spec.naveWidthMeters / 2,
+    wallZ = outerHalf(spec),
     length = p.depthMeters + EMBED;
   // Built with its gable facing local +X, then turned to face the nave's +Z side.
   const porch = new HouseDetailKit("south-porch");
@@ -177,19 +244,102 @@ function buildBody(spec: TownChurchSpec, detail: TownChurchDetail) {
   const k = new HouseDetailKit("town-church-body");
   const naveLength = spec.naveBays * spec.bayLengthMeters,
     halfWidth = spec.naveWidthMeters / 2,
-    porchBay = Math.floor(spec.naveBays / 2);
-  k.box("nave-plinth", [naveLength / 2, 0.1, 0], [naveLength, 0.2, spec.naveWidthMeters], "stone");
+    outer = outerHalf(spec),
+    aisles = spec.aisles,
+    porchBay = Math.floor(spec.naveBays / 2),
+    bayU = (bay: number) => (bay + 0.5) * spec.bayLengthMeters - naveLength / 2;
+  k.box("nave-plinth", [naveLength / 2, 0.1, 0], [naveLength, 0.2, outer * 2], "stone");
   for (const side of [-1, 1]) {
-    const holes: Aperture[] = [];
-    for (let bay = 0; bay < spec.naveBays; bay++) {
-      const u = (bay + 0.5) * spec.bayLengthMeters - naveLength / 2;
-      if (side > 0 && bay === porchBay) holes.push({ u, base: 0, width: 1.5, height: 2.3, door: true, pointed: true });
-      else holes.push({ u, base: 1.6, width: 0.7, height: 2.4, glass: true, pointed: true });
-    }
-    face(k, detail, naveLength / 2, side * halfWidth, naveLength, spec.naveEaveMeters, side > 0 ? 0 : Math.PI, holes);
-    for (let bay = 0; bay <= spec.naveBays; bay++) {
-      k.box("nave-buttress", [bay * spec.bayLengthMeters, 1.6, side * (halfWidth + 0.24)], [0.45, 3.2, 0.6], "stone");
-      k.box("buttress-offset", [bay * spec.bayLengthMeters, 3.3, side * (halfWidth + 0.15)], [0.36, 0.3, 0.4], "white");
+    const angle = side > 0 ? 0 : Math.PI;
+    if (aisles) {
+      // Outer aisle wall with a window per bay and the south door; the nave rises above it as a clerestory.
+      const holes: Aperture[] = [];
+      for (let bay = 0; bay < spec.naveBays; bay++)
+        holes.push(
+          side > 0 && bay === porchBay
+            ? { u: bayU(bay), base: 0, width: 1.6, height: 2.5, door: true, pointed: true }
+            : { u: bayU(bay), base: 1.3, width: 0.9, height: 2, glass: true, pointed: true }
+        );
+      face(k, detail, naveLength / 2, side * outer, naveLength, aisles.eaveMeters, angle, holes);
+      const junction = aisles.eaveMeters + aisles.riseMeters;
+      face(
+        k,
+        detail,
+        naveLength / 2,
+        side * halfWidth,
+        naveLength,
+        spec.naveEaveMeters,
+        angle,
+        Array.from({ length: spec.naveBays }, (_, bay) => ({
+          u: bayU(bay),
+          base: junction + 0.5,
+          width: 1,
+          height: spec.naveEaveMeters - junction - 1,
+          glass: true,
+          pointed: true
+        })),
+        junction
+      );
+      // Lean-to roof: one sloping slab from the aisle eave up into the clerestory wall.
+      const run = aisles.widthMeters + 0.3,
+        slope = Math.atan2(aisles.riseMeters, aisles.widthMeters),
+        slab = k.box(
+          "aisle-roof",
+          [naveLength / 2, aisles.eaveMeters + aisles.riseMeters / 2 + 0.05, side * (halfWidth + run / 2 - 0.15)],
+          [naveLength + 0.6, 0.14, Math.hypot(run, aisles.riseMeters)],
+          "tile"
+        );
+      slab.rotation.x = side * slope;
+      for (const x of [0, naveLength]) {
+        const gable = new THREE.BufferGeometry();
+        gable.setAttribute(
+          "position",
+          new THREE.Float32BufferAttribute(
+            [x, aisles.eaveMeters, side * outer, x, aisles.eaveMeters, side * halfWidth, x, junction, side * halfWidth],
+            3
+          )
+        );
+        gable.computeVertexNormals();
+        k.add("aisle-end-gable", gable, "stone");
+        face(
+          k,
+          detail,
+          x,
+          side * (halfWidth + aisles.widthMeters / 2),
+          aisles.widthMeters,
+          aisles.eaveMeters,
+          x ? HALF_PI : -HALF_PI,
+          []
+        );
+      }
+      for (let bay = 0; bay <= spec.naveBays; bay++) {
+        const h = aisles.eaveMeters - 0.5;
+        k.box("aisle-buttress", [bay * spec.bayLengthMeters, h / 2, side * (outer + 0.24)], [0.5, h, 0.62], "stone");
+        k.box(
+          "buttress-offset",
+          [bay * spec.bayLengthMeters, h * 0.68, side * (outer + 0.15)],
+          [0.4, 0.3, 0.42],
+          "white"
+        );
+      }
+    } else {
+      const holes: Aperture[] = [];
+      for (let bay = 0; bay < spec.naveBays; bay++)
+        holes.push(
+          side > 0 && bay === porchBay
+            ? { u: bayU(bay), base: 0, width: 1.5, height: 2.3, door: true, pointed: true }
+            : { u: bayU(bay), base: 1.6, width: 0.7, height: 2.4, glass: true, pointed: true }
+        );
+      face(k, detail, naveLength / 2, side * halfWidth, naveLength, spec.naveEaveMeters, angle, holes);
+      for (let bay = 0; bay <= spec.naveBays; bay++) {
+        k.box("nave-buttress", [bay * spec.bayLengthMeters, 1.6, side * (halfWidth + 0.24)], [0.45, 3.2, 0.6], "stone");
+        k.box(
+          "buttress-offset",
+          [bay * spec.bayLengthMeters, 3.3, side * (halfWidth + 0.15)],
+          [0.36, 0.3, 0.4],
+          "white"
+        );
+      }
     }
     k.box(
       "nave-eaves-cornice",

@@ -1,7 +1,7 @@
 # BV：人口段階に合わせた教会・広場のモデル追加
 
 作成日：2026-11-10  
-状態：B0・B1完了（2026-11-10、[B0の記録](../analytics/bv-town-church-b0-20261110.md)）。次はB2（T3）。対象は中世ヨーロッパのキリスト教に限る。
+状態：B0〜B2完了（2026-11-10、[B0の記録](../analytics/bv-town-church-b0-20261110.md)）。次はB3（T4）。対象は中世ヨーロッパのキリスト教に限る。
 
 ## 1. 目的と範囲
 
@@ -158,6 +158,14 @@ B6（CE側）：
 - 配置の外形（`placementFootprint`）への登録と`BV_FRONT_AXES`（西の正面は-x）の登録は、CE接続（B6）と同時に行う。
 - 検証：`townChurch.test.ts`（外形が22×10 m・高さ13〜15 mの許容内、原点の中心）、既存の`modelQuality`・`placementContract`・`catalogue`・`compactModel`・`adoption`のテストが通った。`structuralClearance.test.ts`は`wayside-courtyard-inn`で失敗するが、新モデルを外しても同じ失敗で、既存の問題である。
 
-## 12. 次に進める作業
+## 12. B2の結果（2026-11-10）
 
-B2（T3：大きな町の教区教会、36×20 m）。側廊・高窓・尖塔付きの塔を仕様に足す。
+- 仕様に側廊（`aisles`：片流れの屋根、身廊は高窓の壁として立ち上がる）と、塔の屋根の種類（`roof: "pyramid" | "spire"`）・塔の扉の寸法を足した。T2の外形は変わらない（21.9×10.6×13.9 m）。
+- T3：`town-church-large`（`LARGE_TOWN_PARISH_CHURCH`）。身廊6ベイ、両側の側廊、高窓、西塔の木造の八角尖塔と隅の小尖塔、南の玄関。実測は35.3×19.9×27.8 m（目標36×20×28）、Low 1,590・High 130,828三角形。作者は`Claude Sonnet 5.5`。CE未接続（`preview-only`）。
+- 側廊の屋根は傾けた板1枚、側廊の端の三角壁は別の面で作る。T3にも北の玄関は付けていない。
+- BVでHighを目視した（外観・前面図・平面図）。
+- 検証：`townChurch.test.ts`をT2・T3の2件に拡張（外形・高さの許容、中心）。`modelQuality`・`placementContract`・`catalogue`・`adoption`のテストも通った。
+
+## 13. 次に進める作業
+
+B3（T4：参事会教会、52×28 m）。翼廊・交差部の塔・多角形の後陣を仕様に足す。
