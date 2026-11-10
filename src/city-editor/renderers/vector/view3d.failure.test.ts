@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import type { VectorRenderData } from "./renderData";
 
 const owned = vi.hoisted(() => ({ dispose: vi.fn() }));
-vi.mock("./scene3d", () => ({ createVectorScene: () => ({ dispose: owned.dispose }) }));
+vi.mock("./scene3d", () => ({
+  createVectorScene: () => ({ dispose: owned.dispose }),
+  VectorSceneLayers: class {
+    dispose() {}
+  }
+}));
 vi.mock("three", async original => ({
   ...(await original<typeof import("three")>()),
   WebGLRenderer: class {

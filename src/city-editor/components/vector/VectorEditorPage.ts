@@ -360,8 +360,7 @@ export function mountVectorCityEditor(
     session.generationInput,
     () => session.history.document,
     (doc, label) => {
-      // The housing culture only restyles the houses: the open 3D view redraws in place, no regeneration.
-      presentation.restyleNext();
+      // The housing culture only restyles the houses: the open 3D view redraws its house layer in place.
       session.history.commit(doc, label);
       refresh();
     },

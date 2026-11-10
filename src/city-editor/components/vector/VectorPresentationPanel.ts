@@ -83,15 +83,18 @@ export function createVectorPresentationPanel(
       status.textContent = text("unavailable");
     }
   };
-  let restyle = false;
   const rendered = (doc: VectorCityDocument, at: VectorStage = doc.urban ? "housing" : "regions") => {
-    if (restyle && scene && view.value === "3d" && at === selected) {
-      restyle = false;
+    // An open 3D view of the same stage redraws in place, as the mesh editor's view: the camera stays and only the
+    // layers whose inputs changed are rebuilt.
+    if (scene && view.value === "3d" && at === selected && doc !== displayed) {
+      scope.invalidate("vector-export");
+      stopReplay();
       displayed = doc;
       scene.update(vectorRenderData(structuredClone(doc), at));
+      status.textContent = scene.warnings.length ? `${text("massing")}: ${scene.warnings.length}` : text("ready");
       return;
     }
-    restyle = false;
+    if (scene && view.value === "3d" && at === selected) return;
     scope.invalidate("vector-export");
     stopReplay();
     // Rendered documents are history snapshots or finished candidates, never edited afterwards.
@@ -198,11 +201,6 @@ export function createVectorPresentationPanel(
   scope.listen(box, "input", stopReplay, { capture: true });
   return {
     rendered,
-    /** The next render is a look-only change of the shown city (the housing culture): an open 3D view redraws in
-     * place, keeping its camera, instead of being rebuilt. */
-    restyleNext() {
-      restyle = true;
-    },
     refresh() {
       rendered(read());
     },

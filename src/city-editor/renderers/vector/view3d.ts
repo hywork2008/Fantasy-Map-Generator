@@ -3,7 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { ModelQuality } from "../../../buildings/modelQuality";
 import { vectorPickHouse, vectorPickOwner } from "./picking";
 import type { VectorRenderData } from "./renderData";
-import { createVectorScene } from "./scene3d";
+import { createVectorScene, VectorSceneLayers } from "./scene3d";
 
 /** World bounds of one picked house's triangles in a batched house mesh. */
 function houseBounds(mesh: THREE.Object3D, range: { firstTriangle: number; endTriangle: number }) {
@@ -21,12 +21,15 @@ export function mountVector3d(
   onSelect?: (id: string) => void,
   quality: ModelQuality = "high"
 ) {
-  let model = createVectorScene(data, { quality });
+  // Layers survive redraws of this view, so an edit rebuilds only the layers whose inputs changed.
+  const layers = new VectorSceneLayers();
+  let model = createVectorScene(data, { quality, layers });
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, logarithmicDepthBuffer: true });
   } catch (error) {
     model.dispose();
+    layers.dispose();
     throw error;
   }
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
@@ -149,11 +152,23 @@ export function mountVector3d(
     get warnings() {
       return model.warnings;
     },
-    /** Redraw the city from new render data in the same view: camera, controls and selection outline stay. Used for
-     * look-only changes (the housing culture), which need no regeneration. */
+    /** Redraw the city from new render data in the same view: camera, controls and selection outline stay, and only
+     * the layers whose inputs changed are rebuilt. */
+    /** Layer keys the last drawing rebuilt rather than kept. */
+    get rebuiltLayers() {
+      return [...layers.built];
+    },
     update(next: VectorRenderData) {
       if (disposed) return;
-      const replacement = createVectorScene(next, { quality });
+      const replacement = createVectorScene(next, { quality, layers });
+      clearSelection();
+      renderer.domElement.dataset.vectorStage = next.stage;
+      renderer.domElement.dataset.vectorBuildings = String(
+        next.surfaces.reduce((n, s) => n + (s.kind !== "building" ? 0 : s.houses ? new Set(s.houses.ids).size : 1), 0)
+      );
+      renderer.domElement.dataset.vectorFacilities = String(
+        next.surfaces.filter(s => s.kind === "building" && s.buildingKind === "facility").length
+      );
       scene.remove(model.group);
       model.dispose();
       model = replacement;
@@ -176,6 +191,7 @@ export function mountVector3d(
       clearSelection();
       controls.dispose();
       model.dispose();
+      layers.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
       renderer.domElement.remove();

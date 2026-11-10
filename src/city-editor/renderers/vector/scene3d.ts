@@ -128,12 +128,82 @@ function appendHousePrism(
     batch.firstTriangles.push(before);
   }
 }
+type CameraUpdate = (camera: THREE.PerspectiveCamera, height: number) => { changed: boolean; pending: boolean };
+interface VectorSceneLayer {
+  stamp: string;
+  object: THREE.Object3D;
+  dispose(): void;
+  cameraUpdate?: CameraUpdate;
+  resolve?: (hit: THREE.Intersection) => string | undefined;
+  /** Ids and kinds whose plan surfaces the layer's models replace, and structure owners it draws. */
+  bvOwners?: readonly string[];
+  bvKinds?: readonly string[];
+  massed?: readonly string[];
+}
+
+/** Compact content key of a layer's inputs (FNV-1a over the JSON, two lanes). */
+function stampOf(...parts: unknown[]): string {
+  const value = JSON.stringify(parts);
+  let a = 0x811c9dc5,
+    b = 0x9e3779b9;
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    a = Math.imul(a ^ code, 0x01000193);
+    b = Math.imul(b ^ code, 0x85ebca6b);
+  }
+  return `${(a >>> 0).toString(16)}${(b >>> 0).toString(16)}${value.length}`;
+}
+
+/**
+ * The 3D layers a view keeps between redraws, as the mesh editor's view keeps its layers by stamp: a redraw of the
+ * same view rebuilds only the layers whose inputs changed (houses, forest, open spaces, facilities, religious houses,
+ * water, piers, wells, roads and each wall or bridge owner). The BV prototype cache lives here too, so a kept layer's
+ * shared models outlive the scene that built it.
+ */
+export class VectorSceneLayers {
+  readonly cache = createBvPrototypeCache();
+  private layers = new Map<string, VectorSceneLayer>();
+  private used = new Set<string>();
+  /** Layers built (not reused) by the last scene, for tests and diagnostics. */
+  built: string[] = [];
+  begin() {
+    this.used.clear();
+    this.built = [];
+  }
+  take(key: string, stamp: string, build: () => Omit<VectorSceneLayer, "stamp">): VectorSceneLayer {
+    this.used.add(key);
+    const kept = this.layers.get(key);
+    if (kept?.stamp === stamp) return kept;
+    kept?.dispose();
+    const layer = { ...build(), stamp };
+    this.layers.set(key, layer);
+    this.built.push(key);
+    return layer;
+  }
+  /** Releases the layers the last scene did not use. */
+  end() {
+    for (const [key, layer] of this.layers)
+      if (!this.used.has(key)) {
+        layer.object.removeFromParent();
+        layer.dispose();
+        this.layers.delete(key);
+      }
+  }
+  dispose() {
+    for (const layer of this.layers.values()) layer.dispose();
+    this.layers.clear();
+  }
+}
+
 /** Uses the adopted footprints as the authority, with authored BV models only when their envelope still matches. */
 /**
  * `quality` is the viewer's model quality (the City Editor's shared preference, High by default, as the mesh
  * editor's 3D view): BV models drawn for the generated city use it. A placement someone set by hand keeps its own.
  */
-export function createVectorScene(data: VectorRenderData, options: { quality?: ModelQuality } = {}) {
+export function createVectorScene(
+  data: VectorRenderData,
+  options: { quality?: ModelQuality; layers?: VectorSceneLayers } = {}
+) {
   const quality = options.quality ?? "high",
     placementQuality = quality === "low" ? ("low" as const) : ("high" as const);
   const group = new THREE.Group(),
@@ -141,7 +211,10 @@ export function createVectorScene(data: VectorRenderData, options: { quality?: M
     disposers: (() => void)[] = [],
     materials = new Map<string, THREE.MeshStandardMaterial>(),
     prototypes = new Map<string, ReturnType<NonNullable<ReturnType<typeof placementDefinition>>["create"]>>();
-  const harborCache = createBvPrototypeCache();
+  const layers = options.layers ?? new VectorSceneLayers(),
+    ownLayers = !options.layers,
+    harborCache = layers.cache;
+  layers.begin();
   const datum = data.terrain?.points[0]?.[1] ?? 0;
   group.position.set(data.center[0], datum, -data.center[1]);
   group.userData = {
@@ -161,15 +234,29 @@ export function createVectorScene(data: VectorRenderData, options: { quality?: M
     }
     return m;
   };
-  const cameraUpdates: ((camera: THREE.PerspectiveCamera, height: number) => { changed: boolean; pending: boolean })[] =
-      [],
-    houseResolvers: ((hit: THREE.Intersection) => string | undefined)[] = [];
+  const cameraUpdates: CameraUpdate[] = [],
+    houseResolvers: ((hit: THREE.Intersection) => string | undefined)[] = [],
+    bvOwners = new Set<string>(),
+    bvKinds = new Set<string>(),
+    massed = new Set<string>();
+  /** A kept or rebuilt layer, placed in this scene. */
+  const layer = (key: string, inputs: unknown[], build: () => Omit<VectorSceneLayer, "stamp">) => {
+    const l = layers.take(key, stampOf(quality, data.center, datum, ...inputs), build);
+    group.add(l.object);
+    if (l.cameraUpdate) cameraUpdates.push(l.cameraUpdate);
+    if (l.resolve) houseResolvers.push(l.resolve);
+    for (const id of l.bvOwners ?? []) bvOwners.add(id);
+    for (const kind of l.bvKinds ?? []) bvKinds.add(kind);
+    for (const id of l.massed ?? []) massed.add(id);
+    return l;
+  };
   let disposed = false;
   const dispose = () => {
     if (disposed) return;
     disposed = true;
     group.clear();
     for (const release of disposers) release();
+    if (ownLayers) layers.dispose();
     for (const m of materials.values()) m.dispose();
     for (const model of prototypes.values()) model.dispose();
     prototypes.clear();
@@ -241,126 +328,132 @@ export function createVectorScene(data: VectorRenderData, options: { quality?: M
     }
     group.add(ground);
     disposers.push(() => ground.geometry.dispose());
-    if (waterParts.length) {
-      const water = createTownWaterParts(waterParts),
-        holder = new THREE.Group();
-      // The mesh editor's land lies at LAND_Y; here the land is at the datum.
-      holder.position.set(-data.center[0], -datum - LAND_Y, data.center[1]);
-      holder.add(water.parent);
-      group.add(holder);
-      disposers.push(() => water.dispose());
-    }
-    if (data.landscapeTrees?.length) {
-      const trees = createVectorLandscapeTrees(data.landscapeTrees, data.center, datum, season);
-      group.add(trees.group);
-      disposers.push(() => trees.dispose());
-    }
-    if (data.piers?.length && !data.terrain) {
-      const piers = createTownPiers(
-          data.piers,
-          () => WATER_Y,
-          () => LAND_Y
-        ),
-        holder = new THREE.Group();
-      holder.position.set(-data.center[0], -datum - LAND_Y, data.center[1]);
-      holder.userData = { kind: "feature", featureKind: "harbor", representation: "bv-pier" };
-      holder.add(piers.group);
-      group.add(holder);
-      disposers.push(() => piers.dispose());
-    }
+    if (waterParts.length)
+      layer("water", [waterParts], () => {
+        const water = createTownWaterParts(waterParts),
+          holder = new THREE.Group();
+        // The mesh editor's land lies at LAND_Y; here the land is at the datum.
+        holder.position.set(-data.center[0], -datum - LAND_Y, data.center[1]);
+        holder.add(water.parent);
+        return { object: holder, dispose: () => water.dispose() };
+      });
+    if (data.landscapeTrees?.length)
+      layer("landscape-trees", [data.landscapeTrees, season], () => {
+        const trees = createVectorLandscapeTrees(data.landscapeTrees!, data.center, datum, season);
+        return { object: trees.group, dispose: () => trees.dispose() };
+      });
+    if (data.piers?.length && !data.terrain)
+      layer("piers", [data.piers], () => {
+        const piers = createTownPiers(
+            data.piers!,
+            () => WATER_Y,
+            () => LAND_Y
+          ),
+          holder = new THREE.Group();
+        holder.position.set(-data.center[0], -datum - LAND_Y, data.center[1]);
+        holder.userData = { kind: "feature", featureKind: "harbor", representation: "bv-pier" };
+        holder.add(piers.group);
+        return { object: holder, dispose: () => piers.dispose() };
+      });
     // Inns, guild halls and yards, windmills and gallows as the mesh editor's BV facilities, religious houses as its
     // fitted friary assemblies (P2d-4). Their raised massing gives way; ground pieces stay under the models.
-    const bvOwners = new Set<string>(),
-      bvKinds = new Set<string>();
-    if (data.facilities && Object.values(data.facilities.aerial ?? {}).some(list => list?.length) && !data.terrain) {
-      const facilities = createFacilityLayer(data.facilities, harborCache, quality),
-        holder = new THREE.Group();
-      holder.position.set(-data.center[0], -datum, data.center[1]);
-      holder.userData = { kind: "feature", representation: "bv-facility" };
-      holder.add(facilities.group);
-      group.add(holder);
-      disposers.push(() => facilities.dispose());
-      for (const site of facilities.accepted) bvOwners.add(site.id);
-    }
-    if (data.monasteries?.length && !data.terrain) {
-      const houses = createTownMonasteries(data.monasteries, undefined, quality),
-        holder = new THREE.Group();
-      holder.position.set(-data.center[0], -datum, data.center[1]);
-      holder.userData = { kind: "feature", featureKind: "monastery", representation: "bv-monastery" };
-      holder.add(houses.group);
-      group.add(holder);
-      disposers.push(() => houses.dispose());
-      bvKinds.add("monastery");
-    }
-    if (data.openSpaces && !data.terrain) {
-      const spaces = createTownOpenSpaces(data.openSpaces, undefined, true, season),
-        holder = new THREE.Group();
-      holder.position.set(-data.center[0], -datum, data.center[1]);
-      holder.userData = { kind: "feature", featureKind: "cemetery", representation: "bv-open-space" };
-      holder.add(spaces.group);
-      group.add(holder);
-      disposers.push(() => spaces.dispose());
-      cameraUpdates.push((camera, height) => ({ changed: spaces.update(camera, height), pending: false }));
-      bvKinds.add("cemetery");
-    }
+    if (data.facilities && Object.values(data.facilities.aerial ?? {}).some(list => list?.length) && !data.terrain)
+      layer("facilities", [data.facilities], () => {
+        const facilities = createFacilityLayer(data.facilities!, harborCache, quality),
+          holder = new THREE.Group();
+        holder.position.set(-data.center[0], -datum, data.center[1]);
+        holder.userData = { kind: "feature", representation: "bv-facility" };
+        holder.add(facilities.group);
+        return {
+          object: holder,
+          dispose: () => facilities.dispose(),
+          bvOwners: facilities.accepted.map(site => site.id)
+        };
+      });
+    if (data.monasteries?.length && !data.terrain)
+      layer("monasteries", [data.monasteries], () => {
+        const houses = createTownMonasteries(data.monasteries!, undefined, quality),
+          holder = new THREE.Group();
+        holder.position.set(-data.center[0], -datum, data.center[1]);
+        holder.userData = { kind: "feature", featureKind: "monastery", representation: "bv-monastery" };
+        holder.add(houses.group);
+        return { object: holder, dispose: () => houses.dispose(), bvKinds: ["monastery"] };
+      });
+    if (data.openSpaces && !data.terrain)
+      layer("open-spaces", [data.openSpaces, season], () => {
+        const spaces = createTownOpenSpaces(data.openSpaces!, undefined, true, season),
+          holder = new THREE.Group();
+        holder.position.set(-data.center[0], -datum, data.center[1]);
+        holder.userData = { kind: "feature", featureKind: "cemetery", representation: "bv-open-space" };
+        holder.add(spaces.group);
+        return {
+          object: holder,
+          dispose: () => spaces.dispose(),
+          cameraUpdate: (camera, height) => ({ changed: spaces.update(camera, height), pending: false }),
+          bvKinds: ["cemetery"]
+        };
+      });
     // Woodland as the mesh editor's forest (P2d-6): floor, far crowns and near trees by the camera, in the
     // town's climate and the settings' density. Its flat surface stays in the 2D plan only.
-    if (data.forest && !data.terrain) {
-      const f = data.forest,
-        forestDocument = {
-          format: "vector-forest",
-          generationSeed: f.seed,
-          forestSettings: { density: f.density },
-          ...(f.climate.biome ? { biome: f.climate.biome } : {}),
-          buildingAppearanceContext: { temperatureC: f.climate.temperatureC },
-          fabric: { generation: { settings: { descriptor: { climate: { biomeKey: f.climate.climateBiomeKey } } } } }
-        } as unknown as CityDocument,
-        regions = f.regions.map((r, i) => {
-          const xs = r.outer.map(p => p[0]),
-            ys = r.outer.map(p => p[1]);
-          return {
-            id: `environment:forest:${i}`,
-            outer: r.outer as Point[],
-            holes: r.holes as Point[][],
-            sourceFaceIds: [],
-            areaM2: regionArea(r),
-            bounds: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] as [
-              number,
-              number,
-              number,
-              number
-            ]
-          };
-        }),
-        forest = createTownForest(
-          forestDocument,
-          {
-            regions,
-            forestFaceIds: [],
-            areaM2: regions.reduce((n, r) => n + r.areaM2, 0),
-            protectedFarmCount: 0,
-            protectedFarmAreaM2: 0
-          },
-          undefined,
-          // The forest has its own quality in the mesh editor (Standard by default).
-          "standard",
-          true,
-          season
-        ),
-        holder = new THREE.Group();
-      holder.position.set(-data.center[0], -datum, data.center[1]);
-      holder.userData = {
-        id: "environment:forest",
-        kind: "feature",
-        featureKind: "forest",
-        representation: "bv-forest"
-      };
-      holder.add(forest.group);
-      group.add(holder);
-      disposers.push(() => forest.dispose());
-      cameraUpdates.push((camera, height) => ({ changed: !!forest.update(camera, height), pending: false }));
-      bvKinds.add("forest");
-    }
+    if (data.forest && !data.terrain)
+      layer("forest", [data.forest, season], () => {
+        const f = data.forest!,
+          forestDocument = {
+            format: "vector-forest",
+            generationSeed: f.seed,
+            forestSettings: { density: f.density },
+            ...(f.climate.biome ? { biome: f.climate.biome } : {}),
+            buildingAppearanceContext: { temperatureC: f.climate.temperatureC },
+            fabric: { generation: { settings: { descriptor: { climate: { biomeKey: f.climate.climateBiomeKey } } } } }
+          } as unknown as CityDocument,
+          regions = f.regions.map((r, i) => {
+            const xs = r.outer.map(p => p[0]),
+              ys = r.outer.map(p => p[1]);
+            return {
+              id: `environment:forest:${i}`,
+              outer: r.outer as Point[],
+              holes: r.holes as Point[][],
+              sourceFaceIds: [],
+              areaM2: regionArea(r),
+              bounds: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] as [
+                number,
+                number,
+                number,
+                number
+              ]
+            };
+          }),
+          forest = createTownForest(
+            forestDocument,
+            {
+              regions,
+              forestFaceIds: [],
+              areaM2: regions.reduce((n, r) => n + r.areaM2, 0),
+              protectedFarmCount: 0,
+              protectedFarmAreaM2: 0
+            },
+            undefined,
+            // The forest has its own quality in the mesh editor (Standard by default).
+            "standard",
+            true,
+            season
+          ),
+          holder = new THREE.Group();
+        holder.position.set(-data.center[0], -datum, data.center[1]);
+        holder.userData = {
+          id: "environment:forest",
+          kind: "feature",
+          featureKind: "forest",
+          representation: "bv-forest"
+        };
+        holder.add(forest.group);
+        return {
+          object: holder,
+          dispose: () => forest.dispose(),
+          cameraUpdate: (camera, height) => ({ changed: !!forest.update(camera, height), pending: false }),
+          bvKinds: ["forest"]
+        };
+      });
     const replacedByBv = (surface: VectorRenderSurface) => {
       if (surface.kind !== "feature") return false;
       // Cemetery parts are the open-space models; the ground and paths stay.
@@ -372,83 +465,85 @@ export function createVectorScene(data: VectorRenderData, options: { quality?: M
       // Sails, hubs and pillars belong to the model; mounds, yards and courts stay as its ground.
       return surface.heightMeters > 0 || /sail|^windmill-(post|tower)$/.test(surface.pieceRole ?? "");
     };
-    if (data.wells?.length) {
-      const local = data.wells.map(w => ({
-          id: w.id,
-          point: [w.point[0] - data.center[0], w.point[1] - data.center[1]] as Point,
-          kind: w.kind,
-          y: w.elevationMeters - datum
-        })),
-        wells = createTownWells(
-          local,
-          p => local.find(w => w.point[0] === p[0] && w.point[1] === p[1])?.y ?? 0,
-          harborCache
-        );
-      wells.group.userData = { kind: "feature", featureKind: "well", representation: "bv-well" };
-      group.add(wells.group);
-      disposers.push(() => wells.dispose());
-    }
+    if (data.wells?.length)
+      layer("wells", [data.wells], () => {
+        const local = data.wells!.map(w => ({
+            id: w.id,
+            point: [w.point[0] - data.center[0], w.point[1] - data.center[1]] as Point,
+            kind: w.kind,
+            y: w.elevationMeters - datum
+          })),
+          wells = createTownWells(
+            local,
+            p => local.find(w => w.point[0] === p[0] && w.point[1] === p[1])?.y ?? 0,
+            harborCache
+          );
+        wells.group.userData = { kind: "feature", featureKind: "well", representation: "bv-well" };
+        return { object: wells.group, dispose: () => wells.dispose() };
+      });
     // Generated houses share one mesh per colour, height and tile: draw calls grow with area, not houses.
     const houseBatches = new Map<string, HouseBatch>();
     const massingLots: { polygon: Point[]; massing: BuildingMassing; appearance?: BuildingAppearance }[] = [],
       massingIds: string[] = [],
       massingElevations: number[] = [];
     // Walls, towers, gates and bridges use the mesh editor's structure massing, one group per owner for picking.
-    const massed = new Set<string>();
     // The mesh editor's land lies at LAND_Y and its water at WATER_Y; here the land is at the datum.
     const level = { heightAt: () => LAND_Y, surfaceAt: () => LAND_Y };
     for (const owner of data.structures ?? []) {
       if (!owner.parts.length) continue;
-      if (owner.bridgeSite && !data.terrain) {
-        const bridges = createTownBridgesAt([owner.bridgeSite], level, () => WATER_Y),
-          holder = new THREE.Group();
-        if (bridges.replaced.size) {
-          holder.position.set(-data.center[0], -datum - LAND_Y, data.center[1]);
-          holder.userData = { id: owner.owner, kind: owner.kind, representation: "bv-bridge" };
-          holder.add(bridges.group);
-          group.add(holder);
-          disposers.push(() => bridges.dispose());
-          massed.add(owner.owner);
-          continue;
+      layer(`structure:${owner.owner}`, [owner, data.wallProfile, !!data.terrain], () => {
+        if (owner.bridgeSite && !data.terrain) {
+          const bridges = createTownBridgesAt([owner.bridgeSite], level, () => WATER_Y),
+            holder = new THREE.Group();
+          if (bridges.replaced.size) {
+            holder.position.set(-data.center[0], -datum - LAND_Y, data.center[1]);
+            holder.userData = { id: owner.owner, kind: owner.kind, representation: "bv-bridge" };
+            holder.add(bridges.group);
+            return { object: holder, dispose: () => bridges.dispose(), massed: [owner.owner] };
+          }
+          bridges.dispose();
         }
-        bridges.dispose();
-      }
-      // Stone town walls take the mesh editor's BV curtain, towers and gatehouses (P2d-2); the massing keeps the
-      // rest (timber walls, footings, bridges).
-      const stonework =
-        owner.kind === "wall" && owner.material === "stone"
-          ? createTownWallParts(owner.parts, harborCache, quality, {
-              profile: data.wallProfile ?? "legacy",
-              wallIds: [owner.owner],
-              gates: owner.gates ?? []
-            })
-          : undefined;
-      const meshes = createStructureMassing(owner.parts.filter(p => !stonework?.replaced.has(p.id))),
-        holder = new THREE.Group();
-      if (stonework) {
-        holder.add(stonework.group);
-        disposers.push(() => stonework.dispose());
-      }
-      // Massing is in plan metres at absolute heights; the scene group sits at the centre and the datum.
-      holder.position.set(-data.center[0], -datum, data.center[1]);
-      holder.userData = { id: owner.owner, kind: owner.kind, representation: "structure-massing" };
-      holder.add(meshes.group);
-      group.add(holder);
-      disposers.push(() => meshes.dispose());
-      massed.add(owner.owner);
+        // Stone town walls take the mesh editor's BV curtain, towers and gatehouses (P2d-2); the massing keeps the
+        // rest (timber walls, footings, bridges).
+        const stonework =
+          owner.kind === "wall" && owner.material === "stone"
+            ? createTownWallParts(owner.parts, harborCache, quality, {
+                profile: data.wallProfile ?? "legacy",
+                wallIds: [owner.owner],
+                gates: owner.gates ?? []
+              })
+            : undefined;
+        const meshes = createStructureMassing(owner.parts.filter(p => !stonework?.replaced.has(p.id))),
+          holder = new THREE.Group();
+        if (stonework) holder.add(stonework.group);
+        // Massing is in plan metres at absolute heights; the scene group sits at the centre and the datum.
+        holder.position.set(-data.center[0], -datum, data.center[1]);
+        holder.userData = { id: owner.owner, kind: owner.kind, representation: "structure-massing" };
+        holder.add(meshes.group);
+        return {
+          object: holder,
+          dispose: () => {
+            stonework?.dispose();
+            meshes.dispose();
+          },
+          massed: [owner.owner]
+        };
+      });
     }
     // Roads use the mesh editor's wearing-course meshes. Their outlines stay as hidden pick targets, so a road
     // or fabric line is still selected by its own id.
     let roadsDrawn = false;
     if (data.roads?.ribbons.length) {
-      const heightAt = data.surfaces.find(s => s.kind === "road" && s.heightAt)?.heightAt,
-        roads = createTownRoads(data.roads.ribbons, data.roads.water, heightAt),
-        holder = new THREE.Group();
-      // The mesh editor's land lies at LAND_Y and its roads just above; here the land is at the datum.
-      holder.position.set(-data.center[0], -datum - LAND_Y, data.center[1]);
-      holder.add(roads.parent);
-      group.add(holder);
-      disposers.push(() => roads.dispose());
+      const heightAt = data.surfaces.find(s => s.kind === "road" && s.heightAt)?.heightAt;
+      // A relief's height function is not data: such roads are rebuilt every time (key by the document revision).
+      layer("roads", [data.roads, heightAt ? data.revision : 0], () => {
+        const roads = createTownRoads(data.roads!.ribbons, data.roads!.water, heightAt),
+          holder = new THREE.Group();
+        // The mesh editor's land lies at LAND_Y and its roads just above; here the land is at the datum.
+        holder.position.set(-data.center[0], -datum - LAND_Y, data.center[1]);
+        holder.add(roads.parent);
+        return { object: holder, dispose: () => roads.dispose() };
+      });
       roadsDrawn = true;
     }
     for (const surface of data.surfaces) {
@@ -624,48 +719,53 @@ export function createVectorScene(data: VectorRenderData, options: { quality?: M
       // as the prism batches maps a hit back to its house id.
       // The mesh editor's housing LOD (P2d-7): every lot keeps its massing, and large visible houses take the
       // detailed regional BV house; façade details (doors, windows, timbering) follow the camera too.
-      const elevation = new Map(massingLots.map((lot, i) => [lot.polygon, massingElevations[i]])),
-        foundation = (ring: Point[]) => elevation.get(ring) ?? 0,
-        lots = massingLots as unknown as BuildingLot[],
-        regional = createTownRegionalHouseLod(lots, harborCache, foundation, quality),
-        details = createTownBuildingDetails(lots, foundation),
-        meshes = regional.massing,
-        holder = new THREE.Group();
-      holder.add(regional.group, details.group);
-      cameraUpdates.push((camera, height) => {
-        const changed = regional.update(camera, height);
-        details.update(camera, height, regional.replaced);
-        return { changed, pending: regional.stats.pending };
-      });
-      houseResolvers.push(hit => {
-        const site = regional.resolve(hit);
-        return site ? massingIds[site.lotIndex] : undefined;
-      });
-      holder.position.set(-data.center[0], 0, data.center[1]);
-      for (const mesh of meshes.pickables) {
-        const index = mesh.geometry.getAttribute("buildingIndex"),
-          ids: string[] = [],
-          firstTriangles: number[] = [];
-        for (let v = 0, last = -1; v < index.count; v += 3) {
-          const lot = index.getX(v);
-          if (lot === last) continue;
-          last = lot;
-          ids.push(massingIds[lot]);
-          firstTriangles.push(v / 3);
+      layer("houses", [massingLots, massingIds, massingElevations], () => {
+        const elevation = new Map(massingLots.map((lot, i) => [lot.polygon, massingElevations[i]])),
+          foundation = (ring: Point[]) => elevation.get(ring) ?? 0,
+          lots = massingLots as unknown as BuildingLot[],
+          regional = createTownRegionalHouseLod(lots, harborCache, foundation, quality),
+          details = createTownBuildingDetails(lots, foundation),
+          meshes = regional.massing,
+          holder = new THREE.Group(),
+          ids = [...massingIds];
+        holder.add(regional.group, details.group);
+        holder.position.set(-data.center[0], 0, data.center[1]);
+        for (const mesh of meshes.pickables) {
+          const index = mesh.geometry.getAttribute("buildingIndex"),
+            houseIds: string[] = [],
+            firstTriangles: number[] = [];
+          for (let v = 0, last = -1; v < index.count; v += 3) {
+            const lot = index.getX(v);
+            if (lot === last) continue;
+            last = lot;
+            houseIds.push(ids[lot]);
+            firstTriangles.push(v / 3);
+          }
+          mesh.userData = {
+            ...mesh.userData,
+            kind: "building",
+            buildingKind: "housing",
+            representation: "fabric-massing",
+            fabricHouses: { ids: houseIds, firstTriangles, triangles: index.count / 3 }
+          };
+          mesh.geometry.computeBoundingSphere();
         }
-        mesh.userData = {
-          ...mesh.userData,
-          kind: "building",
-          buildingKind: "housing",
-          representation: "fabric-massing",
-          fabricHouses: { ids, firstTriangles, triangles: index.count / 3 }
+        return {
+          object: holder,
+          dispose: () => {
+            details.dispose();
+            regional.dispose();
+          },
+          cameraUpdate: (camera, height) => {
+            const changed = regional.update(camera, height);
+            details.update(camera, height, regional.replaced);
+            return { changed, pending: regional.stats.pending };
+          },
+          resolve: hit => {
+            const site = regional.resolve(hit);
+            return site ? ids[site.lotIndex] : undefined;
+          }
         };
-        mesh.geometry.computeBoundingSphere();
-      }
-      group.add(holder);
-      disposers.push(() => {
-        details.dispose();
-        regional.dispose();
       });
     }
     for (const [key, batch] of houseBatches) {
@@ -684,6 +784,8 @@ export function createVectorScene(data: VectorRenderData, options: { quality?: M
       group.add(mesh);
       disposers.push(() => geometry.dispose());
     }
+    // Layers of the previous drawing this one no longer has are released.
+    layers.end();
     return {
       group,
       warnings,
