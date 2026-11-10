@@ -9,7 +9,7 @@ import { createTownBuildingDetails } from "../../../city3d/three/buildingDetails
 import { createBvPrototypeCache } from "../../../city3d/three/bvInstances";
 import { createTownCranes, createTownHarborCargo } from "../../../city3d/three/craneMeshes";
 import { createFacilityLayer } from "../../../city3d/three/facilityMeshes";
-import { createTownForest } from "../../../city3d/three/forestMeshes";
+import { createTownForest, type Forest3dQuality } from "../../../city3d/three/forestMeshes";
 import { createTownMonasteries } from "../../../city3d/three/friaryMeshes";
 import { createTownObjects } from "../../../city3d/three/objectMeshes";
 import { createTownOpenSpaces } from "../../../city3d/three/openSpaceMeshes";
@@ -27,6 +27,7 @@ import { polygonArea } from "../../generators/geom";
 import type { TownWaterPart } from "../../generators/townWater";
 import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
 import type { BuildingMassing } from "../../types/contracts/buildingMassing";
+import type { SimplificationPreferences } from "../../types/contracts/simplification";
 import type { CityDocument, CityElement } from "../../types/document";
 import type { Point } from "../../types/primitives";
 import { createVectorLandscapeTrees } from "./landscapeTrees";
@@ -140,6 +141,8 @@ interface VectorSceneLayer {
   bvOwners?: readonly string[];
   bvKinds?: readonly string[];
   massed?: readonly string[];
+  /** The forest layer's quality switch, kept with the layer so a reused forest still takes it. */
+  setQuality?: (quality: Forest3dQuality) => boolean;
 }
 
 /** Compact content key of a layer's inputs (FNV-1a over the JSON, two lanes). */
@@ -203,8 +206,19 @@ export class VectorSceneLayers {
  */
 export function createVectorScene(
   data: VectorRenderData,
-  options: { quality?: ModelQuality; layers?: VectorSceneLayers } = {}
+  options: {
+    quality?: ModelQuality;
+    layers?: VectorSceneLayers;
+    /** The mesh editor's simplification: "off" draws every house and tree at full detail (no camera LOD budget). */
+    simplification?: SimplificationPreferences;
+    /** The forest's starting quality; the view's automatic quality changes it in place (`setForestQuality`). */
+    forestQuality?: Forest3dQuality;
+  } = {}
 ) {
+  const simplification = options.simplification ?? { urban: "auto", outskirts: "auto" },
+    urbanLod = simplification.urban !== "off",
+    outskirtsLod = simplification.outskirts !== "off";
+  let setForestQuality: ((quality: Forest3dQuality) => boolean) | undefined;
   const quality = options.quality ?? "high",
     placementQuality = quality === "low" ? ("low" as const) : ("high" as const);
   const group = new THREE.Group(),
@@ -381,8 +395,8 @@ export function createVectorScene(
         return { object: holder, dispose: () => houses.dispose(), bvKinds: ["monastery"] };
       });
     if (data.openSpaces && !data.terrain)
-      layer("open-spaces", [data.openSpaces, season], () => {
-        const spaces = createTownOpenSpaces(data.openSpaces!, undefined, true, season),
+      layer("open-spaces", [data.openSpaces, season, outskirtsLod], () => {
+        const spaces = createTownOpenSpaces(data.openSpaces!, undefined, outskirtsLod, season),
           holder = new THREE.Group();
         holder.position.set(-data.center[0], -datum, data.center[1]);
         holder.userData = { kind: "feature", featureKind: "cemetery", representation: "bv-open-space" };
@@ -396,8 +410,8 @@ export function createVectorScene(
       });
     // Woodland as the mesh editor's forest (P2d-6): floor, far crowns and near trees by the camera, in the
     // town's climate and the settings' density. Its flat surface stays in the 2D plan only.
-    if (data.forest && !data.terrain)
-      layer("forest", [data.forest, season], () => {
+    if (data.forest && !data.terrain) {
+      const forestLayer = layer("forest", [data.forest, season, outskirtsLod], () => {
         const f = data.forest!,
           forestDocument = {
             format: "vector-forest",
@@ -434,9 +448,9 @@ export function createVectorScene(
               protectedFarmAreaM2: 0
             },
             undefined,
-            // The forest has its own quality in the mesh editor (Standard by default).
-            "standard",
-            true,
+            // The forest has its own quality in the mesh editor, automatic by default.
+            options.forestQuality ?? "standard",
+            outskirtsLod,
             season
           ),
           holder = new THREE.Group();
@@ -452,9 +466,13 @@ export function createVectorScene(
           object: holder,
           dispose: () => forest.dispose(),
           cameraUpdate: (camera, height) => ({ changed: !!forest.update(camera, height), pending: false }),
+          setQuality: (next: Forest3dQuality) => forest.setQuality(next),
           bvKinds: ["forest"]
         };
       });
+      setForestQuality = forestLayer.setQuality;
+      if (options.forestQuality) setForestQuality?.(options.forestQuality);
+    }
     const replacedByBv = (surface: VectorRenderSurface) => {
       if (surface.kind !== "feature") return false;
       // Cemetery parts are the open-space models; the ground and paths stay.
@@ -791,12 +809,12 @@ export function createVectorScene(
       // as the prism batches maps a hit back to its house id.
       // The mesh editor's housing LOD (P2d-7): every lot keeps its massing, and large visible houses take the
       // detailed regional BV house; façade details (doors, windows, timbering) follow the camera too.
-      layer("houses", [massingLots, massingIds, massingElevations], () => {
+      layer("houses", [massingLots, massingIds, massingElevations, urbanLod], () => {
         const elevation = new Map(massingLots.map((lot, i) => [lot.polygon, massingElevations[i]])),
           foundation = (ring: Point[]) => elevation.get(ring) ?? 0,
           lots = massingLots as unknown as BuildingLot[],
-          regional = createTownRegionalHouseLod(lots, harborCache, foundation, quality),
-          details = createTownBuildingDetails(lots, foundation),
+          regional = createTownRegionalHouseLod(lots, harborCache, foundation, quality, undefined, urbanLod),
+          details = createTownBuildingDetails(lots, foundation, urbanLod),
           meshes = regional.massing,
           holder = new THREE.Group(),
           ids = [...massingIds];
@@ -873,6 +891,10 @@ export function createVectorScene(
           pending ||= r.pending;
         }
         return { changed, pending };
+      },
+      /** Switch the forest's detail in place; true when it changed (the view then redraws). */
+      setForestQuality(next: Forest3dQuality) {
+        return setForestQuality?.(next) ?? false;
       },
       /** The house id of a hit on a detailed BV house. */
       pickHouse(hit: THREE.Intersection) {

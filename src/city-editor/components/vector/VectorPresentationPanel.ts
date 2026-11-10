@@ -4,8 +4,9 @@ import { vectorUrbanStages } from "../../generators/vector/validation/urban";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
 import { vectorRenderData } from "../../renderers/vector/renderData";
 import type { mountVector3d } from "../../renderers/vector/view3d";
-import { readModelQualityPreference } from "../../services/browserPreferences";
+import { readModelQualityPreference, readSimplificationPreferences } from "../../services/browserPreferences";
 import type { EditorLifetime } from "../../services/editorLifetime";
+import { readForestViewPreferences } from "../../services/forestViewPreferences";
 import { downloadVectorBlob, serializeVectorSvg, vectorGlb, vectorPng } from "../../services/io/vector/exports";
 import { type VectorRecipe, vectorRecipe, vectorShareUrl } from "../../services/io/vector/share";
 import type { VectorCityDocument } from "../../types/vector/document";
@@ -72,8 +73,12 @@ export function createVectorPresentationPanel(
     try {
       const { mountVector3d } = await import("../../renderers/vector/view3d");
       if (!current()) return;
-      // The model quality is the editor's shared preference (High unless set lower in the mesh editor).
-      scene = mountVector3d(host, vectorRenderData(doc, at), onSelect, readModelQualityPreference());
+      // Model quality, simplification and forest quality are the editor's shared preferences, set in the mesh
+      // editor (High, automatic LOD and automatic forest unless changed there).
+      scene = mountVector3d(host, vectorRenderData(doc, at), onSelect, readModelQualityPreference(), {
+        simplification: readSimplificationPreferences(),
+        forestQuality: readForestViewPreferences().quality
+      });
       status.textContent = scene.warnings.length ? `${text("massing")}: ${scene.warnings.length}` : text("ready");
     } catch {
       if (!current()) return;

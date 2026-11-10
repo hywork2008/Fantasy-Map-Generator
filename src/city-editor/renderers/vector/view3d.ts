@@ -1,6 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { ModelQuality } from "../../../buildings/modelQuality";
+import type { ForestQualityPreference } from "../../types/contracts/forest";
+import type { SimplificationPreferences } from "../../types/contracts/simplification";
+import { ForestAutoQuality } from "../forestAutoQuality";
 import { vectorPickHouse, vectorPickOwner } from "./picking";
 import type { VectorRenderData } from "./renderData";
 import { createVectorScene, VectorSceneLayers } from "./scene3d";
@@ -19,11 +22,22 @@ export function mountVector3d(
   container: HTMLElement,
   data: VectorRenderData,
   onSelect?: (id: string) => void,
-  quality: ModelQuality = "high"
+  quality: ModelQuality = "high",
+  view: { simplification?: SimplificationPreferences; forestQuality?: ForestQualityPreference } = {}
 ) {
+  // The mesh editor's forest quality: a fixed level, or automatic from the frame times while the camera moves.
+  // Simplification off draws the forest at High, as there.
+  const forestQuality = new ForestAutoQuality();
+  forestQuality.setPreference(view.simplification?.outskirts === "off" ? "high" : (view.forestQuality ?? "auto"));
+  const sceneOptions = () => ({
+    quality,
+    layers,
+    simplification: view.simplification,
+    forestQuality: forestQuality.effective
+  });
   // Layers survive redraws of this view, so an edit rebuilds only the layers whose inputs changed.
   const layers = new VectorSceneLayers();
-  let model = createVectorScene(data, { quality, layers });
+  let model = createVectorScene(data, sceneOptions());
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, logarithmicDepthBuffer: true });
@@ -65,11 +79,29 @@ export function mountVector3d(
   controls.maxPolarAngle = Math.PI * 0.49;
   controls.maxDistance = data.extentMeters * 5;
   controls.update();
-  let frame = 0;
+  let frame = 0,
+    previousFrame: { at: number; endedAt: number } | undefined,
+    moving = false;
   const draw = () => {
+      const start = performance.now();
       // Houses near the camera take their detailed models and façades before the frame is drawn.
       const lod = model.updateCamera(camera, renderer.domElement.clientHeight);
       renderer.render(scene, camera);
+      // Consecutive camera frames are sampled, pauses between gestures are not (as the mesh editor's view).
+      const cpuMs = performance.now() - start,
+        previous = previousFrame;
+      previousFrame = moving ? { at: start, endedAt: start + cpuMs } : undefined;
+      if (!moving || !previous || start - previous.endedAt > 200 || document.hidden) forestQuality.interruptMotion();
+      else if (
+        forestQuality.sample(Math.max(cpuMs, start - previous.at), start) &&
+        model.setForestQuality(forestQuality.effective) &&
+        !frame
+      )
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          draw();
+        });
+      moving = false;
       if (lod.pending && !frame)
         frame = requestAnimationFrame(() => {
           frame = 0;
@@ -85,7 +117,11 @@ export function mountVector3d(
       camera.updateProjectionMatrix();
       draw();
     };
-  controls.addEventListener("change", draw);
+  const cameraMoved = () => {
+    moving = true;
+    draw();
+  };
+  controls.addEventListener("change", cameraMoved);
   let selection: THREE.Box3Helper | THREE.LineSegments | undefined;
   const clearSelection = () => {
     if (!selection) return;
@@ -160,7 +196,7 @@ export function mountVector3d(
     },
     update(next: VectorRenderData) {
       if (disposed) return;
-      const replacement = createVectorScene(next, { quality, layers });
+      const replacement = createVectorScene(next, sceneOptions());
       clearSelection();
       renderer.domElement.dataset.vectorStage = next.stage;
       renderer.domElement.dataset.vectorBuildings = String(
@@ -185,7 +221,7 @@ export function mountVector3d(
       disposed = true;
       observer.disconnect();
       if (frame) cancelAnimationFrame(frame);
-      controls.removeEventListener("change", draw);
+      controls.removeEventListener("change", cameraMoved);
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
       renderer.domElement.removeEventListener("pointerup", pointerUp);
       clearSelection();

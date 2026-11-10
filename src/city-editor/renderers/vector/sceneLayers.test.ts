@@ -46,6 +46,14 @@ describe("meshless 3D layers kept between redraws, as the mesh editor's view kee
       expect(layers.built).toContain("houses");
       expect(layers.built.every(key => key === "houses" || key.startsWith("structure:"))).toBe(true);
       expect(scene.group.children.length).toBeGreaterThan(0);
+      // Turning the town's simplification off (the mesh editor's preference) rebuilds the houses without the LOD budget.
+      const full = createVectorScene(vectorRenderData(restyled, "housing"), {
+        layers,
+        simplification: { urban: "off", outskirts: "auto" }
+      });
+      scene.dispose();
+      scene = full;
+      expect(layers.built).toEqual(["houses"]);
     } finally {
       scene.dispose();
       layers.dispose();
