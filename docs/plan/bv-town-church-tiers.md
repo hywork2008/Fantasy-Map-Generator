@@ -1,7 +1,7 @@
 # BV：人口段階に合わせた教会・広場のモデル追加
 
 作成日：2026-11-10  
-状態：B0〜B3完了（2026-11-10、[B0の記録](../analytics/bv-town-church-b0-20261110.md)）。次はB4（広場の付属物）。対象は中世ヨーロッパのキリスト教に限る。
+状態：B0〜B4完了（2026-11-10、[B0の記録](../analytics/bv-town-church-b0-20261110.md)）。次はB5（墓地の付属物）。対象は中世ヨーロッパのキリスト教に限る。
 
 ## 1. 目的と範囲
 
@@ -177,6 +177,16 @@ B6（CE側）：
 - BVでHighを目視した（南東・北西から）。
 - 検証：`townChurch.test.ts`をT2〜T4の3件に拡張。`modelQuality`・`placementContract`・`catalogue`・`adoption`のテストも通った。
 
-## 14. 次に進める作業
+## 14. B4の結果（2026-11-10）
 
-B4（広場の付属物：さらし台W1、石の市場十字架W2、屋根付きの市場十字架W3）。
+- 生成関数：`src/buildings/props/marketSquareProps.ts`。登録は新しい`59-market-square-furnitureModels.ts`（BVでは「Medieval 59 · Market Square Furniture」）。§4の案では`14-`の隣としていたが、広場の付属物は教会と別の系統なので別ファイルにした。作者は`Claude Sonnet 5.5`、CE未接続（`preview-only`）。
+- W1 `pillory-and-stocks`：ヒンジ付きの3穴のさらし台（pillory）と、2本脚のストックス（stocks）、ベンチ、石の台。4.6×2.8×2.6 m。Low 312・High 1,488三角形。
+- W2 `market-cross-stepped`：八角の3段の台と台石、柱、石の十字架。3.6×3.6×5.4 m。Low 196・High 1,276。
+- W3 `market-cross-canopied`：八角の3段の台の上に、8本の柱の開放した覆い屋と中央の柱、ヴォールトのリブ、瓦屋根、鉄の十字架。5.8×5.8×7.9 m。Low 520・High 1,276。
+- BVの参照記事（`wikipedia.ts`）に3件を足した（Pillory / Market cross / Butter cross）。
+- 検証：`marketSquareProps.test.ts`（地面に接し、宣言した寸法に合う、Low/High）と、`townChurch`・`modelQuality`・`placementContract`・`catalogue`・`adoption`のテストが通った。`wikipedia.test.ts`は`trade-workshop.dedicated-ropewalk`の参照記事がなく失敗するが、今回の変更とは無関係の既存の問題。
+- 広場の段階への割り当ては§3.2のとおりで、CEでの配置（B6）で行う。
+
+## 15. 次に進める作業
+
+B5（墓地の付属物：墓地の十字架Y1、屋根門Y2）。

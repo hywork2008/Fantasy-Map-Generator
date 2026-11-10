@@ -51,6 +51,7 @@ import { models as dedicatedTanneries } from "./55-dedicated-tanneriesModels";
 import { models as ropeworks } from "./56-ropeworksModels";
 import { models as butcheries } from "./57-butcheryModels";
 import { models as townTrades } from "./58-town-tradesModels";
+import { models as squareFurniture } from "./59-market-square-furnitureModels";
 import type { MedievalModel } from "./modelKit";
 
 export function medievalFamily(model: Pick<MedievalModel, "id">): string {
@@ -109,7 +110,8 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   dedicatedTanneries,
   ropeworks,
   butcheries,
-  townTrades
+  townTrades,
+  squareFurniture
 ]
   .flat()
   .flatMap(model => {
