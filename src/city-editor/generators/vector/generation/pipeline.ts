@@ -3,6 +3,7 @@ import type { Point } from "../../../types/primitives";
 import type { CurveAnchor, VectorCityDocument, VectorPath } from "../../../types/vector/document";
 import type { VectorBlock, VectorGenerationSettings, VectorPolygon } from "../../../types/vector/generation";
 import { planCirculadeLayout } from "../../circuladeLayout";
+import { barbicanEra, MAX_BARBICAN_REACH_METERS } from "../../defenseClearance";
 import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
 import { pointInPolygon, polygonCentroid } from "../../geom";
 import {
@@ -37,6 +38,7 @@ import { raiseVectorPlazaFurniture } from "./civicFurniture";
 import { isFerryRiver, raiseVectorFerries } from "./ferries";
 import { raiseVectorForest } from "./forest";
 import { raiseVectorGuilds } from "./guilds";
+import { expectedVectorHouseStoreys } from "./housingHeights";
 import { raiseVectorInns } from "./inns";
 import { raiseVectorOpenLandmarks } from "./landmarks";
 import { CIVIC_PLAZA_ID, raiseVectorPlazaMarket } from "./market";
@@ -44,7 +46,7 @@ import { raiseVectorMonasteries } from "./monasteries";
 import { type RouteLink, skeletonRoutes } from "./routes";
 import { GENERATED_HARBOR_ID, raiseVectorHarbor } from "./seaHarbor";
 import { raiseVectorShantyLand, wantsShanty } from "./shanty";
-import { raiseVectorRibbonLand } from "./suburbs";
+import { clipVectorDomainToWall, raiseVectorRibbonLand, vectorRibbonShortfall } from "./suburbs";
 import { isVectorWallShape, VECTOR_WALL_WIDTH_METERS, vectorUnitWallRing, vectorWallSettings } from "./wallShape";
 
 /** Sine of the shallowest angle a road or river may cross a generated wall shape at (20 degrees). */
@@ -1093,6 +1095,8 @@ function skeleton(
   // A bastioned wall's bastions are gun platforms: reserved before the streets, so no block or house stands there.
   if (settings.wall === "bastioned" && doc.paths["auto-wall"])
     reserveVectorBastions(doc, "auto-wall", settings.wallSides ?? 6);
+  // The town's land ends at its wall; beyond it the town grows only along the approaches (gate-ribbon plan W1).
+  doc = clipVectorDomainToWall(doc);
   const free = freeLand(doc);
   if (!containsRegion(free, center)) throw new Error("site-center-blocked");
   const ports: Point[] = [[...center]],
@@ -1300,7 +1304,22 @@ function skeleton(
   if (wantsShanty(doc) && !faubourg.grown && Object.values(doc.paths).some(p => p.role === "wall"))
     diagnostics.push({ code: "shanty-unplaced", entityId: "land", severity: "warning" });
   // Land for the roadside ribbon along each approach beyond the glacis (P7a).
-  doc = raiseVectorRibbonLand(doc, !!faubourg.added);
+  // Dwellings the interior cannot hold lengthen the ribbon, which keeps a barbican's reach in its era (W2).
+  const period = doc.context.historicalPeriod ?? "ageOfExploration",
+    shortfall = vectorRibbonShortfall(doc, expectedVectorHouseStoreys(period, doc.context.requestedSettings));
+  const ribbon = raiseVectorRibbonLand(
+    doc,
+    !!faubourg.added,
+    shortfall,
+    barbicanEra(period) ? MAX_BARBICAN_REACH_METERS : 0
+  );
+  doc = ribbon.document;
+  if (ribbon.unplacedLength > 0)
+    diagnostics.push({
+      code: "ribbon-extent",
+      entityId: String(Math.round(ribbon.unplacedLength)),
+      severity: "warning"
+    });
   // The gallows and the windmills on open ground beyond the town (P6f).
   const marks = raiseVectorOpenLandmarks(doc, deriveVectorBlocks(doc));
   doc = marks.document;

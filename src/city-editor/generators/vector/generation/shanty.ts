@@ -6,15 +6,14 @@ import { featureReservations } from "../environmentState";
 import { pathIsClosed } from "../geometry/curves";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
-import { pathSurface, simpleContour } from "../geometry/surfaces";
+import { simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
+import { wallBerm } from "./suburbs";
 
 /** Half the width of the faubourg either side of its approach road. */
 const FAUBOURG_HALF_METERS = 45;
 /** A road ending this close to the wall line ends at its gate. */
 const GATE_METERS = 15;
-/** Land beyond the wall already this large holds the shanty: the mesh editor picks it from the outskirts. */
-const OUTSKIRTS_MIN_M2 = 6000;
 
 /** True when the town asks for the mesh editor's extramural shanty (`config.features.shanty`, or the FMG burg's). */
 export const wantsShanty = (doc: VectorCityDocument) =>
@@ -36,16 +35,12 @@ export function raiseVectorShantyLand(doc: VectorCityDocument): {
   const wall = Object.values(doc.paths).find(p => p.role === "wall" && pathIsClosed(p) && !p.id.includes("inner"));
   if (!wall) return { document: doc, grown: false };
   const ring = samplePath(wall).map(s => s.point),
-    outskirts = regionBoolean(site.domain, [{ outer: ring, holes: [] }], "difference"),
     center = site.center,
     borderR = Math.max(...ring.map(p => Math.hypot(p[0] - center[0], p[1] - center[1]))),
     reach = borderR * 1.8,
     half = doc.frame.extentMeters / 2 - 4,
     descriptorRoads = site.descriptor?.roads ?? [],
     wallGap = (q: Point) => Math.min(...ring.map((a, i) => pointSegmentDistance(q, a, ring[(i + 1) % ring.length])));
-  // The site's street blocks are cut by roads, not the wall: a strip joining land already beyond it can merge a
-  // block inside the wall with one outside. So the site grows only when it ends at the wall.
-  if (outskirts.reduce((n, r) => n + regionArea(r), 0) >= OUTSKIRTS_MIN_M2) return { document: doc, grown: true };
   const approaches = Object.values(doc.paths)
     .filter(p => p.role === "road")
     .map(p => {
@@ -103,7 +98,13 @@ export function raiseVectorShantyLand(doc: VectorCityDocument): {
   // Clear of water, reserved ground and the wall.
   land = regionBoolean(
     land,
-    [...allVectorWater(doc), ...featureReservations(doc), { outer: ring, holes: [] }, pathSurface(wall)],
+    [
+      ...allVectorWater(doc),
+      ...featureReservations(doc),
+      { outer: ring, holes: [] },
+      // A berm before the wall keeps the strip off the gate openings, which belong to the town's land.
+      ...wallBerm(ring, 8)
+    ],
     "difference"
   ).filter(r => regionArea(r) > 400);
   if (!land.length) return { document: doc, grown: false };

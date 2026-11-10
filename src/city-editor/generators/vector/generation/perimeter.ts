@@ -981,7 +981,19 @@ export function placeVectorPerimeterHouses(
   for (const district of plan.districts) {
     const origin = roundedOrigin(district.outline),
       outline = packPoints(district.outline, origin);
-    const kept = district.cells.filter(c => cells.has(c.id));
+    // Beyond the wall a street block stands only where it holds a house (gate-ribbon plan W2): the roadside land
+    // laid out for a shortfall that the interior met after all is not drawn as empty blocks and lanes.
+    const kept = district.cells.filter(
+      c =>
+        cells.has(c.id) &&
+        (cellInside(c.id) || !!adopted.get(c.id)?.length || !!cleared[c.id]?.length || !!detachedLines[c.id]?.length)
+    );
+    if (
+      !kept.length &&
+      !district.cells.some(c => cells.has(c.id) && cellInside(c.id)) &&
+      !detachedLines[district.id]?.length
+    )
+      continue;
     const record: Omit<VectorFabricDistrict, "hash"> = {
       id: district.id,
       seed: doc.recipe.seed,

@@ -9,7 +9,7 @@ import { cellHouseRing, unpackLine, unpackPoints } from "../../../generators/vec
 import { vectorInputFromEditor } from "../../../generators/vector/generation/editorInput";
 import { expectedVectorHouseStoreys } from "../../../generators/vector/generation/housingHeights";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../../../generators/vector/generation/pipeline";
-import { vectorApproachBands } from "../../../generators/vector/generation/suburbs";
+import { vectorApproachBands, vectorInteriorFreeM2 } from "../../../generators/vector/generation/suburbs";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../../../generators/vector/generation/urban";
 import { meshlessCityRadius } from "../../../generators/vector/generation/urbanSizing";
 import { vectorWallChoice } from "../../../generators/vector/generation/wallShape";
@@ -137,6 +137,7 @@ function measure(doc: VectorCityDocument, inputArea: number, sides?: number) {
   return {
     inputDomainM2: round(inputArea),
     wallInteriorM2: round(wallArea),
+    interiorFreeM2: round(vectorInteriorFreeM2(doc)),
     wallShareOfInput: inputArea ? Number((wallArea / inputArea).toFixed(3)) : null,
     domainOutsideWallM2: round(domainOutside),
     districtStreetMetersOutside: round(streetsOutside),

@@ -1,12 +1,14 @@
+import { getUrbanDwellings } from "../../../../utils/urbanDwellings";
 import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorPolygon } from "../../../types/vector/generation";
-import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../../geom";
+import { nearestOnPolyline, pointInPolygon, polygonCentroid, segmentsIntersect } from "../../geom";
 import { type ApproachBand, type SuburbanLotContext, suburbanLotKept, suburbanProfile } from "../../suburbanLanduse";
 import { featureReservations } from "../environmentState";
 import { pathIsClosed } from "../geometry/curves";
+import { gateOpening } from "../geometry/network";
 import { regionArea, regionBoolean } from "../geometry/regions";
-import { samplePath } from "../geometry/sampling";
+import { samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 
@@ -91,33 +93,197 @@ export function vectorSuburbanLots(
     suburbanLotKept(polygon, cellId, residential || suburb(cellId), ctx);
 }
 
-/** Half the width of the roadside ribbon land either side of its approach. */
+/** Half the width of the roadside ribbon land either side of its approach: one row of lots each side. */
 const RIBBON_HALF_METERS = 28;
-/** Land beyond the wall already this large holds the ribbon. */
-const OUTSKIRTS_MIN_M2 = 6000;
+/** Dwellings a built-up roadside strip of one row each side holds per metre of road (gate-ribbon plan W0: street
+ * blocks hold 0.017 dwellings per m², about 50 m² of blocks per metre of road). Provisional until measured on the
+ * strips themselves. */
+export const RIBBON_DWELLINGS_PER_METER = 0.85;
+/** Interior dwellings per m² of free land inside the wall, every lot built, at the measured 2.25 storeys
+ * (gate-ribbon plan W2, measured on the W0 cases). */
+export const INTERIOR_DWELLINGS_PER_M2 = 0.016;
+/** A strip this close to the river below the town is left to the yards that foul the water (tanneries). */
+const DOWNSTREAM_METERS = 80;
+
+/** Ground within `meters` of a wall line, as one piece per wall segment (each run on past its ends so the joins are
+ * covered): a mitred offset of a bastioned or folded line would cross itself. */
+export function wallBerm(line: Point[], meters: number, closed = true): VectorPolygon[] {
+  // Pieces are left as they are: a union of hundreds of overlapping quads defeats the polygon kernel. A sampled
+  // round wall is eased to metre accuracy first, which a berm of several metres does not notice.
+  const eased = simplifyFreehand(closed ? [...line, line[0]] : line, 1);
+  if (closed) eased.pop();
+  const pieces: VectorPolygon[] = [];
+  const n = closed ? eased.length : eased.length - 1;
+  for (let i = 0; i < n; i++) {
+    const a = eased[i],
+      b = eased[(i + 1) % eased.length],
+      l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (l < 1e-6) continue;
+    const u: Point = [((b[0] - a[0]) / l) * meters, ((b[1] - a[1]) / l) * meters],
+      v: Point = [-u[1], u[0]];
+    pieces.push({
+      outer: [
+        [a[0] - u[0] + v[0], a[1] - u[1] + v[1]],
+        [b[0] + u[0] + v[0], b[1] + u[1] + v[1]],
+        [b[0] + u[0] - v[0], b[1] + u[1] - v[1]],
+        [a[0] - u[0] - v[0], a[1] - u[1] - v[1]]
+      ],
+      holes: []
+    });
+  }
+  return pieces;
+}
+
+/** The town's interior: the domain inside the closed outer wall, with its gate openings. */
+function outerWallRing(doc: VectorCityDocument): Point[] | undefined {
+  const outer = Object.values(doc.paths).find(p => p.role === "wall" && pathIsClosed(p) && !p.id.includes("inner"));
+  return outer ? samplePath(outer).map(s => s.point) : undefined;
+}
 
 /**
- * Land for the roadside ribbon of a walled town whose site ends at the wall (P7a): a strip along each approach band
- * between its glacis clearance and the end of its ribbon, measured from the gate, as the mesh editor's outskirts
- * cells hold them. A frontier approach keeps none. The strips start beyond the glacis, so they never join the
- * town's land. `faubourgAdded` is true when the shanty just added land of its own.
+ * Cut the site to the walled town (gate-ribbon plan W1): the round site the town was planned on keeps only the land
+ * inside the outer wall, the ground already reserved beyond it (cemetery, castle, fortress works) and placements.
+ * The ring between the round site and a narrower wall holds no street block; the town grows beyond the wall only
+ * along the approaches (`raiseVectorShantyLand`, `raiseVectorRibbonLand`). An open sea wall keeps the land on the
+ * town's side of its line. A town without a wall keeps its site.
  */
-export function raiseVectorRibbonLand(doc: VectorCityDocument, faubourgAdded: boolean): VectorCityDocument {
+export function clipVectorDomainToWall(doc: VectorCityDocument): VectorCityDocument {
   const site = doc.site;
-  if (!site || site.descriptor?.urbanMorphology) return doc;
-  const outer = Object.values(doc.paths).find(p => p.role === "wall" && pathIsClosed(p) && !p.id.includes("inner"));
-  if (!outer) return doc;
-  const ring = samplePath(outer).map(s => s.point);
-  if (
-    !faubourgAdded &&
-    regionBoolean(site.domain, [{ outer: ring, holes: [] }], "difference").reduce((n, r) => n + regionArea(r), 0) >=
-      OUTSKIRTS_MIN_M2
-  )
+  if (!site) return doc;
+  const walls = Object.values(doc.paths).filter(p => p.role === "wall" && !p.id.includes("inner"));
+  if (!walls.length) return doc;
+  const keep: VectorPolygon[] = [
+    ...Object.values(doc.connections.gates).map(g => ({ outer: gateOpening(doc, g), holes: [] })),
+    ...featureReservations(doc),
+    ...Object.values(doc.regions)
+      .filter(r => r.kind === "reservation")
+      .map(r => ({ outer: r.outer, holes: r.holes })),
+    ...Object.values(doc.placements).map(p => ({ outer: p.site.outer, holes: p.site.holes }))
+  ];
+  let inside: VectorPolygon[];
+  const ring = outerWallRing(doc);
+  if (ring) inside = [{ outer: ring, holes: [] }];
+  else {
+    // An open wall line ending at the shore: the pieces of the site it cuts off from the centre are outside.
+    const lines = walls.map(w => samplePath(w).map(q => q.point)),
+      crosses = (a: Point, b: Point) =>
+        lines.some(line => line.slice(1).some((q, i) => segmentsIntersect(a, b, line[i], q)));
+    inside = regionBoolean(
+      site.domain,
+      walls.map(w => pathSurface(w)),
+      "difference"
+    ).filter(piece => {
+      const c = polygonCentroid(piece.outer);
+      return !crosses(c, site.center);
+    });
+  }
+  let domain: VectorPolygon[];
+  try {
+    domain = regionBoolean(
+      regionBoolean(site.domain, inside, "intersection"),
+      regionBoolean(site.domain, keep, "intersection"),
+      "union"
+    ).filter(r => regionArea(r) > 1);
+  } catch {
     return doc;
+  }
+  if (!domain.length || !domain.every(p => simpleContour(p.outer, true) && p.holes.every(h => simpleContour(h, true))))
+    return doc;
+  return { ...doc, site: { ...site, domain } };
+}
+
+/** Free land inside the outer wall: the site there less water, reserved ground, placements and every path. */
+export function vectorInteriorFreeM2(doc: VectorCityDocument): number {
+  const ring = outerWallRing(doc),
+    site = doc.site;
+  if (!ring || !site) return 0;
+  const obstacles: VectorPolygon[] = [
+    ...allVectorWater(doc),
+    ...featureReservations(doc),
+    ...Object.values(doc.regions)
+      .filter(r => r.kind === "reservation")
+      .map(r => ({ outer: r.outer, holes: r.holes })),
+    ...Object.values(doc.placements).map(p => ({ outer: p.site.outer, holes: p.site.holes })),
+    ...Object.values(doc.paths).flatMap(p => {
+      try {
+        return [pathSurface(p)];
+      } catch {
+        return [];
+      }
+    })
+  ];
+  try {
+    return regionBoolean(
+      regionBoolean(site.domain, [{ outer: ring, holes: [] }], "intersection"),
+      obstacles,
+      "difference"
+    ).reduce((n, r) => n + regionArea(r), 0);
+  } catch {
+    return 0;
+  }
+}
+
+/** Dwellings the town needs beyond its wall (gate-ribbon plan §3.3): what the free land inside the wall, every lot
+ * built, falls short of the town's dwellings, with a tenth of the interior left for the vacancy CE draws spread. */
+export function vectorRibbonShortfall(doc: VectorCityDocument, storeys: number, lotOccupancy = 1): number {
+  const site = doc.site;
+  if (!site || !outerWallRing(doc)) return 0;
+  const required = site.descriptor?.burg.dwellings ?? getUrbanDwellings(doc.context.targetPopulation ?? 0),
+    interior = vectorInteriorFreeM2(doc) * INTERIOR_DWELLINGS_PER_M2 * (storeys / 2.25) * lotOccupancy * 0.9;
+  return Math.max(0, Math.ceil(required - interior));
+}
+
+/** Whether a band runs beside the river below the town: the run of each river after it last leaves the wall. */
+function downstreamOf(doc: VectorCityDocument, ring: Point[]): (line: Point[]) => boolean {
+  const runs = Object.values(doc.paths)
+    .filter(p => p.role === "river" && !p.id.includes("moat"))
+    .map(p => {
+      const pts = samplePath(p).map(q => q.point),
+        last = pts.reduce((k, q, i) => (pointInPolygon(q, ring) ? i : k), -1);
+      return last < 0 ? [] : pts.slice(last + 1);
+    })
+    .filter(run => run.length > 1);
+  return line => runs.some(run => line.some(q => nearestOnPolyline(q, run).dist < DOWNSTREAM_METERS));
+}
+
+/**
+ * Land for the roadside ribbon of a walled town (P7a, gate-ribbon plan W2): a strip along each approach band from its
+ * glacis clearance to the end of its ribbon, measured from the gate, as the mesh editor's outskirts cells hold them.
+ * A frontier approach keeps none. The dwellings the interior cannot hold (`shortfall`) lengthen the strips by the
+ * approaches' traffic; a strip beside the river below the town takes none of them (the tanneries' bank), and one
+ * reaching the frame's edge widens to a second row instead. In the barbican era each lengthened strip keeps the
+ * reach of a barbican to come. The strips start beyond the glacis, so they never join the town's land.
+ */
+export function raiseVectorRibbonLand(
+  doc: VectorCityDocument,
+  faubourgAdded: boolean,
+  shortfall = 0,
+  barbicanSlack = 0
+): { document: VectorCityDocument; unplacedLength: number } {
+  const site = doc.site;
+  const none = { document: doc, unplacedLength: 0 };
+  if (!site) return none;
+  const outer = Object.values(doc.paths).find(p => p.role === "wall" && pathIsClosed(p) && !p.id.includes("inner"));
+  if (!outer) return none;
+  void faubourgAdded;
+  const ring = samplePath(outer).map(s => s.point);
   const half = doc.frame.extentMeters / 2 - 4,
-    strips: VectorPolygon[] = [];
-  for (const band of vectorApproachBands(doc).bands) {
-    if (band.profile === "frontier") continue;
+    strips: VectorPolygon[] = [],
+    roads = site.descriptor?.roads ?? [],
+    downstream = downstreamOf(doc, ring);
+  const bands = vectorApproachBands(doc).bands.filter(b => b.profile !== "frontier");
+  const traffic = (id: string) => {
+    const i = roads.findIndex((r, k) => id === `fmg-road:${r.routeId}:${k}`);
+    return i >= 0 ? Math.max(0, roads[i].traffic ?? 0) : 0;
+  };
+  const takers = bands.filter(b => !downstream(b.points)),
+    weights = takers.map(b => traffic(b.groupId) + 1),
+    total = weights.reduce((n, w) => n + w, 0);
+  let unplacedLength = 0;
+  for (const band of bands) {
+    const k = takers.indexOf(band),
+      extra =
+        k >= 0 && shortfall > 0 ? (shortfall * weights[k]) / total / RIBBON_DWELLINGS_PER_METER + barbicanSlack : 0;
     const gate = band.points[0],
       from = (q: Point) => Math.hypot(q[0] - gate[0], q[1] - gate[1]),
       // Every 5 m along the road, then the stretch the ribbon may hold.
@@ -126,37 +292,63 @@ export function raiseVectorRibbonLand(doc: VectorCityDocument, faubourgAdded: bo
           n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 5));
         return Array.from(
           { length: n + 1 },
-          (_, k): Point => [a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n]
+          (_, j): Point => [a[0] + ((b[0] - a[0]) * j) / n, a[1] + ((b[1] - a[1]) * j) / n]
         );
       }),
-      run = line.filter(q => from(q) >= band.clearance && from(q) <= band.clearance + band.length);
+      inFrame = (q: Point) =>
+        Math.abs(q[0]) <= half - RIBBON_HALF_METERS && Math.abs(q[1]) <= half - RIBBON_HALF_METERS,
+      wanted = band.length + extra,
+      run = line.filter(q => from(q) >= band.clearance && from(q) <= band.clearance + wanted && inFrame(q));
     if (run.length < 2) continue;
-    const a = run[0],
-      b = run.at(-1)!,
-      l = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    if (l < 10) continue;
-    const n: Point = [(-(b[1] - a[1]) / l) * RIBBON_HALF_METERS, ((b[0] - a[0]) / l) * RIBBON_HALF_METERS];
-    strips.push({
-      outer: (
-        [
-          [a[0] + n[0], a[1] + n[1]],
-          [b[0] + n[0], b[1] + n[1]],
-          [b[0] - n[0], b[1] - n[1]],
-          [a[0] - n[0], a[1] - n[1]]
-        ] as Point[]
-      ).map(([x, y]): Point => [Math.max(-half, Math.min(half, x)), Math.max(-half, Math.min(half, y))]),
-      holes: []
-    });
+    // A strip the frame cuts short takes the rest of its length as a second row.
+    const reach = Math.hypot(run.at(-1)![0] - run[0][0], run.at(-1)![1] - run[0][1]),
+      rows = extra > 0 && reach < wanted * 0.95 ? 2 : 1;
+    if (extra > 0 && reach * rows < wanted * 0.95) unplacedLength += wanted - reach * rows;
+    // Straight pieces along the road's own bends, so a long ribbon follows the road.
+    for (let i = 0; i + 1 < run.length; ) {
+      let j = i + 1;
+      while (j + 1 < run.length && nearestOnPolyline(run[j], [run[i], run[j + 1]]).dist < 3) j++;
+      const a = run[i],
+        b = run[j],
+        l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (l >= 10) {
+        const w = RIBBON_HALF_METERS * rows,
+          n: Point = [(-(b[1] - a[1]) / l) * w, ((b[0] - a[0]) / l) * w],
+          // Pieces overlap a little at the bends so the strip stays one piece.
+          t: Point = [((b[0] - a[0]) / l) * 2, ((b[1] - a[1]) / l) * 2],
+          a2: Point = [a[0] - t[0], a[1] - t[1]],
+          b2: Point = [b[0] + t[0], b[1] + t[1]];
+        strips.push({
+          outer: (
+            [
+              [a2[0] + n[0], a2[1] + n[1]],
+              [b2[0] + n[0], b2[1] + n[1]],
+              [b2[0] - n[0], b2[1] - n[1]],
+              [a2[0] - n[0], a2[1] - n[1]]
+            ] as Point[]
+          ).map(([x, y]): Point => [Math.max(-half, Math.min(half, x)), Math.max(-half, Math.min(half, y))]),
+          holes: []
+        });
+      }
+      i = j;
+    }
   }
-  if (!strips.length) return doc;
+  if (!strips.length) return { ...none, unplacedLength };
+  const glacis = bands.length ? Math.min(...bands.map(b => b.clearance)) : 25;
   const land = regionBoolean(
     regionBoolean(strips, [], "union"),
-    [...allVectorWater(doc), ...featureReservations(doc), { outer: ring, holes: [] }, pathSurface(outer)],
+    [
+      ...allVectorWater(doc),
+      ...featureReservations(doc),
+      { outer: ring, holes: [] },
+      // The glacis along the whole wall, not only before the gates.
+      ...wallBerm(ring, glacis)
+    ],
     "difference"
   ).filter(r => regionArea(r) > 200);
-  if (!land.length) return doc;
+  if (!land.length) return { ...none, unplacedLength };
   const domain = regionBoolean(site.domain, land, "union");
   return domain.every(p => simpleContour(p.outer, true) && p.holes.every(h => simpleContour(h, true)))
-    ? { ...doc, site: { ...site, domain } }
-    : doc;
+    ? { document: { ...doc, site: { ...site, domain } }, unplacedLength }
+    : { ...none, unplacedLength };
 }
