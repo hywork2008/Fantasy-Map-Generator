@@ -513,6 +513,36 @@
       },
       "release": {
         "preview": "メッシュなし・試験運用。採用時は人口不足の集計と元文書の変換報告を確認してください。"
+      },
+      "settings": {
+        "title": "都市の設定",
+        "auto": "自動",
+        "noRiver": "川なし",
+        "historicalPeriod": "時代",
+        "coast": "海岸",
+        "river1": "川1",
+        "river2": "川2",
+        "walls": "市壁",
+        "citadel": "城塞",
+        "plaza": "広場",
+        "temple": "寺院",
+        "port": "港",
+        "shanty": "貧民街",
+        "wallMaterial": "市壁の材質",
+        "wallCoast": "市壁の海側",
+        "wallShape": "市壁の形",
+        "wallSides": "市壁の辺数",
+        "townWallRings": "市壁の重なり",
+        "townWallBuildOrder": "二重市壁の建設順",
+        "innerWallState": "旧市街の市壁",
+        "townMoat": "町の堀",
+        "layout": "町割り",
+        "burial": "埋葬文化",
+        "buildingPattern": "建物パターン",
+        "forestMode": "森林",
+        "forestDensity": "森林の密度",
+        "housingCulture": "住宅の外観の文化",
+        "changeHousingCulture": "住宅の外観の文化を変更"
       }
     },
     "forest": {

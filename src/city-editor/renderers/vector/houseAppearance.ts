@@ -6,6 +6,7 @@ import {
 import { BUILDING_APPEARANCE_VERSION, type BuildingAppearance } from "../../../buildings/appearance/types";
 import { limitBuildingRoofColors } from "../../generators/buildingAppearanceBuckets";
 import type { BuildingLot } from "../../generators/buildingLots.types";
+import { vectorHousingCulture } from "../../generators/vector/generation/housingCulture";
 import type { BuildingMassing } from "../../types/contracts/buildingMassing";
 import type { VectorCityDocument } from "../../types/vector/document";
 import { automaticHousingProfile } from "../standaloneHousingAppearance";
@@ -24,7 +25,8 @@ export function vectorHouseAppearance(doc: Pick<VectorCityDocument, "context" | 
       temperatureC: descriptor?.climate?.temperatureC,
       biome: descriptor?.biome ?? (descriptor?.climate?.biomeKey ? { key: descriptor.climate.biomeKey } : undefined)
     }),
-    profile = automaticHousingProfile(context, !!descriptor, seed);
+    // The culture chosen in the meshless city settings, else the automatic one.
+    profile = vectorHousingCulture(doc) ?? automaticHousingProfile(context, !!descriptor, seed);
   /** Houses of one street block; `rural` marks a block outside the town wall. */
   return (
     blockId: string,

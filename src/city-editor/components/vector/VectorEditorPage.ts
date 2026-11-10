@@ -1,4 +1,5 @@
 import { editorText } from "../../../i18n/editorMessages";
+import { defaultGenerationSettings } from "../../generators/generation/settings";
 import { createVectorDocument, createVectorExample } from "../../generators/vector/document";
 import { clearFabricHouse, detachFabricHouse } from "../../generators/vector/editing/fabricHouses";
 import { detachFabricLine } from "../../generators/vector/editing/fabricLines";
@@ -18,6 +19,7 @@ import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorStage } from "../../types/vector/urban";
 import { clamp, createEditorControls } from "../editorControls";
 import type { EditorLanguageLifetime } from "../languagePanel";
+import { createVectorCitySettingsPanel } from "./VectorCitySettingsPanel";
 import { createVectorEditPanel } from "./VectorEditPanel";
 import { createVectorEnvironmentPanel } from "./VectorEnvironmentPanel";
 import { createVectorFabricHousePanel } from "./VectorFabricHousePanel";
@@ -100,6 +102,7 @@ export function mountVectorCityEditor(
   let housePanel: ReturnType<typeof createVectorFabricHousePanel> | undefined;
   let editPanel: ReturnType<typeof createVectorEditPanel> | undefined;
   let generationPanel: ReturnType<typeof createVectorGenerationPanel> | undefined;
+  let citySettingsPanel: ReturnType<typeof createVectorCitySettingsPanel> | undefined;
   let workbench: ReturnType<typeof createVectorWorkbench> | undefined;
   const plans = createVectorPlanPreparation();
   scope.own(plans.dispose);
@@ -119,6 +122,7 @@ export function mountVectorCityEditor(
     housePanel?.refresh();
     environmentPanel?.refresh();
     generationPanel?.refresh();
+    citySettingsPanel?.refresh();
     workbench?.refresh();
     status.textContent = editorText("cityEditor.vector.summary", {
       paths: Object.keys(current.paths).length,
@@ -320,6 +324,18 @@ export function mountVectorCityEditor(
     copyStatus.textContent = "";
   });
   controls.append(copyButton, adoptCopy, cancelCopy, restoreCopy, copyStatus, copyList);
+  // The city settings are the meshless editor's own: a city opened without the mesh editor's settings starts
+  // from the editor defaults (and its FMG site, if linked), so nothing has to be set in the mesh editor first.
+  session.generationInput ??= {
+    seed: session.history.document.recipe.seed,
+    settings: {
+      ...defaultGenerationSettings(),
+      ...((session.sourceDescriptor ?? session.history.document.site?.descriptor)
+        ? { descriptor: session.sourceDescriptor ?? session.history.document.site?.descriptor }
+        : {})
+    },
+    frame: { extentMeters: 1200, cityRadiusMeters: 396, blockSizeMeters: 50 }
+  };
   generationPanel = createVectorGenerationPanel(
     scope,
     controls,
@@ -337,6 +353,17 @@ export function mountVectorCityEditor(
     () => session.history.currentEntryKey,
     session.generationInput,
     () => session.history.peek()
+  );
+  citySettingsPanel = createVectorCitySettingsPanel(
+    scope,
+    controls,
+    session.generationInput,
+    () => session.history.document,
+    (doc, label) => {
+      session.history.commit(doc, label);
+      refresh();
+    },
+    () => scope.invalidate("vector-generation-input")
   );
   editPanel = createVectorEditPanel(
     scope,

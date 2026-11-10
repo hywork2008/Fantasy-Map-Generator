@@ -1099,8 +1099,8 @@
       "category": "operation",
       "id": "building-appearance-controls",
       "mesh": "building appearance, height limit",
-      "meshless": "missing",
-      "evidence": "Not present.",
+      "meshless": "partial",
+      "evidence": "2026-11-10: the meshless City settings panel picks the housing culture (automatic or one of the six profiles), kept as requestedSettings.buildingAppearanceProfile and applied at once to the houses, towers and gates. Not yet: the appearance climate and the mesh editor's height controls in that panel.",
       "stage": "P3",
       "checked": false
     },

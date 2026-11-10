@@ -513,6 +513,36 @@
       },
       "release": {
         "preview": "Meshless preview. Review population shortages and source conversion notes before adopting a city."
+      },
+      "settings": {
+        "title": "City settings",
+        "auto": "Automatic",
+        "noRiver": "No river",
+        "historicalPeriod": "Historical period",
+        "coast": "Coast",
+        "river1": "River 1",
+        "river2": "River 2",
+        "walls": "City walls",
+        "citadel": "Citadel",
+        "plaza": "Plaza",
+        "temple": "Temple",
+        "port": "Port",
+        "shanty": "Shanty town",
+        "wallMaterial": "Wall material",
+        "wallCoast": "Sea side of the wall",
+        "wallShape": "Wall shape",
+        "wallSides": "Wall sides",
+        "townWallRings": "Wall rings",
+        "townWallBuildOrder": "Double wall build order",
+        "innerWallState": "Old town wall",
+        "townMoat": "Town moat",
+        "layout": "Town layout",
+        "burial": "Burial culture",
+        "buildingPattern": "Building pattern",
+        "forestMode": "Forest",
+        "forestDensity": "Forest density",
+        "housingCulture": "Housing culture",
+        "changeHousingCulture": "Change housing culture"
       }
     },
     "forest": {

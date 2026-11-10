@@ -10,6 +10,7 @@ import type { TownWaterKind } from "../../generators/townWater";
 import { curveSource } from "../../generators/vector/editing/paths";
 import { cellHouseCount, cellHouseRing, fabricHouseId, unpackLine } from "../../generators/vector/fabric/pack";
 import { vectorLandscapeClimate } from "../../generators/vector/generation/forest";
+import { vectorHousingCulture } from "../../generators/vector/generation/housingCulture";
 import { vectorHouseHeightKey, vectorHousingHeights } from "../../generators/vector/generation/housingHeights";
 import { bridgeGeometry, gateOpening, junctionSurface } from "../../generators/vector/geometry/network";
 import { regionBoolean } from "../../generators/vector/geometry/regions";
@@ -834,7 +835,7 @@ function vectorWallProfile(doc: VectorCityDocument): BuildingAppearanceProfile {
       biome: descriptor?.biome ?? (descriptor?.climate?.biomeKey ? { key: descriptor.climate.biomeKey } : undefined)
     });
   return buildingAppearanceProfile({
-    profile: automaticHousingProfile(context, !!descriptor, doc.recipe.seed),
+    profile: vectorHousingCulture(doc) ?? automaticHousingProfile(context, !!descriptor, doc.recipe.seed),
     context,
     rural: false
   });
