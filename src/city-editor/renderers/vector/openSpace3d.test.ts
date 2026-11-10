@@ -27,7 +27,8 @@ describe("meshless park trees and wells as the mesh editor's 3D models (feature 
         { ...DEFAULT_VECTOR_URBAN, population: 3000, lotOccupancy: 1 }
       ),
       data = vectorRenderData(doc, "housing"),
-      parkTrees = (data.landscapeTrees ?? []).filter(t => t.ownerId.startsWith("urban:park:")),
+      // Park trees are open-space tree sites since P2d-8, for the camera tree LOD and seasons.
+      parkTrees = (data.openSpaces?.sites ?? []).filter(t => t.radius !== undefined && !t.footprint),
       wells = data.wells ?? [];
     expect(parkTrees.length).toBe(doc.urban!.parks!.reduce((n, p) => n + p.trees.length, 0));
     expect(parkTrees.length).toBeGreaterThan(0);

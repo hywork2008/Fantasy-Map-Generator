@@ -114,6 +114,8 @@ export interface VectorRenderData {
     seed: string;
     climate: ReturnType<typeof vectorLandscapeClimate>;
   };
+  /** The FMG burg's site descriptor, for the trees' seasonal look (P2d-8); absent for a standalone town. */
+  seasonDescriptor?: import("../../types/contracts/burgSiteDescriptor").BurgSiteDescriptor;
   /** Harbour piers as the mesh editor's timber piers in 3D (P2d-3). */
   piers?: { id: string; deck: Point[]; depth: number }[];
   /** Roads of this stage as the mesh editor's wearing-course ribbons, for 3D. */
@@ -752,6 +754,7 @@ export function vectorRenderData(
     },
     monasteries: Object.values(doc.environment?.monasteries ?? {}),
     openSpaces: vectorOpenSpaces(doc),
+    seasonDescriptor: doc.site?.descriptor,
     ...(doc.environment?.forest
       ? {
           forest: {
@@ -779,7 +782,7 @@ export function vectorRenderData(
       ...Object.values(doc.environment?.defenses ?? {}).flatMap(p => p.ditches.flatMap(d => d.region)),
       ...(doc.environment?.harbor?.navigation.water ?? [])
     ],
-    landscapeTrees: [...(doc.environment?.landscape?.trees ?? []), ...vectorParkTrees(doc)].map(tree => ({
+    landscapeTrees: (doc.environment?.landscape?.trees ?? []).map(tree => ({
       ...tree,
       elevationMeters: terrain.heightAt(tree.point)
     })),
@@ -794,7 +797,7 @@ export function vectorRenderData(
 }
 
 /**
- * Park trees as landscape trees (P2d-1): the mesh editor's park planting (`garden_parkland`) adapted to the town's
+ * Park trees (P2d-1, drawn with the open spaces since P2d-8): the mesh editor's park planting (`garden_parkland`) adapted to the town's
  * climate, at the canopy's saved centre and radius, the species' height and a turn from its position.
  */
 function vectorParkTrees(doc: VectorCityDocument): VectorLandscapeTree[] {
@@ -843,8 +846,15 @@ function vectorWallProfile(doc: VectorCityDocument): BuildingAppearanceProfile {
  * and paths stay the 2D surfaces.
  */
 function vectorOpenSpaces(doc: VectorCityDocument): OpenSpacePlan | undefined {
-  const cemeteries = doc.environment?.landscape?.cemeteries ?? [];
-  if (!cemeteries.length) return undefined;
+  const cemeteries = doc.environment?.landscape?.cemeteries ?? [],
+    // Park trees join the open spaces (P2d-8), as in the mesh editor, for its camera tree LOD and seasons.
+    parkTrees = vectorParkTrees(doc).map(t => ({
+      model: t.species,
+      point: t.point,
+      radius: t.radiusMeters,
+      angle: t.angleRadians
+    }));
+  if (!cemeteries.length && !parkTrees.length) return undefined;
   const plan = collectOpenSpacePlan(
       [],
       cemeteries.map(c => ({ ...c, faceId: c.id }) as unknown as CemeteryPlan)
@@ -856,5 +866,6 @@ function vectorOpenSpaces(doc: VectorCityDocument): OpenSpacePlan | undefined {
     const model = treeSpeciesForClimate(site.model as TreeSpecies, climate, site.point);
     return model ? [{ ...site, model }] : [];
   });
+  sites.push(...parkTrees);
   return sites.length ? { sites, surfaces: [] } : undefined;
 }

@@ -19,6 +19,7 @@ import { createStructureMassing } from "../../../city3d/three/structureMeshes";
 import { createTownWallParts } from "../../../city3d/three/townWallMeshes";
 import { createTownWaterParts } from "../../../city3d/three/waterMeshes";
 import { createTownWells } from "../../../city3d/three/wellMeshes";
+import { treeSeason } from "../../../city3d/treeSeason";
 import type { BuildingLot } from "../../generators/buildingLots.types";
 import { polygonArea } from "../../generators/geom";
 import type { TownWaterPart } from "../../generators/townWater";
@@ -167,6 +168,9 @@ export function createVectorScene(data: VectorRenderData) {
     prototypes.clear();
     materials.clear();
   };
+  // The trees' look in the descriptor's month, or for a standalone town the mesh editor's default display month
+  // and latitude (July at 45°): leaf-out, autumn colours and bare branches (P2d-8).
+  const season = treeSeason(data.seasonDescriptor, "descriptor", { latitude: 45, month: 7 });
   try {
     // Flat water uses the mesh editor's water tops and bank skirts, sunk below a ground cut open for it.
     const waterParts: TownWaterPart[] = data.terrain
@@ -240,7 +244,7 @@ export function createVectorScene(data: VectorRenderData) {
       disposers.push(() => water.dispose());
     }
     if (data.landscapeTrees?.length) {
-      const trees = createVectorLandscapeTrees(data.landscapeTrees, data.center, datum);
+      const trees = createVectorLandscapeTrees(data.landscapeTrees, data.center, datum, season);
       group.add(trees.group);
       disposers.push(() => trees.dispose());
     }
@@ -282,13 +286,14 @@ export function createVectorScene(data: VectorRenderData) {
       bvKinds.add("monastery");
     }
     if (data.openSpaces && !data.terrain) {
-      const spaces = createTownOpenSpaces(data.openSpaces, undefined, false),
+      const spaces = createTownOpenSpaces(data.openSpaces, undefined, true, season),
         holder = new THREE.Group();
       holder.position.set(-data.center[0], -datum, data.center[1]);
       holder.userData = { kind: "feature", featureKind: "cemetery", representation: "bv-open-space" };
       holder.add(spaces.group);
       group.add(holder);
       disposers.push(() => spaces.dispose());
+      cameraUpdates.push((camera, height) => ({ changed: spaces.update(camera, height), pending: false }));
       bvKinds.add("cemetery");
     }
     // Woodland as the mesh editor's forest (P2d-6): floor, far crowns and near trees by the camera, in the
@@ -320,13 +325,20 @@ export function createVectorScene(data: VectorRenderData) {
             ]
           };
         }),
-        forest = createTownForest(forestDocument, {
-          regions,
-          forestFaceIds: [],
-          areaM2: regions.reduce((n, r) => n + r.areaM2, 0),
-          protectedFarmCount: 0,
-          protectedFarmAreaM2: 0
-        }),
+        forest = createTownForest(
+          forestDocument,
+          {
+            regions,
+            forestFaceIds: [],
+            areaM2: regions.reduce((n, r) => n + r.areaM2, 0),
+            protectedFarmCount: 0,
+            protectedFarmAreaM2: 0
+          },
+          undefined,
+          "standard",
+          true,
+          season
+        ),
         holder = new THREE.Group();
       holder.position.set(-data.center[0], -datum, data.center[1]);
       holder.userData = {

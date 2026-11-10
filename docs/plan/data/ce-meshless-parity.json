@@ -892,8 +892,8 @@
       "category": "3d",
       "id": "openSpaceMeshes",
       "mesh": "city3d/three/openSpaceMeshes (Open spaces (with tree LOD))",
-      "meshless": "partial",
-      "evidence": "P2d-1: park trees stand as the species BV trees of the landscape-tree layer (garden_parkland adapted to the climate). P2d-5: cemeteries (environment.landscape.cemeteries, the mesh editor's culture cemetery plans) go through collectOpenSpacePlan to createTownOpenSpaces: graves and ledgers on the plots, chapels, cottages, cloisters, ossuaries, boundary walls with the gate gap, and churchyard trees adapted to the climate; their raised part outlines leave 3D, the ground and paths stay. Not yet: the camera tree LOD (openSpaceTreeLod) and seasons (P2d-8), relief (P8).",
+      "meshless": "equivalent",
+      "evidence": "P2d-1/P2d-5/P2d-8: cemeteries and park trees go through collectOpenSpacePlan-shaped sites to createTownOpenSpaces with the camera tree LOD (openSpaceTreeLod) and the seasonal look: graves, ledgers, chapels, cottages, cloisters, ossuaries, boundary walls, churchyard and park trees (species adapted to the climate). The ground and paths stay the 2D surfaces. Relief waits for P8.",
       "stage": "P6",
       "checked": true
     },
@@ -1000,8 +1000,8 @@
       "category": "3d",
       "id": "treeSeason",
       "mesh": "city3d/three/treeSeason (Tree seasons)",
-      "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "meshless": "partial",
+      "evidence": "P2d-8: the 3D view resolves treeSeason from the FMG burg's descriptor (its month and monthly temperatures), or the mesh editor's standalone default (July at 45°), and passes it to the forest, the open-space trees and the landscape trees. Not yet: the month and latitude controls of the mesh editor's lighting panel (the meshless view has none).",
       "stage": "P7",
       "checked": true
     },
