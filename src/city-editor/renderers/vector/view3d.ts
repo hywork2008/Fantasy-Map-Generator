@@ -86,6 +86,7 @@ export function mountVector3d(
       const start = performance.now();
       // Houses near the camera take their detailed models and façades before the frame is drawn.
       const lod = model.updateCamera(camera, renderer.domElement.clientHeight);
+      renderer.domElement.dataset.vectorDetailedHouses = String(lod.detailedHouses);
       renderer.render(scene, camera);
       // Consecutive camera frames are sampled, pauses between gestures are not (as the mesh editor's view).
       const cpuMs = performance.now() - start,
@@ -117,9 +118,15 @@ export function mountVector3d(
       camera.updateProjectionMatrix();
       draw();
     };
+  // Camera events come faster than frames (every pointer move): like the mesh editor's view, they ask for one
+  // frame, so the LOD and the render run once per display frame instead of once per event.
   const cameraMoved = () => {
     moving = true;
-    draw();
+    if (!frame)
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        draw();
+      });
   };
   controls.addEventListener("change", cameraMoved);
   let selection: THREE.Box3Helper | THREE.LineSegments | undefined;

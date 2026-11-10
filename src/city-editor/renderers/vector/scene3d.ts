@@ -130,7 +130,10 @@ function appendHousePrism(
     batch.firstTriangles.push(before);
   }
 }
-type CameraUpdate = (camera: THREE.PerspectiveCamera, height: number) => { changed: boolean; pending: boolean };
+type CameraUpdate = (
+  camera: THREE.PerspectiveCamera,
+  height: number
+) => { changed: boolean; pending: boolean; detailedHouses?: number };
 interface VectorSceneLayer {
   stamp: string;
   object: THREE.Object3D;
@@ -849,7 +852,7 @@ export function createVectorScene(
           cameraUpdate: (camera, height) => {
             const changed = regional.update(camera, height);
             details.update(camera, height, regional.replaced);
-            return { changed, pending: regional.stats.pending };
+            return { changed, pending: regional.stats.pending, detailedHouses: regional.stats.buildings };
           },
           resolve: hit => {
             const site = regional.resolve(hit);
@@ -884,13 +887,15 @@ export function createVectorScene(
        * another frame while detailed houses are still being built. */
       updateCamera(camera: THREE.PerspectiveCamera, viewportHeight: number) {
         let changed = false,
-          pending = false;
+          pending = false,
+          detailedHouses = 0;
         for (const update of cameraUpdates) {
           const r = update(camera, viewportHeight);
           changed ||= r.changed;
           pending ||= r.pending;
+          detailedHouses += r.detailedHouses ?? 0;
         }
-        return { changed, pending };
+        return { changed, pending, detailedHouses };
       },
       /** Switch the forest's detail in place; true when it changed (the view then redraws). */
       setForestQuality(next: Forest3dQuality) {
