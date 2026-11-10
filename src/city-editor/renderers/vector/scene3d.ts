@@ -8,6 +8,7 @@ import { createTownBuildingDetails } from "../../../city3d/three/buildingDetails
 import { createBvPrototypeCache } from "../../../city3d/three/bvInstances";
 import { createTownCranes, createTownHarborCargo } from "../../../city3d/three/craneMeshes";
 import { createFacilityLayer } from "../../../city3d/three/facilityMeshes";
+import { createTownForest } from "../../../city3d/three/forestMeshes";
 import { createTownMonasteries } from "../../../city3d/three/friaryMeshes";
 import { createTownOpenSpaces } from "../../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../../city3d/three/pierMeshes";
@@ -23,6 +24,7 @@ import { polygonArea } from "../../generators/geom";
 import type { TownWaterPart } from "../../generators/townWater";
 import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
 import type { BuildingMassing } from "../../types/contracts/buildingMassing";
+import type { CityDocument } from "../../types/document";
 import type { Point } from "../../types/primitives";
 import { createVectorLandscapeTrees } from "./landscapeTrees";
 import type { VectorRenderData, VectorRenderSurface } from "./renderData";
@@ -289,11 +291,62 @@ export function createVectorScene(data: VectorRenderData) {
       disposers.push(() => spaces.dispose());
       bvKinds.add("cemetery");
     }
+    // Woodland as the mesh editor's forest (P2d-6): floor, far crowns and near trees by the camera, in the
+    // town's climate and the settings' density. Its flat surface stays in the 2D plan only.
+    if (data.forest && !data.terrain) {
+      const f = data.forest,
+        forestDocument = {
+          format: "vector-forest",
+          generationSeed: f.seed,
+          forestSettings: { density: f.density },
+          ...(f.climate.biome ? { biome: f.climate.biome } : {}),
+          buildingAppearanceContext: { temperatureC: f.climate.temperatureC },
+          fabric: { generation: { settings: { descriptor: { climate: { biomeKey: f.climate.climateBiomeKey } } } } }
+        } as unknown as CityDocument,
+        regions = f.regions.map((r, i) => {
+          const xs = r.outer.map(p => p[0]),
+            ys = r.outer.map(p => p[1]);
+          return {
+            id: `environment:forest:${i}`,
+            outer: r.outer as Point[],
+            holes: r.holes as Point[][],
+            sourceFaceIds: [],
+            areaM2: regionArea(r),
+            bounds: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] as [
+              number,
+              number,
+              number,
+              number
+            ]
+          };
+        }),
+        forest = createTownForest(forestDocument, {
+          regions,
+          forestFaceIds: [],
+          areaM2: regions.reduce((n, r) => n + r.areaM2, 0),
+          protectedFarmCount: 0,
+          protectedFarmAreaM2: 0
+        }),
+        holder = new THREE.Group();
+      holder.position.set(-data.center[0], -datum, data.center[1]);
+      holder.userData = {
+        id: "environment:forest",
+        kind: "feature",
+        featureKind: "forest",
+        representation: "bv-forest"
+      };
+      holder.add(forest.group);
+      group.add(holder);
+      disposers.push(() => forest.dispose());
+      cameraUpdates.push((camera, height) => ({ changed: !!forest.update(camera, height), pending: false }));
+      bvKinds.add("forest");
+    }
     const replacedByBv = (surface: VectorRenderSurface) => {
       if (surface.kind !== "feature") return false;
       // Cemetery parts are the open-space models; the ground and paths stay.
       if (surface.featureKind === "landscape" && /^cemetery-/.test(surface.pieceRole ?? ""))
         return bvKinds.has("cemetery") && !["cemetery-ground", "cemetery-access"].includes(surface.pieceRole!);
+      if (surface.id === "environment:forest") return bvKinds.has("forest");
       if (surface.featureKind === "monastery") return bvKinds.has("monastery") && surface.heightMeters > 0;
       if (!bvOwners.has(surface.id) && ![...bvOwners].some(id => surface.id.startsWith(`${id}:`))) return false;
       // Sails, hubs and pillars belong to the model; mounds, yards and courts stay as its ground.

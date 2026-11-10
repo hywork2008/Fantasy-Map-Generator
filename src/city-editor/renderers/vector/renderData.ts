@@ -107,6 +107,13 @@ export interface VectorRenderData {
   monasteries?: Monastery[];
   /** Cemeteries' graves, markers, chapels, walls and trees as the mesh editor's open-space models in 3D (P2d-5). */
   openSpaces?: OpenSpacePlan;
+  /** Woodland drawn as the mesh editor's forest in 3D (P2d-6): its regions, density, seed and climate. */
+  forest?: {
+    regions: VectorPolygon[];
+    density: "sparse" | "standard" | "dense";
+    seed: string;
+    climate: ReturnType<typeof vectorLandscapeClimate>;
+  };
   /** Harbour piers as the mesh editor's timber piers in 3D (P2d-3). */
   piers?: { id: string; deck: Point[]; depth: number }[];
   /** Roads of this stage as the mesh editor's wearing-course ribbons, for 3D. */
@@ -745,6 +752,16 @@ export function vectorRenderData(
     },
     monasteries: Object.values(doc.environment?.monasteries ?? {}),
     openSpaces: vectorOpenSpaces(doc),
+    ...(doc.environment?.forest
+      ? {
+          forest: {
+            regions: doc.environment.forest.regions,
+            density: doc.environment.forest.density,
+            seed: doc.recipe.seed,
+            climate: vectorLandscapeClimate(doc)
+          }
+        }
+      : {}),
     piers: (doc.environment?.harbor?.piers ?? []).flatMap(p =>
       p.polygon.outer.length === 4 ? [{ id: p.id, deck: p.polygon.outer, depth: p.depthMeters }] : []
     ),

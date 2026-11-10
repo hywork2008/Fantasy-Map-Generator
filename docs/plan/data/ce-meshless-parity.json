@@ -766,7 +766,7 @@
       "id": "forest",
       "mesh": "automatic woodland",
       "meshless": "partial",
-      "evidence": "P7b: forestLandCover/buildForestPlan rules on meshless land: the surroundings mode covers the frame beyond the site's land (the mesh editor's outskirts with no ward), in a tree-bearing climate (treeBiomeForClimate on the FMG biome and temperature), clear of water, roads plus 4 m, the wall's glacis on both sides and every reservation; stored as environment.forest (regions, area, density) and drawn as a woodland surface. Not yet: trees in the woodland (forestMeshes, tree LOD and seasons, P2c-2), coast clearance strips, census of the regions, farmland mode.",
+      "evidence": "P7b: forestLandCover/buildForestPlan rules on meshless land: the surroundings mode covers the frame beyond the site's land (the mesh editor's outskirts with no ward), in a tree-bearing climate (treeBiomeForClimate on the FMG biome and temperature), clear of water, roads plus 4 m, the wall's glacis on both sides and every reservation; stored as environment.forest (regions, area, density) and drawn as a woodland surface. Trees in 3D by forestMeshes (P2d-6). Not yet: seasons (P2d-8), coast clearance strips, census of the regions, farmland mode.",
       "stage": "P7",
       "checked": true,
       "census": "forests"
@@ -856,8 +856,8 @@
       "category": "3d",
       "id": "forestMeshes",
       "mesh": "city3d/three/forestMeshes (Forest (with ground texture and tree details))",
-      "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "meshless": "partial",
+      "evidence": "P2d-6: the P7b woodland (environment.forest regions and density) drawn by createTownForest: floor, far crown chunks and the camera-driven middle and near trees, species from the town's climate (a stand-in document carries the seed, density, biome and temperature). The flat woodland surface stays in the 2D plan only. Not yet: the forest quality setting (always standard), seasons (P2d-8), the ground texture, relief (P8).",
       "stage": "P7",
       "checked": true
     },
