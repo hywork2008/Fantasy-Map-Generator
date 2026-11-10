@@ -206,7 +206,9 @@ const modelArticles: Record<string, string> = {
   "mourning-cloister": "Cloister",
   "pillory-and-stocks": "Pillory",
   "market-cross-stepped": "Market cross",
-  "market-cross-canopied": "Butter cross"
+  "market-cross-canopied": "Butter cross",
+  "churchyard-cross": "Churchyard cross",
+  "lych-gate": "Lychgate"
 };
 
 export function medievalWikipediaArticle(model: Pick<MedievalModel, "id" | "task">): string {

@@ -1,7 +1,7 @@
 # BV：人口段階に合わせた教会・広場のモデル追加
 
 作成日：2026-11-10  
-状態：B0〜B4完了（2026-11-10、[B0の記録](../analytics/bv-town-church-b0-20261110.md)）。次はB5（墓地の付属物）。対象は中世ヨーロッパのキリスト教に限る。
+状態：B0〜B5完了（2026-11-10、[B0の記録](../analytics/bv-town-church-b0-20261110.md)）。次はB6（CE側の接続）。対象は中世ヨーロッパのキリスト教に限る。
 
 ## 1. 目的と範囲
 
@@ -187,6 +187,16 @@ B6（CE側）：
 - 検証：`marketSquareProps.test.ts`（地面に接し、宣言した寸法に合う、Low/High）と、`townChurch`・`modelQuality`・`placementContract`・`catalogue`・`adoption`のテストが通った。`wikipedia.test.ts`は`trade-workshop.dedicated-ropewalk`の参照記事がなく失敗するが、今回の変更とは無関係の既存の問題。
 - 広場の段階への割り当ては§3.2のとおりで、CEでの配置（B6）で行う。
 
-## 15. 次に進める作業
+## 15. B5の結果（2026-11-10）
 
-B5（墓地の付属物：墓地の十字架Y1、屋根門Y2）。
+- 生成関数：`src/buildings/props/churchyardProps.ts`。登録は`60-churchyard-furnitureModels.ts`（BVでは「Medieval 60 · Churchyard Furniture」）。`44-cemetery-facilitiesModels.ts`はCEと共有する墓地の部品の種類から作られているため、そこへは足さず別ファイルにした。作者は`Claude Sonnet 5.5`、CE未接続（`preview-only`）。
+- Y1 `churchyard-cross`：3段の方形の台、台石、先細りの角柱、節、十字架。Highは軸の刻み・像の龕・先端の飾りを足す。2.4×2.4×5.4 m、Low 100・High 240三角形。
+- Y2 `lych-gate`：石の床と沓石の上の木造の屋根門。屋根の棟を通路に沿わせ、中央に棺台、両側に腰掛け、開いた2枚の板戸。Highは筋交い・手すり・方杖・鉄の帯金を足す。3.3×5.1×4.2 m（通りの側が+Z）、Low 316・High 580。
+- BVの参照記事に2件を足した（Churchyard cross / Lychgate）。
+- 検証：`churchyardProps.test.ts`（地面に接し、宣言した寸法に合う、Low/High）と、これまでのテストが通った。
+
+BV側の追加（B0〜B5）はこれで一区切り。
+
+## 16. 次に進める作業
+
+B6（CE側の接続）。着手の前に、機能同等化P2dの寺院の配置の照合と、墓地の計画（`collectOpenSpacePlan`）の受け口を調べる。
