@@ -348,7 +348,9 @@ function buildBody(spec: TownChurchSpec, detail: TownChurchDetail) {
       "stone"
     );
   }
-  // The nave's east gable wall is hidden behind the chancel; the west end is the tower's east face.
+  // The tower is narrower than the nave, so the nave closes its own west end beside it; the east gable wall
+  // is hidden behind the chancel.
+  face(k, detail, 0, 0, spec.naveWidthMeters, spec.naveEaveMeters, -HALF_PI, []);
   face(k, detail, naveLength, 0, spec.naveWidthMeters, spec.naveEaveMeters, HALF_PI, []);
   roof(k, detail, naveLength / 2, 0, naveLength, spec.naveWidthMeters, spec.naveEaveMeters, spec.naveRiseMeters);
 
