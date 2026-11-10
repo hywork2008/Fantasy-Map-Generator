@@ -4,19 +4,21 @@ import { placeableObject } from "../../../buildings/placeableObjects";
 import { placementDefinition, placementFootprint } from "../../../buildings/placementModels";
 import { LAND_Y, WATER_Y } from "../../../city3d/core/waterGeometry";
 import { createTownBridgesAt } from "../../../city3d/three/bridgeMeshes";
+import { createTownBuildingDetails } from "../../../city3d/three/buildingDetails";
 import { createBvPrototypeCache } from "../../../city3d/three/bvInstances";
-import { createCityMassing } from "../../../city3d/three/cityMeshes";
 import { createTownCranes, createTownHarborCargo } from "../../../city3d/three/craneMeshes";
 import { createFacilityLayer } from "../../../city3d/three/facilityMeshes";
 import { createTownMonasteries } from "../../../city3d/three/friaryMeshes";
 import { createTownOpenSpaces } from "../../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../../city3d/three/pierMeshes";
+import { createTownRegionalHouseLod } from "../../../city3d/three/regionalHouseLod";
 import { createTownRoads } from "../../../city3d/three/roadMeshes";
 import { createTownShips } from "../../../city3d/three/shipMeshes";
 import { createStructureMassing } from "../../../city3d/three/structureMeshes";
 import { createTownWallParts } from "../../../city3d/three/townWallMeshes";
 import { createTownWaterParts } from "../../../city3d/three/waterMeshes";
 import { createTownWells } from "../../../city3d/three/wellMeshes";
+import type { BuildingLot } from "../../generators/buildingLots.types";
 import { polygonArea } from "../../generators/geom";
 import type { TownWaterPart } from "../../generators/townWater";
 import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
@@ -149,6 +151,9 @@ export function createVectorScene(data: VectorRenderData) {
     }
     return m;
   };
+  const cameraUpdates: ((camera: THREE.PerspectiveCamera, height: number) => { changed: boolean; pending: boolean })[] =
+      [],
+    houseResolvers: ((hit: THREE.Intersection) => string | undefined)[] = [];
   let disposed = false;
   const dispose = () => {
     if (disposed) return;
@@ -542,9 +547,25 @@ export function createVectorScene(data: VectorRenderData) {
     if (massingLots.length) {
       // Houses use the mesh editor's walls and roofs. Each lot's triangles are contiguous, so the same house table
       // as the prism batches maps a hit back to its house id.
+      // The mesh editor's housing LOD (P2d-7): every lot keeps its massing, and large visible houses take the
+      // detailed regional BV house; façade details (doors, windows, timbering) follow the camera too.
       const elevation = new Map(massingLots.map((lot, i) => [lot.polygon, massingElevations[i]])),
-        meshes = createCityMassing(massingLots, ring => elevation.get(ring) ?? 0),
+        foundation = (ring: Point[]) => elevation.get(ring) ?? 0,
+        lots = massingLots as unknown as BuildingLot[],
+        regional = createTownRegionalHouseLod(lots, harborCache, foundation, "high"),
+        details = createTownBuildingDetails(lots, foundation),
+        meshes = regional.massing,
         holder = new THREE.Group();
+      holder.add(regional.group, details.group);
+      cameraUpdates.push((camera, height) => {
+        const changed = regional.update(camera, height);
+        details.update(camera, height, regional.replaced);
+        return { changed, pending: regional.stats.pending };
+      });
+      houseResolvers.push(hit => {
+        const site = regional.resolve(hit);
+        return site ? massingIds[site.lotIndex] : undefined;
+      });
       holder.position.set(-data.center[0], 0, data.center[1]);
       for (const mesh of meshes.pickables) {
         const index = mesh.geometry.getAttribute("buildingIndex"),
@@ -566,9 +587,11 @@ export function createVectorScene(data: VectorRenderData) {
         };
         mesh.geometry.computeBoundingSphere();
       }
-      holder.add(meshes.group);
       group.add(holder);
-      disposers.push(() => meshes.dispose());
+      disposers.push(() => {
+        details.dispose();
+        regional.dispose();
+      });
     }
     for (const [key, batch] of houseBatches) {
       const geometry = new THREE.BufferGeometry();
@@ -586,7 +609,30 @@ export function createVectorScene(data: VectorRenderData) {
       group.add(mesh);
       disposers.push(() => geometry.dispose());
     }
-    return { group, warnings, dispose };
+    return {
+      group,
+      warnings,
+      dispose,
+      /** Camera-driven detail (house LOD, façade details); true when the view should redraw, `pending` asks for
+       * another frame while detailed houses are still being built. */
+      updateCamera(camera: THREE.PerspectiveCamera, viewportHeight: number) {
+        let changed = false,
+          pending = false;
+        for (const update of cameraUpdates) {
+          const r = update(camera, viewportHeight);
+          changed ||= r.changed;
+          pending ||= r.pending;
+        }
+        return { changed, pending };
+      },
+      /** The house id of a hit on a detailed BV house. */
+      pickHouse(hit: THREE.Intersection) {
+        for (const resolve of houseResolvers) {
+          const id = resolve(hit);
+          if (id) return id;
+        }
+      }
+    };
   } catch (error) {
     dispose();
     throw error;

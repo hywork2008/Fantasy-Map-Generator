@@ -802,8 +802,8 @@
       "category": "3d",
       "id": "buildingDetails",
       "mesh": "city3d/three/buildingDetails (Building details)",
-      "meshless": "missing",
-      "evidence": "Not used: house lots need massing and appearance, which the mesh editor assigns from its document (assignBuildingMassing, assignBuildingAppearances). Moved to P3 with the house appearance.",
+      "meshless": "equivalent",
+      "evidence": "P2d-7: createTownBuildingDetails adds the mesh editor's near façade details (doors, windows, timbering in the house colours) to massing houses in view, excluding those already detailed, driven by the same camera update.",
       "stage": "P3",
       "checked": true
     },
@@ -910,8 +910,8 @@
       "category": "3d",
       "id": "regionalHouseLod",
       "mesh": "city3d/three/regionalHouseLod (Distant-house LOD)",
-      "meshless": "missing",
-      "evidence": "Not used: house lots need massing and appearance, which the mesh editor assigns from its document (assignBuildingMassing, assignBuildingAppearances). Moved to P3 with the house appearance.",
+      "meshless": "equivalent",
+      "evidence": "P2d-7: meshless houses go through createTownRegionalHouseLod (its massing replaces the plain createCityMassing call): every lot keeps exact massing, and the large houses in view near the camera take the detailed regional BV house within the mesh editor's budget; the 3D view drives it from the camera before each frame and asks for more frames while builds are pending. A hit on a detailed house resolves to its saved house id; the massing pick maps through the LOD's triangle index.",
       "stage": "P3",
       "checked": true
     },

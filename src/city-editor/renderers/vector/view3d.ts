@@ -56,7 +56,17 @@ export function mountVector3d(container: HTMLElement, data: VectorRenderData, on
   controls.maxPolarAngle = Math.PI * 0.49;
   controls.maxDistance = data.extentMeters * 5;
   controls.update();
-  const draw = () => renderer.render(scene, camera),
+  let frame = 0;
+  const draw = () => {
+      // Houses near the camera take their detailed models and façades before the frame is drawn.
+      const lod = model.updateCamera(camera, renderer.domElement.clientHeight);
+      renderer.render(scene, camera);
+      if (lod.pending && !frame)
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          draw();
+        });
+    },
     resize = () => {
       const rect = container.getBoundingClientRect(),
         width = Math.max(1, rect.width),
@@ -94,8 +104,9 @@ export function mountVector3d(container: HTMLElement, data: VectorRenderData, on
       camera
     );
     const hit = ray.intersectObject(model.group, true)[0],
-      house = hit ? vectorPickHouse(hit.object, hit.faceIndex) : null,
-      id = house?.id ?? (hit ? vectorPickOwner(hit.object) : null);
+      detailed = hit ? model.pickHouse(hit) : undefined,
+      house = hit && !detailed ? vectorPickHouse(hit.object, hit.faceIndex) : null,
+      id = detailed ?? house?.id ?? (hit ? vectorPickOwner(hit.object) : null);
     if (id) {
       renderer.domElement.dataset.vectorSelected = id;
       let owner = hit.object;
@@ -139,6 +150,7 @@ export function mountVector3d(container: HTMLElement, data: VectorRenderData, on
       if (disposed) return;
       disposed = true;
       observer.disconnect();
+      if (frame) cancelAnimationFrame(frame);
       controls.removeEventListener("change", draw);
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
       renderer.domElement.removeEventListener("pointerup", pointerUp);

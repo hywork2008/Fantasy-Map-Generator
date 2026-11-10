@@ -22,6 +22,9 @@ export function vectorPickHouse(
     | { ids: string[]; firstTriangles: number[]; triangles: number }
     | undefined;
   if (!table?.ids.length || faceIndex === null || faceIndex === undefined || faceIndex < 0) return null;
+  // A massing whose detailed houses are hidden draws through an index of the kept triangles (LOD).
+  const index = (object as THREE.Mesh).geometry?.index;
+  if (index && table.ids.length) faceIndex = Math.floor(index.getX(faceIndex * 3) / 3);
   const starts = table.firstTriangles;
   let low = 0,
     high = starts.length - 1;
