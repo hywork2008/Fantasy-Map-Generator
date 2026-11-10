@@ -73,12 +73,13 @@ export function templeReservationMeters(extentMeters: number, sizeMeters?: numbe
   };
 }
 
-/** Civic centre sized by the town's population rather than its map window (provisional values). The market
- * square grows from a village green to a city square; a basilica is reserved only from town size up, smaller
- * places get a chapel. The basilica keeps its catalogue model's dimensions. */
+/** Civic centre sized by the town's population rather than its map window. The market square grows from a
+ * village green to a city square, and the church from a village chapel through parish and collegiate churches to
+ * the basilica (docs/plan/bv-town-church-tiers.md). Church dimensions are the measured envelopes of their BV
+ * models (Low), so the reserved site and the 3D model agree; the plaza sides are provisional. */
 export interface PopulationCivicSize {
   plazaSideMeters: number;
-  temple: { type: "chapel" | "basilica"; length: number; width: number; heightMeters: number };
+  temple: { tier: 1 | 2 | 3 | 4 | 5; modelId: string; length: number; width: number; heightMeters: number };
 }
 const POPULATION_PLAZA_M: [maxPopulation: number, side: number][] = [
   [1000, 18],
@@ -87,15 +88,18 @@ const POPULATION_PLAZA_M: [maxPopulation: number, side: number][] = [
   [25000, 64],
   [Infinity, 88]
 ];
+const POPULATION_CHURCH: [maxPopulation: number, temple: PopulationCivicSize["temple"]][] = [
+  [1000, { tier: 1, modelId: "village-chapel", length: 11.4, width: 6.2, heightMeters: 7.7 }],
+  [3000, { tier: 2, modelId: "town-church-parish", length: 21.9, width: 10.6, heightMeters: 13.9 }],
+  [8000, { tier: 3, modelId: "town-church-large", length: 35.3, width: 19.9, heightMeters: 27.8 }],
+  [25000, { tier: 4, modelId: "town-church-collegiate", length: 51.5, width: 28, heightMeters: 35.7 }],
+  [Infinity, { tier: 5, modelId: "catalogue:basilica-temple", ...BASILICA_RESERVATION_METERS, heightMeters: 46 }]
+];
 export function civicSizeForPopulation(population: number): PopulationCivicSize {
-  const plazaSideMeters = POPULATION_PLAZA_M.find(([max]) => population < max)![1];
-  const temple =
-    population < 1000
-      ? { type: "chapel" as const, length: 14, width: 8, heightMeters: 10 }
-      : population < 3000
-        ? { type: "chapel" as const, length: 22, width: 10, heightMeters: 12 }
-        : { type: "basilica" as const, ...BASILICA_RESERVATION_METERS, heightMeters: 46 };
-  return { plazaSideMeters, temple };
+  return {
+    plazaSideMeters: POPULATION_PLAZA_M.find(([max]) => population < max)![1],
+    temple: { ...POPULATION_CHURCH.find(([max]) => population < max)![1] }
+  };
 }
 
 export function plazaFootprintMeters(extentMeters: number): number {

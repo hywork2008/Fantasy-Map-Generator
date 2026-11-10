@@ -59,7 +59,7 @@ export function vectorCivicLayout(population: number, options: CivicOptions) {
   const civic = civicSizeForPopulation(population),
     side = civic.plazaSideMeters,
     church = civic.temple,
-    graveDepth = church.type === "chapel" ? (church.length < 20 ? 20 : 30) : 40;
+    graveDepth = church.tier === 1 ? 20 : church.tier === 2 ? 30 : 40;
   const plazaCenter: Point = [0, -side / 2 - 8],
     churchCenter: Point = [-side / 2 - 8 - church.length / 2, plazaCenter[1]];
   const specs: { id: string; kind: VectorFeature["kind"]; boundary: ReturnType<typeof box>; center: Point }[] = [];
@@ -98,12 +98,10 @@ export function vectorCivicLayout(population: number, options: CivicOptions) {
     areaM2:
       specs.reduce((n, s) => n + regionArea(s.boundary), 0) +
       (options.temple
-        ? church.type === "basilica"
-          ? (placementFootprint("catalogue:basilica-temple", "low")?.halfX ?? 0) *
-            2 *
-            (placementFootprint("catalogue:basilica-temple", "low")?.halfZ ?? 0) *
-            2
-          : church.length * church.width
+        ? (placementFootprint(church.modelId, "low")?.halfX ?? church.length / 2) *
+          2 *
+          (placementFootprint(church.modelId, "low")?.halfZ ?? church.width / 2) *
+          2
         : 0) +
       // A riverbank cemetery is sited in the town later, on land the houses would otherwise take.
       (options.temple && options.burial === "riverbank" ? cemetery.lengthMeters * cemetery.depthMeters : 0),
@@ -178,14 +176,11 @@ export function seedVectorCivicCentre(
   }
   if (options.temple) {
     const f = doc.environment.features["feature:civic-church"],
-      basilica = church.type === "basilica",
-      // Only the basilica has a catalogue model; a chapel is drawn as its massing.
-      modelId = basilica ? "catalogue:basilica-temple" : "ce-civic-chapel",
-      footprint = basilica ? placementFootprint(modelId, "low") : undefined;
-    if (basilica && !footprint) throw Error("civic-church-model");
-    const site = footprint
-        ? box(churchCenter, footprint.halfX * 2, footprint.halfZ * 2)
-        : box(churchCenter, church.length, church.width),
+      // Every tier has a BV model; the site is its measured envelope (west front at -X, as the basilica).
+      modelId = church.modelId,
+      footprint = placementFootprint(modelId, "low");
+    if (!footprint) throw Error("civic-church-model");
+    const site = box(churchCenter, footprint.halfX * 2, footprint.halfZ * 2),
       id = "civic:church";
     doc.placements[id] = {
       id,
@@ -202,9 +197,7 @@ export function seedVectorCivicCentre(
         heightMeters: church.heightMeters,
         footprint: [site],
         provenance: "copied",
-        note: basilica
-          ? "Central CE basilica at catalogue dimensions; excluded from residential capacity."
-          : "Parish chapel sized for the population; excluded from residential capacity.",
+        note: `Church (tier ${church.tier}) sized for the population; excluded from residential capacity.`,
         dwellings: 0
       }
     };

@@ -560,10 +560,39 @@ function openTouchingHoles(polygons: VectorPolygon[]): VectorPolygon[] {
     );
   });
 }
+/** A road whose side lies exactly on a block edge can leave the clipped land as one ring whose edges overlap
+ * (two blocks joined along a shared line), which is not a simple outline. Such a ring is shaved by 1 cm along
+ * every edge, which separates the pieces; simple outlines are kept untouched. */
+function splitOverlappingOutlines(polygons: VectorPolygon[]): VectorPolygon[] {
+  return polygons.flatMap(polygon => {
+    if (simpleContour(polygon.outer, true)) return [polygon];
+    const ring = polygon.outer,
+      shave = ring.map((a, i) => {
+        const b = ring[(i + 1) % ring.length],
+          dx = b[0] - a[0],
+          dy = b[1] - a[1],
+          l = Math.hypot(dx, dy) || 1,
+          nx = (-dy / l) * 0.01,
+          ny = (dx / l) * 0.01,
+          ex = (dx / l) * 0.01,
+          ey = (dy / l) * 0.01;
+        return {
+          outer: [
+            [a[0] - ex + nx, a[1] - ey + ny],
+            [b[0] + ex + nx, b[1] + ey + ny],
+            [b[0] + ex - nx, b[1] + ey - ny],
+            [a[0] - ex - nx, a[1] - ey - ny]
+          ] as Point[],
+          holes: []
+        };
+      });
+    return regionBoolean([polygon], shave, "difference");
+  });
+}
 export function deriveVectorBlocks(doc: VectorCityDocument, extra: VectorPolygon[] = []): VectorBlock[] {
   const roads = Object.values(doc.paths).filter(p => p.role === "road"),
-    land = openTouchingHoles(
-      despike(regionBoolean(freeLand(doc), [...roads.map(pathSurface), ...extra], "difference"))
+    land = splitOverlappingOutlines(
+      openTouchingHoles(despike(regionBoolean(freeLand(doc), [...roads.map(pathSurface), ...extra], "difference")))
     ),
     reachable = reachablePaths(doc, doc.site!.center);
   return land.map((polygon, i) => {

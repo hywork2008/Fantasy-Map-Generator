@@ -74,7 +74,7 @@ describe("meshless facilities and religious houses as the mesh editor's BV model
       expect(all.some(o => o.name === "monastery-assembly")).toBe(true);
       // The civic church and the market stalls stand as their catalogue models, with no massing fallback.
       const bv = all.filter(o => o.userData.representation === "bv").map(o => o.userData.modelId);
-      expect(bv).toContain("catalogue:basilica-temple");
+      expect(bv).toContain("town-church-collegiate");
       expect(bv.filter(id => /stall|table|booth/.test(id)).length).toBeGreaterThan(0);
       expect(scene.warnings.filter(w => w.startsWith("massing:"))).toEqual([]);
       // The churchyard's graves, markers and walls are the mesh editor's open-space models (P2d-5).

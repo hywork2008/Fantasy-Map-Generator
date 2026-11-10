@@ -6,6 +6,8 @@ import { createStructureMassing } from "../city3d/three/structureMeshes";
 import { BUILDING_APPEARANCE_PROFILES } from "./appearance/types";
 import { createRegionalHouse, defaultRegionalHouseSpec } from "./houses/regionalHouses";
 import { models as marketStalls } from "./medieval/06-market-stallsModels";
+import { models as parishChurches } from "./medieval/14-parish-churchesModels";
+import { models as townChurches } from "./medieval/14-town-churchesModels";
 import { models as breweries } from "./medieval/15-breweriesModels";
 import { models as civicHalls } from "./medieval/26-civic-hallsModels";
 import { models as clothHalls } from "./medieval/27-cloth-hallsModels";
@@ -22,6 +24,8 @@ import { models as tanneries } from "./medieval/55-dedicated-tanneriesModels";
 import { models as ropeworks } from "./medieval/56-ropeworksModels";
 import { models as butcheries } from "./medieval/57-butcheryModels";
 import { models as townTrades } from "./medieval/58-town-tradesModels";
+import { models as squareFurniture } from "./medieval/59-market-square-furnitureModels";
+import { models as churchyardFurniture } from "./medieval/60-churchyard-furnitureModels";
 import { isMarketPalette, type MarketPalette } from "./medieval/marketAppearance";
 import {
   isMarketModel,
@@ -137,7 +141,11 @@ for (const model of [
   ...tanneries,
   ...ropeworks,
   ...butcheries,
-  ...townTrades
+  ...townTrades,
+  ...parishChurches.filter(m => m.id === "village-chapel"),
+  ...townChurches,
+  ...squareFurniture,
+  ...churchyardFurniture
 ]) {
   const qualities = Object.fromEntries(
     (["low", "high"] as const).map(level => [
@@ -148,7 +156,16 @@ for (const model of [
   sources.set(model.id, {
     item: {
       id: model.id,
-      category: model.task >= 48 ? "Trade facilities" : model.task === 6 ? "Market stalls" : "Market halls",
+      category:
+        model.task === 14
+          ? "Churches"
+          : model.task === 59 || model.task === 60
+            ? "Civic furniture"
+            : model.task >= 48
+              ? "Trade facilities"
+              : model.task === 6
+                ? "Market stalls"
+                : "Market halls",
       name: model.name
     },
     definition: qualities.high,

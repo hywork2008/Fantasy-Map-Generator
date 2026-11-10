@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defaultGenerationSettings } from "../../generation/settings";
 import { polygonArea } from "../../geom";
+import { MIN_FORTIFIED_PARK_TREE_AREA } from "../../parkFabric";
 import { defaultPopulationSettings } from "../../populationPlan";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { validateVectorUrban } from "../validation/urban";
@@ -49,10 +50,14 @@ describe("park wards laid out by the mesh editor's park fabric (feature parity P
             expect(pointSegmentDistance(t.center, line[i - 1], line[i])).toBeGreaterThanOrEqual(11 - 1e-6);
       }
     }
-    // A small park along the wall stays a bare esplanade, as the mesh editor leaves it.
+    // A small park along the wall stays a bare esplanade, as the mesh editor leaves it. "Small" is the mesh rule's
+    // measure, the park's outline (`MIN_FORTIFIED_PARK_TREE_AREA`), not its lawns: wall setbacks can leave a large
+    // park with little lawn, and the mesh editor plants that one.
     for (const park of parks)
       if (
-        park.lawns.reduce((n, l) => n + Math.abs(polygonArea(l)), 0) < 600 &&
+        doc
+          .urban!.districts.filter(d => streetBlockOf(d.id) === park.id)
+          .reduce((n, d) => n + Math.abs(polygonArea(d.polygon.outer)), 0) < MIN_FORTIFIED_PARK_TREE_AREA &&
         park.lawns
           .flat()
           .some(q => walls.some(line => line.slice(1).some((b, i) => pointSegmentDistance(q, line[i], b) < 15)))

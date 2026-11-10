@@ -23,7 +23,11 @@ export const BV_FRONT_AXES: Readonly<Record<string, BvFrontAxis>> = {
   earlyFieldCannon: "+x",
   "st-georges-chapel": "-x",
   "basilica-temple:high": "-x",
-  "basilica-temple:low": "-x"
+  "basilica-temple:low": "-x",
+  "village-chapel": "-x",
+  "town-church-parish": "-x",
+  "town-church-large": "-x",
+  "town-church-collegiate": "-x"
 };
 
 export function frontAxisOf(modelId: string): BvFrontAxis {

@@ -1,7 +1,7 @@
 # BV：人口段階に合わせた教会・広場のモデル追加
 
 作成日：2026-11-10  
-状態：B0〜B5完了（2026-11-10、[B0の記録](../analytics/bv-town-church-b0-20261110.md)）。次はB6（CE側の接続）。対象は中世ヨーロッパのキリスト教に限る。
+状態：B0〜B5完了、B6a（教会の段階のCE接続）実装・未完（2026-11-10、[B0の記録](../analytics/bv-town-church-b0-20261110.md)）。次はB6aの残り（河川港の船）。対象は中世ヨーロッパのキリスト教に限る。
 
 ## 1. 目的と範囲
 
@@ -197,6 +197,20 @@ B6（CE側）：
 
 BV側の追加（B0〜B5）はこれで一区切り。
 
-## 16. 次に進める作業
+## 16. B6aの結果（2026-11-10、途中）
 
-B6（CE側の接続）。着手の前に、機能同等化P2dの寺院の配置の照合と、墓地の計画（`collectOpenSpacePlan`）の受け口を調べる。
+- `civicSizeForPopulation`の寺院を5段階（`tier`・`modelId`・寸法・高さ）にした（D1）。寸法はBVのLowの実測。T1 `village-chapel`、T2 `town-church-parish`、T3 `town-church-large`、T4 `town-church-collegiate`、T5 `catalogue:basilica-temple`。墓地の奥行はT1 20 m、T2 30 m、T3以上40 m。
+- `civic.ts`は全段階でモデルの外形（`placementFootprint`）を敷地とする。量塊の`ce-civic-chapel`は使わなくなった。
+- `placementModels.ts`に`village-chapel`・T2〜T4・広場と墓地の付属物を登録（分類Churches / Civic furniture）。`BV_FRONT_AXES`に教会4件（西の正面-x）。`preview-only`を外した。
+- 旧CE（`createTownSpecialBuildings`）は人口に合わせていないため変更していない。
+- 広場・墓地の付属物の自動配置（B6b）は未着手。手動の配置の一覧からは置ける。
+- 検証：`facilities3d.test.ts`（期待を`town-church-collegiate`に更新）、`placementContract`・`catalogue`・`adoption`は通った。`civic.test.ts`の人口600・種`parity-civic`が`generation-data`で失敗する。原因は街区`block:4`の輪郭が単純でない（自己交差）こと。変更前も8種×4人口の32件中2件（600・`f6`、5,000・`parity-civic`）で同じ失敗があり、変更後は1件。区画の生成器の既存の不具合が、教会の外形の変化で別の種に移ったもの。テストの種は変えていない。
+
+- 街区の輪郭の修正（2026-11-10）：道路の側線が街区の辺と一致すると、切り抜いた土地が、辺の重なる1つの輪郭（2つの街区が線で接したもの）になっていた。`deriveVectorBlocks`で、単純でない輪郭だけを各辺に沿って1 cm削り、別々の街区に分ける（`splitOverlappingOutlines`）。8種×4人口の32件がすべて生成できる（変更前2件、教会の変更後1件が失敗していた）。
+- 公園のテスト（`parks.test.ts`）：教会の大きさの変化で、壁沿いの公園の芝生が600 m²未満なのに木が植わる配置になり失敗した。生成器は旧CEの規則どおり、公園の輪郭（2,278 m²）が`MIN_FORTIFIED_PARK_TREE_AREA`（650 m²）以上なので木を植えている。テストの「小さい」の判定を、芝生の面積から旧CEと同じ輪郭の面積に直した。
+- 残る失敗：`seaHarbor.test.ts`の河川港（種`w2`・5,000人）で船が0隻。桟橋は2本できるが、川幅の4分の1の桟橋が5 m未満のため、船の配置（`planShipsAtPiers`）の対象から外れる。12,000人では変更前から0隻。教会の変化で港の岸の位置が変わったことで表に出た既存の制約である。
+- `src/buildings`の全テストの失敗ファイル（23件）は、作業前のコミット（c0e3474d8）と同じ集合。T4の`size`を実測の外側（52×28.1×36）に直した。
+
+## 17. 次に進める作業
+
+河川港の短い桟橋に船を付けられない制約の扱いを決める（5 m未満の桟橋にも川船を岸沿いに付けるか、桟橋を最低5 mにするか）。続いてB6b（広場・墓地の付属物の自動配置）。

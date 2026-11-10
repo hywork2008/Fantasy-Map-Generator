@@ -29,16 +29,14 @@ const defaults = () => ({
 });
 const frame = { extentMeters: 1200, cityRadiusMeters: 396, blockSizeMeters: 50 };
 describe("civic centre sized by population (feature parity P0b)", () => {
-  it("fits a chapel or a basilica inside the site sized for the population, and the site grows for it", () => {
-    for (const [population, type] of [
-      [600, "chapel"],
-      [3000, "basilica"]
+  it("fits the church of each population tier inside the site sized for it, and the site grows for it", () => {
+    for (const [population, modelId] of [
+      [600, "village-chapel"],
+      [3000, "town-church-large"]
     ] as const) {
       const settings = { ...defaults(), population: defaultPopulationSettings(population) },
         input = vectorInputFromEditor({ settings, seed: "parity-civic", frame, lotOccupancy: 1 });
-      expect(input.placements["civic:church"].modelId).toBe(
-        type === "chapel" ? "ce-civic-chapel" : "catalogue:basilica-temple"
-      );
+      expect(input.placements["civic:church"].modelId).toBe(modelId);
       for (const boundary of featureReservations(input))
         expect(regionBoolean([boundary], input.site!.domain, "difference")).toHaveLength(0);
       const city = generateVectorUrban(
