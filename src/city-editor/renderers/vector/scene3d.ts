@@ -202,8 +202,8 @@ export class VectorSceneLayers {
   }
 }
 
-/** Uses the adopted footprints as the authority, with authored BV models only when their envelope still matches. */
 /**
+ * Uses the adopted footprints as the authority, with authored BV models only when their envelope still matches.
  * `quality` is the viewer's model quality (the City Editor's shared preference, High by default, as the mesh
  * editor's 3D view): BV models drawn for the generated city use it. A placement someone set by hand keeps its own.
  */
