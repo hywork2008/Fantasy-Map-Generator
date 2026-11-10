@@ -38,6 +38,7 @@ import {
   setStrategicLaborMarkets
 } from "../economyContext";
 import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
+import { WORKABLE_DAYS_PER_ADULT_PER_MONTH } from "./agriculturalLandUse";
 import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { CaravanMovement } from "./caravanMovement";
 import { getChilledFreshFoodExportUnits, planCellFoodRescue } from "./cellFoodRescue";
@@ -54,7 +55,7 @@ import { ExportStaging } from "./exportStaging";
 import { getFarmToolsDemandByMarket } from "./farmToolsDemand";
 import { withRegionalDemandShareCache } from "./faunaPopulation";
 import type { FaunaCohorts } from "./faunaPopulationTypes";
-import { isCellPressedDrink, isOrchardDrink } from "./foodLots";
+import { CELL_FRUIT_PROCESSING_WORK_DAYS_PER_LOT, isCellPressedDrink, isOrchardDrink } from "./foodLots";
 import { getRecipeCostBasis, hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
   ensureContainerCirculation,
@@ -392,6 +393,21 @@ function shareCohorts(cohorts: FaunaCohorts | null | undefined, share: number): 
   if (!cohorts) return undefined;
   if (share === 1) return cohorts;
   return { young: cohorts.young * share, breeding: cohorts.breeding * share, old: cohorts.old * share };
+}
+
+/**
+ * Labour, in population points, to process one lot of a fresh food in its cell. The vine and orchard
+ * fruits take their adult work days a lot (CELL_FRUIT_PROCESSING_WORK_DAYS_PER_LOT) over a month of
+ * workable days; the rest keep the catalogue value.
+ */
+export function getCellFoodProcessingLabourPerUnit(
+  goodName: string,
+  catalogueLabourPerUnit: number,
+  populationRate: number
+): number {
+  const days = CELL_FRUIT_PROCESSING_WORK_DAYS_PER_LOT[goodName];
+  if (days === undefined) return catalogueLabourPerUnit;
+  return days / (WORKABLE_DAYS_PER_ADULT_PER_MONTH * Math.max(1, populationRate || 1));
 }
 
 export class MarketsModule {
@@ -1374,7 +1390,11 @@ export class MarketsModule {
           householdDemandUnits,
           maxFreshHouseholdShare: freshFoodProfile.maxFreshHouseholdShare,
           emergencyReserveDemandUnits: (market.foodLedger?.ruralFoodStressQuarters ?? 0) > 0 ? householdDemandUnits : 0,
-          preservationLaborPerUnit: freshFoodProfile.preservationLaborPerUnit,
+          preservationLaborPerUnit: getCellFoodProcessingLabourPerUnit(
+            sourceGood.name,
+            freshFoodProfile.preservationLaborPerUnit,
+            this.worldContext.populationRate
+          ),
           reservePath,
           commercialPath,
           exportDemandUnits,

@@ -116,6 +116,19 @@ export const ALE_TARGETS = {
   adultShare: 0.65
 } as const;
 
+/**
+ * Adult work days to tread, press and cask, or dry, one 1,000 kg lot of fruit in its cell
+ * (docs/plan/vintage-labour.md). In the Douro 7 treaders took a 5 t lagar through a 4-hour
+ * session, and treading ran over up to 3 days. The pickers trod in the evening. The pressing,
+ * barrelling and the raisins' turning on the drying floors are taken to need as much again.
+ * Fruits not listed keep their catalogue labour per lot.
+ */
+export const CELL_FRUIT_PROCESSING_WORK_DAYS_PER_LOT: Readonly<Record<string, number>> = {
+  Grapes: 3,
+  Apples: 3,
+  Pears: 3
+};
+
 export const GRAPE_TARGETS = {
   freshKilogramsPerPersonYear: 2,
   /**
