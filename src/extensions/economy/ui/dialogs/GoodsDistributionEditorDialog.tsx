@@ -37,6 +37,7 @@ import {
 import { getGoods, getWorldContext } from "../../economyContext";
 import { useGoodsDistributionEditorState } from "../../store/goodsDistributionEditorState";
 import "./goodsDistributionEditorDialog.css";
+import { toTranslate } from "../../../../utils/translate";
 
 function getSelectedValues(event: React.ChangeEvent<HTMLSelectElement>): string[] {
   return Array.from(event.target.selectedOptions).map(option => option.value);
@@ -109,7 +110,7 @@ const ConditionParams: React.FC<{
   }
 
   if (def.paramType === "number") {
-    const paramLabel = fnText(def.id, "paramLabel", def.paramLabel, t);
+    const paramLabel = fnText(def.id, "paramLabel", def.paramLabel, toTranslate(t));
     return (
       <div className="gde__params">
         <input
@@ -240,7 +241,7 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
       color: biomesData.color[id] || "#ccc"
     }));
   }, [biomesData]);
-  const previewText = interpretDistribution(expression, biomesData, t);
+  const previewText = interpretDistribution(expression, biomesData, toTranslate(t));
   const cellCountText =
     matchingCount.status === "invalid"
       ? t("extensions.goodsDistribution.invalid")
@@ -392,7 +393,7 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                               >
                                 {FN_DEFS.map(option => (
                                   <option key={option.id} value={option.id}>
-                                    {fnText(option.id, "label", option.label, t)}
+                                    {fnText(option.id, "label", option.label, toTranslate(t))}
                                   </option>
                                 ))}
                               </select>
@@ -404,7 +405,9 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                                   biomes={biomes}
                                 />
                                 {def?.note && (
-                                  <div className="gde__params-note">{fnText(def.id, "note", def.note, t)}</div>
+                                  <div className="gde__params-note">
+                                    {fnText(def.id, "note", def.note, toTranslate(t))}
+                                  </div>
                                 )}
                               </div>
                               <button
@@ -461,8 +464,8 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
             {FN_DEFS.map(def => (
               <div key={def.id} className="gde__ref-card">
                 <code>{`${def.id}(${paramSignature(def, t)})`}</code>
-                <div className="gde__ref-desc">{fnText(def.id, "description", def.description, t)}</div>
-                {def.note && <div className="gde__ref-note">{fnText(def.id, "note", def.note, t)}</div>}
+                <div className="gde__ref-desc">{fnText(def.id, "description", def.description, toTranslate(t))}</div>
+                {def.note && <div className="gde__ref-note">{fnText(def.id, "note", def.note, toTranslate(t))}</div>}
               </div>
             ))}
             <div className="gde__ref-card">

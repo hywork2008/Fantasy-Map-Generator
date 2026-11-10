@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { MerchantRoutePreference } from "../../../../services/routeGrade";
+import { toTranslate } from "../../../../utils/translate";
 import {
   closeDialog,
   Dialog,
@@ -241,9 +242,9 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
         state: c.state,
         statusLabel:
           c.state === "loading" ? t("extensions.tradeAnimation.loading") : t("extensions.tradeAnimation.inTransit"),
-        reasonLabel: localizeSailReason(c.departReason, t),
+        reasonLabel: localizeSailReason(c.departReason, toTranslate(t)),
         goodName,
-        vesselsLabel: formatCaravanVessels(c, t),
+        vesselsLabel: formatCaravanVessels(c, toTranslate(t)),
         sourceBurgName,
         targetBurgName,
         distance: Math.round(c.totalDistance),

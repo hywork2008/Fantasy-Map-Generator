@@ -13,7 +13,7 @@ export function RosterInstitutionSetup({
   command: (payload: Record<string, unknown>) => unknown;
 }) {
   const { t } = useTranslation();
-  const tr = (key: string, values?: Record<string, unknown>) => String(t(`rosterPresets.${key}`, values));
+  const tr = (key: string, values?: Record<string, unknown>) => String(t(`rosterPresets.${key}`, values ?? {}));
   const [religionId, setReligionId] = useState(0),
     [name, setName] = useState("");
   const [burgIds, setBurgIds] = useState<number[]>([]);

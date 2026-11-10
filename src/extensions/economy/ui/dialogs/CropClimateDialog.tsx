@@ -13,6 +13,7 @@ import {
 import type { Good } from "../../generators/goods-generator";
 import { createAgriculturalClimateReader, getSeasonalCropPlan } from "../../generators/seasonalCropClimate";
 import "./cropClimateDialog.css";
+import { toTranslate } from "../../../../utils/translate";
 
 type ClimateMetric = "temperature" | "precipitation";
 type DialogTab = "detail" | "compare";
@@ -205,7 +206,7 @@ const ClimateMetricPanel: React.FC<{
 }> = ({ crop, metric, domain, cellValue, label }) => {
   const { t } = useTranslation();
   const range = getRange(crop, metric);
-  const selectedCellStatus = getSelectedCellClimateStatus(crop, metric, cellValue, t);
+  const selectedCellStatus = getSelectedCellClimateStatus(crop, metric, cellValue, toTranslate(t));
   return (
     <section className="crop-climate-metric">
       <div className="crop-climate-metric__label" id={`${label.replaceAll(" ", "-")}-label`}>
