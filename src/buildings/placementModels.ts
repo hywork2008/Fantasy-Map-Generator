@@ -37,6 +37,8 @@ import { objectDrawing, PLACEABLE_OBJECTS, placeableObject } from "./placeableOb
 import type { PlacementQuality } from "./placementContract";
 import { axisBoxFromBounds, type FootprintBox, footprintBox } from "./placementContract";
 import type { BuildingRecord } from "./record";
+import { BASILICA_QUALITIES } from "./temples/basilicaTemple";
+import { BASILICA_VARIANTS } from "./temples/basilicaVariants";
 
 const catalogueRecords = Object.values(
   import.meta.glob<BuildingRecord>("./catalogue/*.json", { eager: true, import: "default" })
@@ -103,10 +105,22 @@ for (const record of catalogueRecords) {
     id,
     create: () => createStructureMassing(catalogueMassing(record))
   };
+  // The basilica has detailed Low and High models in the catalogue record's plan frame; the record's massing is only
+  // the fallback for a CE that cannot build them.
+  const qualities =
+    record.id === "basilica-temple"
+      ? Object.fromEntries(
+          BASILICA_QUALITIES.map(level => [
+            level,
+            adoptedDefinition(BASILICA_VARIANTS, "temple.basilica", `basilica-temple:${level}`, { level })
+          ])
+        )
+      : undefined;
   sources.set(id, {
     item: { id, category: record.kind, name: record.name },
-    definition,
-    footprint: () => measured(definition)
+    definition: qualities?.high ?? definition,
+    ...(qualities ? { qualities } : {}),
+    footprint: quality => measured(qualities?.[quality === "low" ? "low" : "high"] ?? definition)
   });
 }
 
