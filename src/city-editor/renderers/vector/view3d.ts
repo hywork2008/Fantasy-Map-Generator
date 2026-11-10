@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import type { ModelQuality } from "../../../buildings/modelQuality";
 import { vectorPickHouse, vectorPickOwner } from "./picking";
 import type { VectorRenderData } from "./renderData";
 import { createVectorScene } from "./scene3d";
@@ -14,8 +15,13 @@ function houseBounds(mesh: THREE.Object3D, range: { firstTriangle: number; endTr
   mesh.updateWorldMatrix(true, false);
   return box.applyMatrix4(mesh.matrixWorld);
 }
-export function mountVector3d(container: HTMLElement, data: VectorRenderData, onSelect?: (id: string) => void) {
-  const model = createVectorScene(data);
+export function mountVector3d(
+  container: HTMLElement,
+  data: VectorRenderData,
+  onSelect?: (id: string) => void,
+  quality: ModelQuality = "high"
+) {
+  let model = createVectorScene(data, { quality });
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, logarithmicDepthBuffer: true });
@@ -140,7 +146,20 @@ export function mountVector3d(container: HTMLElement, data: VectorRenderData, on
   resize();
   let disposed = false;
   return {
-    warnings: model.warnings,
+    get warnings() {
+      return model.warnings;
+    },
+    /** Redraw the city from new render data in the same view: camera, controls and selection outline stay. Used for
+     * look-only changes (the housing culture), which need no regeneration. */
+    update(next: VectorRenderData) {
+      if (disposed) return;
+      const replacement = createVectorScene(next, { quality });
+      scene.remove(model.group);
+      model.dispose();
+      model = replacement;
+      scene.add(model.group);
+      draw();
+    },
     png: () =>
       new Promise<Blob>((resolve, reject) => {
         draw();

@@ -4,14 +4,24 @@ import type { VectorUrbanAlgorithm } from "../../../types/vector/urban";
 /** Output-changing revisions bump this; recipe links refuse documents adopted by another version. */
 export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v16";
 
-/** Ownership evidence excludes the evidence itself and display-only stage selection. */
-function urbanState(doc: VectorCityDocument): string {
+/** The requested settings without the housing culture, which changes how houses look, not what was generated: it
+ * is applied to the open city without regenerating it. */
+function generatedContext(context: VectorCityDocument["context"]): VectorCityDocument["context"] {
+  const requested = context.requestedSettings as { buildingAppearanceProfile?: unknown } | undefined;
+  if (!requested || !("buildingAppearanceProfile" in requested)) return context;
+  const { buildingAppearanceProfile: _look, ...rest } = requested;
+  return { ...context, requestedSettings: rest as NonNullable<VectorCityDocument["context"]["requestedSettings"]> };
+}
+
+/** Ownership evidence excludes the evidence itself, display-only stage selection and the housing culture.
+ * `legacy` keeps the culture, as documents adopted before it became display-only were fingerprinted. */
+function urbanState(doc: VectorCityDocument, legacy = false): string {
   return JSON.stringify({
     paths: doc.paths,
     connections: doc.connections,
     placements: doc.placements,
     regions: doc.regions,
-    context: doc.context,
+    context: legacy ? doc.context : generatedContext(doc.context),
     site: doc.site,
     recipe: doc.recipe,
     ...(doc.environment
@@ -39,8 +49,8 @@ function urbanState(doc: VectorCityDocument): string {
 }
 
 /** Compact ownership evidence; legacy files stored the complete JSON a second time. */
-export function vectorUrbanFingerprint(doc: VectorCityDocument): string {
-  const value = urbanState(doc);
+export function vectorUrbanFingerprint(doc: VectorCityDocument, legacy = false): string {
+  const value = urbanState(doc, legacy);
   let a = 0x811c9dc5,
     b = 0x9e3779b9;
   for (let i = 0; i < value.length; i++) {
@@ -51,5 +61,7 @@ export function vectorUrbanFingerprint(doc: VectorCityDocument): string {
   return `urban-v2:${(a >>> 0).toString(16).padStart(8, "0")}${(b >>> 0).toString(16).padStart(8, "0")}`;
 }
 export function matchesVectorUrbanFingerprint(doc: VectorCityDocument, fingerprint: string) {
-  return fingerprint === (fingerprint.startsWith("{") ? urbanState(doc) : vectorUrbanFingerprint(doc));
+  return fingerprint.startsWith("{")
+    ? fingerprint === urbanState(doc) || fingerprint === urbanState(doc, true)
+    : fingerprint === vectorUrbanFingerprint(doc) || fingerprint === vectorUrbanFingerprint(doc, true);
 }

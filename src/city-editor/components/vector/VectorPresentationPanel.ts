@@ -4,6 +4,7 @@ import { vectorUrbanStages } from "../../generators/vector/validation/urban";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
 import { vectorRenderData } from "../../renderers/vector/renderData";
 import type { mountVector3d } from "../../renderers/vector/view3d";
+import { readModelQualityPreference } from "../../services/browserPreferences";
 import type { EditorLifetime } from "../../services/editorLifetime";
 import { downloadVectorBlob, serializeVectorSvg, vectorGlb, vectorPng } from "../../services/io/vector/exports";
 import { type VectorRecipe, vectorRecipe, vectorShareUrl } from "../../services/io/vector/share";
@@ -71,7 +72,8 @@ export function createVectorPresentationPanel(
     try {
       const { mountVector3d } = await import("../../renderers/vector/view3d");
       if (!current()) return;
-      scene = mountVector3d(host, vectorRenderData(doc, at), onSelect);
+      // The model quality is the editor's shared preference (High unless set lower in the mesh editor).
+      scene = mountVector3d(host, vectorRenderData(doc, at), onSelect, readModelQualityPreference());
       status.textContent = scene.warnings.length ? `${text("massing")}: ${scene.warnings.length}` : text("ready");
     } catch {
       if (!current()) return;
@@ -81,7 +83,15 @@ export function createVectorPresentationPanel(
       status.textContent = text("unavailable");
     }
   };
+  let restyle = false;
   const rendered = (doc: VectorCityDocument, at: VectorStage = doc.urban ? "housing" : "regions") => {
+    if (restyle && scene && view.value === "3d" && at === selected) {
+      restyle = false;
+      displayed = doc;
+      scene.update(vectorRenderData(structuredClone(doc), at));
+      return;
+    }
+    restyle = false;
     scope.invalidate("vector-export");
     stopReplay();
     // Rendered documents are history snapshots or finished candidates, never edited afterwards.
@@ -188,6 +198,11 @@ export function createVectorPresentationPanel(
   scope.listen(box, "input", stopReplay, { capture: true });
   return {
     rendered,
+    /** The next render is a look-only change of the shown city (the housing culture): an open 3D view redraws in
+     * place, keeping its camera, instead of being rebuilt. */
+    restyleNext() {
+      restyle = true;
+    },
     refresh() {
       rendered(read());
     },

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { BuildingAppearance } from "../../../buildings/appearance/types";
+import type { ModelQuality } from "../../../buildings/modelQuality";
 import { placeableObject } from "../../../buildings/placeableObjects";
 import { placementDefinition, placementFootprint } from "../../../buildings/placementModels";
 import { LAND_Y, WATER_Y } from "../../../city3d/core/waterGeometry";
@@ -128,7 +129,13 @@ function appendHousePrism(
   }
 }
 /** Uses the adopted footprints as the authority, with authored BV models only when their envelope still matches. */
-export function createVectorScene(data: VectorRenderData) {
+/**
+ * `quality` is the viewer's model quality (the City Editor's shared preference, High by default, as the mesh
+ * editor's 3D view): BV models drawn for the generated city use it. A placement someone set by hand keeps its own.
+ */
+export function createVectorScene(data: VectorRenderData, options: { quality?: ModelQuality } = {}) {
+  const quality = options.quality ?? "high",
+    placementQuality = quality === "low" ? ("low" as const) : ("high" as const);
   const group = new THREE.Group(),
     warnings = [...data.warnings],
     disposers: (() => void)[] = [],
@@ -266,7 +273,7 @@ export function createVectorScene(data: VectorRenderData) {
     const bvOwners = new Set<string>(),
       bvKinds = new Set<string>();
     if (data.facilities && Object.values(data.facilities.aerial ?? {}).some(list => list?.length) && !data.terrain) {
-      const facilities = createFacilityLayer(data.facilities, harborCache, "high"),
+      const facilities = createFacilityLayer(data.facilities, harborCache, quality),
         holder = new THREE.Group();
       holder.position.set(-data.center[0], -datum, data.center[1]);
       holder.userData = { kind: "feature", representation: "bv-facility" };
@@ -276,7 +283,7 @@ export function createVectorScene(data: VectorRenderData) {
       for (const site of facilities.accepted) bvOwners.add(site.id);
     }
     if (data.monasteries?.length && !data.terrain) {
-      const houses = createTownMonasteries(data.monasteries, undefined, "high"),
+      const houses = createTownMonasteries(data.monasteries, undefined, quality),
         holder = new THREE.Group();
       holder.position.set(-data.center[0], -datum, data.center[1]);
       holder.userData = { kind: "feature", featureKind: "monastery", representation: "bv-monastery" };
@@ -335,6 +342,7 @@ export function createVectorScene(data: VectorRenderData) {
             protectedFarmAreaM2: 0
           },
           undefined,
+          // The forest has its own quality in the mesh editor (Standard by default).
           "standard",
           true,
           season
@@ -409,7 +417,7 @@ export function createVectorScene(data: VectorRenderData) {
       // rest (timber walls, footings, bridges).
       const stonework =
         owner.kind === "wall" && owner.material === "stone"
-          ? createTownWallParts(owner.parts, harborCache, "high", {
+          ? createTownWallParts(owner.parts, harborCache, quality, {
               profile: data.wallProfile ?? "legacy",
               wallIds: [owner.owner],
               gates: owner.gates ?? []
@@ -487,7 +495,7 @@ export function createVectorScene(data: VectorRenderData) {
         const model = ship
           ? createTownShips([{ ...ship, point: [0, 0] }], () => 0)
           : crane
-            ? createTownCranes([{ ...crane, point: [0, 0] }], () => -LAND_Y, harborCache, "low")
+            ? createTownCranes([{ ...crane, point: [0, 0] }], () => -LAND_Y, harborCache, quality)
             : createTownHarborCargo([{ ...pile!, point: [0, 0] }], () => -LAND_Y, harborCache);
         const wrapper = new THREE.Group();
         wrapper.position.set(point[0] - data.center[0], surface.elevationMeters - datum, -point[1] + data.center[1]);
@@ -507,11 +515,13 @@ export function createVectorScene(data: VectorRenderData) {
       const p = surface.placement;
       let placed = false;
       if (p && surface.kind === "building" && !surface.provisional) {
-        const definition =
-            placementDefinition(p.modelId, p.appearance?.quality ?? "low", p.appearance?.palette, {
+        // Pieces laid by the generator draw at the viewer's quality; a hand-set placement keeps its own.
+        const level = p.display?.provenance === "copied" ? placementQuality : (p.appearance?.quality ?? "low"),
+          definition =
+            placementDefinition(p.modelId, level, p.appearance?.palette, {
               activity: p.appearance?.activity
             }) ?? placeableObject(p.modelId),
-          footprint = placementFootprint(p.modelId, p.appearance?.quality ?? "low");
+          footprint = placementFootprint(p.modelId, level);
         if (definition && footprint) {
           const expected = footprint.halfX * 2 * (footprint.halfZ * 2),
             area = surface.polygons.reduce((n, r) => n + regionArea(r), 0),
@@ -617,7 +627,7 @@ export function createVectorScene(data: VectorRenderData) {
       const elevation = new Map(massingLots.map((lot, i) => [lot.polygon, massingElevations[i]])),
         foundation = (ring: Point[]) => elevation.get(ring) ?? 0,
         lots = massingLots as unknown as BuildingLot[],
-        regional = createTownRegionalHouseLod(lots, harborCache, foundation, "high"),
+        regional = createTownRegionalHouseLod(lots, harborCache, foundation, quality),
         details = createTownBuildingDetails(lots, foundation),
         meshes = regional.massing,
         holder = new THREE.Group();

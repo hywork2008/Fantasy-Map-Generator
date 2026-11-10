@@ -4,6 +4,7 @@ import { type EditorMessageKey, editorText } from "../../../i18n/editorMessages"
 import { HISTORICAL_PERIODS } from "../../../types/historicalPeriod";
 import type { VectorEditorGenerationInput } from "../../generators/vector/generation/editorInput";
 import { vectorHousingCulture } from "../../generators/vector/generation/housingCulture";
+import { matchesVectorUrbanFingerprint, vectorUrbanFingerprint } from "../../generators/vector/generation/urbanState";
 import { VECTOR_WALL_SHAPES } from "../../generators/vector/generation/wallShape";
 import type { EditorLifetime } from "../../services/editorLifetime";
 import type { CoastShape, RiverShape } from "../../types/contracts/siteConfig";
@@ -268,12 +269,15 @@ export function createVectorCitySettingsPanel(
     if (value) settings.buildingAppearanceProfile = value;
     else delete settings.buildingAppearanceProfile;
     const doc = read(),
+      // A city generated before the culture was display-only carries it in its ownership evidence: re-stamp it.
+      owned = !!doc.urban && matchesVectorUrbanFingerprint(doc, doc.urban.adoptedFingerprint),
       requested = { ...(doc.context.requestedSettings ?? { config: structuredClone(settings.config) }) } as NonNullable<
         VectorCityDocument["context"]["requestedSettings"]
       > & { buildingAppearanceProfile?: BuildingAppearanceProfile };
     if (value) requested.buildingAppearanceProfile = value;
     else delete requested.buildingAppearanceProfile;
     doc.context.requestedSettings = requested;
+    if (owned && doc.urban) doc.urban.adoptedFingerprint = vectorUrbanFingerprint(doc);
     commit(doc, text("changeHousingCulture"));
     changed();
   });

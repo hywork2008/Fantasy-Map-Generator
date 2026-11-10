@@ -98,4 +98,26 @@ describe("meshless city settings without the mesh editor", () => {
       ui.dispose();
     }
   });
+
+  it("restyles a generated city's houses in place, without regenerating it", () => {
+    const ui = mount();
+    try {
+      const city = generateVectorUrban(
+        generateVectorSkeleton(vectorInputFromEditor(ui.input), { ...DEFAULT_VECTOR_GENERATION, seed: "settings" })
+          .document,
+        { ...DEFAULT_VECTOR_URBAN, population: 3000 }
+      );
+      ui.history.commit(city, "generate");
+      for (const culture of ["stone-upland", "mediterranean"]) {
+        // Committing validates the city: the culture is not part of what the generation owns.
+        ui.pick("housingCulture", culture);
+        const doc = ui.history.document;
+        expect(doc.fabric).toEqual(city.fabric);
+        const houses = vectorRenderData(doc, "housing").surfaces.find(s => s.houses?.appearance)!.houses!;
+        expect(new Set(houses.appearance!.map(a => a?.profileId))).toEqual(new Set([culture]));
+      }
+    } finally {
+      ui.dispose();
+    }
+  });
 });
