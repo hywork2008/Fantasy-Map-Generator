@@ -1,10 +1,13 @@
 import type { BuildingAppearance } from "../../../buildings/appearance/types";
+import { treeLodProfile } from "../../../buildings/landscape/trees";
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
 import { lotMassing, massingContext } from "../../generators/buildingMassing";
+import { treeSpeciesForClimate } from "../../generators/landscapeTreeSpecies";
 import { type ContourLine, fieldContours } from "../../generators/terrainField/contours";
 import type { TownWaterKind } from "../../generators/townWater";
 import { curveSource } from "../../generators/vector/editing/paths";
 import { cellHouseCount, cellHouseRing, fabricHouseId, unpackLine } from "../../generators/vector/fabric/pack";
+import { vectorLandscapeClimate } from "../../generators/vector/generation/forest";
 import { vectorHouseHeightKey, vectorHousingHeights } from "../../generators/vector/generation/housingHeights";
 import { bridgeGeometry, gateOpening, junctionSurface } from "../../generators/vector/geometry/network";
 import { regionBoolean } from "../../generators/vector/geometry/regions";
@@ -85,6 +88,8 @@ export interface VectorRenderData {
   contours?: ContourLine[];
   groundCutouts?: VectorPolygon[];
   landscapeTrees?: (VectorLandscapeTree & { elevationMeters: number })[];
+  /** Wells and public basins drawn as the mesh editor's BV waterworks in 3D. */
+  wells?: { id: string; point: Point; kind: "well" | "publicBasin"; elevationMeters: number }[];
   terrain?: { points: [number, number, number][]; indices: number[] };
   /** Walls (with towers and gates) and bridges as the mesh editor's structure massing, for 3D. Only owners
    * drawn in this stage; the 2D view keeps the surfaces. */
@@ -567,7 +572,7 @@ export function vectorRenderData(
         id: `urban:water:${w.id}`,
         kind: "feature",
         featureKind: "well",
-        pieceRole: w.kind,
+        pieceRole: w.kind === "well" || w.kind === "publicBasin" ? "bv-well" : w.kind,
         polygons: [disc(w.radius)],
         color: w.kind === "pond" ? "#88a5a0" : "#d0c8b7",
         elevationMeters: 0.05,
@@ -579,7 +584,7 @@ export function vectorRenderData(
         id: `urban:water:${w.id}:water`,
         kind: "feature",
         featureKind: "well",
-        pieceRole: "water",
+        pieceRole: w.kind === "well" || w.kind === "publicBasin" ? "bv-well" : "water",
         polygons: [disc(w.radius * 0.65)],
         color: "#719ca8",
         elevationMeters: 0.06,
@@ -633,7 +638,8 @@ export function vectorRenderData(
         id: `urban:park:${park.id}:trees`,
         kind: "feature",
         featureKind: "park",
-        pieceRole: "canopy",
+        // 3D draws the species models instead (P2d-1); the 2D plan keeps the crowns.
+        pieceRole: "landscape-tree",
         polygons: park.trees.map(t => ({
           outer: Array.from(
             { length: 10 },
@@ -717,10 +723,44 @@ export function vectorRenderData(
       ...Object.values(doc.environment?.defenses ?? {}).flatMap(p => p.ditches.flatMap(d => d.region)),
       ...(doc.environment?.harbor?.navigation.water ?? [])
     ],
-    landscapeTrees: doc.environment?.landscape?.trees.map(tree => ({
+    landscapeTrees: [...(doc.environment?.landscape?.trees ?? []), ...vectorParkTrees(doc)].map(tree => ({
       ...tree,
       elevationMeters: terrain.heightAt(tree.point)
     })),
+    // Wells and the plaza basin as the mesh editor's BV waterworks (P2d-1); cisterns and ponds stay surfaces.
+    wells: (doc.urban?.wells ?? []).flatMap(w =>
+      w.kind === "well" || w.kind === "publicBasin"
+        ? [{ id: `urban:water:${w.id}`, point: w.center, kind: w.kind, elevationMeters: terrain.heightAt(w.center) }]
+        : []
+    ),
     terrain: terrainMesh
   };
+}
+
+/**
+ * Park trees as landscape trees (P2d-1): the mesh editor's park planting (`garden_parkland`) adapted to the town's
+ * climate, at the canopy's saved centre and radius, the species' height and a turn from its position.
+ */
+function vectorParkTrees(doc: VectorCityDocument): VectorLandscapeTree[] {
+  const parks = doc.urban?.parks ?? [];
+  if (!parks.length) return [];
+  const climate = { ...vectorLandscapeClimate(doc), seed: doc.recipe.seed };
+  return parks.flatMap(park =>
+    park.trees.flatMap((t, i): VectorLandscapeTree[] => {
+      const species = treeSpeciesForClimate("garden_parkland", climate, t.center);
+      if (!species) return [];
+      return [
+        {
+          id: `urban:park:${park.id}:tree:${i}`,
+          ownerId: `urban:park:${park.id}`,
+          point: t.center,
+          radiusMeters: t.radius,
+          heightMeters: treeLodProfile(species)?.heightMeters ?? 10,
+          angleRadians:
+            (((t.center[0] * 12.9898 + t.center[1] * 78.233) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2),
+          species
+        }
+      ];
+    })
+  );
 }

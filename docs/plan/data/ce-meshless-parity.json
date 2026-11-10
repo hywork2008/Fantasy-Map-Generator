@@ -892,8 +892,8 @@
       "category": "3d",
       "id": "openSpaceMeshes",
       "mesh": "city3d/three/openSpaceMeshes (Open spaces (with tree LOD))",
-      "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "meshless": "partial",
+      "evidence": "P2d-1: park trees (urban.parks) stand as the species BV trees of the landscape-tree layer (garden_parkland adapted to the climate, at the saved canopy radius); the 2D plan keeps the crowns. Not yet: createTownOpenSpaces for churchyards and graves, the camera tree LOD (openSpaceTreeLod) and seasons.",
       "stage": "P6",
       "checked": true
     },
@@ -991,8 +991,8 @@
       "category": "3d",
       "id": "wellMeshes",
       "mesh": "city3d/three/wellMeshes (Wells)",
-      "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "meshless": "equivalent",
+      "evidence": "P2d-1: the P7d wells and the plaza basin (urban.wells, kinds well and publicBasin) drawn by createTownWells with the shared BV prototype cache; their flat rim and water surfaces stay in the 2D plan only. Cisterns and ponds stay surfaces, as the mesh editor's collectWellSites leaves them out.",
       "stage": "P2",
       "checked": true
     },

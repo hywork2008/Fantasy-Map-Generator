@@ -10,6 +10,7 @@ import { createTownRoads } from "../../../city3d/three/roadMeshes";
 import { createTownShips } from "../../../city3d/three/shipMeshes";
 import { createStructureMassing } from "../../../city3d/three/structureMeshes";
 import { createTownWaterParts } from "../../../city3d/three/waterMeshes";
+import { createTownWells } from "../../../city3d/three/wellMeshes";
 import { polygonArea } from "../../generators/geom";
 import type { TownWaterPart } from "../../generators/townWater";
 import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
@@ -230,6 +231,22 @@ export function createVectorScene(data: VectorRenderData) {
       group.add(trees.group);
       disposers.push(() => trees.dispose());
     }
+    if (data.wells?.length) {
+      const local = data.wells.map(w => ({
+          id: w.id,
+          point: [w.point[0] - data.center[0], w.point[1] - data.center[1]] as Point,
+          kind: w.kind,
+          y: w.elevationMeters - datum
+        })),
+        wells = createTownWells(
+          local,
+          p => local.find(w => w.point[0] === p[0] && w.point[1] === p[1])?.y ?? 0,
+          harborCache
+        );
+      wells.group.userData = { kind: "feature", featureKind: "well", representation: "bv-well" };
+      group.add(wells.group);
+      disposers.push(() => wells.dispose());
+    }
     // Generated houses share one mesh per colour, height and tile: draw calls grow with area, not houses.
     const houseBatches = new Map<string, HouseBatch>();
     const massingLots: { polygon: Point[]; massing: BuildingMassing; appearance?: BuildingAppearance }[] = [],
@@ -264,7 +281,7 @@ export function createVectorScene(data: VectorRenderData) {
       roadsDrawn = true;
     }
     for (const surface of data.surfaces) {
-      if (surface.pieceRole === "landscape-tree") continue;
+      if (surface.pieceRole === "landscape-tree" || (surface.pieceRole === "bv-well" && data.wells?.length)) continue;
       if ((surface.kind === "wall" || surface.kind === "bridge") && massed.has(surface.id)) continue;
       if (surface.houses?.massing && surface.houses.massing.length === surface.houses.ids.length) {
         const { ids, elevationsMeters, massing, appearance } = surface.houses;

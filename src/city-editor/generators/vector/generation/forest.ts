@@ -1,4 +1,5 @@
 import type { ForestSettings } from "../../../types/contracts/forest";
+import type { LandscapeClimate } from "../../../types/contracts/landscape";
 import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorPolygon } from "../../../types/vector/generation";
@@ -55,14 +56,17 @@ export const vectorForestSettings = (doc: VectorCityDocument): ForestSettings | 
 
 /** Whether trees grow in the town's climate (the FMG burg's biome and temperature), as the mesh editor judges it. */
 export function vectorTreesGrow(doc: VectorCityDocument): boolean {
+  return treeBiomeForClimate(vectorLandscapeClimate(doc)) !== "none";
+}
+
+/** The town's climate as the mesh editor's tree rules read it: the FMG burg's biome and temperature. */
+export function vectorLandscapeClimate(doc: VectorCityDocument): LandscapeClimate {
   const descriptor = doc.site?.descriptor;
-  return (
-    treeBiomeForClimate({
-      ...(descriptor?.biome ? { biome: descriptor.biome } : {}),
-      temperatureC: descriptor?.climate?.temperatureC,
-      climateBiomeKey: descriptor?.climate?.biomeKey
-    }) !== "none"
-  );
+  return {
+    ...(descriptor?.biome ? { biome: descriptor.biome } : {}),
+    temperatureC: descriptor?.climate?.temperatureC,
+    climateBiomeKey: descriptor?.climate?.biomeKey
+  };
 }
 
 /**
