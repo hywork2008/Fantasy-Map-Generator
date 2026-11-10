@@ -75,7 +75,7 @@ export interface VectorUrbanCheckpoint {
  * districts, street blocks, lanes and houses saved as fabric records (native v8) instead of paths and
  * placements. v10: house storeys by the mesh editor's height variation and height limit (P3b). v11: lots kept off gate openings
  * and junction discs exactly (P4a). v12: wall shapes turned in 48 steps and checked against their gates; double
- * walls (P4b). v14: house storeys by the economic ward of the street block (P6g). v15: roadside ribbon beyond the wall (P7a). v16: park wards laid out as lawns (P7c). Saved output of
+ * walls (P4b). v14: house storeys by the economic ward of the street block (P6g). v15: roadside ribbon beyond the wall (P7a). v16: park wards laid out as lawns (P7c); water points (P7d). Saved output of
  * an older version stays as adopted. */
 export type VectorUrbanAlgorithm =
   | "vector-urban-v1"
@@ -115,6 +115,8 @@ export interface VectorUrban {
   }[];
   /** Park wards laid out as lawns by the mesh editor's park fabric (P7c); no house stands on them. */
   parks?: VectorPark[];
+  /** Wells, cisterns, the plaza basin and the service pond, by the mesh editor's water points (P7d). */
+  wells?: VectorWaterPoint[];
   ownedPaths: string[];
   ownedPlacements: string[];
   adoptedFingerprint: string;
@@ -131,4 +133,17 @@ export interface VectorPark {
   paths: [number, number][][];
   tufts: [number, number][];
   trees: { center: [number, number]; radius: number; subCircles: { offset: [number, number]; radius: number }[] }[];
+}
+
+/** A water point by the mesh editor's rules (`layoutDomesticWater`). */
+export interface VectorWaterPoint {
+  id: string;
+  kind: "well" | "publicBasin" | "cistern" | "spring" | "pond";
+  name: string;
+  center: [number, number];
+  radius: number;
+  footprint: [number, number][];
+  access: [number, number][];
+  placement: "plaza" | "neighborhood" | "outskirts";
+  use: "domestic" | "service";
 }

@@ -49,6 +49,7 @@ import {
 } from "./urbanPacking";
 import { matchesVectorUrbanFingerprint, VECTOR_URBAN_ALGORITHM, vectorUrbanFingerprint } from "./urbanState";
 import { assignVectorWards, streetBlockOf, wardHeightKind } from "./wards";
+import { layoutVectorWells } from "./wells";
 
 export const DEFAULT_VECTOR_URBAN: VectorUrbanSettings = {
   mode: "medieval",
@@ -699,6 +700,9 @@ function* vectorUrbanSteps(
       })
     : [];
   timed("parks");
+  // Water points stand after the houses, the market and the parks: none takes a dwelling or a street (P7d).
+  const wells = organic ? layoutVectorWells(doc, districts) : [];
+  timed("wells");
   const allocation = allocateVectorResidents(doc, all, required, settings.population, true);
   if (allocation.unplacedDwellings)
     reasons.push(
@@ -750,6 +754,7 @@ function* vectorUrbanSteps(
     residualLand,
     districts,
     ...(parks.length ? { parks } : {}),
+    ...(wells.length ? { wells } : {}),
     ownedPaths,
     ownedPlacements,
     adoptedFingerprint: vectorUrbanFingerprint(doc),

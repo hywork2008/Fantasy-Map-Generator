@@ -775,8 +775,8 @@
       "category": "generated",
       "id": "wells-and-water",
       "mesh": "wells, domestic water, watermills",
-      "meshless": "missing",
-      "evidence": "Not generated.",
+      "meshless": "partial",
+      "evidence": "P7d: the mesh editor's water points (placeDomesticWater through the cell-free layoutDomesticWater) after the houses: a public basin on the civic plaza, one community well per 80 buildings (every fourth a rainwater cistern) at least 55 m apart on vacant ground of market, merchant, craftsman, patrician and unassigned street blocks with a walk of at most 12 m to a road, street or lane, and a service pond on vacant outskirts ground; stored as urban.wells (vector-urban-v16) and drawn as rim, water and access path. Not yet: spring basins (no river sources on the meshless site), watermills, the wellMeshes 3D parts, moat and fixed-road checks (no mesh reservations).",
       "stage": "P7",
       "checked": true
     },

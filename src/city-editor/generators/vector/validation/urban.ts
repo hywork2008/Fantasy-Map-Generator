@@ -158,7 +158,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     !keys(
       u,
       "algorithm,inputRevision,settings,baseGeneration,baseConnections,baseContext,domain,laneBlocks,residualLand,districts,ownedPaths,ownedPlacements,adoptedFingerprint,checkpoints,assignments,report",
-      "parks"
+      "parks,wells"
     ) ||
     ![
       "vector-urban-v1",
@@ -245,6 +245,25 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
                 Array.isArray(t.subCircles) &&
                 t.subCircles.every(c => keys(c, "offset,radius") && point(c.offset) && finite(c.radius) && c.radius > 0)
             )
+        ))) ||
+    (u.wells !== undefined &&
+      (!Array.isArray(u.wells) ||
+        u.wells.length > 200 ||
+        !u.wells.every(
+          w =>
+            keys(w, "id,kind,name,center,radius,footprint,access,placement,use") &&
+            id(w.id) &&
+            ["well", "publicBasin", "cistern", "spring", "pond"].includes(w.kind) &&
+            typeof w.name === "string" &&
+            point(w.center) &&
+            finite(w.radius) &&
+            w.radius > 0 &&
+            polygon({ outer: w.footprint, holes: [] }) &&
+            Array.isArray(w.access) &&
+            w.access.length >= 2 &&
+            w.access.every(point) &&
+            ["plaza", "neighborhood", "outskirts"].includes(w.placement) &&
+            ["domestic", "service"].includes(w.use)
         ))) ||
     !Array.isArray(u.ownedPaths) ||
     !u.ownedPaths.every(id) ||

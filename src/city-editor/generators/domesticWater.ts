@@ -45,25 +45,82 @@ export function placeDomesticWater(
   routes: Array<{ points: Point[]; widthMeters: number }>,
   buildingCount: number
 ): DomesticWaterPoint[] {
-  const routeIndex = new NearbyPolylineIndex(routes);
   const document = site.document;
   const moat = new MoatReservation(document, 1);
   const fixedRoads = new FixedRoadReservation(document);
-  const result: DomesticWaterPoint[] = [];
-  const dry = (polygon: Point[]) => site.inFrame(polygon) && !site.hitsWater(polygon, 2) && !moat.hitsPolygon(polygon);
-  const free = (polygon: Point[]) =>
-    dry(polygon) &&
-    !site.hitsRoutes(polygon, 0.5) &&
-    !fixedRoads.hitsPolygon(polygon) &&
-    !site.hitsBlocked(polygon) &&
-    !site.buildingsIn(polygon, 0.5).length &&
-    !site.hitsLanes(polygon) &&
-    !site.farmsIn(polygon).length;
-  const sourcePoints = document.featureGroups.flatMap(group =>
+  const springs = document.featureGroups.flatMap(group =>
     group.kind === "river" && group.source?.kind === "spring"
       ? [document.mesh.vertices[group.source.vertexId]?.point].filter((p): p is Point => !!p)
       : []
   );
+  const blocks = Object.values(document.mesh.faces)
+    .filter(
+      f =>
+        f.properties.water === "land" &&
+        f.properties.settlement &&
+        ["market", "merchant", "craftsmen", "patriciate", "empty", "farm"].includes(f.properties.ward ?? "")
+    )
+    .map(face => ({
+      polygon: facePoints(document.mesh, face),
+      farm: face.properties.ward === "farm",
+      outskirts: face.properties.settlement === "outskirts"
+    }));
+  const plazas = document.elements
+    .filter(e => e.kind === "plaza" && e.point)
+    .map(e => ({ center: e.point!, sizeMeters: e.sizeMeters ?? 16 }));
+  return layoutDomesticWater(
+    {
+      // The site is a class: its methods live on the prototype, so they are bound, not spread.
+      inFrame: polygon => site.inFrame(polygon),
+      hitsWater: (polygon, clearance) => site.hitsWater(polygon, clearance),
+      hitsRoutes: (polygon, clearance, kinds) => site.hitsRoutes(polygon, clearance, kinds),
+      hitsBlocked: polygon => site.hitsBlocked(polygon),
+      buildingsIn: (polygon, clearance) => site.buildingsIn(polygon, clearance),
+      hitsLanes: polygon => site.hitsLanes(polygon),
+      farmsIn: polygon => site.farmsIn(polygon),
+      claim: polygon => site.claim(polygon),
+      hitsMoat: polygon => moat.hitsPolygon(polygon),
+      hitsFixedRoads: polygon => fixedRoads.hitsPolygon(polygon)
+    },
+    routes,
+    buildingCount,
+    { blocks, plazas, springs }
+  );
+}
+
+/** The obstacle view of the water points, without cells. */
+export interface DomesticWaterSite extends Omit<WaterSite, "document"> {
+  hitsMoat(polygon: Point[]): boolean;
+  hitsFixedRoads(polygon: Point[]): boolean;
+}
+
+/**
+ * The mesh editor's water points without cells: a public basin on each plaza, one domestic well (every fourth a
+ * cistern; a spring by a river source) per 80 buildings, 55 m apart, on vacant ground of the settled blocks with a
+ * short walk to a street, and one service pond on the outskirts of a town of 80 buildings or more.
+ */
+export function layoutDomesticWater(
+  site: DomesticWaterSite,
+  routes: Array<{ points: Point[]; widthMeters: number }>,
+  buildingCount: number,
+  land: {
+    blocks: { polygon: Point[]; farm: boolean; outskirts: boolean }[];
+    plazas: { center: Point; sizeMeters: number }[];
+    springs: Point[];
+  }
+): DomesticWaterPoint[] {
+  const routeIndex = new NearbyPolylineIndex(routes);
+  const result: DomesticWaterPoint[] = [];
+  const dry = (polygon: Point[]) => site.inFrame(polygon) && !site.hitsWater(polygon, 2) && !site.hitsMoat(polygon);
+  const free = (polygon: Point[]) =>
+    dry(polygon) &&
+    !site.hitsRoutes(polygon, 0.5) &&
+    !site.hitsFixedRoads(polygon) &&
+    !site.hitsBlocked(polygon) &&
+    !site.buildingsIn(polygon, 0.5).length &&
+    !site.hitsLanes(polygon) &&
+    !site.farmsIn(polygon).length;
+  const sourcePoints = land.springs;
   const add = (center: Point, placement: DomesticWaterPoint["placement"], preferred: DomesticWaterPoint["kind"]) => {
     const kind =
       preferred === "well" && sourcePoints.some(p => Math.hypot(p[0] - center[0], p[1] - center[1]) < 12)
@@ -128,14 +185,8 @@ export function placeDomesticWater(
     });
     return true;
   };
-  const faces = Object.values(document.mesh.faces).filter(
-    f =>
-      f.properties.water === "land" &&
-      f.properties.settlement &&
-      ["market", "merchant", "craftsmen", "patriciate", "empty", "farm"].includes(f.properties.ward ?? "")
-  );
-  const candidates = faces.flatMap(face => {
-    const polygon = facePoints(document.mesh, face);
+  const candidates = land.blocks.flatMap(face => {
+    const polygon = face.polygon;
     const c = polygonCentroid(polygon);
     // Sample vacant ground across each block, including its street-facing edge.
     return [
@@ -147,13 +198,13 @@ export function placeDomesticWater(
       })
     ].map(center => ({ center, face, polygon }));
   });
-  for (const plaza of document.elements.filter(e => e.kind === "plaza" && e.point)) {
-    const center = plaza.point!;
-    const r = Math.max(3, (plaza.sizeMeters ?? 16) * 0.3);
+  for (const plaza of land.plazas) {
+    const center = plaza.center;
+    const r = Math.max(3, plaza.sizeMeters * 0.3);
     for (const p of [center, ...ring(center, r)]) {
       if (
         Math.hypot(p[0] - center[0], p[1] - center[1]) + PUBLIC_WATER_BASINS.publicBasin.radius >
-        (plaza.sizeMeters ?? 16) / 2
+        plaza.sizeMeters / 2
       )
         continue;
       if (add(p, "plaza", "publicBasin")) break;
@@ -162,19 +213,14 @@ export function placeDomesticWater(
   const target = Math.min(64, Math.max(1, Math.ceil(buildingCount / 80)));
   for (const { center, face, polygon } of candidates) {
     if (result.filter(p => p.use === "domestic").length >= target) break;
-    if (
-      face.properties.ward === "farm" ||
-      result.some(p => Math.hypot(p.center[0] - center[0], p.center[1] - center[1]) < 55)
-    )
-      continue;
+    if (face.farm || result.some(p => Math.hypot(p.center[0] - center[0], p.center[1] - center[1]) < 55)) continue;
     if (!ring(center, 3.1).every(p => pointInPolygon(p, polygon))) continue;
     add(center, "neighborhood", result.filter(p => p.use === "domestic").length % 4 === 3 ? "cistern" : "well");
   }
   // Small rain-fed storage basins on the settled periphery, never drinking-water claims.
   for (const { center, face, polygon } of candidates) {
     if (buildingCount < 80 || result.some(p => p.kind === "pond")) break;
-    if (face.properties.settlement !== "outskirts" || !ring(center, 6.1).every(p => pointInPolygon(p, polygon)))
-      continue;
+    if (!face.outskirts || !ring(center, 6.1).every(p => pointInPolygon(p, polygon))) continue;
     add(center, "outskirts", "pond");
   }
   return result;

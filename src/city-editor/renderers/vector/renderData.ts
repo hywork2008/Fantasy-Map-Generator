@@ -527,6 +527,65 @@ export function vectorRenderData(
       elevationMeters: 0.01,
       heightMeters: 0
     });
+  // Water points (P7d), in the mesh editor's colours (aerialLandmarksSvg): rim, water, access path.
+  for (const w of doc.urban?.wells ?? []) {
+    const disc = (r: number) => ({
+      outer: Array.from(
+        { length: 12 },
+        (_, k): Point => [
+          w.center[0] + Math.cos((k / 12) * Math.PI * 2) * r,
+          w.center[1] + Math.sin((k / 12) * Math.PI * 2) * r
+        ]
+      ),
+      holes: []
+    });
+    const [a, b] = [w.access[0], w.access.at(-1)!],
+      l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1,
+      n: Point = [(-(b[1] - a[1]) / l) * 0.5, ((b[0] - a[0]) / l) * 0.5];
+    surfaces.push(
+      {
+        id: `urban:water:${w.id}:access`,
+        kind: "feature",
+        featureKind: "well",
+        pieceRole: "access",
+        polygons: [
+          {
+            outer: [
+              [a[0] + n[0], a[1] + n[1]],
+              [b[0] + n[0], b[1] + n[1]],
+              [b[0] - n[0], b[1] - n[1]],
+              [a[0] - n[0], a[1] - n[1]]
+            ],
+            holes: []
+          }
+        ],
+        color: "#c9b48f",
+        elevationMeters: 0.03,
+        heightMeters: 0
+      },
+      {
+        id: `urban:water:${w.id}`,
+        kind: "feature",
+        featureKind: "well",
+        pieceRole: w.kind,
+        polygons: [disc(w.radius)],
+        color: w.kind === "pond" ? "#88a5a0" : "#d0c8b7",
+        elevationMeters: 0.05,
+        heightMeters: 0
+      }
+    );
+    if (w.kind !== "pond")
+      surfaces.push({
+        id: `urban:water:${w.id}:water`,
+        kind: "feature",
+        featureKind: "well",
+        pieceRole: "water",
+        polygons: [disc(w.radius * 0.65)],
+        color: "#719ca8",
+        elevationMeters: 0.06,
+        heightMeters: 0
+      });
+  }
   // Park wards (P7c): the mesh editor's lawn, walkway and canopy colours (openSpaceSites).
   for (const park of doc.urban?.parks ?? []) {
     surfaces.push({
