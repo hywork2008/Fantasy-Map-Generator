@@ -1013,3 +1013,11 @@ P4（市壁・防御の生成）を次の区切りに分けた。P4a 形状・�
 - 旧CEの`createTownWalls`は、文書（外観の文脈・市壁の組・門の頂点）から石の市壁と門の位置を読む。これを呼び出し側に出し、構造の量塊とBVの部品だけで描く`createTownWallParts`（外観の型・市壁のID・門の中心と向き）を切り出した。旧CEは従来どおり`createTownWalls`を呼ぶ。
 - メッシュなしは、`vectorStructures`が市壁ごとに材質と通路の門の中心・接線・内向きの法線を返し、3Dで石の市壁を所有者ごとに`createTownWallParts`へ渡す。置き換えた部品は量塊から外す。旧CEは高品質の時だけBVにするが、メッシュなしに品質の設定が無いので常に高品質とした。塔と門の外観の型は住宅と同じ自動の文化。
 - テスト（`renderers/vector/structureMassing.test.ts`に1件）：楕円の市壁の合成の町で、BVの石積み（`codex-town-defenses`）が市壁のIDで選択でき、門の数だけ門楼、塔と幕壁も置き換わる。
+
+## P2d-3 橋・桟橋の3D（2026-11-10）
+
+- 旧CEの`createTownBridges`から、文書の代わりに橋の位置（`BridgeSite`）を受け取る`createTownBridgesAt`を切り出した。旧CEは`collectBridgeSites`の結果を渡す。
+- メッシュなしは`vectorStructures`の橋に、床版の線・幅・材質（石・木）を`bridgeSite`として付け、3Dで組み立て式のBVの橋を立てる。高さは旧CEの陸（`LAND_Y`）と水面（`WATER_Y`）に合わせ、全体を基準面へずらす。量塊の床版は橋が作れなかった時だけ描く。選択は橋のIDのまま。
+- 港の桟橋（4隅の床版）は旧CEの`createTownPiers`で、水平の床板・杭・係船柱を描き、平らな桟橋の面は2Dだけに残す。
+- 起伏のある敷地では、旧CEの高さの合わせ方が未定なので、橋・桟橋とも従来の描き方のまま（P8）。渡し場の桟橋は未対応。
+- テスト`renderers/vector/bridgesPiers3d.test.ts`：合成の町の橋がすべてBVの橋になり、橋のIDで選択でき、量塊の床版が残らない。湾の港町の桟橋が木の桟橋になり、平らな面が3Dに残らない。

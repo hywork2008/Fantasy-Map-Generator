@@ -98,6 +98,8 @@ export interface VectorRenderData {
   structures?: ReturnType<typeof vectorStructures>;
   /** The culture profile of the mesh editor's BV town towers and gates (P2d-2). */
   wallProfile?: BuildingAppearanceProfile;
+  /** Harbour piers as the mesh editor's timber piers in 3D (P2d-3). */
+  piers?: { id: string; deck: Point[]; depth: number }[];
   /** Roads of this stage as the mesh editor's wearing-course ribbons, for 3D. */
   roads?: ReturnType<typeof vectorRoadRibbons>;
   /** Flat sites only: the drawn water by the mesh editor's water kind, for its water and bank meshes in 3D.
@@ -714,6 +716,9 @@ export function vectorRenderData(
     water,
     structures: vectorStructures(doc).filter(s => drawn.has(s.owner)),
     wallProfile: vectorWallProfile(doc),
+    piers: (doc.environment?.harbor?.piers ?? []).flatMap(p =>
+      p.polygon.outer.length === 4 ? [{ id: p.id, deck: p.polygon.outer, depth: p.depthMeters }] : []
+    ),
     roads: vectorRoadRibbons(doc, id => roadOwners.has(id)),
     revision: doc.revision,
     stage,

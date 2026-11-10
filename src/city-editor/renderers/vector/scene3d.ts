@@ -2,10 +2,12 @@ import * as THREE from "three";
 import type { BuildingAppearance } from "../../../buildings/appearance/types";
 import { placeableObject } from "../../../buildings/placeableObjects";
 import { placementDefinition, placementFootprint } from "../../../buildings/placementModels";
-import { LAND_Y } from "../../../city3d/core/waterGeometry";
+import { LAND_Y, WATER_Y } from "../../../city3d/core/waterGeometry";
+import { createTownBridgesAt } from "../../../city3d/three/bridgeMeshes";
 import { createBvPrototypeCache } from "../../../city3d/three/bvInstances";
 import { createCityMassing } from "../../../city3d/three/cityMeshes";
 import { createTownCranes, createTownHarborCargo } from "../../../city3d/three/craneMeshes";
+import { createTownPiers } from "../../../city3d/three/pierMeshes";
 import { createTownRoads } from "../../../city3d/three/roadMeshes";
 import { createTownShips } from "../../../city3d/three/shipMeshes";
 import { createStructureMassing } from "../../../city3d/three/structureMeshes";
@@ -232,6 +234,19 @@ export function createVectorScene(data: VectorRenderData) {
       group.add(trees.group);
       disposers.push(() => trees.dispose());
     }
+    if (data.piers?.length && !data.terrain) {
+      const piers = createTownPiers(
+          data.piers,
+          () => WATER_Y,
+          () => LAND_Y
+        ),
+        holder = new THREE.Group();
+      holder.position.set(-data.center[0], -datum - LAND_Y, data.center[1]);
+      holder.userData = { kind: "feature", featureKind: "harbor", representation: "bv-pier" };
+      holder.add(piers.group);
+      group.add(holder);
+      disposers.push(() => piers.dispose());
+    }
     if (data.wells?.length) {
       const local = data.wells.map(w => ({
           id: w.id,
@@ -255,8 +270,24 @@ export function createVectorScene(data: VectorRenderData) {
       massingElevations: number[] = [];
     // Walls, towers, gates and bridges use the mesh editor's structure massing, one group per owner for picking.
     const massed = new Set<string>();
+    // The mesh editor's land lies at LAND_Y and its water at WATER_Y; here the land is at the datum.
+    const level = { heightAt: () => LAND_Y, surfaceAt: () => LAND_Y };
     for (const owner of data.structures ?? []) {
       if (!owner.parts.length) continue;
+      if (owner.bridgeSite && !data.terrain) {
+        const bridges = createTownBridgesAt([owner.bridgeSite], level, () => WATER_Y),
+          holder = new THREE.Group();
+        if (bridges.replaced.size) {
+          holder.position.set(-data.center[0], -datum - LAND_Y, data.center[1]);
+          holder.userData = { id: owner.owner, kind: owner.kind, representation: "bv-bridge" };
+          holder.add(bridges.group);
+          group.add(holder);
+          disposers.push(() => bridges.dispose());
+          massed.add(owner.owner);
+          continue;
+        }
+        bridges.dispose();
+      }
       // Stone town walls take the mesh editor's BV curtain, towers and gatehouses (P2d-2); the massing keeps the
       // rest (timber walls, footings, bridges).
       const stonework =
@@ -296,6 +327,7 @@ export function createVectorScene(data: VectorRenderData) {
       roadsDrawn = true;
     }
     for (const surface of data.surfaces) {
+      if (surface.pieceRole === "pier" && data.piers?.some(p => p.id === surface.id) && !data.terrain) continue;
       if (surface.pieceRole === "landscape-tree" || (surface.pieceRole === "bv-well" && data.wells?.length)) continue;
       if ((surface.kind === "wall" || surface.kind === "bridge") && massed.has(surface.id)) continue;
       if (surface.houses?.massing && surface.houses.massing.length === surface.houses.ids.length) {

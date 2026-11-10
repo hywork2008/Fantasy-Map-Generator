@@ -9,6 +9,7 @@ import { vectorTerrain } from "../../generators/vector/terrain";
 import type { StructureMassing, StructureMaterial } from "../../types/contracts/structureMassing";
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument } from "../../types/vector/document";
+import type { BridgeSite } from "../bridgeSites";
 import { curtainTowersAlong, gateMassesAt, wallBodyHeight, wallRunsWithOpenings } from "../structureMassing";
 import { resolveWallGeometry } from "../wallSvg";
 
@@ -31,6 +32,7 @@ export interface VectorStructureOwner {
   parts: StructureMassing[];
   material?: StructureMaterial;
   gates?: TownWallGate[];
+  bridgeSite?: BridgeSite;
 }
 
 export function vectorStructures(doc: VectorCityDocument): VectorStructureOwner[] {
@@ -141,9 +143,21 @@ export function vectorStructures(doc: VectorCityDocument): VectorStructureOwner[
     const road = doc.paths[bridge.roadPathId],
       { from, to } = bridgeGeometry(doc, bridge, waters),
       level = terrain.hasRelief ? terrain.bridgeElevation(bridge.id) : 0;
+    const width = road.width.leftMeters + road.width.rightMeters;
     out.push({
       owner: bridge.id,
       kind: "bridge",
+      // The mesh editor's modular bridge over the same deck line (P2d-3); the massing part is its fallback.
+      bridgeSite: {
+        id: bridge.id,
+        name: bridge.id,
+        points: [from, to],
+        widthMeters: width,
+        material: bridge.structure,
+        skewDegrees: 0,
+        openingMeters: 0,
+        structureId: `bridge:${bridge.id}`
+      },
       parts: [
         {
           id: `bridge:${bridge.id}`,

@@ -793,8 +793,8 @@
       "category": "3d",
       "id": "bridgeMeshes",
       "mesh": "city3d/three/bridgeMeshes (Bridges)",
-      "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "meshless": "equivalent",
+      "evidence": "P2d-3: the cell-free createTownBridgesAt (split out of createTownBridges) builds each meshless bridge as the modular BV bridge over its deck line (vectorStructures' bridgeSite: width, stone or timber), on the mesh editor's land and water levels; the massing deck stays only as a fallback. On relief the massing deck is kept until P8.",
       "stage": "P2",
       "checked": true
     },
@@ -901,8 +901,8 @@
       "category": "3d",
       "id": "pierMeshes",
       "mesh": "city3d/three/pierMeshes (Piers)",
-      "meshless": "missing",
-      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "meshless": "partial",
+      "evidence": "P2d-3: harbour piers (environment.harbor.piers, four-corner decks from the shared harbour generator) drawn by createTownPiers with level timber decking, piles and bollards; the flat pier outline stays in the 2D plan. Not yet: ferry jetties, piers on relief (P8).",
       "stage": "P2",
       "checked": true
     },
