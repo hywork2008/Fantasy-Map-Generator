@@ -6,7 +6,7 @@ import { clearEconomyContext, initEconomyContext, setCaravans, setGoods, setMark
 import { Caravans } from "./caravans";
 import { ExportStaging } from "./exportStaging";
 import { recordGoodFlow } from "./goodsBalanceLedger";
-import { discardLivestockCargo, getLivestockLotLedger } from "./livestockLots";
+import { compactLivestockLotLedger, discardLivestockCargo, getLivestockLotLedger } from "./livestockLots";
 import type { Caravan } from "./marketTypes";
 import { commitSlaughter } from "./slaughterTransactions";
 
@@ -192,4 +192,20 @@ it("keeps legacy owner inventory unknown while preserving the unsold owner's rem
   expect(lots.filter(lot => lot.ownerId === "character:1").reduce((sum, lot) => sum + lot.heads, 0)).toBe(2);
   expect(lots.filter(lot => lot.status === "market").reduce((sum, lot) => sum + lot.heads, 0)).toBe(1);
   expect(lots.every(lot => lot.sourceCellId === null && lot.shipmentId === "")).toBe(true);
+});
+
+it("retires consumed shipments into per-period exits and keeps provenance of live lots", () => {
+  move("source", 2, 2, { livestockSourceCellId: 7 });
+  move("source", 3, 5, { livestockSourceCellId: 8 });
+  move("sink", 2.5, 2.5);
+  const ledger = getLivestockLotLedger()!;
+  const [consumed, live] = Object.keys(ledger.shipments);
+  const period = ledger.shipments[consumed].period;
+  expect(compactLivestockLotLedger()).toEqual({ shipments: 1, exits: 1 });
+  expect(Object.keys(ledger.shipments)).toEqual([live]);
+  expect(ledger.exits[consumed]).toBeUndefined();
+  expect(ledger.exits[`retired:${period}`]).toEqual({ recipeInput: 2 });
+  expect(ledger.exits[live]).toEqual({ recipeInput: 0.5 });
+  expect(Object.values(ledger.lots).map(lot => [lot.shipmentId, lot.heads])).toEqual([[live, 2.5]]);
+  expect(compactLivestockLotLedger()).toEqual({ shipments: 0, exits: 0 });
 });

@@ -5,6 +5,7 @@
 - 2026-10-28 計画。
 - 2026-10-28 L1（索引）を実装。関連テスト62件が成功。12か月の golden はセクション別に`world.notes`以外が変更前と一致した。12か月目の1か月の時間は27→17秒、12か月の合計は154→132秒。
 - 2026-10-28 L2。48か月は69分→9分、48か月目の1か月は279→20秒、`production:rural`の self は220→1秒。月の時間はほぼ一定になった（[記録](../analytics/tick-growth-20261028.md#追加-l1ロットの索引の効果2026-10-28)）。ロットは48か月目に104,643件で増え続ける。
+- 2026-11-11 L3 の一部（`shipments`・`exits`）を実装。1603年開始の Venvilia（1611年6月）で`.fmg`の保存がブラウザごと落ちた。`simulation/core.json`が491 MB（V8 の文字列上限 536,870,888 の91%）で、うち`shipments`が251 MB（151.7万件、生きたロットが参照するのは27万件）、`exits`が57 MB（129.7万件）。`compactLivestockLotLedger()`で、生きたロットが参照しない出荷を削除し、その`exits`を`retired:<period>`の集計に畳む。月の締めごとと、未圧縮の保存の読み込み時（load repair `economy.livestockLotCompaction` v1）に行う。`ownedSlaughter`は台帳全体のコピーをやめ、1ロット・1行だけ更新する。同じファイルを`npm run sim`で1か月進めると`core.json`は232 MB。古い市場ロットの統合（§3.2の1項目め）は未実装。
 - 根拠: [長期実行で月ごとに遅くなる原因の計測](../analytics/tick-growth-20261028.md)。関連: [冬前の屠畜と肉保存](winter-livestock-slaughter-and-preservation.md)（所有・出所の会計）、[Rust 化の設計](rust-simulation-core.md) の R0。
 
 ## 1. 問題

@@ -6,7 +6,7 @@ import { getGoods } from "../context/trade";
 import { isGoodEnabled } from "./goods-generator";
 import { animalsPerMarketHead } from "./liveAnimalScale";
 import { livestockFeedPeriod } from "./livestockFeedState";
-import type { LivestockLotLedger } from "./livestockLots";
+import { type LivestockLotLedger, replaceLivestockLot } from "./livestockLots";
 import { type CarcassProfile, commitSlaughter, type SlaughterRequest } from "./slaughterTransactions";
 
 export interface OwnedSlaughterRequest {
@@ -138,22 +138,15 @@ export function commitOwnedSlaughter(request: OwnedSlaughterRequest, profile: Ca
   const remaining = openingUnits - units;
   if (remaining > 0) nextInventory[good.i] = remaining;
   else delete nextInventory[good.i];
-  const nextLots = { ...ledger.lots, [request.lotId]: stagedLot };
-  if (stagedLot.heads === 0) delete nextLots[request.lotId];
   const totals = ledger.exits[lot.shipmentId] ?? {};
-  const nextLedger: LivestockLotLedger = {
-    ...ledger,
-    lots: nextLots,
-    exits: {
-      ...ledger.exits,
-      [lot.shipmentId]: { ...totals, slaughterCommitted: (totals.slaughterCommitted ?? 0) + request.heads }
-    }
-  };
+  const nextTotals = { ...totals, slaughterCommitted: (totals.slaughterCommitted ?? 0) + request.heads };
 
-  // No event or user callback may run between these validated, in-memory writes.
+  // No event or user callback may run between these validated, in-memory writes. The ledger is
+  // updated in place (one lot, one exits row): copying its record sets would cost O(ledger) per call.
   if (Object.keys(nextInventory).length) character.inventory = nextInventory;
   else delete character.inventory;
-  slice.livestockLots = nextLedger;
+  replaceLivestockLot(ledger, request.lotId, stagedLot.heads === 0 ? null : stagedLot);
+  ledger.exits[lot.shipmentId] = nextTotals;
   slice.slaughter = nextSlaughter;
   return structuredClone(receipt);
 }

@@ -2,7 +2,7 @@ import { MEAN_DAYS_PER_MONTH, MEAN_DAYS_PER_YEAR } from "../../runtime/calendarD
 import type { DataTopic } from "../../runtime/worldRuntime";
 import { registerDayFinalizer } from "../../runtime/worldRuntime";
 import { simEvents } from "../../simulation/events";
-import { isRepairAtVersion } from "../../simulation/loadRepairs";
+import { isRepairAtVersion, markRepairAtVersion } from "../../simulation/loadRepairs";
 import { prepareMasterReference } from "../../simulation/masterReference";
 import { uiPreferencesStore } from "../../state/uiPreferencesStore";
 import type { SimulationExtension, SimulationExtensionAPI } from "../../types/extension-api";
@@ -190,6 +190,11 @@ import { LeveeSites } from "./generators/leveeSites";
 import { Levees } from "./generators/levees";
 import { clearLiveAnimalCatchAccumulators } from "./generators/liveAnimalCatch";
 import { scheduleLivestockFeedPeriods } from "./generators/livestockFeedSchedule";
+import {
+  compactLivestockLotLedger,
+  LIVESTOCK_LOT_COMPACTION_LOAD_REPAIR,
+  LIVESTOCK_LOT_COMPACTION_LOAD_REPAIR_VERSION
+} from "./generators/livestockLots";
 import { LNGPlants } from "./generators/lngPlants";
 import { clearFlowDiagnostics } from "./generators/marketFlowDiagnostics";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
@@ -1843,6 +1848,16 @@ function register(api: SimulationExtensionAPI): () => void {
       )
     )
       DevelopmentPotential.generate();
+    // Archives saved before compaction carry every shipment since the start (hundreds of MB);
+    // compact once so they can be saved again. Later saves are compacted monthly and marked.
+    if (
+      !isRepairAtVersion(
+        getWorldContext().options,
+        LIVESTOCK_LOT_COMPACTION_LOAD_REPAIR,
+        LIVESTOCK_LOT_COMPACTION_LOAD_REPAIR_VERSION
+      )
+    )
+      compactLivestockLots();
     // A world saved before B1 and never advanced still receives its birth herds; an advanced world
     // keeps the herds it has grown.
     if (isUnadvancedWorld()) settleWorldBirthHerds(() => DevelopmentPotential.replanWorldBirth());
@@ -2598,6 +2613,8 @@ function register(api: SimulationExtensionAPI): () => void {
     }
 
     if (settledMonths > 0) {
+      // Retire provenance of fully consumed shipments once per settled tick (save size).
+      measureTickStep("livestock:compactLots", () => compactLivestockLots());
       productionSettlementsDue += settledMonths;
       productionFeedPeriods.push(...scheduleLivestockFeedPeriods(settledMonths));
       foodSettlementsAlreadyApplied += foodSettlementsThisTick;
@@ -2758,3 +2775,13 @@ export const economySimulation: SimulationExtension = {
   requires: ["characters"],
   register
 };
+
+/** Compact the livestock lot ledger and record that this world's ledger is kept compact. */
+function compactLivestockLots(): void {
+  compactLivestockLotLedger();
+  markRepairAtVersion(
+    getWorldContext().options,
+    LIVESTOCK_LOT_COMPACTION_LOAD_REPAIR,
+    LIVESTOCK_LOT_COMPACTION_LOAD_REPAIR_VERSION
+  );
+}

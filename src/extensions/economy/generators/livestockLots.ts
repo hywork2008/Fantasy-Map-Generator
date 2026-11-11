@@ -89,6 +89,60 @@ function lotsInBucket(ledger: LivestockLotLedger, key: string, accept: (lot: Liv
   return result;
 }
 
+/**
+ * Publish a staged copy of one lot (or its removal) in place. The lots object keeps its identity,
+ * so the runtime index survives; copying the whole record set per call would rebuild it.
+ */
+export function replaceLivestockLot(ledger: LivestockLotLedger, id: string, lot: LivestockLot | null): void {
+  if (lot) {
+    ledger.lots[id] = lot;
+    indexLot(ledger, lot);
+  } else {
+    delete ledger.lots[id];
+    unindexLot(ledger, id);
+  }
+}
+
+/** Load repair id/version (simulation/loadRepairs.ts) for compacting ledgers saved before compaction. */
+export const LIVESTOCK_LOT_COMPACTION_LOAD_REPAIR = "economy.livestockLotCompaction";
+export const LIVESTOCK_LOT_COMPACTION_LOAD_REPAIR_VERSION = 1;
+
+/** Prefix of the `exits` keys that hold the folded totals of retired shipments, by shipment period. */
+export const RETIRED_EXITS_PREFIX = "retired:";
+
+/**
+ * Retire shipments no live lot references any more: drop the shipment record and fold its
+ * `exits` totals into one per-period aggregate. Live lots, their shipments and exits are kept
+ * unchanged, so FIFO allocation, ownership and slaughter provenance checks see the same data.
+ * Without this both records grow by one entry per rural harvest forever (save size).
+ */
+export function compactLivestockLotLedger(ledger: LivestockLotLedger | null = getLivestockLotLedger()): {
+  shipments: number;
+  exits: number;
+} {
+  if (!ledger) return { shipments: 0, exits: 0 };
+  const referenced = new Set<string>();
+  for (const lot of Object.values(ledger.lots)) if (lot.shipmentId) referenced.add(lot.shipmentId);
+  let retiredExits = 0;
+  for (const [key, totals] of Object.entries(ledger.exits)) {
+    if (key === "unknown" || key.startsWith(RETIRED_EXITS_PREFIX) || referenced.has(key)) continue;
+    const period = ledger.shipments[key]?.period;
+    const target = `${RETIRED_EXITS_PREFIX}${period ?? "unknown"}`;
+    ledger.exits[target] ??= {};
+    const folded = ledger.exits[target];
+    for (const [reason, heads] of Object.entries(totals)) folded[reason] = (folded[reason] ?? 0) + heads;
+    delete ledger.exits[key];
+    retiredExits++;
+  }
+  let retiredShipments = 0;
+  for (const key of Object.keys(ledger.shipments)) {
+    if (referenced.has(key)) continue;
+    delete ledger.shipments[key];
+    retiredShipments++;
+  }
+  return { shipments: retiredShipments, exits: retiredExits };
+}
+
 function getOrCreateLedger(): LivestockLotLedger | null {
   const slice = getEconomySlice();
   if (!slice) return null;
