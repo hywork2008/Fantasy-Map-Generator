@@ -24,6 +24,10 @@ export interface VectorEditorGenerationInput {
   lotOccupancy?: number;
 }
 
+/** Half the frame of a walled native town in site radii: the frame spans 2.5 wall diameters (about 900 m for 5,000
+ * people inside a 350 m wall), as wide as the mesh editor's suburbs and outskirts facilities need. */
+const WALLED_REACH = 2.5;
+
 /** Housing land lost per square metre of civic precinct, counting its setbacks and fronting streets. */
 const CIVIC_LAND_FACTOR = 1.5;
 
@@ -111,6 +115,8 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
       descriptor.burg.dwellings = getUrbanDwellings(descriptor.burg.population);
     }
   }
+  // Only a site sized for its own lots (meshless occupancy) takes its own frame; a mesh-sized one keeps the mesh map's.
+  const ownFrame = wall.wall !== "none" && input.lotOccupancy !== undefined && !!settings.population;
   const build = (radius: number, civic = true) => {
     let doc = descriptor
       ? // A synthesized site's roads run over its rivers; an FMG city's bring their certified crossings (P5a).
@@ -126,7 +132,8 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
             ? vectorCivicLayout(settings.population?.targetPopulation ?? 5000, civicOptions).specs.map(
                 s => s.boundary.outer
               )
-            : []
+            : [],
+          ownFrame ? WALLED_REACH : undefined
         );
     doc.recipe.seed = seed;
     doc.context.historicalPeriod = period;
@@ -138,7 +145,11 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     if (native) {
       // Whole-cell admission leaves a partial-cell rim in mesh first. The continuous
       // site reserves one third of the same street-cell width as its boundary margin.
-      doc.frame.extentMeters = Math.max(input.frame.extentMeters, frame.extentMeters, doc.frame.extentMeters);
+      // A walled town's frame is its own: two and a half wall diameters, so the roadside beyond the gates has room to
+      // grow out along the approaches without the mesh map's preset (too tight at tiny, needlessly wide at small).
+      doc.frame.extentMeters = ownFrame
+        ? doc.frame.extentMeters
+        : Math.max(input.frame.extentMeters, frame.extentMeters, doc.frame.extentMeters);
       doc.site!.id = "standalone-ce-site";
       // A bastioned town replaces the approach roads with the fortress routes, so it comes before the civic
       // centre that takes its access from them (P4c).

@@ -467,10 +467,13 @@ export function syntheticVectorInput(
   river = true,
   vary = false,
   /** Rings the varied river keeps clear of, e.g. the civic precinct. */
-  keepClear: Point[][] = []
+  keepClear: Point[][] = [],
+  /** Half the frame in site radii; the approaches run out to just inside it and the river across it. A walled town
+   * takes more, so its roadside can grow out along the approaches (gate-ribbon plan). */
+  reach = 1.5
 ): VectorCityDocument {
   if (!(radius >= 30 && radius <= 3000 && Number.isFinite(radius))) throw new Error("site-frame");
-  const doc = createVectorDocument(seed, radius * 3),
+  const doc = createVectorDocument(seed, radius * 2 * reach),
     site: VectorSite = {
       kind: "synthetic",
       id: "synthetic-site",
@@ -488,8 +491,8 @@ export function syntheticVectorInput(
       side: 1,
       offset: radius * 0.3,
       points: [
-        [-radius * 1.5, radius * 0.3],
-        [radius * 1.5, radius * 0.3]
+        [-radius * reach, radius * 0.3],
+        [radius * reach, radius * 0.3]
       ] as Point[]
     };
   let layout = reference;
@@ -504,7 +507,7 @@ export function syntheticVectorInput(
       // The bend only bulges away from the centre and stays mild, so every in-town crossing
       // keeps within the bridge skew limits.
       bend = side * rng.range(0, 0.06) * radius,
-      points = [at(-radius * 1.5, offset), at(0, offset + bend), at(radius * 1.5, offset)];
+      points = [at(-radius * reach, offset), at(0, offset + bend), at(radius * reach, offset)];
     if (!river || keepClear.every(ring => riverClears(points, ring, RIVER_WIDTH / 2 + 12))) {
       layout = { normal, side, offset, points };
       break;
@@ -517,7 +520,7 @@ export function syntheticVectorInput(
   if (vary) {
     const count = rng.int(3, 6),
       start = rng.range(0, 2 * Math.PI),
-      out = radius * 1.4;
+      out = radius * (reach - 0.1);
     roads = [];
     // Approaches on the town side of the river enter from any bearing.
     for (let i = 0; i < count; i++) {
@@ -536,13 +539,14 @@ export function syntheticVectorInput(
     }
   } else
     roads = [
-      [radius * 1.4, 0],
-      [0, -radius * 1.4],
-      [-radius * 1.4, 0],
-      [0, radius * 1.4]
+      [radius * (reach - 0.1), 0],
+      [0, -radius * (reach - 0.1)],
+      [-radius * (reach - 0.1), 0],
+      [0, radius * (reach - 0.1)]
     ];
   for (const [i, p] of roads.entries()) {
-    const endpoint: Point = [(p[0] / 1.4) * 0.85, (p[1] / 1.4) * 0.85],
+    const out = Math.hypot(p[0], p[1]) / radius,
+      endpoint: Point = [(p[0] / out) * 0.85, (p[1] / out) * 0.85],
       id = `input-road:${i}`;
     doc.paths[id] = importedPath(id, "road", [p, endpoint], 5);
   }

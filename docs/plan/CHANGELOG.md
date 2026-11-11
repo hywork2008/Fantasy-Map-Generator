@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-11-11
+
+- docs/plan/ce-meshless-gate-ribbon-growth.md - 郊外の描画範囲（市壁の直径の2.5倍）の節を追加
+
 2026-11-10
 
 - docs/analytics/bv-town-church-b0-20261110.md - BVの人口段階の教会モデルB0。既存3モデルの実測と、教区教会・主要教会の規模の史料確認

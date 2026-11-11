@@ -10,7 +10,7 @@ import { createVectorScene } from "./scene3d";
 
 describe("meshless park trees and wells as the mesh editor's 3D models (feature parity P2d-1)", () => {
   it("stands park trees as species models and wells as BV waterworks, not flat discs", () => {
-    const seed = "p7c-d",
+    const seed = "p7c-f",
       input = vectorInputFromEditor({
         settings: {
           ...defaultGenerationSettings(),
