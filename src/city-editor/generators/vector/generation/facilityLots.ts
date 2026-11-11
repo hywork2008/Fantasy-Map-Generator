@@ -48,6 +48,8 @@ export interface FacilityLotResult {
  */
 /** Margin each side of a recorded line's surface, beyond its centimetre rounding. */
 const LINE_MARGIN_METERS = 0.1;
+/** Slides of a facility's site along its front, in halves of its width (0 is centred on the seed lot's front). */
+const SHIFTS = [0, -0.25, 0.25, -0.5, 0.5, -0.75, 0.75, -1, 1];
 
 export function placeFacilitiesOnLots(
   doc: VectorCityDocument,
@@ -178,14 +180,19 @@ export function placeFacilitiesOnLots(
         c = Math.cos(angle),
         s = Math.sin(angle);
       const rotate = (p: Point): Point => [p[0] * c - p[1] * s, p[0] * s + p[1] * c];
-      const local = convexHull(asset.minimumSite.flatMap(p => p.outer).map(rotate));
+      const local = convexHull(asset.minimumSite.flatMap(p => p.outer).map(rotate)),
+        siteArea = Math.abs(plotArea(local));
       const along = local.map(p => p[0] * tangent[0] + p[1] * tangent[1]),
         depthOf = local.map(p => p[0] * inward[0] + p[1] * inward[1]),
         lo = Math.min(...along),
         hi = Math.max(...along),
         back = Math.min(...depthOf);
-      // Slide the site along the front so it covers whole neighbouring lots of the same block.
-      for (const shift of [0, -0.5, 0.5, -1, 1]) {
+      // Slide the site along the front and keep the slide whose parcel is smallest: the parcel runs out to the lot
+      // lines of every lot the site touches, so a site that clips a lot by a metre would take all of it as yard.
+      let best:
+        | { placement: VectorPlacement; under: (typeof lots)[number][]; site: VectorPolygon; area: number }
+        | undefined;
+      for (const shift of SHIFTS) {
         const offset = (len - (hi - lo)) / 2 + shift * (hi - lo) * 0.5,
           translation: Point = [
             front.a[0] + tangent[0] * (offset - lo) + inward[0] * (0.05 - back),
@@ -314,7 +321,7 @@ export function placeFacilitiesOnLots(
         if (reach < 0.01) continue;
         let id = `urban:${request.id}`;
         while (doc.placements[id]) id += "x";
-        placement = {
+        const candidate: VectorPlacement = {
           id,
           modelId: asset.bvModel?.id ?? asset.id,
           position: translation,
@@ -350,13 +357,19 @@ export function placeFacilitiesOnLots(
             ...(wantsWater ? { riverbankDistanceMeters: waterDistance(doc, [site]) } : {})
           }
         };
-        doc.placements[id] = placement;
-        for (const l of under) used.add(l.i);
-        occupied.insert({ ...boxOf(site.outer), polygon: site });
+        const area = regionArea(site);
+        if (!best || area < best.area) best = { placement: candidate, under, site, area };
+        // A parcel within a tenth of the building's own site is as tight as the lots allow.
+        if (area <= siteArea * 1.1) break;
+      }
+      if (best) {
+        placement = best.placement;
+        doc.placements[placement.id] = placement;
+        for (const l of best.under) used.add(l.i);
+        occupied.insert({ ...boxOf(best.site.outer), polygon: best.site });
         result.cells.add(seed.cellId);
         break;
       }
-      if (placement) break;
       failedHere.add(seed.i);
     }
     if (placement) result.placed.push(placement.id);

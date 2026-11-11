@@ -646,7 +646,15 @@ export function createVectorScene(
       let placed = false;
       if (p && surface.kind === "building" && !surface.provisional) {
         // Pieces laid by the generator draw at the viewer's quality; a hand-set placement keeps its own.
-        const level = p.display?.provenance === "copied" ? placementQuality : (p.appearance?.quality ?? "low"),
+        const saved = p.appearance?.quality ?? "low",
+          // A facility the generator placed (facility mode) was sized on its Low model; it draws at the viewer's
+          // quality wherever that model keeps the same envelope, as the BV town-trade models do.
+          generated =
+            p.origin === "automatic" &&
+            p.building?.kind === "facility" &&
+            !p.appearance?.quality &&
+            sameFootprint(placementFootprint(p.modelId, placementQuality), placementFootprint(p.modelId, saved)),
+          level = p.display?.provenance === "copied" || generated ? placementQuality : saved,
           definition =
             placementDefinition(p.modelId, level, p.appearance?.palette, {
               activity: p.appearance?.activity
@@ -913,4 +921,8 @@ export function createVectorScene(
     dispose();
     throw error;
   }
+}
+
+function sameFootprint(a: { halfX: number; halfZ: number } | null, b: { halfX: number; halfZ: number } | null) {
+  return !!a && !!b && Math.abs(a.halfX - b.halfX) < 0.005 && Math.abs(a.halfZ - b.halfZ) < 0.005;
 }

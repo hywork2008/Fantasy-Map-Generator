@@ -1,11 +1,13 @@
 import type * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import { sceneVariants } from "../../../city3d/adoption";
 import goth from "../../data/fixtures/gothengsfeld-20261012.json";
 import { defaultGenerationSettings } from "../../generators/generation/settings";
 import { defaultPopulationSettings } from "../../generators/populationPlan";
 import { vectorInputFromEditor } from "../../generators/vector/generation/editorInput";
 import { vectorInputFromDescriptor } from "../../generators/vector/generation/input";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../../generators/vector/generation/pipeline";
+import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../../generators/vector/generation/urban";
 import { vectorWallChoice } from "../../generators/vector/generation/wallShape";
 import type { BurgSiteDescriptor } from "../../types/contracts/burgSiteDescriptor";
 import { vectorRenderData } from "./renderData";
@@ -100,4 +102,35 @@ describe("meshless facilities and religious houses as the mesh editor's BV model
       scene.dispose();
     }
   });
+
+  it("draws a facility-mode town's BV trade workshops at the viewer's quality", () => {
+    const seed = "fq",
+      settings = { ...defaultGenerationSettings(), facilityLayout: "population" as const };
+    settings.population = defaultPopulationSettings(2000);
+    settings.config = { ...settings.config, rivers: [], features: { ...settings.config.features, walls: false } };
+    const input = vectorInputFromEditor({
+        settings,
+        seed,
+        frame: { extentMeters: 800, cityRadiusMeters: 200, blockSizeMeters: 50 },
+        lotOccupancy: 1
+      }),
+      skeleton = generateVectorSkeleton(input, {
+        ...DEFAULT_VECTOR_GENERATION,
+        seed,
+        ...vectorWallChoice(settings, seed, input.context.historicalPeriod)
+      }).document,
+      doc = generateVectorUrban(skeleton, { ...DEFAULT_VECTOR_URBAN, mode: "medieval-facilities", population: 2000 }),
+      trades = Object.values(doc.placements)
+        .filter(p => p.building?.kind === "facility" && p.modelId.startsWith("trade-workshop.dedicated-"))
+        .map(p => p.modelId);
+    expect(trades.length).toBeGreaterThan(0);
+    const scene = createVectorScene(vectorRenderData(doc), { quality: "high" });
+    try {
+      const drawn = sceneVariants(scene.group).filter(v => v.includes(".trade-workshop.dedicated-"));
+      for (const id of new Set(trades)) expect(drawn.some(v => v.startsWith(`medieval.${id}@high#`))).toBe(true);
+      expect(drawn.filter(v => v.includes("@low#"))).toEqual([]);
+    } finally {
+      scene.dispose();
+    }
+  }, 60000);
 });
