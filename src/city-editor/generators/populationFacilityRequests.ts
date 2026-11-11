@@ -15,6 +15,12 @@ import type { FacilityUse } from "./facilityUses";
 import { medievalTradeDemand, type TradeReferenceRow } from "./medievalTradeDemand";
 
 const PREFIX = "population-facility:";
+/** Practitioners (masters, journeymen, apprentices) one facility of a pool holds where it is not a one-family
+ * workshop of 2.5: a bakehouse or brewhouse ran with five or six hands, and the butchers sold from the stalls of a
+ * shared meat hall (the shambles) rather than from a hall each. */
+const PRACTITIONERS_PER_FACILITY: Record<string, number> = { baking: 5, brewing: 6, butchery: 15 };
+/** Pools whose facility is a smaller BV model than the trade's default. */
+const BREWHOUSE_MODEL = "ale-brewhouse";
 const rows = csvParse(occupations) as unknown as TradeReferenceRow[];
 
 /** Provisional dimensions are visible in the saved asset and replaced when a BV form is available. */
@@ -66,7 +72,9 @@ export function buildPopulationFacilityRequests(population: number, options: { p
     requests.push({ id: `${PREFIX}guild:${domain.domain}`, asset, zone: "core", use: "commerce" });
   }
   for (const trade of demand.trades) {
-    if (!trade.workshops) continue;
+    const per = PRACTITIONERS_PER_FACILITY[trade.pool],
+      facilities = per ? (trade.workshops ? Math.max(1, Math.round(trade.practitioners / per)) : 0) : trade.workshops;
+    if (!facilities) continue;
     const asset = cached(`workshop:${trade.pool}`, () => {
       const dry = WORKHOME_TRADES.find(t => t.id === trade.pool);
       if (dry) {
@@ -107,7 +115,7 @@ export function buildPopulationFacilityRequests(population: number, options: { p
         ]);
       // Low-tier entrance positions follow the existing authored hall/open-shelter fronts.
       if (trade.pool === "brewing")
-        return bvFacilityAsset("town-brewery", [{ id: "main", position: [-2, 0, 1.5], clearWidth: 1.1 }]);
+        return bvFacilityAsset(BREWHOUSE_MODEL, [{ id: "main", position: [-2, 0, 1.5], clearWidth: 1.1 }]);
       if (trade.pool === "pottery")
         return bvFacilityAsset("potters-workshop", [{ id: "main", position: [-2, 0, 1.5], clearWidth: 1.4 }]);
       if (trade.pool === "printing")
@@ -123,7 +131,6 @@ export function buildPopulationFacilityRequests(population: number, options: { p
       "limeAndTile",
       "pottery",
       "glazing",
-      "butchery",
       "chandlery",
       "milling"
     ].includes(trade.pool);
@@ -135,7 +142,7 @@ export function buildPopulationFacilityRequests(population: number, options: { p
           : asset.residentialDwellings === 1
             ? "craft"
             : "commerce";
-    for (let i = 0; i < trade.workshops; i++)
+    for (let i = 0; i < facilities; i++)
       requests.push({
         id: `${PREFIX}workshop:${trade.pool}:${i}`,
         asset,

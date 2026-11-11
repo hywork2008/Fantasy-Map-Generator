@@ -805,6 +805,9 @@ function fitLot(
 const boxesMeet = (a: ReturnType<typeof boxOf>, b: ReturnType<typeof boxOf>) =>
   a.minX <= b.maxX && b.minX <= a.maxX && a.minY <= b.maxY && b.minY <= a.maxY;
 
+/** Share of a lot's place in the build order given by its distance from the town centre rather than its draw. */
+const CENTRE_WEIGHT = 0.6;
+
 export function placeVectorPerimeterHouses(
   doc: VectorCityDocument,
   plan: VectorPerimeterPlan,
@@ -902,20 +905,38 @@ export function placeVectorPerimeterHouses(
   >();
   let capacity = 0,
     count = 0;
-  // CE occupancy draws spread vacant lots through every district. A population
-  // target must never fill one half of the city before the other half.
+  // CE occupancy draws spread vacant lots through every district, but a medieval town is densest at its centre:
+  // the order blends the draw with the distance from the centre, so the vacancy gathers towards the wall as
+  // gardens and yards rather than holes in the market quarter. Lots beyond the town come last.
   const shanty = plan.houses.some(h => alwaysBuilt(h.cellId));
+  // The blended value is the lot's recorded draw: an edit compares and keeps draws, so it must not depend on which
+  // lots the plan holds, only on the lot and the town's centre and size.
+  const centre = doc.site?.center ?? [0, 0],
+    wall = Object.values(doc.paths).find(p => p.role === "wall" && !p.id.includes("inner")),
+    reach = Math.max(
+      1,
+      ...(wall
+        ? samplePath(wall).map(s => Math.hypot(s.point[0] - centre[0], s.point[1] - centre[1]))
+        : [doc.frame.extentMeters / 2])
+    ),
+    rank = new Map(
+      plan.houses.map(h => {
+        const c = polygonCentroid(h.polygon),
+          d = Math.hypot(c[0] - centre[0], c[1] - centre[1]);
+        return [h, (1 - CENTRE_WEIGHT) * h.draw + CENTRE_WEIGHT * Math.min(1, d / reach)] as const;
+      })
+    );
   const held: typeof plan.houses = [],
-    order = plan.houses.slice().sort((a, b) => a.draw - b.draw);
+    order = plan.houses.slice().sort((a, b) => rank.get(a)! - rank.get(b)! || a.draw - b.draw);
   for (let pass = 0; pass < 2; pass++) {
     if (pass && capacity >= required) break;
     for (const house of pass ? held.splice(0) : order) {
-      if (capacity >= required && house.draw > keepDraw && !alwaysBuilt(house.cellId)) {
+      if (capacity >= required && rank.get(house)! > keepDraw && !alwaysBuilt(house.cellId)) {
         if (!shanty) break;
         continue;
       }
       const origin = origins.get(house.cellId);
-      if (!origin || house.draw >= lotOccupancy || cleared[house.cellId]?.includes(house.draw)) continue;
+      if (!origin || house.draw >= lotOccupancy || cleared[house.cellId]?.includes(rank.get(house)!)) continue;
       const fit = fittedLot(house, origin, occupied);
       if (!fit) continue;
       const lot = { outer: fit.polygon, holes: [] };
@@ -927,7 +948,7 @@ export function placeVectorPerimeterHouses(
         continue;
       }
       const storeys = heights.storeys(
-          vectorHouseHeightKey(house.cellId, house.draw),
+          vectorHouseHeightKey(house.cellId, rank.get(house)!),
           house.cellId,
           cellInside(house.cellId),
           heightKind(house.cellId)
@@ -968,7 +989,13 @@ export function placeVectorPerimeterHouses(
       }
       if (!best) continue;
       const list = adopted.get(house.cellId) ?? [];
-      list.push({ ring, storeys, dwellings, entrance: packPoints([best.from, best.to], origin), draw: house.draw });
+      list.push({
+        ring,
+        storeys,
+        dwellings,
+        entrance: packPoints([best.from, best.to], origin),
+        draw: rank.get(house)!
+      });
       // CE lots may overlap their neighbours by a few square centimetres; an adopted house is occupancy too, so
       // a later lot never shares land with it and any house can become a placement (S2.1e2).
       occupied.insert({ ...boxOf(polygon), polygon: site });

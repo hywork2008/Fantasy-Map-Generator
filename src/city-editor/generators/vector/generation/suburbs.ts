@@ -89,11 +89,18 @@ export function vectorSuburbanLots(
       wallDistance: p => Math.min(...walls.map(w => nearestOnPolyline(p, w).dist)),
       slack: 0
     };
+  // A roadside plot fronts its road: the lanes behind the front row are yards and gardens, not more rows of houses
+  // parallel to the road. Only the shanty and residential outskirts build back from the road.
+  const fronts = (polygon: Point[]) =>
+    bands.some(b => polygon.some(q => nearestOnPolyline(q, b.points).dist <= ROAD_FRONTAGE_METERS));
   return (cellId, polygon, residential) =>
     pointInPolygon(polygonCentroid(polygon), ring) ||
-    suburbanLotKept(polygon, cellId, residential || suburb(cellId), ctx);
+    ((residential || suburb(cellId) || fronts(polygon)) &&
+      suburbanLotKept(polygon, cellId, residential || suburb(cellId), ctx));
 }
 
+/** Farthest a roadside plot's corner may stand from its road's centre line: road half width plus the verge. */
+const ROAD_FRONTAGE_METERS = 8;
 /** Half the width of the roadside ribbon land either side of its approach: one row of lots each side. */
 const RIBBON_HALF_METERS = 28;
 /** Dwellings a built-up roadside strip of one row each side holds per metre of road (gate-ribbon plan W0: street
@@ -103,6 +110,8 @@ export const RIBBON_DWELLINGS_PER_METER = 0.85;
 /** Interior dwellings per m² of free land inside the wall, every lot built, at the measured 2.25 storeys
  * (gate-ribbon plan W2, measured on the W0 cases). */
 export const INTERIOR_DWELLINGS_PER_M2 = 0.016;
+/** Length of a strip next to the gate that may widen to a second row of plots. */
+const SECOND_ROW_METERS = 100;
 /** A strip this close to the river below the town is left to the yards that foul the water (tanneries). */
 const DOWNSTREAM_METERS = 80;
 
@@ -349,10 +358,12 @@ export function raiseVectorRibbonLand(
       wanted = band.length + extra,
       run = line.filter(q => from(q) >= band.clearance && from(q) <= band.clearance + wanted && inFrame(q));
     if (run.length < 2) continue;
-    // A strip the frame cuts short takes the rest of its length as a second row.
+    // A strip the frame cuts short takes some of the rest as a second row, but only in the faubourg before the
+    // gate: further out a medieval suburb is one row of plots on the road with yards and fields behind them.
     const reach = Math.hypot(run.at(-1)![0] - run[0][0], run.at(-1)![1] - run[0][1]),
-      rows = extra > 0 && reach < wanted * 0.95 ? 2 : 1;
-    if (extra > 0 && reach * rows < wanted * 0.95) unplacedLength += wanted - reach * rows;
+      doubled = extra > 0 && reach < wanted * 0.95 ? Math.min(reach, SECOND_ROW_METERS) : 0,
+      rows = doubled > 0 ? 2 : 1;
+    if (extra > 0 && reach + doubled < wanted * 0.95) unplacedLength += wanted - reach - doubled;
     // Straight pieces along the road's own bends, so a long ribbon follows the road.
     for (let i = 0; i + 1 < run.length; ) {
       let j = i + 1;
@@ -361,7 +372,7 @@ export function raiseVectorRibbonLand(
         b = run[j],
         l = Math.hypot(b[0] - a[0], b[1] - a[1]);
       if (l >= 10) {
-        const w = RIBBON_HALF_METERS * rows,
+        const w = RIBBON_HALF_METERS * (rows === 2 && from(a) - band.clearance < doubled ? 2 : 1),
           n: Point = [(-(b[1] - a[1]) / l) * w, ((b[0] - a[0]) / l) * w],
           // Pieces overlap a little at the bends so the strip stays one piece.
           t: Point = [((b[0] - a[0]) / l) * 2, ((b[1] - a[1]) / l) * 2],

@@ -814,7 +814,8 @@ function* vectorUrbanSteps(
         all
           .filter(id => !inside(doc.placements[id].position))
           .reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0) + fabricDwellings(false),
-      requiredFacilities: requests.length,
+      // A facility kept from an edit of a town planned with an earlier request set (another staffing) still counts.
+      requiredFacilities: requests.length + facilities.filter(id => !requests.some(r => `urban:${r.id}` === id)).length,
       placedFacilities: facilities.length,
       provisionalFacilities: facilities.filter(id => doc.placements[id].building!.provenance === "provisional").length,
       unplacedFacilities,
