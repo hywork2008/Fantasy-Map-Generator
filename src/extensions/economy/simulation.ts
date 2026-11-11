@@ -193,7 +193,8 @@ import { scheduleLivestockFeedPeriods } from "./generators/livestockFeedSchedule
 import {
   compactLivestockLotLedger,
   LIVESTOCK_LOT_COMPACTION_LOAD_REPAIR,
-  LIVESTOCK_LOT_COMPACTION_LOAD_REPAIR_VERSION
+  LIVESTOCK_LOT_COMPACTION_LOAD_REPAIR_VERSION,
+  mergeOldMarketLivestockLots
 } from "./generators/livestockLots";
 import { LNGPlants } from "./generators/lngPlants";
 import { clearFlowDiagnostics } from "./generators/marketFlowDiagnostics";
@@ -2613,7 +2614,7 @@ function register(api: SimulationExtensionAPI): () => void {
     }
 
     if (settledMonths > 0) {
-      // Retire provenance of fully consumed shipments once per settled tick (save size).
+      // Merge old market lots and retire consumed shipments once per settled tick (save size).
       measureTickStep("livestock:compactLots", () => compactLivestockLots());
       productionSettlementsDue += settledMonths;
       productionFeedPeriods.push(...scheduleLivestockFeedPeriods(settledMonths));
@@ -2778,6 +2779,7 @@ export const economySimulation: SimulationExtension = {
 
 /** Compact the livestock lot ledger and record that this world's ledger is kept compact. */
 function compactLivestockLots(): void {
+  mergeOldMarketLivestockLots();
   compactLivestockLotLedger();
   markRepairAtVersion(
     getWorldContext().options,
