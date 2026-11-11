@@ -2163,7 +2163,11 @@
     "bootsLabor_perDay": "1日に1足",
     "bootsLabor_legacy": "1か月に1足",
     "ruralShoemakersPerThousand": "村の靴屋（1,000人あたり）",
-    "ruralShoemakersPerThousandTip": "農村の人1,000人あたりの靴屋の数です。市場の町の人数に入れ、農村の家の靴を作ります。残りの履物は木靴や家で作る皮の靴です。「全員」の時に使います。"
+    "ruralShoemakersPerThousandTip": "農村の人1,000人あたりの靴屋の数です。市場の町の人数に入れ、農村の家の靴を作ります。残りの履物は木靴や家で作る皮の靴です。「全員」の時に使います。",
+    "byproductPricing": "副産物の値段",
+    "byproductPricingTip": "皮・獣脂・凝乳酵素と、町が目標の量を買う品（靴・革の品・蝋燭）の値段の決め方です。在庫と需要：毎月、市場の在庫と町が要る量から決めます。前の決まり：副産物は値付けされず、買われる時だけ上がるため、革は基の値の3倍に張り付きました。",
+    "byproductPricing_stockAndDemand": "在庫と需要",
+    "byproductPricing_legacy": "前の決まり"
   },
   "dangerSettings": {
     "heading": "危険度の設定：",

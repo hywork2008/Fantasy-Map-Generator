@@ -26,6 +26,8 @@ import {
 import {
   BOOTS_LABOR_MODES,
   type BootsLaborMode,
+  BYPRODUCT_PRICING_MODES,
+  type ByproductPricingMode,
   CRAFT_SALE_PAYMENT_MODES,
   type CraftSalePaymentMode,
   FOOTWEAR_DEMAND_MODES,
@@ -770,6 +772,29 @@ export const SimulationSettingsTab: React.FC = () => {
                 {BOOTS_LABOR_MODES.map(mode => (
                   <option key={mode} value={mode}>
                     {t(`simulation.bootsLabor_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.byproductPricingTip")}>
+            <td />
+            <td>
+              <label htmlFor="byproductPricing">{t("simulation.byproductPricing")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="byproductPricing"
+                value={marketSettings.byproductPricing}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ byproductPricing: e.target.value as ByproductPricingMode })
+                  )
+                }
+              >
+                {BYPRODUCT_PRICING_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.byproductPricing_${mode}`)}
                   </option>
                 ))}
               </select>

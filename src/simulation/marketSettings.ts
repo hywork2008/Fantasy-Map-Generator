@@ -87,6 +87,14 @@ export type FootwearDemandMode = (typeof FOOTWEAR_DEMAND_MODES)[number];
 export const BOOTS_LABOR_MODES = ["perDay", "legacy"] as const;
 export type BootsLaborMode = (typeof BOOTS_LABOR_MODES)[number];
 
+/**
+ * How the slaughter by-products and the goods the towns buy to a target are priced:
+ * `stockAndDemand` from their stock against the towns' targets; `legacy` as before, when the
+ * by-products were never priced and only purchases moved them (docs/plan/byproduct-prices.md §3).
+ */
+export const BYPRODUCT_PRICING_MODES = ["stockAndDemand", "legacy"] as const;
+export type ByproductPricingMode = (typeof BYPRODUCT_PRICING_MODES)[number];
+
 export const GRAIN_REPAYMENT_MODES = ["quarterDays", "monthly"] as const;
 export type GrainRepaymentMode = (typeof GRAIN_REPAYMENT_MODES)[number];
 
@@ -123,6 +131,7 @@ export type MarketSettings = {
   /** Share of a market's hides that spoil each month of June to August, when tanners work the fields. */
   summerHideLoss: number;
   bootsLabor: BootsLaborMode;
+  byproductPricing: ByproductPricingMode;
   /** Village shoemakers for each 1,000 farm people, counted in their market's towns; used with `everyone`. */
   ruralShoemakersPerThousand: number;
   /**
@@ -164,6 +173,7 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   leatherGoodsShare: 0.5,
   summerHideLoss: 0.1,
   bootsLabor: "perDay",
+  byproductPricing: "stockAndDemand",
   ruralShoemakersPerThousand: 2,
   surplusRuralWeight: 1,
   surplusReserveFactor: 0.25,
@@ -238,6 +248,11 @@ const footwearDemandMode = (value: unknown): FootwearDemandMode =>
 const bootsLaborMode = (value: unknown): BootsLaborMode =>
   BOOTS_LABOR_MODES.includes(value as BootsLaborMode) ? (value as BootsLaborMode) : DEFAULT_MARKET_SETTINGS.bootsLabor;
 
+const byproductPricingMode = (value: unknown): ByproductPricingMode =>
+  BYPRODUCT_PRICING_MODES.includes(value as ByproductPricingMode)
+    ? (value as ByproductPricingMode)
+    : DEFAULT_MARKET_SETTINGS.byproductPricing;
+
 const clamp = (key: NumericMarketSetting, value: unknown): number => {
   const { min, max, step } = MARKET_SETTING_LIMITS[key];
   if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_MARKET_SETTINGS[key];
@@ -273,6 +288,7 @@ export function getMarketSettings(): MarketSettings {
     leatherGoodsShare: clamp("leatherGoodsShare", parsed.leatherGoodsShare),
     summerHideLoss: clamp("summerHideLoss", parsed.summerHideLoss),
     bootsLabor: bootsLaborMode(parsed.bootsLabor),
+    byproductPricing: byproductPricingMode(parsed.byproductPricing),
     ruralShoemakersPerThousand: clamp("ruralShoemakersPerThousand", parsed.ruralShoemakersPerThousand),
     surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor),
@@ -305,6 +321,7 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     leatherGoodsShare: clamp("leatherGoodsShare", next.leatherGoodsShare),
     summerHideLoss: clamp("summerHideLoss", next.summerHideLoss),
     bootsLabor: bootsLaborMode(next.bootsLabor),
+    byproductPricing: byproductPricingMode(next.byproductPricing),
     ruralShoemakersPerThousand: clamp("ruralShoemakersPerThousand", next.ruralShoemakersPerThousand),
     surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor),

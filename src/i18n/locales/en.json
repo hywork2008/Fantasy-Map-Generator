@@ -2163,7 +2163,11 @@
     "bootsLabor_perDay": "A pair a day",
     "bootsLabor_legacy": "A pair a month",
     "ruralShoemakersPerThousand": "Village shoemakers per 1,000",
-    "ruralShoemakersPerThousandTip": "Shoemakers for each 1,000 farm people, counted in their market's towns, who make the farm families' shoes. The rest of their footwear is clogs and home-made hide shoes. Used with Everyone."
+    "ruralShoemakersPerThousandTip": "Shoemakers for each 1,000 farm people, counted in their market's towns, who make the farm families' shoes. The rest of their footwear is clogs and home-made hide shoes. Used with Everyone.",
+    "byproductPricing": "By-product prices",
+    "byproductPricingTip": "How hides, tallow and rennet, and the goods the towns buy to a target (shoes, leather goods, candles), are priced. Stock and demand: each month from the market's stock against what its towns need. Legacy: the by-products are never priced and only purchases raise them, so leather stuck at three times its value.",
+    "byproductPricing_stockAndDemand": "Stock and demand",
+    "byproductPricing_legacy": "Legacy"
   },
   "dangerSettings": {
     "heading": "Danger settings:",

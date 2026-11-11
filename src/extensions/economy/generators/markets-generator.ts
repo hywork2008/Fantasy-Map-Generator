@@ -117,7 +117,8 @@ import {
   LAPLACE_PRICE_SMOOTHING,
   MARKET_MARGIN,
   PRICE_CEILING_FACTOR,
-  PRICE_FLOOR_FACTOR
+  PRICE_FLOOR_FACTOR,
+  SLAUGHTER_BYPRODUCTS
 } from "./marketPricing";
 import { buyMarketGoods, getMarketGood, type MarketPurchaseOptions } from "./marketPurchases";
 import { consumeForSmelting } from "./marketStockConsumption";
@@ -1801,6 +1802,10 @@ export class MarketsModule {
     const metalDemandByMarket = this.collectOutstandingStateMetallurgDemand(goods);
     this.addCalibratedMetalInputDemand(goods, metalDemandByMarket);
     // The first pricing after world birth opens these goods at their settled stock (startLineStock.ts).
+    // Slaughter by-products and the goods the towns buy to a target, priced from the towns'
+    // targets against stock (docs/plan/byproduct-prices.md §3).
+    const townTargets =
+      getMarketSettings().byproductPricing === "stockAndDemand" ? this.collectTownTargetDemand(goods) : undefined;
     const seedStartLine = takeStartLineStockPending();
     const startLine = (good: Good) => seedStartLine && START_LINE_STOCK_GOODS.has(good.name);
 
@@ -1815,6 +1820,20 @@ export class MarketsModule {
       for (const good of goods) {
         const mineOrFurnaceGood = isMineOrFurnaceGood(good);
         const orchardFruit = good.name === "Apples" || good.name === "Pears";
+        if (townTargets && SLAUGHTER_BYPRODUCTS.has(good.name)) {
+          const marketGood = this.getMarketGood(market, good);
+          const baseValue = good.value * priceLevel;
+          const demand = townTargets.get(market.i)?.get(good.i) ?? 0;
+          const targetPrice = getRawGoodTargetPrice(good, baseValue, demand, marketGood.stock);
+          const prevPrice = marketGood.price > 0 ? marketGood.price : baseValue;
+          marketGood.price = relaxMarketPrice(
+            prevPrice,
+            targetPrice,
+            getPriceFloor(good, baseValue),
+            baseValue * PRICE_CEILING_FACTOR
+          );
+          continue;
+        }
         if (!good.distribution && !mineOrFurnaceGood && !orchardFruit) continue;
         const marketGood = this.getMarketGood(market, good);
         if (orchardFruit) {
@@ -1892,18 +1911,20 @@ export class MarketsModule {
         const consumerDemand = consumerDemandFactors[good.i] || 0;
         const industrialDemand = industrialDemandFactors[good.i] || 0;
         const demand =
-          isOrchardDrink(good.name) || isPricedByHouseholdDemand(good)
-            ? getMonthlyHouseholdDemand(market, good.name)
-            : this.calculateGoodDemand(
-                good,
-                population,
-                textilePopulationByMarket[market.i] || population,
-                consumerDemand,
-                industrialDemand,
-                marketGood.price,
-                market.i,
-                textileOrders
-              );
+          townTargets && getGoodDemandCalibration(good.name)?.householdPurchase
+            ? (townTargets.get(market.i)?.get(good.i) ?? 0)
+            : isOrchardDrink(good.name) || isPricedByHouseholdDemand(good)
+              ? getMonthlyHouseholdDemand(market, good.name)
+              : this.calculateGoodDemand(
+                  good,
+                  population,
+                  textilePopulationByMarket[market.i] || population,
+                  consumerDemand,
+                  industrialDemand,
+                  marketGood.price,
+                  market.i,
+                  textileOrders
+                );
         if (startLine(good)) seedStartLineStock(marketGood, demand);
         const supplyRatio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
         const demandMarkup = baseMarkup * minmax(supplyRatio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR);
@@ -2451,7 +2472,8 @@ export class MarketsModule {
     if (felled > 0 && timberCellId !== undefined) harvestWood(timberCellId, felled);
     for (const { good, amount, stock } of required) {
       stock.stock = rn(Math.max(0, stock.stock - amount), 2);
-      stock.price = rn(this.applyMarketPressure(good.value, stock.price, amount), 2);
+      if (!isPricedByHouseholdDemand(good))
+        stock.price = rn(this.applyMarketPressure(good.value, stock.price, amount), 2);
       recordGoodFlow({ direction: "sink", category: "shipbuilding", goodId: good.i, units: amount, marketId });
     }
 
@@ -2593,6 +2615,52 @@ export class MarketsModule {
         demandByMarket.set(burg.market, demandByGood);
       }
     }
+  }
+
+  /**
+   * Each market's monthly town targets of the goods its towns buy to a target (`householdPurchase`),
+   * and the slaughter by-products those targets and the other calibrated floors take as inputs
+   * (docs/plan/byproduct-prices.md §3).
+   */
+  private collectTownTargetDemand(goods: readonly Good[]): Map<number, Map<number, number>> {
+    const demandByMarket = new Map<number, Map<number, number>>();
+    const goodsById = new Map(goods.map(good => [good.i, good]));
+    const recipeCost = (recipe: Record<string, number>): number =>
+      Object.entries(recipe).reduce((sum, [id, amount]) => sum + amount * (goodsById.get(+id)?.value ?? 0), 0);
+    const rows = goods.flatMap(good => {
+      const row = getGoodDemandCalibration(good.name);
+      if (!row) return [];
+      const [recipe] = recipesForIndustrialDemand(good, true, recipeCost);
+      const inputs = Object.entries(recipe ?? {}).flatMap(([id, amount]) => {
+        const ingredient = goodsById.get(+id);
+        return ingredient && SLAUGHTER_BYPRODUCTS.has(ingredient.name) ? [{ goodId: ingredient.i, amount }] : [];
+      });
+      return row.householdPurchase || inputs.length ? [{ good, own: Boolean(row.householdPurchase), inputs }] : [];
+    });
+    if (!rows.length) return demandByMarket;
+    const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
+    for (const burg of this.worldContext.pack.burgs) {
+      const population = burg?.population ?? 0;
+      if (!burg?.i || burg.removed || !burg.market || !(population > 0)) continue;
+      const market = this.get(burg.market);
+      const laborPeopleBurg = laborPeople(population, populationRate);
+      const demandByGood = demandByMarket.get(burg.market) ?? new Map<number, number>();
+      for (const { good, own, inputs } of rows) {
+        const lots = getCalibratedMonthlyLots({
+          goodName: good.name,
+          laborPeopleBurg,
+          port: Boolean(burg.port),
+          capital: Boolean(burg.capital),
+          market
+        });
+        if (!(lots > 0)) continue;
+        if (own) demandByGood.set(good.i, (demandByGood.get(good.i) || 0) + lots);
+        for (const { goodId, amount } of inputs)
+          demandByGood.set(goodId, (demandByGood.get(goodId) || 0) + lots * amount);
+      }
+      demandByMarket.set(burg.market, demandByGood);
+    }
+    return demandByMarket;
   }
 
   /**
