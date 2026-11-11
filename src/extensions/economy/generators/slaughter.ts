@@ -12,6 +12,7 @@
  * (sellMeat); what they do not buy is eaten by the farm families and never stands in stock.
  */
 
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getSimulationYear } from "../context/economyApi";
@@ -21,13 +22,14 @@ import {
   getMarkets,
   getOrCreateCumulativeGoodsSales,
   getOrCreateMarketGoodProductionTotals,
+  getSimulationMonth,
   getWorldContext
 } from "../economyContext";
 import { recordCountrysideFlow } from "./approachLedger";
 import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import { getMarketPriceLevel } from "./currencySufficiency";
 import { GROSS_FOOD_NEED } from "./foodConstants";
-import { recordFoodMarketIntake } from "./foodProcessingLedger";
+import { getMarketClimate, recordFoodMarketIntake } from "./foodProcessingLedger";
 import { FARMGATE_PRICE_SHARE } from "./foodProduction";
 import { GOOD_MEASURES, WAIN_KG } from "./goodMeasureCatalog";
 import type { Good } from "./goods-generator";
@@ -334,4 +336,32 @@ function recordMeatSales(market: Market, producedKg: number, soldKg: number): vo
   const ledger = market.meatSales!;
   ledger.producedKg = rn(ledger.producedKg + producedKg, 2);
   ledger.soldKg = rn(ledger.soldKg + soldKg, 2);
+}
+
+/** Summer months, June to August north of the equator and December to February south of it. */
+function isHideSummerMonth(month: number, latitude: number | undefined): boolean {
+  return (latitude ?? 0) < 0 ? month === 12 || month <= 2 : month >= 6 && month <= 8;
+}
+
+/**
+ * Hides spoil in the summer, when the tanners work the fields: a share of each market's untanned
+ * stock each summer month goes to manure and glue (docs/plan/leather-uses.md §4.3). Returns the
+ * rolls lost.
+ */
+export function spoilSummerHides(): number {
+  const rate = getMarketSettings().summerHideLoss;
+  const leather = getGoods().find(good => good.name === "Leather");
+  if (!(rate > 0) || !leather) return 0;
+  const month = getSimulationMonth();
+  let lost = 0;
+  for (const market of getMarkets()) {
+    const stock = market?.goods?.[leather.i]?.stock ?? 0;
+    if (!(stock > 0) || !isHideSummerMonth(month, getMarketClimate(market)?.latitude)) continue;
+    const units = rn(stock * rate, 2);
+    if (!(units > 0)) continue;
+    market.goods[leather.i].stock = rn(stock - units, 2);
+    recordGoodFlow({ direction: "sink", category: "spoilage", goodId: leather.i, units, marketId: market.i });
+    lost += units;
+  }
+  return rn(lost, 2);
 }

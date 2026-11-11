@@ -24,8 +24,12 @@ import {
   setHouseholdHoneyKilograms
 } from "../../../../simulation/householdHoneySettings";
 import {
+  BOOTS_LABOR_MODES,
+  type BootsLaborMode,
   CRAFT_SALE_PAYMENT_MODES,
   type CraftSalePaymentMode,
+  FOOTWEAR_DEMAND_MODES,
+  type FootwearDemandMode,
   GRAIN_REPAYMENT_MODES,
   type GrainRepaymentMode,
   getMarketGenerationSpacing,
@@ -680,6 +684,108 @@ export const SimulationSettingsTab: React.FC = () => {
                 step={MARKET_SETTING_LIMITS.ruralTownServices.step}
                 value={marketSettings.ruralTownServices}
                 onChange={v => updateMarketSetting("ruralTownServices", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.footwearDemandTip")}>
+            <td />
+            <td>
+              <label htmlFor="footwearDemand">{t("simulation.footwearDemand")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="footwearDemand"
+                value={marketSettings.footwearDemand}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      footwearDemand: e.target.value as FootwearDemandMode
+                    })
+                  )
+                }
+              >
+                {FOOTWEAR_DEMAND_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.footwearDemand_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.footwearPairsPerPersonTip")}>
+            <td />
+            <td>{t("simulation.footwearPairsPerPerson")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="footwearPairsPerPerson"
+                min={MARKET_SETTING_LIMITS.footwearPairsPerPerson.min}
+                max={MARKET_SETTING_LIMITS.footwearPairsPerPerson.max}
+                step={MARKET_SETTING_LIMITS.footwearPairsPerPerson.step}
+                value={marketSettings.footwearPairsPerPerson}
+                onChange={v => updateMarketSetting("footwearPairsPerPerson", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leatherGoodsShareTip")}>
+            <td />
+            <td>{t("simulation.leatherGoodsShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="leatherGoodsShare"
+                min={MARKET_SETTING_LIMITS.leatherGoodsShare.min}
+                max={MARKET_SETTING_LIMITS.leatherGoodsShare.max}
+                step={MARKET_SETTING_LIMITS.leatherGoodsShare.step}
+                value={marketSettings.leatherGoodsShare}
+                onChange={v => updateMarketSetting("leatherGoodsShare", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.summerHideLossTip")}>
+            <td />
+            <td>{t("simulation.summerHideLoss")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="summerHideLoss"
+                min={MARKET_SETTING_LIMITS.summerHideLoss.min}
+                max={MARKET_SETTING_LIMITS.summerHideLoss.max}
+                step={MARKET_SETTING_LIMITS.summerHideLoss.step}
+                value={marketSettings.summerHideLoss}
+                onChange={v => updateMarketSetting("summerHideLoss", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.bootsLaborTip")}>
+            <td />
+            <td>
+              <label htmlFor="bootsLabor">{t("simulation.bootsLabor")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="bootsLabor"
+                value={marketSettings.bootsLabor}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ bootsLabor: e.target.value as BootsLaborMode }))
+                }
+              >
+                {BOOTS_LABOR_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.bootsLabor_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralShoemakersPerThousandTip")}>
+            <td />
+            <td>{t("simulation.ruralShoemakersPerThousand")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralShoemakersPerThousand"
+                min={MARKET_SETTING_LIMITS.ruralShoemakersPerThousand.min}
+                max={MARKET_SETTING_LIMITS.ruralShoemakersPerThousand.max}
+                step={MARKET_SETTING_LIMITS.ruralShoemakersPerThousand.step}
+                value={marketSettings.ruralShoemakersPerThousand}
+                onChange={v => updateMarketSetting("ruralShoemakersPerThousand", v)}
               />
             </td>
           </tr>

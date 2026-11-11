@@ -202,6 +202,7 @@ export const CATALOG_TRADE_HEADINGS = {
   Caravel: "ships",
   Galleon: "ships",
   Boots: "clothing",
+  "Leather Goods": "clothing",
   Harnesses: "leather",
   Barrels: "wood",
   Bronze: "metals",

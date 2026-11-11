@@ -39,6 +39,7 @@ import {
   type TradeScale,
   type TradeTrend
 } from "./goodsGeneratorTypes";
+import { BOOTS_HIDES_PER_LOT } from "./leatherConstants";
 import { RENNET_BARRELS_PER_CHEESE_LOT } from "./rennet";
 import {
   DRINK_CONTAINER_CHOICES,
@@ -1751,7 +1752,8 @@ export const GOODS_DATA: GoodData[] = [
     color: "#654321",
     value: 7,
     chance: 0,
-    recipes: [{ Leather: 1 }, { Furs: 0.5 }],
+    // A lot is 20 pairs; a cowhide gives about 10 pairs, uppers and soles (docs/plan/leather-uses.md §4.1).
+    recipes: [{ Leather: BOOTS_HIDES_PER_LOT }, { Furs: 0.5 }],
     unit: "pair",
     demandCoverage: { utilities: 1 }
   },
@@ -3627,6 +3629,20 @@ export const GOODS_DATA: GoodData[] = [
     recipes: TEXTILE_RECIPES["Wool Blankets"],
     unit: "blanket lot",
     demandCoverage: {}
+  },
+  {
+    // Belts, purses, bags, gloves, water skins, buckets, saddles and furniture covers: the leather
+    // that did not go into shoes, a third or more of it (docs/plan/leather-uses.md §4.2).
+    name: "Leather Goods",
+    warEconomyType: "essential",
+    tags: ["clothing"],
+    icon: "good-leather",
+    color: "#7a4a24",
+    value: 3.5,
+    chance: 0,
+    recipes: [{ Leather: 1 }],
+    unit: "lot",
+    demandCoverage: { utilities: 1 }
   }
 ];
 
@@ -3759,6 +3775,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Caravel: tradeProfile(5, 5, 5, 0, 0, 4, 3),
   Galleon: tradeProfile(5, 5, 5, 0, 0, 4, 3),
   Boots: tradeProfile(2, 3, 2, 1, 0, 4, 2),
+  "Leather Goods": tradeProfile(2, 3, 2, 1, 0, 4, 2),
   Harnesses: tradeProfile(3, 3, 3, 1, 0, 4, 2),
   Barrels: tradeProfile(4, 5, 1, -1, 0, 4, 2),
   Bronze: tradeProfile(5, 4, 3, 1, 0, 5, 2),
@@ -5613,6 +5630,32 @@ export function migrateOrdinaryWoolGoods(): boolean {
       .map(recipe => Object.fromEntries(Object.entries(recipe).map(([name, amount]) => [byName.get(name)!.i, amount])));
   }
   return added.length > 0;
+}
+
+/**
+ * Adds the leather goods other than shoes and makes a lot of Boots take two hides
+ * (docs/plan/leather-uses.md §4).
+ */
+export function migrateLeatherGoods(): boolean {
+  const goods = getGoods();
+  const leather = goods.find(entry => entry.name === "Leather");
+  if (!leather) return false;
+  let changed = false;
+  const boots = goods.find(entry => entry.name === "Boots");
+  for (const recipe of boots?.recipes ?? []) {
+    if (recipe[leather.i] === 1) {
+      recipe[leather.i] = BOOTS_HIDES_PER_LOT;
+      changed = true;
+    }
+  }
+  if (!goods.some(entry => entry.name === "Leather Goods")) {
+    const good = Goods.getDefaultGood("Leather Goods")!;
+    good.i = Math.max(0, ...goods.map(entry => entry.i)) + 1;
+    good.recipes = [{ [leather.i]: 1 }];
+    goods.push(good);
+    changed = true;
+  }
+  return changed;
 }
 
 /** Adds bedding without reinterpreting existing garment or fabric inventories. */

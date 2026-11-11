@@ -473,12 +473,18 @@ export function getRuralTownSpend(market: Market): number {
   return Math.min(purse * RURAL_TOWN_SPEND_MAX_SHARE, need * pow(ratio, elasticity));
 }
 
-/** Opens this month's town budget for the household goods (foodProcessingLedger.ts). */
+/**
+ * Opens this month's town budget for the goods farm families buy from the market's stock (the
+ * household goods of foodProcessingLedger.ts, footwear), once a month; returns what is left of it.
+ */
 export function openRuralTownBudget(market: Market): number {
+  const ledger = market.foodLedger;
+  if (ledger?.ruralTownBudget !== undefined)
+    return Math.max(0, ledger.ruralTownBudget - (ledger.ruralTownGoodsPaid ?? 0));
   const budget = getRuralTownSpend(market);
-  if (market.foodLedger && getMarketSettings().ruralTownSpending === "need") {
-    market.foodLedger.ruralTownBudget = budget;
-    market.foodLedger.ruralTownGoodsPaid = 0;
+  if (ledger && getMarketSettings().ruralTownSpending === "need") {
+    ledger.ruralTownBudget = budget;
+    ledger.ruralTownGoodsPaid = 0;
   }
   return budget;
 }

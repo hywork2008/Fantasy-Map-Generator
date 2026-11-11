@@ -140,6 +140,7 @@ import {
   migrateIndustrialSteamGoods,
   migrateInkBarrel,
   migrateLeatherByproduct,
+  migrateLeatherGoods,
   migrateLegacyOreIngotGoods,
   migrateLinenBale,
   migrateLinenGarmentGoods,
@@ -240,7 +241,7 @@ import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
 import { SaltLogistics } from "./generators/saltLogistics";
 import { migrateSaltworksOwnership } from "./generators/saltOwnership";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
-import { clearPrepaidStapleBills, recordStapleBillPaid } from "./generators/slaughter";
+import { clearPrepaidStapleBills, recordStapleBillPaid, spoilSummerHides } from "./generators/slaughter";
 import { SmelterOperations } from "./generators/smelterOperations";
 import { settleStartProvisioning } from "./generators/startProvisioning";
 import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
@@ -385,7 +386,8 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   // barilla recipe saves of docs/plan/barilla-soap.md gave Soap.
   migrateCastileSoapGood,
   // docs/plan/soap-by-period.md §3.2: olive oil soap is Castile Soap, not the soft soap.
-  migrateOliveSoapRecipe
+  migrateOliveSoapRecipe,
+  migrateLeatherGoods
 ];
 
 /**
@@ -873,6 +875,7 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
         Production.produce(skipFoodConsumption ? value.livestockFeedPeriod : undefined)
       );
       measureTickStep("production:householdHeating", () => settleMonthlyHeating());
+      measureTickStep("production:summerHides", () => spoilSummerHides());
       measureTickStep("production:forestGlasshouses", () => settleForestGlasshouses());
       // Completed forge Goods are transferred from market stock to the queue before the next
       // planning pass refreshes maintenance and consumable demand.

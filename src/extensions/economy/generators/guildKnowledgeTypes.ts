@@ -83,6 +83,7 @@ export const CRAFT_DOMAIN_BY_GOOD_NAME: Readonly<Record<string, CraftKnowledgeDo
   Sails: "textiles",
   Leather: "leather",
   Boots: "leather",
+  "Leather Goods": "leather",
   Ceramics: "glassware",
   Glass: "glassware",
   "Lab Glassware": "glassware",

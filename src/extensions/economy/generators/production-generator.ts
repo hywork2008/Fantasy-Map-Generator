@@ -46,6 +46,7 @@ import { drawCraftCredit, recordCraftSpend } from "./craftCredit";
 import {
   calibratedReserveFactor,
   domainShare,
+  getAnnualLotsPerTownPerson,
   getCalibratedMonthlyLots,
   getGoodDemandCalibration,
   laborPointsForLots
@@ -69,6 +70,7 @@ import {
   refreshAleHouseholdDemand,
   settleFoodProcessingHouseholds
 } from "./foodProcessingLedger";
+import { getMarketBuyerFactor, getRuralShoemakerPeople, isFootwearForEveryone, isFootwearGood } from "./footwearDemand";
 import { hasForestGlasshouses } from "./forestGlasshouses";
 import type { DemandCategory, Good } from "./goods-generator";
 import {
@@ -88,6 +90,7 @@ import {
   getCraftDomainForGood
 } from "./guildKnowledgeTypes";
 import { GUILD_PROFIT_SHARE, GuildTreasury } from "./guildTreasury";
+import { debitRuralHouseholdWealth, openRuralTownBudget, recordRuralTownGoodsPaid } from "./householdWealth";
 import { harvestLivestockForage, settleLivestockFeed } from "./livestockFeed";
 import { scheduleLivestockFeedPeriods } from "./livestockFeedSchedule";
 import { withLivestockFeedPeriod } from "./livestockFeedState";
@@ -999,13 +1002,13 @@ export class ProductionModule {
       if (!row) continue;
       // Without the town soap need, soap is made by profit as an uncalibrated good.
       if ((row.floorFromTownSoap || row.floorFromSoapPotash) && !isTownSoapEnabled()) continue;
-      let lots = getCalibratedMonthlyLots({ goodName: good.name, laborPeopleBurg, port, capital });
+      let lots = getCalibratedMonthlyLots({ goodName: good.name, laborPeopleBurg, port, capital, market });
       // Forest glasshouses make an inland market's Glass; its town glaziers keep the finishing work.
       // Port towns keep their glasshouses, as Venice and Barcelona melted plant soda ash shipped in.
       if (good.name === "Glass" && !port && hasForestGlasshouses(market)) lots = 0;
       // A per-head floor stops when the market already holds months of it; orders do not.
       if (row.annualLotsPerPerson != null) {
-        let marketLots = (marketLaborPeople * row.annualLotsPerPerson) / 12;
+        let marketLots = (marketLaborPeople * (getAnnualLotsPerTownPerson(row, market) ?? 0)) / 12;
         // Casks follow what the market's households drink, shared by the towns' people (§12 item 20).
         if (row.floorFromHouseholdDrinks && market && marketLaborPeople > 0) {
           const key = `${marketId}:${good.i}`;
@@ -1493,8 +1496,13 @@ export class ProductionModule {
     populationRate: number
   ): ExpectedWorkerArgs & { populationRate: number } {
     const stateId = state.burg.state || 0;
+    const people = laborPeople(state.population, populationRate);
     return {
-      laborPeople: laborPeople(state.population, populationRate),
+      laborPeople: people,
+      ruralShoemakerPeople: getRuralShoemakerPeople(
+        people,
+        state.burg.market ? Markets.get(state.burg.market) : undefined
+      ),
       populationRate,
       port: Boolean(state.burg.port),
       capital: Boolean(state.burg.capital),
@@ -2113,20 +2121,43 @@ export class ProductionModule {
       const rate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
       const laborPeopleBurg = laborPeople(rn(burg.population || 0, 2), rate);
       for (const good of calibratedPurchases) {
-        const budget = burg.treasury || 0;
-        if (budget <= 0.01) break;
         const units = getCalibratedMonthlyLots({
           goodName: good.name,
           laborPeopleBurg,
           port: Boolean(burg.port),
-          capital: Boolean(burg.capital)
+          capital: Boolean(burg.capital),
+          market
         });
         if (!(units > 0.001) || (market.goods[good.i]?.stock ?? 0) <= 0.01) continue;
-        const deal = Markets.buy({ burg, good, units, budget, flow: { category: "burgDemand" } });
-        if (!deal) continue;
-        records.push({ dealId: deal.i });
-        burg.treasury = rn((burg.treasury || 0) - deal.units * deal.price, 2);
-        addCoverage(good.i, deal.units);
+        // Footwear for everyone: the farm families' share is paid from their month in town
+        // (docs/plan/leather-uses.md §4.1, rural-town-spending.md §4.2), the rest by the town.
+        const ruralShare =
+          isFootwearGood(good.name) && isFootwearForEveryone() ? 1 - 1 / getMarketBuyerFactor(market) : 0;
+        const ruralUnits = units * ruralShare;
+        const budget = burg.treasury || 0;
+        if (budget > 0.01) {
+          const deal = Markets.buy({ burg, good, units: units - ruralUnits, budget, flow: { category: "burgDemand" } });
+          if (deal) {
+            records.push({ dealId: deal.i });
+            burg.treasury = rn((burg.treasury || 0) - deal.units * deal.price, 2);
+            addCoverage(good.i, deal.units);
+          }
+        }
+        if (ruralUnits > 0.001 && (market.goods[good.i]?.stock ?? 0) > 0.01) {
+          const ruralBudget = openRuralTownBudget(market);
+          if (!(ruralBudget > 0.01)) continue;
+          const deal = Markets.buy({
+            burg,
+            good,
+            units: ruralUnits,
+            budget: ruralBudget,
+            flow: { category: "burgDemand" }
+          });
+          if (!deal) continue;
+          records.push({ dealId: deal.i });
+          const paid = debitRuralHouseholdWealth(market, rn(deal.units * deal.price, 2));
+          recordRuralTownGoodsPaid(market, paid);
+        }
       }
     }
 

@@ -375,7 +375,7 @@ export function getMeanMonthlyRaisinDemand(market: Market): number {
 type MarketClimate = { latitude: number; annualTemperature: number; precipitation: number };
 
 /** The market's central burg climate; undefined where the map lacks coordinates (test fixtures). */
-function getMarketClimate(market: Market): MarketClimate | undefined {
+export function getMarketClimate(market: Market): MarketClimate | undefined {
   const world = getWorldContext();
   const burg = world.pack?.burgs?.[market.centerBurgId];
   if (!burg) return undefined;

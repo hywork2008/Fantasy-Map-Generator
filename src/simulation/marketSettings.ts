@@ -73,6 +73,20 @@ export type HouseholdGoodsPaymentMode = (typeof HOUSEHOLD_GOODS_PAYMENT_MODES)[n
 export const RURAL_TOWN_SPENDING_MODES = ["need", "purseShare"] as const;
 export type RuralTownSpendingMode = (typeof RURAL_TOWN_SPENDING_MODES)[number];
 
+/**
+ * Who buys footwear: `everyone` the towns and the countryside at `footwearPairsPerPerson`;
+ * `townsOnly` the towns at a quarter pair a year, as before (docs/plan/leather-uses.md §4.1).
+ */
+export const FOOTWEAR_DEMAND_MODES = ["everyone", "townsOnly"] as const;
+export type FootwearDemandMode = (typeof FOOTWEAR_DEMAND_MODES)[number];
+
+/**
+ * Work in a lot of Boots: `perDay` about a pair a shoemaker a day; `legacy` a pair a month, as
+ * before (docs/plan/footwear-capacity.md §5.1).
+ */
+export const BOOTS_LABOR_MODES = ["perDay", "legacy"] as const;
+export type BootsLaborMode = (typeof BOOTS_LABOR_MODES)[number];
+
 export const GRAIN_REPAYMENT_MODES = ["quarterDays", "monthly"] as const;
 export type GrainRepaymentMode = (typeof GRAIN_REPAYMENT_MODES)[number];
 
@@ -101,6 +115,16 @@ export type MarketSettings = {
   ruralSpendElasticityBelow: number;
   /** Multiplier on the per-head need fixed at a market's first month from the `purseShare` amount. */
   ruralTownServices: number;
+  footwearDemand: FootwearDemandMode;
+  /** Pairs of shoes a person wears out a year. */
+  footwearPairsPerPerson: number;
+  /** Leather in the leather goods other than shoes, as a share of the shoes' leather; 0 makes none. */
+  leatherGoodsShare: number;
+  /** Share of a market's hides that spoil each month of June to August, when tanners work the fields. */
+  summerHideLoss: number;
+  bootsLabor: BootsLaborMode;
+  /** Village shoemakers for each 1,000 farm people, counted in their market's towns; used with `everyone`. */
+  ruralShoemakersPerThousand: number;
   /**
    * Weight of a rural person against a town person in the wages a market pays from its surplus:
    * carters, threshers and hay hands in its countryside as well as dealers and porters in its towns.
@@ -135,6 +159,12 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   ruralSpendElasticityAbove: 1,
   ruralSpendElasticityBelow: 0.5,
   ruralTownServices: 1,
+  footwearDemand: "everyone",
+  footwearPairsPerPerson: 1,
+  leatherGoodsShare: 0.5,
+  summerHideLoss: 0.1,
+  bootsLabor: "perDay",
+  ruralShoemakersPerThousand: 2,
   surplusRuralWeight: 1,
   surplusReserveFactor: 0.25,
   harvestReserveMonths: 4,
@@ -155,7 +185,11 @@ export const MARKET_SETTING_LIMITS = {
   ruralPurseMonths: { min: 0.5, max: 24, step: 0.5 },
   ruralSpendElasticityAbove: { min: 0, max: 2, step: 0.05 },
   ruralSpendElasticityBelow: { min: 0, max: 2, step: 0.05 },
-  ruralTownServices: { min: 0, max: 5, step: 0.05 }
+  ruralTownServices: { min: 0, max: 5, step: 0.05 },
+  footwearPairsPerPerson: { min: 0, max: 4, step: 0.25 },
+  leatherGoodsShare: { min: 0, max: 2, step: 0.05 },
+  summerHideLoss: { min: 0, max: 0.5, step: 0.01 },
+  ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 }
 } as const;
 
 type NumericMarketSetting = keyof typeof MARKET_SETTING_LIMITS;
@@ -196,6 +230,14 @@ const ruralTownSpendingMode = (value: unknown): RuralTownSpendingMode =>
     ? (value as RuralTownSpendingMode)
     : DEFAULT_MARKET_SETTINGS.ruralTownSpending;
 
+const footwearDemandMode = (value: unknown): FootwearDemandMode =>
+  FOOTWEAR_DEMAND_MODES.includes(value as FootwearDemandMode)
+    ? (value as FootwearDemandMode)
+    : DEFAULT_MARKET_SETTINGS.footwearDemand;
+
+const bootsLaborMode = (value: unknown): BootsLaborMode =>
+  BOOTS_LABOR_MODES.includes(value as BootsLaborMode) ? (value as BootsLaborMode) : DEFAULT_MARKET_SETTINGS.bootsLabor;
+
 const clamp = (key: NumericMarketSetting, value: unknown): number => {
   const { min, max, step } = MARKET_SETTING_LIMITS[key];
   if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_MARKET_SETTINGS[key];
@@ -226,6 +268,12 @@ export function getMarketSettings(): MarketSettings {
     ruralSpendElasticityAbove: clamp("ruralSpendElasticityAbove", parsed.ruralSpendElasticityAbove),
     ruralSpendElasticityBelow: clamp("ruralSpendElasticityBelow", parsed.ruralSpendElasticityBelow),
     ruralTownServices: clamp("ruralTownServices", parsed.ruralTownServices),
+    footwearDemand: footwearDemandMode(parsed.footwearDemand),
+    footwearPairsPerPerson: clamp("footwearPairsPerPerson", parsed.footwearPairsPerPerson),
+    leatherGoodsShare: clamp("leatherGoodsShare", parsed.leatherGoodsShare),
+    summerHideLoss: clamp("summerHideLoss", parsed.summerHideLoss),
+    bootsLabor: bootsLaborMode(parsed.bootsLabor),
+    ruralShoemakersPerThousand: clamp("ruralShoemakersPerThousand", parsed.ruralShoemakersPerThousand),
     surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor),
     harvestReserveMonths: clamp("harvestReserveMonths", parsed.harvestReserveMonths),
@@ -252,6 +300,12 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     ruralSpendElasticityAbove: clamp("ruralSpendElasticityAbove", next.ruralSpendElasticityAbove),
     ruralSpendElasticityBelow: clamp("ruralSpendElasticityBelow", next.ruralSpendElasticityBelow),
     ruralTownServices: clamp("ruralTownServices", next.ruralTownServices),
+    footwearDemand: footwearDemandMode(next.footwearDemand),
+    footwearPairsPerPerson: clamp("footwearPairsPerPerson", next.footwearPairsPerPerson),
+    leatherGoodsShare: clamp("leatherGoodsShare", next.leatherGoodsShare),
+    summerHideLoss: clamp("summerHideLoss", next.summerHideLoss),
+    bootsLabor: bootsLaborMode(next.bootsLabor),
+    ruralShoemakersPerThousand: clamp("ruralShoemakersPerThousand", next.ruralShoemakersPerThousand),
     surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor),
     harvestReserveMonths: clamp("harvestReserveMonths", next.harvestReserveMonths),

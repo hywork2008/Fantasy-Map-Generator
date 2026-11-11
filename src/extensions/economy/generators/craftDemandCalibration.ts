@@ -6,8 +6,16 @@
 import { STAPLE_NEED_KG_PER_PERSON_YEAR } from "../../../generators/settlementClearance";
 import { DEFAULT_PEOPLE_PER_POPULATION_POINT, REFERENCE_FIXTURE_LABOR_PEOPLE } from "./craftScale";
 import { GROSS_FOOD_NEED } from "./foodConstants";
+import {
+  getBootsLaborPerLot,
+  getFootwearAnnualLotsPerPerson,
+  getMarketBuyerFactor,
+  isFootwearForEveryone,
+  isFootwearGood
+} from "./footwearDemand";
 import type { DemandCategory } from "./goodsGeneratorTypes";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
+import type { Market } from "./marketTypes";
 
 export type DemandProvenanceKind =
   | "householdPerCapita"
@@ -237,10 +245,31 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     provenances: ["householdPerCapita"],
     annualLotsPerPerson: 0.0125,
     fixtureLotsPerMonth: 9.375,
-    laborPointsPerLotAtDefaultRate: 0.0202,
+    // The default rate; laborPointsForLots reads the setting `bootsLabor` (BOOTS_LABOR_PER_LOT).
+    laborPointsPerLotAtDefaultRate: 0.001,
     residualWeight: 0,
     householdPurchase: true,
-    sources: ["0.25 pair/person/year ÷ itemsPerUnit 20"]
+    sources: [
+      "0.25 pair/person/year ÷ itemsPerUnit 20, the towns only (footwearDemand townsOnly)",
+      "footwearDemand everyone: footwearPairsPerPerson for the towns and their share of the countryside (docs/plan/leather-uses.md §4.1)"
+    ]
+  },
+  {
+    goodName: "Leather Goods",
+    domain: "leather",
+    inlandShare: 0.7,
+    portShare: 0.7,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 0,
+    // The fixture's town people at the defaults (a pair a person, half the shoes' hides).
+    fixtureLotsPerMonth: 37.5,
+    laborPointsPerLotAtDefaultRate: 0.00025,
+    residualWeight: 0,
+    householdPurchase: true,
+    sources: [
+      "a lot is a hide; leatherGoodsShare of the shoes' hides a person (docs/plan/leather-uses.md §4.2)",
+      "provisional: a week's work a hide for belts, purses, gloves and bottles (docs/plan/footwear-capacity.md §5.2)"
+    ]
   },
   {
     goodName: "Leather",
@@ -616,7 +645,10 @@ export const UNCALIBRATED_LABOR_POINTS_PER_LOT: Readonly<Record<string, number>>
 
 export function laborPointsForLots(goodName: string, lots: number, populationRate: number): number {
   const row = getGoodDemandCalibration(goodName);
-  const perLot = row?.laborPointsPerLotAtDefaultRate ?? UNCALIBRATED_LABOR_POINTS_PER_LOT[goodName];
+  const perLot =
+    goodName === "Boots"
+      ? getBootsLaborPerLot()
+      : (row?.laborPointsPerLotAtDefaultRate ?? UNCALIBRATED_LABOR_POINTS_PER_LOT[goodName]);
   if (perLot == null) return lots;
   const rate = Math.max(1, populationRate);
   return Math.max(0, lots) * perLot * (DEFAULT_PEOPLE_PER_POPULATION_POINT / rate);
@@ -626,18 +658,34 @@ export function laborPointsForLots(goodName: string, lots: number, populationRat
  * PR 1 household / floor lots. Military, shipbuilding, and hinterland fillings are added by
  * later PRs; they must not return 0 for a mapped good just because those ledgers are empty.
  */
+/**
+ * A per-head floor's lots a year for each town person: footwear and leather goods for everyone
+ * count the town's share of its market's countryside too (docs/plan/leather-uses.md §4.1).
+ */
+export function getAnnualLotsPerTownPerson(
+  row: Pick<GoodDemandCalibrationRow, "goodName" | "annualLotsPerPerson">,
+  market?: Pick<Market, "i">
+): number | undefined {
+  if (row.annualLotsPerPerson == null) return undefined;
+  if (!isFootwearGood(row.goodName) || !isFootwearForEveryone()) return row.annualLotsPerPerson;
+  return (getFootwearAnnualLotsPerPerson(row.goodName) ?? 0) * getMarketBuyerFactor(market);
+}
+
 export function getCalibratedMonthlyLots(args: {
   goodName: string;
   laborPeopleBurg: number;
   port: boolean;
   capital?: boolean;
+  /** The town's market: footwear for everyone counts its countryside. */
+  market?: Pick<Market, "i">;
 }): number {
   void args.port;
   const row = getGoodDemandCalibration(args.goodName);
   if (!row) return 0;
   const people = Math.max(0, args.laborPeopleBurg);
-  if (row.annualLotsPerPerson != null) {
-    return (people * row.annualLotsPerPerson) / 12;
+  const annual = getAnnualLotsPerTownPerson(row, args.market);
+  if (annual != null) {
+    return (people * annual) / 12;
   }
   const scale = people / REFERENCE_FIXTURE_LABOR_PEOPLE;
   let lots = row.fixtureLotsPerMonth * scale;

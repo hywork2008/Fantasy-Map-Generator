@@ -358,6 +358,7 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   Books: byMass("volume", "200 kg", 200, 0.5, "crate", "recipe"),
   // Made goods counted by lots the recipes imply: the metal they consume, less waste.
   Boots: byMass("pair", "20 pairs", 30, 0.35, "crate", "code"),
+  "Leather Goods": byMass("lot", "one hide's belts, bags and gloves", 15, 0.35, "crate", "code"),
   Bread: byMass("loaf", "20 loaves", 20, 0.3, "crate", "code"),
   Harnesses: byMass("set", `${HARNESS_SETS_PER_LOT} sets`, HARNESS_SETS_PER_LOT * 10, 0.4, "crate", "code"),
   Tools: byMass("set", "500 kg of tools", 500, 0.6, "crate", "recipe"),

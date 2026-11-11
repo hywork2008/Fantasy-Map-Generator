@@ -122,7 +122,7 @@ export const OCCUPATIONAL_CALIBRATION: readonly OccupationalCalibrationRow[] = [
   {
     pool: "leatherGoods",
     peoplePerThousandUrban: { min: 3, max: 10, inlandTypicalPerThousand: 7 },
-    goodNames: [],
+    goodNames: ["Leather Goods"],
     guildDomain: "leather",
     sources: ["E2 girdlers+glovers+pouchmakers 16.6% vs cordwainers 34.8%; F1 belt makers 0.36 × shoemakers"]
   },
@@ -367,6 +367,8 @@ export interface ExpectedWorkerArgs {
   wineRegion?: boolean;
   /** Employed share of the world over the authored default (`getCraftEmploymentScale`); guild crafts only. */
   employmentScale?: number;
+  /** Village shoemakers counted in the town (getRuralShoemakerPeople); added to its shoemakers. */
+  ruralShoemakerPeople?: number;
 }
 
 function isRowAvailable(row: OccupationalCalibrationRow, args: ExpectedWorkerArgs): boolean {
@@ -394,6 +396,7 @@ export function expectedWorkerPeople(args: ExpectedWorkerArgs & { row: Occupatio
   }
   if (args.row.modifiers?.capital && !args.capital && args.row.pool === "administration") people = 0;
   if (args.row.guildDomain) people *= args.employmentScale ?? 1;
+  if (args.row.pool === "shoemaking") people += args.ruralShoemakerPeople ?? 0;
   return people;
 }
 

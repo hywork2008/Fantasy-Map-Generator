@@ -940,7 +940,7 @@ describe("runWorkerLoop steps (port-freight-queue-and-warehouses.md §10.23)", (
         workforce: 1,
         activeGoalGoodId: null,
         strategicDemandByGood: new Map(),
-        remainingCalibratedLots: new Map([[boots.i, 100]]),
+        remainingCalibratedLots: new Map([[boots.i, 1000]]),
         orderedCalibratedLots: new Map(),
         demandTargets: [],
         demandCoverage: []
