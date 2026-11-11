@@ -2,7 +2,7 @@ import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorUrbanAlgorithm } from "../../../types/vector/urban";
 
 /** Output-changing revisions bump this; recipe links refuse documents adopted by another version. */
-export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v17";
+export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v18";
 
 /** The requested settings without the housing culture, which changes how houses look, not what was generated: it
  * is applied to the open city without regenerating it. */

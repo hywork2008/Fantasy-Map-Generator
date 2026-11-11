@@ -413,7 +413,11 @@ export function createVectorGenerationPanel(
     if (!seedTyped) seed.value = randomSeed();
     seedTyped = false;
     try {
-      const target = Number(population.value);
+      const target = Number(population.value),
+        // The building generation chosen in this panel, not the one the editor opened with: it sizes the site for the
+        // facilities' land and lays them out.
+        urbanMode = mode.value as "medieval" | "medieval-facilities",
+        facilityLayout = urbanMode === "medieval-facilities" ? ("population" as const) : undefined;
       // The site is planned for the population in this panel, not the one the editor opened with.
       const source = editorInput
         ? vectorInputFromEditor({
@@ -422,6 +426,7 @@ export function createVectorGenerationPanel(
             lotOccupancy: lotOccupancy(),
             settings: {
               ...editorInput.settings,
+              facilityLayout,
               population: {
                 ...(editorInput.settings.population ?? {
                   version: 1,
@@ -460,7 +465,7 @@ export function createVectorGenerationPanel(
           },
           urban: {
             ...DEFAULT_VECTOR_URBAN,
-            mode: vectorUrbanMode(editorInput?.settings),
+            mode: urbanMode,
             population: target,
             lotOccupancy: lotOccupancy()
           }

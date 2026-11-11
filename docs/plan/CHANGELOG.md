@@ -3,6 +3,7 @@
 2026-11-11
 
 - docs/plan/ce-meshless-gate-ribbon-growth.md - 郊外の描画範囲（市壁の直径の2.5倍）の節を追加
+- docs/plan/ce-meshless-gate-ribbon-growth.md - 施設モードの街区の埋め方（施設が街区の区画をまとめて取り、住宅が残りを埋める）の節を追加
 
 2026-11-10
 

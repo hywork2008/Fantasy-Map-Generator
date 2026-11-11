@@ -98,13 +98,19 @@ describe("M8 generation ownership", () => {
   });
   it("promotes a generated lane used by an authored site to persistent input", () => {
     const input = site(),
-      // Medieval lanes are fabric records (detached as paths in S2.1e); facility mode still adopts lane paths.
-      urban = generateVectorUrban(input, {
-        ...DEFAULT_VECTOR_URBAN,
-        mode: "medieval-facilities",
-        population: 40,
-        maxLanes: 4
-      });
+      // Medieval lanes are fabric records (detached as paths in S2.1e); the house-placement route adopts lane paths.
+      urban = generateVectorUrban(
+        input,
+        {
+          ...DEFAULT_VECTOR_URBAN,
+          mode: "medieval-facilities",
+          population: 40,
+          maxLanes: 4
+        },
+        undefined,
+        // Lane paths are the house-placement route's (a housing search budget keeps facility mode on it).
+        { housingAttempts: 40000 }
+      );
     const id = urban.urban!.ownedPaths[0],
       path = urban.paths[id];
     expect(path).toBeDefined();

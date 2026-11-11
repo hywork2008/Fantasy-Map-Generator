@@ -46,7 +46,7 @@ import { raiseVectorMonasteries } from "./monasteries";
 import { type RouteLink, skeletonRoutes } from "./routes";
 import { GENERATED_HARBOR_ID, raiseVectorHarbor } from "./seaHarbor";
 import { raiseVectorShantyLand, wantsShanty } from "./shanty";
-import { clipVectorDomainToWall, raiseVectorRibbonLand, vectorRibbonShortfall } from "./suburbs";
+import { clipVectorDomainToWall, raiseVectorRibbonLand, vectorFacilityLand, vectorRibbonShortfall } from "./suburbs";
 import { isVectorWallShape, VECTOR_WALL_WIDTH_METERS, vectorUnitWallRing, vectorWallSettings } from "./wallShape";
 
 /** Sine of the shallowest angle a road or river may cross a generated wall shape at (20 degrees). */
@@ -1306,12 +1306,23 @@ function skeleton(
   // Land for the roadside ribbon along each approach beyond the glacis (P7a).
   // Dwellings the interior cannot hold lengthen the ribbon, which keeps a barbican's reach in its era (W2).
   const period = doc.context.historicalPeriod ?? "ageOfExploration",
-    shortfall = vectorRibbonShortfall(doc, expectedVectorHouseStoreys(period, doc.context.requestedSettings));
+    shortfall = vectorRibbonShortfall(
+      doc,
+      expectedVectorHouseStoreys(period, doc.context.requestedSettings),
+      1,
+      vectorFacilityLand(
+        doc.context.targetPopulation ?? 0,
+        period,
+        !!doc.site?.descriptor?.burg.port,
+        doc.context.requestedSettings?.facilityLayout
+      )
+    );
   const ribbon = raiseVectorRibbonLand(
     doc,
     !!faubourg.added,
-    shortfall,
-    barbicanEra(period) ? MAX_BARBICAN_REACH_METERS : 0
+    shortfall.dwellings,
+    barbicanEra(period) ? MAX_BARBICAN_REACH_METERS : 0,
+    shortfall.riverside
   );
   doc = ribbon.document;
   if (ribbon.unplacedLength > 0)

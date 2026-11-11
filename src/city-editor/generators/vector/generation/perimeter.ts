@@ -824,7 +824,9 @@ export function placeVectorPerimeterHouses(
   alwaysBuilt: (cellId: string) => boolean = () => false,
   /** Whether a lot beyond the town keeps its house (P7a): as roadside ribbon first, then, while the ribbon leaves
    * people unhoused, as a residential suburb (the mesh editor's residential outskirts). */
-  keepsLot: (cellId: string, polygon: Point[], residential: boolean) => boolean = () => true
+  keepsLot: (cellId: string, polygon: Point[], residential: boolean) => boolean = () => true,
+  /** Street blocks a facility stands in: recorded even beyond the wall with no house, so its door keeps its line. */
+  facilityCells: ReadonlySet<string> = new Set()
 ): { dwellings: number; houses: number } {
   // A detached line stays detached only where the plan drew the same line again; anything else is refused,
   // because the plan's new line would run beside or across the user's road.
@@ -986,7 +988,11 @@ export function placeVectorPerimeterHouses(
     const kept = district.cells.filter(
       c =>
         cells.has(c.id) &&
-        (cellInside(c.id) || !!adopted.get(c.id)?.length || !!cleared[c.id]?.length || !!detachedLines[c.id]?.length)
+        (cellInside(c.id) ||
+          facilityCells.has(c.id) ||
+          !!adopted.get(c.id)?.length ||
+          !!cleared[c.id]?.length ||
+          !!detachedLines[c.id]?.length)
     );
     if (
       !kept.length &&

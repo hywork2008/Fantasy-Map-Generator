@@ -196,11 +196,13 @@ export function refreshUrbanLedger(doc: VectorCityDocument, added: string[]) {
   u.adoptedFingerprint = vectorUrbanFingerprint(doc);
 }
 
-/** After the CE plan rewrote the fabric records: every detached house's entrance moves to the nearest fabric
+/** After the CE plan rewrote the fabric records: every detached house's or facility's fabric entrance moves to the nearest fabric
  * line within reach, and no street or lane may cross a detached house. Throws when either fails. */
 export function reattachFabricEntrances(doc: VectorCityDocument): void {
   for (const p of Object.values(doc.placements)) {
-    if (!isDetachedFabricHouse(p) || !p.building) continue;
+    // Detached houses, and facilities that open onto a fabric street (facility mode), alike.
+    if (!p.building || !(isDetachedFabricHouse(p) || p.building.entrances.some(e => e.fabricLine !== undefined)))
+      continue;
     const reserved = p.building.reserved,
       box = {
         minX: Math.min(...reserved.flatMap(r => r.outer.map(q => q[0]))),

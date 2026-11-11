@@ -120,6 +120,29 @@ describe("M4 input, generation and adopted stages", () => {
     expect(history.redo()!.fabric).toBeDefined();
   }, 60000);
 
+  it("generates the city with the building generation chosen in the panel, and keeps that choice", async () => {
+    mount(createVectorDocument(), undefined, {
+      seed: "b5o620",
+      settings: {
+        ...defaultGenerationSettings(),
+        population: defaultPopulationSettings(2000),
+        historicalPeriod: "ageOfExploration" as const
+      },
+      frame: { extentMeters: 1200, cityRadiusMeters: 300, blockSizeMeters: 50 }
+    });
+    expect(field("mode").value).toBe("medieval");
+    field("mode").value = "medieval-facilities";
+    field("mode").dispatchEvent(new Event("change", { bubbles: true }));
+    fill("seed", "b5o620");
+    click("city");
+    await vi.waitFor(() => expect(history.index).toBe(1), { timeout: 120000 });
+    const urban = history.document.urban!;
+    expect(urban.settings.mode).toBe("medieval-facilities");
+    expect(urban.report.placedFacilities).toBeGreaterThan(0);
+    expect(history.document.context.requestedSettings?.facilityLayout).toBe("population");
+    expect(field("mode").value).toBe("medieval-facilities");
+  }, 120000);
+
   it("plans the site for the panel's population and keeps the chosen wall when generating a city", async () => {
     mount(createVectorDocument(), undefined, {
       seed: "b5o620",

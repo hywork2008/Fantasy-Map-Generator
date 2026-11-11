@@ -12,6 +12,7 @@ import { seedVectorCivicCentre, vectorBurial, vectorCivicLayout } from "./civic"
 import { fortifyVectorInput } from "./fortress";
 import { expectedVectorHouseStoreys } from "./housingHeights";
 import { syntheticVectorInput, vectorInputFromDescriptor } from "./input";
+import { vectorFacilityLand } from "./suburbs";
 import { bridgeSyntheticCrossings } from "./syntheticCrossings";
 import { MESHLESS_SITE_RIM_METERS, meshlessCityRadius, meshlessSiteFillScale } from "./urbanSizing";
 import { isVectorWallShape, vectorWallAreaShare, vectorWallChoice } from "./wallShape";
@@ -170,17 +171,20 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
   // The mesh plan sizes cells for the mesh editor's lots. The native site is sized for the CE perimeter lots it
   // will actually hold at the chosen occupancy, plus the land the civic centre takes before any lot.
   // A synthetic site is at least 30 m across its radius.
-  const size = (reservedM2: number) =>
-    Math.max(
-      30,
+  const size = (reservedM2: number, facilityLandM2 = 0) => {
+    const radius =
       walledScale(getUrbanDwellings(settings.population!.targetPopulation)) *
-        meshlessCityRadius(
-          getUrbanDwellings(settings.population!.targetPopulation),
-          expectedVectorHouseStoreys(period, settings, settings.descriptor?.civilization?.tradition),
-          input.lotOccupancy,
-          reservedM2
-        )
-    );
+      meshlessCityRadius(
+        getUrbanDwellings(settings.population!.targetPopulation),
+        expectedVectorHouseStoreys(period, settings, settings.descriptor?.civilization?.tradition),
+        input.lotOccupancy,
+        reservedM2
+      );
+    // The facilities' parcels are measured land, not an estimate the fill correction trims: they are added whole,
+    // widened by the wall shape as the rest is.
+    const shape = isVectorWallShape(wall.wall) ? 1 / vectorWallAreaShare(seed, wall.wall, wall.wallSides) : 1;
+    return Math.max(30, Math.sqrt(radius ** 2 + (facilityLandM2 * shape) / Math.PI));
+  };
   // The first pass leaves the civic centre out: on a site sized for houses alone it may not fit yet.
   const first = build(size(0), false);
   const reserved = [
@@ -192,18 +196,25 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     ...Object.values(first.placements).map(p => p.site)
   ].reduce((n, r) => n + regionArea({ outer: r.outer, holes: r.holes }), 0);
   const civic = vectorCivicLayout(settings.population.targetPopulation, civicOptions);
+  // Population facilities inside the town take its land before any house (facility mode).
+  const facilityM2 = vectorFacilityLand(
+    settings.population.targetPopulation,
+    period,
+    !!settings.config.features.port,
+    settings.facilityLayout
+  ).coreM2;
   // The religious houses the skeleton will found take whole blocks of the houses' land too (P6c); a walled town's
   // abbey stands outside the walls.
   const walled = wall.wall !== "none",
     houses = monasteryKindsFor(settings.descriptor?.civilization?.faith, period, walled)
       .slice(0, monasteryCountFor(getUrbanDwellings(settings.population.targetPopulation), period))
       .filter(kind => !(kind === "abbey" && walled)).length;
-  if (!reserved && !civic.specs.length && !houses) return build(size(0));
+  if (!reserved && !civic.specs.length && !houses) return build(size(0, facilityM2));
   // The civic centre takes its area from the houses' land, and more: lots stop short of its setbacks and the
   // streets that front it. Its farthest corner must stay inside the rim.
   return build(
     Math.max(
-      size(reserved + (civic.areaM2 + houses * MONASTERY_BLOCK_M2) * CIVIC_LAND_FACTOR),
+      size(reserved + (civic.areaM2 + houses * MONASTERY_BLOCK_M2) * CIVIC_LAND_FACTOR, facilityM2),
       civic.radiusMeters + MESHLESS_SITE_RIM_METERS
     )
   );

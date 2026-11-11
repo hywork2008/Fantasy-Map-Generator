@@ -62,10 +62,14 @@ describe("meshless urban generation", () => {
     expect(housing.querySelectorAll('[data-vector-building-kind="facility"]').length).toBe(
       urban.report.placedFacilities
     );
-    expect(housing.querySelectorAll('[data-vector-building-kind="housing"]').length).toBe(
-      urban.report.housingBuildings
+    // The houses fill the CE street blocks round the facilities (gate-ribbon plan, facility mode).
+    const cells = Object.values(doc.fabric!.cells);
+    expect(urban.report.housingBuildings).toBe(
+      cells.reduce((n, c) => n + c.houses.offsets.length - c.detached.length, 0)
     );
-    expect(urban.report.mixedDwellings + urban.report.housingBuildings).toBe(urban.report.capacityDwellings);
+    expect(
+      urban.report.mixedDwellings + cells.reduce((n, c) => n + c.houses.dwellings.reduce((m, d) => m + d, 0), 0)
+    ).toBe(urban.report.capacityDwellings);
     const placements = Object.values(doc.placements);
     for (let i = 0; i < placements.length; i++)
       for (let j = i + 1; j < placements.length; j++)

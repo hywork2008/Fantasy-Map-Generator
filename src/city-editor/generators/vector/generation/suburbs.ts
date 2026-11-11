@@ -3,6 +3,7 @@ import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorPolygon } from "../../../types/vector/generation";
 import { nearestOnPolyline, pointInPolygon, polygonCentroid, segmentsIntersect } from "../../geom";
+import { buildPopulationFacilityRequests } from "../../populationFacilityRequests";
 import { type ApproachBand, type SuburbanLotContext, suburbanLotKept, suburbanProfile } from "../../suburbanLanduse";
 import { featureReservations } from "../environmentState";
 import { pathIsClosed } from "../geometry/curves";
@@ -225,12 +226,54 @@ export function vectorInteriorFreeM2(doc: VectorCityDocument): number {
 
 /** Dwellings the town needs beyond its wall (gate-ribbon plan §3.3): what the free land inside the wall, every lot
  * built, falls short of the town's dwellings, with a tenth of the interior left for the vacancy CE draws spread. */
-export function vectorRibbonShortfall(doc: VectorCityDocument, storeys: number, lotOccupancy = 1): number {
+export function vectorRibbonShortfall(
+  doc: VectorCityDocument,
+  storeys: number,
+  lotOccupancy = 1,
+  /** Population facilities to come (facility mode): their sites inside the town and beyond it, in m². */
+  facilities: VectorFacilityLand = NO_FACILITY_LAND
+): { dwellings: number; riverside: number } {
   const site = doc.site;
-  if (!site || !outerWallRing(doc)) return 0;
-  const required = site.descriptor?.burg.dwellings ?? getUrbanDwellings(doc.context.targetPopulation ?? 0),
-    interior = vectorInteriorFreeM2(doc) * INTERIOR_DWELLINGS_PER_M2 * (storeys / 2.25) * lotOccupancy * 0.9;
-  return Math.max(0, Math.ceil(required - interior));
+  if (!site || !outerWallRing(doc)) return { dwellings: 0, riverside: 0 };
+  const perM2 = INTERIOR_DWELLINGS_PER_M2 * (storeys / 2.25) * lotOccupancy,
+    required = site.descriptor?.burg.dwellings ?? getUrbanDwellings(doc.context.targetPopulation ?? 0),
+    interior = Math.max(0, vectorInteriorFreeM2(doc) - facilities.coreM2) * perM2 * 0.9;
+  // The outskirts facilities stand beyond the wall whatever the interior holds; their land is counted as the
+  // dwellings it would take on the roadside. Riverside works (tanneries, dyers) go to the strips below the town.
+  return {
+    dwellings: Math.max(0, Math.ceil(required - interior)) + Math.ceil(facilities.outskirtsM2 * perM2),
+    riverside: Math.ceil(facilities.riversideM2 * perM2)
+  };
+}
+
+export interface VectorFacilityLand {
+  coreM2: number;
+  outskirtsM2: number;
+  riversideM2: number;
+}
+/** Parcel a facility takes per m² of its minimum site: its site runs out to the lot lines of every lot it touches
+ * (measured 2026-11-11, 5,000 people, facility mode: 1.78). */
+const FACILITY_PARCEL_FACTOR = 1.8;
+const NO_FACILITY_LAND: VectorFacilityLand = { coreM2: 0, outskirtsM2: 0, riversideM2: 0 };
+
+/** Sites of the population facilities a facility-mode town will raise, inside it, beyond it and beyond it on the
+ * river, as the parcels they take on the CE lots. */
+export function vectorFacilityLand(
+  population: number,
+  period: string,
+  port: boolean,
+  facilityLayout: string | undefined
+): VectorFacilityLand {
+  if (facilityLayout !== "population" || !population) return NO_FACILITY_LAND;
+  const land = { coreM2: 0, outskirtsM2: 0, riversideM2: 0 };
+  for (const r of buildPopulationFacilityRequests(population, { period, port }).requests) {
+    const m2 =
+      r.asset.minimumSite.reduce((n, p) => n + regionArea({ outer: p.outer, holes: [] }), 0) * FACILITY_PARCEL_FACTOR;
+    if (r.zone !== "outskirts") land.coreM2 += m2;
+    else if (r.riverbankMaxDistanceMeters !== undefined) land.riversideM2 += m2;
+    else land.outskirtsM2 += m2;
+  }
+  return land;
 }
 
 /** Whether a band runs beside the river below the town: the run of each river after it last leaves the wall. */
@@ -258,7 +301,9 @@ export function raiseVectorRibbonLand(
   doc: VectorCityDocument,
   faubourgAdded: boolean,
   shortfall = 0,
-  barbicanSlack = 0
+  barbicanSlack = 0,
+  /** Dwellings' worth of riverside works for the strips beside the river below the town. */
+  riverside = 0
 ): { document: VectorCityDocument; unplacedLength: number } {
   const site = doc.site;
   const none = { document: doc, unplacedLength: 0 };
@@ -279,11 +324,15 @@ export function raiseVectorRibbonLand(
   const takers = bands.filter(b => !downstream(b.points)),
     weights = takers.map(b => traffic(b.groupId) + 1),
     total = weights.reduce((n, w) => n + w, 0);
+  // The river below the town takes the works that foul the water; without such a strip they share the others.
+  const below = bands.filter(b => downstream(b.points)),
+    banks = below.length ? below : takers;
   let unplacedLength = 0;
   for (const band of bands) {
     const k = takers.indexOf(band),
       extra =
-        k >= 0 && shortfall > 0 ? (shortfall * weights[k]) / total / RIBBON_DWELLINGS_PER_METER + barbicanSlack : 0;
+        (k >= 0 && shortfall > 0 ? (shortfall * weights[k]) / total / RIBBON_DWELLINGS_PER_METER + barbicanSlack : 0) +
+        (riverside > 0 && banks.includes(band) ? riverside / banks.length / RIBBON_DWELLINGS_PER_METER : 0);
     const gate = band.points[0],
       from = (q: Point) => Math.hypot(q[0] - gate[0], q[1] - gate[1]),
       // Every 5 m along the road, then the stretch the ribbon may hold.

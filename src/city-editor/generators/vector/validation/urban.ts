@@ -177,7 +177,8 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       "vector-urban-v14",
       "vector-urban-v15",
       "vector-urban-v16",
-      "vector-urban-v17"
+      "vector-urban-v17",
+      "vector-urban-v18"
     ].includes(u.algorithm) ||
     !nonnegative(u.inputRevision) ||
     !keys(
@@ -332,8 +333,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
   };
   if (validateVectorGeneration(baseline).length) errors.push("urban-baseline");
   // Fabric records belong to the urban generation that wrote them.
-  if (doc.fabric && (doc.fabric.algorithm !== u.algorithm || u.settings.mode !== "medieval"))
-    errors.push("urban-fabric");
+  if (doc.fabric && doc.fabric.algorithm !== u.algorithm) errors.push("urban-fabric");
   const fabricDwellings = vectorFabricDwellings(doc),
     fabricHouses = Object.values(doc.fabric?.cells ?? {}).reduce(
       (n, c) => n + c.houses.offsets.length - c.detached.length,
@@ -411,7 +411,10 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
         errors.push("urban-footprint");
       for (const entrance of b.entrances) {
         if (entrance.accessIndex === undefined) {
-          errors.push("urban-entrance");
+          // A facility on the CE street blocks opens onto a fabric street or lane; the line itself is checked below
+          // with every fabric entrance.
+          if (entrance.fabricLine === undefined || !containsRegion(b.reserved, entrance.point))
+            errors.push("urban-entrance");
           continue;
         }
         const a = p.accesses[entrance.accessIndex],
