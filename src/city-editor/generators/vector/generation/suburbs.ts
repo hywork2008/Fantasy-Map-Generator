@@ -263,6 +263,10 @@ export interface VectorFacilityLand {
 /** Parcel a facility takes per m² of its minimum site: its site runs out to the lot lines of every lot it touches
  * (measured 2026-11-11, 5,000 people, facility mode: 1.78). */
 const FACILITY_PARCEL_FACTOR = 1.8;
+/** House land a facility inside the town takes beyond its parcel: the lots left too small beside it and the lane
+ * frontage it closes (measured 2026-11-12 on four river towns, facility mode: interior houses per m² of free land
+ * net of facility parcels came to 1.81-1.92 times the parcels' share; 1.85). */
+const FACILITY_CORE_DISPLACEMENT = 1.85;
 const NO_FACILITY_LAND: VectorFacilityLand = { coreM2: 0, outskirtsM2: 0, riversideM2: 0 };
 
 /** Sites of the population facilities a facility-mode town will raise, inside it, beyond it and beyond it on the
@@ -278,7 +282,7 @@ export function vectorFacilityLand(
   for (const r of buildPopulationFacilityRequests(population, { period, port }).requests) {
     const m2 =
       r.asset.minimumSite.reduce((n, p) => n + regionArea({ outer: p.outer, holes: [] }), 0) * FACILITY_PARCEL_FACTOR;
-    if (r.zone !== "outskirts") land.coreM2 += m2;
+    if (r.zone !== "outskirts") land.coreM2 += m2 * FACILITY_CORE_DISPLACEMENT;
     else if (r.riverbankMaxDistanceMeters !== undefined) land.riversideM2 += m2;
     else land.outskirtsM2 += m2;
   }

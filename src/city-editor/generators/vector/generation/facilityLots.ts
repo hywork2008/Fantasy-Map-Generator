@@ -46,6 +46,9 @@ export interface FacilityLotResult {
  * so facilities spread through the town the way vacant lots do; commerce takes the lots nearest the centre first and a
  * riverside works the lots nearest the water.
  */
+/** Margin each side of a recorded line's surface, beyond its centimetre rounding. */
+const LINE_MARGIN_METERS = 0.1;
+
 export function placeFacilitiesOnLots(
   doc: VectorCityDocument,
   plan: VectorPerimeterPlan,
@@ -87,7 +90,9 @@ export function placeFacilitiesOnLots(
   const surfaceOf = (k: number) => {
     if (!surfaces.has(k))
       try {
-        surfaces.set(k, fabricLineSurface(lines[k]));
+        // A few centimetres wider: the fabric records the lines rounded to the centimetre, and the check on the
+        // recorded lines (reattachFabricEntrances) must find no sliver the rounding moved onto the parcel.
+        surfaces.set(k, fabricLineSurface({ ...lines[k], widthMeters: lines[k].widthMeters + LINE_MARGIN_METERS }));
       } catch {
         surfaces.set(k, undefined);
       }
