@@ -47,9 +47,9 @@ import { recordGoodFlow } from "./goodsBalanceLedger";
 import { getStorageClimateLossMultiplier } from "./grainStorage";
 import {
   debitRuralHouseholdWealth,
-  getRuralHouseholdWealth,
   getUrbanHouseholdSpendable,
-  RURAL_HOUSEHOLD_TOWN_SPEND_SHARE
+  openRuralTownBudget,
+  recordRuralTownGoodsPaid
 } from "./householdWealth";
 import { getMarketRuralPopulation, getMarketWoodlandShares } from "./marketPopulation";
 import type { FoodProcessingGoodLedger, Market, ReturnableContainerLedger } from "./marketTypes";
@@ -692,7 +692,7 @@ function getHouseholdGoodsPurses(market: Market): HouseholdGoodsPurses {
     }));
   return {
     towns,
-    rural: getRuralHouseholdWealth(market) * RURAL_HOUSEHOLD_TOWN_SPEND_SHARE,
+    rural: openRuralTownBudget(market),
     ruralPeople: getMarketRuralPopulation(world, market.i)
   };
 }
@@ -730,9 +730,11 @@ function payForHouseholdGoods(
     );
   }
   if (rural > 0)
-    purses.rural -= charge(rn((bill * rural) / people, 2), purses.rural, amount =>
-      debitRuralHouseholdWealth(market, amount)
-    );
+    purses.rural -= charge(rn((bill * rural) / people, 2), purses.rural, amount => {
+      const debited = debitRuralHouseholdWealth(market, amount);
+      recordRuralTownGoodsPaid(market, debited);
+      return debited;
+    });
   if (paid > 0) {
     market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
     market.marketTreasury.balance = rn(market.marketTreasury.balance + paid, 2);

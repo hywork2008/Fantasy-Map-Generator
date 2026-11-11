@@ -42,6 +42,8 @@ import {
   type MarketSettings,
   MERCHANT_PROFIT_USES,
   type MerchantProfitUse,
+  RURAL_TOWN_SPENDING_MODES,
+  type RuralTownSpendingMode,
   setMarketSettings
 } from "../../../../simulation/marketSettings";
 import {
@@ -598,6 +600,87 @@ export const SimulationSettingsTab: React.FC = () => {
                   </option>
                 ))}
               </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralTownSpendingTip")}>
+            <td />
+            <td>
+              <label htmlFor="ruralTownSpending">{t("simulation.ruralTownSpending")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="ruralTownSpending"
+                value={marketSettings.ruralTownSpending}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      ruralTownSpending: e.target.value as RuralTownSpendingMode
+                    })
+                  )
+                }
+              >
+                {RURAL_TOWN_SPENDING_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.ruralTownSpending_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralPurseMonthsTip")}>
+            <td />
+            <td>{t("simulation.ruralPurseMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralPurseMonths"
+                min={MARKET_SETTING_LIMITS.ruralPurseMonths.min}
+                max={MARKET_SETTING_LIMITS.ruralPurseMonths.max}
+                step={MARKET_SETTING_LIMITS.ruralPurseMonths.step}
+                value={marketSettings.ruralPurseMonths}
+                onChange={v => updateMarketSetting("ruralPurseMonths", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralSpendElasticityAboveTip")}>
+            <td />
+            <td>{t("simulation.ruralSpendElasticityAbove")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralSpendElasticityAbove"
+                min={MARKET_SETTING_LIMITS.ruralSpendElasticityAbove.min}
+                max={MARKET_SETTING_LIMITS.ruralSpendElasticityAbove.max}
+                step={MARKET_SETTING_LIMITS.ruralSpendElasticityAbove.step}
+                value={marketSettings.ruralSpendElasticityAbove}
+                onChange={v => updateMarketSetting("ruralSpendElasticityAbove", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralSpendElasticityBelowTip")}>
+            <td />
+            <td>{t("simulation.ruralSpendElasticityBelow")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralSpendElasticityBelow"
+                min={MARKET_SETTING_LIMITS.ruralSpendElasticityBelow.min}
+                max={MARKET_SETTING_LIMITS.ruralSpendElasticityBelow.max}
+                step={MARKET_SETTING_LIMITS.ruralSpendElasticityBelow.step}
+                value={marketSettings.ruralSpendElasticityBelow}
+                onChange={v => updateMarketSetting("ruralSpendElasticityBelow", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralTownServicesTip")}>
+            <td />
+            <td>{t("simulation.ruralTownServices")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralTownServices"
+                min={MARKET_SETTING_LIMITS.ruralTownServices.min}
+                max={MARKET_SETTING_LIMITS.ruralTownServices.max}
+                step={MARKET_SETTING_LIMITS.ruralTownServices.step}
+                value={marketSettings.ruralTownServices}
+                onChange={v => updateMarketSetting("ruralTownServices", v)}
+              />
             </td>
           </tr>
 

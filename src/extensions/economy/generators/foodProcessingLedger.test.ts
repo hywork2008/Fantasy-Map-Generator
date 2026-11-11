@@ -77,8 +77,8 @@ vi.mock("./burgMarketLedgers", () => ({
   }
 }));
 vi.mock("./householdWealth", () => ({
-  RURAL_HOUSEHOLD_TOWN_SPEND_SHARE: 1,
-  getRuralHouseholdWealth: () => purses.rural,
+  openRuralTownBudget: () => purses.rural,
+  recordRuralTownGoodsPaid: () => undefined,
   getUrbanHouseholdSpendable: () => purses.town,
   debitRuralHouseholdWealth: (_market: unknown, amount: number) => {
     const paid = Math.min(purses.rural, amount);

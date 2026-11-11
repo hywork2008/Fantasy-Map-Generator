@@ -65,6 +65,14 @@ export type HouseholdGoodsPaymentMode = (typeof HOUSEHOLD_GOODS_PAYMENT_MODES)[n
  * months of the English quarter days (Lady Day, Midsummer, Michaelmas, Christmas), so the cash in
  * between buys the towns' goods.
  */
+/**
+ * How much farm families spend each month in their market's towns: `need` from what they need at the
+ * local wage level and how their purse stands to a few months of it; `purseShare` a fixed share of
+ * the purse (docs/plan/rural-town-spending.md).
+ */
+export const RURAL_TOWN_SPENDING_MODES = ["need", "purseShare"] as const;
+export type RuralTownSpendingMode = (typeof RURAL_TOWN_SPENDING_MODES)[number];
+
 export const GRAIN_REPAYMENT_MODES = ["quarterDays", "monthly"] as const;
 export type GrainRepaymentMode = (typeof GRAIN_REPAYMENT_MODES)[number];
 
@@ -84,6 +92,15 @@ export type MarketSettings = {
   craftSalePayment: CraftSalePaymentMode;
   householdGoodsPayment: HouseholdGoodsPaymentMode;
   grainRepayment: GrainRepaymentMode;
+  ruralTownSpending: RuralTownSpendingMode;
+  /** Months of their monthly need farm families keep in their purse (one quarter-day term). */
+  ruralPurseMonths: number;
+  /** How their spending follows the purse above that reserve: 1 spends the purse over `ruralPurseMonths`. */
+  ruralSpendElasticityAbove: number;
+  /** ...and below it: under 1, they cut back less than the purse falls and it never pins at zero. */
+  ruralSpendElasticityBelow: number;
+  /** Multiplier on the per-head need fixed at a market's first month from the `purseShare` amount. */
+  ruralTownServices: number;
   /**
    * Weight of a rural person against a town person in the wages a market pays from its surplus:
    * carters, threshers and hay hands in its countryside as well as dealers and porters in its towns.
@@ -113,6 +130,11 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   craftSalePayment: "consignment",
   householdGoodsPayment: "free",
   grainRepayment: "quarterDays",
+  ruralTownSpending: "need",
+  ruralPurseMonths: 3,
+  ruralSpendElasticityAbove: 1,
+  ruralSpendElasticityBelow: 0.5,
+  ruralTownServices: 1,
   surplusRuralWeight: 1,
   surplusReserveFactor: 0.25,
   harvestReserveMonths: 4,
@@ -129,7 +151,11 @@ export const MARKET_SETTING_LIMITS = {
   surplusReserveFactor: { min: 0, max: 2, step: 0.05 },
   harvestReserveMonths: { min: 0, max: 12, step: 1 },
   merchantProfitShare: { min: 0, max: 1, step: 0.01 },
-  merchantReserveYears: { min: 0, max: 10, step: 0.5 }
+  merchantReserveYears: { min: 0, max: 10, step: 0.5 },
+  ruralPurseMonths: { min: 0.5, max: 24, step: 0.5 },
+  ruralSpendElasticityAbove: { min: 0, max: 2, step: 0.05 },
+  ruralSpendElasticityBelow: { min: 0, max: 2, step: 0.05 },
+  ruralTownServices: { min: 0, max: 5, step: 0.05 }
 } as const;
 
 type NumericMarketSetting = keyof typeof MARKET_SETTING_LIMITS;
@@ -165,6 +191,11 @@ const grainRepaymentMode = (value: unknown): GrainRepaymentMode =>
     ? (value as GrainRepaymentMode)
     : DEFAULT_MARKET_SETTINGS.grainRepayment;
 
+const ruralTownSpendingMode = (value: unknown): RuralTownSpendingMode =>
+  RURAL_TOWN_SPENDING_MODES.includes(value as RuralTownSpendingMode)
+    ? (value as RuralTownSpendingMode)
+    : DEFAULT_MARKET_SETTINGS.ruralTownSpending;
+
 const clamp = (key: NumericMarketSetting, value: unknown): number => {
   const { min, max, step } = MARKET_SETTING_LIMITS[key];
   if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_MARKET_SETTINGS[key];
@@ -190,6 +221,11 @@ export function getMarketSettings(): MarketSettings {
     craftSalePayment: craftSalePaymentMode(parsed.craftSalePayment),
     householdGoodsPayment: householdGoodsPaymentMode(parsed.householdGoodsPayment),
     grainRepayment: grainRepaymentMode(parsed.grainRepayment),
+    ruralTownSpending: ruralTownSpendingMode(parsed.ruralTownSpending),
+    ruralPurseMonths: clamp("ruralPurseMonths", parsed.ruralPurseMonths),
+    ruralSpendElasticityAbove: clamp("ruralSpendElasticityAbove", parsed.ruralSpendElasticityAbove),
+    ruralSpendElasticityBelow: clamp("ruralSpendElasticityBelow", parsed.ruralSpendElasticityBelow),
+    ruralTownServices: clamp("ruralTownServices", parsed.ruralTownServices),
     surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor),
     harvestReserveMonths: clamp("harvestReserveMonths", parsed.harvestReserveMonths),
@@ -211,6 +247,11 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     craftSalePayment: craftSalePaymentMode(next.craftSalePayment),
     householdGoodsPayment: householdGoodsPaymentMode(next.householdGoodsPayment),
     grainRepayment: grainRepaymentMode(next.grainRepayment),
+    ruralTownSpending: ruralTownSpendingMode(next.ruralTownSpending),
+    ruralPurseMonths: clamp("ruralPurseMonths", next.ruralPurseMonths),
+    ruralSpendElasticityAbove: clamp("ruralSpendElasticityAbove", next.ruralSpendElasticityAbove),
+    ruralSpendElasticityBelow: clamp("ruralSpendElasticityBelow", next.ruralSpendElasticityBelow),
+    ruralTownServices: clamp("ruralTownServices", next.ruralTownServices),
     surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor),
     harvestReserveMonths: clamp("harvestReserveMonths", next.harvestReserveMonths),

@@ -2134,7 +2134,19 @@
     "householdGoodsPayment": "家計の飲み物と食品",
     "householdGoodsPaymentTip": "家計が市場の在庫から取るエール・ワイン・シードル・チーズ・牛乳・果物の代金を、市場に払うかどうかです。払わない：代金を払わずに取ります。こうして取られた委託の品の代金は、町に払われません。払う：町の家計は蓄えを超える現金から、農村の家計はその月に町で使う分から、市場の値段で払い、払えた分だけ取ります。",
     "householdGoodsPayment_pay": "払う",
-    "householdGoodsPayment_free": "払わない"
+    "householdGoodsPayment_free": "払わない",
+    "ruralTownSpending": "農村の家計が町で使う額",
+    "ruralTownSpendingTip": "農村の家計が毎月、市場の町で使う額（鍛冶・粉屋・市・道具と、払って買う飲み物と食品）です。必要：その土地の賃金の水準で要る額を使い、財布が数か月分より多ければ多く、少なければ少なく使います。財布の割合：要る額に関わらず、毎月財布の5%を使います。",
+    "ruralTownSpending_need": "必要",
+    "ruralTownSpending_purseShare": "財布の割合",
+    "ruralPurseMonths": "農村の財布の蓄え（月）",
+    "ruralPurseMonthsTip": "農村の家計が財布に持つ、町で要る月の額の月数です。これより多ければ多く、少なければ少なく使います。「必要」の時に使います。",
+    "ruralSpendElasticityAbove": "蓄えより多い時の使い方",
+    "ruralSpendElasticityAboveTip": "財布が蓄えより多い時、使う額が財布にどれだけ従うかです。1で財布を蓄えの月数で使い、0で要る額だけを使います。「必要」の時に使います。",
+    "ruralSpendElasticityBelow": "蓄えより少ない時の使い方",
+    "ruralSpendElasticityBelowTip": "財布が蓄えより少ない時、使う額が財布にどれだけ従うかです。1より小さいと、財布の減りほどには控えず、財布はゼロになりません。「必要」の時に使います。",
+    "ruralTownServices": "農村が町で要る額",
+    "ruralTownServicesTip": "1人あたりの町で要る額に掛ける倍率です。この額は市場の始めの月に「財布の割合」の額から決まり、その後は土地の賃金に従います。「必要」の時に使います。"
   },
   "dangerSettings": {
     "heading": "危険度の設定：",

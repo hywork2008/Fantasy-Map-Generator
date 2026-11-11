@@ -2134,7 +2134,19 @@
     "householdGoodsPayment": "Household drinks and foods",
     "householdGoodsPaymentTip": "Whether households pay the market for the ale, wine, cider, cheese, milk and fruit they take from its stock. Free: they take them without paying, and the towns are not paid for their consigned goods so taken. Pay: town households pay the market price from their cash above their reserve, farm households from their month's spending in town, and they take only what they can pay for.",
     "householdGoodsPayment_pay": "Pay",
-    "householdGoodsPayment_free": "Free"
+    "householdGoodsPayment_free": "Free",
+    "ruralTownSpending": "Farm families' town spending",
+    "ruralTownSpendingTip": "How much farm families spend each month in their market's towns (smith, miller, fair, tools, and the drinks and foods they pay for). Need: what they need at the local wage level, more when their purse is above a few months of it and less below. Purse share: 5% of their purse every month, whatever they need.",
+    "ruralTownSpending_need": "Need",
+    "ruralTownSpending_purseShare": "Purse share",
+    "ruralPurseMonths": "Farm purse reserve (months)",
+    "ruralPurseMonthsTip": "Months of their monthly town need farm families keep in their purse. Above it they spend more, below it less. Used with Need.",
+    "ruralSpendElasticityAbove": "Farm spending above reserve",
+    "ruralSpendElasticityAboveTip": "How their spending follows a purse above the reserve: 1 spends the purse over the reserve months, 0 spends only their need. Used with Need.",
+    "ruralSpendElasticityBelow": "Farm spending below reserve",
+    "ruralSpendElasticityBelowTip": "How their spending follows a purse below the reserve: below 1 they cut back less than the purse falls, so it does not reach zero. Used with Need.",
+    "ruralTownServices": "Farm town need",
+    "ruralTownServicesTip": "Multiplier on the per-head town need, which is fixed at a market's first month from the Purse share amount and then follows the local wage. Used with Need."
   },
   "dangerSettings": {
     "heading": "Danger settings:",

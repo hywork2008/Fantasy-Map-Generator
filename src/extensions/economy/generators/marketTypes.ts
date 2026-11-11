@@ -492,6 +492,15 @@ export interface FoodLedger {
    */
   ruralHouseholdWealth?: number;
   /**
+   * Farm families' monthly town need per rural person, in subsistence wages, fixed at the market's
+   * first month from the `purseShare` amount (docs/plan/rural-town-spending.md §4.5).
+   */
+  ruralTownNeedPerHead?: number;
+  /** This month's town budget, set when the household goods are settled and cleared by the town spending. */
+  ruralTownBudget?: number;
+  /** What of `ruralTownBudget` the household goods took. */
+  ruralTownGoodsPaid?: number;
+  /**
    * Fodder lots sold to the catchment's herds over roughly the last year (×11/12 each month plus the
    * month's sales). Caps how much spare grass the market buys (docs/plan/fodder-purchase-demand-cap.md).
    */
