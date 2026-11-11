@@ -2,6 +2,9 @@ import { DEFAULT_AUTHOR } from "../authors";
 import { variantId } from "../modelVariants";
 import type { MedievalModel } from "./modelKit";
 import { ModelKit } from "./modelKit";
+import { createOpusButchery, OPUS_BUTCHERY } from "./opusButchery";
+
+const OPUS = "Claude Opus 5.5" as const;
 
 const id = "trade-workshop.dedicated-butchery",
   family = `medieval.${id}`;
@@ -33,18 +36,28 @@ export const models: MedievalModel[] = [
   {
     id,
     task: 57,
-    author: DEFAULT_AUTHOR,
+    author: OPUS,
     name: "Medieval butcher hall and washing yard",
-    size: [16, 4.2, 13],
-    note: "Street-front meat counter, hanging rails, cutting blocks, wash trough and separated covered offal storage. Static spatial study; slaughter supply, drainage, hygiene and throughput remain unverified.",
-    create: () => create("low"),
-    variants: (["low", "high"] as const).map(level => ({
-      id: variantId(family, level, DEFAULT_AUTHOR),
-      family,
-      author: DEFAULT_AUTHOR,
-      level,
-      label: level === "low" ? "Low" : "High",
-      create: () => create(level)
-    }))
+    size: [OPUS_BUTCHERY.width, OPUS_BUTCHERY.depth, OPUS_BUTCHERY.height],
+    note: "Opus: fourteenth-century burgage butchery. Jettied two-storey shop-house with a drop-down stall-board and propped shutter, carriage gateway for driven stock, killing floor under a lean-to with hoisting frame and windlass, scalding copper and trough, blocks, offal tubs, wattle holding pen, draw well and salted-hide store. Low keeps every envelope, opening and fitting; High adds the exposed frame, tile courses, joinery and small stock. The earlier Codex study remains selectable. Slaughter supply, drainage and throughput remain unverified.",
+    create: () => createOpusButchery("low"),
+    variants: [
+      ...(["low", "high"] as const).map(level => ({
+        id: variantId(family, level, DEFAULT_AUTHOR),
+        family,
+        author: DEFAULT_AUTHOR,
+        level,
+        label: level === "low" ? "Low" : "High",
+        create: () => create(level)
+      })),
+      ...(["low", "high"] as const).map(level => ({
+        id: variantId(family, level, OPUS),
+        family,
+        author: OPUS,
+        level,
+        label: level === "low" ? "Low" : "High",
+        create: () => createOpusButchery(level)
+      }))
+    ]
   }
 ];

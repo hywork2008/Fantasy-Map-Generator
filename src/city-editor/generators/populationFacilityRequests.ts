@@ -6,6 +6,7 @@ import { DEDICATED_TANNERY } from "../../buildings/medieval/dedicatedTanneryProf
 import { DETACHED_BAKEHOUSE } from "../../buildings/medieval/detachedBakehouseProfile";
 import { ENCLOSED_GUILD_HALL } from "../../buildings/medieval/enclosedGuildHall";
 import { ENCLOSED_GUILD_TRADES } from "../../buildings/medieval/enclosedGuildTrades";
+import { OPUS_BUTCHERY, OPUS_TOWN_TRADES, type OpusTownTrade } from "../../buildings/medieval/opusTradeProfiles";
 import { WORKHOME_FORMS } from "../../buildings/medieval/workhomeFormProfiles";
 import { WORKHOME_TRADES } from "../../buildings/medieval/workhomeTradeProfiles";
 import type { LandmarkAsset } from "../types/document";
@@ -96,23 +97,20 @@ export function buildPopulationFacilityRequests(population: number, options: { p
         return bvFacilityAsset("trade-workshop.dedicated-ropewalk", [
           { id: "main", position: [0, 0, 27], clearWidth: 1.6 }
         ]);
+      // Entrances follow the adopted Opus plots: the shop door on the street front.
       if (trade.pool === "butchery")
-        return bvFacilityAsset("trade-workshop.dedicated-butchery", [
-          { id: "main", position: [-2, 0, 2.5], clearWidth: 1.5 }
-        ]);
-      const townTradeModels: Record<string, { id: string; depth: number }> = {
-        chandlery: { id: "chandlery", depth: 10 },
-        metalwares: { id: "metalwares", depth: 12 },
-        fishmongery: { id: "fishmongery", depth: 12 },
-        cutlery: { id: "cutlery", depth: 10 },
-        limeAndTile: { id: "lime-tile-yard", depth: 20 },
-        glazing: { id: "glaziers-workshop", depth: 10 }
+        return bvFacilityAsset("trade-workshop.dedicated-butchery", [OPUS_BUTCHERY.entrance]);
+      const townTradeModels: Record<string, OpusTownTrade> = {
+        chandlery: "chandlery",
+        metalwares: "metalwares",
+        fishmongery: "fishmongery",
+        cutlery: "cutlery",
+        limeAndTile: "lime-tile-yard",
+        glazing: "glaziers-workshop"
       };
       const townTrade = townTradeModels[trade.pool];
       if (townTrade)
-        return bvFacilityAsset(`trade-workshop.dedicated-${townTrade.id}`, [
-          { id: "main", position: [0, 0, townTrade.depth / 2 - 1.2], clearWidth: 1.5 }
-        ]);
+        return bvFacilityAsset(`trade-workshop.dedicated-${townTrade}`, [OPUS_TOWN_TRADES[townTrade].entrance]);
       // Low-tier entrance positions follow the existing authored hall/open-shelter fronts.
       if (trade.pool === "brewing")
         return bvFacilityAsset(BREWHOUSE_MODEL, [{ id: "main", position: [-2, 0, 1.5], clearWidth: 1.1 }]);

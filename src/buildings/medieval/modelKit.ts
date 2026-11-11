@@ -60,7 +60,20 @@ export type Surface =
   | "earth"
   | "leather"
   | "green"
-  | "white";
+  | "white"
+  | "copper"
+  | "brass"
+  | "pewter"
+  | "meat"
+  | "fat"
+  | "fish"
+  | "brick"
+  | "clay"
+  | "glass"
+  | "ruby"
+  | "amber"
+  | "azure"
+  | "ember";
 const COLORS: Record<Surface, number> = {
   oak: 0x795036,
   wood: 0xa37c4e,
@@ -76,7 +89,20 @@ const COLORS: Record<Surface, number> = {
   earth: 0x726148,
   leather: 0x8d6749,
   green: 0x6f8050,
-  white: 0xded8c2
+  white: 0xded8c2,
+  copper: 0xa4603a,
+  brass: 0xb6944a,
+  pewter: 0x9b9d99,
+  meat: 0x97392f,
+  fat: 0xe4d6bb,
+  fish: 0x8f9a9c,
+  brick: 0xa0553b,
+  clay: 0x9c7756,
+  glass: 0x8fb0a8,
+  ruby: 0x962a2a,
+  amber: 0xc6962e,
+  azure: 0x34558f,
+  ember: 0xc9582a
 };
 
 /** Meter-scale construction parts; factories own their resources and never share mutable meshes. */
