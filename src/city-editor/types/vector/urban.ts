@@ -14,7 +14,13 @@ export interface VectorUrbanSettings {
   /** Share of CE lots built on (0.1–1), as CE's lot occupancy: 1 leaves no gaps, 0.5 builds every other lot.
    * Absent means 1. */
   lotOccupancy?: number;
+  /**
+   * How the tanners' row meets the river's bends: `continuous` (default when absent) keeps one row with one lane
+   * round them; `leat` digs a tanners' leat wherever the bends break the row into several reaches.
+   */
+  tanneryBends?: TanneryBends;
 }
+export type TanneryBends = "continuous" | "leat";
 export interface VectorBuilding {
   kind: "facility" | "housing";
   label: string;

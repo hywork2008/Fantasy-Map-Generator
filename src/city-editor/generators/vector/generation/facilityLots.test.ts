@@ -137,8 +137,7 @@ describe("the tanners' row on the bank below the town (tanners' row plan T2)", (
 
 describe("a tanners' leat where the bank bends too much for a row (tanners' row plan T3)", () => {
   it("digs a straight leat off the meandering river and lines its land side with yards", () => {
-    // A seed whose smooth meander (curvedRivers.ts) bends too much along the tanners' reach for a bank row.
-    const seed = "s12",
+    const seed = "fixture",
       settings = { ...defaultGenerationSettings(), facilityLayout: "population" as const };
     settings.config = {
       ...settings.config,
@@ -177,5 +176,28 @@ describe("a tanners' leat where the bank bends too much for a row (tanners' row 
           tanneryWaterWorks(city, p)!.channels.every(c => nearestOnPolyline(c.outer[2], line).dist < 2)
       );
     expect(onLeat.length).toBeGreaterThanOrEqual(3);
+  }, 300000);
+
+  it("with leat bends, digs a leat where a smooth meander breaks the row into reaches", () => {
+    // The T4/T5 measurement's synthetic-open-5000-meander town.
+    const seed = "synthetic-open-5000-meander",
+      settings = { ...defaultGenerationSettings(), facilityLayout: "population" as const };
+    settings.config = {
+      ...settings.config,
+      rivers: ["meander"],
+      features: { ...settings.config.features, walls: false, port: false, shanty: false }
+    };
+    settings.population = defaultPopulationSettings(5000);
+    const frame = { extentMeters: 1584, cityRadiusMeters: 396, blockSizeMeters: 50 },
+      input = vectorInputFromEditor({ settings, seed, frame, lotOccupancy: 1 });
+    input.context.targetPopulation = 5000;
+    const wall = vectorWallChoice(settings, seed, input.context.historicalPeriod ?? "ageOfExploration", 1584),
+      skeleton = generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall }).document,
+      urban = { ...DEFAULT_VECTOR_URBAN, mode: "medieval-facilities" as const, population: 5000, lotOccupancy: 1 },
+      leats = (doc: ReturnType<typeof generateVectorUrban>) =>
+        Object.keys(doc.paths).filter(id => id.startsWith("urban-tanners-leat:")).length;
+    // The default keeps one continuous row on the bank; `leat` takes the bends as a reason to dig.
+    expect(leats(generateVectorUrban(skeleton, urban))).toBe(0);
+    expect(leats(generateVectorUrban(skeleton, { ...urban, tanneryBends: "leat" }))).toBeGreaterThan(0);
   }, 300000);
 });

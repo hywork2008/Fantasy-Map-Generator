@@ -4,6 +4,7 @@ import { placementFootprint } from "../../../../buildings/placementModels";
 import type { Point } from "../../../types/primitives";
 import type { CurveAnchor, VectorCityDocument, VectorPath, VectorPlacement } from "../../../types/vector/document";
 import type { VectorPolygon } from "../../../types/vector/generation";
+import type { TanneryBends } from "../../../types/vector/urban";
 import type { BVFacilityRequest } from "../../allocateBVFacilities";
 import { facilityUseOf } from "../../facilityUses";
 import { convexHull, isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonCentroid } from "../../geom";
@@ -605,7 +606,9 @@ export function reserveTanneryRow(
   requests: readonly BVFacilityRequest[],
   core: (p: Point) => boolean,
   /** Joins a new lane's start to the road it leaves (the urban pass's junction helper). */
-  joinAnchors: (anchors: CurveAnchor[]) => void
+  joinAnchors: (anchors: CurveAnchor[]) => void,
+  /** How the row meets the river's bends (VectorUrbanSettings.tanneryBends). */
+  bends: TanneryBends = "continuous"
 ): {
   placed: string[];
   unplaced: FacilityLotResult["unplaced"];
@@ -632,7 +635,8 @@ export function reserveTanneryRow(
       frontageMeters: fp.halfX * 2,
       depthMeters: fp.halfZ * 2,
       intakeX: intake.position[0] - fp.centerX,
-      effluentX: effluent.position[0] - fp.centerX
+      effluentX: effluent.position[0] - fp.centerX,
+      continuous: bends === "continuous"
     };
   const occupied = new RBush<Box & { polygon: VectorPolygon }>();
   occupied.load(vectorOccupiedSites(doc, "reserved").map(polygon => ({ ...boxOf(polygon.outer), polygon })));
@@ -669,9 +673,12 @@ export function reserveTanneryRow(
     // A bank too bent for a row (method B): a straight tanners' leat drawn off the river above the run and back
     // into it below, the yards lining its land side.
     const filled = plan.reaches.filter(r => r.yards.length).length;
+    // With `leat` bends, a row the bends break into several reaches takes a leat too.
     if (
       ideal >= LEAT_MIN_YARDS &&
-      (got < ideal * LEAT_TRIGGER_SHARE || (filled >= 2 && got / filled < LEAT_YARDS_PER_REACH))
+      (got < ideal * LEAT_TRIGGER_SHARE ||
+        (filled >= 2 && got / filled < LEAT_YARDS_PER_REACH) ||
+        (bends === "leat" && filled >= LEAT_SPLIT_REACHES))
     ) {
       const leat = tryTannersLeat(doc, run, options, leats.length, {
         roads,
@@ -704,116 +711,6 @@ export function reserveTanneryRow(
   let framed = banks.framed;
   const overlaps = (a: VectorPolygon, b: VectorPolygon) =>
     regionBoolean([a], [b], "intersection").some(r => regionArea(r) > 1e-7);
-  for (const { yard, apron } of yards) {
-    if (placed.length >= row.length) break;
-    const a = (yard.facingDegrees * Math.PI) / 180,
-      c = Math.cos(a),
-      s = Math.sin(a),
-      mx = yard.mirrored ? -1 : 1,
-      transform = (q: readonly number[]): Point => {
-        const x = q[0] * mx;
-        return [x * c - q[1] * s + yard.position[0], x * s + q[1] * c + yard.position[1]];
-      },
-      ring = (r: Point[]) => (yard.mirrored ? [...r].reverse() : r).map(transform);
-    const site: VectorPolygon = { outer: ring(asset.minimumSite[0].outer), holes: [] };
-    // Beyond the drawn frame the row goes on unseen: the town's map is not widened for its tanneries.
-    if (site.outer.some(p => Math.abs(p[0]) > half - 1 || Math.abs(p[1]) > half - 1)) {
-      framed = true;
-      continue;
-    }
-    // On dry ground clear of the wall's glacis and of the land set aside (fields, woods, burial grounds).
-    if (water.some(w => overlaps(site, w))) continue;
-    if (walls.some(w => site.outer.some(p => nearestOnPolyline(p, w).dist < ROW_WALL_CLEARANCE_METERS))) continue;
-    if (setAside.some(r => overlaps(site, r))) continue;
-    if (occupied.search(boxOf(site.outer)).some(o => overlaps(site, o.polygon))) {
-      continue;
-    }
-    if (protectedLand.some(o => surfacesOverlap(site, o))) {
-      continue;
-    }
-    if (roads.some(r => overlaps(site, r))) {
-      continue;
-    }
-    // The revetment behind the yard, out to the bank, is the yard's own ground.
-    let reserved: VectorPolygon[] = [site];
-    try {
-      const back = fp.halfZ,
-        strip = regionBoolean(
-          regionBoolean(
-            [
-              {
-                outer: ring([
-                  [-fp.halfX, back],
-                  [fp.halfX, back],
-                  [fp.halfX, back + apron + 0.5],
-                  [-fp.halfX, back + apron + 0.5]
-                ]),
-                holes: []
-              }
-            ],
-            [{ outer: frameRing, holes: [] }],
-            "intersection"
-          ),
-          [...occupied.search(boxOf(site.outer, apron + 1)).map(o => o.polygon), ...roads, ...water, ...setAside],
-          "difference"
-        ),
-        joined = regionBoolean([site, ...strip], [], "union").filter(r => regionArea(r) > 0.05);
-      if (
-        joined.length === 1 &&
-        !joined[0].holes.length &&
-        simpleContour(joined[0].outer, true) &&
-        isSimplePolygon(joined[0].outer, 1e-12)
-      )
-        reserved = joined;
-    } catch {
-      reserved = [site];
-    }
-    const request = row[placed.length],
-      door = transform([entrance.point[0], entrance.point[1] - 0.3 * Math.sign(entrance.point[1] || -1)]),
-      front: Point = [s, -c];
-    let id = `urban:${request.id}`;
-    while (doc.placements[id]) id += "x";
-    doc.placements[id] = {
-      id,
-      modelId: WET_TANNERY_MODEL,
-      position: yard.position,
-      facingDegrees: yard.facingDegrees >= 360 - 1e-9 ? 0 : yard.facingDegrees,
-      origin: "automatic",
-      editPolicy: "editable",
-      // The yard and its revetment are one parcel: the street plan keeps off both.
-      site: reserved[0],
-      accesses: [],
-      ...(yard.mirrored ? { mirrored: true as const } : {}),
-      building: {
-        kind: "facility",
-        label: asset.name,
-        districtId: "tanners-row",
-        provenance: "bv",
-        dimensionSource: asset.dimensionSource ?? "Provisional dimensions",
-        heightMeters: asset.bvModel?.heightMeters ?? 6,
-        footprint: asset.footprint.map(p => ({ outer: ring(p.outer), holes: [] })),
-        reserved,
-        // Joined to its street by connectTanneryRow: the door, and a stub one metre before it.
-        entrances: [
-          {
-            id: entrance.id,
-            point: door,
-            outward: front,
-            widthMeters: entrance.widthMeters,
-            connector: [door, [door[0] + front[0], door[1] + front[1]]]
-          }
-        ],
-        dwellings: asset.residentialDwellings ?? 0,
-        floorFootprintMeters2: 0,
-        storeys: 0,
-        residentialShare: 0,
-        pool: facilityUseOf(request),
-        riverbankDistanceMeters: waterDistance(doc, [site])
-      }
-    };
-    for (const polygon of reserved) occupied.insert({ ...boxOf(polygon.outer), polygon });
-    placed.push(id);
-  }
   // Yards with no road or street before them are served by a tanners' lane along their fronts.
   // A lane may cross fields and woods as a farm track does, never a burial ground, a park or a reserved feature.
   const laneAside = [
@@ -822,7 +719,152 @@ export function reserveTanneryRow(
       .filter(r => r.kind !== "district" && r.kind !== "farm" && r.kind !== "forest")
       .map(r => ({ outer: r.outer, holes: r.holes }))
   ];
-  const lanes = layTannersLanes(doc, placed, { roads, water, setAside: laneAside, walls, half, joinAnchors });
+  const lanes: string[] = [],
+    used = new Set<number>(),
+    barred = new Set<number>(),
+    runOf = new Map<string, number>(),
+    // Requests not yet standing in the row; a yard given back returns its request here.
+    pending = [...row],
+    requestOf = new Map<string, (typeof row)[number]>();
+  // A run whose yards no lane can reach (a bank winding away from every road) gives its bank back, and the rest of
+  // the row is laid on the next run instead.
+  for (let round = 0; round < TANNERY_ROW_ROUNDS && placed.length < row.length; round++) {
+    const fresh: string[] = [];
+    for (const [index, { yard, apron, run }] of yards.entries()) {
+      if (!pending.length) break;
+      if (used.has(index) || barred.has(run)) continue;
+      used.add(index);
+      const a = (yard.facingDegrees * Math.PI) / 180,
+        c = Math.cos(a),
+        s = Math.sin(a),
+        mx = yard.mirrored ? -1 : 1,
+        transform = (q: readonly number[]): Point => {
+          const x = q[0] * mx;
+          return [x * c - q[1] * s + yard.position[0], x * s + q[1] * c + yard.position[1]];
+        },
+        ring = (r: Point[]) => (yard.mirrored ? [...r].reverse() : r).map(transform);
+      const site: VectorPolygon = { outer: ring(asset.minimumSite[0].outer), holes: [] };
+      // Beyond the drawn frame the row goes on unseen: the town's map is not widened for its tanneries.
+      if (site.outer.some(p => Math.abs(p[0]) > half - 1 || Math.abs(p[1]) > half - 1)) {
+        framed = true;
+        continue;
+      }
+      // On dry ground clear of the wall's glacis and of the land set aside (fields, woods, burial grounds).
+      if (water.some(w => overlaps(site, w))) continue;
+      if (walls.some(w => site.outer.some(p => nearestOnPolyline(p, w).dist < ROW_WALL_CLEARANCE_METERS))) continue;
+      if (setAside.some(r => overlaps(site, r))) continue;
+      if (occupied.search(boxOf(site.outer)).some(o => overlaps(site, o.polygon))) {
+        continue;
+      }
+      if (protectedLand.some(o => surfacesOverlap(site, o))) {
+        continue;
+      }
+      if (roads.some(r => overlaps(site, r))) {
+        continue;
+      }
+      // The revetment behind the yard, out to the bank, is the yard's own ground.
+      let reserved: VectorPolygon[] = [site];
+      try {
+        const back = fp.halfZ,
+          strip = regionBoolean(
+            regionBoolean(
+              [
+                {
+                  outer: ring([
+                    [-fp.halfX, back],
+                    [fp.halfX, back],
+                    [fp.halfX, back + apron + 0.5],
+                    [-fp.halfX, back + apron + 0.5]
+                  ]),
+                  holes: []
+                }
+              ],
+              [{ outer: frameRing, holes: [] }],
+              "intersection"
+            ),
+            [...occupied.search(boxOf(site.outer, apron + 1)).map(o => o.polygon), ...roads, ...water, ...setAside],
+            "difference"
+          ),
+          joined = regionBoolean([site, ...strip], [], "union").filter(r => regionArea(r) > 0.05);
+        if (
+          joined.length === 1 &&
+          !joined[0].holes.length &&
+          simpleContour(joined[0].outer, true) &&
+          isSimplePolygon(joined[0].outer, 1e-12)
+        )
+          reserved = joined;
+      } catch {
+        reserved = [site];
+      }
+      const request = pending.shift()!,
+        door = transform([entrance.point[0], entrance.point[1] - 0.3 * Math.sign(entrance.point[1] || -1)]),
+        front: Point = [s, -c];
+      let id = `urban:${request.id}`;
+      while (doc.placements[id]) id += "x";
+      doc.placements[id] = {
+        id,
+        modelId: WET_TANNERY_MODEL,
+        position: yard.position,
+        facingDegrees: yard.facingDegrees >= 360 - 1e-9 ? 0 : yard.facingDegrees,
+        origin: "automatic",
+        editPolicy: "editable",
+        // The yard and its revetment are one parcel: the street plan keeps off both.
+        site: reserved[0],
+        accesses: [],
+        ...(yard.mirrored ? { mirrored: true as const } : {}),
+        building: {
+          kind: "facility",
+          label: asset.name,
+          districtId: "tanners-row",
+          provenance: "bv",
+          dimensionSource: asset.dimensionSource ?? "Provisional dimensions",
+          heightMeters: asset.bvModel?.heightMeters ?? 6,
+          footprint: asset.footprint.map(p => ({ outer: ring(p.outer), holes: [] })),
+          reserved,
+          // Joined to its street by connectTanneryRow: the door, and a stub one metre before it.
+          entrances: [
+            {
+              id: entrance.id,
+              point: door,
+              outward: front,
+              widthMeters: entrance.widthMeters,
+              connector: [door, [door[0] + front[0], door[1] + front[1]]]
+            }
+          ],
+          dwellings: asset.residentialDwellings ?? 0,
+          floorFootprintMeters2: 0,
+          storeys: 0,
+          residentialShare: 0,
+          pool: facilityUseOf(request),
+          riverbankDistanceMeters: waterDistance(doc, [site])
+        }
+      };
+      for (const polygon of reserved) occupied.insert({ ...boxOf(polygon.outer), polygon });
+      fresh.push(id);
+      runOf.set(id, run);
+      requestOf.set(id, request);
+    }
+    if (!fresh.length) break;
+    const laid = [...fresh];
+    lanes.push(
+      ...layTannersLanes(doc, fresh, {
+        roads,
+        water,
+        setAside: laneAside,
+        walls,
+        half,
+        joinAnchors,
+        // A continuous row keeps one lane round its bends.
+        groupGapMeters: bends === "continuous" ? options.frontageMeters * 2.5 : LANE_GROUP_GAP_METERS
+      })
+    );
+    for (const id of laid)
+      if (!fresh.includes(id)) {
+        barred.add(runOf.get(id)!);
+        pending.push(requestOf.get(id)!);
+      }
+    placed.push(...fresh);
+  }
   // A leat no yard stands on is not dug.
   const kept = new Set(placed.map(id => doc.placements[id].position.join(",")));
   for (const leat of leats.splice(0))
@@ -830,29 +872,34 @@ export function reserveTanneryRow(
     else delete doc.paths[leat.id];
   // The row's ground joins the town's land: a yard beyond the site disk or the wall's clipped domain is still the town.
   if (placed.length) {
-    const grown = regionBoolean(
-      [...doc.site.domain, ...placed.flatMap(id => doc.placements[id].building!.reserved)],
-      [],
-      "union"
-    );
-    // In place: the urban pass keeps the same array as its recorded domain.
-    if (
-      grown.every(
+    const simple = (regions: VectorPolygon[]) =>
+      regions.every(
         p =>
           simpleContour(p.outer, true) &&
           isSimplePolygon(p.outer, 1e-12) &&
           p.holes.every(h => simpleContour(h, true) && isSimplePolygon(h, 1e-12))
-      )
-    )
-      doc.site.domain.splice(0, doc.site.domain.length, ...grown);
-    else
+      );
+    let grown = regionBoolean(
+      [...doc.site.domain, ...placed.flatMap(id => doc.placements[id].building!.reserved)],
+      [],
+      "union"
+    );
+    // A union that will not stay simple is grown yard by yard: a yard whose ground cannot join the town's land stays
+    // only if it already stands inside it.
+    if (!simple(grown)) {
+      grown = doc.site.domain;
       for (const id of placed.splice(0)) {
-        const inside = !regionBoolean(doc.placements[id].building!.reserved, doc.site.domain, "difference").some(
-          r => regionArea(r) > 1e-6
-        );
-        if (inside) placed.push(id);
+        const reserved = doc.placements[id].building!.reserved,
+          next = regionBoolean([...grown, ...reserved], [], "union");
+        if (simple(next)) {
+          grown = next;
+          placed.push(id);
+        } else if (!regionBoolean(reserved, grown, "difference").some(r => regionArea(r) > 1e-6)) placed.push(id);
         else delete doc.placements[id];
       }
+    }
+    // In place: the urban pass keeps the same array as its recorded domain.
+    doc.site.domain.splice(0, doc.site.domain.length, ...grown);
   }
   return {
     placed,
@@ -860,7 +907,7 @@ export function reserveTanneryRow(
     leats: leats.map(l => l.id),
     islands: leats.length ? islands : [],
     unplaced: row
-      .slice(placed.length)
+      .filter(r => !placed.some(id => requestOf.get(id) === r))
       .map(r => ({ id: r.id, reason: framed ? ("frame" as const) : ("river" as const) }))
   };
 }
@@ -933,6 +980,8 @@ function connectTanneryRow(
   return { placed, unplaced };
 }
 
+/** Times the row is laid again on other runs after a run's yards found no lane. */
+const TANNERY_ROW_ROUNDS = 4;
 /** Width of a tanners' lane: a cart's way. */
 const TANNERS_LANE_METERS = 3;
 /** Fronts closer than this along the row share one lane. */
@@ -962,6 +1011,8 @@ function layTannersLanes(
     walls: Point[][];
     half: number;
     joinAnchors: (anchors: CurveAnchor[]) => void;
+    /** Fronts closer than this along the row share one lane. */
+    groupGapMeters: number;
   }
 ): string[] {
   const lanes: string[] = [];
@@ -975,7 +1026,7 @@ function layTannersLanes(
   for (const f of fronts) {
     const g = groups.at(-1),
       last = g?.at(-1);
-    if (g && last && Math.hypot(f.point[0] - last.point[0], f.point[1] - last.point[1]) <= LANE_GROUP_GAP_METERS)
+    if (g && last && Math.hypot(f.point[0] - last.point[0], f.point[1] - last.point[1]) <= ctx.groupGapMeters)
       g.push(f);
     else groups.push([f]);
   }
@@ -1251,6 +1302,8 @@ function layTannersLanes(
 const LEAT_TRIGGER_SHARE = 0.6;
 /** A run whose bends break its row into reaches of fewer yards than this, on average, gets a leat. */
 const LEAT_YARDS_PER_REACH = 2.5;
+/** With `leat` bends: a run whose yards fall into this many reaches or more gets a leat. */
+const LEAT_SPLIT_REACHES = 3;
 /** Shortest run worth a leat, in yards. */
 const LEAT_MIN_YARDS = 3;
 /** Width of a tanners' leat, and the ground kept between it and the river. */

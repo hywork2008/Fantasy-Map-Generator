@@ -104,4 +104,25 @@ describe("tanners' row on a bank (tanners' row plan T1)", () => {
   it("follows an S-curve", () => {
     for (const side of [1, -1] as const) expect(check(sCurve, side).reaches.length).toBeGreaterThan(1);
   });
+
+  it("keeps a continuous row round the bends: backs side by side, no yard overlapping the next", () => {
+    for (const side of [1, -1] as const) {
+      const yards = tannersRow(sCurve, side, { continuous: true }).reaches.flatMap(r => r.yards),
+        back = (y: (typeof yards)[number]): Point => [
+          (y.intake.port[0] + y.effluent.port[0]) / 2,
+          (y.intake.port[1] + y.effluent.port[1]) / 2
+        ];
+      expect(yards.length).toBeGreaterThan(10);
+      for (let k = 1; k < yards.length; k++) {
+        const gap = Math.hypot(back(yards[k])[0] - back(yards[k - 1])[0], back(yards[k])[1] - back(yards[k - 1])[1]);
+        // One frontage apart on a chord; across a bend the next yard moves on only far enough to clear, never a yard.
+        expect(gap).toBeGreaterThan(17.9);
+        expect(gap).toBeLessThan(30);
+        // Yard centres stay a frontage apart: neighbours never overlap.
+        expect(
+          Math.hypot(yards[k].position[0] - yards[k - 1].position[0], yards[k].position[1] - yards[k - 1].position[1])
+        ).toBeGreaterThan(17.5);
+      }
+    }
+  });
 });

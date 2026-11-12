@@ -184,7 +184,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     !keys(
       u.settings,
       "mode,population,houseModelId,laneWidthMeters,laneSpacingMeters,maxLanes,clearanceMeters,allowExpansion",
-      "lotOccupancy"
+      "lotOccupancy,tanneryBends"
     ) ||
     !["medieval", "medieval-facilities"].includes(u.settings.mode) ||
     !nonnegative(u.settings.population) ||
@@ -204,6 +204,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     typeof u.settings.allowExpansion !== "boolean" ||
     (u.settings.lotOccupancy !== undefined &&
       (!Number.isFinite(u.settings.lotOccupancy) || u.settings.lotOccupancy < 0.1 || u.settings.lotOccupancy > 1)) ||
+    (u.settings.tanneryBends !== undefined && !["continuous", "leat"].includes(u.settings.tanneryBends)) ||
     !object(u.baseGeneration) ||
     !object(u.baseContext) ||
     !keys(u.baseConnections, "nodes,edges,gates,circuits,bridges,wallRoads") ||

@@ -21,6 +21,12 @@ export interface TannersRowOptions {
   effluentX: number;
   /** Resampling step of the bank. */
   stepMeters: number;
+  /**
+   * Keep the row going round the bends: each chord's yards start at its upstream end, against the last yard of the
+   * chord before (moved on only as far as an inner bend needs to keep the two apart), so the leftover gathers at the
+   * downstream end and the row reads as one. Otherwise each chord's yards are centred on it.
+   */
+  continuous: boolean;
 }
 
 export const TANNERS_ROW_DEFAULTS: TannersRowOptions = {
@@ -29,7 +35,8 @@ export const TANNERS_ROW_DEFAULTS: TannersRowOptions = {
   depthMeters: 16,
   intakeX: -7.5,
   effluentX: 7.5,
-  stepMeters: 1
+  stepMeters: 1,
+  continuous: false
 };
 
 export interface TannersRowYard {
@@ -134,6 +141,24 @@ function apronAt(points: Point[], i: number, j: number, a: Point, u: Point, n: P
   return undefined;
 }
 
+/** Whether two convex rings overlap by more than a few centimetres (separating axes). */
+function convexOverlap(p: Point[], q: Point[]): boolean {
+  for (const ring of [p, q])
+    for (let k = 0; k < ring.length; k++) {
+      const e = sub(ring[(k + 1) % ring.length], ring[k]),
+        l = Math.hypot(e[0], e[1]) || 1,
+        axis: Point = [-e[1] / l, e[0] / l],
+        span = (r: Point[]) => {
+          const d = r.map(v => dot(v, axis));
+          return [Math.min(...d), Math.max(...d)];
+        },
+        [a0, a1] = span(p),
+        [b0, b1] = span(q);
+      if (Math.min(a1, b1) - Math.max(a0, b0) < 0.05) return false;
+    }
+  return true;
+}
+
 /**
  * Yards along a bank. `bank` is the water's edge on the side the yards stand, ordered downstream; `landSide` is 1
  * when the land lies left of the downstream direction, -1 when right.
@@ -142,7 +167,9 @@ export function tannersRow(bank: Point[], landSide: 1 | -1, options: Partial<Tan
   const o = { ...TANNERS_ROW_DEFAULTS, ...options };
   const { points, s } = resample(bank, o.stepMeters);
   const row: TannersRow = { reaches: [], bendMeters: 0, bankMeters: s.at(-1) ?? 0 };
-  let i = 0;
+  let i = 0,
+    // The last yard laid, while the chords still join end to end.
+    last: { corners: Point[]; at: number } | undefined;
   while (i < points.length - 1) {
     // The longest chord from i whose apron stays within bounds.
     let best = -1;
@@ -153,14 +180,26 @@ export function tannersRow(bank: Point[], landSide: 1 | -1, options: Partial<Tan
       best = j;
     }
     const c = best > i ? chord(points, i, best, landSide) : undefined;
-    const yards = c ? Math.floor((c.length + 1e-9) / o.frontageMeters) : 0;
+    const chordStart = c && along(points[i], c.n, c.shift),
+      yardAt = (mid: number) => {
+        const p = along(chordStart!, c!.u, mid - o.frontageMeters / 2),
+          q = along(chordStart!, c!.u, mid + o.frontageMeters / 2);
+        return [p, q, along(q, c!.n, o.depthMeters), along(p, c!.n, o.depthMeters)];
+      };
+    // Continuous: the first yard moves down the chord until it clears the yard before it across the bend.
+    let lead = 0;
+    if (c && o.continuous && last?.at === i)
+      while (lead + o.frontageMeters <= c.length && convexOverlap(yardAt(lead + o.frontageMeters / 2), last.corners))
+        lead += o.stepMeters;
+    const yards = c ? Math.floor((c.length - lead + 1e-9) / o.frontageMeters) : 0;
     if (!c || yards < 1) {
       row.bendMeters += s[i + 1] - s[i];
+      last = undefined;
       i++;
       continue;
     }
     const { u, n } = c,
-      a = along(points[i], n, c.shift),
+      a = chordStart!,
       b = along(a, u, c.length),
       reach: TannersReach = {
         a,
@@ -176,7 +215,7 @@ export function tannersRow(bank: Point[], landSide: 1 | -1, options: Partial<Tan
     // theta, local -y lies on n (the land) and local +x at (-n.y, n.x).
     const theta = Math.atan2(n[0], -n[1]),
       mirrored = dot([-n[1], n[0]], u) < 0,
-      start = (c.length - yards * o.frontageMeters) / 2;
+      start = o.continuous ? lead : (c.length - yards * o.frontageMeters) / 2;
     for (let k = 0; k < yards; k++) {
       const mid = start + (k + 0.5) * o.frontageMeters,
         position = along(along(a, u, mid), n, o.depthMeters / 2);
@@ -196,7 +235,19 @@ export function tannersRow(bank: Point[], landSide: 1 | -1, options: Partial<Tan
       });
     }
     row.reaches.push(reach);
-    i = best;
+    // Continuous: the next chord starts where the last yard ends, so the leftover is not left as a gap in the row.
+    let next = best;
+    if (o.continuous) {
+      const end = start + yards * o.frontageMeters;
+      for (let k = i + 1; k <= best; k++)
+        if (dot(sub(points[k], a), u) >= end - 1e-9) {
+          next = k;
+          break;
+        }
+      reach.toMeters = s[next];
+    }
+    last = { corners: yardAt(start + (yards - 0.5) * o.frontageMeters), at: next };
+    i = next;
   }
   return row;
 }

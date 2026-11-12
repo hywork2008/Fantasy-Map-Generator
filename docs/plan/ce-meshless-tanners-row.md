@@ -1,7 +1,7 @@
 # メッシュなしCEのなめし職人の河岸（Tanners' Row）と給水・排水
 
 作成: 2026-11-12
-状態: T0〜T2b完了（[T0記録](../analytics/ce-meshless-tanners-row-t0-20261112.md)、[T2記録](../analytics/ce-meshless-tanners-row-t2-20261112.md)、[T2b記録](../analytics/ce-meshless-tanners-row-t2b-20261112.md)）。CE画面の3Dも確認済み。T3（工房用水路）完了（[T3記録](../analytics/ce-meshless-tanners-row-t3-20261112.md)）。FMGの川の向きと範囲の補正も完了（[記録](../analytics/ce-meshless-tanners-row-flow-20261112.md)、gondre 0→9軒）。次はT4（ベジェの曲がりを加えた川での確認。川の曲線化の作業の後）
+状態: T0〜T2b完了（[T0記録](../analytics/ce-meshless-tanners-row-t0-20261112.md)、[T2記録](../analytics/ce-meshless-tanners-row-t2-20261112.md)、[T2b記録](../analytics/ce-meshless-tanners-row-t2b-20261112.md)）。CE画面の3Dも確認済み。T3（工房用水路）完了（[T3記録](../analytics/ce-meshless-tanners-row-t3-20261112.md)）。FMGの川の向きと範囲の補正も完了（[記録](../analytics/ce-meshless-tanners-row-flow-20261112.md)、gondre 0→9軒）。T4（なめらかな曲がった川での確認）完了（[T4記録](../analytics/ce-meshless-tanners-row-t4-20261112.md)）。T5（曲がりで途切れない列／曲がりでの工房用水路、`tanneryBends`）完了（[T5記録](../analytics/ce-meshless-tanners-row-t5-20261112.md)）。
 対象: メッシュなしCE（`src/city-editor/generators/vector`）。メッシュありCEは対象外（道と川の間隔の調整が煩雑なため）。
 
 ## 1. 目的
@@ -121,7 +121,8 @@
 | T2 | 方式Aの配置。なめし業を `facilityLots.ts` のロット起点の配置から外し、街路計画の前に町の下流の岸線を起点に河岸の列として予約する。岸に沿う道がなければ「なめし職人の小路」を引き、最寄りの道路へつなぐ。`mirrored`（3Dは反転したプロトタイプ） | **完了**（2026-11-12）。7件で置いた107軒すべてが岸の最前列にあり、背面が水、給水が上流、町の下流。列は町ごとに1〜2つ。未配置の残りは入力側の原因（[T2記録](../analytics/ce-meshless-tanners-row-t2-20261112.md) §3） |
 | T2b | 給水・排水の水路（口から岸まで）と護岸の帯を2D・3Dで描く。小路の折り返しを直す | **完了**（2026-11-12）。水路は背面に垂直に水面まで（3 m未満）。2DとCE画面の3Dで確認済み |
 | T3 | 方式B（工房用水路）の生成と、検査・除外の対応 | **完了**（2026-11-12）。曲がった川で、水路の陸側の工房は1列にまとまる。町全体の散らばりはT4で測り直す（[T3記録](../analytics/ce-meshless-tanners-row-t3-20261112.md)） |
-| T4 | ベジェの曲がりを加えた川での確認。川の曲線化の作業後に行う | 固定入力で T2・T3 の条件を満たす |
+| T4 | ベジェの曲がりを加えた川での確認。川の曲線化の作業後に行う | **完了**（2026-11-12）。川はベジェではなく細かい折れ線（`curvedRivers.ts`）。13件で置いた工房すべてがT2の条件を満たす。小路を引けない区間の工房を次の区間へ並べ直し、曲がった川の町は要求を満たすか枠の分だけ未配置。なめらかな川では方式Bの条件に当たらず、用水路は掘られない（[T4記録](../analytics/ce-meshless-tanners-row-t4-20261112.md)） |
+| T5 | 曲がりでの列の扱いを `VectorUrbanSettings.tanneryBends` で選ぶ。`continuous`（既定）: 弦の工房を上流端から詰め、次の弦を最後の工房の端から始めて1列・1本の小路にする。`leat`: 工房のある直線区間が3つ以上に分かれる区間にも工房用水路を掘る | **完了**（2026-11-12）。continuousで曲がった川の群が6〜13から1〜3へ。leatは用水路を引ける3件で掘る（[T5記録](../analytics/ce-meshless-tanners-row-t5-20261112.md)） |
 
 ### 8.1 T1aの結果
 

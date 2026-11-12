@@ -20,7 +20,7 @@ import type { BurgSiteDescriptor } from "../../types/contracts/burgSiteDescripto
 import type { GenerationSettings } from "../../types/generation";
 import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorGenerationSettings } from "../../types/vector/generation";
-import type { VectorStage } from "../../types/vector/urban";
+import type { TanneryBends, VectorStage } from "../../types/vector/urban";
 
 const text = (key: string) => editorText(`cityEditor.vector.generation.${key}` as EditorMessageKey);
 export function createVectorGenerationPanel(
@@ -334,6 +334,17 @@ export function createVectorGenerationPanel(
   }
   mode.value = vectorUrbanMode(editorInput?.settings);
   field("mode", mode);
+  // How the tanners' row meets the river's bends: one continuous row (default) or a tanners' leat.
+  const tanneryBends = document.createElement("select");
+  tanneryBends.dataset.generationField = "tanneryBends";
+  for (const value of ["continuous", "leat"] as const) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = text(`tanneryBendsOptions.${value}`);
+    tanneryBends.append(option);
+  }
+  tanneryBends.value = "continuous";
+  field("tanneryBends", tanneryBends);
   const population = number(
       "population",
       editorInput?.settings.population?.targetPopulation ?? (read().context.targetPopulation || 1000)
@@ -381,7 +392,8 @@ export function createVectorGenerationPanel(
           laneWidthMeters: Number(laneWidth.value),
           maxLanes: Number(maxLanes.value),
           allowExpansion: expansion.checked,
-          lotOccupancy: lotOccupancy()
+          lotOccupancy: lotOccupancy(),
+          tanneryBends: tanneryBends.value as TanneryBends
         }
       },
       "develop"
@@ -467,7 +479,8 @@ export function createVectorGenerationPanel(
             ...DEFAULT_VECTOR_URBAN,
             mode: urbanMode,
             population: target,
-            lotOccupancy: lotOccupancy()
+            lotOccupancy: lotOccupancy(),
+            tanneryBends: tanneryBends.value as TanneryBends
           }
         },
         "develop",
@@ -561,6 +574,7 @@ export function createVectorGenerationPanel(
       maxLanes.value = String(doc.urban?.settings.maxLanes ?? 32);
       expansion.checked = doc.urban?.settings.allowExpansion ?? true;
       occupancy.value = String(Math.round((doc.urban?.settings.lotOccupancy ?? 1) * 100));
+      tanneryBends.value = doc.urban?.settings.tanneryBends ?? "continuous";
       stage.disabled = !!doc.generation && doc.generation.inputRevision !== doc.revision;
       status.textContent = doc.generation
         ? doc.generation.inputRevision === doc.revision

@@ -100,7 +100,8 @@ async function town(name: string) {
       ...DEFAULT_VECTOR_URBAN,
       mode: "medieval-facilities",
       population,
-      lotOccupancy: 1
+      lotOccupancy: 1,
+      ...(process.env.CE_TANNERY_BENDS ? { tanneryBends: process.env.CE_TANNERY_BENDS as "leat" } : {})
     }),
     population
   };
@@ -216,7 +217,8 @@ it.runIf(!!output)(
             flowOk,
             downstream,
             belowCenter: along(river.r, center) > along(river.r, [0, 0]),
-            center: center.map(v => Math.round(v)) as Point
+            center: center.map(v => Math.round(v)) as Point,
+            backMid
           };
         });
         // Groups of tanneries whose site centres lie within 22 m (one frontage plus a party wall's slack).
@@ -230,6 +232,18 @@ it.runIf(!!output)(
             if (Math.hypot(per[i].center[0] - per[j].center[0], per[i].center[1] - per[j].center[1]) < 22)
               parent[find(i)] = find(j);
         const groups = new Set(per.map((_, i) => find(i))).size;
+        const rowParent = per.map((_, i) => i),
+          rowFind = (i: number): number => {
+            while (rowParent[i] !== i) i = rowParent[i];
+            return i;
+          };
+        // Rows: yards whose backs stand side by side on the bank (back midpoints within a frontage and a bit), so a row
+        // fanning round an outer bend still counts as one.
+        for (let i = 0; i < per.length; i++)
+          for (let j = i + 1; j < per.length; j++)
+            if (Math.hypot(per[i].backMid[0] - per[j].backMid[0], per[i].backMid[1] - per[j].backMid[1]) < 22)
+              rowParent[rowFind(i)] = rowFind(j);
+        const rowGroups = new Set(per.map((_, i) => rowFind(i))).size;
         const period = doc.context.historicalPeriod ?? "ageOfExploration";
         const requested = buildPopulationFacilityRequests(population, {
           period,
@@ -276,6 +290,8 @@ it.runIf(!!output)(
           flowOk: per.filter(r => r.flowOk).length,
           downstream: per.filter(r => r.downstream).length,
           groups,
+          rows: rowGroups,
+          leats: Object.keys(doc.paths).filter(id => id.startsWith("urban-tanners-leat:")).length,
           portGapMax: per.length ? Math.max(...per.map(r => r.portGap)) : null,
           detail: per
         });

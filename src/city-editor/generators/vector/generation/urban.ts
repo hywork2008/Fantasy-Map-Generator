@@ -197,7 +197,8 @@ function* vectorUrbanSteps(
     settings.clearanceMeters > 5 ||
     typeof settings.allowExpansion !== "boolean" ||
     (settings.lotOccupancy !== undefined &&
-      (!Number.isFinite(settings.lotOccupancy) || settings.lotOccupancy < 0.1 || settings.lotOccupancy > 1))
+      (!Number.isFinite(settings.lotOccupancy) || settings.lotOccupancy < 0.1 || settings.lotOccupancy > 1)) ||
+    (settings.tanneryBends !== undefined && !["continuous", "leat"].includes(settings.tanneryBends))
   )
     throw new Error("invalid-urban-settings");
   const doc = structuredClone(input);
@@ -352,7 +353,13 @@ function* vectorUrbanSteps(
   // The tanners' row is reserved on the bank below the town before the street plan, so streets and lots keep off it.
   const tanneryRow =
     !continuation && organicMode && settings.mode === "medieval-facilities"
-      ? reserveTanneryRow(doc, requests, core, anchors => joinVectorGenerationAnchors(doc, anchors))
+      ? reserveTanneryRow(
+          doc,
+          requests,
+          core,
+          anchors => joinVectorGenerationAnchors(doc, anchors),
+          settings.tanneryBends ?? "continuous"
+        )
       : { placed: [], unplaced: [], lanes: [], leats: [], islands: [] };
   // The street plan keeps off the yards and their revetments.
   // A little wider than the yards themselves: a lane ending on the block's edge, rounded to the centimetre, must not
