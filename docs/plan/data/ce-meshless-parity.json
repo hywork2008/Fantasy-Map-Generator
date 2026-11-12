@@ -72,7 +72,7 @@
       "id": "config.rivers",
       "mesh": "through | beside | toCoast | straight | meander | greatBend",
       "meshless": "partial",
-      "evidence": "Native input only for at most one through/straight river; other shapes fall back to the synthesized descriptor.",
+      "evidence": "Native input only for at most one through/straight river; other shapes fall back to the synthesized descriptor, whose rivers are smoothed into curves and whose meander is a Kinoshita course through the town (curvedRivers.ts).",
       "stage": "P5",
       "checked": true
     },

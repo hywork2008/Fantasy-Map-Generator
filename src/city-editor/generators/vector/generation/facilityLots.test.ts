@@ -134,7 +134,8 @@ describe("the tanners' row on the bank below the town (tanners' row plan T2)", (
 
 describe("a tanners' leat where the bank bends too much for a row (tanners' row plan T3)", () => {
   it("digs a straight leat off the meandering river and lines its land side with yards", () => {
-    const seed = "fixture",
+    // A seed whose smooth meander (curvedRivers.ts) bends too much along the tanners' reach for a bank row.
+    const seed = "s12",
       settings = { ...defaultGenerationSettings(), facilityLayout: "population" as const };
     settings.config = {
       ...settings.config,

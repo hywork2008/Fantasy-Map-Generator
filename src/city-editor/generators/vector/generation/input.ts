@@ -22,6 +22,7 @@ import { simplifyFreehand } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument } from "../validation/document";
+import { smoothCourse } from "./curvedRivers";
 import { descriptorRiverCrossing, roadToFerryLanding } from "./ferries";
 
 const copy = (p: readonly number[]): Point => [p[0], p[1]];
@@ -114,7 +115,11 @@ function seal(doc: VectorCityDocument, site: VectorSite): VectorCityDocument {
   assertVectorDocument(doc);
   return doc;
 }
-export function vectorInputFromDescriptor(descriptor: BurgSiteDescriptor): VectorCityDocument {
+export function vectorInputFromDescriptor(
+  descriptor: BurgSiteDescriptor,
+  /** Draw unsurveyed rivers as smooth curves through their course points (a synthesized meshless site). */
+  options: { curvedRivers?: boolean } = {}
+): VectorCityDocument {
   const d = structuredClone(descriptor),
     fixed = d.fixedCrossings;
   if (fixed && !validFixedBurgCrossings(fixed, FIXED_SITE_CROSSING_BUDGETS)) throw new Error("fixed-input-invalid");
@@ -211,11 +216,16 @@ export function vectorInputFromDescriptor(descriptor: BurgSiteDescriptor): Vecto
       }
     } else
       for (let i = 0; i < river.segments.length; i++) {
-        const segment = trimToWindow(
+        const trimmed = trimToWindow(
             river.segments[i].points,
             river.segments[i].widthsMeters,
             doc.frame.extentMeters / 2
           ),
+          smoothed =
+            options.curvedRivers && !surveyed?.rings.length
+              ? smoothCourse(trimmed.points, trimmed.widthsMeters)
+              : { points: trimmed.points, widths: trimmed.widthsMeters },
+          segment = { points: smoothed.points, widthsMeters: smoothed.widths },
           id = `fmg-river:${river.riverId}:segment:${i}`;
         doc.paths[id] = importedPath(id, "river", segment.points.map(copy), river.widthMeters);
         segment.widthsMeters.forEach((width, j) => {

@@ -9,6 +9,7 @@ import { featureReservations } from "../environmentState";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { allVectorWater } from "../geometry/water";
 import { seedVectorCivicCentre, vectorBurial, vectorCivicLayout } from "./civic";
+import { curveSynthesizedRivers } from "./curvedRivers";
 import { fortifyVectorInput } from "./fortress";
 import { expectedVectorHouseStoreys } from "./housingHeights";
 import { syntheticVectorInput, vectorInputFromDescriptor } from "./input";
@@ -69,9 +70,14 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
         ? 1
         : meshlessSiteFillScale(dwellings) *
           (isVectorWallShape(wall.wall) ? 1 / Math.sqrt(vectorWallAreaShare(seed, wall.wall, wall.wallSides)) : 1);
-  let descriptor = native
-    ? undefined
-    : structuredClone(settings.descriptor ?? synthSite("largeTown", settings.config, seed, frame));
+  // A synthesized site's meandering rivers are laid as smooth curves through the town (curvedRivers.ts).
+  const synthesize = (siteFrame: typeof frame) => {
+    const site = synthSite("largeTown", settings.config, seed, siteFrame);
+    curveSynthesizedRivers(site, settings.config, seed);
+    return site;
+  };
+  const curvedRivers = !settings.descriptor;
+  let descriptor = native ? undefined : structuredClone(settings.descriptor ?? synthesize(frame));
   // A synthesized coast or river takes land from the round site the population was planned on. The site is
   // synthesized again on a larger frame until its dry land holds the CE perimeter lots it needs (P5a).
   if (descriptor && !settings.descriptor && settings.population && input.lotOccupancy !== undefined) {
@@ -88,7 +94,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
           2;
     let scale = 1;
     for (let attempt = 0; attempt < 3; attempt++) {
-      const probe = vectorInputFromDescriptor(descriptor),
+      const probe = vectorInputFromDescriptor(descriptor, { curvedRivers }),
         dry =
           probe.site!.domain.reduce((n, d) => n + regionArea(d), 0) -
           regionBoolean(probe.site!.domain, allVectorWater(probe), "intersection").reduce(
@@ -97,7 +103,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
           );
       if (dry >= need) break;
       scale *= Math.min(1.6, Math.sqrt(need / Math.max(1, dry)) * 1.05);
-      descriptor = synthSite("largeTown", settings.config, seed, {
+      descriptor = synthesize({
         ...frame,
         cityRadiusMeters: frame.cityRadiusMeters * scale,
         extentMeters: Math.max(frame.extentMeters, frame.cityRadiusMeters * scale * 3)
@@ -123,7 +129,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
       ? // A synthesized site's roads run over its rivers; an FMG city's bring their certified crossings (P5a).
         settings.descriptor
         ? vectorInputFromDescriptor(descriptor)
-        : bridgeSyntheticCrossings(vectorInputFromDescriptor(descriptor))
+        : bridgeSyntheticCrossings(vectorInputFromDescriptor(descriptor, { curvedRivers }))
       : syntheticVectorInput(
           seed,
           radius,
