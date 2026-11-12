@@ -87,6 +87,10 @@ export type FootwearDemandMode = (typeof FOOTWEAR_DEMAND_MODES)[number];
 export const HOUSEHOLD_GOOD_VALUE_MODES = ["historical", "legacy"] as const;
 export type HouseholdGoodValueMode = (typeof HOUSEHOLD_GOOD_VALUE_MODES)[number];
 
+/** Hides and tallow off the map: `staple` the port markets sell their surplus; `off` none, as before. */
+export const BYPRODUCT_EXPORT_MODES = ["staple", "off"] as const;
+export type ByproductExportMode = (typeof BYPRODUCT_EXPORT_MODES)[number];
+
 /**
  * Who burns candles: `everyone` the towns and the countryside at `candleKgPerPerson`;
  * `townsOnly` the towns at 1 kg a person a year, as before (docs/plan/candle-demand.md §4.1).
@@ -155,6 +159,11 @@ export type MarketSettings = {
   householdGoodValues: HouseholdGoodValueMode;
   /** Kilograms of tallow the curriers stuff into a hide of shoe, leather-goods and harness leather; 0 none. */
   curryingTallowKgPerHide: number;
+  byproductExport: ByproductExportMode;
+  /** Months of its own use of hides and tallow a port market keeps before selling the rest off the map. */
+  byproductExportReserveMonths: number;
+  /** Share of that surplus a port market ships in a month. */
+  byproductExportShare: number;
   candleDemand: CandleDemandMode;
   /** Kilograms of candles a person burns a year, with `candleDemand` everyone. */
   candleKgPerPerson: number;
@@ -199,6 +208,9 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   ruralShoemakersPerThousand: 2,
   householdGoodValues: "historical",
   curryingTallowKgPerHide: 2,
+  byproductExport: "staple",
+  byproductExportReserveMonths: 6,
+  byproductExportShare: 0.2,
   candleDemand: "everyone",
   candleKgPerPerson: 1,
   ruralChandlersPerThousand: 0.5,
@@ -229,6 +241,8 @@ export const MARKET_SETTING_LIMITS = {
   ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 },
   candleKgPerPerson: { min: 0, max: 4, step: 0.25 },
   curryingTallowKgPerHide: { min: 0, max: 6, step: 0.25 },
+  byproductExportReserveMonths: { min: 0, max: 36, step: 1 },
+  byproductExportShare: { min: 0, max: 1, step: 0.05 },
   ruralChandlersPerThousand: { min: 0, max: 5, step: 0.1 }
 } as const;
 
@@ -279,6 +293,11 @@ const householdGoodValueMode = (value: unknown): HouseholdGoodValueMode =>
   HOUSEHOLD_GOOD_VALUE_MODES.includes(value as HouseholdGoodValueMode)
     ? (value as HouseholdGoodValueMode)
     : DEFAULT_MARKET_SETTINGS.householdGoodValues;
+
+const byproductExportMode = (value: unknown): ByproductExportMode =>
+  BYPRODUCT_EXPORT_MODES.includes(value as ByproductExportMode)
+    ? (value as ByproductExportMode)
+    : DEFAULT_MARKET_SETTINGS.byproductExport;
 
 const candleDemandMode = (value: unknown): CandleDemandMode =>
   CANDLE_DEMAND_MODES.includes(value as CandleDemandMode)
@@ -332,6 +351,9 @@ export function getMarketSettings(): MarketSettings {
     ruralShoemakersPerThousand: clamp("ruralShoemakersPerThousand", parsed.ruralShoemakersPerThousand),
     householdGoodValues: householdGoodValueMode(parsed.householdGoodValues),
     curryingTallowKgPerHide: clamp("curryingTallowKgPerHide", parsed.curryingTallowKgPerHide),
+    byproductExport: byproductExportMode(parsed.byproductExport),
+    byproductExportReserveMonths: clamp("byproductExportReserveMonths", parsed.byproductExportReserveMonths),
+    byproductExportShare: clamp("byproductExportShare", parsed.byproductExportShare),
     candleDemand: candleDemandMode(parsed.candleDemand),
     candleKgPerPerson: clamp("candleKgPerPerson", parsed.candleKgPerPerson),
     ruralChandlersPerThousand: clamp("ruralChandlersPerThousand", parsed.ruralChandlersPerThousand),
@@ -370,6 +392,9 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     ruralShoemakersPerThousand: clamp("ruralShoemakersPerThousand", next.ruralShoemakersPerThousand),
     householdGoodValues: householdGoodValueMode(next.householdGoodValues),
     curryingTallowKgPerHide: clamp("curryingTallowKgPerHide", next.curryingTallowKgPerHide),
+    byproductExport: byproductExportMode(next.byproductExport),
+    byproductExportReserveMonths: clamp("byproductExportReserveMonths", next.byproductExportReserveMonths),
+    byproductExportShare: clamp("byproductExportShare", next.byproductExportShare),
     candleDemand: candleDemandMode(next.candleDemand),
     candleKgPerPerson: clamp("candleKgPerPerson", next.candleKgPerPerson),
     ruralChandlersPerThousand: clamp("ruralChandlersPerThousand", next.ruralChandlersPerThousand),

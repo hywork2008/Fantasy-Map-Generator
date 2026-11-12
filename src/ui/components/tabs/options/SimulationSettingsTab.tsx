@@ -26,7 +26,9 @@ import {
 import {
   BOOTS_LABOR_MODES,
   type BootsLaborMode,
+  BYPRODUCT_EXPORT_MODES,
   BYPRODUCT_PRICING_MODES,
+  type ByproductExportMode,
   type ByproductPricingMode,
   CANDLE_DEMAND_MODES,
   type CandleDemandMode,
@@ -854,6 +856,59 @@ export const SimulationSettingsTab: React.FC = () => {
                 step={MARKET_SETTING_LIMITS.curryingTallowKgPerHide.step}
                 value={marketSettings.curryingTallowKgPerHide}
                 onChange={v => updateMarketSetting("curryingTallowKgPerHide", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.byproductExportTip")}>
+            <td />
+            <td>
+              <label htmlFor="byproductExport">{t("simulation.byproductExport")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="byproductExport"
+                value={marketSettings.byproductExport}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      byproductExport: e.target.value as ByproductExportMode
+                    })
+                  )
+                }
+              >
+                {BYPRODUCT_EXPORT_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.byproductExport_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.byproductExportReserveMonthsTip")}>
+            <td />
+            <td>{t("simulation.byproductExportReserveMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="byproductExportReserveMonths"
+                min={MARKET_SETTING_LIMITS.byproductExportReserveMonths.min}
+                max={MARKET_SETTING_LIMITS.byproductExportReserveMonths.max}
+                step={MARKET_SETTING_LIMITS.byproductExportReserveMonths.step}
+                value={marketSettings.byproductExportReserveMonths}
+                onChange={v => updateMarketSetting("byproductExportReserveMonths", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.byproductExportShareTip")}>
+            <td />
+            <td>{t("simulation.byproductExportShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="byproductExportShare"
+                min={MARKET_SETTING_LIMITS.byproductExportShare.min}
+                max={MARKET_SETTING_LIMITS.byproductExportShare.max}
+                step={MARKET_SETTING_LIMITS.byproductExportShare.step}
+                value={marketSettings.byproductExportShare}
+                onChange={v => updateMarketSetting("byproductExportShare", v)}
               />
             </td>
           </tr>

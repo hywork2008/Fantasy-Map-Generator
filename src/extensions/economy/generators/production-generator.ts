@@ -35,6 +35,7 @@ import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { settleArmsTheft } from "./armsTheft";
 import { getDiscontentLaborMultiplier } from "./burgDiscontent";
 import { creditHouseholdWealth, syncBurgMarketLedgers } from "./burgMarketLedgers";
+import { settleByproductExport } from "./byproductExport";
 import { Caravans } from "./caravans";
 import { CELL_FOOD_PRESERVATION_LABOR_SHARE } from "./cellFoodRescue";
 import {
@@ -687,6 +688,7 @@ export class ProductionModule {
     });
     measureTickStep("production:globalTrade", () => Markets.runGlobalTrade());
     measureTickStep("production:spawnCaravans", () => Caravans.spawnFromDeals(getDeals()));
+    measureTickStep("production:byproductExport", () => settleByproductExport());
     measureTickStep("production:livestockFeed", () => settleLivestockFeed());
     measureTickStep("production:fillDemand", () => this.fillBurgsDemand(cycle.sortedBurgs, cycle.index));
     measureTickStep("production:marketMaintenance", () => settleMarketMaintenance());
@@ -767,6 +769,7 @@ export class ProductionModule {
 
     if (isCancelled()) return false;
 
+    measureTickStep("production:byproductExport", () => settleByproductExport());
     measureTickStep("production:livestockFeed", () => settleLivestockFeed());
     measureTickStep("production:fillDemand", () => this.fillBurgsDemand(cycle.sortedBurgs, cycle.index));
     measureTickStep("production:marketMaintenance", () => settleMarketMaintenance());

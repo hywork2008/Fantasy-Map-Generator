@@ -27,6 +27,9 @@ export type GoodFlowCategory =
   | "funeral"
   | "navyExport"
   | "navyImport"
+  /** Hides and tallow sold off the map from a port market, and the foreign goods taken for them (byproductExport.ts). */
+  | "stapleExport"
+  | "stapleImport"
   | "luxuryPurchase"
   | "characterLuxury"
   /** Timber recovered by breaking up a one-way river craft at its destination. */
