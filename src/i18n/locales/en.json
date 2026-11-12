@@ -2168,6 +2168,8 @@
     "householdGoodValuesTip": "Base values of Boots, Leather Goods and Candles. Historical: against grain and medieval prices (a pair of shoes about 20 kg of grain, tallow candles about 11 kg a kilogram). Legacy: the earlier values, about 6 to 20 times dearer. A value changed in the Goods editor is kept.",
     "householdGoodValues_historical": "Historical",
     "householdGoodValues_legacy": "Legacy",
+    "curryingTallowKgPerHide": "Currying tallow (kg/hide)",
+    "curryingTallowKgPerHideTip": "Tallow the curriers stuff into a hide of shoe, leather-goods and harness leather, bought when the market has it. Upper leather held 15 to 23% fat, about half of it tallow and half fish oil. 0: none, as before.",
     "candleDemand": "Candle demand",
     "candleDemandTip": "Who burns candles. Everyone: the towns and the countryside, at the kilograms a person below. Towns only: the towns at 1 kg a person a year, as before.",
     "candleDemand_everyone": "Everyone",

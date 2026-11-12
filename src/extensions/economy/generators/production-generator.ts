@@ -55,6 +55,7 @@ import { smoothCraftWorkers } from "./craftEmployment";
 import { laborPeople, peopleToPoints } from "./craftScale";
 import { getBasicWorkersByBurg, getChildLabourEquivalent, getCraftWorkforce } from "./craftWorkforce";
 import { settleCropResiduePreparation } from "./cropResidueSettlement";
+import { getCurryingTallow } from "./curryingTallow";
 import { ExportStaging } from "./exportStaging";
 import { isReturnedCaskDrink } from "./foodLots";
 import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
@@ -1757,6 +1758,22 @@ export class ProductionModule {
         remainingBudget = Math.max(0, remainingBudget - deal.units * deal.price);
       }
       plans.push({ ingredientId, amount, fromInventory, deal });
+    }
+    // Curriers stuff the leather of shoes, leather goods and harness with tallow; it is bought as
+    // far as the market has it and the purse allows, and never stops the work (docs/plan/currying-tallow.md).
+    const dressing = getCurryingTallow(good.name, execIngredients, actualYield);
+    if (dressing && remainingBudget > 1e-9) {
+      const deal = Markets.buy({
+        burg: state.burg,
+        good: dressing.tallow,
+        units: dressing.units,
+        budget: remainingBudget,
+        flow: { category: "recipeInput", guildDomain: domain, relatedGoodId: good.i }
+      });
+      if (deal && deal.units > 0) {
+        remainingBudget = Math.max(0, remainingBudget - deal.units * deal.price);
+        plans.push({ ingredientId: dressing.tallow.i, amount: deal.units, fromInventory: 0, deal });
+      }
     }
 
     const recipe: ProductionRecipeEntry[] = [];

@@ -843,6 +843,20 @@ export const SimulationSettingsTab: React.FC = () => {
               </select>
             </td>
           </tr>
+          <tr data-tip={t("simulation.curryingTallowKgPerHideTip")}>
+            <td />
+            <td>{t("simulation.curryingTallowKgPerHide")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="curryingTallowKgPerHide"
+                min={MARKET_SETTING_LIMITS.curryingTallowKgPerHide.min}
+                max={MARKET_SETTING_LIMITS.curryingTallowKgPerHide.max}
+                step={MARKET_SETTING_LIMITS.curryingTallowKgPerHide.step}
+                value={marketSettings.curryingTallowKgPerHide}
+                onChange={v => updateMarketSetting("curryingTallowKgPerHide", v)}
+              />
+            </td>
+          </tr>
           <tr data-tip={t("simulation.candleDemandTip")}>
             <td />
             <td>

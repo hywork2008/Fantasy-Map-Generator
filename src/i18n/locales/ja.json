@@ -2168,6 +2168,8 @@
     "householdGoodValuesTip": "長靴・革の品・蝋燭の基の値です。史料：穀物と中世の値段に合わせます（靴1足が穀物約20 kg、獣脂の蝋燭が1 kgで約11 kg）。旧：今までの値で、約6〜20倍高くなります。品の編集で変えた値はそのまま残ります。",
     "householdGoodValues_historical": "史料",
     "householdGoodValues_legacy": "旧",
+    "curryingTallowKgPerHide": "革の仕上げの獣脂（kg/皮1枚）",
+    "curryingTallowKgPerHideTip": "靴・革の品・馬具の革に、仕上げで擦り込む獣脂の量（皮1枚あたり）です。市場に在庫がある時だけ買います。甲革は脂を15〜23%含み、その約半分が獣脂、残りが魚の油でした。0で使いません（今までの決まり）。",
     "candleDemand": "蝋燭の需要",
     "candleDemandTip": "蝋燭を燃やす人です。全員：町と農村の人が、下の1人年の量で燃やします。町だけ：町の人だけが1人年1 kg（今までの決まり）。",
     "candleDemand_everyone": "全員",

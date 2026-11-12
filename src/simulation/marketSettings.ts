@@ -153,6 +153,8 @@ export type MarketSettings = {
    * carters, threshers and hay hands in its countryside as well as dealers and porters in its towns.
    */
   householdGoodValues: HouseholdGoodValueMode;
+  /** Kilograms of tallow the curriers stuff into a hide of shoe, leather-goods and harness leather; 0 none. */
+  curryingTallowKgPerHide: number;
   candleDemand: CandleDemandMode;
   /** Kilograms of candles a person burns a year, with `candleDemand` everyone. */
   candleKgPerPerson: number;
@@ -196,6 +198,7 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   byproductPricing: "stockAndDemand",
   ruralShoemakersPerThousand: 2,
   householdGoodValues: "historical",
+  curryingTallowKgPerHide: 2,
   candleDemand: "everyone",
   candleKgPerPerson: 1,
   ruralChandlersPerThousand: 0.5,
@@ -225,6 +228,7 @@ export const MARKET_SETTING_LIMITS = {
   summerHideLoss: { min: 0, max: 0.5, step: 0.01 },
   ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 },
   candleKgPerPerson: { min: 0, max: 4, step: 0.25 },
+  curryingTallowKgPerHide: { min: 0, max: 6, step: 0.25 },
   ruralChandlersPerThousand: { min: 0, max: 5, step: 0.1 }
 } as const;
 
@@ -327,6 +331,7 @@ export function getMarketSettings(): MarketSettings {
     byproductPricing: byproductPricingMode(parsed.byproductPricing),
     ruralShoemakersPerThousand: clamp("ruralShoemakersPerThousand", parsed.ruralShoemakersPerThousand),
     householdGoodValues: householdGoodValueMode(parsed.householdGoodValues),
+    curryingTallowKgPerHide: clamp("curryingTallowKgPerHide", parsed.curryingTallowKgPerHide),
     candleDemand: candleDemandMode(parsed.candleDemand),
     candleKgPerPerson: clamp("candleKgPerPerson", parsed.candleKgPerPerson),
     ruralChandlersPerThousand: clamp("ruralChandlersPerThousand", parsed.ruralChandlersPerThousand),
@@ -364,6 +369,7 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     byproductPricing: byproductPricingMode(next.byproductPricing),
     ruralShoemakersPerThousand: clamp("ruralShoemakersPerThousand", next.ruralShoemakersPerThousand),
     householdGoodValues: householdGoodValueMode(next.householdGoodValues),
+    curryingTallowKgPerHide: clamp("curryingTallowKgPerHide", next.curryingTallowKgPerHide),
     candleDemand: candleDemandMode(next.candleDemand),
     candleKgPerPerson: clamp("candleKgPerPerson", next.candleKgPerPerson),
     ruralChandlersPerThousand: clamp("ruralChandlersPerThousand", next.ruralChandlersPerThousand),
