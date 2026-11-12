@@ -70,7 +70,12 @@ import {
   refreshAleHouseholdDemand,
   settleFoodProcessingHouseholds
 } from "./foodProcessingLedger";
-import { getMarketBuyerFactor, getRuralShoemakerPeople, isFootwearForEveryone, isFootwearGood } from "./footwearDemand";
+import {
+  getMarketBuyerFactor,
+  getRuralChandlerPeople,
+  getRuralShoemakerPeople,
+  isCountrysideGood
+} from "./footwearDemand";
 import { hasForestGlasshouses } from "./forestGlasshouses";
 import type { DemandCategory, Good } from "./goods-generator";
 import {
@@ -1497,12 +1502,11 @@ export class ProductionModule {
   ): ExpectedWorkerArgs & { populationRate: number } {
     const stateId = state.burg.state || 0;
     const people = laborPeople(state.population, populationRate);
+    const market = state.burg.market ? Markets.get(state.burg.market) : undefined;
     return {
       laborPeople: people,
-      ruralShoemakerPeople: getRuralShoemakerPeople(
-        people,
-        state.burg.market ? Markets.get(state.burg.market) : undefined
-      ),
+      ruralShoemakerPeople: getRuralShoemakerPeople(people, market),
+      ruralChandlerPeople: getRuralChandlerPeople(people, market),
       populationRate,
       port: Boolean(state.burg.port),
       capital: Boolean(state.burg.capital),
@@ -2129,10 +2133,9 @@ export class ProductionModule {
           market
         });
         if (!(units > 0.001) || (market.goods[good.i]?.stock ?? 0) <= 0.01) continue;
-        // Footwear for everyone: the farm families' share is paid from their month in town
+        // Footwear and candles for everyone: the farm families' share is paid from their month in town
         // (docs/plan/leather-uses.md §4.1, rural-town-spending.md §4.2), the rest by the town.
-        const ruralShare =
-          isFootwearGood(good.name) && isFootwearForEveryone() ? 1 - 1 / getMarketBuyerFactor(market) : 0;
+        const ruralShare = isCountrysideGood(good.name) ? 1 - 1 / getMarketBuyerFactor(market) : 0;
         const ruralUnits = units * ruralShare;
         const budget = burg.treasury || 0;
         if (budget > 0.01) {

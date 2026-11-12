@@ -369,6 +369,8 @@ export interface ExpectedWorkerArgs {
   employmentScale?: number;
   /** Village shoemakers counted in the town (getRuralShoemakerPeople); added to its shoemakers. */
   ruralShoemakerPeople?: number;
+  /** Village candle dippers counted in the town (getRuralChandlerPeople); added to its chandlers. */
+  ruralChandlerPeople?: number;
 }
 
 function isRowAvailable(row: OccupationalCalibrationRow, args: ExpectedWorkerArgs): boolean {
@@ -397,6 +399,7 @@ export function expectedWorkerPeople(args: ExpectedWorkerArgs & { row: Occupatio
   if (args.row.modifiers?.capital && !args.capital && args.row.pool === "administration") people = 0;
   if (args.row.guildDomain) people *= args.employmentScale ?? 1;
   if (args.row.pool === "shoemaking") people += args.ruralShoemakerPeople ?? 0;
+  if (args.row.pool === "chandlery") people += args.ruralChandlerPeople ?? 0;
   return people;
 }
 

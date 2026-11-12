@@ -81,6 +81,20 @@ export const FOOTWEAR_DEMAND_MODES = ["everyone", "townsOnly"] as const;
 export type FootwearDemandMode = (typeof FOOTWEAR_DEMAND_MODES)[number];
 
 /**
+ * Base values of Boots, Leather Goods and Candles: `historical` against grain and the medieval
+ * prices; `legacy` the authored values (docs/plan/household-goods-values.md §5).
+ */
+export const HOUSEHOLD_GOOD_VALUE_MODES = ["historical", "legacy"] as const;
+export type HouseholdGoodValueMode = (typeof HOUSEHOLD_GOOD_VALUE_MODES)[number];
+
+/**
+ * Who burns candles: `everyone` the towns and the countryside at `candleKgPerPerson`;
+ * `townsOnly` the towns at 1 kg a person a year, as before (docs/plan/candle-demand.md §4.1).
+ */
+export const CANDLE_DEMAND_MODES = ["everyone", "townsOnly"] as const;
+export type CandleDemandMode = (typeof CANDLE_DEMAND_MODES)[number];
+
+/**
  * Work in a lot of Boots: `perDay` about a pair a shoemaker a day; `legacy` a pair a month, as
  * before (docs/plan/footwear-capacity.md §5.1).
  */
@@ -138,6 +152,12 @@ export type MarketSettings = {
    * Weight of a rural person against a town person in the wages a market pays from its surplus:
    * carters, threshers and hay hands in its countryside as well as dealers and porters in its towns.
    */
+  householdGoodValues: HouseholdGoodValueMode;
+  candleDemand: CandleDemandMode;
+  /** Kilograms of candles a person burns a year, with `candleDemand` everyone. */
+  candleKgPerPerson: number;
+  /** Village people dipping candles for each 1,000 farm people, counted in their market's towns. */
+  ruralChandlersPerThousand: number;
   surplusRuralWeight: number;
   /** Cash a market keeps before paying out its surplus, per member-town population point, as times the town working cash. */
   surplusReserveFactor: number;
@@ -175,6 +195,10 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   bootsLabor: "perDay",
   byproductPricing: "stockAndDemand",
   ruralShoemakersPerThousand: 2,
+  householdGoodValues: "historical",
+  candleDemand: "everyone",
+  candleKgPerPerson: 1,
+  ruralChandlersPerThousand: 0.5,
   surplusRuralWeight: 1,
   surplusReserveFactor: 0.25,
   harvestReserveMonths: 4,
@@ -199,7 +223,9 @@ export const MARKET_SETTING_LIMITS = {
   footwearPairsPerPerson: { min: 0, max: 4, step: 0.25 },
   leatherGoodsShare: { min: 0, max: 2, step: 0.05 },
   summerHideLoss: { min: 0, max: 0.5, step: 0.01 },
-  ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 }
+  ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 },
+  candleKgPerPerson: { min: 0, max: 4, step: 0.25 },
+  ruralChandlersPerThousand: { min: 0, max: 5, step: 0.1 }
 } as const;
 
 type NumericMarketSetting = keyof typeof MARKET_SETTING_LIMITS;
@@ -244,6 +270,16 @@ const footwearDemandMode = (value: unknown): FootwearDemandMode =>
   FOOTWEAR_DEMAND_MODES.includes(value as FootwearDemandMode)
     ? (value as FootwearDemandMode)
     : DEFAULT_MARKET_SETTINGS.footwearDemand;
+
+const householdGoodValueMode = (value: unknown): HouseholdGoodValueMode =>
+  HOUSEHOLD_GOOD_VALUE_MODES.includes(value as HouseholdGoodValueMode)
+    ? (value as HouseholdGoodValueMode)
+    : DEFAULT_MARKET_SETTINGS.householdGoodValues;
+
+const candleDemandMode = (value: unknown): CandleDemandMode =>
+  CANDLE_DEMAND_MODES.includes(value as CandleDemandMode)
+    ? (value as CandleDemandMode)
+    : DEFAULT_MARKET_SETTINGS.candleDemand;
 
 const bootsLaborMode = (value: unknown): BootsLaborMode =>
   BOOTS_LABOR_MODES.includes(value as BootsLaborMode) ? (value as BootsLaborMode) : DEFAULT_MARKET_SETTINGS.bootsLabor;
@@ -290,6 +326,10 @@ export function getMarketSettings(): MarketSettings {
     bootsLabor: bootsLaborMode(parsed.bootsLabor),
     byproductPricing: byproductPricingMode(parsed.byproductPricing),
     ruralShoemakersPerThousand: clamp("ruralShoemakersPerThousand", parsed.ruralShoemakersPerThousand),
+    householdGoodValues: householdGoodValueMode(parsed.householdGoodValues),
+    candleDemand: candleDemandMode(parsed.candleDemand),
+    candleKgPerPerson: clamp("candleKgPerPerson", parsed.candleKgPerPerson),
+    ruralChandlersPerThousand: clamp("ruralChandlersPerThousand", parsed.ruralChandlersPerThousand),
     surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor),
     harvestReserveMonths: clamp("harvestReserveMonths", parsed.harvestReserveMonths),
@@ -323,6 +363,10 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     bootsLabor: bootsLaborMode(next.bootsLabor),
     byproductPricing: byproductPricingMode(next.byproductPricing),
     ruralShoemakersPerThousand: clamp("ruralShoemakersPerThousand", next.ruralShoemakersPerThousand),
+    householdGoodValues: householdGoodValueMode(next.householdGoodValues),
+    candleDemand: candleDemandMode(next.candleDemand),
+    candleKgPerPerson: clamp("candleKgPerPerson", next.candleKgPerPerson),
+    ruralChandlersPerThousand: clamp("ruralChandlersPerThousand", next.ruralChandlersPerThousand),
     surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor),
     harvestReserveMonths: clamp("harvestReserveMonths", next.harvestReserveMonths),

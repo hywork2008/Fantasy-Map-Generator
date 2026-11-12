@@ -8,10 +8,9 @@ import { DEFAULT_PEOPLE_PER_POPULATION_POINT, REFERENCE_FIXTURE_LABOR_PEOPLE } f
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import {
   getBootsLaborPerLot,
-  getFootwearAnnualLotsPerPerson,
+  getCountrysideAnnualLotsPerPerson,
   getMarketBuyerFactor,
-  isFootwearForEveryone,
-  isFootwearGood
+  isCountrysideGood
 } from "./footwearDemand";
 import type { DemandCategory } from "./goodsGeneratorTypes";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
@@ -477,7 +476,8 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     residualWeight: 1,
     householdPurchase: true,
     sources: [
-      "provisional: 1 kg of tallow and wax candles a person a year in 100 kg blocks",
+      "provisional: 1 kg of tallow and wax candles a person a year in 100 kg blocks, the towns only (candleDemand townsOnly)",
+      "candleDemand everyone: candleKgPerPerson for the towns and their share of the countryside; England 1711 ~2.6 kg of tallow candles a person (docs/plan/candle-demand.md §2)",
       "0.15 person-month a block: dipping at ~25 kg a day (guild-halls-and-urban-trades.md D1)"
     ]
   },
@@ -667,8 +667,8 @@ export function getAnnualLotsPerTownPerson(
   market?: Pick<Market, "i">
 ): number | undefined {
   if (row.annualLotsPerPerson == null) return undefined;
-  if (!isFootwearGood(row.goodName) || !isFootwearForEveryone()) return row.annualLotsPerPerson;
-  return (getFootwearAnnualLotsPerPerson(row.goodName) ?? 0) * getMarketBuyerFactor(market);
+  if (!isCountrysideGood(row.goodName)) return row.annualLotsPerPerson;
+  return (getCountrysideAnnualLotsPerPerson(row.goodName) ?? 0) * getMarketBuyerFactor(market);
 }
 
 export function getCalibratedMonthlyLots(args: {

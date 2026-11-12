@@ -28,6 +28,8 @@ import {
   type BootsLaborMode,
   BYPRODUCT_PRICING_MODES,
   type ByproductPricingMode,
+  CANDLE_DEMAND_MODES,
+  type CandleDemandMode,
   CRAFT_SALE_PAYMENT_MODES,
   type CraftSalePaymentMode,
   FOOTWEAR_DEMAND_MODES,
@@ -40,8 +42,10 @@ import {
   HAY_TRADE_MODES,
   type HayPaymentMode,
   type HayTradeMode,
+  HOUSEHOLD_GOOD_VALUE_MODES,
   HOUSEHOLD_GOODS_PAYMENT_MODES,
   type HouseholdGoodsPaymentMode,
+  type HouseholdGoodValueMode,
   MARKET_DISSOLVE_CARGO_MODES,
   MARKET_SETTING_LIMITS,
   type MarketDissolveCargoMode,
@@ -811,6 +815,84 @@ export const SimulationSettingsTab: React.FC = () => {
                 step={MARKET_SETTING_LIMITS.ruralShoemakersPerThousand.step}
                 value={marketSettings.ruralShoemakersPerThousand}
                 onChange={v => updateMarketSetting("ruralShoemakersPerThousand", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.householdGoodValuesTip")}>
+            <td />
+            <td>
+              <label htmlFor="householdGoodValues">{t("simulation.householdGoodValues")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="householdGoodValues"
+                value={marketSettings.householdGoodValues}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      householdGoodValues: e.target.value as HouseholdGoodValueMode
+                    })
+                  )
+                }
+              >
+                {HOUSEHOLD_GOOD_VALUE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.householdGoodValues_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.candleDemandTip")}>
+            <td />
+            <td>
+              <label htmlFor="candleDemand">{t("simulation.candleDemand")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="candleDemand"
+                value={marketSettings.candleDemand}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      candleDemand: e.target.value as CandleDemandMode
+                    })
+                  )
+                }
+              >
+                {CANDLE_DEMAND_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.candleDemand_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.candleKgPerPersonTip")}>
+            <td />
+            <td>{t("simulation.candleKgPerPerson")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="candleKgPerPerson"
+                min={MARKET_SETTING_LIMITS.candleKgPerPerson.min}
+                max={MARKET_SETTING_LIMITS.candleKgPerPerson.max}
+                step={MARKET_SETTING_LIMITS.candleKgPerPerson.step}
+                value={marketSettings.candleKgPerPerson}
+                onChange={v => updateMarketSetting("candleKgPerPerson", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralChandlersPerThousandTip")}>
+            <td />
+            <td>{t("simulation.ruralChandlersPerThousand")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralChandlersPerThousand"
+                min={MARKET_SETTING_LIMITS.ruralChandlersPerThousand.min}
+                max={MARKET_SETTING_LIMITS.ruralChandlersPerThousand.max}
+                step={MARKET_SETTING_LIMITS.ruralChandlersPerThousand.step}
+                value={marketSettings.ruralChandlersPerThousand}
+                onChange={v => updateMarketSetting("ruralChandlersPerThousand", v)}
               />
             </td>
           </tr>

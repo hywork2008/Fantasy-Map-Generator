@@ -85,6 +85,7 @@ import { recordGoodFlow } from "./goodsBalanceLedger";
 import { floorToRetailLot, getMarketTradeMinimumUnits, getRetailLotSize } from "./goodsTradeLots";
 import { getCraftDomainForGood } from "./guildKnowledgeTypes";
 import { getMonthlyHouseholdFuelDemands, getWoodSupplyMonthKey } from "./heating";
+import { applyHouseholdGoodValues } from "./householdGoodValues";
 import { getRuralPopulationByMarket, moveRuralPursesWithFarms } from "./householdWealth";
 import { getHouseTimberShare, getHousingRecipe } from "./housingRecipes";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
@@ -1787,6 +1788,7 @@ export class MarketsModule {
   }
 
   initializeMarketPrices(): void {
+    applyHouseholdGoodValues();
     // stapleFood (Grain) pricing is owned by foodLedgerConsumption.ts's monthly settlement.
     const goods = getGoods()
       .filter(isGoodEnabled)

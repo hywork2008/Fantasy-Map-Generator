@@ -35,6 +35,41 @@ export function getFootwearAnnualLotsPerPerson(goodName: string): number | undef
   return goodName === "Boots" ? bootLots : bootLots * BOOTS_HIDES_PER_LOT * settings.leatherGoodsShare;
 }
 
+/** Kilograms of candles in a block (goods-generator.ts). */
+export const CANDLE_KG_PER_LOT = 100;
+
+/** Whether the countryside burns candles (setting `candleDemand`, docs/plan/candle-demand.md §4.1). */
+export function isCandlesForEveryone(): boolean {
+  return getMarketSettings().candleDemand === "everyone";
+}
+
+/**
+ * Whether a town's per-head floor of the good also counts its share of its market's countryside,
+ * paid from the farm families' month in town: footwear and leather goods, and candles.
+ */
+export function isCountrysideGood(goodName: string): boolean {
+  if (isFootwearGood(goodName)) return isFootwearForEveryone();
+  return goodName === "Candles" && isCandlesForEveryone();
+}
+
+/** Lots a person burns or wears out a year when the countryside buys too; undefined otherwise. */
+export function getCountrysideAnnualLotsPerPerson(goodName: string): number | undefined {
+  if (goodName === "Candles") {
+    return isCandlesForEveryone() ? getMarketSettings().candleKgPerPerson / CANDLE_KG_PER_LOT : undefined;
+  }
+  return getFootwearAnnualLotsPerPerson(goodName);
+}
+
+/**
+ * Village candle dippers counted in a town: its share of its market's farm people at
+ * `ruralChandlersPerThousand`, when the countryside burns candles (docs/plan/candle-demand.md §4.2).
+ */
+export function getRuralChandlerPeople(laborPeople: number, market: Pick<Market, "i"> | undefined): number {
+  if (!market || !isCandlesForEveryone()) return 0;
+  const ruralPeople = laborPeople * Math.max(0, getMarketBuyerFactor(market) - 1);
+  return (ruralPeople / 1000) * getMarketSettings().ruralChandlersPerThousand;
+}
+
 /** Work in a lot of Boots at the default rate: a pair a shoemaker a day, or a month (setting `bootsLabor`). */
 export const BOOTS_LABOR_PER_LOT = { perDay: 0.001, legacy: 0.0202 } as const;
 
