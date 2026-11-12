@@ -81,8 +81,9 @@ function meanderCourse(
       theta0 = rng.range(1.35, 1.8) * tame,
       skew = rng.range(-0.03, 0.03),
       flat = rng.range(0, 1 / 32),
-      // Meander wavelength measured along the valley, in half windows: a bend and a counter-bend in view.
-      valleyWavelength = rng.range(0.8, 1.2) * half,
+      // Meander wavelength measured along the valley: a bend and a counter-bend across the town, however wide the
+      // frame around it.
+      valleyWavelength = rng.range(1.8, 2.6) * R,
       phase = rng.range(0, Math.PI * 2),
       lateral = rng.range(-0.3, 0.3) * R,
       // A gentle valley swing so the meander belt itself is not ruler-straight.

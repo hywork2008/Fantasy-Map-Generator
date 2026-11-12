@@ -70,9 +70,18 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
         ? 1
         : meshlessSiteFillScale(dwellings) *
           (isVectorWallShape(wall.wall) ? 1 / Math.sqrt(vectorWallAreaShare(seed, wall.wall, wall.wallSides)) : 1);
-  // A synthesized site's meandering rivers are laid as smooth curves through the town (curvedRivers.ts).
+  // Only a site sized for its own lots (meshless occupancy) takes its own frame; a mesh-sized one keeps the mesh map's.
+  const ownFrame = wall.wall !== "none" && input.lotOccupancy !== undefined && !!settings.population;
+  // A synthesized site's meandering rivers are laid as smooth curves through the town (curvedRivers.ts). Its frame
+  // follows the native site's: two and a half wall diameters for a walled town, otherwise at least the editor's map,
+  // so the coast, rivers and approaches are synthesized out to that edge.
   const synthesize = (siteFrame: typeof frame) => {
-    const site = synthSite("largeTown", settings.config, seed, siteFrame);
+    const site = synthSite("largeTown", settings.config, seed, {
+      ...siteFrame,
+      extentMeters: ownFrame
+        ? siteFrame.cityRadiusMeters * 2 * WALLED_REACH
+        : Math.max(input.frame.extentMeters, siteFrame.extentMeters, siteFrame.cityRadiusMeters * 3)
+    });
     curveSynthesizedRivers(site, settings.config, seed);
     return site;
   };
@@ -122,8 +131,6 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
       descriptor.burg.dwellings = getUrbanDwellings(descriptor.burg.population);
     }
   }
-  // Only a site sized for its own lots (meshless occupancy) takes its own frame; a mesh-sized one keeps the mesh map's.
-  const ownFrame = wall.wall !== "none" && input.lotOccupancy !== undefined && !!settings.population;
   const build = (radius: number, civic = true) => {
     let doc = descriptor
       ? // A synthesized site's roads run over its rivers; an FMG city's bring their certified crossings (P5a).

@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { Point } from "../../../types/primitives";
 import { defaultGenerationSettings } from "../../generation/settings";
 import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../../geom";
-import { defaultPopulationSettings } from "../../populationPlan";
+import { defaultPopulationSettings, planPopulation } from "../../populationPlan";
+import { synthSite } from "../../site/synthSite";
 import { cellHouseRing, unpackPoints } from "../fabric/pack";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { vectorInputFromEditor } from "./editorInput";
+import { vectorInputFromDescriptor } from "./input";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
+import { bridgeSyntheticCrossings } from "./syntheticCrossings";
 import { tanneryWaterWorks } from "./tanneryWaterWorks";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
 import { waterDistance } from "./urbanPacking";
@@ -143,10 +146,20 @@ describe("a tanners' leat where the bank bends too much for a row (tanners' row 
       features: { ...settings.config.features, walls: false, port: false, shanty: false }
     };
     settings.population = defaultPopulationSettings(5000);
-    const frame = { extentMeters: 1584, cityRadiusMeters: 396, blockSizeMeters: 50 },
-      input = vectorInputFromEditor({ settings, seed, frame, lotOccupancy: 1 });
+    // The meshless editor now smooths a synthesized meander (curvedRivers.ts) and no FMG fixture bends sharply enough
+    // for a leat, so the site is assembled as the editor did before: the synthesized corridor's sharp polyline bends,
+    // bridged by the synthesized-site planner, on the flat datum.
+    const period = "ageOfExploration",
+      site = synthSite("largeTown", settings.config, seed, planPopulation(settings.population, period, 1584));
+    site.historicalPeriod = period;
+    site.terrain.heightfield!.elevationsMeters = site.terrain.heightfield!.elevationsMeters.map(
+      () => site.terrain.elevationMeters
+    );
+    const input = bridgeSyntheticCrossings(vectorInputFromDescriptor(site));
+    input.recipe.seed = seed;
+    input.context.historicalPeriod = period;
     input.context.targetPopulation = 5000;
-    const wall = vectorWallChoice(settings, seed, input.context.historicalPeriod ?? "ageOfExploration", 1584),
+    const wall = vectorWallChoice(settings, seed, period, 1584),
       skeleton = generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall }).document,
       city = generateVectorUrban(skeleton, {
         ...DEFAULT_VECTOR_URBAN,
