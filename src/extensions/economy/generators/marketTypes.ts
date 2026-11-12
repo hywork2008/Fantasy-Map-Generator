@@ -6,8 +6,11 @@ import type { RuralTextileProduction } from "./ruralTextileProductionTypes";
 import type { StapleCropInventory } from "./stapleCropInventoryTypes";
 
 export interface Market {
-  /** Running monthly use of the exported by-products by good id, and last month's snapshot (byproductExport.ts). */
-  byproductUse?: Record<number, { intake: number; stock: number; exported: number; use?: number }>;
+  /**
+   * Running monthly use of the exported by-products and the staple return goods by good id, with
+   * last month's snapshot and its net staple shipment out (byproductExport.ts).
+   */
+  byproductUse?: Record<number, { intake: number; stock: number; shipped: number; use?: number; inflow?: number }>;
   /** Actual Salt recipe inputs since the last salt settlement; persisted, never a second stock. */
   saltProcessingInputBags?: number;
   /** Latest cash-funded Salt wholesale unit cost including freight. */

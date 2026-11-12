@@ -2178,6 +2178,8 @@
     "byproductExportReserveMonthsTip": "Months of its own use of hides and tallow a port market keeps before selling the rest off the map.",
     "byproductExportShare": "Export share a month",
     "byproductExportShareTip": "Share of the surplus above the reserve a port market ships in a month.",
+    "byproductReturnMonths": "Return goods target (months)",
+    "byproductReturnMonthsTip": "A port market takes cloth, wine, salt, spices and silk that reach it from nowhere on the map for its hides and tallow, up to this many months of its own use of each, the shortest first, and ships no more than that brings back.",
     "candleDemand": "Candle demand",
     "candleDemandTip": "Who burns candles. Everyone: the towns and the countryside, at the kilograms a person below. Towns only: the towns at 1 kg a person a year, as before.",
     "candleDemand_everyone": "Everyone",

@@ -912,6 +912,20 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
+          <tr data-tip={t("simulation.byproductReturnMonthsTip")}>
+            <td />
+            <td>{t("simulation.byproductReturnMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="byproductReturnMonths"
+                min={MARKET_SETTING_LIMITS.byproductReturnMonths.min}
+                max={MARKET_SETTING_LIMITS.byproductReturnMonths.max}
+                step={MARKET_SETTING_LIMITS.byproductReturnMonths.step}
+                value={marketSettings.byproductReturnMonths}
+                onChange={v => updateMarketSetting("byproductReturnMonths", v)}
+              />
+            </td>
+          </tr>
           <tr data-tip={t("simulation.candleDemandTip")}>
             <td />
             <td>

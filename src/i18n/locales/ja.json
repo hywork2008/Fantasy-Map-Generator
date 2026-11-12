@@ -2178,6 +2178,8 @@
     "byproductExportReserveMonthsTip": "港のある市場が、地図の外へ売る前に残す、皮と獣脂の自分の使い道の月数です。",
     "byproductExportShare": "1か月に出す割合",
     "byproductExportShareTip": "残す分を超えた皮と獣脂のうち、港のある市場が1か月に出す割合です。",
+    "byproductReturnMonths": "持ち帰る品の目安（月数）",
+    "byproductReturnMonthsTip": "港のある市場は、皮と獣脂と替えて、毛織物・ワイン・塩・香辛料・絹のうち地図の中から届かない品を、それぞれ自分の使い道のこの月数分まで、足りない品から入れます。出す皮と獣脂も、入れる品の値までにします。",
     "candleDemand": "蝋燭の需要",
     "candleDemandTip": "蝋燭を燃やす人です。全員：町と農村の人が、下の1人年の量で燃やします。町だけ：町の人だけが1人年1 kg（今までの決まり）。",
     "candleDemand_everyone": "全員",
