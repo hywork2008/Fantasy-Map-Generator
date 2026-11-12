@@ -8,6 +8,7 @@ import { regionArea, regionBoolean } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { vectorInputFromEditor } from "./editorInput";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
+import { tanneryWaterWorks } from "./tanneryWaterWorks";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
 import { waterDistance } from "./urbanPacking";
 import { vectorWallChoice } from "./wallShape";
@@ -119,6 +120,14 @@ describe("the tanners' row on the bank below the town (tanners' row plan T2)", (
       expect(along(effluent)).toBeGreaterThan(along(intake));
       const e = p.building!.entrances[0];
       expect(e.accessIndex !== undefined || e.fabricLine !== undefined).toBe(true);
+      // Both channels run square from the back out into the water, no farther than the revetment allows.
+      const works = tanneryWaterWorks(city, p)!;
+      expect(works.channels).toHaveLength(2);
+      for (const ch of works.channels) {
+        const [a0, a1, b1] = ch.outer;
+        expect(Math.hypot(b1[0] - a1[0], b1[1] - a1[1])).toBeLessThan(3);
+        expect(Math.hypot(a1[0] - a0[0], a1[1] - a0[1])).toBeCloseTo(0.6, 6);
+      }
     }
   }, 300000);
 });

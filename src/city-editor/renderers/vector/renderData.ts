@@ -12,6 +12,7 @@ import { cellHouseCount, cellHouseRing, fabricHouseId, unpackLine } from "../../
 import { vectorLandscapeClimate } from "../../generators/vector/generation/forest";
 import { vectorHousingCulture } from "../../generators/vector/generation/housingCulture";
 import { vectorHouseHeightKey, vectorHousingHeights } from "../../generators/vector/generation/housingHeights";
+import { tanneryWaterWorks } from "../../generators/vector/generation/tanneryWaterWorks";
 import { bridgeGeometry, gateOpening, junctionSurface } from "../../generators/vector/geometry/network";
 import { regionBoolean } from "../../generators/vector/geometry/regions";
 import { pathSurface } from "../../generators/vector/geometry/surfaces";
@@ -347,6 +348,28 @@ export function vectorRenderData(
         heightMeters: 0.02,
         elevationMeters: 0.025
       });
+    }
+    // A wet tannery's revetment out to the bank, and its intake and effluent channels across it (tanners' row T2b).
+    const works = tanneryWaterWorks(doc, p);
+    if (works) {
+      if (works.revetment.length)
+        add({
+          id: p.id,
+          kind: "access",
+          polygons: works.revetment,
+          color: "#a39883",
+          heightMeters: 0.05,
+          elevationMeters: 0.03
+        });
+      if (works.channels.length)
+        add({
+          id: p.id,
+          kind: "access",
+          polygons: works.channels,
+          color: "#5f97b0",
+          heightMeters: 0.02,
+          elevationMeters: 0.09
+        });
     }
     const b = p.building,
       display = p.display;

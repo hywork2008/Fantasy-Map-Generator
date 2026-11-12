@@ -866,6 +866,10 @@ const LANE_GROUP_GAP_METERS = 30;
 const LANE_REACH_METERS = 400;
 /** Lane routes tried per run of yards, nearest first. */
 const LANE_TRIES = 12;
+/** Sharpest turn a lane takes: cos of 120°. */
+const LANE_MAX_TURN_COS = -0.5;
+/** Clearance the lane search keeps from the yards it runs along (the lane's centre is 1.7 m off their fronts). */
+const YARD_CLEARANCE = 1.6;
 /** Cell of the grid a lane's way round obstacles is searched on. */
 const LANE_GRID_METERS = 5;
 
@@ -906,13 +910,12 @@ function layTannersLanes(
     .map(p => pathSurface(p));
   const yardLand = () => placed.flatMap(id => doc.placements[id]?.building?.reserved ?? []);
   // Everything a lane keeps off, indexed by box; roads by path so a lane may meet the road it leaves.
-  const obstacles = new RBush<Box & { polygon: VectorPolygon; road?: string }>();
-  obstacles.load(
-    [...ctx.water, ...ctx.setAside, ...wallSurfaces, ...yardLand()].map(polygon => ({
-      ...boxOf(polygon.outer),
-      polygon
-    }))
-  );
+  const obstacles = new RBush<Box & { polygon: VectorPolygon; road?: string; yard?: boolean }>();
+  obstacles.load([
+    ...[...ctx.water, ...ctx.setAside, ...wallSurfaces].map(polygon => ({ ...boxOf(polygon.outer), polygon })),
+    // The lane runs close along the yards' fronts, so they are kept at a smaller clearance.
+    ...yardLand().map(polygon => ({ ...boxOf(polygon.outer), polygon, yard: true }))
+  ]);
   const addRoad = (p: VectorPath) => {
     const polygon = pathSurface(p);
     obstacles.insert({ ...boxOf(polygon.outer), polygon, road: p.id });
@@ -958,9 +961,9 @@ function layTannersLanes(
   const routeAround = (head: Point) => {
     const g = LANE_GRID_METERS,
       r = Math.ceil(LANE_REACH_METERS / g),
-      clearance = TANNERS_LANE_METERS / 2 + 0.5,
+      clearance = TANNERS_LANE_METERS / 2 + 1.5,
       at = (i: number, j: number): Point => [head[0] + i * g, head[1] + j * g],
-      probe = (p: Point) =>
+      probe = (p: Point, clearance: number) =>
         [
           p,
           [p[0] + clearance, p[1]],
@@ -979,12 +982,41 @@ function layTannersLanes(
       if (Math.abs(p[0]) > ctx.half - clearance || Math.abs(p[1]) > ctx.half - clearance) v = 1;
       else
         for (const o of obstacles.search(boxOf([p], clearance)))
-          if (o.road ? containsRegion([o.polygon], p) : probe(p).some(q => containsRegion([o.polygon], q))) {
+          if (
+            o.road
+              ? containsRegion([o.polygon], p)
+              : probe(p, o.yard ? YARD_CLEARANCE : clearance).some(q => containsRegion([o.polygon], q))
+          ) {
             v = o.road ? 2 : 1;
             if (v === 1) break;
           }
       cellCache.set(key, v);
       return v;
+    };
+    // A thin obstacle (a wall, a narrow creek) can lie between two cells: the way between them is sampled too.
+    // Cached on a half-metre lattice: neighbouring moves share most of their samples.
+    const blockedAt = new Map<number, boolean>();
+    const pointBlocked = (p: Point) => {
+      const k = Math.round(p[0] * 2) * 100003 + Math.round(p[1] * 2);
+      let v = blockedAt.get(k);
+      if (v === undefined) {
+        v =
+          Math.abs(p[0]) > ctx.half - clearance ||
+          Math.abs(p[1]) > ctx.half - clearance ||
+          obstacles
+            .search(boxOf([p], clearance))
+            .some(
+              o => !o.road && probe(p, o.yard ? YARD_CLEARANCE : clearance).some(q => containsRegion([o.polygon], q))
+            );
+        blockedAt.set(k, v);
+      }
+      return v;
+    };
+    const wayClear = (a: Point, b: Point) => {
+      const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1])));
+      for (let t = 1; t < n; t++)
+        if (pointBlocked([a[0] + ((b[0] - a[0]) * t) / n, a[1] + ((b[1] - a[1]) * t) / n])) return false;
+      return true;
     };
     const key = (i: number, j: number) => (i + r) * (2 * r + 1) + (j + r);
     const came = new Map<number, number>(),
@@ -1011,7 +1043,7 @@ function layTannersLanes(
           nj = j + dj;
         if (Math.abs(ni) > r || Math.abs(nj) > r) continue;
         const v = cell(ni, nj);
-        if (v === 1) continue;
+        if (v === 1 || !wayClear(at(i, j), at(ni, nj))) continue;
         const c = base + Math.hypot(di, dj);
         if (c >= (cost.get(key(ni, nj)) ?? Infinity)) continue;
         cost.set(key(ni, nj), c);
@@ -1028,15 +1060,7 @@ function layTannersLanes(
     for (let c: number | undefined = key(goal[0], goal[1]); c !== undefined; c = came.get(c))
       cells.push([Math.floor(c / (2 * r + 1)) - r, (c % (2 * r + 1)) - r]);
     // Road end first; corners pulled straight where the cells between are free.
-    const clear = (a: [number, number], b: [number, number]) => {
-      const n = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) * 2;
-      for (let t = 1; t < n; t++) {
-        const i = Math.round(a[0] + ((b[0] - a[0]) * t) / n),
-          j = Math.round(a[1] + ((b[1] - a[1]) * t) / n);
-        if (cell(i, j) === 1) return false;
-      }
-      return true;
-    };
+    const clear = (a: [number, number], b: [number, number]) => wayClear(at(...a), at(...b));
     const kept: [number, number][] = [cells[0]];
     for (let n = 1; n < cells.length; n++)
       if (n === cells.length - 1 || !clear(kept.at(-1)!, cells[n + 1])) kept.push(cells[n]);
@@ -1079,6 +1103,14 @@ function layTannersLanes(
       .slice(0, LANE_TRIES / 2);
   const lay = (points: Point[], route: { road: VectorPath; anchor: CurveAnchor }, dryRun: boolean) => {
     if (points.length < 2) return false;
+    // No hairpin: a cart lane doubling back on itself onto the row reads as a mistake.
+    for (let i = 1; i + 1 < points.length; i++) {
+      const a: Point = [points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]],
+        b: Point = [points[i + 1][0] - points[i][0], points[i + 1][1] - points[i][1]],
+        la = Math.hypot(a[0], a[1]),
+        lb = Math.hypot(b[0], b[1]);
+      if (la > 1e-6 && lb > 1e-6 && (a[0] * b[0] + a[1] * b[1]) / (la * lb) < LANE_MAX_TURN_COS) return false;
+    }
     let id = `urban-tanners-lane:${lanes.length}`;
     while (doc.paths[id]) id += "x";
     const lane = {
