@@ -87,6 +87,23 @@ describe("shared BV city instances", () => {
     source.dispose();
   });
 
+  it("bakes a mirrored model with its faces still winding outward", () => {
+    const plain = createBvPrototypeCache().acquire({ id: "plain", create: () => fixture() })!.geometry,
+      mirrored = createBvPrototypeCache().acquire({ id: "mirror", create: () => fixture(), mirrorX: true })!.geometry;
+    expect(mirrored.boundingBox!.min.x).toBeCloseTo(-plain.boundingBox!.max.x);
+    expect(mirrored.boundingBox!.max.x).toBeCloseTo(-plain.boundingBox!.min.x);
+    // Every triangle's winding normal still agrees with its stored normal (outward), as on the plain model.
+    const p = mirrored.getAttribute("position"),
+      n = mirrored.getAttribute("normal");
+    for (let v = 0; v < p.count; v += 3) {
+      const a = new THREE.Vector3().fromBufferAttribute(p, v),
+        b = new THREE.Vector3().fromBufferAttribute(p, v + 1),
+        c = new THREE.Vector3().fromBufferAttribute(p, v + 2),
+        face = b.sub(a).cross(c.sub(a));
+      expect(face.dot(new THREE.Vector3().fromBufferAttribute(n, v))).toBeGreaterThan(0);
+    }
+  });
+
   it("bakes nested transforms and linear vertex/material colors, sharing resources until the last owner releases them", () => {
     const source = fixture();
     const definition = { id: "fixture", create: vi.fn(() => source) };

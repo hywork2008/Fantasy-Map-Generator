@@ -309,7 +309,10 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       .every(([, v]) => nonnegative(v)) ||
     !Array.isArray(r.unplacedFacilities) ||
     !r.unplacedFacilities.every(
-      f => keys(f, "id,reason") && id(f.id) && ["space", "river", "district", "budget", "unsearched"].includes(f.reason)
+      f =>
+        keys(f, "id,reason") &&
+        id(f.id) &&
+        ["space", "river", "district", "budget", "unsearched", "frame"].includes(f.reason)
     ) ||
     !Array.isArray(r.reasons) ||
     !r.reasons.every(k => typeof k === "string")

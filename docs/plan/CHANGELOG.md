@@ -1,5 +1,17 @@
 # 追加したドキュメント
 
+2026-11-12
+
+- docs/analytics/ce-meshless-tanners-row-t0-20261112.json - なめし職人の河岸T0の全量（合成3件・FMG 4件のなめし場の配置、工房ごとの水への距離・向き・流れ）
+- docs/analytics/ce-meshless-tanners-row-t0-20261112.md - なめし職人の河岸T0の記録。要求296軒のうち配置80軒、最前列で背面が水に向くのは9軒、市壁のある町の川下の帯の不在、要求数の多さ
+- docs/analytics/ce-meshless-tanners-row-t0-20261112.md - 背面の指標の座標の取り違え（z の符号）の訂正を追記
+- docs/analytics/ce-meshless-tanners-row-t2-20261112.json - なめし職人の河岸T2の全量（T0と同じ7件、岸線を起点にした配置の後）
+- docs/analytics/ce-meshless-tanners-row-t2-20261112.md - なめし職人の河岸T2の記録。置いた107軒すべてが岸の最前列・背面が水・給水が上流、列は町ごとに1〜2つ、残る未配置の原因
+- docs/plan/ce-meshless-tanners-row.md - メッシュなしCEのなめし場を、川下の一列の河岸として置き、給水・排水を川へつなぐ設計。曲がった川には、岸の直線区間に並べて隙間を護岸で埋める方式（A）と、工房用の水路を引く方式（B）、段階T0〜T4
+- docs/plan/ce-meshless-tanners-row.md - 鏡像を配置データ側で持つ決定、T0の完了、要求数の検証T1aの追加、T2の配置の起点を岸線へ変更
+- docs/plan/ce-meshless-tanners-row.md - 地図の枠の外にはみ出す分を問題にしない決定（`"frame"`）、T1a（なめし場1軒4人）とT1（`tannersRow`）の完了、次のT2を記載
+- docs/plan/ce-meshless-tanners-row.md - T2（岸線を起点にした配置、なめし職人の小路、反転の3D描画）の完了と、次のT2b（水路と護岸の描画）を記載
+
 2026-11-11
 
 - docs/plan/ce-meshless-gate-ribbon-growth.md - 郊外の描画範囲（市壁の直径の2.5倍）の節を追加

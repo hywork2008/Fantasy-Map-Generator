@@ -7,6 +7,23 @@ import { harborReservations } from "./harbor";
 import { innReservations } from "./inn";
 import { openLandmarkReservations } from "./landmark";
 import { monasteryReservations } from "./monastery";
+/** Reserved feature land a farm track may still cross: everything but the fields and woods. */
+export const builtFeatureReservations = (doc: VectorCityDocument) => [
+  ...Object.values(doc.environment?.features ?? {}).map(f => f.boundary),
+  ...Object.values(doc.environment?.defenses ?? {}).flatMap(defenseReservations),
+  ...(doc.environment?.harbor ? harborReservations(doc.environment.harbor) : []),
+  ...Object.values(doc.environment?.ferries ?? {}).flatMap(ferryReservations),
+  ...Object.values(doc.environment?.monasteries ?? {}).flatMap(monasteryReservations),
+  ...guildReservations(doc),
+  ...innReservations(doc),
+  ...openLandmarkReservations(doc),
+  ...(doc.environment?.landscape
+    ? [
+        ...doc.environment.landscape.parks.flatMap(p => p.lawns),
+        ...doc.environment.landscape.cemeteries.map(c => ({ outer: c.boundary, holes: [] }))
+      ]
+    : [])
+];
 export const featureReservations = (doc: VectorCityDocument) => [
   ...Object.values(doc.environment?.features ?? {}).map(f => f.boundary),
   ...Object.values(doc.environment?.defenses ?? {}).flatMap(defenseReservations),

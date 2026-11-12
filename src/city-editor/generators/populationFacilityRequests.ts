@@ -18,8 +18,10 @@ import { medievalTradeDemand, type TradeReferenceRow } from "./medievalTradeDema
 const PREFIX = "population-facility:";
 /** Practitioners (masters, journeymen, apprentices) one facility of a pool holds where it is not a one-family
  * workshop of 2.5: a bakehouse or brewhouse ran with five or six hands, and the butchers sold from the stalls of a
- * shared meat hall (the shambles) rather than from a hall each. */
-const PRACTITIONERS_PER_FACILITY: Record<string, number> = { baking: 5, brewing: 6, butchery: 15 };
+ * shared meat hall (the shambles) rather than from a hall each. A wet tanyard kept its three stations (liming and
+ * bark vats, fleshing beam, drying frames; the dedicated tannery model's workplaces) manned under a master, four
+ * hands to the yard (tanners' row plan T1a). */
+const PRACTITIONERS_PER_FACILITY: Record<string, number> = { baking: 5, brewing: 6, butchery: 15, tanning: 4 };
 /** Pools whose facility is a smaller BV model than the trade's default. */
 const BREWHOUSE_MODEL = "ale-brewhouse";
 const rows = csvParse(occupations) as unknown as TradeReferenceRow[];

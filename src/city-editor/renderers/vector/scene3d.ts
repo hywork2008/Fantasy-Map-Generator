@@ -704,6 +704,7 @@ export function createVectorScene(
                 objectQuality: level,
                 ...(p.appearance?.palette ? { objectPalette: p.appearance.palette } : {}),
                 ...(p.appearance?.activity ? { objectMarketActivity: p.appearance.activity } : {}),
+                ...(p.mirrored ? { objectMirrored: true } : {}),
                 rotation: angle,
                 locked: false
               } as CityElement);

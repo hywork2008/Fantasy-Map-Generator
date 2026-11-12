@@ -1,20 +1,26 @@
 import RBush from "rbush";
+import { DEDICATED_TANNERY } from "../../../../buildings/medieval/dedicatedTanneryProfile";
+import { placementFootprint } from "../../../../buildings/placementModels";
 import type { Point } from "../../../types/primitives";
-import type { CurveAnchor, VectorCityDocument, VectorPlacement } from "../../../types/vector/document";
+import type { CurveAnchor, VectorCityDocument, VectorPath, VectorPlacement } from "../../../types/vector/document";
 import type { VectorPolygon } from "../../../types/vector/generation";
 import type { BVFacilityRequest } from "../../allocateBVFacilities";
 import { facilityUseOf } from "../../facilityUses";
-import { convexHull, nearestOnPolyline, pointInPolygon, polygonCentroid } from "../../geom";
+import { convexHull, isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonCentroid } from "../../geom";
 import { intersectConvex, plotArea } from "../../parcelGeometry";
 import { fabricLineSurface } from "../editing/fabricLineSurface";
+import { curveSource } from "../editing/paths";
+import { builtFeatureReservations, featureReservations } from "../environmentState";
 import { fabricLaneId, fabricStreetId } from "../fabric/lines";
 import { evaluateAnchor } from "../geometry/curves";
 import { gateOpening, junctionSurface, nearestRoadAnchor } from "../geometry/network";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
-import { simpleContour, surfacesOverlap } from "../geometry/surfaces";
+import { pathSurface, simpleContour, surfacesOverlap } from "../geometry/surfaces";
+import { allVectorWater } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
 import type { VectorPerimeterPlan } from "./perimeter";
+import { TANNERS_ROW_DEFAULTS, type TannersRowYard, tannersRow } from "./tannersRow";
 import { waterDistance } from "./urbanPacking";
 
 type Box = { minX: number; minY: number; maxX: number; maxY: number };
@@ -33,7 +39,7 @@ const SAMPLE_METERS = 1;
 
 export interface FacilityLotResult {
   placed: string[];
-  unplaced: { id: string; reason: "space" | "district" | "river" }[];
+  unplaced: { id: string; reason: "space" | "district" | "river" | "frame" }[];
   /** Street blocks a facility stands in; they stay recorded even when they hold no house. */
   cells: Set<string>;
 }
@@ -55,7 +61,9 @@ export function placeFacilitiesOnLots(
   doc: VectorCityDocument,
   plan: VectorPerimeterPlan,
   requests: readonly BVFacilityRequest[],
-  inside: (p: Point) => boolean
+  inside: (p: Point) => boolean,
+  /** Yards of the tanners' row, reserved before the street plan (`reserveTanneryRow`). */
+  rowIds: readonly string[] = []
 ): FacilityLotResult {
   const result: FacilityLotResult = { placed: [], unplaced: [], cells: new Set() };
   if (!requests.length || !doc.site) return result;
@@ -140,7 +148,13 @@ export function placeFacilitiesOnLots(
     }
     return best && best.d <= FRONT_METERS ? best : undefined;
   };
+  // The tanners' row was reserved on the bank before the street plan; each yard now opens onto the street, lane or
+  // road before its door, or gives its bank back.
+  const row = connectTanneryRow(doc, rowIds, { lines, lineIndex, surfaceOf });
+  result.placed.push(...row.placed);
+  result.unplaced.push(...row.unplaced);
   for (const request of requests) {
+    if (isWetTannery(request)) continue;
     const asset = request.asset,
       entrance = asset.entrances.find(e => e.required) ?? asset.entrances[0];
     const wantsWater = request.riverbankMaxDistanceMeters !== undefined;
@@ -445,4 +459,683 @@ function lineMeets(points: Point[], widthMeters: number, ring: Point[]): boolean
     }
     return false;
   });
+}
+
+const WET_TANNERY_MODEL = "trade-workshop.dedicated-wet-tannery";
+const isWetTannery = (r: BVFacilityRequest) => r.asset.bvModel?.id === WET_TANNERY_MODEL;
+/** How far beside a drawn centreline its surveyed water may lie, and the widest water crossed to a bank. */
+const BANK_SEARCH_METERS = 40;
+const BANK_WATER_MAX_METERS = 600;
+/** Bank centreline step. */
+const BANK_STEP_METERS = 2;
+/** Open ground kept between a town wall and the row (its glacis). */
+const ROW_WALL_CLEARANCE_METERS = 25;
+/** A row breaks where the bank jumps by more than this between steps (a tributary mouth, a quay). */
+const BANK_JUMP_METERS = 3;
+/** Farthest a yard's door may stand from the street or road it opens onto. */
+const ROW_ACCESS_METERS = 40;
+
+/** Bank lines below the town, each ordered downstream with the side the land lies on. */
+function bankRuns(doc: VectorCityDocument, core: (p: Point) => boolean, maxMeters: number) {
+  const water = allVectorWater(doc),
+    center = doc.site!.center,
+    half = doc.frame.extentMeters / 2,
+    wet = (p: Point) => water.some(w => containsRegion([w], p)),
+    runs: { bank: Point[]; landSide: 1 | -1; startMeters: number }[] = [];
+  let framed = false;
+  for (const river of Object.values(doc.paths).filter(p => p.role === "river" && !p.id.includes("moat"))) {
+    const raw = samplePath(river).map(q => q.point),
+      line: Point[] = [raw[0]],
+      s = [0];
+    // Every BANK_STEP_METERS along the centreline (its order is the flow).
+    for (let i = 1, walked = 0, next = BANK_STEP_METERS; i < raw.length; i++) {
+      const a = raw[i - 1],
+        b = raw[i],
+        l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      while (l > 0 && next <= walked + l) {
+        const t = (next - walked) / l;
+        line.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+        s.push(next);
+        next += BANK_STEP_METERS;
+      }
+      walked += l;
+    }
+    if (line.length < 3) continue;
+    const hit = nearestOnPolyline(center, line),
+      below = s[hit.segIndex] + hit.t * BANK_STEP_METERS;
+    for (const side of [1, -1] as const) {
+      let current: Point[] = [],
+        start = 0;
+      const flush = () => {
+        if (current.length > 1) runs.push({ bank: current, landSide: side, startMeters: start });
+        current = [];
+      };
+      for (let k = 0; k < line.length; k++) {
+        if (s[k] < below) continue;
+        // Only the drawn frame, and only as far down the river as the row can use. The bank beyond the frame goes on
+        // unseen: the town's map is not widened for its tanneries.
+        if (Math.abs(line[k][0]) > half || Math.abs(line[k][1]) > half) {
+          framed = true;
+          break;
+        }
+        if (s[k] - below > maxMeters) break;
+        const a = line[Math.max(0, k - 1)],
+          b = line[Math.min(line.length - 1, k + 1)],
+          l = Math.hypot(b[0] - a[0], b[1] - a[1]),
+          dir: Point = [(-(b[1] - a[1]) / l) * side, ((b[0] - a[0]) / l) * side];
+        // The water under the centreline, or beside it where the river's surveyed water lies off its drawn line.
+        let from: Point | undefined = wet(line[k]) ? line[k] : undefined;
+        for (let d = 0.5; !from && d <= BANK_SEARCH_METERS; d += 0.5)
+          for (const q of [
+            [line[k][0] + dir[0] * d, line[k][1] + dir[1] * d],
+            [line[k][0] - dir[0] * d, line[k][1] - dir[1] * d]
+          ] as Point[])
+            if (wet(q)) {
+              from = q;
+              break;
+            }
+        // Out across the water to the first dry ground: a coarse walk (a wide estuary), then a fine one.
+        let p: Point | undefined;
+        if (from) {
+          let d = 0;
+          while (d <= BANK_WATER_MAX_METERS && wet([from[0] + dir[0] * d, from[1] + dir[1] * d])) d += 2;
+          if (d <= BANK_WATER_MAX_METERS) {
+            let lo = Math.max(0, d - 2);
+            while (d - lo > 0.1) {
+              const mid = (lo + d) / 2;
+              if (wet([from[0] + dir[0] * mid, from[1] + dir[1] * mid])) lo = mid;
+              else d = mid;
+            }
+            p = [from[0] + dir[0] * (d + 0.1), from[1] + dir[1] * (d + 0.1)];
+          }
+        }
+        // The bank jumps (a creek mouth, a quay) where it moves much farther than the centreline did.
+        const last = current.at(-1);
+        if (
+          !p ||
+          core(p) ||
+          (last && Math.hypot(p[0] - last[0], p[1] - last[1]) > BANK_STEP_METERS + BANK_JUMP_METERS)
+        ) {
+          flush();
+          if (!p || core(p)) continue;
+        }
+        if (!current.length) start = s[k] - below;
+        current.push(p);
+      }
+      flush();
+    }
+  }
+  return { runs, framed };
+}
+
+/**
+ * The wet tanneries as one row on the bank below the town (tanners' row plan, method A): yards side by side on straight
+ * chords of the bank, each turned and mirrored so its back stands on the water with the intake upstream. The row is
+ * reserved before the street plan, so the streets and lots keep off it; a yard needs the town's land under it, clear of
+ * roads, gates and other reserved land, and stands nearest the town first. Doors are joined to the streets once they are
+ * laid (`connectTanneryRow`).
+ */
+export function reserveTanneryRow(
+  doc: VectorCityDocument,
+  requests: readonly BVFacilityRequest[],
+  core: (p: Point) => boolean,
+  /** Joins a new lane's start to the road it leaves (the urban pass's junction helper). */
+  joinAnchors: (anchors: CurveAnchor[]) => void
+): { placed: string[]; unplaced: FacilityLotResult["unplaced"]; lanes: string[] } {
+  const row = requests.filter(isWetTannery);
+  if (!row.length || !doc.site) return { placed: [], unplaced: [], lanes: [] };
+  const asset = row[0].asset,
+    entrance = asset.entrances.find(e => e.required) ?? asset.entrances[0],
+    fp = placementFootprint(WET_TANNERY_MODEL, asset.bvModel!.quality)!,
+    half = doc.frame.extentMeters / 2,
+    frameRing: Point[] = [
+      [-half, -half],
+      [half, -half],
+      [half, half],
+      [-half, half]
+    ],
+    [intake, effluent] = DEDICATED_TANNERY.waterPorts,
+    options = {
+      ...TANNERS_ROW_DEFAULTS,
+      frontageMeters: fp.halfX * 2,
+      depthMeters: fp.halfZ * 2,
+      intakeX: intake.position[0] - fp.centerX,
+      effluentX: effluent.position[0] - fp.centerX
+    };
+  const occupied = new RBush<Box & { polygon: VectorPolygon }>();
+  occupied.load(vectorOccupiedSites(doc, "reserved").map(polygon => ({ ...boxOf(polygon.outer), polygon })));
+  const protectedLand = [
+    ...Object.values(doc.connections.gates).map(g => ({ outer: gateOpening(doc, g), holes: [] as Point[][] })),
+    ...Object.keys(doc.connections.nodes).flatMap(id => {
+      const junction = junctionSurface(doc, id);
+      return junction ? [junction] : [];
+    })
+  ];
+  const roads = Object.values(doc.paths)
+      .filter(p => p.role === "road")
+      .map(p => pathSurface(p)),
+    water = allVectorWater(doc),
+    walls = Object.values(doc.connections.circuits).map(c => {
+      const ring = samplePath(doc.paths[c.pathId]).map(q => q.point);
+      return [...ring, ring[0]];
+    }),
+    setAside = [
+      ...featureReservations(doc),
+      ...Object.values(doc.regions)
+        .filter(r => r.kind !== "district")
+        .map(r => ({ outer: r.outer, holes: r.holes }))
+    ];
+  const yards: { yard: TannersRowYard; key: number; apron: number }[] = [];
+  const banks = bankRuns(doc, core, row.length * options.frontageMeters * 4 + 400);
+  for (const run of banks.runs)
+    for (const reach of tannersRow(run.bank, run.landSide, options).reaches)
+      for (const yard of reach.yards)
+        yards.push({ yard, key: run.startMeters + reach.fromMeters, apron: reach.apronMeters });
+  yards.sort((a, b) => a.key - b.key);
+  const placed: string[] = [];
+  let framed = banks.framed;
+  const overlaps = (a: VectorPolygon, b: VectorPolygon) =>
+    regionBoolean([a], [b], "intersection").some(r => regionArea(r) > 1e-7);
+  for (const { yard, apron } of yards) {
+    if (placed.length >= row.length) break;
+    const a = (yard.facingDegrees * Math.PI) / 180,
+      c = Math.cos(a),
+      s = Math.sin(a),
+      mx = yard.mirrored ? -1 : 1,
+      transform = (q: readonly number[]): Point => {
+        const x = q[0] * mx;
+        return [x * c - q[1] * s + yard.position[0], x * s + q[1] * c + yard.position[1]];
+      },
+      ring = (r: Point[]) => (yard.mirrored ? [...r].reverse() : r).map(transform);
+    const site: VectorPolygon = { outer: ring(asset.minimumSite[0].outer), holes: [] };
+    // Beyond the drawn frame the row goes on unseen: the town's map is not widened for its tanneries.
+    if (site.outer.some(p => Math.abs(p[0]) > half - 1 || Math.abs(p[1]) > half - 1)) {
+      framed = true;
+      continue;
+    }
+    // On dry ground clear of the wall's glacis and of the land set aside (fields, woods, burial grounds).
+    if (water.some(w => overlaps(site, w))) continue;
+    if (walls.some(w => site.outer.some(p => nearestOnPolyline(p, w).dist < ROW_WALL_CLEARANCE_METERS))) continue;
+    if (setAside.some(r => overlaps(site, r))) continue;
+    if (occupied.search(boxOf(site.outer)).some(o => overlaps(site, o.polygon))) {
+      continue;
+    }
+    if (protectedLand.some(o => surfacesOverlap(site, o))) {
+      continue;
+    }
+    if (roads.some(r => overlaps(site, r))) {
+      continue;
+    }
+    // The revetment behind the yard, out to the bank, is the yard's own ground.
+    let reserved: VectorPolygon[] = [site];
+    try {
+      const back = fp.halfZ,
+        strip = regionBoolean(
+          regionBoolean(
+            [
+              {
+                outer: ring([
+                  [-fp.halfX, back],
+                  [fp.halfX, back],
+                  [fp.halfX, back + apron + 0.5],
+                  [-fp.halfX, back + apron + 0.5]
+                ]),
+                holes: []
+              }
+            ],
+            [{ outer: frameRing, holes: [] }],
+            "intersection"
+          ),
+          [...occupied.search(boxOf(site.outer, apron + 1)).map(o => o.polygon), ...roads, ...water, ...setAside],
+          "difference"
+        ),
+        joined = regionBoolean([site, ...strip], [], "union").filter(r => regionArea(r) > 0.05);
+      if (
+        joined.length === 1 &&
+        !joined[0].holes.length &&
+        simpleContour(joined[0].outer, true) &&
+        isSimplePolygon(joined[0].outer, 1e-12)
+      )
+        reserved = joined;
+    } catch {
+      reserved = [site];
+    }
+    const request = row[placed.length],
+      door = transform([entrance.point[0], entrance.point[1] - 0.3 * Math.sign(entrance.point[1] || -1)]),
+      front: Point = [s, -c];
+    let id = `urban:${request.id}`;
+    while (doc.placements[id]) id += "x";
+    doc.placements[id] = {
+      id,
+      modelId: WET_TANNERY_MODEL,
+      position: yard.position,
+      facingDegrees: yard.facingDegrees >= 360 - 1e-9 ? 0 : yard.facingDegrees,
+      origin: "automatic",
+      editPolicy: "editable",
+      // The yard and its revetment are one parcel: the street plan keeps off both.
+      site: reserved[0],
+      accesses: [],
+      ...(yard.mirrored ? { mirrored: true as const } : {}),
+      building: {
+        kind: "facility",
+        label: asset.name,
+        districtId: "tanners-row",
+        provenance: "bv",
+        dimensionSource: asset.dimensionSource ?? "Provisional dimensions",
+        heightMeters: asset.bvModel?.heightMeters ?? 6,
+        footprint: asset.footprint.map(p => ({ outer: ring(p.outer), holes: [] })),
+        reserved,
+        // Joined to its street by connectTanneryRow: the door, and a stub one metre before it.
+        entrances: [
+          {
+            id: entrance.id,
+            point: door,
+            outward: front,
+            widthMeters: entrance.widthMeters,
+            connector: [door, [door[0] + front[0], door[1] + front[1]]]
+          }
+        ],
+        dwellings: asset.residentialDwellings ?? 0,
+        floorFootprintMeters2: 0,
+        storeys: 0,
+        residentialShare: 0,
+        pool: facilityUseOf(request),
+        riverbankDistanceMeters: waterDistance(doc, [site])
+      }
+    };
+    for (const polygon of reserved) occupied.insert({ ...boxOf(polygon.outer), polygon });
+    placed.push(id);
+  }
+  // Yards with no road or street before them are served by a tanners' lane along their fronts.
+  // A lane may cross fields and woods as a farm track does, never a burial ground, a park or a reserved feature.
+  const laneAside = [
+    ...builtFeatureReservations(doc),
+    ...Object.values(doc.regions)
+      .filter(r => r.kind !== "district" && r.kind !== "farm" && r.kind !== "forest")
+      .map(r => ({ outer: r.outer, holes: r.holes }))
+  ];
+  const lanes = layTannersLanes(doc, placed, { roads, water, setAside: laneAside, walls, half, joinAnchors });
+  // The row's ground joins the town's land: a yard beyond the site disk or the wall's clipped domain is still the town.
+  if (placed.length) {
+    const grown = regionBoolean(
+      [...doc.site.domain, ...placed.flatMap(id => doc.placements[id].building!.reserved)],
+      [],
+      "union"
+    );
+    // In place: the urban pass keeps the same array as its recorded domain.
+    if (
+      grown.every(
+        p =>
+          simpleContour(p.outer, true) &&
+          isSimplePolygon(p.outer, 1e-12) &&
+          p.holes.every(h => simpleContour(h, true) && isSimplePolygon(h, 1e-12))
+      )
+    )
+      doc.site.domain.splice(0, doc.site.domain.length, ...grown);
+    else
+      for (const id of placed.splice(0)) {
+        const inside = !regionBoolean(doc.placements[id].building!.reserved, doc.site.domain, "difference").some(
+          r => regionArea(r) > 1e-6
+        );
+        if (inside) placed.push(id);
+        else delete doc.placements[id];
+      }
+  }
+  return {
+    placed,
+    lanes,
+    unplaced: row
+      .slice(placed.length)
+      .map(r => ({ id: r.id, reason: framed ? ("frame" as const) : ("river" as const) }))
+  };
+}
+
+/** The reserved yards joined to the street, lane or road before their doors; a yard with none in reach is dropped. */
+function connectTanneryRow(
+  doc: VectorCityDocument,
+  ids: readonly string[],
+  ctx: {
+    lines: { points: Point[]; widthMeters: number; fabric?: string; road?: string }[];
+    lineIndex: RBush<Box & { k: number }>;
+    surfaceOf: (k: number) => VectorPolygon | undefined;
+  }
+): { placed: string[]; unplaced: FacilityLotResult["unplaced"] } {
+  const placed: string[] = [],
+    unplaced: FacilityLotResult["unplaced"] = [];
+  for (const id of ids) {
+    const p = doc.placements[id],
+      e = p?.building?.entrances[0];
+    if (!p || !e) continue;
+    const door = e.point,
+      front = e.outward;
+    let best: { k: number; end: Point; d: number } | undefined;
+    for (const item of ctx.lineIndex.search(boxOf([door], ROW_ACCESS_METERS))) {
+      const hit = nearestOnPolyline(door, ctx.lines[item.k].points);
+      if ((hit.point[0] - door[0]) * front[0] + (hit.point[1] - door[1]) * front[1] < 0) continue;
+      if (hit.dist <= ROW_ACCESS_METERS && (!best || hit.dist < best.d))
+        best = { k: item.k, end: hit.point, d: hit.dist };
+    }
+    const line = best && ctx.lines[best.k];
+    let access: CurveAnchor | undefined,
+      end = best?.end;
+    if (line?.road) {
+      access = nearestRoadAnchor(doc.paths[line.road], door);
+      end = evaluateAnchor(doc.paths[line.road], access);
+    }
+    const reach = end ? Math.hypot(end[0] - door[0], end[1] - door[1]) : 0;
+    // A street or lane of the plan that still runs into the yard (a sliver block beside it) takes the bank back.
+    const reserved = p.building!.reserved,
+      crossed = ctx.lineIndex
+        .search(
+          boxOf(
+            reserved.flatMap(r => r.outer),
+            8
+          )
+        )
+        .some(item => {
+          if (!ctx.lines[item.k].fabric) return false;
+          const surface = ctx.surfaceOf(item.k);
+          return !!surface && regionBoolean(reserved, [surface], "intersection").some(r => regionArea(r) > 1e-6);
+        });
+    if (crossed || !line || !end || reach < 0.01) {
+      delete doc.placements[id];
+      unplaced.push({ id: id.replace(/^urban:/, "").replace(/x+$/, ""), reason: "river" });
+      continue;
+    }
+    p.accesses = access ? [access] : [];
+    p.building!.entrances = [
+      {
+        id: e.id,
+        point: door,
+        outward: [(end[0] - door[0]) / reach, (end[1] - door[1]) / reach],
+        widthMeters: e.widthMeters,
+        connector: [door, end],
+        ...(access ? { accessIndex: 0 } : { fabricLine: line.fabric! })
+      }
+    ];
+    placed.push(id);
+  }
+  return { placed, unplaced };
+}
+
+/** Width of a tanners' lane: a cart's way. */
+const TANNERS_LANE_METERS = 3;
+/** Fronts closer than this along the row share one lane. */
+const LANE_GROUP_GAP_METERS = 30;
+/** Farthest road a lane may run back to. */
+const LANE_REACH_METERS = 400;
+/** Lane routes tried per run of yards, nearest first. */
+const LANE_TRIES = 12;
+/** Cell of the grid a lane's way round obstacles is searched on. */
+const LANE_GRID_METERS = 5;
+
+/**
+ * A lane along the fronts of each run of yards, run back to the nearest road (tanners' row plan T2). The lane keeps off
+ * the water, the yards, the land set aside and the town wall; a run it cannot serve gives its bank back.
+ */
+function layTannersLanes(
+  doc: VectorCityDocument,
+  placed: string[],
+  ctx: {
+    roads: VectorPolygon[];
+    water: VectorPolygon[];
+    setAside: VectorPolygon[];
+    walls: Point[][];
+    half: number;
+    joinAnchors: (anchors: CurveAnchor[]) => void;
+  }
+): string[] {
+  const lanes: string[] = [];
+  const offset = TANNERS_LANE_METERS / 2 + 0.5;
+  // Each yard's front point, a lane's width before its door.
+  const fronts = placed.map(id => {
+    const e = doc.placements[id].building!.entrances[0];
+    return { id, point: [e.point[0] + e.outward[0] * offset, e.point[1] + e.outward[1] * offset] as Point };
+  });
+  const groups: (typeof fronts)[] = [];
+  for (const f of fronts) {
+    const g = groups.at(-1),
+      last = g?.at(-1);
+    if (g && last && Math.hypot(f.point[0] - last.point[0], f.point[1] - last.point[1]) <= LANE_GROUP_GAP_METERS)
+      g.push(f);
+    else groups.push([f]);
+  }
+  const roadPaths: VectorPath[] = Object.values(doc.paths).filter(p => p.role === "road");
+  const wallSurfaces = Object.values(doc.paths)
+    .filter(p => p.role === "wall")
+    .map(p => pathSurface(p));
+  const yardLand = () => placed.flatMap(id => doc.placements[id]?.building?.reserved ?? []);
+  // Everything a lane keeps off, indexed by box; roads by path so a lane may meet the road it leaves.
+  const obstacles = new RBush<Box & { polygon: VectorPolygon; road?: string }>();
+  obstacles.load(
+    [...ctx.water, ...ctx.setAside, ...wallSurfaces, ...yardLand()].map(polygon => ({
+      ...boxOf(polygon.outer),
+      polygon
+    }))
+  );
+  const addRoad = (p: VectorPath) => {
+    const polygon = pathSurface(p);
+    obstacles.insert({ ...boxOf(polygon.outer), polygon, road: p.id });
+  };
+  for (const p of roadPaths) addRoad(p);
+  const blocked = (surface: VectorPolygon, except?: string) =>
+    surface.outer.some(p => Math.abs(p[0]) > ctx.half || Math.abs(p[1]) > ctx.half) ||
+    obstacles
+      .search(boxOf(surface.outer))
+      .some(
+        o => o.road !== except && regionBoolean([surface], [o.polygon], "intersection").some(a => regionArea(a) > 1e-5)
+      );
+  const drop = (group: typeof fronts) => {
+    for (const f of group) {
+      delete doc.placements[f.id];
+      placed.splice(placed.indexOf(f.id), 1);
+    }
+  };
+  /** The lane for `order` (its first yard at the road end), run back to `route`'s point on the road. */
+  const laneFor = (order: typeof fronts, route: { start: Point; via?: Point[] }) => {
+    const head = order[0].point,
+      next = order[1]?.point ?? fronts.find(f => f !== order[0])?.point ?? head,
+      l = Math.hypot(head[0] - next[0], head[1] - next[1]) || 1,
+      // The lane runs on past the end yard by half a frontage.
+      lead: Point = [head[0] + ((head[0] - next[0]) / l) * 9, head[1] + ((head[1] - next[1]) / l) * 9],
+      points: Point[] = [];
+    // A way round obstacles was searched from the end yard itself.
+    for (const q of [
+      route.start,
+      ...(route.via ?? []),
+      order.length > 1 && !route.via ? lead : head,
+      ...order.map(f => f.point)
+    ]) {
+      const prev = points.at(-1);
+      if (!prev || Math.hypot(q[0] - prev[0], q[1] - prev[1]) > 0.5) points.push(q);
+    }
+    return points;
+  };
+  /**
+   * A way round what lies between `head` and the roads (the town wall, a burial ground, a bend of the river): a search
+   * on a grid of LANE_GRID_METERS cells to the nearest road, its corners then pulled straight.
+   */
+  const routeAround = (head: Point) => {
+    const g = LANE_GRID_METERS,
+      r = Math.ceil(LANE_REACH_METERS / g),
+      clearance = TANNERS_LANE_METERS / 2 + 0.5,
+      at = (i: number, j: number): Point => [head[0] + i * g, head[1] + j * g],
+      probe = (p: Point) =>
+        [
+          p,
+          [p[0] + clearance, p[1]],
+          [p[0] - clearance, p[1]],
+          [p[0], p[1] + clearance],
+          [p[0], p[1] - clearance]
+        ] as Point[];
+    const cellCache = new Map<number, 0 | 1 | 2>();
+    // 0 free, 1 blocked, 2 on a road.
+    const cell = (i: number, j: number): 0 | 1 | 2 => {
+      const key = (i + r) * (2 * r + 1) + (j + r);
+      let v = cellCache.get(key);
+      if (v !== undefined) return v;
+      const p = at(i, j);
+      v = 0;
+      if (Math.abs(p[0]) > ctx.half - clearance || Math.abs(p[1]) > ctx.half - clearance) v = 1;
+      else
+        for (const o of obstacles.search(boxOf([p], clearance)))
+          if (o.road ? containsRegion([o.polygon], p) : probe(p).some(q => containsRegion([o.polygon], q))) {
+            v = o.road ? 2 : 1;
+            if (v === 1) break;
+          }
+      cellCache.set(key, v);
+      return v;
+    };
+    const key = (i: number, j: number) => (i + r) * (2 * r + 1) + (j + r);
+    const came = new Map<number, number>(),
+      cost = new Map<number, number>([[key(0, 0), 0]]),
+      open: [number, number, number][] = [[0, 0, 0]];
+    let goal: [number, number] | undefined;
+    while (open.length && !goal) {
+      // The cheapest open cell (the grid is small; a linear scan keeps this short).
+      let k = 0;
+      for (let n = 1; n < open.length; n++) if (open[n][2] < open[k][2]) k = n;
+      const [i, j] = open.splice(k, 1)[0],
+        base = cost.get(key(i, j))!;
+      for (const [di, dj] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+        [1, 1],
+        [1, -1],
+        [-1, 1],
+        [-1, -1]
+      ]) {
+        const ni = i + di,
+          nj = j + dj;
+        if (Math.abs(ni) > r || Math.abs(nj) > r) continue;
+        const v = cell(ni, nj);
+        if (v === 1) continue;
+        const c = base + Math.hypot(di, dj);
+        if (c >= (cost.get(key(ni, nj)) ?? Infinity)) continue;
+        cost.set(key(ni, nj), c);
+        came.set(key(ni, nj), key(i, j));
+        if (v === 2) {
+          goal = [ni, nj];
+          break;
+        }
+        open.push([ni, nj, c]);
+      }
+    }
+    if (!goal) return undefined;
+    const cells: [number, number][] = [];
+    for (let c: number | undefined = key(goal[0], goal[1]); c !== undefined; c = came.get(c))
+      cells.push([Math.floor(c / (2 * r + 1)) - r, (c % (2 * r + 1)) - r]);
+    // Road end first; corners pulled straight where the cells between are free.
+    const clear = (a: [number, number], b: [number, number]) => {
+      const n = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) * 2;
+      for (let t = 1; t < n; t++) {
+        const i = Math.round(a[0] + ((b[0] - a[0]) * t) / n),
+          j = Math.round(a[1] + ((b[1] - a[1]) * t) / n);
+        if (cell(i, j) === 1) return false;
+      }
+      return true;
+    };
+    const kept: [number, number][] = [cells[0]];
+    for (let n = 1; n < cells.length; n++)
+      if (n === cells.length - 1 || !clear(kept.at(-1)!, cells[n + 1])) kept.push(cells[n]);
+    const end = at(...kept[0]);
+    const road = obstacles.search(boxOf([end], 0.1)).find(o => o.road && containsRegion([o.polygon], end))?.road;
+    const path = road ? roadPaths.find(p => p.id === road) : undefined;
+    if (!path) return undefined;
+    const anchor = nearestRoadAnchor(path, end);
+    return {
+      road: path,
+      anchor,
+      start: evaluateAnchor(path, anchor),
+      via: kept.slice(1, -1).map(c => at(...c)),
+      d: 0
+    };
+  };
+  const routesFrom = (head: Point) => {
+    const around = routeAround(head);
+    return [...straightRoutes(head), ...(around ? [around] : [])];
+  };
+  const straightRoutes = (head: Point) =>
+    roadPaths
+      .flatMap(road => {
+        // The nearest point of each road, and points along it every 15 m, for a lane that cannot run straight there.
+        const samples = samplePath(road);
+        const targets: Point[] = [head];
+        for (let i = 0, next = 0; i < samples.length; i++)
+          if (samples[i].distance >= next) {
+            targets.push(samples[i].point);
+            next = samples[i].distance + 15;
+          }
+        return targets.map(q => {
+          const anchor = nearestRoadAnchor(road, q, samples),
+            start = evaluateAnchor(road, anchor);
+          return { road, anchor, start, d: Math.hypot(start[0] - head[0], start[1] - head[1]) };
+        });
+      })
+      .filter(r => r.d <= LANE_REACH_METERS)
+      .sort((x, y) => x.d - y.d)
+      .slice(0, LANE_TRIES / 2);
+  const lay = (points: Point[], route: { road: VectorPath; anchor: CurveAnchor }, dryRun: boolean) => {
+    if (points.length < 2) return false;
+    let id = `urban-tanners-lane:${lanes.length}`;
+    while (doc.paths[id]) id += "x";
+    const lane = {
+      id,
+      revision: 0,
+      role: "road" as const,
+      origin: "automatic" as const,
+      editPolicy: "editable" as const,
+      source: curveSource(points, "polyline", false),
+      width: { leftMeters: TANNERS_LANE_METERS / 2, rightMeters: TANNERS_LANE_METERS / 2, stations: [] }
+    };
+    try {
+      if (blocked(pathSurface(lane), route.road.id)) return false;
+    } catch {
+      return false;
+    }
+    if (dryRun) return true;
+    doc.paths[id] = lane;
+    ctx.joinAnchors([route.anchor, { pathId: id, segmentId: "segment:0", t: 0 }]);
+    lanes.push(id);
+    roadPaths.push(lane);
+    addRoad(lane);
+    return true;
+  };
+  // A run of yards is served from either end by the longest lane that keeps clear (a burial ground or a creek before
+  // some fronts cuts the run); the yards beyond it are served from their own end, or give their bank back.
+  const queue = [...groups];
+  while (queue.length) {
+    const group = queue.shift()!;
+    let best:
+      | {
+          order: typeof fronts;
+          k: number;
+          route: { road: VectorPath; anchor: CurveAnchor; start: Point; via?: Point[] };
+        }
+      | undefined;
+    for (const order of [group, [...group].reverse()])
+      for (const route of routesFrom(order[0].point)) {
+        if (best && best.k === group.length) break;
+        if (!lay(laneFor(order.slice(0, 1), route), route, true)) continue;
+        // The longest prefix that keeps clear: blocking only grows with the lane.
+        let lo = 1,
+          hi = order.length;
+        while (lo < hi) {
+          const mid = Math.ceil((lo + hi) / 2);
+          if (lay(laneFor(order.slice(0, mid), route), route, true)) lo = mid;
+          else hi = mid - 1;
+        }
+        if (!best || lo > best.k) best = { order, k: lo, route };
+      }
+    if (!best) {
+      drop(group);
+      continue;
+    }
+    lay(laneFor(best.order.slice(0, best.k), best.route), best.route, false);
+    const rest = best.order.slice(best.k);
+    if (rest.length) queue.push(rest);
+  }
+  return lanes;
 }

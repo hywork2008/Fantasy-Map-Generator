@@ -408,7 +408,7 @@ export function validateVectorDocument(
             ? ["building"]
             : legacy === 6
               ? ["building", "display"]
-              : ["building", "display", "appearance"]
+              : ["building", "display", "appearance", "mirrored"]
       ) ||
       !id(p.modelId) ||
       !point(p.position) ||
@@ -419,7 +419,8 @@ export function validateVectorDocument(
       !keys(p.site, ["outer", "holes"]) ||
       !region(p.site) ||
       !Array.isArray(p.accesses) ||
-      !p.accesses.every(checkAnchor)
+      !p.accesses.every(checkAnchor) ||
+      (p.mirrored !== undefined && p.mirrored !== true)
     )
       errors.push(`placement:${p.id}`);
   timed("sites");

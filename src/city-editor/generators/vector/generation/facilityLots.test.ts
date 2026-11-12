@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
+import type { Point } from "../../../types/primitives";
 import { defaultGenerationSettings } from "../../generation/settings";
-import { pointInPolygon, polygonCentroid } from "../../geom";
+import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../../geom";
 import { defaultPopulationSettings } from "../../populationPlan";
 import { cellHouseRing, unpackPoints } from "../fabric/pack";
 import { regionArea, regionBoolean } from "../geometry/regions";
+import { samplePath } from "../geometry/sampling";
 import { vectorInputFromEditor } from "./editorInput";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
+import { waterDistance } from "./urbanPacking";
 import { vectorWallChoice } from "./wallShape";
 
 describe("population facilities on the CE street blocks (facility mode)", () => {
@@ -57,6 +60,65 @@ describe("population facilities on the CE street blocks (facility mode)", () => 
               0
             )
           ).toBeLessThan(1e-4);
+    }
+  }, 300000);
+});
+
+describe("the tanners' row on the bank below the town (tanners' row plan T2)", () => {
+  it("lines the bank beyond the wall with yards backing onto the water, intakes upstream, served by a lane", () => {
+    const seed = "fixture",
+      settings = {
+        ...defaultGenerationSettings(),
+        facilityLayout: "population" as const,
+        wallShape: "polygon" as const
+      };
+    settings.config = {
+      ...settings.config,
+      rivers: ["through"],
+      features: { ...settings.config.features, walls: true, port: false, shanty: false }
+    };
+    settings.population = defaultPopulationSettings(5000);
+    const frame = { extentMeters: 1584, cityRadiusMeters: 396, blockSizeMeters: 50 },
+      input = vectorInputFromEditor({ settings, seed, frame, lotOccupancy: 1 });
+    input.context.targetPopulation = 5000;
+    const wall = vectorWallChoice(settings, seed, input.context.historicalPeriod ?? "ageOfExploration", 1584),
+      skeleton = generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall }).document,
+      city = generateVectorUrban(skeleton, {
+        ...DEFAULT_VECTOR_URBAN,
+        mode: "medieval-facilities",
+        population: 5000,
+        lotOccupancy: 1
+      });
+    const yards = Object.values(city.placements).filter(p => p.modelId === "trade-workshop.dedicated-wet-tannery");
+    expect(yards.length).toBeGreaterThanOrEqual(10);
+    const river = samplePath(Object.values(city.paths).find(p => p.role === "river")!).map(s => s.point),
+      along = (p: Point) => {
+        const h = nearestOnPolyline(p, river);
+        let s = 0;
+        for (let i = 0; i < h.segIndex; i++)
+          s += Math.hypot(river[i + 1][0] - river[i][0], river[i + 1][1] - river[i][1]);
+        return (
+          s +
+          h.t *
+            Math.hypot(river[h.segIndex + 1][0] - river[h.segIndex][0], river[h.segIndex + 1][1] - river[h.segIndex][1])
+        );
+      };
+    for (const p of yards) {
+      // The model's ports in its plan frame (x, -z), turned and mirrored as the placement draws it.
+      const a = (p.facingDegrees * Math.PI) / 180,
+        port = (x: number): Point => {
+          const lx = (p.mirrored ? -1 : 1) * x;
+          return [
+            p.position[0] + lx * Math.cos(a) - 8 * Math.sin(a),
+            p.position[1] + lx * Math.sin(a) + 8 * Math.cos(a)
+          ];
+        };
+      const intake = port(-7.5),
+        effluent = port(7.5);
+      expect(waterDistance(city, [{ outer: [intake, effluent, intake], holes: [] }])).toBeLessThan(2.5);
+      expect(along(effluent)).toBeGreaterThan(along(intake));
+      const e = p.building!.entrances[0];
+      expect(e.accessIndex !== undefined || e.fabricLine !== undefined).toBe(true);
     }
   }, 300000);
 });

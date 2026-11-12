@@ -21,7 +21,7 @@ import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/document";
 import { vectorUrbanStages } from "../validation/urban";
-import { placeFacilitiesOnLots, refitRetainedFacilities } from "./facilityLots";
+import { placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
 import { layoutVectorParks } from "./parks";
 import {
   assemblePerimeterDistricts,
@@ -336,10 +336,31 @@ function* vectorUrbanSteps(
       },
       protectedRegions
     );
+  const walls = Object.values(doc.connections.circuits)
+    .filter(c => !c.parentCircuitId)
+    .map(c => ({ outer: sampledClosedRing(doc, c.pathId), holes: [] }));
+  // Thousands of district and street-block centres are tested against the wall ring; an edge index keeps it short.
+  const inWalls = walls.length ? indexedContains(walls) : undefined,
+    inside = (p: Point) => !inWalls || inWalls(p);
+  const radius = Math.max(
+    ...sourceSite.domain
+      .flatMap(p => p.outer)
+      .map(p => Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]))
+  );
+  const core = (p: Point) =>
+    walls.length ? inside(p) : Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]) < radius * 0.65;
+  // The tanners' row is reserved on the bank below the town before the street plan, so streets and lots keep off it.
+  const tanneryRow =
+    !continuation && organicMode && settings.mode === "medieval-facilities"
+      ? reserveTanneryRow(doc, requests, core, anchors => joinVectorGenerationAnchors(doc, anchors))
+      : { placed: [], unplaced: [], lanes: [] };
+  // The street plan keeps off the yards and their revetments.
+  for (const id of tanneryRow.placed) protectedRegions.push(...doc.placements[id].building!.reserved);
   timed("programme-and-domain");
   let blocks = deriveLaneBlocks();
   timed("base-blocks");
   const ownedPaths: string[] = [...(continuation?.ownedPaths ?? [])];
+  ownedPaths.push(...tanneryRow.lanes);
   run?.progress?.("lanes");
   const laneStarted = performance.now();
   // Frontage-rooted cul-de-sacs follow free land; no cells, vertex snapping or global grid.
@@ -410,19 +431,6 @@ function* vectorUrbanSteps(
       ? bvFacilityAsset(settings.houseModelId, [{ id: "main", position: [0, 0, 4], normalXZ: [0, 1], clearWidth: 1.1 }])
       : undefined;
   timed("lane-candidates");
-  const walls = Object.values(doc.connections.circuits)
-    .filter(c => !c.parentCircuitId)
-    .map(c => ({ outer: sampledClosedRing(doc, c.pathId), holes: [] }));
-  // Thousands of district and street-block centres are tested against the wall ring; an edge index keeps it short.
-  const inWalls = walls.length ? indexedContains(walls) : undefined,
-    inside = (p: Point) => !inWalls || inWalls(p);
-  const radius = Math.max(
-    ...sourceSite.domain
-      .flatMap(p => p.outer)
-      .map(p => Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]))
-  );
-  const core = (p: Point) =>
-    walls.length ? inside(p) : Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]) < radius * 0.65;
   const blockUse = (b: { outer: Point[]; holes: Point[][] }) => {
     const center = polygonCentroid(b.outer);
     return settings.mode === "medieval"
@@ -643,9 +651,11 @@ function* vectorUrbanSteps(
     const lots = placeFacilitiesOnLots(
       doc,
       organic,
-      requests.filter(r => !ownedPlacements.includes(`urban:${r.id}`)),
-      core
+      requests.filter(r => !ownedPlacements.includes(`urban:${r.id}`) && !tanneryRow.unplaced.some(u => u.id === r.id)),
+      core,
+      tanneryRow.placed
     );
+    unplacedFacilities.push(...tanneryRow.unplaced);
     ownedPlacements.push(...lots.placed);
     unplacedFacilities.push(...lots.unplaced);
     facilityCells = lots.cells;

@@ -19,6 +19,22 @@ function objectDefinition(id: string): BvDefinition {
   return result;
 }
 
+const mirroredDefinitions = new WeakMap<BvDefinition, BvDefinition>();
+/** One mirrored definition per model definition, so mirrored instances share their baked prototype. */
+function mirrored(definition: BvDefinition): BvDefinition {
+  let result = mirroredDefinitions.get(definition);
+  if (!result) {
+    result = {
+      ...definition,
+      id: `${definition.id}:mirrored`,
+      ...(definition.cacheKey ? { cacheKey: `${definition.cacheKey}:mirrored` } : {}),
+      mirrorX: true
+    };
+    mirroredDefinitions.set(definition, result);
+  }
+  return result;
+}
+
 export function createTownObjects(
   elements: readonly CityElement[],
   heightAt?: (point: Point) => number,
@@ -41,11 +57,14 @@ export function createTownObjects(
         .multiply(new THREE.Matrix4().makeTranslation(-center.x, -bounds.min.y, -center.z));
       return [{ id: item.id, definition: objectDefinition(placeable.id), matrix }];
     }
-    const definition = placementDefinition(item.objectType, item.objectQuality, item.objectPalette, {
+    const plain = placementDefinition(item.objectType, item.objectQuality, item.objectPalette, {
       activity: item.objectMarketActivity
     });
-    const footprint = placementFootprint(item.objectType, item.objectQuality);
-    if (!definition || !footprint) return [];
+    const authored = placementFootprint(item.objectType, item.objectQuality);
+    if (!plain || !authored) return [];
+    // A mirrored placement draws the model's mirror image, whose footprint centre lies mirrored too.
+    const definition = item.objectMirrored ? mirrored(plain) : plain,
+      footprint = item.objectMirrored ? { ...authored, centerX: -authored.centerX } : authored;
     const pose = placementPose(item.point, heightAt?.(item.point) ?? 0, item.rotation ?? 0, footprint);
     const matrix = new THREE.Matrix4()
       .compose(

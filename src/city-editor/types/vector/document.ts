@@ -116,6 +116,8 @@ export interface VectorPlacement {
     activity?: "market-day" | "closed";
   };
   building?: VectorBuilding;
+  /** The model is drawn mirrored across its local x axis (a tannery keeps its intake upstream on either bank). */
+  mirrored?: boolean;
   display?: {
     kind: "housing" | "facility" | "landmark" | "object";
     heightMeters: number;

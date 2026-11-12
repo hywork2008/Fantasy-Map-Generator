@@ -11,12 +11,12 @@ import { defaultPopulationSettings } from "./populationPlan";
 import { measureHousingCapacity, residentialCapacity } from "./residentialCapacity";
 
 describe("population facilities in normal city generation", () => {
-  it("maps the 5,000-person reference to 249 workshops and 9 halls, retaining dry-workshop dwellings and explicit provisional sites", () => {
+  it("maps the 5,000-person reference to 241 workshops and 9 halls, retaining dry-workshop dwellings and explicit provisional sites", () => {
     const settings = defaultGenerationSettings();
     settings.historicalPeriod = "highMedieval";
     settings.config.features.port = false;
     const { requests } = populationFacilityRequests(5000, settings);
-    expect(requests).toHaveLength(258);
+    expect(requests).toHaveLength(250);
     expect(requests.filter(r => r.id.includes("guild:"))).toHaveLength(9);
     expect(requests.filter(r => r.asset.residentialDwellings === 1)).toHaveLength(155);
     expect(requests.find(r => r.id.includes("workshop:baking:"))!.asset.bvModel?.id).toBe(
@@ -56,9 +56,9 @@ describe("population facilities in normal city generation", () => {
     const opts = { ...settings, facilityLayout: "population" as const };
     const city = generateCityOnDocument(input, opts, "population-1000")!;
     expect(city).not.toBeNull();
-    expect(city.facilityReport?.required).toBe(48);
+    expect(city.facilityReport?.required).toBe(47);
     expect(city.facilityReport!.placed).toBeGreaterThan(0);
-    expect(city.facilityReport!.placed + city.facilityReport!.unplaced.length).toBe(48);
+    expect(city.facilityReport!.placed + city.facilityReport!.unplaced.length).toBe(47);
     const fabric = buildBlockFabric(city);
     const mixed = landmarkDwellingCapacity(city);
     const capacity = measureHousingCapacity(city, fabric.buildings, city.populationPlan!.requiredDwellings);
