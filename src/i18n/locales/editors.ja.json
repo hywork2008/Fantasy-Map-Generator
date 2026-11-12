@@ -318,6 +318,7 @@
         "unplaced": "未収容人口",
         "provisional": "仮寸法の施設",
         "stagePopulation": "この段階の収容人口",
+        "wallShare": "市壁内／外: 住宅 {{value0}}／{{value1}}棟、施設 {{value2}}／{{value3}}棟、人口 {{value4}}／{{value5}}人（市壁内 {{value6}}%）",
         "urbanDiagnostics": {
           "suburbs-expanded": "固定形状を動かさず合成市域内に郊外を追加しました。",
           "housing-capacity-shortfall": "接道できる敷地が尽き、住戸が不足しています。",

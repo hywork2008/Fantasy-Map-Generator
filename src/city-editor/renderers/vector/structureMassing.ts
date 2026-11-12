@@ -1,5 +1,6 @@
 import type { TownWallGate } from "../../../city3d/three/townWallMeshes";
 import { nearestOnPolyline, polygonCentroid } from "../../generators/geom";
+import { GATE_TOWER_SCALE } from "../../generators/passages";
 import { evaluateAnchor, pathIsClosed } from "../../generators/vector/geometry/curves";
 import { bridgeGeometry } from "../../generators/vector/geometry/network";
 import { containsRegion } from "../../generators/vector/geometry/regions";
@@ -126,9 +127,22 @@ export function vectorStructures(doc: VectorCityDocument): VectorStructureOwner[
         widthMeters,
         height,
         spacing: TOWER_SPACING_METERS,
+        // A curtain tower closer to a gate's flanking tower than half the usual gap between towers is left out,
+        // so no row of towers crowds a gate.
         skip: p =>
-          gates.some(g => Math.hypot(g.point[0] - p[0], g.point[1] - p[1]) < widthMeters * 3) ||
-          containsRegion(water, p)
+          gates.some(
+            g =>
+              Math.hypot(g.point[0] - p[0], g.point[1] - p[1]) <
+              Math.max(
+                widthMeters * 3,
+                g.gate.kind === "passage"
+                  ? g.gate.widthMeters / 2 +
+                      widthMeters * GATE_TOWER_SCALE +
+                      widthMeters * 0.8 +
+                      TOWER_SPACING_METERS / 2
+                  : 0
+              )
+          ) || containsRegion(water, p)
       },
       parts
     );

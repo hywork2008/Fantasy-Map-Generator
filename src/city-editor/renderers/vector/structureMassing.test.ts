@@ -27,6 +27,13 @@ describe("meshless walls, gates and bridges as the mesh editor's structure massi
       expect(parts.filter(p => p.id.startsWith(`gate:${gate.id}:flank:`))).toHaveLength(2);
       expect(parts.some(p => p.id === `gate:${gate.id}:lintel`)).toBe(true);
     }
+    // No curtain tower crowds a gate's flanking towers: the gap is at least half the usual spacing (35 m).
+    const towers = parts.filter(p => p.kind === "tower" && p.footprint),
+      flanks = parts.filter(p => p.kind === "gate" && p.footprint);
+    for (const tower of towers)
+      for (const flank of flanks)
+        for (const a of tower.footprint!)
+          for (const b of flank.footprint!) expect(Math.hypot(a[0] - b[0], a[1] - b[1])).toBeGreaterThan(30);
     // No barbican: a gate is its two flanks and the lintel.
     expect(parts.filter(p => p.kind === "gate")).toHaveLength(passages.length * 3);
     expect(bridges.length).toBe(Object.keys(city.connections.bridges).length);

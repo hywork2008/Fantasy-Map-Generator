@@ -17,6 +17,7 @@
 - docs/analytics/ce-meshless-tanners-row-t2b-3d-overview-20261112.png - T2bのCE画面の3D（町と列の全体）
 - docs/analytics/ce-meshless-tanners-row-t3-20261112.json - なめし職人の河岸T3の全量（T0の7件と曲がった川の合成4件）
 - docs/analytics/ce-meshless-tanners-row-t3-20261112.md - なめし職人の河岸T3の記録。工房用水路の条件と形、最も多い区間から埋める変更、曲がった川での結果
+- docs/plan/ce-meshless-pre-acceptance-improvements.md - メッシュなしCEの受入前の改善（1112.mdの課題一覧）の順序U0〜U7、U0（公園と施設の重なり、門の脇の塔、市壁の内外の建物数・人口の表示）の完了、門と郊外の街区の初期調査
 - docs/plan/ce-meshless-tanners-row.md - メッシュなしCEのなめし場を、川下の一列の河岸として置き、給水・排水を川へつなぐ設計。曲がった川には、岸の直線区間に並べて隙間を護岸で埋める方式（A）と、工房用の水路を引く方式（B）、段階T0〜T4
 - docs/plan/ce-meshless-tanners-row.md - 鏡像を配置データ側で持つ決定、T0の完了、要求数の検証T1aの追加、T2の配置の起点を岸線へ変更
 - docs/plan/ce-meshless-tanners-row.md - 地図の枠の外にはみ出す分を問題にしない決定（`"frame"`）、T1a（なめし場1軒4人）とT1（`tannersRow`）の完了、次のT2を記載

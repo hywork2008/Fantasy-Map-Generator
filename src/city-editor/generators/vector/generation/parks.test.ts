@@ -3,6 +3,7 @@ import { defaultGenerationSettings } from "../../generation/settings";
 import { polygonArea } from "../../geom";
 import { MIN_FORTIFIED_PARK_TREE_AREA } from "../../parkFabric";
 import { defaultPopulationSettings } from "../../populationPlan";
+import { regionArea, regionBoolean } from "../geometry/regions";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { validateVectorUrban } from "../validation/urban";
 import { vectorInputFromEditor } from "./editorInput";
@@ -11,7 +12,7 @@ import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
 import { streetBlockOf } from "./wards";
 
 describe("park wards laid out by the mesh editor's park fabric (feature parity P7c)", () => {
-  const build = (wall: "ellipse" | "none", seed: string) => {
+  const build = (wall: "ellipse" | "none", seed: string, mode = DEFAULT_VECTOR_URBAN.mode) => {
     const settings = {
         ...defaultGenerationSettings(),
         population: defaultPopulationSettings(3000),
@@ -26,6 +27,7 @@ describe("park wards laid out by the mesh editor's park fabric (feature parity P
       });
     return generateVectorUrban(generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, wall }).document, {
       ...DEFAULT_VECTOR_URBAN,
+      mode,
       population: 3000,
       lotOccupancy: 1
     });
@@ -65,5 +67,21 @@ describe("park wards laid out by the mesh editor's park fabric (feature parity P
         expect(park.trees).toEqual([]);
     expect(parks.some(p => p.trees.length > 0)).toBe(true);
     expect(doc.urban!.report.unplacedPopulation).toBe(0);
+  });
+  it("keeps facilities off the park lawns in facility mode", () => {
+    // Seed c3 once put a weaving workshop on a park block; the lawn was laid over it.
+    const doc = build("ellipse", "c3", "medieval-facilities"),
+      parks = doc.urban!.parks ?? [];
+    expect(parks.length).toBeGreaterThan(0);
+    for (const p of doc.urban!.ownedPlacements.map(id => doc.placements[id]))
+      if (p.building?.kind === "facility")
+        for (const park of parks)
+          for (const lawn of park.lawns)
+            expect(
+              regionBoolean([p.site], [{ outer: lawn, holes: [] }], "intersection").reduce(
+                (n, r) => n + regionArea(r),
+                0
+              )
+            ).toBeLessThan(1e-3);
   });
 });

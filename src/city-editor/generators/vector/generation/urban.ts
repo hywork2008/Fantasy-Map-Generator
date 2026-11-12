@@ -672,7 +672,9 @@ function* vectorUrbanSteps(
       organic,
       requests.filter(r => !ownedPlacements.includes(`urban:${r.id}`) && !tanneryRow.unplaced.some(u => u.id === r.id)),
       core,
-      tanneryRow.placed
+      tanneryRow.placed,
+      // A park ward stays a lawn (P7c); its lots never take a facility.
+      id => wards.get(id)?.ward === "park"
     );
     unplacedFacilities.push(...tanneryRow.unplaced);
     ownedPlacements.push(...lots.placed);
@@ -762,7 +764,7 @@ function* vectorUrbanSteps(
   const parks = organic
     ? layoutVectorParks(doc, districts, id => {
         const c = doc.fabric?.cells[id];
-        return !c || c.houses.offsets.length === c.detached.length;
+        return !facilityCells.has(id) && (!c || c.houses.offsets.length === c.detached.length);
       })
     : [];
   timed("parks");

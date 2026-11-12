@@ -1,6 +1,8 @@
 import { REGIONAL_HOUSE_STOREYS, REGIONAL_HOUSES } from "../../../../buildings/houses/regionalHouseDimensions";
 import type { VectorCityDocument, VectorPlacement } from "../../../types/vector/document";
 import { dwellingCapacity } from "../../residentialCapacityFormula";
+import { indexedContains } from "../geometry/regions";
+import { sampledClosedRing } from "../geometry/routing";
 export const VECTOR_HOUSE_FLOOR_AREA = REGIONAL_HOUSES.width * REGIONAL_HOUSES.depth;
 export const VECTOR_HOUSE_STOREYS = REGIONAL_HOUSE_STOREYS;
 export const VECTOR_HOUSE_SHARE = 0.85;
@@ -67,4 +69,56 @@ export function allocateVectorResidents(
     assignedPopulation: population - (people.at(-1) ?? population),
     unplacedPopulation: people.at(-1) ?? population
   };
+}
+
+export interface VectorWallShare {
+  houses: number;
+  facilities: number;
+  dwellings: number;
+  population: number;
+}
+/**
+ * Buildings, housed dwellings and residents inside and beyond the outer town wall, as the residents are allocated:
+ * placements first, then the fabric houses, each list inside the wall first. Undefined for a town without a wall.
+ */
+export function vectorWallShares(
+  doc: Readonly<VectorCityDocument>
+): { inside: VectorWallShare; outside: VectorWallShare } | undefined {
+  const report = doc.urban?.report;
+  const walls = Object.values(doc.connections.circuits)
+    .filter(c => !c.parentCircuitId && doc.paths[c.pathId])
+    .map(c => ({ outer: sampledClosedRing(doc, c.pathId), holes: [] }));
+  if (!report || !walls.length) return undefined;
+  const inWalls = indexedContains(walls),
+    blank = (): VectorWallShare => ({ houses: 0, facilities: 0, dwellings: 0, population: 0 }),
+    share = { inside: blank(), outside: blank() },
+    units: { inner: boolean; dwellings: number }[] = [];
+  const placements = Object.values(doc.placements)
+    .filter(p => p.building?.kind === "housing" || p.building?.kind === "facility")
+    .map(p => ({ p, inner: inWalls(p.position) }))
+    .sort((a, b) => Number(b.inner) - Number(a.inner));
+  for (const { p, inner } of placements) {
+    share[inner ? "inside" : "outside"][p.building!.kind === "facility" ? "facilities" : "houses"]++;
+    units.push({ inner, dwellings: vectorPlacementDwellings(p) });
+  }
+  const cells = Object.values(doc.fabric?.cells ?? {});
+  for (const cell of [...cells.filter(c => c.inside), ...cells.filter(c => !c.inside)]) {
+    const detached = new Set(cell.detached);
+    cell.houses.dwellings.forEach((d, i) => {
+      if (detached.has(i)) return;
+      share[cell.inside ? "inside" : "outside"].houses++;
+      units.push({ inner: !!cell.inside, dwellings: d });
+    });
+  }
+  let remaining = report.requiredDwellings;
+  for (const u of units) {
+    const assigned = Math.min(u.dwellings, remaining);
+    remaining -= assigned;
+    share[u.inner ? "inside" : "outside"].dwellings += assigned;
+  }
+  // Residents follow the housed dwellings, as the allocation shares them out.
+  const perDwelling = report.requiredDwellings ? report.targetPopulation / report.requiredDwellings : 0;
+  share.inside.population = Math.round(share.inside.dwellings * perDwelling);
+  share.outside.population = Math.round(share.outside.dwellings * perDwelling);
+  return share;
 }

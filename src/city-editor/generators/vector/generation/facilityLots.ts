@@ -65,7 +65,9 @@ export function placeFacilitiesOnLots(
   requests: readonly BVFacilityRequest[],
   inside: (p: Point) => boolean,
   /** Yards of the tanners' row, reserved before the street plan (`reserveTanneryRow`). */
-  rowIds: readonly string[] = []
+  rowIds: readonly string[] = [],
+  /** Street blocks kept free of facilities: a park ward becomes the park's lawn after the houses. */
+  barredCell: (cellId: string) => boolean = () => false
 ): FacilityLotResult {
   const result: FacilityLotResult = { placed: [], unplaced: [], cells: new Set() };
   if (!requests.length || !doc.site) return result;
@@ -82,7 +84,7 @@ export function placeFacilitiesOnLots(
   }));
   const lotIndex = new RBush<Box & { i: number }>();
   lotIndex.load(lots.map(l => ({ ...l.box, i: l.i })));
-  const used = new Set<number>();
+  const used = new Set<number>(lots.filter(l => barredCell(l.cellId)).map(l => l.i));
   /** Seed lots that took no site, by asset model. Taking a lot can only shrink the room around a seed, so a failed
    * seed never succeeds later for the same model. */
   const failed = new Map<string, Set<number>>();
