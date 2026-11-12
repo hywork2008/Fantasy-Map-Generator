@@ -37,6 +37,7 @@ import { connectVectorCivicCentre } from "./civic";
 import { raiseVectorPlazaFurniture } from "./civicFurniture";
 import { isFerryRiver, raiseVectorFerries } from "./ferries";
 import { raiseVectorForest } from "./forest";
+import { spreadApproaches, squareWallCrossings } from "./gateApproaches";
 import { raiseVectorGuilds } from "./guilds";
 import { expectedVectorHouseStoreys } from "./housingHeights";
 import { raiseVectorInns } from "./inns";
@@ -737,6 +738,11 @@ function skeleton(
       // The old town takes `share` of the walled area; outlines scale about the centre.
       innerScale = Math.sqrt(inner?.share ?? 1);
     const attempts: { rotation: number; scale: number }[] = [];
+    // Approaches that would gate the wall close together join outside it, so the gates spread round the wall (U1).
+    {
+      const reach = Math.max(half, halfY);
+      for (const m of spreadApproaches(doc, center, reach, reach + Math.max(30, reach * 0.3))) extended.add(m.roadId);
+    }
     const wallPath = (source: VectorPath["source"], pathId = id): VectorPath => ({
       id: pathId,
       revision: 0,
@@ -918,7 +924,7 @@ function skeleton(
       const fixed = Object.values(doc.paths).filter(p => p.role === "road" || p.role === "river"),
         // An approach continued through the wall runs from the road's inner end toward the centre.
         approaches = fixed
-          .filter(p => p.role === "road" && !pathIsClosed(p))
+          .filter(p => p.role === "road" && !pathIsClosed(p) && !extended.has(p.id))
           .flatMap((road, i): VectorPath[] => {
             const end = roadEndpoints(road)
               .map(a => evaluateAnchor(road, a))
@@ -987,6 +993,8 @@ function skeleton(
           const outerClosed = pathIsClosed(next.paths[id]);
           if (outerClosed) next = setWallCircuit(next, id);
           if (isVectorWallShape(shape) || inner) extendApproachesThroughWall(next, id, center, settings, tried);
+          // With a moat the straight run reaches past it, so its bridge stands on one straight piece of road.
+          squareWallCrossings(next, id, withMoat ? MOAT_BERM_METERS + TOWN_MOAT_WIDTH_METERS + 4 : undefined);
           next = gateWall(next, id, settings);
           if (withMoat) {
             next = addTownMoat(next, id, settings);
