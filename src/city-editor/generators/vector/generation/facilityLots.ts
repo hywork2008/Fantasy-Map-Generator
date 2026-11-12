@@ -8,6 +8,7 @@ import type { BVFacilityRequest } from "../../allocateBVFacilities";
 import { facilityUseOf } from "../../facilityUses";
 import { convexHull, isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonCentroid } from "../../geom";
 import { intersectConvex, plotArea } from "../../parcelGeometry";
+import { riverFlowsFromDescriptor } from "../../riverFlow";
 import { fabricLineSurface } from "../editing/fabricLineSurface";
 import { curveSource } from "../editing/paths";
 import { builtFeatureReservations, featureReservations } from "../environmentState";
@@ -475,6 +476,31 @@ const BANK_JUMP_METERS = 3;
 /** Farthest a yard's door may stand from the street or road it opens onto. */
 const ROW_ACCESS_METERS = 40;
 
+/**
+ * Each river's course, ordered downstream. An FMG town's rivers come from its descriptor, oriented downhill
+ * (`riverFlowsFromDescriptor`): a surveyed river's own path is only a short witness of its crossing, its water the
+ * surveyed banks. Other rivers are their drawn paths, already drawn downstream. Leats and moats are not rivers here.
+ */
+function riverCourses(doc: VectorCityDocument): Point[][] {
+  const descriptor = doc.site?.descriptor,
+    flows = descriptor ? riverFlowsFromDescriptor(descriptor) : [];
+  const drawn = Object.values(doc.paths)
+    .filter(p => p.role === "river" && !p.id.includes("moat") && !p.id.startsWith("urban-tanners-leat:"))
+    .map(p => {
+      const points = samplePath(p).map(q => q.point);
+      // An FMG river's witness runs the way its descriptor river flows, where the fall decided it.
+      const flow = flows.find(f => f.basis !== "descriptor" && p.id.startsWith(`fmg-river:${f.riverId}:`));
+      if (flow && points.length > 1) {
+        const d: Point = [points.at(-1)![0] - points[0][0], points.at(-1)![1] - points[0][1]],
+          f: Point = [flow.points.at(-1)![0] - flow.points[0][0], flow.points.at(-1)![1] - flow.points[0][1]];
+        if (d[0] * f[0] + d[1] * f[1] < 0) points.reverse();
+      }
+      return points;
+    });
+  // The descriptor's own course too: a witness covers only the crossing, and may stop short of the town's lower bank.
+  return [...drawn, ...flows.map(f => f.points)].filter(c => c.length > 1);
+}
+
 /** Bank lines below the town, each ordered downstream with the side the land lies on. */
 function bankRuns(doc: VectorCityDocument, core: (p: Point) => boolean, maxMeters: number) {
   const water = allVectorWater(doc),
@@ -483,9 +509,8 @@ function bankRuns(doc: VectorCityDocument, core: (p: Point) => boolean, maxMeter
     wet = (p: Point) => water.some(w => containsRegion([w], p)),
     runs: { bank: Point[]; landSide: 1 | -1; startMeters: number }[] = [];
   let framed = false;
-  for (const river of Object.values(doc.paths).filter(p => p.role === "river" && !p.id.includes("moat"))) {
-    const raw = samplePath(river).map(q => q.point),
-      line: Point[] = [raw[0]],
+  for (const raw of riverCourses(doc)) {
+    const line: Point[] = [raw[0]],
       s = [0];
     // Every BANK_STEP_METERS along the centreline (its order is the flow).
     for (let i = 1, walked = 0, next = BANK_STEP_METERS; i < raw.length; i++) {
@@ -581,9 +606,16 @@ export function reserveTanneryRow(
   core: (p: Point) => boolean,
   /** Joins a new lane's start to the road it leaves (the urban pass's junction helper). */
   joinAnchors: (anchors: CurveAnchor[]) => void
-): { placed: string[]; unplaced: FacilityLotResult["unplaced"]; lanes: string[] } {
+): {
+  placed: string[];
+  unplaced: FacilityLotResult["unplaced"];
+  lanes: string[];
+  leats: string[];
+  /** Ground between a leat and the river: drying grounds, kept clear of streets and houses. */
+  islands: VectorPolygon[];
+} {
   const row = requests.filter(isWetTannery);
-  if (!row.length || !doc.site) return { placed: [], unplaced: [], lanes: [] };
+  if (!row.length || !doc.site) return { placed: [], unplaced: [], lanes: [], leats: [], islands: [] };
   const asset = row[0].asset,
     entrance = asset.entrances.find(e => e.required) ?? asset.entrances[0],
     fp = placementFootprint(WET_TANNERY_MODEL, asset.bvModel!.quality)!,
@@ -625,13 +657,49 @@ export function reserveTanneryRow(
         .filter(r => r.kind !== "district")
         .map(r => ({ outer: r.outer, holes: r.holes }))
     ];
-  const yards: { yard: TannersRowYard; key: number; apron: number }[] = [];
+  const yards: { yard: TannersRowYard; key: number; apron: number; run: number }[] = [];
   const banks = bankRuns(doc, core, row.length * options.frontageMeters * 4 + 400);
-  for (const run of banks.runs)
-    for (const reach of tannersRow(run.bank, run.landSide, options).reaches)
+  const leats: { id: string; yards: TannersRowYard[] }[] = [],
+    islands: VectorPolygon[] = [];
+  for (const [runIndex, run] of banks.runs.entries()) {
+    const plan = tannersRow(run.bank, run.landSide, options),
+      got = plan.reaches.reduce((n, r) => n + r.yards.length, 0),
+      length = run.bank.slice(1).reduce((n, q, i) => n + Math.hypot(q[0] - run.bank[i][0], q[1] - run.bank[i][1]), 0),
+      ideal = Math.floor(length / options.frontageMeters);
+    // A bank too bent for a row (method B): a straight tanners' leat drawn off the river above the run and back
+    // into it below, the yards lining its land side.
+    const filled = plan.reaches.filter(r => r.yards.length).length;
+    if (
+      ideal >= LEAT_MIN_YARDS &&
+      (got < ideal * LEAT_TRIGGER_SHARE || (filled >= 2 && got / filled < LEAT_YARDS_PER_REACH))
+    ) {
+      const leat = tryTannersLeat(doc, run, options, leats.length, {
+        roads,
+        walls,
+        setAside,
+        protectedLand,
+        occupied: occupied.all().map(o => o.polygon),
+        half
+      });
+      if (leat) {
+        doc.paths[leat.path.id] = leat.path;
+        water.push(pathSurface(leat.path));
+        islands.push(...leat.island);
+        const yardsOnLeat = tannersRow(leat.bank, run.landSide, options).reaches.flatMap(r => r.yards);
+        leats.push({ id: leat.path.id, yards: yardsOnLeat });
+        for (const [k, yard] of yardsOnLeat.entries())
+          yards.push({ yard, key: run.startMeters + k, apron: 0, run: runIndex });
+        continue;
+      }
+    }
+    for (const reach of plan.reaches)
       for (const yard of reach.yards)
-        yards.push({ yard, key: run.startMeters + reach.fromMeters, apron: reach.apronMeters });
-  yards.sort((a, b) => a.key - b.key);
+        yards.push({ yard, key: run.startMeters + reach.fromMeters, apron: reach.apronMeters, run: runIndex });
+  }
+  // The trade gathers on one bank: the run holding the most yards fills first, nearest the town first along it.
+  const capacity = new Map<number, number>();
+  for (const y of yards) capacity.set(y.run, (capacity.get(y.run) ?? 0) + 1);
+  yards.sort((a, b) => capacity.get(b.run)! - capacity.get(a.run)! || a.run - b.run || a.key - b.key);
   const placed: string[] = [];
   let framed = banks.framed;
   const overlaps = (a: VectorPolygon, b: VectorPolygon) =>
@@ -755,6 +823,11 @@ export function reserveTanneryRow(
       .map(r => ({ outer: r.outer, holes: r.holes }))
   ];
   const lanes = layTannersLanes(doc, placed, { roads, water, setAside: laneAside, walls, half, joinAnchors });
+  // A leat no yard stands on is not dug.
+  const kept = new Set(placed.map(id => doc.placements[id].position.join(",")));
+  for (const leat of leats.splice(0))
+    if (leat.yards.some(y => kept.has(y.position.join(",")))) leats.push(leat);
+    else delete doc.paths[leat.id];
   // The row's ground joins the town's land: a yard beyond the site disk or the wall's clipped domain is still the town.
   if (placed.length) {
     const grown = regionBoolean(
@@ -784,6 +857,8 @@ export function reserveTanneryRow(
   return {
     placed,
     lanes,
+    leats: leats.map(l => l.id),
+    islands: leats.length ? islands : [],
     unplaced: row
       .slice(placed.length)
       .map(r => ({ id: r.id, reason: framed ? ("frame" as const) : ("river" as const) }))
@@ -1170,4 +1245,106 @@ function layTannersLanes(
     if (rest.length) queue.push(rest);
   }
   return lanes;
+}
+
+/** A run whose bank holds fewer yards than this share of its length in frontages gets a leat. */
+const LEAT_TRIGGER_SHARE = 0.6;
+/** A run whose bends break its row into reaches of fewer yards than this, on average, gets a leat. */
+const LEAT_YARDS_PER_REACH = 2.5;
+/** Shortest run worth a leat, in yards. */
+const LEAT_MIN_YARDS = 3;
+/** Width of a tanners' leat, and the ground kept between it and the river. */
+const LEAT_WIDTH_METERS = 2.5;
+const LEAT_ISLAND_METERS = 6;
+/** Steepest slant of a leat's offtake and outfall off the river. */
+const LEAT_SLANT = (35 * Math.PI) / 180;
+/** Shortest run of the offtake and the outfall along the river. */
+const LEAT_LEAD_METERS = 15;
+
+/**
+ * A tanners' leat for a bank run too bent for a row (tanners' row plan §6, method B): a straight channel parallel to
+ * the run's chord, landward of every bend of the bank by LEAT_ISLAND_METERS, drawn off the river at the run's upstream
+ * end and returned at its downstream end. It crosses no road (no new bridge to judge), wall, set-aside land or placed
+ * site, and stays in the frame. Returns the path, the bank its yards line, and the ground between it and the river.
+ */
+function tryTannersLeat(
+  doc: VectorCityDocument,
+  run: { bank: Point[]; landSide: 1 | -1 },
+  options: { frontageMeters: number },
+  index: number,
+  ctx: {
+    roads: VectorPolygon[];
+    walls: Point[][];
+    setAside: VectorPolygon[];
+    protectedLand: VectorPolygon[];
+    occupied: VectorPolygon[];
+    half: number;
+  }
+): { path: VectorPath; bank: Point[]; island: VectorPolygon[] } | undefined {
+  // A run reaching the frame's edge is cut back until its leat stays inside: the bank beyond goes on unseen.
+  const inside = (p: Point) => Math.abs(p[0]) <= ctx.half - 2 && Math.abs(p[1]) <= ctx.half - 2;
+  let bankRun = run.bank;
+  while (bankRun.length > 2 && !bankRun.every(inside)) bankRun = bankRun.slice(0, -1);
+  for (let tries = 0; tries < 40 && bankRun.length > 2; tries++) {
+    const leat = leatFor({ ...run, bank: bankRun });
+    if (leat !== "frame") return leat;
+    bankRun = bankRun.slice(0, Math.max(2, bankRun.length - Math.max(1, Math.round(bankRun.length / 20))));
+  }
+  return undefined;
+  function leatFor(run: {
+    bank: Point[];
+    landSide: 1 | -1;
+  }): { path: VectorPath; bank: Point[]; island: VectorPolygon[] } | undefined | "frame" {
+    const a = run.bank[0],
+      b = run.bank.at(-1)!,
+      l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (l < LEAT_LEAD_METERS * 2 + options.frontageMeters * LEAT_MIN_YARDS) return undefined;
+    const u: Point = [(b[0] - a[0]) / l, (b[1] - a[1]) / l],
+      n: Point = [-u[1] * run.landSide, u[0] * run.landSide],
+      bulge = Math.max(...run.bank.map(q => (q[0] - a[0]) * n[0] + (q[1] - a[1]) * n[1])),
+      h = Math.max(0, bulge) + LEAT_ISLAND_METERS + LEAT_WIDTH_METERS / 2,
+      // The offtake and the outfall slant at most LEAT_SLANT off the river, as a weir-fed channel leaves it.
+      lead = Math.max(LEAT_LEAD_METERS, h / Math.tan(LEAT_SLANT)),
+      at = (along: number, out: number): Point => [a[0] + u[0] * along + n[0] * out, a[1] + u[1] * along + n[1] * out],
+      // Into the river a little at each end, so the leat's water meets the river's.
+      points: Point[] = [at(0, -1), at(lead, h), at(l - lead, h), at(l, -1)];
+    if (l - 2 * lead < options.frontageMeters * LEAT_MIN_YARDS) return undefined;
+    if (points.some(p => Math.abs(p[0]) > ctx.half - 2 || Math.abs(p[1]) > ctx.half - 2)) return "frame";
+    const path: VectorPath = {
+      id: `urban-tanners-leat:${index}`,
+      revision: 0,
+      role: "river",
+      origin: "automatic",
+      editPolicy: "editable",
+      source: curveSource(points, "polyline", false),
+      width: { leftMeters: LEAT_WIDTH_METERS / 2, rightMeters: LEAT_WIDTH_METERS / 2, stations: [] }
+    };
+    while (doc.paths[path.id]) path.id += "x";
+    let surface: VectorPolygon;
+    try {
+      surface = pathSurface(path);
+    } catch {
+      return undefined;
+    }
+    const meets = (r: VectorPolygon) => regionBoolean([surface], [r], "intersection").some(x => regionArea(x) > 1e-5);
+    if (ctx.roads.some(meets)) return undefined;
+    if ([...ctx.setAside, ...ctx.protectedLand, ...ctx.occupied].some(meets)) return undefined;
+    if (ctx.walls.some(w => points.some(p => nearestOnPolyline(p, w).dist < ROW_WALL_CLEARANCE_METERS)))
+      return undefined;
+    // The yards' bank: the leat's land edge along its straight reach.
+    const edge = LEAT_WIDTH_METERS / 2 + 0.1,
+      bank = [at(lead + edge, h + edge), at(l - lead - edge, h + edge)];
+    // The ground between leat and river, as the hull of both less any water.
+    let island: VectorPolygon[] = [];
+    try {
+      island = regionBoolean(
+        [{ outer: convexHull([...run.bank, ...points]), holes: [] }],
+        [surface, ...allVectorWater(doc)],
+        "difference"
+      ).filter(r => regionArea(r) > 1);
+    } catch {
+      island = [];
+    }
+    return { path, bank, island };
+  }
 }

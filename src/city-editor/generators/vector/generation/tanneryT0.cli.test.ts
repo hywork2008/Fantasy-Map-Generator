@@ -8,6 +8,7 @@ import { defaultGenerationSettings } from "../../generation/settings";
 import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../../geom";
 import { buildPopulationFacilityRequests } from "../../populationFacilityRequests";
 import { defaultPopulationSettings } from "../../populationPlan";
+import { riverFlowsFromDescriptor } from "../../riverFlow";
 import { unpackPoints } from "../fabric/pack";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { allVectorWater } from "../geometry/water";
@@ -17,19 +18,20 @@ import { vectorApproachBands } from "./suburbs";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
 import { vectorWallChoice } from "./wallShape";
 
-const FIXTURES = [
-  "synthetic-open-5000",
-  "synthetic-walls-5000",
-  "synthetic-open-20000",
-  "gothengsfeld-20261012",
-  "kakati-20261009",
-  "hiros-20261010",
-  "gondre-20261009",
-  "obern-20261027",
-  "yayaropuz-20261009",
-  "myosiasos-20261007",
-  "archiagu-20261010"
-];
+const FIXTURES = process.env.CE_TANNERY_CASES?.split(",") ??
+  null ?? [
+    "synthetic-open-5000",
+    "synthetic-walls-5000",
+    "synthetic-open-20000",
+    "gothengsfeld-20261012",
+    "kakati-20261009",
+    "hiros-20261010",
+    "gondre-20261009",
+    "obern-20261027",
+    "yayaropuz-20261009",
+    "myosiasos-20261007",
+    "archiagu-20261010"
+  ];
 const CASES = FIXTURES.map(f => [f, 0] as const);
 const SEEDS = ["fixture"];
 
@@ -42,12 +44,12 @@ async function town(name: string) {
     population: number,
     frame = { extentMeters: 1600, cityRadiusMeters: 396, blockSizeMeters: 50 };
   if (name.startsWith("synthetic")) {
-    // synthetic-<walls|open>-<population>
-    const [, walls, pop] = name.split("-");
+    // synthetic-<walls|open>-<population>[-<river shape>]
+    const [, walls, pop, shape] = name.split("-");
     population = Number(pop);
     settings.config = {
       ...settings.config,
-      rivers: ["through"],
+      rivers: [(shape ?? "through") as "through"],
       features: {
         ...settings.config.features,
         walls: walls === "walls",
@@ -136,9 +138,15 @@ it.runIf(!!output)(
           console.log(JSON.stringify(rows.at(-1)));
           continue;
         }
-        const rivers = Object.values(doc.paths)
-          .filter(p => p.role === "river" && !p.id.includes("moat"))
-          .map(p => samplePath(p).map(s => s.point));
+        // Downstream courses: an FMG town's from its descriptor (its river paths are only crossing witnesses), with any
+        // leat; other towns' drawn rivers.
+        const descriptor = doc.site?.descriptor;
+        const rivers = [
+          ...(descriptor ? riverFlowsFromDescriptor(descriptor).map(f => f.points) : []),
+          ...Object.values(doc.paths)
+            .filter(p => p.role === "river" && !p.id.includes("moat") && !(descriptor && p.id.startsWith("fmg-river:")))
+            .map(p => samplePath(p).map(s => s.point))
+        ];
         const wallPath = Object.values(doc.paths).find(p => p.role === "wall" && !p.id.includes("inner"));
         const ring = wallPath ? samplePath(wallPath).map(s => s.point) : [];
         const report = doc.urban!.report as unknown as Record<string, number>;

@@ -353,14 +353,26 @@ function* vectorUrbanSteps(
   const tanneryRow =
     !continuation && organicMode && settings.mode === "medieval-facilities"
       ? reserveTanneryRow(doc, requests, core, anchors => joinVectorGenerationAnchors(doc, anchors))
-      : { placed: [], unplaced: [], lanes: [] };
+      : { placed: [], unplaced: [], lanes: [], leats: [], islands: [] };
   // The street plan keeps off the yards and their revetments.
-  for (const id of tanneryRow.placed) protectedRegions.push(...doc.placements[id].building!.reserved);
+  // A little wider than the yards themselves: a lane ending on the block's edge, rounded to the centimetre, must not
+  // reach into a yard.
+  for (const id of tanneryRow.placed)
+    for (const r of doc.placements[id].building!.reserved) {
+      const c = polygonCentroid(r.outer),
+        size = Math.sqrt(regionArea(r)),
+        k = 1 + 0.6 / Math.max(1, size);
+      protectedRegions.push({
+        outer: r.outer.map((q): Point => [c[0] + (q[0] - c[0]) * k, c[1] + (q[1] - c[1]) * k]),
+        holes: []
+      });
+    }
+  protectedRegions.push(...tanneryRow.islands);
   timed("programme-and-domain");
   let blocks = deriveLaneBlocks();
   timed("base-blocks");
   const ownedPaths: string[] = [...(continuation?.ownedPaths ?? [])];
-  ownedPaths.push(...tanneryRow.lanes);
+  ownedPaths.push(...tanneryRow.lanes, ...tanneryRow.leats);
   run?.progress?.("lanes");
   const laneStarted = performance.now();
   // Frontage-rooted cul-de-sacs follow free land; no cells, vertex snapping or global grid.

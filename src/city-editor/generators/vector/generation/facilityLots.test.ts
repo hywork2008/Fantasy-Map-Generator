@@ -131,3 +131,37 @@ describe("the tanners' row on the bank below the town (tanners' row plan T2)", (
     }
   }, 300000);
 });
+
+describe("a tanners' leat where the bank bends too much for a row (tanners' row plan T3)", () => {
+  it("digs a straight leat off the meandering river and lines its land side with yards", () => {
+    const seed = "fixture",
+      settings = { ...defaultGenerationSettings(), facilityLayout: "population" as const };
+    settings.config = {
+      ...settings.config,
+      rivers: ["meander"],
+      features: { ...settings.config.features, walls: false, port: false, shanty: false }
+    };
+    settings.population = defaultPopulationSettings(5000);
+    const frame = { extentMeters: 1584, cityRadiusMeters: 396, blockSizeMeters: 50 },
+      input = vectorInputFromEditor({ settings, seed, frame, lotOccupancy: 1 });
+    input.context.targetPopulation = 5000;
+    const wall = vectorWallChoice(settings, seed, input.context.historicalPeriod ?? "ageOfExploration", 1584),
+      skeleton = generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall }).document,
+      city = generateVectorUrban(skeleton, {
+        ...DEFAULT_VECTOR_URBAN,
+        mode: "medieval-facilities",
+        population: 5000,
+        lotOccupancy: 1
+      });
+    const leat = Object.values(city.paths).find(p => p.id.startsWith("urban-tanners-leat:"));
+    expect(leat?.role).toBe("river");
+    expect(city.urban!.ownedPaths).toContain(leat!.id);
+    const line = samplePath(leat!).map(s => s.point),
+      onLeat = Object.values(city.placements).filter(
+        p =>
+          p.modelId === "trade-workshop.dedicated-wet-tannery" &&
+          tanneryWaterWorks(city, p)!.channels.every(c => nearestOnPolyline(c.outer[2], line).dist < 2)
+      );
+    expect(onLeat.length).toBeGreaterThanOrEqual(3);
+  }, 300000);
+});
