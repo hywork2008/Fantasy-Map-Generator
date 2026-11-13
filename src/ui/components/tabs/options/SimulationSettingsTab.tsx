@@ -926,6 +926,34 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
+          <tr data-tip={t("simulation.byproductKeepMonthsTip")}>
+            <td />
+            <td>{t("simulation.byproductKeepMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="byproductKeepMonths"
+                min={MARKET_SETTING_LIMITS.byproductKeepMonths.min}
+                max={MARKET_SETTING_LIMITS.byproductKeepMonths.max}
+                step={MARKET_SETTING_LIMITS.byproductKeepMonths.step}
+                value={marketSettings.byproductKeepMonths}
+                onChange={v => updateMarketSetting("byproductKeepMonths", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.byproductExcessSpoilTip")}>
+            <td />
+            <td>{t("simulation.byproductExcessSpoil")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="byproductExcessSpoil"
+                min={MARKET_SETTING_LIMITS.byproductExcessSpoil.min}
+                max={MARKET_SETTING_LIMITS.byproductExcessSpoil.max}
+                step={MARKET_SETTING_LIMITS.byproductExcessSpoil.step}
+                value={marketSettings.byproductExcessSpoil}
+                onChange={v => updateMarketSetting("byproductExcessSpoil", v)}
+              />
+            </td>
+          </tr>
           <tr data-tip={t("simulation.candleDemandTip")}>
             <td />
             <td>

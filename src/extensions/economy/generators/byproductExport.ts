@@ -119,6 +119,7 @@ export function settleByproductExport(): number {
       const need = getReturnGoodNeed(market, good, luxuryBudgets.get(market.i));
       return { good, inflow: observed.inflow, use: Math.max(observed.use ?? 0, need) };
     });
+    spoilExcessByproducts(market, byproductUse, settings.byproductKeepMonths, settings.byproductExcessSpoil);
     if (settings.byproductExport !== "staple" || !ports.has(market.i)) continue;
     // The return goods no one on the map sends it, the fewest months of stock first, and the value
     // that fills them to the target.
@@ -152,6 +153,28 @@ export function settleByproductExport(): number {
     total += exportedValue;
   }
   return rn(total, 4);
+}
+
+/**
+ * Hides and tallow beyond `keepMonths` of the market's own use spoil at `rate` a month: rancid
+ * tallow and rotten hides went to the fields and the glue boilers (docs/plan/byproduct-disposal.md).
+ */
+function spoilExcessByproducts(
+  market: Market,
+  byproducts: readonly { good: Good; use: number | undefined }[],
+  keepMonths: number,
+  rate: number
+): void {
+  if (!(rate > 0)) return;
+  for (const { good, use } of byproducts) {
+    const row = market.goods[good.i];
+    if (!row || use === undefined) continue;
+    const units = rn(Math.max(0, row.stock - use * keepMonths) * rate, 4);
+    if (!(units > 0)) continue;
+    row.stock = rn(row.stock - units, 4);
+    recordShipped(market, good, units);
+    recordGoodFlow({ direction: "sink", category: "spoilage", goodId: good.i, units, marketId: market.i });
+  }
 }
 
 /** The foreign goods of `value` the ship brings back, filling the shortest return goods first. */
