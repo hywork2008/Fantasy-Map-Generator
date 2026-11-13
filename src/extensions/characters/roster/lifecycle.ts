@@ -3,6 +3,7 @@ import type { SimulationExtensionAPI } from "../../../types/extension-api";
 import { advanceCharacterAging } from "../advanceAge";
 import { advanceCharacterHealth } from "../characterHealth";
 import { getSimulationCharacters as getCharacters } from "../charactersContext";
+import type { Character } from "../characterTypes";
 import { latestRoleSlot, nextRosterStop, stopKey } from "./model";
 import {
   clockYear,
@@ -96,15 +97,30 @@ export function advanceRoster(): void {
   const now = clockYear();
   // Iterate a queue so a long headless stride still follows every selected generation.
   const queue = [...roster.slots];
+  const queued = new Set(queue);
+  let people: Map<number, Character> | null = null;
+  const personById = (id: number | undefined) => {
+    if (id === undefined) return undefined;
+    if (!people) {
+      people = new Map();
+      for (const c of getCharacters()) if (!people.has(c.i)) people.set(c.i, c);
+    }
+    return people.get(id);
+  };
   for (let i = 0; i < queue.length; i++) {
     const slot = queue[i];
     if ((slot.mode !== "simulation" && slot.characterId !== undefined) || slot.cancelledBirth) continue;
     if (slot.protection.track !== "none") {
       const children = ensureChildren(roster, slot);
       for (const child of children) {
-        if (child.protection.track !== "none" && child.birthYear <= now && !queue.includes(child)) queue.push(child);
-        if (child.birthYear <= now && child.protection.materializeDescendants && child.characterId === undefined)
+        if (child.protection.track !== "none" && child.birthYear <= now && !queued.has(child)) {
+          queue.push(child);
+          queued.add(child);
+        }
+        if (child.birthYear <= now && child.protection.materializeDescendants && child.characterId === undefined) {
           materializeSlots({ slotIds: [child.id], mode: "simulation" });
+          people = null;
+        }
       }
     }
     if (slot.deathYear === undefined && slot.plannedDeathYear <= now) {
@@ -127,7 +143,7 @@ export function advanceRoster(): void {
         }
       }
     }
-    const character = getCharacters().find(c => c.i === (slot.characterId ?? slot.referenceId));
+    const character = personById(slot.characterId ?? slot.referenceId);
     if (character) {
       character.age = Math.max(0, Math.floor((slot.deathYear ?? now) - slot.birthYear));
       if (slot.deathYear !== undefined) {
@@ -154,12 +170,14 @@ export function advanceRoster(): void {
         );
         if (!a || !role.termYears || now - a.startYear < role.termYears) continue;
         a.endYear = now;
-        const oldCharacter = getCharacters().find(c => c.i === previous.characterId);
+        const oldCharacter = personById(previous.characterId);
         if (oldCharacter) synchronizeTitle(roster, previous, oldCharacter);
       }
       const slot = ensureSlot(roster, role, ordinal, now);
-      if ((role.generateSuccessors ?? org.generateSuccessors) && slot.characterId === undefined)
+      if ((role.generateSuccessors ?? org.generateSuccessors) && slot.characterId === undefined) {
         materializeSlots({ slotIds: [slot.id], mode: "simulation" });
+        people = null;
+      }
     }
   }
   synchronizeFamily(roster);
@@ -199,13 +217,16 @@ export function registerRosterLifecycle(api: SimulationExtensionAPI): () => void
     run: (_context, writer) => {
       if (!api.isExtensionEnabled("characters")) return;
       advanceRoster();
+      const slotByCharacter = new Map<number, PersonSlot>();
+      for (const s of readRoster()?.slots ?? [])
+        if (s.characterId !== undefined && !slotByCharacter.has(s.characterId)) slotByCharacter.set(s.characterId, s);
       for (const c of getCharacters()) {
         const saved = memo.get(c.i);
         if (saved) {
           for (const key of Object.keys(c)) delete (c as unknown as Record<string, unknown>)[key];
           Object.assign(c, saved);
         }
-        const slot = readRoster()?.slots.find(s => s.characterId === c.i);
+        const slot = slotByCharacter.get(c.i);
         if (!slot) continue;
         for (const field of slot.protection.fields) {
           if (["notes", "birthYear", "organizationId", "familyRelations"].includes(field)) continue;
