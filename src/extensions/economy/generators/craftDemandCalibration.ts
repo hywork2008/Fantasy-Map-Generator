@@ -465,7 +465,7 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     ]
   },
   {
-    goodName: "Candles",
+    goodName: "Tallow Candles",
     domain: "victualling",
     inlandShare: 0.2,
     portShare: 0.15,
@@ -476,9 +476,25 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     residualWeight: 1,
     householdPurchase: true,
     sources: [
-      "provisional: 1 kg of tallow and wax candles a person a year in 100 kg blocks, the towns only (candleDemand townsOnly)",
+      "provisional: 1 kg of tallow candles a person a year in 100 kg blocks, the towns only (candleDemand townsOnly); the wax Candles are the church's and the great households' (docs/plan/candle-split.md)",
       "candleDemand everyone: candleKgPerPerson for the towns and their share of the countryside; England 1711 ~2.6 kg of tallow candles a person (docs/plan/candle-demand.md §2)",
       "0.15 person-month a block: dipping at ~25 kg a day (guild-halls-and-urban-trades.md D1)"
+    ]
+  },
+  {
+    goodName: "Candles",
+    domain: "victualling",
+    inlandShare: 0.2,
+    portShare: 0.15,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 1 / 2000,
+    fixtureLotsPerMonth: 0.75,
+    laborPointsPerLotAtDefaultRate: 0.00015,
+    residualWeight: 1,
+    householdPurchase: true,
+    sources: [
+      "0.05 kg of wax a person a year in 100 kg blocks, the parish lights (waxCandleKgPerPerson; docs/plan/church-wax.md §2: a London parish ~170 lb a year)",
+      "0.15 person-month a block, as the tallow dips"
     ]
   },
   {

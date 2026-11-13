@@ -168,6 +168,7 @@ import {
   migrateStapleCropGoods,
   migrateSyntheticAmmoniaGoods,
   migrateTallowByproduct,
+  migrateTallowCandleGoods,
   migrateTextileQualityGoods,
   migrateUntaxedSaltValue,
   migrateWeightRepricing,
@@ -387,7 +388,9 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateCastileSoapGood,
   // docs/plan/soap-by-period.md §3.2: olive oil soap is Castile Soap, not the soft soap.
   migrateOliveSoapRecipe,
-  migrateLeatherGoods
+  migrateLeatherGoods,
+  // docs/plan/candle-split.md: the homes' tallow candles apart from the wax Candles.
+  migrateTallowCandleGoods
 ];
 
 /**

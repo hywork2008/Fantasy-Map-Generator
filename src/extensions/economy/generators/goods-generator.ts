@@ -2279,9 +2279,10 @@ export const GOODS_DATA: GoodData[] = [
     color: "#fffacd",
     value: 14,
     chance: 0,
-    // 100 kg of candles, from 100 kg of beeswax (one block) or a barrel of oil or tallow. The honey leg is gone:
-    // wax is 1 kg in 20 of the honey harvested, so 100 kg of candles would cost 2 t of honey (§26).
-    recipes: [{ Oil: 1 }, { Beeswax: 1 }, { Tallow: 1 }],
+    // 100 kg of wax (or oil) candles for the church and the great households, from 100 kg of beeswax (one
+    // block) or a barrel of oil. The honey leg is gone: wax is 1 kg in 20 of the honey harvested, so 100 kg
+    // of candles would cost 2 t of honey (§26). The homes' tallow dips are Tallow Candles (docs/plan/candle-split.md).
+    recipes: [{ Oil: 1 }, { Beeswax: 1 }],
     unit: "block",
     demandCoverage: { utilities: 0.5, luxury: 0.5 }
   },
@@ -3643,6 +3644,20 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [{ Leather: 1 }],
     unit: "lot",
     demandCoverage: { utilities: 1 }
+  },
+  {
+    // 100 kg of dipped tallow candles, the homes' light, from a barrel of tallow. 1.5d a pound in 1338
+    // against wax at 8d (docs/plan/candle-split.md, docs/plan/household-goods-values.md §3).
+    name: "Tallow Candles",
+    warEconomyType: "essential",
+    tags: [],
+    icon: "good-candles",
+    color: "#f3e6b3",
+    value: 2.4,
+    chance: 0,
+    recipes: [{ Tallow: 1 }],
+    unit: "block",
+    demandCoverage: { utilities: 1 }
   }
 ];
 
@@ -3776,6 +3791,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Galleon: tradeProfile(5, 5, 5, 0, 0, 4, 3),
   Boots: tradeProfile(2, 3, 2, 1, 0, 4, 2),
   "Leather Goods": tradeProfile(2, 3, 2, 1, 0, 4, 2),
+  "Tallow Candles": tradeProfile(2, 3, 1, 0, 0, 3, 2),
   Harnesses: tradeProfile(3, 3, 3, 1, 0, 4, 2),
   Barrels: tradeProfile(4, 5, 1, -1, 0, 4, 2),
   Bronze: tradeProfile(5, 4, 3, 1, 0, 5, 2),
@@ -5652,6 +5668,31 @@ export function migrateLeatherGoods(): boolean {
     const good = Goods.getDefaultGood("Leather Goods")!;
     good.i = Math.max(0, ...goods.map(entry => entry.i)) + 1;
     good.recipes = [{ [leather.i]: 1 }];
+    goods.push(good);
+    changed = true;
+  }
+  return changed;
+}
+
+/**
+ * Splits the homes' tallow candles from the wax Candles (docs/plan/candle-split.md): adds Tallow
+ * Candles made from Tallow and drops a saved catalogue's Candles recipe of Tallow. Candles stock
+ * stays Candles.
+ */
+export function migrateTallowCandleGoods(): boolean {
+  const goods = getGoods();
+  const tallow = goods.find(entry => entry.name === "Tallow");
+  if (!tallow) return false;
+  let changed = false;
+  const candles = goods.find(entry => entry.name === "Candles");
+  if (candles?.recipes?.some(recipe => tallow.i in recipe)) {
+    candles.recipes = candles.recipes.filter(recipe => !(tallow.i in recipe));
+    changed = true;
+  }
+  if (!goods.some(entry => entry.name === "Tallow Candles")) {
+    const good = Goods.getDefaultGood("Tallow Candles")!;
+    good.i = Math.max(0, ...goods.map(entry => entry.i)) + 1;
+    good.recipes = [{ [tallow.i]: 1 }];
     goods.push(good);
     changed = true;
   }

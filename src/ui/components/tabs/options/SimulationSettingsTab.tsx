@@ -993,6 +993,20 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
+          <tr data-tip={t("simulation.waxCandleKgPerPersonTip")}>
+            <td />
+            <td>{t("simulation.waxCandleKgPerPerson")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="waxCandleKgPerPerson"
+                min={MARKET_SETTING_LIMITS.waxCandleKgPerPerson.min}
+                max={MARKET_SETTING_LIMITS.waxCandleKgPerPerson.max}
+                step={MARKET_SETTING_LIMITS.waxCandleKgPerPerson.step}
+                value={marketSettings.waxCandleKgPerPerson}
+                onChange={v => updateMarketSetting("waxCandleKgPerPerson", v)}
+              />
+            </td>
+          </tr>
           <tr data-tip={t("simulation.ruralChandlersPerThousandTip")}>
             <td />
             <td>{t("simulation.ruralChandlersPerThousand")}</td>

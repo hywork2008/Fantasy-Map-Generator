@@ -230,6 +230,7 @@ export const CATALOG_TRADE_HEADINGS = {
   "Pomace Wine": "beverages",
   Liquor: "beverages",
   Candles: "manufactures",
+  "Tallow Candles": "manufactures",
   Soap: "chemicals",
   "Castile Soap": "chemicals",
   Perfume: "chemicals",

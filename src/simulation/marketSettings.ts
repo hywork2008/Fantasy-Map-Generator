@@ -173,6 +173,8 @@ export type MarketSettings = {
   candleDemand: CandleDemandMode;
   /** Kilograms of candles a person burns a year, with `candleDemand` everyone. */
   candleKgPerPerson: number;
+  /** Kilograms of wax candles a person's parish burns a year, with `candleDemand` everyone. */
+  waxCandleKgPerPerson: number;
   /** Village people dipping candles for each 1,000 farm people, counted in their market's towns. */
   ruralChandlersPerThousand: number;
   surplusRuralWeight: number;
@@ -222,6 +224,7 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   byproductExcessSpoil: 0.1,
   candleDemand: "everyone",
   candleKgPerPerson: 1,
+  waxCandleKgPerPerson: 0.05,
   ruralChandlersPerThousand: 0.5,
   surplusRuralWeight: 1,
   surplusReserveFactor: 0.25,
@@ -249,6 +252,7 @@ export const MARKET_SETTING_LIMITS = {
   summerHideLoss: { min: 0, max: 0.5, step: 0.01 },
   ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 },
   candleKgPerPerson: { min: 0, max: 4, step: 0.25 },
+  waxCandleKgPerPerson: { min: 0, max: 0.5, step: 0.01 },
   curryingTallowKgPerHide: { min: 0, max: 6, step: 0.25 },
   byproductExportReserveMonths: { min: 0, max: 36, step: 1 },
   byproductExportShare: { min: 0, max: 1, step: 0.05 },
@@ -371,6 +375,7 @@ export function getMarketSettings(): MarketSettings {
     byproductExcessSpoil: clamp("byproductExcessSpoil", parsed.byproductExcessSpoil),
     candleDemand: candleDemandMode(parsed.candleDemand),
     candleKgPerPerson: clamp("candleKgPerPerson", parsed.candleKgPerPerson),
+    waxCandleKgPerPerson: clamp("waxCandleKgPerPerson", parsed.waxCandleKgPerPerson),
     ruralChandlersPerThousand: clamp("ruralChandlersPerThousand", parsed.ruralChandlersPerThousand),
     surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor),
@@ -415,6 +420,7 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     byproductExcessSpoil: clamp("byproductExcessSpoil", next.byproductExcessSpoil),
     candleDemand: candleDemandMode(next.candleDemand),
     candleKgPerPerson: clamp("candleKgPerPerson", next.candleKgPerPerson),
+    waxCandleKgPerPerson: clamp("waxCandleKgPerPerson", next.waxCandleKgPerPerson),
     ruralChandlersPerThousand: clamp("ruralChandlersPerThousand", next.ruralChandlersPerThousand),
     surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor),

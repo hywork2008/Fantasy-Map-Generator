@@ -49,13 +49,17 @@ export function isCandlesForEveryone(): boolean {
  */
 export function isCountrysideGood(goodName: string): boolean {
   if (isFootwearGood(goodName)) return isFootwearForEveryone();
-  return goodName === "Candles" && isCandlesForEveryone();
+  return (goodName === "Tallow Candles" || goodName === "Candles") && isCandlesForEveryone();
 }
 
 /** Lots a person burns or wears out a year when the countryside buys too; undefined otherwise. */
 export function getCountrysideAnnualLotsPerPerson(goodName: string): number | undefined {
-  if (goodName === "Candles") {
+  if (goodName === "Tallow Candles") {
     return isCandlesForEveryone() ? getMarketSettings().candleKgPerPerson / CANDLE_KG_PER_LOT : undefined;
+  }
+  // The wax of the parish lights, town and country alike (docs/plan/church-wax.md).
+  if (goodName === "Candles") {
+    return isCandlesForEveryone() ? getMarketSettings().waxCandleKgPerPerson / CANDLE_KG_PER_LOT : undefined;
   }
   return getFootwearAnnualLotsPerPerson(goodName);
 }
