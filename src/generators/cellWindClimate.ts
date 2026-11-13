@@ -44,6 +44,7 @@ import {
   windVectorToTowardDeg
 } from "../utils/windClimate";
 import { climateDeltaX, climateNeighbors, ensureClimateGeography, geographyKey } from "./cellClimateGeography";
+import { frozenClimateEpoch } from "./climateInputScope";
 import { computeWorldTerrainAspect, HILLSIDE_LENGTH_M } from "./terrainAspect";
 
 export const WIND_FLAG_LEE = 1;
@@ -82,6 +83,8 @@ export interface CellWindClimate {
 }
 
 const cache = new WeakMap<WorldContext, CellWindClimate>();
+/** Climate already validated in the frozen scope `epoch` (climateInputScope.ts); skips re-hashing. */
+const validated = new WeakMap<WorldContext, { climate: CellWindClimate; epoch: number }>();
 
 function hash(values: ArrayLike<number> | undefined): number {
   let result = 2166136261;
@@ -171,9 +174,15 @@ function latitudeOf(world: WorldContext, cell: number): number {
 
 export function ensureCellWindClimate(world: WorldContext): CellWindClimate {
   const exponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
-  const key = cacheKey(world, exponent);
   const previous = cache.get(world);
-  if (previous?.key === key) return previous;
+  const epoch = frozenClimateEpoch();
+  const stamp = validated.get(world);
+  if (previous && epoch !== null && stamp?.epoch === epoch && stamp.climate === previous) return previous;
+  const key = cacheKey(world, exponent);
+  if (previous?.key === key) {
+    if (epoch !== null) validated.set(world, { climate: previous, epoch });
+    return previous;
+  }
 
   const { grid } = world;
   const n = grid.cells.i.length;
@@ -287,6 +296,7 @@ export function ensureCellWindClimate(world: WorldContext): CellWindClimate {
     ...diurnal
   };
   cache.set(world, result);
+  if (epoch !== null) validated.set(world, { climate: result, epoch });
   return result;
 
   function buildMonsoon(): void {

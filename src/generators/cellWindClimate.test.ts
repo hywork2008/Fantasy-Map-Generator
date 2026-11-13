@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { WorldContext } from "../context/worldContext";
 import { windVectorToTowardDeg } from "../utils/windClimate";
 import { ensureCellWindClimate, getCellWind, getCellWindRose } from "./cellWindClimate";
+import { withFrozenClimateInputs } from "./climateInputScope";
 
 const W = 20;
 const H = 5;
@@ -73,6 +74,17 @@ describe("cell wind climate", () => {
     expect(second).not.toBe(first);
     world.grid.cells.h[0] = 60;
     expect(ensureCellWindClimate(world)).not.toBe(second);
+  });
+  it("validates once per frozen scope and revalidates after it", () => {
+    const world = fixture(WEST_WIND);
+    const first = withFrozenClimateInputs(() => {
+      const climate = ensureCellWindClimate(world);
+      // Inside a simulation step the inputs cannot change, so the cache is not re-hashed.
+      world.options.winds = EAST_WIND as typeof world.options.winds;
+      expect(ensureCellWindClimate(world)).toBe(climate);
+      return climate;
+    });
+    expect(withFrozenClimateInputs(() => ensureCellWindClimate(world))).not.toBe(first);
   });
   it("never writes generation outputs", () => {
     const world = fixture(WEST_WIND);
