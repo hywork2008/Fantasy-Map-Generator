@@ -297,6 +297,8 @@ export function placeFacilitiesOnLots(
         // The facility takes its own outline, not the lots under it: the houses of those lots keep what the building
         // leaves of them, so the row runs on wall to wall (pre-acceptance U3). Its outline keeps off land taken.
         const site: VectorPolygon = { outer: hull, holes: [] };
+        // The samples can miss a corner of the outline across the block's edge, which the whole lots used to hide.
+        if (regionBoolean([site], [{ outer: ring, holes: [] }], "difference").some(r => regionArea(r) > 0.01)) continue;
         if (
           occupied
             .search(boxOf(site.outer))

@@ -72,7 +72,10 @@ export function regionBoolean(
       !retry ||
       !(error instanceof Error) ||
       (!/^Unable to (complete output ring|find segment)/.test(error.message) &&
-        !(error instanceof RangeError && error.stack?.includes("RingOut")) &&
+        // A runaway recursion of the kernel (a ring walk, or a segment's state chain on a near-coincident edge).
+        // The stack it leaves is cut at `Error.stackTraceLimit` frames (10 by default), so the frames that would
+        // name the kernel's routine are usually gone: every stack overflow of the kernel is retried.
+        !(error instanceof RangeError) &&
         // The same lost edge can surface as a missing ring of a segment in the result sweep.
         !(error instanceof TypeError && error.stack?.includes("polygon-clipping")))
     )

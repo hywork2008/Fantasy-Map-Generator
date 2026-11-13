@@ -44,11 +44,11 @@ export function meshlessCityRadius(
   return MESHLESS_SITE_RIM_METERS + Math.sqrt(perStorey / MESHLESS_DWELLINGS_PER_M2_STOREY / Math.PI + reserved);
 }
 
-/** Share of the interior's CE lots a walled town should build at the chosen occupancy (gate-ribbon plan §3.6). A
- * fuller interior leaves fewer vacant lots scattered through the town. The plan's aim is 0.9, with what the estimate
- * misses going to the roadside beyond the gates (W2); until that roadside exists, the old town, the classic plan and
- * other periods take up to a tenth more land than the default town measured below, so the aim stays at 0.8. */
-export const MESHLESS_TARGET_FILL = 0.8;
+/** Share of the interior's CE lots a walled town should build at the chosen occupancy (gate-ribbon plan §3.6). A lot
+ * left empty inside the wall is a failed town (pre-acceptance U3), so the interior is sized to be built out, with
+ * what the estimate misses going to the roadside beyond the gates. Raised from 0.8 on 2026-11-13, once lots trimmed
+ * of the slivers they share no longer stood empty for a centimetre of rounding (one lot in seven). */
+export const MESHLESS_TARGET_FILL = 1.0;
 
 /** Share of the interior's lots a town of default settings actually built when sized by `meshlessCityRadius` alone,
  * by required dwellings (measured 2026-11-10, generation v17, round walls, two seeds, lot occupancy 1, every lot

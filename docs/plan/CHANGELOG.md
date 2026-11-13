@@ -25,6 +25,9 @@
 - docs/analytics/ce-meshless-cut-rect-u3-20261113.json - 施設の脇の住宅を長方形にした後の施設ありの内訳
 - docs/analytics/ce-meshless-lot-rounding-u3-20261113.md - 施設の脇の住宅が潰れる不具合の応急処置を追記
 - docs/plan/ce-meshless-pre-acceptance-improvements.md - §2.9（施設の脇の住宅、合意した今後の順序）を記載
+- docs/analytics/ce-meshless-fill1-u3-20261113.json - 狙いの埋まり1.0の市壁内の土地の内訳
+- docs/analytics/ce-meshless-fill1-u3-20261113.md - 狙いの埋まり1.0の記録。変わった既存テスト7件の判定、施設の外形の街区はみ出しと多角形演算の再帰の溢れの修正
+- docs/plan/ce-meshless-pre-acceptance-improvements.md - §2.10（都市を縮める）と次の手順を記載
 
 2026-11-12
 
