@@ -510,6 +510,7 @@ export function applyStoredOptions(): void {
     "sizeVariety",
     "growthRate",
     "initialPopulationSaturation",
+    "siteBonusFullHabitability",
     "initialSettlementPattern",
     "initialPolityRealmSize",
     "frontierStartMode",

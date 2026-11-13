@@ -80,6 +80,7 @@ import { Routes } from "./generators/routes-generator";
 import { advanceSeasonalClimate } from "./generators/seasonalClimate";
 import { seedDwarfHoldOikoumene, withDwarfMountainRegion } from "./generators/seedDwarfHoldOikoumene";
 import { applyInitialSettlementPattern } from "./generators/settlementPattern";
+import { scoreCellSite } from "./generators/siteSuitability";
 import { States } from "./generators/states-generator";
 import { generateSubsistenceCapacity, refreshEstimatedSubsistenceCapacity } from "./generators/subsistenceCapacity";
 import { computeWorldTerrainAspect } from "./generators/terrainAspect";
@@ -1925,28 +1926,33 @@ export function rankCells() {
     lava: -30
   };
 
+  const fullBonusHabitability = useOptionsState.getState().siteBonusFullHabitability;
+  const siteTerms: number[] = [];
+
   for (const i of packCells.i) {
     if (packCells.h[i] < 20) continue;
-    let score = biomesData.habitability[packCells.biomeCode[i]];
-    if (!score) continue;
+    const habitability = biomesData.habitability[packCells.biomeCode[i]];
+    if (!habitability) continue;
 
+    siteTerms.length = 0;
     // maxFlux === meanFlux (a one-cell islet) would normalize to 0/0 = NaN and zero the cell.
     if (meanFlux && maxFlux > meanFlux)
-      score += normalize(packCells.fl[i] + packCells.conf[i], meanFlux, maxFlux) * 250;
-    score -= (packCells.h[i] - 50) / 5;
+      siteTerms.push(normalize(packCells.fl[i] + packCells.conf[i], meanFlux, maxFlux) * 250);
+    siteTerms.push(-(packCells.h[i] - 50) / 5);
 
     if (packCells.t[i] === 1) {
-      if (packCells.r[i]) score += scoreMap.estuary;
+      if (packCells.r[i]) siteTerms.push(scoreMap.estuary);
       const feature = features[packCells.f[packCells.haven[i]]];
       if (feature.type === "lake") {
-        score += scoreMap[feature.group] || 0;
+        siteTerms.push(scoreMap[feature.group] || 0);
       } else {
-        score += scoreMap.ocean_coast;
-        if (packCells.harbor[i] === 1) score += scoreMap.save_harbor;
+        siteTerms.push(scoreMap.ocean_coast);
+        if (packCells.harbor[i] === 1) siteTerms.push(scoreMap.save_harbor);
       }
     }
 
-    packCells.s[i] = score / 5;
+    // Site terms are worth what the land around them can feed (docs/plan/low-habitability-site-bonus.md).
+    packCells.s[i] = scoreCellSite(habitability, siteTerms, fullBonusHabitability) / 5;
 
     // Monster domains (danger ≥ SETTLEMENT_DANGER_ZERO / expand ban) zero capacity;
     // softer rings scale linearly. See dangerSuitabilityMultiplier.

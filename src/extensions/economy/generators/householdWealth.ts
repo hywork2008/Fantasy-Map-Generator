@@ -15,12 +15,21 @@
  * would misattribute rural cash split across states.
  */
 
-import { getMarketSettings } from "../../../simulation/marketSettings";
+import { pow } from "../../../simulation/deterministicMath";
+import { getMarketSettings, isGrainRepaymentMonth } from "../../../simulation/marketSettings";
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
-import { getMarketCellColumn, getMarkets, getWorldContext, isEconomyContextReady } from "../economyContext";
+import {
+  getMarketCellColumn,
+  getMarkets,
+  getSimulationMonth,
+  getWorldContext,
+  isEconomyContextReady
+} from "../economyContext";
 import { creditHouseholdWealth, debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import { getEconomyStartProfile } from "./economyStartMode";
+import { getHarvestCashReserve } from "./harvestCashReserve";
+import { getMarketRuralPopulation } from "./marketPopulation";
 import type { Market } from "./marketTypes";
 import {
   getOpenAccountCommitments,
@@ -28,6 +37,7 @@ import {
   MARKET_TRADE_INVEST_SHARE,
   MerchantTradeCapital
 } from "./merchantTradeCapital";
+import { getSubsistenceWage } from "./subsistenceWage";
 
 /**
  * One-time bootstrap for a Market's rural household wallet, from the same population-point scale
@@ -385,6 +395,16 @@ export const URBAN_HOUSEHOLD_BUFFER_MONTHS = 12;
 export const URBAN_HOUSEHOLD_SPEND_SHARE = 0.2;
 
 /**
+ * A town's household cash above the buffer it keeps for food and rent: what it can spend on trades,
+ * services and the market's drinks and foods (docs/plan/market-goods-settlement.md §2.1).
+ */
+export function getUrbanHouseholdSpendable(burg: Pick<Burg, "i" | "population">): number {
+  const profile = getEconomyStartProfile(getWorldContext().options ?? {});
+  const buffer = (burg.population ?? 0) * profile.householdWealthPerPopulation * (URBAN_HOUSEHOLD_BUFFER_MONTHS / 12);
+  return Math.max(0, getHouseholdWealth(burg.i) - buffer);
+}
+
+/**
  * Town households spend cash above their buffer on local trades and services (bakers' bread aside:
  * clothes, repairs, carting, ale, rent). That spending is the town's business income, credited to
  * `burg.treasury`, which pays local works and remits to the State. Without it, wages paid into a
@@ -393,12 +413,10 @@ export const URBAN_HOUSEHOLD_SPEND_SHARE = 0.2;
 export function spendUrbanHouseholdSurplus(): number {
   if (!isEconomyContextReady()) return 0;
   const { pack } = getWorldContext();
-  const profile = getEconomyStartProfile(getWorldContext().options ?? {});
   let spent = 0;
   for (const burg of pack.burgs ?? []) {
     if (!burg?.i || burg.removed) continue;
-    const buffer = (burg.population ?? 0) * profile.householdWealthPerPopulation * (URBAN_HOUSEHOLD_BUFFER_MONTHS / 12);
-    const excess = getHouseholdWealth(burg.i) - buffer;
+    const excess = getUrbanHouseholdSpendable(burg);
     if (!(excess > 0)) continue;
     const amount = debitHouseholdWealth(burg.i, rn(excess * URBAN_HOUSEHOLD_SPEND_SHARE, 2));
     if (!(amount > 0)) continue;
@@ -424,6 +442,69 @@ export const RURAL_TOWN_SPEND_DUES_SHARE = 0.25;
  * the dues share goes to `burg.treasury`. Split by town population. Crediting all of it to the
  * treasury left it there until the annual surplus sweep, while town households ran out of food money.
  */
+/** Most of its purse farm families spend in town in one month, whatever the rule. */
+const RURAL_TOWN_SPEND_MAX_SHARE = 0.5;
+
+/** Farm families' monthly town need in coins: the per-head need at today's local wage level. */
+function getRuralTownNeed(market: Market, purse: number): number {
+  const ledger = market.foodLedger!;
+  const people = getMarketRuralPopulation(getWorldContext(), market.i);
+  const wage = getSubsistenceWage(market);
+  if (!(people > 0) || !(wage > 0)) return 0;
+  if (ledger.ruralTownNeedPerHead === undefined)
+    ledger.ruralTownNeedPerHead = (purse * RURAL_HOUSEHOLD_TOWN_SPEND_SHARE) / (people * wage);
+  return ledger.ruralTownNeedPerHead * getMarketSettings().ruralTownServices * people * wage;
+}
+
+/**
+ * What a market's farm families spend this month in its towns, goods from its stock included
+ * (docs/plan/rural-town-spending.md §4.2): their need × (purse ÷ reserve)^ε, ε by which side of the
+ * reserve the purse is on, at most half the purse. `purseShare` keeps the old fixed share.
+ */
+export function getRuralTownSpend(market: Market): number {
+  if (!market.foodLedger) return 0;
+  const purse = Math.max(0, ensureRuralHouseholdWealthSeeded(market));
+  const settings = getMarketSettings();
+  if (settings.ruralTownSpending === "purseShare") return purse * RURAL_HOUSEHOLD_TOWN_SPEND_SHARE;
+  const need = getRuralTownNeed(market, purse);
+  if (!(need > 0) || !(purse > 0)) return 0;
+  const ratio = purse / (need * settings.ruralPurseMonths);
+  const elasticity = ratio >= 1 ? settings.ruralSpendElasticityAbove : settings.ruralSpendElasticityBelow;
+  return Math.min(purse * RURAL_TOWN_SPEND_MAX_SHARE, need * pow(ratio, elasticity));
+}
+
+/**
+ * Opens this month's town budget for the goods farm families buy from the market's stock (the
+ * household goods of foodProcessingLedger.ts, footwear), once a month; returns what is left of it.
+ */
+export function openRuralTownBudget(market: Market): number {
+  const ledger = market.foodLedger;
+  if (ledger?.ruralTownBudget !== undefined)
+    return Math.max(0, ledger.ruralTownBudget - (ledger.ruralTownGoodsPaid ?? 0));
+  const budget = getRuralTownSpend(market);
+  if (ledger && getMarketSettings().ruralTownSpending === "need") {
+    ledger.ruralTownBudget = budget;
+    ledger.ruralTownGoodsPaid = 0;
+  }
+  return budget;
+}
+
+/** Records what the household goods took of this month's town budget. */
+export function recordRuralTownGoodsPaid(market: Market, paid: number): void {
+  if (market.foodLedger?.ruralTownBudget === undefined || !(paid > 0)) return;
+  market.foodLedger.ruralTownGoodsPaid = (market.foodLedger.ruralTownGoodsPaid ?? 0) + paid;
+}
+
+/** The rest of this month's town budget after the household goods; clears the budget. */
+function takeRuralTownBudgetLeft(market: Market): number {
+  const ledger = market.foodLedger!;
+  const budget = ledger.ruralTownBudget ?? getRuralTownSpend(market);
+  const left = Math.max(0, budget - (ledger.ruralTownGoodsPaid ?? 0));
+  delete ledger.ruralTownBudget;
+  delete ledger.ruralTownGoodsPaid;
+  return left;
+}
+
 export function spendRuralHouseholdsInTowns(): number {
   if (!isEconomyContextReady()) return 0;
   const { pack } = getWorldContext();
@@ -438,9 +519,8 @@ export function spendRuralHouseholdsInTowns(): number {
   for (const market of getMarkets()) {
     const towns = townsByMarket.get(market.i);
     if (!towns?.length) continue;
-    const purse = getRuralHouseholdWealth(market);
-    if (!(purse > 0)) continue;
-    const amount = debitRuralHouseholdWealth(market, rn(purse * RURAL_HOUSEHOLD_TOWN_SPEND_SHARE, 2));
+    if (!market.foodLedger) continue;
+    const amount = debitRuralHouseholdWealth(market, rn(takeRuralTownBudgetLeft(market), 2));
     if (!(amount > 0)) continue;
     const population = towns.reduce((sum, burg) => sum + (burg.population ?? 0), 0);
     for (const burg of towns) {
@@ -514,7 +594,9 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
     if ((burg.population ?? 0) > 0) memberTowns.set(burg.market, [...(memberTowns.get(burg.market) ?? []), burg]);
   }
   const ruralPopulation = getRuralPopulationByMarket(getMarketCellColumn());
-  const { surplusRuralWeight, surplusReserveFactor, merchantProfitShare, merchantProfitUse } = getMarketSettings();
+  const { surplusRuralWeight, surplusReserveFactor, harvestReserveMonths, merchantProfitShare, merchantProfitUse } =
+    getMarketSettings();
+  const repayGrainNow = isGrainRepaymentMonth(getSimulationMonth());
   let paid = 0;
   // Open-account cargo on its way is paid for on arrival; that cash is not surplus (§12).
   const openAccount = isLongDistanceTradeEnabled() ? getOpenAccountCommitments() : null;
@@ -525,11 +607,15 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
     const saltOwed = Object.values(treasury.saltPayables ?? {}).reduce((sum, owed) => sum + Math.max(0, owed), 0);
     const reserve =
       (memberPopulation.get(market.i) ?? 0) * profile.burgTreasuryPerPopulation * surplusReserveFactor +
+      getHarvestCashReserve(treasury, getSimulationMonth(), harvestReserveMonths) +
       (openAccount?.get(market.i) ?? 0) +
       saltOwed;
     // Farmers are paid what they are owed from any cash, before the market keeps a reserve or
-    // anyone takes a profit.
-    const repay = rn(Math.min(Math.max(0, treasury.balance), Math.max(0, treasury.ruralGrainPayable)), 2);
+    // anyone takes a profit; with quarter-day repayment only in those months
+    // (docs/plan/grain-quarter-day-payment.md).
+    const repay = repayGrainNow
+      ? rn(Math.min(Math.max(0, treasury.balance), Math.max(0, treasury.ruralGrainPayable)), 2)
+      : 0;
     if (repay > 0) {
       treasury.ruralGrainPayable = rn(treasury.ruralGrainPayable - repay, 2);
       treasury.balance = rn(treasury.balance - repay, 2);

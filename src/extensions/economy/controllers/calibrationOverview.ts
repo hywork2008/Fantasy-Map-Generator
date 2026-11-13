@@ -1,3 +1,7 @@
+import { getTechnologyStage } from "../../../generators/technologyProgress";
+import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
+import { getCraftEmploymentScale } from "../../../simulation/craftSettings";
+import { getBurgDemographics } from "../../hostCore";
 import { openDialog } from "../../hostUi";
 import { rn } from "../../hostUtils";
 import {
@@ -10,7 +14,7 @@ import {
   getSmelterOperations,
   getWorldContext
 } from "../economyContext";
-import { getAdministrationEmploymentPeople } from "../generators/administrationEmployment";
+import { getAdministrationRequiredWorkers } from "../generators/administrationEmployment";
 import { getTradeWorkersByBurg } from "../generators/basicEmployment";
 import { getHousingRecipeForBurg } from "../generators/constructionEmployment";
 import { getCalibratedMonthlyLots, goodsForDomain, laborPointsForLots } from "../generators/craftDemandCalibration";
@@ -22,16 +26,21 @@ import {
   pointsToPeople
 } from "../generators/craftScale";
 import { collectGuildPractitioners, GUILD_SATURATION_WORKERS } from "../generators/guildKnowledge";
+import { CRAFT_KNOWLEDGE_DOMAINS, type CraftKnowledgeDomain } from "../generators/guildKnowledgeTypes";
 import { getMineEmploymentPeople } from "../generators/mineOperations";
 import {
+  type ExpectedWorkerArgs,
+  expectedDomainWorkerPeople,
   expectedWorkerPeople,
-  expectedWorkerPoints,
   OCCUPATIONAL_CALIBRATION,
   type OccupationalCalibrationRow
 } from "../generators/occupationalCalibration";
 import { getSmelterCrewPeople } from "../generators/smelterOperations";
 import { type CalibrationOverviewRow, setCalibrationOverviewState } from "../store/calibrationOverviewState";
 import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+
+/** A guild domain (the sum of its crafts) or one non-guild pool. */
+type OverviewEntry = { domain: CraftKnowledgeDomain } | { row: OccupationalCalibrationRow };
 
 export function open(): void {
   openDialog("calibrationOverview");
@@ -55,13 +64,19 @@ export function refreshCalibrationOverview(): void {
   // actualPeople = pointsToPeople(actualWorkerPoints, rate) derivation below roundtrips correctly —
   // not a raw pointsToPeople() of the population-point reconcile figure, which is how mine's actual
   // headcount used to inflate into the tens of thousands.
+  const capitalAdults = (burg: (typeof burgs)[number]) => {
+    if (!burg) return 0;
+    const demographics = getBurgDemographics(burg);
+    return demographics.maleAdults + demographics.femaleAdults;
+  };
   const adminByBurg = new Map<number, number>();
   for (const record of getAdministrationEmployment()) {
     const state = states[record.stateId];
     if (!state?.i || state.removed) continue;
     adminByBurg.set(
       record.burgId,
-      (adminByBurg.get(record.burgId) ?? 0) + peopleToPoints(getAdministrationEmploymentPeople(state, rate), rate)
+      (adminByBurg.get(record.burgId) ?? 0) +
+        getAdministrationRequiredWorkers(state, capitalAdults(burgs[record.burgId]), rate)
     );
   }
   const mineByBurg = new Map<number, number>();
@@ -103,7 +118,11 @@ export function refreshCalibrationOverview(): void {
     const recipe = getHousingRecipeForBurg(burg, false);
 
     const burgId = burg.i;
-    for (const occ of OCCUPATIONAL_CALIBRATION) {
+    const entries: OverviewEntry[] = [
+      ...CRAFT_KNOWLEDGE_DOMAINS.map(domain => ({ domain })),
+      ...OCCUPATIONAL_CALIBRATION.filter(row => !row.guildDomain).map(row => ({ row }))
+    ];
+    for (const occ of entries) {
       rows.push(
         buildRow({
           burg: { i: burgId, name: burg.name, state: burg.state, port: burg.port, capital: burg.capital },
@@ -135,7 +154,7 @@ export function refreshCalibrationOverview(): void {
 function buildRow(args: {
   burg: { i: number; name?: string; state?: number; port?: number; capital?: number };
   stateName: string;
-  occ: OccupationalCalibrationRow;
+  occ: OverviewEntry;
   labor: number;
   display: number;
   rate: number;
@@ -152,45 +171,46 @@ function buildRow(args: {
   tradeByBurg: Map<number, number>;
 }): CalibrationOverviewRow {
   const burgId = args.burg.i;
-  const expectedPeople = expectedWorkerPeople({
-    row: args.occ,
+  const stateId = args.burg.state ?? 0;
+  const expectArgs: ExpectedWorkerArgs = {
     laborPeople: args.labor,
     port: args.port,
     capital: args.capital,
     hasQuarry: false,
-    housingRecipe: args.recipe
-  });
-  const expectedPoints = expectedWorkerPoints({
-    row: args.occ,
-    laborPeople: args.labor,
-    populationRate: args.rate,
-    port: args.port,
-    capital: args.capital,
-    hasQuarry: false,
-    housingRecipe: args.recipe
-  });
+    housingRecipe: args.recipe,
+    period: getWorldContext().options.historicalPeriod,
+    technologyAdopted: id => isTechnologyStageAtLeast(getTechnologyStage(id, stateId), "adopted"),
+    employmentScale: getCraftEmploymentScale()
+  };
+  const guildDomain = "domain" in args.occ ? args.occ.domain : null;
+  const pool = "domain" in args.occ ? args.occ.domain : args.occ.row.pool;
+  const expectedPeople =
+    "domain" in args.occ
+      ? expectedDomainWorkerPeople({ ...expectArgs, domain: args.occ.domain })
+      : expectedWorkerPeople({ ...expectArgs, row: args.occ.row });
+  const expectedPoints = peopleToPoints(expectedPeople, args.rate);
 
   let actualWorkerPoints = 0;
-  if (args.occ.guildDomain) {
-    const key = `${burgId}:${args.occ.guildDomain}`;
+  if (guildDomain) {
+    const key = `${burgId}:${guildDomain}`;
     actualWorkerPoints = args.practitioners.get(key)?.workers ?? args.craftByKey.get(key) ?? 0;
-  } else if (args.occ.pool === "constructionCarpenter") {
+  } else if (pool === "constructionCarpenter") {
     actualWorkerPoints = args.constructionByBurg.get(burgId)?.carpenterWorkers ?? 0;
-  } else if (args.occ.pool === "constructionMason") {
+  } else if (pool === "constructionMason") {
     actualWorkerPoints = args.constructionByBurg.get(burgId)?.masonWorkers ?? 0;
-  } else if (args.occ.pool === "administration") {
+  } else if (pool === "administration") {
     actualWorkerPoints = args.adminByBurg.get(burgId) ?? 0;
-  } else if (args.occ.pool === "mining") {
+  } else if (pool === "mining") {
     actualWorkerPoints = args.mineByBurg.get(burgId) ?? 0;
-  } else if (args.occ.pool === "smelting") {
+  } else if (pool === "smelting") {
     actualWorkerPoints = args.smeltByBurg.get(burgId) ?? 0;
-  } else if (args.occ.pool === "trade") {
+  } else if (pool === "trade") {
     actualWorkerPoints = args.tradeByBurg.get(burgId) ?? 0;
   }
 
   const actualPeople = pointsToPeople(actualWorkerPoints, args.rate);
-  const goods = args.occ.guildDomain
-    ? goodsForDomain(args.occ.guildDomain).map(good => {
+  const goods = guildDomain
+    ? goodsForDomain(guildDomain).map(good => {
         const lots = getCalibratedMonthlyLots({
           goodName: good.goodName,
           laborPeopleBurg: args.labor,
@@ -208,24 +228,24 @@ function buildRow(args: {
     : [];
   const demandLots = goods.reduce((sum, good) => sum + good.provenanceLots, 0);
   const laborFromAuthoredLots = goods.reduce((sum, good) => sum + good.authoredLaborPoints, 0);
-  const stock = args.occ.guildDomain ? (stockByKeyOrNull(args.stockByKey, burgId, args.occ.guildDomain) ?? null) : null;
+  const stock = guildDomain ? (stockByKeyOrNull(args.stockByKey, burgId, guildDomain) ?? null) : null;
   const guildSaturation = getEconomyCalibrationState().applyCalibration
     ? guildSaturationPoints(args.rate)
     : GUILD_SATURATION_WORKERS;
-  const guildCoverage = args.occ.guildDomain != null ? Math.min(1, actualWorkerPoints / guildSaturation) : null;
+  const guildCoverage = guildDomain != null ? Math.min(1, actualWorkerPoints / guildSaturation) : null;
   const domain =
-    args.occ.guildDomain ??
-    (args.occ.pool === "constructionCarpenter" || args.occ.pool === "constructionMason"
+    guildDomain ??
+    ((pool === "constructionCarpenter" || pool === "constructionMason"
       ? "construction"
-      : args.occ.pool);
+      : pool) as CalibrationOverviewRow["domain"]);
 
   return {
-    id: `${burgId}:${args.occ.pool}`,
+    id: `${burgId}:${pool}`,
     burgId,
     burgName: args.burg.name || `Burg ${burgId}`,
     stateId: args.burg.state ?? 0,
     stateName: args.stateName,
-    pool: args.occ.pool,
+    pool,
     domain,
     displayPeople: rn(args.display, 1),
     laborPeople: rn(args.labor, 1),

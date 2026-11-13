@@ -1,13 +1,26 @@
+import type { ReturnedCaskDrink } from "./foodLots";
+import type { ForestGlasshouseLedger } from "./forestGlasshouses";
+import type { HearthAshLedger } from "./hearthAsh";
+import type { ContainerCirculation } from "./returnableContainers";
 import type { RuralTextileProduction } from "./ruralTextileProductionTypes";
 import type { StapleCropInventory } from "./stapleCropInventoryTypes";
 
 export interface Market {
+  /**
+   * Running monthly use of the exported by-products and the staple return goods by good id, with
+   * last month's snapshot and its net staple shipment out (byproductExport.ts).
+   */
+  byproductUse?: Record<number, { intake: number; stock: number; shipped: number; use?: number; inflow?: number }>;
   /** Actual Salt recipe inputs since the last salt settlement; persisted, never a second stock. */
   saltProcessingInputBags?: number;
   /** Latest cash-funded Salt wholesale unit cost including freight. */
   saltLandedUnitCost?: number;
   /** Prior interval's actual processing inputs, used only as a replenishment forecast. */
   saltProcessingForecastBags?: number;
+  /** Town hearth ash bought for the market and its monthly Ash use (hearthAsh.ts). */
+  hearthAshLedger?: HearthAshLedger;
+  /** The market's forest glasshouses and its monthly Glass draw (forestGlasshouses.ts). */
+  forestGlasshouses?: ForestGlasshouseLedger;
   i: number;
   centerBurgId: number;
   color: string;
@@ -250,6 +263,14 @@ export type FoodProcessingGoodLedger = {
   deliveredExport: number;
   /** Household demand that could not be met this cycle. */
   unmetDemand: number;
+  /** Harvest the market's own cells took in and handled, all cycles (docs/plan/grape-season-and-wine-country.md). */
+  cellHarvest?: number;
+  /** The same in the current production cycle. */
+  cellHarvestThisCycle?: number;
+  /** Wine only: wine made in the market in the current production cycle. */
+  madeThisCycle?: number;
+  /** Wine only: wine made in each of the last 12 production cycles, oldest first. */
+  madeMonths?: number[];
   /** Beer only: ordinary household demand before unsafe-water substitution is applied. */
   baselineHouseholdDemand?: number;
   /** Beer only: demand added because drinking water is unsafe or insecure. */
@@ -260,16 +281,29 @@ export type FoodProcessingGoodLedger = {
 
 export type FoodProcessingLedger = Partial<
   Record<
-    "Milk" | "Cheese" | "Grapes" | "Raisins" | "Wine" | "Beer" | "Apples" | "Pears" | "Cider" | "Perry",
+    | "Milk"
+    | "Cheese"
+    | "Grapes"
+    | "Raisins"
+    | "Wine"
+    | "Beer"
+    | "Apples"
+    | "Pears"
+    | "Cider"
+    | "Perry"
+    | "Honey"
+    | "Mead"
+    | "Soap"
+    | "Castile Soap",
     FoodProcessingGoodLedger
   >
 >;
 
 export type ReturnableContainerLedger = {
-  /** Filled orchard drink lots and their repairs/returns; absent in older saves. */
+  /** Filled cider, perry and mead lots and their repairs/returns; absent in older saves. */
   orchardCasks?: Partial<
     Record<
-      "Cider" | "Perry",
+      ReturnedCaskDrink,
       {
         inService: number;
         returns: number;
@@ -289,6 +323,8 @@ export type ReturnableContainerLedger = {
   cumulativeBeerCaskReturns: number;
   /** New casks/repair material consumed through the Beer recipe. */
   cumulativeBeerCaskReplacement: number;
+  /** Empties, filled lots and their trips by container; absent until the market first fills one. */
+  circulation?: ContainerCirculation;
 };
 
 export interface MarketTreasury {
@@ -296,10 +332,19 @@ export interface MarketTreasury {
   balance: number;
   /** Aggregate unpaid farmgate debt owed to rural Grain producers when balance was insufficient. */
   ruralGrainPayable: number;
+  /** Farmgate cost of the harvest bought in each calendar month, last seen (index 0 = January; harvestCashReserve.ts). */
+  farmgateCostByMonth?: number[];
   /** Hay bought at the cut on credit, repaid to the farms as the Fodder sells (Simulation settings `hayPayment`). */
   ruralHayPayable?: number;
   /** Lots of the Fodder stock that are the farms' hay, sold for them on credit: its proceeds go to them. */
   ruralHayConsignedLots?: number;
+  /**
+   * Town goods held on consignment, by Good then Burg, as [units, worth at the consignment price]
+   * (Simulation settings `craftSalePayment`, docs/plan/market-goods-settlement.md §2.2).
+   */
+  craftConsigned?: Record<number, Record<number, [number, number]>>;
+  /** Consigned goods that have sold and are not yet paid for, by Burg then Good, as [units, worth]. */
+  craftPayables?: Record<number, Record<number, [number, number]>>;
   /**
    * Merchant company working capital for inter-market trade (export warehouse booking).
    * Soft ledger: not full B2B settlement between markets.
@@ -413,8 +458,21 @@ export interface FoodLedger {
    * from `offeredIntakeByMonth` (docs/plan/grain-storage-life.md §3.5). Missing = three months.
    */
   exportReserve?: number;
+  /**
+   * Part of `exportable` the market's own brewers will draw over the import horizon: neither the
+   * eaters' stock nor grain to sell to another market (docs/plan/urban-craft-staffing.md §10.9).
+   */
+  brewingReserve?: number;
   /** Grain farmers offered this market in each calendar month (index 0 = January) over the last year. */
   offeredIntakeByMonth?: number[];
+  /**
+   * Grain that left this market's granary in each calendar month over the last year, other than to
+   * its own eaters and brewers: sent to other markets, or spoiled inside the granary. The market
+   * buys it back from its farmers (docs/plan/urban-craft-staffing.md §10.12).
+   */
+  outflowByMonth?: number[];
+  /** Grain sent to other markets since the last farmgate purchase; moved into `outflowByMonth` there. */
+  exportedSincePurchase?: number;
   /** Staple food over the storage cap, heaped outside the granary: milled or cheaply exported, else spoils. */
   storageOverflow: number;
   /** Rural surplus the market did not buy this period because it could neither hold nor sell it. */
@@ -438,6 +496,15 @@ export interface FoodLedger {
    * Market, not literally 0.
    */
   ruralHouseholdWealth?: number;
+  /**
+   * Farm families' monthly town need per rural person, in subsistence wages, fixed at the market's
+   * first month from the `purseShare` amount (docs/plan/rural-town-spending.md §4.5).
+   */
+  ruralTownNeedPerHead?: number;
+  /** This month's town budget, set when the household goods are settled and cleared by the town spending. */
+  ruralTownBudget?: number;
+  /** What of `ruralTownBudget` the household goods took. */
+  ruralTownGoodsPaid?: number;
   /**
    * Fodder lots sold to the catchment's herds over roughly the last year (×11/12 each month plus the
    * month's sales). Caps how much spare grass the market buys (docs/plan/fodder-purchase-demand-cap.md).

@@ -1,0 +1,5818 @@
+{
+ "obs-2101": {
+  "burgs": 400,
+  "markets": 16,
+  "timeline": [
+   {
+    "month": 0,
+    "year": 1300,
+    "urbanPeople": 667492,
+    "chapters": 179,
+    "emptyHalls": 160,
+    "informalWithPeople": 174,
+    "craftPeoplePer1000": 30.3,
+    "guildPeoplePer1000": 5,
+    "corridors": 18,
+    "modeShare": {
+     "land": 1,
+     "river": 0,
+     "sea": 0
+    },
+    "burgsWithPartners": 25,
+    "ceGenericCraftOnly": 217
+   },
+   {
+    "month": 1,
+    "year": 1300,
+    "urbanPeople": 667167,
+    "chapters": 179,
+    "emptyHalls": 159,
+    "informalWithPeople": 188,
+    "craftPeoplePer1000": 52,
+    "guildPeoplePer1000": 6.3,
+    "corridors": 2828,
+    "modeShare": {
+     "land": 0.917,
+     "river": 0,
+     "sea": 0.083
+    },
+    "burgsWithPartners": 400,
+    "ceGenericCraftOnly": 216
+   },
+   {
+    "month": 6,
+    "year": 1300,
+    "urbanPeople": 664694,
+    "chapters": 179,
+    "emptyHalls": 158,
+    "informalWithPeople": 203,
+    "craftPeoplePer1000": 125.1,
+    "guildPeoplePer1000": 46.1,
+    "corridors": 3811,
+    "modeShare": {
+     "land": 0.874,
+     "river": 0,
+     "sea": 0.126
+    },
+    "burgsWithPartners": 400,
+    "ceGenericCraftOnly": 209
+   },
+   {
+    "month": 12,
+    "year": 1301,
+    "urbanPeople": 664679,
+    "chapters": 179,
+    "emptyHalls": 156,
+    "informalWithPeople": 224,
+    "craftPeoplePer1000": 154.2,
+    "guildPeoplePer1000": 49.7,
+    "corridors": 4080,
+    "modeShare": {
+     "land": 0.822,
+     "river": 0,
+     "sea": 0.178
+    },
+    "burgsWithPartners": 400,
+    "ceGenericCraftOnly": 208
+   },
+   {
+    "month": 24,
+    "year": 1302,
+    "urbanPeople": 668953,
+    "chapters": 189,
+    "emptyHalls": 159,
+    "informalWithPeople": 226,
+    "craftPeoplePer1000": 129.5,
+    "guildPeoplePer1000": 33,
+    "corridors": 4460,
+    "modeShare": {
+     "land": 0.766,
+     "river": 0,
+     "sea": 0.234
+    },
+    "burgsWithPartners": 401,
+    "ceGenericCraftOnly": 208
+   },
+   {
+    "month": 36,
+    "year": 1303,
+    "urbanPeople": 674112,
+    "chapters": 80,
+    "emptyHalls": 40,
+    "informalWithPeople": 195,
+    "craftPeoplePer1000": 120.6,
+    "guildPeoplePer1000": 29.4,
+    "corridors": 4671,
+    "modeShare": {
+     "land": 0.694,
+     "river": 0,
+     "sea": 0.306
+    },
+    "burgsWithPartners": 402,
+    "ceGenericCraftOnly": 228
+   },
+   {
+    "month": 48,
+    "year": 1304,
+    "urbanPeople": 680229,
+    "chapters": 111,
+    "emptyHalls": 70,
+    "informalWithPeople": 193,
+    "craftPeoplePer1000": 118.7,
+    "guildPeoplePer1000": 26.4,
+    "corridors": 4730,
+    "modeShare": {
+     "land": 0.628,
+     "river": 0,
+     "sea": 0.372
+    },
+    "burgsWithPartners": 402,
+    "ceGenericCraftOnly": 232
+   },
+   {
+    "month": 60,
+    "year": 1305,
+    "urbanPeople": 685968,
+    "chapters": 132,
+    "emptyHalls": 93,
+    "informalWithPeople": 176,
+    "craftPeoplePer1000": 116.9,
+    "guildPeoplePer1000": 25.3,
+    "corridors": 4756,
+    "modeShare": {
+     "land": 0.571,
+     "river": 0,
+     "sea": 0.429
+    },
+    "burgsWithPartners": 402,
+    "ceGenericCraftOnly": 234
+   }
+  ],
+  "chapterDomains": [
+   {
+    "month": 0,
+    "counts": {
+     "woodworking": 26,
+     "textiles": 12,
+     "leather": 15,
+     "glassware": 26,
+     "instruments": 26,
+     "victualling": 17,
+     "brewing": 17,
+     "baking": 14,
+     "masonry": 5,
+     "printing": 16,
+     "metallurgy": 5
+    },
+    "keptFromStart": 179,
+    "newSinceStart": 0
+   },
+   {
+    "month": 1,
+    "counts": {
+     "woodworking": 26,
+     "textiles": 12,
+     "leather": 15,
+     "glassware": 26,
+     "instruments": 26,
+     "victualling": 17,
+     "brewing": 17,
+     "baking": 14,
+     "masonry": 5,
+     "printing": 16,
+     "metallurgy": 5
+    },
+    "keptFromStart": 179,
+    "newSinceStart": 0
+   },
+   {
+    "month": 6,
+    "counts": {
+     "woodworking": 26,
+     "textiles": 12,
+     "leather": 15,
+     "glassware": 26,
+     "instruments": 26,
+     "victualling": 17,
+     "brewing": 17,
+     "baking": 14,
+     "masonry": 5,
+     "printing": 16,
+     "metallurgy": 5
+    },
+    "keptFromStart": 179,
+    "newSinceStart": 0
+   },
+   {
+    "month": 12,
+    "counts": {
+     "woodworking": 26,
+     "textiles": 12,
+     "leather": 16,
+     "glassware": 26,
+     "instruments": 26,
+     "victualling": 17,
+     "brewing": 17,
+     "baking": 13,
+     "masonry": 5,
+     "printing": 16,
+     "metallurgy": 5
+    },
+    "keptFromStart": 178,
+    "newSinceStart": 1
+   },
+   {
+    "month": 24,
+    "counts": {
+     "woodworking": 26,
+     "textiles": 12,
+     "leather": 16,
+     "glassware": 26,
+     "instruments": 26,
+     "victualling": 18,
+     "brewing": 17,
+     "baking": 14,
+     "masonry": 5,
+     "printing": 15,
+     "metallurgy": 14
+    },
+    "keptFromStart": 177,
+    "newSinceStart": 12
+   },
+   {
+    "month": 36,
+    "counts": {
+     "textiles": 12,
+     "leather": 6,
+     "woodworking": 10,
+     "glassware": 5,
+     "metallurgy": 20,
+     "victualling": 4,
+     "baking": 7,
+     "masonry": 1,
+     "printing": 6,
+     "instruments": 6,
+     "brewing": 3
+    },
+    "keptFromStart": 46,
+    "newSinceStart": 34
+   },
+   {
+    "month": 48,
+    "counts": {
+     "textiles": 12,
+     "leather": 9,
+     "woodworking": 12,
+     "glassware": 6,
+     "metallurgy": 29,
+     "victualling": 6,
+     "baking": 12,
+     "masonry": 1,
+     "printing": 10,
+     "instruments": 9,
+     "brewing": 5
+    },
+    "keptFromStart": 63,
+    "newSinceStart": 48
+   },
+   {
+    "month": 60,
+    "counts": {
+     "textiles": 12,
+     "leather": 11,
+     "woodworking": 18,
+     "glassware": 10,
+     "metallurgy": 29,
+     "masonry": 2,
+     "printing": 13,
+     "instruments": 10,
+     "baking": 15,
+     "brewing": 6,
+     "victualling": 6
+    },
+    "keptFromStart": 79,
+    "newSinceStart": 53
+   }
+  ],
+  "industryStart": {
+   "biome:Alpine tundra": {
+    "n": 1,
+    "craftPer1000": 16.5,
+    "topGoods": [
+     "Preserved food 100%",
+     "Wool Cloth 100%"
+    ],
+    "guildPeopleShare": {}
+   },
+   "biome:Boreal peatland & muskeg": {
+    "n": 205,
+    "craftPer1000": 24.5,
+    "topGoods": [
+     "Preserved food 95%",
+     "Cloth 18%",
+     "Wool Cloth 13%",
+     "Charcoal 0%",
+     "Artworks 0%",
+     "Barrels 0%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 95,
+     "metallurgy": 5
+    }
+   },
+   "biome:Central European great forest": {
+    "n": 11,
+    "craftPer1000": 16.1,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 82%",
+     "Wool Cloth 18%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Cold steppe & forest-steppe": {
+    "n": 7,
+    "craftPer1000": 13,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 29%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Flooded forest & riparian woodland": {
+    "n": 9,
+    "craftPer1000": 49.1,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 78%",
+     "Wool Cloth 44%",
+     "Tapestries 22%",
+     "Sails 11%",
+     "Boots 11%",
+     "Fine Wool Cloth 11%",
+     "Fine Wool Garments 11%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 77,
+     "leather": 21,
+     "metallurgy": 2
+    }
+   },
+   "biome:Heath & moorland": {
+    "n": 5,
+    "craftPer1000": 15.2,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 20%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Taiga": {
+    "n": 21,
+    "craftPer1000": 14,
+    "topGoods": [
+     "Preserved food 95%",
+     "Cloth 33%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Temperate coniferous forest": {
+    "n": 49,
+    "craftPer1000": 14.7,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 63%",
+     "Wool Cloth 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 56,
+     "metallurgy": 44
+    }
+   },
+   "biome:Temperate deciduous forest": {
+    "n": 7,
+    "craftPer1000": 40.2,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 86%",
+     "Sails 43%",
+     "Fine Wool Cloth 43%",
+     "Fine Wool Garments 43%",
+     "Wool Cloth 14%",
+     "Artworks 14%",
+     "Oil 14%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Temperate rainforest": {
+    "n": 64,
+    "craftPer1000": 34.7,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 78%",
+     "Wool Cloth 44%",
+     "Sails 9%",
+     "Fine Wool Cloth 6%",
+     "Artworks 6%",
+     "Tapestries 5%",
+     "Fine Wool Garments 5%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 89,
+     "leather": 10,
+     "metallurgy": 1,
+     "printing": 0
+    }
+   },
+   "biome:Wetland": {
+    "n": 21,
+    "craftPer1000": 52,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 14%",
+     "Wool Cloth 5%",
+     "Sails 5%",
+     "Artworks 5%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 74,
+     "metallurgy": 26
+    }
+   },
+   "class:capital": {
+    "n": 26,
+    "craftPer1000": 51.1,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 88%",
+     "Wool Cloth 58%",
+     "Sails 12%",
+     "Boots 8%",
+     "Fine Wool Cloth 8%",
+     "Fine Wool Garments 8%",
+     "Tapestries 8%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 91,
+     "leather": 7,
+     "metallurgy": 1
+    }
+   },
+   "class:inland": {
+    "n": 208,
+    "craftPer1000": 23.1,
+    "topGoods": [
+     "Preserved food 95%",
+     "Cloth 29%",
+     "Wool Cloth 9%",
+     "Sails 2%",
+     "Fine Wool Cloth 2%",
+     "Fine Wool Garments 2%",
+     "Tapestries 1%",
+     "Artworks 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 87,
+     "metallurgy": 13
+    }
+   },
+   "class:marketCenter": {
+    "n": 6,
+    "craftPer1000": 15.4,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 50%",
+     "Wool Cloth 17%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "class:port": {
+    "n": 89,
+    "craftPer1000": 25.9,
+    "topGoods": [
+     "Preserved food 99%",
+     "Cloth 42%",
+     "Wool Cloth 17%",
+     "Sails 3%",
+     "Fine Wool Cloth 2%",
+     "Artworks 1%",
+     "Boots 1%",
+     "Charcoal 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 89,
+     "leather": 11
+    }
+   },
+   "class:river": {
+    "n": 71,
+    "craftPer1000": 28,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 42%",
+     "Wool Cloth 21%",
+     "Artworks 3%",
+     "Tapestries 1%",
+     "Paper 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 90,
+     "metallurgy": 10,
+     "printing": 0
+    }
+   },
+   "size:a:10k+": {
+    "n": 3,
+    "craftPer1000": 80.1,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 100%",
+     "Boots 100%",
+     "Fine Wool Cloth 100%",
+     "Wool Cloth 67%",
+     "Sails 67%",
+     "Fine Wool Garments 67%",
+     "Tapestries 33%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 58,
+     "leather": 42
+    }
+   },
+   "size:b:3k-10k": {
+    "n": 61,
+    "craftPer1000": 34.6,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 92%",
+     "Wool Cloth 69%",
+     "Sails 15%",
+     "Artworks 10%",
+     "Fine Wool Cloth 8%",
+     "Fine Wool Garments 8%",
+     "Tapestries 7%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 99,
+     "metallurgy": 1,
+     "printing": 0
+    }
+   },
+   "size:c:1k-3k": {
+    "n": 114,
+    "craftPer1000": 19.1,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 82%",
+     "Wool Cloth 18%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 95,
+     "metallurgy": 5
+    }
+   },
+   "size:d:<1k": {
+    "n": 222,
+    "craftPer1000": 15.6,
+    "topGoods": [
+     "Preserved food 95%",
+     "Barrels 0%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 51,
+     "textiles": 49
+    }
+   }
+  },
+  "industryEnd": {
+   "biome:Alpine tundra": {
+    "n": 1,
+    "craftPer1000": 76.1,
+    "topGoods": [
+     "Preserved food 100%",
+     "Arrows 100%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 100
+    }
+   },
+   "biome:Boreal peatland & muskeg": {
+    "n": 205,
+    "craftPer1000": 91.7,
+    "topGoods": [
+     "Preserved food 70%",
+     "Beer 21%",
+     "Cloth 10%",
+     "Wool Cloth 4%",
+     "Linen 4%",
+     "Garments 3%",
+     "Charcoal 3%",
+     "Barrels 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 95,
+     "metallurgy": 4,
+     "leather": 0,
+     "woodworking": 0
+    }
+   },
+   "biome:Central European great forest": {
+    "n": 12,
+    "craftPer1000": 110,
+    "topGoods": [
+     "Preserved food 58%",
+     "Sails 58%",
+     "Beer 42%",
+     "Cloth 25%",
+     "Tar 25%",
+     "Harnesses 17%",
+     "Garments 8%",
+     "Wool Cloth 8%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 67,
+     "metallurgy": 33
+    }
+   },
+   "biome:Cold steppe & forest-steppe": {
+    "n": 7,
+    "craftPer1000": 67.1,
+    "topGoods": [
+     "Beer 71%",
+     "Preserved food 29%",
+     "Cloth 14%",
+     "Sails 14%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Flooded forest & riparian woodland": {
+    "n": 9,
+    "craftPer1000": 219.9,
+    "topGoods": [
+     "Preserved food 67%",
+     "Cloth 67%",
+     "Garments 44%",
+     "Wool Cloth 44%",
+     "Sails 44%",
+     "Beer 33%",
+     "Candles 11%",
+     "Linen 11%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 83,
+     "metallurgy": 17,
+     "woodworking": 0
+    }
+   },
+   "biome:Heath & moorland": {
+    "n": 5,
+    "craftPer1000": 87,
+    "topGoods": [
+     "Preserved food 100%",
+     "Tools 20%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 100
+    }
+   },
+   "biome:Taiga": {
+    "n": 21,
+    "craftPer1000": 88.9,
+    "topGoods": [
+     "Preserved food 90%",
+     "Tar 14%",
+     "Ropes 10%",
+     "Linen 5%",
+     "Arms 5%",
+     "Arrows 5%",
+     "Harnesses 5%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 85,
+     "textiles": 14,
+     "woodworking": 1
+    }
+   },
+   "biome:Temperate coniferous forest": {
+    "n": 49,
+    "craftPer1000": 77,
+    "topGoods": [
+     "Preserved food 59%",
+     "Beer 39%",
+     "Sails 31%",
+     "Garments 18%",
+     "Cloth 14%",
+     "Tar 6%",
+     "Tools 6%",
+     "Wool Cloth 6%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 71,
+     "metallurgy": 29
+    }
+   },
+   "biome:Temperate deciduous forest": {
+    "n": 7,
+    "craftPer1000": 97.6,
+    "topGoods": [
+     "Preserved food 100%",
+     "Tar 57%",
+     "Garments 43%",
+     "Cloth 43%",
+     "Wool Cloth 29%",
+     "Wool Garments 29%",
+     "Tools 14%",
+     "Charcoal 14%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 95,
+     "metallurgy": 5
+    }
+   },
+   "biome:Temperate rainforest": {
+    "n": 65,
+    "craftPer1000": 134.1,
+    "topGoods": [
+     "Preserved food 69%",
+     "Sails 62%",
+     "Garments 54%",
+     "Cloth 52%",
+     "Beer 29%",
+     "Charcoal 23%",
+     "Wool Cloth 22%",
+     "Linen 8%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 89,
+     "metallurgy": 11,
+     "woodworking": 0,
+     "printing": 0
+    }
+   },
+   "biome:Wetland": {
+    "n": 21,
+    "craftPer1000": 115.9,
+    "topGoods": [
+     "Preserved food 62%",
+     "Beer 38%",
+     "Linen 10%",
+     "Cloth 10%",
+     "Garments 10%",
+     "Tar 5%",
+     "Wool Cloth 5%",
+     "Paper 5%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 95,
+     "metallurgy": 5
+    }
+   },
+   "class:capital": {
+    "n": 26,
+    "craftPer1000": 210.4,
+    "topGoods": [
+     "Preserved food 92%",
+     "Cloth 73%",
+     "Garments 65%",
+     "Sails 46%",
+     "Wool Cloth 35%",
+     "Linen 19%",
+     "Charcoal 15%",
+     "Candles 8%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 96,
+     "metallurgy": 4,
+     "woodworking": 0,
+     "printing": 0
+    }
+   },
+   "class:inland": {
+    "n": 208,
+    "craftPer1000": 95.3,
+    "topGoods": [
+     "Preserved food 66%",
+     "Beer 28%",
+     "Sails 16%",
+     "Cloth 13%",
+     "Garments 12%",
+     "Charcoal 5%",
+     "Wool Cloth 4%",
+     "Tar 3%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 82,
+     "metallurgy": 18,
+     "woodworking": 0
+    }
+   },
+   "class:marketCenter": {
+    "n": 6,
+    "craftPer1000": 39,
+    "topGoods": [
+     "Preserved food 67%",
+     "Beer 17%",
+     "Charcoal 17%",
+     "Wool Cloth 17%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 82,
+     "metallurgy": 18
+    }
+   },
+   "class:port": {
+    "n": 91,
+    "craftPer1000": 95.7,
+    "topGoods": [
+     "Preserved food 64%",
+     "Beer 29%",
+     "Sails 18%",
+     "Cloth 16%",
+     "Garments 13%",
+     "Wool Cloth 9%",
+     "Tar 9%",
+     "Charcoal 5%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 79,
+     "metallurgy": 20,
+     "leather": 1,
+     "woodworking": 0
+    }
+   },
+   "class:river": {
+    "n": 71,
+    "craftPer1000": 89.6,
+    "topGoods": [
+     "Preserved food 76%",
+     "Cloth 23%",
+     "Beer 21%",
+     "Sails 15%",
+     "Wool Cloth 11%",
+     "Garments 10%",
+     "Linen 10%",
+     "Tools 4%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 80,
+     "metallurgy": 20,
+     "woodworking": 0
+    }
+   },
+   "size:a:10k+": {
+    "n": 3,
+    "craftPer1000": 294.4,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 100%",
+     "Garments 100%",
+     "Wool Cloth 100%",
+     "Candles 100%",
+     "Sails 33%",
+     "Arms 33%",
+     "Perfume 33%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 88,
+     "metallurgy": 12,
+     "woodworking": 0,
+     "printing": 0
+    }
+   },
+   "size:b:3k-10k": {
+    "n": 61,
+    "craftPer1000": 127.3,
+    "topGoods": [
+     "Preserved food 97%",
+     "Cloth 79%",
+     "Garments 77%",
+     "Sails 52%",
+     "Wool Cloth 36%",
+     "Charcoal 21%",
+     "Linen 11%",
+     "Tar 11%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 92,
+     "metallurgy": 8,
+     "leather": 0,
+     "woodworking": 0
+    }
+   },
+   "size:c:1k-3k": {
+    "n": 115,
+    "craftPer1000": 82.4,
+    "topGoods": [
+     "Preserved food 62%",
+     "Sails 32%",
+     "Beer 31%",
+     "Cloth 23%",
+     "Linen 10%",
+     "Tar 10%",
+     "Garments 9%",
+     "Wool Cloth 8%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 80,
+     "metallurgy": 20,
+     "woodworking": 0
+    }
+   },
+   "size:d:<1k": {
+    "n": 223,
+    "craftPer1000": 74,
+    "topGoods": [
+     "Preserved food 65%",
+     "Beer 30%",
+     "Barrels 2%",
+     "Sails 1%",
+     "Tar 0%",
+     "Arms 0%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 65,
+     "metallurgy": 35
+    }
+   }
+  },
+  "capitals": [
+   {
+    "i": 4,
+    "people": 18244,
+    "adults": 8390,
+    "admin": 1260,
+    "adminShare": 0.15,
+    "craftStart": 1600,
+    "craftEnd": 4930,
+    "peopleEnd": 17849
+   },
+   {
+    "i": 1,
+    "people": 14284,
+    "adults": 6600,
+    "admin": 880,
+    "adminShare": 0.133,
+    "craftStart": 850,
+    "craftEnd": 6260,
+    "peopleEnd": 14154
+   },
+   {
+    "i": 23,
+    "people": 9725,
+    "adults": 4480,
+    "admin": 670,
+    "adminShare": 0.15,
+    "craftStart": 370,
+    "craftEnd": 2310,
+    "peopleEnd": 10331
+   },
+   {
+    "i": 19,
+    "people": 8749,
+    "adults": 4030,
+    "admin": 600,
+    "adminShare": 0.149,
+    "craftStart": 550,
+    "craftEnd": 890,
+    "peopleEnd": 8736
+   },
+   {
+    "i": 13,
+    "people": 7024,
+    "adults": 3230,
+    "admin": 470,
+    "adminShare": 0.146,
+    "craftStart": 120,
+    "craftEnd": 790,
+    "peopleEnd": 7480
+   },
+   {
+    "i": 16,
+    "people": 6686,
+    "adults": 3090,
+    "admin": 250,
+    "adminShare": 0.081,
+    "craftStart": 460,
+    "craftEnd": 2200,
+    "peopleEnd": 6100
+   },
+   {
+    "i": 7,
+    "people": 6265,
+    "adults": 2890,
+    "admin": 430,
+    "adminShare": 0.149,
+    "craftStart": 610,
+    "craftEnd": 1870,
+    "peopleEnd": 6513
+   },
+   {
+    "i": 10,
+    "people": 5920,
+    "adults": 2720,
+    "admin": 410,
+    "adminShare": 0.151,
+    "craftStart": 100,
+    "craftEnd": 660,
+    "peopleEnd": 6309
+   },
+   {
+    "i": 12,
+    "people": 5277,
+    "adults": 2430,
+    "admin": 360,
+    "adminShare": 0.148,
+    "craftStart": 90,
+    "craftEnd": 1210,
+    "peopleEnd": 5546
+   },
+   {
+    "i": 22,
+    "people": 5028,
+    "adults": 2310,
+    "admin": 140,
+    "adminShare": 0.061,
+    "craftStart": 280,
+    "craftEnd": 710,
+    "peopleEnd": 4890
+   },
+   {
+    "i": 5,
+    "people": 4926,
+    "adults": 2270,
+    "admin": 340,
+    "adminShare": 0.15,
+    "craftStart": 80,
+    "craftEnd": 520,
+    "peopleEnd": 5243
+   },
+   {
+    "i": 14,
+    "people": 4804,
+    "adults": 2210,
+    "admin": 330,
+    "adminShare": 0.149,
+    "craftStart": 80,
+    "craftEnd": 530,
+    "peopleEnd": 5055
+   },
+   {
+    "i": 3,
+    "people": 4532,
+    "adults": 2090,
+    "admin": 310,
+    "adminShare": 0.148,
+    "craftStart": 250,
+    "craftEnd": 780,
+    "peopleEnd": 4419
+   },
+   {
+    "i": 15,
+    "people": 4531,
+    "adults": 2090,
+    "admin": 310,
+    "adminShare": 0.148,
+    "craftStart": 230,
+    "craftEnd": 780,
+    "peopleEnd": 4658
+   },
+   {
+    "i": 17,
+    "people": 4350,
+    "adults": 2010,
+    "admin": 300,
+    "adminShare": 0.149,
+    "craftStart": 70,
+    "craftEnd": 350,
+    "peopleEnd": 4024
+   },
+   {
+    "i": 25,
+    "people": 4038,
+    "adults": 1870,
+    "admin": 280,
+    "adminShare": 0.15,
+    "craftStart": 280,
+    "craftEnd": 550,
+    "peopleEnd": 4036
+   },
+   {
+    "i": 11,
+    "people": 3526,
+    "adults": 1630,
+    "admin": 240,
+    "adminShare": 0.147,
+    "craftStart": 60,
+    "craftEnd": 360,
+    "peopleEnd": 3694
+   },
+   {
+    "i": 20,
+    "people": 3439,
+    "adults": 1580,
+    "admin": 140,
+    "adminShare": 0.089,
+    "craftStart": 150,
+    "craftEnd": 640,
+    "peopleEnd": 3337
+   },
+   {
+    "i": 26,
+    "people": 3408,
+    "adults": 1570,
+    "admin": 240,
+    "adminShare": 0.153,
+    "craftStart": 50,
+    "craftEnd": 240,
+    "peopleEnd": 3530
+   },
+   {
+    "i": 18,
+    "people": 2639,
+    "adults": 1220,
+    "admin": 180,
+    "adminShare": 0.148,
+    "craftStart": 160,
+    "craftEnd": 800,
+    "peopleEnd": 2603
+   },
+   {
+    "i": 24,
+    "people": 2235,
+    "adults": 1030,
+    "admin": 160,
+    "adminShare": 0.155,
+    "craftStart": 230,
+    "craftEnd": 290,
+    "peopleEnd": 2271
+   },
+   {
+    "i": 2,
+    "people": 2165,
+    "adults": 1000,
+    "admin": 150,
+    "adminShare": 0.15,
+    "craftStart": 30,
+    "craftEnd": 180,
+    "peopleEnd": 2281
+   },
+   {
+    "i": 9,
+    "people": 1395,
+    "adults": 640,
+    "admin": 100,
+    "adminShare": 0.156,
+    "craftStart": 130,
+    "craftEnd": 170,
+    "peopleEnd": 1460
+   },
+   {
+    "i": 6,
+    "people": 1356,
+    "adults": 620,
+    "admin": 90,
+    "adminShare": 0.145,
+    "craftStart": 130,
+    "craftEnd": 570,
+    "peopleEnd": 1419
+   },
+   {
+    "i": 21,
+    "people": 1334,
+    "adults": 610,
+    "admin": 90,
+    "adminShare": 0.148,
+    "craftStart": 20,
+    "craftEnd": 80,
+    "peopleEnd": 1304
+   },
+   {
+    "i": 8,
+    "people": 1089,
+    "adults": 500,
+    "admin": 80,
+    "adminShare": 0.16,
+    "craftStart": 20,
+    "craftEnd": 440,
+    "peopleEnd": 1132
+   }
+  ],
+  "craftPer1000ByCapital": [
+   {
+    "month": 0,
+    "capitals": 47.2,
+    "nonCapitals3kPlus": 17.2
+   },
+   {
+    "month": 1,
+    "capitals": 67.9,
+    "nonCapitals3kPlus": 30.4
+   },
+   {
+    "month": 6,
+    "capitals": 225.7,
+    "nonCapitals3kPlus": 80.4
+   },
+   {
+    "month": 12,
+    "capitals": 301.5,
+    "nonCapitals3kPlus": 124.1
+   },
+   {
+    "month": 24,
+    "capitals": 196.2,
+    "nonCapitals3kPlus": 117.3
+   },
+   {
+    "month": 36,
+    "capitals": 151.4,
+    "nonCapitals3kPlus": 103.9
+   },
+   {
+    "month": 48,
+    "capitals": 150.2,
+    "nonCapitals3kPlus": 102.5
+   },
+   {
+    "month": 60,
+    "capitals": 140.7,
+    "nonCapitals3kPlus": 105
+   }
+  ],
+  "tradePairs": {
+   "sameMarket": {
+    "pairs": 4660,
+    "slotShare": 0.555,
+    "medianDistance": 94.8,
+    "medianPopRatio": 3.2,
+    "modes": {
+     "land": 0.974,
+     "river": 0,
+     "sea": 0.026
+    },
+    "topGoods": [
+     "Fodder 53%",
+     "Wood 21%",
+     "Barley 8%",
+     "Garments 4%",
+     "Wheat 4%",
+     "Wool 2%",
+     "Salt 2%",
+     "Tallow 1%"
+    ]
+   },
+   "foreign": {
+    "pairs": 91,
+    "slotShare": 0.428,
+    "medianDistance": 513.7,
+    "medianPopRatio": 2.4,
+    "modes": {
+     "land": 0.066,
+     "river": 0,
+     "sea": 0.934
+    },
+    "topGoods": [
+     "Barley 62%",
+     "Grain 11%",
+     "Wheat 10%",
+     "Honey 5%",
+     "Peas 3%",
+     "Iron Ingot 3%",
+     "Preserved food 2%",
+     "Reeds 1%"
+    ]
+   },
+   "sameState": {
+    "pairs": 5,
+    "slotShare": 0.016,
+    "medianDistance": 243.4,
+    "medianPopRatio": 1.5,
+    "modes": {
+     "land": 0.159,
+     "river": 0,
+     "sea": 0.841
+    },
+    "topGoods": [
+     "Barley 78%",
+     "Wheat 17%",
+     "Iron Ingot 4%",
+     "Dyes 1%",
+     "Lead Ingot 0%",
+     "Sails 0%",
+     "Marble 0%",
+     "Paper 0%"
+    ]
+   }
+  },
+  "tradeSlotsPerBurgByClass": {
+   "capital": 10331.7,
+   "port": 357.2,
+   "river": 409.2,
+   "inland": 316.6,
+   "marketCenter": 8039.7
+  },
+  "ceStability": [
+   {
+    "month": 1,
+    "burgs": 400,
+    "hallsLost": 0,
+    "hallsGained": 0,
+    "dominantCraftChanged": 10,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.6
+    },
+    "meanStorageYards": {
+     "start": 2,
+     "later": 3.8
+    }
+   },
+   {
+    "month": 6,
+    "burgs": 400,
+    "hallsLost": 0,
+    "hallsGained": 0,
+    "dominantCraftChanged": 41,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2,
+     "later": 4.9
+    }
+   },
+   {
+    "month": 12,
+    "burgs": 400,
+    "hallsLost": 1,
+    "hallsGained": 1,
+    "dominantCraftChanged": 47,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 8
+    },
+    "meanStorageYards": {
+     "start": 2,
+     "later": 5
+    }
+   },
+   {
+    "month": 24,
+    "burgs": 400,
+    "hallsLost": 1,
+    "hallsGained": 12,
+    "dominantCraftChanged": 59,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 8
+    },
+    "meanStorageYards": {
+     "start": 2,
+     "later": 5.1
+    }
+   },
+   {
+    "month": 36,
+    "burgs": 400,
+    "hallsLost": 122,
+    "hallsGained": 33,
+    "dominantCraftChanged": 51,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 8
+    },
+    "meanStorageYards": {
+     "start": 2,
+     "later": 5.1
+    }
+   },
+   {
+    "month": 48,
+    "burgs": 400,
+    "hallsLost": 107,
+    "hallsGained": 45,
+    "dominantCraftChanged": 52,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 8
+    },
+    "meanStorageYards": {
+     "start": 2,
+     "later": 5.1
+    }
+   },
+   {
+    "month": 60,
+    "burgs": 400,
+    "hallsLost": 93,
+    "hallsGained": 49,
+    "dominantCraftChanged": 50,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 8
+    },
+    "meanStorageYards": {
+     "start": 2,
+     "later": 5.1
+    }
+   }
+  ],
+  "ceHallsAtStart": {
+   "halls": 163,
+   "withoutWorkshop": 144
+  }
+ },
+ "obs-2102": {
+  "burgs": 647,
+  "markets": 30,
+  "timeline": [
+   {
+    "month": 0,
+    "year": 1300,
+    "urbanPeople": 1200041,
+    "chapters": 201,
+    "emptyHalls": 183,
+    "informalWithPeople": 340,
+    "craftPeoplePer1000": 34.8,
+    "guildPeoplePer1000": 2.5,
+    "corridors": 43,
+    "modeShare": {
+     "land": 1,
+     "river": 0,
+     "sea": 0
+    },
+    "burgsWithPartners": 59,
+    "ceGenericCraftOnly": 317
+   },
+   {
+    "month": 1,
+    "year": 1300,
+    "urbanPeople": 1199956,
+    "chapters": 201,
+    "emptyHalls": 183,
+    "informalWithPeople": 385,
+    "craftPeoplePer1000": 62.8,
+    "guildPeoplePer1000": 5.2,
+    "corridors": 4304,
+    "modeShare": {
+     "land": 0.934,
+     "river": 0,
+     "sea": 0.066
+    },
+    "burgsWithPartners": 647,
+    "ceGenericCraftOnly": 287
+   },
+   {
+    "month": 6,
+    "year": 1300,
+    "urbanPeople": 1200233,
+    "chapters": 201,
+    "emptyHalls": 172,
+    "informalWithPeople": 522,
+    "craftPeoplePer1000": 170.4,
+    "guildPeoplePer1000": 74.1,
+    "corridors": 5825,
+    "modeShare": {
+     "land": 0.91,
+     "river": 0.02,
+     "sea": 0.07
+    },
+    "burgsWithPartners": 647,
+    "ceGenericCraftOnly": 198
+   },
+   {
+    "month": 12,
+    "year": 1301,
+    "urbanPeople": 1221748,
+    "chapters": 206,
+    "emptyHalls": 173,
+    "informalWithPeople": 526,
+    "craftPeoplePer1000": 158.7,
+    "guildPeoplePer1000": 61.3,
+    "corridors": 6206,
+    "modeShare": {
+     "land": 0.835,
+     "river": 0.021,
+     "sea": 0.144
+    },
+    "burgsWithPartners": 648,
+    "ceGenericCraftOnly": 216
+   },
+   {
+    "month": 24,
+    "year": 1302,
+    "urbanPeople": 1250699,
+    "chapters": 221,
+    "emptyHalls": 179,
+    "informalWithPeople": 516,
+    "craftPeoplePer1000": 124.9,
+    "guildPeoplePer1000": 32.7,
+    "corridors": 6677,
+    "modeShare": {
+     "land": 0.833,
+     "river": 0.02,
+     "sea": 0.147
+    },
+    "burgsWithPartners": 657,
+    "ceGenericCraftOnly": 249
+   },
+   {
+    "month": 36,
+    "year": 1303,
+    "urbanPeople": 1278155,
+    "chapters": 94,
+    "emptyHalls": 37,
+    "informalWithPeople": 475,
+    "craftPeoplePer1000": 118.4,
+    "guildPeoplePer1000": 26.1,
+    "corridors": 7045,
+    "modeShare": {
+     "land": 0.87,
+     "river": 0.014,
+     "sea": 0.116
+    },
+    "burgsWithPartners": 663,
+    "ceGenericCraftOnly": 316
+   },
+   {
+    "month": 48,
+    "year": 1304,
+    "urbanPeople": 1308450,
+    "chapters": 140,
+    "emptyHalls": 59,
+    "informalWithPeople": 455,
+    "craftPeoplePer1000": 116,
+    "guildPeoplePer1000": 22.6,
+    "corridors": 7524,
+    "modeShare": {
+     "land": 0.854,
+     "river": 0.023,
+     "sea": 0.123
+    },
+    "burgsWithPartners": 670,
+    "ceGenericCraftOnly": 328
+   },
+   {
+    "month": 60,
+    "year": 1305,
+    "urbanPeople": 1340081,
+    "chapters": 167,
+    "emptyHalls": 86,
+    "informalWithPeople": 438,
+    "craftPeoplePer1000": 122.5,
+    "guildPeoplePer1000": 20.5,
+    "corridors": 7740,
+    "modeShare": {
+     "land": 0.866,
+     "river": 0.022,
+     "sea": 0.112
+    },
+    "burgsWithPartners": 675,
+    "ceGenericCraftOnly": 349
+   }
+  ],
+  "chapterDomains": [
+   {
+    "month": 0,
+    "counts": {
+     "metallurgy": 6,
+     "woodworking": 38,
+     "masonry": 12,
+     "glassware": 24,
+     "instruments": 27,
+     "printing": 15,
+     "victualling": 16,
+     "brewing": 16,
+     "baking": 15,
+     "leather": 22,
+     "textiles": 10
+    },
+    "keptFromStart": 201,
+    "newSinceStart": 0
+   },
+   {
+    "month": 1,
+    "counts": {
+     "metallurgy": 6,
+     "woodworking": 38,
+     "masonry": 12,
+     "glassware": 24,
+     "instruments": 27,
+     "printing": 15,
+     "victualling": 16,
+     "brewing": 16,
+     "baking": 15,
+     "leather": 22,
+     "textiles": 10
+    },
+    "keptFromStart": 201,
+    "newSinceStart": 0
+   },
+   {
+    "month": 6,
+    "counts": {
+     "metallurgy": 6,
+     "woodworking": 38,
+     "masonry": 12,
+     "glassware": 24,
+     "instruments": 27,
+     "printing": 15,
+     "victualling": 16,
+     "brewing": 16,
+     "baking": 15,
+     "leather": 22,
+     "textiles": 10
+    },
+    "keptFromStart": 201,
+    "newSinceStart": 0
+   },
+   {
+    "month": 12,
+    "counts": {
+     "metallurgy": 10,
+     "woodworking": 38,
+     "masonry": 12,
+     "glassware": 24,
+     "instruments": 27,
+     "victualling": 16,
+     "brewing": 16,
+     "baking": 15,
+     "leather": 24,
+     "textiles": 10,
+     "printing": 14
+    },
+    "keptFromStart": 198,
+    "newSinceStart": 8
+   },
+   {
+    "month": 24,
+    "counts": {
+     "metallurgy": 26,
+     "woodworking": 38,
+     "masonry": 12,
+     "glassware": 24,
+     "instruments": 27,
+     "victualling": 16,
+     "brewing": 16,
+     "baking": 15,
+     "leather": 24,
+     "textiles": 10,
+     "printing": 13
+    },
+    "keptFromStart": 197,
+    "newSinceStart": 24
+   },
+   {
+    "month": 36,
+    "counts": {
+     "metallurgy": 39,
+     "glassware": 2,
+     "woodworking": 15,
+     "textiles": 10,
+     "leather": 11,
+     "brewing": 3,
+     "instruments": 3,
+     "printing": 4,
+     "baking": 4,
+     "victualling": 1,
+     "masonry": 2
+    },
+    "keptFromStart": 52,
+    "newSinceStart": 42
+   },
+   {
+    "month": 48,
+    "counts": {
+     "metallurgy": 56,
+     "glassware": 3,
+     "woodworking": 27,
+     "textiles": 10,
+     "leather": 12,
+     "brewing": 8,
+     "instruments": 7,
+     "baking": 5,
+     "victualling": 4,
+     "masonry": 2,
+     "printing": 6
+    },
+    "keptFromStart": 66,
+    "newSinceStart": 74
+   },
+   {
+    "month": 60,
+    "counts": {
+     "metallurgy": 62,
+     "glassware": 5,
+     "woodworking": 32,
+     "textiles": 10,
+     "leather": 14,
+     "brewing": 8,
+     "instruments": 9,
+     "victualling": 9,
+     "baking": 8,
+     "masonry": 4,
+     "printing": 6
+    },
+    "keptFromStart": 79,
+    "newSinceStart": 88
+   }
+  ],
+  "industryStart": {
+   "biome:Boreal peatland & muskeg": {
+    "n": 78,
+    "craftPer1000": 40.9,
+    "topGoods": [
+     "Preserved food 91%",
+     "Cloth 32%",
+     "Artworks 3%",
+     "Sails 1%",
+     "Boots 1%",
+     "Fine Wool Cloth 1%",
+     "Fine Wool Garments 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 83,
+     "leather": 17
+    }
+   },
+   "biome:Central European great forest": {
+    "n": 44,
+    "craftPer1000": 17.9,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 50%",
+     "Wool Cloth 7%",
+     "Fine Wool Cloth 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 82,
+     "metallurgy": 18
+    }
+   },
+   "biome:Cold steppe & forest-steppe": {
+    "n": 64,
+    "craftPer1000": 13.8,
+    "topGoods": [
+     "Preserved food 95%",
+     "Cloth 14%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 77,
+     "textiles": 23
+    }
+   },
+   "biome:Flooded forest & riparian woodland": {
+    "n": 37,
+    "craftPer1000": 30.7,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 73%",
+     "Sails 8%",
+     "Wool Cloth 5%",
+     "Fine Wool Cloth 3%",
+     "Fine Wool Garments 3%",
+     "Spinning Wheel 3%",
+     "Instruments 3%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 89,
+     "metallurgy": 11
+    }
+   },
+   "biome:Grassland": {
+    "n": 4,
+    "craftPer1000": 10.7,
+    "topGoods": [
+     "Preserved food 100%"
+    ],
+    "guildPeopleShare": {}
+   },
+   "biome:Heath & moorland": {
+    "n": 17,
+    "craftPer1000": 16.6,
+    "topGoods": [
+     "Preserved food 88%",
+     "Cloth 12%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Taiga": {
+    "n": 24,
+    "craftPer1000": 16.5,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 25%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 77,
+     "metallurgy": 23
+    }
+   },
+   "biome:Temperate coniferous forest": {
+    "n": 91,
+    "craftPer1000": 16.9,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 43%",
+     "Artworks 1%",
+     "Wool Cloth 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 64,
+     "metallurgy": 36
+    }
+   },
+   "biome:Temperate deciduous forest": {
+    "n": 118,
+    "craftPer1000": 38.9,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 72%",
+     "Wool Cloth 19%",
+     "Artworks 7%",
+     "Arms 5%",
+     "Sails 4%",
+     "Charcoal 3%",
+     "Instruments 3%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 86,
+     "metallurgy": 14,
+     "printing": 0
+    }
+   },
+   "biome:Temperate rainforest": {
+    "n": 118,
+    "craftPer1000": 42.1,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 75%",
+     "Wool Cloth 29%",
+     "Sails 10%",
+     "Tapestries 4%",
+     "Fine Wool Cloth 4%",
+     "Artworks 4%",
+     "Boots 3%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 89,
+     "leather": 10,
+     "metallurgy": 2
+    }
+   },
+   "biome:Wetland": {
+    "n": 26,
+    "craftPer1000": 15,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 31%",
+     "Fine Wool Cloth 4%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 76,
+     "metallurgy": 24
+    }
+   },
+   "biome:Xeric shrubland": {
+    "n": 26,
+    "craftPer1000": 14.6,
+    "topGoods": [
+     "Preserved food 92%",
+     "Cloth 12%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "class:capital": {
+    "n": 24,
+    "craftPer1000": 67.6,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 100%",
+     "Wool Cloth 50%",
+     "Sails 29%",
+     "Tapestries 21%",
+     "Boots 13%",
+     "Fine Wool Cloth 13%",
+     "Fine Wool Garments 13%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 80,
+     "leather": 19,
+     "metallurgy": 1,
+     "printing": 0
+    }
+   },
+   "class:inland": {
+    "n": 333,
+    "craftPer1000": 27.3,
+    "topGoods": [
+     "Preserved food 97%",
+     "Cloth 37%",
+     "Wool Cloth 5%",
+     "Artworks 3%",
+     "Sails 2%",
+     "Arms 2%",
+     "Fine Wool Cloth 1%",
+     "Instruments 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 85,
+     "metallurgy": 13,
+     "leather": 3
+    }
+   },
+   "class:marketCenter": {
+    "n": 18,
+    "craftPer1000": 34.5,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 89%",
+     "Wool Cloth 22%",
+     "Artworks 11%",
+     "Fine Wool Cloth 11%",
+     "Arms 6%",
+     "Fine Wool Garments 6%",
+     "Tools 6%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 88,
+     "metallurgy": 12
+    }
+   },
+   "class:port": {
+    "n": 117,
+    "craftPer1000": 19,
+    "topGoods": [
+     "Preserved food 98%",
+     "Cloth 58%",
+     "Wool Cloth 9%",
+     "Sails 3%",
+     "Artworks 2%",
+     "Instruments 1%",
+     "Arms 1%",
+     "Bronze 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 79,
+     "metallurgy": 21
+    }
+   },
+   "class:river": {
+    "n": 155,
+    "craftPer1000": 36.5,
+    "topGoods": [
+     "Preserved food 99%",
+     "Cloth 54%",
+     "Wool Cloth 12%",
+     "Sails 3%",
+     "Artworks 2%",
+     "Sculptures 1%",
+     "Tapestries 1%",
+     "Fine Wool Cloth 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 92,
+     "metallurgy": 5,
+     "leather": 2
+    }
+   },
+   "size:a:10k+": {
+    "n": 10,
+    "craftPer1000": 83.3,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 100%",
+     "Wool Cloth 70%",
+     "Sails 50%",
+     "Tapestries 50%",
+     "Boots 30%",
+     "Fine Wool Cloth 20%",
+     "Fine Wool Garments 20%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 58,
+     "leather": 41,
+     "printing": 0
+    }
+   },
+   "size:b:3k-10k": {
+    "n": 110,
+    "craftPer1000": 40.8,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 100%",
+     "Wool Cloth 51%",
+     "Sails 15%",
+     "Artworks 15%",
+     "Arms 8%",
+     "Fine Wool Cloth 7%",
+     "Fine Wool Garments 5%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 95,
+     "metallurgy": 3,
+     "leather": 2
+    }
+   },
+   "size:c:1k-3k": {
+    "n": 198,
+    "craftPer1000": 16,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 98%",
+     "Fine Wool Cloth 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 87,
+     "metallurgy": 13
+    }
+   },
+   "size:d:<1k": {
+    "n": 329,
+    "craftPer1000": 15.6,
+    "topGoods": [
+     "Preserved food 96%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 61,
+     "metallurgy": 39
+    }
+   }
+  },
+  "industryEnd": {
+   "biome:Boreal peatland & muskeg": {
+    "n": 81,
+    "craftPer1000": 132.9,
+    "topGoods": [
+     "Preserved food 74%",
+     "Beer 16%",
+     "Sails 12%",
+     "Cloth 10%",
+     "Linen 7%",
+     "Wool Cloth 5%",
+     "Garments 5%",
+     "Harnesses 4%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 88,
+     "metallurgy": 11,
+     "woodworking": 0
+    }
+   },
+   "biome:Central European great forest": {
+    "n": 44,
+    "craftPer1000": 84,
+    "topGoods": [
+     "Preserved food 66%",
+     "Beer 27%",
+     "Cloth 25%",
+     "Garments 9%",
+     "Harnesses 9%",
+     "Tar 7%",
+     "Barrels 7%",
+     "Linen 7%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 51,
+     "textiles": 49,
+     "woodworking": 0
+    }
+   },
+   "biome:Cold steppe & forest-steppe": {
+    "n": 64,
+    "craftPer1000": 75,
+    "topGoods": [
+     "Preserved food 78%",
+     "Beer 16%",
+     "Barrels 3%",
+     "Harnesses 3%",
+     "Linen 3%",
+     "Arrows 2%",
+     "Arms 2%",
+     "Cloth 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 62,
+     "metallurgy": 38,
+     "woodworking": 0
+    }
+   },
+   "biome:Flooded forest & riparian woodland": {
+    "n": 37,
+    "craftPer1000": 121.1,
+    "topGoods": [
+     "Preserved food 97%",
+     "Tar 65%",
+     "Ropes 35%",
+     "Cloth 11%",
+     "Garments 5%",
+     "Sculptures 5%",
+     "Harnesses 5%",
+     "Linen 5%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 52,
+     "textiles": 46,
+     "woodworking": 2
+    }
+   },
+   "biome:Grassland": {
+    "n": 6,
+    "craftPer1000": 61.3,
+    "topGoods": [
+     "Preserved food 67%",
+     "Beer 33%",
+     "Linen 17%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Heath & moorland": {
+    "n": 17,
+    "craftPer1000": 62,
+    "topGoods": [
+     "Preserved food 76%",
+     "Linen Garments 6%",
+     "Tar 6%",
+     "Beer 6%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Taiga": {
+    "n": 37,
+    "craftPer1000": 69.8,
+    "topGoods": [
+     "Preserved food 78%",
+     "Cloth 16%",
+     "Beer 14%",
+     "Linen 8%",
+     "Tools 8%",
+     "Wool Cloth 5%",
+     "Arms 3%",
+     "Barrels 3%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 75,
+     "metallurgy": 25,
+     "woodworking": 0
+    }
+   },
+   "biome:Temperate coniferous forest": {
+    "n": 95,
+    "craftPer1000": 91.2,
+    "topGoods": [
+     "Preserved food 95%",
+     "Sails 12%",
+     "Cloth 11%",
+     "Tar 9%",
+     "Linen 6%",
+     "Garments 6%",
+     "Wool Cloth 6%",
+     "Tools 3%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 86,
+     "metallurgy": 14,
+     "woodworking": 0
+    }
+   },
+   "biome:Temperate deciduous forest": {
+    "n": 130,
+    "craftPer1000": 114.6,
+    "topGoods": [
+     "Preserved food 97%",
+     "Cloth 32%",
+     "Garments 26%",
+     "Wool Cloth 23%",
+     "Linen 21%",
+     "Sails 21%",
+     "Wool Garments 9%",
+     "Linen Garments 8%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 77,
+     "metallurgy": 23,
+     "woodworking": 0
+    }
+   },
+   "biome:Temperate rainforest": {
+    "n": 118,
+    "craftPer1000": 156.3,
+    "topGoods": [
+     "Preserved food 95%",
+     "Cloth 44%",
+     "Wool Cloth 25%",
+     "Garments 25%",
+     "Tar 20%",
+     "Sails 15%",
+     "Linen 14%",
+     "Ropes 9%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 89,
+     "metallurgy": 11,
+     "woodworking": 1
+    }
+   },
+   "biome:Wetland": {
+    "n": 26,
+    "craftPer1000": 75.4,
+    "topGoods": [
+     "Preserved food 81%",
+     "Cloth 23%",
+     "Beer 15%",
+     "Harnesses 4%",
+     "Tar 4%",
+     "Barrels 4%",
+     "Linen 4%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 92,
+     "metallurgy": 8
+    }
+   },
+   "biome:Xeric shrubland": {
+    "n": 26,
+    "craftPer1000": 72,
+    "topGoods": [
+     "Preserved food 85%",
+     "Beer 8%",
+     "Tar 4%",
+     "Sails 4%",
+     "Tools 4%",
+     "Barrels 4%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 93,
+     "textiles": 7
+    }
+   },
+   "class:capital": {
+    "n": 24,
+    "craftPer1000": 260.8,
+    "topGoods": [
+     "Preserved food 96%",
+     "Cloth 67%",
+     "Wool Cloth 54%",
+     "Garments 42%",
+     "Tar 29%",
+     "Sails 25%",
+     "Linen 25%",
+     "Wool Garments 21%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 89,
+     "metallurgy": 10,
+     "woodworking": 0
+    }
+   },
+   "class:inland": {
+    "n": 335,
+    "craftPer1000": 90.1,
+    "topGoods": [
+     "Preserved food 87%",
+     "Cloth 14%",
+     "Beer 9%",
+     "Linen 9%",
+     "Garments 8%",
+     "Sails 8%",
+     "Wool Cloth 7%",
+     "Tar 5%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 72,
+     "metallurgy": 28,
+     "woodworking": 1
+    }
+   },
+   "class:marketCenter": {
+    "n": 28,
+    "craftPer1000": 111.6,
+    "topGoods": [
+     "Preserved food 82%",
+     "Cloth 46%",
+     "Wool Cloth 32%",
+     "Linen 29%",
+     "Garments 18%",
+     "Wool Garments 11%",
+     "Sails 7%",
+     "Beer 7%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 96,
+     "metallurgy": 4
+    }
+   },
+   "class:port": {
+    "n": 129,
+    "craftPer1000": 95.2,
+    "topGoods": [
+     "Preserved food 88%",
+     "Cloth 22%",
+     "Tar 17%",
+     "Wool Cloth 13%",
+     "Sails 12%",
+     "Garments 10%",
+     "Beer 9%",
+     "Linen 7%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 80,
+     "metallurgy": 20,
+     "woodworking": 0
+    }
+   },
+   "class:river": {
+    "n": 165,
+    "craftPer1000": 110.3,
+    "topGoods": [
+     "Preserved food 86%",
+     "Cloth 21%",
+     "Tar 15%",
+     "Garments 15%",
+     "Sails 10%",
+     "Linen 10%",
+     "Beer 10%",
+     "Wool Cloth 9%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 77,
+     "metallurgy": 22,
+     "woodworking": 0
+    }
+   },
+   "size:a:10k+": {
+    "n": 10,
+    "craftPer1000": 319.9,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 100%",
+     "Wool Cloth 80%",
+     "Wool Garments 50%",
+     "Garments 50%",
+     "Sails 40%",
+     "Arms 40%",
+     "Tapestries 40%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 88,
+     "metallurgy": 12,
+     "woodworking": 1
+    }
+   },
+   "size:b:3k-10k": {
+    "n": 116,
+    "craftPer1000": 118,
+    "topGoods": [
+     "Preserved food 98%",
+     "Cloth 66%",
+     "Garments 52%",
+     "Wool Cloth 46%",
+     "Sails 31%",
+     "Tar 24%",
+     "Linen 23%",
+     "Wool Garments 16%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 88,
+     "metallurgy": 12,
+     "woodworking": 0
+    }
+   },
+   "size:c:1k-3k": {
+    "n": 223,
+    "craftPer1000": 89.5,
+    "topGoods": [
+     "Preserved food 91%",
+     "Cloth 23%",
+     "Tar 19%",
+     "Linen 17%",
+     "Sails 13%",
+     "Harnesses 9%",
+     "Beer 8%",
+     "Tools 7%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 66,
+     "metallurgy": 34,
+     "woodworking": 0
+    }
+   },
+   "size:d:<1k": {
+    "n": 332,
+    "craftPer1000": 67.9,
+    "topGoods": [
+     "Preserved food 80%",
+     "Beer 13%",
+     "Barrels 3%",
+     "Harnesses 1%",
+     "Tools 1%",
+     "Linen 0%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 81,
+     "metallurgy": 19,
+     "woodworking": 0
+    }
+   }
+  },
+  "capitals": [
+   {
+    "i": 2,
+    "people": 17512,
+    "adults": 8070,
+    "admin": 620,
+    "adminShare": 0.077,
+    "craftStart": 1750,
+    "craftEnd": 8540,
+    "peopleEnd": 18172
+   },
+   {
+    "i": 10,
+    "people": 15709,
+    "adults": 7230,
+    "admin": 1080,
+    "adminShare": 0.149,
+    "craftStart": 750,
+    "craftEnd": 5050,
+    "peopleEnd": 16733
+   },
+   {
+    "i": 1,
+    "people": 15575,
+    "adults": 7190,
+    "admin": 1080,
+    "adminShare": 0.15,
+    "craftStart": 1520,
+    "craftEnd": 3980,
+    "peopleEnd": 14300
+   },
+   {
+    "i": 24,
+    "people": 11410,
+    "adults": 5240,
+    "admin": 790,
+    "adminShare": 0.151,
+    "craftStart": 1000,
+    "craftEnd": 3600,
+    "peopleEnd": 11954
+   },
+   {
+    "i": 11,
+    "people": 11322,
+    "adults": 5220,
+    "admin": 780,
+    "adminShare": 0.149,
+    "craftStart": 1130,
+    "craftEnd": 2690,
+    "peopleEnd": 11899
+   },
+   {
+    "i": 9,
+    "people": 11073,
+    "adults": 5120,
+    "admin": 770,
+    "adminShare": 0.15,
+    "craftStart": 980,
+    "craftEnd": 4680,
+    "peopleEnd": 11685
+   },
+   {
+    "i": 21,
+    "people": 10905,
+    "adults": 5040,
+    "admin": 760,
+    "adminShare": 0.151,
+    "craftStart": 590,
+    "craftEnd": 3180,
+    "peopleEnd": 10542
+   },
+   {
+    "i": 5,
+    "people": 10870,
+    "adults": 5000,
+    "admin": 750,
+    "adminShare": 0.15,
+    "craftStart": 1030,
+    "craftEnd": 3310,
+    "peopleEnd": 11500
+   },
+   {
+    "i": 3,
+    "people": 9693,
+    "adults": 4460,
+    "admin": 670,
+    "adminShare": 0.15,
+    "craftStart": 560,
+    "craftEnd": 1100,
+    "peopleEnd": 7882
+   },
+   {
+    "i": 22,
+    "people": 9154,
+    "adults": 4210,
+    "admin": 500,
+    "adminShare": 0.119,
+    "craftStart": 360,
+    "craftEnd": 2910,
+    "peopleEnd": 9666
+   },
+   {
+    "i": 16,
+    "people": 9080,
+    "adults": 4180,
+    "admin": 630,
+    "adminShare": 0.151,
+    "craftStart": 890,
+    "craftEnd": 2500,
+    "peopleEnd": 9875
+   },
+   {
+    "i": 20,
+    "people": 8635,
+    "adults": 3970,
+    "admin": 600,
+    "adminShare": 0.151,
+    "craftStart": 860,
+    "craftEnd": 2880,
+    "peopleEnd": 9027
+   },
+   {
+    "i": 19,
+    "people": 7713,
+    "adults": 3550,
+    "admin": 530,
+    "adminShare": 0.149,
+    "craftStart": 140,
+    "craftEnd": 1750,
+    "peopleEnd": 8315
+   },
+   {
+    "i": 7,
+    "people": 6731,
+    "adults": 3100,
+    "admin": 460,
+    "adminShare": 0.148,
+    "craftStart": 170,
+    "craftEnd": 870,
+    "peopleEnd": 7245
+   },
+   {
+    "i": 6,
+    "people": 6108,
+    "adults": 2810,
+    "admin": 420,
+    "adminShare": 0.149,
+    "craftStart": 100,
+    "craftEnd": 570,
+    "peopleEnd": 6426
+   },
+   {
+    "i": 14,
+    "people": 5541,
+    "adults": 2560,
+    "admin": 380,
+    "adminShare": 0.148,
+    "craftStart": 90,
+    "craftEnd": 940,
+    "peopleEnd": 5639
+   },
+   {
+    "i": 23,
+    "people": 5359,
+    "adults": 2470,
+    "admin": 370,
+    "adminShare": 0.15,
+    "craftStart": 500,
+    "craftEnd": 510,
+    "peopleEnd": 5846
+   },
+   {
+    "i": 12,
+    "people": 5060,
+    "adults": 2330,
+    "admin": 350,
+    "adminShare": 0.15,
+    "craftStart": 80,
+    "craftEnd": 450,
+    "peopleEnd": 5316
+   },
+   {
+    "i": 4,
+    "people": 3503,
+    "adults": 1610,
+    "admin": 240,
+    "adminShare": 0.149,
+    "craftStart": 170,
+    "craftEnd": 280,
+    "peopleEnd": 3829
+   },
+   {
+    "i": 18,
+    "people": 2965,
+    "adults": 1370,
+    "admin": 210,
+    "adminShare": 0.153,
+    "craftStart": 50,
+    "craftEnd": 240,
+    "peopleEnd": 3089
+   },
+   {
+    "i": 17,
+    "people": 2302,
+    "adults": 1060,
+    "admin": 160,
+    "adminShare": 0.151,
+    "craftStart": 110,
+    "craftEnd": 790,
+    "peopleEnd": 2530
+   },
+   {
+    "i": 15,
+    "people": 1604,
+    "adults": 740,
+    "admin": 110,
+    "adminShare": 0.149,
+    "craftStart": 20,
+    "craftEnd": 110,
+    "peopleEnd": 1733
+   },
+   {
+    "i": 8,
+    "people": 1591,
+    "adults": 730,
+    "admin": 110,
+    "adminShare": 0.151,
+    "craftStart": 20,
+    "craftEnd": 120,
+    "peopleEnd": 1697
+   },
+   {
+    "i": 13,
+    "people": 1141,
+    "adults": 530,
+    "admin": 80,
+    "adminShare": 0.151,
+    "craftStart": 20,
+    "craftEnd": 90,
+    "peopleEnd": 1226
+   }
+  ],
+  "craftPer1000ByCapital": [
+   {
+    "month": 0,
+    "capitals": 48.2,
+    "nonCapitals3kPlus": 17.2
+   },
+   {
+    "month": 1,
+    "capitals": 104.7,
+    "nonCapitals3kPlus": 31.1
+   },
+   {
+    "month": 6,
+    "capitals": 263.6,
+    "nonCapitals3kPlus": 150.5
+   },
+   {
+    "month": 12,
+    "capitals": 283.9,
+    "nonCapitals3kPlus": 116.3
+   },
+   {
+    "month": 24,
+    "capitals": 185.2,
+    "nonCapitals3kPlus": 97.9
+   },
+   {
+    "month": 36,
+    "capitals": 146.6,
+    "nonCapitals3kPlus": 94.7
+   },
+   {
+    "month": 48,
+    "capitals": 199.2,
+    "nonCapitals3kPlus": 93.4
+   },
+   {
+    "month": 60,
+    "capitals": 218.3,
+    "nonCapitals3kPlus": 94.3
+   }
+  ],
+  "tradePairs": {
+   "sameState": {
+    "pairs": 402,
+    "slotShare": 0.364,
+    "medianDistance": 142.7,
+    "medianPopRatio": 3.2,
+    "modes": {
+     "land": 0.906,
+     "river": 0.054,
+     "sea": 0.04
+    },
+    "topGoods": [
+     "Wood 44%",
+     "Tallow 12%",
+     "Buckwheat 8%",
+     "Barley 8%",
+     "Oats 6%",
+     "Fodder 4%",
+     "Leather 4%",
+     "Grain 3%"
+    ]
+   },
+   "foreign": {
+    "pairs": 352,
+    "slotShare": 0.119,
+    "medianDistance": 430.6,
+    "medianPopRatio": 2.5,
+    "modes": {
+     "land": 0.207,
+     "river": 0.002,
+     "sea": 0.791
+    },
+    "topGoods": [
+     "Grain 20%",
+     "Wheat 15%",
+     "Buckwheat 15%",
+     "Barley 12%",
+     "Chicken 6%",
+     "Honey 6%",
+     "Camels 5%",
+     "Broad Beans 5%"
+    ]
+   },
+   "sameMarket": {
+    "pairs": 6986,
+    "slotShare": 0.517,
+    "medianDistance": 82,
+    "medianPopRatio": 3.2,
+    "modes": {
+     "land": 0.99,
+     "river": 0.004,
+     "sea": 0.006
+    },
+    "topGoods": [
+     "Wood 31%",
+     "Tallow 18%",
+     "Fodder 18%",
+     "Barley 6%",
+     "Leather 6%",
+     "Wheat 5%",
+     "Camels 3%",
+     "Salt 1%"
+    ]
+   }
+  },
+  "tradeSlotsPerBurgByClass": {
+   "capital": 37782.8,
+   "inland": 2419,
+   "river": 1052,
+   "port": 3971.2,
+   "marketCenter": 43171
+  },
+  "ceStability": [
+   {
+    "month": 1,
+    "burgs": 647,
+    "hallsLost": 0,
+    "hallsGained": 0,
+    "dominantCraftChanged": 47,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.5
+    },
+    "meanStorageYards": {
+     "start": 2.6,
+     "later": 4.5
+    }
+   },
+   {
+    "month": 6,
+    "burgs": 647,
+    "hallsLost": 0,
+    "hallsGained": 0,
+    "dominantCraftChanged": 164,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.8
+    },
+    "meanStorageYards": {
+     "start": 2.6,
+     "later": 5.5
+    }
+   },
+   {
+    "month": 12,
+    "burgs": 647,
+    "hallsLost": 2,
+    "hallsGained": 8,
+    "dominantCraftChanged": 181,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.6,
+     "later": 5.4
+    }
+   },
+   {
+    "month": 24,
+    "burgs": 647,
+    "hallsLost": 2,
+    "hallsGained": 24,
+    "dominantCraftChanged": 181,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.6,
+     "later": 5.4
+    }
+   },
+   {
+    "month": 36,
+    "burgs": 647,
+    "hallsLost": 138,
+    "hallsGained": 41,
+    "dominantCraftChanged": 133,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.6,
+     "later": 5.4
+    }
+   },
+   {
+    "month": 48,
+    "burgs": 647,
+    "hallsLost": 126,
+    "hallsGained": 71,
+    "dominantCraftChanged": 142,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.6,
+     "later": 5.4
+    }
+   },
+   {
+    "month": 60,
+    "burgs": 647,
+    "hallsLost": 113,
+    "hallsGained": 84,
+    "dominantCraftChanged": 152,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.6,
+     "later": 5.4
+    }
+   }
+  ],
+  "ceHallsAtStart": {
+   "halls": 186,
+   "withoutWorkshop": 169
+  }
+ },
+ "obs-2103": {
+  "burgs": 650,
+  "markets": 27,
+  "timeline": [
+   {
+    "month": 0,
+    "year": 1300,
+    "urbanPeople": 1143793,
+    "chapters": 170,
+    "emptyHalls": 164,
+    "informalWithPeople": 337,
+    "craftPeoplePer1000": 31.7,
+    "guildPeoplePer1000": 2.2,
+    "corridors": 30,
+    "modeShare": {
+     "land": 1,
+     "river": 0,
+     "sea": 0
+    },
+    "burgsWithPartners": 42,
+    "ceGenericCraftOnly": 325
+   },
+   {
+    "month": 1,
+    "year": 1300,
+    "urbanPeople": 1143666,
+    "chapters": 170,
+    "emptyHalls": 163,
+    "informalWithPeople": 353,
+    "craftPeoplePer1000": 57.3,
+    "guildPeoplePer1000": 3.8,
+    "corridors": 4431,
+    "modeShare": {
+     "land": 0.995,
+     "river": 0,
+     "sea": 0.005
+    },
+    "burgsWithPartners": 649,
+    "ceGenericCraftOnly": 327
+   },
+   {
+    "month": 6,
+    "year": 1300,
+    "urbanPeople": 1141886,
+    "chapters": 170,
+    "emptyHalls": 156,
+    "informalWithPeople": 453,
+    "craftPeoplePer1000": 125.9,
+    "guildPeoplePer1000": 43.5,
+    "corridors": 5655,
+    "modeShare": {
+     "land": 0.958,
+     "river": 0.034,
+     "sea": 0.008
+    },
+    "burgsWithPartners": 650,
+    "ceGenericCraftOnly": 267
+   },
+   {
+    "month": 12,
+    "year": 1301,
+    "urbanPeople": 1145991,
+    "chapters": 175,
+    "emptyHalls": 156,
+    "informalWithPeople": 523,
+    "craftPeoplePer1000": 125.6,
+    "guildPeoplePer1000": 38.1,
+    "corridors": 6374,
+    "modeShare": {
+     "land": 0.917,
+     "river": 0.069,
+     "sea": 0.015
+    },
+    "burgsWithPartners": 650,
+    "ceGenericCraftOnly": 287
+   },
+   {
+    "month": 24,
+    "year": 1302,
+    "urbanPeople": 1146935,
+    "chapters": 198,
+    "emptyHalls": 161,
+    "informalWithPeople": 499,
+    "craftPeoplePer1000": 106,
+    "guildPeoplePer1000": 20.3,
+    "corridors": 6835,
+    "modeShare": {
+     "land": 0.848,
+     "river": 0.116,
+     "sea": 0.036
+    },
+    "burgsWithPartners": 655,
+    "ceGenericCraftOnly": 298
+   },
+   {
+    "month": 36,
+    "year": 1303,
+    "urbanPeople": 1151004,
+    "chapters": 92,
+    "emptyHalls": 36,
+    "informalWithPeople": 452,
+    "craftPeoplePer1000": 97.7,
+    "guildPeoplePer1000": 17.3,
+    "corridors": 7040,
+    "modeShare": {
+     "land": 0.785,
+     "river": 0.163,
+     "sea": 0.052
+    },
+    "burgsWithPartners": 657,
+    "ceGenericCraftOnly": 348
+   },
+   {
+    "month": 48,
+    "year": 1304,
+    "urbanPeople": 1156157,
+    "chapters": 134,
+    "emptyHalls": 51,
+    "informalWithPeople": 423,
+    "craftPeoplePer1000": 96.2,
+    "guildPeoplePer1000": 15.2,
+    "corridors": 7231,
+    "modeShare": {
+     "land": 0.731,
+     "river": 0.199,
+     "sea": 0.07
+    },
+    "burgsWithPartners": 659,
+    "ceGenericCraftOnly": 363
+   },
+   {
+    "month": 60,
+    "year": 1305,
+    "urbanPeople": 1160948,
+    "chapters": 160,
+    "emptyHalls": 71,
+    "informalWithPeople": 424,
+    "craftPeoplePer1000": 95.3,
+    "guildPeoplePer1000": 14.8,
+    "corridors": 7415,
+    "modeShare": {
+     "land": 0.69,
+     "river": 0.229,
+     "sea": 0.081
+    },
+    "burgsWithPartners": 661,
+    "ceGenericCraftOnly": 369
+   }
+  ],
+  "chapterDomains": [
+   {
+    "month": 0,
+    "counts": {
+     "metallurgy": 4,
+     "woodworking": 27,
+     "masonry": 16,
+     "leather": 13,
+     "glassware": 18,
+     "instruments": 25,
+     "printing": 16,
+     "victualling": 17,
+     "brewing": 17,
+     "baking": 16,
+     "textiles": 1
+    },
+    "keptFromStart": 170,
+    "newSinceStart": 0
+   },
+   {
+    "month": 1,
+    "counts": {
+     "metallurgy": 4,
+     "woodworking": 27,
+     "masonry": 16,
+     "leather": 13,
+     "glassware": 18,
+     "instruments": 25,
+     "printing": 16,
+     "victualling": 17,
+     "brewing": 17,
+     "baking": 16,
+     "textiles": 1
+    },
+    "keptFromStart": 170,
+    "newSinceStart": 0
+   },
+   {
+    "month": 6,
+    "counts": {
+     "metallurgy": 4,
+     "woodworking": 27,
+     "masonry": 16,
+     "leather": 13,
+     "glassware": 18,
+     "instruments": 25,
+     "printing": 16,
+     "victualling": 17,
+     "brewing": 17,
+     "baking": 16,
+     "textiles": 1
+    },
+    "keptFromStart": 170,
+    "newSinceStart": 0
+   },
+   {
+    "month": 12,
+    "counts": {
+     "metallurgy": 4,
+     "woodworking": 27,
+     "masonry": 16,
+     "leather": 17,
+     "glassware": 18,
+     "instruments": 25,
+     "printing": 16,
+     "victualling": 17,
+     "brewing": 17,
+     "baking": 16,
+     "textiles": 2
+    },
+    "keptFromStart": 170,
+    "newSinceStart": 5
+   },
+   {
+    "month": 24,
+    "counts": {
+     "metallurgy": 26,
+     "woodworking": 29,
+     "masonry": 16,
+     "leather": 17,
+     "glassware": 18,
+     "instruments": 25,
+     "printing": 16,
+     "victualling": 17,
+     "brewing": 17,
+     "baking": 15,
+     "textiles": 2
+    },
+    "keptFromStart": 169,
+    "newSinceStart": 29
+   },
+   {
+    "month": 36,
+    "counts": {
+     "metallurgy": 46,
+     "leather": 8,
+     "woodworking": 15,
+     "textiles": 2,
+     "instruments": 3,
+     "victualling": 6,
+     "baking": 4,
+     "glassware": 5,
+     "masonry": 3
+    },
+    "keptFromStart": 33,
+    "newSinceStart": 59
+   },
+   {
+    "month": 48,
+    "counts": {
+     "metallurgy": 54,
+     "leather": 10,
+     "woodworking": 31,
+     "textiles": 2,
+     "instruments": 7,
+     "victualling": 8,
+     "baking": 6,
+     "glassware": 8,
+     "masonry": 4,
+     "brewing": 1,
+     "printing": 3
+    },
+    "keptFromStart": 45,
+    "newSinceStart": 89
+   },
+   {
+    "month": 60,
+    "counts": {
+     "metallurgy": 63,
+     "leather": 12,
+     "woodworking": 36,
+     "textiles": 1,
+     "instruments": 9,
+     "baking": 9,
+     "glassware": 8,
+     "victualling": 9,
+     "masonry": 6,
+     "brewing": 2,
+     "printing": 5
+    },
+    "keptFromStart": 58,
+    "newSinceStart": 102
+   }
+  ],
+  "industryStart": {
+   "biome:Boreal peatland & muskeg": {
+    "n": 79,
+    "craftPer1000": 33,
+    "topGoods": [
+     "Preserved food 86%",
+     "Cloth 22%",
+     "Wool Cloth 4%",
+     "Barrels 4%",
+     "Spinning Wheel 3%",
+     "Tools 1%",
+     "Fine Wool Cloth 1%",
+     "Sails 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 97,
+     "metallurgy": 3
+    }
+   },
+   "biome:Central European great forest": {
+    "n": 43,
+    "craftPer1000": 16,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 51%",
+     "Wool Cloth 5%",
+     "Fine Wool Cloth 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 90,
+     "metallurgy": 10
+    }
+   },
+   "biome:Cold steppe & forest-steppe": {
+    "n": 64,
+    "craftPer1000": 15.3,
+    "topGoods": [
+     "Preserved food 97%",
+     "Cloth 34%",
+     "Wool Cloth 6%",
+     "Tools 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Flooded forest & riparian woodland": {
+    "n": 59,
+    "craftPer1000": 32.7,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 73%",
+     "Wool Cloth 14%",
+     "Sails 7%",
+     "Artworks 3%",
+     "Boots 2%",
+     "Fine Wool Cloth 2%",
+     "Paper 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 92,
+     "leather": 7,
+     "metallurgy": 1
+    }
+   },
+   "biome:Grassland": {
+    "n": 29,
+    "craftPer1000": 21.4,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 41%",
+     "Artworks 3%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 60,
+     "metallurgy": 40
+    }
+   },
+   "biome:Heath & moorland": {
+    "n": 14,
+    "craftPer1000": 14.5,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 14%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Taiga": {
+    "n": 16,
+    "craftPer1000": 15.1,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 19%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Temperate coniferous forest": {
+    "n": 105,
+    "craftPer1000": 15.9,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 37%",
+     "Wool Cloth 2%",
+     "Sails 1%",
+     "Tools 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 83,
+     "metallurgy": 17
+    }
+   },
+   "biome:Temperate deciduous forest": {
+    "n": 97,
+    "craftPer1000": 41.6,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 77%",
+     "Wool Cloth 28%",
+     "Sails 13%",
+     "Artworks 5%",
+     "Fine Wool Cloth 4%",
+     "Fine Wool Garments 4%",
+     "Spinning Wheel 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 86,
+     "leather": 8,
+     "metallurgy": 6
+    }
+   },
+   "biome:Temperate rainforest": {
+    "n": 58,
+    "craftPer1000": 41.9,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 81%",
+     "Wool Cloth 28%",
+     "Artworks 12%",
+     "Sails 7%",
+     "Fine Wool Cloth 7%",
+     "Boots 3%",
+     "Tapestries 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 91,
+     "leather": 9
+    }
+   },
+   "biome:Volcanic soil": {
+    "n": 19,
+    "craftPer1000": 14.9,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 68%",
+     "Wool Cloth 21%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 86,
+     "metallurgy": 14
+    }
+   },
+   "biome:Wetland": {
+    "n": 26,
+    "craftPer1000": 14.4,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 35%",
+     "Wool Cloth 4%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Xeric shrubland": {
+    "n": 41,
+    "craftPer1000": 14.7,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 27%",
+     "Wool Cloth 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 75,
+     "metallurgy": 25
+    }
+   },
+   "class:capital": {
+    "n": 20,
+    "craftPer1000": 53.9,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 100%",
+     "Wool Cloth 25%",
+     "Sails 15%",
+     "Boots 5%",
+     "Fine Wool Cloth 5%",
+     "Tapestries 5%",
+     "Artworks 5%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 94,
+     "leather": 6
+    }
+   },
+   "class:inland": {
+    "n": 335,
+    "craftPer1000": 23.9,
+    "topGoods": [
+     "Preserved food 98%",
+     "Cloth 41%",
+     "Wool Cloth 10%",
+     "Fine Wool Cloth 2%",
+     "Artworks 2%",
+     "Sails 1%",
+     "Sculptures 1%",
+     "Barrels 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 94,
+     "metallurgy": 3,
+     "leather": 3
+    }
+   },
+   "class:marketCenter": {
+    "n": 20,
+    "craftPer1000": 37.7,
+    "topGoods": [
+     "Preserved food 90%",
+     "Cloth 85%",
+     "Wool Cloth 30%",
+     "Sails 10%",
+     "Artworks 10%",
+     "Fine Wool Cloth 5%",
+     "Boots 5%",
+     "Barrels 5%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 89,
+     "leather": 8,
+     "metallurgy": 3
+    }
+   },
+   "class:port": {
+    "n": 115,
+    "craftPer1000": 26.2,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 51%",
+     "Wool Cloth 10%",
+     "Sails 4%",
+     "Artworks 2%",
+     "Barrels 1%",
+     "Spinning Wheel 1%",
+     "Sculptures 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 84,
+     "metallurgy": 8,
+     "leather": 8
+    }
+   },
+   "class:river": {
+    "n": 160,
+    "craftPer1000": 39.8,
+    "topGoods": [
+     "Preserved food 98%",
+     "Cloth 50%",
+     "Wool Cloth 9%",
+     "Sails 5%",
+     "Artworks 3%",
+     "Fine Wool Cloth 2%",
+     "Fine Wool Garments 2%",
+     "Spinning Wheel 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 83,
+     "metallurgy": 13,
+     "leather": 4
+    }
+   },
+   "size:a:10k+": {
+    "n": 5,
+    "craftPer1000": 85.5,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 100%",
+     "Wool Cloth 80%",
+     "Sails 60%",
+     "Spinning Wheel 40%",
+     "Tapestries 20%",
+     "Barrels 20%",
+     "Artworks 20%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "size:b:3k-10k": {
+    "n": 123,
+    "craftPer1000": 39.6,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 100%",
+     "Wool Cloth 52%",
+     "Sails 16%",
+     "Artworks 11%",
+     "Fine Wool Cloth 8%",
+     "Boots 4%",
+     "Tools 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 90,
+     "leather": 8,
+     "metallurgy": 2
+    }
+   },
+   "size:c:1k-3k": {
+    "n": 188,
+    "craftPer1000": 16.1,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 99%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 92,
+     "metallurgy": 8
+    }
+   },
+   "size:d:<1k": {
+    "n": 334,
+    "craftPer1000": 15,
+    "topGoods": [
+     "Preserved food 96%",
+     "Barrels 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 68,
+     "metallurgy": 32
+    }
+   }
+  },
+  "industryEnd": {
+   "biome:Boreal peatland & muskeg": {
+    "n": 80,
+    "craftPer1000": 87.7,
+    "topGoods": [
+     "Preserved food 78%",
+     "Tar 9%",
+     "Barrels 9%",
+     "Ropes 5%",
+     "Linen 4%",
+     "Wool Cloth 3%",
+     "Cloth 3%",
+     "Beer 3%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 89,
+     "metallurgy": 10,
+     "woodworking": 1
+    }
+   },
+   "biome:Central European great forest": {
+    "n": 43,
+    "craftPer1000": 77,
+    "topGoods": [
+     "Beer 65%",
+     "Ropes 23%",
+     "Preserved food 19%",
+     "Barrels 14%",
+     "Cloth 12%",
+     "Linen 9%",
+     "Garments 7%",
+     "Harnesses 5%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 54,
+     "textiles": 44,
+     "woodworking": 2
+    }
+   },
+   "biome:Cold steppe & forest-steppe": {
+    "n": 65,
+    "craftPer1000": 76.3,
+    "topGoods": [
+     "Preserved food 65%",
+     "Barrels 23%",
+     "Linen 12%",
+     "Cloth 11%",
+     "Beer 11%",
+     "Garments 6%",
+     "Linen Garments 5%",
+     "Harnesses 5%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 53,
+     "metallurgy": 46,
+     "woodworking": 1
+    }
+   },
+   "biome:Flooded forest & riparian woodland": {
+    "n": 59,
+    "craftPer1000": 92.8,
+    "topGoods": [
+     "Preserved food 54%",
+     "Beer 37%",
+     "Ropes 36%",
+     "Cloth 15%",
+     "Tar 14%",
+     "Sails 12%",
+     "Garments 12%",
+     "Wool Cloth 12%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 94,
+     "metallurgy": 5,
+     "woodworking": 2
+    }
+   },
+   "biome:Grassland": {
+    "n": 36,
+    "craftPer1000": 64.4,
+    "topGoods": [
+     "Preserved food 72%",
+     "Cloth 19%",
+     "Linen 14%",
+     "Garments 6%",
+     "Tools 6%",
+     "Barrels 6%",
+     "Arms 3%",
+     "Arrows 3%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 52,
+     "textiles": 48
+    }
+   },
+   "biome:Heath & moorland": {
+    "n": 14,
+    "craftPer1000": 63.6,
+    "topGoods": [
+     "Preserved food 71%",
+     "Beer 21%",
+     "Barrels 7%",
+     "Cloth 7%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Taiga": {
+    "n": 16,
+    "craftPer1000": 72.1,
+    "topGoods": [
+     "Preserved food 100%",
+     "Harnesses 13%",
+     "Cloth 6%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 75,
+     "textiles": 25
+    }
+   },
+   "biome:Temperate coniferous forest": {
+    "n": 106,
+    "craftPer1000": 69.5,
+    "topGoods": [
+     "Preserved food 51%",
+     "Barrels 35%",
+     "Beer 20%",
+     "Tar 9%",
+     "Linen 7%",
+     "Cloth 4%",
+     "Tools 4%",
+     "Wool Cloth 3%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 57,
+     "textiles": 41,
+     "woodworking": 2
+    }
+   },
+   "biome:Temperate deciduous forest": {
+    "n": 99,
+    "craftPer1000": 114.8,
+    "topGoods": [
+     "Preserved food 80%",
+     "Cloth 48%",
+     "Garments 37%",
+     "Wool Cloth 23%",
+     "Beer 17%",
+     "Linen 14%",
+     "Sails 9%",
+     "Linen Garments 8%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 85,
+     "metallurgy": 15,
+     "woodworking": 1,
+     "glassware": 0
+    }
+   },
+   "biome:Temperate rainforest": {
+    "n": 58,
+    "craftPer1000": 106.2,
+    "topGoods": [
+     "Preserved food 81%",
+     "Cloth 43%",
+     "Garments 33%",
+     "Ropes 28%",
+     "Sails 28%",
+     "Wool Cloth 24%",
+     "Beer 17%",
+     "Linen 9%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 95,
+     "metallurgy": 4,
+     "woodworking": 1
+    }
+   },
+   "biome:Volcanic soil": {
+    "n": 19,
+    "craftPer1000": 85.3,
+    "topGoods": [
+     "Beer 95%",
+     "Cloth 26%",
+     "Tar 21%",
+     "Garments 16%",
+     "Barrels 11%",
+     "Linen 11%",
+     "Arrows 5%",
+     "Harnesses 5%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 75,
+     "metallurgy": 25
+    }
+   },
+   "biome:Wetland": {
+    "n": 26,
+    "craftPer1000": 78,
+    "topGoods": [
+     "Preserved food 50%",
+     "Beer 38%",
+     "Ropes 19%",
+     "Barrels 12%",
+     "Tar 8%",
+     "Linen 8%",
+     "Sails 8%",
+     "Garments 4%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 70,
+     "metallurgy": 23,
+     "woodworking": 7
+    }
+   },
+   "biome:Xeric shrubland": {
+    "n": 41,
+    "craftPer1000": 71.8,
+    "topGoods": [
+     "Beer 49%",
+     "Preserved food 44%",
+     "Cloth 7%",
+     "Garments 7%",
+     "Harnesses 7%",
+     "Barrels 7%",
+     "Tools 5%",
+     "Ropes 2%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 70,
+     "textiles": 30,
+     "woodworking": 0
+    }
+   },
+   "class:capital": {
+    "n": 20,
+    "craftPer1000": 125.8,
+    "topGoods": [
+     "Preserved food 85%",
+     "Cloth 60%",
+     "Ropes 35%",
+     "Wool Cloth 35%",
+     "Garments 30%",
+     "Linen 25%",
+     "Tar 20%",
+     "Sails 15%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 95,
+     "metallurgy": 4,
+     "woodworking": 1
+    }
+   },
+   "class:inland": {
+    "n": 338,
+    "craftPer1000": 87.6,
+    "topGoods": [
+     "Preserved food 57%",
+     "Beer 26%",
+     "Barrels 16%",
+     "Cloth 14%",
+     "Garments 11%",
+     "Ropes 8%",
+     "Linen 7%",
+     "Tar 4%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 72,
+     "metallurgy": 26,
+     "woodworking": 1,
+     "glassware": 0
+    }
+   },
+   "class:marketCenter": {
+    "n": 20,
+    "craftPer1000": 120.8,
+    "topGoods": [
+     "Preserved food 55%",
+     "Cloth 50%",
+     "Garments 45%",
+     "Wool Cloth 30%",
+     "Beer 30%",
+     "Linen 20%",
+     "Linen Garments 10%",
+     "Barrels 10%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 85,
+     "metallurgy": 14,
+     "woodworking": 0
+    }
+   },
+   "class:port": {
+    "n": 123,
+    "craftPer1000": 93.6,
+    "topGoods": [
+     "Preserved food 72%",
+     "Beer 18%",
+     "Cloth 18%",
+     "Ropes 14%",
+     "Garments 11%",
+     "Linen 11%",
+     "Wool Cloth 9%",
+     "Tar 9%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 78,
+     "metallurgy": 20,
+     "woodworking": 2
+    }
+   },
+   "class:river": {
+    "n": 161,
+    "craftPer1000": 92.5,
+    "topGoods": [
+     "Preserved food 60%",
+     "Beer 25%",
+     "Cloth 17%",
+     "Barrels 11%",
+     "Sails 9%",
+     "Ropes 9%",
+     "Garments 9%",
+     "Wool Cloth 8%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 87,
+     "metallurgy": 13,
+     "woodworking": 1
+    }
+   },
+   "size:a:10k+": {
+    "n": 5,
+    "craftPer1000": 196,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 80%",
+     "Wool Cloth 80%",
+     "Garments 60%",
+     "Wool Garments 40%",
+     "Ropes 20%",
+     "Perfume 20%",
+     "Jewelry 20%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 90,
+     "metallurgy": 9,
+     "woodworking": 1
+    }
+   },
+   "size:b:3k-10k": {
+    "n": 123,
+    "craftPer1000": 103.9,
+    "topGoods": [
+     "Preserved food 77%",
+     "Cloth 66%",
+     "Garments 57%",
+     "Wool Cloth 33%",
+     "Ropes 23%",
+     "Sails 20%",
+     "Linen 20%",
+     "Beer 19%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 92,
+     "metallurgy": 7,
+     "woodworking": 1,
+     "glassware": 0
+    }
+   },
+   "size:c:1k-3k": {
+    "n": 190,
+    "craftPer1000": 80.3,
+    "topGoods": [
+     "Preserved food 62%",
+     "Beer 33%",
+     "Ropes 19%",
+     "Cloth 16%",
+     "Tar 15%",
+     "Linen 13%",
+     "Harnesses 9%",
+     "Barrels 7%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 51,
+     "metallurgy": 48,
+     "woodworking": 1
+    }
+   },
+   "size:d:<1k": {
+    "n": 344,
+    "craftPer1000": 61.9,
+    "topGoods": [
+     "Preserved food 55%",
+     "Beer 21%",
+     "Barrels 20%",
+     "Linen 1%",
+     "Tools 1%",
+     "Cloth 1%",
+     "Tar 0%",
+     "Harnesses 0%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 55,
+     "textiles": 45
+    }
+   }
+  },
+  "capitals": [
+   {
+    "i": 8,
+    "people": 10217,
+    "adults": 4720,
+    "admin": 710,
+    "adminShare": 0.15,
+    "craftStart": 780,
+    "craftEnd": 1990,
+    "peopleEnd": 10620
+   },
+   {
+    "i": 1,
+    "people": 9989,
+    "adults": 4600,
+    "admin": 690,
+    "adminShare": 0.15,
+    "craftStart": 970,
+    "craftEnd": 1870,
+    "peopleEnd": 8508
+   },
+   {
+    "i": 7,
+    "people": 8623,
+    "adults": 3980,
+    "admin": 270,
+    "adminShare": 0.068,
+    "craftStart": 860,
+    "craftEnd": 2600,
+    "peopleEnd": 8722
+   },
+   {
+    "i": 17,
+    "people": 7343,
+    "adults": 3380,
+    "admin": 510,
+    "adminShare": 0.151,
+    "craftStart": 130,
+    "craftEnd": 680,
+    "peopleEnd": 7421
+   },
+   {
+    "i": 4,
+    "people": 6901,
+    "adults": 3170,
+    "admin": 480,
+    "adminShare": 0.151,
+    "craftStart": 130,
+    "craftEnd": 150,
+    "peopleEnd": 7039
+   },
+   {
+    "i": 11,
+    "people": 6234,
+    "adults": 2870,
+    "admin": 430,
+    "adminShare": 0.15,
+    "craftStart": 290,
+    "craftEnd": 530,
+    "peopleEnd": 6143
+   },
+   {
+    "i": 3,
+    "people": 6220,
+    "adults": 2860,
+    "admin": 430,
+    "adminShare": 0.15,
+    "craftStart": 510,
+    "craftEnd": 490,
+    "peopleEnd": 6360
+   },
+   {
+    "i": 5,
+    "people": 5515,
+    "adults": 2540,
+    "admin": 270,
+    "adminShare": 0.106,
+    "craftStart": 490,
+    "craftEnd": 580,
+    "peopleEnd": 5765
+   },
+   {
+    "i": 16,
+    "people": 5083,
+    "adults": 2340,
+    "admin": 350,
+    "adminShare": 0.15,
+    "craftStart": 130,
+    "craftEnd": 460,
+    "peopleEnd": 5207
+   },
+   {
+    "i": 18,
+    "people": 4256,
+    "adults": 1960,
+    "admin": 290,
+    "adminShare": 0.148,
+    "craftStart": 130,
+    "craftEnd": 620,
+    "peopleEnd": 4075
+   },
+   {
+    "i": 9,
+    "people": 3998,
+    "adults": 1840,
+    "admin": 280,
+    "adminShare": 0.152,
+    "craftStart": 340,
+    "craftEnd": 330,
+    "peopleEnd": 4096
+   },
+   {
+    "i": 6,
+    "people": 3615,
+    "adults": 1660,
+    "admin": 250,
+    "adminShare": 0.151,
+    "craftStart": 60,
+    "craftEnd": 310,
+    "peopleEnd": 3797
+   },
+   {
+    "i": 13,
+    "people": 3097,
+    "adults": 1420,
+    "admin": 210,
+    "adminShare": 0.148,
+    "craftStart": 50,
+    "craftEnd": 240,
+    "peopleEnd": 3118
+   },
+   {
+    "i": 20,
+    "people": 2833,
+    "adults": 1300,
+    "admin": 200,
+    "adminShare": 0.154,
+    "craftStart": 50,
+    "craftEnd": 210,
+    "peopleEnd": 2917
+   },
+   {
+    "i": 19,
+    "people": 2828,
+    "adults": 1300,
+    "admin": 190,
+    "adminShare": 0.146,
+    "craftStart": 40,
+    "craftEnd": 210,
+    "peopleEnd": 2884
+   },
+   {
+    "i": 12,
+    "people": 2132,
+    "adults": 980,
+    "admin": 150,
+    "adminShare": 0.153,
+    "craftStart": 30,
+    "craftEnd": 230,
+    "peopleEnd": 2179
+   },
+   {
+    "i": 2,
+    "people": 1620,
+    "adults": 750,
+    "admin": 110,
+    "adminShare": 0.147,
+    "craftStart": 30,
+    "craftEnd": 110,
+    "peopleEnd": 1663
+   },
+   {
+    "i": 15,
+    "people": 1616,
+    "adults": 750,
+    "admin": 110,
+    "adminShare": 0.147,
+    "craftStart": 30,
+    "craftEnd": 120,
+    "peopleEnd": 1698
+   },
+   {
+    "i": 10,
+    "people": 1151,
+    "adults": 530,
+    "admin": 80,
+    "adminShare": 0.151,
+    "craftStart": 20,
+    "craftEnd": 80,
+    "peopleEnd": 1162
+   },
+   {
+    "i": 14,
+    "people": 1145,
+    "adults": 530,
+    "admin": 80,
+    "adminShare": 0.151,
+    "craftStart": 20,
+    "craftEnd": 90,
+    "peopleEnd": 1215
+   }
+  ],
+  "craftPer1000ByCapital": [
+   {
+    "month": 0,
+    "capitals": 18.7,
+    "nonCapitals3kPlus": 17
+   },
+   {
+    "month": 1,
+    "capitals": 29.5,
+    "nonCapitals3kPlus": 30.7
+   },
+   {
+    "month": 6,
+    "capitals": 222.1,
+    "nonCapitals3kPlus": 107
+   },
+   {
+    "month": 12,
+    "capitals": 215.4,
+    "nonCapitals3kPlus": 108.9
+   },
+   {
+    "month": 24,
+    "capitals": 106.3,
+    "nonCapitals3kPlus": 94.1
+   },
+   {
+    "month": 36,
+    "capitals": 91.1,
+    "nonCapitals3kPlus": 93.8
+   },
+   {
+    "month": 48,
+    "capitals": 85.4,
+    "nonCapitals3kPlus": 93.2
+   },
+   {
+    "month": 60,
+    "capitals": 81.1,
+    "nonCapitals3kPlus": 94.7
+   }
+  ],
+  "tradePairs": {
+   "foreign": {
+    "pairs": 210,
+    "slotShare": 0.103,
+    "medianDistance": 425.7,
+    "medianPopRatio": 1.8,
+    "modes": {
+     "land": 0.338,
+     "river": 0.006,
+     "sea": 0.656
+    },
+    "topGoods": [
+     "Barley 52%",
+     "Peas 14%",
+     "Wheat 9%",
+     "Broad Beans 5%",
+     "Buckwheat 4%",
+     "Oats 3%",
+     "Iron Ingot 3%",
+     "Rice 2%"
+    ]
+   },
+   "sameMarket": {
+    "pairs": 7191,
+    "slotShare": 0.653,
+    "medianDistance": 81.9,
+    "medianPopRatio": 3.1,
+    "modes": {
+     "land": 0.99,
+     "river": 0.006,
+     "sea": 0.005
+    },
+    "topGoods": [
+     "Fodder 42%",
+     "Wood 36%",
+     "Barley 7%",
+     "Salt 5%",
+     "Garments 2%",
+     "Tallow 1%",
+     "Wool 1%",
+     "Wheat 1%"
+    ]
+   },
+   "sameState": {
+    "pairs": 14,
+    "slotShare": 0.244,
+    "medianDistance": 184.2,
+    "medianPopRatio": 2.1,
+    "modes": {
+     "land": 0.039,
+     "river": 0.921,
+     "sea": 0.04
+    },
+    "topGoods": [
+     "Wood 74%",
+     "Grain 15%",
+     "Barley 5%",
+     "Fodder 2%",
+     "Wheat 1%",
+     "Chicken 1%",
+     "Camels 0%",
+     "Peas 0%"
+    ]
+   }
+  },
+  "tradeSlotsPerBurgByClass": {
+   "capital": 15646.9,
+   "inland": 639.7,
+   "river": 849.3,
+   "port": 815.6,
+   "marketCenter": 19223.6
+  },
+  "ceStability": [
+   {
+    "month": 1,
+    "burgs": 650,
+    "hallsLost": 0,
+    "hallsGained": 0,
+    "dominantCraftChanged": 19,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.7
+    },
+    "meanStorageYards": {
+     "start": 2.3,
+     "later": 4.4
+    }
+   },
+   {
+    "month": 6,
+    "burgs": 650,
+    "hallsLost": 0,
+    "hallsGained": 0,
+    "dominantCraftChanged": 96,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.3,
+     "later": 5
+    }
+   },
+   {
+    "month": 12,
+    "burgs": 650,
+    "hallsLost": 0,
+    "hallsGained": 5,
+    "dominantCraftChanged": 122,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.3,
+     "later": 5.7
+    }
+   },
+   {
+    "month": 24,
+    "burgs": 650,
+    "hallsLost": 1,
+    "hallsGained": 29,
+    "dominantCraftChanged": 130,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.3,
+     "later": 5.7
+    }
+   },
+   {
+    "month": 36,
+    "burgs": 650,
+    "hallsLost": 121,
+    "hallsGained": 59,
+    "dominantCraftChanged": 125,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.3,
+     "later": 5.7
+    }
+   },
+   {
+    "month": 48,
+    "burgs": 650,
+    "hallsLost": 112,
+    "hallsGained": 89,
+    "dominantCraftChanged": 138,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.3,
+     "later": 5.7
+    }
+   },
+   {
+    "month": 60,
+    "burgs": 650,
+    "hallsLost": 101,
+    "hallsGained": 102,
+    "dominantCraftChanged": 146,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.3,
+     "later": 5.7
+    }
+   }
+  ],
+  "ceHallsAtStart": {
+   "halls": 154,
+   "withoutWorkshop": 148
+  }
+ },
+ "obs-2104": {
+  "burgs": 580,
+  "markets": 26,
+  "timeline": [
+   {
+    "month": 0,
+    "year": 1300,
+    "urbanPeople": 832270,
+    "chapters": 189,
+    "emptyHalls": 178,
+    "informalWithPeople": 242,
+    "craftPeoplePer1000": 34.5,
+    "guildPeoplePer1000": 1.9,
+    "corridors": 30,
+    "modeShare": {
+     "land": 1,
+     "river": 0,
+     "sea": 0
+    },
+    "burgsWithPartners": 42,
+    "ceGenericCraftOnly": 351
+   },
+   {
+    "month": 1,
+    "year": 1300,
+    "urbanPeople": 832382,
+    "chapters": 189,
+    "emptyHalls": 175,
+    "informalWithPeople": 297,
+    "craftPeoplePer1000": 63.8,
+    "guildPeoplePer1000": 9.3,
+    "corridors": 3843,
+    "modeShare": {
+     "land": 0.997,
+     "river": 0,
+     "sea": 0.003
+    },
+    "burgsWithPartners": 580,
+    "ceGenericCraftOnly": 320
+   },
+   {
+    "month": 6,
+    "year": 1300,
+    "urbanPeople": 826326,
+    "chapters": 189,
+    "emptyHalls": 174,
+    "informalWithPeople": 394,
+    "craftPeoplePer1000": 154.2,
+    "guildPeoplePer1000": 56.6,
+    "corridors": 4753,
+    "modeShare": {
+     "land": 0.989,
+     "river": 0.001,
+     "sea": 0.01
+    },
+    "burgsWithPartners": 580,
+    "ceGenericCraftOnly": 240
+   },
+   {
+    "month": 12,
+    "year": 1301,
+    "urbanPeople": 824672,
+    "chapters": 190,
+    "emptyHalls": 168,
+    "informalWithPeople": 452,
+    "craftPeoplePer1000": 145.5,
+    "guildPeoplePer1000": 39.8,
+    "corridors": 5105,
+    "modeShare": {
+     "land": 0.981,
+     "river": 0.002,
+     "sea": 0.017
+    },
+    "burgsWithPartners": 580,
+    "ceGenericCraftOnly": 234
+   },
+   {
+    "month": 24,
+    "year": 1302,
+    "urbanPeople": 820248,
+    "chapters": 212,
+    "emptyHalls": 175,
+    "informalWithPeople": 380,
+    "craftPeoplePer1000": 121.3,
+    "guildPeoplePer1000": 23.3,
+    "corridors": 5499,
+    "modeShare": {
+     "land": 0.949,
+     "river": 0.005,
+     "sea": 0.046
+    },
+    "burgsWithPartners": 585,
+    "ceGenericCraftOnly": 288
+   },
+   {
+    "month": 36,
+    "year": 1303,
+    "urbanPeople": 818901,
+    "chapters": 87,
+    "emptyHalls": 32,
+    "informalWithPeople": 289,
+    "craftPeoplePer1000": 119.9,
+    "guildPeoplePer1000": 19.4,
+    "corridors": 5851,
+    "modeShare": {
+     "land": 0.903,
+     "river": 0.007,
+     "sea": 0.09
+    },
+    "burgsWithPartners": 588,
+    "ceGenericCraftOnly": 340
+   },
+   {
+    "month": 48,
+    "year": 1304,
+    "urbanPeople": 820122,
+    "chapters": 113,
+    "emptyHalls": 57,
+    "informalWithPeople": 293,
+    "craftPeoplePer1000": 118.5,
+    "guildPeoplePer1000": 14.7,
+    "corridors": 6077,
+    "modeShare": {
+     "land": 0.849,
+     "river": 0.009,
+     "sea": 0.142
+    },
+    "burgsWithPartners": 590,
+    "ceGenericCraftOnly": 351
+   },
+   {
+    "month": 60,
+    "year": 1305,
+    "urbanPeople": 823271,
+    "chapters": 131,
+    "emptyHalls": 72,
+    "informalWithPeople": 248,
+    "craftPeoplePer1000": 118.5,
+    "guildPeoplePer1000": 14.4,
+    "corridors": 6226,
+    "modeShare": {
+     "land": 0.804,
+     "river": 0.012,
+     "sea": 0.183
+    },
+    "burgsWithPartners": 591,
+    "ceGenericCraftOnly": 373
+   }
+  ],
+  "chapterDomains": [
+   {
+    "month": 0,
+    "counts": {
+     "metallurgy": 7,
+     "woodworking": 34,
+     "masonry": 15,
+     "textiles": 3,
+     "glassware": 23,
+     "instruments": 28,
+     "printing": 18,
+     "victualling": 18,
+     "brewing": 16,
+     "baking": 15,
+     "leather": 12
+    },
+    "keptFromStart": 189,
+    "newSinceStart": 0
+   },
+   {
+    "month": 1,
+    "counts": {
+     "metallurgy": 7,
+     "woodworking": 34,
+     "masonry": 15,
+     "textiles": 3,
+     "glassware": 23,
+     "instruments": 28,
+     "printing": 18,
+     "victualling": 18,
+     "brewing": 16,
+     "baking": 15,
+     "leather": 12
+    },
+    "keptFromStart": 189,
+    "newSinceStart": 0
+   },
+   {
+    "month": 6,
+    "counts": {
+     "metallurgy": 7,
+     "woodworking": 34,
+     "masonry": 15,
+     "textiles": 3,
+     "glassware": 23,
+     "instruments": 28,
+     "printing": 18,
+     "victualling": 18,
+     "brewing": 16,
+     "baking": 15,
+     "leather": 12
+    },
+    "keptFromStart": 189,
+    "newSinceStart": 0
+   },
+   {
+    "month": 12,
+    "counts": {
+     "metallurgy": 9,
+     "woodworking": 34,
+     "masonry": 15,
+     "textiles": 3,
+     "glassware": 23,
+     "instruments": 28,
+     "printing": 18,
+     "brewing": 15,
+     "baking": 15,
+     "victualling": 17,
+     "leather": 13
+    },
+    "keptFromStart": 187,
+    "newSinceStart": 3
+   },
+   {
+    "month": 24,
+    "counts": {
+     "metallurgy": 28,
+     "woodworking": 37,
+     "masonry": 15,
+     "textiles": 3,
+     "glassware": 23,
+     "instruments": 28,
+     "printing": 18,
+     "brewing": 15,
+     "baking": 15,
+     "victualling": 18,
+     "leather": 12
+    },
+    "keptFromStart": 186,
+    "newSinceStart": 26
+   },
+   {
+    "month": 36,
+    "counts": {
+     "metallurgy": 41,
+     "textiles": 3,
+     "printing": 4,
+     "woodworking": 22,
+     "leather": 3,
+     "victualling": 3,
+     "instruments": 4,
+     "masonry": 2,
+     "glassware": 1,
+     "baking": 2,
+     "brewing": 2
+    },
+    "keptFromStart": 34,
+    "newSinceStart": 53
+   },
+   {
+    "month": 48,
+    "counts": {
+     "metallurgy": 46,
+     "textiles": 3,
+     "printing": 4,
+     "woodworking": 29,
+     "leather": 4,
+     "victualling": 4,
+     "instruments": 7,
+     "masonry": 3,
+     "glassware": 2,
+     "baking": 6,
+     "brewing": 5
+    },
+    "keptFromStart": 46,
+    "newSinceStart": 67
+   },
+   {
+    "month": 60,
+    "counts": {
+     "metallurgy": 48,
+     "textiles": 3,
+     "printing": 7,
+     "woodworking": 33,
+     "leather": 6,
+     "instruments": 9,
+     "masonry": 4,
+     "glassware": 4,
+     "baking": 7,
+     "victualling": 5,
+     "brewing": 5
+    },
+    "keptFromStart": 57,
+    "newSinceStart": 74
+   }
+  ],
+  "industryStart": {
+   "biome:Alpine tundra": {
+    "n": 1,
+    "craftPer1000": 18.7,
+    "topGoods": [
+     "Preserved food 100%"
+    ],
+    "guildPeopleShare": {}
+   },
+   "biome:Boreal peatland & muskeg": {
+    "n": 131,
+    "craftPer1000": 47.5,
+    "topGoods": [
+     "Preserved food 96%",
+     "Cloth 22%",
+     "Wool Cloth 5%",
+     "Sails 2%",
+     "Spinning Wheel 2%",
+     "Fine Wool Cloth 2%",
+     "Fine Wool Garments 2%",
+     "Boots 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 87,
+     "leather": 8,
+     "metallurgy": 4,
+     "printing": 1
+    }
+   },
+   "biome:Central European great forest": {
+    "n": 35,
+    "craftPer1000": 16.7,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 69%",
+     "Wool Cloth 9%",
+     "Arms 3%",
+     "Fine Wool Cloth 3%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 98,
+     "metallurgy": 2
+    }
+   },
+   "biome:Cold steppe & forest-steppe": {
+    "n": 105,
+    "craftPer1000": 14.4,
+    "topGoods": [
+     "Preserved food 99%",
+     "Cloth 22%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 53,
+     "metallurgy": 47
+    }
+   },
+   "biome:Grassland": {
+    "n": 22,
+    "craftPer1000": 17.2,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 68%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 92,
+     "metallurgy": 8
+    }
+   },
+   "biome:Heath & moorland": {
+    "n": 14,
+    "craftPer1000": 16.2,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 21%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Taiga": {
+    "n": 109,
+    "craftPer1000": 15.5,
+    "topGoods": [
+     "Preserved food 93%",
+     "Cloth 17%",
+     "Barrels 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 72,
+     "metallurgy": 28
+    }
+   },
+   "biome:Temperate coniferous forest": {
+    "n": 77,
+    "craftPer1000": 18.9,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 47%",
+     "Wool Cloth 4%",
+     "Tools 3%",
+     "Charcoal 1%",
+     "Sails 1%",
+     "Fine Wool Cloth 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 76,
+     "metallurgy": 24
+    }
+   },
+   "biome:Temperate deciduous forest": {
+    "n": 49,
+    "craftPer1000": 45.2,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 78%",
+     "Wool Cloth 18%",
+     "Sails 16%",
+     "Arms 8%",
+     "Sculptures 4%",
+     "Charcoal 4%",
+     "Spinning Wheel 4%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 87,
+     "metallurgy": 13
+    }
+   },
+   "biome:Temperate rainforest": {
+    "n": 24,
+    "craftPer1000": 51,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 83%",
+     "Wool Cloth 38%",
+     "Sails 13%",
+     "Tools 8%",
+     "Tapestries 8%",
+     "Vinegar 4%",
+     "Charcoal 4%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 73,
+     "leather": 27,
+     "metallurgy": 0
+    }
+   },
+   "biome:Wetland": {
+    "n": 13,
+    "craftPer1000": 40.7,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 15%",
+     "Spinning Wheel 8%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "class:capital": {
+    "n": 24,
+    "craftPer1000": 64.4,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 92%",
+     "Wool Cloth 25%",
+     "Sails 13%",
+     "Boots 8%",
+     "Fine Wool Cloth 8%",
+     "Fine Wool Garments 8%",
+     "Oil 8%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 67,
+     "leather": 29,
+     "metallurgy": 4,
+     "printing": 1
+    }
+   },
+   "class:inland": {
+    "n": 246,
+    "craftPer1000": 19.3,
+    "topGoods": [
+     "Preserved food 96%",
+     "Cloth 23%",
+     "Wool Cloth 2%",
+     "Fine Wool Cloth 1%",
+     "Barrels 1%",
+     "Sculptures 0%",
+     "Tapestries 0%",
+     "Artworks 0%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 79,
+     "metallurgy": 21
+    }
+   },
+   "class:marketCenter": {
+    "n": 19,
+    "craftPer1000": 47.6,
+    "topGoods": [
+     "Preserved food 95%",
+     "Cloth 63%",
+     "Sails 11%",
+     "Wool Cloth 11%",
+     "Spinning Wheel 5%",
+     "Sculptures 5%",
+     "Tools 5%",
+     "Tapestries 5%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 88,
+     "metallurgy": 12
+    }
+   },
+   "class:port": {
+    "n": 121,
+    "craftPer1000": 32.2,
+    "topGoods": [
+     "Preserved food 99%",
+     "Cloth 51%",
+     "Wool Cloth 9%",
+     "Sails 7%",
+     "Spinning Wheel 2%",
+     "Fine Wool Cloth 2%",
+     "Charcoal 2%",
+     "Arms 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 93,
+     "metallurgy": 7
+    }
+   },
+   "class:river": {
+    "n": 170,
+    "craftPer1000": 24.2,
+    "topGoods": [
+     "Preserved food 98%",
+     "Cloth 32%",
+     "Wool Cloth 3%",
+     "Tools 2%",
+     "Spinning Wheel 1%",
+     "Sails 1%",
+     "Sculptures 1%",
+     "Arms 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 76,
+     "metallurgy": 24
+    }
+   },
+   "size:a:10k+": {
+    "n": 4,
+    "craftPer1000": 99.4,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 100%",
+     "Wool Cloth 50%",
+     "Boots 50%",
+     "Fine Wool Cloth 50%",
+     "Fine Wool Garments 50%",
+     "Sails 50%",
+     "Oil 50%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 56,
+     "leather": 40,
+     "metallurgy": 3,
+     "printing": 1
+    }
+   },
+   "size:b:3k-10k": {
+    "n": 67,
+    "craftPer1000": 39.4,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 97%",
+     "Wool Cloth 40%",
+     "Sails 19%",
+     "Spinning Wheel 7%",
+     "Tools 7%",
+     "Arms 6%",
+     "Fine Wool Cloth 6%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 97,
+     "metallurgy": 3
+    }
+   },
+   "size:c:1k-3k": {
+    "n": 140,
+    "craftPer1000": 15.8,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 99%",
+     "Wool Cloth 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 82,
+     "metallurgy": 18
+    }
+   },
+   "size:d:<1k": {
+    "n": 369,
+    "craftPer1000": 14.3,
+    "topGoods": [
+     "Preserved food 96%",
+     "Barrels 1%"
+    ],
+    "guildPeopleShare": {
+     "metallurgy": 58,
+     "textiles": 42
+    }
+   }
+  },
+  "industryEnd": {
+   "biome:Alpine tundra": {
+    "n": 1,
+    "craftPer1000": 58.3,
+    "topGoods": [
+     "Beer 100%"
+    ],
+    "guildPeopleShare": {}
+   },
+   "biome:Boreal peatland & muskeg": {
+    "n": 134,
+    "craftPer1000": 160.7,
+    "topGoods": [
+     "Preserved food 49%",
+     "Beer 40%",
+     "Cloth 11%",
+     "Garments 8%",
+     "Wool Cloth 4%",
+     "Barrels 4%",
+     "Linen 4%",
+     "Ropes 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 95,
+     "metallurgy": 4,
+     "woodworking": 1
+    }
+   },
+   "biome:Central European great forest": {
+    "n": 35,
+    "craftPer1000": 98.9,
+    "topGoods": [
+     "Preserved food 100%",
+     "Tar 60%",
+     "Ropes 20%",
+     "Cloth 17%",
+     "Garments 9%",
+     "Harnesses 9%",
+     "Wool Cloth 6%",
+     "Linen 6%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 74,
+     "metallurgy": 25,
+     "woodworking": 1
+    }
+   },
+   "biome:Cold steppe & forest-steppe": {
+    "n": 105,
+    "craftPer1000": 68.4,
+    "topGoods": [
+     "Preserved food 77%",
+     "Beer 16%",
+     "Cloth 8%",
+     "Tools 5%",
+     "Barrels 4%",
+     "Tar 3%",
+     "Wool Cloth 3%",
+     "Linen 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 57,
+     "metallurgy": 43
+    }
+   },
+   "biome:Grassland": {
+    "n": 24,
+    "craftPer1000": 75.3,
+    "topGoods": [
+     "Preserved food 83%",
+     "Tar 29%",
+     "Linen 13%",
+     "Beer 13%",
+     "Cloth 8%",
+     "Sails 4%",
+     "Garments 4%",
+     "Ropes 4%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 74,
+     "metallurgy": 26
+    }
+   },
+   "biome:Heath & moorland": {
+    "n": 14,
+    "craftPer1000": 79.2,
+    "topGoods": [
+     "Preserved food 64%",
+     "Beer 36%",
+     "Tar 7%",
+     "Linen 7%",
+     "Wool Cloth 7%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 100
+    }
+   },
+   "biome:Taiga": {
+    "n": 114,
+    "craftPer1000": 78.3,
+    "topGoods": [
+     "Preserved food 77%",
+     "Beer 13%",
+     "Cloth 7%",
+     "Barrels 7%",
+     "Tools 3%",
+     "Linen 3%",
+     "Tar 2%",
+     "Charcoal 1%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 93,
+     "metallurgy": 7
+    }
+   },
+   "biome:Temperate coniferous forest": {
+    "n": 77,
+    "craftPer1000": 79.6,
+    "topGoods": [
+     "Preserved food 71%",
+     "Cloth 19%",
+     "Beer 18%",
+     "Garments 8%",
+     "Tar 6%",
+     "Sails 5%",
+     "Arrows 5%",
+     "Wool Cloth 5%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 86,
+     "metallurgy": 13,
+     "woodworking": 1
+    }
+   },
+   "biome:Temperate deciduous forest": {
+    "n": 51,
+    "craftPer1000": 114.4,
+    "topGoods": [
+     "Preserved food 94%",
+     "Tar 37%",
+     "Sails 27%",
+     "Cloth 27%",
+     "Wool Cloth 24%",
+     "Garments 16%",
+     "Linen 14%",
+     "Arrows 8%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 90,
+     "metallurgy": 9,
+     "woodworking": 1
+    }
+   },
+   "biome:Temperate rainforest": {
+    "n": 24,
+    "craftPer1000": 190.7,
+    "topGoods": [
+     "Preserved food 92%",
+     "Cloth 38%",
+     "Tar 38%",
+     "Wool Cloth 33%",
+     "Sails 17%",
+     "Garments 17%",
+     "Wool Garments 13%",
+     "Tools 13%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 96,
+     "metallurgy": 3,
+     "woodworking": 0
+    }
+   },
+   "biome:Wetland": {
+    "n": 13,
+    "craftPer1000": 74.8,
+    "topGoods": [
+     "Preserved food 77%",
+     "Beer 23%",
+     "Tools 15%",
+     "Tar 8%",
+     "Ropes 8%"
+    ],
+    "guildPeopleShare": {
+     "woodworking": 57,
+     "metallurgy": 43
+    }
+   },
+   "class:capital": {
+    "n": 24,
+    "craftPer1000": 262,
+    "topGoods": [
+     "Preserved food 96%",
+     "Cloth 38%",
+     "Wool Cloth 38%",
+     "Tar 33%",
+     "Garments 21%",
+     "Ropes 17%",
+     "Tools 17%",
+     "Sails 17%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 94,
+     "metallurgy": 5,
+     "woodworking": 1
+    }
+   },
+   "class:inland": {
+    "n": 247,
+    "craftPer1000": 75.8,
+    "topGoods": [
+     "Preserved food 72%",
+     "Beer 19%",
+     "Cloth 7%",
+     "Tar 5%",
+     "Barrels 4%",
+     "Garments 3%",
+     "Tools 3%",
+     "Sails 2%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 85,
+     "metallurgy": 15,
+     "woodworking": 0
+    }
+   },
+   "class:marketCenter": {
+    "n": 19,
+    "craftPer1000": 148,
+    "topGoods": [
+     "Preserved food 95%",
+     "Cloth 32%",
+     "Wool Cloth 26%",
+     "Garments 21%",
+     "Tar 16%",
+     "Wool Garments 11%",
+     "Linen 5%",
+     "Sails 5%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 96,
+     "metallurgy": 4,
+     "woodworking": 0
+    }
+   },
+   "class:port": {
+    "n": 125,
+    "craftPer1000": 91.5,
+    "topGoods": [
+     "Preserved food 73%",
+     "Tar 22%",
+     "Cloth 21%",
+     "Beer 20%",
+     "Wool Cloth 10%",
+     "Linen 10%",
+     "Sails 9%",
+     "Garments 7%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 93,
+     "metallurgy": 6,
+     "woodworking": 1
+    }
+   },
+   "class:river": {
+    "n": 177,
+    "craftPer1000": 84.7,
+    "topGoods": [
+     "Preserved food 69%",
+     "Beer 21%",
+     "Cloth 10%",
+     "Tar 10%",
+     "Linen 6%",
+     "Barrels 6%",
+     "Garments 5%",
+     "Wool Cloth 4%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 89,
+     "metallurgy": 11,
+     "woodworking": 1
+    }
+   },
+   "size:a:10k+": {
+    "n": 4,
+    "craftPer1000": 348.9,
+    "topGoods": [
+     "Preserved food 100%",
+     "Cloth 100%",
+     "Wool Cloth 100%",
+     "Tapestries 50%",
+     "Artworks 50%",
+     "Sculptures 50%",
+     "Fine Wool Cloth 50%",
+     "Wool Garments 50%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 93,
+     "metallurgy": 5,
+     "woodworking": 1
+    }
+   },
+   "size:b:3k-10k": {
+    "n": 67,
+    "craftPer1000": 119.9,
+    "topGoods": [
+     "Preserved food 93%",
+     "Cloth 52%",
+     "Tar 45%",
+     "Garments 39%",
+     "Wool Cloth 36%",
+     "Sails 27%",
+     "Linen 19%",
+     "Tools 10%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 95,
+     "metallurgy": 5,
+     "woodworking": 0
+    }
+   },
+   "size:c:1k-3k": {
+    "n": 148,
+    "craftPer1000": 77.8,
+    "topGoods": [
+     "Preserved food 80%",
+     "Cloth 25%",
+     "Tar 24%",
+     "Beer 11%",
+     "Linen 10%",
+     "Tools 9%",
+     "Arrows 6%",
+     "Wool Cloth 6%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 86,
+     "metallurgy": 14,
+     "woodworking": 0
+    }
+   },
+   "size:d:<1k": {
+    "n": 373,
+    "craftPer1000": 67.8,
+    "topGoods": [
+     "Preserved food 66%",
+     "Beer 26%",
+     "Barrels 5%",
+     "Arms 1%",
+     "Cloth 0%",
+     "Arrows 0%",
+     "Tar 0%"
+    ],
+    "guildPeopleShare": {
+     "textiles": 81,
+     "metallurgy": 18,
+     "woodworking": 0
+    }
+   }
+  },
+  "capitals": [
+   {
+    "i": 1,
+    "people": 38248,
+    "adults": 17620,
+    "admin": 2640,
+    "adminShare": 0.15,
+    "craftStart": 3870,
+    "craftEnd": 12250,
+    "peopleEnd": 26669
+   },
+   {
+    "i": 2,
+    "people": 22656,
+    "adults": 10410,
+    "admin": 1110,
+    "adminShare": 0.107,
+    "craftStart": 2250,
+    "craftEnd": 9790,
+    "peopleEnd": 21193
+   },
+   {
+    "i": 21,
+    "people": 18612,
+    "adults": 8550,
+    "admin": 1280,
+    "adminShare": 0.15,
+    "craftStart": 1840,
+    "craftEnd": 3630,
+    "peopleEnd": 19275
+   },
+   {
+    "i": 3,
+    "people": 9597,
+    "adults": 4420,
+    "admin": 660,
+    "adminShare": 0.149,
+    "craftStart": 370,
+    "craftEnd": 1970,
+    "peopleEnd": 9599
+   },
+   {
+    "i": 6,
+    "people": 9585,
+    "adults": 4420,
+    "admin": 660,
+    "adminShare": 0.149,
+    "craftStart": 570,
+    "craftEnd": 3280,
+    "peopleEnd": 9541
+   },
+   {
+    "i": 15,
+    "people": 6787,
+    "adults": 3120,
+    "admin": 470,
+    "adminShare": 0.151,
+    "craftStart": 110,
+    "craftEnd": 790,
+    "peopleEnd": 7040
+   },
+   {
+    "i": 18,
+    "people": 6547,
+    "adults": 3010,
+    "admin": 450,
+    "adminShare": 0.15,
+    "craftStart": 90,
+    "craftEnd": 1030,
+    "peopleEnd": 6884
+   },
+   {
+    "i": 10,
+    "people": 5422,
+    "adults": 2500,
+    "admin": 240,
+    "adminShare": 0.096,
+    "craftStart": 90,
+    "craftEnd": 480,
+    "peopleEnd": 5480
+   },
+   {
+    "i": 7,
+    "people": 4834,
+    "adults": 2230,
+    "admin": 310,
+    "adminShare": 0.139,
+    "craftStart": 80,
+    "craftEnd": 350,
+    "peopleEnd": 4417
+   },
+   {
+    "i": 8,
+    "people": 3301,
+    "adults": 1530,
+    "admin": 230,
+    "adminShare": 0.15,
+    "craftStart": 50,
+    "craftEnd": 190,
+    "peopleEnd": 2814
+   },
+   {
+    "i": 13,
+    "people": 3292,
+    "adults": 1510,
+    "admin": 230,
+    "adminShare": 0.152,
+    "craftStart": 50,
+    "craftEnd": 680,
+    "peopleEnd": 3110
+   },
+   {
+    "i": 24,
+    "people": 2841,
+    "adults": 1310,
+    "admin": 200,
+    "adminShare": 0.153,
+    "craftStart": 50,
+    "craftEnd": 190,
+    "peopleEnd": 2605
+   },
+   {
+    "i": 23,
+    "people": 2367,
+    "adults": 1090,
+    "admin": 160,
+    "adminShare": 0.147,
+    "craftStart": 40,
+    "craftEnd": 230,
+    "peopleEnd": 2280
+   },
+   {
+    "i": 4,
+    "people": 2245,
+    "adults": 1030,
+    "admin": 160,
+    "adminShare": 0.155,
+    "craftStart": 40,
+    "craftEnd": 140,
+    "peopleEnd": 1964
+   },
+   {
+    "i": 9,
+    "people": 2107,
+    "adults": 970,
+    "admin": 140,
+    "adminShare": 0.144,
+    "craftStart": 30,
+    "craftEnd": 120,
+    "peopleEnd": 1957
+   },
+   {
+    "i": 17,
+    "people": 2024,
+    "adults": 930,
+    "admin": 140,
+    "adminShare": 0.151,
+    "craftStart": 30,
+    "craftEnd": 150,
+    "peopleEnd": 2067
+   },
+   {
+    "i": 22,
+    "people": 1777,
+    "adults": 820,
+    "admin": 120,
+    "adminShare": 0.146,
+    "craftStart": 30,
+    "craftEnd": 110,
+    "peopleEnd": 1862
+   },
+   {
+    "i": 5,
+    "people": 1772,
+    "adults": 820,
+    "admin": 120,
+    "adminShare": 0.146,
+    "craftStart": 30,
+    "craftEnd": 110,
+    "peopleEnd": 1519
+   },
+   {
+    "i": 12,
+    "people": 1597,
+    "adults": 740,
+    "admin": 110,
+    "adminShare": 0.149,
+    "craftStart": 20,
+    "craftEnd": 110,
+    "peopleEnd": 1615
+   },
+   {
+    "i": 16,
+    "people": 1439,
+    "adults": 660,
+    "admin": 100,
+    "adminShare": 0.152,
+    "craftStart": 20,
+    "craftEnd": 120,
+    "peopleEnd": 1482
+   },
+   {
+    "i": 19,
+    "people": 1124,
+    "adults": 520,
+    "admin": 80,
+    "adminShare": 0.154,
+    "craftStart": 20,
+    "craftEnd": 100,
+    "peopleEnd": 1128
+   },
+   {
+    "i": 11,
+    "people": 1116,
+    "adults": 510,
+    "admin": 80,
+    "adminShare": 0.157,
+    "craftStart": 20,
+    "craftEnd": 80,
+    "peopleEnd": 1153
+   },
+   {
+    "i": 20,
+    "people": 974,
+    "adults": 450,
+    "admin": 70,
+    "adminShare": 0.156,
+    "craftStart": 10,
+    "craftEnd": 60,
+    "peopleEnd": 1002
+   },
+   {
+    "i": 14,
+    "people": 748,
+    "adults": 340,
+    "admin": 50,
+    "adminShare": 0.147,
+    "craftStart": 10,
+    "craftEnd": 50,
+    "peopleEnd": 779
+   }
+  ],
+  "craftPer1000ByCapital": [
+   {
+    "month": 0,
+    "capitals": 16.7,
+    "nonCapitals3kPlus": 16.8
+   },
+   {
+    "month": 1,
+    "capitals": 56.9,
+    "nonCapitals3kPlus": 34.3
+   },
+   {
+    "month": 6,
+    "capitals": 216.6,
+    "nonCapitals3kPlus": 145.2
+   },
+   {
+    "month": 12,
+    "capitals": 189.2,
+    "nonCapitals3kPlus": 108.6
+   },
+   {
+    "month": 24,
+    "capitals": 96.5,
+    "nonCapitals3kPlus": 93.6
+   },
+   {
+    "month": 36,
+    "capitals": 83.9,
+    "nonCapitals3kPlus": 92.3
+   },
+   {
+    "month": 48,
+    "capitals": 83.9,
+    "nonCapitals3kPlus": 94.2
+   },
+   {
+    "month": 60,
+    "capitals": 80.1,
+    "nonCapitals3kPlus": 94.6
+   }
+  ],
+  "tradePairs": {
+   "foreign": {
+    "pairs": 252,
+    "slotShare": 0.24,
+    "medianDistance": 334.1,
+    "medianPopRatio": 3.2,
+    "modes": {
+     "land": 0.222,
+     "river": 0.025,
+     "sea": 0.753
+    },
+    "topGoods": [
+     "Barley 53%",
+     "Wood 13%",
+     "Grain 9%",
+     "Peas 6%",
+     "Wheat 5%",
+     "Chicken 3%",
+     "Fodder 2%",
+     "Horses 2%"
+    ]
+   },
+   "sameState": {
+    "pairs": 178,
+    "slotShare": 0.06,
+    "medianDistance": 144.5,
+    "medianPopRatio": 2.8,
+    "modes": {
+     "land": 0.978,
+     "river": 0.02,
+     "sea": 0.002
+    },
+    "topGoods": [
+     "Wood 51%",
+     "Barley 25%",
+     "Tallow 6%",
+     "Wheat 6%",
+     "Leather 2%",
+     "Iron Ingot 2%",
+     "Chicken 2%",
+     "Camels 1%"
+    ]
+   },
+   "sameMarket": {
+    "pairs": 5796,
+    "slotShare": 0.7,
+    "medianDistance": 80.9,
+    "medianPopRatio": 3.4,
+    "modes": {
+     "land": 0.989,
+     "river": 0.007,
+     "sea": 0.003
+    },
+    "topGoods": [
+     "Wood 47%",
+     "Fodder 25%",
+     "Barley 12%",
+     "Tallow 5%",
+     "Leather 2%",
+     "Salt 2%",
+     "Wool 1%",
+     "Camels 1%"
+    ]
+   }
+  },
+  "tradeSlotsPerBurgByClass": {
+   "capital": 7112,
+   "port": 716.9,
+   "marketCenter": 11533.7,
+   "river": 739.6,
+   "inland": 607.7
+  },
+  "ceStability": [
+   {
+    "month": 1,
+    "burgs": 580,
+    "hallsLost": 0,
+    "hallsGained": 0,
+    "dominantCraftChanged": 56,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.5
+    },
+    "meanStorageYards": {
+     "start": 2.2,
+     "later": 4.6
+    }
+   },
+   {
+    "month": 6,
+    "burgs": 580,
+    "hallsLost": 0,
+    "hallsGained": 0,
+    "dominantCraftChanged": 165,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.8
+    },
+    "meanStorageYards": {
+     "start": 2.2,
+     "later": 4.8
+    }
+   },
+   {
+    "month": 12,
+    "burgs": 580,
+    "hallsLost": 2,
+    "hallsGained": 3,
+    "dominantCraftChanged": 183,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.8
+    },
+    "meanStorageYards": {
+     "start": 2.2,
+     "later": 5.7
+    }
+   },
+   {
+    "month": 24,
+    "burgs": 580,
+    "hallsLost": 3,
+    "hallsGained": 26,
+    "dominantCraftChanged": 146,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.2,
+     "later": 5.6
+    }
+   },
+   {
+    "month": 36,
+    "burgs": 580,
+    "hallsLost": 141,
+    "hallsGained": 53,
+    "dominantCraftChanged": 104,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.2,
+     "later": 5.6
+    }
+   },
+   {
+    "month": 48,
+    "burgs": 580,
+    "hallsLost": 129,
+    "hallsGained": 67,
+    "dominantCraftChanged": 104,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.2,
+     "later": 5.6
+    }
+   },
+   {
+    "month": 60,
+    "burgs": 580,
+    "hallsLost": 120,
+    "hallsGained": 73,
+    "dominantCraftChanged": 90,
+    "meanPartners": {
+     "start": 0.1,
+     "later": 7.9
+    },
+    "meanStorageYards": {
+     "start": 2.2,
+     "later": 5.7
+    }
+   }
+  ],
+  "ceHallsAtStart": {
+   "halls": 171,
+   "withoutWorkshop": 161
+  }
+ }
+}

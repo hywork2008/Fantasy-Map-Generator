@@ -107,8 +107,11 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
   const seaGraph = buildSeaRouteGraph(pack);
   const getFoodRoute = createFoodRouteResolver(worldContext, landGraph, seaGraph);
   const remainingExport = new Map<number, number>();
+  // A supplier keeps its own brewers' grain. Selling it left every market's surplus empty and no
+  // grain to brew anywhere (docs/plan/urban-craft-staffing.md §10.9).
   for (const market of markets) {
-    remainingExport.set(market.i, Math.max(0, market.foodLedger?.exportable ?? 0));
+    const ledger = market.foodLedger;
+    remainingExport.set(market.i, Math.max(0, (ledger?.exportable ?? 0) - (ledger?.brewingReserve ?? 0)));
   }
 
   const importers = markets

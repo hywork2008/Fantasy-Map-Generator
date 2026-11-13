@@ -85,6 +85,7 @@ import {
   resignConstructionJob,
   tickConstructionHiring
 } from "./generators/constructionHire";
+import { settleCraftCredit } from "./generators/craftCredit";
 import { DamSites } from "./generators/damSites";
 import { Dams } from "./generators/dams";
 import {
@@ -113,6 +114,7 @@ import { FertilizerInvestment } from "./generators/fertilizerInvestment";
 import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption";
 import { FoodProduction } from "./generators/foodProduction";
+import { settleForestGlasshouses } from "./generators/forestGlasshouses";
 import { tickForestRegrowth } from "./generators/forestStock";
 import { FortificationMastery } from "./generators/fortificationMastery";
 import { consumeFuneralMaterialsFromPending } from "./generators/funeralGoodsConsumption";
@@ -123,16 +125,22 @@ import {
   getDefaultGoodTradeProfile,
   isGoodEnabled,
   migrateAlloySteelGoods,
+  migrateBarillaGood,
   migrateBeeswaxByproduct,
+  migrateCastileSoapGood,
   migrateChemMedGoods,
+  migrateColdLandShoreDeposits,
   migrateElectricalGoods,
   migrateElectrolyticIndustryGoods,
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateGrapesGood,
+  migrateHearthAshGoods,
+  migrateHoneyForageLands,
   migrateIndustrialSteamGoods,
   migrateInkBarrel,
   migrateLeatherByproduct,
+  migrateLeatherGoods,
   migrateLegacyOreIngotGoods,
   migrateLinenBale,
   migrateLinenGarmentGoods,
@@ -140,10 +148,12 @@ import {
   migrateLiveCatsGood,
   migrateLiveDogsGood,
   migrateLivestockFeedDemand,
+  migrateMeadGood,
   migrateMeasuredCargoSlots,
   migrateMeatGood,
   migrateMercuryChainGoods,
   migrateNaturalGasChainGoods,
+  migrateOliveSoapRecipe,
   migrateOrdinaryWoolGoods,
   migratePeatFuelValue,
   migratePerennialFruitGoods,
@@ -158,6 +168,7 @@ import {
   migrateStapleCropGoods,
   migrateSyntheticAmmoniaGoods,
   migrateTallowByproduct,
+  migrateTallowCandleGoods,
   migrateTextileQualityGoods,
   migrateUntaxedSaltValue,
   migrateWeightRepricing,
@@ -237,7 +248,7 @@ import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
 import { SaltLogistics } from "./generators/saltLogistics";
 import { migrateSaltworksOwnership } from "./generators/saltOwnership";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
-import { clearPrepaidStapleBills, recordStapleBillPaid } from "./generators/slaughter";
+import { clearPrepaidStapleBills, recordStapleBillPaid, spoilSummerHides } from "./generators/slaughter";
 import { SmelterOperations } from "./generators/smelterOperations";
 import { settleStartProvisioning } from "./generators/startProvisioning";
 import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
@@ -369,9 +380,23 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateLivestockFeedDemand,
   migrateWoolBlanketGoods,
   migrateWoodPhysicalRecipes,
+  migrateHearthAshGoods,
   migratePeatFuelValue,
   migrateMeatGood,
-  migrateUntaxedSaltValue
+  migrateUntaxedSaltValue,
+  migrateHoneyForageLands,
+  migrateColdLandShoreDeposits,
+  // docs/plan/mead.md: after Honey has its lands, add Mead on this save's Honey and Barrels ids.
+  migrateMeadGood,
+  migrateBarillaGood,
+  // docs/plan/castile-soap.md: after Barilla, add the hard soap as its own good and take the
+  // barilla recipe saves of docs/plan/barilla-soap.md gave Soap.
+  migrateCastileSoapGood,
+  // docs/plan/soap-by-period.md §3.2: olive oil soap is Castile Soap, not the soft soap.
+  migrateOliveSoapRecipe,
+  migrateLeatherGoods,
+  // docs/plan/candle-split.md: the homes' tallow candles apart from the wax Candles.
+  migrateTallowCandleGoods
 ];
 
 /**
@@ -859,6 +884,8 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
         Production.produce(skipFoodConsumption ? value.livestockFeedPeriod : undefined)
       );
       measureTickStep("production:householdHeating", () => settleMonthlyHeating());
+      measureTickStep("production:summerHides", () => spoilSummerHides());
+      measureTickStep("production:forestGlasshouses", () => settleForestGlasshouses());
       // Completed forge Goods are transferred from market stock to the queue before the next
       // planning pass refreshes maintenance and consumable demand.
       measureTickStep("production:metallurgFulfillment", () => MetallurgWork.fulfillFromMarkets());
@@ -871,6 +898,7 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
       }
       measureTickStep("production:householdSpending", () => spendUrbanHouseholdSurplus());
       measureTickStep("production:ruralSpending", () => spendRuralHouseholdsInTowns());
+      measureTickStep("production:craftCredit", () => settleCraftCredit());
       const creditCharacter = (characterId: number, amount: number) => {
         const merchant = hasCharactersContext()
           ? getSimulationCharacters().find(c => c.i === characterId && !c.dead)
@@ -1783,6 +1811,7 @@ function register(api: SimulationExtensionAPI): () => void {
           // initial path so a settled starting world is not 75% urban-unemployed on day one.
           reconcileAnnualBasicEmploymentWorkers({ initial: true });
           settleMonthlyHeating();
+          settleForestGlasshouses();
           Taxes.collectTaxes();
           MetallurgWork.generate();
           MetallurgWork.settleMonthly();

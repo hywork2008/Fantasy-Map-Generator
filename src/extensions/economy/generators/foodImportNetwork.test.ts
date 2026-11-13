@@ -125,6 +125,43 @@ describe("resolveFoodImportNetwork", () => {
     }
   );
 
+  it("keeps the supplier's brewing grain out of what it sells", () => {
+    const supplier = {
+      i: 1,
+      centerBurgId: 1,
+      color: "",
+      goods: { 1: { stock: 100, price: 1 } },
+      marketTreasury: { balance: 0, ruralGrainPayable: 0 },
+      foodLedger: ledger({ exportable: 100, brewingReserve: 80, foodStockAge0: 100, foodStockAge0UnitCost: 1 })
+    };
+    const importer = {
+      i: 2,
+      centerBurgId: 2,
+      color: "",
+      goods: {},
+      marketTreasury: { balance: 60, ruralGrainPayable: 0 },
+      foodLedger: ledger({ importNeed: 40 })
+    };
+    vi.mocked(getMarkets).mockReturnValue([supplier, importer] as never);
+    vi.mocked(findLandRouteDistance).mockReturnValue(10);
+    const world = {
+      populationRate: 100,
+      urbanization: 1,
+      distanceScale: 1,
+      options: { month: 7 },
+      pack: {
+        routes: [{}],
+        burgs: [{ cell: 0 }, { i: 1, cell: 1, market: 1 }, { i: 2, cell: 2, market: 2 }]
+      }
+    } as unknown as WorldContext;
+
+    const flows = resolveFoodImportNetwork(world);
+
+    expect(flows).toHaveLength(1);
+    expect(flows[0].volume).toBeCloseTo(20, 2);
+    expect(supplier.foodLedger.foodStockAge0).toBeCloseTo(80, 2);
+  });
+
   it("uses finite surplus once, applies transit loss, and raises only the importing burg capacity", () => {
     const supplier = {
       i: 1,

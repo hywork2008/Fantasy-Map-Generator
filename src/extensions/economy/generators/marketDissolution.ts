@@ -149,6 +149,21 @@ function mergeTreasury(from: MarketTreasury, into: Market): void {
   if (from.ruralHayPayable) target.ruralHayPayable = rn((target.ruralHayPayable ?? 0) + from.ruralHayPayable, 2);
   if (from.ruralHayConsignedLots)
     target.ruralHayConsignedLots = (target.ruralHayConsignedLots ?? 0) + from.ruralHayConsignedLots;
+  // The absorbing market holds the dissolved one's consigned town goods and owes what it owed.
+  for (const key of ["craftConsigned", "craftPayables"] as const) {
+    const source = from[key];
+    if (!source) continue;
+    const table = target[key] ?? {};
+    target[key] = table;
+    for (const [outer, rows] of Object.entries(source)) {
+      const into = table[+outer] ?? {};
+      table[+outer] = into;
+      for (const [inner, row] of Object.entries(rows)) {
+        const held = into[+inner] ?? [0, 0];
+        into[+inner] = [held[0] + row[0], rn(held[1] + row[1], 2)];
+      }
+    }
+  }
   if (from.tradeWorkingCapital)
     target.tradeWorkingCapital = rn((target.tradeWorkingCapital ?? 0) + from.tradeWorkingCapital, 2);
   if (from.tradeEscrow) target.tradeEscrow = rn((target.tradeEscrow ?? 0) + from.tradeEscrow, 2);

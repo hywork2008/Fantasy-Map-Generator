@@ -11,12 +11,12 @@ export const KILOGRAMS_PER_CHEESE_LOT = 1_000;
 export const KILOGRAMS_PER_GRAPES_LOT = 1_000;
 /** Ale, cider and perry are traded by the tun of 1,000 L, five casks, so that a lot earns what the other goods' do. */
 export const LITERS_PER_BEER_LOT = 1_000;
+/** Each Beer recipe takes one lot of malting grain (barley, wheat, oats or rye) a tun. */
+export const GRAIN_LOTS_PER_BEER_LOT = 1;
 export const LITERS_PER_ORCHARD_DRINK_LOT = 1_000;
 export const KILOGRAMS_PER_ORCHARD_FRUIT_LOT = 1_000;
 /** Model pressing contract: 1.5 kg of fresh fruit per litre of finished drink. */
 export const ORCHARD_FRUIT_LOTS_PER_DRINK_LOT = (LITERS_PER_ORCHARD_DRINK_LOT * 1.5) / KILOGRAMS_PER_ORCHARD_FRUIT_LOT;
-/** Replacement/repair material for five circulating 200 L casks, not five new casks. */
-export const ORCHARD_DRINK_BARRELS_PER_LOT = 0.4;
 /** CSU Extension: 12 lb apples -> 1.25 lb dried; 14 lb pears -> 1.5 lb dried. */
 export const ORCHARD_FRUIT_LOTS_PER_DRIED_LOT = {
   Apples: (250 * 12) / 1.25 / KILOGRAMS_PER_ORCHARD_FRUIT_LOT,
@@ -34,7 +34,36 @@ export const ORCHARD_TARGETS = {
 export function isOrchardDrink(name: string): name is "Cider" | "Perry" {
   return name === "Cider" || name === "Perry";
 }
+
+/** Mead is traded by the tun of 1,000 L, five casks, as ale is (docs/plan/mead.md §3). */
+export const LITERS_PER_MEAD_LOT = 1_000;
+/** A barrel of honey is 120 L (168 kg). */
+export const HONEY_LITERS_PER_BARREL = 120;
+/**
+ * One part honey to four of water, the Domostroi's white mead and an English receipt of the 13th-14th
+ * century: 200 L of honey a tun.
+ */
+export const HONEY_BARRELS_PER_MEAD_LOT = LITERS_PER_MEAD_LOT / 5 / HONEY_LITERS_PER_BARREL;
+export const MEAD_TARGETS = {
+  adultShare: 0.65,
+  /** Mead keeps, but the towns brewed it for feasts and guests, not as a year's store. */
+  reserveMonths: 3
+} as const;
+
+/** Drinks whose filled casks the market tracks out and back in `orchardCasks`. */
+export type ReturnedCaskDrink = "Cider" | "Perry" | "Mead";
+
+export function isReturnedCaskDrink(name: string): name is ReturnedCaskDrink {
+  return isOrchardDrink(name) || name === "Mead";
+}
 export const LITERS_PER_WINE_LOT = 200;
+/**
+ * Drinks pressed in the fruit's own cell up to the market's drink headroom (docs/plan/vintage-and-orchard-yield.md):
+ * the orchard drinks, and Wine, which a cheese-sized export allowance otherwise left unpressed.
+ */
+export function isCellPressedDrink(name: string): boolean {
+  return isOrchardDrink(name) || name === "Wine";
+}
 export const KILOGRAMS_PER_RAISINS_LOT = 250;
 
 /** Ten litres of whole milk make approximately one kilogram of hard cheese. */
@@ -63,19 +92,57 @@ export const WINE_TARGETS = {
   /** Wine-country residents; this is not a claim that all medieval Germans drank this amount. */
   regionalLitersPerAdultYear: 8,
   importedLitersPerAdultYear: 1,
-  adultShare: 0.65
+  adultShare: 0.65,
+  /** The vintage comes once a year, so the cellars hold a year's wine as the orchard drinks do. */
+  reserveMonths: 12
 } as const;
 
 export const ALE_TARGETS = {
   /**
-   * A conservative baseline for a general medieval-fantasy simulation. Water safety can add up
-   * to 50%; this is a recurring drink demand, not a second allocation of staple-food calories.
+   * Wine-country towns, which brewed little: England's whole malt crop in 1300 makes about 70 L an
+   * adult a year across town and country (Cornell 2022, after Slavin), which leaves about this much
+   * for the countryside. Country households brew that from their own grain within their food and
+   * buy none (urban-craft-staffing.md §10.11). Water safety can add up to 50%; this is a recurring
+   * drink demand, not a second allocation of staple-food calories.
    */
   baselineLitersPerAdultYear: 48,
+  /**
+   * Townsfolk outside the wine country bought their ale: about 300 L a head a year in the beer
+   * regions (Unger 2004), two pints a person a day in a brewing household (Bennett 1996). The
+   * brewers of the English towns were 2.7% of their employed (urban-craft-staffing.md §4.3,
+   * §10.4).
+   */
+  urbanLitersPerAdultYear: 300,
   adultShare: 0.65
 } as const;
 
+/**
+ * Adult work days to tread, press and cask, or dry, one 1,000 kg lot of fruit in its cell
+ * (docs/plan/vintage-labour.md). In the Douro 7 treaders took a 5 t lagar through a 4-hour
+ * session, and treading ran over up to 3 days. The pickers trod in the evening. The pressing,
+ * barrelling and the raisins' turning on the drying floors are taken to need as much again.
+ * Fruits not listed keep their catalogue labour per lot.
+ */
+export const CELL_FRUIT_PROCESSING_WORK_DAYS_PER_LOT: Readonly<Record<string, number>> = {
+  Grapes: 3,
+  Apples: 3,
+  Pears: 3
+};
+
 export const GRAPE_TARGETS = {
   freshKilogramsPerPersonYear: 2,
-  raisinsKilogramsPerPersonYear: 0.5
+  /**
+   * The vintage's 45 days: the towns eat their fresh grapes then, as the country does from the vines
+   * (docs/plan/grape-season-and-wine-country.md).
+   */
+  harvestMonths: 45 / (365 / 12),
+  /** Town people's raisins: country people eat theirs from the vineyard cells' stores. */
+  raisinsKilogramsPerPersonYear: 0.5,
+  /**
+   * Shipped from the vintage and eaten from Christmas to Lent: the towns eat this multiple of the
+   * year's mean from October to March and the rest of the year the remainder (docs/plan/raisin-trade.md §3.3).
+   */
+  raisinsWinterWeight: 1.5,
+  /** The vintage dries a year's raisins once; stock above this many months of mean demand spoils. */
+  raisinsReserveMonths: 12
 } as const;

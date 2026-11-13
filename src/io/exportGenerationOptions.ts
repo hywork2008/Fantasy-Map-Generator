@@ -4,6 +4,7 @@ import {
   resolveRacePersonNameMapping
 } from "../data/racePersonNameConfig";
 import { setAllowedCharacterRaceKeys } from "../extensions/characters/charactersContext";
+import { SITE_BONUS_FULL_HABITABILITY_LIMITS } from "../generators/siteSuitability";
 import { tip } from "../services/tooltipService";
 import { generationProgressStore } from "../store/generationProgressState";
 import {
@@ -95,6 +96,7 @@ const NUMBER_KEYS = [
   "longitude",
   "prec",
   "initialPopulationSaturation",
+  "siteBonusFullHabitability",
   "oikoumeneLandShare",
   "initialPolityRealmSize",
   "neutralRate",
@@ -176,6 +178,11 @@ export function sanitizeGenerationOptions(raw: unknown): Partial<GenerationOptio
     if (key === "oikoumeneLandShare") {
       const share = value > 1 ? value / 100 : value;
       if (share >= 0.1 && share <= 0.95) updates.oikoumeneLandShare = share;
+      continue;
+    }
+    if (key === "siteBonusFullHabitability") {
+      const { min, max } = SITE_BONUS_FULL_HABITABILITY_LIMITS;
+      updates.siteBonusFullHabitability = Math.min(max, Math.max(min, Math.round(value)));
       continue;
     }
     if (key === "initialPolityRealmSize") {

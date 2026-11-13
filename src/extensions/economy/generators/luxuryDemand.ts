@@ -5,6 +5,7 @@
  * follows its size and wealth, split across price tiers by the town's standing. Purchases are in
  * townLuxuryPurchases.ts; the trade demand reads the same budgets.
  */
+import { getTownSoapKilograms } from "../../../simulation/townSoapSettings";
 import { worldSettings } from "../../../simulation/worldSettings";
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
@@ -74,18 +75,26 @@ export function luxuryBudget(burg: Pick<Burg, "population" | "treasury">): numbe
 }
 
 let catalogue: readonly Good[] | null = null;
+let catalogueTownSoap = false;
 let goodsByTier = new Map<LuxuryTier, Good[]>();
 
 let coverageByTier = new Map<LuxuryTier, number>();
 
+/** Soap and Castile Soap; named here rather than imported, as townSoap.ts reads this module's shares. */
+const TOWN_SOAP_NAMES: ReadonlySet<string> = new Set(["Soap", "Castile Soap"]);
+
 /** Enabled goods serving luxury demand, by price tier (cached per catalogue). */
 export function luxuryGoodsByTier(): Map<LuxuryTier, Good[]> {
   const goods = getGoods();
-  if (goods !== catalogue) {
+  // The towns' soap is a household need while it is on (townSoap.ts), not a luxury of the budget.
+  const townSoap = getTownSoapKilograms() > 0;
+  if (goods !== catalogue || townSoap !== catalogueTownSoap) {
     catalogue = goods;
+    catalogueTownSoap = townSoap;
     goodsByTier = new Map(LUXURY_TIERS.map(tier => [tier, [] as Good[]]));
     for (const good of goods) {
       if (!isGoodEnabled(good) || !(luxuryCoverageOf(good) > 0)) continue;
+      if (townSoap && TOWN_SOAP_NAMES.has(good.name)) continue;
       goodsByTier.get(luxuryTierOf(good))!.push(good);
     }
     coverageByTier = new Map(
@@ -100,6 +109,7 @@ export function luxuryShareInTier(good: Good): number {
   luxuryGoodsByTier();
   const coverage = luxuryCoverageOf(good);
   if (!(coverage > 0) || !isGoodEnabled(good)) return 0;
+  if (catalogueTownSoap && TOWN_SOAP_NAMES.has(good.name)) return 0;
   return coverage / (coverageByTier.get(luxuryTierOf(good)) || 1);
 }
 

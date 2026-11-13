@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { setMarketSettings } from "../../../simulation/marketSettings";
+import { getMarketSettings, setMarketSettings } from "../../../simulation/marketSettings";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext, setMarketCellColumn, setMarkets } from "../economyContext";
@@ -12,7 +12,6 @@ import {
   getRuralHouseholdWealth,
   moveRuralPursesWithFarms,
   payOutMarketSurplus,
-  RURAL_HOUSEHOLD_TOWN_SPEND_SHARE,
   RURAL_TOWN_SPEND_DUES_SHARE,
   resetRuralHouseholdWealthCycleTracking,
   spendRuralHouseholdsInTowns,
@@ -103,7 +102,9 @@ describe("householdWealth (docs/plan/economy-coupling-audit.md L2 Phase 2/3)", (
       const spent = spendRuralHouseholdsInTowns();
       const [, big, small] = worldContext.pack.burgs;
 
-      expect(spent).toBeCloseTo(1000 * RURAL_HOUSEHOLD_TOWN_SPEND_SHARE, 6);
+      // First month: the need is fixed from the purse-share amount; a purse that many times its
+      // reserve months of need spends purse / reserve months (docs/plan/rural-town-spending.md §4.3).
+      expect(spent).toBeCloseTo(1000 / getMarketSettings().ruralPurseMonths, 1);
       expect(big.treasury).toBeCloseTo(spent * 0.75 * RURAL_TOWN_SPEND_DUES_SHARE, 1);
       expect(getHouseholdWealth(1) - before[0]).toBeCloseTo(spent * 0.75 * (1 - RURAL_TOWN_SPEND_DUES_SHARE), 1);
       expect(small.treasury! + getHouseholdWealth(2) - before[1]).toBeCloseTo(spent * 0.25, 1);

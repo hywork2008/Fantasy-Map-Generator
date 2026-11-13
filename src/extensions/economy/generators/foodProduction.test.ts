@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { STAPLE_CROP_PROFILES } from "../../../data/stapleCrops";
 import {
   DEFAULT_QUARTERLY_WEIGHTS,
+  emptyFoodLedger,
   FoodProduction,
   getGlobalQuarterlyFoodWeights,
+  getStartHarvestBridge,
   RURAL_HOUSEHOLD_SURPLUS_ANNUAL_LOSS
 } from "./foodProduction";
 import type { Good } from "./goodsGeneratorTypes";
@@ -11,6 +13,7 @@ import type { Good } from "./goodsGeneratorTypes";
 // Mock economy context
 vi.mock("../economyContext", () => ({
   getWorldContext: vi.fn(),
+  getSimulationMonth: () => 1,
   getMarkets: vi.fn(),
   getMarketCellColumn: vi.fn(),
   getGoods: vi.fn(() => []),
@@ -24,6 +27,15 @@ vi.mock("../economyContext", () => ({
   getRuralFoodCapacity: vi.fn(() => new Float32Array()),
   getRuralHouseholdFoodStock: vi.fn(() => new Float32Array()),
   setRuralHouseholdFoodStock: vi.fn()
+}));
+
+vi.mock("./foodProcessingLedger", () => ({
+  getAleDemandSnapshot: vi.fn(() => ({
+    baselineDemand: 0,
+    waterSafetyDemand: 0,
+    monthlyDemand: 0,
+    drinkingWaterRisk: 0
+  }))
 }));
 
 import {
@@ -40,6 +52,7 @@ import {
   getWorldContext,
   setRuralHouseholdFoodStock
 } from "../economyContext";
+import { getAleDemandSnapshot } from "./foodProcessingLedger";
 
 describe("FoodProduction", () => {
   let mockWorldContext: any;
@@ -131,6 +144,24 @@ describe("FoodProduction", () => {
     expect(market1.marketTreasury.ruralGrainPayable).toBeGreaterThan(0);
   });
 
+  it("does not count the brewers' grain as the eaters' stock when sizing imports", () => {
+    vi.mocked(getAleDemandSnapshot).mockReturnValue({
+      baselineDemand: 300,
+      waterSafetyDemand: 0,
+      monthlyDemand: 300,
+      drinkingWaterRisk: 0
+    });
+
+    FoodProduction.generateQuarterlyLedger(0);
+
+    // Market 1 holds the quarter's 2015.63 and keeps 537.5 back from export. The brewers' six
+    // months (1,800) would take all 1478.13 exportable, so only 537.5 is the eaters', short of
+    // their six-month target of 1075.
+    const ledger = mockWorldContext.pack.markets[0].foodLedger;
+    expect(ledger.exportable).toBeCloseTo(1478.13, 0);
+    expect(ledger.importNeed).toBeCloseTo(537.5, 0);
+  });
+
   it("adds harvest monthly while retaining the legacy three-month ageing bands", () => {
     FoodProduction.generateMonthlyLedger(1);
     const january = mockWorldContext.pack.markets[0].foodLedger.foodProduced;
@@ -215,6 +246,79 @@ describe("FoodProduction", () => {
     const ledger = mockWorldContext.markets[0].foodLedger;
     expect(ledger.foodProduced).toBe(0);
     expect(ledger.unsoldHarvest).toBeCloseTo(0.4, 2);
+  });
+
+  it("buys the brewers' grain on top of the eaters' and leaves it outside the export reserve", () => {
+    mockWorldContext = {
+      populationRate: 1,
+      urbanization: 1,
+      pack: {
+        cells: {
+          i: new Uint16Array([0]),
+          h: new Uint8Array([25]),
+          pop: new Float32Array([10]),
+          capacity: new Float32Array([20])
+        },
+        burgs: []
+      },
+      markets: [{ i: 1, goods: {} }]
+    };
+    ruralHouseholdFoodStock = new Float32Array([4]);
+    vi.mocked(getWorldContext).mockReturnValue(mockWorldContext);
+    vi.mocked(getMarkets).mockReturnValue(mockWorldContext.markets);
+    vi.mocked(getMarketCellColumn).mockReturnValue(new Uint16Array([1]));
+    vi.mocked(getCultivableArea).mockReturnValue(new Float32Array([10]));
+    vi.mocked(getCultivatedArea).mockReturnValue(new Float32Array([10]));
+    vi.mocked(getFoodPotential).mockReturnValue(new Float32Array([20]));
+    vi.mocked(getAleDemandSnapshot).mockReturnValue({
+      baselineDemand: 0.1,
+      waterSafetyDemand: 0,
+      monthlyDemand: 0.1,
+      drinkingWaterRisk: 0
+    });
+
+    FoodProduction.generateQuarterlyLedger(0);
+
+    // Ale takes 0.1 tun a month, one lot of grain a tun: a year's 1.2 plus this quarter's 0.3 of
+    // the 4.7 offered. No town eats from it, so all of it may go to the brewers.
+    const ledger = mockWorldContext.markets[0].foodLedger;
+    expect(ledger.foodProduced).toBeCloseTo(1.5, 2);
+    expect(ledger.exportable).toBeCloseTo(1.5, 2);
+  });
+
+  it("buys back what the granary sent to other markets or lost over the last year", () => {
+    const ledger = emptyFoodLedger();
+    // 1.2 left the granary over the last year (sent away or spoiled), 0.6 sent away since the last purchase.
+    ledger.outflowByMonth = new Array(12).fill(0.1);
+    ledger.exportedSincePurchase = 0.6;
+    mockWorldContext = {
+      populationRate: 1,
+      urbanization: 1,
+      pack: {
+        cells: {
+          i: new Uint16Array([0]),
+          h: new Uint8Array([25]),
+          pop: new Float32Array([10]),
+          capacity: new Float32Array([20])
+        },
+        burgs: []
+      },
+      markets: [{ i: 1, goods: {}, foodLedger: ledger }]
+    };
+    ruralHouseholdFoodStock = new Float32Array([4]);
+    vi.mocked(getWorldContext).mockReturnValue(mockWorldContext);
+    vi.mocked(getMarkets).mockReturnValue(mockWorldContext.markets);
+    vi.mocked(getMarketCellColumn).mockReturnValue(new Uint16Array([1]));
+    vi.mocked(getCultivableArea).mockReturnValue(new Float32Array([10]));
+    vi.mocked(getCultivatedArea).mockReturnValue(new Float32Array([10]));
+    vi.mocked(getFoodPotential).mockReturnValue(new Float32Array([20]));
+
+    FoodProduction.generateQuarterlyLedger(0);
+
+    // No town and no brewers: the year's 1.2 plus this quarter's 0.3 is bought for it alone.
+    expect(ledger.foodProduced).toBeCloseTo(1.5, 2);
+    expect(ledger.exportedSincePurchase).toBe(0);
+    expect(ledger.outflowByMonth!.reduce((sum, units) => sum + units, 0)).toBeCloseTo(0.9 + 0.6, 2);
   });
 
   it("loses part of the household grain held above the reserve", () => {
@@ -365,5 +469,20 @@ describe("FoodProduction", () => {
     expect(market.foodLedger.foodStockAge1).toBeCloseTo(98.24, 2);
     expect(market.foodLedger.foodStockAge0).toBe(0);
     expect(market.foodLedger.storageSpoiled).toBeCloseTo(10.57, 2);
+  });
+});
+
+describe("getStartHarvestBridge", () => {
+  const august = Array.from({ length: 12 }, (_, month) => (month === 7 ? 1 : 0));
+
+  it("holds the months until the first harvest has reached the granary", () => {
+    // August's harvest comes in after August's eating: January to August lean on the old stock.
+    expect(getStartHarvestBridge(1200, august, 1)).toBeCloseTo(800);
+    expect(getStartHarvestBridge(1200, august, 8)).toBeCloseTo(100);
+    expect(getStartHarvestBridge(1200, august, 9)).toBeCloseTo(1200);
+  });
+
+  it("needs nothing without a harvest profile", () => {
+    expect(getStartHarvestBridge(1200, undefined, 1)).toBe(0);
   });
 });

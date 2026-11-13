@@ -1,0 +1,198 @@
+{
+ "S2": {
+  "tailoring": {
+   "towns": 2275,
+   "within30": 0.05,
+   "zero": 0.83,
+   "medianRatio": 0
+  },
+  "weaving": {
+   "towns": 1932,
+   "within30": 0.08,
+   "zero": 0.65,
+   "medianRatio": 0
+  },
+  "shoemaking": {
+   "towns": 2081,
+   "within30": 0,
+   "zero": 1,
+   "medianRatio": 0
+  },
+  "tanning": {
+   "towns": 1970,
+   "within30": 0,
+   "zero": 1,
+   "medianRatio": 0
+  },
+  "smithing": {
+   "towns": 1205,
+   "within30": 0.04,
+   "zero": 0.89,
+   "medianRatio": 0
+  },
+  "metalwares": {
+   "towns": 1456,
+   "within30": 0,
+   "zero": 1,
+   "medianRatio": 0
+  },
+  "cooperage": {
+   "towns": 1624,
+   "within30": 0,
+   "zero": 0.17,
+   "medianRatio": 0.12
+  },
+  "bowyery": {
+   "towns": 500,
+   "within30": 0.01,
+   "zero": 0.97,
+   "medianRatio": 0
+  },
+  "ropemaking": {
+   "towns": 639,
+   "within30": 0.01,
+   "zero": 0.83,
+   "medianRatio": 0
+  },
+  "limeAndTile": {
+   "towns": 917,
+   "within30": 0,
+   "zero": 1,
+   "medianRatio": 0
+  },
+  "pottery": {
+   "towns": 917,
+   "within30": 0,
+   "zero": 1,
+   "medianRatio": 0
+  },
+  "glazing": {
+   "towns": 51,
+   "within30": 0,
+   "zero": 1,
+   "medianRatio": 0
+  },
+  "bookTrades": {
+   "towns": 197,
+   "within30": 0.02,
+   "zero": 0.96,
+   "medianRatio": 0
+  },
+  "instrumentMaking": {
+   "towns": 0,
+   "within30": 0,
+   "zero": 0,
+   "medianRatio": 0
+  },
+  "butchery": {
+   "towns": 1708,
+   "within30": 0,
+   "zero": 1,
+   "medianRatio": 0
+  },
+  "chandlery": {
+   "towns": 917,
+   "within30": 0,
+   "zero": 0.99,
+   "medianRatio": 0
+  }
+ },
+ "S3": {
+  "tailoring": {
+   "towns": 2276,
+   "within30": 0.05,
+   "zero": 0.83,
+   "medianRatio": 0
+  },
+  "weaving": {
+   "towns": 1933,
+   "within30": 0.01,
+   "zero": 0.49,
+   "medianRatio": 0.21
+  },
+  "shoemaking": {
+   "towns": 2082,
+   "within30": 0,
+   "zero": 1,
+   "medianRatio": 0
+  },
+  "tanning": {
+   "towns": 1973,
+   "within30": 0,
+   "zero": 1,
+   "medianRatio": 0
+  },
+  "smithing": {
+   "towns": 1206,
+   "within30": 0,
+   "zero": 0.98,
+   "medianRatio": 0
+  },
+  "metalwares": {
+   "towns": 1462,
+   "within30": 0,
+   "zero": 1,
+   "medianRatio": 0
+  },
+  "cooperage": {
+   "towns": 1625,
+   "within30": 0,
+   "zero": 0.12,
+   "medianRatio": 0.14
+  },
+  "bowyery": {
+   "towns": 501,
+   "within30": 0,
+   "zero": 0.98,
+   "medianRatio": 0
+  },
+  "ropemaking": {
+   "towns": 638,
+   "within30": 0,
+   "zero": 0.91,
+   "medianRatio": 0
+  },
+  "limeAndTile": {
+   "towns": 918,
+   "within30": 0,
+   "zero": 0.87,
+   "medianRatio": 0
+  },
+  "pottery": {
+   "towns": 918,
+   "within30": 0,
+   "zero": 1,
+   "medianRatio": 0
+  },
+  "glazing": {
+   "towns": 50,
+   "within30": 0,
+   "zero": 1,
+   "medianRatio": 0
+  },
+  "bookTrades": {
+   "towns": 195,
+   "within30": 0.32,
+   "zero": 0.35,
+   "medianRatio": 0.27
+  },
+  "instrumentMaking": {
+   "towns": 0,
+   "within30": 0,
+   "zero": 0,
+   "medianRatio": 0
+  },
+  "butchery": {
+   "towns": 1707,
+   "within30": 0,
+   "zero": 1,
+   "medianRatio": 0
+  },
+  "chandlery": {
+   "towns": 918,
+   "within30": 0,
+   "zero": 0.99,
+   "medianRatio": 0
+  }
+ }
+}

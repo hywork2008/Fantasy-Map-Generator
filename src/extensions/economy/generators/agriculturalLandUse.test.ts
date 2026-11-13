@@ -538,35 +538,101 @@ describe("agricultural land use", () => {
     });
   });
 
-  it("selects one culture-weighted staple and one legume for a three-field plan without an initial soil penalty", () => {
+  it("plants a cool temperate cell in the English 1300 shares of the crops it can grow, without a soil penalty", () => {
     const world = createWorld();
-    const crops = [cropGood(1, "Wheat", "cereal"), cropGood(2, "Peas", "legume"), cropGood(3, "Turnips", "tuber")];
-    const mix = getCropMix(world, 1, crops);
+    // 800 mm a year, inside every test crop's ideal range.
+    world.grid.cells.prec.fill(8);
+    const crops = ["Wheat", "Rye", "Barley", "Oats", "Peas", "Broad Beans", "Turnips"].map((name, index) => {
+      const good = cropGood(index + 1, name, name === "Peas" || name === "Broad Beans" ? "legume" : "cereal");
+      return { ...good, crop: { ...good.crop!, precipitation: { min: 2, idealMin: 5, idealMax: 10, max: 20 } } };
+    });
+    // Coldest month 2 °C, warmest 16 °C: the cool temperate band (crop-acreage-shares.md §4.1.1).
+    const climateByCell = () => ({ year: 2001, monthlyMeanTemperatureC: [2, 3, 5, 8, 11, 14, 16, 15, 12, 9, 5, 3] });
+    const share = (name: string) =>
+      getCropMix(world, 1, crops, { climateByCell }).find(entry => entry.good.name === name)?.share ?? 0;
 
-    expect(mix).toHaveLength(2);
-    expect(mix.filter(entry => entry.good.crop?.kind === "legume")).toHaveLength(1);
-    expect(mix.filter(entry => entry.good.crop?.kind !== "legume")).toHaveLength(1);
-    expect(mix.find(entry => entry.good.name === "Wheat")?.share).toBeCloseTo(2 / 3, 6);
-    expect(mix.find(entry => entry.good.name === "Peas")?.share).toBeCloseTo(1 / 3, 6);
+    // Equally suited crops keep the table's proportions; turnips are not on the English table.
+    expect(share("Oats")).toBeCloseTo(0.387, 3);
+    expect(share("Wheat")).toBeCloseTo(0.328, 3);
+    expect(share("Barley")).toBeCloseTo(0.156, 3);
+    expect(share("Rye")).toBeCloseTo(0.074, 3);
+    expect(share("Peas") + share("Broad Beans")).toBeCloseTo(0.055, 3);
+    expect(share("Turnips")).toBe(0);
 
-    const next = advanceAgriculturalSoils(world, crops, new Float32Array([1, 1]), new Float32Array(2));
+    const next = advanceAgriculturalSoils(world, crops, new Float32Array([1, 1]), new Float32Array(2), {
+      climateByCell
+    });
     expect(next.soilFertility[1]).toBeGreaterThanOrEqual(1);
   });
 
-  it("uses culture to choose among crops that are equally viable in the same cell", () => {
+  it("gives the cool, wet west the oats-and-bere table and moves land to the crops that suit it", () => {
+    const world = createWorld();
+    world.grid.cells.prec.fill(15);
+    const range = (max: number) => ({ min: 2, idealMin: 5, idealMax: 10, max });
+    const crops = [
+      { ...cropGood(1, "Oats", "cereal"), crop: { ...cropGood(1, "Oats", "cereal").crop!, precipitation: range(20) } },
+      {
+        ...cropGood(2, "Barley", "cereal"),
+        crop: { ...cropGood(2, "Barley", "cereal").crop!, precipitation: range(20) }
+      },
+      { ...cropGood(3, "Wheat", "cereal"), crop: { ...cropGood(3, "Wheat", "cereal").crop!, precipitation: range(16) } }
+    ];
+    const climateByCell = () => ({ year: 2001, monthlyMeanTemperatureC: [2, 3, 5, 8, 11, 14, 16, 15, 12, 9, 5, 3] });
+    const mix = getCropMix(world, 1, crops, { climateByCell });
+    const share = (name: string) => mix.find(entry => entry.good.name === name)?.share ?? 0;
+
+    // 1,500 mm: the wet maritime table (oats 50, barley 20, wheat 20); wheat, near its rain limit,
+    // gives up part of its equal share to barley by the square of its suitability.
+    expect(share("Oats") / share("Barley")).toBeCloseTo(2.5, 6);
+    expect(share("Wheat")).toBeLessThan(share("Barley"));
+  });
+
+  it("plants potatoes only from the period they became a field crop", () => {
+    const world = createWorld();
+    const crops = [
+      { ...cropGood(1, "Oats", "cereal"), crop: { ...cropGood(1, "Oats", "cereal").crop! } },
+      {
+        ...cropGood(2, "Potatoes", "tuber"),
+        crop: { ...cropGood(2, "Potatoes", "tuber").crop!, firstPeriod: "maritimeEra" }
+      }
+    ] as Good[];
+    const planted = (period?: string) => {
+      (world as { options?: { historicalPeriod?: string } }).options = period
+        ? { historicalPeriod: period }
+        : undefined;
+      return getCropMix(world, 1, crops).map(entry => entry.good.name);
+    };
+
+    expect(planted("highMedieval")).toEqual(["Oats"]);
+    expect(planted("maritimeEra")).toContain("Potatoes");
+    expect(planted()).toContain("Potatoes");
+  });
+
+  it("uses culture to weight staples where no regional source applies, a brewing grain first", () => {
     const world = createWorld();
     world.pack.cells.culture = new Uint16Array([1, 1]);
     world.pack.cultures = [undefined, { i: 1, type: "Nomadic" }] as never;
     const crops = [
-      cropGood(1, "Wheat", "cereal"),
-      cropGood(2, "Millet", "cereal"),
-      cropGood(3, "Peas", "legume"),
-      cropGood(4, "Lentils", "legume")
+      cropGood(1, "Millet", "cereal"),
+      cropGood(2, "Rice", "cereal"),
+      cropGood(3, "Maize", "cereal"),
+      cropGood(4, "Buckwheat", "cereal"),
+      cropGood(5, "Oats", "cereal"),
+      cropGood(6, "Peas", "legume"),
+      cropGood(7, "Lentils", "legume"),
+      cropGood(8, "Soybeans", "legume")
     ];
 
+    // A constant 12 °C under 4,500 mm of rain is the humid subtropical band, which has no table.
     const mix = getCropMix(world, 1, crops);
-    expect(mix.find(entry => entry.good.crop?.kind !== "legume")?.good.name).toBe("Millet");
-    expect(mix.find(entry => entry.good.crop?.kind === "legume")?.good.name).toBe("Lentils");
+    const share = (name: string) => mix.find(entry => entry.good.name === name)?.share ?? 0;
+    const mains = mix.filter(entry => entry.good.crop?.kind !== "legume");
+    expect(mains).toHaveLength(3);
+    expect(share("Oats")).toBeGreaterThan(0);
+    expect(share("Millet")).toBeGreaterThan(share("Oats"));
+    expect(mains.reduce((sum, entry) => sum + entry.share, 0)).toBeCloseTo(2 / 3, 6);
+    expect(mix.filter(entry => entry.good.crop?.kind === "legume")).toHaveLength(2);
+    expect(share("Lentils")).toBeGreaterThan(share("Peas"));
   });
 
   it("produces dryland staples below 800 mm while retaining crop-specific water limits", () => {

@@ -4,20 +4,76 @@ import { useTranslation } from "react-i18next";
 import { worldContext } from "../../../../context/worldContext";
 import { setConflictAutonomy } from "../../../../controllers/simulationSettings";
 import {
+  CONTAINER_REUSE_COST_LIMITS,
+  getContainerReuseCost,
+  setContainerReuseCost
+} from "../../../../simulation/containerReuseSettings";
+import {
+  CRAFT_CREDIT_MONTHS_LIMITS,
+  getCraftCreditMonths,
+  setCraftCreditMonths
+} from "../../../../simulation/craftCreditSettings";
+import {
+  CRAFT_EMPLOYMENT_SHARE_LIMITS,
+  getCraftEmploymentShare,
+  setCraftEmploymentShare
+} from "../../../../simulation/craftSettings";
+import {
+  getHouseholdHoneyKilograms,
+  HOUSEHOLD_HONEY_KG_LIMITS,
+  setHouseholdHoneyKilograms
+} from "../../../../simulation/householdHoneySettings";
+import {
+  BOOTS_LABOR_MODES,
+  type BootsLaborMode,
+  BYPRODUCT_EXPORT_MODES,
+  BYPRODUCT_PRICING_MODES,
+  type ByproductExportMode,
+  type ByproductPricingMode,
+  CANDLE_DEMAND_MODES,
+  type CandleDemandMode,
+  CRAFT_SALE_PAYMENT_MODES,
+  type CraftSalePaymentMode,
+  FOOTWEAR_DEMAND_MODES,
+  type FootwearDemandMode,
+  GRAIN_REPAYMENT_MODES,
+  type GrainRepaymentMode,
   getMarketGenerationSpacing,
   getMarketSettings,
   HAY_PAYMENT_MODES,
   HAY_TRADE_MODES,
   type HayPaymentMode,
   type HayTradeMode,
+  HOUSEHOLD_GOOD_VALUE_MODES,
+  HOUSEHOLD_GOODS_PAYMENT_MODES,
+  type HouseholdGoodsPaymentMode,
+  type HouseholdGoodValueMode,
   MARKET_DISSOLVE_CARGO_MODES,
   MARKET_SETTING_LIMITS,
   type MarketDissolveCargoMode,
   type MarketSettings,
   MERCHANT_PROFIT_USES,
   type MerchantProfitUse,
+  RURAL_TOWN_SPENDING_MODES,
+  type RuralTownSpendingMode,
   setMarketSettings
 } from "../../../../simulation/marketSettings";
+import {
+  getRaisinStorageLoss,
+  RAISIN_STORAGE_LOSS_LIMITS,
+  setRaisinStorageLoss
+} from "../../../../simulation/raisinStorageSettings";
+import {
+  getTreelessTownAleWoodland,
+  setTreelessTownAleWoodland,
+  TREELESS_TOWN_ALE_WOODLAND_LIMITS
+} from "../../../../simulation/townAleSettings";
+import { getTownMeadLiters, setTownMeadLiters, TOWN_MEAD_LITERS_LIMITS } from "../../../../simulation/townMeadSettings";
+import {
+  getTownSoapKilograms,
+  setTownSoapKilograms,
+  TOWN_SOAP_KG_LIMITS
+} from "../../../../simulation/townSoapSettings";
 import { useOptionsState } from "../../../../store/optionsState";
 import { MIN_CURRENCY_EXCHANGE_RATE } from "../../../../utils/currency";
 import { lock } from "../../../../utils/domUtils";
@@ -52,6 +108,14 @@ export const SimulationSettingsTab: React.FC = () => {
     const number = Number(value);
     if (Number.isFinite(number)) setMarketSettingsState(setMarketSettings({ [key]: number }));
   };
+  const [craftEmploymentShare, setCraftEmploymentShareState] = useState(getCraftEmploymentShare);
+  const [treelessTownAleWoodland, setTreelessTownAleWoodlandState] = useState(getTreelessTownAleWoodland);
+  const [householdHoneyKilograms, setHouseholdHoneyKilogramsState] = useState(getHouseholdHoneyKilograms);
+  const [townMeadLiters, setTownMeadLitersState] = useState(getTownMeadLiters);
+  const [townSoapKilograms, setTownSoapKilogramsState] = useState(getTownSoapKilograms);
+  const [craftCreditMonths, setCraftCreditMonthsState] = useState(getCraftCreditMonths);
+  const [raisinStorageLoss, setRaisinStorageLossState] = useState(getRaisinStorageLoss);
+  const [containerReuseCost, setContainerReuseCostState] = useState(getContainerReuseCost);
   const generationSpacing = getMarketGenerationSpacing(
     worldContext.graphWidth,
     worldContext.graphHeight,
@@ -358,6 +422,20 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
+          <tr data-tip={t("simulation.marketHarvestReserveMonthsTip")}>
+            <td />
+            <td>{t("simulation.marketHarvestReserveMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="marketHarvestReserveMonths"
+                min={MARKET_SETTING_LIMITS.harvestReserveMonths.min}
+                max={MARKET_SETTING_LIMITS.harvestReserveMonths.max}
+                step={MARKET_SETTING_LIMITS.harvestReserveMonths.step}
+                value={marketSettings.harvestReserveMonths}
+                onChange={v => updateMarketSetting("harvestReserveMonths", v)}
+              />
+            </td>
+          </tr>
           <tr data-tip={t("simulation.marketSurplusRuralWeightTip")}>
             <td />
             <td>{t("simulation.marketSurplusRuralWeight")}</td>
@@ -459,6 +537,631 @@ export const SimulationSettingsTab: React.FC = () => {
                   </option>
                 ))}
               </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.craftSalePaymentTip")}>
+            <td />
+            <td>
+              <label htmlFor="craftSalePayment">{t("simulation.craftSalePayment")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="craftSalePayment"
+                value={marketSettings.craftSalePayment}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      craftSalePayment: e.target.value as CraftSalePaymentMode
+                    })
+                  )
+                }
+              >
+                {CRAFT_SALE_PAYMENT_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.craftSalePayment_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.grainRepaymentTip")}>
+            <td />
+            <td>
+              <label htmlFor="grainRepayment">{t("simulation.grainRepayment")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="grainRepayment"
+                value={marketSettings.grainRepayment}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      grainRepayment: e.target.value as GrainRepaymentMode
+                    })
+                  )
+                }
+              >
+                {GRAIN_REPAYMENT_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.grainRepayment_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.householdGoodsPaymentTip")}>
+            <td />
+            <td>
+              <label htmlFor="householdGoodsPayment">{t("simulation.householdGoodsPayment")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="householdGoodsPayment"
+                value={marketSettings.householdGoodsPayment}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      householdGoodsPayment: e.target.value as HouseholdGoodsPaymentMode
+                    })
+                  )
+                }
+              >
+                {HOUSEHOLD_GOODS_PAYMENT_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.householdGoodsPayment_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralTownSpendingTip")}>
+            <td />
+            <td>
+              <label htmlFor="ruralTownSpending">{t("simulation.ruralTownSpending")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="ruralTownSpending"
+                value={marketSettings.ruralTownSpending}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      ruralTownSpending: e.target.value as RuralTownSpendingMode
+                    })
+                  )
+                }
+              >
+                {RURAL_TOWN_SPENDING_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.ruralTownSpending_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralPurseMonthsTip")}>
+            <td />
+            <td>{t("simulation.ruralPurseMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralPurseMonths"
+                min={MARKET_SETTING_LIMITS.ruralPurseMonths.min}
+                max={MARKET_SETTING_LIMITS.ruralPurseMonths.max}
+                step={MARKET_SETTING_LIMITS.ruralPurseMonths.step}
+                value={marketSettings.ruralPurseMonths}
+                onChange={v => updateMarketSetting("ruralPurseMonths", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralSpendElasticityAboveTip")}>
+            <td />
+            <td>{t("simulation.ruralSpendElasticityAbove")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralSpendElasticityAbove"
+                min={MARKET_SETTING_LIMITS.ruralSpendElasticityAbove.min}
+                max={MARKET_SETTING_LIMITS.ruralSpendElasticityAbove.max}
+                step={MARKET_SETTING_LIMITS.ruralSpendElasticityAbove.step}
+                value={marketSettings.ruralSpendElasticityAbove}
+                onChange={v => updateMarketSetting("ruralSpendElasticityAbove", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralSpendElasticityBelowTip")}>
+            <td />
+            <td>{t("simulation.ruralSpendElasticityBelow")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralSpendElasticityBelow"
+                min={MARKET_SETTING_LIMITS.ruralSpendElasticityBelow.min}
+                max={MARKET_SETTING_LIMITS.ruralSpendElasticityBelow.max}
+                step={MARKET_SETTING_LIMITS.ruralSpendElasticityBelow.step}
+                value={marketSettings.ruralSpendElasticityBelow}
+                onChange={v => updateMarketSetting("ruralSpendElasticityBelow", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralTownServicesTip")}>
+            <td />
+            <td>{t("simulation.ruralTownServices")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralTownServices"
+                min={MARKET_SETTING_LIMITS.ruralTownServices.min}
+                max={MARKET_SETTING_LIMITS.ruralTownServices.max}
+                step={MARKET_SETTING_LIMITS.ruralTownServices.step}
+                value={marketSettings.ruralTownServices}
+                onChange={v => updateMarketSetting("ruralTownServices", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.footwearDemandTip")}>
+            <td />
+            <td>
+              <label htmlFor="footwearDemand">{t("simulation.footwearDemand")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="footwearDemand"
+                value={marketSettings.footwearDemand}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      footwearDemand: e.target.value as FootwearDemandMode
+                    })
+                  )
+                }
+              >
+                {FOOTWEAR_DEMAND_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.footwearDemand_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.footwearPairsPerPersonTip")}>
+            <td />
+            <td>{t("simulation.footwearPairsPerPerson")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="footwearPairsPerPerson"
+                min={MARKET_SETTING_LIMITS.footwearPairsPerPerson.min}
+                max={MARKET_SETTING_LIMITS.footwearPairsPerPerson.max}
+                step={MARKET_SETTING_LIMITS.footwearPairsPerPerson.step}
+                value={marketSettings.footwearPairsPerPerson}
+                onChange={v => updateMarketSetting("footwearPairsPerPerson", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leatherGoodsShareTip")}>
+            <td />
+            <td>{t("simulation.leatherGoodsShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="leatherGoodsShare"
+                min={MARKET_SETTING_LIMITS.leatherGoodsShare.min}
+                max={MARKET_SETTING_LIMITS.leatherGoodsShare.max}
+                step={MARKET_SETTING_LIMITS.leatherGoodsShare.step}
+                value={marketSettings.leatherGoodsShare}
+                onChange={v => updateMarketSetting("leatherGoodsShare", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.summerHideLossTip")}>
+            <td />
+            <td>{t("simulation.summerHideLoss")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="summerHideLoss"
+                min={MARKET_SETTING_LIMITS.summerHideLoss.min}
+                max={MARKET_SETTING_LIMITS.summerHideLoss.max}
+                step={MARKET_SETTING_LIMITS.summerHideLoss.step}
+                value={marketSettings.summerHideLoss}
+                onChange={v => updateMarketSetting("summerHideLoss", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.bootsLaborTip")}>
+            <td />
+            <td>
+              <label htmlFor="bootsLabor">{t("simulation.bootsLabor")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="bootsLabor"
+                value={marketSettings.bootsLabor}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ bootsLabor: e.target.value as BootsLaborMode }))
+                }
+              >
+                {BOOTS_LABOR_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.bootsLabor_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.byproductPricingTip")}>
+            <td />
+            <td>
+              <label htmlFor="byproductPricing">{t("simulation.byproductPricing")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="byproductPricing"
+                value={marketSettings.byproductPricing}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ byproductPricing: e.target.value as ByproductPricingMode })
+                  )
+                }
+              >
+                {BYPRODUCT_PRICING_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.byproductPricing_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralShoemakersPerThousandTip")}>
+            <td />
+            <td>{t("simulation.ruralShoemakersPerThousand")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralShoemakersPerThousand"
+                min={MARKET_SETTING_LIMITS.ruralShoemakersPerThousand.min}
+                max={MARKET_SETTING_LIMITS.ruralShoemakersPerThousand.max}
+                step={MARKET_SETTING_LIMITS.ruralShoemakersPerThousand.step}
+                value={marketSettings.ruralShoemakersPerThousand}
+                onChange={v => updateMarketSetting("ruralShoemakersPerThousand", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.householdGoodValuesTip")}>
+            <td />
+            <td>
+              <label htmlFor="householdGoodValues">{t("simulation.householdGoodValues")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="householdGoodValues"
+                value={marketSettings.householdGoodValues}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      householdGoodValues: e.target.value as HouseholdGoodValueMode
+                    })
+                  )
+                }
+              >
+                {HOUSEHOLD_GOOD_VALUE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.householdGoodValues_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.curryingTallowKgPerHideTip")}>
+            <td />
+            <td>{t("simulation.curryingTallowKgPerHide")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="curryingTallowKgPerHide"
+                min={MARKET_SETTING_LIMITS.curryingTallowKgPerHide.min}
+                max={MARKET_SETTING_LIMITS.curryingTallowKgPerHide.max}
+                step={MARKET_SETTING_LIMITS.curryingTallowKgPerHide.step}
+                value={marketSettings.curryingTallowKgPerHide}
+                onChange={v => updateMarketSetting("curryingTallowKgPerHide", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.byproductExportTip")}>
+            <td />
+            <td>
+              <label htmlFor="byproductExport">{t("simulation.byproductExport")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="byproductExport"
+                value={marketSettings.byproductExport}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      byproductExport: e.target.value as ByproductExportMode
+                    })
+                  )
+                }
+              >
+                {BYPRODUCT_EXPORT_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.byproductExport_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.byproductExportReserveMonthsTip")}>
+            <td />
+            <td>{t("simulation.byproductExportReserveMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="byproductExportReserveMonths"
+                min={MARKET_SETTING_LIMITS.byproductExportReserveMonths.min}
+                max={MARKET_SETTING_LIMITS.byproductExportReserveMonths.max}
+                step={MARKET_SETTING_LIMITS.byproductExportReserveMonths.step}
+                value={marketSettings.byproductExportReserveMonths}
+                onChange={v => updateMarketSetting("byproductExportReserveMonths", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.byproductExportShareTip")}>
+            <td />
+            <td>{t("simulation.byproductExportShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="byproductExportShare"
+                min={MARKET_SETTING_LIMITS.byproductExportShare.min}
+                max={MARKET_SETTING_LIMITS.byproductExportShare.max}
+                step={MARKET_SETTING_LIMITS.byproductExportShare.step}
+                value={marketSettings.byproductExportShare}
+                onChange={v => updateMarketSetting("byproductExportShare", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.byproductReturnMonthsTip")}>
+            <td />
+            <td>{t("simulation.byproductReturnMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="byproductReturnMonths"
+                min={MARKET_SETTING_LIMITS.byproductReturnMonths.min}
+                max={MARKET_SETTING_LIMITS.byproductReturnMonths.max}
+                step={MARKET_SETTING_LIMITS.byproductReturnMonths.step}
+                value={marketSettings.byproductReturnMonths}
+                onChange={v => updateMarketSetting("byproductReturnMonths", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.byproductKeepMonthsTip")}>
+            <td />
+            <td>{t("simulation.byproductKeepMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="byproductKeepMonths"
+                min={MARKET_SETTING_LIMITS.byproductKeepMonths.min}
+                max={MARKET_SETTING_LIMITS.byproductKeepMonths.max}
+                step={MARKET_SETTING_LIMITS.byproductKeepMonths.step}
+                value={marketSettings.byproductKeepMonths}
+                onChange={v => updateMarketSetting("byproductKeepMonths", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.byproductExcessSpoilTip")}>
+            <td />
+            <td>{t("simulation.byproductExcessSpoil")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="byproductExcessSpoil"
+                min={MARKET_SETTING_LIMITS.byproductExcessSpoil.min}
+                max={MARKET_SETTING_LIMITS.byproductExcessSpoil.max}
+                step={MARKET_SETTING_LIMITS.byproductExcessSpoil.step}
+                value={marketSettings.byproductExcessSpoil}
+                onChange={v => updateMarketSetting("byproductExcessSpoil", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.candleDemandTip")}>
+            <td />
+            <td>
+              <label htmlFor="candleDemand">{t("simulation.candleDemand")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="candleDemand"
+                value={marketSettings.candleDemand}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      candleDemand: e.target.value as CandleDemandMode
+                    })
+                  )
+                }
+              >
+                {CANDLE_DEMAND_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.candleDemand_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.candleKgPerPersonTip")}>
+            <td />
+            <td>{t("simulation.candleKgPerPerson")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="candleKgPerPerson"
+                min={MARKET_SETTING_LIMITS.candleKgPerPerson.min}
+                max={MARKET_SETTING_LIMITS.candleKgPerPerson.max}
+                step={MARKET_SETTING_LIMITS.candleKgPerPerson.step}
+                value={marketSettings.candleKgPerPerson}
+                onChange={v => updateMarketSetting("candleKgPerPerson", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.waxCandleKgPerPersonTip")}>
+            <td />
+            <td>{t("simulation.waxCandleKgPerPerson")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="waxCandleKgPerPerson"
+                min={MARKET_SETTING_LIMITS.waxCandleKgPerPerson.min}
+                max={MARKET_SETTING_LIMITS.waxCandleKgPerPerson.max}
+                step={MARKET_SETTING_LIMITS.waxCandleKgPerPerson.step}
+                value={marketSettings.waxCandleKgPerPerson}
+                onChange={v => updateMarketSetting("waxCandleKgPerPerson", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralChandlersPerThousandTip")}>
+            <td />
+            <td>{t("simulation.ruralChandlersPerThousand")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralChandlersPerThousand"
+                min={MARKET_SETTING_LIMITS.ruralChandlersPerThousand.min}
+                max={MARKET_SETTING_LIMITS.ruralChandlersPerThousand.max}
+                step={MARKET_SETTING_LIMITS.ruralChandlersPerThousand.step}
+                value={marketSettings.ruralChandlersPerThousand}
+                onChange={v => updateMarketSetting("ruralChandlersPerThousand", v)}
+              />
+            </td>
+          </tr>
+
+          <tr>
+            <td colSpan={4}>
+              <p data-tip={t("simulation.craftsHeadingTip")}>{t("simulation.craftsHeading")}</p>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.craftEmploymentShareTip")}>
+            <td />
+            <td>{t("simulation.craftEmploymentShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="craftEmploymentShare"
+                min={CRAFT_EMPLOYMENT_SHARE_LIMITS.min * 100}
+                max={CRAFT_EMPLOYMENT_SHARE_LIMITS.max * 100}
+                step={CRAFT_EMPLOYMENT_SHARE_LIMITS.step * 100}
+                value={Math.round(craftEmploymentShare * 100)}
+                onChange={v => {
+                  const share = Number(v) / 100;
+                  if (Number.isFinite(share)) setCraftEmploymentShareState(setCraftEmploymentShare(share));
+                }}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.treelessTownAleWoodlandTip")}>
+            <td />
+            <td>{t("simulation.treelessTownAleWoodland")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="treelessTownAleWoodland"
+                min={TREELESS_TOWN_ALE_WOODLAND_LIMITS.min * 100}
+                max={TREELESS_TOWN_ALE_WOODLAND_LIMITS.max * 100}
+                step={TREELESS_TOWN_ALE_WOODLAND_LIMITS.step * 100}
+                value={Math.round(treelessTownAleWoodland * 100)}
+                onChange={v => {
+                  const share = Number(v) / 100;
+                  if (Number.isFinite(share)) setTreelessTownAleWoodlandState(setTreelessTownAleWoodland(share));
+                }}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.householdHoneyKilogramsTip")}>
+            <td />
+            <td>{t("simulation.householdHoneyKilograms")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="householdHoneyKilograms"
+                min={HOUSEHOLD_HONEY_KG_LIMITS.min}
+                max={HOUSEHOLD_HONEY_KG_LIMITS.max}
+                step={HOUSEHOLD_HONEY_KG_LIMITS.step}
+                value={householdHoneyKilograms}
+                onChange={v => {
+                  const kilograms = Number(v);
+                  if (Number.isFinite(kilograms))
+                    setHouseholdHoneyKilogramsState(setHouseholdHoneyKilograms(kilograms));
+                }}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.townMeadLitersTip")}>
+            <td />
+            <td>{t("simulation.townMeadLiters")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="townMeadLiters"
+                min={TOWN_MEAD_LITERS_LIMITS.min}
+                max={TOWN_MEAD_LITERS_LIMITS.max}
+                step={TOWN_MEAD_LITERS_LIMITS.step}
+                value={townMeadLiters}
+                onChange={v => {
+                  const liters = Number(v);
+                  if (Number.isFinite(liters)) setTownMeadLitersState(setTownMeadLiters(liters));
+                }}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.townSoapKilogramsTip")}>
+            <td />
+            <td>{t("simulation.townSoapKilograms")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="townSoapKilograms"
+                min={TOWN_SOAP_KG_LIMITS.min}
+                max={TOWN_SOAP_KG_LIMITS.max}
+                step={TOWN_SOAP_KG_LIMITS.step}
+                value={townSoapKilograms}
+                onChange={v => {
+                  const kilograms = Number(v);
+                  if (Number.isFinite(kilograms)) setTownSoapKilogramsState(setTownSoapKilograms(kilograms));
+                }}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.craftCreditMonthsTip")}>
+            <td />
+            <td>{t("simulation.craftCreditMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="craftCreditMonths"
+                min={CRAFT_CREDIT_MONTHS_LIMITS.min}
+                max={CRAFT_CREDIT_MONTHS_LIMITS.max}
+                step={CRAFT_CREDIT_MONTHS_LIMITS.step}
+                value={craftCreditMonths}
+                onChange={v => {
+                  const months = Number(v);
+                  if (Number.isFinite(months)) setCraftCreditMonthsState(setCraftCreditMonths(months));
+                }}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.raisinStorageLossTip")}>
+            <td />
+            <td>{t("simulation.raisinStorageLoss")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="raisinStorageLoss"
+                min={RAISIN_STORAGE_LOSS_LIMITS.min * 100}
+                max={RAISIN_STORAGE_LOSS_LIMITS.max * 100}
+                step={RAISIN_STORAGE_LOSS_LIMITS.step * 100}
+                value={Math.round(raisinStorageLoss * 1000) / 10}
+                onChange={v => {
+                  const percent = Number(v);
+                  if (Number.isFinite(percent)) setRaisinStorageLossState(setRaisinStorageLoss(percent / 100));
+                }}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.containerReuseCostTip")}>
+            <td />
+            <td>{t("simulation.containerReuseCost")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="containerReuseCost"
+                min={CONTAINER_REUSE_COST_LIMITS.min * 100}
+                max={CONTAINER_REUSE_COST_LIMITS.max * 100}
+                step={CONTAINER_REUSE_COST_LIMITS.step * 100}
+                value={Math.round(containerReuseCost * 100)}
+                onChange={v => {
+                  const share = Number(v) / 100;
+                  if (Number.isFinite(share)) setContainerReuseCostState(setContainerReuseCost(share));
+                }}
+              />
             </td>
           </tr>
 

@@ -1,0 +1,793 @@
+diff --git a/src/extensions/economy/generators/foodProcessingLedger.test.ts b/src/extensions/economy/generators/foodProcessingLedger.test.ts
+index 0dba51fb8..d45d6ef3b 100644
+--- a/src/extensions/economy/generators/foodProcessingLedger.test.ts
++++ b/src/extensions/economy/generators/foodProcessingLedger.test.ts
+@@ -55,6 +55,27 @@ vi.mock("../economyContext", () => ({
+ }));
+ const ruralPopulation = vi.hoisted(() => ({ people: 0 }));
+ vi.mock("./marketPopulation", () => ({ getMarketRuralPopulation: () => ruralPopulation.people }));
++// What households may spend on these goods: unlimited unless a test sets it (docs/plan/market-goods-settlement.md §2.1).
++const purses = vi.hoisted(() => ({ town: Infinity, rural: Infinity, paidByTown: 0, paidByRural: 0 }));
++vi.mock("./burgMarketLedgers", () => ({
++  debitHouseholdWealth: (_burgId: number, amount: number) => {
++    const paid = Math.min(purses.town, amount);
++    purses.town -= paid;
++    purses.paidByTown += paid;
++    return paid;
++  }
++}));
++vi.mock("./householdWealth", () => ({
++  RURAL_HOUSEHOLD_TOWN_SPEND_SHARE: 1,
++  getRuralHouseholdWealth: () => purses.rural,
++  getUrbanHouseholdSpendable: () => purses.town,
++  debitRuralHouseholdWealth: (_market: unknown, amount: number) => {
++    const paid = Math.min(purses.rural, amount);
++    purses.rural -= paid;
++    purses.paidByRural += paid;
++    return paid;
++  }
++}));
+ 
+ import {
+   CHEESE_RESERVE_MONTHS,
+@@ -86,7 +107,34 @@ describe("foodProcessingLedger", () => {
+     for (const id of [8, 9, 10, 11]) market.goods[id] = { stock: 0, price: 1 };
+     market.foodProcessingLedger = undefined;
+     market.returnableContainerLedger = undefined;
++    market.marketTreasury = undefined;
+     urbanWaterSystems.length = 0;
++    Object.assign(purses, { town: Infinity, rural: Infinity, paidByTown: 0, paidByRural: 0 });
++    ruralPopulation.people = 0;
++  });
++
++  it("has households pay the market for what they take, and take only what they can pay for", () => {
++    ruralPopulation.people = 1_000;
++    for (const id of [1, 3, 4, 5, 6]) market.goods[id].stock = 0;
++    market.goods[2] = { stock: 100, price: 2 };
++    const demand = getMonthlyHouseholdDemand(market, "Cheese");
++    settleFoodProcessingHouseholds();
++    // Town and farms share the bill by their people: 1,000 each.
++    expect(purses.paidByTown).toBeCloseTo(demand, 1);
++    expect(purses.paidByRural).toBeCloseTo(demand, 1);
++    expect(market.foodProcessingLedger!.Cheese!.householdConsumption).toBeCloseTo(demand, 2);
++    expect(market.marketTreasury!.balance).toBeCloseTo(demand * 2, 1);
++
++    market.foodProcessingLedger = undefined;
++    market.marketTreasury = undefined;
++    Object.assign(purses, { town: 0, rural: 1, paidByTown: 0, paidByRural: 0 });
++    market.goods[2] = { stock: 100, price: 2 };
++    settleFoodProcessingHouseholds();
++    const cheese = market.foodProcessingLedger!.Cheese!;
++    expect(cheese.householdConsumption).toBeCloseTo(0.5, 2);
++    expect(cheese.unmetDemand).toBeCloseTo(demand - 0.5, 2);
++    expect(market.goods[2].stock).toBeCloseTo(99.5, 2);
++    ruralPopulation.people = 0;
+   });
+ 
+   it.each([
+diff --git a/src/extensions/economy/generators/foodProcessingLedger.ts b/src/extensions/economy/generators/foodProcessingLedger.ts
+index ff0f85257..1da61e74a 100644
+--- a/src/extensions/economy/generators/foodProcessingLedger.ts
++++ b/src/extensions/economy/generators/foodProcessingLedger.ts
+@@ -1,3 +1,5 @@
++import { getMarketSettings } from "../../../simulation/marketSettings";
++import { rn } from "../../hostUtils";
+ import {
+   getGoods,
+   getMarkets,
+@@ -6,6 +8,7 @@ import {
+   recordCumulativeCellFoodProcessing
+ } from "../economyContext";
+ import { getAleDemandMultiplier, getAleSanitationFallbackRisk, getAleWaterRisk } from "./aleDemand";
++import { debitHouseholdWealth } from "./burgMarketLedgers";
+ import {
+   ALE_TARGETS,
+   DAIRY_TARGETS,
+@@ -25,6 +28,12 @@ import {
+ } from "./foodLots";
+ import { isFreshFoodGood } from "./goods-generator";
+ import { recordGoodFlow } from "./goodsBalanceLedger";
++import {
++  debitRuralHouseholdWealth,
++  getRuralHouseholdWealth,
++  getUrbanHouseholdSpendable,
++  RURAL_HOUSEHOLD_TOWN_SPEND_SHARE
++} from "./householdWealth";
+ import { getMarketRuralPopulation } from "./marketPopulation";
+ import type { FoodProcessingGoodLedger, Market } from "./marketTypes";
+ 
+@@ -342,7 +351,84 @@ export function getFoodProcessingProductionHeadroom(
+   return Math.max(householdHeadroom, Math.min(surplusCheeseHeadroom, reserveHeadroom));
+ }
+ 
+-function drawHouseholdDemand(market: Market, goodName: string, demand: number): void {
++/**
++ * What a market's households may spend this month on the drinks and foods they take from its stock:
++ * each town its cash above the buffer it keeps for food and rent, and the countryside the share of
++ * its purse it spends in town each month. Bread comes first; these never eat into it
++ * (docs/plan/market-goods-settlement.md §2.1).
++ */
++type HouseholdGoodsPurses = {
++  towns: { id: number; people: number; spendable: number }[];
++  rural: number;
++  ruralPeople: number;
++};
++
++function getHouseholdGoodsPurses(market: Market): HouseholdGoodsPurses {
++  const world = getWorldContext();
++  const towns = world.pack.burgs
++    .filter(burg => burg.i && !burg.removed && burg.market === market.i)
++    .map(burg => ({
++      id: burg.i!,
++      people: getBurgPeople(burg.population),
++      spendable: getUrbanHouseholdSpendable(burg)
++    }));
++  return {
++    towns,
++    rural: getRuralHouseholdWealth(market) * RURAL_HOUSEHOLD_TOWN_SPEND_SHARE,
++    ruralPeople: getMarketRuralPopulation(world, market.i)
++  };
++}
++
++/**
++ * The market's people pay for `units` at `price`, each by their share of the buyers: the towns by
++ * their people and, unless only the towns buy (ale), the countryside by its people, each as far as
++ * its purse for these goods holds. The cash goes into the market treasury; returns the units they
++ * paid for.
++ */
++function payForHouseholdGoods(
++  market: Market,
++  purses: HouseholdGoodsPurses,
++  units: number,
++  price: number,
++  townsOnly: boolean
++): number {
++  if (!(units > 0) || !(price > 0)) return units;
++  const rural = townsOnly ? 0 : purses.ruralPeople;
++  const people = purses.towns.reduce((total, town) => total + town.people, rural);
++  if (!(people > 0)) return 0;
++  const bill = units * price;
++  let paid = 0;
++  let short = false;
++  const charge = (amount: number, budget: number, debit: (amount: number) => number): number => {
++    const got = debit(rn(Math.min(amount, Math.max(0, budget)), 2));
++    paid += got;
++    if (got + 1e-9 < amount) short = true;
++    return got;
++  };
++  for (const town of purses.towns) {
++    if (!(town.people > 0)) continue;
++    town.spendable -= charge(rn((bill * town.people) / people, 2), town.spendable, amount =>
++      debitHouseholdWealth(town.id, amount)
++    );
++  }
++  if (rural > 0)
++    purses.rural -= charge(rn((bill * rural) / people, 2), purses.rural, amount =>
++      debitRuralHouseholdWealth(market, amount)
++    );
++  if (paid > 0) {
++    market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
++    market.marketTreasury.balance = rn(market.marketTreasury.balance + paid, 2);
++  }
++  // Every purse paid its share (to the cent): they take it all.
++  return short ? Math.min(units, paid / price) : units;
++}
++
++function drawHouseholdDemand(
++  market: Market,
++  goodName: string,
++  demand: number,
++  purses: HouseholdGoodsPurses | null
++): void {
+   const good = getGoods().find(candidate => candidate.name === goodName);
+   const ledger = getGoodLedger(market, goodName);
+   if (!good || !ledger || demand <= 0) return;
+@@ -351,7 +437,10 @@ function drawHouseholdDemand(market: Market, goodName: string, demand: number):
+   // market-level settlement. Only the remaining demand may draw from Market stock.
+   const remainingDemand = Math.max(0, demand - (ledger.localHouseholdConsumptionThisCycle ?? 0));
+   const available = Math.max(0, marketGood?.stock ?? 0);
+-  const consumed = Math.min(available, remainingDemand);
++  let consumed = Math.min(available, remainingDemand);
++  // Households pay the market for what they take, and take only what they can pay for.
++  if (consumed > 0 && purses)
++    consumed = payForHouseholdGoods(market, purses, consumed, marketGood?.price ?? 0, goodName === "Beer");
+   if (marketGood) marketGood.stock = Math.max(0, marketGood.stock - consumed);
+   if (consumed > 0) {
+     recordGoodFlow({
+@@ -392,14 +481,16 @@ function drawHouseholdDemand(market: Market, goodName: string, demand: number):
+  * removed. Cheese, Raisins, and Wine remain market stock for later months.
+  */
+ export function settleFoodProcessingHouseholds(): void {
++  const pay = getMarketSettings().householdGoodsPayment === "pay";
+   for (const market of getMarkets()) {
+-    drawHouseholdDemand(market, "Milk", getMonthlyHouseholdDemand(market, "Milk"));
+-    drawHouseholdDemand(market, "Cheese", getMonthlyHouseholdDemand(market, "Cheese"));
+-    drawHouseholdDemand(market, "Grapes", getMonthlyHouseholdDemand(market, "Grapes"));
+-    drawHouseholdDemand(market, "Raisins", getMonthlyHouseholdDemand(market, "Raisins"));
+-    drawHouseholdDemand(market, "Wine", getMonthlyHouseholdDemand(market, "Wine"));
++    const purses = pay ? getHouseholdGoodsPurses(market) : null;
++    drawHouseholdDemand(market, "Milk", getMonthlyHouseholdDemand(market, "Milk"), purses);
++    drawHouseholdDemand(market, "Cheese", getMonthlyHouseholdDemand(market, "Cheese"), purses);
++    drawHouseholdDemand(market, "Grapes", getMonthlyHouseholdDemand(market, "Grapes"), purses);
++    drawHouseholdDemand(market, "Raisins", getMonthlyHouseholdDemand(market, "Raisins"), purses);
++    drawHouseholdDemand(market, "Wine", getMonthlyHouseholdDemand(market, "Wine"), purses);
+     for (const name of ["Apples", "Pears", "Cider", "Perry"] as const)
+-      drawHouseholdDemand(market, name, getMonthlyHouseholdDemand(market, name));
++      drawHouseholdDemand(market, name, getMonthlyHouseholdDemand(market, name), purses);
+     const aleDemand = getAleDemandSnapshot(market);
+     const beerLedger = getGoodLedger(market, "Beer");
+     if (beerLedger) {
+@@ -407,7 +498,7 @@ export function settleFoodProcessingHouseholds(): void {
+       beerLedger.waterSafetyDemand = aleDemand.waterSafetyDemand;
+       beerLedger.drinkingWaterRisk = aleDemand.drinkingWaterRisk;
+     }
+-    drawHouseholdDemand(market, "Beer", aleDemand.monthlyDemand);
++    drawHouseholdDemand(market, "Beer", aleDemand.monthlyDemand, purses);
+ 
+     for (const name of ["Milk", "Grapes"] as const) {
+       const good = getGoods().find(candidate => candidate.name === name);
+diff --git a/src/extensions/economy/generators/householdWealth.ts b/src/extensions/economy/generators/householdWealth.ts
+index 8e5ccb925..001811a7f 100644
+--- a/src/extensions/economy/generators/householdWealth.ts
++++ b/src/extensions/economy/generators/householdWealth.ts
+@@ -384,6 +384,16 @@ export const URBAN_HOUSEHOLD_BUFFER_MONTHS = 12;
+ /** Share of the cash above that buffer spent each month in the town. */
+ export const URBAN_HOUSEHOLD_SPEND_SHARE = 0.2;
+ 
++/**
++ * A town's household cash above the buffer it keeps for food and rent: what it can spend on trades,
++ * services and the market's drinks and foods (docs/plan/market-goods-settlement.md §2.1).
++ */
++export function getUrbanHouseholdSpendable(burg: Pick<Burg, "i" | "population">): number {
++  const profile = getEconomyStartProfile(getWorldContext().options ?? {});
++  const buffer = (burg.population ?? 0) * profile.householdWealthPerPopulation * (URBAN_HOUSEHOLD_BUFFER_MONTHS / 12);
++  return Math.max(0, getHouseholdWealth(burg.i) - buffer);
++}
++
+ /**
+  * Town households spend cash above their buffer on local trades and services (bakers' bread aside:
+  * clothes, repairs, carting, ale, rent). That spending is the town's business income, credited to
+@@ -393,12 +403,10 @@ export const URBAN_HOUSEHOLD_SPEND_SHARE = 0.2;
+ export function spendUrbanHouseholdSurplus(): number {
+   if (!isEconomyContextReady()) return 0;
+   const { pack } = getWorldContext();
+-  const profile = getEconomyStartProfile(getWorldContext().options ?? {});
+   let spent = 0;
+   for (const burg of pack.burgs ?? []) {
+     if (!burg?.i || burg.removed) continue;
+-    const buffer = (burg.population ?? 0) * profile.householdWealthPerPopulation * (URBAN_HOUSEHOLD_BUFFER_MONTHS / 12);
+-    const excess = getHouseholdWealth(burg.i) - buffer;
++    const excess = getUrbanHouseholdSpendable(burg);
+     if (!(excess > 0)) continue;
+     const amount = debitHouseholdWealth(burg.i, rn(excess * URBAN_HOUSEHOLD_SPEND_SHARE, 2));
+     if (!(amount > 0)) continue;
+diff --git a/src/extensions/economy/generators/marketDissolution.ts b/src/extensions/economy/generators/marketDissolution.ts
+index 4704f8e78..556cca67f 100644
+--- a/src/extensions/economy/generators/marketDissolution.ts
++++ b/src/extensions/economy/generators/marketDissolution.ts
+@@ -149,6 +149,21 @@ function mergeTreasury(from: MarketTreasury, into: Market): void {
+   if (from.ruralHayPayable) target.ruralHayPayable = rn((target.ruralHayPayable ?? 0) + from.ruralHayPayable, 2);
+   if (from.ruralHayConsignedLots)
+     target.ruralHayConsignedLots = (target.ruralHayConsignedLots ?? 0) + from.ruralHayConsignedLots;
++  // The absorbing market holds the dissolved one's consigned town goods and owes what it owed.
++  for (const key of ["craftConsigned", "craftPayables"] as const) {
++    const source = from[key];
++    if (!source) continue;
++    const table = target[key] ?? {};
++    target[key] = table;
++    for (const [outer, rows] of Object.entries(source)) {
++      const into = table[+outer] ?? {};
++      table[+outer] = into;
++      for (const [inner, row] of Object.entries(rows)) {
++        const held = into[+inner] ?? [0, 0];
++        into[+inner] = [held[0] + row[0], rn(held[1] + row[1], 2)];
++      }
++    }
++  }
+   if (from.tradeWorkingCapital)
+     target.tradeWorkingCapital = rn((target.tradeWorkingCapital ?? 0) + from.tradeWorkingCapital, 2);
+   if (from.tradeEscrow) target.tradeEscrow = rn((target.tradeEscrow ?? 0) + from.tradeEscrow, 2);
+diff --git a/src/extensions/economy/generators/marketTypes.ts b/src/extensions/economy/generators/marketTypes.ts
+index e9d15df21..8da822ae4 100644
+--- a/src/extensions/economy/generators/marketTypes.ts
++++ b/src/extensions/economy/generators/marketTypes.ts
+@@ -300,6 +300,13 @@ export interface MarketTreasury {
+   ruralHayPayable?: number;
+   /** Lots of the Fodder stock that are the farms' hay, sold for them on credit: its proceeds go to them. */
+   ruralHayConsignedLots?: number;
++  /**
++   * Town goods held on consignment, by Good then Burg, as [units, worth at the consignment price]
++   * (Simulation settings `craftSalePayment`, docs/plan/market-goods-settlement.md §2.2).
++   */
++  craftConsigned?: Record<number, Record<number, [number, number]>>;
++  /** Consigned goods that have sold and are not yet paid for, by Burg then Good, as [units, worth]. */
++  craftPayables?: Record<number, Record<number, [number, number]>>;
+   /**
+    * Merchant company working capital for inter-market trade (export warehouse booking).
+    * Soft ledger: not full B2B settlement between markets.
+diff --git a/src/extensions/economy/generators/markets-generator.test.ts b/src/extensions/economy/generators/markets-generator.test.ts
+index 0340057c0..3ef238101 100644
+--- a/src/extensions/economy/generators/markets-generator.test.ts
++++ b/src/extensions/economy/generators/markets-generator.test.ts
+@@ -1403,6 +1403,51 @@ describe("MarketsModule", () => {
+       expect(market.marketTreasury?.balance).toBe(82);
+     });
+ 
++    it("holds what the cash cannot buy on consignment and pays the town once it has sold", () => {
++      const market: Market = {
++        i: 1,
++        centerBurgId: 1,
++        color: "#ff0000",
++        goods: { 0: { stock: 0, price: 10 } },
++        marketTreasury: { balance: 0, ruralGrainPayable: 0 }
++      };
++      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
++      marketsModule["marketById"] = [market, market];
++      setMarkets([market]);
++      const burg: Burg = { i: 1, market: 1, treasury: 0 } as unknown as Burg;
++      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg];
++
++      expect(marketsModule.sell({ burg, good: getGoods()[0], units: 5, taxRate: 0 })).toBeNull();
++      expect(marketsModule.consign({ burg, good: getGoods()[0], units: 5 })).toBe(5);
++      expect(market.goods[0].stock).toBe(5);
++      const [units, worth] = market.marketTreasury!.craftConsigned![0][1];
++      expect(units).toBe(5);
++      const unitWorth = worth / units;
++
++      // Unsold, nothing is owed.
++      marketsModule.settleCraftConsignments();
++      expect(market.marketTreasury!.craftPayables?.[1]).toBeUndefined();
++
++      // Buyers took 3 and paid the market; the town is paid for those 3, and holds the other 2.
++      market.goods[0].stock = 2;
++      market.marketTreasury!.balance = 100;
++      marketsModule.settleCraftConsignments();
++      expect(burg.treasury).toBeCloseTo(3 * unitWorth, 2);
++      expect(market.marketTreasury!.balance).toBeCloseTo(100 - 3 * unitWorth, 2);
++      expect(market.marketTreasury!.craftConsigned![0][1][0]).toBeCloseTo(2, 9);
++      expect(market.marketTreasury!.craftPayables?.[1]).toBeUndefined();
++
++      // The rest sells while the market is out of cash: it is owed, and paid when cash comes in.
++      market.goods[0].stock = 0;
++      market.marketTreasury!.balance = 0;
++      marketsModule.settleCraftConsignments();
++      expect(market.marketTreasury!.craftPayables![1][0][1]).toBeCloseTo(2 * unitWorth, 2);
++      market.marketTreasury!.balance = 100;
++      marketsModule.settleCraftConsignments();
++      expect(burg.treasury).toBeCloseTo(5 * unitWorth, 2);
++      expect(market.marketTreasury!.craftPayables?.[1]).toBeUndefined();
++    });
++
+     it("sync() should rebuild the id index so get() resolves markets after a load", () => {
+       const market3: Market = { i: 3, centerBurgId: 30, color: "#fff", goods: {} };
+       const market7: Market = { i: 7, centerBurgId: 70, color: "#fff", goods: {} };
+diff --git a/src/extensions/economy/generators/markets-generator.ts b/src/extensions/economy/generators/markets-generator.ts
+index d66b5b174..5a8f2563b 100644
+--- a/src/extensions/economy/generators/markets-generator.ts
++++ b/src/extensions/economy/generators/markets-generator.ts
+@@ -2079,6 +2079,36 @@ export class MarketsModule {
+       ? Math.max(0, treasury.balance - grossRevenue)
+       : rn(Math.max(0, treasury.balance - grossRevenue), 2);
+     market.marketTreasury = treasury;
++    const deals = getDeals();
++    const deal: Deal = {
++      i: deals.length,
++      seller: burg.i!,
++      sellerType: "burg",
++      buyer: market.i,
++      buyerType: "market",
++      good: good.i,
++      units: actualUnits,
++      price,
++      tax
++    };
++    deals.push(deal);
++    this.receiveBurgGoods(market, marketGood, burg, good, actualUnits, exactUnits);
++
++    return deal;
++  }
++
++  /**
++   * Takes a town's units into the market's stock, sold or consigned: the stock and its depot, the
++   * flow and food records, the price pressure and the sales counters.
++   */
++  private receiveBurgGoods(
++    market: Market,
++    marketGood: Market["goods"][number],
++    burg: Burg,
++    good: Good,
++    actualUnits: number,
++    exactUnits: boolean
++  ): void {
+     marketGood.stock = exactUnits ? marketGood.stock + actualUnits : rn(marketGood.stock + actualUnits, 2);
+     recordGoodFlow({
+       direction: "source",
+@@ -2094,20 +2124,6 @@ export class MarketsModule {
+     // Market.goods remains the canonical market-wide total; this records its physical location.
+     addWholesaleGoodStock(burg.i!, market.i, good.i, actualUnits);
+ 
+-    const deals = getDeals();
+-    const deal: Deal = {
+-      i: deals.length,
+-      seller: burg.i!,
+-      sellerType: "burg",
+-      buyer: market.i,
+-      buyerType: "market",
+-      good: good.i,
+-      units: actualUnits,
+-      price,
+-      tax
+-    };
+-    deals.push(deal);
+-
+     if (!isPricedByHouseholdDemand(good))
+       marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, -actualUnits), 2);
+ 
+@@ -2127,8 +2143,117 @@ export class MarketsModule {
+       const key = `${market.i}:${good.i}`;
+       marketProductionTable[key] = rn((marketProductionTable[key] ?? 0) + actualUnits, 2);
+     }
++  }
+ 
+-    return deal;
++  /**
++   * Holds town goods the market's cash could not buy on consignment (Simulation settings
++   * `craftSalePayment`, docs/plan/market-goods-settlement.md §2.2): they join the stock now, and
++   * the town is paid what they were worth once they have sold (`settleCraftConsignments`). Returns
++   * the units taken.
++   */
++  consign({
++    burg,
++    good,
++    units,
++    exactUnits = false
++  }: {
++    burg: Burg;
++    good: Good;
++    units: number;
++    exactUnits?: boolean;
++  }): number {
++    if (!isGoodEnabled(good) || !burg.i) return 0;
++    const market = this.get(burg.market);
++    if (!market || !(units > 0)) return 0;
++    const marketGood = this.getMarketGood(market, good);
++    const price = this.customerSellPrice(marketGood.price, burg.i, good.i);
++    const actualUnits = exactUnits ? units : rn(units, 2);
++    if (!(price > 0) || actualUnits < (exactUnits ? 1e-12 : 0.01)) return 0;
++    market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
++    const treasury = market.marketTreasury;
++    treasury.craftConsigned ??= {};
++    const byBurg = treasury.craftConsigned[good.i] ?? {};
++    treasury.craftConsigned[good.i] = byBurg;
++    const held = byBurg[burg.i] ?? [0, 0];
++    byBurg[burg.i] = [held[0] + actualUnits, rn(held[1] + actualUnits * price, 2)];
++    this.receiveBurgGoods(market, marketGood, burg, good, actualUnits, exactUnits);
++    return actualUnits;
++  }
++
++  /**
++   * Consigned goods sell first. What of each good's consigned units is no longer in stock has
++   * sold, and its worth is owed to the towns; the market pays what it owes from its cash before it
++   * buys anything new this cycle, as a sale with its sales tax. Run before the procurement budgets.
++   */
++  settleCraftConsignments(): void {
++    const burgs = this.worldContext.pack.burgs;
++    for (const market of getMarkets()) {
++      const treasury = market.marketTreasury;
++      if (!treasury?.craftConsigned && !treasury?.craftPayables) continue;
++      treasury.craftPayables ??= {};
++      const payables = treasury.craftPayables;
++      for (const [goodIdStr, byBurg] of Object.entries(treasury.craftConsigned ?? {})) {
++        const goodId = +goodIdStr;
++        const rows = Object.entries(byBurg);
++        const consigned = rows.reduce((total, [, row]) => total + row[0], 0);
++        if (!(consigned > 1e-9)) {
++          delete treasury.craftConsigned![goodId];
++          continue;
++        }
++        const sold = consigned - Math.min(consigned, Math.max(0, market.goods[goodId]?.stock ?? 0));
++        if (!(sold > 0)) continue;
++        const share = sold / consigned;
++        for (const [burgIdStr, row] of rows) {
++          const byGood = payables[+burgIdStr] ?? {};
++          payables[+burgIdStr] = byGood;
++          const owed = byGood[goodId] ?? [0, 0];
++          byGood[goodId] = [owed[0] + row[0] * share, rn(owed[1] + row[1] * share, 2)];
++          row[0] -= row[0] * share;
++          row[1] = rn(row[1] * (1 - share), 2);
++          if (!(row[0] > 1e-9)) delete byBurg[+burgIdStr];
++        }
++        if (!Object.keys(byBurg).length) delete treasury.craftConsigned![goodId];
++      }
++
++      let total = 0;
++      for (const [burgIdStr, byGood] of Object.entries(payables)) {
++        const burg = burgs[+burgIdStr];
++        // A town that is gone is owed nothing.
++        if (!burg?.i || burg.removed) delete payables[+burgIdStr];
++        else for (const [, owed] of Object.entries(byGood)) total += owed[1];
++      }
++      const cash = Math.max(0, treasury.balance);
++      if (!(total > 0) || !(cash > 0)) continue;
++      const scale = Math.min(1, cash / total);
++      const deals = getDeals();
++      for (const [burgIdStr, byGood] of Object.entries(payables)) {
++        const burg = burgs[+burgIdStr];
++        const taxRate = this.getSalesTax(burg);
++        for (const [goodIdStr, owed] of Object.entries(byGood)) {
++          const pay = rn(owed[1] * scale, 2);
++          if (!(pay > 0) || !(owed[0] > 0)) continue;
++          const units = owed[0] * scale;
++          const tax = rn(pay * taxRate, 2);
++          treasury.balance = rn(Math.max(0, treasury.balance - pay), 2);
++          burg.treasury = rn((burg.treasury ?? 0) + pay - tax, 2);
++          deals.push({
++            i: deals.length,
++            seller: burg.i!,
++            sellerType: "burg",
++            buyer: market.i,
++            buyerType: "market",
++            good: +goodIdStr,
++            units: rn(units, 2),
++            price: rn(pay / units, 2),
++            tax
++          });
++          owed[0] -= units;
++          owed[1] = rn(owed[1] - pay, 2);
++          if (!(owed[1] > 0)) delete byGood[+goodIdStr];
++        }
++        if (!Object.keys(byGood).length) delete payables[+burgIdStr];
++      }
++    }
+   }
+ 
+   /**
+diff --git a/src/extensions/economy/generators/production-generator.ts b/src/extensions/economy/generators/production-generator.ts
+index 981e4bc7b..a07b4f589 100644
+--- a/src/extensions/economy/generators/production-generator.ts
++++ b/src/extensions/economy/generators/production-generator.ts
+@@ -5,6 +5,7 @@ import {
+ } from "../../../generators/technologyProgress";
+ import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
+ import { getCraftEmploymentScale } from "../../../simulation/craftSettings";
++import { getMarketSettings } from "../../../simulation/marketSettings";
+ import { yieldToHost } from "../../../simulation/ports";
+ import type { Burg, State } from "../../hostTypes";
+ import { DEBUG, ERROR, measureTickStep, measureTickStepAsync, rn, TIME } from "../../hostUtils";
+@@ -427,6 +428,8 @@ export class ProductionModule {
+     // Purchase budgets must exist before the Burg loop; otherwise first-cycle production
+     // would still depend on whichever Burg happens to run first after a legacy load.
+     measureTickStep("production:merchantPurchaseCapital", () => MerchantTradeCapital.ensureAllMarkets());
++    // What a market owes its towns for consigned goods that have sold comes before new purchases.
++    measureTickStep("production:craftConsignments", () => Markets.settleCraftConsignments());
+     const saleBudgetByBurg = allocateMarketProcurementBudgets(sortedBurgs, getMarkets());
+     // Flour has to exist before the burg loop bakes Bread. The draw is the tradeable
+     // surplus only, so this month's household grain reserve is still in the ledger.
+@@ -1730,6 +1733,9 @@ export class ProductionModule {
+     let phaseRevenue = 0;
+     const taxRate = this.getSalesTax(state.burg);
+     let remainingBudget = saleBudgetByBurg.get(state.burg.i!) ?? 0;
++    // What the market's cash cannot buy it holds on consignment instead of the town losing it
++    // (docs/plan/market-goods-settlement.md §2.2).
++    const consign = getMarketSettings().craftSalePayment === "consignment";
+ 
+     for (const goodIdStr in state.inventory) {
+       const goodId = +goodIdStr;
+@@ -1738,14 +1744,16 @@ export class ProductionModule {
+ 
+       const good = Goods.get(goodId);
+       if (!good || !isGoodEnabled(good)) continue;
++      const exactUnits = hasPhysicalWoodRecipe(good.name) || hasPhysicalTextileRecipe(good.name);
+       const deal = Markets.sell({
+         burg: state.burg,
+         good,
+         units,
+         taxRate,
+         budget: remainingBudget,
+-        exactUnits: hasPhysicalWoodRecipe(good.name) || hasPhysicalTextileRecipe(good.name)
++        exactUnits
+       });
++      if (consign) Markets.consign({ burg: state.burg, good, units: units - (deal?.units ?? 0), exactUnits });
+       if (!deal) continue;
+ 
+       remainingBudget = rn(Math.max(0, remainingBudget - deal.units * deal.price), 2);
+diff --git a/src/i18n/locales/en.json b/src/i18n/locales/en.json
+index 55c40729f..2fe66c520 100644
+--- a/src/i18n/locales/en.json
++++ b/src/i18n/locales/en.json
+@@ -2101,7 +2101,15 @@
+     "hayPayment": "Hay payment",
+     "hayPaymentTip": "How a market pays for the hay it takes at the cut. On credit: it sells the farms' hay for them and pays them what it fetches, as it sells. Cash at the cut: it buys outright from its cash, as far as it holds, and keeps what the hay later sells for.",
+     "hayPayment_onCredit": "On credit",
+-    "hayPayment_cash": "Cash at the cut"
++    "hayPayment_cash": "Cash at the cut",
++    "craftSalePayment": "Town goods sale",
++    "craftSalePaymentTip": "How a market takes the goods its towns make. Consignment: it buys what its cash allows and holds the rest for the town, paying the town once those goods have sold. Cash only: it takes only what its cash buys, and the rest of the town's output is lost.",
++    "craftSalePayment_consignment": "Consignment",
++    "craftSalePayment_cash": "Cash only",
++    "householdGoodsPayment": "Household drinks and foods",
++    "householdGoodsPaymentTip": "Whether households pay the market for the ale, wine, cider, cheese, milk and fruit they take from its stock. Pay: town and farm households pay the market price from their cash, and take only what they can pay for. Free: they take them without paying.",
++    "householdGoodsPayment_pay": "Pay",
++    "householdGoodsPayment_free": "Free"
+   },
+   "dangerSettings": {
+     "heading": "Danger settings:",
+diff --git a/src/i18n/locales/ja.json b/src/i18n/locales/ja.json
+index 66583eac1..c1b85d618 100644
+--- a/src/i18n/locales/ja.json
++++ b/src/i18n/locales/ja.json
+@@ -2101,7 +2101,15 @@
+     "hayPayment": "干し草の支払い",
+     "hayPaymentTip": "市場が刈り取りの時に受け取る干し草の払い方です。掛け：農家の干し草を代わりに売り、売れるたびにその売り値を農家に払います。刈り取りの時に現金：持っている現金の分だけその場で買い取り、後の売り上げは市場のものになります。",
+     "hayPayment_onCredit": "掛け",
+-    "hayPayment_cash": "刈り取りの時に現金"
++    "hayPayment_cash": "刈り取りの時に現金",
++    "craftSalePayment": "町の産物の買い取り",
++    "craftSalePaymentTip": "市場が町の産物を受け取る方法です。委託：現金で払える分を買い取り、残りは町から預かって、売れたらその代金を町に払います。現金のみ：現金で買える分だけを受け取り、残りの産物は消えます。",
++    "craftSalePayment_consignment": "委託",
++    "craftSalePayment_cash": "現金のみ",
++    "householdGoodsPayment": "家計の飲み物と食品",
++    "householdGoodsPaymentTip": "家計が市場の在庫から取るエール・ワイン・シードル・チーズ・牛乳・果物の代金を、市場に払うかどうかです。払う：町と農村の家計が手元の現金から市場の値段で払い、払えた分だけ取ります。払わない：代金を払わずに取ります。",
++    "householdGoodsPayment_pay": "払う",
++    "householdGoodsPayment_free": "払わない"
+   },
+   "dangerSettings": {
+     "heading": "危険度の設定：",
+diff --git a/src/simulation/marketSettings.ts b/src/simulation/marketSettings.ts
+index aec3780c7..b9e420980 100644
+--- a/src/simulation/marketSettings.ts
++++ b/src/simulation/marketSettings.ts
+@@ -40,6 +40,22 @@ export type MerchantProfitUse = (typeof MERCHANT_PROFIT_USES)[number];
+ export const HAY_PAYMENT_MODES = ["onCredit", "cash"] as const;
+ export type HayPaymentMode = (typeof HAY_PAYMENT_MODES)[number];
+ 
++/**
++ * How a market takes the goods its towns make (docs/plan/market-goods-settlement.md §2.2):
++ * `consignment` buys what its cash allows and holds the rest for the town, paying for it once it has
++ * sold; `cash` takes only what its cash buys, and the rest of the town's output is lost.
++ */
++export const CRAFT_SALE_PAYMENT_MODES = ["consignment", "cash"] as const;
++export type CraftSalePaymentMode = (typeof CRAFT_SALE_PAYMENT_MODES)[number];
++
++/**
++ * Whether households pay the market for the drinks and foods they take from its stock
++ * (docs/plan/market-goods-settlement.md §2.1): `pay` debits the town and farm purses at the market
++ * price, and they take only what they paid for; `free` takes them without payment.
++ */
++export const HOUSEHOLD_GOODS_PAYMENT_MODES = ["pay", "free"] as const;
++export type HouseholdGoodsPaymentMode = (typeof HOUSEHOLD_GOODS_PAYMENT_MODES)[number];
++
+ export type MarketSettings = {
+   /** A town promoted during the run opens a market only this many generation spacings from every market centre. */
+   foundingSpacingFactor: number;
+@@ -50,6 +66,8 @@ export type MarketSettings = {
+   dissolveCargo: MarketDissolveCargoMode;
+   hayTrade: HayTradeMode;
+   hayPayment: HayPaymentMode;
++  craftSalePayment: CraftSalePaymentMode;
++  householdGoodsPayment: HouseholdGoodsPaymentMode;
+   /**
+    * Weight of a rural person against a town person in the wages a market pays from its surplus:
+    * carters, threshers and hay hands in its countryside as well as dealers and porters in its towns.
+@@ -71,6 +89,8 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
+   dissolveCargo: "windDown",
+   hayTrade: "marketShortfall",
+   hayPayment: "onCredit",
++  craftSalePayment: "consignment",
++  householdGoodsPayment: "pay",
+   surplusRuralWeight: 1,
+   surplusReserveFactor: 0.25,
+   merchantProfitShare: 1 / 3,
+@@ -106,6 +126,16 @@ const profitUse = (value: unknown): MerchantProfitUse =>
+ const hayPaymentMode = (value: unknown): HayPaymentMode =>
+   HAY_PAYMENT_MODES.includes(value as HayPaymentMode) ? (value as HayPaymentMode) : DEFAULT_MARKET_SETTINGS.hayPayment;
+ 
++const craftSalePaymentMode = (value: unknown): CraftSalePaymentMode =>
++  CRAFT_SALE_PAYMENT_MODES.includes(value as CraftSalePaymentMode)
++    ? (value as CraftSalePaymentMode)
++    : DEFAULT_MARKET_SETTINGS.craftSalePayment;
++
++const householdGoodsPaymentMode = (value: unknown): HouseholdGoodsPaymentMode =>
++  HOUSEHOLD_GOODS_PAYMENT_MODES.includes(value as HouseholdGoodsPaymentMode)
++    ? (value as HouseholdGoodsPaymentMode)
++    : DEFAULT_MARKET_SETTINGS.householdGoodsPayment;
++
+ const clamp = (key: NumericMarketSetting, value: unknown): number => {
+   const { min, max, step } = MARKET_SETTING_LIMITS[key];
+   if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_MARKET_SETTINGS[key];
+@@ -128,6 +158,8 @@ export function getMarketSettings(): MarketSettings {
+     dissolveCargo: cargoMode(parsed.dissolveCargo),
+     hayTrade: hayTradeMode(parsed.hayTrade),
+     hayPayment: hayPaymentMode(parsed.hayPayment),
++    craftSalePayment: craftSalePaymentMode(parsed.craftSalePayment),
++    householdGoodsPayment: householdGoodsPaymentMode(parsed.householdGoodsPayment),
+     surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight),
+     surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor),
+     merchantProfitShare: clamp("merchantProfitShare", parsed.merchantProfitShare),
+@@ -145,6 +177,8 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
+     dissolveCargo: cargoMode(next.dissolveCargo),
+     hayTrade: hayTradeMode(next.hayTrade),
+     hayPayment: hayPaymentMode(next.hayPayment),
++    craftSalePayment: craftSalePaymentMode(next.craftSalePayment),
++    householdGoodsPayment: householdGoodsPaymentMode(next.householdGoodsPayment),
+     surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight),
+     surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor),
+     merchantProfitShare: clamp("merchantProfitShare", next.merchantProfitShare),
+diff --git a/src/ui/components/tabs/options/SimulationSettingsTab.tsx b/src/ui/components/tabs/options/SimulationSettingsTab.tsx
+index d237d4063..c0421df22 100644
+--- a/src/ui/components/tabs/options/SimulationSettingsTab.tsx
++++ b/src/ui/components/tabs/options/SimulationSettingsTab.tsx
+@@ -9,12 +9,16 @@ import {
+   setCraftEmploymentShare
+ } from "../../../../simulation/craftSettings";
+ import {
++  CRAFT_SALE_PAYMENT_MODES,
++  type CraftSalePaymentMode,
+   getMarketGenerationSpacing,
+   getMarketSettings,
+   HAY_PAYMENT_MODES,
+   HAY_TRADE_MODES,
+   type HayPaymentMode,
+   type HayTradeMode,
++  HOUSEHOLD_GOODS_PAYMENT_MODES,
++  type HouseholdGoodsPaymentMode,
+   MARKET_DISSOLVE_CARGO_MODES,
+   MARKET_SETTING_LIMITS,
+   type MarketDissolveCargoMode,
+@@ -467,6 +471,56 @@ export const SimulationSettingsTab: React.FC = () => {
+               </select>
+             </td>
+           </tr>
++          <tr data-tip={t("simulation.craftSalePaymentTip")}>
++            <td />
++            <td>
++              <label htmlFor="craftSalePayment">{t("simulation.craftSalePayment")}</label>
++            </td>
++            <td colSpan={2}>
++              <select
++                id="craftSalePayment"
++                value={marketSettings.craftSalePayment}
++                onChange={e =>
++                  setMarketSettingsState(
++                    setMarketSettings({
++                      craftSalePayment: e.target.value as CraftSalePaymentMode
++                    })
++                  )
++                }
++              >
++                {CRAFT_SALE_PAYMENT_MODES.map(mode => (
++                  <option key={mode} value={mode}>
++                    {t(`simulation.craftSalePayment_${mode}`)}
++                  </option>
++                ))}
++              </select>
++            </td>
++          </tr>
++          <tr data-tip={t("simulation.householdGoodsPaymentTip")}>
++            <td />
++            <td>
++              <label htmlFor="householdGoodsPayment">{t("simulation.householdGoodsPayment")}</label>
++            </td>
++            <td colSpan={2}>
++              <select
++                id="householdGoodsPayment"
++                value={marketSettings.householdGoodsPayment}
++                onChange={e =>
++                  setMarketSettingsState(
++                    setMarketSettings({
++                      householdGoodsPayment: e.target.value as HouseholdGoodsPaymentMode
++                    })
++                  )
++                }
++              >
++                {HOUSEHOLD_GOODS_PAYMENT_MODES.map(mode => (
++                  <option key={mode} value={mode}>
++                    {t(`simulation.householdGoodsPayment_${mode}`)}
++                  </option>
++                ))}
++              </select>
++            </td>
++          </tr>
+ 
+           <tr>
+             <td colSpan={4}>

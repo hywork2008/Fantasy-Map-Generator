@@ -9,6 +9,7 @@ import {
   setCraftDomainEmploymentRecords,
   setGuildChapters,
   setGuildKnowledgeStocks,
+  setMarkets,
   setSmelterOperations
 } from "../economyContext";
 import { buildGuildChapterSuitabilityContext, scoreGuildChapterSuitability } from "./guildChapterSuitability";
@@ -20,6 +21,8 @@ import {
 } from "./guildChapters";
 import type { GuildChapter } from "./guildChapterTypes";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
+
+const NEVER_FOUND_RNG = { P: () => false };
 
 describe("GuildChaptersModule", () => {
   beforeEach(() => {
@@ -87,7 +90,7 @@ describe("GuildChaptersModule", () => {
   it("uses an independent annual self-gate", () => {
     setGuildChapters([{ burgId: 1, domain: "metallurgy", foundedYear: 500, status: "chapter", suitability: 1 }]);
     worldContext.options = { year: 501 };
-    const neverFound = { P: () => false };
+    const neverFound = NEVER_FOUND_RNG;
 
     expect(GuildChapters.settleAnnual(neverFound)).toBe(true);
     expect(GuildChapters.settleAnnual(neverFound)).toBe(false);
@@ -100,11 +103,22 @@ describe("GuildChaptersModule", () => {
       { burgId: 2, domain: "instruments", foundedYear: 500, status: "chapter", suitability: 0.9 }
     ]);
 
-    expect(GuildChapters.settleAnnual({ P: () => false })).toBe(true);
+    expect(GuildChapters.settleAnnual(NEVER_FOUND_RNG)).toBe(true);
 
     const halls = getGuildChapters().filter(chapter => chapter.domain === "instruments");
     expect(halls.map(chapter => chapter.burgId)).toEqual([2]);
     expect(scoreGuildChapterSuitability(2, "instruments", buildGuildChapterSuitabilityContext())).toBeGreaterThan(0.2);
+  });
+
+  it("keeps a victualling, brewing or baking hall out of the largest market town until it has practitioners", () => {
+    setMarkets([{ i: 1, centerBurgId: 2, color: "#111", goods: {} }] as never);
+    const empty = buildGuildChapterSuitabilityContext();
+    for (const domain of ["victualling", "brewing", "baking"] as const)
+      expect(scoreGuildChapterSuitability(2, domain, empty), domain).toBeLessThan(CHAPTER_FOUND_THRESHOLD);
+    setCraftDomainEmploymentRecords([{ burgId: 2, domain: "brewing", workers: 6 }]);
+    expect(scoreGuildChapterSuitability(2, "brewing", buildGuildChapterSuitabilityContext())).toBeGreaterThanOrEqual(
+      CHAPTER_FOUND_THRESHOLD
+    );
   });
 
   it("caps formal halls per state domain from the state burg count", () => {
@@ -209,7 +223,7 @@ describe("GuildChaptersModule", () => {
       { burgId: 7, domain: "instruments", stock: 0.1, treasury: 0 }
     ]);
 
-    expect(GuildChapters.settleAnnual({ P: () => false })).toBe(true);
+    expect(GuildChapters.settleAnnual(NEVER_FOUND_RNG)).toBe(true);
 
     const chapters = getGuildChapters();
     expect(chapters.some(chapter => chapter.burgId === 1 && chapter.domain === "metallurgy")).toBe(false);

@@ -43,7 +43,10 @@ const ANCILLARY: Record<GuildDomain, readonly GuildAncillaryKind[]> = {
   metallurgy: ["smithyYard"],
   glassware: ["sandYard"],
   printing: [],
-  instruments: []
+  instruments: [],
+  victualling: [],
+  brewing: [],
+  baking: []
 };
 
 function periodAtLeast(period: HistoricalPeriod, minimum: HistoricalPeriod): boolean {

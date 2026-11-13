@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calibratedReserveFactor,
   consumerCoverageForCategory,
   domainShare,
   GOOD_DEMAND_CALIBRATION,
@@ -9,15 +10,15 @@ import {
   recipesForIndustrialDemand
 } from "./craftDemandCalibration";
 import { laborPeople } from "./craftScale";
-import { getOccupationalRow, referenceFixtureExpectedPeople } from "./occupationalCalibration";
+import { OCCUPATIONAL_CALIBRATION, referenceFixtureExpectedPeople } from "./occupationalCalibration";
 
 describe("craftDemandCalibration", () => {
   it("authors barrel labor at 0.00106 pt/lot (share 0.50 applied)", () => {
     expect(getGoodDemandCalibration("Barrels")?.laborPointsPerLotAtDefaultRate).toBeCloseTo(0.00106, 5);
     const lots = getCalibratedMonthlyLots({ goodName: "Barrels", laborPeopleBurg: 9000, port: false });
-    expect(lots).toBeCloseTo(9.36, 2);
-    expect(laborPointsForLots("Barrels", 9.36, 1000)).toBeCloseTo(0.00992, 4);
-    expect(laborPointsForLots("Barrels", 9.36, 1000)).not.toBeCloseTo(9.36, 1);
+    expect(lots).toBeCloseTo(58.5, 2);
+    expect(laborPointsForLots("Barrels", 58.5, 1000)).toBeCloseTo(0.062, 3);
+    expect(laborPointsForLots("Barrels", 58.5, 1000)).not.toBeCloseTo(58.5, 1);
   });
 
   it("keeps Lab Glassware labor as an authored floor, not a runtime solve", () => {
@@ -33,33 +34,34 @@ describe("craftDemandCalibration", () => {
   });
 
   it("has a numeric row for every guild-mapped good", () => {
-    const names = getOccupationalRow("woodworking").goodNames.concat(
-      getOccupationalRow("textiles").goodNames,
-      getOccupationalRow("leather").goodNames,
-      getOccupationalRow("metallurgy").goodNames,
-      getOccupationalRow("masonry").goodNames,
-      getOccupationalRow("glassware").goodNames,
-      getOccupationalRow("printing").goodNames,
-      getOccupationalRow("instruments").goodNames
-    );
+    const names = OCCUPATIONAL_CALIBRATION.filter(row => row.guildDomain).flatMap(row => row.goodNames);
     for (const name of names) {
       const row = getGoodDemandCalibration(name);
       expect(row, name).toBeDefined();
       expect(row?.laborPointsPerLotAtDefaultRate, name).toBeGreaterThan(0);
       expect(row?.fixtureLotsPerMonth, name).toBeGreaterThan(0);
     }
-    expect(GOOD_DEMAND_CALIBRATION).toHaveLength(names.length);
+    expect(GOOD_DEMAND_CALIBRATION.filter(row => row.domain)).toHaveLength(names.length);
   });
 
   it("does not treat occupational typical as identical to lots × laborPointsPerLot", () => {
-    const expectedPeople = referenceFixtureExpectedPeople("woodworking");
+    const expectedPeople = referenceFixtureExpectedPeople("cooperage");
     const barrelLaborPeople =
       laborPointsForLots(
         "Barrels",
         getCalibratedMonthlyLots({ goodName: "Barrels", laborPeopleBurg: 9000, port: false }),
         1000
       ) * 1000;
-    expect(barrelLaborPeople / expectedPeople).toBeCloseTo(0.5, 1);
+    // Cooperage typical 45 people at the fixture; the town ale casks' labor is about 1.4 times it.
+    expect(barrelLaborPeople / expectedPeople).toBeCloseTo(1.38, 1);
+  });
+
+  it("stops a per-head floor once the market holds three months of it", () => {
+    expect(calibratedReserveFactor(0, 100)).toBe(1);
+    expect(calibratedReserveFactor(200, 100)).toBe(1);
+    expect(calibratedReserveFactor(250, 100)).toBeCloseTo(0.5, 6);
+    expect(calibratedReserveFactor(20000, 100)).toBe(0);
+    expect(calibratedReserveFactor(500, 0)).toBe(1);
   });
 
   it("scales laborPointsForLots inversely with populationRate", () => {

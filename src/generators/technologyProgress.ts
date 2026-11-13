@@ -1092,6 +1092,7 @@ function applyChemistryMedicineSignals(
   economy: Record<string, unknown>
 ): void {
   const soapId = goodIdByName(economy, "Soap");
+  const castileSoapId = goodIdByName(economy, "Castile Soap");
   const glassId = goodIdByName(economy, "Glass");
   const pumiceId = goodIdByName(economy, "Pumice");
   const sulfurId = goodIdByName(economy, "Sulfur");
@@ -1149,6 +1150,7 @@ function applyChemistryMedicineSignals(
   // One pass over markets per good (not per state) — see buildMarketOwnerStates()/stateMarketStockByGood().
   const marketOwners = buildMarketOwnerStates(economy, pack);
   const soapStockByState = stateMarketStockByGood(economy, marketOwners, soapId);
+  const castileSoapStockByState = stateMarketStockByGood(economy, marketOwners, castileSoapId);
   const glassStockByState = stateMarketStockByGood(economy, marketOwners, glassId);
   const sulfurStockByState = stateMarketStockByGood(economy, marketOwners, sulfurId);
   const saltpeterStockByState = stateMarketStockByGood(economy, marketOwners, saltpeterId);
@@ -1167,7 +1169,8 @@ function applyChemistryMedicineSignals(
     const urbanPop = Math.max(signals.urbanPopulation, 1);
     signals.battleWoundPressure = clamp01((combatByState.get(stateId) ?? 0) / Math.max(urbanPop * 0.02, 1));
 
-    const soapStock = soapStockByState.get(stateId) ?? 0;
+    // The hard soap of oil and soda washes as the soft soap does (docs/plan/castile-soap.md).
+    const soapStock = (soapStockByState.get(stateId) ?? 0) + (castileSoapStockByState.get(stateId) ?? 0);
     const glassStock = glassStockByState.get(stateId) ?? 0;
     const soapShort = clamp01(1 - soapStock / Math.max(urbanPop * 0.02, 1));
     const glassShort = clamp01(1 - glassStock / Math.max(urbanPop * 0.02, 1));

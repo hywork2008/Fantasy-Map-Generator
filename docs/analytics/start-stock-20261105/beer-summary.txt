@@ -1,0 +1,72 @@
+
+## start-stock-20261105/beer-2101.json
+month 1: ale demand 13423, Beer made 19528 (1.45), Barrels made 3812 stock 1208, exportable grain 247590, markets with exportable < ale demand 0/16 (0 of demand)
+month 2: ale demand 13415, Beer made 10383 (0.77), Barrels made 3876 stock 766, exportable grain 381583, markets with exportable < ale demand 0/16 (0 of demand)
+month 3: ale demand 13396, Beer made 10370 (0.77), Barrels made 3821 stock 115, exportable grain 407871, markets with exportable < ale demand 0/16 (0 of demand)
+month 6: ale demand 13345, Beer made 9244 (0.69), Barrels made 3778 stock 645, exportable grain 315369, markets with exportable < ale demand 0/16 (0 of demand)
+month 12: ale demand 13220, Beer made 11662 (0.88), Barrels made 3574 stock 3484, exportable grain 64602, markets with exportable < ale demand 0/16 (0 of demand)
+month 24: ale demand 13063, Beer made 10224 (0.78), Barrels made 3533 stock 1556, exportable grain 211489, markets with exportable < ale demand 0/16 (0 of demand)
+month 36: ale demand 12875, Beer made 10307 (0.8), Barrels made 3655 stock 2509, exportable grain 109146, markets with exportable < ale demand 0/15 (0 of demand)
+month 48: ale demand 12742, Beer made 10716 (0.84), Barrels made 3635 stock 2269, exportable grain 97389, markets with exportable < ale demand 0/15 (0 of demand)
+month 60: ale demand 12703, Beer made 12245 (0.96), Barrels made 3607 stock 1529, exportable grain 67044, markets with exportable < ale demand 0/15 (0 of demand)
+
+## start-stock-20261105/beer-2102.json
+month 1: ale demand 23783, Beer made 39774 (1.67), Barrels made 7490 stock 1271, exportable grain 523060, markets with exportable < ale demand 0/30 (0 of demand)
+month 2: ale demand 23779, Beer made 21360 (0.9), Barrels made 7639 stock 763, exportable grain 626097, markets with exportable < ale demand 0/30 (0 of demand)
+month 3: ale demand 23773, Beer made 19211 (0.81), Barrels made 7574 stock 872, exportable grain 616599, markets with exportable < ale demand 0/30 (0 of demand)
+month 6: ale demand 23752, Beer made 20281 (0.85), Barrels made 7500 stock 2101, exportable grain 544754, markets with exportable < ale demand 0/30 (0 of demand)
+month 12: ale demand 24021, Beer made 18303 (0.76), Barrels made 6528 stock 8458, exportable grain 217416, markets with exportable < ale demand 3/34 (0.03 of demand)
+month 24: ale demand 24111, Beer made 18112 (0.75), Barrels made 7346 stock 6819, exportable grain 340085, markets with exportable < ale demand 2/36 (0.01 of demand)
+month 36: ale demand 24324, Beer made 22121 (0.91), Barrels made 7279 stock 8530, exportable grain 421375, markets with exportable < ale demand 1/38 (0 of demand)
+month 48: ale demand 24576, Beer made 21020 (0.86), Barrels made 6936 stock 10742, exportable grain 356753, markets with exportable < ale demand 2/39 (0.01 of demand)
+month 60: ale demand 24897, Beer made 21740 (0.87), Barrels made 7393 stock 11145, exportable grain 389124, markets with exportable < ale demand 0/39 (0 of demand)
+
+## start-stock-20261105/beer-2103.json
+month 1: ale demand 23010, Beer made 27227 (1.18), Barrels made 7125 stock 6040, exportable grain 67630, markets with exportable < ale demand 0/27 (0 of demand)
+month 2: ale demand 22989, Beer made 15762 (0.69), Barrels made 7289 stock 9186, exportable grain 10251, markets with exportable < ale demand 25/27 (0.95 of demand)
+month 3: ale demand 22966, Beer made 0 (0), Barrels made 5598 stock 17858, exportable grain 102, markets with exportable < ale demand 26/27 (1 of demand)
+month 6: ale demand 22916, Beer made 22364 (0.98), Barrels made 3834 stock 14897, exportable grain 86930, markets with exportable < ale demand 17/27 (0.55 of demand)
+month 12: ale demand 23001, Beer made 14946 (0.65), Barrels made 6457 stock 868, exportable grain 262076, markets with exportable < ale demand 3/27 (0.07 of demand)
+month 24: ale demand 22824, Beer made 14080 (0.62), Barrels made 5245 stock 4069, exportable grain 303615, markets with exportable < ale demand 8/27 (0.27 of demand)
+month 36: ale demand 22638, Beer made 14919 (0.66), Barrels made 6302 stock 1433, exportable grain 245521, markets with exportable < ale demand 6/27 (0.2 of demand)
+month 48: ale demand 22556, Beer made 16303 (0.72), Barrels made 6190 stock 1398, exportable grain 179164, markets with exportable < ale demand 7/27 (0.25 of demand)
+month 60: ale demand 22433, Beer made 14600 (0.65), Barrels made 6416 stock 2458, exportable grain 143704, markets with exportable < ale demand 7/27 (0.25 of demand)
+
+## start-stock-20261105/beer-2104.json
+month 1: ale demand 17176, Beer made 20648 (1.2), Barrels made 4844 stock 3702, exportable grain 47287, markets with exportable < ale demand 0/26 (0 of demand)
+month 2: ale demand 17162, Beer made 8643 (0.5), Barrels made 5010 stock 6794, exportable grain 8753, markets with exportable < ale demand 22/26 (0.9 of demand)
+month 3: ale demand 17122, Beer made 0 (0), Barrels made 3318 stock 12361, exportable grain 716, markets with exportable < ale demand 26/26 (1 of demand)
+month 6: ale demand 17024, Beer made 0 (0), Barrels made 63 stock 15527, exportable grain 0, markets with exportable < ale demand 26/26 (1 of demand)
+month 12: ale demand 17027, Beer made 8814 (0.52), Barrels made 4478 stock 235, exportable grain 211449, markets with exportable < ale demand 1/26 (0.07 of demand)
+month 24: ale demand 16784, Beer made 9283 (0.55), Barrels made 4244 stock 1137, exportable grain 266065, markets with exportable < ale demand 1/28 (0.07 of demand)
+month 36: ale demand 16478, Beer made 10401 (0.63), Barrels made 4393 stock 1839, exportable grain 247275, markets with exportable < ale demand 0/28 (0 of demand)
+month 48: ale demand 16213, Beer made 10110 (0.62), Barrels made 4257 stock 1299, exportable grain 248922, markets with exportable < ale demand 0/28 (0 of demand)
+month 60: ale demand 15995, Beer made 11415 (0.71), Barrels made 4496 stock 1534, exportable grain 245295, markets with exportable < ale demand 0/28 (0 of demand)
+
+## start-stock-20261105/beer-2101.json — shortfall by binding constraint (share of the year's ale demand)
+year 1: made 0.83, short by grain 0, casks 0.17, other 0.09
+year 2: made 0.69, short by grain 0, casks 0.33, other 0.04
+year 3: made 0.7, short by grain 0, casks 0.28, other 0.06
+year 4: made 0.71, short by grain 0, casks 0.3, other 0.05
+year 5: made 0.73, short by grain 0, casks 0.29, other 0.06
+
+## start-stock-20261105/beer-2102.json — shortfall by binding constraint (share of the year's ale demand)
+year 1: made 0.91, short by grain 0, casks 0.08, other 0.11
+year 2: made 0.84, short by grain 0, casks 0.16, other 0.09
+year 3: made 0.86, short by grain 0, casks 0.12, other 0.1
+year 4: made 0.93, short by grain 0, casks 0.07, other 0.12
+year 5: made 0.95, short by grain 0, casks 0.08, other 0.1
+
+## start-stock-20261105/beer-2103.json — shortfall by binding constraint (share of the year's ale demand)
+year 1: made 0.7, short by grain 0.26, casks 0.13, other 0.05
+year 2: made 0.67, short by grain 0.14, casks 0.2, other 0.03
+year 3: made 0.73, short by grain 0.03, casks 0.24, other 0.03
+year 4: made 0.73, short by grain 0.06, casks 0.22, other 0.03
+year 5: made 0.73, short by grain 0.09, casks 0.19, other 0.05
+
+## start-stock-20261105/beer-2104.json — shortfall by binding constraint (share of the year's ale demand)
+year 1: made 0.55, short by grain 0.4, casks 0.13, other 0.07
+year 2: made 0.57, short by grain 0.07, casks 0.3, other 0.08
+year 3: made 0.65, short by grain 0.04, casks 0.23, other 0.13
+year 4: made 0.69, short by grain 0, casks 0.22, other 0.14
+year 5: made 0.73, short by grain 0.01, casks 0.19, other 0.13

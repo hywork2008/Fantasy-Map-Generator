@@ -31,7 +31,23 @@ export const WORLD_SETTING_KEYS = [
   /** "off": no bandit or war raids on caravans, for calibration runs (docs/plan/goods-physical-units.md §12.7). */
   "fmg-caravan-raids",
   /** Market founding spacing and dissolution thresholds (docs/plan/market-founding-viability.md §3). */
-  "fmg-market-settings"
+  "fmg-market-settings",
+  /** Share of town people in work, scaling the per-thousand craft table (docs/plan/urban-craft-staffing.md §5.1). */
+  "fmg-craft-employment-share",
+  /** Woodland share for the full town ale; treeless lands drink whey (docs/plan/low-habitability-site-bonus.md §4). */
+  "fmg-treeless-town-ale-woodland",
+  /** Honey a person eats in a year (docs/plan/honey-forage-lands.md §6). */
+  "fmg-household-honey-kg",
+  /** Mead a town adult drinks in a year outside the wine country (docs/plan/mead.md §3). */
+  "fmg-town-mead-liters",
+  /** Soap a town person uses in a year, white and soft (docs/plan/town-soap.md §3.1). */
+  "fmg-town-soap-kg",
+  /** Months of craft spending a town's workshops may owe its market's dealers (docs/plan/craft-book-credit.md). */
+  "fmg-craft-credit-months",
+  /** Monthly share of raisins lost in a temperate store (docs/plan/raisin-trade.md §3.2). */
+  "fmg-raisin-storage-loss",
+  /** Cost of washing and mending an empty for refilling, a share of its value (docs/plan/returnable-drink-containers.md §3). */
+  "fmg-container-reuse-cost"
 ] as const;
 
 export type WorldSettingKey = (typeof WORLD_SETTING_KEYS)[number];

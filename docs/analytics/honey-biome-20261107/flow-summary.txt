@@ -1,0 +1,49 @@
+## 2103 flow (value 4, 12 months)
+  source:ruralHarvest: 359.9/mo
+  source:burgCraft: 18.2/mo
+  sink:recipeInput: 9.2/mo
+  source:importArrival: 2.7/mo
+  sink:exportDeparture: 2.7/mo
+  sink:burgDemand: 0.0/mo
+  month 1: stock 646, price 1.31, markets with stock 24/25
+  month 3: stock 1378, price 1.10, markets with stock 25/25
+  month 6: stock 2497, price 1.01, markets with stock 25/25
+  month 9: stock 3601, price 1.05, markets with stock 25/25
+  month 12: stock 4706, price 1.00, markets with stock 25/25
+## 2103 flow-new (value 1.5, 12 months)
+  source:ruralHarvest: 4813.0/mo
+  sink:householdFood: 4260.0/mo
+  source:burgCraft: 18.2/mo
+  sink:recipeInput: 12.6/mo
+  source:importArrival: 6.1/mo
+  sink:exportDeparture: 5.9/mo
+  sink:burgDemand: 2.5/mo
+  month 1: stock 809, price 0.89, markets with stock 21/25
+  month 3: stock 1916, price 0.49, markets with stock 22/25
+  month 6: stock 3603, price 0.39, markets with stock 22/25
+  month 9: stock 5288, price 0.40, markets with stock 23/25
+  month 12: stock 6955, price 0.39, markets with stock 23/25
+## 2102 flow (value 4, 12 months)
+  source:ruralHarvest: 681.4/mo
+  sink:exportDeparture: 47.1/mo
+  source:importArrival: 41.4/mo
+  source:burgCraft: 38.0/mo
+  sink:recipeInput: 15.4/mo
+  month 1: stock 1263, price 1.33, markets with stock 41/42
+  month 3: stock 2620, price 1.09, markets with stock 41/42
+  month 6: stock 4758, price 1.10, markets with stock 41/42
+  month 9: stock 6797, price 1.14, markets with stock 41/42
+  month 12: stock 8972, price 1.22, markets with stock 42/43
+## 2102 flow-new (value 1.5, 12 months)
+  source:ruralHarvest: 9020.7/mo
+  sink:householdFood: 7841.2/mo
+  source:burgCraft: 38.1/mo
+  sink:recipeInput: 23.7/mo
+  sink:exportDeparture: 22.7/mo
+  source:importArrival: 20.9/mo
+  sink:burgDemand: 1.6/mo
+  month 1: stock 1730, price 0.89, markets with stock 40/42
+  month 3: stock 4011, price 0.54, markets with stock 36/42
+  month 6: stock 7668, price 0.40, markets with stock 37/42
+  month 9: stock 11260, price 0.40, markets with stock 37/42
+  month 12: stock 14877, price 0.38, markets with stock 36/43

@@ -18,6 +18,16 @@ export interface BurgMarketLedger {
    * never read anywhere), so an old save simply re-seeds fresh rather than inheriting it.
    */
   householdWealth?: number;
+  /** The town's workshops' book credit with its market (craftCredit.ts). */
+  craftCredit?: CraftCreditLedger;
+}
+
+export interface CraftCreditLedger {
+  /** What the town's purse owes its market. */
+  owed: number;
+  /** Running monthly spending of the purse on its crafts' materials and wages. */
+  monthlySpend: number;
+  spendThisMonth: number;
 }
 
 export interface BurgMarketMerchantEntry {

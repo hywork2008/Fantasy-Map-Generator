@@ -20,6 +20,7 @@ import {
   KILOGRAMS_PER_GRAPES_LOT,
   KILOGRAMS_PER_RAISINS_LOT,
   LITERS_PER_BEER_LOT,
+  LITERS_PER_MEAD_LOT,
   LITERS_PER_MILK_LOT,
   LITERS_PER_ORCHARD_DRINK_LOT,
   LITERS_PER_WINE_LOT
@@ -234,6 +235,7 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
     "cask",
     "label"
   ),
+  Mead: byVolume("1,000 L mead tun", `${LITERS_PER_MEAD_LOT} L`, LITERS_PER_MEAD_LOT, 1.05, "cask", "label"),
   Milk: byVolume("1,000 L dairy lot", `${LITERS_PER_MILK_LOT} L`, LITERS_PER_MILK_LOT, 1.03, "cask", "code"),
   Cheese: byMass(
     "1,000 kg cheese lot",
@@ -311,9 +313,11 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   Vinegar: barrelOf(1.01),
   Gunpowder: barrelOf(0.9),
   Soap: barrelOf(1.0),
+  "Castile Soap": barrelOf(1.0),
   Resin: barrelOf(1.1),
   Tallow: barrelOf(0.9),
   Potash: barrelOf(1.0),
+  Barilla: barrelOf(1.0),
   "Sulfuric Acid": barrelOf(1.84),
   Chlorine: barrelOf(1.47),
   "Bleaching Powder": barrelOf(0.6),
@@ -354,6 +358,7 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   Books: byMass("volume", "200 kg", 200, 0.5, "crate", "recipe"),
   // Made goods counted by lots the recipes imply: the metal they consume, less waste.
   Boots: byMass("pair", "20 pairs", 30, 0.35, "crate", "code"),
+  "Leather Goods": byMass("lot", "one hide's belts, bags and gloves", 15, 0.35, "crate", "code"),
   Bread: byMass("loaf", "20 loaves", 20, 0.3, "crate", "code"),
   Harnesses: byMass("set", `${HARNESS_SETS_PER_LOT} sets`, HARNESS_SETS_PER_LOT * 10, 0.4, "crate", "code"),
   Tools: byMass("set", "500 kg of tools", 500, 0.6, "crate", "recipe"),
@@ -364,6 +369,7 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   // A gun on its carriage is drawn by its own team but loads a cart or hold like any heavy piece.
   Artillery: byMass("cannon", "2 t", 2000, 1.5, "bulk", "recipe"),
   Candles: byMass("block", "100 kg", 100, 0.9, "crate", "recipe"),
+  "Tallow Candles": byMass("block", "100 kg", 100, 0.9, "crate", "recipe"),
   Beeswax: byMass("block", "100 kg", 100, 0.9, "crate", "model"),
   Ropes: byMass("coil", "450 kg", 450, 0.6, "bundle", "recipe"),
   "Copper Wire": byMass("coil", "1 t", TONNE_KG, 4.0, "bundle", "recipe"),

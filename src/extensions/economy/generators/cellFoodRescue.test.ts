@@ -29,6 +29,23 @@ describe("planCellFoodRescue", () => {
     expect(plan.processingLaborUsed).toBeCloseTo(2.8);
   });
 
+  it("dries the market's raisins before it presses wine with the labour left", () => {
+    const grapes: CellFreshFoodInput = {
+      ...milk,
+      harvestedUnits: 1_000,
+      exportDemandUnits: 1_000,
+      reservePath: { outputGoodId: 2, inputPerOutput: 1 },
+      commercialPath: { outputGoodId: 3, inputPerOutput: 1.3 },
+      marketDriedPath: { outputGoodId: 2, inputPerOutput: 1 },
+      marketDriedDemandUnits: 40
+    };
+    const [outcome] = planCellFoodRescue([grapes], { 1: 6 }, 100).outcomes;
+    // 150 raw units of labour: 40 dried for the market, the other 110 pressed.
+    expect(outcome.marketDriedOutputUnits).toBe(40);
+    expect(outcome.marketDriedInputUnits).toBe(40);
+    expect(outcome.exportOutputUnits).toBeCloseTo(110 / 1.3, 6);
+  });
+
   it("does not turn the whole cell population into food processors after the reserve is full", () => {
     const plan = planCellFoodRescue([{ ...milk, harvestedUnits: 1_000, exportDemandUnits: 1_000 }], { 1: 6 }, 100);
     const [outcome] = plan.outcomes;

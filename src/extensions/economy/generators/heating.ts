@@ -26,6 +26,7 @@ import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
+import { settleHearthAsh } from "./hearthAsh";
 import { creditRuralHouseholdWealth } from "./householdWealth";
 import type { HeatingLedger, Market } from "./marketTypes";
 import { getPeatGood, PEAT_HEAT_PER_BALE } from "./peatFuel";
@@ -272,11 +273,13 @@ function recordHeatingDraw(goodId: number, units: number, marketId: number): voi
  * pay or find its fuel cooks first and goes cold: `Burg.coldExposure` (0..1) is the unheated share
  * of its heating need weighted by how cold the month is, and host demography and the urban health
  * pressure read it (docs/plan/farm-labour-calibration.md §23).
+ * The market then buys the towns' hearth ash as far as its Ash use wants (hearthAsh.ts).
  */
 export function settleMonthlyHeating(): void {
   const wood = getGoods().find(good => good.name === "Wood" && isGoodEnabled(good));
   const coal = getGoods().find(good => good.name === "Coal" && isGoodEnabled(good));
   const peat = getPeatGood();
+  const ash = getGoods().find(good => good.name === "Ash" && isGoodEnabled(good));
   const monthKey = getWoodSupplyMonthKey();
 
   const demands = getMonthlyHouseholdFuelDemands();
@@ -324,6 +327,7 @@ export function settleMonthlyHeating(): void {
     let urbanPeat = 0;
     let urbanCoal = 0;
     let urbanUnmet = 0;
+    const woodByBurg = new Map<number, number>();
     let woodRevenue = 0;
     let coalRevenue = 0;
     for (const fuel of localFuels) {
@@ -341,8 +345,10 @@ export function settleMonthlyHeating(): void {
         recordCountrysideFlow(market.i, need.burgId, fuel.goodId, units, "inbound");
         heatLeftByBurg[index] = Math.max(0, heatLeftByBurg[index] - units * fuel.heatPerUnit);
         woodRevenue += paid;
-        if (fuel.goodId === wood?.i) urbanWood += units;
-        else urbanPeat += units;
+        if (fuel.goodId === wood?.i) {
+          urbanWood += units;
+          woodByBurg.set(need.burgId, (woodByBurg.get(need.burgId) ?? 0) + units);
+        } else urbanPeat += units;
       });
     }
     needs.forEach((need, index) => {
@@ -372,6 +378,7 @@ export function settleMonthlyHeating(): void {
     if (wood) recordHeatingDraw(wood.i, ruralWood + urbanWood, market.i);
     if (peat) recordHeatingDraw(peat.i, ruralPeat + urbanPeat, market.i);
     if (coal) recordHeatingDraw(coal.i, ruralCoal + urbanCoal, market.i);
+    settleHearthAsh(market, ash, woodByBurg);
 
     const heatingDemand = demand.urbanDemand + demand.ruralDemand;
     // Peat burned is counted with Wood, in Wood piles of heat.
