@@ -30,6 +30,7 @@ import { packLines, packPoints, unpackPoints } from "../fabric/pack";
 import { evaluateAnchor } from "../geometry/curves";
 import { gateOpening, junctionSurface } from "../geometry/network";
 import { regionArea, regionBoolean } from "../geometry/regions";
+import { offsetRing } from "../geometry/routing";
 import { samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface, simpleContour, surfacesOverlap } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
@@ -705,6 +706,42 @@ function packedRing(points: Point[], origin: Point): number[] | undefined {
   return kept;
 }
 
+/** The share of a lot, and the least area, a facility standing across it must leave for a house. */
+export const FACILITY_CUT_KEEP = 0.5,
+  FACILITY_CUT_MIN_M2 = 15,
+  /** Area the rest of a cut lot may give up to become a rectangle. */
+  FACILITY_CUT_SQUARING_LOSS = 0.15;
+/** The ring without vertices lying within 10 cm of the line through their neighbours. */
+function withoutStraightVertices(ring: Point[]): Point[] {
+  let out = ring.slice();
+  for (let changed = true; changed && out.length > 3; ) {
+    changed = false;
+    for (let i = 0; i < out.length && out.length > 3; i++) {
+      const a = out[(i + out.length - 1) % out.length],
+        p = out[i],
+        b = out[(i + 1) % out.length],
+        l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      if (Math.abs((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])) / l < 0.1) {
+        out = out.filter((_, k) => k !== i);
+        changed = true;
+        break;
+      }
+    }
+  }
+  return out;
+}
+/** An occupied outline 2 cm wider all round. */
+function grownCutter(polygon: VectorPolygon): VectorPolygon {
+  try {
+    const grown = [offsetRing(polygon.outer, 0.02), offsetRing(polygon.outer, -0.02)].sort(
+      (a, b) => Math.abs(polygonArea(b)) - Math.abs(polygonArea(a))
+    )[0];
+    return { outer: grown, holes: [] };
+  } catch {
+    // An outline the offset cannot take (a near-degenerate corner) is used as it is.
+    return polygon;
+  }
+}
 /** Area a near-rectangular lot may give up to be squared (v17). */
 const SQUARING_LOSS = 0.03;
 /**
@@ -713,7 +750,7 @@ const SQUARING_LOSS = 0.03;
  * regional model (chimneys, quoins). The rectangle lies inside the lot, so no neighbour or street is touched.
  * Other lots are kept as drawn.
  */
-export function squaredLot(polygon: Point[]): Point[] {
+export function squaredLot(polygon: Point[], maxLoss = SQUARING_LOSS): Point[] {
   if (polygon.length !== 4) return polygon;
   let longest = 0,
     axis: Point = [1, 0];
@@ -742,7 +779,7 @@ export function squaredLot(polygon: Point[]): Point[] {
   ].map(([a, b]) => [a * axis[0] + b * normal[0], a * axis[1] + b * normal[1]]);
   const area = Math.abs(polygonArea(polygon)),
     kept = (u1 - u0) * (v1 - v0);
-  if (kept < area * (1 - SQUARING_LOSS) || kept > area * (1 + 1e-9)) return polygon;
+  if (kept < area * (1 - maxLoss) || kept > area * (1 + 1e-9)) return polygon;
   if (!corners.every(c => pointInPolygon(c, polygon) || nearestOnPolyline(c, [...polygon, polygon[0]]).dist < 1e-6))
     return polygon;
   // Keep the lot's winding.
@@ -759,16 +796,18 @@ const lotFits = new WeakMap<object, { key: string; fit?: { ring: number[]; polyg
 function fittedLot(
   house: VectorPerimeterPlan["houses"][number],
   origin: Point,
-  occupied: OccupiedIndex
+  occupied: OccupiedIndex,
+  /** Facility outlines: a lot they cut keeps the rest of itself (pre-acceptance U3). */
+  cutters: ReadonlySet<VectorPolygon> = new Set()
 ): { ring: number[]; polygon: Point[] } | undefined {
   const first = packedRing(house.polygon, origin);
   if (!first) return undefined;
   const whole = unpackPoints(first, origin),
     near = occupied.search(boxOf(whole)).map(o => o.polygon),
-    key = `${origin}|${JSON.stringify(near)}`,
+    key = `${origin}|${JSON.stringify(near)}|${near.map(n => (cutters.has(n) ? 1 : 0)).join("")}`,
     known = lotFits.get(house);
   if (known?.key === key) return known.fit;
-  const fit = fitLot(first, whole, origin, near);
+  const fit = fitLot(first, whole, origin, near, cutters);
   lotFits.set(house, { key, fit });
   return fit;
 }
@@ -776,11 +815,39 @@ function fitLot(
   first: number[],
   whole: Point[],
   origin: Point,
-  near: VectorPolygon[]
+  near: VectorPolygon[],
+  cutters: ReadonlySet<VectorPolygon>
 ): { ring: number[]; polygon: Point[] } | undefined {
   const site = { outer: whole, holes: [] },
     overlapping = near.filter(o => regionBoolean([site], [o], "intersection").some(r => regionArea(r) > 1e-5));
   if (!overlapping.length) return { ring: first, polygon: whole };
+  // A lot a facility stands across keeps the rest of itself as a house lot, so the house closes up against the
+  // facility's wall: at least half the lot and 15 m², in one piece.
+  if (overlapping.some(o => cutters.has(o))) {
+    const before = regionArea(site),
+      // The facility's outline is widened by 2 cm, so the rest, rounded to the centimetre, still keeps off it.
+      rest = regionBoolean(
+        [site],
+        overlapping.map(o => (cutters.has(o) ? grownCutter(o) : o)),
+        "difference"
+      ).filter(r => regionArea(r) > 0.05);
+    if (rest.length !== 1 || rest[0].holes.length || !simpleContour(rest[0].outer, true)) return undefined;
+    const area = regionArea(rest[0]);
+    if (area < Math.max(FACILITY_CUT_MIN_M2, before * FACILITY_CUT_KEEP)) return undefined;
+    // The rest becomes a house only as a rectangle: an L or a wedge left beside the facility would be drawn as a
+    // squashed flat-roofed block (pre-acceptance U3). A four-sided rest gives the rectangle inscribed in it.
+    const quad = withoutStraightVertices(rest[0].outer),
+      square = quad.length === 4 ? squaredLot(quad, FACILITY_CUT_SQUARING_LOSS) : quad;
+    if (square === quad || Math.abs(polygonArea(square)) < Math.max(FACILITY_CUT_MIN_M2, before * FACILITY_CUT_KEEP))
+      return undefined;
+    const ring = packedRing(square, origin);
+    if (!ring) return undefined;
+    const polygon = unpackPoints(ring, origin),
+      kept = { outer: polygon, holes: [] };
+    // Rounded to the centimetre, the rest must still keep off every site near it.
+    if (near.some(o => regionBoolean([kept], [o], "intersection").some(r => regionArea(r) > 1e-5))) return undefined;
+    return { ring, polygon };
+  }
   // CE lots overlap their neighbours by slivers. Trimming the sliver keeps the row closed; a lot that loses
   // more than a sliver stays unbuilt, so no house ever shares land with another.
   const before = regionArea(site),
@@ -798,8 +865,18 @@ function fitLot(
         boxesMeet(boxOf(o.outer), box) &&
         regionBoolean([trimmedSite], [o], "intersection").some(r => regionArea(r) > 1e-5)
     )
-  )
-    return undefined;
+  ) {
+    // Rounded to the centimetre, the trimmed lot can still lap a neighbour by a sliver: trim it once more against
+    // the neighbours widened by 2 cm (pre-acceptance U3: one lot in seven stayed empty for this alone).
+    const again = regionBoolean([site], overlapping.map(grownCutter), "difference"),
+      ring = again.length === 1 && !again[0].holes.length ? packedRing(again[0].outer, origin) : undefined;
+    if (!ring) return undefined;
+    const polygon = unpackPoints(ring, origin),
+      retried = { outer: polygon, holes: [] };
+    if (regionArea(retried) < before * (1 - MAX_SLIVER_SHARE)) return undefined;
+    if (near.some(o => regionBoolean([retried], [o], "intersection").some(r => regionArea(r) > 1e-5))) return undefined;
+    return { ring, polygon };
+  }
   return { ring: kept, polygon: next };
 }
 const boxesMeet = (a: ReturnType<typeof boxOf>, b: ReturnType<typeof boxOf>) =>
@@ -868,6 +945,11 @@ export function placeVectorPerimeterHouses(
     ],
     protectedIndex = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; polygon: VectorPolygon }>();
   protectedIndex.load(protectedLand.map(polygon => ({ ...boxOf(polygon.outer), polygon })));
+  const cutters = new Set(
+    Object.values(doc.placements).flatMap(p =>
+      p.building?.kind === "facility" && p.origin === "automatic" ? p.building.reserved : []
+    )
+  );
   const occupied = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; polygon: VectorPolygon }>();
   occupied.load(
     [...vectorOccupiedSites(doc, "reserved"), ...protectedLand].map(polygon => ({ ...boxOf(polygon.outer), polygon }))
@@ -927,7 +1009,10 @@ export function placeVectorPerimeterHouses(
       })
     );
   const held: typeof plan.houses = [],
-    order = plan.houses.slice().sort((a, b) => rank.get(a)! - rank.get(b)! || a.draw - b.draw);
+    // Lots beyond the wall come after every lot inside it, so no lot inside stays empty while people live outside
+    // (pre-acceptance U3).
+    beyond = (h: (typeof plan.houses)[number]) => (wall && cells.has(h.cellId) && !cellInside(h.cellId) ? 1 : 0),
+    order = plan.houses.slice().sort((a, b) => beyond(a) - beyond(b) || rank.get(a)! - rank.get(b)! || a.draw - b.draw);
   for (let pass = 0; pass < 2; pass++) {
     if (pass && capacity >= required) break;
     for (const house of pass ? held.splice(0) : order) {
@@ -937,7 +1022,7 @@ export function placeVectorPerimeterHouses(
       }
       const origin = origins.get(house.cellId);
       if (!origin || house.draw >= lotOccupancy || cleared[house.cellId]?.includes(rank.get(house)!)) continue;
-      const fit = fittedLot(house, origin, occupied);
+      const fit = fittedLot(house, origin, occupied, cutters);
       if (!fit) continue;
       const lot = { outer: fit.polygon, holes: [] };
       if (protectedIndex.search(boxOf(fit.polygon)).some(o => surfacesOverlap(lot, o.polygon))) continue;

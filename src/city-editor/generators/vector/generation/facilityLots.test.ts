@@ -43,9 +43,30 @@ describe("population facilities on the CE street blocks (facility mode)", () => 
     expect(report.unplacedDwellings).toBe(0);
     expect(report.placedFacilities / report.requiredFacilities).toBeGreaterThan(0.85);
     const cells = Object.values(city.fabric!.cells);
+    // A house beside a facility stands on a rectangle, not on an L or a wedge the facility left of its lot (U3).
+    // Only CE's own corner lots beside it keep other shapes; before, nine in ten houses beside one were cut shapes.
+    const sites = city
+      .urban!.ownedPlacements.map(id => city.placements[id])
+      .filter(p => p.building?.kind === "facility")
+      .map(p => p.site.outer);
+    let beside = 0,
+      shaped = 0;
+    for (const k of cells)
+      for (let i = 0; i < k.houses.offsets.length; i++) {
+        const ring = cellHouseRing(k, i);
+        if (!sites.some(site => site.some(q => ring.some(r => Math.hypot(q[0] - r[0], q[1] - r[1]) < 0.5)))) continue;
+        beside++;
+        if (ring.length !== 4) shaped++;
+      }
+    expect(beside).toBeGreaterThan(0);
+    expect(shaped / beside).toBeLessThan(0.15);
     for (const id of city.urban!.ownedPlacements) {
       const p = city.placements[id];
       if (p.building?.kind !== "facility") continue;
+      // The facility takes its own outline, no yard of whole lots (pre-acceptance U3).
+      expect(Math.abs(regionArea(p.site) - p.building.footprint.reduce((n, f) => n + regionArea(f), 0))).toBeLessThan(
+        0.5
+      );
       // Within one street block, and no house on its parcel.
       const c = polygonCentroid(p.site.outer),
         cell = cells.find(k => pointInPolygon(c, unpackPoints(k.ring, k.origin)))!;

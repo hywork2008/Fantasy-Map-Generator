@@ -180,6 +180,54 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     30,
     frame.cityRadiusMeters - ("cellWidthMeters" in frame ? frame.cellWidthMeters / 3 : 0)
   );
+  // An FMG town's wall is drawn on the descriptor's round site, which may hold half the houses its population needs
+  // (pre-acceptance U2: 24–76% of the people lived inside). A walled FMG town's site is resized, larger or smaller, to
+  // the land the native sizing gives the same population, until its dry land matches it (U3): a site larger than its
+  // houses leaves lots unbuilt inside the wall, which CE never should.
+  if (
+    descriptor &&
+    settings.descriptor &&
+    wall.wall !== "none" &&
+    input.lotOccupancy !== undefined &&
+    settings.population
+  ) {
+    const dwellings = getUrbanDwellings(settings.population.targetPopulation),
+      // The abbey of a walled town stands outside the walls.
+      houses = monasteryKindsFor(settings.descriptor.civilization?.faith, period, true)
+        .slice(0, monasteryCountFor(dwellings, period))
+        .filter(kind => kind !== "abbey").length,
+      facilityM2 = vectorFacilityLand(
+        settings.population.targetPopulation,
+        period,
+        !!descriptor.burg.port,
+        settings.facilityLayout
+      ).coreM2,
+      shape = isVectorWallShape(wall.wall) ? 1 / vectorWallAreaShare(seed, wall.wall, wall.wallSides) : 1,
+      housing =
+        walledScale(dwellings) *
+        meshlessCityRadius(
+          dwellings,
+          expectedVectorHouseStoreys(period, settings, settings.descriptor.civilization?.tradition),
+          input.lotOccupancy,
+          houses * MONASTERY_BLOCK_M2 * CIVIC_LAND_FACTOR
+        ),
+      need = Math.sqrt(housing ** 2 + (facilityM2 * shape) / Math.PI);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const probe = vectorInputFromDescriptor(descriptor),
+        dry =
+          probe.site!.domain.reduce((n, d) => n + regionArea(d), 0) -
+          regionBoolean(probe.site!.domain, allVectorWater(probe), "intersection").reduce(
+            (n, d) => n + regionArea(d),
+            0
+          ),
+        wanted = Math.PI * need ** 2;
+      if (Math.abs(dry - wanted) <= wanted * 0.03) break;
+      const radius =
+        descriptor.frame.cityRadiusMeters * Math.max(0.6, Math.min(1.6, Math.sqrt(wanted / Math.max(1, dry))));
+      descriptor.frame.cityRadiusMeters = radius;
+      descriptor.frame.extentMeters = Math.max(descriptor.frame.extentMeters, Math.ceil(radius * 2.4));
+    }
+  }
   if (!native || input.lotOccupancy === undefined || !settings.population) return build(meshRadius);
   // The mesh plan sizes cells for the mesh editor's lots. The native site is sized for the CE perimeter lots it
   // will actually hold at the chosen occupancy, plus the land the civic centre takes before any lot.

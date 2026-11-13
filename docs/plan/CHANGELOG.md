@@ -1,5 +1,31 @@
 # 追加したドキュメント
 
+2026-11-13
+
+- docs/analytics/ce-meshless-density-u2-20261113.json - U2の市壁内の土地の内訳（合成3件・FMG3件、施設なし／あり）
+- docs/analytics/ce-meshless-density-u2-20261113.md - U2の記録。区画の割り方はメッシュありと同密度まで建つこと、FMGの町の市壁の小さすぎ、施設の庭、U3への提案
+- docs/analytics/ce-meshless-density-u2-demand4-20261113.json - 需要4倍で区画が全部建った時の内訳
+- docs/analytics/ce-meshless-density-u2-mesh-20261113.json - 同じFMG固定入力のメッシュあり（施設なし）の中心部の被覆率
+- docs/plan/ce-meshless-pre-acceptance-improvements.md - U2の完了とU3の方針を記載
+- docs/analytics/ce-meshless-density-u2-20261113.md - 施設なしの町を施設の土地込みで測っていた誤りの訂正（合成の町の市壁は大きすぎない）、JSONを置き換え
+- docs/analytics/ce-meshless-wall-sizing-u3-20261113.json - U3手順1の後の市壁内の土地の内訳
+- docs/analytics/ce-meshless-wall-sizing-u3-20261113.md - U3手順1の記録。FMGの町の市壁を需要から決めた結果、試して戻した較正
+- docs/plan/ce-meshless-pre-acceptance-improvements.md - U3手順1の完了と次の手順2を記載
+- docs/analytics/ce-meshless-wall-sizing-u3-20261113.md - 追加調整（敷地の縮小、市壁内の区画を先に建てる順）と、狙いの埋まり0.8・0.95・1.05の比較、作った区画の容量で大きさを直す次の手順
+- docs/analytics/ce-meshless-wall-sizing-u3c-20261113/ - 狙いの埋まりごとの需要1倍・6倍の内訳（6件）
+- docs/plan/ce-meshless-pre-acceptance-improvements.md - U3手順1の追加調整と、次の手順（作った区画で大きさを直す）を記載
+- docs/analytics/ce-meshless-facility-outline-u3-20261113.json - U3手順3の後の市壁内の土地の内訳
+- docs/analytics/ce-meshless-facility-outline-u3-20261113.md - U3手順3の記録。施設の敷地を外形にし、切った区画の残りに住宅、区画線に合わせて並べる。施設の庭0%、被覆率が施設なし並
+- docs/plan/ce-meshless-pre-acceptance-improvements.md - U3手順3の完了と次の手順を記載
+- docs/analytics/ce-meshless-lot-rounding-u3-20261113.json - 区画の丸めの不具合の修正後の市壁内の土地の内訳
+- docs/analytics/ce-meshless-lot-rounding-u3-fill1-20261113.json - 同じく狙いの埋まり1.0の試行
+- docs/analytics/ce-meshless-lot-rounding-u3-20261113.md - 空き地は中庭ではなく、丸めで建たなかった区画と不要な区画だったことの記録と修正
+- docs/analytics/ce-meshless-density-u2-20261113.md、ce-meshless-wall-sizing-u3-20261113.md、ce-meshless-facility-outline-u3-20261113.md - 中庭とした誤りの追記
+- docs/plan/ce-meshless-pre-acceptance-improvements.md - §2.8（空き地は中庭ではなかった）と次の手順を記載
+- docs/analytics/ce-meshless-cut-rect-u3-20261113.json - 施設の脇の住宅を長方形にした後の施設ありの内訳
+- docs/analytics/ce-meshless-lot-rounding-u3-20261113.md - 施設の脇の住宅が潰れる不具合の応急処置を追記
+- docs/plan/ce-meshless-pre-acceptance-improvements.md - §2.9（施設の脇の住宅、合意した今後の順序）を記載
+
 2026-11-12
 
 - docs/analytics/ce-meshless-tanners-row-flow-20261112.json - なめし職人の河岸のFMGの川の向き・範囲の補正の後の11件

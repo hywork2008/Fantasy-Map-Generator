@@ -260,9 +260,10 @@ export interface VectorFacilityLand {
   outskirtsM2: number;
   riversideM2: number;
 }
-/** Parcel a facility takes per m² of its minimum site: its site runs out to the lot lines of every lot it touches
- * (measured 2026-11-11, 5,000 people, facility mode: 1.78). */
-const FACILITY_PARCEL_FACTOR = 1.8;
+/** Land a facility takes per m² of its minimum site. It took 1.78 while its site ran out to the lot lines of every lot
+ * it touched (measured 2026-11-11); since it takes its own outline and the lots keep the rest (pre-acceptance U3,
+ * 2026-11-13), 1.2 houses 91–100% of the people of the measured towns inside the wall (1.0: 74–100%). */
+const FACILITY_PARCEL_FACTOR = 1.2;
 /** House land a facility inside the town takes beyond its parcel: the lots left too small beside it and the lane
  * frontage it closes. The lowest value at which the interior of the four measured river towns (polygon and square
  * 5,000, round and square 20,000, facility mode, 2026-11-12) housed everyone, so that the roadside ribbon, built
