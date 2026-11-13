@@ -12,6 +12,9 @@
       "saveDocument": "メッシュなし文書を保存",
       "invalidDocument": "文書を開けません。形式・形状・接続先の参照を確認してください。",
       "returnToMesh": "メッシュ版の編集画面に戻る",
+      "modeSwitch": "生成方式",
+      "modeMesh": "メッシュあり",
+      "modeMeshless": "メッシュなし",
       "undo": "元に戻す",
       "redo": "やり直す",
       "edit": {

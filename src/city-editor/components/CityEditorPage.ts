@@ -126,6 +126,7 @@ import {
 } from "./languagePanel";
 import { buildLedgerControls } from "./ledgerControls";
 import { mountModelAuthorsPanel } from "./modelAuthorsPanel";
+import { createModeSwitch, type EditorMode } from "./modeSwitch";
 import { buildObjectControls } from "./objectControls";
 import { mountOperationHelp } from "./operationHelp";
 import { mountPerformancePanel } from "./performancePanel";
@@ -169,6 +170,8 @@ export interface CityEditorOptions {
   /** Complete current water/support/passage contract; retained only in this editor session. */
   fixedApproachProvider?: FixedApproachProvider;
   initialDocument?: EditorDocument;
+  /** Which editor a fresh open (no document, no retained session) shows; the page entry uses "meshless". */
+  startMode?: EditorMode;
 }
 
 interface CityEditorLanguageSession {
@@ -1725,6 +1728,11 @@ function mountCityEditorSession(root: HTMLElement, options: CityEditorOptions): 
   let wardLandmarksGroup: SVGGElement | null = null;
 
   const canvas = div("ce-canvas");
+  canvas.append(
+    createModeSwitch(scope, "mesh", () => {
+      openVectorDocument();
+    })
+  );
   const map = div("ce-map");
   const wardBrushPreview = div("ce-ward-brush-preview");
   wardBrushPreview.hidden = true;
@@ -3442,6 +3450,7 @@ function mountCityEditorSession(root: HTMLElement, options: CityEditorOptions): 
     if (initialDocument) applyImportedMap({ document: clone(initialDocument), source: "city-editor" });
     else if (incoming) applyShare(incoming.share, incoming.origin);
     else refresh();
+    if (!initialDocument && options.startMode === "meshless") openVectorDocument();
   } catch (error) {
     refresh();
     showNotice(error instanceof Error ? error.message : editorText("cityEditor.messages.couldNotLoadFMGRegionData"));

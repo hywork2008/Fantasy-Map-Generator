@@ -12,6 +12,9 @@
       "saveDocument": "Save meshless document",
       "invalidDocument": "Cannot open this document. Check its format, geometry and connection references.",
       "returnToMesh": "Return to mesh editor",
+      "modeSwitch": "Generation mode",
+      "modeMesh": "Mesh",
+      "modeMeshless": "Meshless",
       "undo": "Undo",
       "redo": "Redo",
       "edit": {
