@@ -28,6 +28,9 @@
 - docs/analytics/ce-meshless-fill1-u3-20261113.json - 狙いの埋まり1.0の市壁内の土地の内訳
 - docs/analytics/ce-meshless-fill1-u3-20261113.md - 狙いの埋まり1.0の記録。変わった既存テスト7件の判定、施設の外形の街区はみ出しと多角形演算の再帰の溢れの修正
 - docs/plan/ce-meshless-pre-acceptance-improvements.md - §2.10（都市を縮める）と次の手順を記載
+- docs/analytics/ce-meshless-facility-waste-u3-20261113.json - 施設が区画を切った残りを敷地に入れた後の内訳
+- docs/analytics/ce-meshless-facility-waste-u3-20261113.md - 施設が切った区画の残りの記録。残りを施設の庭にし、種を比べ、見積りを1.6に
+- docs/plan/ce-meshless-pre-acceptance-improvements.md - §2.11と次の手順を記載
 
 2026-11-12
 

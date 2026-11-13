@@ -22,7 +22,7 @@ import { pathSurface, simpleContour, surfacesOverlap } from "../geometry/surface
 import { allVectorWater } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
 import type { VectorPerimeterPlan } from "./perimeter";
-import { FACILITY_CUT_KEEP, FACILITY_CUT_MIN_M2 } from "./perimeter";
+import { restRectangle } from "./perimeter";
 import { TANNERS_ROW_DEFAULTS, type TannersRowYard, tannersRow } from "./tannersRow";
 import { waterDistance } from "./urbanPacking";
 
@@ -62,6 +62,8 @@ const SHIFTS = [0, -0.25, 0.25, -0.5, 0.5, -0.75, 0.75, -1, 1];
 /** Slides that put a side of the building on a lot line, nearest the centre first. */
 const ALIGNED_OFFSETS = 12;
 const WASTE_GOOD_ENOUGH_M2 = 5;
+/** Seeds that take the building compared for the least waste. */
+const SEEDS_COMPARED = 3;
 
 export function placeFacilitiesOnLots(
   doc: VectorCityDocument,
@@ -201,7 +203,14 @@ export function placeFacilitiesOnLots(
       )
       .map(({ l }) => l)
       .slice(0, SEEDS_PER_REQUEST);
-    let placement: VectorPlacement | undefined;
+    let placement: VectorPlacement | undefined,
+      chosen:
+        | {
+            best: { placement: VectorPlacement; under: (typeof lots)[number][]; site: VectorPolygon; area: number };
+            cellId: string;
+          }
+        | undefined,
+      taken = 0;
     for (const seed of seeds) {
       const front = frontOf(seed.polygon);
       if (!front) continue;
@@ -296,7 +305,7 @@ export function placeFacilitiesOnLots(
           continue;
         // The facility takes its own outline, not the lots under it: the houses of those lots keep what the building
         // leaves of them, so the row runs on wall to wall (pre-acceptance U3). Its outline keeps off land taken.
-        const site: VectorPolygon = { outer: hull, holes: [] };
+        let site: VectorPolygon = { outer: hull, holes: [] };
         // The samples can miss a corner of the outline across the block's edge, which the whole lots used to hide.
         if (regionBoolean([site], [{ outer: ring, holes: [] }], "difference").some(r => regionArea(r) > 0.01)) continue;
         if (
@@ -381,31 +390,64 @@ export function placeFacilitiesOnLots(
             ...(wantsWater ? { riverbankDistanceMeters: waterDistance(doc, [site]) } : {})
           }
         };
-        // The land the building wastes: what it leaves of each lot under it too small for a house.
+        // The land the building wastes: what it leaves of the lots under it that no rectangular house can take.
+        // A piece no house takes joins the facility's own parcel instead of standing empty beside it (U3).
         let area = 0;
+        const absorbed: VectorPolygon[] = [];
         for (const l of under) {
           const rest = regionBoolean([{ outer: l.polygon, holes: [] }], [site], "difference").filter(
             r => regionArea(r) > 0.05
           );
-          const kept = rest.length === 1 && !rest[0].holes.length ? regionArea(rest[0]) : 0,
-            whole = Math.abs(plotArea(l.polygon));
-          if (kept < Math.max(FACILITY_CUT_MIN_M2, whole * FACILITY_CUT_KEEP))
+          const whole = Math.abs(plotArea(l.polygon)),
+            house = rest.length === 1 && !rest[0].holes.length ? restRectangle(rest[0].outer, whole) : undefined;
+          if (house) area += regionArea(rest[0]) - Math.abs(plotArea(house));
+          else {
             area += rest.reduce((n, r) => n + regionArea(r), 0);
+            absorbed.push(...rest);
+          }
+        }
+        if (absorbed.length) {
+          try {
+            const parcel = regionBoolean([site, ...absorbed], [], "union");
+            if (
+              parcel.length === 1 &&
+              !parcel[0].holes.length &&
+              simpleContour(parcel[0].outer, true) &&
+              !occupied
+                .search(boxOf(parcel[0].outer))
+                .some(o => regionBoolean(parcel, [o.polygon], "intersection").some(r => regionArea(r) > 1e-5)) &&
+              !protectedLand.search(boxOf(parcel[0].outer, 1e-6)).some(o => surfacesOverlap(parcel[0], o.polygon)) &&
+              // The door keeps standing on the parcel as validation tests it.
+              candidate.building!.entrances.every(e => containsRegion(parcel, e.point))
+            ) {
+              candidate.site = parcel[0];
+              candidate.building!.reserved = [parcel[0]];
+              site = parcel[0];
+            }
+          } catch {
+            // the outline alone
+          }
         }
         if (!best || area < best.area) best = { placement: candidate, under, site, area };
         // A slide that wastes less than a few square metres is as tight as the lots allow.
         if (area < WASTE_GOOD_ENOUGH_M2) break;
       }
       if (best) {
-        placement = best.placement;
-        doc.placements[placement.id] = placement;
-        for (const l of best.under) used.add(l.i);
-        occupied.insert({ ...boxOf(best.site.outer), polygon: best.site });
-        facilitySites.insert({ ...boxOf(best.site.outer), polygon: best.site });
-        result.cells.add(seed.cellId);
-        break;
+        // A few seeds that take the building are compared, and the one wasting least land wins (U3).
+        if (!chosen || best.area < chosen.best.area) chosen = { best, cellId: seed.cellId };
+        if (best.area < WASTE_GOOD_ENOUGH_M2 || ++taken >= SEEDS_COMPARED) break;
+        continue;
       }
       failedHere.add(seed.i);
+    }
+    if (chosen) {
+      const { best, cellId } = chosen;
+      placement = best.placement;
+      doc.placements[placement.id] = placement;
+      for (const l of best.under) used.add(l.i);
+      occupied.insert({ ...boxOf(best.site.outer), polygon: best.site });
+      facilitySites.insert({ ...boxOf(best.site.outer), polygon: best.site });
+      result.cells.add(cellId);
     }
     if (placement) result.placed.push(placement.id);
     else

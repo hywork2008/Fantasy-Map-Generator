@@ -60,13 +60,14 @@ describe("population facilities on the CE street blocks (facility mode)", () => 
       }
     expect(beside).toBeGreaterThan(0);
     expect(shaped / beside).toBeLessThan(0.15);
+    let siteArea = 0,
+      footprintArea = 0;
     for (const id of city.urban!.ownedPlacements) {
       const p = city.placements[id];
       if (p.building?.kind !== "facility") continue;
-      // The facility takes its own outline, no yard of whole lots (pre-acceptance U3).
-      expect(Math.abs(regionArea(p.site) - p.building.footprint.reduce((n, f) => n + regionArea(f), 0))).toBeLessThan(
-        0.5
-      );
+      // The facility takes its own outline and only the pieces of lots no house takes, no yard of whole lots (U3).
+      siteArea += regionArea(p.site);
+      footprintArea += p.building.footprint.reduce((n, f) => n + regionArea(f), 0);
       // Within one street block, and no house on its parcel.
       const c = polygonCentroid(p.site.outer),
         cell = cells.find(k => pointInPolygon(c, unpackPoints(k.ring, k.origin)))!;
@@ -86,6 +87,8 @@ describe("population facilities on the CE street blocks (facility mode)", () => 
             )
           ).toBeLessThan(1e-4);
     }
+    // Whole lots made the yards 0.6–0.7 of the buildings.
+    expect((siteArea - footprintArea) / footprintArea).toBeLessThan(0.35);
   }, 300000);
 });
 

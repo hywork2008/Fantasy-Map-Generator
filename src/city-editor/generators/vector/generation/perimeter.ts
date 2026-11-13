@@ -711,6 +711,18 @@ export const FACILITY_CUT_KEEP = 0.5,
   FACILITY_CUT_MIN_M2 = 15,
   /** Area the rest of a cut lot may give up to become a rectangle. */
   FACILITY_CUT_SQUARING_LOSS = 0.15;
+/**
+ * The house a facility leaves of a lot it stands across: the rest becomes a house only as a rectangle, since an L or
+ * a wedge beside the facility would be drawn as a squashed flat-roofed block (pre-acceptance U3). A four-sided rest
+ * gives the rectangle inscribed in it, of at least half the lot and 15 m².
+ */
+export function restRectangle(rest: Point[], lotArea: number): Point[] | undefined {
+  const quad = withoutStraightVertices(rest),
+    square = quad.length === 4 ? squaredLot(quad, FACILITY_CUT_SQUARING_LOSS) : quad;
+  if (square === quad || Math.abs(polygonArea(square)) < Math.max(FACILITY_CUT_MIN_M2, lotArea * FACILITY_CUT_KEEP))
+    return undefined;
+  return square;
+}
 /** The ring without vertices lying within 10 cm of the line through their neighbours. */
 function withoutStraightVertices(ring: Point[]): Point[] {
   let out = ring.slice();
@@ -834,12 +846,8 @@ function fitLot(
     if (rest.length !== 1 || rest[0].holes.length || !simpleContour(rest[0].outer, true)) return undefined;
     const area = regionArea(rest[0]);
     if (area < Math.max(FACILITY_CUT_MIN_M2, before * FACILITY_CUT_KEEP)) return undefined;
-    // The rest becomes a house only as a rectangle: an L or a wedge left beside the facility would be drawn as a
-    // squashed flat-roofed block (pre-acceptance U3). A four-sided rest gives the rectangle inscribed in it.
-    const quad = withoutStraightVertices(rest[0].outer),
-      square = quad.length === 4 ? squaredLot(quad, FACILITY_CUT_SQUARING_LOSS) : quad;
-    if (square === quad || Math.abs(polygonArea(square)) < Math.max(FACILITY_CUT_MIN_M2, before * FACILITY_CUT_KEEP))
-      return undefined;
+    const square = restRectangle(rest[0].outer, before);
+    if (!square) return undefined;
     const ring = packedRing(square, origin);
     if (!ring) return undefined;
     const polygon = unpackPoints(ring, origin),
