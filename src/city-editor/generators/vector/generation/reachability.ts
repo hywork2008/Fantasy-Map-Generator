@@ -51,12 +51,18 @@ export function vectorReachableLand(doc: VectorCityDocument, centre: Point): Vec
           ? [disc(evaluateAnchor(wall, g.anchor), wall.width.leftMeters + wall.width.rightMeters + GATE_LINK_METERS)]
           : [];
       })
-    ],
+    ];
+  let land: VectorPolygon[];
+  try {
     land = regionBoolean(
       regionBoolean(regionBoolean([frame], barriers, "difference"), links, "union"),
       [frame],
       "intersection"
     ).filter(r => regionArea(r) >= MIN_PIECE_M2);
+  } catch {
+    // The clipping kernel failed even on its retry: hold nothing back rather than lose the mills.
+    return undefined;
+  }
   const home = land.filter(r => containsRegion([r], centre));
   // A centre on a road's edge or in a sliver: the largest piece stands for the town.
   if (home.length) return home;
