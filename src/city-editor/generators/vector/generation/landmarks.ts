@@ -11,11 +11,13 @@ import {
   windmillCountFor,
   windmillFacingRadians
 } from "../../aerialLandmarks";
+import { polygonCentroid } from "../../geom";
 import { makeRng } from "../../prng";
 import { evaluateAnchor } from "../geometry/curves";
 import { samplePath } from "../geometry/sampling";
 import { validateVectorOpenLandmarks } from "../landmark";
 import { vectorWorksSite } from "./guilds";
+import { onReachableLand, vectorReachableLand } from "./reachability";
 
 /** The mesh editor builds no permanent gallows below this many buildings unless a count is set. */
 const GALLOWS_MIN_BUILDINGS = 400;
@@ -26,6 +28,7 @@ const GALLOWS_MIN_BUILDINGS = 400;
  * economy's wind-mill capacity or, without one, about one per 1,400 buildings, fewer on a river; all facing into the
  * FMG prevailing wind, or one seeded facing. The gallows mound stands beside an approach road 130-520 m out from a
  * town of 400 buildings or more. They stand on open ground; the urban land is not grown. The site is flat until P8, so elevation scores nothing.
+ * Neither stands on ground cut off from the town centre by a gateless wall or an unbridged river (U5).
  */
 export function raiseVectorOpenLandmarks(
   doc: VectorCityDocument,
@@ -39,15 +42,18 @@ export function raiseVectorOpenLandmarks(
     gallowsWanted = buildings >= GALLOWS_MIN_BUILDINGS ? 1 : 0;
   if (!count && !gallowsWanted) return { document: doc, wanted: 0, placed: 0 };
   const { view, town, roads } = vectorWorksSite(doc, blocks);
+  if (town.length < 3) return { document: doc, wanted: count + gallowsWanted, placed: 0 };
+  // Only ground a carter reaches from the town centre through the gates and over the bridges (U5).
+  const reach = vectorReachableLand(doc, polygonCentroid(town));
   const open: AerialOpenSite = {
     ...view,
+    hitsBlocked: polygon => view.hitsBlocked(polygon) || !onReachableLand(reach, polygon),
     walled: Object.values(doc.paths).some(p => p.role === "wall"),
     roads: roads.map(r => samplePath(r).map(s => s.point)),
     elevation: () => 0,
     buildingsIn: () => [],
     farmsIn: () => []
   };
-  if (town.length < 3) return { document: doc, wanted: count + gallowsWanted, placed: 0 };
   const seed = doc.recipe.seed;
   // As in the mesh editor, the gallows claim their mound before the mills look for ground.
   const gallows = gallowsWanted ? placeGallowsOnApproach(open, makeRng(`${seed}:gallows`)) : [];
