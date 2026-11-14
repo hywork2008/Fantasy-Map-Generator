@@ -119,6 +119,22 @@ export function singleIngredientHeads(output: Good, animalId: number): number | 
   return undefined;
 }
 
+/**
+ * The market pays the farm families who sent the herd FARMGATE_PRICE_SHARE of the by-product's
+ * market price, out of its cash, as graziers and butchers sold hides and tallow to the tanners and
+ * chandlers (docs/plan/byproduct-farmgate.md). A market without a farm purse pays nothing.
+ */
+function payFarmgate(market: Market, good: Good, units: number): void {
+  if (!(units > 0) || !market.foodLedger || getMarketSettings().byproductFarmgate !== "pay") return;
+  const treasury = market.marketTreasury;
+  const price = market.goods[good.i]?.price ?? 0;
+  if (!treasury || !(price > 0)) return;
+  const paid = rn(Math.min(Math.max(0, treasury.balance), units * price * FARMGATE_PRICE_SHARE), 2);
+  if (!(paid > 0)) return;
+  treasury.balance = rn(treasury.balance - paid, 2);
+  creditRuralHouseholdWealth(market, paid);
+}
+
 function credit(market: Market, good: Good, units: number): void {
   if (!(units > 0) || !isGoodEnabled(good)) return;
   const row = market.goods[good.i] ?? { stock: 0, price: good.value };
@@ -142,6 +158,7 @@ function credit(market: Market, good: Good, units: number): void {
     const key = `${market.i}:${good.i}`;
     produced[key] = quantity((produced[key] ?? 0) + units);
   }
+  payFarmgate(market, good, units);
 }
 
 /**

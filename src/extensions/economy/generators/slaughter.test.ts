@@ -103,6 +103,21 @@ describe("settleSlaughter", () => {
     expect(stall.goods[3].stock).toBe(2 / 240);
   });
 
+  it("pays the farm families the farmgate share of the hides' price out of the market's cash (docs/plan/byproduct-farmgate.md)", () => {
+    setGoods([
+      { i: 2, name: "Cattle", tags: ["food", "liveAnimal"], value: 5 },
+      { i: 7, name: "Leather", tags: ["clothing"], value: 6 }
+    ] as Good[]);
+    const stall = market({ 2: { stock: 2, price: 5 }, 7: { stock: 0, price: 3 } });
+    stall.foodLedger = { ruralHouseholdWealth: 0 } as Market["foodLedger"];
+    stall.marketTreasury = { balance: 100, ruralGrainPayable: 0 };
+    setMarkets([stall]);
+    settleSlaughter();
+    expect(stall.goods[7].stock).toBe(2);
+    expect(getRuralHouseholdWealth(stall)).toBeCloseTo(2 * 3 * FARMGATE_PRICE_SHARE, 6);
+    expect(stall.marketTreasury.balance).toBeCloseTo(100 - 2 * 3 * FARMGATE_PRICE_SHARE, 6);
+  });
+
   describe("fresh Meat (docs/plan/livestock-meat-sales.md)", () => {
     const people = 1000;
     function setUp(purse: number): Market {

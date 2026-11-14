@@ -27,8 +27,10 @@ import {
   BOOTS_LABOR_MODES,
   type BootsLaborMode,
   BYPRODUCT_EXPORT_MODES,
+  BYPRODUCT_FARMGATE_MODES,
   BYPRODUCT_PRICING_MODES,
   type ByproductExportMode,
+  type ByproductFarmgateMode,
   type ByproductPricingMode,
   CANDLE_DEMAND_MODES,
   type CandleDemandMode,
@@ -973,6 +975,29 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.leatherGoodsShare}
                 onChange={v => updateMarketSetting("leatherGoodsShare", v)}
               />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.byproductFarmgateTip")}>
+            <td />
+            <td>
+              <label htmlFor="byproductFarmgate">{t("simulation.byproductFarmgate")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="byproductFarmgate"
+                value={marketSettings.byproductFarmgate}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ byproductFarmgate: e.target.value as ByproductFarmgateMode })
+                  )
+                }
+              >
+                {BYPRODUCT_FARMGATE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.byproductFarmgate_${mode}`)}
+                  </option>
+                ))}
+              </select>
             </td>
           </tr>
           <tr data-tip={t("simulation.summerHideLossTip")}>

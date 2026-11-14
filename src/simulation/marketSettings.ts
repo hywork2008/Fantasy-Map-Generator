@@ -124,6 +124,8 @@ export type ByproductPricingMode = (typeof BYPRODUCT_PRICING_MODES)[number];
 export const CHARACTER_RESERVE_MODES = ["byTier", "legacy"] as const;
 export type CharacterReserveMode = (typeof CHARACTER_RESERVE_MODES)[number];
 export const HEIRLESS_ESTATE_MODES = ["town", "keep"] as const;
+export const BYPRODUCT_FARMGATE_MODES = ["pay", "free"] as const;
+export type ByproductFarmgateMode = (typeof BYPRODUCT_FARMGATE_MODES)[number];
 export type HeirlessEstateMode = (typeof HEIRLESS_ESTATE_MODES)[number];
 export const STATE_BUDGET_INCOME_MODES = ["allRevenue", "pollTax"] as const;
 export type StateBudgetIncomeMode = (typeof STATE_BUDGET_INCOME_MODES)[number];
@@ -169,6 +171,8 @@ export type MarketSettings = {
   leatherGoodsShare: number;
   /** Share of a market's hides that spoil each month of June to August, when tanners work the fields. */
   summerHideLoss: number;
+  /** The market pays the farm families for the hides, tallow and rennet of their slaughtered stock, or takes them free (docs/plan/byproduct-farmgate.md). */
+  byproductFarmgate: ByproductFarmgateMode;
   bootsLabor: BootsLaborMode;
   byproductPricing: ByproductPricingMode;
   /** Beeswax priced from its stock against the towns' candle targets, or by the legacy rule (docs/plan/wax-pricing.md). */
@@ -275,6 +279,7 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   footwearPairsPerPerson: 1,
   leatherGoodsShare: 0.5,
   summerHideLoss: 0.1,
+  byproductFarmgate: "pay",
   bootsLabor: "perDay",
   byproductPricing: "stockAndDemand",
   beeswaxPricing: "stockAndDemand",
@@ -451,6 +456,11 @@ const characterReserveMode = (value: unknown): CharacterReserveMode =>
     ? (value as CharacterReserveMode)
     : DEFAULT_MARKET_SETTINGS.characterReserve;
 
+const byproductFarmgateMode = (value: unknown): ByproductFarmgateMode =>
+  BYPRODUCT_FARMGATE_MODES.includes(value as ByproductFarmgateMode)
+    ? (value as ByproductFarmgateMode)
+    : DEFAULT_MARKET_SETTINGS.byproductFarmgate;
+
 const heirlessEstateMode = (value: unknown): HeirlessEstateMode =>
   HEIRLESS_ESTATE_MODES.includes(value as HeirlessEstateMode)
     ? (value as HeirlessEstateMode)
@@ -508,6 +518,7 @@ export function getMarketSettings(): MarketSettings {
     footwearPairsPerPerson: clamp("footwearPairsPerPerson", parsed.footwearPairsPerPerson),
     leatherGoodsShare: clamp("leatherGoodsShare", parsed.leatherGoodsShare),
     summerHideLoss: clamp("summerHideLoss", parsed.summerHideLoss),
+    byproductFarmgate: byproductFarmgateMode(parsed.byproductFarmgate),
     bootsLabor: bootsLaborMode(parsed.bootsLabor),
     byproductPricing: byproductPricingMode(parsed.byproductPricing),
     beeswaxPricing: byproductPricingMode(parsed.beeswaxPricing, "beeswaxPricing"),
@@ -576,6 +587,7 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     footwearPairsPerPerson: clamp("footwearPairsPerPerson", next.footwearPairsPerPerson),
     leatherGoodsShare: clamp("leatherGoodsShare", next.leatherGoodsShare),
     summerHideLoss: clamp("summerHideLoss", next.summerHideLoss),
+    byproductFarmgate: byproductFarmgateMode(next.byproductFarmgate),
     bootsLabor: bootsLaborMode(next.bootsLabor),
     byproductPricing: byproductPricingMode(next.byproductPricing),
     beeswaxPricing: byproductPricingMode(next.beeswaxPricing, "beeswaxPricing"),
