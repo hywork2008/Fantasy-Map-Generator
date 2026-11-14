@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createMoneyFlowRecorder, createObserveViews } from "../../../../scripts/lib/observeViews.mts";
 import { simEvents } from "../../../simulation/events";
+import { DEFAULT_MARKET_SETTINGS, setMarketSettings } from "../../../simulation/marketSettings";
 import { distributeSeasonalPrecipitation, getPrecipitationDailyScores } from "../../../utils/precipitationSeasonality";
 import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import { worldContext } from "../../hostCore";
@@ -394,6 +395,7 @@ describe("SaltLogisticsModule", () => {
   });
 
   it("boils with the cheaper heat of Wood and Peat, and with Peat where there is no Wood", () => {
+    setMarketSettings({ fuelChoice: "cheapest" });
     const burned = (woodStock: number, woodPrice: number) => {
       setUpWorld();
       seedOwners();
@@ -425,6 +427,12 @@ describe("SaltLogisticsModule", () => {
     const dearWood = burned(100, 3);
     expect(dearWood.wood).toBe(0);
     expect(dearWood.peat).toBeGreaterThan(0);
+    // By price share both burn, the cheaper heat the more (docs/plan/fuel-price-share.md).
+    setMarketSettings({ fuelChoice: "priceShare" });
+    const shared = burned(100, 1);
+    expect(shared.peat).toBeGreaterThan(0);
+    expect(shared.wood).toBeGreaterThan((shared.peat * 200) / WOOD_KG_PER_LOT);
+    setMarketSettings({ fuelChoice: DEFAULT_MARKET_SETTINGS.fuelChoice });
   });
 
   it("uses authoritative Characters cash rather than the compatibility pack copy", () => {

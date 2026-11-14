@@ -1,3 +1,4 @@
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -8,6 +9,7 @@ import {
   setGuildKnowledgeStocks,
   settleAnnualOnce
 } from "../economyContext";
+import { creditHouseholdWealth } from "./burgMarketLedgers";
 import { backPayCycles, GUILD_MASTER_STIPEND } from "./characterStipends";
 import { getEconomyStartProfile } from "./economyStartMode";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
@@ -183,6 +185,30 @@ export class GuildTreasuryModule {
         }
       }
     }
+  }
+
+  /**
+   * Spends `guildSpendRate` of each of the Burg's guild treasuries above `guildReserveMonths` of a
+   * Guild Master's stipend on
+   * its town: the feasts, chapel lights, funerals, relief of poor masters and alms of the craft
+   * fraternities, paid to the town's households (docs/plan/guild-spending.md). Returns the amount.
+   */
+  spendGuildSurplus(burg: Burg): number {
+    const settings = getMarketSettings();
+    if (!burg.i || settings.guildSurplusUse !== "spend" || !(settings.guildSpendRate > 0)) return 0;
+    const reserve = nominal(GUILD_MASTER_STIPEND) * settings.guildReserveMonths;
+    const stocks = getGuildKnowledgeStocks();
+    let spent = 0;
+    for (const entry of stocks) {
+      if (entry.burgId !== burg.i || !(entry.treasury > reserve)) continue;
+      const amount = rn((entry.treasury - reserve) * settings.guildSpendRate, 2);
+      if (!(amount > 0)) continue;
+      entry.treasury = rn(entry.treasury - amount, 2);
+      creditHouseholdWealth(burg.i, amount);
+      spent += amount;
+    }
+    if (spent > 0) setGuildKnowledgeStocks(stocks);
+    return rn(spent, 2);
   }
 
   /**

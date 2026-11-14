@@ -119,6 +119,8 @@ export interface Market {
     marketPeat: number;
     stockAfterSupply: number;
     smoothedDraw: number;
+    /** The draw smoothed over a year, for `peatCutPlan` yearlyAverage (docs/plan/peat-cut-plan.md). */
+    yearlyDraw?: number;
   };
   /**
    * Fresh Meat the slaughtered offtake gave and the towns bought, in kg, this simulation year and

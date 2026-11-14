@@ -4,6 +4,7 @@
  * fuel buyers after, only up to the stock the market draws down, as rural Wood is
  * (markets-generator.ts `supplyRuralWood`). Resource cells keep their own Peat output besides.
  */
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import { rn } from "../../hostUtils";
 import { getGoods, getMarketCellColumn, getMarkets, getSaltworks, getWorldContext } from "../economyContext";
 import { getPeatGood, PEAT_HEAT_PER_BALE, PEAT_KG_PER_BALE, SALT_BOILING_WOOD_PILES_PER_BAG } from "./peatFuel";
@@ -16,6 +17,8 @@ export const PEAT_KG_PER_RURAL_PERSON_YEAR = 3000;
 /** Months of the market's draw kept in stock, as for rural Wood. */
 const PEAT_STOCK_COVER_MONTHS = 6;
 const PEAT_DRAW_SMOOTHING = 1 / 6;
+/** Weight of the latest month in the yearly draw: a winter's burning is not a year's (docs/plan/peat-cut-plan.md). */
+const PEAT_YEARLY_DRAW_SMOOTHING = 1 / 12;
 
 /** Open bogs, fens and moors; flooded forest and mangrove are wetland but not peat-cutting ground. */
 export function isPeatCell(cellId: number): boolean {
@@ -67,13 +70,18 @@ export function supplyRuralPeat(
     const woodStock = wood ? (market.goods[wood.i]?.stock ?? 0) : 0;
     const knownDraw = Math.max(0, boilingBales - woodStock / PEAT_HEAT_PER_BALE);
     const previous = market.peatSupply;
+    const lastDraw = previous ? Math.max(0, previous.stockAfterSupply - stock) : 0;
     const smoothedDraw = previous
-      ? previous.smoothedDraw +
-        (Math.max(0, previous.stockAfterSupply - stock) - previous.smoothedDraw) * PEAT_DRAW_SMOOTHING
+      ? previous.smoothedDraw + (lastDraw - previous.smoothedDraw) * PEAT_DRAW_SMOOTHING
       : knownDraw;
+    const yearlyBase = previous?.yearlyDraw ?? previous?.smoothedDraw;
+    const yearlyDraw =
+      yearlyBase === undefined ? knownDraw : yearlyBase + (lastDraw - yearlyBase) * PEAT_YEARLY_DRAW_SMOOTHING;
+    // yearlyAverage: stock to the year's mean draw; smoothedDraw: to the last months' (a winter's) draw.
+    const plannedDraw = getMarketSettings().peatCutPlan === "yearlyAverage" ? yearlyDraw : smoothedDraw;
     const sale = Math.min(
       potential - ruralFuel,
-      Math.max(0, PEAT_STOCK_COVER_MONTHS * Math.max(smoothedDraw, knownDraw) - stock)
+      Math.max(0, PEAT_STOCK_COVER_MONTHS * Math.max(plannedDraw, knownDraw) - stock)
     );
     if (sale > 0) addOutput(market.i, market.centerBurgId, peat.i, sale);
     market.peatSupply = {
@@ -82,7 +90,8 @@ export function supplyRuralPeat(
       ruralFuelPeat: rn(ruralFuel, 4),
       marketPeat: rn(Math.max(0, sale), 4),
       stockAfterSupply: rn(market.goods[peat.i]?.stock ?? 0, 4),
-      smoothedDraw: rn(smoothedDraw, 4)
+      smoothedDraw: rn(smoothedDraw, 4),
+      yearlyDraw: rn(yearlyDraw, 4)
     };
   }
 }

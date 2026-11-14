@@ -89,6 +89,15 @@ export type HouseholdGoodValueMode = (typeof HOUSEHOLD_GOOD_VALUE_MODES)[number]
 
 /** Hides and tallow off the map: `staple` the port markets sell their surplus; `off` none, as before. */
 export const BYPRODUCT_EXPORT_MODES = ["staple", "off"] as const;
+/** How buyers split a heat need between Wood and Peat (docs/plan/fuel-price-share.md). */
+export const FUEL_CHOICE_MODES = ["priceShare", "cheapest"] as const;
+export type FuelChoiceMode = (typeof FUEL_CHOICE_MODES)[number];
+/** How far ahead the bogs cut Peat for the market (docs/plan/peat-cut-plan.md). */
+export const PEAT_CUT_PLAN_MODES = ["yearlyAverage", "smoothedDraw"] as const;
+export type PeatCutPlanMode = (typeof PEAT_CUT_PLAN_MODES)[number];
+/** What guilds do with their treasury beyond their working capital (docs/plan/guild-spending.md). */
+export const GUILD_SURPLUS_USE_MODES = ["spend", "keep"] as const;
+export type GuildSurplusUseMode = (typeof GUILD_SURPLUS_USE_MODES)[number];
 export type ByproductExportMode = (typeof BYPRODUCT_EXPORT_MODES)[number];
 
 /**
@@ -112,6 +121,8 @@ export type BootsLaborMode = (typeof BOOTS_LABOR_MODES)[number];
  */
 export const BYPRODUCT_PRICING_MODES = ["stockAndDemand", "legacy"] as const;
 export type ByproductPricingMode = (typeof BYPRODUCT_PRICING_MODES)[number];
+export const WAX_SURPLUS_MODES = ["tithe", "keep"] as const;
+export type WaxSurplusMode = (typeof WAX_SURPLUS_MODES)[number];
 
 export const GRAIN_REPAYMENT_MODES = ["quarterDays", "monthly"] as const;
 export type GrainRepaymentMode = (typeof GRAIN_REPAYMENT_MODES)[number];
@@ -150,6 +161,14 @@ export type MarketSettings = {
   summerHideLoss: number;
   bootsLabor: BootsLaborMode;
   byproductPricing: ByproductPricingMode;
+  /** Beeswax priced from its stock against the towns' candle targets, or by the legacy rule (docs/plan/wax-pricing.md). */
+  beeswaxPricing: ByproductPricingMode;
+  /** Wax beyond `waxKeepMonths` of a market's use paid to the church as wax rent, or kept (docs/plan/wax-tithe.md). */
+  waxSurplus: WaxSurplusMode;
+  /** Months of its own use a market keeps of beeswax before the surplus goes to the church. */
+  waxKeepMonths: number;
+  /** Share of the wax beyond `waxKeepMonths` paid to the church each month. */
+  waxTitheRate: number;
   /** Village shoemakers for each 1,000 farm people, counted in their market's towns; used with `everyone`. */
   ruralShoemakersPerThousand: number;
   /**
@@ -164,12 +183,26 @@ export type MarketSettings = {
   byproductExportReserveMonths: number;
   /** Share of that surplus a port market ships in a month. */
   byproductExportShare: number;
+  /** `staple`: the port markets ship their Beeswax beyond their own use with the hides and tallow; `off`: they keep it. */
+  beeswaxExport: ByproductExportMode;
   /** Months of its own use of a return good below which a port market takes it for its hides and tallow. */
   byproductReturnMonths: number;
   /** Months of its own use of hides and tallow a market keeps before the rest starts to spoil. */
   byproductKeepMonths: number;
   /** Share of the hides and tallow beyond that which spoil each month; 0 none, as before. */
   byproductExcessSpoil: number;
+  /** `priceShare`: Wood and Peat each take a share of the heat by their price per heat; `cheapest`: all from the cheaper first. */
+  fuelChoice: FuelChoiceMode;
+  /** Exponent of the price per heat in `priceShare`: a fuel's share goes as price^-k. */
+  fuelPriceElasticity: number;
+  /** `yearlyAverage`: Peat cut to 6 months of the year's mean draw; `smoothedDraw`: of the last months' draw. */
+  peatCutPlan: PeatCutPlanMode;
+  /** `spend`: guilds spend part of their treasury above the working reserve on their town's households each month; `keep`: they keep it. */
+  guildSurplusUse: GuildSurplusUseMode;
+  /** Share of a guild's treasury above its working reserve spent in its town a month, with `guildSurplusUse` spend. */
+  guildSpendRate: number;
+  /** Months of a Guild Master's stipend a guild keeps before it spends the rest. */
+  guildReserveMonths: number;
   candleDemand: CandleDemandMode;
   /** Kilograms of candles a person burns a year, with `candleDemand` everyone. */
   candleKgPerPerson: number;
@@ -213,15 +246,26 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   summerHideLoss: 0.1,
   bootsLabor: "perDay",
   byproductPricing: "stockAndDemand",
+  beeswaxPricing: "stockAndDemand",
+  waxSurplus: "tithe",
+  waxKeepMonths: 12,
+  waxTitheRate: 0.1,
   ruralShoemakersPerThousand: 2,
   householdGoodValues: "historical",
   curryingTallowKgPerHide: 2,
   byproductExport: "staple",
   byproductExportReserveMonths: 6,
   byproductExportShare: 0.2,
+  beeswaxExport: "staple",
   byproductReturnMonths: 3,
   byproductKeepMonths: 12,
   byproductExcessSpoil: 0.1,
+  fuelChoice: "priceShare",
+  fuelPriceElasticity: 4,
+  peatCutPlan: "yearlyAverage",
+  guildSurplusUse: "spend",
+  guildSpendRate: 0.08,
+  guildReserveMonths: 1,
   candleDemand: "everyone",
   candleKgPerPerson: 1,
   waxCandleKgPerPerson: 0.05,
@@ -253,12 +297,17 @@ export const MARKET_SETTING_LIMITS = {
   ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 },
   candleKgPerPerson: { min: 0, max: 4, step: 0.25 },
   waxCandleKgPerPerson: { min: 0, max: 0.5, step: 0.01 },
+  waxKeepMonths: { min: 0, max: 60, step: 1 },
+  waxTitheRate: { min: 0, max: 0.5, step: 0.01 },
   curryingTallowKgPerHide: { min: 0, max: 6, step: 0.25 },
   byproductExportReserveMonths: { min: 0, max: 36, step: 1 },
   byproductExportShare: { min: 0, max: 1, step: 0.05 },
   byproductReturnMonths: { min: 0, max: 12, step: 0.5 },
   byproductKeepMonths: { min: 0, max: 60, step: 1 },
   byproductExcessSpoil: { min: 0, max: 0.5, step: 0.01 },
+  fuelPriceElasticity: { min: 1, max: 20, step: 1 },
+  guildSpendRate: { min: 0, max: 0.5, step: 0.01 },
+  guildReserveMonths: { min: 0, max: 24, step: 1 },
   ruralChandlersPerThousand: { min: 0, max: 5, step: 0.1 }
 } as const;
 
@@ -310,10 +359,26 @@ const householdGoodValueMode = (value: unknown): HouseholdGoodValueMode =>
     ? (value as HouseholdGoodValueMode)
     : DEFAULT_MARKET_SETTINGS.householdGoodValues;
 
-const byproductExportMode = (value: unknown): ByproductExportMode =>
+const byproductExportMode = (
+  value: unknown,
+  key: "byproductExport" | "beeswaxExport" = "byproductExport"
+): ByproductExportMode =>
   BYPRODUCT_EXPORT_MODES.includes(value as ByproductExportMode)
     ? (value as ByproductExportMode)
-    : DEFAULT_MARKET_SETTINGS.byproductExport;
+    : DEFAULT_MARKET_SETTINGS[key];
+
+const fuelChoiceMode = (value: unknown): FuelChoiceMode =>
+  FUEL_CHOICE_MODES.includes(value as FuelChoiceMode) ? (value as FuelChoiceMode) : DEFAULT_MARKET_SETTINGS.fuelChoice;
+
+const peatCutPlanMode = (value: unknown): PeatCutPlanMode =>
+  PEAT_CUT_PLAN_MODES.includes(value as PeatCutPlanMode)
+    ? (value as PeatCutPlanMode)
+    : DEFAULT_MARKET_SETTINGS.peatCutPlan;
+
+const guildSurplusUseMode = (value: unknown): GuildSurplusUseMode =>
+  GUILD_SURPLUS_USE_MODES.includes(value as GuildSurplusUseMode)
+    ? (value as GuildSurplusUseMode)
+    : DEFAULT_MARKET_SETTINGS.guildSurplusUse;
 
 const candleDemandMode = (value: unknown): CandleDemandMode =>
   CANDLE_DEMAND_MODES.includes(value as CandleDemandMode)
@@ -323,10 +388,16 @@ const candleDemandMode = (value: unknown): CandleDemandMode =>
 const bootsLaborMode = (value: unknown): BootsLaborMode =>
   BOOTS_LABOR_MODES.includes(value as BootsLaborMode) ? (value as BootsLaborMode) : DEFAULT_MARKET_SETTINGS.bootsLabor;
 
-const byproductPricingMode = (value: unknown): ByproductPricingMode =>
+const byproductPricingMode = (
+  value: unknown,
+  key: "byproductPricing" | "beeswaxPricing" = "byproductPricing"
+): ByproductPricingMode =>
   BYPRODUCT_PRICING_MODES.includes(value as ByproductPricingMode)
     ? (value as ByproductPricingMode)
-    : DEFAULT_MARKET_SETTINGS.byproductPricing;
+    : DEFAULT_MARKET_SETTINGS[key];
+
+const waxSurplusMode = (value: unknown): WaxSurplusMode =>
+  WAX_SURPLUS_MODES.includes(value as WaxSurplusMode) ? (value as WaxSurplusMode) : DEFAULT_MARKET_SETTINGS.waxSurplus;
 
 const clamp = (key: NumericMarketSetting, value: unknown): number => {
   const { min, max, step } = MARKET_SETTING_LIMITS[key];
@@ -364,15 +435,26 @@ export function getMarketSettings(): MarketSettings {
     summerHideLoss: clamp("summerHideLoss", parsed.summerHideLoss),
     bootsLabor: bootsLaborMode(parsed.bootsLabor),
     byproductPricing: byproductPricingMode(parsed.byproductPricing),
+    beeswaxPricing: byproductPricingMode(parsed.beeswaxPricing, "beeswaxPricing"),
+    waxSurplus: waxSurplusMode(parsed.waxSurplus),
+    waxKeepMonths: clamp("waxKeepMonths", parsed.waxKeepMonths),
+    waxTitheRate: clamp("waxTitheRate", parsed.waxTitheRate),
     ruralShoemakersPerThousand: clamp("ruralShoemakersPerThousand", parsed.ruralShoemakersPerThousand),
     householdGoodValues: householdGoodValueMode(parsed.householdGoodValues),
     curryingTallowKgPerHide: clamp("curryingTallowKgPerHide", parsed.curryingTallowKgPerHide),
     byproductExport: byproductExportMode(parsed.byproductExport),
+    beeswaxExport: byproductExportMode(parsed.beeswaxExport, "beeswaxExport"),
     byproductExportReserveMonths: clamp("byproductExportReserveMonths", parsed.byproductExportReserveMonths),
     byproductExportShare: clamp("byproductExportShare", parsed.byproductExportShare),
     byproductReturnMonths: clamp("byproductReturnMonths", parsed.byproductReturnMonths),
     byproductKeepMonths: clamp("byproductKeepMonths", parsed.byproductKeepMonths),
     byproductExcessSpoil: clamp("byproductExcessSpoil", parsed.byproductExcessSpoil),
+    fuelChoice: fuelChoiceMode(parsed.fuelChoice),
+    fuelPriceElasticity: clamp("fuelPriceElasticity", parsed.fuelPriceElasticity),
+    peatCutPlan: peatCutPlanMode(parsed.peatCutPlan),
+    guildSurplusUse: guildSurplusUseMode(parsed.guildSurplusUse),
+    guildSpendRate: clamp("guildSpendRate", parsed.guildSpendRate),
+    guildReserveMonths: clamp("guildReserveMonths", parsed.guildReserveMonths),
     candleDemand: candleDemandMode(parsed.candleDemand),
     candleKgPerPerson: clamp("candleKgPerPerson", parsed.candleKgPerPerson),
     waxCandleKgPerPerson: clamp("waxCandleKgPerPerson", parsed.waxCandleKgPerPerson),
@@ -409,15 +491,26 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     summerHideLoss: clamp("summerHideLoss", next.summerHideLoss),
     bootsLabor: bootsLaborMode(next.bootsLabor),
     byproductPricing: byproductPricingMode(next.byproductPricing),
+    beeswaxPricing: byproductPricingMode(next.beeswaxPricing, "beeswaxPricing"),
+    waxSurplus: waxSurplusMode(next.waxSurplus),
+    waxKeepMonths: clamp("waxKeepMonths", next.waxKeepMonths),
+    waxTitheRate: clamp("waxTitheRate", next.waxTitheRate),
     ruralShoemakersPerThousand: clamp("ruralShoemakersPerThousand", next.ruralShoemakersPerThousand),
     householdGoodValues: householdGoodValueMode(next.householdGoodValues),
     curryingTallowKgPerHide: clamp("curryingTallowKgPerHide", next.curryingTallowKgPerHide),
     byproductExport: byproductExportMode(next.byproductExport),
+    beeswaxExport: byproductExportMode(next.beeswaxExport, "beeswaxExport"),
     byproductExportReserveMonths: clamp("byproductExportReserveMonths", next.byproductExportReserveMonths),
     byproductExportShare: clamp("byproductExportShare", next.byproductExportShare),
     byproductReturnMonths: clamp("byproductReturnMonths", next.byproductReturnMonths),
     byproductKeepMonths: clamp("byproductKeepMonths", next.byproductKeepMonths),
     byproductExcessSpoil: clamp("byproductExcessSpoil", next.byproductExcessSpoil),
+    fuelChoice: fuelChoiceMode(next.fuelChoice),
+    fuelPriceElasticity: clamp("fuelPriceElasticity", next.fuelPriceElasticity),
+    peatCutPlan: peatCutPlanMode(next.peatCutPlan),
+    guildSurplusUse: guildSurplusUseMode(next.guildSurplusUse),
+    guildSpendRate: clamp("guildSpendRate", next.guildSpendRate),
+    guildReserveMonths: clamp("guildReserveMonths", next.guildReserveMonths),
     candleDemand: candleDemandMode(next.candleDemand),
     candleKgPerPerson: clamp("candleKgPerPerson", next.candleKgPerPerson),
     waxCandleKgPerPerson: clamp("waxCandleKgPerPerson", next.waxCandleKgPerPerson),

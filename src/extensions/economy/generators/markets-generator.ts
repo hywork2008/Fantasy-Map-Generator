@@ -113,8 +113,10 @@ import {
   getPriceFloor,
   getRawGoodTargetPrice,
   getWarPriceModifier,
+  HARVEST_BYPRODUCTS,
   hasSettledPrice,
   isPricedByHouseholdDemand,
+  isStockPricedByproduct,
   LAPLACE_PRICE_SMOOTHING,
   MARKET_MARGIN,
   PRICE_CEILING_FACTOR,
@@ -1822,7 +1824,7 @@ export class MarketsModule {
       for (const good of goods) {
         const mineOrFurnaceGood = isMineOrFurnaceGood(good);
         const orchardFruit = good.name === "Apples" || good.name === "Pears";
-        if (townTargets && SLAUGHTER_BYPRODUCTS.has(good.name)) {
+        if (townTargets && isStockPricedByproduct(good)) {
           const marketGood = this.getMarketGood(market, good);
           const baseValue = good.value * priceLevel;
           const demand = townTargets.get(market.i)?.get(good.i) ?? 0;
@@ -2637,6 +2639,15 @@ export class MarketsModule {
         const ingredient = goodsById.get(+id);
         return ingredient && SLAUGHTER_BYPRODUCTS.has(ingredient.name) ? [{ goodId: ingredient.i, amount }] : [];
       });
+      // The parish and great-house lights were wax whatever the typical recipe: count the wax of the
+      // recipe that takes it (docs/plan/wax-pricing.md §3.1).
+      for (const other of good.recipes ?? []) {
+        for (const [id, amount] of Object.entries(other)) {
+          const ingredient = goodsById.get(+id);
+          if (!ingredient || !HARVEST_BYPRODUCTS.has(ingredient.name) || !isStockPricedByproduct(ingredient)) continue;
+          if (!inputs.some(input => input.goodId === ingredient.i)) inputs.push({ goodId: ingredient.i, amount });
+        }
+      }
       return row.householdPurchase || inputs.length ? [{ good, own: Boolean(row.householdPurchase), inputs }] : [];
     });
     if (!rows.length) return demandByMarket;

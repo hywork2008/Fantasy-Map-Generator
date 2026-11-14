@@ -105,6 +105,18 @@ export function isPricedByHouseholdDemand(good: Pick<Good, "name">): boolean {
 /** Goods slaughter and the hunt give with the carcass, with no recipe and no cell distribution. */
 export const SLAUGHTER_BYPRODUCTS: ReadonlySet<string> = new Set(["Leather", "Tallow", "Rennet"]);
 
+/** Beeswax comes with the honey harvest, with no recipe and no cell distribution (docs/plan/wax-pricing.md). */
+export const HARVEST_BYPRODUCTS: ReadonlySet<string> = new Set(["Beeswax"]);
+
+/**
+ * By-products priced each month from their stock against the towns' targets: the slaughter
+ * by-products, and beeswax with `beeswaxPricing` stockAndDemand. Assumes `byproductPricing` is on.
+ */
+export function isStockPricedByproduct(good: Pick<Good, "name">): boolean {
+  if (SLAUGHTER_BYPRODUCTS.has(good.name)) return true;
+  return HARVEST_BYPRODUCTS.has(good.name) && getMarketSettings().beeswaxPricing === "stockAndDemand";
+}
+
 /**
  * With `byproductPricing` on, the slaughter by-products and the goods the towns buy to a target
  * are priced each month from their stock against the towns' targets, and a sale or purchase does
@@ -113,7 +125,7 @@ export const SLAUGHTER_BYPRODUCTS: ReadonlySet<string> = new Set(["Leather", "Ta
  */
 export function isPricedByTownTargets(good: Pick<Good, "name">): boolean {
   if (getMarketSettings().byproductPricing !== "stockAndDemand") return false;
-  return SLAUGHTER_BYPRODUCTS.has(good.name) || Boolean(getGoodDemandCalibration(good.name)?.householdPurchase);
+  return isStockPricedByproduct(good) || Boolean(getGoodDemandCalibration(good.name)?.householdPurchase);
 }
 
 export const PRICE_FLOOR_FACTOR = 0.25;

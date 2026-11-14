@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { DEFAULT_MARKET_SETTINGS, setMarketSettings } from "../../../simulation/marketSettings";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
@@ -9,6 +10,7 @@ import {
   setGuildKnowledgeStocks,
   setMarkets
 } from "../economyContext";
+import { getHouseholdWealth } from "./burgMarketLedgers";
 import { GUILD_MASTER_STIPEND } from "./characterStipends";
 import { Goods } from "./goods-generator";
 import { GuildTreasury } from "./guildTreasury";
@@ -128,6 +130,26 @@ describe("GuildTreasuryModule", () => {
       expect(entry.domain).toBe("woodworking");
       expect(entry.treasury).toBeGreaterThan(0);
       expect(worldContext.pack.markets?.[0]?.goods[BRONZE_ID]?.stock ?? 0).toBe(0);
+    });
+  });
+
+  describe("spendGuildSurplus()", () => {
+    afterEach(() => setMarketSettings({ ...DEFAULT_MARKET_SETTINGS }));
+
+    it("spends the share above the working reserve on the town's households, and nothing with keep", () => {
+      worldContext.options = { economyStartMode: "balanced" } as typeof worldContext.options;
+      const burg = worldContext.pack.burgs[1]!;
+      const reserve = GUILD_MASTER_STIPEND * 12;
+      setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0, treasury: reserve + 100 }]);
+      const before = getHouseholdWealth(1);
+
+      setMarketSettings({ guildSurplusUse: "keep" });
+      expect(GuildTreasury.spendGuildSurplus(burg)).toBe(0);
+
+      setMarketSettings({ guildSurplusUse: "spend", guildSpendRate: 0.05, guildReserveMonths: 12 });
+      expect(GuildTreasury.spendGuildSurplus(burg)).toBeCloseTo(5, 2);
+      expect(getGuildKnowledgeStocks()[0].treasury).toBeCloseTo(reserve + 95, 2);
+      expect(getHouseholdWealth(1) - before).toBeCloseTo(5, 2);
     });
   });
 

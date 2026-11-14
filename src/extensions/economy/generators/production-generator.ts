@@ -601,6 +601,8 @@ export class ProductionModule {
     // this cycle, drawing only from its own domain guilds' accumulated capital (docs/plan/
     // burg-treasury-equilibrium.md §3.2).
     GuildTreasury.payoutStrugglingBurg(burg);
+    // The fraternities spend what they hold beyond their working capital in the town (docs/plan/guild-spending.md).
+    GuildTreasury.spendGuildSurplus(burg);
 
     setBurgProductionRecords(burg, state.records);
   }

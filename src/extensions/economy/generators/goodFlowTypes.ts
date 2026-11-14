@@ -30,6 +30,8 @@ export type GoodFlowCategory =
   /** Hides and tallow sold off the map from a port market, and the foreign goods taken for them (byproductExport.ts). */
   | "stapleExport"
   | "stapleImport"
+  /** Beeswax beyond a market's keep paid to the church as wax rent (byproductExport.ts, docs/plan/wax-tithe.md). */
+  | "waxTithe"
   | "luxuryPurchase"
   | "characterLuxury"
   /** Timber recovered by breaking up a one-way river craft at its destination. */
