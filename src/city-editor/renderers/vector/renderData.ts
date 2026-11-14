@@ -569,6 +569,32 @@ export function vectorRenderData(
   if (doc.environment?.guilds) surfaces.push(...vectorGuildSurfaces(doc.environment.guilds));
   if (doc.environment?.inns) surfaces.push(...vectorInnSurfaces(doc.environment.inns));
   if (doc.environment?.landmarks) surfaces.push(...vectorOpenLandmarkSurfaces(doc.environment.landmarks));
+  // Open land by use (U5b), under the woodland: tilled, mown, grazed, and wild ground in the biome's ground colour.
+  const landUse = doc.environment?.landUse;
+  if (landUse) {
+    const wildColor =
+      landUse.landClass === "desert"
+        ? "#e3d3a4"
+        : landUse.landClass === "steppe"
+          ? "#d6cf9a"
+          : landUse.landClass === "wetland"
+            ? "#a9bfa0"
+            : landUse.landClass === "cold"
+              ? "#c9cbbd"
+              : "#b9c48f";
+    const colors = { arable: "#d9c98c", meadow: "#a8cc7e", pasture: "#c3d394", wild: wildColor } as const;
+    for (const zone of landUse.zones)
+      surfaces.push({
+        id: `environment:land-use:${zone.kind}`,
+        kind: "feature",
+        featureKind: "farm",
+        pieceRole: `land-use-${zone.kind}`,
+        polygons: zone.regions,
+        color: colors[zone.kind],
+        elevationMeters: 0.005,
+        heightMeters: 0
+      });
+  }
   if (doc.environment?.forest)
     surfaces.push({
       id: "environment:forest",

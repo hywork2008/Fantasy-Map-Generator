@@ -22,6 +22,7 @@ import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/document";
 import { vectorUrbanStages } from "../validation/urban";
 import { placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
+import { raiseVectorLandUse } from "./landUse";
 import { layoutVectorParks } from "./parks";
 import {
   assemblePerimeterDistricts,
@@ -202,6 +203,8 @@ function* vectorUrbanSteps(
   )
     throw new Error("invalid-urban-settings");
   const doc = structuredClone(input);
+  // The open land by use is split again round the finished town (U5b): suburbs and leats change it.
+  if (doc.environment?.landUse) delete doc.environment.landUse;
   let kept:
     | { cleared: Record<string, number[]>; detachedLines: Record<string, VectorFabricDetachedLine[]> }
     | undefined;
@@ -811,6 +814,10 @@ function* vectorUrbanSteps(
   timed("residual-land");
   doc.site = sourceSite;
   doc.context.targetPopulation = settings.population;
+  // The open land by use round the finished town and its suburbs (U5b).
+  const used = raiseVectorLandUse(doc, domain).environment?.landUse;
+  if (used) doc.environment = { features: {}, hidden: [], ...doc.environment, landUse: used };
+  timed("land-use");
   doc.revision++;
   doc.generation = { ...doc.generation!, blocks, inputRevision: doc.revision };
   doc.urban = {

@@ -189,7 +189,9 @@ describe("urban physical constraints and capacity deficits", () => {
   });
   it("migrates native v4 and rejects tampered stage ordering, totals and physical footprints", () => {
     const source = skeleton();
-    expect(parseVectorDocument(JSON.stringify({ ...source, version: 4 }))).toEqual(source);
+    // A v4 ledger held no environment (the land use of U5b is one).
+    const { environment: _, ...v4 } = source;
+    expect(parseVectorDocument(JSON.stringify({ ...v4, version: 4 }))).toEqual({ ...v4, version: 8 });
     const doc = generateVectorUrban(source, { ...DEFAULT_VECTOR_URBAN, population: 90, maxLanes: 0 });
     const wrong = structuredClone(doc);
     wrong.urban!.checkpoints[3].placementIds = [...wrong.urban!.ownedPlacements];

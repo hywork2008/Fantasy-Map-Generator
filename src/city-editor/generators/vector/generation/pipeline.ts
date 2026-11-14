@@ -42,6 +42,7 @@ import { raiseVectorGuilds } from "./guilds";
 import { expectedVectorHouseStoreys } from "./housingHeights";
 import { raiseVectorInns } from "./inns";
 import { raiseVectorOpenLandmarks } from "./landmarks";
+import { raiseVectorLandUse } from "./landUse";
 import { CIVIC_PLAZA_ID, raiseVectorPlazaMarket } from "./market";
 import { raiseVectorMonasteries } from "./monasteries";
 import { type RouteLink, skeletonRoutes } from "./routes";
@@ -695,6 +696,7 @@ function skeleton(
     if (doc.environment?.inns) delete doc.environment.inns;
     if (doc.environment?.landmarks) delete doc.environment.landmarks;
     if (doc.environment?.forest) delete doc.environment.forest;
+    if (doc.environment?.landUse) delete doc.environment.landUse;
     // The plaza's market day is laid again on the new streets.
     for (const id of Object.keys(doc.placements)) if (id.startsWith("civic:market-stall:")) delete doc.placements[id];
     const plaza = doc.environment?.features[CIVIC_PLAZA_ID];
@@ -1344,7 +1346,9 @@ function skeleton(
   doc = marks.document;
   if (marks.placed < marks.wanted)
     diagnostics.push({ code: "landmark-unplaced", entityId: String(marks.wanted - marks.placed), severity: "warning" });
-  // Woodland over the countryside by the forest settings, last: it keeps clear of everything raised before (P7b).
+  // The open land by use (U5b), then woodland over its wild ground by the forest settings, last: both keep clear of
+  // everything raised before (P7b).
+  doc = raiseVectorLandUse(doc);
   doc = raiseVectorForest(doc);
   doc.revision++;
   assertVectorDocument(doc);

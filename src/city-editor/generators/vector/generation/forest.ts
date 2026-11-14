@@ -11,6 +11,7 @@ import { regionArea, regionBoolean } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
+import { landUseRegions } from "../landUse";
 import { vectorOccupiedSites } from "../occupancy";
 import { vectorApproachBands } from "./suburbs";
 
@@ -70,17 +71,12 @@ export function vectorLandscapeClimate(doc: VectorCityDocument): LandscapeClimat
 }
 
 /**
- * Woodland by the forest settings and the mesh editor's land-cover rules (P7b, `forestLandCover`/`buildForestPlan`).
- * `surroundings` covers the countryside: the frame beyond the town's land, where the mesh editor's outskirts cells
- * hold no ward. `farmland` covers only fields, which the meshless editor does not raise (farmland is skipped), and
- * `legacy` none. A treeless climate (the FMG burg's biome and temperature) grows none. The cover keeps clear of
- * water, the roads (4 m beyond their width), the wall's glacis on both sides, and every reserved site, as the mesh
- * editor's forest plan does.
+ * The countryside: the frame without the town's land, its water, the roads (4 m beyond their width), the wall's
+ * glacis on both sides, every reserved site and `townLand` (the urban domain once built), in pieces of woodland size. The mesh editor's forest plan keeps the
+ * same clearances; the land use (U5b) splits the same ground.
  */
-export function raiseVectorForest(doc: VectorCityDocument): VectorCityDocument {
-  const settings = vectorForestSettings(doc);
-  if (settings?.mode !== "surroundings" || !doc.site) return doc;
-  if (!vectorTreesGrow(doc)) return doc;
+export function vectorCountryside(doc: VectorCityDocument, townLand: VectorPolygon[] = []): VectorPolygon[] {
+  if (!doc.site) return [];
   const half = doc.frame.extentMeters / 2,
     frame: VectorPolygon = {
       outer: [
@@ -95,6 +91,7 @@ export function raiseVectorForest(doc: VectorCityDocument): VectorCityDocument {
     glacis = Math.max(STANDARD_GLACIS_METERS, ...bands.map(b => b.clearance)),
     keepOut: VectorPolygon[] = [
       ...doc.site.domain,
+      ...townLand,
       ...allVectorWater(doc),
       ...featureReservations(doc),
       ...vectorOccupiedSites(doc, "reserved"),
@@ -112,9 +109,26 @@ export function raiseVectorForest(doc: VectorCityDocument): VectorCityDocument {
             : []
       )
     ];
-  const regions = regionBoolean([frame], keepOut, "difference").filter(
+  return regionBoolean([frame], keepOut, "difference").filter(
     r => regionArea(r) >= MIN_REGION_M2 && simpleContour(r.outer, true) && r.holes.every(h => simpleContour(h, true))
   );
+}
+
+/**
+ * Woodland by the forest settings and the mesh editor's land-cover rules (P7b, `forestLandCover`/`buildForestPlan`).
+ * `surroundings` covers the countryside (`vectorCountryside`), less the land the land use (U5b) farms: then only its
+ * wild ground. `farmland` covers only fields, which the meshless editor does not raise, and `legacy` none. A
+ * treeless climate (the FMG burg's biome and temperature) grows none.
+ */
+export function raiseVectorForest(doc: VectorCityDocument): VectorCityDocument {
+  const settings = vectorForestSettings(doc);
+  if (settings?.mode !== "surroundings" || !doc.site) return doc;
+  if (!vectorTreesGrow(doc)) return doc;
+  const countryside = vectorCountryside(doc),
+    farmed = landUseRegions(doc, ["arable", "meadow", "pasture"]),
+    regions = (farmed.length ? regionBoolean(countryside, farmed, "difference") : countryside).filter(
+      r => regionArea(r) >= MIN_REGION_M2 && simpleContour(r.outer, true) && r.holes.every(h => simpleContour(h, true))
+    );
   if (!regions.length) return doc;
   const next: VectorCityDocument = {
     ...doc,
