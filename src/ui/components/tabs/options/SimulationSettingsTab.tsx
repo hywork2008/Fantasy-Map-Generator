@@ -32,6 +32,8 @@ import {
   type ByproductPricingMode,
   CANDLE_DEMAND_MODES,
   type CandleDemandMode,
+  CHARACTER_RESERVE_MODES,
+  type CharacterReserveMode,
   CRAFT_SALE_PAYMENT_MODES,
   type CraftSalePaymentMode,
   FOOTWEAR_DEMAND_MODES,
@@ -493,6 +495,29 @@ export const SimulationSettingsTab: React.FC = () => {
               </select>
             </td>
           </tr>
+          <tr data-tip={t("simulation.characterReserveTip")}>
+            <td />
+            <td>
+              <label htmlFor="characterReserve">{t("simulation.characterReserve")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="characterReserve"
+                value={marketSettings.characterReserve}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ characterReserve: e.target.value as CharacterReserveMode })
+                  )
+                }
+              >
+                {CHARACTER_RESERVE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.characterReserve_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
           <tr data-tip={t("simulation.merchantReserveYearsTip")}>
             <td />
             <td>{t("simulation.merchantReserveYears")}</td>
@@ -504,6 +529,62 @@ export const SimulationSettingsTab: React.FC = () => {
                 step={MARKET_SETTING_LIMITS.merchantReserveYears.step}
                 value={marketSettings.merchantReserveYears}
                 onChange={v => updateMarketSetting("merchantReserveYears", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.rulerReserveYearsTip")}>
+            <td />
+            <td>{t("simulation.rulerReserveYears")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="rulerReserveYears"
+                min={MARKET_SETTING_LIMITS.rulerReserveYears.min}
+                max={MARKET_SETTING_LIMITS.rulerReserveYears.max}
+                step={MARKET_SETTING_LIMITS.rulerReserveYears.step}
+                value={marketSettings.rulerReserveYears}
+                onChange={v => updateMarketSetting("rulerReserveYears", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.officeReserveYearsTip")}>
+            <td />
+            <td>{t("simulation.officeReserveYears")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="officeReserveYears"
+                min={MARKET_SETTING_LIMITS.officeReserveYears.min}
+                max={MARKET_SETTING_LIMITS.officeReserveYears.max}
+                step={MARKET_SETTING_LIMITS.officeReserveYears.step}
+                value={marketSettings.officeReserveYears}
+                onChange={v => updateMarketSetting("officeReserveYears", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.commanderReserveYearsTip")}>
+            <td />
+            <td>{t("simulation.commanderReserveYears")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="commanderReserveYears"
+                min={MARKET_SETTING_LIMITS.commanderReserveYears.min}
+                max={MARKET_SETTING_LIMITS.commanderReserveYears.max}
+                step={MARKET_SETTING_LIMITS.commanderReserveYears.step}
+                value={marketSettings.commanderReserveYears}
+                onChange={v => updateMarketSetting("commanderReserveYears", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.commonReserveYearsTip")}>
+            <td />
+            <td>{t("simulation.commonReserveYears")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="commonReserveYears"
+                min={MARKET_SETTING_LIMITS.commonReserveYears.min}
+                max={MARKET_SETTING_LIMITS.commonReserveYears.max}
+                step={MARKET_SETTING_LIMITS.commonReserveYears.step}
+                value={marketSettings.commonReserveYears}
+                onChange={v => updateMarketSetting("commonReserveYears", v)}
               />
             </td>
           </tr>

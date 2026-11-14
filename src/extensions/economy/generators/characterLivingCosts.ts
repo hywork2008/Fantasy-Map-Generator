@@ -144,9 +144,23 @@ export const WEALTH_RESERVE_YEARS = 5;
  * `merchantReserveYears` (docs/analytics/hay-trade-modes-20261101.md §12), everyone else five.
  */
 export function wealthReserveYears(tier: LifestyleTier): number {
-  return tier === "marketManager" || tier === "marketRival"
-    ? getMarketSettings().merchantReserveYears
-    : WEALTH_RESERVE_YEARS;
+  const settings = getMarketSettings();
+  const merchant = tier === "marketManager" || tier === "marketRival";
+  if (settings.characterReserve === "legacy")
+    return Math.max(0, merchant ? settings.merchantReserveYears : WEALTH_RESERVE_YEARS);
+  // Kings borrowed, lords and officers spent their incomes, merchants put their wealth into goods
+  // and partnerships (docs/plan/character-reserve.md §2). A negative reserve is a borrowing limit
+  // once characters can borrow; until then it counts as none.
+  const years = merchant
+    ? settings.merchantReserveYears
+    : tier === "ruler"
+      ? settings.rulerReserveYears
+      : tier === "centralOffice" || tier === "provinceLord"
+        ? settings.officeReserveYears
+        : tier === "fieldCommander"
+          ? settings.commanderReserveYears
+          : settings.commonReserveYears;
+  return Math.max(0, years);
 }
 /** Share of wealth above that reserve spent each production cycle. */
 export const SURPLUS_WEALTH_SPEND_SHARE = 0.1;

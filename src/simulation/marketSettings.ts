@@ -121,6 +121,8 @@ export type BootsLaborMode = (typeof BOOTS_LABOR_MODES)[number];
  */
 export const BYPRODUCT_PRICING_MODES = ["stockAndDemand", "legacy"] as const;
 export type ByproductPricingMode = (typeof BYPRODUCT_PRICING_MODES)[number];
+export const CHARACTER_RESERVE_MODES = ["byTier", "legacy"] as const;
+export type CharacterReserveMode = (typeof CHARACTER_RESERVE_MODES)[number];
 export const WAX_SURPLUS_MODES = ["tithe", "keep"] as const;
 export type WaxSurplusMode = (typeof WAX_SURPLUS_MODES)[number];
 
@@ -223,6 +225,13 @@ export type MarketSettings = {
   merchantProfitUse: MerchantProfitUse;
   /** Years of living costs a market merchant keeps before spending the rest of its wealth. */
   merchantReserveYears: number;
+  /** Reserve years by lifestyle tier, or five years for all but the merchants (docs/plan/character-reserve.md). */
+  characterReserve: CharacterReserveMode;
+  /** Years of living costs kept, with `characterReserve` byTier; below 0 counts as 0 until borrowing exists. */
+  rulerReserveYears: number;
+  officeReserveYears: number;
+  commanderReserveYears: number;
+  commonReserveYears: number;
 };
 
 export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
@@ -275,7 +284,12 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   harvestReserveMonths: 4,
   merchantProfitShare: 1 / 3,
   merchantProfitUse: "houseCapital",
-  merchantReserveYears: 5
+  merchantReserveYears: 0.25,
+  characterReserve: "byTier",
+  rulerReserveYears: 0,
+  officeReserveYears: 0.5,
+  commanderReserveYears: 0,
+  commonReserveYears: 0.25
 };
 
 export const MARKET_SETTING_LIMITS = {
@@ -286,7 +300,11 @@ export const MARKET_SETTING_LIMITS = {
   surplusReserveFactor: { min: 0, max: 2, step: 0.05 },
   harvestReserveMonths: { min: 0, max: 12, step: 1 },
   merchantProfitShare: { min: 0, max: 1, step: 0.01 },
-  merchantReserveYears: { min: 0, max: 10, step: 0.5 },
+  merchantReserveYears: { min: -5, max: 10, step: 0.25 },
+  rulerReserveYears: { min: -5, max: 10, step: 0.25 },
+  officeReserveYears: { min: -5, max: 10, step: 0.25 },
+  commanderReserveYears: { min: -5, max: 10, step: 0.25 },
+  commonReserveYears: { min: -5, max: 10, step: 0.25 },
   ruralPurseMonths: { min: 0.5, max: 24, step: 0.5 },
   ruralSpendElasticityAbove: { min: 0, max: 2, step: 0.05 },
   ruralSpendElasticityBelow: { min: 0, max: 2, step: 0.05 },
@@ -396,6 +414,11 @@ const byproductPricingMode = (
     ? (value as ByproductPricingMode)
     : DEFAULT_MARKET_SETTINGS[key];
 
+const characterReserveMode = (value: unknown): CharacterReserveMode =>
+  CHARACTER_RESERVE_MODES.includes(value as CharacterReserveMode)
+    ? (value as CharacterReserveMode)
+    : DEFAULT_MARKET_SETTINGS.characterReserve;
+
 const waxSurplusMode = (value: unknown): WaxSurplusMode =>
   WAX_SURPLUS_MODES.includes(value as WaxSurplusMode) ? (value as WaxSurplusMode) : DEFAULT_MARKET_SETTINGS.waxSurplus;
 
@@ -464,7 +487,12 @@ export function getMarketSettings(): MarketSettings {
     harvestReserveMonths: clamp("harvestReserveMonths", parsed.harvestReserveMonths),
     merchantProfitShare: clamp("merchantProfitShare", parsed.merchantProfitShare),
     merchantProfitUse: profitUse(parsed.merchantProfitUse),
-    merchantReserveYears: clamp("merchantReserveYears", parsed.merchantReserveYears)
+    merchantReserveYears: clamp("merchantReserveYears", parsed.merchantReserveYears),
+    characterReserve: characterReserveMode(parsed.characterReserve),
+    rulerReserveYears: clamp("rulerReserveYears", parsed.rulerReserveYears),
+    officeReserveYears: clamp("officeReserveYears", parsed.officeReserveYears),
+    commanderReserveYears: clamp("commanderReserveYears", parsed.commanderReserveYears),
+    commonReserveYears: clamp("commonReserveYears", parsed.commonReserveYears)
   };
 }
 
@@ -520,7 +548,12 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     harvestReserveMonths: clamp("harvestReserveMonths", next.harvestReserveMonths),
     merchantProfitShare: clamp("merchantProfitShare", next.merchantProfitShare),
     merchantProfitUse: profitUse(next.merchantProfitUse),
-    merchantReserveYears: clamp("merchantReserveYears", next.merchantReserveYears)
+    merchantReserveYears: clamp("merchantReserveYears", next.merchantReserveYears),
+    characterReserve: characterReserveMode(next.characterReserve),
+    rulerReserveYears: clamp("rulerReserveYears", next.rulerReserveYears),
+    officeReserveYears: clamp("officeReserveYears", next.officeReserveYears),
+    commanderReserveYears: clamp("commanderReserveYears", next.commanderReserveYears),
+    commonReserveYears: clamp("commonReserveYears", next.commonReserveYears)
   };
   worldSettings.setItem(MARKET_SETTINGS_KEY, JSON.stringify(settings));
   return settings;
