@@ -50,6 +50,8 @@ import {
   HAY_TRADE_MODES,
   type HayPaymentMode,
   type HayTradeMode,
+  HEIRLESS_ESTATE_MODES,
+  type HeirlessEstateMode,
   HOUSEHOLD_GOOD_VALUE_MODES,
   HOUSEHOLD_GOODS_PAYMENT_MODES,
   type HouseholdGoodsPaymentMode,
@@ -585,6 +587,41 @@ export const SimulationSettingsTab: React.FC = () => {
                 step={MARKET_SETTING_LIMITS.commonReserveYears.step}
                 value={marketSettings.commonReserveYears}
                 onChange={v => updateMarketSetting("commonReserveYears", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.heirlessEstateTip")}>
+            <td />
+            <td>
+              <label htmlFor="heirlessEstate">{t("simulation.heirlessEstate")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="heirlessEstate"
+                value={marketSettings.heirlessEstate}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ heirlessEstate: e.target.value as HeirlessEstateMode }))
+                }
+              >
+                {HEIRLESS_ESTATE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.heirlessEstate_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.estateClaimMonthsTip")}>
+            <td />
+            <td>{t("simulation.estateClaimMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="estateClaimMonths"
+                min={MARKET_SETTING_LIMITS.estateClaimMonths.min}
+                max={MARKET_SETTING_LIMITS.estateClaimMonths.max}
+                step={MARKET_SETTING_LIMITS.estateClaimMonths.step}
+                value={marketSettings.estateClaimMonths}
+                onChange={v => updateMarketSetting("estateClaimMonths", v)}
               />
             </td>
           </tr>

@@ -1,3 +1,4 @@
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import type { SimulationExtensionAPI } from "../../../types/extension-api";
 import { getSimulationCharacters as getCharacters } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
@@ -361,6 +362,34 @@ export function settlePersonalEstates(): void {
       if (key.startsWith(`estate:${account.id}:`)) delete s.transactions[key];
   }
 }
+/**
+ * A dead owner's cash no living child has claimed in `estateClaimMonths` goes to the households of
+ * the town they lived in: the funeral, the masses and alms, and the kin in town
+ * (docs/plan/heirless-estates.md). Cohort accounts of retired first occupants are not a death and stay.
+ */
+export function settleHeirlessEstates(): void {
+  const settings = getMarketSettings();
+  const s = readPersonalCash();
+  if (!s || settings.heirlessEstate !== "town") return;
+  const dead = new Set(
+    getCharacters()
+      .filter(c => c.dead && c.cashAccountId)
+      .map(c => c.cashAccountId!)
+  );
+  const slots = new Map((readRoster()?.slots ?? []).map(slot => [slot.id, slot]));
+  for (const account of Object.values(s.accounts)) {
+    if (account.balance <= 0 || account.status === "cancelled") continue;
+    const ownerDead =
+      dead.has(account.id) ||
+      (account.ownerSlotId !== undefined && slots.get(account.ownerSlotId)?.deathYear !== undefined);
+    if (!ownerDead) continue;
+    account.estateMonths = (account.estateMonths ?? 0) + 1;
+    if (account.estateMonths < settings.estateClaimMonths) continue;
+    const amount = account.balance;
+    account.balance = 0;
+    receiveHousehold(amount, account.burgId, account.stateId);
+  }
+}
 function spendingForCash(tierName: LifestyleTier, balance: number) {
   const wealth = balance / 100,
     base = nominal(LIVING_COST_BY_TIER[tierName]);
@@ -394,6 +423,7 @@ export function settleRosterCash(): void {
     }
   }
   settlePersonalEstates();
+  settleHeirlessEstates();
   for (const pool of Object.values(s.pools)) {
     const role = roster.roles.find(r => r.id === pool.roleId),
       org = roster.organizations.find(o => o.id === role?.organizationId);

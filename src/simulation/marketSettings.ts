@@ -123,6 +123,8 @@ export const BYPRODUCT_PRICING_MODES = ["stockAndDemand", "legacy"] as const;
 export type ByproductPricingMode = (typeof BYPRODUCT_PRICING_MODES)[number];
 export const CHARACTER_RESERVE_MODES = ["byTier", "legacy"] as const;
 export type CharacterReserveMode = (typeof CHARACTER_RESERVE_MODES)[number];
+export const HEIRLESS_ESTATE_MODES = ["town", "keep"] as const;
+export type HeirlessEstateMode = (typeof HEIRLESS_ESTATE_MODES)[number];
 export const WAX_SURPLUS_MODES = ["tithe", "keep"] as const;
 export type WaxSurplusMode = (typeof WAX_SURPLUS_MODES)[number];
 
@@ -232,6 +234,10 @@ export type MarketSettings = {
   officeReserveYears: number;
   commanderReserveYears: number;
   commonReserveYears: number;
+  /** A dead character's unclaimed cash paid to their town's households, or kept (docs/plan/heirless-estates.md). */
+  heirlessEstate: HeirlessEstateMode;
+  /** Months an estate waits for a living child before it goes to the town. */
+  estateClaimMonths: number;
 };
 
 export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
@@ -289,7 +295,9 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   rulerReserveYears: 0,
   officeReserveYears: 0.5,
   commanderReserveYears: 0,
-  commonReserveYears: 0.25
+  commonReserveYears: 0.25,
+  heirlessEstate: "town",
+  estateClaimMonths: 12
 };
 
 export const MARKET_SETTING_LIMITS = {
@@ -305,6 +313,7 @@ export const MARKET_SETTING_LIMITS = {
   officeReserveYears: { min: -5, max: 10, step: 0.25 },
   commanderReserveYears: { min: -5, max: 10, step: 0.25 },
   commonReserveYears: { min: -5, max: 10, step: 0.25 },
+  estateClaimMonths: { min: 0, max: 120, step: 1 },
   ruralPurseMonths: { min: 0.5, max: 24, step: 0.5 },
   ruralSpendElasticityAbove: { min: 0, max: 2, step: 0.05 },
   ruralSpendElasticityBelow: { min: 0, max: 2, step: 0.05 },
@@ -419,6 +428,11 @@ const characterReserveMode = (value: unknown): CharacterReserveMode =>
     ? (value as CharacterReserveMode)
     : DEFAULT_MARKET_SETTINGS.characterReserve;
 
+const heirlessEstateMode = (value: unknown): HeirlessEstateMode =>
+  HEIRLESS_ESTATE_MODES.includes(value as HeirlessEstateMode)
+    ? (value as HeirlessEstateMode)
+    : DEFAULT_MARKET_SETTINGS.heirlessEstate;
+
 const waxSurplusMode = (value: unknown): WaxSurplusMode =>
   WAX_SURPLUS_MODES.includes(value as WaxSurplusMode) ? (value as WaxSurplusMode) : DEFAULT_MARKET_SETTINGS.waxSurplus;
 
@@ -492,7 +506,9 @@ export function getMarketSettings(): MarketSettings {
     rulerReserveYears: clamp("rulerReserveYears", parsed.rulerReserveYears),
     officeReserveYears: clamp("officeReserveYears", parsed.officeReserveYears),
     commanderReserveYears: clamp("commanderReserveYears", parsed.commanderReserveYears),
-    commonReserveYears: clamp("commonReserveYears", parsed.commonReserveYears)
+    commonReserveYears: clamp("commonReserveYears", parsed.commonReserveYears),
+    heirlessEstate: heirlessEstateMode(parsed.heirlessEstate),
+    estateClaimMonths: clamp("estateClaimMonths", parsed.estateClaimMonths)
   };
 }
 
@@ -553,7 +569,9 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     rulerReserveYears: clamp("rulerReserveYears", next.rulerReserveYears),
     officeReserveYears: clamp("officeReserveYears", next.officeReserveYears),
     commanderReserveYears: clamp("commanderReserveYears", next.commanderReserveYears),
-    commonReserveYears: clamp("commonReserveYears", next.commonReserveYears)
+    commonReserveYears: clamp("commonReserveYears", next.commonReserveYears),
+    heirlessEstate: heirlessEstateMode(next.heirlessEstate),
+    estateClaimMonths: clamp("estateClaimMonths", next.estateClaimMonths)
   };
   worldSettings.setItem(MARKET_SETTINGS_KEY, JSON.stringify(settings));
   return settings;
