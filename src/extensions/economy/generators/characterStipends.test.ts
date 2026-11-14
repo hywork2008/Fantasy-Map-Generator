@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createDefaultRaces } from "../../../data/races";
+import { DEFAULT_MARKET_SETTINGS, setMarketSettings } from "../../../simulation/marketSettings";
 import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
 import "../../characters/types";
@@ -59,6 +60,9 @@ function makeCharacter(overrides: Partial<Character> = {}): Character {
 }
 
 describe("characterStipends", () => {
+  // The fixed-stipend rule (docs/plan/guild-master-workshop.md).
+  beforeEach(() => setMarketSettings({ guildMasterSeat: "legacy", guildMasterIncome: "stipend" }));
+  afterEach(() => setMarketSettings({ ...DEFAULT_MARKET_SETTINGS }));
   describe("fixed personal-pay helpers", () => {
     it("never scales guild/market/province pay with huge institutional piles", () => {
       expect(computeProvinceLordStipend(1_000_000)).toBe(PROVINCE_LORD_STIPEND);

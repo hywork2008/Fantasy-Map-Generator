@@ -603,6 +603,8 @@ export class ProductionModule {
     GuildTreasury.payoutStrugglingBurg(burg);
     // The fraternities spend what they hold beyond their working capital in the town (docs/plan/guild-spending.md).
     GuildTreasury.spendGuildSurplus(burg);
+    // The guild master lives on their own workshop's earnings (docs/plan/guild-master-workshop.md).
+    GuildTreasury.settleWorkshopEarnings(burg);
 
     setBurgProductionRecords(burg, state.records);
   }
@@ -1980,6 +1982,7 @@ export class ProductionModule {
         const margin = Math.max(0, revenue - unitCost * deal.units);
         guildShare = rn(margin * GUILD_PROFIT_SHARE, 2);
         GuildTreasury.creditGuildTreasury(state.burg.i!, domain, guildShare);
+        GuildTreasury.recordWorkshopMargin(state.burg.i!, domain, margin);
         phaseRevenue += revenue - guildShare;
       } else {
         phaseRevenue += revenue;

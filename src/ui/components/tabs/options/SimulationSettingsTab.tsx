@@ -42,7 +42,11 @@ import {
   type FuelChoiceMode,
   GRAIN_REPAYMENT_MODES,
   type GrainRepaymentMode,
+  GUILD_MASTER_INCOME_MODES,
+  GUILD_MASTER_SEAT_MODES,
   GUILD_SURPLUS_USE_MODES,
+  type GuildMasterIncomeMode,
+  type GuildMasterSeatMode,
   type GuildSurplusUseMode,
   getMarketGenerationSpacing,
   getMarketSettings,
@@ -648,6 +652,78 @@ export const SimulationSettingsTab: React.FC = () => {
                   </option>
                 ))}
               </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.guildMasterSeatTip")}>
+            <td />
+            <td>
+              <label htmlFor="guildMasterSeat">{t("simulation.guildMasterSeat")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="guildMasterSeat"
+                value={marketSettings.guildMasterSeat}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ guildMasterSeat: e.target.value as GuildMasterSeatMode }))
+                }
+              >
+                {GUILD_MASTER_SEAT_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.guildMasterSeat_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.guildMasterIncomeTip")}>
+            <td />
+            <td>
+              <label htmlFor="guildMasterIncome">{t("simulation.guildMasterIncome")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="guildMasterIncome"
+                value={marketSettings.guildMasterIncome}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ guildMasterIncome: e.target.value as GuildMasterIncomeMode })
+                  )
+                }
+              >
+                {GUILD_MASTER_INCOME_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.guildMasterIncome_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.guildMasterWorkshopShareTip")}>
+            <td />
+            <td>{t("simulation.guildMasterWorkshopShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="guildMasterWorkshopShare"
+                min={MARKET_SETTING_LIMITS.guildMasterWorkshopShare.min}
+                max={MARKET_SETTING_LIMITS.guildMasterWorkshopShare.max}
+                step={MARKET_SETTING_LIMITS.guildMasterWorkshopShare.step}
+                value={marketSettings.guildMasterWorkshopShare}
+                onChange={v => updateMarketSetting("guildMasterWorkshopShare", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.guildMasterRetireRatioTip")}>
+            <td />
+            <td>{t("simulation.guildMasterRetireRatio")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="guildMasterRetireRatio"
+                min={MARKET_SETTING_LIMITS.guildMasterRetireRatio.min}
+                max={MARKET_SETTING_LIMITS.guildMasterRetireRatio.max}
+                step={MARKET_SETTING_LIMITS.guildMasterRetireRatio.step}
+                value={marketSettings.guildMasterRetireRatio}
+                onChange={v => updateMarketSetting("guildMasterRetireRatio", v)}
+              />
             </td>
           </tr>
           <tr data-tip={t("simulation.hayTradeTip")}>

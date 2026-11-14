@@ -156,7 +156,7 @@ export function buildWorldRoster(): WorldRoster {
   if (Array.isArray(guilds))
     for (const record of guilds) {
       if (!record || typeof record !== "object") continue;
-      const entry = record as { burgId: number; domain: string; stock: number };
+      const entry = record as { burgId: number; domain: string; stock: number; masterSeat?: boolean };
       const burg = pack.burgs[entry.burgId];
       if (!burg || burg.removed || entry.stock <= 0) continue;
       const id = `guild:${entry.burgId}:${entry.domain}`;
@@ -171,8 +171,8 @@ export function buildWorldRoster(): WorldRoster {
       for (const [name, count] of [
         ["Guild Master", 1],
         ["Guild Apprentice", 2]
-      ] as const)
-        putRole(roster, {
+      ] as const) {
+        const rosterRole = putRole(roster, {
           id: `${id}:${name}`,
           organizationId: id,
           name,
@@ -195,6 +195,13 @@ export function buildWorldRoster(): WorldRoster {
             domain: entry.domain
           }
         });
+        // The economy seats a master where the trade's workshops keep one (guildMasterSeat byWorkshop,
+        // docs/plan/guild-master-workshop.md): the roster then fills the seat with a person.
+        if (name === "Guild Master" && entry.masterSeat !== undefined) {
+          rosterRole.simulate = entry.masterSeat;
+          rosterRole.generateSuccessors = entry.masterSeat;
+        }
+      }
     }
   const reference = readReference(getApi().simulationContext);
   if (!reference) for (const provider of providers) provider(roster);

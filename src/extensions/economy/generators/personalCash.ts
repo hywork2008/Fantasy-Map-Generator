@@ -198,7 +198,8 @@ export function personalRoleStipend(role: RosterRole, roster: WorldRoster): numb
     return regiment ? getFieldCommanderStipend(regiment) : nominal(1.5);
   }
   if (p.includes("secularLord") || p.includes("territorialAdministrator")) return nominal(3);
-  if (p.includes("guildHead")) return nominal(1.05);
+  // With `guildMasterIncome` workshop a master lives on the workshop (guildTreasury.ts settleWorkshopEarnings).
+  if (p.includes("guildHead")) return getMarketSettings().guildMasterIncome === "workshop" ? 0 : nominal(1.05);
   if (p.includes("marketHead") || p.includes("companyHead")) return nominal(2.1);
   if (p.includes("marketMerchant")) return nominal(0.9);
   // Unpaid offices have no stipend-based starting cash target.

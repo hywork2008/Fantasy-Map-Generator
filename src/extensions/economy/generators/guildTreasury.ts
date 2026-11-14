@@ -1,4 +1,5 @@
 import { getMarketSettings } from "../../../simulation/marketSettings";
+import { getSimulationCharacters } from "../../characters/charactersContext";
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -80,6 +81,9 @@ export function getComfortableTreasuryLevel(burg: Burg): number {
   return Math.max(populationFloor, productBased);
 }
 
+/** Weight of the latest month in a domain's smoothed craft margin (about half a year). */
+const MARGIN_SMOOTHING = 1 / 6;
+
 export class GuildTreasuryModule {
   /**
    * Credits a domain guild's private treasury at one Burg, creating its GuildKnowledgeStock entry
@@ -116,7 +120,10 @@ export class GuildTreasuryModule {
     // A guild master must always begin with both workshop working capital and a personal purse;
     // a custom start profile may reduce the multiplier but cannot reduce this bootstrap to zero.
     const cycles = Math.max(1, rn(backPayCycles() * profile.guildBootstrapMultiplier, 2));
-    this.creditGuildTreasury(burgId, domain, nominal(GUILD_MASTER_STIPEND) * cycles);
+    // A master seated on a running workshop needs no minted bootstrap: only the cash float from the
+    // guild's own treasury below (docs/plan/guild-master-workshop.md).
+    const workshop = getMarketSettings().guildMasterIncome === "workshop";
+    if (!workshop) this.creditGuildTreasury(burgId, domain, nominal(GUILD_MASTER_STIPEND) * cycles);
 
     const guild = getGuildKnowledgeStocks().find(entry => entry.burgId === burgId && entry.domain === domain);
     const master = findMaster(getWorldContext().pack.characters ?? [], burgId, domain);
@@ -125,7 +132,7 @@ export class GuildTreasuryModule {
     }
 
     const materialName = NEW_GUILD_STARTER_MATERIAL[domain];
-    if (!materialName) return;
+    if (!materialName || workshop) return;
 
     const burg = getWorldContext().pack.burgs[burgId] as Burg | undefined;
     if (!burg?.market) return;
@@ -193,6 +200,49 @@ export class GuildTreasuryModule {
    * its town: the feasts, chapel lights, funerals, relief of poor masters and alms of the craft
    * fraternities, paid to the town's households (docs/plan/guild-spending.md). Returns the amount.
    */
+  /** Adds a sale's craft margin to the domain's month at this Burg (docs/plan/guild-master-workshop.md). */
+  recordWorkshopMargin(burgId: number, domain: CraftKnowledgeDomain, margin: number): void {
+    if (!burgId || !(margin > 0)) return;
+    const entry = getGuildKnowledgeStocks().find(
+      candidate => candidate.burgId === burgId && candidate.domain === domain
+    );
+    if (entry) entry.workshopMargin = rn((entry.workshopMargin ?? 0) + margin, 4);
+  }
+
+  /**
+   * Each month: smooths each domain's craft margin at the Burg, and with `guildMasterIncome`
+   * workshop pays its master `guildMasterWorkshopShare` of the month's margin from the Burg's
+   * treasury, where the sale revenue went. A medieval guild's warden lived on their own workshop;
+   * the guild office paid at most an honorarium (docs/plan/guild-master-workshop.md).
+   */
+  settleWorkshopEarnings(burg: Burg): number {
+    if (!burg.i) return 0;
+    const settings = getMarketSettings();
+    const workshop = settings.guildMasterIncome === "workshop";
+    const characters = workshop ? getSimulationCharacters() : [];
+    let paid = 0;
+    for (const entry of getGuildKnowledgeStocks()) {
+      if (entry.burgId !== burg.i) continue;
+      const margin = entry.workshopMargin ?? 0;
+      entry.workshopMargin = 0;
+      entry.marginAverage = rn(
+        entry.marginAverage === undefined
+          ? margin
+          : entry.marginAverage + (margin - entry.marginAverage) * MARGIN_SMOOTHING,
+        4
+      );
+      if (!workshop || !(margin > 0)) continue;
+      const master = findMaster(characters, burg.i, entry.domain);
+      if (!master) continue;
+      const amount = rn(Math.min(Math.max(0, burg.treasury || 0), margin * settings.guildMasterWorkshopShare), 2);
+      if (!(amount > 0)) continue;
+      burg.treasury = rn((burg.treasury || 0) - amount, 2);
+      master.wealth = rn((master.wealth || 0) + amount, 2);
+      paid += amount;
+    }
+    return rn(paid, 2);
+  }
+
   spendGuildSurplus(burg: Burg): number {
     const settings = getMarketSettings();
     if (!burg.i || settings.guildSurplusUse !== "spend" || !(settings.guildSpendRate > 0)) return 0;

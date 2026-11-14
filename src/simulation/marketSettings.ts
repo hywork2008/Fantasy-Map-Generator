@@ -127,6 +127,10 @@ export const HEIRLESS_ESTATE_MODES = ["town", "keep"] as const;
 export type HeirlessEstateMode = (typeof HEIRLESS_ESTATE_MODES)[number];
 export const STATE_BUDGET_INCOME_MODES = ["allRevenue", "pollTax"] as const;
 export type StateBudgetIncomeMode = (typeof STATE_BUDGET_INCOME_MODES)[number];
+export const GUILD_MASTER_SEAT_MODES = ["byWorkshop", "legacy"] as const;
+export type GuildMasterSeatMode = (typeof GUILD_MASTER_SEAT_MODES)[number];
+export const GUILD_MASTER_INCOME_MODES = ["workshop", "stipend"] as const;
+export type GuildMasterIncomeMode = (typeof GUILD_MASTER_INCOME_MODES)[number];
 export const WAX_SURPLUS_MODES = ["tithe", "keep"] as const;
 export type WaxSurplusMode = (typeof WAX_SURPLUS_MODES)[number];
 
@@ -242,6 +246,14 @@ export type MarketSettings = {
   estateClaimMonths: number;
   /** The revenue a state's court, officers and departments are budgeted from (docs/plan/state-budget-income.md). */
   stateBudgetIncome: StateBudgetIncomeMode;
+  /** Guild masters in any craft whose workshops keep one, or smiths in every metallurgy town (docs/plan/guild-master-workshop.md). */
+  guildMasterSeat: GuildMasterSeatMode;
+  /** A guild master's income: a share of their workshops' margin, or the guild's fixed stipend. */
+  guildMasterIncome: GuildMasterIncomeMode;
+  /** Share of a domain's monthly craft margin at a Burg its guild master earns. */
+  guildMasterWorkshopShare: number;
+  /** Earnings, as a share of a master's living cost, under which a master gives up the office. */
+  guildMasterRetireRatio: number;
 };
 
 export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
@@ -302,7 +314,11 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   commonReserveYears: 0.25,
   heirlessEstate: "town",
   estateClaimMonths: 12,
-  stateBudgetIncome: "allRevenue"
+  stateBudgetIncome: "allRevenue",
+  guildMasterSeat: "byWorkshop",
+  guildMasterIncome: "workshop",
+  guildMasterWorkshopShare: 0.3,
+  guildMasterRetireRatio: 0.5
 };
 
 export const MARKET_SETTING_LIMITS = {
@@ -319,6 +335,8 @@ export const MARKET_SETTING_LIMITS = {
   commanderReserveYears: { min: -5, max: 10, step: 0.25 },
   commonReserveYears: { min: -5, max: 10, step: 0.25 },
   estateClaimMonths: { min: 0, max: 120, step: 1 },
+  guildMasterWorkshopShare: { min: 0, max: 1, step: 0.05 },
+  guildMasterRetireRatio: { min: 0, max: 1, step: 0.05 },
   ruralPurseMonths: { min: 0.5, max: 24, step: 0.5 },
   ruralSpendElasticityAbove: { min: 0, max: 2, step: 0.05 },
   ruralSpendElasticityBelow: { min: 0, max: 2, step: 0.05 },
@@ -443,6 +461,16 @@ const stateBudgetIncomeMode = (value: unknown): StateBudgetIncomeMode =>
     ? (value as StateBudgetIncomeMode)
     : DEFAULT_MARKET_SETTINGS.stateBudgetIncome;
 
+const guildMasterSeatMode = (value: unknown): GuildMasterSeatMode =>
+  GUILD_MASTER_SEAT_MODES.includes(value as GuildMasterSeatMode)
+    ? (value as GuildMasterSeatMode)
+    : DEFAULT_MARKET_SETTINGS.guildMasterSeat;
+
+const guildMasterIncomeMode = (value: unknown): GuildMasterIncomeMode =>
+  GUILD_MASTER_INCOME_MODES.includes(value as GuildMasterIncomeMode)
+    ? (value as GuildMasterIncomeMode)
+    : DEFAULT_MARKET_SETTINGS.guildMasterIncome;
+
 const waxSurplusMode = (value: unknown): WaxSurplusMode =>
   WAX_SURPLUS_MODES.includes(value as WaxSurplusMode) ? (value as WaxSurplusMode) : DEFAULT_MARKET_SETTINGS.waxSurplus;
 
@@ -519,7 +547,11 @@ export function getMarketSettings(): MarketSettings {
     commonReserveYears: clamp("commonReserveYears", parsed.commonReserveYears),
     heirlessEstate: heirlessEstateMode(parsed.heirlessEstate),
     estateClaimMonths: clamp("estateClaimMonths", parsed.estateClaimMonths),
-    stateBudgetIncome: stateBudgetIncomeMode(parsed.stateBudgetIncome)
+    stateBudgetIncome: stateBudgetIncomeMode(parsed.stateBudgetIncome),
+    guildMasterSeat: guildMasterSeatMode(parsed.guildMasterSeat),
+    guildMasterIncome: guildMasterIncomeMode(parsed.guildMasterIncome),
+    guildMasterWorkshopShare: clamp("guildMasterWorkshopShare", parsed.guildMasterWorkshopShare),
+    guildMasterRetireRatio: clamp("guildMasterRetireRatio", parsed.guildMasterRetireRatio)
   };
 }
 
@@ -583,7 +615,11 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     commonReserveYears: clamp("commonReserveYears", next.commonReserveYears),
     heirlessEstate: heirlessEstateMode(next.heirlessEstate),
     estateClaimMonths: clamp("estateClaimMonths", next.estateClaimMonths),
-    stateBudgetIncome: stateBudgetIncomeMode(next.stateBudgetIncome)
+    stateBudgetIncome: stateBudgetIncomeMode(next.stateBudgetIncome),
+    guildMasterSeat: guildMasterSeatMode(next.guildMasterSeat),
+    guildMasterIncome: guildMasterIncomeMode(next.guildMasterIncome),
+    guildMasterWorkshopShare: clamp("guildMasterWorkshopShare", next.guildMasterWorkshopShare),
+    guildMasterRetireRatio: clamp("guildMasterRetireRatio", next.guildMasterRetireRatio)
   };
   worldSettings.setItem(MARKET_SETTINGS_KEY, JSON.stringify(settings));
   return settings;

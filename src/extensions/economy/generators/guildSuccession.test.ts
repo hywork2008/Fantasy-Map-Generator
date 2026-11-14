@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { DEFAULT_MARKET_SETTINGS, setMarketSettings } from "../../../simulation/marketSettings";
 import { getSolidarity } from "../../characters/backstoryProfile";
 import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
@@ -83,7 +84,14 @@ function guildCharacter(i: number, engineering: number, confidence = 50): Charac
 }
 
 describe("GuildSuccessionModule", () => {
+  afterEach(() => {
+    setMarketSettings({ ...DEFAULT_MARKET_SETTINGS });
+    clearEconomyContext();
+    clearCharactersContext();
+  });
   beforeEach(() => {
+    // The fixed-stipend, smiths-everywhere rule (docs/plan/guild-master-workshop.md).
+    setMarketSettings({ guildMasterSeat: "legacy", guildMasterIncome: "stipend" });
     const api = { worldContext } as unknown as ExtensionAPI;
     initEconomyContext(api);
     initCharactersContext(api);
@@ -104,11 +112,6 @@ describe("GuildSuccessionModule", () => {
       ],
       cells: { i: [0, 1], culture: Uint16Array.from([0, 0]) }
     } as unknown as PackedGraph;
-  });
-
-  afterEach(() => {
-    clearEconomyContext();
-    clearCharactersContext();
   });
 
   it("does nothing for a burg with no tracked metallurgy stock", () => {

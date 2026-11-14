@@ -35,6 +35,12 @@ export interface GuildKnowledgeStock {
    * (technique) — a technique stock can be flush with capital while still unskilled, or vice versa.
    */
   treasury: number;
+  /** This month's craft margin (after-tax revenue less ingredient cost) of the domain at this Burg (docs/plan/guild-master-workshop.md). */
+  workshopMargin?: number;
+  /** The monthly craft margin, smoothed over about half a year; seats and retires the guild master. */
+  marginAverage?: number;
+  /** Whether the guild keeps a master, set each year with `guildMasterSeat` byWorkshop; the roster seats one only here. */
+  masterSeat?: boolean;
 }
 
 /**

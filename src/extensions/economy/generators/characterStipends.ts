@@ -1,3 +1,4 @@
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import { getSolidarity } from "../../characters/backstoryProfile";
 import { getSimulationCharacters as getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
@@ -216,7 +217,9 @@ export function payGuildStipends(): void {
     const master = findMaster(characters, entry.burgId, entry.domain);
     if (!master) continue;
 
-    const masterAmount = computeGuildMasterStipend(entry.treasury);
+    // With `guildMasterIncome` workshop the master lives on the workshop (guildTreasury.ts settleWorkshopEarnings).
+    const masterAmount =
+      getMarketSettings().guildMasterIncome === "workshop" ? 0 : computeGuildMasterStipend(entry.treasury);
     if (masterAmount > 0) {
       entry.treasury = rn(entry.treasury - masterAmount, 2);
       master.wealth = rn((master.wealth || 0) + masterAmount, 2);
