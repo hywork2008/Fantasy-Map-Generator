@@ -1,7 +1,12 @@
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorPolygon } from "../../types/vector/generation";
-import { VECTOR_LAND_USE_CLASSES, VECTOR_LAND_USE_KINDS, type VectorLandUseKind } from "../../types/vector/landUse";
+import {
+  VECTOR_FURLONG_COURSES,
+  VECTOR_LAND_USE_CLASSES,
+  VECTOR_LAND_USE_KINDS,
+  type VectorLandUseKind
+} from "../../types/vector/landUse";
 import { regionArea, regionBoolean } from "./geometry/regions";
 import { pathSurface, simpleContour } from "./geometry/surfaces";
 import { allVectorWater } from "./geometry/water";
@@ -44,11 +49,40 @@ export function validateVectorLandUse(doc: VectorCityDocument): string[] {
             ) &&
             Math.abs(z.regions.reduce((n, r) => n + regionArea(r), 0) - z.areaM2) < 1 &&
             !regionBoolean(z.regions, water, "intersection").some(r => regionArea(r) > 1)
-        );
+        ) &&
+        validFurlongs(use.furlongs, half);
     return ok ? [] : ["land-use"];
   } catch {
     return ["land-use"];
   }
+}
+
+const MAX_FURLONGS = 512;
+const MAX_STRIPS = 8000;
+
+/** Stored furlongs (U5c): bounded counts, simple rings in the frame, a known course. */
+function validFurlongs(furlongs: unknown, half: number): boolean {
+  if (furlongs === undefined) return true;
+  if (!Array.isArray(furlongs) || furlongs.length > MAX_FURLONGS) return false;
+  let strips = 0;
+  const poly = (r: VectorPolygon) =>
+    ring(r?.outer) &&
+    Array.isArray(r.holes) &&
+    r.holes.every(ring) &&
+    r.outer.every(p => Math.abs(p[0]) <= half && Math.abs(p[1]) <= half);
+  return furlongs.every(f => {
+    if (
+      typeof f?.id !== "string" ||
+      !Number.isFinite(f.angle) ||
+      !Number.isInteger(f.field) ||
+      !VECTOR_FURLONG_COURSES.includes(f.course) ||
+      !Array.isArray(f.outline) ||
+      !Array.isArray(f.strips)
+    )
+      return false;
+    strips += f.strips.length;
+    return strips <= MAX_STRIPS && f.outline.every(poly) && f.strips.every(poly);
+  });
 }
 
 /**
@@ -70,6 +104,12 @@ export function refitVectorLandUse(doc: VectorCityDocument): void {
     );
     return regions.length ? [{ ...z, regions, areaM2: regions.reduce((n, r) => n + regionArea(r), 0) }] : [];
   });
-  if (zones.length) doc.environment!.landUse = { ...use, zones };
-  else delete doc.environment!.landUse;
+  // A furlong the edit runs over is ploughed afresh only when the town is generated again: it goes.
+  const furlongs = use.furlongs?.filter(
+    f => !regionBoolean(f.outline, cover, "intersection").some(r => regionArea(r) > 1)
+  );
+  if (zones.length) {
+    const { furlongs: _, ...rest } = use;
+    doc.environment!.landUse = furlongs?.length ? { ...rest, zones, furlongs } : { ...rest, zones };
+  } else delete doc.environment!.landUse;
 }

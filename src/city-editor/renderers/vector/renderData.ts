@@ -28,6 +28,7 @@ import type { VectorFabricLines } from "../../types/vector/fabric";
 import type { VectorPolygon } from "../../types/vector/generation";
 import type { VectorHarborShip } from "../../types/vector/harbor";
 import type { VectorLandscapeTree } from "../../types/vector/landscape";
+import type { VectorFurlongCourse } from "../../types/vector/landUse";
 import type { Monastery } from "../../types/vector/monastery";
 import type { VectorStage } from "../../types/vector/urban";
 import { collectOpenSpacePlan, type OpenSpacePlan } from "../openSpaceSites";
@@ -594,6 +595,34 @@ export function vectorRenderData(
         elevationMeters: 0.005,
         heightMeters: 0
       });
+    // Furlongs (U5c): each great field in its course of the rotation, each selion in its holder's own shade of the
+    // course ("each patch growing its own crop", Slater 1907); the arable between bundles shows as headland.
+    const shades: Record<VectorFurlongCourse, string[]> = {
+      winter: ["#cfb56a", "#d9c27a", "#e2cd8a", "#c6ab62"],
+      spring: ["#bfc37a", "#c9cb86", "#d3d394", "#b6bb72"],
+      fallow: ["#b8bf94", "#c2c79f", "#aeb68a", "#c9c9a6"]
+    };
+    const buckets = new Map<string, VectorPolygon[]>();
+    for (const f of landUse.furlongs ?? [])
+      f.strips.forEach((strip, i) => {
+        // Neighbours always differ; the shade otherwise follows a fixed hash of the furlong and selion.
+        const h = (i * 2 + ((Number(f.id.replace(/\D/g, "")) * 7 + ((i * i) % 5)) % 2)) % 4,
+          key = `${f.course}:${h}`;
+        buckets.set(key, [...(buckets.get(key) ?? []), strip]);
+      });
+    for (const [key, polygons] of buckets) {
+      const [course, h] = key.split(":") as [VectorFurlongCourse, string];
+      surfaces.push({
+        id: `environment:land-use:furlong-${course}-${h}`,
+        kind: "feature",
+        featureKind: "farm",
+        pieceRole: `land-use-furlong-${course}`,
+        polygons,
+        color: shades[course][Number(h)],
+        elevationMeters: 0.006,
+        heightMeters: 0
+      });
+    }
   }
   if (doc.environment?.forest)
     surfaces.push({

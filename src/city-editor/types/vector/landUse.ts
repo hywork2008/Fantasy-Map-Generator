@@ -13,4 +13,24 @@ export interface VectorLandUse {
   version: 1;
   landClass: VectorLandUseClass;
   zones: { kind: VectorLandUseKind; regions: VectorPolygon[]; areaM2: number }[];
+  /** Open-field furlongs on the arable (U5c); the arable between them is headland and field track. */
+  furlongs?: VectorFurlong[];
+}
+
+/** This year's course of a great field: winter corn (wheat, rye), spring corn (barley, oats, pulse) or fallow. */
+export const VECTOR_FURLONG_COURSES = ["winter", "spring", "fallow"] as const;
+export type VectorFurlongCourse = (typeof VECTOR_FURLONG_COURSES)[number];
+
+/** A bundle of parallel ploughed strips (selions) sharing one direction, ending on its headlands. */
+export interface VectorFurlong {
+  id: string;
+  /** Direction of the strips, radians from the +x axis. */
+  angle: number;
+  /** The great field it lies in (0-based) and that field's course this year. */
+  field: number;
+  course: VectorFurlongCourse;
+  /** The bundle's ground, inside the arable. */
+  outline: VectorPolygon[];
+  /** The strips side by side, each bending in a gentle reversed S (the ox plough's turn). */
+  strips: VectorPolygon[];
 }

@@ -10,6 +10,7 @@ import { samplePath } from "../geometry/sampling";
 import { simpleContour } from "../geometry/surfaces";
 import { validateVectorLandUse } from "../landUse";
 import { vectorCountryside, vectorForestSettings, vectorLandscapeClimate, vectorTreesGrow } from "./forest";
+import { vectorFurlongs } from "./furlongs";
 import { vectorReachableLand } from "./reachability";
 
 /** Pieces smaller than this are slivers between the zones, left to the wild ground. */
@@ -187,6 +188,15 @@ export function raiseVectorLandUse(doc: VectorCityDocument, townLand: VectorPoly
       areaM2: regions.reduce((n, x) => n + regionArea(x), 0)
     }))
   };
+  const furlongs = vectorFurlongs(
+    zones.get("arable") ?? [],
+    roads.map(r => r.points),
+    doc.recipe.seed,
+    townCentre(doc),
+    // The dry south kept the two-field course (corn and fallow); elsewhere three fields.
+    landClass === "steppe" || landClass === "desert" ? 2 : 3
+  );
+  if (furlongs.length) landUse.furlongs = furlongs;
   const next: VectorCityDocument = {
     ...doc,
     environment: { features: {}, hidden: [], ...doc.environment, landUse }

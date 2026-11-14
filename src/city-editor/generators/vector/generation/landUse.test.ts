@@ -50,3 +50,34 @@ describe("open land by use beyond the town (pre-acceptance U5b)", () => {
     expect(area(desert, "wild")).toBeGreaterThan(area(desert, "arable"));
   });
 });
+
+describe("open-field furlongs on the arable (pre-acceptance U5c)", () => {
+  it("cuts the arable into bundles of long narrow strips that keep headlands between them", () => {
+    const doc = town("temperateDeciduousForest"),
+      use = doc.environment!.landUse!,
+      arable = use.zones.find(z => z.kind === "arable")!.regions,
+      furlongs = use.furlongs!;
+    expect(validateVectorLandUse(doc)).toEqual([]);
+    expect(furlongs.length).toBeGreaterThan(5);
+    const outlines = furlongs.flatMap(f => f.outline),
+      covered = outlines.reduce((n, r) => n + regionArea(r), 0);
+    // Bundles lie on the arable and do not overlap; headlands and gores are left between them.
+    expect(regionBoolean(outlines, arable, "difference").reduce((n, r) => n + regionArea(r), 0)).toBeLessThan(1);
+    expect(covered - regionBoolean(outlines, [], "union").reduce((n, r) => n + regionArea(r), 0)).toBeLessThan(1);
+    expect(covered / area(doc, "arable")).toBeGreaterThan(0.4);
+    expect(covered / area(doc, "arable")).toBeLessThan(0.97);
+    // Strips are long and narrow.
+    const strips = furlongs.flatMap(f => f.strips);
+    const narrow = strips.filter(r => {
+      const xs = r.outer;
+      let d = 0;
+      for (const a of xs) for (const b of xs) d = Math.max(d, Math.hypot(a[0] - b[0], a[1] - b[1]));
+      return d * d > regionArea(r) * 4;
+    });
+    expect(narrow.length / strips.length).toBeGreaterThan(0.8);
+    // Three great fields, each in its own course of the rotation.
+    expect(new Set(furlongs.map(f => f.course))).toEqual(new Set(["winter", "spring", "fallow"]));
+    for (const field of new Set(furlongs.map(f => f.field)))
+      expect(new Set(furlongs.filter(f => f.field === field).map(f => f.course)).size).toBe(1);
+  });
+});
