@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { getMarketSettings, setMarketSettings } from "../../../simulation/marketSettings";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
 import {
@@ -187,6 +188,16 @@ describe("TaxesModule", () => {
   });
 
   describe("collectTaxes()", () => {
+    // These pin the treasury to the taxes collected; the budget then draws only the poll tax
+    // (stateBudgetIncome pollTax, docs/plan/state-budget-income.md).
+    let savedBudgetIncome: ReturnType<typeof getMarketSettings>["stateBudgetIncome"];
+    beforeEach(() => {
+      savedBudgetIncome = getMarketSettings().stateBudgetIncome;
+      setMarketSettings({ stateBudgetIncome: "pollTax" });
+    });
+    afterEach(() => {
+      setMarketSettings({ stateBudgetIncome: savedBudgetIncome });
+    });
     it("uses balanced-mode ordinary administration before income can accumulate as Treasury", () => {
       worldContext.options = { economyStartMode: "balanced" } as typeof worldContext.options;
       const state: State = {

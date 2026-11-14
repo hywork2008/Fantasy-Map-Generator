@@ -66,6 +66,8 @@ import {
   type PeatCutPlanMode,
   RURAL_TOWN_SPENDING_MODES,
   type RuralTownSpendingMode,
+  STATE_BUDGET_INCOME_MODES,
+  type StateBudgetIncomeMode,
   setMarketSettings,
   WAX_SURPLUS_MODES,
   type WaxSurplusMode
@@ -623,6 +625,29 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.estateClaimMonths}
                 onChange={v => updateMarketSetting("estateClaimMonths", v)}
               />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.stateBudgetIncomeTip")}>
+            <td />
+            <td>
+              <label htmlFor="stateBudgetIncome">{t("simulation.stateBudgetIncome")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="stateBudgetIncome"
+                value={marketSettings.stateBudgetIncome}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ stateBudgetIncome: e.target.value as StateBudgetIncomeMode })
+                  )
+                }
+              >
+                {STATE_BUDGET_INCOME_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.stateBudgetIncome_${mode}`)}
+                  </option>
+                ))}
+              </select>
             </td>
           </tr>
           <tr data-tip={t("simulation.hayTradeTip")}>

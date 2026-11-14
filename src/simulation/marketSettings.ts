@@ -125,6 +125,8 @@ export const CHARACTER_RESERVE_MODES = ["byTier", "legacy"] as const;
 export type CharacterReserveMode = (typeof CHARACTER_RESERVE_MODES)[number];
 export const HEIRLESS_ESTATE_MODES = ["town", "keep"] as const;
 export type HeirlessEstateMode = (typeof HEIRLESS_ESTATE_MODES)[number];
+export const STATE_BUDGET_INCOME_MODES = ["allRevenue", "pollTax"] as const;
+export type StateBudgetIncomeMode = (typeof STATE_BUDGET_INCOME_MODES)[number];
 export const WAX_SURPLUS_MODES = ["tithe", "keep"] as const;
 export type WaxSurplusMode = (typeof WAX_SURPLUS_MODES)[number];
 
@@ -238,6 +240,8 @@ export type MarketSettings = {
   heirlessEstate: HeirlessEstateMode;
   /** Months an estate waits for a living child before it goes to the town. */
   estateClaimMonths: number;
+  /** The revenue a state's court, officers and departments are budgeted from (docs/plan/state-budget-income.md). */
+  stateBudgetIncome: StateBudgetIncomeMode;
 };
 
 export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
@@ -297,7 +301,8 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   commanderReserveYears: 0,
   commonReserveYears: 0.25,
   heirlessEstate: "town",
-  estateClaimMonths: 12
+  estateClaimMonths: 12,
+  stateBudgetIncome: "allRevenue"
 };
 
 export const MARKET_SETTING_LIMITS = {
@@ -433,6 +438,11 @@ const heirlessEstateMode = (value: unknown): HeirlessEstateMode =>
     ? (value as HeirlessEstateMode)
     : DEFAULT_MARKET_SETTINGS.heirlessEstate;
 
+const stateBudgetIncomeMode = (value: unknown): StateBudgetIncomeMode =>
+  STATE_BUDGET_INCOME_MODES.includes(value as StateBudgetIncomeMode)
+    ? (value as StateBudgetIncomeMode)
+    : DEFAULT_MARKET_SETTINGS.stateBudgetIncome;
+
 const waxSurplusMode = (value: unknown): WaxSurplusMode =>
   WAX_SURPLUS_MODES.includes(value as WaxSurplusMode) ? (value as WaxSurplusMode) : DEFAULT_MARKET_SETTINGS.waxSurplus;
 
@@ -508,7 +518,8 @@ export function getMarketSettings(): MarketSettings {
     commanderReserveYears: clamp("commanderReserveYears", parsed.commanderReserveYears),
     commonReserveYears: clamp("commonReserveYears", parsed.commonReserveYears),
     heirlessEstate: heirlessEstateMode(parsed.heirlessEstate),
-    estateClaimMonths: clamp("estateClaimMonths", parsed.estateClaimMonths)
+    estateClaimMonths: clamp("estateClaimMonths", parsed.estateClaimMonths),
+    stateBudgetIncome: stateBudgetIncomeMode(parsed.stateBudgetIncome)
   };
 }
 
@@ -571,7 +582,8 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     commanderReserveYears: clamp("commanderReserveYears", next.commanderReserveYears),
     commonReserveYears: clamp("commonReserveYears", next.commonReserveYears),
     heirlessEstate: heirlessEstateMode(next.heirlessEstate),
-    estateClaimMonths: clamp("estateClaimMonths", next.estateClaimMonths)
+    estateClaimMonths: clamp("estateClaimMonths", next.estateClaimMonths),
+    stateBudgetIncome: stateBudgetIncomeMode(next.stateBudgetIncome)
   };
   worldSettings.setItem(MARKET_SETTINGS_KEY, JSON.stringify(settings));
   return settings;
