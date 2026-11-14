@@ -77,7 +77,10 @@ export function vectorApproachBands(doc: VectorCityDocument): { bands: ApproachB
  */
 export function vectorSuburbanLots(
   doc: VectorCityDocument,
-  suburb: (cellId: string) => boolean
+  suburb: (cellId: string) => boolean,
+  /** Tannery yards: houses beyond the wall keep `TANNERY_HOUSE_CLEARANCE_METERS` from them and thin out to
+   * `TANNERY_THINNING_METERS` (pre-acceptance U4). */
+  stench: Point[][] = []
 ): (cellId: string, polygon: Point[], residential: boolean) => boolean {
   if (doc.site?.descriptor?.urbanMorphology) return () => true;
   const { bands, walls } = vectorApproachBands(doc);
@@ -93,9 +96,39 @@ export function vectorSuburbanLots(
   // parallel to the road. Only the shanty and residential outskirts build back from the road.
   const fronts = (polygon: Point[]) =>
     bands.some(b => polygon.some(q => nearestOnPolyline(q, b.points).dist <= ROAD_FRONTAGE_METERS));
+  // Beyond the clearance the houses thin out towards the yards, and along a road that passes the tanners' bank they
+  // stand sparser than on the others. A plot keeps its house with those odds, drawn from its own position so a
+  // regeneration keeps the same plots.
+  const yards = stench.map(y => [...y, y[0]]),
+    passing = downstreamOf(doc, ring, TANNERY_NEIGHBOURHOOD_METERS),
+    tanneryRoads = new Set(bands.filter(b => passing(b.points.slice(0, TANNERY_REACH_SAMPLES)))),
+    reeks = (polygon: Point[]) => {
+      if (!yards.length) return false;
+      const d = Math.min(
+        ...yards.map(y =>
+          y.some(q => pointInPolygon(q, polygon)) ? 0 : Math.min(...polygon.map(q => nearestOnPolyline(q, y).dist))
+        )
+      );
+      if (d < TANNERY_HOUSE_CLEARANCE_METERS) return true;
+      const c = polygonCentroid(polygon),
+        road = bands.reduce(
+          (best, b) => {
+            const dist = nearestOnPolyline(c, b.points).dist;
+            return dist < best.dist ? { band: b, dist } : best;
+          },
+          { band: undefined as ApproachBand | undefined, dist: Infinity }
+        ).band;
+      let odds = Math.min(
+        1,
+        (d - TANNERY_HOUSE_CLEARANCE_METERS) / (TANNERY_THINNING_METERS - TANNERY_HOUSE_CLEARANCE_METERS)
+      );
+      if (road && tanneryRoads.has(road)) odds *= TANNERY_ROAD_HOUSE_SHARE;
+      return odds < 1 && positionDraw(c) > odds;
+    };
   return (cellId, polygon, residential) =>
     pointInPolygon(polygonCentroid(polygon), ring) ||
     ((residential || suburb(cellId) || fronts(polygon)) &&
+      !reeks(polygon) &&
       suburbanLotKept(polygon, cellId, residential || suburb(cellId), ctx));
 }
 
@@ -114,6 +147,103 @@ export const INTERIOR_DWELLINGS_PER_M2 = 0.016;
 const SECOND_ROW_METERS = 100;
 /** A strip this close to the river below the town is left to the yards that foul the water (tanneries). */
 const DOWNSTREAM_METERS = 80;
+/** A road whose first stretch beyond the gate (`TANNERY_REACH_SAMPLES` points 2 m apart) comes this close to the
+ * river below the town passes the tanners' bank. */
+const TANNERY_NEIGHBOURHOOD_METERS = 200;
+const TANNERY_REACH_SAMPLES = 100;
+/** Share of the dwellings beyond the wall such a road takes, against its traffic: the town grows on the other roads. */
+const TANNERY_RIBBON_WEIGHT = 0.25;
+/** No house beyond the wall stands this close to a tannery yard, the shanty included. */
+export const TANNERY_HOUSE_CLEARANCE_METERS = 60;
+/** Houses beyond the wall thin out from the clearance to this distance from a tannery yard. */
+const TANNERY_THINNING_METERS = 250;
+/** Share of the plots beyond the wall that keep their house on a road passing the tanners' bank. */
+const TANNERY_ROAD_HOUSE_SHARE = 0.4;
+
+/** A uniform draw in [0, 1) fixed by a point (to the decimetre). */
+function positionDraw(p: Point): number {
+  let h = Math.imul(Math.round(p[0] * 10), 0x85ebca6b) ^ Math.imul(Math.round(p[1] * 10), 0xc2b2ae35);
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d);
+  h = Math.imul(h ^ (h >>> 15), 0x846ca68b);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/** Half the stretch of road averaged to ease a strip's line: a gate's dog-leg or a kink of the FMG route does not
+ * fold the strip, which still holds the road. */
+const RIBBON_EASE_METERS = 15;
+/** Farthest the road may stray from a strip's eased line. */
+const RIBBON_EASE_TOLERANCE_METERS = 8;
+
+/** A line resampled every `step` metres or less, with each point's distance along it. */
+function resampled(points: Point[], step: number): { points: Point[]; along: number[] } {
+  const out: Point[] = [points[0]],
+    along = [0];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1],
+      b = points[i],
+      l = Math.hypot(b[0] - a[0], b[1] - a[1]),
+      n = Math.max(1, Math.ceil(l / step));
+    if (l < 1e-9) continue;
+    const base = along.at(-1)!;
+    for (let j = 1; j <= n; j++) {
+      out.push([a[0] + ((b[0] - a[0]) * j) / n, a[1] + ((b[1] - a[1]) * j) / n]);
+      along.push(base + (l * j) / n);
+    }
+  }
+  return { points: out, along };
+}
+
+/**
+ * The roadside strip as one polygon that bends with the road: the road's line eased over `RIBBON_EASE_METERS`
+ * either way, offset by `width(i)` on both sides. On the inside of a bend, offset points that would run backwards
+ * are dropped so the edge stays a single curve. Undefined when the road strays from the eased line or the outline
+ * crosses itself (the caller then lays straight pieces).
+ */
+export function curvedRibbon(run: Point[], width: (i: number) => number): Point[][] | undefined {
+  if (run.length < 3) return undefined;
+  const reach = Math.max(1, Math.round(RIBBON_EASE_METERS / 5)),
+    eased = run.map((_, i): Point => {
+      // Ends keep their place so the strip starts at the glacis and ends where the ribbon does.
+      const k = Math.min(reach, i, run.length - 1 - i);
+      let x = 0,
+        y = 0;
+      for (let j = i - k; j <= i + k; j++) {
+        x += run[j][0];
+        y += run[j][1];
+      }
+      return [x / (2 * k + 1), y / (2 * k + 1)];
+    });
+  if (run.some(q => nearestOnPolyline(q, eased).dist > RIBBON_EASE_TOLERANCE_METERS)) return undefined;
+  const tangents = eased.map((_, i): Point => {
+    const a = eased[Math.max(0, i - 1)],
+      b = eased[Math.min(eased.length - 1, i + 1)],
+      l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    return l > 1e-9 ? [(b[0] - a[0]) / l, (b[1] - a[1]) / l] : [1, 0];
+  });
+  const side = (sign: 1 | -1): Point[] => {
+    const edge: Point[] = [];
+    eased.forEach((p, i) => {
+      const t = tangents[i],
+        w = width(i) * sign,
+        q: Point = [p[0] - t[1] * w, p[1] + t[0] * w],
+        prev = edge.at(-1);
+      // Inside a bend the offset doubles back; the edge skips to where it moves on again.
+      if (prev && (q[0] - prev[0]) * t[0] + (q[1] - prev[1]) * t[1] < 0.5) return;
+      edge.push(q);
+    });
+    // Run on 2 m past both ends, as the straight pieces do, so neighbouring land joins.
+    const t0 = tangents[0],
+      t1 = tangents.at(-1)!;
+    edge[0] = [edge[0][0] - t0[0] * 2, edge[0][1] - t0[1] * 2];
+    edge[edge.length - 1] = [edge.at(-1)![0] + t1[0] * 2, edge.at(-1)![1] + t1[1] * 2];
+    return edge;
+  };
+  const left = side(1),
+    right = side(-1);
+  if (left.length < 2 || right.length < 2) return undefined;
+  const outer = [...left, ...right.reverse()];
+  return simpleContour(outer, true) ? [outer] : undefined;
+}
 
 /** Ground within `meters` of a wall line, as one piece per wall segment (each run on past its ends so the joins are
  * covered): a mitred offset of a bastioned or folded line would cross itself. */
@@ -294,7 +424,7 @@ export function vectorFacilityLand(
 }
 
 /** Whether a band runs beside the river below the town: the run of each river after it last leaves the wall. */
-function downstreamOf(doc: VectorCityDocument, ring: Point[]): (line: Point[]) => boolean {
+function downstreamOf(doc: VectorCityDocument, ring: Point[], meters = DOWNSTREAM_METERS): (line: Point[]) => boolean {
   const runs = Object.values(doc.paths)
     .filter(p => p.role === "river" && !p.id.includes("moat"))
     .map(p => {
@@ -303,7 +433,7 @@ function downstreamOf(doc: VectorCityDocument, ring: Point[]): (line: Point[]) =
       return last < 0 ? [] : pts.slice(last + 1);
     })
     .filter(run => run.length > 1);
-  return line => runs.some(run => line.some(q => nearestOnPolyline(q, run).dist < DOWNSTREAM_METERS));
+  return line => runs.some(run => line.some(q => nearestOnPolyline(q, run).dist < meters));
 }
 
 /**
@@ -332,47 +462,62 @@ export function raiseVectorRibbonLand(
   const half = doc.frame.extentMeters / 2 - 4,
     strips: VectorPolygon[] = [],
     roads = site.descriptor?.roads ?? [],
-    downstream = downstreamOf(doc, ring);
+    downstream = downstreamOf(doc, ring),
+    // The gate end of a road passing the tanners' bank (pre-acceptance U4): the stench keeps the houses away.
+    nearTanneries = downstreamOf(doc, ring, TANNERY_NEIGHBOURHOOD_METERS);
   const bands = vectorApproachBands(doc).bands.filter(b => b.profile !== "frontier");
   const traffic = (id: string) => {
     const i = roads.findIndex((r, k) => id === `fmg-road:${r.routeId}:${k}`);
     return i >= 0 ? Math.max(0, roads[i].traffic ?? 0) : 0;
   };
   const takers = bands.filter(b => !downstream(b.points)),
-    weights = takers.map(b => traffic(b.groupId) + 1),
+    weights = takers.map(
+      b =>
+        (traffic(b.groupId) + 1) * (nearTanneries(b.points.slice(0, TANNERY_REACH_SAMPLES)) ? TANNERY_RIBBON_WEIGHT : 1)
+    ),
     total = weights.reduce((n, w) => n + w, 0);
   // The river below the town takes the works that foul the water; without such a strip they share the others.
+  // Away from the tanners' bank where another road can take them.
   const below = bands.filter(b => downstream(b.points)),
-    banks = below.length ? below : takers;
+    clean = takers.filter(b => !nearTanneries(b.points.slice(0, TANNERY_REACH_SAMPLES))),
+    banks = below.length ? below : clean.length ? clean : takers;
   let unplacedLength = 0;
   for (const band of bands) {
     const k = takers.indexOf(band),
       extra =
         (k >= 0 && shortfall > 0 ? (shortfall * weights[k]) / total / RIBBON_DWELLINGS_PER_METER + barbicanSlack : 0) +
         (riverside > 0 && banks.includes(band) ? riverside / banks.length / RIBBON_DWELLINGS_PER_METER : 0);
-    const gate = band.points[0],
-      from = (q: Point) => Math.hypot(q[0] - gate[0], q[1] - gate[1]),
-      // Every 5 m along the road, then the stretch the ribbon may hold.
-      line = band.points.slice(1).flatMap((b, i): Point[] => {
-        const a = band.points[i],
-          n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 5));
-        return Array.from(
-          { length: n + 1 },
-          (_, j): Point => [a[0] + ((b[0] - a[0]) * j) / n, a[1] + ((b[1] - a[1]) * j) / n]
-        );
-      }),
+    // Every 5 m along the road, measured along it from the gate, then the stretch the ribbon may hold.
+    const { points: line, along } = resampled(band.points, 5),
       inFrame = (q: Point) =>
         Math.abs(q[0]) <= half - RIBBON_HALF_METERS && Math.abs(q[1]) <= half - RIBBON_HALF_METERS,
-      wanted = band.length + extra,
-      run = line.filter(q => from(q) >= band.clearance && from(q) <= band.clearance + wanted && inFrame(q));
-    if (run.length < 2) continue;
+      // A road by the tanners' bank keeps half its ribbon: its land would mostly stand empty (`vectorSuburbanLots`).
+      wanted = band.length * (nearTanneries(band.points.slice(0, TANNERY_REACH_SAMPLES)) ? 0.5 : 1) + extra,
+      kept = line.map((q, i) => along[i] >= band.clearance && along[i] <= band.clearance + wanted && inFrame(q)),
+      first = kept.indexOf(true),
+      last = first < 0 ? -1 : kept.indexOf(false, first) < 0 ? kept.length - 1 : kept.indexOf(false, first) - 1;
+    if (first < 0 || last - first < 1) continue;
+    // The ribbon ends where the frame first cuts the road: a piece beyond would stand apart from the town.
+    const run = line.slice(first, last + 1),
+      from = (i: number) => along[first + i] - along[first];
     // A strip the frame cuts short takes some of the rest as a second row, but only in the faubourg before the
     // gate: further out a medieval suburb is one row of plots on the road with yards and fields behind them.
-    const reach = Math.hypot(run.at(-1)![0] - run[0][0], run.at(-1)![1] - run[0][1]),
+    const reach = from(run.length - 1),
       doubled = extra > 0 && reach < wanted * 0.95 ? Math.min(reach, SECOND_ROW_METERS) : 0,
       rows = doubled > 0 ? 2 : 1;
     if (extra > 0 && reach + doubled < wanted * 0.95) unplacedLength += wanted - reach - doubled;
-    // Straight pieces along the road's own bends, so a long ribbon follows the road.
+    // One band either side of the road, offset from its eased line, so the strip bends with the road
+    // (pre-acceptance U4); a bend too sharp for the band falls back to straight pieces along the road.
+    const curved = curvedRibbon(run, i => RIBBON_HALF_METERS * (rows === 2 && from(i) < doubled ? 2 : 1));
+    if (curved) {
+      strips.push(
+        ...curved.map(c => ({
+          outer: c.map(([x, y]): Point => [Math.max(-half, Math.min(half, x)), Math.max(-half, Math.min(half, y))]),
+          holes: []
+        }))
+      );
+      continue;
+    }
     for (let i = 0; i + 1 < run.length; ) {
       let j = i + 1;
       while (j + 1 < run.length && nearestOnPolyline(run[j], [run[i], run[j + 1]]).dist < 3) j++;
@@ -380,7 +525,7 @@ export function raiseVectorRibbonLand(
         b = run[j],
         l = Math.hypot(b[0] - a[0], b[1] - a[1]);
       if (l >= 10) {
-        const w = RIBBON_HALF_METERS * (rows === 2 && from(a) - band.clearance < doubled ? 2 : 1),
+        const w = RIBBON_HALF_METERS * (rows === 2 && from(i) < doubled ? 2 : 1),
           n: Point = [(-(b[1] - a[1]) / l) * w, ((b[0] - a[0]) / l) * w],
           // Pieces overlap a little at the bends so the strip stays one piece.
           t: Point = [((b[0] - a[0]) / l) * 2, ((b[1] - a[1]) / l) * 2],

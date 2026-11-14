@@ -701,7 +701,11 @@ function* vectorUrbanSteps(
   let housingAttempts = 0;
   let housingStop: VectorUrbanProfile["housingStop"] = remaining > 0 ? "frontage" : "demand-met";
   const housingStarted = performance.now();
-  const suburbanLots = vectorSuburbanLots(doc, (id: string) => wards.get(id)?.ward === "shanty"),
+  const suburbanLots = vectorSuburbanLots(
+      doc,
+      (id: string) => wards.get(id)?.ward === "shanty",
+      tanneryRow.placed.flatMap(id => (doc.placements[id] ? [doc.placements[id].site.outer] : []))
+    ),
     ribbon = !sourceSite.descriptor?.urbanMorphology && vectorApproachBands(doc).bands.length > 0,
     outsideBlocks = new Set(districts.filter(d => !d.inside).map(d => streetBlockOf(d.id)));
   if (organic && remaining > 0) {

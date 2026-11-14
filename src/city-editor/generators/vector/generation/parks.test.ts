@@ -71,8 +71,9 @@ describe("park wards laid out by the mesh editor's park fabric (feature parity P
     expect(doc.urban!.report.unplacedPopulation).toBe(0);
   });
   it("keeps facilities off the park lawns in facility mode", () => {
-    // Seed c3 once put a weaving workshop on a park block; the lawn was laid over it.
-    const doc = build("ellipse", "c3", "medieval-facilities"),
+    // Seed c3 once put a weaving workshop on a park block; the lawn was laid over it. Since the roadside ribbon
+    // bends with its road (pre-acceptance U4) c3 draws no park ward, so the check runs on a1, which draws two.
+    const doc = build("ellipse", "a1", "medieval-facilities"),
       parks = doc.urban!.parks ?? [];
     expect(parks.length).toBeGreaterThan(0);
     for (const p of doc.urban!.ownedPlacements.map(id => doc.placements[id]))
