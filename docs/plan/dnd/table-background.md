@@ -7,7 +7,7 @@
 | 文書 / コード | 関係 |
 | :--- | :--- |
 | [magic-agrarian-economy.md](magic-agrarian-economy.md) | 活動中の冒険者 0.05%、術者はその 38%。セル収量は変えない。本書はその人数を名簿にしない |
-| [fantasy-world-agenda.md](fantasy-world-agenda.md) | 魔法の濃さと怪物の濃さは未決。本書は脅威の生成も Cultures set の束ねも変えない |
+| [fantasy-world-agenda.md](fantasy-world-agenda.md) | 魔法の濃さと怪物の濃さは Cultures set から分けると決めた。本書は脅威の生成も、その束ねの実装も変えない |
 | [currency-denomination.md](../currency-denomination.md) | 内部金額は銀貨。金貨 1 = 銀貨 12、銀貨 1 = 銅貨 12。表示だけの換算 |
 | [player-character-market-commerce.md](../player-character-market-commerce.md) | 滞在中の Burg の店頭で売買できる。店員は Character にしない |
 | [player-threat-cull-jobs.md](../player-threat-cull-jobs.md) | 町の討伐仕事。軍隊の多年討伐とは別で、同じ危険度を削る |
