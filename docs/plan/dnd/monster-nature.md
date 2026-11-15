@@ -198,4 +198,4 @@ Arch-Beast の生来攻撃は、既定では空である。火や雷を持たせ
 
 脅威の死の人数と日数は [cr-distribution.md](cr-distribution.md) に置いた。カードの `appetite` と `motives` がそちらの入力である。人口動態へ入れる実装は、まだ書かない。家畜の頭数、航路の損失、討伐年数の置き換えは、まだ書かない。
 
-次の設計は、魔法の濃さと怪物の濃さを Cultures set から分ける項目である。
+魔法の濃さと怪物の濃さは [density-knobs.md](density-knobs.md) に置いた。次の設計は、補充と、同じ年に同じ個体を誰が削れるかである。

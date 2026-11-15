@@ -235,4 +235,4 @@ cells.danger[id] = Math.max(monsterDanger, predatorDanger);
 
 脅威の死の人数は [cr-distribution.md](cr-distribution.md) に置いた。人口動態へ入れる実装は、まだ書かない。
 
-魔法の濃さと怪物の濃さを Cultures set から分ける設計は、本書の外であり、次の設計である。人口の台帳（`adventurerActiveShare`）は、本書を待たずに [magic-agrarian-economy.md](magic-agrarian-economy.md) の順で進めてよい。
+魔法の濃さと怪物の濃さは [density-knobs.md](density-knobs.md) に置いた。次の設計は、補充と、同じ年に同じ個体を誰が削れるかである。人口の台帳（`adventurerActiveShare`）は、本書を待たずに [magic-agrarian-economy.md](magic-agrarian-economy.md) の順で進めてよい。
