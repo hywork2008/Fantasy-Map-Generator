@@ -492,21 +492,50 @@ function feedOwnGrain(
 
 /**
  * Stock short of feed lose condition and eat it back on grass left uncut or ungrazed
- * (docs/plan/livestock-lean-condition.md): the deficit grows by the month's unmet feed, up to the body
- * reserve, and falls by the spare grass eaten, at most `leanRefeedShare` of a month's need.
+ * (docs/plan/livestock-lean-condition.md): the deficit grows by the month's unmet feed and falls by the spare grass
+ * eaten, at most `leanRefeedShare` of a month's need. Animals sold or dead since the last month take their part
+ * of it with them. Beyond the body reserve the weakest die (`leanDeaths`): the overflow over the reserve is the
+ * share of the herd lost, returned for the caller to remove. Where the reserve is spent beyond
+ * `leanCullThreshold`, keepers sell next month the mouths they could not feed this month (`leanCull`).
  */
-export function settleLeanCondition(row: LivestockFeedLedger, monthlyNeedKg: number): void {
-  const { leanCondition, leanReserveMonths, leanRefeedShare } = getMarketSettings();
+export function settleLeanCondition(row: LivestockFeedLedger, monthlyNeedKg: number): number {
+  const { leanCondition, leanReserveMonths, leanRefeedShare, leanCull, leanCullThreshold, leanDeaths } =
+    getMarketSettings();
   row.refedKg = 0;
+  row.leanCullShare = 0;
+  row.leanDeathShare = 0;
   if (leanCondition === "off" || !(monthlyNeedKg > 0)) {
     row.leanDeficitKg = 0;
-    return;
+    row.leanNeedKg = monthlyNeedKg;
+    return 0;
   }
-  const deficit = Math.min(leanReserveMonths * monthlyNeedKg, (row.leanDeficitKg ?? 0) + row.unmetKg);
+  const herdKept = row.leanNeedKg && row.leanNeedKg > 0 ? Math.min(1, monthlyNeedKg / row.leanNeedKg) : 1;
+  const reserve = leanReserveMonths * monthlyNeedKg;
+  const owed = (row.leanDeficitKg ?? 0) * herdKept + row.unmetKg;
+  const dead = leanDeaths === "die" ? Math.min(1, Math.max(0, owed - reserve) / reserve) : 0;
+  const deficit = Math.min(reserve, owed) * (1 - dead);
   const refed = Math.max(0, Math.min(deficit, row.unharvestedKg, leanRefeedShare * monthlyNeedKg));
   row.unharvestedKg -= refed;
   row.refedKg = refed;
   row.leanDeficitKg = deficit - refed;
+  row.leanNeedKg = monthlyNeedKg * (1 - dead);
+  row.leanDeathShare = dead;
+  if (leanCull === "unfed" && row.requiredKg > 0 && row.leanDeficitKg >= leanCullThreshold * reserve)
+    row.leanCullShare = Math.min(1, row.unmetKg / row.requiredKg);
+  return dead;
+}
+
+/** Removes a share of every grazing herd in the cell, the animals that died of hunger. */
+function removeStarvedStock(cell: number, share: number): void {
+  const table = getOrCreateFaunaStockTable();
+  if (!table || !(share > 0)) return;
+  for (const name of Object.keys(ANNUAL_FEED_DM_KG_PER_HEAD)) {
+    const herd = table[`${cell}:${name}`];
+    if (!herd) continue;
+    herd.young *= 1 - share;
+    herd.breeding *= 1 - share;
+    herd.old *= 1 - share;
+  }
 }
 
 /** Runs after trade; existing army procurement has already removed its share of the same stock. */
@@ -581,7 +610,7 @@ export function settleLivestockFeed(): void {
       row.requiredKg - row.pastureConsumedKg - row.hayConsumedKg - (row.cropResidueFeedKg ?? 0) - (row.grainFeedKg ?? 0)
     );
     row.coverage = row.requiredKg > 0 ? Math.max(0, Math.min(1, 1 - row.unmetKg / row.requiredKg)) : 1;
-    settleLeanCondition(row, getLivestockMonthlyFeedNeedKg(cell));
+    removeStarvedStock(cell, settleLeanCondition(row, getLivestockMonthlyFeedNeedKg(cell)));
     row.feedPeriod = period;
     row.samples = row.samples.filter(sample => sample.period > period - 12 && sample.period !== period);
     row.samples.push({

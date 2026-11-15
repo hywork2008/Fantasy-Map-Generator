@@ -205,6 +205,12 @@ export interface LivestockFeedLedger {
   leanDeficitKg?: number;
   /** Spare grass eaten this month to recover condition. */
   refedKg?: number;
+  /** This month's feed need when the deficit was settled, to scale it by the herd kept. */
+  leanNeedKg?: number;
+  /** Share of the herd keepers sell next month for want of feed. */
+  leanCullShare?: number;
+  /** Share of the herd dead of hunger this month. */
+  leanDeathShare?: number;
   unmetKg: number;
   coverage: number;
   spending: number;

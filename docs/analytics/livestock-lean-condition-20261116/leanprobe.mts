@@ -1,7 +1,8 @@
 /**
  * Lean stock (docs/analytics/livestock-lean-condition-20261116.md): workyear.mts of rural-work-year-20261115 with,
  * after every month, the cells' lean deficit and spare grass eaten back, the markets' carcass factors, and the
- * Meat and Tallow credited at slaughter.
+ * Meat and Tallow credited at slaughter, and (§3) the cells selling unfed stock or losing stock to hunger, in
+ * heads of feed need (monthly need x share).
  *
  *   npx tsx docs/analytics/livestock-lean-condition-20261116/leanprobe.mts <map.fmg> <out.json> <months>
  */
@@ -92,7 +93,7 @@ for (let month = 1; month <= months; month++) {
   made = {};
   carcass = {};
   await advanceWorld(host, { months: 1 });
-  const feed = { leanDeficitKg: 0, refedKg: 0, leanCells: 0, requiredKg: 0, unmetKg: 0, purchasedKg: 0, hayKg: 0, grainFeedKg: 0, ownGrainFeedKg: 0, cells: 0, shortCells: 0 };
+  const feed = { cullCells: 0, cullNeedKg: 0, deathCells: 0, deathNeedKg: 0, leanDeficitKg: 0, refedKg: 0, leanCells: 0, requiredKg: 0, unmetKg: 0, purchasedKg: 0, hayKg: 0, grainFeedKg: 0, ownGrainFeedKg: 0, cells: 0, shortCells: 0 };
   for (const row of Object.values(getOrCreateLivestockFeedTable() ?? {})) {
     if (!row || !(row.requiredKg > 0)) continue;
     feed.requiredKg += row.requiredKg;
@@ -104,6 +105,14 @@ for (let month = 1; month <= months; month++) {
     feed.cells++;
     feed.leanDeficitKg += row.leanDeficitKg ?? 0;
     feed.refedKg += row.refedKg ?? 0;
+    if ((row.leanCullShare ?? 0) > 0) {
+      feed.cullCells++;
+      feed.cullNeedKg += row.requiredKg * (row.leanCullShare ?? 0);
+    }
+    if ((row.leanDeathShare ?? 0) > 0) {
+      feed.deathCells++;
+      feed.deathNeedKg += row.requiredKg * (row.leanDeathShare ?? 0);
+    }
     if ((row.leanDeficitKg ?? 0) > 0.01 * row.requiredKg) feed.leanCells++;
     if (row.unmetKg > 0.01 * row.requiredKg) feed.shortCells++;
   }

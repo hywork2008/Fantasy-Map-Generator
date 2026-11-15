@@ -137,6 +137,10 @@ export type FeedShortfallTimingMode = (typeof FEED_SHORTFALL_TIMING_MODES)[numbe
 /** Lean stock carry their unmet feed as lost condition and give lighter carcasses until refed, or the legacy rule (docs/plan/livestock-lean-condition.md). */
 export const LEAN_CONDITION_MODES = ["carcass", "off"] as const;
 export type LeanConditionMode = (typeof LEAN_CONDITION_MODES)[number];
+export const LEAN_CULL_MODES = ["unfed", "off"] as const;
+export type LeanCullMode = (typeof LEAN_CULL_MODES)[number];
+export const LEAN_DEATH_MODES = ["die", "off"] as const;
+export type LeanDeathMode = (typeof LEAN_DEATH_MODES)[number];
 export const RURAL_REST_DAYS_MODES = ["byPeriod", "custom"] as const;
 export type RuralRestDaysMode = (typeof RURAL_REST_DAYS_MODES)[number];
 export const URBAN_HARVEST_HELP_MODES = ["cornAndHay", "legacy"] as const;
@@ -223,6 +227,12 @@ export type MarketSettings = {
   leanMaxCarcassLoss: number;
   /** Most extra grass, as a share of a month's need, lean stock eat in a month to recover. */
   leanRefeedShare: number;
+  /** Lean keepers sell the mouths they could not feed, or keep them (docs/plan/livestock-lean-condition.md §7). */
+  leanCull: LeanCullMode;
+  /** Share of the body reserve spent before keepers sell unfed mouths. */
+  leanCullThreshold: number;
+  /** Stock short beyond the body reserve die, or the deficit stops at the reserve. */
+  leanDeaths: LeanDeathMode;
   ruralRestDaysCustom: number;
   /** Most of a town's adults that go out in a harvest or hay month under cornAndHay. */
   urbanHarvestHelpShare: number;
@@ -350,6 +360,9 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   leanReserveMonths: 2,
   leanMaxCarcassLoss: 0.25,
   leanRefeedShare: 0.3,
+  leanCull: "unfed",
+  leanCullThreshold: 0.25,
+  leanDeaths: "die",
   ruralRestDaysCustom: 97,
   urbanHarvestHelpShare: 0.5,
   bootsLabor: "perDay",
@@ -430,6 +443,7 @@ export const MARKET_SETTING_LIMITS = {
   leanReserveMonths: { min: 0.5, max: 4, step: 0.5 },
   leanMaxCarcassLoss: { min: 0, max: 0.5, step: 0.05 },
   leanRefeedShare: { min: 0, max: 1, step: 0.05 },
+  leanCullThreshold: { min: 0, max: 1, step: 0.05 },
   ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 },
   candleKgPerPerson: { min: 0, max: 4, step: 0.25 },
   waxCandleKgPerPerson: { min: 0, max: 0.5, step: 0.01 },
@@ -557,6 +571,10 @@ const leanConditionMode = (value: unknown): LeanConditionMode =>
   LEAN_CONDITION_MODES.includes(value as LeanConditionMode)
     ? (value as LeanConditionMode)
     : DEFAULT_MARKET_SETTINGS.leanCondition;
+const leanCullMode = (value: unknown): LeanCullMode =>
+  LEAN_CULL_MODES.includes(value as LeanCullMode) ? (value as LeanCullMode) : DEFAULT_MARKET_SETTINGS.leanCull;
+const leanDeathMode = (value: unknown): LeanDeathMode =>
+  LEAN_DEATH_MODES.includes(value as LeanDeathMode) ? (value as LeanDeathMode) : DEFAULT_MARKET_SETTINGS.leanDeaths;
 const ruralRestDaysMode = (value: unknown): RuralRestDaysMode =>
   RURAL_REST_DAYS_MODES.includes(value as RuralRestDaysMode)
     ? (value as RuralRestDaysMode)
@@ -656,6 +674,9 @@ export function getMarketSettings(): MarketSettings {
     leanReserveMonths: clamp("leanReserveMonths", parsed.leanReserveMonths),
     leanMaxCarcassLoss: clamp("leanMaxCarcassLoss", parsed.leanMaxCarcassLoss),
     leanRefeedShare: clamp("leanRefeedShare", parsed.leanRefeedShare),
+    leanCull: leanCullMode(parsed.leanCull),
+    leanCullThreshold: clamp("leanCullThreshold", parsed.leanCullThreshold),
+    leanDeaths: leanDeathMode(parsed.leanDeaths),
     ruralRestDaysCustom: clamp("ruralRestDaysCustom", parsed.ruralRestDaysCustom),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", parsed.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(parsed.bootsLabor),
@@ -744,6 +765,9 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     leanReserveMonths: clamp("leanReserveMonths", next.leanReserveMonths),
     leanMaxCarcassLoss: clamp("leanMaxCarcassLoss", next.leanMaxCarcassLoss),
     leanRefeedShare: clamp("leanRefeedShare", next.leanRefeedShare),
+    leanCull: leanCullMode(next.leanCull),
+    leanCullThreshold: clamp("leanCullThreshold", next.leanCullThreshold),
+    leanDeaths: leanDeathMode(next.leanDeaths),
     ruralRestDaysCustom: clamp("ruralRestDaysCustom", next.ruralRestDaysCustom),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", next.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(next.bootsLabor),

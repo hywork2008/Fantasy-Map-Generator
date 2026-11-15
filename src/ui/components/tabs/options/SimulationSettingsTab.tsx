@@ -75,7 +75,11 @@ import {
   type HouseholdGoodsPaymentMode,
   type HouseholdGoodValueMode,
   LEAN_CONDITION_MODES,
+  LEAN_CULL_MODES,
+  LEAN_DEATH_MODES,
   type LeanConditionMode,
+  type LeanCullMode,
+  type LeanDeathMode,
   MARKET_DISSOLVE_CARGO_MODES,
   MARKET_SETTING_LIMITS,
   type MarketDissolveCargoMode,
@@ -1289,6 +1293,60 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.leanRefeedShare}
                 onChange={v => updateMarketSetting("leanRefeedShare", v)}
               />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanCullTip")}>
+            <td />
+            <td>
+              <label htmlFor="leanCull">{t("simulation.leanCull")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="leanCull"
+                value={marketSettings.leanCull}
+                onChange={e => setMarketSettingsState(setMarketSettings({ leanCull: e.target.value as LeanCullMode }))}
+              >
+                {LEAN_CULL_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.leanCull_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanCullThresholdTip")}>
+            <td />
+            <td>{t("simulation.leanCullThreshold")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="leanCullThreshold"
+                min={MARKET_SETTING_LIMITS.leanCullThreshold.min}
+                max={MARKET_SETTING_LIMITS.leanCullThreshold.max}
+                step={MARKET_SETTING_LIMITS.leanCullThreshold.step}
+                value={marketSettings.leanCullThreshold}
+                onChange={v => updateMarketSetting("leanCullThreshold", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanDeathsTip")}>
+            <td />
+            <td>
+              <label htmlFor="leanDeaths">{t("simulation.leanDeaths")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="leanDeaths"
+                value={marketSettings.leanDeaths}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ leanDeaths: e.target.value as LeanDeathMode }))
+                }
+              >
+                {LEAN_DEATH_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.leanDeaths_${mode}`)}
+                  </option>
+                ))}
+              </select>
             </td>
           </tr>
           <tr data-tip={t("simulation.hayPlanHerdTip")}>
