@@ -37,6 +37,7 @@
  * since `ruralLaborRelease.ts` still expects population points to match `cells.maleAdults`/`femaleAdults`.
  */
 
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import { historicalPeriodIndex } from "../../../types/historicalPeriod";
 import { LIVELIHOOD_CODE, type WorldContext } from "../../hostCore";
 import {
@@ -140,6 +141,8 @@ export interface RuralOccupationAllocation {
   readonly seasonalLaborShortage: Float32Array;
   /** Residual after Grain + hunting + fishing + viticulture + husbandry claims; feeds ruralLaborRelease.ts. */
   readonly ruralReleasePressure: Float32Array;
+  /** Town adults' days in the fields and meadows, `burgId * 12 + month` (docs/plan/urban-harvest-help.md). */
+  readonly townHarvestHelperDays?: Float32Array;
 }
 
 type RuralLaborPlan = Pick<
@@ -575,7 +578,15 @@ function allocateRuralOccupationsFromCalendar(
   }
 
   const aidReceivedByCell = applyHarvestMutualAid(world, currentDaysByCell, desiredDaysByCell, workDaysPerAdultByCell);
-  applyRegionalHarvestHelp(world, currentDaysByCell, desiredDaysByCell, workDaysPerAdultByCell, aidReceivedByCell);
+  const townHelp = createTownHarvestHelp(world);
+  applyRegionalHarvestHelp(
+    world,
+    currentDaysByCell,
+    desiredDaysByCell,
+    workDaysPerAdultByCell,
+    aidReceivedByCell,
+    townHelp
+  );
   applyHaymakingMutualAid(
     world,
     currentDaysByCell,
@@ -583,8 +594,10 @@ function allocateRuralOccupationsFromCalendar(
     workDaysPerAdultByCell,
     haymakingShortfallDays,
     husbandryMonthlyWorkDays,
-    husbandryWorkers
+    husbandryWorkers,
+    townHelp
   );
+  const townHarvestHelperDays = spreadTownHarvestHelp(world, townHelp);
 
   for (const cellId of cells.i) {
     if (cells.h[cellId] < 20) continue;
@@ -675,7 +688,8 @@ function allocateRuralOccupationsFromCalendar(
     farmLaborRequired,
     migratableAdults,
     seasonalLaborShortage,
-    ruralReleasePressure
+    ruralReleasePressure,
+    townHarvestHelperDays
   };
 }
 
@@ -770,7 +784,8 @@ function applyHaymakingMutualAid(
   workDaysPerAdultByCell: Float32Array,
   shortfallDays: Float32Array,
   husbandryMonthlyWorkDays: Float32Array,
-  husbandryWorkers: Float32Array
+  husbandryWorkers: Float32Array,
+  townHelp?: TownHarvestHelp
 ): void {
   const cells = world.pack.cells;
   if (!cells?.i || !cells.c) return;
@@ -836,7 +851,93 @@ function applyHaymakingMutualAid(
         desiredDaysByCell[index] += given;
       }
     }
+    // Town adults go out to the meadows for what is still uncut, as artificers were called to the hay
+    // and corn harvest (docs/plan/urban-harvest-help.md).
+    if (!townHelp?.hay) continue;
+    const needByMarket = new Map<number, number>();
+    for (const cellId of cells.i) {
+      const marketId = marketCellColumn[cellId] ?? 0;
+      const need = shortfallDays[cellId * 12 + month];
+      if (marketId && need > 0) needByMarket.set(marketId, (needByMarket.get(marketId) ?? 0) + need);
+    }
+    const fillByMarket = new Map<number, number>();
+    for (const [marketId, need] of needByMarket) {
+      const used = Math.min(need, townHelpLeft(townHelp, marketId, month));
+      if (!(used > 0)) continue;
+      consumeTownHelp(townHelp, marketId, month, used);
+      fillByMarket.set(marketId, used / need);
+    }
+    for (const cellId of cells.i) {
+      const fill = fillByMarket.get(marketCellColumn[cellId] ?? 0) ?? 0;
+      const index = cellId * 12 + month;
+      const helped = Math.max(0, shortfallDays[index]) * fill;
+      if (!(helped > 0)) continue;
+      husbandryMonthlyWorkDays[index] += helped;
+      husbandryWorkers[cellId] += helped / WORKABLE_DAYS_PER_ADULT;
+      shortfallDays[index] -= helped;
+    }
   }
+}
+
+/**
+ * Town adults who can go out to the fields in a month, by market, in work-days of a peak month, and
+ * what has been used. `urbanHarvestHelp` townsAndHay: `urbanHarvestHelpShare` of the adults, for corn
+ * and hay, as the Statute of Cambridge (1388) called town artificers to the corn harvest and the
+ * Statute of Artificers (1563) to the hay and corn harvest. legacy: the period's share, corn only.
+ */
+interface TownHarvestHelp {
+  readonly hay: boolean;
+  readonly capacityByMarket: Map<number, number>;
+  readonly usedByMarketMonth: Map<number, number[]>;
+}
+
+function createTownHarvestHelp(world: Readonly<WorldContext>): TownHarvestHelp {
+  const settings = getMarketSettings();
+  const hay = settings.urbanHarvestHelp === "cornAndHay";
+  const share = hay ? settings.urbanHarvestHelpShare : getUrbanHarvestHelpShare(world.options?.historicalPeriod);
+  const populationRate = Math.max(1, world.populationRate || 1);
+  const urbanization = Math.max(0, world.urbanization ?? 1);
+  const peakWorkDays = WORKABLE_DAYS_PER_ADULT_PER_MONTH * PEAK_MONTH_WORK_MULTIPLIER;
+  const capacityByMarket = new Map<number, number>();
+  for (const burg of world.pack.burgs ?? []) {
+    if (!burg?.i || burg.removed || !burg.demographics || !burg.market) continue;
+    const adults = Math.max(0, burg.demographics.maleAdults ?? 0) + Math.max(0, burg.demographics.femaleAdults ?? 0);
+    const days = adults * populationRate * urbanization * share * peakWorkDays;
+    if (days > 0) capacityByMarket.set(burg.market, (capacityByMarket.get(burg.market) ?? 0) + days);
+  }
+  return { hay, capacityByMarket, usedByMarketMonth: new Map() };
+}
+
+function townHelpLeft(help: TownHarvestHelp, marketId: number, month: number): number {
+  return Math.max(0, (help.capacityByMarket.get(marketId) ?? 0) - (help.usedByMarketMonth.get(marketId)?.[month] ?? 0));
+}
+
+function consumeTownHelp(help: TownHarvestHelp, marketId: number, month: number, days: number): void {
+  if (!(days > 0)) return;
+  const used = help.usedByMarketMonth.get(marketId) ?? new Array<number>(12).fill(0);
+  used[month] += days;
+  help.usedByMarketMonth.set(marketId, used);
+}
+
+/** Each town's share of its market's helper days, by its adults (`burgId * 12 + month`). Empty under legacy, whose towns keep their work. */
+function spreadTownHarvestHelp(world: Readonly<WorldContext>, help: TownHarvestHelp): Float32Array {
+  const burgs = world.pack.burgs ?? [];
+  const result = new Float32Array(help.hay ? burgs.length * 12 : 0);
+  if (!help.hay) return result;
+  const adultsByMarket = new Map<number, number>();
+  const adultsOf = (burg: (typeof burgs)[number]) =>
+    Math.max(0, burg?.demographics?.maleAdults ?? 0) + Math.max(0, burg?.demographics?.femaleAdults ?? 0);
+  for (const burg of burgs)
+    if (burg?.i && !burg.removed && burg.market)
+      adultsByMarket.set(burg.market, (adultsByMarket.get(burg.market) ?? 0) + adultsOf(burg));
+  for (const burg of burgs) {
+    if (!burg?.i || burg.removed || !burg.market) continue;
+    const used = help.usedByMarketMonth.get(burg.market);
+    const total = adultsByMarket.get(burg.market) ?? 0;
+    if (!used || !(total > 0)) continue;
+    for (let month = 0; month < 12; month++) result[burg.i * 12 + month] = (used[month] * adultsOf(burg)) / total;
+  }
+  return result;
 }
 
 export const URBAN_HARVEST_HELP_SHARE_MEDIEVAL = 0.05;
@@ -891,24 +992,14 @@ function applyRegionalHarvestHelp(
   currentDaysByCell: Float32Array,
   desiredDaysByCell: Float32Array,
   workDaysPerAdultByCell: Float32Array,
-  aidReceivedByCell: Float32Array
+  aidReceivedByCell: Float32Array,
+  townHelp: TownHarvestHelp
 ): void {
   const cells = world.pack.cells;
   const marketCellColumn = getMarketCellColumn();
   if (!cells?.i || marketCellColumn.length !== cells.i.length) return;
-  const urbanShare = getUrbanHarvestHelpShare(world.options?.historicalPeriod);
   const mobility = getRegionalHarvestMobility(world.options?.historicalPeriod);
   const populationRate = Math.max(1, world.populationRate || 1);
-  const urbanization = Math.max(0, world.urbanization ?? 1);
-  const peakWorkDays = WORKABLE_DAYS_PER_ADULT_PER_MONTH * PEAK_MONTH_WORK_MULTIPLIER;
-
-  const townHelpersByMarket = new Map<number, number>();
-  for (const burg of world.pack.burgs ?? []) {
-    if (!burg?.i || burg.removed || !burg.demographics || !burg.market) continue;
-    const adults = Math.max(0, burg.demographics.maleAdults ?? 0) + Math.max(0, burg.demographics.femaleAdults ?? 0);
-    const helpers = adults * populationRate * urbanization * urbanShare;
-    if (helpers > 0) townHelpersByMarket.set(burg.market, (townHelpersByMarket.get(burg.market) ?? 0) + helpers);
-  }
 
   for (let month = 0; month < 12; month++) {
     const shortage = new Float32Array(cells.i.length);
@@ -942,12 +1033,13 @@ function applyRegionalHarvestHelp(
 
     const usedRuralShare = new Map<number, number>();
     for (const [marketId, marketShortage] of shortageByMarket) {
-      const town = (townHelpersByMarket.get(marketId) ?? 0) * peakWorkDays;
+      const town = townHelpLeft(townHelp, marketId, month);
       const rural = slackByMarket.get(marketId) ?? 0;
       const used = Math.min(marketShortage, town + rural);
       if (!(used > 0)) continue;
       // Towns' helpers are spent before rural hands leave their own villages.
       const ruralUsed = Math.max(0, used - town);
+      consumeTownHelp(townHelp, marketId, month, used - ruralUsed);
       usedRuralShare.set(marketId, rural > 0 ? ruralUsed / rural : 0);
       for (const cellId of cells.i) {
         if (!(shortage[cellId] > 0) || marketCellColumn[cellId] !== marketId) continue;

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { DEFAULT_MARKET_SETTINGS, setMarketSettings } from "../../../simulation/marketSettings";
 import { LIVELIHOOD_CODE, simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
@@ -262,6 +263,7 @@ describe("ruralOccupationAllocation", () => {
   });
 
   it("lets market-town adults and travelling rural hands cover part of a harvest-month shortage, more in later periods", () => {
+    setMarketSettings({ urbanHarvestHelp: "legacy" });
     const run = (historicalPeriod: string) => {
       worldContext.pack = {
         cells: {
@@ -296,6 +298,40 @@ describe("ruralOccupationAllocation", () => {
     expect(getUrbanHarvestHelpShare("highMedieval")).toBeLessThan(getUrbanHarvestHelpShare("preIndustrialEra"));
     expect(later).toBeLessThan(medieval);
     expect(medieval).toBeGreaterThan(0);
+    setMarketSettings(DEFAULT_MARKET_SETTINGS);
+  });
+
+  it("sends town adults to the harvest up to the share and books their days to the town (docs/plan/urban-harvest-help.md)", () => {
+    setMarketSettings({ urbanHarvestHelp: "cornAndHay", urbanHarvestHelpShare: 0.5 });
+    worldContext.pack = {
+      cells: {
+        i: new Uint16Array([0]),
+        h: new Uint8Array([30]),
+        biomeCode: new Uint8Array([0]),
+        pop: new Float32Array([2]),
+        maleAdults: new Float32Array([0.5]),
+        femaleAdults: new Float32Array([0.5]),
+        c: [[]]
+      },
+      burgs: [{}, { i: 1, market: 1, population: 10, demographics: { maleAdults: 3, femaleAdults: 3 } }]
+    } as unknown as PackedGraph;
+    worldContext.populationRate = 1;
+    worldContext.urbanization = 1;
+    worldContext.biomesData = { tags: [[]], habitability: [0] } as never;
+    setGoods([] as never);
+    setMarketCellColumn(new Uint16Array([1]));
+    const cropLaborDaysByMonth = new Float32Array(12);
+    cropLaborDaysByMonth[6] = 1000; // far beyond the cell and half the town together
+    const result = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth,
+      minimumCropLaborDaysByMonth: cropLaborDaysByMonth.slice(),
+      farmLaborRequired: new Float32Array([1]),
+      migratableAdults: new Float32Array([0])
+    });
+    // Half the town's six adults, each a peak month (two ordinary months) of days.
+    expect(result.townHarvestHelperDays?.[1 * 12 + 6]).toBeCloseTo(3 * WORKABLE_DAYS_PER_ADULT_PER_MONTH * 2, 4);
+    expect(result.townHarvestHelperDays?.[1 * 12 + 5]).toBe(0);
+    setMarketSettings(DEFAULT_MARKET_SETTINGS);
   });
 
   it("gates Grapes' harvest by the assigned/required viticulture workerFactor", () => {

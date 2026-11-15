@@ -124,6 +124,12 @@ export type ByproductPricingMode = (typeof BYPRODUCT_PRICING_MODES)[number];
 export const CHARACTER_RESERVE_MODES = ["byTier", "legacy"] as const;
 export type CharacterReserveMode = (typeof CHARACTER_RESERVE_MODES)[number];
 export const HEIRLESS_ESTATE_MODES = ["town", "keep"] as const;
+export const URBAN_HARVEST_HELP_MODES = ["cornAndHay", "legacy"] as const;
+export type UrbanHarvestHelpMode = (typeof URBAN_HARVEST_HELP_MODES)[number];
+export const HAY_PLAN_HERD_MODES = ["wintered", "current"] as const;
+export type HayPlanHerdMode = (typeof HAY_PLAN_HERD_MODES)[number];
+export const HERD_OFFTAKE_SPREAD_MODES = ["toRenewal", "legacy"] as const;
+export type HerdOfftakeSpreadMode = (typeof HERD_OFFTAKE_SPREAD_MODES)[number];
 export const BYPRODUCT_FARMGATE_MODES = ["pay", "free"] as const;
 export type ByproductFarmgateMode = (typeof BYPRODUCT_FARMGATE_MODES)[number];
 export type HeirlessEstateMode = (typeof HEIRLESS_ESTATE_MODES)[number];
@@ -173,6 +179,14 @@ export type MarketSettings = {
   summerHideLoss: number;
   /** The market pays the farm families for the hides, tallow and rennet of their slaughtered stock, or takes them free (docs/plan/byproduct-farmgate.md). */
   byproductFarmgate: ByproductFarmgateMode;
+  /** A managed herd sells its excess evenly over the months left before the January renewal, or a twelfth of what is left each month (docs/plan/herd-offtake-spread.md). */
+  herdOfftakeSpread: HerdOfftakeSpreadMode;
+  /** The herd a cell cuts hay for: the one it will winter (each species' larger of present and supported heads), or the present one (docs/plan/hay-plan-herd.md). */
+  hayPlanHerd: HayPlanHerdMode;
+  /** Town adults help with the corn and hay harvest up to a share, and their workshops lose those days, or the period's small share helps with corn only (docs/plan/urban-harvest-help.md). */
+  urbanHarvestHelp: UrbanHarvestHelpMode;
+  /** Most of a town's adults that go out in a harvest or hay month under cornAndHay. */
+  urbanHarvestHelpShare: number;
   bootsLabor: BootsLaborMode;
   byproductPricing: ByproductPricingMode;
   /** Beeswax priced from its stock against the towns' candle targets, or by the legacy rule (docs/plan/wax-pricing.md). */
@@ -280,6 +294,10 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   leatherGoodsShare: 0.5,
   summerHideLoss: 0.1,
   byproductFarmgate: "pay",
+  herdOfftakeSpread: "toRenewal",
+  hayPlanHerd: "wintered",
+  urbanHarvestHelp: "cornAndHay",
+  urbanHarvestHelpShare: 0.5,
   bootsLabor: "perDay",
   byproductPricing: "stockAndDemand",
   beeswaxPricing: "stockAndDemand",
@@ -349,6 +367,7 @@ export const MARKET_SETTING_LIMITS = {
   footwearPairsPerPerson: { min: 0, max: 4, step: 0.25 },
   leatherGoodsShare: { min: 0, max: 2, step: 0.05 },
   summerHideLoss: { min: 0, max: 0.5, step: 0.01 },
+  urbanHarvestHelpShare: { min: 0, max: 1, step: 0.05 },
   ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 },
   candleKgPerPerson: { min: 0, max: 4, step: 0.25 },
   waxCandleKgPerPerson: { min: 0, max: 0.5, step: 0.01 },
@@ -456,6 +475,21 @@ const characterReserveMode = (value: unknown): CharacterReserveMode =>
     ? (value as CharacterReserveMode)
     : DEFAULT_MARKET_SETTINGS.characterReserve;
 
+const urbanHarvestHelpMode = (value: unknown): UrbanHarvestHelpMode =>
+  URBAN_HARVEST_HELP_MODES.includes(value as UrbanHarvestHelpMode)
+    ? (value as UrbanHarvestHelpMode)
+    : DEFAULT_MARKET_SETTINGS.urbanHarvestHelp;
+
+const hayPlanHerdMode = (value: unknown): HayPlanHerdMode =>
+  HAY_PLAN_HERD_MODES.includes(value as HayPlanHerdMode)
+    ? (value as HayPlanHerdMode)
+    : DEFAULT_MARKET_SETTINGS.hayPlanHerd;
+
+const herdOfftakeSpreadMode = (value: unknown): HerdOfftakeSpreadMode =>
+  HERD_OFFTAKE_SPREAD_MODES.includes(value as HerdOfftakeSpreadMode)
+    ? (value as HerdOfftakeSpreadMode)
+    : DEFAULT_MARKET_SETTINGS.herdOfftakeSpread;
+
 const byproductFarmgateMode = (value: unknown): ByproductFarmgateMode =>
   BYPRODUCT_FARMGATE_MODES.includes(value as ByproductFarmgateMode)
     ? (value as ByproductFarmgateMode)
@@ -519,6 +553,10 @@ export function getMarketSettings(): MarketSettings {
     leatherGoodsShare: clamp("leatherGoodsShare", parsed.leatherGoodsShare),
     summerHideLoss: clamp("summerHideLoss", parsed.summerHideLoss),
     byproductFarmgate: byproductFarmgateMode(parsed.byproductFarmgate),
+    herdOfftakeSpread: herdOfftakeSpreadMode(parsed.herdOfftakeSpread),
+    hayPlanHerd: hayPlanHerdMode(parsed.hayPlanHerd),
+    urbanHarvestHelp: urbanHarvestHelpMode(parsed.urbanHarvestHelp),
+    urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", parsed.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(parsed.bootsLabor),
     byproductPricing: byproductPricingMode(parsed.byproductPricing),
     beeswaxPricing: byproductPricingMode(parsed.beeswaxPricing, "beeswaxPricing"),
@@ -588,6 +626,10 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     leatherGoodsShare: clamp("leatherGoodsShare", next.leatherGoodsShare),
     summerHideLoss: clamp("summerHideLoss", next.summerHideLoss),
     byproductFarmgate: byproductFarmgateMode(next.byproductFarmgate),
+    herdOfftakeSpread: herdOfftakeSpreadMode(next.herdOfftakeSpread),
+    hayPlanHerd: hayPlanHerdMode(next.hayPlanHerd),
+    urbanHarvestHelp: urbanHarvestHelpMode(next.urbanHarvestHelp),
+    urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", next.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(next.bootsLabor),
     byproductPricing: byproductPricingMode(next.byproductPricing),
     beeswaxPricing: byproductPricingMode(next.beeswaxPricing, "beeswaxPricing"),

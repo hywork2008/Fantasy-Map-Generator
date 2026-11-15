@@ -10,6 +10,7 @@ import { getMarketSettings } from "../../../simulation/marketSettings";
 import { yieldToHost } from "../../../simulation/ports";
 import type { Burg, State } from "../../hostTypes";
 import { DEBUG, ERROR, measureTickStep, measureTickStepAsync, rn, TIME } from "../../hostUtils";
+import { getTownHarvestHelperDays } from "../context/agriculture";
 import { isWinterSlaughterExperimentEnabled } from "../context/winterSlaughter";
 import {
   getBurgProductionRecords,
@@ -32,6 +33,7 @@ import {
   setStrategicLaborMarkets
 } from "../economyContext";
 import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
+import { PEAK_MONTH_WORK_MULTIPLIER, WORKABLE_DAYS_PER_ADULT_PER_MONTH } from "./agriculturalLandUse";
 import { settleArmsTheft } from "./armsTheft";
 import { getDiscontentLaborMultiplier } from "./burgDiscontent";
 import { creditHouseholdWealth, syncBurgMarketLedgers } from "./burgMarketLedgers";
@@ -100,7 +102,7 @@ import { GUILD_PROFIT_SHARE, GuildTreasury } from "./guildTreasury";
 import { debitRuralHouseholdWealth, openRuralTownBudget, recordRuralTownGoodsPaid } from "./householdWealth";
 import { harvestLivestockForage, settleLivestockFeed } from "./livestockFeed";
 import { scheduleLivestockFeedPeriods } from "./livestockFeedSchedule";
-import { withLivestockFeedPeriod } from "./livestockFeedState";
+import { livestockFeedMonth, withLivestockFeedPeriod } from "./livestockFeedState";
 import { isLuxuryValueDemandEnabled, luxuryTierWeights } from "./luxuryDemand";
 import { type LuxuryTier, luxuryTierOf } from "./luxuryTiers";
 import { beginFlowCycleCapture, recordFlowCycleEnd } from "./marketFlowDiagnostics";
@@ -537,6 +539,20 @@ export class ProductionModule {
     };
   }
 
+  /**
+   * Population points of a town's adults out in the fields and meadows this month, which its
+   * workshops cannot employ (docs/plan/urban-harvest-help.md). Helpers work a peak month's days.
+   */
+  private getHarvestHelperPoints(burgId: number): number {
+    const days = getTownHarvestHelperDays()[burgId * 12 + livestockFeedMonth() - 1] ?? 0;
+    if (!(days > 0)) return 0;
+    const people = days / (WORKABLE_DAYS_PER_ADULT_PER_MONTH * PEAK_MONTH_WORK_MULTIPLIER);
+    return (
+      people /
+      (Math.max(1, this.worldContext.populationRate || 1) * Math.max(1e-9, this.worldContext.urbanization ?? 1))
+    );
+  }
+
   private produceForBurg(burg: Burg, cycle: ProductionCycle): void {
     if (!burg.i || burg.removed || !burg.market) return;
     const market = Markets.get(burg.market);
@@ -551,7 +567,8 @@ export class ProductionModule {
       Math.max(
         0,
         getCraftWorkforce(burg, cycle.basicWorkersByBurg.get(burg.i) ?? 0, cycle.childLabourEquivalent) -
-          (cycle.saltWorkersByBurg.get(burg.i) ?? 0)
+          (cycle.saltWorkersByBurg.get(burg.i) ?? 0) -
+          this.getHarvestHelperPoints(burg.i)
       )
     );
     // Book credit tides the workshops over the months the purse is low (craftCredit.ts).

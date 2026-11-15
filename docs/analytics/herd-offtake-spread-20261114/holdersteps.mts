@@ -1,0 +1,134 @@
+/**
+ * Money of every main holder by simulation step (docs/analytics/herd-offtake-spread-20261114.md (holdersteps.mts of byproduct-farmgate-20261114 with livestock intake and leather goods)): each month, the
+ * change of each holder's summed money inside every measured tick step (tickProfiler.ts), net of its
+ * nested steps, and the change outside any step. Market settings come from the JSON in FMG_SETTINGS.
+ * Barilla is seeded as in barillaflow.mts so the runs match docs/analytics/barilla-20261108.md.
+ *
+ *   npx tsx docs/analytics/herd-offtake-spread-20261114/holdersteps.mts <map.fmg> <out.json> <months>
+ */
+import { readFileSync, writeFileSync } from "node:fs";
+import Alea from "alea";
+import { advanceWorld, createNodeSimulationHost } from "../../../src/simulation/adapters/node";
+import { applyConflictAutonomyFromEnv } from "../../../scripts/lib/conflictAutonomyFromEnv.mts";
+import { getGoodCellColumn } from "../../../src/extensions/economy/context/cellTables";
+import { getWorldContext } from "../../../src/extensions/economy/context/economyApi";
+import { Goods } from "../../../src/extensions/economy/generators/goods-generator";
+import { getBurgMarketLedgers, getGoods, getMarkets } from "../../../src/extensions/economy/context/trade";
+import { personalCashTotal, readPersonalCash } from "../../../src/extensions/economy/generators/personalCash";
+import { getSimulationCharacters as getCharacters } from "../../../src/extensions/characters/charactersContext";
+import { setMarketSettings } from "../../../src/simulation/marketSettings";
+import { getGuildKnowledgeStocks } from "../../../src/extensions/economy/context/knowledge";
+import { setTickStepObserver } from "../../../src/generators/tickProfiler";
+import { setGoodFlowObserver } from "../../../src/extensions/economy/generators/goodsBalanceLedger";
+
+const [input, output, monthsArg] = process.argv.slice(2);
+const months = Number(monthsArg ?? 12);
+const host = createNodeSimulationHost();
+await host.loadArchive(new Uint8Array(readFileSync(input)));
+applyConflictAutonomyFromEnv();
+await host.prepare();
+const settings = JSON.parse(process.env.FMG_SETTINGS ?? "{}");
+setMarketSettings(settings);
+const world = getWorldContext();
+const { pack } = world;
+const ruleHolds = (rule: string, cellId: number) => {
+  const methods = Goods.getMethods(cellId);
+  return Boolean(new Function(`{${Object.keys(methods).join(", ")}}`, `return ${rule}`)(methods));
+};
+const barilla = getGoods().find(good => good.name === "Barilla");
+if (barilla?.distribution && barilla.chance) {
+  const goodColumn = getGoodCellColumn();
+  const random = Alea(`barilla-${world.seed}`);
+  const cap = Math.ceil((200 * pack.cells.i.length) / 5000);
+  let placed = 0;
+  for (const cellId of pack.cells.i) {
+    if (pack.cells.h[cellId] < 20 || goodColumn[cellId] === barilla.i) continue;
+    if (!ruleHolds(barilla.distribution, cellId)) continue;
+    if (goodColumn[cellId] || placed >= cap || random() * 100 > barilla.chance) continue;
+    goodColumn[cellId] = barilla.i;
+    placed++;
+  }
+}
+const nameById = new Map(getGoods().map(g => [g.i, g.name]));
+let intake: Record<string, number> = {};
+setGoodFlowObserver(flow => {
+  const name = nameById.get(flow.goodId);
+  if (!name || !(flow.units > 0)) return;
+  const key = flow.direction === "source" && flow.category === "ruralHarvest" ? `${name}|rural` : flow.direction === "source" && flow.category === "burgCraft" && ["Leather", "Meat", "Boots", "Leather Goods"].includes(name) ? `${name}|made` : "";
+  if (key) intake[key] = (intake[key] ?? 0) + flow.units;
+});
+const HOLDERS = ["rural", "market", "guild", "town", "burg", "people", "state"] as const;
+type Holder = (typeof HOLDERS)[number];
+function holders(): number[] {
+  let rural = 0;
+  let market = 0;
+  for (const m of getMarkets()) {
+    if (!m) continue;
+    rural += m.foodLedger?.ruralHouseholdWealth ?? 0;
+    market += m.marketTreasury?.balance ?? 0;
+  }
+  let burg = 0;
+  for (const b of pack.burgs ?? []) if (b?.i && !b.removed) burg += b.treasury ?? 0;
+  let state = 0;
+  for (const s of pack.states ?? []) if (s?.i && !s.removed) state += s.treasury ?? 0;
+  return [
+    rural,
+    market,
+    getGuildKnowledgeStocks().reduce((sum, g) => sum + (g.treasury ?? 0), 0),
+    getBurgMarketLedgers().reduce((sum, l) => sum + (l.householdWealth ?? 0), 0),
+    burg,
+    readPersonalCash() ? personalCashTotal() : getCharacters().reduce((sum, c) => sum + (c?.wealth ?? 0), 0),
+    state
+  ];
+}
+const zero = () => HOLDERS.map(() => 0);
+let bySteps: Record<string, number[]> = {};
+const stack: { start: number[]; children: number[] }[] = [];
+setTickStepObserver({
+  enter() {
+    stack.push({ start: holders(), children: zero() });
+  },
+  exit(label) {
+    const frame = stack.pop();
+    if (!frame) return;
+    const now = holders();
+    const row = (bySteps[label] ??= zero());
+    const parent = stack[stack.length - 1];
+    for (let i = 0; i < now.length; i++) {
+      const delta = now[i] - frame.start[i];
+      row[i] += delta - frame.children[i];
+      if (parent) parent.children[i] += delta;
+    }
+  }
+});
+const r2 = (v: number) => Math.round(v * 100) / 100;
+const snapshots = [];
+for (let month = 1; month <= months; month++) {
+  bySteps = {};
+  intake = {};
+  const before = holders();
+  await advanceWorld(host, { months: 1 });
+  const after = holders();
+  const outside = after.map((v, i) => v - before[i] - Object.values(bySteps).reduce((s, row) => s + row[i], 0));
+  const steps: Record<string, Partial<Record<Holder, number>>> = {};
+  for (const [label, row] of Object.entries(bySteps)) {
+    const cells = Object.fromEntries(HOLDERS.map((h, i) => [h, r2(row[i])]).filter(([, v]) => v !== 0));
+    if (Object.keys(cells).length) steps[label] = cells;
+  }
+  const byproducts: Record<string, [number, number]> = {};
+  for (const good of getGoods().filter(g => ["Leather", "Tallow", "Boots", "Leather Goods"].includes(g.name))) {
+    let stock = 0;
+    let weighted = 0;
+    for (const m of getMarkets()) {
+      const row = m?.goods?.[good.i];
+      if (!row) continue;
+      stock += Math.max(0, row.stock ?? 0);
+      weighted += (Math.max(0, row.stock ?? 0) * (row.price ?? 0)) / (good.value || 1);
+    }
+    byproducts[good.name] = [r2(stock), r2(stock > 0 ? weighted / stock : 0)];
+  }
+  snapshots.push({ month, after: after.map(r2), outside: outside.map(r2), steps, byproducts, intake: Object.fromEntries(Object.entries(intake).filter(([k]) => /^(Cattle|Sheep|Pig|Goats)\|rural|\|made$/.test(k)).map(([k, v]) => [k, r2(v)])) });
+  writeFileSync(output, JSON.stringify({ input, settings, holders: HOLDERS, snapshots }));
+  console.log(`[holders] ${input} month ${month}`);
+}
+process.exit(0);

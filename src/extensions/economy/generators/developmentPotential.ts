@@ -77,6 +77,7 @@ import {
   setSeasonalLaborShortage,
   setSettlementDevelopmentPotential,
   setSoilFertility,
+  setTownHarvestHelperDays,
   setViticultureRequiredWorkers,
   setViticultureWorkers,
   setYieldPerArea
@@ -502,6 +503,7 @@ export class DevelopmentPotentialModule {
     setViticultureRequiredWorkers(occupations.viticultureRequiredWorkers);
     setHusbandryWorkers(occupations.husbandryWorkers);
     setHusbandryMonthlyWorkDays(occupations.husbandryMonthlyWorkDays);
+    setTownHarvestHelperDays(occupations.townHarvestHelperDays ?? new Float32Array());
     setHouseholdTextileWorkers(occupations.householdTextileWorkers);
     setHusbandryRequiredWorkers(occupations.husbandryRequiredWorkers);
     setFarmLaborRequired(occupations.farmLaborRequired);

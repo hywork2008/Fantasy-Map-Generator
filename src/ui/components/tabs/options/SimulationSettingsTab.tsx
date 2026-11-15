@@ -53,11 +53,15 @@ import {
   getMarketGenerationSpacing,
   getMarketSettings,
   HAY_PAYMENT_MODES,
+  HAY_PLAN_HERD_MODES,
   HAY_TRADE_MODES,
   type HayPaymentMode,
+  type HayPlanHerdMode,
   type HayTradeMode,
   HEIRLESS_ESTATE_MODES,
+  HERD_OFFTAKE_SPREAD_MODES,
   type HeirlessEstateMode,
+  type HerdOfftakeSpreadMode,
   HOUSEHOLD_GOOD_VALUE_MODES,
   HOUSEHOLD_GOODS_PAYMENT_MODES,
   type HouseholdGoodsPaymentMode,
@@ -75,6 +79,8 @@ import {
   STATE_BUDGET_INCOME_MODES,
   type StateBudgetIncomeMode,
   setMarketSettings,
+  URBAN_HARVEST_HELP_MODES,
+  type UrbanHarvestHelpMode,
   WAX_SURPLUS_MODES,
   type WaxSurplusMode
 } from "../../../../simulation/marketSettings";
@@ -975,6 +981,87 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.leatherGoodsShare}
                 onChange={v => updateMarketSetting("leatherGoodsShare", v)}
               />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.urbanHarvestHelpTip")}>
+            <td />
+            <td>
+              <label htmlFor="urbanHarvestHelp">{t("simulation.urbanHarvestHelp")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="urbanHarvestHelp"
+                value={marketSettings.urbanHarvestHelp}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ urbanHarvestHelp: e.target.value as UrbanHarvestHelpMode })
+                  )
+                }
+              >
+                {URBAN_HARVEST_HELP_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.urbanHarvestHelp_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.urbanHarvestHelpShareTip")}>
+            <td />
+            <td>{t("simulation.urbanHarvestHelpShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="urbanHarvestHelpShare"
+                min={MARKET_SETTING_LIMITS.urbanHarvestHelpShare.min}
+                max={MARKET_SETTING_LIMITS.urbanHarvestHelpShare.max}
+                step={MARKET_SETTING_LIMITS.urbanHarvestHelpShare.step}
+                value={marketSettings.urbanHarvestHelpShare}
+                onChange={v => updateMarketSetting("urbanHarvestHelpShare", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.hayPlanHerdTip")}>
+            <td />
+            <td>
+              <label htmlFor="hayPlanHerd">{t("simulation.hayPlanHerd")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="hayPlanHerd"
+                value={marketSettings.hayPlanHerd}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ hayPlanHerd: e.target.value as HayPlanHerdMode }))
+                }
+              >
+                {HAY_PLAN_HERD_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.hayPlanHerd_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.herdOfftakeSpreadTip")}>
+            <td />
+            <td>
+              <label htmlFor="herdOfftakeSpread">{t("simulation.herdOfftakeSpread")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="herdOfftakeSpread"
+                value={marketSettings.herdOfftakeSpread}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ herdOfftakeSpread: e.target.value as HerdOfftakeSpreadMode })
+                  )
+                }
+              >
+                {HERD_OFFTAKE_SPREAD_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.herdOfftakeSpread_${mode}`)}
+                  </option>
+                ))}
+              </select>
             </td>
           </tr>
           <tr data-tip={t("simulation.byproductFarmgateTip")}>

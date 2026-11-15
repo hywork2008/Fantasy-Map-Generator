@@ -1,10 +1,11 @@
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import {
   getFaunaStockTable,
   getLivestockDispatchTable,
   getOrCreateLivestockDispatchTable
 } from "../context/cellTables";
 import { getEconomySlice, getSimulationYear } from "../context/economyApi";
-import { livestockFeedPeriod } from "./livestockFeedState";
+import { livestockFeedMonth, livestockFeedPeriod } from "./livestockFeedState";
 /**
  * Fauna Population Stock Model — docs/plan/biome-goods-producer-ecosystem.md §4 (Phase 2).
  *
@@ -218,7 +219,7 @@ export function getAnnualHerdRenewal(cellId: number, good: Good) {
 
 /**
  * Heads a managed grazed herd should sell this month: this year's natural increase plus any stock
- * above the supported herd, spread over twelve settlements. Replaces the biome-rate flow, so meat
+ * above the supported herd, spread over the settlements left before the January renewal. Replaces the biome-rate flow, so meat
  * and live sales follow the herd that actually exists rather than the cell's population x biome rate.
  * The supported herd bounds the herd just after the January renewal, so next year's increase is sold
  * in advance and the herd that enters winter fits its feed (E1-5, §7.71).
@@ -228,7 +229,12 @@ export function getGrazedMonthlyOfftakeHeads(cellId: number, good: Good): number
   if (!cohorts) return 0;
   const renewal = getAnnualHerdRenewal(cellId, good);
   const capacity = getDomesticatedCarryingCapacity(cellId, good, 0);
-  return Math.max(0, cohortTotal(cohorts) + (renewal?.naturalNetHeads ?? 0) - capacity) / 12;
+  const excess = Math.max(0, cohortTotal(cohorts) + (renewal?.naturalNetHeads ?? 0) - capacity);
+  // "toRenewal": the excess left is spread over the months left before the January renewal, so the
+  // year's increase is all sold by December. "legacy" sells a twelfth of what is left each month,
+  // which sells about 65% of it in a year (docs/plan/herd-offtake-spread.md).
+  if (getMarketSettings().herdOfftakeSpread === "legacy") return excess / 12;
+  return excess / (13 - livestockFeedMonth());
 }
 
 function getStockKey(cellId: number, speciesKey: string): string {

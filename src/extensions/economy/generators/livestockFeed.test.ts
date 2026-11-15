@@ -58,6 +58,8 @@ const rows = () => getOrCreateLivestockFeedTable()!;
 describe("physical livestock feed budget", () => {
   let flows: GoodFlowRecord[];
   beforeEach(() => {
+    // These cases pin the present-herd hay plan and the twelfth-a-month herd sales (docs/plan/hay-plan-herd.md, herd-offtake-spread.md).
+    setMarketSettings({ hayPlanHerd: "current", herdOfftakeSpread: "legacy" });
     simulationContext.extensions = {};
     simulationContext.currentYear = 1000;
     simulationContext.currentMonth = 4;

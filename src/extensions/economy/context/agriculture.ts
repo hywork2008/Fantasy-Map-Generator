@@ -82,6 +82,7 @@ let _householdTextileWorkersFallback: Float32Array<ArrayBufferLike> = new Float3
 
 let _husbandryWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _husbandryMonthlyWorkDaysFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _townHarvestHelperDaysFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 let _husbandryRequiredWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
@@ -417,6 +418,17 @@ export function setHusbandryWorkers(value: Float32Array<ArrayBufferLike>): void 
   setHusbandryMonthlyWorkDays(new Float32Array());
 }
 
+/** Town adults' days in the fields and meadows, burgId * 12 + month (docs/plan/urban-harvest-help.md). */
+export function getTownHarvestHelperDays(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("townHarvestHelperDays", _townHarvestHelperDaysFallback);
+}
+
+export function setTownHarvestHelperDays(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("townHarvestHelperDays", value, next => {
+    _townHarvestHelperDaysFallback = next;
+  });
+}
+
 /** Actual occupation reservation, cell * 12 + month. Empty on legacy saves without a calendar. */
 export function getHusbandryMonthlyWorkDays(): Float32Array<ArrayBufferLike> {
   return getSliceFloat32Column("husbandryMonthlyWorkDays", _husbandryMonthlyWorkDaysFallback);
@@ -516,6 +528,7 @@ registerContextFallbackReset(() => {
   _viticultureRequiredWorkersFallback = new Float32Array();
   _husbandryWorkersFallback = new Float32Array();
   _husbandryMonthlyWorkDaysFallback = new Float32Array();
+  _townHarvestHelperDaysFallback = new Float32Array();
   _householdTextileWorkersFallback = new Float32Array();
   _husbandryRequiredWorkersFallback = new Float32Array();
   _stateAgriculturalProductivityFallback = new Float32Array();

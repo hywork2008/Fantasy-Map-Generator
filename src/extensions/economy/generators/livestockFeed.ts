@@ -23,7 +23,7 @@ import {
   getRuralHouseholdWealth,
   repayRuralHay
 } from "./householdWealth";
-import { calculateHusbandryDemand, getForageAreaHectares } from "./husbandry";
+import { calculateHusbandryDemand, getForageAreaHectares, getGrazedCarryingCapacity } from "./husbandry";
 import { getHusbandryLaborBudget } from "./husbandryLabor";
 import {
   ANNUAL_FEED_DM_KG_PER_HEAD,
@@ -73,14 +73,30 @@ function emptyLedger(): LivestockFeedLedger {
   };
 }
 
-/** Same forecast as the worker plan, evaluated against actual animals and maintained land. */
+/**
+ * Annual feed need of the herd the cell will winter: each species' larger of its present heads and
+ * its supported herd. The herd is sold down through the year and refilled by the January renewal,
+ * so the summer's present herd under-plans the winter's hay (docs/plan/hay-plan-herd.md).
+ */
+function getWinteredHerdAnnualNeedKg(cellId: number): number {
+  const table = getOrCreateFaunaStockTable();
+  const goods = getGoods();
+  return Object.entries(ANNUAL_FEED_DM_KG_PER_HEAD).reduce((sum, [name, kg]) => {
+    const herd = table?.[`${cellId}:${name}`];
+    const heads = herd ? Math.max(0, herd.young) + Math.max(0, herd.breeding) + Math.max(0, herd.old) : 0;
+    const good = goods.find(row => row.name === name);
+    const supported = good && isGoodEnabled(good) ? getGrazedCarryingCapacity(cellId, good) : 0;
+    return sum + Math.max(heads, supported) * kg;
+  }, 0);
+}
+
+/** Same forecast as the worker plan, evaluated against the wintered (or, with `hayPlanHerd` current, the present) animals and maintained land. */
 function getCellHayPlan(cellId: number) {
-  return getLivestockHayPlan(
-    getWorldContext(),
-    cellId,
-    getLivestockMonthlyFeedNeedKg(cellId) * 12,
-    getForageAreaHectares(cellId)
-  );
+  const annualNeedKg =
+    getMarketSettings().hayPlanHerd === "current"
+      ? getLivestockMonthlyFeedNeedKg(cellId) * 12
+      : getWinteredHerdAnnualNeedKg(cellId);
+  return getLivestockHayPlan(getWorldContext(), cellId, annualNeedKg, getForageAreaHectares(cellId));
 }
 
 function reserveAfterFeedingKg(cellId: number): number {
