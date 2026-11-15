@@ -154,6 +154,22 @@ describe("ruralOccupationAllocation", () => {
       if (month !== 6)
         expect(seasonal.husbandryMonthlyWorkDays[month]).toBeLessThanOrEqual(40 * WORKABLE_DAYS_PER_ADULT_PER_MONTH);
     }
+    // The hay the harvest month could not cut is carried to the next months' regrowth with the spare
+    // adults (docs/plan/hay-catch-up.md); the legacy rule loses it.
+    const missedHayDays = hayDays - (seasonal.husbandryMonthlyWorkDays[6] - careChildDays);
+    const carried = Array.from(seasonal.hayCatchUpDays ?? []);
+    expect(missedHayDays).toBeGreaterThan(0);
+    expect(carried[7] + carried[8] + carried[9]).toBeCloseTo(missedHayDays, 3);
+    expect(carried[6] + carried[10] + carried[0]).toBe(0);
+    setMarketSettings({ hayCatchUp: "legacy" });
+    const legacy = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth: busy,
+      minimumCropLaborDaysByMonth: busy.slice(),
+      farmLaborRequired: new Float32Array([0]),
+      migratableAdults: new Float32Array([40])
+    });
+    expect(Array.from(legacy.hayCatchUpDays ?? []).every(days => days === 0)).toBe(true);
+    setMarketSettings(DEFAULT_MARKET_SETTINGS);
   });
   beforeEach(() => {
     simulationContext.extensions = {};

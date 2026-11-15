@@ -52,9 +52,11 @@ import {
   type GuildSurplusUseMode,
   getMarketGenerationSpacing,
   getMarketSettings,
+  HAY_CATCH_UP_MODES,
   HAY_PAYMENT_MODES,
   HAY_PLAN_HERD_MODES,
   HAY_TRADE_MODES,
+  type HayCatchUpMode,
   type HayPaymentMode,
   type HayPlanHerdMode,
   type HayTradeMode,
@@ -1017,6 +1019,39 @@ export const SimulationSettingsTab: React.FC = () => {
                 step={MARKET_SETTING_LIMITS.urbanHarvestHelpShare.step}
                 value={marketSettings.urbanHarvestHelpShare}
                 onChange={v => updateMarketSetting("urbanHarvestHelpShare", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.hayCatchUpTip")}>
+            <td />
+            <td>
+              <label htmlFor="hayCatchUp">{t("simulation.hayCatchUp")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="hayCatchUp"
+                value={marketSettings.hayCatchUp}
+                onChange={e => setMarketSettings({ hayCatchUp: e.target.value as HayCatchUpMode })}
+              >
+                {HAY_CATCH_UP_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.hayCatchUp_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.hayCatchUpMonthsTip")}>
+            <td />
+            <td>{t("simulation.hayCatchUpMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="hayCatchUpMonths"
+                min={MARKET_SETTING_LIMITS.hayCatchUpMonths.min}
+                max={MARKET_SETTING_LIMITS.hayCatchUpMonths.max}
+                step={MARKET_SETTING_LIMITS.hayCatchUpMonths.step}
+                value={marketSettings.hayCatchUpMonths}
+                onChange={v => updateMarketSetting("hayCatchUpMonths", v)}
               />
             </td>
           </tr>

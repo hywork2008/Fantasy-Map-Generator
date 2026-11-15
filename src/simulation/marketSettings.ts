@@ -124,6 +124,8 @@ export type ByproductPricingMode = (typeof BYPRODUCT_PRICING_MODES)[number];
 export const CHARACTER_RESERVE_MODES = ["byTier", "legacy"] as const;
 export type CharacterReserveMode = (typeof CHARACTER_RESERVE_MODES)[number];
 export const HEIRLESS_ESTATE_MODES = ["town", "keep"] as const;
+export const HAY_CATCH_UP_MODES = ["aftermath", "legacy"] as const;
+export type HayCatchUpMode = (typeof HAY_CATCH_UP_MODES)[number];
 export const URBAN_HARVEST_HELP_MODES = ["cornAndHay", "legacy"] as const;
 export type UrbanHarvestHelpMode = (typeof URBAN_HARVEST_HELP_MODES)[number];
 export const HAY_PLAN_HERD_MODES = ["wintered", "current"] as const;
@@ -185,6 +187,9 @@ export type MarketSettings = {
   hayPlanHerd: HayPlanHerdMode;
   /** Town adults help with the corn and hay harvest up to a share, and their workshops lose those days, or the period's small share helps with corn only (docs/plan/urban-harvest-help.md). */
   urbanHarvestHelp: UrbanHarvestHelpMode;
+  /** Hay left uncut for want of hands in its month is cut from the regrowth in later months (docs/plan/hay-catch-up.md). */
+  hayCatchUp: HayCatchUpMode;
+  hayCatchUpMonths: number;
   /** Most of a town's adults that go out in a harvest or hay month under cornAndHay. */
   urbanHarvestHelpShare: number;
   bootsLabor: BootsLaborMode;
@@ -297,6 +302,8 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   herdOfftakeSpread: "toRenewal",
   hayPlanHerd: "wintered",
   urbanHarvestHelp: "cornAndHay",
+  hayCatchUp: "aftermath",
+  hayCatchUpMonths: 3,
   urbanHarvestHelpShare: 0.5,
   bootsLabor: "perDay",
   byproductPricing: "stockAndDemand",
@@ -368,6 +375,7 @@ export const MARKET_SETTING_LIMITS = {
   leatherGoodsShare: { min: 0, max: 2, step: 0.05 },
   summerHideLoss: { min: 0, max: 0.5, step: 0.01 },
   urbanHarvestHelpShare: { min: 0, max: 1, step: 0.05 },
+  hayCatchUpMonths: { min: 1, max: 4, step: 1 },
   ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 },
   candleKgPerPerson: { min: 0, max: 4, step: 0.25 },
   waxCandleKgPerPerson: { min: 0, max: 0.5, step: 0.01 },
@@ -475,6 +483,8 @@ const characterReserveMode = (value: unknown): CharacterReserveMode =>
     ? (value as CharacterReserveMode)
     : DEFAULT_MARKET_SETTINGS.characterReserve;
 
+const hayCatchUpMode = (value: unknown): HayCatchUpMode =>
+  HAY_CATCH_UP_MODES.includes(value as HayCatchUpMode) ? (value as HayCatchUpMode) : DEFAULT_MARKET_SETTINGS.hayCatchUp;
 const urbanHarvestHelpMode = (value: unknown): UrbanHarvestHelpMode =>
   URBAN_HARVEST_HELP_MODES.includes(value as UrbanHarvestHelpMode)
     ? (value as UrbanHarvestHelpMode)
@@ -556,6 +566,8 @@ export function getMarketSettings(): MarketSettings {
     herdOfftakeSpread: herdOfftakeSpreadMode(parsed.herdOfftakeSpread),
     hayPlanHerd: hayPlanHerdMode(parsed.hayPlanHerd),
     urbanHarvestHelp: urbanHarvestHelpMode(parsed.urbanHarvestHelp),
+    hayCatchUp: hayCatchUpMode(parsed.hayCatchUp),
+    hayCatchUpMonths: clamp("hayCatchUpMonths", parsed.hayCatchUpMonths),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", parsed.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(parsed.bootsLabor),
     byproductPricing: byproductPricingMode(parsed.byproductPricing),
@@ -629,6 +641,8 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     herdOfftakeSpread: herdOfftakeSpreadMode(next.herdOfftakeSpread),
     hayPlanHerd: hayPlanHerdMode(next.hayPlanHerd),
     urbanHarvestHelp: urbanHarvestHelpMode(next.urbanHarvestHelp),
+    hayCatchUp: hayCatchUpMode(next.hayCatchUp),
+    hayCatchUpMonths: clamp("hayCatchUpMonths", next.hayCatchUpMonths),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", next.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(next.bootsLabor),
     byproductPricing: byproductPricingMode(next.byproductPricing),

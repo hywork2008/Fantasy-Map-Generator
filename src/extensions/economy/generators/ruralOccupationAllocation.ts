@@ -143,6 +143,8 @@ export interface RuralOccupationAllocation {
   readonly ruralReleasePressure: Float32Array;
   /** Town adults' days in the fields and meadows, `burgId * 12 + month` (docs/plan/urban-harvest-help.md). */
   readonly townHarvestHelperDays?: Float32Array;
+  /** Hay days carried from a short hay month to later months' regrowth, cell * 12 + month. */
+  readonly hayCatchUpDays?: Float32Array;
 }
 
 type RuralLaborPlan = Pick<
@@ -598,6 +600,14 @@ function allocateRuralOccupationsFromCalendar(
     townHelp
   );
   const townHarvestHelperDays = spreadTownHarvestHelp(world, townHelp);
+  const hayCatchUpDays = carryHayShortfall(
+    world,
+    currentDaysByCell,
+    workDaysPerAdultByCell,
+    haymakingShortfallDays,
+    husbandryMonthlyWorkDays,
+    husbandryWorkers
+  );
 
   for (const cellId of cells.i) {
     if (cells.h[cellId] < 20) continue;
@@ -689,7 +699,8 @@ function allocateRuralOccupationsFromCalendar(
     migratableAdults,
     seasonalLaborShortage,
     ruralReleasePressure,
-    townHarvestHelperDays
+    townHarvestHelperDays,
+    hayCatchUpDays
   };
 }
 
@@ -877,6 +888,47 @@ function applyHaymakingMutualAid(
       shortfallDays[index] -= helped;
     }
   }
+}
+
+/**
+ * Hay still uncut after every helper is cut from the regrowth of the following months by the cell's own
+ * spare adults, as the manor of Chelsea hired mowers for the second hay crop (VCH Middlesex 12; docs/plan/
+ * hay-catch-up.md). Field work keeps its days: only days left after the whole calendar are used.
+ */
+function carryHayShortfall(
+  world: Readonly<WorldContext>,
+  currentDaysByCell: Float32Array,
+  workDaysPerAdultByCell: Float32Array,
+  shortfallDays: Float32Array,
+  husbandryMonthlyWorkDays: Float32Array,
+  husbandryWorkers: Float32Array
+): Float32Array {
+  const cells = world.pack.cells;
+  const carried = new Float32Array(shortfallDays.length);
+  const settings = getMarketSettings();
+  if (settings.hayCatchUp !== "aftermath" || !cells?.i) return carried;
+  const populationRate = Math.max(1, world.populationRate || 1);
+  for (const cellId of cells.i) {
+    if ((cells.h[cellId] ?? 0) < 20) continue;
+    const adults =
+      (Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0)) * populationRate;
+    for (let month = 0; month < 12; month++) {
+      let remaining = shortfallDays[cellId * 12 + month];
+      for (let ahead = 1; ahead <= settings.hayCatchUpMonths && remaining > 0; ahead++) {
+        const index = cellId * 12 + ((month + ahead) % 12);
+        const workDays = workDaysPerAdultByCell[index] || WORKABLE_DAYS_PER_ADULT_PER_MONTH;
+        const days = Math.min(remaining, Math.max(0, adults * workDays - currentDaysByCell[index]));
+        if (!(days > 0)) continue;
+        currentDaysByCell[index] += days;
+        husbandryMonthlyWorkDays[index] += days;
+        husbandryWorkers[cellId] += days / WORKABLE_DAYS_PER_ADULT;
+        carried[index] += days;
+        remaining -= days;
+      }
+      shortfallDays[cellId * 12 + month] = remaining;
+    }
+  }
+  return carried;
 }
 
 /**

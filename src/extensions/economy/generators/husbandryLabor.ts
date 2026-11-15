@@ -1,4 +1,9 @@
-import { getHusbandryMonthlyWorkDays, getHusbandryWorkers, getWorldContext } from "../economyContext";
+import {
+  getHayCatchUpDays,
+  getHusbandryMonthlyWorkDays,
+  getHusbandryWorkers,
+  getWorldContext
+} from "../economyContext";
 import { WORKABLE_DAYS_PER_ADULT } from "./agriculturalLandUse";
 import type { HusbandryDemand } from "./husbandryTypes";
 
@@ -20,8 +25,10 @@ export function getHusbandryLaborBudget(cellId: number, month: number, demand: H
   const careRequiredDays = Math.max(0, totalPlannedDays - plannedHayDays - plannedMeatDays - plannedResidueDays);
   const careDays = Math.min(reservedDays, careRequiredDays);
   const hayShare = demand.requiredWorkers > 0 ? (demand.hayWorkers ?? 0) / demand.requiredWorkers : 0;
+  // Days carried from a short hay month to this month's regrowth (docs/plan/hay-catch-up.md).
+  const catchUpDays = hasCalendar ? Math.max(0, getHayCatchUpDays()[cellId * 12 + month] ?? 0) : 0;
   const requestedHayDays = hasCalendar
-    ? plannedHayDays
+    ? plannedHayDays + catchUpDays
     : assigned * hayShare * WORKABLE_DAYS_PER_ADULT * (demand.hayMonthlyLaborWeights?.[month] ?? 0);
   return {
     basis: hasCalendar ? ("calendar" as const) : ("legacy-average" as const),
