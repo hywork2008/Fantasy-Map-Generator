@@ -1,6 +1,6 @@
 # ファンタジー世界観で、現実のモデルと分けて考える項目
 
-**Status**: 論点の一覧。濃さの分離は [density-knobs.md](density-knobs.md) に項目名と移行を置いた。補充の二本立て、冒険者を manpower の外に置くこと、魔法のある世界では医学と科学技術を迷信として扱うこと、死者由来の使役を後の文化の候補に残すこと、を決めた。シミュレーションには未接続。迷信の係数はまだ置かない。  
+**Status**: 論点の一覧。濃さの分離は [density-knobs.md](density-knobs.md)、補充の二本と同じ年の書き手は [replenishment.md](replenishment.md) に置いた。冒険者を manpower の外に置くこと、魔法のある世界では医学と科学技術を迷信として扱うこと、死者由来の使役を後の文化の候補に残すこと、を決めた。シミュレーションには未接続。迷信の係数はまだ置かない。  
 **Date**: 2026-11-15  
 **Related**:
 
@@ -12,7 +12,8 @@
 | [monster-nature.md](monster-nature.md) | 性質は段の上限内の列挙。塗りが読むのは媒体だけ。航路の損失は未定 |
 | [danger-layer.md](../danger-layer.md) | 脅威度がセルの居住適合を下げる。算出の経緯 |
 | `src/generators/threatProfiles.ts` | `highFantasy` は獣と稀な強敵。`darkFantasy` は災厄を含む |
-| [player-threat-cull-jobs.md](../player-threat-cull-jobs.md) | 軍隊の多年討伐と、個人の間引き仕事は別パイプラインで同じ危険度を削る |
+| [player-threat-cull-jobs.md](../player-threat-cull-jobs.md) | 軍隊の多年討伐と個人の間引き。同じ年の力の書き手は [replenishment.md](replenishment.md) |
+| [replenishment.md](replenishment.md) | 獣は冬の回復、災厄とダンジョンは呪術。ダンジョンの出現は怪物の濃さ |
 | [high-fantasy-dungeons.md](../high-fantasy-dungeons.md) | ダンジョンの配置・自然発生・討伐による消滅。中身と戦利品経済は非目標 |
 | [wild-oikoumene-frontier.md](../wild-oikoumene-frontier.md) | 居住域の外縁 |
 | [underground-realm-and-supernatural-areas.md](../underground-realm-and-supernatural-areas.md) | 非人間の領域を面として持つか |
@@ -137,9 +138,10 @@
 
 海の怪物は陸と同じレアリティの梯子に乗る。塗るのは水面と岸の 1 ホップだけで、内陸の円にはしない（[monster-nature.md](monster-nature.md)）。航路の損失は、まだ置かない。
 
+同じ年に同じ個体を誰が削るかは [replenishment.md](replenishment.md) で閉じた。マクロの事業がある個体はその年は軍隊が書き、個人は力を引かない。事業が無い個体は、その年の最初の個人契約だけが書く。
+
 残る問い:
 
-- 軍隊の討伐と冒険者の仕事が同じ怪物を、同じ年に二重に削らないようにする照合をどこに置くか。
 - 緩衝帯の幅をセル数で持つか、危険度の閾値で「人口ゼロ」にするか。今は適合が下がるだけで、ゼロとは限らない。
 - 備えの費用を、既存の公共事業（道路 12、港 150、穀物倉 100）と同じ台帳に足すか、軍の維持に含めるか。
 - 怪物が尽きた国家は、世代を経て Marches から標準の定住へ移れるか。移れるなら「絶え間ない」は世界の既定ではなく、文化か宗教の選択である。
@@ -330,7 +332,7 @@
 実装は、この順で設計書を分けてからにする。一つの設定で全部を切らない。
 
 1. **棲み分けのノブ**（§5）。魔法の濃さと怪物の濃さは Cultures set から分ける、で決まった。項目名、既存セーブの移行、Cultures set に残すものは [density-knobs.md](density-knobs.md) に置いた。実装はまだである。
-2. **補充と討伐**（§3）。獣は生態、災厄とダンジョンは呪術、の二本で決まった。危険度の差分を二本で引かないことは [danger-calculation.md](danger-calculation.md) で決めた。同じ年に同じ個体を誰が削れるかは、まだこの項の設計である。
+2. **補充と討伐**（§3）。設計は [replenishment.md](replenishment.md)。獣は生態の冬の回復、災厄とダンジョンは呪術、同じ年の力の書き手は一つ、ダンジョンの出現は `monsterDensity`、で閉じた。実装はまだである。
 3. **力量と身分**（§4）。冒険者は manpower の外に置く、で決まった。戦時の召集例外は置かない。討伐の換算を書き、戦争の `power` には足さない。
 4. **治療と技術**（§6）。魔法がある世界では、医学と科学技術を迷信として扱う（§6.5）。死亡率は変えない。係数は、棲み分けのノブのあとで設計する。
 5. **死者の使役**（§2）。候補に残す、で決まった。対象はスケルトンやフレッシュゴーレムなど死者由来のもの。ストーンゴーレムは忌避が薄く、この候補には入れない。畑の人手の式には、その文化を名指しする設計まで入れない。
@@ -354,4 +356,4 @@
 
 ## 11. 次に進める作業
 
-コードは変えない。危険度の算出は [danger-calculation.md](danger-calculation.md) で決めた。適合の式は動かさない。魔法の濃さと怪物の濃さは [density-knobs.md](density-knobs.md) に置いた。次の設計書は §9 の 2、補充の二本と、同じ年に同じ個体を誰が削れるかである。冒険者は manpower の外、をその設計の前提にする。医学と科学技術を迷信とする係数は、そのあとで設計する。死者の使役は候補に残してあり、その文化を名指しする設計まで畑の人手には入れない。
+コードは変えない。危険度の算出は [danger-calculation.md](danger-calculation.md) で決めた。適合の式は動かさない。魔法の濃さと怪物の濃さは [density-knobs.md](density-knobs.md) に置いた。補充と、同じ年に同じ個体を誰が削れるかは [replenishment.md](replenishment.md) に置いた。冒険者は manpower の外、をその設計の前提にした。次の設計書は §9 の 4、医学と科学技術を迷信とする係数である。死者の使役は候補に残してあり、その文化を名指しする設計まで畑の人手には入れない。

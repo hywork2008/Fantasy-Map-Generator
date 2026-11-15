@@ -129,7 +129,8 @@ Threats.generate → settlement / states / wildLand
 
 ### Deferred
 
-- Sea dungeons, boss combat, loot economy, interior maps, Dark Fantasy profile, Tools clear UI
+- Sea dungeons, boss combat, loot economy, interior maps, Tools clear UI
+- The Dark Fantasy placeholder counts stay in `DARK_FANTASY_DUNGEON_PROFILE`. Enabling that profile when `monsterDensity` is `dark` is [dnd/replenishment.md](dnd/replenishment.md). This file does not retune the counts.
 
 ---
 

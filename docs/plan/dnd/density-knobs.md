@@ -70,7 +70,7 @@
 
 `highFantasy` の種族のまま濃さを `dark` にすること、`darkFantasy` の種族のまま濃さを `none` にすることもできる。
 
-ダンジョンの出現プロファイルは、本書では `culturesSet` のままである。洞窟の生成も、幻想の文化セットのままである。地下を独立したノブにするのは、まだである。
+ダンジョンの出現は [replenishment.md](replenishment.md) が `monsterDensity` へ移す。洞窟とドワーフのホールドは、幻想の文化セットのままである。地下を独立したノブにするのは、まだである。
 
 ---
 
@@ -165,4 +165,6 @@
 
 コードは変えない。医学と科学技術を迷信とする係数は、まだ置かない。置くのは、棲み分けのあとと決めた治療と技術の設計である。
 
-次の設計は、[fantasy-world-agenda.md](fantasy-world-agenda.md) §9 の 2、補充の二本と、同じ年に同じ個体を誰が削れるかである。ダンジョンの出現を文化セットから外すかどうかは、その設計で決める。
+補充と、ダンジョンの出現先は [replenishment.md](replenishment.md) に置いた。ダンジョンは `monsterDensity`、洞窟は文化セットのままである。
+
+次の設計は、[fantasy-world-agenda.md](fantasy-world-agenda.md) §9 の 4、医学と科学技術を迷信とする係数である。
