@@ -11,6 +11,7 @@
 | `src/extensions/economy/generators/foodConstants.ts` | 台帳の `GROSS_FOOD_NEED = 0.43` は 200 kg ÷ 0.43 ≈ 465 kg の荷に対応する。本書は kg 側で数える |
 | `docs/plan/farm-labour-calibration.md` | 脱穀は収穫量に比例する。収量を倍にしても労働は倍にならない |
 | [fantasy-world-agenda.md](fantasy-world-agenda.md) | 使役・怪物・医療など、本書が平均収量に入れない項目の一覧 |
+| [table-background.md](table-background.md) | 0.05% を名簿にせず国家の注記にする。治療の店売りは本書の決定を変えないと置けない |
 
 魔法の効果量は、本書が置く作業仮説である（§2）。外部の呪文一覧や魔法の品の一覧からは読まない。
 

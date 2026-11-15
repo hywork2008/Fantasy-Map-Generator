@@ -2,8 +2,9 @@
 
 2026-11-15
 
-- docs/plan/dnd/magic-agrarian-economy.md
 - docs/plan/dnd/fantasy-world-agenda.md
+- docs/plan/dnd/magic-agrarian-economy.md
+- docs/plan/dnd/table-background.md
 
 2026-11-14
 

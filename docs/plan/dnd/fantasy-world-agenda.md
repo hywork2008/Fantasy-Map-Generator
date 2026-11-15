@@ -7,6 +7,7 @@
 | 文書 / コード | 関係 |
 | :--- | :--- |
 | [magic-agrarian-economy.md](magic-agrarian-economy.md) | 食料・天候・豊穣と、冒険者 0.05% の人口。本書はそれを前提にし、同じ計算を繰り返さない |
+| [table-background.md](table-background.md) | 卓向けの読み出しと、死因 `predation`。本書の未決（濃さのノブ、使役、医療）は開いたまま |
 | [danger-layer.md](../danger-layer.md) | 脅威度がセルの居住適合を下げる |
 | `src/generators/threatProfiles.ts` | `highFantasy` は獣と稀な強敵。`darkFantasy` は災厄を含む |
 | [player-threat-cull-jobs.md](../player-threat-cull-jobs.md) | 軍隊の多年討伐と、個人の間引き仕事は別パイプラインで同じ危険度を削る |
