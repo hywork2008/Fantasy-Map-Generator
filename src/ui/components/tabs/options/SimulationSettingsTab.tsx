@@ -76,8 +76,12 @@ import {
   type MerchantProfitUse,
   PEAT_CUT_PLAN_MODES,
   type PeatCutPlanMode,
+  RURAL_REST_DAYS_MODES,
   RURAL_TOWN_SPENDING_MODES,
+  RURAL_WORK_YEAR_MODES,
+  type RuralRestDaysMode,
   type RuralTownSpendingMode,
+  type RuralWorkYearMode,
   STATE_BUDGET_INCOME_MODES,
   type StateBudgetIncomeMode,
   setMarketSettings,
@@ -1052,6 +1056,86 @@ export const SimulationSettingsTab: React.FC = () => {
                 step={MARKET_SETTING_LIMITS.hayCatchUpMonths.step}
                 value={marketSettings.hayCatchUpMonths}
                 onChange={v => updateMarketSetting("hayCatchUpMonths", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralWorkYearTip")}>
+            <td />
+            <td>
+              <label htmlFor="ruralWorkYear">{t("simulation.ruralWorkYear")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="ruralWorkYear"
+                value={marketSettings.ruralWorkYear}
+                onChange={e => setMarketSettings({ ruralWorkYear: e.target.value as RuralWorkYearMode })}
+              >
+                {RURAL_WORK_YEAR_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.ruralWorkYear_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralWorkDaysPerYearTip")}>
+            <td />
+            <td>{t("simulation.ruralWorkDaysPerYear")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralWorkDaysPerYear"
+                min={MARKET_SETTING_LIMITS.ruralWorkDaysPerYear.min}
+                max={MARKET_SETTING_LIMITS.ruralWorkDaysPerYear.max}
+                step={MARKET_SETTING_LIMITS.ruralWorkDaysPerYear.step}
+                value={marketSettings.ruralWorkDaysPerYear}
+                onChange={v => updateMarketSetting("ruralWorkDaysPerYear", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralChoreDaysPerAdultTip")}>
+            <td />
+            <td>{t("simulation.ruralChoreDaysPerAdult")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralChoreDaysPerAdult"
+                min={MARKET_SETTING_LIMITS.ruralChoreDaysPerAdult.min}
+                max={MARKET_SETTING_LIMITS.ruralChoreDaysPerAdult.max}
+                step={MARKET_SETTING_LIMITS.ruralChoreDaysPerAdult.step}
+                value={marketSettings.ruralChoreDaysPerAdult}
+                onChange={v => updateMarketSetting("ruralChoreDaysPerAdult", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralRestDaysTip")}>
+            <td />
+            <td>
+              <label htmlFor="ruralRestDays">{t("simulation.ruralRestDays")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="ruralRestDays"
+                value={marketSettings.ruralRestDays}
+                onChange={e => setMarketSettings({ ruralRestDays: e.target.value as RuralRestDaysMode })}
+              >
+                {RURAL_REST_DAYS_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.ruralRestDays_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralRestDaysCustomTip")}>
+            <td />
+            <td>{t("simulation.ruralRestDaysCustom")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralRestDaysCustom"
+                min={MARKET_SETTING_LIMITS.ruralRestDaysCustom.min}
+                max={MARKET_SETTING_LIMITS.ruralRestDaysCustom.max}
+                step={MARKET_SETTING_LIMITS.ruralRestDaysCustom.step}
+                value={marketSettings.ruralRestDaysCustom}
+                onChange={v => updateMarketSetting("ruralRestDaysCustom", v)}
               />
             </td>
           </tr>

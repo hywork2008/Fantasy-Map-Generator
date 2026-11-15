@@ -206,6 +206,7 @@ describe("ruralOccupationAllocation", () => {
         migratableAdults: new Float32Array([60]),
         reservedLaborExport: new Float32Array([reserved])
       });
+    setMarketSettings({ ruralWorkYear: "legacy" });
     setGoods([]);
     const without = run();
     setGoods(["Wool", "Wool Cloth", "Wool Garments", "Wool Blankets"].map(name => Goods.getDefaultGood(name)!));
@@ -217,6 +218,16 @@ describe("ruralOccupationAllocation", () => {
     expect(run(60).householdTextileWorkers[0]).toBe(0);
     days.fill(60 * WORKABLE_DAYS_PER_ADULT_PER_MONTH);
     expect(run().householdTextileWorkers[0]).toBeCloseTo(0, 4);
+    // Off-field days (docs/plan/rural-work-year.md): cloth is spun in the days of the work year outside the
+    // field calendar, so it no longer takes field days or the migration surplus, and goes on in a full field year.
+    setMarketSettings(DEFAULT_MARKET_SETTINGS);
+    const fullFields = run();
+    expect(fullFields.householdTextileWorkers[0]).toBeGreaterThan(0);
+    days.fill(0);
+    const offField = run();
+    expect(offField.householdTextileWorkers[0]).toBeCloseTo(withTextiles.householdTextileWorkers[0], 4);
+    expect(offField.farmLaborRequired[0]).toBeCloseTo(without.farmLaborRequired[0], 4);
+    expect(offField.migratableAdults[0]).toBeCloseTo(without.migratableAdults[0], 4);
   });
 
   it("claims a small fixed hunting headcount from a forest cell's surplus, leaving the rest as release pressure", () => {

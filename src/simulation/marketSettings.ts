@@ -126,6 +126,10 @@ export type CharacterReserveMode = (typeof CHARACTER_RESERVE_MODES)[number];
 export const HEIRLESS_ESTATE_MODES = ["town", "keep"] as const;
 export const HAY_CATCH_UP_MODES = ["aftermath", "legacy"] as const;
 export type HayCatchUpMode = (typeof HAY_CATCH_UP_MODES)[number];
+export const RURAL_WORK_YEAR_MODES = ["offField", "legacy"] as const;
+export type RuralWorkYearMode = (typeof RURAL_WORK_YEAR_MODES)[number];
+export const RURAL_REST_DAYS_MODES = ["byPeriod", "custom"] as const;
+export type RuralRestDaysMode = (typeof RURAL_REST_DAYS_MODES)[number];
 export const URBAN_HARVEST_HELP_MODES = ["cornAndHay", "legacy"] as const;
 export type UrbanHarvestHelpMode = (typeof URBAN_HARVEST_HELP_MODES)[number];
 export const HAY_PLAN_HERD_MODES = ["wintered", "current"] as const;
@@ -190,6 +194,13 @@ export type MarketSettings = {
   /** Hay left uncut for want of hands in its month is cut from the regrowth in later months (docs/plan/hay-catch-up.md). */
   hayCatchUp: HayCatchUpMode;
   hayCatchUpMonths: number;
+  /** Rural adults also work the days of the year outside the 140 field days, less housework, for herds, hay and household cloth (docs/plan/rural-work-year.md). */
+  ruralWorkYear: RuralWorkYearMode;
+  ruralWorkDaysPerYear: number;
+  ruralChoreDaysPerAdult: number;
+  /** Sundays and holy days kept from servile work (hay, cloth): by the historical period, or a custom count. */
+  ruralRestDays: RuralRestDaysMode;
+  ruralRestDaysCustom: number;
   /** Most of a town's adults that go out in a harvest or hay month under cornAndHay. */
   urbanHarvestHelpShare: number;
   bootsLabor: BootsLaborMode;
@@ -304,6 +315,11 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   urbanHarvestHelp: "cornAndHay",
   hayCatchUp: "aftermath",
   hayCatchUpMonths: 3,
+  ruralWorkYear: "offField",
+  ruralWorkDaysPerYear: 365,
+  ruralChoreDaysPerAdult: 160,
+  ruralRestDays: "byPeriod",
+  ruralRestDaysCustom: 97,
   urbanHarvestHelpShare: 0.5,
   bootsLabor: "perDay",
   byproductPricing: "stockAndDemand",
@@ -376,6 +392,9 @@ export const MARKET_SETTING_LIMITS = {
   summerHideLoss: { min: 0, max: 0.5, step: 0.01 },
   urbanHarvestHelpShare: { min: 0, max: 1, step: 0.05 },
   hayCatchUpMonths: { min: 1, max: 4, step: 1 },
+  ruralWorkDaysPerYear: { min: 140, max: 365, step: 5 },
+  ruralChoreDaysPerAdult: { min: 0, max: 225, step: 5 },
+  ruralRestDaysCustom: { min: 0, max: 150, step: 1 },
   ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 },
   candleKgPerPerson: { min: 0, max: 4, step: 0.25 },
   waxCandleKgPerPerson: { min: 0, max: 0.5, step: 0.01 },
@@ -485,6 +504,14 @@ const characterReserveMode = (value: unknown): CharacterReserveMode =>
 
 const hayCatchUpMode = (value: unknown): HayCatchUpMode =>
   HAY_CATCH_UP_MODES.includes(value as HayCatchUpMode) ? (value as HayCatchUpMode) : DEFAULT_MARKET_SETTINGS.hayCatchUp;
+const ruralWorkYearMode = (value: unknown): RuralWorkYearMode =>
+  RURAL_WORK_YEAR_MODES.includes(value as RuralWorkYearMode)
+    ? (value as RuralWorkYearMode)
+    : DEFAULT_MARKET_SETTINGS.ruralWorkYear;
+const ruralRestDaysMode = (value: unknown): RuralRestDaysMode =>
+  RURAL_REST_DAYS_MODES.includes(value as RuralRestDaysMode)
+    ? (value as RuralRestDaysMode)
+    : DEFAULT_MARKET_SETTINGS.ruralRestDays;
 const urbanHarvestHelpMode = (value: unknown): UrbanHarvestHelpMode =>
   URBAN_HARVEST_HELP_MODES.includes(value as UrbanHarvestHelpMode)
     ? (value as UrbanHarvestHelpMode)
@@ -568,6 +595,11 @@ export function getMarketSettings(): MarketSettings {
     urbanHarvestHelp: urbanHarvestHelpMode(parsed.urbanHarvestHelp),
     hayCatchUp: hayCatchUpMode(parsed.hayCatchUp),
     hayCatchUpMonths: clamp("hayCatchUpMonths", parsed.hayCatchUpMonths),
+    ruralWorkYear: ruralWorkYearMode(parsed.ruralWorkYear),
+    ruralWorkDaysPerYear: clamp("ruralWorkDaysPerYear", parsed.ruralWorkDaysPerYear),
+    ruralChoreDaysPerAdult: clamp("ruralChoreDaysPerAdult", parsed.ruralChoreDaysPerAdult),
+    ruralRestDays: ruralRestDaysMode(parsed.ruralRestDays),
+    ruralRestDaysCustom: clamp("ruralRestDaysCustom", parsed.ruralRestDaysCustom),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", parsed.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(parsed.bootsLabor),
     byproductPricing: byproductPricingMode(parsed.byproductPricing),
@@ -643,6 +675,11 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     urbanHarvestHelp: urbanHarvestHelpMode(next.urbanHarvestHelp),
     hayCatchUp: hayCatchUpMode(next.hayCatchUp),
     hayCatchUpMonths: clamp("hayCatchUpMonths", next.hayCatchUpMonths),
+    ruralWorkYear: ruralWorkYearMode(next.ruralWorkYear),
+    ruralWorkDaysPerYear: clamp("ruralWorkDaysPerYear", next.ruralWorkDaysPerYear),
+    ruralChoreDaysPerAdult: clamp("ruralChoreDaysPerAdult", next.ruralChoreDaysPerAdult),
+    ruralRestDays: ruralRestDaysMode(next.ruralRestDays),
+    ruralRestDaysCustom: clamp("ruralRestDaysCustom", next.ruralRestDaysCustom),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", next.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(next.bootsLabor),
     byproductPricing: byproductPricingMode(next.byproductPricing),
