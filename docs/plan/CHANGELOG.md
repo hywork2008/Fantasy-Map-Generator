@@ -1,5 +1,10 @@
 # 追加したドキュメント
 
+2026-11-16
+
+- docs/plan/dnd/danger-calculation.md
+- docs/plan/dnd/monster-nature.md
+
 2026-11-15
 
 - docs/plan/dnd/fantasy-world-agenda.md

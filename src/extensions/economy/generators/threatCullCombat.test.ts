@@ -15,6 +15,8 @@ import {
   targetDifficulty
 } from "./threatCullCombat";
 
+const rngProbabilityNever = () => false;
+
 function rngSequence(values: number[]): RNGService {
   let i = 0;
   return {
@@ -23,7 +25,7 @@ function rngSequence(values: number[]): RNGService {
       i += 1;
       return v;
     },
-    P: () => false,
+    P: rngProbabilityNever,
     each: () => () => false,
     gauss: () => 0,
     Pint: n => Math.floor(n),

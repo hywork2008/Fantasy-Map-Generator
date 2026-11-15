@@ -103,10 +103,10 @@ describe("threatProfiles", () => {
     expect(buildThreatBandsFromOptions(baseOptions(), "european")).toBeNull();
   });
 
-  it("highFantasy option defaults zero out rarity 4–5 and prefer steep-decay aggregation", () => {
+  it("highFantasy option defaults zero out rarity 4–5 and do not seed an aggregation mode", () => {
     const defaults = getThreatOptionDefaults("highFantasy");
     expect(defaults).not.toBeNull();
-    expect(defaults!.threatCalculation).toBe("nonlinear");
+    expect(defaults!.threatCalculation).toBeUndefined();
     expect(defaults!.dangerRarity5Min).toBe(0);
     expect(defaults!.dangerRarity5Max).toBe(0);
     expect(defaults!.dangerRarity4Min).toBe(0);
@@ -115,10 +115,10 @@ describe("threatProfiles", () => {
     expect(defaults!.dangerRarity1Min).toBeGreaterThan(0);
   });
 
-  it("darkFantasy option defaults keep calamity ladder and steep-decay aggregation", () => {
+  it("darkFantasy option defaults keep the calamity ladder and do not seed an aggregation mode", () => {
     const defaults = getThreatOptionDefaults("darkFantasy");
     expect(defaults).not.toBeNull();
-    expect(defaults!.threatCalculation).toBe("nonlinear");
+    expect(defaults!.threatCalculation).toBeUndefined();
     expect(defaults!.dangerRarity5Min).toBeGreaterThanOrEqual(1);
     expect(defaults!.dangerRarity5Power).toBe(50);
     expect(defaults!.dangerRarity4Power).toBe(30);
