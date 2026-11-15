@@ -9,9 +9,17 @@
 
 import { rn } from "../../hostUtils";
 import { getGoods, getMarkets } from "../economyContext";
+import { recordGlassDraw } from "./forestGlasshouses";
 import type { GoodFlowCategory, GoodFlowDirection, GoodFlowRecord } from "./goodFlowTypes";
 import { isGoodEnabled } from "./goods-generator";
+import { recordAshUse } from "./hearthAsh";
 import { recordLivestockLotFlow } from "./livestockLots";
+import {
+  getCirculation,
+  isReturnableDrink,
+  receiveShippedContainers,
+  shipFilledContainers
+} from "./returnableContainers";
 
 export type { GoodFlowCategory, GoodFlowDirection, GoodFlowRecord } from "./goodFlowTypes";
 
@@ -162,6 +170,14 @@ function findById<T extends { i: number }>(list: readonly T[], id: number): T | 
   return list.find(item => item.i === id);
 }
 
+const GLASS_DRAW_CATEGORIES: ReadonlySet<GoodFlowCategory> = new Set([
+  "recipeInput",
+  "burgDemand",
+  "luxuryPurchase",
+  "characterLuxury",
+  "construction"
+]);
+
 export function recordGoodFlow(flow: GoodFlowRecord): void {
   if (!Number.isFinite(flow.units) || flow.units <= 0) return;
   const good = findById(getGoods(), flow.goodId);
@@ -173,6 +189,40 @@ export function recordGoodFlow(flow: GoodFlowRecord): void {
   ) {
     const market = findById(getMarkets(), flow.marketId);
     if (market) market.saltProcessingInputBags = (market.saltProcessingInputBags ?? 0) + flow.units;
+  }
+  // The market keeps as much town hearth ash as its recipes and towns draw.
+  if (
+    flow.direction === "sink" &&
+    (flow.category === "recipeInput" || flow.category === "burgDemand") &&
+    flow.marketId !== undefined &&
+    good?.name === "Ash"
+  ) {
+    const market = findById(getMarkets(), flow.marketId);
+    if (market) recordAshUse(market, flow.units);
+  }
+  // The market's glasshouses keep as much Glass as its towns and recipes draw.
+  if (
+    flow.direction === "sink" &&
+    GLASS_DRAW_CATEGORIES.has(flow.category) &&
+    flow.marketId !== undefined &&
+    good?.name === "Glass"
+  ) {
+    const market = findById(getMarkets(), flow.marketId);
+    if (market) recordGlassDraw(market, flow.units);
+  }
+  // Casks travel with their drink and come back empty to the market that drinks it.
+  if (
+    good &&
+    flow.marketId !== undefined &&
+    (flow.category === "exportDeparture" || flow.category === "importArrival") &&
+    isReturnableDrink(good.name)
+  ) {
+    const market = findById(getMarkets(), flow.marketId);
+    const circulation = market ? getCirculation(market) : undefined;
+    if (circulation) {
+      if (flow.category === "exportDeparture") shipFilledContainers(circulation, good.name, flow.units);
+      else receiveShippedContainers(getMarkets(), circulation, good.name, flow.units);
+    }
   }
   const live = good?.tags?.includes("liveAnimal") ? good : undefined;
   if (live && flow.marketId !== undefined) {
@@ -255,6 +305,9 @@ export function closeGoodsBalanceInterval(point: GoodsBalancePoint): {
         luxuryPurchase: categoryTotal(flows, "luxuryPurchase", good.i),
         characterLuxury: categoryTotal(flows, "characterLuxury", good.i),
         vesselSalvage: categoryTotal(flows, "vesselSalvage", good.i),
+        containerReturn: categoryTotal(flows, "containerReturn", good.i),
+        hearthAsh: categoryTotal(flows, "hearthAsh", good.i),
+        forestGlass: categoryTotal(flows, "forestGlass", good.i),
         theft: categoryTotal(flows, "theft", good.i),
         accountingGap: opening + sources - sinks - closing
       };

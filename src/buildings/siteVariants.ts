@@ -16,6 +16,7 @@ import {
   MEDIEVAL_CONTAINERS
 } from "./props/medievalContainers";
 import { createEarlyFieldCannonModel, EARLY_FIELD_CANNON } from "./siege/earlyFieldCannon";
+import { createGrokTrebuchet, GROK_TREBUCHET } from "./siege/grokTrebuchet";
 import { createMedievalWellModel, MEDIEVAL_WELL } from "./wells/medievalWell";
 import { createLowMedievalWellModel } from "./wells/medievalWellLow";
 import { createPublicWaterBasinModel } from "./wells/publicWaterBasin";
@@ -31,9 +32,23 @@ function single<Args extends unknown[] = []>(
 }
 
 /** Objects the editor places by hand; CE draws them at their BV meter scale. */
-export const OBJECT_VARIANTS = PLACEABLE_OBJECTS.map(object =>
-  single(`object.${object.id}`, object.author, object.create)
-);
+export const OBJECT_VARIANTS = [
+  ...PLACEABLE_OBJECTS.map(object => single(`object.${object.id}`, object.author, object.create)),
+  {
+    id: variantId("object.trebuchet", "high", GROK_TREBUCHET.author),
+    family: "object.trebuchet",
+    level: "high",
+    author: GROK_TREBUCHET.author,
+    credits: [
+      {
+        author: GROK_TREBUCHET.author,
+        date: "2026-11-15",
+        note: "High hinged-counterweight trebuchet for Building Viewer. CE keeps the Codex default."
+      }
+    ],
+    create: createGrokTrebuchet
+  }
+];
 
 export const WELL_VARIANTS = [
   single("well.medieval", MEDIEVAL_WELL.author, createMedievalWellModel),

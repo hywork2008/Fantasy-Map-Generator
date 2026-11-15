@@ -16,7 +16,8 @@ export interface LivestockLotLedger {
   shipments: Record<
     string,
     {
-      sourceCellId: number;
+      /** Null for an aggregate shipment made by merging old market lots. */
+      sourceCellId: number | null;
       species: string;
       marketId: number;
       period: number;
@@ -87,6 +88,126 @@ function lotsInBucket(ledger: LivestockLotLedger, key: string, accept: (lot: Liv
     if (lot && accept(lot)) result.push(lot);
   }
   return result;
+}
+
+/**
+ * Publish a staged copy of one lot (or its removal) in place. The lots object keeps its identity,
+ * so the runtime index survives; copying the whole record set per call would rebuild it.
+ */
+export function replaceLivestockLot(ledger: LivestockLotLedger, id: string, lot: LivestockLot | null): void {
+  if (lot) {
+    ledger.lots[id] = lot;
+    indexLot(ledger, lot);
+  } else {
+    delete ledger.lots[id];
+    unindexLot(ledger, id);
+  }
+}
+
+/** Load repair id/version (simulation/loadRepairs.ts) for compacting ledgers saved before compaction. */
+export const LIVESTOCK_LOT_COMPACTION_LOAD_REPAIR = "economy.livestockLotCompaction";
+export const LIVESTOCK_LOT_COMPACTION_LOAD_REPAIR_VERSION = 2; // 2: old market lots merged
+
+/**
+ * Market lots whose shipment is at least this many feed periods (months) old lose their individual
+ * origin and merge per market location and species. Nothing reads a market lot's origin cell; only
+ * the existence of a shipment record matters (owned slaughter), which the merged lot keeps.
+ */
+export const LIVESTOCK_LOT_MERGE_AGE_PERIODS = 12;
+
+/**
+ * Merge old market lots into one lot per market location and species, kept at the position of the
+ * oldest so FIFO still consumes the old stock first. The merged lot points at a new aggregate
+ * shipment (no source cell) so a later live sale stays slaughter-eligible. The shipments it
+ * replaces become unreferenced and are retired by compactLivestockLotLedger. Markets whose stock
+ * outgrows sales (horses, camels) otherwise keep one lot per monthly harvest forever.
+ */
+export function mergeOldMarketLivestockLots(
+  ledger: LivestockLotLedger | null = getLivestockLotLedger(),
+  currentPeriod = livestockFeedPeriod()
+): number {
+  if (!ledger) return 0;
+  const groups = new Map<string, LivestockLot[]>();
+  for (const lot of Object.values(ledger.lots)) {
+    if (lot.status !== "market" || lot.ownerId !== null) continue;
+    const period = lot.shipmentId ? ledger.shipments[lot.shipmentId]?.period : undefined;
+    if (period !== undefined && currentPeriod - period < LIVESTOCK_LOT_MERGE_AGE_PERIODS) continue;
+    const key = `${lot.marketId}|${lot.locationId}|${lot.species}`;
+    const group = groups.get(key);
+    if (group) group.push(lot);
+    else groups.set(key, [lot]);
+  }
+  let merged = 0;
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const [keep] = group;
+    let heads = 0;
+    let latest = -Infinity;
+    const cohorts = group.every(lot => lot.cohortProvenance === "aggregate" && lot.cohortHeads)
+      ? { young: 0, breeding: 0, old: 0 }
+      : null;
+    for (const lot of group) {
+      heads += lot.heads;
+      const period = lot.shipmentId ? ledger.shipments[lot.shipmentId]?.period : undefined;
+      if (period !== undefined && period > latest) latest = period;
+      if (cohorts && lot.cohortHeads)
+        for (const age of ["young", "breeding", "old"] as const) cohorts[age] += lot.cohortHeads[age];
+    }
+    const shipmentId = `shipment-${ledger.nextId++}`;
+    ledger.shipments[shipmentId] = {
+      sourceCellId: null,
+      species: keep.species,
+      marketId: keep.marketId,
+      period: Number.isFinite(latest) ? latest : currentPeriod,
+      heads,
+      cohortHeads: cohorts ? { ...cohorts } : null
+    };
+    keep.heads = heads;
+    keep.shipmentId = shipmentId;
+    keep.sourceCellId = null;
+    keep.cohortProvenance = cohorts ? "aggregate" : "unknown";
+    if (cohorts) keep.cohortHeads = cohorts;
+    else delete keep.cohortHeads;
+    for (let i = 1; i < group.length; i++) replaceLivestockLot(ledger, group[i].id, null);
+    merged += group.length - 1;
+  }
+  return merged;
+}
+
+/** Prefix of the `exits` keys that hold the folded totals of retired shipments, by shipment period. */
+export const RETIRED_EXITS_PREFIX = "retired:";
+
+/**
+ * Retire shipments no live lot references any more: drop the shipment record and fold its
+ * `exits` totals into one per-period aggregate. Live lots, their shipments and exits are kept
+ * unchanged, so FIFO allocation, ownership and slaughter provenance checks see the same data.
+ * Without this both records grow by one entry per rural harvest forever (save size).
+ */
+export function compactLivestockLotLedger(ledger: LivestockLotLedger | null = getLivestockLotLedger()): {
+  shipments: number;
+  exits: number;
+} {
+  if (!ledger) return { shipments: 0, exits: 0 };
+  const referenced = new Set<string>();
+  for (const lot of Object.values(ledger.lots)) if (lot.shipmentId) referenced.add(lot.shipmentId);
+  let retiredExits = 0;
+  for (const [key, totals] of Object.entries(ledger.exits)) {
+    if (key === "unknown" || key.startsWith(RETIRED_EXITS_PREFIX) || referenced.has(key)) continue;
+    const period = ledger.shipments[key]?.period;
+    const target = `${RETIRED_EXITS_PREFIX}${period ?? "unknown"}`;
+    ledger.exits[target] ??= {};
+    const folded = ledger.exits[target];
+    for (const [reason, heads] of Object.entries(totals)) folded[reason] = (folded[reason] ?? 0) + heads;
+    delete ledger.exits[key];
+    retiredExits++;
+  }
+  let retiredShipments = 0;
+  for (const key of Object.keys(ledger.shipments)) {
+    if (referenced.has(key)) continue;
+    delete ledger.shipments[key];
+    retiredShipments++;
+  }
+  return { shipments: retiredShipments, exits: retiredExits };
 }
 
 function getOrCreateLedger(): LivestockLotLedger | null {

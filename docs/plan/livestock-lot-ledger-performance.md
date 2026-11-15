@@ -5,6 +5,8 @@
 - 2026-10-28 計画。
 - 2026-10-28 L1（索引）を実装。関連テスト62件が成功。12か月の golden はセクション別に`world.notes`以外が変更前と一致した。12か月目の1か月の時間は27→17秒、12か月の合計は154→132秒。
 - 2026-10-28 L2。48か月は69分→9分、48か月目の1か月は279→20秒、`production:rural`の self は220→1秒。月の時間はほぼ一定になった（[記録](../analytics/tick-growth-20261028.md#追加-l1ロットの索引の効果2026-10-28)）。ロットは48か月目に104,643件で増え続ける。
+- 2026-11-11 L3 の一部（`shipments`・`exits`）を実装。1603年開始の Venvilia（1611年6月）で`.fmg`の保存がブラウザごと落ちた。`simulation/core.json`が491 MB（V8 の文字列上限 536,870,888 の91%）で、うち`shipments`が251 MB（151.7万件、生きたロットが参照するのは27万件）、`exits`が57 MB（129.7万件）。`compactLivestockLotLedger()`で、生きたロットが参照しない出荷を削除し、その`exits`を`retired:<period>`の集計に畳む。月の締めごとと、未圧縮の保存の読み込み時（load repair `economy.livestockLotCompaction` v1）に行う。`ownedSlaughter`は台帳全体のコピーをやめ、1ロット・1行だけ更新する。同じファイルを`npm run sim`で1か月進めると`core.json`は232 MB。古い市場ロットの統合（§3.2の1項目め）は未実装。
+- 2026-11-11 L3 の残り（古い市場ロットの統合）を実装。`mergeOldMarketLivestockLots()`が、出荷から12か月以上（`LIVESTOCK_LOT_MERGE_AGE_PERIODS`）経った市場ロットと出所不明の市場ロットを、市場の場所×種ごとに1つへまとめる。まとめたロットは最も古いロットの ID と位置を引き継ぐので、FIFO は古い在庫から消費する順のままである。出所セルは捨て、新しい集計の出荷（`sourceCellId: null`）を指す。屠畜の出所確認には出荷の存在だけが要るため、後で買われても屠畜できる。年齢群は、全ロットが`aggregate`の時だけ合算して残す。月の締めで`compactLivestockLotLedger()`の前に行い、load repair を v2 に上げて保存済みのファイルにも1回かける。Venvilia（1611年6月→7月）で`core.json`は232→149 MB、ロットは29.2万→9.8万件（市場23.9万→4.5万）。golden（Node、365日）を変更前と比べた差は`livestockLots`の中身と`loadRepairs`の版だけで、他のセクションは一致した。所有ロット（5.3万件）は所有者の会計に関わるため統合していない。
 - 根拠: [長期実行で月ごとに遅くなる原因の計測](../analytics/tick-growth-20261028.md)。関連: [冬前の屠畜と肉保存](winter-livestock-slaughter-and-preservation.md)（所有・出所の会計）、[Rust 化の設計](rust-simulation-core.md) の R0。
 
 ## 1. 問題

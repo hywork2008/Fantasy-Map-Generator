@@ -20,15 +20,14 @@ describe("refreshCalibrationOverview", () => {
 
   afterEach(() => clearEconomyContext());
 
-  it("expects 10–40 woodworking people for a 9000-display-person burg", () => {
+  it("expects 90 woodworking people (coopers, joiners, bowyers, ropers) for a 9000-display-person burg", () => {
     refreshCalibrationOverview();
     const row = getCalibrationOverviewState().rows.find(candidate => candidate.pool === "woodworking");
     expect(row?.laborPeople).toBe(9000);
     expect(row?.displayPeople).toBe(9000);
-    expect(row?.expectedPeople).toBeGreaterThanOrEqual(10);
-    expect(row?.expectedPeople).toBeLessThanOrEqual(40);
-    expect(row?.expectedPeople).toBeCloseTo(19.8, 1);
-    expect(row?.expectedPoints).toBeCloseTo(0.0198, 4);
+    // docs/plan/urban-craft-staffing.md §5.2: 5 + 3 + 1 + 1 per thousand.
+    expect(row?.expectedPeople).toBeCloseTo(90, 1);
+    expect(row?.expectedPoints).toBeCloseTo(0.09, 4);
     expect(row?.goods.some(good => good.goodName === "Barrels")).toBe(true);
   });
 });

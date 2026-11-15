@@ -22,9 +22,9 @@ import {
   GRAPE_TARGETS,
   GRAPES_LOTS_PER_RAISINS_LOT,
   GRAPES_LOTS_PER_WINE_LOT,
+  HONEY_BARRELS_PER_MEAD_LOT,
   KILOGRAMS_PER_ORCHARD_FRUIT_LOT,
   MILK_LOTS_PER_CHEESE_LOT,
-  ORCHARD_DRINK_BARRELS_PER_LOT,
   ORCHARD_FRUIT_LOTS_PER_DRIED_LOT,
   ORCHARD_FRUIT_LOTS_PER_DRINK_LOT,
   ORCHARD_TARGETS,
@@ -39,15 +39,24 @@ import {
   type TradeScale,
   type TradeTrend
 } from "./goodsGeneratorTypes";
+import { BOOTS_HIDES_PER_LOT } from "./leatherConstants";
 import { RENNET_BARRELS_PER_CHEESE_LOT } from "./rennet";
+import {
+  DRINK_CONTAINER_CHOICES,
+  getContainerReplacementPerLot,
+  type ReturnableDrink,
+  withDrinkContainers
+} from "./returnableContainers";
 import { TEXTILE_RECIPES } from "./textileRecipeContracts";
 import { getDefaultGoodCargoProfile } from "./tradeCargo";
 import { catalogTradeHeading } from "./tradeHeadings";
 import {
   CHARCOAL_WOOD_PER_LOT,
   LEGACY_WOOD_RECIPES,
+  POTASH_ASH_SACKS_PER_BARREL,
   PRESERVED_FISH_ASH,
   PRESERVED_FISH_WOOD_RECIPE,
+  RETIRED_ASH_WOOD_RECIPE,
   WOOD_RECIPE_CONTRACTS
 } from "./woodRecipeContracts";
 
@@ -236,13 +245,112 @@ type GoodData = Omit<Good, "i" | "recipes" | "byproducts"> & {
 
 /** Whole-kiln material contract; no independently recovered ash from carbonization. */
 const CHARCOAL_WOOD_PER_UNIT = CHARCOAL_WOOD_PER_LOT;
-const POTASH_ASH_PER_UNIT = 1.5;
+const POTASH_ASH_PER_UNIT = POTASH_ASH_SACKS_PER_BARREL;
+/**
+ * A 50 kg sack of wood ash at 0.09 times the grain price per kilogram: Jefferson's 9 cents a bushel
+ * (some 21 kg) in 1795, with wheat at about $1.33 a bushel. It was 1.5, 15 times grain
+ * (docs/plan/wood-ash-potash.md §2, §3).
+ */
+export const ASH_SACK_VALUE = 0.012;
+/**
+ * A 120 L barrel of potash at 3 times the grain price per kilogram: pearl ash at £40 a ton in England
+ * in 1795 (Jefferson) against wheat at 43 to 78 s a quarter, and potash at $200 to $300 a ton in the
+ * United States in 1790-1804. The ash of a barrel costs a third of it, as in Jefferson's figures; the
+ * rest is the leaching, the boiling and its fuel. It was 3.
+ */
+export const POTASH_BARREL_VALUE = 0.9;
+/** Pomace a 200 L wine cask's pressing leaves. */
+const WINE_POMACE_LOTS_PER_CASK = GRAPES_LOTS_PER_WINE_LOT * POMACE_SHARE_OF_PRESSED_GRAPE_MASS;
 /** A tun (1,000 L) of cider or perry uses about 1.5 t of pressed orchard fruit. */
 const ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK = ORCHARD_FRUIT_LOTS_PER_DRINK_LOT;
 /** Grain in a tun (1,000 L) of ale: some 465 kg of malt, a wain (goods-physical-units.md §29). */
 const GRAIN_WAINS_PER_ALE_CASK = 1;
-/** Barrel wear for a tun: five casks at 0.08 each. */
-const BARRELS_PER_TUN = 0.4;
+/** The forest-only honey of catalogues saved before docs/plan/honey-forage-lands.md. */
+const LEGACY_HONEY_FOREST_OUTPUT = 0.04;
+const LEGACY_HONEY_DISTRIBUTION = 'biomeTag("forest")';
+/**
+ * Honey barrels (168 kg) a month per 1,000 rural people where bees forage: about 1.5 kg a head a year with
+ * the Generic culture's 1.2. Galicia kept some 366,000 hives for 1.3 million people in the 1750s (0.28 a
+ * head), and a skep gave about 5.5 kg net a year (Crane; honey-forage-lands.md §2).
+ */
+const HONEY_HARVEST_PER_THOUSAND = 0.6;
+/**
+ * A third of that in the Mediterranean scrub and on farmland without forest or grass: Roussillon kept 0.11
+ * hives a head in 1856 at 4 to 8 kg, Murcia's dry lands fewer and smaller ones (Lemeunier 2011). Spanish
+ * honey came from the uncultivated saltus, least of all from the irrigated huertas. A biome takes its best
+ * tag, so the Mediterranean's `arable` must not stand above its `scrub`.
+ */
+const HONEY_SCRUB_HARVEST_PER_THOUSAND = 0.2;
+const HONEY_OUTPUT_BY_TAG: Readonly<Partial<Record<BiomeTag, number>>> = {
+  forest: HONEY_HARVEST_PER_THOUSAND,
+  grassland: HONEY_HARVEST_PER_THOUSAND,
+  scrub: HONEY_SCRUB_HARVEST_PER_THOUSAND,
+  arable: HONEY_SCRUB_HARVEST_PER_THOUSAND
+};
+/**
+ * A 168 kg barrel at 3.9 times the grain price per kilogram: honey at about 7d a gallon in England around
+ * 1350, the price of butter, with wheat at 6s a quarter (Rogers, after Allsop and Brand Miller 1996). It was 4.
+ */
+const HONEY_BARREL_VALUE = 1.5;
+/**
+ * Three times ale by the litre. Mead sold at 25 kopecks a bucket against beer's 8 in Vologda in
+ * 1626 and 20 against 10 in Mozhaisk (Liseitsev 2020); in Lublin in 1595-1601 at 4-5 grosze a
+ * garniec, against 0.67 for Krakow's ordinary beer and 1.5 for its March beer. The honey of a tun
+ * costs 2.5 at its value (docs/plan/mead.md §2, §3).
+ */
+const MEAD_TUN_VALUE = 4.5;
+const HONEY_DISTRIBUTION = 'biomeTag("forest") || biomeTag("grassland") || biomeTag("scrub") || biomeTag("arable")';
+/** Clay and White sand of catalogues saved before docs/plan/cold-land-clay.md: only on warm shores and rivers. */
+const LEGACY_SHORE_DEPOSIT_DISTRIBUTION = "minTemp(8) && (shore(1) || river())";
+/**
+ * Clay and White sand on any shore or river but the treeless cold lands. Glacial and river clays fired
+ * the bricks and pots of Novgorod, Turku and Moscow at a mean 5 to 6 degrees; Iceland, without fit clay
+ * or fuel, imported its pottery. Forest glass melted stream and lake sand with wood ash in the
+ * glasshouses of the Waldviertel, the Thuringian Forest and Smaland (docs/plan/cold-land-clay.md §2).
+ * Tundra, alpine tundra and glaciers are cold without forest, wetland or desert.
+ */
+const SHORE_DEPOSIT_DISTRIBUTION =
+  '(shore(1) || river()) && !(biomeTag("cold") && !biomeTag("forest", "wetland", "desert"))';
+const SHORE_DEPOSIT_GOODS: readonly string[] = ["Clay", "White sand"];
+/**
+ * Barilla, the ash of the saltworts (Salsola, Halogeton, Salicornia) burned on warm salt shores: the
+ * Levant's and Egypt's ash that Murano melted from 1255, and Alicante's and Cartagena's that Spain
+ * shipped to Italy and the north. Narbonne's Salicornia, at about 14 degrees, was the coolest shore
+ * of the trade (docs/plan/barilla.md §2).
+ */
+const BARILLA_DISTRIBUTION =
+  'minTemp(14) && (coastalHabitat("tidalFlat", "coastalDune") || shore(1) && biomeTag("dry", "desert", "scrub"))';
+/**
+ * A 120 L barrel of barilla at half potash's price per kilogram (provisional): kelp sold at about
+ * £8 a ton in the 1770s and barilla, with twice its alkali, was dearer still; pearl ash was £40
+ * (docs/plan/barilla.md §2.3).
+ */
+const BARILLA_BARREL_VALUE = 0.45;
+/**
+ * Barilla for a wain of glass: the alkali of the potash recipe's half barrel. Barilla held about 20%
+ * alkali against potash's 65% (Barker 1977), so 0.5 x 65 / 20 = 1.6 barrels.
+ */
+export const BARILLA_BARRELS_PER_GLASS_LOT = 1.6;
+/**
+ * Hard soap of the oil and soda countries for a 120 kg barrel of soap. Marseille boiled a charge of
+ * about 315 livres of oil with 200 livres of Alicante soda (Encyclopedie, "Savon"), and the edict of
+ * 1688 asked five livres of soap from three of oil: 72 kg of oil (0.65 barrel) and 46 kg of barilla
+ * (0.38 barrel) to the barrel (docs/plan/barilla-soap.md).
+ */
+export const SOAP_OIL_BARRELS_PER_BARILLA_SOAP = 0.65;
+export const BARILLA_BARRELS_PER_SOAP = 0.38;
+/**
+ * The same soap from the soda of the alkali works, as Marseille boiled it after the barilla: the
+ * 14 kg of soda in 46 kg of barilla, about an eighth of a 120 kg barrel (glass takes a barrel of soda
+ * ash for 3.2 of barilla).
+ */
+export const SODA_ASH_BARRELS_PER_CASTILE_SOAP = 0.12;
+/**
+ * The white hard soap of olive oil and soda is worth twice the black soft soap of potash: a livre of
+ * white soap 2.5 sols and of black soap 1.25 sols in Saintonge about 1778 (docs/plan/castile-soap.md
+ * §2). It falls in the fine luxury tier, which buys it apart from Soap.
+ */
+const CASTILE_SOAP_VALUE = 12;
 /** Pressed grape pomace in one 200 L cask of pomace wine: 120 kg, a tenth of a lot, with water (§29). */
 const POMACE_LOTS_PER_POMACE_WINE_CASK = 0.12;
 const shipClassById = new Map(SHIP_CLASS_DEFINITIONS.map(shipClass => [shipClass.id, shipClass]));
@@ -799,8 +907,9 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     // One 200 L cask uses 260 kg of grapes. Barrels are returnable containers; 0.08 is the
     // replacement/repair allowance per filling, not a claim that a cask is discarded each time.
-    recipes: [{ Grapes: GRAPES_LOTS_PER_WINE_LOT, Barrels: 0.08 }],
-    byproducts: [{ Pomace: GRAPES_LOTS_PER_WINE_LOT * POMACE_SHARE_OF_PRESSED_GRAPE_MASS }],
+    // In a cask, an amphora or bottles: whichever the vintner can get cheapest (returnableContainers.ts).
+    recipes: withDrinkContainers("Wine", { Grapes: GRAPES_LOTS_PER_WINE_LOT }),
+    byproducts: DRINK_CONTAINER_CHOICES.Wine.map(() => ({ Pomace: WINE_POMACE_LOTS_PER_CASK })),
     unit: "200 L cask",
     multipliers: { cultureType: { Highland: 1.2, Nomadic: 0.5 } }
   },
@@ -833,13 +942,15 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "preservative"],
     icon: "good-honey",
     color: "#DCBC66",
-    value: 4,
+    value: HONEY_BARREL_VALUE,
     chance: 3,
-    distribution: 'biomeTag("forest")',
+    // Bees forage wherever flowers last the summer: forest, heath and steppe grassland, Mediterranean and dry
+    // scrub, farmland. Not the bog, the fen, the tundra or the desert (docs/plan/honey-forage-lands.md).
+    distribution: HONEY_DISTRIBUTION,
     unit: "barrel",
     demandCoverage: { food: 0.5 },
     multipliers: { cultureType: { Generic: 1.2 } },
-    biomeOutputByTag: { forest: 0.04 }
+    biomeOutputByTag: { ...HONEY_OUTPUT_BY_TAG }
   },
   {
     name: "Salt",
@@ -1317,7 +1428,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#b07c60",
     value: 1,
     chance: 5,
-    distribution: "minTemp(8) && (shore(1) || river())",
+    distribution: SHORE_DEPOSIT_DISTRIBUTION,
     unit: "wain",
     demandCoverage: { construction: 1 },
     multipliers: { cultureType: { River: 1.4, Lake: 1.4 } }
@@ -1398,7 +1509,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e6d69c",
     value: 1,
     chance: 4,
-    distribution: "minTemp(8) && (shore(1) || river())",
+    distribution: SHORE_DEPOSIT_DISTRIBUTION,
     unit: "wain",
     multipliers: { cultureType: { River: 1.4, Lake: 1.4 } }
   },
@@ -1472,9 +1583,12 @@ export const GOODS_DATA: GoodData[] = [
     // is available (see Soda Ash's own comment below), alongside the original forest/potash-glass
     // recipe. requiredTechnology lives on Soda Ash itself, not here, so this alternative simply
     // has no viable ingredient until chemicalIndustryFoundation is adopted somewhere.
+    // Third recipe: the soda glass of the warm ports, melted with Barilla shipped from the salt
+    // shores, as Murano and Barcelona did (docs/plan/barilla.md).
     recipes: [
       { "White sand": 1, Potash: 0.5 },
-      { "White sand": 1, "Soda Ash": 0.5 }
+      { "White sand": 1, "Soda Ash": 0.5 },
+      { "White sand": 1, Barilla: BARILLA_BARRELS_PER_GLASS_LOT }
     ],
     unit: "wain",
     demandCoverage: { luxury: 1 },
@@ -1638,7 +1752,8 @@ export const GOODS_DATA: GoodData[] = [
     color: "#654321",
     value: 7,
     chance: 0,
-    recipes: [{ Leather: 1 }, { Furs: 0.5 }],
+    // A lot is 20 pairs; a cowhide gives about 10 pairs, uppers and soles (docs/plan/leather-uses.md §4.1).
+    recipes: [{ Leather: BOOTS_HIDES_PER_LOT }, { Furs: 0.5 }],
     unit: "pair",
     demandCoverage: { utilities: 1 }
   },
@@ -1665,7 +1780,9 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["naval", "storage"],
     icon: "good-barrels",
     color: "#b46e3b",
-    value: 2,
+    // Wood and the cooper's wage at the calibrated labor (about 0.06) with a margin
+    // (ale-cask-repricing.md §3.2). The sources' 3d is about 0.02; it was 2.
+    value: 0.1,
     chance: 0,
 
     unit: "barrel",
@@ -1997,22 +2114,19 @@ export const GOODS_DATA: GoodData[] = [
     // Wood ash — a cheap alkaline coagulant/preservative used historically in some traditional
     // cheeses (alongside surface mold/acidity control), added 2026-08-07 (docs/plan/
     // fauna-biome-realism.md §3 Phase N, docs/temp/0807-cheese.md) as Cheese's third coagulant path.
-    // Deliberately modeled as burnt Wood (not raw Wood itself) for the same "actually processed, not
-    // just renamed" reasoning as Barrels-from-Wood below. Wood is abundant almost everywhere, so this
-    // gives Cheese-making a near-universally available fallback input when Salt/Vinegar/Rennet are
-    // locally scarce.
+    // No recipe: the market buys the towns' hearth ash (hearthAsh.ts) and the ash of kilns, stills
+    // and smokehouses comes as their byproduct (docs/plan/wood-ash-potash.md).
     name: "Ash",
-    ...WOOD_RECIPE_CONTRACTS.Ash,
     tags: ["construction"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#b8b8b0",
-    // Retain the existing price during the material correction; Wood/ash yield is now explicit.
-    value: 1.5,
+    value: ASH_SACK_VALUE,
     chance: 0,
-
     unit: "sack",
-    demandCoverage: { construction: 0.2 }
+    // No construction share: at the price of ash a share of the towns' building budget bought it by
+    // the hundred sacks. Ash goes to potash and cheese (docs/plan/wood-ash-potash.md §3).
+    demandCoverage: {}
   },
   {
     // Cheese consumes Milk (above) rather than Cattle/Sheep/Goats headcount directly — Milk's own
@@ -2075,20 +2189,21 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "beverage"],
     icon: "good-beer",
     color: "#fbb117",
-    // A 1,010 kg tun at 1.1 times the grain price per kilogram: the sources have ale at 0.7 to 1.5 times
-    // (goods-physical-units.md §29). The 200 L cask was 4, 9.2 times; a tun earns a lot's gain of about 1.
-    value: 2.4,
+    // A 1,010 kg tun at 0.67 times the grain price per kilogram: town ale at a penny a gallon with wheat at
+    // 6s a quarter (Assize of Ale, Dyer; ale-cask-repricing.md). It was 2.4 (1.1 times, goods-physical-units.md
+    // §29), which made the ale demand cost town households about all of their income.
+    value: 1.5,
     chance: 0,
     recipes: [
       // Beer may use locally traded cereal crops. It must never consume the
       // Food Ledger's abstract staple-equivalent accounting unit.
-      { Barley: GRAIN_WAINS_PER_ALE_CASK, Barrels: BARRELS_PER_TUN },
-      { Wheat: GRAIN_WAINS_PER_ALE_CASK, Barrels: BARRELS_PER_TUN },
-      { Rye: GRAIN_WAINS_PER_ALE_CASK, Barrels: BARRELS_PER_TUN },
-      { Oats: GRAIN_WAINS_PER_ALE_CASK, Barrels: BARRELS_PER_TUN }
+      // Each in casks, pots or bottles: whichever the brewer can get cheapest (returnableContainers.ts).
+      ...(["Barley", "Wheat", "Rye", "Oats"] as const).flatMap(grain =>
+        withDrinkContainers("Beer", { [grain]: GRAIN_WAINS_PER_ALE_CASK })
+      )
     ],
     // Casks circulate back to coopers; the recipe consumes only replacement/repair material.
-    // Honey drinks belong to a future Mead/Braggot luxury good, not ordinary small ale.
+    // Honey drinks are Mead's, not ordinary small ale's.
     unit: "1,000 L ale tun",
     demandCoverage: {}
   },
@@ -2103,7 +2218,7 @@ export const GOODS_DATA: GoodData[] = [
     // Priced as ale, per kilogram, by the tun (§29); the 200 L cask was 4.
     value: 2.4,
     chance: 0,
-    recipes: [{ Apples: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, Barrels: BARRELS_PER_TUN }],
+    recipes: withDrinkContainers("Cider", { Apples: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK }),
     unit: "1,000 L cider tun",
     demandCoverage: {}
   },
@@ -2115,8 +2230,22 @@ export const GOODS_DATA: GoodData[] = [
     // Priced as ale, per kilogram, a little over cider, by the tun (§29); the 200 L cask was 4.5.
     value: 2.5,
     chance: 0,
-    recipes: [{ Pears: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, Barrels: BARRELS_PER_TUN }],
+    recipes: withDrinkContainers("Perry", { Pears: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK }),
     unit: "1,000 L perry tun",
+    demandCoverage: {}
+  },
+  {
+    // The drink of the lands without vines: honey boiled in water and fermented, one part to four
+    // (docs/plan/mead.md). Town brewers make it from the market's honey; country people make theirs
+    // at home within the household honey.
+    name: "Mead",
+    tags: ["food", "beverage"],
+    icon: "good-beer",
+    color: "#e0a526",
+    value: MEAD_TUN_VALUE,
+    chance: 0,
+    recipes: withDrinkContainers("Mead", { Honey: HONEY_BARRELS_PER_MEAD_LOT }),
+    unit: "1,000 L mead tun",
     demandCoverage: {}
   },
   {
@@ -2150,9 +2279,10 @@ export const GOODS_DATA: GoodData[] = [
     color: "#fffacd",
     value: 14,
     chance: 0,
-    // 100 kg of candles, from 100 kg of beeswax (one block) or a barrel of oil or tallow. The honey leg is gone:
-    // wax is 1 kg in 20 of the honey harvested, so 100 kg of candles would cost 2 t of honey (§26).
-    recipes: [{ Oil: 1 }, { Beeswax: 1 }, { Tallow: 1 }],
+    // 100 kg of wax (or oil) candles for the church and the great households, from 100 kg of beeswax (one
+    // block) or a barrel of oil. The honey leg is gone: wax is 1 kg in 20 of the honey harvested, so 100 kg
+    // of candles would cost 2 t of honey (§26). The homes' tallow dips are Tallow Candles (docs/plan/candle-split.md).
+    recipes: [{ Oil: 1 }, { Beeswax: 1 }],
     unit: "block",
     demandCoverage: { utilities: 0.5, luxury: 0.5 }
   },
@@ -2163,14 +2293,30 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e0e4cc",
     value: 6,
     chance: 0,
-    // Fourth recipe: hard/curd soap once industrial Caustic Soda is available (see its own
-    // comment above) — NaOH is a stronger saponifying alkali than wood-ash Potash, hence the
-    // lower ratio, alongside the three existing Potash soft-soap recipes.
+    // The cheap soft (black) soap of animal fat and wood-ash lye. Olive oil soap is the dearer white
+    // hard soap, Castile Soap (docs/plan/soap-by-period.md §3.2). Third recipe: hard/curd soap once
+    // industrial Caustic Soda is available (see its own comment above) — NaOH is a stronger
+    // saponifying alkali than wood-ash Potash, hence the lower ratio.
     recipes: [
-      { Olives: 1, Potash: 0.3 },
       { Cattle: 1, Potash: 0.3 },
       { Tallow: 1, Potash: 0.3 },
       { Tallow: 1, "Caustic Soda": 0.15 }
+    ],
+    unit: "barrel",
+    demandCoverage: { utilities: 0.4, luxury: 0.6 }
+  },
+  {
+    // The white hard soap of Castile and Marseille, olive oil boiled with barilla lye, shipped to
+    // Flanders and England (docs/plan/castile-soap.md). Soda ash takes the barilla's place once known.
+    name: "Castile Soap",
+    tags: ["luxury", "ritual"],
+    icon: "good-soap",
+    color: "#f3efe0",
+    value: CASTILE_SOAP_VALUE,
+    chance: 0,
+    recipes: [
+      { Oil: SOAP_OIL_BARRELS_PER_BARILLA_SOAP, Barilla: BARILLA_BARRELS_PER_SOAP },
+      { Oil: SOAP_OIL_BARRELS_PER_BARILLA_SOAP, "Soda Ash": SODA_ASH_BARRELS_PER_CASTILE_SOAP }
     ],
     unit: "barrel",
     demandCoverage: { utilities: 0.4, luxury: 0.6 }
@@ -2473,13 +2619,27 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#c9c2a6",
-    value: 3,
+    value: POTASH_BARREL_VALUE,
     chance: 0,
     // Refining the soluble alkali from Wood ash makes a compact, durable industrial input
     // suitable for long-distance glass and soap trade.
     recipes: [{ Ash: POTASH_ASH_PER_UNIT }],
     unit: "barrel",
     demandCoverage: { utilities: 0.3 }
+  },
+  {
+    // Plant soda ash, burned from the saltworts of warm salt shores into hard grey cakes and
+    // shipped to the glasshouses of the ports (docs/plan/barilla.md).
+    name: "Barilla",
+    warEconomyType: "strategic",
+    tags: ["industrial"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#a9a48c",
+    value: BARILLA_BARREL_VALUE,
+    chance: 3,
+    distribution: BARILLA_DISTRIBUTION,
+    unit: "barrel"
   },
   {
     // A bulky, low-value smelter residue. It is locally useful as fill or aggregate, but is
@@ -3470,6 +3630,34 @@ export const GOODS_DATA: GoodData[] = [
     recipes: TEXTILE_RECIPES["Wool Blankets"],
     unit: "blanket lot",
     demandCoverage: {}
+  },
+  {
+    // Belts, purses, bags, gloves, water skins, buckets, saddles and furniture covers: the leather
+    // that did not go into shoes, a third or more of it (docs/plan/leather-uses.md §4.2).
+    name: "Leather Goods",
+    warEconomyType: "essential",
+    tags: ["clothing"],
+    icon: "good-leather",
+    color: "#7a4a24",
+    value: 3.5,
+    chance: 0,
+    recipes: [{ Leather: 1 }],
+    unit: "lot",
+    demandCoverage: { utilities: 1 }
+  },
+  {
+    // 100 kg of dipped tallow candles, the homes' light, from a barrel of tallow. 1.5d a pound in 1338
+    // against wax at 8d (docs/plan/candle-split.md, docs/plan/household-goods-values.md §3).
+    name: "Tallow Candles",
+    warEconomyType: "essential",
+    tags: [],
+    icon: "good-candles",
+    color: "#f3e6b3",
+    value: 2.4,
+    chance: 0,
+    recipes: [{ Tallow: 1 }],
+    unit: "block",
+    demandCoverage: { utilities: 1 }
   }
 ];
 
@@ -3602,6 +3790,8 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Caravel: tradeProfile(5, 5, 5, 0, 0, 4, 3),
   Galleon: tradeProfile(5, 5, 5, 0, 0, 4, 3),
   Boots: tradeProfile(2, 3, 2, 1, 0, 4, 2),
+  "Leather Goods": tradeProfile(2, 3, 2, 1, 0, 4, 2),
+  "Tallow Candles": tradeProfile(2, 3, 1, 0, 0, 3, 2),
   Harnesses: tradeProfile(3, 3, 3, 1, 0, 4, 2),
   Barrels: tradeProfile(4, 5, 1, -1, 0, 4, 2),
   Bronze: tradeProfile(5, 4, 3, 1, 0, 5, 2),
@@ -3622,6 +3812,8 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   // low value density and fragility (durability/lossRisk) mean it's still not worth hauling far.
   Egg: tradeProfile(2, 3, 1, 1, 0, 2, 3),
   Beer: tradeProfile(4, 4, 2, 1, -1, 2, 3),
+  // Heavy as ale, but dearer, and it keeps and travels like wine.
+  Mead: tradeProfile(4, 4, 3, 1, 1, 4, 2),
   Liquor: tradeProfile(2, 2, 4, 2, 1, 4, 2),
   Candles: tradeProfile(2, 3, 3, 1, 0, 3, 2),
   Soap: tradeProfile(3, 3, 3, 1, 0, 4, 2),
@@ -4401,6 +4593,31 @@ export function migrateStapleCropGoods(): boolean {
   return changed;
 }
 
+/** Wine's pressing leaves its Pomace whichever container it goes out in: one entry a recipe. */
+function alignWinePomace(goods: Good[], wine: Good): void {
+  const pomace = goods.find(good => good.name === "Pomace");
+  if (!pomace || !wine.byproducts) return;
+  wine.byproducts = (wine.recipes ?? []).map(() => ({ [pomace.i]: WINE_POMACE_LOTS_PER_CASK }));
+}
+
+/**
+ * A drink's recipes on a saved catalogue's own ids, each in every container the catalogue has:
+ * casks, pots and bottles, each at the trip's loss (returnableContainers.ts). Barrels come first.
+ */
+function withSavedDrinkContainers(
+  goods: Good[],
+  drink: ReturnableDrink,
+  bases: Record<number, number>[]
+): Record<number, number>[] {
+  const containers = DRINK_CONTAINER_CHOICES[drink].flatMap(name => {
+    const good = goods.find(candidate => candidate.name === name);
+    return good ? [{ name, i: good.i }] : [];
+  });
+  return bases.flatMap(base =>
+    containers.map(container => ({ ...base, [container.i]: getContainerReplacementPerLot(drink, container.name) }))
+  );
+}
+
 /**
  * Adds orchard goods to catalogues created before perennial horticulture and
  * upgrades Olives and Dates from legacy biome production to the climate-driven path.
@@ -4493,7 +4710,7 @@ export function migratePerennialFruitGoods(): boolean {
       beverage.tags.push("orchardDrink");
       changed = true;
     }
-    const recipes = [{ [fruit.i]: ORCHARD_FRUIT_LOTS_PER_DRINK_LOT, [barrels.i]: ORCHARD_DRINK_BARRELS_PER_LOT }];
+    const recipes = withSavedDrinkContainers(goods, beverageName, [{ [fruit.i]: ORCHARD_FRUIT_LOTS_PER_DRINK_LOT }]);
     const tunUnit = `1,000 L ${beverageName.toLowerCase()} tun`;
     if (JSON.stringify(beverage.recipes) === JSON.stringify(recipes) && beverage.unit === tunUnit) continue;
     if (beverage.unit !== tunUnit) {
@@ -4553,10 +4770,95 @@ export function migrateWineRecipe(): boolean {
   const barrels = goods.find(good => good.name === "Barrels");
   if (!grapes || !barrels) return false;
 
-  wine.recipes = [{ [grapes.i]: GRAPES_LOTS_PER_WINE_LOT, [barrels.i]: 0.08 }];
+  wine.recipes = withSavedDrinkContainers(goods, "Wine", [{ [grapes.i]: GRAPES_LOTS_PER_WINE_LOT }]);
+  alignWinePomace(goods, wine);
   wine.chance = 0;
   delete wine.distribution;
   delete wine.biomeOutputByTag;
+  return true;
+}
+
+/**
+ * Adds Barilla to catalogues saved before it and the soda-glass recipe to their Glass, on this save's
+ * White sand id (docs/plan/barilla.md). The map's deposits stay as saved; the Goods editor's placement
+ * regeneration lays Barilla out. No-op when Barilla is present or Glass or White sand is missing.
+ */
+export function migrateBarillaGood(): boolean {
+  const goods = getGoods();
+  if (goods.some(good => good.name === "Barilla")) return false;
+  const glass = goods.find(good => good.name === "Glass");
+  const sand = goods.find(good => good.name === "White sand");
+  if (!glass || !sand) return false;
+
+  const barilla = Goods.getDefaultGood("Barilla");
+  if (!barilla) throw new Error("Barilla must be present in the shipped goods catalogue");
+  barilla.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  goods.push(barilla);
+  glass.recipes = [...(glass.recipes ?? []), { [sand.i]: 1, [barilla.i]: BARILLA_BARRELS_PER_GLASS_LOT }];
+  return true;
+}
+
+/**
+ * Adds Castile Soap to catalogues saved before it, its recipes on this save's Oil, Barilla and Soda
+ * Ash ids, and takes from Soap the oil and barilla recipe saves of docs/plan/barilla-soap.md gave it:
+ * the hard soap is its own good now (docs/plan/castile-soap.md). No-op when Castile Soap is present
+ * and Soap has no barilla recipe, or an ingredient is missing.
+ */
+export function migrateCastileSoapGood(): boolean {
+  const goods = getGoods();
+  const oil = goods.find(good => good.name === "Oil");
+  const barilla = goods.find(good => good.name === "Barilla");
+  const sodaAsh = goods.find(good => good.name === "Soda Ash");
+  if (!oil || !barilla || !sodaAsh) return false;
+  let changed = false;
+  const soap = goods.find(good => good.name === "Soap");
+  if (soap?.recipes?.some(recipe => barilla.i in recipe)) {
+    soap.recipes = soap.recipes.filter(recipe => !(barilla.i in recipe));
+    changed = true;
+  }
+  if (goods.some(good => good.name === "Castile Soap")) return changed;
+
+  const castile = Goods.getDefaultGood("Castile Soap");
+  if (!castile) throw new Error("Castile Soap must be present in the shipped goods catalogue");
+  castile.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  castile.recipes = [
+    { [oil.i]: SOAP_OIL_BARRELS_PER_BARILLA_SOAP, [barilla.i]: BARILLA_BARRELS_PER_SOAP },
+    { [oil.i]: SOAP_OIL_BARRELS_PER_BARILLA_SOAP, [sodaAsh.i]: SODA_ASH_BARRELS_PER_CASTILE_SOAP }
+  ];
+  goods.push(castile);
+  return true;
+}
+
+/**
+ * Takes the olive and potash recipe from Soap in catalogues saved before docs/plan/soap-by-period.md
+ * §3.2: olive oil soap is the white hard soap, Castile Soap, not the cheap soft soap of fat and lye.
+ * No-op when Soap or Olives is missing or Soap has no Olives recipe.
+ */
+export function migrateOliveSoapRecipe(): boolean {
+  const goods = getGoods();
+  const olives = goods.find(good => good.name === "Olives");
+  const soap = goods.find(good => good.name === "Soap");
+  if (!olives || !soap?.recipes?.some(recipe => olives.i in recipe)) return false;
+  soap.recipes = soap.recipes.filter(recipe => !(olives.i in recipe));
+  return true;
+}
+
+/**
+ * Adds Mead to catalogues saved before it, its recipe on this save's Honey and Barrels ids
+ * (docs/plan/mead.md). No-op when Mead is present or an ingredient is missing.
+ */
+export function migrateMeadGood(): boolean {
+  const goods = getGoods();
+  if (goods.some(good => good.name === "Mead")) return false;
+  const honey = goods.find(good => good.name === "Honey");
+  const barrels = goods.find(good => good.name === "Barrels");
+  if (!honey || !barrels) return false;
+
+  const mead = Goods.getDefaultGood("Mead");
+  if (!mead) throw new Error("Mead must be present in the shipped goods catalogue");
+  mead.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  mead.recipes = withSavedDrinkContainers(goods, "Mead", [{ [honey.i]: HONEY_BARRELS_PER_MEAD_LOT }]);
+  goods.push(mead);
   return true;
 }
 
@@ -4690,7 +4992,13 @@ export function migratePomaceDistillationGoods(): boolean {
     changed = true;
   };
 
-  setByproducts("Wine", [{ Pomace: GRAPES_LOTS_PER_WINE_LOT * POMACE_SHARE_OF_PRESSED_GRAPE_MASS }]);
+  // One Pomace entry for each container the Wine recipes come in.
+  setByproducts(
+    "Wine",
+    Array.from({ length: Math.max(1, byName.get("Wine")?.recipes?.length ?? 1) }, () => ({
+      Pomace: WINE_POMACE_LOTS_PER_CASK
+    }))
+  );
   setRecipes("Pomace Wine", [{ Pomace: POMACE_LOTS_PER_POMACE_WINE_CASK, Barrels: 0.08 }]);
 
   return changed;
@@ -4841,19 +5149,21 @@ export function migrateFoodProcessingLotContracts(): boolean {
     }
   }
   if (wine && grapes && barrels) {
-    const recipes = [{ [grapes.i]: GRAPES_LOTS_PER_WINE_LOT, [barrels.i]: 0.08 }];
+    const recipes = withSavedDrinkContainers(goods, "Wine", [{ [grapes.i]: GRAPES_LOTS_PER_WINE_LOT }]);
     if (wine.unit !== "200 L cask" || JSON.stringify(wine.recipes) !== JSON.stringify(recipes)) {
       wine.unit = "200 L cask";
       wine.recipes = recipes;
+      alignWinePomace(goods, wine);
       changed = true;
     }
   }
   const beer = goods.find(good => good.name === "Beer");
   if (beer && barrels) {
-    const recipes = ["Barley", "Wheat", "Rye", "Oats"]
+    const grainRecipes = ["Barley", "Wheat", "Rye", "Oats"]
       .map(name => goods.find(good => good.name === name))
       .filter((ingredient): ingredient is Good => Boolean(ingredient))
-      .map(ingredient => ({ [ingredient.i]: GRAIN_WAINS_PER_ALE_CASK, [barrels.i]: BARRELS_PER_TUN }));
+      .map(ingredient => ({ [ingredient.i]: GRAIN_WAINS_PER_ALE_CASK }));
+    const recipes = withSavedDrinkContainers(goods, "Beer", grainRecipes);
     const hasBeverageTag = beer.tags.includes("beverage");
     if (
       beer.unit !== "1,000 L ale tun" ||
@@ -5049,7 +5359,22 @@ const WEIGHT_COVERAGE_REPRICING: readonly { good: string; category: DemandCatego
   ];
 
 /**
- * Applies WEIGHT_REPRICING, WEIGHT_RECIPE_REPRICING and WEIGHT_COVERAGE_REPRICING to a saved
+ * Base values before and after docs/plan/ale-cask-repricing.md, which brings ale to the sources' price
+ * against grain and the cask to its cost. Applied after WEIGHT_REPRICING, so a Beer still at its
+ * value before goods-physical-units.md §29 (4) also comes to the new value.
+ */
+export const ALE_CASK_REPRICING: Readonly<Record<string, readonly [before: number, after: number]>> = {
+  Beer: [2.4, 1.5],
+  Barrels: [2, 0.1],
+  // Honey against grain: 3.9 times per kilogram (docs/plan/honey-forage-lands.md §6).
+  Honey: [4, HONEY_BARREL_VALUE],
+  // Wood ash and potash against grain (docs/plan/wood-ash-potash.md §3).
+  Ash: [1.5, ASH_SACK_VALUE],
+  Potash: [3, POTASH_BARREL_VALUE]
+};
+
+/**
+ * Applies WEIGHT_REPRICING, ALE_CASK_REPRICING, WEIGHT_RECIPE_REPRICING and WEIGHT_COVERAGE_REPRICING to a saved
  * catalogue. Only a value still at its old default and an amount still at its old figure are
  * changed, so what the player set in the Goods editor is kept.
  */
@@ -5057,10 +5382,11 @@ export function migrateWeightRepricing(): boolean {
   const goods = getGoods();
   let changed = false;
   for (const good of goods) {
-    const repricing = WEIGHT_REPRICING[good.name];
-    if (!repricing || good.value !== repricing[0]) continue;
-    good.value = repricing[1];
-    changed = true;
+    for (const repricing of [WEIGHT_REPRICING[good.name], ALE_CASK_REPRICING[good.name]]) {
+      if (!repricing || good.value !== repricing[0]) continue;
+      good.value = repricing[1];
+      changed = true;
+    }
   }
   for (const { good: goodName, input, before, after } of WEIGHT_RECIPE_REPRICING) {
     const good = goods.find(candidate => candidate.name === goodName);
@@ -5322,6 +5648,57 @@ export function migrateOrdinaryWoolGoods(): boolean {
   return added.length > 0;
 }
 
+/**
+ * Adds the leather goods other than shoes and makes a lot of Boots take two hides
+ * (docs/plan/leather-uses.md §4).
+ */
+export function migrateLeatherGoods(): boolean {
+  const goods = getGoods();
+  const leather = goods.find(entry => entry.name === "Leather");
+  if (!leather) return false;
+  let changed = false;
+  const boots = goods.find(entry => entry.name === "Boots");
+  for (const recipe of boots?.recipes ?? []) {
+    if (recipe[leather.i] === 1) {
+      recipe[leather.i] = BOOTS_HIDES_PER_LOT;
+      changed = true;
+    }
+  }
+  if (!goods.some(entry => entry.name === "Leather Goods")) {
+    const good = Goods.getDefaultGood("Leather Goods")!;
+    good.i = Math.max(0, ...goods.map(entry => entry.i)) + 1;
+    good.recipes = [{ [leather.i]: 1 }];
+    goods.push(good);
+    changed = true;
+  }
+  return changed;
+}
+
+/**
+ * Splits the homes' tallow candles from the wax Candles (docs/plan/candle-split.md): adds Tallow
+ * Candles made from Tallow and drops a saved catalogue's Candles recipe of Tallow. Candles stock
+ * stays Candles.
+ */
+export function migrateTallowCandleGoods(): boolean {
+  const goods = getGoods();
+  const tallow = goods.find(entry => entry.name === "Tallow");
+  if (!tallow) return false;
+  let changed = false;
+  const candles = goods.find(entry => entry.name === "Candles");
+  if (candles?.recipes?.some(recipe => tallow.i in recipe)) {
+    candles.recipes = candles.recipes.filter(recipe => !(tallow.i in recipe));
+    changed = true;
+  }
+  if (!goods.some(entry => entry.name === "Tallow Candles")) {
+    const good = Goods.getDefaultGood("Tallow Candles")!;
+    good.i = Math.max(0, ...goods.map(entry => entry.i)) + 1;
+    good.recipes = [{ [tallow.i]: 1 }];
+    goods.push(good);
+    changed = true;
+  }
+  return changed;
+}
+
 /** Adds bedding without reinterpreting existing garment or fabric inventories. */
 export function migrateWoolBlanketGoods(): boolean {
   const goods = getGoods();
@@ -5349,6 +5726,66 @@ export function migrateUntaxedSaltValue(): boolean {
   const salt = getGoods().find(good => good.name === "Salt");
   if (!salt || !TAXED_SALT_BAG_VALUES.includes(salt.value)) return false;
   salt.value = UNTAXED_SALT_BAG_VALUE;
+  return true;
+}
+
+/**
+ * Gives a saved catalogue's Honey the forage lands beyond the forest and the harvest of the sources
+ * (docs/plan/honey-forage-lands.md). Only the old forest-only default is replaced, so a catalogue edited in the
+ * Goods editor keeps its own lands. The value is repriced by `migrateWeightRepricing`.
+ */
+export function migrateHoneyForageLands(): boolean {
+  const honey = getGoods().find(good => good.name === "Honey");
+  if (!honey) return false;
+  const tags = honey.biomeOutputByTag ?? {};
+  const forestOnly = Object.keys(tags).length === 1 && tags.forest === LEGACY_HONEY_FOREST_OUTPUT && !honey.biomeOutput;
+  if (!forestOnly || honey.distribution !== LEGACY_HONEY_DISTRIBUTION) return false;
+  honey.distribution = HONEY_DISTRIBUTION;
+  honey.biomeOutputByTag = { ...HONEY_OUTPUT_BY_TAG };
+  return true;
+}
+
+/**
+ * Gives a saved catalogue's Clay and White sand the cold lands' shores and rivers (docs/plan/cold-land-clay.md).
+ * Only the old default is replaced, so an edited catalogue keeps its own rule. The map's deposits stay where
+ * they are; the Goods editor's placement regeneration lays them out by the new rule.
+ */
+export function migrateColdLandShoreDeposits(): boolean {
+  let changed = false;
+  for (const good of getGoods()) {
+    if (!SHORE_DEPOSIT_GOODS.includes(good.name) || good.distribution !== LEGACY_SHORE_DEPOSIT_DISTRIBUTION) continue;
+    good.distribution = SHORE_DEPOSIT_DISTRIBUTION;
+    changed = true;
+  }
+  return changed;
+}
+
+/**
+ * Removes the Wood recipe and the construction share of a saved catalogue's Ash (docs/plan/wood-ash-potash.md
+ * §3): the market's ash comes from the town hearths and from byproducts, and goes to potash and cheese. Only
+ * the defaults, old or physical, are removed.
+ */
+export function migrateHearthAshGoods(): boolean {
+  const goods = getGoods();
+  const ash = goods.find(good => good.name === "Ash");
+  const wood = goods.find(good => good.name === "Wood");
+  if (!ash || !wood) return false;
+  let changed = false;
+  const coverage = ash.demandCoverage;
+  if (coverage && Object.keys(coverage).length === 1 && coverage.construction === 0.2) {
+    ash.demandCoverage = {};
+    changed = true;
+  }
+  if (!ash.recipes) return changed;
+  const retired = [LEGACY_WOOD_RECIPES.Ash?.[0]?.Wood, RETIRED_ASH_WOOD_RECIPE.Wood];
+  const onlyWood = ash.recipes.length === 1 && Object.keys(ash.recipes[0]).length === 1;
+  const amount = ash.recipes[0]?.[wood.i];
+  const isRetired = retired.some(
+    entry => entry !== undefined && amount !== undefined && Math.abs(entry - amount) < 1e-9
+  );
+  if (!onlyWood || !isRetired) return changed;
+  delete ash.recipes;
+  delete ash.byproducts;
   return true;
 }
 

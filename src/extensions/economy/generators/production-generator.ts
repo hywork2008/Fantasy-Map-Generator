@@ -4,6 +4,9 @@ import {
   isDistillationKnown
 } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
+import { getContainerReuseCost } from "../../../simulation/containerReuseSettings";
+import { getCraftEmploymentScale } from "../../../simulation/craftSettings";
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import { yieldToHost } from "../../../simulation/ports";
 import type { Burg, State } from "../../hostTypes";
 import { DEBUG, ERROR, measureTickStep, measureTickStepAsync, rn, TIME } from "../../hostUtils";
@@ -32,6 +35,7 @@ import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { settleArmsTheft } from "./armsTheft";
 import { getDiscontentLaborMultiplier } from "./burgDiscontent";
 import { creditHouseholdWealth, syncBurgMarketLedgers } from "./burgMarketLedgers";
+import { settleByproductExport } from "./byproductExport";
 import { Caravans } from "./caravans";
 import { CELL_FOOD_PRESERVATION_LABOR_SHARE } from "./cellFoodRescue";
 import {
@@ -39,21 +43,27 @@ import {
   ConstructionOperations,
   getConstructionProductivityMultiplier
 } from "./constructionEmployment";
+import { drawCraftCredit, recordCraftSpend } from "./craftCredit";
 import {
+  calibratedReserveFactor,
   domainShare,
+  getAnnualLotsPerTownPerson,
   getCalibratedMonthlyLots,
   getGoodDemandCalibration,
   laborPointsForLots
 } from "./craftDemandCalibration";
 import { smoothCraftWorkers } from "./craftEmployment";
-import { laborPeople } from "./craftScale";
+import { laborPeople, peopleToPoints } from "./craftScale";
 import { getBasicWorkersByBurg, getChildLabourEquivalent, getCraftWorkforce } from "./craftWorkforce";
 import { settleCropResiduePreparation } from "./cropResidueSettlement";
+import { getCurryingTallow } from "./curryingTallow";
 import { ExportStaging } from "./exportStaging";
-import { isOrchardDrink } from "./foodLots";
+import { isReturnedCaskDrink } from "./foodLots";
 import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
+  ensureContainerCirculation,
   getFoodProcessingProductionHeadroom,
+  getMonthlyHouseholdContainerDemand,
   recordBeerCaskFilling,
   recordFoodMarketIntake,
   recordFoodProcessingConsumption,
@@ -62,6 +72,13 @@ import {
   refreshAleHouseholdDemand,
   settleFoodProcessingHouseholds
 } from "./foodProcessingLedger";
+import {
+  getMarketBuyerFactor,
+  getRuralChandlerPeople,
+  getRuralShoemakerPeople,
+  isCountrysideGood
+} from "./footwearDemand";
+import { hasForestGlasshouses } from "./forestGlasshouses";
 import type { DemandCategory, Good } from "./goods-generator";
 import {
   DEMAND_PRIORITY,
@@ -80,6 +97,7 @@ import {
   getCraftDomainForGood
 } from "./guildKnowledgeTypes";
 import { GUILD_PROFIT_SHARE, GuildTreasury } from "./guildTreasury";
+import { debitRuralHouseholdWealth, openRuralTownBudget, recordRuralTownGoodsPaid } from "./householdWealth";
 import { harvestLivestockForage, settleLivestockFeed } from "./livestockFeed";
 import { scheduleLivestockFeedPeriods } from "./livestockFeedSchedule";
 import { withLivestockFeedPeriod } from "./livestockFeedState";
@@ -88,6 +106,7 @@ import { type LuxuryTier, luxuryTierOf } from "./luxuryTiers";
 import { beginFlowCycleCapture, recordFlowCycleEnd } from "./marketFlowDiagnostics";
 import { settleMarketMaintenance } from "./marketMaintenance";
 import { allocateMarketProcurementBudgets } from "./marketProcurementBudget";
+import { getPurchasableUnits } from "./marketPurchases";
 import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
@@ -98,7 +117,16 @@ import { settleMilling } from "./millCapacity";
 import { MineOperations } from "./mineOperations";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { Minting } from "./minting";
-import { expectedWorkerPoints, getOccupationalRow } from "./occupationalCalibration";
+import {
+  type ExpectedWorkerArgs,
+  expectedDomainWorkerPoints,
+  expectedWorkerPeople,
+  expectedWorkerPoints,
+  getOccupationalRow,
+  getOccupationalRowForGood,
+  type OccupationalCalibrationRow,
+  type OccupationalPool
+} from "./occupationalCalibration";
 import { OverseasRelations } from "./overseasRelations";
 import { beginPortProductionCycle } from "./portWarehouses";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
@@ -116,8 +144,19 @@ import type {
   ProductionRecord
 } from "./productionRecordTypes";
 import { QuarryOperations } from "./quarryOperations";
+import {
+  CONTAINER_PROFILES,
+  type DrinkContainer,
+  getContainerSetPerLot,
+  getContainerYieldCap,
+  isDrinkContainer,
+  isReturnableDrink,
+  planContainerDraw,
+  type ReturnableDrink,
+  recordContainerFilling
+} from "./returnableContainers";
 import { SaltLogistics } from "./saltLogistics";
-import { settleSlaughter } from "./slaughter";
+import { type SlaughterResult, settleSlaughter } from "./slaughter";
 import { SmelterOperations } from "./smelterOperations";
 import {
   getSmithingProductProgram,
@@ -151,6 +190,15 @@ import {
 } from "./textileDemand";
 import { HOUSEHOLD_GARMENT_NAMES, hasPhysicalTextileRecipe } from "./textileRecipeContracts";
 import { buyTownLuxuries } from "./townLuxuryPurchases";
+import {
+  getMonthlySoapPotashFloor,
+  getMonthlyTownSoapFloor,
+  isTownSoapDemandGood,
+  isTownSoapEnabled,
+  isTownSoapGood,
+  SOFT_SOAP,
+  WHITE_SOAP
+} from "./townSoap";
 import { TradeSecurity } from "./tradeSecurity";
 import { TransportAssetOrders } from "./transportAssetOrders";
 import { recordUrbanCraftCapacity } from "./urbanCraftCapacity";
@@ -183,6 +231,12 @@ const PORT_CYCLE_DAYS = 30;
  * carve-outs protect different things and are free to diverge later.
  */
 const STRATEGIC_PRIORITY_LABOR_SHARE = 0.15;
+/** The local stage's labor for one craft, as a multiple of its urban-table headcount (urban-craft-staffing.md §3 decision 3). */
+const LOCAL_STAGE_CRAFT_CAP = 1.5;
+/** Share of the Tools a town could not forge that its smiths mend instead (urban-craft-staffing.md §6.2, provisional). */
+const SMITH_REPAIR_SHARE = 0.3;
+/** Planning attempts the local stage gives one good in a cycle. */
+const LOCAL_STAGE_ATTEMPTS_PER_GOOD = 4;
 
 const STATE_TECH_GATED_GOODS: Readonly<Record<string, (stateId: number) => boolean>> = {
   Liquor: isDistillationKnown
@@ -254,7 +308,65 @@ export function settlePomaceWineMarketProcessing(market: Market): number {
   return casks;
 }
 
+type DrinkContainerUse = {
+  drink: ReturnableDrink;
+  container: DrinkContainer;
+  goodId: number;
+  /** Container units a recipe lot buys: the trip's loss. */
+  replacementPerLot: number;
+  /** Container units one filled lot takes. */
+  setPerLot: number;
+};
+
+/** The container a returnable drink's recipe fills (returnableContainers.ts), or null. */
+function getDrinkContainerUse(
+  good: Good,
+  ingredients: readonly { goodId: number; amount: number }[]
+): DrinkContainerUse | null {
+  if (!isReturnableDrink(good.name)) return null;
+  for (const ingredient of ingredients) {
+    const name = Goods.get(ingredient.goodId)?.name ?? "";
+    if (!isDrinkContainer(name) || !(ingredient.amount > 0)) continue;
+    return {
+      drink: good.name,
+      container: name,
+      goodId: ingredient.goodId,
+      replacementPerLot: ingredient.amount,
+      setPerLot: getContainerSetPerLot(good.name, name)
+    };
+  }
+  return null;
+}
+
+/** Recipe ingredients with the new containers a filling buys beyond its replacement. */
+function withNewContainers<T extends { goodId: number; amount: number }>(
+  ingredients: readonly T[],
+  use: DrinkContainerUse,
+  market: Market,
+  recipeLots: number,
+  filledPerLot: number
+): T[] {
+  if (!(recipeLots > 0)) return [...ingredients];
+  const draw = planContainerDraw(
+    ensureContainerCirculation(market),
+    use.drink,
+    use.container,
+    recipeLots * filledPerLot,
+    recipeLots * use.replacementPerLot
+  );
+  return ingredients.map(ingredient =>
+    ingredient.goodId === use.goodId
+      ? { ...ingredient, amount: ingredient.amount + draw.extra / recipeLots }
+      : ingredient
+  );
+}
+
 export class ProductionModule {
+  /** Burg population points per market, counted once a production cycle. */
+  private urbanPopulationByMarket: Map<number, number> | null = null;
+  /** "market:good" → this cycle's household-drink container floor (§12 item 20). */
+  private householdContainerLots = new Map<string, number>();
+
   private get worldContext() {
     return getWorldContext();
   }
@@ -319,6 +431,8 @@ export class ProductionModule {
   }
 
   private startProductionCycle(): ProductionCycle {
+    this.urbanPopulationByMarket = null;
+    this.householdContainerLots.clear();
     scheduleLivestockFeedPeriods(0);
     // Cleared here (start of cycle) rather than after Taxes.collectTaxes() so the previous
     // cycle's deals stay visible to transaction-history UI (markets-overview.ts,
@@ -401,6 +515,8 @@ export class ProductionModule {
     // Purchase budgets must exist before the Burg loop; otherwise first-cycle production
     // would still depend on whichever Burg happens to run first after a legacy load.
     measureTickStep("production:merchantPurchaseCapital", () => MerchantTradeCapital.ensureAllMarkets());
+    // What a market owes its towns for consigned goods that have sold comes before new purchases.
+    measureTickStep("production:craftConsignments", () => Markets.settleCraftConsignments());
     const saleBudgetByBurg = allocateMarketProcurementBudgets(sortedBurgs, getMarkets());
     // Flour has to exist before the burg loop bakes Bread. The draw is the tradeable
     // surplus only, so this month's household grain reserve is still in the ledger.
@@ -438,6 +554,8 @@ export class ProductionModule {
           (cycle.saltWorkersByBurg.get(burg.i) ?? 0)
       )
     );
+    // Book credit tides the workshops over the months the purse is low (craftCredit.ts).
+    drawCraftCredit(burg);
     const craftWorkersUsed = this.runWorkerLoop(cycle.index, state);
     recordUrbanCraftCapacity(
       burg.i,
@@ -451,9 +569,14 @@ export class ProductionModule {
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
     cycle.craftObservationsByBurg.set(burg.i, {
       priorTotal: cycle.craftWorkersByBurg.get(burg.i) ?? 0,
-      priorTextiles: cycle.craftDomainWorkersByKey.get(craftDomainKey(burg.i, "textiles")) ?? 0,
       observedTotal: craftWorkersUsed.total,
-      observedTextiles: craftWorkersUsed.byDomain.get("textiles") ?? 0
+      priorByDomain: new Map(
+        CRAFT_KNOWLEDGE_DOMAINS.map(domain => [
+          domain,
+          cycle.craftDomainWorkersByKey.get(craftDomainKey(burg.i!, domain)) ?? 0
+        ])
+      ),
+      observedByDomain: new Map(craftWorkersUsed.byDomain)
     });
     cycle.craftWorkersByBurg.set(
       burg.i,
@@ -482,23 +605,75 @@ export class ProductionModule {
     setBurgProductionRecords(burg, state.records);
   }
 
-  private recordCommissionEmployment(cycle: ProductionCycle, burgId: number, points: number): void {
+  /**
+   * Adds craft work done outside the worker loop — private tailoring commissions, and the
+   * butchers', tanners' and bakers' work on what the town ate and the hides it took in
+   * (docs/plan/urban-craft-staffing.md §6.4) — to a Burg's observed craft workers this cycle.
+   */
+  private recordServiceEmployment(
+    cycle: ProductionCycle,
+    burgId: number,
+    domain: CraftKnowledgeDomain,
+    points: number
+  ): void {
     const observation = cycle.craftObservationsByBurg.get(burgId);
-    if (!observation) return;
+    if (!observation || !(points > 0)) return;
     observation.observedTotal += points;
-    observation.observedTextiles += points;
+    observation.observedByDomain.set(domain, (observation.observedByDomain.get(domain) ?? 0) + points);
     const rate = Math.max(1, this.worldContext.populationRate || 1);
     cycle.craftWorkersByBurg.set(burgId, smoothCraftWorkers(observation.priorTotal, observation.observedTotal, rate));
     cycle.craftDomainWorkersByKey.set(
-      craftDomainKey(burgId, "textiles"),
-      smoothCraftWorkers(observation.priorTextiles, observation.observedTextiles, rate)
+      craftDomainKey(burgId, domain),
+      smoothCraftWorkers(
+        observation.priorByDomain.get(domain) ?? 0,
+        observation.observedByDomain.get(domain) ?? 0,
+        rate
+      )
     );
+  }
+
+  /**
+   * The victualling and leather trades' work on the month's carcasses and bread (§6.4). The
+   * butchers dress and sell the Meat the town bought; the tanners work the hides its market took
+   * in, shared by the market's towns by people; the bakers bake for the townsfolk the staple fed.
+   * None of it makes a Good.
+   */
+  private recordCarcassAndBreadWork(cycle: ProductionCycle, slaughter: SlaughterResult): void {
+    if (!getEconomyCalibrationState().applyCalibration) return;
+    const rate = Math.max(1, this.worldContext.populationRate || 1);
+    for (const [burgId, wains] of slaughter.meatBoughtByBurg)
+      this.recordServiceEmployment(cycle, burgId, "victualling", laborPointsForLots("Meat", wains, rate));
+
+    const baking = getOccupationalRow("baking");
+    for (const burg of cycle.sortedBurgs) {
+      if (!burg.i || burg.removed || !burg.market) continue;
+      const market = Markets.get(burg.market);
+      const hides = slaughter.leatherByMarket.get(burg.market) ?? 0;
+      const marketPopulation = this.getUrbanPopulationOfMarket(burg.market);
+      if (hides > 0 && marketPopulation > 0) {
+        const share = rn(burg.population || 0, 2) / marketPopulation;
+        this.recordServiceEmployment(cycle, burg.i, "leather", laborPointsForLots("Leather", hides * share, rate));
+      }
+      const consumption = market?.foodLedger?.monthlyConsumption;
+      const fedShare = consumption?.urbanNeed ? Math.min(1, consumption.urbanSupplied / consumption.urbanNeed) : 0;
+      if (fedShare > 0) {
+        const people = expectedWorkerPeople({
+          row: baking,
+          laborPeople: laborPeople(rn(burg.population || 0, 2), rate),
+          port: Boolean(burg.port),
+          capital: Boolean(burg.capital),
+          hasQuarry: false,
+          employmentScale: getCraftEmploymentScale()
+        });
+        this.recordServiceEmployment(cycle, burg.i, "baking", peopleToPoints(people * fedShare, rate));
+      }
+    }
   }
 
   private finishProductionCycle(cycle: ProductionCycle): void {
     // Craft has had its turn at live animals (rennet, preserved food, the old tallow legs).
     // What is still walking is slaughtered before households buy it as a live head.
-    measureTickStep("production:slaughter", () => settleSlaughter());
+    const slaughter = measureTickStep("production:slaughter", () => settleSlaughter());
     // Phase D: ensure merchant trade capital, then once per map seed inherited export-warehouse
     // stock (pre-start merchant inventory) before this cycle's global trade books more lots.
     measureTickStep("production:merchantPrep", () => {
@@ -513,6 +688,7 @@ export class ProductionModule {
     });
     measureTickStep("production:globalTrade", () => Markets.runGlobalTrade());
     measureTickStep("production:spawnCaravans", () => Caravans.spawnFromDeals(getDeals()));
+    measureTickStep("production:byproductExport", () => settleByproductExport());
     measureTickStep("production:livestockFeed", () => settleLivestockFeed());
     measureTickStep("production:fillDemand", () => this.fillBurgsDemand(cycle.sortedBurgs, cycle.index));
     measureTickStep("production:marketMaintenance", () => settleMarketMaintenance());
@@ -523,9 +699,12 @@ export class ProductionModule {
       // Garments are durable household purchases, not an ordinary Burg utility input. Settle their
       // market-wide (urban + rural) replacement demand after this cycle's production and trade.
       measureTickStep("production:householdTextiles", () =>
-        settleTextileHouseholdDemand((burgId, points) => this.recordCommissionEmployment(cycle, burgId, points))
+        settleTextileHouseholdDemand((burgId, points) =>
+          this.recordServiceEmployment(cycle, burgId, "textiles", points)
+        )
       );
       settleFoodProcessingHouseholds();
+      this.recordCarcassAndBreadWork(cycle, slaughter);
 
       // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
       recordFlowCycleEnd();
@@ -562,7 +741,7 @@ export class ProductionModule {
     cycle: ProductionCycle,
     { isCancelled = () => false, frameBudgetMs = 8, skipGlobalTrade = false }: IncrementalProductionOptions
   ): Promise<boolean> {
-    measureTickStep("production:slaughter", () => settleSlaughter());
+    const slaughter = measureTickStep("production:slaughter", () => settleSlaughter());
     // Phase D: ensure merchant trade capital, then once per map seed inherited export-warehouse
     // stock (pre-start merchant inventory) before this cycle's global trade books more lots.
     measureTickStep("production:merchantPrep", () => {
@@ -590,6 +769,7 @@ export class ProductionModule {
 
     if (isCancelled()) return false;
 
+    measureTickStep("production:byproductExport", () => settleByproductExport());
     measureTickStep("production:livestockFeed", () => settleLivestockFeed());
     measureTickStep("production:fillDemand", () => this.fillBurgsDemand(cycle.sortedBurgs, cycle.index));
     measureTickStep("production:marketMaintenance", () => settleMarketMaintenance());
@@ -600,9 +780,12 @@ export class ProductionModule {
       // Garments are durable household purchases, not an ordinary Burg utility input. Settle their
       // market-wide (urban + rural) replacement demand after this cycle's production and trade.
       measureTickStep("production:householdTextiles", () =>
-        settleTextileHouseholdDemand((burgId, points) => this.recordCommissionEmployment(cycle, burgId, points))
+        settleTextileHouseholdDemand((burgId, points) =>
+          this.recordServiceEmployment(cycle, burgId, "textiles", points)
+        )
       );
       settleFoodProcessingHouseholds();
+      this.recordCarcassAndBreadWork(cycle, slaughter);
 
       // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
       recordFlowCycleEnd();
@@ -626,6 +809,9 @@ export class ProductionModule {
   }
 
   private fillBurgsDemand(sortedBurgs: Burg[], index: ProductionIndex): void {
+    const calibratedPurchases = getEconomyCalibrationState().applyCalibration
+      ? index.goods.filter(good => getGoodDemandCalibration(good.name)?.householdPurchase)
+      : [];
     for (const burg of sortedBurgs) {
       if (!burg.i || burg.removed || !burg.market) continue;
       const demandTargets = getDemandTargets(burg.population || 0);
@@ -638,7 +824,8 @@ export class ProductionModule {
         demandCoverageByGood: index.demandCoverageByGood,
         demandGoodsByCategory: index.demandGoodsByCategory,
         demandTargets,
-        records: getBurgProductionRecords(burg)
+        records: getBurgProductionRecords(burg),
+        calibratedPurchases
       });
     }
   }
@@ -691,14 +878,21 @@ export class ProductionModule {
     // (and everything else in the priority set) essentially unbounded, flooding the market with surplus
     // Rennet while starving Cheese of its own priority turns (confirmed via Balance History: Rennet
     // stock/cumulative-sales ~16400 vs. Cheese's ~550).
+    //
+    // A drink's casks, pots and bottles are one slot (returnableContainers.ts): Wine goes out in one of
+    // them in every recipe. The slot's first claim is the casks', the container Wine ships in and the
+    // only one with a floor that bounds it (craftDemandCalibration.ts floorFromHouseholdDrinks).
+    const fillsSlot = (recipe: Recipe, good: Good): boolean =>
+      recipe.ingredients.some(ingredient => ingredient.goodId === good.i) ||
+      (good.name === "Barrels" &&
+        isReturnableDrink(recipe.good.name) &&
+        recipe.ingredients.some(ingredient => isDrinkContainer(Goods.get(ingredient.goodId)?.name ?? "")));
     const preservationIngredientGoods = productiveGoods.filter(
       good =>
         !preservationGoods.includes(good) &&
         preservationGoods.some(preservationGood => {
           const recipeAlternatives = recipesByOutput[preservationGood.i]!;
-          return recipeAlternatives.every(recipe =>
-            recipe.ingredients.some(ingredient => ingredient.goodId === good.i)
-          );
+          return recipeAlternatives.every(recipe => fillsSlot(recipe, good));
         })
     );
     // Beer has a bounded household-demand headroom, so daily-beverage priority cannot produce an
@@ -801,21 +995,87 @@ export class ProductionModule {
     // already in the market, so the burgs of one market do not each make the whole order.
     const militaryDemand = MetallurgWork.getProductionDemandByGood(marketId);
     const militaryOrder = (goodId: number): number => militaryDemand.get(goodId)?.outstandingUnits ?? 0;
+    // And so are the shipwrights' procurement orders for the goods that count them (Ropes, Sails,
+    // Tar): a household floor would otherwise cap a yard's rigging and caulking at the town's own
+    // use (urban-craft-staffing.md §10.2).
+    const procurementDemand = getStrategicProductionDemandByGood(getStrategicProcurementOrders(), marketId);
+    const procurementOrder = (goodId: number): number => procurementDemand.get(goodId)?.outstandingUnits ?? 0;
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
     const laborPeopleBurg = laborPeople(population, populationRate);
     const port = Boolean(burg.port);
     const capital = Boolean(burg.capital);
+    const marketLaborPeople = laborPeople(this.getUrbanPopulationOfMarket(marketId), populationRate);
+    const market = Markets.get(marketId);
     for (const good of index.productiveGoods) {
       const row = getGoodDemandCalibration(good.name);
       if (!row) continue;
-      const lots = getCalibratedMonthlyLots({ goodName: good.name, laborPeopleBurg, port, capital });
+      // Without the town soap need, soap is made by profit as an uncalibrated good.
+      if ((row.floorFromTownSoap || row.floorFromSoapPotash) && !isTownSoapEnabled()) continue;
+      let lots = getCalibratedMonthlyLots({ goodName: good.name, laborPeopleBurg, port, capital, market });
+      // Forest glasshouses make an inland market's Glass; its town glaziers keep the finishing work.
+      // Port towns keep their glasshouses, as Venice and Barcelona melted plant soda ash shipped in.
+      if (good.name === "Glass" && !port && hasForestGlasshouses(market)) lots = 0;
+      // A per-head floor stops when the market already holds months of it; orders do not.
+      if (row.annualLotsPerPerson != null) {
+        let marketLots = (marketLaborPeople * (getAnnualLotsPerTownPerson(row, market) ?? 0)) / 12;
+        // Casks follow what the market's households drink, shared by the towns' people (§12 item 20).
+        if (row.floorFromHouseholdDrinks && market && marketLaborPeople > 0) {
+          const key = `${marketId}:${good.i}`;
+          let floor = this.householdContainerLots.get(key);
+          if (floor === undefined) {
+            floor = getMonthlyHouseholdContainerDemand(market, good);
+            this.householdContainerLots.set(key, floor);
+          }
+          marketLots = floor;
+          lots = (marketLots * laborPeopleBurg) / marketLaborPeople;
+        }
+        // Soap follows the towns' soap need, soft soap also the white the market cannot make.
+        if (row.floorFromTownSoap && market && marketLaborPeople > 0 && isTownSoapGood(good.name)) {
+          const key = `${marketId}:${good.i}`;
+          let floor = this.householdContainerLots.get(key);
+          if (floor === undefined) {
+            const whiteSoap = index.goods.find(candidate => candidate.name === WHITE_SOAP);
+            floor = getMonthlyTownSoapFloor(market, good.name, whiteSoap);
+            this.householdContainerLots.set(key, floor);
+          }
+          marketLots = floor;
+          lots = (marketLots * laborPeopleBurg) / marketLaborPeople;
+        }
+        // Potash follows what the market's soft soap floor boils (town-soap.md §3.5).
+        if (row.floorFromSoapPotash && market && marketLaborPeople > 0) {
+          const key = `${marketId}:${good.i}`;
+          let floor = this.householdContainerLots.get(key);
+          if (floor === undefined) {
+            const softSoap = index.goods.find(candidate => candidate.name === SOFT_SOAP);
+            const whiteSoap = index.goods.find(candidate => candidate.name === WHITE_SOAP);
+            floor = getMonthlySoapPotashFloor(market, softSoap, whiteSoap, good.i);
+            this.householdContainerLots.set(key, floor);
+          }
+          marketLots = floor;
+          lots = (marketLots * laborPeopleBurg) / marketLaborPeople;
+        }
+        lots *= calibratedReserveFactor(market?.goods[good.i]?.stock ?? 0, marketLots);
+      }
       const ordered =
         (transportMaterialDemand.get(good.i) ?? 0) +
-        (row.provenances.includes("militaryLedger") ? militaryOrder(good.i) : 0);
+        (row.provenances.includes("militaryLedger") ? militaryOrder(good.i) : 0) +
+        (row.provenances.includes("strategicOrder") ? procurementOrder(good.i) : 0);
       remainingCalibratedLots.set(good.i, Math.max(0, lots) + ordered);
       if (ordered > 0) orderedCalibratedLots.set(good.i, ordered);
     }
     return { remainingCalibratedLots, orderedCalibratedLots };
+  }
+
+  private getUrbanPopulationOfMarket(marketId: number): number {
+    if (!this.urbanPopulationByMarket) {
+      this.urbanPopulationByMarket = new Map();
+      for (const burg of this.worldContext.pack.burgs) {
+        if (!burg?.i || burg.removed || !burg.market) continue;
+        const total = this.urbanPopulationByMarket.get(burg.market) ?? 0;
+        this.urbanPopulationByMarket.set(burg.market, total + rn(burg.population || 0, 2));
+      }
+    }
+    return this.urbanPopulationByMarket.get(marketId) ?? 0;
   }
 
   /**
@@ -957,6 +1217,102 @@ export class ProductionModule {
 
         const domain = getCraftDomainForGood(decision.action.good.name);
         if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + spent);
+      }
+    }
+
+    // Phase 1a, the local stage (docs/plan/urban-craft-staffing.md §6.2): before the orders and the
+    // profit ranking, each guild good with a calibrated floor gets workshop labor up to the town's
+    // own monthly need, each craft up to LOCAL_STAGE_CRAFT_CAP times its urban-table headcount.
+    // Ranked by profit alone, a town's shoemakers and coopers lost every step to whatever paid best
+    // (§2.2). A good whose materials or margin fail is left, its reason in the planning diagnostics.
+    if (applyCalibration) {
+      let expectedArgs: ReturnType<typeof this.getExpectedWorkerArgs> | null = null;
+      const craftLaborLeft = new Map<OccupationalPool, number>();
+      const craftLeft = (row: OccupationalCalibrationRow): number => {
+        let left = craftLaborLeft.get(row.pool);
+        if (left == null) {
+          expectedArgs ??= this.getExpectedWorkerArgs(state, populationRate);
+          left = expectedWorkerPoints({ ...expectedArgs, row }) * LOCAL_STAGE_CRAFT_CAP;
+          craftLaborLeft.set(row.pool, left);
+        }
+        return left;
+      };
+      const spend = (row: OccupationalCalibrationRow, domain: CraftKnowledgeDomain | null, labor: number) => {
+        craftLaborLeft.set(row.pool, craftLeft(row) - labor);
+        workersUsed += labor;
+        if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + labor);
+      };
+
+      const failedGoodIds = new Set<number>();
+      for (const good of index.productiveGoods) {
+        const row = getOccupationalRowForGood(good.name);
+        if (!row) continue;
+        state.activeGoalGoodId = null;
+        // The stage spends none of the Burg's steps: a step is a population point of work, and a
+        // town of 3,000 people with three of them had no step left for its shoemakers after its
+        // first goods (2101: 391 of 400 towns hit the step limit). Its own bound is a few
+        // attempts a good, for an ingredient or two before the good itself.
+        for (let attempt = 0; attempt < LOCAL_STAGE_ATTEMPTS_PER_GOOD; attempt++) {
+          if (this.getLocalCalibratedLots(state, good.i) <= 0.001) break;
+          const workersLeft = Math.min(state.workforce - workersUsed, craftLeft(row));
+          const workerFraction = Math.min(1, workersLeft);
+          if (workerFraction <= 1e-9) break;
+
+          const decision = this.makeProductionDecision(
+            index,
+            state,
+            state.demandTargets,
+            state.demandCoverage,
+            state.activeGoalGoodId,
+            workersLeft,
+            workerFraction,
+            [good]
+          );
+          if (!decision) {
+            failedGoodIds.add(good.i); // No materials or no margin this cycle.
+            break;
+          }
+          state.activeGoalGoodId = decision.goalGoodId;
+
+          const actionGood = decision.action.good;
+          let laborBudget = state.remainingCalibratedLots.has(actionGood.i)
+            ? this.getCalibratedLaborBudget(state, actionGood, workersLeft, populationRate)
+            : workerFraction;
+          // The town's own need only; its orders are made in phase 1b and phase 2.
+          if (actionGood.i === good.i)
+            laborBudget = Math.min(
+              laborBudget,
+              this.getLocalCalibratedLots(state, good.i) * laborPointsForLots(good.name, 1, populationRate)
+            );
+          const { yieldLots, laborUsed } = this.executeManufacture(state, index, decision, laborBudget);
+          // A failure here is the town's purse or margin, not the State's: phase 1b's state-funded
+          // orders and phase 2 still try the good, so it is not skipped for the rest of the cycle.
+          const localSkips = new Set<number>();
+          this.settleCalibratedProduction(state, actionGood.i, yieldLots, laborUsed, true, localSkips);
+          spend(row, getCraftDomainForGood(actionGood.name), laborUsed);
+          // A good whose whole target, orders included, is made is done for the cycle.
+          if ((state.remainingCalibratedLots.get(actionGood.i) ?? 1) <= 0.001) skippedGoodIds.add(actionGood.i);
+          if (laborUsed <= 1e-9) {
+            failedGoodIds.add(good.i);
+            break;
+          }
+          if (localSkips.has(good.i)) break;
+        }
+      }
+
+      // Repair (§3 decision 4): the smiths mend a share of the Tools the town could not forge. It
+      // makes no Good; the townsfolk pay the smiths, who are townsfolk too, so no purse changes.
+      const tools = index.productiveGoods.find(good => good.name === "Tools");
+      const smithing = tools && getOccupationalRowForGood(tools.name);
+      if (tools && smithing && failedGoodIds.has(tools.i)) {
+        const repairLabor = Math.min(
+          this.getLocalCalibratedLots(state, tools.i) *
+            laborPointsForLots(tools.name, 1, populationRate) *
+            SMITH_REPAIR_SHARE,
+          craftLeft(smithing),
+          state.workforce - workersUsed
+        );
+        if (repairLabor > 1e-9) spend(smithing, "metallurgy", repairLabor);
       }
     }
 
@@ -1135,20 +1491,40 @@ export class ProductionModule {
 
     const domain = getCraftDomainForGood(good.name);
     if (domain) {
-      const port = Boolean(state.burg.port);
-      const expected = expectedWorkerPoints({
-        row: getOccupationalRow(domain),
-        laborPeople: laborPeople(state.population, populationRate),
-        populationRate,
-        port,
-        capital: Boolean(state.burg.capital),
-        hasQuarry: false
-      });
+      const expected = expectedDomainWorkerPoints({ ...this.getExpectedWorkerArgs(state, populationRate), domain });
       const orderedLabor = (state.orderedCalibratedLots.get(good.i) ?? 0) * laborPerLot;
-      cap = Math.min(cap, expected * domainShare(good.name, port) + orderedLabor);
+      cap = Math.min(cap, expected * domainShare(good.name, Boolean(state.burg.port)) + orderedLabor);
     }
 
     return Math.max(0, Math.min(cap, remainingLots * laborPerLot));
+  }
+
+  /** The Burg's inputs to the urban occupational table (occupationalCalibration.ts). */
+  private getExpectedWorkerArgs(
+    state: BurgProductionState,
+    populationRate: number
+  ): ExpectedWorkerArgs & { populationRate: number } {
+    const stateId = state.burg.state || 0;
+    const people = laborPeople(state.population, populationRate);
+    const market = state.burg.market ? Markets.get(state.burg.market) : undefined;
+    return {
+      laborPeople: people,
+      ruralShoemakerPeople: getRuralShoemakerPeople(people, market),
+      ruralChandlerPeople: getRuralChandlerPeople(people, market),
+      populationRate,
+      port: Boolean(state.burg.port),
+      capital: Boolean(state.burg.capital),
+      hasQuarry: false,
+      period: this.worldContext.options.historicalPeriod,
+      technologyAdopted: id => isTechnologyStageAtLeast(getTechnologyStage(id, stateId), "adopted"),
+      employmentScale: getCraftEmploymentScale()
+    };
+  }
+
+  /** A good's calibrated lots left this cycle for the town's own use, net of the orders on top of it. */
+  private getLocalCalibratedLots(state: BurgProductionState, goodId: number): number {
+    const remaining = state.remainingCalibratedLots.get(goodId) ?? 0;
+    return Math.max(0, remaining - (state.orderedCalibratedLots.get(goodId) ?? 0));
   }
 
   /**
@@ -1264,10 +1640,14 @@ export class ProductionModule {
     if (good.name === "Wool Blankets") {
       actualYield = Math.min(actualYield, getBlanketProductionHeadroom(state.market, state.inventory[good.i] || 0));
     }
-    actualYield = Math.min(
-      actualYield,
-      getFoodProcessingProductionHeadroom(state.market, good.name, state.inventory[good.i] || 0)
-    );
+    const foodHeadroom = getFoodProcessingProductionHeadroom(state.market, good.name, state.inventory[good.i] || 0);
+    actualYield = Math.min(actualYield, foodHeadroom);
+    // A good with neither a calibrated floor nor a ceiling of its own makes at most a lot a point
+    // of labor offered, as it did when such a lot cost a whole point. Its real work time is far less
+    // (craftDemandCalibration.ts), and with nothing else to stop it Tar and Spinning Wheels ran to
+    // thousands of lots a month (urban-craft-staffing.md §10.2, §10.3).
+    if (applyCalibration && !getGoodDemandCalibration(good.name) && !Number.isFinite(foodHeadroom))
+      actualYield = Math.min(actualYield, laborBudget);
 
     // Cap production by what the Burg (or State military fund) can actually afford. Without this,
     // ingredient purchases below had no budget check (Markets.buy() defaults to an unlimited budget)
@@ -1280,6 +1660,55 @@ export class ProductionModule {
       const affordableYield = Math.max(0, availableFunds) / costPerLot;
       actualYield = Math.min(actualYield, affordableYield);
     }
+    // A cask goes out full and must come back before it is filled again: the market's empties and
+    // the casks it can buy cap the filling (returnableContainers.ts).
+    const containerUse = getDrinkContainerUse(good, ingredients);
+    const filledPerLot = physicalRecipe ? 1 : outputMultiplier;
+    if (containerUse && actualYield > 0.001) {
+      const containerGood = Goods.get(containerUse.goodId);
+      const purchasable =
+        (state.inventory[containerUse.goodId] || 0) +
+        (containerGood ? getPurchasableUnits(state.market, containerGood) : 0);
+      actualYield = Math.min(
+        actualYield,
+        getContainerYieldCap(
+          ensureContainerCirculation(state.market).empties[containerUse.container] ?? 0,
+          purchasable,
+          containerUse.setPerLot,
+          containerUse.replacementPerLot,
+          filledPerLot
+        )
+      );
+      if (actualYield <= 0.001) return failed("materials");
+    }
+    let execIngredients = containerUse
+      ? withNewContainers(ingredients, containerUse, state.market, actualYield, filledPerLot)
+      : ingredients;
+    // The decision may be several steps old (a sticky goal), and the shelves have moved since: an
+    // earlier step took the Barrels it counted. Every purchase below takes stock at once, so a
+    // later ingredient that could not be bought left the earlier ones taken and unpaid for — the
+    // brewers' grain vanished with the casks they could not get (urban-craft-staffing.md §10.12).
+    // Size the batch to the inputs and purse there are now, before the first purchase.
+    if (!physicalRecipe && actualYield > 0.001) {
+      for (const ingredient of execIngredients) {
+        if (!(ingredient.amount > 0)) continue;
+        const ingredientGood = Goods.get(ingredient.goodId);
+        const purchasable = ingredientGood ? getPurchasableUnits(state.market, ingredientGood) : 0;
+        actualYield = Math.min(
+          actualYield,
+          ((state.inventory[ingredient.goodId] || 0) + purchasable) / ingredient.amount
+        );
+      }
+      const freshCost = (lots: number): number =>
+        lots * wageCostPerLot +
+        execIngredients.reduce((total, ingredient) => {
+          const fromMarket = Math.max(0, lots * ingredient.amount - (state.inventory[ingredient.goodId] || 0));
+          return total + fromMarket * Markets.quoteMarket(state.market, ingredient.goodId, state.burg.i).buyPrice;
+        }, 0);
+      const cost = freshCost(actualYield);
+      if (cost > Math.max(0, availableFunds) && cost > 0) actualYield *= Math.max(0, availableFunds) / cost;
+      if (actualYield <= 0.001) return failed(cost > 0 && !(availableFunds > 0) ? "funds" : "materials");
+    }
     if (actualYield <= 0.001)
       return failed(costPerLot > 0 && availableFunds / costPerLot <= 0.001 ? "funds" : "outputTarget");
     const laborUsed = actualYield * laborPerLot;
@@ -1288,13 +1717,15 @@ export class ProductionModule {
     const produced = physicalRecipe ? actualYield : rn(actualYield * outputMultiplier, 2);
     if (!produced) return failed("outputTarget");
 
+    if (containerUse)
+      execIngredients = withNewContainers(ingredients, containerUse, state.market, actualYield, filledPerLot);
     // Plan all ingredient sourcing first; bail out before mutating state if any market buy fails.
     type Plan = { ingredientId: number; amount: number; fromInventory: number; deal: Deal | null };
     const plans: Plan[] = [];
     // Validate all physical inputs with fresh customer quotes before the first purchase.
     if (physicalRecipe) {
       let requiredBudget = 0;
-      for (const ingredient of ingredients) {
+      for (const ingredient of execIngredients) {
         const amount = Math.max(0, actualYield * ingredient.amount - (state.inventory[ingredient.goodId] || 0));
         const quote = Markets.quoteMarket(state.market, ingredient.goodId, state.burg.i);
         if (amount > quote.stock + 1e-9) return failed("materials");
@@ -1303,7 +1734,7 @@ export class ProductionModule {
       if (requiredBudget + laborUsed * wageRate > Math.max(0, availableFunds) + 1e-9) return failed("funds");
     }
     let remainingBudget = Math.max(0, availableFunds);
-    for (const ingredient of ingredients) {
+    for (const ingredient of execIngredients) {
       const ingredientId = ingredient.goodId;
       const amount = actualYield * ingredient.amount;
       const fromInventory = Math.min(state.inventory[ingredientId] || 0, amount);
@@ -1331,6 +1762,22 @@ export class ProductionModule {
       }
       plans.push({ ingredientId, amount, fromInventory, deal });
     }
+    // Curriers stuff the leather of shoes, leather goods and harness with tallow; it is bought as
+    // far as the market has it and the purse allows, and never stops the work (docs/plan/currying-tallow.md).
+    const dressing = getCurryingTallow(good.name, execIngredients, actualYield);
+    if (dressing && remainingBudget > 1e-9) {
+      const deal = Markets.buy({
+        burg: state.burg,
+        good: dressing.tallow,
+        units: dressing.units,
+        budget: remainingBudget,
+        flow: { category: "recipeInput", guildDomain: domain, relatedGoodId: good.i }
+      });
+      if (deal && deal.units > 0) {
+        remainingBudget = Math.max(0, remainingBudget - deal.units * deal.price);
+        plans.push({ ingredientId: dressing.tallow.i, amount: deal.units, fromInventory: 0, deal });
+      }
+    }
 
     const recipe: ProductionRecipeEntry[] = [];
     let materialCost = 0;
@@ -1348,6 +1795,7 @@ export class ProductionModule {
           state.burg.treasury = physicalRecipe
             ? (state.burg.treasury || 0) - marketCost
             : rn((state.burg.treasury || 0) - marketCost, 2);
+        recordCraftSpend(state.burg.i, marketCost);
       }
       recipe.push({ goodId: ingredientId, units: physicalRecipe ? amount : rn(amount, 2) });
 
@@ -1361,7 +1809,10 @@ export class ProductionModule {
     const wageBill = rn(laborUsed * wageRate, 2);
     if (wageBill > 0) {
       if (fundingState) fundingState.treasury = rn(Math.max(0, (fundingState.treasury ?? 0) - wageBill), 2);
-      else state.burg.treasury = rn((state.burg.treasury || 0) - wageBill, 2);
+      else {
+        state.burg.treasury = rn((state.burg.treasury || 0) - wageBill, 2);
+        recordCraftSpend(state.burg.i, wageBill);
+      }
       creditHouseholdWealth(state.burg.i, wageBill);
     }
 
@@ -1378,11 +1829,34 @@ export class ProductionModule {
       producedByproducts.push({ goodId: byproduct.goodId, units });
     }
 
-    if (good.name === "Wine" || good.name === "Beer" || isOrchardDrink(good.name)) {
+    if (containerUse) {
+      const circulation = ensureContainerCirculation(state.market);
+      const filledLots = actualYield * filledPerLot;
+      const draw = planContainerDraw(
+        circulation,
+        containerUse.drink,
+        containerUse.container,
+        filledLots,
+        actualYield * containerUse.replacementPerLot
+      );
+      recordContainerFilling(circulation, containerUse.drink, containerUse.container, filledLots, draw);
+      // Washing and mending the empties is the brewer's work, paid to the town's households.
+      const reuseBill = rn(draw.reused * (Goods.get(containerUse.goodId)?.value ?? 0) * getContainerReuseCost(), 2);
+      if (reuseBill > 0) {
+        if (fundingState) fundingState.treasury = rn(Math.max(0, (fundingState.treasury ?? 0) - reuseBill), 2);
+        else {
+          state.burg.treasury = rn((state.burg.treasury || 0) - reuseBill, 2);
+          recordCraftSpend(state.burg.i, reuseBill);
+        }
+        creditHouseholdWealth(state.burg.i, reuseBill);
+      }
+    }
+    if (good.name === "Wine" || good.name === "Beer" || isReturnedCaskDrink(good.name)) {
       const barrelIngredient = ingredients.find(ingredient => Goods.get(ingredient.goodId)?.name === "Barrels");
       const replacementCasks = produced * (barrelIngredient?.amount ?? 0);
       if (good.name === "Wine") recordWineCaskFilling(state.market, produced, replacementCasks);
-      else if (isOrchardDrink(good.name)) recordOrchardCaskFilling(state.market, good.name, produced, replacementCasks);
+      else if (isReturnedCaskDrink(good.name))
+        recordOrchardCaskFilling(state.market, good.name, produced, replacementCasks);
       else recordBeerCaskFilling(state.market, produced, replacementCasks);
     }
 
@@ -1460,6 +1934,9 @@ export class ProductionModule {
     let phaseRevenue = 0;
     const taxRate = this.getSalesTax(state.burg);
     let remainingBudget = saleBudgetByBurg.get(state.burg.i!) ?? 0;
+    // What the market's cash cannot buy it holds on consignment instead of the town losing it
+    // (docs/plan/market-goods-settlement.md §2.2).
+    const consign = getMarketSettings().craftSalePayment === "consignment";
 
     for (const goodIdStr in state.inventory) {
       const goodId = +goodIdStr;
@@ -1468,14 +1945,16 @@ export class ProductionModule {
 
       const good = Goods.get(goodId);
       if (!good || !isGoodEnabled(good)) continue;
+      const exactUnits = hasPhysicalWoodRecipe(good.name) || hasPhysicalTextileRecipe(good.name);
       const deal = Markets.sell({
         burg: state.burg,
         good,
         units,
         taxRate,
         budget: remainingBudget,
-        exactUnits: hasPhysicalWoodRecipe(good.name) || hasPhysicalTextileRecipe(good.name)
+        exactUnits
       });
+      if (consign) Markets.consign({ burg: state.burg, good, units: units - (deal?.units ?? 0), exactUnits });
       if (!deal) continue;
 
       remainingBudget = rn(Math.max(0, remainingBudget - deal.units * deal.price), 2);
@@ -1561,6 +2040,11 @@ export class ProductionModule {
 
     for (const good of goods) {
       const coverage: number[] = Array(DEMAND_PRIORITY.length).fill(0);
+      // The towns' soap is drawn by their households' own need (townSoap.ts), not a category's.
+      if (isTownSoapDemandGood(good)) {
+        demandCoverageByGood[good.i] = coverage;
+        continue;
+      }
       for (let category = 0; category < DEMAND_PRIORITY.length; category++) {
         coverage[category] = good.demandCoverage?.[DEMAND_PRIORITY[category] as DemandCategory] || 0;
       }
@@ -1634,18 +2118,72 @@ export class ProductionModule {
     demandCoverageByGood,
     demandGoodsByCategory,
     demandTargets,
-    records
+    records,
+    calibratedPurchases = []
   }: {
     burg: Burg;
     demandCoverageByGood: number[][];
     demandGoodsByCategory: DemandGoodCandidate[][];
     demandTargets: number[];
     records: ProductionRecord[];
+    calibratedPurchases?: readonly Good[];
   }): void {
     const market = Markets.get(burg.market);
     if (!market) return;
 
     const demandCoverage = new Array(DEMAND_PRIORITY.length).fill(0);
+    const addCoverage = (goodId: number, units: number) => {
+      const coverage = demandCoverageByGood[goodId];
+      for (let categoryIndex = 0; categoryIndex < DEMAND_PRIORITY.length; categoryIndex++)
+        if (coverage?.[categoryIndex]) demandCoverage[categoryIndex] += units * coverage[categoryIndex];
+    };
+
+    // Goods with a per-head floor the town wears out or burns each month (Boots, Candles) are bought
+    // to that floor first; the cheapest utilities bought less, and the craft stopped on the unsold
+    // stock (docs/plan/urban-craft-staffing.md §10.4). What they cover counts toward the categories.
+    if (calibratedPurchases.length) {
+      const rate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
+      const laborPeopleBurg = laborPeople(rn(burg.population || 0, 2), rate);
+      for (const good of calibratedPurchases) {
+        const units = getCalibratedMonthlyLots({
+          goodName: good.name,
+          laborPeopleBurg,
+          port: Boolean(burg.port),
+          capital: Boolean(burg.capital),
+          market
+        });
+        if (!(units > 0.001) || (market.goods[good.i]?.stock ?? 0) <= 0.01) continue;
+        // Footwear and candles for everyone: the farm families' share is paid from their month in town
+        // (docs/plan/leather-uses.md §4.1, rural-town-spending.md §4.2), the rest by the town.
+        const ruralShare = isCountrysideGood(good.name) ? 1 - 1 / getMarketBuyerFactor(market) : 0;
+        const ruralUnits = units * ruralShare;
+        const budget = burg.treasury || 0;
+        if (budget > 0.01) {
+          const deal = Markets.buy({ burg, good, units: units - ruralUnits, budget, flow: { category: "burgDemand" } });
+          if (deal) {
+            records.push({ dealId: deal.i });
+            burg.treasury = rn((burg.treasury || 0) - deal.units * deal.price, 2);
+            addCoverage(good.i, deal.units);
+          }
+        }
+        if (ruralUnits > 0.001 && (market.goods[good.i]?.stock ?? 0) > 0.01) {
+          const ruralBudget = openRuralTownBudget(market);
+          if (!(ruralBudget > 0.01)) continue;
+          const deal = Markets.buy({
+            burg,
+            good,
+            units: ruralUnits,
+            budget: ruralBudget,
+            flow: { category: "burgDemand" }
+          });
+          if (!deal) continue;
+          records.push({ dealId: deal.i });
+          const paid = debitRuralHouseholdWealth(market, rn(deal.units * deal.price, 2));
+          recordRuralTownGoodsPaid(market, paid);
+        }
+      }
+    }
+
     // docs/plan/luxury-value-demand.md §3: with the value demand on, luxuries are bought from a
     // budget after every other category instead of by unit count.
     const luxuryIndex = isLuxuryValueDemandEnabled() ? DEMAND_PRIORITY.indexOf("luxury") : -1;
@@ -1680,13 +2218,7 @@ export class ProductionModule {
         records.push({ dealId: deal.i });
         const totalCost = deal.units * deal.price;
         burg.treasury = rn((burg.treasury || 0) - totalCost, 2);
-
-        const retainedCoverageByCategory = demandCoverageByGood[candidate.goodId];
-        for (let coverageCategoryIndex = 0; coverageCategoryIndex < DEMAND_PRIORITY.length; coverageCategoryIndex++) {
-          const retainedCoverage = retainedCoverageByCategory[coverageCategoryIndex] || 0;
-          if (!retainedCoverage) continue;
-          demandCoverage[coverageCategoryIndex] += deal.units * retainedCoverage;
-        }
+        addCoverage(candidate.goodId, deal.units);
 
         shortage = Math.max(0, demandTargets[categoryIndex] - demandCoverage[categoryIndex]);
       }
@@ -1753,12 +2285,48 @@ export class ProductionModule {
       maxYield = Math.min(maxYield, totalAvailable / ingredient.amount);
     }
 
+    // Casks must come back to be filled again: the market's empties and the casks it holds cap the
+    // filling. Each empty refilled costs its washing, and a new cask beyond the recipe's replacement
+    // its share of the trip's loss, as it comes back for later fillings (returnableContainers.ts).
+    const containerUse = getDrinkContainerUse(recipe.good, recipe.ingredients);
+    if (containerUse) {
+      const quote = Markets.quoteMarket(state.market, containerUse.goodId);
+      maxYield = Math.min(
+        maxYield,
+        getContainerYieldCap(
+          ensureContainerCirculation(state.market).empties[containerUse.container] ?? 0,
+          (state.inventory[containerUse.goodId] || 0) + (quote.stock || 0),
+          containerUse.setPerLot,
+          containerUse.replacementPerLot,
+          1
+        )
+      );
+      if (maxYield <= 0.001) {
+        constraints?.add("materials");
+        return null;
+      }
+    }
+
     if (!Number.isFinite(maxYield) || maxYield <= 0) {
       constraints?.add(!Number.isFinite(maxYield) ? "unboundedRecipeYield" : "nonPositiveRecipeYield");
       return null;
     }
 
     const actualUnits = Math.min(units, maxYield);
+    if (containerUse) {
+      const draw = planContainerDraw(
+        ensureContainerCirculation(state.market),
+        containerUse.drink,
+        containerUse.container,
+        actualUnits,
+        actualUnits * containerUse.replacementPerLot
+      );
+      const containerGood = Goods.get(containerUse.goodId);
+      const quote = Markets.quoteMarket(state.market, containerUse.goodId);
+      marketCostTotal +=
+        draw.reused * (containerGood?.value ?? 0) * getContainerReuseCost() +
+        draw.extra * quote.buyPrice * CONTAINER_PROFILES[containerUse.container].lossPerTrip;
+    }
     for (const ingredient of recipe.ingredients) {
       const quote = Markets.quoteMarket(state.market, ingredient.goodId);
       const inventoryAvailable = state.inventory[ingredient.goodId] || 0;
@@ -2234,7 +2802,12 @@ type ProductionCycle = {
   index: ProductionIndex;
   craftObservationsByBurg: Map<
     number,
-    { priorTotal: number; priorTextiles: number; observedTotal: number; observedTextiles: number }
+    {
+      priorTotal: number;
+      observedTotal: number;
+      priorByDomain: Map<CraftKnowledgeDomain, number>;
+      observedByDomain: Map<CraftKnowledgeDomain, number>;
+    }
   >;
   sortedBurgs: Burg[];
   strategicLaborMarketById: ReadonlyMap<number, LaborMarket>;

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { recordCumulativeCellFoodProcessing } from "../economyContext";
 import type { Market } from "./marketTypes";
 
+let simulationMonth = 1;
 const market: Market = {
   i: 1,
   centerBurgId: 1,
@@ -20,37 +21,82 @@ const urbanWaterSystems: unknown[] = [];
 
 vi.mock("../economyContext", () => ({
   getMarkets: () => [market],
+  getSimulationMonth: () => simulationMonth,
   getUrbanWaterSystems: () => urbanWaterSystems,
   getGoods: () => [
     { i: 1, name: "Milk", tags: ["food", "freshFood"] },
     { i: 2, name: "Cheese", tags: ["food"] },
     { i: 3, name: "Grapes", tags: ["food", "freshFood"] },
     { i: 4, name: "Raisins", tags: ["food"] },
-    { i: 5, name: "Wine", tags: ["food"] },
+    { i: 5, name: "Wine", tags: ["food"], recipes: [{ 3: 1.3, 15: 0.08 }] },
     { i: 6, name: "Game", tags: ["food", "freshFood"] },
-    { i: 7, name: "Beer", tags: ["food", "beverage"] },
+    {
+      i: 7,
+      name: "Beer",
+      tags: ["food", "beverage"],
+      recipes: [
+        { 16: 1, 15: 0.4 },
+        { 17: 1, 15: 0.4 }
+      ]
+    },
     { i: 8, name: "Apples", tags: ["food", "freshFood"] },
     { i: 9, name: "Pears", tags: ["food", "freshFood"] },
     { i: 10, name: "Cider", tags: ["food", "beverage"] },
     { i: 11, name: "Perry", tags: ["food", "beverage"] },
     { i: 12, name: "Fish", tags: ["food", "freshFood"] },
     { i: 13, name: "Shellfish", tags: ["food", "freshFood"] },
-    { i: 14, name: "Iron", tags: ["metal"] }
+    { i: 14, name: "Iron", tags: ["metal"] },
+    { i: 15, name: "Barrels", tags: ["storage"] },
+    { i: 18, name: "Soap", tags: ["luxury"] },
+    { i: 19, name: "Castile Soap", tags: ["luxury"] }
   ],
   recordCumulativeCellFoodProcessing: vi.fn(),
   getWorldContext: () => ({
     populationRate: 1_000,
     urbanization: 1,
+    options: { historicalPeriod: "preIndustrialEra" },
     pack: { burgs: [{ i: 1, market: 1, population: 1 }] }
   })
 }));
-vi.mock("./marketPopulation", () => ({ getMarketRuralPopulation: () => 0 }));
+const ruralPopulation = vi.hoisted(() => ({ people: 0 }));
+vi.mock("./marketPopulation", () => ({
+  getMarketRuralPopulation: () => ruralPopulation.people,
+  // Wooded land: the towns drink the full town ale.
+  getMarketWoodlandShares: () => ({ get: () => 0.7 })
+}));
+// What households may spend on these goods: unlimited unless a test sets it (docs/plan/market-goods-settlement.md §2.1).
+const purses = vi.hoisted(() => ({ town: Infinity, rural: Infinity, paidByTown: 0, paidByRural: 0 }));
+const settings = vi.hoisted(() => ({ householdGoodsPayment: "free" as "free" | "pay" }));
+vi.mock("../../../simulation/marketSettings", () => ({ getMarketSettings: () => settings }));
+vi.mock("./burgMarketLedgers", () => ({
+  debitHouseholdWealth: (_burgId: number, amount: number) => {
+    const paid = Math.min(purses.town, amount);
+    purses.town -= paid;
+    purses.paidByTown += paid;
+    return paid;
+  }
+}));
+vi.mock("./householdWealth", () => ({
+  openRuralTownBudget: () => purses.rural,
+  recordRuralTownGoodsPaid: () => undefined,
+  getUrbanHouseholdSpendable: () => purses.town,
+  debitRuralHouseholdWealth: (_market: unknown, amount: number) => {
+    const paid = Math.min(purses.rural, amount);
+    purses.rural -= paid;
+    purses.paidByRural += paid;
+    return paid;
+  }
+}));
 
 import {
   CHEESE_RESERVE_MONTHS,
+  ensureContainerCirculation,
   getAleDemandSnapshot,
   getFoodProcessingProductionHeadroom,
+  getMonthlyHouseholdContainerDemand,
+  getMonthlyHouseholdDemand,
   recordBeerCaskFilling,
+  recordCellFoodHarvest,
   recordCellFoodHouseholdConsumption,
   recordFoodDeliveredExport,
   recordFoodMarketIntake,
@@ -71,10 +117,103 @@ describe("foodProcessingLedger", () => {
     market.goods[5].stock = 1;
     market.goods[6].stock = 4;
     market.goods[7].stock = 0;
-    for (const id of [8, 9, 10, 11]) market.goods[id] = { stock: 0, price: 1 };
+    for (const id of [8, 9, 10, 11, 18, 19]) market.goods[id] = { stock: 0, price: 1 };
     market.foodProcessingLedger = undefined;
     market.returnableContainerLedger = undefined;
+    market.marketTreasury = undefined;
     urbanWaterSystems.length = 0;
+    Object.assign(purses, { town: Infinity, rural: Infinity, paidByTown: 0, paidByRural: 0 });
+    ruralPopulation.people = 0;
+    settings.householdGoodsPayment = "free";
+  });
+
+  it("drinks wine-country wine as far as the market made it, and eats fresh grapes in the vintage only", () => {
+    market.foodProcessingLedger = undefined;
+    const imported = (1_000 * 0.65 * 1) / 12 / 200;
+    const extra = (1_000 * 0.65 * 7) / 12 / 200;
+    // 1,000 townsfolk, no grapes yet: imported wine, no fresh grapes.
+    expect(getMonthlyHouseholdDemand(market, "Wine")).toBeCloseTo(imported, 6);
+    expect(getMonthlyHouseholdDemand(market, "Grapes")).toBe(0);
+    recordCellFoodHarvest(market, "Grapes", 5);
+    // Vines alone are not wine country yet: no wine made, so the towns still drink imported wine.
+    expect(getMonthlyHouseholdDemand(market, "Wine")).toBeCloseTo(imported, 6);
+    // 2 kg a head over the 45 days of the vintage.
+    expect(getMonthlyHouseholdDemand(market, "Grapes")).toBeCloseTo((1_000 * 2) / (45 / (365 / 12)) / 1_000, 6);
+    // Half a year of wine-country drinking made in the cellars.
+    recordWineCaskFilling(market, extra * 6, 0);
+    settleFoodProcessingHouseholds();
+    expect(getMonthlyHouseholdDemand(market, "Grapes")).toBe(0);
+    expect(getMonthlyHouseholdDemand(market, "Wine")).toBeCloseTo(imported + extra / 2, 6);
+    market.foodProcessingLedger = undefined;
+  });
+
+  it("puts the towns' raisins from Christmas to Lent, and spoils stock beyond a year of them", () => {
+    // 1,000 townsfolk at 0.5 kg a year in 250 kg lots: 1/6 lot a month on the year's mean.
+    const mean = (1_000 * 0.5) / 12 / 250;
+    simulationMonth = 7;
+    expect(getMonthlyHouseholdDemand(market, "Raisins")).toBeCloseTo(mean * 0.5, 6);
+    simulationMonth = 1;
+    expect(getMonthlyHouseholdDemand(market, "Raisins")).toBeCloseTo(mean * 1.5, 6);
+    market.goods[4].stock = 5;
+    settleFoodProcessingHouseholds();
+    // A year of the mean is kept; the rest is old fruit past the next vintage.
+    expect(market.goods[4].stock).toBeCloseTo(mean * 12, 6);
+    expect(market.foodProcessingLedger?.Raisins?.spoilage).toBeCloseTo(5 - mean * 1.5 - mean * 12, 6);
+    market.goods[4].stock = 1;
+    settleFoodProcessingHouseholds();
+    // Under the cap, a month's storage loss only.
+    expect(market.goods[4].stock).toBeLessThan(1 - mean * 1.5);
+    expect(market.goods[4].stock).toBeGreaterThan((1 - mean * 1.5) * 0.95);
+  });
+
+  it("makes up the white soap the market lacks with soft soap (docs/plan/town-soap.md §3.2)", () => {
+    // 1,000 people of a small town, 2 kg a head in the 1790s: 30% white, 70% soft, in 120 kg barrels a month.
+    const white = getMonthlyHouseholdDemand(market, "Castile Soap");
+    const soft = getMonthlyHouseholdDemand(market, "Soap");
+    expect(white).toBeCloseTo((1_000 * 2 * 0.3) / 12 / 120, 6);
+    expect(soft).toBeCloseTo((1_000 * 2 * 0.7) / 12 / 120, 6);
+    market.goods[19].stock = 0.1;
+    market.goods[18].stock = 10;
+    settleFoodProcessingHouseholds();
+    expect(market.goods[19].stock).toBeCloseTo(0, 6);
+    expect(market.goods[18].stock).toBeCloseTo(10 - soft - (white - 0.1), 6);
+  });
+
+  it("takes consigned goods out of the consignment unpaid when households take them for free", () => {
+    for (const id of [1, 3, 4, 5, 6]) market.goods[id].stock = 0;
+    market.goods[2] = { stock: 10, price: 2 };
+    market.marketTreasury = { balance: 0, ruralGrainPayable: 0, craftConsigned: { 2: { 1: [4, 8] } } };
+    const demand = getMonthlyHouseholdDemand(market, "Cheese");
+    settleFoodProcessingHouseholds();
+    const [units, worth] = market.marketTreasury.craftConsigned![2][1];
+    expect(units).toBeCloseTo(4 - demand, 6);
+    expect(worth).toBeCloseTo(8 * (1 - demand / 4), 2);
+    expect(purses.paidByTown).toBe(0);
+  });
+
+  it("has households pay the market for what they take, and take only what they can pay for", () => {
+    settings.householdGoodsPayment = "pay";
+    ruralPopulation.people = 1_000;
+    for (const id of [1, 3, 4, 5, 6]) market.goods[id].stock = 0;
+    market.goods[2] = { stock: 100, price: 2 };
+    const demand = getMonthlyHouseholdDemand(market, "Cheese");
+    settleFoodProcessingHouseholds();
+    // Town and farms share the bill by their people: 1,000 each.
+    expect(purses.paidByTown).toBeCloseTo(demand, 1);
+    expect(purses.paidByRural).toBeCloseTo(demand, 1);
+    expect(market.foodProcessingLedger!.Cheese!.householdConsumption).toBeCloseTo(demand, 2);
+    expect(market.marketTreasury!.balance).toBeCloseTo(demand * 2, 1);
+
+    market.foodProcessingLedger = undefined;
+    market.marketTreasury = undefined;
+    Object.assign(purses, { town: 0, rural: 1, paidByTown: 0, paidByRural: 0 });
+    market.goods[2] = { stock: 100, price: 2 };
+    settleFoodProcessingHouseholds();
+    const cheese = market.foodProcessingLedger!.Cheese!;
+    expect(cheese.householdConsumption).toBeCloseTo(0.5, 2);
+    expect(cheese.unmetDemand).toBeCloseTo(demand - 0.5, 2);
+    expect(market.goods[2].stock).toBeCloseTo(99.5, 2);
+    ruralPopulation.people = 0;
   });
 
   it.each([
@@ -195,6 +334,41 @@ describe("foodProcessingLedger", () => {
     expect(beer.waterSafetyDemand).toBeCloseTo(unsafeDemand.waterSafetyDemand);
     expect(market.returnableContainerLedger!.beerCasksInService).toBe(0);
     expect(market.returnableContainerLedger!.cumulativeBeerCaskReturns).toBeCloseTo(unsafeDemand.monthlyDemand);
+  });
+
+  it("wears out casks for every household drink, ale's water-safety share included", () => {
+    urbanWaterSystems.push({ burgId: 1, waterContamination: 1, drinkingWaterSecurity: 0 });
+    refreshAleHouseholdDemand();
+    const ale = getAleDemandSnapshot(market);
+    expect(ale.waterSafetyDemand).toBeGreaterThan(0);
+
+    expect(getMonthlyHouseholdContainerDemand(market, { i: 15 })).toBeCloseTo(
+      ale.monthlyDemand * 0.4 + getMonthlyHouseholdDemand(market, "Wine") * 0.08
+    );
+  });
+
+  it("counts new casks in the market's stock against the coopers' shortfall of empties", () => {
+    market.goods[15] = { stock: 0, price: 1 };
+    const circulation = ensureContainerCirculation(market);
+    circulation.empties.Barrels = 0;
+    refreshAleHouseholdDemand();
+    const short = getMonthlyHouseholdContainerDemand(market, { i: 15 });
+    market.goods[15].stock = 1e9;
+    expect(getMonthlyHouseholdContainerDemand(market, { i: 15 })).toBeLessThan(short);
+  });
+
+  it("sells ale to the towns only: country households brew their own", () => {
+    refreshAleHouseholdDemand();
+    const townDemand = getAleDemandSnapshot(market).monthlyDemand;
+    const townMilk = getMonthlyHouseholdDemand(market, "Milk");
+    try {
+      ruralPopulation.people = 9_000;
+      refreshAleHouseholdDemand();
+      expect(getAleDemandSnapshot(market).monthlyDemand).toBeCloseTo(townDemand);
+      expect(getMonthlyHouseholdDemand(market, "Milk")).toBeGreaterThan(townMilk);
+    } finally {
+      ruralPopulation.people = 0;
+    }
   });
 
   it.each([0.25, 2])("settles ale by demand and supply regardless of price (stock share %s)", stockShare => {

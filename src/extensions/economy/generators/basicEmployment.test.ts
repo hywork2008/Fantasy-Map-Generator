@@ -280,10 +280,11 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
 
     reconcileAnnualBasicEmploymentWorkers();
 
-    // required = 4 + 5000*0.005 + 10*1 = 39; maxChange = max(1, 39*0.25) = 9.75 -> 0 to 9.75.
+    // At one person a point: 8 + 10*2 + 5000*0.005 = 53, capped at 15% of 200 adults = 30;
+    // maxChange = max(1, 30*0.25) = 7.5 -> 0 to 7.5.
     const [record] = getAdministrationEmployment();
     expect(record).toMatchObject({ burgId: 1, stateId: 1 });
-    expect(record.workers).toBeCloseTo(9.75, 5);
+    expect(record.workers).toBeCloseTo(7.5, 5);
   });
 
   it("allocates administration before a mine sharing the same capital Burg", () => {
@@ -326,10 +327,10 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
 
     reconcileAnnualBasicEmploymentWorkers();
 
-    // admin required = 4 + 0 + 1 = 5; maxChange = max(1, 5*0.25) = 1.25 -> 0 to 1.25.
+    // admin required = 8 + 1*2 = 10 people = 0.01 points, filled within the first annual step.
     const [administration] = getAdministrationEmployment();
-    expect(administration.workers).toBeCloseTo(1.25, 5);
-    // remaining adults after admin = 10 - 1.25 = 8.75; the mine's crew (a few people, well under a
+    expect(administration.workers).toBeCloseTo(0.01, 5);
+    // remaining adults after admin = 10 - 0.01 = 9.99; the mine's crew (a few people, well under a
     // point at 1,000 people a point) fits within that, so it reaches its full 34-unit requirement.
     expect(getMineOperations()[0].workers).toBeCloseTo(34, 5);
   });
@@ -422,9 +423,9 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
 
     reconcileAnnualBasicEmploymentWorkers();
 
-    // admin required = 4 + 0 + 1 = 5; maxChange = max(1, 5*0.25) = 1.25 -> 0 to 1.25.
+    // admin required = 8 + 1*2 = 10 (one person a point); maxChange = max(1, 10*0.25) = 2.5.
     const [summary] = getBasicEmploymentSummary();
-    expect(summary.basicEmploymentDemand).toBeCloseTo(1.25 + 3, 5);
+    expect(summary.basicEmploymentDemand).toBeCloseTo(2.5 + 3, 5);
   });
 
   it("derives serviceEmploymentDemand as 1.5x the Burg's basicEmploymentDemand subtotal", () => {
@@ -436,12 +437,12 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
 
     reconcileAnnualBasicEmploymentWorkers();
 
-    // Only administration is present at this Burg (no mine/smelter): required = 4 + 0 + 1 = 5;
-    // maxChange = max(1, 5*0.25) = 1.25 -> basicEmploymentDemand = 1.25.
+    // Only administration is present at this Burg (no mine/smelter): required = 8 + 1*2 = 10;
+    // maxChange = max(1, 10*0.25) = 2.5 -> basicEmploymentDemand = 2.5.
     const [summary] = getBasicEmploymentSummary();
     expect(summary.burgId).toBe(1);
-    expect(summary.basicEmploymentDemand).toBeCloseTo(1.25, 5);
-    expect(summary.serviceEmploymentDemand).toBeCloseTo(1.25 * 1.5, 5);
+    expect(summary.basicEmploymentDemand).toBeCloseTo(2.5, 5);
+    expect(summary.serviceEmploymentDemand).toBeCloseTo(2.5 * 1.5, 5);
   });
 
   it("fills administration to the available-adult target on a fresh map instead of the 25% annual step", () => {
@@ -454,7 +455,7 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
     reconcileAnnualBasicEmploymentWorkers({ initial: true });
 
     const [summary] = getBasicEmploymentSummary();
-    expect(summary.basicEmploymentDemand).toBeCloseTo(5, 5);
-    expect(summary.serviceEmploymentDemand).toBeCloseTo(7.5, 5);
+    expect(summary.basicEmploymentDemand).toBeCloseTo(10, 5);
+    expect(summary.serviceEmploymentDemand).toBeCloseTo(15, 5);
   });
 });

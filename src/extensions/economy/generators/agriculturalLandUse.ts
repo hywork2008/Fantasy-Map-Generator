@@ -1,4 +1,8 @@
-import { getStapleCropSuitability, getWetPrecipitationSuitability } from "../../../data/stapleCrops";
+import {
+  getStapleCropSuitability,
+  getWetPrecipitationSuitability,
+  isStapleCropAvailable
+} from "../../../data/stapleCrops";
 import { commitLandUsePlan, resolveStaticLandUseInputs, usesFantasyForestDefaults } from "../../../generators/landUse";
 import {
   ANNUAL_SOWN_SHARE,
@@ -28,6 +32,7 @@ import {
 } from "../../hostCore";
 import { type CultureType, DEFAULT_CULTURE_TYPE } from "../../hostTypes";
 import { getRuralFoodCapacity } from "../context/agriculture";
+import { getCropClimateBand, getRegionalCropShares } from "./cropAcreageShares";
 import { computeNaturalFloodRisk } from "./floodHazard";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import type { Good, SoilType } from "./goods-generator";
@@ -1054,11 +1059,11 @@ const CULTURE_CROP_PREFERENCES: Record<CultureType, Partial<Record<string, numbe
 const MAIN_CROP_SHARE_WITH_LEGUME = 2 / 3;
 
 /**
- * Returns the cell's crop plan: exactly one cereal/root staple and one legume whenever the
- * environment permits both. The culture type only ranks candidates that already fit this
- * cell's temperature and rainfall; it never makes a too-cold or too-dry crop grow. Excess
- * rain is a preference (rain-tolerant crops win), not an empty mix. Shares represent the
- * rotation plan, not a claim that every field contains both crops in the same season.
+ * Returns the cell's crop plan: the sown shares of its climate band's regional table, among the
+ * crops that fit this cell's temperature, rainfall and soil (docs/plan/crop-acreage-shares.md
+ * §4.1). Bands without sources plant the best brewing grain and staples in proportion to their
+ * scores, the culture type ranking them (§4.2); it never makes a too-cold or too-dry crop grow.
+ * Shares represent the rotation plan, not a claim that every field holds every crop each season.
  */
 export function getCropMix(
   world: Readonly<WorldContext>,
@@ -1103,26 +1108,25 @@ export function getCropMix(
   if (!candidates.length) return [];
 
   const cultureType = getCellCultureType(world, cellId);
-  const mainCrop = selectCrop(
-    candidates.filter(candidate => candidate.good.crop!.kind !== "legume"),
-    cultureType,
-    cellId,
-    17
+  const preferences = CULTURE_CROP_PREFERENCES[cultureType];
+  const temperatures = Array.from(conditions.climateByCell!(cellId).monthlyMeanTemperatureC);
+  const band = getCropClimateBand(
+    Math.min(...temperatures),
+    Math.max(...temperatures),
+    world.grid?.cells.prec?.[world.pack.cells.g?.[cellId] ?? cellId] ?? 45
   );
-  const legume = selectCrop(
-    candidates.filter(candidate => candidate.good.crop!.kind === "legume"),
-    cultureType,
-    cellId,
-    31
+  const shares = getRegionalCropShares(
+    band,
+    candidates.map(candidate => ({
+      name: candidate.good.name,
+      legume: candidate.good.crop!.kind === "legume",
+      suitability: candidate.suitability,
+      score: getCropSelectionScore(candidate, preferences, cellId, candidate.good.crop!.kind === "legume" ? 31 : 17)
+    }))
   );
-  if (!mainCrop && !legume) return [];
-  if (!mainCrop) return [{ ...legume!, share: 1, irrigated }];
-  if (!legume) return [{ ...mainCrop, share: 1, irrigated }];
-
-  return [
-    { ...mainCrop, share: MAIN_CROP_SHARE_WITH_LEGUME, irrigated },
-    { ...legume, share: 1 - MAIN_CROP_SHARE_WITH_LEGUME, irrigated }
-  ];
+  return candidates
+    .filter(candidate => (shares.get(candidate.good.name) ?? 0) > 0)
+    .map(candidate => ({ ...candidate, share: shares.get(candidate.good.name)!, irrigated }));
 }
 
 /** Annual output shares differ from rotation area shares when crops have different yields or cycles. */
@@ -1196,22 +1200,6 @@ export function getAnnualRequiredAdults(monthlyLaborDays: ArrayLike<number>): nu
   return totalDays / WORKABLE_DAYS_PER_ADULT;
 }
 
-function selectCrop(
-  candidates: readonly Omit<CropMixEntry, "share">[],
-  cultureType: CultureType,
-  cellId: number,
-  salt: number
-): Omit<CropMixEntry, "share"> | null {
-  if (!candidates.length) return null;
-  const preferences = CULTURE_CROP_PREFERENCES[cultureType];
-  return candidates.reduce<Omit<CropMixEntry, "share"> | null>((selected, candidate) => {
-    if (!selected) return candidate;
-    const candidateScore = getCropSelectionScore(candidate, preferences, cellId, salt);
-    const selectedScore = getCropSelectionScore(selected, preferences, cellId, salt);
-    return candidateScore > selectedScore ? candidate : selected;
-  }, null);
-}
-
 function getCropSelectionScore(
   candidate: Omit<CropMixEntry, "share">,
   preferences: Partial<Record<string, number>>,
@@ -1244,7 +1232,7 @@ export function getCropSuitability(
   conditions: AgriculturalConditions = {}
 ): number {
   const crop = good.crop;
-  if (!crop) return 0;
+  if (!crop || !isStapleCropAvailable(crop, world.options?.historicalPeriod)) return 0;
   const gridCellId = world.pack.cells.g?.[cellId] ?? cellId;
   const climate = (conditions.climateByCell ?? (id => readAgriculturalClimate(world, id)))(cellId);
   const water = conditions.irrigationAtCell?.(cellId);
@@ -1432,9 +1420,10 @@ export function advanceAgriculturalSoils(
     const legumeShare = mix
       .filter(entry => entry.good.crop?.kind === "legume")
       .reduce((sum, entry) => sum + entry.share, 0);
-    // A main-crop / legume pair is the normal three-field rotation. Only a cell that cannot
-    // sustain its companion legume is forced into continuous main-crop cultivation.
-    const exhaustion = Math.max(0, mainCropShare - MAIN_CROP_SHARE_WITH_LEGUME) * 0.08;
+    // A plan with a legume is a rotation with fallow, as the regional tables are
+    // (crop-acreage-shares.md §3). Only a cell that cannot grow any legume is forced into
+    // continuous main-crop cultivation.
+    const exhaustion = legumeShare > 0 ? 0 : Math.max(0, mainCropShare - MAIN_CROP_SHARE_WITH_LEGUME) * 0.08;
     const fourCourseRotation = conditions.fourCourseRotationByCell?.[cellId] ?? 0;
     const restoration = legumeShare * 0.025 + fourCourseRotation * FOUR_COURSE_SOIL_RESTORATION_BONUS;
     soilFertility[cellId] = Math.max(

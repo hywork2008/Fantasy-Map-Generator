@@ -105,7 +105,9 @@ export const PERENNIAL_CROP_PROFILES = {
     maximumLandShare: 0.5,
     areaHectaresPerPerson: 0.04,
     laborDaysPerHectare: 20,
-    yieldLotsPerHectarePerMonth: 0.03,
+    // About 1.56 t of grapes a hectare a year, some 12 hL of wine: France's average about 1800 was
+    // 12-15 hL (docs/plan/vintage-and-orchard-yield.md).
+    yieldLotsPerHectarePerMonth: 0.13,
     calendar: VINE_CALENDAR
   },
   Olives: {
@@ -150,7 +152,9 @@ export const PERENNIAL_CROP_PROFILES = {
     maximumLandShare: 0.3,
     areaHectaresPerPerson: 0.02,
     laborDaysPerHectare: 24,
-    yieldLotsPerHectarePerMonth: 0.04,
+    // About 3 t a hectare a year, half the 6-7.5 t of Herefordshire's standard orchards in 1970
+    // (docs/plan/vintage-and-orchard-yield.md).
+    yieldLotsPerHectarePerMonth: 0.25,
     calendar: TEMPERATE_ORCHARD_CALENDAR
   },
   Pears: {
@@ -161,7 +165,8 @@ export const PERENNIAL_CROP_PROFILES = {
     maximumLandShare: 0.24,
     areaHectaresPerPerson: 0.014,
     laborDaysPerHectare: 22,
-    yieldLotsPerHectarePerMonth: 0.032,
+    // Kept at the apples' ratio of the earlier values (0.8).
+    yieldLotsPerHectarePerMonth: 0.2,
     calendar: TEMPERATE_ORCHARD_CALENDAR
   },
   Plums: {

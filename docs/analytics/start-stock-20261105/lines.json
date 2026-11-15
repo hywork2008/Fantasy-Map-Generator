@@ -1,0 +1,8961 @@
+{
+ "inputs": [
+  "docs/analytics/raw/start-stock-20261105/stock-2101.json",
+  "docs/analytics/raw/start-stock-20261105/stock-2102.json",
+  "docs/analytics/raw/start-stock-20261105/stock-2103.json",
+  "docs/analytics/raw/start-stock-20261105/stock-2104.json"
+ ],
+ "window": [
+  25,
+  60
+ ],
+ "rows": [
+  {
+   "i": 1,
+   "name": "Wood",
+   "tags": [
+    "construction",
+    "fuel"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3770,
+    "usedShare": 1,
+    "monthsP10": 3.74,
+    "monthsMedian": 5.15,
+    "monthsP90": 9.05,
+    "usePerKMedian": 2.26,
+    "usePerKP90": 4.33
+   },
+   "none": {
+    "marketMonths": 109,
+    "usedShare": 0.04,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 81400,
+    "month1": 98200,
+    "month2": 90800,
+    "month3": 88500
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.26,
+    "p90": 0.37
+   },
+   "start": {
+    "stock0": 323565,
+    "use1": 98180,
+    "marketsPriced": 96,
+    "marketsOver13": 3,
+    "priceToValueMedian": 0.32
+   }
+  },
+  {
+   "i": 2,
+   "name": "Stone",
+   "tags": [
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2282,
+    "usedShare": 0.99,
+    "monthsP10": 1.72,
+    "monthsMedian": 203.85,
+    "monthsP90": 1168.55,
+    "usePerKMedian": 0.0209,
+    "usePerKP90": 0.0412
+   },
+   "none": {
+    "marketMonths": 1597,
+    "usedShare": 0.07,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0.24,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 894,
+    "month1": 654,
+    "month2": 485,
+    "month3": 518
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.25,
+    "p90": 0.64
+   },
+   "start": {
+    "stock0": 4401,
+    "use1": 654,
+    "marketsPriced": 71,
+    "marketsOver13": 7,
+    "priceToValueMedian": 0.32
+   }
+  },
+  {
+   "i": 3,
+   "name": "Marble",
+   "tags": [
+    "construction",
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2462,
+    "usedShare": 0.8,
+    "monthsP10": 0,
+    "monthsMedian": 2.87,
+    "monthsP90": 100.01,
+    "usePerKMedian": 0.00207,
+    "usePerKP90": 0.0146
+   },
+   "none": {
+    "marketMonths": 1417,
+    "usedShare": 0.37,
+    "monthsP10": 0.1,
+    "monthsMedian": 13.43,
+    "monthsP90": 79.8,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.000768
+   },
+   "worldUse": {
+    "steadyMonthly": 140,
+    "month1": 113,
+    "month2": 151,
+    "month3": 176
+   },
+   "steadyPriceToValue": {
+    "p10": 0.3,
+    "median": 0.71,
+    "p90": 1.45
+   },
+   "start": {
+    "stock0": 59,
+    "use1": 113,
+    "marketsPriced": 76,
+    "marketsOver13": 21,
+    "priceToValueMedian": 1
+   }
+  },
+  {
+   "i": 4,
+   "name": "Iron Ore",
+   "tags": [
+    "ore",
+    "mineral"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1141,
+    "usedShare": 0.97,
+    "monthsP10": 0.04,
+    "monthsMedian": 0.33,
+    "monthsP90": 1,
+    "usePerKMedian": 0.00763,
+    "usePerKP90": 0.0385
+   },
+   "none": {
+    "marketMonths": 2738,
+    "usedShare": 0.03,
+    "monthsP10": 2.95,
+    "monthsMedian": 1805.5,
+    "monthsP90": 3435.5,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 154,
+    "month1": 131,
+    "month2": 137,
+    "month3": 133
+   },
+   "steadyPriceToValue": {
+    "p10": 0.27,
+    "median": 0.89,
+    "p90": 1.17
+   },
+   "start": {
+    "stock0": 47,
+    "use1": 131,
+    "marketsPriced": 33,
+    "marketsOver13": 4,
+    "priceToValueMedian": 0.99
+   }
+  },
+  {
+   "i": 5,
+   "name": "Copper Ore",
+   "tags": [
+    "ore",
+    "mineral"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 324,
+    "usedShare": 0.85,
+    "monthsP10": 1,
+    "monthsMedian": 1.42,
+    "monthsP90": 11.91,
+    "usePerKMedian": 0.00166,
+    "usePerKP90": 0.00904
+   },
+   "none": {
+    "marketMonths": 3555,
+    "usedShare": 0,
+    "monthsP10": 2.96,
+    "monthsMedian": 2.98,
+    "monthsP90": 3.02,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 7.91,
+    "month1": 0.8,
+    "month2": 0.92,
+    "month3": 0.97
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.7,
+    "p90": 1.61
+   },
+   "start": {
+    "stock0": 1,
+    "use1": 1,
+    "marketsPriced": 2,
+    "marketsOver13": 1,
+    "priceToValueMedian": 1.24
+   }
+  },
+  {
+   "i": 6,
+   "name": "Tin Ore",
+   "tags": [
+    "ore",
+    "mineral"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 180,
+    "usedShare": 0.74,
+    "monthsP10": 1,
+    "monthsMedian": 1,
+    "monthsP90": 1,
+    "usePerKMedian": 0.000396,
+    "usePerKP90": 0.00387
+   },
+   "none": {
+    "marketMonths": 3699,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.868,
+    "month1": 0.23,
+    "month2": 0.27,
+    "month3": 0.29
+   },
+   "steadyPriceToValue": {
+    "p10": 0.96,
+    "median": 1.07,
+    "p90": 1.93
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 2,
+    "marketsOver13": 1,
+    "priceToValueMedian": 1.35
+   }
+  },
+  {
+   "i": 7,
+   "name": "Lead Ore",
+   "tags": [
+    "ore",
+    "mineral"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 397,
+    "usedShare": 0.91,
+    "monthsP10": 0.49,
+    "monthsMedian": 1,
+    "monthsP90": 1.4,
+    "usePerKMedian": 0.0161,
+    "usePerKP90": 0.0291
+   },
+   "none": {
+    "marketMonths": 3482,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 51,
+    "month1": 38.7,
+    "month2": 42.9,
+    "month3": 45
+   },
+   "steadyPriceToValue": {
+    "p10": 0.28,
+    "median": 0.34,
+    "p90": 0.73
+   },
+   "start": {
+    "stock0": 19,
+    "use1": 39,
+    "marketsPriced": 9,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.52
+   }
+  },
+  {
+   "i": 8,
+   "name": "Silver Ore",
+   "tags": [
+    "ore",
+    "mineral"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 577,
+    "usedShare": 0.81,
+    "monthsP10": 0.49,
+    "monthsMedian": 1,
+    "monthsP90": 3.02,
+    "usePerKMedian": 0.163,
+    "usePerKP90": 0.344
+   },
+   "none": {
+    "marketMonths": 3302,
+    "usedShare": 0.02,
+    "monthsP10": 7.43,
+    "monthsMedian": 9,
+    "monthsP90": 9.01,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 751,
+    "month1": 446,
+    "month2": 496,
+    "month3": 519
+   },
+   "steadyPriceToValue": {
+    "p10": 0.98,
+    "median": 0.98,
+    "p90": 1.01
+   },
+   "start": {
+    "stock0": 221,
+    "use1": 446,
+    "marketsPriced": 9,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.98
+   }
+  },
+  {
+   "i": 9,
+   "name": "Gold Ore",
+   "tags": [
+    "ore",
+    "mineral"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 457,
+    "usedShare": 0.82,
+    "monthsP10": 1,
+    "monthsMedian": 1,
+    "monthsP90": 5.54,
+    "usePerKMedian": 0.028,
+    "usePerKP90": 0.0576
+   },
+   "none": {
+    "marketMonths": 3422,
+    "usedShare": 0.01,
+    "monthsP10": 2.98,
+    "monthsMedian": 2.99,
+    "monthsP90": 8.13,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 122,
+    "month1": 83.3,
+    "month2": 97.7,
+    "month3": 104
+   },
+   "steadyPriceToValue": {
+    "p10": 0.98,
+    "median": 0.98,
+    "p90": 0.99
+   },
+   "start": {
+    "stock0": 51,
+    "use1": 83,
+    "marketsPriced": 11,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.98
+   }
+  },
+  {
+   "i": 10,
+   "name": "Chromium Ore",
+   "tags": [
+    "ore",
+    "mineral",
+    "alloy"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 216,
+    "usedShare": 0.92,
+    "monthsP10": 0.33,
+    "monthsMedian": 1,
+    "monthsP90": 5.48,
+    "usePerKMedian": 0.00185,
+    "usePerKP90": 0.00951
+   },
+   "none": {
+    "marketMonths": 3663,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 4.75,
+    "month1": 1.58,
+    "month2": 1.87,
+    "month3": 1.84
+   },
+   "steadyPriceToValue": {
+    "p10": 0.46,
+    "median": 0.78,
+    "p90": 1.29
+   },
+   "start": {
+    "stock0": 1,
+    "use1": 2,
+    "marketsPriced": 2,
+    "marketsOver13": 1,
+    "priceToValueMedian": 1.31
+   }
+  },
+  {
+   "i": 11,
+   "name": "Nickel Ore",
+   "tags": [
+    "ore",
+    "mineral",
+    "alloy"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 72,
+    "usedShare": 0.88,
+    "monthsP10": 0.34,
+    "monthsMedian": 1,
+    "monthsP90": 1,
+    "usePerKMedian": 0.00122,
+    "usePerKP90": 0.0267
+   },
+   "none": {
+    "marketMonths": 3807,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 1.77,
+    "month1": 1.87,
+    "month2": 1.93,
+    "month3": 1.94
+   },
+   "steadyPriceToValue": {
+    "p10": 0.72,
+    "median": 0.99,
+    "p90": 1.02
+   },
+   "start": {
+    "stock0": 1,
+    "use1": 2,
+    "marketsPriced": 1,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.78
+   }
+  },
+  {
+   "i": 12,
+   "name": "Molybdenum Ore",
+   "tags": [
+    "ore",
+    "mineral",
+    "alloy"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 36,
+    "usedShare": 1,
+    "monthsP10": 1,
+    "monthsMedian": 1,
+    "monthsP90": 1,
+    "usePerKMedian": 0.00115,
+    "usePerKP90": 0.00115
+   },
+   "none": {
+    "marketMonths": 3843,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.53,
+    "month1": 0.42,
+    "month2": 0.48,
+    "month3": 0.52
+   },
+   "steadyPriceToValue": {
+    "p10": 1.34,
+    "median": 1.34,
+    "p90": 1.34
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 1,
+    "marketsOver13": 1,
+    "priceToValueMedian": 1.32
+   }
+  },
+  {
+   "i": 13,
+   "name": "Silicon Ore",
+   "tags": [
+    "ore",
+    "mineral",
+    "alloy"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 5.11,
+    "month2": 5.29,
+    "month3": 5.38
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 5,
+    "use1": 5,
+    "marketsPriced": 1,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.49
+   }
+  },
+  {
+   "i": 14,
+   "name": "Iron Ingot",
+   "tags": [
+    "ingot",
+    "metal",
+    "military"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1249,
+    "usedShare": 0.92,
+    "monthsP10": 0,
+    "monthsMedian": 7.87,
+    "monthsP90": 57.32,
+    "usePerKMedian": 0.00543,
+    "usePerKP90": 0.0307
+   },
+   "none": {
+    "marketMonths": 2630,
+    "usedShare": 0.59,
+    "monthsP10": 0,
+    "monthsMedian": 23.4,
+    "monthsP90": 167.15,
+    "usePerKMedian": 0.000215,
+    "usePerKP90": 0.0054
+   },
+   "worldUse": {
+    "steadyMonthly": 178,
+    "month1": 27.9,
+    "month2": 50.4,
+    "month3": 79.8
+   },
+   "steadyPriceToValue": {
+    "p10": 0.47,
+    "median": 1.17,
+    "p90": 2.87
+   },
+   "start": {
+    "stock0": 61,
+    "use1": 28,
+    "marketsPriced": 56,
+    "marketsOver13": 51,
+    "priceToValueMedian": 2.95
+   }
+  },
+  {
+   "i": 15,
+   "name": "Copper Ingot",
+   "tags": [
+    "ingot",
+    "metal"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 324,
+    "usedShare": 0.82,
+    "monthsP10": 0.55,
+    "monthsMedian": 3.44,
+    "monthsP90": 30.72,
+    "usePerKMedian": 0.000951,
+    "usePerKP90": 0.00721
+   },
+   "none": {
+    "marketMonths": 3555,
+    "usedShare": 0.02,
+    "monthsP10": 0,
+    "monthsMedian": 12.15,
+    "monthsP90": 239.3,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 6.63,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0.25
+   },
+   "steadyPriceToValue": {
+    "p10": 0.61,
+    "median": 1.02,
+    "p90": 1.67
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 2,
+    "marketsOver13": 2,
+    "priceToValueMedian": 1.83
+   }
+  },
+  {
+   "i": 16,
+   "name": "Tin Ingot",
+   "tags": [
+    "ingot",
+    "metal"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 180,
+    "usedShare": 0.33,
+    "monthsP10": 0,
+    "monthsMedian": 3.08,
+    "monthsP90": 45.83,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.00151
+   },
+   "none": {
+    "marketMonths": 3699,
+    "usedShare": 0,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0.07,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.633,
+    "month1": 0.19,
+    "month2": 0.12,
+    "month3": 0.42
+   },
+   "steadyPriceToValue": {
+    "p10": 0.31,
+    "median": 1.07,
+    "p90": 1.64
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 2,
+    "marketsOver13": 1,
+    "priceToValueMedian": 1.37
+   }
+  },
+  {
+   "i": 17,
+   "name": "Lead Ingot",
+   "tags": [
+    "ingot",
+    "metal",
+    "military",
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 145,
+    "usedShare": 0.64,
+    "monthsP10": 37.97,
+    "monthsMedian": 182.67,
+    "monthsP90": 627.8,
+    "usePerKMedian": 0.0000761,
+    "usePerKP90": 0.000883
+   },
+   "none": {
+    "marketMonths": 3734,
+    "usedShare": 0.24,
+    "monthsP10": 0.5,
+    "monthsMedian": 6,
+    "monthsP90": 146.5,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.000157
+   },
+   "worldUse": {
+    "steadyMonthly": 1.69,
+    "month1": 0,
+    "month2": 2.66,
+    "month3": 1.95
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 1,
+    "p90": 1.57
+   },
+   "start": {
+    "stock0": 23,
+    "use1": 0,
+    "marketsPriced": 14,
+    "marketsOver13": 4,
+    "priceToValueMedian": 0.99
+   }
+  },
+  {
+   "i": 18,
+   "name": "Silver Ingot",
+   "tags": [
+    "ingot",
+    "metal",
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 577,
+    "usedShare": 0.78,
+    "monthsP10": 2.57,
+    "monthsMedian": 7.92,
+    "monthsP90": 17.95,
+    "usePerKMedian": 0.0479,
+    "usePerKP90": 0.346
+   },
+   "none": {
+    "marketMonths": 3302,
+    "usedShare": 0.52,
+    "monthsP10": 0.84,
+    "monthsMedian": 3.99,
+    "monthsP90": 6.94,
+    "usePerKMedian": 0.000263,
+    "usePerKP90": 0.0269
+   },
+   "worldUse": {
+    "steadyMonthly": 800,
+    "month1": 119,
+    "month2": 129,
+    "month3": 152
+   },
+   "steadyPriceToValue": {
+    "p10": 0.94,
+    "median": 0.98,
+    "p90": 1.2
+   },
+   "start": {
+    "stock0": 209,
+    "use1": 119,
+    "marketsPriced": 13,
+    "marketsOver13": 3,
+    "priceToValueMedian": 1.01
+   }
+  },
+  {
+   "i": 19,
+   "name": "Gold Ingot",
+   "tags": [
+    "ingot",
+    "metal",
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 457,
+    "usedShare": 0.97,
+    "monthsP10": 1.87,
+    "monthsMedian": 9,
+    "monthsP90": 9.01,
+    "usePerKMedian": 0.0185,
+    "usePerKP90": 0.0423
+   },
+   "none": {
+    "marketMonths": 3422,
+    "usedShare": 0.84,
+    "monthsP10": 1.5,
+    "monthsMedian": 3.98,
+    "monthsP90": 4.96,
+    "usePerKMedian": 0.00232,
+    "usePerKP90": 0.0115
+   },
+   "worldUse": {
+    "steadyMonthly": 211,
+    "month1": 35.6,
+    "month2": 34.3,
+    "month3": 44.6
+   },
+   "steadyPriceToValue": {
+    "p10": 0.96,
+    "median": 0.98,
+    "p90": 1.08
+   },
+   "start": {
+    "stock0": 30,
+    "use1": 36,
+    "marketsPriced": 26,
+    "marketsOver13": 12,
+    "priceToValueMedian": 1.19
+   }
+  },
+  {
+   "i": 20,
+   "name": "Chromium Ingot",
+   "tags": [
+    "ingot",
+    "metal",
+    "alloy"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 180,
+    "usedShare": 0.07,
+    "monthsP10": 2.99,
+    "monthsMedian": 3.01,
+    "monthsP90": 3.58,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3699,
+    "usedShare": 0,
+    "monthsP10": 16.79,
+    "monthsMedian": 50.71,
+    "monthsP90": 84.62,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.48,
+    "month1": 0.4,
+    "month2": 0.64,
+    "month3": 0.78
+   },
+   "steadyPriceToValue": {
+    "p10": 0.26,
+    "median": 0.29,
+    "p90": 0.35
+   },
+   "start": {
+    "stock0": 1,
+    "use1": 0,
+    "marketsPriced": 2,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.84
+   }
+  },
+  {
+   "i": 21,
+   "name": "Nickel Ingot",
+   "tags": [
+    "ingot",
+    "metal",
+    "alloy"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 36,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3843,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 1,
+    "use1": 0,
+    "marketsPriced": 2,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.89
+   }
+  },
+  {
+   "i": 22,
+   "name": "Molybdenum Ingot",
+   "tags": [
+    "ingot",
+    "metal",
+    "alloy"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 1,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.84
+   }
+  },
+  {
+   "i": 23,
+   "name": "Silicon Ingot",
+   "tags": [
+    "ingot",
+    "metalloid",
+    "alloy"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 4,
+    "use1": 0,
+    "marketsPriced": 1,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.69
+   }
+  },
+  {
+   "i": 24,
+   "name": "Grain",
+   "tags": [
+    "food",
+    "stapleFood"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 792,
+    "usedShare": 0.98,
+    "monthsP10": 101.03,
+    "monthsMedian": 2847.25,
+    "monthsP90": 9550.78,
+    "usePerKMedian": 0.00933,
+    "usePerKP90": 0.0649
+   },
+   "none": {
+    "marketMonths": 3087,
+    "usedShare": 0.97,
+    "monthsP10": 369.86,
+    "monthsMedian": 2139.81,
+    "monthsP90": 7484.56,
+    "usePerKMedian": 0.0103,
+    "usePerKP90": 0.0302
+   },
+   "worldUse": {
+    "steadyMonthly": 4220,
+    "month1": 4390,
+    "month2": 4930,
+    "month3": 5240
+   },
+   "steadyPriceToValue": {
+    "p10": 0.76,
+    "median": 0.8,
+    "p90": 0.81
+   },
+   "start": {
+    "stock0": 408371,
+    "use1": 4388,
+    "marketsPriced": 99,
+    "marketsOver13": 8,
+    "priceToValueMedian": 0.8
+   }
+  },
+  {
+   "i": 25,
+   "name": "Wheat",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "cereal"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0.77,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 7.6,
+    "month1": 52600,
+    "month2": 25900,
+    "month3": 1960
+   },
+   "steadyPriceToValue": {
+    "p10": 0.8,
+    "median": 0.8,
+    "p90": 0.81
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 52618,
+    "marketsPriced": 99,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.8
+   }
+  },
+  {
+   "i": 26,
+   "name": "Rye",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "cereal"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0.01,
+    "monthsP10": 0.77,
+    "monthsMedian": 5484.12,
+    "monthsP90": 20755.19,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 197,
+    "month1": 75.7,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": 0.76,
+    "median": 0.79,
+    "p90": 0.8
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 76,
+    "marketsPriced": 44,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.8
+   }
+  },
+  {
+   "i": 27,
+   "name": "Barley",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "cereal"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0.25,
+    "monthsP10": 0.32,
+    "monthsMedian": 3.31,
+    "monthsP90": 14.14,
+    "usePerKMedian": 0,
+    "usePerKP90": 1.68
+   },
+   "worldUse": {
+    "steadyMonthly": 16500,
+    "month1": 2020,
+    "month2": 230,
+    "month3": 1640
+   },
+   "steadyPriceToValue": {
+    "p10": 0.76,
+    "median": 0.8,
+    "p90": 0.81
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 2016,
+    "marketsPriced": 45,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.8
+   }
+  },
+  {
+   "i": 28,
+   "name": "Oats",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "cereal"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0.84,
+    "monthsP10": 0.01,
+    "monthsMedian": 1.58,
+    "monthsP90": 11.23,
+    "usePerKMedian": 0.77,
+    "usePerKP90": 2.16
+   },
+   "worldUse": {
+    "steadyMonthly": 38800,
+    "month1": 52500,
+    "month2": 30000,
+    "month3": 26000
+   },
+   "steadyPriceToValue": {
+    "p10": 0.76,
+    "median": 0.8,
+    "p90": 0.81
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 52467,
+    "marketsPriced": 44,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.8
+   }
+  },
+  {
+   "i": 29,
+   "name": "Millet",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "cereal"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 30,
+   "name": "Maize",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "cereal"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 31,
+   "name": "Rice",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "cereal"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 32,
+   "name": "Buckwheat",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "cereal"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 30,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.8
+   }
+  },
+  {
+   "i": 33,
+   "name": "Peas",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "legume"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 44,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.8
+   }
+  },
+  {
+   "i": 34,
+   "name": "Broad Beans",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "legume"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 43,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.8
+   }
+  },
+  {
+   "i": 35,
+   "name": "Lentils",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "legume"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 36,
+   "name": "Chickpeas",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "legume"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 37,
+   "name": "Soybeans",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "legume"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 38,
+   "name": "Turnips",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "tuber"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 9,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.8
+   }
+  },
+  {
+   "i": 39,
+   "name": "Potatoes",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "tuber",
+    "postMedieval"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 40,
+   "name": "Cattle",
+   "tags": [
+    "food",
+    "draft",
+    "liveAnimal"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3879,
+    "usedShare": 1,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 11.7,
+    "usePerKP90": 18.2
+   },
+   "none": null,
+   "worldUse": {
+    "steadyMonthly": 476000,
+    "month1": 454000,
+    "month2": 425000,
+    "month3": 393000
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.25,
+    "p90": 0.25
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 453758,
+    "marketsPriced": 99,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.57
+   }
+  },
+  {
+   "i": 41,
+   "name": "Fish",
+   "tags": [
+    "food",
+    "aquatic",
+    "freshFood"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 42,
+   "name": "Game",
+   "tags": [
+    "food",
+    "freshFood"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1452,
+    "usedShare": 0.03,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 2427,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 1.8,
+    "month1": 2.42,
+    "month2": 3.13,
+    "month3": 2.89
+   },
+   "steadyPriceToValue": {
+    "p10": 1.29,
+    "median": 1.67,
+    "p90": 1.68
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 2,
+    "marketsPriced": 29,
+    "marketsOver13": 13,
+    "priceToValueMedian": 1.24
+   }
+  },
+  {
+   "i": 43,
+   "name": "Wine",
+   "tags": [
+    "food",
+    "luxury",
+    "grapeWine",
+    "beverage"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1861,
+    "usedShare": 0.2,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.011
+   },
+   "none": {
+    "marketMonths": 2018,
+    "usedShare": 0.01,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 76.2,
+    "month1": 42.1,
+    "month2": 163,
+    "month3": 117
+   },
+   "steadyPriceToValue": {
+    "p10": 1.35,
+    "median": 2.72,
+    "p90": 3
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 42,
+    "marketsPriced": 19,
+    "marketsOver13": 18,
+    "priceToValueMedian": 2.14
+   }
+  },
+  {
+   "i": 44,
+   "name": "Pomace",
+   "tags": [
+    "food"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1861,
+    "usedShare": 0.11,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.0000931
+   },
+   "none": {
+    "marketMonths": 2018,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 4.27,
+    "month1": 0.16,
+    "month2": 0.26,
+    "month3": 5.52
+   },
+   "steadyPriceToValue": {
+    "p10": 0.34,
+    "median": 2.98,
+    "p90": 3.02
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 18,
+    "marketsOver13": 10,
+    "priceToValueMedian": 1.43
+   }
+  },
+  {
+   "i": 45,
+   "name": "Olives",
+   "tags": [
+    "food",
+    "perennialCrop"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1142,
+    "usedShare": 0.32,
+    "monthsP10": 0.91,
+    "monthsMedian": 9.92,
+    "monthsP90": 59.4,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.011
+   },
+   "none": {
+    "marketMonths": 2737,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 60.7,
+    "month1": 6.08,
+    "month2": 8.72,
+    "month3": 12.4
+   },
+   "steadyPriceToValue": {
+    "p10": 0.29,
+    "median": 0.78,
+    "p90": 2.96
+   },
+   "start": {
+    "stock0": 6,
+    "use1": 6,
+    "marketsPriced": 8,
+    "marketsOver13": 2,
+    "priceToValueMedian": 1.18
+   }
+  },
+  {
+   "i": 46,
+   "name": "Honey",
+   "tags": [
+    "food",
+    "preservative"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3698,
+    "usedShare": 0.08,
+    "monthsP10": 9,
+    "monthsMedian": 41.08,
+    "monthsP90": 363.93,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 181,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 300,
+    "month1": 162,
+    "month2": 125,
+    "month3": 163
+   },
+   "steadyPriceToValue": {
+    "p10": 0.27,
+    "median": 0.33,
+    "p90": 1.35
+   },
+   "start": {
+    "stock0": 1031,
+    "use1": 162,
+    "marketsPriced": 94,
+    "marketsOver13": 1,
+    "priceToValueMedian": 0.38
+   }
+  },
+  {
+   "i": 47,
+   "name": "Salt",
+   "tags": [
+    "preservative",
+    "mineral"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3060,
+    "usedShare": 0.99,
+    "monthsP10": 1.8,
+    "monthsMedian": 2.68,
+    "monthsP90": 3,
+    "usePerKMedian": 12.3,
+    "usePerKP90": 14.2
+   },
+   "none": {
+    "marketMonths": 819,
+    "usedShare": 0.93,
+    "monthsP10": 0.69,
+    "monthsMedian": 2.03,
+    "monthsP90": 2.21,
+    "usePerKMedian": 11.7,
+    "usePerKP90": 14.3
+   },
+   "worldUse": {
+    "steadyMonthly": 466000,
+    "month1": 483000,
+    "month2": 476000,
+    "month3": 469000
+   },
+   "steadyPriceToValue": {
+    "p10": 1,
+    "median": 1.25,
+    "p90": 2.5
+   },
+   "start": {
+    "stock0": 1182343,
+    "use1": 483377,
+    "marketsPriced": 98,
+    "marketsOver13": 34,
+    "priceToValueMedian": 1.25
+   }
+  },
+  {
+   "i": 48,
+   "name": "Dates",
+   "tags": [
+    "food",
+    "fruit",
+    "perennialCrop"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 72,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3807,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 1,
+    "marketsOver13": 1,
+    "priceToValueMedian": 2.19
+   }
+  },
+  {
+   "i": 49,
+   "name": "Horses",
+   "tags": [
+    "supply",
+    "military",
+    "draft",
+    "liveAnimal"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3879,
+    "usedShare": 0.99,
+    "monthsP10": 60.05,
+    "monthsMedian": 180.38,
+    "monthsP90": 782.45,
+    "usePerKMedian": 0.0214,
+    "usePerKP90": 0.0479
+   },
+   "none": null,
+   "worldUse": {
+    "steadyMonthly": 860,
+    "month1": 729,
+    "month2": 697,
+    "month3": 910
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.3,
+    "p90": 0.42
+   },
+   "start": {
+    "stock0": 3474,
+    "use1": 729,
+    "marketsPriced": 99,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.4
+   }
+  },
+  {
+   "i": 50,
+   "name": "Fodder",
+   "tags": [
+    "fodder",
+    "supply"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3770,
+    "usedShare": 0.76,
+    "monthsP10": 0,
+    "monthsMedian": 3.37,
+    "monthsP90": 8.19,
+    "usePerKMedian": 2.28,
+    "usePerKP90": 4.88
+   },
+   "none": {
+    "marketMonths": 109,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 100000,
+    "month1": 50200,
+    "month2": 50000,
+    "month3": 34400
+   },
+   "steadyPriceToValue": {
+    "p10": 0.67,
+    "median": 1.29,
+    "p90": 2.29
+   },
+   "start": {
+    "stock0": 219000,
+    "use1": 50189,
+    "marketsPriced": 53,
+    "marketsOver13": 44,
+    "priceToValueMedian": 1.57
+   }
+  },
+  {
+   "i": 51,
+   "name": "Elephants",
+   "tags": [
+    "supply",
+    "military",
+    "liveAnimal"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 36,
+    "usedShare": 0.03,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3843,
+    "usedShare": 0,
+    "monthsP10": 0.3,
+    "monthsMedian": 1.5,
+    "monthsP90": 2.7,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.0611,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": 0.84,
+    "median": 0.91,
+    "p90": 0.95
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 52,
+   "name": "Camels",
+   "tags": [
+    "supply",
+    "military",
+    "liveAnimal"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2834,
+    "usedShare": 0.8,
+    "monthsP10": 901.07,
+    "monthsMedian": 45801.67,
+    "monthsP90": 242323.3,
+    "usePerKMedian": 0.0000719,
+    "usePerKP90": 0.00472
+   },
+   "none": {
+    "marketMonths": 1045,
+    "usedShare": 0.09,
+    "monthsP10": 986.7,
+    "monthsMedian": 2008.25,
+    "monthsP90": 6561.3,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 73.7,
+    "month1": 52.3,
+    "month2": 83.1,
+    "month3": 117
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.25,
+    "p90": 0.29
+   },
+   "start": {
+    "stock0": 3850,
+    "use1": 52,
+    "marketsPriced": 70,
+    "marketsOver13": 1,
+    "priceToValueMedian": 0.32
+   }
+  },
+  {
+   "i": 53,
+   "name": "Hemp",
+   "tags": [
+    "clothing",
+    "naval"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3698,
+    "usedShare": 1,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0.0527,
+    "usePerKP90": 0.0797
+   },
+   "none": {
+    "marketMonths": 181,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 2200,
+    "month1": 1540,
+    "month2": 1120,
+    "month3": 1630
+   },
+   "steadyPriceToValue": {
+    "p10": 0.4,
+    "median": 0.69,
+    "p90": 1
+   },
+   "start": {
+    "stock0": 4,
+    "use1": 1539,
+    "marketsPriced": 93,
+    "marketsOver13": 7,
+    "priceToValueMedian": 0.69
+   }
+  },
+  {
+   "i": 54,
+   "name": "Pearls",
+   "tags": [
+    "luxury",
+    "aquatic"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 828,
+    "usedShare": 0.05,
+    "monthsP10": 0,
+    "monthsMedian": 0.1,
+    "monthsP90": 1.67,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3051,
+    "usedShare": 0,
+    "monthsP10": 2.7,
+    "monthsMedian": 2.7,
+    "monthsP90": 2.7,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.112,
+    "month1": 0.18,
+    "month2": 0.13,
+    "month3": 0.05
+   },
+   "steadyPriceToValue": {
+    "p10": 0.88,
+    "median": 0.91,
+    "p90": 1.18
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 57,
+    "marketsOver13": 23,
+    "priceToValueMedian": 1.18
+   }
+  },
+  {
+   "i": 55,
+   "name": "Gemstones",
+   "tags": [
+    "luxury",
+    "mineral"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1813,
+    "usedShare": 0.65,
+    "monthsP10": 0.14,
+    "monthsMedian": 21,
+    "monthsP90": 223.5,
+    "usePerKMedian": 0.000209,
+    "usePerKP90": 0.00195
+   },
+   "none": {
+    "marketMonths": 2066,
+    "usedShare": 0.01,
+    "monthsP10": 8.5,
+    "monthsMedian": 176.17,
+    "monthsP90": 442.2,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 15,
+    "month1": 14.8,
+    "month2": 15.3,
+    "month3": 11
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.35,
+    "p90": 1.16
+   },
+   "start": {
+    "stock0": 21,
+    "use1": 15,
+    "marketsPriced": 72,
+    "marketsOver13": 23,
+    "priceToValueMedian": 1.06
+   }
+  },
+  {
+   "i": 56,
+   "name": "Dyes",
+   "tags": [
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2880,
+    "usedShare": 0.64,
+    "monthsP10": 8.99,
+    "monthsMedian": 9,
+    "monthsP90": 12.19,
+    "usePerKMedian": 0.00898,
+    "usePerKP90": 0.0299
+   },
+   "none": {
+    "marketMonths": 999,
+    "usedShare": 0.4,
+    "monthsP10": 8.98,
+    "monthsMedian": 9,
+    "monthsP90": 18.66,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.0266
+   },
+   "worldUse": {
+    "steadyMonthly": 394,
+    "month1": 75.9,
+    "month2": 88.9,
+    "month3": 103
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.3,
+    "p90": 0.36
+   },
+   "start": {
+    "stock0": 88,
+    "use1": 76,
+    "marketsPriced": 76,
+    "marketsOver13": 13,
+    "priceToValueMedian": 0.96
+   }
+  },
+  {
+   "i": 57,
+   "name": "Incense",
+   "tags": [
+    "luxury",
+    "ritual"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2053,
+    "usedShare": 0.93,
+    "monthsP10": 0,
+    "monthsMedian": 0.01,
+    "monthsP90": 1.67,
+    "usePerKMedian": 0.000789,
+    "usePerKP90": 0.00169
+   },
+   "none": {
+    "marketMonths": 1826,
+    "usedShare": 0,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 21,
+    "month1": 24.4,
+    "month2": 20.9,
+    "month3": 20.5
+   },
+   "steadyPriceToValue": {
+    "p10": 0.77,
+    "median": 1.1,
+    "p90": 2.13
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 24,
+    "marketsPriced": 57,
+    "marketsOver13": 21,
+    "priceToValueMedian": 1.15
+   }
+  },
+  {
+   "i": 58,
+   "name": "Silk",
+   "tags": [
+    "luxury",
+    "clothing"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2088,
+    "usedShare": 0.93,
+    "monthsP10": 0,
+    "monthsMedian": 0.02,
+    "monthsP90": 1.71,
+    "usePerKMedian": 0.000445,
+    "usePerKP90": 0.0012
+   },
+   "none": {
+    "marketMonths": 1791,
+    "usedShare": 0,
+    "monthsP10": 0,
+    "monthsMedian": 0.18,
+    "monthsP90": 1.58,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 12.8,
+    "month1": 18.2,
+    "month2": 15.8,
+    "month3": 14.9
+   },
+   "steadyPriceToValue": {
+    "p10": 0.73,
+    "median": 1.17,
+    "p90": 2.45
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 18,
+    "marketsPriced": 57,
+    "marketsOver13": 26,
+    "priceToValueMedian": 1.16
+   }
+  },
+  {
+   "i": 59,
+   "name": "Spices",
+   "tags": [
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1944,
+    "usedShare": 0.85,
+    "monthsP10": 0,
+    "monthsMedian": 1.5,
+    "monthsP90": 13.98,
+    "usePerKMedian": 0.000176,
+    "usePerKP90": 0.000542
+   },
+   "none": {
+    "marketMonths": 1935,
+    "usedShare": 0.03,
+    "monthsP10": 2.3,
+    "monthsMedian": 23,
+    "monthsP90": 30,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 4.16,
+    "month1": 9.27,
+    "month2": 6.69,
+    "month3": 6.46
+   },
+   "steadyPriceToValue": {
+    "p10": 0.9,
+    "median": 1.44,
+    "p90": 2.46
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 9,
+    "marketsPriced": 57,
+    "marketsOver13": 34,
+    "priceToValueMedian": 1.41
+   }
+  },
+  {
+   "i": 60,
+   "name": "Cocoa",
+   "tags": [
+    "luxury",
+    "perennialCrop"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 864,
+    "usedShare": 0.52,
+    "monthsP10": 0,
+    "monthsMedian": 0.05,
+    "monthsP90": 0.63,
+    "usePerKMedian": 0.000195,
+    "usePerKP90": 0.00446
+   },
+   "none": {
+    "marketMonths": 3015,
+    "usedShare": 0,
+    "monthsP10": 7.55,
+    "monthsMedian": 11.3,
+    "monthsP90": 16.5,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 11.8,
+    "month1": 0.82,
+    "month2": 0.34,
+    "month3": 1.13
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.26,
+    "p90": 0.48
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 1,
+    "marketsPriced": 57,
+    "marketsOver13": 32,
+    "priceToValueMedian": 1.31
+   }
+  },
+  {
+   "i": 61,
+   "name": "Coffee",
+   "tags": [
+    "luxury",
+    "perennialCrop"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1008,
+    "usedShare": 0.63,
+    "monthsP10": 0,
+    "monthsMedian": 0.1,
+    "monthsP90": 1.16,
+    "usePerKMedian": 0.00158,
+    "usePerKP90": 0.00589
+   },
+   "none": {
+    "marketMonths": 2871,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 18.8,
+    "month1": 5.64,
+    "month2": 3.54,
+    "month3": 2.63
+   },
+   "steadyPriceToValue": {
+    "p10": 0.26,
+    "median": 0.27,
+    "p90": 2.9
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 6,
+    "marketsPriced": 57,
+    "marketsOver13": 32,
+    "priceToValueMedian": 1.85
+   }
+  },
+  {
+   "i": 62,
+   "name": "Rubber",
+   "tags": [
+    "industrial",
+    "construction",
+    "naval",
+    "perennialCrop"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 63,
+   "name": "Amber",
+   "tags": [
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2040,
+    "usedShare": 0.45,
+    "monthsP10": 0.03,
+    "monthsMedian": 1.86,
+    "monthsP90": 30.39,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.0148
+   },
+   "none": {
+    "marketMonths": 1839,
+    "usedShare": 0.08,
+    "monthsP10": 0,
+    "monthsMedian": 0.4,
+    "monthsP90": 40.3,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 109,
+    "month1": 20.7,
+    "month2": 25.7,
+    "month3": 31.7
+   },
+   "steadyPriceToValue": {
+    "p10": 0.27,
+    "median": 0.43,
+    "p90": 0.87
+   },
+   "start": {
+    "stock0": 42,
+    "use1": 21,
+    "marketsPriced": 66,
+    "marketsOver13": 12,
+    "priceToValueMedian": 0.98
+   }
+  },
+  {
+   "i": 64,
+   "name": "Furs",
+   "tags": [
+    "clothing",
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3879,
+    "usedShare": 0.99,
+    "monthsP10": 2.75,
+    "monthsMedian": 33.02,
+    "monthsP90": 246.47,
+    "usePerKMedian": 0.0119,
+    "usePerKP90": 0.0271
+   },
+   "none": null,
+   "worldUse": {
+    "steadyMonthly": 425,
+    "month1": 360,
+    "month2": 408,
+    "month3": 442
+   },
+   "steadyPriceToValue": {
+    "p10": 0.26,
+    "median": 0.3,
+    "p90": 0.39
+   },
+   "start": {
+    "stock0": 308,
+    "use1": 360,
+    "marketsPriced": 99,
+    "marketsOver13": 3,
+    "priceToValueMedian": 0.66
+   }
+  },
+  {
+   "i": 65,
+   "name": "Sheep",
+   "tags": [
+    "food",
+    "clothing",
+    "liveAnimal"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3879,
+    "usedShare": 1,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 45.1,
+    "usePerKP90": 78.9
+   },
+   "none": null,
+   "worldUse": {
+    "steadyMonthly": 1870000,
+    "month1": 2170000,
+    "month2": 1990000,
+    "month3": 1790000
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.25,
+    "p90": 0.25
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 2170923,
+    "marketsPriced": 99,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.68
+   }
+  },
+  {
+   "i": 66,
+   "name": "Slaves",
+   "tags": [
+    "supply"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1152,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 2727,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 46,
+    "use1": 0,
+    "marketsPriced": 30,
+    "marketsOver13": 5,
+    "priceToValueMedian": 1.03
+   }
+  },
+  {
+   "i": 67,
+   "name": "Tar",
+   "tags": [
+    "naval"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1548,
+    "usedShare": 0.79,
+    "monthsP10": 6.92,
+    "monthsMedian": 259,
+    "monthsP90": 1857.5,
+    "usePerKMedian": 0.000099,
+    "usePerKP90": 0.00201
+   },
+   "none": {
+    "marketMonths": 2331,
+    "usedShare": 0.44,
+    "monthsP10": 0.55,
+    "monthsMedian": 105.16,
+    "monthsP90": 1406.88,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.000388
+   },
+   "worldUse": {
+    "steadyMonthly": 27.3,
+    "month1": 63.7,
+    "month2": 86.5,
+    "month3": 59.7
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.25,
+    "p90": 0.6
+   },
+   "start": {
+    "stock0": 345,
+    "use1": 64,
+    "marketsPriced": 59,
+    "marketsOver13": 2,
+    "priceToValueMedian": 0.63
+   }
+  },
+  {
+   "i": 68,
+   "name": "Sulfur",
+   "tags": [
+    "mineral",
+    "military"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 69,
+   "name": "Obsidian",
+   "tags": [
+    "mineral",
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1008,
+    "usedShare": 0.06,
+    "monthsP10": 0,
+    "monthsMedian": 3,
+    "monthsP90": 13.4,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 2871,
+    "usedShare": 0,
+    "monthsP10": 1,
+    "monthsMedian": 1.82,
+    "monthsP90": 2.62,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.111,
+    "month1": 0.07,
+    "month2": 0.17,
+    "month3": 0.02
+   },
+   "steadyPriceToValue": {
+    "p10": 0.76,
+    "median": 0.93,
+    "p90": 1.33
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 57,
+    "marketsOver13": 17,
+    "priceToValueMedian": 1.09
+   }
+  },
+  {
+   "i": 70,
+   "name": "Saltpeter",
+   "tags": [
+    "military",
+    "mineral"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 72,
+    "usedShare": 0.42,
+    "monthsP10": 2.91,
+    "monthsMedian": 3,
+    "monthsP90": 3.76,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.0014
+   },
+   "none": {
+    "marketMonths": 3807,
+    "usedShare": 0.02,
+    "monthsP10": 2.92,
+    "monthsMedian": 3,
+    "monthsP90": 8.28,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.792,
+    "month1": 0.05,
+    "month2": 0.06,
+    "month3": 0.07
+   },
+   "steadyPriceToValue": {
+    "p10": 0.63,
+    "median": 0.79,
+    "p90": 1.16
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 3,
+    "marketsOver13": 1,
+    "priceToValueMedian": 1.24
+   }
+  },
+  {
+   "i": 71,
+   "name": "Coal",
+   "tags": [
+    "fuel",
+    "mineral"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": 2.99,
+    "monthsMedian": 64.55,
+    "monthsP90": 254.89,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.156,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.26,
+    "p90": 0.98
+   },
+   "start": {
+    "stock0": 42,
+    "use1": 0,
+    "marketsPriced": 4,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.3
+   }
+  },
+  {
+   "i": 72,
+   "name": "Charcoal",
+   "tags": [
+    "fuel"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3158,
+    "usedShare": 0.69,
+    "monthsP10": 0,
+    "monthsMedian": 3.09,
+    "monthsP90": 521.8,
+    "usePerKMedian": 0.0038,
+    "usePerKP90": 0.0434
+   },
+   "none": {
+    "marketMonths": 721,
+    "usedShare": 0.45,
+    "monthsP10": 0,
+    "monthsMedian": 36.27,
+    "monthsP90": 603.05,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.0135
+   },
+   "worldUse": {
+    "steadyMonthly": 489,
+    "month1": 671,
+    "month2": 386,
+    "month3": 354
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.36,
+    "p90": 1.1
+   },
+   "start": {
+    "stock0": 4954,
+    "use1": 671,
+    "marketsPriced": 85,
+    "marketsOver13": 12,
+    "priceToValueMedian": 0.56
+   }
+  },
+  {
+   "i": 73,
+   "name": "Oil",
+   "tags": [
+    "fuel"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1356,
+    "usedShare": 0.17,
+    "monthsP10": 0,
+    "monthsMedian": 0.28,
+    "monthsP90": 3.31,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.00829
+   },
+   "none": {
+    "marketMonths": 2523,
+    "usedShare": 0.01,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 3.26,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 50.8,
+    "month1": 0.99,
+    "month2": 1.17,
+    "month3": 3.66
+   },
+   "steadyPriceToValue": {
+    "p10": 0.86,
+    "median": 1.1,
+    "p90": 1.42
+   },
+   "start": {
+    "stock0": 7,
+    "use1": 1,
+    "marketsPriced": 21,
+    "marketsOver13": 11,
+    "priceToValueMedian": 1.31
+   }
+  },
+  {
+   "i": 74,
+   "name": "Mahogany",
+   "tags": [
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1152,
+    "usedShare": 0.12,
+    "monthsP10": 0,
+    "monthsMedian": 0.4,
+    "monthsP90": 8.2,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.000194
+   },
+   "none": {
+    "marketMonths": 2727,
+    "usedShare": 0,
+    "monthsP10": 3.04,
+    "monthsMedian": 5.51,
+    "monthsP90": 11.47,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.53,
+    "month1": 1.15,
+    "month2": 0.68,
+    "month3": 0.46
+   },
+   "steadyPriceToValue": {
+    "p10": 0.69,
+    "median": 0.79,
+    "p90": 1.02
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 1,
+    "marketsPriced": 57,
+    "marketsOver13": 19,
+    "priceToValueMedian": 1.17
+   }
+  },
+  {
+   "i": 75,
+   "name": "Whales",
+   "tags": [
+    "food",
+    "aquatic",
+    "fuel"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1729,
+    "usedShare": 0.3,
+    "monthsP10": 0.08,
+    "monthsMedian": 36.63,
+    "monthsP90": 3664.5,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.00338
+   },
+   "none": {
+    "marketMonths": 2150,
+    "usedShare": 0.01,
+    "monthsP10": 23.9,
+    "monthsMedian": 317.5,
+    "monthsP90": 1206.6,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 21.6,
+    "month1": 4.32,
+    "month2": 11.4,
+    "month3": 28.5
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.29,
+    "p90": 0.98
+   },
+   "start": {
+    "stock0": 46,
+    "use1": 4,
+    "marketsPriced": 48,
+    "marketsOver13": 9,
+    "priceToValueMedian": 1.06
+   }
+  },
+  {
+   "i": 76,
+   "name": "Sugarcane",
+   "tags": [
+    "preservative",
+    "food"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 937,
+    "usedShare": 0.4,
+    "monthsP10": 4.45,
+    "monthsMedian": 76.75,
+    "monthsP90": 283.5,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.00258
+   },
+   "none": {
+    "marketMonths": 2942,
+    "usedShare": 0.02,
+    "monthsP10": 112,
+    "monthsMedian": 316.5,
+    "monthsP90": 800.8,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 8.32,
+    "month1": 1.42,
+    "month2": 0.71,
+    "month3": 0.08
+   },
+   "steadyPriceToValue": {
+    "p10": 0.26,
+    "median": 0.32,
+    "p90": 0.39
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 1,
+    "marketsPriced": 57,
+    "marketsOver13": 23,
+    "priceToValueMedian": 1.2
+   }
+  },
+  {
+   "i": 77,
+   "name": "Tea",
+   "tags": [
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1152,
+    "usedShare": 0.16,
+    "monthsP10": 0,
+    "monthsMedian": 1.08,
+    "monthsP90": 94.85,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.00039
+   },
+   "none": {
+    "marketMonths": 2727,
+    "usedShare": 0.02,
+    "monthsP10": 0.3,
+    "monthsMedian": 4.72,
+    "monthsP90": 19.23,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 5.7,
+    "month1": 5.97,
+    "month2": 5.56,
+    "month3": 4
+   },
+   "steadyPriceToValue": {
+    "p10": 0.31,
+    "median": 0.95,
+    "p90": 2.46
+   },
+   "start": {
+    "stock0": 9,
+    "use1": 6,
+    "marketsPriced": 57,
+    "marketsOver13": 20,
+    "priceToValueMedian": 1.14
+   }
+  },
+  {
+   "i": 78,
+   "name": "Tobacco",
+   "tags": [
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1585,
+    "usedShare": 0.64,
+    "monthsP10": 1.64,
+    "monthsMedian": 3.43,
+    "monthsP90": 11.36,
+    "usePerKMedian": 0.00294,
+    "usePerKP90": 0.0112
+   },
+   "none": {
+    "marketMonths": 2294,
+    "usedShare": 0.08,
+    "monthsP10": 0.59,
+    "monthsMedian": 3.75,
+    "monthsP90": 18.9,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 95.5,
+    "month1": 39.4,
+    "month2": 48.6,
+    "month3": 58.7
+   },
+   "steadyPriceToValue": {
+    "p10": 0.28,
+    "median": 0.37,
+    "p90": 0.7
+   },
+   "start": {
+    "stock0": 9,
+    "use1": 39,
+    "marketsPriced": 58,
+    "marketsOver13": 14,
+    "priceToValueMedian": 0.92
+   }
+  },
+  {
+   "i": 79,
+   "name": "Clay",
+   "tags": [
+    "mineral",
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 864,
+    "usedShare": 0.4,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 62.95,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.00656
+   },
+   "none": {
+    "marketMonths": 3015,
+    "usedShare": 0,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0.97,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 29.9,
+    "month1": 46.4,
+    "month2": 48.4,
+    "month3": 40.1
+   },
+   "steadyPriceToValue": {
+    "p10": 2.02,
+    "median": 2.82,
+    "p90": 3
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 46,
+    "marketsPriced": 23,
+    "marketsOver13": 23,
+    "priceToValueMedian": 3
+   }
+  },
+  {
+   "i": 80,
+   "name": "Brick",
+   "tags": [
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 396,
+    "usedShare": 0.26,
+    "monthsP10": 0,
+    "monthsMedian": 0.5,
+    "monthsP90": 1.3,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.00503
+   },
+   "none": {
+    "marketMonths": 3483,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 7.58,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": 1.59,
+    "median": 2.86,
+    "p90": 2.95
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 81,
+   "name": "Firebrick",
+   "tags": [
+    "industrial",
+    "construction"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 82,
+   "name": "Volcanic Ash",
+   "tags": [
+    "mineral",
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 144,
+    "usedShare": 1,
+    "monthsP10": 681.03,
+    "monthsMedian": 4392.52,
+    "monthsP90": 8005.16,
+    "usePerKMedian": 0.00225,
+    "usePerKP90": 0.00392
+   },
+   "none": {
+    "marketMonths": 3735,
+    "usedShare": 0.02,
+    "monthsP10": 0.22,
+    "monthsMedian": 1,
+    "monthsP90": 39.5,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 4.87,
+    "month1": 7.77,
+    "month2": 9.27,
+    "month3": 7.26
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.26,
+    "p90": 1.48
+   },
+   "start": {
+    "stock0": 319,
+    "use1": 8,
+    "marketsPriced": 9,
+    "marketsOver13": 4,
+    "priceToValueMedian": 1.04
+   }
+  },
+  {
+   "i": 83,
+   "name": "Pumice",
+   "tags": [
+    "mineral",
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 144,
+    "usedShare": 0.98,
+    "monthsP10": 383.05,
+    "monthsMedian": 3811.43,
+    "monthsP90": 10285,
+    "usePerKMedian": 0.000168,
+    "usePerKP90": 0.000289
+   },
+   "none": {
+    "marketMonths": 3735,
+    "usedShare": 0.01,
+    "monthsP10": 1.33,
+    "monthsMedian": 11.58,
+    "monthsP90": 29.2,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.43,
+    "month1": 0.45,
+    "month2": 0.7,
+    "month3": 0.67
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.25,
+    "p90": 1.47
+   },
+   "start": {
+    "stock0": 21,
+    "use1": 0,
+    "marketsPriced": 4,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.4
+   }
+  },
+  {
+   "i": 84,
+   "name": "White sand",
+   "tags": [
+    "mineral"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 793,
+    "usedShare": 0.62,
+    "monthsP10": 4.56,
+    "monthsMedian": 56.8,
+    "monthsP90": 263.69,
+    "usePerKMedian": 0.00112,
+    "usePerKP90": 0.0036
+   },
+   "none": {
+    "marketMonths": 3086,
+    "usedShare": 0.08,
+    "monthsP10": 1.57,
+    "monthsMedian": 12.39,
+    "monthsP90": 29.78,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 23.3,
+    "month1": 10.6,
+    "month2": 20,
+    "month3": 27.3
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.43,
+    "p90": 0.99
+   },
+   "start": {
+    "stock0": 58,
+    "use1": 11,
+    "marketsPriced": 21,
+    "marketsOver13": 9,
+    "priceToValueMedian": 1.27
+   }
+  },
+  {
+   "i": 85,
+   "name": "Leather",
+   "tags": [
+    "clothing",
+    "military"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3879,
+    "usedShare": 0.99,
+    "monthsP10": 1386.99,
+    "monthsMedian": 4140.87,
+    "monthsP90": 11322.36,
+    "usePerKMedian": 0.117,
+    "usePerKP90": 0.306
+   },
+   "none": null,
+   "worldUse": {
+    "steadyMonthly": 5370,
+    "month1": 4800,
+    "month2": 4590,
+    "month3": 4280
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.69,
+    "p90": 2.75
+   },
+   "start": {
+    "stock0": 477397,
+    "use1": 4798,
+    "marketsPriced": 99,
+    "marketsOver13": 32,
+    "priceToValueMedian": 1
+   }
+  },
+  {
+   "i": 86,
+   "name": "Cloth",
+   "tags": [
+    "clothing"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3879,
+    "usedShare": 0.99,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0.00361,
+    "usePerKP90": 0.0063
+   },
+   "none": null,
+   "worldUse": {
+    "steadyMonthly": 162,
+    "month1": 81,
+    "month2": 39.7,
+    "month3": 96.7
+   },
+   "steadyPriceToValue": {
+    "p10": 0.65,
+    "median": 0.93,
+    "p90": 1.53
+   },
+   "start": {
+    "stock0": 49,
+    "use1": 81,
+    "marketsPriced": 98,
+    "marketsOver13": 25,
+    "priceToValueMedian": 1.09
+   }
+  },
+  {
+   "i": 87,
+   "name": "Garments",
+   "tags": [
+    "clothing"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3878,
+    "usedShare": 0.99,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0.00478,
+    "usePerKP90": 0.00824
+   },
+   "none": {
+    "marketMonths": 1,
+    "usedShare": 1,
+    "monthsP10": 58,
+    "monthsMedian": 58,
+    "monthsP90": 58,
+    "usePerKMedian": 0.000934,
+    "usePerKP90": 0.000934
+   },
+   "worldUse": {
+    "steadyMonthly": 220,
+    "month1": 750,
+    "month2": 868,
+    "month3": 866
+   },
+   "steadyPriceToValue": {
+    "p10": 0.75,
+    "median": 1.3,
+    "p90": 1.82
+   },
+   "start": {
+    "stock0": 2531,
+    "use1": 750,
+    "marketsPriced": 99,
+    "marketsOver13": 5,
+    "priceToValueMedian": 0.75
+   }
+  },
+  {
+   "i": 88,
+   "name": "Ceramics",
+   "tags": [
+    "storage",
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 504,
+    "usedShare": 0.18,
+    "monthsP10": 8.71,
+    "monthsMedian": 26.63,
+    "monthsP90": 92.72,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.00214
+   },
+   "none": {
+    "marketMonths": 3375,
+    "usedShare": 0.02,
+    "monthsP10": 8.61,
+    "monthsMedian": 9,
+    "monthsP90": 318.28,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 38.8,
+    "month1": 13.6,
+    "month2": 13.8,
+    "month3": 27.2
+   },
+   "steadyPriceToValue": {
+    "p10": 0.6,
+    "median": 0.73,
+    "p90": 1
+   },
+   "start": {
+    "stock0": 92,
+    "use1": 14,
+    "marketsPriced": 25,
+    "marketsOver13": 10,
+    "priceToValueMedian": 1.23
+   }
+  },
+  {
+   "i": 89,
+   "name": "Glass",
+   "tags": [
+    "storage",
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2197,
+    "usedShare": 0.81,
+    "monthsP10": 1.7,
+    "monthsMedian": 5.61,
+    "monthsP90": 71.26,
+    "usePerKMedian": 0.00131,
+    "usePerKP90": 0.00921
+   },
+   "none": {
+    "marketMonths": 1682,
+    "usedShare": 0.02,
+    "monthsP10": 11.41,
+    "monthsMedian": 60.4,
+    "monthsP90": 94.64,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 90.5,
+    "month1": 45.4,
+    "month2": 39.6,
+    "month3": 42.4
+   },
+   "steadyPriceToValue": {
+    "p10": 0.38,
+    "median": 0.59,
+    "p90": 1.51
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 45,
+    "marketsPriced": 61,
+    "marketsOver13": 21,
+    "priceToValueMedian": 1.08
+   }
+  },
+  {
+   "i": 90,
+   "name": "Lime",
+   "tags": [
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2282,
+    "usedShare": 0.05,
+    "monthsP10": 0.83,
+    "monthsMedian": 3.16,
+    "monthsP90": 8.56,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 1597,
+    "usedShare": 0.01,
+    "monthsP10": 2.78,
+    "monthsMedian": 6.65,
+    "monthsP90": 9.64,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 9.06,
+    "month1": 5.41,
+    "month2": 7.11,
+    "month3": 22.9
+   },
+   "steadyPriceToValue": {
+    "p10": 0.28,
+    "median": 0.32,
+    "p90": 0.56
+   },
+   "start": {
+    "stock0": 41,
+    "use1": 5,
+    "marketsPriced": 64,
+    "marketsOver13": 4,
+    "priceToValueMedian": 0.94
+   }
+  },
+  {
+   "i": 91,
+   "name": "Roman Concrete",
+   "tags": [
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 288,
+    "usedShare": 0.88,
+    "monthsP10": 0.97,
+    "monthsMedian": 51.42,
+    "monthsP90": 90.51,
+    "usePerKMedian": 0.000733,
+    "usePerKP90": 0.00165
+   },
+   "none": {
+    "marketMonths": 3591,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 2.84,
+    "month1": 2.24,
+    "month2": 2.24,
+    "month3": 2.59
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.52,
+    "p90": 1.12
+   },
+   "start": {
+    "stock0": 4,
+    "use1": 2,
+    "marketsPriced": 7,
+    "marketsOver13": 3,
+    "priceToValueMedian": 0.96
+   }
+  },
+  {
+   "i": 92,
+   "name": "Slaked Lime",
+   "tags": [
+    "industrial",
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 288,
+    "usedShare": 0.01,
+    "monthsP10": 3,
+    "monthsMedian": 3,
+    "monthsP90": 3,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3591,
+    "usedShare": 0.01,
+    "monthsP10": 2.96,
+    "monthsMedian": 3,
+    "monthsP90": 6.07,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 1.07,
+    "month1": 0,
+    "month2": 0,
+    "month3": 1.72
+   },
+   "steadyPriceToValue": {
+    "p10": 0.32,
+    "median": 0.39,
+    "p90": 0.97
+   },
+   "start": {
+    "stock0": 2,
+    "use1": 0,
+    "marketsPriced": 10,
+    "marketsOver13": 4,
+    "priceToValueMedian": 1.07
+   }
+  },
+  {
+   "i": 93,
+   "name": "Ropes",
+   "tags": [
+    "naval",
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2798,
+    "usedShare": 0.42,
+    "monthsP10": 0.63,
+    "monthsMedian": 10.7,
+    "monthsP90": 185.5,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.0114
+   },
+   "none": {
+    "marketMonths": 1081,
+    "usedShare": 0.13,
+    "monthsP10": 5.49,
+    "monthsMedian": 170.5,
+    "monthsP90": 335.3,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.000187
+   },
+   "worldUse": {
+    "steadyMonthly": 98.4,
+    "month1": 136,
+    "month2": 202,
+    "month3": 187
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.3,
+    "p90": 0.57
+   },
+   "start": {
+    "stock0": 613,
+    "use1": 136,
+    "marketsPriced": 97,
+    "marketsOver13": 2,
+    "priceToValueMedian": 0.66
+   }
+  },
+  {
+   "i": 94,
+   "name": "Paper",
+   "tags": [
+    "ritual",
+    "educational"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3842,
+    "usedShare": 0.5,
+    "monthsP10": 6.28,
+    "monthsMedian": 9,
+    "monthsP90": 12.33,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.026
+   },
+   "none": {
+    "marketMonths": 37,
+    "usedShare": 0.03,
+    "monthsP10": 7.33,
+    "monthsMedian": 7.33,
+    "monthsP90": 7.33,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 378,
+    "month1": 11.8,
+    "month2": 21.6,
+    "month3": 37.8
+   },
+   "steadyPriceToValue": {
+    "p10": 0.26,
+    "median": 0.31,
+    "p90": 0.38
+   },
+   "start": {
+    "stock0": 132,
+    "use1": 12,
+    "marketsPriced": 96,
+    "marketsOver13": 14,
+    "priceToValueMedian": 1
+   }
+  },
+  {
+   "i": 95,
+   "name": "Ink",
+   "tags": [
+    "ritual",
+    "educational"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 96,
+   "name": "Books",
+   "tags": [
+    "ritual",
+    "educational"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1944,
+    "usedShare": 0.93,
+    "monthsP10": 0,
+    "monthsMedian": 0.44,
+    "monthsP90": 3.12,
+    "usePerKMedian": 0.000345,
+    "usePerKP90": 0.000965
+   },
+   "none": {
+    "marketMonths": 1935,
+    "usedShare": 0.01,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 5.15,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 8.34,
+    "month1": 14.5,
+    "month2": 11.6,
+    "month3": 10.9
+   },
+   "steadyPriceToValue": {
+    "p10": 0.73,
+    "median": 1.32,
+    "p90": 2.02
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 15,
+    "marketsPriced": 57,
+    "marketsOver13": 29,
+    "priceToValueMedian": 1.35
+   }
+  },
+  {
+   "i": 97,
+   "name": "Sails",
+   "tags": [
+    "naval"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3806,
+    "usedShare": 0.17,
+    "monthsP10": 7.55,
+    "monthsMedian": 48.4,
+    "monthsP90": 139.45,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.000331
+   },
+   "none": {
+    "marketMonths": 73,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 4.09,
+    "month1": 0,
+    "month2": 0,
+    "month3": 1
+   },
+   "steadyPriceToValue": {
+    "p10": 0.77,
+    "median": 1.04,
+    "p90": 1.43
+   },
+   "start": {
+    "stock0": 28,
+    "use1": 0,
+    "marketsPriced": 96,
+    "marketsOver13": 46,
+    "priceToValueMedian": 1.26
+   }
+  },
+  {
+   "i": 98,
+   "name": "Sloop",
+   "tags": [
+    "naval"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 99,
+   "name": "Caravel",
+   "tags": [
+    "naval"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 100,
+   "name": "Galleon",
+   "tags": [
+    "naval"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 101,
+   "name": "Boots",
+   "tags": [
+    "clothing",
+    "military"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3879,
+    "usedShare": 0.92,
+    "monthsP10": 0,
+    "monthsMedian": 1.18,
+    "monthsP90": 1.76,
+    "usePerKMedian": 0.086,
+    "usePerKP90": 0.16
+   },
+   "none": null,
+   "worldUse": {
+    "steadyMonthly": 3140,
+    "month1": 4020,
+    "month2": 4050,
+    "month3": 3920
+   },
+   "steadyPriceToValue": {
+    "p10": 0.37,
+    "median": 0.67,
+    "p90": 1.18
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 4025,
+    "marketsPriced": 98,
+    "marketsOver13": 13,
+    "priceToValueMedian": 0.86
+   }
+  },
+  {
+   "i": 102,
+   "name": "Harnesses",
+   "tags": [
+    "military"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3432,
+    "usedShare": 0.61,
+    "monthsP10": 0.54,
+    "monthsMedian": 4.29,
+    "monthsP90": 30.32,
+    "usePerKMedian": 0.000499,
+    "usePerKP90": 0.00496
+   },
+   "none": {
+    "marketMonths": 447,
+    "usedShare": 0.03,
+    "monthsP10": 1.08,
+    "monthsMedian": 2.2,
+    "monthsP90": 11.62,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 56.8,
+    "month1": 4.7,
+    "month2": 6.61,
+    "month3": 30.3
+   },
+   "steadyPriceToValue": {
+    "p10": 0.62,
+    "median": 1.03,
+    "p90": 1.96
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 5,
+    "marketsPriced": 89,
+    "marketsOver13": 55,
+    "priceToValueMedian": 1.41
+   }
+  },
+  {
+   "i": 103,
+   "name": "Barrels",
+   "tags": [
+    "naval",
+    "storage"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3770,
+    "usedShare": 0.87,
+    "monthsP10": 0,
+    "monthsMedian": 0.09,
+    "monthsP90": 3,
+    "usePerKMedian": 0.199,
+    "usePerKP90": 0.654
+   },
+   "none": {
+    "marketMonths": 109,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 10400,
+    "month1": 33700,
+    "month2": 14200,
+    "month3": 5190
+   },
+   "steadyPriceToValue": {
+    "p10": 0.28,
+    "median": 0.95,
+    "p90": 1.91
+   },
+   "start": {
+    "stock0": 23909,
+    "use1": 33741,
+    "marketsPriced": 94,
+    "marketsOver13": 61,
+    "priceToValueMedian": 1.73
+   }
+  },
+  {
+   "i": 104,
+   "name": "Bronze",
+   "tags": [
+    "military"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 432,
+    "usedShare": 0.3,
+    "monthsP10": 0,
+    "monthsMedian": 0.56,
+    "monthsP90": 14.74,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.000645
+   },
+   "none": {
+    "marketMonths": 3447,
+    "usedShare": 0.01,
+    "monthsP10": 0.68,
+    "monthsMedian": 12.75,
+    "monthsP90": 286.1,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 1.22,
+    "month1": 197,
+    "month2": 42.4,
+    "month3": 31.6
+   },
+   "steadyPriceToValue": {
+    "p10": 0.61,
+    "median": 0.97,
+    "p90": 1.85
+   },
+   "start": {
+    "stock0": 300,
+    "use1": 197,
+    "marketsPriced": 93,
+    "marketsOver13": 25,
+    "priceToValueMedian": 1.13
+   }
+  },
+  {
+   "i": 105,
+   "name": "Tools",
+   "tags": [
+    "construction",
+    "military"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3216,
+    "usedShare": 0.69,
+    "monthsP10": 0.29,
+    "monthsMedian": 50.56,
+    "monthsP90": 2188.8,
+    "usePerKMedian": 0.000045,
+    "usePerKP90": 0.00412
+   },
+   "none": {
+    "marketMonths": 663,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 191,
+    "month1": 65.2,
+    "month2": 32.4,
+    "month3": 44.6
+   },
+   "steadyPriceToValue": {
+    "p10": 0.38,
+    "median": 0.73,
+    "p90": 1.56
+   },
+   "start": {
+    "stock0": 45,
+    "use1": 65,
+    "marketsPriced": 80,
+    "marketsOver13": 49,
+    "priceToValueMedian": 1.37
+   }
+  },
+  {
+   "i": 106,
+   "name": "Arms",
+   "tags": [
+    "military"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2689,
+    "usedShare": 0.56,
+    "monthsP10": 3,
+    "monthsMedian": 54.89,
+    "monthsP90": 630.47,
+    "usePerKMedian": 0.0000348,
+    "usePerKP90": 0.00068
+   },
+   "none": {
+    "marketMonths": 1190,
+    "usedShare": 0.28,
+    "monthsP10": 8.05,
+    "monthsMedian": 151.5,
+    "monthsP90": 809.75,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.000198
+   },
+   "worldUse": {
+    "steadyMonthly": 23.7,
+    "month1": 1.5,
+    "month2": 3.89,
+    "month3": 4.15
+   },
+   "steadyPriceToValue": {
+    "p10": 0.35,
+    "median": 0.56,
+    "p90": 1.46
+   },
+   "start": {
+    "stock0": 6,
+    "use1": 2,
+    "marketsPriced": 57,
+    "marketsOver13": 19,
+    "priceToValueMedian": 1.16
+   }
+  },
+  {
+   "i": 107,
+   "name": "Arrows",
+   "tags": [
+    "military",
+    "hunting"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3252,
+    "usedShare": 0.69,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0.87,
+    "usePerKMedian": 0.00199,
+    "usePerKP90": 0.0146
+   },
+   "none": {
+    "marketMonths": 627,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 184,
+    "month1": 123,
+    "month2": 122,
+    "month3": 135
+   },
+   "steadyPriceToValue": {
+    "p10": 0.9,
+    "median": 1.29,
+    "p90": 2.22
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 123,
+    "marketsPriced": 44,
+    "marketsOver13": 34,
+    "priceToValueMedian": 1.74
+   }
+  },
+  {
+   "i": 108,
+   "name": "Gunpowder",
+   "tags": [
+    "military"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 109,
+   "name": "Bullets",
+   "tags": [
+    "military",
+    "hunting"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 110,
+   "name": "Muskets",
+   "tags": [
+    "military"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 111,
+   "name": "Artillery",
+   "tags": [
+    "military"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 112,
+   "name": "Coins",
+   "tags": [
+    "currency",
+    "service"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 113,
+   "name": "Jewelry",
+   "tags": [
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2795,
+    "usedShare": 0.85,
+    "monthsP10": 0,
+    "monthsMedian": 26.73,
+    "monthsP90": 187.64,
+    "usePerKMedian": 0.000376,
+    "usePerKP90": 0.00121
+   },
+   "none": {
+    "marketMonths": 1084,
+    "usedShare": 0.01,
+    "monthsP10": 37.7,
+    "monthsMedian": 39,
+    "monthsP90": 40.91,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 15.9,
+    "month1": 4.52,
+    "month2": 4.15,
+    "month3": 4.58
+   },
+   "steadyPriceToValue": {
+    "p10": 0.56,
+    "median": 0.82,
+    "p90": 1.73
+   },
+   "start": {
+    "stock0": 2,
+    "use1": 5,
+    "marketsPriced": 61,
+    "marketsOver13": 32,
+    "priceToValueMedian": 1.31
+   }
+  },
+  {
+   "i": 114,
+   "name": "Preserved food",
+   "tags": [
+    "food",
+    "preservedFood"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3843,
+    "usedShare": 0.03,
+    "monthsP10": 9,
+    "monthsMedian": 9,
+    "monthsP90": 23.92,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 36,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 104,
+    "month1": 132,
+    "month2": 138,
+    "month3": 121
+   },
+   "steadyPriceToValue": {
+    "p10": 0.41,
+    "median": 0.68,
+    "p90": 1.05
+   },
+   "start": {
+    "stock0": 3450,
+    "use1": 132,
+    "marketsPriced": 98,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.4
+   }
+  },
+  {
+   "i": 115,
+   "name": "Vinegar",
+   "tags": [
+    "food",
+    "preservative"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 648,
+    "usedShare": 0.04,
+    "monthsP10": 1.44,
+    "monthsMedian": 3,
+    "monthsP90": 7.02,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3231,
+    "usedShare": 0.02,
+    "monthsP10": 3,
+    "monthsMedian": 5.77,
+    "monthsP90": 19.64,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 7.97,
+    "month1": 0.78,
+    "month2": 4.54,
+    "month3": 7.88
+   },
+   "steadyPriceToValue": {
+    "p10": 0.29,
+    "median": 0.36,
+    "p90": 0.72
+   },
+   "start": {
+    "stock0": 187,
+    "use1": 1,
+    "marketsPriced": 54,
+    "marketsOver13": 10,
+    "priceToValueMedian": 0.88
+   }
+  },
+  {
+   "i": 116,
+   "name": "Milk",
+   "tags": [
+    "food",
+    "freshFood"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 117,
+   "name": "Rennet",
+   "tags": [
+    "preservative"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 118,
+   "name": "Ash",
+   "tags": [
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2088,
+    "usedShare": 0.39,
+    "monthsP10": 0,
+    "monthsMedian": 2.55,
+    "monthsP90": 119.73,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.00263
+   },
+   "none": {
+    "marketMonths": 1791,
+    "usedShare": 0.09,
+    "monthsP10": 0.25,
+    "monthsMedian": 17,
+    "monthsP90": 158.93,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 21.2,
+    "month1": 29.7,
+    "month2": 34.6,
+    "month3": 55.5
+   },
+   "steadyPriceToValue": {
+    "p10": 0.29,
+    "median": 0.48,
+    "p90": 0.61
+   },
+   "start": {
+    "stock0": 9,
+    "use1": 30,
+    "marketsPriced": 38,
+    "marketsOver13": 1,
+    "priceToValueMedian": 0.79
+   }
+  },
+  {
+   "i": 119,
+   "name": "Cheese",
+   "tags": [
+    "food",
+    "preservedFood"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3877,
+    "usedShare": 0.67,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0.0435,
+    "usePerKP90": 0.0897
+   },
+   "none": {
+    "marketMonths": 2,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 1830,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": 0.7,
+    "median": 1.98,
+    "p90": 2.77
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 120,
+   "name": "Smoked Cheese",
+   "tags": [
+    "food",
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1440,
+    "usedShare": 0.62,
+    "monthsP10": 4.21,
+    "monthsMedian": 201,
+    "monthsP90": 1118.98,
+    "usePerKMedian": 0.000142,
+    "usePerKP90": 0.0014
+   },
+   "none": {
+    "marketMonths": 2439,
+    "usedShare": 0.55,
+    "monthsP10": 52.78,
+    "monthsMedian": 198.8,
+    "monthsP90": 712,
+    "usePerKMedian": 0.0000381,
+    "usePerKP90": 0.000836
+   },
+   "worldUse": {
+    "steadyMonthly": 14.9,
+    "month1": 0.78,
+    "month2": 0.74,
+    "month3": 0.54
+   },
+   "steadyPriceToValue": {
+    "p10": 0.4,
+    "median": 0.72,
+    "p90": 1.09
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 1,
+    "marketsPriced": 57,
+    "marketsOver13": 46,
+    "priceToValueMedian": 1.72
+   }
+  },
+  {
+   "i": 121,
+   "name": "Egg",
+   "tags": [
+    "food"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 540,
+    "usedShare": 0.1,
+    "monthsP10": 3,
+    "monthsMedian": 4.95,
+    "monthsP90": 136.68,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3339,
+    "usedShare": 0.01,
+    "monthsP10": 3,
+    "monthsMedian": 3,
+    "monthsP90": 41.83,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 8.95,
+    "month1": 0,
+    "month2": 0.89,
+    "month3": 21.4
+   },
+   "steadyPriceToValue": {
+    "p10": 0.26,
+    "median": 0.33,
+    "p90": 0.36
+   },
+   "start": {
+    "stock0": 37,
+    "use1": 0,
+    "marketsPriced": 29,
+    "marketsOver13": 2,
+    "priceToValueMedian": 0.84
+   }
+  },
+  {
+   "i": 122,
+   "name": "Beer",
+   "tags": [
+    "food",
+    "beverage"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3769,
+    "usedShare": 0.81,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0.01,
+    "usePerKMedian": 0.456,
+    "usePerKP90": 2.16
+   },
+   "none": {
+    "marketMonths": 110,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 33800,
+    "month1": 53700,
+    "month2": 56100,
+    "month3": 25900
+   },
+   "steadyPriceToValue": {
+    "p10": 0.7,
+    "median": 1.09,
+    "p90": 2
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 53727,
+    "marketsPriced": 92,
+    "marketsOver13": 62,
+    "priceToValueMedian": 1.54
+   }
+  },
+  {
+   "i": 123,
+   "name": "Cider",
+   "tags": [
+    "food",
+    "beverage",
+    "orchardDrink"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1476,
+    "usedShare": 0.15,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0.52,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.0773
+   },
+   "none": {
+    "marketMonths": 2403,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 511,
+    "month1": 1230,
+    "month2": 417,
+    "month3": 353
+   },
+   "steadyPriceToValue": {
+    "p10": 0.75,
+    "median": 1.22,
+    "p90": 1.93
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 1226,
+    "marketsPriced": 17,
+    "marketsOver13": 7,
+    "priceToValueMedian": 1.15
+   }
+  },
+  {
+   "i": 124,
+   "name": "Perry",
+   "tags": [
+    "food",
+    "beverage",
+    "orchardDrink"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 125,
+   "name": "Pomace Wine",
+   "tags": [
+    "food",
+    "beverage"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1825,
+    "usedShare": 0.07,
+    "monthsP10": 41.91,
+    "monthsMedian": 91.57,
+    "monthsP90": 400.5,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 2054,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.706,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": 0.27,
+    "median": 0.27,
+    "p90": 0.33
+   },
+   "start": {
+    "stock0": 1,
+    "use1": 0,
+    "marketsPriced": 6,
+    "marketsOver13": 3,
+    "priceToValueMedian": 1.23
+   }
+  },
+  {
+   "i": 126,
+   "name": "Liquor",
+   "tags": [
+    "food",
+    "luxury",
+    "beverage"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2016,
+    "usedShare": 0.94,
+    "monthsP10": 0,
+    "monthsMedian": 0.14,
+    "monthsP90": 3.5,
+    "usePerKMedian": 0.00053,
+    "usePerKP90": 0.00112
+   },
+   "none": {
+    "marketMonths": 1863,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 11.9,
+    "month1": 22,
+    "month2": 17.6,
+    "month3": 16.6
+   },
+   "steadyPriceToValue": {
+    "p10": 0.94,
+    "median": 1.36,
+    "p90": 2.27
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 22,
+    "marketsPriced": 57,
+    "marketsOver13": 26,
+    "priceToValueMedian": 1.29
+   }
+  },
+  {
+   "i": 127,
+   "name": "Candles",
+   "tags": [
+    "luxury",
+    "ritual"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3841,
+    "usedShare": 0.91,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 1.57,
+    "usePerKMedian": 0.0224,
+    "usePerKP90": 0.103
+   },
+   "none": {
+    "marketMonths": 38,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 1360,
+    "month1": 2120,
+    "month2": 2500,
+    "month3": 2320
+   },
+   "steadyPriceToValue": {
+    "p10": 0.47,
+    "median": 0.85,
+    "p90": 1.76
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 2119,
+    "marketsPriced": 98,
+    "marketsOver13": 42,
+    "priceToValueMedian": 1.24
+   }
+  },
+  {
+   "i": 128,
+   "name": "Soap",
+   "tags": [
+    "luxury",
+    "ritual"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1189,
+    "usedShare": 0.11,
+    "monthsP10": 6.55,
+    "monthsMedian": 38.37,
+    "monthsP90": 91.45,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.00036
+   },
+   "none": {
+    "marketMonths": 2690,
+    "usedShare": 0.04,
+    "monthsP10": 2.97,
+    "monthsMedian": 18.16,
+    "monthsP90": 154.82,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 9.28,
+    "month1": 5.32,
+    "month2": 20.7,
+    "month3": 25
+   },
+   "steadyPriceToValue": {
+    "p10": 0.35,
+    "median": 0.45,
+    "p90": 1
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 5,
+    "marketsPriced": 64,
+    "marketsOver13": 23,
+    "priceToValueMedian": 1.2
+   }
+  },
+  {
+   "i": 129,
+   "name": "Perfume",
+   "tags": [
+    "luxury",
+    "ritual"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1980,
+    "usedShare": 0.93,
+    "monthsP10": 0,
+    "monthsMedian": 1.03,
+    "monthsP90": 31.17,
+    "usePerKMedian": 0.000408,
+    "usePerKP90": 0.00155
+   },
+   "none": {
+    "marketMonths": 1899,
+    "usedShare": 0.16,
+    "monthsP10": 0,
+    "monthsMedian": 0.83,
+    "monthsP90": 7.36,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.000123
+   },
+   "worldUse": {
+    "steadyMonthly": 18.5,
+    "month1": 13.9,
+    "month2": 14.5,
+    "month3": 14
+   },
+   "steadyPriceToValue": {
+    "p10": 0.71,
+    "median": 1.14,
+    "p90": 2.31
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 14,
+    "marketsPriced": 57,
+    "marketsOver13": 29,
+    "priceToValueMedian": 1.34
+   }
+  },
+  {
+   "i": 130,
+   "name": "Peat",
+   "tags": [
+    "fuel"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3265,
+    "usedShare": 0.34,
+    "monthsP10": 0,
+    "monthsMedian": 3.7,
+    "monthsP90": 47.27,
+    "usePerKMedian": 0,
+    "usePerKP90": 9.47
+   },
+   "none": {
+    "marketMonths": 614,
+    "usedShare": 0,
+    "monthsP10": 3.84,
+    "monthsMedian": 3.84,
+    "monthsP90": 3.84,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 164000,
+    "month1": 31000,
+    "month2": 31400,
+    "month3": 54900
+   },
+   "steadyPriceToValue": {
+    "p10": 0.33,
+    "median": 0.33,
+    "p90": 0.67
+   },
+   "start": {
+    "stock0": 10,
+    "use1": 31028,
+    "marketsPriced": 86,
+    "marketsOver13": 18,
+    "priceToValueMedian": 1
+   }
+  },
+  {
+   "i": 131,
+   "name": "Resin",
+   "tags": [
+    "naval",
+    "ritual"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3734,
+    "usedShare": 0.81,
+    "monthsP10": 13.43,
+    "monthsMedian": 133.28,
+    "monthsP90": 11126.86,
+    "usePerKMedian": 0.000524,
+    "usePerKP90": 0.0147
+   },
+   "none": {
+    "marketMonths": 145,
+    "usedShare": 0.01,
+    "monthsP10": 171,
+    "monthsMedian": 171,
+    "monthsP90": 171,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 188,
+    "month1": 125,
+    "month2": 131,
+    "month3": 163
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.26,
+    "p90": 0.34
+   },
+   "start": {
+    "stock0": 642,
+    "use1": 125,
+    "marketsPriced": 98,
+    "marketsOver13": 7,
+    "priceToValueMedian": 0.47
+   }
+  },
+  {
+   "i": 132,
+   "name": "Medicinal herbs",
+   "tags": [
+    "luxury",
+    "ritual"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3842,
+    "usedShare": 0.97,
+    "monthsP10": 1.57,
+    "monthsMedian": 34.11,
+    "monthsP90": 299.61,
+    "usePerKMedian": 0.0064,
+    "usePerKP90": 0.0148
+   },
+   "none": {
+    "marketMonths": 37,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 294,
+    "month1": 360,
+    "month2": 245,
+    "month3": 270
+   },
+   "steadyPriceToValue": {
+    "p10": 0.26,
+    "median": 0.29,
+    "p90": 0.49
+   },
+   "start": {
+    "stock0": 557,
+    "use1": 360,
+    "marketsPriced": 98,
+    "marketsOver13": 4,
+    "priceToValueMedian": 0.53
+   }
+  },
+  {
+   "i": 133,
+   "name": "Shellfish",
+   "tags": [
+    "food",
+    "aquatic",
+    "freshFood"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 288,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3591,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0.03,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 7,
+    "marketsOver13": 4,
+    "priceToValueMedian": 1.38
+   }
+  },
+  {
+   "i": 134,
+   "name": "Reeds",
+   "tags": [
+    "construction",
+    "clothing"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3553,
+    "usedShare": 0.92,
+    "monthsP10": 1.78,
+    "monthsMedian": 100.4,
+    "monthsP90": 788.38,
+    "usePerKMedian": 0.00252,
+    "usePerKP90": 0.00755
+   },
+   "none": {
+    "marketMonths": 326,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 140,
+    "month1": 321,
+    "month2": 106,
+    "month3": 88.5
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.25,
+    "p90": 0.6
+   },
+   "start": {
+    "stock0": 247,
+    "use1": 321,
+    "marketsPriced": 92,
+    "marketsOver13": 5,
+    "priceToValueMedian": 0.63
+   }
+  },
+  {
+   "i": 135,
+   "name": "Goats",
+   "tags": [
+    "food",
+    "clothing",
+    "supply",
+    "liveAnimal"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2942,
+    "usedShare": 0.99,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 1.17,
+    "usePerKP90": 4.4
+   },
+   "none": {
+    "marketMonths": 937,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 52300,
+    "month1": 59700,
+    "month2": 54800,
+    "month3": 50100
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.25,
+    "p90": 0.25
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 59685,
+    "marketsPriced": 72,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.5
+   }
+  },
+  {
+   "i": 136,
+   "name": "Pig",
+   "tags": [
+    "food",
+    "liveAnimal"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3879,
+    "usedShare": 1,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 8.28,
+    "usePerKP90": 12
+   },
+   "none": null,
+   "worldUse": {
+    "steadyMonthly": 326000,
+    "month1": 386000,
+    "month2": 355000,
+    "month3": 322000
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.25,
+    "p90": 0.25
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 386027,
+    "marketsPriced": 99,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.49
+   }
+  },
+  {
+   "i": 137,
+   "name": "Chicken",
+   "tags": [
+    "food",
+    "liveAnimal"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2906,
+    "usedShare": 1,
+    "monthsP10": 827.94,
+    "monthsMedian": 833.32,
+    "monthsP90": 967.56,
+    "usePerKMedian": 0.0196,
+    "usePerKP90": 0.0316
+   },
+   "none": {
+    "marketMonths": 973,
+    "usedShare": 1,
+    "monthsP10": 840.97,
+    "monthsMedian": 924.69,
+    "monthsP90": 1151.43,
+    "usePerKMedian": 0.0238,
+    "usePerKP90": 0.0343
+   },
+   "worldUse": {
+    "steadyMonthly": 759,
+    "month1": 2960,
+    "month2": 3060,
+    "month3": 2940
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.29,
+    "p90": 0.42
+   },
+   "start": {
+    "stock0": 635429,
+    "use1": 2964,
+    "marketsPriced": 99,
+    "marketsOver13": 7,
+    "priceToValueMedian": 0.34
+   }
+  },
+  {
+   "i": 138,
+   "name": "Wool",
+   "tags": [
+    "clothing"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3879,
+    "usedShare": 1,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0.0416,
+    "usePerKP90": 0.0586
+   },
+   "none": null,
+   "worldUse": {
+    "steadyMonthly": 1640,
+    "month1": 946,
+    "month2": 538,
+    "month3": 636
+   },
+   "steadyPriceToValue": {
+    "p10": 0.26,
+    "median": 0.29,
+    "p90": 0.55
+   },
+   "start": {
+    "stock0": 658,
+    "use1": 946,
+    "marketsPriced": 99,
+    "marketsOver13": 1,
+    "priceToValueMedian": 0.7
+   }
+  },
+  {
+   "i": 139,
+   "name": "Flax",
+   "tags": [
+    "clothing"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3807,
+    "usedShare": 0.99,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0.01,
+    "usePerKMedian": 0.0222,
+    "usePerKP90": 0.0411
+   },
+   "none": {
+    "marketMonths": 72,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 928,
+    "month1": 855,
+    "month2": 887,
+    "month3": 932
+   },
+   "steadyPriceToValue": {
+    "p10": 0.37,
+    "median": 0.63,
+    "p90": 0.93
+   },
+   "start": {
+    "stock0": 4,
+    "use1": 855,
+    "marketsPriced": 99,
+    "marketsOver13": 4,
+    "priceToValueMedian": 0.67
+   }
+  },
+  {
+   "i": 140,
+   "name": "Linen",
+   "tags": [
+    "clothing"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3807,
+    "usedShare": 0.74,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0.000724,
+    "usePerKP90": 0.00403
+   },
+   "none": {
+    "marketMonths": 72,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 64.7,
+    "month1": 50.8,
+    "month2": 24.1,
+    "month3": 82.8
+   },
+   "steadyPriceToValue": {
+    "p10": 0.9,
+    "median": 1.55,
+    "p90": 2.41
+   },
+   "start": {
+    "stock0": 72,
+    "use1": 51,
+    "marketsPriced": 99,
+    "marketsOver13": 51,
+    "priceToValueMedian": 1.36
+   }
+  },
+  {
+   "i": 141,
+   "name": "Cotton",
+   "tags": [
+    "clothing"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2451,
+    "usedShare": 0.97,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0.0122,
+    "usePerKP90": 0.0235
+   },
+   "none": {
+    "marketMonths": 1428,
+    "usedShare": 0.02,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 400,
+    "month1": 198,
+    "month2": 62,
+    "month3": 112
+   },
+   "steadyPriceToValue": {
+    "p10": 0.37,
+    "median": 0.61,
+    "p90": 1.11
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 198,
+    "marketsPriced": 67,
+    "marketsOver13": 3,
+    "priceToValueMedian": 0.78
+   }
+  },
+  {
+   "i": 142,
+   "name": "Tallow",
+   "tags": [
+    "fuel"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3879,
+    "usedShare": 0.99,
+    "monthsP10": 513.32,
+    "monthsMedian": 1210.22,
+    "monthsP90": 3771.37,
+    "usePerKMedian": 0.0685,
+    "usePerKP90": 0.143
+   },
+   "none": null,
+   "worldUse": {
+    "steadyMonthly": 2480,
+    "month1": 3080,
+    "month2": 3610,
+    "month3": 3250
+   },
+   "steadyPriceToValue": {
+    "p10": 0.3,
+    "median": 1.11,
+    "p90": 3
+   },
+   "start": {
+    "stock0": 86116,
+    "use1": 3083,
+    "marketsPriced": 99,
+    "marketsOver13": 41,
+    "priceToValueMedian": 1.25
+   }
+  },
+  {
+   "i": 143,
+   "name": "Meat",
+   "tags": [
+    "food",
+    "freshFood"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3879,
+    "usedShare": 1,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 4.21,
+    "usePerKP90": 6.64
+   },
+   "none": null,
+   "worldUse": {
+    "steadyMonthly": 171000,
+    "month1": 175000,
+    "month2": 163000,
+    "month3": 149000
+   },
+   "steadyPriceToValue": {
+    "p10": 0.98,
+    "median": 1,
+    "p90": 1.01
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 174847,
+    "marketsPriced": 99,
+    "marketsOver13": 0,
+    "priceToValueMedian": 1
+   }
+  },
+  {
+   "i": 144,
+   "name": "Beeswax",
+   "tags": [
+    "ritual"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3626,
+    "usedShare": 0.37,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 311.1,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.00274
+   },
+   "none": {
+    "marketMonths": 253,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 50.3,
+    "month1": 0,
+    "month2": 0.01,
+    "month3": 40.4
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.26,
+    "p90": 0.35
+   },
+   "start": {
+    "stock0": 8,
+    "use1": 0,
+    "marketsPriced": 93,
+    "marketsOver13": 40,
+    "priceToValueMedian": 1.15
+   }
+  },
+  {
+   "i": 145,
+   "name": "Flour",
+   "tags": [
+    "food"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3807,
+    "usedShare": 0.92,
+    "monthsP10": 1881.09,
+    "monthsMedian": 4146.33,
+    "monthsP90": 8605.08,
+    "usePerKMedian": 0.000641,
+    "usePerKP90": 0.00207
+   },
+   "none": {
+    "marketMonths": 72,
+    "usedShare": 0.67,
+    "monthsP10": 69.82,
+    "monthsMedian": 314.5,
+    "monthsP90": 2085.13,
+    "usePerKMedian": 0.000394,
+    "usePerKP90": 0.00589
+   },
+   "worldUse": {
+    "steadyMonthly": 48.3,
+    "month1": 92.4,
+    "month2": 237,
+    "month3": 118
+   },
+   "steadyPriceToValue": {
+    "p10": 0.44,
+    "median": 0.44,
+    "p90": 0.63
+   },
+   "start": {
+    "stock0": 2455,
+    "use1": 92,
+    "marketsPriced": 99,
+    "marketsOver13": 2,
+    "priceToValueMedian": 0.69
+   }
+  },
+  {
+   "i": 146,
+   "name": "Bread",
+   "tags": [
+    "food"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 216,
+    "usedShare": 0.25,
+    "monthsP10": 2.38,
+    "monthsMedian": 5.87,
+    "monthsP90": 14.61,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.00427
+   },
+   "none": {
+    "marketMonths": 3663,
+    "usedShare": 0,
+    "monthsP10": 4.54,
+    "monthsMedian": 7.54,
+    "monthsP90": 11.31,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 1.11,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.25,
+    "p90": 0.38
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 2,
+    "marketsOver13": 0,
+    "priceToValueMedian": 1.19
+   }
+  },
+  {
+   "i": 147,
+   "name": "Timber",
+   "tags": [
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1080,
+    "usedShare": 0.53,
+    "monthsP10": 0.81,
+    "monthsMedian": 103.26,
+    "monthsP90": 1681.2,
+    "usePerKMedian": 0.0000384,
+    "usePerKP90": 0.000497
+   },
+   "none": {
+    "marketMonths": 2799,
+    "usedShare": 0.12,
+    "monthsP10": 0.83,
+    "monthsMedian": 214.75,
+    "monthsP90": 1092.87,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.000045
+   },
+   "worldUse": {
+    "steadyMonthly": 15.9,
+    "month1": 7.25,
+    "month2": 1.39,
+    "month3": 2.53
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.34,
+    "p90": 0.73
+   },
+   "start": {
+    "stock0": 10,
+    "use1": 7,
+    "marketsPriced": 27,
+    "marketsOver13": 2,
+    "priceToValueMedian": 0.98
+   }
+  },
+  {
+   "i": 148,
+   "name": "Alum",
+   "tags": [
+    "mineral"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 985,
+    "usedShare": 0.09,
+    "monthsP10": 14.26,
+    "monthsMedian": 82.77,
+    "monthsP90": 278.98,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 2894,
+    "usedShare": 0.01,
+    "monthsP10": 4.35,
+    "monthsMedian": 16.25,
+    "monthsP90": 23.92,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.854,
+    "month1": 3.73,
+    "month2": 4.51,
+    "month3": 2.99
+   },
+   "steadyPriceToValue": {
+    "p10": 0.25,
+    "median": 0.25,
+    "p90": 0.53
+   },
+   "start": {
+    "stock0": 14,
+    "use1": 4,
+    "marketsPriced": 68,
+    "marketsOver13": 26,
+    "priceToValueMedian": 1.13
+   }
+  },
+  {
+   "i": 149,
+   "name": "Potash",
+   "tags": [
+    "mineral"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1548,
+    "usedShare": 0.4,
+    "monthsP10": 0,
+    "monthsMedian": 1,
+    "monthsP90": 10.13,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.00223
+   },
+   "none": {
+    "marketMonths": 2331,
+    "usedShare": 0.06,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 1,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 18.5,
+    "month1": 31.3,
+    "month2": 33.5,
+    "month3": 40.3
+   },
+   "steadyPriceToValue": {
+    "p10": 0.5,
+    "median": 0.79,
+    "p90": 1.1
+   },
+   "start": {
+    "stock0": 19,
+    "use1": 31,
+    "marketsPriced": 38,
+    "marketsOver13": 2,
+    "priceToValueMedian": 1.03
+   }
+  },
+  {
+   "i": 150,
+   "name": "Slag",
+   "tags": [
+    "construction",
+    "industrialWaste"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1574,
+    "usedShare": 0.9,
+    "monthsP10": 5.63,
+    "monthsMedian": 135.33,
+    "monthsP90": 782.66,
+    "usePerKMedian": 0.000481,
+    "usePerKP90": 0.00159
+   },
+   "none": {
+    "marketMonths": 2305,
+    "usedShare": 0.01,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0.33,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 9.42,
+    "month1": 7.86,
+    "month2": 7.71,
+    "month3": 7.89
+   },
+   "steadyPriceToValue": {
+    "p10": 0.26,
+    "median": 0.26,
+    "p90": 0.92
+   },
+   "start": {
+    "stock0": 33,
+    "use1": 8,
+    "marketsPriced": 42,
+    "marketsOver13": 15,
+    "priceToValueMedian": 0.99
+   }
+  },
+  {
+   "i": 151,
+   "name": "Ivory",
+   "tags": [
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 936,
+    "usedShare": 0.05,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 1.15,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 2943,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.0294,
+    "month1": 0.71,
+    "month2": 0.82,
+    "month3": 0.67
+   },
+   "steadyPriceToValue": {
+    "p10": 1.15,
+    "median": 1.28,
+    "p90": 2.74
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 1,
+    "marketsPriced": 57,
+    "marketsOver13": 28,
+    "priceToValueMedian": 1.3
+   }
+  },
+  {
+   "i": 152,
+   "name": "Coral",
+   "tags": [
+    "luxury",
+    "aquatic"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 720,
+    "usedShare": 0.06,
+    "monthsP10": 0,
+    "monthsMedian": 0.42,
+    "monthsP90": 3.08,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3159,
+    "usedShare": 0,
+    "monthsP10": 3.1,
+    "monthsMedian": 3.5,
+    "monthsP90": 3.9,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.0664,
+    "month1": 0.14,
+    "month2": 0.18,
+    "month3": 0.11
+   },
+   "steadyPriceToValue": {
+    "p10": 0.79,
+    "median": 0.92,
+    "p90": 1.16
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 57,
+    "marketsOver13": 29,
+    "priceToValueMedian": 1.3
+   }
+  },
+  {
+   "i": 153,
+   "name": "Stockfish",
+   "tags": [
+    "food",
+    "preservative",
+    "preservedFood"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 154,
+   "name": "Spinning Wheel",
+   "tags": [
+    "construction"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1571,
+    "usedShare": 0,
+    "monthsP10": 8.35,
+    "monthsMedian": 8.99,
+    "monthsP90": 9.01,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 2308,
+    "usedShare": 0,
+    "monthsP10": 3.53,
+    "monthsMedian": 4.57,
+    "monthsP90": 9,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 1.96,
+    "month1": 0.57,
+    "month2": 3.58,
+    "month3": 0.99
+   },
+   "steadyPriceToValue": {
+    "p10": 0.29,
+    "median": 0.31,
+    "p90": 1.08
+   },
+   "start": {
+    "stock0": 112,
+    "use1": 1,
+    "marketsPriced": 20,
+    "marketsOver13": 5,
+    "priceToValueMedian": 0.82
+   }
+  },
+  {
+   "i": 155,
+   "name": "Artworks",
+   "tags": [
+    "luxury",
+    "gift",
+    "art"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1260,
+    "usedShare": 0.29,
+    "monthsP10": 0,
+    "monthsMedian": 5,
+    "monthsP90": 27.98,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.000195
+   },
+   "none": {
+    "marketMonths": 2619,
+    "usedShare": 0.05,
+    "monthsP10": 14.64,
+    "monthsMedian": 75.83,
+    "monthsP90": 245.3,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.492,
+    "month1": 6.08,
+    "month2": 2.7,
+    "month3": 1.38
+   },
+   "steadyPriceToValue": {
+    "p10": 0.51,
+    "median": 0.73,
+    "p90": 1.03
+   },
+   "start": {
+    "stock0": 14,
+    "use1": 6,
+    "marketsPriced": 61,
+    "marketsOver13": 29,
+    "priceToValueMedian": 1.27
+   }
+  },
+  {
+   "i": 156,
+   "name": "Sculptures",
+   "tags": [
+    "luxury",
+    "gift",
+    "art"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 2052,
+    "usedShare": 0.71,
+    "monthsP10": 26.03,
+    "monthsMedian": 223.97,
+    "monthsP90": 1278.9,
+    "usePerKMedian": 0.00015,
+    "usePerKP90": 0.00115
+   },
+   "none": {
+    "marketMonths": 1827,
+    "usedShare": 0.27,
+    "monthsP10": 17.39,
+    "monthsMedian": 103.82,
+    "monthsP90": 739.2,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.000798
+   },
+   "worldUse": {
+    "steadyMonthly": 11.8,
+    "month1": 12.6,
+    "month2": 13.3,
+    "month3": 13.7
+   },
+   "steadyPriceToValue": {
+    "p10": 0.31,
+    "median": 0.5,
+    "p90": 1.01
+   },
+   "start": {
+    "stock0": 39,
+    "use1": 13,
+    "marketsPriced": 74,
+    "marketsOver13": 28,
+    "priceToValueMedian": 1.18
+   }
+  },
+  {
+   "i": 157,
+   "name": "Tapestries",
+   "tags": [
+    "luxury",
+    "gift",
+    "art"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 828,
+    "usedShare": 0.21,
+    "monthsP10": 0,
+    "monthsMedian": 53.95,
+    "monthsP90": 264.9,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.0000977
+   },
+   "none": {
+    "marketMonths": 3051,
+    "usedShare": 0.17,
+    "monthsP10": 17.08,
+    "monthsMedian": 188.8,
+    "monthsP90": 857.8,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.000107
+   },
+   "worldUse": {
+    "steadyMonthly": 1.07,
+    "month1": 12,
+    "month2": 10.2,
+    "month3": 9.51
+   },
+   "steadyPriceToValue": {
+    "p10": 0.5,
+    "median": 0.91,
+    "p90": 1.29
+   },
+   "start": {
+    "stock0": 46,
+    "use1": 12,
+    "marketsPriced": 74,
+    "marketsOver13": 30,
+    "priceToValueMedian": 1.25
+   }
+  },
+  {
+   "i": 158,
+   "name": "Instruments",
+   "tags": [
+    "luxury",
+    "gift",
+    "art"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1440,
+    "usedShare": 0.51,
+    "monthsP10": 0,
+    "monthsMedian": 7,
+    "monthsP90": 131.57,
+    "usePerKMedian": 0.0000163,
+    "usePerKP90": 0.000504
+   },
+   "none": {
+    "marketMonths": 2439,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 3.36,
+    "month1": 3.67,
+    "month2": 3.29,
+    "month3": 2.96
+   },
+   "steadyPriceToValue": {
+    "p10": 0.26,
+    "median": 0.92,
+    "p90": 1.48
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 4,
+    "marketsPriced": 57,
+    "marketsOver13": 25,
+    "priceToValueMedian": 1.27
+   }
+  },
+  {
+   "i": 159,
+   "name": "Relics",
+   "tags": [
+    "luxury",
+    "gift",
+    "ritual"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1296,
+    "usedShare": 0.41,
+    "monthsP10": 0,
+    "monthsMedian": 1.25,
+    "monthsP90": 534.5,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.000158
+   },
+   "none": {
+    "marketMonths": 2583,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 1.03,
+    "month1": 1.92,
+    "month2": 1.68,
+    "month3": 1.47
+   },
+   "steadyPriceToValue": {
+    "p10": 0.48,
+    "median": 0.95,
+    "p90": 2.12
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 2,
+    "marketsPriced": 57,
+    "marketsOver13": 22,
+    "priceToValueMedian": 1.17
+   }
+  },
+  {
+   "i": 160,
+   "name": "Cats",
+   "tags": [
+    "liveAnimal",
+    "pestControl"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 36,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3843,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 161,
+   "name": "Dogs",
+   "tags": [
+    "liveAnimal",
+    "herding",
+    "hunting"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 36,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3843,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 162,
+   "name": "Grapes",
+   "tags": [
+    "food",
+    "fruit",
+    "freshFood",
+    "perennialCrop"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 163,
+   "name": "Apples",
+   "tags": [
+    "food",
+    "fruit",
+    "freshFood",
+    "perennialCrop"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 164,
+   "name": "Pears",
+   "tags": [
+    "food",
+    "fruit",
+    "freshFood",
+    "perennialCrop"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 165,
+   "name": "Plums",
+   "tags": [
+    "food",
+    "fruit",
+    "freshFood",
+    "perennialCrop"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 166,
+   "name": "Figs",
+   "tags": [
+    "food",
+    "fruit",
+    "freshFood",
+    "perennialCrop"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 167,
+   "name": "Lemons",
+   "tags": [
+    "food",
+    "fruit",
+    "freshFood",
+    "perennialCrop"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 1,
+    "marketsOver13": 0,
+    "priceToValueMedian": 1.13
+   }
+  },
+  {
+   "i": 168,
+   "name": "Dried Fruits",
+   "tags": [
+    "food",
+    "preservative",
+    "preservedFood"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1980,
+    "usedShare": 0.01,
+    "monthsP10": 2.99,
+    "monthsMedian": 3,
+    "monthsP90": 8.99,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 1899,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.719,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": 1.12,
+    "median": 1.2,
+    "p90": 1.45
+   },
+   "start": {
+    "stock0": 2,
+    "use1": 0,
+    "marketsPriced": 23,
+    "marketsOver13": 10,
+    "priceToValueMedian": 1.16
+   }
+  },
+  {
+   "i": 169,
+   "name": "Raisins",
+   "tags": [
+    "food",
+    "preservative",
+    "preservedFood"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 170,
+   "name": "Coke",
+   "tags": [
+    "fuel",
+    "industrial"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 171,
+   "name": "Steel",
+   "tags": [
+    "metal",
+    "industrial"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 172,
+   "name": "Stainless Steel",
+   "tags": [
+    "metal",
+    "industrial",
+    "alloy",
+    "corrosionResistant"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 173,
+   "name": "Machine Parts",
+   "tags": [
+    "industrial",
+    "tools"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 174,
+   "name": "Copper Wire",
+   "tags": [
+    "industrial",
+    "metal"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 175,
+   "name": "Stationary Steam Engine",
+   "tags": [
+    "industrial",
+    "capital"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 176,
+   "name": "Rail",
+   "tags": [
+    "industrial",
+    "construction"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 177,
+   "name": "Locomotive",
+   "tags": [
+    "industrial",
+    "capital"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 178,
+   "name": "Marine Steam Engine",
+   "tags": [
+    "industrial",
+    "capital"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 179,
+   "name": "Steamship",
+   "tags": [
+    "naval",
+    "industrial"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 180,
+   "name": "Lab Glassware",
+   "tags": [
+    "industrial",
+    "tools"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 181,
+   "name": "Precision Instruments",
+   "tags": [
+    "industrial",
+    "tools"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 182,
+   "name": "Medicines",
+   "tags": [
+    "luxury"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 183,
+   "name": "Sulfuric Acid",
+   "tags": [
+    "industrial",
+    "mineral"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 184,
+   "name": "Chlorine",
+   "tags": [
+    "industrial",
+    "mineral"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 185,
+   "name": "Bleaching Powder",
+   "tags": [
+    "industrial"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 186,
+   "name": "Nitric Acid",
+   "tags": [
+    "industrial",
+    "military",
+    "mineral"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 187,
+   "name": "Coal Tar",
+   "tags": [
+    "industrial",
+    "fuel"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 188,
+   "name": "Synthetic Dye",
+   "tags": [
+    "industrial",
+    "chemical"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 189,
+   "name": "Soda Ash",
+   "tags": [
+    "industrial",
+    "mineral"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 190,
+   "name": "Caustic Soda",
+   "tags": [
+    "industrial",
+    "mineral"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 191,
+   "name": "Phosphate Rock",
+   "tags": [
+    "mineral",
+    "industrial"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 13,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3866,
+    "usedShare": 0,
+    "monthsP10": 6.9,
+    "monthsMedian": 8.33,
+    "monthsP90": 9,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.781,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": 0.27,
+    "median": 0.27,
+    "p90": 0.32
+   },
+   "start": {
+    "stock0": 18,
+    "use1": 0,
+    "marketsPriced": 2,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.39
+   }
+  },
+  {
+   "i": 192,
+   "name": "Bauxite",
+   "tags": [
+    "mineral",
+    "industrial"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 19,
+    "use1": 0,
+    "marketsPriced": 2,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.29
+   }
+  },
+  {
+   "i": 193,
+   "name": "Alumina",
+   "tags": [
+    "industrial",
+    "mineral"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 194,
+   "name": "Aluminum",
+   "tags": [
+    "metal",
+    "industrial"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 195,
+   "name": "Light Alloy Parts",
+   "tags": [
+    "industrial",
+    "metal"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 196,
+   "name": "Cinnabar",
+   "tags": [
+    "mineral",
+    "industrial"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 36,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3843,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 1,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.88
+   }
+  },
+  {
+   "i": 197,
+   "name": "Mercury",
+   "tags": [
+    "industrial",
+    "chemical"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 198,
+   "name": "Crude Oil",
+   "tags": [
+    "fuel",
+    "mineral"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 36,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3843,
+    "usedShare": 0,
+    "monthsP10": 2.95,
+    "monthsMedian": 3,
+    "monthsP90": 7.81,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.157,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": 0.4,
+    "median": 0.82,
+    "p90": 0.83
+   },
+   "start": {
+    "stock0": 11,
+    "use1": 0,
+    "marketsPriced": 3,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.4
+   }
+  },
+  {
+   "i": 199,
+   "name": "Kerosene",
+   "tags": [
+    "fuel",
+    "industrial"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 200,
+   "name": "Synthetic Resin",
+   "tags": [
+    "industrial",
+    "chemical"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 201,
+   "name": "Lubricating Oil",
+   "tags": [
+    "industrial",
+    "chemical"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 202,
+   "name": "Natural Gas",
+   "tags": [
+    "fuel",
+    "mineral"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 36,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3843,
+    "usedShare": 0,
+    "monthsP10": 8.65,
+    "monthsMedian": 8.65,
+    "monthsP90": 8.65,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.0278,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": 0.26,
+    "median": 0.26,
+    "p90": 0.26
+   },
+   "start": {
+    "stock0": 2,
+    "use1": 0,
+    "marketsPriced": 2,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.96
+   }
+  },
+  {
+   "i": 203,
+   "name": "LNG",
+   "tags": [
+    "fuel",
+    "industrial"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 204,
+   "name": "Phosphate Fertilizer",
+   "tags": [
+    "industrial",
+    "agriculture"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 205,
+   "name": "Synthetic Ammonia",
+   "tags": [
+    "industrial",
+    "chemical"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 206,
+   "name": "Nitrogen Fertilizer",
+   "tags": [
+    "industrial",
+    "agriculture"
+   ],
+   "crop": false,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 0,
+    "marketsOver13": 0,
+    "priceToValueMedian": null
+   }
+  },
+  {
+   "i": 207,
+   "name": "Spelt",
+   "tags": [
+    "food",
+    "crop",
+    "stapleCrop",
+    "cereal"
+   ],
+   "crop": true,
+   "local": null,
+   "none": {
+    "marketMonths": 3879,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 6,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.8
+   }
+  },
+  {
+   "i": 208,
+   "name": "Chestnuts",
+   "tags": [
+    "food",
+    "nuts",
+    "perennialCrop"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 288,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 3591,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": null,
+    "median": null,
+    "p90": null
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 4,
+    "marketsOver13": 1,
+    "priceToValueMedian": 0.82
+   }
+  },
+  {
+   "i": 209,
+   "name": "Fine Wool Cloth",
+   "tags": [
+    "clothing"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 1656,
+    "usedShare": 0,
+    "monthsP10": 0,
+    "monthsMedian": 0.83,
+    "monthsP90": 2.8,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "none": {
+    "marketMonths": 2223,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 0.0122,
+    "month1": 0,
+    "month2": 0,
+    "month3": 0
+   },
+   "steadyPriceToValue": {
+    "p10": 0.51,
+    "median": 0.75,
+    "p90": 1.01
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 0,
+    "marketsPriced": 98,
+    "marketsOver13": 32,
+    "priceToValueMedian": 1.16
+   }
+  },
+  {
+   "i": 210,
+   "name": "Fine Wool Garments",
+   "tags": [
+    "clothing",
+    "luxury"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3842,
+    "usedShare": 0.5,
+    "monthsP10": 0,
+    "monthsMedian": 9.14,
+    "monthsP90": 104.98,
+    "usePerKMedian": 0,
+    "usePerKP90": 0.00121
+   },
+   "none": {
+    "marketMonths": 37,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 14.6,
+    "month1": 24.7,
+    "month2": 14.1,
+    "month3": 15.1
+   },
+   "steadyPriceToValue": {
+    "p10": 0.4,
+    "median": 0.82,
+    "p90": 1.35
+   },
+   "start": {
+    "stock0": 31,
+    "use1": 25,
+    "marketsPriced": 98,
+    "marketsOver13": 43,
+    "priceToValueMedian": 1.28
+   }
+  },
+  {
+   "i": 211,
+   "name": "Linen Garments",
+   "tags": [
+    "clothing"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3590,
+    "usedShare": 0.63,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0.0000616,
+    "usePerKP90": 0.000348
+   },
+   "none": {
+    "marketMonths": 289,
+    "usedShare": 0,
+    "monthsP10": null,
+    "monthsMedian": null,
+    "monthsP90": null,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 5.35,
+    "month1": 1.67,
+    "month2": 0.25,
+    "month3": 4.88
+   },
+   "steadyPriceToValue": {
+    "p10": 1.2,
+    "median": 1.73,
+    "p90": 2.77
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 2,
+    "marketsPriced": 89,
+    "marketsOver13": 62,
+    "priceToValueMedian": 1.46
+   }
+  },
+  {
+   "i": 212,
+   "name": "Wool Cloth",
+   "tags": [
+    "clothing"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3879,
+    "usedShare": 0.99,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0.00588,
+    "usePerKP90": 0.0091
+   },
+   "none": null,
+   "worldUse": {
+    "steadyMonthly": 241,
+    "month1": 95.7,
+    "month2": 22,
+    "month3": 42.5
+   },
+   "steadyPriceToValue": {
+    "p10": 0.39,
+    "median": 0.65,
+    "p90": 0.93
+   },
+   "start": {
+    "stock0": 53,
+    "use1": 96,
+    "marketsPriced": 99,
+    "marketsOver13": 17,
+    "priceToValueMedian": 1.07
+   }
+  },
+  {
+   "i": 213,
+   "name": "Wool Garments",
+   "tags": [
+    "clothing"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3879,
+    "usedShare": 0.99,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0,
+    "usePerKMedian": 0.00464,
+    "usePerKP90": 0.00767
+   },
+   "none": null,
+   "worldUse": {
+    "steadyMonthly": 194,
+    "month1": 82.2,
+    "month2": 12.3,
+    "month3": 26.7
+   },
+   "steadyPriceToValue": {
+    "p10": 0.59,
+    "median": 0.91,
+    "p90": 1.47
+   },
+   "start": {
+    "stock0": 0,
+    "use1": 82,
+    "marketsPriced": 90,
+    "marketsOver13": 49,
+    "priceToValueMedian": 1.32
+   }
+  },
+  {
+   "i": 214,
+   "name": "Wool Blankets",
+   "tags": [
+    "clothing"
+   ],
+   "crop": false,
+   "local": {
+    "marketMonths": 3806,
+    "usedShare": 0.82,
+    "monthsP10": 0,
+    "monthsMedian": 0,
+    "monthsP90": 0.02,
+    "usePerKMedian": 0.00649,
+    "usePerKP90": 0.035
+   },
+   "none": {
+    "marketMonths": 73,
+    "usedShare": 0.03,
+    "monthsP10": 7.53,
+    "monthsMedian": 36.85,
+    "monthsP90": 66.17,
+    "usePerKMedian": 0,
+    "usePerKP90": 0
+   },
+   "worldUse": {
+    "steadyMonthly": 508,
+    "month1": 773,
+    "month2": 1410,
+    "month3": 1810
+   },
+   "steadyPriceToValue": {
+    "p10": 0.69,
+    "median": 1.03,
+    "p90": 1.69
+   },
+   "start": {
+    "stock0": 5893,
+    "use1": 773,
+    "marketsPriced": 99,
+    "marketsOver13": 0,
+    "priceToValueMedian": 0.6
+   }
+  }
+ ]
+}

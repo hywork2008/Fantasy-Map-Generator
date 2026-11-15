@@ -1,6 +1,7 @@
 import { restoreRngFromSimulation } from "../context/appServices";
 import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
+import { withFrozenClimateInputs } from "../generators/climateInputScope";
 import { refreshRiverHydrology } from "../generators/riverHydrology";
 import { advanceSeasonalClimate } from "../generators/seasonalClimate";
 import { updateAllBurgWaterAccess, updateBurgWaterAccess } from "../services/burgWaterAccess";
@@ -2457,11 +2458,15 @@ export function registerSimulationStepDayHandler(handler: SimulationStepDayHandl
  * when Advance Time is running with a coarser tick (docs/plan/advance-time-history-mode.md §4).
  */
 export function stepDaySimulation(days = 1): WorldCommit<SimulationStepResult> | null {
-  const commit = (worldRuntime as LegacyWorldRuntime).execute<SimulationStepResult>(
-    days === 1 ? { type: "simulation.stepDay" } : { type: "simulation.stepDay", payload: { days } }
-  );
-  if (commit) for (const finalize of [...dayFinalizers]) finalize();
-  return commit;
+  // The step and its finalizers (economy settlement) never edit terrain or climate settings, so
+  // climate caches validate once per step instead of once per read.
+  return withFrozenClimateInputs(() => {
+    const commit = (worldRuntime as LegacyWorldRuntime).execute<SimulationStepResult>(
+      days === 1 ? { type: "simulation.stepDay" } : { type: "simulation.stepDay", payload: { days } }
+    );
+    if (commit) for (const finalize of [...dayFinalizers]) finalize();
+    return commit;
+  });
 }
 
 const dayFinalizers = new Set<() => void>();

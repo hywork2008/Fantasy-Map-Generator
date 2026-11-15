@@ -28,6 +28,20 @@ function emptyInventory(): StapleCropInventory {
 
 const EPSILON = 1e-7;
 
+/** How a draw left the granary; diagnostic only (see setStapleCropDrawObserver). */
+export type StapleCropDrawKind = "food" | "tradeable" | "transport" | "transfer";
+export type StapleCropDrawObserver = (ledger: FoodLedger, kind: StapleCropDrawKind, units: number) => void;
+let drawObserver: StapleCropDrawObserver | null = null;
+
+/** Read-only measurement seam for audits; never set by the simulation itself. */
+export function setStapleCropDrawObserver(observer: StapleCropDrawObserver | null): void {
+  drawObserver = observer;
+}
+
+function observeDraw(ledger: FoodLedger, kind: StapleCropDrawKind, units: number): void {
+  if (drawObserver && units > 0) drawObserver(ledger, kind, units);
+}
+
 function storedUnits(inventory: StapleCropInventory): number {
   return (
     Math.max(0, inventory.age0) +
@@ -134,6 +148,7 @@ export function drawTradeableStapleCrop(ledger: FoodLedger, goodId: number, unit
   const fromStored = debitOldest(inventory, remaining);
   refreshLegacyFoodLedgerTotals(ledger);
   ledger.exportable = rn(Math.max(0, ledger.exportable - fromStored), 2);
+  observeDraw(ledger, "tradeable", fromOverflow + fromStored);
   return rn(fromOverflow + fromStored, 2);
 }
 
@@ -163,6 +178,7 @@ export function transferStapleCropShare(from: FoodLedger, to: FoodLedger, share:
   refreshLegacyFoodLedgerTotals(from);
   refreshLegacyFoodLedgerTotals(to);
   from.exportable = rn(Math.max(0, from.exportable - moved), 2);
+  observeDraw(from, "transfer", moved);
   return rn(moved, 2);
 }
 
@@ -337,6 +353,7 @@ export function drawStapleCropForTransport(
   drawn = rn(drawn, 2);
   refreshLegacyFoodLedgerTotals(ledger);
   ledger.exportable = rn(Math.max(0, ledger.exportable - drawn), 2);
+  observeDraw(ledger, "transport", drawn);
   const unitCost = drawn > EPSILON ? rn(costSum / drawn, 2) : 0;
   return { units: drawn, unitCost };
 }
@@ -357,17 +374,34 @@ export function drawStapleCropFood(ledger: FoodLedger, requestedUnits: number): 
   if (!(requestedUnits > 0)) return 0;
   let remaining = requestedUnits;
 
+  // Each age tier is eaten across its crops in proportion to their stock. Eating one crop up before
+  // the next (in good-id order) emptied the wheat and barley first and left the brewers without
+  // grain (docs/plan/crop-acreage-shares.md §4.4).
   for (const age of OLDEST_FIRST) {
+    if (!(remaining > EPSILON)) break;
+    const tierTotal = inventories.reduce((sum, inventory) => sum + Math.max(0, inventory[age] ?? 0), 0);
+    if (!(tierTotal > EPSILON)) continue;
+    const tierTake = Math.min(tierTotal, remaining);
     for (const inventory of inventories) {
-      if (!(remaining > 0)) break;
-      const taken = Math.min(Math.max(0, inventory[age] ?? 0), remaining);
+      const held = Math.max(0, inventory[age] ?? 0);
+      // Rounded down, so the tier never gives more than was asked of it.
+      const taken = Math.min(held, Math.floor(((tierTake * held) / tierTotal) * 100) / 100);
+      if (!(taken > 0)) continue;
+      inventory[age] = rn(held - taken, 2);
+      remaining -= taken;
+    }
+    // Rounding down leaves at most a hundredth per crop; take it from whatever is left in this tier.
+    for (const inventory of inventories) {
+      if (!(remaining > EPSILON)) break;
+      const taken = Math.min(Math.max(0, inventory[age] ?? 0), rn(remaining, 2));
       if (!(taken > 0)) continue;
       inventory[age] = rn((inventory[age] ?? 0) - taken, 2);
       remaining -= taken;
     }
   }
 
-  const drawn = rn(requestedUnits - remaining, 2);
+  const drawn = rn(requestedUnits - Math.max(0, remaining), 2);
   refreshLegacyFoodLedgerTotals(ledger);
+  observeDraw(ledger, "food", drawn);
   return drawn;
 }

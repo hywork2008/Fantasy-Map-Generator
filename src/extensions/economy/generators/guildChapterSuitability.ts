@@ -221,5 +221,11 @@ export function scoreGuildChapterSuitability(
       return clamp01(
         0.15 * (context.academyAdminByBurg.get(burgId) ?? 0) + 0.25 * capital + 0.4 * craft(domain) + 0.2 * market
       );
+    // Victualling trades serve the town's own market (docs/plan/urban-craft-staffing.md §6.6).
+    // Without practitioners the town terms stay under CHAPTER_FOUND_THRESHOLD, so no empty hall.
+    case "victualling":
+    case "brewing":
+    case "baking":
+      return clamp01(0.65 * craft(domain) + 0.15 * market + 0.15 * population);
   }
 }

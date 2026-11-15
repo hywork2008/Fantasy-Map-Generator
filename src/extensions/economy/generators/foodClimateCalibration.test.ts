@@ -42,6 +42,7 @@ const sourceFiles = [
   "src/data/cropCalendars.ts",
   "src/extensions/economy/generators/seasonalCropClimate.ts",
   "src/extensions/economy/generators/agriculturalLandUse.ts",
+  "src/extensions/economy/generators/cropAcreageShares.ts",
   "src/extensions/economy/generators/goods-generator.ts",
   "src/extensions/economy/generators/floodHazard.ts",
   "src/extensions/economy/generators/foodConstants.ts",

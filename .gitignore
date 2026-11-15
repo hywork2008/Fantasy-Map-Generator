@@ -30,3 +30,5 @@ docs/temp/
 
 # Full-world economy observation outputs (regenerable; hashes in docs/analytics/raw-observations-*.md)
 /docs/analytics/raw/
+
+/docs/calibration/food-climate.csv

@@ -1,0 +1,341 @@
+== seed 2102
+ -- months 1-12:      base      soap
+   Ash:14-18:sink:recipeInput>Potash                                0.0    2066.3
+   Ash:14-18:source:burgCraft                                       0.0       2.8
+   Ash:14-18:source:hearthAsh                                       0.0    3353.7
+   Ash:8-14:sink:recipeInput>Potash                                 0.0    5125.8
+   Ash:8-14:source:burgCraft                                        0.0       9.6
+   Ash:8-14:source:hearthAsh                                        0.0    8080.7
+   Ash:<8:sink:recipeInput>Potash                                   0.0    1034.7
+   Ash:<8:source:burgCraft                                          0.0       3.6
+   Ash:<8:source:hearthAsh                                          0.0    1574.6
+   Ash:>=18:sink:recipeInput>Potash                                 0.0     690.7
+   Ash:>=18:source:burgCraft                                        0.0       1.9
+   Ash:>=18:source:hearthAsh                                        0.0    1009.6
+   Ash:none:source:hearthAsh                                        0.0      24.0
+   Barilla:14-18:sink:recipeInput>Castile Soap                      9.4      19.0
+   Barilla:14-18:sink:recipeInput>Glass                            10.4      10.4
+   Barilla:14-18:source:burgCraft                                  53.9      53.2
+   Barilla:14-18:source:ruralHarvest                               38.8      38.8
+   Castile Soap:14-18:sink:householdFood                            0.0      50.9
+   Castile Soap:14-18:source:burgCraft                             25.2      50.9
+   Castile Soap:14-18:source:navyImport                             1.7       0.0
+   Castile Soap:8-14:source:navyImport                              3.3       0.0
+   Castile Soap:<8:source:navyImport                                1.5       0.0
+   Castile Soap:>=18:source:navyImport                              0.9       0.0
+   Oil:14-18:sink:exportDeparture                                   0.9       0.8
+   Oil:14-18:sink:recipeInput>Castile Soap                         12.5      28.5
+   Oil:14-18:source:burgCraft                                      32.4      33.1
+   Oil:14-18:source:importArrival                                   0.9       0.8
+   Oil:8-14:sink:recipeInput>Candles                                6.0      14.2
+   Oil:8-14:source:burgCraft                                       16.0      16.0
+   Oil:8-14:source:importArrival                                    2.2       0.0
+   Oil:>=18:sink:exportDeparture                                    2.2       0.0
+   Oil:>=18:sink:recipeInput>Candles                                3.8       0.0
+   Oil:>=18:source:burgCraft                                       17.0       0.0
+   Potash:14-18:sink:exportDeparture                                0.4       1.2
+   Potash:14-18:sink:marketInvestment                               4.9      10.6
+   Potash:14-18:sink:recipeInput>Glass                              3.4       3.7
+   Potash:14-18:sink:recipeInput>Soap                               1.9      44.2
+   Potash:14-18:source:burgCraft                                   14.1      71.4
+   Potash:14-18:source:importArrival                                0.6       2.1
+   Potash:8-14:sink:exportDeparture                                 0.2       1.8
+   Potash:8-14:sink:marketInvestment                                3.7       5.6
+   Potash:8-14:sink:recipeInput>Glass                               3.0       6.4
+   Potash:8-14:sink:recipeInput>Soap                                8.4     147.5
+   Potash:8-14:source:burgCraft                                    20.9     170.4
+   Potash:8-14:source:importArrival                                 0.0       2.3
+   Potash:<8:sink:marketInvestment                                  2.0       3.8
+   Potash:<8:sink:recipeInput>Soap                                  1.6      15.3
+   Potash:<8:source:burgCraft                                       7.7      27.2
+   Potash:>=18:sink:marketInvestment                                1.2       0.0
+   Potash:>=18:sink:recipeInput>Glass                               0.4       2.6
+   Potash:>=18:sink:recipeInput>Soap                                2.2      18.6
+   Potash:>=18:source:burgCraft                                     3.8      23.0
+   Soap:14-18:sink:exportDeparture                                  1.1       0.0
+   Soap:14-18:sink:householdFood                                    0.0     197.7
+   Soap:14-18:sink:luxuryPurchase                                  19.0       0.0
+   Soap:14-18:source:burgCraft                                      6.5     197.7
+   Soap:14-18:source:importArrival                                  3.1       0.0
+   Soap:14-18:source:navyImport                                    43.8       0.0
+   Soap:8-14:sink:characterLuxury                                   2.2       0.0
+   Soap:8-14:sink:exportDeparture                                   2.8       0.0
+   Soap:8-14:sink:householdFood                                     0.0     656.9
+   Soap:8-14:source:burgCraft                                      48.1     656.9
+   Soap:8-14:source:importArrival                                   1.1       0.0
+   Soap:8-14:source:navyImport                                     43.7       0.0
+   Soap:<8:sink:characterLuxury                                     1.8       0.0
+   Soap:<8:sink:exportDeparture                                     3.4       0.0
+   Soap:<8:sink:householdFood                                       0.0     108.1
+   Soap:<8:sink:luxuryPurchase                                      1.6       0.0
+   Soap:<8:source:burgCraft                                        19.3     108.1
+   Soap:<8:source:importArrival                                     3.4       0.0
+   Soap:<8:source:navyImport                                       18.6       0.0
+   Soap:>=18:sink:characterLuxury                                   0.9       0.0
+   Soap:>=18:sink:exportDeparture                                   2.2       0.0
+   Soap:>=18:sink:householdFood                                     0.0      84.7
+   Soap:>=18:source:burgCraft                                      10.8      84.7
+   Soap:>=18:source:navyImport                                      7.6       0.0
+ -- months 13-24:      base      soap
+   Ash:14-18:sink:recipeInput>Potash                                0.0    5661.1
+   Ash:14-18:source:burgCraft                                       0.0       0.5
+   Ash:14-18:source:hearthAsh                                       0.0    6166.4
+   Ash:8-14:sink:recipeInput>Potash                                 0.0   13916.5
+   Ash:8-14:source:burgCraft                                        0.0       1.2
+   Ash:8-14:source:hearthAsh                                        0.0   15006.2
+   Ash:<8:sink:recipeInput>Potash                                   0.0    3508.7
+   Ash:<8:source:burgCraft                                          0.0       0.7
+   Ash:<8:source:hearthAsh                                          0.0    4121.3
+   Ash:>=18:sink:recipeInput>Potash                                 0.0    1248.0
+   Ash:>=18:source:hearthAsh                                        0.0    1248.7
+   Ash:none:sink:recipeInput>Potash                                 0.0     204.4
+   Ash:none:source:hearthAsh                                        0.0     265.2
+   Barilla:14-18:sink:recipeInput>Castile Soap                      5.5      29.5
+   Barilla:14-18:sink:recipeInput>Glass                            13.6       5.8
+   Barilla:14-18:source:burgCraft                                  51.7      45.2
+   Barilla:14-18:source:ruralHarvest                               39.0      39.0
+   Castile Soap:14-18:sink:characterLuxury                          2.2       0.0
+   Castile Soap:14-18:sink:householdFood                            0.0     114.5
+   Castile Soap:14-18:source:burgCraft                             15.2     114.5
+   Oil:14-18:sink:recipeInput>Candles                              21.6       0.0
+   Oil:14-18:sink:recipeInput>Castile Soap                          7.0      62.2
+   Oil:14-18:source:burgCraft                                      62.2      59.7
+   Oil:8-14:sink:exportDeparture                                    0.0       0.9
+   Oil:8-14:sink:recipeInput>Candles                               38.1       0.0
+   Oil:8-14:source:burgCraft                                       59.3       5.0
+   Oil:8-14:source:importArrival                                    0.3       0.9
+   Oil:<8:source:burgCraft                                         25.9       1.9
+   Oil:>=18:sink:recipeInput>Candles                              109.0       0.0
+   Oil:>=18:source:burgCraft                                      107.0       0.0
+   Oil:none:source:burgCraft                                        4.0       0.0
+   Potash:14-18:sink:exportDeparture                                1.3       2.5
+   Potash:14-18:sink:marketInvestment                               9.2      10.9
+   Potash:14-18:sink:recipeInput>Glass                             11.2      12.0
+   Potash:14-18:sink:recipeInput>Soap                               9.1     182.3
+   Potash:14-18:source:burgCraft                                   31.1     210.6
+   Potash:14-18:source:importArrival                                0.9       0.8
+   Potash:8-14:sink:exportDeparture                                 1.1       3.1
+   Potash:8-14:sink:marketInvestment                               13.0      26.7
+   Potash:8-14:sink:recipeInput>Glass                              25.9      15.8
+   Potash:8-14:sink:recipeInput>Soap                                8.8     443.2
+   Potash:8-14:source:burgCraft                                    55.2     474.6
+   Potash:8-14:source:importArrival                                 1.8      25.1
+   Potash:<8:sink:marketInvestment                                  6.7       8.5
+   Potash:<8:sink:recipeInput>Glass                                 5.5       3.7
+   Potash:<8:sink:recipeInput>Soap                                  0.7     105.5
+   Potash:<8:source:burgCraft                                       9.0     121.6
+   Potash:>=18:sink:marketInvestment                                0.0       1.0
+   Potash:>=18:sink:recipeInput>Glass                               0.0       1.4
+   Potash:>=18:sink:recipeInput>Soap                                0.0      36.0
+   Potash:>=18:source:burgCraft                                     0.0      38.2
+   Potash:>=18:source:importArrival                                 0.0       0.7
+   Potash:none:sink:recipeInput>Soap                                0.0       7.1
+   Potash:none:source:burgCraft                                     0.0       8.2
+   Soap:14-18:sink:exportDeparture                                  6.2       0.0
+   Soap:14-18:sink:householdFood                                    0.0     727.7
+   Soap:14-18:sink:luxuryPurchase                                  32.1       0.0
+   Soap:14-18:source:burgCraft                                     35.2     727.7
+   Soap:14-18:source:importArrival                                  3.1       0.0
+   Soap:14-18:source:navyImport                                    22.5       0.0
+   Soap:8-14:sink:exportDeparture                                  14.0       0.0
+   Soap:8-14:sink:householdFood                                     0.0    1931.0
+   Soap:8-14:sink:luxuryPurchase                                   12.8       0.0
+   Soap:8-14:source:burgCraft                                      47.6    1931.0
+   Soap:8-14:source:importArrival                                  11.9       0.0
+   Soap:8-14:source:navyImport                                     20.5       0.0
+   Soap:<8:sink:exportDeparture                                     1.9       0.0
+   Soap:<8:sink:householdFood                                       0.0     458.8
+   Soap:<8:source:burgCraft                                         4.7     458.8
+   Soap:<8:source:importArrival                                     4.1       0.0
+   Soap:<8:source:navyImport                                        9.7       0.0
+   Soap:>=18:sink:householdFood                                     0.0     176.5
+   Soap:>=18:source:burgCraft                                       0.0     176.5
+   Soap:>=18:source:navyImport                                      2.1       0.0
+   Soap:none:sink:householdFood                                     0.0      26.2
+   Soap:none:sink:luxuryPurchase                                    1.0       0.0
+   Soap:none:source:burgCraft                                       0.0      26.2
+   Soap:none:source:importArrival                                   4.7       0.0
+ -- soap run by month: households took (soft, white), hearth ash bought, potash made
+   month  1  soft     0.0  white    0.0  ash      36  potash    1.0
+   month  2  soft     4.8  white    0.0  ash     144  potash    3.0
+   month  3  soft    16.9  white    0.0  ash     393  potash    8.5
+   month  4  soft     2.1  white    0.0  ash     150  potash    3.3
+   month  5  soft    12.0  white    1.0  ash      95  potash    2.5
+   month  6  soft    36.0  white    4.1  ash     423  potash   10.3
+   month  7  soft    50.9  white    1.6  ash     837  potash   17.8
+   month  8  soft   126.9  white    6.9  ash    1312  potash   27.1
+   month  9  soft   155.3  white   11.2  ash    2449  potash   45.9
+   month 10  soft   215.1  white   11.7  ash    2741  potash   47.5
+   month 11  soft   191.1  white    8.8  ash    1805  potash   43.2
+   month 12  soft   236.5  white    5.5  ash    3657  potash   82.0
+   month 13  soft   272.3  white   12.9  ash    2651  potash   66.6
+   month 14  soft   318.0  white    9.9  ash    3088  potash   86.4
+   month 15  soft   357.7  white   12.3  ash    2857  potash   76.9
+   month 16  soft   225.9  white    5.3  ash    1108  potash   55.2
+   month 17  soft   205.1  white    7.3  ash    1275  potash   44.7
+   month 18  soft   177.1  white   13.7  ash    1348  potash   57.6
+   month 19  soft   202.8  white   10.8  ash    1518  potash   61.9
+   month 20  soft   290.4  white    9.8  ash    1883  potash   69.8
+   month 21  soft   362.3  white   11.2  ash    2784  potash   72.6
+   month 22  soft   358.4  white    9.8  ash    2223  potash   81.9
+   month 23  soft   272.4  white    6.3  ash    2245  potash   72.4
+   month 24  soft   277.8  white    5.2  ash    3828  potash  107.2
+ -- base month 24 stock (price): Soap 268 (3.01), Castile Soap 46 (6.76), Barilla 145 (0.11), Oil 126 (3.05), Tallow 860781 (3.05), Potash 20 (0.94)
+ -- soap month 24 stock (price): Soap 0, Castile Soap 0, Barilla 112 (0.11), Oil 11 (4.60), Tallow 860223 (3.11), Potash 55 (0.90), Ash 8615 (0.01)
+== seed 2103
+ -- months 1-12:      base      soap
+   Ash:14-18:sink:recipeInput>Potash                                0.0    1182.8
+   Ash:14-18:source:burgCraft                                       0.0       3.9
+   Ash:14-18:source:hearthAsh                                       0.0    1939.7
+   Ash:8-14:sink:recipeInput>Potash                                 0.0    4700.7
+   Ash:8-14:source:burgCraft                                        0.0       9.8
+   Ash:8-14:source:hearthAsh                                        0.0    7214.2
+   Ash:8-14:source:importArrival                                    0.0      12.4
+   Ash:<8:sink:recipeInput>Potash                                   0.0     300.1
+   Ash:<8:source:hearthAsh                                          0.0     417.7
+   Barilla:14-18:sink:exportDeparture                               1.2      11.8
+   Barilla:14-18:sink:recipeInput>Castile Soap                      1.7       1.5
+   Barilla:14-18:sink:recipeInput>Glass                             5.9       5.2
+   Barilla:14-18:source:ruralHarvest                               22.6      22.6
+   Barilla:8-14:sink:recipeInput>Castile Soap                       6.0      18.8
+   Barilla:8-14:sink:recipeInput>Glass                              2.1       1.5
+   Barilla:8-14:source:importArrival                                1.4      13.6
+   Barilla:8-14:source:ruralHarvest                                 6.9       6.9
+   Castile Soap:14-18:sink:householdFood                            0.0       4.0
+   Castile Soap:14-18:source:burgCraft                              4.5       4.0
+   Castile Soap:14-18:source:navyImport                             2.3       0.0
+   Castile Soap:8-14:sink:characterLuxury                           1.2       0.0
+   Castile Soap:8-14:sink:exportDeparture                           1.2       0.0
+   Castile Soap:8-14:sink:householdFood                             0.0      50.9
+   Castile Soap:8-14:source:burgCraft                              16.1      50.9
+   Castile Soap:8-14:source:importArrival                           0.5       0.0
+   Castile Soap:8-14:source:navyImport                              4.2       0.0
+   Oil:14-18:sink:recipeInput>Castile Soap                          0.0       2.6
+   Oil:14-18:source:burgCraft                                       1.1       4.0
+   Oil:8-14:sink:recipeInput>Candles                                5.4       0.0
+   Oil:8-14:sink:recipeInput>Castile Soap                           5.1      25.5
+   Oil:8-14:source:burgCraft                                       43.1      29.5
+   Oil:8-14:source:importArrival                                    0.0       2.8
+   Oil:<8:source:burgCraft                                          6.2       0.0
+   Potash:14-18:sink:exportDeparture                                0.0       1.2
+   Potash:14-18:sink:marketInvestment                               0.9       4.0
+   Potash:14-18:sink:recipeInput>Glass                              2.3       2.5
+   Potash:14-18:sink:recipeInput>Soap                               2.2      30.2
+   Potash:14-18:source:burgCraft                                    9.1      42.9
+   Potash:14-18:source:importArrival                                0.0       0.6
+   Potash:8-14:sink:exportDeparture                                 1.0       1.9
+   Potash:8-14:sink:marketInvestment                                8.7      12.1
+   Potash:8-14:sink:recipeInput>Glass                              10.3       7.1
+   Potash:8-14:sink:recipeInput>Soap                                9.8     102.4
+   Potash:8-14:source:burgCraft                                    35.4     137.6
+   Potash:8-14:source:importArrival                                 1.2       3.0
+   Potash:<8:sink:marketInvestment                                  2.5       1.1
+   Potash:<8:sink:recipeInput>Glass                                 2.6       2.2
+   Potash:<8:sink:recipeInput>Soap                                  0.1       9.2
+   Potash:<8:source:burgCraft                                       7.9      12.5
+   Soap:14-18:sink:exportDeparture                                  0.9       0.0
+   Soap:14-18:sink:householdFood                                    0.0     126.0
+   Soap:14-18:sink:luxuryPurchase                                   4.2       0.0
+   Soap:14-18:source:burgCraft                                      7.7     126.0
+   Soap:14-18:source:navyImport                                    34.4       0.0
+   Soap:8-14:sink:characterLuxury                                   6.4       0.0
+   Soap:8-14:sink:exportDeparture                                  11.0       0.0
+   Soap:8-14:sink:householdFood                                     0.0     535.3
+   Soap:8-14:sink:luxuryPurchase                                   13.1       0.0
+   Soap:8-14:source:burgCraft                                      41.9     535.3
+   Soap:8-14:source:importArrival                                  10.3       0.0
+   Soap:8-14:source:navyImport                                     60.7       0.0
+   Soap:<8:sink:householdFood                                       0.0      30.8
+   Soap:<8:source:burgCraft                                         0.2      30.8
+   Soap:<8:source:importArrival                                     1.4       0.0
+ -- months 13-24:      base      soap
+   Ash:14-18:sink:recipeInput>Potash                                0.0    3309.1
+   Ash:14-18:source:hearthAsh                                       0.0    3626.8
+   Ash:8-14:sink:recipeInput>Potash                                 0.0   11870.7
+   Ash:8-14:source:hearthAsh                                        0.0   12842.2
+   Ash:8-14:source:importArrival                                    0.0      13.4
+   Ash:<8:sink:recipeInput>Potash                                   0.0     528.0
+   Ash:<8:source:hearthAsh                                          0.0     539.3
+   Barilla:14-18:sink:exportDeparture                               0.1      12.1
+   Barilla:14-18:sink:recipeInput>Castile Soap                      0.4       1.6
+   Barilla:14-18:sink:recipeInput>Glass                            24.3       8.0
+   Barilla:14-18:source:ruralHarvest                               22.7      22.7
+   Barilla:8-14:sink:recipeInput>Castile Soap                       5.6      10.2
+   Barilla:8-14:sink:recipeInput>Glass                              0.3       1.4
+   Barilla:8-14:source:importArrival                                0.1      12.1
+   Barilla:8-14:source:ruralHarvest                                 6.9       6.9
+   Castile Soap:14-18:sink:householdFood                            0.0       4.4
+   Castile Soap:14-18:source:burgCraft                              1.1       4.4
+   Castile Soap:14-18:source:importArrival                          0.8       0.0
+   Castile Soap:8-14:sink:characterLuxury                           1.5       0.0
+   Castile Soap:8-14:sink:exportDeparture                           4.0       0.0
+   Castile Soap:8-14:sink:householdFood                             0.0      28.7
+   Castile Soap:8-14:source:burgCraft                              15.5      28.7
+   Castile Soap:8-14:source:importArrival                           3.3       0.0
+   Castile Soap:<8:source:importArrival                             0.6       0.0
+   Oil:14-18:sink:recipeInput>Candles                              14.5      12.2
+   Oil:14-18:sink:recipeInput>Castile Soap                          0.7       2.7
+   Oil:14-18:source:burgCraft                                      23.0      15.0
+   Oil:8-14:sink:exportDeparture                                    7.3       1.5
+   Oil:8-14:sink:recipeInput>Candles                               40.2       0.0
+   Oil:8-14:sink:recipeInput>Castile Soap                           5.0      13.8
+   Oil:8-14:source:burgCraft                                       59.1      29.1
+   Oil:8-14:source:importArrival                                    7.3       1.7
+   Oil:<8:source:burgCraft                                          0.0       2.0
+   Potash:14-18:sink:exportDeparture                                0.0       1.0
+   Potash:14-18:sink:marketInvestment                               3.1       8.9
+   Potash:14-18:sink:recipeInput>Glass                              9.0       7.9
+   Potash:14-18:sink:recipeInput>Soap                               0.6      93.8
+   Potash:14-18:source:burgCraft                                   10.4     109.0
+   Potash:14-18:source:importArrival                                0.3       1.9
+   Potash:8-14:sink:exportDeparture                                 5.5       4.0
+   Potash:8-14:sink:marketInvestment                               10.0      19.8
+   Potash:8-14:sink:recipeInput>Glass                              22.8      22.8
+   Potash:8-14:sink:recipeInput>Soap                                4.2     339.1
+   Potash:8-14:source:burgCraft                                    47.0     385.3
+   Potash:8-14:source:importArrival                                 5.8       6.3
+   Potash:<8:sink:marketInvestment                                  0.7       3.0
+   Potash:<8:sink:recipeInput>Glass                                 4.0       2.4
+   Potash:<8:sink:recipeInput>Soap                                  0.0      15.8
+   Potash:<8:source:burgCraft                                       5.4      21.9
+   Soap:14-18:sink:exportDeparture                                  1.5       0.0
+   Soap:14-18:sink:householdFood                                    0.0     435.0
+   Soap:14-18:sink:luxuryPurchase                                   5.6       0.0
+   Soap:14-18:source:burgCraft                                      2.1     435.0
+   Soap:14-18:source:navyImport                                    10.9       0.0
+   Soap:8-14:sink:characterLuxury                                   1.8       0.0
+   Soap:8-14:sink:exportDeparture                                  14.6       0.0
+   Soap:8-14:sink:householdFood                                     0.0    1573.1
+   Soap:8-14:sink:luxuryPurchase                                   11.4       0.0
+   Soap:8-14:source:burgCraft                                      26.0    1573.1
+   Soap:8-14:source:importArrival                                  14.1       0.0
+   Soap:8-14:source:navyImport                                      5.8       0.0
+   Soap:<8:sink:householdFood                                       0.0      55.0
+   Soap:<8:source:burgCraft                                         0.0      55.0
+ -- soap run by month: households took (soft, white), hearth ash bought, potash made
+   month  1  soft     0.0  white    0.0  ash      36  potash    1.0
+   month  2  soft     1.5  white    0.0  ash     108  potash    2.5
+   month  3  soft     4.8  white    0.0  ash     108  potash    3.0
+   month  4  soft     4.5  white    0.0  ash     234  potash    2.5
+   month  5  soft    13.1  white    1.0  ash     273  potash    4.6
+   month  6  soft    14.4  white    7.7  ash     293  potash    5.8
+   month  7  soft    51.5  white   16.2  ash     554  potash   10.3
+   month  8  soft    73.7  white    5.1  ash     890  potash   16.3
+   month  9  soft   111.4  white    9.7  ash    1265  potash   21.1
+   month 10  soft   148.6  white   11.3  ash    2186  potash   40.9
+   month 11  soft   131.8  white    2.0  ash    1392  potash   34.5
+   month 12  soft   136.8  white    1.8  ash    2232  potash   50.3
+   month 13  soft   159.8  white    1.1  ash    1459  potash   40.0
+   month 14  soft   199.3  white    1.6  ash    1990  potash   48.3
+   month 15  soft   227.4  white    1.5  ash    2081  potash   51.5
+   month 16  soft   169.2  white    1.1  ash     828  potash   31.8
+   month 17  soft   137.5  white    1.1  ash    1337  potash   38.2
+   month 18  soft   150.5  white    3.4  ash     939  potash   33.6
+   month 19  soft   108.6  white    0.9  ash     904  potash   36.1
+   month 20  soft   162.3  white    2.6  ash     704  potash   32.3
+   month 21  soft   202.1  white    2.8  ash    1797  potash   54.0
+   month 22  soft   189.1  white    5.2  ash    1477  potash   41.4
+   month 23  soft   183.4  white    3.7  ash    1568  potash   46.3
+   month 24  soft   173.9  white    8.1  ash    1923  potash   62.6
+ -- base month 24 stock (price): Soap 146 (3.21), Castile Soap 41 (9.67), Barilla 13 (0.16), Oil 62 (3.43), Tallow 439606 (3.38), Potash 22 (0.87)
+ -- soap month 24 stock (price): Soap 0, Castile Soap 0, Barilla 13 (0.15), Oil 26 (2.98), Tallow 439159 (3.40), Potash 29 (0.98), Ash 5401 (0.01)

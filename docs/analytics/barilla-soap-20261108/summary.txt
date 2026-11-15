@@ -1,0 +1,338 @@
+== seed 2102  markets {'>=18': 2, '8-14': 23, '14-18': 15, '<8': 10}  Barilla cells {'14-18': 3}
+ -- months 1-12:      base   soapfix       new      dfix
+   Barilla:14-18:sink:recipeInput>Glass                      10.4      10.4      10.4      10.4
+   Barilla:14-18:source:burgCraft                            54.1      54.1      54.1      54.1
+   Barilla:14-18:source:ruralHarvest                         38.8      38.8      38.8      38.8
+   Oil:14-18:source:burgCraft                                29.0      27.0      26.3      26.3
+   Oil:8-14:sink:recipeInput>Candles                          7.1       0.0       6.0       6.0
+   Oil:8-14:source:burgCraft                                 22.0      13.0      22.0      22.0
+   Oil:8-14:source:importArrival                              2.7       1.7       1.7       1.7
+   Oil:>=18:sink:exportDeparture                              2.7       1.7       1.7       1.7
+   Oil:>=18:sink:recipeInput>Candles                          5.3      10.3      10.3      10.3
+   Oil:>=18:source:burgCraft                                 22.0      23.0      23.0      23.0
+   Olives:14-18:sink:recipeInput>Oil                         29.0      27.0      27.0      27.0
+   Olives:14-18:sink:recipeInput>Perfume                    207.5     209.5     209.5     212.5
+   Olives:14-18:sink:recipeInput>Soap                        11.0       5.3       9.0       9.0
+   Olives:14-18:source:ruralHarvest                        3241.5    3241.5    3241.5    3241.5
+   Olives:8-14:sink:recipeInput>Oil                          22.0      13.0      22.0      22.0
+   Olives:8-14:sink:recipeInput>Perfume                      40.0      40.2      40.2      40.2
+   Olives:8-14:sink:recipeInput>Soap                          6.4       3.1       3.3       3.3
+   Olives:8-14:source:ruralHarvest                          951.5     951.5     951.5     951.5
+   Olives:<8:sink:recipeInput>Perfume                         0.4       0.6       0.6       0.6
+   Olives:<8:source:ruralHarvest                            134.0     134.0     134.0     134.0
+   Olives:>=18:sink:recipeInput>Oil                          22.0      23.0      23.0      23.0
+   Olives:>=18:sink:recipeInput>Perfume                      26.0      29.0      29.0      29.0
+   Olives:>=18:source:ruralHarvest                          106.4     106.4     106.4     106.4
+   Potash:14-18:sink:marketInvestment                         4.6       3.2       2.1       2.9
+   Potash:14-18:sink:recipeInput>Glass                        2.1       2.0       2.0       2.5
+   Potash:14-18:sink:recipeInput>Soap                         2.6       1.9       2.7       2.7
+   Potash:14-18:source:burgCraft                             18.2      13.6      12.3      13.3
+   Potash:14-18:source:importArrival                          0.2       0.0       0.0       0.6
+   Potash:8-14:sink:marketInvestment                         11.0       3.0       5.5       5.4
+   Potash:8-14:sink:recipeInput>Glass                         5.0       3.2       3.3       3.1
+   Potash:8-14:sink:recipeInput>Soap                         45.3       7.5       8.0       7.1
+   Potash:8-14:source:burgCraft                              69.8      19.5      22.9      21.1
+   Potash:<8:sink:marketInvestment                            2.4       2.0       2.0       2.0
+   Potash:<8:sink:recipeInput>Soap                            8.0       1.6       1.6       1.6
+   Potash:<8:source:burgCraft                                13.9       7.7       7.7       7.7
+   Potash:>=18:sink:marketInvestment                          3.9       1.5       0.6       0.6
+   Potash:>=18:sink:recipeInput>Glass                         1.3       0.5       0.5       0.5
+   Potash:>=18:sink:recipeInput>Soap                          8.2       0.3       0.3       0.3
+   Potash:>=18:source:burgCraft                              15.6       2.3       1.4       1.4
+   Soap:14-18:sink:characterLuxury                            0.8       0.0       0.4       0.4
+   Soap:14-18:sink:exportDeparture                            0.8       1.1       1.1       1.1
+   Soap:14-18:sink:luxuryPurchase                             9.6      19.0      18.1      17.5
+   Soap:14-18:source:burgCraft                               20.4       7.5      12.4      12.4
+   Soap:14-18:source:importArrival                            0.0       1.3       1.4       1.4
+   Soap:14-18:source:navyImport                              32.1      43.4      41.7      41.3
+   Soap:8-14:sink:characterLuxury                            12.7       2.2       2.1       0.4
+   Soap:8-14:sink:exportDeparture                             2.6       2.7       2.8       2.7
+   Soap:8-14:source:burgCraft                               201.7      49.5      48.5      45.6
+   Soap:8-14:source:importArrival                             1.0       1.1       1.2       1.1
+   Soap:8-14:source:navyImport                               32.5      43.4      42.6      42.6
+   Soap:<8:sink:characterLuxury                               3.1       1.8       1.8       1.8
+   Soap:<8:sink:exportDeparture                               1.2       3.4       3.3       3.3
+   Soap:<8:sink:luxuryPurchase                                0.0       1.6       1.6       1.6
+   Soap:<8:source:burgCraft                                  50.6      19.3      19.3      19.3
+   Soap:<8:source:importArrival                               1.4       3.4       3.3       3.3
+   Soap:<8:source:navyImport                                 14.0      18.6      18.3      18.3
+   Soap:>=18:sink:characterLuxury                             3.6       1.6       2.4       2.4
+   Soap:>=18:source:burgCraft                                37.4       9.4      12.5      12.5
+   Soap:>=18:source:navyImport                                6.5       7.6       7.5       7.5
+   Tallow:14-18:sink:navyExport                             677.8     691.2     690.2     690.5
+   Tallow:14-18:sink:recipeInput>Candles                   4530.2    4531.8    4531.8    4531.4
+   Tallow:14-18:source:burgCraft                         101411.8  101412.6  101412.6  101412.6
+   Tallow:14-18:source:importArrival                         28.9      32.4      32.4      32.4
+   Tallow:8-14:sink:navyExport                             1607.3    1615.0    1614.2    1613.3
+   Tallow:8-14:sink:recipeInput>Candles                    6677.3    6676.1    6670.6    6685.9
+   Tallow:8-14:sink:recipeInput>Soap                         15.0      10.1      10.1       5.0
+   Tallow:8-14:source:burgCraft                          166445.5  166462.0  166462.1  166461.9
+   Tallow:8-14:source:importArrival                         255.7     246.4     246.4     246.4
+   Tallow:<8:sink:navyExport                                544.6     551.9     551.6     551.1
+   Tallow:<8:sink:recipeInput>Candles                      2217.8    2217.8    2217.8    2217.8
+   Tallow:<8:sink:recipeInput>Soap                           15.3       6.7       6.7       6.7
+   Tallow:<8:source:burgCraft                             66866.7   66869.2   66869.2   66869.2
+   Tallow:<8:source:importArrival                            24.7      24.7      24.7      24.7
+   Tallow:>=18:sink:navyExport                              177.5     177.6     177.7     178.9
+   Tallow:>=18:sink:recipeInput>Candles                     885.1     879.4     879.4     879.6
+   Tallow:>=18:source:burgCraft                           14456.3   14459.5   14459.2   14459.2
+   Tallow:none:source:burgCraft                            1588.0    1588.0    1588.0    1588.0
+ -- months 13-24:      base   soapfix       new      dfix
+   Barilla:14-18:sink:recipeInput>Glass                      15.1      15.8      15.2      15.6
+   Barilla:14-18:sink:recipeInput>Soap                        0.0       0.0       1.1       2.1
+   Barilla:14-18:source:burgCraft                            51.3      51.3      51.3      51.5
+   Barilla:14-18:source:ruralHarvest                         39.0      39.0      39.0      39.0
+   Oil:14-18:sink:recipeInput>Candles                        20.3      26.6      27.0      29.9
+   Oil:14-18:sink:recipeInput>Soap                            0.0       0.0       0.0       1.0
+   Oil:14-18:source:burgCraft                                43.8      61.0      44.9      58.2
+   Oil:8-14:sink:exportDeparture                              0.5       0.5       0.5       0.5
+   Oil:8-14:sink:recipeInput>Candles                         34.9      43.1      40.2      41.4
+   Oil:8-14:source:burgCraft                                 51.2      58.2      55.2      54.2
+   Oil:8-14:source:importArrival                              0.8       0.8       0.8       0.8
+   Oil:<8:source:burgCraft                                   25.9      29.0      29.0      30.0
+   Oil:>=18:sink:recipeInput>Candles                         96.0     108.0     115.0      94.0
+   Oil:>=18:source:burgCraft                                 85.0     106.0     112.0      91.0
+   Oil:none:source:burgCraft                                  3.0       3.0       3.0       3.0
+   Olives:14-18:sink:recipeInput>Oil                         43.8      61.0      46.8      60.8
+   Olives:14-18:sink:recipeInput>Perfume                    336.1     314.6     306.1     313.1
+   Olives:14-18:sink:recipeInput>Soap                        41.2      32.3      32.9      33.9
+   Olives:14-18:source:ruralHarvest                        3371.7    3141.7    3141.7    3141.7
+   Olives:8-14:sink:recipeInput>Oil                          51.2      58.2      55.2      54.2
+   Olives:8-14:sink:recipeInput>Perfume                      48.4      48.0      49.6      46.3
+   Olives:8-14:sink:recipeInput>Soap                          3.3       7.2       4.0       5.0
+   Olives:8-14:source:importArrival                           1.0       1.0       1.0       1.0
+   Olives:8-14:source:ruralHarvest                          698.8     698.8     698.8     698.8
+   Olives:<8:sink:recipeInput>Oil                             2.0       3.0       2.0       2.0
+   Olives:<8:sink:recipeInput>Perfume                         1.9       0.0       0.0       1.0
+   Olives:<8:sink:recipeInput>Soap                            0.0       1.0       2.0       2.0
+   Olives:<8:source:ruralHarvest                             91.9      91.9      91.9      91.9
+   Olives:>=18:sink:recipeInput>Oil                          85.0     106.0     112.0      91.0
+   Olives:>=18:sink:recipeInput>Perfume                      31.0      26.0      28.0      25.0
+   Olives:>=18:source:ruralHarvest                          106.4     106.4     106.4     106.4
+   Olives:none:sink:recipeInput>Oil                           3.0       3.0       3.0       3.0
+   Olives:none:source:ruralHarvest                          107.9     104.0     104.0     104.0
+   Potash:14-18:sink:exportDeparture                          0.0       1.1       1.1       1.9
+   Potash:14-18:sink:marketInvestment                        11.6      11.2      13.5      10.4
+   Potash:14-18:sink:recipeInput>Glass                       10.9      11.9      11.7      12.2
+   Potash:14-18:sink:recipeInput>Soap                        16.9      13.1      14.1      14.5
+   Potash:14-18:source:burgCraft                             39.6      41.9      37.7      42.2
+   Potash:14-18:source:importArrival                          0.2       0.7       0.7       0.9
+   Potash:8-14:sink:exportDeparture                           0.7       1.3       1.2       0.6
+   Potash:8-14:sink:marketInvestment                         16.8      18.0      17.7      16.5
+   Potash:8-14:sink:recipeInput>Glass                        26.5      27.0      26.6      22.7
+   Potash:8-14:sink:recipeInput>Soap                         47.8      13.5      11.7      13.7
+   Potash:8-14:source:burgCraft                             107.7      63.6      62.8      59.3
+   Potash:8-14:source:importArrival                           2.6       2.1       2.6       2.2
+   Potash:<8:sink:marketInvestment                            9.0       6.6       7.3       7.6
+   Potash:<8:sink:recipeInput>Glass                           6.4       5.5       5.6       5.4
+   Potash:<8:sink:recipeInput>Soap                           16.7       1.3       2.1       1.8
+   Potash:<8:source:burgCraft                                30.9       9.0      10.7      10.7
+   Potash:>=18:sink:marketInvestment                          2.5       0.0       1.0       0.0
+   Potash:>=18:sink:recipeInput>Glass                         1.1       0.0       0.0       0.0
+   Potash:>=18:sink:recipeInput>Soap                          2.4       0.0       0.0       0.0
+   Potash:>=18:source:burgCraft                               4.0       0.0       1.0       0.0
+   Soap:14-18:sink:characterLuxury                            1.9       1.5       2.0       2.2
+   Soap:14-18:sink:exportDeparture                            9.8       2.6       5.3       5.1
+   Soap:14-18:sink:luxuryPurchase                            25.0      42.4      43.5      45.1
+   Soap:14-18:source:burgCraft                               70.7      47.9      57.1      61.2
+   Soap:14-18:source:importArrival                            6.3       0.3       0.4       1.5
+   Soap:14-18:source:navyImport                               3.0      21.7      20.0      19.4
+   Soap:8-14:sink:characterLuxury                            38.6       0.0       0.0       0.4
+   Soap:8-14:sink:exportDeparture                             4.9      17.9      18.9      20.0
+   Soap:8-14:sink:luxuryPurchase                              3.3       8.5       6.0       5.7
+   Soap:8-14:source:burgCraft                               198.8      59.0      51.2      51.7
+   Soap:8-14:source:importArrival                            10.6       8.2      12.6      14.1
+   Soap:8-14:source:navyImport                                5.3      16.1      14.1      13.0
+   Soap:<8:sink:characterLuxury                              11.9       0.0       0.0       0.0
+   Soap:<8:sink:exportDeparture                               0.6       0.5       1.6       1.5
+   Soap:<8:source:burgCraft                                  72.3       4.5       7.3       6.2
+   Soap:<8:source:importArrival                               2.8       5.5       5.1       3.5
+   Soap:<8:source:navyImport                                  4.5      10.4       9.8       9.8
+   Soap:>=18:sink:characterLuxury                             2.7       0.0       0.0       0.0
+   Soap:>=18:sink:exportDeparture                             5.8       0.0       0.0       0.0
+   Soap:>=18:source:burgCraft                                 8.6       0.0       0.0       0.0
+   Soap:>=18:source:navyImport                                0.0       2.5       2.4       2.4
+   Soap:none:sink:luxuryPurchase                              0.0       4.6       4.4       4.4
+   Soap:none:source:importArrival                             3.7       8.3       8.1       8.1
+   Tallow:14-18:sink:navyExport                             538.8     533.0     532.9     562.3
+   Tallow:14-18:sink:recipeInput>Candles                   3796.0    3765.6    3786.5    3809.1
+   Tallow:14-18:sink:recipeInput>Soap                         3.3       3.4       3.4       3.4
+   Tallow:14-18:source:burgCraft                         135266.1  135267.1  135266.8  135266.3
+   Tallow:14-18:source:importArrival                          6.9      12.3      12.3      11.5
+   Tallow:8-14:sink:navyExport                             1005.6     979.1     975.8     976.1
+   Tallow:8-14:sink:recipeInput>Candles                    5047.7    5056.8    5066.4    5026.9
+   Tallow:8-14:sink:recipeInput>Soap                          3.9       3.0       3.0       7.6
+   Tallow:8-14:source:burgCraft                          221625.6  221638.7  221638.3  221639.6
+   Tallow:8-14:source:importArrival                         238.5     217.7     230.5     207.1
+   Tallow:<8:sink:navyExport                                695.8     693.8     693.2     696.3
+   Tallow:<8:sink:recipeInput>Candles                      1794.7    1802.1    1802.4    1801.3
+   Tallow:<8:sink:recipeInput>Soap                            3.3       0.0       0.0       0.0
+   Tallow:<8:source:burgCraft                            106764.9  106772.4  106772.3  106772.3
+   Tallow:<8:source:importArrival                            18.8      19.7      19.7      19.7
+   Tallow:>=18:sink:navyExport                              147.0     155.3     157.0     164.2
+   Tallow:>=18:sink:recipeInput>Candles                     440.1     426.2     420.2     445.0
+   Tallow:>=18:source:burgCraft                           19145.4   19146.4   19146.4   19146.4
+   Tallow:none:sink:recipeInput>Candles                     179.6     178.1     178.1     178.1
+   Tallow:none:source:burgCraft                           14786.5   14787.2   14787.1   14787.0
+ -- Soap price (stock value / stock) by band, months 1, 12, 24
+   month  1  <8 7.10/6.52/6.57/6.58  8-14 6.74/6.23/6.28/6.29  14-18 5.52/5.11/5.16/5.16  >=18 7.04/6.46/6.51/6.52
+   month 12  <8 6.52/4.58/4.66/4.67  8-14 5.84/3.70/3.76/3.87  14-18 4.02/3.13/3.36/3.36  >=18 4.94/4.15/4.02/4.03
+   month 24  <8 5.03/3.58/3.59/3.65  8-14 3.88/2.82/2.91/2.87  14-18 3.06/2.65/2.67/2.63  >=18 3.84/2.96/2.76/2.77
+ -- Oil price (stock value / stock) by band, months 1, 12, 24
+   month  1  <8 -/-/-/-  8-14 -/-/-/-  14-18 -/-/-/-  >=18 -/-/-/-
+   month 12  <8 -/-/-/-  8-14 4.35/4.14/4.34/4.34  14-18 3.19/3.22/3.25/3.25  >=18 4.68/4.96/4.96/4.96
+   month 24  <8 3.42/3.38/3.34/3.33  8-14 3.05/2.92/2.77/2.80  14-18 2.88/2.73/2.78/2.80  >=18 3.86/3.76/3.81/3.46
+ -- Barilla price (stock value / stock) by band, months 1, 12, 24
+   month  1  <8 -/-/-/-  8-14 -/-/-/-  14-18 0.36/0.36/0.36/0.36  >=18 -/-/-/-
+   month 12  <8 -/-/-/-  8-14 -/-/-/-  14-18 0.11/0.11/0.11/0.11  >=18 -/-/-/-
+   month 24  <8 -/-/-/-  8-14 -/-/-/-  14-18 0.11/0.11/0.11/0.11  >=18 -/-/-/-
+ -- Potash price (stock value / stock) by band, months 1, 12, 24
+   month  1  <8 -/-/-/-  8-14 -/-/-/-  14-18 -/-/-/-  >=18 -/-/-/-
+   month 12  <8 0.96/0.96/0.96/0.97  8-14 1.01/1.11/1.05/1.10  14-18 0.98/1.06/1.13/1.14  >=18 1.06/-/-/-
+   month 24  <8 0.89/-/-/-  8-14 0.92/0.87/0.91/0.95  14-18 0.95/0.85/0.85/0.96  >=18 -/-/-/-
+ -- Soap stock at month 24: base >=18 40.4, 8-14 387.6, 14-18 84.8, <8 128.8, none 3.7; soapfix >=18 17.5, 8-14 146.0, 14-18 55.5, <8 54.4, none 3.8; new >=18 19.6, 8-14 140.4, 14-18 62.5, <8 54.9, none 3.8; dfix >=18 19.6, 8-14 138.8, 14-18 65.6, <8 52.2, none 3.8
+ -- Oil stock at month 24: base >=18 3.0, 8-14 34.1, 14-18 52.1, <8 25.9, none 3.0; soapfix >=18 9.0, 8-14 30.1, 14-18 61.1, <8 29.0, none 3.0; new >=18 8.0, 8-14 33.1, 14-18 43.9, <8 29.0, none 3.0; dfix >=18 8.0, 8-14 30.9, 14-18 53.4, <8 30.0, none 3.0
+ -- Barilla stock at month 24: base 14-18 157.9; soapfix 14-18 157.2; new 14-18 156.3; dfix 14-18 155.1
+== seed 2103  markets {'14-18': 7, '8-14': 19, '<8': 2}  Barilla cells {'8-14': 2, '14-18': 2}
+ -- months 1-12:      base   soapfix       new      dfix
+   Barilla:14-18:sink:exportDeparture                         5.8       5.8       5.8       5.8
+   Barilla:14-18:sink:recipeInput>Glass                       6.3       6.3       6.3       6.3
+   Barilla:14-18:source:importArrival                         1.1       1.1       1.1       1.1
+   Barilla:14-18:source:ruralHarvest                         22.6      22.6      22.6      22.6
+   Barilla:8-14:sink:exportDeparture                          0.9       0.9       0.9       0.9
+   Barilla:8-14:sink:recipeInput>Glass                        4.5       5.1       5.0       5.0
+   Barilla:8-14:sink:recipeInput>Soap                         0.0       0.0       1.9       1.9
+   Barilla:8-14:source:importArrival                          6.1       6.1       6.1       6.1
+   Barilla:8-14:source:ruralHarvest                           6.9       6.9       6.9       6.9
+   Oil:14-18:source:burgCraft                                 1.0       1.0       1.0       1.0
+   Oil:8-14:sink:recipeInput>Candles                          5.1       5.1       5.1       5.1
+   Oil:8-14:source:burgCraft                                 28.2      41.2      32.9      32.9
+   Oil:<8:source:burgCraft                                    4.6       4.6       4.6       4.6
+   Olives:14-18:sink:recipeInput>Oil                          1.0       1.0       1.0       1.0
+   Olives:14-18:sink:recipeInput>Perfume                     64.9      64.7      64.7      64.9
+   Olives:14-18:source:ruralHarvest                         291.6     291.6     291.6     291.6
+   Olives:8-14:sink:recipeInput>Oil                          28.2      41.2      36.2      36.2
+   Olives:8-14:sink:recipeInput>Perfume                      67.2      66.1      66.1      66.1
+   Olives:8-14:source:ruralHarvest                          667.3     667.3     667.3     667.3
+   Olives:<8:sink:recipeInput>Oil                             4.6       4.6       4.6       4.6
+   Olives:<8:source:ruralHarvest                             32.5      32.5      32.5      32.5
+   Potash:14-18:sink:marketInvestment                         1.2       0.8       0.8       0.8
+   Potash:14-18:sink:recipeInput>Glass                        3.1       2.8       2.8       2.8
+   Potash:14-18:sink:recipeInput>Soap                         7.1       0.6       0.6       0.6
+   Potash:14-18:source:burgCraft                             15.7       6.3       6.3       6.3
+   Potash:8-14:sink:exportDeparture                           0.5       1.0       0.8       0.9
+   Potash:8-14:sink:marketInvestment                         13.4       6.4       8.3       8.6
+   Potash:8-14:sink:recipeInput>Glass                         8.0      10.0      10.5      10.4
+   Potash:8-14:sink:recipeInput>Soap                         37.8       7.2       8.0       7.7
+   Potash:8-14:source:burgCraft                              74.3      28.9      32.0      32.0
+   Potash:8-14:source:importArrival                           0.7       1.3       1.2       1.2
+   Potash:<8:sink:marketInvestment                            2.5       2.5       2.5       2.5
+   Potash:<8:sink:recipeInput>Glass                           2.6       2.6       2.6       2.6
+   Potash:<8:source:burgCraft                                 7.9       7.9       7.9       7.9
+   Soap:14-18:sink:characterLuxury                            1.0       0.0       0.0       0.0
+   Soap:14-18:sink:exportDeparture                            0.4       0.9       0.8       0.8
+   Soap:14-18:sink:luxuryPurchase                             3.0       4.2       3.9       4.2
+   Soap:14-18:source:burgCraft                               37.5       2.0       2.0       2.0
+   Soap:14-18:source:navyImport                              28.6      34.3      33.7      33.9
+   Soap:8-14:sink:characterLuxury                            17.7       4.4       4.4       4.4
+   Soap:8-14:sink:exportDeparture                             4.0      12.7      10.5      10.7
+   Soap:8-14:sink:luxuryPurchase                              9.3      13.0      13.6      13.1
+   Soap:8-14:source:burgCraft                               166.8      55.9      60.1      60.1
+   Soap:8-14:source:importArrival                             3.6      11.1      10.6      10.8
+   Soap:8-14:source:navyImport                               48.4      60.3      58.8      58.6
+   Soap:<8:source:importArrival                               0.0       0.7       0.7       0.7
+   Tallow:14-18:sink:navyExport                             925.6     931.2     930.5     930.9
+   Tallow:14-18:sink:recipeInput>Candles                   2816.7    2818.1    2818.2    2815.6
+   Tallow:14-18:source:burgCraft                          50823.0   50827.1   50827.1   50827.1
+   Tallow:14-18:source:importArrival                         38.8      38.8      38.8      38.8
+   Tallow:8-14:sink:navyExport                             1424.5    1435.2    1433.5    1431.0
+   Tallow:8-14:sink:recipeInput>Candles                    6260.2    6256.1    6256.2    6254.5
+   Tallow:8-14:sink:recipeInput>Soap                          2.0       0.0       0.0       0.0
+   Tallow:8-14:source:burgCraft                          125340.1  125352.6  125352.7  125352.7
+   Tallow:8-14:source:importArrival                         135.6     142.1     150.3     142.1
+   Tallow:<8:sink:recipeInput>Candles                       328.7     328.7     328.7     328.7
+   Tallow:<8:source:burgCraft                              6305.9    6305.9    6305.9    6305.9
+ -- months 13-24:      base   soapfix       new      dfix
+   Barilla:14-18:sink:exportDeparture                         0.0       1.2       1.2       1.1
+   Barilla:14-18:sink:recipeInput>Glass                      20.3      20.8      18.3      24.8
+   Barilla:14-18:sink:recipeInput>Soap                        0.0       0.0       1.9       1.9
+   Barilla:14-18:source:ruralHarvest                         22.7      22.7      22.7      22.7
+   Barilla:8-14:sink:recipeInput>Glass                        3.8       3.4       3.4       3.5
+   Barilla:8-14:sink:recipeInput>Soap                         0.0       0.0       5.1       4.4
+   Barilla:8-14:source:importArrival                          0.0       1.2       1.2       1.1
+   Barilla:8-14:source:ruralHarvest                           6.9       6.9       6.9       6.9
+   Oil:14-18:sink:recipeInput>Candles                        24.1      36.5      16.1      19.9
+   Oil:14-18:source:burgCraft                                29.0      44.0      24.7      26.7
+   Oil:8-14:sink:exportDeparture                              4.3       6.7       8.1       9.1
+   Oil:8-14:sink:recipeInput>Candles                         42.7      46.9      23.4      23.4
+   Oil:8-14:sink:recipeInput>Soap                             0.0       0.0       1.7       1.7
+   Oil:8-14:source:burgCraft                                 61.8      62.5      49.5      51.6
+   Oil:8-14:source:importArrival                              4.3       6.7       8.1       9.1
+   Olives:14-18:sink:recipeInput>Oil                         29.0      44.0      28.0      30.0
+   Olives:14-18:sink:recipeInput>Perfume                     82.6      78.4      80.4      78.6
+   Olives:14-18:source:ruralHarvest                         254.9     254.9     254.9     254.9
+   Olives:8-14:sink:recipeInput>Oil                          61.8      62.5      56.5      57.5
+   Olives:8-14:sink:recipeInput>Perfume                     112.3     110.8     108.8     109.6
+   Olives:8-14:sink:recipeInput>Soap                         13.1       2.0       2.0       0.0
+   Olives:8-14:source:importArrival                           0.0       0.0       0.0       0.8
+   Olives:8-14:source:ruralHarvest                          577.3     577.3     577.3     577.3
+   Olives:<8:source:ruralHarvest                             29.4      29.4      29.4      29.4
+   Potash:14-18:sink:exportDeparture                          2.1       0.5       0.2       0.3
+   Potash:14-18:sink:marketInvestment                         5.3       1.2       1.9       0.1
+   Potash:14-18:sink:recipeInput>Glass                       10.3       7.9       6.7       6.2
+   Potash:14-18:sink:recipeInput>Soap                         6.0       3.6       4.8       3.0
+   Potash:14-18:source:burgCraft                             17.5      10.2      10.0       7.2
+   Potash:14-18:source:importArrival                          2.1       1.8       1.8       1.9
+   Potash:8-14:sink:exportDeparture                           2.9       2.4       3.1       5.2
+   Potash:8-14:sink:marketInvestment                         10.7       9.2       9.0       9.9
+   Potash:8-14:sink:recipeInput>Glass                        23.8      17.9      19.5      23.2
+   Potash:8-14:sink:recipeInput>Soap                         33.9       2.1       2.4       2.4
+   Potash:8-14:source:burgCraft                              65.4      31.9      42.0      40.6
+   Potash:8-14:source:importArrival                           3.8       1.9       2.2       4.6
+   Potash:<8:sink:marketInvestment                            1.8       1.8       1.8       1.8
+   Potash:<8:sink:recipeInput>Glass                           4.0       4.0       4.0       4.0
+   Potash:<8:source:burgCraft                                 7.0       7.0       7.0       7.0
+   Soap:14-18:sink:characterLuxury                            3.0       0.0       0.0       0.0
+   Soap:14-18:sink:exportDeparture                            2.6       3.9       5.8       0.2
+   Soap:14-18:sink:luxuryPurchase                             0.0       5.7       4.5       4.2
+   Soap:14-18:source:burgCraft                               21.6      12.7      22.2      16.1
+   Soap:14-18:source:importArrival                            3.0       0.3       1.2       0.2
+   Soap:14-18:source:navyImport                               0.3      10.7       6.8       7.4
+   Soap:8-14:sink:characterLuxury                            42.6       2.8       2.6       2.0
+   Soap:8-14:sink:exportDeparture                            23.0       1.9      41.1      28.9
+   Soap:8-14:sink:luxuryPurchase                             23.7      11.0      34.3      31.2
+   Soap:8-14:source:burgCraft                               175.8       9.6      36.7      25.1
+   Soap:8-14:source:importArrival                            21.9       5.6      38.7      27.3
+   Soap:8-14:source:navyImport                                1.7       4.6       5.7       5.5
+   Soap:<8:sink:luxuryPurchase                                0.0       0.0       2.0       0.0
+   Soap:<8:source:importArrival                               1.5       1.2       5.0       1.2
+   Tallow:14-18:sink:navyExport                             651.3     666.4     661.5     673.5
+   Tallow:14-18:sink:recipeInput>Candles                   2412.6    2436.5    2428.5    2422.7
+   Tallow:14-18:source:burgCraft                          68413.6   68414.4   68413.9   68414.7
+   Tallow:14-18:source:importArrival                         23.1      32.9      26.3      30.5
+   Tallow:8-14:sink:navyExport                             1032.7    1062.9    1059.1    1050.2
+   Tallow:8-14:sink:recipeInput>Candles                    4806.1    4765.7    4799.1    4792.6
+   Tallow:8-14:sink:recipeInput>Soap                          8.1       6.0       6.0       6.0
+   Tallow:8-14:source:burgCraft                          177996.4  178015.2  178013.6  178014.4
+   Tallow:8-14:source:importArrival                         104.2     106.5      93.2      97.1
+   Tallow:<8:sink:recipeInput>Candles                       329.0     329.2     329.2     329.2
+   Tallow:<8:source:burgCraft                              9097.5    9097.5    9097.5    9097.5
+ -- Soap price (stock value / stock) by band, months 1, 12, 24
+   month  1  <8 -/-/-/-  8-14 7.26/6.73/6.78/6.79  14-18 6.25/5.84/5.87/5.90  >=18 -/-/-/-
+   month 12  <8 -/7.49/7.64/7.64  8-14 5.82/3.81/3.87/3.87  14-18 5.35/3.55/3.61/3.62  >=18 -/-/-/-
+   month 24  <8 7.72/5.00/4.15/5.15  8-14 4.69/3.30/3.38/3.37  14-18 3.98/3.08/2.98/2.95  >=18 -/-/-/-
+ -- Oil price (stock value / stock) by band, months 1, 12, 24
+   month  1  <8 -/-/-/-  8-14 -/-/-/-  14-18 -/-/-/-  >=18 -/-/-/-
+   month 12  <8 3.01/3.01/3.01/3.01  8-14 3.35/3.95/3.62/3.62  14-18 5.68/5.68/5.68/5.68  >=18 -/-/-/-
+   month 24  <8 2.83/2.83/2.83/2.83  8-14 3.21/3.07/3.07/3.06  14-18 4.16/4.61/4.17/3.99  >=18 -/-/-/-
+ -- Barilla price (stock value / stock) by band, months 1, 12, 24
+   month  1  <8 -/-/-/-  8-14 0.50/0.50/0.50/0.50  14-18 0.43/0.43/0.43/0.43  >=18 -/-/-/-
+   month 12  <8 -/-/-/-  8-14 0.30/0.30/0.31/0.31  14-18 0.16/0.16/0.16/0.16  >=18 -/-/-/-
+   month 24  <8 -/-/-/-  8-14 0.18/0.19/0.36/0.37  14-18 0.14/0.14/0.12/0.12  >=18 -/-/-/-
+ -- Potash price (stock value / stock) by band, months 1, 12, 24
+   month  1  <8 -/-/-/-  8-14 -/-/-/-  14-18 -/-/-/-  >=18 -/-/-/-
+   month 12  <8 1.07/1.07/1.07/1.08  8-14 1.00/1.11/1.11/1.15  14-18 1.09/1.19/1.19/1.23  >=18 -/-/-/-
+   month 24  <8 1.03/1.03/1.03/1.04  8-14 0.95/1.00/0.93/0.94  14-18 0.80/0.81/0.83/1.13  >=18 -/-/-/-
+ -- Soap stock at month 24: base 14-18 80.9, 8-14 297.7, <8 1.5; soapfix 14-18 45.4, 8-14 101.2, <8 1.9; new 14-18 50.9, 8-14 104.0, <8 3.6; dfix 14-18 50.3, 8-14 97.1, <8 1.9
+ -- Oil stock at month 24: base 14-18 5.9, 8-14 42.2, <8 4.6; soapfix 14-18 8.5, 8-14 51.7, <8 4.6; new 14-18 9.6, 8-14 52.3, <8 4.6; dfix 14-18 7.8, 8-14 54.4, <8 4.6
+ -- Barilla stock at month 24: base 14-18 14.2, 8-14 10.5; soapfix 14-18 12.5, 8-14 11.7; new 14-18 13.0, 8-14 4.9; dfix 14-18 6.5, 8-14 5.3

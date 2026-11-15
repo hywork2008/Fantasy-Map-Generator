@@ -85,6 +85,7 @@ export function reconcileAnnualBasicEmploymentWorkers(options?: { initial?: bool
   const marketWorkforceSlots = new Map<number, MarketWorkforceSlot[]>();
   const burgs = getWorldContext().pack.burgs;
 
+  const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
   const previousAdministrationByBurg = new Map(getAdministrationEmployment().map(record => [record.burgId, record]));
   const administrationRecords: AdministrationEmploymentRecord[] = [];
   for (const state of getWorldContext().pack.states ?? []) {
@@ -98,8 +99,13 @@ export function reconcileAnnualBasicEmploymentWorkers(options?: { initial?: bool
       workers: previousAdministrationByBurg.get(capitalBurg.i)?.workers ?? 0
     };
     administrationRecords.push(record);
+    const capitalDemographics = getBurgDemographics(capitalBurg);
     pushSlot(slotsByBurg, capitalBurg.i, {
-      requiredWorkers: getAdministrationRequiredWorkers(state),
+      requiredWorkers: getAdministrationRequiredWorkers(
+        state,
+        capitalDemographics.maleAdults + capitalDemographics.femaleAdults,
+        populationRate
+      ),
       getWorkers: () => record.workers,
       setWorkers: value => {
         record.workers = value;
@@ -107,7 +113,6 @@ export function reconcileAnnualBasicEmploymentWorkers(options?: { initial?: bool
     });
   }
 
-  const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
   const depositsById = new Map(getMineralDeposits().map(deposit => [deposit.i, deposit]));
   // Resource operations retain their physical site, but their labor comes from the whole market.
   // Refining precedes extraction because an Ore buffer is useful while a zero-worker smelter

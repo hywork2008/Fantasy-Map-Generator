@@ -561,6 +561,36 @@ describe("caravan arrival volume tracking", () => {
     expect(volume).toBeLessThan(40 + 15);
   });
 
+  it("adds a market's cargo to the buyer's stock but not a town's haul it already sold there", () => {
+    worldContext.pack.goods = [{ i: 0, name: "Beer", tags: [] } as unknown as Good];
+    getMarkets()[0].goods[0] = { stock: 5, price: 1 };
+    const caravan = (i: number, sellerType: "burg" | "market") =>
+      ({
+        i,
+        seller: 0,
+        sellerType,
+        buyer: 1,
+        buyerType: "market",
+        payload: [{ goodId: 0, units: 3, value: 3 }],
+        units: 3,
+        value: 3,
+        draftAnimalId: "horse",
+        routeSegments: [],
+        totalDistance: 0,
+        currentDistance: 0,
+        travelLegs: [{ endKm: 0, speedKmPerDay: 1 }],
+        state: "transit"
+      }) as Caravan;
+
+    setCaravans([caravan(1, "burg")]);
+    Caravans.tick(1);
+    expect(getMarkets()[0].goods[0].stock).toBe(5);
+
+    setCaravans([caravan(2, "market")]);
+    Caravans.tick(1);
+    expect(getMarkets()[0].goods[0].stock).toBe(8);
+  });
+
   it("resolves the delivery market through the destination Burg for burg-type buyers", () => {
     setCaravans([
       {

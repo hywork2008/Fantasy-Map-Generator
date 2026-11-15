@@ -16,7 +16,7 @@ export interface CalibrationOverviewRow {
   burgName: string;
   stateId: number;
   stateName: string;
-  pool: OccupationalPool;
+  pool: OccupationalPool | CraftKnowledgeDomain;
   domain: CraftKnowledgeDomain | "construction" | "administration" | "mining" | "smelting" | "trade";
   displayPeople: number;
   laborPeople: number;

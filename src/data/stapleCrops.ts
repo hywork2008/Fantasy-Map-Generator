@@ -1,3 +1,4 @@
+import { type HistoricalPeriod, historicalPeriodIndex } from "../types/historicalPeriod";
 import type { CropCalendarProfile } from "./cropCalendars";
 
 /**
@@ -17,6 +18,11 @@ export interface StapleCropProfile {
   readonly soils: readonly StapleSoilType[];
   /** Shared month-by-month planting, harvest, and labour profile. */
   readonly calendar: CropCalendarProfile;
+  /**
+   * First Historical period in which the crop was a field staple; earlier maps do not plant it
+   * (docs/plan/crop-acreage-shares.md §4.3). Missing = every period.
+   */
+  readonly firstPeriod?: HistoricalPeriod;
 }
 
 export interface ClimateRange {
@@ -83,8 +89,8 @@ const ROOT_CALENDAR = {
 } as const satisfies CropCalendarProfile;
 
 /**
- * Main medieval staples and companion legumes. Potatoes remain available to
- * worlds that allow post-medieval crops; callers decide era availability.
+ * Main medieval staples and companion legumes. Crops of later periods carry `firstPeriod`;
+ * isStapleCropAvailable() applies it.
  *
  * yieldMultiplier is each crop's net yield over BASE_NET_YIELD's reference, the sown-area weighted
  * net yield of England c.1300 (432 kg/sown ha, Broadberry et al. 2010 Table 2), so that mix averages
@@ -130,7 +136,9 @@ export const STAPLE_CROP_PROFILES = {
     kind: "cereal",
     yieldMultiplier: 0.6,
     temperature: { min: 0, idealMin: 6, idealMax: 16, max: 21 },
-    precipitation: { min: 2.5, idealMin: 6, idealMax: 10, max: 15 },
+    // EcoPort and Duke's Handbook report oats up to 1,800 mm a year, the wettest places they grow
+    // (western Scotland, Ireland); Ecocrop's 1,500 mm left the wet west without oats (crop-acreage-shares.md §3.8).
+    precipitation: { min: 2.5, idealMin: 6, idealMax: 10, max: 18 },
     soils: ["humus", "loam", "clay"],
     calendar: COOL_CEREAL_CALENDAR
   },
@@ -150,7 +158,9 @@ export const STAPLE_CROP_PROFILES = {
     temperature: { min: 10, idealMin: 18, idealMax: 30, max: 36 },
     precipitation: { min: 4, idealMin: 8, idealMax: 15, max: 25 },
     soils: ["loam", "alluvial", "humus"],
-    calendar: WARM_CEREAL_CALENDAR
+    calendar: WARM_CEREAL_CALENDAR,
+    // A field crop of Iberia and Italy from the sixteenth century.
+    firstPeriod: "ageOfExploration"
   },
   Rice: {
     kind: "cereal",
@@ -224,7 +234,9 @@ export const STAPLE_CROP_PROFILES = {
     temperature: { min: 3, idealMin: 8, idealMax: 18, max: 24 },
     precipitation: { min: 2.5, idealMin: 5, idealMax: 8, max: 20 },
     soils: ["loam", "sandy", "humus"],
-    calendar: ROOT_CALENDAR
+    calendar: ROOT_CALENDAR,
+    // A field staple first in seventeenth-century Ireland, across the continent in the eighteenth.
+    firstPeriod: "maritimeEra"
   }
 } as const satisfies Record<string, StapleCropProfile>;
 
@@ -288,4 +300,14 @@ function precipitationSuitability(value: number, range: ClimateRange): number {
     return 1 - ((1 - WET_TOLERANCE_AT_MAX) * (value - range.idealMax)) / (range.max - range.idealMax);
   // Prefer the crop whose documented rain band reaches further into the wet side.
   return WET_TOLERANCE_AT_MAX * Math.sqrt(range.max / value);
+}
+
+/** Whether a map of `period` plants the crop. Unknown periods keep every crop (legacy maps). */
+export function isStapleCropAvailable(
+  crop: Pick<StapleCropProfile, "firstPeriod">,
+  period: string | undefined
+): boolean {
+  if (!crop.firstPeriod) return true;
+  const index = historicalPeriodIndex(period);
+  return index < 0 || index >= historicalPeriodIndex(crop.firstPeriod);
 }

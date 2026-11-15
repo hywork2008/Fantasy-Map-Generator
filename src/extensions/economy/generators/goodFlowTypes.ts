@@ -27,10 +27,19 @@ export type GoodFlowCategory =
   | "funeral"
   | "navyExport"
   | "navyImport"
+  /** Hides and tallow sold off the map from a port market, and the foreign goods taken for them (byproductExport.ts). */
+  | "stapleExport"
+  | "stapleImport"
   | "luxuryPurchase"
   | "characterLuxury"
   /** Timber recovered by breaking up a one-way river craft at its destination. */
   | "vesselSalvage"
+  /** Clean empty casks, pots or bottles beyond the market's refilling put back in its stock (returnableContainers.ts). */
+  | "containerReturn"
+  /** Ash of the town hearths bought from the households for the market (hearthAsh.ts). */
+  | "hearthAsh"
+  /** Glass from the market's forest glasshouses (forestGlasshouses.ts). */
+  | "forestGlass"
   /** Finished weapons stolen from an unsold market stock (armsTheft.ts). */
   | "theft";
 

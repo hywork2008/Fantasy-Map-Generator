@@ -209,6 +209,7 @@ describe("settleMonthlyFoodConsumption", () => {
   });
 
   it("routes urban retail revenue to ruralGrainPayable before the market's balance", () => {
+    vi.mocked(getSimulationMonth).mockReturnValue(3); // Lady Day: a quarter-day month
     const stapleGood = { i: 1, name: "Grain", tags: ["food", "stapleFood"], value: 1 } as any;
     vi.mocked(getGoods).mockReturnValue([stapleGood]);
 
@@ -230,6 +231,26 @@ describe("settleMonthlyFoodConsumption", () => {
     // With ample stock, price sits at the floor (0.8 * base value 1); revenue must repay the
     // outstanding debt first before anything reaches the merchant's own balance.
     expect(market.marketTreasury!.ruralGrainPayable).toBe(0);
+    expect(market.marketTreasury!.balance).toBeGreaterThan(0);
+  });
+
+  it("keeps urban retail revenue in the market's balance between quarter days", () => {
+    vi.mocked(getSimulationMonth).mockReturnValue(4);
+    vi.mocked(getGoods).mockReturnValue([{ i: 1, name: "Grain", tags: ["food", "stapleFood"], value: 1 } as any]);
+    mockWorldContext.pack.burgs = [{ i: 1, market: 1, removed: false, population: 1000, foodReserve: 0 } as any];
+    const market = {
+      i: 1,
+      centerBurgId: 1,
+      color: "#fff",
+      goods: {},
+      foodLedger: makeLedger({ foodStockAge0: 1_000_000 }),
+      marketTreasury: { balance: 0, ruralGrainPayable: 5 }
+    } as Market;
+    setMarket(market);
+
+    settleMonthlyFoodConsumption();
+
+    expect(market.marketTreasury!.ruralGrainPayable).toBe(5);
     expect(market.marketTreasury!.balance).toBeGreaterThan(0);
   });
 

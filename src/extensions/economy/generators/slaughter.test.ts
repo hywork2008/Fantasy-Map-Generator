@@ -54,7 +54,16 @@ describe("settleSlaughter", () => {
 
     const result = settleSlaughter();
     // A cow renders 12.8 kg and a sheep 1.4 kg of a 108 kg barrel; pig fat stays with the meat.
-    expect(result).toEqual({ heads: 4, tallow: 0.13, leather: 1, rennet: 0, meat: 0, meatSold: 0 });
+    expect(result).toEqual({
+      heads: 4,
+      tallow: 0.13,
+      leather: 1,
+      rennet: 0,
+      meat: 0,
+      meatSold: 0,
+      meatBoughtByBurg: new Map(),
+      leatherByMarket: new Map([[stall.i, 1]])
+    });
     expect(stall.goods[1].stock).toBe(0);
     expect(stall.goods[2].stock).toBe(0);
     expect(stall.goods[3].stock).toBe(0);
@@ -71,7 +80,16 @@ describe("settleSlaughter", () => {
     const stall = market({ 1: { stock: 2, price: 5 } });
     setMarkets([stall]);
     const result = settleSlaughter(new Map([[stall.i, 1]]));
-    expect(result).toEqual({ heads: 2, leather: 2, tallow: 0, rennet: 1 / 240, meat: 0, meatSold: 0 });
+    expect(result).toEqual({
+      heads: 2,
+      leather: 2,
+      tallow: 0,
+      rennet: 1 / 240,
+      meat: 0,
+      meatSold: 0,
+      meatBoughtByBurg: new Map(),
+      leatherByMarket: new Map([[stall.i, 2]])
+    });
     expect(stall.goods[1].stock).toBe(0);
     expect(stall.goods[3].stock).toBe(1 / 240);
     expect(settleSlaughter(new Map([[stall.i, 1]])).rennet).toBe(0);

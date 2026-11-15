@@ -1,0 +1,94 @@
+diff --git a/src/extensions/economy/generators/markets-generator.ts b/src/extensions/economy/generators/markets-generator.ts
+index d66b5b174..b1e12aaec 100644
+--- a/src/extensions/economy/generators/markets-generator.ts
++++ b/src/extensions/economy/generators/markets-generator.ts
+@@ -58,6 +58,7 @@ import { isOrchardDrink } from "./foodLots";
+ import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
+ import {
+   getFoodProcessingProductionHeadroom,
++  getMonthlyHouseholdContainerDemand,
+   getMonthlyHouseholdDemand,
+   recordCellFoodHouseholdConsumption,
+   recordFoodMarketIntake,
+@@ -334,6 +335,13 @@ interface GlobalTradeContext {
+   industrialDemandFactors: number[];
+   /** Unfinished State armory orders, indexed by destination market then finished Good. */
+   strategicDemandByMarket: Map<number, Map<number, number>>;
++  /**
++   * Monthly household demand, indexed by market then Good, for the goods the households ask for
++   * by the month (foodProcessingLedger.ts) and the casks those drinks wear out. The per-head
++   * factors leave these at nothing, so no market ever asked another for a cask
++   * (docs/analytics/treeless-trade-20261106.md). Unlike the State orders it underwrites no caravan.
++   */
++  householdDemandByMarket?: Map<number, Map<number, number>>;
+   populationByMarket: number[];
+   textilePopulationByMarket: number[];
+   textileOrdersByMarket: Map<number, TextileMarketOrders>;
+@@ -2211,6 +2219,7 @@ export class MarketsModule {
+         strategicDemandByMarket.set(market.i, demand);
+       }
+     }
++    const householdDemandByMarket = this.collectHouseholdTradeDemand(goods);
+     const populationByMarket = this.calculatePopulationByMarket();
+     const textilePopulationByMarket = this.calculateTextilePopulationByMarket();
+     const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
+@@ -2228,6 +2237,7 @@ export class MarketsModule {
+       consumerDemandFactors,
+       industrialDemandFactors,
+       strategicDemandByMarket,
++      householdDemandByMarket,
+       populationByMarket,
+       textilePopulationByMarket,
+       textileOrdersByMarket: new Map(getMarkets().map(market => [market.i, getTextileMarketOrders(market)])),
+@@ -2343,6 +2353,33 @@ export class MarketsModule {
+     return ctx.strategicDemandByMarket.get(marketId)?.get(goodId) || 0;
+   }
+ 
++  private getHouseholdTradeDemand(ctx: GlobalTradeContext, marketId: number, goodId: number): number {
++    return ctx.householdDemandByMarket?.get(marketId)?.get(goodId) || 0;
++  }
++
++  /**
++   * Household demand for the goods priced by it (Beer, Wine, Cheese, Raisins) and the casks of the
++   * household drinks (Barrels), per market. Orchard drinks already join the State demand above.
++   */
++  private collectHouseholdTradeDemand(goods: Good[]): Map<number, Map<number, number>> {
++    const priced = goods.filter(good => isPricedByHouseholdDemand(good) && !isOrchardDrink(good.name));
++    const casks = goods.find(good => good.name === "Barrels");
++    const byMarket = new Map<number, Map<number, number>>();
++    for (const market of getMarkets()) {
++      const demand = new Map<number, number>();
++      for (const good of priced) {
++        const units = getMonthlyHouseholdDemand(market, good.name);
++        if (units > 0) demand.set(good.i, units);
++      }
++      if (casks) {
++        const units = getMonthlyHouseholdContainerDemand(market, casks);
++        if (units > 0) demand.set(casks.i, units);
++      }
++      if (demand.size) byMarket.set(market.i, demand);
++    }
++    return byMarket;
++  }
++
+   private calculateMarketTradeDemand(
+     good: Good,
+     marketId: number,
+@@ -2365,6 +2402,7 @@ export class MarketsModule {
+         ctx.textileOrdersByMarket?.get(marketId)
+       ) +
+       this.getStrategicFinishedGoodDemand(ctx, marketId, good.i) +
++      this.getHouseholdTradeDemand(ctx, marketId, good.i) +
+       this.getLuxuryBudgetDemand(ctx, marketId, good)
+     );
+   }
+@@ -2686,7 +2724,8 @@ export class MarketsModule {
+         const population = populationByMarket[opportunity.exporter.i] || 0;
+         const cycleDemand =
+           population * ((consumerDemandFactors[good.i] || 0) + (industrialDemandFactors[good.i] || 0)) +
+-          this.getStrategicFinishedGoodDemand(ctx, opportunity.exporter.i, good.i);
++          this.getStrategicFinishedGoodDemand(ctx, opportunity.exporter.i, good.i) +
++          this.getHouseholdTradeDemand(ctx, opportunity.exporter.i, good.i);
+         const flowBudget = computeMarketGoodFlowBudget({
+           marketId: opportunity.exporter.i,
+           goodId: good.i,

@@ -60,9 +60,12 @@ export function planCellFoodRescue(
     const commercialInputPerOutput = positive(input.commercialPath?.inputPerOutput ?? 0);
     const requestedCommercialInput =
       commercialInputPerOutput > 0 ? positive(input.exportDemandUnits) * commercialInputPerOutput : 0;
+    const driedInputPerOutput = input.marketDriedPath ? positive(input.marketDriedPath.inputPerOutput) : 0;
+    const requestedDriedInput =
+      driedInputPerOutput > 0 ? positive(input.marketDriedDemandUnits ?? 0) * driedInputPerOutput : 0;
     const plannedProcessingInput = Math.min(
       maximumPreservationCapacity,
-      reserveInputNeededWithoutFresh + requestedCommercialInput
+      reserveInputNeededWithoutFresh + requestedDriedInput + requestedCommercialInput
     );
     const freshShare = unitInterval(input.maxFreshHouseholdShare);
     const maxFreshByProcessing =
@@ -76,9 +79,11 @@ export function planCellFoodRescue(
     const reserveInputNeeded = Math.max(0, reserveTarget - reserveAfterConsumption);
     const preservationCapacity = Math.max(0, Math.min(freshRemaining, maximumPreservationCapacity));
     const reserveInputUnits = Math.min(preservationCapacity, reserveInputNeeded);
-    const commercialInputCapacity = Math.max(0, preservationCapacity - reserveInputUnits);
+    const driedInputCapacity = Math.max(0, preservationCapacity - reserveInputUnits);
+    const driedInputUnits = Math.min(driedInputCapacity, requestedDriedInput);
+    const commercialInputCapacity = Math.max(0, driedInputCapacity - driedInputUnits);
     const commercialInputUnits = Math.min(commercialInputCapacity, requestedCommercialInput);
-    const processedInputUnits = reserveInputUnits + commercialInputUnits;
+    const processedInputUnits = reserveInputUnits + driedInputUnits + commercialInputUnits;
     const laborUsed = processedInputUnits * laborPerUnit;
     laborRemaining = Math.max(0, laborRemaining - laborUsed);
     processingLaborUsed += laborUsed;
@@ -86,7 +91,10 @@ export function planCellFoodRescue(
     const canPreserve = input.reservePath !== null && input.preservationSuppliesAvailable;
     const canMakeCommercialOutput = input.commercialPath !== null && input.preservationSuppliesAvailable;
     const spoiledForMissingSuppliesUnits =
-      (canPreserve ? 0 : reserveInputUnits) + (canMakeCommercialOutput ? 0 : commercialInputUnits);
+      (canPreserve ? 0 : reserveInputUnits) +
+      (canMakeCommercialOutput ? 0 : commercialInputUnits) +
+      (input.preservationSuppliesAvailable ? 0 : driedInputUnits);
+    const effectiveDriedInput = input.preservationSuppliesAvailable ? driedInputUnits : 0;
     const effectiveReserveInput = canPreserve ? reserveInputUnits : 0;
     const reserveInputPerOutput = positive(input.reservePath?.inputPerOutput ?? 0);
     const reserveOutputUnits = reserveInputPerOutput > 0 ? effectiveReserveInput / reserveInputPerOutput : 0;
@@ -101,6 +109,8 @@ export function planCellFoodRescue(
       reserveInputUnits: effectiveReserveInput,
       reserveOutputUnits,
       exportOutputUnits,
+      marketDriedOutputUnits: driedInputPerOutput > 0 ? effectiveDriedInput / driedInputPerOutput : 0,
+      marketDriedInputUnits: effectiveDriedInput,
       spoiledForMissingSuppliesUnits
     });
   }

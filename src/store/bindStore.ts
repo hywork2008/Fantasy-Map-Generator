@@ -8,6 +8,7 @@ import { type StoreApi, type UseBoundStore, useStore } from "zustand";
  */
 // biome-ignore lint/suspicious/noExplicitAny: mirrors zustand's own StoreApi<any> constraint.
 export function bindStore<A extends StoreApi<any>>(api: A): UseBoundStore<A> {
+  // biome-ignore lint/correctness/noComponentHookFactories: one hook identity per vanilla store, as in zustand create()
   const useBoundStore = ((selector?: (state: ReturnType<A["getState"]>) => unknown) =>
     useStore(api, selector as never)) as UseBoundStore<A>;
   return Object.assign(useBoundStore, api);

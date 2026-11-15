@@ -21,12 +21,17 @@ import {
   getFreshFoodProfile,
   isGoodEnabled,
   migrateAlloySteelGoods,
+  migrateBarillaGood,
   migrateBeeswaxByproduct,
+  migrateCastileSoapGood,
+  migrateColdLandShoreDeposits,
   migrateElectricalGoods,
   migrateElectrolyticIndustryGoods,
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateGrapesGood,
+  migrateHearthAshGoods,
+  migrateHoneyForageLands,
   migrateInkBarrel,
   migrateLeatherByproduct,
   migrateLegacyOreIngotGoods,
@@ -36,8 +41,10 @@ import {
   migrateLiveCatsGood,
   migrateLiveDogsGood,
   migrateLivestockFeedDemand,
+  migrateMeadGood,
   migrateMercuryChainGoods,
   migrateNaturalGasChainGoods,
+  migrateOliveSoapRecipe,
   migrateOrdinaryWoolGoods,
   migratePerennialFruitGoods,
   migratePetroleumChainGoods,
@@ -1043,7 +1050,7 @@ describe("GoodsModule", () => {
     expect(grapes?.biomeOutput).toBeUndefined();
   });
 
-  it("defines Wine as a { Grapes, Barrels } recipe good, no longer directly biome-produced", () => {
+  it("defines Wine as a { Grapes, container } recipe good, no longer directly biome-produced", () => {
     goodsModule.restoreDefaults();
 
     const wine = getGoods().find(good => good.name === "Wine");
@@ -1052,8 +1059,15 @@ describe("GoodsModule", () => {
     expect(wine?.biomeOutputByTag).toBeUndefined();
     expect(wine?.distribution).toBeUndefined();
     const pomace = getGoods().find(good => good.name === "Pomace");
-    expect(wine?.recipes).toEqual([{ [grapes!.i]: 0.26, [barrels!.i]: 0.08 }]);
-    expect(wine?.byproducts).toEqual([{ [pomace!.i]: 0.0572 }]);
+    const ceramics = getGoods().find(good => good.name === "Ceramics");
+    const glass = getGoods().find(good => good.name === "Glass");
+    // Casks, amphorae or bottles, each at the trip's loss of the set a cask holds.
+    expect(wine?.recipes).toEqual([
+      { [grapes!.i]: 0.26, [barrels!.i]: 0.08 },
+      { [grapes!.i]: 0.26, [ceramics!.i]: 0.0129 },
+      { [grapes!.i]: 0.26, [glass!.i]: 0.0258 }
+    ]);
+    expect(wine?.byproducts).toEqual([{ [pomace!.i]: 0.0572 }, { [pomace!.i]: 0.0572 }, { [pomace!.i]: 0.0572 }]);
   });
 
   it("migrates recognized Wood recipes with saved ids, preserves edited recipes and repeats without changes", () => {
@@ -1153,7 +1167,12 @@ describe("GoodsModule", () => {
     const upgradedLiquor = getGoods().find(good => good.name === "Liquor")!;
     expect(pomace.i).toBeGreaterThan(Math.max(...preservedIds.values()));
     expect(pomaceWine.recipes).toEqual([{ [pomace.i]: 0.12, [preservedIds.get("Barrels")!]: 0.08 }]);
-    expect(getGoods().find(good => good.name === "Wine")?.byproducts).toEqual([{ [pomace.i]: 0.0572 }]);
+    // One Pomace entry for each container Wine goes out in.
+    expect(getGoods().find(good => good.name === "Wine")?.byproducts).toEqual([
+      { [pomace.i]: 0.0572 },
+      { [pomace.i]: 0.0572 },
+      { [pomace.i]: 0.0572 }
+    ]);
     expect(upgradedLiquor.recipes).toHaveLength(15);
     expect(upgradedLiquor.byproducts).toEqual(
       Array.from({ length: 15 }, () => ({ [ash.i]: LIQUOR_WOOD_PER_LOT * ASH_LOTS_PER_WOOD_LOT }))
@@ -1202,6 +1221,24 @@ describe("GoodsModule", () => {
     expect(byName("Flour")).toMatchObject({ recipes: [{ [byName("Grain").i]: 0.134 }], demandCoverage: { food: 0.1 } });
     expect(byName("Bread")).toMatchObject({ recipes: [{ [byName("Flour").i]: 0.3 }], demandCoverage: { food: 0.03 } });
     expect(migrateWeightRepricing()).toBe(false);
+  });
+
+  it("brings a saved ale and cask to their new values from either old default, keeping a player's value", () => {
+    goodsModule.restoreDefaults();
+    const byName = (name: string) => getGoods().find(good => good.name === name)!;
+    byName("Beer").value = 4;
+    byName("Barrels").value = 2;
+    byName("Wine").value = 1.28;
+
+    expect(migrateWeightRepricing()).toBe(true);
+    expect(byName("Beer").value).toBe(1.5);
+    expect(byName("Barrels").value).toBe(0.1);
+    byName("Beer").value = 2.4;
+    expect(migrateWeightRepricing()).toBe(true);
+    expect(byName("Beer").value).toBe(1.5);
+    byName("Barrels").value = 3; // set by the player in the Goods editor
+    expect(migrateWeightRepricing()).toBe(false);
+    expect(byName("Barrels").value).toBe(3);
   });
 
   it("moves saved Salt from the taxed 0.45 or the first step's 0.08 to the untaxed value, keeping a player's value", () => {
@@ -1302,6 +1339,138 @@ describe("GoodsModule", () => {
     expect(migrateBeeswaxByproduct()).toBe(false);
   });
 
+  it("gives saved forest-only Honey the heath, steppe, scrub and farmland at the sources' harvest, but keeps edited lands", () => {
+    goodsModule.restoreDefaults();
+    const honey = getGoods().find(good => good.name === "Honey")!;
+    honey.distribution = 'biomeTag("forest")';
+    honey.biomeOutputByTag = { forest: 0.04 };
+
+    expect(migrateHoneyForageLands()).toBe(true);
+    expect(honey.biomeOutputByTag).toEqual({ forest: 0.6, grassland: 0.6, scrub: 0.2, arable: 0.2 });
+    expect(migrateHoneyForageLands()).toBe(false);
+
+    honey.distribution = 'biomeTag("forest")';
+    honey.biomeOutputByTag = { forest: 0.06 };
+    expect(migrateHoneyForageLands()).toBe(false);
+    expect(honey.biomeOutputByTag).toEqual({ forest: 0.06 });
+  });
+
+  it("retires saved Ash's Wood recipe and building share and reprices Ash and Potash against grain, but keeps an edited recipe", () => {
+    goodsModule.restoreDefaults();
+    const ash = getGoods().find(good => good.name === "Ash")!;
+    const potash = getGoods().find(good => good.name === "Potash")!;
+    const wood = getGoods().find(good => good.name === "Wood")!;
+    expect(ash.recipes).toBeUndefined();
+    expect(potash.recipes).toEqual([{ [ash.i]: 24 }]);
+
+    expect(ash.demandCoverage).toEqual({});
+    ash.recipes = [{ [wood.i]: 1 / ASH_LOTS_PER_WOOD_LOT }];
+    ash.demandCoverage = { construction: 0.2 };
+    ash.value = 1.5;
+    potash.value = 3;
+    expect(migrateHearthAshGoods()).toBe(true);
+    expect(ash.recipes).toBeUndefined();
+    expect(ash.demandCoverage).toEqual({});
+    expect(migrateHearthAshGoods()).toBe(false);
+    expect(migrateWeightRepricing()).toBe(true);
+    expect(ash.value).toBe(0.012);
+    expect(potash.value).toBe(0.9);
+
+    ash.recipes = [{ [wood.i]: 0.5 }];
+    expect(migrateHearthAshGoods()).toBe(false);
+    expect(ash.recipes).toEqual([{ [wood.i]: 0.5 }]);
+  });
+
+  it("gives saved warm-only Clay and White sand the shores and rivers of the cold forests, but keeps an edited rule", () => {
+    goodsModule.restoreDefaults();
+    const clay = getGoods().find(good => good.name === "Clay")!;
+    const sand = getGoods().find(good => good.name === "White sand")!;
+    const current = clay.distribution;
+    expect(sand.distribution).toBe(current);
+    clay.distribution = "minTemp(8) && (shore(1) || river())";
+    sand.distribution = "minTemp(8) && (shore(1) || river())";
+
+    expect(migrateColdLandShoreDeposits()).toBe(true);
+    expect(clay.distribution).toBe(current);
+    expect(sand.distribution).toBe(current);
+    expect(migrateColdLandShoreDeposits()).toBe(false);
+
+    clay.distribution = "minTemp(12) && river()";
+    expect(migrateColdLandShoreDeposits()).toBe(false);
+    expect(clay.distribution).toBe("minTemp(12) && river()");
+  });
+
+  it("adds Barilla, the soda-glass recipe and Castile Soap to a saved catalogue on that save's own ids", () => {
+    goodsModule.restoreDefaults();
+    const sand = getGoods().find(good => good.name === "White sand")!;
+    const saved = getGoods()
+      .filter(good => good.name !== "Barilla" && good.name !== "Castile Soap")
+      .map(good => (good.i === sand.i ? { ...good, i: 900 } : good));
+    const glass = saved.find(good => good.name === "Glass")!;
+    glass.recipes = glass.recipes!.slice(0, 2);
+    const soap = saved.find(good => good.name === "Soap")!;
+    const oil = saved.find(good => good.name === "Oil")!;
+    const sodaAsh = saved.find(good => good.name === "Soda Ash")!;
+    setGoods(saved);
+
+    expect(migrateBarillaGood()).toBe(true);
+    const barilla = getGoods().find(good => good.name === "Barilla")!;
+    expect(barilla.i).toBe(901);
+    expect(glass.recipes!.at(-1)).toEqual({ 900: 1, 901: 1.6 });
+    expect(migrateBarillaGood()).toBe(false);
+    expect(glass.recipes).toHaveLength(3);
+
+    // A save of docs/plan/barilla-soap.md made the hard soap a fifth Soap recipe.
+    soap.recipes = [...soap.recipes!, { [oil.i]: 0.65, 901: 0.38 }];
+    expect(migrateCastileSoapGood()).toBe(true);
+    expect(soap.recipes).toHaveLength(3);
+    expect(soap.recipes!.some(recipe => 901 in recipe)).toBe(false);
+    const castile = getGoods().find(good => good.name === "Castile Soap")!;
+    expect(castile.i).toBe(902);
+    expect(castile.recipes).toEqual([
+      { [oil.i]: 0.65, 901: 0.38 },
+      { [oil.i]: 0.65, [sodaAsh.i]: 0.12 }
+    ]);
+    expect(migrateCastileSoapGood()).toBe(false);
+    expect(getGoods().filter(good => good.name === "Castile Soap")).toHaveLength(1);
+  });
+
+  it("takes the olive recipe from Soap in a saved catalogue", () => {
+    goodsModule.restoreDefaults();
+    const soap = getGoods().find(good => good.name === "Soap")!;
+    const olives = getGoods().find(good => good.name === "Olives")!;
+    const potash = getGoods().find(good => good.name === "Potash")!;
+    soap.recipes = [{ [olives.i]: 1, [potash.i]: 0.3 }, ...soap.recipes!];
+
+    expect(migrateOliveSoapRecipe()).toBe(true);
+    expect(soap.recipes!.some(recipe => olives.i in recipe)).toBe(false);
+    expect(soap.recipes).toHaveLength(3);
+    expect(migrateOliveSoapRecipe()).toBe(false);
+  });
+
+  it("adds Mead to a saved catalogue on that save's own Honey and Barrels ids", () => {
+    goodsModule.restoreDefaults();
+    const honey = getGoods().find(good => good.name === "Honey")!;
+    const barrels = getGoods().find(good => good.name === "Barrels")!;
+    setGoods(
+      getGoods()
+        .filter(good => good.name !== "Mead")
+        .map(good => (good.i === honey.i ? { ...good, i: 900 } : good))
+    );
+
+    expect(migrateMeadGood()).toBe(true);
+    const mead = getGoods().find(good => good.name === "Mead")!;
+    expect(mead.i).toBe(901);
+    const ceramics = getGoods().find(good => good.name === "Ceramics")!;
+    const glass = getGoods().find(good => good.name === "Glass")!;
+    expect(mead.recipes).toEqual([
+      { 900: 1000 / 5 / 120, [barrels.i]: 0.4 },
+      { 900: 1000 / 5 / 120, [ceramics.i]: 0.0645 },
+      { 900: 1000 / 5 / 120, [glass.i]: 0.129 }
+    ]);
+    expect(migrateMeadGood()).toBe(false);
+  });
+
   it("upgrades legacy Wood-to-Coal fuel into Charcoal, Ash-to-Potash, and Slag without inventing stock", () => {
     goodsModule.restoreDefaults();
     const wood = getGoods().find(good => good.name === "Wood")!;
@@ -1333,7 +1502,7 @@ describe("GoodsModule", () => {
     expect(upgradedCoal.byproducts).toBeUndefined();
     expect(upgradedCharcoal.recipes).toEqual([{ [wood.i]: CHARCOAL_WOOD_PER_LOT }]);
     expect(upgradedCharcoal.byproducts).toBeUndefined();
-    expect(upgradedPotash.recipes).toEqual([{ [ash.i]: 1.5 }]);
+    expect(upgradedPotash.recipes).toEqual([{ [ash.i]: 24 }]);
     expect(upgradedTools.recipes).toEqual([{ [upgradedCharcoal.i]: 1 }]);
     expect(upgradedSlag.i).toBeGreaterThan(charcoal.i);
     expect(migrateSmeltingFuelAndAshGoods()).toBe(false);

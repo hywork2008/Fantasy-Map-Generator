@@ -1,8 +1,11 @@
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import { minmax, rn } from "../../hostUtils";
 import { getBurgMarketLedger } from "./burgMarketLedgers";
+import { getGoodDemandCalibration } from "./craftDemandCalibration";
 import { getMintPriceFloor } from "./currencySufficiency";
 import { GOODS_DATA, Goods } from "./goods-generator";
 import type { Good } from "./goodsGeneratorTypes";
+import { isTownSoapDemandGood } from "./townSoap";
 
 export const MARKET_MARGIN = 0.1;
 
@@ -76,6 +79,41 @@ export function customerBuyPrice(midPrice: number, burgId?: number, goodId?: num
  */
 export function hasSettledPrice(good: Pick<Good, "name">): boolean {
   return good.name === "Salt" || good.name === "Meat";
+}
+
+/**
+ * Food processing goods with a monthly household demand of their own (foodProcessingLedger.ts):
+ * their price is set each cycle from that demand against stock, and a sale or purchase does not
+ * push it. A tun of ale sold took 1% of its value off the price, so a brewing town's own beer fell
+ * to the floor, below its barley (docs/plan/urban-craft-staffing.md §10.6).
+ */
+const HOUSEHOLD_DEMAND_PRICED_GOODS: ReadonlySet<string> = new Set([
+  "Beer",
+  "Cider",
+  "Perry",
+  "Mead",
+  "Wine",
+  "Cheese",
+  "Raisins"
+]);
+
+export function isPricedByHouseholdDemand(good: Pick<Good, "name">): boolean {
+  // The towns' soap, while their soap need is on (docs/plan/town-soap.md §3.3).
+  return HOUSEHOLD_DEMAND_PRICED_GOODS.has(good.name) || isTownSoapDemandGood(good) || isPricedByTownTargets(good);
+}
+
+/** Goods slaughter and the hunt give with the carcass, with no recipe and no cell distribution. */
+export const SLAUGHTER_BYPRODUCTS: ReadonlySet<string> = new Set(["Leather", "Tallow", "Rennet"]);
+
+/**
+ * With `byproductPricing` on, the slaughter by-products and the goods the towns buy to a target
+ * are priced each month from their stock against the towns' targets, and a sale or purchase does
+ * not push them: at 1% of the value a unit, the hides a market's shoemakers buy in a month put
+ * Leather back at the ceiling whatever its stock (docs/plan/byproduct-prices.md §7).
+ */
+export function isPricedByTownTargets(good: Pick<Good, "name">): boolean {
+  if (getMarketSettings().byproductPricing !== "stockAndDemand") return false;
+  return SLAUGHTER_BYPRODUCTS.has(good.name) || Boolean(getGoodDemandCalibration(good.name)?.householdPurchase);
 }
 
 export const PRICE_FLOOR_FACTOR = 0.25;

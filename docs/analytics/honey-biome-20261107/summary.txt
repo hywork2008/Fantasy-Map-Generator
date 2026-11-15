@@ -1,0 +1,19 @@
+biome | rural (k) | honey t/yr before | after | kg per rural person/yr before | after
+Temperate deciduous forest | 8665 | 908 | 908 | 0.105 | 0.105
+Temperate rainforest | 5796 | 595 | 595 | 0.103 | 0.103
+Cold steppe & forest-steppe | 3731 | 0 | 313 | 0.000 | 0.084
+Temperate coniferous forest | 3182 | 302 | 302 | 0.095 | 0.095
+Grassland | 2452 | 0 | 203 | 0.000 | 0.083
+Taiga | 1753 | 175 | 175 | 0.100 | 0.100
+Central European great forest | 1590 | 150 | 150 | 0.094 | 0.094
+Flooded forest & riparian woodland | 1489 | 141 | 141 | 0.094 | 0.094
+Volcanic soil | 425 | 0 | 36 | 0.000 | 0.086
+Xeric shrubland | 392 | 0 | 32 | 0.000 | 0.083
+Wetland | 350 | 0 | 0 | 0.000 | 0.000
+Boreal peatland & muskeg | 332 | 0 | 0 | 0.000 | 0.000
+Heath & moorland | 196 | 0 | 17 | 0.000 | 0.086
+Cold desert | 17 | 0 | 0 | 0.000 | 0.000
+Tundra | 4 | 0 | 0 | 0.000 | 0.000
+Montane forest | 2 | 0 | 0 | 0.081 | 0.081
+world before: rural 30.38M, honey 2270 t/yr, 0.075 kg per rural person/yr
+world after: rural 30.38M, honey 2872 t/yr, 0.095 kg per rural person/yr

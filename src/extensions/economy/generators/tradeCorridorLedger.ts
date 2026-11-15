@@ -120,17 +120,23 @@ export function applyCorridorMovement(
   const pair = pairOf(movement.originBurgId, movement.destinationBurgId);
   if (!pair) return corridors.slice();
   const [burgA, burgB] = pair;
-  const next = corridors.map(corridor => ({
-    ...corridor,
-    byMode: { ...corridor.byMode },
-    routeHits: { ...corridor.routeHits },
-    goodsSlots: { ...corridor.goodsSlots },
-    routeIds: corridor.routeIds.slice()
-  }));
-  let corridor = next.find(entry => entry.burgA === burgA && entry.burgB === burgB);
-  if (!corridor) {
+  // Only the touched corridor is copied; the others are shared with the input, which stays unmutated.
+  const next = corridors.slice();
+  const index = next.findIndex(entry => entry.burgA === burgA && entry.burgB === burgB);
+  let corridor: TradeCorridor;
+  if (index < 0) {
     corridor = emptyCorridor(burgA, burgB);
     next.push(corridor);
+  } else {
+    const source = next[index];
+    corridor = {
+      ...source,
+      byMode: { ...source.byMode },
+      routeHits: { ...source.routeHits },
+      goodsSlots: { ...source.goodsSlots },
+      routeIds: source.routeIds.slice()
+    };
+    next[index] = corridor;
   }
   const hadHistory = corridor.departures > 0;
   const slots = Math.max(0, movement.cargoSlots);

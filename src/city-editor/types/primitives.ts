@@ -26,7 +26,10 @@ export type CraftDomain =
   | "leather"
   | "glassware"
   | "instruments"
-  | "printing";
+  | "printing"
+  | "victualling"
+  | "brewing"
+  | "baking";
 
 export type BuildingPattern = "legacy" | "medieval";
 

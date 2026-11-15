@@ -3,9 +3,18 @@
  * laborPointsPerLot is an authored constant (policy A) — not solved at runtime from expected/lots.
  */
 
+import { STAPLE_NEED_KG_PER_PERSON_YEAR } from "../../../generators/settlementClearance";
 import { DEFAULT_PEOPLE_PER_POPULATION_POINT, REFERENCE_FIXTURE_LABOR_PEOPLE } from "./craftScale";
+import { GROSS_FOOD_NEED } from "./foodConstants";
+import {
+  getBootsLaborPerLot,
+  getCountrysideAnnualLotsPerPerson,
+  getMarketBuyerFactor,
+  isCountrysideGood
+} from "./footwearDemand";
 import type { DemandCategory } from "./goodsGeneratorTypes";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
+import type { Market } from "./marketTypes";
 
 export type DemandProvenanceKind =
   | "householdPerCapita"
@@ -16,7 +25,8 @@ export type DemandProvenanceKind =
 
 export interface GoodDemandCalibrationRow {
   goodName: string;
-  domain: CraftKnowledgeDomain;
+  /** null for work outside the town guilds (the forest's tar kilns). */
+  domain: CraftKnowledgeDomain | null;
   inlandShare: number;
   portShare: number;
   provenances: readonly DemandProvenanceKind[];
@@ -26,6 +36,28 @@ export interface GoodDemandCalibrationRow {
   laborPointsPerLotAtDefaultRate: number;
   residualWeight: number;
   residualCategory?: "hunting" | "luxury";
+  /**
+   * The towns buy the floor itself each month before their generic category demand
+   * (urban-craft-staffing.md §10.4): otherwise their utilities budget bought less than the floor
+   * and the unsold stock stopped the craft (Boots, Candles).
+   */
+  householdPurchase?: boolean;
+  /**
+   * The market's floor is the containers its household drinks wear out (ale with its water-safety
+   * share, wine, cider), not the per-head rate, which stays the fallback without a market
+   * (urban-craft-staffing.md §12 item 20).
+   */
+  floorFromHouseholdDrinks?: boolean;
+  /**
+   * The market's floor is its towns' soap need (townSoap.ts), not the per-head rate, which stays
+   * the fallback without a market (docs/plan/town-soap.md §3.4).
+   */
+  floorFromTownSoap?: boolean;
+  /**
+   * The market's floor is the potash its soft soap floor boils (townSoap.ts), not the per-head
+   * rate, which stays the fallback without a market (docs/plan/town-soap.md §3.5).
+   */
+  floorFromSoapPotash?: boolean;
   typicalRecipeIndex?: number;
   sources: readonly string[];
 }
@@ -45,11 +77,14 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     inlandShare: 0.5,
     portShare: 0.3,
     provenances: ["recipeDerived"],
-    annualLotsPerPerson: 0.01248,
-    fixtureLotsPerMonth: 9.36,
+    annualLotsPerPerson: 0.078,
+    floorFromHouseholdDrinks: true,
+    fixtureLotsPerMonth: 58.5,
     laborPointsPerLotAtDefaultRate: 0.00106,
     residualWeight: 0,
-    sources: ["urban ale fillings: 0.65 adults × 48 L / 200 L cask × 0.08 turnover"]
+    sources: [
+      "urban ale fillings: 0.65 adults × 300 L / 200 L cask × 0.08 turnover (foodLots.ts ALE_TARGETS.urbanLitersPerAdultYear; urban-craft-staffing.md §10.5). It was 48 L"
+    ]
   },
   {
     goodName: "Ropes",
@@ -209,9 +244,31 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     provenances: ["householdPerCapita"],
     annualLotsPerPerson: 0.0125,
     fixtureLotsPerMonth: 9.375,
-    laborPointsPerLotAtDefaultRate: 0.0202,
+    // The default rate; laborPointsForLots reads the setting `bootsLabor` (BOOTS_LABOR_PER_LOT).
+    laborPointsPerLotAtDefaultRate: 0.001,
     residualWeight: 0,
-    sources: ["0.25 pair/person/year ÷ itemsPerUnit 20"]
+    householdPurchase: true,
+    sources: [
+      "0.25 pair/person/year ÷ itemsPerUnit 20, the towns only (footwearDemand townsOnly)",
+      "footwearDemand everyone: footwearPairsPerPerson for the towns and their share of the countryside (docs/plan/leather-uses.md §4.1)"
+    ]
+  },
+  {
+    goodName: "Leather Goods",
+    domain: "leather",
+    inlandShare: 0.7,
+    portShare: 0.7,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 0,
+    // The fixture's town people at the defaults (a pair a person, half the shoes' hides).
+    fixtureLotsPerMonth: 37.5,
+    laborPointsPerLotAtDefaultRate: 0.00025,
+    residualWeight: 0,
+    householdPurchase: true,
+    sources: [
+      "a lot is a hide; leatherGoodsShare of the shoes' hides a person (docs/plan/leather-uses.md §4.2)",
+      "provisional: a week's work a hide for belts, purses, gloves and bottles (docs/plan/footwear-capacity.md §5.2)"
+    ]
   },
   {
     goodName: "Leather",
@@ -220,10 +277,13 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     portShare: 0.3,
     provenances: ["recipeDerived"],
     fixtureLotsPerMonth: 9.375,
-    laborPointsPerLotAtDefaultRate: 0.00864,
+    laborPointsPerLotAtDefaultRate: 0.00005,
     residualWeight: 0,
     typicalRecipeIndex: 0,
-    sources: ["Boots + Harnesses input"]
+    sources: [
+      "Boots + Harnesses input",
+      "provisional: 0.05 person-month a hide, about 240 hides a tanner a year; counted on the hides slaughter gives (urban-craft-staffing.md §10.4). It was 8.64 person-months"
+    ]
   },
   {
     goodName: "Tools",
@@ -388,6 +448,129 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     laborPointsPerLotAtDefaultRate: 0.036,
     residualWeight: 0,
     sources: ["provisional instruments map; annualLotsPerPerson authored, no vessel-liter contract"]
+  },
+  {
+    goodName: "Preserved food",
+    domain: "victualling",
+    inlandShare: 0.6,
+    portShare: 0.7,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 10 / 900,
+    fixtureLotsPerMonth: 8.333,
+    laborPointsPerLotAtDefaultRate: 0.0005,
+    residualWeight: 1,
+    sources: [
+      "provisional: 10 kg of salted meat and fish a person a year in 0.9 t wains (urban-craft-staffing.md §10.2)",
+      "0.5 person-month a wain: dressing, salting, packing at ~60 kg a day (guild-halls-and-urban-trades.md D1)"
+    ]
+  },
+  {
+    goodName: "Tallow Candles",
+    domain: "victualling",
+    inlandShare: 0.2,
+    portShare: 0.15,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 1 / 100,
+    fixtureLotsPerMonth: 7.5,
+    laborPointsPerLotAtDefaultRate: 0.00015,
+    residualWeight: 1,
+    householdPurchase: true,
+    sources: [
+      "provisional: 1 kg of tallow candles a person a year in 100 kg blocks, the towns only (candleDemand townsOnly); the wax Candles are the church's and the great households' (docs/plan/candle-split.md)",
+      "candleDemand everyone: candleKgPerPerson for the towns and their share of the countryside; England 1711 ~2.6 kg of tallow candles a person (docs/plan/candle-demand.md §2)",
+      "0.15 person-month a block: dipping at ~25 kg a day (guild-halls-and-urban-trades.md D1)"
+    ]
+  },
+  {
+    goodName: "Candles",
+    domain: "victualling",
+    inlandShare: 0.2,
+    portShare: 0.15,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 1 / 2000,
+    fixtureLotsPerMonth: 0.75,
+    laborPointsPerLotAtDefaultRate: 0.00015,
+    residualWeight: 1,
+    householdPurchase: true,
+    sources: [
+      "0.05 kg of wax a person a year in 100 kg blocks, the parish lights (waxCandleKgPerPerson; docs/plan/church-wax.md §2: a London parish ~170 lb a year)",
+      "0.15 person-month a block, as the tallow dips"
+    ]
+  },
+  {
+    goodName: "Soap",
+    domain: "victualling",
+    inlandShare: 0.05,
+    portShare: 0.05,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 1 / 120,
+    floorFromTownSoap: true,
+    fixtureLotsPerMonth: 6.25,
+    laborPointsPerLotAtDefaultRate: 0.0002,
+    residualWeight: 1,
+    sources: [
+      "town soap need: 2 kg a town person a year (townSoapSettings.ts; 1793 English excise, docs/plan/town-soap.md §2.1), half of it soft, in 120 kg barrels",
+      "0.2 person-month a barrel: boiled down from lye and fat, then cast"
+    ]
+  },
+  {
+    goodName: "Castile Soap",
+    domain: "victualling",
+    inlandShare: 0.05,
+    portShare: 0.05,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 1 / 120,
+    floorFromTownSoap: true,
+    fixtureLotsPerMonth: 6.25,
+    laborPointsPerLotAtDefaultRate: 0.0002,
+    residualWeight: 1,
+    sources: ["town soap need: the better-off half of 2 kg a town person a year (docs/plan/town-soap.md §3.2)"]
+  },
+  {
+    goodName: "Potash",
+    domain: "victualling",
+    inlandShare: 0.02,
+    portShare: 0.02,
+    provenances: ["recipeDerived"],
+    annualLotsPerPerson: 0.3 / 120,
+    floorFromSoapPotash: true,
+    fixtureLotsPerMonth: 1.875,
+    laborPointsPerLotAtDefaultRate: 0.0001,
+    residualWeight: 1,
+    sources: [
+      "soft soap ingredient: 0.3 barrel a barrel of soft soap (goods-generator.ts) over the town soap floor (docs/plan/town-soap.md §3.5)",
+      "0.1 person-month a barrel: leached from 24 sacks of hearth ash and boiled down"
+    ]
+  },
+  {
+    goodName: "Charcoal",
+    domain: null,
+    inlandShare: 0,
+    portShare: 0,
+    provenances: ["recipeDerived", "militaryLedger"],
+    annualLotsPerPerson: 0.0232,
+    fixtureLotsPerMonth: 17.4,
+    laborPointsPerLotAtDefaultRate: 0.00002,
+    residualWeight: 1,
+    sources: [
+      "the towns' own forging: Tools 0.02 + Bronze 0.0027 + Arms 0.0005 lots a person a year, one 50 kg sack each; forge orders add at runtime",
+      "0.6 person-day a sack: an earth kiln of ~1 t takes two colliers about a week (urban-craft-staffing.md §10.3). It was 21.5 person-months, and at that a winning step made a town's colliers 1,000 strong"
+    ]
+  },
+  {
+    goodName: "Tar",
+    domain: null,
+    inlandShare: 0,
+    portShare: 0,
+    provenances: ["householdPerCapita", "strategicOrder"],
+    annualLotsPerPerson: 0.5 / 144,
+    fixtureLotsPerMonth: 2.604,
+    laborPointsPerLotAtDefaultRate: 0.0001,
+    residualWeight: 1,
+    sources: [
+      "provisional: 0.5 kg a person a year for boats, carts, roofs and cordage, in 144 kg barrels; shipbuilding orders add at runtime",
+      "0.1 person-month a barrel: tending the kiln and casking, the wood being the forester's"
+    ]
   }
 ];
 
@@ -411,17 +594,77 @@ export function domainShare(goodName: string, port: boolean): number {
  * uncapped batching; without an entry here such a Good costs a whole labour point (1,000
  * person-months) a lot, and its wages alone exceed its price.
  *
- * Charcoal: preserve the existing work time (0.0215 points/50 kg) during the physical recipe
- * correction. Its former price-minus-Wood derivation used an invalid 9.75 t input and is retired.
- * Do not increase work time simply to absorb the lower feedstock bill (§37).
+ * Entries are person-months a lot ÷ 1,000 for the pre-industrial recipe Goods of a
+ * 1300 map (docs/plan/urban-craft-staffing.md §6.3, guild-halls-and-urban-trades.md D1), from the
+ * lot sizes in goodMeasureCatalog.ts. Raw material work (felling, herding, fishing, the vineyard)
+ * stays in the ingredient.
  */
 export const UNCALIBRATED_LABOR_POINTS_PER_LOT: Readonly<Record<string, number>> = {
-  Charcoal: 0.0215
+  // Baking. 20 loaves of the ~250 a baker draws from the oven in a day.
+  Bread: 0.000003,
+  // Butchering a wain of the Meat slaughter.ts sells fresh to the towns: 2.5 person-months a tonne,
+  // the butchers of Montpellier, Toulouse and the English towns (3.3-9.5 a thousand people) over
+  // their 25-50 kg of meat a head a year (urban-craft-staffing.md §10.4). Meat has no recipe.
+  // goodMeasureCatalog.ts's WAIN_KG, not imported: that module imports this one.
+  Meat: (2.5 * (STAPLE_NEED_KG_PER_PERSON_YEAR / GROSS_FOOD_NEED)) / 1000 / 1000,
+  // Victualling. 25 kg of split cod hung to dry on racks.
+  Stockfish: 0.00001,
+  // 0.6 t of cheese turned in the smokehouse.
+  "Smoked Cheese": 0.0001,
+  // 250 kg: cutting and turning fruit on the drying floor at ~20 kg a day; grapes dry whole.
+  "Dried Fruits": 0.0004,
+  Raisins: 0.00015,
+  // 120 L of wine or honey water kept acetifying.
+  Vinegar: 0.00005,
+  // 120 L boiled down from lye and fat, then cast.
+  Soap: 0.0002,
+  "Castile Soap": 0.0002,
+  // A 1,000 kg cheese from 10,000 L of milk: a dairy hand works ~170 L, ~17 kg of cheese, a day.
+  Cheese: 0.002,
+  // 30 kg of eggs gathered from the town's hens.
+  Egg: 0.00001,
+  // Brewing. 1,000 L from malting to casking, about five person-days; cider and perry need no malt.
+  Beer: 0.0002,
+  Cider: 0.00015,
+  Perry: 0.00015,
+  // Honey boiled in water, skimmed and casked: no malting, as cider.
+  Mead: 0.00015,
+  // Pressing and cellaring; the vine is the vineyard's.
+  Wine: 0.00005,
+  "Pomace Wine": 0.00003,
+  // 120 L of oil pressed from olives or rendered from blubber.
+  Oil: 0.0001,
+  // Forest works: burning and sacking ash; the wood is the forester's.
+  Ash: 0.00002,
+  // 120 L leached from ash and boiled down.
+  Potash: 0.0001,
+  // A 1.2 t barrel of nitre scraped from the beds and refined.
+  Saltpeter: 0.003,
+  // Building materials. A 1.6 t wain of brick moulded, dried and fired; lime slaked and sacked.
+  Brick: 0.0003,
+  "Slaked Lime": 0.00002,
+  // A 7.5 m³ beam hewn or pit-sawn by a pair of sawyers.
+  Timber: 0.0005,
+  // Woodwork: a wheel in about three days; a lute or harp set in a month.
+  "Spinning Wheel": 0.0001,
+  Instruments: 0.001,
+  // A tusk cut from the carcass.
+  Ivory: 0.00005,
+  // Luxury pieces, by the work of one master and a journeyman.
+  Jewelry: 0.0005,
+  Artworks: 0.001,
+  Sculptures: 0.003,
+  Tapestries: 0.01,
+  Relics: 0.002,
+  Perfume: 0.0002
 };
 
 export function laborPointsForLots(goodName: string, lots: number, populationRate: number): number {
   const row = getGoodDemandCalibration(goodName);
-  const perLot = row?.laborPointsPerLotAtDefaultRate ?? UNCALIBRATED_LABOR_POINTS_PER_LOT[goodName];
+  const perLot =
+    goodName === "Boots"
+      ? getBootsLaborPerLot()
+      : (row?.laborPointsPerLotAtDefaultRate ?? UNCALIBRATED_LABOR_POINTS_PER_LOT[goodName]);
   if (perLot == null) return lots;
   const rate = Math.max(1, populationRate);
   return Math.max(0, lots) * perLot * (DEFAULT_PEOPLE_PER_POPULATION_POINT / rate);
@@ -431,23 +674,54 @@ export function laborPointsForLots(goodName: string, lots: number, populationRat
  * PR 1 household / floor lots. Military, shipbuilding, and hinterland fillings are added by
  * later PRs; they must not return 0 for a mapped good just because those ledgers are empty.
  */
+/**
+ * A per-head floor's lots a year for each town person: footwear and leather goods for everyone
+ * count the town's share of its market's countryside too (docs/plan/leather-uses.md §4.1).
+ */
+export function getAnnualLotsPerTownPerson(
+  row: Pick<GoodDemandCalibrationRow, "goodName" | "annualLotsPerPerson">,
+  market?: Pick<Market, "i">
+): number | undefined {
+  if (row.annualLotsPerPerson == null) return undefined;
+  if (!isCountrysideGood(row.goodName)) return row.annualLotsPerPerson;
+  return (getCountrysideAnnualLotsPerPerson(row.goodName) ?? 0) * getMarketBuyerFactor(market);
+}
+
 export function getCalibratedMonthlyLots(args: {
   goodName: string;
   laborPeopleBurg: number;
   port: boolean;
   capital?: boolean;
+  /** The town's market: footwear for everyone counts its countryside. */
+  market?: Pick<Market, "i">;
 }): number {
   void args.port;
   const row = getGoodDemandCalibration(args.goodName);
   if (!row) return 0;
   const people = Math.max(0, args.laborPeopleBurg);
-  if (row.annualLotsPerPerson != null) {
-    return (people * row.annualLotsPerPerson) / 12;
+  const annual = getAnnualLotsPerTownPerson(row, args.market);
+  if (annual != null) {
+    return (people * annual) / 12;
   }
   const scale = people / REFERENCE_FIXTURE_LABOR_PEOPLE;
   let lots = row.fixtureLotsPerMonth * scale;
   if (args.capital && row.goodName === "Books") lots *= 2;
   return lots;
+}
+
+/** Months of a market's per-head floor its stock may hold before its towns stop making more. */
+export const CALIBRATED_RESERVE_MONTHS = 3;
+
+/**
+ * Share of a per-head floor a town still makes, given the market's stock of the good and the
+ * floor summed over the market's towns. The floor alone is blind to what is unsold: a market kept
+ * making 600 wains of Preserved food a month into a stock of 20,000 (urban-craft-staffing.md
+ * §10.2). Full up to two months of stock, falling to none at three.
+ */
+export function calibratedReserveFactor(marketStock: number, marketMonthlyLots: number): number {
+  if (!(marketMonthlyLots > 0)) return 1;
+  const months = Math.max(0, marketStock) / marketMonthlyLots;
+  return Math.max(0, Math.min(1, CALIBRATED_RESERVE_MONTHS - months));
 }
 
 /**

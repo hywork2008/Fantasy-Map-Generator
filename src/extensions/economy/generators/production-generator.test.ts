@@ -109,6 +109,32 @@ describe("ProductionModule byproducts", () => {
     clearEconomyContext();
   });
 
+  it("keeps the casks' first claim when Wine may also go out in pots or bottles", () => {
+    const goods = [
+      { i: 1, name: "Grapes", tags: ["food", "freshFood"], value: 1 },
+      { i: 2, name: "Wood", tags: [], value: 1 },
+      { i: 3, name: "Barrels", tags: [], value: 0.1, recipes: [{ 2: 0.2 }] },
+      { i: 4, name: "Ceramics", tags: [], value: 4, recipes: [{ 2: 1 }] },
+      {
+        i: 5,
+        name: "Wine",
+        tags: ["food"],
+        value: 2,
+        recipes: [
+          { 1: 0.26, 3: 0.08 },
+          { 1: 0.26, 4: 0.0129 }
+        ]
+      }
+    ] as Good[];
+    setGoods(goods);
+    Goods.sync();
+    const production = new ProductionModule() as unknown as {
+      buildProductionIndex(goods: Good[]): { priorityGoods: Good[] };
+    };
+    const priority = production.buildProductionIndex(goods).priorityGoods.map(good => good.name);
+    expect(priority).toContain("Barrels");
+    expect(priority).not.toContain("Ceramics");
+  });
   it("credits combustion byproducts beside the primary manufactured output", () => {
     const goods = [
       { i: 1, name: "Clay", tags: [], value: 1, unit: "wain", icon: "", color: "" },
@@ -201,6 +227,65 @@ describe("ProductionModule byproducts", () => {
     const record = state.records.find((row): row is MfgRecord => "recipe" in row)!;
     expect(record.recipe[1].units).toBeCloseTo(result.yieldLots * 0.005, 10);
     expect(state.market.goods[4].stock).toBeCloseTo(result.yieldLots * 0.004, 10);
+  });
+
+  it("buys no input it cannot use when a later input has run short since the decision", () => {
+    // Beer's grain was bought, then its casks could not be, and the grain was lost unpaid
+    // (docs/plan/urban-craft-staffing.md §10.12).
+    setEconomyCalibrationState({ applyCalibration: false });
+    setGoods([
+      { i: 1, name: "Test Grain", tags: [], value: 1, unit: "wain", icon: "", color: "" },
+      { i: 2, name: "Test Cask", tags: [], value: 1, unit: "cask", icon: "", color: "" },
+      { i: 3, name: "Test Drink", tags: [], value: 4, unit: "tun", icon: "", color: "" }
+    ]);
+    Goods.sync();
+    const market = {
+      i: 1,
+      centerBurgId: 1,
+      goods: { 1: { stock: 10, price: 1 }, 2: { stock: 1, price: 1 } }
+    } as unknown as Market;
+    setMarkets([market]);
+    (Markets as unknown as { indexMarkets(markets: Market[]): void }).indexMarkets([market]);
+    const burg = { i: 1, cell: 0, treasury: 1_000, market: 1 };
+    const state = {
+      burg,
+      market,
+      inventory: [] as number[],
+      demandCoverage: [],
+      records: [] as ProductionRecord[],
+      ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
+      smithingProgramByGood: new Map<string, never>(),
+      strategicLaborMarket: undefined,
+      strategicDemandByGood: new Map<number, never>()
+    };
+    const result = (new ProductionModule() as unknown as ManufactureHarness).executeManufacture(
+      state,
+      { demandCoverageByGood: [] },
+      {
+        action: {
+          good: Goods.get(3)!,
+          ingredients: [
+            { goodId: 1, amount: 1 },
+            { goodId: 2, amount: 0.4 }
+          ],
+          byproducts: [],
+          // Planned when the market still held enough of both.
+          maxYield: 10,
+          ingredientCostPerUnit: 1.4,
+          smithingProgram: null
+        },
+        candidates: [],
+        goalGoodId: 3,
+        laborProductivity: 1
+      },
+      10
+    );
+    expect(result.yieldLots).toBeCloseTo(2.5, 2);
+    expect(market.goods[1].stock).toBeCloseTo(7.5, 2);
+    expect(market.goods[2].stock).toBeCloseTo(0, 2);
+    // The inputs are paid for (wages come on top).
+    expect(1_000 - burg.treasury).toBeGreaterThanOrEqual(2.5 * 1.4 - 0.01);
   });
 
   it.each(["Cloth", "Wool Cloth", "Fine Wool Cloth", "Fine Wool Garments"])(
@@ -824,6 +909,48 @@ describe("runWorkerLoop steps (port-freight-queue-and-warehouses.md §10.23)", (
     expect(made).toEqual(["Missing Input", "Work", "Work"]);
     expect(total).toBe(2);
   });
+
+  it("staffs a town's own calibrated need before the profit ranking, up to 1.5 times its craft's headcount", () => {
+    setEconomyCalibrationState({ applyCalibration: true });
+    worldContext.populationRate = 1000;
+    worldContext.options = { ...worldContext.options, historicalPeriod: "highMedieval" };
+    const boots = good(1, "Boots");
+    const perfume = good(2, "Perfume");
+    const production = new ProductionModule() as unknown as LoopHarness;
+    const made: { name: string; labor: number }[] = [];
+    // Perfume always pays better whenever it is a candidate.
+    production.makeProductionDecision = (...args: unknown[]) => {
+      const candidates = args[7] as Good[];
+      const goal = candidates.includes(perfume) ? perfume : candidates.includes(boots) ? boots : null;
+      return goal ? { action: { good: goal }, candidates: [], goalGoodId: goal.i, laborProductivity: 1 } : null;
+    };
+    production.executeManufacture = (...args: unknown[]) => {
+      const action = (args[2] as { action: { good: Good } }).action;
+      const labor = args[3] as number;
+      made.push({ name: action.good.name, labor });
+      return { yieldLots: labor / laborPointsForLots(action.good.name, 1, 1000), laborUsed: labor };
+    };
+
+    // 5,000 people: 15 shoemakers a thousand, 75 people, 0.075 points; the stage stops at 1.5 times.
+    production.runWorkerLoop(
+      { priorityGoods: [], productiveGoods: [boots, perfume] },
+      {
+        burg: { i: 0, cell: 0, state: 0 },
+        population: 5,
+        workforce: 1,
+        activeGoalGoodId: null,
+        strategicDemandByGood: new Map(),
+        remainingCalibratedLots: new Map([[boots.i, 1000]]),
+        orderedCalibratedLots: new Map(),
+        demandTargets: [],
+        demandCoverage: []
+      }
+    );
+
+    expect(made[0].name).toBe("Boots");
+    expect(made[0].labor).toBeCloseTo(0.075 * 1.5, 6);
+    expect(made.slice(1).every(entry => entry.name === "Perfume")).toBe(true);
+  });
 });
 
 describe("linen clothing preparation", () => {
@@ -1022,17 +1149,25 @@ describe("commission employment", () => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     worldContext.populationRate = 1000;
     const module = new ProductionModule() as unknown as {
-      recordCommissionEmployment(cycle: unknown, burgId: number, points: number): void;
+      recordServiceEmployment(cycle: unknown, burgId: number, domain: string, points: number): void;
     };
     const cycle = {
       craftObservationsByBurg: new Map([
-        [1, { priorTotal: 1, priorTextiles: 0.25, observedTotal: 2, observedTextiles: 0.5 }]
+        [
+          1,
+          {
+            priorTotal: 1,
+            observedTotal: 2,
+            priorByDomain: new Map([["textiles", 0.25]]),
+            observedByDomain: new Map([["textiles", 0.5]])
+          }
+        ]
       ]),
       craftWorkersByBurg: new Map([[1, smoothCraftWorkers(1, 2, 1000)]]),
       craftDomainWorkersByKey: new Map([["1:textiles", smoothCraftWorkers(0.25, 0.5, 1000)]])
     };
-    module.recordCommissionEmployment(cycle, 1, 0.1);
-    module.recordCommissionEmployment(cycle, 1, 0.2);
+    module.recordServiceEmployment(cycle, 1, "textiles", 0.1);
+    module.recordServiceEmployment(cycle, 1, "textiles", 0.2);
     expect(cycle.craftWorkersByBurg.get(1)).toBe(smoothCraftWorkers(1, 2.3, 1000));
     expect(cycle.craftDomainWorkersByKey.get("1:textiles")).toBe(smoothCraftWorkers(0.25, 0.8, 1000));
     clearEconomyContext();

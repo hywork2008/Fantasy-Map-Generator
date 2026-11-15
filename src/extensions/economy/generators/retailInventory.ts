@@ -209,8 +209,14 @@ function marketGoodsIds(market: Market): number[] {
     Object.keys(market.goods)
       .map(Number)
       // Grain is the Food Ledger's aggregate availability view, not a physical
-      // retail product. Named staple crops own the real trade lots.
-      .filter(goodId => Number.isInteger(goodId) && !Goods.get(goodId)?.tags.includes("stapleFood"))
+      // retail product. Named staple crops own the real trade lots, in the ledger:
+      // their rows are views of those lots too (foodCoLoad.ts syncStapleCropMarketRows).
+      .filter(goodId => {
+        if (!Number.isInteger(goodId)) return false;
+        const tags = Goods.get(goodId)?.tags;
+        if (tags?.includes("stapleFood")) return false;
+        return !(tags?.includes("stapleCrop") && market.foodLedger?.stapleCropInventories?.[goodId]);
+      })
   );
 }
 

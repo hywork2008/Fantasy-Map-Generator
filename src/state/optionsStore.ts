@@ -6,6 +6,7 @@ import {
   type RacePersonNameMapping,
   resolveRacePersonNameMapping
 } from "../data/racePersonNameConfig";
+import { DEFAULT_SITE_BONUS_FULL_HABITABILITY } from "../generators/siteSuitability";
 import { simulationSettings } from "../simulation/ports";
 import type { BiomeRegionProfile } from "../types/biomeRegion";
 import type { HistoricalPeriod } from "../types/historicalPeriod";
@@ -149,6 +150,11 @@ export interface OptionsState {
    */
   initialFirearmsUnstocked: boolean;
   initialPopulationSaturation: number;
+  /**
+   * Habitability from which a cell's river, coast and lowland terms count in full; below it they
+   * scale with habitability (docs/plan/low-habitability-site-bonus.md). 1 keeps the upstream score.
+   */
+  siteBonusFullHabitability: number;
   /** Initial settlement distribution; Phase 0 keeps "standard" behavior unchanged. */
   initialSettlementPattern: InitialSettlementPattern;
   /**
@@ -501,6 +507,7 @@ export const GENERATION_OPTION_KEYS = [
   "manors",
   "stateLabelsMode",
   "initialPopulationSaturation",
+  "siteBonusFullHabitability",
   "initialSettlementPattern",
   "oikoumeneLandShare",
   "initialPolityRealmSize",
@@ -590,6 +597,7 @@ export const optionsStore = createStore<OptionsState>(set => ({
   gunpowderEraEnabled: true,
   initialFirearmsUnstocked: false,
   initialPopulationSaturation: 60,
+  siteBonusFullHabitability: DEFAULT_SITE_BONUS_FULL_HABITABILITY,
   initialSettlementPattern: "standard",
   oikoumeneLandShare: 0.45,
   initialPolityRealmSize: 30,

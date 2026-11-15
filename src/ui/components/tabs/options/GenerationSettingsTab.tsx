@@ -10,6 +10,7 @@ import {
 import { isFantasyCulturesSet } from "../../../../data/raceCivicStance";
 import { RiverPortLabRows } from "../../../../debug/riverPortLab/RiverPortLabRows";
 import { applyClimateVariabilityToWorld } from "../../../../generators/climateVariabilityOptions";
+import { SITE_BONUS_FULL_HABITABILITY_LIMITS } from "../../../../generators/siteSuitability";
 import { generationProgressStore, useGenerationProgressState } from "../../../../store/generationProgressState";
 import { useOptionsState } from "../../../../store/optionsState";
 import type { HistoricalPeriod } from "../../../../types/historicalPeriod";
@@ -682,6 +683,22 @@ export const GenerationSettingsTab: React.FC = () => {
                 step="5"
                 value={options.initialPopulationSaturation}
                 onChange={v => updateOptionAndLock("initialPopulationSaturation", Number(v))}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip={t("generation.siteBonusFullHabitabilityTip")}>
+            <td>
+              <LockIconButton id="siteBonusFullHabitability" />
+            </td>
+            <th>{t("generation.siteBonusFullHabitability")}</th>
+            <td colSpan={2}>
+              <SliderInput
+                min={String(SITE_BONUS_FULL_HABITABILITY_LIMITS.min)}
+                max={String(SITE_BONUS_FULL_HABITABILITY_LIMITS.max)}
+                step={String(SITE_BONUS_FULL_HABITABILITY_LIMITS.step)}
+                value={options.siteBonusFullHabitability}
+                onChange={v => updateOptionAndLock("siteBonusFullHabitability", Number(v))}
               />
             </td>
           </tr>

@@ -1,0 +1,70 @@
+== seed 2103
+drink        variant  drunk/yr  unmet/yr  met%   m12 met%
+Beer         base       220510     20216   92%       99%
+Beer         new        220504     20233   92%       99%
+Wine         base          126     30426    0%        0%
+Wine         new           126     30426    0%        0%
+Cider        base         1826     34837    5%        0%
+Cider        new          1826     34837    5%        0%
+Perry        base            0     18331    0%        0%
+Perry        new             0     18331    0%        0%
+Mead         base         1059      2016   34%       68%
+Mead         new          1056      2019   34%       72%
+container recipe input by drink (units/yr)
+  base: Barrels->Beer 87755.6, Barrels->Cider 730.3, Barrels->Pomace Wine 4.8, Ceramics->Perfume 5.5, Glass->Perfume 36.2
+  new: Barrels->Beer 88403.3, Barrels->Cider 730.3, Barrels->Pomace Wine 4.8, Ceramics->Beer 36.0, Ceramics->Perfume 5.4, Glass->Perfume 37.5
+containers at month 12 (stock, price, circulation)
+  base Barrels   stock     13265 price  0.041 empties        0 filled       0 shipped      0 reused         0 bought       0 lost       0 released       0 (flow 0)
+  base Ceramics  stock       432 price  2.587 empties        0 filled       0 shipped      0 reused         0 bought       0 lost       0 released       0 (flow 0)
+  base Glass     stock        99 price  4.107 empties        0 filled       0 shipped      0 reused         0 bought       0 lost       0 released       0 (flow 0)
+  new Barrels   stock     16466 price  0.039 empties   196765 filled     244 shipped      0 reused   1773155 bought     670 lost   89330 released       0 (flow 0)
+  new Ceramics  stock       425 price  2.585 empties        1 filled       7 shipped      0 reused         3 bought      34 lost       2 released      26 (flow 26)
+  new Glass     stock        93 price  4.186 empties        0 filled       0 shipped      0 reused         0 bought       0 lost       0 released       0 (flow 0)
+Beer monthly: drunk / unmet (base | new)
+  m 1   18813   15285 |   18813   15285
+  m 2   18810      20 |   18810      20
+  m 3   18803      20 |   18803      20
+  m 4   17909     904 |   17909     904
+  m 5   15603    3200 |   15584    3219
+  m 6   18789      15 |   18789      15
+  m 7   18760      35 |   18718      77
+  m 8   18552     231 |   18702      80
+  m 9   18767       0 |   18696      72
+  m10   18752       0 |   18652     100
+  m11   18482     255 |   18508     230
+  m12   18471     251 |   18521     210
+== seed 2102
+drink        variant  drunk/yr  unmet/yr  met%   m12 met%
+Beer         base       358849     28573   93%       97%
+Beer         new        358848     28584   93%       97%
+Wine         base          301     55487    1%        0%
+Wine         new           301     55487    1%        0%
+Cider        base         4054     62891    6%       12%
+Cider        new          4041     62905    6%       11%
+Perry        base            0     33473    0%        0%
+Perry        new             0     33473    0%        0%
+Mead         base         2440      2482   50%       76%
+Mead         new          2331      2590   47%       71%
+container recipe input by drink (units/yr)
+  base: Barrels->Beer 141586.6, Barrels->Cider 1641.5, Barrels->Pomace Wine 11.5, Ceramics->Perfume 20.2, Glass->Perfume 31.5
+  new: Barrels->Beer 142982.8, Barrels->Cider 1623.6, Barrels->Mead 109.6, Barrels->Pomace Wine 11.5, Ceramics->Beer 286.9, Ceramics->Perfume 18.6, Glass->Perfume 31.2
+containers at month 12 (stock, price, circulation)
+  base Barrels   stock     29508 price  0.036 empties        0 filled       0 shipped      0 reused         0 bought       0 lost       0 released       0 (flow 0)
+  base Ceramics  stock       478 price  2.560 empties        0 filled       0 shipped      0 reused         0 bought       0 lost       0 released       0 (flow 0)
+  base Glass     stock       162 price  5.173 empties        0 filled       0 shipped      0 reused         0 bought       0 lost       0 released       0 (flow 0)
+  new Barrels   stock     44508 price  0.050 empties   318716 filled     429 shipped     96 reused   2897611 bought    1052 lost  145928 released    6547 (flow 6547)
+  new Ceramics  stock       236 price  3.297 empties       63 filled     152 shipped      0 reused       144 bought     261 lost      16 released      44 (flow 44)
+  new Glass     stock       155 price  5.195 empties        0 filled       0 shipped      0 reused         0 bought       0 lost       0 released       0 (flow 0)
+Beer monthly: drunk / unmet (base | new)
+  m 1   28065   26864 |   28065   26864
+  m 2   30147     137 |   30147     137
+  m 3   30134     137 |   30134     137
+  m 4   30157     101 |   30157     101
+  m 5   30240       3 |   30240       3
+  m 6   30226       3 |   30226       3
+  m 7   30211       3 |   30211       3
+  m 8   30050     150 |   30050     150
+  m 9   30086      99 |   30087      99
+  m10   30168       3 |   30169       3
+  m11   29940     225 |   29942     225
+  m12   29426     845 |   29421     855
