@@ -7,6 +7,7 @@ import type { GalleonState } from "./galleonArmament";
 import { createGrokGalleon } from "./grokGalleon";
 import { createGrokGalley } from "./grokGalley";
 import { createGrokShipOfTheLine } from "./grokShipOfTheLine";
+import { createGrokTrireme } from "./grokTrireme";
 import { createMerchantShipHigh } from "./merchantShipHigh";
 import { createOpusGalleon } from "./opusGalleon";
 import { createSloop } from "./sloop";
@@ -92,5 +93,12 @@ export const SHIP_VARIANTS: readonly ShipVariant[] = [
     level: "high",
     author: "Grok 4.7",
     create: state => createGrokGalley(state)
+  },
+  {
+    id: variantId("ship.trireme", "high", "Grok 4.7"),
+    family: "ship.trireme",
+    level: "high",
+    author: "Grok 4.7",
+    create: state => createGrokTrireme(state)
   }
 ];
