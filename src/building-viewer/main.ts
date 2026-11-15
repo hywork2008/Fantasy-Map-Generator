@@ -49,6 +49,7 @@ import { BARGE, createBarge } from "../buildings/ships/barge";
 import { CARAVEL, createCaravel } from "../buildings/ships/caravel";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
+import { createGrokGalleon, GROK_GALLEON, grokGalleonParts } from "../buildings/ships/grokGalleon";
 import { createMerchantShipHigh, merchantShipParts } from "../buildings/ships/merchantShipHigh";
 import {
   createOpusGalleon,
@@ -61,6 +62,12 @@ import { createSloop, SLOOP } from "../buildings/ships/sloop";
 import { createSloopHigh, sloopHighParts } from "../buildings/ships/sloopHigh";
 import { BATTERING_RAM, createBatteringRam } from "../buildings/siege/batteringRam";
 import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "../buildings/siege/earlyFieldCannon";
+import {
+  assembleGrokTrebuchet,
+  createGrokTrebuchet,
+  GROK_TREBUCHET,
+  grokTrebuchetParts
+} from "../buildings/siege/grokTrebuchet";
 import { createSiegeTower, SIEGE_TOWER } from "../buildings/siege/siegeTower";
 import { createTrebuchet, TREBUCHET } from "../buildings/siege/trebuchet";
 import {
@@ -251,7 +258,10 @@ modelOptions.append(optionsTitle, optionFields);
  * Alternative versions of a list item made by other AI models, keyed by the list button's data-id.
  * `primary` means that author made the only prepared model, so it is selected on open.
  */
-const AUTHORED_VARIANTS: Record<string, { author: Author; primary?: boolean; quality?: boolean; show: () => void }> = {
+const AUTHORED_VARIANTS: Record<
+  string,
+  { author: Author; authors?: readonly Author[]; primary?: boolean; quality?: boolean; show: () => void }
+> = {
   "basilica-temple": { author: BASILICA_TEMPLE.author, show: () => showBasilicaTemple() }
 };
 let selectedId = entries[0]?.record.id ?? "";
@@ -265,6 +275,7 @@ authorSelect.setAttribute("aria-label", "AI model that created this object");
 const LEVEL_AUTHORS: Record<string, { authors: Author[]; current: Author; show: (author: Author) => void }> = {};
 function listAuthors(id: string): void {
   authorSelect.replaceChildren();
+  for (const option of qualitySelect.options) option.disabled = false;
   const level = LEVEL_AUTHORS[id];
   if (level) {
     for (const name of level.authors) {
@@ -278,7 +289,11 @@ function listAuthors(id: string): void {
     return;
   }
   const variant = AUTHORED_VARIANTS[id];
-  const names = variant?.primary ? [variant.author] : ([DEFAULT_AUTHOR, variant?.author].filter(Boolean) as Author[]);
+  const names = variant?.authors
+    ? variant.authors
+    : variant?.primary
+      ? [variant.author]
+      : ([DEFAULT_AUTHOR, variant?.author].filter(Boolean) as Author[]);
   for (const name of names) {
     const option = document.createElement("option");
     option.value = name;
@@ -292,7 +307,8 @@ authorSelect.addEventListener("change", () => {
   const level = LEVEL_AUTHORS[selectedId];
   if (level) return level.show(authorSelect.value as Author);
   const variant = AUTHORED_VARIANTS[selectedId];
-  if (variant && authorSelect.value === variant.author) return variant.show();
+  if (variant?.authors?.includes(authorSelect.value as Author) || (variant && authorSelect.value === variant.author))
+    return variant.show();
   list.querySelector<HTMLButtonElement>(`button[data-id="${CSS.escape(selectedId)}"]`)?.click();
 });
 const selectedName = document.createElement("h2");
@@ -1320,15 +1336,28 @@ const galleonButton = document.createElement("button");
 galleonButton.type = "button";
 galleonButton.textContent = "Galleon · Three-masted sailing ship";
 galleonButton.dataset.id = "galleon";
-AUTHORED_VARIANTS.galleon = { author: OPUS_GALLEON.author, quality: true, show: () => showGalleon() };
-const galleonState: Required<GalleonState> & { ensign: boolean } = { sails: "set", gunports: "open", ensign: false };
-const galleonPartsSelected = { codex: "all", opus: "all" };
+AUTHORED_VARIANTS.galleon = {
+  author: OPUS_GALLEON.author,
+  authors: [DEFAULT_AUTHOR, OPUS_GALLEON.author, GROK_GALLEON.author],
+  quality: true,
+  show: () => showGalleon()
+};
+const galleonState: Required<GalleonState> & { ensign: boolean; windows: "open" | "closed" } = {
+  sails: "set",
+  gunports: "open",
+  ensign: false,
+  windows: "open"
+};
+const galleonPartsSelected = { codex: "all", opus: "all", grok: "all" };
 function showGalleon(author: string = authorSelect.value): void {
-  const opus = author === OPUS_GALLEON.author,
-    key = opus ? "opus" : "codex";
+  const opus = author === OPUS_GALLEON.author;
+  const grok = author === GROK_GALLEON.author;
+  const key = grok ? "grok" : opus ? "opus" : "codex";
+  for (const option of qualitySelect.options) if (option.value === "low") option.disabled = grok;
+  if (grok && qualitySelect.value !== "high") qualitySelect.value = "high";
   const quality = qualitySelect.value as OpusGalleonQuality,
     high = quality === "high";
-  const info = opus ? OPUS_GALLEON : GALLEON;
+  const info = grok ? GROK_GALLEON : opus ? OPUS_GALLEON : GALLEON;
   selection++;
   for (const button of list.querySelectorAll("button"))
     button.setAttribute("aria-current", button === galleonButton ? "true" : "false");
@@ -1339,30 +1368,34 @@ function showGalleon(author: string = authorSelect.value): void {
   roofTitle.textContent = "Ship elevation";
   levelTitle.textContent = "Deck plan";
   showQuality(true);
-  const parts: readonly ModelPartFactory[] = opus
-    ? opusGalleonParts(quality, galleonState)
-    : high
-      ? merchantShipParts("galleon", galleonState)
-      : [
-          {
-            id: "low-assembly",
-            role: "Legacy assembly",
-            author: GALLEON.author,
-            quality: "low",
-            create: () => createGalleon(galleonState)
-          }
-        ];
+  const parts: readonly ModelPartFactory[] = grok
+    ? grokGalleonParts(galleonState)
+    : opus
+      ? opusGalleonParts(quality, galleonState)
+      : high
+        ? merchantShipParts("galleon", galleonState)
+        : [
+            {
+              id: "low-assembly",
+              role: "Legacy assembly",
+              author: GALLEON.author,
+              quality: "low",
+              create: () => createGalleon(galleonState)
+            }
+          ];
   if (!parts.some(p => p.id === galleonPartsSelected[key])) galleonPartsSelected[key] = "all";
   const chosen = parts.find(p => p.id === galleonPartsSelected[key]);
   const model = chosen
     ? opus
       ? chosen.create()
       : assembleSailingParts("galleon-part", [chosen])
-    : opus
-      ? createOpusGalleon(quality, galleonState)
-      : high
-        ? createMerchantShipHigh("galleon", galleonState)
-        : createGalleon(galleonState);
+    : grok
+      ? createGrokGalleon(galleonState)
+      : opus
+        ? createOpusGalleon(quality, galleonState)
+        : high
+          ? createMerchantShipHigh("galleon", galleonState)
+          : createGalleon(galleonState);
   comparisonModel = { path: null, quality, viewOnly: true };
   for (const [label, field, options] of [
     [
@@ -1393,6 +1426,20 @@ function showGalleon(author: string = authorSelect.value): void {
     });
     const row = document.createElement("label");
     row.append(label, input);
+    optionFields.append(row);
+  }
+  if (grok) {
+    const input = document.createElement("select");
+    input.setAttribute("aria-label", "Windows");
+    input.add(new Option("Open", "open"));
+    input.add(new Option("Shut", "closed"));
+    input.value = galleonState.windows;
+    input.addEventListener("change", () => {
+      galleonState.windows = input.value as "open" | "closed";
+      showGalleon(author);
+    });
+    const row = document.createElement("label");
+    row.append("Windows", input);
     optionFields.append(row);
   }
   const partSelect = document.createElement("select");
@@ -1430,18 +1477,31 @@ function showGalleon(author: string = authorSelect.value): void {
   mountPlan(levelHost, meshProjection(model, "top"));
   appendFacts(
     fact("Model", info.name),
-    fact("Quality", high ? "High" : "Low"),
+    fact("Quality", grok ? "High — the only prepared resolution" : high ? "High" : "Low"),
     fact("Sails", galleonState.sails),
     fact("Gunports", galleonState.gunports),
+    ...(grok ? [fact("Windows", galleonState.windows)] : []),
     fact(
       "CE adoption",
-      opus ? "BV-only comparison" : "Legacy default (Low); sail and gunport states supported in CE; High is BV-only"
+      grok
+        ? "Not adopted; CE uses Codex GPT-6.1 Sol. High is BV-only"
+        : opus
+          ? "BV-only comparison"
+          : "Legacy default (Low); sail and gunport states supported in CE; High is BV-only"
     ),
     fact(
       "Dimensions",
       `${info.length} m over spars × ${info.beam} m hull beam; ${info.height} m above water; ${info.draft} m draft`
     ),
-    fact("Armament", opus ? "28 guns, including two stern chasers" : "14 broadside guns"),
+    fact(
+      "Armament",
+      grok
+        ? "26 guns: 16 lower-deck, 8 waist, 2 stern chasers"
+        : opus
+          ? "28 guns, including two stern chasers"
+          : "14 broadside guns"
+    ),
+    ...(grok ? [fact("Rig", "Four masts, courses and topsails, two lateens and a spritsail")] : []),
     fact("Note", info.note, "Galleon")
   );
   const panel = modelPartsPanel(model.group);
@@ -1629,8 +1689,19 @@ shipsHeading.append(bargeButton);
 const siegeHeading = modelCategory("Siege engines");
 const trebuchetButton = document.createElement("button");
 trebuchetButton.type = "button";
+trebuchetButton.dataset.id = "trebuchet";
 trebuchetButton.textContent = "Trebuchet · Hinged counterweight";
-trebuchetButton.addEventListener("click", () => {
+let trebuchetPart = "all";
+AUTHORED_VARIANTS.trebuchet = {
+  author: GROK_TREBUCHET.author,
+  authors: [DEFAULT_AUTHOR, GROK_TREBUCHET.author],
+  quality: true,
+  show: () => showTrebuchet()
+};
+function showTrebuchet(): void {
+  const grok = authorSelect.value === GROK_TREBUCHET.author;
+  for (const option of qualitySelect.options) option.disabled = option.value !== (grok ? "high" : "low");
+  qualitySelect.value = grok ? "high" : "low";
   selection++;
   for (const button of list.querySelectorAll("button")) {
     button.setAttribute("aria-current", button === trebuchetButton ? "true" : "false");
@@ -1639,25 +1710,71 @@ trebuchetButton.addEventListener("click", () => {
   floors.replaceChildren();
   facts.replaceChildren();
   banner.hidden = true;
+  showQuality(true);
   roofTitle.textContent = "Siege engine elevation";
   levelTitle.textContent = "Siege engine plan";
-  const model = createTrebuchet();
-  massing = model;
-  scene.add(model.group);
+  const info = grok ? GROK_TREBUCHET : TREBUCHET;
+  let elevation: string;
+  let plan: string;
+  if (grok) {
+    const parts = grokTrebuchetParts();
+    if (!parts.some(part => part.id === trebuchetPart)) trebuchetPart = "all";
+    const partSelect = document.createElement("select");
+    partSelect.setAttribute("aria-label", "Assembly part");
+    partSelect.add(new Option("Complete engine", "all"));
+    for (const part of parts) partSelect.add(new Option(`${part.role} · ${part.quality}`, part.id));
+    partSelect.value = trebuchetPart;
+    partSelect.addEventListener("change", () => {
+      trebuchetPart = partSelect.value;
+      showTrebuchet();
+    });
+    const row = document.createElement("label");
+    row.append("Assembly part", partSelect);
+    optionFields.append(row);
+    modelOptions.hidden = false;
+    const chosen = parts.find(part => part.id === trebuchetPart);
+    const built = chosen ? assembleGrokTrebuchet([chosen]) : createGrokTrebuchet();
+    elevation = meshProjection(built, "side");
+    plan = meshProjection(built, "top");
+    massing = built;
+  } else {
+    const built = createTrebuchet();
+    elevation = built.elevation;
+    plan = built.plan;
+    massing = built;
+  }
+  scene.add(massing.group);
   ground.visible = true;
-  frame({ occupancyMeters: { width: TREBUCHET.length, depth: TREBUCHET.width } }, TREBUCHET.height);
-  camera.position.set(14, 11, 21);
-  controls.target.set(3, 4, 0);
+  frame({ occupancyMeters: { width: info.length, depth: info.width } }, info.height);
+  camera.position.set(16, 10, 18);
+  controls.target.set(2.4, 3.4, 0);
   controls.update();
-  mountPlan(roofHost, model.elevation);
-  mountPlan(levelHost, model.plan);
+  mountPlan(roofHost, elevation);
+  mountPlan(levelHost, plan);
   appendFacts(
-    fact("Model", TREBUCHET.name),
+    fact("Model", info.name),
+    fact("Quality", grok ? "High — the only prepared resolution" : "Low"),
     fact("Type", "Hinged-counterweight siege engine"),
-    fact("Throwing arm", `${TREBUCHET.longArm} m long arm / ${TREBUCHET.shortArm} m counterweight arm`),
-    fact("Pose", "Lowered for loading; sling and projectile in the trough"),
-    fact("Note", TREBUCHET.note, "Trebuchet")
+    fact("Throwing arm", `${info.longArm} m long arm / ${info.shortArm} m counterweight arm`),
+    fact("Pose", "Cocked for loading; counterweight raised, sling and projectile in the trough"),
+    fact(
+      "CE adoption",
+      grok ? "Not adopted; CE uses Codex GPT-6.1 Sol. High is BV-only" : "Legacy default; this author has no High model"
+    ),
+    ...(grok
+      ? [
+          fact("Counterweight", "Hinged planked chest of stone and lead, hung from the short arm"),
+          fact("Windlass", "Twin spoked wheels, ratchet and pawl, rope hooked under the long arm")
+        ]
+      : []),
+    fact("Note", info.note, "Trebuchet")
   );
+  const panel = modelPartsPanel(massing.group);
+  if (panel) facts.append(panel);
+}
+// listAuthors resets the author while this click is still bubbling, so show after that.
+trebuchetButton.addEventListener("click", () => {
+  queueMicrotask(() => showTrebuchet());
 });
 siegeHeading.append(trebuchetButton);
 

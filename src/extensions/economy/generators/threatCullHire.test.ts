@@ -34,12 +34,14 @@ import {
 import { CULL_PLAYER_HIRE_LAG_DAYS, clearCullHireState, rebuildCullJobPostings } from "./threatCullJobPostings";
 
 /** Deterministic RNG that avoids death/injury and lands in success band for skilled hunters. */
+const rejectProbability = () => false;
+
 function alwaysSuccessRng(): RNGService {
   let i = 0;
   const seq = [0.9, 0.5, 0.99, 0.9, 0.5, 0.99, 0.9, 0.5, 0.99];
   return {
     rand: () => seq[i++ % seq.length] ?? 0.9,
-    P: () => false,
+    P: rejectProbability,
     each: () => () => false,
     gauss: () => 0,
     Pint: n => Math.floor(n),
