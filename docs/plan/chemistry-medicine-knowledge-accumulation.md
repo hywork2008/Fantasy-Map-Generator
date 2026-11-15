@@ -240,7 +240,7 @@ medicineDemandPressure   （派生。個別キーから。新所有データで�
     )
 ```
 
-`medicineDemandPressure` は host が `TechnologySignals` に載せる（ノード `min` が読むため）。肥料項は含めない。
+`medicineDemandPressure` は host が `TechnologySignals` に載せる（ノード `min` が読むため）。肥料項は含めない。魔法が実在する地図では、この合成のあとに [dnd/superstition-coefficients.md](dnd/superstition-coefficients.md) の 1/2 を掛けてから `clamp01` する。四つの項そのものは掛けない。
 
 ### 3.3 品質と火山加速（実装可能なプリミティブ）
 

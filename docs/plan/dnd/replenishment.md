@@ -165,7 +165,7 @@
 - 緩衝帯の幅。適合 80 以上が住めないことは [danger-calculation.md](danger-calculation.md) と [density-knobs.md](density-knobs.md) で済み、三段階の土地は足さない。
 - 航路で沈む船。海の塗りは [monster-nature.md](monster-nature.md) のままである。
 - 消えた災厄の個体を、どの暦で戻すか（§1.2）。
-- 医学と科学技術を迷信とする係数。次の設計である。
+- 医学と科学技術を迷信とする係数は [superstition-coefficients.md](superstition-coefficients.md) に置いた。
 - ダンジョンの内部と戦利品。死者由来の使役。
 
 ---
@@ -214,4 +214,4 @@
 
 常備 1% の分け方、公共事業の台帳、Marches からの離脱、緩衝帯、航路の損失、消えた災厄の再出現は、§6 のまま後である。
 
-次の設計は、[fantasy-world-agenda.md](fantasy-world-agenda.md) §9 の 4、医学と科学技術を迷信とする係数である。死亡率の表は変えない。`rare` でも歴史どおりの医学の日程を残す読みは、採らない。
+迷信の係数は [superstition-coefficients.md](superstition-coefficients.md) に置いた。`rare` と `common` は医学の需要と自然哲学の採用率を 1/2 にする。死亡率の表は変えない。次の列は死者由来の使役で、文化を名指しするまで書かない。

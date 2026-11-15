@@ -7,6 +7,7 @@
 - docs/plan/dnd/density-knobs.md
 - docs/plan/dnd/monster-nature.md
 - docs/plan/dnd/replenishment.md
+- docs/plan/dnd/superstition-coefficients.md
 
 2026-11-15
 

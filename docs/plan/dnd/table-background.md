@@ -310,4 +310,4 @@ rarity 5 の近くに人がいるときの死は、成人 1,000 人あたり年 
 
 ## 14. 次に進める作業
 
-コードはまだ変えない。危険度の塗りは [danger-calculation.md](danger-calculation.md) で決めた。0〜255 を年率に比例させる実装は書かない。脅威の死の人数は [cr-distribution.md](cr-distribution.md) に置いた。rarity 5 の近傍は、数日で少なくとも数万から数十万人が死ぬ規模を、その天井が受ける。実装の 4 は、依頼があるまで書かない。治療の生産量、冒険者ギルド地方支部、摘要の描画は、そのあとである。冒険者 0.05% は地図生成オプションとして [magic-agrarian-economy.md](magic-agrarian-economy.md) 側でも確定した。セル収量は変えない。魔法の濃さと怪物の濃さは [density-knobs.md](density-knobs.md) に置いた。補充と、同じ年に同じ個体を誰が削れるかは [replenishment.md](replenishment.md) に置いた。次の設計は、医学と科学技術を迷信とする係数である。
+コードはまだ変えない。危険度の塗りは [danger-calculation.md](danger-calculation.md) で決めた。0〜255 を年率に比例させる実装は書かない。脅威の死の人数は [cr-distribution.md](cr-distribution.md) に置いた。rarity 5 の近傍は、数日で少なくとも数万から数十万人が死ぬ規模を、その天井が受ける。実装の 4 は、依頼があるまで書かない。治療の生産量、冒険者ギルド地方支部、摘要の描画は、そのあとである。冒険者 0.05% は地図生成オプションとして [magic-agrarian-economy.md](magic-agrarian-economy.md) 側でも確定した。セル収量は変えない。魔法の濃さと怪物の濃さは [density-knobs.md](density-knobs.md) に置いた。補充と、同じ年に同じ個体を誰が削れるかは [replenishment.md](replenishment.md) に置いた。迷信の係数は [superstition-coefficients.md](superstition-coefficients.md) に置いた。治療の生産量は、まだ書かない。次の列は死者由来の使役で、文化を名指しするまで書かない。

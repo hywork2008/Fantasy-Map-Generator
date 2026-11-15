@@ -235,4 +235,4 @@ cells.danger[id] = Math.max(monsterDanger, predatorDanger);
 
 脅威の死の人数は [cr-distribution.md](cr-distribution.md) に置いた。人口動態へ入れる実装は、まだ書かない。
 
-魔法の濃さと怪物の濃さは [density-knobs.md](density-knobs.md) に置いた。補充と、同じ年に同じ個体を誰が削れるかは [replenishment.md](replenishment.md) に置いた。危険度は、その年の書き手が残した `power` から一度だけ描く。次の設計は、医学と科学技術を迷信とする係数である。人口の台帳（`adventurerActiveShare`）は、本書を待たずに [magic-agrarian-economy.md](magic-agrarian-economy.md) の順で進めてよい。
+魔法の濃さと怪物の濃さは [density-knobs.md](density-knobs.md) に置いた。補充と、同じ年に同じ個体を誰が削れるかは [replenishment.md](replenishment.md) に置いた。危険度は、その年の書き手が残した `power` から一度だけ描く。迷信の係数は [superstition-coefficients.md](superstition-coefficients.md) に置いた。危険度には掛けない。人口の台帳（`adventurerActiveShare`）は、本書を待たずに [magic-agrarian-economy.md](magic-agrarian-economy.md) の順で進めてよい。次の列は死者由来の使役で、文化を名指しするまで書かない。

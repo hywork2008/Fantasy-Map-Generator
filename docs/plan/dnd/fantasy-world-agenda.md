@@ -1,6 +1,6 @@
 # ファンタジー世界観で、現実のモデルと分けて考える項目
 
-**Status**: 論点の一覧。濃さの分離は [density-knobs.md](density-knobs.md)、補充の二本と同じ年の書き手は [replenishment.md](replenishment.md) に置いた。冒険者を manpower の外に置くこと、魔法のある世界では医学と科学技術を迷信として扱うこと、死者由来の使役を後の文化の候補に残すこと、を決めた。シミュレーションには未接続。迷信の係数はまだ置かない。  
+**Status**: 論点の一覧。濃さの分離は [density-knobs.md](density-knobs.md)、補充の二本と同じ年の書き手は [replenishment.md](replenishment.md)、迷信の係数は [superstition-coefficients.md](superstition-coefficients.md) に置いた。冒険者を manpower の外に置くこと、魔法のある世界では医学と科学技術を迷信として扱うこと、死者由来の使役を後の文化の候補に残すこと、を決めた。シミュレーションには未接続。死者の使役は、文化を名指しするまで書かない。  
 **Date**: 2026-11-15  
 **Related**:
 
@@ -19,6 +19,7 @@
 | [underground-realm-and-supernatural-areas.md](../underground-realm-and-supernatural-areas.md) | 非人間の領域を面として持つか |
 | [long-lived-race-population-and-roster.md](../long-lived-race-population-and-roster.md) | 長寿種の人口と名簿 |
 | [chemistry-medicine-knowledge-accumulation.md](../chemistry-medicine-knowledge-accumulation.md) | 薬種・衛生・`medicine` の蓄積。年数では解禁しない |
+| [superstition-coefficients.md](superstition-coefficients.md) | `rare` と `common` は医学需要と自然哲学の採用率を 1/2。死亡率と衛生は変えない |
 | [technology-development-roadmap.md](../technology-development-roadmap.md) | 中世農業から宇宙開発までの技術グラフ |
 | [fantasy-culture-set-goods.md](../fantasy-culture-set-goods.md) | 怪物素材などの交易品候補。未実装 |
 | `src/generators/manpower.ts` | 平時の兵力は総人口の 1%、戦時 3% |
@@ -258,7 +259,7 @@
 ### 6.4 後で決める問い
 
 - ポーションを、薬草から作る非魔法の薬（既存の薬種に吸収）にするか、魔法の品（冒険者の閉回路で、市場の穀物にしない）にするか。出回る範囲は決まった。小さい都市へ回せるほどは作らず、結果として大都市にしか置かない（[table-background.md](table-background.md) §13）。
-- 割引の強さ。魔法があるとき医学と科学技術を迷信とする、は §6.5 で決めた。`medicineDemandPressure` と `naturalPhilosophy` をどれだけ下げるか、遅延を宇宙開発まで伝播させるかは、まだ置かない。加速の経路は入れない。魔法が実験を速くする、とは読まない。
+- 割引の強さは [superstition-coefficients.md](superstition-coefficients.md) で閉じた。`rare` と `common` は `medicineDemandPressure` と自然哲学の年次採用率を 1/2 にする。遅れは既存の自然哲学の門を通って軌道の研究まで伝わる。信号ロケットは遅れない。加速の経路は入れない。魔法が実験を速くする、とは読まない。
 - 復活は、払った一人を名前と人口の両方へ戻す、で決めた（[magic-agrarian-economy.md](magic-agrarian-economy.md) §10 の 6）。王国の死亡率の式は変えない。
 - 軍医と従軍司祭を、戦傷の回復率に足すか。足すと戦争の人的損耗が魔法の濃さで変わり、manpower と矛盾しうる。
 
@@ -334,7 +335,7 @@
 1. **棲み分けのノブ**（§5）。魔法の濃さと怪物の濃さは Cultures set から分ける、で決まった。項目名、既存セーブの移行、Cultures set に残すものは [density-knobs.md](density-knobs.md) に置いた。実装はまだである。
 2. **補充と討伐**（§3）。設計は [replenishment.md](replenishment.md)。獣は生態の冬の回復、災厄とダンジョンは呪術、同じ年の力の書き手は一つ、ダンジョンの出現は `monsterDensity`、で閉じた。実装はまだである。
 3. **力量と身分**（§4）。冒険者は manpower の外に置く、で決まった。戦時の召集例外は置かない。討伐の換算を書き、戦争の `power` には足さない。
-4. **治療と技術**（§6）。魔法がある世界では、医学と科学技術を迷信として扱う（§6.5）。死亡率は変えない。係数は、棲み分けのノブのあとで設計する。
+4. **治療と技術**（§6）。設計は [superstition-coefficients.md](superstition-coefficients.md)。`rare` と `common` は医学の需要と自然哲学の採用率を 1/2 にする。死亡率と衛生は変えない。実装はまだである。
 5. **死者の使役**（§2）。候補に残す、で決まった。対象はスケルトンやフレッシュゴーレムなど死者由来のもの。ストーンゴーレムは忌避が薄く、この候補には入れない。畑の人手の式には、その文化を名指しする設計まで入れない。
 6. **§7 の行**。その行が指している既存システムを改修するときに、その行だけを設計する。
 
@@ -347,7 +348,7 @@
 1. **分ける。** 魔法の濃さ（`off` / `rare` / `common`）と怪物の濃さは、Cultures set から独立した二つのノブにする。種族と定住パターンを、術者の有無や脅威の発生と一緒に切り替えない。緩衝帯、海、地下、聖域は、この回答では置かない。
 2. **二本にする。** 獣の補充は生態。災厄とダンジョンの補充は呪術。一つの型にまとめない。
 3. **外に置く。** 冒険者は manpower の台帳に入れない。戦時に国家が召集する例外も置かない。国家が雇うときは契約である。兵士の 1% と二重にはしない。
-4. **医学と科学技術は、魔法のある世界では迷信である。** 詳細は §6.5。`rare` だから歴史どおりの需要が立つ、という読みは取らない。魔法が無い地図は、今の歴史モデルのままである。王国の死亡率は変えない。蝋の需要と交易路は、この回答に含まれない。まだ決めていない。
+4. **医学と科学技術は、魔法のある世界では迷信である。** 詳細は §6.5。係数は [superstition-coefficients.md](superstition-coefficients.md)。`rare` だから歴史どおりの需要が立つ、という読みは取らない。魔法が無い地図は、今の歴史モデルのままである。王国の死亡率は変えない。蝋の需要と交易路は、この回答に含まれない。まだ決めていない。
 5. **残す。** 残すのは、死者を由来とする使役を、後の文化が名指しできる余地である。スケルトンやフレッシュゴーレムがこれにあたる。ストーンゴーレムのように石を材料にする工作物は忌避が薄く、この余地には入れない。守衛か、別の製作伝統の問いである。
 
 今の収穫式には入れない。畑の 5% をスケルトンで置き換えるには、100 万人あたり常勤の術者が約 1,400 人要る。`off` と `rare` の既定では接続しない。文化を名指しする設計で、どの死者をどの職に限るか、維持する術者を誰が雇うか、命令が切れたものを危険度に戻すか、禁じる宗教との外交を足すか、を決める。
@@ -356,4 +357,4 @@
 
 ## 11. 次に進める作業
 
-コードは変えない。危険度の算出は [danger-calculation.md](danger-calculation.md) で決めた。適合の式は動かさない。魔法の濃さと怪物の濃さは [density-knobs.md](density-knobs.md) に置いた。補充と、同じ年に同じ個体を誰が削れるかは [replenishment.md](replenishment.md) に置いた。冒険者は manpower の外、をその設計の前提にした。次の設計書は §9 の 4、医学と科学技術を迷信とする係数である。死者の使役は候補に残してあり、その文化を名指しする設計まで畑の人手には入れない。
+コードは変えない。危険度の算出は [danger-calculation.md](danger-calculation.md) で決めた。適合の式は動かさない。魔法の濃さと怪物の濃さは [density-knobs.md](density-knobs.md) に置いた。補充と、同じ年に同じ個体を誰が削れるかは [replenishment.md](replenishment.md) に置いた。冒険者は manpower の外、をその設計の前提にした。迷信の係数は [superstition-coefficients.md](superstition-coefficients.md) に置いた。次の列は §9 の 5、死者由来の使役である。文化を名指しするまで畑の人手には入れず、その設計書は書かない。§7 の行は、その行の既存システムを改修するときに、その行だけを設計する。

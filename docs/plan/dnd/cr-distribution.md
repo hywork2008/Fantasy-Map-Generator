@@ -366,4 +366,4 @@ Greater Monster の 260 人は、肩に人がいるときの年間予算であ�
 
 コードは変えない。この人数を成人から引く実装は、依頼があるまで書かない。書くときは [table-background.md](table-background.md) の段 4 であり、生成末尾の事象を含む。
 
-魔法の濃さと怪物の濃さは [density-knobs.md](density-knobs.md) に置いた。補充と、同じ年に同じ個体を誰が削れるかは [replenishment.md](replenishment.md) に置いた。`power` の回復と討伐は、本書の死者を掛け直さない。次の設計は、[fantasy-world-agenda.md](fantasy-world-agenda.md) §9 の 4、医学と科学技術を迷信とする係数である。
+魔法の濃さと怪物の濃さは [density-knobs.md](density-knobs.md) に置いた。補充と、同じ年に同じ個体を誰が削れるかは [replenishment.md](replenishment.md) に置いた。`power` の回復と討伐は、本書の死者を掛け直さない。迷信の係数は [superstition-coefficients.md](superstition-coefficients.md) に置いた。本書の死者には掛けない。次の列は死者由来の使役で、文化を名指しするまで書かない。

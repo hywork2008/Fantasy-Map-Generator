@@ -87,7 +87,7 @@
 
 濃さを `rare` または `common` へ切り替えたときは、ロックされていない `fireSpiritsEnabled` と `gremlinsEnabled` を true にする。`off` へ切り替えたときは、ロックされていない二つを false にする。実行時の門は、濃さが `off` でないことと、それぞれのトグルである。文化セットでは判定しない。
 
-医学と科学技術を迷信とする係数は、本書では置かない。衛生、コレラ、王国の死亡率の式は動かさない。
+医学と科学技術を迷信とする係数は、[superstition-coefficients.md](superstition-coefficients.md) に置いた。本書はそれを書かない。衛生、コレラ、王国の死亡率の式は動かさない。
 
 ---
 
@@ -163,8 +163,6 @@
 
 ## 9. 次に進める作業
 
-コードは変えない。医学と科学技術を迷信とする係数は、まだ置かない。置くのは、棲み分けのあとと決めた治療と技術の設計である。
+コードは変えない。補充と、ダンジョンの出現先は [replenishment.md](replenishment.md) に置いた。ダンジョンは `monsterDensity`、洞窟は文化セットのままである。迷信の係数は [superstition-coefficients.md](superstition-coefficients.md) に置いた。`rare` と `common` は、その 1/2 も共有する。収量と死亡率は変えない。
 
-補充と、ダンジョンの出現先は [replenishment.md](replenishment.md) に置いた。ダンジョンは `monsterDensity`、洞窟は文化セットのままである。
-
-次の設計は、[fantasy-world-agenda.md](fantasy-world-agenda.md) §9 の 4、医学と科学技術を迷信とする係数である。
+次の列は、[fantasy-world-agenda.md](fantasy-world-agenda.md) §9 の 5、死者由来の使役である。文化を名指しするまで、その設計書は書かない。
