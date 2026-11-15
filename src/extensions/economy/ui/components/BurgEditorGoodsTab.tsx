@@ -4,6 +4,7 @@ import { useBurgEditorState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { getBurgMarketSnapshot } from "../../controllers/characterMarket";
 import { formatRetailQuantity } from "../../generators/goodsTradeLots";
+import { GoodIcon } from "./GoodIcon";
 
 /** Read-only retail stock available in the burg currently open in Edit Burg. */
 export const BurgEditorGoodsTab: FC = () => {
@@ -60,10 +61,7 @@ export const BurgEditorGoodsTab: FC = () => {
               return (
                 <tr key={row.goodId}>
                   <td title={row.unit}>
-                    <svg aria-hidden="true" width="1.3em" height="1.3em" className="goodIcon">
-                      <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
-                    </svg>{" "}
-                    {goodName}
+                    <GoodIcon icon={row.goodIcon} size="1.3em" /> {goodName}
                   </td>
                   <td>{row.merchantName}</td>
                   <td>{formatRetailQuantity(row.availableStock, row.retailLotSize)}</td>
