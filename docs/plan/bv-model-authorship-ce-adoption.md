@@ -84,7 +84,7 @@ export function authorSlug(author: Author): string; // "claude-opus-5.5"、"grok
   - `GPT-6.1 Sol`・`Codex` → `Codex GPT-6.1 Sol`
   - `Claude 5.5 Medium` → `Claude Opus 5.5`
 - 作者のないモデルに表示する `DEFAULT_AUTHOR` は、`Codex` から `Codex GPT-6.1 Sol` に変えた。
-- `Grok 4.7` は市壁の `Grok` とは別表記である。版idは `authorSlug` により `grok-4.7` になる。2026-11-15時点では `ship.galleon` の high だけがこの作者を使う。
+- `Grok 4.7` は市壁の `Grok` とは別表記である。版idは `authorSlug` により `grok-4.7` になる。この作者は `ship.galleon` の high、トレビュシェット、および `medieval.harbor-treadwheel-crane` の high（BVの比較用。CEはCodexのhigh）を使う。
 
 ### 4.2 版（`ModelVariant`、`src/buildings/modelVariants.ts`、実装済み）
 

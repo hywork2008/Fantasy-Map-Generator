@@ -125,6 +125,8 @@ Highの織物商人会館と職人ギルド会館4種は、`civicHallProfile.ts`
 
 港湾クレーン（Medieval 35）のHighは基礎・支持架構・駆動部・吊り具の4部品とした。寸法型・建造プロファイルをBVとCEの共通入力とし、BVの比較用／CE寸法構成、部品単体、CEのLow／Highで吊りロープの位置を一致させる。CEの品質変更時は寸法別プロトタイプを解放・再生成し、実際に描いたvariantを作者一覧へ記録する。[実装・検証記録](../analytics/bv-harbor-cranes-high-20261101.md)。
 
+2026-11-15に、踏車式だけへ作者 `Grok 4.7` の high をBVの比較用として追加した。版idは `medieval.harbor-treadwheel-crane@high#grok-4.7`。Lowは作らない。手巻き式には足していない。CEの採用はCodexの high のまま。部品は同じ4つで、吊りロープの位置と基礎の占有もCodexの契約に合わせる。旋回する木造の小屋、内側を歩く踏車、削り出したジブを足し、Codexの生成関数は変えていない。[記録](../analytics/bv-harbor-crane-grok-20261115.md)。
+
 2026-11-02にMedieval 38も共通会館factoryの`printing`へ追加した。印刷機は工房と会館で同一factoryを使い、BVで独立選択できる。本体・東階段は既存職種と同一。完成画像PNGは保存・参照せず、BVで角度・ズーム・部品を確認する。既存制作記録と監査再生成からもPNG参照を除いた。
 
 2026-11-02にMedieval 39を共通会館factoryの`instruments`へ追加した。本体・東階段は不変で、リュートは検品台と壁紋章で同じfactoryを使う。ハープは独立した4番目の部品。響孔の開口、楽器の支持と弦の取付、Low互換と部品単体表示を検証した。
