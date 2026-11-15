@@ -2,26 +2,37 @@
 
 ## 本プロジェクトの構成
 
-FMG / Fantasy Map Generator
-src
+### FMG / Fantasy Map Generator
+
 src/app.ts起点
 
-RE / Region Editor
+### RE / Region Editor
+
 src/region-editor
 FMGのProvince相当の地図を描く
 
-BV / Building Viewer
+### BV / Building Viewer
+
 src/building-viewer
 CEで使用する3Dオブジェクトを閲覧する為のツール
 
-CE / City Editor
+### CE / City Editor
+
 src/city-editor
 FMGのBurg相当の地図を描く
+URL: http://{host}:{port}/Fantasy-Map-Generator/city-editor/
 
-DE / Dungeon Editor
+#### Generation method
+
+- mesh-first メッシュあり
+- meshless メッシュなし
+
+### DE / Dungeon Editor
+
 src/dungeon-editor
 
-CG / City Generator
+### CG / City Generator
+
 src/city-generator
 ※廃止予定なのでCGのソースコードは見る必要も編集する必要も無い。
 
@@ -34,8 +45,12 @@ REにアクセスする為のメニューも同様に、Edit Provinceダイア�
 
 ### 会話の言語
 
-進行中の作業のログは日本語でなくても良いが、結果報告は日本語で行う。
+日本語で行う。
 計画書などに基づく連続した作業の時は、次に進めるべき作業を明記する。
+
+### ソースコードに記載する言語
+
+- 多言語化のファイルを除きソースコード中に日本語は書かない。英語を原則とする。
 
 ### 設計書の追加
 
@@ -44,10 +59,6 @@ docs/planフォルダに新しい設計書を作製した時は、docs/plan/CHAN
 ### 観測データの保存
 
 シミュレーションの全量観測JSONなど、再生成できる大きな出力（目安2 MB超）はGit管理外の`docs/analytics/raw/`へ出力する。コミットするのは記録md・派生比較・固定入力と、全量出力のSHA-256を記した一覧である（例: docs/analytics/raw-observations-20261023.md）。
-
-### ソースコードに記載する言語
-
-- 多言語化のファイルを除きソースコード中に日本語は書かない。英語を原則とする。
 
 ### 河川と橋の角度
 
