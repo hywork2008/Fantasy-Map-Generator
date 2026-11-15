@@ -1,15 +1,16 @@
 # 怪物の性質
 
-**Status**: 五種の既定カードと媒体マスクは `src/generators/monsterNature.ts` と `dangerField.ts` に入った。食性・毒・大きさ・攻撃はバイトに足さない。未知の `type`（ダンジョンの `bossType` を含む）はレアリティ行をそのまま使う。`bossType` ごとの `track = occult` は、種類一覧まで置かない。脅威の死の年率、家畜、航路の損失は未接続。適合の式とセル収量は変えていない。  
+**Status**: 五種の既定カードと媒体マスクは `src/generators/monsterNature.ts` と `dangerField.ts` に入った。食性・毒・大きさ・攻撃はバイトに足さない。未知の `type`（ダンジョンの `bossType` を含む）はレアリティ行をそのまま使う。`bossType` ごとの `track = occult` は、種類一覧まで置かない。人の死の人数は [cr-distribution.md](cr-distribution.md) に置き、人口動態には未接続である。家畜、航路の損失は未接続。適合の式とセル収量は変えていない。  
 **Date**: 2026-11-16  
 **Related**:
 
 | 文書 / コード | 関係 |
 | :--- | :--- |
 | [danger-calculation.md](danger-calculation.md) | 0〜255 はレアリティの頂点と `power` の半径。本書はそこへ性質を足さない |
+| [cr-distribution.md](cr-distribution.md) | 食性と狙いは人の死の入力。`cr` の帯と人数はあちらが正本 |
 | [fantasy-world-agenda.md](fantasy-world-agenda.md) | 獣は生態、災厄とダンジョンは呪術。海の航路の損失はまだ開いている |
-| [table-background.md](table-background.md) | 人の死はバイトから取らない。食性は後の年率の入力になる |
-| [danger-layer.md](../danger-layer.md) | CR 帯は想定メモ。性質の強さへ換算しない |
+| [table-background.md](table-background.md) | 人の死はバイトから取らない。食性は人数の入力になる |
+| [danger-layer.md](../danger-layer.md) | CR 帯の確定は [cr-distribution.md](cr-distribution.md)。性質の強さへ換算しない |
 | `src/types/models.ts` | `Monster` は `rarity`、`power`、`type` だけを持つ |
 | `src/generators/monsterNature.ts` | 五種の既定カード、上限、頂点の式 |
 | `src/generators/threatProfiles.ts` | 出現数と `power`。本書では数値を変えない |
@@ -65,7 +66,7 @@
 
 `people` は人を捕食する。`stock` は家畜を取る。`property` は蓄えや建物を壊す。`slaughter` は食べずに殺す。複数を同時に持ってよい。持っている数はレアリティを上げない。
 
-頻度と量は一つの軸にする。二つの数を掛けると、稀に大食のものと、常に少量のものが、別々の経路で同じ死の桁になる。`appetite` の意味は次である。人数とキログラムは書かない。
+頻度と量は一つの軸にする。二つの数を掛けると、稀に大食のものと、常に少量のものが、別々の経路で同じ死の桁になる。`appetite` の意味は次である。人の人数は [cr-distribution.md](cr-distribution.md) が、この意味の中で置く。家畜のキログラムは、まだ書かない。
 
 | 値 | 意味 |
 | :--- | :--- |
@@ -130,7 +131,7 @@
 
 | 性質 | 後の読み手 | 本書でまだ置かないもの |
 | :--- | :--- | :--- |
-| `motives` の `people`、`slaughter`、`appetite`、`blight` | 脅威の死。入力は覆っている個体のカードであり、バイトではない | 年率、人数、日数。CR の分布が先 |
+| `motives` の `people`、`slaughter`、`appetite`、`blight`、`cr` | 脅威の死。入力は覆っている個体のカードであり、バイトではない | 人数と日数は [cr-distribution.md](cr-distribution.md)。実装はまだ |
 | `stock` | 家畜の損失 | 頭数。穀物のセル収量は変えない |
 | `property` | 町の蓄えと建物 | 金額。セル収量は変えない |
 | `speed` | 半径の内側へ到達する時間、討伐の行程 | `power` への倍率 |
@@ -195,4 +196,6 @@ Arch-Beast の生来攻撃は、既定では空である。火や雷を持たせ
 
 頂点の式、五種のカード、媒体マスクは入った。次に種類を増やすときは、§3 の上限の中でカードを一行足す。レアリティと `power` の出現数は、そのときに変えない。
 
-脅威の死の人数、家畜の頭数、航路の損失、討伐年数の置き換えは、まだ書かない。人の死の前に必要なのは、これまでどおり CR とその分布である。カードの `appetite` と `motives` は、その設計の入力にする。
+脅威の死の人数と日数は [cr-distribution.md](cr-distribution.md) に置いた。カードの `appetite` と `motives` がそちらの入力である。人口動態へ入れる実装は、まだ書かない。家畜の頭数、航路の損失、討伐年数の置き換えは、まだ書かない。
+
+次の設計は、魔法の濃さと怪物の濃さを Cultures set から分ける項目である。

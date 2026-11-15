@@ -2,6 +2,7 @@
 
 2026-11-16
 
+- docs/plan/dnd/cr-distribution.md
 - docs/plan/dnd/danger-calculation.md
 - docs/plan/dnd/monster-nature.md
 

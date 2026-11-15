@@ -1,15 +1,16 @@
 # 危険度の算出
 
-**Status**: 頂点の式、獣害との最大合成、`threatRarity`、媒体マスクは入った。Danger 設定の集計モードは外した。保存された `threatCalculation` は読み捨てる。居住適合の式、セル収量、脅威の死の年率は変えていない。保存済みの `cells.danger` はロード時に書き換えない。  
+**Status**: 頂点の式、獣害との最大合成、`threatRarity`、媒体マスクは入った。Danger 設定の集計モードは外した。保存された `threatCalculation` は読み捨てる。居住適合の式、セル収量は変えていない。脅威の死の人数は [cr-distribution.md](cr-distribution.md) に置き、人口動態にはまだ入れていない。保存済みの `cells.danger` はロード時に書き換えない。  
 **Date**: 2026-11-16  
 **Related**:
 
 | 文書 / コード | 関係 |
 | :--- | :--- |
 | [fantasy-world-agenda.md](fantasy-world-agenda.md) | 補充は生態と呪術の二本。軍と冒険者は同じ危険度を同じ年に二重に削らない。本書はその描き直し側だけを決める |
+| [cr-distribution.md](cr-distribution.md) | 死因の人数。この 0〜255 からは取らない |
 | [table-background.md](table-background.md) | 死因 `predation` は、この 0〜255 から年率を取らない。レアリティ 5 の近くの大量死は年率にしない |
 | [magic-agrarian-economy.md](magic-agrarian-economy.md) | 人口の台帳は本書を待たない。セル収量は変えない |
-| [danger-layer.md](../danger-layer.md) | 0〜255 の経緯。CR 帯は想定メモのまま。本書の入力にしない |
+| [danger-layer.md](../danger-layer.md) | 0〜255 の経緯。CR 帯の確定は [cr-distribution.md](cr-distribution.md)。本書の頂点へは換算しない |
 | [wild-oikoumene-frontier.md](../wild-oikoumene-frontier.md) | 居住適合と領土主張は 80 で切る。獣害だけでは 80 に届かせない |
 | `src/generators/dangerField.ts` | レアリティの頂点と二次減衰。集計モードの引数は無視する |
 | `src/generators/biomePredators.ts` | 森と山の獣害。怪物のバイトとは最大を取る |
@@ -76,7 +77,7 @@ cells.danger[id] = Math.min(STATE_EXPAND_DANGER_BAN - 1, cells.danger[id] + add)
 - 居住適合の式。80 で 0 になる直線のままである。減衰を弱めて、その分を死因に移さない。
 - セル収量、畑と漁の人手、医学、衛生、王国の死亡率。
 - 魔法の濃さと怪物の濃さのノブ。Cultures set の束ね。出現数と各種の `power`。
-- 脅威の死の年率、CR の分布、顔のある死亡の選択。
+- 脅威の死の人数と CR の帯。人数は [cr-distribution.md](cr-distribution.md) に置いた。本書の式は変えない。顔のある死亡の選択は、まだ開かない。
 - 地下、聖域、緩衝帯の幅。航路で船が沈む率。補充が生態か呪術かは、塗りでは区別しない。水棲が塗る範囲は [monster-nature.md](monster-nature.md) が決める。ダンジョンのボスは今どおり怪物形の源になり、同じ頂点の式で塗る。
 - 討伐の年数、仕事の報酬、軍と冒険者が同じ年に同じ個体へ入る資格。
 
@@ -193,11 +194,11 @@ cells.danger[id] = Math.max(monsterDanger, predatorDanger);
 
 読んでならないのは、`danger / 255` と、失われた適合の割合である。
 
-レアリティ 5 の半径に人がいるときの死は、年率ではない。数日で少なくとも数万から数十万人、という規模を受けられる事象である。人数と日数は、CR とその分布の設計のあとで置く。レアリティ 3 以上の中心は適合が 0 なので、毎年の滴下にはしない。人がまだいる肩と、個体が現れたときの事象だけが死を持ちうる。
+レアリティ 5 の半径に人がいるときの死は、年率ではない。数日で少なくとも数万から数十万人、という規模を受けられる事象である。人数と日数は [cr-distribution.md](cr-distribution.md) に置いた。実装はまだである。レアリティ 3 以上の中心は適合が 0 なので、毎年の滴下にはしない。人がまだいる肩と、個体が現れたときの事象だけが死を持ちうる。
 
-レアリティ 1〜2 は人が住める。ここだけの小さい年率は、同じ CR の設計で置く。48 や 72 に比例させない。
+レアリティ 1〜2 は人が住める。ここだけの小さい年率も、同じ文書に置いた。48 や 72 には比例させない。
 
-[danger-layer.md](../danger-layer.md) の CR 25〜30+ などの帯は、想定メモのままである。頂点の表へ換算しない。
+[danger-layer.md](../danger-layer.md) の CR 帯は、[cr-distribution.md](cr-distribution.md) が確定した。頂点の表へは換算しない。
 
 ---
 
@@ -232,6 +233,6 @@ cells.danger[id] = Math.max(monsterDanger, predatorDanger);
 
 塗り、獣害の最大合成、`threatRarity`、五種のカードと媒体マスクは入った。適合の関数と出現数は変えていない。
 
-脅威の死の年率は書かない。次の設計は、CR と、レアリティごとの分布である。人数はそこから置く。
+脅威の死の人数は [cr-distribution.md](cr-distribution.md) に置いた。人口動態へ入れる実装は、まだ書かない。
 
-魔法の濃さと怪物の濃さを Cultures set から分ける設計は、本書の外である。人口の台帳（`adventurerActiveShare`）は、本書を待たずに [magic-agrarian-economy.md](magic-agrarian-economy.md) の順で進めてよい。
+魔法の濃さと怪物の濃さを Cultures set から分ける設計は、本書の外であり、次の設計である。人口の台帳（`adventurerActiveShare`）は、本書を待たずに [magic-agrarian-economy.md](magic-agrarian-economy.md) の順で進めてよい。
