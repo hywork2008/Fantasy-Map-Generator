@@ -32,6 +32,7 @@ const KILOGRAMS = {
   Leather: 25,
   Cloth: 4000,
   Linen: 200,
+  Cotton: 200,
   Wood: 6500
 } as const;
 
@@ -48,6 +49,8 @@ export type MedievalArmourPiece = {
   leatherKg: number;
   clothKg: number;
   linenKg: number;
+  /** Raw cotton still in the piece. Early aketons were stuffed with it. */
+  cottonKg?: number;
   /** Wood put into the forge, including what is cut away. */
   woodKg: number;
   /** Wood still in the piece. */
@@ -335,6 +338,107 @@ export const MEDIEVAL_ARMOUR_PIECES: readonly MedievalArmourPiece[] = [
     labor: 0.001,
     craft: "metallurgy",
     kgPerLiter: 0.5
+  },
+  {
+    name: "Aketon",
+    pence: 12,
+    source:
+      "Thorold Rogers, vol. 2 p. 559: five aketons at 1s each, Tickhill, 1312. The D&D padded armor. Seven ells of linen and a little over a pound of cotton, from the 1209–1213 wardrobe rolls",
+    ironKg: 0,
+    yield: PLATE_YIELD,
+    leatherKg: 0,
+    clothKg: 0,
+    linenKg: 1.5,
+    cottonKg: 0.6,
+    woodKg: 0,
+    woodInPieceKg: 0,
+    bronze: false,
+    icon: "good-cloth",
+    color: "#d9d3c5",
+    heavy: false,
+    labor: 0.0001,
+    craft: "textiles",
+    kgPerLiter: 0.25
+  },
+  {
+    name: "Habergeon",
+    pence: 165,
+    source:
+      "Thorold Rogers, vol. 2 p. 559: habergeons at Tickhill, 1312, entered at 22s, 13s 9d and 6s. This uses the middle line, 13s 9d. The D&D chain shirt, shorter than the hauberk",
+    ironKg: 7,
+    yield: MAIL_YIELD,
+    leatherKg: 0.15,
+    clothKg: 0,
+    linenKg: 0,
+    woodKg: 0,
+    woodInPieceKg: 0,
+    bronze: false,
+    icon: "good-arms",
+    color: "#9aa3a8",
+    heavy: true,
+    labor: 0.0012,
+    craft: "metallurgy",
+    kgPerLiter: 0.4
+  },
+  {
+    name: "Jack",
+    pence: 240,
+    source:
+      "Thorold Rogers, vol. 2 p. 559: one jack at 20s, Southampton, 1385. The line does not say the jack held plates. The bar is a light jack of plates, which is what separates this price from the 1s aketon",
+    ironKg: 3,
+    yield: PLATE_YIELD,
+    leatherKg: 1,
+    clothKg: 0,
+    linenKg: 1.5,
+    woodKg: 0,
+    woodInPieceKg: 0,
+    bronze: false,
+    icon: "good-cloth",
+    color: "#6e6248",
+    heavy: false,
+    labor: 0.0004,
+    craft: "metallurgy",
+    kgPerLiter: 0.45
+  },
+  {
+    name: "Brigandine",
+    pence: 400,
+    source:
+      "Tellers' Rolls, about 1465: 36 brigandines for the Calais garrison at £1 13s 4d each, the same full price as the dearer brigandines in Sir John Howard's 1468 accounts. The 16s 8d lines there are halves. This is the coat the D&D studded leather is drawn from",
+    ironKg: 8,
+    yield: PLATE_YIELD,
+    leatherKg: 1.8,
+    clothKg: 0,
+    linenKg: 0.6,
+    woodKg: 0,
+    woodInPieceKg: 0,
+    bronze: false,
+    icon: "good-leather",
+    color: "#5c3a28",
+    heavy: true,
+    labor: 0.0008,
+    craft: "metallurgy",
+    kgPerLiter: 0.5
+  },
+  {
+    name: "Poleaxe",
+    pence: 28,
+    source:
+      "Thorold Rogers, vol. 2 p. 559: one poleaxe at 2s 4d, Southampton, 1385. The D&D halberd and the pollaxe; the hammer, the beak and the axe share this head",
+    ironKg: 1.2,
+    yield: PLATE_YIELD,
+    leatherKg: 0.05,
+    clothKg: 0,
+    linenKg: 0,
+    woodKg: 1.6,
+    woodInPieceKg: 1.2,
+    bronze: false,
+    icon: "good-arms",
+    color: "#4a4038",
+    heavy: false,
+    labor: 0.0002,
+    craft: "metallurgy",
+    kgPerLiter: 0.5
   }
 ];
 
@@ -351,7 +455,7 @@ function units(kg: number, unitKg: number): number {
 
 /** Finished mass of one piece: the metal that remains, plus leather, cloth, linen and wood. */
 export function medievalArmourPieceKg(piece: MedievalArmourPiece): number {
-  return piece.ironKg + piece.leatherKg + piece.clothKg + piece.linenKg + piece.woodInPieceKg;
+  return piece.ironKg + piece.leatherKg + piece.clothKg + piece.linenKg + (piece.cottonKg ?? 0) + piece.woodInPieceKg;
 }
 
 /** Bar, fuel and fittings for one piece. The bronze leg repeats the iron mass. */
@@ -365,6 +469,7 @@ export function medievalArmourRecipes(piece: MedievalArmourPiece): Record<string
   if (piece.leatherKg > 0) body.Leather = units(piece.leatherKg, KILOGRAMS.Leather);
   if (piece.clothKg > 0) body.Cloth = units(piece.clothKg, KILOGRAMS.Cloth);
   if (piece.linenKg > 0) body.Linen = units(piece.linenKg, KILOGRAMS.Linen);
+  if ((piece.cottonKg ?? 0) > 0) body.Cotton = units(piece.cottonKg ?? 0, KILOGRAMS.Cotton);
   if (piece.woodKg > 0) body.Wood = units(piece.woodKg, KILOGRAMS.Wood);
   if (!piece.bronze) return [body];
   const bronze = { ...body };

@@ -333,7 +333,12 @@ export const CATALOG_TRADE_HEADINGS = {
   Gauntlets: "arms",
   "Squire's Armor": "arms",
   "Milanese Armor": "arms",
-  "Horse Bard": "arms"
+  "Horse Bard": "arms",
+  Aketon: "arms",
+  Habergeon: "arms",
+  Jack: "arms",
+  Brigandine: "arms",
+  Poleaxe: "arms"
 } as const satisfies Record<string, TradeHeadingId>;
 
 export function isTradeHeadingId(value: string | undefined): value is TradeHeadingId {
