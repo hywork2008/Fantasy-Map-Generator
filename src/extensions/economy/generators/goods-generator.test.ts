@@ -42,6 +42,7 @@ import {
   migrateLiveDogsGood,
   migrateLivestockFeedDemand,
   migrateMeadGood,
+  migrateMedievalArmourGoods,
   migrateMercuryChainGoods,
   migrateNaturalGasChainGoods,
   migrateOliveSoapRecipe,
@@ -66,6 +67,12 @@ import {
   WEIGHT_REPRICING
 } from "./goods-generator";
 import { getDefaultGoodsUnitFlavor } from "./goodsUnitFlavor";
+import {
+  MEDIEVAL_ARMOUR_PIECES,
+  medievalArmourPieceKg,
+  medievalArmourRecipes,
+  spFromPence
+} from "./medievalArmourContracts";
 import {
   CLOTH_LOTS_PER_FUR_GARMENT,
   CLOTH_LOTS_PER_GARMENT,
@@ -464,6 +471,50 @@ describe("GoodsModule", () => {
     expect(migrateWoolBlanketGoods()).toBe(false);
     expect(blanket.value).toBe(10);
     expect(blanket.recipes).toEqual([{ 3000: 1 }]);
+  });
+
+  it("prices one medieval piece from the penny scale and sizes its bar from the finished weight", () => {
+    for (const piece of MEDIEVAL_ARMOUR_PIECES) {
+      const good = GOODS_DATA.find(entry => entry.name === piece.name);
+      if (!good?.recipes) throw new Error(`Missing ${piece.name}`);
+      expect(good.value, piece.name).toBe(spFromPence(piece.pence));
+      expect(good.unit).toBe("piece");
+      expect(good.demandCoverage).toEqual({});
+      expect(good.recipes).toEqual(medievalArmourRecipes(piece));
+      expect(GOOD_MEASURES[piece.name].kg).toBeCloseTo(medievalArmourPieceKg(piece), 6);
+      for (const recipe of good.recipes) {
+        const inputKg = Object.entries(recipe).reduce(
+          (total, [input, units]) => total + GOOD_MEASURES[input].kg * units,
+          0
+        );
+        expect(inputKg, piece.name).toBeGreaterThanOrEqual(GOOD_MEASURES[piece.name].kg);
+        const ingredientCost = Object.entries(recipe).reduce((total, [input, units]) => {
+          const ingredient = GOODS_DATA.find(entry => entry.name === input);
+          if (!ingredient) throw new Error(`Missing ingredient ${input}`);
+          return total + ingredient.value * units;
+        }, 0);
+        expect(good.value, piece.name).toBeGreaterThan(ingredientCost);
+      }
+    }
+  });
+
+  it("appends medieval pieces onto a saved catalogue under that save's ingredient ids", () => {
+    goodsModule.restoreDefaults();
+    const saved = getGoods().filter(good => !MEDIEVAL_ARMOUR_PIECES.some(piece => piece.name === good.name));
+    const iron = saved.find(good => good.name === "Iron Ingot");
+    if (!iron) throw new Error("Missing Iron Ingot");
+    iron.i = 9000;
+    setGoods(saved);
+    setMarkets([{ i: 1, goods: { 9000: { stock: 3, price: 8 } } }] as never);
+    expect(migrateMedievalArmourGoods()).toBe(true);
+    const sword = saved.find(good => good.name === "Sword");
+    if (!sword?.recipes?.[0]) throw new Error("Missing Sword");
+    expect(sword.i).toBeGreaterThan(9000);
+    expect(sword.recipes[0][9000]).toBeGreaterThan(0);
+    expect(getMarkets()[0].goods[9000]).toEqual({ stock: 3, price: 8 });
+    sword.value = 9;
+    expect(migrateMedievalArmourGoods()).toBe(false);
+    expect(sword.value).toBe(9);
   });
 
   it("splits only unchanged legacy linen wardrobes and resolves the saved material ids", () => {

@@ -40,6 +40,7 @@ import {
   type TradeTrend
 } from "./goodsGeneratorTypes";
 import { BOOTS_HIDES_PER_LOT } from "./leatherConstants";
+import { MEDIEVAL_ARMOUR_GOOD_NAMES, MEDIEVAL_ARMOUR_GOODS, MEDIEVAL_ARMOUR_PIECES } from "./medievalArmourContracts";
 import { RENNET_BARRELS_PER_CHEESE_LOT } from "./rennet";
 import {
   DRINK_CONTAINER_CHOICES,
@@ -3658,7 +3659,9 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [{ Tallow: 1 }],
     unit: "block",
     demandCoverage: { utilities: 1 }
-  }
+  },
+  // One recorded piece each (medievalArmourContracts.ts). Appended so earlier default ids stay put.
+  ...MEDIEVAL_ARMOUR_GOODS
 ];
 
 function tradeProfile(
@@ -3844,7 +3847,14 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   // Fresh fruit spoils faster than Grain (durability/timeValueTrend below Grain's tradeProfile(4,4,1,-1,-1,2,3)).
   Grapes: tradeProfile(4, 4, 1, -1, -2, 1, 3),
   // Dried, shelf-stable — same profile class as Stockfish.
-  Raisins: tradeProfile(3, 3, 2, 1, 0, 4, 2)
+  Raisins: tradeProfile(3, 3, 2, 1, 0, 4, 2),
+  // A single piece travels like other durable craft goods. A harness or a bard is the heavier crate.
+  ...Object.fromEntries(
+    MEDIEVAL_ARMOUR_PIECES.map(piece => [
+      piece.name,
+      piece.heavy ? tradeProfile(3, 3, 4, 2, 0, 5, 2) : tradeProfile(2, 2, 3, 2, 0, 5, 2)
+    ])
+  )
 };
 
 export function getDefaultGoodTradeProfile(good: Pick<Good, "name" | "tags" | "unit" | "value">): GoodTradeProfile {
@@ -5708,6 +5718,39 @@ export function migrateWoolBlanketGoods(): boolean {
   const cloth = goods.find(entry => entry.name === "Wool Cloth");
   good.recipes = cloth ? [{ [cloth.i]: TEXTILE_RECIPES[good.name][0]["Wool Cloth"] }] : [];
   goods.push(good);
+  return true;
+}
+
+/**
+ * Appends the priced medieval pieces (medievalArmourContracts.ts) to a catalogue that was
+ * saved before them. Existing ids, stocks and prices stay. Recipes are resolved against this
+ * save's ingredient ids, not the shipped catalogue's positions.
+ */
+export function migrateMedievalArmourGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  const added: Good[] = [];
+  for (const name of MEDIEVAL_ARMOUR_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    added.push(shipped);
+  }
+  if (added.length === 0) return false;
+  const idByName = new Map(goods.map(good => [good.name, good.i]));
+  for (const good of added) {
+    const template = GOODS_DATA.find(entry => entry.name === good.name);
+    good.recipes = (template?.recipes ?? []).map(recipe => {
+      const resolved = Object.entries(recipe).map(([ingredient, amount]) => {
+        const id = idByName.get(ingredient);
+        if (id === undefined) throw new Error(`Unknown ingredient ${ingredient} while migrating ${good.name}`);
+        return [id, amount];
+      });
+      return Object.fromEntries(resolved);
+    });
+  }
   return true;
 }
 

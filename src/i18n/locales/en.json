@@ -1622,7 +1622,21 @@
         "White sand": "White sand",
         "Wine": "Wine",
         "Wood": "Wood",
-        "Wool": "Wool"
+        "Wool": "Wool",
+        "Peasant Sword": "Peasant Sword",
+        "Sword": "Sword",
+        "Longbow": "Longbow",
+        "Crossbow": "Crossbow",
+        "Shield": "Shield",
+        "Mail Hauberk": "Mail Hauberk",
+        "Iron Cap": "Iron Cap",
+        "Bascinet": "Bascinet",
+        "Pair of Plates": "Pair of Plates",
+        "Leather Armor": "Leather Armor",
+        "Gauntlets": "Gauntlets",
+        "Squire's Armor": "Squire's Armor",
+        "Milanese Armor": "Milanese Armor",
+        "Horse Bard": "Horse Bard"
       }
     },
     "water": {

@@ -1622,7 +1622,21 @@
         "White sand": "白砂",
         "Wine": "ワイン",
         "Wood": "木材",
-        "Wool": "羊毛"
+        "Wool": "羊毛",
+        "Peasant Sword": "農民の剣",
+        "Sword": "剣",
+        "Longbow": "長弓",
+        "Crossbow": "クロスボウ",
+        "Shield": "盾",
+        "Mail Hauberk": "鎖帷子",
+        "Iron Cap": "鉄帽",
+        "Bascinet": "バシネット",
+        "Pair of Plates": "板金胴",
+        "Leather Armor": "革鎧",
+        "Gauntlets": "籠手",
+        "Squire's Armor": "従士の甲冑",
+        "Milanese Armor": "ミラノ製甲冑",
+        "Horse Bard": "馬鎧"
       }
     },
     "water": {

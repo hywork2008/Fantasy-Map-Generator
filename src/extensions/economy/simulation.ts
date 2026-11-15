@@ -151,6 +151,7 @@ import {
   migrateMeadGood,
   migrateMeasuredCargoSlots,
   migrateMeatGood,
+  migrateMedievalArmourGoods,
   migrateMercuryChainGoods,
   migrateNaturalGasChainGoods,
   migrateOliveSoapRecipe,
@@ -396,7 +397,8 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateOliveSoapRecipe,
   migrateLeatherGoods,
   // docs/plan/candle-split.md: the homes' tallow candles apart from the wax Candles.
-  migrateTallowCandleGoods
+  migrateTallowCandleGoods,
+  migrateMedievalArmourGoods
 ];
 
 /**
