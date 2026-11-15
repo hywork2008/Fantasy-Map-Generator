@@ -5,6 +5,7 @@
 - docs/plan/dnd/cr-distribution.md
 - docs/plan/dnd/danger-calculation.md
 - docs/plan/dnd/density-knobs.md
+- docs/plan/dnd/lich-servitors.md
 - docs/plan/dnd/monster-nature.md
 - docs/plan/dnd/replenishment.md
 - docs/plan/dnd/superstition-coefficients.md

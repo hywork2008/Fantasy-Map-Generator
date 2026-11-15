@@ -198,4 +198,4 @@ Arch-Beast の生来攻撃は、既定では空である。火や雷を持たせ
 
 脅威の死の人数と日数は [cr-distribution.md](cr-distribution.md) に置いた。カードの `appetite` と `motives` がそちらの入力である。人口動態へ入れる実装は、まだ書かない。家畜の頭数、航路の損失、討伐年数の置き換えは、まだ書かない。
 
-魔法の濃さと怪物の濃さは [density-knobs.md](density-knobs.md) に置いた。補充と、同じ年に同じ個体を誰が削れるかは [replenishment.md](replenishment.md) に置いた。`track` は回復の分岐であり、塗りは今までどおり読まない。迷信の係数は [superstition-coefficients.md](superstition-coefficients.md) に置いた。塗りとカードには掛けない。次の列は死者由来の使役で、文化を名指しするまで書かない。
+魔法の濃さと怪物の濃さは [density-knobs.md](density-knobs.md) に置いた。補充と、同じ年に同じ個体を誰が削れるかは [replenishment.md](replenishment.md) に置いた。`track` は回復の分岐であり、塗りは今までどおり読まない。迷信の係数は [superstition-coefficients.md](superstition-coefficients.md) に置いた。塗りとカードには掛けない。死者の使役は [lich-servitors.md](lich-servitors.md) に置いた。文化は種族キー `lich`。命令の切れは、カードにも塗りにも足さない。名指しした設計の列は、これで一通りである。§7 の行は、その行の既存システムを改修するときに、その行だけを設計する。

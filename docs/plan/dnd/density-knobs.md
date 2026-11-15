@@ -165,4 +165,4 @@
 
 コードは変えない。補充と、ダンジョンの出現先は [replenishment.md](replenishment.md) に置いた。ダンジョンは `monsterDensity`、洞窟は文化セットのままである。迷信の係数は [superstition-coefficients.md](superstition-coefficients.md) に置いた。`rare` と `common` は、その 1/2 も共有する。収量と死亡率は変えない。
 
-次の列は、[fantasy-world-agenda.md](fantasy-world-agenda.md) §9 の 5、死者由来の使役である。文化を名指しするまで、その設計書は書かない。
+死者の使役は [lich-servitors.md](lich-servitors.md) に置いた。文化は種族キー `lich`。濃さは、この使役をオンにしない。畑へ第二の労働力は足さない。名指しした設計の列は、これで一通りである。§7 の行は、その行の既存システムを改修するときに、その行だけを設計する。

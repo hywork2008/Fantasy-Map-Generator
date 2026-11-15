@@ -166,7 +166,7 @@
 - 航路で沈む船。海の塗りは [monster-nature.md](monster-nature.md) のままである。
 - 消えた災厄の個体を、どの暦で戻すか（§1.2）。
 - 医学と科学技術を迷信とする係数は [superstition-coefficients.md](superstition-coefficients.md) に置いた。
-- ダンジョンの内部と戦利品。死者由来の使役。
+- ダンジョンの内部と戦利品。死者の使役は [lich-servitors.md](lich-servitors.md) に置いた。
 
 ---
 
@@ -214,4 +214,4 @@
 
 常備 1% の分け方、公共事業の台帳、Marches からの離脱、緩衝帯、航路の損失、消えた災厄の再出現は、§6 のまま後である。
 
-迷信の係数は [superstition-coefficients.md](superstition-coefficients.md) に置いた。`rare` と `common` は医学の需要と自然哲学の採用率を 1/2 にする。死亡率の表は変えない。次の列は死者由来の使役で、文化を名指しするまで書かない。
+迷信の係数は [superstition-coefficients.md](superstition-coefficients.md) に置いた。`rare` と `common` は医学の需要と自然哲学の採用率を 1/2 にする。死亡率の表は変えない。死者の使役は [lich-servitors.md](lich-servitors.md) に置いた。文化は種族キー `lich`。畑へ第二の労働力は足さない。名指しした設計の列は、これで一通りである。§7 の行は、その行の既存システムを改修するときに、その行だけを設計する。
