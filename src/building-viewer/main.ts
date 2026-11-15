@@ -1,3 +1,4 @@
+import { createFlintlockMusket, FLINTLOCK_MUSKET } from "../buildings/arms/flintlockMusket";
 import { type Author, DEFAULT_AUTHOR } from "../buildings/authors";
 import { createPolygonHouses, POLYGON_HOUSES } from "../buildings/houses/polygonHouses";
 import type { GalleonState } from "../buildings/ships/galleonArmament";
@@ -5,6 +6,7 @@ import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import "./viewer.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { BUILDING_APPEARANCE_PROFILES, type BuildingAppearanceProfile } from "../buildings/appearance/types";
 import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../buildings/aqueducts/pontDuGard";
 import { contentDigest } from "../buildings/canonicalJson";
@@ -546,6 +548,9 @@ function frame(record: Pick<BuildingRecord, "occupancyMeters">, height: number):
 }
 
 function clearMesh(preserveOptions = false): void {
+  controls.maxPolarAngle = Math.PI / 2 - 0.05;
+  controls.minPolarAngle = 0;
+  scene.environment = null;
   preserveScaleView = preserveOptions;
   scaleReady = false;
   measuredBounds = undefined;
@@ -1888,6 +1893,69 @@ cannonButton.addEventListener("click", () => {
   );
 });
 artilleryHeading.append(cannonButton);
+
+const smallArmsHeading = modelCategory("Small arms", true);
+const musketButton = document.createElement("button");
+musketButton.type = "button";
+musketButton.dataset.id = "flintlock-musket";
+musketButton.textContent = "Flintlock musket · 18th-century infantry";
+let musketEnvironment: THREE.Texture | null = null;
+AUTHORED_VARIANTS["flintlock-musket"] = {
+  author: FLINTLOCK_MUSKET.author,
+  primary: true,
+  quality: true,
+  show: () => showFlintlockMusket()
+};
+function showFlintlockMusket(): void {
+  for (const option of qualitySelect.options) option.disabled = option.value !== "high";
+  qualitySelect.value = "high";
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === musketButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  roofTitle.textContent = "Musket side elevation";
+  levelTitle.textContent = "Musket plan";
+  const model = createFlintlockMusket();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = false;
+  // Metals need an environment to read. Other studies stay on the plain lights.
+  if (!musketEnvironment) {
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    musketEnvironment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+  }
+  scene.environment = musketEnvironment;
+  controls.minPolarAngle = 0.02;
+  controls.maxPolarAngle = Math.PI - 0.02;
+  camera.position.set(0.95, 0.42, 1.15);
+  controls.target.set(0.72, 0.07, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", FLINTLOCK_MUSKET.name),
+    fact("Quality", "High — the only prepared resolution"),
+    fact("Period", "18th century · European infantry"),
+    fact("Type", "Flintlock musket, full stock, brass furniture"),
+    fact("Pose", "Full cock; frizzen closed over the pan"),
+    fact("Facing", "Muzzle +X. Lock on +Z, the side shown in the elevation. Toe on Y = 0."),
+    fact("CE adoption", "BV-only study. Not placed in towns."),
+    fact("View", "Orbit continues below the horizon on this study, and the ground disc stays hidden."),
+    fact("Note", FLINTLOCK_MUSKET.note, "Musket")
+  );
+  const panel = modelPartsPanel(model.group);
+  if (panel) facts.append(panel);
+}
+musketButton.addEventListener("click", () => {
+  queueMicrotask(() => showFlintlockMusket());
+});
+smallArmsHeading.append(musketButton);
 
 const millsHeading = modelCategory("Mills");
 const postMillButton = document.createElement("button");
