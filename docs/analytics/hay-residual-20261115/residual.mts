@@ -4,7 +4,8 @@
  * surplus), the hay hands of this month in kg (hay capacity days / 3 days per t), the reserve target after the
  * month, hay cut kept, drying and storage loss, hay in the barn, required, unmet, crop residue fed, bought,
  * sold, the catch-up days given to the month and the household textile workers (x1000, added for
- * docs/analytics/rural-work-year-20261115.md).
+ * docs/analytics/rural-work-year-20261115.md), and the cell's answer to a short year (getFeedShortfallResponse:
+ * 1 work, 2 herd, 0 none; added for docs/analytics/livestock-feed-shortfall-20261115.md).
  *
  *   npx tsx docs/analytics/hay-residual-20261115/residual.mts <map.fmg> <out.json> <months>
  */
@@ -20,7 +21,7 @@ import { getGoods } from "../../../src/extensions/economy/context/trade";
 import { setMarketSettings } from "../../../src/simulation/marketSettings";
 import { calculateHusbandryDemand } from "../../../src/extensions/economy/generators/husbandry";
 import { getHusbandryLaborBudget } from "../../../src/extensions/economy/generators/husbandryLabor";
-import { livestockFeedMonth } from "../../../src/extensions/economy/generators/livestockFeedState";
+import { getFeedShortfallResponse, livestockFeedMonth } from "../../../src/extensions/economy/generators/livestockFeedState";
 import { ANNUAL_FEED_DM_KG_PER_HEAD, getLivestockHayPlan, HAY_WORK_DAYS_PER_TONNE_DM } from "../../../src/extensions/economy/generators/livestockFeedPolicy";
 import { getHayCatchUpDays, getHouseholdTextileWorkers } from "../../../src/extensions/economy/context/agriculture";
 import { getForageAreaHectares, getGrazedCarryingCapacity } from "../../../src/extensions/economy/generators/husbandry";
@@ -64,7 +65,7 @@ function getWinteredHerdAnnualNeedKg(cell: number): number {
     return sum + Math.max(heads, good ? getGrazedCarryingCapacity(cell, good) : 0) * kg;
   }, 0);
 }
-const fields = ["grown", "grazing", "cuttable", "laborKg", "reserveTarget", "cutKept", "harvestLoss", "storageLoss", "hay", "required", "unmet", "residue", "bought", "sold", "catchUpDays", "textileWorkers"];
+const fields = ["grown", "grazing", "cuttable", "laborKg", "reserveTarget", "cutKept", "harvestLoss", "storageLoss", "hay", "required", "unmet", "residue", "bought", "sold", "catchUpDays", "textileWorkers", "response"];
 const snapshots = [];
 const r0 = (v: number) => Math.round(v ?? 0);
 for (let month = 1; month <= months; month++) {
@@ -82,7 +83,8 @@ for (let month = 1; month <= months; month++) {
       (budget.hayCapacityDays / HAY_WORK_DAYS_PER_TONNE_DM) * 1000, getLivestockHayPlan(world, cell, getWinteredHerdAnnualNeedKg(cell), getForageAreaHectares(cell)).reserveAfterMonthKg[m0],
       row.harvestedKg - row.harvestLossKg, row.harvestLossKg, row.storageLossKg, row.hayKg, row.requiredKg, row.unmetKg,
       row.cropResidueFeedKg ?? 0, row.purchasedKg, row.soldKg, catchUp[cell * 12 + m0] ?? 0,
-      (getHouseholdTextileWorkers()[cell] ?? 0) * 1000
+      (getHouseholdTextileWorkers()[cell] ?? 0) * 1000,
+      { work: 1, herd: 2 }[getFeedShortfallResponse(cell) ?? ""] ?? 0
     ].map(r0);
   }
   snapshots.push({ month, calendarMonth: getSimulationMonth(), m0, cells });

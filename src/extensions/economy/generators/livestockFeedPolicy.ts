@@ -169,6 +169,8 @@ export interface LivestockFeedSample {
   requiredKg: number;
   fedKg: number;
   cropResidueFeedKg?: number;
+  /** Fodder grain in fedKg, in hay equivalent. */
+  grainFeedKg?: number;
   purchasedKg: number;
   soldKg: number;
   harvestLossKg: number;
@@ -195,6 +197,10 @@ export interface LivestockFeedLedger {
   hayConsumedKg: number;
   /** Quality-discounted feed equivalent, distinct from physical residue DM. */
   cropResidueFeedKg?: number;
+  /** Fodder grain fed this month, in hay dry-matter equivalent (docs/plan/livestock-feed-shortfall.md). */
+  grainFeedKg?: number;
+  /** Of grainFeedKg, the farms' own grain above a year's food (no cash). */
+  ownGrainFeedKg?: number;
   unmetKg: number;
   coverage: number;
   spending: number;

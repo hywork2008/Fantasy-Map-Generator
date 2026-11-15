@@ -64,6 +64,7 @@ import { GROSS_FOOD_NEED } from "./foodConstants";
 import { isGoodEnabled } from "./goods-generator";
 import { calculateHusbandryDemand, getForageAreaHectares } from "./husbandry";
 import { ANNUAL_FEED_DM_KG_PER_HEAD, getPastureGrowth, HAY_WORK_DAYS_PER_TONNE_DM } from "./livestockFeedPolicy";
+import { getFeedShortfallResponse } from "./livestockFeedState";
 import { getRuralTextileRequiredWorkers } from "./textileHouseholdPolicy";
 import { calculateViticultureDemand, getPerennialMonthlyLaborWeights } from "./viticulture";
 
@@ -147,6 +148,8 @@ export interface RuralOccupationAllocation {
   readonly townHarvestHelperDays?: Float32Array;
   /** Hay days carried from a short hay month to later months' regrowth, cell * 12 + month. */
   readonly hayCatchUpDays?: Float32Array;
+  /** Off-field days left on rest days only, cell * 12 + month (docs/plan/livestock-feed-shortfall.md §9). */
+  readonly restDayHayDays?: Float32Array;
 }
 
 type RuralLaborPlan = Pick<
@@ -526,6 +529,7 @@ function allocateRuralOccupationsFromCalendar(
         // These are month-local household tasks. One busy crop month must not cancel
         // care and seasonal work in every other month, or spend another month's slack.
         let annualAssignedDays = 0;
+        const hayOnRestDays = getFeedShortfallResponse(cellId) === "work";
         // Children watch the flocks and herds day to day; adults take the seasonal work.
         const childDaysPerMonth =
           getRuralChildren(cells, cellId) * populationRate * CHILD_HERDING_SHARE * (WORKABLE_DAYS_PER_ADULT / 12);
@@ -548,7 +552,8 @@ function allocateRuralOccupationsFromCalendar(
           const adultNeed = Math.max(0, requestedDays - childDays);
           const hayAdultNeed = Math.min(adultNeed, Math.max(0, hayDays - (childDays - careChildDays)));
           const offFieldCare = spendOffField(offField, cellId * 12 + month, adultNeed - hayAdultNeed, false);
-          const offFieldHay = spendOffField(offField, cellId * 12 + month, hayAdultNeed);
+          // After a year short of feed, keepers may make hay on rest days as work of necessity.
+          const offFieldHay = spendOffField(offField, cellId * 12 + month, hayAdultNeed, !hayOnRestDays);
           const offFieldDays = offFieldCare + offFieldHay;
           const adultDays = offFieldDays + Math.min(adultNeed - offFieldDays, remainingDays);
           const assignedDays = childDays + adultDays;
@@ -732,7 +737,10 @@ function allocateRuralOccupationsFromCalendar(
     seasonalLaborShortage,
     ruralReleasePressure,
     townHarvestHelperDays,
-    hayCatchUpDays
+    hayCatchUpDays,
+    restDayHayDays: Float32Array.from(offField.cap, (_, index) =>
+      Math.max(0, getOffFieldLeft(offField, index, false) - getOffFieldLeft(offField, index))
+    )
   };
 }
 
@@ -948,6 +956,7 @@ function carryHayShortfall(
     const adults =
       (Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0)) * populationRate;
     let regrowthDays: number[] | undefined;
+    const hayOnRestDays = getFeedShortfallResponse(cellId) === "work";
     for (let month = 0; month < 12; month++) {
       let remaining = shortfallDays[cellId * 12 + month];
       if (remaining > 0) regrowthDays ??= getRegrowthHayDays(world, cellId);
@@ -959,10 +968,10 @@ function carryHayShortfall(
         const days = Math.min(
           remaining,
           Math.max(0, (regrowthDays?.[target] ?? 0) - carried[index]),
-          Math.max(0, adults * workDays - currentDaysByCell[index]) + getOffFieldLeft(offField, index)
+          Math.max(0, adults * workDays - currentDaysByCell[index]) + getOffFieldLeft(offField, index, !hayOnRestDays)
         );
         if (!(days > 0)) continue;
-        currentDaysByCell[index] += days - spendOffField(offField, index, days);
+        currentDaysByCell[index] += days - spendOffField(offField, index, days, !hayOnRestDays);
         husbandryMonthlyWorkDays[index] += days;
         husbandryWorkers[cellId] += days / WORKABLE_DAYS_PER_ADULT;
         carried[index] += days;

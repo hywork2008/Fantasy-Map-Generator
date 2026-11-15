@@ -1,3 +1,5 @@
+import Alea from "alea";
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import { getCadencePhase } from "../context/cadencePhases";
 import { registerContextFallbackReset } from "../context/economyApi";
 import {
@@ -82,6 +84,35 @@ export function getRecentlyFedHerdShare(cellId: number): number | null {
   if (samples.length < 10) return null;
   const required = samples.reduce((sum, sample) => sum + sample.requiredKg, 0);
   if (!(required > 0)) return null;
-  const share = samples.reduce((sum, sample) => sum + sample.fedKg, 0) / required;
+  // Grain only tides the herd over: where keepers answer the shortfall with the herd, it is not counted as fed.
+  const grainUncounted = getFeedShortfallResponse(cellId) === "herd";
+  const share =
+    samples.reduce((sum, sample) => sum + sample.fedKg - (grainUncounted ? (sample.grainFeedKg ?? 0) : 0), 0) /
+    required;
   return share < 1 ? Math.max(0, share) : null;
+}
+
+/**
+ * How a cell answers a year short of feed (docs/plan/livestock-feed-shortfall.md §7): when the last twelve settled
+ * months needed grain or went unfed beyond 1% of need, next year's keepers either make hay on rest days as work
+ * of necessity ("work") or winter fewer animals, not counting the grain as feed ("herd"). `random` draws one per
+ * cell and year from the world seed, `feedShortfallWorkShare` of them "work". Null when the year was fed.
+ */
+export function getFeedShortfallResponse(cellId: number): "work" | "herd" | null {
+  const { feedShortfallResponse, feedShortfallWorkShare } = getMarketSettings();
+  if (feedShortfallResponse === "legacy") return null;
+  const period = livestockFeedPeriod();
+  const samples = (getOrCreateLivestockFeedTable()?.[cellId]?.samples ?? []).filter(
+    sample => sample.period <= period && sample.period > period - 12
+  );
+  const required = samples.reduce((sum, sample) => sum + sample.requiredKg, 0);
+  if (samples.length < 10 || !(required > 0)) return null;
+  const short = samples.reduce(
+    (sum, sample) => sum + Math.max(0, sample.requiredKg - sample.fedKg + (sample.grainFeedKg ?? 0)),
+    0
+  );
+  if (!(short > 0.01 * required)) return null;
+  if (feedShortfallResponse !== "random") return feedShortfallResponse;
+  const draw = Alea(`feed-shortfall:${getWorldContext().seed ?? ""}:${cellId}:${getSimulationYear()}`)();
+  return draw < feedShortfallWorkShare ? "work" : "herd";
 }

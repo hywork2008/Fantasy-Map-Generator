@@ -1,6 +1,7 @@
 /**
  * Rural work year (docs/analytics/rural-work-year-20261115.md): urbanhelp.mts of urban-harvest-help-20261114 with,
- * after every month, the household textile and husbandry workers, the rural and town population.
+ * after every month, the household textile and husbandry workers, the rural and town population, and the
+ * grain fed to stock in hay equivalent (added for docs/analytics/livestock-feed-shortfall-20261115.md).
  *
  *   npx tsx docs/analytics/rural-work-year-20261115/workyear.mts <map.fmg> <out.json> <months>
  */
@@ -86,13 +87,15 @@ const snapshots = [];
 for (let month = 1; month <= months; month++) {
   made = {};
   await advanceWorld(host, { months: 1 });
-  const feed = { requiredKg: 0, unmetKg: 0, purchasedKg: 0, hayKg: 0, cells: 0, shortCells: 0 };
+  const feed = { requiredKg: 0, unmetKg: 0, purchasedKg: 0, hayKg: 0, grainFeedKg: 0, ownGrainFeedKg: 0, cells: 0, shortCells: 0 };
   for (const row of Object.values(getOrCreateLivestockFeedTable() ?? {})) {
     if (!row || !(row.requiredKg > 0)) continue;
     feed.requiredKg += row.requiredKg;
     feed.unmetKg += row.unmetKg;
     feed.purchasedKg += row.purchasedKg ?? 0;
     feed.hayKg += row.hayKg;
+    feed.grainFeedKg += (row as { grainFeedKg?: number }).grainFeedKg ?? 0;
+    feed.ownGrainFeedKg += (row as { ownGrainFeedKg?: number }).ownGrainFeedKg ?? 0;
     feed.cells++;
     if (row.unmetKg > 0.01 * row.requiredKg) feed.shortCells++;
   }

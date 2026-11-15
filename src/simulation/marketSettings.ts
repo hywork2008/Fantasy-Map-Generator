@@ -128,6 +128,12 @@ export const HAY_CATCH_UP_MODES = ["aftermath", "legacy"] as const;
 export type HayCatchUpMode = (typeof HAY_CATCH_UP_MODES)[number];
 export const RURAL_WORK_YEAR_MODES = ["offField", "legacy"] as const;
 export type RuralWorkYearMode = (typeof RURAL_WORK_YEAR_MODES)[number];
+export const GRAIN_FEED_MODES = ["fodderGrains", "off"] as const;
+export type GrainFeedMode = (typeof GRAIN_FEED_MODES)[number];
+export const FEED_SHORTFALL_RESPONSE_MODES = ["random", "work", "herd", "legacy"] as const;
+export type FeedShortfallResponseMode = (typeof FEED_SHORTFALL_RESPONSE_MODES)[number];
+export const FEED_SHORTFALL_TIMING_MODES = ["sameSummer", "nextYear"] as const;
+export type FeedShortfallTimingMode = (typeof FEED_SHORTFALL_TIMING_MODES)[number];
 export const RURAL_REST_DAYS_MODES = ["byPeriod", "custom"] as const;
 export type RuralRestDaysMode = (typeof RURAL_REST_DAYS_MODES)[number];
 export const URBAN_HARVEST_HELP_MODES = ["cornAndHay", "legacy"] as const;
@@ -200,6 +206,13 @@ export type MarketSettings = {
   ruralChoreDaysPerAdult: number;
   /** Sundays and holy days kept from servile work (hay, cloth): by the historical period, or a custom count. */
   ruralRestDays: RuralRestDaysMode;
+  /** Feed short after pasture, hay and bought hay is made up with oats, barley and pulses from the market granary's spare grain (docs/plan/livestock-feed-shortfall.md). */
+  grainFeed: GrainFeedMode;
+  /** A cell short of feed for a year makes hay on rest days next year ("work") or winters fewer animals ("herd"), drawn at random or fixed (docs/plan/livestock-feed-shortfall.md §7). */
+  feedShortfallResponse: FeedShortfallResponseMode;
+  feedShortfallWorkShare: number;
+  /** A cell answering with work mows on rest days from the summer after the short spring, or only from next year's allocation. */
+  feedShortfallTiming: FeedShortfallTimingMode;
   ruralRestDaysCustom: number;
   /** Most of a town's adults that go out in a harvest or hay month under cornAndHay. */
   urbanHarvestHelpShare: number;
@@ -319,6 +332,10 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   ruralWorkDaysPerYear: 365,
   ruralChoreDaysPerAdult: 160,
   ruralRestDays: "byPeriod",
+  grainFeed: "fodderGrains",
+  feedShortfallResponse: "random",
+  feedShortfallWorkShare: 0.5,
+  feedShortfallTiming: "sameSummer",
   ruralRestDaysCustom: 97,
   urbanHarvestHelpShare: 0.5,
   bootsLabor: "perDay",
@@ -395,6 +412,7 @@ export const MARKET_SETTING_LIMITS = {
   ruralWorkDaysPerYear: { min: 140, max: 365, step: 5 },
   ruralChoreDaysPerAdult: { min: 0, max: 225, step: 5 },
   ruralRestDaysCustom: { min: 0, max: 150, step: 1 },
+  feedShortfallWorkShare: { min: 0, max: 1, step: 0.05 },
   ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 },
   candleKgPerPerson: { min: 0, max: 4, step: 0.25 },
   waxCandleKgPerPerson: { min: 0, max: 0.5, step: 0.01 },
@@ -508,6 +526,16 @@ const ruralWorkYearMode = (value: unknown): RuralWorkYearMode =>
   RURAL_WORK_YEAR_MODES.includes(value as RuralWorkYearMode)
     ? (value as RuralWorkYearMode)
     : DEFAULT_MARKET_SETTINGS.ruralWorkYear;
+const grainFeedMode = (value: unknown): GrainFeedMode =>
+  GRAIN_FEED_MODES.includes(value as GrainFeedMode) ? (value as GrainFeedMode) : DEFAULT_MARKET_SETTINGS.grainFeed;
+const feedShortfallResponseMode = (value: unknown): FeedShortfallResponseMode =>
+  FEED_SHORTFALL_RESPONSE_MODES.includes(value as FeedShortfallResponseMode)
+    ? (value as FeedShortfallResponseMode)
+    : DEFAULT_MARKET_SETTINGS.feedShortfallResponse;
+const feedShortfallTimingMode = (value: unknown): FeedShortfallTimingMode =>
+  FEED_SHORTFALL_TIMING_MODES.includes(value as FeedShortfallTimingMode)
+    ? (value as FeedShortfallTimingMode)
+    : DEFAULT_MARKET_SETTINGS.feedShortfallTiming;
 const ruralRestDaysMode = (value: unknown): RuralRestDaysMode =>
   RURAL_REST_DAYS_MODES.includes(value as RuralRestDaysMode)
     ? (value as RuralRestDaysMode)
@@ -599,6 +627,10 @@ export function getMarketSettings(): MarketSettings {
     ruralWorkDaysPerYear: clamp("ruralWorkDaysPerYear", parsed.ruralWorkDaysPerYear),
     ruralChoreDaysPerAdult: clamp("ruralChoreDaysPerAdult", parsed.ruralChoreDaysPerAdult),
     ruralRestDays: ruralRestDaysMode(parsed.ruralRestDays),
+    grainFeed: grainFeedMode(parsed.grainFeed),
+    feedShortfallResponse: feedShortfallResponseMode(parsed.feedShortfallResponse),
+    feedShortfallWorkShare: clamp("feedShortfallWorkShare", parsed.feedShortfallWorkShare),
+    feedShortfallTiming: feedShortfallTimingMode(parsed.feedShortfallTiming),
     ruralRestDaysCustom: clamp("ruralRestDaysCustom", parsed.ruralRestDaysCustom),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", parsed.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(parsed.bootsLabor),
@@ -679,6 +711,10 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     ruralWorkDaysPerYear: clamp("ruralWorkDaysPerYear", next.ruralWorkDaysPerYear),
     ruralChoreDaysPerAdult: clamp("ruralChoreDaysPerAdult", next.ruralChoreDaysPerAdult),
     ruralRestDays: ruralRestDaysMode(next.ruralRestDays),
+    grainFeed: grainFeedMode(next.grainFeed),
+    feedShortfallResponse: feedShortfallResponseMode(next.feedShortfallResponse),
+    feedShortfallWorkShare: clamp("feedShortfallWorkShare", next.feedShortfallWorkShare),
+    feedShortfallTiming: feedShortfallTimingMode(next.feedShortfallTiming),
     ruralRestDaysCustom: clamp("ruralRestDaysCustom", next.ruralRestDaysCustom),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", next.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(next.bootsLabor),

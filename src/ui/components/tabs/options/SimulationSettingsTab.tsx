@@ -38,11 +38,17 @@ import {
   type CharacterReserveMode,
   CRAFT_SALE_PAYMENT_MODES,
   type CraftSalePaymentMode,
+  FEED_SHORTFALL_RESPONSE_MODES,
+  FEED_SHORTFALL_TIMING_MODES,
+  type FeedShortfallResponseMode,
+  type FeedShortfallTimingMode,
   FOOTWEAR_DEMAND_MODES,
   type FootwearDemandMode,
   FUEL_CHOICE_MODES,
   type FuelChoiceMode,
+  GRAIN_FEED_MODES,
   GRAIN_REPAYMENT_MODES,
+  type GrainFeedMode,
   type GrainRepaymentMode,
   GUILD_MASTER_INCOME_MODES,
   GUILD_MASTER_SEAT_MODES,
@@ -1136,6 +1142,79 @@ export const SimulationSettingsTab: React.FC = () => {
                 step={MARKET_SETTING_LIMITS.ruralRestDaysCustom.step}
                 value={marketSettings.ruralRestDaysCustom}
                 onChange={v => updateMarketSetting("ruralRestDaysCustom", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.grainFeedTip")}>
+            <td />
+            <td>
+              <label htmlFor="grainFeed">{t("simulation.grainFeed")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="grainFeed"
+                value={marketSettings.grainFeed}
+                onChange={e => setMarketSettings({ grainFeed: e.target.value as GrainFeedMode })}
+              >
+                {GRAIN_FEED_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.grainFeed_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.feedShortfallResponseTip")}>
+            <td />
+            <td>
+              <label htmlFor="feedShortfallResponse">{t("simulation.feedShortfallResponse")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="feedShortfallResponse"
+                value={marketSettings.feedShortfallResponse}
+                onChange={e =>
+                  setMarketSettings({ feedShortfallResponse: e.target.value as FeedShortfallResponseMode })
+                }
+              >
+                {FEED_SHORTFALL_RESPONSE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.feedShortfallResponse_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.feedShortfallTimingTip")}>
+            <td />
+            <td>
+              <label htmlFor="feedShortfallTiming">{t("simulation.feedShortfallTiming")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="feedShortfallTiming"
+                value={marketSettings.feedShortfallTiming}
+                onChange={e => setMarketSettings({ feedShortfallTiming: e.target.value as FeedShortfallTimingMode })}
+              >
+                {FEED_SHORTFALL_TIMING_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.feedShortfallTiming_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.feedShortfallWorkShareTip")}>
+            <td />
+            <td>{t("simulation.feedShortfallWorkShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="feedShortfallWorkShare"
+                min={MARKET_SETTING_LIMITS.feedShortfallWorkShare.min}
+                max={MARKET_SETTING_LIMITS.feedShortfallWorkShare.max}
+                step={MARKET_SETTING_LIMITS.feedShortfallWorkShare.step}
+                value={marketSettings.feedShortfallWorkShare}
+                onChange={v => updateMarketSetting("feedShortfallWorkShare", v)}
               />
             </td>
           </tr>
