@@ -134,6 +134,9 @@ export const FEED_SHORTFALL_RESPONSE_MODES = ["random", "work", "herd", "legacy"
 export type FeedShortfallResponseMode = (typeof FEED_SHORTFALL_RESPONSE_MODES)[number];
 export const FEED_SHORTFALL_TIMING_MODES = ["sameSummer", "nextYear"] as const;
 export type FeedShortfallTimingMode = (typeof FEED_SHORTFALL_TIMING_MODES)[number];
+/** Lean stock carry their unmet feed as lost condition and give lighter carcasses until refed, or the legacy rule (docs/plan/livestock-lean-condition.md). */
+export const LEAN_CONDITION_MODES = ["carcass", "off"] as const;
+export type LeanConditionMode = (typeof LEAN_CONDITION_MODES)[number];
 export const RURAL_REST_DAYS_MODES = ["byPeriod", "custom"] as const;
 export type RuralRestDaysMode = (typeof RURAL_REST_DAYS_MODES)[number];
 export const URBAN_HARVEST_HELP_MODES = ["cornAndHay", "legacy"] as const;
@@ -213,6 +216,13 @@ export type MarketSettings = {
   feedShortfallWorkShare: number;
   /** A cell answering with work mows on rest days from the summer after the short spring, or only from next year's allocation. */
   feedShortfallTiming: FeedShortfallTimingMode;
+  leanCondition: LeanConditionMode;
+  /** Months of feed need a herd's body reserve holds before it is wholly spent. */
+  leanReserveMonths: number;
+  /** Carcass weight lost when the reserve is wholly spent. */
+  leanMaxCarcassLoss: number;
+  /** Most extra grass, as a share of a month's need, lean stock eat in a month to recover. */
+  leanRefeedShare: number;
   ruralRestDaysCustom: number;
   /** Most of a town's adults that go out in a harvest or hay month under cornAndHay. */
   urbanHarvestHelpShare: number;
@@ -336,6 +346,10 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   feedShortfallResponse: "random",
   feedShortfallWorkShare: 0.5,
   feedShortfallTiming: "sameSummer",
+  leanCondition: "carcass",
+  leanReserveMonths: 2,
+  leanMaxCarcassLoss: 0.25,
+  leanRefeedShare: 0.3,
   ruralRestDaysCustom: 97,
   urbanHarvestHelpShare: 0.5,
   bootsLabor: "perDay",
@@ -413,6 +427,9 @@ export const MARKET_SETTING_LIMITS = {
   ruralChoreDaysPerAdult: { min: 0, max: 225, step: 5 },
   ruralRestDaysCustom: { min: 0, max: 150, step: 1 },
   feedShortfallWorkShare: { min: 0, max: 1, step: 0.05 },
+  leanReserveMonths: { min: 0.5, max: 4, step: 0.5 },
+  leanMaxCarcassLoss: { min: 0, max: 0.5, step: 0.05 },
+  leanRefeedShare: { min: 0, max: 1, step: 0.05 },
   ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 },
   candleKgPerPerson: { min: 0, max: 4, step: 0.25 },
   waxCandleKgPerPerson: { min: 0, max: 0.5, step: 0.01 },
@@ -536,6 +553,10 @@ const feedShortfallTimingMode = (value: unknown): FeedShortfallTimingMode =>
   FEED_SHORTFALL_TIMING_MODES.includes(value as FeedShortfallTimingMode)
     ? (value as FeedShortfallTimingMode)
     : DEFAULT_MARKET_SETTINGS.feedShortfallTiming;
+const leanConditionMode = (value: unknown): LeanConditionMode =>
+  LEAN_CONDITION_MODES.includes(value as LeanConditionMode)
+    ? (value as LeanConditionMode)
+    : DEFAULT_MARKET_SETTINGS.leanCondition;
 const ruralRestDaysMode = (value: unknown): RuralRestDaysMode =>
   RURAL_REST_DAYS_MODES.includes(value as RuralRestDaysMode)
     ? (value as RuralRestDaysMode)
@@ -631,6 +652,10 @@ export function getMarketSettings(): MarketSettings {
     feedShortfallResponse: feedShortfallResponseMode(parsed.feedShortfallResponse),
     feedShortfallWorkShare: clamp("feedShortfallWorkShare", parsed.feedShortfallWorkShare),
     feedShortfallTiming: feedShortfallTimingMode(parsed.feedShortfallTiming),
+    leanCondition: leanConditionMode(parsed.leanCondition),
+    leanReserveMonths: clamp("leanReserveMonths", parsed.leanReserveMonths),
+    leanMaxCarcassLoss: clamp("leanMaxCarcassLoss", parsed.leanMaxCarcassLoss),
+    leanRefeedShare: clamp("leanRefeedShare", parsed.leanRefeedShare),
     ruralRestDaysCustom: clamp("ruralRestDaysCustom", parsed.ruralRestDaysCustom),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", parsed.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(parsed.bootsLabor),
@@ -715,6 +740,10 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     feedShortfallResponse: feedShortfallResponseMode(next.feedShortfallResponse),
     feedShortfallWorkShare: clamp("feedShortfallWorkShare", next.feedShortfallWorkShare),
     feedShortfallTiming: feedShortfallTimingMode(next.feedShortfallTiming),
+    leanCondition: leanConditionMode(next.leanCondition),
+    leanReserveMonths: clamp("leanReserveMonths", next.leanReserveMonths),
+    leanMaxCarcassLoss: clamp("leanMaxCarcassLoss", next.leanMaxCarcassLoss),
+    leanRefeedShare: clamp("leanRefeedShare", next.leanRefeedShare),
     ruralRestDaysCustom: clamp("ruralRestDaysCustom", next.ruralRestDaysCustom),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", next.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(next.bootsLabor),

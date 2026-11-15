@@ -74,6 +74,8 @@ import {
   HOUSEHOLD_GOODS_PAYMENT_MODES,
   type HouseholdGoodsPaymentMode,
   type HouseholdGoodValueMode,
+  LEAN_CONDITION_MODES,
+  type LeanConditionMode,
   MARKET_DISSOLVE_CARGO_MODES,
   MARKET_SETTING_LIMITS,
   type MarketDissolveCargoMode,
@@ -1154,7 +1156,9 @@ export const SimulationSettingsTab: React.FC = () => {
               <select
                 id="grainFeed"
                 value={marketSettings.grainFeed}
-                onChange={e => setMarketSettings({ grainFeed: e.target.value as GrainFeedMode })}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ grainFeed: e.target.value as GrainFeedMode }))
+                }
               >
                 {GRAIN_FEED_MODES.map(mode => (
                   <option key={mode} value={mode}>
@@ -1174,7 +1178,9 @@ export const SimulationSettingsTab: React.FC = () => {
                 id="feedShortfallResponse"
                 value={marketSettings.feedShortfallResponse}
                 onChange={e =>
-                  setMarketSettings({ feedShortfallResponse: e.target.value as FeedShortfallResponseMode })
+                  setMarketSettingsState(
+                    setMarketSettings({ feedShortfallResponse: e.target.value as FeedShortfallResponseMode })
+                  )
                 }
               >
                 {FEED_SHORTFALL_RESPONSE_MODES.map(mode => (
@@ -1194,7 +1200,11 @@ export const SimulationSettingsTab: React.FC = () => {
               <select
                 id="feedShortfallTiming"
                 value={marketSettings.feedShortfallTiming}
-                onChange={e => setMarketSettings({ feedShortfallTiming: e.target.value as FeedShortfallTimingMode })}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ feedShortfallTiming: e.target.value as FeedShortfallTimingMode })
+                  )
+                }
               >
                 {FEED_SHORTFALL_TIMING_MODES.map(mode => (
                   <option key={mode} value={mode}>
@@ -1215,6 +1225,69 @@ export const SimulationSettingsTab: React.FC = () => {
                 step={MARKET_SETTING_LIMITS.feedShortfallWorkShare.step}
                 value={marketSettings.feedShortfallWorkShare}
                 onChange={v => updateMarketSetting("feedShortfallWorkShare", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanConditionTip")}>
+            <td />
+            <td>
+              <label htmlFor="leanCondition">{t("simulation.leanCondition")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="leanCondition"
+                value={marketSettings.leanCondition}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ leanCondition: e.target.value as LeanConditionMode }))
+                }
+              >
+                {LEAN_CONDITION_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.leanCondition_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanReserveMonthsTip")}>
+            <td />
+            <td>{t("simulation.leanReserveMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="leanReserveMonths"
+                min={MARKET_SETTING_LIMITS.leanReserveMonths.min}
+                max={MARKET_SETTING_LIMITS.leanReserveMonths.max}
+                step={MARKET_SETTING_LIMITS.leanReserveMonths.step}
+                value={marketSettings.leanReserveMonths}
+                onChange={v => updateMarketSetting("leanReserveMonths", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanMaxCarcassLossTip")}>
+            <td />
+            <td>{t("simulation.leanMaxCarcassLoss")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="leanMaxCarcassLoss"
+                min={MARKET_SETTING_LIMITS.leanMaxCarcassLoss.min}
+                max={MARKET_SETTING_LIMITS.leanMaxCarcassLoss.max}
+                step={MARKET_SETTING_LIMITS.leanMaxCarcassLoss.step}
+                value={marketSettings.leanMaxCarcassLoss}
+                onChange={v => updateMarketSetting("leanMaxCarcassLoss", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanRefeedShareTip")}>
+            <td />
+            <td>{t("simulation.leanRefeedShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="leanRefeedShare"
+                min={MARKET_SETTING_LIMITS.leanRefeedShare.min}
+                max={MARKET_SETTING_LIMITS.leanRefeedShare.max}
+                step={MARKET_SETTING_LIMITS.leanRefeedShare.step}
+                value={marketSettings.leanRefeedShare}
+                onChange={v => updateMarketSetting("leanRefeedShare", v)}
               />
             </td>
           </tr>

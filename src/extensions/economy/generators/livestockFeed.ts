@@ -490,6 +490,25 @@ function feedOwnGrain(
   if (changed) setRuralHouseholdFoodStock(stock);
 }
 
+/**
+ * Stock short of feed lose condition and eat it back on grass left uncut or ungrazed
+ * (docs/plan/livestock-lean-condition.md): the deficit grows by the month's unmet feed, up to the body
+ * reserve, and falls by the spare grass eaten, at most `leanRefeedShare` of a month's need.
+ */
+export function settleLeanCondition(row: LivestockFeedLedger, monthlyNeedKg: number): void {
+  const { leanCondition, leanReserveMonths, leanRefeedShare } = getMarketSettings();
+  row.refedKg = 0;
+  if (leanCondition === "off" || !(monthlyNeedKg > 0)) {
+    row.leanDeficitKg = 0;
+    return;
+  }
+  const deficit = Math.min(leanReserveMonths * monthlyNeedKg, (row.leanDeficitKg ?? 0) + row.unmetKg);
+  const refed = Math.max(0, Math.min(deficit, row.unharvestedKg, leanRefeedShare * monthlyNeedKg));
+  row.unharvestedKg -= refed;
+  row.refedKg = refed;
+  row.leanDeficitKg = deficit - refed;
+}
+
 /** Runs after trade; existing army procurement has already removed its share of the same stock. */
 export function settleLivestockFeed(): void {
   const table = getOrCreateLivestockFeedTable();
@@ -562,6 +581,7 @@ export function settleLivestockFeed(): void {
       row.requiredKg - row.pastureConsumedKg - row.hayConsumedKg - (row.cropResidueFeedKg ?? 0) - (row.grainFeedKg ?? 0)
     );
     row.coverage = row.requiredKg > 0 ? Math.max(0, Math.min(1, 1 - row.unmetKg / row.requiredKg)) : 1;
+    settleLeanCondition(row, getLivestockMonthlyFeedNeedKg(cell));
     row.feedPeriod = period;
     row.samples = row.samples.filter(sample => sample.period > period - 12 && sample.period !== period);
     row.samples.push({

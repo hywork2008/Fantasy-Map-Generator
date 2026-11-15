@@ -201,6 +201,10 @@ export interface LivestockFeedLedger {
   grainFeedKg?: number;
   /** Of grainFeedKg, the farms' own grain above a year's food (no cash). */
   ownGrainFeedKg?: number;
+  /** Feed the herd went without and has not yet eaten back, in hay DM (docs/plan/livestock-lean-condition.md). */
+  leanDeficitKg?: number;
+  /** Spare grass eaten this month to recover condition. */
+  refedKg?: number;
   unmetKg: number;
   coverage: number;
   spending: number;

@@ -1,6 +1,7 @@
 import Alea from "alea";
 import { getMarketSettings } from "../../../simulation/marketSettings";
 import { getCadencePhase } from "../context/cadencePhases";
+import { getMarketCellColumn } from "../context/cellTables";
 import { registerContextFallbackReset } from "../context/economyApi";
 import {
   getOrCreateLivestockFeedTable,
@@ -115,4 +116,30 @@ export function getFeedShortfallResponse(cellId: number): "work" | "herd" | null
   if (feedShortfallResponse !== "random") return feedShortfallResponse;
   const draw = Alea(`feed-shortfall:${getWorldContext().seed ?? ""}:${cellId}:${getSimulationYear()}`)();
   return draw < feedShortfallWorkShare ? "work" : "herd";
+}
+
+/**
+ * Share of full carcass weight the stock of each market gives at slaughter (docs/plan/livestock-lean-condition.md):
+ * 1 less `leanMaxCarcassLoss` times the body reserve spent, averaged over the market's cells by this month's feed
+ * need. Markets with no lean stock are absent (full carcasses).
+ */
+export function getMarketLeanCarcassFactors(): Map<number, number> {
+  const factors = new Map<number, number>();
+  const { leanCondition, leanReserveMonths, leanMaxCarcassLoss } = getMarketSettings();
+  if (leanCondition === "off") return factors;
+  const table = getOrCreateLivestockFeedTable();
+  if (!table) return factors;
+  const marketCells = getMarketCellColumn();
+  const sums = new Map<number, { need: number; lost: number }>();
+  for (const [key, row] of Object.entries(table)) {
+    if (!row || !(row.requiredKg > 0)) continue;
+    const market = marketCells[Number(key)] ?? 0;
+    const sum = sums.get(market) ?? { need: 0, lost: 0 };
+    sum.need += row.requiredKg;
+    sum.lost += Math.min(row.requiredKg, (row.leanDeficitKg ?? 0) / leanReserveMonths);
+    sums.set(market, sum);
+  }
+  for (const [market, sum] of sums)
+    if (sum.lost > 0) factors.set(market, 1 - (leanMaxCarcassLoss * sum.lost) / sum.need);
+  return factors;
 }
