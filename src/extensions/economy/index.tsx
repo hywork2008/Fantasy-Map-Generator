@@ -72,6 +72,7 @@ import { MarketTradeOpportunitiesDialog } from "./ui/dialogs/MarketTradeOpportun
 import { MetallurgWorkDialog } from "./ui/dialogs/MetallurgWorkDialog";
 import { MilitarySuppliesOverviewDialog } from "./ui/dialogs/MilitarySuppliesOverviewDialog";
 import { MineralOverviewDialog } from "./ui/dialogs/MineralOverviewDialog";
+import { OutfitterDialog } from "./ui/dialogs/OutfitterDialog";
 import { OverseasRelationsDialog } from "./ui/dialogs/OverseasRelationsDialog";
 import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
 import { ProductionOverviewDialog } from "./ui/dialogs/ProductionOverviewDialog";
@@ -80,6 +81,7 @@ import { TradeAnimationDialog } from "./ui/dialogs/TradeAnimationDialog";
 import { TradeCorridorsDialog } from "./ui/dialogs/TradeCorridorsDialog";
 import { TradeDetailsDialog } from "./ui/dialogs/TradeDetailsDialog";
 import { TreasuryOverviewDialog } from "./ui/dialogs/TreasuryOverviewDialog";
+import { openOutfitter } from "./ui/outfitterActions";
 
 function withRegenerateConfirmation(featureName: string, _id: string, onConfirm: () => void) {
   if (useUiPreferencesState.getState().dontAskRegenerateFeature) return onConfirm();
@@ -373,6 +375,7 @@ let _timeAdvanceCompletedHandler: (() => void) | null = null;
 let _worldLoadedHandler: (() => void) | null = null;
 let _economyInitializedHandler: (() => void) | null = null;
 let _goodsChangedHandler: ((e: Event) => void) | null = null;
+let _openOutfitterHandler: ((event: Event) => void) | null = null;
 
 export function init(api: ExtensionAPI): void {
   const regenerate = (target: EconomyRegenerationTarget) =>
@@ -396,6 +399,12 @@ export function init(api: ExtensionAPI): void {
     if ((event as CustomEvent<{ webgl?: boolean } | undefined>).detail?.webgl) api.requestWebglRender();
   };
   document.addEventListener(ECONOMY_GOODS_CHANGED_EVENT, _goodsChangedHandler);
+  _openOutfitterHandler = event => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const characterId = (event as CustomEvent<{ characterId?: unknown }>).detail?.characterId;
+    if (typeof characterId === "number" && Number.isInteger(characterId)) openOutfitter(characterId);
+  };
+  document.addEventListener("fmg:open-outfitter", _openOutfitterHandler);
 
   // Balance History's first row for a freshly prepared map, then show the new data.
   _economyInitializedHandler = () => {
@@ -471,6 +480,7 @@ export function init(api: ExtensionAPI): void {
   });
   api.registerDialog({ id: "GoodsStockDialog", extensionId: ECONOMY_EXTENSION_ID, component: GoodsStockDialog });
   api.registerDialog({ id: "characterMarket", extensionId: ECONOMY_EXTENSION_ID, component: CharacterMarketDialog });
+  api.registerDialog({ id: "outfitter", extensionId: ECONOMY_EXTENSION_ID, component: OutfitterDialog });
   api.registerDialog({
     id: "GoodsTagsFilterDialog",
     extensionId: ECONOMY_EXTENSION_ID,
@@ -1010,6 +1020,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("councilSession");
       api.closeDialog("domainPollDetail");
       api.closeDialog("characterMarket");
+      api.closeDialog("outfitter");
 
       api.tooltipExtensions.showMapTooltip = undefined;
       api.tooltipExtensions.updateCellInfo = undefined;
@@ -1309,6 +1320,10 @@ export function cleanup(api: ExtensionAPI): void {
   if (_economyInitializedHandler) {
     document.removeEventListener(ECONOMY_INITIALIZED_EVENT, _economyInitializedHandler);
     _economyInitializedHandler = null;
+  }
+  if (_openOutfitterHandler) {
+    document.removeEventListener("fmg:open-outfitter", _openOutfitterHandler);
+    _openOutfitterHandler = null;
   }
   if (_goodsChangedHandler) {
     document.removeEventListener(ECONOMY_GOODS_CHANGED_EVENT, _goodsChangedHandler);

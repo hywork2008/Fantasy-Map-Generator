@@ -174,26 +174,32 @@ export async function startMapReadyTasks(): Promise<void> {
   measureGenerationStep("generateExtensionEvent", () => {
     document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
   });
-  if (isCurrent()) {
-    for (let index = 0; index < ordered.length; index++) {
-      if (!isCurrent()) break;
-      const task = ordered[index];
-      useMapReadyTaskState.getState().begin(task.label, index + 1);
-      await task.run({
-        generation: true,
-        isCurrent,
-        reportProgress: progress => {
-          if (isCurrent()) useMapReadyTaskState.getState().report(progress);
-        }
-      });
+  try {
+    if (isCurrent()) {
+      for (let index = 0; index < ordered.length; index++) {
+        if (!isCurrent()) break;
+        const task = ordered[index];
+        useMapReadyTaskState.getState().begin(task.label, index + 1);
+        await task.run({
+          generation: true,
+          isCurrent,
+          reportProgress: progress => {
+            if (isCurrent()) useMapReadyTaskState.getState().report(progress);
+          }
+        });
+      }
     }
-  }
 
-  if (isCurrent()) {
-    useMapReadyTaskState.getState().finish();
-    document.dispatchEvent(new CustomEvent("fmg:map-ready-tasks-completed"));
-    // After the completion listeners, which include the final full redraw.
-    markGenerationProfile("map-ready");
+    if (isCurrent()) {
+      useMapReadyTaskState.getState().finish();
+      document.dispatchEvent(new CustomEvent("fmg:map-ready-tasks-completed"));
+      // After the completion listeners, which include the final full redraw.
+      markGenerationProfile("map-ready");
+    }
+  } catch (error) {
+    // Callers discard this promise. An uncaught rejection left the progress label up forever.
+    console.error(error);
+    if (isCurrent()) useMapReadyTaskState.getState().cancel();
   }
   if (fullRunId === currentRun) fullRunId = null;
   if (coreMapReady && requestedTaskIds.size) queueMicrotask(() => void runRequestedTasks());

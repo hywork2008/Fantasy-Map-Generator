@@ -3723,6 +3723,7 @@
     "titles": {
       "charactersOverview": "人物概要",
       "characterMarket": "人物の市場",
+      "outfitter": "道具屋",
       "goodsEditor": "産物エディター",
       "goodsStock": "{{name}} — 在庫",
       "goodsProducers": "{{name}} — 生産者",
@@ -3946,6 +3947,24 @@
       "unitsAria": "{{name}} の数量",
       "noTraded": "この市場で取引中の産物はありません。",
       "noMatch": "現在の条件に合う産物はありません。"
+    },
+    "outfitter": {
+      "empty": "この人物は、人が住む都市にいません。",
+      "header": "{{character}} · {{burg}} · 資産: {{wealth}}",
+      "note": "イングランドの勘定に残る、1個ずつの値段です。市場の大口の産物とは別で、この店は買い戻しません。",
+      "ariaGoods": "道具屋の品",
+      "piece": "品",
+      "price": "値段",
+      "held": "所持",
+      "count": "数",
+      "countAria": "{{name}} の数",
+      "buy": "買う",
+      "pieces": {
+        "hand-axe": "手斧",
+        "lantern": "手提げランタン",
+        "costrel": "コストレル",
+        "purse": "巾着"
+      }
     },
     "shipyards": {
       "empty": "稼働中の造船列はありません。",
