@@ -52,6 +52,7 @@ import { CARAVEL, createCaravel } from "../buildings/ships/caravel";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { createGrokGalleon, GROK_GALLEON, grokGalleonParts } from "../buildings/ships/grokGalleon";
+import { createGrokGalley, GROK_GALLEY, grokGalleyParts } from "../buildings/ships/grokGalley";
 import {
   createGrokShipOfTheLine,
   GROK_SHIP_OF_THE_LINE,
@@ -1650,6 +1651,125 @@ function showShipOfTheLine(): void {
 }
 lineButton.addEventListener("click", () => showShipOfTheLine());
 shipsHeading.append(lineButton);
+
+const galleyButton = document.createElement("button");
+galleyButton.type = "button";
+galleyButton.textContent = "Galley · Mediterranean war galley";
+galleyButton.dataset.id = "galley";
+const galleyState: {
+  sails: "set" | "furled";
+  oars: "out" | "stowed";
+  guns: "run-out" | "housed";
+  part: string;
+} = { sails: "set", oars: "out", guns: "run-out", part: "all" };
+AUTHORED_VARIANTS.galley = {
+  author: GROK_GALLEY.author,
+  primary: true,
+  quality: true,
+  highOnly: true,
+  show: () => showGalley()
+};
+function showGalley(): void {
+  if (qualitySelect.value !== "high") qualitySelect.value = "high";
+  for (const option of qualitySelect.options) option.disabled = option.value !== "high";
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === galleyButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  showQuality(true);
+  const parts = grokGalleyParts(galleyState);
+  if (!parts.some(part => part.id === galleyState.part)) galleyState.part = "all";
+  const chosen = parts.find(part => part.id === galleyState.part);
+  const model = chosen ? assembleSailingParts("galley-part", [chosen]) : createGrokGalley(galleyState);
+  comparisonModel = { path: null, quality: "high", viewOnly: true };
+  for (const [label, field, options] of [
+    [
+      "Sails",
+      "sails",
+      [
+        ["Set", "set"],
+        ["Furled · moored", "furled"]
+      ]
+    ],
+    [
+      "Oars",
+      "oars",
+      [
+        ["Out", "out"],
+        ["Stowed", "stowed"]
+      ]
+    ],
+    [
+      "Bow guns",
+      "guns",
+      [
+        ["Run out", "run-out"],
+        ["Housed", "housed"]
+      ]
+    ]
+  ] as const) {
+    const input = document.createElement("select");
+    input.setAttribute("aria-label", label);
+    for (const [name, value] of options) input.add(new Option(name, value));
+    input.value = galleyState[field];
+    input.addEventListener("change", () => {
+      if (field === "sails") galleyState.sails = input.value as (typeof galleyState)["sails"];
+      else if (field === "oars") galleyState.oars = input.value as (typeof galleyState)["oars"];
+      else galleyState.guns = input.value as (typeof galleyState)["guns"];
+      showGalley();
+    });
+    const row = document.createElement("label");
+    row.append(label, input);
+    optionFields.append(row);
+  }
+  const partSelect = document.createElement("select");
+  partSelect.setAttribute("aria-label", "Assembly part");
+  partSelect.add(new Option("Complete ship", "all"));
+  for (const part of parts) partSelect.add(new Option(`${part.role} · ${part.quality}`, part.id));
+  partSelect.value = galleyState.part;
+  partSelect.addEventListener("change", () => {
+    galleyState.part = partSelect.value;
+    showGalley();
+  });
+  const partRow = document.createElement("label");
+  partRow.append("Assembly part", partSelect);
+  optionFields.append(partRow);
+  modelOptions.hidden = false;
+  massing = model;
+  scene.add(model.group);
+  const info = GROK_GALLEY;
+  frame({ occupancyMeters: { width: info.length, depth: info.beam } }, info.height);
+  camera.position.set(info.length * 0.85, info.height * 0.55, info.length * 0.7);
+  controls.target.set(0, 2.2, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(model, "side"));
+  mountPlan(levelHost, meshProjection(model, "top"));
+  appendFacts(
+    fact("Model", info.name),
+    fact("Quality", "High — the only prepared resolution"),
+    fact("Sails", galleyState.sails),
+    fact("Oars", galleyState.oars),
+    fact("Bow guns", galleyState.guns),
+    fact("CE adoption", "Not placed by CE. BV-only; CE keeps sloop, caravel, galleon and barge"),
+    fact(
+      "Dimensions",
+      `${info.length} m sparred envelope × ${info.beam} m moulded beam; ${info.height} m above the waterline; ${info.draft} m illustrative waterline`
+    ),
+    fact("Armament", "5-gun bow battery: one centerline gun and four flanking guns on the rambade"),
+    fact("Oarsmen", "48 oars, 24 banks a side, one oar to a bank"),
+    fact("Rig", "Two lateen sails, fore and main, on one tack"),
+    fact("Note", info.note, "Galley")
+  );
+  const panel = modelPartsPanel(model.group);
+  if (panel) facts.append(panel);
+}
+galleyButton.addEventListener("click", () => showGalley());
+shipsHeading.append(galleyButton);
 
 const sloopButton = document.createElement("button");
 sloopButton.type = "button";
