@@ -69,10 +69,10 @@ BVのモデルは、複数のAIモデルがそれぞれ一部を作っている�
 作者は、登録表にある表記だけを受け付ける型 `Author` で書く。
 
 ```ts
-export const AUTHORS = ["Codex GPT-6.1 Sol", "Claude Opus 5.5", "Grok"] as const;
+export const AUTHORS = ["Codex GPT-6.1 Sol", "Claude Opus 5.5", "Grok", "Grok 4.7"] as const;
 export type Author = (typeof AUTHORS)[number];
 export const DEFAULT_AUTHOR: Author = "Codex GPT-6.1 Sol";
-export function authorSlug(author: Author): string; // "claude-opus-5.5"
+export function authorSlug(author: Author): string; // "claude-opus-5.5"、"grok-4.7"
 ```
 
 - 初案では、表示名とは別のid（`codex-gpt-6.1-sol`）で参照する予定だった。実装では、表示名そのものを型にした。
@@ -84,6 +84,7 @@ export function authorSlug(author: Author): string; // "claude-opus-5.5"
   - `GPT-6.1 Sol`・`Codex` → `Codex GPT-6.1 Sol`
   - `Claude 5.5 Medium` → `Claude Opus 5.5`
 - 作者のないモデルに表示する `DEFAULT_AUTHOR` は、`Codex` から `Codex GPT-6.1 Sol` に変えた。
+- `Grok 4.7` は市壁の `Grok` とは別表記である。版idは `authorSlug` により `grok-4.7` になる。2026-11-15時点では `ship.galleon` の high だけがこの作者を使う。
 
 ### 4.2 版（`ModelVariant`、`src/buildings/modelVariants.ts`、実装済み）
 
@@ -216,7 +217,7 @@ export function adoptedTree(species: TreeSpecies, quality = "ultra"): ModelVaria
   | 系統 | 版 | CEの採用 |
   | --- | --- | --- |
   | `ship.sloop`・`ship.caravel`・`ship.barge` | Codex（`default`） | 版が1つなので自動 |
-  | `ship.galleon` | Codex（`default`）、Opus（`default`＝high、`low`） | Codex（採用表に記録） |
+  | `ship.galleon` | Codex（`default`）、Opus（`default`＝high、`low`）。2026-11-15に Grok 4.7 の high をBV専用で追加。Lowは無い | Codex（採用表に記録。Grok版は不採用） |
   | `town-wall.town-curtain-wall`・`town-mural-tower`・`town-gate` | Codex、Grok（BVの習作。両脇に城壁の一部が付く） | Codex（採用表に記録） |
   | `town-wall-part.wall`・`bare`・`tower`・`gate` | Codex（CEが城壁の周回に並べる部品）。`basedOn` はCodexの習作 | 版が1つなので自動 |
   | `temple.basilica` | Opus（`high`・`low`） | 版が1つなので自動 |

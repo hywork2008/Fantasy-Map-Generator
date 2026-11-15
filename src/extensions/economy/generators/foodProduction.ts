@@ -99,7 +99,7 @@ export function getStartHarvestBridge(
   profile: readonly number[] | undefined,
   startMonth: number
 ): number {
-  if (!profile || profile.length !== 12 || !(annualDemand > 0)) return 0;
+  if (profile?.length !== 12 || !(annualDemand > 0)) return 0;
   const monthly = annualDemand / 12;
   let balance = 0;
   let worst = 0;

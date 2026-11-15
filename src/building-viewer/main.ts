@@ -49,6 +49,7 @@ import { BARGE, createBarge } from "../buildings/ships/barge";
 import { CARAVEL, createCaravel } from "../buildings/ships/caravel";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
+import { createGrokGalleon, GROK_GALLEON, grokGalleonParts } from "../buildings/ships/grokGalleon";
 import { createMerchantShipHigh, merchantShipParts } from "../buildings/ships/merchantShipHigh";
 import {
   createOpusGalleon,
@@ -251,7 +252,10 @@ modelOptions.append(optionsTitle, optionFields);
  * Alternative versions of a list item made by other AI models, keyed by the list button's data-id.
  * `primary` means that author made the only prepared model, so it is selected on open.
  */
-const AUTHORED_VARIANTS: Record<string, { author: Author; primary?: boolean; quality?: boolean; show: () => void }> = {
+const AUTHORED_VARIANTS: Record<
+  string,
+  { author: Author; authors?: readonly Author[]; primary?: boolean; quality?: boolean; show: () => void }
+> = {
   "basilica-temple": { author: BASILICA_TEMPLE.author, show: () => showBasilicaTemple() }
 };
 let selectedId = entries[0]?.record.id ?? "";
@@ -278,7 +282,11 @@ function listAuthors(id: string): void {
     return;
   }
   const variant = AUTHORED_VARIANTS[id];
-  const names = variant?.primary ? [variant.author] : ([DEFAULT_AUTHOR, variant?.author].filter(Boolean) as Author[]);
+  const names = variant?.authors
+    ? variant.authors
+    : variant?.primary
+      ? [variant.author]
+      : ([DEFAULT_AUTHOR, variant?.author].filter(Boolean) as Author[]);
   for (const name of names) {
     const option = document.createElement("option");
     option.value = name;
@@ -292,7 +300,8 @@ authorSelect.addEventListener("change", () => {
   const level = LEVEL_AUTHORS[selectedId];
   if (level) return level.show(authorSelect.value as Author);
   const variant = AUTHORED_VARIANTS[selectedId];
-  if (variant && authorSelect.value === variant.author) return variant.show();
+  if (variant?.authors?.includes(authorSelect.value as Author) || (variant && authorSelect.value === variant.author))
+    return variant.show();
   list.querySelector<HTMLButtonElement>(`button[data-id="${CSS.escape(selectedId)}"]`)?.click();
 });
 const selectedName = document.createElement("h2");
@@ -1320,15 +1329,28 @@ const galleonButton = document.createElement("button");
 galleonButton.type = "button";
 galleonButton.textContent = "Galleon · Three-masted sailing ship";
 galleonButton.dataset.id = "galleon";
-AUTHORED_VARIANTS.galleon = { author: OPUS_GALLEON.author, quality: true, show: () => showGalleon() };
-const galleonState: Required<GalleonState> & { ensign: boolean } = { sails: "set", gunports: "open", ensign: false };
-const galleonPartsSelected = { codex: "all", opus: "all" };
+AUTHORED_VARIANTS.galleon = {
+  author: OPUS_GALLEON.author,
+  authors: [DEFAULT_AUTHOR, OPUS_GALLEON.author, GROK_GALLEON.author],
+  quality: true,
+  show: () => showGalleon()
+};
+const galleonState: Required<GalleonState> & { ensign: boolean; windows: "open" | "closed" } = {
+  sails: "set",
+  gunports: "open",
+  ensign: false,
+  windows: "open"
+};
+const galleonPartsSelected = { codex: "all", opus: "all", grok: "all" };
 function showGalleon(author: string = authorSelect.value): void {
-  const opus = author === OPUS_GALLEON.author,
-    key = opus ? "opus" : "codex";
+  const opus = author === OPUS_GALLEON.author;
+  const grok = author === GROK_GALLEON.author;
+  const key = grok ? "grok" : opus ? "opus" : "codex";
+  for (const option of qualitySelect.options) if (option.value === "low") option.disabled = grok;
+  if (grok && qualitySelect.value !== "high") qualitySelect.value = "high";
   const quality = qualitySelect.value as OpusGalleonQuality,
     high = quality === "high";
-  const info = opus ? OPUS_GALLEON : GALLEON;
+  const info = grok ? GROK_GALLEON : opus ? OPUS_GALLEON : GALLEON;
   selection++;
   for (const button of list.querySelectorAll("button"))
     button.setAttribute("aria-current", button === galleonButton ? "true" : "false");
@@ -1339,30 +1361,34 @@ function showGalleon(author: string = authorSelect.value): void {
   roofTitle.textContent = "Ship elevation";
   levelTitle.textContent = "Deck plan";
   showQuality(true);
-  const parts: readonly ModelPartFactory[] = opus
-    ? opusGalleonParts(quality, galleonState)
-    : high
-      ? merchantShipParts("galleon", galleonState)
-      : [
-          {
-            id: "low-assembly",
-            role: "Legacy assembly",
-            author: GALLEON.author,
-            quality: "low",
-            create: () => createGalleon(galleonState)
-          }
-        ];
+  const parts: readonly ModelPartFactory[] = grok
+    ? grokGalleonParts(galleonState)
+    : opus
+      ? opusGalleonParts(quality, galleonState)
+      : high
+        ? merchantShipParts("galleon", galleonState)
+        : [
+            {
+              id: "low-assembly",
+              role: "Legacy assembly",
+              author: GALLEON.author,
+              quality: "low",
+              create: () => createGalleon(galleonState)
+            }
+          ];
   if (!parts.some(p => p.id === galleonPartsSelected[key])) galleonPartsSelected[key] = "all";
   const chosen = parts.find(p => p.id === galleonPartsSelected[key]);
   const model = chosen
     ? opus
       ? chosen.create()
       : assembleSailingParts("galleon-part", [chosen])
-    : opus
-      ? createOpusGalleon(quality, galleonState)
-      : high
-        ? createMerchantShipHigh("galleon", galleonState)
-        : createGalleon(galleonState);
+    : grok
+      ? createGrokGalleon(galleonState)
+      : opus
+        ? createOpusGalleon(quality, galleonState)
+        : high
+          ? createMerchantShipHigh("galleon", galleonState)
+          : createGalleon(galleonState);
   comparisonModel = { path: null, quality, viewOnly: true };
   for (const [label, field, options] of [
     [
@@ -1393,6 +1419,20 @@ function showGalleon(author: string = authorSelect.value): void {
     });
     const row = document.createElement("label");
     row.append(label, input);
+    optionFields.append(row);
+  }
+  if (grok) {
+    const input = document.createElement("select");
+    input.setAttribute("aria-label", "Windows");
+    input.add(new Option("Open", "open"));
+    input.add(new Option("Shut", "closed"));
+    input.value = galleonState.windows;
+    input.addEventListener("change", () => {
+      galleonState.windows = input.value as "open" | "closed";
+      showGalleon(author);
+    });
+    const row = document.createElement("label");
+    row.append("Windows", input);
     optionFields.append(row);
   }
   const partSelect = document.createElement("select");
@@ -1430,18 +1470,31 @@ function showGalleon(author: string = authorSelect.value): void {
   mountPlan(levelHost, meshProjection(model, "top"));
   appendFacts(
     fact("Model", info.name),
-    fact("Quality", high ? "High" : "Low"),
+    fact("Quality", grok ? "High — the only prepared resolution" : high ? "High" : "Low"),
     fact("Sails", galleonState.sails),
     fact("Gunports", galleonState.gunports),
+    ...(grok ? [fact("Windows", galleonState.windows)] : []),
     fact(
       "CE adoption",
-      opus ? "BV-only comparison" : "Legacy default (Low); sail and gunport states supported in CE; High is BV-only"
+      grok
+        ? "Not adopted; CE uses Codex GPT-6.1 Sol. High is BV-only"
+        : opus
+          ? "BV-only comparison"
+          : "Legacy default (Low); sail and gunport states supported in CE; High is BV-only"
     ),
     fact(
       "Dimensions",
       `${info.length} m over spars × ${info.beam} m hull beam; ${info.height} m above water; ${info.draft} m draft`
     ),
-    fact("Armament", opus ? "28 guns, including two stern chasers" : "14 broadside guns"),
+    fact(
+      "Armament",
+      grok
+        ? "26 guns: 16 lower-deck, 8 waist, 2 stern chasers"
+        : opus
+          ? "28 guns, including two stern chasers"
+          : "14 broadside guns"
+    ),
+    ...(grok ? [fact("Rig", "Four masts, courses and topsails, two lateens and a spritsail")] : []),
     fact("Note", info.note, "Galleon")
   );
   const panel = modelPartsPanel(model.group);
