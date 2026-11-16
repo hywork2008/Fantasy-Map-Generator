@@ -53,3 +53,30 @@
 ## 8. 痩せている間の乳（2026-11-16）
 
 乳は、足りない月の減り（`getLivestockFeedCoverage`）に加えて、使った体の蓄えの割合に`leanMilkLoss`（仮値0.5）を掛けた分だけ減り、食べ戻すまで続く（`getLeanMilkFactor`）。0は前の決まり。仮値で、史料との照合は無い。
+
+## 9. 史料との照合（2026-11-16）
+
+ウェブで探した範囲（下の資料）で、仮値ごとに次のとおり。値は変えていない。
+
+| 値 | 仮値 | 見つかったもの | 判断 |
+| --- | --- | --- | --- |
+| `leanMaxCarcassLoss` | 0.25 | 中世の数値は無い。中世の家畜は春にはやせていた（一般向けの記事）。フィンランド中世の骨の同位体で、干し草が不作の年に飢えの跡（Bläuer）。現代の改良されていない牛の近い例：中国のヤクで、11月から5月に体重が29〜34%減る | 幅の中に置ける。体重の減りで、枝肉の減りではない |
+| `leanReserveMonths` | 2 | 見つからない | 仮値のまま |
+| `leanRefeedShare` | 0.3 | 見つからない | 仮値のまま |
+| `leanCullThreshold` | 0.25 | 大飢饉（1315〜17年）で、1度の不作で蓄えが尽き、2度目で畑を耕す家畜を売った、という流れ（二次の記事）。売り始めの量の数値は無い | 決まりの形（不作が重なって売る）とは合う。数値は仮値のまま |
+| `leanDeaths` | 蓄えを超えた分 | 現代のカナダで、冬の死が10%を超える群れは晩冬・早春に見つかる。アムステルダム島の野生の牛約1,000頭で、牧草を断たれ30%が飢え死に。1319〜20年の牛疫（病気）で牛の約3分の2が死んだ | 晩冬・早春に死ぬ形は合う。割合の根拠にはならない |
+| `leanMilkLoss` | 0.5 | 見つからない | 仮値のまま |
+| `feedCrisisCashShare` | 0.15 | 見つからない | 仮値のまま |
+| 干し草1 load | 約915 kg | 1796年の法（36 Geo. III c. 88、ロンドンとその30マイル内）：1 load＝36 trusses、古い干し草1 truss 56 lb（1 load 18 cwt≈914 kg）、新しい干し草60 lb（19 cwt 32 lb≈980 kg）。より前の法（ウィリアム3世・メアリー2世、ジョージ2世）もtrussの重さを決めていた。Zupko（*A Dictionary of Weights and Measures for the British Isles*, 1985, sv load・truss）は、中世の末と近世の初めには干し草1 loadが18 cwt（2016 lb≈914 kg）＝36 trusses×56 lbの決まった量だったとし、Hall（c1590）「36 trusses makith a loade of haye, and euery trusse is 56 poundes」、1665年の決まりを引く。より古い例（c1440 Scrope「1 lode hey」）は重さを書かない。loadは本来、車1台の積荷で、品・車・道で変わった | 915 kgは中世の末（Hall c1590）まで遡る決まった量である。1259〜1400年（Rogersの平均の期間）に同じ重さだったかは確かめられない（[fodder-value.md](fodder-value.md) §3） |
+
+資料：
+
+- Medievalists.net, "Nasty, Brutish and Short: The Lives of Cattle and Sheep in Medieval Finland"（Bläuer）：https://www.medievalists.net/2017/03/nasty-brutish-short-lives-cattle-sheep-medieval-finland/
+- ヤクの体重の季節の変化（PMC3474572）：https://pmc.ncbi.nlm.nih.gov/articles/PMC3474572
+- Oregon State University Extension, "Late winter can be a perilous time for livestock"：https://extension.oregonstate.edu/animals-livestock/beef/late-winter-can-be-perilous-time-livestock
+- "Unheard of Among Living Men: The Great Famine 1315-1322"：https://viatorinterra.substack.com/p/unheard-of-among-living-men-the-great-7af
+- Wikipedia, "Great Bovine Pestilence"：https://en.wikipedia.org/wiki/Great_Bovine_Pestilence
+- Wikipedia, "Truss (unit)"：https://en.wikipedia.org/wiki/Truss_(unit)
+- Sizes.com, "truss"：https://www.sizes.com/units/truss.htm
+
+探していないもの：Trow-Smith, *A History of British Livestock Husbandry*、Kershaw, "The Great Famine and Agrarian Crisis in England 1315–1322"、荘園の会計の家畜の死（murrain）の記録、Zupkoの度量衡の辞典（中世のload）。

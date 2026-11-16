@@ -22,7 +22,7 @@
 Thorold Rogersの1259〜1400年の平均（Curtler, *A Short History of English Agriculture*, 付録の価格表）：
 
 - 干し草1 load 3s 8d（44d）、燕麦1 quarter 2s 5¾d（29.75d）、小麦1 quarter 5s 10¾d（70.75d）。
-- 1 loadを約915 kg（36 trusses×56 lb、後の時代の決まり。中世のloadはばらつく）、燕麦1 quarterを約140 kg（8 bushels×約38 lb）、小麦1 quarterを約218 kg（8×60 lb）とした。
+- 1 loadを約915 kg（36 trusses×56 lb。Zupkoでは中世の末のHall c1590まで遡る決まった量で、それより前のloadはばらつく。livestock-lean-condition.md §9）、燕麦1 quarterを約140 kg（8 bushels×約38 lb）、小麦1 quarterを約218 kg（8×60 lb）とした。
 - 1 kgあたり：干し草0.048d、燕麦0.21d、小麦0.32d。燕麦は干し草の約4.4倍、小麦は燕麦の約1.5倍である。
 
 ゲームの穀物どうしの比（小麦は燕麦の1.41倍）は、歴史（1.5倍）とほぼ合う。干し草だけが外れていて、歴史の比に合わせると、干し草の値は1俵あたり約0.08（今の約12分の1）になる。

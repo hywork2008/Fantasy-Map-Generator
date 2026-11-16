@@ -1,10 +1,20 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { DEFAULT_MARKET_SETTINGS, setMarketSettings } from "../../../simulation/marketSettings";
+import { simulationContext, worldContext } from "../../hostCore";
+import type { ExtensionAPI } from "../../hostTypes";
+import { getOrCreateLivestockFeedTable, initEconomyContext } from "../economyContext";
 import { settleLeanCondition } from "./livestockFeed";
 import type { LivestockFeedLedger } from "./livestockFeedPolicy";
+import { getFeedShortfallResponse, getLeanMilkFactor, livestockFeedPeriod } from "./livestockFeedState";
 
 const row = (unmetKg: number, unharvestedKg: number, leanDeficitKg = 0) =>
-  ({ requiredKg: 100, unmetKg, unharvestedKg, leanDeficitKg, leanNeedKg: 100 }) as LivestockFeedLedger;
+  ({
+    requiredKg: 100,
+    unmetKg,
+    unharvestedKg,
+    leanDeficitKg,
+    leanNeedKg: 100
+  }) as LivestockFeedLedger;
 
 describe("lean condition", () => {
   afterEach(() => setMarketSettings(DEFAULT_MARKET_SETTINGS));
@@ -44,5 +54,59 @@ describe("lean condition", () => {
     const r = row(300, 0, 50);
     settleLeanCondition(r, 100);
     expect(r.leanDeficitKg).toBe(0);
+  });
+});
+
+describe("lean milk and shortfall response", () => {
+  beforeEach(() => {
+    simulationContext.extensions = {};
+    simulationContext.currentYear = 1000;
+    simulationContext.currentMonth = 4;
+    initEconomyContext({
+      worldContext,
+      simulationContext
+    } as unknown as ExtensionAPI);
+  });
+  afterEach(() => setMarketSettings(DEFAULT_MARKET_SETTINGS));
+
+  const setRow = (row: Partial<LivestockFeedLedger>) => {
+    getOrCreateLivestockFeedTable()![0] = row as LivestockFeedLedger;
+  };
+  const year = (fedKg: number, grainFeedKg = 0) => {
+    const period = livestockFeedPeriod();
+    setRow({
+      samples: Array.from({ length: 12 }, (_, k) => ({
+        period: period - k,
+        requiredKg: 100,
+        fedKg,
+        grainFeedKg
+      }))
+    } as never);
+  };
+
+  it("withholds milk in proportion to the reserve spent, capped at the whole reserve", () => {
+    setRow({ leanNeedKg: 100, leanDeficitKg: 100 });
+    expect(getLeanMilkFactor(0)).toBeCloseTo(0.75);
+    setRow({ leanNeedKg: 100, leanDeficitKg: 900 });
+    expect(getLeanMilkFactor(0)).toBeCloseTo(0.5);
+    setMarketSettings({ leanMilkLoss: 0 });
+    expect(getLeanMilkFactor(0)).toBe(1);
+  });
+
+  it("answers only a year short beyond 1% of need, counting grain as short, with the chosen or drawn response", () => {
+    setMarketSettings({ feedShortfallResponse: "herd" });
+    year(99.5);
+    expect(getFeedShortfallResponse(0)).toBeNull();
+    year(100, 5);
+    expect(getFeedShortfallResponse(0)).toBe("herd");
+    setMarketSettings({ feedShortfallResponse: "legacy" });
+    expect(getFeedShortfallResponse(0)).toBeNull();
+    setMarketSettings({
+      feedShortfallResponse: "random",
+      feedShortfallWorkShare: 1
+    });
+    expect(getFeedShortfallResponse(0)).toBe("work");
+    setMarketSettings({ feedShortfallWorkShare: 0 });
+    expect(getFeedShortfallResponse(0)).toBe("herd");
   });
 });

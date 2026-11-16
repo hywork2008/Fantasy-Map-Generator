@@ -1,14 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const climate = vi.hoisted(() => ({ temperatures: Array(12).fill(12) as number[] }));
+const climate = vi.hoisted(() => ({
+  temperatures: Array(12).fill(12) as number[]
+}));
 vi.mock("./seasonalCropClimate", async original => ({
   ...(await original<typeof import("./seasonalCropClimate")>()),
-  readAgriculturalClimate: () => ({ year: 1000, monthlyMeanTemperatureC: climate.temperatures })
+  readAgriculturalClimate: () => ({
+    year: 1000,
+    monthlyMeanTemperatureC: climate.temperatures
+  })
 }));
 
 import { setMarketSettings } from "../../../simulation/marketSettings";
 import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { getRuralHouseholdFoodStock, setRuralHouseholdFoodStock } from "../context/agriculture";
 import { getCadencePhase, setCadencePhase } from "../context/cadencePhases";
 import {
   getGoods,
@@ -27,12 +33,15 @@ import {
 } from "../economyContext";
 import { getMilkOutput } from "./dairy";
 import { getDomesticatedCarryingCapacity } from "./faunaPopulation";
+import { WAIN_KG } from "./goodMeasureCatalog";
 import { type Good, Goods } from "./goods-generator";
 import { type GoodFlowRecord, setGoodFlowObserver } from "./goodsBalanceLedger";
 import { getGrazedCarryingCapacity } from "./husbandry";
 import {
+  GRAIN_FEED_HAY_EQUIVALENT,
   getFodderSeasonDemandLots,
   getLivestockFodderNeedLots,
+  getUnfedValuePerKg,
   harvestLivestockForage,
   settleLivestockFeed
 } from "./livestockFeed";
@@ -68,10 +77,16 @@ describe("physical livestock feed budget", () => {
     simulationContext.extensions = {};
     simulationContext.currentYear = 1000;
     simulationContext.currentMonth = 4;
-    initEconomyContext({ worldContext, simulationContext } as unknown as ExtensionAPI);
+    initEconomyContext({
+      worldContext,
+      simulationContext
+    } as unknown as ExtensionAPI);
     worldContext.populationRate = 1;
     worldContext.urbanization = 1;
-    worldContext.options = { ...worldContext.options, ruralEcosystemDetail: "detailed" };
+    worldContext.options = {
+      ...worldContext.options,
+      ruralEcosystemDetail: "detailed"
+    };
     worldContext.pack = {
       cells: {
         i: Uint16Array.from([0, 1]),
@@ -95,7 +110,10 @@ describe("physical livestock feed budget", () => {
         }))
       }
     } as unknown as PackedGraph;
-    worldContext.biomesData = { tags: [[], ["grassland"]], habitability: [0, 100] } as never;
+    worldContext.biomesData = {
+      tags: [[], ["grassland"]],
+      habitability: [0, 100]
+    } as never;
     climate.temperatures = Array(12).fill(12);
     setGoods(["Fodder", "Sheep", "Milk", "Wool"].map(name => Goods.getDefaultGood(name)!));
     Goods.sync();
@@ -185,7 +203,9 @@ describe("physical livestock feed budget", () => {
     // Old ewes die at 1/3 a year and do not breed; the rest above the supported flock is sold.
     const expected = Math.floor((3000 - 1000 - capacity) / 12);
     expect(expected).toBeGreaterThan(0);
-    const contributions = getRuralProductionContributions(0, { 1: [{ goodId: sheep.i, production: 0 }] });
+    const contributions = getRuralProductionContributions(0, {
+      1: [{ goodId: sheep.i, production: 0 }]
+    });
     expect(contributions.filter(row => row.goodId === sheep.i)).toEqual([{ goodId: sheep.i, amount: expected }]);
     expect(getOrCreateFaunaStockTable()!["0:Sheep"].old).toBeCloseTo(3000 - expected, 8);
   });
@@ -196,7 +216,13 @@ describe("physical livestock feed budget", () => {
     fodder.demandCoverage = { utilities: 0.4, military: 0.6 };
     fodder.priceElasticity = -1;
     setMilitaryResourceLedgers([
-      { stateId: 1, supplyMarketId: 1, annualDemand: { fodder: 120 }, lastConsumed: {}, unmetDemand: {} }
+      {
+        stateId: 1,
+        supplyMarketId: 1,
+        annualDemand: { fodder: 120 },
+        lastConsumed: {},
+        unmetDemand: {}
+      }
     ]);
     const demand = Markets as unknown as {
       calculateGoodDemand(
@@ -370,7 +396,8 @@ describe("physical livestock feed budget", () => {
     const before = rows()[0].hayKg;
     expect(before).toBeGreaterThan(0);
     simulationContext.currentMonth = 7;
-    climate.temperatures[6] = 0;
+    // A fresh array: pasture growth is cached by the temperature array (b5ca9fbf6).
+    climate.temperatures = climate.temperatures.map((t, m) => (m === 6 ? 0 : t));
     getMarkets()[0].foodLedger!.ruralHouseholdWealth = 0;
     getMarkets()[0].goods[good("Fodder").i].stock = 0;
     harvestLivestockForage();
@@ -436,6 +463,36 @@ describe("physical livestock feed budget", () => {
     // 0.05 from the month's purse, then 15% of the 0.95 left.
     expect(market.foodLedger!.ruralHouseholdWealth).toBeCloseTo(0.81, 8);
     expect(rows()[0].hayConsumedKg + rows()[1].hayConsumedKg).toBeGreaterThan(8.5);
+  });
+
+  it("feeds the farms' own grain above a year's food to stock short of hay, and none when grain feed is off", () => {
+    climate.temperatures = Array(12).fill(0);
+    setMarketSettings({ feedCrisisBudget: "off" });
+    // A year's food for 100 people is 43 units; 10 more lie spare.
+    setRuralHouseholdFoodStock(Float32Array.from([53, 0]));
+    harvestLivestockForage();
+    settleLivestockFeed();
+    const fed = (53 - getRuralHouseholdFoodStock()[0]) * WAIN_KG * 0.87 * GRAIN_FEED_HAY_EQUIVALENT;
+    expect(getRuralHouseholdFoodStock()[0]).toBeGreaterThanOrEqual(43 - 1e-4);
+    expect(fed).toBeGreaterThan(0);
+    expect(rows()[0].ownGrainFeedKg).toBeCloseTo(fed, 2);
+    expect(rows()[1].grainFeedKg ?? 0).toBe(0);
+
+    setMarketSettings({ grainFeed: "off" });
+    setRuralHouseholdFoodStock(Float32Array.from([53, 0]));
+    settleLivestockFeed();
+    expect(getRuralHouseholdFoodStock()[0]).toBe(53);
+  });
+
+  it("prices unfed feed by the carcass it takes off and the milk and wool it withholds", () => {
+    const market = getMarkets()[0];
+    const base = getUnfedValuePerKg(market, 0, 100);
+    setMarketSettings({ leanMaxCarcassLoss: 0, leanMilkLoss: 0 });
+    const withheld = getUnfedValuePerKg(market, 0, 100);
+    expect(base).toBeGreaterThan(withheld);
+    // This month's milk and wool spread over half the need doubles their part.
+    expect(getUnfedValuePerKg(market, 0, 50)).toBeCloseTo(2 * withheld, 10);
+    expect(getUnfedValuePerKg(market, 0, 0)).toBe(0);
   });
 
   it("lets army and farms draw only the remaining portion of the same stock", () => {
