@@ -13,6 +13,7 @@ import {
   getWorldContext,
   recordCumulativeCellFoodProcessing
 } from "../economyContext";
+import { WORKABLE_DAYS_PER_ADULT_PER_MONTH } from "./agriculturalLandUse";
 import {
   getAleDemandMultiplier,
   getAleSanitationFallbackRisk,
@@ -21,9 +22,10 @@ import {
 } from "./aleDemand";
 import { debitHouseholdWealth } from "./burgMarketLedgers";
 import { releaseConsignedUnpaid } from "./craftConsignment";
+import { getMarketPriceLevel } from "./currencySufficiency";
+import { type DairyDemandPerHead, getDairyDemandPerHead, updateDairyTradition } from "./dairyDemand";
 import {
   ALE_TARGETS,
-  DAIRY_TARGETS,
   GRAPE_TARGETS,
   isOrchardDrink,
   isReturnedCaskDrink,
@@ -66,6 +68,7 @@ import {
   returnDrunkContainers,
   rollContainerFillRate
 } from "./returnableContainers";
+import { getSubsistenceWage } from "./subsistenceWage";
 import { getMonthlyTownSoapDemand, isTownSoapGood, SOFT_SOAP, WHITE_SOAP } from "./townSoap";
 
 const TRACKED_GOODS = new Set([
@@ -448,6 +451,46 @@ function spoilStoredRaisins(market: Market): void {
   recordGoodFlow({ direction: "sink", category: "spoilage", goodId: good.i, units: lost, marketId: market.i });
 }
 
+const CHEESE_SALT_BAGS_PER_LOT = 0.25;
+/** A labor point is 1,000 person-months (`laborPointsForLots`). */
+const PERSON_MONTHS_PER_LABOR_POINT = 1_000;
+
+/**
+ * What a cheese lot costs to make in this market: its milk at the local price, the salt, and the
+ * cheese-makers' wages (docs/plan/dairy-demand.md §3.2). Falls back to the good's value.
+ */
+export function getCheeseReferencePrice(market: Market, cheeseValue: number): number {
+  if (getMarketSettings().cheeseReferencePrice !== "productionCost") return cheeseValue;
+  const goods = getGoods();
+  const priceOf = (name: string): number => {
+    const good = goods.find(candidate => candidate.name === name);
+    if (!good) return 0;
+    const price = market.goods[good.i]?.price;
+    return typeof price === "number" && price > 0 ? price : good.value;
+  };
+  // Milk is not carted to town, so its market price only shows the towns' unmet fresh-milk wish
+  // and sits at the ceiling. The dairy values it at the good's value in this market's money.
+  const milk = goods.find(candidate => candidate.name === "Milk");
+  const milkFarmValue = milk ? milk.value * getMarketPriceLevel(market) : 0;
+  const workDays = getMarketSettings().cheeseMakingDaysPerMilkLot * MILK_LOTS_PER_CHEESE_LOT;
+  const wages =
+    (workDays / WORKABLE_DAYS_PER_ADULT_PER_MONTH) * (getSubsistenceWage(market) / PERSON_MONTHS_PER_LABOR_POINT);
+  const cost = milkFarmValue * MILK_LOTS_PER_CHEESE_LOT + priceOf("Salt") * CHEESE_SALT_BAGS_PER_LOT + wages;
+  return cost > 0 ? cost : cheeseValue;
+}
+
+/** Milk and cheese a person wants in this market (docs/plan/dairy-demand.md). */
+export function getMarketDairyDemandPerHead(market: Market, people = getMarketPeople(market)): DairyDemandPerHead {
+  const cheese = getGoods().find(candidate => candidate.name === "Cheese");
+  return getDairyDemandPerHead(
+    market,
+    people,
+    getWorldContext().pack.cells?.i ?? [],
+    cheese ? market.goods[cheese.i]?.price : undefined,
+    cheese ? getCheeseReferencePrice(market, cheese.value) : 0
+  );
+}
+
 export function getMonthlyHouseholdDemand(market: Market, goodName: string): number {
   const people = getMarketPeople(market);
   switch (goodName) {
@@ -465,9 +508,9 @@ export function getMonthlyHouseholdDemand(market: Market, goodName: string): num
         LITERS_PER_ORCHARD_DRINK_LOT
       );
     case "Milk":
-      return (people * DAIRY_TARGETS.freshMilkLitersPerPersonYear) / 12 / LITERS_PER_MILK_LOT;
+      return (people * getMarketDairyDemandPerHead(market, people).milkLiters) / 12 / LITERS_PER_MILK_LOT;
     case "Cheese":
-      return (people * DAIRY_TARGETS.cheeseKilogramsPerPersonYear) / 12 / KILOGRAMS_PER_CHEESE_LOT;
+      return (people * getMarketDairyDemandPerHead(market, people).cheeseKilograms) / 12 / KILOGRAMS_PER_CHEESE_LOT;
     case "Grapes": {
       // Fresh grapes do not travel or keep: the wine country's towns eat theirs in the vintage, and
       // the country people theirs in the vineyard cells (docs/plan/grape-season-and-wine-country.md).
@@ -866,6 +909,7 @@ export function settleFoodProcessingHouseholds(): void {
       recordGoodFlow({ direction: "sink", category: "spoilage", goodId: good.i, units: remaining, marketId: market.i });
     }
 
+    updateDairyTradition(market, getMarketPeople(market), getWorldContext().pack.cells?.i ?? []);
     // This field coordinates the source-cell phase with this cycle's Market demand draw. The
     // cumulative householdConsumption field is intentionally retained for diagnostics, but must
     // never suppress household demand in later cycles.

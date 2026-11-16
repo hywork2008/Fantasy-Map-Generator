@@ -37,9 +37,13 @@ import {
   CELL_CHEESE_SALE_MODES,
   type CellCheeseSaleMode,
   CHARACTER_RESERVE_MODES,
+  CHEESE_REFERENCE_PRICE_MODES,
   type CharacterReserveMode,
+  type CheeseReferencePriceMode,
   CRAFT_SALE_PAYMENT_MODES,
   type CraftSalePaymentMode,
+  DAIRY_DEMAND_MODES,
+  type DairyDemandMode,
   FEED_CRISIS_BUDGET_MODES,
   FEED_SHORTFALL_RESPONSE_MODES,
   FEED_SHORTFALL_TIMING_MODES,
@@ -1936,6 +1940,98 @@ export const SimulationSettingsTab: React.FC = () => {
                 step={MARKET_SETTING_LIMITS.ruralCheeseEatShare.step}
                 value={marketSettings.ruralCheeseEatShare}
                 onChange={v => updateMarketSetting("ruralCheeseEatShare", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.dairyDemandTip")}>
+            <td />
+            <td>
+              <label htmlFor="dairyDemand">{t("simulation.dairyDemand")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="dairyDemand"
+                value={marketSettings.dairyDemand}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      dairyDemand: e.target.value as DairyDemandMode
+                    })
+                  )
+                }
+              >
+                {DAIRY_DEMAND_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.dairyDemand_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.cheeseReferencePriceTip")}>
+            <td />
+            <td>
+              <label htmlFor="cheeseReferencePrice">{t("simulation.cheeseReferencePrice")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="cheeseReferencePrice"
+                value={marketSettings.cheeseReferencePrice}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      cheeseReferencePrice: e.target.value as CheeseReferencePriceMode
+                    })
+                  )
+                }
+              >
+                {CHEESE_REFERENCE_PRICE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.cheeseReferencePrice_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.dairyTraditionHalfLifeYearsTip")}>
+            <td />
+            <td>{t("simulation.dairyTraditionHalfLifeYears")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="dairyTraditionHalfLifeYears"
+                min={MARKET_SETTING_LIMITS.dairyTraditionHalfLifeYears.min}
+                max={MARKET_SETTING_LIMITS.dairyTraditionHalfLifeYears.max}
+                step={MARKET_SETTING_LIMITS.dairyTraditionHalfLifeYears.step}
+                value={marketSettings.dairyTraditionHalfLifeYears}
+                onChange={v => updateMarketSetting("dairyTraditionHalfLifeYears", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.animalProteinCapGramsPerDayTip")}>
+            <td />
+            <td>{t("simulation.animalProteinCapGramsPerDay")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="animalProteinCapGramsPerDay"
+                min={MARKET_SETTING_LIMITS.animalProteinCapGramsPerDay.min}
+                max={MARKET_SETTING_LIMITS.animalProteinCapGramsPerDay.max}
+                step={MARKET_SETTING_LIMITS.animalProteinCapGramsPerDay.step}
+                value={marketSettings.animalProteinCapGramsPerDay}
+                onChange={v => updateMarketSetting("animalProteinCapGramsPerDay", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.cheesePriceElasticityTip")}>
+            <td />
+            <td>{t("simulation.cheesePriceElasticity")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="cheesePriceElasticity"
+                min={MARKET_SETTING_LIMITS.cheesePriceElasticity.min}
+                max={MARKET_SETTING_LIMITS.cheesePriceElasticity.max}
+                step={MARKET_SETTING_LIMITS.cheesePriceElasticity.step}
+                value={marketSettings.cheesePriceElasticity}
+                onChange={v => updateMarketSetting("cheesePriceElasticity", v)}
               />
             </td>
           </tr>

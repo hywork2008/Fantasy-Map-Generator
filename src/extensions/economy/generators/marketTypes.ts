@@ -129,6 +129,15 @@ export interface Market {
   meatSales?: { year: number; producedKg: number; soldKg: number; lastSoldShare?: number };
   /** Physical intake, household use, processing and spoilage for dairy, vine, and ale goods. */
   foodProcessingLedger?: FoodProcessingLedger;
+  /**
+   * The milk the market's people are used to, litres a person a year: a slow average of the milk its
+   * own herds give (docs/plan/dairy-demand.md §3.1). Undefined until first set, on older saves too.
+   */
+  dairyTraditionLitersPerHead?: number;
+  /** Meat eaten this month, kg; folded into `meatKilogramsPerHeadYear` with the dairy tradition. */
+  meatKilogramsThisCycle?: number;
+  /** A slow yearly average of the meat a person here eats, kg, for the animal-food cap (docs/plan/dairy-demand.md §3.3). */
+  meatKilogramsPerHeadYear?: number;
   /** Returnable containers remain in circulation; recipe inputs only cover loss and repair. */
   returnableContainerLedger?: ReturnableContainerLedger;
   /**

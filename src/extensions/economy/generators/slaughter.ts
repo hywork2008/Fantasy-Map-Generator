@@ -238,6 +238,7 @@ export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, 
       meatKg += heads * (MEAT_KG_PER_HEAD[animal.name] ?? 0) * carcass;
     }
     if (meat && meatKg > 0) {
+      market.meatKilogramsThisCycle = (market.meatKilogramsThisCycle ?? 0) + meatKg;
       const units = meatKg / WAIN_KG;
       result.meat += units;
       result.meatSold += sellMeat(

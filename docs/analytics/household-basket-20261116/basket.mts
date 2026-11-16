@@ -133,6 +133,10 @@ for (let month = 1; month <= months; month++) {
   snap.ledgers = ledgers();
   snap.sinks = Object.fromEntries(Object.entries(used2).filter(([, v]) => v[1] > 10).map(([k, v]) => [k, [Math.round(v[0]), Math.round(v[1])]]));
   snap.byGood = Object.fromEntries(Object.entries(byGood).filter(([, v]) => Math.abs(v) > 100).map(([k, v]) => [k, Math.round(v)]));
+  if (month % 12 === 0) {
+    const cheese = getGoods().find(g => g.name === "Cheese");
+    snap.dairyMarkets = [...marketById.values()].map(m => ({ i: m.i, tradition: m.dairyTraditionLitersPerHead, cheesePrice: cheese ? m.goods?.[cheese.i]?.price : undefined, cheeseStock: cheese ? m.goods?.[cheese.i]?.stock : undefined }));
+  }
   if (month % 6 === 0) { snap.prices = medians(); snap.craft = craft; craft = {}; }
   snaps.push(snap);
   console.log(`month ${month}`);

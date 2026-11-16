@@ -99,11 +99,17 @@ export type PeatCutPlanMode = (typeof PEAT_CUT_PLAN_MODES)[number];
 export const GUILD_SURPLUS_USE_MODES = ["spend", "keep"] as const;
 export type GuildSurplusUseMode = (typeof GUILD_SURPLUS_USE_MODES)[number];
 /** How much cheese a dairy cell makes for its market (docs/plan/dairy-supply-use.md §3.1). */
-export const CELL_CHEESE_SALE_MODES = ["demandGap", "fixedShare"] as const;
+export const CELL_CHEESE_SALE_MODES = ["demandGap", "allMilk", "fixedShare"] as const;
 export type CellCheeseSaleMode = (typeof CELL_CHEESE_SALE_MODES)[number];
 /** Whether farm families eat their own milk as cheese every month (docs/plan/dairy-supply-use.md §3.2). */
 export const RURAL_DAIRY_USE_MODES = ["eat", "reserveOnly"] as const;
 export type RuralDairyUseMode = (typeof RURAL_DAIRY_USE_MODES)[number];
+/** Dairy demand from a slow tradition and the cheese price, or the old fixed targets (docs/plan/dairy-demand.md). */
+export const DAIRY_DEMAND_MODES = ["tradition", "fixedTargets"] as const;
+export type DairyDemandMode = (typeof DAIRY_DEMAND_MODES)[number];
+/** The cheese price the elasticity is measured against: the cost of making it here, or the good's value. */
+export const CHEESE_REFERENCE_PRICE_MODES = ["productionCost", "goodValue"] as const;
+export type CheeseReferencePriceMode = (typeof CHEESE_REFERENCE_PRICE_MODES)[number];
 export type ByproductExportMode = (typeof BYPRODUCT_EXPORT_MODES)[number];
 
 /**
@@ -296,6 +302,8 @@ export type MarketSettings = {
   guildSurplusUse: GuildSurplusUseMode;
   cellCheeseSale: CellCheeseSaleMode;
   ruralDairyUse: RuralDairyUseMode;
+  dairyDemand: DairyDemandMode;
+  cheeseReferencePrice: CheeseReferencePriceMode;
   /** Share of a guild's treasury above its working reserve spent in its town a month, with `guildSurplusUse` spend. */
   guildSpendRate: number;
   /** Months of a Guild Master's stipend a guild keeps before it spends the rest. */
@@ -313,6 +321,12 @@ export type MarketSettings = {
   cheeseMakingDaysPerMilkLot: number;
   /** Most of its own milk, as cheese, a farm family eats with `ruralDairyUse` eat; the rest it sells. */
   ruralCheeseEatShare: number;
+  /** Half-life of the dairy tradition, years. */
+  dairyTraditionHalfLifeYears: number;
+  /** Most animal protein (meat, cheese, milk) a person eats a day, g; dairy demand above it is dropped. */
+  animalProteinCapGramsPerDay: number;
+  /** Own-price elasticity of cheese demand. */
+  cheesePriceElasticity: number;
   surplusRuralWeight: number;
   /** Cash a market keeps before paying out its surplus, per member-town population point, as times the town working cash. */
   surplusReserveFactor: number;
@@ -417,6 +431,8 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   guildSurplusUse: "spend",
   cellCheeseSale: "demandGap",
   ruralDairyUse: "eat",
+  dairyDemand: "tradition",
+  cheeseReferencePrice: "productionCost",
   guildSpendRate: 0.08,
   guildReserveMonths: 1,
   candleDemand: "everyone",
@@ -426,6 +442,9 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   wageSubsistenceMultiple: 1.5,
   cheeseMakingDaysPerMilkLot: 10,
   ruralCheeseEatShare: 0.5,
+  dairyTraditionHalfLifeYears: 10,
+  animalProteinCapGramsPerDay: 30,
+  cheesePriceElasticity: -0.8,
   surplusRuralWeight: 1,
   surplusReserveFactor: 0.25,
   harvestReserveMonths: 4,
@@ -498,7 +517,10 @@ export const MARKET_SETTING_LIMITS = {
   ruralChandlersPerThousand: { min: 0, max: 5, step: 0.1 },
   wageSubsistenceMultiple: { min: 1.5, max: 16, step: 0.5 },
   cheeseMakingDaysPerMilkLot: { min: 1, max: 60, step: 1 },
-  ruralCheeseEatShare: { min: 0, max: 1, step: 0.05 }
+  ruralCheeseEatShare: { min: 0, max: 1, step: 0.05 },
+  dairyTraditionHalfLifeYears: { min: 1, max: 50, step: 1 },
+  animalProteinCapGramsPerDay: { min: 5, max: 80, step: 1 },
+  cheesePriceElasticity: { min: -2, max: 0, step: 0.1 }
 } as const;
 
 type NumericMarketSetting = keyof typeof MARKET_SETTING_LIMITS;
@@ -569,6 +591,14 @@ const cellCheeseSaleMode = (value: unknown): CellCheeseSaleMode =>
   CELL_CHEESE_SALE_MODES.includes(value as CellCheeseSaleMode)
     ? (value as CellCheeseSaleMode)
     : DEFAULT_MARKET_SETTINGS.cellCheeseSale;
+const cheeseReferencePriceMode = (value: unknown): CheeseReferencePriceMode =>
+  CHEESE_REFERENCE_PRICE_MODES.includes(value as CheeseReferencePriceMode)
+    ? (value as CheeseReferencePriceMode)
+    : DEFAULT_MARKET_SETTINGS.cheeseReferencePrice;
+const dairyDemandMode = (value: unknown): DairyDemandMode =>
+  DAIRY_DEMAND_MODES.includes(value as DairyDemandMode)
+    ? (value as DairyDemandMode)
+    : DEFAULT_MARKET_SETTINGS.dairyDemand;
 const ruralDairyUseMode = (value: unknown): RuralDairyUseMode =>
   RURAL_DAIRY_USE_MODES.includes(value as RuralDairyUseMode)
     ? (value as RuralDairyUseMode)
@@ -761,6 +791,8 @@ export function getMarketSettings(): MarketSettings {
     guildSurplusUse: guildSurplusUseMode(parsed.guildSurplusUse),
     cellCheeseSale: cellCheeseSaleMode(parsed.cellCheeseSale),
     ruralDairyUse: ruralDairyUseMode(parsed.ruralDairyUse),
+    dairyDemand: dairyDemandMode(parsed.dairyDemand),
+    cheeseReferencePrice: cheeseReferencePriceMode(parsed.cheeseReferencePrice),
     guildSpendRate: clamp("guildSpendRate", parsed.guildSpendRate),
     guildReserveMonths: clamp("guildReserveMonths", parsed.guildReserveMonths),
     candleDemand: candleDemandMode(parsed.candleDemand),
@@ -770,6 +802,9 @@ export function getMarketSettings(): MarketSettings {
     wageSubsistenceMultiple: clamp("wageSubsistenceMultiple", parsed.wageSubsistenceMultiple),
     cheeseMakingDaysPerMilkLot: clamp("cheeseMakingDaysPerMilkLot", parsed.cheeseMakingDaysPerMilkLot),
     ruralCheeseEatShare: clamp("ruralCheeseEatShare", parsed.ruralCheeseEatShare),
+    dairyTraditionHalfLifeYears: clamp("dairyTraditionHalfLifeYears", parsed.dairyTraditionHalfLifeYears),
+    animalProteinCapGramsPerDay: clamp("animalProteinCapGramsPerDay", parsed.animalProteinCapGramsPerDay),
+    cheesePriceElasticity: clamp("cheesePriceElasticity", parsed.cheesePriceElasticity),
     surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor),
     harvestReserveMonths: clamp("harvestReserveMonths", parsed.harvestReserveMonths),
@@ -861,6 +896,8 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     guildSurplusUse: guildSurplusUseMode(next.guildSurplusUse),
     cellCheeseSale: cellCheeseSaleMode(next.cellCheeseSale),
     ruralDairyUse: ruralDairyUseMode(next.ruralDairyUse),
+    dairyDemand: dairyDemandMode(next.dairyDemand),
+    cheeseReferencePrice: cheeseReferencePriceMode(next.cheeseReferencePrice),
     guildSpendRate: clamp("guildSpendRate", next.guildSpendRate),
     guildReserveMonths: clamp("guildReserveMonths", next.guildReserveMonths),
     candleDemand: candleDemandMode(next.candleDemand),
@@ -870,6 +907,9 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     wageSubsistenceMultiple: clamp("wageSubsistenceMultiple", next.wageSubsistenceMultiple),
     cheeseMakingDaysPerMilkLot: clamp("cheeseMakingDaysPerMilkLot", next.cheeseMakingDaysPerMilkLot),
     ruralCheeseEatShare: clamp("ruralCheeseEatShare", next.ruralCheeseEatShare),
+    dairyTraditionHalfLifeYears: clamp("dairyTraditionHalfLifeYears", next.dairyTraditionHalfLifeYears),
+    animalProteinCapGramsPerDay: clamp("animalProteinCapGramsPerDay", next.animalProteinCapGramsPerDay),
+    cheesePriceElasticity: clamp("cheesePriceElasticity", next.cheesePriceElasticity),
     surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor),
     harvestReserveMonths: clamp("harvestReserveMonths", next.harvestReserveMonths),

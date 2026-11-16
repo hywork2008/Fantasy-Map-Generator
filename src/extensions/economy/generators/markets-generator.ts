@@ -57,7 +57,6 @@ import { withRegionalDemandShareCache } from "./faunaPopulation";
 import type { FaunaCohorts } from "./faunaPopulationTypes";
 import {
   CELL_FRUIT_PROCESSING_WORK_DAYS_PER_LOT,
-  DAIRY_TARGETS,
   isCellPressedDrink,
   isOrchardDrink,
   KILOGRAMS_PER_CHEESE_LOT
@@ -66,6 +65,7 @@ import { getRecipeCostBasis, hasViableFoodProcessingMargin } from "./foodProcess
 import {
   ensureContainerCirculation,
   getFoodProcessingProductionHeadroom,
+  getMarketDairyDemandPerHead,
   getMonthlyHouseholdDemand,
   recordCellFoodHarvest,
   recordCellFoodHouseholdConsumption,
@@ -1357,6 +1357,16 @@ export class MarketsModule {
       return paths;
     };
 
+    // Once per market and month: the market's people are counted over every cell.
+    const cheesePerHeadByMarket = new Map<number, number>();
+    const cheeseKilogramsPerHead = (market: Market): number => {
+      let value = cheesePerHeadByMarket.get(market.i);
+      if (value === undefined) {
+        value = getMarketDairyDemandPerHead(market).cheeseKilograms;
+        cheesePerHeadByMarket.set(market.i, value);
+      }
+      return value;
+    };
     const reserves = getOrCreateCellFoodReserves();
     const freshGrapesSentByMarket = new Map<number, number>();
     const raisinsDriedByMarket = new Map<number, number>();
@@ -1378,14 +1388,17 @@ export class MarketsModule {
         const exportDemandUnits =
           commercialGood?.name === "Cheese" && dairySettings.cellCheeseSale === "demandGap"
             ? getFoodProcessingProductionHeadroom(market, "Cheese", 0)
-            : commercialPath && commercialGood && isCellPressedDrink(commercialGood.name)
-              ? Math.min(
-                  getFoodProcessingProductionHeadroom(market, commercialGood.name, 0),
-                  this.getOrchardMaterialCapacity(market, commercialGood, sourceGood.i)
-                )
-              : commercialPath
-                ? this.getCellPreservedFoodExportDemand(market, commercialPath.outputGoodId, residentWorkforce)
-                : 0;
+            : commercialGood?.name === "Cheese" && dairySettings.cellCheeseSale === "allMilk" && commercialPath
+              ? // Milk sours within a day and is not carted to town: what the house does not drink becomes cheese.
+                (entry.monthlyUnits[monthIndex] ?? 0) / commercialPath.inputPerOutput
+              : commercialPath && commercialGood && isCellPressedDrink(commercialGood.name)
+                ? Math.min(
+                    getFoodProcessingProductionHeadroom(market, commercialGood.name, 0),
+                    this.getOrchardMaterialCapacity(market, commercialGood, sourceGood.i)
+                  )
+                : commercialPath
+                  ? this.getCellPreservedFoodExportDemand(market, commercialPath.outputGoodId, residentWorkforce)
+                  : 0;
         const householdDemandUnits = getCellFreshFoodHouseholdDemand(
           sourceGood,
           residentWorkforce,
@@ -1427,7 +1440,7 @@ export class MarketsModule {
               ? Math.min(
                   (Math.max(0, residentWorkforce) *
                     Math.max(1, this.worldContext.populationRate || 1) *
-                    DAIRY_TARGETS.cheeseKilogramsPerPersonYear) /
+                    cheeseKilogramsPerHead(market)) /
                     12 /
                     KILOGRAMS_PER_CHEESE_LOT,
                   // They sell the rest: the manors sold most of their cheese (dairy-supply-use.md §8).
@@ -1859,7 +1872,9 @@ export class MarketsModule {
       // First pass: raw goods - price from demand/supply ratio
       for (const good of goods) {
         const mineOrFurnaceGood = isMineOrFurnaceGood(good);
-        const orchardFruit = good.name === "Apples" || good.name === "Pears";
+        // Milk, like orchard fruit, is made into cheese where it is drawn and never stands in a town's
+        // stock, so the towns' unmet fresh-milk wish would hold it at the ceiling (milk-value-20261117.md).
+        const farmgateReferenceGood = good.name === "Apples" || good.name === "Pears" || good.name === "Milk";
         if (townTargets && isStockPricedByproduct(good)) {
           const marketGood = this.getMarketGood(market, good);
           const baseValue = good.value * priceLevel;
@@ -1874,10 +1889,10 @@ export class MarketsModule {
           );
           continue;
         }
-        if (!good.distribution && !mineOrFurnaceGood && !orchardFruit) continue;
+        if (!good.distribution && !mineOrFurnaceGood && !farmgateReferenceGood) continue;
         const marketGood = this.getMarketGood(market, good);
-        if (orchardFruit) {
-          // Source-cell fruit never forms a normal raw Market stock. Empty pooled stock is not
+        if (farmgateReferenceGood) {
+          // Source-cell fruit and milk never form a normal raw Market stock. Empty pooled stock is not
           // evidence of farmgate scarcity. Use the explicit bulk reference, including money level.
           const reference = good.value * priceLevel;
           marketGood.price = relaxMarketPrice(

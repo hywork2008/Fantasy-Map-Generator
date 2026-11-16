@@ -61,6 +61,8 @@ export const MILK_KCAL_PER_LITER = 640;
 export const MILK_PROTEIN_G_PER_LITER = 33;
 export const CHEESE_KCAL_PER_KG = 4000;
 export const CHEESE_PROTEIN_G_PER_KG = 250;
+/** Carcass meat with its fat and bone, a provisional round figure (docs/plan/dairy-demand.md §3.3). */
+export const MEAT_PROTEIN_G_PER_KG = 150;
 /** Real dairying: roughly 10 L of milk reduces to 1 kg of hard cheese. */
 export const MILK_LITERS_PER_CHEESE_KG = MILK_LITERS_PER_CHEESE_KILOGRAM;
 
