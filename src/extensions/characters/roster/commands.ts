@@ -397,7 +397,12 @@ export function registerRosterCommands(api: SimulationExtensionAPI): () => void 
           )
             throw Error("Unlock protected character details before removing them");
           if (v.action === "cancelPerson") {
-            if (character && (Object.values(character.inventory ?? {}).some(n => n > 0) || character.loadout))
+            if (
+              character &&
+              (Object.values(character.inventory ?? {}).some(n => n > 0) ||
+                Object.values(character.kit ?? {}).some(n => n > 0) ||
+                character.loadout)
+            )
               throw Error("Transfer inventory and equipment before cancelling this person");
             cancelPersonFinance(
               person,
@@ -410,7 +415,11 @@ export function registerRosterCommands(api: SimulationExtensionAPI): () => void 
             invalidateRosterIndex(roster);
           } else if (character) {
             person.retainedCharacterId = character.i;
-            person.retainedAssets = structuredClone({ inventory: character.inventory, loadout: character.loadout });
+            person.retainedAssets = structuredClone({
+              inventory: character.inventory,
+              loadout: character.loadout,
+              kit: character.kit
+            });
           }
           if (character) replaceCharacters(getCharacters().filter(c => c !== character));
           person.characterId = undefined;

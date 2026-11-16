@@ -1622,7 +1622,26 @@
         "White sand": "White sand",
         "Wine": "Wine",
         "Wood": "Wood",
-        "Wool": "Wool"
+        "Wool": "Wool",
+        "Peasant Sword": "Peasant Sword",
+        "Sword": "Sword",
+        "Longbow": "Longbow",
+        "Crossbow": "Crossbow",
+        "Shield": "Shield",
+        "Mail Hauberk": "Mail Hauberk",
+        "Iron Cap": "Iron Cap",
+        "Bascinet": "Bascinet",
+        "Pair of Plates": "Pair of Plates",
+        "Leather Armor": "Leather Armor",
+        "Gauntlets": "Gauntlets",
+        "Squire's Armor": "Squire's Armor",
+        "Milanese Armor": "Milanese Armor",
+        "Horse Bard": "Horse Bard",
+        "Aketon": "Aketon",
+        "Habergeon": "Habergeon",
+        "Jack": "Jack",
+        "Brigandine": "Brigandine",
+        "Poleaxe": "Poleaxe"
       }
     },
     "water": {
@@ -3859,6 +3878,7 @@
     "titles": {
       "charactersOverview": "Characters Overview",
       "characterMarket": "Character Market",
+      "outfitter": "Outfitter",
       "goodsEditor": "Goods Editor",
       "goodsStock": "{{name}} — Stock",
       "goodsProducers": "{{name}} — Producers",
@@ -4082,6 +4102,24 @@
       "unitsAria": "{{name}} units",
       "noTraded": "No goods are currently traded in this market.",
       "noMatch": "No goods match the current filters."
+    },
+    "outfitter": {
+      "empty": "This character is not in a living burg.",
+      "header": "{{character}} · {{burg}} · Wealth: {{wealth}}",
+      "note": "One piece at a time, at a recorded English price. These are not the bulk lots on the market, and the shop does not buy them back.",
+      "ariaGoods": "Outfitter pieces",
+      "piece": "Piece",
+      "price": "Price",
+      "held": "Held",
+      "count": "Count",
+      "countAria": "{{name}} count",
+      "buy": "Buy",
+      "pieces": {
+        "hand-axe": "Hand Axe",
+        "lantern": "Lantern",
+        "costrel": "Costrel",
+        "purse": "Purse"
+      }
     },
     "shipyards": {
       "empty": "No active shipyard queues found.",

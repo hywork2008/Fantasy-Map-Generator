@@ -151,6 +151,7 @@ import {
   migrateMeadGood,
   migrateMeasuredCargoSlots,
   migrateMeatGood,
+  migrateMedievalArmourGoods,
   migrateMercuryChainGoods,
   migrateNaturalGasChainGoods,
   migrateOliveSoapRecipe,
@@ -227,6 +228,7 @@ import { getStateMountedCapacity } from "./generators/mountAvailability";
 import { payNavyCrew, settleNavyVoyageTrade } from "./generators/navyTrade";
 import { NitrogenFertilizerInvestment } from "./generators/nitrogenFertilizerInvestment";
 import { OilRefineryPlants } from "./generators/oilRefineryPlants";
+import { buyOutfitterPiece } from "./generators/outfitterShop";
 import { OverseasRelations } from "./generators/overseasRelations";
 import { initializeRosterCash, registerPersonalCash } from "./generators/personalCash";
 import { PhosphateFertilizerPlants } from "./generators/phosphateFertilizerPlants";
@@ -396,7 +398,8 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateOliveSoapRecipe,
   migrateLeatherGoods,
   // docs/plan/candle-split.md: the homes' tallow candles apart from the wax Candles.
-  migrateTallowCandleGoods
+  migrateTallowCandleGoods,
+  migrateMedievalArmourGoods
 ];
 
 /**
@@ -444,6 +447,7 @@ let _unregisterPatronageFundCommand: (() => void) | null = null;
 let _unregisterPatronageHireCommand: (() => void) | null = null;
 let _unregisterPatronageFuelCommand: (() => void) | null = null;
 let _unregisterCommerceTradeCommand: (() => void) | null = null;
+let _unregisterOutfitterBuyCommand: (() => void) | null = null;
 
 function isMountedCapacityRequest(value: unknown): value is { stateId: number; capacity?: number; handled: boolean } {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
@@ -586,6 +590,18 @@ function isSkipFoodConsumptionPayload(
       (Number.isSafeInteger((value as Record<string, unknown>).livestockFeedPeriod) &&
         Number((value as Record<string, unknown>).livestockFeedPeriod) >= 0)) &&
     (value as Record<string, unknown>).skipFoodConsumption === true
+  );
+}
+
+function isOutfitterBuyRequest(value: unknown): value is {
+  readonly characterId: number;
+  readonly pieceId: string;
+  readonly count: number;
+} {
+  if (!value || typeof value !== "object") return false;
+  const request = value as { characterId?: unknown; pieceId?: unknown; count?: unknown };
+  return (
+    Number.isInteger(request.characterId) && typeof request.pieceId === "string" && typeof request.count === "number"
   );
 }
 
@@ -1328,6 +1344,20 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
         throw new Error("commerce.trade requires { characterId, goodId, units, direction }");
       }
       const result = executePlayerMarketTrade(value);
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterOutfitterBuyCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "outfitter.buy",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to buy from the outfitter");
+      }
+      if (!isOutfitterBuyRequest(value)) {
+        throw new Error("outfitter.buy requires { characterId, pieceId, count }");
+      }
+      const result = buyOutfitterPiece(value.characterId, value.pieceId, value.count);
       return { changed: result.ok, result };
     }
   });
@@ -2767,6 +2797,8 @@ function register(api: SimulationExtensionAPI): () => void {
     _unregisterPatronageFuelCommand = null;
     _unregisterCommerceTradeCommand?.();
     _unregisterCommerceTradeCommand = null;
+    _unregisterOutfitterBuyCommand?.();
+    _unregisterOutfitterBuyCommand = null;
     _unregisterClearCommand?.();
     _unregisterClearCommand = null;
     // Reverse order: the registry refuses to remove a system while another still declares it in

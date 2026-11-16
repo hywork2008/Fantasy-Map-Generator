@@ -26,6 +26,7 @@ import {
   LITERS_PER_WINE_LOT
 } from "./foodLots";
 import { HORSES_PER_MARKET_HEAD } from "./liveAnimalScale";
+import { MEDIEVAL_ARMOUR_PIECES, medievalArmourPieceKg } from "./medievalArmourContracts";
 import { WOOD_KG_PER_LITER } from "./woodRecipeContracts";
 import { FLEECES_PER_WOOL_MARKET_LOT, WOOL_KG_PER_MARKET_LOT } from "./woolProductionPolicy";
 
@@ -414,7 +415,21 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   Cats: head(1, 4),
   Dogs: head(1, 25),
   Slaves: { unit: "slave", content: "1 person", kg: 60, liters: 0, pack: "walk", source: "label" },
-  Coins: { unit: "service", content: "a minting service", kg: 0, liters: 0, pack: "none", source: "code" }
+  Coins: { unit: "service", content: "a minting service", kg: 0, liters: 0, pack: "none", source: "code" },
+  // One recorded piece. The kilogram is the finished sword, harness or bard (medievalArmourContracts.ts).
+  ...Object.fromEntries(
+    MEDIEVAL_ARMOUR_PIECES.map(piece => [
+      piece.name,
+      byMass(
+        "piece",
+        `1 piece, ${medievalArmourPieceKg(piece)} kg`,
+        medievalArmourPieceKg(piece),
+        piece.kgPerLiter,
+        "crate",
+        "recipe"
+      )
+    ])
+  )
 };
 
 /** Gross weight and packed room of one unit; undefined for goods that walk, sail themselves or are not carried. */

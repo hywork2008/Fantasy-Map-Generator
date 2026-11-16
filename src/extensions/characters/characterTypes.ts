@@ -633,6 +633,11 @@ export interface Character {
    */
   inventory?: Record<number, number>;
   /**
+   * Pieces bought at the outfitter (adventuring-kit id → count).
+   * Not market goods: those stay in `inventory` by catalog id.
+   */
+  kit?: Record<string, number>;
+  /**
    * Worn / wielded kit (distinct from bulk `inventory`).
    * Seeded from estate/role at creation; equip/unequip is a later PR.
    * See docs/plan/character-loadout-and-readiness.md.

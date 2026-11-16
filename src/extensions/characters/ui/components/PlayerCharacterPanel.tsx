@@ -1,5 +1,6 @@
 import type React from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { useExtensionState } from "../../../../store/extensionState";
 import { Dialog, isDialogOpen, openDialog } from "../../../hostUi";
 import { formatCharacterAge } from "../../characterAge";
 import { getCharacters, getViewApi, getWorldContext } from "../../charactersContext";
@@ -20,6 +21,7 @@ function characterPosition(character: ReturnType<typeof getCharacters>[number]):
 export const PlayerCharacterPanel: React.FC = () => {
   const playerCharacterId = usePlayerCharacterState(state => state.playerCharacterId);
   const refreshToken = usePlayerCharacterState(state => state.refreshToken);
+  const economyEnabled = useExtensionState(state => state.enabledExtensions.economy === true);
   const openCharacterDetails = useCharactersUiState(state => state.openCharacterDetails);
 
   // Character data changes in place, hence the explicit refresh token dependency.
@@ -30,6 +32,18 @@ export const PlayerCharacterPanel: React.FC = () => {
     [playerCharacterId, refreshToken]
   );
   const location = character?.location === undefined ? undefined : getWorldContext().pack.burgs?.[character.location];
+
+  useEffect(() => {
+    const onKitChanged = (event: Event) => {
+      const detail = event instanceof CustomEvent ? event.detail : undefined;
+      if (!detail || typeof detail !== "object") return;
+      if ((detail as { characterId?: unknown }).characterId === playerCharacterId) {
+        usePlayerCharacterState.getState().bumpRefreshToken();
+      }
+    };
+    document.addEventListener("fmg:character-inventory-changed", onKitChanged);
+    return () => document.removeEventListener("fmg:character-inventory-changed", onKitChanged);
+  }, [playerCharacterId]);
 
   const handleOpenDetails = (): void => {
     if (!character) return;
@@ -97,6 +111,20 @@ export const PlayerCharacterPanel: React.FC = () => {
             <button type="button" className="pcp-action" onClick={handleOpenDetails}>
               Character Details
             </button>
+            {economyEnabled ? (
+              <button
+                type="button"
+                className="pcp-action"
+                data-tip="Buy single pieces at recorded medieval prices. These are not the market's bulk lots."
+                onClick={() => {
+                  document.dispatchEvent(
+                    new CustomEvent("fmg:open-outfitter", { detail: { characterId: character.i } })
+                  );
+                }}
+              >
+                Outfitter
+              </button>
+            ) : null}
           </div>
         </>
       ) : (

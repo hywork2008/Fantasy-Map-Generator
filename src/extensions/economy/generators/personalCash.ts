@@ -653,8 +653,14 @@ export function registerPersonalCash(api: SimulationExtensionAPI): () => void {
       if (character.roles?.some(r => r.endYear === undefined)) return false;
       const retainedMatches =
         retained &&
-        JSON.stringify(retained) === JSON.stringify({ inventory: character.inventory, loadout: character.loadout });
-      return !!retainedMatches || (!Object.values(character.inventory ?? {}).some(n => n > 0) && !character.loadout);
+        JSON.stringify(retained) ===
+          JSON.stringify({ inventory: character.inventory, loadout: character.loadout, kit: character.kit });
+      return (
+        !!retainedMatches ||
+        (!Object.values(character.inventory ?? {}).some(n => n > 0) &&
+          !Object.values(character.kit ?? {}).some(n => n > 0) &&
+          !character.loadout)
+      );
     },
     describe: slot => {
       const s = readPersonalCash();
