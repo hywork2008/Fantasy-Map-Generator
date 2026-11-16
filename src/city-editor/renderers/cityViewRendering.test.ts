@@ -15,9 +15,8 @@ import type { StructureMassing } from "../types/contracts/structureMassing";
 import { mountCity3d } from "./cityView";
 
 const render = vi.hoisted(() => vi.fn());
-vi.mock("three", async importOriginal => ({
-  ...(await importOriginal<typeof import("three")>()),
-  WebGLRenderer: class {
+vi.mock("three/webgpu", () => ({
+  WebGPURenderer: class {
     domElement: HTMLCanvasElement;
     constructor({ canvas }: { canvas: HTMLCanvasElement }) {
       this.domElement = canvas;
@@ -27,6 +26,7 @@ vi.mock("three", async importOriginal => ({
     setClearColor() {}
     setSize() {}
     shadowMap = { enabled: false, type: THREE.PCFShadowMap, autoUpdate: true, needsUpdate: false };
+    outputColorSpace = "";
     render = render;
     dispose() {}
   }

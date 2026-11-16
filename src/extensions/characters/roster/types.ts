@@ -81,7 +81,7 @@ export interface PersonSlot {
   cancelledBirth?: boolean;
   removedFromWorld?: boolean;
   retainedCharacterId?: number;
-  retainedAssets?: Pick<import("../characterTypes").Character, "inventory" | "loadout">;
+  retainedAssets?: Pick<import("../characterTypes").Character, "inventory" | "loadout" | "kit">;
   plannedDeathYear: number;
   childPlan?: { birthYear: number; gender: Gender }[];
   characterId?: number;

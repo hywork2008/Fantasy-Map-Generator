@@ -2,6 +2,24 @@ import { DEFAULT_AUTHOR } from "../authors";
 import { variantId } from "../modelVariants";
 import type { MedievalModel } from "./modelKit";
 import { ModelKit } from "./modelKit";
+import { createOpusTownTrade, OPUS_TOWN_TRADES } from "./opusTownTrades";
+
+const OPUS = "Claude Opus 5.5" as const;
+
+const OPUS_NOTES: Record<TradeId, string> = {
+  chandlery:
+    "Opus: tallow chandler's burgage. Gable-fronted jettied shop-house with candle bunches and soap cakes on the stall-board, a masonry rendering shed in the yard with the tallow copper under its own hood and stack, two broach dipping frames with rows of setting candles, a lye-leaching barrel for soft soap, tallow barrels and fuel.",
+  metalwares:
+    "Opus: pewterer and brazier. Eaves-fronted jettied shop-house showing chargers, flagons and candlesticks; a rear range with a closed finishing shop and an open casting bay holding a brick furnace with crucible and bellows, stone moulds, ingots and a pole lathe for skimming cast ware; charcoal bin and quench tub in the yard.",
+  fishmongery:
+    "Opus: fishmonger's open market hall on the street with stone slabs sloping toward the buyer, fresh fish, live-fish tubs, eel baskets and a hanging balance; behind it a timber-framed salting house, herring tuns stacked in the yard, a salt bin, a gutting table and a stockfish rack.",
+  cutlery:
+    "Opus: cutler's burgage. Gable-fronted jettied shop-house with knives, sheaths and hanging blades; a masonry forge shed with hearth, hood, bellows, anvil and quench tub; a grinding pentice with a crank-turned grindstone in its trough and a treadle whetstone; haft blanks and horn stock.",
+  "lime-tile-yard":
+    "Opus: suburban lime and tile works. Brick updraft tile kiln with two arched fire tunnels, a loaded chamber and a stoking shelter; a round lime kiln drawn at the foot and loaded from an earth ramp; a thatched drying shed with racks of green tiles, open brick hacks, a moulding shelter, clay pit and heaps, faggots and cordwood, fired stock by the cart gate.",
+  "glaziers-workshop":
+    "Opus: glazier's burgage. Eaves-fronted shop-house selling leaded panels and roundels; a rear timber-framed range lit by wide drop-and-lift shutters with a whitened glazing table and laid-out quarries, came rack, glass crates and a lead-melting stove; a small painting kiln, cullet heap and packing crates in the yard."
+};
 
 type TradeId = "chandlery" | "metalwares" | "fishmongery" | "cutlery" | "lime-tile-yard" | "glaziers-workshop";
 const definitions: { id: TradeId; name: string; footprint: readonly [number, number]; note: string }[] = [
@@ -147,18 +165,28 @@ export const models: MedievalModel[] = definitions.map((d, index) => {
   return {
     id,
     task: 58 + index,
-    author: DEFAULT_AUTHOR,
+    author: OPUS,
     name: d.name,
-    size: [d.footprint[0], id.endsWith("lime-tile-yard") ? 4.5 : 4, d.footprint[1]],
-    note: `${d.note} Static spatial study; staffing, supply and throughput remain unverified.`,
-    create: () => create(d.id, "low"),
-    variants: (["low", "high"] as const).map(level => ({
-      id: variantId(family, level, DEFAULT_AUTHOR),
-      family,
-      author: DEFAULT_AUTHOR,
-      level,
-      label: level === "low" ? "Low" : "High",
-      create: () => create(d.id, level)
-    }))
+    size: [OPUS_TOWN_TRADES[d.id].width, OPUS_TOWN_TRADES[d.id].depth, OPUS_TOWN_TRADES[d.id].height],
+    note: `${OPUS_NOTES[d.id]} Low keeps every envelope, opening and fitting; High adds the exposed frame, tile courses, joinery and small stock. The earlier Codex study (${d.note}) remains selectable. Staffing, supply and throughput remain unverified.`,
+    create: () => createOpusTownTrade(d.id, "low"),
+    variants: [
+      ...(["low", "high"] as const).map(level => ({
+        id: variantId(family, level, DEFAULT_AUTHOR),
+        family,
+        author: DEFAULT_AUTHOR,
+        level,
+        label: level === "low" ? "Low" : "High",
+        create: () => create(d.id, level)
+      })),
+      ...(["low", "high"] as const).map(level => ({
+        id: variantId(family, level, OPUS),
+        family,
+        author: OPUS,
+        level,
+        label: level === "low" ? "Low" : "High",
+        create: () => createOpusTownTrade(d.id, level)
+      }))
+    ]
   };
 });

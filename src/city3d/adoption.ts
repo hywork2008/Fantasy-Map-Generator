@@ -81,6 +81,29 @@ export const CE_ADOPTION: Record<string, Record<string, Adoption>> = {
     }
   },
   ...Object.fromEntries(
+    [
+      "dedicated-butchery",
+      "dedicated-chandlery",
+      "dedicated-metalwares",
+      "dedicated-fishmongery",
+      "dedicated-cutlery",
+      "dedicated-lime-tile-yard",
+      "dedicated-glaziers-workshop"
+    ].map(trade => [
+      `medieval.trade-workshop.${trade}`,
+      Object.fromEntries(
+        (["low", "high"] as const).map(level => [
+          level,
+          {
+            variant: `medieval.trade-workshop.${trade}@${level}#claude-opus-5.5`,
+            since: "2026-11-12",
+            note: "Opus fourteenth-century town-trade plot; the Codex block study failed the grounding and envelope contract"
+          }
+        ])
+      )
+    ])
+  ),
+  ...Object.fromEntries(
     ["town-curtain-wall", "town-mural-tower", "town-gate"].map(study => [
       `town-wall.${study}`,
       {

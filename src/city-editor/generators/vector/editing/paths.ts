@@ -9,6 +9,8 @@ import type {
 import { evaluateAnchor, pathIsClosed, VECTOR_CONNECTION_EPSILON } from "../geometry/curves";
 import { simplifyFreehand } from "../geometry/sampling";
 import { pathSurface, surfacesOverlap } from "../geometry/surfaces";
+import { refitVectorLandUse } from "../landUse";
+import { overlapsOccupiedSites } from "../occupancy";
 import { assertVectorDocument, validateVectorDocument, validateVectorPath } from "../validation/document";
 import { mapDocumentAnchors, pathAnchors } from "./anchors";
 
@@ -111,9 +113,7 @@ export function moveCurveHandle(
 function protectedLand(document: VectorCityDocument, changed: Set<string>): void {
   for (const id of changed) {
     const surface = pathSurface(document.paths[id]);
-    for (const placement of Object.values(document.placements))
-      if ((placement.building?.reserved ?? [placement.site]).some(p => surfacesOverlap(surface, p)))
-        throw new Error("protected-land");
+    if (overlapsOccupiedSites(document, surface)) throw new Error("protected-land");
     for (const region of Object.values(document.regions))
       if (region.kind === "reservation" && surfacesOverlap(surface, region)) throw new Error("protected-land");
   }
@@ -167,6 +167,7 @@ export function replaceVectorPath(document: VectorCityDocument, candidate: Vecto
   )
     throw new Error("fixed-bridge");
   next.revision++;
+  refitVectorLandUse(next);
   const errors = validateVectorDocument(next);
   if (errors.some(e => e.startsWith("road-clearance:"))) throw new Error("road-clearance");
   if (errors.some(e => e.startsWith("gate-access:"))) throw new Error("gate-access");

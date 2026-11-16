@@ -18,6 +18,7 @@ import { treeCrown, VECTOR_LANDSCAPE_TREE_LIMIT } from "./geometry/landscape";
 import { containsRegion, regionArea, regionBoolean } from "./geometry/regions";
 import { pathSurface } from "./geometry/surfaces";
 import { allVectorWater } from "./geometry/water";
+import { vectorOccupiedSites } from "./occupancy";
 import { assertVectorDocument } from "./validation/document";
 
 const within = (polygon: VectorPolygon, domain: VectorPolygon[]) =>
@@ -61,7 +62,7 @@ export function rebuildVectorLandscape(doc: VectorCityDocument): void {
     ...Object.values(doc.paths)
       .filter(p => p.role === "road" || p.role === "wall")
       .map(pathSurface),
-    ...Object.values(doc.placements).flatMap(p => p.building?.reserved ?? [p.site]),
+    ...vectorOccupiedSites(doc, "reserved"),
     ...Object.values(doc.regions)
       .filter(r => r.kind !== "district")
       .map(r => ({ outer: r.outer, holes: r.holes })),

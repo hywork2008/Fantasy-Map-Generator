@@ -25,7 +25,9 @@ export function createVectorEnvironmentPanel(
   submit: (doc: VectorCityDocument, label: string) => void,
   commitView: (doc: VectorCityDocument, label: string) => void,
   restore: (doc: CityDocument) => void,
-  readEntryKey?: () => object
+  readEntryKey?: () => object,
+  /** Read-only current document for selection; never mutated. Defaults to a copy. */
+  peek: () => Readonly<VectorCityDocument> = read
 ) {
   const box = document.createElement("fieldset"),
     legend = document.createElement("legend"),
@@ -228,7 +230,7 @@ export function createVectorEnvironmentPanel(
   selected.multiple = true;
   selected.size = 5;
   scope.listen(selected, "change", () => {
-    const doc = read(),
+    const doc = peek(),
       id = selected.value,
       f = doc.environment?.features[id],
       r = doc.regions[id];
@@ -478,7 +480,7 @@ export function createVectorEnvironmentPanel(
     if (values.some(v => v.id === old)) select.value = old;
   };
   const availability = () => {
-    const doc = read();
+    const doc = peek();
     const bastion = kind.querySelector<HTMLOptionElement>('option[value="bastion"]');
     if (bastion)
       bastion.disabled =
@@ -497,7 +499,7 @@ export function createVectorEnvironmentPanel(
       selected.dispatchEvent(new Event("change"));
     },
     refresh() {
-      const doc = read();
+      const doc = peek();
       availability();
       const landscape = doc.environment?.landscape;
       forestMode.disabled = forestDensity.disabled = burialPreset.disabled = regenerateLandscape.disabled = !landscape;

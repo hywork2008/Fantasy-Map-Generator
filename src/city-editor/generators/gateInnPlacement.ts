@@ -1,11 +1,12 @@
 import type { SiteLodging } from "../types/contracts/burgSiteEconomy";
-import type { CityDocument, EdgeFeatureGroup, Id, Point } from "../types/document";
+import type { CityDocument, EdgeFeatureGroup, Point } from "../types/document";
+import type { GateInn } from "../types/vector/inn";
 import { externalGateRoads } from "./approachBeyond";
 import { mainCommerceRoadIndex } from "./approachCommerce";
 import { commerceSeatFromDocument } from "./commerceCulture";
 import { featureGroupVertices } from "./features";
 import { nearestOnPolyline } from "./geom";
-import type { GuildSiteView } from "./guildFacilityPlacement";
+import type { GuildSiteView, GuildWorksSite } from "./guildFacilityPlacement";
 import { cobbledApproach, cobbledWidthMeters, roadUse } from "./roadTraffic";
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
 
@@ -16,20 +17,7 @@ import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
  * The open court is 12 m² per stall, and the rooms ring that court.
  */
 
-export interface GateInn {
-  id: Id;
-  kind: SiteLodging["kind"];
-  name: string;
-  stableSpaces: number;
-  count: number;
-  year: number;
-  footprint: Point[];
-  court: Point[];
-  entrance: [Point, Point];
-  /** Outer opening of a through-yard. A turning court keeps the single road-side door. */
-  exit?: [Point, Point];
-  stalls: Array<[Point, Point]>;
-}
+export type { GateInn };
 
 /** One stall's share of the courtyard. */
 export const STABLE_COURT_M2 = 12;
@@ -224,7 +212,7 @@ function sample(points: Point[], distance: number): { point: Point; tangent: Poi
   return null;
 }
 
-function exitDistance(site: GuildSiteView, points: Point[]): number {
+function exitDistance(site: GuildWorksSite, points: Point[]): number {
   let walked = 0;
   let wasInside = site.insideTown(points[0]) || site.townDistance(points[0]) < 8;
   for (let i = 1; i < points.length; i++) {
@@ -245,7 +233,7 @@ function exitDistance(site: GuildSiteView, points: Point[]): number {
   return site.insideTown(points[0]) ? walked : 12;
 }
 
-function fits(site: GuildSiteView, polygon: Point[], clearance: number): boolean {
+function fits(site: GuildWorksSite, polygon: Point[], clearance: number): boolean {
   if (polygon.some(point => site.insideTown(point) || site.townDistance(point) < 4)) return false;
   if (!site.inFrame(polygon, 4)) return false;
   if (site.hitsWater(polygon, 1) || site.hitsRoutes(polygon, 0.8) || site.hitsBlocked(polygon)) return false;
@@ -282,7 +270,7 @@ function openings(
 }
 
 function placeOne(
-  site: GuildSiteView,
+  site: GuildWorksSite,
   lodging: SiteLodging,
   points: Point[],
   start: number,
@@ -342,7 +330,7 @@ function towardPlaza(points: Point[]): Point[] {
   return [plaza, ...forward];
 }
 
-function insideCourt(site: GuildSiteView, polygon: Point[]): boolean {
+function insideCourt(site: GuildWorksSite, polygon: Point[]): boolean {
   if (!polygon.every(point => site.insideTown(point))) return false;
   if (!site.inFrame(polygon, 2)) return false;
   if (site.hitsWater(polygon, 0.6) || site.hitsRoutes(polygon, 0.6) || site.hitsBlocked(polygon)) return false;
@@ -351,7 +339,7 @@ function insideCourt(site: GuildSiteView, polygon: Point[]): boolean {
 
 /** A court beside the market street, inside the town. */
 function placeBeside(
-  site: GuildSiteView,
+  site: GuildWorksSite,
   points: Point[],
   stations: readonly number[],
   preferSign: 1 | -1,
@@ -400,7 +388,7 @@ function placeBeside(
 
 /** Japanese inn and toiya on the market street. The outside loop still places a caravanserai. */
 function placeCenterInns(
-  site: GuildSiteView,
+  site: GuildWorksSite,
   inns: readonly SiteLodging[],
   points: Point[],
   roadHalf: number,
@@ -461,6 +449,22 @@ export function placeGateInns(
   const use = roadUse(site.document, group.sourceRoad?.index, group.sourceRoad?.routeId);
   const base = defaultRoadWidthMeters(townExtentMeters(site.document.frame));
   const roadHalf = (cobbledApproach(use) ? cobbledWidthMeters(base) : base) / 2;
+  return placeInnsOnApproach(site, wanted, year, { points, roadHalf, groupId: group.id }, target);
+}
+
+/**
+ * Inns and caravanserais along one approach with no town mesh (shared with meshless, P6e): the largest yard first,
+ * each just beyond the town edge and the gate's glacis on the approach, the next beyond it; a commerce inn seated in
+ * the centre takes the market street instead. `points` run from the town outward.
+ */
+export function placeInnsOnApproach(
+  site: GuildWorksSite,
+  wanted: readonly SiteLodging[],
+  year: number,
+  approach: { points: Point[]; roadHalf: number; groupId: string },
+  target?: { admission: CourtAdmission; seat?: "outside" | "center" }
+): GateInn[] {
+  const { points, roadHalf } = approach;
   const ordered = [...wanted].sort((a, b) => b.stableSpaces - a.stableSpaces || a.kind.localeCompare(b.kind));
   const placed: GateInn[] = [];
   const center = target?.seat === "center";
@@ -478,8 +482,8 @@ export function placeGateInns(
   }
   const outsideItems = center ? ordered.filter(item => item.kind !== "inn") : ordered;
   let start = exitDistance(site, points);
-  const clearance = site.approachClearance(group.id);
-  const reach = site.outworkReach(group.id);
+  const clearance = site.approachClearance(approach.groupId);
+  const reach = site.outworkReach(approach.groupId);
   outsideItems.forEach((item, index) => {
     // The through-yard rule is for the commerce inn. A caravanserai keeps one road-side door.
     const admission = target && item.kind === "inn" ? target.admission : undefined;

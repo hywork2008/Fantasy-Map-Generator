@@ -196,6 +196,8 @@ export interface CityElement {
   objectQuality?: import("../../buildings/placementContract").PlacementQuality;
   objectPalette?: import("../../buildings/medieval/marketAppearance").MarketPalette;
   objectMarketActivity?: "market-day" | "closed";
+  /** The model drawn mirrored across its local x axis. */
+  objectMirrored?: boolean;
   shipType?: "small" | "medium" | "large" | "barge";
   shipState?: import("./ships").ShipDisplayState;
   harborOperation?: import("./contracts/harborCargo").CargoBerthAssignment;

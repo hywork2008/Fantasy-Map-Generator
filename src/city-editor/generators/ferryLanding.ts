@@ -9,7 +9,7 @@ type RiverConnection = NonNullable<CityDocument["riverConnections"]>[number];
  * carts waiting on the bank. */
 export const FERRY_LANDING_RESERVE_METERS = 24;
 /** Half-width of the towpath a boat is hauled up after drifting downstream. */
-const TOWPATH_HALF_WIDTH_METERS = 6;
+export const TOWPATH_HALF_WIDTH_METERS = 6;
 /** A rowed or poled ferry through the water (m/s). */
 const BOAT_SPEED_METERS_PER_SECOND = 1;
 /** Used when FMG gives no surface velocity. */
@@ -82,10 +82,33 @@ function planFerry(document: CityDocument, connection: RiverConnection): FerryPl
     flow = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
   }
   if (!flow) return null;
+  return planFerryCrossing({
+    landing,
+    far: connection.banks[1],
+    flow,
+    wet,
+    crossingWidthMeters: connection.crossing.widthMeters,
+    currentMetersPerSecond: connection.currentMetersPerSecond,
+    extentMeters: document.frame.extentMeters
+  });
+}
+
+/** The figure-of-eight crossing from a town landing, given the river's downstream direction there and a water test
+ * (no town mesh): shared by the mesh editor's river connections and meshless ferries (P5b-4). */
+export function planFerryCrossing(input: {
+  landing: Point;
+  /** The far bank as known (the far end of the road's crossing), which picks the side when the test is ambiguous. */
+  far: Point;
+  flow: Point;
+  wet: (p: Point) => boolean;
+  crossingWidthMeters: number;
+  currentMetersPerSecond?: number;
+  extentMeters: number;
+}): FerryPlan {
+  const { landing, far, flow, wet } = input;
   const add = (p: Point, v: Point, k: number): Point => [p[0] + v[0] * k, p[1] + v[1] * k];
   // Across the river: the side of the landing that is water.
   let across: Point = [-flow[1], flow[0]];
-  const far = connection.banks[1];
   if (
     wet(add(landing, across, 8)) === wet(add(landing, across, -8))
       ? (far[0] - landing[0]) * across[0] + (far[1] - landing[1]) * across[1] < 0
@@ -94,7 +117,7 @@ function planFerry(document: CityDocument, connection: RiverConnection): FerryPl
     across = [-across[0], -across[1]];
   // Far bank square across. Outside the surveyed water's coverage counts as
   // wet, so fall back on the crossing width there.
-  const width = Math.max(connection.crossing.widthMeters, Math.hypot(far[0] - landing[0], far[1] - landing[1]), 20);
+  const width = Math.max(input.crossingWidthMeters, Math.hypot(far[0] - landing[0], far[1] - landing[1]), 20);
   let farLanding = add(landing, across, width);
   for (let s = 4; s <= width * 1.5; s += 4) {
     const p = add(landing, across, s);
@@ -103,11 +126,11 @@ function planFerry(document: CityDocument, connection: RiverConnection): FerryPl
     break;
   }
   const span = Math.hypot(farLanding[0] - landing[0], farLanding[1] - landing[1]);
-  const current = connection.currentMetersPerSecond ?? DEFAULT_CURRENT_METERS_PER_SECOND;
+  const current = input.currentMetersPerSecond ?? DEFAULT_CURRENT_METERS_PER_SECOND;
   const drift = Math.min(Math.max((current * span) / BOAT_SPEED_METERS_PER_SECOND, 6), span * 0.4);
   const townArrival = bankNear(add(landing, flow, drift), across, wet);
   const farArrival = bankNear(add(farLanding, flow, drift), [-across[0], -across[1]], wet);
-  const half = document.frame.extentMeters / 2;
+  const half = input.extentMeters / 2;
   return {
     landing: [...landing],
     farLanding,
@@ -167,7 +190,7 @@ export function ferryLandings(document: CityDocument): Point[] {
   });
 }
 
-function octagon([x, y]: Point, r: number): Point[] {
+export function octagon([x, y]: Point, r: number): Point[] {
   return Array.from({ length: 8 }, (_, i): Point => {
     const angle = (i * Math.PI) / 4 + Math.PI / 8;
     return [x + Math.cos(angle) * r, y + Math.sin(angle) * r];

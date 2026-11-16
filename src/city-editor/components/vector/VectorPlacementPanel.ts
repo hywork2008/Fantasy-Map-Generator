@@ -5,14 +5,24 @@ import {
   transformVectorPlacement
 } from "../../generators/vector/editing/placements";
 import type { EditorLifetime } from "../../services/editorLifetime";
-import type { VectorCityDocument } from "../../types/vector/document";
+import type { VectorCityDocument, VectorPlacement } from "../../types/vector/document";
 
 const text = (key: string) => editorText(`cityEditor.vector.dependencies.${key}` as EditorMessageKey);
+const generatedHouse = (p: VectorPlacement) =>
+  p.origin === "automatic" && (p.building?.kind ?? p.display?.kind) === "housing";
+const option = (p: VectorPlacement) => {
+  const o = document.createElement("option");
+  o.value = p.id;
+  o.textContent = `${p.building?.label ?? p.modelId} · ${p.id}${p.editPolicy === "fixed" ? " 🔒" : ""}`;
+  return o;
+};
 export function createVectorPlacementPanel(
   scope: EditorLifetime,
   parent: HTMLElement,
   read: () => VectorCityDocument,
-  submit: (doc: VectorCityDocument, label: string) => void
+  submit: (doc: VectorCityDocument, label: string) => void,
+  /** Read-only current document for selection and display; never mutated. Defaults to a copy. */
+  peek: () => Readonly<VectorCityDocument> = read
 ) {
   const box = document.createElement("fieldset"),
     legend = document.createElement("legend"),
@@ -38,12 +48,13 @@ export function createVectorPlacementPanel(
     facing = number("facing"),
     foundation = number("foundationLevel");
   const refreshFields = () => {
-    const p = read().placements[select.value];
+    const doc = peek(),
+      p = Object.hasOwn(doc.placements, select.value) ? doc.placements[select.value] : undefined;
     if (!p) return;
     x.value = String(p.position[0]);
     y.value = String(p.position[1]);
     facing.value = String(p.facingDegrees);
-    const terrain = read().environment?.terrain;
+    const terrain = doc.environment?.terrain;
     foundation.disabled = !terrain;
     foundation.value = String(
       terrain?.plots.find(plot => plot.ownerId === p.id.replace(/^freeform:placement:/, ""))?.levelMeters ?? 0
@@ -88,25 +99,26 @@ export function createVectorPlacementPanel(
   box.append(status);
   return {
     select(id: string) {
-      if (!read().placements[id]) return;
+      const doc = peek();
+      if (!Object.hasOwn(doc.placements, id)) return;
+      // Generated houses are chosen on the map, so they join the list only while selected.
+      if (![...select.options].some(o => o.value === id)) {
+        for (const o of [...select.options]) if (o.dataset.transient) o.remove();
+        const o = option(doc.placements[id]);
+        o.dataset.transient = "true";
+        select.append(o);
+      }
       select.value = id;
       refreshFields();
     },
     refresh() {
-      const doc = read(),
-        old = select.value;
-      box.hidden = !Object.values(doc.placements).some(p => p.building || p.display);
-      select.replaceChildren(
-        ...Object.values(doc.placements)
-          .filter(p => p.building || p.display)
-          .map(p => {
-            const o = document.createElement("option");
-            o.value = p.id;
-            o.textContent = `${p.building?.label ?? p.modelId} · ${p.id}${p.editPolicy === "fixed" ? " 🔒" : ""}`;
-            return o;
-          })
-      );
-      if (doc.placements[old]) select.value = old;
+      const doc = peek(),
+        old = select.value,
+        shown = Object.values(doc.placements).filter(p => p.building || p.display);
+      box.hidden = !shown.length;
+      // A list of every generated house would grow with the city; it lists facilities and authored items.
+      select.replaceChildren(...shown.filter(p => !generatedHouse(p) || p.id === old).map(option));
+      if (Object.hasOwn(doc.placements, old)) select.value = old;
       refreshFields();
     }
   };

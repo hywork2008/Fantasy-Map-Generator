@@ -15,6 +15,7 @@ import {
 import type { DemandCategory } from "./goodsGeneratorTypes";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 import type { Market } from "./marketTypes";
+import { MEDIEVAL_ARMOUR_LABOR } from "./medievalArmourContracts";
 
 export type DemandProvenanceKind =
   | "householdPerCapita"
@@ -656,7 +657,9 @@ export const UNCALIBRATED_LABOR_POINTS_PER_LOT: Readonly<Record<string, number>>
   Sculptures: 0.003,
   Tapestries: 0.01,
   Relics: 0.002,
-  Perfume: 0.0002
+  Perfume: 0.0002,
+  // One piece, at the Spinning Wheel scale (0.0001 is about three days).
+  ...MEDIEVAL_ARMOUR_LABOR
 };
 
 export function laborPointsForLots(goodName: string, lots: number, populationRate: number): number {

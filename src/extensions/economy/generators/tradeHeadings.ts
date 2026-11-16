@@ -319,7 +319,26 @@ export const CATALOG_TRADE_HEADINGS = {
   "Linen Garments": "clothing",
   "Wool Cloth": "textiles",
   "Wool Garments": "clothing",
-  "Wool Blankets": "textiles"
+  "Wool Blankets": "textiles",
+  "Peasant Sword": "arms",
+  Sword: "arms",
+  Longbow: "arms",
+  Crossbow: "arms",
+  Shield: "arms",
+  "Mail Hauberk": "arms",
+  "Iron Cap": "arms",
+  Bascinet: "arms",
+  "Pair of Plates": "arms",
+  "Leather Armor": "arms",
+  Gauntlets: "arms",
+  "Squire's Armor": "arms",
+  "Milanese Armor": "arms",
+  "Horse Bard": "arms",
+  Aketon: "arms",
+  Habergeon: "arms",
+  Jack: "arms",
+  Brigandine: "arms",
+  Poleaxe: "arms"
 } as const satisfies Record<string, TradeHeadingId>;
 
 export function isTradeHeadingId(value: string | undefined): value is TradeHeadingId {

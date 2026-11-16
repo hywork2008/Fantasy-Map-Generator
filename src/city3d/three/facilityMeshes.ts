@@ -29,6 +29,7 @@ import {
   WELL_VARIANTS,
   YARD_VARIANTS
 } from "../../buildings/siteVariants";
+import type { AerialLandmarkPlan } from "../../city-editor/generators/aerialLandmarks.types";
 import type { DistrictFabric } from "../../city-editor/generators/blockInfill.types";
 import type { CityTerrain } from "../../city-editor/generators/terrainElevation";
 import { buildFortressPlan } from "../../city-editor/renderers/castleLayoutBuilder";
@@ -121,6 +122,26 @@ export interface FacilitySite extends BvPlacement {
   name: string;
 }
 
+/** The facility plans the BV layer draws, without a city document: the aerial landmark subsets and watermills. */
+export interface FacilityPlans {
+  aerial?: Partial<
+    Pick<
+      AerialLandmarkPlan,
+      | "windmills"
+      | "gateInns"
+      | "storageYards"
+      | "guildYards"
+      | "guildHalls"
+      | "tanneries"
+      | "gallows"
+      | "quayWarehouses"
+    >
+  >;
+  watermills?: NonNullable<DistrictFabric["watermills"]>["mills"];
+  /** Earthen courtyard lodgings for an arid town. */
+  arid: boolean;
+}
+
 /** Saved facility plans supply positions and footprints; BV supplies their visible architecture. */
 export function createTownFacilities(
   city: CityDocument,
@@ -130,6 +151,126 @@ export function createTownFacilities(
   quality: ModelQuality = "high",
   terrain?: Pick<CityTerrain, "foundationAt" | "heightAt" | "relief">,
   waterHeightAt: (point: Point) => number = () => WATER_Y
+) {
+  return createFacilityLayer(
+    {
+      aerial: fabric.aerialLandmarks,
+      watermills: fabric.watermills?.mills,
+      arid: city.buildingAppearanceContext?.arid === true
+    },
+    cache,
+    quality,
+    terrain,
+    waterHeightAt,
+    ({ sites, addGarrison, elevationAt, tier }) => {
+      for (const castle of city.castles ?? []) {
+        const profile = resolveCastleStyle(city, castle);
+        const circuit = city.defenseCircuits?.find(c => c.id === castle.circuitId);
+        if (profile.style !== "bastion-citadel" || circuit?.state === "razed" || castle.fortress) continue;
+        const plan = buildFortressPlan(city, castle, profile);
+        for (const building of plan.buildings) {
+          const id = `castle:${castle.id}:${building.id}`;
+          const part = structures.find(s => s.id === id);
+          if (!part) continue;
+          const kind = building.kind === "barracks" ? "barracks" : building.kind === "service" ? "service" : "command";
+          addGarrison(
+            id,
+            `${castle.id} · ${building.kind}`,
+            building.polygon,
+            kind,
+            part.heightMeters,
+            part.baseElevationMeters
+          );
+        }
+        const center = frameOf(
+          castle.courtyards[0] ??
+            plan.courtyards[0]?.polygon ?? [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 1]
+            ]
+        ).center;
+        for (const [i, prop] of plan.props.entries()) {
+          if (prop.kind !== "cannon_battery" && prop.kind !== "reflecting_pool" && prop.kind !== "stone_well") continue;
+          const towerIndex = plan.towers.findIndex(
+            t => Math.hypot(t.point[0] - prop.point[0], t.point[1] - prop.point[1]) < 1e-6
+          );
+          const tower = structures.find(s => s.id === `tower:${castle.id}:${towerIndex}`);
+          // Tower fitting can discard a cramped bastion after the style creates its props.
+          if (prop.kind === "cannon_battery" && !tower) continue;
+          const base = tower
+            ? tower.baseElevationMeters + tower.heightMeters
+            : terrain?.relief
+              ? terrain.heightAt(prop.point)
+              : 0;
+          sites.push({
+            id: `${castle.id}:prop:${i}`,
+            name: prop.kind,
+            definition: prop.kind === "cannon_battery" ? cannon : basin,
+            matrix: placement(prop.point, base, Math.atan2(prop.point[1] - center[1], prop.point[0] - center[0]))
+          });
+        }
+        for (const [i, gate] of plan.defensiveGates.entries()) {
+          if (gate.kind !== "barbican" || !gate.polygon?.length) continue;
+          const frame = frameOf(gate.polygon);
+          const openings = [gate.outerGate, gate.innerGate].flatMap(p =>
+            p
+              ? [
+                  gate.polygon!.reduce(
+                    (best, q, j) =>
+                      Math.hypot(q[0] - p[0], q[1] - p[1]) <
+                      Math.hypot(gate.polygon![best][0] - p[0], gate.polygon![best][1] - p[1])
+                        ? j
+                        : best,
+                    0
+                  )
+                ]
+              : []
+          );
+          const spec = { polygon: gate.polygon.map(frame.local), openings };
+          const ravelin = adopt(RAVELIN_VARIANTS, "facility.citadel-ravelin", tier);
+          const model = definition(`ravelin:${JSON.stringify(spec)}:${tier}`, () => ravelin.create(spec), ravelin.id);
+          sites.push({
+            id: `${castle.id}:ravelin:${i}`,
+            name: "Citadel ravelin",
+            definition: model,
+            matrix: placement(frame.center, elevationAt(gate.polygon), frame.angle)
+          });
+        }
+      }
+      for (const work of city.bastionedTown?.works ?? []) {
+        const part = structures.find(s => s.id === work.id);
+        if (part) addGarrison(work.id, work.kind, work.polygon, work.kind, part.heightMeters, part.baseElevationMeters);
+      }
+    }
+  );
+}
+
+/**
+ * The BV facilities of saved plans without cells: watermills, windmills, courtyard inns, storage and guild yards,
+ * guild halls, tanneries, gallows and quay warehouses. `extra` adds the caller's own sites (the mesh editor's
+ * castle garrisons). Shared with the meshless editor (P2d-4).
+ */
+export function createFacilityLayer(
+  plans: FacilityPlans,
+  cache: BvPrototypeCache,
+  quality: ModelQuality = "high",
+  terrain?: Pick<CityTerrain, "foundationAt" | "heightAt" | "relief">,
+  waterHeightAt: (point: Point) => number = () => WATER_Y,
+  extra?: (context: {
+    sites: FacilitySite[];
+    addGarrison: (
+      id: string,
+      name: string,
+      ring: Point[],
+      kind: GarrisonBuildingSpec["kind"],
+      height: number,
+      base: number
+    ) => void;
+    elevationAt: (ring: Point[]) => number;
+    tier: "high" | "low";
+  }) => void
 ) {
   const sites: FacilitySite[] = [],
     releases: Array<() => void> = [];
@@ -161,8 +302,8 @@ export function createTownFacilities(
       sites.push({ id, name, definition: measured, matrix: placement(frame.center, elevationAt(ring), frame.angle) });
     }
   };
-  const aerial = fabric.aerialLandmarks;
-  for (const mill of fabric.watermills?.mills ?? []) {
+  const aerial = plans.aerial;
+  for (const mill of plans.watermills ?? []) {
     const frame = frameOf(mill.millhousePolygon);
     let angle = mill.wheel.angleRad;
     const dx = frame.center[0] - mill.wheel.center[0];
@@ -238,7 +379,7 @@ export function createTownFacilities(
       courtDepth: Math.max(...court.map(p => p[1])) - Math.min(...court.map(p => p[1])),
       entranceWidth: 3.2,
       stableSpaces: inn.stableSpaces,
-      earthen: city.buildingAppearanceContext?.arid === true
+      earthen: plans.arid
     };
     const lodging = adopt(LODGING_VARIANTS, "facility.courtyard-lodging", tier);
     const model = definition(`lodging:${JSON.stringify(spec)}:${tier}`, () => lodging.create(spec), lodging.id);
@@ -296,86 +437,7 @@ export function createTownFacilities(
     sites.push({ id, name, definition: model, matrix: placement(frame.center, base, frame.angle) });
     replacements.set(id, [id]);
   };
-  for (const castle of city.castles ?? []) {
-    const profile = resolveCastleStyle(city, castle);
-    const circuit = city.defenseCircuits?.find(c => c.id === castle.circuitId);
-    if (profile.style !== "bastion-citadel" || circuit?.state === "razed" || castle.fortress) continue;
-    const plan = buildFortressPlan(city, castle, profile);
-    for (const building of plan.buildings) {
-      const id = `castle:${castle.id}:${building.id}`;
-      const part = structures.find(s => s.id === id);
-      if (!part) continue;
-      const kind = building.kind === "barracks" ? "barracks" : building.kind === "service" ? "service" : "command";
-      addGarrison(
-        id,
-        `${castle.id} · ${building.kind}`,
-        building.polygon,
-        kind,
-        part.heightMeters,
-        part.baseElevationMeters
-      );
-    }
-    const center = frameOf(
-      castle.courtyards[0] ??
-        plan.courtyards[0]?.polygon ?? [
-          [0, 0],
-          [1, 0],
-          [1, 1],
-          [0, 1]
-        ]
-    ).center;
-    for (const [i, prop] of plan.props.entries()) {
-      if (prop.kind !== "cannon_battery" && prop.kind !== "reflecting_pool" && prop.kind !== "stone_well") continue;
-      const towerIndex = plan.towers.findIndex(
-        t => Math.hypot(t.point[0] - prop.point[0], t.point[1] - prop.point[1]) < 1e-6
-      );
-      const tower = structures.find(s => s.id === `tower:${castle.id}:${towerIndex}`);
-      // Tower fitting can discard a cramped bastion after the style creates its props.
-      if (prop.kind === "cannon_battery" && !tower) continue;
-      const base = tower
-        ? tower.baseElevationMeters + tower.heightMeters
-        : terrain?.relief
-          ? terrain.heightAt(prop.point)
-          : 0;
-      sites.push({
-        id: `${castle.id}:prop:${i}`,
-        name: prop.kind,
-        definition: prop.kind === "cannon_battery" ? cannon : basin,
-        matrix: placement(prop.point, base, Math.atan2(prop.point[1] - center[1], prop.point[0] - center[0]))
-      });
-    }
-    for (const [i, gate] of plan.defensiveGates.entries()) {
-      if (gate.kind !== "barbican" || !gate.polygon?.length) continue;
-      const frame = frameOf(gate.polygon);
-      const openings = [gate.outerGate, gate.innerGate].flatMap(p =>
-        p
-          ? [
-              gate.polygon!.reduce(
-                (best, q, j) =>
-                  Math.hypot(q[0] - p[0], q[1] - p[1]) <
-                  Math.hypot(gate.polygon![best][0] - p[0], gate.polygon![best][1] - p[1])
-                    ? j
-                    : best,
-                0
-              )
-            ]
-          : []
-      );
-      const spec = { polygon: gate.polygon.map(frame.local), openings };
-      const ravelin = adopt(RAVELIN_VARIANTS, "facility.citadel-ravelin", tier);
-      const model = definition(`ravelin:${JSON.stringify(spec)}:${tier}`, () => ravelin.create(spec), ravelin.id);
-      sites.push({
-        id: `${castle.id}:ravelin:${i}`,
-        name: "Citadel ravelin",
-        definition: model,
-        matrix: placement(frame.center, elevationAt(gate.polygon), frame.angle)
-      });
-    }
-  }
-  for (const work of city.bastionedTown?.works ?? []) {
-    const part = structures.find(s => s.id === work.id);
-    if (part) addGarrison(work.id, work.kind, work.polygon, work.kind, part.heightMeters, part.baseElevationMeters);
-  }
+  extra?.({ sites, addGarrison, elevationAt, tier });
   const layer = createBvInstances(sites, cache);
   for (const release of releases) release();
   layer.group.name = "ce-facilities";

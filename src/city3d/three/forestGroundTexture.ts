@@ -1,4 +1,21 @@
 import * as THREE from "three";
+import {
+  abs,
+  cross,
+  dFdx,
+  dFdy,
+  diffuseColor,
+  float,
+  length,
+  max,
+  mix,
+  normalize,
+  positionLocal,
+  smoothstep,
+  texture as tslTexture,
+  uniform,
+  vec2
+} from "three/tsl";
 import { ROCK_SLOPE } from "../../city-editor/generators/terrainField/constants";
 import type { ForestPlan } from "../../city-editor/types/contracts/forest";
 import type { CityDocument, Point } from "../../city-editor/types/document";
@@ -71,4 +88,22 @@ export function applyForestGroundTexture(
       );
   };
   material.customProgramCacheKey = () => "ce-forest-ground-v2";
+  // WebGPURenderer copies this method onto the node material. It runs after vertex colors,
+  // matching the GLSL mix, which WebGL still applies through onBeforeCompile above.
+  const coverMap = tslTexture(texture);
+  const extentNode = uniform(extent);
+  const rockSlope = uniform(new THREE.Vector2(ROCK_SLOPE * 0.9, ROCK_SLOPE * 1.1));
+  (material as THREE.MeshLambertMaterial & { setupDiffuseColor?: (builder: unknown) => void }).setupDiffuseColor =
+    function (this: object, builder: unknown) {
+      const inherited = Object.getPrototypeOf(this).setupDiffuseColor as
+        | ((this: object, builder: unknown) => void)
+        | undefined;
+      inherited?.call(this, builder);
+      const point = vec2(positionLocal.x, positionLocal.z.negate());
+      const sample = coverMap.sample(point.div(extentNode).add(0.5));
+      const surface = normalize(cross(dFdx(positionLocal), dFdy(positionLocal)));
+      const slope = length(surface.xz).div(max(abs(surface.y), float(0.0001)));
+      const weight = sample.a.mul(float(1).sub(smoothstep(rockSlope.x, rockSlope.y, slope)));
+      diffuseColor.rgb.assign(mix(diffuseColor.rgb, sample.rgb, weight));
+    };
 }

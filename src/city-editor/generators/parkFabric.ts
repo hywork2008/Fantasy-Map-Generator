@@ -28,7 +28,7 @@ export interface ParkLawn {
  * Distance from block edge to lawn edge. Creates a perimeter promenade/verge
  * around the green space.
  */
-const LAWN_SETBACK = 2.8;
+export const LAWN_SETBACK = 2.8;
 
 /**
  * Minimum distance (meters) between tree canopy centers and fortification barriers
@@ -224,29 +224,46 @@ export function buildVacantTreeCandidates(
 function shapeParkFace(document: CityDocument, face: Face, seed: string, clearance: ClearanceData): ParkLawn | null {
   const outline = facePoints(document.mesh, face);
   if (outline.length < 3) return null;
+  const boundary = face.boundary.flatMap(ref => {
+    const edge = document.mesh.edges[ref.edgeId];
+    const va = edge && document.mesh.vertices[edge.a]?.point;
+    const vb = edge && document.mesh.vertices[edge.b]?.point;
+    if (!va || !vb) return [];
+    const otherId = edge.leftFace === face.id ? edge.rightFace : edge.leftFace;
+    const otherFace = otherId ? document.mesh.faces[otherId] : null;
+    const setback =
+      clearance.riverEdgeClearance.get(ref.edgeId) ??
+      (otherFace && otherFace.properties.water !== "land"
+        ? 6.0
+        : (clearance.wallEdgeClearance.get(ref.edgeId) ?? clearance.roadEdgeClearance.get(ref.edgeId) ?? LAWN_SETBACK));
+    return [{ a: va, b: vb, setback }];
+  });
+  return layoutParkLawn(face.id, outline, boundary, makeRng(`${seed}:park-lawn:${face.id}`), clearance, {
+    fortified: isFaceAdjacentToDefense(document, face, outline, clearance),
+    trees: landscapeHasTrees(document)
+  });
+}
+
+/** What a park keeps clear of: the cell-free part of the mesh editor's clearance data. */
+export type ParkClearance = Pick<ClearanceData, "segments" | "rivers" | "riverSegments" | "water">;
+
+/**
+ * The mesh editor's park lawn for one outline, without cells: lawns inset from each boundary edge by its setback
+ * (a promenade along streets, more along walls, rivers and water), a walkway, grass tufts and tree canopies kept off
+ * the fortifications and rivers. `boundary` lists the outline's edges with their setbacks; `fortified` leaves a
+ * small park along a wall a bare esplanade.
+ */
+export function layoutParkLawn(
+  id: Id,
+  outline: Point[],
+  boundary: readonly { a: Point; b: Point; setback: number }[],
+  rng: Rng,
+  clearance: ParkClearance,
+  options: { fortified: boolean; trees: boolean }
+): ParkLawn | null {
+  if (outline.length < 3) return null;
   const area = Math.abs(polygonArea(outline));
   if (area < 25) return null;
-
-  const setbacks = face.boundary.map(ref => {
-    const edge = document.mesh.edges[ref.edgeId];
-    const otherId = edge ? (edge.leftFace === face.id ? edge.rightFace : edge.leftFace) : null;
-    const otherFace = otherId ? document.mesh.faces[otherId] : null;
-
-    const riverM = clearance.riverEdgeClearance.get(ref.edgeId);
-    if (riverM !== undefined) return riverM;
-
-    if (otherFace && otherFace.properties.water !== "land") {
-      return 6.0;
-    }
-
-    const wallM = clearance.wallEdgeClearance.get(ref.edgeId);
-    if (wallM !== undefined) return wallM;
-
-    const roadM = clearance.roadEdgeClearance.get(ref.edgeId);
-    if (roadM !== undefined) return roadM;
-
-    return LAWN_SETBACK;
-  });
 
   const parts = convexInfillParts(outline);
   const lawnPolygons: Point[][] = [];
@@ -259,16 +276,8 @@ function shapeParkFace(document: CityDocument, face: Face, seed: string, clearan
       const mid: Point = [(pt[0] + nextPt[0]) / 2, (pt[1] + nextPt[1]) / 2];
 
       let maxEdgeSetback = partArea < 80 ? 1.8 : LAWN_SETBACK;
-      for (let j = 0; j < face.boundary.length; j++) {
-        const ref = face.boundary[j];
-        const edge = document.mesh.edges[ref.edgeId];
-        if (!edge) continue;
-        const va = document.mesh.vertices[edge.a]?.point;
-        const vb = document.mesh.vertices[edge.b]?.point;
-        if (va && vb && distToSegment(mid, va, vb) < 1.0) {
-          maxEdgeSetback = Math.max(maxEdgeSetback, setbacks[j]);
-        }
-      }
+      for (const edge of boundary)
+        if (distToSegment(mid, edge.a, edge.b) < 1.0) maxEdgeSetback = Math.max(maxEdgeSetback, edge.setback);
       return maxEdgeSetback;
     });
 
@@ -304,30 +313,30 @@ function shapeParkFace(document: CityDocument, face: Face, seed: string, clearan
   let dryLawns = lawnPolygons;
   for (const wet of clearance.water) dryLawns = dryLawns.flatMap(part => subtractConvex(part, wet, 1));
   if (!dryLawns.length) return null;
-  const isFortified = isFaceAdjacentToDefense(document, face, outline, clearance);
-  const rng = makeRng(`${seed}:park-lawn:${face.id}`);
   const paths = generateParkPaths(outline, dryLawns, area, rng);
   const grassTufts = generateGrassTufts(dryLawns, paths, rng);
-  const trees = generateTopDownBushes(outline, dryLawns, paths, area, rng, clearance, isFortified).filter(tree => {
-    const r = Math.max(tree.radius, ...tree.subCircles.map(c => Math.hypot(...c.offset) + c.radius));
-    const [x, y] = tree.center;
-    return !polygonHitsWater(
-      [
-        [x - r, y - r],
-        [x + r, y - r],
-        [x + r, y + r],
-        [x - r, y + r]
-      ],
-      clearance.water
-    );
-  });
+  const trees = generateTopDownBushes(outline, dryLawns, paths, area, rng, clearance, options.fortified).filter(
+    tree => {
+      const r = Math.max(tree.radius, ...tree.subCircles.map(c => Math.hypot(...c.offset) + c.radius));
+      const [x, y] = tree.center;
+      return !polygonHitsWater(
+        [
+          [x - r, y - r],
+          [x + r, y - r],
+          [x + r, y + r],
+          [x - r, y + r]
+        ],
+        clearance.water
+      );
+    }
+  );
 
   return {
-    faceId: face.id,
+    faceId: id,
     lawnPolygons: dryLawns,
     paths,
     grassTufts,
-    trees: landscapeHasTrees(document) ? trees : []
+    trees: options.trees ? trees : []
   };
 }
 
@@ -411,7 +420,7 @@ function generateTopDownBushes(
   paths: Point[][],
   area: number,
   rng: Rng,
-  clearance?: ClearanceData,
+  clearance?: ParkClearance,
   isFortified = false,
   decoration?: { accept: (tree: ParkTreeCanopy) => boolean; density: number }
 ): ParkTreeCanopy[] {

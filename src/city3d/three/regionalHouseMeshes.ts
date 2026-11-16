@@ -140,6 +140,9 @@ function earthenHouseSite(
   };
 }
 
+/** Lost area per metre of width plus depth that still counts as a rectangle: twice a 1 cm rounding. */
+const RECTANGLE_SLIVER_METERS = 0.02;
+
 /** Detailed joinery follows measured walls when a rectangular prototype cannot fit. */
 function polygonHouseSite(
   lot: BuildingLot,
@@ -245,8 +248,13 @@ export function regionalHouseSite(
   const across = lot.polygon.map(q => q[0] * p[0] + q[1] * p[1]);
   const depth = Math.max(...along) - Math.min(...along);
   const width = Math.max(...across) - Math.min(...across);
-  // Only near-rectangular lots: the model's walls fill its bounding box.
-  if (!(width >= 3 && width <= 18 && depth >= 4 && depth <= 28) || area(lot.polygon) < 0.999999 * width * depth)
+  // Only near-rectangular lots: the model's walls fill its bounding box. Corners rounded to a centimetre (the
+  // meshless editor stores house outlines on a 1 cm grid) leave a sliver of at most a couple of centimetres along
+  // the sides; a real skew or notch costs far more and still takes the polygonal model.
+  if (
+    !(width >= 3 && width <= 18 && depth >= 4 && depth <= 28) ||
+    width * depth - area(lot.polygon) > RECTANGLE_SLIVER_METERS * (width + depth)
+  )
     return polygonHouseSite(lot, lotIndex, elevation, quality, resolveFrontage);
   const storeys = massing.storeys;
   // Match CE's roof-rise cap without quantizing the slope or stretching any joinery.

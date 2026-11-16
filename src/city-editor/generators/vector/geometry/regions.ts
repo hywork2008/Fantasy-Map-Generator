@@ -45,7 +45,10 @@ export function indexedContains(polygons: VectorPolygon[]) {
 export function regionBoolean(
   a: VectorPolygon[],
   b: VectorPolygon[],
-  operation: "union" | "difference" | "intersection"
+  operation: "union" | "difference" | "intersection",
+  /** False skips the lattice retry and lets a kernel failure throw: for display-only results with their own
+   * fallback, because the sweep kernel can loop without end on a retried lattice (coast-and-river streets). */
+  retry = true
 ): VectorPolygon[] {
   const toClip = (polygons: VectorPolygon[]): MultiPolygon => polygons.map(p => [p.outer, ...p.holes]);
   const count = [...a, ...b].reduce((n, p) => n + p.outer.length + p.holes.reduce((n, h) => n + h.length, 0), 0);
@@ -66,9 +69,15 @@ export function regionBoolean(
     // sub-micrometer lattice, far below the 5mm sampling tolerance. Source paths
     // and surveyed input rings are never changed by this numerical fallback.
     if (
+      !retry ||
       !(error instanceof Error) ||
       (!/^Unable to (complete output ring|find segment)/.test(error.message) &&
-        !(error instanceof RangeError && error.stack?.includes("RingOut")))
+        // A runaway recursion of the kernel (a ring walk, or a segment's state chain on a near-coincident edge).
+        // The stack it leaves is cut at `Error.stackTraceLimit` frames (10 by default), so the frames that would
+        // name the kernel's routine are usually gone: every stack overflow of the kernel is retried.
+        !(error instanceof RangeError) &&
+        // The same lost edge can surface as a missing ring of a segment in the result sweep.
+        !(error instanceof TypeError && error.stack?.includes("polygon-clipping")))
     )
       throw error;
     const rounded = (polygons: VectorPolygon[], step: number): MultiPolygon =>
@@ -85,7 +94,12 @@ export function regionBoolean(
     try {
       result = run(rounded(a, 1e-8), rounded(b, 1e-8));
     } catch {
-      result = run(rounded(a, 1e-7), rounded(b, 1e-7));
+      try {
+        result = run(rounded(a, 1e-7), rounded(b, 1e-7));
+      } catch {
+        // Still far below the sampling tolerance; reached only where both finer lattices fail.
+        result = run(rounded(a, 1e-6), rounded(b, 1e-6));
+      }
     }
   }
   let points = 0;

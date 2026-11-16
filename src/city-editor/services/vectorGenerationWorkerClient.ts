@@ -11,6 +11,8 @@ export interface VectorGenerationRequest {
   inputRevision: number;
   source: VectorCityDocument;
   task: VectorGenerationTask;
+  /** District planning workers; omitted means one fewer than the cores, at most four. */
+  districtWorkers?: number;
 }
 export interface VectorGenerationProgress {
   phase: "skeleton" | "lanes" | "facilities" | "housing" | "validation";
@@ -23,6 +25,8 @@ export type VectorGenerationReply = { id: number; inputRevision: number } & (
   | { progress: VectorGenerationProgress; error?: never; result?: never }
 );
 let nextId = 0;
+/** Upper bound of one generation, however often it reports progress. */
+export const GENERATION_TOTAL_LIMIT_MS = 300000;
 /** One worker per generation; termination cancels the geometry computation itself. */
 export function startVectorGeneration(
   source: VectorCityDocument,
@@ -37,10 +41,13 @@ export function startVectorGeneration(
   const result = new Promise<VectorGenerationResult | null>((resolve, reject) => {
     let settled = false;
     let timer = setTimeout(() => finish(null, new Error("generation-timeout")), 60000);
+    // Progress resets the silence limit above; this one bounds the whole run.
+    const deadline = setTimeout(() => finish(null, new Error("generation-timeout")), GENERATION_TOTAL_LIMIT_MS);
     const finish = (value: VectorGenerationResult | null, error?: Error) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(deadline);
       worker.onmessage = worker.onerror = worker.onmessageerror = null;
       worker.terminate();
       if (error) reject(error);
