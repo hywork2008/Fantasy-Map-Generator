@@ -9,7 +9,7 @@
   ],
   "checkpoints": {
     "day-0": {
-      "digest": "e8078f6aa9c035bd020a3fb30daf2ab5ebfe2e80c80c3d55a36839a67031a4ff",
+      "digest": "f7bce3481b5ce526dc69ea73c825e6c392b8bf5696d9e5f865c04ad4381915f3",
       "sections": {
         "world.biomesData": "0ac90fa3970f313e47520e60fe7abdf1d513605d20455b24c660d75fa16b8368",
         "world.distanceScale": "3803459424d54fcdc72fff573b8484c68ec7186f2e1d75d070855a3a5b3d093a",
@@ -56,7 +56,7 @@
         "simulation.currentYear": "0087cf99a4636ebd9a0f66eaf98fde8bca977e2a274bc832cc903c3561735e9d",
         "simulation.era": "003b6f53971aa2f083d73cfde10a1b5c9db7b61fcb6d3ccaa0b19aca86fdab84",
         "simulation.extensions.characters": "e143dd8eb206d07e962a19994050bc80970bef77b905ae0cd33bda6cdf28eb3b",
-        "simulation.extensions.economy": "68c82ea7329ec633d2b693bfe4ebdd45f365b46843575ba727031270d6c95dad",
+        "simulation.extensions.economy": "e811650e3d42fb22a0f4885bb056a6d8497dfecc17bb0fc93943f078af852da8",
         "simulation.extensions.nobility": "312e13194da15e8bbad19d418b9907c532466e0d2a49f83d415a3aab64637369",
         "simulation.extensions.shipbuilding": "03753d059fc730021cf3f22fb1bbc03c9f953b2bf81f59fceef87073bce347cc",
         "simulation.frontier": "23a38db257a8e2a3da0352b1d676617c73fc5bcf6174ca9f958b677d203f5693",
@@ -78,7 +78,7 @@
       }
     },
     "day-30": {
-      "digest": "421d02f846e3982ac64829cc8b3699ddecc2b5accbf7b1009c99c4dcd62800dc",
+      "digest": "8df122874065f3c0a08aee7181b17bb7c993f4fd6d383e99dce4cfbaa2589033",
       "sections": {
         "world.biomesData": "0ac90fa3970f313e47520e60fe7abdf1d513605d20455b24c660d75fa16b8368",
         "world.distanceScale": "3803459424d54fcdc72fff573b8484c68ec7186f2e1d75d070855a3a5b3d093a",
@@ -125,7 +125,7 @@
         "simulation.currentYear": "0087cf99a4636ebd9a0f66eaf98fde8bca977e2a274bc832cc903c3561735e9d",
         "simulation.era": "003b6f53971aa2f083d73cfde10a1b5c9db7b61fcb6d3ccaa0b19aca86fdab84",
         "simulation.extensions.characters": "8c2bd54d0c137f60a8ba238d863476d2fc95c47bc0efc62a8ff802c3167ceb03",
-        "simulation.extensions.economy": "b9ae8ccb5cf08e7f55f26378ba38061c01a336f1da95b57b36696b00353cebbe",
+        "simulation.extensions.economy": "e62d4e3ee1679ccf429242ac72d1cdfd9b68312199df8a7b83673b496e196a06",
         "simulation.extensions.nobility": "312e13194da15e8bbad19d418b9907c532466e0d2a49f83d415a3aab64637369",
         "simulation.extensions.shipbuilding": "bb99f7cf48740ce54c9dda2b3b12bddff6cfcd3e1c952f5ccfe952591f2a88c7",
         "simulation.frontier": "23a38db257a8e2a3da0352b1d676617c73fc5bcf6174ca9f958b677d203f5693",
@@ -148,7 +148,7 @@
       }
     },
     "day-365": {
-      "digest": "757bce9419a9d88e5bc2d2af7cab1b8e97df609b6dcfa5a2ba3df2e17ecf3c64",
+      "digest": "d65934b9d1656e653a023f0b17cd27db6e8ea92a0f3fc20b235fdbbc1b28be1d",
       "sections": {
         "world.biomesData": "0ac90fa3970f313e47520e60fe7abdf1d513605d20455b24c660d75fa16b8368",
         "world.distanceScale": "3803459424d54fcdc72fff573b8484c68ec7186f2e1d75d070855a3a5b3d093a",
@@ -162,7 +162,7 @@
         "world.notes": "366b26a5666dcc7364f785166adb0724f03313b47b9557dc0cd9d2e6ff73b01f",
         "world.options": "e24d618b19c4033c6be1ae2e03780d9555e640232562bbc70cf684f551754d69",
         "world.pack.burgs": "115a01117d64b6f7357973db43eb146aa88f10f90973580ffc7fcef158defcc6",
-        "world.pack.cells": "bfd278a6fca78f6b2a552846b7d997456e5baac2c0185e09b811bb19385efe8d",
+        "world.pack.cells": "db17203a9ef52c2f4b49113190522b85bf12eeacd299bae30fa33386a9957beb",
         "world.pack.cultures": "5cca90374e4b2ff843a9f210f829b0a62454fde93e161744d12832a7f3d71d5a",
         "world.pack.dungeons": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "world.pack.dynasties": "196b82c4429b73f69f34fa38a37da627edcf894104c469a7af9dfe66d1bbf42d",
@@ -195,7 +195,7 @@
         "simulation.currentYear": "0087cf99a4636ebd9a0f66eaf98fde8bca977e2a274bc832cc903c3561735e9d",
         "simulation.era": "003b6f53971aa2f083d73cfde10a1b5c9db7b61fcb6d3ccaa0b19aca86fdab84",
         "simulation.extensions.characters": "1fa0fb8440e1febe9fe92bf71ee4aedcde7f0ed2a137676bb81ee2d56ebd0325",
-        "simulation.extensions.economy": "c212cd00b22c12fbb792de9547ef84aebd52450b8d139e6b6ff4804013449e16",
+        "simulation.extensions.economy": "5c6edb9b52dd3c14c2f06889f80b7e33f3045b38d48b69eb3f50335fa7bb66f6",
         "simulation.extensions.nobility": "312e13194da15e8bbad19d418b9907c532466e0d2a49f83d415a3aab64637369",
         "simulation.extensions.shipbuilding": "047e8734e9f007d0ca19f2d75d8bc99857b487c5c6cbd4e866416a1e302023ba",
         "simulation.frontier": "23a38db257a8e2a3da0352b1d676617c73fc5bcf6174ca9f958b677d203f5693",
