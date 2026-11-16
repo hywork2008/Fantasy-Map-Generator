@@ -9,6 +9,7 @@
 - docs/plan/dnd/monster-nature.md
 - docs/plan/dnd/replenishment.md
 - docs/plan/dnd/superstition-coefficients.md
+- docs/plan/per-capita-income-scale.md
 - docs/plan/state-currency-and-exchange.md - 国家通貨・為替・改鋳
 
 2026-11-15
