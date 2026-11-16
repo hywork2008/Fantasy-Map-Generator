@@ -136,6 +136,8 @@ export interface Market {
   dairyTraditionLitersPerHead?: number;
   /** Meat eaten this month, kg; folded into `meatKilogramsPerHeadYear` with the dairy tradition. */
   meatKilogramsThisCycle?: number;
+  /** Milk and cheese eaten here since the start, as litres of milk, at the last tradition update. */
+  dairyEatenLitersMark?: number;
   /** A slow yearly average of the meat a person here eats, kg, for the animal-food cap (docs/plan/dairy-demand.md §3.3). */
   meatKilogramsPerHeadYear?: number;
   /** Returnable containers remain in circulation; recipe inputs only cover loss and repair. */

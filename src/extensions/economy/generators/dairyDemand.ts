@@ -8,7 +8,12 @@ import { getMarketSettings } from "../../../simulation/marketSettings";
 import { getOrCreateFaunaStockTable } from "../context/cellTables";
 import { getMarketCellColumn } from "../economyContext";
 import { ANNUAL_LITERS_PER_LACTATING_FEMALE, LACTATING_SHARE_OF_BREEDING_COHORT } from "./dairyProductionPolicy";
-import { DAIRY_TARGETS, LITERS_PER_MILK_LOT, MILK_LITERS_PER_CHEESE_KILOGRAM } from "./foodLots";
+import {
+  DAIRY_TARGETS,
+  KILOGRAMS_PER_CHEESE_LOT,
+  LITERS_PER_MILK_LOT,
+  MILK_LITERS_PER_CHEESE_KILOGRAM
+} from "./foodLots";
 import type { Market } from "./marketTypes";
 import { CHEESE_PROTEIN_G_PER_KG, MEAT_PROTEIN_G_PER_KG, MILK_PROTEIN_G_PER_LITER } from "./nutritionAudit";
 
@@ -55,7 +60,17 @@ export function updateDairyTradition(market: Market, people: number, cellIds: Ar
   if (getMarketSettings().dairyDemand !== "tradition" || !(people > 0)) return;
   const current = getDairyTradition(market, people, cellIds);
   const harvestLots = market.foodProcessingLedger?.Milk?.cellHarvestThisCycle ?? 0;
-  const observed = (harvestLots * LITERS_PER_MILK_LOT * 12) / people;
+  const herds = (harvestLots * LITERS_PER_MILK_LOT * 12) / people;
+  // What the people ate, own and bought in, as milk: a market without herds that keeps buying
+  // cheese comes to want it (docs/plan/dairy-demand.md §3.1).
+  const eatenLiters =
+    (market.foodProcessingLedger?.Milk?.householdConsumption ?? 0) * LITERS_PER_MILK_LOT +
+    (market.foodProcessingLedger?.Cheese?.householdConsumption ?? 0) *
+      KILOGRAMS_PER_CHEESE_LOT *
+      MILK_LITERS_PER_CHEESE_KILOGRAM;
+  const eaten = (Math.max(0, eatenLiters - (market.dairyEatenLitersMark ?? eatenLiters)) * 12) / people;
+  market.dairyEatenLitersMark = eatenLiters;
+  const observed = getMarketSettings().dairyTraditionSource === "herdsAndPurchases" ? Math.max(herds, eaten) : herds;
   const months = Math.max(1, getMarketSettings().dairyTraditionHalfLifeYears * 12);
   const weight = 1 - pow(0.5, 1 / months);
   market.dairyTraditionLitersPerHead = current + (observed - current) * weight;

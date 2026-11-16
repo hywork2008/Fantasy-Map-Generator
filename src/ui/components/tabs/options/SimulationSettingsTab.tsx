@@ -43,7 +43,9 @@ import {
   CRAFT_SALE_PAYMENT_MODES,
   type CraftSalePaymentMode,
   DAIRY_DEMAND_MODES,
+  DAIRY_TRADITION_SOURCE_MODES,
   type DairyDemandMode,
+  type DairyTraditionSourceMode,
   FEED_CRISIS_BUDGET_MODES,
   FEED_SHORTFALL_RESPONSE_MODES,
   FEED_SHORTFALL_TIMING_MODES,
@@ -1993,6 +1995,31 @@ export const SimulationSettingsTab: React.FC = () => {
               </select>
             </td>
           </tr>
+          <tr data-tip={t("simulation.dairyTraditionSourceTip")}>
+            <td />
+            <td>
+              <label htmlFor="dairyTraditionSource">{t("simulation.dairyTraditionSource")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="dairyTraditionSource"
+                value={marketSettings.dairyTraditionSource}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      dairyTraditionSource: e.target.value as DairyTraditionSourceMode
+                    })
+                  )
+                }
+              >
+                {DAIRY_TRADITION_SOURCE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.dairyTraditionSource_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
           <tr data-tip={t("simulation.dairyTraditionHalfLifeYearsTip")}>
             <td />
             <td>{t("simulation.dairyTraditionHalfLifeYears")}</td>
@@ -2018,6 +2045,20 @@ export const SimulationSettingsTab: React.FC = () => {
                 step={MARKET_SETTING_LIMITS.animalProteinCapGramsPerDay.step}
                 value={marketSettings.animalProteinCapGramsPerDay}
                 onChange={v => updateMarketSetting("animalProteinCapGramsPerDay", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.cheeseStorageLossPerMonthTip")}>
+            <td />
+            <td>{t("simulation.cheeseStorageLossPerMonth")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="cheeseStorageLossPerMonth"
+                min={MARKET_SETTING_LIMITS.cheeseStorageLossPerMonth.min}
+                max={MARKET_SETTING_LIMITS.cheeseStorageLossPerMonth.max}
+                step={MARKET_SETTING_LIMITS.cheeseStorageLossPerMonth.step}
+                value={marketSettings.cheeseStorageLossPerMonth}
+                onChange={v => updateMarketSetting("cheeseStorageLossPerMonth", v)}
               />
             </td>
           </tr>

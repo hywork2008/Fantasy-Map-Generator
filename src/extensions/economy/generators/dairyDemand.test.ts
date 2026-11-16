@@ -4,7 +4,7 @@ vi.mock("../context/cellTables", () => ({ getOrCreateFaunaStockTable: () => ({ "
 vi.mock("../economyContext", () => ({ getMarketCellColumn: () => [7] }));
 
 import { DEFAULT_MARKET_SETTINGS, setMarketSettings } from "../../../simulation/marketSettings";
-import { getDairyDemandPerHead } from "./dairyDemand";
+import { getDairyDemandPerHead, updateDairyTradition } from "./dairyDemand";
 import type { Market } from "./marketTypes";
 
 describe("getDairyDemandPerHead (docs/plan/dairy-demand.md)", () => {
@@ -26,6 +26,26 @@ describe("getDairyDemandPerHead (docs/plan/dairy-demand.md)", () => {
     const market = { i: 7, dairyTraditionLitersPerHead: 150, meatKilogramsPerHeadYear: 60 } as Market;
     const demand = getDairyDemandPerHead(market, 10, [0], 14, 14);
     expect(demand.milkLiters * 0.033 + demand.cheeseKilograms * 0.25).toBeCloseTo(1.95);
+  });
+
+  it("follows bought-in cheese where the herds give less", () => {
+    const market = {
+      i: 7,
+      dairyTraditionLitersPerHead: 0,
+      dairyEatenLitersMark: 0,
+      foodProcessingLedger: {
+        Milk: { cellHarvestThisCycle: 0, householdConsumption: 0 },
+        Cheese: { householdConsumption: 0.01 }
+      }
+    } as unknown as Market;
+    // 0.01 lot = 10 kg of cheese = 100 L of milk in a month for 10 people: 120 L a person a year.
+    updateDairyTradition(market, 10, [0]);
+    expect(market.dairyTraditionLitersPerHead).toBeCloseTo(120 * (1 - 0.5 ** (1 / 120)));
+    setMarketSettings({ ...DEFAULT_MARKET_SETTINGS, dairyTraditionSource: "herdsOnly" });
+    market.dairyTraditionLitersPerHead = 0;
+    (market.foodProcessingLedger!.Cheese as { householdConsumption: number }).householdConsumption = 0.02;
+    updateDairyTradition(market, 10, [0]);
+    expect(market.dairyTraditionLitersPerHead).toBe(0);
   });
 
   it("keeps the old fixed targets when chosen", () => {

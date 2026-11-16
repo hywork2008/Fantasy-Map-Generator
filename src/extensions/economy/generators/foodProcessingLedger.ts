@@ -411,16 +411,8 @@ function getRaisinSeasonWeight(market: Market): number {
   return isRaisinSeasonMonth(getSimulationMonth(), latitude) ? winter : 2 - winter;
 }
 
-/**
- * Stored raisins lose a share each month, more in warm damp months; stock above a year of the towns'
- * raisins is old fruit past the next vintage and spoils (docs/plan/raisin-trade.md §3.2).
- */
-function spoilStoredRaisins(market: Market): void {
-  const good = getGoods().find(candidate => candidate.name === "Raisins");
-  const ledger = getGoodLedger(market, "Raisins");
-  if (!good || !ledger) return;
-  const stock = Math.max(0, market.goods[good.i]?.stock ?? 0);
-  if (stock <= 0) return;
+/** This month's store climate factor for a market (getStorageClimateLossMultiplier). */
+function getMarketStoreClimateFactor(market: Market): number {
   const climate = getMarketClimate(market);
   const world = getWorldContext();
   const temperature = climate
@@ -438,10 +430,38 @@ function spoilStoredRaisins(market: Market): void {
         world.options?.axialTilt
       )
     : Number.NaN;
-  const rate = Math.min(
-    1,
-    getRaisinStorageLoss() * getStorageClimateLossMultiplier(temperature, climate?.precipitation ?? Number.NaN)
-  );
+  return getStorageClimateLossMultiplier(temperature, climate?.precipitation ?? Number.NaN);
+}
+
+/**
+ * Stored cheese loses a share each month to drying, mites, mould and rats, more in warm damp
+ * months (docs/plan/dairy-demand.md §3.5). A hard cheese keeps past a year, so there is no age cap.
+ */
+function spoilStoredCheese(market: Market): void {
+  const good = getGoods().find(candidate => candidate.name === "Cheese");
+  const ledger = getGoodLedger(market, "Cheese");
+  if (!good || !ledger) return;
+  const stock = Math.max(0, market.goods[good.i]?.stock ?? 0);
+  if (stock <= 0) return;
+  const rate = Math.min(1, getMarketSettings().cheeseStorageLossPerMonth * getMarketStoreClimateFactor(market));
+  const lost = stock * rate;
+  if (!(lost > 0)) return;
+  market.goods[good.i].stock = stock - lost;
+  ledger.spoilage += lost;
+  recordGoodFlow({ direction: "sink", category: "spoilage", goodId: good.i, units: lost, marketId: market.i });
+}
+
+/**
+ * Stored raisins lose a share each month, more in warm damp months; stock above a year of the towns'
+ * raisins is old fruit past the next vintage and spoils (docs/plan/raisin-trade.md §3.2).
+ */
+function spoilStoredRaisins(market: Market): void {
+  const good = getGoods().find(candidate => candidate.name === "Raisins");
+  const ledger = getGoodLedger(market, "Raisins");
+  if (!good || !ledger) return;
+  const stock = Math.max(0, market.goods[good.i]?.stock ?? 0);
+  if (stock <= 0) return;
+  const rate = Math.min(1, getRaisinStorageLoss() * getMarketStoreClimateFactor(market));
   const kept = stock * (1 - rate);
   const cap = getMeanMonthlyRaisinDemand(market) * GRAPE_TARGETS.raisinsReserveMonths;
   const lost = stock - Math.min(kept, cap);
@@ -897,6 +917,7 @@ export function settleFoodProcessingHouseholds(): void {
     }
 
     spoilStoredRaisins(market);
+    spoilStoredCheese(market);
 
     // Raw fish/meat/shellfish shares the no-cold-chain lifecycle even though these goods do not
     // have the specialised Milk/Grapes household ledger. Preserve this tag-driven path so future

@@ -10,8 +10,9 @@
 - §3.2の基準の値段を作る費用から決める設定 `cheeseReferencePrice`（`productionCost` 既定 / `goodValue`）を実装済み（2026-11-17）。計測は [dairy-cost-20261117.md](../analytics/dairy-cost-20261117.md)。食べたチーズは7.3 kg、搾った牛乳の98%を使い、値段の中央値は作る費用（約30）とほぼ同じ。
 - §3.3を実装済み（2026-11-17）。上限 `animalProteinCapGramsPerDay` 既定30 g/日（仮値）から、市場の1人あたりの肉（1年の指数平均、蛋白150 g/kg の仮値）を引いた残りまでに乳製品の需要を収める。主食が足りない時は、チーズの値段で需要を減らさない。計測は [dairy-cap-20261117.md](../analytics/dairy-cap-20261117.md)。動物性の蛋白は約14 g/日で、上限は効かない。
 - 牛乳の値段を、市場の需要と在庫ではなく、基準の値 × 市場の物価にした（2026-11-17）。牛乳は冷やして運べず、ほとんどはチーズにされて町の在庫に並ばない。計測は [milk-value-20261117.md](../analytics/milk-value-20261117.md)。牛乳の値段は2.99（上限）→ 1.32、チーズの値段の中央値は30.5 → 14.4、食べたチーズは6.6 kg。
-- `cellCheeseSale` に `allMilk` を足した（既定ではない）。チーズの在庫が古くならず、年約3,300ロット積み上がる。
-- 未実装: チーズの在庫が古くなること、§3.1の輸入を伝統に入れること、魚を上限に入れること。
+- `cellCheeseSale` に `allMilk` を足した。§3.5のチーズの蓄えの減り（月2%、仮値）を入れた後、在庫が需要の約1.5か月分で釣り合うので、`allMilk` を既定にした（2026-11-17）。計測は [cheese-storage-20261117.md](../analytics/cheese-storage-20261117.md)。食べたチーズは6.9 kg、搾った牛乳を全て使い、値段の中央値は13.7。
+- §3.1の買った分を伝統に入れることを実装済み（2026-11-17）。設定 `dairyTraditionSource`（`herdsAndPurchases` 既定 / `herdsOnly`）。伝統は家畜の乳と、食べた量（牛乳に直した量）の多い方へ寄る。計測は [dairy-tradition-purchases-20261117.md](../analytics/dairy-tradition-purchases-20261117.md)。地図2103には家畜のいない市場が無く、効きは小さい。
+- 未実装: 魚を上限に入れること。魚は食べた量の帳簿も流れの記録も無く、主食と一緒に数えられているとみられる。食べた魚を記録する調べが先に要る。
 - `src/simulation/__golden__/node.json` を更新した。browser.json は未更新。
 
 ## 1. 決めたこと（2026-11-16、ユーザー）
@@ -60,6 +61,15 @@
 - [dairy-supply-use.md](dairy-supply-use.md) §3.2・§8 の自家消費（自分の牛乳の `ruralCheeseEatShare` まで）は残す。農家の需要も §3.1〜§3.3 で決める。
 - 自家消費は値段を払わないので、値段の項は農家渡しの値段で考える。売れば得られた値段を捨てて食べる扱い。
 
+### 3.5 チーズの蓄えの減り（2026-11-17 追加）
+
+- 市場に蓄えたチーズは、毎月 `cheeseStorageLossPerMonth`（既定2%、仮値）× 蓄えの気候の係数（`getStorageClimateLossMultiplier`、干しぶどう・穀物と同じ）だけ失われる。乾き・ダニ・黴・鼠による。
+- 硬いチーズは1年を越えて持つので、干しぶどうのような年数の上限は置かない。
+- 歴史の理解（未確認、研究書の該当箇所は確かめていない）:
+  - 中世のイングランドのチーズは、乳を出す季節に作り、冬から翌年まで食べる硬い・半硬いチーズが多かったとされる。脱脂乳の硬いチーズは長く持つが、安い。
+  - 長く熟成させる高価なチーズの例は、北イタリアのパルミジャーノ（14世紀の文学に名が出る）、アルプスのチーズ、低地地方のチーズとされる。気候（涼しい地下室・高地）・塩・技術・取引の網による。
+  - 熟成した高価なチーズは、この設計では扱わない（§6）。
+
 ## 4. 設定
 
 | 設定 | 既定 | 範囲 |
@@ -68,6 +78,8 @@
 | `dairyTraditionHalfLifeYears` | 10 | 1〜50 |
 | `cheesePriceElasticity` | −0.8 | −2〜0 |
 | `animalProteinCapGramsPerDay` | 30 | 5〜80 |
+| `cheeseStorageLossPerMonth` | 0.02 | 0〜0.1 |
+| `dairyTraditionSource` | `herdsAndPurchases`（新）/ `herdsOnly` | — |
 | `cheeseReferencePrice` | `productionCost`（新）/ `goodValue`（基準の値14） | — |
 
 ## 5. 計測
@@ -84,3 +96,5 @@
 4. 羊の数。100人あたり羊はシム112頭、Allen の1300年の表で456頭（輸出の羊毛の群れを含む）。羊の乳を搾る量は、羊が史料の数なら1人約140 Lまで増える。羊の差は荒蕪地の放牧の扱いとして親計画（[historical-economy-production-consumption-circulation.md](historical-economy-production-consumption-circulation.md) E1-3）の残課題にある。
 5. 乳を出す季節（今は3〜10月の固定）。
 6. 同じ仕組みを、肉・飲み物（[drink-price-allocation.md](drink-price-allocation.md)）とそろえるか。飲み物の案は好み × 値段の多項ロジットで、§3.1の伝統は好み `w_d` に相当する。
+7. 長く熟成させる高価なチーズ（§3.5）。気候・塩・技術・文化で、熟成の品と、ふつうのチーズを分けるか。
+8. 町の近くで牛を飼い、生の牛乳を売る小さな商い。町の生の牛乳の需要（1人・年約2 L）は満たされないまま（[milk-value-20261117.md](../analytics/milk-value-20261117.md) §0）。
