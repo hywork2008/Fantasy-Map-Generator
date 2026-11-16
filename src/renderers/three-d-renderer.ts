@@ -190,6 +190,16 @@ export function getWaterSurfaceHeight(
   return feature?.type === "lake" && feature.height > SEA_LEVEL ? feature.height : SEA_LEVEL;
 }
 
+/** Opaque 8-bit output. The default half-float target exists for HDR, and this view does not tone-map. */
+function createMapWebGPURenderer(canvas: HTMLCanvasElement): WebGPURenderer {
+  return new WebGPURenderer({
+    canvas,
+    antialias: true,
+    alpha: false,
+    outputBufferType: THREE.UnsignedByteType
+  });
+}
+
 class ThreeDModule {
   options: ThreeDOptions = {
     scale: 50,
@@ -717,7 +727,7 @@ class ThreeDModule {
     this.spotLight.shadow.mapSize.height = 2048;
     this.scene.add(this.spotLight);
 
-    this.Renderer = new WebGPURenderer({ canvas, antialias: true });
+    this.Renderer = createMapWebGPURenderer(canvas);
     await this.Renderer.init();
     // Matches updateGlobeTexure()'s renderer below: the terrain CanvasTexture is left at its
     // default colorSpace (untagged), so the output needs to be encoded to sRGB here for the
@@ -2052,7 +2062,7 @@ class ThreeDModule {
       () => this.render()
     );
 
-    this.Renderer = new WebGPURenderer({ canvas, antialias: true });
+    this.Renderer = createMapWebGPURenderer(canvas);
     await this.Renderer.init();
     this.Renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.Renderer.setSize(canvas.width, canvas.height);
