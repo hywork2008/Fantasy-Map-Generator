@@ -1122,38 +1122,12 @@ export function buildFortressPlan(
     ? (document.mesh.vertices[gate.vertexId]?.point ?? [center[0], center[1] - 20])
     : [center[0], center[1] - 20];
 
-  let plan: FortressPlan;
-  switch (profile.style) {
-    case "japanese-shiro":
-      plan = buildJapaneseShiro(ring, center, gatePoint, castle.parts);
-      break;
-    case "concentric":
-      plan = buildConcentric(ring, center, gatePoint, castle.parts);
-      break;
-    case "bastion-citadel":
-      plan = buildBastionCitadel(ring, center, gatePoint, castle.parts);
-      break;
-    case "motte-bailey":
-      plan = buildMotteBailey(ring, center, gatePoint, castle.parts);
-      break;
-    case "norman-keep":
-      plan = buildNormanKeep(ring, center, gatePoint, castle.parts);
-      break;
-    case "islamic-qalat":
-      plan = buildIslamicQalat(ring, center, gatePoint, castle.parts);
-      break;
-    case "ancient-castra":
-      plan = buildAncientCastra(ring, center, gatePoint, castle.parts);
-      break;
-    case "late-roman-walled-town":
-      plan = buildLateRomanWalledTown(ring, center, gatePoint, castle.parts);
-      break;
-    default:
-      plan = buildNormanKeep(ring, center, gatePoint, castle.parts);
-      break;
-  }
-  scaleToWallWidth(
-    applySavedBuildings(plan, castle.parts, profile),
+  const plan = styledFortress(
+    ring,
+    center,
+    gatePoint,
+    castle.parts,
+    profile,
     castleWallWidthMeters(document, castle),
     castleTowerRadiusMeters(document, castle)
   );
@@ -1179,5 +1153,64 @@ export function buildFortressPlan(
         plan.towers.some(tower => Math.hypot(tower.point[0] - prop.point[0], tower.point[1] - prop.point[1]) < 1e-6)
     );
   }
+  return plan;
+}
+
+/** The style's works on a curtain ring, scaled to the wall: everything of `buildFortressPlan` that needs no cells. */
+function styledFortress(
+  ring: Point[],
+  center: Point,
+  gatePoint: Point,
+  parts: CastlePart[],
+  profile: CastleStyleProfile,
+  wallWidth: number,
+  towerRadius: number
+): FortressPlan {
+  let plan: FortressPlan;
+  switch (profile.style) {
+    case "japanese-shiro":
+      plan = buildJapaneseShiro(ring, center, gatePoint, parts);
+      break;
+    case "concentric":
+      plan = buildConcentric(ring, center, gatePoint, parts);
+      break;
+    case "bastion-citadel":
+      plan = buildBastionCitadel(ring, center, gatePoint, parts);
+      break;
+    case "motte-bailey":
+      plan = buildMotteBailey(ring, center, gatePoint, parts);
+      break;
+    case "norman-keep":
+      plan = buildNormanKeep(ring, center, gatePoint, parts);
+      break;
+    case "islamic-qalat":
+      plan = buildIslamicQalat(ring, center, gatePoint, parts);
+      break;
+    case "ancient-castra":
+      plan = buildAncientCastra(ring, center, gatePoint, parts);
+      break;
+    case "late-roman-walled-town":
+      plan = buildLateRomanWalledTown(ring, center, gatePoint, parts);
+      break;
+    default:
+      plan = buildNormanKeep(ring, center, gatePoint, parts);
+      break;
+  }
+  scaleToWallWidth(applySavedBuildings(plan, parts, profile), wallWidth, towerRadius);
+  return plan;
+}
+
+/**
+ * A castle of `profile`'s style on a cell-free curtain ring with its gate (meshless P4e). The towers are fitted to
+ * the ring as in `buildFortressPlan`; the coastal bastion filter needs the mesh editor's sea cells and is not run.
+ */
+export function buildFortressPlanOnRing(
+  ring: Point[],
+  gatePoint: Point,
+  profile: CastleStyleProfile,
+  wallWidth = BASE_CASTLE_WALL_METERS
+): FortressPlan {
+  const plan = styledFortress(ring, polygonCentroid(ring), gatePoint, [], profile, wallWidth, wallWidth * 1.05);
+  fitTowers(plan, ring);
   return plan;
 }

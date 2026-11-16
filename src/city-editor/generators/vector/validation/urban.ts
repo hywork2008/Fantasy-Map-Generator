@@ -2,13 +2,16 @@ import RBush from "rbush";
 import { residentialStoreys } from "../../../../utils/urbanMorphology";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorStage } from "../../../types/vector/urban";
-import { polygonArea } from "../../geom";
-import { dwellingCapacity } from "../../residentialCapacityFormula";
+import { nearestOnPolyline, polygonArea } from "../../geom";
+import { FABRIC_ENTRANCE_TOLERANCE_METERS } from "../fabric/houses";
+import { fabricLine, isDetachedFabricLine } from "../fabric/lines";
 import {
   allocateVectorResidents,
+  perimeterHouseDwellings,
   VECTOR_HOUSE_FLOOR_AREA,
   VECTOR_HOUSE_SHARE,
   VECTOR_HOUSE_STOREYS,
+  vectorFabricDwellings,
   vectorHouseDwellings,
   vectorPlacementDwellings
 } from "../generation/urbanCapacity";
@@ -16,6 +19,7 @@ import { matchesVectorUrbanFingerprint } from "../generation/urbanState";
 import { evaluateAnchor } from "../geometry/curves";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { simpleContour } from "../geometry/surfaces";
+import { vectorOccupiedSites } from "../occupancy";
 import { validateVectorGeneration } from "./generation";
 
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -23,6 +27,24 @@ const keys = (v: unknown, names: string, optional = "") =>
   object(v) &&
   names.split(",").every(k => Object.hasOwn(v, k)) &&
   Object.keys(v).every(k => [...names.split(","), ...optional.split(",")].includes(k));
+const WARD_KINDS = new Set([
+  "castle",
+  "market",
+  "gate",
+  "cathedral",
+  "administration",
+  "merchant",
+  "craftsmen",
+  "military",
+  "patriciate",
+  "park",
+  "slum",
+  "farm",
+  "cemetery",
+  "empty",
+  "harbor",
+  "shanty"
+]);
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 1e8;
 const point = (v: unknown): v is [number, number] => Array.isArray(v) && v.length === 2 && v.every(finite);
 const id = (v: unknown): v is string =>
@@ -82,7 +104,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
         !b.entrances.length ||
         !b.entrances.every(
           e =>
-            keys(e, "id,point,outward,widthMeters,connector,accessIndex") &&
+            keys(e, "id,point,outward,widthMeters,connector", "accessIndex,fabricLine") &&
             typeof e.id === "string" &&
             point(e.point) &&
             point(e.outward) &&
@@ -92,8 +114,9 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
             Array.isArray(e.connector) &&
             e.connector.length >= 2 &&
             e.connector.every(point) &&
-            nonnegative(e.accessIndex) &&
-            e.accessIndex < p.accesses.length
+            (e.fabricLine === undefined
+              ? nonnegative(e.accessIndex) && e.accessIndex < p.accesses.length
+              : e.accessIndex === undefined && typeof e.fabricLine === "string" && e.fabricLine.length <= 256)
         ) ||
         !nonnegative(b.dwellings) ||
         !finite(b.floorFootprintMeters2) ||
@@ -109,9 +132,11 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
           (!finite(b.riverbankDistanceMeters) || b.riverbankDistanceMeters < 0)) ||
         (b.kind === "housing" &&
           (p.modelId === "ce-perimeter-house"
-            ? b.storeys !== residentialStoreys(doc.context.historicalPeriod).standard ||
+            ? // P3b: storeys vary by street block and the height limit, never past the period's maximum.
+              b.storeys < 1 ||
+              b.storeys > residentialStoreys(doc.context.historicalPeriod).maximum ||
               Math.abs(b.floorFootprintMeters2 - b.footprint.reduce((n, p) => n + regionArea(p), 0)) > 1e-5 ||
-              b.dwellings !== dwellingCapacity(b.floorFootprintMeters2, b.storeys, b.residentialShare)
+              b.dwellings !== perimeterHouseDwellings(b.floorFootprintMeters2, b.storeys, b.residentialShare)
             : b.storeys !== VECTOR_HOUSE_STOREYS ||
               b.floorFootprintMeters2 !== VECTOR_HOUSE_FLOOR_AREA ||
               b.residentialShare !== VECTOR_HOUSE_SHARE ||
@@ -132,13 +157,34 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     !doc.site ||
     !keys(
       u,
-      "algorithm,inputRevision,settings,baseGeneration,baseConnections,baseContext,domain,laneBlocks,residualLand,districts,ownedPaths,ownedPlacements,adoptedFingerprint,checkpoints,assignments,report"
+      "algorithm,inputRevision,settings,baseGeneration,baseConnections,baseContext,domain,laneBlocks,residualLand,districts,ownedPaths,ownedPlacements,adoptedFingerprint,checkpoints,assignments,report",
+      "parks,wells"
     ) ||
-    u.algorithm !== "vector-urban-v1" ||
+    ![
+      "vector-urban-v1",
+      "vector-urban-v2",
+      "vector-urban-v3",
+      "vector-urban-v4",
+      "vector-urban-v5",
+      "vector-urban-v6",
+      "vector-urban-v7",
+      "vector-urban-v8",
+      "vector-urban-v9",
+      "vector-urban-v10",
+      "vector-urban-v11",
+      "vector-urban-v12",
+      "vector-urban-v13",
+      "vector-urban-v14",
+      "vector-urban-v15",
+      "vector-urban-v16",
+      "vector-urban-v17",
+      "vector-urban-v18"
+    ].includes(u.algorithm) ||
     !nonnegative(u.inputRevision) ||
     !keys(
       u.settings,
-      "mode,population,houseModelId,laneWidthMeters,laneSpacingMeters,maxLanes,clearanceMeters,allowExpansion"
+      "mode,population,houseModelId,laneWidthMeters,laneSpacingMeters,maxLanes,clearanceMeters,allowExpansion",
+      "lotOccupancy,tanneryBends"
     ) ||
     !["medieval", "medieval-facilities"].includes(u.settings.mode) ||
     !nonnegative(u.settings.population) ||
@@ -156,6 +202,9 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     u.settings.clearanceMeters < 0.2 ||
     u.settings.clearanceMeters > 5 ||
     typeof u.settings.allowExpansion !== "boolean" ||
+    (u.settings.lotOccupancy !== undefined &&
+      (!Number.isFinite(u.settings.lotOccupancy) || u.settings.lotOccupancy < 0.1 || u.settings.lotOccupancy > 1)) ||
+    (u.settings.tanneryBends !== undefined && !["continuous", "leat"].includes(u.settings.tanneryBends)) ||
     !object(u.baseGeneration) ||
     !object(u.baseContext) ||
     !keys(u.baseConnections, "nodes,edges,gates,circuits,bridges,wallRoads") ||
@@ -169,12 +218,56 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     !Array.isArray(u.districts) ||
     !u.districts.every(
       d =>
-        keys(d, "id,use,inside,polygon") &&
+        keys(d, "id,use,inside,polygon", "ward,craftDomain") &&
+        (d.ward === undefined || WARD_KINDS.has(d.ward)) &&
+        (d.craftDomain === undefined || (d.ward === "craftsmen" && typeof d.craftDomain === "string")) &&
         id(d.id) &&
         ["commerce", "craft", "hazard", "river", "residential"].includes(d.use) &&
         typeof d.inside === "boolean" &&
         polygon(d.polygon)
     ) ||
+    (u.parks !== undefined &&
+      (!Array.isArray(u.parks) ||
+        u.parks.length > 2000 ||
+        !u.parks.every(
+          k =>
+            keys(k, "id,lawns,paths,tufts,trees") &&
+            id(k.id) &&
+            Array.isArray(k.lawns) &&
+            k.lawns.length > 0 &&
+            k.lawns.every(l => polygon({ outer: l, holes: [] })) &&
+            [k.paths, k.tufts, k.trees].every(Array.isArray) &&
+            k.paths.every(l => Array.isArray(l) && l.length >= 2 && l.every(point)) &&
+            k.tufts.every(point) &&
+            k.trees.every(
+              t =>
+                keys(t, "center,radius,subCircles") &&
+                point(t.center) &&
+                finite(t.radius) &&
+                t.radius > 0 &&
+                Array.isArray(t.subCircles) &&
+                t.subCircles.every(c => keys(c, "offset,radius") && point(c.offset) && finite(c.radius) && c.radius > 0)
+            )
+        ))) ||
+    (u.wells !== undefined &&
+      (!Array.isArray(u.wells) ||
+        u.wells.length > 200 ||
+        !u.wells.every(
+          w =>
+            keys(w, "id,kind,name,center,radius,footprint,access,placement,use") &&
+            id(w.id) &&
+            ["well", "publicBasin", "cistern", "spring", "pond"].includes(w.kind) &&
+            typeof w.name === "string" &&
+            point(w.center) &&
+            finite(w.radius) &&
+            w.radius > 0 &&
+            polygon({ outer: w.footprint, holes: [] }) &&
+            Array.isArray(w.access) &&
+            w.access.length >= 2 &&
+            w.access.every(point) &&
+            ["plaza", "neighborhood", "outskirts"].includes(w.placement) &&
+            ["domestic", "service"].includes(w.use)
+        ))) ||
     !Array.isArray(u.ownedPaths) ||
     !u.ownedPaths.every(id) ||
     !Array.isArray(u.ownedPlacements) ||
@@ -217,7 +310,10 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       .every(([, v]) => nonnegative(v)) ||
     !Array.isArray(r.unplacedFacilities) ||
     !r.unplacedFacilities.every(
-      f => keys(f, "id,reason") && id(f.id) && ["space", "river", "district", "budget", "unsearched"].includes(f.reason)
+      f =>
+        keys(f, "id,reason") &&
+        id(f.id) &&
+        ["space", "river", "district", "budget", "unsearched", "frame"].includes(f.reason)
     ) ||
     !Array.isArray(r.reasons) ||
     !r.reasons.every(k => typeof k === "string")
@@ -240,6 +336,13 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     generation: u.baseGeneration
   };
   if (validateVectorGeneration(baseline).length) errors.push("urban-baseline");
+  // Fabric records belong to the urban generation that wrote them.
+  if (doc.fabric && doc.fabric.algorithm !== u.algorithm) errors.push("urban-fabric");
+  const fabricDwellings = vectorFabricDwellings(doc),
+    fabricHouses = Object.values(doc.fabric?.cells ?? {}).reduce(
+      (n, c) => n + c.houses.offsets.length - c.detached.length,
+      0
+    );
   if (u.inputRevision === doc.revision) {
     if (
       !matchesVectorUrbanFingerprint(doc, u.adoptedFingerprint) ||
@@ -252,7 +355,9 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
         c.pathIds.some(id => !doc.paths[id]) ||
         c.placementIds.some(id => !doc.placements[id]) ||
         new Set(c.placementIds).size !== c.placementIds.length ||
-        c.capacityDwellings !== c.placementIds.reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0)
+        c.capacityDwellings !==
+          c.placementIds.reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0) +
+            (c.id === "housing" ? fabricDwellings : 0)
       )
         errors.push("urban-visible-capacity");
     }
@@ -262,9 +367,10 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       new Set(u.ownedPlacements).size !== u.ownedPlacements.length ||
       owned.some(p => !p?.building) ||
       u.settings.population !== r.targetPopulation ||
-      r.capacityDwellings !== Object.values(doc.placements).reduce((n, p) => n + vectorPlacementDwellings(p), 0) ||
+      r.capacityDwellings !==
+        Object.values(doc.placements).reduce((n, p) => n + vectorPlacementDwellings(p), 0) + fabricDwellings ||
       owned.filter(p => p?.building?.kind === "facility").length !== r.placedFacilities ||
-      owned.filter(p => p?.building?.kind === "housing").length !== r.housingBuildings
+      owned.filter(p => p?.building?.kind === "housing").length + fabricHouses !== r.housingBuildings
     )
       errors.push("urban-result");
     const tree = new RBush<{
@@ -308,6 +414,13 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       )
         errors.push("urban-footprint");
       for (const entrance of b.entrances) {
+        if (entrance.accessIndex === undefined) {
+          // A facility on the CE street blocks opens onto a fabric street or lane; the line itself is checked below
+          // with every fabric entrance.
+          if (entrance.fabricLine === undefined || !containsRegion(b.reserved, entrance.point))
+            errors.push("urban-entrance");
+          continue;
+        }
         const a = p.accesses[entrance.accessIndex],
           end = evaluateAnchor(doc.paths[a.pathId], a),
           last = entrance.connector.at(-1)!;
@@ -319,6 +432,23 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
           errors.push("urban-entrance");
       }
     }
+    // Lines moved to paths keep that road, and their joins end on a fabric line still drawn.
+    for (const record of [...Object.values(doc.fabric?.districts ?? {}), ...Object.values(doc.fabric?.cells ?? {})])
+      for (const l of record.detachedLines ?? [])
+        if (
+          doc.paths[l.pathId]?.role !== "road" ||
+          l.joins.some(j => !fabricLine(doc.fabric, j.line) || isDetachedFabricLine(doc.fabric, j.line))
+        )
+          errors.push(`urban-fabric-detached-line:${l.pathId}`);
+    // Detached houses keep their entrance on a fabric street or lane.
+    for (const p of Object.values(doc.placements))
+      for (const entrance of p.building?.entrances ?? []) {
+        if (entrance.fabricLine === undefined) continue;
+        const line = fabricLine(doc.fabric, entrance.fabricLine),
+          last = entrance.connector.at(-1)!;
+        if (!line || nearestOnPolyline(last, line.points).dist > FABRIC_ENTRANCE_TOLERANCE_METERS)
+          errors.push(`urban-fabric-entrance:${p.id}`);
+      }
     for (const c of u.checkpoints) {
       if (
         c.placementIds.some(
@@ -329,7 +459,13 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
         )
       )
         errors.push("urban-stage-order");
-      const allocation = allocateVectorResidents(doc, c.placementIds, r.requiredDwellings, r.targetPopulation);
+      const allocation = allocateVectorResidents(
+        doc,
+        c.placementIds,
+        r.requiredDwellings,
+        r.targetPopulation,
+        c.id === "housing"
+      );
       if (
         c.assignedDwellings !== allocation.assignedDwellings ||
         c.assignedPopulation !== allocation.assignedPopulation ||
@@ -341,10 +477,41 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       u.assignments.some(
         a => !doc.placements[a.placementId] || a.dwellings > vectorPlacementDwellings(doc.placements[a.placementId])
       ) ||
-      u.assignments.reduce((n, a) => n + a.dwellings, 0) !== r.assignedDwellings ||
-      u.assignments.reduce((n, a) => n + a.population, 0) !== r.assignedPopulation
+      (doc.fabric
+        ? // Fabric houses hold the rest; their shares are recomputed, never saved.
+          (() => {
+            const housing = u.checkpoints.find(c => c.id === "housing"),
+              allocation = allocateVectorResidents(
+                doc,
+                housing?.placementIds ?? [],
+                r.requiredDwellings,
+                r.targetPopulation,
+                true
+              );
+            return (
+              JSON.stringify(allocation.assignments) !== JSON.stringify(u.assignments) ||
+              allocation.assignedDwellings !== r.assignedDwellings ||
+              allocation.assignedPopulation !== r.assignedPopulation
+            );
+          })()
+        : u.assignments.reduce((n, a) => n + a.dwellings, 0) !== r.assignedDwellings ||
+          u.assignments.reduce((n, a) => n + a.population, 0) !== r.assignedPopulation)
     )
       errors.push("urban-assignment");
+    // Generated houses may not overlap a placement's reserved land.
+    if (doc.fabric) {
+      const fabricHousesOverlap = vectorOccupiedSites({ ...doc, placements: {} }, "reserved").some(house =>
+        tree
+          .search({
+            minX: Math.min(...house.outer.map(p => p[0])),
+            minY: Math.min(...house.outer.map(p => p[1])),
+            maxX: Math.max(...house.outer.map(p => p[0])),
+            maxY: Math.max(...house.outer.map(p => p[1]))
+          })
+          .some(q => regionBoolean([house], [q.polygon], "intersection").some(a => regionArea(a) > 1e-5))
+      );
+      if (fabricHousesOverlap) errors.push("urban-overlap");
+    }
   }
   return errors;
 }

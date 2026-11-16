@@ -462,7 +462,10 @@ export const CASTLE_STYLE_PROFILES: Record<CastleStyle, CastleStyleProfile> = {
 /**
  * Resolves the appropriate castle style based on historicalPeriod, culture/burialProfile, and optional overrides.
  */
-export function resolveCastleStyle(document: CityDocument, castle?: CastlePlan | null): CastleStyleProfile {
+export function resolveCastleStyle(
+  document: Pick<CityDocument, "historicalPeriod" | "civilization" | "burialProfile">,
+  castle?: CastlePlan | null
+): CastleStyleProfile {
   // If the castle has an explicit style recorded, honor it
   const explicit = (castle as unknown as { castleStyle?: CastleStyle })?.castleStyle;
   if (explicit && CASTLE_STYLE_PROFILES[explicit]) {

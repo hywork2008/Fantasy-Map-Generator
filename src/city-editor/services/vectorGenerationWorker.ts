@@ -1,9 +1,14 @@
 import { generateVectorSkeleton } from "../generators/vector/generation/pipeline";
-import { generateVectorUrban } from "../generators/vector/generation/urban";
+import { generateVectorUrbanAsync } from "../generators/vector/generation/urban";
+import { createVectorDistrictPool, vectorDistrictWorkerCount } from "./vectorDistrictPool";
 import type { VectorGenerationReply, VectorGenerationRequest } from "./vectorGenerationWorkerClient";
 
-self.onmessage = ({ data }: MessageEvent<VectorGenerationRequest>) => {
+self.onmessage = async ({ data }: MessageEvent<VectorGenerationRequest>) => {
   const { id, inputRevision, source, task } = data;
+  // Districts are planned in nested workers where the browser allows them; the result does not depend on it.
+  const pool = createVectorDistrictPool(
+    typeof Worker === "undefined" ? 1 : (data.districtWorkers ?? vectorDistrictWorkerCount())
+  );
   try {
     if (source.revision !== inputRevision) throw new Error("generation-revision");
     const progress = (
@@ -11,13 +16,15 @@ self.onmessage = ({ data }: MessageEvent<VectorGenerationRequest>) => {
       completed?: number,
       total?: number
     ) => self.postMessage({ id, inputRevision, progress: { phase, completed, total } } satisfies VectorGenerationReply);
+    const plan = pool.plan.bind(pool);
     progress("skeleton");
     const result =
       task.kind === "city"
         ? {
-            document: generateVectorUrban(
+            document: await generateVectorUrbanAsync(
               generateVectorSkeleton(source, task.settings).document,
               task.urban,
+              plan,
               undefined,
               { progress }
             ),
@@ -25,7 +32,10 @@ self.onmessage = ({ data }: MessageEvent<VectorGenerationRequest>) => {
           }
         : task.kind === "skeleton"
           ? generateVectorSkeleton(source, task.settings)
-          : { document: generateVectorUrban(source, task.settings, undefined, { progress }), stages: [] };
+          : {
+              document: await generateVectorUrbanAsync(source, task.settings, plan, undefined, { progress }),
+              stages: []
+            };
     self.postMessage({ id, inputRevision, result } satisfies VectorGenerationReply);
   } catch (error) {
     self.postMessage({
@@ -33,5 +43,7 @@ self.onmessage = ({ data }: MessageEvent<VectorGenerationRequest>) => {
       inputRevision,
       error: error instanceof Error ? error.message : String(error)
     } satisfies VectorGenerationReply);
+  } finally {
+    pool.dispose();
   }
 };

@@ -46,6 +46,18 @@ export interface VectorEnvironment {
   features: Record<string, VectorFeature>;
   landscape?: import("./landscape").VectorLandscape;
   harbor?: import("./harbor").VectorHarborPlan;
+  /** Ferries where roads meet rivers no bridge of the period spans (P5b-4), by id. */
+  ferries?: Record<string, import("./ferry").VectorFerry>;
+  /** Religious houses laid by the mesh editor's precinct planner (`fitMonastery`, P6c), by id. */
+  monasteries?: Record<string, import("./monastery").Monastery>;
+  /** Guild halls in the town and their yards outside it, by the mesh editor's guild rules (P6d). */
+  guilds?: import("./guild").VectorGuildWorks;
+  /** Wayside inns and caravanserais on the busiest approach, by the mesh editor's inn rules (P6e). */
+  inns?: import("./inn").GateInn[];
+  /** Windmills and the gallows beyond the town, by the mesh editor's aerial-landmark rules (P6f). */
+  landmarks?: import("./landmark").VectorOpenLandmarks;
+  /** Woodland raised by the forest settings, by the mesh editor's land-cover rules (P7b). */
+  forest?: import("./forest").VectorForest;
   defenses?: Record<string, import("./defense").VectorDefensePlan>;
   /** Freeform's authored ledger is the height/earthwork authority, not a synthetic cell mesh. */
   terrain?: FreeformCity;

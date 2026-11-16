@@ -1,11 +1,15 @@
 import { type EditorMessageKey, editorText } from "../../../i18n/editorMessages";
+import { type FortressFailureReason, fortressFailureMessage } from "../../generators/bastionedTown/validate";
+import { randomSeed } from "../../generators/generation/settings";
 import {
   type VectorEditorGenerationInput,
   vectorInputFromEditor
 } from "../../generators/vector/generation/editorInput";
 import { siteDisk, syntheticVectorInput, vectorInputFromDescriptor } from "../../generators/vector/generation/input";
 import { DEFAULT_VECTOR_GENERATION, type VectorGenerationResult } from "../../generators/vector/generation/pipeline";
-import { DEFAULT_VECTOR_URBAN } from "../../generators/vector/generation/urban";
+import { meshlessSettingGaps } from "../../generators/vector/generation/settingSupport";
+import { DEFAULT_VECTOR_URBAN, vectorUrbanMode } from "../../generators/vector/generation/urban";
+import { VECTOR_WALL_SHAPES, vectorWallChoice } from "../../generators/vector/generation/wallShape";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../../generators/vector/validation/document";
 import { vectorUrbanStages } from "../../generators/vector/validation/urban";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
@@ -13,9 +17,10 @@ import type { EditorLifetime } from "../../services/editorLifetime";
 import { parseIncomingPayload } from "../../services/io/incomingCity";
 import { startVectorGeneration, type VectorGenerationTask } from "../../services/vectorGenerationWorkerClient";
 import type { BurgSiteDescriptor } from "../../types/contracts/burgSiteDescriptor";
+import type { GenerationSettings } from "../../types/generation";
 import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorGenerationSettings } from "../../types/vector/generation";
-import type { VectorStage } from "../../types/vector/urban";
+import type { TanneryBends, VectorStage } from "../../types/vector/urban";
 
 const text = (key: string) => editorText(`cityEditor.vector.generation.${key}` as EditorMessageKey);
 export function createVectorGenerationPanel(
@@ -29,7 +34,9 @@ export function createVectorGenerationPanel(
   onRender?: (doc: VectorCityDocument, stage: VectorStage) => void,
   start = startVectorGeneration,
   readEntryKey?: () => object,
-  editorInput?: VectorEditorGenerationInput
+  editorInput?: VectorEditorGenerationInput,
+  /** Read-only current document for display; never mutated. Defaults to a copy. */
+  peek: () => Readonly<VectorCityDocument> = read
 ) {
   const details = document.createElement("details"),
     summary = document.createElement("summary"),
@@ -49,6 +56,32 @@ export function createVectorGenerationPanel(
         const li = document.createElement("li"),
           key = `cityEditor.vector.generation.diagnostics.${d.code}` as EditorMessageKey;
         li.textContent = `${editorText(key)} (${d.entityId})`;
+        return li;
+      })
+    );
+  };
+  // Settings the city was requested with that meshless does not generate yet (feature parity P1).
+  const gapBox = document.createElement("div"),
+    gapTitle = document.createElement("p"),
+    gapList = document.createElement("ul");
+  gapBox.dataset.vectorSettingGaps = "";
+  gapTitle.textContent = text("settingGaps.title");
+  gapTitle.style.cssText = "margin:4px 0 0;font-weight:bold";
+  gapList.className = "ce-vector-generation-setting-gaps";
+  gapBox.append(gapTitle, gapList);
+  const showSettingGaps = (doc: Readonly<VectorCityDocument>) => {
+    const requested = doc.context.requestedSettings ?? editorInput?.settings,
+      gaps = requested ? meshlessSettingGaps(requested as GenerationSettings) : [];
+    gapBox.hidden = !gaps.length;
+    gapList.replaceChildren(
+      ...gaps.map(g => {
+        const li = document.createElement("li");
+        li.dataset.settingGap = g.id;
+        li.textContent = editorText("cityEditor.vector.generation.settingGaps.item" as EditorMessageKey, {
+          value0: g.id,
+          value1: text(`settingGaps.states.${g.state}`),
+          value2: g.stage
+        });
         return li;
       })
     );
@@ -111,13 +144,18 @@ export function createVectorGenerationPanel(
     pending = undefined;
     adopt.disabled = true;
     const message = error instanceof Error ? error.message : "invalid-input",
+      fortress = message.match(/^fortress-[a-z-]+$/)?.[0] as FortressFailureReason | undefined,
       match =
         message.match(
           /urban-[a-z-]+|edited-urban|invalid-urban-settings|site-[a-z-]+|fixed-[a-z-]+|urban-generated|edited-generation|unbridged-road|bridge-[a-z-]+|generation-timeout|generation-worker|gate-access|region-[a-z-]+|route-budget|coastal-coverage-missing|invalid-generation-settings/
         )?.[0] ?? "invalid-input",
       key = `cityEditor.vector.generation.errors.${match}` as EditorMessageKey,
       translated = editorText(key);
-    status.textContent = translated === key ? `${text("errors.invalid-input")} (${message.slice(0, 180)})` : translated;
+    status.textContent = fortress
+      ? fortressFailureMessage(fortress)
+      : translated === key
+        ? `${text("errors.invalid-input")} (${message.slice(0, 180)})`
+        : translated;
     restore();
   };
   const seed = input("seed", editorInput?.seed ?? read().recipe.seed),
@@ -125,6 +163,9 @@ export function createVectorGenerationPanel(
     cx = number("centerX", 0),
     cy = number("centerY", 0),
     river = document.createElement("input");
+  // A typed seed is reproduced once; otherwise every Generate city press draws a new one.
+  let seedTyped = false;
+  scope.listen(seed, "input", () => (seedTyped = true));
   river.type = "checkbox";
   river.checked = true;
   field("river", river);
@@ -133,13 +174,16 @@ export function createVectorGenerationPanel(
     branches = number("branches", 8),
     wall = document.createElement("select");
   wall.dataset.generationField = "wall";
-  for (const value of ["none", "rectangle", "ellipse"]) {
+  for (const value of ["none", "rectangle", "ellipse", ...VECTOR_WALL_SHAPES]) {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = text(value);
     wall.append(option);
   }
   field("wall", wall);
+  // A wall picked in the panel wins over the editor's wall settings until the next document change.
+  let wallPicked = false;
+  scope.listen(wall, "change", () => (wallPicked = true));
   const stage = document.createElement("select");
   stage.dataset.generationField = "stage";
   const updateStages = (doc: VectorCityDocument) => {
@@ -288,8 +332,19 @@ export function createVectorGenerationPanel(
     option.textContent = value;
     mode.append(option);
   }
-  mode.value = "medieval";
+  mode.value = vectorUrbanMode(editorInput?.settings);
   field("mode", mode);
+  // How the tanners' row meets the river's bends: one continuous row (default) or a tanners' leat.
+  const tanneryBends = document.createElement("select");
+  tanneryBends.dataset.generationField = "tanneryBends";
+  for (const value of ["continuous", "leat"] as const) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = text(`tanneryBendsOptions.${value}`);
+    tanneryBends.append(option);
+  }
+  tanneryBends.value = "continuous";
+  field("tanneryBends", tanneryBends);
   const population = number(
       "population",
       editorInput?.settings.population?.targetPopulation ?? (read().context.targetPopulation || 1000)
@@ -297,6 +352,7 @@ export function createVectorGenerationPanel(
     laneSpacing = number("laneSpacing", 36),
     laneWidth = number("laneWidth", 2.4),
     maxLanes = number("maxLanes", 32),
+    occupancy = number("lotOccupancy", 100),
     expansion = document.createElement("input");
   expansion.type = "checkbox";
   expansion.checked = true;
@@ -322,6 +378,8 @@ export function createVectorGenerationPanel(
       diagnosticList.append(li);
     }
   };
+  /** Percent in the panel, a share in the settings. */
+  const lotOccupancy = () => Math.min(1, Math.max(0.1, Number(occupancy.value) / 100 || 1));
   button("develop", () => {
     run(
       {
@@ -333,7 +391,9 @@ export function createVectorGenerationPanel(
           laneSpacingMeters: Number(laneSpacing.value),
           laneWidthMeters: Number(laneWidth.value),
           maxLanes: Number(maxLanes.value),
-          allowExpansion: expansion.checked
+          allowExpansion: expansion.checked,
+          lotOccupancy: lotOccupancy(),
+          tanneryBends: tanneryBends.value as TanneryBends
         }
       },
       "develop"
@@ -362,22 +422,66 @@ export function createVectorGenerationPanel(
     scope.invalidate("import");
     scope.invalidate("vector-generation-input");
     stop();
+    if (!seedTyped) seed.value = randomSeed();
+    seedTyped = false;
     try {
+      const target = Number(population.value),
+        // The building generation chosen in this panel, not the one the editor opened with: it sizes the site for the
+        // facilities' land and lays them out.
+        urbanMode = mode.value as "medieval" | "medieval-facilities",
+        facilityLayout = urbanMode === "medieval-facilities" ? ("population" as const) : undefined;
+      // The site is planned for the population in this panel, not the one the editor opened with.
       const source = editorInput
-        ? vectorInputFromEditor({ ...editorInput, seed: seed.value })
+        ? vectorInputFromEditor({
+            ...editorInput,
+            seed: seed.value,
+            lotOccupancy: lotOccupancy(),
+            settings: {
+              ...editorInput.settings,
+              facilityLayout,
+              population: {
+                ...(editorInput.settings.population ?? {
+                  version: 1,
+                  source: "ce-override",
+                  housingDisplay: "auto",
+                  frameMode: "auto",
+                  profileId: "medieval-v1",
+                  profileVersion: 1
+                }),
+                targetPopulation: target
+              }
+            }
+          })
         : linked
           ? vectorInputFromDescriptor(linked)
-          : syntheticVectorInput(seed.value, Number(radius.value), river.checked);
-      source.context.targetPopulation = Number(population.value);
+          : syntheticVectorInput(seed.value, Number(radius.value), river.checked, true);
+      source.context.targetPopulation = target;
+      // The editor's wall settings decide the wall, resolved on this seed (P4a).
+      const editorWall =
+        editorInput && !wallPicked
+          ? vectorWallChoice(
+              editorInput.settings,
+              seed.value,
+              source.context.historicalPeriod,
+              editorInput.frame.extentMeters
+            )
+          : undefined;
+      if (editorWall) wall.value = editorWall.wall;
       run(
         {
           kind: "city",
           settings: {
             ...DEFAULT_VECTOR_GENERATION,
             seed: seed.value,
-            wall: editorInput?.settings.config.features.walls ? "ellipse" : "none"
+            ...(editorWall ?? { wall: wall.value as VectorGenerationSettings["wall"] })
           },
-          urban: { ...DEFAULT_VECTOR_URBAN, population: Number(population.value) }
+          urban: {
+            ...DEFAULT_VECTOR_URBAN,
+            mode: urbanMode,
+            population: target,
+            lotOccupancy: lotOccupancy(),
+            tanneryBends: tanneryBends.value as TanneryBends
+          }
         },
         "develop",
         source
@@ -391,7 +495,7 @@ export function createVectorGenerationPanel(
   status.style.cssText = "display:block;margin:8px 0";
   parent.insertBefore(generateCity, firstAction);
   parent.insertBefore(status, firstAction);
-  body.append(diagnosticList);
+  body.append(diagnosticList, gapBox);
   scope.listen(stage, "change", () => {
     const doc = pending?.stages.find(s => s.id === stage.value)?.document ?? pending?.document ?? read();
     draw(doc);
@@ -436,17 +540,28 @@ export function createVectorGenerationPanel(
       scope.invalidate("vector-generation-input");
       pending = undefined;
       adopt.disabled = true;
-      const doc = read();
+      const doc = peek();
       fmg.disabled = !linked && !doc.site?.descriptor;
       seed.value =
         doc.generation?.settings.seed ?? (doc.site ? doc.recipe.seed : (editorInput?.seed ?? doc.recipe.seed));
       width.value = String(doc.generation?.settings.roadWidthMeters ?? 5);
       clearance.value = String(doc.generation?.settings.clearanceMeters ?? 0.5);
       branches.value = String(doc.generation?.settings.branches ?? 8);
-      wall.value = doc.generation?.settings.wall ?? "none";
+      // Before any generation, the wall follows the editor's settings, as Generate city used to.
+      wall.value =
+        doc.generation?.settings.wall ??
+        (editorInput
+          ? vectorWallChoice(
+              editorInput.settings,
+              seed.value,
+              doc.context.historicalPeriod,
+              editorInput.frame.extentMeters
+            ).wall
+          : "none");
       showDiagnostics(doc);
+      showSettingGaps(doc);
       updateStages(doc);
-      mode.value = doc.urban?.settings.mode ?? "medieval";
+      mode.value = doc.urban?.settings.mode ?? vectorUrbanMode(editorInput?.settings);
       population.value = String(
         doc.urban?.settings.population ??
           (doc.context.targetPopulation ||
@@ -458,6 +573,8 @@ export function createVectorGenerationPanel(
       laneWidth.value = String(doc.urban?.settings.laneWidthMeters ?? 2.4);
       maxLanes.value = String(doc.urban?.settings.maxLanes ?? 32);
       expansion.checked = doc.urban?.settings.allowExpansion ?? true;
+      occupancy.value = String(Math.round((doc.urban?.settings.lotOccupancy ?? 1) * 100));
+      tanneryBends.value = doc.urban?.settings.tanneryBends ?? "continuous";
       stage.disabled = !!doc.generation && doc.generation.inputRevision !== doc.revision;
       status.textContent = doc.generation
         ? doc.generation.inputRevision === doc.revision

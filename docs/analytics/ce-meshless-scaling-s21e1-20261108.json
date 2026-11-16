@@ -1,0 +1,82 @@
+{
+  "format": "ce-meshless-edit-observation",
+  "version": 1,
+  "measuredOn": "2026-11-08",
+  "scope": "reconcileVectorEdit on the saved S2.1d documents: road auto-bridge-road:0 widened by 2 m on each side. One run each, Node + jsdom. before = commit d4031eff6.",
+  "inputs": {
+    "5000": "docs/analytics/raw/scaling-s21d-20261108/scaling-5000.json",
+    "50000": "docs/analytics/raw/scaling-s21d-20261108/scaling-50000.json"
+  },
+  "before": {
+    "5000": {
+      "reconcileMs": 2110,
+      "fabric": false,
+      "ownedPaths": 0,
+      "placements": 359,
+      "housingBuildings": 359,
+      "unplaced": 3386,
+      "bytes": 1328808
+    },
+    "50000": {
+      "reconcileMs": 5258,
+      "fabric": false,
+      "ownedPaths": 0,
+      "placements": 1305,
+      "housingBuildings": 1305,
+      "unplaced": 44128,
+      "bytes": 3561035
+    }
+  },
+  "after": {
+    "5000": {
+      "reconcileMs": 1601,
+      "fabric": true,
+      "ownedPaths": 0,
+      "placements": 0,
+      "housingBuildings": 1116,
+      "unplaced": 0,
+      "bytes": 1004436
+    },
+    "50000": {
+      "reconcileMs": 4709,
+      "fabric": true,
+      "ownedPaths": 0,
+      "placements": 0,
+      "housingBuildings": 11048,
+      "unplaced": 0,
+      "bytes": 6799665
+    }
+  },
+  "retention": {
+    "5000": {
+      "road": "auto-bridge-road:0",
+      "reconcileMs": 1594,
+      "cells": 91,
+      "sharedCells": 32,
+      "resultCells": 95,
+      "housesBefore": 1104,
+      "housesAfter": 1116,
+      "keptHousesInShared": 603,
+      "lostInShared": 0,
+      "gainedInShared": 0,
+      "unplacedBefore": 0,
+      "unplacedAfter": 0,
+      "ownedPaths": 0
+    },
+    "50000": {
+      "road": "auto-bridge-road:0",
+      "reconcileMs": 4739,
+      "cells": 646,
+      "sharedCells": 308,
+      "resultCells": 650,
+      "housesBefore": 11052,
+      "housesAfter": 11048,
+      "keptHousesInShared": 5716,
+      "lostInShared": 0,
+      "gainedInShared": 29,
+      "unplacedBefore": 0,
+      "unplacedAfter": 0,
+      "ownedPaths": 0
+    }
+  }
+}

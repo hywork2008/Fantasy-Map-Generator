@@ -11,6 +11,27 @@ export interface BvDefinition {
   create(): CityStructureMeshes;
   /** Transfers an opaque, non-indexed position/normal/color geometry to the prototype cache. */
   createGeometry?(): THREE.BufferGeometry;
+  /** Bake the model mirrored across its local x axis, with its triangles' winding kept outward. */
+  mirrorX?: boolean;
+}
+
+/** Mirror a baked, non-indexed geometry across x: positions and normals flip, and each triangle's second and third
+ * vertices swap so its faces still wind outward. */
+function mirrorGeometry(geometry: THREE.BufferGeometry): void {
+  geometry.applyMatrix4(new THREE.Matrix4().makeScale(-1, 1, 1));
+  for (const attribute of Object.values(geometry.attributes) as THREE.BufferAttribute[]) {
+    const size = attribute.itemSize,
+      array = attribute.array;
+    for (let v = 0; v + 2 < attribute.count; v += 3)
+      for (let c = 0; c < size; c++) {
+        const a = (v + 1) * size + c,
+          b = (v + 2) * size + c,
+          t = array[a];
+        array[a] = array[b];
+        array[b] = t;
+      }
+    attribute.needsUpdate = true;
+  }
 }
 interface Prototype {
   geometry: THREE.BufferGeometry;
@@ -23,6 +44,7 @@ interface Prototype {
 function bake(definition: BvDefinition): Prototype | undefined {
   if (definition.createGeometry) {
     const geometry = definition.createGeometry();
+    if (definition.mirrorX) mirrorGeometry(geometry);
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
     return {
@@ -70,6 +92,7 @@ function bake(definition: BvDefinition): Prototype | undefined {
     if (!supported || !parts.length) return;
     const geometry = mergeGeometries(parts);
     if (!geometry) return;
+    if (definition.mirrorX) mirrorGeometry(geometry);
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
     return {

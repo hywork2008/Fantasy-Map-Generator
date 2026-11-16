@@ -1,4 +1,5 @@
 import type { CityDocument, Id, Point } from "../types/document";
+import type { GuildHall, GuildYard, GuildYardKind } from "../types/vector/guild";
 import { MAX_BARBICAN_REACH_METERS } from "./defenseClearance";
 import { nearestOnPolyline, pointInPolygon, polygonArea } from "./geom";
 import type { PlannedGuildFacility } from "./guildFacilities";
@@ -6,37 +7,43 @@ import { facePoints } from "./mesh";
 import { flowingRivers } from "./riverFlow";
 import { fixedBankOffset } from "./watermillFabric";
 
+export type { GuildHall, GuildYard, GuildYardKind };
+
 /**
  * Places one hall and the domain's yards for each planned guild.
  * Headcount does not gate this: a chapter with zero craftsmen still gets the buildings.
  */
 
-export interface GuildHall {
+/** A land piece a hall or a yard may stand in, with its distance from the town centre. */
+export interface GuildSpot {
   id: Id;
-  domain: string;
-  name: string;
-  practitioners: number;
-  year: number;
-  footprint: Point[];
-  ridge: [Point, Point];
-  tower?: Point[];
-}
-
-export type GuildYardKind = "bleachingField" | "timberYard" | "stoneYard" | "limeKiln" | "smithyYard" | "sandYard";
-
-export interface GuildYard {
-  id: Id;
-  domain: string;
-  kind: GuildYardKind;
-  name: string;
-  practitioners: number;
-  year: number;
+  centre: Point;
   polygon: Point[];
-  frames?: Array<[Point, Point]>;
+  dist: number;
 }
 
-export interface GuildSiteView {
+/** A river a bleaching field may line, downstream along `points`. */
+export interface GuildRiver {
+  points: Point[];
+  widthMeters: number;
+  surveyed: boolean;
+}
+
+/**
+ * The town a guild's works are placed in. The mesh editor's view reads its cells and rivers from the document;
+ * a meshless view supplies its land pieces, rivers and bank offsets instead (P6d).
+ */
+export interface GuildSiteView extends GuildWorksSite {
   document: CityDocument;
+}
+
+/** The view the guild works need; `document` only where the mesh editor's cells and rivers are read. */
+export interface GuildWorksSite {
+  document?: CityDocument;
+  /** Land pieces inside (false) or outside (true) the town; the mesh editor's cells when absent. */
+  spots?(outside: boolean): GuildSpot[];
+  rivers?(): GuildRiver[];
+  bankOffset?(point: Point, normal: Point, half: number, tangent: Point, reach: number): number | null;
   town: Point[];
   insideTown(point: Point): boolean;
   townDistance(point: Point): number;
@@ -118,19 +125,16 @@ function insideRing(polygon: Point[], ring: Point[], margin: number): boolean {
   return polygon.every(point => nearestOnPolyline(point, closed).dist >= margin);
 }
 
-interface FaceSpot {
-  id: Id;
-  centre: Point;
-  polygon: Point[];
-  dist: number;
-}
+type FaceSpot = GuildSpot;
 
-function coreFaces(site: GuildSiteView, outside: boolean): FaceSpot[] {
+function coreFaces(site: GuildWorksSite, outside: boolean): FaceSpot[] {
+  if (site.spots) return site.spots(outside);
+  const document = site.document!;
   const spots: FaceSpot[] = [];
-  for (const face of Object.values(site.document.mesh.faces)) {
+  for (const face of Object.values(document.mesh.faces)) {
     const props = face.properties;
     if (props.water !== "land" || BLOCKED_WARDS.has(props.ward ?? "")) continue;
-    const polygon = facePoints(site.document.mesh, face);
+    const polygon = facePoints(document.mesh, face);
     if (polygon.length < 3 || Math.abs(polygonArea(polygon)) < 180) continue;
     const centre = centroid(polygon);
     const inTown = site.insideTown(centre);
@@ -141,7 +145,7 @@ function coreFaces(site: GuildSiteView, outside: boolean): FaceSpot[] {
   return spots;
 }
 
-function hallFits(site: GuildSiteView, spot: FaceSpot, footprint: Point[], tower?: Point[]): boolean {
+function hallFits(site: GuildWorksSite, spot: FaceSpot, footprint: Point[], tower?: Point[]): boolean {
   if (!insideRing(footprint, spot.polygon, 1)) return false;
   if (!footprint.every(point => site.insideTown(point))) return false;
   if (!site.inFrame(footprint, 2)) return false;
@@ -156,7 +160,12 @@ function hallFits(site: GuildSiteView, spot: FaceSpot, footprint: Point[], tower
   );
 }
 
-function placeHall(site: GuildSiteView, facility: PlannedGuildFacility, year: number, used: Set<Id>): GuildHall | null {
+function placeHall(
+  site: GuildWorksSite,
+  facility: PlannedGuildFacility,
+  year: number,
+  used: Set<Id>
+): GuildHall | null {
   const preferEdge = EDGE_DOMAINS.has(facility.domain);
   const spots = coreFaces(site, false).sort((a, b) => (preferEdge ? b.dist - a.dist : a.dist - b.dist));
   const sizes: Array<[number, number]> = facility.belfry
@@ -201,7 +210,7 @@ function placeHall(site: GuildSiteView, facility: PlannedGuildFacility, year: nu
   return null;
 }
 
-function yardFits(site: GuildSiteView, spot: FaceSpot, polygon: Point[]): boolean {
+function yardFits(site: GuildWorksSite, spot: FaceSpot, polygon: Point[]): boolean {
   if (!insideRing(polygon, spot.polygon, 0.8)) return false;
   if (polygon.some(point => site.insideTown(point))) return false;
   if (!site.inFrame(polygon, 4)) return false;
@@ -218,7 +227,7 @@ function yardFits(site: GuildSiteView, spot: FaceSpot, polygon: Point[]): boolea
 const BULK_YARDS = new Set<GuildYardKind>(["timberYard", "stoneYard", "limeKiln", "smithyYard"]);
 
 function placeOpenYard(
-  site: GuildSiteView,
+  site: GuildWorksSite,
   facility: PlannedGuildFacility,
   kind: GuildYardKind,
   year: number,
@@ -264,11 +273,11 @@ function placeOpenYard(
   return best.yard;
 }
 
-function placeBleaching(site: GuildSiteView, facility: PlannedGuildFacility, year: number): GuildYard | null {
+function placeBleaching(site: GuildWorksSite, facility: PlannedGuildFacility, year: number): GuildYard | null {
   const [length, depth] = YARD_SIZE.bleachingField;
   const townCentre = site.town.length >= 3 ? centroid(site.town) : ([0, 0] as Point);
   let best: { score: number; yard: GuildYard } | null = null;
-  for (const river of flowingRivers(site.document)) {
+  for (const river of site.rivers ? site.rivers() : flowingRivers(site.document!)) {
     const points = river.points;
     const half = river.widthMeters / 2;
     let entry = Infinity;
@@ -297,7 +306,9 @@ function placeBleaching(site: GuildSiteView, facility: PlannedGuildFacility, yea
         for (const side of [1, -1]) {
           const normal: Point = [-segment.t[1] * side, segment.t[0] * side];
           const offset = river.surveyed
-            ? fixedBankOffset(site.document, p, normal, half, segment.t, length / 2)
+            ? site.bankOffset
+              ? site.bankOffset(p, normal, half, segment.t, length / 2)
+              : fixedBankOffset(site.document!, p, normal, half, segment.t, length / 2)
             : half + 1.5;
           if (offset === null) continue;
           const origin: Point = [p[0] + normal[0] * (offset + 0.4), p[1] + normal[1] * (offset + 0.4)];
@@ -337,7 +348,7 @@ function placeBleaching(site: GuildSiteView, facility: PlannedGuildFacility, yea
 }
 
 export function placeGuildWorks(
-  site: GuildSiteView,
+  site: GuildWorksSite,
   facilities: readonly PlannedGuildFacility[],
   year: number,
   bulkGate?: Point

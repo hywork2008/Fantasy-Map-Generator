@@ -876,8 +876,19 @@ export function planBastionedTown(
   settings: GenerationSettings,
   seed: string
 ): { draft: BastionedTownDraft } | { failure: BastionedTownFailure } {
-  const prepared = prepareSkeletonRun(document, settings, seed, { skipUnsupported: true });
-  const inputs = prepared.inputs;
+  return planBastionedTownFromInputs(
+    prepareSkeletonRun(document, settings, seed, { skipUnsupported: true }).inputs,
+    settings,
+    seed
+  );
+}
+
+/** The fortress planned on cell-free skeleton inputs; meshless builds these from its own site (P4c). */
+export function planBastionedTownFromInputs(
+  inputs: SkeletonInputs,
+  settings: GenerationSettings,
+  seed: string
+): { draft: BastionedTownDraft } | { failure: BastionedTownFailure } {
   const core = planSkeletonCore(inputs);
   if ("reason" in core)
     return {

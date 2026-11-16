@@ -40,22 +40,24 @@ export function maximumBuildingStoreys(
   maximum: number,
   varied = false
 ): number {
-  const limit = effectiveHeightLimit(document, lot.faceId);
-  let allowed = Math.max(0, Math.min(maximum, limit.maxStoreys ?? maximum));
-  if (limit.maxHeightMeters !== undefined) {
+  return storeysWithinLimit(effectiveHeightLimit(document, lot.faceId), maximum, storeys =>
+    buildingFloorSpecs(document, lot, storeys, varied && (isResidentialBuilding(lot) || !!lot.residentialCluster))
+  );
+}
+
+/** The most storeys up to `maximum` that keep within `limit`; the eave sits 0.15 m above the floors. */
+export function storeysWithinLimit(
+  limit: BuildingHeightLimit | undefined,
+  maximum: number,
+  floors: (storeys: number) => readonly { heightMeters: number }[]
+): number {
+  let allowed = Math.max(0, Math.min(maximum, limit?.maxStoreys ?? maximum));
+  if (limit?.maxHeightMeters !== undefined)
     while (
       allowed > 0 &&
-      buildingFloorSpecs(
-        document,
-        lot,
-        allowed,
-        varied && (isResidentialBuilding(lot) || !!lot.residentialCluster)
-      ).reduce((sum, floor) => sum + floor.heightMeters, 0) +
-        0.15 >
-        limit.maxHeightMeters
+      floors(allowed).reduce((sum, floor) => sum + floor.heightMeters, 0) + 0.15 > limit.maxHeightMeters
     )
       allowed--;
-  }
   return allowed;
 }
 /** Final safety pass also reconciles coarse-display capacity when a height cap was edited. */

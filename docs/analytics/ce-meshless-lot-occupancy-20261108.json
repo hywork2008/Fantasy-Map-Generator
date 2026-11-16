@@ -1,0 +1,246 @@
+{
+  "format": "ce-meshless-lot-occupancy-observation",
+  "version": 1,
+  "measuredOn": "2026-11-08",
+  "fit": {
+    "scope": "Synthetic sites (seeds b5o620, m9-fixed), ageOfExploration (3 storeys), wall none, population 220000 so every buildable lot is adopted; generation v8.",
+    "rows": [
+      {
+        "seed": "b5o620",
+        "radius": 150,
+        "lots": 1129,
+        "capacity": 1143,
+        "houses": 976
+      },
+      {
+        "seed": "b5o620",
+        "radius": 250,
+        "lots": 3583,
+        "capacity": 3766,
+        "houses": 3070
+      },
+      {
+        "seed": "b5o620",
+        "radius": 400,
+        "lots": 9108,
+        "capacity": 9614,
+        "houses": 7604
+      },
+      {
+        "seed": "b5o620",
+        "radius": 600,
+        "lots": 20825,
+        "capacity": 21661,
+        "houses": 17058
+      },
+      {
+        "seed": "m9-fixed",
+        "radius": 150,
+        "lots": 1288,
+        "capacity": 1273,
+        "houses": 1153
+      },
+      {
+        "seed": "m9-fixed",
+        "radius": 250,
+        "lots": 3617,
+        "capacity": 3703,
+        "houses": 3138
+      },
+      {
+        "seed": "m9-fixed",
+        "radius": 400,
+        "lots": 9189,
+        "capacity": 9696,
+        "houses": 7750
+      },
+      {
+        "seed": "m9-fixed",
+        "radius": 600,
+        "lots": 21137,
+        "capacity": 21689,
+        "houses": 17402
+      }
+    ],
+    "result": {
+      "dwellingsPerM2PerStorey": 0.0068,
+      "rimMeters": 12,
+      "maxFitError": 0.067
+    }
+  },
+  "editorPath": {
+    "scope": "vectorInputFromEditor (seed b5o620, ageOfExploration) with lotOccupancy, then skeleton and urban generation. builtShare = adopted houses / planned lots.",
+    "wallEllipse": [
+      {
+        "target": 5000,
+        "occupancy": 1,
+        "radius": 164,
+        "ha": 8.5,
+        "lots": 1083,
+        "houses": 923,
+        "builtShare": 0.852,
+        "capacity": 1112,
+        "required": 1112,
+        "unplaced": 0,
+        "peoplePerHa": 592,
+        "urbanMs": 775
+      },
+      {
+        "target": 5000,
+        "occupancy": 0.75,
+        "radius": 184,
+        "ha": 10.6,
+        "lots": 1476,
+        "houses": 885,
+        "builtShare": 0.6,
+        "capacity": 1112,
+        "required": 1112,
+        "unplaced": 0,
+        "peoplePerHa": 470,
+        "urbanMs": 644
+      },
+      {
+        "target": 5000,
+        "occupancy": 0.5,
+        "radius": 218,
+        "ha": 15,
+        "lots": 2342,
+        "houses": 902,
+        "builtShare": 0.385,
+        "capacity": 1113,
+        "required": 1112,
+        "unplaced": 0,
+        "peoplePerHa": 334,
+        "urbanMs": 717
+      },
+      {
+        "target": 50000,
+        "occupancy": 1,
+        "radius": 457,
+        "ha": 65.7,
+        "lots": 11886,
+        "houses": 9058,
+        "builtShare": 0.762,
+        "capacity": 11112,
+        "required": 11112,
+        "unplaced": 0,
+        "peoplePerHa": 761,
+        "urbanMs": 2365
+      },
+      {
+        "target": 50000,
+        "occupancy": 0.75,
+        "radius": 525,
+        "ha": 86.6,
+        "lots": 16179,
+        "houses": 9087,
+        "builtShare": 0.562,
+        "capacity": 11113,
+        "required": 11112,
+        "unplaced": 0,
+        "peoplePerHa": 578,
+        "urbanMs": 2409
+      },
+      {
+        "target": 50000,
+        "occupancy": 0.5,
+        "radius": 638,
+        "ha": 128.1,
+        "lots": 23084,
+        "houses": 8666,
+        "builtShare": 0.375,
+        "capacity": 11114,
+        "required": 11112,
+        "unplaced": 0,
+        "peoplePerHa": 390,
+        "urbanMs": 2676
+      }
+    ],
+    "wallNone": [
+      {
+        "target": 5000,
+        "occupancy": 1,
+        "radius": 164,
+        "ha": 8.5,
+        "lots": 1200,
+        "houses": 956,
+        "builtShare": 0.797,
+        "capacity": 1112,
+        "required": 1112,
+        "unplaced": 0,
+        "peoplePerHa": 592,
+        "urbanMs": 458
+      },
+      {
+        "target": 5000,
+        "occupancy": 0.75,
+        "radius": 184,
+        "ha": 10.6,
+        "lots": 1583,
+        "houses": 929,
+        "builtShare": 0.587,
+        "capacity": 1112,
+        "required": 1112,
+        "unplaced": 0,
+        "peoplePerHa": 470,
+        "urbanMs": 350
+      },
+      {
+        "target": 5000,
+        "occupancy": 0.5,
+        "radius": 218,
+        "ha": 15,
+        "lots": 2498,
+        "houses": 966,
+        "builtShare": 0.387,
+        "capacity": 1112,
+        "required": 1112,
+        "unplaced": 0,
+        "peoplePerHa": 334,
+        "urbanMs": 383
+      },
+      {
+        "target": 50000,
+        "occupancy": 1,
+        "radius": 457,
+        "ha": 65.7,
+        "lots": 12070,
+        "houses": 8846,
+        "builtShare": 0.733,
+        "capacity": 11112,
+        "required": 11112,
+        "unplaced": 0,
+        "peoplePerHa": 761,
+        "urbanMs": 1890
+      },
+      {
+        "target": 50000,
+        "occupancy": 0.75,
+        "radius": 525,
+        "ha": 86.6,
+        "lots": 15725,
+        "houses": 8786,
+        "builtShare": 0.559,
+        "capacity": 11112,
+        "required": 11112,
+        "unplaced": 0,
+        "peoplePerHa": 578,
+        "urbanMs": 2013
+      },
+      {
+        "target": 50000,
+        "occupancy": 0.5,
+        "radius": 638,
+        "ha": 128.1,
+        "lots": 23363,
+        "houses": 8636,
+        "builtShare": 0.37,
+        "capacity": 11112,
+        "required": 11112,
+        "unplaced": 0,
+        "peoplePerHa": 390,
+        "urbanMs": 2303
+      }
+    ]
+  }
+}

@@ -11,14 +11,19 @@ import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument, VectorPath } from "../../../types/vector/document";
 import type { VectorPolygon, VectorSite } from "../../../types/vector/generation";
 import { closeCorridor } from "../../generation/skeleton/vector";
-import { azimuthToVec } from "../../geom";
+import { azimuthToVec, segmentsIntersect } from "../../geom";
+import { makeRng } from "../../prng";
 import { coarseFromHeightfield } from "../../terrainField/build";
 import { createVectorDocument } from "../document";
 import { connectVectorAnchors, rebuildRoadGraph } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { containsRegion, regionBoolean } from "../geometry/regions";
+import { simplifyFreehand } from "../geometry/sampling";
+import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument } from "../validation/document";
+import { smoothCourse } from "./curvedRivers";
+import { descriptorRiverCrossing, roadToFerryLanding } from "./ferries";
 
 const copy = (p: readonly number[]): Point => [p[0], p[1]];
 export const siteDisk = (center: Point, radius: number): VectorPolygon => ({
@@ -40,10 +45,45 @@ const importedPath = (id: string, role: VectorPath["role"], points: Point[], wid
   source: curveSource(points, "polyline", false),
   width: { leftMeters: width / 2, rightMeters: width / 2, stations: [] }
 });
+/** Where the segment from inside point `a` to `b` leaves the square window of half size `half`. */
+function windowExit(a: Point, b: Point, half: number): Point {
+  let t = 1;
+  for (const axis of [0, 1])
+    if (b[axis] !== a[axis]) {
+      const edge = b[axis] > a[axis] ? half : -half,
+        at = (edge - a[axis]) / (b[axis] - a[axis]);
+      if (at >= 0 && at < t) t = at;
+    }
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+}
+/**
+ * A river course cut at the window. The synthesized course can step past the window and then end on its edge,
+ * turning back on itself; a ribbon around that end folds. Leading and trailing points outside or on the edge give
+ * way to the point where the course crosses the edge, with the width of the inside neighbour.
+ */
+function trimToWindow(points: Point[], widths: number[], half: number) {
+  const inside = (p: Point) => Math.abs(p[0]) < half - 1e-6 && Math.abs(p[1]) < half - 1e-6,
+    first = points.findIndex(inside),
+    last = points.findLastIndex(inside);
+  if (first < 0 || (first === 0 && last === points.length - 1)) return { points, widthsMeters: widths };
+  const kept = points.slice(first, last + 1),
+    keptWidths = widths.slice(first, last + 1);
+  if (first > 0) {
+    kept.unshift(windowExit(points[first], points[first - 1], half));
+    keptWidths.unshift(widths[first]);
+  }
+  if (last < points.length - 1) {
+    kept.push(windowExit(points[last], points[last + 1], half));
+    keptWidths.push(widths[last]);
+  }
+  return { points: kept, widthsMeters: keptWidths };
+}
 function seal(doc: VectorCityDocument, site: VectorSite): VectorCityDocument {
   doc.site = site;
   const heightfield = site.descriptor?.terrain.heightfield;
-  if (heightfield && doc.frame.extentMeters <= 10000) {
+  // Level ground needs no terrain: the site stands on the flat datum.
+  const level = !!heightfield && heightfield.elevationsMeters.every(h => h === heightfield.elevationsMeters[0]);
+  if (heightfield && !level && doc.frame.extentMeters <= 10000) {
     const coarse = coarseFromHeightfield(heightfield.size, heightfield.spacingMeters, heightfield.elevationsMeters);
     if (coarse)
       doc.environment = {
@@ -75,7 +115,11 @@ function seal(doc: VectorCityDocument, site: VectorSite): VectorCityDocument {
   assertVectorDocument(doc);
   return doc;
 }
-export function vectorInputFromDescriptor(descriptor: BurgSiteDescriptor): VectorCityDocument {
+export function vectorInputFromDescriptor(
+  descriptor: BurgSiteDescriptor,
+  /** Draw unsurveyed rivers as smooth curves through their course points (a synthesized meshless site). */
+  options: { curvedRivers?: boolean } = {}
+): VectorCityDocument {
   const d = structuredClone(descriptor),
     fixed = d.fixedCrossings;
   if (fixed && !validFixedBurgCrossings(fixed, FIXED_SITE_CROSSING_BUDGETS)) throw new Error("fixed-input-invalid");
@@ -172,7 +216,16 @@ export function vectorInputFromDescriptor(descriptor: BurgSiteDescriptor): Vecto
       }
     } else
       for (let i = 0; i < river.segments.length; i++) {
-        const segment = river.segments[i],
+        const trimmed = trimToWindow(
+            river.segments[i].points,
+            river.segments[i].widthsMeters,
+            doc.frame.extentMeters / 2
+          ),
+          smoothed =
+            options.curvedRivers && !surveyed?.rings.length
+              ? smoothCourse(trimmed.points, trimmed.widthsMeters)
+              : { points: trimmed.points, widths: trimmed.widthsMeters },
+          segment = { points: smoothed.points, widthsMeters: smoothed.widths },
           id = `fmg-river:${river.riverId}:segment:${i}`;
         doc.paths[id] = importedPath(id, "river", segment.points.map(copy), river.widthMeters);
         segment.widthsMeters.forEach((width, j) => {
@@ -183,6 +236,23 @@ export function vectorInputFromDescriptor(descriptor: BurgSiteDescriptor): Vecto
               rightMeters: width / 2
             });
         });
+        // A drawn course can bend tighter than its own width, which folds the channel's banks. Such a course is
+        // eased until its banks stay apart (an unsurveyed river only; surveyed banks are kept as given).
+        if (!surveyed?.rings.length)
+          for (const tolerance of [0, 2, 5, 10, 20]) {
+            try {
+              pathSurface(doc.paths[id]);
+              break;
+            } catch {
+              const eased = simplifyFreehand(segment.points.map(copy), tolerance || 1);
+              doc.paths[id] = importedPath(
+                id,
+                "river",
+                eased.length >= 2 ? eased : segment.points.map(copy),
+                Math.max(river.widthMeters, ...segment.widthsMeters)
+              );
+            }
+          }
         if (surveyed?.rings.length)
           site.water.push({
             id: `water:${id}`,
@@ -212,11 +282,15 @@ export function vectorInputFromDescriptor(descriptor: BurgSiteDescriptor): Vecto
       site.water.push({ id: `fmg-regional-water:${i}`, polygons: [{ outer: feature.ring.map(copy), holes: [] }] });
   if (d.waterbody && !site.water.some(w => !w.riverPathId)) {
     for (const [i, line] of d.waterbody.shoreline.entries()) {
-      const polygon = closeCorridor(
-        line.map(copy),
-        azimuthToVec(d.waterbody.shoreAzimuthDeg),
-        doc.frame.extentMeters / 2
-      );
+      // As the mesh skeleton does: a shoreline reaching past the window closes on a square around it instead,
+      // or the closing walk along the window crosses the shoreline.
+      // FMG repeats a shoreline vertex where two of its segments meet; a repeated point is not an edge.
+      const shore = line.map(copy).filter((p, j, all) => !j || p[0] !== all[j - 1][0] || p[1] !== all[j - 1][1]),
+        polygon = closeCorridor(
+          shore,
+          azimuthToVec(d.waterbody.shoreAzimuthDeg),
+          Math.max(doc.frame.extentMeters / 2, ...shore.map(p => Math.max(Math.abs(p[0]), Math.abs(p[1])))) + 1
+        );
       if (!polygon) throw new Error("coastal-coverage-missing");
       site.water.push({ id: `fmg-coast:${i}`, polygons: [{ outer: polygon, holes: [] }] });
     }
@@ -231,6 +305,34 @@ export function vectorInputFromDescriptor(descriptor: BurgSiteDescriptor): Vecto
         doc.paths[branchId] = importedPath(branchId, "road", branch.path.map(copy), fixed?.roadWidthMeters ?? 5);
       }
     }
+  // A road over a river FMG crosses by ferry ends on the town bank, where its ferry lands (P5b-4).
+  for (const river of d.rivers) {
+    if (descriptorRiverCrossing(d, river).kind !== "ferry") continue;
+    const channel = [
+      ...site.water.filter(w => w.riverPathId?.startsWith(`fmg-river:${river.riverId}:`)).flatMap(w => w.polygons),
+      ...Object.values(doc.paths)
+        .filter(
+          p =>
+            p.role === "river" &&
+            p.id.startsWith(`fmg-river:${river.riverId}:`) &&
+            !site.water.some(w => w.riverPathId === p.id)
+        )
+        .map(pathSurface)
+    ];
+    if (!channel.length) continue;
+    for (const [i, road] of d.roads.entries()) {
+      const id = `fmg-road:${road.routeId}:${i}`,
+        path = doc.paths[id];
+      if (!path || road.sharedCrossingId !== undefined) continue;
+      const cut = roadToFerryLanding(
+        road.path.map(copy),
+        path.width.leftMeters,
+        p => containsRegion(channel, p),
+        site.center
+      );
+      if (cut) doc.paths[id] = importedPath(id, "road", cut, path.width.leftMeters + path.width.rightMeters);
+    }
+  }
   // Fixed deck and approaches are copied, not refitted to the derived river band or a city mesh.
   for (const crossing of fixed?.crossings ?? []) {
     const roadId = `fmg-crossing:${crossing.id}`,
@@ -341,9 +443,47 @@ export function vectorInputFromDescriptor(descriptor: BurgSiteDescriptor): Vecto
   site.fixedPaths = Object.values(doc.paths).map(p => structuredClone(p));
   return seal(doc, site);
 }
-export function syntheticVectorInput(seed = "meshless", radius = 150, river = true): VectorCityDocument {
+const RIVER_WIDTH = 16;
+function segmentDistance(p: Point, a: Point, b: Point): number {
+  const dx = b[0] - a[0],
+    dy = b[1] - a[1],
+    t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+}
+/** Whether the open polyline stays farther than `gap` from the closed ring without crossing it. */
+function riverClears(line: Point[], ring: Point[], gap: number): boolean {
+  for (let i = 1; i < line.length; i++)
+    for (let j = 0; j < ring.length; j++) {
+      const a = ring[j],
+        b = ring[(j + 1) % ring.length];
+      if (
+        segmentsIntersect(line[i - 1], line[i], a, b) ||
+        segmentDistance(a, line[i - 1], line[i]) < gap ||
+        segmentDistance(line[i], a, b) < gap ||
+        segmentDistance(line[i - 1], a, b) < gap
+      )
+        return false;
+    }
+  return true;
+}
+/**
+ * Synthetic standalone site. Without `vary` the layout is the fixed reference
+ * (east-west river, four cardinal roads). With `vary` the seed picks the river
+ * bearing, offset and bend and the number and bearings of the approach roads.
+ */
+export function syntheticVectorInput(
+  seed = "meshless",
+  radius = 150,
+  river = true,
+  vary = false,
+  /** Rings the varied river keeps clear of, e.g. the civic precinct. */
+  keepClear: Point[][] = [],
+  /** Half the frame in site radii; the approaches run out to just inside it and the river across it. A walled town
+   * takes more, so its roadside can grow out along the approaches (gate-ribbon plan). */
+  reach = 1.5
+): VectorCityDocument {
   if (!(radius >= 30 && radius <= 3000 && Number.isFinite(radius))) throw new Error("site-frame");
-  const doc = createVectorDocument(seed, radius * 3),
+  const doc = createVectorDocument(seed, radius * 2 * reach),
     site: VectorSite = {
       kind: "synthetic",
       id: "synthetic-site",
@@ -355,26 +495,68 @@ export function syntheticVectorInput(seed = "meshless", radius = 150, river = tr
       fixedPaths: [],
       crossings: []
     };
-  if (river) {
-    doc.paths["input-river"] = importedPath(
-      "input-river",
-      "river",
-      [
-        [-radius * 1.5, radius * 0.3],
-        [radius * 1.5, radius * 0.3]
-      ],
-      16
-    );
+  const rng = makeRng(`synthetic-site:${seed}`),
+    reference = {
+      normal: [0, 1] as Point,
+      side: 1,
+      offset: radius * 0.3,
+      points: [
+        [-radius * reach, radius * 0.3],
+        [radius * reach, radius * 0.3]
+      ] as Point[]
+    };
+  let layout = reference;
+  // A varied river is redrawn until it clears the reserved rings; the reference layout is the fallback.
+  for (let attempt = 0; vary && attempt < 24; attempt++) {
+    const bearing = rng.range(0, Math.PI),
+      along: Point = [Math.cos(bearing), Math.sin(bearing)],
+      normal: Point = [-along[1], along[0]],
+      at = (u: number, v: number): Point => [along[0] * u + normal[0] * v, along[1] * u + normal[1] * v],
+      side = rng() < 0.5 ? -1 : 1,
+      offset = side * rng.range(0.2, 0.4) * radius,
+      // The bend only bulges away from the centre and stays mild, so every in-town crossing
+      // keeps within the bridge skew limits.
+      bend = side * rng.range(0, 0.06) * radius,
+      points = [at(-radius * reach, offset), at(0, offset + bend), at(radius * reach, offset)];
+    if (!river || keepClear.every(ring => riverClears(points, ring, RIVER_WIDTH / 2 + 12))) {
+      layout = { normal, side, offset, points };
+      break;
+    }
   }
-  for (const [i, p] of (
-    [
-      [radius * 1.4, 0],
-      [0, -radius * 1.4],
-      [-radius * 1.4, 0],
-      [0, radius * 1.4]
-    ] as Point[]
-  ).entries()) {
-    const endpoint: Point = [(p[0] / 1.4) * 0.85, (p[1] / 1.4) * 0.85],
+  const { normal, side, offset, points: riverPoints } = layout;
+  if (river) doc.paths["input-river"] = importedPath("input-river", "river", riverPoints, RIVER_WIDTH);
+  const beyondRiver = (p: Point) => river && Math.sign(p[0] * normal[0] + p[1] * normal[1] - offset) === side;
+  let roads: Point[];
+  if (vary) {
+    const count = rng.int(3, 6),
+      start = rng.range(0, 2 * Math.PI),
+      out = radius * (reach - 0.1);
+    roads = [];
+    // Approaches on the town side of the river enter from any bearing.
+    for (let i = 0; i < count; i++) {
+      const angle = start + ((i + rng.range(-0.25, 0.25)) / count) * 2 * Math.PI,
+        p: Point = [Math.cos(angle) * out, Math.sin(angle) * out];
+      if (!beyondRiver(p)) roads.push(p);
+    }
+    // One approach crosses the river close to its normal so its bridge stays square to the flow.
+    if (river) {
+      const skew = rng.range(-8, 8) * (Math.PI / 180),
+        n: Point = [side * normal[0], side * normal[1]];
+      roads.push([
+        (n[0] * Math.cos(skew) - n[1] * Math.sin(skew)) * out,
+        (n[0] * Math.sin(skew) + n[1] * Math.cos(skew)) * out
+      ]);
+    }
+  } else
+    roads = [
+      [radius * (reach - 0.1), 0],
+      [0, -radius * (reach - 0.1)],
+      [-radius * (reach - 0.1), 0],
+      [0, radius * (reach - 0.1)]
+    ];
+  for (const [i, p] of roads.entries()) {
+    const out = Math.hypot(p[0], p[1]) / radius,
+      endpoint: Point = [(p[0] / out) * 0.85, (p[1] / out) * 0.85],
       id = `input-road:${i}`;
     doc.paths[id] = importedPath(id, "road", [p, endpoint], 5);
   }

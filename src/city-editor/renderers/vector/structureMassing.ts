@@ -1,0 +1,214 @@
+import type { TownWallGate } from "../../../city3d/three/townWallMeshes";
+import { nearestOnPolyline, polygonCentroid } from "../../generators/geom";
+import { evaluateAnchor, pathIsClosed } from "../../generators/vector/geometry/curves";
+import { bridgeGeometry } from "../../generators/vector/geometry/network";
+import { containsRegion } from "../../generators/vector/geometry/regions";
+import { samplePath } from "../../generators/vector/geometry/sampling";
+import { vectorWaterSurfaces } from "../../generators/vector/geometry/water";
+import { vectorTerrain } from "../../generators/vector/terrain";
+import type { StructureMassing, StructureMaterial } from "../../types/contracts/structureMassing";
+import type { Point } from "../../types/primitives";
+import type { VectorCityDocument } from "../../types/vector/document";
+import type { BridgeSite } from "../bridgeSites";
+import { curtainTowersAlong, gateMassesAt, wallBodyHeight, wallRunsWithOpenings } from "../structureMassing";
+import { resolveWallGeometry } from "../wallSvg";
+
+/** The mesh editor's curtain tower spacing at its default 50 m street cell. */
+const TOWER_SPACING_METERS = Math.max(45, 50 * 1.4);
+
+/** Straightening tolerance: curved walls become short straight runs the straight-module masonry can follow. */
+const WALL_STRAIGHTEN_METERS = 0.4;
+
+/** Ramer-Douglas-Peucker; keeps both ends, so a closed ring keeps its seam. */
+function straighten(points: Point[], tolerance: number): Point[] {
+  if (points.length < 3) return points;
+  const keep = new Array<boolean>(points.length).fill(false);
+  keep[0] = keep[points.length - 1] = true;
+  const stack: [number, number][] = [[0, points.length - 1]];
+  while (stack.length) {
+    const [lo, hi] = stack.pop()!;
+    const a = points[lo],
+      b = points[hi],
+      dx = b[0] - a[0],
+      dy = b[1] - a[1],
+      len = Math.hypot(dx, dy);
+    let far = -1,
+      worst = tolerance;
+    for (let i = lo + 1; i < hi; i++) {
+      const p = points[i],
+        d = len < 1e-9 ? Math.hypot(p[0] - a[0], p[1] - a[1]) : Math.abs(dx * (p[1] - a[1]) - dy * (p[0] - a[0])) / len;
+      if (d > worst) {
+        worst = d;
+        far = i;
+      }
+    }
+    if (far < 0) continue;
+    keep[far] = true;
+    stack.push([lo, far], [far, hi]);
+  }
+  return points.filter((_, i) => keep[i]);
+}
+
+const unit = (v: Point): Point => {
+  const n = Math.hypot(v[0], v[1]) || 1;
+  return [v[0] / n, v[1] / n];
+};
+
+/**
+ * Walls, gates and bridges of a meshless city as the mesh editor's structure massing, so both editors draw them
+ * with the same 3D parts. Each structure carries its owner (wall path or bridge id) for picking. Gates get their
+ * flanking towers and lintel only: barbicans are a later option.
+ */
+export interface VectorStructureOwner {
+  owner: string;
+  kind: "wall" | "bridge";
+  parts: StructureMassing[];
+  material?: StructureMaterial;
+  gates?: TownWallGate[];
+  bridgeSite?: BridgeSite;
+}
+
+export function vectorStructures(doc: VectorCityDocument): VectorStructureOwner[] {
+  const terrain = vectorTerrain(doc),
+    ground = (p: Point) => (terrain.hasRelief ? terrain.heightAt(p) : 0),
+    waters = vectorWaterSurfaces(doc),
+    water = [...waters.values()],
+    defenseWalls = new Set(Object.values(doc.environment?.defenses ?? {}).flatMap(p => p.circuit.wallPathIds)),
+    hidden = new Set(doc.environment?.hidden ?? []),
+    out: VectorStructureOwner[] = [];
+  for (const wall of Object.values(doc.paths)) {
+    // Bastioned defences draw their own works.
+    if (wall.role !== "wall" || defenseWalls.has(wall.id) || hidden.has(wall.id)) continue;
+    let points = samplePath(wall).map(s => s.point);
+    if (pathIsClosed(wall) && Math.hypot(points[0][0] - points.at(-1)![0], points[0][1] - points.at(-1)![1]) > 1e-6)
+      points.push(points[0]);
+    points = straighten(points, WALL_STRAIGHTEN_METERS);
+    if (points.length < 2) continue;
+    const widthMeters = wall.width.leftMeters + wall.width.rightMeters,
+      feature = Object.values(doc.environment?.features ?? {}).find(f => f.pathIds.includes(wall.id)),
+      generated =
+        doc.generation?.pathRevisions[wall.id] !== undefined ? doc.generation.settings.wallMaterial : undefined,
+      material: StructureMaterial =
+        feature?.settings.culture === "timber" || (!feature && generated === "wood") ? "wood" : "stone",
+      profile = resolveWallGeometry(widthMeters, material, undefined),
+      height = wallBodyHeight(material, profile.hasWalkway),
+      ring = { outer: points, holes: [] },
+      inside = containsRegion([ring], doc.site?.center ?? [0, 0])
+        ? (doc.site?.center ?? [0, 0])
+        : polygonCentroid(points);
+    const gates = Object.values(doc.connections.gates)
+      .filter(g => g.wallPathId === wall.id)
+      .map(g => {
+        const point = evaluateAnchor(wall, g.anchor),
+          tangent = unit(evaluateAnchor(wall, g.anchor, true)),
+          normal: Point = [-tangent[1], tangent[0]],
+          inward: Point =
+            (inside[0] - point[0]) * normal[0] + (inside[1] - point[1]) * normal[1] >= 0
+              ? normal
+              : [-normal[0], -normal[1]];
+        return { gate: g, point, tangent, inward };
+      });
+    // Openings are cut at a vertex, so each gate centre becomes one.
+    for (const { point } of gates) {
+      const hit = nearestOnPolyline(point, points);
+      points.splice(hit.segIndex + 1, 0, point);
+    }
+    const parts: StructureMassing[] = [],
+      gaps = gates.map(({ gate, point }) => ({
+        index: points.findIndex(p => Math.hypot(p[0] - point[0], p[1] - point[1]) < 1e-9),
+        half: gate.widthMeters / 2
+      }));
+    curtainTowersAlong(
+      {
+        wallId: wall.id,
+        points,
+        material,
+        widthMeters,
+        height,
+        spacing: TOWER_SPACING_METERS,
+        skip: p =>
+          gates.some(g => Math.hypot(g.point[0] - p[0], g.point[1] - p[1]) < widthMeters * 3) ||
+          containsRegion(water, p)
+      },
+      parts
+    );
+    for (const g of gates)
+      if (g.gate.kind === "passage")
+        gateMassesAt(parts, {
+          gateId: g.gate.id,
+          point: g.point,
+          tangent: g.tangent,
+          inward: g.inward,
+          material,
+          wallWidth: widthMeters,
+          wallHeight: height,
+          opening: g.gate.widthMeters
+        });
+    wallRunsWithOpenings(
+      {
+        wallId: wall.id,
+        points,
+        gaps,
+        material,
+        widthMeters,
+        walkway: undefined,
+        height,
+        anchor: inside
+      },
+      parts
+    );
+    // Footings follow the ground: ribbons per vertex, footprints at their centre.
+    for (const part of parts)
+      if (part.centerline) part.baseElevationsMeters = part.centerline.map(p => ground(p) + part.baseElevationMeters);
+      else if (part.footprint) part.baseElevationMeters += ground(polygonCentroid(part.footprint));
+    out.push({
+      owner: wall.id,
+      kind: "wall",
+      parts,
+      material,
+      // Passage gates' crossings, for the mesh editor's BV gatehouse (P2d-2).
+      gates: gates
+        .filter(g => g.gate.kind === "passage")
+        .map(g => ({ id: g.gate.id, frame: { point: g.point, tangent: g.tangent, inward: g.inward } }))
+    });
+  }
+  for (const bridge of Object.values(doc.connections.bridges)) {
+    if (hidden.has(bridge.roadPathId)) continue;
+    const road = doc.paths[bridge.roadPathId],
+      { from, to } = bridgeGeometry(doc, bridge, waters),
+      level = terrain.hasRelief ? terrain.bridgeElevation(bridge.id) : 0;
+    const width = road.width.leftMeters + road.width.rightMeters;
+    out.push({
+      owner: bridge.id,
+      kind: "bridge",
+      // The mesh editor's modular bridge over the same deck line (P2d-3); the massing part is its fallback.
+      bridgeSite: {
+        id: bridge.id,
+        name: bridge.id,
+        points: [from, to],
+        widthMeters: width,
+        material: bridge.structure,
+        skewDegrees: 0,
+        openingMeters: 0,
+        structureId: `bridge:${bridge.id}`
+      },
+      parts: [
+        {
+          id: `bridge:${bridge.id}`,
+          kind: "bridge",
+          material: bridge.structure === "timber" ? "wood" : "stone",
+          centerline: [from, to],
+          widthMeters: road.width.leftMeters + road.width.rightMeters,
+          heightMeters: 0.55,
+          baseElevationMeters: level + 0.4,
+          roof: "none",
+          parapet: "both",
+          parapetMeters: 0.9,
+          parapetWidthMeters: 0.35,
+          spire: false
+        }
+      ]
+    });
+  }
+  return out;
+}

@@ -4,12 +4,18 @@ import type { VectorCityDocument } from "../../../types/vector/document";
 import { VECTOR_FEATURE_KINDS } from "../../../types/vector/environment";
 import { parseFreeformCity } from "../../freeform/freeformCity";
 import { validateVectorDefenses } from "../defense";
+import { validateVectorFerries } from "../ferry";
+import { validateVectorForest } from "../forest";
 import { evaluateAnchor } from "../geometry/curves";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { ringInside } from "../geometry/routing";
 import { simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
+import { validateVectorGuilds } from "../guild";
 import { validateVectorHarbor } from "../harbor";
+import { validateVectorInns } from "../inn";
+import { validateVectorOpenLandmarks } from "../landmark";
+import { validateVectorMonasteries } from "../monastery";
 import { validateVectorLandscape } from "./landscape";
 
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -123,7 +129,22 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
   if (
     !record(e) ||
     Object.keys(e).some(
-      k => !["features", "defenses", "harbor", "landscape", "terrain", "hidden", "freeformSource"].includes(k)
+      k =>
+        ![
+          "features",
+          "defenses",
+          "harbor",
+          "ferries",
+          "monasteries",
+          "guilds",
+          "inns",
+          "landmarks",
+          "forest",
+          "landscape",
+          "terrain",
+          "hidden",
+          "freeformSource"
+        ].includes(k)
     ) ||
     !record(e.features) ||
     Object.keys(e.features).length > 256 ||
@@ -135,6 +156,12 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
     ...appearanceErrors,
     ...validateVectorDefenses(doc),
     ...validateVectorHarbor(doc),
+    ...validateVectorFerries(doc),
+    ...validateVectorMonasteries(doc),
+    ...validateVectorGuilds(doc),
+    ...validateVectorInns(doc),
+    ...validateVectorOpenLandmarks(doc),
+    ...validateVectorForest(doc),
     ...validateVectorLandscape(doc)
   ];
   if (e.freeformSource && !parseFreeformCity(JSON.stringify(e.freeformSource)))

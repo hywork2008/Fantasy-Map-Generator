@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import saved from "../../../../docs/analytics/ce-meshless-m5-synthetic-20261107.json";
+import { LAND_Y, WATER_Y } from "../../../city3d/core/waterGeometry";
 import { createVectorExample } from "../../generators/vector/document";
 import { evaluateAnchor } from "../../generators/vector/geometry/curves";
 import { containsRegion, regionArea } from "../../generators/vector/geometry/regions";
@@ -45,7 +46,8 @@ describe("one adopted geometry contract", () => {
     expect(wall.polygons.reduce((n, p) => n + regionArea(p), 0)).toBeGreaterThan(0);
     const scene = createVectorScene(data),
       box = new THREE.Box3().setFromObject(scene.group);
-    expect(box.min.y).toBeGreaterThanOrEqual(-0.02);
+    // Nothing sinks past the water, which lies 1 m below the land as in the mesh editor.
+    expect(box.min.y).toBeGreaterThanOrEqual(WATER_Y - LAND_Y - 0.02);
     expect(box.max.y).toBeGreaterThan(6);
     scene.dispose();
   });

@@ -58,7 +58,7 @@ export interface HarborPlan {
   /** Distinct shared spaces; private warehouse yards are measured separately. */
   sharedArea: number;
 }
-interface Shore {
+export interface HarborShore {
   riverId?: Id;
   id: Id;
   landId: Id;
@@ -71,6 +71,39 @@ interface Shore {
   water: Point[];
 }
 
+/**
+ * The cell-free inputs of the harbour planner: the shores it berths on, the land each shore belongs to and the
+ * site's tests. The mesh editor builds them from its cells (`planHarbor`); meshless from its polygons.
+ */
+export interface HarborSite {
+  shores: HarborShore[];
+  /** Quay strips laid before the berths (a river port's whole bank). */
+  bankSpaces: { shore: HarborShore; polygon: Point[] }[];
+  streets: ParcelFrontage[];
+  throughStreets: ParcelFrontage[];
+  /** Convex obstacles no harbour space may cover. */
+  barriers: Point[][];
+  isFree: (polygon: Point[]) => boolean;
+  /** The cart path from a quay to a street; `isFree` of its corridor when absent. */
+  pathIsFree?: (from: Point, to: Point) => boolean;
+  period: string;
+  extentMeters: number;
+  /** The land a shore belongs to; harbour spaces stay inside it. */
+  landPolygon: (landId: Id) => Point[] | undefined;
+  /** A berth root on its owning land and out of the water. */
+  rootIsDry: (landId: Id, root: Point) => boolean;
+  /** Land a cart path from the quay to a street may cross. */
+  connectable: (p: Point) => boolean;
+  preset: (landId: Id) => HarborPreset;
+  /** Flat ground for crane cargo quays; asked only when a crane is planned. */
+  flatSite: () => boolean;
+  waterBelowQuay: number;
+  /** The water of a shore takes sea-going cargo ships at a crane. */
+  cargoWater: (shore: HarborShore) => boolean;
+  waterField: () => HarborWaterField;
+  warehouse?: { queuedSlots: number; capacitySlots: number };
+}
+
 /** One plan supplies both cargo access and the visible piers. Inland river ports
  * require an explicit harbor element; a river alone is not navigation evidence. */
 export function planHarbor(
@@ -80,21 +113,12 @@ export function planHarbor(
   isFree: (polygon: Point[]) => boolean = () => true,
   throughStreets: ParcelFrontage[] = streets
 ): HarborPlan {
-  const plan: HarborPlan = {
-    spaces: [],
-    frontages: [],
-    piers: [],
-    cranes: [],
-    cargoQuays: [],
-    cargoPiles: [],
-    sharedArea: 0
-  };
   // A port with a merchants' compound, a storehouse or docks has the wide quays of a warehouse port
   // unless the district chose otherwise (port-freight-queue-and-warehouses.md §6.2).
   const portLayout = economyOnDocument(document)?.portWarehouse?.layout;
   const defaultPreset: HarborPreset =
     portLayout === "compound" || portLayout === "stateStore" || portLayout === "dock" ? "warehouse" : "dense";
-  const shores: Shore[] = [];
+  const shores: HarborShore[] = [];
   barriers = [...barriers, ...waterPolygons(document).flatMap(convexInfillParts), ...ferryLandingReserves(document)];
   const land = Object.values(document.mesh.faces)
     .filter(
@@ -221,25 +245,7 @@ export function planHarbor(
         }
     }
   }
-  const addSpace = (shore: Shore, poly: Point[], kind: OpenSpace["kind"]) => {
-    const face = document.mesh.faces[shore.landId];
-    if (!face || poly.length < 3) return;
-    for (const part of convexInfillParts(facePoints(document.mesh, face))) {
-      let pieces = [intersectConvex(poly, part)].filter(p => p.length >= 3 && plotArea(p) >= 4);
-      for (const obstacle of [...barriers, ...plan.spaces.map(s => s.polygon)])
-        pieces = pieces.flatMap(p => subtractConvex(p, obstacle, 4));
-      for (const polygon of pieces) {
-        if (!isFree(polygon)) continue;
-        plan.spaces.push({
-          id: `harbor:${shore.id}:${kind}:${plan.spaces.length}`,
-          faceId: shore.landId,
-          kind,
-          polygon,
-          access: "shared"
-        });
-      }
-    }
-  };
+  const bankSpaces: HarborSite["bankSpaces"] = [];
   // Reserve the whole physical bank inside each harbour cell, rather than
   // only the single segment selected for its berth.
   if (document.waterAccess?.port.river)
@@ -256,8 +262,8 @@ export function planHarbor(
           const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
           if (pointInPolygon([mid[0] + inward[0], mid[1] + inward[1]], area.polygon)) inward = [-inward[0], -inward[1]];
           const shift = (p: Point): Point => [p[0] + inward[0] * 6, p[1] + inward[1] * 6];
-          addSpace(
-            {
+          bankSpaces.push({
+            shore: {
               id: `bank:${face.id}:${i}`,
               landId: face.id,
               waterId: "",
@@ -268,16 +274,73 @@ export function planHarbor(
               depth: 1,
               water: area.polygon
             },
-            corridor(shift(a), shift(b), 12),
-            "quay"
-          );
+            polygon: corridor(shift(a), shift(b), 12)
+          });
         }
       }
     }
-  const berthByWater = new Map<Id, Shore>();
-  const berthCandidates = new Map<Id, Shore[]>();
-  const usableShores: { shore: Shore; midpoint: Point; stripWidth: number; qA: Point; qB: Point }[] = [];
-  const period = document.historicalPeriod ?? "ageOfExploration";
+  const params = (landId: Id) => document.fabric?.districts.find(d => d.faceIds.includes(landId))?.parameters;
+  let field: HarborWaterField | undefined;
+  const warehouse = economyOnDocument(document)?.portWarehouse;
+  return planHarborOnShores({
+    shores,
+    bankSpaces,
+    streets,
+    throughStreets,
+    barriers,
+    isFree,
+    period: document.historicalPeriod ?? "ageOfExploration",
+    extentMeters: document.frame.extentMeters,
+    landPolygon: id => (document.mesh.faces[id] ? facePoints(document.mesh, document.mesh.faces[id]) : undefined),
+    rootIsDry: (id, root) => harborRootIsDry(document, id, root),
+    connectable: p => land.some(f => !reserved.has(f.id) && pointInPolygon(p, f.polygon)),
+    preset: id => params(id)?.harborPreset ?? defaultPreset,
+    flatSite: () => !document.terrain && !cellRelief(document).relief,
+    waterBelowQuay: flatSeaDropMeters(document),
+    cargoWater: shore =>
+      !document.waterAccess ||
+      (!!document.waterAccess.port?.sea && !!document.coastalOceanFaceIds?.includes(shore.waterId)),
+    waterField: () => (field ??= harborWaterField(document)),
+    ...(warehouse ? { warehouse } : {})
+  });
+}
+
+/** The harbour planner on cell-free inputs: quays, yards, cranes, cargo quays, cargo piles and piers. */
+export function planHarborOnShores(site: HarborSite): HarborPlan {
+  const { shores, streets, throughStreets, barriers, isFree } = site;
+  const plan: HarborPlan = {
+    spaces: [],
+    frontages: [],
+    piers: [],
+    cranes: [],
+    cargoQuays: [],
+    cargoPiles: [],
+    sharedArea: 0
+  };
+  const addSpace = (shore: HarborShore, poly: Point[], kind: OpenSpace["kind"]) => {
+    const land = site.landPolygon(shore.landId);
+    if (!land || poly.length < 3) return;
+    for (const part of convexInfillParts(land)) {
+      let pieces = [intersectConvex(poly, part)].filter(p => p.length >= 3 && plotArea(p) >= 4);
+      for (const obstacle of [...barriers, ...plan.spaces.map(s => s.polygon)])
+        pieces = pieces.flatMap(p => subtractConvex(p, obstacle, 4));
+      for (const polygon of pieces) {
+        if (!isFree(polygon)) continue;
+        plan.spaces.push({
+          id: `harbor:${shore.id}:${kind}:${plan.spaces.length}`,
+          faceId: shore.landId,
+          kind,
+          polygon,
+          access: "shared"
+        });
+      }
+    }
+  };
+  for (const { shore, polygon } of site.bankSpaces) addSpace(shore, polygon, "quay");
+  const berthByWater = new Map<Id, HarborShore>();
+  const berthCandidates = new Map<Id, HarborShore[]>();
+  const usableShores: { shore: HarborShore; midpoint: Point; stripWidth: number; qA: Point; qB: Point }[] = [];
+  const period = site.period;
   const isExplorationOrLater = [
     "ageOfExploration",
     "maritimeEra",
@@ -294,7 +357,7 @@ export function planHarbor(
       (shore.a[0] + shore.b[0]) / 2 + shore.inward[0] * 1.2,
       (shore.a[1] + shore.b[1]) / 2 + shore.inward[1] * 1.2
     ];
-    if (!harborRootIsDry(document, shore.landId, root)) continue;
+    if (!site.rootIsDry(shore.landId, root)) continue;
     if (
       (shore.waterId || shore.riverId) &&
       (shore.depth >= 3 || !!shore.riverId) &&
@@ -306,8 +369,7 @@ export function planHarbor(
       berthCandidates.set(key, [...(berthCandidates.get(key) ?? []), shore]);
     }
 
-    const params = document.fabric?.districts.find(d => d.faceIds.includes(shore.landId))?.parameters;
-    const preset = params?.harborPreset ?? defaultPreset;
+    const preset = site.preset(shore.landId);
     const stripWidth =
       preset === "small"
         ? 4
@@ -329,7 +391,7 @@ export function planHarbor(
       .sort((a, b) => a.hit.dist - b.hit.dist);
     const connection = candidates.find(({ hit }) => {
       const path = corridor(midpoint, hit.point, 3, 0);
-      if (!isFree(path)) return false;
+      if (!(site.pathIsFree ? site.pathIsFree(midpoint, hit.point) : isFree(path))) return false;
       if (barriers.some(b => plotArea(intersectConvex(path, b)) > 0.01)) return false;
       const steps = Math.max(2, Math.ceil(hit.dist / 1.5));
       const normal: Point = [-(hit.point[1] - midpoint[1]) / hit.dist, (hit.point[0] - midpoint[0]) / hit.dist];
@@ -340,7 +402,7 @@ export function planHarbor(
         ];
         return [-1.5, 0, 1.5].every(offset => {
           const edge: Point = [p[0] + normal[0] * offset, p[1] + normal[1] * offset];
-          return land.some(f => !reserved.has(f.id) && pointInPolygon(edge, f.polygon));
+          return site.connectable(edge);
         });
       });
     });
@@ -375,9 +437,7 @@ export function planHarbor(
   // Cranes and dedicated loading yards are for trading/commercial ports, not small fishing landings.
   const candidateShores = usableShores
     .filter(u => {
-      const params = document.fabric?.districts.find(d => d.faceIds.includes(u.shore.landId))?.parameters;
-      const preset = params?.harborPreset ?? defaultPreset;
-      return preset !== "small";
+      return site.preset(u.shore.landId) !== "small";
     })
     .map(u => {
       const isPrimaryBerth = Array.from(berthByWater.values()).some(b => b.id === u.shore.id);
@@ -413,15 +473,13 @@ export function planHarbor(
     );
 
   const maxCranes = candidateShores.length >= 4 ? 2 : candidateShores.length > 0 ? 1 : 0;
-  const flatCargoSite = candidateShores.length > 0 && !document.terrain && !cellRelief(document).relief;
-  const waterBelowQuay = flatSeaDropMeters(document);
+  const flatCargoSite = candidateShores.length > 0 && site.flatSite();
+  const waterBelowQuay = site.waterBelowQuay;
   // Limit successful installations, not attempted shores: a constrained primary berth
   // must not prevent equipment on another safely accessible quay.
   for (const { shore, midpoint, stripWidth } of candidateShores) {
     if (plan.cranes.length >= maxCranes) break;
-    const params = document.fabric?.districts.find(d => d.faceIds.includes(shore.landId))?.parameters;
-    const preset = params?.harborPreset ?? defaultPreset;
-    if (preset === "small") continue;
+    if (site.preset(shore.landId) === "small") continue;
 
     const spaceCount = plan.spaces.length;
     const shift = (p: Point, d: number): Point => [p[0] + shore.inward[0] * d, p[1] + shore.inward[1] * d];
@@ -513,8 +571,7 @@ export function planHarbor(
       flatCargoSite &&
       waterBelowQuay >= 0.3 &&
       waterBelowQuay <= 3 &&
-      (!document.waterAccess ||
-        (document.waterAccess.port?.sea && document.coastalOceanFaceIds?.includes(shore.waterId))) &&
+      site.cargoWater(shore) &&
       shore.length >= 26
     ) {
       const outward: Point = [-shore.inward[0], -shore.inward[1]];
@@ -613,11 +670,7 @@ export function planHarbor(
     }
   }
   addOverflowPiles();
-  let field: HarborWaterField | undefined;
-  const waterField = () => {
-    field ??= harborWaterField(document);
-    return field;
-  };
+  const waterField = site.waterField;
   // The longest shore of each water body is preferred; when its pier head
   // would be boxed in (a cove, a narrow inlet), the next shore is tried.
   for (const candidates of berthCandidates.values())
@@ -631,7 +684,7 @@ export function planHarbor(
 
   /** Piles of the cargo waiting for a ship beyond what the warehouses hold, yard by yard. */
   function addOverflowPiles(): void {
-    const warehouse = economyOnDocument(document)?.portWarehouse;
+    const warehouse = site.warehouse;
     const overflow = warehouse ? warehouse.queuedSlots - warehouse.capacitySlots : 0;
     let wanted = Math.min(MAX_OVERFLOW_PILES, Math.ceil(Math.max(0, overflow) / OVERFLOW_PILE_SLOTS));
     if (!(wanted > 0)) return;
@@ -666,7 +719,7 @@ export function planHarbor(
     }
   }
 
-  function addPiers(shore: Shore): void {
+  function addPiers(shore: HarborShore): void {
     const count = shore.length >= 50 ? 2 : 1;
     const width = Math.min(
       isExplorationOrLater ? 6.2 : 5.2,
@@ -676,17 +729,12 @@ export function planHarbor(
     for (let i = 0; i < count; i++) {
       const t = fractions[i];
       const bank: Point = [shore.a[0] + (shore.b[0] - shore.a[0]) * t, shore.a[1] + (shore.b[1] - shore.a[1]) * t];
-      if (!harborRootIsDry(document, shore.landId, [bank[0] + shore.inward[0] * 1.2, bank[1] + shore.inward[1] * 1.2]))
-        continue;
+      if (!site.rootIsDry(shore.landId, [bank[0] + shore.inward[0] * 1.2, bank[1] + shore.inward[1] * 1.2])) continue;
       const start: Point = [bank[0] + shore.inward[0] * 1.2, bank[1] + shore.inward[1] * 1.2];
-      if (
-        !pointInPolygon(start, facePoints(document.mesh, document.mesh.faces[shore.landId])) ||
-        pointInPolygon(start, shore.water)
-      )
-        continue;
+      if (!pointInPolygon(start, site.landPolygon(shore.landId) ?? []) || pointInPolygon(start, shore.water)) continue;
       const end = (d: number): Point => [bank[0] - shore.inward[0] * d, bank[1] - shore.inward[1] * d];
       let reach = 0;
-      const rayEnd = end(document.frame.extentMeters * 2);
+      const rayEnd = end(site.extentMeters * 2);
       const exits = shore.water.flatMap((p, j) => {
         const hit = segmentSegmentHit(bank, rayEnd, p, shore.water[(j + 1) % shore.water.length]);
         return hit && distance(bank, hit.point) > 1 ? [distance(bank, hit.point)] : [];

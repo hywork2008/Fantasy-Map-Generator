@@ -228,6 +228,12 @@
         "none": "なし・既存の壁を維持",
         "rectangle": "四角形",
         "ellipse": "楕円形",
+        "organic": "不整形",
+        "round": "円形",
+        "oval": "長円形",
+        "square": "方形",
+        "polygon": "多角形",
+        "bastioned": "稜堡形の外形",
         "stage": "候補・採用済みの段階",
         "inputs": "入力",
         "skeleton": "骨格と接続",
@@ -280,7 +286,20 @@
         "diagnostics": {
           "bridge-unavailable": "候補地点に適法な自動橋を置けません",
           "branch-unreachable": "追加道路の目標点へ到達できません",
-          "land-without-frontage": "到達可能な接道がない土地を保持しています"
+          "land-without-frontage": "到達可能な接道がない土地を保持しています",
+          "inner-first-fallback": "旧市街を街路より先に囲めなかったため、街路の後に旧市街の壁を築きました",
+          "inner-wall-unplaced": "街路と整合する旧市街の壁の位置がなく、外側の市壁のみとしました",
+          "town-moat-unplaced": "どの向きでもすべての道路が堀を直角に近く渡れないため、堀のない市壁としました",
+          "castle-unplaced": "街路・水面・中心の施設を避けて市壁の内側に城の区域を置けませんでした",
+          "harbor-unplaced": "港を作れませんでした。町の中に、市壁や施設を避けて街路へつながるまっすぐな海岸・川岸がないか、敷地に起伏や動かせる川があります",
+          "ferry-unplaced": "この道路が、その時代の橋では渡れない川に出る地点に、渡し場を置けませんでした",
+          "cemetery-unplaced": "墓地を置けませんでした。埋葬文化が町の外や川岸に葬る文化で、その条件の土地が空いていません",
+          "market-unplaced": "広場に市場の屋台を置けませんでした。広場が小さいか、通路が街路へ届きません",
+          "monastery-unplaced": "信仰と町の規模が求める修道院の一部を置ける街区がありませんでした（数を表示）。市壁のある町の大修道院は市壁の外の土地を必要とします",
+          "guild-unplaced": "町の経済が求める同業組合の会館・作業場の一部を置ける土地がありませんでした（数を表示）",
+          "inn-unplaced": "町の経済が挙げる宿・隊商宿の一部を、最も交通の多い入口の道路沿いに置けませんでした（数を表示）",
+          "landmark-unplaced": "風車・絞首台の一部を、町の外の空き地に置けませんでした（数を表示）",
+          "shanty-unplaced": "最も交通の多い入口の道路沿いの市壁の外に、貧民街の土地を取れませんでした"
         },
         "blocksAndLanes": "街区と小路",
         "facilities": "施設",
@@ -290,7 +309,10 @@
         "laneSpacing": "小路の間隔 (m)",
         "laneWidth": "小路の幅 (m)",
         "maxLanes": "新設小路の上限",
+        "lotOccupancy": "区画の建築率 (%)",
         "allowExpansion": "自動合成入力の範囲内で郊外を追加",
+        "tanneryBends": "川の曲がりでのなめし場",
+        "tanneryBendsOptions": { "continuous": "曲がりに沿って1列に並べる", "leat": "工房用水路を掘る" },
         "develop": "小路・施設・住宅の候補を生成",
         "capacity": "住戸容量 / 必要住戸",
         "unplaced": "未収容人口",
@@ -312,7 +334,19 @@
           "budget": "この施設の探索上限",
           "unsearched": "共有の探索予算が尽きたため未探索"
         },
-        "running": "候補を生成中です。取消や別の編集ができます。"
+        "running": "候補を生成中です。取消や別の編集ができます。",
+        "settingGaps": {
+          "title": "メッシュありと同じには生成されない設定",
+          "item": "{{value0}}: {{value1}}（{{value2}}で対応予定）",
+          "states": {
+            "partial": "一部のみ対応",
+            "authored-only": "手で置けるが生成されない",
+            "converted-only": "メッシュありの文書の変換時のみ",
+            "missing": "未対応",
+            "equivalent": "対応済み",
+            "not-applicable": "セル固有のため使わない"
+          }
+        }
       },
       "dependencies": {
         "title": "編集の依存更新",
@@ -363,6 +397,8 @@
         "shareLink": "共有リンク",
         "documentCopied": "完成文書のリンクをコピーしました。手動形状と元文書の保管データも含みます。",
         "recipeCopied": "入力と生成設定のリンクをコピーしました。開くと都市を再生成します。",
+        "recipeOutdated": "この都市は以前の版の生成処理で作られています。入力と生成設定のリンクでは別の都市が再生成されるため、完成文書のリンクで共有して下さい。",
+        "recipeEdited": "この都市には手動の編集があり、入力と生成設定のリンクでは失われるため、完成文書のリンクで共有して下さい。",
         "manualCopy": "表示されたリンクを選択してコピーして下さい。",
         "copyLegacy": "元都市のメッシュなし複製をプレビュー",
         "copyReview": "下記の変換一覧を確認して下さい。未対応の機能は元文書に保管し、元都市は変更しません。",
@@ -454,11 +490,61 @@
         "terrainLimit": "地形編集は10 km以内のフレームに対応します。"
       },
       "measurement": {
-        "length": "長さ {value0} m",
-        "area": "面積 {value0} m²"
+        "length": "長さ {{value0}} m",
+        "area": "面積 {{value0}} m²"
+      },
+      "fabricHouse": {
+        "title": "生成された住宅",
+        "id": "ID",
+        "district": "地区",
+        "storeys": "階数",
+        "dwellings": "住戸数",
+        "area": "建築面積 {{value0}} m²",
+        "entrance": "入口（東, 北） {{value0}}, {{value1}}",
+        "insideWall": "市壁の内側",
+        "outsideWall": "市壁の外側",
+        "editLater": "切り出すと、住宅の形・住戸数・入口はそのままで、街路街区の空き地が配置に移ります。",
+        "detach": "配置として切り出す",
+        "detached": "切り出しました。建物配置の編集で移動・固定できます。",
+        "clear": "住宅を削除（空き地のまま残す）",
+        "cleared": "削除しました。空き地は空いたまま残り、不足分は再生成でほかの空き地から補います。",
+        "lineTitle": "生成された街路・小路",
+        "lineWidth": "幅 {{value0}} m、長さ {{value1}} m",
+        "detachLine": "道として切り出す",
+        "lineDetached": "切り出しました。道として編集でき、元に戻すと記録へ戻ります。"
       },
       "release": {
         "preview": "メッシュなし・試験運用。採用時は人口不足の集計と元文書の変換報告を確認してください。"
+      },
+      "settings": {
+        "title": "都市の設定",
+        "auto": "自動",
+        "noRiver": "川なし",
+        "historicalPeriod": "時代",
+        "coast": "海岸",
+        "river1": "川1",
+        "river2": "川2",
+        "walls": "市壁",
+        "citadel": "城塞",
+        "plaza": "広場",
+        "temple": "寺院",
+        "port": "港",
+        "shanty": "貧民街",
+        "wallMaterial": "市壁の材質",
+        "wallCoast": "市壁の海側",
+        "wallShape": "市壁の形",
+        "wallSides": "市壁の辺数",
+        "townWallRings": "市壁の重なり",
+        "townWallBuildOrder": "二重市壁の建設順",
+        "innerWallState": "旧市街の市壁",
+        "townMoat": "町の堀",
+        "layout": "町割り",
+        "burial": "埋葬文化",
+        "buildingPattern": "建物パターン",
+        "forestMode": "森林",
+        "forestDensity": "森林の密度",
+        "housingCulture": "住宅の外観の文化",
+        "changeHousingCulture": "住宅の外観の文化を変更"
       }
     },
     "forest": {

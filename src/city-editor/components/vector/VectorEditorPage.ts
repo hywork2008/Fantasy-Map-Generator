@@ -1,5 +1,8 @@
 import { editorText } from "../../../i18n/editorMessages";
+import { defaultGenerationSettings } from "../../generators/generation/settings";
 import { createVectorDocument, createVectorExample } from "../../generators/vector/document";
+import { clearFabricHouse, detachFabricHouse } from "../../generators/vector/editing/fabricHouses";
+import { detachFabricLine } from "../../generators/vector/editing/fabricLines";
 import type { VectorDocumentHistory } from "../../generators/vector/history";
 import { assertVectorDocument } from "../../generators/vector/validation/document";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
@@ -7,6 +10,7 @@ import { beginEditorMount } from "../../services/editorLifetime";
 import { exportCityMap, readCityMap } from "../../services/io/cityEditorFile";
 import { restoreLegacyCopy } from "../../services/io/vector/legacyCopy";
 import type { VectorRecipe } from "../../services/io/vector/share";
+import { createVectorPlanPreparation } from "../../services/vectorPlanPreparation";
 import { VECTOR_RELEASE_CHANNEL } from "../../services/vectorRelease";
 import type { BurgSiteDescriptor } from "../../types/contracts/burgSiteDescriptor";
 import type { FixedApproachProvider } from "../../types/contracts/fixedApproachAdoption";
@@ -15,12 +19,15 @@ import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorStage } from "../../types/vector/urban";
 import { clamp, createEditorControls } from "../editorControls";
 import type { EditorLanguageLifetime } from "../languagePanel";
+import { createVectorCitySettingsPanel } from "./VectorCitySettingsPanel";
 import { createVectorEditPanel } from "./VectorEditPanel";
 import { createVectorEnvironmentPanel } from "./VectorEnvironmentPanel";
+import { createVectorFabricHousePanel } from "./VectorFabricHousePanel";
 import { createVectorGenerationPanel } from "./VectorGenerationPanel";
 import { createVectorPlacementPanel } from "./VectorPlacementPanel";
 import { createVectorPresentationPanel } from "./VectorPresentationPanel";
 import { createVectorWorkbench } from "./VectorWorkbench";
+import { attachVectorMeasure } from "./vectorMeasure";
 
 export interface VectorEditorSession {
   generationInput?: import("../../generators/vector/generation/editorInput").VectorEditorGenerationInput;
@@ -91,13 +98,21 @@ export function mountVectorCityEditor(
     },
     { passive: false }
   );
+  attachVectorMeasure(scope, map, text => {
+    status.textContent = text;
+  });
   let environmentPanel: ReturnType<typeof createVectorEnvironmentPanel> | undefined;
   let placementPanel: ReturnType<typeof createVectorPlacementPanel> | undefined;
+  let housePanel: ReturnType<typeof createVectorFabricHousePanel> | undefined;
   let editPanel: ReturnType<typeof createVectorEditPanel> | undefined;
   let generationPanel: ReturnType<typeof createVectorGenerationPanel> | undefined;
+  let citySettingsPanel: ReturnType<typeof createVectorCitySettingsPanel> | undefined;
   let workbench: ReturnType<typeof createVectorWorkbench> | undefined;
+  const plans = createVectorPlanPreparation();
+  scope.own(plans.dispose);
   const refresh = () => {
-    const current = session.history.document;
+    const current = session.history.peek();
+    plans.request(current);
     stopCopy();
     copyCandidate = undefined;
     adoptCopy.disabled = true;
@@ -108,8 +123,10 @@ export function mountVectorCityEditor(
     redo.disabled = !session.history.canRedo;
     editPanel?.refresh();
     placementPanel?.refresh();
+    housePanel?.refresh();
     environmentPanel?.refresh();
     generationPanel?.refresh();
+    citySettingsPanel?.refresh();
     workbench?.refresh();
     status.textContent = editorText("cityEditor.vector.summary", {
       paths: Object.keys(current.paths).length,
@@ -189,7 +206,12 @@ export function mountVectorCityEditor(
     threeHost,
     () => session.history.document,
     id => {
-      const doc = session.history.document;
+      // Selection reads the current snapshot without copying it (see the block fabric scaling plan, S2.0).
+      const doc = session.history.peek();
+      if (housePanel?.select(id)) {
+        workbench?.selectHouse(id);
+        return;
+      }
       placementPanel?.select(id);
       const pathId = doc.paths[id]
         ? id
@@ -306,6 +328,18 @@ export function mountVectorCityEditor(
     copyStatus.textContent = "";
   });
   controls.append(copyButton, adoptCopy, cancelCopy, restoreCopy, copyStatus, copyList);
+  // The city settings are the meshless editor's own: a city opened without the mesh editor's settings starts
+  // from the editor defaults (and its FMG site, if linked), so nothing has to be set in the mesh editor first.
+  session.generationInput ??= {
+    seed: session.history.document.recipe.seed,
+    settings: {
+      ...defaultGenerationSettings(),
+      ...((session.sourceDescriptor ?? session.history.document.site?.descriptor)
+        ? { descriptor: session.sourceDescriptor ?? session.history.document.site?.descriptor }
+        : {})
+    },
+    frame: { extentMeters: 1200, cityRadiusMeters: 396, blockSizeMeters: 50 }
+  };
   generationPanel = createVectorGenerationPanel(
     scope,
     controls,
@@ -321,7 +355,20 @@ export function mountVectorCityEditor(
     (doc, stage) => presentation.rendered(doc, stage),
     undefined,
     () => session.history.currentEntryKey,
-    session.generationInput
+    session.generationInput,
+    () => session.history.peek()
+  );
+  citySettingsPanel = createVectorCitySettingsPanel(
+    scope,
+    controls,
+    session.generationInput,
+    () => session.history.document,
+    (doc, label) => {
+      // The housing culture only restyles the houses: the open 3D view redraws its house layer in place.
+      session.history.commit(doc, label);
+      refresh();
+    },
+    () => scope.invalidate("vector-generation-input")
   );
   editPanel = createVectorEditPanel(
     scope,
@@ -341,7 +388,48 @@ export function mountVectorCityEditor(
     scope,
     controls,
     () => session.history.document,
-    (doc, label) => editPanel!.submit(doc, label)
+    (doc, label) => editPanel!.submit(doc, label),
+    () => session.history.peek()
+  );
+  housePanel = createVectorFabricHousePanel(
+    scope,
+    controls,
+    () => session.history.peek(),
+    id => {
+      // Detaching keeps every record and capacity; it is committed directly, without regeneration.
+      try {
+        const { document: next, placementId } = detachFabricHouse(session.history.document, id);
+        session.history.commit(next, editorText("cityEditor.vector.fabricHouse.detach"));
+        refresh();
+        placementPanel?.select(placementId);
+        return editorText("cityEditor.vector.fabricHouse.detached");
+      } catch (error) {
+        return `${editorText("cityEditor.vector.dependencies.failed")} ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+    id => {
+      try {
+        session.history.commit(
+          clearFabricHouse(session.history.document, id),
+          editorText("cityEditor.vector.fabricHouse.clear")
+        );
+        refresh();
+        return editorText("cityEditor.vector.fabricHouse.cleared");
+      } catch (error) {
+        return `${editorText("cityEditor.vector.dependencies.failed")} ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+    id => {
+      try {
+        const { document: next, pathId } = detachFabricLine(session.history.document, id);
+        session.history.commit(next, editorText("cityEditor.vector.fabricHouse.detachLine"));
+        refresh();
+        workbench?.select(pathId);
+        return editorText("cityEditor.vector.fabricHouse.lineDetached");
+      } catch (error) {
+        return `${editorText("cityEditor.vector.dependencies.failed")} ${error instanceof Error ? error.message : String(error)}`;
+      }
+    }
   );
   environmentPanel = createVectorEnvironmentPanel(
     scope,
@@ -355,7 +443,8 @@ export function mountVectorCityEditor(
       refresh();
     },
     options.openMeshDocument,
-    () => session.history.currentEntryKey
+    () => session.history.currentEntryKey,
+    () => session.history.peek()
   );
   workbench = createVectorWorkbench(
     scope,
@@ -367,7 +456,10 @@ export function mountVectorCityEditor(
       scope.invalidate("import");
       editPanel!.submit(document, label);
     },
-    doc => presentation.rendered(doc)
+    doc => presentation.rendered(doc),
+    () => session.history.peek(),
+    id => (id ? housePanel?.select(id) : housePanel?.clear()),
+    id => housePanel?.selectLine(id)
   );
   refresh();
   if (session.history.document.legacyCopy) {
