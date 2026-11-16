@@ -41,7 +41,13 @@ export function mountVector3d(
   let model = createVectorScene(data, sceneOptions());
   let renderer: WebGPURenderer;
   try {
-    renderer = new WebGPURenderer({ antialias: true, logarithmicDepthBuffer: true });
+    // Opaque 8-bit output. Reversed depth covers the large range; logarithmic depth would run in every material.
+    renderer = new WebGPURenderer({
+      antialias: true,
+      alpha: false,
+      outputBufferType: THREE.UnsignedByteType,
+      reversedDepthBuffer: true
+    });
   } catch (error) {
     model.dispose();
     layers.dispose();

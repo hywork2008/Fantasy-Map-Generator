@@ -607,7 +607,13 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     viewport.appendChild(canvas);
     let created: WebGPURenderer;
     try {
-      created = new WebGPURenderer({ canvas, antialias: true });
+      // Opaque 8-bit output. The default half-float target exists for HDR, and this view does not tone-map.
+      created = new WebGPURenderer({
+        canvas,
+        antialias: true,
+        alpha: false,
+        outputBufferType: THREE.UnsignedByteType
+      });
     } catch {
       canvas.remove();
       return false;
