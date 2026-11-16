@@ -1,12 +1,12 @@
-import { APPEARANCE_AXIS_IDS, CHARACTER_GENDER_MODES } from "../../src/types/models";
-import { hybridAppearance, hybridBeautyIdeal, hybridNumericRecord } from "../../src/data/hybridRaceTraits";
+import { APPEARANCE_AXIS_IDS, CHARACTER_GENDER_MODES } from "../../src/types/models.ts";
+import { hybridAppearance, hybridBeautyIdeal, hybridNumericRecord } from "../../src/data/hybridRaceTraits.ts";
 import {
   RACE_PARAMETER_NUMERIC_COLUMNS,
   RACE_PERSONALITY_AXES,
   RACE_SKILL_AXES,
   validateRaceParameters
-} from "./raceParameters";
-import type { RaceDefinition } from "./raceParameters";
+} from "./raceParameters.ts";
+import type { RaceDefinition } from "./raceParameters.ts";
 
 const axes = APPEARANCE_AXIS_IDS;
 const numericColumns: Record<string, string> = {

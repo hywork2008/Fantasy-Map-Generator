@@ -45,7 +45,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TYPE=$(node scripts/detect-bump-type.js --diff-file /tmp/pr.diff)
+          TYPE=$(node scripts/detect-bump-type.cjs --diff-file /tmp/pr.diff)
           echo "type=$TYPE" >> "$GITHUB_OUTPUT"
           echo "AI-determined bump type: $TYPE"
 
@@ -59,14 +59,14 @@ jobs:
 
       - name: Run version bump script
         run: |
-          node scripts/bump-version.js ${{ steps.bump.outputs.type }} \
+          node scripts/bump-version.cjs ${{ steps.bump.outputs.type }} \
             --base-version ${{ steps.base.outputs.version }}
 
       - name: Commit and push bump
         run: |
-          NEW_VERSION=$(node -e "
-            const m = require('fs')
-              .readFileSync('public/versioning.js', 'utf8')
+          NEW_VERSION=$(node --input-type=module -e "
+            import { readFileSync } from 'node:fs';
+            const m = readFileSync('public/versioning.js', 'utf8')
               .match(/const VERSION = \"([\d.]+)\"/);
             console.log(m[1]);
           ")

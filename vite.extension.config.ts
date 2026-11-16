@@ -11,7 +11,7 @@ export default defineConfig({
     outDir: `dist/extensions/${extension}`,
     emptyOutDir: true,
     lib: {
-      entry: path.resolve(__dirname, `src/extensions/${extension}/index.${extension === "economy" ? "tsx" : "ts"}`),
+      entry: path.resolve(import.meta.dirname, `src/extensions/${extension}/index.${extension === "economy" ? "tsx" : "ts"}`),
       name: `${extension}Extension`,
       fileName: extension,
       formats: ["es"]

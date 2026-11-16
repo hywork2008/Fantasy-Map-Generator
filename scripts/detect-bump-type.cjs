@@ -14,7 +14,7 @@
  *            NOT affect the .map file format at all
  *
  * Usage (called by bump-version.yml):
- *   node scripts/detect-bump-type.js --diff-file <path>
+ *   node scripts/detect-bump-type.cjs --diff-file <path>
  *
  * Output:  prints exactly one of:  patch  |  minor  |  major
  * Exit 0 always (falls back to "patch" on any error).

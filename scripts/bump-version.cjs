@@ -12,11 +12,11 @@
  *   - public/**\/*.js        — ?v= cache-busting hashes in dynamic import() calls
  *
  * Usage:
- *   node scripts/bump-version.js             # interactive prompt
- *   node scripts/bump-version.js patch       # non-interactive
- *   node scripts/bump-version.js minor       # non-interactive
- *   node scripts/bump-version.js major       # non-interactive
- *   node scripts/bump-version.js --dry-run   # preview only, no writes
+ *   node scripts/bump-version.cjs             # interactive prompt
+ *   node scripts/bump-version.cjs patch       # non-interactive
+ *   node scripts/bump-version.cjs minor       # non-interactive
+ *   node scripts/bump-version.cjs major       # non-interactive
+ *   node scripts/bump-version.cjs --dry-run   # preview only, no writes
  */
 
 const fs = require("fs");

@@ -77,7 +77,7 @@ export async function uploadMapFixture(page: Page, filename: string, renderMode:
   const previousMapId = await getMapId(page);
   await page.waitForSelector("#fileInputs #mapToLoad", { state: "attached" });
 
-  await page.locator("#fileInputs #mapToLoad").setInputFiles(path.join(__dirname, `../../fixtures/${filename}`));
+  await page.locator("#fileInputs #mapToLoad").setInputFiles(path.join(import.meta.dirname, `../../fixtures/${filename}`));
 
   await page.waitForFunction(
     mapIdBeforeUpload => {
@@ -126,7 +126,7 @@ export async function loadMapBeforeInitialGenerationCompletes(
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Generate entire map", exact: true }).waitFor({ state: "visible" });
-  await page.locator("#fileInputs #mapToLoad").setInputFiles(path.join(__dirname, `../../fixtures/${filename}`));
+  await page.locator("#fileInputs #mapToLoad").setInputFiles(path.join(import.meta.dirname, `../../fixtures/${filename}`));
   await page.waitForFunction(
     () => typeof window.fmg !== "undefined" && window.fmg.world.mapId !== 0,
     { timeout: 60000 }
