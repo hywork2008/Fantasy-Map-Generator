@@ -9,7 +9,7 @@ import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { vectorInputFromEditor } from "./editorInput";
 import { vectorInputFromDescriptor } from "./input";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
-import { vectorApproachBands } from "./suburbs";
+import { curvedRibbon, vectorApproachBands } from "./suburbs";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
 import { vectorWallChoice } from "./wallShape";
 
@@ -100,5 +100,21 @@ describe("the town beyond its wall grows along the gate roads (gate-ribbon plan 
     onApproaches(city);
     expect(city.urban!.report.capacityOutside).toBeGreaterThan(0);
     expect(city.urban!.report.unplacedDwellings).toBe(0);
+  });
+});
+
+describe("roadside strip along a bending road (pre-acceptance U4)", () => {
+  it("bends with the road instead of boxing the bend", () => {
+    // 150 m east, then a 60° turn and 150 m on, every 2 m as the approach bands sample it.
+    const road: [number, number][] = [];
+    for (let s = 0; s <= 150; s += 2) road.push([s, 0]);
+    for (let s = 2; s <= 150; s += 2) road.push([150 + s * Math.cos(Math.PI / 3), s * Math.sin(Math.PI / 3)]);
+    const strip = curvedRibbon(road, () => 28);
+    expect(strip).toHaveLength(1);
+    const outline = strip![0];
+    // The road lies inside the strip, and no part of the strip stands farther from the road than its half width
+    // (a box over the bend would leave its corner about 40 m out).
+    for (const q of road.slice(1, -1)) expect(pointInPolygon(q, outline)).toBe(true);
+    for (const q of outline) expect(nearestOnPolyline(q, road).dist).toBeLessThan(28 + 3);
   });
 });

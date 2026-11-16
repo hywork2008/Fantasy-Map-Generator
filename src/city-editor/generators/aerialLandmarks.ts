@@ -61,6 +61,7 @@ import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
 import { placeStorageYards, type StorageYard } from "./storageYardPlacement";
 import { approachBands } from "./suburbanLanduse";
 import type { ApproachBand } from "./suburbanLanduse.types";
+import { meshReachableLand, onReachableLand } from "./townReachability";
 import { type DocumentWaterTest, documentWaterTest } from "./waterGeometry";
 import { fixedBankOffset } from "./watermillFabric";
 
@@ -708,7 +709,12 @@ function windmillPlan(site: Site, input: AerialLandmarkInput, rng: Rng): Windmil
 
 function placeWindmills(site: Site, input: AerialLandmarkInput, rng: Rng): Windmill[] {
   const plan = windmillPlan(site, input, rng);
-  return plan ? placeWindmillsAroundTown(site, plan, rng) : [];
+  if (!plan) return [];
+  // Only ground a carter reaches from the town centre through the gates and over the bridges (U5).
+  const reach = meshReachableLand(site.document),
+    reachable: Site = Object.create(site);
+  reachable.hitsBlocked = polygon => site.hitsBlocked(polygon) || !onReachableLand(reach, polygon);
+  return placeWindmillsAroundTown(reachable, plan, rng);
 }
 
 /**

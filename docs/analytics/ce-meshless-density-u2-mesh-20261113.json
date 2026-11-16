@@ -1,0 +1,35 @@
+[
+  {
+    "case": "gothengsfeld-20261012",
+    "population": 4920,
+    "dwellings": 1094,
+    "coreFacesM2": 119616,
+    "builtM2": 44455,
+    "coverOfCoreFaces": 0.372,
+    "lotsCore": 1383,
+    "lotMedianM2": 32,
+    "lotsOutskirts": 13
+  },
+  {
+    "case": "erente-20261009",
+    "population": 9568,
+    "dwellings": 2127,
+    "coreFacesM2": 211103,
+    "builtM2": 70366,
+    "coverOfCoreFaces": 0.333,
+    "lotsCore": 2163,
+    "lotMedianM2": 32,
+    "lotsOutskirts": 1
+  },
+  {
+    "case": "obern-20261027",
+    "population": 5944,
+    "dwellings": 1321,
+    "coreFacesM2": 175919,
+    "builtM2": 67625,
+    "coverOfCoreFaces": 0.384,
+    "lotsCore": 2213,
+    "lotMedianM2": 30,
+    "lotsOutskirts": 62
+  }
+]

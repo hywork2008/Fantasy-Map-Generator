@@ -12,6 +12,9 @@
       "saveDocument": "メッシュなし文書を保存",
       "invalidDocument": "文書を開けません。形式・形状・接続先の参照を確認してください。",
       "returnToMesh": "メッシュ版の編集画面に戻る",
+      "modeSwitch": "生成方式",
+      "modeMesh": "メッシュあり",
+      "modeMeshless": "メッシュなし",
       "undo": "元に戻す",
       "redo": "やり直す",
       "edit": {
@@ -318,6 +321,7 @@
         "unplaced": "未収容人口",
         "provisional": "仮寸法の施設",
         "stagePopulation": "この段階の収容人口",
+        "wallShare": "市壁内／外: 住宅 {{value0}}／{{value1}}棟、施設 {{value2}}／{{value3}}棟、人口 {{value4}}／{{value5}}人（市壁内 {{value6}}%）",
         "urbanDiagnostics": {
           "suburbs-expanded": "固定形状を動かさず合成市域内に郊外を追加しました。",
           "housing-capacity-shortfall": "接道できる敷地が尽き、住戸が不足しています。",

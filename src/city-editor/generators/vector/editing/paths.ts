@@ -9,6 +9,7 @@ import type {
 import { evaluateAnchor, pathIsClosed, VECTOR_CONNECTION_EPSILON } from "../geometry/curves";
 import { simplifyFreehand } from "../geometry/sampling";
 import { pathSurface, surfacesOverlap } from "../geometry/surfaces";
+import { refitVectorLandUse } from "../landUse";
 import { overlapsOccupiedSites } from "../occupancy";
 import { assertVectorDocument, validateVectorDocument, validateVectorPath } from "../validation/document";
 import { mapDocumentAnchors, pathAnchors } from "./anchors";
@@ -166,6 +167,7 @@ export function replaceVectorPath(document: VectorCityDocument, candidate: Vecto
   )
     throw new Error("fixed-bridge");
   next.revision++;
+  refitVectorLandUse(next);
   const errors = validateVectorDocument(next);
   if (errors.some(e => e.startsWith("road-clearance:"))) throw new Error("road-clearance");
   if (errors.some(e => e.startsWith("gate-access:"))) throw new Error("gate-access");

@@ -18,7 +18,7 @@ describe("economic wards by the mesh editor's ward mix (feature parity P6g)", ()
         historicalPeriod: "lateMedieval" as const,
         buildingPattern: "medieval" as const
       },
-      seed = "p6g-wards",
+      seed = "w1",
       input = vectorInputFromEditor({
         settings,
         seed,

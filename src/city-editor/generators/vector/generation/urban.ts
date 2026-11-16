@@ -22,6 +22,7 @@ import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/document";
 import { vectorUrbanStages } from "../validation/urban";
 import { placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
+import { raiseVectorLandUse } from "./landUse";
 import { layoutVectorParks } from "./parks";
 import {
   assemblePerimeterDistricts,
@@ -202,6 +203,8 @@ function* vectorUrbanSteps(
   )
     throw new Error("invalid-urban-settings");
   const doc = structuredClone(input);
+  // The open land by use is split again round the finished town (U5b): suburbs and leats change it.
+  if (doc.environment?.landUse) delete doc.environment.landUse;
   let kept:
     | { cleared: Record<string, number[]>; detachedLines: Record<string, VectorFabricDetachedLine[]> }
     | undefined;
@@ -672,7 +675,9 @@ function* vectorUrbanSteps(
       organic,
       requests.filter(r => !ownedPlacements.includes(`urban:${r.id}`) && !tanneryRow.unplaced.some(u => u.id === r.id)),
       core,
-      tanneryRow.placed
+      tanneryRow.placed,
+      // A park ward stays a lawn (P7c); its lots never take a facility.
+      id => wards.get(id)?.ward === "park"
     );
     unplacedFacilities.push(...tanneryRow.unplaced);
     ownedPlacements.push(...lots.placed);
@@ -699,7 +704,11 @@ function* vectorUrbanSteps(
   let housingAttempts = 0;
   let housingStop: VectorUrbanProfile["housingStop"] = remaining > 0 ? "frontage" : "demand-met";
   const housingStarted = performance.now();
-  const suburbanLots = vectorSuburbanLots(doc, (id: string) => wards.get(id)?.ward === "shanty"),
+  const suburbanLots = vectorSuburbanLots(
+      doc,
+      (id: string) => wards.get(id)?.ward === "shanty",
+      tanneryRow.placed.flatMap(id => (doc.placements[id] ? [doc.placements[id].site.outer] : []))
+    ),
     ribbon = !sourceSite.descriptor?.urbanMorphology && vectorApproachBands(doc).bands.length > 0,
     outsideBlocks = new Set(districts.filter(d => !d.inside).map(d => streetBlockOf(d.id)));
   if (organic && remaining > 0) {
@@ -762,7 +771,7 @@ function* vectorUrbanSteps(
   const parks = organic
     ? layoutVectorParks(doc, districts, id => {
         const c = doc.fabric?.cells[id];
-        return !c || c.houses.offsets.length === c.detached.length;
+        return !facilityCells.has(id) && (!c || c.houses.offsets.length === c.detached.length);
       })
     : [];
   timed("parks");
@@ -805,6 +814,10 @@ function* vectorUrbanSteps(
   timed("residual-land");
   doc.site = sourceSite;
   doc.context.targetPopulation = settings.population;
+  // The open land by use round the finished town and its suburbs (U5b).
+  const used = raiseVectorLandUse(doc, domain).environment?.landUse;
+  if (used) doc.environment = { features: {}, hidden: [], ...doc.environment, landUse: used };
+  timed("land-use");
   doc.revision++;
   doc.generation = { ...doc.generation!, blocks, inputRevision: doc.revision };
   doc.urban = {

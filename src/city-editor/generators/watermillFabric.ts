@@ -8,6 +8,7 @@ import { facePoints } from "./mesh";
 import { makeRng } from "./prng";
 import { regionalCoastalWaterPolygons } from "./regionalCoast";
 import { flowingRivers } from "./riverFlow";
+import { meshReachableLand, pointOnReachableLand, type ReachableLand } from "./townReachability";
 
 /** Average residents per dwelling used by FMG and city generation. */
 export const URBAN_DWELLING_SIZE = 4.5;
@@ -464,6 +465,7 @@ export function buildWatermillPlan(
   candidates.sort((a, b) => b.score - a.score);
 
   let millIndex = 0;
+  let reach: ReachableLand | null = null;
   for (const cand of candidates) {
     if (mills.length >= targetCount) break;
 
@@ -544,6 +546,12 @@ export function buildWatermillPlan(
     if (!isLandPoint(document, millCenter)) {
       continue;
     }
+    // Its land-side door on ground reached from the town centre through the gates and over the bridges (U5).
+    reach ??= meshReachableLand(document);
+    if (
+      !pointOnReachableLand(reach, [bankPt[0] + normal[0] * (houseDepth + 2), bankPt[1] + normal[1] * (houseDepth + 2)])
+    )
+      continue;
 
     // House vertices:
     // P1: river-side upstream

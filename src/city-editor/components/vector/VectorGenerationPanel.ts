@@ -9,6 +9,7 @@ import { siteDisk, syntheticVectorInput, vectorInputFromDescriptor } from "../..
 import { DEFAULT_VECTOR_GENERATION, type VectorGenerationResult } from "../../generators/vector/generation/pipeline";
 import { meshlessSettingGaps } from "../../generators/vector/generation/settingSupport";
 import { DEFAULT_VECTOR_URBAN, vectorUrbanMode } from "../../generators/vector/generation/urban";
+import { vectorWallShares } from "../../generators/vector/generation/urbanCapacity";
 import { VECTOR_WALL_SHAPES, vectorWallChoice } from "../../generators/vector/generation/wallShape";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../../generators/vector/validation/document";
 import { vectorUrbanStages } from "../../generators/vector/validation/urban";
@@ -367,6 +368,21 @@ export function createVectorGenerationPanel(
       .map(id => doc.placements[id])
       .filter(p => p.building?.kind === "facility");
     status.textContent = `${text("population")}: ${u.report.targetPopulation}; ${text("capacity")}: ${c?.capacityDwellings ?? u.report.capacityDwellings} / ${u.report.requiredDwellings}; ${text("unplaced")}: ${c?.unplacedPopulation ?? u.report.unplacedPopulation}; ${text("facilities")}: ${visibleFacilities.length} / ${u.report.requiredFacilities}; ${text("provisional")}: ${visibleFacilities.filter(p => p.building?.provenance === "provisional").length}${c ? `; ${text("stagePopulation")}: ${c.assignedPopulation}` : ""}`;
+    // Inside against beyond the wall, for the finished town only: earlier stages hold fewer buildings.
+    const shares = !c || c.id === "housing" ? vectorWallShares(doc) : undefined;
+    if (shares) {
+      const { inside: a, outside: b } = shares,
+        total = a.population + b.population;
+      status.textContent += `; ${editorText("cityEditor.vector.generation.wallShare" as EditorMessageKey, {
+        value0: a.houses,
+        value1: b.houses,
+        value2: a.facilities,
+        value3: b.facilities,
+        value4: a.population,
+        value5: b.population,
+        value6: total ? Math.round((a.population / total) * 100) : 0
+      })}`;
+    }
     for (const reason of u.report.reasons) {
       const li = document.createElement("li");
       li.textContent = text(`urbanDiagnostics.${reason}`);

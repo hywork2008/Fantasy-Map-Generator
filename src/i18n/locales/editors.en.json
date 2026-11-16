@@ -12,6 +12,9 @@
       "saveDocument": "Save meshless document",
       "invalidDocument": "Cannot open this document. Check its format, geometry and connection references.",
       "returnToMesh": "Return to mesh editor",
+      "modeSwitch": "Generation mode",
+      "modeMesh": "Mesh",
+      "modeMeshless": "Meshless",
       "undo": "Undo",
       "redo": "Redo",
       "edit": {
@@ -318,6 +321,7 @@
         "unplaced": "Unplaced population",
         "provisional": "Provisional facility dimensions",
         "stagePopulation": "Population assigned at this stage",
+        "wallShare": "Inside / beyond the wall: houses {{value0}} / {{value1}}, facilities {{value2}} / {{value3}}, residents {{value4}} / {{value5}} ({{value6}}% inside)",
         "urbanDiagnostics": {
           "suburbs-expanded": "Suburbs added within the synthetic frame without moving source geometry.",
           "housing-capacity-shortfall": "Street frontage ran out before every dwelling had a site.",

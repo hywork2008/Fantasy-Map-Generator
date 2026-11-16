@@ -37,9 +37,11 @@ describe("meshless double walls from the mesh editor's settings (feature parity 
         Object.values(urban.connections.circuits).find(c => c.pathId === "auto-inner-wall")!.id
       ];
     expect(urban.connections.circuits[inner.parentCircuitId!].pathId).toBe("auto-wall");
-    // Eased by a few percent to meet the streets cleanly.
+    // Eased to meet the streets cleanly, and grown until the old town takes in the civic centre: in a town sized
+    // to be built out (pre-acceptance U3) the civic centre is a larger part of it, and the line grows up to its
+    // cap of 0.9 of the outer wall's size (0.81 of its area).
     expect(area(urban, "auto-inner-wall") / area(urban, "auto-wall")).toBeGreaterThan(0.3);
-    expect(area(urban, "auto-inner-wall") / area(urban, "auto-wall")).toBeLessThan(0.65);
+    expect(area(urban, "auto-inner-wall") / area(urban, "auto-wall")).toBeLessThan(0.82);
     expect(
       Object.values(urban.connections.gates).filter(g => g.wallPathId === "auto-inner-wall" && g.kind === "passage")
         .length

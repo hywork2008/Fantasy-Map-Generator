@@ -19,6 +19,7 @@ import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorStage } from "../../types/vector/urban";
 import { clamp, createEditorControls } from "../editorControls";
 import type { EditorLanguageLifetime } from "../languagePanel";
+import { createModeSwitch } from "../modeSwitch";
 import { createVectorCitySettingsPanel } from "./VectorCitySettingsPanel";
 import { createVectorEditPanel } from "./VectorEditPanel";
 import { createVectorEnvironmentPanel } from "./VectorEnvironmentPanel";
@@ -98,6 +99,38 @@ export function mountVectorCityEditor(
     },
     { passive: false }
   );
+  // Middle-button drag pans the 2D map, as in the mesh editor.
+  let pan: { id: number; x: number; y: number } | undefined;
+  scope.listen(map, "pointerdown", event => {
+    if (event.button !== 1) return;
+    event.preventDefault();
+    pan = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    map.setPointerCapture?.(event.pointerId);
+    map.style.cursor = "grabbing";
+  });
+  scope.listen(map, "pointermove", event => {
+    if (!pan || event.pointerId !== pan.id) return;
+    const svg = map.querySelector<SVGSVGElement>(".ce-vector-svg");
+    const rect = svg?.getBoundingClientRect();
+    if (!svg || !rect || !(rect.width > 0 && rect.height > 0)) return;
+    const [x, y, width, height] = svg.getAttribute("viewBox")!.split(/\s+/).map(Number);
+    const unitsPerPixel = Math.max(width / rect.width, height / rect.height);
+    const nextX = x - (event.clientX - pan.x) * unitsPerPixel;
+    const nextY = y - (event.clientY - pan.y) * unitsPerPixel;
+    pan.x = event.clientX;
+    pan.y = event.clientY;
+    svg.setAttribute("viewBox", `${nextX} ${nextY} ${width} ${height}`);
+  });
+  const endPan = (event: PointerEvent) => {
+    if (!pan || event.pointerId !== pan.id) return;
+    pan = undefined;
+    map.style.cursor = "";
+  };
+  scope.listen(map, "pointerup", endPan);
+  scope.listen(map, "pointercancel", endPan);
+  scope.listen(map, "auxclick", event => {
+    if (event.button === 1) event.preventDefault();
+  });
   attachVectorMeasure(scope, map, text => {
     status.textContent = text;
   });
@@ -196,7 +229,11 @@ export function mountVectorCityEditor(
   viewport.style.cssText = "flex:1;min-width:0;position:relative";
   map.style.cssText = "width:100%;height:100%;min-height:300px";
   threeHost.style.cssText = "width:100%;height:100%;min-height:300px";
-  viewport.append(map, threeHost);
+  viewport.append(
+    map,
+    threeHost,
+    createModeSwitch(scope, "meshless", () => options.returnToMesh())
+  );
   layout.append(controls, viewport);
   root.append(layout);
   const presentation = createVectorPresentationPanel(

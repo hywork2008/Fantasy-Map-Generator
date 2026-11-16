@@ -50,6 +50,19 @@ export function createVectorPresentationPanel(
   let displayed = read(),
     selected: VectorStage = displayed.urban ? "housing" : "regions",
     scene: ReturnType<typeof mountVector3d> | undefined;
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "ce-view-toggle";
+  host.parentElement?.append(toggle);
+  const syncToggle = () => {
+    toggle.textContent = editorText(view.value === "3d" ? "cityEditor.messages.view2d" : "cityEditor.messages.view3d");
+  };
+  syncToggle();
+  scope.listen(toggle, "click", () => {
+    view.value = view.value === "3d" ? "2d" : "3d";
+    void draw3d();
+  });
+  scope.own(() => toggle.remove());
   const release = () => {
     scope.invalidate("vector-3d");
     scene?.dispose();
@@ -58,6 +71,7 @@ export function createVectorPresentationPanel(
   scope.own(release);
   const draw3d = async () => {
     release();
+    syncToggle();
     if (view.value !== "3d") {
       host.hidden = true;
       map.hidden = false;
@@ -86,6 +100,7 @@ export function createVectorPresentationPanel(
       if (!current()) return;
       release();
       view.value = "2d";
+      syncToggle();
       host.hidden = true;
       map.hidden = false;
       status.textContent = text("unavailable");
