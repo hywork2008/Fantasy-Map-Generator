@@ -33,7 +33,7 @@ import { getOrCreateFaunaStockTable, getSimulationMonth } from "../economyContex
 import { ANNUAL_LITERS_PER_LACTATING_FEMALE, LACTATING_SHARE_OF_BREEDING_COHORT } from "./dairyProductionPolicy";
 import { LITERS_PER_MILK_LOT } from "./foodLots";
 import { getHusbandryCareFactor } from "./husbandry";
-import { getLivestockFeedCoverage } from "./livestockFeedState";
+import { getLeanMilkFactor, getLivestockFeedCoverage } from "./livestockFeedState";
 
 /** `cellId:speciesKey`-keyed lookup, mirroring husbandry.ts's `getDogsHeadcount` precedent. */
 function getLocalBreedingHeadcount(cellId: number, speciesKey: string): number {
@@ -68,5 +68,5 @@ export function getMilkOutput(cellId: number): number {
       LITERS_PER_MILK_LOT;
   }
   if (rawYield <= 0) return 0;
-  return rawYield * getHusbandryCareFactor(cellId) * getLivestockFeedCoverage(cellId);
+  return rawYield * getHusbandryCareFactor(cellId) * getLivestockFeedCoverage(cellId) * getLeanMilkFactor(cellId);
 }

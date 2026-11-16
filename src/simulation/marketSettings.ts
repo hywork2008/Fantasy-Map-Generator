@@ -139,7 +139,9 @@ export const LEAN_CONDITION_MODES = ["carcass", "off"] as const;
 export type LeanConditionMode = (typeof LEAN_CONDITION_MODES)[number];
 export const LEAN_CULL_MODES = ["unfed", "off"] as const;
 export type LeanCullMode = (typeof LEAN_CULL_MODES)[number];
-export const FEED_CRISIS_BUDGET_MODES = ["nearCull", "off"] as const;
+export const FODDER_VALUE_MODES = ["historical", "legacy"] as const;
+export type FodderValueMode = (typeof FODDER_VALUE_MODES)[number];
+export const FEED_CRISIS_BUDGET_MODES = ["worth", "nearCull", "off"] as const;
 export type FeedCrisisBudgetMode = (typeof FEED_CRISIS_BUDGET_MODES)[number];
 export const LEAN_DEATH_MODES = ["die", "off"] as const;
 export type LeanDeathMode = (typeof LEAN_DEATH_MODES)[number];
@@ -239,6 +241,10 @@ export type MarketSettings = {
   feedCrisisBudget: FeedCrisisBudgetMode;
   /** Most of the farms' cash spent in a month on feed for stock about to be sold unfed. */
   feedCrisisCashShare: number;
+  /** Milk lost when the body reserve is wholly spent (docs/plan/livestock-lean-condition.md §8). */
+  leanMilkLoss: number;
+  /** Fodder's base value per bale: oats at 4.4 times hay by weight, or the legacy 1 (docs/plan/fodder-value.md). */
+  fodderValue: FodderValueMode;
   ruralRestDaysCustom: number;
   /** Most of a town's adults that go out in a harvest or hay month under cornAndHay. */
   urbanHarvestHelpShare: number;
@@ -369,8 +375,10 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   leanCull: "unfed",
   leanCullThreshold: 0.25,
   leanDeaths: "die",
-  feedCrisisBudget: "nearCull",
+  feedCrisisBudget: "worth",
+  leanMilkLoss: 0.5,
   feedCrisisCashShare: 0.15,
+  fodderValue: "historical",
   ruralRestDaysCustom: 97,
   urbanHarvestHelpShare: 0.5,
   bootsLabor: "perDay",
@@ -453,6 +461,7 @@ export const MARKET_SETTING_LIMITS = {
   leanRefeedShare: { min: 0, max: 1, step: 0.05 },
   leanCullThreshold: { min: 0, max: 1, step: 0.05 },
   feedCrisisCashShare: { min: 0, max: 1, step: 0.05 },
+  leanMilkLoss: { min: 0, max: 1, step: 0.05 },
   ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 },
   candleKgPerPerson: { min: 0, max: 4, step: 0.25 },
   waxCandleKgPerPerson: { min: 0, max: 0.5, step: 0.01 },
@@ -588,6 +597,10 @@ const feedCrisisBudgetMode = (value: unknown): FeedCrisisBudgetMode =>
   FEED_CRISIS_BUDGET_MODES.includes(value as FeedCrisisBudgetMode)
     ? (value as FeedCrisisBudgetMode)
     : DEFAULT_MARKET_SETTINGS.feedCrisisBudget;
+const fodderValueMode = (value: unknown): FodderValueMode =>
+  FODDER_VALUE_MODES.includes(value as FodderValueMode)
+    ? (value as FodderValueMode)
+    : DEFAULT_MARKET_SETTINGS.fodderValue;
 const ruralRestDaysMode = (value: unknown): RuralRestDaysMode =>
   RURAL_REST_DAYS_MODES.includes(value as RuralRestDaysMode)
     ? (value as RuralRestDaysMode)
@@ -692,6 +705,8 @@ export function getMarketSettings(): MarketSettings {
     leanDeaths: leanDeathMode(parsed.leanDeaths),
     feedCrisisBudget: feedCrisisBudgetMode(parsed.feedCrisisBudget),
     feedCrisisCashShare: clamp("feedCrisisCashShare", parsed.feedCrisisCashShare),
+    leanMilkLoss: clamp("leanMilkLoss", parsed.leanMilkLoss),
+    fodderValue: fodderValueMode(parsed.fodderValue),
     ruralRestDaysCustom: clamp("ruralRestDaysCustom", parsed.ruralRestDaysCustom),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", parsed.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(parsed.bootsLabor),
@@ -785,6 +800,8 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     leanDeaths: leanDeathMode(next.leanDeaths),
     feedCrisisBudget: feedCrisisBudgetMode(next.feedCrisisBudget),
     feedCrisisCashShare: clamp("feedCrisisCashShare", next.feedCrisisCashShare),
+    leanMilkLoss: clamp("leanMilkLoss", next.leanMilkLoss),
+    fodderValue: fodderValueMode(next.fodderValue),
     ruralRestDaysCustom: clamp("ruralRestDaysCustom", next.ruralRestDaysCustom),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", next.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(next.bootsLabor),

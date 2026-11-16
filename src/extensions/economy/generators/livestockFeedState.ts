@@ -143,3 +143,16 @@ export function getMarketLeanCarcassFactors(): Map<number, number> {
     if (sum.lost > 0) factors.set(market, 1 - (leanMaxCarcassLoss * sum.lost) / sum.need);
   return factors;
 }
+
+/**
+ * Share of full milk lean stock give (docs/plan/livestock-lean-condition.md §8): 1 less `leanMilkLoss` times the body
+ * reserve spent, until the herd is refed.
+ */
+export function getLeanMilkFactor(cellId: number): number {
+  const { leanCondition, leanReserveMonths, leanMilkLoss } = getMarketSettings();
+  if (leanCondition === "off" || !(leanMilkLoss > 0)) return 1;
+  const row = getOrCreateLivestockFeedTable()?.[cellId];
+  const need = row?.leanNeedKg ?? 0;
+  if (!row || !(need > 0) || !((row.leanDeficitKg ?? 0) > 0)) return 1;
+  return 1 - leanMilkLoss * Math.min(1, (row.leanDeficitKg ?? 0) / (leanReserveMonths * need));
+}

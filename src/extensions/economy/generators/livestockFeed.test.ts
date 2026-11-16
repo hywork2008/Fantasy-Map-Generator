@@ -59,7 +59,12 @@ describe("physical livestock feed budget", () => {
   let flows: GoodFlowRecord[];
   beforeEach(() => {
     // These cases pin the present-herd hay plan and the twelfth-a-month herd sales (docs/plan/hay-plan-herd.md, herd-offtake-spread.md).
-    setMarketSettings({ hayPlanHerd: "current", herdOfftakeSpread: "legacy", feedCrisisBudget: "nearCull" });
+    setMarketSettings({
+      hayPlanHerd: "current",
+      herdOfftakeSpread: "legacy",
+      feedCrisisBudget: "worth",
+      leanMilkLoss: 0.5
+    });
     simulationContext.extensions = {};
     simulationContext.currentYear = 1000;
     simulationContext.currentMonth = 4;
@@ -398,7 +403,7 @@ describe("physical livestock feed budget", () => {
 
   it("shares scarce purchases across cells, pays from rural cash and gates milk/wool after actual shortage", () => {
     climate.temperatures = Array(12).fill(0);
-    setMarketSettings({ feedCrisisBudget: "off" });
+    setMarketSettings({ feedCrisisBudget: "off", leanMilkLoss: 0 });
     const market = getMarkets()[0];
     market.goods[good("Fodder").i].stock = 10;
     market.foodLedger!.ruralHouseholdWealth = 1;

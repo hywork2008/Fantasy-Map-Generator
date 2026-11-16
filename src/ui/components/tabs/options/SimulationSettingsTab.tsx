@@ -44,7 +44,9 @@ import {
   type FeedCrisisBudgetMode,
   type FeedShortfallResponseMode,
   type FeedShortfallTimingMode,
+  FODDER_VALUE_MODES,
   FOOTWEAR_DEMAND_MODES,
+  type FodderValueMode,
   type FootwearDemandMode,
   FUEL_CHOICE_MODES,
   type FuelChoiceMode,
@@ -1297,6 +1299,20 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
+          <tr data-tip={t("simulation.leanMilkLossTip")}>
+            <td />
+            <td>{t("simulation.leanMilkLoss")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="leanMilkLoss"
+                min={MARKET_SETTING_LIMITS.leanMilkLoss.min}
+                max={MARKET_SETTING_LIMITS.leanMilkLoss.max}
+                step={MARKET_SETTING_LIMITS.leanMilkLoss.step}
+                value={marketSettings.leanMilkLoss}
+                onChange={v => updateMarketSetting("leanMilkLoss", v)}
+              />
+            </td>
+          </tr>
           <tr data-tip={t("simulation.leanCullTip")}>
             <td />
             <td>
@@ -1346,6 +1362,27 @@ export const SimulationSettingsTab: React.FC = () => {
                 {LEAN_DEATH_MODES.map(mode => (
                   <option key={mode} value={mode}>
                     {t(`simulation.leanDeaths_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.fodderValueTip")}>
+            <td />
+            <td>
+              <label htmlFor="fodderValue">{t("simulation.fodderValue")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="fodderValue"
+                value={marketSettings.fodderValue}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ fodderValue: e.target.value as FodderValueMode }))
+                }
+              >
+                {FODDER_VALUE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.fodderValue_${mode}`)}
                   </option>
                 ))}
               </select>

@@ -1,6 +1,7 @@
 import type { MilitaryRegiment, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
+import { getFodderBaseValue } from "./householdGoodValues";
 import { MOUNTED_FODDER_PER_HEAD } from "./militaryResourcesTypes";
 
 const MONTHS_PER_YEAR = 12;
@@ -22,7 +23,7 @@ const BASE_UPKEEP_PER_HEAD = 0.12; // treasury units per head per production cyc
 /**
  * Cavalry horses need feeding on top of the rider's own wage above. Monetizes
  * MOUNTED_FODDER_PER_HEAD (Fodder Goods-units/head/year, shared with militaryResources.ts's free
- * market stock draw) at Fodder's peacetime baseline value of 1 (goods-generator.ts), the same
+ * market stock draw) at Fodder's peacetime base value (`fodderValue`, docs/plan/fodder-value.md), the same
  * convention used for the civilian subsistence calculation above. This comes out small relative
  * to the wage — real horse feed was a genuine expense historically, but MOUNTED_FODDER_PER_HEAD
  * itself is still an uncalibrated placeholder (not yet kg-grounded like Grain), so treat this as a
@@ -30,8 +31,7 @@ const BASE_UPKEEP_PER_HEAD = 0.12; // treasury units per head per production cyc
  * of cavalry — horses themselves, tack, and armor — isn't modeled yet; see the equipment/fortress
  * upkeep TODO above.
  */
-const FODDER_GOOD_VALUE = 1; // Fodder.value peacetime baseline (goods-generator.ts)
-const MOUNTED_FODDER_COST_PER_HEAD = (MOUNTED_FODDER_PER_HEAD * FODDER_GOOD_VALUE) / MONTHS_PER_YEAR;
+const mountedFodderCostPerHead = () => (MOUNTED_FODDER_PER_HEAD * getFodderBaseValue()) / MONTHS_PER_YEAR;
 const BASE_FOOD_CONSUMPTION_PER_HEAD_PER_DAY = 0.01; // food-good stock units per head per day, raw-score scale
 
 export function isMountedUnit(unitName: string): boolean {
@@ -68,7 +68,7 @@ function sumRegimentHeads(state: State, perUnit: (unitName: string, count: numbe
 export function getStateMilitaryUpkeep(state: State): number {
   const total = sumRegimentHeads(
     state,
-    (unitName, count) => count * (BASE_UPKEEP_PER_HEAD + (isMountedUnit(unitName) ? MOUNTED_FODDER_COST_PER_HEAD : 0))
+    (unitName, count) => count * (BASE_UPKEEP_PER_HEAD + (isMountedUnit(unitName) ? mountedFodderCostPerHead() : 0))
   );
   return rn(total, 2);
 }
@@ -81,7 +81,7 @@ export function getStateMilitaryUpkeep(state: State): number {
 export function getRegimentMilitaryUpkeep(regiment: Pick<MilitaryRegiment, "u">): number {
   const total = sumUnitHeads(
     regiment.u,
-    (unitName, count) => count * (BASE_UPKEEP_PER_HEAD + (isMountedUnit(unitName) ? MOUNTED_FODDER_COST_PER_HEAD : 0))
+    (unitName, count) => count * (BASE_UPKEEP_PER_HEAD + (isMountedUnit(unitName) ? mountedFodderCostPerHead() : 0))
   );
   return rn(total, 2);
 }
