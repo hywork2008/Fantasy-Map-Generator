@@ -59,7 +59,7 @@ describe("physical livestock feed budget", () => {
   let flows: GoodFlowRecord[];
   beforeEach(() => {
     // These cases pin the present-herd hay plan and the twelfth-a-month herd sales (docs/plan/hay-plan-herd.md, herd-offtake-spread.md).
-    setMarketSettings({ hayPlanHerd: "current", herdOfftakeSpread: "legacy" });
+    setMarketSettings({ hayPlanHerd: "current", herdOfftakeSpread: "legacy", feedCrisisBudget: "nearCull" });
     simulationContext.extensions = {};
     simulationContext.currentYear = 1000;
     simulationContext.currentMonth = 4;
@@ -398,6 +398,7 @@ describe("physical livestock feed budget", () => {
 
   it("shares scarce purchases across cells, pays from rural cash and gates milk/wool after actual shortage", () => {
     climate.temperatures = Array(12).fill(0);
+    setMarketSettings({ feedCrisisBudget: "off" });
     const market = getMarkets()[0];
     market.goods[good("Fodder").i].stock = 10;
     market.foodLedger!.ruralHouseholdWealth = 1;
@@ -418,6 +419,18 @@ describe("physical livestock feed budget", () => {
     expect(getLivestockFeedCoverage(0)).toBe(rows()[0].coverage);
     simulationContext.currentMonth++;
     expect(getLivestockFeedCoverage(0)).toBe(1);
+  });
+
+  it("feeds stock about to be sold beyond the month's purse, up to the crisis share of farm cash", () => {
+    climate.temperatures = Array(12).fill(0);
+    const market = getMarkets()[0];
+    market.goods[good("Fodder").i].stock = 10;
+    market.foodLedger!.ruralHouseholdWealth = 1;
+    harvestLivestockForage();
+    settleLivestockFeed();
+    // 0.05 from the month's purse, then 15% of the 0.95 left.
+    expect(market.foodLedger!.ruralHouseholdWealth).toBeCloseTo(0.81, 8);
+    expect(rows()[0].hayConsumedKg + rows()[1].hayConsumedKg).toBeGreaterThan(8.5);
   });
 
   it("lets army and farms draw only the remaining portion of the same stock", () => {

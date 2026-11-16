@@ -139,6 +139,8 @@ export const LEAN_CONDITION_MODES = ["carcass", "off"] as const;
 export type LeanConditionMode = (typeof LEAN_CONDITION_MODES)[number];
 export const LEAN_CULL_MODES = ["unfed", "off"] as const;
 export type LeanCullMode = (typeof LEAN_CULL_MODES)[number];
+export const FEED_CRISIS_BUDGET_MODES = ["nearCull", "off"] as const;
+export type FeedCrisisBudgetMode = (typeof FEED_CRISIS_BUDGET_MODES)[number];
 export const LEAN_DEATH_MODES = ["die", "off"] as const;
 export type LeanDeathMode = (typeof LEAN_DEATH_MODES)[number];
 export const RURAL_REST_DAYS_MODES = ["byPeriod", "custom"] as const;
@@ -233,6 +235,10 @@ export type MarketSettings = {
   leanCullThreshold: number;
   /** Stock short beyond the body reserve die, or the deficit stops at the reserve. */
   leanDeaths: LeanDeathMode;
+  /** Stock about to be sold unfed are fed beyond the month's feed purse, or not (docs/plan/livestock-feed-shortfall.md §10). */
+  feedCrisisBudget: FeedCrisisBudgetMode;
+  /** Most of the farms' cash spent in a month on feed for stock about to be sold unfed. */
+  feedCrisisCashShare: number;
   ruralRestDaysCustom: number;
   /** Most of a town's adults that go out in a harvest or hay month under cornAndHay. */
   urbanHarvestHelpShare: number;
@@ -363,6 +369,8 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   leanCull: "unfed",
   leanCullThreshold: 0.25,
   leanDeaths: "die",
+  feedCrisisBudget: "nearCull",
+  feedCrisisCashShare: 0.15,
   ruralRestDaysCustom: 97,
   urbanHarvestHelpShare: 0.5,
   bootsLabor: "perDay",
@@ -444,6 +452,7 @@ export const MARKET_SETTING_LIMITS = {
   leanMaxCarcassLoss: { min: 0, max: 0.5, step: 0.05 },
   leanRefeedShare: { min: 0, max: 1, step: 0.05 },
   leanCullThreshold: { min: 0, max: 1, step: 0.05 },
+  feedCrisisCashShare: { min: 0, max: 1, step: 0.05 },
   ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 },
   candleKgPerPerson: { min: 0, max: 4, step: 0.25 },
   waxCandleKgPerPerson: { min: 0, max: 0.5, step: 0.01 },
@@ -575,6 +584,10 @@ const leanCullMode = (value: unknown): LeanCullMode =>
   LEAN_CULL_MODES.includes(value as LeanCullMode) ? (value as LeanCullMode) : DEFAULT_MARKET_SETTINGS.leanCull;
 const leanDeathMode = (value: unknown): LeanDeathMode =>
   LEAN_DEATH_MODES.includes(value as LeanDeathMode) ? (value as LeanDeathMode) : DEFAULT_MARKET_SETTINGS.leanDeaths;
+const feedCrisisBudgetMode = (value: unknown): FeedCrisisBudgetMode =>
+  FEED_CRISIS_BUDGET_MODES.includes(value as FeedCrisisBudgetMode)
+    ? (value as FeedCrisisBudgetMode)
+    : DEFAULT_MARKET_SETTINGS.feedCrisisBudget;
 const ruralRestDaysMode = (value: unknown): RuralRestDaysMode =>
   RURAL_REST_DAYS_MODES.includes(value as RuralRestDaysMode)
     ? (value as RuralRestDaysMode)
@@ -677,6 +690,8 @@ export function getMarketSettings(): MarketSettings {
     leanCull: leanCullMode(parsed.leanCull),
     leanCullThreshold: clamp("leanCullThreshold", parsed.leanCullThreshold),
     leanDeaths: leanDeathMode(parsed.leanDeaths),
+    feedCrisisBudget: feedCrisisBudgetMode(parsed.feedCrisisBudget),
+    feedCrisisCashShare: clamp("feedCrisisCashShare", parsed.feedCrisisCashShare),
     ruralRestDaysCustom: clamp("ruralRestDaysCustom", parsed.ruralRestDaysCustom),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", parsed.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(parsed.bootsLabor),
@@ -768,6 +783,8 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     leanCull: leanCullMode(next.leanCull),
     leanCullThreshold: clamp("leanCullThreshold", next.leanCullThreshold),
     leanDeaths: leanDeathMode(next.leanDeaths),
+    feedCrisisBudget: feedCrisisBudgetMode(next.feedCrisisBudget),
+    feedCrisisCashShare: clamp("feedCrisisCashShare", next.feedCrisisCashShare),
     ruralRestDaysCustom: clamp("ruralRestDaysCustom", next.ruralRestDaysCustom),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", next.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(next.bootsLabor),

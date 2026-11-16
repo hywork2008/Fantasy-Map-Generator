@@ -38,8 +38,10 @@ import {
   type CharacterReserveMode,
   CRAFT_SALE_PAYMENT_MODES,
   type CraftSalePaymentMode,
+  FEED_CRISIS_BUDGET_MODES,
   FEED_SHORTFALL_RESPONSE_MODES,
   FEED_SHORTFALL_TIMING_MODES,
+  type FeedCrisisBudgetMode,
   type FeedShortfallResponseMode,
   type FeedShortfallTimingMode,
   FOOTWEAR_DEMAND_MODES,
@@ -1347,6 +1349,43 @@ export const SimulationSettingsTab: React.FC = () => {
                   </option>
                 ))}
               </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.feedCrisisBudgetTip")}>
+            <td />
+            <td>
+              <label htmlFor="feedCrisisBudget">{t("simulation.feedCrisisBudget")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="feedCrisisBudget"
+                value={marketSettings.feedCrisisBudget}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ feedCrisisBudget: e.target.value as FeedCrisisBudgetMode })
+                  )
+                }
+              >
+                {FEED_CRISIS_BUDGET_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.feedCrisisBudget_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.feedCrisisCashShareTip")}>
+            <td />
+            <td>{t("simulation.feedCrisisCashShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="feedCrisisCashShare"
+                min={MARKET_SETTING_LIMITS.feedCrisisCashShare.min}
+                max={MARKET_SETTING_LIMITS.feedCrisisCashShare.max}
+                step={MARKET_SETTING_LIMITS.feedCrisisCashShare.step}
+                value={marketSettings.feedCrisisCashShare}
+                onChange={v => updateMarketSetting("feedCrisisCashShare", v)}
+              />
             </td>
           </tr>
           <tr data-tip={t("simulation.hayPlanHerdTip")}>

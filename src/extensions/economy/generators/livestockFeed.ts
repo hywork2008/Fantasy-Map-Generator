@@ -538,6 +538,40 @@ function removeStarvedStock(cell: number, share: number): void {
   }
 }
 
+/**
+ * Feed bought beyond the month's feed purse for stock about to be sold unfed (docs/plan/livestock-feed-shortfall.md
+ * §10): grain, then hay, up to `feedCrisisCashShare` of the farms' cash, only for cells whose deficit with this
+ * month's remaining shortage reaches the selling threshold. Grain costs about four times the meat leanness loses
+ * per kg, so stock merely lean are left to lose condition.
+ */
+function feedNearCull(market: Market, cells: number[], table: Record<number, LivestockFeedLedger>): void {
+  const { feedCrisisBudget, feedCrisisCashShare, leanCondition, leanCull, leanCullThreshold, leanReserveMonths } =
+    getMarketSettings();
+  if (feedCrisisBudget !== "nearCull" || leanCondition === "off" || leanCull === "off") return;
+  const remaining = (cell: number) =>
+    Math.max(
+      0,
+      table[cell].requiredKg -
+        table[cell].pastureConsumedKg -
+        (table[cell].cropResidueFeedKg ?? 0) -
+        (table[cell].grainFeedKg ?? 0) -
+        table[cell].hayKg
+    );
+  const near = cells
+    .map(cell => ({ cell, kg: remaining(cell) }))
+    .filter(
+      entry =>
+        entry.kg > 0 &&
+        (table[entry.cell].leanDeficitKg ?? 0) + entry.kg >=
+          leanCullThreshold * leanReserveMonths * getLivestockMonthlyFeedNeedKg(entry.cell)
+    );
+  if (!near.length) return;
+  let budget = Math.floor(getRuralHouseholdWealth(market) * feedCrisisCashShare * 100) / 100;
+  budget = Math.max(0, budget - feedGrain(market, near, budget));
+  const left = near.map(entry => ({ cell: entry.cell, kg: remaining(entry.cell) })).filter(entry => entry.kg > 0);
+  if (left.length) buyFeed(market, left, budget);
+}
+
 /** Runs after trade; existing army procurement has already removed its share of the same stock. */
 export function settleLivestockFeed(): void {
   const table = getOrCreateLivestockFeedTable();
@@ -585,6 +619,7 @@ export function settleLivestockFeed(): void {
     }));
     budget = Math.max(0, budget - buyFeed(market, shortage, budget));
     budget = Math.max(0, budget - feedGrain(market, shortage, budget));
+    feedNearCull(market, cells, table);
     const reserves = cells.map(cell => ({
       cell,
       kg: Math.max(
