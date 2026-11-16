@@ -169,6 +169,8 @@ export interface LivestockFeedSample {
   requiredKg: number;
   fedKg: number;
   cropResidueFeedKg?: number;
+  /** Fodder grain in fedKg, in hay equivalent. */
+  grainFeedKg?: number;
   purchasedKg: number;
   soldKg: number;
   harvestLossKg: number;
@@ -195,6 +197,20 @@ export interface LivestockFeedLedger {
   hayConsumedKg: number;
   /** Quality-discounted feed equivalent, distinct from physical residue DM. */
   cropResidueFeedKg?: number;
+  /** Fodder grain fed this month, in hay dry-matter equivalent (docs/plan/livestock-feed-shortfall.md). */
+  grainFeedKg?: number;
+  /** Of grainFeedKg, the farms' own grain above a year's food (no cash). */
+  ownGrainFeedKg?: number;
+  /** Feed the herd went without and has not yet eaten back, in hay DM (docs/plan/livestock-lean-condition.md). */
+  leanDeficitKg?: number;
+  /** Spare grass eaten this month to recover condition. */
+  refedKg?: number;
+  /** This month's feed need when the deficit was settled, to scale it by the herd kept. */
+  leanNeedKg?: number;
+  /** Share of the herd keepers sell next month for want of feed. */
+  leanCullShare?: number;
+  /** Share of the herd dead of hunger this month. */
+  leanDeathShare?: number;
   unmetKg: number;
   coverage: number;
   spending: number;

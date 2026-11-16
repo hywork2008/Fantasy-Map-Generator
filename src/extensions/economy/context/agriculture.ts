@@ -83,6 +83,8 @@ let _householdTextileWorkersFallback: Float32Array<ArrayBufferLike> = new Float3
 let _husbandryWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _husbandryMonthlyWorkDaysFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _townHarvestHelperDaysFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _hayCatchUpDaysFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _restDayHayDaysFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 let _husbandryRequiredWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
@@ -429,6 +431,31 @@ export function setTownHarvestHelperDays(value: Float32Array<ArrayBufferLike>): 
   });
 }
 
+/** Hay days carried from a short hay month to the regrowth, cell * 12 + month (docs/plan/hay-catch-up.md). */
+export function getHayCatchUpDays(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("hayCatchUpDays", _hayCatchUpDaysFallback);
+}
+
+export function setHayCatchUpDays(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("hayCatchUpDays", value, next => {
+    _hayCatchUpDaysFallback = next;
+  });
+}
+
+/**
+ * Off-field days left on rest days only after the year's allocation, cell * 12 + month: what a cell answering a
+ * short year with work may still mow as work of necessity (docs/plan/livestock-feed-shortfall.md §9).
+ */
+export function getRestDayHayDays(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("restDayHayDays", _restDayHayDaysFallback);
+}
+
+export function setRestDayHayDays(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("restDayHayDays", value, next => {
+    _restDayHayDaysFallback = next;
+  });
+}
+
 /** Actual occupation reservation, cell * 12 + month. Empty on legacy saves without a calendar. */
 export function getHusbandryMonthlyWorkDays(): Float32Array<ArrayBufferLike> {
   return getSliceFloat32Column("husbandryMonthlyWorkDays", _husbandryMonthlyWorkDaysFallback);
@@ -529,6 +556,8 @@ registerContextFallbackReset(() => {
   _husbandryWorkersFallback = new Float32Array();
   _husbandryMonthlyWorkDaysFallback = new Float32Array();
   _townHarvestHelperDaysFallback = new Float32Array();
+  _hayCatchUpDaysFallback = new Float32Array();
+  _restDayHayDaysFallback = new Float32Array();
   _householdTextileWorkersFallback = new Float32Array();
   _husbandryRequiredWorkersFallback = new Float32Array();
   _stateAgriculturalProductivityFallback = new Float32Array();

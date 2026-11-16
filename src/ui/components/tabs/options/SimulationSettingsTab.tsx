@@ -38,11 +38,21 @@ import {
   type CharacterReserveMode,
   CRAFT_SALE_PAYMENT_MODES,
   type CraftSalePaymentMode,
+  FEED_CRISIS_BUDGET_MODES,
+  FEED_SHORTFALL_RESPONSE_MODES,
+  FEED_SHORTFALL_TIMING_MODES,
+  type FeedCrisisBudgetMode,
+  type FeedShortfallResponseMode,
+  type FeedShortfallTimingMode,
+  FODDER_VALUE_MODES,
   FOOTWEAR_DEMAND_MODES,
+  type FodderValueMode,
   type FootwearDemandMode,
   FUEL_CHOICE_MODES,
   type FuelChoiceMode,
+  GRAIN_FEED_MODES,
   GRAIN_REPAYMENT_MODES,
+  type GrainFeedMode,
   type GrainRepaymentMode,
   GUILD_MASTER_INCOME_MODES,
   GUILD_MASTER_SEAT_MODES,
@@ -52,9 +62,11 @@ import {
   type GuildSurplusUseMode,
   getMarketGenerationSpacing,
   getMarketSettings,
+  HAY_CATCH_UP_MODES,
   HAY_PAYMENT_MODES,
   HAY_PLAN_HERD_MODES,
   HAY_TRADE_MODES,
+  type HayCatchUpMode,
   type HayPaymentMode,
   type HayPlanHerdMode,
   type HayTradeMode,
@@ -66,6 +78,12 @@ import {
   HOUSEHOLD_GOODS_PAYMENT_MODES,
   type HouseholdGoodsPaymentMode,
   type HouseholdGoodValueMode,
+  LEAN_CONDITION_MODES,
+  LEAN_CULL_MODES,
+  LEAN_DEATH_MODES,
+  type LeanConditionMode,
+  type LeanCullMode,
+  type LeanDeathMode,
   MARKET_DISSOLVE_CARGO_MODES,
   MARKET_SETTING_LIMITS,
   type MarketDissolveCargoMode,
@@ -74,8 +92,12 @@ import {
   type MerchantProfitUse,
   PEAT_CUT_PLAN_MODES,
   type PeatCutPlanMode,
+  RURAL_REST_DAYS_MODES,
   RURAL_TOWN_SPENDING_MODES,
+  RURAL_WORK_YEAR_MODES,
+  type RuralRestDaysMode,
   type RuralTownSpendingMode,
+  type RuralWorkYearMode,
   STATE_BUDGET_INCOME_MODES,
   type StateBudgetIncomeMode,
   setMarketSettings,
@@ -1017,6 +1039,389 @@ export const SimulationSettingsTab: React.FC = () => {
                 step={MARKET_SETTING_LIMITS.urbanHarvestHelpShare.step}
                 value={marketSettings.urbanHarvestHelpShare}
                 onChange={v => updateMarketSetting("urbanHarvestHelpShare", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.hayCatchUpTip")}>
+            <td />
+            <td>
+              <label htmlFor="hayCatchUp">{t("simulation.hayCatchUp")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="hayCatchUp"
+                value={marketSettings.hayCatchUp}
+                onChange={e => setMarketSettings({ hayCatchUp: e.target.value as HayCatchUpMode })}
+              >
+                {HAY_CATCH_UP_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.hayCatchUp_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.hayCatchUpMonthsTip")}>
+            <td />
+            <td>{t("simulation.hayCatchUpMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="hayCatchUpMonths"
+                min={MARKET_SETTING_LIMITS.hayCatchUpMonths.min}
+                max={MARKET_SETTING_LIMITS.hayCatchUpMonths.max}
+                step={MARKET_SETTING_LIMITS.hayCatchUpMonths.step}
+                value={marketSettings.hayCatchUpMonths}
+                onChange={v => updateMarketSetting("hayCatchUpMonths", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralWorkYearTip")}>
+            <td />
+            <td>
+              <label htmlFor="ruralWorkYear">{t("simulation.ruralWorkYear")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="ruralWorkYear"
+                value={marketSettings.ruralWorkYear}
+                onChange={e => setMarketSettings({ ruralWorkYear: e.target.value as RuralWorkYearMode })}
+              >
+                {RURAL_WORK_YEAR_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.ruralWorkYear_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralWorkDaysPerYearTip")}>
+            <td />
+            <td>{t("simulation.ruralWorkDaysPerYear")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralWorkDaysPerYear"
+                min={MARKET_SETTING_LIMITS.ruralWorkDaysPerYear.min}
+                max={MARKET_SETTING_LIMITS.ruralWorkDaysPerYear.max}
+                step={MARKET_SETTING_LIMITS.ruralWorkDaysPerYear.step}
+                value={marketSettings.ruralWorkDaysPerYear}
+                onChange={v => updateMarketSetting("ruralWorkDaysPerYear", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralChoreDaysPerAdultTip")}>
+            <td />
+            <td>{t("simulation.ruralChoreDaysPerAdult")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralChoreDaysPerAdult"
+                min={MARKET_SETTING_LIMITS.ruralChoreDaysPerAdult.min}
+                max={MARKET_SETTING_LIMITS.ruralChoreDaysPerAdult.max}
+                step={MARKET_SETTING_LIMITS.ruralChoreDaysPerAdult.step}
+                value={marketSettings.ruralChoreDaysPerAdult}
+                onChange={v => updateMarketSetting("ruralChoreDaysPerAdult", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralRestDaysTip")}>
+            <td />
+            <td>
+              <label htmlFor="ruralRestDays">{t("simulation.ruralRestDays")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="ruralRestDays"
+                value={marketSettings.ruralRestDays}
+                onChange={e => setMarketSettings({ ruralRestDays: e.target.value as RuralRestDaysMode })}
+              >
+                {RURAL_REST_DAYS_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.ruralRestDays_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralRestDaysCustomTip")}>
+            <td />
+            <td>{t("simulation.ruralRestDaysCustom")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralRestDaysCustom"
+                min={MARKET_SETTING_LIMITS.ruralRestDaysCustom.min}
+                max={MARKET_SETTING_LIMITS.ruralRestDaysCustom.max}
+                step={MARKET_SETTING_LIMITS.ruralRestDaysCustom.step}
+                value={marketSettings.ruralRestDaysCustom}
+                onChange={v => updateMarketSetting("ruralRestDaysCustom", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.grainFeedTip")}>
+            <td />
+            <td>
+              <label htmlFor="grainFeed">{t("simulation.grainFeed")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="grainFeed"
+                value={marketSettings.grainFeed}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ grainFeed: e.target.value as GrainFeedMode }))
+                }
+              >
+                {GRAIN_FEED_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.grainFeed_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.feedShortfallResponseTip")}>
+            <td />
+            <td>
+              <label htmlFor="feedShortfallResponse">{t("simulation.feedShortfallResponse")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="feedShortfallResponse"
+                value={marketSettings.feedShortfallResponse}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ feedShortfallResponse: e.target.value as FeedShortfallResponseMode })
+                  )
+                }
+              >
+                {FEED_SHORTFALL_RESPONSE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.feedShortfallResponse_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.feedShortfallTimingTip")}>
+            <td />
+            <td>
+              <label htmlFor="feedShortfallTiming">{t("simulation.feedShortfallTiming")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="feedShortfallTiming"
+                value={marketSettings.feedShortfallTiming}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ feedShortfallTiming: e.target.value as FeedShortfallTimingMode })
+                  )
+                }
+              >
+                {FEED_SHORTFALL_TIMING_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.feedShortfallTiming_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.feedShortfallWorkShareTip")}>
+            <td />
+            <td>{t("simulation.feedShortfallWorkShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="feedShortfallWorkShare"
+                min={MARKET_SETTING_LIMITS.feedShortfallWorkShare.min}
+                max={MARKET_SETTING_LIMITS.feedShortfallWorkShare.max}
+                step={MARKET_SETTING_LIMITS.feedShortfallWorkShare.step}
+                value={marketSettings.feedShortfallWorkShare}
+                onChange={v => updateMarketSetting("feedShortfallWorkShare", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanConditionTip")}>
+            <td />
+            <td>
+              <label htmlFor="leanCondition">{t("simulation.leanCondition")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="leanCondition"
+                value={marketSettings.leanCondition}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ leanCondition: e.target.value as LeanConditionMode }))
+                }
+              >
+                {LEAN_CONDITION_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.leanCondition_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanReserveMonthsTip")}>
+            <td />
+            <td>{t("simulation.leanReserveMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="leanReserveMonths"
+                min={MARKET_SETTING_LIMITS.leanReserveMonths.min}
+                max={MARKET_SETTING_LIMITS.leanReserveMonths.max}
+                step={MARKET_SETTING_LIMITS.leanReserveMonths.step}
+                value={marketSettings.leanReserveMonths}
+                onChange={v => updateMarketSetting("leanReserveMonths", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanMaxCarcassLossTip")}>
+            <td />
+            <td>{t("simulation.leanMaxCarcassLoss")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="leanMaxCarcassLoss"
+                min={MARKET_SETTING_LIMITS.leanMaxCarcassLoss.min}
+                max={MARKET_SETTING_LIMITS.leanMaxCarcassLoss.max}
+                step={MARKET_SETTING_LIMITS.leanMaxCarcassLoss.step}
+                value={marketSettings.leanMaxCarcassLoss}
+                onChange={v => updateMarketSetting("leanMaxCarcassLoss", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanRefeedShareTip")}>
+            <td />
+            <td>{t("simulation.leanRefeedShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="leanRefeedShare"
+                min={MARKET_SETTING_LIMITS.leanRefeedShare.min}
+                max={MARKET_SETTING_LIMITS.leanRefeedShare.max}
+                step={MARKET_SETTING_LIMITS.leanRefeedShare.step}
+                value={marketSettings.leanRefeedShare}
+                onChange={v => updateMarketSetting("leanRefeedShare", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanMilkLossTip")}>
+            <td />
+            <td>{t("simulation.leanMilkLoss")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="leanMilkLoss"
+                min={MARKET_SETTING_LIMITS.leanMilkLoss.min}
+                max={MARKET_SETTING_LIMITS.leanMilkLoss.max}
+                step={MARKET_SETTING_LIMITS.leanMilkLoss.step}
+                value={marketSettings.leanMilkLoss}
+                onChange={v => updateMarketSetting("leanMilkLoss", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanCullTip")}>
+            <td />
+            <td>
+              <label htmlFor="leanCull">{t("simulation.leanCull")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="leanCull"
+                value={marketSettings.leanCull}
+                onChange={e => setMarketSettingsState(setMarketSettings({ leanCull: e.target.value as LeanCullMode }))}
+              >
+                {LEAN_CULL_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.leanCull_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanCullThresholdTip")}>
+            <td />
+            <td>{t("simulation.leanCullThreshold")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="leanCullThreshold"
+                min={MARKET_SETTING_LIMITS.leanCullThreshold.min}
+                max={MARKET_SETTING_LIMITS.leanCullThreshold.max}
+                step={MARKET_SETTING_LIMITS.leanCullThreshold.step}
+                value={marketSettings.leanCullThreshold}
+                onChange={v => updateMarketSetting("leanCullThreshold", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.leanDeathsTip")}>
+            <td />
+            <td>
+              <label htmlFor="leanDeaths">{t("simulation.leanDeaths")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="leanDeaths"
+                value={marketSettings.leanDeaths}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ leanDeaths: e.target.value as LeanDeathMode }))
+                }
+              >
+                {LEAN_DEATH_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.leanDeaths_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.fodderValueTip")}>
+            <td />
+            <td>
+              <label htmlFor="fodderValue">{t("simulation.fodderValue")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="fodderValue"
+                value={marketSettings.fodderValue}
+                onChange={e =>
+                  setMarketSettingsState(setMarketSettings({ fodderValue: e.target.value as FodderValueMode }))
+                }
+              >
+                {FODDER_VALUE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.fodderValue_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.feedCrisisBudgetTip")}>
+            <td />
+            <td>
+              <label htmlFor="feedCrisisBudget">{t("simulation.feedCrisisBudget")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="feedCrisisBudget"
+                value={marketSettings.feedCrisisBudget}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({ feedCrisisBudget: e.target.value as FeedCrisisBudgetMode })
+                  )
+                }
+              >
+                {FEED_CRISIS_BUDGET_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.feedCrisisBudget_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.feedCrisisCashShareTip")}>
+            <td />
+            <td>{t("simulation.feedCrisisCashShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="feedCrisisCashShare"
+                min={MARKET_SETTING_LIMITS.feedCrisisCashShare.min}
+                max={MARKET_SETTING_LIMITS.feedCrisisCashShare.max}
+                step={MARKET_SETTING_LIMITS.feedCrisisCashShare.step}
+                value={marketSettings.feedCrisisCashShare}
+                onChange={v => updateMarketSetting("feedCrisisCashShare", v)}
               />
             </td>
           </tr>

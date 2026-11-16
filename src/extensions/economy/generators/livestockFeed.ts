@@ -2,6 +2,7 @@
 
 import { getMarketSettings } from "../../../simulation/marketSettings";
 import { rn } from "../../hostUtils";
+import { getRuralHouseholdFoodStock, setRuralHouseholdFoodStock } from "../context/agriculture";
 import { getCropResidueState } from "../context/cropResidues";
 import { getMilitaryResourceLedgers } from "../context/fiscal";
 import {
@@ -15,8 +16,13 @@ import {
 import { recordCountrysideFlow } from "./approachLedger";
 import { consumeCropResidues } from "./cropResidues";
 import { getMarketPriceLevel } from "./currencySufficiency";
+import { getMilkOutput } from "./dairy";
+import { GROSS_FOOD_NEED } from "./foodConstants";
+import { RURAL_HOUSEHOLD_FOOD_RESERVE_YEARS } from "./foodProduction";
+import { WAIN_KG } from "./goodMeasureCatalog";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
+import { HERD_MEAT_OFFTAKE } from "./herdDiet";
 import {
   creditRuralHouseholdWealth,
   debitRuralHouseholdWealth,
@@ -41,6 +47,8 @@ import {
 import { livestockFeedMonth, livestockFeedPeriod } from "./livestockFeedState";
 import { getRawGoodTargetPrice } from "./marketPricing";
 import type { Market } from "./marketTypes";
+import { drawTradeableStapleCrop, getTradeableStapleCropUnits } from "./stapleCropInventory";
+import { getWoolOutput } from "./woolProduction";
 
 export function getLivestockMonthlyFeedNeedKg(cellId: number): number {
   const table = getOrCreateFaunaStockTable();
@@ -391,6 +399,243 @@ function buyFeed(market: Market, entries: { cell: number; kg: number }[], budget
   return paid;
 }
 
+/** Grains fed to stock short of hay: oats first, as on the manors (Langdon), then barley and pulses. */
+const FODDER_GRAINS = ["Oats", "Barley", "Peas", "Broad Beans"] as const;
+/** Dry matter of stored grain. */
+const GRAIN_DRY_MATTER_SHARE = 0.87;
+/**
+ * Hay dry matter one kg of grain dry matter stands for: metabolisable energy of about 11.5 MJ/kg DM for oats
+ * against about 8 for meadow hay (modern feed tables; docs/plan/livestock-feed-shortfall.md §2).
+ */
+export const GRAIN_FEED_HAY_EQUIVALENT = 1.4;
+
+/**
+ * Feed still short after pasture, residues and bought hay is made up with fodder grain from the market's spare
+ * grain: what can leave the Food Ledger without touching its protected food reserve, so a market short of bread
+ * feeds none. Paid from the farms' feed money at the grain's market price; each short cell gets its share.
+ */
+function feedGrain(market: Market, entries: { cell: number; kg: number }[], budget: number): number {
+  if (getMarketSettings().grainFeed !== "fodderGrains" || !market.foodLedger) return 0;
+  const table = getOrCreateLivestockFeedTable()!;
+  const short = entries
+    .map(entry => {
+      const row = table[entry.cell];
+      return {
+        cell: entry.cell,
+        kg: Math.max(
+          0,
+          row.requiredKg - row.pastureConsumedKg - (row.cropResidueFeedKg ?? 0) - row.hayKg - (row.grainFeedKg ?? 0)
+        )
+      };
+    })
+    .filter(entry => entry.kg > 0);
+  const hayKgPerUnit = WAIN_KG * GRAIN_DRY_MATTER_SHARE * GRAIN_FEED_HAY_EQUIVALENT;
+  feedOwnGrain(table, short, hayKgPerUnit);
+  let needKg = short.reduce((sum, entry) => sum + entry.kg, 0);
+  if (!(needKg > 0)) return 0;
+  let spent = 0;
+  for (const name of FODDER_GRAINS) {
+    if (!(needKg > 1e-6) || !(budget - spent > 0)) break;
+    // Bought grain: only what the farms' monthly feed money pays for.
+    const good = getGoods().find(row => row.name === name && isGoodEnabled(row));
+    if (!good) continue;
+    const spare = getTradeableStapleCropUnits(market.foodLedger, good.i) ?? 0;
+    const price = market.goods[good.i]?.price ?? good.value;
+    if (!(spare > 0) || !(price > 0) || !Number.isFinite(price)) continue;
+    const wanted = Math.min(spare, needKg / hayKgPerUnit, (budget - spent) / price);
+    const units = drawTradeableStapleCrop(market.foodLedger, good.i, Math.floor(wanted * 100) / 100);
+    if (!(units > 0)) continue;
+    const paid = debitRuralHouseholdWealth(market, rn(units * price, 2));
+    market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
+    market.marketTreasury.balance = rn(market.marketTreasury.balance + paid, 2);
+    spent += paid;
+    const fedKg = units * hayKgPerUnit;
+    for (const entry of short) {
+      const row = table[entry.cell];
+      const kg = Math.min(entry.kg, (fedKg * entry.kg) / needKg);
+      row.grainFeedKg = (row.grainFeedKg ?? 0) + kg;
+      row.spending += (paid * entry.kg) / needKg;
+      entry.kg -= kg;
+    }
+    needKg = short.reduce((sum, entry) => sum + entry.kg, 0);
+    recordCountrysideFlow(market.i, market.centerBurgId ?? 0, good.i, units, "outbound");
+    recordGoodFlow({ direction: "sink", category: "livestockFeed", goodId: good.i, units, marketId: market.i });
+  }
+  return spent;
+}
+
+/**
+ * The farms' own grain first, as manor stock ate grain in the sheaf in winter (Morden): only what each cell holds
+ * above a year's food for all its rural people (RURAL_HOUSEHOLD_FOOD_RESERVE_YEARS), so no family goes short.
+ */
+function feedOwnGrain(
+  table: Record<number, LivestockFeedLedger>,
+  short: { cell: number; kg: number }[],
+  hayKgPerUnit: number
+): void {
+  const stock = getRuralHouseholdFoodStock();
+  const cells = getWorldContext().pack.cells;
+  const rate = Math.max(1, getWorldContext().populationRate || 1);
+  let changed = false;
+  for (const entry of short) {
+    if (!(entry.kg > 0) || entry.cell >= stock.length) continue;
+    const reserve =
+      Math.max(0, cells.pop?.[entry.cell] ?? 0) * rate * GROSS_FOOD_NEED * RURAL_HOUSEHOLD_FOOD_RESERVE_YEARS;
+    const units = Math.min(Math.max(0, stock[entry.cell] - reserve), entry.kg / hayKgPerUnit);
+    if (!(units > 0)) continue;
+    stock[entry.cell] -= units;
+    changed = true;
+    const row = table[entry.cell];
+    row.grainFeedKg = (row.grainFeedKg ?? 0) + units * hayKgPerUnit;
+    row.ownGrainFeedKg = (row.ownGrainFeedKg ?? 0) + units * hayKgPerUnit;
+    entry.kg -= units * hayKgPerUnit;
+  }
+  if (changed) setRuralHouseholdFoodStock(stock);
+}
+
+/**
+ * Stock short of feed lose condition and eat it back on grass left uncut or ungrazed
+ * (docs/plan/livestock-lean-condition.md): the deficit grows by the month's unmet feed and falls by the spare grass
+ * eaten, at most `leanRefeedShare` of a month's need. Animals sold or dead since the last month take their part
+ * of it with them. Beyond the body reserve the weakest die (`leanDeaths`): the overflow over the reserve is the
+ * share of the herd lost, returned for the caller to remove. Where the reserve is spent beyond
+ * `leanCullThreshold`, keepers sell next month the mouths they could not feed this month (`leanCull`).
+ */
+export function settleLeanCondition(row: LivestockFeedLedger, monthlyNeedKg: number): number {
+  const { leanCondition, leanReserveMonths, leanRefeedShare, leanCull, leanCullThreshold, leanDeaths } =
+    getMarketSettings();
+  row.refedKg = 0;
+  row.leanCullShare = 0;
+  row.leanDeathShare = 0;
+  if (leanCondition === "off" || !(monthlyNeedKg > 0)) {
+    row.leanDeficitKg = 0;
+    row.leanNeedKg = monthlyNeedKg;
+    return 0;
+  }
+  const herdKept = row.leanNeedKg && row.leanNeedKg > 0 ? Math.min(1, monthlyNeedKg / row.leanNeedKg) : 1;
+  const reserve = leanReserveMonths * monthlyNeedKg;
+  const owed = (row.leanDeficitKg ?? 0) * herdKept + row.unmetKg;
+  const dead = leanDeaths === "die" ? Math.min(1, Math.max(0, owed - reserve) / reserve) : 0;
+  const deficit = Math.min(reserve, owed) * (1 - dead);
+  const refed = Math.max(0, Math.min(deficit, row.unharvestedKg, leanRefeedShare * monthlyNeedKg));
+  row.unharvestedKg -= refed;
+  row.refedKg = refed;
+  row.leanDeficitKg = deficit - refed;
+  row.leanNeedKg = monthlyNeedKg * (1 - dead);
+  row.leanDeathShare = dead;
+  if (leanCull === "unfed" && row.requiredKg > 0 && row.leanDeficitKg >= leanCullThreshold * reserve)
+    row.leanCullShare = Math.min(1, row.unmetKg / row.requiredKg);
+  return dead;
+}
+
+/** Removes a share of every grazing herd in the cell, the animals that died of hunger. */
+function removeStarvedStock(cell: number, share: number): void {
+  const table = getOrCreateFaunaStockTable();
+  if (!table || !(share > 0)) return;
+  for (const name of Object.keys(ANNUAL_FEED_DM_KG_PER_HEAD)) {
+    const herd = table[`${cell}:${name}`];
+    if (!herd) continue;
+    herd.young *= 1 - share;
+    herd.breeding *= 1 - share;
+    herd.old *= 1 - share;
+  }
+}
+
+/** Price of a kg of hay dry matter in this market, as hay and as the cheapest fodder grain; Infinity where none. */
+function feedPricesPerKg(market: Market): { hay: number; grain: number } {
+  const fodder = getGoods().find(good => good.name === "Fodder" && isGoodEnabled(good));
+  const hayPrice = fodder ? market.goods[fodder.i]?.price : undefined;
+  const grainPrices = FODDER_GRAINS.map(name => getGoods().find(good => good.name === name && isGoodEnabled(good)))
+    .map(good => (good ? market.goods[good.i]?.price : undefined))
+    .filter((price): price is number => price !== undefined && price > 0);
+  return {
+    hay: hayPrice !== undefined && hayPrice > 0 ? hayPrice / FODDER_DM_KG_PER_LOT : Infinity,
+    grain: grainPrices.length
+      ? Math.min(...grainPrices) / (WAIN_KG * GRAIN_DRY_MATTER_SHARE * GRAIN_FEED_HAY_EQUIVALENT)
+      : Infinity
+  };
+}
+
+const goodPrice = (market: Market, name: string): number => {
+  const good = getGoods().find(row => row.name === name && isGoodEnabled(row));
+  return good ? Math.max(0, market.goods[good.i]?.price ?? good.value) : 0;
+};
+
+/**
+ * What a kg of feed the cell goes without costs its keepers, at this market's prices (docs/plan/livestock-feed-shortfall.md
+ * §10.2): the carcass weight it takes off at slaughter, this month's milk and wool it withholds, and the milk lost
+ * while the stock stay lean, about half the months refeeding takes.
+ */
+export function getUnfedValuePerKg(market: Market, cell: number, requiredKg: number): number {
+  const { leanMaxCarcassLoss, leanReserveMonths, leanMilkLoss, leanRefeedShare } = getMarketSettings();
+  const need = getLivestockMonthlyFeedNeedKg(cell);
+  if (!(need > 0) || !(requiredKg > 0)) return 0;
+  const herds = getOrCreateFaunaStockTable();
+  let carcassKg = 0;
+  for (const [name, offtake] of Object.entries(HERD_MEAT_OFFTAKE)) {
+    const herd = herds?.[`${cell}:${name}`];
+    if (herd)
+      carcassKg += (Math.max(0, herd.young) + Math.max(0, herd.breeding) + Math.max(0, herd.old)) * offtake.edibleKg;
+  }
+  const reserveKg = leanReserveMonths * need;
+  const meat = (leanMaxCarcassLoss * carcassKg * goodPrice(market, "Meat")) / WAIN_KG / reserveKg;
+  const milkMonth = getMilkOutput(cell) * goodPrice(market, "Milk");
+  const lingerMonths = leanRefeedShare > 0 ? 0.5 / leanRefeedShare : 0;
+  const milk = milkMonth / requiredKg + (leanMilkLoss * milkMonth * lingerMonths) / reserveKg;
+  const wool = (getWoolOutput(cell) * goodPrice(market, "Wool")) / requiredKg;
+  return meat + milk + wool;
+}
+
+/**
+ * Feed bought beyond the month's feed purse (docs/plan/livestock-feed-shortfall.md §10), up to `feedCrisisCashShare`
+ * of the farms' cash, the cheaper feed first. `nearCull`: only for cells whose deficit with this month's remaining
+ * shortage reaches the selling threshold. `worth`: also for any cell whose unfed feed costs it more in meat, milk
+ * and wool than the feed costs, each feed bought only for the cells it is worth to.
+ */
+function feedBeyondPurse(market: Market, cells: number[], table: Record<number, LivestockFeedLedger>): void {
+  const { feedCrisisBudget, feedCrisisCashShare, leanCondition, leanCull, leanCullThreshold, leanReserveMonths } =
+    getMarketSettings();
+  if (feedCrisisBudget === "off" || leanCondition === "off") return;
+  const remaining = (cell: number) =>
+    Math.max(
+      0,
+      table[cell].requiredKg -
+        table[cell].pastureConsumedKg -
+        (table[cell].cropResidueFeedKg ?? 0) -
+        (table[cell].grainFeedKg ?? 0) -
+        table[cell].hayKg
+    );
+  const prices = feedPricesPerKg(market);
+  const short = cells
+    .map(cell => {
+      const kg = remaining(cell);
+      const near =
+        leanCull !== "off" &&
+        (table[cell].leanDeficitKg ?? 0) + kg >=
+          leanCullThreshold * leanReserveMonths * getLivestockMonthlyFeedNeedKg(cell);
+      const value =
+        feedCrisisBudget === "worth" && kg > 0 ? getUnfedValuePerKg(market, cell, table[cell].requiredKg) : 0;
+      return { cell, kg, near, value };
+    })
+    .filter(entry => entry.kg > 0);
+  if (!short.length) return;
+  const wanted = (price: number) =>
+    short
+      .filter(entry => entry.near || entry.value > price)
+      .map(entry => ({ cell: entry.cell, kg: remaining(entry.cell) }))
+      .filter(entry => entry.kg > 0);
+  let budget = Math.floor(getRuralHouseholdWealth(market) * feedCrisisCashShare * 100) / 100;
+  const hayFirst = prices.hay < prices.grain;
+  for (const feed of hayFirst ? (["hay", "grain"] as const) : (["grain", "hay"] as const)) {
+    const entries = wanted(prices[feed]);
+    if (!entries.length || !(budget > 0)) continue;
+    budget = Math.max(
+      0,
+      budget - (feed === "hay" ? buyFeed(market, entries, budget) : feedGrain(market, entries, budget))
+    );
+  }
+}
+
 /** Runs after trade; existing army procurement has already removed its share of the same stock. */
 export function settleLivestockFeed(): void {
   const table = getOrCreateLivestockFeedTable();
@@ -407,6 +652,8 @@ export function settleLivestockFeed(): void {
     row.pastureConsumedKg = Math.min(row.requiredKg, row.grazingReservedKg);
     row.hayConsumedKg = 0;
     const residue = residues?.cells[cell];
+    row.grainFeedKg = 0;
+    row.ownGrainFeedKg = 0;
     row.cropResidueFeedKg = residue
       ? consumeCropResidues(
           residue,
@@ -435,6 +682,8 @@ export function settleLivestockFeed(): void {
       )
     }));
     budget = Math.max(0, budget - buyFeed(market, shortage, budget));
+    budget = Math.max(0, budget - feedGrain(market, shortage, budget));
+    feedBeyondPurse(market, cells, table);
     const reserves = cells.map(cell => ({
       cell,
       kg: Math.max(
@@ -451,22 +700,24 @@ export function settleLivestockFeed(): void {
   for (const cell of active) {
     const row = table[cell];
     row.hayConsumedKg = Math.min(
-      Math.max(0, row.requiredKg - row.pastureConsumedKg - (row.cropResidueFeedKg ?? 0)),
+      Math.max(0, row.requiredKg - row.pastureConsumedKg - (row.cropResidueFeedKg ?? 0) - (row.grainFeedKg ?? 0)),
       row.hayKg
     );
     row.hayKg = Math.max(0, row.hayKg - row.hayConsumedKg);
     row.unmetKg = Math.max(
       0,
-      row.requiredKg - row.pastureConsumedKg - row.hayConsumedKg - (row.cropResidueFeedKg ?? 0)
+      row.requiredKg - row.pastureConsumedKg - row.hayConsumedKg - (row.cropResidueFeedKg ?? 0) - (row.grainFeedKg ?? 0)
     );
     row.coverage = row.requiredKg > 0 ? Math.max(0, Math.min(1, 1 - row.unmetKg / row.requiredKg)) : 1;
+    removeStarvedStock(cell, settleLeanCondition(row, getLivestockMonthlyFeedNeedKg(cell)));
     row.feedPeriod = period;
     row.samples = row.samples.filter(sample => sample.period > period - 12 && sample.period !== period);
     row.samples.push({
       period,
       requiredKg: row.requiredKg,
-      fedKg: row.pastureConsumedKg + row.hayConsumedKg + (row.cropResidueFeedKg ?? 0),
+      fedKg: row.pastureConsumedKg + row.hayConsumedKg + (row.cropResidueFeedKg ?? 0) + (row.grainFeedKg ?? 0),
       cropResidueFeedKg: row.cropResidueFeedKg,
+      grainFeedKg: row.grainFeedKg,
       purchasedKg: row.purchasedKg,
       soldKg: row.soldKg,
       harvestLossKg: row.harvestLossKg,

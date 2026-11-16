@@ -59,6 +59,7 @@ import {
   setFloodProtection,
   setFloweringForageArea,
   setFoodPotential,
+  setHayCatchUpDays,
   setHouseholdTextileWorkers,
   setHuntingWorkers,
   setHusbandryMonthlyWorkDays,
@@ -71,6 +72,7 @@ import {
   setIrrigationSalinity,
   setIrrigationWaterStress,
   setMigratableAdults,
+  setRestDayHayDays,
   setRiverResidualFlow,
   setRuralFoodCapacity,
   setRuralReleasePressure,
@@ -504,6 +506,8 @@ export class DevelopmentPotentialModule {
     setHusbandryWorkers(occupations.husbandryWorkers);
     setHusbandryMonthlyWorkDays(occupations.husbandryMonthlyWorkDays);
     setTownHarvestHelperDays(occupations.townHarvestHelperDays ?? new Float32Array());
+    setHayCatchUpDays(occupations.hayCatchUpDays ?? new Float32Array());
+    setRestDayHayDays(occupations.restDayHayDays ?? new Float32Array());
     setHouseholdTextileWorkers(occupations.householdTextileWorkers);
     setHusbandryRequiredWorkers(occupations.husbandryRequiredWorkers);
     setFarmLaborRequired(occupations.farmLaborRequired);

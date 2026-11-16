@@ -16,6 +16,13 @@
 - docs/plan/dnd/fantasy-world-agenda.md
 - docs/plan/dnd/magic-agrarian-economy.md
 - docs/plan/dnd/table-background.md
+- docs/plan/draught-feed-value.md
+- docs/plan/fodder-value.md
+- docs/plan/hay-catch-up.md
+- docs/plan/livestock-feed-shortfall.md
+- docs/plan/livestock-lean-condition.md
+- docs/plan/rural-work-year.md
+- docs/plan/settled-questions.md
 
 2026-11-14
 

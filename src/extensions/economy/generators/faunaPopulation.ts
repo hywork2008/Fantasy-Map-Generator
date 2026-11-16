@@ -2,7 +2,8 @@ import { getMarketSettings } from "../../../simulation/marketSettings";
 import {
   getFaunaStockTable,
   getLivestockDispatchTable,
-  getOrCreateLivestockDispatchTable
+  getOrCreateLivestockDispatchTable,
+  getOrCreateLivestockFeedTable
 } from "../context/cellTables";
 import { getEconomySlice, getSimulationYear } from "../context/economyApi";
 import { livestockFeedMonth, livestockFeedPeriod } from "./livestockFeedState";
@@ -230,11 +231,14 @@ export function getGrazedMonthlyOfftakeHeads(cellId: number, good: Good): number
   const renewal = getAnnualHerdRenewal(cellId, good);
   const capacity = getDomesticatedCarryingCapacity(cellId, good, 0);
   const excess = Math.max(0, cohortTotal(cohorts) + (renewal?.naturalNetHeads ?? 0) - capacity);
+  // Keepers sell the mouths last month's feed could not fill, beyond the year's increase
+  // (docs/plan/livestock-lean-condition.md §7).
+  const cull = cohortTotal(cohorts) * (getOrCreateLivestockFeedTable()?.[cellId]?.leanCullShare ?? 0);
   // "toRenewal": the excess left is spread over the months left before the January renewal, so the
   // year's increase is all sold by December. "legacy" sells a twelfth of what is left each month,
   // which sells about 65% of it in a year (docs/plan/herd-offtake-spread.md).
-  if (getMarketSettings().herdOfftakeSpread === "legacy") return excess / 12;
-  return excess / (13 - livestockFeedMonth());
+  if (getMarketSettings().herdOfftakeSpread === "legacy") return Math.max(cull, excess / 12);
+  return Math.max(cull, excess / (13 - livestockFeedMonth()));
 }
 
 function getStockKey(cellId: number, speciesKey: string): string {

@@ -124,6 +124,29 @@ export type ByproductPricingMode = (typeof BYPRODUCT_PRICING_MODES)[number];
 export const CHARACTER_RESERVE_MODES = ["byTier", "legacy"] as const;
 export type CharacterReserveMode = (typeof CHARACTER_RESERVE_MODES)[number];
 export const HEIRLESS_ESTATE_MODES = ["town", "keep"] as const;
+export const HAY_CATCH_UP_MODES = ["aftermath", "legacy"] as const;
+export type HayCatchUpMode = (typeof HAY_CATCH_UP_MODES)[number];
+export const RURAL_WORK_YEAR_MODES = ["offField", "legacy"] as const;
+export type RuralWorkYearMode = (typeof RURAL_WORK_YEAR_MODES)[number];
+export const GRAIN_FEED_MODES = ["fodderGrains", "off"] as const;
+export type GrainFeedMode = (typeof GRAIN_FEED_MODES)[number];
+export const FEED_SHORTFALL_RESPONSE_MODES = ["random", "work", "herd", "legacy"] as const;
+export type FeedShortfallResponseMode = (typeof FEED_SHORTFALL_RESPONSE_MODES)[number];
+export const FEED_SHORTFALL_TIMING_MODES = ["sameSummer", "nextYear"] as const;
+export type FeedShortfallTimingMode = (typeof FEED_SHORTFALL_TIMING_MODES)[number];
+/** Lean stock carry their unmet feed as lost condition and give lighter carcasses until refed, or the legacy rule (docs/plan/livestock-lean-condition.md). */
+export const LEAN_CONDITION_MODES = ["carcass", "off"] as const;
+export type LeanConditionMode = (typeof LEAN_CONDITION_MODES)[number];
+export const LEAN_CULL_MODES = ["unfed", "off"] as const;
+export type LeanCullMode = (typeof LEAN_CULL_MODES)[number];
+export const FODDER_VALUE_MODES = ["historical", "legacy"] as const;
+export type FodderValueMode = (typeof FODDER_VALUE_MODES)[number];
+export const FEED_CRISIS_BUDGET_MODES = ["worth", "nearCull", "off"] as const;
+export type FeedCrisisBudgetMode = (typeof FEED_CRISIS_BUDGET_MODES)[number];
+export const LEAN_DEATH_MODES = ["die", "off"] as const;
+export type LeanDeathMode = (typeof LEAN_DEATH_MODES)[number];
+export const RURAL_REST_DAYS_MODES = ["byPeriod", "custom"] as const;
+export type RuralRestDaysMode = (typeof RURAL_REST_DAYS_MODES)[number];
 export const URBAN_HARVEST_HELP_MODES = ["cornAndHay", "legacy"] as const;
 export type UrbanHarvestHelpMode = (typeof URBAN_HARVEST_HELP_MODES)[number];
 export const HAY_PLAN_HERD_MODES = ["wintered", "current"] as const;
@@ -185,6 +208,44 @@ export type MarketSettings = {
   hayPlanHerd: HayPlanHerdMode;
   /** Town adults help with the corn and hay harvest up to a share, and their workshops lose those days, or the period's small share helps with corn only (docs/plan/urban-harvest-help.md). */
   urbanHarvestHelp: UrbanHarvestHelpMode;
+  /** Hay left uncut for want of hands in its month is cut from the regrowth in later months (docs/plan/hay-catch-up.md). */
+  hayCatchUp: HayCatchUpMode;
+  hayCatchUpMonths: number;
+  /** Rural adults also work the days of the year outside the 140 field days, less housework, for herds, hay and household cloth (docs/plan/rural-work-year.md). */
+  ruralWorkYear: RuralWorkYearMode;
+  ruralWorkDaysPerYear: number;
+  ruralChoreDaysPerAdult: number;
+  /** Sundays and holy days kept from servile work (hay, cloth): by the historical period, or a custom count. */
+  ruralRestDays: RuralRestDaysMode;
+  /** Feed short after pasture, hay and bought hay is made up with oats, barley and pulses from the market granary's spare grain (docs/plan/livestock-feed-shortfall.md). */
+  grainFeed: GrainFeedMode;
+  /** A cell short of feed for a year makes hay on rest days next year ("work") or winters fewer animals ("herd"), drawn at random or fixed (docs/plan/livestock-feed-shortfall.md §7). */
+  feedShortfallResponse: FeedShortfallResponseMode;
+  feedShortfallWorkShare: number;
+  /** A cell answering with work mows on rest days from the summer after the short spring, or only from next year's allocation. */
+  feedShortfallTiming: FeedShortfallTimingMode;
+  leanCondition: LeanConditionMode;
+  /** Months of feed need a herd's body reserve holds before it is wholly spent. */
+  leanReserveMonths: number;
+  /** Carcass weight lost when the reserve is wholly spent. */
+  leanMaxCarcassLoss: number;
+  /** Most extra grass, as a share of a month's need, lean stock eat in a month to recover. */
+  leanRefeedShare: number;
+  /** Lean keepers sell the mouths they could not feed, or keep them (docs/plan/livestock-lean-condition.md §7). */
+  leanCull: LeanCullMode;
+  /** Share of the body reserve spent before keepers sell unfed mouths. */
+  leanCullThreshold: number;
+  /** Stock short beyond the body reserve die, or the deficit stops at the reserve. */
+  leanDeaths: LeanDeathMode;
+  /** Stock about to be sold unfed are fed beyond the month's feed purse, or not (docs/plan/livestock-feed-shortfall.md §10). */
+  feedCrisisBudget: FeedCrisisBudgetMode;
+  /** Most of the farms' cash spent in a month on feed for stock about to be sold unfed. */
+  feedCrisisCashShare: number;
+  /** Milk lost when the body reserve is wholly spent (docs/plan/livestock-lean-condition.md §8). */
+  leanMilkLoss: number;
+  /** Fodder's base value per bale: oats at 4.4 times hay by weight, or the legacy 1 (docs/plan/fodder-value.md). */
+  fodderValue: FodderValueMode;
+  ruralRestDaysCustom: number;
   /** Most of a town's adults that go out in a harvest or hay month under cornAndHay. */
   urbanHarvestHelpShare: number;
   bootsLabor: BootsLaborMode;
@@ -297,6 +358,28 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   herdOfftakeSpread: "toRenewal",
   hayPlanHerd: "wintered",
   urbanHarvestHelp: "cornAndHay",
+  hayCatchUp: "aftermath",
+  hayCatchUpMonths: 3,
+  ruralWorkYear: "offField",
+  ruralWorkDaysPerYear: 365,
+  ruralChoreDaysPerAdult: 160,
+  ruralRestDays: "byPeriod",
+  grainFeed: "fodderGrains",
+  feedShortfallResponse: "random",
+  feedShortfallWorkShare: 0.5,
+  feedShortfallTiming: "sameSummer",
+  leanCondition: "carcass",
+  leanReserveMonths: 2,
+  leanMaxCarcassLoss: 0.25,
+  leanRefeedShare: 0.3,
+  leanCull: "unfed",
+  leanCullThreshold: 0.25,
+  leanDeaths: "die",
+  feedCrisisBudget: "worth",
+  leanMilkLoss: 0.5,
+  feedCrisisCashShare: 0.15,
+  fodderValue: "historical",
+  ruralRestDaysCustom: 97,
   urbanHarvestHelpShare: 0.5,
   bootsLabor: "perDay",
   byproductPricing: "stockAndDemand",
@@ -368,6 +451,17 @@ export const MARKET_SETTING_LIMITS = {
   leatherGoodsShare: { min: 0, max: 2, step: 0.05 },
   summerHideLoss: { min: 0, max: 0.5, step: 0.01 },
   urbanHarvestHelpShare: { min: 0, max: 1, step: 0.05 },
+  hayCatchUpMonths: { min: 1, max: 4, step: 1 },
+  ruralWorkDaysPerYear: { min: 140, max: 365, step: 5 },
+  ruralChoreDaysPerAdult: { min: 0, max: 225, step: 5 },
+  ruralRestDaysCustom: { min: 0, max: 150, step: 1 },
+  feedShortfallWorkShare: { min: 0, max: 1, step: 0.05 },
+  leanReserveMonths: { min: 0.5, max: 4, step: 0.5 },
+  leanMaxCarcassLoss: { min: 0, max: 0.5, step: 0.05 },
+  leanRefeedShare: { min: 0, max: 1, step: 0.05 },
+  leanCullThreshold: { min: 0, max: 1, step: 0.05 },
+  feedCrisisCashShare: { min: 0, max: 1, step: 0.05 },
+  leanMilkLoss: { min: 0, max: 1, step: 0.05 },
   ruralShoemakersPerThousand: { min: 0, max: 10, step: 0.5 },
   candleKgPerPerson: { min: 0, max: 4, step: 0.25 },
   waxCandleKgPerPerson: { min: 0, max: 0.5, step: 0.01 },
@@ -475,6 +569,42 @@ const characterReserveMode = (value: unknown): CharacterReserveMode =>
     ? (value as CharacterReserveMode)
     : DEFAULT_MARKET_SETTINGS.characterReserve;
 
+const hayCatchUpMode = (value: unknown): HayCatchUpMode =>
+  HAY_CATCH_UP_MODES.includes(value as HayCatchUpMode) ? (value as HayCatchUpMode) : DEFAULT_MARKET_SETTINGS.hayCatchUp;
+const ruralWorkYearMode = (value: unknown): RuralWorkYearMode =>
+  RURAL_WORK_YEAR_MODES.includes(value as RuralWorkYearMode)
+    ? (value as RuralWorkYearMode)
+    : DEFAULT_MARKET_SETTINGS.ruralWorkYear;
+const grainFeedMode = (value: unknown): GrainFeedMode =>
+  GRAIN_FEED_MODES.includes(value as GrainFeedMode) ? (value as GrainFeedMode) : DEFAULT_MARKET_SETTINGS.grainFeed;
+const feedShortfallResponseMode = (value: unknown): FeedShortfallResponseMode =>
+  FEED_SHORTFALL_RESPONSE_MODES.includes(value as FeedShortfallResponseMode)
+    ? (value as FeedShortfallResponseMode)
+    : DEFAULT_MARKET_SETTINGS.feedShortfallResponse;
+const feedShortfallTimingMode = (value: unknown): FeedShortfallTimingMode =>
+  FEED_SHORTFALL_TIMING_MODES.includes(value as FeedShortfallTimingMode)
+    ? (value as FeedShortfallTimingMode)
+    : DEFAULT_MARKET_SETTINGS.feedShortfallTiming;
+const leanConditionMode = (value: unknown): LeanConditionMode =>
+  LEAN_CONDITION_MODES.includes(value as LeanConditionMode)
+    ? (value as LeanConditionMode)
+    : DEFAULT_MARKET_SETTINGS.leanCondition;
+const leanCullMode = (value: unknown): LeanCullMode =>
+  LEAN_CULL_MODES.includes(value as LeanCullMode) ? (value as LeanCullMode) : DEFAULT_MARKET_SETTINGS.leanCull;
+const leanDeathMode = (value: unknown): LeanDeathMode =>
+  LEAN_DEATH_MODES.includes(value as LeanDeathMode) ? (value as LeanDeathMode) : DEFAULT_MARKET_SETTINGS.leanDeaths;
+const feedCrisisBudgetMode = (value: unknown): FeedCrisisBudgetMode =>
+  FEED_CRISIS_BUDGET_MODES.includes(value as FeedCrisisBudgetMode)
+    ? (value as FeedCrisisBudgetMode)
+    : DEFAULT_MARKET_SETTINGS.feedCrisisBudget;
+const fodderValueMode = (value: unknown): FodderValueMode =>
+  FODDER_VALUE_MODES.includes(value as FodderValueMode)
+    ? (value as FodderValueMode)
+    : DEFAULT_MARKET_SETTINGS.fodderValue;
+const ruralRestDaysMode = (value: unknown): RuralRestDaysMode =>
+  RURAL_REST_DAYS_MODES.includes(value as RuralRestDaysMode)
+    ? (value as RuralRestDaysMode)
+    : DEFAULT_MARKET_SETTINGS.ruralRestDays;
 const urbanHarvestHelpMode = (value: unknown): UrbanHarvestHelpMode =>
   URBAN_HARVEST_HELP_MODES.includes(value as UrbanHarvestHelpMode)
     ? (value as UrbanHarvestHelpMode)
@@ -556,6 +686,28 @@ export function getMarketSettings(): MarketSettings {
     herdOfftakeSpread: herdOfftakeSpreadMode(parsed.herdOfftakeSpread),
     hayPlanHerd: hayPlanHerdMode(parsed.hayPlanHerd),
     urbanHarvestHelp: urbanHarvestHelpMode(parsed.urbanHarvestHelp),
+    hayCatchUp: hayCatchUpMode(parsed.hayCatchUp),
+    hayCatchUpMonths: clamp("hayCatchUpMonths", parsed.hayCatchUpMonths),
+    ruralWorkYear: ruralWorkYearMode(parsed.ruralWorkYear),
+    ruralWorkDaysPerYear: clamp("ruralWorkDaysPerYear", parsed.ruralWorkDaysPerYear),
+    ruralChoreDaysPerAdult: clamp("ruralChoreDaysPerAdult", parsed.ruralChoreDaysPerAdult),
+    ruralRestDays: ruralRestDaysMode(parsed.ruralRestDays),
+    grainFeed: grainFeedMode(parsed.grainFeed),
+    feedShortfallResponse: feedShortfallResponseMode(parsed.feedShortfallResponse),
+    feedShortfallWorkShare: clamp("feedShortfallWorkShare", parsed.feedShortfallWorkShare),
+    feedShortfallTiming: feedShortfallTimingMode(parsed.feedShortfallTiming),
+    leanCondition: leanConditionMode(parsed.leanCondition),
+    leanReserveMonths: clamp("leanReserveMonths", parsed.leanReserveMonths),
+    leanMaxCarcassLoss: clamp("leanMaxCarcassLoss", parsed.leanMaxCarcassLoss),
+    leanRefeedShare: clamp("leanRefeedShare", parsed.leanRefeedShare),
+    leanCull: leanCullMode(parsed.leanCull),
+    leanCullThreshold: clamp("leanCullThreshold", parsed.leanCullThreshold),
+    leanDeaths: leanDeathMode(parsed.leanDeaths),
+    feedCrisisBudget: feedCrisisBudgetMode(parsed.feedCrisisBudget),
+    feedCrisisCashShare: clamp("feedCrisisCashShare", parsed.feedCrisisCashShare),
+    leanMilkLoss: clamp("leanMilkLoss", parsed.leanMilkLoss),
+    fodderValue: fodderValueMode(parsed.fodderValue),
+    ruralRestDaysCustom: clamp("ruralRestDaysCustom", parsed.ruralRestDaysCustom),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", parsed.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(parsed.bootsLabor),
     byproductPricing: byproductPricingMode(parsed.byproductPricing),
@@ -629,6 +781,28 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     herdOfftakeSpread: herdOfftakeSpreadMode(next.herdOfftakeSpread),
     hayPlanHerd: hayPlanHerdMode(next.hayPlanHerd),
     urbanHarvestHelp: urbanHarvestHelpMode(next.urbanHarvestHelp),
+    hayCatchUp: hayCatchUpMode(next.hayCatchUp),
+    hayCatchUpMonths: clamp("hayCatchUpMonths", next.hayCatchUpMonths),
+    ruralWorkYear: ruralWorkYearMode(next.ruralWorkYear),
+    ruralWorkDaysPerYear: clamp("ruralWorkDaysPerYear", next.ruralWorkDaysPerYear),
+    ruralChoreDaysPerAdult: clamp("ruralChoreDaysPerAdult", next.ruralChoreDaysPerAdult),
+    ruralRestDays: ruralRestDaysMode(next.ruralRestDays),
+    grainFeed: grainFeedMode(next.grainFeed),
+    feedShortfallResponse: feedShortfallResponseMode(next.feedShortfallResponse),
+    feedShortfallWorkShare: clamp("feedShortfallWorkShare", next.feedShortfallWorkShare),
+    feedShortfallTiming: feedShortfallTimingMode(next.feedShortfallTiming),
+    leanCondition: leanConditionMode(next.leanCondition),
+    leanReserveMonths: clamp("leanReserveMonths", next.leanReserveMonths),
+    leanMaxCarcassLoss: clamp("leanMaxCarcassLoss", next.leanMaxCarcassLoss),
+    leanRefeedShare: clamp("leanRefeedShare", next.leanRefeedShare),
+    leanCull: leanCullMode(next.leanCull),
+    leanCullThreshold: clamp("leanCullThreshold", next.leanCullThreshold),
+    leanDeaths: leanDeathMode(next.leanDeaths),
+    feedCrisisBudget: feedCrisisBudgetMode(next.feedCrisisBudget),
+    feedCrisisCashShare: clamp("feedCrisisCashShare", next.feedCrisisCashShare),
+    leanMilkLoss: clamp("leanMilkLoss", next.leanMilkLoss),
+    fodderValue: fodderValueMode(next.fodderValue),
+    ruralRestDaysCustom: clamp("ruralRestDaysCustom", next.ruralRestDaysCustom),
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", next.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(next.bootsLabor),
     byproductPricing: byproductPricingMode(next.byproductPricing),
