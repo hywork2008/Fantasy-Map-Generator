@@ -5,7 +5,6 @@ import { useOptionsState } from "../store/optionsState";
 import type { Monster } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { rand } from "../utils";
-import { dangerSuitabilityMultiplier } from "./dangerExpandPolicy";
 import { biomePredatorScaleForMode, rebuildDangerField } from "./dangerField";
 import {
   buildThreatBandsFromOptions,
@@ -94,86 +93,9 @@ export const Threats = {
     });
   },
 
-  appendCasualtyNotes(worldContext: WorldContext) {
-    const { pack } = worldContext;
-    const { cells, monsters } = pack;
-    if (!monsters || !pack.markers || !worldContext.notes) return;
-
-    const options = useOptionsState.getState();
-    const populationRate = options.populationRate;
-    const initialPopulationSaturation = options.initialPopulationSaturation / 100;
-    const threatCalculation = resolveThreatCalculation(options);
-
-    // Calculate meanArea once for capacity formula
-    let totalArea = 0;
-    for (let i = 0; i < cells.i.length; i++) totalArea += cells.area[i];
-    const meanArea = totalArea / cells.i.length || 1;
-
-    for (const m of monsters) {
-      if (m.rarity < 3) continue; // Only rarity >= 3 have notes
-
-      // Find the marker ID for this monster
-      // The marker is created in Threats.generate at the exact cell
-      const marker = pack.markers.find(mark => mark.cell === m.cell && mark.type === "monster");
-      if (!marker) continue;
-
-      const note = worldContext.notes.find(n => n.id === `marker${marker.i}`);
-      if (!note) continue;
-
-      // Re-calculate this monster's AoE to estimate deaths
-      let totalLostPop = 0;
-      const start = m.cell;
-      const power = m.power;
-      const queue = [{ cell: start, dist: 0 }];
-      const visited = new Set<number>([start]);
-
-      while (queue.length > 0) {
-        const { cell, dist } = queue.shift()!;
-        const d = Math.max(0, power - dist);
-
-        if (d > 0) {
-          let dangerVal = 0;
-          if (threatCalculation === "max") {
-            dangerVal = d * 5;
-          } else if (threatCalculation === "nonlinear") {
-            dangerVal = Math.round(255 * (d / power) ** 2);
-          } else {
-            dangerVal = d * 4;
-          }
-
-          // Estimate what the suitability (s) of this cell would have been without the monster
-          // using a simplified version of the rankCells formula:
-          const baseScore = worldContext.biomesData.habitability[cells.biomeCode[cell]] || 0;
-          if (baseScore > 0) {
-            const potential_s = Math.max(0, baseScore - (cells.h[cell] - 50) / 5);
-
-            // rankCells multiplies s by dangerSuitabilityMultiplier(danger).
-            // Lost share = 1 - mult (clamped), applied to potential_s.
-            const lost_s = potential_s * (1 - dangerSuitabilityMultiplier(dangerVal));
-
-            const lostCapacity = (lost_s * cells.area[cell]) / meanArea;
-            const lostPop = lostCapacity * initialPopulationSaturation * populationRate;
-            totalLostPop += lostPop;
-          }
-
-          for (const n of cells.c[cell]) {
-            if (!visited.has(n)) {
-              visited.add(n);
-              queue.push({ cell: n, dist: dist + 1 });
-            }
-          }
-        }
-      }
-
-      if (totalLostPop > 0) {
-        // Assume 20% of the lost capacity are actual direct deaths/casualties,
-        // while the remaining 80% represents people who simply migrated away or never settled there.
-        const deaths = Math.floor(Math.round(totalLostPop * 0.2));
-        const deathStr = deaths.toLocaleString();
-
-        note.legend += `\n\nHistorians estimate that the presence of this creature has resulted in the deaths of approximately ${deathStr} people, with countless more displaced from the surrounding region.`;
-      }
-    }
+  appendCasualtyNotes(_worldContext: WorldContext) {
+    // Lost settlement capacity is not a death toll.
+    // docs/plan/dnd/danger-calculation.md
   },
 
   /**

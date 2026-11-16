@@ -114,10 +114,6 @@ export function pcArmyYearChunk(monster: Pick<Monster, "power" | "basePower" | "
   return Math.max(1, Math.ceil(armyYearPowerChunk(monster) * PC_ARMY_YEAR_FRACTION));
 }
 
-export function estimateLocalDangerDrop(beforeDanger: number, powerReduced: number): number {
-  return Math.min(beforeDanger, powerReduced * 4);
-}
-
 /**
  * Drop zero-power rarity≥3 monster markers and their notes.
  * Safe to call after filtering pack.monsters.
@@ -277,13 +273,15 @@ export function resolvePlayerCullEffect(input: PlayerCullEffectInput): PlayerCul
   const dangerHint = Math.max(0, beforeDanger - afterDanger);
 
   // Join-macro diagnostics only (never progressYears).
-  // Prefer observed danger drop; fall back to power proxy when the field was unpainted.
+  // Use the rebuilt byte when it fell. An unpainted field has no before-byte,
+  // so report the power cut. A painted center that holds its rarity peak adds 0.
+  // Do not also subtract powerReduced * 4 (retired additive proxy).
   if (input.macroCellId != null && powerReduced > 0) {
     const wilderness = ensureWildernessState(simulation);
     const project = wilderness.cullProjects[input.macroCellId];
     if (project) {
-      const drop = estimateLocalDangerDrop(beforeDanger, powerReduced);
-      project.dangerReduced += drop > 0 ? drop : Math.max(dangerHint, powerReduced);
+      const drop = dangerHint > 0 ? dangerHint : beforeDanger === 0 ? powerReduced : 0;
+      project.dangerReduced += drop;
     }
   }
 

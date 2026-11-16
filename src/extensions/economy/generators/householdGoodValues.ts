@@ -33,3 +33,23 @@ export function applyHouseholdGoodValues(): boolean {
   }
   return changed;
 }
+
+/**
+ * Fodder's base value per 200 kg bale (docs/plan/fodder-value.md): `historical` oats at 4.4 times hay by weight, as
+ * in Thorold Rogers' 1259-1400 averages (hay 3s 8d a load, oats 2s 5 3/4d a quarter); `legacy` the authored 1.
+ */
+export const FODDER_VALUES = { historical: 0.08, legacy: 1 } as const;
+
+export function getFodderBaseValue(): number {
+  return FODDER_VALUES[getMarketSettings().fodderValue];
+}
+
+/** Puts Fodder at the value of `fodderValue` while it is still the other mode's default; returns whether it changed. */
+export function applyFodderValue(): boolean {
+  const mode = getMarketSettings().fodderValue;
+  const other = mode === "historical" ? "legacy" : "historical";
+  const fodder = getGoods().find(good => good.name === "Fodder");
+  if (!fodder || fodder.value !== FODDER_VALUES[other]) return false;
+  fodder.value = FODDER_VALUES[mode];
+  return true;
+}

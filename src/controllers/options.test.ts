@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useOptionsState } from "../store/optionsState";
 import { lock, unlock } from "../utils/domUtils";
-import { changeCultureSet } from "./options";
+import { applyStoredOptions, changeCultureSet } from "./options";
 
 describe("changeCultureSet options controller", () => {
   beforeEach(() => {
@@ -17,10 +17,12 @@ describe("changeCultureSet options controller", () => {
     localStorage.clear();
     unlock("maxWarDisparityRatio");
     unlock("maxWarDisparityRatioEnabled");
+    unlock("dangerEnabled");
     useOptionsState.setState({
       culturesSet: "world",
       maxWarDisparityRatio: 8,
-      maxWarDisparityRatioEnabled: true
+      maxWarDisparityRatioEnabled: true,
+      dangerEnabled: false
     });
   });
 
@@ -62,5 +64,46 @@ describe("changeCultureSet options controller", () => {
     useOptionsState.setState({ culturesSet: "world" });
     changeCultureSet();
     expect(useOptionsState.getState().maxWarDisparityRatioEnabled).toBe(false);
+  });
+
+  it("turns danger on for highFantasy when the checkbox is unlocked", () => {
+    useOptionsState.setState({ dangerEnabled: false, culturesSet: "highFantasy" });
+    changeCultureSet();
+    expect(useOptionsState.getState().dangerEnabled).toBe(true);
+    expect(localStorage.getItem("dangerEnabled")).toBeNull();
+  });
+
+  it("keeps a locked dangerEnabled choice when switching to highFantasy", () => {
+    useOptionsState.setState({ dangerEnabled: false, culturesSet: "highFantasy" });
+    lock("dangerEnabled");
+    changeCultureSet();
+    expect(useOptionsState.getState().dangerEnabled).toBe(false);
+    expect(localStorage.getItem("dangerEnabled")).toBe("false");
+  });
+});
+
+describe("applyStoredOptions dangerEnabled", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useOptionsState.setState({ dangerEnabled: false });
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    unlock("dangerEnabled");
+    useOptionsState.setState({ dangerEnabled: false });
+  });
+
+  it("restores a locked checkbox after reload", () => {
+    localStorage.setItem("dangerEnabled", "true");
+    applyStoredOptions();
+    expect(useOptionsState.getState().dangerEnabled).toBe(true);
+  });
+
+  it("restores a locked-off checkbox as false", () => {
+    localStorage.setItem("dangerEnabled", "false");
+    useOptionsState.setState({ dangerEnabled: true });
+    applyStoredOptions();
+    expect(useOptionsState.getState().dangerEnabled).toBe(false);
   });
 });

@@ -65,12 +65,6 @@ export function detectUnitSystem(selection: UnitSystemSelection): UnitSystemId |
   );
   return preset ? preset.id : "custom";
 }
-/**
- * Convert temperature from Celsius to other scales
- * @param {number} temperatureInCelsius - Temperature in Celsius
- * @param {string} targetScale - Target temperature scale
- * @returns {string} - Converted temperature with unit
- */
 const temperatureConversionMap: { [key: string]: (temp: number) => string } = {
   "°C": (temp: number) => `${rn(temp)}°C`,
   "°F": (temp: number) => `${rn((temp * 9) / 5 + 32)}°F`,
@@ -82,6 +76,12 @@ const temperatureConversionMap: { [key: string]: (temp: number) => string } = {
   "°Rø": (temp: number) => `${rn((temp * 21) / 40 + 7.5)}°Rø`
 };
 
+/**
+ * Convert temperature from Celsius to other scales
+ * @param {number} temperatureInCelsius - Temperature in Celsius
+ * @param {string} targetScale - Target temperature scale
+ * @returns {string} - Converted temperature with unit
+ */
 export const convertTemperature = (temperatureInCelsius: number, targetScale: TemperatureScale = "°C") => {
   return temperatureConversionMap[targetScale](temperatureInCelsius);
 };

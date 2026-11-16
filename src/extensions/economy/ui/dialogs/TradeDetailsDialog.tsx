@@ -5,6 +5,7 @@ import { formatPrice, rn } from "../../../hostUtils";
 
 import { closeTradeDetails } from "../../controllers/trade-details";
 import { useTradeDetailsState } from "../../store/tradeDetailsState";
+import { GoodIcon } from "../components/GoodIcon";
 
 const ROUTE_MODE_KEYS = {
   land: "extensions.tradeDetails.modeLand",
@@ -148,16 +149,14 @@ export const TradeDetailsDialog: React.FC = () => {
                   data-value={row.value}
                 >
                   <td>
-                    <svg
-                      aria-label={row.goodName}
-                      data-tip={t("extensions.tradeDetails.goodIcon")}
-                      width="2em"
-                      height="2em"
-                      className="goodIcon"
-                    >
-                      <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
-                      <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
-                    </svg>
+                    <GoodIcon
+                      icon={row.goodIcon}
+                      size="2em"
+                      color={row.goodColor}
+                      stroke={row.goodStroke}
+                      label={row.goodName}
+                      tip={t("extensions.tradeDetails.goodIcon")}
+                    />
                   </td>
                   <td data-tip={t("extensions.tradeDetails.goodName")} className="goodName">
                     {row.goodName}

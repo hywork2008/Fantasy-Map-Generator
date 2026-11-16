@@ -6,6 +6,7 @@ import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Market } from "./marketTypes";
 import {
+  fuelPriceShares,
   getPeatGood,
   PEAT_HEAT_PER_BALE,
   SALT_BOILING_WOOD_KG_PER_KG,
@@ -137,18 +138,27 @@ export function createSaltProductionBudget() {
       );
       if (!(output > 0)) return 0;
       const wages = saltInvoice(output * wagesPerBag);
-      // Draw the cheaper fuel first, the dearer for what it cannot cover.
+      // Each fuel its price share of the bags first (fuelChoice priceShare), then the cheaper fuel
+      // for the rest, the dearer for what it cannot cover.
       let bagsLeft = fuelPerBag > 0 ? output : 0;
       let fuelBill = 0;
-      const burned: { fuel: SaltFuel; units: number }[] = [];
-      for (const fuel of fuels) {
-        if (bagsLeft <= 0) break;
-        const bags = Math.min(bagsLeft, fuel.stock / fuel.unitsPerBag);
-        if (!(bags > 0)) continue;
-        burned.push({ fuel, units: bags * fuel.unitsPerBag });
+      const burnedUnits = fuels.map(() => 0);
+      const burn = (index: number, bagsWanted: number) => {
+        const fuel = fuels[index];
+        const bags = Math.min(bagsLeft, bagsWanted, (fuel.stock - burnedUnits[index]) / fuel.unitsPerBag);
+        if (!(bags > 0)) return;
+        burnedUnits[index] += bags * fuel.unitsPerBag;
         fuelBill += bags * fuel.costPerBag;
         bagsLeft -= bags;
-      }
+      };
+      const shares =
+        bagsLeft > 0
+          ? fuelPriceShares(fuels.map(fuel => ({ costPerHeat: fuel.costPerBag, stock: fuel.stock })))
+          : undefined;
+      const bagsAsked = bagsLeft;
+      if (shares) for (let index = 0; index < fuels.length; index++) burn(index, bagsAsked * shares[index]);
+      for (let index = 0; index < fuels.length; index++) burn(index, Infinity);
+      const burned = fuels.map((fuel, index) => ({ fuel, units: burnedUnits[index] })).filter(entry => entry.units > 0);
       const fuelCost = saltInvoice(fuelBill);
       paySaltInputs(
         operation,

@@ -23,14 +23,14 @@ import {
 import type { EscortJobPosting } from "./escortHireTypes";
 import { clearEscortHireState, ESCORT_PLAYER_HIRE_LAG_DAYS } from "./escortJobPostings";
 
-const rejectProbability = () => false;
+const rngProbabilityNever = () => false;
 
 function alwaysSuccessRng(): RNGService {
   let i = 0;
   const seq = [0.9, 0.5, 0.99, 0.9, 0.5, 0.99];
   return {
     rand: () => seq[i++ % seq.length] ?? 0.9,
-    P: rejectProbability,
+    P: rngProbabilityNever,
     each: () => () => false,
     gauss: () => 0,
     Pint: n => Math.floor(n),

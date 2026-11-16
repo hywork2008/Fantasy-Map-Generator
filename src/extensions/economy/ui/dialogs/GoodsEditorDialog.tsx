@@ -26,6 +26,7 @@ import {
   toggleSortBy
 } from "../../controllers/goods-editor";
 import { useGoodsEditorTableState } from "../../store/goodsEditorTableState";
+import { GoodIcon } from "../components/GoodIcon";
 
 const TypeBadge: React.FC<{ type: string }> = ({ type }) => {
   const { t } = useTranslation();
@@ -273,16 +274,13 @@ export const GoodsEditorDialog: React.FC = () => {
                   >
                     {isAssignMode ? (
                       <td>
-                        <svg
-                          aria-label={localizedName}
-                          data-tip={t("extensions.goodsEditor.goodIcon")}
-                          width="2em"
-                          height="2em"
-                          className="goodIcon"
-                        >
-                          <circle cx="50%" cy="50%" r="42%" fill={good.color} stroke={good.strokeColor} />
-                          <use href={`#${good.icon}`} x="10%" y="10%" width="80%" height="80%" />
-                        </svg>
+                        <GoodIcon
+                          icon={good.icon}
+                          color={good.color}
+                          stroke={good.strokeColor}
+                          label={localizedName}
+                          tip={t("extensions.goodsEditor.goodIcon")}
+                        />
                       </td>
                     ) : (
                       <td>
@@ -296,16 +294,13 @@ export const GoodsEditorDialog: React.FC = () => {
                             toggleDisplayedGood(good.i, e.target.checked);
                           }}
                         />
-                        <svg
-                          aria-label={localizedName}
-                          data-tip={t("extensions.goodsEditor.goodIcon")}
-                          width="2em"
-                          height="2em"
-                          className="goodIcon"
-                        >
-                          <circle cx="50%" cy="50%" r="42%" fill={good.color} stroke={good.strokeColor} />
-                          <use href={`#${good.icon}`} x="10%" y="10%" width="80%" height="80%" />
-                        </svg>
+                        <GoodIcon
+                          icon={good.icon}
+                          color={good.color}
+                          stroke={good.strokeColor}
+                          label={localizedName}
+                          tip={t("extensions.goodsEditor.goodIcon")}
+                        />
                       </td>
                     )}
                     <td data-tip={t("extensions.goodsEditor.goodName")} className="goodName">

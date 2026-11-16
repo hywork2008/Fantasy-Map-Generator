@@ -9,6 +9,7 @@ import {
   setActiveMarketDealsFilter
 } from "../../controllers/market-deals-overview";
 import { type MarketDealRow, useMarketDealsState } from "../../store/marketDealsState";
+import { GoodIcon } from "../components/GoodIcon";
 
 export const MarketDealsDialog: React.FC = () => {
   const { t } = useTranslation();
@@ -145,16 +146,14 @@ const DealRow: React.FC<{ row: MarketDealRow; onRowClick: (row: MarketDealRow) =
       data-income={row.income}
     >
       <td>
-        <svg
-          aria-label={row.goodName}
-          data-tip={t("extensions.marketDeals.goodIcon")}
-          width="1.3em"
-          height="1.3em"
-          className="goodIcon"
-        >
-          <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
-          <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
-        </svg>
+        <GoodIcon
+          icon={row.goodIcon}
+          size="1.3em"
+          color={row.goodColor}
+          stroke={row.goodStroke}
+          label={row.goodName}
+          tip={t("extensions.marketDeals.goodIcon")}
+        />
       </td>
       <td data-tip={t("extensions.marketDeals.goodName")} className="goodName">
         {row.goodName}

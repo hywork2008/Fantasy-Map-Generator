@@ -24,6 +24,7 @@ import type { HusbandryDemand } from "./husbandryTypes";
 
 import { resolveBiomeOutputRate } from "../../../data/biomeEconomy";
 import type { MonthlyWeights } from "../../../data/cropCalendars";
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import type { BiomeTag } from "../../../types/biome";
 import type { WorldContext } from "../../hostCore";
 import {
@@ -411,6 +412,9 @@ export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: 
   let workersNoDogs = 0;
   let weightedValue = 0;
   let annualFeedNeedKg = 0;
+  // Hay is cut for the herd that winters, as the cut target is (docs/plan/hay-plan-herd.md).
+  const winteredHay = getMarketSettings().hayPlanHerd !== "current";
+  let hayFeedNeedKg = 0;
 
   // Habitat and land constrain new targets, not the care owed to animals already present.
   for (const [name, profile] of Object.entries(HUSBANDRY_SPECIES_PROFILES)) {
@@ -423,6 +427,12 @@ export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: 
     if (!(careHeads > 0)) continue;
     totalCareHeads += careHeads;
     annualFeedNeedKg += careHeads * (ANNUAL_FEED_DM_KG_PER_HEAD[name] ?? 0);
+    const good = goodsByName.get(name);
+    const winteredHeads =
+      winteredHay && herd && good && isGoodEnabled(good)
+        ? Math.max(careHeads, getGrazedCarryingCapacity(cellId, good))
+        : careHeads;
+    hayFeedNeedKg += winteredHeads * (ANNUAL_FEED_DM_KG_PER_HEAD[name] ?? 0);
     workersNoDogs += careHeads / profile.baselineHeadsPerHerder;
     weightedValue += careHeads * (goodsByName.get(name)?.value ?? 0);
     perGoodDemand.push({ careHeads, profile });
@@ -448,7 +458,7 @@ export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: 
   const hayPlan = getLivestockHayPlan(
     world,
     cellId,
-    annualFeedNeedKg,
+    hayFeedNeedKg,
     calculateDesiredPastureAreaHectares(world, cellId) + getGrazedFallowPastureEquivalentHectares(world, cellId)
   );
   const hayWorkers = ((hayPlan.rawHarvestKg / 1000) * HAY_WORK_DAYS_PER_TONNE_DM) / WORKABLE_DAYS_PER_ADULT;

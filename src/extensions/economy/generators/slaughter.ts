@@ -37,6 +37,7 @@ import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { HERD_MEAT_OFFTAKE } from "./herdDiet";
 import { creditRuralHouseholdWealth } from "./householdWealth";
+import { getMarketLeanCarcassFactors } from "./livestockFeedState";
 import type { Market } from "./marketTypes";
 import { rennetBarrelsFromCalfAbomasa } from "./rennet";
 import { EXPERIMENTAL_CARCASS_PROFILES } from "./winterSlaughterPolicy";
@@ -119,6 +120,22 @@ export function singleIngredientHeads(output: Good, animalId: number): number | 
   return undefined;
 }
 
+/**
+ * The market pays the farm families who sent the herd FARMGATE_PRICE_SHARE of the by-product's
+ * market price, out of its cash, as graziers and butchers sold hides and tallow to the tanners and
+ * chandlers (docs/plan/byproduct-farmgate.md). A market without a farm purse pays nothing.
+ */
+function payFarmgate(market: Market, good: Good, units: number): void {
+  if (!(units > 0) || !market.foodLedger || getMarketSettings().byproductFarmgate !== "pay") return;
+  const treasury = market.marketTreasury;
+  const price = market.goods[good.i]?.price ?? 0;
+  if (!treasury || !(price > 0)) return;
+  const paid = rn(Math.min(Math.max(0, treasury.balance), units * price * FARMGATE_PRICE_SHARE), 2);
+  if (!(paid > 0)) return;
+  treasury.balance = rn(treasury.balance - paid, 2);
+  creditRuralHouseholdWealth(market, paid);
+}
+
 function credit(market: Market, good: Good, units: number): void {
   if (!(units > 0) || !isGoodEnabled(good)) return;
   const row = market.goods[good.i] ?? { stock: 0, price: good.value };
@@ -142,6 +159,7 @@ function credit(market: Market, good: Good, units: number): void {
     const key = `${market.i}:${good.i}`;
     produced[key] = quantity((produced[key] ?? 0) + units);
   }
+  payFarmgate(market, good, units);
 }
 
 /**
@@ -177,8 +195,11 @@ export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, 
   const stapleBillPaid = prepaidStapleMonths > 0;
   if (stapleBillPaid) prepaidStapleMonths--;
   const townsByMarket = meat ? getTownsByMarket() : undefined;
+  // Lean stock give lighter carcasses: less meat and tallow, the same hides (docs/plan/livestock-lean-condition.md).
+  const leanFactors = getMarketLeanCarcassFactors();
   for (const market of getMarkets()) {
     let meatKg = 0;
+    const carcass = leanFactors.get(market.i) ?? 1;
     for (const animal of animals) {
       const tallowKg = tallow ? TALLOW_KG_PER_HEAD[animal.name] : undefined;
       const leatherHeads = leather
@@ -198,7 +219,7 @@ export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, 
         burgId: market.centerBurgId,
         relatedGoodId: tallowKg !== undefined ? tallow?.i : leather?.i
       });
-      const tallowUnits = tallow && tallowKg ? rn((heads * tallowKg) / GOOD_MEASURES.Tallow.kg, 2) : 0;
+      const tallowUnits = tallow && tallowKg ? rn((heads * tallowKg * carcass) / GOOD_MEASURES.Tallow.kg, 2) : 0;
       const leatherUnits = leather && leatherHeads ? rn(heads / leatherHeads, 2) : 0;
       const eligibleCalves = eligibleCalfHeadsByMarket?.get(market.i) ?? 0;
       const rennetUnits =
@@ -214,7 +235,7 @@ export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, 
       if (leatherUnits > 0)
         result.leatherByMarket.set(market.i, (result.leatherByMarket.get(market.i) ?? 0) + leatherUnits);
       result.rennet += rennetUnits;
-      meatKg += heads * (MEAT_KG_PER_HEAD[animal.name] ?? 0);
+      meatKg += heads * (MEAT_KG_PER_HEAD[animal.name] ?? 0) * carcass;
     }
     if (meat && meatKg > 0) {
       const units = meatKg / WAIN_KG;

@@ -26,7 +26,6 @@ import {
   annualHuntCostForRarity,
   decayPestSuppression,
   ensureWildernessState,
-  estimateLocalDangerDrop,
   HUNT_RESERVE,
   pruneDeadMonsterMarkers,
   setupHuntCost,
@@ -98,6 +97,11 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
   const abandoned: number[] = [];
   const huntedMonsterIds = new Set<number>();
   let markersOrMonstersChanged = false;
+  // Cell danger before the single rebuild, for projects that remain.
+  const dangerBeforeRebuild = new Map<number, number>();
+  const watchProjectCell = (cellId: number): void => {
+    if (!dangerBeforeRebuild.has(cellId)) dangerBeforeRebuild.set(cellId, cells.danger?.[cellId] ?? 0);
+  };
 
   // 0) Decay pest suppression before rebuild.
   decayPestSuppression(wilderness);
@@ -123,10 +127,7 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
 
     state.treasury = Math.max(0, (state.treasury ?? 0) - cost);
     project.progressYears += 1;
-    const beforeDanger = cells.danger?.[project.cellId] ?? 0;
     const result = applyHuntProgress(project, monsters, rng, world, year);
-    const afterLocal = estimateLocalDangerDrop(beforeDanger, result.powerReduced);
-    project.dangerReduced += afterLocal;
 
     if (result.cleared) {
       project.lastOutcome = "cleared";
@@ -137,7 +138,10 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
       project.lastOutcome = "progress";
       progressed.push(project.cellId);
       if (project.monsterId !== null) huntedMonsterIds.add(project.monsterId);
-      if (result.powerReduced > 0) markersOrMonstersChanged = true;
+      if (result.powerReduced > 0) {
+        markersOrMonstersChanged = true;
+        watchProjectCell(project.cellId);
+      }
     }
   }
 
@@ -168,7 +172,6 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
       // First funded year applies immediately so annual advance always shows progress.
       const firstYear = applyHuntProgress(project, monsters, rng, world, year);
       project.progressYears = 1;
-      project.dangerReduced = estimateLocalDangerDrop(cells.danger?.[project.cellId] ?? 0, firstYear.powerReduced);
       if (firstYear.cleared) {
         project.lastOutcome = "cleared";
         cleared.push(project.cellId);
@@ -182,7 +185,10 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
         progressed.push(target.cellId);
         active += 1;
         if (target.monsterId !== null) huntedMonsterIds.add(target.monsterId);
-        if (firstYear.powerReduced > 0) markersOrMonstersChanged = true;
+        if (firstYear.powerReduced > 0) {
+          markersOrMonstersChanged = true;
+          watchProjectCell(target.cellId);
+        }
       }
     }
   }
@@ -216,6 +222,11 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
     reducePredatorsOnGovernedLand: true,
     pestSuppressionByCell: wilderness.pestSuppressionByCell
   });
+  for (const [cellId, before] of dangerBeforeRebuild) {
+    const project = wilderness.cullProjects[cellId];
+    if (!project) continue;
+    project.dangerReduced += Math.max(0, before - (cells.danger?.[cellId] ?? 0));
+  }
   applyAmbientRewildCreep(cells, world);
   assignWildLandTags(cells);
 

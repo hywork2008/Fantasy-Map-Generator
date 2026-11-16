@@ -288,9 +288,9 @@ function changeCultureSet(): void {
     initialSettlementPattern: "marches",
     oikoumeneLandShare: 0.45,
     initialPopulationSaturation: 45,
-    // Danger is on by default for fantasy sets but stays user-toggleable
-    // (Danger tab checkbox) — a lock (below) protects an explicit choice.
-    dangerEnabled: true,
+    // Danger is on by default for fantasy sets but stays user-toggleable.
+    // A lock keeps the stored choice; do not force it back on.
+    ...(!locked("dangerEnabled") ? { dangerEnabled: true } : {}),
     fireSpiritsEnabled: true,
     gremlinsEnabled: true,
     ...(!locked("maxWarDisparityRatioEnabled") ? { maxWarDisparityRatioEnabled: false } : {}),
@@ -303,9 +303,10 @@ function changeCultureSet(): void {
   if (locked("initialSettlementPattern")) store("initialSettlementPattern", "marches");
   if (locked("oikoumeneLandShare")) store("oikoumeneLandShare", "0.45");
   if (locked("initialPopulationSaturation")) store("initialPopulationSaturation", "45");
-  if (locked("dangerEnabled")) store("dangerEnabled", "true");
   if (locked("fireSpiritsEnabled")) store("fireSpiritsEnabled", "true");
   if (locked("gremlinsEnabled")) store("gremlinsEnabled", "true");
+  // Profiles no longer seed this mode. Paint ignores the saved value.
+  // Keep the lock apply so a culture-set change does not clear an old locked key.
   if (threatDefaults?.threatCalculation && locked("threatCalculation")) {
     store("threatCalculation", threatDefaults.threatCalculation);
   }
@@ -538,6 +539,7 @@ export function applyStoredOptions(): void {
     "maxWarDisparityRatioEnabled",
     "technologyDevelopmentSpeed",
     "technologyRequirementEase",
+    "dangerEnabled",
     "threatCalculation",
     "emblemShape",
     "distanceScale",
@@ -579,6 +581,7 @@ export function applyStoredOptions(): void {
         key === "forceIndustrialCultures" ||
         key === "fireSpiritsEnabled" ||
         key === "gremlinsEnabled" ||
+        key === "dangerEnabled" ||
         key === "maxWarDisparityRatioEnabled"
           ? value === "true"
           : Number.isNaN(+value)
@@ -1119,22 +1122,6 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
       // Hybrid mode hides #danger SVG; refresh the deck.gl cell layer too.
       void import("./layers").then(({ scheduleWebglUpdate }) => scheduleWebglUpdate());
     }
-  });
-
-  // Threat aggregation mode: rebuild pack.cells.danger from living threats so the
-  // Danger layer updates without a full regenerate. Does not re-rank population.
-  document.addEventListener("react-change-threat-calculation", () => {
-    const monsters = worldContext.pack?.monsters;
-    if (!monsters?.length && !worldContext.pack?.dungeons?.length) return;
-    void import("../generators/dungeons-generator").then(({ rebuildDungeonDanger }) => {
-      rebuildDungeonDanger(worldContext);
-      if (layerIsOn("toggleDanger")) {
-        void import("../renderers").then(({ DangerRenderer }) => {
-          DangerRenderer.render(worldContext, viewContext, appServices);
-        });
-      }
-      void import("./layers").then(({ scheduleWebglUpdate }) => scheduleWebglUpdate());
-    });
   });
 
   // Enclosure calculation mode: rebuild pack.cells.enclosure (harbor/mooring calmness) from the

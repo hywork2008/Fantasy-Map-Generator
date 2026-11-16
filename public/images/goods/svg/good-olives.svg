@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+<g transform="translate(-4 5)"><path d="M30 100 C50 40 70 30 100 24" fill="none" stroke="#5a7a32" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="46" cy="70" rx="10" ry="14" fill="#6b8f3a" stroke="#1a1612" stroke-width="4"/><ellipse cx="66" cy="54" rx="10" ry="14" fill="#7ea34a" stroke="#1a1612" stroke-width="4"/><ellipse cx="84" cy="40" rx="10" ry="14" fill="#5e8634" stroke="#1a1612" stroke-width="4"/><path d="M96 20 C110 16 112 32 100 34 C96 24 98 20 96 20 Z" fill="#6b9a40" stroke="#1a1612" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></g>
+</svg>

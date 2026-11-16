@@ -1,0 +1,27 @@
+.goodIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  vertical-align: middle;
+  line-height: 0;
+  flex: none;
+}
+
+.goodIcon.framed {
+  border: 1px solid;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.goodIcon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.goodIcon.framed img {
+  width: 78%;
+  height: 78%;
+}

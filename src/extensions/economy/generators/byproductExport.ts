@@ -21,6 +21,10 @@ import type { LuxuryTier } from "./luxuryTiers";
 import type { Market } from "./marketTypes";
 
 export const EXPORTED_BYPRODUCTS = ["Leather", "Tallow"] as const;
+/** By-products that spoil beyond the months kept; wax keeps for years (docs/plan/wax-export.md). */
+const SPOILING_BYPRODUCTS: ReadonlySet<string> = new Set(EXPORTED_BYPRODUCTS);
+/** The Baltic and Russian wax of the Hanseatic trade, shipped with hides and tallow with `beeswaxExport` staple (docs/plan/wax-export.md). */
+export const EXPORTED_WAX = "Beeswax";
 /**
  * What the staple ships brought back from the Low Countries and Gascony: Flemish cloth, wine, bay
  * salt, and the spices and silk of Bruges (docs/plan/byproduct-export.md §3.2).
@@ -104,7 +108,8 @@ function recordShipped(market: Market, good: Good, units: number): void {
 /** Updates each market's running use of the by-products and return goods, and ships the ports' surplus. Returns the value exported. */
 export function settleByproductExport(): number {
   const settings = getMarketSettings();
-  const byproducts = findGoods(EXPORTED_BYPRODUCTS);
+  const withWax = settings.beeswaxExport === "staple" || settings.waxSurplus === "tithe";
+  const byproducts = findGoods(withWax ? [...EXPORTED_BYPRODUCTS, EXPORTED_WAX] : EXPORTED_BYPRODUCTS);
   if (!byproducts.length) return 0;
   const returns = findGoods(STAPLE_RETURN_GOODS);
   const intake = getOrCreateMarketGoodProductionTotals() ?? {};
@@ -119,7 +124,22 @@ export function settleByproductExport(): number {
       const need = getReturnGoodNeed(market, good, luxuryBudgets.get(market.i));
       return { good, inflow: observed.inflow, use: Math.max(observed.use ?? 0, need) };
     });
-    spoilExcessByproducts(market, byproductUse, settings.byproductKeepMonths, settings.byproductExcessSpoil);
+    spoilExcessByproducts(
+      market,
+      byproductUse.filter(({ good }) => SPOILING_BYPRODUCTS.has(good.name)),
+      settings.byproductKeepMonths,
+      settings.byproductExcessSpoil,
+      "spoilage"
+    );
+    if (settings.waxSurplus === "tithe") {
+      spoilExcessByproducts(
+        market,
+        byproductUse.filter(({ good }) => good.name === EXPORTED_WAX),
+        settings.waxKeepMonths,
+        settings.waxTitheRate,
+        "waxTithe"
+      );
+    }
     if (settings.byproductExport !== "staple" || !ports.has(market.i)) continue;
     // The return goods no one on the map sends it, the fewest months of stock first, and the value
     // that fills them to the target.
@@ -138,6 +158,7 @@ export function settleByproductExport(): number {
     if (!(returnValue > 0)) continue;
     let exportedValue = 0;
     for (const { good, use } of byproductUse) {
+      if (good.name === EXPORTED_WAX && settings.beeswaxExport !== "staple") continue;
       const row = market.goods[good.i];
       if (!row || use === undefined || !(row.price > 0) || !(returnValue > 1e-9)) continue;
       const surplus = Math.max(0, row.stock - use * settings.byproductExportReserveMonths);
@@ -158,12 +179,14 @@ export function settleByproductExport(): number {
 /**
  * Hides and tallow beyond `keepMonths` of the market's own use spoil at `rate` a month: rancid
  * tallow and rotten hides went to the fields and the glue boilers (docs/plan/byproduct-disposal.md).
+ * Wax keeps; its surplus is paid to the church as wax rent instead (docs/plan/wax-tithe.md).
  */
 function spoilExcessByproducts(
   market: Market,
   byproducts: readonly { good: Good; use: number | undefined }[],
   keepMonths: number,
-  rate: number
+  rate: number,
+  category: "spoilage" | "waxTithe"
 ): void {
   if (!(rate > 0)) return;
   for (const { good, use } of byproducts) {
@@ -173,7 +196,7 @@ function spoilExcessByproducts(
     if (!(units > 0)) continue;
     row.stock = rn(row.stock - units, 4);
     recordShipped(market, good, units);
-    recordGoodFlow({ direction: "sink", category: "spoilage", goodId: good.i, units, marketId: market.i });
+    recordGoodFlow({ direction: "sink", category, goodId: good.i, units, marketId: market.i });
   }
 }
 

@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { DEFAULT_MARKET_SETTINGS, setMarketSettings } from "../../../simulation/marketSettings";
+import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
@@ -9,6 +11,7 @@ import {
   setGuildKnowledgeStocks,
   setMarkets
 } from "../economyContext";
+import { getHouseholdWealth } from "./burgMarketLedgers";
 import { GUILD_MASTER_STIPEND } from "./characterStipends";
 import { Goods } from "./goods-generator";
 import { GuildTreasury } from "./guildTreasury";
@@ -18,6 +21,8 @@ const BRONZE_ID = 1;
 
 describe("GuildTreasuryModule", () => {
   beforeEach(() => {
+    // The fixed-stipend, smiths-everywhere rule (docs/plan/guild-master-workshop.md).
+    setMarketSettings({ guildMasterSeat: "legacy", guildMasterIncome: "stipend" });
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     worldContext.pack = {
       burgs: [undefined, { i: 1, cell: 0, x: 0, y: 0, market: 1 }]
@@ -31,7 +36,10 @@ describe("GuildTreasuryModule", () => {
     Markets.sync();
   });
 
-  afterEach(() => clearEconomyContext());
+  afterEach(() => {
+    clearEconomyContext();
+    setMarketSettings({ ...DEFAULT_MARKET_SETTINGS });
+  });
 
   describe("creditGuildTreasury()", () => {
     it("creates a GuildKnowledgeStock entry with stock=0 when the domain has never accumulated technique", () => {
@@ -128,6 +136,59 @@ describe("GuildTreasuryModule", () => {
       expect(entry.domain).toBe("woodworking");
       expect(entry.treasury).toBeGreaterThan(0);
       expect(worldContext.pack.markets?.[0]?.goods[BRONZE_ID]?.stock ?? 0).toBe(0);
+    });
+  });
+
+  describe("settleWorkshopEarnings()", () => {
+    it("smooths the month's craft margin and pays the master's share from the town treasury", () => {
+      setMarketSettings({ guildMasterIncome: "workshop", guildMasterWorkshopShare: 0.3 });
+      initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+      const burg = worldContext.pack.burgs[1]!;
+      burg.treasury = 100;
+      const master = {
+        i: 7,
+        wealth: 0,
+        roles: [
+          {
+            source: "economy",
+            kind: "guildMaster",
+            entityType: "burg",
+            entityId: 1,
+            domain: "brewing",
+            label: "Guild Master"
+          }
+        ]
+      };
+      (worldContext.pack as { characters?: unknown[] }).characters = [master];
+      setGuildKnowledgeStocks([{ burgId: 1, domain: "brewing", stock: 0.5, treasury: 0 }]);
+      GuildTreasury.recordWorkshopMargin(1, "brewing", 20);
+
+      expect(GuildTreasury.settleWorkshopEarnings(burg)).toBeCloseTo(6, 2);
+      expect(burg.treasury).toBeCloseTo(94, 2);
+      expect(master.wealth).toBeCloseTo(6, 2);
+      expect(getGuildKnowledgeStocks()[0].marginAverage).toBeCloseTo(20, 2);
+      expect(getGuildKnowledgeStocks()[0].workshopMargin).toBe(0);
+      clearCharactersContext();
+    });
+  });
+
+  describe("spendGuildSurplus()", () => {
+    afterEach(() => setMarketSettings({ ...DEFAULT_MARKET_SETTINGS }));
+
+    it("spends the share above the working reserve on the town's households, and nothing with keep", () => {
+      worldContext.options = { economyStartMode: "balanced" } as typeof worldContext.options;
+      const burg = worldContext.pack.burgs[1]!;
+      const reserve = GUILD_MASTER_STIPEND * 12;
+      setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0, treasury: reserve + 100 }]);
+      const before = getHouseholdWealth(1);
+
+      setMarketSettings({ guildSurplusUse: "keep" });
+      expect(GuildTreasury.spendGuildSurplus(burg)).toBe(0);
+
+      setMarketSettings({ guildSurplusUse: "spend", guildSpendRate: 0.05, guildReserveMonths: 12 });
+      expect(GuildTreasury.spendGuildSurplus(burg)).toBeCloseTo(5, 2);
+      expect(getGuildKnowledgeStocks()[0].treasury).toBeCloseTo(reserve + 95, 2);
+      expect(getHouseholdWealth(1) - before).toBeCloseTo(5, 2);
     });
   });
 
