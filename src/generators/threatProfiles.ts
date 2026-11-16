@@ -4,9 +4,10 @@
  * highFantasy: frontier oikoumene — rarity 1–2 moderate scatter, rare 3, no 4–5.
  * darkFantasy: lethal Dark Fantasy ladder including regional/calamity threats.
  *
- * Spawn counts / power / threatCalculation are driven by Options (Danger tab) at
- * generate time. Profiles supply the recommended defaults applied when the user
- * selects a fantasy culture set (see applyThreatProfileDefaults).
+ * Spawn counts and power are driven by Options (Danger tab) at generate time.
+ * Profiles supply the recommended defaults applied when the user selects a
+ * fantasy culture set (see applyThreatProfileDefaults). The saved aggregation
+ * mode is ignored by danger paint.
  *
  * Spec: docs/plan/wild-oikoumene-frontier.md
  */
@@ -25,7 +26,7 @@ export interface ThreatRarityBand {
 
 export interface ThreatSpawnProfile {
   mode: ThreatCultureMode;
-  /** Recommended danger aggregation for this mood (seeded into Options on culture-set change). */
+  /** Kept on the profile so old readers still type-check. Paint ignores it, and defaults no longer copy it. */
   threatCalculation: ThreatCalculationMode;
   bands: readonly ThreatRarityBand[];
 }
@@ -95,8 +96,7 @@ export function getThreatSpawnProfile(culturesSet: string | undefined | null): T
 }
 
 /**
- * Aggregation mode for danger paint. Always prefers the user-facing Options
- * value so Threat calculation changes actually affect the field.
+ * Saved aggregation mode. Callers still pass it into danger rebuild; the paint ignores it.
  */
 export function resolveThreatCalculation(
   options?: Pick<ThreatDangerOptions, "threatCalculation"> | null
@@ -185,7 +185,6 @@ export function getThreatOptionDefaults(culturesSet: string | undefined | null):
   const r1 = byRarity(1);
 
   return {
-    threatCalculation: profile.threatCalculation,
     dangerRarity5Min: r5?.min ?? 0,
     dangerRarity5Max: r5?.max ?? 0,
     dangerRarity5Power: r5?.power ?? 50,

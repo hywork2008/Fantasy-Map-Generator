@@ -12,7 +12,11 @@ import type { CityFabric } from "./localInfill.types";
 import { convexInfillParts, insetConvexKernel } from "./lotGeometry";
 import { facePoints, indexMeshEdges } from "./mesh";
 import type { OrganicBlockContext } from "./organicBlocks";
-import { ORGANIC_LANE_FACADE_CLEARANCE } from "./organicBlocks";
+import {
+  COARSE_STREET_WIDTH_METERS,
+  ORGANIC_LANE_FACADE_CLEARANCE,
+  ROAD_FACADE_CLEARANCE_METERS
+} from "./organicBlocks";
 import { buildPerimeterBlocks } from "./perimeterBlocks";
 import { makeRng } from "./prng";
 import { infillCore, infillOutskirts } from "./streetGrowth";
@@ -47,7 +51,7 @@ const mid = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2
 const onSegment = (p: Point, a: Point, b: Point) => nearestOnPolyline(p, [a, b]).dist < 1e-5;
 
 /** Giant-city plan §10: streets between the fabric's own street blocks. */
-const FINE_STREET_WIDTH_METERS = 5;
+const FINE_STREET_WIDTH_METERS = COARSE_STREET_WIDTH_METERS;
 
 /** Reachable face portals form a forest rooted at real major-road frontages. */
 export function buildLocalFabric(document: CityDocument, options?: InfillOptions): CityFabric {
@@ -90,7 +94,9 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
       // Roads are represented by their centre line. Houses belong at the road
       // edge, whereas walls and rivers need their own protective clearance.
       const clearanceMeters =
-        group.kind === "road" ? group.style.widthMeters / 2 + 0.35 : group.style.widthMeters / 2 + 3;
+        group.kind === "road"
+          ? group.style.widthMeters / 2 + ROAD_FACADE_CLEARANCE_METERS
+          : group.style.widthMeters / 2 + 3;
       clearance.set(id, Math.max(clearance.get(id) ?? 0, clearanceMeters));
     }
     if (group.kind === "river")

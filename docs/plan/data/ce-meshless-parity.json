@@ -1,0 +1,1189 @@
+{
+  "format": "ce-meshless-parity",
+  "version": 1,
+  "createdAt": "2026-11-09",
+  "definition": "docs/plan/ce-meshless-feature-parity.md",
+  "states": {
+    "equivalent": "Generated or usable with the same effect as the mesh editor",
+    "partial": "Present but narrower than the mesh editor",
+    "authored-only": "Only by manual authoring, not generated",
+    "converted-only": "Only by converting a mesh-editor document",
+    "missing": "Absent",
+    "not-applicable": "Cell-specific; replaced or dropped by section 3.4 of the definition"
+  },
+  "observation": "docs/analytics/ce-meshless-parity-p0b-20261109.json",
+  "rows": [
+    {
+      "category": "setting",
+      "id": "seed",
+      "mesh": "GenerationSettings / generateCityOnDocument seed",
+      "meshless": "equivalent",
+      "evidence": "Both editors take the seed.",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "population.targetPopulation",
+      "mesh": "settings.population",
+      "meshless": "equivalent",
+      "evidence": "vectorInputFromEditor and VectorUrbanSettings.population; unplaced population reported.",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "historicalPeriod",
+      "mesh": "settings.historicalPeriod",
+      "meshless": "partial",
+      "evidence": "Read for storeys (residentialStoreys standard only) and bastion era of authored bastions; no period-specific generation.",
+      "stage": "P3",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "descriptor",
+      "mesh": "FMG BurgSiteDescriptor",
+      "meshless": "partial",
+      "evidence": "vectorInputFromDescriptor reads site, water, fixed crossings and heights (M4, M8); only these parts are generated from it.",
+      "stage": "P1",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "generationMethod",
+      "mesh": "mesh-first | skeleton-first",
+      "meshless": "not-applicable",
+      "evidence": "Cell methods. Meshless has wall-first and the planned growth order (ce-meshless-growth-generation.md).",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.coast",
+      "mesh": "none | straight | bay | cape",
+      "meshless": "missing",
+      "evidence": "Synthetic coast reaches the input since P0b, but the skeleton fails (parity case coastal-port: gate-access). FMG water arrives only through a descriptor.",
+      "stage": "P5",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.rivers",
+      "mesh": "through | beside | toCoast | straight | meander | greatBend",
+      "meshless": "partial",
+      "evidence": "Native input only for at most one through/straight river; other shapes fall back to the synthesized descriptor, whose rivers are smoothed into curves and whose meander is a Kinoshita course through the town (curvedRivers.ts).",
+      "stage": "P5",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.relief",
+      "mesh": "boolean",
+      "meshless": "missing",
+      "evidence": "Relief goes through the synthesized descriptor; the skeleton fails on its imported roads crossing the river without fixed crossings (parity case relief-polygon: unbridged-road). FMG heights are read (M8).",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.features.walls",
+      "mesh": "CityProgram",
+      "meshless": "partial",
+      "evidence": "Only ellipse (panel: walls ? ellipse : none); rectangle preset exists in VectorGenerationSettings.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.features.citadel",
+      "mesh": "CityProgram",
+      "meshless": "partial",
+      "evidence": "P4e: a castle precinct is sited before the streets by the mesh editor's rules on the site (size by town radius with step-down, edge in 85% of towns, backed away from the approach roads, inside the wall, clear of water, roads and the civic centre) and raised after them as a castle feature (curtain, gate, approach, moat) with works from the mesh editor's style builder (buildFortressPlanOnRing, resolveCastleStyle). A detached castle outside the town and the mesh editor's relief/terrain siting are not generated; when no site fits, castle-unplaced.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.features.plaza",
+      "mesh": "CityProgram",
+      "meshless": "partial",
+      "evidence": "seedVectorCivicCentre reserves it, sized by population (civicSizeForPopulation, P0b). Not the mesh editor's plaza or market rules.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.features.temple",
+      "mesh": "CityProgram",
+      "meshless": "partial",
+      "evidence": "As plaza: a chapel below 3,000 people (drawn as massing), the catalogue basilica above; adds a cemetery.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.features.port",
+      "mesh": "CityProgram",
+      "meshless": "partial",
+      "evidence": "P5b: read as the skeleton's port setting. A sea harbour is generated on the coast of a town with no river, inside an open or opening waterfront of a walled town (P5b-2); a closed sea wall leaves room for it only on some coasts. River towns get river ports (P5b-3).",
+      "stage": "P5",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.features.shanty",
+      "mesh": "CityProgram",
+      "meshless": "partial",
+      "evidence": "P6h: read from the requested settings, else the FMG burg's shanty flag; raises the extramural shanty.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.wall.envelope",
+      "mesh": "WallChoice",
+      "meshless": "missing",
+      "evidence": "Not read by meshless generation.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.wall.coast",
+      "mesh": "WallChoice",
+      "meshless": "partial",
+      "evidence": "P5b-2: read as the skeleton's wallCoast. auto resolves as the mesh editor (a port leaves its waterfront open, any other shore is walled); open drops the wall's longest sea-side run and opening a gap of about 120 m nearest the centre, each end carried to the shore. An open line has no circuit, so no old-town wall or town moat rides on it (diagnostics). seaWall keeps the closed line 6 m off the sea, as before.",
+      "stage": "P5",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.wall.line",
+      "mesh": "WallChoice",
+      "meshless": "missing",
+      "evidence": "Not read by meshless generation.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "config.wall.material",
+      "mesh": "WallChoice",
+      "meshless": "equivalent",
+      "evidence": "P4a: stone or wood as chosen, else stone from 1,500 people (resolveWallMaterial); sets the wall thickness (4.5 / 2.4 m) and the 3D wall body.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "layout",
+      "mesh": "auto | organic | circulade | bram | classic",
+      "meshless": "partial",
+      "evidence": "P4d: circulade and bram are laid from the mesh editor's vector planners (planCirculadeLayout, planPolygonalCirculadeLayout) around the site centre, sized to the built-up disc, before the routed streets; auto resolves as resolveEffectiveLayout (concentric plans only on maps of 700 m or less); both keep one wall. Rings break at water, the civic precinct and walls, because meshless keeps its own civic centre instead of the planner's small plaza and temple (P6). classic fills each district (skeleton block) with the mesh editor's classic block infill (buildPerimeterBlocks classic: Voronoi neighbourhoods of rows and lanes) instead of the organic streets; the mesh editor applies it per mesh cell, meshless per district.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "wallShape",
+      "mesh": "organic | round | oval | square | polygon | bastioned",
+      "meshless": "equivalent",
+      "evidence": "P4a: the skeleton-first shape families (unitWallShape: organic, round, oval, square, polygon, bastioned outline; auto by seed, bastioned only from the age of exploration) drawn as a closed wall on the site; the site grows by the shape's area share. The outline is turned (48 steps, each checked by building its gates) until roads and rivers cross it at 20 degrees or more, where the mesh editor squares it at rivers. Approach roads that end outside or in the wall are continued to just inside it.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "wallSides",
+      "mesh": "polygon sides",
+      "meshless": "equivalent",
+      "evidence": "P4a: polygon and bastioned outlines take the side count (3-12; unset 5-8 from the seed, as the skeleton).",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "townWallRings",
+      "mesh": "single | double | razed",
+      "meshless": "equivalent",
+      "evidence": "P4b: generated from townWallRings double: an old-town wall of the outer outline scaled about the centre to the walled share (walledAreaShare, default 45%), nested as a child circuit. Outer-first (default) cuts it into the laid streets, easing the line by up to a few tens of percent until every crossing takes a clean gate; when none does it is left out with the inner-wall-unplaced diagnostic, as the mesh editor falls back to a single wall (about 1 in 5 generated towns, mostly bastioned outlines).",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "townWallBuildOrder",
+      "mesh": "GenerationSettings",
+      "meshless": "equivalent",
+      "evidence": "P4b: inner-first walls the old town before the streets; approach roads are continued through it and the streets reach it only through those gates. When land between the walls is then unreachable (a river cutting the ring) it falls back to outer-first with the inner-first-fallback diagnostic.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "innerWallState",
+      "mesh": "GenerationSettings",
+      "meshless": "equivalent",
+      "evidence": "P4b: razed leaves the old-town line as boulevard roads as wide as the main roads, broken where water runs through it; the streets cross it freely.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "townWallDefensePolicy",
+      "mesh": "GenerationSettings",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "walledAreaShare",
+      "mesh": "GenerationSettings",
+      "meshless": "partial",
+      "evidence": "P4b: sizes the old-town wall of a double-walled town. A single wall still encloses the whole site (the mesh editor insets it to the share).",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "townFortification",
+      "mesh": "bastioned town: outworks, ditch, street plan",
+      "meshless": "partial",
+      "evidence": "P4c: standalone sites are planned by the mesh editor's cell-free fortress planner (planBastionedTownFromInputs) on skeleton inputs built from the meshless site: trace as a fixed wall with gates, gate routes replacing the approach roads (ending inside the built-up disc), ring street, works as a fixed defense plan (bastions, curtains, ravelins, dry or wet ditch, covered way, glacis, accesses). Outworks none/ravelins, ditch dry/wet and street plan radial/organic (chords inside the town are left to the skeleton). Not yet: a river or coast through the works (sluices, fortress-water-conflict until P5) and FMG-linked sites, whose fixed roads cannot be rerouted.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "moats",
+      "mesh": "town / castle moats",
+      "meshless": "partial",
+      "evidence": "P4c-2 town moat (12 m, bridged on every road, rotated to meet the skew policy) and P4e castle moat (8 m, bridged on the castle approach by the castle feature).",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "castle",
+      "mesh": "castle settings",
+      "meshless": "partial",
+      "evidence": "P4e: position and size are read; form, relationship (detached) and ground are not. Style follows the setting or resolveCastleStyle by period and culture; the style's pieces are kept only where they fit inside the castle precinct, else the feature's keep and corner towers stand.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "castleStreetLinks",
+      "mesh": "castle settings",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "castleOutward",
+      "mesh": "castle settings",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "legacyCastles",
+      "mesh": "castle settings",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "riverPlacement",
+      "mesh": "through | outside | outsideNear",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P5",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "elevationPreset",
+      "mesh": "terrain settings",
+      "meshless": "missing",
+      "evidence": "Not read; terrain comes from FMG heights or authored Freeform grading.",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "elevationRelief",
+      "mesh": "terrain settings",
+      "meshless": "missing",
+      "evidence": "Not read; terrain comes from FMG heights or authored Freeform grading.",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "elevationRotation",
+      "mesh": "terrain settings",
+      "meshless": "missing",
+      "evidence": "Not read; terrain comes from FMG heights or authored Freeform grading.",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "terrainField",
+      "mesh": "terrain settings",
+      "meshless": "missing",
+      "evidence": "Not read; terrain comes from FMG heights or authored Freeform grading.",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "riverDropMeters",
+      "mesh": "terrain settings",
+      "meshless": "missing",
+      "evidence": "Not read; terrain comes from FMG heights or authored Freeform grading.",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "terraces",
+      "mesh": "terrain settings",
+      "meshless": "missing",
+      "evidence": "Not read; terrain comes from FMG heights or authored Freeform grading.",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "buildingPattern",
+      "mesh": "legacy | medieval | ...",
+      "meshless": "partial",
+      "evidence": "P3b: medieval builds the CE perimeter lots; medieval with population facilities (facilityLayout) selects the meshless facilities mode. legacy (mesh block infill) has no meshless counterpart and builds the perimeter lots; it stays listed as unsupported.",
+      "stage": "P3",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "buildingHeightPolicy",
+      "mesh": "height variation policy",
+      "meshless": "partial",
+      "evidence": "P3b: storeys follow residentialHeightWeights per street block (15% of houses roll alone, outside the wall the outskirts weights) with the per-house floor-height variation, from context.requestedSettings and the FMG tradition. The site is sized on the mean storeys. Not ported: the growth-pressure height fit (fitMorphologyHeightDistribution), which needs the FMG urban growth; meshless sizes the site instead.",
+      "stage": "P3",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "buildingHeightLimit",
+      "mesh": "height limit",
+      "meshless": "equivalent",
+      "evidence": "P3b: the city limit (maxStoreys, maxHeightMeters) caps every house by storeysWithinLimit with the varied floor heights; a house keeps at least one storey. Per-cell zone limits are cell-specific.",
+      "stage": "P3",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "housingAreaScale",
+      "mesh": "housing area scale and passes",
+      "meshless": "not-applicable",
+      "evidence": "Mesh lot tuning; meshless sizes the site by lot occupancy (lotOccupancy).",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "forestSettings",
+      "mesh": "automatic forest mode and density",
+      "meshless": "partial",
+      "evidence": "P7b: read from the requested settings; surroundings raises the woodland, legacy none, farmland none (meshless raises no fields, farmland is skipped); the density is stored for the trees. Per-cell land-cover overrides (forest/open) have no meshless cells.",
+      "stage": "P7",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "burialProfile",
+      "mesh": "burial culture",
+      "meshless": "partial",
+      "evidence": "P6a: settings, then the FMG descriptor, as the mesh editor resolves it (none: churchyard, extramural in modern periods). Zoning sites the cemetery: beside the church, outside the town beside an approach road (scored as wards.ts: about 120 m out), or on a river bank; the culture lays it out (layoutCultureCemeteryOnSite). Not yet: hill and highland by relief (P8), household and catacomb forms as their own layouts.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "streets",
+      "mesh": "farNode, manualBearings, avoidSea, foldSmoothing",
+      "meshless": "missing",
+      "evidence": "Not read; skeleton has branches and road width.",
+      "stage": "P9",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "approachGrowthSource",
+      "mesh": "neighbors | traffic",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P9",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "approachCommerce",
+      "mesh": "off | on",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "urbanCoreMode",
+      "mesh": "legacy | compact",
+      "meshless": "missing",
+      "evidence": "Not read.",
+      "stage": "P9",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "urbanNPatches",
+      "mesh": "cell count of the urban core",
+      "meshless": "not-applicable",
+      "evidence": "Counted in cells; replace by an area if the behaviour is kept.",
+      "stage": "P9",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "facilityLayout",
+      "mesh": "population facilities",
+      "meshless": "partial",
+      "evidence": "medieval-facilities mode places BV facilities; not the mesh editor's population facility rules.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "setting",
+      "id": "mode",
+      "mesh": "city | fort | terrain",
+      "meshless": "missing",
+      "evidence": "Only city.",
+      "stage": "P9",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "wall-circuit",
+      "mesh": "defenseCircuits",
+      "meshless": "partial",
+      "evidence": "Generated as one circuit; double rings not generated.",
+      "stage": "P4",
+      "checked": true,
+      "census": "wallCircuits"
+    },
+    {
+      "category": "generated",
+      "id": "gates",
+      "mesh": "gates",
+      "meshless": "equivalent",
+      "evidence": "Generated on the wall curve with shared nodes.",
+      "stage": "-",
+      "checked": true,
+      "census": "gates"
+    },
+    {
+      "category": "generated",
+      "id": "main-roads",
+      "mesh": "road feature groups",
+      "meshless": "equivalent",
+      "evidence": "Skeleton roads with fixed crossings.",
+      "stage": "-",
+      "checked": true,
+      "census": "roads"
+    },
+    {
+      "category": "generated",
+      "id": "rivers",
+      "mesh": "river feature groups",
+      "meshless": "partial",
+      "evidence": "One synthetic river; FMG rivers via descriptor.",
+      "stage": "P5",
+      "checked": true,
+      "census": "rivers"
+    },
+    {
+      "category": "generated",
+      "id": "bridges",
+      "mesh": "bridge decks",
+      "meshless": "equivalent",
+      "evidence": "Generated under bridgeSkewPolicy; count may differ by layout.",
+      "stage": "-",
+      "checked": true,
+      "census": "bridges"
+    },
+    {
+      "category": "generated",
+      "id": "double-walls",
+      "mesh": "inner town wall",
+      "meshless": "equivalent",
+      "evidence": "P4b: generated from townWallRings double: an old-town wall of the outer outline scaled about the centre to the walled share (walledAreaShare, default 45%), nested as a child circuit. Outer-first (default) cuts it into the laid streets, easing the line by up to a few tens of percent until every crossing takes a clean gate; when none does it is left out with the inner-wall-unplaced diagnostic, as the mesh editor falls back to a single wall (about 1 in 5 generated towns, mostly bastioned outlines).",
+      "stage": "P4",
+      "checked": true,
+      "census": "wallCircuits"
+    },
+    {
+      "category": "generated",
+      "id": "castle",
+      "mesh": "castles / citadel",
+      "meshless": "partial",
+      "evidence": "P4e: position and size are read; form, relationship (detached) and ground are not. Style follows the setting or resolveCastleStyle by period and culture; the style's pieces are kept only where they fit inside the castle precinct, else the feature's keep and corner towers stand.",
+      "stage": "P4",
+      "checked": true,
+      "census": "castles"
+    },
+    {
+      "category": "generated",
+      "id": "bastioned-town",
+      "mesh": "bastionedTown",
+      "meshless": "converted-only",
+      "evidence": "Converted legacy plans only.",
+      "stage": "P4",
+      "checked": true,
+      "census": "bastionedTown"
+    },
+    {
+      "category": "generated",
+      "id": "moat",
+      "mesh": "castle and town moats",
+      "meshless": "authored-only",
+      "evidence": "Authored feature only.",
+      "stage": "P4",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "plaza",
+      "mesh": "plaza element",
+      "meshless": "partial",
+      "evidence": "Reserved as a civic feature sized by population (P0b); holds a market day with aisles and stalls (P6b). Coastal sites get no civic centre yet.",
+      "stage": "P6",
+      "checked": true,
+      "census": "plazas"
+    },
+    {
+      "category": "generated",
+      "id": "market",
+      "mesh": "markets / market wards",
+      "meshless": "partial",
+      "evidence": "P6b: a market day on the civic plaza by the mesh editor's market rules (layoutMarketStalls, cut from placeMarketInArea): aisles from each street meeting the plaza to a hub, six catalogue stalls in two rows along the long sides. Not yet: harbour and street markets, market halls, the market-area operation; a plaza under about 1,000 people is too small for a stall (market-unplaced).",
+      "stage": "P6",
+      "checked": true,
+      "census": "markets"
+    },
+    {
+      "category": "generated",
+      "id": "temple",
+      "mesh": "temple element",
+      "meshless": "partial",
+      "evidence": "Chapel or basilica by population (P0b); a chapel has no catalogue model.",
+      "stage": "P6",
+      "checked": true,
+      "census": "temples"
+    },
+    {
+      "category": "generated",
+      "id": "monastery",
+      "mesh": "monastery layout",
+      "meshless": "partial",
+      "evidence": "P6c: the mesh editor's founding rules (monasteryKindsFor: faith and period; monasteryCountFor: town size) and precinct planner (fitMonastery) on the meshless land blocks, scored as placeMonasteries; stored as fixed precincts (environment.monasteries) drawn as massing. Not yet: a walled town's abbey outside the walls (the site has no ground there: monastery-unplaced), the catalogue's precinct models, FMG cities.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "cemetery",
+      "mesh": "cemetery plans by burial culture",
+      "meshless": "partial",
+      "evidence": "P6a: sited by burial culture zoning (churchyard, extramural roadside, riverbank) and laid out by the culture; cemetery-unplaced when no ground fits. Standalone towns only (FMG cities have no civic centre yet).",
+      "stage": "P6",
+      "checked": true,
+      "census": "cemeteries"
+    },
+    {
+      "category": "generated",
+      "id": "guild-facilities",
+      "mesh": "guild facilities",
+      "meshless": "partial",
+      "evidence": "P6d: the FMG economy's guilds (planGuildFacilities) placed by the mesh editor's rules (placeGuildWorks, now given a cell-free view): a chapter's hall (with a belfry for a prestigious cloth guild) in a core land block, yards beside the approach roads beyond the town (the site grows to take them), a bleaching field on a river bank upstream; stored as environment.guilds and drawn as massing. Not yet: tanneries, craftsman streets, the catalogue's hall models, standalone towns (no economy).",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "gate-plaza-and-inn",
+      "mesh": "gate plaza buildings and inn",
+      "meshless": "partial",
+      "evidence": "P6e: the FMG economy's inns and caravanserais on the approach with the most recorded traffic, by the mesh editor's rules (placeInnsOnApproach, cut from placeGateInns): largest yard first, beyond the town edge beside the road; stored as environment.inns and drawn as a ring of rooms round the stable yard. Not yet: the gate plaza and commerce facilities (approachCommerce), the commerce inn's seat and through-yard, standalone towns (no economy).",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "landmarks",
+      "mesh": "landmark instances",
+      "meshless": "missing",
+      "evidence": "Not generated. P6f took the mesh editor's free-standing aerial landmarks (windmills, gallows) as its own row; placed asset instances stay here.",
+      "stage": "P6",
+      "checked": true,
+      "census": "landmarks"
+    },
+    {
+      "category": "generated",
+      "id": "windmills-and-gallows",
+      "mesh": "windmills and the gallows (aerial landmarks)",
+      "meshless": "partial",
+      "evidence": "P6f: the mesh editor's rules, cut cell-free (placeWindmillsAroundTown, placeGallowsOnApproach, windmillCountFor): post mills from the high medieval period and tower mills from the late, beyond the town edge or the walls' glacis, as many as the FMG economy's wind capacity or one per ~1,400 buildings (fewer on a river), facing into the FMG prevailing wind; the gallows mound 130-520 m out beside an approach road for 400+ buildings. Stored as environment.landmarks and drawn flat (mound, tower, sails, pillars). Not yet: elevation scoring (flat site until P8), fields and buildings as obstacles, 3D mill and gallows models, the facility-count overrides.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "economic-wards",
+      "mesh": "merchant / craftsmen / patriciate wards and craft streets",
+      "meshless": "partial",
+      "evidence": "P6g: the mesh editor's inner ward mix (fillInner via the new cell-free assignWardMix): the FMG economy's craftsman streets by guild practitioners, merchant streets by commerce rank, market, patriciate, slum, administration, military and park (or the documented 35-slot mix without an economy), each street block of the town (inside the wall, or the core of an open town) scored by rateLocation; stored on urban.districts (ward, craftDomain) and feeding the house storeys (patriciate rich, merchant and market commercial; vector-urban-v14). Not yet: gate wards, the approachCommerce market street, ward-specific lot sizes, gardens and archetypes (medievalFabric), ward tints.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "shanty",
+      "mesh": "shanty town",
+      "meshless": "partial",
+      "evidence": "P6h: the mesh editor's pickShanty (cell-free pickShantySpots): 3-6 street blocks beyond the wall in the band out to 1.8 times its reach, in the cone of the busiest approaches, nearest the wall first; ward shanty on urban.districts, built up whatever the demand. A site ending at the wall first grows by a strip along the two busiest approaches (land of its own, so blocks inside the wall never merge with it). Not yet: an open town's shanty band, ward-specific shanty fabric.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "harbor",
+      "mesh": "harbour ward, quays, cargo, cranes, warehouses",
+      "meshless": "partial",
+      "evidence": "P5b: generated on sea coasts by the mesh editor's harbour planner on cell-free shores (planHarborOnShores): quays, loading yards, cranes, crane quays, cargo piles, piers, street accesses; stored as a fixed harbour plan. River shores take short bank piers (a quarter of the channel) and barges (P5b-3). Not yet: harbour presets, warehouses, the whole-bank quay strips.",
+      "stage": "P5",
+      "checked": true,
+      "census": "harbors"
+    },
+    {
+      "category": "generated",
+      "id": "ships",
+      "mesh": "ships",
+      "meshless": "partial",
+      "evidence": "P5b: generated with the harbour by the mesh editor's ship planner (planShipsAtPiers): pier berths, anchorage, crane quays and lighters; ships the stored plan cannot re-solve are left out.",
+      "stage": "P5",
+      "checked": true,
+      "census": "ships"
+    },
+    {
+      "category": "generated",
+      "id": "river-port-and-ferry",
+      "mesh": "river ports and ferry landings",
+      "meshless": "partial",
+      "evidence": "P5b-3: river ports on a fixed river (its site water, or a fixed river path) by the shared harbour planner: bank quays, short piers, barges; 29 of 32 synthesized river towns. P5b-4: ferries where FMG crosses a river by ferry (the period has no bridge for it): the road ends on the town bank, and the mesh editor's figure-of-eight crossing (planFerryCrossing) is stored with jetties, landings and towpaths, whose ground is kept from houses and the harbour. Not yet: the far-bank road, ferry boats.",
+      "stage": "P5",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "houses",
+      "mesh": "perimeter houses",
+      "meshless": "equivalent",
+      "evidence": "CE perimeter fabric (buildOrganicBlocks) on street blocks.",
+      "stage": "-",
+      "checked": true,
+      "census": "houses"
+    },
+    {
+      "category": "generated",
+      "id": "population-facilities",
+      "mesh": "population facility allocation",
+      "meshless": "partial",
+      "evidence": "Facilities mode only, own search.",
+      "stage": "P6",
+      "checked": true,
+      "census": "facilities"
+    },
+    {
+      "category": "generated",
+      "id": "parks",
+      "mesh": "park wards and lawns",
+      "meshless": "partial",
+      "evidence": "P7c: park wards (assigned by the P6g ward mix) laid out by the mesh editor's park fabric through the cell-free layoutParkLawn: lawns inset 2.8 m from streets, the wall's and rivers' margins and 6 m off water, a walkway, grass tufts and canopies 11 m off the wall; a small park by the wall stays a bare esplanade; no house on a park block; stored as urban.parks (vector-urban-v16) and drawn as lawn, walk and canopy. Not yet: tree LOD and seasons (openSpaceTreeLod, P2c-2), parks of open towns' outskirts, census of the parks.",
+      "stage": "P7",
+      "checked": true,
+      "census": "parks"
+    },
+    {
+      "category": "generated",
+      "id": "rural-fields",
+      "mesh": "rural fields and farms",
+      "meshless": "missing",
+      "evidence": "Not generated; authored farmland feature exists. Skipped in P7 by the user's decision (2026-11-10): the mesh editor's farmland shapes and layout are poor and a fundamental overhaul is planned, so they are not ported; an agreed exception until that overhaul.",
+      "stage": "P7",
+      "checked": true,
+      "census": "farms"
+    },
+    {
+      "category": "generated",
+      "id": "farm-sheds-and-roadside-farms",
+      "mesh": "farm sheds, roadside farms",
+      "meshless": "missing",
+      "evidence": "Not generated. Skipped in P7 by the user's decision (2026-11-10): the mesh editor's farmland shapes and layout are poor and a fundamental overhaul is planned, so they are not ported; an agreed exception until that overhaul.",
+      "stage": "P7",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "suburban-landuse",
+      "mesh": "suburban land use",
+      "meshless": "partial",
+      "evidence": "P7a: the mesh editor's approach bands (suburbanProfile: trade from traffic rank 0.5, else rural; glacis clearance and ribbon length) and its lot rule, cut cell-free (suburbanLotKept): beyond the wall a house stands within 20 m of an approach, between the clearance and the ribbon's end from the gate, clear of the glacis, 20-220 m2, thinned by the band's spacing; the shanty and residential outskirts (when the town cannot house the demand otherwise) keep their blocks and clear the glacis. Ribbon houses stand whatever the demand; a site ending at the wall grows a strip along each band (vector-urban-v15). Not yet: the approachBeyond neighbour profiles (granary, frontier), barbican slack, kitchen gardens and field rows (farmland is skipped), open towns, the urban-morphology growth system (shapeUrbanGrowthFabric) for FMG burgs with a profile.",
+      "stage": "P7",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "forest",
+      "mesh": "automatic woodland",
+      "meshless": "partial",
+      "evidence": "P7b: forestLandCover/buildForestPlan rules on meshless land: the surroundings mode covers the frame beyond the site's land (the mesh editor's outskirts with no ward), in a tree-bearing climate (treeBiomeForClimate on the FMG biome and temperature), clear of water, roads plus 4 m, the wall's glacis on both sides and every reservation; stored as environment.forest (regions, area, density) and drawn as a woodland surface. Trees in 3D by forestMeshes (P2d-6). Not yet: seasons (P2d-8), coast clearance strips, census of the regions, farmland mode.",
+      "stage": "P7",
+      "checked": true,
+      "census": "forests"
+    },
+    {
+      "category": "generated",
+      "id": "wells-and-water",
+      "mesh": "wells, domestic water, watermills",
+      "meshless": "partial",
+      "evidence": "P7d: the mesh editor's water points (placeDomesticWater through the cell-free layoutDomesticWater) after the houses: a public basin on the civic plaza, one community well per 80 buildings (every fourth a rainwater cistern) at least 55 m apart on vacant ground of market, merchant, craftsman, patrician and unassigned street blocks with a walk of at most 12 m to a road, street or lane, and a service pond on vacant outskirts ground; stored as urban.wells (vector-urban-v16) and drawn as rim, water and access path. Not yet: spring basins (no river sources on the meshless site), watermills, the wellMeshes 3D parts, moat and fixed-road checks (no mesh reservations).",
+      "stage": "P7",
+      "checked": true
+    },
+    {
+      "category": "generated",
+      "id": "terraces-and-grading",
+      "mesh": "terraces, road grading",
+      "meshless": "partial",
+      "evidence": "Authored Freeform grading (M8); not generated.",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "bridgeMeshes",
+      "mesh": "city3d/three/bridgeMeshes (Bridges)",
+      "meshless": "equivalent",
+      "evidence": "P2d-3: the cell-free createTownBridgesAt (split out of createTownBridges) builds each meshless bridge as the modular BV bridge over its deck line (vectorStructures' bridgeSite: width, stone or timber), on the mesh editor's land and water levels; the massing deck stays only as a fallback. On relief the massing deck is kept until P8.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "buildingDetails",
+      "mesh": "city3d/three/buildingDetails (Building details)",
+      "meshless": "equivalent",
+      "evidence": "P2d-7: createTownBuildingDetails adds the mesh editor's near façade details (doors, windows, timbering in the house colours) to massing houses in view, excluding those already detailed, driven by the same camera update.",
+      "stage": "P3",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "bvInstances",
+      "mesh": "city3d/three/bvInstances",
+      "meshless": "equivalent",
+      "evidence": "Used by renderers/vector/scene3d.ts (BV prototypes for placements).",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "cityMeshes",
+      "mesh": "city3d/three/cityMeshes (City massing)",
+      "meshless": "equivalent",
+      "evidence": "P3a: fabric houses are drawn by createCityMassing with BuildingMassing from the mesh editor's rules (lotMassing, lotFloorSpecs). One wall and one roof mesh; the buildingIndex attribute maps triangles back to house ids for picking.",
+      "stage": "P3",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "craneMeshes",
+      "mesh": "city3d/three/craneMeshes",
+      "meshless": "equivalent",
+      "evidence": "Used by renderers/vector/scene3d.ts (Cranes and harbour cargo).",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "facilityMeshes",
+      "mesh": "city3d/three/facilityMeshes (Facilities)",
+      "meshless": "partial",
+      "evidence": "P2d-4: the cell-free createFacilityLayer (split out of createTownFacilities, whose castle garrisons stay in the mesh editor's callback) draws the meshless inns (courtyard lodgings), guild halls and yards, windmills and gallows as the BV facilities; their raised massing gives way and mounds, yards and courts stay as ground. Not yet: watermills, storage yards, tanneries and quay warehouses (not generated meshless), castle garrisons, relief (P8).",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "farmMeshes",
+      "mesh": "city3d/three/farmMeshes (Farms)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses. Skipped in P7 by the user's decision (2026-11-10): the mesh editor's farmland shapes and layout are poor and a fundamental overhaul is planned, so they are not ported; an agreed exception until that overhaul.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "forestMeshes",
+      "mesh": "city3d/three/forestMeshes (Forest (with ground texture and tree details))",
+      "meshless": "partial",
+      "evidence": "P2d-6: the P7b woodland (environment.forest regions and density) drawn by createTownForest: floor, far crown chunks and the camera-driven middle and near trees, species from the town's climate (a stand-in document carries the seed, density, biome and temperature). The flat woodland surface stays in the 2D plan only. Not yet: the forest quality setting (always standard), seasons (P2d-8), the ground texture, relief (P8).",
+      "stage": "P7",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "friaryMeshes",
+      "mesh": "city3d/three/friaryMeshes (Monasteries)",
+      "meshless": "equivalent",
+      "evidence": "P2d-4: the P6c religious houses (environment.monasteries, the mesh editor's fitMonastery plans) drawn by createTownMonasteries at high quality; their raised massing gives way. Relief keeps the massing until P8.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "groundSurfaceGeometry",
+      "mesh": "city3d/three/groundSurfaceGeometry (Ground surface)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "objectMeshes",
+      "mesh": "city3d/three/objectMeshes (Objects)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "openSpaceMeshes",
+      "mesh": "city3d/three/openSpaceMeshes (Open spaces (with tree LOD))",
+      "meshless": "equivalent",
+      "evidence": "P2d-1/P2d-5/P2d-8: cemeteries and park trees go through collectOpenSpacePlan-shaped sites to createTownOpenSpaces with the camera tree LOD (openSpaceTreeLod) and the seasonal look: graves, ledgers, chapels, cottages, cloisters, ossuaries, boundary walls, churchyard and park trees (species adapted to the climate). The ground and paths stay the 2D surfaces. Relief waits for P8.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "pierMeshes",
+      "mesh": "city3d/three/pierMeshes (Piers)",
+      "meshless": "partial",
+      "evidence": "P2d-3: harbour piers (environment.harbor.piers, four-corner decks from the shared harbour generator) drawn by createTownPiers with level timber decking, piles and bollards; the flat pier outline stays in the 2D plan. Not yet: ferry jetties, piers on relief (P8).",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "regionalHouseLod",
+      "mesh": "city3d/three/regionalHouseLod (Distant-house LOD)",
+      "meshless": "equivalent",
+      "evidence": "P2d-7: meshless houses go through createTownRegionalHouseLod (its massing replaces the plain createCityMassing call): every lot keeps exact massing, and the large houses in view near the camera take the detailed regional BV house within the mesh editor's budget; the 3D view drives it from the camera before each frame and asks for more frames while builds are pending. A hit on a detailed house resolves to its saved house id; the massing pick maps through the LOD's triangle index.",
+      "stage": "P3",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "riverHydraulicMesh",
+      "mesh": "city3d/three/riverHydraulicMesh (River hydraulics)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "roadMeshes",
+      "mesh": "city3d/three/roadMeshes (Roads)",
+      "meshless": "equivalent",
+      "evidence": "P2b: main roads, district streets and lanes become RoadRibbons with classifyRoadSurface (highway outside the wall, arterial inside, street for fabric lines; dry runs only) and are drawn by createTownRoads. Outlines stay as hidden pick targets.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "shipMeshes",
+      "mesh": "city3d/three/shipMeshes",
+      "meshless": "equivalent",
+      "evidence": "Used by renderers/vector/scene3d.ts (Ships).",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "specialBuildingMeshes",
+      "mesh": "city3d/three/specialBuildingMeshes (Special buildings)",
+      "meshless": "equivalent",
+      "evidence": "P2d-4: the meshless civic church is a placement of the catalogue basilica (or the parish chapel massing, as the mesh editor draws a small chapel) and the market stalls are placements of the stall models; pieces laid by the mesh editor's rules now stand as their models at their position and facing, without the catalogue-envelope and display-height checks that sent them to massing.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "structureMeshes",
+      "mesh": "city3d/three/structureMeshes (Structures)",
+      "meshless": "partial",
+      "evidence": "P2a: meshless walls, curtain towers, gate flanks and lintels (no barbican) and bridge decks use createStructureMassing via the cell-free wall/gate helpers shared with renderers/structureMassing.ts. Landmarks and temples are not yet structures.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "terrainFieldMesh",
+      "mesh": "city3d/three/terrainFieldMesh (Terrain field)",
+      "meshless": "missing",
+      "evidence": "Not used by renderers/vector/scene3d.ts, which extrudes coloured polygons for roads, walls, rivers, bridges, regions and fabric houses.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "townWallMeshes",
+      "mesh": "city3d/three/townWallMeshes (Town walls)",
+      "meshless": "equivalent",
+      "evidence": "P2d-2: the cell-free createTownWallParts (split out of createTownWalls, which the mesh editor still calls) draws each meshless stone wall's curtain runs, curtain towers and passage gatehouses as the BV stonework, with the houses' automatic culture profile for towers and gates and the gate crossings from the wall's anchors; replaced parts leave the structure massing, which keeps timber walls and bridges. Always at high quality: the meshless view has no quality setting.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "waterMeshes",
+      "mesh": "city3d/three/waterMeshes (Water)",
+      "meshless": "partial",
+      "evidence": "P2c: on flat sites without a harbour, river, lake and coast water is drawn by createTownWaterParts (the flat branch of createTownWater: same water tops at WATER_Y, TOWN_WATER_COLOR and bank skirts) under a ground cut open for it; the flat outlines stay as hidden pick targets. Relief (riverHydraulicMesh, quays) is P8; harbour water keeps its own surfaces (P5).",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "wellMeshes",
+      "mesh": "city3d/three/wellMeshes (Wells)",
+      "meshless": "equivalent",
+      "evidence": "P2d-1: the P7d wells and the plaza basin (urban.wells, kinds well and publicBasin) drawn by createTownWells with the shared BV prototype cache; their flat rim and water surfaces stay in the 2D plan only. Cisterns and ponds stay surfaces, as the mesh editor's collectWellSites leaves them out.",
+      "stage": "P2",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "treeSeason",
+      "mesh": "city3d/three/treeSeason (Tree seasons)",
+      "meshless": "partial",
+      "evidence": "P2d-8: the 3D view resolves treeSeason from the FMG burg's descriptor (its month and monthly temperatures), or the mesh editor's standalone default (July at 45°), and passes it to the forest, the open-space trees and the landscape trees. Not yet: the month and latitude controls of the mesh editor's lighting panel (the meshless view has none).",
+      "stage": "P7",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "house-appearance",
+      "mesh": "buildingAppearance / massing by culture and period",
+      "meshless": "equivalent",
+      "evidence": "P3a massing plus P3b appearance: regional roof materials and wall/roof palettes (regionalRoofMaterial, resolveBuildingAppearance), roof colours limited per street block, automatic culture as the mesh editor at high quality (automaticHousingProfile: FMG tradition or climate; standalone by seed). Explicit culture/climate/wall overrides are the building-appearance-controls row.",
+      "stage": "P3",
+      "checked": true
+    },
+    {
+      "category": "3d",
+      "id": "local-origin-and-picking",
+      "mesh": "precision and logical-id picking",
+      "meshless": "equivalent",
+      "evidence": "M9 local render origin and logical ids.",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "generation-stage-slider",
+      "mesh": "generation stage slider",
+      "meshless": "partial",
+      "evidence": "Six meshless stages; mesh stages such as castle, harbour, farms are absent because those elements are not generated.",
+      "stage": "P1",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "road-wall-river-drawing",
+      "mesh": "way / route tools on mesh edges",
+      "meshless": "equivalent",
+      "evidence": "Curves, presets, freehand, Bézier (M2).",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "ward-brush",
+      "mesh": "ward brush over faces",
+      "meshless": "not-applicable",
+      "evidence": "Cell painting; meshless edits district regions (M8). Region drawing replaces it.",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "freeform-ledger",
+      "mesh": "ledger tool",
+      "meshless": "partial",
+      "evidence": "Freeform grading and pads (M8).",
+      "stage": "P8",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "object-placement",
+      "mesh": "object controls and placement palette",
+      "meshless": "partial",
+      "evidence": "Placement panel with BV models; palette and quality controls not compared.",
+      "stage": "P2",
+      "checked": false
+    },
+    {
+      "category": "operation",
+      "id": "market-area",
+      "mesh": "market area controls",
+      "meshless": "missing",
+      "evidence": "No market generation to edit.",
+      "stage": "P6",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "forest-controls",
+      "mesh": "forest controls",
+      "meshless": "partial",
+      "evidence": "Forest feature mode and density.",
+      "stage": "P7",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "biome-controls",
+      "mesh": "biome controls",
+      "meshless": "missing",
+      "evidence": "Not present in meshless panels.",
+      "stage": "P7",
+      "checked": false
+    },
+    {
+      "category": "operation",
+      "id": "building-appearance-controls",
+      "mesh": "building appearance, height limit",
+      "meshless": "partial",
+      "evidence": "2026-11-10: the meshless City settings panel picks the housing culture (automatic or one of the six profiles), kept as requestedSettings.buildingAppearanceProfile and applied at once to the houses, towers and gates. Not yet: the appearance climate and the mesh editor's height controls in that panel.",
+      "stage": "P3",
+      "checked": false
+    },
+    {
+      "category": "operation",
+      "id": "facility-panel",
+      "mesh": "facility panel",
+      "meshless": "partial",
+      "evidence": "Urban report lists facilities; not the same panel.",
+      "stage": "P6",
+      "checked": false
+    },
+    {
+      "category": "operation",
+      "id": "castle-style",
+      "mesh": "castle style",
+      "meshless": "missing",
+      "evidence": "Not present.",
+      "stage": "P4",
+      "checked": false
+    },
+    {
+      "category": "operation",
+      "id": "ship-editing",
+      "mesh": "ship placement and state",
+      "meshless": "partial",
+      "evidence": "Harbour ships keep display state (M9 harbor acceptance).",
+      "stage": "P5",
+      "checked": false
+    },
+    {
+      "category": "operation",
+      "id": "measure-and-inspector",
+      "mesh": "measurement and inspector",
+      "meshless": "equivalent",
+      "evidence": "Metre length and area; inspectors per path, placement and fabric house.",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "layers-locks",
+      "mesh": "layers and locks",
+      "meshless": "equivalent",
+      "evidence": "Fixed / editable policy and hidden layers.",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "undo-redo",
+      "mesh": "undo / redo",
+      "meshless": "equivalent",
+      "evidence": "Vector history.",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "save-share-export",
+      "mesh": "save, share, SVG / PNG / GLB",
+      "meshless": "equivalent",
+      "evidence": "Native codec, document and recipe share, SVG, PNG, GLB (M7).",
+      "stage": "-",
+      "checked": true
+    },
+    {
+      "category": "operation",
+      "id": "render-quality-and-performance",
+      "mesh": "render quality and performance panels",
+      "meshless": "missing",
+      "evidence": "Not present.",
+      "stage": "P2",
+      "checked": false
+    },
+    {
+      "category": "operation",
+      "id": "fmg-handoff",
+      "mesh": "open from FMG burg and province menus",
+      "meshless": "partial",
+      "evidence": "FMG descriptor input; method selection on hand-off not compared.",
+      "stage": "P1",
+      "checked": false
+    }
+  ]
+}

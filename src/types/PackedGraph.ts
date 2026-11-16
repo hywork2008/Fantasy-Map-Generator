@@ -87,6 +87,12 @@ export interface PackedGraphCells {
   routes: Record<number, Record<number, number>>;
   danger: TypedArray; // cell threat/danger level
   /**
+   * Highest monster rarity whose radius still covers the cell (0 = none).
+   * Written by danger rebuild. Missing on old saves until the next rebuild.
+   * Spec: docs/plan/dnd/danger-calculation.md
+   */
+  threatRarity?: Uint8Array;
+  /**
    * Wild land class for unclaimed land (Phase 3 oikoumene).
    * 0 none (ocean/governed), 1 claimable_frontier, 2 wild_margin, 3 monster_domain.
    * See `src/generators/wildLandTags.ts`.

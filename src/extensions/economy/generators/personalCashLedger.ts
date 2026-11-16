@@ -10,6 +10,8 @@ export interface PersonalCashAccount {
   managed: boolean;
   initialized: true;
   fundingCorrected?: boolean;
+  /** Months the account has been a dead owner's unclaimed estate (docs/plan/heirless-estates.md). */
+  estateMonths?: number;
 }
 export interface CashRange {
   start: number;

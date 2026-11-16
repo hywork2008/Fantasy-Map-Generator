@@ -15,6 +15,7 @@ import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { sampledClosedRing } from "../geometry/routing";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
+import { vectorOccupiedSites } from "../occupancy";
 import { vectorInputFromEditor } from "./editorInput";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
@@ -27,6 +28,25 @@ const defaults = () => ({
   townWallRings: "single" as const
 });
 const frame = { extentMeters: 1200, cityRadiusMeters: 396, blockSizeMeters: 50 };
+describe("civic centre sized by population (feature parity P0b)", () => {
+  it("fits the church of each population tier inside the site sized for it, and the site grows for it", () => {
+    for (const [population, modelId] of [
+      [600, "village-chapel"],
+      [3000, "town-church-large"]
+    ] as const) {
+      const settings = { ...defaults(), population: defaultPopulationSettings(population) },
+        input = vectorInputFromEditor({ settings, seed: "parity-civic", frame, lotOccupancy: 1 });
+      expect(input.placements["civic:church"].modelId).toBe(modelId);
+      for (const boundary of featureReservations(input))
+        expect(regionBoolean([boundary], input.site!.domain, "difference")).toHaveLength(0);
+      const city = generateVectorUrban(
+        generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed: "parity-civic", wall: "ellipse" }).document,
+        { ...DEFAULT_VECTOR_URBAN, population, lotOccupancy: 1 }
+      );
+      expect(city.urban!.report.unplacedPopulation).toBe(0);
+    }
+  });
+});
 describe("default standalone civic land and city envelope", () => {
   it("reserves central civic sites without changing the settings or borrowing an FMG input", () => {
     const settings = defaults(),
@@ -67,14 +87,15 @@ describe("default standalone civic land and city envelope", () => {
       area = regionArea(wall);
     expect(Math.abs(area / meshArea - 1)).toBeLessThan(0.05);
     expect(city.frame.extentMeters).toBe(mesh.frame.extentMeters);
-    expect(city.urban!.domain).toEqual(input.site!.domain);
+    // The skeleton may grow the site (the shanty faubourg, P6h); the urban stage keeps it.
+    expect(city.urban!.domain).toEqual(skeleton.site!.domain);
     expect(city.urban!.report.unplacedPopulation).toBe(0);
     expect(city.urban!.report.requiredFacilities).toBe(0);
     const reserved = featureReservations(city);
-    for (const placement of Object.values(city.placements).filter(p => p.building?.kind === "housing"))
-      expect(
-        regionBoolean(placement.building!.footprint, reserved, "intersection").reduce((n, p) => n + regionArea(p), 0)
-      ).toBeLessThan(1e-5);
+    // Generated houses live in fabric; none may enter the civic reservations.
+    const houses = vectorOccupiedSites({ ...city, placements: {} }, "site");
+    expect(houses.length).toBe(city.urban!.report.housingBuildings);
+    expect(regionBoolean(houses, reserved, "intersection").reduce((n, p) => n + regionArea(p), 0)).toBeLessThan(1e-5);
     for (const feature of Object.values(city.environment!.features)) {
       expect(feature.pathIds.length).toBe(1);
       const end = evaluateAnchor(city.paths[feature.access.pathId], feature.access);

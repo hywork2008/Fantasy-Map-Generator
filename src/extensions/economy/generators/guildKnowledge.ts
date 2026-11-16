@@ -128,8 +128,9 @@ export class GuildKnowledgeModule {
       const coverage = Math.min(1, workers / saturation);
       const stock = rn(applyKnowledgeEwma(previous?.stock ?? 0, coverage, GUILD_ADOPTION_RATE), 4);
       // Rebuilding this entry from scratch each year must not drop its accumulated guild capital
-      // (docs/plan/burg-treasury-equilibrium.md §3.1) — only `stock` (technique) is recomputed here.
-      next.push({ burgId, domain, stock, treasury: previous?.treasury ?? 0 });
+      // (docs/plan/burg-treasury-equilibrium.md §3.1) nor its workshop margin and master seat
+      // (docs/plan/guild-master-workshop.md) — only `stock` (technique) is recomputed here.
+      next.push({ ...previous, burgId, domain, stock, treasury: previous?.treasury ?? 0 });
     }
 
     // A Burg whose practitioners vanished (site closed, workers reassigned) keeps its guild hall

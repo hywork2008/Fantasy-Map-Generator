@@ -1,7 +1,13 @@
 import type { FaithFamily, FortificationFamily } from "../../data/civilizationTraditions";
 import { periodIndex } from "../../data/civilizationTraditions";
 import { growthRandom, residentialStoreys } from "../../utils/urbanMorphology";
-import type { RoofForm, RoofMaterial, WallMaterial } from "../types/contracts/buildingMassing";
+import type {
+  BuildingMassing,
+  FloorSpec,
+  RoofForm,
+  RoofMaterial,
+  WallMaterial
+} from "../types/contracts/buildingMassing";
 import type { CityDocument } from "../types/document";
 import type { Point } from "../types/primitives";
 import { buildingFloorSpecs } from "./buildingFloors";
@@ -43,22 +49,45 @@ function periodOf(document: CityDocument): string {
   return document.urbanMorphology?.period || document.historicalPeriod || "ageOfExploration";
 }
 
-function biomeText(document: CityDocument): string {
-  const biome = document.biome;
+/** What the massing rules read about the town: no cells, so a meshless city supplies the same values. */
+export interface MassingSource {
+  period: string;
+  biome?: { key?: string; name?: string; tags?: readonly string[] } | null;
+  civilization?: { faith?: FaithFamily | null; fortification?: FortificationFamily | null } | null;
+  seed: string;
+}
+export interface MassingContext {
+  period: string;
+  climate: { arid: boolean; forest: boolean };
+  tradition: { mediterranean: boolean; eastAsian: boolean };
+  fortification?: FortificationFamily;
+  seed: string;
+}
+export function massingContext(source: MassingSource): MassingContext {
+  return {
+    period: source.period,
+    climate: climateOf(source.biome),
+    tradition: traditionOf(source.civilization),
+    fortification: source.civilization?.fortification ?? undefined,
+    seed: source.seed
+  };
+}
+
+function biomeText(biome: MassingSource["biome"]): string {
   return `${biome?.key ?? ""} ${biome?.name ?? ""} ${(biome?.tags ?? []).join(" ")}`.toLowerCase();
 }
 
-function climateOf(document: CityDocument): { arid: boolean; forest: boolean } {
-  const text = biomeText(document);
+function climateOf(biome: MassingSource["biome"]): { arid: boolean; forest: boolean } {
+  const text = biomeText(biome);
   return {
     arid: /desert|arid|steppe/.test(text),
     forest: /forest|taiga|jungle|woodland/.test(text)
   };
 }
 
-function traditionOf(document: CityDocument): { mediterranean: boolean; eastAsian: boolean } {
-  const faith = document.civilization?.faith;
-  const fort = document.civilization?.fortification;
+function traditionOf(civilization: MassingSource["civilization"]): { mediterranean: boolean; eastAsian: boolean } {
+  const faith = civilization?.faith;
+  const fort = civilization?.fortification;
   return {
     mediterranean: (!!faith && MEDITERRANEAN_FAITH.has(faith)) || fort === "islamic" || fort === "classical",
     eastAsian: (!!faith && EAST_ASIAN_FAITH.has(faith)) || fort === "japanese" || fort === "sinitic"
@@ -84,14 +113,13 @@ function resolveStoreys(document: CityDocument, lot: BuildingLot): { storeys: nu
 }
 
 function wallMaterial(
-  document: CityDocument,
-  lot: BuildingLot,
+  fort: FortificationFamily | undefined,
+  lot: Pick<BuildingLot, "archetype">,
   period: string,
   climate: { arid: boolean; forest: boolean },
   tradition: { mediterranean: boolean; eastAsian: boolean }
 ): WallMaterial {
   const rich = lot.archetype === "patrician-house" || lot.archetype === "elite-compound";
-  const fort: FortificationFamily | undefined = document.civilization?.fortification;
   if (climate.arid && !rich) return "mudbrick";
   if (rich || ANTIQUITY.has(period) || fort === "classical") return "stone";
   if (tradition.eastAsian) return "timber-frame";
@@ -170,7 +198,7 @@ function wrapAzimuth(radians: number): number {
 }
 
 function roofForm(
-  lot: BuildingLot,
+  lot: Pick<BuildingLot, "polygon" | "role">,
   wall: WallMaterial,
   period: string,
   storeys: number,
@@ -184,14 +212,66 @@ function roofForm(
 }
 
 /**
+ * Walls, roof and colour of one lot from the town context, its floors and the height limit over it. The tint
+ * key keeps a lot's colour when another district is edited.
+ */
+export function lotMassing(
+  context: MassingContext,
+  lot: Pick<BuildingLot, "polygon" | "role" | "archetype">,
+  storeys: number,
+  floors: FloorSpec[],
+  maxHeightMeters: number | undefined,
+  tintKey: string
+): BuildingMassing {
+  const { period, climate, tradition, seed } = context;
+  const wall = wallMaterial(context.fortification, lot, period, climate, tradition);
+  const convex = isConvex(lot.polygon);
+  const bounds = roofBounds(lot.polygon);
+  const aspect = bounds.width > 0 ? bounds.length / bounds.width : 1;
+  const form = roofForm(lot, wall, period, storeys, convex, aspect);
+  const material = roofMaterial(wall, period, tradition);
+  const medievalTimber = wall === "timber-frame" && MEDIEVAL.has(period) && convex && form !== "flat";
+  const jetty = medievalTimber ? 0.4 : 0;
+  // Ordinary roofs should not become monumental structures on oversized lots.
+  // Include upper-floor offsets in the run used by the mesh builder.
+  const offset = Math.min(1.2, (storeys - 1) * jetty);
+  const run = (bounds.width + 2 * offset) / (form === "lean-to" ? 1 : 2);
+  const roofRise = Math.min(
+    4,
+    maxHeightMeters === undefined
+      ? 4
+      : Math.max(0, maxHeightMeters - floors.reduce((sum, floor) => sum + floor.heightMeters, 0))
+  );
+  const pitch = Math.min(ROOF_PITCH[material], (Math.atan2(roofRise, run) * 180) / Math.PI);
+  return {
+    storeys,
+    floors,
+    cellar: false,
+    jettyMeters: jetty,
+    eaveHeightMeters: floors.reduce((sum, floor) => sum + floor.heightMeters, 0),
+    roof: {
+      form,
+      pitchDeg: form === "flat" ? 2 : pitch,
+      ridgeAzimuth: wrapAzimuth(bounds.azimuth),
+      material
+    },
+    wall,
+    baseElevationMeters: 0,
+    tint: growthRandom(`${seed}:massing:${tintKey}:tint`)
+  };
+}
+
+/**
  * Attach `massing` to every drawable lot. Residential capacity is unchanged:
  * an existing `storeys` is kept, and a missing one is written only for non-residential lots.
  */
 export function assignBuildingMassing(document: CityDocument, lots: readonly BuildingLot[]): BuildingLot[] {
-  const period = periodOf(document);
-  const climate = climateOf(document);
-  const tradition = traditionOf(document);
-  const seed = document.generationSeed || document.fabric?.seed || "massing";
+  const context = massingContext({
+    period: periodOf(document),
+    biome: document.biome,
+    civilization: document.civilization,
+    seed: document.generationSeed || document.fabric?.seed || "massing"
+  });
   return applyBuildingHeightLimits(document, lots, hasBuildingHeightVariation(document))
     .filter(lot => lot.landmark || lot.storeys !== 0)
     .map(lot => {
@@ -203,44 +283,15 @@ export function assignBuildingMassing(document: CityDocument, lots: readonly Bui
         storeys,
         hasBuildingHeightVariation(document) && (isResidentialBuilding(lot) || !!lot.residentialCluster)
       );
-      const wall = wallMaterial(document, lot, period, climate, tradition);
-      const convex = isConvex(lot.polygon);
-      const bounds = roofBounds(lot.polygon);
-      const aspect = bounds.width > 0 ? bounds.length / bounds.width : 1;
-      const form = roofForm(lot, wall, period, storeys, convex, aspect);
-      const material = roofMaterial(wall, period, tradition);
-      const medievalTimber = wall === "timber-frame" && MEDIEVAL.has(period) && convex && form !== "flat";
-      const jetty = medievalTimber ? 0.4 : 0;
-      // Ordinary roofs should not become monumental structures on oversized lots.
-      // Include upper-floor offsets in the run used by the mesh builder.
-      const offset = Math.min(1.2, (storeys - 1) * jetty);
-      const run = (bounds.width + 2 * offset) / (form === "lean-to" ? 1 : 2);
-      const limit = effectiveHeightLimit(document, lot.faceId);
-      const roofRise = Math.min(
-        4,
-        limit.maxHeightMeters === undefined
-          ? 4
-          : Math.max(0, limit.maxHeightMeters - floors.reduce((sum, floor) => sum + floor.heightMeters, 0))
-      );
-      const pitch = Math.min(ROOF_PITCH[material], (Math.atan2(roofRise, run) * 180) / Math.PI);
       const next: BuildingLot = write ? { ...lot, storeys } : { ...lot };
-      next.massing = {
+      next.massing = lotMassing(
+        context,
+        lot,
         storeys,
         floors,
-        cellar: false,
-        jettyMeters: jetty,
-        eaveHeightMeters: floors.reduce((sum, floor) => sum + floor.heightMeters, 0),
-        roof: {
-          form,
-          pitchDeg: form === "flat" ? 2 : pitch,
-          ridgeAzimuth: wrapAzimuth(bounds.azimuth),
-          material
-        },
-        wall,
-        baseElevationMeters: 0,
-        // Editing another district must not change this lot's color.
-        tint: growthRandom(`${seed}:massing:${lot.id ?? `${lot.faceId}:${JSON.stringify(lot.polygon)}`}:tint`)
-      };
+        effectiveHeightLimit(document, lot.faceId).maxHeightMeters,
+        lot.id ?? `${lot.faceId}:${JSON.stringify(lot.polygon)}`
+      );
       return next;
     });
 }

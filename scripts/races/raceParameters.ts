@@ -1,9 +1,9 @@
-import type { RaceSupernatural } from "../../src/types/models";
+import type { RaceSupernatural } from "../../src/types/models.ts";
 
-import type { RaceDefinition as CoreRaceDefinition } from "../../src/data/raceDefinition";
-import type { CharacterRaceParameters } from "../../src/extensions/characters/data/raceTypes";
-import { RACE_SKILL_AXES, RACE_PERSONALITY_AXES } from "../../src/extensions/characters/data/raceTypes";
-import type { EconomyRaceParameters } from "../../src/extensions/economy/data/raceTypes";
+import type { RaceDefinition as CoreRaceDefinition } from "../../src/data/raceDefinition.ts";
+import type { CharacterRaceParameters } from "../../src/extensions/characters/data/raceTypes.ts";
+import { RACE_SKILL_AXES, RACE_PERSONALITY_AXES } from "../../src/extensions/characters/data/raceTypes.ts";
+import type { EconomyRaceParameters } from "../../src/extensions/economy/data/raceTypes.ts";
 export { RACE_SKILL_AXES, RACE_PERSONALITY_AXES };
 export const RACE_CIVIC_STANCES = ["diplomatic", "distant", "enemy_colony", "bound"] as const;
 export interface RaceDefinition extends CoreRaceDefinition, Omit<CharacterRaceParameters, "key">, Omit<EconomyRaceParameters, "key"> {}

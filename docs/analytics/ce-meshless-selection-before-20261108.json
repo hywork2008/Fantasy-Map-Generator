@@ -1,0 +1,60 @@
+{
+  "format": "ce-meshless-selection-observation",
+  "version": 1,
+  "measuredAtUtc": "2026-11-08T06:44:53.539Z",
+  "input": "/home/projects/Fantasy-Map-Generator/docs/analytics/raw/scaling-s0-20261108/scaling-5000.json",
+  "scope": "Workbench and placement panel in jsdom, one document, nine selections each. Excludes 3D and layout/paint.",
+  "counts": {
+    "paths": 1038,
+    "placements": 1100
+  },
+  "initialMs": 1540.7802929999998,
+  "mapClickMs": {
+    "median": 1304.1775909999997,
+    "max": 1397.8587740000003,
+    "samples": [
+      1397.8587740000003,
+      1349.2472749999997,
+      1358.5813950000002,
+      1276.9504209999996,
+      1269.8290749999996,
+      1277.6586479999987,
+      1298.4920419999999,
+      1304.1775909999997,
+      1304.9867439999998
+    ]
+  },
+  "workbenchSelectMs": {
+    "median": 80.99526200000037,
+    "max": 95.24033000000054,
+    "samples": [
+      79.71724600000016,
+      95.24033000000054,
+      79.93922899999961,
+      84.92772100000002,
+      83.81274900000062,
+      80.99526200000037,
+      87.94265500000074,
+      79.61820199999784,
+      80.03778199999942
+    ]
+  },
+  "placementSelectMs": {
+    "median": 128.0309500000003,
+    "max": 132.90677400000277,
+    "samples": [
+      128.23036099999808,
+      132.75502100000085,
+      123.21244400000069,
+      127.41248100000303,
+      120.79684400000042,
+      130.58628999999928,
+      128.0309500000003,
+      120.90658800000165,
+      132.90677400000277
+    ]
+  },
+  "renderCallbacks": 10,
+  "snapshotUnchanged": true,
+  "compareMs": 33.33341999999902
+}

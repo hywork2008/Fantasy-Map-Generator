@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { DEFAULT_MARKET_SETTINGS, setMarketSettings } from "../../../simulation/marketSettings";
 import { LIVELIHOOD_CODE, simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
@@ -153,6 +154,22 @@ describe("ruralOccupationAllocation", () => {
       if (month !== 6)
         expect(seasonal.husbandryMonthlyWorkDays[month]).toBeLessThanOrEqual(40 * WORKABLE_DAYS_PER_ADULT_PER_MONTH);
     }
+    // The hay the harvest month could not cut is carried to the next months' regrowth with the spare
+    // adults (docs/plan/hay-catch-up.md); the legacy rule loses it.
+    const missedHayDays = hayDays - (seasonal.husbandryMonthlyWorkDays[6] - careChildDays);
+    const carried = Array.from(seasonal.hayCatchUpDays ?? []);
+    expect(missedHayDays).toBeGreaterThan(0);
+    expect(carried[7] + carried[8] + carried[9]).toBeCloseTo(missedHayDays, 3);
+    expect(carried[6] + carried[10] + carried[0]).toBe(0);
+    setMarketSettings({ hayCatchUp: "legacy" });
+    const legacy = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth: busy,
+      minimumCropLaborDaysByMonth: busy.slice(),
+      farmLaborRequired: new Float32Array([0]),
+      migratableAdults: new Float32Array([40])
+    });
+    expect(Array.from(legacy.hayCatchUpDays ?? []).every(days => days === 0)).toBe(true);
+    setMarketSettings(DEFAULT_MARKET_SETTINGS);
   });
   beforeEach(() => {
     simulationContext.extensions = {};
@@ -189,6 +206,7 @@ describe("ruralOccupationAllocation", () => {
         migratableAdults: new Float32Array([60]),
         reservedLaborExport: new Float32Array([reserved])
       });
+    setMarketSettings({ ruralWorkYear: "legacy" });
     setGoods([]);
     const without = run();
     setGoods(["Wool", "Wool Cloth", "Wool Garments", "Wool Blankets"].map(name => Goods.getDefaultGood(name)!));
@@ -200,6 +218,16 @@ describe("ruralOccupationAllocation", () => {
     expect(run(60).householdTextileWorkers[0]).toBe(0);
     days.fill(60 * WORKABLE_DAYS_PER_ADULT_PER_MONTH);
     expect(run().householdTextileWorkers[0]).toBeCloseTo(0, 4);
+    // Off-field days (docs/plan/rural-work-year.md): cloth is spun in the days of the work year outside the
+    // field calendar, so it no longer takes field days or the migration surplus, and goes on in a full field year.
+    setMarketSettings(DEFAULT_MARKET_SETTINGS);
+    const fullFields = run();
+    expect(fullFields.householdTextileWorkers[0]).toBeGreaterThan(0);
+    days.fill(0);
+    const offField = run();
+    expect(offField.householdTextileWorkers[0]).toBeCloseTo(withTextiles.householdTextileWorkers[0], 4);
+    expect(offField.farmLaborRequired[0]).toBeCloseTo(without.farmLaborRequired[0], 4);
+    expect(offField.migratableAdults[0]).toBeCloseTo(without.migratableAdults[0], 4);
   });
 
   it("claims a small fixed hunting headcount from a forest cell's surplus, leaving the rest as release pressure", () => {
@@ -262,6 +290,7 @@ describe("ruralOccupationAllocation", () => {
   });
 
   it("lets market-town adults and travelling rural hands cover part of a harvest-month shortage, more in later periods", () => {
+    setMarketSettings({ urbanHarvestHelp: "legacy" });
     const run = (historicalPeriod: string) => {
       worldContext.pack = {
         cells: {
@@ -296,6 +325,40 @@ describe("ruralOccupationAllocation", () => {
     expect(getUrbanHarvestHelpShare("highMedieval")).toBeLessThan(getUrbanHarvestHelpShare("preIndustrialEra"));
     expect(later).toBeLessThan(medieval);
     expect(medieval).toBeGreaterThan(0);
+    setMarketSettings(DEFAULT_MARKET_SETTINGS);
+  });
+
+  it("sends town adults to the harvest up to the share and books their days to the town (docs/plan/urban-harvest-help.md)", () => {
+    setMarketSettings({ urbanHarvestHelp: "cornAndHay", urbanHarvestHelpShare: 0.5 });
+    worldContext.pack = {
+      cells: {
+        i: new Uint16Array([0]),
+        h: new Uint8Array([30]),
+        biomeCode: new Uint8Array([0]),
+        pop: new Float32Array([2]),
+        maleAdults: new Float32Array([0.5]),
+        femaleAdults: new Float32Array([0.5]),
+        c: [[]]
+      },
+      burgs: [{}, { i: 1, market: 1, population: 10, demographics: { maleAdults: 3, femaleAdults: 3 } }]
+    } as unknown as PackedGraph;
+    worldContext.populationRate = 1;
+    worldContext.urbanization = 1;
+    worldContext.biomesData = { tags: [[]], habitability: [0] } as never;
+    setGoods([] as never);
+    setMarketCellColumn(new Uint16Array([1]));
+    const cropLaborDaysByMonth = new Float32Array(12);
+    cropLaborDaysByMonth[6] = 1000; // far beyond the cell and half the town together
+    const result = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth,
+      minimumCropLaborDaysByMonth: cropLaborDaysByMonth.slice(),
+      farmLaborRequired: new Float32Array([1]),
+      migratableAdults: new Float32Array([0])
+    });
+    // Half the town's six adults, each a peak month (two ordinary months) of days.
+    expect(result.townHarvestHelperDays?.[1 * 12 + 6]).toBeCloseTo(3 * WORKABLE_DAYS_PER_ADULT_PER_MONTH * 2, 4);
+    expect(result.townHarvestHelperDays?.[1 * 12 + 5]).toBe(0);
+    setMarketSettings(DEFAULT_MARKET_SETTINGS);
   });
 
   it("gates Grapes' harvest by the assigned/required viticulture workerFactor", () => {

@@ -1,3 +1,4 @@
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import type { SimulationExtensionAPI } from "../../../types/extension-api";
 import { getSimulationCharacters as getCharacters } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
@@ -197,7 +198,8 @@ export function personalRoleStipend(role: RosterRole, roster: WorldRoster): numb
     return regiment ? getFieldCommanderStipend(regiment) : nominal(1.5);
   }
   if (p.includes("secularLord") || p.includes("territorialAdministrator")) return nominal(3);
-  if (p.includes("guildHead")) return nominal(1.05);
+  // With `guildMasterIncome` workshop a master lives on the workshop (guildTreasury.ts settleWorkshopEarnings).
+  if (p.includes("guildHead")) return getMarketSettings().guildMasterIncome === "workshop" ? 0 : nominal(1.05);
   if (p.includes("marketHead") || p.includes("companyHead")) return nominal(2.1);
   if (p.includes("marketMerchant")) return nominal(0.9);
   // Unpaid offices have no stipend-based starting cash target.
@@ -361,6 +363,34 @@ export function settlePersonalEstates(): void {
       if (key.startsWith(`estate:${account.id}:`)) delete s.transactions[key];
   }
 }
+/**
+ * A dead owner's cash no living child has claimed in `estateClaimMonths` goes to the households of
+ * the town they lived in: the funeral, the masses and alms, and the kin in town
+ * (docs/plan/heirless-estates.md). Cohort accounts of retired first occupants are not a death and stay.
+ */
+export function settleHeirlessEstates(): void {
+  const settings = getMarketSettings();
+  const s = readPersonalCash();
+  if (!s || settings.heirlessEstate !== "town") return;
+  const dead = new Set(
+    getCharacters()
+      .filter(c => c.dead && c.cashAccountId)
+      .map(c => c.cashAccountId!)
+  );
+  const slots = new Map((readRoster()?.slots ?? []).map(slot => [slot.id, slot]));
+  for (const account of Object.values(s.accounts)) {
+    if (account.balance <= 0 || account.status === "cancelled") continue;
+    const ownerDead =
+      dead.has(account.id) ||
+      (account.ownerSlotId !== undefined && slots.get(account.ownerSlotId)?.deathYear !== undefined);
+    if (!ownerDead) continue;
+    account.estateMonths = (account.estateMonths ?? 0) + 1;
+    if (account.estateMonths < settings.estateClaimMonths) continue;
+    const amount = account.balance;
+    account.balance = 0;
+    receiveHousehold(amount, account.burgId, account.stateId);
+  }
+}
 function spendingForCash(tierName: LifestyleTier, balance: number) {
   const wealth = balance / 100,
     base = nominal(LIVING_COST_BY_TIER[tierName]);
@@ -394,6 +424,7 @@ export function settleRosterCash(): void {
     }
   }
   settlePersonalEstates();
+  settleHeirlessEstates();
   for (const pool of Object.values(s.pools)) {
     const role = roster.roles.find(r => r.id === pool.roleId),
       org = roster.organizations.find(o => o.id === role?.organizationId);
@@ -622,8 +653,14 @@ export function registerPersonalCash(api: SimulationExtensionAPI): () => void {
       if (character.roles?.some(r => r.endYear === undefined)) return false;
       const retainedMatches =
         retained &&
-        JSON.stringify(retained) === JSON.stringify({ inventory: character.inventory, loadout: character.loadout });
-      return !!retainedMatches || (!Object.values(character.inventory ?? {}).some(n => n > 0) && !character.loadout);
+        JSON.stringify(retained) ===
+          JSON.stringify({ inventory: character.inventory, loadout: character.loadout, kit: character.kit });
+      return (
+        !!retainedMatches ||
+        (!Object.values(character.inventory ?? {}).some(n => n > 0) &&
+          !Object.values(character.kit ?? {}).some(n => n > 0) &&
+          !character.loadout)
+      );
     },
     describe: slot => {
       const s = readPersonalCash();

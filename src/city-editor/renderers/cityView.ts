@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { WebGPURenderer } from "three/webgpu";
 import type { ModelQuality } from "../../buildings/modelQuality";
 import { sceneVariants } from "../../city3d/adoption";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
@@ -260,7 +261,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       () => {
         writeSunSettings(sunSettings);
         if (sun) updateSun(sun, shadowBounds, sunSettings);
-        if (renderer) renderer.shadowMap.needsUpdate = true;
+        markShadows();
         requestRender();
       }
     );
@@ -282,7 +283,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let lightingPanel = createLightingPanel();
   options.canvasHost.append(lightingPanel);
 
-  let renderer: THREE.WebGLRenderer | null = null;
+  let renderer: WebGPURenderer | null = null;
+  let rendererStart: Promise<boolean> | null = null;
   let scene: THREE.Scene | null = null;
   const atmosphere = new THREE.Fog(0xc5c5bf);
   const sky = createSkyBackdrop(() => requestRender());
@@ -353,6 +355,10 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
 
   const requestRender = () => {
     if (!disposed && !viewport.hidden && !raf) raf = requestAnimationFrame(tick);
+  };
+  // WebGPU updates a light's shadow from light.shadow, not from renderer.shadowMap.needsUpdate.
+  const markShadows = () => {
+    if (sun) sun.shadow.needsUpdate = true;
   };
 
   const resize = () => {
@@ -592,47 +598,75 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (!fabric.buildings.some(lot => lot.massing) && !structureList.length) showLot(undefined);
   };
 
-  const ensure = () => {
-    if (renderer || disposed) return Boolean(renderer);
+  const ensure = (): boolean | Promise<boolean> => {
+    if (disposed) return false;
+    if (renderer) return true;
+    if (rendererStart) return rendererStart;
     const canvas = document.createElement("canvas");
     canvas.className = "ce-3d-canvas";
     viewport.appendChild(canvas);
+    let created: WebGPURenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      // Opaque 8-bit output. The default half-float target exists for HDR, and this view does not tone-map.
+      created = new WebGPURenderer({
+        canvas,
+        antialias: true,
+        alpha: false,
+        outputBufferType: THREE.UnsignedByteType
+      });
     } catch {
       canvas.remove();
       return false;
     }
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
-    renderer.shadowMap.autoUpdate = false;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setClearColor(0x000000);
-    scene = new THREE.Scene();
-    scene.add(sky.group);
-    scene.fog = fogSettings.strength > 0 ? atmosphere : null;
-    camera = new THREE.PerspectiveCamera(45, 1, 0.5, 80000);
-    scene.add(new THREE.HemisphereLight(0xf4f0e6, 0x6d7a62, 0.9));
-    sun = new THREE.DirectionalLight(0xffffff, sunSettings.intensity / 100);
-    sun.shadow.mapSize.set(4096, 4096);
-    sun.shadow.autoUpdate = false;
-    scene.add(sun, sun.target);
-    ground = new THREE.Mesh(new THREE.CircleGeometry(20, 64), new THREE.MeshLambertMaterial({ color: 0xd5cfbf }));
-    ground.name = "ce-ground";
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.2;
-    ground.receiveShadow = true;
-    scene.add(ground);
-    controls = new OrbitControls(camera, canvas);
-    controls.enableDamping = false;
-    controls.zoomToCursor = true;
-    // Keep the target on its horizontal ground plane. Screen-space cursor zoom
-    // can lift it into the air, collapsing dolly and pan distances above the city.
-    controls.screenSpacePanning = false;
-    controls.maxPolarAngle = Math.PI / 2 - 0.05;
-    controls.addEventListener("change", requestCameraRender);
-    return true;
+    const fail = () => {
+      if (renderer !== created) created.dispose();
+      canvas.remove();
+      return false;
+    };
+    const finish = () => {
+      if (disposed) return fail();
+      renderer = created;
+      // Shadows refresh from each light. The renderer flag only enables them.
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFShadowMap;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setClearColor(0x000000);
+      scene = new THREE.Scene();
+      scene.add(sky.group);
+      scene.fog = fogSettings.strength > 0 ? atmosphere : null;
+      camera = new THREE.PerspectiveCamera(45, 1, 0.5, 80000);
+      scene.add(new THREE.HemisphereLight(0xf4f0e6, 0x6d7a62, 0.9));
+      sun = new THREE.DirectionalLight(0xffffff, sunSettings.intensity / 100);
+      sun.shadow.mapSize.set(4096, 4096);
+      sun.shadow.autoUpdate = false;
+      scene.add(sun, sun.target);
+      ground = new THREE.Mesh(new THREE.CircleGeometry(20, 64), new THREE.MeshLambertMaterial({ color: 0xd5cfbf }));
+      ground.name = "ce-ground";
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -0.2;
+      ground.receiveShadow = true;
+      scene.add(ground);
+      controls = new OrbitControls(camera, canvas);
+      controls.enableDamping = false;
+      controls.zoomToCursor = true;
+      // Keep the target on its horizontal ground plane. Screen-space cursor zoom
+      // can lift it into the air, collapsing dolly and pan distances above the city.
+      controls.screenSpacePanning = false;
+      controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      controls.addEventListener("change", requestCameraRender);
+      return true;
+    };
+    const pending = created.init?.();
+    if (pending && typeof (pending as Promise<unknown>).then === "function") {
+      rendererStart = Promise.resolve(pending)
+        .then(finish, fail)
+        .finally(() => {
+          rendererStart = null;
+        });
+      return rendererStart;
+    }
+    return finish();
   };
 
   const tick = () => {
@@ -653,8 +687,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (forestShadowPending) {
       const delay = 250 - (performance.now() - lastForestShadowAt);
       if (delay <= 0) {
-        renderer.shadowMap.needsUpdate = true;
-        if (sun) sun.shadow.needsUpdate = true;
+        markShadows();
         lastForestShadowAt = performance.now();
         forestShadowPending = false;
         if (forestShadowTimer) clearTimeout(forestShadowTimer);
@@ -730,7 +763,12 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
 
   const sync = () => {
     if (viewport.hidden || disposed) return;
-    if (!ensure() || !scene) return;
+    const ready = ensure();
+    if (ready !== true) {
+      if (typeof ready !== "boolean") void ready.then(ok => ok && !viewport.hidden && !disposed && sync());
+      return;
+    }
+    if (!scene) return;
     const city = options.getDocument();
     const season = treeSeason(city.fabric?.generation?.settings.descriptor, seasonSettings.month, {
       latitude: seasonSettings.latitude,
@@ -1011,7 +1049,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (openSpaces) shadowBounds.union(openSpaces.treeBounds);
     if (shadowBounds.isEmpty()) shadowBounds.set(new THREE.Vector3(-20, 0, -20), new THREE.Vector3(20, 20, 20));
     if (sun) updateSun(sun, shadowBounds, sunSettings);
-    if (renderer) renderer.shadowMap.needsUpdate = true;
+    markShadows();
     syncGhost();
     requestRender();
   };
@@ -1067,19 +1105,26 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       raf = 0;
       return;
     }
-    if (!ensure()) {
-      viewport.hidden = true;
-      lightingPanel.hidden = true;
-      zoomReadout.hidden = true;
-      options.map.hidden = false;
-      button.textContent = editorText("cityEditor.messages.view3d");
-      button.setAttribute("aria-pressed", "false");
-      readout.textContent = editorText("cityEditor.messages.webglUnavailable");
-      readout.hidden = false;
-      return;
-    }
-    resize();
-    sync();
+    const ready = ensure();
+    const opened = (ok: boolean) => {
+      if (disposed || !open || viewport.hidden) return false;
+      if (!ok) {
+        viewport.hidden = true;
+        lightingPanel.hidden = true;
+        zoomReadout.hidden = true;
+        options.map.hidden = false;
+        button.textContent = editorText("cityEditor.messages.view3d");
+        button.setAttribute("aria-pressed", "false");
+        readout.textContent = editorText("cityEditor.messages.webglUnavailable");
+        readout.hidden = false;
+        return false;
+      }
+      resize();
+      sync();
+      return true;
+    };
+    if (typeof ready === "boolean") return opened(ready);
+    return ready.then(opened);
   };
 
   const pick = (event: PointerEvent) => {
@@ -1317,15 +1362,23 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
           quality: builtQuality
         };
   const restoreView = (saved: NonNullable<City3dPerformanceSnapshot["camera"]>) => {
-    if (viewport.hidden) setOpen(true);
-    if (!camera || !controls) return;
-    camera.position.fromArray(saved.position);
-    controls.target.fromArray(saved.target);
-    camera.zoom = saved.zoom;
-    camera.fov = saved.fov;
-    camera.updateProjectionMatrix();
-    controls.update();
-    requestRender();
+    const apply = () => {
+      if (!camera || !controls) return;
+      camera.position.fromArray(saved.position);
+      controls.target.fromArray(saved.target);
+      camera.zoom = saved.zoom;
+      camera.fov = saved.fov;
+      camera.updateProjectionMatrix();
+      controls.update();
+      requestRender();
+    };
+    if (!viewport.hidden) {
+      apply();
+      return;
+    }
+    const ready = setOpen(true);
+    if (ready === true) apply();
+    else if (ready) void ready.then(ok => ok && apply());
   };
   const getModelVariants = () => (viewport.hidden || !scene ? null : sceneVariants(scene));
   const getPlanView = (): { center: readonly [number, number]; halfView: number } | null => {

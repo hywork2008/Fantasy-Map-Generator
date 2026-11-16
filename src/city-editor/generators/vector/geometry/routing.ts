@@ -2,6 +2,7 @@ import RBush from "rbush";
 import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import { pointInPolygon, polygonArea, segmentsIntersect } from "../../geom";
+import { vectorOccupiedSites } from "../occupancy";
 import { samplePath, simplifyFreehand } from "./sampling";
 import { pathSurface, simpleContour } from "./surfaces";
 
@@ -128,7 +129,7 @@ export function wallGapRoute(
     ...Object.values(document.regions)
       .filter(r => r.kind === "reservation")
       .map(r => r.outer),
-    ...Object.values(document.placements).map(p => p.site.outer)
+    ...vectorOccupiedSites(document, "site").map(p => p.outer)
   ];
   const radius = width / 2 + clearance + 0.011,
     tree = boundaryIndex([outer, ...obstacles]);
@@ -220,7 +221,7 @@ export function verifyWallGapSurface(
     ...Object.values(document.regions)
       .filter(r => r.kind === "reservation")
       .map(r => r.outer),
-    ...Object.values(document.placements).map(p => p.site.outer)
+    ...vectorOccupiedSites(document, "site").map(p => p.outer)
   ];
   for (const obstacle of obstacles)
     if (pointInPolygon(surface.outer[0], obstacle) || pointInPolygon(obstacle[0], surface.outer))

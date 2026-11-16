@@ -21,7 +21,7 @@ it("preserves the original Low geometry and default identity and registers expli
   expect(medievalDefinition(definition).variant).toBe("medieval.balkan-caravanserai@default#codex-gpt-6.1-sol");
   const low = definition.variants![0].create();
   try {
-    expect(landmarkFingerprint(low.group)).toBe("74a4297400e9c30dc2badf66cff81dbc2efaf8438da625541709754ae2f0e6d0");
+    expect(landmarkFingerprint(low.group)).toBe("489947a8dc4fb48cb0d7f0dd869b8d38516345bea863af78d882b52f759b6620");
   } finally {
     low.dispose();
   }
@@ -38,7 +38,7 @@ it("reuses the shared stair and preserves the filled manger while offering the e
     stair.group.children[0].position.set(0, 0, 0);
     stair.group.children[0].rotation.set(0, 0, 0);
     expect(landmarkFingerprint(stair.group)).toBe(landmarkFingerprint(reference.group));
-    expect(landmarkFingerprint(filled.group)).toBe("2b736a4239b0aedae8028d3b029c17291d2397c94535e6eb0ec3859e0040d17c");
+    expect(landmarkFingerprint(filled.group)).toBe("d4f7a412787883b5f5177eff663027fa7272048c189f5307cd39d58dde535afc");
     expect(collectModelMetrics(filled.group).triangles - collectModelMetrics(empty.group).triangles).toBe(12600);
     expect(CARAVAN_STAIR_POSITION[1] + CARAVAN_STAIR.rise).toBeCloseTo(CARAVAN_GALLERY_TOP);
     expect(CARAVAN_STAIR_POSITION[0] + caravanStairLayout().landingWidth / 2).toBeCloseTo(6.45);

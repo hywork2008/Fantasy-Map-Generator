@@ -37,6 +37,7 @@ import {
   type MarketSaltPolicyRow,
   useMarketOverviewState
 } from "../../store/marketOverviewState";
+import { GoodIcon } from "../components/GoodIcon";
 
 function SortHeaderMerchants({
   field,
@@ -548,16 +549,14 @@ export const MarketOverviewDialog: React.FC = () => {
                         data-price={row.price}
                       >
                         <td>
-                          <svg
-                            aria-label={row.goodName}
-                            data-tip={t("extensions.marketOverview.goodIcon")}
-                            width="2em"
-                            height="2em"
-                            className="goodIcon"
-                          >
-                            <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
-                            <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
-                          </svg>
+                          <GoodIcon
+                            icon={row.goodIcon}
+                            size="2em"
+                            color={row.goodColor}
+                            stroke={row.goodStroke}
+                            label={row.goodName}
+                            tip={t("extensions.marketOverview.goodIcon")}
+                          />
                         </td>
                         <td data-tip={t("extensions.marketOverview.goodName")} className="goodName">
                           {row.goodName}

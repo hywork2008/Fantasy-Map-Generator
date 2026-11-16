@@ -151,6 +151,7 @@ import {
   migrateMeadGood,
   migrateMeasuredCargoSlots,
   migrateMeatGood,
+  migrateMedievalArmourGoods,
   migrateMercuryChainGoods,
   migrateNaturalGasChainGoods,
   migrateOliveSoapRecipe,
@@ -227,6 +228,7 @@ import { getStateMountedCapacity } from "./generators/mountAvailability";
 import { payNavyCrew, settleNavyVoyageTrade } from "./generators/navyTrade";
 import { NitrogenFertilizerInvestment } from "./generators/nitrogenFertilizerInvestment";
 import { OilRefineryPlants } from "./generators/oilRefineryPlants";
+import { buyOutfitterPiece } from "./generators/outfitterShop";
 import { OverseasRelations } from "./generators/overseasRelations";
 import { initializeRosterCash, registerPersonalCash } from "./generators/personalCash";
 import { PhosphateFertilizerPlants } from "./generators/phosphateFertilizerPlants";
@@ -396,7 +398,8 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateOliveSoapRecipe,
   migrateLeatherGoods,
   // docs/plan/candle-split.md: the homes' tallow candles apart from the wax Candles.
-  migrateTallowCandleGoods
+  migrateTallowCandleGoods,
+  migrateMedievalArmourGoods
 ];
 
 /**
@@ -444,6 +447,7 @@ let _unregisterPatronageFundCommand: (() => void) | null = null;
 let _unregisterPatronageHireCommand: (() => void) | null = null;
 let _unregisterPatronageFuelCommand: (() => void) | null = null;
 let _unregisterCommerceTradeCommand: (() => void) | null = null;
+let _unregisterOutfitterBuyCommand: (() => void) | null = null;
 
 function isMountedCapacityRequest(value: unknown): value is { stateId: number; capacity?: number; handled: boolean } {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
@@ -589,6 +593,18 @@ function isSkipFoodConsumptionPayload(
   );
 }
 
+function isOutfitterBuyRequest(value: unknown): value is {
+  readonly characterId: number;
+  readonly pieceId: string;
+  readonly count: number;
+} {
+  if (!value || typeof value !== "object") return false;
+  const request = value as { characterId?: unknown; pieceId?: unknown; count?: unknown };
+  return (
+    Number.isInteger(request.characterId) && typeof request.pieceId === "string" && typeof request.count === "number"
+  );
+}
+
 function isPlayerMarketTradeRequest(value: unknown): value is {
   readonly characterId: number;
   readonly goodId: number;
@@ -645,10 +661,19 @@ function synchronizePlayerCommerce(): void {
  * the synchronous synchronizePlayerCommerce(), since they need an immediately-consistent result.
  */
 async function synchronizePlayerCommerceIncrementally(options: IncrementalBatchOptions): Promise<boolean> {
+  const portfoliosStartedAt = performance.now();
   measureTickStep("production:merchantPortfolios", () => syncMarketMerchantPortfolios());
-  return measureTickStepAsync("production:planRetail", () =>
+  console.log(
+    `[Preparing economy] syncMarketMerchantPortfolios: ${Math.round(performance.now() - portfoliosStartedAt)} ms`
+  );
+  const retailStartedAt = performance.now();
+  const replenished = await measureTickStepAsync("production:planRetail", () =>
     planRetailReplenishmentIncrementally(undefined, undefined, options)
   );
+  console.log(
+    `[Preparing economy] planRetailReplenishmentIncrementally: ${Math.round(performance.now() - retailStartedAt)} ms`
+  );
+  return replenished;
 }
 
 function applyGoodSettings(good: Good, request: GoodSettingsRequest): boolean {
@@ -1331,6 +1356,20 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
       return { changed: result.ok, result };
     }
   });
+  _unregisterOutfitterBuyCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "outfitter.buy",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to buy from the outfitter");
+      }
+      if (!isOutfitterBuyRequest(value)) {
+        throw new Error("outfitter.buy requires { characterId, pieceId, count }");
+      }
+      const result = buyOutfitterPiece(value.characterId, value.pieceId, value.count);
+      return { changed: result.ok, result };
+    }
+  });
   _unregisterClearCommand = api.registerExtensionCommand({
     extensionId: ECONOMY_EXTENSION_ID,
     name: "clear",
@@ -1726,120 +1765,153 @@ function register(api: SimulationExtensionAPI): () => void {
     id: "economy.initialization",
     label: "Preparing economy",
     run: async context => {
-      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID) || !context.isCurrent()) return;
-      if (await prepareMasterReference(api, context)) {
-        Goods.sync();
-        Markets.sync();
-        api.events.dispatchEvent(new CustomEvent(ECONOMY_INITIALIZED_EVENT));
-        return;
-      }
-      if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
-        TIME && console.time("generateEconomy");
+      const taskStartedAt = performance.now();
+      const step = <T>(label: string, fn: () => T): T => {
+        const startedAt = performance.now();
         try {
-          // A new map reuses state ids from 0 — any voyage income buffered against the
-          // previous map's states must not carry over.
-          clearVoyageIncome();
-          clearStrategicProcurementExpenses();
-          clearTreasuryAllocationSnapshots();
-          clearPublicWorksSettlements();
-          clearStateFiscalReports();
-          StrategicProcurement.clear();
-          TradeAnimation.clearRouteCache();
-          MineralResources.generate();
-          // Deterministic river-siting scan (docs/plan/dam-flood-control-and-hydropower.md §3).
-          DamSites.generate();
-          Dams.clear();
-          // Same rationale (docs/plan/river-levee-and-flood-damage.md §3.2).
-          LeveeSites.generate();
-          Levees.clear();
-          // Goods before DevelopmentPotential (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase
-          // B follow-up): DevelopmentPotential.generate() -> storeAgriculture() ->
-          // allocateRuralOccupations() calls calculateHusbandryDemand()/calculateViticultureDemand(),
-          // both of which read getGoods() to find Cattle/Sheep/.../Grapes. Running DevelopmentPotential
-          // first meant getGoods() was still empty on every fresh generation, so husbandryRequiredWorkers/
-          // viticultureRequiredWorkers (and so every grazed-species fauna stock and Grapes/Wine output)
-          // were silently 0 for the map's entire first year, self-correcting only once
-          // updateAnnualAgriculture() re-ran on the first "Advance Time" tick (found via live-map
-          // verification while diagnosing "Cattle/Sheep never appear").
-          Goods.generate();
-          DevelopmentPotential.generate();
-          Markets.generate();
-          SaltLogistics.generate();
-          // Seed every eligible cell's fauna stock now rather than waiting for the first annual
-          // tick (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase G): without this, a stock
-          // entry only gets created lazily on that cell's first hunting/husbandry draw, so cells
-          // that hadn't been assigned a hunter yet showed "Wild: 0" in CellInfo next to same-biome
-          // neighbors already in the thousands — an artifact of allocation order, not ecology. This
-          // call unconditionally seeds every land cell at ~60% of its actual carrying capacity
-          // (initializeStock(), same as the annual update does), matching what the first Advance
-          // Time tick would have produced anyway.
-          updateAnnualFaunaCohorts();
-          // Pasture, herders and herds start settled together, like towns and people
-          // (docs/plan/livestock-world-birth-herds.md, B1).
-          settleWorldBirthHerds(() => DevelopmentPotential.replanWorldBirth());
-          MerchantTransportAssets.requestMerchantHullSnapshot();
-          MineOperations.generate();
-          SmelterOperations.generate();
-          QuarryOperations.generate();
-          VolcanicOperations.generate();
-          ConstructionOperations.generate();
-          settleStartProvisioning();
-          Minting.generate();
-          MilitaryResources.generate();
-          TradeSecurity.generate();
-          OverseasRelations.generate();
-          Taxes.defineTaxRates();
-          FoodProduction.seedFoodLedgerBootstrap();
-          const isCancelled = () => !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID);
-          // A user-controlled preference (Options > Generation, "Skip trade route generation")
-          // defers Markets.runGlobalTrade()/Caravans.spawnFromDeals() — the data the Trade
-          // layer/animation draws from — until requested via Tools > Economy > Regenerate >
-          // Production (registered below as "economy-regenerate-production", which always calls
-          // the synchronous Production.produce() regardless of this preference). Everything else
-          // generates as usual; only the trade-matching pass is deferred, since profiling showed
-          // it's the one chunk of this task that's purely about Trade-layer output a fresh map
-          // rarely needs to see immediately.
-          const skipGlobalTrade = uiPreferencesStore.getState().economySkipTradeOnGenerate;
-          const completed = await Production.produceIncrementally({
-            isCancelled,
-            onProgress: (done, total) => context.reportProgress(total ? done / total : 1),
-            skipGlobalTrade
-          });
-          if (!completed || isCancelled()) return;
-          // Fresh maps have mines/craft already staffed, but administration, construction, and
-          // the basic/service employment summary only exist after this reconcile. Use the
-          // initial path so a settled starting world is not 75% urban-unemployed on day one.
-          reconcileAnnualBasicEmploymentWorkers({ initial: true });
-          settleMonthlyHeating();
-          settleForestGlasshouses();
-          Taxes.collectTaxes();
-          MetallurgWork.generate();
-          MetallurgWork.settleMonthly();
-          // Production has now observed this map's real metallurgy practitioners. Bootstrap the
-          // first guild masters immediately rather than waiting for the player's first Advance
-          // Time action; GuildTreasury then gives every new master both workshop capital and a
-          // personal starting purse in this same generation transaction.
-          GuildKnowledge.settleAnnual();
-          for (const { burgId, domain } of GuildSuccession.settleAnnual()) {
-            GuildTreasury.seedNewGuildWorkingCapital(burgId, domain);
-          }
-          FortificationMastery.generate();
-          const commerceSynced = await synchronizePlayerCommerceIncrementally({ isCancelled });
-          if (!commerceSynced || isCancelled()) return;
-          GuildChapters.seedAfterGenerate();
-          InnFacilities.generate();
-          InnStays.clear();
-          UrbanWater.generate();
-          RegionalWaterAuthority.generate();
-          // Threat cull / pest job board (docs/plan/player-threat-cull-jobs.md PR-2).
-          rebuildCullJobPostings({ clearAll: true });
-          // Escort (護衛) job board — all culture sets.
-          rebuildEscortJobPostings({ clearAll: true });
-          // Balance History's first row and the redraw happen in the view (ECONOMY_INITIALIZED_EVENT).
-          api.events.dispatchEvent(new CustomEvent(ECONOMY_INITIALIZED_EVENT));
+          return fn();
         } finally {
-          TIME && console.timeEnd("generateEconomy");
+          console.log(`[Preparing economy] ${label}: ${Math.round(performance.now() - startedAt)} ms`);
         }
+      };
+      const stepAsync = async <T>(label: string, fn: () => Promise<T>): Promise<T> => {
+        const startedAt = performance.now();
+        try {
+          return await fn();
+        } finally {
+          console.log(`[Preparing economy] ${label}: ${Math.round(performance.now() - startedAt)} ms`);
+        }
+      };
+      try {
+        if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID) || !context.isCurrent()) return;
+        if (await stepAsync("prepareMasterReference", () => prepareMasterReference(api, context))) {
+          step("Goods.sync", () => Goods.sync());
+          step("Markets.sync", () => Markets.sync());
+          api.events.dispatchEvent(new CustomEvent(ECONOMY_INITIALIZED_EVENT));
+          return;
+        }
+        if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+          TIME && console.time("generateEconomy");
+          try {
+            // A new map reuses state ids from 0 — any voyage income buffered against the
+            // previous map's states must not carry over.
+            step("clearVoyageIncome", () => clearVoyageIncome());
+            step("clearStrategicProcurementExpenses", () => clearStrategicProcurementExpenses());
+            step("clearTreasuryAllocationSnapshots", () => clearTreasuryAllocationSnapshots());
+            step("clearPublicWorksSettlements", () => clearPublicWorksSettlements());
+            step("clearStateFiscalReports", () => clearStateFiscalReports());
+            step("StrategicProcurement.clear", () => StrategicProcurement.clear());
+            step("TradeAnimation.clearRouteCache", () => TradeAnimation.clearRouteCache());
+            step("MineralResources.generate", () => MineralResources.generate());
+            // Deterministic river-siting scan (docs/plan/dam-flood-control-and-hydropower.md §3).
+            step("DamSites.generate", () => DamSites.generate());
+            step("Dams.clear", () => Dams.clear());
+            // Same rationale (docs/plan/river-levee-and-flood-damage.md §3.2).
+            step("LeveeSites.generate", () => LeveeSites.generate());
+            step("Levees.clear", () => Levees.clear());
+            // Goods before DevelopmentPotential (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase
+            // B follow-up): DevelopmentPotential.generate() -> storeAgriculture() ->
+            // allocateRuralOccupations() calls calculateHusbandryDemand()/calculateViticultureDemand(),
+            // both of which read getGoods() to find Cattle/Sheep/.../Grapes. Running DevelopmentPotential
+            // first meant getGoods() was still empty on every fresh generation, so husbandryRequiredWorkers/
+            // viticultureRequiredWorkers (and so every grazed-species fauna stock and Grapes/Wine output)
+            // were silently 0 for the map's entire first year, self-correcting only once
+            // updateAnnualAgriculture() re-ran on the first "Advance Time" tick (found via live-map
+            // verification while diagnosing "Cattle/Sheep never appear").
+            step("Goods.generate", () => Goods.generate());
+            step("DevelopmentPotential.generate", () => DevelopmentPotential.generate());
+            step("Markets.generate", () => Markets.generate());
+            step("SaltLogistics.generate", () => SaltLogistics.generate());
+            // Seed every eligible cell's fauna stock now rather than waiting for the first annual
+            // tick (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase G): without this, a stock
+            // entry only gets created lazily on that cell's first hunting/husbandry draw, so cells
+            // that hadn't been assigned a hunter yet showed "Wild: 0" in CellInfo next to same-biome
+            // neighbors already in the thousands — an artifact of allocation order, not ecology. This
+            // call unconditionally seeds every land cell at ~60% of its actual carrying capacity
+            // (initializeStock(), same as the annual update does), matching what the first Advance
+            // Time tick would have produced anyway.
+            step("updateAnnualFaunaCohorts", () => updateAnnualFaunaCohorts());
+            // Pasture, herders and herds start settled together, like towns and people
+            // (docs/plan/livestock-world-birth-herds.md, B1).
+            step("settleWorldBirthHerds", () => settleWorldBirthHerds(() => DevelopmentPotential.replanWorldBirth()));
+            step("MerchantTransportAssets.requestMerchantHullSnapshot", () =>
+              MerchantTransportAssets.requestMerchantHullSnapshot()
+            );
+            step("MineOperations.generate", () => MineOperations.generate());
+            step("SmelterOperations.generate", () => SmelterOperations.generate());
+            step("QuarryOperations.generate", () => QuarryOperations.generate());
+            step("VolcanicOperations.generate", () => VolcanicOperations.generate());
+            step("ConstructionOperations.generate", () => ConstructionOperations.generate());
+            step("settleStartProvisioning", () => settleStartProvisioning());
+            step("Minting.generate", () => Minting.generate());
+            step("MilitaryResources.generate", () => MilitaryResources.generate());
+            step("TradeSecurity.generate", () => TradeSecurity.generate());
+            step("OverseasRelations.generate", () => OverseasRelations.generate());
+            step("Taxes.defineTaxRates", () => Taxes.defineTaxRates());
+            step("FoodProduction.seedFoodLedgerBootstrap", () => FoodProduction.seedFoodLedgerBootstrap());
+            const isCancelled = () => !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID);
+            // A user-controlled preference (Options > Generation, "Skip trade route generation")
+            // defers Markets.runGlobalTrade()/Caravans.spawnFromDeals() — the data the Trade
+            // layer/animation draws from — until requested via Tools > Economy > Regenerate >
+            // Production (registered below as "economy-regenerate-production", which always calls
+            // the synchronous Production.produce() regardless of this preference). Everything else
+            // generates as usual; only the trade-matching pass is deferred, since profiling showed
+            // it's the one chunk of this task that's purely about Trade-layer output a fresh map
+            // rarely needs to see immediately.
+            const skipGlobalTrade = uiPreferencesStore.getState().economySkipTradeOnGenerate;
+            console.log(`[Preparing economy] skipGlobalTrade=${skipGlobalTrade}`);
+            const completed = await stepAsync("Production.produceIncrementally", () =>
+              Production.produceIncrementally({
+                isCancelled,
+                onProgress: (done, total) => context.reportProgress(total ? done / total : 1),
+                skipGlobalTrade
+              })
+            );
+            if (!completed || isCancelled()) return;
+            // Fresh maps have mines/craft already staffed, but administration, construction, and
+            // the basic/service employment summary only exist after this reconcile. Use the
+            // initial path so a settled starting world is not 75% urban-unemployed on day one.
+            step("reconcileAnnualBasicEmploymentWorkers", () =>
+              reconcileAnnualBasicEmploymentWorkers({ initial: true })
+            );
+            step("settleMonthlyHeating", () => settleMonthlyHeating());
+            step("settleForestGlasshouses", () => settleForestGlasshouses());
+            step("Taxes.collectTaxes", () => Taxes.collectTaxes());
+            step("MetallurgWork.generate", () => MetallurgWork.generate());
+            step("MetallurgWork.settleMonthly", () => MetallurgWork.settleMonthly());
+            // Production has now observed this map's real metallurgy practitioners. Bootstrap the
+            // first guild masters immediately rather than waiting for the player's first Advance
+            // Time action; GuildTreasury then gives every new master both workshop capital and a
+            // personal starting purse in this same generation transaction.
+            step("GuildKnowledge.settleAnnual", () => GuildKnowledge.settleAnnual());
+            const guildSuccessions = step("GuildSuccession.settleAnnual", () => GuildSuccession.settleAnnual());
+            step("GuildTreasury.seedNewGuildWorkingCapital", () => {
+              for (const { burgId, domain } of guildSuccessions) {
+                GuildTreasury.seedNewGuildWorkingCapital(burgId, domain);
+              }
+            });
+            step("FortificationMastery.generate", () => FortificationMastery.generate());
+            const commerceSynced = await stepAsync("synchronizePlayerCommerceIncrementally", () =>
+              synchronizePlayerCommerceIncrementally({ isCancelled })
+            );
+            if (!commerceSynced || isCancelled()) return;
+            step("GuildChapters.seedAfterGenerate", () => GuildChapters.seedAfterGenerate());
+            step("InnFacilities.generate", () => InnFacilities.generate());
+            step("InnStays.clear", () => InnStays.clear());
+            step("UrbanWater.generate", () => UrbanWater.generate());
+            step("RegionalWaterAuthority.generate", () => RegionalWaterAuthority.generate());
+            // Threat cull / pest job board (docs/plan/player-threat-cull-jobs.md PR-2).
+            step("rebuildCullJobPostings", () => rebuildCullJobPostings({ clearAll: true }));
+            // Escort (護衛) job board — all culture sets.
+            step("rebuildEscortJobPostings", () => rebuildEscortJobPostings({ clearAll: true }));
+            // Balance History's first row and the redraw happen in the view (ECONOMY_INITIALIZED_EVENT).
+            api.events.dispatchEvent(new CustomEvent(ECONOMY_INITIALIZED_EVENT));
+          } finally {
+            TIME && console.timeEnd("generateEconomy");
+          }
+        }
+      } finally {
+        console.log(`[Preparing economy] task total: ${Math.round(performance.now() - taskStartedAt)} ms`);
       }
     }
   });
@@ -2767,6 +2839,8 @@ function register(api: SimulationExtensionAPI): () => void {
     _unregisterPatronageFuelCommand = null;
     _unregisterCommerceTradeCommand?.();
     _unregisterCommerceTradeCommand = null;
+    _unregisterOutfitterBuyCommand?.();
+    _unregisterOutfitterBuyCommand = null;
     _unregisterClearCommand?.();
     _unregisterClearCommand = null;
     // Reverse order: the registry refuses to remove a system while another still declares it in

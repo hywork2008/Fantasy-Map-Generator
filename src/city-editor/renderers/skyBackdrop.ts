@@ -124,7 +124,7 @@ export function createSkyBackdrop(onTextureReady?: () => void) {
           texture.repeat.x = 4;
         }
         sceneryMaterial.map = texture;
-        mountainOcclusion.texture.value = texture;
+        if (texture) mountainOcclusion.texture.value = texture;
         sceneryMaterial.needsUpdate = true;
         previousStyle = settings.style;
       }

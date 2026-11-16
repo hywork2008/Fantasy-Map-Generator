@@ -1,8 +1,8 @@
-import { splitRaceCatalog, joinRaceCatalog } from "../races/catalogArtifacts";
+import { splitRaceCatalog, joinRaceCatalog } from "../races/catalogArtifacts.ts";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { parseRaceRelationsCsv } from "../races/racesRelationsCsv";
-import { parseRacesCsv } from "../races/racesCsv";
+import { parseRaceRelationsCsv } from "../races/racesRelationsCsv.ts";
+import { parseRacesCsv } from "../races/racesCsv.ts";
 
 export const raceCsvPath = fileURLToPath(new URL("../../docs/plan/data/races.csv", import.meta.url));
 export const raceGeneratedPath = fileURLToPath(new URL("../../src/data/races.generated.json", import.meta.url));

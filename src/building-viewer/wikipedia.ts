@@ -203,7 +203,20 @@ const modelArticles: Record<string, string> = {
   "low-curb-or-hedge": "Hedge",
   "ditch-and-rampart": "Rampart (fortification)",
   "monumental-gate-pylon": "Pylon (architecture)",
-  "mourning-cloister": "Cloister"
+  "mourning-cloister": "Cloister",
+  "pillory-and-stocks": "Pillory",
+  "market-cross-stepped": "Market cross",
+  "market-cross-canopied": "Butter cross",
+  "churchyard-cross": "Churchyard cross",
+  "lych-gate": "Lychgate",
+  "trade-workshop.dedicated-ropewalk": "Ropewalk",
+  "trade-workshop.dedicated-butchery": "Butcher",
+  "trade-workshop.dedicated-chandlery": "Chandler (profession)",
+  "trade-workshop.dedicated-metalwares": "Pewter",
+  "trade-workshop.dedicated-fishmongery": "Fishmonger",
+  "trade-workshop.dedicated-cutlery": "Cutler",
+  "trade-workshop.dedicated-lime-tile-yard": "Lime kiln",
+  "trade-workshop.dedicated-glaziers-workshop": "Glazier"
 };
 
 export function medievalWikipediaArticle(model: Pick<MedievalModel, "id" | "task">): string {

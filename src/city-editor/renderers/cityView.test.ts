@@ -5,9 +5,8 @@ import { beginEditorMount } from "../services/editorLifetime";
 import { mountCity3d } from "./cityView";
 
 const attempts = vi.hoisted(() => vi.fn());
-vi.mock("three", async importOriginal => ({
-  ...(await importOriginal<typeof import("three")>()),
-  WebGLRenderer: class {
+vi.mock("three/webgpu", () => ({
+  WebGPURenderer: class {
     constructor() {
       attempts();
       throw new Error("Error creating WebGL context.");

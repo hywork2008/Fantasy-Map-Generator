@@ -1,7 +1,7 @@
-import type { RaceDefinition as CoreRaceDefinition } from "../../src/data/raceDefinition";
-import type { CharacterRaceParameters } from "../../src/extensions/characters/data/raceTypes";
-import type { EconomyRaceParameters } from "../../src/extensions/economy/data/raceTypes";
-import type { RaceDefinition } from "./raceParameters";
+import type { RaceDefinition as CoreRaceDefinition } from "../../src/data/raceDefinition.ts";
+import type { CharacterRaceParameters } from "../../src/extensions/characters/data/raceTypes.ts";
+import type { EconomyRaceParameters } from "../../src/extensions/economy/data/raceTypes.ts";
+import type { RaceDefinition } from "./raceParameters.ts";
 
 export function splitRaceCatalog(definitions: readonly RaceDefinition[]) {
   const core: CoreRaceDefinition[] = [];

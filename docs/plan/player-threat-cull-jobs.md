@@ -174,11 +174,13 @@ PC / named bounty board (economy.tick, any day)
 | Path | Monster power / pest | Rewild shield (next Jan 1) | Macro project fields | Treasury |
 | :--- | :--- | :--- | :--- | :--- |
 | **PC solo** (named) | `pcChunk * intensity` (K9); full-clear if power→0 | **None** — rewild applies if not macro-hunted that year | none | bounty via escrow + remainder |
-| **PC join-macro** | **same power channel only** (same pcChunk formula) | Only if macro also lists monster in that year’s `huntedMonsterIds` (Jan 1) | **Diagnostics only**: may add to `dangerReduced`; optional `playerAssistYears += intensity * 0.25`. **Never** change `progressYears` | stipend (lower bounty table) |
+| **PC join-macro** | **no `power` cut** while a macro project or this year’s claim exists ([dnd/replenishment.md](dnd/replenishment.md)) | Only if macro also lists monster in that year’s `huntedMonsterIds` (Jan 1) | **Diagnostics only**: may add to `dangerReduced`; optional `playerAssistYears += intensity * 0.25`. **Never** change `progressYears` | stipend (lower bounty table) |
 | **Macro army** | army chunk `ceil(base/yearsToClear)` | Yes (hunted set) | `progressYears++` | setup + annual |
 | **Anon NPC** | `0.5 * pcChunk * intensity` (K11) | none (same as PC solo) | none | **no pay** |
 
-**Shared resources:** (1) `Monster.power` / pest suppression (effects stack additively on the same channel), (2) `state.treasury` (macro costs + PC bounties are separate spends). Power stacking is intentional; army clear speed is **not** double-counted via `progressYears`.
+**Shared resources:** (1) pest suppression may still stack in one year, (2) `state.treasury` (macro costs + PC bounties are separate spends). Army clear speed is **not** double-counted via `progressYears`.
+
+**Superseded for `Monster.power` (2026-11-16):** [dnd/replenishment.md](dnd/replenishment.md) replaces additive power stacking. One writer per living monster per calendar year. An active macro project is that writer; join-macro does not subtract `monster.power`. The first successful player or anon contract is the writer only when no macro project and no claim exist for that monster that year. K15 (no `progressYears`) and K16 (PC-solo is not rewild-shielded) stay.
 
 **Open Q6 closed:** join-hunt assists are diagnostics-only in v1 (K15).
 

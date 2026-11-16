@@ -8,6 +8,7 @@ import type { WorldContext } from "../context/worldContext";
 import { createDefaultRaces } from "../data/races";
 import { useOptionsState } from "../store/optionsState";
 import { rebuildDangerFromMonsters } from "./dangerField";
+import { rarityDangerPeak } from "./monsterNature";
 import { advanceWildernessEcology } from "./wildernessEcology";
 
 function createWorld(): WorldContext {
@@ -75,7 +76,6 @@ describe("advanceWildernessEcology", () => {
   it("starts a hunt and reduces monster power without claiming land", () => {
     const world = createWorld();
     rebuildDangerFromMonsters(world.pack.cells, world.pack.monsters!, "max");
-    const dangerBefore = world.pack.cells.danger[5];
     const simulation = createSimulation();
     const stateBefore = Array.from(world.pack.cells.state);
 
@@ -84,7 +84,10 @@ describe("advanceWildernessEcology", () => {
     expect(result.started.length).toBe(1);
     expect(world.pack.monsters![0].power).toBeLessThan(8);
     expect(Array.from(world.pack.cells.state)).toEqual(stateBefore);
-    expect(world.pack.cells.danger[5]).toBeLessThanOrEqual(dangerBefore);
+    // A partial cut keeps the rarity peak. Ambient creep may raise the byte. It does not become 255.
+    const epicenter = world.pack.cells.danger[5];
+    expect(epicenter).toBeGreaterThanOrEqual(rarityDangerPeak(2));
+    expect(epicenter).not.toBe(255);
     expect(Object.keys(simulation.wilderness.cullProjects).length).toBe(1);
   });
 

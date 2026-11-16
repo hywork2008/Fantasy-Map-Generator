@@ -1,5 +1,19 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import {
+  attribute,
+  cos,
+  dot,
+  float,
+  fwidth,
+  materialColor,
+  mix,
+  positionLocal,
+  sin,
+  smoothstep,
+  step,
+  vec2
+} from "three/tsl";
 import { triangularInfillParts } from "../../city-editor/generators/lotGeometry";
 import { bounds, intersectConvex, PlotIndex, subtractConvex } from "../../city-editor/generators/parcelGeometry";
 import type { CityTerrain } from "../../city-editor/generators/terrainElevation";
@@ -49,6 +63,20 @@ ${shader.fragmentShader}`.replace(
     );
   };
   material.customProgramCacheKey = () => "ce-field-canopy-v1";
+  // WebGPURenderer copies own properties onto a node material and ignores onBeforeCompile.
+  const crop = attribute("crop", "vec3");
+  const field = vec2(positionLocal.x, positionLocal.z.negate());
+  const across = dot(field, crop.yz);
+  const along = dot(field, vec2(crop.z.negate(), crop.y));
+  const rowPhase = across.mul(5);
+  const rows = cos(rowPhase).mul(float(1).sub(smoothstep(0.4, 2, fwidth(rowPhase))));
+  const grainPhase = along.mul(31).add(sin(across.mul(43)).mul(2));
+  const grain = sin(grainPhase).mul(float(1).sub(smoothstep(0.4, 2, fwidth(grainPhase))));
+  const patches = sin(across.mul(0.37).add(sin(along.mul(0.23)))).mul(sin(along.mul(0.41)));
+  const factor = float(0.93).add(rows.mul(0.09)).add(grain.mul(0.055)).add(patches.mul(0.06));
+  (material as THREE.MeshLambertMaterial & { colorNode?: unknown }).colorNode = materialColor.mul(
+    mix(float(1), factor, step(float(0.5), crop.x))
+  );
   return material;
 }
 

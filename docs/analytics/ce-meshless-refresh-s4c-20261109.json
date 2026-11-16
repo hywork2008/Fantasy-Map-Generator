@@ -1,0 +1,53 @@
+{
+  "format": "ce-meshless-refresh-observation",
+  "version": 1,
+  "measuredAtUtc": "2026-11-08T18:18:40.411Z",
+  "input": "docs/analytics/raw/scaling-v9-20261109",
+  "scope": "jsdom, whole VectorEditorPage, one detach committed, then one undo and one redo; clones counts structuredClone calls; sites lists copies of whole documents by call site.",
+  "rows": {
+    "5000": {
+      "mount": {
+        "ms": 316,
+        "clones": 7
+      },
+      "undo": {
+        "ms": 159,
+        "clones": 2,
+        "sites": {
+          "at VectorDocumentHistory.get document [as document] (generators/vector/history.ts:24:12) < at VectorDocumentHistory.jumpTo (generators/vector/history.ts:71:17) < at VectorDocumentHistory.undo (generators/vector/history.ts:63:32)": 1
+        }
+      },
+      "redo": {
+        "ms": 136,
+        "clones": 2,
+        "sites": {
+          "at VectorDocumentHistory.get document [as document] (generators/vector/history.ts:24:12) < at VectorDocumentHistory.jumpTo (generators/vector/history.ts:71:17) < at VectorDocumentHistory.redo (generators/vector/history.ts:66:32)": 1
+        }
+      },
+      "undoLabel": "Undo",
+      "redoLabel": "Redo"
+    },
+    "50000": {
+      "mount": {
+        "ms": 1262,
+        "clones": 7
+      },
+      "undo": {
+        "ms": 610,
+        "clones": 2,
+        "sites": {
+          "at VectorDocumentHistory.get document [as document] (generators/vector/history.ts:24:12) < at VectorDocumentHistory.jumpTo (generators/vector/history.ts:71:17) < at VectorDocumentHistory.undo (generators/vector/history.ts:63:32)": 1
+        }
+      },
+      "redo": {
+        "ms": 641,
+        "clones": 2,
+        "sites": {
+          "at VectorDocumentHistory.get document [as document] (generators/vector/history.ts:24:12) < at VectorDocumentHistory.jumpTo (generators/vector/history.ts:71:17) < at VectorDocumentHistory.redo (generators/vector/history.ts:66:32)": 1
+        }
+      },
+      "undoLabel": "Undo",
+      "redoLabel": "Redo"
+    }
+  }
+}

@@ -177,8 +177,8 @@ export const DiplomacyHistoryDialog: React.FC = () => {
   };
 
   const save = () => {
-    // contentEditable stores line breaks in the layout. textContent would flatten them.
-    // biome-ignore lint/performance/useDomNodeTextContent: empty-chronicle edits are saved as the user sees them
+    // Empty chronicle is a contentEditable. innerText keeps the visible line breaks; textContent keeps the zero-width spacer.
+    // biome-ignore lint/performance/useDomNodeTextContent: rendered text of the editable placeholder, not the virtualized table
     const text = chronicle.length === 0 ? (containerRef.current?.innerText ?? "") : buildHistoryText();
     onSave(text.replace(/\n/g, "\r\n"));
     close();

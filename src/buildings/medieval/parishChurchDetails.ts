@@ -328,4 +328,4 @@ export function createHighParishChurch(kind: ParishChurchKind) {
 }
 
 /** Shared masonry apertures and fitted door hardware for small stone buildings. */
-export { openDoor as addOpenParishDoor, wall as addParishMasonryWall };
+export { bell as addParishBell, openDoor as addOpenParishDoor, wall as addParishMasonryWall };

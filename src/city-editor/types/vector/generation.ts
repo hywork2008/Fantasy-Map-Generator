@@ -34,7 +34,30 @@ export interface VectorGenerationSettings {
   roadWidthMeters: number;
   clearanceMeters: number;
   branches: number;
-  wall: "none" | "rectangle" | "ellipse";
+  wall: "none" | "rectangle" | "ellipse" | import("../generation").WallShape;
+  /** `polygon` and `bastioned` walls: number of sides (3–12). */
+  wallSides?: number;
+  /** Generated wall material; sets its thickness and 3D body. Absent keeps the 2 m wall of a preset. */
+  wallMaterial?: "stone" | "wood";
+  /** Double walls (P4b): an old-town wall of the same outline holding `share` of the walled area, standing or
+   * razed to a boulevard; built after the streets (outer-first, default) or before them. */
+  /** The mesh editor's concentric town plans (P4d): ring and radial streets laid before the routed streets.
+   * Absent is the organic plan. */
+  layout?: "circulade" | "bram" | "classic";
+  /** A castle raised by the mesh editor's siting and style rules (P4e). */
+  castle?: {
+    position: "auto" | "edge" | "central";
+    size: "auto" | "small" | "standard" | "large";
+    moat?: boolean;
+    style?: string;
+  };
+  /** A wet town moat round the outer wall, bridged on every road (P4c-2). */
+  townMoat?: boolean;
+  innerWall?: { share: number; state: "standing" | "razed"; order?: "outer-first" | "inner-first" };
+  /** A sea harbour raised on the coast by the mesh editor's harbour and ship planners (P5b). */
+  port?: boolean;
+  /** The sea side of the town wall (P5b-2): absent or `seaWall` closes it along the shore. */
+  wallCoast?: "seaWall" | "open" | "opening";
 }
 export interface VectorBlock extends VectorPolygon {
   id: string;

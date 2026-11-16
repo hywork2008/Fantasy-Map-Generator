@@ -1,24 +1,45 @@
 import { getUrbanDwellings } from "../../../../utils/urbanDwellings";
+import type { GenerationSettings } from "../../../types/generation";
 import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
+import type { VectorFabricDetachedLine } from "../../../types/vector/fabric";
 import type { VectorStage, VectorUrbanSettings } from "../../../types/vector/urban";
 import { bvFacilityAsset } from "../../bvFacilityAsset";
 import { facilityPlacementOrder, facilityUseOf } from "../../facilityUses";
 import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
-import { polygonCentroid } from "../../geom";
+import { pointInPolygon, polygonCentroid } from "../../geom";
 import { buildPopulationFacilityRequests } from "../../populationFacilityRequests";
+import { isDetachedFabricHouse, reattachFabricEntrances } from "../editing/fabricHouses";
+import { isDetachedFabricLinePath } from "../editing/fabricLines";
 import { rebuildRoadGraph } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { featureReservations } from "../environmentState";
 import { evaluateAnchor } from "../geometry/curves";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, indexedContains, regionArea, regionBoolean } from "../geometry/regions";
 import { sampledClosedRing } from "../geometry/routing";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/document";
 import { vectorUrbanStages } from "../validation/urban";
-import { placeVectorPerimeterHouses, planVectorPerimeter, vectorPerimeterResidual } from "./perimeter";
+import { placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
+import { raiseVectorLandUse } from "./landUse";
+import { layoutVectorParks } from "./parks";
+import {
+  assemblePerimeterDistricts,
+  joinPerimeterPlan,
+  type PerimeterCellResult,
+  type PerimeterRequest,
+  type PerimeterStreetPlan,
+  perimeterCellJobs,
+  perimeterJobs,
+  placeVectorPerimeterHouses,
+  planPerimeterRequest,
+  rememberPerimeterResults,
+  type VectorPerimeterPlan,
+  vectorPerimeterResidual
+} from "./perimeter";
 import { deriveVectorBlocks, joinVectorGenerationAnchors } from "./pipeline";
+import { vectorApproachBands, vectorSuburbanLots } from "./suburbs";
 import { allocateVectorResidents, vectorPlacementDwellings } from "./urbanCapacity";
 import {
   createUrbanPacker,
@@ -28,7 +49,9 @@ import {
   type UrbanSearchStats,
   waterDistance
 } from "./urbanPacking";
-import { matchesVectorUrbanFingerprint, vectorUrbanFingerprint } from "./urbanState";
+import { matchesVectorUrbanFingerprint, VECTOR_URBAN_ALGORITHM, vectorUrbanFingerprint } from "./urbanState";
+import { assignVectorWards, streetBlockOf, wardHeightKind } from "./wards";
+import { layoutVectorWells } from "./wells";
 
 export const DEFAULT_VECTOR_URBAN: VectorUrbanSettings = {
   mode: "medieval",
@@ -40,6 +63,13 @@ export const DEFAULT_VECTOR_URBAN: VectorUrbanSettings = {
   clearanceMeters: 0.6,
   allowExpansion: true
 };
+/** The mesh editor's building pattern as a meshless mode: population facilities keep their stage, the
+ * medieval and legacy patterns both build the CE perimeter lots (legacy has no meshless counterpart). */
+export function vectorUrbanMode(
+  settings: Pick<GenerationSettings, "buildingPattern" | "facilityLayout"> | undefined
+): VectorUrbanSettings["mode"] {
+  return settings?.facilityLayout === "population" ? "medieval-facilities" : "medieval";
+}
 export interface VectorUrbanProfile {
   lanesMs: number;
   facilityMs: number;
@@ -68,13 +98,84 @@ export interface VectorUrbanContinuation {
   baseGeneration: NonNullable<VectorCityDocument["generation"]>;
   baseConnections: VectorCityDocument["connections"];
   baseContext: VectorCityDocument["context"];
+  /** Highest occupancy draw adopted before the edit, when the source kept fabric records. Regeneration keeps the
+   * CE street-block layout and adopts at least every lot up to this draw, so unaffected street blocks keep their
+   * houses unchanged. */
+  fabricDraw?: number;
+  /** Cleared lots of the source records, by street block id. */
+  fabricCleared?: Record<string, number[]>;
+  /** Lines moved to paths in the source records, by district or street block id. */
+  fabricDetachedLines?: Record<string, VectorFabricDetachedLine[]>;
 }
+/** Work a run hands out: the caller plans it (here, or in workers) and passes the results back in job order. */
+export type VectorUrbanDistrictRequest = PerimeterRequest;
+type VectorUrbanSteps = Generator<PerimeterRequest, VectorCityDocument, PerimeterStreetPlan[] | PerimeterCellResult[]>;
+
 export function generateVectorUrban(
   input: VectorCityDocument,
   settings: VectorUrbanSettings = DEFAULT_VECTOR_URBAN,
   continuation?: VectorUrbanContinuation,
   run?: VectorUrbanRun
 ): VectorCityDocument {
+  const steps = vectorUrbanSteps(input, settings, continuation, run);
+  let step = steps.next();
+  while (!step.done) step = steps.next(planPerimeterRequest(step.value));
+  return step.value;
+}
+
+/** Same result as `generateVectorUrban`; `plan` may compute the district plans anywhere, but must return them in
+ * job order. Districts are independent (S2.2 ids), so the document does not depend on how they were split. */
+export async function generateVectorUrbanAsync(
+  input: VectorCityDocument,
+  settings: VectorUrbanSettings,
+  plan: (request: VectorUrbanDistrictRequest) => Promise<PerimeterStreetPlan[] | PerimeterCellResult[]>,
+  continuation?: VectorUrbanContinuation,
+  run?: VectorUrbanRun
+): Promise<VectorCityDocument> {
+  const steps = vectorUrbanSteps(input, settings, continuation, run);
+  let step = steps.next();
+  while (!step.done) {
+    const results = await plan(step.value);
+    if (results.length !== step.value.jobs.length) throw new Error("urban-district-plans");
+    rememberPerimeterResults(step.value, results);
+    step = steps.next(results);
+  }
+  return step.value;
+}
+
+/** Plans the districts of a regeneration of `input` with `plan` and keeps them here, without building the
+ * document. A later dependency update on this thread then reuses every district it leaves unchanged. */
+export async function prepareVectorUrbanPlans(
+  input: VectorCityDocument,
+  settings: VectorUrbanSettings,
+  plan: (request: VectorUrbanDistrictRequest) => Promise<PerimeterStreetPlan[] | PerimeterCellResult[]>,
+  /** Checked between requests; false stops early. */
+  active: () => boolean = () => true
+): Promise<void> {
+  const steps = vectorUrbanSteps(input, settings);
+  try {
+    let step = steps.next();
+    while (!step.done && active()) {
+      const request = step.value,
+        results = await plan(request);
+      if (!active()) return;
+      if (results.length !== request.jobs.length) throw new Error("urban-district-plans");
+      rememberPerimeterResults(request, results);
+      // Street blocks are the last plans; the steps after them only build the document.
+      if (request.kind === "cells") return;
+      step = steps.next(results);
+    }
+  } finally {
+    steps.return(input);
+  }
+}
+
+function* vectorUrbanSteps(
+  input: VectorCityDocument,
+  settings: VectorUrbanSettings,
+  continuation?: VectorUrbanContinuation,
+  run?: VectorUrbanRun
+): VectorUrbanSteps {
   const timed = generationTiming(run?.timings);
   assertVectorDocument(input);
   if (
@@ -95,10 +196,18 @@ export function generateVectorUrban(
     !Number.isFinite(settings.clearanceMeters) ||
     settings.clearanceMeters < 0.2 ||
     settings.clearanceMeters > 5 ||
-    typeof settings.allowExpansion !== "boolean"
+    typeof settings.allowExpansion !== "boolean" ||
+    (settings.lotOccupancy !== undefined &&
+      (!Number.isFinite(settings.lotOccupancy) || settings.lotOccupancy < 0.1 || settings.lotOccupancy > 1)) ||
+    (settings.tanneryBends !== undefined && !["continuous", "leat"].includes(settings.tanneryBends))
   )
     throw new Error("invalid-urban-settings");
   const doc = structuredClone(input);
+  // The open land by use is split again round the finished town (U5b): suburbs and leats change it.
+  if (doc.environment?.landUse) delete doc.environment.landUse;
+  let kept:
+    | { cleared: Record<string, number[]>; detachedLines: Record<string, VectorFabricDetachedLine[]> }
+    | undefined;
   if (doc.urban) {
     const previous = doc.urban;
     if (
@@ -113,6 +222,21 @@ export function generateVectorUrban(
     if (!matchesVectorUrbanFingerprint(doc, previous.adoptedFingerprint)) throw new Error("edited-urban");
     for (const id of previous.ownedPaths) delete doc.paths[id];
     for (const id of previous.ownedPlacements) delete doc.placements[id];
+    // Cleared lots and detached lines are the user's; a fresh run of the same districts keeps them.
+    if (doc.fabric && !continuation) {
+      const records = [...Object.values(doc.fabric.districts), ...Object.values(doc.fabric.cells)];
+      kept = {
+        cleared: Object.fromEntries(
+          Object.values(doc.fabric.cells)
+            .filter(c => c.cleared?.length)
+            .map(c => [c.id, c.cleared!])
+        ),
+        detachedLines: Object.fromEntries(
+          records.filter(r => r.detachedLines?.length).map(r => [r.id, r.detachedLines!])
+        )
+      };
+    }
+    delete doc.fabric;
     doc.connections = previous.baseConnections;
     doc.generation = previous.baseGeneration;
     doc.context = previous.baseContext;
@@ -193,20 +317,72 @@ export function generateVectorUrban(
       .filter(r => r.kind !== "district")
       .map(r => ({ outer: r.outer, holes: r.holes }))
   ];
+  const organicMode =
+    (settings.mode === "medieval" || settings.mode === "medieval-facilities") &&
+    settings.maxLanes > 0 &&
+    (!continuation || continuation.fabricDraw !== undefined) &&
+    run?.housingAttempts === undefined;
+  // A house detached from fabric records is occupancy for the CE plan; cutting it out would give its whole
+  // skeleton block a hole, and a block with holes holds no CE district.
   const deriveLaneBlocks = () =>
     deriveVectorBlocks(
       {
         ...doc,
+        // A road detached from fabric records lies inside its block: cutting the block would give it a hole.
+        paths: Object.fromEntries(
+          Object.entries(doc.paths).filter(([, p]) => !(organicMode && isDetachedFabricLinePath(p)))
+        ),
         placements: Object.fromEntries(
-          Object.entries(doc.placements).filter(([id]) => !continuation?.retainedPlacements.includes(id))
+          Object.entries(doc.placements).filter(
+            ([id, p]) => !continuation?.retainedPlacements.includes(id) && !(organicMode && isDetachedFabricHouse(p))
+          )
         )
       },
       protectedRegions
     );
+  const walls = Object.values(doc.connections.circuits)
+    .filter(c => !c.parentCircuitId)
+    .map(c => ({ outer: sampledClosedRing(doc, c.pathId), holes: [] }));
+  // Thousands of district and street-block centres are tested against the wall ring; an edge index keeps it short.
+  const inWalls = walls.length ? indexedContains(walls) : undefined,
+    inside = (p: Point) => !inWalls || inWalls(p);
+  const radius = Math.max(
+    ...sourceSite.domain
+      .flatMap(p => p.outer)
+      .map(p => Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]))
+  );
+  const core = (p: Point) =>
+    walls.length ? inside(p) : Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]) < radius * 0.65;
+  // The tanners' row is reserved on the bank below the town before the street plan, so streets and lots keep off it.
+  const tanneryRow =
+    !continuation && organicMode && settings.mode === "medieval-facilities"
+      ? reserveTanneryRow(
+          doc,
+          requests,
+          core,
+          anchors => joinVectorGenerationAnchors(doc, anchors),
+          settings.tanneryBends ?? "continuous"
+        )
+      : { placed: [], unplaced: [], lanes: [], leats: [], islands: [] };
+  // The street plan keeps off the yards and their revetments.
+  // A little wider than the yards themselves: a lane ending on the block's edge, rounded to the centimetre, must not
+  // reach into a yard.
+  for (const id of tanneryRow.placed)
+    for (const r of doc.placements[id].building!.reserved) {
+      const c = polygonCentroid(r.outer),
+        size = Math.sqrt(regionArea(r)),
+        k = 1 + 0.6 / Math.max(1, size);
+      protectedRegions.push({
+        outer: r.outer.map((q): Point => [c[0] + (q[0] - c[0]) * k, c[1] + (q[1] - c[1]) * k]),
+        holes: []
+      });
+    }
+  protectedRegions.push(...tanneryRow.islands);
   timed("programme-and-domain");
   let blocks = deriveLaneBlocks();
   timed("base-blocks");
   const ownedPaths: string[] = [...(continuation?.ownedPaths ?? [])];
+  ownedPaths.push(...tanneryRow.lanes, ...tanneryRow.leats);
   run?.progress?.("lanes");
   const laneStarted = performance.now();
   // Frontage-rooted cul-de-sacs follow free land; no cells, vertex snapping or global grid.
@@ -222,7 +398,8 @@ export function generateVectorUrban(
     start: Point;
     end: Point;
   }[] = [];
-  if (!continuation)
+  // The CE perimeter plan lays out its own streets; straight lanes are only for the other modes.
+  if (!continuation && !organicMode)
     for (const block of blocks) {
       if (!block.reachable) continue;
       for (const f of block.frontage) {
@@ -276,11 +453,96 @@ export function generateVectorUrban(
       ? bvFacilityAsset(settings.houseModelId, [{ id: "main", position: [0, 0, 4], normalXZ: [0, 1], clearWidth: 1.1 }])
       : undefined;
   timed("lane-candidates");
-  const organic =
-    settings.mode === "medieval" && settings.maxLanes > 0 && !continuation && run?.housingAttempts === undefined
-      ? planVectorPerimeter(doc, blocks, settings)
-      : undefined;
-  if (organic) ownedPaths.push(...organic.paths);
+  const blockUse = (b: { outer: Point[]; holes: Point[][] }) => {
+    const center = polygonCentroid(b.outer);
+    return settings.mode === "medieval"
+      ? ("residential" as const)
+      : waterDistance(doc, [b]) <= 50
+        ? ("river" as const)
+        : !core(center)
+          ? ("hazard" as const)
+          : Math.hypot(center[0] - sourceSite.center[0], center[1] - sourceSite.center[1]) <
+              Math.sqrt(domain.reduce((n, p) => n + regionArea(p), 0)) * 0.2
+            ? ("commerce" as const)
+            : ("craft" as const);
+  };
+  const searchStats: UrbanSearchStats = { regionMs: 0, curveMs: 0 };
+  const facilityLimits = {
+    totalAttempts: run?.facilityAttempts ?? FACILITY_SEARCH_LIMITS.totalAttempts,
+    requestAttempts: run?.requestAttempts ?? FACILITY_SEARCH_LIMITS.requestAttempts
+  };
+  const ownedPlacements: string[] = [...(continuation?.retainedPlacements ?? [])],
+    unplacedFacilities: NonNullable<VectorCityDocument["urban"]>["report"]["unplacedFacilities"] = [];
+  let facilityAttempts = 0;
+  /** Facilities first, each on a frontage of its use, then the retries a capped search left over. */
+  const placeFacilities = (packer: ReturnType<typeof createUrbanPacker>) => {
+    const facilityStarted = performance.now();
+    const missReason = (request: (typeof requests)[number]): "river" | "district" | "space" =>
+      request.riverbankMaxDistanceMeters !== undefined && !allVectorWater(doc).length
+        ? "river"
+        : request.zone === "outskirts"
+          ? "district"
+          : "space";
+    for (const [requestIndex, request] of requests.entries()) {
+      run?.progress?.("facilities", requestIndex, requests.length);
+      if (ownedPlacements.includes(`urban:${request.id}`)) continue;
+      const room = facilityLimits.totalAttempts - facilityAttempts;
+      if (ownedPlacements.length >= 1500 || room <= 0) {
+        unplacedFacilities.push({ id: request.id, reason: "unsearched" });
+        continue;
+      }
+      const result = packer.place(request, "facility", Math.min(facilityLimits.requestAttempts, room));
+      facilityAttempts += result.attempts;
+      if (result.placement) {
+        result.placement.building!.pool = facilityUseOf(request);
+        ownedPlacements.push(result.placement.id);
+      } else unplacedFacilities.push({ id: request.id, reason: result.incomplete ? "budget" : missReason(request) });
+    }
+    const retryIds = unplacedFacilities.filter(item => item.reason === "budget").map(item => item.id);
+    // A short shared reserve revisits capped requests. It does not let one request spend the rest of the budget.
+    const retryCeiling = Math.min(facilityLimits.totalAttempts, facilityAttempts + 4000);
+    let stalls = 0;
+    while (retryIds.length && facilityAttempts < retryCeiling && ownedPlacements.length < 1500) {
+      if (stalls >= retryIds.length) break;
+      const id = retryIds[0];
+      const request = requests.find(item => item.id === id);
+      if (!request) break;
+      const result = packer.place(request, "facility", Math.min(40, retryCeiling - facilityAttempts));
+      facilityAttempts += result.attempts;
+      if (result.placement) {
+        result.placement.building!.pool = facilityUseOf(request);
+        ownedPlacements.push(result.placement.id);
+        const index = unplacedFacilities.findIndex(item => item.id === id);
+        if (index >= 0) unplacedFacilities.splice(index, 1);
+        retryIds.shift();
+        stalls = 0;
+      } else if (!result.incomplete) {
+        const row = unplacedFacilities.find(item => item.id === id);
+        if (row) row.reason = missReason(request);
+        retryIds.shift();
+        stalls = 0;
+      } else if (result.attempts === 0) {
+        retryIds.shift();
+        stalls++;
+      } else {
+        retryIds.push(retryIds.shift()!);
+        stalls = 0;
+      }
+    }
+    if (run?.profile) run.profile.facilityMs = performance.now() - facilityStarted;
+  };
+  const facilityFabric = organicMode && settings.mode === "medieval-facilities";
+  let organic: VectorPerimeterPlan | undefined;
+  if (organicMode) {
+    const { context, jobs } = perimeterJobs(doc, blocks, settings);
+    const streets = (yield { kind: "streets", context, jobs }) as PerimeterStreetPlan[];
+    const cells = (yield {
+      kind: "cells",
+      context,
+      jobs: perimeterCellJobs(context, streets)
+    }) as PerimeterCellResult[];
+    organic = joinPerimeterPlan(doc, assemblePerimeterDistricts(streets, cells), settings);
+  }
   const adoptLane = (
     points: Point[],
     anchor: (typeof laneCandidates)[number]["anchor"],
@@ -339,40 +601,31 @@ export function generateVectorUrban(
   rebuildRoadGraph(doc);
   timed("road-graph");
   blocks = organic ? organic.blocks : deriveLaneBlocks();
-  const walls = Object.values(doc.connections.circuits)
-    .filter(c => !c.parentCircuitId)
-    .map(c => ({ outer: sampledClosedRing(doc, c.pathId), holes: [] }));
-  const inside = (p: Point) => !walls.length || containsRegion(walls, p);
-  const radius = Math.max(
-    ...sourceSite.domain
-      .flatMap(p => p.outer)
-      .map(p => Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]))
-  );
-  const core = (p: Point) =>
-    walls.length ? inside(p) : Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]) < radius * 0.65;
-  const districts = blocks.map(b => {
+  const planned = blocks.map(b => {
     const center = polygonCentroid(b.outer);
     return {
       id: b.id,
-      use:
-        settings.mode === "medieval"
-          ? ("residential" as const)
-          : waterDistance(doc, [b]) <= 50
-            ? ("river" as const)
-            : !core(center)
-              ? ("hazard" as const)
-              : Math.hypot(center[0] - sourceSite.center[0], center[1] - sourceSite.center[1]) <
-                  Math.sqrt(domain.reduce((n, p) => n + regionArea(p), 0)) * 0.2
-                ? ("commerce" as const)
-                : ("craft" as const),
+      core: core(center),
+      use: blockUse(b),
       inside: inside(center),
       polygon: { outer: b.outer, holes: b.holes }
     };
   });
+  // The economic wards of the town's districts, by the mesh editor's ward mix (P6g).
+  const wards = assignVectorWards(doc, planned, {
+    shanty: doc.context.requestedSettings?.config?.features?.shanty ?? sourceSite.descriptor?.burg.shanty ?? false,
+    cityRadiusMeters: radius * 0.65
+  });
+  const districts = planned.map(({ core: _core, ...d }) => {
+    const ward = wards.get(d.id);
+    return ward ? { ...d, ...ward } : d;
+  });
+  timed("wards");
   const pathIds = Object.keys(doc.paths),
     checkpoints: NonNullable<VectorCityDocument["urban"]>["checkpoints"] = [];
   const checkpoint = (id: VectorStage, ids: string[], paths = pathIds) => {
-    const a = allocateVectorResidents(doc, ids, required, settings.population);
+    // Fabric houses are adopted and shown with the housing stage only.
+    const a = allocateVectorResidents(doc, ids, required, settings.population, id === "housing");
     checkpoints.push({
       id,
       pathIds: paths,
@@ -392,83 +645,53 @@ export function generateVectorUrban(
   checkpoint("regions", manual, basePaths);
   checkpoint("blocksAndLanes", manual);
   timed("districts-and-checkpoints");
-  const searchStats: UrbanSearchStats = { regionMs: 0, curveMs: 0 };
-  const facilityLimits = {
-    totalAttempts: run?.facilityAttempts ?? FACILITY_SEARCH_LIMITS.totalAttempts,
-    requestAttempts: run?.requestAttempts ?? FACILITY_SEARCH_LIMITS.requestAttempts
-  };
   const housingLimits = {
     totalAttempts: run?.housingAttempts ?? HOUSING_SEARCH_LIMITS.totalAttempts,
     requestAttempts: run?.housingAttempts ?? HOUSING_SEARCH_LIMITS.requestAttempts
   };
   const packer = organic
-      ? undefined
-      : createUrbanPacker(
-          doc,
-          blocks,
-          settings,
-          core,
-          new Map(districts.map(d => [d.id, d.use])),
-          facilityLimits,
-          searchStats
-        ),
-    ownedPlacements: string[] = [...(continuation?.retainedPlacements ?? [])],
-    unplacedFacilities: NonNullable<VectorCityDocument["urban"]>["report"]["unplacedFacilities"] = [];
-  const missReason = (request: (typeof requests)[number]): "river" | "district" | "space" =>
-    request.riverbankMaxDistanceMeters !== undefined && !allVectorWater(doc).length
-      ? "river"
-      : request.zone === "outskirts"
-        ? "district"
-        : "space";
-  let facilityAttempts = 0;
-  const facilityStarted = performance.now();
-  for (const [requestIndex, request] of requests.entries()) {
-    run?.progress?.("facilities", requestIndex, requests.length);
-    if (ownedPlacements.includes(`urban:${request.id}`)) continue;
-    const room = facilityLimits.totalAttempts - facilityAttempts;
-    if (ownedPlacements.length >= 1500 || room <= 0) {
-      unplacedFacilities.push({ id: request.id, reason: "unsearched" });
-      continue;
+    ? undefined
+    : createUrbanPacker(
+        doc,
+        blocks,
+        settings,
+        core,
+        new Map(districts.map(d => [d.id, d.use])),
+        facilityLimits,
+        searchStats
+      );
+  // Population facilities are larger than houses: each takes a run of whole CE lots of one street block, and the
+  // houses then fill every other lot, so facilities close up to their neighbours lot line to lot line.
+  let facilityCells = new Set<string>();
+  if (facilityFabric && organic) {
+    const started = performance.now();
+    // Facilities kept from before an edit follow the new plan's lines, or are placed again.
+    for (const id of refitRetainedFacilities(doc, organic, continuation?.retainedPlacements ?? [])) {
+      const at = ownedPlacements.indexOf(id);
+      if (at >= 0) ownedPlacements.splice(at, 1);
     }
-    const result = packer!.place(request, "facility", Math.min(facilityLimits.requestAttempts, room));
-    facilityAttempts += result.attempts;
-    if (result.placement) {
-      result.placement.building!.pool = facilityUseOf(request);
-      ownedPlacements.push(result.placement.id);
-    } else unplacedFacilities.push({ id: request.id, reason: result.incomplete ? "budget" : missReason(request) });
-  }
-  const retryIds = unplacedFacilities.filter(item => item.reason === "budget").map(item => item.id);
-  // A short shared reserve revisits capped requests. It does not let one request spend the rest of the budget.
-  const retryCeiling = Math.min(facilityLimits.totalAttempts, facilityAttempts + 4000);
-  let stalls = 0;
-  while (retryIds.length && facilityAttempts < retryCeiling && ownedPlacements.length < 1500) {
-    if (stalls >= retryIds.length) break;
-    const id = retryIds[0];
-    const request = requests.find(item => item.id === id);
-    if (!request) break;
-    const result = packer!.place(request, "facility", Math.min(40, retryCeiling - facilityAttempts));
-    facilityAttempts += result.attempts;
-    if (result.placement) {
-      result.placement.building!.pool = facilityUseOf(request);
-      ownedPlacements.push(result.placement.id);
-      const index = unplacedFacilities.findIndex(item => item.id === id);
-      if (index >= 0) unplacedFacilities.splice(index, 1);
-      retryIds.shift();
-      stalls = 0;
-    } else if (!result.incomplete) {
-      const row = unplacedFacilities.find(item => item.id === id);
-      if (row) row.reason = missReason(request);
-      retryIds.shift();
-      stalls = 0;
-    } else if (result.attempts === 0) {
-      retryIds.shift();
-      stalls++;
-    } else {
-      retryIds.push(retryIds.shift()!);
-      stalls = 0;
+    const lots = placeFacilitiesOnLots(
+      doc,
+      organic,
+      requests.filter(r => !ownedPlacements.includes(`urban:${r.id}`) && !tanneryRow.unplaced.some(u => u.id === r.id)),
+      core,
+      tanneryRow.placed,
+      // A park ward stays a lawn (P7c); its lots never take a facility.
+      id => wards.get(id)?.ward === "park"
+    );
+    unplacedFacilities.push(...tanneryRow.unplaced);
+    ownedPlacements.push(...lots.placed);
+    unplacedFacilities.push(...lots.unplaced);
+    facilityCells = lots.cells;
+    // Facilities kept from before an edit keep the street block they stand in recorded too.
+    for (const id of continuation?.retainedPlacements ?? []) {
+      const p = doc.placements[id];
+      if (!p?.building?.entrances.some(e => e.fabricLine !== undefined)) continue;
+      for (const d of organic.districts)
+        for (const c of d.cells) if (pointInPolygon(polygonCentroid(p.site.outer), c.ring)) facilityCells.add(c.id);
     }
-  }
-  if (run?.profile) run.profile.facilityMs = performance.now() - facilityStarted;
+    if (run?.profile) run.profile.facilityMs = performance.now() - started;
+  } else if (packer) placeFacilities(packer);
   const facilities = ownedPlacements.filter(id => doc.placements[id].building?.kind === "facility");
   if (settings.mode === "medieval-facilities") checkpoint("facilities", [...manual, ...facilities]);
   timed("facilities");
@@ -481,11 +704,35 @@ export function generateVectorUrban(
   let housingAttempts = 0;
   let housingStop: VectorUrbanProfile["housingStop"] = remaining > 0 ? "frontage" : "demand-met";
   const housingStarted = performance.now();
+  const suburbanLots = vectorSuburbanLots(
+      doc,
+      (id: string) => wards.get(id)?.ward === "shanty",
+      tanneryRow.placed.flatMap(id => (doc.placements[id] ? [doc.placements[id].site.outer] : []))
+    ),
+    ribbon = !sourceSite.descriptor?.urbanMorphology && vectorApproachBands(doc).bands.length > 0,
+    outsideBlocks = new Set(districts.filter(d => !d.inside).map(d => streetBlockOf(d.id)));
   if (organic && remaining > 0) {
-    const ids = placeVectorPerimeterHouses(doc, organic.houses, remaining);
+    const placed = placeVectorPerimeterHouses(
+      doc,
+      organic,
+      remaining,
+      inside,
+      continuation?.fabricDraw,
+      continuation?.fabricCleared ?? kept?.cleared,
+      continuation?.fabricDetachedLines ?? kept?.detachedLines,
+      settings.lotOccupancy ?? 1,
+      id => wardHeightKind(wards.get(id)?.ward),
+      // The shanty, and the roadside ribbon beyond the wall, stand whatever the demand (P6h, P7a).
+      id => wards.get(id)?.ward === "shanty" || (ribbon && outsideBlocks.has(id)),
+      // A park ward holds no house while the rest of the town houses the demand; its block becomes the park's
+      // lawn (P7c). A town short of room builds on it in the second pass instead.
+      (id, polygon, residential) =>
+        (residential || wards.get(id)?.ward !== "park") && suburbanLots(id, polygon, residential),
+      facilityCells
+    );
+    reattachFabricEntrances(doc);
     housingAttempts = organic.houses.length;
-    ownedPlacements.push(...ids);
-    remaining -= ids.reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0);
+    remaining -= placed.dwellings;
     housingStop = remaining > 0 ? "frontage" : "demand-met";
   }
   if (!organic && remaining > 0 && houseAsset) {
@@ -521,7 +768,17 @@ export function generateVectorUrban(
     (a, b) => Number(inside(doc.placements[b].position)) - Number(inside(doc.placements[a].position))
   );
   checkpoint("housing", all);
-  const allocation = allocateVectorResidents(doc, all, required, settings.population);
+  const parks = organic
+    ? layoutVectorParks(doc, districts, id => {
+        const c = doc.fabric?.cells[id];
+        return !facilityCells.has(id) && (!c || c.houses.offsets.length === c.detached.length);
+      })
+    : [];
+  timed("parks");
+  // Water points stand after the houses, the market and the parks: none takes a dwelling or a street (P7d).
+  const wells = organic ? layoutVectorWells(doc, districts) : [];
+  timed("wells");
+  const allocation = allocateVectorResidents(doc, all, required, settings.population, true);
   if (allocation.unplacedDwellings)
     reasons.push(
       housingStop === "budget" || housingStop === "placement-cap"
@@ -547,25 +804,36 @@ export function generateVectorUrban(
   }
   run?.progress?.("validation");
   timed("population-allocation");
+  const fabricDwellings = (inner: boolean) =>
+    Object.values(doc.fabric?.cells ?? {})
+      .filter(c => !!c.inside === inner)
+      .reduce((n, c) => n + c.houses.dwellings.reduce((m, d, i) => m + (c.detached.includes(i) ? 0 : d), 0), 0);
   const residualLand = organic
     ? vectorPerimeterResidual(doc, organic.blocks)
     : deriveVectorBlocks(doc, protectedRegions).map(b => ({ outer: b.outer, holes: b.holes }));
   timed("residual-land");
   doc.site = sourceSite;
   doc.context.targetPopulation = settings.population;
+  // The open land by use round the finished town and its suburbs (U5b).
+  const used = raiseVectorLandUse(doc, domain).environment?.landUse;
+  if (used) doc.environment = { features: {}, hidden: [], ...doc.environment, landUse: used };
+  timed("land-use");
   doc.revision++;
   doc.generation = { ...doc.generation!, blocks, inputRevision: doc.revision };
   doc.urban = {
-    algorithm: "vector-urban-v1",
+    algorithm: VECTOR_URBAN_ALGORITHM,
     inputRevision: doc.revision,
     settings: structuredClone(settings),
     baseGeneration,
     baseConnections,
     baseContext,
     domain,
-    laneBlocks: blocks,
+    // Organic blocks are shared with the plan cache; the document owns its own copy.
+    laneBlocks: organic ? structuredClone(blocks) : blocks,
     residualLand,
     districts,
+    ...(parks.length ? { parks } : {}),
+    ...(wells.length ? { wells } : {}),
     ownedPaths,
     ownedPlacements,
     adoptedFingerprint: vectorUrbanFingerprint(doc),
@@ -580,17 +848,23 @@ export function generateVectorUrban(
       assignedPopulation: allocation.assignedPopulation,
       unplacedPopulation: allocation.unplacedPopulation,
       mixedDwellings: facilities.reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0),
-      capacityInside: all
-        .filter(id => inside(doc.placements[id].position))
-        .reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0),
-      capacityOutside: all
-        .filter(id => !inside(doc.placements[id].position))
-        .reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0),
-      requiredFacilities: requests.length,
+      capacityInside:
+        all
+          .filter(id => inside(doc.placements[id].position))
+          .reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0) + fabricDwellings(true),
+      capacityOutside:
+        all
+          .filter(id => !inside(doc.placements[id].position))
+          .reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0) + fabricDwellings(false),
+      // A facility kept from an edit of a town planned with an earlier request set (another staffing) still counts.
+      requiredFacilities: requests.length + facilities.filter(id => !requests.some(r => `urban:${r.id}` === id)).length,
       placedFacilities: facilities.length,
       provisionalFacilities: facilities.filter(id => doc.placements[id].building!.provenance === "provisional").length,
       unplacedFacilities,
-      housingBuildings: ownedPlacements.length - facilities.length,
+      housingBuildings:
+        ownedPlacements.length -
+        facilities.length +
+        Object.values(doc.fabric?.cells ?? {}).reduce((n, c) => n + c.houses.offsets.length - c.detached.length, 0),
       reasons
     }
   };

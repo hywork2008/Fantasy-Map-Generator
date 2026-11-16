@@ -16,7 +16,9 @@ import { maximumCornerRadius } from "../geometry/presets";
 import { ringInside, verifyWallGapSurface } from "../geometry/routing";
 import { type PathSurface, pathSurface, surfacesOverlap } from "../geometry/surfaces";
 import { vectorWaterSurfaces } from "../geometry/water";
+import { vectorOccupiedSites } from "../occupancy";
 import { validateVectorEnvironment } from "./environment";
+import { validateVectorFabric } from "./fabric";
 import { validateVectorGeneration } from "./generation";
 import { validateVectorPresentation } from "./presentation";
 import { validateVectorUrban } from "./urban";
@@ -91,6 +93,23 @@ function segment(v: unknown, legacy = false): v is VectorSegment {
   );
 }
 
+/** Requested mesh-editor settings: plain finite JSON within a small budget, never an FMG descriptor. */
+function requestedSettings(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.hasOwn(value, "descriptor")) return false;
+  let budget = 4000;
+  const plain = (v: unknown, depth: number): boolean => {
+    if (--budget < 0 || depth > 6) return false;
+    if (v === null || typeof v === "boolean" || typeof v === "string") return typeof v !== "string" || v.length <= 256;
+    if (typeof v === "number") return Number.isFinite(v);
+    if (Array.isArray(v)) return v.length <= 64 && v.every(x => plain(x, depth + 1));
+    if (typeof v === "object")
+      return Object.entries(v).every(
+        ([k, x]) => !["__proto__", "constructor", "prototype"].includes(k) && plain(x, depth + 1)
+      );
+    return false;
+  };
+  return plain(value, 0) && "config" in value;
+}
 export function validateVectorPath(value: unknown): string[] {
   if (!record(value) || !id(value.id) || !validPath(value, false)) return ["invalid-path"];
   try {
@@ -186,23 +205,26 @@ export function validateVectorDocument(
             ? ["site", "generation", "urban"]
             : legacy === 6
               ? ["site", "generation", "urban", "legacyCopy"]
-              : ["site", "generation", "urban", "legacyCopy", "environment"]
+              : ["site", "generation", "urban", "legacyCopy", "environment", "fabric"]
     ) ||
     value.format !== "fmg-vector-city" ||
-    value.version !==
-      (legacy === true
-        ? 1
-        : legacy === 2
-          ? 2
-          : legacy === 3
-            ? 3
-            : legacy === 4
-              ? 4
-              : legacy === 5
-                ? 5
-                : legacy === 6
-                  ? 6
-                  : 7) ||
+    // Native v8 adds the optional fabric. A v7 ledger is otherwise identical and loads as v8.
+    (!legacy && (value.version === 7 ? Object.hasOwn(value, "fabric") : value.version !== 8)) ||
+    (legacy &&
+      value.version !==
+        (legacy === true
+          ? 1
+          : legacy === 2
+            ? 2
+            : legacy === 3
+              ? 3
+              : legacy === 4
+                ? 4
+                : legacy === 5
+                  ? 5
+                  : legacy === 6
+                    ? 6
+                    : 7)) ||
     !revision(value.revision)
   )
     return ["document-format"];
@@ -211,8 +233,9 @@ export function validateVectorDocument(
     !keys(
       value.context,
       ["historicalPeriod", "targetPopulation"],
-      legacy === true || legacy === 2 ? [] : ["bridgeSkewTier"]
+      legacy === true || legacy === 2 ? [] : legacy ? ["bridgeSkewTier"] : ["bridgeSkewTier", "requestedSettings"]
     ) ||
+    (value.context.requestedSettings !== undefined && !requestedSettings(value.context.requestedSettings)) ||
     (value.context.bridgeSkewTier !== undefined && ![0, 1, 2].includes(value.context.bridgeSkewTier as number)) ||
     !isHistoricalPeriod(value.context.historicalPeriod) ||
     !Number.isSafeInteger(value.context.targetPopulation) ||
@@ -385,7 +408,7 @@ export function validateVectorDocument(
             ? ["building"]
             : legacy === 6
               ? ["building", "display"]
-              : ["building", "display", "appearance"]
+              : ["building", "display", "appearance", "mirrored"]
       ) ||
       !id(p.modelId) ||
       !point(p.position) ||
@@ -396,7 +419,8 @@ export function validateVectorDocument(
       !keys(p.site, ["outer", "holes"]) ||
       !region(p.site) ||
       !Array.isArray(p.accesses) ||
-      !p.accesses.every(checkAnchor)
+      !p.accesses.every(checkAnchor) ||
+      (p.mirrored !== undefined && p.mirrored !== true)
     )
       errors.push(`placement:${p.id}`);
   timed("sites");
@@ -410,10 +434,9 @@ export function validateVectorDocument(
     });
     const sites = new RBush<ReturnType<typeof bounds> & { surface: PathSurface }>();
     sites.load(
-      [
-        ...Object.values(doc.placements).map(p => p.site),
-        ...Object.values(doc.regions).filter(r => r.kind === "reservation")
-      ].map(surface => ({ ...bounds(surface), surface }))
+      [...vectorOccupiedSites(doc, "site"), ...Object.values(doc.regions).filter(r => r.kind === "reservation")].map(
+        surface => ({ ...bounds(surface), surface })
+      )
     );
     for (const node of Object.values(doc.connections.nodes)) {
       const junction = junctionSurface(doc, node.id);
@@ -525,10 +548,40 @@ export function validateVectorDocument(
   timed("presentation");
   if (!legacy && !errors.length) errors.push(...validateVectorEnvironment(doc));
   timed("environment");
+  if (!legacy && !errors.length && doc.fabric !== undefined) errors.push(...validateVectorFabric(doc));
+  timed("fabric");
   return errors;
 }
 
+/** Content keys of documents that passed validation, newest last. An edit commits the same content several
+ * times (before and after the edit, into history, into the render), so a 50,000-person city was validated four
+ * times per edit. The key is the serialised content, so a document changed in place is always validated again. */
+const validatedContent: string[] = [];
+const VALIDATED_CONTENT_LIMIT = 8;
+function contentKey(value: unknown): string | undefined {
+  let text: string;
+  try {
+    text = JSON.stringify(value);
+  } catch {
+    return undefined;
+  }
+  if (typeof text !== "string") return undefined;
+  let a = 0x811c9dc5,
+    b = 0x9e3779b9;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    a = Math.imul(a ^ code, 0x01000193);
+    b = Math.imul(b ^ code, 0x85ebca6b);
+  }
+  return `${text.length}:${(a >>> 0).toString(16)}:${(b >>> 0).toString(16)}`;
+}
+
 export function assertVectorDocument(value: unknown): asserts value is VectorCityDocument {
+  const key = contentKey(value);
+  if (key !== undefined && validatedContent.includes(key)) return;
   const errors = validateVectorDocument(value);
   if (errors.length) throw new Error(`Invalid vector document: ${errors.join(", ")}`);
+  if (key === undefined) return;
+  validatedContent.push(key);
+  if (validatedContent.length > VALIDATED_CONTENT_LIMIT) validatedContent.shift();
 }

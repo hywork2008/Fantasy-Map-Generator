@@ -81,6 +81,16 @@ export function createTownBridges(
   waterAt: (point: Point) => number,
   quality: ModelQuality = "high"
 ) {
+  return createTownBridgesAt(collectBridgeSites(city), terrain, waterAt, quality);
+}
+
+/** The modular BV bridges of the given sites, without a city document; shared with the meshless editor (P2d-3). */
+export function createTownBridgesAt(
+  bridgeSites: readonly BridgeSite[],
+  terrain: Pick<CityTerrain, "heightAt" | "surfaceAt"> | undefined,
+  waterAt: (point: Point) => number,
+  quality: ModelQuality = "high"
+) {
   const group = new THREE.Group();
   group.name = "ce-modular-bridges";
   const models: CityStructureMeshes[] = [],
@@ -89,7 +99,7 @@ export function createTownBridges(
   const ramps: THREE.Mesh[] = [];
   const rampMaterial = new THREE.MeshLambertMaterial({ color: 0xb9af99, side: THREE.DoubleSide });
   const replaced = new Set<string>();
-  for (const site of collectBridgeSites(city)) {
+  for (const site of bridgeSites) {
     const [a, b] = site.points,
       length = Math.hypot(b[0] - a[0], b[1] - a[1]),
       dx = (b[0] - a[0]) / length,

@@ -6,6 +6,7 @@ import { inheritBuildingAppearance } from "./buildingAppearance";
 import { hasBuildingHeightLimits } from "./buildingHeightLimits";
 import { supportsBuildingHeightVariation } from "./buildingHeightPolicy";
 import { createGridDocument, sizePresetForExtent } from "./document";
+import { COARSE_STREET_CELL_METERS } from "./organicBlocks";
 import { PopulationSettingError, planPopulation } from "./populationPlan";
 import { centerWideWaterfront } from "./site/centerWideWaterfront";
 
@@ -110,7 +111,7 @@ export function preparePopulationGeneration(document: CityDocument, settings: Ge
       ...next.frame,
       cityRadiusMeters: plan.cityRadiusMeters,
       // Cells coarser than the 50 m street block keep that block in the fabric.
-      ...(plan.cellWidthMeters > 75 ? { streetCellMeters: 50 } : {})
+      ...(plan.cellWidthMeters > 75 ? { streetCellMeters: COARSE_STREET_CELL_METERS } : {})
     }
   };
   delete next.populationReport;

@@ -91,6 +91,59 @@ export function approachBands(document: CityDocument): ApproachBand[] {
   });
 }
 
+/** What the roadside rules read: the approach bands, the distance to the curtain, a barbican's held slack. */
+export interface SuburbanLotContext {
+  bands: readonly ApproachBand[];
+  wallDistance(point: Point): number;
+  slack: number;
+}
+
+function nearestBand(bands: readonly ApproachBand[], p: Point) {
+  return bands
+    .map(road => ({
+      road,
+      distance: nearestOnPolyline(p, road.points).dist,
+      gateDistance: Math.hypot(p[0] - road.points[0][0], p[1] - road.points[0][1])
+    }))
+    .sort((a, b) => a.distance - b.distance)[0];
+}
+
+/**
+ * Whether a lot beyond the town keeps its house under the approach land-use bands. A residential suburb keeps its
+ * blocks and only clears the glacis. Anything else is roadside ribbon: within 20 m of an approach, between the
+ * band's clearance and its length from the gate, clear of the glacis, modest (20-220 m2), and thinned by the
+ * band's spacing (trade 0.62, granary 0.24, rural 0.2); a frontier approach keeps none. `key` seeds the spacing.
+ */
+export function suburbanLotKept(polygon: Point[], key: string, suburb: boolean, ctx: SuburbanLotContext): boolean {
+  const center = polygonCentroid(polygon);
+  const near = nearestBand(ctx.bands, center);
+  const { wallDistance } = ctx;
+  if (suburb) {
+    const glacis = near?.road.clearance ?? 25;
+    return !polygon.some(p => wallDistance(p) < glacis);
+  }
+  if (
+    !near ||
+    near.road.profile === "frontier" ||
+    near.distance > 20 ||
+    near.gateDistance < near.road.clearance ||
+    near.gateDistance > near.road.clearance + near.road.length + ctx.slack ||
+    wallDistance(center) < near.road.clearance
+  )
+    return false;
+  // Keep only modest, existing face-owned roadside lots. A union block can
+  // otherwise yield a house larger than the homes inside the wall.
+  const area = Math.abs(polygonArea(polygon));
+  if (area > 220 || area < 20) return false;
+  if (polygon.some(p => wallDistance(p) < near.road.clearance)) return false;
+  const spacing = near.road.profile === "trade" ? 0.62 : near.road.profile === "granary" ? 0.24 : 0.2;
+  const hash = [...`${key}:${center[0].toFixed(1)}:${center[1].toFixed(1)}`].reduce(
+    (n, c) => (n * 33 + c.charCodeAt(0)) >>> 0,
+    5381
+  );
+  return hash / 0xffffffff < spacing;
+}
+
 /** Apply the land-use bands to existing mesh-owned lots. No new street or
  * rectangular field geometry is laid over the block and farm systems. */
 export function shapeSuburbanFabric(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
@@ -121,35 +174,11 @@ export function shapeSuburbanFabric(document: CityDocument, fabric: DistrictFabr
     const face = document.mesh.faces[id];
     return !!face && isSuburb(face, districtOf.get(id));
   };
-  const buildings = fabric.buildings.filter(building => {
-    if (!outskirts(building.faceId)) return true;
-    const center = polygonCentroid(building.polygon);
-    const near = nearest(center);
-    if (suburb(building.faceId)) {
-      const glacis = near?.road.clearance ?? 25;
-      return !building.polygon.some(p => wallDistance(p) < glacis);
-    }
-    if (
-      !near ||
-      near.road.profile === "frontier" ||
-      near.distance > 20 ||
-      near.gateDistance < near.road.clearance ||
-      near.gateDistance > near.road.clearance + near.road.length + slack ||
-      wallDistance(center) < near.road.clearance
-    )
-      return false;
-    // Keep only modest, existing face-owned roadside lots. A union block can
-    // otherwise yield a house larger than the homes inside the wall.
-    const area = Math.abs(polygonArea(building.polygon));
-    if (area > 220 || area < 20) return false;
-    if (building.polygon.some(p => wallDistance(p) < near.road.clearance)) return false;
-    const spacing = near.road.profile === "trade" ? 0.62 : near.road.profile === "granary" ? 0.24 : 0.2;
-    const hash = [...`${building.faceId}:${center[0].toFixed(1)}:${center[1].toFixed(1)}`].reduce(
-      (n, c) => (n * 33 + c.charCodeAt(0)) >>> 0,
-      5381
-    );
-    return hash / 0xffffffff < spacing;
-  });
+  const ctx: SuburbanLotContext = { bands: approaches, wallDistance, slack };
+  const buildings = fabric.buildings.filter(
+    building =>
+      !outskirts(building.faceId) || suburbanLotKept(building.polygon, building.faceId, suburb(building.faceId), ctx)
+  );
   const farms = fabric.farms.flatMap(farm => {
     const face = document.mesh.faces[farm.faceId];
     if (face?.properties.settlement !== "outskirts") return [farm];

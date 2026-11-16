@@ -35,6 +35,12 @@ export interface GuildKnowledgeStock {
    * (technique) — a technique stock can be flush with capital while still unskilled, or vice versa.
    */
   treasury: number;
+  /** This month's craft margin (after-tax revenue less ingredient cost) of the domain at this Burg (docs/plan/guild-master-workshop.md). */
+  workshopMargin?: number;
+  /** The monthly craft margin, smoothed over about half a year; seats and retires the guild master. */
+  marginAverage?: number;
+  /** Whether the guild keeps a master, set each year with `guildMasterSeat` byWorkshop; the roster seats one only here. */
+  masterSeat?: boolean;
 }
 
 /**
@@ -64,6 +70,25 @@ export const CRAFT_DOMAIN_BY_GOOD_NAME: Readonly<Record<string, CraftKnowledgeDo
   Bronze: "metallurgy",
   Tools: "metallurgy",
   Arms: "metallurgy",
+  "Peasant Sword": "metallurgy",
+  Sword: "metallurgy",
+  "Mail Hauberk": "metallurgy",
+  "Iron Cap": "metallurgy",
+  Bascinet: "metallurgy",
+  "Pair of Plates": "metallurgy",
+  Gauntlets: "metallurgy",
+  "Squire's Armor": "metallurgy",
+  "Milanese Armor": "metallurgy",
+  "Horse Bard": "metallurgy",
+  Aketon: "textiles",
+  Habergeon: "metallurgy",
+  Jack: "metallurgy",
+  Brigandine: "metallurgy",
+  Poleaxe: "metallurgy",
+  Longbow: "woodworking",
+  Crossbow: "woodworking",
+  Shield: "woodworking",
+  "Leather Armor": "leather",
   Bullets: "metallurgy",
   Harnesses: "metallurgy",
   Barrels: "woodworking",

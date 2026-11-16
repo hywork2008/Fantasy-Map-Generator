@@ -1,0 +1,8925 @@
+{
+ "format": "ce-meshless-gate-ribbon-w1a",
+ "version": 1,
+ "note": "cal0: sizing before W1a; cal4 and observation: after W1a (target fill 0.8, bastions reserved, coast path wall-scaled).",
+ "calibrationBefore": [
+  {
+   "seed": "w1a-100-a",
+   "population": 100,
+   "required": 23,
+   "storeys": 2.25,
+   "housingRadius": 46.97,
+   "potential": 89,
+   "perStorey": 39.56,
+   "fill": 0.258
+  },
+  {
+   "seed": "w1a-100-b",
+   "population": 100,
+   "required": 23,
+   "storeys": 2.25,
+   "housingRadius": 46.97,
+   "potential": 89,
+   "perStorey": 39.56,
+   "fill": 0.258
+  },
+  {
+   "seed": "w1a-200-a",
+   "population": 200,
+   "required": 45,
+   "storeys": 2.25,
+   "housingRadius": 55,
+   "potential": 128,
+   "perStorey": 56.89,
+   "fill": 0.352
+  },
+  {
+   "seed": "w1a-200-b",
+   "population": 200,
+   "required": 45,
+   "storeys": 2.25,
+   "housingRadius": 55,
+   "potential": 119,
+   "perStorey": 52.89,
+   "fill": 0.378
+  },
+  {
+   "seed": "w1a-350-a",
+   "population": 350,
+   "required": 78,
+   "storeys": 2.25,
+   "housingRadius": 67.05,
+   "potential": 128,
+   "perStorey": 56.89,
+   "fill": 0.609
+  },
+  {
+   "seed": "w1a-350-b",
+   "population": 350,
+   "required": 78,
+   "storeys": 2.25,
+   "housingRadius": 67.05,
+   "potential": 139,
+   "perStorey": 61.78,
+   "fill": 0.561
+  },
+  {
+   "seed": "w1a-500-a",
+   "population": 500,
+   "required": 112,
+   "storeys": 2.25,
+   "housingRadius": 79.46,
+   "potential": 203,
+   "perStorey": 90.22,
+   "fill": 0.552
+  },
+  {
+   "seed": "w1a-500-b",
+   "population": 500,
+   "required": 112,
+   "storeys": 2.25,
+   "housingRadius": 79.46,
+   "potential": 239,
+   "perStorey": 106.22,
+   "fill": 0.469
+  },
+  {
+   "seed": "w1a-750-a",
+   "population": 750,
+   "required": 167,
+   "storeys": 2.25,
+   "housingRadius": 103.77,
+   "potential": 540,
+   "perStorey": 240,
+   "fill": 0.309
+  },
+  {
+   "seed": "w1a-750-b",
+   "population": 750,
+   "required": 167,
+   "storeys": 2.25,
+   "housingRadius": 103.77,
+   "potential": 498,
+   "perStorey": 221.33,
+   "fill": 0.335
+  },
+  {
+   "seed": "w1a-1000-a",
+   "population": 1000,
+   "required": 223,
+   "storeys": 2.25,
+   "housingRadius": 112.49,
+   "potential": 561,
+   "perStorey": 249.33,
+   "fill": 0.398
+  },
+  {
+   "seed": "w1a-1000-b",
+   "population": 1000,
+   "required": 223,
+   "storeys": 2.25,
+   "housingRadius": 112.49,
+   "potential": 569,
+   "perStorey": 252.89,
+   "fill": 0.392
+  },
+  {
+   "seed": "w1a-1500-a",
+   "population": 1500,
+   "required": 334,
+   "storeys": 2.25,
+   "housingRadius": 126.56,
+   "potential": 754,
+   "perStorey": 335.11,
+   "fill": 0.443
+  },
+  {
+   "seed": "w1a-1500-b",
+   "population": 1500,
+   "required": 334,
+   "storeys": 2.25,
+   "housingRadius": 126.56,
+   "potential": 707,
+   "perStorey": 314.22,
+   "fill": 0.472
+  },
+  {
+   "seed": "w1a-2000-a",
+   "population": 2000,
+   "required": 445,
+   "storeys": 2.25,
+   "housingRadius": 132.19,
+   "potential": 890,
+   "perStorey": 395.56,
+   "fill": 0.5
+  },
+  {
+   "seed": "w1a-2000-b",
+   "population": 2000,
+   "required": 445,
+   "storeys": 2.25,
+   "housingRadius": 132.19,
+   "potential": 891,
+   "perStorey": 396,
+   "fill": 0.499
+  },
+  {
+   "seed": "w1a-3000-a",
+   "population": 3000,
+   "required": 667,
+   "storeys": 2.25,
+   "housingRadius": 143.46,
+   "potential": 1122,
+   "perStorey": 498.67,
+   "fill": 0.594
+  },
+  {
+   "seed": "w1a-3000-b",
+   "population": 3000,
+   "required": 667,
+   "storeys": 2.25,
+   "housingRadius": 143.46,
+   "potential": 1173,
+   "perStorey": 521.33,
+   "fill": 0.569
+  },
+  {
+   "seed": "w1a-5000-a",
+   "population": 5000,
+   "required": 1112,
+   "storeys": 2.25,
+   "housingRadius": 175.11,
+   "potential": 1678,
+   "perStorey": 745.78,
+   "fill": 0.663
+  },
+  {
+   "seed": "w1a-5000-b",
+   "population": 5000,
+   "required": 1112,
+   "storeys": 2.25,
+   "housingRadius": 175.11,
+   "potential": 1672,
+   "perStorey": 743.11,
+   "fill": 0.665
+  },
+  {
+   "seed": "w1a-8000-a",
+   "population": 8000,
+   "required": 1778,
+   "storeys": 2.25,
+   "housingRadius": 218.25,
+   "potential": 2758,
+   "perStorey": 1225.78,
+   "fill": 0.645
+  },
+  {
+   "seed": "w1a-8000-b",
+   "population": 8000,
+   "required": 1778,
+   "storeys": 2.25,
+   "housingRadius": 218.25,
+   "potential": 2669,
+   "perStorey": 1186.22,
+   "fill": 0.666
+  },
+  {
+   "seed": "w1a-12000-a",
+   "population": 12000,
+   "required": 2667,
+   "storeys": 2.25,
+   "housingRadius": 264.6,
+   "potential": 3965,
+   "perStorey": 1762.22,
+   "fill": 0.673
+  },
+  {
+   "seed": "w1a-12000-b",
+   "population": 12000,
+   "required": 2667,
+   "storeys": 2.25,
+   "housingRadius": 264.6,
+   "potential": 3880,
+   "perStorey": 1724.44,
+   "fill": 0.687
+  },
+  {
+   "seed": "w1a-20000-a",
+   "population": 20000,
+   "required": 4445,
+   "storeys": 2.25,
+   "housingRadius": 338.11,
+   "potential": 6566,
+   "perStorey": 2918.22,
+   "fill": 0.677
+  },
+  {
+   "seed": "w1a-20000-b",
+   "population": 20000,
+   "required": 4445,
+   "storeys": 2.25,
+   "housingRadius": 338.11,
+   "potential": 6325,
+   "perStorey": 2811.11,
+   "fill": 0.703
+  },
+  {
+   "seed": "w1a-30000-a",
+   "population": 30000,
+   "required": 6667,
+   "storeys": 2.25,
+   "housingRadius": 411.39,
+   "potential": 9593,
+   "perStorey": 4263.56,
+   "fill": 0.695
+  },
+  {
+   "seed": "w1a-30000-b",
+   "population": 30000,
+   "required": 6667,
+   "storeys": 2.25,
+   "housingRadius": 411.39,
+   "potential": 9830,
+   "perStorey": 4368.89,
+   "fill": 0.678
+  }
+ ],
+ "calibrationAfter": [
+  {
+   "seed": "w1a-100-a",
+   "population": 100,
+   "required": 23,
+   "storeys": 2.25,
+   "housingRadius": 46.97,
+   "potential": 89,
+   "perStorey": 39.56,
+   "fill": 0.258
+  },
+  {
+   "seed": "w1a-100-b",
+   "population": 100,
+   "required": 23,
+   "storeys": 2.25,
+   "housingRadius": 46.97,
+   "potential": 89,
+   "perStorey": 39.56,
+   "fill": 0.258
+  },
+  {
+   "seed": "w1a-200-a",
+   "population": 200,
+   "required": 45,
+   "storeys": 2.25,
+   "housingRadius": 55,
+   "potential": 128,
+   "perStorey": 56.89,
+   "fill": 0.352
+  },
+  {
+   "seed": "w1a-200-b",
+   "population": 200,
+   "required": 45,
+   "storeys": 2.25,
+   "housingRadius": 55,
+   "potential": 119,
+   "perStorey": 52.89,
+   "fill": 0.378
+  },
+  {
+   "seed": "w1a-350-a",
+   "population": 350,
+   "required": 78,
+   "storeys": 2.25,
+   "housingRadius": 67.05,
+   "potential": 115,
+   "perStorey": 51.11,
+   "fill": 0.678
+  },
+  {
+   "seed": "w1a-350-b",
+   "population": 350,
+   "required": 78,
+   "storeys": 2.25,
+   "housingRadius": 67.05,
+   "potential": 131,
+   "perStorey": 58.22,
+   "fill": 0.595
+  },
+  {
+   "seed": "w1a-500-a",
+   "population": 500,
+   "required": 112,
+   "storeys": 2.25,
+   "housingRadius": 79.46,
+   "potential": 160,
+   "perStorey": 71.11,
+   "fill": 0.7
+  },
+  {
+   "seed": "w1a-500-b",
+   "population": 500,
+   "required": 112,
+   "storeys": 2.25,
+   "housingRadius": 79.46,
+   "potential": 147,
+   "perStorey": 65.33,
+   "fill": 0.762
+  },
+  {
+   "seed": "w1a-750-a",
+   "population": 750,
+   "required": 167,
+   "storeys": 2.25,
+   "housingRadius": 103.77,
+   "potential": 292,
+   "perStorey": 129.78,
+   "fill": 0.572
+  },
+  {
+   "seed": "w1a-750-b",
+   "population": 750,
+   "required": 167,
+   "storeys": 2.25,
+   "housingRadius": 103.77,
+   "potential": 299,
+   "perStorey": 132.89,
+   "fill": 0.559
+  },
+  {
+   "seed": "w1a-1000-a",
+   "population": 1000,
+   "required": 223,
+   "storeys": 2.25,
+   "housingRadius": 112.49,
+   "potential": 321,
+   "perStorey": 142.67,
+   "fill": 0.695
+  },
+  {
+   "seed": "w1a-1000-b",
+   "population": 1000,
+   "required": 223,
+   "storeys": 2.25,
+   "housingRadius": 112.49,
+   "potential": 360,
+   "perStorey": 160,
+   "fill": 0.619
+  },
+  {
+   "seed": "w1a-1500-a",
+   "population": 1500,
+   "required": 334,
+   "storeys": 2.25,
+   "housingRadius": 126.56,
+   "potential": 512,
+   "perStorey": 227.56,
+   "fill": 0.652
+  },
+  {
+   "seed": "w1a-1500-b",
+   "population": 1500,
+   "required": 334,
+   "storeys": 2.25,
+   "housingRadius": 126.56,
+   "potential": 507,
+   "perStorey": 225.33,
+   "fill": 0.659
+  },
+  {
+   "seed": "w1a-2000-a",
+   "population": 2000,
+   "required": 445,
+   "storeys": 2.25,
+   "housingRadius": 132.19,
+   "potential": 658,
+   "perStorey": 292.44,
+   "fill": 0.676
+  },
+  {
+   "seed": "w1a-2000-b",
+   "population": 2000,
+   "required": 445,
+   "storeys": 2.25,
+   "housingRadius": 132.19,
+   "potential": 690,
+   "perStorey": 306.67,
+   "fill": 0.645
+  },
+  {
+   "seed": "w1a-3000-a",
+   "population": 3000,
+   "required": 667,
+   "storeys": 2.25,
+   "housingRadius": 143.46,
+   "potential": 849,
+   "perStorey": 377.33,
+   "fill": 0.786
+  },
+  {
+   "seed": "w1a-3000-b",
+   "population": 3000,
+   "required": 667,
+   "storeys": 2.25,
+   "housingRadius": 143.46,
+   "potential": 861,
+   "perStorey": 382.67,
+   "fill": 0.775
+  },
+  {
+   "seed": "w1a-5000-a",
+   "population": 5000,
+   "required": 1112,
+   "storeys": 2.25,
+   "housingRadius": 175.11,
+   "potential": 1534,
+   "perStorey": 681.78,
+   "fill": 0.725
+  },
+  {
+   "seed": "w1a-5000-b",
+   "population": 5000,
+   "required": 1112,
+   "storeys": 2.25,
+   "housingRadius": 175.11,
+   "potential": 1551,
+   "perStorey": 689.33,
+   "fill": 0.717
+  },
+  {
+   "seed": "w1a-8000-a",
+   "population": 8000,
+   "required": 1778,
+   "storeys": 2.25,
+   "housingRadius": 218.25,
+   "potential": 2458,
+   "perStorey": 1092.44,
+   "fill": 0.723
+  },
+  {
+   "seed": "w1a-8000-b",
+   "population": 8000,
+   "required": 1778,
+   "storeys": 2.25,
+   "housingRadius": 218.25,
+   "potential": 2363,
+   "perStorey": 1050.22,
+   "fill": 0.752
+  },
+  {
+   "seed": "w1a-12000-a",
+   "population": 12000,
+   "required": 2667,
+   "storeys": 2.25,
+   "housingRadius": 264.6,
+   "potential": 3142,
+   "perStorey": 1396.44,
+   "fill": 0.849
+  },
+  {
+   "seed": "w1a-12000-b",
+   "population": 12000,
+   "required": 2667,
+   "storeys": 2.25,
+   "housingRadius": 264.6,
+   "potential": 3248,
+   "perStorey": 1443.56,
+   "fill": 0.821
+  },
+  {
+   "seed": "w1a-20000-a",
+   "population": 20000,
+   "required": 4445,
+   "storeys": 2.25,
+   "housingRadius": 338.11,
+   "potential": 5714,
+   "perStorey": 2539.56,
+   "fill": 0.778
+  },
+  {
+   "seed": "w1a-20000-b",
+   "population": 20000,
+   "required": 4445,
+   "storeys": 2.25,
+   "housingRadius": 338.11,
+   "potential": 5763,
+   "perStorey": 2561.33,
+   "fill": 0.771
+  },
+  {
+   "seed": "w1a-30000-a",
+   "population": 30000,
+   "required": 6667,
+   "storeys": 2.25,
+   "housingRadius": 411.39,
+   "potential": 8443,
+   "perStorey": 3752.44,
+   "fill": 0.79
+  },
+  {
+   "seed": "w1a-30000-b",
+   "population": 30000,
+   "required": 6667,
+   "storeys": 2.25,
+   "housingRadius": 411.39,
+   "potential": 8509,
+   "perStorey": 3781.78,
+   "fill": 0.784
+  }
+ ],
+ "observationAfter": {
+  "format": "ce-meshless-gate-ribbon-w0",
+  "version": 1,
+  "measuredAtUtc": "2026-11-10T11:31:13.752Z",
+  "scope": "Standalone sites (native unless a coast is set), no river or coast unless stated, lot occupancy 1, default period. Fabric street blocks classified by centroid: inside the outer wall, shanty ward, roadside ribbon (within 32 m of an approach band beyond 0.8 of its glacis), or ring (the rest beyond the wall). Modes: current lot test; inside = no lot beyond the wall; full = every lot beyond the wall kept.",
+  "rows": [
+   {
+    "seed": "w0-amerford-20261027",
+    "shape": "organic",
+    "population": 2080,
+    "error": "site-center-water"
+   },
+   {
+    "seed": "w0-rombornit-20261031",
+    "shape": "organic",
+    "population": 5941,
+    "error": "Invalid vector document: bridge:fmg-bridge:145:bridge-wall"
+   },
+   {
+    "seed": "w0-round-1000",
+    "shape": "round",
+    "population": 1000,
+    "ms": 858,
+    "wall": "round",
+    "current": {
+     "inputDomainM2": 32061,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.922,
+     "domainOutsideWallM2": 4718,
+     "districtStreetMetersOutside": 480,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 54,
+       "areaM2": 19252,
+       "laneMeters": 536,
+       "houses": 204,
+       "dwellings": 218
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 6,
+       "areaM2": 1370,
+       "laneMeters": 0,
+       "houses": 8,
+       "dwellings": 8
+      },
+      "ring": {
+       "cells": 9,
+       "areaM2": 73,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 218,
+      "capacityOutside": 8,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "inside": {
+     "inputDomainM2": 32061,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.922,
+     "domainOutsideWallM2": 4718,
+     "districtStreetMetersOutside": 480,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 54,
+       "areaM2": 19252,
+       "laneMeters": 536,
+       "houses": 209,
+       "dwellings": 223
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 6,
+       "areaM2": 1370,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 9,
+       "areaM2": 73,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 223,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "full": {
+     "inputDomainM2": 32061,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.922,
+     "domainOutsideWallM2": 4718,
+     "districtStreetMetersOutside": 480,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 54,
+       "areaM2": 19252,
+       "laneMeters": 536,
+       "houses": 197,
+       "dwellings": 211
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 6,
+       "areaM2": 1370,
+       "laneMeters": 0,
+       "houses": 18,
+       "dwellings": 18
+      },
+      "ring": {
+       "cells": 9,
+       "areaM2": 73,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 211,
+      "capacityOutside": 18,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "insidePotential": {
+     "inputDomainM2": 32061,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.922,
+     "domainOutsideWallM2": 4718,
+     "districtStreetMetersOutside": 480,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 54,
+       "areaM2": 19252,
+       "laneMeters": 536,
+       "houses": 290,
+       "dwellings": 312
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 6,
+       "areaM2": 1370,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 9,
+       "areaM2": 73,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 889,
+      "capacityInside": 312,
+      "capacityOutside": 0,
+      "unplacedDwellings": 577,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": []
+    }
+   },
+   {
+    "seed": "w0-round-5000",
+    "shape": "round",
+    "population": 5000,
+    "ms": 1338,
+    "wall": "round",
+    "current": {
+     "inputDomainM2": 113771,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.944,
+     "domainOutsideWallM2": 6411,
+     "districtStreetMetersOutside": 230,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 51,
+       "areaM2": 83281,
+       "laneMeters": 3861,
+       "houses": 1008,
+       "dwellings": 1112
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 7,
+       "areaM2": 383,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1112,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "landmark-unplaced"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 113771,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.944,
+     "domainOutsideWallM2": 6411,
+     "districtStreetMetersOutside": 230,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 51,
+       "areaM2": 83281,
+       "laneMeters": 3861,
+       "houses": 1008,
+       "dwellings": 1112
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 7,
+       "areaM2": 383,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1112,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "landmark-unplaced"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 113771,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.944,
+     "domainOutsideWallM2": 6411,
+     "districtStreetMetersOutside": 230,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 51,
+       "areaM2": 83281,
+       "laneMeters": 3861,
+       "houses": 1005,
+       "dwellings": 1109
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 7,
+       "areaM2": 383,
+       "laneMeters": 0,
+       "houses": 3,
+       "dwellings": 3
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1109,
+      "capacityOutside": 3,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "landmark-unplaced"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 113771,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.944,
+     "domainOutsideWallM2": 6411,
+     "districtStreetMetersOutside": 230,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 51,
+       "areaM2": 83281,
+       "laneMeters": 3861,
+       "houses": 1430,
+       "dwellings": 1589
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 7,
+       "areaM2": 383,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 1589,
+      "capacityOutside": 0,
+      "unplacedDwellings": 2856,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "landmark-unplaced"
+     ]
+    }
+   },
+   {
+    "seed": "w0-round-20000",
+    "shape": "round",
+    "population": 20000,
+    "ms": 3886,
+    "wall": "round",
+    "current": {
+     "inputDomainM2": 387073,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.904,
+     "domainOutsideWallM2": 37300,
+     "districtStreetMetersOutside": 3981,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 140,
+       "areaM2": 319851,
+       "laneMeters": 17738,
+       "houses": 4002,
+       "dwellings": 4482
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 266,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 22,
+       "areaM2": 15358,
+       "laneMeters": 620,
+       "houses": 16,
+       "dwellings": 18
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4482,
+      "capacityOutside": 18,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 387073,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.904,
+     "domainOutsideWallM2": 37300,
+     "districtStreetMetersOutside": 3981,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 140,
+       "areaM2": 319851,
+       "laneMeters": 17738,
+       "houses": 4002,
+       "dwellings": 4482
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 266,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 22,
+       "areaM2": 15358,
+       "laneMeters": 620,
+       "houses": 16,
+       "dwellings": 18
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4482,
+      "capacityOutside": 18,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 387073,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.904,
+     "domainOutsideWallM2": 37300,
+     "districtStreetMetersOutside": 3981,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 140,
+       "areaM2": 319851,
+       "laneMeters": 17738,
+       "houses": 3879,
+       "dwellings": 4331
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 266,
+       "laneMeters": 0,
+       "houses": 3,
+       "dwellings": 3
+      },
+      "ring": {
+       "cells": 22,
+       "areaM2": 15358,
+       "laneMeters": 620,
+       "houses": 240,
+       "dwellings": 242
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4331,
+      "capacityOutside": 245,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 387073,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.904,
+     "domainOutsideWallM2": 37300,
+     "districtStreetMetersOutside": 3981,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 140,
+       "areaM2": 319851,
+       "laneMeters": 17738,
+       "houses": 5271,
+       "dwellings": 5900
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 266,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 22,
+       "areaM2": 15358,
+       "laneMeters": 620,
+       "houses": 16,
+       "dwellings": 18
+      }
+     },
+     "report": {
+      "required": 17778,
+      "capacityInside": 5900,
+      "capacityOutside": 18,
+      "unplacedDwellings": 11860,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    }
+   },
+   {
+    "seed": "w0-oval-1000",
+    "shape": "oval",
+    "population": 1000,
+    "ms": 739,
+    "wall": "oval",
+    "current": {
+     "inputDomainM2": 36395,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.812,
+     "domainOutsideWallM2": 6830,
+     "districtStreetMetersOutside": 668,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 48,
+       "areaM2": 18855,
+       "laneMeters": 596,
+       "houses": 195,
+       "dwellings": 223
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 176,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 15,
+       "areaM2": 2271,
+       "laneMeters": 16,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 223,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "inside": {
+     "inputDomainM2": 36395,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.812,
+     "domainOutsideWallM2": 6830,
+     "districtStreetMetersOutside": 668,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 48,
+       "areaM2": 18855,
+       "laneMeters": 596,
+       "houses": 195,
+       "dwellings": 223
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 176,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 15,
+       "areaM2": 2271,
+       "laneMeters": 16,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 223,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "full": {
+     "inputDomainM2": 36395,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.812,
+     "domainOutsideWallM2": 6830,
+     "districtStreetMetersOutside": 668,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 48,
+       "areaM2": 18855,
+       "laneMeters": 596,
+       "houses": 172,
+       "dwellings": 197
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 176,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 15,
+       "areaM2": 2271,
+       "laneMeters": 16,
+       "houses": 41,
+       "dwellings": 41
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 197,
+      "capacityOutside": 41,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "insidePotential": {
+     "inputDomainM2": 36395,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.812,
+     "domainOutsideWallM2": 6830,
+     "districtStreetMetersOutside": 668,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 48,
+       "areaM2": 18855,
+       "laneMeters": 596,
+       "houses": 298,
+       "dwellings": 338
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 176,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 15,
+       "areaM2": 2271,
+       "laneMeters": 16,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 889,
+      "capacityInside": 338,
+      "capacityOutside": 0,
+      "unplacedDwellings": 551,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": []
+    }
+   },
+   {
+    "seed": "w0-oval-5000",
+    "shape": "oval",
+    "population": 5000,
+    "ms": 1553,
+    "wall": "oval",
+    "current": {
+     "inputDomainM2": 126527,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.849,
+     "domainOutsideWallM2": 19167,
+     "districtStreetMetersOutside": 1608,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 72,
+       "areaM2": 83687,
+       "laneMeters": 3839,
+       "houses": 989,
+       "dwellings": 1112
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 3,
+       "areaM2": 620,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 16,
+       "areaM2": 9933,
+       "laneMeters": 193,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1112,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "landmark-unplaced"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 126527,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.849,
+     "domainOutsideWallM2": 19167,
+     "districtStreetMetersOutside": 1608,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 72,
+       "areaM2": 83687,
+       "laneMeters": 3839,
+       "houses": 989,
+       "dwellings": 1112
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 3,
+       "areaM2": 620,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 16,
+       "areaM2": 9933,
+       "laneMeters": 193,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1112,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "landmark-unplaced"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 126527,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.849,
+     "domainOutsideWallM2": 19167,
+     "districtStreetMetersOutside": 1608,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 72,
+       "areaM2": 83687,
+       "laneMeters": 3839,
+       "houses": 879,
+       "dwellings": 996
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 3,
+       "areaM2": 620,
+       "laneMeters": 0,
+       "houses": 15,
+       "dwellings": 15
+      },
+      "ring": {
+       "cells": 16,
+       "areaM2": 9933,
+       "laneMeters": 193,
+       "houses": 180,
+       "dwellings": 181
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 996,
+      "capacityOutside": 196,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "landmark-unplaced"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 126527,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.849,
+     "domainOutsideWallM2": 19167,
+     "districtStreetMetersOutside": 1608,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 72,
+       "areaM2": 83687,
+       "laneMeters": 3839,
+       "houses": 1460,
+       "dwellings": 1640
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 3,
+       "areaM2": 620,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 16,
+       "areaM2": 9933,
+       "laneMeters": 193,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 1640,
+      "capacityOutside": 0,
+      "unplacedDwellings": 2805,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "landmark-unplaced"
+     ]
+    }
+   },
+   {
+    "seed": "w0-oval-20000",
+    "shape": "oval",
+    "population": 20000,
+    "ms": 4491,
+    "wall": "oval",
+    "current": {
+     "inputDomainM2": 484017,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.723,
+     "domainOutsideWallM2": 134244,
+     "districtStreetMetersOutside": 8270,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 133,
+       "areaM2": 316631,
+       "laneMeters": 15680,
+       "houses": 3959,
+       "dwellings": 4462
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 5,
+       "areaM2": 4667,
+       "laneMeters": 131,
+       "houses": 5,
+       "dwellings": 5
+      },
+      "ring": {
+       "cells": 84,
+       "areaM2": 111181,
+       "laneMeters": 4841,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4462,
+      "capacityOutside": 5,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 484017,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.723,
+     "domainOutsideWallM2": 134244,
+     "districtStreetMetersOutside": 8270,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 133,
+       "areaM2": 316631,
+       "laneMeters": 15680,
+       "houses": 3961,
+       "dwellings": 4464
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 5,
+       "areaM2": 4667,
+       "laneMeters": 131,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 84,
+       "areaM2": 111181,
+       "laneMeters": 4841,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4464,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 484017,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.723,
+     "domainOutsideWallM2": 134244,
+     "districtStreetMetersOutside": 8270,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 133,
+       "areaM2": 316631,
+       "laneMeters": 15680,
+       "houses": 2996,
+       "dwellings": 3371
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 5,
+       "areaM2": 4667,
+       "laneMeters": 131,
+       "houses": 82,
+       "dwellings": 82
+      },
+      "ring": {
+       "cells": 84,
+       "areaM2": 111181,
+       "laneMeters": 4841,
+       "houses": 1837,
+       "dwellings": 1838
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 3371,
+      "capacityOutside": 1920,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 484017,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.723,
+     "domainOutsideWallM2": 134244,
+     "districtStreetMetersOutside": 8270,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 133,
+       "areaM2": 316631,
+       "laneMeters": 15680,
+       "houses": 5178,
+       "dwellings": 5877
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 5,
+       "areaM2": 4667,
+       "laneMeters": 131,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 84,
+       "areaM2": 111181,
+       "laneMeters": 4841,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 17778,
+      "capacityInside": 5877,
+      "capacityOutside": 0,
+      "unplacedDwellings": 11901,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    }
+   },
+   {
+    "seed": "w0-organic-1000",
+    "shape": "organic",
+    "population": 1000,
+    "ms": 859,
+    "wall": "organic",
+    "current": {
+     "inputDomainM2": 36022,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.821,
+     "domainOutsideWallM2": 6457,
+     "districtStreetMetersOutside": 538,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 43,
+       "areaM2": 19966,
+       "laneMeters": 916,
+       "houses": 203,
+       "dwellings": 223
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 30,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 9,
+       "areaM2": 1682,
+       "laneMeters": 17,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 223,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 36022,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.821,
+     "domainOutsideWallM2": 6457,
+     "districtStreetMetersOutside": 538,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 43,
+       "areaM2": 19966,
+       "laneMeters": 916,
+       "houses": 203,
+       "dwellings": 223
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 30,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 9,
+       "areaM2": 1682,
+       "laneMeters": 17,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 223,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 36022,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.821,
+     "domainOutsideWallM2": 6457,
+     "districtStreetMetersOutside": 538,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 43,
+       "areaM2": 19966,
+       "laneMeters": 916,
+       "houses": 181,
+       "dwellings": 199
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 30,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 9,
+       "areaM2": 1682,
+       "laneMeters": 17,
+       "houses": 29,
+       "dwellings": 29
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 199,
+      "capacityOutside": 29,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 36022,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.821,
+     "domainOutsideWallM2": 6457,
+     "districtStreetMetersOutside": 538,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 43,
+       "areaM2": 19966,
+       "laneMeters": 916,
+       "houses": 312,
+       "dwellings": 343
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 30,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 9,
+       "areaM2": 1682,
+       "laneMeters": 17,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 889,
+      "capacityInside": 343,
+      "capacityOutside": 0,
+      "unplacedDwellings": 546,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    }
+   },
+   {
+    "seed": "w0-organic-5000",
+    "shape": "organic",
+    "population": 5000,
+    "ms": 1450,
+    "wall": "organic",
+    "current": {
+     "inputDomainM2": 127513,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.842,
+     "domainOutsideWallM2": 20153,
+     "districtStreetMetersOutside": 2184,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 50,
+       "areaM2": 83381,
+       "laneMeters": 3861,
+       "houses": 1024,
+       "dwellings": 1112
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 4,
+       "areaM2": 1590,
+       "laneMeters": 24,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 32,
+       "areaM2": 9897,
+       "laneMeters": 253,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1112,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "landmark-unplaced"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 127513,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.842,
+     "domainOutsideWallM2": 20153,
+     "districtStreetMetersOutside": 2184,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 50,
+       "areaM2": 83381,
+       "laneMeters": 3861,
+       "houses": 1024,
+       "dwellings": 1112
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 4,
+       "areaM2": 1590,
+       "laneMeters": 24,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 32,
+       "areaM2": 9897,
+       "laneMeters": 253,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1112,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "landmark-unplaced"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 127513,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.842,
+     "domainOutsideWallM2": 20153,
+     "districtStreetMetersOutside": 2184,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 50,
+       "areaM2": 83381,
+       "laneMeters": 3861,
+       "houses": 900,
+       "dwellings": 976
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 4,
+       "areaM2": 1590,
+       "laneMeters": 24,
+       "houses": 31,
+       "dwellings": 31
+      },
+      "ring": {
+       "cells": 32,
+       "areaM2": 9897,
+       "laneMeters": 253,
+       "houses": 178,
+       "dwellings": 178
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 976,
+      "capacityOutside": 209,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "landmark-unplaced"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 127513,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.842,
+     "domainOutsideWallM2": 20153,
+     "districtStreetMetersOutside": 2184,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 50,
+       "areaM2": 83381,
+       "laneMeters": 3861,
+       "houses": 1530,
+       "dwellings": 1661
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 4,
+       "areaM2": 1590,
+       "laneMeters": 24,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 32,
+       "areaM2": 9897,
+       "laneMeters": 253,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 1661,
+      "capacityOutside": 0,
+      "unplacedDwellings": 2784,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "landmark-unplaced"
+     ]
+    }
+   },
+   {
+    "seed": "w0-organic-20000",
+    "shape": "organic",
+    "population": 20000,
+    "ms": 4060,
+    "wall": "organic",
+    "current": {
+     "inputDomainM2": 419721,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.833,
+     "domainOutsideWallM2": 69948,
+     "districtStreetMetersOutside": 4934,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 134,
+       "areaM2": 318516,
+       "laneMeters": 14925,
+       "houses": 3900,
+       "dwellings": 4443
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 5,
+       "areaM2": 919,
+       "laneMeters": 0,
+       "houses": 2,
+       "dwellings": 2
+      },
+      "ring": {
+       "cells": 31,
+       "areaM2": 51422,
+       "laneMeters": 2486,
+       "houses": 1,
+       "dwellings": 1
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4443,
+      "capacityOutside": 3,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 419721,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.833,
+     "domainOutsideWallM2": 69948,
+     "districtStreetMetersOutside": 4934,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 134,
+       "areaM2": 318516,
+       "laneMeters": 14925,
+       "houses": 3902,
+       "dwellings": 4446
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 5,
+       "areaM2": 919,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 31,
+       "areaM2": 51422,
+       "laneMeters": 2486,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4446,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 419721,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.833,
+     "domainOutsideWallM2": 69948,
+     "districtStreetMetersOutside": 4934,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 134,
+       "areaM2": 318516,
+       "laneMeters": 14925,
+       "houses": 3363,
+       "dwellings": 3828
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 5,
+       "areaM2": 919,
+       "laneMeters": 0,
+       "houses": 19,
+       "dwellings": 19
+      },
+      "ring": {
+       "cells": 31,
+       "areaM2": 51422,
+       "laneMeters": 2486,
+       "houses": 915,
+       "dwellings": 916
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 3828,
+      "capacityOutside": 935,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 419721,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.833,
+     "domainOutsideWallM2": 69948,
+     "districtStreetMetersOutside": 4934,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 134,
+       "areaM2": 318516,
+       "laneMeters": 14925,
+       "houses": 4995,
+       "dwellings": 5666
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 5,
+       "areaM2": 919,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 31,
+       "areaM2": 51422,
+       "laneMeters": 2486,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 17778,
+      "capacityInside": 5666,
+      "capacityOutside": 0,
+      "unplacedDwellings": 12112,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    }
+   },
+   {
+    "seed": "w0-polygon-1000",
+    "shape": "polygon",
+    "population": 1000,
+    "ms": 335,
+    "wall": "polygon",
+    "wallSides": 5,
+    "current": {
+     "inputDomainM2": 41404,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.714,
+     "domainOutsideWallM2": 11839,
+     "districtStreetMetersOutside": 1757,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 24,
+       "areaM2": 21046,
+       "laneMeters": 944,
+       "houses": 195,
+       "dwellings": 223
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 7,
+       "areaM2": 985,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 42,
+       "areaM2": 5142,
+       "laneMeters": 3,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 223,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "inside": {
+     "inputDomainM2": 41404,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.714,
+     "domainOutsideWallM2": 11839,
+     "districtStreetMetersOutside": 1757,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 24,
+       "areaM2": 21046,
+       "laneMeters": 944,
+       "houses": 195,
+       "dwellings": 223
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 7,
+       "areaM2": 985,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 42,
+       "areaM2": 5142,
+       "laneMeters": 3,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 223,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "full": {
+     "inputDomainM2": 41404,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.714,
+     "domainOutsideWallM2": 11839,
+     "districtStreetMetersOutside": 1757,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 24,
+       "areaM2": 21046,
+       "laneMeters": 944,
+       "houses": 158,
+       "dwellings": 178
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 7,
+       "areaM2": 985,
+       "laneMeters": 0,
+       "houses": 14,
+       "dwellings": 14
+      },
+      "ring": {
+       "cells": 42,
+       "areaM2": 5142,
+       "laneMeters": 3,
+       "houses": 83,
+       "dwellings": 84
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 178,
+      "capacityOutside": 98,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "insidePotential": {
+     "inputDomainM2": 41404,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.714,
+     "domainOutsideWallM2": 11839,
+     "districtStreetMetersOutside": 1757,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 24,
+       "areaM2": 21046,
+       "laneMeters": 944,
+       "houses": 316,
+       "dwellings": 357
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 7,
+       "areaM2": 985,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 42,
+       "areaM2": 5142,
+       "laneMeters": 3,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 889,
+      "capacityInside": 357,
+      "capacityOutside": 0,
+      "unplacedDwellings": 532,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": []
+    }
+   },
+   {
+    "seed": "w0-polygon-5000",
+    "shape": "polygon",
+    "population": 5000,
+    "ms": 740,
+    "wall": "polygon",
+    "wallSides": 7,
+    "current": {
+     "inputDomainM2": 127144,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.844,
+     "domainOutsideWallM2": 19784,
+     "districtStreetMetersOutside": 2105,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 36,
+       "areaM2": 85246,
+       "laneMeters": 4613,
+       "houses": 996,
+       "dwellings": 1112
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 11,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 40,
+       "areaM2": 10206,
+       "laneMeters": 118,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1112,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "landmark-unplaced",
+      "land-without-frontage"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 127144,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.844,
+     "domainOutsideWallM2": 19784,
+     "districtStreetMetersOutside": 2105,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 36,
+       "areaM2": 85246,
+       "laneMeters": 4613,
+       "houses": 996,
+       "dwellings": 1112
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 11,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 40,
+       "areaM2": 10206,
+       "laneMeters": 118,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1112,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "landmark-unplaced",
+      "land-without-frontage"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 127144,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.844,
+     "domainOutsideWallM2": 19784,
+     "districtStreetMetersOutside": 2105,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 36,
+       "areaM2": 85246,
+       "laneMeters": 4613,
+       "houses": 890,
+       "dwellings": 993
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 11,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 40,
+       "areaM2": 10206,
+       "laneMeters": 118,
+       "houses": 177,
+       "dwellings": 177
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 993,
+      "capacityOutside": 177,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "landmark-unplaced",
+      "land-without-frontage"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 127144,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.844,
+     "domainOutsideWallM2": 19784,
+     "districtStreetMetersOutside": 2105,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 36,
+       "areaM2": 85246,
+       "laneMeters": 4613,
+       "houses": 1380,
+       "dwellings": 1534
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 1,
+       "areaM2": 11,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 40,
+       "areaM2": 10206,
+       "laneMeters": 118,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 1534,
+      "capacityOutside": 0,
+      "unplacedDwellings": 2911,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "landmark-unplaced",
+      "land-without-frontage"
+     ]
+    }
+   },
+   {
+    "seed": "w0-polygon-20000",
+    "shape": "polygon",
+    "population": 20000,
+    "ms": 2484,
+    "wall": "polygon",
+    "wallSides": 7,
+    "current": {
+     "inputDomainM2": 431938,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.81,
+     "domainOutsideWallM2": 82165,
+     "districtStreetMetersOutside": 6316,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 125,
+       "areaM2": 313040,
+       "laneMeters": 14838,
+       "houses": 3935,
+       "dwellings": 4442
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 13,
+       "areaM2": 3991,
+       "laneMeters": 83,
+       "houses": 2,
+       "dwellings": 2
+      },
+      "ring": {
+       "cells": 47,
+       "areaM2": 61423,
+       "laneMeters": 2739,
+       "houses": 2,
+       "dwellings": 2
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4442,
+      "capacityOutside": 4,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 431938,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.81,
+     "domainOutsideWallM2": 82165,
+     "districtStreetMetersOutside": 6316,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 125,
+       "areaM2": 313040,
+       "laneMeters": 14838,
+       "houses": 3937,
+       "dwellings": 4445
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 13,
+       "areaM2": 3991,
+       "laneMeters": 83,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 47,
+       "areaM2": 61423,
+       "laneMeters": 2739,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4445,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 431938,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.81,
+     "domainOutsideWallM2": 82165,
+     "districtStreetMetersOutside": 6316,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 125,
+       "areaM2": 313040,
+       "laneMeters": 14838,
+       "houses": 3285,
+       "dwellings": 3703
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 13,
+       "areaM2": 3991,
+       "laneMeters": 83,
+       "houses": 73,
+       "dwellings": 73
+      },
+      "ring": {
+       "cells": 47,
+       "areaM2": 61423,
+       "laneMeters": 2739,
+       "houses": 1027,
+       "dwellings": 1030
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 3703,
+      "capacityOutside": 1103,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 431938,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.81,
+     "domainOutsideWallM2": 82165,
+     "districtStreetMetersOutside": 6316,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 125,
+       "areaM2": 313040,
+       "laneMeters": 14838,
+       "houses": 4989,
+       "dwellings": 5621
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 13,
+       "areaM2": 3991,
+       "laneMeters": 83,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 47,
+       "areaM2": 61423,
+       "laneMeters": 2739,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 17778,
+      "capacityInside": 5621,
+      "capacityOutside": 0,
+      "unplacedDwellings": 12157,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    }
+   },
+   {
+    "seed": "w0-square-1000",
+    "shape": "square",
+    "population": 1000,
+    "ms": 468,
+    "wall": "square",
+    "current": {
+     "inputDomainM2": 49710,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.595,
+     "domainOutsideWallM2": 20145,
+     "districtStreetMetersOutside": 2387,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:5",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:6",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:11",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:12",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:17",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:18",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:19",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "feature:civic-cemetery:access",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 15,
+       "areaM2": 21357,
+       "laneMeters": 1229,
+       "houses": 192,
+       "dwellings": 223
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 30,
+       "areaM2": 8478,
+       "laneMeters": 200,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 45,
+       "areaM2": 6833,
+       "laneMeters": 91,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 223,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "inside": {
+     "inputDomainM2": 49710,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.595,
+     "domainOutsideWallM2": 20145,
+     "districtStreetMetersOutside": 2387,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:5",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:6",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:11",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:12",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:17",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:18",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:19",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "feature:civic-cemetery:access",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 15,
+       "areaM2": 21357,
+       "laneMeters": 1229,
+       "houses": 192,
+       "dwellings": 223
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 30,
+       "areaM2": 8478,
+       "laneMeters": 200,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 45,
+       "areaM2": 6833,
+       "laneMeters": 91,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 223,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "full": {
+     "inputDomainM2": 49710,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.595,
+     "domainOutsideWallM2": 20145,
+     "districtStreetMetersOutside": 2387,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:5",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:6",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:11",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:12",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:17",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:18",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:19",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "feature:civic-cemetery:access",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 15,
+       "areaM2": 21357,
+       "laneMeters": 1229,
+       "houses": 117,
+       "dwellings": 131
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 30,
+       "areaM2": 8478,
+       "laneMeters": 200,
+       "houses": 159,
+       "dwellings": 159
+      },
+      "ring": {
+       "cells": 45,
+       "areaM2": 6833,
+       "laneMeters": 91,
+       "houses": 105,
+       "dwellings": 105
+      }
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 131,
+      "capacityOutside": 264,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "insidePotential": {
+     "inputDomainM2": 49710,
+     "wallInteriorM2": 29565,
+     "wallShareOfInput": 0.595,
+     "domainOutsideWallM2": 20145,
+     "districtStreetMetersOutside": 2387,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:5",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:6",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:11",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:12",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:17",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:18",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:19",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "feature:civic-cemetery:access",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 15,
+       "areaM2": 21357,
+       "laneMeters": 1229,
+       "houses": 364,
+       "dwellings": 430
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 30,
+       "areaM2": 8478,
+       "laneMeters": 200,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 45,
+       "areaM2": 6833,
+       "laneMeters": 91,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 889,
+      "capacityInside": 430,
+      "capacityOutside": 0,
+      "unplacedDwellings": 459,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": []
+    }
+   },
+   {
+    "seed": "w0-square-5000",
+    "shape": "square",
+    "population": 5000,
+    "ms": 1091,
+    "wall": "square",
+    "current": {
+     "inputDomainM2": 175286,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.612,
+     "domainOutsideWallM2": 67925,
+     "districtStreetMetersOutside": 4264,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:12",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:13",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 35,
+       "areaM2": 88845,
+       "laneMeters": 4660,
+       "houses": 979,
+       "dwellings": 1110
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 5,
+       "areaM2": 7050,
+       "laneMeters": 330,
+       "houses": 3,
+       "dwellings": 3
+      },
+      "ring": {
+       "cells": 29,
+       "areaM2": 49922,
+       "laneMeters": 2463,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1110,
+      "capacityOutside": 3,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 175286,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.612,
+     "domainOutsideWallM2": 67925,
+     "districtStreetMetersOutside": 4264,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:12",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:13",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 35,
+       "areaM2": 88845,
+       "laneMeters": 4660,
+       "houses": 981,
+       "dwellings": 1112
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 5,
+       "areaM2": 7050,
+       "laneMeters": 330,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 29,
+       "areaM2": 49922,
+       "laneMeters": 2463,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1112,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 175286,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.612,
+     "domainOutsideWallM2": 67925,
+     "districtStreetMetersOutside": 4264,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:12",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:13",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 35,
+       "areaM2": 88845,
+       "laneMeters": 4660,
+       "houses": 598,
+       "dwellings": 680
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 5,
+       "areaM2": 7050,
+       "laneMeters": 330,
+       "houses": 149,
+       "dwellings": 149
+      },
+      "ring": {
+       "cells": 29,
+       "areaM2": 49922,
+       "laneMeters": 2463,
+       "houses": 844,
+       "dwellings": 852
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 680,
+      "capacityOutside": 1001,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 175286,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.612,
+     "domainOutsideWallM2": 67925,
+     "districtStreetMetersOutside": 4264,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:12",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:13",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 35,
+       "areaM2": 88845,
+       "laneMeters": 4660,
+       "houses": 1420,
+       "dwellings": 1611
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 5,
+       "areaM2": 7050,
+       "laneMeters": 330,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 29,
+       "areaM2": 49922,
+       "laneMeters": 2463,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 1611,
+      "capacityOutside": 0,
+      "unplacedDwellings": 2834,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    }
+   },
+   {
+    "seed": "w0-square-20000",
+    "shape": "square",
+    "population": 20000,
+    "ms": 3144,
+    "wall": "square",
+    "current": {
+     "inputDomainM2": 568557,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.615,
+     "domainOutsideWallM2": 218785,
+     "districtStreetMetersOutside": 10969,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 120,
+       "areaM2": 314709,
+       "laneMeters": 15362,
+       "houses": 3950,
+       "dwellings": 4431
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 4,
+       "areaM2": 9465,
+       "laneMeters": 504,
+       "houses": 16,
+       "dwellings": 16
+      },
+      "ring": {
+       "cells": 78,
+       "areaM2": 187177,
+       "laneMeters": 8656,
+       "houses": 3,
+       "dwellings": 3
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4431,
+      "capacityOutside": 19,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "branch-unreachable"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 568557,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.615,
+     "domainOutsideWallM2": 218785,
+     "districtStreetMetersOutside": 10969,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 120,
+       "areaM2": 314709,
+       "laneMeters": 15362,
+       "houses": 3954,
+       "dwellings": 4436
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 4,
+       "areaM2": 9465,
+       "laneMeters": 504,
+       "houses": 14,
+       "dwellings": 14
+      },
+      "ring": {
+       "cells": 78,
+       "areaM2": 187177,
+       "laneMeters": 8656,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4436,
+      "capacityOutside": 14,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "branch-unreachable"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 568557,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.615,
+     "domainOutsideWallM2": 218785,
+     "districtStreetMetersOutside": 10969,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 120,
+       "areaM2": 314709,
+       "laneMeters": 15362,
+       "houses": 2498,
+       "dwellings": 2819
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 4,
+       "areaM2": 9465,
+       "laneMeters": 504,
+       "houses": 138,
+       "dwellings": 138
+      },
+      "ring": {
+       "cells": 78,
+       "areaM2": 187177,
+       "laneMeters": 8656,
+       "houses": 3065,
+       "dwellings": 3073
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 2819,
+      "capacityOutside": 3211,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "branch-unreachable"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 568557,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.615,
+     "domainOutsideWallM2": 218785,
+     "districtStreetMetersOutside": 10969,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 120,
+       "areaM2": 314709,
+       "laneMeters": 15362,
+       "houses": 5072,
+       "dwellings": 5701
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 4,
+       "areaM2": 9465,
+       "laneMeters": 504,
+       "houses": 14,
+       "dwellings": 14
+      },
+      "ring": {
+       "cells": 78,
+       "areaM2": 187177,
+       "laneMeters": 8656,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 17778,
+      "capacityInside": 5701,
+      "capacityOutside": 14,
+      "unplacedDwellings": 12063,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "branch-unreachable"
+     ]
+    }
+   },
+   {
+    "seed": "w0-bastioned-1000",
+    "shape": "bastioned",
+    "population": 1000,
+    "ms": 763,
+    "wall": "bastioned",
+    "wallSides": 7,
+    "current": {
+     "inputDomainM2": 53458,
+     "wallInteriorM2": 34681,
+     "wallShareOfInput": 0.649,
+     "domainOutsideWallM2": 18777,
+     "districtStreetMetersOutside": 2066,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 17,
+       "areaM2": 23108,
+       "laneMeters": 1202,
+       "houses": 212,
+       "dwellings": 226
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 14,
+       "areaM2": 2778,
+       "laneMeters": 55,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 35,
+       "areaM2": 9871,
+       "laneMeters": 283,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "bastions": {
+      "bastions": 7,
+      "areaM2": 5116,
+      "houses": 3,
+      "dwellings": 3
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 226,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "branch-unreachable",
+      "branch-unreachable",
+      "branch-unreachable"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 53458,
+     "wallInteriorM2": 34681,
+     "wallShareOfInput": 0.649,
+     "domainOutsideWallM2": 18777,
+     "districtStreetMetersOutside": 2066,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 17,
+       "areaM2": 23108,
+       "laneMeters": 1202,
+       "houses": 212,
+       "dwellings": 226
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 14,
+       "areaM2": 2778,
+       "laneMeters": 55,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 35,
+       "areaM2": 9871,
+       "laneMeters": 283,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "bastions": {
+      "bastions": 7,
+      "areaM2": 5116,
+      "houses": 3,
+      "dwellings": 3
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 226,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "branch-unreachable",
+      "branch-unreachable",
+      "branch-unreachable"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 53458,
+     "wallInteriorM2": 34681,
+     "wallShareOfInput": 0.649,
+     "domainOutsideWallM2": 18777,
+     "districtStreetMetersOutside": 2066,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 17,
+       "areaM2": 23108,
+       "laneMeters": 1202,
+       "houses": 137,
+       "dwellings": 147
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 14,
+       "areaM2": 2778,
+       "laneMeters": 55,
+       "houses": 46,
+       "dwellings": 46
+      },
+      "ring": {
+       "cells": 35,
+       "areaM2": 9871,
+       "laneMeters": 283,
+       "houses": 171,
+       "dwellings": 171
+      }
+     },
+     "bastions": {
+      "bastions": 7,
+      "areaM2": 5116,
+      "houses": 1,
+      "dwellings": 1
+     },
+     "report": {
+      "required": 223,
+      "capacityInside": 147,
+      "capacityOutside": 217,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "branch-unreachable",
+      "branch-unreachable",
+      "branch-unreachable"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 53458,
+     "wallInteriorM2": 34681,
+     "wallShareOfInput": 0.649,
+     "domainOutsideWallM2": 18777,
+     "districtStreetMetersOutside": 2066,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 17,
+       "areaM2": 23108,
+       "laneMeters": 1202,
+       "houses": 344,
+       "dwellings": 380
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 14,
+       "areaM2": 2778,
+       "laneMeters": 55,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 35,
+       "areaM2": 9871,
+       "laneMeters": 283,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "bastions": {
+      "bastions": 7,
+      "areaM2": 5116,
+      "houses": 8,
+      "dwellings": 9
+     },
+     "report": {
+      "required": 889,
+      "capacityInside": 380,
+      "capacityOutside": 0,
+      "unplacedDwellings": 509,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "branch-unreachable",
+      "branch-unreachable",
+      "branch-unreachable"
+     ]
+    }
+   },
+   {
+    "seed": "w0-bastioned-5000",
+    "shape": "bastioned",
+    "population": 5000,
+    "ms": 1354,
+    "wall": "bastioned",
+    "wallSides": 8,
+    "current": {
+     "inputDomainM2": 186930,
+     "wallInteriorM2": 120553,
+     "wallShareOfInput": 0.645,
+     "domainOutsideWallM2": 66377,
+     "districtStreetMetersOutside": 4638,
+     "bands": [
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 34,
+       "areaM2": 94892,
+       "laneMeters": 5148,
+       "houses": 994,
+       "dwellings": 1189
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 4,
+       "areaM2": 8247,
+       "laneMeters": 338,
+       "houses": 37,
+       "dwellings": 37
+      },
+      "ring": {
+       "cells": 33,
+       "areaM2": 36782,
+       "laneMeters": 1873,
+       "houses": 2,
+       "dwellings": 2
+      }
+     },
+     "bastions": {
+      "bastions": 8,
+      "areaM2": 13193,
+      "houses": 7,
+      "dwellings": 7
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1189,
+      "capacityOutside": 39,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 186930,
+     "wallInteriorM2": 120553,
+     "wallShareOfInput": 0.645,
+     "domainOutsideWallM2": 66377,
+     "districtStreetMetersOutside": 4638,
+     "bands": [
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 34,
+       "areaM2": 94892,
+       "laneMeters": 5148,
+       "houses": 995,
+       "dwellings": 1190
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 4,
+       "areaM2": 8247,
+       "laneMeters": 338,
+       "houses": 37,
+       "dwellings": 37
+      },
+      "ring": {
+       "cells": 33,
+       "areaM2": 36782,
+       "laneMeters": 1873,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "bastions": {
+      "bastions": 8,
+      "areaM2": 13193,
+      "houses": 7,
+      "dwellings": 7
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1190,
+      "capacityOutside": 37,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 186930,
+     "wallInteriorM2": 120553,
+     "wallShareOfInput": 0.645,
+     "domainOutsideWallM2": 66377,
+     "districtStreetMetersOutside": 4638,
+     "bands": [
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 34,
+       "areaM2": 94892,
+       "laneMeters": 5148,
+       "houses": 918,
+       "dwellings": 1100
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 4,
+       "areaM2": 8247,
+       "laneMeters": 338,
+       "houses": 119,
+       "dwellings": 119
+      },
+      "ring": {
+       "cells": 33,
+       "areaM2": 36782,
+       "laneMeters": 1873,
+       "houses": 641,
+       "dwellings": 641
+      }
+     },
+     "bastions": {
+      "bastions": 8,
+      "areaM2": 13193,
+      "houses": 3,
+      "dwellings": 3
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1100,
+      "capacityOutside": 760,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 186930,
+     "wallInteriorM2": 120553,
+     "wallShareOfInput": 0.645,
+     "domainOutsideWallM2": 66377,
+     "districtStreetMetersOutside": 4638,
+     "bands": [
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:4",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 34,
+       "areaM2": 94892,
+       "laneMeters": 5148,
+       "houses": 1322,
+       "dwellings": 1565
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 4,
+       "areaM2": 8247,
+       "laneMeters": 338,
+       "houses": 37,
+       "dwellings": 37
+      },
+      "ring": {
+       "cells": 33,
+       "areaM2": 36782,
+       "laneMeters": 1873,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "bastions": {
+      "bastions": 8,
+      "areaM2": 13193,
+      "houses": 12,
+      "dwellings": 12
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 1565,
+      "capacityOutside": 37,
+      "unplacedDwellings": 2843,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    }
+   },
+   {
+    "seed": "w0-bastioned-20000",
+    "shape": "bastioned",
+    "population": 20000,
+    "ms": 3297,
+    "wall": "bastioned",
+    "wallSides": 8,
+    "current": {
+     "inputDomainM2": 565201,
+     "wallInteriorM2": 396956,
+     "wallShareOfInput": 0.702,
+     "domainOutsideWallM2": 168245,
+     "districtStreetMetersOutside": 9934,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 124,
+       "areaM2": 333657,
+       "laneMeters": 16496,
+       "houses": 3974,
+       "dwellings": 4452
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 2,
+       "areaM2": 1168,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 57,
+       "areaM2": 141181,
+       "laneMeters": 7248,
+       "houses": 2,
+       "dwellings": 2
+      }
+     },
+     "bastions": {
+      "bastions": 8,
+      "areaM2": 47183,
+      "houses": 122,
+      "dwellings": 131
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4452,
+      "capacityOutside": 2,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 565201,
+     "wallInteriorM2": 396956,
+     "wallShareOfInput": 0.702,
+     "domainOutsideWallM2": 168245,
+     "districtStreetMetersOutside": 9934,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 124,
+       "areaM2": 333657,
+       "laneMeters": 16496,
+       "houses": 3974,
+       "dwellings": 4452
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 2,
+       "areaM2": 1168,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 57,
+       "areaM2": 141181,
+       "laneMeters": 7248,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "bastions": {
+      "bastions": 8,
+      "areaM2": 47183,
+      "houses": 122,
+      "dwellings": 131
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4452,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 565201,
+     "wallInteriorM2": 396956,
+     "wallShareOfInput": 0.702,
+     "domainOutsideWallM2": 168245,
+     "districtStreetMetersOutside": 9934,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 124,
+       "areaM2": 333657,
+       "laneMeters": 16496,
+       "houses": 2896,
+       "dwellings": 3242
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 2,
+       "areaM2": 1168,
+       "laneMeters": 0,
+       "houses": 16,
+       "dwellings": 16
+      },
+      "ring": {
+       "cells": 57,
+       "areaM2": 141181,
+       "laneMeters": 7248,
+       "houses": 2378,
+       "dwellings": 2387
+      }
+     },
+     "bastions": {
+      "bastions": 8,
+      "areaM2": 47183,
+      "houses": 85,
+      "dwellings": 91
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 3242,
+      "capacityOutside": 2403,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 565201,
+     "wallInteriorM2": 396956,
+     "wallShareOfInput": 0.702,
+     "domainOutsideWallM2": 168245,
+     "districtStreetMetersOutside": 9934,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 124,
+       "areaM2": 333657,
+       "laneMeters": 16496,
+       "houses": 5321,
+       "dwellings": 5980
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 2,
+       "areaM2": 1168,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 57,
+       "areaM2": 141181,
+       "laneMeters": 7248,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "bastions": {
+      "bastions": 8,
+      "areaM2": 47183,
+      "houses": 157,
+      "dwellings": 166
+     },
+     "report": {
+      "required": 17778,
+      "capacityInside": 5980,
+      "capacityOutside": 0,
+      "unplacedDwellings": 11798,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "monastery-unplaced"
+     ]
+    }
+   },
+   {
+    "seed": "w0-polygon-5000-river",
+    "shape": "polygon",
+    "population": 5000,
+    "rivers": [
+     "through"
+    ],
+    "ms": 961,
+    "wall": "polygon",
+    "wallSides": 6,
+    "current": {
+     "inputDomainM2": 137668,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.78,
+     "domainOutsideWallM2": 30308,
+     "districtStreetMetersOutside": 2755,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 51,
+       "areaM2": 84796,
+       "laneMeters": 4011,
+       "houses": 1013,
+       "dwellings": 1121
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 13,
+       "areaM2": 2056,
+       "laneMeters": 18,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 40,
+       "areaM2": 12820,
+       "laneMeters": 200,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1121,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced",
+      "landmark-unplaced",
+      "land-without-frontage"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 137668,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.78,
+     "domainOutsideWallM2": 30308,
+     "districtStreetMetersOutside": 2755,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 51,
+       "areaM2": 84796,
+       "laneMeters": 4011,
+       "houses": 1013,
+       "dwellings": 1121
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 13,
+       "areaM2": 2056,
+       "laneMeters": 18,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 40,
+       "areaM2": 12820,
+       "laneMeters": 200,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1121,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced",
+      "landmark-unplaced",
+      "land-without-frontage"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 137668,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.78,
+     "domainOutsideWallM2": 30308,
+     "districtStreetMetersOutside": 2755,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 51,
+       "areaM2": 84796,
+       "laneMeters": 4011,
+       "houses": 861,
+       "dwellings": 952
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 13,
+       "areaM2": 2056,
+       "laneMeters": 18,
+       "houses": 30,
+       "dwellings": 31
+      },
+      "ring": {
+       "cells": 40,
+       "areaM2": 12820,
+       "laneMeters": 200,
+       "houses": 248,
+       "dwellings": 249
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 952,
+      "capacityOutside": 280,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced",
+      "landmark-unplaced",
+      "land-without-frontage"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 137668,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.78,
+     "domainOutsideWallM2": 30308,
+     "districtStreetMetersOutside": 2755,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 51,
+       "areaM2": 84796,
+       "laneMeters": 4011,
+       "houses": 1315,
+       "dwellings": 1458
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 13,
+       "areaM2": 2056,
+       "laneMeters": 18,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 40,
+       "areaM2": 12820,
+       "laneMeters": 200,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 1458,
+      "capacityOutside": 0,
+      "unplacedDwellings": 2987,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "monastery-unplaced",
+      "landmark-unplaced",
+      "land-without-frontage"
+     ]
+    }
+   },
+   {
+    "seed": "w0-polygon-5000-bay",
+    "shape": "polygon",
+    "population": 5000,
+    "coast": "bay",
+    "ms": 964,
+    "wall": "polygon",
+    "wallSides": 8,
+    "current": {
+     "inputDomainM2": 170485,
+     "wallInteriorM2": 99516,
+     "wallShareOfInput": 0.584,
+     "domainOutsideWallM2": 70969,
+     "districtStreetMetersOutside": 1430,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 36,
+       "areaM2": 82595,
+       "laneMeters": 4072,
+       "houses": 996,
+       "dwellings": 1112
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 3,
+       "areaM2": 575,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 35,
+       "areaM2": 6393,
+       "laneMeters": 22,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1112,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "inside": {
+     "inputDomainM2": 170485,
+     "wallInteriorM2": 99516,
+     "wallShareOfInput": 0.584,
+     "domainOutsideWallM2": 70969,
+     "districtStreetMetersOutside": 1430,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 36,
+       "areaM2": 82595,
+       "laneMeters": 4072,
+       "houses": 996,
+       "dwellings": 1112
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 3,
+       "areaM2": 575,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 35,
+       "areaM2": 6393,
+       "laneMeters": 22,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1112,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "full": {
+     "inputDomainM2": 170485,
+     "wallInteriorM2": 99516,
+     "wallShareOfInput": 0.584,
+     "domainOutsideWallM2": 70969,
+     "districtStreetMetersOutside": 1430,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 36,
+       "areaM2": 82595,
+       "laneMeters": 4072,
+       "houses": 926,
+       "dwellings": 1037
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 3,
+       "areaM2": 575,
+       "laneMeters": 0,
+       "houses": 11,
+       "dwellings": 11
+      },
+      "ring": {
+       "cells": 35,
+       "areaM2": 6393,
+       "laneMeters": 22,
+       "houses": 103,
+       "dwellings": 103
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1037,
+      "capacityOutside": 114,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "insidePotential": {
+     "inputDomainM2": 170485,
+     "wallInteriorM2": 99516,
+     "wallShareOfInput": 0.584,
+     "domainOutsideWallM2": 70969,
+     "districtStreetMetersOutside": 1430,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 36,
+       "areaM2": 82595,
+       "laneMeters": 4072,
+       "houses": 1320,
+       "dwellings": 1468
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 3,
+       "areaM2": 575,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 35,
+       "areaM2": 6393,
+       "laneMeters": 22,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 1468,
+      "capacityOutside": 0,
+      "unplacedDwellings": 2977,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": []
+    }
+   },
+   {
+    "seed": "w0-polygon-20000-river",
+    "shape": "polygon",
+    "population": 20000,
+    "rivers": [
+     "through"
+    ],
+    "ms": 2506,
+    "wall": "polygon",
+    "wallSides": 7,
+    "current": {
+     "inputDomainM2": 428560,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.816,
+     "domainOutsideWallM2": 78788,
+     "districtStreetMetersOutside": 5049,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 124,
+       "areaM2": 305221,
+       "laneMeters": 14744,
+       "houses": 3933,
+       "dwellings": 4433
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 10,
+       "areaM2": 2554,
+       "laneMeters": 103,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 31,
+       "areaM2": 54315,
+       "laneMeters": 2485,
+       "houses": 19,
+       "dwellings": 19
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4433,
+      "capacityOutside": 19,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced",
+      "land-without-frontage"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 428560,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.816,
+     "domainOutsideWallM2": 78788,
+     "districtStreetMetersOutside": 5049,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 124,
+       "areaM2": 305221,
+       "laneMeters": 14744,
+       "houses": 3933,
+       "dwellings": 4433
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 10,
+       "areaM2": 2554,
+       "laneMeters": 103,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 31,
+       "areaM2": 54315,
+       "laneMeters": 2485,
+       "houses": 19,
+       "dwellings": 19
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4433,
+      "capacityOutside": 19,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced",
+      "land-without-frontage"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 428560,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.816,
+     "domainOutsideWallM2": 78788,
+     "districtStreetMetersOutside": 5049,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 124,
+       "areaM2": 305221,
+       "laneMeters": 14744,
+       "houses": 3324,
+       "dwellings": 3766
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 10,
+       "areaM2": 2554,
+       "laneMeters": 103,
+       "houses": 48,
+       "dwellings": 48
+      },
+      "ring": {
+       "cells": 31,
+       "areaM2": 54315,
+       "laneMeters": 2485,
+       "houses": 924,
+       "dwellings": 925
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 3766,
+      "capacityOutside": 973,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced",
+      "land-without-frontage"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 428560,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.816,
+     "domainOutsideWallM2": 78788,
+     "districtStreetMetersOutside": 5049,
+     "bands": [
+      {
+       "id": "input-road:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 124,
+       "areaM2": 305221,
+       "laneMeters": 14744,
+       "houses": 4968,
+       "dwellings": 5557
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 10,
+       "areaM2": 2554,
+       "laneMeters": 103,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 31,
+       "areaM2": 54315,
+       "laneMeters": 2485,
+       "houses": 19,
+       "dwellings": 19
+      }
+     },
+     "report": {
+      "required": 17778,
+      "capacityInside": 5557,
+      "capacityOutside": 19,
+      "unplacedDwellings": 12202,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "monastery-unplaced",
+      "land-without-frontage"
+     ]
+    }
+   },
+   {
+    "seed": "w0-polygon-20000-bay",
+    "shape": "polygon",
+    "population": 20000,
+    "coast": "bay",
+    "ms": 3156,
+    "wall": "polygon",
+    "wallSides": 7,
+    "current": {
+     "inputDomainM2": 757074,
+     "wallInteriorM2": 359740,
+     "wallShareOfInput": 0.475,
+     "domainOutsideWallM2": 397335,
+     "districtStreetMetersOutside": 5482,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 127,
+       "areaM2": 330874,
+       "laneMeters": 16342,
+       "houses": 3983,
+       "dwellings": 4426
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 8,
+       "areaM2": 9138,
+       "laneMeters": 412,
+       "houses": 45,
+       "dwellings": 45
+      },
+      "ring": {
+       "cells": 38,
+       "areaM2": 52748,
+       "laneMeters": 2461,
+       "houses": 3,
+       "dwellings": 3
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4426,
+      "capacityOutside": 48,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced",
+      "land-without-frontage",
+      "land-without-frontage"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 757074,
+     "wallInteriorM2": 359740,
+     "wallShareOfInput": 0.475,
+     "domainOutsideWallM2": 397335,
+     "districtStreetMetersOutside": 5482,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 127,
+       "areaM2": 330874,
+       "laneMeters": 16342,
+       "houses": 3991,
+       "dwellings": 4434
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 8,
+       "areaM2": 9138,
+       "laneMeters": 412,
+       "houses": 36,
+       "dwellings": 36
+      },
+      "ring": {
+       "cells": 38,
+       "areaM2": 52748,
+       "laneMeters": 2461,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4434,
+      "capacityOutside": 36,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced",
+      "land-without-frontage",
+      "land-without-frontage"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 757074,
+     "wallInteriorM2": 359740,
+     "wallShareOfInput": 0.475,
+     "domainOutsideWallM2": 397335,
+     "districtStreetMetersOutside": 5482,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 127,
+       "areaM2": 330874,
+       "laneMeters": 16342,
+       "houses": 3444,
+       "dwellings": 3807
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 8,
+       "areaM2": 9138,
+       "laneMeters": 412,
+       "houses": 133,
+       "dwellings": 135
+      },
+      "ring": {
+       "cells": 38,
+       "areaM2": 52748,
+       "laneMeters": 2461,
+       "houses": 897,
+       "dwellings": 899
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 3807,
+      "capacityOutside": 1034,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "monastery-unplaced",
+      "land-without-frontage",
+      "land-without-frontage"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 757074,
+     "wallInteriorM2": 359740,
+     "wallShareOfInput": 0.475,
+     "domainOutsideWallM2": 397335,
+     "districtStreetMetersOutside": 5482,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 127,
+       "areaM2": 330874,
+       "laneMeters": 16342,
+       "houses": 5403,
+       "dwellings": 6013
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 8,
+       "areaM2": 9138,
+       "laneMeters": 412,
+       "houses": 36,
+       "dwellings": 36
+      },
+      "ring": {
+       "cells": 38,
+       "areaM2": 52748,
+       "laneMeters": 2461,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 17778,
+      "capacityInside": 6013,
+      "capacityOutside": 36,
+      "unplacedDwellings": 11729,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "monastery-unplaced",
+      "land-without-frontage",
+      "land-without-frontage"
+     ]
+    }
+   },
+   {
+    "seed": "w0-square-5000-river",
+    "shape": "square",
+    "population": 5000,
+    "rivers": [
+     "through"
+    ],
+    "ms": 994,
+    "wall": "square",
+    "current": {
+     "inputDomainM2": 175458,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.612,
+     "domainOutsideWallM2": 68097,
+     "districtStreetMetersOutside": 5030,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 45,
+       "areaM2": 82232,
+       "laneMeters": 3825,
+       "houses": 992,
+       "dwellings": 1115
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 17,
+       "areaM2": 6175,
+       "laneMeters": 188,
+       "houses": 3,
+       "dwellings": 3
+      },
+      "ring": {
+       "cells": 58,
+       "areaM2": 48115,
+       "laneMeters": 1988,
+       "houses": 5,
+       "dwellings": 5
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1115,
+      "capacityOutside": 8,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "inside": {
+     "inputDomainM2": 175458,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.612,
+     "domainOutsideWallM2": 68097,
+     "districtStreetMetersOutside": 5030,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 45,
+       "areaM2": 82232,
+       "laneMeters": 3825,
+       "houses": 997,
+       "dwellings": 1120
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 17,
+       "areaM2": 6175,
+       "laneMeters": 188,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 58,
+       "areaM2": 48115,
+       "laneMeters": 1988,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1120,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "full": {
+     "inputDomainM2": 175458,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.612,
+     "domainOutsideWallM2": 68097,
+     "districtStreetMetersOutside": 5030,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 45,
+       "areaM2": 82232,
+       "laneMeters": 3825,
+       "houses": 634,
+       "dwellings": 706
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 17,
+       "areaM2": 6175,
+       "laneMeters": 188,
+       "houses": 100,
+       "dwellings": 100
+      },
+      "ring": {
+       "cells": 58,
+       "areaM2": 48115,
+       "laneMeters": 1988,
+       "houses": 816,
+       "dwellings": 817
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 706,
+      "capacityOutside": 917,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": []
+    },
+    "insidePotential": {
+     "inputDomainM2": 175458,
+     "wallInteriorM2": 107360,
+     "wallShareOfInput": 0.612,
+     "domainOutsideWallM2": 68097,
+     "districtStreetMetersOutside": 5030,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:3",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 45,
+       "areaM2": 82232,
+       "laneMeters": 3825,
+       "houses": 1333,
+       "dwellings": 1488
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 17,
+       "areaM2": 6175,
+       "laneMeters": 188,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 58,
+       "areaM2": 48115,
+       "laneMeters": 1988,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 1488,
+      "capacityOutside": 0,
+      "unplacedDwellings": 2957,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": []
+    }
+   },
+   {
+    "seed": "w0-square-5000-bay",
+    "shape": "square",
+    "population": 5000,
+    "coast": "bay",
+    "ms": 1255,
+    "wall": "square",
+    "current": {
+     "inputDomainM2": 288311,
+     "wallInteriorM2": 100158,
+     "wallShareOfInput": 0.347,
+     "domainOutsideWallM2": 188152,
+     "districtStreetMetersOutside": 3383,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 31,
+       "areaM2": 85432,
+       "laneMeters": 4381,
+       "houses": 983,
+       "dwellings": 1104
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 23,
+       "areaM2": 17273,
+       "laneMeters": 699,
+       "houses": 7,
+       "dwellings": 7
+      },
+      "ring": {
+       "cells": 22,
+       "areaM2": 32009,
+       "laneMeters": 1505,
+       "houses": 3,
+       "dwellings": 3
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1104,
+      "capacityOutside": 10,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "land-without-frontage"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 288311,
+     "wallInteriorM2": 100158,
+     "wallShareOfInput": 0.347,
+     "domainOutsideWallM2": 188152,
+     "districtStreetMetersOutside": 3383,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 31,
+       "areaM2": 85432,
+       "laneMeters": 4381,
+       "houses": 990,
+       "dwellings": 1112
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 23,
+       "areaM2": 17273,
+       "laneMeters": 699,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 22,
+       "areaM2": 32009,
+       "laneMeters": 1505,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 1112,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "land-without-frontage"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 288311,
+     "wallInteriorM2": 100158,
+     "wallShareOfInput": 0.347,
+     "domainOutsideWallM2": 188152,
+     "districtStreetMetersOutside": 3383,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 31,
+       "areaM2": 85432,
+       "laneMeters": 4381,
+       "houses": 655,
+       "dwellings": 734
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 23,
+       "areaM2": 17273,
+       "laneMeters": 699,
+       "houses": 254,
+       "dwellings": 257
+      },
+      "ring": {
+       "cells": 22,
+       "areaM2": 32009,
+       "laneMeters": 1505,
+       "houses": 501,
+       "dwellings": 503
+      }
+     },
+     "report": {
+      "required": 1112,
+      "capacityInside": 734,
+      "capacityOutside": 760,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "land-without-frontage"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 288311,
+     "wallInteriorM2": 100158,
+     "wallShareOfInput": 0.347,
+     "domainOutsideWallM2": 188152,
+     "districtStreetMetersOutside": 3383,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 31,
+       "areaM2": 85432,
+       "laneMeters": 4381,
+       "houses": 1352,
+       "dwellings": 1500
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 23,
+       "areaM2": 17273,
+       "laneMeters": 699,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 22,
+       "areaM2": 32009,
+       "laneMeters": 1505,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 1500,
+      "capacityOutside": 0,
+      "unplacedDwellings": 2945,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "land-without-frontage"
+     ]
+    }
+   },
+   {
+    "seed": "w0-square-20000-river",
+    "shape": "square",
+    "population": 20000,
+    "rivers": [
+     "through"
+    ],
+    "ms": 3433,
+    "wall": "square",
+    "current": {
+     "inputDomainM2": 579205,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.604,
+     "domainOutsideWallM2": 229433,
+     "districtStreetMetersOutside": 10255,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:5",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:6",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:12",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 120,
+       "areaM2": 303797,
+       "laneMeters": 14731,
+       "houses": 3953,
+       "dwellings": 4436
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 10,
+       "areaM2": 15946,
+       "laneMeters": 711,
+       "houses": 6,
+       "dwellings": 6
+      },
+      "ring": {
+       "cells": 71,
+       "areaM2": 166833,
+       "laneMeters": 8029,
+       "houses": 7,
+       "dwellings": 7
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4436,
+      "capacityOutside": 13,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "monastery-unplaced",
+      "land-without-frontage"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 579205,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.604,
+     "domainOutsideWallM2": 229433,
+     "districtStreetMetersOutside": 10255,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:5",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:6",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:12",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 120,
+       "areaM2": 303797,
+       "laneMeters": 14731,
+       "houses": 3962,
+       "dwellings": 4445
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 10,
+       "areaM2": 15946,
+       "laneMeters": 711,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 71,
+       "areaM2": 166833,
+       "laneMeters": 8029,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4445,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "monastery-unplaced",
+      "land-without-frontage"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 579205,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.604,
+     "domainOutsideWallM2": 229433,
+     "districtStreetMetersOutside": 10255,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:5",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:6",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:12",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 120,
+       "areaM2": 303797,
+       "laneMeters": 14731,
+       "houses": 2551,
+       "dwellings": 2877
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 10,
+       "areaM2": 15946,
+       "laneMeters": 711,
+       "houses": 274,
+       "dwellings": 276
+      },
+      "ring": {
+       "cells": 71,
+       "areaM2": 166833,
+       "laneMeters": 8029,
+       "houses": 2734,
+       "dwellings": 2745
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 2877,
+      "capacityOutside": 3021,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "monastery-unplaced",
+      "land-without-frontage"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 579205,
+     "wallInteriorM2": 349773,
+     "wallShareOfInput": 0.604,
+     "domainOutsideWallM2": 229433,
+     "districtStreetMetersOutside": 10255,
+     "bands": [
+      {
+       "id": "input-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "input-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-approach:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:5",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:6",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:12",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 120,
+       "areaM2": 303797,
+       "laneMeters": 14731,
+       "houses": 4920,
+       "dwellings": 5506
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 10,
+       "areaM2": 15946,
+       "laneMeters": 711,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 71,
+       "areaM2": 166833,
+       "laneMeters": 8029,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 17778,
+      "capacityInside": 5506,
+      "capacityOutside": 0,
+      "unplacedDwellings": 12272,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "branch-unreachable",
+      "monastery-unplaced",
+      "land-without-frontage"
+     ]
+    }
+   },
+   {
+    "seed": "w0-square-20000-bay",
+    "shape": "square",
+    "population": 20000,
+    "coast": "bay",
+    "ms": 3914,
+    "wall": "square",
+    "current": {
+     "inputDomainM2": 858972,
+     "wallInteriorM2": 372462,
+     "wallShareOfInput": 0.434,
+     "domainOutsideWallM2": 486510,
+     "districtStreetMetersOutside": 11722,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 137,
+       "areaM2": 346402,
+       "laneMeters": 16396,
+       "houses": 3994,
+       "dwellings": 4437
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 6,
+       "areaM2": 15422,
+       "laneMeters": 700,
+       "houses": 11,
+       "dwellings": 11
+      },
+      "ring": {
+       "cells": 84,
+       "areaM2": 190094,
+       "laneMeters": 8950,
+       "houses": 1,
+       "dwellings": 1
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4437,
+      "capacityOutside": 12,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    },
+    "inside": {
+     "inputDomainM2": 858972,
+     "wallInteriorM2": 372462,
+     "wallShareOfInput": 0.434,
+     "domainOutsideWallM2": 486510,
+     "districtStreetMetersOutside": 11722,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 137,
+       "areaM2": 346402,
+       "laneMeters": 16396,
+       "houses": 4001,
+       "dwellings": 4445
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 6,
+       "areaM2": 15422,
+       "laneMeters": 700,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 84,
+       "areaM2": 190094,
+       "laneMeters": 8950,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 4445,
+      "capacityOutside": 0,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    },
+    "full": {
+     "inputDomainM2": 858972,
+     "wallInteriorM2": 372462,
+     "wallShareOfInput": 0.434,
+     "domainOutsideWallM2": 486510,
+     "districtStreetMetersOutside": 11722,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 137,
+       "areaM2": 346402,
+       "laneMeters": 16396,
+       "houses": 2525,
+       "dwellings": 2815
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 6,
+       "areaM2": 15422,
+       "laneMeters": 700,
+       "houses": 229,
+       "dwellings": 231
+      },
+      "ring": {
+       "cells": 84,
+       "areaM2": 190094,
+       "laneMeters": 8950,
+       "houses": 3133,
+       "dwellings": 3143
+      }
+     },
+     "report": {
+      "required": 4445,
+      "capacityInside": 2815,
+      "capacityOutside": 3374,
+      "unplacedDwellings": 0,
+      "reasons": []
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    },
+    "insidePotential": {
+     "inputDomainM2": 858972,
+     "wallInteriorM2": 372462,
+     "wallShareOfInput": 0.434,
+     "domainOutsideWallM2": 486510,
+     "districtStreetMetersOutside": 11722,
+     "bands": [
+      {
+       "id": "fmg-road:1:0",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:2:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "fmg-road:3:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:1",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      },
+      {
+       "id": "auto-road:2",
+       "profile": "rural",
+       "clearance": 30,
+       "length": 60
+      }
+     ],
+     "fabric": {
+      "inside": {
+       "cells": 137,
+       "areaM2": 346402,
+       "laneMeters": 16396,
+       "houses": 5325,
+       "dwellings": 5914
+      },
+      "shanty": {
+       "cells": 0,
+       "areaM2": 0,
+       "laneMeters": 0,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ribbon": {
+       "cells": 6,
+       "areaM2": 15422,
+       "laneMeters": 700,
+       "houses": 0,
+       "dwellings": 0
+      },
+      "ring": {
+       "cells": 84,
+       "areaM2": 190094,
+       "laneMeters": 8950,
+       "houses": 0,
+       "dwellings": 0
+      }
+     },
+     "report": {
+      "required": 17778,
+      "capacityInside": 5914,
+      "capacityOutside": 0,
+      "unplacedDwellings": 11864,
+      "reasons": [
+       "housing-capacity-shortfall"
+      ]
+     },
+     "diagnostics": [
+      "branch-unreachable"
+     ]
+    }
+   }
+  ]
+ }
+}

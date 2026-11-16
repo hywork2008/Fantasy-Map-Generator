@@ -19,7 +19,6 @@
  */
 import { biomeHasTag, isForestBiome, isMountainBiome } from "../data/biomeCatalog";
 import type { BiomesData } from "../types/WorldState";
-import { STATE_EXPAND_DANGER_BAN } from "./dangerExpandPolicy";
 
 /** Hard cap for predator-only contribution (before combining with monsters). */
 export const BIOME_PREDATOR_DANGER_CAP = 22;
@@ -193,9 +192,8 @@ export function applyBiomePredatorDanger(
   for (let id = 0; id < cells.danger.length; id++) {
     const add = Math.max(local[id], bleed[id]);
     if (!add) continue;
-    // Never alone push a cell to the annex ban; leave headroom for monsters.
-    const cap = STATE_EXPAND_DANGER_BAN - 1;
-    cells.danger[id] = Math.min(cap, cells.danger[id] + add);
+    // Max, not a sum. A predator term must not pull a monster peak down to 79.
+    if (add > cells.danger[id]) cells.danger[id] = add;
   }
 
   return touched;

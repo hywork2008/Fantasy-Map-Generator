@@ -1,0 +1,106 @@
+[
+  {
+    "case": "synthetic-round-3000",
+    "mode": "medieval-facilities",
+    "population": 3000,
+    "wall": "round",
+    "urbanMs": 4556,
+    "requiredDwellings": 4000,
+    "capacityInside": 143,
+    "capacityOutside": 388,
+    "unplacedPopulation": 15610,
+    "placedFacilities": 274,
+    "requiredFacilities": 887,
+    "wallAreaM2": 83221,
+    "roadWallRiverWaterM2": 10519,
+    "blockLandM2": 72702,
+    "housesM2": 3167,
+    "facilitySitesM2": 30551,
+    "facilityFootprintsM2": 19943,
+    "facilityYardsM2": 10607,
+    "featuresM2": 4655,
+    "parksM2": 0,
+    "otherPlacementsM2": 993,
+    "residualM2": 6000,
+    "residualOnFrontM2": 5995,
+    "residualInCoresM2": 0,
+    "streetBlocksM2": 58107,
+    "fabricStreetsM2": 10997,
+    "fabricLanesM2": 6270,
+    "coverOfBlockLand": 0.318,
+    "houseCountInside": 121,
+    "houseLotMedianM2": 24,
+    "shares": {
+      "inside": {
+        "houses": 121,
+        "facilities": 149,
+        "dwellings": 143,
+        "population": 644
+      },
+      "outside": {
+        "houses": 385,
+        "facilities": 125,
+        "dwellings": 388,
+        "population": 1746
+      }
+    }
+  },
+  {
+    "case": "gothengsfeld-20261012",
+    "mode": "medieval-facilities",
+    "population": 4920,
+    "wall": "bastioned",
+    "urbanMs": 26364,
+    "requiredDwellings": 6560,
+    "capacityInside": 198,
+    "capacityOutside": 57,
+    "unplacedPopulation": 28372,
+    "placedFacilities": 460,
+    "requiredFacilities": 1451,
+    "wallAreaM2": 157837,
+    "roadWallRiverWaterM2": 23869,
+    "blockLandM2": 133968,
+    "housesM2": 3690,
+    "facilitySitesM2": 56469,
+    "facilityFootprintsM2": 37205,
+    "facilityYardsM2": 19264,
+    "featuresM2": 9000,
+    "parksM2": 0,
+    "otherPlacementsM2": 0,
+    "residualM2": 9843,
+    "residualOnFrontM2": 9841,
+    "residualInCoresM2": 0,
+    "streetBlocksM2": 98175,
+    "fabricStreetsM2": 23134,
+    "fabricLanesM2": 12613,
+    "coverOfBlockLand": 0.305,
+    "houseCountInside": 161,
+    "houseLotMedianM2": 21,
+    "shares": {
+      "inside": {
+        "houses": 157,
+        "facilities": 300,
+        "dwellings": 198,
+        "population": 891
+      },
+      "outside": {
+        "houses": 57,
+        "facilities": 160,
+        "dwellings": 57,
+        "population": 257
+      }
+    }
+  },
+  {
+    "case": "erente-20261009",
+    "mode": "medieval-facilities",
+    "error": "Error: Invalid vector document: placement:urban:population-facility:workshop:butchery:20",
+    "stack": "Error: Invalid vector document: placement:urban:population-facility:workshop:butchery:20 |     at assertVectorDocument (/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/generators/vector/validation/document.ts:583:28) |     at vectorUrbanSteps (/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/generators/vector/generation/urban.ts:862:3) |     at vectorUrbanSteps.next (<anonymous>) |     at generateVectorUrban (/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/generators/vector/generation/urban.ts:121:35) |     at town (/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/generators/vector/generation/densityU2.cli.test.ts:81:15) |     at process.processTicksAndRejections (node:internal/process/task_queues:103:5) |     at /Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/generators/vector/generation/densityU2.cli.test.ts:220:49 |     at async file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/node_modules/vitest/dist/chunks/run.CjdgFZiW.js:2801:20"
+  },
+  {
+    "case": "obern-20261027",
+    "mode": "medieval-facilities",
+    "error": "Error: Infinite loop when passing sweep line over endpoints (too many sweep line segments).",
+    "stack": "Error: Infinite loop when passing sweep line over endpoints (too many sweep line segments). |     at run (/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/generators/vector/geometry/regions.ts:62:27) |     at regionBoolean (/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/generators/vector/geometry/regions.ts:66:14) |     at placeFacilitiesOnLots (/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/generators/vector/generation/facilityLots.ts:319:13) |     at vectorUrbanSteps (/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/generators/vector/generation/urban.ts:670:18) |     at vectorUrbanSteps.next (<anonymous>) |     at generateVectorUrban (/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/generators/vector/generation/urban.ts:121:35) |     at town (/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/generators/vector/generation/densityU2.cli.test.ts:81:15) |     at process.processTicksAndRejections (node:internal/process/task_queues:103:5) |     at /Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/generators/vector/generation/densityU2.cli.test.ts:220:49 |     at async file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/node_modules/vitest/dist/chunks/run.CjdgFZiW.js:2801:20"
+  }
+]

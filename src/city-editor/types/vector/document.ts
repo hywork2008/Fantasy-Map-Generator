@@ -116,6 +116,8 @@ export interface VectorPlacement {
     activity?: "market-day" | "closed";
   };
   building?: VectorBuilding;
+  /** The model is drawn mirrored across its local x axis (a tannery keeps its intake upstream on either bank). */
+  mirrored?: boolean;
   display?: {
     kind: "housing" | "facility" | "landmark" | "object";
     heightMeters: number;
@@ -129,10 +131,17 @@ export interface VectorPlacement {
 /** Saved geometry ledger. No editable cell mesh or render-time generation. */
 export interface VectorCityDocument {
   format: "fmg-vector-city";
-  version: 7;
+  version: 8;
   revision: number;
   frame: { extentMeters: number };
-  context: { historicalPeriod: HistoricalPeriod; targetPopulation: number; bridgeSkewTier?: 0 | 1 | 2 };
+  context: {
+    historicalPeriod: HistoricalPeriod;
+    targetPopulation: number;
+    bridgeSkewTier?: 0 | 1 | 2;
+    /** Mesh-editor generation settings the city was requested with (native v8), without the FMG descriptor,
+     * which the site keeps. Kept as given, so settings meshless cannot generate yet are shown, not lost. */
+    requestedSettings?: Omit<import("../generation").GenerationSettings, "descriptor">;
+  };
   paths: Record<string, VectorPath>;
   connections: {
     nodes: Record<string, VectorNode>;
@@ -151,6 +160,8 @@ export interface VectorCityDocument {
   generation?: VectorGeneration;
   urban?: VectorUrban;
   environment?: import("./environment").VectorEnvironment;
+  /** Generated districts, street blocks and houses (native v8). Houses here are not in `placements`. */
+  fabric?: import("./fabric").VectorFabric;
   legacyCopy?: {
     sourceJson: string;
     report: { id: string; status: "converted" | "snapshot" | "unsupported"; category: string; reason: string }[];

@@ -85,7 +85,7 @@ const fill = (key: string, value: string) => {
 };
 
 describe("M4 input, generation and adopted stages", () => {
-  it("generates and commits a default CE city with one action, retaining seed and population", async () => {
+  it("generates and commits a default CE city with one action, retaining a typed seed and population", async () => {
     const settings = {
       ...defaultGenerationSettings(),
       population: defaultPopulationSettings(),
@@ -98,6 +98,8 @@ describe("M4 input, generation and adopted stages", () => {
     });
     expect(field("seed").value).toBe("b5o620");
     expect(field("population").value).toBe("5000");
+    // A typed seed is reproduced; an untouched seed is redrawn on every press (see the next case).
+    fill("seed", "b5o620");
     click("city");
     await vi.waitFor(() => expect(history.index).toBe(1), { timeout: 60000 });
     const generated = history.document;
@@ -109,13 +111,66 @@ describe("M4 input, generation and adopted stages", () => {
     expect(generated.urban?.report.requiredFacilities).toBe(0);
     expect(generated.urban?.report.unplacedPopulation).toBe(0);
     expect(Object.keys(generated.paths).length).toBeGreaterThan(4);
-    expect(Object.values(generated.placements).some(p => p.building?.kind === "housing")).toBe(true);
-    expect(map.querySelector("[data-vector-placement]")).not.toBeNull();
+    // Generated houses are fabric records (native v8), drawn as housing buildings.
+    expect(generated.urban!.report.housingBuildings).toBeGreaterThan(0);
+    expect(Object.keys(generated.fabric?.cells ?? {}).length).toBeGreaterThan(0);
+    expect(map.querySelector('[data-vector-building-kind="housing"]')).not.toBeNull();
     expect(root.querySelector<HTMLButtonElement>('[data-generation-action="adopt"]')!.disabled).toBe(true);
-    expect(Object.keys(history.undo()!.placements)).toHaveLength(0);
-    expect(Object.keys(history.redo()!.placements).length).toBeGreaterThan(0);
+    expect(history.undo()!.fabric).toBeUndefined();
+    expect(history.redo()!.fabric).toBeDefined();
   }, 60000);
 
+  it("generates the city with the building generation chosen in the panel, and keeps that choice", async () => {
+    mount(createVectorDocument(), undefined, {
+      seed: "b5o620",
+      settings: {
+        ...defaultGenerationSettings(),
+        population: defaultPopulationSettings(2000),
+        historicalPeriod: "ageOfExploration" as const
+      },
+      frame: { extentMeters: 1200, cityRadiusMeters: 300, blockSizeMeters: 50 }
+    });
+    expect(field("mode").value).toBe("medieval");
+    field("mode").value = "medieval-facilities";
+    field("mode").dispatchEvent(new Event("change", { bubbles: true }));
+    fill("seed", "b5o620");
+    click("city");
+    await vi.waitFor(() => expect(history.index).toBe(1), { timeout: 120000 });
+    const urban = history.document.urban!;
+    expect(urban.settings.mode).toBe("medieval-facilities");
+    expect(urban.report.placedFacilities).toBeGreaterThan(0);
+    expect(history.document.context.requestedSettings?.facilityLayout).toBe("population");
+    expect(field("mode").value).toBe("medieval-facilities");
+  }, 120000);
+
+  it("plans the site for the panel's population and keeps the chosen wall when generating a city", async () => {
+    mount(createVectorDocument(), undefined, {
+      seed: "b5o620",
+      settings: {
+        ...defaultGenerationSettings(),
+        population: defaultPopulationSettings(),
+        historicalPeriod: "ageOfExploration" as const
+      },
+      frame: { extentMeters: 1200, cityRadiusMeters: 300, blockSizeMeters: 50 }
+    });
+    expect(field("population").value).toBe("5000");
+    fill("population", "50000");
+    field("wall").value = "none";
+    field("wall").dispatchEvent(new Event("change", { bubbles: true }));
+    click("city");
+    await vi.waitFor(() => expect(history.index).toBe(1), { timeout: 120000 });
+    const report = history.document.urban!.report;
+    expect(report.targetPopulation).toBe(50000);
+    // The editor opened at 5,000 people; a 50,000-person city needs a site planned for 50,000.
+    expect(report.capacityDwellings).toBeGreaterThanOrEqual(report.requiredDwellings);
+    expect(report.unplacedPopulation).toBe(0);
+    expect(history.document.generation!.settings.wall).toBe("none");
+    expect(Object.values(history.document.paths).some(p => p.role === "wall")).toBe(false);
+    expect(field("wall").value).toBe("none");
+    // Generate city without a typed seed draws a new one and records it.
+    expect(field("seed").value).not.toBe("b5o620");
+    expect(history.document.recipe.seed).toBe(field("seed").value);
+  }, 120000);
   it("previews input and generation without changing saved history, then adopts one transaction per operation", async () => {
     mount();
     click("synthetic");
@@ -276,5 +331,28 @@ describe("M5 adopted urban checkpoints", () => {
     click("adopt");
     expect(history.document.urban!.report.placedFacilities).toBe(0);
     expect(field("stage").querySelectorAll("option")).toHaveLength(5);
+  });
+});
+
+describe("settings meshless does not generate (feature parity P1)", () => {
+  it("lists the requested settings meshless cannot generate yet, and nothing for a default city", () => {
+    const settings = defaultGenerationSettings();
+    settings.population = defaultPopulationSettings(3000);
+    settings.config.features.citadel = true;
+    settings.moats = { town: true };
+    mount(createVectorDocument(), undefined, {
+      seed: "p1",
+      settings,
+      frame: { extentMeters: 1200, cityRadiusMeters: 300, blockSizeMeters: 50 }
+    });
+    const box = panel.querySelector<HTMLElement>("[data-vector-setting-gaps]")!,
+      ids = [...box.querySelectorAll<HTMLElement>("[data-setting-gap]")].map(li => li.dataset.settingGap);
+    expect(box.hidden).toBe(false);
+    expect(ids).toEqual(expect.arrayContaining(["config.features.citadel", "moats"]));
+    expect(box.textContent).not.toContain("{{");
+    scope.dispose();
+    panel.replaceChildren();
+    mount();
+    expect(panel.querySelector<HTMLElement>("[data-vector-setting-gaps]")!.hidden).toBe(true);
   });
 });

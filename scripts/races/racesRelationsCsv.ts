@@ -1,5 +1,5 @@
-import type { RaceDefinition } from "./raceParameters";
-import { parseCsvRecords } from "./racesCsv";
+import type { RaceDefinition } from "./raceParameters.ts";
+import { parseCsvRecords } from "./racesCsv.ts";
 
 export interface RaceAestheticRelation {
   observerKey: string;

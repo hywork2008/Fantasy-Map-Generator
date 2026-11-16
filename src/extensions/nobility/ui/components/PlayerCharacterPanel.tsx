@@ -63,6 +63,7 @@ import {
   getLiveOpenSeats,
   getSimulationOrdinalDay
 } from "../../../economy/generators/threatCullJobPostings";
+import { openOutfitter } from "../../../economy/ui/outfitterActions";
 import { tip } from "../../../hostServices";
 import { Dialog, isDialogOpen, openDialog } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
@@ -678,6 +679,11 @@ export const PlayerCharacterPanel: React.FC = () => {
   const handleTrade = () => {
     if (playerCharacterId === null) return;
     openCharacterMarket(playerCharacterId);
+  };
+
+  const handleOutfitter = () => {
+    if (playerCharacterId === null) return;
+    openOutfitter(playerCharacterId);
   };
 
   const handleApplyPrepTemplate = (templateId: PrepTemplateId) => {
@@ -1332,6 +1338,15 @@ export const PlayerCharacterPanel: React.FC = () => {
           <button
             type="button"
             className="pcp-action"
+            data-tip="Buy single pieces at recorded medieval prices. These are not the market's bulk lots."
+            disabled={!canTrade}
+            onClick={handleOutfitter}
+          >
+            Outfitter
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
             data-tip="Apply for a construction job in this burg (Economy). Hire resolves after 14 days. Cannot combine with a hunt."
             disabled={!canApplyConstruction}
             onClick={handleApplyConstruction}
@@ -1434,6 +1449,15 @@ export const PlayerCharacterPanel: React.FC = () => {
             onClick={handleTrade}
           >
             Trade
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Buy single pieces at recorded medieval prices. These are not the market's bulk lots."
+            disabled={!canTrade}
+            onClick={handleOutfitter}
+          >
+            Outfitter
           </button>
           <button
             type="button"

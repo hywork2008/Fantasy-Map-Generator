@@ -1,4 +1,5 @@
 import { simEvents } from "../../../simulation/events";
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import { getSimulationCharacters as getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
 import { stateHasEnemy } from "../../hostCore";
@@ -861,7 +862,13 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
 
   // Household nominal uses war-footing-adjusted household share (not peacetime table alone).
   const householdNominal = rn(income * baseline.household, 2);
-  const householdPurseCredit = creditHouseholdPurseFromNominal(state, householdNominal);
+  // With `stateBudgetIncome` allRevenue the purse is filled to the ruler's stipend floor too: the
+  // floor was paid only when the household share alone covered it (docs/plan/state-budget-income.md).
+  const purseTarget =
+    getMarketSettings().stateBudgetIncome === "allRevenue"
+      ? Math.max(householdNominal, getRulerHouseholdStipend(state, income) - (state.householdPurse || 0))
+      : householdNominal;
+  const householdPurseCredit = creditHouseholdPurseFromNominal(state, purseTarget);
   const household = payRulerHouseholdStipend(state, income);
 
   const chancery = rn(income * baseline.chancery, 2);

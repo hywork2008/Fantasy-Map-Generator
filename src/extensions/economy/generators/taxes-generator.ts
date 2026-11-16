@@ -1,3 +1,4 @@
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import type { Burg } from "../../hostTypes";
 import { gauss, measureTickStep, rn, TIME } from "../../hostUtils";
 import { getDeals, getSimulationContext, getSimulationYear, getWorldContext } from "../economyContext";
@@ -328,7 +329,17 @@ export class TaxesModule {
       );
       // PR-7: council failure / tax farm / public debt — may scale income and move L2 cash.
       const events = measureTickStep("taxes:fiscalEvents", () => applyFiscalEvents(state, mix.adjustedDomesticIncome));
-      const budgetIncome = rn(mix.adjustedDomesticIncome * (1 - administrativeUpkeepShare) * events.incomeScale, 2);
+      // The court, the officers and the departments are paid from all the crown's revenue: the
+      // poll tax and, with `stateBudgetIncome` allRevenue, the sales tax and import duty already in
+      // the treasury (docs/plan/state-budget-income.md).
+      const tradeRevenue =
+        getMarketSettings().stateBudgetIncome === "allRevenue"
+          ? (salesTaxByState.get(state.i) ?? 0) + (importDutyByState.get(state.i) ?? 0)
+          : 0;
+      const budgetIncome = rn(
+        (mix.adjustedDomesticIncome + tradeRevenue) * (1 - administrativeUpkeepShare) * events.incomeScale,
+        2
+      );
       // PR-7: AI war footing sync from diplomacy (unless player-locked), then court cost.
       syncWarFootingFromDiplomacy(state);
       // Field commanders cash-settle inside allocateTreasury (L3a.marshalcy → L2, PR-5).

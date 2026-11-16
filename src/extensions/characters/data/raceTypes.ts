@@ -1,4 +1,4 @@
-import type { BeastfolkAnimal, RaceSupernatural } from "../../../types/models";
+import type { BeastfolkAnimal, RaceSupernatural } from "../../../types/models.ts";
 export const RACE_SKILL_AXES = [
   "artistry",
   "diplomacy",

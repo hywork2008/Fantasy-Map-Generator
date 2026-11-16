@@ -1,22 +1,49 @@
+import { buildingAppearanceProfile, normalizeBuildingAppearanceContext } from "../../../buildings/appearance/resolver";
+import type { BuildingAppearance, BuildingAppearanceProfile } from "../../../buildings/appearance/types";
+import { TREE_SPECIES, type TreeSpecies, treeLodProfile } from "../../../buildings/landscape/trees";
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
+import type { FacilityPlans } from "../../../city3d/three/facilityMeshes";
+import { lotMassing, massingContext } from "../../generators/buildingMassing";
+import { treeSpeciesForClimate } from "../../generators/landscapeTreeSpecies";
 import { type ContourLine, fieldContours } from "../../generators/terrainField/contours";
+import type { TownWaterKind } from "../../generators/townWater";
 import { curveSource } from "../../generators/vector/editing/paths";
+import { cellHouseCount, cellHouseRing, fabricHouseId, unpackLine } from "../../generators/vector/fabric/pack";
+import { vectorLandscapeClimate } from "../../generators/vector/generation/forest";
+import { vectorHousingCulture } from "../../generators/vector/generation/housingCulture";
+import { vectorHouseHeightKey, vectorHousingHeights } from "../../generators/vector/generation/housingHeights";
+import { tanneryWaterWorks } from "../../generators/vector/generation/tanneryWaterWorks";
 import { bridgeGeometry, gateOpening, junctionSurface } from "../../generators/vector/geometry/network";
 import { regionBoolean } from "../../generators/vector/geometry/regions";
 import { pathSurface } from "../../generators/vector/geometry/surfaces";
 import { vectorWaterSurfaces } from "../../generators/vector/geometry/water";
 import { vectorTerrain } from "../../generators/vector/terrain";
 import { assertVectorDocument } from "../../generators/vector/validation/document";
+import type { BuildingMassing } from "../../types/contracts/buildingMassing";
 import type { HarborCargoPile, HarborCrane } from "../../types/contracts/harborFabric";
+import type { CemeteryPlan } from "../../types/document";
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument, VectorPath, VectorPlacement } from "../../types/vector/document";
+import type { VectorFabricLines } from "../../types/vector/fabric";
 import type { VectorPolygon } from "../../types/vector/generation";
 import type { VectorHarborShip } from "../../types/vector/harbor";
 import type { VectorLandscapeTree } from "../../types/vector/landscape";
+import type { VectorFurlongCourse } from "../../types/vector/landUse";
+import type { Monastery } from "../../types/vector/monastery";
 import type { VectorStage } from "../../types/vector/urban";
+import { collectOpenSpacePlan, type OpenSpacePlan } from "../openSpaceSites";
+import { automaticHousingProfile } from "../standaloneHousingAppearance";
 import { vectorDefenseSurfaces } from "./defense";
+import { vectorFerrySurfaces } from "./ferry";
+import { vectorGuildSurfaces } from "./guild";
 import { vectorHarborSurfaces } from "./harbor";
+import { vectorHouseAppearance } from "./houseAppearance";
+import { vectorInnSurfaces } from "./inn";
+import { vectorOpenLandmarkSurfaces } from "./landmark";
 import { vectorLandscapeSurfaces } from "./landscape";
+import { vectorMonasterySurfaces } from "./monastery";
+import { vectorRoadRibbons } from "./roadRibbons";
+import { vectorStructures } from "./structureMassing";
 export type VectorSurfaceKind =
   | "region"
   | "block"
@@ -45,7 +72,19 @@ export interface VectorRenderSurface {
   featureKind?: string;
   pieceRole?: string;
   elevations?: { bottom: number[]; top: number[] }[];
+  /** Generated houses of one street block, aligned with `polygons` (a clipped house may repeat its id). */
+  houses?: {
+    ids: string[];
+    heightsMeters: number[];
+    elevationsMeters: number[];
+    /** The mesh editor's walls, roof and colour per house (P3a), parallel to `ids`. */
+    massing?: BuildingMassing[];
+    /** Regional roof and wall colours per house (P3b), parallel to `massing`. */
+    appearance?: (BuildingAppearance | undefined)[];
+  };
 }
+/** Storey height of generated houses. */
+export const FABRIC_STOREY_METERS = 3.2;
 export interface VectorRenderData {
   revision: number;
   stage: VectorStage;
@@ -58,7 +97,35 @@ export interface VectorRenderData {
   contours?: ContourLine[];
   groundCutouts?: VectorPolygon[];
   landscapeTrees?: (VectorLandscapeTree & { elevationMeters: number })[];
+  /** Wells and public basins drawn as the mesh editor's BV waterworks in 3D. */
+  wells?: { id: string; point: Point; kind: "well" | "publicBasin"; elevationMeters: number }[];
   terrain?: { points: [number, number, number][]; indices: number[] };
+  /** Walls (with towers and gates) and bridges as the mesh editor's structure massing, for 3D. Only owners
+   * drawn in this stage; the 2D view keeps the surfaces. */
+  structures?: ReturnType<typeof vectorStructures>;
+  /** The culture profile of the mesh editor's BV town towers and gates (P2d-2). */
+  wallProfile?: BuildingAppearanceProfile;
+  /** Facility plans and religious houses drawn as the mesh editor's BV facilities in 3D (P2d-4). */
+  facilities?: FacilityPlans;
+  monasteries?: Monastery[];
+  /** Cemeteries' graves, markers, chapels, walls and trees as the mesh editor's open-space models in 3D (P2d-5). */
+  openSpaces?: OpenSpacePlan;
+  /** Woodland drawn as the mesh editor's forest in 3D (P2d-6): its regions, density, seed and climate. */
+  forest?: {
+    regions: VectorPolygon[];
+    density: "sparse" | "standard" | "dense";
+    seed: string;
+    climate: ReturnType<typeof vectorLandscapeClimate>;
+  };
+  /** The FMG burg's site descriptor, for the trees' seasonal look (P2d-8); absent for a standalone town. */
+  seasonDescriptor?: import("../../types/contracts/burgSiteDescriptor").BurgSiteDescriptor;
+  /** Harbour piers as the mesh editor's timber piers in 3D (P2d-3). */
+  piers?: { id: string; deck: Point[]; depth: number }[];
+  /** Roads of this stage as the mesh editor's wearing-course ribbons, for 3D. */
+  roads?: ReturnType<typeof vectorRoadRibbons>;
+  /** Flat sites only: the drawn water by the mesh editor's water kind, for its water and bank meshes in 3D.
+   * The `river` surfaces stay as pick targets. Relief and harbours keep their own surfaces. */
+  water?: { id: string; kind: TownWaterKind; polygons: VectorPolygon[] }[];
 }
 /** Adopted geometry only. The same clipped surfaces feed screen SVG, exports and 3D. */
 export function vectorRenderData(
@@ -147,6 +214,14 @@ export function vectorRenderData(
     const clipped = regionBoolean(item.polygons, [frame], "intersection");
     if (clipped.length) surfaces.push({ ...item, polygons: clipped });
   };
+  const withinFrame = (ring: Point[]) =>
+    ring.every(
+      p =>
+        p[0] > center[0] - extent / 2 &&
+        p[0] < center[0] + extent / 2 &&
+        p[1] > center[1] - extent / 2 &&
+        p[1] < center[1] + extent / 2
+    );
   for (const r of Object.values(doc.regions))
     add({
       id: r.id,
@@ -275,6 +350,28 @@ export function vectorRenderData(
         elevationMeters: 0.025
       });
     }
+    // A wet tannery's revetment out to the bank, and its intake and effluent channels across it (tanners' row T2b).
+    const works = tanneryWaterWorks(doc, p);
+    if (works) {
+      if (works.revetment.length)
+        add({
+          id: p.id,
+          kind: "access",
+          polygons: works.revetment,
+          color: "#a39883",
+          heightMeters: 0.05,
+          elevationMeters: 0.03
+        });
+      if (works.channels.length)
+        add({
+          id: p.id,
+          kind: "access",
+          polygons: works.channels,
+          color: "#5f97b0",
+          heightMeters: 0.02,
+          elevationMeters: 0.09
+        });
+    }
     const b = p.building,
       display = p.display;
     add({
@@ -288,6 +385,129 @@ export function vectorRenderData(
       provisional: b?.provenance === "provisional" || display?.provenance === "massing",
       buildingKind: b?.kind ?? display?.kind ?? "manual"
     });
+  }
+  // Generated districts: streets and lanes from the lane stage, houses with the housing stage.
+  if (doc.fabric && (!urban || ["blocksAndLanes", "facilities", "housing"].includes(stage))) {
+    // Streets of a district and lanes of a street block are drawn as one surface: their union, because lines
+    // overlap at every junction. A union over the clipping budget falls back to one surface per line.
+    const surface = (id: string, points: Point[], widthMeters: number): VectorPolygon | undefined => {
+      try {
+        const path: VectorPath = {
+          id,
+          revision: 0,
+          role: "road",
+          origin: "automatic",
+          editPolicy: "editable",
+          source: curveSource(points, "polyline", false),
+          width: { leftMeters: widthMeters / 2, rightMeters: widthMeters / 2, stations: [] }
+        };
+        return pathSurface(path);
+      } catch {
+        warnings.push(`fabric-line:${id}`);
+        return undefined;
+      }
+    };
+    const road = (id: string, polygons: VectorPolygon[]) =>
+      add({ id, kind: "road", polygons, color: "#c7ae84", heightMeters: 0.04, elevationMeters: 0.02 });
+    const lines = (
+      owner: string,
+      kind: "s" | "l",
+      packed: VectorFabricLines,
+      origin: Point,
+      detached: { index: number }[] = []
+    ) => {
+      const parts: [string, VectorPolygon][] = [];
+      for (let i = 0; i < packed.widths.length; i++) {
+        // A line moved to a `VectorPath` is drawn as that path.
+        if (detached.some(l => l.index === i)) continue;
+        const id = `${owner}~${kind}${i}`,
+          polygon = surface(id, unpackLine(packed, i, origin), packed.widths[i]);
+        if (polygon) parts.push([id, polygon]);
+      }
+      if (!parts.length) return;
+      try {
+        road(
+          `${owner}~${kind}`,
+          regionBoolean(
+            parts.map(p => p[1]),
+            [],
+            "union",
+            false
+          )
+        );
+      } catch {
+        for (const [id, polygon] of parts) road(id, [polygon]);
+      }
+    };
+    // The mesh editor's massing rules read the period, climate and culture of the FMG burg.
+    const descriptor = doc.site?.descriptor,
+      massing = massingContext({
+        period: doc.context.historicalPeriod,
+        biome: descriptor?.biome,
+        civilization: descriptor?.civilization,
+        seed: doc.recipe.seed
+      }),
+      heights = vectorHousingHeights(doc),
+      appearance = vectorHouseAppearance(doc);
+    for (const district of Object.values(doc.fabric.districts))
+      lines(district.id, "s", district.streets, district.origin, district.detachedLines);
+    for (const cell of Object.values(doc.fabric.cells)) {
+      lines(cell.id, "l", cell.lanes, cell.origin, cell.detachedLines);
+      if (urban && stage !== "housing") continue;
+      // One surface per street block: 2D draws it as one path, 3D batches it by storeys.
+      const detached = new Set(cell.detached),
+        polygons: VectorPolygon[] = [],
+        houses: NonNullable<VectorRenderSurface["houses"]> = {
+          ids: [],
+          heightsMeters: [],
+          elevationsMeters: [],
+          massing: [],
+          appearance: []
+        },
+        plain: { id: string; massing: BuildingMassing }[] = [];
+      for (let i = 0; i < cellHouseCount(cell); i++) {
+        if (detached.has(i)) continue;
+        const id = fabricHouseId(cell.id, i),
+          ring = cellHouseRing(cell, i),
+          parts = withinFrame(ring)
+            ? [{ outer: ring, holes: [] }]
+            : regionBoolean([{ outer: ring, holes: [] }], [frame], "intersection"),
+          elevation = 0.1 + (terrain.hasRelief ? terrain.foundationAt(id, ring) : 0);
+        for (const part of parts) {
+          polygons.push(part);
+          houses.ids.push(id);
+          houses.heightsMeters.push(cell.houses.storeys[i] * FABRIC_STOREY_METERS);
+          houses.elevationsMeters.push(elevation);
+          const storeys = cell.houses.storeys[i];
+          plain.push({
+            id,
+            massing: lotMassing(
+              massing,
+              { polygon: part.outer, role: "main" },
+              storeys,
+              heights.floors(vectorHouseHeightKey(cell.id, cell.houses.draws[i]), storeys),
+              undefined,
+              id
+            )
+          });
+        }
+      }
+      for (const styled of appearance(cell.id, !cell.inside, plain)) {
+        houses.massing!.push(styled.massing);
+        houses.appearance!.push(styled.appearance);
+      }
+      if (polygons.length)
+        surfaces.push({
+          id: cell.id,
+          kind: "building",
+          polygons,
+          color: "#99816b",
+          heightMeters: Math.max(...houses.heightsMeters),
+          elevationMeters: Math.min(...houses.elevationsMeters),
+          buildingKind: "housing",
+          houses
+        });
+    }
   }
   for (const feature of Object.values(doc.environment?.features ?? {})) {
     if (hiddenFeatures.has(feature.id)) continue;
@@ -344,6 +564,200 @@ export function vectorRenderData(
   for (const plan of Object.values(doc.environment?.defenses ?? {}))
     surfaces.push(...vectorDefenseSurfaces(plan, frame));
   if (doc.environment?.harbor) surfaces.push(...vectorHarborSurfaces(doc.environment.harbor));
+  for (const ferry of Object.values(doc.environment?.ferries ?? {})) surfaces.push(...vectorFerrySurfaces(ferry));
+  for (const house of Object.values(doc.environment?.monasteries ?? {}))
+    surfaces.push(...vectorMonasterySurfaces(house));
+  if (doc.environment?.guilds) surfaces.push(...vectorGuildSurfaces(doc.environment.guilds));
+  if (doc.environment?.inns) surfaces.push(...vectorInnSurfaces(doc.environment.inns));
+  if (doc.environment?.landmarks) surfaces.push(...vectorOpenLandmarkSurfaces(doc.environment.landmarks));
+  // Open land by use (U5b), under the woodland: tilled, mown, grazed, and wild ground in the biome's ground colour.
+  const landUse = doc.environment?.landUse;
+  if (landUse) {
+    const wildColor =
+      landUse.landClass === "desert"
+        ? "#e3d3a4"
+        : landUse.landClass === "steppe"
+          ? "#d6cf9a"
+          : landUse.landClass === "wetland"
+            ? "#a9bfa0"
+            : landUse.landClass === "cold"
+              ? "#c9cbbd"
+              : "#b9c48f";
+    const colors = { arable: "#d9c98c", meadow: "#a8cc7e", pasture: "#c3d394", wild: wildColor } as const;
+    for (const zone of landUse.zones)
+      surfaces.push({
+        id: `environment:land-use:${zone.kind}`,
+        kind: "feature",
+        featureKind: "farm",
+        pieceRole: `land-use-${zone.kind}`,
+        polygons: zone.regions,
+        color: colors[zone.kind],
+        elevationMeters: 0.005,
+        heightMeters: 0
+      });
+    // Furlongs (U5c): each great field in its course of the rotation, each selion in its holder's own shade of the
+    // course ("each patch growing its own crop", Slater 1907); the arable between bundles shows as headland.
+    const shades: Record<VectorFurlongCourse, string[]> = {
+      winter: ["#cfb56a", "#d9c27a", "#e2cd8a", "#c6ab62"],
+      spring: ["#bfc37a", "#c9cb86", "#d3d394", "#b6bb72"],
+      fallow: ["#b8bf94", "#c2c79f", "#aeb68a", "#c9c9a6"]
+    };
+    const buckets = new Map<string, VectorPolygon[]>();
+    for (const f of landUse.furlongs ?? [])
+      f.strips.forEach((strip, i) => {
+        // Neighbours always differ; the shade otherwise follows a fixed hash of the furlong and selion.
+        const h = (i * 2 + ((Number(f.id.replace(/\D/g, "")) * 7 + ((i * i) % 5)) % 2)) % 4,
+          key = `${f.course}:${h}`;
+        buckets.set(key, [...(buckets.get(key) ?? []), strip]);
+      });
+    for (const [key, polygons] of buckets) {
+      const [course, h] = key.split(":") as [VectorFurlongCourse, string];
+      surfaces.push({
+        id: `environment:land-use:furlong-${course}-${h}`,
+        kind: "feature",
+        featureKind: "farm",
+        pieceRole: `land-use-furlong-${course}`,
+        polygons,
+        color: shades[course][Number(h)],
+        elevationMeters: 0.006,
+        heightMeters: 0
+      });
+    }
+  }
+  if (doc.environment?.forest)
+    surfaces.push({
+      id: "environment:forest",
+      kind: "feature",
+      featureKind: "forest",
+      pieceRole: `forest-${doc.environment.forest.density}`,
+      polygons: doc.environment.forest.regions,
+      color: "#5f7f4e",
+      elevationMeters: 0.01,
+      heightMeters: 0
+    });
+  // Water points (P7d), in the mesh editor's colours (aerialLandmarksSvg): rim, water, access path.
+  for (const w of doc.urban?.wells ?? []) {
+    const disc = (r: number) => ({
+      outer: Array.from(
+        { length: 12 },
+        (_, k): Point => [
+          w.center[0] + Math.cos((k / 12) * Math.PI * 2) * r,
+          w.center[1] + Math.sin((k / 12) * Math.PI * 2) * r
+        ]
+      ),
+      holes: []
+    });
+    const [a, b] = [w.access[0], w.access.at(-1)!],
+      l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1,
+      n: Point = [(-(b[1] - a[1]) / l) * 0.5, ((b[0] - a[0]) / l) * 0.5];
+    surfaces.push(
+      {
+        id: `urban:water:${w.id}:access`,
+        kind: "feature",
+        featureKind: "well",
+        pieceRole: "access",
+        polygons: [
+          {
+            outer: [
+              [a[0] + n[0], a[1] + n[1]],
+              [b[0] + n[0], b[1] + n[1]],
+              [b[0] - n[0], b[1] - n[1]],
+              [a[0] - n[0], a[1] - n[1]]
+            ],
+            holes: []
+          }
+        ],
+        color: "#c9b48f",
+        elevationMeters: 0.03,
+        heightMeters: 0
+      },
+      {
+        id: `urban:water:${w.id}`,
+        kind: "feature",
+        featureKind: "well",
+        pieceRole: w.kind === "well" || w.kind === "publicBasin" ? "bv-well" : w.kind,
+        polygons: [disc(w.radius)],
+        color: w.kind === "pond" ? "#88a5a0" : "#d0c8b7",
+        elevationMeters: 0.05,
+        heightMeters: 0
+      }
+    );
+    if (w.kind !== "pond")
+      surfaces.push({
+        id: `urban:water:${w.id}:water`,
+        kind: "feature",
+        featureKind: "well",
+        pieceRole: w.kind === "well" || w.kind === "publicBasin" ? "bv-well" : "water",
+        polygons: [disc(w.radius * 0.65)],
+        color: "#719ca8",
+        elevationMeters: 0.06,
+        heightMeters: 0
+      });
+  }
+  // Park wards (P7c): the mesh editor's lawn, walkway and canopy colours (openSpaceSites).
+  for (const park of doc.urban?.parks ?? []) {
+    surfaces.push({
+      id: `urban:park:${park.id}`,
+      kind: "feature",
+      featureKind: "park",
+      pieceRole: "lawn",
+      polygons: park.lawns.map(outer => ({ outer, holes: [] })),
+      color: "#7ea867",
+      elevationMeters: 0.025,
+      heightMeters: 0
+    });
+    const walk = park.paths.flatMap(line =>
+      line.slice(1).flatMap((b, i) => {
+        const a = line[i],
+          l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (l < 1e-6) return [];
+        const n: Point = [(-(b[1] - a[1]) / l) * 0.9, ((b[0] - a[0]) / l) * 0.9];
+        return [
+          {
+            outer: [
+              [a[0] + n[0], a[1] + n[1]],
+              [b[0] + n[0], b[1] + n[1]],
+              [b[0] - n[0], b[1] - n[1]],
+              [a[0] - n[0], a[1] - n[1]]
+            ] as Point[],
+            holes: []
+          }
+        ];
+      })
+    );
+    if (walk.length)
+      surfaces.push({
+        id: `urban:park:${park.id}:walk`,
+        kind: "feature",
+        featureKind: "park",
+        pieceRole: "walk",
+        polygons: walk,
+        color: "#d8d1bf",
+        elevationMeters: 0.045,
+        heightMeters: 0
+      });
+    if (park.trees.length)
+      surfaces.push({
+        id: `urban:park:${park.id}:trees`,
+        kind: "feature",
+        featureKind: "park",
+        // 3D draws the species models instead (P2d-1); the 2D plan keeps the crowns.
+        pieceRole: "landscape-tree",
+        polygons: park.trees.map(t => ({
+          outer: Array.from(
+            { length: 10 },
+            (_, k): Point => [
+              t.center[0] + Math.cos((k / 10) * Math.PI * 2) * t.radius,
+              t.center[1] + Math.sin((k / 10) * Math.PI * 2) * t.radius
+            ]
+          ),
+          holes: []
+        })),
+        color: "#4f7a45",
+        elevationMeters: 0.07,
+        heightMeters: 0
+      });
+  }
   if (doc.environment?.landscape)
     for (const surface of vectorLandscapeSurfaces(doc.environment.landscape)) add(surface);
   let terrainMesh: VectorRenderData["terrain"], contours: ContourLine[] | undefined;
@@ -381,7 +795,59 @@ export function vectorRenderData(
     );
   }
   if (doc.urban && !urban) warnings.push("stale-stages");
+  const drawn = new Set(surfaces.filter(s => s.kind === "wall" || s.kind === "bridge").map(s => s.id)),
+    // Fabric lines are drawn per record (`<record>~l`), or per line (`<record>~l3`) when the union fails.
+    roadOwners = new Set(surfaces.filter(s => s.kind === "road").map(s => s.id.replace(/(~[sl])\d+$/, "$1")));
+  const siteWater = new Map((doc.site?.water ?? []).map(w => [w.id, w]));
+  const water =
+    terrain.hasRelief || doc.environment?.harbor
+      ? undefined
+      : surfaces
+          .filter(s => s.kind === "river")
+          .map(s => {
+            const w = siteWater.get(s.id),
+              kind: TownWaterKind = !w || w.riverPathId ? "river" : w.id.startsWith("fmg-coast:") ? "ocean" : "lake";
+            return { id: s.id, kind, polygons: s.polygons };
+          });
   return {
+    water,
+    structures: vectorStructures(doc).filter(s => drawn.has(s.owner)),
+    wallProfile: vectorWallProfile(doc),
+    facilities: {
+      aerial: {
+        windmills: doc.environment?.landmarks?.windmills ?? [],
+        gallows: doc.environment?.landmarks?.gallows ?? [],
+        gateInns: doc.environment?.inns ?? [],
+        guildHalls: doc.environment?.guilds?.halls ?? [],
+        guildYards: doc.environment?.guilds?.yards ?? []
+      },
+      arid:
+        normalizeBuildingAppearanceContext({
+          period: doc.context.historicalPeriod,
+          tradition: doc.site?.descriptor?.civilization?.tradition,
+          temperatureC: doc.site?.descriptor?.climate?.temperatureC,
+          biome:
+            doc.site?.descriptor?.biome ??
+            (doc.site?.descriptor?.climate?.biomeKey ? { key: doc.site.descriptor.climate.biomeKey } : undefined)
+        }).arid === true
+    },
+    monasteries: Object.values(doc.environment?.monasteries ?? {}),
+    openSpaces: vectorOpenSpaces(doc),
+    seasonDescriptor: doc.site?.descriptor,
+    ...(doc.environment?.forest
+      ? {
+          forest: {
+            regions: doc.environment.forest.regions,
+            density: doc.environment.forest.density,
+            seed: doc.recipe.seed,
+            climate: vectorLandscapeClimate(doc)
+          }
+        }
+      : {}),
+    piers: (doc.environment?.harbor?.piers ?? []).flatMap(p =>
+      p.polygon.outer.length === 4 ? [{ id: p.id, deck: p.polygon.outer, depth: p.depthMeters }] : []
+    ),
+    roads: vectorRoadRibbons(doc, id => roadOwners.has(id)),
     revision: doc.revision,
     stage,
     center,
@@ -395,10 +861,90 @@ export function vectorRenderData(
       ...Object.values(doc.environment?.defenses ?? {}).flatMap(p => p.ditches.flatMap(d => d.region)),
       ...(doc.environment?.harbor?.navigation.water ?? [])
     ],
-    landscapeTrees: doc.environment?.landscape?.trees.map(tree => ({
+    landscapeTrees: (doc.environment?.landscape?.trees ?? []).map(tree => ({
       ...tree,
       elevationMeters: terrain.heightAt(tree.point)
     })),
+    // Wells and the plaza basin as the mesh editor's BV waterworks (P2d-1); cisterns and ponds stay surfaces.
+    wells: (doc.urban?.wells ?? []).flatMap(w =>
+      w.kind === "well" || w.kind === "publicBasin"
+        ? [{ id: `urban:water:${w.id}`, point: w.center, kind: w.kind, elevationMeters: terrain.heightAt(w.center) }]
+        : []
+    ),
     terrain: terrainMesh
   };
+}
+
+/**
+ * Park trees (P2d-1, drawn with the open spaces since P2d-8): the mesh editor's park planting (`garden_parkland`) adapted to the town's
+ * climate, at the canopy's saved centre and radius, the species' height and a turn from its position.
+ */
+function vectorParkTrees(doc: VectorCityDocument): VectorLandscapeTree[] {
+  const parks = doc.urban?.parks ?? [];
+  if (!parks.length) return [];
+  const climate = { ...vectorLandscapeClimate(doc), seed: doc.recipe.seed };
+  return parks.flatMap(park =>
+    park.trees.flatMap((t, i): VectorLandscapeTree[] => {
+      const species = treeSpeciesForClimate("garden_parkland", climate, t.center);
+      if (!species) return [];
+      return [
+        {
+          id: `urban:park:${park.id}:tree:${i}`,
+          ownerId: `urban:park:${park.id}`,
+          point: t.center,
+          radiusMeters: t.radius,
+          heightMeters: treeLodProfile(species)?.heightMeters ?? 10,
+          angleRadians:
+            (((t.center[0] * 12.9898 + t.center[1] * 78.233) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2),
+          species
+        }
+      ];
+    })
+  );
+}
+
+/** The town's appearance profile as the mesh editor reads it for its towers and gates: the houses' automatic one. */
+function vectorWallProfile(doc: VectorCityDocument): BuildingAppearanceProfile {
+  const descriptor = doc.site?.descriptor,
+    context = normalizeBuildingAppearanceContext({
+      period: doc.context.historicalPeriod,
+      tradition: descriptor?.civilization?.tradition,
+      temperatureC: descriptor?.climate?.temperatureC,
+      biome: descriptor?.biome ?? (descriptor?.climate?.biomeKey ? { key: descriptor.climate.biomeKey } : undefined)
+    });
+  return buildingAppearanceProfile({
+    profile: vectorHousingCulture(doc) ?? automaticHousingProfile(context, !!descriptor, doc.recipe.seed),
+    context,
+    rural: false
+  });
+}
+
+/**
+ * The cemeteries as the mesh editor's open-space plan (P2d-5): graves and ledgers on its plots, chapels, cottages,
+ * ossuaries and boundary walls, and churchyard trees adapted to the town's climate. Only the models: the ground
+ * and paths stay the 2D surfaces.
+ */
+function vectorOpenSpaces(doc: VectorCityDocument): OpenSpacePlan | undefined {
+  const cemeteries = doc.environment?.landscape?.cemeteries ?? [],
+    // Park trees join the open spaces (P2d-8), as in the mesh editor, for its camera tree LOD and seasons.
+    parkTrees = vectorParkTrees(doc).map(t => ({
+      model: t.species,
+      point: t.point,
+      radius: t.radiusMeters,
+      angle: t.angleRadians
+    }));
+  if (!cemeteries.length && !parkTrees.length) return undefined;
+  const plan = collectOpenSpacePlan(
+      [],
+      cemeteries.map(c => ({ ...c, faceId: c.id }) as unknown as CemeteryPlan)
+    ),
+    climate = { ...vectorLandscapeClimate(doc), seed: doc.recipe.seed },
+    trees = new Set<string>(TREE_SPECIES);
+  const sites = plan.sites.flatMap(site => {
+    if (!trees.has(site.model)) return [site];
+    const model = treeSpeciesForClimate(site.model as TreeSpecies, climate, site.point);
+    return model ? [{ ...site, model }] : [];
+  });
+  sites.push(...parkTrees);
+  return sites.length ? { sites, surfaces: [] } : undefined;
 }

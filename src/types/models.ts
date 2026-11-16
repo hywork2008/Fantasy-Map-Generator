@@ -234,7 +234,7 @@ export interface Race {
   removed?: boolean;
 }
 
-import type { Emblem } from "./emblem";
+import type { Emblem } from "./emblem.ts";
 
 export interface EmblemEl {
   i: number;

@@ -86,7 +86,9 @@ export function residentialHeightWeights(
   return [0.1, 0.6, 0.25, 0.05];
 }
 
-function kindOf(document: CityDocument, lot: BuildingLot) {
+export type ResidentialHeightKind = "ordinary" | "commercial" | "rich" | "outside";
+
+function kindOf(document: CityDocument, lot: BuildingLot): ResidentialHeightKind {
   const face = document.mesh.faces[lot.faceId];
   if (face?.properties.settlement === "outskirts") return "outside";
   if (lot.archetype === "patrician-house" || lot.archetype === "elite-compound") return "rich";
@@ -100,22 +102,39 @@ export function buildingHeightKey(lot: BuildingLot): string {
   return lot.heightKey ?? stableBuildingAppearanceId(lot);
 }
 
+/** The height stream of a generation seed; floor heights vary on the same stream (`buildingFloorSpecs`). */
+export function heightSeed(seed: string): string {
+  return `${seed}:height-v1`;
+}
+
 function seedOf(document: CityDocument): string {
-  return `${document.generationSeed ?? document.fabric?.seed ?? "height"}:height-v1`;
+  return heightSeed(document.generationSeed ?? document.fabric?.seed ?? "height");
+}
+
+/**
+ * Storeys drawn from the period weights, before any height limit. A block shares one roll, so streets read as
+ * even rows; 15% of houses roll on their own. `heightSeed` gives the stream, `key` the house, `blockId` the block.
+ */
+export function sampleStoreysFromWeights(
+  seed: string,
+  key: string,
+  blockId: string,
+  weights: readonly number[]
+): number {
+  const individual = growthRandom(`${seed}:${key}:independent`) < 0.15;
+  const roll = growthRandom(individual ? `${seed}:${key}:storeys` : `${seed}:face:${blockId}:storeys`);
+  let cumulative = 0;
+  for (let i = 0; i < weights.length; i++) {
+    cumulative += weights[i];
+    if (roll < cumulative) return i + 1;
+  }
+  return weights.length;
 }
 
 export function sampleResidentialStoreys(document: CityDocument, lot: BuildingLot): number {
-  const seed = seedOf(document);
-  const key = buildingHeightKey(lot);
-  const individual = growthRandom(`${seed}:${key}:independent`) < 0.15;
-  const roll = growthRandom(individual ? `${seed}:${key}:storeys` : `${seed}:face:${lot.faceId}:storeys`);
-  let cumulative = 0;
   const weights = residentialHeightWeights(heightPeriod(document), kindOf(document, lot));
-  for (let i = 0; i < weights.length; i++) {
-    cumulative += weights[i];
-    if (roll < cumulative) return maximumBuildingStoreys(document, lot, i + 1, true);
-  }
-  return maximumBuildingStoreys(document, lot, weights.length, true);
+  const storeys = sampleStoreysFromWeights(seedOf(document), buildingHeightKey(lot), lot.faceId, weights);
+  return maximumBuildingStoreys(document, lot, storeys, true);
 }
 
 export function heightPriority(document: CityDocument, lot: BuildingLot): number {

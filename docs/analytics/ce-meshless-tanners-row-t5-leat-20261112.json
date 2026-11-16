@@ -1,0 +1,5592 @@
+[
+ {
+  "case": "synthetic-open-5000",
+  "seed": "fixture",
+  "ms": 4052,
+  "requiredFacilities": 255,
+  "placedFacilities": 238,
+  "period": "ageOfExploration",
+  "tanneryRequests": 14,
+  "rivers": 1,
+  "bands": [],
+  "outsideCellWaterMin": null,
+  "outsideCells": 0,
+  "tanneryUnplaced": {},
+  "tanneries": 14,
+  "bankRow": 14,
+  "bankRowBackToWater": 14,
+  "belowCenter": 14,
+  "backFacesRiver": 14,
+  "flowOk": 14,
+  "downstream": 0,
+  "groups": 3,
+  "rows": 2,
+  "leats": 0,
+  "portGapMax": 0.2,
+  "detail": [
+   {
+    "siteDistance": 0.16250000000001244,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -25,
+     159
+    ],
+    "backMid": [
+     -18.313089403002312,
+     154.623452832341
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000001452,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -15,
+     174
+    ],
+    "backMid": [
+     -8.222027527894287,
+     169.52883676677027
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000000653,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -5,
+     189
+    ],
+    "backMid": [
+     1.8690343472137387,
+     184.43422070119948
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000000653,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     5,
+     204
+    ],
+    "backMid": [
+     11.960096222321763,
+     199.33960463562875
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000001416,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     15,
+     219
+    ],
+    "backMid": [
+     22.051158097429788,
+     214.24498857005796
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000000653,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     26,
+     234
+    ],
+    "backMid": [
+     32.142219972537816,
+     229.15037250448722
+    ]
+   },
+   {
+    "siteDistance": 0.1624999999999671,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     46,
+     263
+    ],
+    "backMid": [
+     52.324343722753866,
+     258.96114037334564
+    ]
+   },
+   {
+    "siteDistance": 0.1624999999999671,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     56,
+     278
+    ],
+    "backMid": [
+     62.415405597861906,
+     273.86652430777485
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000002246,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     66,
+     293
+    ],
+    "backMid": [
+     72.50646747296992,
+     288.7719082422042
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000000653,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     76,
+     308
+    ],
+    "backMid": [
+     82.59752934807796,
+     303.6772921766334
+    ]
+   },
+   {
+    "siteDistance": 0.1624999999999671,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     86,
+     323
+    ],
+    "backMid": [
+     92.68859122318597,
+     318.5826761110626
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000000653,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     11,
+     154
+    ],
+    "backMid": [
+     4.175098526513541,
+     158.72065049010365
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000000236,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     21,
+     169
+    ],
+    "backMid": [
+     14.266160401621569,
+     173.62603442453292
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000000236,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     31,
+     184
+    ],
+    "backMid": [
+     24.35722227672959,
+     188.53141835896213
+    ]
+   }
+  ]
+ },
+ {
+  "case": "synthetic-walls-5000",
+  "seed": "fixture",
+  "ms": 4373,
+  "requiredFacilities": 255,
+  "placedFacilities": 250,
+  "period": "ageOfExploration",
+  "tanneryRequests": 14,
+  "rivers": 1,
+  "bands": [
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 289
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 116
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 147
+   }
+  ],
+  "outsideCellWaterMin": 89,
+  "outsideCells": 16,
+  "tanneryUnplaced": {},
+  "tanneries": 14,
+  "bankRow": 14,
+  "bankRowBackToWater": 14,
+  "belowCenter": 14,
+  "backFacesRiver": 14,
+  "flowOk": 14,
+  "downstream": 14,
+  "groups": 1,
+  "rows": 1,
+  "leats": 0,
+  "portGapMax": 0.2,
+  "detail": [
+   {
+    "siteDistance": 0.16250000000003612,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     111,
+     225
+    ],
+    "backMid": [
+     118.70306038430697,
+     223.22469000796252
+    ]
+   },
+   {
+    "siteDistance": 0.1625000000000096,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     115,
+     243
+    ],
+    "backMid": [
+     122.8409461138751,
+     240.74262087005457
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000004342,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     119,
+     260
+    ],
+    "backMid": [
+     126.97883184344323,
+     258.2605517321466
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000002268,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     123,
+     278
+    ],
+    "backMid": [
+     131.11671757301139,
+     275.77848259423865
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000002268,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     128,
+     295
+    ],
+    "backMid": [
+     135.2546033025795,
+     293.29641345633064
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000002268,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     132,
+     313
+    ],
+    "backMid": [
+     139.39248903214764,
+     310.8143443184227
+    ]
+   },
+   {
+    "siteDistance": 0.162499999999995,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     136,
+     330
+    ],
+    "backMid": [
+     143.5303747617158,
+     328.33227518051467
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000002268,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     140,
+     348
+    ],
+    "backMid": [
+     147.66826049128392,
+     345.8502060426067
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000002268,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     144,
+     365
+    ],
+    "backMid": [
+     151.80614622085204,
+     363.36813690469876
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000000886,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     148,
+     383
+    ],
+    "backMid": [
+     155.9440319504202,
+     380.8860677667908
+    ]
+   },
+   {
+    "siteDistance": 0.1625000000000365,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     152,
+     400
+    ],
+    "backMid": [
+     160.08191767998832,
+     398.40399862888285
+    ]
+   },
+   {
+    "siteDistance": 0.1625000000000219,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     157,
+     418
+    ],
+    "backMid": [
+     164.21980340955648,
+     415.9219294909749
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000000886,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     161,
+     435
+    ],
+    "backMid": [
+     168.3576891391246,
+     433.4398603530669
+    ]
+   },
+   {
+    "siteDistance": 0.162499999999995,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     165,
+     453
+    ],
+    "backMid": [
+     172.49557486869276,
+     450.9577912151589
+    ]
+   }
+  ]
+ },
+ {
+  "case": "synthetic-open-20000",
+  "seed": "fixture",
+  "ms": 10126,
+  "requiredFacilities": 993,
+  "placedFacilities": 941,
+  "period": "ageOfExploration",
+  "tanneryRequests": 55,
+  "rivers": 1,
+  "bands": [],
+  "outsideCellWaterMin": null,
+  "outsideCells": 0,
+  "tanneryUnplaced": {
+   "river": 14
+  },
+  "tanneries": 41,
+  "bankRow": 41,
+  "bankRowBackToWater": 41,
+  "belowCenter": 41,
+  "backFacesRiver": 41,
+  "flowOk": 41,
+  "downstream": 0,
+  "groups": 2,
+  "rows": 1,
+  "leats": 0,
+  "portGapMax": 0.2,
+  "detail": [
+   {
+    "siteDistance": 0.16250000000007866,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     213,
+     189
+    ],
+    "backMid": [
+     215.24909402988416,
+     181.29158626057148
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000010617,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     231,
+     194
+    ],
+    "backMid": [
+     232.6557158617964,
+     185.87520016237386
+    ]
+   },
+   {
+    "siteDistance": 0.1625000000001199,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     248,
+     198
+    ],
+    "backMid": [
+     250.06233769370866,
+     190.45881406417624
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000009315,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     265,
+     203
+    ],
+    "backMid": [
+     267.4689595256209,
+     195.04242796597856
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000012066,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     283,
+     207
+    ],
+    "backMid": [
+     284.8755813575332,
+     199.62604186778094
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000007794,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     300,
+     212
+    ],
+    "backMid": [
+     302.2822031894454,
+     204.20965576958326
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000010542,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     318,
+     216
+    ],
+    "backMid": [
+     319.6888250213577,
+     208.79326967138564
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000007866,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     335,
+     221
+    ],
+    "backMid": [
+     337.0954468532699,
+     213.37688357318797
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000009243,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     352,
+     226
+    ],
+    "backMid": [
+     354.50206868518217,
+     217.96049747499035
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000010617,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     370,
+     230
+    ],
+    "backMid": [
+     371.90869051709444,
+     222.54411137679273
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000009243,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     387,
+     235
+    ],
+    "backMid": [
+     389.31531234900666,
+     227.12772527859505
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000012066,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     405,
+     239
+    ],
+    "backMid": [
+     406.7219341809189,
+     231.71133918039743
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000007866,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     422,
+     244
+    ],
+    "backMid": [
+     424.12855601283115,
+     236.29495308219975
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000009315,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     440,
+     249
+    ],
+    "backMid": [
+     441.53517784474343,
+     240.87856698400213
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000003745,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     457,
+     253
+    ],
+    "backMid": [
+     458.9417996766557,
+     245.46218088580446
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000010692,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     474,
+     258
+    ],
+    "backMid": [
+     476.34842150856787,
+     250.04579478760684
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000007941,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     492,
+     262
+    ],
+    "backMid": [
+     493.75504334048014,
+     254.62940868940916
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000007941,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     509,
+     267
+    ],
+    "backMid": [
+     511.1616651723924,
+     259.21302259121154
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000010692,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     527,
+     271
+    ],
+    "backMid": [
+     528.5682870043047,
+     263.7966364930139
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000005047,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     544,
+     276
+    ],
+    "backMid": [
+     545.9749088362169,
+     268.38025039481624
+    ]
+   },
+   {
+    "siteDistance": 0.16250000000010542,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     561,
+     281
+    ],
+    "backMid": [
+     563.381530668129,
+     272.9638642966186
+    ]
+   },
+   {
+    "siteDistance": 0.16317204168284355,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     234,
+     161
+    ],
+    "backMid": [
+     231.97817470881503,
+     168.81302092922704
+    ]
+   },
+   {
+    "siteDistance": 0.16619623518851473,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     251,
+     166
+    ],
+    "backMid": [
+     249.3855663914644,
+     173.39371026674274
+    ]
+   },
+   {
+    "siteDistance": 0.16922042869422715,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     269,
+     170
+    ],
+    "backMid": [
+     266.7929580741138,
+     177.9743996042584
+    ]
+   },
+   {
+    "siteDistance": 0.17224462219993883,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     286,
+     175
+    ],
+    "backMid": [
+     284.2003497567632,
+     182.55508894177404
+    ]
+   },
+   {
+    "siteDistance": 0.17526881570565125,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     304,
+     179
+    ],
+    "backMid": [
+     301.6077414394125,
+     187.1357782792897
+    ]
+   },
+   {
+    "siteDistance": 0.17829300921133692,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     321,
+     184
+    ],
+    "backMid": [
+     319.0151331220619,
+     191.71646761680535
+    ]
+   },
+   {
+    "siteDistance": 0.18131720271704935,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     338,
+     189
+    ],
+    "backMid": [
+     336.4225248047113,
+     196.297156954321
+    ]
+   },
+   {
+    "siteDistance": 0.184341396222748,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     356,
+     193
+    ],
+    "backMid": [
+     353.8299164873606,
+     200.87784629183665
+    ]
+   },
+   {
+    "siteDistance": 0.18736558972846043,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     373,
+     198
+    ],
+    "backMid": [
+     371.23730817001,
+     205.4585356293523
+    ]
+   },
+   {
+    "siteDistance": 0.19038978323413816,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     391,
+     202
+    ],
+    "backMid": [
+     388.6446998526594,
+     210.039224966868
+    ]
+   },
+   {
+    "siteDistance": 0.19341397673983682,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     408,
+     207
+    ],
+    "backMid": [
+     406.0520915353087,
+     214.61991430438366
+    ]
+   },
+   {
+    "siteDistance": 0.19643817024552865,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     425,
+     212
+    ],
+    "backMid": [
+     423.4594832179581,
+     219.2006036418993
+    ]
+   },
+   {
+    "siteDistance": 0.19946236375123416,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     443,
+     216
+    ],
+    "backMid": [
+     440.8668749006075,
+     223.78129297941496
+    ]
+   },
+   {
+    "siteDistance": 0.20248655725693973,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     460,
+     221
+    ],
+    "backMid": [
+     458.2742665832568,
+     228.3619823169306
+    ]
+   },
+   {
+    "siteDistance": 0.20551075076265574,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     478,
+     225
+    ],
+    "backMid": [
+     475.6816582659062,
+     232.94267165444626
+    ]
+   },
+   {
+    "siteDistance": 0.20853494426837502,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     495,
+     230
+    ],
+    "backMid": [
+     493.0890499485556,
+     237.5233609919619
+    ]
+   },
+   {
+    "siteDistance": 0.21155913777401858,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     513,
+     234
+    ],
+    "backMid": [
+     510.4964416312049,
+     242.10405032947762
+    ]
+   },
+   {
+    "siteDistance": 0.21458333127973783,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     530,
+     239
+    ],
+    "backMid": [
+     527.9038333138543,
+     246.68473966699327
+    ]
+   },
+   {
+    "siteDistance": 0.21760752478542786,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     547,
+     244
+    ],
+    "backMid": [
+     545.3112249965037,
+     251.26542900450892
+    ]
+   },
+   {
+    "siteDistance": 0.22063171829111708,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     565,
+     248
+    ],
+    "backMid": [
+     562.718616679153,
+     255.84611834202457
+    ]
+   }
+  ]
+ },
+ {
+  "case": "gothengsfeld-20261012",
+  "seed": "fixture",
+  "ms": 11800,
+  "requiredFacilities": 235,
+  "placedFacilities": 118,
+  "period": "ageOfExploration",
+  "tanneryRequests": 14,
+  "rivers": 1,
+  "bands": [
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 1
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 298
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 1
+   }
+  ],
+  "outsideCellWaterMin": 19,
+  "outsideCells": 28,
+  "tanneryUnplaced": {},
+  "tanneries": 14,
+  "bankRow": 14,
+  "bankRowBackToWater": 14,
+  "belowCenter": 14,
+  "backFacesRiver": 14,
+  "flowOk": 14,
+  "downstream": 14,
+  "groups": 1,
+  "rows": 1,
+  "leats": 0,
+  "portGapMax": 2.1,
+  "detail": [
+   {
+    "siteDistance": 1.57542853150443,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     177,
+     -73
+    ],
+    "backMid": [
+     173.20467832326227,
+     -66.9118184842785
+    ]
+   },
+   {
+    "siteDistance": 1.6808924466502402,
+    "portGap": 1.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     192,
+     -65
+    ],
+    "backMid": [
+     189.2035084632487,
+     -58.66333776648199
+    ]
+   },
+   {
+    "siteDistance": 1.7863563617960485,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     208,
+     -57
+    ],
+    "backMid": [
+     205.20233860323515,
+     -50.41485704868546
+    ]
+   },
+   {
+    "siteDistance": 1.8918202769418808,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     225,
+     -49
+    ],
+    "backMid": [
+     221.20116874322161,
+     -42.16637633088895
+    ]
+   },
+   {
+    "siteDistance": 1.997284192087707,
+    "portGap": 2.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     241,
+     -41
+    ],
+    "backMid": [
+     237.19999888320808,
+     -33.91789561309244
+    ]
+   },
+   {
+    "siteDistance": 2.030329647852454,
+    "portGap": 2.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     256,
+     -32
+    ],
+    "backMid": [
+     253.19882902319455,
+     -25.66941489529592
+    ]
+   },
+   {
+    "siteDistance": 1.9543390061458719,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     273,
+     -25
+    ],
+    "backMid": [
+     269.1976591631809,
+     -17.420934177499408
+    ]
+   },
+   {
+    "siteDistance": 1.8783483644392989,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     288,
+     -15
+    ],
+    "backMid": [
+     285.19648930316737,
+     -9.172453459702883
+    ]
+   },
+   {
+    "siteDistance": 1.8023577227327403,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     304,
+     -7
+    ],
+    "backMid": [
+     301.19531944315383,
+     -0.9239727419063692
+    ]
+   },
+   {
+    "siteDistance": 1.726367081026153,
+    "portGap": 1.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     320,
+     1
+    ],
+    "backMid": [
+     317.1941495831403,
+     7.32450797589017
+    ]
+   },
+   {
+    "siteDistance": 1.5854453495904048,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     336,
+     9
+    ],
+    "backMid": [
+     333.19297972312677,
+     15.57298869368668
+    ]
+   },
+   {
+    "siteDistance": 1.3297228297640793,
+    "portGap": 1.6,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     353,
+     17
+    ],
+    "backMid": [
+     349.19180986311324,
+     23.821469411483204
+    ]
+   },
+   {
+    "siteDistance": 1.0740003099377482,
+    "portGap": 1.3,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     369,
+     25
+    ],
+    "backMid": [
+     365.1906400030997,
+     32.069950129279704
+    ]
+   },
+   {
+    "siteDistance": 0.8182777901114207,
+    "portGap": 1.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     385,
+     34
+    ],
+    "backMid": [
+     381.18947014308617,
+     40.31843084707623
+    ]
+   }
+  ]
+ },
+ {
+  "case": "gondre-20261009",
+  "seed": "fixture",
+  "ms": 5217,
+  "requiredFacilities": 261,
+  "placedFacilities": 225,
+  "period": "ageOfExploration",
+  "tanneryRequests": 14,
+  "rivers": 1,
+  "bands": [
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 246
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 0
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 563
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 246
+   }
+  ],
+  "outsideCellWaterMin": 2,
+  "outsideCells": 15,
+  "tanneryUnplaced": {
+   "frame": 5
+  },
+  "tanneries": 9,
+  "bankRow": 9,
+  "bankRowBackToWater": 9,
+  "belowCenter": 9,
+  "backFacesRiver": 9,
+  "flowOk": 9,
+  "downstream": 0,
+  "groups": 1,
+  "rows": 1,
+  "leats": 0,
+  "portGapMax": 2,
+  "detail": [
+   {
+    "siteDistance": 1.8955201403530473,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     272,
+     -637
+    ],
+    "backMid": [
+     268.64655026675723,
+     -629.4023324443419
+    ]
+   },
+   {
+    "siteDistance": 1.7457122124158457,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     256,
+     -644
+    ],
+    "backMid": [
+     252.35100054396185,
+     -637.0479232803666
+    ]
+   },
+   {
+    "siteDistance": 1.5959042844786628,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     239,
+     -651
+    ],
+    "backMid": [
+     236.05545082116652,
+     -644.6935141163913
+    ]
+   },
+   {
+    "siteDistance": 1.446096356541487,
+    "portGap": 1.6,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     223,
+     -659
+    ],
+    "backMid": [
+     219.7599010983712,
+     -652.3391049524159
+    ]
+   },
+   {
+    "siteDistance": 1.2962884286042913,
+    "portGap": 1.4,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     207,
+     -667
+    ],
+    "backMid": [
+     203.4643513755758,
+     -659.9846957884406
+    ]
+   },
+   {
+    "siteDistance": 1.1464805006671213,
+    "portGap": 1.3,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     190,
+     -674
+    ],
+    "backMid": [
+     187.16880165278047,
+     -667.6302866244653
+    ]
+   },
+   {
+    "siteDistance": 0.9966725727299199,
+    "portGap": 1.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     174,
+     -682
+    ],
+    "backMid": [
+     170.8732519299851,
+     -675.2758774604899
+    ]
+   },
+   {
+    "siteDistance": 0.8468646447926451,
+    "portGap": 1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     158,
+     -690
+    ],
+    "backMid": [
+     154.57770220718976,
+     -682.9214682965146
+    ]
+   },
+   {
+    "siteDistance": 0.6970567168554561,
+    "portGap": 0.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     142,
+     -698
+    ],
+    "backMid": [
+     138.28215248439437,
+     -690.5670591325393
+    ]
+   }
+  ]
+ },
+ {
+  "case": "myosiasos-20261007",
+  "seed": "fixture",
+  "ms": 14311,
+  "requiredFacilities": 514,
+  "placedFacilities": 507,
+  "period": "ageOfExploration",
+  "tanneryRequests": 28,
+  "rivers": 1,
+  "bands": [
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 206
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 0
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 1215
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 976
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 363
+   }
+  ],
+  "outsideCellWaterMin": 2,
+  "outsideCells": 29,
+  "tanneryUnplaced": {},
+  "tanneries": 28,
+  "bankRow": 28,
+  "bankRowBackToWater": 28,
+  "belowCenter": 28,
+  "backFacesRiver": 28,
+  "flowOk": 28,
+  "downstream": 0,
+  "groups": 2,
+  "rows": 2,
+  "leats": 0,
+  "portGapMax": 2.1,
+  "detail": [
+   {
+    "siteDistance": 0.5608877513749575,
+    "portGap": 0.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     461,
+     213
+    ],
+    "backMid": [
+     453.9792409434915,
+     208.58724436460903
+    ]
+   },
+   {
+    "siteDistance": 0.7102311041324965,
+    "portGap": 0.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     470,
+     197
+    ],
+    "backMid": [
+     463.477215008768,
+     193.2971008513736
+    ]
+   },
+   {
+    "siteDistance": 0.859574456890026,
+    "portGap": 1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     479,
+     182
+    ],
+    "backMid": [
+     472.97518907404447,
+     178.00695733813816
+    ]
+   },
+   {
+    "siteDistance": 1.0089178096475648,
+    "portGap": 1.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     489,
+     167
+    ],
+    "backMid": [
+     482.47316313932095,
+     162.71681382490274
+    ]
+   },
+   {
+    "siteDistance": 1.1582611624050378,
+    "portGap": 1.3,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     498,
+     151
+    ],
+    "backMid": [
+     491.9711372045973,
+     147.4266703116673
+    ]
+   },
+   {
+    "siteDistance": 1.3076045151625793,
+    "portGap": 1.4,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     508,
+     136
+    ],
+    "backMid": [
+     501.4691112698738,
+     132.13652679843187
+    ]
+   },
+   {
+    "siteDistance": 1.4569478679200734,
+    "portGap": 1.6,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     517,
+     121
+    ],
+    "backMid": [
+     510.9670853351503,
+     116.84638328519645
+    ]
+   },
+   {
+    "siteDistance": 1.606291220677594,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     527,
+     105
+    ],
+    "backMid": [
+     520.4650594004268,
+     101.556239771961
+    ]
+   },
+   {
+    "siteDistance": 1.7556345734351395,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     536,
+     90
+    ],
+    "backMid": [
+     529.9630334657031,
+     86.26609625872558
+    ]
+   },
+   {
+    "siteDistance": 1.9049779261926771,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     545,
+     75
+    ],
+    "backMid": [
+     539.4610075309797,
+     70.97595274549016
+    ]
+   },
+   {
+    "siteDistance": 2.0441996642020133,
+    "portGap": 2.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     555,
+     59
+    ],
+    "backMid": [
+     548.9589815962561,
+     55.68580923225471
+    ]
+   },
+   {
+    "siteDistance": 1.9511624271002566,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     564,
+     44
+    ],
+    "backMid": [
+     558.4569556615327,
+     40.39566571901929
+    ]
+   },
+   {
+    "siteDistance": 1.8581251899984759,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     574,
+     29
+    ],
+    "backMid": [
+     567.954929726809,
+     25.10552220578384
+    ]
+   },
+   {
+    "siteDistance": 1.7650879528967038,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     583,
+     14
+    ],
+    "backMid": [
+     577.4529037920856,
+     9.81537869254839
+    ]
+   },
+   {
+    "siteDistance": 1.6720507157949318,
+    "portGap": 1.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     593,
+     -2
+    ],
+    "backMid": [
+     586.950877857362,
+     -5.474764820687032
+    ]
+   },
+   {
+    "siteDistance": 1.5790134786931753,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     603,
+     -17
+    ],
+    "backMid": [
+     596.4488519226386,
+     -20.764908333922452
+    ]
+   },
+   {
+    "siteDistance": 1.4859762415913218,
+    "portGap": 1.6,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     612,
+     -32
+    ],
+    "backMid": [
+     605.946825987915,
+     -36.05505184715787
+    ]
+   },
+   {
+    "siteDistance": 1.3929390044896206,
+    "portGap": 1.5,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     622,
+     -47
+    ],
+    "backMid": [
+     615.4448000531916,
+     -51.34519536039335
+    ]
+   },
+   {
+    "siteDistance": 1.2999017673877615,
+    "portGap": 1.4,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     631,
+     -63
+    ],
+    "backMid": [
+     624.9427741184679,
+     -66.63533887362877
+    ]
+   },
+   {
+    "siteDistance": 1.206864530286003,
+    "portGap": 1.3,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     641,
+     -78
+    ],
+    "backMid": [
+     634.4407481837443,
+     -81.92548238686419
+    ]
+   },
+   {
+    "siteDistance": 1.113827293184241,
+    "portGap": 1.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     650,
+     -93
+    ],
+    "backMid": [
+     643.9387222490209,
+     -97.21562590009961
+    ]
+   },
+   {
+    "siteDistance": 1.02079005608248,
+    "portGap": 1.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     660,
+     -109
+    ],
+    "backMid": [
+     653.4366963142973,
+     -112.50576941333503
+    ]
+   },
+   {
+    "siteDistance": 0.927752818980687,
+    "portGap": 1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     669,
+     -124
+    ],
+    "backMid": [
+     662.9346703795738,
+     -127.79591292657051
+    ]
+   },
+   {
+    "siteDistance": 0.6206707608188953,
+    "portGap": 0.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     679,
+     -139
+    ],
+    "backMid": [
+     672.4326444448502,
+     -143.08605643980593
+    ]
+   },
+   {
+    "siteDistance": 0.30163224317927884,
+    "portGap": 0.6,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     689,
+     -154
+    ],
+    "backMid": [
+     681.9306185101268,
+     -158.37619995304135
+    ]
+   },
+   {
+    "siteDistance": 0.16783536427280663,
+    "portGap": 0.3,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     704,
+     -179
+    ],
+    "backMid": [
+     697.8277633221821,
+     -183.3654862031778
+    ]
+   },
+   {
+    "siteDistance": 0.3403146691445481,
+    "portGap": 0.5,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     714,
+     -194
+    ],
+    "backMid": [
+     707.7396818036947,
+     -198.39059425656131
+    ]
+   },
+   {
+    "siteDistance": 0.5127939740163501,
+    "portGap": 0.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     724,
+     -209
+    ],
+    "backMid": [
+     717.6516002852073,
+     -213.41570230994483
+    ]
+   }
+  ]
+ },
+ {
+  "case": "archiagu-20261010",
+  "seed": "fixture",
+  "ms": 16203,
+  "requiredFacilities": 855,
+  "placedFacilities": 793,
+  "period": "highMedieval",
+  "tanneryRequests": 48,
+  "rivers": 1,
+  "bands": [
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 595
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 631
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": null,
+    "toRiverAny": 164
+   }
+  ],
+  "outsideCellWaterMin": 110,
+  "outsideCells": 91,
+  "tanneryUnplaced": {
+   "river": 43
+  },
+  "tanneries": 5,
+  "bankRow": 5,
+  "bankRowBackToWater": 5,
+  "belowCenter": 5,
+  "backFacesRiver": 5,
+  "flowOk": 5,
+  "downstream": 0,
+  "groups": 1,
+  "rows": 1,
+  "leats": 0,
+  "portGapMax": 0.2,
+  "detail": [
+   {
+    "siteDistance": 0.1529121914847924,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -154,
+     383
+    ],
+    "backMid": [
+     -149.15110941014228,
+     377.28071200414945
+    ]
+   },
+   {
+    "siteDistance": 0.16052323637044974,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -140,
+     395
+    ],
+    "backMid": [
+     -135.25176117937332,
+     388.7178497037586
+    ]
+   },
+   {
+    "siteDistance": 0.16813428125607094,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -126,
+     406
+    ],
+    "backMid": [
+     -121.35241294860435,
+     400.15498740336767
+    ]
+   },
+   {
+    "siteDistance": 0.1757453261416977,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -112,
+     418
+    ],
+    "backMid": [
+     -107.45306471783539,
+     411.59212510297675
+    ]
+   },
+   {
+    "siteDistance": 0.18335637102736438,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -99,
+     429
+    ],
+    "backMid": [
+     -93.55371648706642,
+     423.0292628025859
+    ]
+   }
+  ]
+ },
+ {
+  "case": "synthetic-walls-5000-meander",
+  "seed": "fixture",
+  "ms": 8559,
+  "requiredFacilities": 255,
+  "placedFacilities": 254,
+  "period": "ageOfExploration",
+  "tanneryRequests": 14,
+  "rivers": 1,
+  "bands": [
+   {
+    "profile": "rural",
+    "toRiverDown": 229,
+    "toRiverAny": 114
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": 379,
+    "toRiverAny": 22
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": 103,
+    "toRiverAny": 103
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": 253,
+    "toRiverAny": 124
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": 304,
+    "toRiverAny": 1
+   }
+  ],
+  "outsideCellWaterMin": 2,
+  "outsideCells": 52,
+  "tanneryUnplaced": {},
+  "tanneries": 14,
+  "bankRow": 14,
+  "bankRowBackToWater": 14,
+  "belowCenter": 14,
+  "backFacesRiver": 14,
+  "flowOk": 14,
+  "downstream": 14,
+  "groups": 3,
+  "rows": 3,
+  "leats": 0,
+  "portGapMax": 2.1,
+  "detail": [
+   {
+    "siteDistance": 0.8849751216222574,
+    "portGap": 1.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     205,
+     -41
+    ],
+    "backMid": [
+     200.3244510164305,
+     -35.68851168881665
+    ]
+   },
+   {
+    "siteDistance": 0.17174296946420425,
+    "portGap": 0.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     219,
+     -31
+    ],
+    "backMid": [
+     214.39633746709137,
+     -24.464340818783246
+    ]
+   },
+   {
+    "siteDistance": 0.1717429694642065,
+    "portGap": 0.4,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     233,
+     -19
+    ],
+    "backMid": [
+     228.4682239177523,
+     -13.240169948749841
+    ]
+   },
+   {
+    "siteDistance": 0.4650089787076793,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     247,
+     -8
+    ],
+    "backMid": [
+     242.5401103684132,
+     -2.015999078716435
+    ]
+   },
+   {
+    "siteDistance": 0.22019416968466432,
+    "portGap": 0.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     265,
+     9
+    ],
+    "backMid": [
+     259.8131379761046,
+     15.222281985454487
+    ]
+   },
+   {
+    "siteDistance": 0.7496044532072751,
+    "portGap": 1.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     278,
+     22
+    ],
+    "backMid": [
+     273.18530784389236,
+     27.271558852844887
+    ]
+   },
+   {
+    "siteDistance": 1.279014736729858,
+    "portGap": 1.6,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     291,
+     34
+    ],
+    "backMid": [
+     286.5574777116801,
+     39.320835720235294
+    ]
+   },
+   {
+    "siteDistance": 1.6457783675227484,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     305,
+     46
+    ],
+    "backMid": [
+     299.92964757946777,
+     51.3701125876257
+    ]
+   },
+   {
+    "siteDistance": 1.892612416286615,
+    "portGap": 2.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     318,
+     58
+    ],
+    "backMid": [
+     313.30181744725553,
+     63.4193894550161
+    ]
+   },
+   {
+    "siteDistance": 1.7788348209286926,
+    "portGap": 2.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     332,
+     70
+    ],
+    "backMid": [
+     326.6739873150433,
+     75.4686663224065
+    ]
+   },
+   {
+    "siteDistance": 0.43049043226250155,
+    "portGap": 1.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     345,
+     82
+    ],
+    "backMid": [
+     340.04615718283105,
+     87.51794318979691
+    ]
+   },
+   {
+    "siteDistance": 0.5690756433866176,
+    "portGap": 1.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     367,
+     97
+    ],
+    "backMid": [
+     363.45344531480265,
+     103.9104210251858
+    ]
+   },
+   {
+    "siteDistance": 1.2733974117233773,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     383,
+     107
+    ],
+    "backMid": [
+     379.02312087831524,
+     112.94287378437363
+    ]
+   },
+   {
+    "siteDistance": 1.1245042018545872,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     399,
+     115
+    ],
+    "backMid": [
+     394.5927964418278,
+     121.97532654356147
+    ]
+   }
+  ]
+ },
+ {
+  "case": "synthetic-open-5000-meander",
+  "seed": "fixture",
+  "ms": 11829,
+  "requiredFacilities": 255,
+  "placedFacilities": 245,
+  "period": "ageOfExploration",
+  "tanneryRequests": 14,
+  "rivers": 2,
+  "bands": [],
+  "outsideCellWaterMin": null,
+  "outsideCells": 0,
+  "tanneryUnplaced": {},
+  "tanneries": 14,
+  "bankRow": 14,
+  "bankRowBackToWater": 14,
+  "belowCenter": 14,
+  "backFacesRiver": 14,
+  "flowOk": 14,
+  "downstream": 0,
+  "groups": 1,
+  "rows": 1,
+  "leats": 1,
+  "portGapMax": 0.1,
+  "detail": [
+   {
+    "siteDistance": 0.0023090296259235814,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -402,
+     -66
+    ],
+    "backMid": [
+     -401.2362822964184,
+     -74.32831498453248
+    ]
+   },
+   {
+    "siteDistance": 0.008439565497018724,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -420,
+     -68
+    ],
+    "backMid": [
+     -419.12395933131734,
+     -76.33605259068213
+    ]
+   },
+   {
+    "siteDistance": 0.014570101368148472,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -438,
+     -70
+    ],
+    "backMid": [
+     -437.01163636621635,
+     -78.34379019683175
+    ]
+   },
+   {
+    "siteDistance": 0.020700637239249274,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -456,
+     -72
+    ],
+    "backMid": [
+     -454.89931340111536,
+     -80.3515278029814
+    ]
+   },
+   {
+    "siteDistance": 0.026831173110375493,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -474,
+     -74
+    ],
+    "backMid": [
+     -472.7869904360143,
+     -82.35926540913101
+    ]
+   },
+   {
+    "siteDistance": 0.03296170898148052,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -492,
+     -76
+    ],
+    "backMid": [
+     -490.67466747091333,
+     -84.36700301528066
+    ]
+   },
+   {
+    "siteDistance": 0.03909224485260639,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -509,
+     -78
+    ],
+    "backMid": [
+     -508.5623445058123,
+     -86.37474062143028
+    ]
+   },
+   {
+    "siteDistance": 0.045222780723707896,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -527,
+     -80
+    ],
+    "backMid": [
+     -526.4500215407113,
+     -88.38247822757992
+    ]
+   },
+   {
+    "siteDistance": 0.05135331659483058,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -545,
+     -82
+    ],
+    "backMid": [
+     -544.3376985756101,
+     -90.39021583372954
+    ]
+   },
+   {
+    "siteDistance": 0.05748385246592502,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -563,
+     -84
+    ],
+    "backMid": [
+     -562.2253756105092,
+     -92.39795343987919
+    ]
+   },
+   {
+    "siteDistance": 0.06361438833703675,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -581,
+     -86
+    ],
+    "backMid": [
+     -580.1130526454083,
+     -94.40569104602883
+    ]
+   },
+   {
+    "siteDistance": 0.06974492420815945,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -599,
+     -88
+    ],
+    "backMid": [
+     -598.0007296803071,
+     -96.41342865217845
+    ]
+   },
+   {
+    "siteDistance": 0.07587546007925743,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -617,
+     -91
+    ],
+    "backMid": [
+     -615.8884067152062,
+     -98.4211662583281
+    ]
+   },
+   {
+    "siteDistance": 0.08200599595039565,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -635,
+     -93
+    ],
+    "backMid": [
+     -633.7760837501053,
+     -100.42890386447772
+    ]
+   }
+  ]
+ },
+ {
+  "case": "synthetic-open-20000-meander",
+  "seed": "fixture",
+  "ms": 18321,
+  "requiredFacilities": 993,
+  "placedFacilities": 984,
+  "period": "ageOfExploration",
+  "tanneryRequests": 55,
+  "rivers": 2,
+  "bands": [],
+  "outsideCellWaterMin": null,
+  "outsideCells": 0,
+  "tanneryUnplaced": {
+   "river": 1
+  },
+  "tanneries": 54,
+  "bankRow": 54,
+  "bankRowBackToWater": 54,
+  "belowCenter": 54,
+  "backFacesRiver": 54,
+  "flowOk": 54,
+  "downstream": 0,
+  "groups": 2,
+  "rows": 2,
+  "leats": 1,
+  "portGapMax": 0.1,
+  "detail": [
+   {
+    "siteDistance": 0.10000000000006007,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     340,
+     158
+    ],
+    "backMid": [
+     337.2612970123624,
+     165.51655145150113
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000014135,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     357,
+     165
+    ],
+    "backMid": [
+     354.0715067208034,
+     171.95214385300028
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000014135,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     374,
+     171
+    ],
+    "backMid": [
+     370.8817164292445,
+     178.3877362544995
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000008825,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     391,
+     177
+    ],
+    "backMid": [
+     387.6919261376855,
+     184.82332865599864
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000006007,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     407,
+     184
+    ],
+    "backMid": [
+     404.50213584612663,
+     191.2589210574978
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000006007,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     424,
+     190
+    ],
+    "backMid": [
+     421.3123455545677,
+     197.69451345899694
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000011314,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     441,
+     197
+    ],
+    "backMid": [
+     438.12255526300873,
+     204.1301058604961
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000016622,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     458,
+     203
+    ],
+    "backMid": [
+     454.93276497144984,
+     210.5656982619953
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000019442,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     475,
+     210
+    ],
+    "backMid": [
+     471.7429746798909,
+     217.00129066349444
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001007,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     491,
+     216
+    ],
+    "backMid": [
+     488.55318438833194,
+     223.4368830649936
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001007,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     508,
+     222
+    ],
+    "backMid": [
+     505.36339409677305,
+     229.87247546649274
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000011314,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     525,
+     229
+    ],
+    "backMid": [
+     522.173603805214,
+     236.3080678679919
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000011314,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     542,
+     235
+    ],
+    "backMid": [
+     538.9838135136552,
+     242.7436602694911
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001538,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     559,
+     242
+    ],
+    "backMid": [
+     555.7940232220963,
+     249.17925267099025
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001538,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     575,
+     248
+    ],
+    "backMid": [
+     572.6042329305373,
+     255.6148450724894
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001538,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     592,
+     255
+    ],
+    "backMid": [
+     589.4144426389784,
+     262.05043747398855
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001007,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     609,
+     261
+    ],
+    "backMid": [
+     606.2246523474194,
+     268.4860298754877
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001007,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     626,
+     267
+    ],
+    "backMid": [
+     623.0348620558605,
+     274.9216222769869
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001007,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     643,
+     274
+    ],
+    "backMid": [
+     639.8450717643016,
+     281.35721467848606
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000019442,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     659,
+     280
+    ],
+    "backMid": [
+     656.6552814727427,
+     287.7928070799852
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000008825,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     676,
+     287
+    ],
+    "backMid": [
+     673.4654911811837,
+     294.2283994814844
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001538,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     693,
+     293
+    ],
+    "backMid": [
+     690.2757008896248,
+     300.6639918829835
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001007,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     710,
+     300
+    ],
+    "backMid": [
+     707.0859105980658,
+     307.0995842844827
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001007,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     727,
+     306
+    ],
+    "backMid": [
+     723.8961203065069,
+     313.53517668598187
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001538,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     744,
+     313
+    ],
+    "backMid": [
+     740.706330014948,
+     319.970769087481
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000011314,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     760,
+     319
+    ],
+    "backMid": [
+     757.5165397233891,
+     326.4063614889802
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000014135,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     777,
+     325
+    ],
+    "backMid": [
+     774.3267494318301,
+     332.8419538904794
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001007,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     794,
+     332
+    ],
+    "backMid": [
+     791.1369591402711,
+     339.2775462919785
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001007,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     811,
+     338
+    ],
+    "backMid": [
+     807.9471688487122,
+     345.71313869347773
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000014135,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     828,
+     345
+    ],
+    "backMid": [
+     824.7573785571533,
+     352.1487310949768
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001538,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     844,
+     351
+    ],
+    "backMid": [
+     841.5675882655944,
+     358.58432349647603
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000014135,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     861,
+     358
+    ],
+    "backMid": [
+     858.3777979740354,
+     365.0199158979752
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000016789,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     878,
+     364
+    ],
+    "backMid": [
+     875.1880076824765,
+     371.45550829947433
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001007,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     895,
+     370
+    ],
+    "backMid": [
+     891.9982173909175,
+     377.89110070097354
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000018033,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     912,
+     377
+    ],
+    "backMid": [
+     908.8084270993586,
+     384.32669310247263
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000014135,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     928,
+     383
+    ],
+    "backMid": [
+     925.6186368077997,
+     390.76228550397184
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000012724,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     945,
+     390
+    ],
+    "backMid": [
+     942.4288465162407,
+     397.197877905471
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000018033,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     962,
+     396
+    ],
+    "backMid": [
+     959.2390562246818,
+     403.63347030697014
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001538,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     996,
+     409
+    ],
+    "backMid": [
+     992.8594756415639,
+     416.5046551099685
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000017412,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1013,
+     416
+    ],
+    "backMid": [
+     1009.669685350005,
+     422.94024751146765
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001538,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1029,
+     422
+    ],
+    "backMid": [
+     1026.4798950584461,
+     429.37583991296685
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001538,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1046,
+     428
+    ],
+    "backMid": [
+     1043.290104766887,
+     435.81143231446595
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000012724,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1063,
+     435
+    ],
+    "backMid": [
+     1060.100314475328,
+     442.24702471596515
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000020687,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1080,
+     441
+    ],
+    "backMid": [
+     1076.9105241837692,
+     448.68261711746425
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000016002,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1097,
+     448
+    ],
+    "backMid": [
+     1093.7207338922103,
+     455.11820951896345
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000012724,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1113,
+     454
+    ],
+    "backMid": [
+     1110.5309436006514,
+     461.55380192046266
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000023342,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1130,
+     461
+    ],
+    "backMid": [
+     1127.3411533090925,
+     467.98939432196175
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000020065,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1147,
+     467
+    ],
+    "backMid": [
+     1144.1513630175336,
+     474.42498672346096
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000018033,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1164,
+     473
+    ],
+    "backMid": [
+     1160.9615727259747,
+     480.86057912496017
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000017412,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1181,
+     480
+    ],
+    "backMid": [
+     1177.7717824344156,
+     487.29617152645926
+    ]
+   },
+   {
+    "siteDistance": 0.1000000000001538,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1197,
+     486
+    ],
+    "backMid": [
+     1194.5819921428567,
+     493.73176392795847
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000022718,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1214,
+     493
+    ],
+    "backMid": [
+     1211.3922018512978,
+     500.16735632945756
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000012724,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1231,
+     499
+    ],
+    "backMid": [
+     1228.2024115597387,
+     506.60294873095677
+    ]
+   },
+   {
+    "siteDistance": 0.10000000000011397,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     1248,
+     506
+    ],
+    "backMid": [
+     1245.0126212681798,
+     513.038541132456
+    ]
+   }
+  ]
+ },
+ {
+  "case": "synthetic-walls-20000-greatBend",
+  "seed": "fixture",
+  "ms": 24745,
+  "requiredFacilities": 993,
+  "placedFacilities": 956,
+  "period": "ageOfExploration",
+  "tanneryRequests": 55,
+  "rivers": 1,
+  "bands": [
+   {
+    "profile": "rural",
+    "toRiverDown": 687,
+    "toRiverAny": 472
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": 608,
+    "toRiverAny": 559
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": 197,
+    "toRiverAny": 126
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": 141,
+    "toRiverAny": 75
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": 723,
+    "toRiverAny": 587
+   }
+  ],
+  "outsideCellWaterMin": 71,
+  "outsideCells": 138,
+  "tanneryUnplaced": {
+   "frame": 15
+  },
+  "tanneries": 40,
+  "bankRow": 40,
+  "bankRowBackToWater": 40,
+  "belowCenter": 40,
+  "backFacesRiver": 40,
+  "flowOk": 40,
+  "downstream": 40,
+  "groups": 6,
+  "rows": 6,
+  "leats": 0,
+  "portGapMax": 2.1,
+  "detail": [
+   {
+    "siteDistance": 0.8366056414628029,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -356,
+     -144
+    ],
+    "backMid": [
+     -350.4042047720127,
+     -150.28730752392119
+    ]
+   },
+   {
+    "siteDistance": 0.25093749177284047,
+    "portGap": 1.5,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -374,
+     -158
+    ],
+    "backMid": [
+     -370.46123764460935,
+     -164.76403067184248
+    ]
+   },
+   {
+    "siteDistance": 1.6426662904987637,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -390,
+     -166
+    ],
+    "backMid": [
+     -386.21162890528865,
+     -173.4775360018182
+    ]
+   },
+   {
+    "siteDistance": 1.9123081752389464,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -406,
+     -175
+    ],
+    "backMid": [
+     -401.96202016596806,
+     -182.19104133179394
+    ]
+   },
+   {
+    "siteDistance": 1.5032468394783338,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -422,
+     -184
+    ],
+    "backMid": [
+     -417.71241142664735,
+     -190.90454666176964
+    ]
+   },
+   {
+    "siteDistance": 1.0941855037177721,
+    "portGap": 1.5,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -437,
+     -193
+    ],
+    "backMid": [
+     -433.46280268732676,
+     -199.61805199174538
+    ]
+   },
+   {
+    "siteDistance": 0.23923945005809072,
+    "portGap": 1.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -453,
+     -201
+    ],
+    "backMid": [
+     -449.21319394800616,
+     -208.3315573217211
+    ]
+   },
+   {
+    "siteDistance": 1.9830436142501293,
+    "portGap": 2.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -474,
+     -210
+    ],
+    "backMid": [
+     -470.88726998597963,
+     -217.18115073868142
+    ]
+   },
+   {
+    "siteDistance": 1.888031129645073,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -490,
+     -219
+    ],
+    "backMid": [
+     -487.1435387509335,
+     -224.9099103960641
+    ]
+   },
+   {
+    "siteDistance": 1.7930186450399686,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -506,
+     -226
+    ],
+    "backMid": [
+     -503.3998075158873,
+     -232.63867005344684
+    ]
+   },
+   {
+    "siteDistance": 1.698006160434864,
+    "portGap": 1.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -523,
+     -234
+    ],
+    "backMid": [
+     -519.6560762808411,
+     -240.36742971082953
+    ]
+   },
+   {
+    "siteDistance": 1.621246391856783,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -539,
+     -241
+    ],
+    "backMid": [
+     -535.912345045795,
+     -248.09618936821226
+    ]
+   },
+   {
+    "siteDistance": 1.621246391856783,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -555,
+     -249
+    ],
+    "backMid": [
+     -552.1686138107488,
+     -255.82494902559495
+    ]
+   },
+   {
+    "siteDistance": 1.679955106405032,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -571,
+     -257
+    ],
+    "backMid": [
+     -568.4248825757027,
+     -263.5537086829777
+    ]
+   },
+   {
+    "siteDistance": 1.7386638209533458,
+    "portGap": 1.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -588,
+     -265
+    ],
+    "backMid": [
+     -584.6811513406565,
+     -271.2824683403604
+    ]
+   },
+   {
+    "siteDistance": 1.7973725355015664,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -604,
+     -272
+    ],
+    "backMid": [
+     -600.9374201056103,
+     -279.01122799774305
+    ]
+   },
+   {
+    "siteDistance": 1.856081250049784,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -620,
+     -280
+    ],
+    "backMid": [
+     -617.1936888705641,
+     -286.7399876551258
+    ]
+   },
+   {
+    "siteDistance": 1.9147899645980053,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -636,
+     -288
+    ],
+    "backMid": [
+     -633.4499576355179,
+     -294.4687473125085
+    ]
+   },
+   {
+    "siteDistance": 1.9734986791463744,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -653,
+     -296
+    ],
+    "backMid": [
+     -649.7062264004718,
+     -302.19750696989126
+    ]
+   },
+   {
+    "siteDistance": 1.9585731011484322,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -669,
+     -303
+    ],
+    "backMid": [
+     -665.9624951654256,
+     -309.9262666272739
+    ]
+   },
+   {
+    "siteDistance": 1.9178622631277058,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -685,
+     -311
+    ],
+    "backMid": [
+     -682.2187639303794,
+     -317.6550262846566
+    ]
+   },
+   {
+    "siteDistance": 1.8771514251070782,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -701,
+     -319
+    ],
+    "backMid": [
+     -698.4750326953333,
+     -325.38378594203937
+    ]
+   },
+   {
+    "siteDistance": 1.836440587086353,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -718,
+     -327
+    ],
+    "backMid": [
+     -714.7313014602871,
+     -333.1125455994221
+    ]
+   },
+   {
+    "siteDistance": 1.7957297490656783,
+    "portGap": 1.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -734,
+     -334
+    ],
+    "backMid": [
+     -730.9875702252409,
+     -340.84130525680473
+    ]
+   },
+   {
+    "siteDistance": 1.7555836125127762,
+    "portGap": 1.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -750,
+     -342
+    ],
+    "backMid": [
+     -747.2438389901947,
+     -348.57006491418747
+    ]
+   },
+   {
+    "siteDistance": 1.7180682890368788,
+    "portGap": 1.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -767,
+     -350
+    ],
+    "backMid": [
+     -763.5001077551485,
+     -356.2988245715702
+    ]
+   },
+   {
+    "siteDistance": 1.6805529655609783,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -783,
+     -358
+    ],
+    "backMid": [
+     -779.7563765201023,
+     -364.02758422895283
+    ]
+   },
+   {
+    "siteDistance": 1.643037642085078,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -799,
+     -365
+    ],
+    "backMid": [
+     -796.0126452850562,
+     -371.75634388633557
+    ]
+   },
+   {
+    "siteDistance": 1.6055223186091288,
+    "portGap": 1.6,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -815,
+     -373
+    ],
+    "backMid": [
+     -812.26891405001,
+     -379.4851035437183
+    ]
+   },
+   {
+    "siteDistance": 1.5680069951332796,
+    "portGap": 1.6,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -832,
+     -381
+    ],
+    "backMid": [
+     -828.525182814964,
+     -387.21386320110105
+    ]
+   },
+   {
+    "siteDistance": 1.4285296657448154,
+    "portGap": 1.6,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -848,
+     -388
+    ],
+    "backMid": [
+     -844.7814515799178,
+     -394.9426228584837
+    ]
+   },
+   {
+    "siteDistance": 1.0543672603488734,
+    "portGap": 1.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -880,
+     -404
+    ],
+    "backMid": [
+     -877.2939891098254,
+     -410.40014217324915
+    ]
+   },
+   {
+    "siteDistance": 0.867286057650952,
+    "portGap": 1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -897,
+     -411
+    ],
+    "backMid": [
+     -893.5502578747792,
+     -418.1289018306319
+    ]
+   },
+   {
+    "siteDistance": 0.6802048549530318,
+    "portGap": 0.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -913,
+     -419
+    ],
+    "backMid": [
+     -909.806526639733,
+     -425.8576614880145
+    ]
+   },
+   {
+    "siteDistance": 0.4354836379354827,
+    "portGap": 0.5,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -946,
+     -434
+    ],
+    "backMid": [
+     -942.3190641696407,
+     -441.31518080278
+    ]
+   },
+   {
+    "siteDistance": 0.3776049228125706,
+    "portGap": 0.4,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -962,
+     -442
+    ],
+    "backMid": [
+     -958.5753329345946,
+     -449.04394046016273
+    ]
+   },
+   {
+    "siteDistance": 0.319726207689617,
+    "portGap": 0.4,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -978,
+     -450
+    ],
+    "backMid": [
+     -974.8316016995484,
+     -456.77270011754536
+    ]
+   },
+   {
+    "siteDistance": 0.203968777443656,
+    "portGap": 0.3,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -1011,
+     -465
+    ],
+    "backMid": [
+     -1007.344139229456,
+     -472.23021943231083
+    ]
+   },
+   {
+    "siteDistance": 0.14609006232064908,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -1027,
+     -473
+    ],
+    "backMid": [
+     -1023.6004079944098,
+     -479.95897908969357
+    ]
+   },
+   {
+    "siteDistance": 0.14609006232064908,
+    "portGap": 0.5,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     -1043,
+     -480
+    ],
+    "backMid": [
+     -1039.8566767593638,
+     -487.6877387470762
+    ]
+   }
+  ]
+ },
+ {
+  "case": "synthetic-walls-20000-meander",
+  "seed": "fixture",
+  "ms": 33558,
+  "requiredFacilities": 993,
+  "placedFacilities": 976,
+  "period": "ageOfExploration",
+  "tanneryRequests": 55,
+  "rivers": 1,
+  "bands": [
+   {
+    "profile": "rural",
+    "toRiverDown": 0,
+    "toRiverAny": 0
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": 449,
+    "toRiverAny": 286
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": 837,
+    "toRiverAny": 388
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": 1,
+    "toRiverAny": 1
+   },
+   {
+    "profile": "rural",
+    "toRiverDown": 902,
+    "toRiverAny": 197
+   }
+  ],
+  "outsideCellWaterMin": 15,
+  "outsideCells": 70,
+  "tanneryUnplaced": {},
+  "tanneries": 55,
+  "bankRow": 55,
+  "bankRowBackToWater": 55,
+  "belowCenter": 55,
+  "backFacesRiver": 55,
+  "flowOk": 55,
+  "downstream": 55,
+  "groups": 13,
+  "rows": 12,
+  "leats": 0,
+  "portGapMax": 2.1,
+  "detail": [
+   {
+    "siteDistance": 0.1828820176134609,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     403,
+     -191
+    ],
+    "backMid": [
+     404.99793520365404,
+     -183.6275340415106
+    ]
+   },
+   {
+    "siteDistance": 0.1828820176134609,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     420,
+     -196
+    ],
+    "backMid": [
+     422.42011603699814,
+     -188.15164887319392
+    ]
+   },
+   {
+    "siteDistance": 0.24711281277224226,
+    "portGap": 1.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     438,
+     -200
+    ],
+    "backMid": [
+     439.84229687034224,
+     -192.67576370487726
+    ]
+   },
+   {
+    "siteDistance": 0.9440148859602304,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     466,
+     -205
+    ],
+    "backMid": [
+     466.5338797046504,
+     -197.62493904676035
+    ]
+   },
+   {
+    "siteDistance": 0.3614122086591631,
+    "portGap": 0.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     484,
+     -206
+    ],
+    "backMid": [
+     484.5011807287683,
+     -198.70941768128085
+    ]
+   },
+   {
+    "siteDistance": 0.3614122086591631,
+    "portGap": 0.3,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     502,
+     -208
+    ],
+    "backMid": [
+     502.4684817528863,
+     -199.7938963158013
+    ]
+   },
+   {
+    "siteDistance": 0.3729771707655217,
+    "portGap": 0.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     520,
+     -209
+    ],
+    "backMid": [
+     520.4357827770041,
+     -200.8783749503218
+    ]
+   },
+   {
+    "siteDistance": 0.8824167617337653,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     538,
+     -209
+    ],
+    "backMid": [
+     538.403083801122,
+     -201.96285358484232
+    ]
+   },
+   {
+    "siteDistance": 0.2581172311068148,
+    "portGap": 1.3,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     565,
+     -208
+    ],
+    "backMid": [
+     563.9889422952018,
+     -200.33001530036142
+    ]
+   },
+   {
+    "siteDistance": 0.18587102224963514,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     583,
+     -206
+    ],
+    "backMid": [
+     581.801863327238,
+     -197.7416095542622
+    ]
+   },
+   {
+    "siteDistance": 0.18587102224963514,
+    "portGap": 1.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     601,
+     -203
+    ],
+    "backMid": [
+     599.6147843592743,
+     -195.15320380816297
+    ]
+   },
+   {
+    "siteDistance": 0.6418203066551078,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     627,
+     -196
+    ],
+    "backMid": [
+     624.0821974100922,
+     -189.36663884691393
+    ]
+   },
+   {
+    "siteDistance": 0.16521576965475496,
+    "portGap": 0.6,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     644,
+     -190
+    ],
+    "backMid": [
+     640.830754115392,
+     -182.77225879346219
+    ]
+   },
+   {
+    "siteDistance": 0.16521576965475496,
+    "portGap": 0.6,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     660,
+     -183
+    ],
+    "backMid": [
+     657.5793108206915,
+     -176.1778787400105
+    ]
+   },
+   {
+    "siteDistance": 0.6337881576802982,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     677,
+     -176
+    ],
+    "backMid": [
+     674.3278675259912,
+     -169.58349868655876
+    ]
+   },
+   {
+    "siteDistance": 0.1722427900360744,
+    "portGap": 1.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     701,
+     -163
+    ],
+    "backMid": [
+     696.6678386248659,
+     -157.03037010651263
+    ]
+   },
+   {
+    "siteDistance": 0.11745554722619704,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     716,
+     -154
+    ],
+    "backMid": [
+     711.5947328244895,
+     -146.97115395647162
+    ]
+   },
+   {
+    "siteDistance": 0.11745554722622005,
+    "portGap": 1.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     731,
+     -143
+    ],
+    "backMid": [
+     726.521627024113,
+     -136.91193780643061
+    ]
+   },
+   {
+    "siteDistance": 0.2515931281717901,
+    "portGap": 1.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     757,
+     -120
+    ],
+    "backMid": [
+     751.4768472398673,
+     -115.20697757685117
+    ]
+   },
+   {
+    "siteDistance": 0.25159312817187063,
+    "portGap": 0.3,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     769,
+     -107
+    ],
+    "backMid": [
+     763.6091293530637,
+     -101.91007076640028
+    ]
+   },
+   {
+    "siteDistance": 0.30897639771964364,
+    "portGap": 1.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     781,
+     -94
+    ],
+    "backMid": [
+     775.7414114662602,
+     -88.61316395594937
+    ]
+   },
+   {
+    "siteDistance": 0.5751658679696066,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     800,
+     -70
+    ],
+    "backMid": [
+     793.2881611108419,
+     -65.82899155599284
+    ]
+   },
+   {
+    "siteDistance": 0.14590500631847006,
+    "portGap": 0.5,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     809,
+     -54
+    ],
+    "backMid": [
+     802.4703445638006,
+     -50.34714712336111
+    ]
+   },
+   {
+    "siteDistance": 0.14590500631856787,
+    "portGap": 0.5,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     818,
+     -39
+    ],
+    "backMid": [
+     811.6525280167593,
+     -34.86530269072938
+    ]
+   },
+   {
+    "siteDistance": 0.5443624885965486,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     827,
+     -23
+    ],
+    "backMid": [
+     820.8347114697181,
+     -19.38345825809763
+    ]
+   },
+   {
+    "siteDistance": 0.5297403118786183,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     838,
+     -1
+    ],
+    "backMid": [
+     830.5315327261717,
+     1.7118849076821943
+    ]
+   },
+   {
+    "siteDistance": 0.12871149439151064,
+    "portGap": 0.5,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     844,
+     16
+    ],
+    "backMid": [
+     836.2802468016248,
+     18.76920845150607
+    ]
+   },
+   {
+    "siteDistance": 0.1287114943915095,
+    "portGap": 0.5,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     850,
+     33
+    ],
+    "backMid": [
+     842.0289608770777,
+     35.82653199532995
+    ]
+   },
+   {
+    "siteDistance": 0.532994776683398,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     855,
+     51
+    ],
+    "backMid": [
+     847.7776749525308,
+     52.88385553915383
+    ]
+   },
+   {
+    "siteDistance": 0.7790268486640546,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     860,
+     72
+    ],
+    "backMid": [
+     852.9378268905268,
+     73.21030805331162
+    ]
+   },
+   {
+    "siteDistance": 0.16442621714103187,
+    "portGap": 0.2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     866,
+     108
+    ],
+    "backMid": [
+     858.4392417269057,
+     108.78746975570252
+    ]
+   },
+   {
+    "siteDistance": 0.16442621714114414,
+    "portGap": 0.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     869,
+     125
+    ],
+    "backMid": [
+     861.1899491450952,
+     126.57605060689795
+    ]
+   },
+   {
+    "siteDistance": 0.8708374601121807,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     871,
+     143
+    ],
+    "backMid": [
+     863.9406565632846,
+     144.3646314580934
+    ]
+   },
+   {
+    "siteDistance": 0.8943671081974732,
+    "portGap": 1.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     873,
+     166
+    ],
+    "backMid": [
+     865.1299543397266,
+     165.7501833702667
+    ]
+   },
+   {
+    "siteDistance": 0.3349350213023536,
+    "portGap": 0.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     872,
+     184
+    ],
+    "backMid": [
+     864.7153321957622,
+     183.74540741660007
+    ]
+   },
+   {
+    "siteDistance": 0.3349350213023536,
+    "portGap": 0.4,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     872,
+     202
+    ],
+    "backMid": [
+     864.3007100517979,
+     201.74063146293344
+    ]
+   },
+   {
+    "siteDistance": 0.45141902480226676,
+    "portGap": 0.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     872,
+     220
+    ],
+    "backMid": [
+     863.8860879078335,
+     219.7358555092668
+    ]
+   },
+   {
+    "siteDistance": 0.9711706327768981,
+    "portGap": 1.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     871,
+     238
+    ],
+    "backMid": [
+     863.4714657638691,
+     237.73107955560016
+    ]
+   },
+   {
+    "siteDistance": 0.5755178594806374,
+    "portGap": 1.6,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     868,
+     265
+    ],
+    "backMid": [
+     860.7669985915338,
+     264.1981449316121
+    ]
+   },
+   {
+    "siteDistance": 0.34333680639675934,
+    "portGap": 0.5,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     866,
+     283
+    ],
+    "backMid": [
+     857.8576202174205,
+     281.9614643701698
+    ]
+   },
+   {
+    "siteDistance": 0.14910949251000172,
+    "portGap": 0.3,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     863,
+     301
+    ],
+    "backMid": [
+     854.9482418433072,
+     299.72478380872747
+    ]
+   },
+   {
+    "siteDistance": 0.14910949250988936,
+    "portGap": 0.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     860,
+     319
+    ],
+    "backMid": [
+     852.0388634691938,
+     317.48810324728527
+    ]
+   },
+   {
+    "siteDistance": 0.8795524232410564,
+    "portGap": 1.6,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     856,
+     337
+    ],
+    "backMid": [
+     849.1294850950804,
+     335.25142268584295
+    ]
+   },
+   {
+    "siteDistance": 1.4465792882491164,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     849,
+     366
+    ],
+    "backMid": [
+     842.574060253604,
+     364.2686994864721
+    ]
+   },
+   {
+    "siteDistance": 0.9332913297622736,
+    "portGap": 1.4,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     845,
+     384
+    ],
+    "backMid": [
+     837.5489913812619,
+     381.5530474009356
+    ]
+   },
+   {
+    "siteDistance": 0.42000337127552556,
+    "portGap": 0.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     840,
+     401
+    ],
+    "backMid": [
+     832.5239225089199,
+     398.837395315399
+    ]
+   },
+   {
+    "siteDistance": 0.30776022053125873,
+    "portGap": 0.4,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     835,
+     418
+    ],
+    "backMid": [
+     827.4988536365778,
+     416.12174322986255
+    ]
+   },
+   {
+    "siteDistance": 0.30776022053125873,
+    "portGap": 0.8,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     830,
+     436
+    ],
+    "backMid": [
+     822.4737847642357,
+     433.40609114432607
+    ]
+   },
+   {
+    "siteDistance": 0.8545729629391348,
+    "portGap": 1.4,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     825,
+     453
+    ],
+    "backMid": [
+     817.4487158918937,
+     450.6904390587896
+    ]
+   },
+   {
+    "siteDistance": 1.4013857053468988,
+    "portGap": 1.9,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     819,
+     470
+    ],
+    "backMid": [
+     812.4236470195516,
+     467.9747869732531
+    ]
+   },
+   {
+    "siteDistance": 0.30296659284385496,
+    "portGap": 0.7,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     809,
+     499
+    ],
+    "backMid": [
+     801.9327234431084,
+     496.61351257254773
+    ]
+   },
+   {
+    "siteDistance": 0.7398340064064848,
+    "portGap": 1.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     804,
+     516
+    ],
+    "backMid": [
+     796.8021353650959,
+     513.866833005837
+    ]
+   },
+   {
+    "siteDistance": 1.1767014199691146,
+    "portGap": 1.6,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     799,
+     533
+    ],
+    "backMid": [
+     791.6715472870833,
+     531.1201534391262
+    ]
+   },
+   {
+    "siteDistance": 1.6135688335316194,
+    "portGap": 2,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     793,
+     550
+    ],
+    "backMid": [
+     786.5409592090705,
+     548.3734738724154
+    ]
+   },
+   {
+    "siteDistance": 2.050436247094233,
+    "portGap": 2.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": true,
+    "belowCenter": true,
+    "center": [
+     788,
+     568
+    ],
+    "backMid": [
+     781.4103711310579,
+     565.6267943057046
+    ]
+   }
+  ]
+ },
+ {
+  "case": "synthetic-open-5000-greatBend",
+  "seed": "fixture",
+  "ms": 3937,
+  "requiredFacilities": 255,
+  "placedFacilities": 244,
+  "period": "ageOfExploration",
+  "tanneryRequests": 14,
+  "rivers": 2,
+  "bands": [],
+  "outsideCellWaterMin": null,
+  "outsideCells": 0,
+  "tanneryUnplaced": {},
+  "tanneries": 14,
+  "bankRow": 14,
+  "bankRowBackToWater": 14,
+  "belowCenter": 14,
+  "backFacesRiver": 14,
+  "flowOk": 14,
+  "downstream": 0,
+  "groups": 1,
+  "rows": 1,
+  "leats": 1,
+  "portGapMax": 0.1,
+  "detail": [
+   {
+    "siteDistance": 0.09248171948800553,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -29,
+     170
+    ],
+    "backMid": [
+     -21.095562193445048,
+     169.5935826206065
+    ]
+   },
+   {
+    "siteDistance": 0.09290826736255968,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -27,
+     188
+    ],
+    "backMid": [
+     -19.462110831800985,
+     187.51931375350995
+    ]
+   },
+   {
+    "siteDistance": 0.09333481523711186,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -26,
+     206
+    ],
+    "backMid": [
+     -17.82865947015692,
+     205.44504488641337
+    ]
+   },
+   {
+    "siteDistance": 0.09376136311166332,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -24,
+     224
+    ],
+    "backMid": [
+     -16.19520810851286,
+     223.3707760193168
+    ]
+   },
+   {
+    "siteDistance": 0.09418791098621888,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -22,
+     242
+    ],
+    "backMid": [
+     -14.561756746868799,
+     241.29650715222022
+    ]
+   },
+   {
+    "siteDistance": 0.09461445886076922,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -21,
+     260
+    ],
+    "backMid": [
+     -12.928305385224736,
+     259.22223828512364
+    ]
+   },
+   {
+    "siteDistance": 0.09504100673532043,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -19,
+     278
+    ],
+    "backMid": [
+     -11.294854023580672,
+     277.14796941802706
+    ]
+   },
+   {
+    "siteDistance": 0.09546755460987244,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -18,
+     296
+    ],
+    "backMid": [
+     -9.66140266193661,
+     295.0737005509304
+    ]
+   },
+   {
+    "siteDistance": 0.09589410248442284,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -16,
+     314
+    ],
+    "backMid": [
+     -8.027951300292546,
+     312.9994316838339
+    ]
+   },
+   {
+    "siteDistance": 0.09632065035897842,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -14,
+     332
+    ],
+    "backMid": [
+     -6.394499938648481,
+     330.9251628167374
+    ]
+   },
+   {
+    "siteDistance": 0.09674719823352161,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -13,
+     350
+    ],
+    "backMid": [
+     -4.761048577004415,
+     348.85089394964075
+    ]
+   },
+   {
+    "siteDistance": 0.09717374610807733,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -11,
+     367
+    ],
+    "backMid": [
+     -3.127597215360352,
+     366.77662508254423
+    ]
+   },
+   {
+    "siteDistance": 0.09760029398262403,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -9,
+     385
+    ],
+    "backMid": [
+     -1.4941458537162888,
+     384.7023562154476
+    ]
+   },
+   {
+    "siteDistance": 0.09802684185718329,
+    "portGap": 0.1,
+    "backCos": 1,
+    "flowOk": true,
+    "downstream": false,
+    "belowCenter": true,
+    "center": [
+     -8,
+     403
+    ],
+    "backMid": [
+     0.1393055079277734,
+     402.6280873483511
+    ]
+   }
+  ]
+ }
+]

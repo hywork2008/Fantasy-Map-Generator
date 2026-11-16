@@ -1,3 +1,4 @@
+import { createFlintlockMusket, FLINTLOCK_MUSKET } from "../buildings/arms/flintlockMusket";
 import { type Author, DEFAULT_AUTHOR } from "../buildings/authors";
 import { createPolygonHouses, POLYGON_HOUSES } from "../buildings/houses/polygonHouses";
 import type { GalleonState } from "../buildings/ships/galleonArmament";
@@ -5,6 +6,7 @@ import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import "./viewer.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { BUILDING_APPEARANCE_PROFILES, type BuildingAppearanceProfile } from "../buildings/appearance/types";
 import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../buildings/aqueducts/pontDuGard";
 import { contentDigest } from "../buildings/canonicalJson";
@@ -50,6 +52,13 @@ import { CARAVEL, createCaravel } from "../buildings/ships/caravel";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { createGrokGalleon, GROK_GALLEON, grokGalleonParts } from "../buildings/ships/grokGalleon";
+import { createGrokGalley, GROK_GALLEY, grokGalleyParts } from "../buildings/ships/grokGalley";
+import {
+  createGrokShipOfTheLine,
+  GROK_SHIP_OF_THE_LINE,
+  grokShipOfTheLineParts
+} from "../buildings/ships/grokShipOfTheLine";
+import { createGrokTrireme, GROK_TRIREME, grokTriremeParts } from "../buildings/ships/grokTrireme";
 import { createMerchantShipHigh, merchantShipParts } from "../buildings/ships/merchantShipHigh";
 import {
   createOpusGalleon,
@@ -260,7 +269,15 @@ modelOptions.append(optionsTitle, optionFields);
  */
 const AUTHORED_VARIANTS: Record<
   string,
-  { author: Author; authors?: readonly Author[]; primary?: boolean; quality?: boolean; show: () => void }
+  {
+    author: Author;
+    authors?: readonly Author[];
+    primary?: boolean;
+    quality?: boolean;
+    /** High is the only prepared resolution, so the quality list cannot offer Low. */
+    highOnly?: boolean;
+    show: () => void;
+  }
 > = {
   "basilica-temple": { author: BASILICA_TEMPLE.author, show: () => showBasilicaTemple() }
 };
@@ -302,6 +319,10 @@ function listAuthors(id: string): void {
   }
   authorSelect.value = variant?.primary ? variant.author : DEFAULT_AUTHOR;
   showQuality(variant?.quality === true);
+  if (variant?.highOnly) {
+    for (const option of qualitySelect.options) option.disabled = option.value !== "high";
+    if (qualitySelect.value !== "high") qualitySelect.value = "high";
+  }
 }
 authorSelect.addEventListener("change", () => {
   const level = LEVEL_AUTHORS[selectedId];
@@ -546,6 +567,9 @@ function frame(record: Pick<BuildingRecord, "occupancyMeters">, height: number):
 }
 
 function clearMesh(preserveOptions = false): void {
+  controls.maxPolarAngle = Math.PI / 2 - 0.05;
+  controls.minPolarAngle = 0;
+  scene.environment = null;
   preserveScaleView = preserveOptions;
   scaleReady = false;
   measuredBounds = undefined;
@@ -1510,6 +1534,352 @@ function showGalleon(author: string = authorSelect.value): void {
 galleonButton.addEventListener("click", () => showGalleon(GALLEON.author));
 shipsHeading.append(galleonButton);
 
+const lineButton = document.createElement("button");
+lineButton.type = "button";
+lineButton.textContent = "Ship of the line · First-rate, HMS Victory";
+lineButton.dataset.id = "ship-of-the-line";
+const lineState: { sails: "set" | "furled"; gunports: "open" | "closed"; windows: "open" | "closed"; part: string } = {
+  sails: "set",
+  gunports: "open",
+  windows: "open",
+  part: "all"
+};
+AUTHORED_VARIANTS["ship-of-the-line"] = {
+  author: GROK_SHIP_OF_THE_LINE.author,
+  primary: true,
+  quality: true,
+  highOnly: true,
+  show: () => showShipOfTheLine()
+};
+function showShipOfTheLine(): void {
+  if (qualitySelect.value !== "high") qualitySelect.value = "high";
+  for (const option of qualitySelect.options) option.disabled = option.value !== "high";
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === lineButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  showQuality(true);
+  const parts = grokShipOfTheLineParts(lineState);
+  if (!parts.some(part => part.id === lineState.part)) lineState.part = "all";
+  const chosen = parts.find(part => part.id === lineState.part);
+  const model = chosen ? assembleSailingParts("ship-of-the-line-part", [chosen]) : createGrokShipOfTheLine(lineState);
+  comparisonModel = { path: null, quality: "high", viewOnly: true };
+  for (const [label, field, options] of [
+    [
+      "Sails",
+      "sails",
+      [
+        ["Set", "set"],
+        ["Furled · moored", "furled"]
+      ]
+    ],
+    [
+      "Gunports",
+      "gunports",
+      [
+        ["Open", "open"],
+        ["Closed", "closed"]
+      ]
+    ],
+    [
+      "Windows",
+      "windows",
+      [
+        ["Open", "open"],
+        ["Shut", "closed"]
+      ]
+    ]
+  ] as const) {
+    const input = document.createElement("select");
+    input.setAttribute("aria-label", label);
+    for (const [name, value] of options) input.add(new Option(name, value));
+    input.value = lineState[field];
+    input.addEventListener("change", () => {
+      lineState[field] = input.value as (typeof lineState)[typeof field];
+      showShipOfTheLine();
+    });
+    const row = document.createElement("label");
+    row.append(label, input);
+    optionFields.append(row);
+  }
+  const partSelect = document.createElement("select");
+  partSelect.setAttribute("aria-label", "Assembly part");
+  partSelect.add(new Option("Complete ship", "all"));
+  for (const part of parts) partSelect.add(new Option(`${part.role} · ${part.quality}`, part.id));
+  partSelect.value = lineState.part;
+  partSelect.addEventListener("change", () => {
+    lineState.part = partSelect.value;
+    showShipOfTheLine();
+  });
+  const partRow = document.createElement("label");
+  partRow.append("Assembly part", partSelect);
+  optionFields.append(partRow);
+  modelOptions.hidden = false;
+  massing = model;
+  scene.add(model.group);
+  const info = GROK_SHIP_OF_THE_LINE;
+  frame({ occupancyMeters: { width: info.length, depth: info.beam } }, info.height);
+  camera.position.set(info.length * 0.95, info.height * 0.55, info.length * 1.05);
+  controls.target.set(2, info.height * 0.28, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(model, "side"));
+  mountPlan(levelHost, meshProjection(model, "top"));
+  appendFacts(
+    fact("Model", info.name),
+    fact("Quality", "High — the only prepared resolution"),
+    fact("Sails", lineState.sails),
+    fact("Gunports", lineState.gunports),
+    fact("Windows", lineState.windows),
+    fact("CE adoption", "Not placed by CE. BV-only; CE keeps sloop, caravel, galleon and barge"),
+    fact(
+      "Dimensions",
+      `${info.length} m sparred envelope × ${info.beam} m moulded beam; ${info.height} m to the main truck; ${info.draft} m illustrative waterline`
+    ),
+    fact(
+      "Armament",
+      "104 guns: 30 lower 32-pounders, 28 middle 24-pounders, 30 upper 12-pounders, 10 quarterdeck 12-pounders, 2 stern chasers, 2 forecastle 12-pounders and 2 carronades"
+    ),
+    fact("Rig", "Three masts, courses, topsails and topgallants, spanker, spritsail and two jibs"),
+    fact("Note", info.note, "HMS Victory")
+  );
+  const panel = modelPartsPanel(model.group);
+  if (panel) facts.append(panel);
+}
+lineButton.addEventListener("click", () => showShipOfTheLine());
+shipsHeading.append(lineButton);
+
+const galleyButton = document.createElement("button");
+galleyButton.type = "button";
+galleyButton.textContent = "Galley · Mediterranean war galley";
+galleyButton.dataset.id = "galley";
+const galleyState: {
+  sails: "set" | "furled";
+  oars: "out" | "stowed";
+  guns: "run-out" | "housed";
+  part: string;
+} = { sails: "set", oars: "out", guns: "run-out", part: "all" };
+AUTHORED_VARIANTS.galley = {
+  author: GROK_GALLEY.author,
+  primary: true,
+  quality: true,
+  highOnly: true,
+  show: () => showGalley()
+};
+function showGalley(): void {
+  if (qualitySelect.value !== "high") qualitySelect.value = "high";
+  for (const option of qualitySelect.options) option.disabled = option.value !== "high";
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === galleyButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  showQuality(true);
+  const parts = grokGalleyParts(galleyState);
+  if (!parts.some(part => part.id === galleyState.part)) galleyState.part = "all";
+  const chosen = parts.find(part => part.id === galleyState.part);
+  const model = chosen ? assembleSailingParts("galley-part", [chosen]) : createGrokGalley(galleyState);
+  comparisonModel = { path: null, quality: "high", viewOnly: true };
+  for (const [label, field, options] of [
+    [
+      "Sails",
+      "sails",
+      [
+        ["Set", "set"],
+        ["Furled · moored", "furled"]
+      ]
+    ],
+    [
+      "Oars",
+      "oars",
+      [
+        ["Out", "out"],
+        ["Stowed", "stowed"]
+      ]
+    ],
+    [
+      "Bow guns",
+      "guns",
+      [
+        ["Run out", "run-out"],
+        ["Housed", "housed"]
+      ]
+    ]
+  ] as const) {
+    const input = document.createElement("select");
+    input.setAttribute("aria-label", label);
+    for (const [name, value] of options) input.add(new Option(name, value));
+    input.value = galleyState[field];
+    input.addEventListener("change", () => {
+      if (field === "sails") galleyState.sails = input.value as (typeof galleyState)["sails"];
+      else if (field === "oars") galleyState.oars = input.value as (typeof galleyState)["oars"];
+      else galleyState.guns = input.value as (typeof galleyState)["guns"];
+      showGalley();
+    });
+    const row = document.createElement("label");
+    row.append(label, input);
+    optionFields.append(row);
+  }
+  const partSelect = document.createElement("select");
+  partSelect.setAttribute("aria-label", "Assembly part");
+  partSelect.add(new Option("Complete ship", "all"));
+  for (const part of parts) partSelect.add(new Option(`${part.role} · ${part.quality}`, part.id));
+  partSelect.value = galleyState.part;
+  partSelect.addEventListener("change", () => {
+    galleyState.part = partSelect.value;
+    showGalley();
+  });
+  const partRow = document.createElement("label");
+  partRow.append("Assembly part", partSelect);
+  optionFields.append(partRow);
+  modelOptions.hidden = false;
+  massing = model;
+  scene.add(model.group);
+  const info = GROK_GALLEY;
+  frame({ occupancyMeters: { width: info.length, depth: info.beam } }, info.height);
+  camera.position.set(info.length * 0.85, info.height * 0.55, info.length * 0.7);
+  controls.target.set(0, 2.2, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(model, "side"));
+  mountPlan(levelHost, meshProjection(model, "top"));
+  appendFacts(
+    fact("Model", info.name),
+    fact("Quality", "High — the only prepared resolution"),
+    fact("Sails", galleyState.sails),
+    fact("Oars", galleyState.oars),
+    fact("Bow guns", galleyState.guns),
+    fact("CE adoption", "Not placed by CE. BV-only; CE keeps sloop, caravel, galleon and barge"),
+    fact(
+      "Dimensions",
+      `${info.length} m sparred envelope × ${info.beam} m moulded beam; ${info.height} m above the waterline; ${info.draft} m illustrative waterline`
+    ),
+    fact("Armament", "5-gun bow battery: one centerline gun and four flanking guns on the rambade"),
+    fact("Oarsmen", "48 oars, 24 banks a side, one oar to a bank"),
+    fact("Rig", "Two lateen sails, fore and main, on one tack"),
+    fact("Note", info.note, "Galley")
+  );
+  const panel = modelPartsPanel(model.group);
+  if (panel) facts.append(panel);
+}
+galleyButton.addEventListener("click", () => showGalley());
+shipsHeading.append(galleyButton);
+
+const triremeButton = document.createElement("button");
+triremeButton.type = "button";
+triremeButton.textContent = "Trireme · Olympias";
+triremeButton.dataset.id = "trireme";
+const triremeState: { sails: "set" | "furled"; oars: "out" | "stowed"; part: string } = {
+  sails: "set",
+  oars: "out",
+  part: "all"
+};
+AUTHORED_VARIANTS.trireme = {
+  author: GROK_TRIREME.author,
+  primary: true,
+  quality: true,
+  highOnly: true,
+  show: () => showTrireme()
+};
+function showTrireme(): void {
+  if (qualitySelect.value !== "high") qualitySelect.value = "high";
+  for (const option of qualitySelect.options) option.disabled = option.value !== "high";
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === triremeButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  showQuality(true);
+  const parts = grokTriremeParts(triremeState);
+  if (!parts.some(entry => entry.id === triremeState.part)) triremeState.part = "all";
+  const chosen = parts.find(entry => entry.id === triremeState.part);
+  const model = chosen ? assembleSailingParts("trireme-part", [chosen]) : createGrokTrireme(triremeState);
+  comparisonModel = { path: null, quality: "high", viewOnly: true };
+  for (const [label, field, options] of [
+    [
+      "Sails",
+      "sails",
+      [
+        ["Set", "set"],
+        ["Furled · moored", "furled"]
+      ]
+    ],
+    [
+      "Oars",
+      "oars",
+      [
+        ["Out", "out"],
+        ["Stowed", "stowed"]
+      ]
+    ]
+  ] as const) {
+    const input = document.createElement("select");
+    input.setAttribute("aria-label", label);
+    for (const [name, value] of options) input.add(new Option(name, value));
+    input.value = triremeState[field];
+    input.addEventListener("change", () => {
+      if (field === "sails") triremeState.sails = input.value as (typeof triremeState)["sails"];
+      else triremeState.oars = input.value as (typeof triremeState)["oars"];
+      showTrireme();
+    });
+    const row = document.createElement("label");
+    row.append(label, input);
+    optionFields.append(row);
+  }
+  const partSelect = document.createElement("select");
+  partSelect.setAttribute("aria-label", "Assembly part");
+  partSelect.add(new Option("Complete ship", "all"));
+  for (const entry of parts) partSelect.add(new Option(`${entry.role} · ${entry.quality}`, entry.id));
+  partSelect.value = triremeState.part;
+  partSelect.addEventListener("change", () => {
+    triremeState.part = partSelect.value;
+    showTrireme();
+  });
+  const partRow = document.createElement("label");
+  partRow.append("Assembly part", partSelect);
+  optionFields.append(partRow);
+  modelOptions.hidden = false;
+  massing = model;
+  scene.add(model.group);
+  const info = GROK_TRIREME;
+  frame({ occupancyMeters: { width: info.length, depth: info.beam } }, info.height);
+  camera.position.set(info.length * 0.95, info.height * 0.62, info.length * 0.85);
+  controls.target.set(0, 1.15, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(model, "side"));
+  mountPlan(levelHost, meshProjection(model, "top"));
+  appendFacts(
+    fact("Model", info.name),
+    fact("Quality", "High — the only prepared resolution"),
+    fact("Sails", triremeState.sails),
+    fact("Oars", triremeState.oars),
+    fact("CE adoption", "Not placed by CE. BV-only; CE keeps sloop, caravel, galleon and barge"),
+    fact(
+      "Dimensions",
+      `${info.length} m overall × ${info.beam} m beam over the outrigger; ${info.height} m above the waterline; ${info.draft} m illustrative waterline`
+    ),
+    fact("Ram", "Bronze bow ram on the waterline"),
+    fact("Oarsmen", "170 oars in three banks: 62 thranite, 54 zygite, 54 thalamite"),
+    fact("Rig", "Two square sails, main and fore"),
+    fact("Note", info.note, "Olympias (trireme)")
+  );
+  const panel = modelPartsPanel(model.group);
+  if (panel) facts.append(panel);
+}
+triremeButton.addEventListener("click", () => showTrireme());
+shipsHeading.append(triremeButton);
+
 const sloopButton = document.createElement("button");
 sloopButton.type = "button";
 sloopButton.textContent = "Sloop · Small coastal sailing ship";
@@ -1888,6 +2258,69 @@ cannonButton.addEventListener("click", () => {
   );
 });
 artilleryHeading.append(cannonButton);
+
+const smallArmsHeading = modelCategory("Small arms", true);
+const musketButton = document.createElement("button");
+musketButton.type = "button";
+musketButton.dataset.id = "flintlock-musket";
+musketButton.textContent = "Flintlock musket · 18th-century infantry";
+let musketEnvironment: THREE.Texture | null = null;
+AUTHORED_VARIANTS["flintlock-musket"] = {
+  author: FLINTLOCK_MUSKET.author,
+  primary: true,
+  quality: true,
+  show: () => showFlintlockMusket()
+};
+function showFlintlockMusket(): void {
+  for (const option of qualitySelect.options) option.disabled = option.value !== "high";
+  qualitySelect.value = "high";
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === musketButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  roofTitle.textContent = "Musket side elevation";
+  levelTitle.textContent = "Musket plan";
+  const model = createFlintlockMusket();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = false;
+  // Metals need an environment to read. Other studies stay on the plain lights.
+  if (!musketEnvironment) {
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    musketEnvironment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+  }
+  scene.environment = musketEnvironment;
+  controls.minPolarAngle = 0.02;
+  controls.maxPolarAngle = Math.PI - 0.02;
+  camera.position.set(0.95, 0.42, 1.15);
+  controls.target.set(0.72, 0.07, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", FLINTLOCK_MUSKET.name),
+    fact("Quality", "High — the only prepared resolution"),
+    fact("Period", "18th century · European infantry"),
+    fact("Type", "Flintlock musket, full stock, brass furniture"),
+    fact("Pose", "Full cock; frizzen closed over the pan"),
+    fact("Facing", "Muzzle +X. Lock on +Z, the side shown in the elevation. Toe on Y = 0."),
+    fact("CE adoption", "BV-only study. Not placed in towns."),
+    fact("View", "Orbit continues below the horizon on this study, and the ground disc stays hidden."),
+    fact("Note", FLINTLOCK_MUSKET.note, "Musket")
+  );
+  const panel = modelPartsPanel(model.group);
+  if (panel) facts.append(panel);
+}
+musketButton.addEventListener("click", () => {
+  queueMicrotask(() => showFlintlockMusket());
+});
+smallArmsHeading.append(musketButton);
 
 const millsHeading = modelCategory("Mills");
 const postMillButton = document.createElement("button");

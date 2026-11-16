@@ -1,10 +1,12 @@
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
-import { isOnDemandRosterEnabled, nextCharacterId } from "../../characters/charactersContext";
+import { getSimulationCharacters, isOnDemandRosterEnabled, nextCharacterId } from "../../characters/charactersContext";
 import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson, resolveRaceIdForCulture } from "../../characters/personFactory";
 import { rollApprenticeAge } from "../../characters/raceAge";
 import { isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
+import { readRoster } from "../../characters/roster/runtime";
 import type { Burg } from "../../hostTypes";
 import { P } from "../../hostUtils";
 import {
@@ -15,6 +17,7 @@ import {
   setGuildKnowledgeStocks,
   settleAnnualOnce
 } from "../economyContext";
+import { LIVING_COST_BY_TIER } from "./characterLivingCosts";
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import {
   assessApprenticeDeparture,
@@ -40,6 +43,7 @@ import {
   settleBlacksmithingTechniques
 } from "./individualSkillMastery";
 import type { CharacterDomainSkill } from "./individualSkillTypes";
+import { nominal } from "./moneyScale";
 import { resolveBurgCulture } from "./resolveBurgCulture";
 
 /**
@@ -364,6 +368,21 @@ function settleApprenticeDepartures(
 }
 
 /** Returns true when this call established a brand-new master (not a reused/succeeded one). */
+/** Ends a living master's office (and their apprentices' places) when the workshops no longer keep one. */
+function retireMaster(master: Character, burgId: number, domain: CraftKnowledgeDomain, year: number): void {
+  // A rostered master holds the office by appointment; ending it lets the roster drop the role.
+  const roster = readRoster();
+  const roleId = `guild:${burgId}:${domain}:Guild Master`;
+  for (const appointment of roster?.appointments ?? [])
+    if (appointment.roleId === roleId && appointment.endYear === undefined) appointment.endYear = year;
+  for (const role of master.roles ?? [])
+    if (isMasterRole(role, burgId, domain) && role.endYear === undefined) role.endYear = year;
+  for (const apprentice of findApprentices(getSimulationCharacters(), master.i, burgId, domain)) {
+    for (const role of apprentice.roles ?? [])
+      if (isApprenticeRole(role, burgId, domain) && role.endYear === undefined) role.endYear = year;
+  }
+}
+
 function processGuildSuccession(
   characters: Character[],
   burgId: number,
@@ -422,6 +441,31 @@ export class GuildSuccessionModule {
     const characters = pack.characters;
 
     const newMasters: NewGuildMaster[] = [];
+
+    if (getMarketSettings().guildMasterSeat === "byWorkshop") {
+      // A guild has a master where its workshops earn one a master's living, in any craft; a master
+      // whose workshops fall well below it gives up the office (docs/plan/guild-master-workshop.md).
+      const settings = getMarketSettings();
+      const living = nominal(LIVING_COST_BY_TIER.guildMaster);
+      const people = getSimulationCharacters();
+      for (const entry of getGuildKnowledgeStocks()) {
+        const earnings = (entry.marginAverage ?? 0) * settings.guildMasterWorkshopShare;
+        const holder = findMasterRoleHolder(people, entry.burgId, entry.domain);
+        const seated = holder && !holder.dead;
+        entry.masterSeat =
+          entry.stock > 0 &&
+          (earnings >= living || Boolean(seated && earnings >= living * settings.guildMasterRetireRatio));
+        if (seated && !entry.masterSeat) {
+          retireMaster(holder, entry.burgId, entry.domain, year);
+          continue;
+        }
+        // The on-demand roster seats its people itself (characters/roster/build.ts reads masterSeat).
+        if (isOnDemandRosterEnabled() || !entry.masterSeat) continue;
+        const createdNewMaster = processGuildSuccession(characters, entry.burgId, entry.domain, year, chance);
+        if (createdNewMaster) newMasters.push({ burgId: entry.burgId, domain: entry.domain });
+      }
+      return newMasters;
+    }
 
     for (const domain of SUCCESSION_DOMAINS) {
       const burgIds = getGuildKnowledgeStocks()

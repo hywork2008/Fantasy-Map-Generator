@@ -1,0 +1,223 @@
+{
+  "format": "ce-meshless-parity-cases",
+  "version": 1,
+  "note": "Fixed inputs of the feature-parity comparison (docs/plan/ce-meshless-feature-parity.md P0). Each case overrides defaultGenerationSettings(); both editors receive the same settings, seed and target population. Chosen to cover the setting and element pairs of the parity table, not to sample seeds. meshPopulation false: the mesh editor's population generation requires the organic layout and mesh-first, so those cases run its size-preset generation instead; meshless still receives the target population.",
+  "cases": [
+    {
+      "id": "inland-walled",
+      "seed": "parity-inland",
+      "population": 3000,
+      "covers": [
+        "walls",
+        "gates",
+        "roads",
+        "river-through",
+        "bridges",
+        "plaza",
+        "temple",
+        "cemetery",
+        "houses",
+        "farms",
+        "forest"
+      ],
+      "config": {
+        "rivers": [
+          "through"
+        ],
+        "features": {
+          "walls": true,
+          "citadel": false,
+          "plaza": true,
+          "temple": true,
+          "port": false,
+          "shanty": false
+        }
+      }
+    },
+    {
+      "id": "citadel-shanty",
+      "seed": "parity-citadel",
+      "population": 3000,
+      "covers": [
+        "castle",
+        "shanty",
+        "wards"
+      ],
+      "config": {
+        "rivers": [],
+        "features": {
+          "walls": true,
+          "citadel": true,
+          "plaza": true,
+          "temple": true,
+          "port": false,
+          "shanty": true
+        }
+      }
+    },
+    {
+      "id": "coastal-port",
+      "seed": "parity-coast",
+      "population": 3000,
+      "covers": [
+        "coast",
+        "river-to-coast",
+        "harbor",
+        "ships",
+        "sea-wall"
+      ],
+      "config": {
+        "coast": "bay",
+        "rivers": [
+          "toCoast"
+        ],
+        "features": {
+          "walls": true,
+          "citadel": false,
+          "plaza": true,
+          "temple": true,
+          "port": true,
+          "shanty": false
+        }
+      }
+    },
+    {
+      "id": "open-village",
+      "seed": "parity-village",
+      "population": 600,
+      "covers": [
+        "no-walls",
+        "small-settlement",
+        "temple-only"
+      ],
+      "config": {
+        "rivers": [],
+        "features": {
+          "walls": false,
+          "citadel": false,
+          "plaza": false,
+          "temple": true,
+          "port": false,
+          "shanty": false
+        }
+      }
+    },
+    {
+      "id": "double-wall",
+      "seed": "parity-double",
+      "population": 5000,
+      "covers": [
+        "double-walls",
+        "inner-gates"
+      ],
+      "settings": {
+        "townWallRings": "double"
+      },
+      "config": {
+        "rivers": [
+          "through"
+        ],
+        "features": {
+          "walls": true,
+          "citadel": false,
+          "plaza": true,
+          "temple": true,
+          "port": false,
+          "shanty": false
+        }
+      }
+    },
+    {
+      "id": "bastioned",
+      "seed": "parity-bastion",
+      "population": 5000,
+      "covers": [
+        "bastioned-town",
+        "ravelins",
+        "wet-ditch",
+        "radial-streets",
+        "period-age-of-exploration"
+      ],
+      "settings": {
+        "historicalPeriod": "ageOfExploration",
+        "townFortification": {
+          "kind": "bastioned",
+          "outworks": "ravelins",
+          "ditch": "wet",
+          "streetPlan": "radial"
+        },
+        "generationMethod": "skeleton-first",
+        "wallShape": "bastioned",
+        "walledAreaShare": 1
+      },
+      "config": {
+        "rivers": [],
+        "features": {
+          "walls": true,
+          "citadel": false,
+          "plaza": true,
+          "temple": true,
+          "port": false,
+          "shanty": false
+        }
+      },
+      "meshPopulation": false
+    },
+    {
+      "id": "circulade",
+      "seed": "parity-circulade",
+      "population": 3000,
+      "covers": [
+        "layout-circulade"
+      ],
+      "settings": {
+        "layout": "circulade"
+      },
+      "config": {
+        "rivers": [],
+        "layout": "circulade",
+        "features": {
+          "walls": true,
+          "citadel": false,
+          "plaza": true,
+          "temple": true,
+          "port": false,
+          "shanty": false
+        }
+      },
+      "meshPopulation": false
+    },
+    {
+      "id": "relief-polygon",
+      "seed": "parity-relief",
+      "population": 3000,
+      "covers": [
+        "relief",
+        "elevation-preset",
+        "skeleton-first",
+        "wall-shape-polygon"
+      ],
+      "settings": {
+        "generationMethod": "skeleton-first",
+        "wallShape": "polygon",
+        "wallSides": 7,
+        "elevationPreset": "valley"
+      },
+      "config": {
+        "relief": true,
+        "rivers": [
+          "through"
+        ],
+        "features": {
+          "walls": true,
+          "citadel": false,
+          "plaza": true,
+          "temple": true,
+          "port": false,
+          "shanty": false
+        }
+      },
+      "meshPopulation": false
+    }
+  ]
+}

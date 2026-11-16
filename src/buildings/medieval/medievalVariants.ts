@@ -13,6 +13,7 @@ import { models as smithies } from "./11-smithiesModels";
 import { models as inns } from "./12-innsModels";
 import { models as fuel } from "./13-fuel-storageModels";
 import { models as churches } from "./14-parish-churchesModels";
+import { models as townChurches } from "./14-town-churchesModels";
 import { models as breweries } from "./15-breweriesModels";
 import { models as granaries } from "./16-granariesModels";
 import { models as warehouses } from "./17-warehousesModels";
@@ -50,6 +51,8 @@ import { models as dedicatedTanneries } from "./55-dedicated-tanneriesModels";
 import { models as ropeworks } from "./56-ropeworksModels";
 import { models as butcheries } from "./57-butcheryModels";
 import { models as townTrades } from "./58-town-tradesModels";
+import { models as squareFurniture } from "./59-market-square-furnitureModels";
+import { models as churchyardFurniture } from "./60-churchyard-furnitureModels";
 import type { MedievalModel } from "./modelKit";
 
 export function medievalFamily(model: Pick<MedievalModel, "id">): string {
@@ -71,6 +74,7 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   inns,
   fuel,
   churches,
+  townChurches,
   breweries,
   granaries,
   warehouses,
@@ -107,7 +111,9 @@ export const MEDIEVAL_VARIANTS: readonly ModelVariant[] = [
   dedicatedTanneries,
   ropeworks,
   butcheries,
-  townTrades
+  townTrades,
+  squareFurniture,
+  churchyardFurniture
 ]
   .flat()
   .flatMap(model => {

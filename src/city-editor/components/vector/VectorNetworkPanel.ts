@@ -31,7 +31,8 @@ export function createVectorNetworkPanel(
   status: HTMLElement,
   readCurrent: () => VectorCityDocument,
   selected: () => string,
-  commit: (document: VectorCityDocument, label: string) => void
+  commit: (document: VectorCityDocument, label: string) => void,
+  peek: () => Readonly<VectorCityDocument> = readCurrent
 ) {
   const read = () => prepareVectorEdit(readCurrent());
   const details = document.createElement("details"),
@@ -135,7 +136,8 @@ export function createVectorNetworkPanel(
       previousBridge = body.querySelector<HTMLSelectElement>('[data-network-field="bridge"]')?.value;
     map.querySelector("[data-network-draft]")?.remove();
     scope.replaceChildren(body);
-    const documentValue = read(),
+    // Listing reads the snapshot; edits still start from `read`.
+    const documentValue = peek(),
       paths = Object.values(documentValue.paths),
       circuits = Object.values(documentValue.connections.circuits),
       gates = Object.values(documentValue.connections.gates),
@@ -153,7 +155,7 @@ export function createVectorNetworkPanel(
         t = numeric(`${key}T`, key === "source" ? 1 : 0.5);
       const fill = () => {
         segment.replaceChildren();
-        const source = read().paths[path.value];
+        const source = peek().paths[path.value];
         if (source)
           for (const id of pathSegmentIds(source)) {
             const option = document.createElement("option");
@@ -294,7 +296,7 @@ export function createVectorNetworkPanel(
     const toSegment = choice("bridgeToSegment", []),
       toT = numeric("bridgeToT", 1);
     const fillBridgeEnd = () => {
-      const path = read().paths[source().pathId];
+      const path = peek().paths[source().pathId];
       toSegment.replaceChildren();
       if (path)
         for (const id of pathSegmentIds(path)) {
@@ -352,5 +354,14 @@ export function createVectorNetworkPanel(
     pending = undefined;
     map.querySelector("[data-network-draft]")?.remove();
   });
-  return { refresh };
+  return {
+    refresh,
+    /** Follow the editor's selection without rebuilding the panel's lists. */
+    selectTarget(id: string) {
+      const target = body.querySelector<HTMLSelectElement>('[data-network-field="targetPath"]');
+      if (!target || target.value === id || ![...target.options].some(o => o.value === id)) return;
+      target.value = id;
+      target.dispatchEvent(new Event("change"));
+    }
+  };
 }

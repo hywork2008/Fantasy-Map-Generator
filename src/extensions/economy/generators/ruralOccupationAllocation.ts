@@ -37,6 +37,7 @@
  * since `ruralLaborRelease.ts` still expects population points to match `cells.maleAdults`/`femaleAdults`.
  */
 
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import { historicalPeriodIndex } from "../../../types/historicalPeriod";
 import { LIVELIHOOD_CODE, type WorldContext } from "../../hostCore";
 import {
@@ -45,7 +46,8 @@ import {
   getGoodCellColumn,
   getGoods,
   getHuntingWorkers,
-  getMarketCellColumn
+  getMarketCellColumn,
+  getOrCreateFaunaStockTable
 } from "../economyContext";
 import {
   type AgriculturalLandProfile,
@@ -60,7 +62,9 @@ import {
 import { drawWildFaunaOfftake, hasWildGameHabitat, previewWildFaunaOfftake } from "./faunaPopulation";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { isGoodEnabled } from "./goods-generator";
-import { calculateHusbandryDemand } from "./husbandry";
+import { calculateHusbandryDemand, getForageAreaHectares } from "./husbandry";
+import { ANNUAL_FEED_DM_KG_PER_HEAD, getPastureGrowth, HAY_WORK_DAYS_PER_TONNE_DM } from "./livestockFeedPolicy";
+import { getFeedShortfallResponse } from "./livestockFeedState";
 import { getRuralTextileRequiredWorkers } from "./textileHouseholdPolicy";
 import { calculateViticultureDemand, getPerennialMonthlyLaborWeights } from "./viticulture";
 
@@ -140,6 +144,12 @@ export interface RuralOccupationAllocation {
   readonly seasonalLaborShortage: Float32Array;
   /** Residual after Grain + hunting + fishing + viticulture + husbandry claims; feeds ruralLaborRelease.ts. */
   readonly ruralReleasePressure: Float32Array;
+  /** Town adults' days in the fields and meadows, `burgId * 12 + month` (docs/plan/urban-harvest-help.md). */
+  readonly townHarvestHelperDays?: Float32Array;
+  /** Hay days carried from a short hay month to later months' regrowth, cell * 12 + month. */
+  readonly hayCatchUpDays?: Float32Array;
+  /** Off-field days left on rest days only, cell * 12 + month (docs/plan/livestock-feed-shortfall.md §9). */
+  readonly restDayHayDays?: Float32Array;
 }
 
 type RuralLaborPlan = Pick<
@@ -427,6 +437,14 @@ function allocateRuralOccupationsFromCalendar(
   const desiredDaysByCell = new Float32Array(count * 12);
   const minimumDaysByCell = new Float32Array(count * 12);
   const workDaysPerAdultByCell = new Float32Array(count * 12);
+  const offField: OffFieldDays = {
+    cap: new Float32Array(count * 12),
+    used: new Float32Array(count * 12),
+    workdayCap: new Float32Array(count * 12),
+    workdayUsed: new Float32Array(count * 12)
+  };
+  const offFieldMonthlyDays = getOffFieldMonthlyDaysPerAdult();
+  const offFieldWorkdayDays = getOffFieldWorkdayDaysPerAdult(world.options?.historicalPeriod);
   if (
     !count ||
     laborPlan.cropLaborDaysByMonth.length !== count * 12 ||
@@ -452,6 +470,11 @@ function allocateRuralOccupationsFromCalendar(
     const desiredDays = currentDays.slice();
     const workDaysPerAdult = getMonthlyWorkDaysPerAdult(laborPlan.cropLaborDaysByMonth, cellId * 12);
     workDaysPerAdultByCell.set(workDaysPerAdult, cellId * 12);
+    for (let month = 0; month < 12; month++) {
+      offField.cap[cellId * 12 + month] = residentAdults * Math.max(0, offFieldMonthlyDays - workDaysPerAdult[month]);
+      offField.workdayCap[cellId * 12 + month] =
+        residentAdults * Math.max(0, offFieldWorkdayDays - workDaysPerAdult[month]);
+    }
     const huntingRequired = hasWildGameHabitat(cellId) ? getHuntingSubsistenceClaim(residentAdults) : 0;
     addWorkerDays(desiredDays, huntingRequired, UNIFORM_MONTHLY_WEIGHTS);
     const huntingFactor = getMaximumAssignableFactor(
@@ -506,6 +529,7 @@ function allocateRuralOccupationsFromCalendar(
         // These are month-local household tasks. One busy crop month must not cancel
         // care and seasonal work in every other month, or spend another month's slack.
         let annualAssignedDays = 0;
+        const hayOnRestDays = getFeedShortfallResponse(cellId) === "work";
         // Children watch the flocks and herds day to day; adults take the seasonal work.
         const childDaysPerMonth =
           getRuralChildren(cells, cellId) * populationRate * CHILD_HERDING_SHARE * (WORKABLE_DAYS_PER_ADULT / 12);
@@ -524,12 +548,20 @@ function allocateRuralOccupationsFromCalendar(
             careChildDays + Math.min(childDaysPerMonth - careChildDays, hayDays * CHILD_HAYMAKING_SHARE)
           );
           const remainingDays = Math.max(0, residentAdults * workDaysPerAdult[month] - currentDays[month]);
-          const adultDays = Math.min(requestedDays - childDays, remainingDays);
+          // Care goes on every day, rest days included; hay is servile work, made on working days only.
+          const adultNeed = Math.max(0, requestedDays - childDays);
+          const hayAdultNeed = Math.min(adultNeed, Math.max(0, hayDays - (childDays - careChildDays)));
+          const offFieldCare = spendOffField(offField, cellId * 12 + month, adultNeed - hayAdultNeed, false);
+          // After a year short of feed, keepers may make hay on rest days as work of necessity.
+          const offFieldHay = spendOffField(offField, cellId * 12 + month, hayAdultNeed, !hayOnRestDays);
+          const offFieldDays = offFieldCare + offFieldHay;
+          const adultDays = offFieldDays + Math.min(adultNeed - offFieldDays, remainingDays);
           const assignedDays = childDays + adultDays;
           husbandryMonthlyWorkDays[cellId * 12 + month] = assignedDays;
           haymakingShortfallDays[cellId * 12 + month] = Math.min(hayDays, requestedDays - assignedDays);
-          currentDays[month] += adultDays;
-          minimumDays[month] += adultDays;
+          // Only the days taken from the field calendar count against the fields, migration and release.
+          currentDays[month] += adultDays - offFieldDays;
+          minimumDays[month] += adultDays - offFieldDays;
           annualAssignedDays += assignedDays;
         }
         husbandryWorkers[cellId] = annualAssignedDays / WORKABLE_DAYS_PER_ADULT;
@@ -555,19 +587,27 @@ function allocateRuralOccupationsFromCalendar(
       getReservedAdultOutflowPoints(cells, cellId)
     );
     const textileAdults = Math.max(0, residentAdults - reservedOutflow * populationRate);
+    const textileOffField = Array.from({ length: 12 }, (_, month) => getOffFieldLeft(offField, cellId * 12 + month));
     const textileAssigned =
       textileRequired *
       getMaximumAssignableFactor(
-        currentDays,
+        // A field month over capacity must not eat into the off-field days.
+        currentDays.map(
+          (days, month) => Math.min(days, textileAdults * workDaysPerAdult[month]) - textileOffField[month]
+        ),
         textileRequired,
         UNIFORM_MONTHLY_WEIGHTS,
         textileAdults,
         workDaysPerAdult
       );
     householdTextileWorkers[cellId] = textileAssigned;
-    addWorkerDays(currentDays, textileAssigned, UNIFORM_MONTHLY_WEIGHTS);
-    addWorkerDays(minimumDays, textileAssigned, UNIFORM_MONTHLY_WEIGHTS);
-    addWorkerDays(desiredDays, textileAssigned, UNIFORM_MONTHLY_WEIGHTS);
+    const textileMonthlyDays = (textileAssigned * WORKABLE_DAYS_PER_ADULT) / 12;
+    for (let month = 0; month < 12; month++) {
+      const offFieldDays = spendOffField(offField, cellId * 12 + month, textileMonthlyDays);
+      currentDays[month] += textileMonthlyDays - offFieldDays;
+      minimumDays[month] += textileMonthlyDays - offFieldDays;
+      desiredDays[month] += textileMonthlyDays - offFieldDays;
+    }
 
     writeMonthlyDays(currentDaysByCell, cellId, currentDays);
     writeMonthlyDays(desiredDaysByCell, cellId, desiredDays);
@@ -575,7 +615,15 @@ function allocateRuralOccupationsFromCalendar(
   }
 
   const aidReceivedByCell = applyHarvestMutualAid(world, currentDaysByCell, desiredDaysByCell, workDaysPerAdultByCell);
-  applyRegionalHarvestHelp(world, currentDaysByCell, desiredDaysByCell, workDaysPerAdultByCell, aidReceivedByCell);
+  const townHelp = createTownHarvestHelp(world);
+  applyRegionalHarvestHelp(
+    world,
+    currentDaysByCell,
+    desiredDaysByCell,
+    workDaysPerAdultByCell,
+    aidReceivedByCell,
+    townHelp
+  );
   applyHaymakingMutualAid(
     world,
     currentDaysByCell,
@@ -583,7 +631,19 @@ function allocateRuralOccupationsFromCalendar(
     workDaysPerAdultByCell,
     haymakingShortfallDays,
     husbandryMonthlyWorkDays,
-    husbandryWorkers
+    husbandryWorkers,
+    townHelp,
+    offField
+  );
+  const townHarvestHelperDays = spreadTownHarvestHelp(world, townHelp);
+  const hayCatchUpDays = carryHayShortfall(
+    world,
+    currentDaysByCell,
+    workDaysPerAdultByCell,
+    haymakingShortfallDays,
+    husbandryMonthlyWorkDays,
+    husbandryWorkers,
+    offField
   );
 
   for (const cellId of cells.i) {
@@ -675,7 +735,12 @@ function allocateRuralOccupationsFromCalendar(
     farmLaborRequired,
     migratableAdults,
     seasonalLaborShortage,
-    ruralReleasePressure
+    ruralReleasePressure,
+    townHarvestHelperDays,
+    hayCatchUpDays,
+    restDayHayDays: Float32Array.from(offField.cap, (_, index) =>
+      Math.max(0, getOffFieldLeft(offField, index, false) - getOffFieldLeft(offField, index))
+    )
   };
 }
 
@@ -770,7 +835,9 @@ function applyHaymakingMutualAid(
   workDaysPerAdultByCell: Float32Array,
   shortfallDays: Float32Array,
   husbandryMonthlyWorkDays: Float32Array,
-  husbandryWorkers: Float32Array
+  husbandryWorkers: Float32Array,
+  townHelp?: TownHarvestHelp,
+  offField?: OffFieldDays
 ): void {
   const cells = world.pack.cells;
   if (!cells?.i || !cells.c) return;
@@ -784,10 +851,9 @@ function applyHaymakingMutualAid(
       const ruralAdultPoints =
         Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
       const workDays = workDaysPerAdultByCell[cellId * 12 + month] || WORKABLE_DAYS_PER_ADULT_PER_MONTH;
-      slack[cellId] = Math.max(
-        0,
-        ruralAdultPoints * populationRate * workDays - currentDaysByCell[cellId * 12 + month]
-      );
+      slack[cellId] =
+        Math.max(0, ruralAdultPoints * populationRate * workDays - currentDaysByCell[cellId * 12 + month]) +
+        getOffFieldLeft(offField, cellId * 12 + month);
     }
     for (const cellId of cells.i) {
       let remaining = shortfallDays[cellId * 12 + month];
@@ -799,8 +865,9 @@ function applyHaymakingMutualAid(
         if ((cells.h[neighborId] ?? 0) < 20 || (cells.state?.[neighborId] ?? 0) !== stateId) continue;
         const transfer = Math.min(remaining, slack[neighborId]);
         if (!(transfer > 0)) continue;
-        currentDaysByCell[neighborId * 12 + month] += transfer;
-        desiredDaysByCell[neighborId * 12 + month] += transfer;
+        const fieldDays = transfer - spendOffField(offField, neighborId * 12 + month, transfer);
+        currentDaysByCell[neighborId * 12 + month] += fieldDays;
+        desiredDaysByCell[neighborId * 12 + month] += fieldDays;
         husbandryMonthlyWorkDays[cellId * 12 + month] += transfer;
         husbandryWorkers[cellId] += transfer / WORKABLE_DAYS_PER_ADULT;
         slack[neighborId] -= transfer;
@@ -832,11 +899,176 @@ function applyHaymakingMutualAid(
       }
       const given = slack[cellId] * mobility * Math.min(1, row.need / Math.max(row.slack, 1e-9));
       if (given > 0) {
-        currentDaysByCell[index] += given;
-        desiredDaysByCell[index] += given;
+        const fieldDays = given - spendOffField(offField, index, given);
+        currentDaysByCell[index] += fieldDays;
+        desiredDaysByCell[index] += fieldDays;
       }
     }
+    // Town adults go out to the meadows for what is still uncut, as artificers were called to the hay
+    // and corn harvest (docs/plan/urban-harvest-help.md).
+    if (!townHelp?.hay) continue;
+    const needByMarket = new Map<number, number>();
+    for (const cellId of cells.i) {
+      const marketId = marketCellColumn[cellId] ?? 0;
+      const need = shortfallDays[cellId * 12 + month];
+      if (marketId && need > 0) needByMarket.set(marketId, (needByMarket.get(marketId) ?? 0) + need);
+    }
+    const fillByMarket = new Map<number, number>();
+    for (const [marketId, need] of needByMarket) {
+      const used = Math.min(need, townHelpLeft(townHelp, marketId, month));
+      if (!(used > 0)) continue;
+      consumeTownHelp(townHelp, marketId, month, used);
+      fillByMarket.set(marketId, used / need);
+    }
+    for (const cellId of cells.i) {
+      const fill = fillByMarket.get(marketCellColumn[cellId] ?? 0) ?? 0;
+      const index = cellId * 12 + month;
+      const helped = Math.max(0, shortfallDays[index]) * fill;
+      if (!(helped > 0)) continue;
+      husbandryMonthlyWorkDays[index] += helped;
+      husbandryWorkers[cellId] += helped / WORKABLE_DAYS_PER_ADULT;
+      shortfallDays[index] -= helped;
+    }
   }
+}
+
+/**
+ * Hay still uncut after every helper is cut from the regrowth of the following months by the cell's own
+ * spare adults, as the manor of Chelsea hired mowers for the second hay crop (VCH Middlesex 12; docs/plan/
+ * hay-catch-up.md). Field work keeps its days: only days left after the whole calendar are used.
+ */
+function carryHayShortfall(
+  world: Readonly<WorldContext>,
+  currentDaysByCell: Float32Array,
+  workDaysPerAdultByCell: Float32Array,
+  shortfallDays: Float32Array,
+  husbandryMonthlyWorkDays: Float32Array,
+  husbandryWorkers: Float32Array,
+  offField?: OffFieldDays
+): Float32Array {
+  const cells = world.pack.cells;
+  const carried = new Float32Array(shortfallDays.length);
+  const settings = getMarketSettings();
+  if (settings.hayCatchUp !== "aftermath" || !cells?.i) return carried;
+  const populationRate = Math.max(1, world.populationRate || 1);
+  for (const cellId of cells.i) {
+    if ((cells.h[cellId] ?? 0) < 20) continue;
+    const adults =
+      (Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0)) * populationRate;
+    let regrowthDays: number[] | undefined;
+    const hayOnRestDays = getFeedShortfallResponse(cellId) === "work";
+    for (let month = 0; month < 12; month++) {
+      let remaining = shortfallDays[cellId * 12 + month];
+      if (remaining > 0) regrowthDays ??= getRegrowthHayDays(world, cellId);
+      for (let ahead = 1; ahead <= settings.hayCatchUpMonths && remaining > 0; ahead++) {
+        const target = (month + ahead) % 12;
+        const index = cellId * 12 + target;
+        const workDays = workDaysPerAdultByCell[index] || WORKABLE_DAYS_PER_ADULT_PER_MONTH;
+        // A month's regrowth bounds what it can make up; the rest goes on to the next month.
+        const days = Math.min(
+          remaining,
+          Math.max(0, (regrowthDays?.[target] ?? 0) - carried[index]),
+          Math.max(0, adults * workDays - currentDaysByCell[index]) + getOffFieldLeft(offField, index, !hayOnRestDays)
+        );
+        if (!(days > 0)) continue;
+        currentDaysByCell[index] += days - spendOffField(offField, index, days, !hayOnRestDays);
+        husbandryMonthlyWorkDays[index] += days;
+        husbandryWorkers[cellId] += days / WORKABLE_DAYS_PER_ADULT;
+        carried[index] += days;
+        remaining -= days;
+      }
+      shortfallDays[cellId * 12 + month] = remaining;
+    }
+  }
+  return carried;
+}
+
+/**
+ * Mowing days the regrowth of each month could still take, beyond the grazing and the planned hay: the month's
+ * growth on the forage area less the present herd's monthly need and the planned cut, at 3 days per t.
+ * Fills the months after a short one in turn, so hay that one month's regrowth cannot take goes on to the next.
+ */
+function getRegrowthHayDays(world: Readonly<WorldContext>, cellId: number): number[] {
+  const growth = getPastureGrowth(world, cellId);
+  const area = getForageAreaHectares(cellId);
+  // Without a forage record the cut itself, which reads the standing grass, is the only bound.
+  if (!(area > 0)) return Array(12).fill(Number.POSITIVE_INFINITY);
+  const table = getOrCreateFaunaStockTable();
+  const needKg = Object.entries(ANNUAL_FEED_DM_KG_PER_HEAD).reduce((sum, [name, kg]) => {
+    const herd = table?.[`${cellId}:${name}`];
+    const heads = herd ? Math.max(0, herd.young) + Math.max(0, herd.breeding) + Math.max(0, herd.old) : 0;
+    return sum + (heads * kg) / 12;
+  }, 0);
+  const demand = calculateHusbandryDemand(world, cellId);
+  return Array.from({ length: 12 }, (_, month) => {
+    const plannedKg =
+      (((demand.hayWorkers ?? 0) * WORKABLE_DAYS_PER_ADULT * (demand.hayMonthlyLaborWeights?.[month] ?? 0)) /
+        HAY_WORK_DAYS_PER_TONNE_DM) *
+      1000;
+    const surplusKg = area * growth.annualKgPerHa * (growth.weights[month] ?? 0) - needKg - plannedKg;
+    return (Math.max(0, surplusKg) / 1000) * HAY_WORK_DAYS_PER_TONNE_DM;
+  });
+}
+
+/**
+ * Town adults who can go out to the fields in a month, by market, in work-days of a peak month, and
+ * what has been used. `urbanHarvestHelp` townsAndHay: `urbanHarvestHelpShare` of the adults, for corn
+ * and hay, as the Statute of Cambridge (1388) called town artificers to the corn harvest and the
+ * Statute of Artificers (1563) to the hay and corn harvest. legacy: the period's share, corn only.
+ */
+interface TownHarvestHelp {
+  readonly hay: boolean;
+  readonly capacityByMarket: Map<number, number>;
+  readonly usedByMarketMonth: Map<number, number[]>;
+}
+
+function createTownHarvestHelp(world: Readonly<WorldContext>): TownHarvestHelp {
+  const settings = getMarketSettings();
+  const hay = settings.urbanHarvestHelp === "cornAndHay";
+  const share = hay ? settings.urbanHarvestHelpShare : getUrbanHarvestHelpShare(world.options?.historicalPeriod);
+  const populationRate = Math.max(1, world.populationRate || 1);
+  const urbanization = Math.max(0, world.urbanization ?? 1);
+  const peakWorkDays = WORKABLE_DAYS_PER_ADULT_PER_MONTH * PEAK_MONTH_WORK_MULTIPLIER;
+  const capacityByMarket = new Map<number, number>();
+  for (const burg of world.pack.burgs ?? []) {
+    if (!burg?.i || burg.removed || !burg.demographics || !burg.market) continue;
+    const adults = Math.max(0, burg.demographics.maleAdults ?? 0) + Math.max(0, burg.demographics.femaleAdults ?? 0);
+    const days = adults * populationRate * urbanization * share * peakWorkDays;
+    if (days > 0) capacityByMarket.set(burg.market, (capacityByMarket.get(burg.market) ?? 0) + days);
+  }
+  return { hay, capacityByMarket, usedByMarketMonth: new Map() };
+}
+
+function townHelpLeft(help: TownHarvestHelp, marketId: number, month: number): number {
+  return Math.max(0, (help.capacityByMarket.get(marketId) ?? 0) - (help.usedByMarketMonth.get(marketId)?.[month] ?? 0));
+}
+
+function consumeTownHelp(help: TownHarvestHelp, marketId: number, month: number, days: number): void {
+  if (!(days > 0)) return;
+  const used = help.usedByMarketMonth.get(marketId) ?? new Array<number>(12).fill(0);
+  used[month] += days;
+  help.usedByMarketMonth.set(marketId, used);
+}
+
+/** Each town's share of its market's helper days, by its adults (`burgId * 12 + month`). Empty under legacy, whose towns keep their work. */
+function spreadTownHarvestHelp(world: Readonly<WorldContext>, help: TownHarvestHelp): Float32Array {
+  const burgs = world.pack.burgs ?? [];
+  const result = new Float32Array(help.hay ? burgs.length * 12 : 0);
+  if (!help.hay) return result;
+  const adultsByMarket = new Map<number, number>();
+  const adultsOf = (burg: (typeof burgs)[number]) =>
+    Math.max(0, burg?.demographics?.maleAdults ?? 0) + Math.max(0, burg?.demographics?.femaleAdults ?? 0);
+  for (const burg of burgs)
+    if (burg?.i && !burg.removed && burg.market)
+      adultsByMarket.set(burg.market, (adultsByMarket.get(burg.market) ?? 0) + adultsOf(burg));
+  for (const burg of burgs) {
+    if (!burg?.i || burg.removed || !burg.market) continue;
+    const used = help.usedByMarketMonth.get(burg.market);
+    const total = adultsByMarket.get(burg.market) ?? 0;
+    if (!used || !(total > 0)) continue;
+    for (let month = 0; month < 12; month++) result[burg.i * 12 + month] = (used[month] * adultsOf(burg)) / total;
+  }
+  return result;
 }
 
 export const URBAN_HARVEST_HELP_SHARE_MEDIEVAL = 0.05;
@@ -891,24 +1123,14 @@ function applyRegionalHarvestHelp(
   currentDaysByCell: Float32Array,
   desiredDaysByCell: Float32Array,
   workDaysPerAdultByCell: Float32Array,
-  aidReceivedByCell: Float32Array
+  aidReceivedByCell: Float32Array,
+  townHelp: TownHarvestHelp
 ): void {
   const cells = world.pack.cells;
   const marketCellColumn = getMarketCellColumn();
   if (!cells?.i || marketCellColumn.length !== cells.i.length) return;
-  const urbanShare = getUrbanHarvestHelpShare(world.options?.historicalPeriod);
   const mobility = getRegionalHarvestMobility(world.options?.historicalPeriod);
   const populationRate = Math.max(1, world.populationRate || 1);
-  const urbanization = Math.max(0, world.urbanization ?? 1);
-  const peakWorkDays = WORKABLE_DAYS_PER_ADULT_PER_MONTH * PEAK_MONTH_WORK_MULTIPLIER;
-
-  const townHelpersByMarket = new Map<number, number>();
-  for (const burg of world.pack.burgs ?? []) {
-    if (!burg?.i || burg.removed || !burg.demographics || !burg.market) continue;
-    const adults = Math.max(0, burg.demographics.maleAdults ?? 0) + Math.max(0, burg.demographics.femaleAdults ?? 0);
-    const helpers = adults * populationRate * urbanization * urbanShare;
-    if (helpers > 0) townHelpersByMarket.set(burg.market, (townHelpersByMarket.get(burg.market) ?? 0) + helpers);
-  }
 
   for (let month = 0; month < 12; month++) {
     const shortage = new Float32Array(cells.i.length);
@@ -942,12 +1164,13 @@ function applyRegionalHarvestHelp(
 
     const usedRuralShare = new Map<number, number>();
     for (const [marketId, marketShortage] of shortageByMarket) {
-      const town = (townHelpersByMarket.get(marketId) ?? 0) * peakWorkDays;
+      const town = townHelpLeft(townHelp, marketId, month);
       const rural = slackByMarket.get(marketId) ?? 0;
       const used = Math.min(marketShortage, town + rural);
       if (!(used > 0)) continue;
       // Towns' helpers are spent before rural hands leave their own villages.
       const ruralUsed = Math.max(0, used - town);
+      consumeTownHelp(townHelp, marketId, month, used - ruralUsed);
       usedRuralShare.set(marketId, rural > 0 ? ruralUsed / rural : 0);
       for (const cellId of cells.i) {
         if (!(shortage[cellId] > 0) || marketCellColumn[cellId] !== marketId) continue;
@@ -963,6 +1186,67 @@ function applyRegionalHarvestHelp(
       }
     }
   }
+}
+
+/**
+ * Days of the rural work year outside the field calendar (docs/plan/rural-work-year.md): per cell and month,
+ * the adults' days above the month's field capacity, up to the work year less housework. The 140 field days
+ * stay the fields' measure (farm-labour-calibration.md §1.1); herds, hay and household cloth use these first.
+ */
+interface OffFieldDays {
+  /** Every day of the work year less housework: herd care, which goes on through Sundays and feasts. */
+  readonly cap: Float32Array;
+  readonly used: Float32Array;
+  /** Working days only (no rest days): hay, household cloth and hired hay hands, servile work. */
+  readonly workdayCap: Float32Array;
+  readonly workdayUsed: Float32Array;
+}
+
+/** Days per adult in a month of the work year left after housework; 0 under the legacy rule. */
+export function getOffFieldMonthlyDaysPerAdult(): number {
+  const settings = getMarketSettings();
+  if (settings.ruralWorkYear !== "offField") return 0;
+  return Math.max(0, settings.ruralWorkDaysPerYear - settings.ruralChoreDaysPerAdult) / 12;
+}
+
+/**
+ * Sundays and holy days kept from servile work in a year (docs/plan/rural-work-year.md §2). byPeriod: 52 Sundays
+ * and about 45 feasts to the late Middle Ages (the lists of Archbishops Mepham 1332 and Arundel 1400, 12 and 19
+ * more than the 1549 Prayer Book), and about 27 feasts after the abrogation of 1536, which made most harvest-time
+ * feasts working days.
+ */
+export function getRuralRestDaysPerYear(historicalPeriod: string | undefined): number {
+  const settings = getMarketSettings();
+  if (settings.ruralRestDays === "custom") return settings.ruralRestDaysCustom;
+  return periodBand(historicalPeriod) === 0 ? 97 : 79;
+}
+
+/** Days per adult in a month of working days left after their share of housework; 0 under the legacy rule. */
+export function getOffFieldWorkdayDaysPerAdult(historicalPeriod: string | undefined): number {
+  const settings = getMarketSettings();
+  if (settings.ruralWorkYear !== "offField" || !(settings.ruralWorkDaysPerYear > 0)) return 0;
+  const workdays = Math.max(0, settings.ruralWorkDaysPerYear - getRuralRestDaysPerYear(historicalPeriod));
+  const choreShare = Math.min(1, settings.ruralChoreDaysPerAdult / settings.ruralWorkDaysPerYear);
+  return (workdays * (1 - choreShare)) / 12;
+}
+
+function getOffFieldLeft(offField: OffFieldDays | undefined, index: number, workday = true): number {
+  if (!offField) return 0;
+  const left = Math.max(0, offField.cap[index] - offField.used[index]);
+  return workday ? Math.min(left, Math.max(0, offField.workdayCap[index] - offField.workdayUsed[index])) : left;
+}
+
+/**
+ * Takes up to `days` from the off-field days, of working days unless `workday` is false (care); returns what it
+ * took, the rest falls on the field calendar.
+ */
+function spendOffField(offField: OffFieldDays | undefined, index: number, days: number, workday = true): number {
+  const taken = Math.min(Math.max(0, days), getOffFieldLeft(offField, index, workday));
+  if (offField && taken > 0) {
+    offField.used[index] += taken;
+    if (workday) offField.workdayUsed[index] += taken;
+  }
+  return taken;
 }
 
 function addWorkerDays(target: number[], workers: number, monthlyWeights: readonly number[]): void {

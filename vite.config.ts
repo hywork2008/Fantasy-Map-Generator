@@ -1,4 +1,4 @@
-import { compileRaceCatalog, raceCsvPath, raceRelationsCsvPath } from "./scripts/lib/raceCatalog";
+import { compileRaceCatalog, raceCsvPath, raceRelationsCsvPath } from "./scripts/lib/raceCatalog.ts";
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -16,17 +16,17 @@ export default defineConfig({
             input: {
                 // World map (default). Explicit `input` disables Vite's implicit
                 // `<root>/index.html`, so it must be listed alongside the city page.
-                main: path.resolve(__dirname, 'src/index.html'),
+                main: path.resolve(import.meta.dirname, 'src/index.html'),
                 // Standalone City Generator page — see docs/city-generator/design.md
-                city: path.resolve(__dirname, 'src/city/index.html'),
+                city: path.resolve(import.meta.dirname, 'src/city/index.html'),
                 // Manual City Editor — deliberately isolated from the world map.
-                cityEditor: path.resolve(__dirname, 'src/city-editor/index.html'),
+                cityEditor: path.resolve(import.meta.dirname, 'src/city-editor/index.html'),
                 // Indoor / courtyard plans, independent of the world map.
-                dungeonEditor: path.resolve(__dirname, 'src/dungeon-editor/index.html'),
+                dungeonEditor: path.resolve(import.meta.dirname, 'src/dungeon-editor/index.html'),
                 // Building records: coarse massing, roof plan, and floor plan.
-                buildingViewer: path.resolve(__dirname, 'src/building-viewer/index.html'),
+                buildingViewer: path.resolve(import.meta.dirname, 'src/building-viewer/index.html'),
                 // Regional map editor (Sword Coast / Perilous Shores style), between World and City.
-                regionEditor: path.resolve(__dirname, 'src/region-editor/index.html'),
+                regionEditor: path.resolve(import.meta.dirname, 'src/region-editor/index.html'),
             },
         },
     },
@@ -82,7 +82,7 @@ export default defineConfig({
                         });
                         req.on('end', () => {
                             try {
-                                const dataDir = path.resolve(__dirname, 'temp/debug');
+                                const dataDir = path.resolve(import.meta.dirname, 'temp/debug');
                                 if (!fs.existsSync(dataDir)) {
                                     fs.mkdirSync(dataDir, { recursive: true });
                                 }

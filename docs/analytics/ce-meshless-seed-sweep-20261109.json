@@ -1,0 +1,386 @@
+[
+ {
+  "target": 5000,
+  "seed": "a1b2c3",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "a1b2c3",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "d4e5f6",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "d4e5f6",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "g7h8i9",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "g7h8i9",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "j1k2l3",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "j1k2l3",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "m4n5o6",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 7,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "m4n5o6",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 7,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "p7q8r9",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 7,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "p7q8r9",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 7,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "s1t2u3",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "s1t2u3",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "v4w5x6",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "v4w5x6",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "y7z8a9",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "y7z8a9",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "b1c2d3",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "b1c2d3",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "e4f5g6",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "e4f5g6",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "h7i8j9",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 5000,
+  "seed": "h7i8j9",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 6,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "a1b2c3",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 7,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "a1b2c3",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 7,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "d4e5f6",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "d4e5f6",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "g7h8i9",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "g7h8i9",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "j1k2l3",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "j1k2l3",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "m4n5o6",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "m4n5o6",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "p7q8r9",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "p7q8r9",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "s1t2u3",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "s1t2u3",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "v4w5x6",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "v4w5x6",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "y7z8a9",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "y7z8a9",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "b1c2d3",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "b1c2d3",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "e4f5g6",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "e4f5g6",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 8,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "h7i8j9",
+  "wall": "none",
+  "unplaced": 0,
+  "districts": 7,
+  "bigBlocks": []
+ },
+ {
+  "target": 50000,
+  "seed": "h7i8j9",
+  "wall": "ellipse",
+  "unplaced": 0,
+  "districts": 7,
+  "bigBlocks": []
+ }
+]

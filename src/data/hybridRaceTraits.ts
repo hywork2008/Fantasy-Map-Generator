@@ -2,7 +2,12 @@
  * Mixed-folk trait rule used by Half Elf (Human × Elf):
  * min = lower parent, max = higher parent, median = lower parent.
  */
-import { APPEARANCE_AXIS_IDS, type AppearanceAxes, type AppearanceRanges, type RaceBeautyIdeal } from "../types/models";
+import {
+  APPEARANCE_AXIS_IDS,
+  type AppearanceAxes,
+  type AppearanceRanges,
+  type RaceBeautyIdeal
+} from "../types/models.ts";
 
 export function hybridMinMaxMedian(a: number, b: number): { min: number; max: number; median: number } {
   const min = Math.min(a, b);

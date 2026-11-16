@@ -4,7 +4,9 @@ import { vectorUrbanStages } from "../../generators/vector/validation/urban";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
 import { vectorRenderData } from "../../renderers/vector/renderData";
 import type { mountVector3d } from "../../renderers/vector/view3d";
+import { readModelQualityPreference, readSimplificationPreferences } from "../../services/browserPreferences";
 import type { EditorLifetime } from "../../services/editorLifetime";
+import { readForestViewPreferences } from "../../services/forestViewPreferences";
 import { downloadVectorBlob, serializeVectorSvg, vectorGlb, vectorPng } from "../../services/io/vector/exports";
 import { type VectorRecipe, vectorRecipe, vectorShareUrl } from "../../services/io/vector/share";
 import type { VectorCityDocument } from "../../types/vector/document";
@@ -48,6 +50,19 @@ export function createVectorPresentationPanel(
   let displayed = read(),
     selected: VectorStage = displayed.urban ? "housing" : "regions",
     scene: ReturnType<typeof mountVector3d> | undefined;
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "ce-view-toggle";
+  host.parentElement?.append(toggle);
+  const syncToggle = () => {
+    toggle.textContent = editorText(view.value === "3d" ? "cityEditor.messages.view2d" : "cityEditor.messages.view3d");
+  };
+  syncToggle();
+  scope.listen(toggle, "click", () => {
+    view.value = view.value === "3d" ? "2d" : "3d";
+    void draw3d();
+  });
+  scope.own(() => toggle.remove());
   const release = () => {
     scope.invalidate("vector-3d");
     scene?.dispose();
@@ -56,6 +71,7 @@ export function createVectorPresentationPanel(
   scope.own(release);
   const draw3d = async () => {
     release();
+    syncToggle();
     if (view.value !== "3d") {
       host.hidden = true;
       map.hidden = false;
@@ -71,20 +87,41 @@ export function createVectorPresentationPanel(
     try {
       const { mountVector3d } = await import("../../renderers/vector/view3d");
       if (!current()) return;
-      scene = mountVector3d(host, vectorRenderData(doc, at), onSelect);
+      // Model quality, simplification and forest quality are the editor's shared preferences, set in the mesh
+      // editor (High, automatic LOD and automatic forest unless changed there).
+      scene = mountVector3d(host, vectorRenderData(doc, at), onSelect, readModelQualityPreference(), {
+        simplification: readSimplificationPreferences(),
+        forestQuality: readForestViewPreferences().quality
+      });
+      await scene.ready;
+      if (!current()) return;
       status.textContent = scene.warnings.length ? `${text("massing")}: ${scene.warnings.length}` : text("ready");
     } catch {
       if (!current()) return;
+      release();
       view.value = "2d";
+      syncToggle();
       host.hidden = true;
       map.hidden = false;
       status.textContent = text("unavailable");
     }
   };
   const rendered = (doc: VectorCityDocument, at: VectorStage = doc.urban ? "housing" : "regions") => {
+    // An open 3D view of the same stage redraws in place, as the mesh editor's view: the camera stays and only the
+    // layers whose inputs changed are rebuilt.
+    if (scene && view.value === "3d" && at === selected && doc !== displayed) {
+      scope.invalidate("vector-export");
+      stopReplay();
+      displayed = doc;
+      scene.update(vectorRenderData(structuredClone(doc), at));
+      status.textContent = scene.warnings.length ? `${text("massing")}: ${scene.warnings.length}` : text("ready");
+      return;
+    }
+    if (scene && view.value === "3d" && at === selected) return;
     scope.invalidate("vector-export");
     stopReplay();
-    displayed = structuredClone(doc);
+    // Rendered documents are history snapshots or finished candidates, never edited afterwards.
+    displayed = doc;
     selected = at;
     const values = doc.urban
       ? vectorUrbanStages(doc.urban.settings.mode)
@@ -146,9 +183,19 @@ export function createVectorPresentationPanel(
   });
   if (glbButton) glbButton.title = text("glbHint");
   const share = async (recipe: boolean) => {
+    let recipeValue: ReturnType<typeof vectorRecipe> | undefined;
+    if (recipe)
+      try {
+        recipeValue = vectorRecipe(displayed);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : "";
+        if (reason !== "vector-recipe-outdated" && reason !== "vector-recipe-edited") throw error;
+        status.textContent = text(reason === "vector-recipe-outdated" ? "recipeOutdated" : "recipeEdited");
+        return;
+      }
     const url = vectorShareUrl(
-      recipe
-        ? { kind: "fmg-vector-city-share", version: 1, mode: "recipe", recipe: vectorRecipe(displayed) }
+      recipeValue
+        ? { kind: "fmg-vector-city-share", version: 1, mode: "recipe", recipe: recipeValue }
         : { kind: "fmg-vector-city-share", version: 1, mode: "document", document: displayed, stage: selected }
     );
     link.value = url;

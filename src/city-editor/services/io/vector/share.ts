@@ -1,7 +1,13 @@
 import { Gunzip, gzipSync, strFromU8, strToU8 } from "fflate";
+import { isDetachedFabricHouse } from "../../../generators/vector/editing/fabricHouses";
+import { isDetachedFabricLinePath } from "../../../generators/vector/editing/fabricLines";
 import { removeVectorPath } from "../../../generators/vector/editing/paths";
 import { generationFingerprint } from "../../../generators/vector/generation/pipeline";
-import { vectorUrbanFingerprint } from "../../../generators/vector/generation/urbanState";
+import {
+  matchesVectorUrbanFingerprint,
+  VECTOR_URBAN_ALGORITHM
+} from "../../../generators/vector/generation/urbanState";
+import { vectorWallSettings } from "../../../generators/vector/generation/wallShape";
 import { vectorUrbanStages } from "../../../generators/vector/validation/urban";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorGenerationSettings } from "../../../types/vector/generation";
@@ -80,7 +86,25 @@ function validateShare(value: unknown): VectorShare | null {
     input.urban ||
     input.generation ||
     !s ||
-    Object.keys(s).sort().join() !== ["seed", "roadWidthMeters", "clearanceMeters", "branches", "wall"].sort().join() ||
+    !["seed", "roadWidthMeters", "clearanceMeters", "branches", "wall"].every(k => Object.hasOwn(s, k)) ||
+    Object.keys(s).some(
+      k =>
+        ![
+          "seed",
+          "roadWidthMeters",
+          "clearanceMeters",
+          "branches",
+          "wall",
+          "wallSides",
+          "wallMaterial",
+          "innerWall",
+          "townMoat",
+          "layout",
+          "castle",
+          "port",
+          "wallCoast"
+        ].includes(k)
+    ) ||
     typeof s.seed !== "string" ||
     s.seed.length > 256 ||
     !Number.isFinite(s.roadWidthMeters) ||
@@ -92,7 +116,7 @@ function validateShare(value: unknown): VectorShare | null {
     !Number.isInteger(s.branches) ||
     s.branches < 0 ||
     s.branches > 24 ||
-    !["none", "rectangle", "ellipse"].includes(s.wall)
+    !vectorWallSettings(s)
   )
     return null;
   if (
@@ -113,6 +137,8 @@ function validateShare(value: unknown): VectorShare | null {
       u.clearanceMeters < 0.2 ||
       u.clearanceMeters > 5 ||
       typeof u.allowExpansion !== "boolean" ||
+      (u.lotOccupancy !== undefined &&
+        (!Number.isFinite(u.lotOccupancy) || u.lotOccupancy < 0.1 || u.lotOccupancy > 1)) ||
       Object.keys(u).some(
         k =>
           ![
@@ -123,7 +149,8 @@ function validateShare(value: unknown): VectorShare | null {
             "laneSpacingMeters",
             "maxLanes",
             "clearanceMeters",
-            "allowExpansion"
+            "allowExpansion",
+            "lotOccupancy"
           ].includes(k)
       ))
   )
@@ -136,8 +163,10 @@ export function vectorRecipe(document: VectorCityDocument): VectorRecipe {
   const g = document.urban?.baseGeneration ?? document.generation,
     u = document.urban;
   if (!g) throw new Error("vector-recipe-unavailable");
-  if (u && (u.inputRevision !== document.revision || u.adoptedFingerprint !== vectorUrbanFingerprint(document)))
+  if (u && (u.inputRevision !== document.revision || !matchesVectorUrbanFingerprint(document, u.adoptedFingerprint)))
     throw new Error("vector-recipe-edited");
+  // Replaying a recipe runs the current algorithm, so it would not reproduce older adopted output.
+  if (u && u.algorithm !== VECTOR_URBAN_ALGORITHM) throw new Error("vector-recipe-outdated");
   if (
     !u &&
     (document.generation!.inputRevision !== document.revision ||
@@ -153,6 +182,21 @@ export function vectorRecipe(document: VectorCityDocument): VectorRecipe {
     )
   )
     throw new Error("vector-recipe-edited");
+  // Detached, moved or cleared fabric items are user edits a fresh generation cannot replay.
+  if (
+    Object.values(document.fabric?.cells ?? {}).some(
+      c => c.detached.length || c.cleared?.length || c.detachedLines?.length
+    ) ||
+    Object.values(document.fabric?.districts ?? {}).some(d => d.detachedLines?.length) ||
+    Object.values(document.placements).some(isDetachedFabricHouse) ||
+    Object.values(document.paths).some(isDetachedFabricLinePath)
+  )
+    throw new Error("vector-recipe-edited");
+  // Fabric and the road nodes it joined are urban output; the recipe input is the graph before urban.
+  if (input.fabric && u) {
+    delete input.fabric;
+    input.connections = structuredClone(u.baseConnections);
+  }
   delete input.urban;
   delete input.generation;
   for (const id of u?.ownedPlacements ?? []) delete input.placements[id];

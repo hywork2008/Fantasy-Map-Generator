@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-const controllersDir = path.join(__dirname, "../src/controllers");
+const controllersDir = path.join(import.meta.dirname, "../src/controllers");
 
 function scanDir(dir: string) {
   const files = fs.readdirSync(dir);

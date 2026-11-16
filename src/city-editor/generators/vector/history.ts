@@ -23,6 +23,10 @@ export class VectorDocumentHistory implements DocumentHistoryState<VectorCityDoc
   get document(): VectorCityDocument {
     return structuredClone(this.snapshots[this.cursor].document);
   }
+  /** The current snapshot itself, for selection and display. Never mutate it; use `document` to edit. */
+  peek(): Readonly<VectorCityDocument> {
+    return this.snapshots[this.cursor].document;
+  }
   get entries(): HistoryEntry[] {
     return this.snapshots.map(item => ({ ...item.entry }));
   }
