@@ -91,7 +91,14 @@ export const CE_ADOPTION: Record<string, Record<string, Adoption>> = {
         }
       }
     ])
-  )
+  ),
+  "medieval.harbor-treadwheel-crane": {
+    high: {
+      variant: "medieval.harbor-treadwheel-crane@high#codex-gpt-6.1-sol",
+      since: "2026-11-15",
+      note: "Grok 4.7 High is a BV comparison edition. CE keeps the Codex High and its cargo-quay dimensions."
+    }
+  }
 };
 
 /** The variant CE draws for a family and level. Throws when competing variants have no adoption. */

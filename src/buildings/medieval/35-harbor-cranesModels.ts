@@ -1,5 +1,7 @@
 import { DEFAULT_AUTHOR } from "../authors";
+import { variantId as makeVariantId } from "../modelVariants";
 import { createMedievalContainerModel } from "../props/medievalContainers";
+import { createGrokHarborCrane, GROK_HARBOR_CRANE, grokHarborCranePartFactories } from "./grokHarborCrane";
 import {
   checkedHarborCraneDimensions,
   DEFAULT_HARBOR_CRANE_DIMENSIONS,
@@ -112,7 +114,9 @@ for (const model of models) {
       preset === "ce-quay"
         ? { ...HARBOR_CRANE_PROFILES[treadwheel ? "treadwheel" : "derrick"], showCargo: false }
         : undefined;
-    return model.variants?.find(v => v.id === variantId)?.level === "high"
+    const variant = model.variants?.find(v => v.id === variantId);
+    if (variant?.author === GROK_HARBOR_CRANE.author) return grokHarborCranePartFactories(dimensions);
+    return variant?.level === "high"
       ? harborCranePartFactories(treadwheel, dimensions)
       : [
           {
@@ -126,3 +130,25 @@ for (const model of models) {
   };
   model.assembleParts = parts => assembleHarborCraneParts(model.id, parts);
 }
+
+// BV comparison edition. CE keeps the Codex high registered above.
+const treadwheelCrane = models.find(model => model.id === "harbor-treadwheel-crane");
+if (!treadwheelCrane) throw new Error("Missing timber harbor treadwheel crane");
+treadwheelCrane.variants = [
+  ...(treadwheelCrane.variants ?? []),
+  {
+    id: makeVariantId("medieval.harbor-treadwheel-crane", "high", GROK_HARBOR_CRANE.author),
+    family: "medieval.harbor-treadwheel-crane",
+    level: "high",
+    author: GROK_HARBOR_CRANE.author,
+    label: "High",
+    credits: [
+      {
+        author: GROK_HARBOR_CRANE.author,
+        date: "2026-11-15",
+        note: "Rotating timber crane house, interior treadwheel, hewn jib truss and forged hook. BV comparison edition."
+      }
+    ],
+    create: () => createGrokHarborCrane()
+  }
+];

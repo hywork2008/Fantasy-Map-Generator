@@ -19,9 +19,8 @@ export function landmarkLaneId(lane: Pick<InfillLane, "faceId" | "points" | "wid
   const coordinates = lane.points.map(point => point.map(value => Math.round(value * 100)).join(","));
   const forward = coordinates.join(";");
   const reverse = [...coordinates].reverse().join(";");
-  // Strings. Math.min would coerce both sides to NaN.
-  // biome-ignore lint/complexity/useMathMinMax: lexicographic order, not a numeric minimum
-  const canonical = forward < reverse ? forward : reverse;
+  // String order, not numeric Math.min: the two spellings are the same lane walked either way.
+  const canonical = [forward, reverse].sort()[0];
   const signature = `${lane.faceId}|${Math.round(lane.widthMeters * 100)}|${canonical}`;
   let hash = 2166136261;
   for (let i = 0; i < signature.length; i++) {

@@ -4,6 +4,7 @@ import { createCaravel } from "./caravel";
 import { createCarrack } from "./carrack";
 import { createGalleon } from "./galleon";
 import type { GalleonState } from "./galleonArmament";
+import { createGrokGalleon } from "./grokGalleon";
 import { createMerchantShipHigh } from "./merchantShipHigh";
 import { createOpusGalleon } from "./opusGalleon";
 import { createSloop } from "./sloop";
@@ -68,5 +69,12 @@ export const SHIP_VARIANTS: readonly ShipVariant[] = [
     level: "low",
     author: "Claude Opus 5.5",
     create: state => createOpusGalleon("low", state)
+  },
+  {
+    id: variantId("ship.galleon", "high", "Grok 4.7"),
+    family: "ship.galleon",
+    level: "high",
+    author: "Grok 4.7",
+    create: state => createGrokGalleon(state)
   }
 ];

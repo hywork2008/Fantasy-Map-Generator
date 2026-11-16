@@ -7,9 +7,10 @@ import { models } from "./35-harbor-cranesModels";
 import { createHighHarborCrane, harborCranePartFactories } from "./harborCraneParts";
 
 it.each(models)("$id has independently built Low/High, bounded High parts and owned resources", definition => {
-  expect(definition.variants!.map(v => v.level)).toEqual(["low", "high"]);
+  const codex = definition.variants!.filter(variant => variant.author === "Codex GPT-6.1 Sol");
+  expect(codex.map(variant => variant.level)).toEqual(["low", "high"]);
   expect(medievalDefinition(definition).variant).toContain("@default#codex-gpt-6.1-sol");
-  const high = definition.variants![1].create(),
+  const high = codex[1].create(),
     other = definition.variants![1].create();
   const bounds = new THREE.Box3().setFromObject(high.group, true),
     size = bounds.getSize(new THREE.Vector3());
