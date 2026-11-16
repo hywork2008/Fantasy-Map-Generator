@@ -72,6 +72,7 @@
 - docs/plan/livestock-salt-cash-share.md
 - docs/plan/salt-supply-calibration.md
 - docs/plan/saltworks-fuel-procurement.md
+- docs/plan/settlement-village-unregistered-bv-objects.md 開拓村のCE 3D表示に必要なBV未登録オブジェクト
 - docs/plan/start-provisioning.md
 
 2026-10-29
