@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { WebGPURenderer } from "three/webgpu";
 import type { ModelQuality } from "../../../buildings/modelQuality";
 import type { ForestQualityPreference } from "../../types/contracts/forest";
 import type { SimplificationPreferences } from "../../types/contracts/simplification";
@@ -38,9 +39,9 @@ export function mountVector3d(
   // Layers survive redraws of this view, so an edit rebuilds only the layers whose inputs changed.
   const layers = new VectorSceneLayers();
   let model = createVectorScene(data, sceneOptions());
-  let renderer: THREE.WebGLRenderer;
+  let renderer: WebGPURenderer;
   try {
-    renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, logarithmicDepthBuffer: true });
+    renderer = new WebGPURenderer({ antialias: true, logarithmicDepthBuffer: true });
   } catch (error) {
     model.dispose();
     layers.dispose();
@@ -81,8 +82,11 @@ export function mountVector3d(
   controls.update();
   let frame = 0,
     previousFrame: { at: number; endedAt: number } | undefined,
-    moving = false;
+    moving = false,
+    gpuReady = false,
+    disposed = false;
   const draw = () => {
+      if (!gpuReady) return;
       const start = performance.now();
       // Houses near the camera take their detailed models and façades before the frame is drawn.
       const lod = model.updateCamera(camera, renderer.domElement.clientHeight);
@@ -129,6 +133,12 @@ export function mountVector3d(
       });
   };
   controls.addEventListener("change", cameraMoved);
+  const observer = new ResizeObserver(resize);
+  // Init is async. Draws before it finishes are skipped; a rejection is left for the caller of ready.
+  const ready = renderer.init().then(() => {
+    gpuReady = true;
+    if (!disposed) resize();
+  });
   let selection: THREE.Box3Helper | THREE.LineSegments | undefined;
   const clearSelection = () => {
     if (!selection) return;
@@ -187,20 +197,20 @@ export function mountVector3d(
   };
   renderer.domElement.addEventListener("pointerdown", pointerDown);
   renderer.domElement.addEventListener("pointerup", pointerUp);
-  const observer = new ResizeObserver(resize);
   observer.observe(container);
   resize();
-  let disposed = false;
   return {
     get warnings() {
       return model.warnings;
     },
-    /** Redraw the city from new render data in the same view: camera, controls and selection outline stay, and only
-     * the layers whose inputs changed are rebuilt. */
+    /** Resolves when the WebGPU renderer has started. A rejection means the view could not start. */
+    ready,
     /** Layer keys the last drawing rebuilt rather than kept. */
     get rebuiltLayers() {
       return [...layers.built];
     },
+    /** Redraw the city from new render data in the same view: camera, controls and selection outline stay, and only
+     * the layers whose inputs changed are rebuilt. */
     update(next: VectorRenderData) {
       if (disposed) return;
       const replacement = createVectorScene(next, sceneOptions());
@@ -219,10 +229,13 @@ export function mountVector3d(
       draw();
     },
     png: () =>
-      new Promise<Blob>((resolve, reject) => {
-        draw();
-        renderer.domElement.toBlob(b => (b ? resolve(b) : reject(new Error("vector-png"))), "image/png");
-      }),
+      ready.then(
+        () =>
+          new Promise<Blob>((resolve, reject) => {
+            draw();
+            renderer.domElement.toBlob(b => (b ? resolve(b) : reject(new Error("vector-png"))), "image/png");
+          })
+      ),
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -236,7 +249,6 @@ export function mountVector3d(
       model.dispose();
       layers.dispose();
       renderer.dispose();
-      renderer.forceContextLoss();
       renderer.domElement.remove();
     }
   };

@@ -1,4 +1,20 @@
 import * as THREE from "three";
+import {
+  atan,
+  dot,
+  Fn,
+  float,
+  If,
+  materialOpacity,
+  max,
+  PI,
+  positionLocal,
+  smoothstep,
+  step,
+  texture,
+  uniform,
+  vec2
+} from "three/tsl";
 
 export interface SkyPanoramaFrame {
   halfWidth: number;
@@ -78,8 +94,48 @@ export function clipSkyPanorama(
   forward: THREE.Vector2,
   occlusion?: PanoramaOcclusion
 ) {
+  const forwardNode = uniform(forward);
+  const nodes = material as THREE.MeshBasicMaterial & { maskNode?: unknown; opacityNode?: unknown };
+  // Keep fragments whose object-space XZ points with the camera's forward.
+  nodes.maskNode = dot(positionLocal.xz, forwardNode).greaterThan(-0.001);
+  if (occlusion) {
+    const placeholder = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1);
+    placeholder.needsUpdate = true;
+    const mapNode = texture(occlusion.texture.value ?? placeholder);
+    const heightNode = uniform(occlusion.height.value);
+    // Later scenery writes mutate these same nodes. The GLSL uniforms below share them.
+    occlusion.texture = mapNode;
+    occlusion.height = heightNode;
+    nodes.opacityNode = Fn(() => {
+      const factor = float(1).toVar();
+      If(heightNode.greaterThan(0), () => {
+        const radial = positionLocal.xz;
+        const y = positionLocal.y;
+        const plain = float(SCENERY_PLAIN_HEIGHT);
+        const above = step(plain, y);
+        const sceneryV = y
+          .div(plain)
+          .mul(0.48)
+          .mul(float(1).sub(above))
+          .add(
+            float(0.48)
+              .add(
+                y
+                  .sub(plain)
+                  .div(max(float(0.001), heightNode.sub(plain)))
+                  .mul(0.52)
+              )
+              .mul(above)
+          );
+        const sceneryU = atan(radial.x, radial.y.negate()).add(PI).div(PI.mul(2));
+        const coverage = mapNode.sample(vec2(sceneryU.mul(4), sceneryV)).a;
+        factor.assign(float(1).sub(smoothstep(0, 0.02, coverage)));
+      });
+      return materialOpacity.mul(factor);
+    })();
+  }
   material.onBeforeCompile = shader => {
-    shader.uniforms.skyForward = { value: forward };
+    shader.uniforms.skyForward = forwardNode;
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec2 vSkyRadial;")
       .replace("#include <begin_vertex>", "#include <begin_vertex>\nvSkyRadial = position.xz;");

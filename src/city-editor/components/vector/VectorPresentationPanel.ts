@@ -79,9 +79,12 @@ export function createVectorPresentationPanel(
         simplification: readSimplificationPreferences(),
         forestQuality: readForestViewPreferences().quality
       });
+      await scene.ready;
+      if (!current()) return;
       status.textContent = scene.warnings.length ? `${text("massing")}: ${scene.warnings.length}` : text("ready");
     } catch {
       if (!current()) return;
+      release();
       view.value = "2d";
       host.hidden = true;
       map.hidden = false;
