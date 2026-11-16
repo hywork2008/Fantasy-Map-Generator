@@ -368,6 +368,22 @@ export class ProductionModule {
   private urbanPopulationByMarket: Map<number, number> | null = null;
   /** "market:good" → this cycle's household-drink container floor (§12 item 20). */
   private householdContainerLots = new Map<string, number>();
+  /**
+   * Wall-clock logs for the initial "Preparing economy" pass. Set only by produceIncrementally()
+   * so the monthly produce() path stays silent.
+   */
+  private tracePreparingEconomy = false;
+
+  /** Logs one Preparing economy call when tracePreparingEconomy is set. Otherwise just runs `fn`. */
+  private timed<T>(label: string, fn: () => T): T {
+    if (!this.tracePreparingEconomy) return fn();
+    const startedAt = performance.now();
+    try {
+      return fn();
+    } finally {
+      console.log(`[Preparing economy] ${label}: ${Math.round(performance.now() - startedAt)} ms`);
+    }
+  }
 
   private get worldContext() {
     return getWorldContext();
@@ -407,14 +423,24 @@ export class ProductionModule {
     skipGlobalTrade = false
   }: IncrementalProductionOptions = {}): Promise<boolean> {
     TIME && console.time("generateProduction");
+    this.tracePreparingEconomy = true;
     try {
+      const cycleStartedAt = performance.now();
       const cycle = this.startProductionCycle();
+      console.log(`[Preparing economy] startProductionCycle: ${Math.round(performance.now() - cycleStartedAt)} ms`);
       const total = cycle.sortedBurgs.length;
       let completed = 0;
       onProgress(0, total);
 
+      const burgStartedAt = performance.now();
+      let lastBurgLogAt = burgStartedAt;
       while (completed < total) {
-        if (isCancelled()) return false;
+        if (isCancelled()) {
+          console.log(
+            `[Preparing economy] produceForBurg ${completed}/${total}: ${Math.round(performance.now() - burgStartedAt)} ms`
+          );
+          return false;
+        }
         const frameStart = performance.now();
         do {
           this.produceForBurg(cycle.sortedBurgs[completed], cycle);
@@ -422,12 +448,31 @@ export class ProductionModule {
         } while (completed < total && performance.now() - frameStart < frameBudgetMs);
 
         onProgress(completed, total);
+        if (completed < total && performance.now() - lastBurgLogAt >= 1000) {
+          console.log(
+            `[Preparing economy] produceForBurg ${completed}/${total}: ${Math.round(performance.now() - burgStartedAt)} ms`
+          );
+          lastBurgLogAt = performance.now();
+        }
         if (completed < total) await yieldToHost();
       }
+      console.log(
+        `[Preparing economy] produceForBurg ${completed}/${total}: ${Math.round(performance.now() - burgStartedAt)} ms`
+      );
 
       if (isCancelled()) return false;
-      return await this.finishProductionCycleIncrementally(cycle, { isCancelled, frameBudgetMs, skipGlobalTrade });
+      const finishStartedAt = performance.now();
+      const finished = await this.finishProductionCycleIncrementally(cycle, {
+        isCancelled,
+        frameBudgetMs,
+        skipGlobalTrade
+      });
+      console.log(
+        `[Preparing economy] finishProductionCycleIncrementally: ${Math.round(performance.now() - finishStartedAt)} ms`
+      );
+      return finished;
     } finally {
+      this.tracePreparingEconomy = false;
       TIME && console.timeEnd("generateProduction");
     }
   }
@@ -435,94 +480,135 @@ export class ProductionModule {
   private startProductionCycle(): ProductionCycle {
     this.urbanPopulationByMarket = null;
     this.householdContainerLots.clear();
-    scheduleLivestockFeedPeriods(0);
+    this.timed("scheduleLivestockFeedPeriods", () => scheduleLivestockFeedPeriods(0));
     // Cleared here (start of cycle) rather than after Taxes.collectTaxes() so the previous
     // cycle's deals stay visible to transaction-history UI (markets-overview.ts,
     // market-deals-overview.ts, production-overview.ts) for the whole ~30-day interval between
     // cycles, instead of for ~0ms (docs/temp/profits.md decision #1).
-    setDeals([]);
+    this.timed("setDeals", () => setDeals([]));
     // Loaded maps restore goods/markets before the singleton lookup caches are rebuilt.
     // Rural Wood and mine supply both write through those caches.
-    Goods.sync();
-    Markets.syncForProductionCycle();
+    this.timed("Goods.sync", () => Goods.sync());
+    this.timed("Markets.syncForProductionCycle", () => Markets.syncForProductionCycle());
 
     // A0 flow diagnostics: retail stock before rural/burg production this cycle.
-    beginFlowCycleCapture();
-    SmithingWorkshopAccounting.beginProductionCycle();
+    this.timed("beginFlowCycleCapture", () => beginFlowCycleCapture());
+    this.timed("SmithingWorkshopAccounting.beginProductionCycle", () =>
+      SmithingWorkshopAccounting.beginProductionCycle()
+    );
 
-    measureTickStep("production:rural", () => Markets.collectRuralProduction());
-    measureTickStep("production:forageHarvest", () => harvestLivestockForage());
-    measureTickStep("production:cropResidues", () => settleCropResiduePreparation());
+    measureTickStep("production:rural", () =>
+      this.timed("Markets.collectRuralProduction", () => Markets.collectRuralProduction())
+    );
+    measureTickStep("production:forageHarvest", () =>
+      this.timed("harvestLivestockForage", () => harvestLivestockForage())
+    );
+    measureTickStep("production:cropResidues", () =>
+      this.timed("settleCropResiduePreparation", () => settleCropResiduePreparation())
+    );
     measureTickStep("production:minesSmelters", () => {
-      if (MineOperations.reanchorOperations()) SmelterOperations.generate();
-      MineOperations.produceMonth();
-      SmelterOperations.produceMonth();
+      if (this.timed("MineOperations.reanchorOperations", () => MineOperations.reanchorOperations()))
+        this.timed("SmelterOperations.generate", () => SmelterOperations.generate());
+      this.timed("MineOperations.produceMonth", () => MineOperations.produceMonth());
+      this.timed("SmelterOperations.produceMonth", () => SmelterOperations.produceMonth());
     });
     measureTickStep("production:quarryAshConstruction", () => {
-      QuarryOperations.produceMonth();
-      VolcanicOperations.produceMonth();
-      ConstructionOperations.produceMonth();
+      this.timed("QuarryOperations.produceMonth", () => QuarryOperations.produceMonth());
+      this.timed("VolcanicOperations.produceMonth", () => VolcanicOperations.produceMonth());
+      this.timed("ConstructionOperations.produceMonth", () => ConstructionOperations.produceMonth());
     });
     // Salt is neither generic rural output nor a discretionary utilities demand. State saltworks
     // produce, wholesale-dispatch, and retail household supply it before processors price recipes.
-    const saltWorkersByBurg = measureTickStep("production:saltLogistics", () => SaltLogistics.settleMonth());
-    measureTickStep("production:winterSlaughter", () => settleWinterSlaughter());
+    const saltWorkersByBurg = measureTickStep("production:saltLogistics", () =>
+      this.timed("SaltLogistics.settleMonth", () => SaltLogistics.settleMonth())
+    );
+    measureTickStep("production:winterSlaughter", () =>
+      this.timed("settleWinterSlaughter", () => settleWinterSlaughter())
+    );
     measureTickStep("production:monthlyLedgers", () => {
-      Minting.settleMonthly();
-      MilitaryResources.settleMonthly();
-      TradeSecurity.settleMonthly();
-      OverseasRelations.settleMonthly();
+      this.timed("Minting.settleMonthly", () => Minting.settleMonthly());
+      this.timed("MilitaryResources.settleMonthly", () => MilitaryResources.settleMonthly());
+      this.timed("TradeSecurity.settleMonthly", () => TradeSecurity.settleMonthly());
+      this.timed("OverseasRelations.settleMonthly", () => OverseasRelations.settleMonthly());
     });
-    measureTickStep("production:militaryMaterialStaging", () => MetallurgWork.stageStateMilitaryMaterials());
+    measureTickStep("production:militaryMaterialStaging", () =>
+      this.timed("MetallurgWork.stageStateMilitaryMaterials", () => MetallurgWork.stageStateMilitaryMaterials())
+    );
     measureTickStep("production:pricesAndLabor", () => {
-      Markets.initializeMarketPrices();
+      this.timed("Markets.initializeMarketPrices", () => Markets.initializeMarketPrices());
       // Idle hulls move to waiting cargo before hull orders read the sea shortfall.
-      beginPortProductionCycle(PORT_CYCLE_DAYS);
-      TransportAssetOrders.beginProductionCycle();
-      refreshAleHouseholdDemand();
+      this.timed("beginPortProductionCycle", () => beginPortProductionCycle(PORT_CYCLE_DAYS));
+      this.timed("TransportAssetOrders.beginProductionCycle", () => TransportAssetOrders.beginProductionCycle());
+      this.timed("refreshAleHouseholdDemand", () => refreshAleHouseholdDemand());
     });
 
     // stapleFood (Grain) production and Burg demand are owned by the Food Ledger's own
     // quarterly/monthly pipeline (foodProduction.ts / foodLedgerConsumption.ts), not by the
     // generic worker-production / demand-fulfillment loops built from this index.
-    const nonStapleGoods = getGoods().filter(good => isGoodEnabled(good) && !good.tags.includes("stapleFood"));
-    const index = measureTickStep("production:buildIndex", () => this.buildProductionIndex(nonStapleGoods));
+    const nonStapleGoods = this.timed("filter non-staple goods", () =>
+      getGoods().filter(good => isGoodEnabled(good) && !good.tags.includes("stapleFood"))
+    );
+    const index = measureTickStep("production:buildIndex", () =>
+      this.timed("buildProductionIndex", () => this.buildProductionIndex(nonStapleGoods))
+    );
     const strategicLaborMarkets = measureTickStep("production:strategicLabor", () =>
-      reconcileStrategicLaborMarkets(
-        {
-          markets: getMarkets(),
-          burgs: this.worldContext.pack.burgs,
-          goods: index.goods,
-          orders: getStrategicProcurementOrders()
-        },
-        getStrategicLaborMarkets()
+      this.timed("reconcileStrategicLaborMarkets", () =>
+        reconcileStrategicLaborMarkets(
+          {
+            markets: getMarkets(),
+            burgs: this.worldContext.pack.burgs,
+            goods: index.goods,
+            orders: getStrategicProcurementOrders()
+          },
+          getStrategicLaborMarkets()
+        )
       )
     );
-    setStrategicLaborMarkets(strategicLaborMarkets);
-    const strategicLaborMarketById = new Map(
-      strategicLaborMarkets.map(laborMarket => [laborMarket.marketId, laborMarket])
+    this.timed("setStrategicLaborMarkets", () => setStrategicLaborMarkets(strategicLaborMarkets));
+    const strategicLaborMarketById = this.timed(
+      "index strategic labor markets",
+      () => new Map(strategicLaborMarkets.map(laborMarket => [laborMarket.marketId, laborMarket]))
     );
-    const sortedBurgs = this.worldContext.pack.burgs
-      .filter(burg => burg.i && !burg.removed)
-      .sort((a, b) => a.population! - b.population!);
-    const constructionOperationByBurg = new Map(
-      getConstructionOperations().map(operation => [operation.burgId, operation])
+    const sortedBurgs = this.timed("sort burgs", () =>
+      this.worldContext.pack.burgs.filter(burg => burg.i && !burg.removed).sort((a, b) => a.population! - b.population!)
     );
-    const craftWorkersByBurg = new Map(getCraftEmploymentRecords().map(record => [record.burgId, record.workers]));
-    const basicWorkersByBurg = getBasicWorkersByBurg(this.worldContext.pack.burgs);
-    const childLabourEquivalent = getChildLabourEquivalent();
-    const craftDomainWorkersByKey = new Map(
-      getCraftDomainEmploymentRecords().map(record => [craftDomainKey(record.burgId, record.domain), record.workers])
+    const constructionOperationByBurg = this.timed(
+      "index construction operations",
+      () => new Map(getConstructionOperations().map(operation => [operation.burgId, operation]))
+    );
+    const craftWorkersByBurg = this.timed(
+      "index craft employment",
+      () => new Map(getCraftEmploymentRecords().map(record => [record.burgId, record.workers]))
+    );
+    const basicWorkersByBurg = this.timed("getBasicWorkersByBurg", () =>
+      getBasicWorkersByBurg(this.worldContext.pack.burgs)
+    );
+    const childLabourEquivalent = this.timed("getChildLabourEquivalent", () => getChildLabourEquivalent());
+    const craftDomainWorkersByKey = this.timed(
+      "index craft domain employment",
+      () =>
+        new Map(
+          getCraftDomainEmploymentRecords().map(record => [
+            craftDomainKey(record.burgId, record.domain),
+            record.workers
+          ])
+        )
     );
     // Purchase budgets must exist before the Burg loop; otherwise first-cycle production
     // would still depend on whichever Burg happens to run first after a legacy load.
-    measureTickStep("production:merchantPurchaseCapital", () => MerchantTradeCapital.ensureAllMarkets());
+    measureTickStep("production:merchantPurchaseCapital", () =>
+      this.timed("MerchantTradeCapital.ensureAllMarkets", () => MerchantTradeCapital.ensureAllMarkets())
+    );
     // What a market owes its towns for consigned goods that have sold comes before new purchases.
-    measureTickStep("production:craftConsignments", () => Markets.settleCraftConsignments());
-    const saleBudgetByBurg = allocateMarketProcurementBudgets(sortedBurgs, getMarkets());
+    measureTickStep("production:craftConsignments", () =>
+      this.timed("Markets.settleCraftConsignments", () => Markets.settleCraftConsignments())
+    );
+    const saleBudgetByBurg = this.timed("allocateMarketProcurementBudgets", () =>
+      allocateMarketProcurementBudgets(sortedBurgs, getMarkets())
+    );
     // Flour has to exist before the burg loop bakes Bread. The draw is the tradeable
     // surplus only, so this month's household grain reserve is still in the ledger.
-    measureTickStep("production:milling", () => settleMilling());
+    measureTickStep("production:milling", () => this.timed("settleMilling", () => settleMilling()));
 
     return {
       index,
@@ -762,69 +848,103 @@ export class ProductionModule {
     cycle: ProductionCycle,
     { isCancelled = () => false, frameBudgetMs = 8, skipGlobalTrade = false }: IncrementalProductionOptions
   ): Promise<boolean> {
-    const slaughter = measureTickStep("production:slaughter", () => settleSlaughter());
+    const slaughter = measureTickStep("production:slaughter", () =>
+      this.timed("settleSlaughter", () => settleSlaughter())
+    );
     // Phase D: ensure merchant trade capital, then once per map seed inherited export-warehouse
     // stock (pre-start merchant inventory) before this cycle's global trade books more lots.
     measureTickStep("production:merchantPrep", () => {
-      MerchantTradeCapital.ensureAllMarkets();
-      ExportStaging.seedInheritedExportWarehouseIfNeeded((from, to, good) =>
-        Markets.getShippableTradeRoute(from, to, good)
+      this.timed("MerchantTradeCapital.ensureAllMarkets", () => MerchantTradeCapital.ensureAllMarkets());
+      this.timed("ExportStaging.seedInheritedExportWarehouseIfNeeded", () =>
+        ExportStaging.seedInheritedExportWarehouseIfNeeded((from, to, good) =>
+          Markets.getShippableTradeRoute(from, to, good)
+        )
       );
     });
 
     measureTickStep("production:pomaceWine", () => {
-      for (const market of getMarkets()) settlePomaceWineMarketProcessing(market);
+      this.timed("settlePomaceWineMarketProcessing", () => {
+        for (const market of getMarkets()) settlePomaceWineMarketProcessing(market);
+      });
     });
 
     if (!skipGlobalTrade) {
+      const tradeStartedAt = performance.now();
       const tradeCompleted = await measureTickStepAsync("production:globalTrade", () =>
         Markets.runGlobalTradeIncrementally({ isCancelled, frameBudgetMs })
       );
+      console.log(
+        `[Preparing economy] Markets.runGlobalTradeIncrementally: ${Math.round(performance.now() - tradeStartedAt)} ms`
+      );
       if (!tradeCompleted) return false;
 
+      const caravansStartedAt = performance.now();
       const caravansCompleted = await measureTickStepAsync("production:spawnCaravans", () =>
         Caravans.spawnFromDealsIncrementally(getDeals(), { isCancelled, frameBudgetMs })
       );
+      console.log(
+        `[Preparing economy] Caravans.spawnFromDealsIncrementally: ${Math.round(performance.now() - caravansStartedAt)} ms`
+      );
       if (!caravansCompleted) return false;
+    } else {
+      console.log("[Preparing economy] Markets.runGlobalTradeIncrementally: skipped");
+      console.log("[Preparing economy] Caravans.spawnFromDealsIncrementally: skipped");
     }
 
     if (isCancelled()) return false;
 
-    measureTickStep("production:byproductExport", () => settleByproductExport());
-    measureTickStep("production:livestockFeed", () => settleLivestockFeed());
-    measureTickStep("production:fillDemand", () => this.fillBurgsDemand(cycle.sortedBurgs, cycle.index));
-    measureTickStep("production:marketMaintenance", () => settleMarketMaintenance());
-    measureTickStep("production:armsTheft", () => settleArmsTheft());
+    measureTickStep("production:byproductExport", () =>
+      this.timed("settleByproductExport", () => settleByproductExport())
+    );
+    measureTickStep("production:livestockFeed", () => this.timed("settleLivestockFeed", () => settleLivestockFeed()));
+    measureTickStep("production:fillDemand", () =>
+      this.timed("fillBurgsDemand", () => this.fillBurgsDemand(cycle.sortedBurgs, cycle.index))
+    );
+    measureTickStep("production:marketMaintenance", () =>
+      this.timed("settleMarketMaintenance", () => settleMarketMaintenance())
+    );
+    measureTickStep("production:armsTheft", () => this.timed("settleArmsTheft", () => settleArmsTheft()));
     measureTickStep("production:syncLedgers", () => {
-      syncBurgMarketLedgers();
+      this.timed("syncBurgMarketLedgers", () => syncBurgMarketLedgers());
 
       // Garments are durable household purchases, not an ordinary Burg utility input. Settle their
       // market-wide (urban + rural) replacement demand after this cycle's production and trade.
       measureTickStep("production:householdTextiles", () =>
-        settleTextileHouseholdDemand((burgId, points) =>
-          this.recordServiceEmployment(cycle, burgId, "textiles", points)
+        this.timed("settleTextileHouseholdDemand", () =>
+          settleTextileHouseholdDemand((burgId, points) =>
+            this.recordServiceEmployment(cycle, burgId, "textiles", points)
+          )
         )
       );
-      settleFoodProcessingHouseholds();
-      this.recordCarcassAndBreadWork(cycle, slaughter);
+      this.timed("settleFoodProcessingHouseholds", () => settleFoodProcessingHouseholds());
+      this.timed("recordCarcassAndBreadWork", () => this.recordCarcassAndBreadWork(cycle, slaughter));
 
       // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
-      recordFlowCycleEnd();
+      this.timed("recordFlowCycleEnd", () => recordFlowCycleEnd());
       // After enough flow samples, grow land fleets toward measured annual export slots.
-      MerchantTransportAssets.topUpFleetsFromExportDemand();
+      this.timed("MerchantTransportAssets.topUpFleetsFromExportDemand", () =>
+        MerchantTransportAssets.topUpFleetsFromExportDemand()
+      );
 
-      const craftEmploymentRecords = Array.from(cycle.craftWorkersByBurg.entries())
-        .filter(([, workers]) => workers > 0)
-        .map(([burgId, workers]) => ({ burgId, workers }));
-      setCraftEmploymentRecords(craftEmploymentRecords);
+      const craftEmploymentRecords = this.timed("build craft employment records", () =>
+        Array.from(cycle.craftWorkersByBurg.entries())
+          .filter(([, workers]) => workers > 0)
+          .map(([burgId, workers]) => ({ burgId, workers }))
+      );
+      this.timed("setCraftEmploymentRecords", () => setCraftEmploymentRecords(craftEmploymentRecords));
 
-      const craftDomainEmploymentRecords: CraftDomainEmploymentRecord[] = [];
-      for (const [key, workers] of cycle.craftDomainWorkersByKey) {
-        if (workers <= 0) continue;
-        const [burgId, domain] = parseCraftDomainKey(key);
-        craftDomainEmploymentRecords.push({ burgId, domain, workers });
-      }
-      setCraftDomainEmploymentRecords(craftDomainEmploymentRecords);
+      const craftDomainEmploymentRecords = this.timed("build craft domain employment records", () => {
+        const records: CraftDomainEmploymentRecord[] = [];
+        for (const [key, workers] of cycle.craftDomainWorkersByKey) {
+          if (workers <= 0) continue;
+          const [burgId, domain] = parseCraftDomainKey(key);
+          records.push({ burgId, domain, workers });
+        }
+        return records;
+      });
+      this.timed("setCraftDomainEmploymentRecords", () =>
+        setCraftDomainEmploymentRecords(craftDomainEmploymentRecords)
+      );
     });
     return true;
   }
