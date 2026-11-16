@@ -55,7 +55,13 @@ import { ExportStaging } from "./exportStaging";
 import { getFarmToolsDemandByMarket } from "./farmToolsDemand";
 import { withRegionalDemandShareCache } from "./faunaPopulation";
 import type { FaunaCohorts } from "./faunaPopulationTypes";
-import { CELL_FRUIT_PROCESSING_WORK_DAYS_PER_LOT, isCellPressedDrink, isOrchardDrink } from "./foodLots";
+import {
+  CELL_FRUIT_PROCESSING_WORK_DAYS_PER_LOT,
+  DAIRY_TARGETS,
+  isCellPressedDrink,
+  isOrchardDrink,
+  KILOGRAMS_PER_CHEESE_LOT
+} from "./foodLots";
 import { getRecipeCostBasis, hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
   ensureContainerCirculation,
@@ -409,7 +415,12 @@ export function getCellFoodProcessingLabourPerUnit(
   catalogueLabourPerUnit: number,
   populationRate: number
 ): number {
-  const days = CELL_FRUIT_PROCESSING_WORK_DAYS_PER_LOT[goodName];
+  // Milk's catalogue labour (0.08 population points a lot) was 80 person-months for 1,000 L, so a cell
+  // could handle a fifth of its milk; cheese-making days a lot come from settings (dairy-supply-use.md §7).
+  const days =
+    goodName === "Milk"
+      ? getMarketSettings().cheeseMakingDaysPerMilkLot
+      : CELL_FRUIT_PROCESSING_WORK_DAYS_PER_LOT[goodName];
   if (days === undefined) return catalogueLabourPerUnit;
   return days / (WORKABLE_DAYS_PER_ADULT_PER_MONTH * Math.max(1, populationRate || 1));
 }
@@ -1363,15 +1374,18 @@ export class MarketsModule {
         const market = this.marketById[entry.marketId];
         if (!market) continue;
         const commercialGood = commercialPath ? Goods.get(commercialPath.outputGoodId) : undefined;
+        const dairySettings = getMarketSettings();
         const exportDemandUnits =
-          commercialPath && commercialGood && isCellPressedDrink(commercialGood.name)
-            ? Math.min(
-                getFoodProcessingProductionHeadroom(market, commercialGood.name, 0),
-                this.getOrchardMaterialCapacity(market, commercialGood, sourceGood.i)
-              )
-            : commercialPath
-              ? this.getCellPreservedFoodExportDemand(market, commercialPath.outputGoodId, residentWorkforce)
-              : 0;
+          commercialGood?.name === "Cheese" && dairySettings.cellCheeseSale === "demandGap"
+            ? getFoodProcessingProductionHeadroom(market, "Cheese", 0)
+            : commercialPath && commercialGood && isCellPressedDrink(commercialGood.name)
+              ? Math.min(
+                  getFoodProcessingProductionHeadroom(market, commercialGood.name, 0),
+                  this.getOrchardMaterialCapacity(market, commercialGood, sourceGood.i)
+                )
+              : commercialPath
+                ? this.getCellPreservedFoodExportDemand(market, commercialPath.outputGoodId, residentWorkforce)
+                : 0;
         const householdDemandUnits = getCellFreshFoodHouseholdDemand(
           sourceGood,
           residentWorkforce,
@@ -1406,7 +1420,21 @@ export class MarketsModule {
           marketDriedDemandUnits,
           // Food-preservation supplies are reserved ahead of all non-food work. A future local
           // disaster/siege system may set this false; the planner then records the sole valid spoilage path.
-          preservationSuppliesAvailable: reservePath !== null && commercialPath !== null
+          preservationSuppliesAvailable: reservePath !== null && commercialPath !== null,
+          // Farm families eat cheese of their own milk every month (docs/plan/dairy-supply-use.md §3.2).
+          ownPreservedDemandUnits:
+            reserveGood?.name === "Cheese" && dairySettings.ruralDairyUse === "eat" && reservePath
+              ? Math.min(
+                  (Math.max(0, residentWorkforce) *
+                    Math.max(1, this.worldContext.populationRate || 1) *
+                    DAIRY_TARGETS.cheeseKilogramsPerPersonYear) /
+                    12 /
+                    KILOGRAMS_PER_CHEESE_LOT,
+                  // They sell the rest: the manors sold most of their cheese (dairy-supply-use.md §8).
+                  ((entry.monthlyUnits[monthIndex] ?? 0) * dairySettings.ruralCheeseEatShare) /
+                    reservePath.inputPerOutput
+                )
+              : 0
         });
         marketBySourceGood.set(sourceGood.i, entry);
         harvestedBySourceGood.set(sourceGood.i, entry.monthlyUnits[monthIndex] ?? 0);
@@ -1443,6 +1471,13 @@ export class MarketsModule {
           }
         }
         recordCellFoodHouseholdConsumption(market, sourceGood.name, outcome.eatenFreshUnits);
+        const ownEaten = outcome.ownPreservedEatenUnits ?? 0;
+        const ownPath = ownEaten > 0 ? getPaths(sourceGood).reservePath : null;
+        if (ownPath) {
+          const ownGood = Goods.get(ownPath.outputGoodId);
+          recordFoodProcessingConsumption(market, sourceGood.name, ownEaten * ownPath.inputPerOutput);
+          if (ownGood) recordCellFoodHouseholdConsumption(market, ownGood.name, ownEaten);
+        }
         if (outcome.reserveInputUnits > 0) {
           recordFoodProcessingConsumption(market, sourceGood.name, outcome.reserveInputUnits);
         }

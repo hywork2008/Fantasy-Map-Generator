@@ -63,9 +63,12 @@ export function planCellFoodRescue(
     const driedInputPerOutput = input.marketDriedPath ? positive(input.marketDriedPath.inputPerOutput) : 0;
     const requestedDriedInput =
       driedInputPerOutput > 0 ? positive(input.marketDriedDemandUnits ?? 0) * driedInputPerOutput : 0;
+    const reservePerOutput = positive(input.reservePath?.inputPerOutput ?? 0);
+    const requestedOwnInput =
+      reservePerOutput > 0 ? positive(input.ownPreservedDemandUnits ?? 0) * reservePerOutput : 0;
     const plannedProcessingInput = Math.min(
       maximumPreservationCapacity,
-      reserveInputNeededWithoutFresh + requestedDriedInput + requestedCommercialInput
+      requestedOwnInput + reserveInputNeededWithoutFresh + requestedDriedInput + requestedCommercialInput
     );
     const freshShare = unitInterval(input.maxFreshHouseholdShare);
     const maxFreshByProcessing =
@@ -78,12 +81,13 @@ export function planCellFoodRescue(
     const freshRemaining = Math.max(0, harvested - eatenFresh);
     const reserveInputNeeded = Math.max(0, reserveTarget - reserveAfterConsumption);
     const preservationCapacity = Math.max(0, Math.min(freshRemaining, maximumPreservationCapacity));
-    const reserveInputUnits = Math.min(preservationCapacity, reserveInputNeeded);
-    const driedInputCapacity = Math.max(0, preservationCapacity - reserveInputUnits);
+    const ownInputUnits = Math.min(preservationCapacity, requestedOwnInput);
+    const reserveInputUnits = Math.min(preservationCapacity - ownInputUnits, reserveInputNeeded);
+    const driedInputCapacity = Math.max(0, preservationCapacity - ownInputUnits - reserveInputUnits);
     const driedInputUnits = Math.min(driedInputCapacity, requestedDriedInput);
     const commercialInputCapacity = Math.max(0, driedInputCapacity - driedInputUnits);
     const commercialInputUnits = Math.min(commercialInputCapacity, requestedCommercialInput);
-    const processedInputUnits = reserveInputUnits + driedInputUnits + commercialInputUnits;
+    const processedInputUnits = ownInputUnits + reserveInputUnits + driedInputUnits + commercialInputUnits;
     const laborUsed = processedInputUnits * laborPerUnit;
     laborRemaining = Math.max(0, laborRemaining - laborUsed);
     processingLaborUsed += laborUsed;
@@ -91,7 +95,7 @@ export function planCellFoodRescue(
     const canPreserve = input.reservePath !== null && input.preservationSuppliesAvailable;
     const canMakeCommercialOutput = input.commercialPath !== null && input.preservationSuppliesAvailable;
     const spoiledForMissingSuppliesUnits =
-      (canPreserve ? 0 : reserveInputUnits) +
+      (canPreserve ? 0 : reserveInputUnits + ownInputUnits) +
       (canMakeCommercialOutput ? 0 : commercialInputUnits) +
       (input.preservationSuppliesAvailable ? 0 : driedInputUnits);
     const effectiveDriedInput = input.preservationSuppliesAvailable ? driedInputUnits : 0;
@@ -111,7 +115,8 @@ export function planCellFoodRescue(
       exportOutputUnits,
       marketDriedOutputUnits: driedInputPerOutput > 0 ? effectiveDriedInput / driedInputPerOutput : 0,
       marketDriedInputUnits: effectiveDriedInput,
-      spoiledForMissingSuppliesUnits
+      spoiledForMissingSuppliesUnits,
+      ownPreservedEatenUnits: canPreserve && reservePerOutput > 0 ? ownInputUnits / reservePerOutput : 0
     });
   }
 

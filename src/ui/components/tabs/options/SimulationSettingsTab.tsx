@@ -34,6 +34,8 @@ import {
   type ByproductPricingMode,
   CANDLE_DEMAND_MODES,
   type CandleDemandMode,
+  CELL_CHEESE_SALE_MODES,
+  type CellCheeseSaleMode,
   CHARACTER_RESERVE_MODES,
   type CharacterReserveMode,
   CRAFT_SALE_PAYMENT_MODES,
@@ -92,9 +94,11 @@ import {
   type MerchantProfitUse,
   PEAT_CUT_PLAN_MODES,
   type PeatCutPlanMode,
+  RURAL_DAIRY_USE_MODES,
   RURAL_REST_DAYS_MODES,
   RURAL_TOWN_SPENDING_MODES,
   RURAL_WORK_YEAR_MODES,
+  type RuralDairyUseMode,
   type RuralRestDaysMode,
   type RuralTownSpendingMode,
   type RuralWorkYearMode,
@@ -1855,6 +1859,84 @@ export const SimulationSettingsTab: React.FC = () => {
                   </option>
                 ))}
               </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.cellCheeseSaleTip")}>
+            <td />
+            <td>
+              <label htmlFor="cellCheeseSale">{t("simulation.cellCheeseSale")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="cellCheeseSale"
+                value={marketSettings.cellCheeseSale}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      cellCheeseSale: e.target.value as CellCheeseSaleMode
+                    })
+                  )
+                }
+              >
+                {CELL_CHEESE_SALE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.cellCheeseSale_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralDairyUseTip")}>
+            <td />
+            <td>
+              <label htmlFor="ruralDairyUse">{t("simulation.ruralDairyUse")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="ruralDairyUse"
+                value={marketSettings.ruralDairyUse}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      ruralDairyUse: e.target.value as RuralDairyUseMode
+                    })
+                  )
+                }
+              >
+                {RURAL_DAIRY_USE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.ruralDairyUse_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.cheeseMakingDaysPerMilkLotTip")}>
+            <td />
+            <td>{t("simulation.cheeseMakingDaysPerMilkLot")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="cheeseMakingDaysPerMilkLot"
+                min={MARKET_SETTING_LIMITS.cheeseMakingDaysPerMilkLot.min}
+                max={MARKET_SETTING_LIMITS.cheeseMakingDaysPerMilkLot.max}
+                step={MARKET_SETTING_LIMITS.cheeseMakingDaysPerMilkLot.step}
+                value={marketSettings.cheeseMakingDaysPerMilkLot}
+                onChange={v => updateMarketSetting("cheeseMakingDaysPerMilkLot", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.ruralCheeseEatShareTip")}>
+            <td />
+            <td>{t("simulation.ruralCheeseEatShare")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="ruralCheeseEatShare"
+                min={MARKET_SETTING_LIMITS.ruralCheeseEatShare.min}
+                max={MARKET_SETTING_LIMITS.ruralCheeseEatShare.max}
+                step={MARKET_SETTING_LIMITS.ruralCheeseEatShare.step}
+                value={marketSettings.ruralCheeseEatShare}
+                onChange={v => updateMarketSetting("ruralCheeseEatShare", v)}
+              />
             </td>
           </tr>
           <tr data-tip={t("simulation.guildSurplusUseTip")}>

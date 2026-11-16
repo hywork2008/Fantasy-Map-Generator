@@ -98,6 +98,12 @@ export type PeatCutPlanMode = (typeof PEAT_CUT_PLAN_MODES)[number];
 /** What guilds do with their treasury beyond their working capital (docs/plan/guild-spending.md). */
 export const GUILD_SURPLUS_USE_MODES = ["spend", "keep"] as const;
 export type GuildSurplusUseMode = (typeof GUILD_SURPLUS_USE_MODES)[number];
+/** How much cheese a dairy cell makes for its market (docs/plan/dairy-supply-use.md §3.1). */
+export const CELL_CHEESE_SALE_MODES = ["demandGap", "fixedShare"] as const;
+export type CellCheeseSaleMode = (typeof CELL_CHEESE_SALE_MODES)[number];
+/** Whether farm families eat their own milk as cheese every month (docs/plan/dairy-supply-use.md §3.2). */
+export const RURAL_DAIRY_USE_MODES = ["eat", "reserveOnly"] as const;
+export type RuralDairyUseMode = (typeof RURAL_DAIRY_USE_MODES)[number];
 export type ByproductExportMode = (typeof BYPRODUCT_EXPORT_MODES)[number];
 
 /**
@@ -288,6 +294,8 @@ export type MarketSettings = {
   peatCutPlan: PeatCutPlanMode;
   /** `spend`: guilds spend part of their treasury above the working reserve on their town's households each month; `keep`: they keep it. */
   guildSurplusUse: GuildSurplusUseMode;
+  cellCheeseSale: CellCheeseSaleMode;
+  ruralDairyUse: RuralDairyUseMode;
   /** Share of a guild's treasury above its working reserve spent in its town a month, with `guildSurplusUse` spend. */
   guildSpendRate: number;
   /** Months of a Guild Master's stipend a guild keeps before it spends the rest. */
@@ -301,6 +309,10 @@ export type MarketSettings = {
   ruralChandlersPerThousand: number;
   /** Craft wage as a multiple of the worker's own staple food bill (docs/plan/per-capita-income-scale.md). */
   wageSubsistenceMultiple: number;
+  /** Adult work days to make cheese of one 1,000 L milk lot in its cell (docs/plan/dairy-supply-use.md §7). */
+  cheeseMakingDaysPerMilkLot: number;
+  /** Most of its own milk, as cheese, a farm family eats with `ruralDairyUse` eat; the rest it sells. */
+  ruralCheeseEatShare: number;
   surplusRuralWeight: number;
   /** Cash a market keeps before paying out its surplus, per member-town population point, as times the town working cash. */
   surplusReserveFactor: number;
@@ -403,6 +415,8 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   fuelPriceElasticity: 4,
   peatCutPlan: "yearlyAverage",
   guildSurplusUse: "spend",
+  cellCheeseSale: "demandGap",
+  ruralDairyUse: "eat",
   guildSpendRate: 0.08,
   guildReserveMonths: 1,
   candleDemand: "everyone",
@@ -410,6 +424,8 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   waxCandleKgPerPerson: 0.05,
   ruralChandlersPerThousand: 0.5,
   wageSubsistenceMultiple: 1.5,
+  cheeseMakingDaysPerMilkLot: 10,
+  ruralCheeseEatShare: 0.5,
   surplusRuralWeight: 1,
   surplusReserveFactor: 0.25,
   harvestReserveMonths: 4,
@@ -480,7 +496,9 @@ export const MARKET_SETTING_LIMITS = {
   guildSpendRate: { min: 0, max: 0.5, step: 0.01 },
   guildReserveMonths: { min: 0, max: 24, step: 1 },
   ruralChandlersPerThousand: { min: 0, max: 5, step: 0.1 },
-  wageSubsistenceMultiple: { min: 1.5, max: 16, step: 0.5 }
+  wageSubsistenceMultiple: { min: 1.5, max: 16, step: 0.5 },
+  cheeseMakingDaysPerMilkLot: { min: 1, max: 60, step: 1 },
+  ruralCheeseEatShare: { min: 0, max: 1, step: 0.05 }
 } as const;
 
 type NumericMarketSetting = keyof typeof MARKET_SETTING_LIMITS;
@@ -547,6 +565,14 @@ const peatCutPlanMode = (value: unknown): PeatCutPlanMode =>
     ? (value as PeatCutPlanMode)
     : DEFAULT_MARKET_SETTINGS.peatCutPlan;
 
+const cellCheeseSaleMode = (value: unknown): CellCheeseSaleMode =>
+  CELL_CHEESE_SALE_MODES.includes(value as CellCheeseSaleMode)
+    ? (value as CellCheeseSaleMode)
+    : DEFAULT_MARKET_SETTINGS.cellCheeseSale;
+const ruralDairyUseMode = (value: unknown): RuralDairyUseMode =>
+  RURAL_DAIRY_USE_MODES.includes(value as RuralDairyUseMode)
+    ? (value as RuralDairyUseMode)
+    : DEFAULT_MARKET_SETTINGS.ruralDairyUse;
 const guildSurplusUseMode = (value: unknown): GuildSurplusUseMode =>
   GUILD_SURPLUS_USE_MODES.includes(value as GuildSurplusUseMode)
     ? (value as GuildSurplusUseMode)
@@ -733,6 +759,8 @@ export function getMarketSettings(): MarketSettings {
     fuelPriceElasticity: clamp("fuelPriceElasticity", parsed.fuelPriceElasticity),
     peatCutPlan: peatCutPlanMode(parsed.peatCutPlan),
     guildSurplusUse: guildSurplusUseMode(parsed.guildSurplusUse),
+    cellCheeseSale: cellCheeseSaleMode(parsed.cellCheeseSale),
+    ruralDairyUse: ruralDairyUseMode(parsed.ruralDairyUse),
     guildSpendRate: clamp("guildSpendRate", parsed.guildSpendRate),
     guildReserveMonths: clamp("guildReserveMonths", parsed.guildReserveMonths),
     candleDemand: candleDemandMode(parsed.candleDemand),
@@ -740,6 +768,8 @@ export function getMarketSettings(): MarketSettings {
     waxCandleKgPerPerson: clamp("waxCandleKgPerPerson", parsed.waxCandleKgPerPerson),
     ruralChandlersPerThousand: clamp("ruralChandlersPerThousand", parsed.ruralChandlersPerThousand),
     wageSubsistenceMultiple: clamp("wageSubsistenceMultiple", parsed.wageSubsistenceMultiple),
+    cheeseMakingDaysPerMilkLot: clamp("cheeseMakingDaysPerMilkLot", parsed.cheeseMakingDaysPerMilkLot),
+    ruralCheeseEatShare: clamp("ruralCheeseEatShare", parsed.ruralCheeseEatShare),
     surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor),
     harvestReserveMonths: clamp("harvestReserveMonths", parsed.harvestReserveMonths),
@@ -829,6 +859,8 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     fuelPriceElasticity: clamp("fuelPriceElasticity", next.fuelPriceElasticity),
     peatCutPlan: peatCutPlanMode(next.peatCutPlan),
     guildSurplusUse: guildSurplusUseMode(next.guildSurplusUse),
+    cellCheeseSale: cellCheeseSaleMode(next.cellCheeseSale),
+    ruralDairyUse: ruralDairyUseMode(next.ruralDairyUse),
     guildSpendRate: clamp("guildSpendRate", next.guildSpendRate),
     guildReserveMonths: clamp("guildReserveMonths", next.guildReserveMonths),
     candleDemand: candleDemandMode(next.candleDemand),
@@ -836,6 +868,8 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     waxCandleKgPerPerson: clamp("waxCandleKgPerPerson", next.waxCandleKgPerPerson),
     ruralChandlersPerThousand: clamp("ruralChandlersPerThousand", next.ruralChandlersPerThousand),
     wageSubsistenceMultiple: clamp("wageSubsistenceMultiple", next.wageSubsistenceMultiple),
+    cheeseMakingDaysPerMilkLot: clamp("cheeseMakingDaysPerMilkLot", next.cheeseMakingDaysPerMilkLot),
+    ruralCheeseEatShare: clamp("ruralCheeseEatShare", next.ruralCheeseEatShare),
     surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor),
     harvestReserveMonths: clamp("harvestReserveMonths", next.harvestReserveMonths),

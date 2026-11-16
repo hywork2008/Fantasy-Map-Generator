@@ -29,6 +29,14 @@ describe("planCellFoodRescue", () => {
     expect(plan.processingLaborUsed).toBeCloseTo(2.8);
   });
 
+  it("makes the residents' own cheese before the famine reserve and the market's (dairy-supply-use.md §3.2)", () => {
+    const [outcome] = planCellFoodRescue([{ ...milk, ownPreservedDemandUnits: 1 }], {}, 100).outcomes;
+    // 30 milk: 2 drunk, 10 into the cheese they eat, 6 into the reserve, the last 12 for the market.
+    expect(outcome.ownPreservedEatenUnits).toBeCloseTo(1);
+    expect(outcome.reserveInputUnits).toBe(6);
+    expect(outcome.exportOutputUnits).toBeCloseTo(1.2);
+  });
+
   it("dries the market's raisins before it presses wine with the labour left", () => {
     const grapes: CellFreshFoodInput = {
       ...milk,

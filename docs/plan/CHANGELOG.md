@@ -2,6 +2,7 @@
 
 2026-11-16
 
+- docs/plan/dairy-supply-use.md - 搾れる牛乳（1人年79 L）の約93%が使われず、牛乳は需要の1%・チーズは2%しか満たされないのは、市場へ出すチーズが土地の人口点あたり月0.1ロット（1人年約1.2 kg）の固定の上限で抑えられ、農家の自家用チーズが飢饉の時しか食べられないためであることに対して、市場へ出す量を需要の不足で決め、農家が自分の牛乳とチーズを主食と同じく自家消費する設計（設定`cellCheeseSale`・`ruralDairyUse`、今の決まりも選べる）。未確定事項（チーズ25 kgの根拠、バター、乳の季節、子に飲ませる乳）を記録
 - docs/plan/dnd/cr-distribution.md
 - docs/plan/dnd/danger-calculation.md
 - docs/plan/dnd/density-knobs.md
@@ -9,6 +10,7 @@
 - docs/plan/dnd/monster-nature.md
 - docs/plan/dnd/replenishment.md
 - docs/plan/dnd/superstition-coefficients.md
+- docs/plan/household-basket-scale.md - 賃金の倍率を1.5〜14に変えても1人あたりのGDPが主食の1.8年分（史実5〜6年分）のまま変わらず、量の需要の決まりは既に史料に基づくことに対して、Phelps Brown & Hopkinsの家計の籠（穀物20%・肉魚25%・乳製品12.5%・飲み物22.5%・燃料灯り7.5%・布12.5%、主食の5倍）で区分ごとに比べ、乳製品約1/9・飲み物約1/4・肉約1/2.6の不足を量と値段に分けて数える設計。未確定事項（農村の家への当てはめ、住居とサービス、籠の重みの原典）を記録
 - docs/plan/per-capita-income-scale.md
 - docs/plan/state-currency-and-exchange.md - 国家通貨・為替・改鋳
 

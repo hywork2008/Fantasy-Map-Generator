@@ -29,6 +29,11 @@ export type CellFreshFoodInput = {
   marketDriedDemandUnits?: number;
   /** A missing physical preservation supply is the only permitted source of fresh-food spoilage. */
   preservationSuppliesAvailable: boolean;
+  /**
+   * The residents' own everyday eating of `reservePath`'s output this month (farm cheese), in output
+   * units, made before the famine reserve (docs/plan/dairy-supply-use.md §3.2). Absent = none.
+   */
+  ownPreservedDemandUnits?: number;
 };
 
 /** Sparse, persisted reserves: values are raw-fresh equivalents keyed by source Good id. */
@@ -47,6 +52,8 @@ export type CellFreshFoodOutcome = {
   /** Fresh input those units used. */
   marketDriedInputUnits: number;
   spoiledForMissingSuppliesUnits: number;
+  /** `reservePath` output the residents ate this month from their own harvest. */
+  ownPreservedEatenUnits?: number;
 };
 
 export type CellFoodRescuePlan = {
