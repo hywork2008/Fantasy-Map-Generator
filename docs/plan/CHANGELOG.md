@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-11-16
+
+- docs/plan/workshop-to-firm.md - 中世の工房・商会から近代の企業へ経済主体が移る台帳
+
 2026-11-14
 
 - docs/plan/bv-workhome-facade-variation.md
