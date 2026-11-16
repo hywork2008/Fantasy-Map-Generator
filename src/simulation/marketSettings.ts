@@ -299,6 +299,8 @@ export type MarketSettings = {
   waxCandleKgPerPerson: number;
   /** Village people dipping candles for each 1,000 farm people, counted in their market's towns. */
   ruralChandlersPerThousand: number;
+  /** Craft wage as a multiple of the worker's own staple food bill (docs/plan/per-capita-income-scale.md). */
+  wageSubsistenceMultiple: number;
   surplusRuralWeight: number;
   /** Cash a market keeps before paying out its surplus, per member-town population point, as times the town working cash. */
   surplusReserveFactor: number;
@@ -407,6 +409,7 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   candleKgPerPerson: 1,
   waxCandleKgPerPerson: 0.05,
   ruralChandlersPerThousand: 0.5,
+  wageSubsistenceMultiple: 1.5,
   surplusRuralWeight: 1,
   surplusReserveFactor: 0.25,
   harvestReserveMonths: 4,
@@ -476,7 +479,8 @@ export const MARKET_SETTING_LIMITS = {
   fuelPriceElasticity: { min: 1, max: 20, step: 1 },
   guildSpendRate: { min: 0, max: 0.5, step: 0.01 },
   guildReserveMonths: { min: 0, max: 24, step: 1 },
-  ruralChandlersPerThousand: { min: 0, max: 5, step: 0.1 }
+  ruralChandlersPerThousand: { min: 0, max: 5, step: 0.1 },
+  wageSubsistenceMultiple: { min: 1.5, max: 16, step: 0.5 }
 } as const;
 
 type NumericMarketSetting = keyof typeof MARKET_SETTING_LIMITS;
@@ -735,6 +739,7 @@ export function getMarketSettings(): MarketSettings {
     candleKgPerPerson: clamp("candleKgPerPerson", parsed.candleKgPerPerson),
     waxCandleKgPerPerson: clamp("waxCandleKgPerPerson", parsed.waxCandleKgPerPerson),
     ruralChandlersPerThousand: clamp("ruralChandlersPerThousand", parsed.ruralChandlersPerThousand),
+    wageSubsistenceMultiple: clamp("wageSubsistenceMultiple", parsed.wageSubsistenceMultiple),
     surplusRuralWeight: clamp("surplusRuralWeight", parsed.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", parsed.surplusReserveFactor),
     harvestReserveMonths: clamp("harvestReserveMonths", parsed.harvestReserveMonths),
@@ -830,6 +835,7 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     candleKgPerPerson: clamp("candleKgPerPerson", next.candleKgPerPerson),
     waxCandleKgPerPerson: clamp("waxCandleKgPerPerson", next.waxCandleKgPerPerson),
     ruralChandlersPerThousand: clamp("ruralChandlersPerThousand", next.ruralChandlersPerThousand),
+    wageSubsistenceMultiple: clamp("wageSubsistenceMultiple", next.wageSubsistenceMultiple),
     surplusRuralWeight: clamp("surplusRuralWeight", next.surplusRuralWeight),
     surplusReserveFactor: clamp("surplusReserveFactor", next.surplusReserveFactor),
     harvestReserveMonths: clamp("harvestReserveMonths", next.harvestReserveMonths),

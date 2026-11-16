@@ -1977,6 +1977,20 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
+          <tr data-tip={t("simulation.wageSubsistenceMultipleTip")}>
+            <td />
+            <td>{t("simulation.wageSubsistenceMultiple")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="wageSubsistenceMultiple"
+                min={MARKET_SETTING_LIMITS.wageSubsistenceMultiple.min}
+                max={MARKET_SETTING_LIMITS.wageSubsistenceMultiple.max}
+                step={MARKET_SETTING_LIMITS.wageSubsistenceMultiple.step}
+                value={marketSettings.wageSubsistenceMultiple}
+                onChange={v => updateMarketSetting("wageSubsistenceMultiple", v)}
+              />
+            </td>
+          </tr>
 
           <tr>
             <td colSpan={4}>

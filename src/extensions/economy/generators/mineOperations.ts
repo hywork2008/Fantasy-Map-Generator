@@ -17,7 +17,7 @@ import { getGoodUnitsPerTon } from "./goodUnits";
 import { Markets } from "./markets-generator";
 import { getMinedGoodName, type MineOperation, type MineralCommodity, type MineralDeposit } from "./mineralResources";
 import { getMineSteamDrainageBonus } from "./steamInstallations";
-import { getSubsistenceWage } from "./subsistenceWage";
+import { getReferenceSubsistenceWage } from "./subsistenceWage";
 
 const INITIAL_OPERATION_ACCESSIBILITY = 0.5;
 const PROSPECTING_ACCESSIBILITY = 0.35;
@@ -118,9 +118,12 @@ export function getMineEmploymentPeople(
   return Math.max(MINE_MIN_CREW_PEOPLE, getExtractionCrewPeople(annualValue) + preciousMetalPeople);
 }
 
-/** People a year's output of `annualValue` employs at `EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS`. */
+/**
+ * People a year's output of `annualValue` employs at `EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS`.
+ * Measured in reference wage years, so the crew stays physical when the wage setting changes.
+ */
 export function getExtractionCrewPeople(annualValue: number): number {
-  const wageYearPerPerson = (getSubsistenceWage(undefined) * 12) / DEFAULT_PEOPLE_PER_POPULATION_POINT;
+  const wageYearPerPerson = (getReferenceSubsistenceWage(undefined) * 12) / DEFAULT_PEOPLE_PER_POPULATION_POINT;
   return Math.max(0, annualValue) / (EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS * wageYearPerPerson);
 }
 

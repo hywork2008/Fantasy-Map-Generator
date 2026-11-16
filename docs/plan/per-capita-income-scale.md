@@ -4,7 +4,21 @@
 
 ## 状態
 
-- 設計のみ。未実装。
+- §6の手順1を実装済み（2026-11-16）。設定 `wageSubsistenceMultiple`（既定 1.5、1.5〜16、刻み 0.5）。既定では動きは変わらない。手順2以降は未着手。
+
+### 手順1の一覧と扱い
+
+| 使う所 | 扱い |
+| --- | --- |
+| `production-generator.ts`（工房の賃金） | 設定に連動 |
+| `textileCommissions.ts`（織物の委託の工賃） | 設定に連動 |
+| `saltProduction.ts`（製塩の賃金） | 設定に連動 |
+| `transportAssetOrders.ts`（車大工の賃金） | 設定に連動 |
+| `extractionPayments.ts`（鉱山・採石の賃金） | 設定に連動。不自由労働の扶養費は `getUnfreeUpkeepShareOfWage()`（1 ÷ 倍率）に変え、食費に固定したまま |
+| `mineOperations.ts`（産出額から決める鉱山の働き手の数） | 連動させない。`getReferenceSubsistenceWage()`（倍率 1.5）で測る。賃金を上げると働き手が減るのは、物の量として誤り |
+| `householdWealth.ts`（農家が町で使う額 `getRuralTownNeed`） | 連動する（1人あたりの必要額を賃金の何倍かで覚えるため）。農家の収入は賃金に連動しないので、倍率を上げると農村の財布が早く減るおそれがある。手順4の計測で見る |
+
+- 賃金と別に決めた定額の給与（`NAVY_CREW_WAGE_PER_YEAR` 等）は、手順1では連動させていない。手順4で家計の所得の内訳を見て決める。
 
 ## 1. 問題
 
@@ -67,7 +81,7 @@
 
 ### 3.1 賃金の倍率を設定にする
 
-- `subsistenceWage.ts` の `WAGE_SUBSISTENCE_MULTIPLE` を、`marketSettings` の `wageSubsistenceMultiple` から読む（既定 1.5）。
+- `subsistenceWage.ts` の倍率を、`marketSettings` の `wageSubsistenceMultiple` から読む（既定 1.5）。定数 `WAGE_SUBSISTENCE_MULTIPLE` は既定値と基準の倍率として残す。
 - この倍率は次の所でも使われている。どこまで同じ倍率に連動させるかを、実装の前に一覧にする:
   - `extractionPayments.ts` の `UNFREE_UPKEEP_SHARE_OF_WAGE = 1 / WAGE_SUBSISTENCE_MULTIPLE`（不自由労働の扶養費は食費に固定したいので、倍率で割る式は残す）
   - `householdWealth.ts`、`mineOperations.ts`、`saltProduction.ts`、`textileCommissions.ts`、`transportAssetOrders.ts`、`production-generator.ts`、`strategicLaborMarkets.ts`

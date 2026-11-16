@@ -15,7 +15,7 @@ import { getWorldContext, isEconomyContextReady } from "../economyContext";
 import { creditHouseholdWealth } from "./burgMarketLedgers";
 import { DEFAULT_PEOPLE_PER_POPULATION_POINT } from "./craftScale";
 import { Markets } from "./markets-generator";
-import { getSubsistenceWage, WAGE_SUBSISTENCE_MULTIPLE } from "./subsistenceWage";
+import { getSubsistenceWage, getWageSubsistenceMultiple } from "./subsistenceWage";
 
 /** Share of the output's market price the market pays at the pithead (as the farm gate, the rest is carting and trade). */
 export const MINE_HEAD_PRICE_SHARE = 0.8;
@@ -32,7 +32,9 @@ export const UNFREE_EXTRACTIVE_LABOUR_SHARE_BY_PERIOD: Readonly<Record<string, n
   lateAntiquity: 0.3
 };
 /** An unfree worker is kept, not paid: his food, with nothing over (1 ÷ the wage's multiple of the food bill). */
-export const UNFREE_UPKEEP_SHARE_OF_WAGE = 1 / WAGE_SUBSISTENCE_MULTIPLE;
+export function getUnfreeUpkeepShareOfWage(): number {
+  return 1 / getWageSubsistenceMultiple();
+}
 
 export type ExtractionHolder = "state" | "town" | "none";
 
@@ -107,7 +109,7 @@ export function settleExtractionPayment(args: {
 
   const labourPoints = Math.max(0, args.people) / DEFAULT_PEOPLE_PER_POPULATION_POINT;
   const unfree = getUnfreeExtractiveLabourShare(world.options?.historicalPeriod);
-  const wageBill = labourPoints * getSubsistenceWage(market) * (1 - unfree + unfree * UNFREE_UPKEEP_SHARE_OF_WAGE);
+  const wageBill = labourPoints * getSubsistenceWage(market) * (1 - unfree + unfree * getUnfreeUpkeepShareOfWage());
   const wages = rn(Math.max(0, Math.min(paid - royalty, wageBill)), 2);
   const profit = rn(Math.max(0, paid - royalty - wages), 2);
 
