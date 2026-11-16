@@ -485,7 +485,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Chromium Ore",
     tags: ["ore", "mineral", "alloy"],
-    icon: "good-iron",
+    icon: "good-chromium",
     color: "#49665a",
     value: 7,
     chance: 0,
@@ -495,7 +495,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Nickel Ore",
     tags: ["ore", "mineral", "alloy"],
-    icon: "good-iron",
+    icon: "good-nickel",
     color: "#879b8c",
     value: 8,
     chance: 0,
@@ -505,7 +505,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Molybdenum Ore",
     tags: ["ore", "mineral", "alloy"],
-    icon: "good-stone",
+    icon: "good-molybdenum",
     color: "#59636b",
     value: 12,
     chance: 0,
@@ -515,7 +515,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Silicon Ore",
     tags: ["ore", "mineral", "alloy"],
-    icon: "good-stone",
+    icon: "good-silicon",
     color: "#d8d0bc",
     value: 3,
     chance: 0,
@@ -596,7 +596,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Chromium Ingot",
     warEconomyType: "strategic",
     tags: ["ingot", "metal", "alloy"],
-    icon: "good-iron",
+    icon: "good-chromium",
     color: "#49665a",
     value: 14,
     chance: 0,
@@ -606,7 +606,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Nickel Ingot",
     warEconomyType: "strategic",
     tags: ["ingot", "metal", "alloy"],
-    icon: "good-iron",
+    icon: "good-nickel",
     color: "#879b8c",
     value: 16,
     chance: 0,
@@ -616,7 +616,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Molybdenum Ingot",
     warEconomyType: "strategic",
     tags: ["ingot", "metal", "alloy"],
-    icon: "good-stone",
+    icon: "good-molybdenum",
     color: "#59636b",
     value: 24,
     chance: 0,
@@ -626,7 +626,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Silicon Ingot",
     warEconomyType: "strategic",
     tags: ["ingot", "metalloid", "alloy"],
-    icon: "good-stone",
+    icon: "good-silicon",
     color: "#d8d0bc",
     // Repriced over ore and charcoal: SMELTED_METAL_REPRICING.
     value: 9.5,
@@ -916,7 +916,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Pomace",
     tags: ["food"],
-    icon: "good-unknown",
+    icon: "good-pomace",
     color: "#7a5c3e",
     value: 0.5,
     chance: 0,
@@ -1161,7 +1161,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Cocoa",
     warEconomyType: "luxury",
     tags: ["luxury", "perennialCrop"],
-    icon: "good-unknown",
+    icon: "good-cocoa",
     color: "#74412d",
     value: 14,
     chance: 0,
@@ -1173,7 +1173,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Coffee",
     warEconomyType: "luxury",
     tags: ["luxury", "perennialCrop"],
-    icon: "good-unknown",
+    icon: "good-coffee",
     color: "#4b3621",
     value: 12,
     chance: 0,
@@ -1186,7 +1186,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Rubber",
     warEconomyType: "strategic",
     tags: ["industrial", "construction", "naval", "perennialCrop"],
-    icon: "good-unknown",
+    icon: "good-rubber",
     color: "#3e3a39",
     value: 10,
     chance: 0,
@@ -1338,8 +1338,8 @@ export const GOODS_DATA: GoodData[] = [
     ...WOOD_RECIPE_CONTRACTS.Charcoal,
     warEconomyType: "strategic",
     tags: ["fuel"],
-    icon: "good-coal",
-    color: "#343434",
+    icon: "good-charcoal",
+    color: "#d7d2c8",
     value: 3,
     chance: 0,
 
@@ -1710,8 +1710,8 @@ export const GOODS_DATA: GoodData[] = [
     warEconomyType: "military",
     seaOnly: true,
     tags: ["naval"],
-    icon: "good-ships",
-    color: "#654321",
+    icon: "good-sloop",
+    color: "#9fd4ea",
     value: shipGoodValue("sloop"),
     chance: 0,
     unit: "ship",
@@ -1723,8 +1723,8 @@ export const GOODS_DATA: GoodData[] = [
     warEconomyType: "military",
     seaOnly: true,
     tags: ["naval"],
-    icon: "good-ships",
-    color: "#654321",
+    icon: "good-caravel",
+    color: "#3d7ea6",
     value: shipGoodValue("caravel"),
     chance: 0,
     unit: "ship",
@@ -1736,8 +1736,8 @@ export const GOODS_DATA: GoodData[] = [
     warEconomyType: "military",
     seaOnly: true,
     tags: ["naval"],
-    icon: "good-ships",
-    color: "#654321",
+    icon: "good-galleon",
+    color: "#163e5c",
     value: shipGoodValue("galleon"),
     chance: 0,
     unit: "ship",
@@ -1749,7 +1749,7 @@ export const GOODS_DATA: GoodData[] = [
     warEconomyType: "essential",
     tags: ["clothing", "military"],
     icon: "good-boots",
-    color: "#654321",
+    color: "#d9e2ea",
     value: 7,
     chance: 0,
     // A lot is 20 pairs; a cowhide gives about 10 pairs, uppers and soles (docs/plan/leather-uses.md §4.1).
@@ -1917,7 +1917,7 @@ export const GOODS_DATA: GoodData[] = [
     warEconomyType: "military",
     tags: ["military"],
     icon: "good-musket",
-    color: "#5a3d2b",
+    color: "#efe6d6",
     value: 35,
     chance: 0,
 
@@ -2081,8 +2081,7 @@ export const GOODS_DATA: GoodData[] = [
     // directly the way this good does.
     name: "Milk",
     tags: ["food", "freshFood"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-milk",
     color: "#f5f0e6",
     value: 1,
     chance: 0,
@@ -2101,8 +2100,7 @@ export const GOODS_DATA: GoodData[] = [
     // Unspecified live-animal market heads cannot substitute for unweaned calf stomachs.
     name: "Rennet",
     tags: ["preservative"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-rennet",
     color: "#e8d5c4",
     // Price remains a model value pending quantity-linked historical evidence (T13).
     value: 40,
@@ -2118,8 +2116,7 @@ export const GOODS_DATA: GoodData[] = [
     // and smokehouses comes as their byproduct (docs/plan/wood-ash-potash.md).
     name: "Ash",
     tags: ["construction"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-ash",
     color: "#b8b8b0",
     value: ASH_SACK_VALUE,
     chance: 0,
@@ -2160,8 +2157,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Smoked Cheese",
     ...WOOD_RECIPE_CONTRACTS["Smoked Cheese"],
     tags: ["food", "luxury"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-smoked-cheese",
     color: "#c68642",
     value: 20,
     chance: 0,
@@ -2172,8 +2168,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Egg",
     tags: ["food"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-egg",
     color: "#f0e2b6",
     // 2026-08-12 (goods-generator.test.ts margin regression test): was 1, tying { Chicken: 1 }'s cost
     // of 1 exactly — same dead-recipe failure class as Ash/Preserved food/Jewelry/Vinegar above. Raised
@@ -2341,7 +2336,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Peat",
     tags: ["fuel"],
     icon: "good-peat",
-    color: "#5c4938",
+    color: "#d5e0c8",
     // A 200 kg bale gives the heat of 200/6,500 of a Wood pile; priced at Wood's value per heat
     // (docs/plan/saltworks-fuel-procurement.md §2.3).
     value: PEAT_BALE_VALUE,
@@ -2418,8 +2413,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Pig",
     warEconomyType: "essential",
     tags: ["food", "liveAnimal"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-pig",
     color: "#e8a0a0",
     value: 2,
     chance: 3,
@@ -2435,8 +2429,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Chicken",
     warEconomyType: "essential",
     tags: ["food", "liveAnimal"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-chicken",
     color: "#d9c589",
     value: 1,
     chance: 4,
@@ -2466,8 +2459,7 @@ export const GOODS_DATA: GoodData[] = [
     // participation intact. See docs/plan/fauna-biome-realism.md's Wool/Sheep investigation.
     name: "Wool",
     tags: ["clothing"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-wool",
     color: "#f2e9d8",
     // 1,000 fleeces = 1.5 t at 4 times the grain price per kilogram (goods-physical-units.md §21).
     value: 13,
@@ -2477,8 +2469,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Flax",
     tags: ["clothing"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-flax",
     color: "#8faee0",
     // A 25 kg bundle at 5.6 times the grain price per kilogram: fibre, below the linen it makes (§24).
     value: 0.3,
@@ -2492,8 +2483,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Linen",
     warEconomyType: "strategic",
     tags: ["clothing"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-linen",
     color: "#f5f0e6",
     // A 200 kg bale (10 bolts of 20 kg) at 18.6 times the grain price per kilogram, in the sources' range
     // (goods-physical-units.md §24); the bolt was worth 6, 140 times. Linen keeps a lot's gain of about 5.
@@ -2506,8 +2496,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Cotton",
     tags: ["clothing"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-cotton",
     color: "#f5f5f0",
     value: 2,
     chance: 3,
@@ -2518,8 +2507,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Tallow",
     tags: ["fuel"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-tallow",
     color: "#e8d9b8",
     value: 2,
     chance: 0,
@@ -2544,8 +2532,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Beeswax",
     tags: ["ritual"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-beeswax",
     color: "#f0c419",
     // A 100 kg block at 45 times the grain price per kilogram, as the sources have it (goods-physical-units.md §26).
     // It has no recipe: the comb comes with the honey harvest (production-utils.ts BEESWAX_LOTS_PER_HONEY_LOT).
@@ -2558,8 +2545,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Flour",
     warEconomyType: "essential",
     tags: ["food"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-flour",
     color: "#efe1c1",
     // A 50 kg sack at 1.5 times the grain price per kilogram (goods-physical-units.md §21). It is milled
     // from 62.5 kg of grain (0.134 wain), and covers the 0.1 wain of food that 50 kg of flour does.
@@ -2573,8 +2559,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Bread",
     warEconomyType: "essential",
     tags: ["food"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-bread",
     color: "#d9a66c",
     // 20 kg at 1.9 times the grain price per kilogram (goods-physical-units.md §21). It is baked from
     // 15 kg of flour (0.3 sack) and covers the 0.03 wain of food that 20 kg of bread does.
@@ -2589,8 +2574,7 @@ export const GOODS_DATA: GoodData[] = [
     ...WOOD_RECIPE_CONTRACTS.Timber,
     warEconomyType: "strategic",
     tags: ["construction"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-timber",
     color: "#7a5230",
     value: 3,
     chance: 0,
@@ -2602,8 +2586,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Alum",
     warEconomyType: "luxury",
     tags: ["mineral"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-alum",
     color: "#e0d8c8",
     value: 9,
     chance: 1,
@@ -2616,8 +2599,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Potash",
     warEconomyType: "strategic",
     tags: ["mineral"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-potash",
     color: "#c9c2a6",
     value: POTASH_BARREL_VALUE,
     chance: 0,
@@ -2633,8 +2615,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Barilla",
     warEconomyType: "strategic",
     tags: ["industrial"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-barilla",
     color: "#a9a48c",
     value: BARILLA_BARREL_VALUE,
     chance: 3,
@@ -2657,8 +2638,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Ivory",
     warEconomyType: "luxury",
     tags: ["luxury"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-ivory",
     color: "#fff8dc",
     value: 35,
     chance: 0,
@@ -2670,8 +2650,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Coral",
     warEconomyType: "luxury",
     tags: ["luxury", "aquatic"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-coral",
     color: "#ff6f61",
     value: 16,
     chance: 2,
@@ -2684,8 +2663,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Stockfish",
     warEconomyType: "essential",
     tags: ["food", "preservative", "preservedFood"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-stockfish",
     color: "#c9b896",
     value: 4,
     chance: 0,
@@ -2697,8 +2675,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Spinning Wheel",
     ...WOOD_RECIPE_CONTRACTS["Spinning Wheel"],
     tags: ["construction"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-spinning-wheel",
     color: "#6b4226",
     value: 12,
     chance: 0,
@@ -2711,7 +2688,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Artworks",
     warEconomyType: "luxury",
     tags: ["luxury", "gift", "art"],
-    icon: "good-unknown",
+    icon: "good-artworks",
     color: "#c45c26",
     value: 32,
     chance: 0,
@@ -2726,7 +2703,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Sculptures",
     warEconomyType: "luxury",
     tags: ["luxury", "gift", "art"],
-    icon: "good-unknown",
+    icon: "good-sculptures",
     color: "#9aa0a6",
     value: 42,
     chance: 0,
@@ -2742,7 +2719,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Tapestries",
     warEconomyType: "luxury",
     tags: ["luxury", "gift", "art"],
-    icon: "good-unknown",
+    icon: "good-tapestries",
     color: "#6b3fa0",
     value: 45,
     chance: 0,
@@ -2758,7 +2735,7 @@ export const GOODS_DATA: GoodData[] = [
     ...WOOD_RECIPE_CONTRACTS.Instruments,
     warEconomyType: "luxury",
     tags: ["luxury", "gift", "art"],
-    icon: "good-unknown",
+    icon: "good-instruments",
     color: "#8b5a2b",
     value: 24,
     chance: 0,
@@ -2770,7 +2747,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Relics",
     warEconomyType: "luxury",
     tags: ["luxury", "gift", "ritual"],
-    icon: "good-unknown",
+    icon: "good-relics",
     color: "#d4af37",
     value: 48,
     chance: 0,
@@ -2804,8 +2781,7 @@ export const GOODS_DATA: GoodData[] = [
     // least one full-time stockperson. Not yet wired to that mechanic; today Dogs is a live good like
     // Cats, produced/traded/stocked but with no active consumer.
     tags: ["liveAnimal", "herding", "hunting"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-dogs",
     color: "#a97142",
     value: 4,
     chance: 0,
@@ -2836,7 +2812,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Apples",
     tags: ["food", "fruit", "freshFood", "perennialCrop"],
-    icon: "good-unknown",
+    icon: "good-apples",
     color: "#bf4d3f",
     // Bulk farmgate reference (model value); historical piece prices do not establish a kg price.
     value: 0.7,
@@ -2852,7 +2828,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Pears",
     tags: ["food", "fruit", "freshFood", "perennialCrop"],
-    icon: "good-unknown",
+    icon: "good-pears",
     color: "#b8b947",
     // Bulk farmgate reference (model value), distinct from royal dessert-pear purchases.
     value: 0.8,
@@ -2868,7 +2844,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Plums",
     tags: ["food", "fruit", "freshFood", "perennialCrop"],
-    icon: "good-unknown",
+    icon: "good-plums",
     color: "#6b407b",
     value: 2.6,
     chance: 0,
@@ -2879,7 +2855,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Figs",
     tags: ["food", "fruit", "freshFood", "perennialCrop"],
-    icon: "good-unknown",
+    icon: "good-figs",
     color: "#74503f",
     value: 3,
     chance: 0,
@@ -2890,7 +2866,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Lemons",
     tags: ["food", "fruit", "freshFood", "perennialCrop"],
-    icon: "good-unknown",
+    icon: "good-lemons",
     color: "#d9c94b",
     value: 3.2,
     chance: 0,
@@ -2901,7 +2877,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Dried Fruits",
     tags: ["food", "preservative", "preservedFood"],
-    icon: "good-unknown",
+    icon: "good-dried-fruits",
     color: "#965c35",
     value: 14,
     chance: 0,
@@ -2918,9 +2894,8 @@ export const GOODS_DATA: GoodData[] = [
     // pipeline (production-generator.ts's runWorkerLoop) with zero new processing-stage code.
     name: "Raisins",
     tags: ["food", "preservative", "preservedFood"],
-    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-wine",
-    color: "#6b4423",
+    icon: "good-raisins",
+    color: "#f3e2b8",
     // Originally { Grapes: 2 } costing 2*2 = 4 — value 5 kept a modest margin instead of breaking
     // even. 2026-08-12 correction: that recipe is stale. Commit 209d59f3 (docs/simulation/
     // salt-logistics.md-era food-processing work) replaced it with the GRAPES_LOTS_PER_RAISINS_LOT-
@@ -2938,7 +2913,7 @@ export const GOODS_DATA: GoodData[] = [
     warEconomyType: "strategic",
     tags: ["fuel", "industrial"],
     icon: "good-coal",
-    color: "#2b2b2b",
+    color: "#a3a8ad",
     value: 4,
     chance: 0,
     recipes: [{ Coal: 1.4 }],
@@ -2950,7 +2925,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Steel",
     warEconomyType: "strategic",
     tags: ["metal", "industrial"],
-    icon: "good-unknown",
+    icon: "good-steel",
     color: "#7a8490",
     value: 14,
     chance: 0,
@@ -2971,7 +2946,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Stainless Steel",
     warEconomyType: "strategic",
     tags: ["metal", "industrial", "alloy", "corrosionResistant"],
-    icon: "good-unknown",
+    icon: "good-stainless",
     color: "#a7b0b3",
     value: 28,
     chance: 0,
@@ -2992,7 +2967,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Machine Parts",
     warEconomyType: "strategic",
     tags: ["industrial", "tools"],
-    icon: "good-unknown",
+    icon: "good-machine-parts",
     color: "#6d7380",
     value: 18,
     chance: 0,
@@ -3009,7 +2984,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Copper Wire",
     warEconomyType: "strategic",
     tags: ["industrial", "metal"],
-    icon: "good-unknown", // no dedicated sprite yet; same placeholder treatment as other era-6 Goods
+    icon: "good-copper-wire",
     color: "#c98a4b",
     value: 16,
     chance: 0,
@@ -3022,7 +2997,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Stationary Steam Engine",
     warEconomyType: "strategic",
     tags: ["industrial", "capital"],
-    icon: "good-unknown",
+    icon: "good-steam-engine",
     color: "#4a5560",
     value: 80,
     chance: 0,
@@ -3036,7 +3011,7 @@ export const GOODS_DATA: GoodData[] = [
     ...WOOD_RECIPE_CONTRACTS.Rail,
     warEconomyType: "strategic",
     tags: ["industrial", "construction"],
-    icon: "good-unknown",
+    icon: "good-rail",
     color: "#5c5c5c",
     value: 24,
     chance: 0,
@@ -3049,7 +3024,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Locomotive",
     warEconomyType: "strategic",
     tags: ["industrial", "capital"],
-    icon: "good-unknown",
+    icon: "good-locomotive",
     color: "#3d3d3d",
     value: 160,
     chance: 0,
@@ -3062,7 +3037,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Marine Steam Engine",
     warEconomyType: "strategic",
     tags: ["industrial", "capital"],
-    icon: "good-unknown",
+    icon: "good-marine-engine",
     color: "#3a4a55",
     value: 70,
     chance: 0,
@@ -3106,7 +3081,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Precision Instruments",
     warEconomyType: "strategic",
     tags: ["industrial", "tools"],
-    icon: "good-unknown",
+    icon: "good-precision",
     color: "#9aa6ae",
     value: 28,
     chance: 0,
@@ -3164,7 +3139,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Chlorine",
     warEconomyType: "strategic",
     tags: ["industrial", "mineral"],
-    icon: "good-unknown",
+    icon: "good-chlorine",
     color: "#c9e066",
     value: 20,
     chance: 0,
@@ -3182,7 +3157,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Bleaching Powder",
     warEconomyType: "strategic",
     tags: ["industrial"],
-    icon: "good-unknown",
+    icon: "good-bleaching-powder",
     color: "#e8e8e0",
     value: 30,
     chance: 0,
@@ -3201,7 +3176,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Nitric Acid",
     warEconomyType: "strategic",
     tags: ["industrial", "military", "mineral"],
-    icon: "good-unknown",
+    icon: "good-nitric-acid",
     color: "#f0e068",
     value: 22,
     chance: 0,
@@ -3215,7 +3190,7 @@ export const GOODS_DATA: GoodData[] = [
     warEconomyType: "strategic",
     tags: ["industrial", "fuel"],
     icon: "good-tar",
-    color: "#2a2420",
+    color: "#c4b8a8",
     value: 6,
     chance: 0,
     recipes: [{ Coke: 1.2 }],
@@ -3229,7 +3204,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Synthetic Dye",
     warEconomyType: "strategic",
     tags: ["industrial", "chemical"],
-    icon: "good-unknown",
+    icon: "good-synthetic-dye",
     color: "#76508f",
     value: 24,
     chance: 0,
@@ -3249,7 +3224,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Soda Ash",
     warEconomyType: "strategic",
     tags: ["industrial", "mineral"],
-    icon: "good-unknown",
+    icon: "good-soda-ash",
     color: "#d8d4c0",
     value: 9,
     chance: 0,
@@ -3269,7 +3244,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Caustic Soda",
     warEconomyType: "strategic",
     tags: ["industrial", "mineral"],
-    icon: "good-unknown",
+    icon: "good-caustic-soda",
     color: "#eae6da",
     value: 13,
     chance: 0,
@@ -3314,7 +3289,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Alumina",
     warEconomyType: "strategic",
     tags: ["industrial", "mineral"],
-    icon: "good-unknown",
+    icon: "good-alumina",
     color: "#e8e4dc",
     value: 16,
     chance: 0,
@@ -3333,7 +3308,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Aluminum",
     warEconomyType: "strategic",
     tags: ["metal", "industrial"],
-    icon: "good-unknown",
+    icon: "good-aluminum",
     color: "#c7c9cc",
     value: 34,
     chance: 0,
@@ -3345,7 +3320,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Light Alloy Parts",
     warEconomyType: "strategic",
     tags: ["industrial", "metal"],
-    icon: "good-unknown",
+    icon: "good-light-alloy",
     color: "#c2ccd6",
     value: 48,
     chance: 0,
@@ -3381,7 +3356,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Mercury",
     warEconomyType: "strategic",
     tags: ["industrial", "chemical"],
-    icon: "good-unknown",
+    icon: "good-mercury",
     color: "#d7d7de",
     value: 30,
     chance: 0,
@@ -3399,7 +3374,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Crude Oil",
     warEconomyType: "strategic",
     tags: ["fuel", "mineral"],
-    icon: "good-unknown",
+    icon: "good-crude-oil",
     color: "#2b1f18",
     value: 6,
     chance: 0,
@@ -3416,7 +3391,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Kerosene",
     warEconomyType: "strategic",
     tags: ["fuel", "industrial"],
-    icon: "good-unknown",
+    icon: "good-kerosene",
     color: "#c9a869",
     value: 14,
     chance: 0,
@@ -3428,7 +3403,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Synthetic Resin",
     warEconomyType: "strategic",
     tags: ["industrial", "chemical"],
-    icon: "good-unknown",
+    icon: "good-synthetic-resin",
     color: "#bd9a5d",
     value: 22,
     chance: 0,
@@ -3444,7 +3419,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Lubricating Oil",
     warEconomyType: "strategic",
     tags: ["industrial", "chemical"],
-    icon: "good-unknown",
+    icon: "good-lubricating-oil",
     color: "#4a3620",
     value: 18,
     chance: 0,
@@ -3462,7 +3437,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Natural Gas",
     warEconomyType: "strategic",
     tags: ["fuel", "mineral"],
-    icon: "good-unknown",
+    icon: "good-natural-gas",
     color: "#3a5f6b",
     value: 5,
     chance: 0,
@@ -3478,7 +3453,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "LNG",
     warEconomyType: "strategic",
     tags: ["fuel", "industrial"],
-    icon: "good-unknown",
+    icon: "good-lng",
     color: "#cfe8f0",
     value: 12,
     chance: 0,
@@ -3511,7 +3486,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Synthetic Ammonia",
     warEconomyType: "strategic",
     tags: ["industrial", "chemical"],
-    icon: "good-unknown", // no dedicated sprite; follow-up per docs/plan/synthetic-ammonia-vertical-slice.md §1
+    icon: "good-ammonia",
     color: "#8fb8c9",
     value: 26,
     chance: 0,
@@ -3550,7 +3525,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Chestnuts",
     tags: ["food", "nuts", "perennialCrop"],
-    icon: "good-unknown",
+    icon: "good-chestnuts",
     color: "#965b36",
     value: 2,
     chance: 0,

@@ -84,7 +84,7 @@ export function authorSlug(author: Author): string; // "claude-opus-5.5"、"grok
   - `GPT-6.1 Sol`・`Codex` → `Codex GPT-6.1 Sol`
   - `Claude 5.5 Medium` → `Claude Opus 5.5`
 - 作者のないモデルに表示する `DEFAULT_AUTHOR` は、`Codex` から `Codex GPT-6.1 Sol` に変えた。
-- `Grok 4.7` は市壁の `Grok` とは別表記である。版idは `authorSlug` により `grok-4.7` になる。この作者は `ship.galleon` の high、トレビュシェット、および `medieval.harbor-treadwheel-crane` の high（BVの比較用。CEはCodexのhigh）を使う。
+- `Grok 4.7` は市壁の `Grok` とは別表記である。版idは `authorSlug` により `grok-4.7` になる。この作者は `ship.galleon` の high、`ship.ship-of-the-line` の high（BV専用。CEは配置しない）、`ship.galley` の high（BV専用。CEは配置しない）、`ship.trireme` の high（BV専用。CEは配置しない）、トレビュシェット、および `medieval.harbor-treadwheel-crane` の high（BVの比較用。CEはCodexのhigh）を使う。
 
 ### 4.2 版（`ModelVariant`、`src/buildings/modelVariants.ts`、実装済み）
 
@@ -218,6 +218,9 @@ export function adoptedTree(species: TreeSpecies, quality = "ultra"): ModelVaria
   | --- | --- | --- |
   | `ship.sloop`・`ship.caravel`・`ship.barge` | Codex（`default`） | 版が1つなので自動 |
   | `ship.galleon` | Codex（`default`）、Opus（`default`＝high、`low`）。2026-11-15に Grok 4.7 の high をBV専用で追加。Lowは無い | Codex（採用表に記録。Grok版は不採用） |
+  | `ship.ship-of-the-line` | Grok 4.7（`high`のみ。2026-11-15。Lowは無い） | CEは配置しない。版が1つなので `adopt()` はこの版を返すが、`shipMeshes.ts` は呼ばない |
+  | `ship.galley` | Grok 4.7（`high`のみ。2026-11-15。Lowは無い） | CEは配置しない。版が1つなので `adopt()` はこの版を返すが、`shipMeshes.ts` は呼ばない |
+  | `ship.trireme` | Grok 4.7（`high`のみ。2026-11-15。Lowは無い） | CEは配置しない。版が1つなので `adopt()` はこの版を返すが、`shipMeshes.ts` は呼ばない |
   | `town-wall.town-curtain-wall`・`town-mural-tower`・`town-gate` | Codex、Grok（BVの習作。両脇に城壁の一部が付く） | Codex（採用表に記録） |
   | `town-wall-part.wall`・`bare`・`tower`・`gate` | Codex（CEが城壁の周回に並べる部品）。`basedOn` はCodexの習作 | 版が1つなので自動 |
   | `temple.basilica` | Opus（`high`・`low`） | 版が1つなので自動 |

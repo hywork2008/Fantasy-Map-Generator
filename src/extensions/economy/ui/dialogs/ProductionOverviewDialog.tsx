@@ -6,6 +6,7 @@ import { formatPrice } from "../../../hostUtils";
 
 import { open as openProductionOverview, refreshProductionOverview } from "../../controllers/production-overview";
 import { type ProductionOverviewRow, useProductionOverviewState } from "../../store/productionOverviewState";
+import { GoodIcon } from "../components/GoodIcon";
 
 const KIND_LABEL_KEY: Record<ProductionOverviewRow["kind"], string> = {
   manufactured: "extensions.productionOverview.kindMade",
@@ -118,16 +119,14 @@ const ProductionRow: React.FC<{ row: ProductionOverviewRow }> = ({ row }) => {
   return (
     <tr className="states" data-id={row.id} data-good={row.goodName} data-kind={row.kind}>
       <td>
-        <svg
-          aria-label={row.goodName}
-          data-tip={t("extensions.productionOverview.iconTip")}
-          width="1.3em"
-          height="1.3em"
-          className="goodIcon"
-        >
-          <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
-          <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
-        </svg>
+        <GoodIcon
+          icon={row.goodIcon}
+          size="1.3em"
+          color={row.goodColor}
+          stroke={row.goodStroke}
+          label={row.goodName}
+          tip={t("extensions.productionOverview.iconTip")}
+        />
       </td>
       <td data-tip={t("extensions.productionOverview.goodNameTip")} className="goodName">
         {row.goodName}

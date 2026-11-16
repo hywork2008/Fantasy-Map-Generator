@@ -12,6 +12,7 @@ import {
 import { getApi } from "../../economyContext";
 import { formatRetailQuantity } from "../../generators/goodsTradeLots";
 import { useCharacterMarketState } from "../../store/characterMarketState";
+import { GoodIcon } from "../components/GoodIcon";
 
 export const CharacterMarketDialog: React.FC = () => {
   const { t } = useTranslation();
@@ -179,10 +180,7 @@ export const CharacterMarketDialog: React.FC = () => {
                   return (
                     <tr key={row.goodId}>
                       <td title={row.unit}>
-                        <svg aria-hidden="true" width="1.3em" height="1.3em" className="goodIcon">
-                          <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
-                        </svg>{" "}
-                        {localizedGoodName}
+                        <GoodIcon icon={row.goodIcon} size="1.3em" /> {localizedGoodName}
                       </td>
                       <td>{row.merchantName}</td>
                       <td>{formatRetailQuantity(row.availableStock, row.retailLotSize)}</td>
