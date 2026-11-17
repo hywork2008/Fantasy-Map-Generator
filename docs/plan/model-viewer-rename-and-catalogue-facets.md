@@ -119,6 +119,8 @@ export interface ModelFacets {
    - 旧URL用に [src/building-viewer/index.html](../../src/building-viewer/index.html) を残した。クエリとハッシュを保ったまま `model-viewer/` へ転送するだけのページで、ビルドの入口 `buildingViewer` として残す。
    - 改名しなかったもの：CSSのクラス名（`bv-*`）、ソース中のコメントや識別子に残る略称「BV」（約125ファイル）、`scripts/` のファイル名（`verifyBv*.mts` など）。いずれも画面に出ず、互換性にも関わらないため、触ったファイルから順に直す。
 5. **近代兵器の追加**：第一次世界大戦の戦車などを `kind: "weapon"` または `"vehicle"`、`periods: ["petroleumEra"]` で追加する。
+   - 2026-11-18：戦車は `vehicle` とすることに決めた（未決事項を解消）。最初の1両として、第二次世界大戦のドイツの Tiger I（1942〜1945年）を [tigerTank.ts](../../src/buildings/vehicles/tigerTank.ts) に追加した。属性は `kind: "vehicle"`、`periods: ["petroleumEra"]`、`years: [1942, 1945]`、`regions: ["european"]`、`uses: ["armor", "military"]`。`PLACEABLE_OBJECTS`（ID `tigerI`）とMVの Vehicles の見出しに登録した。author は Claude Opus 5.5。
+   - 寸法は公表値（全長8.45 m（砲を前に向けた状態）、車体長6.316 m、全幅3.705 m、全高3.0 m）に合わせた。装甲厚、ハッチ、工具、履帯の個々のリンク、車内は簡略化または省いた。砲塔は旋回しない静止モデルで、国籍標識などのマーキングは描いていない。
 
 ## 検証
 
@@ -129,5 +131,5 @@ export interface ModelFacets {
 ## 未決事項
 
 - `ModelRegion` の最終的な値の一覧（FMGの文化セットとの対応）。
-- 戦車を `weapon` と `vehicle` のどちらに入れるか。本書では、用途で分けるなら `weapon`、走行装置を共有する部品群として扱うなら `vehicle` とし、最初の戦車を追加する時点で決める。
+- ~~戦車を `weapon` と `vehicle` のどちらに入れるか~~ → `vehicle` に決定（2026-11-18）。
 - CEの保存データ中の `bv` 接頭辞を、読み込み時の変換付きで改名するかどうか。

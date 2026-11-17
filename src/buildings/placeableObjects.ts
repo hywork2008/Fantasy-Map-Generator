@@ -21,6 +21,7 @@ import {
 import { createMedievalWagon, MEDIEVAL_WAGON } from "./vehicles/medievalWagon";
 import { createMinecart, MINECART } from "./vehicles/minecart";
 import { createNobleCarriage, NOBLE_CARRIAGE } from "./vehicles/nobleCarriage";
+import { createTigerTank, TIGER_I } from "./vehicles/tigerTank";
 import { createWarWagon, WAR_WAGON } from "./vehicles/warWagon";
 import { createMedievalWell, MEDIEVAL_WELL } from "./wells/medievalWell";
 import { createPublicWaterBasin } from "./wells/publicWaterBasin";
@@ -97,6 +98,7 @@ export const PLACEABLE_OBJECTS: readonly PlaceableObject[] = [
     create: createNobleCarriage
   },
   { id: "warWagon", category: "Vehicles", name: WAR_WAGON.name, author: WAR_WAGON.author, create: createWarWagon },
+  { id: "tigerI", category: "Vehicles", name: TIGER_I.name, author: TIGER_I.author, create: createTigerTank },
   { id: "postMill", category: "Mills", name: POST_MILL.name, author: POST_MILL.author, create: createPostMill },
   { id: "towerMill", category: "Mills", name: TOWER_MILL.name, author: TOWER_MILL.author, create: createTowerMill },
   { id: "waterMill", category: "Mills", name: WATER_MILL.name, author: WATER_MILL.author, create: createWaterMill },

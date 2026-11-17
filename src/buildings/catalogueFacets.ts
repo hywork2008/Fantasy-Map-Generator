@@ -254,6 +254,7 @@ const PLACEABLE_IDS: Record<string, ModelFacets> = {
   coveredWagon: f("vehicle", span("preIndustrialEra", "steamEra"), ["european", "american"], ["transport"]),
   nobleCarriage: f("vehicle", span("lateMedieval", "ageOfExploration"), EU, ["transport"]),
   warWagon: f("vehicle", ["lateMedieval"], EU, ["military"]),
+  tigerI: f("vehicle", ["petroleumEra"], EU, ["armor", "military"], [1942, 1945]),
   postMill: s(MEDIEVAL_ON, EU, "milling"),
   towerMill: s(LATE_ON, EU, "milling"),
   waterMill: WATER_MILL,

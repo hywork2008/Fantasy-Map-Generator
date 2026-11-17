@@ -108,6 +108,7 @@ import {
 import { createMedievalWagon, MEDIEVAL_WAGON } from "../buildings/vehicles/medievalWagon";
 import { createMinecart, MINECART } from "../buildings/vehicles/minecart";
 import { createNobleCarriage, NOBLE_CARRIAGE } from "../buildings/vehicles/nobleCarriage";
+import { createTigerTank, TIGER_I } from "../buildings/vehicles/tigerTank";
 import { createWarWagon, WAR_WAGON } from "../buildings/vehicles/warWagon";
 import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
 import {
@@ -2864,6 +2865,47 @@ warWagonButton.addEventListener("click", () => {
   );
 });
 vehiclesHeading.append(warWagonButton);
+
+const tigerButton = document.createElement("button");
+tigerButton.dataset.id = "tigerI";
+tigerButton.type = "button";
+tigerButton.textContent = "Tiger I · German heavy tank, 1942–1945";
+tigerButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === tigerButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Tiger I side elevation";
+  levelTitle.textContent = "Tiger I plan";
+  const model = createTigerTank();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: TIGER_I.length, depth: TIGER_I.width } }, TIGER_I.height);
+  camera.position.set(9, 6, 10);
+  controls.target.set(0.8, 1.4, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", TIGER_I.name),
+    fact("Author", TIGER_I.author),
+    fact("Period", "Second World War · Germany, 1942–1945"),
+    fact(
+      "Dimensions",
+      `${TIGER_I.length} m with gun forward (hull ${TIGER_I.hullLength} m) × ${TIGER_I.width} m × ${TIGER_I.height} m`
+    ),
+    fact("Armament", "8.8 cm KwK 36 L/56 with muzzle brake; hull machine-gun ball mount"),
+    fact("Running gear", "Interleaved road wheels on eight stations a side, front drive sprocket, rear idler"),
+    fact("Note", TIGER_I.note, "Tiger I")
+  );
+});
+vehiclesHeading.append(tigerButton);
+AUTHORED_VARIANTS[tigerButton.dataset.id] = { author: TIGER_I.author, primary: true, show: () => tigerButton.click() };
 
 let townWallHousingCulture: BuildingAppearanceProfile = "legacy";
 
