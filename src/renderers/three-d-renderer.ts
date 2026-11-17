@@ -362,8 +362,9 @@ class ThreeDModule {
 
   /**
    * Shows the week-of-march window on the next viewMesh draw. Passing null restores the
-   * full-world mesh. The focus survives leaving 3D, so opening viewMesh again frames the
-   * same contact. Heightmap preview and the globe ignore it.
+   * full-world mesh. The focus survives leaving 3D. The map menu sets the clicked point
+   * before opening viewMesh. The Layers viewMesh button clears it on entry. Heightmap
+   * preview and the globe ignore it.
    */
   setCampaignFocus(focus: CampaignFocus | null): void {
     const next = focus && Number.isFinite(focus.x) && Number.isFinite(focus.y) ? focus : null;

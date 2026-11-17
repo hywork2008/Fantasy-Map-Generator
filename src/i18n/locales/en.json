@@ -106,7 +106,8 @@
     "openRegionEditor": "Open in Region Editor",
     "openRegionEditorWithProvince": "Open in Region Editor ({{name}})",
     "openRegionEditorDisabled": "No province at this location",
-    "openCityEditor": "Open in City Editor ({{name}})"
+    "openCityEditor": "Open in City Editor ({{name}})",
+    "openCampaignView": "View in 3D from here"
   },
   "directions": {
     "mode": {
