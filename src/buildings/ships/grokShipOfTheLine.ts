@@ -449,7 +449,7 @@ function deckStrip(kit: SailingKit, name: string, x0: number, x1: number, y: num
     const outer = sideInset > 0 ? half * 0.98 : half * 0.85;
     const count = sideInset > 0 ? 3 : 7;
     for (let line = 0; line < count; line++) {
-      const t = count === 1 ? 0.5 : line / (count - 1);
+      const t = line / (count - 1);
       seams.push([
         [x, y + 0.012, THREE.MathUtils.lerp(inner, outer, t)],
         [

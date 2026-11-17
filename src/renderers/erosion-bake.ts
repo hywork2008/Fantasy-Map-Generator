@@ -33,8 +33,10 @@ import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Rivers } from "../generators/river-generator";
+import { optionsStore } from "../state/optionsStore";
 import type { PackedGraphFeature } from "../types/models";
 import { TIME } from "../utils/debug";
+import { meshHeightFromIndex } from "../utils/height";
 import { getFeaturePath } from "./draw-features";
 
 export type BakeParams = {
@@ -956,15 +958,14 @@ function sampleField(bakeData: ErosionBakeResult, field: ArrayLike<number>, x: n
   return top * (1 - ty) + bottom * ty;
 }
 
-const LOWER_BY_WATER = 18;
-const DIVIDER = 100 - LOWER_BY_WATER;
-
-// world y for map coordinates; bilinear over the baked field. Used both for
-// mesh vertices and for label/icon placement (do not raycast the dense mesh)
+// World Y for map coordinates; bilinear over the baked field. Used both for
+// mesh vertices and for label/icon placement (do not raycast the dense mesh).
+// The field is a 0–1 height index. The same meter curve as the contour labels
+// turns that index into world Y.
 export function heightAt(x: number, y: number, scale: number): number {
   if (!cached) return 0;
-  const h = sampleField(cached, cached.heights, x, y);
-  return ((h * 100 - LOWER_BY_WATER) / DIVIDER) * scale;
+  const heightIndex = sampleField(cached, cached.heights, x, y) * 100;
+  return meshHeightFromIndex(heightIndex, optionsStore.getState().heightExponent, scale);
 }
 
 export function isCached(key?: string): boolean {

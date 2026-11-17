@@ -145,7 +145,7 @@ interface MachineWorks {
 - `ExperimentalWorkshop` は Books / Paper / Ink / Glass / Tools と予算を消費し、`naturalPhilosophy` と `experimentRecord` を増やす。
 - `MachineWorks` は Iron Ingot / Tools / Charcoal と予算を消費し、`boringExperience` を増やす。砲の製造・修理、鉱山ポンプ、計測器のいずれでも経験を得られる。
 - 必要な Good の一部がない年は、ストックを即時ゼロにせず、研究・工作の成長を止め、緩やかに減衰させる。
-- 初期実装では State が首都または候補鉱山のある Burg を一つ選ぶ。複数都市の研究機関、企業、特許は後続の拡張とする。
+- 初期実装では State が首都または候補鉱山のある Burg を一つ選ぶ。複数都市の研究機関は後続のままとする。企業と特許の台帳は [工房から企業へ](./workshop-to-firm.md) に移した。
 
 ## 5. 技術グラフと段階遷移
 

@@ -18,6 +18,7 @@ describe("internationalization", () => {
     expect(i18n.t("characters.dialogTitle", { name: "Ari" })).toBe("人物詳細：Ari");
     expect(i18n.t("economy.goods.names.Wood")).toBe("木材");
     expect(i18n.t("mapContextMenu.distanceFromHere")).toBe("ここからの距離");
+    expect(i18n.t("campaignView.viewBattle")).toBe("この戦闘を3Dで見る");
     expect(i18n.t("mapContextMenu.distanceToHere")).toBe("ここまでの距離");
     expect(i18n.t("menu.layers")).toBe("レイヤー");
     expect(i18n.t("sticked.newMap")).toBe("新しい地図");

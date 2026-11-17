@@ -6,7 +6,7 @@ import { regimentEditorActions } from "../../controllers/regiment-editor";
 import { tip } from "../../services/tooltipService";
 import { useRegimentEditorState } from "../../store/regimentEditorState";
 import { Dialog } from "./Dialog";
-import { closeDialog } from "./dialogService";
+import { closeDialog, minimizeEnclosingDialog } from "./dialogService";
 
 export const RegimentEditorDialog: React.FC = () => {
   const { t } = useTranslation();
@@ -162,6 +162,16 @@ export const RegimentEditorDialog: React.FC = () => {
         )}
 
         <div id="regimentFooter" className="footer">
+          <button
+            type="button"
+            id="openRegimentCampaignView"
+            data-tip={t("campaignView.viewBattleTip")}
+            onClick={event => {
+              if (regimentEditorActions.viewIn3d()) minimizeEnclosingDialog(event.currentTarget);
+            }}
+          >
+            {t("campaignView.viewBattle")}
+          </button>
           <button
             type="button"
             data-tip="Attack foreign regiment"

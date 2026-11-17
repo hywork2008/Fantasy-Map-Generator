@@ -18,6 +18,7 @@ import {
   battleAction_rollDie,
   battleAction_run,
   battleAction_showNameSection,
+  battleAction_viewIn3d,
   battleAction_wiki
 } from "../../controllers/battle-screen";
 import { FORMATION_INFO } from "../../data/militaryFormations";
@@ -29,7 +30,7 @@ import { useOptionsState } from "../../store/optionsState";
 import type { MilitaryFormation } from "../../types/models";
 import { applySorting } from "../../utils/domUtils";
 import { Dialog } from "./Dialog";
-import { closeDialog } from "./dialogService";
+import { closeDialog, minimizeEnclosingDialog } from "./dialogService";
 
 // ── Phase data ─────────────────────────────────────────────────────────────
 
@@ -549,6 +550,7 @@ export const RegimentSelectorScreenDialog: React.FC = () => {
 // ── Main battle screen dialog ───────────────────────────────────────────────
 
 export const BattleScreenDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("battleScreen"));
   const { name, type, place, attackers, defenders, nameSectionVisible, militaryUnits } = useBattleScreenState();
 
@@ -589,6 +591,16 @@ export const BattleScreenDialog: React.FC = () => {
           </div>
 
           <div id="battleFooter">
+            <button
+              type="button"
+              id="openBattleCampaignView"
+              data-tip={t("campaignView.viewBattleTip")}
+              onClick={event => {
+                if (battleAction_viewIn3d()) minimizeEnclosingDialog(event.currentTarget);
+              }}
+            >
+              {t("campaignView.viewBattle")}
+            </button>
             {/* Battle type selector */}
             <BattleTypePicker currentType={type} />
 
