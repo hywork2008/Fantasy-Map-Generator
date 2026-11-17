@@ -107,7 +107,13 @@ export interface ModelFacets {
    - カタログレコードは、`kind: "structure"` と `periods: [record.period]` をレコードから導き、地域はレコードIDごとの対応表で引く。
    - 船（ships）・`PLACEABLE_OBJECTS` に入っていない乗り物、兵器・小物の多くは、共通の定義型がなく `main.ts` から直接登録されているため、段階3に回す。
    - 車輪で走るものは用途が軍事でも `vehicle` とした（war wagon）。攻城兵器と火砲は `weapon` とした。
-3. **一覧の絞り込み**：一覧の構築を切り出し、絞り込み欄と検索、URLクエリへの保存を入れる。
+3. **一覧の絞り込み**（2026-11-18 完了）：一覧の構築を切り出し、絞り込み欄と検索、URLクエリへの保存を入れる。
+   - 一覧の各ボタンの `data-id` を、属性を引くキーとした。IDのなかったボタン（船のバージ、攻城兵器、水車、井戸、乗り物、収納小物、城門楼、看板など）にIDを付けた。新しいIDは配置用オブジェクトのID（`batteringRam` など）か、`barbican-`・`sign-`・`container-` の接頭辞付きとし、既存のIDは変えていない。
+   - [catalogueIndex.ts](../../src/building-viewer/catalogueIndex.ts)：`entryFacets(id)` は、中世モデル・ランドマーク・カタログレコード・配置用オブジェクトを段階2の関数で引く。どれにも当たらないビューワー独自の項目（船、マスケット銃、城壁、地域住宅、要塞の組み立てなど）は、このファイルの表で引く。絞り込みの判定 `entryMatches()` と、URLクエリの読み書き `parseFilter()`・`serializeFilter()` もこのファイルに置いた。
+   - [catalogueFilterPanel.ts](../../src/building-viewer/catalogueFilterPanel.ts)：一覧を作り終えた後に呼ばれる。既存の見出しを、属性の種類ごとの節（Structures・Vehicles・Ships・Weapons・Flora・Props・Unclassified）の下に並べ替える。そのうえで、検索・種類・年代の範囲・地域・用途の絞り込み欄を一覧の上に置く。各見出しの中身とクリック時の処理には手を加えず、合わない項目を隠すだけとした。`main.ts` の手書きの一覧を作り直すと差分が大きくなるため、段階的に置き換える方針を取った。
+   - 判定の規則：種類・地域・用途は、選んだ値のどれかに当たれば一致とする。年代は、範囲と重なる時代が1つでもあれば一致とする。地域が `any` のモデルは、どの地域を選んでも一致する。属性で絞り込んでいるあいだは、属性のない項目を隠す。
+   - 中世モデルの見出しから task 番号を外した（例: `Medieval 61 · Horse Mills` → `Horse Mills`）。task 番号は、これまでどおり詳細欄の「Task」に出る。
+   - 確認：ブラウザで全322項目に属性があり、Unclassified の節が空であることを確かめた。`?kind=vehicle&from=steamEra` では5件（熱気球、飛行船、蒸気機関車、鉱車、幌馬車）に絞られた。
 4. **名称変更**：上の表に従い、名前の変更だけのコミットで行う。AGENTS.md の「BV / Building Viewer」の節も、この時点で「MV / Model Viewer」に書き換える。
 5. **近代兵器の追加**：第一次世界大戦の戦車などを `kind: "weapon"` または `"vehicle"`、`periods: ["petroleumEra"]` で追加する。
 

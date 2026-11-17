@@ -3,6 +3,7 @@ import { type Author, DEFAULT_AUTHOR } from "../buildings/authors";
 import { createPolygonHouses, POLYGON_HOUSES } from "../buildings/houses/polygonHouses";
 import type { GalleonState } from "../buildings/ships/galleonArmament";
 import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
+import { installCatalogueFilter } from "./catalogueFilterPanel";
 import "./viewer.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -905,6 +906,7 @@ function showBasilicaTemple(): void {
 
 const aqueducts = modelCategory("Aqueduct assemblies");
 const aqueductButton = document.createElement("button");
+aqueductButton.dataset.id = "pont-du-gard";
 aqueductButton.type = "button";
 aqueductButton.textContent = "Pont du Gard · Roman aqueduct";
 aqueductButton.addEventListener("click", () => {
@@ -947,6 +949,7 @@ aqueductButton.addEventListener("click", () => {
 aqueducts.append(aqueductButton);
 const chapels = modelCategory("Chapel assemblies");
 const stGeorgesButton = document.createElement("button");
+stGeorgesButton.dataset.id = "st-georges-chapel";
 stGeorgesButton.type = "button";
 stGeorgesButton.textContent = "St George's Chapel · Windsor Castle";
 stGeorgesButton.addEventListener("click", () => {
@@ -1215,6 +1218,7 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
 }
 const assemblies = modelCategory("Fortress assemblies");
 const bojniceButton = document.createElement("button");
+bojniceButton.dataset.id = "bojnice-castle";
 bojniceButton.type = "button";
 bojniceButton.textContent = "Bojnice Castle · Romantic reconstruction";
 bojniceButton.addEventListener("click", () => {
@@ -1253,6 +1257,7 @@ bojniceButton.addEventListener("click", () => {
 });
 assemblies.append(bojniceButton);
 const chambordButton = document.createElement("button");
+chambordButton.dataset.id = "chambord";
 chambordButton.type = "button";
 chambordButton.textContent = "Château de Chambord · French Renaissance";
 chambordButton.addEventListener("click", () => {
@@ -1298,6 +1303,7 @@ for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
   const button = document.createElement("button");
   button.type = "button";
   button.dataset.phase = phase;
+  button.dataset.id = `krak-${phase}`;
   button.textContent = `${KRAK.name} · ${phase === "hospitalier-1270" ? "c. 1270" : "Mamluk alterations"}`;
   button.addEventListener("click", () => {
     void showFortress(phase).catch(error => {
@@ -1308,6 +1314,7 @@ for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
   assemblies.append(button);
 }
 const cliffButton = document.createElement("button");
+cliffButton.dataset.id = "cliff-fortress";
 cliffButton.type = "button";
 cliffButton.dataset.study = "cliff";
 cliffButton.textContent = "Cliff fortress · crag study";
@@ -1319,6 +1326,7 @@ cliffButton.addEventListener("click", () => {
 });
 assemblies.append(cliffButton);
 const terraceButton = document.createElement("button");
+terraceButton.dataset.id = "terraced-river";
 terraceButton.type = "button";
 terraceButton.dataset.study = "terrace";
 terraceButton.textContent = "Terraced river · escarpment study";
@@ -2019,6 +2027,7 @@ sloopButton.addEventListener("click", () => showSailingShip("sloop"));
 shipsHeading.append(sloopButton);
 
 const bargeButton = document.createElement("button");
+bargeButton.dataset.id = "barge";
 bargeButton.type = "button";
 bargeButton.textContent = "Barge · River cargo carrier";
 bargeButton.addEventListener("click", () => {
@@ -2149,6 +2158,7 @@ trebuchetButton.addEventListener("click", () => {
 siegeHeading.append(trebuchetButton);
 
 const ramButton = document.createElement("button");
+ramButton.dataset.id = "batteringRam";
 ramButton.type = "button";
 ramButton.textContent = "Battering ram · Medieval European covered ram";
 ramButton.addEventListener("click", () => {
@@ -2183,6 +2193,7 @@ ramButton.addEventListener("click", () => {
 siegeHeading.append(ramButton);
 
 const siegeTowerButton = document.createElement("button");
+siegeTowerButton.dataset.id = "siegeTower";
 siegeTowerButton.type = "button";
 siegeTowerButton.textContent = "Siege tower · Medieval European belfry";
 siegeTowerButton.addEventListener("click", () => {
@@ -2222,6 +2233,7 @@ siegeHeading.append(siegeTowerButton);
 
 const artilleryHeading = modelCategory("Artillery");
 const cannonButton = document.createElement("button");
+cannonButton.dataset.id = "earlyFieldCannon";
 cannonButton.type = "button";
 cannonButton.textContent = "Early field cannon · Europe c. 1500";
 cannonButton.addEventListener("click", () => {
@@ -2324,6 +2336,7 @@ smallArmsHeading.append(musketButton);
 
 const millsHeading = modelCategory("Mills");
 const postMillButton = document.createElement("button");
+postMillButton.dataset.id = "postMill";
 postMillButton.type = "button";
 postMillButton.textContent = "Medieval windmill · Timber post mill";
 postMillButton.addEventListener("click", () => {
@@ -2358,6 +2371,7 @@ postMillButton.addEventListener("click", () => {
 millsHeading.append(postMillButton);
 
 const towerMillButton = document.createElement("button");
+towerMillButton.dataset.id = "towerMill";
 towerMillButton.type = "button";
 towerMillButton.textContent = "Stone windmill · Tower mill";
 towerMillButton.addEventListener("click", () => {
@@ -2392,6 +2406,7 @@ towerMillButton.addEventListener("click", () => {
 millsHeading.append(towerMillButton);
 
 const waterMillButton = document.createElement("button");
+waterMillButton.dataset.id = "waterMill";
 waterMillButton.type = "button";
 waterMillButton.textContent = "Medieval watermill · Timber and stone";
 waterMillButton.addEventListener("click", () => {
@@ -2427,6 +2442,7 @@ millsHeading.append(waterMillButton);
 
 for (const spec of LOW_BANK_WATER_MILLS) {
   const button = document.createElement("button");
+  button.dataset.id = spec.id;
   button.type = "button";
   button.textContent = spec.name;
   button.addEventListener("click", () => {
@@ -2468,6 +2484,7 @@ for (const spec of LOW_BANK_WATER_MILLS) {
 
 const wellsHeading = modelCategory("Wells");
 const wellButton = document.createElement("button");
+wellButton.dataset.id = "medievalWell";
 wellButton.type = "button";
 wellButton.textContent = "Medieval European well · Stone and timber";
 wellButton.addEventListener("click", () => {
@@ -2504,6 +2521,7 @@ wellsHeading.append(wellButton);
 for (const kind of WATER_BASIN_KINDS) {
   const spec = PUBLIC_WATER_BASINS[kind];
   const button = document.createElement("button");
+  button.dataset.id = kind;
   button.type = "button";
   button.textContent = spec.name;
   button.addEventListener("click", () => {
@@ -2541,6 +2559,7 @@ for (const kind of CONTAINER_KINDS) {
   for (const state of CONTAINER_STATES) {
     const spec = MEDIEVAL_CONTAINERS[kind];
     const button = document.createElement("button");
+    button.dataset.id = `container-${kind}-${state}`;
     button.type = "button";
     const stateLabel = state === "closed" && kind === "sack" ? "Tied" : label(state);
     button.textContent = `${spec.name} · ${stateLabel}`;
@@ -2586,6 +2605,7 @@ for (const kind of CONTAINER_KINDS) {
 
 const yardsHeading = modelCategory("Work yards");
 const lumberYardButton = document.createElement("button");
+lumberYardButton.dataset.id = "lumber-yard";
 lumberYardButton.type = "button";
 lumberYardButton.textContent = "Medieval European lumber yard · Timber storage";
 lumberYardButton.addEventListener("click", () => {
@@ -2623,12 +2643,13 @@ lumberYardButton.addEventListener("click", () => {
 yardsHeading.append(lumberYardButton);
 
 const vehiclesHeading = modelCategory("Vehicles");
-for (const [definition, create] of [
-  [HOT_AIR_BALLOON, createHotAirBalloon],
-  [AIRSHIP, createAirship],
-  [STEAM_LOCOMOTIVE, createSteamLocomotive]
+for (const [definition, create, id] of [
+  [HOT_AIR_BALLOON, createHotAirBalloon, "hotAirBalloon"],
+  [AIRSHIP, createAirship, "airship"],
+  [STEAM_LOCOMOTIVE, createSteamLocomotive, "steamLocomotive"]
 ] as const) {
   const button = document.createElement("button");
+  button.dataset.id = id;
   button.type = "button";
   button.textContent = definition.name;
   button.addEventListener("click", () => {
@@ -2664,6 +2685,7 @@ for (const [definition, create] of [
 }
 
 const minecartButton = document.createElement("button");
+minecartButton.dataset.id = "minecart";
 minecartButton.type = "button";
 minecartButton.textContent = "Minecart · Timber mining cart";
 minecartButton.addEventListener("click", () => {
@@ -2698,6 +2720,7 @@ minecartButton.addEventListener("click", () => {
 vehiclesHeading.append(minecartButton);
 
 const wagonButton = document.createElement("button");
+wagonButton.dataset.id = "medievalWagon";
 wagonButton.type = "button";
 wagonButton.textContent = "Medieval European wagon · Four-wheeled freight wagon";
 wagonButton.addEventListener("click", () => {
@@ -2732,6 +2755,7 @@ wagonButton.addEventListener("click", () => {
 vehiclesHeading.append(wagonButton);
 
 const coveredWagonButton = document.createElement("button");
+coveredWagonButton.dataset.id = "coveredWagon";
 coveredWagonButton.type = "button";
 coveredWagonButton.textContent = "Covered wagon · Canvas-covered freight wagon";
 coveredWagonButton.addEventListener("click", () => {
@@ -2767,6 +2791,7 @@ coveredWagonButton.addEventListener("click", () => {
 vehiclesHeading.append(coveredWagonButton);
 
 const nobleCarriageButton = document.createElement("button");
+nobleCarriageButton.dataset.id = "nobleCarriage";
 nobleCarriageButton.type = "button";
 nobleCarriageButton.textContent = "Noble carriage · Medieval European covered carriage";
 nobleCarriageButton.addEventListener("click", () => {
@@ -2802,6 +2827,7 @@ nobleCarriageButton.addEventListener("click", () => {
 vehiclesHeading.append(nobleCarriageButton);
 
 const warWagonButton = document.createElement("button");
+warWagonButton.dataset.id = "warWagon";
 warWagonButton.type = "button";
 warWagonButton.textContent = "War wagon · Medieval European defensive wagon";
 warWagonButton.addEventListener("click", () => {
@@ -2970,6 +2996,7 @@ for (const definition of BARBICANS) {
   button.type = "button";
   button.textContent = definition.name;
   button.dataset.barbicanId = definition.id;
+  button.dataset.id = `barbican-${definition.id}`;
   button.addEventListener("click", () => {
     selection++;
     for (const item of list.querySelectorAll("button"))
@@ -3079,6 +3106,7 @@ for (const template of [
 ] as const) {
   const button = document.createElement("button");
   button.type = "button";
+  button.dataset.id = `sign-${template.id}`;
   button.textContent = `${label(template.id)} · Hanging sign`;
   button.addEventListener("click", () => showSign(template, button));
   signsHeading.append(button);
@@ -3258,12 +3286,12 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
   const category = modelCategory(
     task === 43
       ? "Trees"
-      : `Medieval ${String(task).padStart(2, "0")} · ${label(
+      : label(
           file
             .split("/")
             .at(-1)!
             .replace(/^\d+-|Models.ts$/g, "")
-        )}`
+        )
   );
   for (const definition of module.models) {
     const button = document.createElement("button");
@@ -3647,6 +3675,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
 }
 
 const treeCoverage = modelCategory("Trees · biome coverage");
+treeCoverage.dataset.kind = "flora";
 for (const biome of STANDARD_BIOME_DEFINITIONS) {
   const ready = Object.values(medievalModules)
     .flatMap(module => module.models)
@@ -3655,6 +3684,7 @@ for (const biome of STANDARD_BIOME_DEFINITIONS) {
   row.textContent = `${biome.label}: ${ready.length ? ready.map(model => model.name).join(", ") : Object.keys(biome.relief.icons).some(icon => ["acacia", "palm", "deciduous", "conifer", "swamp", "deadTree"].includes(icon)) ? "Tree models planned" : "No tree relief in FMG"}`;
   treeCoverage.append(row);
 }
+installCatalogueFilter(list);
 
 resize();
 new ResizeObserver(resize).observe(stage);
