@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createValleyField,
+  DEFAULT_VALLEY_TUNING,
   sampleValleyRivers,
   type ValleyRiverPoint,
   valleyDimensions,
@@ -31,6 +32,21 @@ describe("valleyDimensions", () => {
     expect(high.depthM).toBe(800);
     expect(high.gorge).toBe(true);
     expect(high.wallM).toBe(2700);
+  });
+
+  it("narrows the side with less relief, within the measured ratio", () => {
+    const d = valleyDimensions({ groundM: 800, reliefLeftM: 200, reliefRightM: 800, riverWidthM: 50 });
+    expect(d.wallRightM).toBe(d.wallM);
+    expect(d.wallLeftM).toBeLessThan(d.wallM);
+    expect(d.wallM / d.wallLeftM).toBeLessThanOrEqual(1.6 + 1e-9);
+    const plain = valleyDimensions(
+      { groundM: 800, reliefLeftM: 200, reliefRightM: 800, riverWidthM: 50 },
+      {
+        ...DEFAULT_VALLEY_TUNING,
+        spurs: false
+      }
+    );
+    expect(plain.wallLeftM).toBe(plain.wallM);
   });
 
   it("keeps the floor above sea level", () => {

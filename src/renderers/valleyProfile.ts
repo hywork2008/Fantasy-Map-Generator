@@ -53,6 +53,19 @@ const FLOOR_ELEVATION_DEPTH: readonly { elevM: number; depthM: number }[] = [
   { elevM: 1250, depthM: 256 }
 ];
 const GORGE_MIN_DEPTH_M = 300;
+/** Share of the depth the lower side's relief must reach for a gorge. */
+const GORGE_SIDE_SHARE = 0.5;
+/** Measured left/right ridge ratio (p50) by depth; shallow valleys are capped at 1.6. */
+const SIDE_RATIO_TABLE: readonly { depthM: number; ratio: number }[] = [
+  { depthM: 100, ratio: 1.6 },
+  { depthM: 225, ratio: 1.57 },
+  { depthM: 450, ratio: 1.34 },
+  { depthM: 800, ratio: 1.23 }
+];
+/** Tributary notches: spacing along the river and how far they widen the wall. */
+const SPUR_SPACING_M = [1000, 2000] as const;
+const SPUR_WIDEN = [0.25, 0.6] as const;
+const SPUR_HALF_LENGTH_M = [200, 400] as const;
 const GORGE_RIDGE_KM = 2.7;
 /** Keep the floor above sea level: land below 0 m is out of scope. */
 const MIN_FLOOR_M = 1;
@@ -97,6 +110,9 @@ export interface ValleyDimensions {
   /** Floor half-width F, meters. */
   floorHalfM: number;
   gorge: boolean;
+  /** Wall width on each side (left/right of the downstream direction); `wallM` is the wider. */
+  wallLeftM: number;
+  wallRightM: number;
 }
 
 /** Valley size at one river point. */
@@ -114,10 +130,9 @@ export function valleyDimensions(
   );
   let depthM = Math.min(tuning.maxDepthM, Math.max(relief, minDepth));
   depthM = Math.max(0, Math.min(depthM, site.groundM - MIN_FLOOR_M));
-  const gorge =
-    tuning.gorge &&
-    depthM >= GORGE_MIN_DEPTH_M &&
-    Math.min(site.reliefLeftM, site.reliefRightM) * tuning.reliefShare >= GORGE_MIN_DEPTH_M;
+  // Gorge: deep, and walled on both sides (the lower side still carries most of the depth).
+  const lowSide = Math.min(site.reliefLeftM, site.reliefRightM) * tuning.reliefShare;
+  const gorge = tuning.gorge && depthM >= GORGE_MIN_DEPTH_M && lowSide >= depthM * GORGE_SIDE_SHARE;
   const ridgeKm = gorge
     ? GORGE_RIDGE_KM
     : lerpTable(
@@ -133,13 +148,36 @@ export function valleyDimensions(
     depthM
   );
   const floorHalfM = Math.max(site.riverWidthM / 2, (floorKm * 1000) / 2);
-  return { depthM, wallM: ridgeKm * 1000 * tuning.widthScale, floorHalfM, gorge };
+  const wallM = ridgeKm * 1000 * tuning.widthScale;
+  // Left/right difference: the side with less relief reaches its (lower) ridge sooner.
+  let wallLeftM = wallM;
+  let wallRightM = wallM;
+  if (tuning.spurs) {
+    const high = Math.max(site.reliefLeftM, site.reliefRightM);
+    const low = Math.min(site.reliefLeftM, site.reliefRightM);
+    const cap = lerpTable(
+      SIDE_RATIO_TABLE,
+      r => r.depthM,
+      r => r.ratio,
+      depthM
+    );
+    const ratio = Math.min(cap, low > 1 ? high / low : cap);
+    if (site.reliefLeftM < site.reliefRightM) wallLeftM = wallM / ratio;
+    else if (site.reliefRightM < site.reliefLeftM) wallRightM = wallM / ratio;
+  }
+  return { depthM, wallM, floorHalfM, gorge, wallLeftM, wallRightM };
 }
 
 /** Height at distance `distM` from the river, given the original ground and the river floor. */
-export function valleyHeightAt(groundM: number, floorM: number, distM: number, dims: ValleyDimensions): number {
+export function valleyHeightAt(
+  groundM: number,
+  floorM: number,
+  distM: number,
+  dims: ValleyDimensions,
+  wallM = dims.wallM
+): number {
   if (groundM <= floorM) return groundM;
-  const t = dims.wallM > 0 ? (distM - dims.floorHalfM) / dims.wallM : distM > dims.floorHalfM ? 1 : 0;
+  const t = wallM > 0 ? (distM - dims.floorHalfM) / wallM : distM > dims.floorHalfM ? 1 : 0;
   return floorM + (groundM - floorM) * valleyWallFraction(t, dims.gorge);
 }
 
@@ -186,12 +224,51 @@ export function createValleyField(
       return min;
     });
   });
+  const widenMax = tuning.spurs ? 1 + SPUR_WIDEN[1] : 1;
   let maxReachM = 0;
-  for (const list of dims) for (const d of list) maxReachM = Math.max(maxReachM, d.floorHalfM + d.wallM);
+  for (const list of dims) for (const d of list) maxReachM = Math.max(maxReachM, d.floorHalfM + d.wallM * widenMax);
+  // Arc length from the source, and tributary notches placed along it from a per-river seed.
+  const arc = rivers.map(river => {
+    const out = [0];
+    for (let i = 1; i < river.length; i++)
+      out.push(out[i - 1] + Math.hypot(river[i].x - river[i - 1].x, river[i].y - river[i - 1].y));
+    return out;
+  });
+  const notches = rivers.map((river, r) => {
+    if (!tuning.spurs || !river.length) return [];
+    const random = mulberry32((Math.round(river[0].x) * 73856093) ^ (Math.round(river[0].y) * 19349663));
+    const lerp = (range: readonly [number, number]) => range[0] + (range[1] - range[0]) * random();
+    const total = arc[r][arc[r].length - 1];
+    const list: { s: number; side: 1 | -1; widen: number; half: number }[] = [];
+    for (let s = lerp(SPUR_SPACING_M) / 2; s < total; s += lerp(SPUR_SPACING_M))
+      list.push({ s, side: random() < 0.5 ? 1 : -1, widen: lerp(SPUR_WIDEN), half: lerp(SPUR_HALF_LENGTH_M) });
+    return list;
+  });
+  const widenAt = (r: number, s: number, side: number) => {
+    const list = notches[r];
+    // Notches are in arc order: start at the first one that can still reach `s`.
+    let lo = 0;
+    let hi = list.length;
+    const from = s - 3 * SPUR_HALF_LENGTH_M[1];
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (list[mid].s < from) lo = mid + 1;
+      else hi = mid;
+    }
+    let widen = 0;
+    for (let k = lo; k < list.length; k++) {
+      const n = list[k];
+      const u = (s - n.s) / n.half;
+      if (u < -3) break;
+      if (n.side !== side || u > 3) continue;
+      widen = Math.max(widen, n.widen * Math.exp(-u * u));
+    }
+    return 1 + widen;
+  };
 
   const cell = Math.max(1, maxReachM);
-  const grid = new Map<string, Segment[]>();
-  const key = (gx: number, gy: number) => `${gx},${gy}`;
+  const grid = new Map<number, Segment[]>();
+  const key = (gx: number, gy: number) => gx * 1_000_003 + gy;
   rivers.forEach((river, r) => {
     for (let i = 0; i + 1 < river.length; i++) {
       const a = river[i];
@@ -214,7 +291,9 @@ export function createValleyField(
     depthM: a.depthM + (b.depthM - a.depthM) * t,
     wallM: a.wallM + (b.wallM - a.wallM) * t,
     floorHalfM: a.floorHalfM + (b.floorHalfM - a.floorHalfM) * t,
-    gorge: t < 0.5 ? a.gorge : b.gorge
+    gorge: t < 0.5 ? a.gorge : b.gorge,
+    wallLeftM: a.wallLeftM + (b.wallLeftM - a.wallLeftM) * t,
+    wallRightM: a.wallRightM + (b.wallRightM - a.wallRightM) * t
   });
 
   function valleyMetersAt(x: number, y: number): number {
@@ -222,7 +301,7 @@ export function createValleyField(
   }
 
   function carve(x: number, y: number, ground: number): number {
-    if (maxReachM <= 0) return ground;
+    if (maxReachM <= 0 || x < reach.minX || x > reach.maxX || y < reach.minY || y > reach.maxY) return ground;
     const gx = Math.floor(x / cell);
     const gy = Math.floor(y / cell);
     let height = ground;
@@ -240,11 +319,19 @@ export function createValleyField(
           const len2 = vx * vx + vy * vy;
           const t = len2 > 0 ? Math.max(0, Math.min(1, ((x - a.x) * vx + (y - a.y) * vy) / len2)) : 0;
           const dist = Math.hypot(x - (a.x + vx * t), y - (a.y + vy * t));
+          if (dist >= maxReachM) continue;
           const d = mix(dims[seg.river][seg.i], dims[seg.river][seg.i + 1], t);
-          if (dist >= d.floorHalfM + d.wallM) continue;
+          // Left of the downstream direction is a positive cross product.
+          const side = vx * (y - a.y) - vy * (x - a.x) >= 0 ? 1 : -1;
+          let wall = side > 0 ? d.wallLeftM : d.wallRightM;
+          if (tuning.spurs) {
+            const s = arc[seg.river][seg.i] + Math.sqrt(len2) * t;
+            wall *= widenAt(seg.river, s, side);
+          }
+          if (dist >= d.floorHalfM + wall) continue;
           const f = floors[seg.river];
           const floor = f[seg.i] + (f[seg.i + 1] - f[seg.i]) * t;
-          height = Math.min(height, valleyHeightAt(ground, floor, dist, d));
+          height = Math.min(height, valleyHeightAt(ground, floor, dist, d, wall));
         }
       }
     return height;
@@ -311,8 +398,24 @@ export function sampleValleyRivers(
       }
       return { x: p.x, y: p.y, groundM, reliefLeftM: left - groundM, reliefRightM: right - groundM, riverWidthM: p.w };
     });
-    if (river.length >= 2 && river[0].groundM < river[river.length - 1].groundM) river.reverse();
+    if (river.length >= 2 && river[0].groundM < river[river.length - 1].groundM) {
+      river.reverse();
+      // Left and right are relative to the downstream direction.
+      for (const p of river) [p.reliefLeftM, p.reliefRightM] = [p.reliefRightM, p.reliefLeftM];
+    }
     if (river.length >= 2) out.push(river);
   }
   return out;
+}
+
+/** Small seeded generator so notches stay put between redraws. */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }

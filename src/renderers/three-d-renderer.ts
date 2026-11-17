@@ -88,6 +88,8 @@ export interface CellValleyStats {
   rivers: number;
   points: number;
   gorgePoints: number;
+  /** Points 300 m deep or more (the gorge depth). */
+  deepPoints: number;
   maxDepthM: number;
   maxReachM: number;
   buildMs: number;
@@ -2991,8 +2993,9 @@ class ThreeDModule {
       heightAt: (x, y) => field.metersPx(x, y) * worldPerMeter,
       rivers,
       // A valley is a few km wide: sample the window like the DEM ground, and shade it so it reads.
-      sampleStepKm: tuning.stepKm,
-      rings: tuning.rings,
+      // Twice the DEM step: the cell ground has no detail of its own between valleys.
+      sampleStepKm: (tuning.stepKm ?? 1) * 2,
+      rings: tuning.rings.map(ring => ({ halfKm: ring.halfKm, stepKm: Math.max(0.5, ring.stepKm * 2) })),
       maxSamplesPerSide: tuning.maxSamplesPerSide,
       hillshade: tuning.hillshade,
       // Lines bend with the valley walls instead of cutting under them.
@@ -3035,17 +3038,20 @@ class ThreeDModule {
     const field = createValleyField(sampleValleyRivers(paths, groundAtM, { stepM: 250, probeM }), groundAtM, valley);
     let maxDepth = 0;
     let gorges = 0;
+    let deep = 0;
     let points = 0;
     for (const floors of field.floors) points += floors.length;
     for (const dims of field.dimensions)
       for (const d of dims) {
         maxDepth = Math.max(maxDepth, d.depthM);
         if (d.gorge) gorges++;
+        if (d.depthM >= 300) deep++;
       }
     this.valleyStats = {
       rivers: paths.length,
       points,
       gorgePoints: gorges,
+      deepPoints: deep,
       maxDepthM: maxDepth,
       maxReachM: field.maxReachM,
       buildMs: performance.now() - started
