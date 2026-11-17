@@ -18,6 +18,14 @@ Credit: Made with Natural Earth. https://www.naturalearthdata.com/
 
 Public Data License v1.0: https://www.digital.go.jp/resources/open_data/public_data_license_v1.0
 
+## Rivers
+
+| Data | Used for | Licence and credit |
+| :--- | :--- | :--- |
+| GSI vector tiles (experimental), river layer from Global Map Japan (1:1,000,000) | Real rivers drawn in the Japan local war terrain, and the valleys carved along them | GSI content terms (compatible with Public Data License v1.0). Credit: processed from GSI vector tiles (Global Map Japan) |
+
+The FMG rivers made by map generation (the rivers the simulation uses) are separate from these real rivers. By default the local war terrain draws the FMG rivers as water at their 2D map width. The real rivers are not distributed; when baked locally, a setting switches to them.
+
 ## Processing
 
 Heights are resampled from these tiles when a map is generated and when a local war window is prepared (bilinear interpolation, coastline tests, river corridors carved down, ground flattened around towns). The terrain on screen is not the source data itself.

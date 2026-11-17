@@ -6,7 +6,12 @@ import { getEarthRegion } from "../data/earthRegions";
 import { encodeEarthCellHeight, loadEarthRaster, loadEarthRasterBytes } from "../generators/earthRegionHeightmap";
 import { decodeEarthRaster, type EarthRaster, sampleElevation, sampleLand } from "../generators/earthRegionRaster";
 import type { EarthRegionGeoref } from "../types/WorldState";
-import { type GeorefConsistency, georefConsistency, georefMapToLonLat } from "../utils/localTerrainGeoref";
+import {
+  type GeorefConsistency,
+  georefConsistency,
+  georefLonLatToMap,
+  georefMapToLonLat
+} from "../utils/localTerrainGeoref";
 
 /** `dem` = baked Japan local levels (scripts/bakeJapanLocalDem.mjs), falling back to `japanBin`. */
 export type LocalTerrainSource = "cells" | "japanBin" | "dem";
@@ -15,8 +20,11 @@ export interface LocalTerrainTuning {
   source: LocalTerrainSource;
   /** Foot days from the centre to the window edge. Undefined keeps CAMPAIGN_FOOT_DAYS. */
   footDays?: number;
-  /** Vertical exaggeration over true horizontal scale. */
-  exaggeration: number;
+  /**
+   * Vertical exaggeration over true horizontal scale. Undefined follows the 3D Options
+   * Height scale (`heightScaleExaggeration`); a number overrides it while tuning.
+   */
+  exaggeration?: number;
   /** Ground sample step in km. Undefined lets the source decide. */
   stepKm?: number;
   /** Finer squares around the centre (see `CampaignRing`). Empty = uniform `stepKm`. */
@@ -31,7 +39,13 @@ export interface LocalTerrainTuning {
    * Contact mode: once the camera is closer than `enterKm` to its target, the window is rebuilt
    * with these rings and exaggeration; it returns past `leaveKm`.
    */
-  contact: { rings: { halfKm: number; stepKm: number }[]; exaggeration: number; enterKm: number; leaveKm: number };
+  contact: { rings: { halfKm: number; stepKm: number }[]; enterKm: number; leaveKm: number };
+  /**
+   * `fmg` (default) draws the FMG rivers at their 2D width as water and carves them (the
+   * simulation's rivers; always available). `real` draws and carves baked real rivers
+   * (scripts/bakeJapanRivers.mjs, not distributed) and falls back to `fmg` without them.
+   */
+  riverSource: "real" | "fmg";
   /** Flat radius around a burg in km. It blends back to the DEM over the same distance again. */
   burgPadKm: number;
   /** Half-width of the carved river corridor in meters. 0 = no carving. */
@@ -49,7 +63,6 @@ export interface LocalTerrainTuning {
 export const DEFAULT_LOCAL_TERRAIN_TUNING: LocalTerrainTuning = {
   source: "dem",
   footDays: 3,
-  exaggeration: 3,
   stepKm: 1,
   // R3: about 115k vertices and 0.16 s per redraw for a three-day window.
   rings: [
@@ -66,15 +79,23 @@ export const DEFAULT_LOCAL_TERRAIN_TUNING: LocalTerrainTuning = {
       { halfKm: 20, stepKm: 0.25 },
       { halfKm: 45, stepKm: 0.5 }
     ],
-    exaggeration: 4,
     enterKm: 25,
     leaveKm: 40
   },
   burgPadKm: 1.5,
   riverCorridorM: 300,
   riverMaxCarveM: 30,
+  riverSource: "fmg",
   demCoast: true
 };
+
+/** Height scale 50 (the 3D Options default) is ×3, the value chosen in R1–R4. */
+const HEIGHT_SCALE_PER_EXAGGERATION = 50 / 3;
+
+/** Vertical exaggeration of the real-DEM window for a 3D Options Height scale. */
+export function heightScaleExaggeration(heightScale: number): number {
+  return Number.isFinite(heightScale) && heightScale > 0 ? heightScale / HEIGHT_SCALE_PER_EXAGGERATION : 3;
+}
 
 let tuning: LocalTerrainTuning = readUrlTuning(DEFAULT_LOCAL_TERRAIN_TUNING);
 
@@ -110,6 +131,7 @@ function readUrlTuning(base: LocalTerrainTuning): LocalTerrainTuning {
     source: source === "cells" || source === "japanBin" || source === "dem" ? source : base.source,
     footDays: num("ltDays") ?? base.footDays,
     exaggeration: num("ltExag") ?? base.exaggeration,
+    riverSource: params.get("ltRivers") === "real" ? "real" : base.riverSource,
     stepKm: num("ltStepKm") ?? base.stepKm,
     maxSamplesPerSide: num("ltMaxSide") ?? base.maxSamplesPerSide,
     rings: base.rings,
@@ -130,11 +152,28 @@ export interface LocalTerrainSampler {
    * Without `stepMeters` only the region raster is read.
    */
   metersAt(x: number, y: number, stepMeters?: number): number;
-  /** Land by the finest covering level's coastline, else the region raster's. */
-  landAt(x: number, y: number): boolean;
+  /** True above +0.5 m, false below -5 m (or off the region raster's land), undefined in between. */
+  landAt(x: number, y: number): boolean | undefined;
   consistency: GeorefConsistency;
   /** Baked level steps in meters, finest first. Empty when none are installed. */
   levelSteps: number[];
+  /** Baked real rivers in map pixels. Empty when none are installed. */
+  realRivers: LocalTerrainPath[];
+  /** Load measurement: wall time, decoded raster bytes, raster count. */
+  load: { ms: number; rasterBytes: number; rasters: number };
+}
+
+/** Baked rivers are optional dev assets; a missing file means none. */
+async function loadRealRivers(regionId: string): Promise<{ points: [number, number][] }[]> {
+  if (regionId !== "japan") return [];
+  try {
+    const json = JSON.parse(new TextDecoder().decode(await loadEarthRasterBytes(`${LOCAL_DEM_DIR}rivers.json`))) as {
+      rivers?: { points: [number, number][] }[];
+    };
+    return json.rivers ?? [];
+  } catch {
+    return [];
+  }
 }
 
 interface DemLevel {
@@ -190,6 +229,7 @@ export async function createLocalTerrainSampler(
   heightExponent: number
 ): Promise<LocalTerrainSampler | null> {
   if (!geo) return null;
+  const started = typeof performance !== "undefined" ? performance.now() : Date.now();
   const region = getEarthRegion(geo.id);
   if (!region) return null;
   const raster = await loadEarthRaster(region);
@@ -200,7 +240,13 @@ export async function createLocalTerrainSampler(
     return encodeEarthCellHeight(sampleLand(raster, lon, lat), sampleElevation(raster, lon, lat), heightExponent);
   });
   if (!consistency.ok) return null;
-  const levels = await loadDemLevels(geo.id);
+  const [levels, riversLonLat] = await Promise.all([loadDemLevels(geo.id), loadRealRivers(geo.id)]);
+  const realRivers = riversLonLat.map(river => ({
+    points: river.points.map(([lon, lat]) => {
+      const point = georefLonLatToMap(geo, lon, lat, graphWidth, graphHeight);
+      return [point.x, point.y] as [number, number];
+    })
+  }));
   const steps = levels.map(level => level.stepMeters);
   const orders = new Map<string, number[]>();
   const orderFor = (stepMeters: number) => {
@@ -225,13 +271,29 @@ export async function createLocalTerrainSampler(
   return {
     consistency,
     levelSteps: steps,
+    realRivers,
+    load: {
+      ms: (typeof performance !== "undefined" ? performance.now() : Date.now()) - started,
+      rasterBytes: levels.reduce(
+        (sum, level) => sum + level.raster.elevation.byteLength + level.raster.land.byteLength,
+        0
+      ),
+      rasters: levels.length
+    },
+    // The DEM itself is the coastline: Natural Earth admin-1 is a 1:10M outline and too coarse
+    // for a 250 m window. Between -5 m and +0.5 m (reclaimed land, zero-metre zones down to about
+    // -4 m in eastern Tokyo, DEM noise)
+    // the answer is "unknown" and the caller decides from the FMG cell.
     landAt: (x, y) => {
       const point = lonLat(x, y);
       for (const index of orderFor(0)) {
-        if (sampleElevation(levels[index].raster, point.lon, point.lat) == null) continue;
-        return sampleLand(levels[index].raster, point.lon, point.lat);
+        const meters = sampleElevation(levels[index].raster, point.lon, point.lat);
+        if (meters == null) continue;
+        return meters > 0.5 ? true : meters < -5 ? false : undefined;
       }
-      return sampleLand(raster, point.lon, point.lat);
+      const meters = sampleElevation(raster, point.lon, point.lat);
+      if (!sampleLand(raster, point.lon, point.lat)) return false;
+      return meters != null && meters > 0.5 ? true : undefined;
     },
     metersAt: (x, y, stepMeters) => {
       const point = lonLat(x, y);
@@ -254,6 +316,8 @@ export function localMetersToWorldY(meters: number, kmPerPx: number, exaggeratio
 
 export interface LocalTerrainPath {
   points: ReadonlyArray<readonly number[]>;
+  /** Full width per point in map pixels. A river with widths is painted as water. */
+  widths?: readonly number[];
 }
 
 export interface LocalTerrainFieldStats {
@@ -322,6 +386,8 @@ export function createLocalTerrainField(
     bounds: { minX: number; minY: number; maxX: number; maxY: number };
     burgs: readonly { x: number; y: number }[];
     rivers: readonly LocalTerrainPath[];
+    /** FMG cell water, for DEM heights near 0 m where the coast is ambiguous. */
+    cellWaterAt?: (x: number, y: number) => boolean;
     burgPadKm: number;
     riverCorridorM: number;
     riverMaxCarveM?: number;
@@ -340,7 +406,10 @@ export function createLocalTerrainField(
     riverMaxCarveM: 0,
     riverMeanCarveM: 0
   };
-  const waterAt = (x: number, y: number) => !sampler.landAt(x, y);
+  const demWaterAt = (x: number, y: number) => {
+    const land = sampler.landAt(x, y);
+    return land === undefined ? (input.cellWaterAt?.(x, y) ?? false) : !land;
+  };
 
   // Burg pads: the DEM height at the burg, held flat out to r0 and blended back by r1.
   const r0 = px(input.burgPadKm);
@@ -348,7 +417,7 @@ export function createLocalTerrainField(
   const pads =
     r0 > 0
       ? input.burgs
-          .filter(burg => inside(burg.x, burg.y, r1) && !waterAt(burg.x, burg.y))
+          .filter(burg => inside(burg.x, burg.y, r1) && !demWaterAt(burg.x, burg.y))
           .map(burg => ({ x: burg.x, y: burg.y, meters: sampler.metersAt(burg.x, burg.y, 100) }))
       : [];
   stats.burgPads = pads.length;
@@ -357,26 +426,36 @@ export function createLocalTerrainField(
   // Rivers: samples every ~100 m with a running minimum from the higher end.
   const corridor = px(input.riverCorridorM / 1000);
   const maxCarve = input.riverMaxCarveM ?? Number.POSITIVE_INFINITY;
-  const riverPoints: { x: number; y: number; meters: number }[] = [];
+  const riverPoints: { x: number; y: number; meters: number; half: number }[] = [];
+  let maxHalf = 0;
   let carveSum = 0;
   if (corridor > 0) {
     const stepPx = Math.max(px(0.1), 1e-6);
     for (const river of input.rivers) {
-      const line = river.points.filter(point => inside(point[0], point[1], corridor * 2));
+      const keep = river.points.map(point => inside(point[0], point[1], corridor * 2));
+      const line = river.points.filter((_, i) => keep[i]);
+      const widths = river.widths?.filter((_, i) => keep[i]);
       if (line.length < 2) continue;
-      const samples: { x: number; y: number; raw: number }[] = [];
+      const samples: { x: number; y: number; raw: number; half: number }[] = [];
       for (let i = 0; i < line.length - 1; i++) {
         const [ax, ay] = line[i];
         const [bx, by] = line[i + 1];
+        const wa = (widths?.[i] ?? 0) / 2;
+        const wb = (widths?.[i + 1] ?? 0) / 2;
         const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / stepPx));
         for (let k = 0; k < n; k++) {
           const x = ax + ((bx - ax) * k) / n;
           const y = ay + ((by - ay) * k) / n;
-          samples.push({ x, y, raw: sampler.metersAt(x, y, 100) });
+          samples.push({ x, y, raw: sampler.metersAt(x, y, 100), half: wa + ((wb - wa) * k) / n });
         }
       }
       const last = line[line.length - 1];
-      samples.push({ x: last[0], y: last[1], raw: sampler.metersAt(last[0], last[1], 100) });
+      samples.push({
+        x: last[0],
+        y: last[1],
+        raw: sampler.metersAt(last[0], last[1], 100),
+        half: (widths?.[line.length - 1] ?? 0) / 2
+      });
       if (samples[0].raw < samples[samples.length - 1].raw) samples.reverse();
       let floor = Number.POSITIVE_INFINITY;
       for (const sample of samples) {
@@ -387,12 +466,27 @@ export function createLocalTerrainField(
         if (carve > maxCarve) stats.riverOverCap++;
         stats.riverMaxCarveM = Math.max(stats.riverMaxCarveM, carve);
         carveSum += carve;
-        riverPoints.push({ x: sample.x, y: sample.y, meters: Math.max(floor, sample.raw - maxCarve) });
+        riverPoints.push({
+          x: sample.x,
+          y: sample.y,
+          meters: Math.max(floor, sample.raw - maxCarve),
+          half: sample.half
+        });
+        maxHalf = Math.max(maxHalf, sample.half);
       }
     }
   }
   stats.riverMeanCarveM = stats.riverSamples > 0 ? carveSum / stats.riverSamples : 0;
-  const riverIndex = new PointIndex(Math.max(corridor * 2, 1e-6), riverPoints);
+  // A wide FMG river can be wider than the carve corridor; the index must reach its banks.
+  const reach = Math.max(corridor * 2, maxHalf);
+  const riverIndex = new PointIndex(Math.max(reach, 1e-6), riverPoints);
+  const waterAt = (x: number, y: number) => {
+    if (maxHalf > 0) {
+      const river = riverIndex.nearest(x, y);
+      if (river && river.distance <= river.item.half) return true;
+    }
+    return demWaterAt(x, y);
+  };
 
   const metersAt = (x: number, y: number, stepMeters?: number) => {
     let meters = sampler.metersAt(x, y, stepMeters);
@@ -405,8 +499,10 @@ export function createLocalTerrainField(
     }
     if (riverPoints.length) {
       const river = riverIndex.nearest(x, y);
-      if (river && river.distance < corridor * 2 && river.item.meters < meters) {
-        const t = smoothstep((river.distance - corridor) / corridor);
+      // The carved floor spans the river's own half-width, then the corridor blends back.
+      const flat = Math.max(corridor, river?.item.half ?? 0);
+      if (river && river.distance < flat + corridor && river.item.meters < meters) {
+        const t = smoothstep((river.distance - flat) / corridor);
         meters = river.item.meters + (meters - river.item.meters) * t;
       }
     }

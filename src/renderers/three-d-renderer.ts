@@ -30,6 +30,7 @@ import { LoopSubdivision } from "three-subdivide";
 import { layerIsOn } from "../utils/layerUtils";
 import {
   buildCampaignMesh,
+  CAMPAIGN_LINE_LIFT,
   type CampaignBuildInput,
   type CampaignCellInput,
   type CampaignFocus,
@@ -54,16 +55,18 @@ import { cloudImage } from "../assets/cloud-image";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { Rivers } from "../generators/river-generator";
 import { getMapURL } from "../io/export";
 import { tip } from "../services/tooltipService";
 import { optionsStore } from "../state/optionsStore";
-import { revokeObjectURL, rn, throttle } from "../utils";
+import { findCell, revokeObjectURL, rn, throttle } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { meshHeightFromIndex } from "../utils/height";
 import {
   createLocalTerrainField,
   createLocalTerrainSampler,
   getLocalTerrainTuning,
+  heightScaleExaggeration,
   type LocalTerrainFieldStats,
   type LocalTerrainSampler,
   localMetersToWorldY
@@ -2647,11 +2650,21 @@ class ThreeDModule {
     rivers: CampaignBuildInput["rivers"]
   ): Pick<
     CampaignBuildInput,
-    "heightAt" | "sampleStepKm" | "hillshade" | "footDays" | "maxSamplesPerSide" | "rings" | "waterAt" | "displayPoint"
+    | "heightAt"
+    | "sampleStepKm"
+    | "hillshade"
+    | "footDays"
+    | "maxSamplesPerSide"
+    | "rings"
+    | "waterAt"
+    | "displayPoint"
+    | "rivers"
+    | "liftScale"
+    | "drapeStepPx"
   > {
     const tuning = getLocalTerrainTuning();
     const geo = worldContext.options?.earthRegion;
-    const bilinear = { heightAt: (x: number, y: number) => this.sampleTerrainHeight(x, y) };
+    const bilinear = { heightAt: (x: number, y: number) => this.sampleTerrainHeight(x, y), rivers };
     this.localTerrainStats = null;
     if (!geo || tuning.source === "cells") return bilinear;
     const sampler = this.localTerrainSamplerFor(geo);
@@ -2660,7 +2673,7 @@ class ThreeDModule {
     const dem = tuning.source === "dem";
     const outerStepKm = tuning.stepKm ?? 2;
     const contact = dem && this.campaignContact;
-    const exaggeration = contact ? tuning.contact.exaggeration : tuning.exaggeration;
+    const exaggeration = tuning.exaggeration ?? heightScaleExaggeration(this.options.scale);
     const bounds = campaignWindow({
       centerX: focus.x,
       centerY: focus.y,
@@ -2670,12 +2683,20 @@ class ThreeDModule {
       spacingPx: 0,
       footDays: tuning.footDays
     });
+    // Real rivers replace the FMG rivers in the window when they are baked.
+    const realRivers =
+      tuning.riverSource === "real" && sampler.realRivers.length
+        ? sampler.realRivers.filter(river =>
+            river.points.some(([x, y]) => x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY)
+          )
+        : null;
     const field = dem
       ? createLocalTerrainField(sampler, {
           kmPerPx,
           bounds,
           burgs,
-          rivers,
+          rivers: realRivers ?? rivers,
+          cellWaterAt: (x, y) => (worldContext.pack.cells.h[findCell(x, y)] ?? 20) < 20,
           burgPadKm: tuning.burgPadKm,
           riverCorridorM: tuning.riverCorridorM,
           riverMaxCarveM: tuning.riverMaxCarveM
@@ -2693,6 +2714,10 @@ class ThreeDModule {
       maxSamplesPerSide: tuning.maxSamplesPerSide,
       hillshade: tuning.hillshade,
       footDays: tuning.footDays,
+      rivers: realRivers ?? rivers,
+      // CAMPAIGN_LINE_LIFT (0.75) becomes 15 m above the DEM; lines bend every 250 m with the ground.
+      liftScale: localMetersToWorldY(15, kmPerPx, exaggeration) / CAMPAIGN_LINE_LIFT,
+      drapeStepPx: kmPerPx > 0 ? 0.25 / kmPerPx : undefined,
       waterAt: field && tuning.demCoast ? field.waterAt : undefined,
       displayPoint: field && tuning.demCoast ? field.displayPoint : undefined
     };
@@ -2806,10 +2831,10 @@ class ThreeDModule {
       gridSpacingPx,
       packSpacingPx,
       ...this.campaignTerrainInput(kmPerPx, focus, burgs, rivers),
+
       waterColor: this.options.waterColor,
       stateColors,
       cells: this.campaignCells(),
-      rivers,
       routes: this.campaignRoutes(),
       regiments: campaignRegimentPlacements(regimentSources, cellId => {
         const point = centroids?.[cellId];
@@ -2853,10 +2878,28 @@ class ThreeDModule {
     return cells;
   }
 
+  /**
+   * FMG rivers along the same meandered banks the 2D map draws, with the full width per point,
+   * so a real-DEM window can paint them as water at their map width.
+   */
   private campaignRivers(centroids: [number, number][] | undefined): CampaignBuildInput["rivers"] {
-    const rivers: { points: [number, number][] }[] = [];
+    const rivers: { points: [number, number][]; widths?: number[] }[] = [];
     for (const river of worldContext.pack.rivers ?? []) {
       if (!river) continue;
+      if (river.cells && river.cells.length >= 2) {
+        try {
+          const points = river.points && river.points.length === river.cells.length ? river.points : null;
+          const meandered = Rivers.addMeandering(river.cells, points);
+          const banks = Rivers.getRiverBanks(meandered, river.widthFactor, river.sourceWidth);
+          const drawn = meandered.map(([x, y]) => [x, y] as [number, number]);
+          if (drawn.length >= 2) {
+            rivers.push({ points: drawn, widths: banks.widths });
+            continue;
+          }
+        } catch {
+          // Corrupt river geometry: fall back to the stored points or cell centres below.
+        }
+      }
       const drawn = this.campaignPoints(river.points);
       if (drawn.length >= 2) {
         rivers.push({ points: drawn });

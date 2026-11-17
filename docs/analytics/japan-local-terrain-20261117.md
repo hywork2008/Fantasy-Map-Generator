@@ -310,3 +310,110 @@
 | `raw/japan-local-terrain/r5-sekigahara-default-xundefined-close.png` | c0a8665a7b829b7a7970fab485f47097abc6d4606062ce264f9ad098823f3206 |
 | `raw/japan-local-terrain/r5-sekigahara-default-xundefined-oblique.png` | 1d669aec886bc00e09bae0734a3da1075f750647581f71f7639235644e36116f |
 | `raw/japan-local-terrain/r5-sekigahara-raw-xundefined-oblique.png` | 0a6b4d3ccb30959a60bb8f9ca6e4c2353e91ac51eb0c3d2c4568c0fc1219541e |
+
+## R6：実在河川・Height scale・日本全体の負荷
+
+### 実在河川
+
+`node scripts/bakeJapanRivers.mjs`：国土地理院ベクトルタイル（試験公開 `experimental_bvmap`）z8 の `river` 層（地球地図日本、1:100万）。79タイル・5秒。34,791本・190,061点、4.8MB（`rivers.json`、SHA-256 91e1dfd9cdb9c58bb831c443e4c773f88135eefd5b3f3f1b8b734e7ebc069036）。国土数値情報 W05（河川）は使用許諾が「非商用」のため使わない。
+
+局地窓では既定で実在河川を描き、その線で廊下を掘る（`riverSource: "real"`）。FMG の河川は描かない。
+
+| 地点 | 河川 | 川の標本 | 掘る（>1m） | 30m超 | 最大 | 平均 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 関ヶ原 | FMG | 3,690 | 2,541 | 1,448（39%） | 835m | 87m |
+| 関ヶ原 | 実在 | 15,576 | 3,845 | 383（2.5%） | 120m | 3.3m |
+| 川中島 | 実在 | 40,328 | 7,523 | 675（1.7%） | 126m | 2.3m |
+| 厳島 | 実在 | 30,520 | 12,309 | 1,460（4.8%） | 113m | 5.8m |
+
+実在河川は谷を通るので、掘る量は平均2〜6mに収まる。30m超の残りは、1:100万の線の位置ずれ（数百m）で谷壁に乗る区間。描き直しは0.32〜0.36秒（川の標本が増えたため、R5 より約0.05秒増）。
+
+### Height scale
+
+誇張率は 3D Options の Height scale から決める：`誇張率 = Height scale ÷ (50/3)`（既定50で×3、25で×1.5、100で×6）。接敵モードの×4 は廃止し、Height scale に従う。
+
+### 海岸線
+
+段の陸ビット（Natural Earth admin-1、1:1000万）は250mの窓には粗く、厳島付近で海岸が角張った。陸と海を段の標高（0mより上が陸）で決めるように変えた。段の無い所は `japan.bin` の陸ビットかつ標高0m超（`japan.bin` の陸ビットにある海上の横帯を消すため）。
+
+### 日本全体の焼き込み（実測）
+
+沖縄（JP-47）は地図の範囲外（南端29.9°N）。東京都は小笠原などの島を除いて焼いた。46都道府県×3段、Terrarium、合計10分30秒（タイル取得を含む、1件は ECONNRESET で再実行）。
+
+| 段 | ファイル | 合計 | Terrarium タイル | 格子点 | 陸だけ（int16）の推定 | 倍率 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 1km | 46 | 2.3MB | 337 | 1.09M | 0.76MB | 3.0 |
+| 500m | 46 | 9.2MB | 926 | 4.34M | 3.0MB | 3.1 |
+| 250m | 46 | 36.9MB | 3,003 | 17.3M | 12MB | 3.1 |
+| 100m（推定） | — | 約150MB | 約19,000（z12） | 約108M | 76MB | 約2 |
+
+100m は愛知・岐阜・長野の実測（3県で12.2MB、陸2.94万km²）を陸域37.8万km²に比例させた。タイルのキャッシュは `temp/terrarium-cache` で217MB。
+
+都道府県ごとの外接矩形は陸だけの約3倍になる（海と隣県の NODATA）。一覧: [japan-local-dem-files-20261117.md](./japan-local-dem-files-20261117.md)。
+
+### 日本全体を読み込んだときの負荷
+
+全段（46県×3段＋100m 4枚＝142枚）を地図の読み込み時にまとめて読む今の実装で測った。
+
+| 項目 | 値 |
+| :--- | :--- |
+| ラスタのデコード後 | 88.6MB（標高 int16 と陸ビットの展開分） |
+| 読み込み時間 | 250〜350ms（開発サーバーから、キャッシュあり） |
+| JS ヒープ | 1.13〜1.31GB（地図全体を含む。読み込み前の測定なし） |
+
+日本全体を1つの窓にした場合（`footDays` 45、環なし）：
+
+| 間隔 | 頂点 | 描き直し | ジオメトリ | rAF |
+| :--- | :--- | :--- | :--- | :--- |
+| 4km | 235,620 | 1.6秒 | 14MB | 60 |
+| 2km | 941,460 | 4.1秒 | 56MB | 60 |
+| 1km | 3,763,994 | 12.4秒 | 226MB | 60 |
+
+描き直しの大半は、窓内の全都市の平坦化（385）と全実在河川の標本（67万点）の準備。表示はヘッドレス Chromium で60fpsを保ったが、1kmでは描き直しが実用にならない。日本全体の俯瞰では、陰影の起伏は画面上ほとんど見えない（地図の水平尺度に対して山が低い）。
+
+| 画像 | SHA-256 |
+| :--- | :--- |
+| `raw/japan-local-terrain/r6-honshu-japan-1km-japan.png` | 56995931136224554b715c8459e8cfedb5d94635784fd29ed104df02a059e5ee |
+| `raw/japan-local-terrain/r6-honshu-japan-2km-japan.png` | 4233b02b12f6f68754b5c888d853717b822340308253d14b4cc6b31265ec6484 |
+| `raw/japan-local-terrain/r6-honshu-japan-4km-japan.png` | 94681a7503244aa9be89d499ea0c7d34623d69c7a50ca592db18d11dd7a488ac |
+| `raw/japan-local-terrain/r6-itsukushima-allPrefs-oblique.png` | 6d6699b37fb517afa1a816ee1758d08cba7628500d5954ffb51566eac406339e |
+| `raw/japan-local-terrain/r6-itsukushima-demCoast-oblique.png` | 370b247f38c2abc2d7e08c0beaebe3a3fd7e03ce9ae9ef5fef40e7e958c0d79f |
+| `raw/japan-local-terrain/r6-kawanakajima-realRivers-close.png` | 77690dc0d42294f2ef248b1896ff80ef11100d72d29f7f893db4f0dd503672ef |
+| `raw/japan-local-terrain/r6-sekigahara-demCoast-oblique.png` | 9b0df82a42d091b7633b784dc88971dbf7510b2ec3d53401af044a0125c4ce40 |
+| `raw/japan-local-terrain/r6-sekigahara-fmgRivers-oblique.png` | 22c85c0c5532d14f228e893608408ea806b16bb312d26403d026558d6dfc4911 |
+| `raw/japan-local-terrain/r6-sekigahara-hs100-oblique.png` | 2b5fb7707db9a08f7889790f03c63fc5587b634337aecc185b525a075502e504 |
+| `raw/japan-local-terrain/r6-sekigahara-hs25-oblique.png` | 4d7a4b7138f4b405e5703f9ce3cff00d29fad52b09689fef6a5803c1f732f526 |
+| `raw/japan-local-terrain/r6-sekigahara-realRivers-close.png` | 86bc6dfd9075204eeeff1f500e5713d8038a5a5a91b6cec9b66c435711a1df33 |
+| `raw/japan-local-terrain/r6-sekigahara-realRivers-oblique.png` | 298437cad34092754546c5bcbeffc73889060952ab9d5f9e6f3224f51f1506e1 |
+
+### 浮いた線の修正
+
+近接で川・境界線・街道が空中に浮いていた。原因は二つ。
+
+1. 線の持ち上げ `CAMPAIGN_LINE_LIFT`（0.75）はセル標高メッシュの単位で、既定の Height scale では約40m。実尺の局地窓（約1.6km/px、×3）では1単位が約540mになり、線が約400m、駒が約800m浮いていた。
+2. 線は折れ線の頂点だけで高さを取っていた。地球地図の川は頂点の間隔が数百m〜数kmあり、谷と尾根を弦で結んで空中や地中を通っていた。
+
+局地窓では、持ち上げを15m相当に縮め（`liftScale`）、線を250mごとに分けて各点を地表に載せる（`drapeStepPx`）。描き直しは0.39〜0.42秒（約0.05秒増）。
+
+| 画像 | SHA-256 |
+| :--- | :--- |
+| `raw/japan-local-terrain/r6-kawanakajima-draped-close.png` | dc0b5d2df5f20eb1e33b41bc05e0fee371889b64efb351f08dd5dc97a09256aa |
+| `raw/japan-local-terrain/r6-sekigahara-draped-close.png` | cb00950b16a62dce4251911b81f5ca7421bd8b61893d7b8aaf6717c583b1ab8f |
+| `raw/japan-local-terrain/r6-sekigahara-draped-oblique.png` | 5005a04e8217b5644ae925a8aff5920ec4f2ce7a6363f83f4bbeaa1bc186f443 |
+
+### 河川の既定を FMG に戻す・FMG の河川を水面で描く
+
+配布は案A（河川データを含まない）に決まったため、既定を FMG の河川に戻した。FMG の河川は 2D と同じ蛇行点と川幅で水面として塗る。海の判定は、DEM が +0.5m 超で陸、-5m 未満で海、その間は FMG のセルに従う（東京東部のゼロメートル地帯で陸に青い点が出ていたため）。
+
+| 地点 | 河川 | 川の標本 | 30m超 | 最大 | 平均 | 描き直し |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 東京・作戦 | FMG（幅あり） | 3,364 | 255 | 975m | 27m | 0.42秒 |
+| 東京・作戦 | 実在 | 9,281 | 335 | 112m | 4.7m | 0.39秒 |
+| 関ヶ原・作戦 | FMG（幅あり） | 3,949 | 1,656 | 1,094m | 95m | 0.44秒 |
+
+| 画像 | SHA-256 |
+| :--- | :--- |
+| `raw/japan-local-terrain/r6-tokyo-fmgRivers-close.png` | d3c5ff6af1e4730d797974334a60d9b2114608ad947214a556f4c0b0b0c6db08 |
+| `raw/japan-local-terrain/r6-tokyo-fmgRivers-oblique.png` | 8928608f38387cf1e84173425b1db7a8f70a834788b7865bb9d4199ab94570f2 |
+| `raw/japan-local-terrain/r6-tokyo-realRivers-oblique.png` | 9db6a89c88bed2d5b0e539b287fa8680ebfb69de4b25d55c36d9de3892091e15 |
+| `raw/japan-local-terrain/r6-sekigahara-fmgRivers-oblique.png` | ce4f3124e6b9be51f5d9bd9210d548f813b27127146de89b797277b66b5cdb9e |

@@ -16,7 +16,9 @@ describe("createLocalTerrainField", () => {
     metersAt: x => (x < 0 ? 0 : x * 10 + (Math.abs(x - 20) < 1 ? 50 : 0)),
     landAt: x => x >= 0,
     consistency: { sampled: 1, mismatched: 0, ratio: 0, ok: true },
-    levelSteps: []
+    levelSteps: [],
+    realRivers: [],
+    load: { ms: 0, rasterBytes: 0, rasters: 0 }
   };
   const field = createLocalTerrainField(sampler, {
     kmPerPx: 1,
@@ -50,5 +52,40 @@ describe("createLocalTerrainField", () => {
     expect(field.displayPoint(-3, 30, false)[0]).toBeGreaterThanOrEqual(0);
     expect(field.displayPoint(3, 30, true)[0]).toBeLessThan(0);
     expect(field.displayPoint(5, 30, false)).toEqual([5, 30]);
+  });
+});
+
+describe("createLocalTerrainField water", () => {
+  it("paints a wide FMG river as water and asks the cell where the DEM is near 0 m", () => {
+    const sampler: LocalTerrainSampler = {
+      metersAt: () => 10,
+      // Near 0 m west of x = 0: the DEM cannot tell sea from reclaimed land.
+      landAt: x => (x < 0 ? undefined : true),
+      consistency: { sampled: 1, mismatched: 0, ratio: 0, ok: true },
+      levelSteps: [],
+      realRivers: [],
+      load: { ms: 0, rasterBytes: 0, rasters: 0 }
+    };
+    const field = createLocalTerrainField(sampler, {
+      kmPerPx: 1,
+      bounds: { minX: -50, minY: -50, maxX: 50, maxY: 50 },
+      burgs: [],
+      rivers: [
+        {
+          points: [
+            [10, -20],
+            [10, 20]
+          ],
+          widths: [4, 4]
+        }
+      ],
+      cellWaterAt: x => x < -5,
+      burgPadKm: 0,
+      riverCorridorM: 300
+    });
+    expect(field.waterAt(11.5, 0)).toBe(true);
+    expect(field.waterAt(13, 0)).toBe(false);
+    expect(field.waterAt(-10, 0)).toBe(true);
+    expect(field.waterAt(-2, 0)).toBe(false);
   });
 });

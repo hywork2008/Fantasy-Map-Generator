@@ -276,8 +276,23 @@ async function main() {
   }
   console.log("admin-1", path.relative(ROOT, ADMIN1), "sha256", sha256(ADMIN1));
   const japan = JSON.parse(fs.readFileSync(ADMIN1, "utf8")).features.filter(f => f.properties.adm0_a3 === "JPN");
-  const selected = japan.filter(f => PREFS.includes(f.properties.iso_3166_2));
-  if (selected.length !== PREFS.length) throw new Error(`Prefectures not found: ${PREFS.join(",")}`);
+  // Keep only polygons inside the Japan map region (drops Ogasawara, Okinotorishima, Minamitorishima).
+  const REGION = { west: 118.5, east: 146.4, south: 29.9, north: 46.6 };
+  const inRegion = poly =>
+    poly[0].some(([lon, lat]) => lon >= REGION.west && lon <= REGION.east && lat >= REGION.south && lat <= REGION.north);
+  const clip = feature => {
+    const polys = polygonsOf(feature.geometry).filter(inRegion);
+    return polys.length ? { ...feature, geometry: { type: "MultiPolygon", coordinates: polys } } : null;
+  };
+  const selected = japan
+    .filter(f => PREFS.includes(f.properties.iso_3166_2))
+    .map(clip)
+    .filter(Boolean);
+  if (!selected.length) {
+    console.log("outside the map region:", PREFS.join(","));
+    return;
+  }
+
   const raw = boundsOf(selected);
   const midLat = (raw.south + raw.north) / 2;
   const padLat = BUFFER_KM / KM_PER_DEG_LAT;
@@ -316,7 +331,8 @@ async function main() {
 
   const manifestPath = path.join(OUT_DIR, "manifest.json");
   const manifest = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, "utf8")) : { bundles: [] };
-  const id = SOURCE === "terrarium" ? bundle : `${bundle}-${SOURCE}`;
+  // One manifest entry per prefectures × levels × source, so a 100 m bake does not replace 1 km–250 m.
+  const id = `${bundle}@${LEVELS.join(",")}${SOURCE === "terrarium" ? "" : `-${SOURCE}`}`;
   manifest.bundles = manifest.bundles.filter(entry => entry.id !== id);
   manifest.bundles.push({ id, prefectures: PREFS, source: SOURCE, levels });
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyHillshade,
   buildCampaignMesh,
+  CAMPAIGN_LINE_LIFT,
   CAMPAIGN_MARKER_LIFT,
   CAMPAIGN_MAX_SAMPLES_PER_SIDE,
   type CampaignBuildInput,
@@ -351,5 +352,30 @@ describe("campaignAxis", () => {
     expect(Math.max(...gaps.filter((_, i) => axis[i] >= 40 && axis[i] < 60))).toBeCloseTo(1, 9);
     expect(Math.max(...gaps)).toBeCloseTo(10, 9);
     expect(axis.length).toBe(4 + 20 + 4 + 1);
+  });
+});
+
+describe("draped lines", () => {
+  it("bends a river over a ridge and keeps it a scaled lift above the ground", () => {
+    // A 10-unit ridge at x = 50; the river crosses it from x = 49 to 51.
+    const heightAt = (x: number) => (Math.abs(x - 50) < 0.5 ? 10 : 0);
+    const mesh = build({
+      heightAt,
+      liftScale: 0.1,
+      drapeStepPx: 0.25,
+      rivers: [
+        {
+          points: [
+            [49, 40],
+            [51, 40]
+          ]
+        }
+      ]
+    });
+    const river = mesh.polylines.find(line => line.kind === "river")!;
+    const ys = Array.from(river.positions).filter((_, i) => i % 3 === 1);
+    expect(Math.max(...ys)).toBeCloseTo(10 + CAMPAIGN_LINE_LIFT * 0.1, 6);
+    expect(Math.min(...ys)).toBeCloseTo(CAMPAIGN_LINE_LIFT * 0.1, 6);
+    expect(river.positions.length / 6).toBe(8);
   });
 });

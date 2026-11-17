@@ -6,13 +6,15 @@
  */
 async page => {
   const DIR = "docs/analytics/raw/japan-local-terrain/";
-  const ROUND = "r5";
+  const ROUND = "r6";
   const BASE = { source: "dem", label: "default" };
-  const RAW = { source: "dem", demCoast: false, riverCorridorM: 0, burgPadKm: 0, label: "raw" };
+  // Whole Japan in one window: centred on Honshu, wide enough to reach Hokkaido and Kyushu.
+  const JAPAN = { source: "dem", footDays: 45, rings: [], maxSamplesPerSide: 2600 };
   const RUNS = [
-    ["kawanakajima", { ...BASE, riverMaxCarveM: 1e9, label: "uncapped" }, "close"],
-    ["kawanakajima", { ...BASE, label: "cap30" }, "close"],
-    ["sekigahara", { ...BASE, label: "cap30" }, "oblique"]
+    ["tokyo", { ...BASE, label: "fmgRivers" }, "oblique"],
+    ["tokyo", { ...BASE, label: "fmgRivers" }, "close"],
+    ["tokyo", { ...BASE, riverSource: "real", label: "realRivers" }, "oblique"],
+    ["sekigahara", { ...BASE, label: "fmgRivers" }, "oblique"]
   ];
 
   await page.evaluate(async () => {
@@ -31,10 +33,13 @@ async page => {
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     window.__lt = {
       async show(siteId, patch, view) {
-        const { label: _label, ...tuning } = patch;
+        const { label: _label, heightScale, ...tuning } = patch;
+        T.options.scale = heightScale ?? 50;
         const defaults = window.__fmgLocalTerrainDefaults ?? (window.__fmgLocalTerrainDefaults = { ...lt.getLocalTerrainTuning() });
         lt.setLocalTerrainTuning({ ...defaults, ...tuning });
-        const site = g.JAPAN_LOCAL_TERRAIN_SITES.find(s => s.id === siteId);
+        const site =
+          { honshu: { lon: 137.5, lat: 37.0 }, tokyo: { lon: 139.8, lat: 35.7 } }[siteId] ??
+          g.JAPAN_LOCAL_TERRAIN_SITES.find(s => s.id === siteId);
         const p = g.georefLonLatToMap(w.options.earthRegion, site.lon, site.lat, w.graphWidth, w.graphHeight);
         viewMode.openCampaignViewAt(p.x + 1e-6 * Math.random(), p.y);
         for (let i = 0; i < 60; i++) {
@@ -58,6 +63,15 @@ async page => {
           T.controls.update();
           T.controls.dispatchEvent({ type: "change" });
           // Contact mode rebuilds the window after a 300 ms debounce; the camera is kept.
+          await sleep(2500);
+        }
+        if (view === "japan") {
+          const tx = p.x - w.graphWidth / 2;
+          const tz = p.y - w.graphHeight / 2;
+          T.controls.target.set(tx, 0, tz);
+          T.camera.position.set(tx, w.graphHeight * 0.55, tz + w.graphHeight * 0.75);
+          T.controls.update();
+          T.controls.dispatchEvent({ type: "change" });
           await sleep(2500);
         }
         if (view === "oblique") {
@@ -91,7 +105,9 @@ async page => {
           redrawMs: Math.round(buildMs),
           geometryMB: +((ground.attributes.position.array.byteLength * 3 + ground.index.array.byteLength) / 1e6).toFixed(1),
           fps: frames / 2,
-          levels: T.localTerrain?.sampler?.levelSteps
+          load: T.localTerrain?.sampler?.load,
+          realRivers: T.localTerrain?.sampler?.realRivers?.length,
+          heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e6) : undefined
         };
       }
     };
@@ -100,7 +116,7 @@ async page => {
   const results = [];
   for (const [site, patch, view] of RUNS) {
     const label = patch.label ?? `${patch.source}-${Math.round(patch.stepKm * 1000)}m`;
-    const name = `${ROUND}-${site}-${label}-x${patch.exaggeration}-${view}`;
+    const name = `${ROUND}-${site}-${label}-${view}`;
     const r = await page.evaluate(([s, p, v]) => window.__lt.show(s, p, v), [site, patch, view]);
     await page.screenshot({ path: `${DIR}${name}.png` });
     results.push({ name, ...r });

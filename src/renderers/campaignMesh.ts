@@ -95,6 +95,8 @@ export interface CampaignBurgInput {
 
 export interface CampaignPathInput {
   points: ReadonlyArray<readonly number[]>;
+  /** Full river width per point in map pixels (FMG river banks). Lines ignore it. */
+  widths?: readonly number[];
 }
 
 export interface CampaignBuildInput {
@@ -128,6 +130,16 @@ export interface CampaignBuildInput {
   waterAt?: (x: number, y: number) => boolean;
   /** Where a burg or army is drawn. A real-DEM window moves tokens off the sea onto the coast. */
   displayPoint?: (x: number, y: number, naval: boolean) => readonly [number, number];
+  /**
+   * Multiplies the line, outline and token lifts. The lifts are tuned for the cell-height mesh
+   * (about 40 m at the default scale); a true-scale DEM window shrinks them back to tens of metres.
+   */
+  liftScale?: number;
+  /**
+   * Splits lines into pieces this long (map pixels) and lifts each joint off the ground, so a
+   * border or river follows the terrain instead of cutting a chord through or over a hill.
+   */
+  drapeStepPx?: number;
   /** Per-side cap for a real-DEM ground. The grid bilinear keeps CAMPAIGN_MAX_SAMPLES_PER_SIDE. */
   maxSamplesPerSide?: number;
   waterColor: string;
@@ -523,7 +535,7 @@ function buildMarkers(input: CampaignBuildInput, box: CampaignWindowBox): Campai
       kind: regiment.naval ? "fleet" : "regiment",
       mapX: regiment.x,
       mapY: regiment.y,
-      position: worldPoint(input, x, y, CAMPAIGN_MARKER_LIFT),
+      position: worldPoint(input, x, y, CAMPAIGN_MARKER_LIFT * (input.liftScale ?? 1)),
       color: parseColor(regiment.color ?? (regiment.naval ? FLEET_COLOR : REGIMENT_COLOR), [0.55, 0.18, 0.18])
     });
   }
@@ -535,7 +547,7 @@ function buildMarkers(input: CampaignBuildInput, box: CampaignWindowBox): Campai
       kind: "burg",
       mapX: burg.x,
       mapY: burg.y,
-      position: worldPoint(input, x, y, CAMPAIGN_MARKER_LIFT),
+      position: worldPoint(input, x, y, CAMPAIGN_MARKER_LIFT * (input.liftScale ?? 1)),
       color: parseColor(burg.color ?? BURG_COLOR, [0.95, 0.89, 0.77]),
       name: name ? name : undefined
     });
@@ -665,7 +677,27 @@ function pushRing(
     const a = ring[index];
     const b = ring[(index + 1) % ring.length];
     if (!Number.isFinite(a[0]) || !Number.isFinite(a[1]) || !Number.isFinite(b[0]) || !Number.isFinite(b[1])) continue;
-    pushSegment(out, worldPoint(input, a[0], a[1], lift), worldPoint(input, b[0], b[1], lift));
+    pushDraped(input, out, a, b, lift);
+  }
+}
+
+/** One map-space segment as world segments, split every `drapeStepPx` so it follows the ground. */
+function pushDraped(
+  input: CampaignBuildInput,
+  out: number[],
+  a: readonly [number, number] | readonly number[],
+  b: readonly [number, number] | readonly number[],
+  lift: number
+): void {
+  const scaled = lift * (input.liftScale ?? 1);
+  const step = input.drapeStepPx ?? 0;
+  const n = step > 0 ? Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step)) : 1;
+  let previous = worldPoint(input, a[0], a[1], scaled);
+  for (let k = 1; k <= n; k++) {
+    const t = k / n;
+    const next = worldPoint(input, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, scaled);
+    pushSegment(out, previous, next);
+    previous = next;
   }
 }
 
@@ -684,11 +716,7 @@ function clipPaths(
       if (!a || !b) continue;
       const clipped = clipSegment(a, b, box);
       if (!clipped) continue;
-      pushSegment(
-        out,
-        worldPoint(input, clipped[0][0], clipped[0][1], lift),
-        worldPoint(input, clipped[1][0], clipped[1][1], lift)
-      );
+      pushDraped(input, out, clipped[0], clipped[1], lift);
     }
   }
   return out;
