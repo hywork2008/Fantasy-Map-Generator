@@ -2617,18 +2617,25 @@ class ThreeDModule {
    */
   private campaignTerrainInput(
     kmPerPx: number
-  ): Pick<CampaignBuildInput, "heightAt" | "sampleStepKm" | "hillshade" | "footDays" | "maxSamplesPerSide"> {
+  ): Pick<CampaignBuildInput, "heightAt" | "sampleStepKm" | "hillshade" | "footDays" | "maxSamplesPerSide" | "rings"> {
     const tuning = getLocalTerrainTuning();
     const geo = worldContext.options?.earthRegion;
     const bilinear = { heightAt: (x: number, y: number) => this.sampleTerrainHeight(x, y) };
     if (!geo || tuning.source === "cells") return bilinear;
     const sampler = this.localTerrainSamplerFor(geo);
     if (!sampler) return bilinear;
-    // `japanBin` reads only the region raster; `dem` asks for the level matching the ground step.
-    const levelStep = tuning.source === "dem" ? (tuning.stepKm ?? 2) * 1000 : undefined;
+    // `japanBin` reads only the region raster; `dem` asks for the level matching the local ground step.
+    const dem = tuning.source === "dem";
+    const outerStepKm = tuning.stepKm ?? 2;
     return {
-      heightAt: (x, y) => localMetersToWorldY(sampler.metersAt(x, y, levelStep), kmPerPx, tuning.exaggeration),
-      sampleStepKm: tuning.stepKm,
+      heightAt: (x, y, stepKm) =>
+        localMetersToWorldY(
+          sampler.metersAt(x, y, dem ? (stepKm ?? outerStepKm) * 1000 : undefined),
+          kmPerPx,
+          tuning.exaggeration
+        ),
+      sampleStepKm: outerStepKm,
+      rings: tuning.rings,
       maxSamplesPerSide: tuning.maxSamplesPerSide,
       hillshade: tuning.hillshade,
       footDays: tuning.footDays

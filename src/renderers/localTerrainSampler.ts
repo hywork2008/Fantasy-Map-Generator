@@ -19,6 +19,8 @@ export interface LocalTerrainTuning {
   exaggeration: number;
   /** Ground sample step in km. Undefined lets the source decide. */
   stepKm?: number;
+  /** Finer squares around the centre (see `CampaignRing`). Empty = uniform `stepKm`. */
+  rings: { halfKm: number; stepKm: number }[];
   /** Per-side vertex cap for a real-DEM ground. */
   maxSamplesPerSide: number;
   /** Bake a hillshade into the vertex colors (the campaign ground is unlit). */
@@ -27,10 +29,15 @@ export interface LocalTerrainTuning {
 
 /** Defaults for a georeferenced map. Procedural maps always draw `cells`. */
 export const DEFAULT_LOCAL_TERRAIN_TUNING: LocalTerrainTuning = {
-  source: "japanBin",
+  source: "dem",
   footDays: 3,
   exaggeration: 3,
-  stepKm: 2,
+  stepKm: 1,
+  // R3: about 115k vertices and 0.16 s per redraw for a three-day window.
+  rings: [
+    { halfKm: 20, stepKm: 0.25 },
+    { halfKm: 45, stepKm: 0.5 }
+  ],
   maxSamplesPerSide: 1200,
   hillshade: true
 };
@@ -71,6 +78,7 @@ function readUrlTuning(base: LocalTerrainTuning): LocalTerrainTuning {
     exaggeration: num("ltExag") ?? base.exaggeration,
     stepKm: num("ltStepKm") ?? base.stepKm,
     maxSamplesPerSide: num("ltMaxSide") ?? base.maxSamplesPerSide,
+    rings: base.rings,
     hillshade: shade === null ? base.hillshade : shade !== "0"
   };
 }

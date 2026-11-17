@@ -6,6 +6,7 @@ import {
   CAMPAIGN_MAX_SAMPLES_PER_SIDE,
   type CampaignBuildInput,
   type CampaignCellInput,
+  campaignAxis,
   campaignContactCamera,
   campaignGridSpacingPx,
   campaignRegimentPlacements,
@@ -336,5 +337,19 @@ describe("applyHillshade", () => {
     applyHillshade(awayFromLight.positions, awayFromLight.colors, 3, 3);
     expect(towardLight.colors[12]).toBeGreaterThan(0.5);
     expect(awayFromLight.colors[12]).toBeLessThan(0.5);
+  });
+});
+
+describe("campaignAxis", () => {
+  it("is fine inside a ring, coarse outside, and hits the ring edges exactly", () => {
+    const axis = campaignAxis(0, 100, 50, 10, [{ halfPx: 10, stepPx: 1 }]);
+    expect(axis[0]).toBe(0);
+    expect(axis.at(-1)).toBe(100);
+    expect(axis).toContain(40);
+    expect(axis).toContain(60);
+    const gaps = axis.slice(1).map((x, i) => x - axis[i]);
+    expect(Math.max(...gaps.filter((_, i) => axis[i] >= 40 && axis[i] < 60))).toBeCloseTo(1, 9);
+    expect(Math.max(...gaps)).toBeCloseTo(10, 9);
+    expect(axis.length).toBe(4 + 20 + 4 + 1);
   });
 });

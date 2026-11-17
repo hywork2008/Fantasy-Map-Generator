@@ -6,20 +6,39 @@
  */
 async page => {
   const DIR = "docs/analytics/raw/japan-local-terrain/";
-  const ROUND = "r2";
+  const ROUND = "r3";
+  const U250 = { source: "dem", stepKm: 0.25, rings: [], label: "u250" };
+  const B = { source: "dem", stepKm: 1, rings: [{ halfKm: 35, stepKm: 0.25 }], label: "r35-250_o1000" };
+  const C = {
+    source: "dem",
+    stepKm: 1,
+    rings: [
+      { halfKm: 35, stepKm: 0.25 },
+      { halfKm: 60, stepKm: 0.5 }
+    ],
+    label: "r35-250_r60-500_o1000"
+  };
+  const D = {
+    source: "dem",
+    stepKm: 1,
+    rings: [
+      { halfKm: 20, stepKm: 0.25 },
+      { halfKm: 45, stepKm: 0.5 }
+    ],
+    label: "r20-250_r45-500_o1000"
+  };
   const RUNS = [
-    ["sekigahara", { source: "japanBin", stepKm: 2, exaggeration: 3 }, "oblique"],
-    ["sekigahara", { source: "dem", stepKm: 1, exaggeration: 3 }, "oblique"],
-    ["sekigahara", { source: "dem", stepKm: 0.5, exaggeration: 3 }, "oblique"],
-    ["sekigahara", { source: "dem", stepKm: 0.25, exaggeration: 3 }, "oblique"],
-    ["sekigahara", { source: "dem", stepKm: 0.25, exaggeration: 5 }, "oblique"],
-    ["sekigahara", { source: "dem", stepKm: 0.25, exaggeration: 3 }, "contact"],
-    ["kawanakajima", { source: "dem", stepKm: 1, exaggeration: 3 }, "oblique"],
-    ["kawanakajima", { source: "dem", stepKm: 0.25, exaggeration: 3 }, "oblique"],
-    ["kawanakajima", { source: "dem", stepKm: 0.25, exaggeration: 3 }, "contact"],
-    ["okehazama", { source: "dem", stepKm: 0.5, exaggeration: 3 }, "contact"],
-    ["okehazama", { source: "dem", stepKm: 0.25, exaggeration: 3 }, "contact"],
-    ["okehazama", { source: "dem", stepKm: 0.25, exaggeration: 5 }, "contact"]
+    ["sekigahara", { ...U250, exaggeration: 3 }, "oblique"],
+    ["sekigahara", { ...B, exaggeration: 3 }, "oblique"],
+    ["sekigahara", { ...C, exaggeration: 3 }, "oblique"],
+    ["sekigahara", { ...D, exaggeration: 3 }, "oblique"],
+    ["sekigahara", { ...C, exaggeration: 4 }, "oblique"],
+    ["sekigahara", { ...C, exaggeration: 3 }, "contact"],
+    ["kawanakajima", { ...U250, exaggeration: 3 }, "oblique"],
+    ["kawanakajima", { ...C, exaggeration: 3 }, "oblique"],
+    ["kawanakajima", { ...D, exaggeration: 3 }, "oblique"],
+    ["okehazama", { ...C, exaggeration: 4 }, "contact"],
+    ["okehazama", { ...D, exaggeration: 5 }, "contact"]
   ];
 
   await page.evaluate(async () => {
@@ -38,7 +57,8 @@ async page => {
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     window.__lt = {
       async show(siteId, patch, view) {
-        lt.setLocalTerrainTuning({ footDays: 3, hillshade: true, ...patch });
+        const { label: _label, ...tuning } = patch;
+        lt.setLocalTerrainTuning({ footDays: 3, hillshade: true, rings: [], ...tuning });
         const site = g.JAPAN_LOCAL_TERRAIN_SITES.find(s => s.id === siteId);
         const p = g.georefLonLatToMap(w.options.earthRegion, site.lon, site.lat, w.graphWidth, w.graphHeight);
         viewMode.openCampaignViewAt(p.x + 1e-6 * Math.random(), p.y);
@@ -90,7 +110,8 @@ async page => {
 
   const results = [];
   for (const [site, patch, view] of RUNS) {
-    const name = `${ROUND}-${site}-${patch.source}-${Math.round(patch.stepKm * 1000)}m-x${patch.exaggeration}-${view}`;
+    const label = patch.label ?? `${patch.source}-${Math.round(patch.stepKm * 1000)}m`;
+    const name = `${ROUND}-${site}-${label}-x${patch.exaggeration}-${view}`;
     const r = await page.evaluate(([s, p, v]) => window.__lt.show(s, p, v), [site, patch, view]);
     await page.screenshot({ path: `${DIR}${name}.png` });
     results.push({ name, ...r });

@@ -157,3 +157,49 @@
 | `raw/japan-local-terrain/r2-sekigahara-dem-250m-x5-oblique.png` | 95a6d716bfc8548a96dddb7d3cd5df356d88e1af521b694b0856c2441926f1ec |
 | `raw/japan-local-terrain/r2-sekigahara-dem-500m-x3-oblique.png` | 680cd28ffd09761f3c61673061a6d3bc0ecf31c2dd78c3932f1c3ba7df3c1cc3 |
 | `raw/japan-local-terrain/r2-sekigahara-japanBin-2000m-x3-oblique.png` | c75067f6f8ded2b50c5c7bf8d2de7e76ed0edd8b9cc4750077a0188c3a874dee |
+
+## R3：同心LOD（テンソル格子）
+
+### 方式
+
+環ごとに別メッシュを作らず、1枚の格子の列と行の間隔を中心からの距離で変える（`campaignAxis`）。環の内側の列・行は環の間隔、外側は外の間隔になる。T字の継ぎ目が出ない代わりに、外側の帯では細かい方向と粗い方向が混ざった細長い面ができる。段は頂点ごとに局所の間隔で選ぶ（`heightAt(x, y, stepKm)`）。
+
+束の外に出る段差を避けるため、隣接13県（群馬・埼玉・新潟・富山・石川・福井・山梨・静岡・京都・大阪・兵庫・奈良・和歌山）の束も焼いた。
+
+| 段 | 格子 | バイト | SHA-256 |
+| :--- | :--- | :--- | :--- |
+| 1000m | 513×572 | 623,580 | a1acc6a1b222c6931ef5faedf10f6788514ea41ef00b0d020eed0b584c75ab62 |
+| 500m | 1025×1143 | 2,489,625 | 22042c3706a3a8a353a411f5c439fc1017af6d8671a2117f571c9c3a5be5dd4f |
+| 250m | 2049×2285 | 9,949,204 | ab11d2559725def9289d3f7595ac0fc51dedc36a87ca335eea602c60c3e65bf5 |
+
+### 測定（徒歩3日の窓）
+
+| 構成 | 頂点 | 描き直し | ジオメトリ | rAF |
+| :--- | :--- | :--- | :--- | :--- |
+| u250：250m一様 | 451,584 | 約510ms | 27.1MB | 60 |
+| B：半幅35km 250m、外1km | 143,641 | 197ms | 8.6MB | 60 |
+| C：半幅35km 250m、60km 500m、外1km | 184,041 | 約235ms | 11.0MB | 60 |
+| D：半幅20km 250m、45km 500m、外1km | 114,921 | 約162ms | 6.9MB | 60 |
+
+### 所見
+
+- D は目標（頂点15万以下、描き直し0.2秒以下）に収まる。作戦カメラでは中心付近は u250 と見分けにくく、窓の手前と奥の端だけ粗い。
+- B・C は頂点が増えるわりに、中心の見た目は D と変わらない。外側の500mの帯は D の45kmで足りる。
+- 束を増やしたことで、川中島の東側の段と縞は消えた。
+- 外側の帯の細長い面が、陰影で斜めの筋として見える所がある（川中島の南、山梨側）。気になるなら外側も500mにする（頂点は約1.7倍）か、環のメッシュを分ける。
+- 誇張率：D で関ヶ原×3、桶狭間×5。×4 は両者の中間で、どちらの地点でも破綻しない。既定は×3のまま、丘陵地での切替は R5 以降に回す。
+- 既定値を D・×3・`source=dem` にした（束が無ければ `japan.bin` に落ちる）。
+
+| 画像 | SHA-256 |
+| :--- | :--- |
+| `raw/japan-local-terrain/r3-kawanakajima-r20-250_r45-500_o1000-x3-oblique.png` | 3b9f3f06e882d3fda6c9efa1a179485f3204243affad4643adc3089e7751dd27 |
+| `raw/japan-local-terrain/r3-kawanakajima-r35-250_r60-500_o1000-x3-oblique.png` | e34402bcd5f152467d2bc2b727d50ea5d4239b0a131cdd00ca90ccb27d442579 |
+| `raw/japan-local-terrain/r3-kawanakajima-u250-x3-oblique.png` | d8ecb46e7bfdceccb8f31fe0bf14af68281d31d818a62fcd7895b5dcefbaef2d |
+| `raw/japan-local-terrain/r3-okehazama-r20-250_r45-500_o1000-x5-contact.png` | ea9d3e8ab3df830f7ee80262830aed36afcdcfc50028ac5bfbc2a0fcbc73663c |
+| `raw/japan-local-terrain/r3-okehazama-r35-250_r60-500_o1000-x4-contact.png` | b6d0629416d828c7f5b62c305d516050bb2af4ce21a79c387c4639807c32be38 |
+| `raw/japan-local-terrain/r3-sekigahara-r20-250_r45-500_o1000-x3-oblique.png` | b61edd24c6a62d0978d4fb57284c76c7af6af75998efc5d33898c708ccc68d80 |
+| `raw/japan-local-terrain/r3-sekigahara-r35-250_o1000-x3-oblique.png` | a3adcea34e1f4934f49e2da31b93fdbe09c3c3fcc2b3d3fa07a9bed49e222b4b |
+| `raw/japan-local-terrain/r3-sekigahara-r35-250_r60-500_o1000-x3-contact.png` | 9d0ca605a50b2201232bc3c9c3469b24784f4ecc0cb4b382deee804b93f4839f |
+| `raw/japan-local-terrain/r3-sekigahara-r35-250_r60-500_o1000-x3-oblique.png` | 2d7d94932170222ca5ce59c9157222ee1dc98e8a029365e82d9c87ef0d1c2408 |
+| `raw/japan-local-terrain/r3-sekigahara-r35-250_r60-500_o1000-x4-oblique.png` | 75c8384cd941df8c47d3cd44bc1997b1bb4680725911b282a31583bb720195e4 |
+| `raw/japan-local-terrain/r3-sekigahara-u250-x3-oblique.png` | 9091f0c672df134357771e3b7273fa6242f5fd04bec36780faa4b02a7cd16e23 |

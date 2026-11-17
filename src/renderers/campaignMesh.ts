@@ -110,11 +110,17 @@ export interface CampaignBuildInput {
   packSpacingPx: number;
   footDays?: number;
   footKmPerDay?: number;
-  heightAt: (x: number, y: number) => number;
+  /** `stepKm` is the local ground spacing, so a multi-level DEM can pick its level per vertex. */
+  heightAt: (x: number, y: number, stepKm?: number) => number;
   /** Ground step in km from a finer height source (real DEM). Overrides the grid-based step. */
   sampleStepKm?: number;
   /** Darken vertex colors by a fixed north-west light. The ground material is unlit. */
   hillshade?: boolean;
+  /**
+   * Finer squares around the centre (half-width and step in km), finest wins. The ground stays one
+   * tensor grid: columns and rows inside a ring use its step, so no T-junction seams appear.
+   */
+  rings?: readonly CampaignRing[];
   /** Per-side cap for a real-DEM ground. The grid bilinear keeps CAMPAIGN_MAX_SAMPLES_PER_SIDE. */
   maxSamplesPerSide?: number;
   waterColor: string;
@@ -125,6 +131,11 @@ export interface CampaignBuildInput {
   routes: readonly CampaignPathInput[];
   regiments: readonly CampaignRegimentInput[];
   burgs: readonly CampaignBurgInput[];
+}
+
+export interface CampaignRing {
+  halfKm: number;
+  stepKm: number;
 }
 
 export interface CampaignGround {
@@ -281,10 +292,15 @@ export function buildCampaignMesh(input: CampaignBuildInput): CampaignMeshBuild 
   const spanX = box.maxX - box.minX;
   const spanY = box.maxY - box.minY;
   const maxPerSide = input.maxSamplesPerSide ?? CAMPAIGN_MAX_SAMPLES_PER_SIDE;
-  const samplesX = campaignSampleCount(spanX, stepPx, maxPerSide);
-  const samplesY = campaignSampleCount(spanY, stepPx, maxPerSide);
+  const ringsPx = (input.rings ?? [])
+    .filter(ring => ring.halfKm > 0 && ring.stepKm > 0 && input.kmPerPx > 0)
+    .map(ring => ({ halfPx: ring.halfKm / input.kmPerPx, stepPx: ring.stepKm / input.kmPerPx }));
+  const xs = campaignAxis(box.minX, box.maxX, centerX, stepPx, ringsPx, maxPerSide);
+  const ys = campaignAxis(box.minY, box.maxY, centerY, stepPx, ringsPx, maxPerSide);
+  const samplesX = xs.length;
+  const samplesY = ys.length;
   const packSpacing = input.packSpacingPx > 0 ? input.packSpacingPx : input.gridSpacingPx;
-  const ground = buildGround(input, box, samplesX, samplesY);
+  const ground = buildGround(input, xs, ys);
   assertGroundFacesUp(ground);
 
   return {
@@ -307,32 +323,30 @@ export function buildCampaignMesh(input: CampaignBuildInput): CampaignMeshBuild 
   };
 }
 
-function buildGround(
-  input: CampaignBuildInput,
-  box: CampaignWindowBox,
-  samplesX: number,
-  samplesY: number
-): CampaignGround {
+function buildGround(input: CampaignBuildInput, xs: readonly number[], ys: readonly number[]): CampaignGround {
+  const samplesX = xs.length;
+  const samplesY = ys.length;
   const vertexCount = samplesX * samplesY;
   const positions = new Float32Array(vertexCount * 3);
   const colors = new Float32Array(vertexCount * 3);
-  const spanX = box.maxX - box.minX;
-  const spanY = box.maxY - box.minY;
-  const stepX = samplesX > 1 ? spanX / (samplesX - 1) : 0;
-  const stepY = samplesY > 1 ? spanY / (samplesY - 1) : 0;
   const lookup = new CellLookup(input.cells, input.packSpacingPx > 0 ? input.packSpacingPx : input.gridSpacingPx);
   const water = parseColor(input.waterColor, [0.27, 0.43, 0.67]);
   const neutral = parseColor(input.neutralLandColor ?? NEUTRAL_LAND, [0.72, 0.64, 0.48]);
+  const localStep = (axis: readonly number[], i: number) =>
+    axis.length > 1 ? axis[Math.min(axis.length - 1, i + 1)] - axis[Math.max(0, i - 1)] : 0;
 
   for (let row = 0; row < samplesY; row++) {
-    const mapY = samplesY === 1 ? (box.minY + box.maxY) / 2 : box.minY + row * stepY;
+    const mapY = ys[row];
+    const stepY = localStep(ys, row) / (row > 0 && row < samplesY - 1 ? 2 : 1);
     for (let col = 0; col < samplesX; col++) {
-      const mapX = samplesX === 1 ? (box.minX + box.maxX) / 2 : box.minX + col * stepX;
+      const mapX = xs[col];
+      const stepX = localStep(xs, col) / (col > 0 && col < samplesX - 1 ? 2 : 1);
+      const stepKm = Math.max(stepX, stepY) * input.kmPerPx;
       const index = row * samplesX + col;
-      const world = worldPoint(input, mapX, mapY, 0);
-      positions[index * 3] = world[0];
-      positions[index * 3 + 1] = world[1];
-      positions[index * 3 + 2] = world[2];
+      const height = input.heightAt(mapX, mapY, stepKm > 0 ? stepKm : undefined);
+      positions[index * 3] = mapX - input.graphWidth / 2;
+      positions[index * 3 + 1] = Number.isFinite(height) ? height : 0;
+      positions[index * 3 + 2] = mapY - input.graphHeight / 2;
       const color = vertexColor(lookup.cellAt(mapX, mapY), input, water, neutral);
       colors[index * 3] = color[0];
       colors[index * 3 + 1] = color[1];
@@ -402,6 +416,48 @@ export function applyHillshade(
     colors[i * 3 + 1] = Math.min(1, colors[i * 3 + 1] * k);
     colors[i * 3 + 2] = Math.min(1, colors[i * 3 + 2] * k);
   }
+}
+
+/**
+ * Sample coordinates along one axis of the window. Without rings this is the uniform
+ * `campaignSampleCount` spacing. With rings, each stretch uses the finest ring covering it.
+ */
+export function campaignAxis(
+  min: number,
+  max: number,
+  center: number,
+  outerStepPx: number,
+  rings: readonly { halfPx: number; stepPx: number }[],
+  maxCount = CAMPAIGN_MAX_SAMPLES_PER_SIDE
+): number[] {
+  const span = max - min;
+  if (!(span > 0)) return [(min + max) / 2];
+  if (!rings.length) {
+    const count = campaignSampleCount(span, outerStepPx, maxCount);
+    return Array.from({ length: count }, (_, i) => (count === 1 ? (min + max) / 2 : min + (i * span) / (count - 1)));
+  }
+  // Breakpoints where the step changes, then a uniform fill of each stretch.
+  const cuts = new Set<number>([min, max]);
+  for (const ring of rings) {
+    for (const edge of [center - ring.halfPx, center + ring.halfPx]) if (edge > min && edge < max) cuts.add(edge);
+  }
+  const sorted = [...cuts].sort((a, b) => a - b);
+  const stepAt = (x: number) =>
+    rings.reduce(
+      (step, ring) => (Math.abs(x - center) <= ring.halfPx ? Math.min(step, ring.stepPx) : step),
+      outerStepPx
+    );
+  const out: number[] = [min];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i];
+    const b = sorted[i + 1];
+    const step = stepAt((a + b) / 2);
+    const n = Math.max(1, Math.round((b - a) / Math.max(step, 1e-9)));
+    for (let k = 1; k <= n; k++) out.push(a + ((b - a) * k) / n);
+  }
+  if (out.length <= maxCount) return out;
+  // Over the cap: thin evenly, keeping both ends.
+  return Array.from({ length: maxCount }, (_, i) => out[Math.round((i * (out.length - 1)) / (maxCount - 1))]);
 }
 
 function assertGroundFacesUp(ground: CampaignGround): void {
