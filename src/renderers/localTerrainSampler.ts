@@ -62,6 +62,11 @@ export interface LocalTerrainTuning {
   riverSnapKm: number;
   /** Colour sea and land from the DEM coastline instead of the cell heights. */
   demCoast: boolean;
+  /**
+   * Quadtree tiles (docs/plan/japan-terrain-tiles.md) replace the window ground while tuning.
+   * Selection splits tiles above `maxScreenErrorPx` up to `maxTiles`; `maxZoom` caps the level.
+   */
+  tiles: { enabled: boolean; maxScreenErrorPx: number; maxTiles: number; maxZoom: number };
 }
 
 /** Defaults for a georeferenced map. Procedural maps always draw `cells`. */
@@ -92,7 +97,8 @@ export const DEFAULT_LOCAL_TERRAIN_TUNING: LocalTerrainTuning = {
   riverMaxCarveM: 30,
   riverSnapKm: 6,
   riverSource: "fmg",
-  demCoast: true
+  demCoast: true,
+  tiles: { enabled: false, maxScreenErrorPx: 2, maxTiles: 256, maxZoom: 3 }
 };
 
 /** Height scale 50 (the 3D Options default) is ×3, the value chosen in R1–R4. */
@@ -148,7 +154,13 @@ function readUrlTuning(base: LocalTerrainTuning): LocalTerrainTuning {
     riverCorridorM: num("ltRiverM") ?? base.riverCorridorM,
     riverMaxCarveM: num("ltRiverMaxCarveM") ?? base.riverMaxCarveM,
     riverSnapKm: num("ltRiverSnapKm") ?? base.riverSnapKm,
-    demCoast: params.get("ltDemCoast") === "0" ? false : base.demCoast
+    demCoast: params.get("ltDemCoast") === "0" ? false : base.demCoast,
+    tiles: {
+      enabled: params.has("ltTiles") ? params.get("ltTiles") !== "0" : base.tiles.enabled,
+      maxScreenErrorPx: num("ltTileErr") ?? base.tiles.maxScreenErrorPx,
+      maxTiles: num("ltTileMax") ?? base.tiles.maxTiles,
+      maxZoom: num("ltTileZoom") ?? base.tiles.maxZoom
+    }
   };
 }
 

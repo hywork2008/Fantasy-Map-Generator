@@ -72,6 +72,7 @@ import {
   localMetersToWorldY
 } from "./localTerrainSampler";
 import { getNightscapeBeamPose, getNightscapePopulationGlow } from "./nightscapeGlow";
+import { TerrainTileLayer, type TerrainTileStats } from "./terrainTiles/terrainTileLayer";
 import {
   buildLowPolyBurgSymbols,
   buildRoutePaths,
@@ -329,6 +330,8 @@ class ThreeDModule {
   private campaignContactTimer: ReturnType<typeof setTimeout> | undefined;
   /** Dev measurement of the last real-DEM window (pads, carved rivers, moved tokens). */
   private localTerrainStats: LocalTerrainFieldStats | null = null;
+  /** Quadtree DEM tiles in place of the window ground (`tiles.enabled` tuning, Japan only). */
+  private terrainTiles: TerrainTileLayer | undefined;
   private campaignCameraDirty = false;
   private campaignGroup: THREE.Group | undefined;
   private campaignSphere: THREE.SphereGeometry | undefined;
@@ -405,6 +408,11 @@ class ThreeDModule {
   /** Measurements of the last real-DEM campaign window (tuning harness). */
   getLocalTerrainStats(): LocalTerrainFieldStats | null {
     return this.localTerrainStats;
+  }
+
+  /** Tile layer measurements (docs/plan/japan-terrain-tiles.md harness). */
+  getTerrainTileStats(): TerrainTileStats | null {
+    return this.terrainTiles?.getStats() ?? null;
   }
 
   isErosionBuildPending(): boolean {
@@ -496,6 +504,7 @@ class ThreeDModule {
     this.deleteLowPolyBurgIcons();
     this.deleteFloatingRoutes();
     this.disposeCampaignGroup();
+    this.disposeTerrainTiles();
     this.campaignSphere?.dispose();
     this.campaignDiamond?.dispose();
     this.campaignSphere = undefined;
@@ -872,6 +881,7 @@ class ThreeDModule {
       if (this.campaignFocus) {
         this.scaleCampaignMarkers();
         this.updateCampaignContact();
+        this.updateTerrainTiles();
       }
       this.render();
     });
@@ -1894,6 +1904,7 @@ class ThreeDModule {
       this.createCampaignMesh();
       return;
     }
+    this.disposeTerrainTiles();
     this.markCampaignCanvas(false);
 
     const sceneOnly = this.options.sceneOnly;
@@ -2566,9 +2577,59 @@ class ThreeDModule {
     }
 
     this.applyCampaignCamera(built.camera);
+    if (this.syncTerrainTiles()) this.mesh.visible = false;
     this.scaleCampaignMarkers();
     this.markCampaignCanvas(true, built.ground.vertexCount);
     this.render();
+  }
+
+  /** Creates or drops the tile layer for the current tuning; true while it replaces the ground. */
+  private syncTerrainTiles(): boolean {
+    const enabled =
+      getLocalTerrainTuning().tiles.enabled &&
+      getLocalTerrainTuning().source === "dem" &&
+      worldContext.options?.earthRegion?.id === "japan";
+    if (!enabled || !this.scene) {
+      this.disposeTerrainTiles();
+      return false;
+    }
+    if (!this.terrainTiles) {
+      const layer = new TerrainTileLayer(() => this.render());
+      this.terrainTiles = layer;
+      void layer.ready.then(ok => {
+        if (ok && this.terrainTiles === layer) {
+          this.updateTerrainTiles();
+          this.render();
+        }
+      });
+    }
+    if (this.terrainTiles.group.parent !== this.scene) this.scene.add(this.terrainTiles.group);
+    this.updateTerrainTiles();
+    return true;
+  }
+
+  private updateTerrainTiles(): void {
+    const layer = this.terrainTiles;
+    if (!layer || !this.camera || !(this.camera instanceof THREE.PerspectiveCamera)) return;
+    const tuning = getLocalTerrainTuning();
+    const kmPerPx = kmPerMapPixel(worldContext.distanceScale, optionsStore.getState().distanceUnit || "km");
+    const exaggeration = tuning.exaggeration ?? heightScaleExaggeration(this.options.scale);
+    const canvas = this.Renderer?.domElement;
+    layer.update(this.camera, canvas instanceof HTMLCanvasElement ? canvas.clientHeight || canvas.height : 800, {
+      graphWidth: worldContext.graphWidth,
+      graphHeight: worldContext.graphHeight,
+      worldYPerMeter: localMetersToWorldY(1, kmPerPx, exaggeration),
+      exaggeration,
+      maxScreenErrorPx: tuning.tiles.maxScreenErrorPx,
+      maxTiles: tuning.tiles.maxTiles,
+      maxZoom: tuning.tiles.maxZoom,
+      wireframe: Boolean(this.options.wireframe)
+    });
+  }
+
+  private disposeTerrainTiles(): void {
+    this.terrainTiles?.dispose();
+    this.terrainTiles = undefined;
   }
 
   private markCampaignCanvas(active: boolean, vertexCount = 0): void {
