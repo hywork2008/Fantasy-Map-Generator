@@ -15,7 +15,7 @@ import {
   LEGACY_PRECREATED_CLIMATE,
   MEDITERRANEAN_SEA_REGION
 } from "../data/earthRegions";
-import { depthMetersToHeight, depthToMeters, heightToMeters, metersToHeight } from "./height";
+import { depthMetersToHeight, depthToMeters, heightToMeters, meshHeightFromIndex, metersToHeight } from "./height";
 
 describe("metersToHeight / heightToMeters", () => {
   it("keeps sea-level land at or above the land line", () => {
@@ -30,6 +30,16 @@ describe("metersToHeight / heightToMeters", () => {
       const h = metersToHeight(meters, 1);
       expect(heightToMeters(h, 1)).toBeCloseTo(meters, 0);
     }
+  });
+
+  it("gives a high ridge more 3D relief than the same raw span on a plain", () => {
+    const plain = meshHeightFromIndex(40, 1.8, 50) - meshHeightFromIndex(25, 1.8, 50);
+    const ridge = meshHeightFromIndex(90, 1.8, 50) - meshHeightFromIndex(75, 1.8, 50);
+    expect(ridge).toBeGreaterThan(plain * 2);
+    expect(meshHeightFromIndex(100, 1.8, 50)).toBeCloseTo(50, 5);
+    expect(meshHeightFromIndex(20, 1.8, 50)).toBeLessThan(1);
+    expect(meshHeightFromIndex(10, 1.8, 50)).toBe(0);
+    expect(meshHeightFromIndex(60, 1, 50)).toBeCloseTo(((60 - 18) / 82) * 50, 5);
   });
 
   it("maps water depths into 0–19", () => {

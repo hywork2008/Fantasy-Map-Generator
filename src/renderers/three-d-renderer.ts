@@ -59,6 +59,7 @@ import { tip } from "../services/tooltipService";
 import { optionsStore } from "../state/optionsStore";
 import { revokeObjectURL, rn, throttle } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
+import { meshHeightFromIndex } from "../utils/height";
 import { getNightscapeBeamPose, getNightscapePopulationGlow } from "./nightscapeGlow";
 import {
   buildLowPolyBurgSymbols,
@@ -2025,25 +2026,13 @@ class ThreeDModule {
     }
   }
 
-  private readonly LOWER_BY_WATER = 18;
-  private readonly DIVIDER = 100 - 18;
-
   private getMeshHeight(i: number): number {
     const height = worldContext.grid.cells.h[i];
-
-    let waterCellId: number | null = null;
-    if (height < SEA_LEVEL) {
-      waterCellId = i;
-    } else if (worldContext.grid.cells.c![i]) {
-      waterCellId = worldContext.grid.cells.c![i].find((c: number) => worldContext.grid.cells.h[c] < SEA_LEVEL) ?? null;
-    }
-
-    if (waterCellId !== null) {
-      const waterHeight = getWaterSurfaceHeight(worldContext, waterCellId, this.gridToPackCellMap!);
-      return ((waterHeight - this.LOWER_BY_WATER) / this.DIVIDER) * this.options.scale;
-    }
-
-    return ((height - this.LOWER_BY_WATER) / this.DIVIDER) * this.options.scale;
+    // Only the water cell itself sits on the water surface. A land cell that merely
+    // touches the sea keeps its own height, so a coastal cliff stays as tall as its contours.
+    const surface =
+      height < SEA_LEVEL ? getWaterSurfaceHeight(worldContext, i, this.gridToPackCellMap ?? new Map()) : height;
+    return meshHeightFromIndex(surface, optionsStore.getState().heightExponent, this.options.scale);
   }
 
   private extendWater(width: number, height: number): void {
