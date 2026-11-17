@@ -154,6 +154,8 @@ export interface ValleyField {
   valleyMetersAt(x: number, y: number): number;
   /** Floor height per river point (non-increasing downstream). */
   floors: number[][];
+  /** Valley size per river point. */
+  dimensions: ValleyDimensions[][];
   /** Widest reach `floorHalf + wall` of any river point, meters. */
   maxReachM: number;
 }
@@ -217,15 +219,12 @@ export function createValleyField(
     const gx = Math.floor(x / cell);
     const gy = Math.floor(y / cell);
     let height = ground;
-    const seen = new Set<string>();
+    // A segment listed in two buckets is tested twice; min() makes that harmless.
     for (let dx = -1; dx <= 1; dx++)
       for (let dy = -1; dy <= 1; dy++) {
         const list = grid.get(key(gx + dx, gy + dy));
         if (!list) continue;
         for (const seg of list) {
-          const id = `${seg.river}:${seg.i}`;
-          if (seen.has(id)) continue;
-          seen.add(id);
           const river = rivers[seg.river];
           const a = river[seg.i];
           const b = river[seg.i + 1];
@@ -244,5 +243,61 @@ export function createValleyField(
     return height;
   }
 
-  return { valleyMetersAt, floors, maxReachM };
+  return { valleyMetersAt, floors, dimensions: dims, maxReachM };
+}
+
+export interface ValleyPath {
+  /** Points in meters. */
+  points: ReadonlyArray<readonly number[]>;
+  /** Full river width per point, meters. */
+  widths?: readonly number[];
+}
+
+/**
+ * Resamples river paths every `stepM` and measures the relief on each side: the highest ground
+ * within `probeM` across the river minus the ground at the river. Each river is ordered from its
+ * higher end to its lower end.
+ */
+export function sampleValleyRivers(
+  paths: readonly ValleyPath[],
+  groundAt: (x: number, y: number) => number,
+  options: { stepM: number; probeM: number; probes?: number }
+): ValleyRiverPoint[][] {
+  const step = Math.max(1, options.stepM);
+  const probes = Math.max(1, options.probes ?? 4);
+  const out: ValleyRiverPoint[][] = [];
+  for (const path of paths) {
+    const line: { x: number; y: number; w: number }[] = [];
+    for (let i = 0; i + 1 < path.points.length; i++) {
+      const [ax, ay] = path.points[i];
+      const [bx, by] = path.points[i + 1];
+      const wa = path.widths?.[i] ?? 0;
+      const wb = path.widths?.[i + 1] ?? wa;
+      const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / step));
+      for (let k = 0; k < n; k++)
+        line.push({ x: ax + ((bx - ax) * k) / n, y: ay + ((by - ay) * k) / n, w: wa + ((wb - wa) * k) / n });
+    }
+    const last = path.points[path.points.length - 1];
+    if (!last || line.length < 1) continue;
+    line.push({ x: last[0], y: last[1], w: path.widths?.[path.points.length - 1] ?? 0 });
+    const river = line.map((p, i) => {
+      const a = line[Math.max(0, i - 1)];
+      const b = line[Math.min(line.length - 1, i + 1)];
+      const length = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      const nx = -(b.y - a.y) / length;
+      const ny = (b.x - a.x) / length;
+      const groundM = groundAt(p.x, p.y);
+      let left = groundM;
+      let right = groundM;
+      for (let k = 1; k <= probes; k++) {
+        const d = (options.probeM * k) / probes;
+        left = Math.max(left, groundAt(p.x + nx * d, p.y + ny * d));
+        right = Math.max(right, groundAt(p.x - nx * d, p.y - ny * d));
+      }
+      return { x: p.x, y: p.y, groundM, reliefLeftM: left - groundM, reliefRightM: right - groundM, riverWidthM: p.w };
+    });
+    if (river.length >= 2 && river[0].groundM < river[river.length - 1].groundM) river.reverse();
+    if (river.length >= 2) out.push(river);
+  }
+  return out;
 }

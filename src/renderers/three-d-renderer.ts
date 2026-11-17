@@ -61,7 +61,7 @@ import { tip } from "../services/tooltipService";
 import { optionsStore } from "../state/optionsStore";
 import { findCell, revokeObjectURL, rn, throttle } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
-import { meshHeightFromIndex } from "../utils/height";
+import { meshHeightFromIndex, normalizeHeightExponent } from "../utils/height";
 import {
   createLocalTerrainField,
   createLocalTerrainSampler,
@@ -75,6 +75,7 @@ import {
 import { getNightscapeBeamPose, getNightscapePopulationGlow } from "./nightscapeGlow";
 import { TerrainTileLayer, type TerrainTileStats } from "./terrainTiles/terrainTileLayer";
 import { createTileTerrainSampler } from "./terrainTiles/tileTerrainSampler";
+import { createValleyField, sampleValleyRivers } from "./valleyProfile";
 import {
   buildLowPolyBurgSymbols,
   buildRoutePaths,
@@ -82,6 +83,15 @@ import {
   type LowPolyBurgShape
 } from "./webgl/adapters/deckDataAdapters";
 import { getBurgIconStyle, getLabelStyle, getPathDashStyles, getPathPaintStyles } from "./webgl/webglStyleExtractors";
+
+export interface CellValleyStats {
+  rivers: number;
+  points: number;
+  gorgePoints: number;
+  maxDepthM: number;
+  maxReachM: number;
+  buildMs: number;
+}
 
 interface ThreeDOptions {
   scale: number;
@@ -335,6 +345,7 @@ class ThreeDModule {
   private campaignContactTimer: ReturnType<typeof setTimeout> | undefined;
   /** Dev measurement of the last real-DEM window (pads, carved rivers, moved tokens). */
   private localTerrainStats: LocalTerrainFieldStats | null = null;
+  private valleyStats: CellValleyStats | null = null;
   /** Quadtree DEM tiles in place of the window ground (`tiles.enabled` tuning, Japan only). */
   private terrainTiles: TerrainTileLayer | undefined;
   private localTerrainField: LocalTerrainField | null = null;
@@ -422,6 +433,11 @@ class ThreeDModule {
   /** Measurements of the last real-DEM campaign window (tuning harness). */
   getLocalTerrainStats(): LocalTerrainFieldStats | null {
     return this.localTerrainStats;
+  }
+
+  /** Valleys of the last cell-bilinear campaign window (docs/plan/fmg-cell-valleys.md, V1). */
+  getValleyStats(): CellValleyStats | null {
+    return this.valleyStats;
   }
 
   /** The sampler the last window read (tuning harnesses). */
@@ -2805,7 +2821,8 @@ class ThreeDModule {
     kmPerPx: number,
     focus: CampaignFocus,
     burgs: CampaignBuildInput["burgs"],
-    rivers: CampaignBuildInput["rivers"]
+    rivers: CampaignBuildInput["rivers"],
+    gridSpacingPx: number
   ): Pick<
     CampaignBuildInput,
     | "heightAt"
@@ -2823,8 +2840,9 @@ class ThreeDModule {
   > {
     const tuning = getLocalTerrainTuning();
     const geo = worldContext.options?.earthRegion;
-    const bilinear = { heightAt: (x: number, y: number) => this.sampleTerrainHeight(x, y), rivers };
     this.localTerrainStats = null;
+    this.valleyStats = null;
+    const bilinear = this.cellValleyInput(kmPerPx, focus, rivers, gridSpacingPx, tuning);
     if (!geo || tuning.source === "cells") return bilinear;
     // Field from tiles: the base is the region raster only, so japan-local/ is not read at all.
     // Decided by the tuning alone, so the prefecture manifests are never fetched in this mode.
@@ -2909,6 +2927,83 @@ class ThreeDModule {
       drapeStepPx: kmPerPx > 0 ? 0.25 / kmPerPx : undefined,
       waterAt: field && tuning.demCoast ? field.waterAt : undefined,
       displayPoint: field && tuning.demCoast ? field.displayPoint : undefined
+    };
+  }
+
+  /**
+   * Cell-bilinear ground with valleys carved along the FMG rivers in the window
+   * (docs/plan/fmg-cell-valleys.md). The mesh height is linear in meters, so the valley is cut
+   * in meters and scaled back.
+   */
+  private cellValleyInput(
+    kmPerPx: number,
+    focus: CampaignFocus,
+    rivers: CampaignBuildInput["rivers"],
+    gridSpacingPx: number,
+    tuning: ReturnType<typeof getLocalTerrainTuning>
+  ): Pick<
+    CampaignBuildInput,
+    "heightAt" | "rivers" | "sampleStepKm" | "rings" | "maxSamplesPerSide" | "hillshade" | "drapeStepPx"
+  > {
+    const flat = { heightAt: (x: number, y: number) => this.sampleTerrainHeight(x, y), rivers };
+    const valley = tuning.valley;
+    if (!valley.enabled || this.erosionBakeActive || !(kmPerPx > 0)) return flat;
+    const exponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
+    const worldPerMeter = this.options.scale / 82 ** exponent;
+    if (!(worldPerMeter > 0)) return flat;
+    const started = performance.now();
+    const mPerPx = kmPerPx * 1000;
+    const bounds = campaignWindow({
+      centerX: focus.x,
+      centerY: focus.y,
+      graphWidth: worldContext.graphWidth,
+      graphHeight: worldContext.graphHeight,
+      kmPerPx,
+      spacingPx: 0,
+      footDays: tuning.footDays
+    });
+    const probeM = (valley.probeKm > 0 ? valley.probeKm * 1000 : gridSpacingPx * mPerPx) || 0;
+    const marginPx = (probeM + 6000) / mPerPx;
+    const near = (x: number, y: number) =>
+      x >= bounds.minX - marginPx &&
+      x <= bounds.maxX + marginPx &&
+      y >= bounds.minY - marginPx &&
+      y <= bounds.maxY + marginPx;
+    const groundM = (x: number, y: number) => this.sampleTerrainHeight(x / mPerPx, y / mPerPx) / worldPerMeter;
+    const paths = rivers
+      .filter(river => river.points.some(([x, y]) => near(x, y)))
+      .map(river => ({
+        points: river.points.map(([x, y]) => [x * mPerPx, y * mPerPx]),
+        widths: river.widths?.map(w => w * mPerPx)
+      }));
+    const field = createValleyField(sampleValleyRivers(paths, groundM, { stepM: 250, probeM }), groundM, valley);
+    let maxDepth = 0;
+    let gorges = 0;
+    let points = 0;
+    for (const floors of field.floors) points += floors.length;
+    for (const dims of field.dimensions)
+      for (const d of dims) {
+        maxDepth = Math.max(maxDepth, d.depthM);
+        if (d.gorge) gorges++;
+      }
+    this.valleyStats = {
+      rivers: paths.length,
+      points,
+      gorgePoints: gorges,
+      maxDepthM: maxDepth,
+      maxReachM: field.maxReachM,
+      buildMs: performance.now() - started
+    };
+    return {
+      heightAt: (x, y) => field.valleyMetersAt(x * mPerPx, y * mPerPx) * worldPerMeter,
+      rivers,
+      // A valley is a few km wide: sample the window like the DEM ground, and shade it so it reads.
+      sampleStepKm: tuning.stepKm,
+      rings: tuning.rings,
+      maxSamplesPerSide: tuning.maxSamplesPerSide,
+      hillshade: tuning.hillshade,
+      // Lines bend with the valley walls instead of cutting under them.
+      drapeStepPx: 0.25 / kmPerPx
     };
   }
 
@@ -3033,7 +3128,7 @@ class ThreeDModule {
       kmPerPx,
       gridSpacingPx,
       packSpacingPx,
-      ...this.campaignTerrainInput(kmPerPx, focus, burgs, rivers),
+      ...this.campaignTerrainInput(kmPerPx, focus, burgs, rivers, gridSpacingPx),
 
       waterColor: this.options.waterColor,
       stateColors,

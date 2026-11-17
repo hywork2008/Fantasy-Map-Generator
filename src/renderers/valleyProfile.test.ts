@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createValleyField, type ValleyRiverPoint, valleyDimensions, valleyWallFraction } from "./valleyProfile";
+import {
+  createValleyField,
+  sampleValleyRivers,
+  type ValleyRiverPoint,
+  valleyDimensions,
+  valleyWallFraction
+} from "./valleyProfile";
 
 describe("valleyWallFraction", () => {
   it("runs from 0 at the floor edge to 1 at the ridge, never falling", () => {
@@ -71,5 +77,33 @@ describe("createValleyField", () => {
       expect(Math.abs(h - prev)).toBeLessThan(2);
       prev = h;
     }
+  });
+});
+
+describe("sampleValleyRivers", () => {
+  it("orders the river downhill and reads the relief on both sides", () => {
+    // Ground falls to the east and rises 0.1 m per meter away from y = 0.
+    const ground = (x: number, y: number) => 1000 - x * 0.01 + Math.abs(y) * 0.1;
+    const [river] = sampleValleyRivers(
+      [
+        {
+          points: [
+            [10000, 0],
+            [0, 0]
+          ],
+          widths: [40, 20]
+        }
+      ],
+      ground,
+      {
+        stepM: 250,
+        probeM: 2000
+      }
+    );
+    expect(river[0].x).toBe(0);
+    expect(river[river.length - 1].x).toBe(10000);
+    expect(river.length).toBe(41);
+    expect(river[0].reliefLeftM).toBeCloseTo(200);
+    expect(river[0].reliefRightM).toBeCloseTo(200);
   });
 });

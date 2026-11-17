@@ -12,6 +12,7 @@ import {
   georefLonLatToMap,
   georefMapToLonLat
 } from "../utils/localTerrainGeoref";
+import { DEFAULT_VALLEY_TUNING, type ValleyTuning } from "./valleyProfile";
 
 /** `dem` = baked Japan local levels (scripts/bakeJapanLocalDem.mjs), falling back to `japanBin`. */
 export type LocalTerrainSource = "cells" | "japanBin" | "dem";
@@ -62,6 +63,11 @@ export interface LocalTerrainTuning {
   riverSnapKm: number;
   /** Colour sea and land from the DEM coastline instead of the cell heights. */
   demCoast: boolean;
+  /**
+   * Valleys carved along the FMG rivers (docs/plan/fmg-cell-valleys.md). V1 applies them to
+   * the cell-bilinear window only; `probeKm` is how far across the river the relief is read (0 = one grid cell).
+   */
+  valley: ValleyTuning & { probeKm: number };
   /**
    * Quadtree tiles (docs/plan/japan-terrain-tiles.md) replace the window ground while tuning.
    * Selection splits tiles above `maxScreenErrorPx` up to `maxTiles`; `maxZoom` caps the level.
@@ -115,6 +121,7 @@ export const DEFAULT_LOCAL_TERRAIN_TUNING: LocalTerrainTuning = {
   riverSnapKm: 6,
   riverSource: "fmg",
   demCoast: true,
+  valley: { ...DEFAULT_VALLEY_TUNING, probeKm: 0 },
   tiles: {
     // Default since T5; `?ltTiles=0` draws the old window ground.
     enabled: true,
@@ -185,6 +192,15 @@ function readUrlTuning(base: LocalTerrainTuning): LocalTerrainTuning {
     riverMaxCarveM: num("ltRiverMaxCarveM") ?? base.riverMaxCarveM,
     riverSnapKm: num("ltRiverSnapKm") ?? base.riverSnapKm,
     demCoast: params.get("ltDemCoast") === "0" ? false : base.demCoast,
+    valley: {
+      enabled: params.has("ltValley") ? params.get("ltValley") !== "0" : base.valley.enabled,
+      reliefShare: num("ltValleyRelief") ?? base.valley.reliefShare,
+      widthScale: num("ltValleyWidth") ?? base.valley.widthScale,
+      gorge: params.has("ltValleyGorge") ? params.get("ltValleyGorge") !== "0" : base.valley.gorge,
+      spurs: params.has("ltValleySpurs") ? params.get("ltValleySpurs") !== "0" : base.valley.spurs,
+      maxDepthM: num("ltValleyMaxM") ?? base.valley.maxDepthM,
+      probeKm: num("ltValleyProbeKm") ?? base.valley.probeKm
+    },
     tiles: {
       enabled: params.has("ltTiles") ? params.get("ltTiles") !== "0" : base.tiles.enabled,
       maxScreenErrorPx: num("ltTileErr") ?? base.tiles.maxScreenErrorPx,
