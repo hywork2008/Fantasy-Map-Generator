@@ -85,9 +85,12 @@ Tiles (Terrarium z8 for 1 km, z9 for 500 m; cached under `temp/terrarium-alps/`)
 
 ```bash
 node scripts/bakeEarthTiles.mjs --region alps                        # distributed levels z0–z3
+node scripts/fetchSwissAlti3d.mjs                                    # swissALTI3D 2 m around the Swiss test sites (temp/)
+node scripts/bakeEarthTiles.mjs --region alps --maxZoom 6 --sitesKm 10 --swiss   # plus local z4–z6 near the sites
 ```
 
 Credits: AWS Terrain Tiles — Europe terrain data produced using Copernicus data and information funded by the
 European Union - EU-DEM layers; Austria terrain data © offene Daten Österreichs – Digitales Geländemodell (DGM)
 Österreich; global ETOPO1 terrain data U.S. National Oceanic and Atmospheric Administration; global GMTED2010
-and SRTM terrain data courtesy of the U.S. Geological Survey. Natural Earth admin-0 (public domain).
+and SRTM terrain data courtesy of the U.S. Geological Survey. Local z6 (62.5 m): derived from swissALTI3D ©swisstopo.
+Natural Earth admin-0 (public domain).

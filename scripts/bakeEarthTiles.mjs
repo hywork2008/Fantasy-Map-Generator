@@ -61,6 +61,21 @@ const REGIONS = {
     bounds: { west: 4.5, east: 17, south: 43.5, north: 48.6 },
     raster: "alps.bin",
     terrarium: path.join(ROOT, "temp/terrarium-alps"),
+    // Terrarium z12 (about 26 m) is the finest worth using; finer levels come from national DEMs only.
+    terrariumMaxZoom: 5,
+    // swissALTI3D around the test sites (scripts/fetchSwissAlti3d.mjs), with --swiss.
+    swiss: path.join(ROOT, "temp/swissalti3d"),
+    // ALPS_REGION.localTerrain.sites, for --sitesKm.
+    sites: [
+      [7.66, 46.0],
+      [7.91, 46.59],
+      [8.03, 46.45],
+      [9.84, 46.5],
+      [8.95, 46.0],
+      [6.87, 45.92],
+      [11.82, 46.51],
+      [11.39, 47.27]
+    ],
     mask: {
       file: path.join(ROOT, "temp/ne_10m_admin_0_countries.geojson"),
       keep: p => /^[A-Z]{2}$/.test(p.ISO_A2_EH ?? ""),
@@ -75,6 +90,10 @@ const CONFIG = REGIONS[REGION_ID];
 if (!CONFIG) throw new Error(`unknown region ${REGION_ID}`);
 const LOCAL = CONFIG.localDir ? path.join(EARTH, CONFIG.localDir) : null;
 const OUT = path.resolve(arg("out", path.join(EARTH, `${REGION_ID}-tiles`)));
+// Levels from z4 (250 m) on only near the region's test sites, within this many km (0 = everywhere).
+const SITES_KM = Number(arg("sitesKm", 0));
+const SITE_FROM_Z = 4;
+const USE_SWISS = process.argv.includes("--swiss");
 const MAX_ZOOM = Number(arg("maxZoom", 3));
 const ROOT_KM = Number(arg("rootKm", 256));
 const SAMPLES = Number(arg("samples", 65));
@@ -155,7 +174,7 @@ function sample(r, lon, lat) {
 }
 
 async function loadSources() {
-  if (CONFIG.terrarium) return terrariumSources();
+  if (CONFIG.terrarium) return [...(USE_SWISS ? swissSources() : []), ...(await terrariumSources())];
   const sources = [];
   if (!LOCAL) return sources;
   const manifests = ["manifest.json", ...(USE_LOCAL ? ["manifest.local.json"] : [])];
@@ -210,17 +229,59 @@ function download(url, dest) {
   });
 }
 
-/** Downloads (once) and decodes every Terrarium tile over the region at zoom z, into meters. */
-async function loadTerrarium(z) {
+/** swissALTI3D rasters listed in temp/swissalti3d/manifest.json. */
+function swissSources() {
+  const file = path.join(CONFIG.swiss, "manifest.json");
+  if (!fs.existsSync(file)) throw new Error(`${file} missing: run scripts/fetchSwissAlti3d.mjs`);
+  return JSON.parse(fs.readFileSync(file, "utf8")).levels.map(level => {
+    const raster = decodeRaster(path.join(CONFIG.swiss, level.file));
+    return { stepMeters: level.stepMeters, fromZ: SITE_FROM_Z, sample: (lon, lat) => sample(raster, lon, lat) };
+  });
+}
+
+/** Lon/lat boxes around the test sites (±km), or null for the whole region. */
+function siteBoxes(km) {
+  if (!(km > 0) || !CONFIG.sites) return null;
+  return CONFIG.sites.map(([lon, lat]) => ({
+    west: lon - km / KM_PER_DEG_LON,
+    east: lon + km / KM_PER_DEG_LON,
+    south: lat - km / KM_PER_DEG_LAT,
+    north: lat + km / KM_PER_DEG_LAT
+  }));
+}
+
+/** Frame km of the test sites, for --sitesKm. */
+const SITE_FRAME = (CONFIG.sites ?? []).map(([lon, lat]) => [
+  (lon - REGION.west) * KM_PER_DEG_LON,
+  (REGION.north - lat) * KM_PER_DEG_LAT
+]);
+
+function nearSite(x0, y0, sizeKm) {
+  return SITE_FRAME.some(([x, y]) => {
+    const dx = Math.max(x0 - x, 0, x - (x0 + sizeKm));
+    const dy = Math.max(y0 - y, 0, y - (y0 + sizeKm));
+    return Math.hypot(dx, dy) <= SITES_KM;
+  });
+}
+
+/** Downloads (once) and decodes the Terrarium tiles over the region (or `boxes`) at zoom z, into meters. */
+async function loadTerrarium(z, boxes = null) {
   const { PNG } = require("pngjs");
   const dir = path.join(CONFIG.terrarium, String(z));
   fs.mkdirSync(dir, { recursive: true });
   const pad = 0.05;
-  const nw = tileXY(REGION.west - pad, REGION.north + pad, z);
-  const se = tileXY(REGION.east + pad, REGION.south - pad, z);
+  const seen = new Set();
   const jobs = [];
-  for (let x = Math.floor(nw.x); x <= Math.floor(se.x); x++)
-    for (let y = Math.floor(nw.y); y <= Math.floor(se.y); y++) jobs.push({ x, y, file: path.join(dir, `${x}-${y}.png`) });
+  for (const box of boxes ?? [REGION]) {
+    const nw = tileXY(box.west - pad, box.north + pad, z);
+    const se = tileXY(box.east + pad, box.south - pad, z);
+    for (let x = Math.floor(nw.x); x <= Math.floor(se.x); x++)
+      for (let y = Math.floor(nw.y); y <= Math.floor(se.y); y++) {
+        if (seen.has(`${x},${y}`)) continue;
+        seen.add(`${x},${y}`);
+        jobs.push({ x, y, file: path.join(dir, `${x}-${y}.png`) });
+      }
+  }
   const missing = jobs.filter(j => !fs.existsSync(j.file) || fs.statSync(j.file).size < 100);
   for (let i = 0; i < missing.length; i += 8) {
     await Promise.all(missing.slice(i, i + 8).map(j => download(`${TERRARIUM_URL}/${z}/${j.x}/${j.y}.png`, j.file)));
@@ -266,10 +327,12 @@ function terrariumSampler(tiles, z) {
 /** One Terrarium source per baked level from 1 km on, each at the zoom matching its spacing. */
 async function terrariumSources() {
   const sources = [];
-  for (let z = FINE_FROM; z <= MAX_ZOOM; z++) {
+  for (let z = FINE_FROM; z <= Math.min(MAX_ZOOM, CONFIG.terrariumMaxZoom ?? MAX_ZOOM); z++) {
     const stepMeters = ((ROOT_KM / 2 ** z) * 1000) / (SAMPLES - 1);
     const zoom = terrariumZoom(stepMeters);
-    sources.push({ stepMeters, sample: terrariumSampler(await loadTerrarium(zoom), zoom) });
+    // Site-limited levels fetch only the tiles around the sites (one level tile of margin).
+    const boxes = z >= SITE_FROM_Z ? siteBoxes(SITES_KM + (2 * ROOT_KM) / 2 ** z) : null;
+    sources.push({ stepMeters, fromZ: boxes ? z : 0, sample: terrariumSampler(await loadTerrarium(zoom, boxes), zoom) });
   }
   return sources.sort((a, b) => a.stepMeters - b.stepMeters);
 }
@@ -371,9 +434,10 @@ async function main() {
     const sizeKm = ROOT_KM / 2 ** z;
     const spacingKm = sizeKm / (SAMPLES - 1);
     // Only sources at least as fine as the spacing; coarser ones would be upsampled noise-free anyway.
-    const usable = sources.filter(s => s.stepMeters <= spacingKm * 1000);
+    // Site-limited sources (`fromZ`) stay out of the coarser, distributed levels.
+    const usable = sources.filter(s => s.stepMeters <= spacingKm * 1000 && (s.fromZ ?? 0) <= z);
     // Where no fine raster covers a point, the nearest coarser one beats japan.bin.
-    const coarser = sources.filter(s => s.stepMeters > spacingKm * 1000);
+    const coarser = sources.filter(s => s.stepMeters > spacingKm * 1000 && (s.fromZ ?? 0) <= z);
     const stored = SAMPLES + 2 * BORDER;
     const nx = cols * 2 ** z;
     const ny = rows * 2 ** z;
@@ -382,6 +446,7 @@ async function main() {
     let offset = 0;
     const counts = { land: 0, local: 0 };
     const parents = new Set(levels[z - 1]?.tiles.map(([x, y]) => `${x}/${y}`) ?? []);
+    const candidates = [];
     for (let ty = 0; ty < ny; ty++)
       for (let tx = 0; tx < nx; tx++) {
         const x0 = tx * sizeKm;
@@ -389,6 +454,9 @@ async function main() {
         if (x0 >= WIDTH_KM || y0 >= HEIGHT_KM) continue;
         // Fine levels only refine tiles baked one level up (the rest is sea or outside Japan).
         if (z > FINE_FROM && !parents.has(`${tx >> 1}/${ty >> 1}`)) continue;
+        // Judged on the parent so all four siblings are baked: a parent that refines must have no holes.
+        if (SITES_KM > 0 && z >= SITE_FROM_Z && !nearSite((tx >> 1) * sizeKm * 2, (ty >> 1) * sizeKm * 2, sizeKm * 2))
+          continue;
         const data = new Int16Array(stored * stored);
         let min = Infinity;
         let max = -Infinity;
@@ -440,16 +508,25 @@ async function main() {
             }
         // Neighbouring land (Korea, China, Russia) only at the coarse levels.
         if (z >= FINE_FROM && prefs.grid && !prefSet.size) continue;
-        if (z >= FINE_FROM && tileCounts.local < tileCounts.land * FINE_COVERAGE) {
-          uncovered.add(`${z}/${tx}/${ty}`);
-          continue;
-        }
-        counts.land += tileCounts.land;
-        counts.local += tileCounts.local;
-        tiles.push([tx, ty, offset, Math.floor(min), Math.ceil(max), [...prefSet].sort((a, b) => a - b)]);
-        chunks.push(Buffer.from(data.buffer));
-        offset += data.byteLength;
+        const covered = !(z >= FINE_FROM && tileCounts.local < tileCounts.land * FINE_COVERAGE);
+        candidates.push({ tx, ty, data, min, max, prefSet, tileCounts, covered });
       }
+    // Site-limited levels keep all four siblings when one of them is covered (the rest is filled from
+    // coarser sources), so their parent can refine without holes. Otherwise only covered tiles stay.
+    const keepParent = new Set(
+      SITES_KM > 0 ? candidates.filter(c => c.covered).map(c => `${c.tx >> 1}/${c.ty >> 1}`) : []
+    );
+    for (const c of candidates) {
+      if (!c.covered && !keepParent.has(`${c.tx >> 1}/${c.ty >> 1}`)) {
+        uncovered.add(`${z}/${c.tx}/${c.ty}`);
+        continue;
+      }
+      counts.land += c.tileCounts.land;
+      counts.local += c.tileCounts.local;
+      tiles.push([c.tx, c.ty, offset, Math.floor(c.min), Math.ceil(c.max), [...c.prefSet].sort((a, b) => a - b)]);
+      chunks.push(Buffer.from(c.data.buffer));
+      offset += c.data.byteLength;
+    }
     const file = `z${z}.bin`;
     const body = Buffer.concat(chunks);
     fs.writeFileSync(path.join(OUT, file), body);

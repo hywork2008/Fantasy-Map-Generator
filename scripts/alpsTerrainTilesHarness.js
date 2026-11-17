@@ -6,17 +6,16 @@
  */
 async page => {
   const DIR = "docs/analytics/raw/alps-terrain/";
-  const ROUND = "a3";
+  // Edit per round. A4: close views of the Swiss sites; `maxZoom` 6 shows the 62.5 m level.
+  const ROUND = "a4-terrarium-z5";
+  const TILE_ZOOM = 5;
   // [site, camera height km, camera distance km south of the site]
   const RUNS = [
-    ["zermatt", 10, 20],
-    ["lauterbrunnen", 8, 16],
-    ["aletsch", 10, 20],
-    ["engadin", 10, 20],
-    ["lugano", 10, 20],
-    ["chamonix", 10, 20],
-    ["dolomites", 10, 20],
-    ["innsbruck", 10, 20]
+    ["zermatt", 5, 9],
+    ["lauterbrunnen", 5, 9],
+    ["aletsch", 5, 9],
+    ["engadin", 5, 9],
+    ["lugano", 5, 9]
   ];
 
   await page.goto("http://localhost:5173/Fantasy-Map-Generator/?seed=12345");
@@ -36,7 +35,7 @@ async page => {
   const results = [];
   for (const [site, heightKm, backKm] of RUNS) {
     const result = await page.evaluate(
-      async ({ site, heightKm, backKm }) => {
+      async ({ site, heightKm, backKm, tileZoom }) => {
         const sleep = ms => new Promise(r => setTimeout(r, ms));
         const base = "/Fantasy-Map-Generator/";
         const url = re =>
@@ -49,6 +48,8 @@ async page => {
         const viewMode = await import(url(/controllers\/viewMode\.ts/) ?? `${base}controllers/viewMode.ts`);
         const g = await import(`${base}utils/localTerrainGeoref.ts`);
         const w = (await import(`${base}context/worldContext.ts`)).worldContext;
+        const knobs = window.__fmgLocalTerrain;
+        knobs.set({ tiles: { ...knobs.get().tiles, maxZoom: tileZoom } });
         const s = g.localTerrainSites(w.options.earthRegion.id).find(x => x.id === site);
         const p = g.georefLonLatToMap(w.options.earthRegion, s.lon, s.lat, w.graphWidth, w.graphHeight);
         viewMode.openCampaignViewAt(p.x + 1e-6 * Math.random(), p.y);
@@ -77,7 +78,7 @@ async page => {
           meters: T.terrainTiles?.metersAt(p.x, p.y, w.graphWidth, w.graphHeight)
         };
       },
-      { site, heightKm, backKm }
+      { site, heightKm, backKm, tileZoom: TILE_ZOOM }
     );
     await page.screenshot({ path: `${DIR}${ROUND}-${site}.png` });
     results.push({ site, ...result });

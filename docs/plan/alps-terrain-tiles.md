@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | A0〜A3 済み（2026-11-18）。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める |
+| Status | A0〜A4 済み（2026-11-18）。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める |
 | Parent | [`japan-terrain-tiles.md`](./japan-terrain-tiles.md) |
 | Related | [`japan-local-war-terrain.md`](./japan-local-war-terrain.md)、[`fmg-cell-valleys.md`](./fmg-cell-valleys.md)、[`earth-geography-heightmaps.md`](./earth-geography-heightmaps.md)、[`../../scripts/bakeEarthTiles.mjs`](../../scripts/bakeEarthTiles.mjs)、[`../../src/data/earthRegions.ts`](../../src/data/earthRegions.ts)、[`../../src/renderers/terrainTiles/terrainTileLayer.ts`](../../src/renderers/terrainTiles/terrainTileLayer.ts) |
 | Scope | アルプス山脈とその周りを、Japan と同じ四分木タイルで3D表示し、山の造形を確かめる。日本と同じく「出典を記載すれば加工・再配布・商用利用ができる」データだけを使う。シミュの `cells.h`・河川・経路は変えない |
@@ -178,6 +178,19 @@ Japan と同じ四分木（z0=256km、65点格子）。
 - 試験地点8か所の3D（`scripts/alpsTerrainTilesHarness.js`、`docs/analytics/raw/alps-terrain/a3-*.png`）：描くタイル21〜35枚・9.4万〜15.7万頂点、タイル更新の最大4〜17ms。地点の高さはラウターブルンネン 802m、ルガーノ 291m、インスブルック 586m と実際の谷底に近い。
 - 見え方：500m で山並み・主な谷（ツェルマット谷、イン川、アレッチ）は読める。寄ったラウターブルンネン・シャモニーでは面が粗く、U字谷の崖や尖峰は出ない（A4 の細かい段の課題）。
 - 課題：湖（ルガーノ湖・コモ湖など）は湖面が海抜270m前後なので陸として描かれる。高さの色は Japan の色分け（2,200m 以上で灰、3,200m で白）のままで、アルプスでは広い範囲が白くなる。
+
+### A4（2026-11-18）
+
+- FSDI の一般利用条件（2022-05-30 掲載）を読んだ。無償・登録不要で、データの取得は Web サービスを機械的に読むのではなく、ダウンロードサービス（STAC）を使い、控えめな量に留める。加工・再配布はデータごとの規約（swisstopo OGD）に従う。→ A0 の残りの確認は無くなった。
+- `scripts/fetchSwissAlti3d.mjs`：スイスの試験地点5か所の±5km だけ（ユーザー指示：他は取得しない）、1km タイルの新しい年の 2m XYZ を取得した（115〜126枚/地点、計604枚・750MB、`temp/swissalti3d/`、Git 管理外）。GeoTIFF の読み込みに依存を足す代わりに XYZ の zip を `unzip` で読み、LV95 から経緯度へは swisstopo の近似式（約1m）で直し、25m 格子に平均した。取得は約90分（サーバの応答が遅い）。ツェルマットは南がイタリアで 95.8% だけ埋まる。
+- `bakeEarthTiles.mjs` に `--sitesKm`（250m 以下の段を試験地点の周りだけ焼く。Terrarium の取得もその範囲だけ）と `--swiss` を足した。細かい資料は配布の段（z0〜z3）に混ぜない（z0〜z3 は A3 とバイト一致）。地点で絞った段と z6 は、4つの兄弟のどれかが掛かれば4つとも焼く（親が割れたときに穴が空かない。初回は穴から海の面が見えた）。Japan は今もバイト一致。
+- 焼いた段（`--maxZoom 6 --sitesKm 10 --swiss`）：z4（250m）80枚・718KB、z5（125m）152枚・1.36MB、z6（62.5m、swissALTI3D だけ）64枚・575KB。z6 の陸の 44.5% が swissALTI3D、残りは兄弟を埋めるための Terrarium z5 相当。
+- 比較（`docs/analytics/raw/alps-terrain/a4-grid.png`、地点を高さ5km・南9km から）：
+  - 125m では Terrarium と swissALTI3D の差は小さい。Terrarium に日本で見えた縞は無い。swissALTI3D の方が稜線が少し鋭い。
+  - 62.5m（swissALTI3D）では、アレッチの氷河と稜線の筋、ラウターブルンネンの谷の崖、エンガディンの斜面の細部がはっきり増える。
+  - 国境の継ぎ目（ツェルマット・ルガーノ）は、この距離では段差として見えない。
+  - 描くタイル 42〜87枚・19万〜39万頂点、タイル更新の最大 0.4〜9ms。
+- 決めたこと：125m までは全域 Terrarium で足り、他の国の公的DEM（§2.2）は足さない。z6 は swissALTI3D のある所だけで残す（`ltTileZoom=6` で見る。既定の `maxZoom` は5のまま）。
 
 ## 8. やらないこと
 
