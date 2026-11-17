@@ -101,12 +101,10 @@ export const ALPINE_VALLEY_TABLES: ValleyProfileTables = {
     { depthM: 800, ridgeKm: 6.94, floorKm: 1.75 },
     { depthM: 1200, ridgeKm: 7.25, floorKm: 1.88 }
   ],
-  floorElevation: [
-    { elevM: 100, depthM: 28 },
-    { elevM: 350, depthM: 170 },
-    { elevM: 750, depthM: 773 },
-    { elevM: 1250, depthM: 1209 }
-  ],
+  // The measured depth by floor elevation (28 / 170 / 773 / 1,209 m) comes from the high troughs;
+  // as a lower bound it flattened foothill plateaus (A5), so the floor keeps the Japanese bound and
+  // Alpine depth comes from the relief around the river.
+  floorElevation: FLOOR_ELEVATION_DEPTH,
   sideRatio: [
     { depthM: 100, ratio: 1.6 },
     { depthM: 225, ratio: 1.54 },

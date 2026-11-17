@@ -58,8 +58,9 @@ describe("valleyDimensions", () => {
     expect(alps.floorHalfM).toBeGreaterThan(japan.floorHalfM);
     expect(japan.gorge).toBe(true);
     expect(alps.gorge).toBe(false);
+    // Without relief (a plateau) the Alpine valley is no deeper than the Japanese one.
     const flat = { groundM: 1500, reliefLeftM: 0, reliefRightM: 0, riverWidthM: 50 };
-    expect(valleyDimensions(flat, DEFAULT_VALLEY_TUNING, ALPINE_VALLEY_TABLES).depthM).toBeGreaterThan(
+    expect(valleyDimensions(flat, DEFAULT_VALLEY_TUNING, ALPINE_VALLEY_TABLES).depthM).toBe(
       valleyDimensions(flat).depthM
     );
   });
