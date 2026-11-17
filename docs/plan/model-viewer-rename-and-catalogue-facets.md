@@ -100,7 +100,13 @@ export interface ModelFacets {
 1. **属性の型の定義**（2026-11-18 完了）：[modelFacets.ts](../../src/buildings/modelFacets.ts) に `MODEL_KINDS`・`MODEL_REGIONS`・`ModelFacets` と検査関数 `modelFacetErrors()` を定義した。`MedievalModel`・`LandmarkModel`・`PlaceableObject` に任意項目 `facets?: ModelFacets` を追加した。
    - `BuildingRecord`（`catalogue/*.json`）には項目を追加しない。レコードは `contentHash` を持つ保存形式で、すでに `period`（年代）と `region`（実在の地名）を持つためである。段階2では、`kind: "structure"`・`periods: [record.period]` をレコードから導き、`region` の地名から `ModelRegion` への対応表をレコードIDごとに用意する。
    - 船・乗り物・兵器・樹木・小物の多くは、共通の定義型を持たず `main.ts` から直接一覧に登録されている。これらの属性は、段階3で一覧の構築を切り出すときに、登録一覧の項目として持たせる。
-2. **属性付け**：既存モデルに属性を付ける。task 番号のまとまり（中世 `*Models.ts`、船、乗り物、兵器、樹木、カタログ）ごとに分けて進める。全モデルに属性があることを確かめるテストを置き、属性付けが終わった段階で「必須」に切り替える。
+2. **属性付け**（2026-11-18 完了）：既存モデルに属性を付ける。task 番号のまとまり（中世 `*Models.ts`、船、乗り物、兵器、樹木、カタログ）ごとに分けて進める。全モデルに属性があることを確かめるテストを置き、属性付けが終わった段階で「必須」に切り替える。
+   - 属性は各モデルのファイルに書かず、[catalogueFacets.ts](../../src/buildings/catalogueFacets.ts) の表にまとめた。中世モデルは task 番号ごとの既定値と、モデルIDごとの上書きで引く（[wikipedia.ts](../../src/building-viewer/wikipedia.ts) と同じ方式）。60ファイルに分散させず、年代・地域の付け方を1か所で見比べられるようにするためである。モデル定義の `facets` 項目は、表より優先される上書きとして残す。
+   - 対象は中世モデル・ランドマーク・配置用オブジェクト（`PLACEABLE_OBJECTS`）・カタログレコードの計269件。引けないモデルでは `medievalFacets()` などの関数が例外を投げ、[catalogueFacets.test.ts](../../src/buildings/catalogueFacets.test.ts) で全件の属性が `modelFacetErrors()` を通ることを確かめる。これを「必須」の扱いとする。
+   - 専用工房（`trade-workshop.*`）は、他のモデルと task 番号が重なる（例: cutlery と horse mill がともに 61、metalwares と市場の調度がともに 59）。このため task 番号ではなく工房の種類で引く。
+   - カタログレコードは、`kind: "structure"` と `periods: [record.period]` をレコードから導き、地域はレコードIDごとの対応表で引く。
+   - 船（ships）・`PLACEABLE_OBJECTS` に入っていない乗り物、兵器・小物の多くは、共通の定義型がなく `main.ts` から直接登録されているため、段階3に回す。
+   - 車輪で走るものは用途が軍事でも `vehicle` とした（war wagon）。攻城兵器と火砲は `weapon` とした。
 3. **一覧の絞り込み**：一覧の構築を切り出し、絞り込み欄と検索、URLクエリへの保存を入れる。
 4. **名称変更**：上の表に従い、名前の変更だけのコミットで行う。AGENTS.md の「BV / Building Viewer」の節も、この時点で「MV / Model Viewer」に書き換える。
 5. **近代兵器の追加**：第一次世界大戦の戦車などを `kind: "weapon"` または `"vehicle"`、`periods: ["petroleumEra"]` で追加する。
