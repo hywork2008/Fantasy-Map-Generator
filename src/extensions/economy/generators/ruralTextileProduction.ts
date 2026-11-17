@@ -265,7 +265,8 @@ function runRuralTextileProduction(
     if (!(cost > 0)) {
       if (route && units > 0) {
         route.belowPaymentPrecision = true;
-        route.primary = "paymentPrecision";
+        // A sliver left by the binding limit rounds to no payment; keep that limit as the reason.
+        route.primary ??= "paymentPrecision";
         route.constraints.push("paymentPrecision");
       }
       return { units: 0, cost: 0 };

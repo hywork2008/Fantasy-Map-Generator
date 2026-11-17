@@ -23,8 +23,11 @@ import { getGoods, getMarkets } from "../../../src/extensions/economy/context/tr
 import { setGoodFlowObserver } from "../../../src/extensions/economy/generators/goodsBalanceLedger";
 import { getStapleFoodGood, FARMGATE_PRICE_SHARE } from "../../../src/extensions/economy/generators/foodProduction";
 import { setMarketSettings } from "../../../src/simulation/marketSettings";
+import { getStateFiscalReportState } from "../../../src/extensions/economy/state/stateFiscalReportStore";
+import { getUrbanCraftCapacityRecords } from "../../../src/extensions/economy/generators/urbanCraftCapacity";
 
 const [input, output, monthsArg] = process.argv.slice(2);
+let fiscalReportsSeen = 0;
 const months = Number(monthsArg ?? 36);
 const host = createNodeSimulationHost();
 await host.loadArchive(new Uint8Array(readFileSync(input)));
@@ -129,7 +132,16 @@ for (let month = 1; month <= months; month++) {
     if (step.startsWith("taxes:") || step.startsWith("nobility:")) services += inflow;
     hhIn += Math.max(0, Number(f.urbanHouseholds ?? 0)) + Math.max(0, Number(f.ruralHouseholds ?? 0));
   }
-  const snap: Record<string, unknown> = { month, goodsVA: produced - used, produced, used, staple: stapleValue(), services, hhIn, totals: recorder.totals(), heads: heads(), stapleMedianPrice: medians()[staple.name] };
+  // State fiscal reports added since the last snapshot: income by kind and public spending.
+  const fiscalReports = getStateFiscalReportState().reports;
+  const stateIncome: Record<string, number> = {};
+  let publicSpending = 0;
+  for (const report of fiscalReports.slice(fiscalReportsSeen)) {
+    for (const [kind, value] of Object.entries(report.income)) stateIncome[kind] = (stateIncome[kind] ?? 0) + (value || 0);
+    publicSpending += (report.expenses as Record<string, number>).publicSpending || 0;
+  }
+  fiscalReportsSeen = fiscalReports.length;
+  const snap: Record<string, unknown> = { stateIncome, publicSpending, month, goodsVA: produced - used, produced, used, staple: stapleValue(), services, hhIn, totals: recorder.totals(), heads: heads(), stapleMedianPrice: medians()[staple.name] };
   snap.ledgers = ledgers();
   // Where unmet household textiles stop (docs/plan/textile-basket-scale.md §3.1): the ledger's gap partition, summed.
   const gaps: Record<string, Record<string, number>> = {};
@@ -151,6 +163,31 @@ for (let month = 1; month <= months; month++) {
     }
   }
   snap.textileGaps = gaps;
+  // Where tailoring stops (docs/plan/textile-basket-scale.md §3.7): town worker-loop guards and rural home routes.
+  const tailored = new Set(["Garments", "Wool Garments", "Linen Garments", "Wool Blankets", "Cloth", "Wool Cloth", "Linen"]);
+  const nameOf = new Map(getGoods().map(g => [g.i, g.name]));
+  const urban: Record<string, { count: number; outputLots: number; laborPoints: number }> = {};
+  let textilePoints = 0, unusedPoints = 0, workforcePoints = 0;
+  for (const rec of getUrbanCraftCapacityRecords() as any[]) {
+    textilePoints += rec.textilePoints ?? 0; unusedPoints += rec.unusedPoints ?? 0; workforcePoints += rec.workforcePoints ?? 0;
+    for (const row of rec.productionDiagnostics?.rows ?? []) {
+      const name = nameOf.get(row.goodId);
+      if (!name || !tailored.has(name)) continue;
+      const key = `${name}|${row.stage}|${row.primary ?? "ok"}`;
+      const t = (urban[key] ??= { count: 0, outputLots: 0, laborPoints: 0 });
+      t.count += row.count; t.outputLots += row.outputLots ?? 0; t.laborPoints += row.laborPoints ?? 0;
+    }
+  }
+  const rural: Record<string, Record<string, number>> = {};
+  for (const m of marketById.values()) {
+    for (const route of (m as any).ruralTextileProduction?.homeDiagnostic?.routes ?? []) {
+      const key = `${nameOf.get(route.productGoodId)}<${nameOf.get(route.inputGoodId)}|${route.pass}|${route.primary ?? "ok"}`;
+      const t = (rural[key] ??= {});
+      for (const k of ["producedLots", "needLimitLots", "cashLimitLots", "stockLimitLots", "laborLimitLots"]) t[k] = (t[k] ?? 0) + (Number(route[k]) || 0);
+      t.n = (t.n ?? 0) + 1;
+    }
+  }
+  snap.tailoring = { urban, rural, textilePoints, unusedPoints, workforcePoints };
   snap.textileStocks = stocks;
   snap.sinks = Object.fromEntries(Object.entries(used2).filter(([, v]) => v[1] > 10).map(([k, v]) => [k, [Math.round(v[0]), Math.round(v[1])]]));
   snap.byGood = Object.fromEntries(Object.entries(byGood).filter(([, v]) => Math.abs(v) > 100).map(([k, v]) => [k, Math.round(v)]));

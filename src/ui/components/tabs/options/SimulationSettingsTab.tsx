@@ -111,7 +111,9 @@ import {
   type RuralTownSpendingMode,
   type RuralWorkYearMode,
   STATE_BUDGET_INCOME_MODES,
+  STATE_RESERVE_FLOOR_MODES,
   type StateBudgetIncomeMode,
+  type StateReserveFloorMode,
   setMarketSettings,
   URBAN_HARVEST_HELP_MODES,
   type UrbanHarvestHelpMode,
@@ -2020,6 +2022,45 @@ export const SimulationSettingsTab: React.FC = () => {
                   </option>
                 ))}
               </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.stateReserveFloorTip")}>
+            <td />
+            <td>
+              <label htmlFor="stateReserveFloor">{t("simulation.stateReserveFloor")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="stateReserveFloor"
+                value={marketSettings.stateReserveFloor}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      stateReserveFloor: e.target.value as StateReserveFloorMode
+                    })
+                  )
+                }
+              >
+                {STATE_RESERVE_FLOOR_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.stateReserveFloor_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.stateReserveYearsTip")}>
+            <td />
+            <td>{t("simulation.stateReserveYears")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="stateReserveYears"
+                min={MARKET_SETTING_LIMITS.stateReserveYears.min}
+                max={MARKET_SETTING_LIMITS.stateReserveYears.max}
+                step={MARKET_SETTING_LIMITS.stateReserveYears.step}
+                value={marketSettings.stateReserveYears}
+                onChange={v => updateMarketSetting("stateReserveYears", v)}
+              />
             </td>
           </tr>
           <tr data-tip={t("simulation.dairyTraditionSourceTip")}>

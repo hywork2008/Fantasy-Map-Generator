@@ -62,6 +62,7 @@ import {
   migrateWineRecipe,
   migrateWoodPhysicalRecipes,
   migrateWoolBlanketGoods,
+  migrateWoolClothYield,
   SMELTED_METAL_REPRICING,
   WEIGHT_REPRICING
 } from "./goods-generator";
@@ -70,7 +71,8 @@ import {
   CLOTH_LOTS_PER_FUR_GARMENT,
   CLOTH_LOTS_PER_GARMENT,
   COTTON_LOTS_PER_CLOTH,
-  HEMP_LOTS_PER_CLOTH
+  HEMP_LOTS_PER_CLOTH,
+  WOOL_LOTS_PER_CLOTH
 } from "./textileRecipeContracts";
 import {
   ASH_LOTS_PER_WOOD_LOT,
@@ -349,10 +351,10 @@ describe("GoodsModule", () => {
 
     expect(cloth).toMatchObject({ value: 98, unit: "wardrobe bolt", recipes: expect.any(Array) });
     expect(cloth.recipes).toEqual([
-      { [byName.get("Wool")!.i]: 6 },
+      { [byName.get("Wool")!.i]: WOOL_LOTS_PER_CLOTH },
       { [byName.get("Hemp")!.i]: HEMP_LOTS_PER_CLOTH },
       { [byName.get("Cotton")!.i]: COTTON_LOTS_PER_CLOTH },
-      { [byName.get("Wool")!.i]: 6, [byName.get("Synthetic Dye")!.i]: 0.1 }
+      { [byName.get("Wool")!.i]: WOOL_LOTS_PER_CLOTH, [byName.get("Synthetic Dye")!.i]: 0.1 }
     ]);
     expect(garments.recipes).toEqual([
       { [cloth.i]: CLOTH_LOTS_PER_GARMENT },
@@ -423,6 +425,20 @@ describe("GoodsModule", () => {
     expect(cloth.recipes).toEqual([{ [byName.get("Hemp")!.i]: 2 }]);
   });
 
+  it("moves only default wool cloth recipes to four lots of wool", () => {
+    goodsModule.restoreDefaults();
+    const goods = getGoods();
+    const wool = goods.find(good => good.name === "Wool")!;
+    const cloth = goods.find(good => good.name === "Cloth")!;
+    const woolCloth = goods.find(good => good.name === "Wool Cloth")!;
+    cloth.recipes = [{ [wool.i]: 6 }, { [wool.i]: 5 }];
+    woolCloth.recipes = [{ [wool.i]: 6 }];
+    expect(migrateWoolClothYield()).toBe(true);
+    expect(cloth.recipes).toEqual([{ [wool.i]: WOOL_LOTS_PER_CLOTH }, { [wool.i]: 5 }]);
+    expect(woolCloth.recipes).toEqual([{ [wool.i]: WOOL_LOTS_PER_CLOTH }]);
+    expect(migrateWoolClothYield()).toBe(false);
+  });
+
   it("appends ordinary wool goods by saved ids without rewriting existing stocks or custom goods", () => {
     goodsModule.restoreDefaults();
     const saved = getGoods().filter(good => !["Wool Cloth", "Wool Garments"].includes(good.name));
@@ -433,7 +449,7 @@ describe("GoodsModule", () => {
     expect(migrateOrdinaryWoolGoods()).toBe(true);
     const cloth = saved.find(good => good.name === "Wool Cloth")!;
     const garments = saved.find(good => good.name === "Wool Garments")!;
-    expect(cloth.recipes).toEqual([{ 3000: 6 }]);
+    expect(cloth.recipes).toEqual([{ 3000: WOOL_LOTS_PER_CLOTH }]);
     expect(garments.recipes).toEqual([{ [cloth.i]: CLOTH_LOTS_PER_GARMENT }]);
     expect(cloth.i).toBeGreaterThan(3000);
     expect(garments.i).toBeGreaterThan(cloth.i);

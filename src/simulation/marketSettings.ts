@@ -114,6 +114,9 @@ export type DairyTraditionSourceMode = (typeof DAIRY_TRADITION_SOURCE_MODES)[num
 /** Cash held back from bedding: for wardrobes still on the shelf this month, or for the whole unmet wardrobe need. */
 export const BEDDING_CASH_RESERVE_MODES = ["buyableWardrobes", "wardrobeNeed"] as const;
 export type BeddingCashReserveMode = (typeof BEDDING_CASH_RESERVE_MODES)[number];
+/** What sets the treasury level above which a State spends (docs/plan/state-reserve-scale.md). */
+export const STATE_RESERVE_FLOOR_MODES = ["incomeOnly", "perHead"] as const;
+export type StateReserveFloorMode = (typeof STATE_RESERVE_FLOOR_MODES)[number];
 export const CHEESE_REFERENCE_PRICE_MODES = ["productionCost", "goodValue"] as const;
 export type CheeseReferencePriceMode = (typeof CHEESE_REFERENCE_PRICE_MODES)[number];
 export type ByproductExportMode = (typeof BYPRODUCT_EXPORT_MODES)[number];
@@ -311,6 +314,8 @@ export type MarketSettings = {
   dairyDemand: DairyDemandMode;
   cheeseReferencePrice: CheeseReferencePriceMode;
   beddingCashReserve: BeddingCashReserveMode;
+  stateReserveFloor: StateReserveFloorMode;
+  stateReserveYears: number;
   dairyTraditionSource: DairyTraditionSourceMode;
   /** Share of a guild's treasury above its working reserve spent in its town a month, with `guildSurplusUse` spend. */
   guildSpendRate: number;
@@ -444,6 +449,8 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   dairyDemand: "tradition",
   cheeseReferencePrice: "productionCost",
   beddingCashReserve: "buyableWardrobes",
+  stateReserveFloor: "incomeOnly",
+  stateReserveYears: 0.75,
   dairyTraditionSource: "herdsAndPurchases",
   guildSpendRate: 0.08,
   guildReserveMonths: 1,
@@ -534,6 +541,7 @@ export const MARKET_SETTING_LIMITS = {
   dairyTraditionHalfLifeYears: { min: 1, max: 50, step: 1 },
   animalProteinCapGramsPerDay: { min: 5, max: 80, step: 1 },
   cheeseStorageLossPerMonth: { min: 0, max: 0.1, step: 0.005 },
+  stateReserveYears: { min: 0.25, max: 3, step: 0.25 },
   cheesePriceElasticity: { min: -2, max: 0, step: 0.1 }
 } as const;
 
@@ -609,6 +617,10 @@ const dairyTraditionSourceMode = (value: unknown): DairyTraditionSourceMode =>
   DAIRY_TRADITION_SOURCE_MODES.includes(value as DairyTraditionSourceMode)
     ? (value as DairyTraditionSourceMode)
     : DEFAULT_MARKET_SETTINGS.dairyTraditionSource;
+const stateReserveFloorMode = (value: unknown): StateReserveFloorMode =>
+  STATE_RESERVE_FLOOR_MODES.includes(value as StateReserveFloorMode)
+    ? (value as StateReserveFloorMode)
+    : DEFAULT_MARKET_SETTINGS.stateReserveFloor;
 const beddingCashReserveMode = (value: unknown): BeddingCashReserveMode =>
   BEDDING_CASH_RESERVE_MODES.includes(value as BeddingCashReserveMode)
     ? (value as BeddingCashReserveMode)
@@ -816,6 +828,8 @@ export function getMarketSettings(): MarketSettings {
     dairyDemand: dairyDemandMode(parsed.dairyDemand),
     cheeseReferencePrice: cheeseReferencePriceMode(parsed.cheeseReferencePrice),
     beddingCashReserve: beddingCashReserveMode(parsed.beddingCashReserve),
+    stateReserveFloor: stateReserveFloorMode(parsed.stateReserveFloor),
+    stateReserveYears: clamp("stateReserveYears", parsed.stateReserveYears),
     dairyTraditionSource: dairyTraditionSourceMode(parsed.dairyTraditionSource),
     guildSpendRate: clamp("guildSpendRate", parsed.guildSpendRate),
     guildReserveMonths: clamp("guildReserveMonths", parsed.guildReserveMonths),
@@ -924,6 +938,8 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     dairyDemand: dairyDemandMode(next.dairyDemand),
     cheeseReferencePrice: cheeseReferencePriceMode(next.cheeseReferencePrice),
     beddingCashReserve: beddingCashReserveMode(next.beddingCashReserve),
+    stateReserveFloor: stateReserveFloorMode(next.stateReserveFloor),
+    stateReserveYears: clamp("stateReserveYears", next.stateReserveYears),
     dairyTraditionSource: dairyTraditionSourceMode(next.dairyTraditionSource),
     guildSpendRate: clamp("guildSpendRate", next.guildSpendRate),
     guildReserveMonths: clamp("guildReserveMonths", next.guildReserveMonths),

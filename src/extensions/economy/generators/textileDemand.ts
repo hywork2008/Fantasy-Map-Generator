@@ -32,7 +32,8 @@ import {
   COTTON_LOTS_PER_CLOTH,
   HEMP_LOTS_PER_CLOTH,
   HOUSEHOLD_GARMENT_NAMES,
-  LINEN_BALES_PER_GARMENT
+  LINEN_BALES_PER_GARMENT,
+  WOOL_LOTS_PER_CLOTH
 } from "./textileRecipeContracts";
 
 export {
@@ -601,7 +602,7 @@ export function getTextileGuildWorkPlan(burg: Burg): TextileGuildWorkPlan {
     return { ...profile, expectedOrders: 0, availableInputOrders: 0, projectedMonthlyMargin: 0, viable: false };
   }
 
-  const woolOrders = Math.max(0, market.goods[wool.i]?.stock ?? 0) / (6 * CLOTH_LOTS_PER_GARMENT);
+  const woolOrders = Math.max(0, market.goods[wool.i]?.stock ?? 0) / (WOOL_LOTS_PER_CLOTH * CLOTH_LOTS_PER_GARMENT);
   const hempOrders = Math.max(0, market.goods[hemp.i]?.stock ?? 0) / (HEMP_LOTS_PER_CLOTH * CLOTH_LOTS_PER_GARMENT);
   const cottonOrders =
     Math.max(0, market.goods[cotton.i]?.stock ?? 0) / (COTTON_LOTS_PER_CLOTH * CLOTH_LOTS_PER_GARMENT);

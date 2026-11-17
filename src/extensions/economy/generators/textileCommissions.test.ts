@@ -27,6 +27,7 @@ import {
   type TextileCommissionRequest
 } from "./textileCommissions";
 import { getTextileMarketOrders, settleTextileHouseholdDemand } from "./textileDemand";
+import { WOOL_LOTS_PER_CLOTH } from "./textileRecipeContracts";
 import { getUrbanCraftCapacityRecords, recordUrbanCraftCapacity } from "./urbanCraftCapacity";
 
 const home: RuralTextileProduction = {
@@ -158,7 +159,7 @@ describe("same-market paid textile commissions", () => {
     expect(result.jobs).toHaveLength(1);
     const job = result.jobs[0];
     expect(job.inputGoodId).toBe(wool.i);
-    expect(job.inputUnits).toBeCloseTo((job.productUnits * 6) / 0.9, 8);
+    expect(job.inputUnits).toBeCloseTo((job.productUnits * WOOL_LOTS_PER_CLOTH) / 0.9, 8);
     expect(job.clothUnits).toBeCloseTo(job.productUnits / 0.9, 8);
     expect(job.weavingLaborPoints).toBeCloseTo(job.clothUnits! * 0.259, 8);
     expect(job.tailoringLaborPoints).toBeCloseTo(job.productUnits * 0.972, 8);

@@ -86,7 +86,8 @@ const STEWARDSHIP_TAX_EFFICIENCY_PENALTY_MAX = 0.15;
 /**
  * A State keeps about this many years of its domestic income as a reserve; above it, a share of
  * the excess is spent each cycle as public payroll in its towns (docs/plan/initial-wealth-calibration.md
- * §5.2). Without this the treasury only grew and the households it taxed only shrank.
+ * §5.2). Without this the treasury only grew and the households it taxed only shrank. Used by the
+ * legacy `perHead` reserve floor; `incomeOnly` takes the years from Simulation settings.
  */
 const STATE_RESERVE_YEARS = 2;
 const STATE_SURPLUS_SPEND_SHARE = 0.25;
@@ -368,11 +369,14 @@ export class TaxesModule {
       const cycleIncome =
         rawDomesticIncome + (salesTaxByState.get(state.i) ?? 0) + (importDutyByState.get(state.i) ?? 0);
       const stateMoney = moneyStocks.get(state.i)?.money;
+      const reserveSettings = getMarketSettings();
       const reserveTarget = Math.min(
-        Math.max(
-          cycleIncome * CYCLES_PER_YEAR * STATE_RESERVE_YEARS,
-          ((state.urban || 0) + (state.rural || 0)) * profile.stateTreasuryPerPopulation
-        ),
+        reserveSettings.stateReserveFloor === "incomeOnly"
+          ? cycleIncome * CYCLES_PER_YEAR * reserveSettings.stateReserveYears
+          : Math.max(
+              cycleIncome * CYCLES_PER_YEAR * STATE_RESERVE_YEARS,
+              ((state.urban || 0) + (state.rural || 0)) * profile.stateTreasuryPerPopulation
+            ),
         stateMoney === undefined ? Infinity : stateMoney * STATE_RESERVE_MONEY_SHARE_CAP
       );
       const surplus = Math.max(0, (state.treasury || 0) - reserveTarget);

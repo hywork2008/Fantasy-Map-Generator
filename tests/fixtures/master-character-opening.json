@@ -234,12 +234,7 @@
     "nobilityCharacterGenerationBias": "none",
     "simulationTimelineOnLoad": "new"
   },
-  "extensions": [
-    "economy",
-    "characters",
-    "nobility",
-    "shipbuilding"
-  ],
+  "extensions": ["economy", "characters", "nobility", "shipbuilding"],
   "masterCommit": "8622cd2449a0ce93ec6d8409a7437ef54864802b",
   "expected": [
     {
@@ -1285,7 +1280,7 @@
       "age": 52,
       "gender": "female",
       "race": 1,
-      "wealth": 16.8,
+      "wealth": 13.21,
       "family": {
         "spouses": 1,
         "children": 6,
@@ -1301,7 +1296,7 @@
           "kind": "guildMaster",
           "entityType": "burg",
           "entityId": 1,
-          "domain": "victualling",
+          "domain": "textiles",
           "label": "Guild Master"
         }
       ]
@@ -1327,7 +1322,7 @@
           "source": "economy",
           "kind": "guildMaster",
           "entityType": "burg",
-          "entityId": 38,
+          "entityId": 1,
           "domain": "victualling",
           "label": "Guild Master"
         }
@@ -1335,11 +1330,65 @@
     },
     {
       "i": 25,
+      "name": "Shersford",
+      "age": 41,
+      "gender": "male",
+      "race": 1,
+      "wealth": 16.03,
+      "family": {
+        "spouses": 1,
+        "children": 7,
+        "grandchildren": 2,
+        "greatGrandchildren": 0,
+        "spouseIds": [],
+        "childIds": []
+      },
+      "titles": [],
+      "roles": [
+        {
+          "source": "economy",
+          "kind": "guildMaster",
+          "entityType": "burg",
+          "entityId": 38,
+          "domain": "textiles",
+          "label": "Guild Master"
+        }
+      ]
+    },
+    {
+      "i": 26,
+      "name": "Treley",
+      "age": 56,
+      "gender": "female",
+      "race": 1,
+      "wealth": 16.8,
+      "family": {
+        "spouses": 1,
+        "children": 9,
+        "grandchildren": 27,
+        "greatGrandchildren": 0,
+        "spouseIds": [],
+        "childIds": []
+      },
+      "titles": [],
+      "roles": [
+        {
+          "source": "economy",
+          "kind": "guildMaster",
+          "entityType": "burg",
+          "entityId": 38,
+          "domain": "victualling",
+          "label": "Guild Master"
+        }
+      ]
+    },
+    {
+      "i": 27,
       "name": "Harmingley",
       "age": 39,
       "gender": "male",
       "race": 1,
-      "wealth": 192,
+      "wealth": 240,
       "family": {
         "spouses": 1,
         "children": 3,
@@ -1359,12 +1408,12 @@
       ]
     },
     {
-      "i": 26,
+      "i": 28,
       "name": "Albrone",
       "age": 51,
       "gender": "female",
       "race": 1,
-      "wealth": 99.24,
+      "wealth": 124.05,
       "family": {
         "spouses": 1,
         "children": 7,
@@ -1384,12 +1433,12 @@
       ]
     },
     {
-      "i": 27,
+      "i": 29,
       "name": "Berton",
       "age": 45,
       "gender": "male",
       "race": 1,
-      "wealth": 384,
+      "wealth": 153.6,
       "family": {
         "spouses": 1,
         "children": 7,
@@ -1409,12 +1458,12 @@
       ]
     },
     {
-      "i": 28,
+      "i": 30,
       "name": "Seaford",
       "age": 46,
       "gender": "male",
       "race": 1,
-      "wealth": 105.84,
+      "wealth": 79.38,
       "family": {
         "spouses": 1,
         "children": 4,
@@ -1434,7 +1483,7 @@
       ]
     },
     {
-      "i": 29,
+      "i": 31,
       "name": "Nostowbury",
       "age": 52,
       "gender": "male",
@@ -1459,12 +1508,12 @@
       ]
     },
     {
-      "i": 30,
+      "i": 32,
       "name": "Heydon",
       "age": 41,
       "gender": "male",
       "race": 1,
-      "wealth": 49.6,
+      "wealth": 89.28,
       "family": {
         "spouses": 1,
         "children": 4,
@@ -1484,12 +1533,12 @@
       ]
     },
     {
-      "i": 31,
+      "i": 33,
       "name": "Soutbury",
       "age": 55,
       "gender": "male",
       "race": 1,
-      "wealth": 2160,
+      "wealth": 960,
       "family": {
         "spouses": 7,
         "children": 80,
@@ -1509,12 +1558,12 @@
       ]
     },
     {
-      "i": 32,
+      "i": 34,
       "name": "Causdon",
       "age": 44,
       "gender": "male",
       "race": 1,
-      "wealth": 384,
+      "wealth": 230.4,
       "family": {
         "spouses": 7,
         "children": 26,
@@ -1534,12 +1583,12 @@
       ]
     },
     {
-      "i": 33,
+      "i": 35,
       "name": "Norden",
       "age": 35,
       "gender": "male",
       "race": 1,
-      "wealth": 222.15,
+      "wealth": 399.87,
       "family": {
         "spouses": 3,
         "children": 7,
@@ -1559,7 +1608,7 @@
       ]
     },
     {
-      "i": 34,
+      "i": 36,
       "name": "Wateston",
       "age": 36,
       "gender": "male",
@@ -1584,12 +1633,12 @@
       ]
     },
     {
-      "i": 35,
+      "i": 37,
       "name": "Cochambe",
       "age": 58,
       "gender": "male",
       "race": 1,
-      "wealth": 268.8,
+      "wealth": 345.6,
       "family": {
         "spouses": 4,
         "children": 46,
@@ -1609,7 +1658,7 @@
       ]
     },
     {
-      "i": 36,
+      "i": 38,
       "name": "Yeoverlis",
       "age": 45,
       "gender": "male",
@@ -1634,16 +1683,41 @@
       ]
     },
     {
-      "i": 37,
-      "name": "Tavewes",
-      "age": 49,
+      "i": 39,
+      "name": "Clifracton",
+      "age": 26,
       "gender": "male",
       "race": 1,
-      "wealth": 96,
+      "wealth": 216,
       "family": {
-        "spouses": 4,
-        "children": 28,
-        "grandchildren": 18,
+        "spouses": 1,
+        "children": 0,
+        "grandchildren": 0,
+        "greatGrandchildren": 0,
+        "spouseIds": [],
+        "childIds": []
+      },
+      "titles": [
+        {
+          "title": "Admiral",
+          "landed": false,
+          "entityType": "state",
+          "entityId": 1,
+          "startYear": 997
+        }
+      ]
+    },
+    {
+      "i": 40,
+      "name": "Hinckburgh",
+      "age": 29,
+      "gender": "male",
+      "race": 1,
+      "wealth": 144,
+      "family": {
+        "spouses": 6,
+        "children": 5,
+        "grandchildren": 0,
         "greatGrandchildren": 0,
         "spouseIds": [],
         "childIds": []
@@ -1654,21 +1728,21 @@
           "landed": false,
           "entityType": "state",
           "entityId": 2,
-          "startYear": 993
+          "startYear": 999
         }
       ]
     },
     {
-      "i": 38,
-      "name": "Rothel",
-      "age": 39,
+      "i": 41,
+      "name": "Chiple",
+      "age": 35,
       "gender": "male",
       "race": 1,
-      "wealth": 96,
+      "wealth": 192,
       "family": {
         "spouses": 5,
-        "children": 25,
-        "grandchildren": 8,
+        "children": 6,
+        "grandchildren": 0,
         "greatGrandchildren": 0,
         "spouseIds": [],
         "childIds": []
@@ -1684,16 +1758,66 @@
       ]
     },
     {
-      "i": 39,
-      "name": "Kington",
-      "age": 32,
+      "i": 42,
+      "name": "Draxted",
+      "age": 48,
       "gender": "male",
       "race": 1,
-      "wealth": 288,
+      "wealth": 168,
+      "family": {
+        "spouses": 4,
+        "children": 23,
+        "grandchildren": 41,
+        "greatGrandchildren": 0,
+        "spouseIds": [],
+        "childIds": []
+      },
+      "titles": [
+        {
+          "title": "Commander",
+          "landed": false,
+          "entityType": "state",
+          "entityId": 2,
+          "startYear": 982
+        }
+      ]
+    },
+    {
+      "i": 43,
+      "name": "Draxtedbu",
+      "age": 34,
+      "gender": "male",
+      "race": 1,
+      "wealth": 192,
+      "family": {
+        "spouses": 7,
+        "children": 9,
+        "grandchildren": 0,
+        "greatGrandchildren": 0,
+        "spouseIds": [],
+        "childIds": []
+      },
+      "titles": [
+        {
+          "title": "Commander",
+          "landed": false,
+          "entityType": "state",
+          "entityId": 2,
+          "startYear": 987
+        }
+      ]
+    },
+    {
+      "i": 44,
+      "name": "Cleowey",
+      "age": 49,
+      "gender": "male",
+      "race": 1,
+      "wealth": 432,
       "family": {
         "spouses": 1,
-        "children": 1,
-        "grandchildren": 0,
+        "children": 4,
+        "grandchildren": 3,
         "greatGrandchildren": 0,
         "spouseIds": [],
         "childIds": []
@@ -1704,46 +1828,46 @@
           "landed": true,
           "entityType": "province",
           "entityId": 2,
-          "startYear": 989
+          "startYear": 998
         }
       ]
     },
     {
-      "i": 40,
-      "name": "Bonelisham",
-      "age": 34,
-      "gender": "female",
+      "i": 45,
+      "name": "Congrazion",
+      "age": 55,
+      "gender": "male",
       "race": 1,
-      "wealth": 240,
+      "wealth": 192,
       "family": {
         "spouses": 1,
         "children": 4,
-        "grandchildren": 0,
+        "grandchildren": 8,
         "greatGrandchildren": 0,
         "spouseIds": [],
         "childIds": []
       },
       "titles": [
         {
-          "title": "Countess",
+          "title": "Count",
           "landed": true,
           "entityType": "province",
           "entityId": 3,
-          "startYear": 1000
+          "startYear": 969
         }
       ]
     },
     {
-      "i": 41,
-      "name": "Malton",
-      "age": 51,
+      "i": 46,
+      "name": "Pondore",
+      "age": 43,
       "gender": "male",
       "race": 1,
-      "wealth": 336,
+      "wealth": 240,
       "family": {
-        "spouses": 6,
-        "children": 44,
-        "grandchildren": 33,
+        "spouses": 3,
+        "children": 9,
+        "grandchildren": 6,
         "greatGrandchildren": 0,
         "spouseIds": [],
         "childIds": []
@@ -1754,46 +1878,46 @@
           "landed": true,
           "entityType": "province",
           "entityId": 9,
-          "startYear": 999
+          "startYear": 985
         }
       ]
     },
     {
-      "i": 42,
-      "name": "Chawbomyard",
-      "age": 30,
-      "gender": "female",
+      "i": 47,
+      "name": "Grantford",
+      "age": 59,
+      "gender": "male",
       "race": 1,
-      "wealth": 336,
+      "wealth": 384,
       "family": {
-        "spouses": 1,
-        "children": 3,
-        "grandchildren": 0,
+        "spouses": 3,
+        "children": 17,
+        "grandchildren": 39,
         "greatGrandchildren": 0,
         "spouseIds": [],
         "childIds": []
       },
       "titles": [
         {
-          "title": "Baroness",
+          "title": "Baron",
           "landed": true,
           "entityType": "province",
           "entityId": 5,
-          "startYear": 990
+          "startYear": 969
         }
       ]
     },
     {
-      "i": 43,
-      "name": "Holington",
-      "age": 38,
+      "i": 48,
+      "name": "Chipton",
+      "age": 56,
       "gender": "male",
       "race": 1,
-      "wealth": 288,
+      "wealth": 432,
       "family": {
-        "spouses": 7,
-        "children": 20,
-        "grandchildren": 2,
+        "spouses": 4,
+        "children": 27,
+        "grandchildren": 54,
         "greatGrandchildren": 0,
         "spouseIds": [],
         "childIds": []
@@ -1804,7 +1928,7 @@
           "landed": true,
           "entityType": "province",
           "entityId": 6,
-          "startYear": 999
+          "startYear": 966
         }
       ]
     }
@@ -3016,7 +3140,7 @@
       "age": 45,
       "gender": "male",
       "race": 1,
-      "wealth": 16.8,
+      "wealth": 12.57,
       "family": {
         "spouses": 1,
         "children": 5,
@@ -3032,7 +3156,7 @@
           "kind": "guildMaster",
           "entityType": "burg",
           "entityId": 34,
-          "domain": "victualling",
+          "domain": "textiles",
           "label": "Guild Master"
         }
       ]
@@ -3058,7 +3182,7 @@
           "source": "economy",
           "kind": "guildMaster",
           "entityType": "burg",
-          "entityId": 1,
+          "entityId": 34,
           "domain": "victualling",
           "label": "Guild Master"
         }
@@ -3066,14 +3190,68 @@
     },
     {
       "i": 31,
-      "name": "Westcham",
-      "age": 33,
-      "gender": "male",
+      "name": "Ashtonor",
+      "age": 62,
+      "gender": "female",
       "race": 1,
-      "wealth": 11.2,
+      "wealth": 8.76,
       "family": {
         "spouses": 1,
-        "children": 2,
+        "children": 5,
+        "grandchildren": 13,
+        "greatGrandchildren": 10,
+        "spouseIds": [],
+        "childIds": []
+      },
+      "titles": [],
+      "roles": [
+        {
+          "source": "economy",
+          "kind": "guildMaster",
+          "entityType": "burg",
+          "entityId": 1,
+          "domain": "textiles",
+          "label": "Guild Master"
+        }
+      ]
+    },
+    {
+      "i": 32,
+      "name": "Mateston",
+      "age": 47,
+      "gender": "male",
+      "race": 1,
+      "wealth": 16.8,
+      "family": {
+        "spouses": 0,
+        "children": 0,
+        "grandchildren": 0,
+        "greatGrandchildren": 0,
+        "spouseIds": [],
+        "childIds": []
+      },
+      "titles": [],
+      "roles": [
+        {
+          "source": "economy",
+          "kind": "guildMaster",
+          "entityType": "burg",
+          "entityId": 1,
+          "domain": "victualling",
+          "label": "Guild Master"
+        }
+      ]
+    },
+    {
+      "i": 33,
+      "name": "Thatckego",
+      "age": 36,
+      "gender": "female",
+      "race": 1,
+      "wealth": 16.8,
+      "family": {
+        "spouses": 0,
+        "children": 0,
         "grandchildren": 0,
         "greatGrandchildren": 0,
         "spouseIds": [],
@@ -3092,16 +3270,16 @@
       ]
     },
     {
-      "i": 32,
-      "name": "Malnedon",
-      "age": 29,
-      "gender": "female",
+      "i": 34,
+      "name": "Lelisbury",
+      "age": 39,
+      "gender": "male",
       "race": 1,
       "wealth": 16.8,
       "family": {
         "spouses": 1,
-        "children": 1,
-        "grandchildren": 0,
+        "children": 6,
+        "grandchildren": 3,
         "greatGrandchildren": 0,
         "spouseIds": [],
         "childIds": []
@@ -3119,12 +3297,12 @@
       ]
     },
     {
-      "i": 33,
+      "i": 35,
       "name": "Harmingley",
       "age": 39,
       "gender": "male",
       "race": 1,
-      "wealth": 554.22,
+      "wealth": 492.64,
       "family": {
         "spouses": 1,
         "children": 3,
@@ -3144,12 +3322,12 @@
       ]
     },
     {
-      "i": 34,
+      "i": 36,
       "name": "Albrone",
       "age": 51,
       "gender": "female",
       "race": 1,
-      "wealth": 295.6,
+      "wealth": 184.75,
       "family": {
         "spouses": 1,
         "children": 7,
@@ -3169,12 +3347,12 @@
       ]
     },
     {
-      "i": 35,
+      "i": 37,
       "name": "Westcking",
       "age": 37,
       "gender": "male",
       "race": 1,
-      "wealth": 384,
+      "wealth": 192,
       "family": {
         "spouses": 1,
         "children": 3,
@@ -3194,12 +3372,12 @@
       ]
     },
     {
-      "i": 36,
+      "i": 38,
       "name": "Burtondal",
       "age": 34,
       "gender": "male",
       "race": 1,
-      "wealth": 98.55,
+      "wealth": 137.97,
       "family": {
         "spouses": 1,
         "children": 1,
@@ -3219,12 +3397,12 @@
       ]
     },
     {
-      "i": 37,
+      "i": 39,
       "name": "Merleigh",
       "age": 55,
       "gender": "male",
       "race": 1,
-      "wealth": 49.25,
+      "wealth": 39.4,
       "family": {
         "spouses": 1,
         "children": 7,
@@ -3244,12 +3422,12 @@
       ]
     },
     {
-      "i": 38,
+      "i": 40,
       "name": "Kidetowndon",
       "age": 50,
       "gender": "male",
       "race": 1,
-      "wealth": 73.9,
+      "wealth": 103.46,
       "family": {
         "spouses": 1,
         "children": 3,
@@ -3269,12 +3447,12 @@
       ]
     },
     {
-      "i": 39,
+      "i": 41,
       "name": "Soutbury",
       "age": 28,
       "gender": "male",
       "race": 1,
-      "wealth": 1858.32,
+      "wealth": 2090.61,
       "family": {
         "spouses": 7,
         "children": 8,
@@ -3294,12 +3472,12 @@
       ]
     },
     {
-      "i": 40,
+      "i": 42,
       "name": "Botfordge",
       "age": 30,
       "gender": "male",
       "race": 1,
-      "wealth": 153.6,
+      "wealth": 230.4,
       "family": {
         "spouses": 0,
         "children": 0,
@@ -3319,7 +3497,7 @@
       ]
     },
     {
-      "i": 41,
+      "i": 43,
       "name": "Fadington",
       "age": 40,
       "gender": "male",
@@ -3344,12 +3522,12 @@
       ]
     },
     {
-      "i": 42,
+      "i": 44,
       "name": "Torkburgh",
       "age": 63,
       "gender": "male",
       "race": 1,
-      "wealth": 153.6,
+      "wealth": 345.6,
       "family": {
         "spouses": 7,
         "children": 59,
@@ -3369,12 +3547,12 @@
       ]
     },
     {
-      "i": 43,
+      "i": 45,
       "name": "Fararave",
       "age": 53,
       "gender": "male",
       "race": 1,
-      "wealth": 260.19,
+      "wealth": 334.53,
       "family": {
         "spouses": 0,
         "children": 0,
@@ -3394,12 +3572,12 @@
       ]
     },
     {
-      "i": 44,
+      "i": 46,
       "name": "Presin",
       "age": 40,
       "gender": "male",
       "race": 1,
-      "wealth": 192,
+      "wealth": 345.6,
       "family": {
         "spouses": 6,
         "children": 34,
@@ -3419,65 +3597,40 @@
       ]
     },
     {
-      "i": 45,
-      "name": "Kihuling",
-      "age": 45,
+      "i": 47,
+      "name": "Axbridmouth",
+      "age": 58,
+      "gender": "male",
+      "race": 1,
+      "wealth": 216,
+      "family": {
+        "spouses": 1,
+        "children": 8,
+        "grandchildren": 18,
+        "greatGrandchildren": 0,
+        "spouseIds": [],
+        "childIds": []
+      },
+      "titles": [
+        {
+          "title": "Commander",
+          "landed": false,
+          "entityType": "state",
+          "entityId": 1,
+          "startYear": 993
+        }
+      ]
+    },
+    {
+      "i": 48,
+      "name": "Boslereso",
+      "age": 33,
       "gender": "male",
       "race": 1,
       "wealth": 216,
       "family": {
         "spouses": 1,
         "children": 4,
-        "grandchildren": 5,
-        "greatGrandchildren": 0,
-        "spouseIds": [],
-        "childIds": []
-      },
-      "titles": [
-        {
-          "title": "Commander",
-          "landed": false,
-          "entityType": "state",
-          "entityId": 1,
-          "startYear": 997
-        }
-      ]
-    },
-    {
-      "i": 46,
-      "name": "Southwark",
-      "age": 38,
-      "gender": "female",
-      "race": 1,
-      "wealth": 216,
-      "family": {
-        "spouses": 1,
-        "children": 6,
-        "grandchildren": 1,
-        "greatGrandchildren": 0,
-        "spouseIds": [],
-        "childIds": []
-      },
-      "titles": [
-        {
-          "title": "Commander",
-          "landed": false,
-          "entityType": "state",
-          "entityId": 1,
-          "startYear": 986
-        }
-      ]
-    },
-    {
-      "i": 47,
-      "name": "Reaford",
-      "age": 36,
-      "gender": "male",
-      "race": 1,
-      "wealth": 192,
-      "family": {
-        "spouses": 5,
-        "children": 19,
         "grandchildren": 0,
         "greatGrandchildren": 0,
         "spouseIds": [],
@@ -3488,47 +3641,97 @@
           "title": "Commander",
           "landed": false,
           "entityType": "state",
-          "entityId": 2,
-          "startYear": 986
-        }
-      ]
-    },
-    {
-      "i": 48,
-      "name": "Salingford",
-      "age": 43,
-      "gender": "male",
-      "race": 1,
-      "wealth": 240,
-      "family": {
-        "spouses": 0,
-        "children": 0,
-        "grandchildren": 0,
-        "greatGrandchildren": 0,
-        "spouseIds": [],
-        "childIds": []
-      },
-      "titles": [
-        {
-          "title": "Commander",
-          "landed": false,
-          "entityType": "state",
-          "entityId": 2,
+          "entityId": 1,
           "startYear": 987
         }
       ]
     },
     {
       "i": 49,
-      "name": "Felworth",
-      "age": 55,
+      "name": "Exningralis",
+      "age": 57,
+      "gender": "male",
+      "race": 1,
+      "wealth": 192,
+      "family": {
+        "spouses": 4,
+        "children": 31,
+        "grandchildren": 98,
+        "greatGrandchildren": 13,
+        "spouseIds": [],
+        "childIds": []
+      },
+      "titles": [
+        {
+          "title": "Commander",
+          "landed": false,
+          "entityType": "state",
+          "entityId": 2,
+          "startYear": 976
+        }
+      ]
+    },
+    {
+      "i": 50,
+      "name": "Kirnewesto",
+      "age": 31,
+      "gender": "male",
+      "race": 1,
+      "wealth": 216,
+      "family": {
+        "spouses": 4,
+        "children": 8,
+        "grandchildren": 0,
+        "greatGrandchildren": 0,
+        "spouseIds": [],
+        "childIds": []
+      },
+      "titles": [
+        {
+          "title": "Commander",
+          "landed": false,
+          "entityType": "state",
+          "entityId": 2,
+          "startYear": 1000
+        }
+      ]
+    },
+    {
+      "i": 51,
+      "name": "Helstowbury",
+      "age": 57,
+      "gender": "male",
+      "race": 1,
+      "wealth": 192,
+      "family": {
+        "spouses": 3,
+        "children": 22,
+        "grandchildren": 23,
+        "greatGrandchildren": 3,
+        "spouseIds": [],
+        "childIds": []
+      },
+      "titles": [
+        {
+          "title": "Commander",
+          "landed": false,
+          "entityType": "state",
+          "entityId": 2,
+          "startYear": 989
+        }
+      ]
+    },
+    {
+      "i": 52,
+      "name": "Sidmin",
+      "age": 54,
       "gender": "male",
       "race": 1,
       "wealth": 192,
       "family": {
         "spouses": 1,
         "children": 7,
-        "grandchildren": 20,
+        "grandchildren": 6,
         "greatGrandchildren": 0,
         "spouseIds": [],
         "childIds": []
@@ -3539,21 +3742,21 @@
           "landed": true,
           "entityType": "province",
           "entityId": 2,
-          "startYear": 981
+          "startYear": 975
         }
       ]
     },
     {
-      "i": 50,
-      "name": "Hertfield",
-      "age": 56,
+      "i": 53,
+      "name": "Perscom",
+      "age": 53,
       "gender": "male",
       "race": 1,
       "wealth": 336,
       "family": {
         "spouses": 1,
         "children": 7,
-        "grandchildren": 14,
+        "grandchildren": 18,
         "greatGrandchildren": 0,
         "spouseIds": [],
         "childIds": []
@@ -3564,71 +3767,71 @@
           "landed": true,
           "entityType": "province",
           "entityId": 3,
-          "startYear": 987
+          "startYear": 996
         }
       ]
     },
     {
-      "i": 51,
-      "name": "Reabington",
-      "age": 59,
-      "gender": "male",
-      "race": 1,
-      "wealth": 192,
-      "family": {
-        "spouses": 5,
-        "children": 39,
-        "grandchildren": 135,
-        "greatGrandchildren": 27,
-        "spouseIds": [],
-        "childIds": []
-      },
-      "titles": [
-        {
-          "title": "Margrave",
-          "landed": true,
-          "entityType": "province",
-          "entityId": 9,
-          "startYear": 990
-        }
-      ]
-    },
-    {
-      "i": 52,
-      "name": "Oltoncexe",
-      "age": 53,
+      "i": 54,
+      "name": "Maclifnal",
+      "age": 38,
       "gender": "female",
       "race": 1,
-      "wealth": 288,
+      "wealth": 480,
       "family": {
         "spouses": 1,
-        "children": 4,
-        "grandchildren": 3,
+        "children": 5,
+        "grandchildren": 1,
         "greatGrandchildren": 0,
         "spouseIds": [],
         "childIds": []
       },
       "titles": [
         {
-          "title": "Baroness",
+          "title": "Margravine",
           "landed": true,
           "entityType": "province",
-          "entityId": 5,
-          "startYear": 991
+          "entityId": 9,
+          "startYear": 982
         }
       ]
     },
     {
-      "i": 53,
-      "name": "Congrasal",
-      "age": 36,
+      "i": 55,
+      "name": "Hitchton",
+      "age": 49,
       "gender": "male",
       "race": 1,
-      "wealth": 480,
+      "wealth": 432,
       "family": {
-        "spouses": 7,
-        "children": 14,
-        "grandchildren": 0,
+        "spouses": 5,
+        "children": 41,
+        "grandchildren": 53,
+        "greatGrandchildren": 0,
+        "spouseIds": [],
+        "childIds": []
+      },
+      "titles": [
+        {
+          "title": "Baron",
+          "landed": true,
+          "entityType": "province",
+          "entityId": 5,
+          "startYear": 995
+        }
+      ]
+    },
+    {
+      "i": 56,
+      "name": "Wazionor",
+      "age": 37,
+      "gender": "male",
+      "race": 1,
+      "wealth": 288,
+      "family": {
+        "spouses": 4,
+        "children": 15,
+        "grandchildren": 2,
         "greatGrandchildren": 0,
         "spouseIds": [],
         "childIds": []
@@ -3639,7 +3842,7 @@
           "landed": true,
           "entityType": "province",
           "entityId": 6,
-          "startYear": 990
+          "startYear": 992
         }
       ]
     }

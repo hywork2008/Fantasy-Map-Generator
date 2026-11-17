@@ -174,7 +174,8 @@ import {
   migrateWeightRepricing,
   migrateWineRecipe,
   migrateWoodPhysicalRecipes,
-  migrateWoolBlanketGoods
+  migrateWoolBlanketGoods,
+  migrateWoolClothYield
 } from "./generators/goods-generator";
 import { GreatLibrary } from "./generators/greatLibrary";
 import { GuildChapters } from "./generators/guildChapters";
@@ -396,7 +397,9 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateOliveSoapRecipe,
   migrateLeatherGoods,
   // docs/plan/candle-split.md: the homes' tallow candles apart from the wax Candles.
-  migrateTallowCandleGoods
+  migrateTallowCandleGoods,
+  // docs/analytics/wool-sources-20261117.md: 4 lots of wool a lot of cloth, not 6.
+  migrateWoolClothYield
 ];
 
 /**

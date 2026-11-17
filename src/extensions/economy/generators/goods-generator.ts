@@ -47,7 +47,7 @@ import {
   type ReturnableDrink,
   withDrinkContainers
 } from "./returnableContainers";
-import { TEXTILE_RECIPES } from "./textileRecipeContracts";
+import { LEGACY_WOOL_LOTS_PER_CLOTH, TEXTILE_RECIPES, WOOL_LOTS_PER_CLOTH } from "./textileRecipeContracts";
 import { getDefaultGoodCargoProfile } from "./tradeCargo";
 import { catalogTradeHeading } from "./tradeHeadings";
 import {
@@ -5598,6 +5598,26 @@ export function migrateLinenGarmentGoods(): boolean {
   if (garments && !garments.byproducts && old && next && key(garments.recipes) === key(old)) {
     garments.recipes = next;
     changed = true;
+  }
+  return changed;
+}
+
+/**
+ * Cloth and Wool Cloth take 4 lots of wool instead of 6 (1.5 kg a kilogram of cloth,
+ * docs/analytics/wool-sources-20261117.md). Only recipes still at the old default amount change.
+ */
+export function migrateWoolClothYield(): boolean {
+  const goods = getGoods();
+  const wool = goods.find(good => good.name === "Wool");
+  if (!wool) return false;
+  let changed = false;
+  for (const good of goods) {
+    if (good.name !== "Cloth" && good.name !== "Wool Cloth") continue;
+    for (const recipe of good.recipes ?? []) {
+      if (recipe[wool.i] !== LEGACY_WOOL_LOTS_PER_CLOTH) continue;
+      recipe[wool.i] = WOOL_LOTS_PER_CLOTH;
+      changed = true;
+    }
   }
   return changed;
 }

@@ -39,6 +39,7 @@ describe("TaxesModule", () => {
   let taxesModule: TaxesModule;
 
   afterEach(() => {
+    setMarketSettings({ stateReserveFloor: "incomeOnly" });
     clearEconomyContext();
   });
 
@@ -79,7 +80,19 @@ describe("TaxesModule", () => {
       expect(state.treasury).toBe(0);
     });
 
-    it("seeds a population-scaled public reserve for a new balanced State", () => {
+    it("starts a new balanced State near its income-only reserve", () => {
+      worldContext.options = { economyStartMode: "balanced" } as typeof worldContext.options;
+      const state: State = { i: 1, name: "Kingdom", rural: 1_000, urban: 200 } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, state];
+
+      taxesModule.defineTaxRates();
+
+      // population 1,200 * 2.5 per reserve year * 0.75 years (economyStartMode.ts)
+      expect(state.treasury).toBe(2250);
+    });
+
+    it("seeds a population-scaled public reserve under the per-head floor", () => {
+      setMarketSettings({ stateReserveFloor: "perHead" });
       worldContext.options = { economyStartMode: "balanced" } as typeof worldContext.options;
       const state: State = { i: 1, name: "Kingdom", rural: 1_000, urban: 200 } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state];

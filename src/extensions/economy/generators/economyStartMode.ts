@@ -1,5 +1,13 @@
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import type { EconomyStartMode, WorldOptions } from "../../../types/WorldState";
 import { getMoneyScale } from "./moneyScale";
+
+/**
+ * Start treasury per population point for each year of reserve. Under the per-head floor of 8 the
+ * treasury settled at about 3.2 years of its income on map 2103, so one year is 8 / 3.2
+ * (docs/analytics/income-scale-20261117.md).
+ */
+const START_TREASURY_PER_POPULATION_PER_RESERVE_YEAR = 2.5;
 
 /** New maps use a modest, pre-industrial economy. */
 export const DEFAULT_NEW_MAP_ECONOMY_START_MODE: EconomyStartMode = "balanced";
@@ -105,7 +113,7 @@ export function getEconomyStartMode(options: Pick<WorldOptions, "economyStartMod
  * (docs/plan/money-scale-calibration.md); shares and multipliers are scale-free.
  */
 export function getEconomyStartProfile(options: Pick<WorldOptions, "economyStartMode">): EconomyStartProfile {
-  const profile = PROFILES[getEconomyStartMode(options)];
+  const profile = withReserveScaledTreasury(PROFILES[getEconomyStartMode(options)]);
   const scale = getMoneyScale();
   if (scale === 1) return profile;
   return {
@@ -114,5 +122,26 @@ export function getEconomyStartProfile(options: Pick<WorldOptions, "economyStart
     stateTreasuryPerPopulation: profile.stateTreasuryPerPopulation * scale,
     marketMaintenancePerPopulation: profile.marketMaintenancePerPopulation * scale,
     householdWealthPerPopulation: profile.householdWealthPerPopulation * scale
+  };
+}
+
+/**
+ * With an income-only reserve the State starts at about its reserve, not above it, so the first
+ * year does not spend the excess. The coin taken off the treasury goes to households, keeping the
+ * money a State starts with (docs/plan/state-reserve-scale.md).
+ */
+function withReserveScaledTreasury(profile: EconomyStartProfile): EconomyStartProfile {
+  const settings = getMarketSettings();
+  if (settings.stateReserveFloor !== "incomeOnly") return profile;
+  const treasury = Math.min(
+    profile.stateTreasuryPerPopulation,
+    START_TREASURY_PER_POPULATION_PER_RESERVE_YEAR * settings.stateReserveYears
+  );
+  const moved = profile.stateTreasuryPerPopulation - treasury;
+  if (moved <= 0) return profile;
+  return {
+    ...profile,
+    stateTreasuryPerPopulation: treasury,
+    householdWealthPerPopulation: profile.householdWealthPerPopulation + moved
   };
 }

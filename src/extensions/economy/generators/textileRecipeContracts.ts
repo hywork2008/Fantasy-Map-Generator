@@ -1,6 +1,15 @@
 /** Textile material contracts. Yields and quality premiums are explicit model choices (§38–§39). */
 import { WAIN_KG } from "./goodMeasureCatalog";
 
+/**
+ * Wool lots (1.5 t of greasy fleece) for a 4 t lot of ordinary wool cloth: 1.5 kg of wool a kilogram
+ * of cloth. The mid-16th-century standard broadcloth took 84 lb of wool for 64 lb (1.31; Oldland,
+ * after Tawney & Power); medieval greasy fleece lost more in scouring. Was 6 lots (2.25 kg/kg), a model
+ * value that made home clothing need about three times England's c.1300 home clip
+ * (docs/analytics/wool-sources-20261117.md).
+ */
+export const WOOL_LOTS_PER_CLOTH = (4000 * 1.5) / 1500;
+export const LEGACY_WOOL_LOTS_PER_CLOTH = 6;
 export const HEMP_LOTS_PER_CLOTH = 4000 / 0.8 / WAIN_KG;
 export const COTTON_LOTS_PER_CLOTH = 4000 / 0.8 / 200;
 export const CLOTH_LOTS_PER_GARMENT = 4000 / 0.9 / 4000;
@@ -10,10 +19,10 @@ export const WOOL_CLOTH_LOTS_PER_BLANKET_LOT = 250 / 0.95 / 4000;
 export const HOUSEHOLD_GARMENT_NAMES: ReadonlySet<string> = new Set(["Garments", "Linen Garments", "Wool Garments"]);
 export const TEXTILE_RECIPES: Readonly<Record<string, Record<string, number>[]>> = {
   Cloth: [
-    { Wool: 6 },
+    { Wool: WOOL_LOTS_PER_CLOTH },
     { Hemp: HEMP_LOTS_PER_CLOTH },
     { Cotton: COTTON_LOTS_PER_CLOTH },
-    { Wool: 6, "Synthetic Dye": 0.1 }
+    { Wool: WOOL_LOTS_PER_CLOTH, "Synthetic Dye": 0.1 }
   ],
   Garments: [
     { Cloth: CLOTH_LOTS_PER_GARMENT },
@@ -22,7 +31,7 @@ export const TEXTILE_RECIPES: Readonly<Record<string, Record<string, number>[]>>
   ],
   Linen: [{ Flax: 10 }],
   "Linen Garments": [{ Linen: LINEN_BALES_PER_GARMENT }],
-  "Wool Cloth": [{ Wool: 6 }],
+  "Wool Cloth": [{ Wool: WOOL_LOTS_PER_CLOTH }],
   "Wool Blankets": [{ "Wool Cloth": WOOL_CLOTH_LOTS_PER_BLANKET_LOT }],
   "Wool Garments": [{ "Wool Cloth": CLOTH_LOTS_PER_GARMENT }],
   "Fine Wool Cloth": [{ Wool: 0.3 }],

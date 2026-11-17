@@ -405,11 +405,11 @@ describe("rural household wool processing", () => {
         const homeRoute = result.homeDiagnostic!.routes.find(
           row => row.productGoodId === byName("Wool Blankets").i && row.weavesCloth
         )!;
-        const reason = { stock: "materials", cash: "budget", price: "missingPrice", rounding: "paymentPrecision" }[
-          constraint
-        ];
+        // A sliver of wool is still a materials limit; the rounding to no payment is a secondary reason.
+        const reason = { stock: "materials", cash: "budget", price: "missingPrice", rounding: "materials" }[constraint];
         expect(homeRoute.primary).toBe(reason);
         expect(homeRoute.constraints).toContain(reason);
+        if (constraint === "rounding") expect(homeRoute.constraints).toContain("paymentPrecision");
       }
     }
   );
@@ -469,7 +469,8 @@ describe("rural household wool processing", () => {
     expect(home.beddingDiagnostic!.beddingBudget).toBe(0);
     expect(home.beddingDiagnostic!.releasedLaborToGarments).toBeGreaterThan(0);
     expect(home.blankets).toBe(0);
-    expect(home.garments).toBeGreaterThan(0.7);
+    // Three whole-cent lots of wool at 0.01 make 3 / 4 × 0.9 = 0.675 lots of garments.
+    expect(home.garments).toBeGreaterThan(0.6);
     expect(home.laborUsed).toBeLessThanOrEqual(1000);
     expect(home.garmentSpending).toBeLessThanOrEqual(4);
   });
