@@ -210,6 +210,7 @@ const modelArticles: Record<string, string> = {
   "churchyard-cross": "Churchyard cross",
   "lych-gate": "Lychgate",
   "trade-workshop.dedicated-ropewalk": "Ropewalk",
+  "trade-workshop.dedicated-horse-mill": "Horse mill",
   "trade-workshop.dedicated-butchery": "Butcher",
   "trade-workshop.dedicated-chandlery": "Chandler (profession)",
   "trade-workshop.dedicated-metalwares": "Pewter",

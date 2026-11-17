@@ -26,6 +26,7 @@ import { models as butcheries } from "./medieval/57-butcheryModels";
 import { models as townTrades } from "./medieval/58-town-tradesModels";
 import { models as squareFurniture } from "./medieval/59-market-square-furnitureModels";
 import { models as churchyardFurniture } from "./medieval/60-churchyard-furnitureModels";
+import { models as horseMills } from "./medieval/61-horse-millsModels";
 import { isMarketPalette, type MarketPalette } from "./medieval/marketAppearance";
 import {
   isMarketModel,
@@ -159,7 +160,8 @@ for (const model of [
   ...parishChurches.filter(m => m.id === "village-chapel"),
   ...townChurches,
   ...squareFurniture,
-  ...churchyardFurniture
+  ...churchyardFurniture,
+  ...horseMills
 ]) {
   const qualities = Object.fromEntries(
     (["low", "high"] as const).map(level => [
