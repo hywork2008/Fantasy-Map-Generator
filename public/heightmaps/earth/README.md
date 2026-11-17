@@ -68,6 +68,26 @@ Quadtree tiles for the 3D war view on `japan`-template maps
 | `index.json`, `z0.bin`–`z3.bin` (4 km–500 m), `prefectures.bin` (about 13 MB) | `z4.bin`, `z5.bin` (250 m, 125 m), `index.local.json` |
 
 ```bash
-node scripts/bakeJapanTiles.mjs                          # distributed levels z0–z3
-node scripts/bakeJapanTiles.mjs --maxZoom 5 --local      # plus local 250 m / 100 m rasters
+node scripts/bakeEarthTiles.mjs --region japan                       # distributed levels z0–z3
+node scripts/bakeEarthTiles.mjs --region japan --maxZoom 5 --local   # plus local 250 m / 100 m rasters
 ```
+
+## Alps terrain tiles (`alps-tiles/`)
+
+Quadtree tiles for the 3D war view on `alps`-template maps
+([docs/plan/alps-terrain-tiles.md](../../../docs/plan/alps-terrain-tiles.md)): `alps.bin` and AWS Terrain
+Tiles (Terrarium z8 for 1 km, z9 for 500 m; cached under `temp/terrarium-alps/`). The mask
+(`prefectures.bin`) holds Natural Earth admin-0 countries (ISO A2), not provinces.
+
+| Committed | Local only (Git-ignored) |
+| :--- | :--- |
+| `index.json`, `z0.bin`–`z3.bin` (4 km–500 m), `prefectures.bin` (about 7 MB) | `z4.bin` and finer, `index.local.json` |
+
+```bash
+node scripts/bakeEarthTiles.mjs --region alps                        # distributed levels z0–z3
+```
+
+Credits: AWS Terrain Tiles — Europe terrain data produced using Copernicus data and information funded by the
+European Union - EU-DEM layers; Austria terrain data © offene Daten Österreichs – Digitales Geländemodell (DGM)
+Österreich; global ETOPO1 terrain data U.S. National Oceanic and Atmospheric Administration; global GMTED2010
+and SRTM terrain data courtesy of the U.S. Geological Survey. Natural Earth admin-0 (public domain).

@@ -2,9 +2,9 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | A0〜A2 済み（2026-11-18）。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める |
+| Status | A0〜A3 済み（2026-11-18）。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める |
 | Parent | [`japan-terrain-tiles.md`](./japan-terrain-tiles.md) |
-| Related | [`japan-local-war-terrain.md`](./japan-local-war-terrain.md)、[`fmg-cell-valleys.md`](./fmg-cell-valleys.md)、[`earth-geography-heightmaps.md`](./earth-geography-heightmaps.md)、[`../../scripts/bakeJapanTiles.mjs`](../../scripts/bakeJapanTiles.mjs)、[`../../src/data/earthRegions.ts`](../../src/data/earthRegions.ts)、[`../../src/renderers/terrainTiles/terrainTileLayer.ts`](../../src/renderers/terrainTiles/terrainTileLayer.ts) |
+| Related | [`japan-local-war-terrain.md`](./japan-local-war-terrain.md)、[`fmg-cell-valleys.md`](./fmg-cell-valleys.md)、[`earth-geography-heightmaps.md`](./earth-geography-heightmaps.md)、[`../../scripts/bakeEarthTiles.mjs`](../../scripts/bakeEarthTiles.mjs)、[`../../src/data/earthRegions.ts`](../../src/data/earthRegions.ts)、[`../../src/renderers/terrainTiles/terrainTileLayer.ts`](../../src/renderers/terrainTiles/terrainTileLayer.ts) |
 | Scope | アルプス山脈とその周りを、Japan と同じ四分木タイルで3D表示し、山の造形を確かめる。日本と同じく「出典を記載すれば加工・再配布・商用利用ができる」データだけを使う。シミュの `cells.h`・河川・経路は変えない |
 
 ---
@@ -160,6 +160,24 @@ Japan と同じ四分木（z0=256km、65点格子）。
 - 県の段（`manifest.json`）と実在河川（`rivers.json`）は `localDemDir` から読む（Alps は無し）。試験地点は `localTerrainSites(regionId)`。`JAPAN_LOCAL_TERRAIN_SITES` は Japan の設定を指す別名として残した（既存のハーネス用）。
 - `prefectures` → `admin1` の名前変更は見送った（URL・ハーネス・タイルの索引の書式が変わるだけで、Alps の表示には要らない）。
 - 確認（seed 12345）：Japan 川中島はタイル 176枚を描き、谷の数値（川8本・3,368点・峡谷8点）も V3 と同じ。Alps ツェルマットは `alps-tiles/` が無いのでタイルは読めず、窓の地面（`alps.bin` の2km）で描く。
+
+### A3（2026-11-18）
+
+- `scripts/bakeEarthTiles.mjs --region japan|alps` を足し、`bakeJapanTiles.mjs` を置き換えた。Japan は `--local --maxZoom 5` で今の `japan-tiles/` の全ファイルとバイト単位で一致した。
+- Alps は `alps.bin` と Terrarium（1km 段に z8、500m 段に z9。段の間隔の半分以下の画素になる縮尺）から z0〜z3 を焼いた。取得 288枚（`temp/terrarium-alps/`、37MB）、焼き込み17秒。マスクは admin-0 の国（ISO A2）にした（admin-1 はスロベニアの市町村だけで約200あり、1バイトの索引に収まらない）。
+
+| z | 間隔 | 枚数 | バイト（gzip） |
+| :--- | :--- | ---: | :--- |
+| 0 | 4km | 12 | 108K（68K） |
+| 1 | 2km | 40 | 359K（267K） |
+| 2 | 1km | 140 | 1.26M（0.94M） |
+| 3 | 500m | 526 | 4.72M（3.37M） |
+| マスク | 1km | — | 545K（9K） |
+
+- 配布量は計7.0MB（gzip 約4.6MB）。Japan の z0〜z3（約13MB）より小さい。
+- 試験地点8か所の3D（`scripts/alpsTerrainTilesHarness.js`、`docs/analytics/raw/alps-terrain/a3-*.png`）：描くタイル21〜35枚・9.4万〜15.7万頂点、タイル更新の最大4〜17ms。地点の高さはラウターブルンネン 802m、ルガーノ 291m、インスブルック 586m と実際の谷底に近い。
+- 見え方：500m で山並み・主な谷（ツェルマット谷、イン川、アレッチ）は読める。寄ったラウターブルンネン・シャモニーでは面が粗く、U字谷の崖や尖峰は出ない（A4 の細かい段の課題）。
+- 課題：湖（ルガーノ湖・コモ湖など）は湖面が海抜270m前後なので陸として描かれる。高さの色は Japan の色分け（2,200m 以上で灰、3,200m で白）のままで、アルプスでは広い範囲が白くなる。
 
 ## 8. やらないこと
 

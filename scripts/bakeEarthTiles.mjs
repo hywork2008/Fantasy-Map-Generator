@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /**
- * Bake the Japan terrain tile pyramid (docs/plan/japan-terrain-tiles.md, T1).
+ * Bake the terrain tile pyramid of an Earth region with real-DEM 3D terrain
+ * (docs/plan/japan-terrain-tiles.md T1, docs/plan/alps-terrain-tiles.md A3).
  *
- * Re-samples rasters already on disk; nothing is downloaded:
- *   - public/heightmaps/earth/japan.bin (0.02°, ~2 km) for every level,
- *   - public/heightmaps/earth/japan-local/<pref>-<step>m.bin listed in manifest.json (and in
- *     manifest.local.json with --local) where they cover the sample.
+ * Regions (REGIONS below):
+ *   - japan: re-samples rasters already on disk (japan.bin for every level, japan-local/<pref>-<step>m.bin
+ *     from manifest.json / manifest.local.json with --local). Masked by Natural Earth admin-1 prefectures.
+ *   - alps: alps.bin for the coarse levels, AWS Terrain Tiles (Terrarium) for every level from 1 km on,
+ *     cached under temp/terrarium-alps/. Masked by Natural Earth admin-0 countries (ISO A2).
  *
  * Tile frame: kilometres from the region's north-west corner, equirectangular at the region's
  * middle latitude (the same shape the map graph is fitted to). Level 0 tiles are `rootKm` wide;
@@ -13,36 +15,66 @@
  * neighbours share their edge row. Stored tiles carry one more sample on every side
  * (`border`), so the runtime shades the edge with the same neighbours as the next tile.
  *
- * Output: public/heightmaps/earth/japan-tiles/
- *   index.json        frame, levels, and per tile [x, y, offset, minM, maxM, prefIndexes, split]
- *                     split = 1 when every child inside Japan was baked (the runtime may refine)
+ * Output: public/heightmaps/earth/<region>-tiles/
+ *   index.json        frame, levels, and per tile [x, y, offset, minM, maxM, maskIndexes, split]
+ *                     split = 1 when every child inside the mask was baked (the runtime may refine)
  *   z<z>.bin          tiles of one level back to back, Int16 little-endian, 0.5 m units,
  *                     -32768 = no data. Tiles without land are not written.
- *
- * Tiles without land are dropped; from --fineFrom (default 2) on, so are tiles that touch no
- * Japanese prefecture, and tiles whose land is not mostly covered by a raster at least as fine
- * as the level (a 250 m level is only written where 250 m rasters exist).
- *
  *   index.local.json  levels finer than 500 m (Git-ignored; only with --local and --maxZoom > 3)
- *   prefectures.bin   prefecture index per 1 km cell of the frame (Uint8, 255 = none)
+ *   prefectures.bin   mask index per 1 km cell of the frame (Uint8, 255 = none)
  *
- * Usage: node scripts/bakeJapanTiles.mjs [--maskOnly] [--maxZoom 3] [--rootKm 256] [--samples 65] [--fineFrom 2] [--local]
+ * From --fineFrom (default 2) on, tiles that touch no mask area are dropped, and so are tiles whose
+ * land is not mostly covered by a source at least as fine as the level.
+ *
+ * Usage: node scripts/bakeEarthTiles.mjs --region japan|alps [--maskOnly] [--maxZoom 3] [--rootKm 256]
+ *        [--samples 65] [--fineFrom 2] [--local] [--out <dir>]
  */
 import crypto from "node:crypto";
 import fs from "node:fs";
+import https from "node:https";
+import { createRequire } from "node:module";
 import path from "node:path";
 import zlib from "node:zlib";
 
+const require = createRequire(import.meta.url);
 const ROOT = path.resolve(import.meta.dirname, "..");
 const EARTH = path.join(ROOT, "public/heightmaps/earth");
-const LOCAL = path.join(EARTH, "japan-local");
-const OUT = path.join(EARTH, "japan-tiles");
-const ADMIN1 = path.join(ROOT, "temp/japan-local/ne_10m_admin_1_states_provinces.geojson");
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : fallback;
 };
+
+// Bounds match the EarthRegion in src/data/earthRegions.ts.
+const REGIONS = {
+  japan: {
+    bounds: { west: 118.5, east: 146.4, south: 29.9, north: 46.6 },
+    raster: "japan.bin",
+    localDir: "japan-local",
+    mask: {
+      file: path.join(ROOT, "temp/japan-local/ne_10m_admin_1_states_provinces.geojson"),
+      keep: p => p.adm0_a3 === "JPN",
+      code: p => p.iso_3166_2
+    }
+  },
+  alps: {
+    bounds: { west: 4.5, east: 17, south: 43.5, north: 48.6 },
+    raster: "alps.bin",
+    terrarium: path.join(ROOT, "temp/terrarium-alps"),
+    mask: {
+      file: path.join(ROOT, "temp/ne_10m_admin_0_countries.geojson"),
+      keep: p => /^[A-Z]{2}$/.test(p.ISO_A2_EH ?? ""),
+      code: p => p.ISO_A2_EH,
+      // Only countries reaching into the frame (Natural Earth lists the whole world).
+      clip: true
+    }
+  }
+};
+const REGION_ID = arg("region", "japan");
+const CONFIG = REGIONS[REGION_ID];
+if (!CONFIG) throw new Error(`unknown region ${REGION_ID}`);
+const LOCAL = CONFIG.localDir ? path.join(EARTH, CONFIG.localDir) : null;
+const OUT = path.resolve(arg("out", path.join(EARTH, `${REGION_ID}-tiles`)));
 const MAX_ZOOM = Number(arg("maxZoom", 3));
 const ROOT_KM = Number(arg("rootKm", 256));
 const SAMPLES = Number(arg("samples", 65));
@@ -57,8 +89,7 @@ const MASK_ONLY = process.argv.includes("--maskOnly");
 const DIST_MIN_STEP_M = 500;
 const USE_LOCAL = process.argv.includes("--local");
 
-// JAPAN_REGION (src/data/earthRegions.ts).
-const REGION = { west: 118.5, east: 146.4, south: 29.9, north: 46.6 };
+const REGION = CONFIG.bounds;
 const MID_LAT = (REGION.south + REGION.north) / 2;
 const KM_PER_DEG_LAT = 110.574;
 const KM_PER_DEG_LON = 111.32 * Math.cos((MID_LAT * Math.PI) / 180);
@@ -89,7 +120,7 @@ function decodeRaster(file) {
   };
 }
 
-/** Region land mask bit at the nearest pixel (japan.bin). */
+/** Region land mask bit at the nearest pixel (<region>.bin). */
 function landAt(r, lon, lat) {
   const x = Math.floor(((lon - r.west) / (r.east - r.west)) * r.width);
   const y = Math.floor(((r.north - lat) / (r.north - r.south)) * r.height);
@@ -123,8 +154,10 @@ function sample(r, lon, lat) {
   return weight > 0.25 ? sum / weight : null;
 }
 
-function loadSources() {
+async function loadSources() {
+  if (CONFIG.terrarium) return terrariumSources();
   const sources = [];
+  if (!LOCAL) return sources;
   const manifests = ["manifest.json", ...(USE_LOCAL ? ["manifest.local.json"] : [])];
   for (const name of manifests) {
     const file = path.join(LOCAL, name);
@@ -132,11 +165,113 @@ function loadSources() {
     for (const bundle of JSON.parse(fs.readFileSync(file, "utf8")).bundles)
       for (const level of bundle.levels) {
         const raster = path.join(LOCAL, level.file);
-        if (fs.existsSync(raster)) sources.push({ stepMeters: level.stepMeters, raster: decodeRaster(raster) });
+        if (fs.existsSync(raster)) {
+          const decoded = decodeRaster(raster);
+          sources.push({ stepMeters: level.stepMeters, sample: (lon, lat) => sample(decoded, lon, lat) });
+        }
       }
   }
   sources.sort((a, b) => a.stepMeters - b.stepMeters);
   return sources;
+}
+
+// ---- Terrarium (AWS Terrain Tiles) ----
+
+const TERRARIUM_URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium";
+/** Level spacing (m) → Terrarium zoom whose pixel is at most half the spacing at the region's latitude. */
+function terrariumZoom(stepMeters) {
+  const pixel0 = 156543.03 * Math.cos((MID_LAT * Math.PI) / 180);
+  return Math.min(13, Math.max(0, Math.ceil(Math.log2(pixel0 / (stepMeters / 2)))));
+}
+
+function tileXY(lon, lat, z) {
+  const n = 2 ** z;
+  const r = (lat * Math.PI) / 180;
+  return { x: ((lon + 180) / 360) * n, y: ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n };
+}
+
+function download(url, dest) {
+  return new Promise((resolve, reject) => {
+    https
+      .get(url, res => {
+        if (res.statusCode !== 200) {
+          res.resume();
+          reject(new Error(`${url} → ${res.statusCode}`));
+          return;
+        }
+        const chunks = [];
+        res.on("data", c => chunks.push(c));
+        res.on("end", () => {
+          fs.writeFileSync(dest, Buffer.concat(chunks));
+          resolve();
+        });
+      })
+      .on("error", reject);
+  });
+}
+
+/** Downloads (once) and decodes every Terrarium tile over the region at zoom z, into meters. */
+async function loadTerrarium(z) {
+  const { PNG } = require("pngjs");
+  const dir = path.join(CONFIG.terrarium, String(z));
+  fs.mkdirSync(dir, { recursive: true });
+  const pad = 0.05;
+  const nw = tileXY(REGION.west - pad, REGION.north + pad, z);
+  const se = tileXY(REGION.east + pad, REGION.south - pad, z);
+  const jobs = [];
+  for (let x = Math.floor(nw.x); x <= Math.floor(se.x); x++)
+    for (let y = Math.floor(nw.y); y <= Math.floor(se.y); y++) jobs.push({ x, y, file: path.join(dir, `${x}-${y}.png`) });
+  const missing = jobs.filter(j => !fs.existsSync(j.file) || fs.statSync(j.file).size < 100);
+  for (let i = 0; i < missing.length; i += 8) {
+    await Promise.all(missing.slice(i, i + 8).map(j => download(`${TERRARIUM_URL}/${z}/${j.x}/${j.y}.png`, j.file)));
+    if (i % 200 === 0) console.log(`terrarium z${z}: ${Math.min(i + 8, missing.length)}/${missing.length}`);
+  }
+  const tiles = new Map();
+  for (const j of jobs) {
+    const png = PNG.sync.read(fs.readFileSync(j.file));
+    const meters = new Float32Array(256 * 256);
+    for (let k = 0; k < meters.length; k++)
+      meters[k] = png.data[k * 4] * 256 + png.data[k * 4 + 1] + png.data[k * 4 + 2] / 256 - 32768;
+    tiles.set(`${j.x},${j.y}`, meters);
+  }
+  console.log(`terrarium z${z}: ${jobs.length} tiles (${missing.length} downloaded)`);
+  return tiles;
+}
+
+/** Bilinear Terrarium meters at lon/lat; null outside the loaded tiles. */
+function terrariumSampler(tiles, z) {
+  const at = (px, py) => {
+    const tx = Math.floor(px / 256);
+    const ty = Math.floor(py / 256);
+    const tile = tiles.get(`${tx},${ty}`);
+    return tile ? tile[(py - ty * 256) * 256 + (px - tx * 256)] : null;
+  };
+  return (lon, lat) => {
+    const { x, y } = tileXY(lon, lat, z);
+    const fx = x * 256 - 0.5;
+    const fy = y * 256 - 0.5;
+    const x0 = Math.floor(fx);
+    const y0 = Math.floor(fy);
+    const tx = fx - x0;
+    const ty = fy - y0;
+    const a = at(x0, y0);
+    const b = at(x0 + 1, y0);
+    const c = at(x0, y0 + 1);
+    const d = at(x0 + 1, y0 + 1);
+    if (a === null || b === null || c === null || d === null) return null;
+    return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+  };
+}
+
+/** One Terrarium source per baked level from 1 km on, each at the zoom matching its spacing. */
+async function terrariumSources() {
+  const sources = [];
+  for (let z = FINE_FROM; z <= MAX_ZOOM; z++) {
+    const stepMeters = ((ROOT_KM / 2 ** z) * 1000) / (SAMPLES - 1);
+    const zoom = terrariumZoom(stepMeters);
+    sources.push({ stepMeters, sample: terrariumSampler(await loadTerrarium(zoom), zoom) });
+  }
+  return sources.sort((a, b) => a.stepMeters - b.stepMeters);
 }
 
 function polygonsOf(geom) {
@@ -144,16 +279,37 @@ function polygonsOf(geom) {
   return geom.type === "Polygon" ? [geom.coordinates] : geom.type === "MultiPolygon" ? geom.coordinates : [];
 }
 
-/** Prefecture index per 1 km cell of the frame (255 = none), by even-odd scanline fill. */
+/** Bounding box of a geometry, [west, south, east, north]. */
+function bboxOf(geom) {
+  const box = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const poly of polygonsOf(geom))
+    for (const ring of poly)
+      for (const [lon, lat] of ring) {
+        box[0] = Math.min(box[0], lon);
+        box[1] = Math.min(box[1], lat);
+        box[2] = Math.max(box[2], lon);
+        box[3] = Math.max(box[3], lat);
+      }
+  return box;
+}
+
+/** Mask index per 1 km cell of the frame (255 = none), by even-odd scanline fill. */
 function prefectureGrid() {
-  if (!fs.existsSync(ADMIN1)) return { codes: [], grid: null, width: 0, height: 0 };
-  const features = JSON.parse(fs.readFileSync(ADMIN1, "utf8"))
-    .features.filter(f => f.properties.adm0_a3 === "JPN")
-    .sort((a, b) => a.properties.iso_3166_2.localeCompare(b.properties.iso_3166_2));
+  const mask = CONFIG.mask;
+  if (!fs.existsSync(mask.file)) return { codes: [], grid: null, width: 0, height: 0 };
+  const features = JSON.parse(fs.readFileSync(mask.file, "utf8"))
+    .features.filter(f => mask.keep(f.properties))
+    .filter(f => {
+      if (!mask.clip) return true;
+      const [w, s, e, n] = bboxOf(f.geometry);
+      return e >= REGION.west && w <= REGION.east && n >= REGION.south && s <= REGION.north;
+    })
+    .sort((a, b) => mask.code(a.properties).localeCompare(mask.code(b.properties)));
+  if (features.length > 255) throw new Error(`mask has ${features.length} areas; at most 255 fit a byte`);
   const width = Math.ceil(WIDTH_KM);
   const height = Math.ceil(HEIGHT_KM);
   const grid = new Uint8Array(width * height).fill(255);
-  const codes = features.map(f => f.properties.iso_3166_2);
+  const codes = features.map(f => mask.code(f.properties));
   features.forEach((feature, index) => {
     for (const poly of polygonsOf(feature.geometry)) {
       const rows = Array.from({ length: height }, () => []);
@@ -180,10 +336,10 @@ function prefectureGrid() {
   return { codes, grid, width, height };
 }
 
-function main() {
+async function main() {
   const t0 = performance.now();
-  const base = decodeRaster(path.join(EARTH, "japan.bin"));
-  const sources = loadSources();
+  const base = decodeRaster(path.join(EARTH, CONFIG.raster));
+  const sources = MASK_ONLY ? [] : await loadSources();
   const prefs = prefectureGrid();
   fs.mkdirSync(OUT, { recursive: true });
   // Prefecture index per 1 km cell (255 = none) for the runtime's partial display.
@@ -244,13 +400,13 @@ function main() {
             const lon = REGION.west + (x0 + (i - BORDER) * spacingKm) / KM_PER_DEG_LON;
             let m = null;
             for (const s of usable) {
-              m = sample(s.raster, lon, lat);
+              m = s.sample(lon, lat);
               if (m !== null) break;
             }
             const fromLocal = m !== null;
             for (const s of coarser) {
               if (m !== null) break;
-              m = sample(s.raster, lon, lat);
+              m = s.sample(lon, lat);
             }
             if (m === null) {
               m = sample(base, lon, lat);
@@ -358,4 +514,7 @@ function main() {
   console.log(`done in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
 }
 
-main();
+main().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
