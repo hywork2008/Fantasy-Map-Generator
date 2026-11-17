@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createLocalTerrainField, demLevelOrder, type LocalTerrainSampler } from "./localTerrainSampler";
+import {
+  createLocalTerrainField,
+  demLevelOrder,
+  type LocalTerrainSampler,
+  snapRiverToValley
+} from "./localTerrainSampler";
 
 describe("demLevelOrder", () => {
   it("tries the coarsest level fine enough, then finer, then coarser", () => {
@@ -18,7 +23,9 @@ describe("createLocalTerrainField", () => {
     consistency: { sampled: 1, mismatched: 0, ratio: 0, ok: true },
     levelSteps: [],
     realRivers: [],
-    load: { ms: 0, rasterBytes: 0, rasters: 0 }
+    load: { ms: 0, rasterBytes: 0, rasters: 0 },
+    pendingLevels: () => 0,
+    ensureLevels: async () => false
   };
   const field = createLocalTerrainField(sampler, {
     kmPerPx: 1,
@@ -64,7 +71,9 @@ describe("createLocalTerrainField water", () => {
       consistency: { sampled: 1, mismatched: 0, ratio: 0, ok: true },
       levelSteps: [],
       realRivers: [],
-      load: { ms: 0, rasterBytes: 0, rasters: 0 }
+      load: { ms: 0, rasterBytes: 0, rasters: 0 },
+      pendingLevels: () => 0,
+      ensureLevels: async () => false
     };
     const field = createLocalTerrainField(sampler, {
       kmPerPx: 1,
@@ -87,5 +96,17 @@ describe("createLocalTerrainField water", () => {
     expect(field.waterAt(13, 0)).toBe(false);
     expect(field.waterAt(-10, 0)).toBe(true);
     expect(field.waterAt(-2, 0)).toBe(false);
+  });
+});
+
+describe("snapRiverToValley", () => {
+  it("moves a river across its course into the valley floor and keeps both ends", () => {
+    // A valley along x = 2: the river runs north along x = 0.
+    const points = Array.from({ length: 11 }, (_, i) => [0, i * 2]);
+    const { points: snapped, meanShiftPx } = snapRiverToValley(points, x => Math.abs(x - 2) * 100, 3, 0.25);
+    expect(snapped[0]).toEqual([0, 0]);
+    expect(snapped[10]).toEqual([0, 20]);
+    expect(snapped[5][0]).toBeCloseTo(2, 1);
+    expect(meanShiftPx).toBeGreaterThan(1);
   });
 });

@@ -5,7 +5,8 @@
  * For each level, one FMGE raster (same format as japan.bin) covers the bbox of the selected
  * prefectures. Elevation is kept inside the prefecture polygons plus a buffer and is NODATA
  * elsewhere, so the runtime falls back to a coarser level there. Land bits come from every
- * Japanese prefecture polygon in the bbox. Output is written next to a manifest the runtime reads.
+ * Japanese prefecture polygon in the bbox. Levels of 500 m and coarser go to manifest.json
+ * (committed); finer levels go to manifest.local.json (Git-ignored).
  *
  * Input: Natural Earth 10m admin-1 GeoJSON (public domain) in temp/japan-local/.
  * Elevation (`--source`):
@@ -329,14 +330,21 @@ async function main() {
     levels.push({ stepMeters, file, width, height, zoom: z, bytes, ...bbox });
   }
 
-  const manifestPath = path.join(OUT_DIR, "manifest.json");
-  const manifest = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, "utf8")) : { bundles: [] };
-  // One manifest entry per prefectures × levels × source, so a 100 m bake does not replace 1 km–250 m.
-  const id = `${bundle}@${LEVELS.join(",")}${SOURCE === "terrarium" ? "" : `-${SOURCE}`}`;
-  manifest.bundles = manifest.bundles.filter(entry => entry.id !== id);
-  manifest.bundles.push({ id, prefectures: PREFS, source: SOURCE, levels });
-  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-  console.log("manifest", path.relative(ROOT, manifestPath));
+  // Levels of 500 m and coarser are distributed (manifest.json, committed). Finer levels are
+  // local-only (manifest.local.json, Git-ignored). One entry per prefectures × levels × source.
+  const write = (file, subset) => {
+    if (!subset.length) return;
+    const manifestPath = path.join(OUT_DIR, file);
+    const manifest = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, "utf8")) : { bundles: [] };
+    const id = `${bundle}@${subset.map(level => level.stepMeters).join(",")}${SOURCE === "terrarium" ? "" : `-${SOURCE}`}`;
+    manifest.bundles = manifest.bundles.filter(entry => entry.id !== id);
+    manifest.bundles.push({ id, prefectures: PREFS, source: SOURCE, levels: subset });
+    manifest.bundles.sort((a, b) => a.id.localeCompare(b.id));
+    fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    console.log("manifest", path.relative(ROOT, manifestPath));
+  };
+  write("manifest.json", levels.filter(level => level.stepMeters >= 500));
+  write("manifest.local.json", levels.filter(level => level.stepMeters < 500));
 }
 
 main().catch(err => {

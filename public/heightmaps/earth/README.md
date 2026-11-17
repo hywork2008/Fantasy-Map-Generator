@@ -34,3 +34,23 @@ node scripts/bakeAncientRomeEarthRaster.mjs
 
 License: Natural Earth, GMTED2010, and ETOPO1 are public domain. See
 [docs/plan/earth-geography-heightmaps.md](../../../docs/plan/earth-geography-heightmaps.md).
+
+## Japan local war terrain (`japan-local/`)
+
+Real-DEM levels for the campaign 3D window on maps made from the `japan` template
+([docs/plan/japan-local-war-terrain.md](../../../docs/plan/japan-local-war-terrain.md)).
+One FMGE raster per prefecture and level (Okinawa is outside the map).
+
+| Committed | Local only (Git-ignored) |
+| :--- | :--- |
+| `NN-1000m.bin`, `NN-500m.bin`, `manifest.json` (about 11.5 MB) | `*-250m*.bin`, `*-100m*.bin`, `manifest.local.json`, `rivers.json` |
+
+```bash
+node scripts/bakeJapanLocalDem.mjs --prefs JP-23 --levels 1000,500,250   # Terrarium
+node scripts/bakeJapanLocalDem.mjs --prefs JP-23 --levels 100 --source gsi
+node scripts/bakeJapanRivers.mjs                                          # optional real rivers
+```
+
+Sources and credits: Natural Earth admin-1 (public domain); AWS Terrain Tiles (per-source credits);
+GSI elevation tiles and GSI vector tiles (Public Data License v1.0, credit 国土地理院). The in-app
+Encyclopedia entry `feature:data-sources` lists them.

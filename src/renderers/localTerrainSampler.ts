@@ -55,6 +55,11 @@ export interface LocalTerrainTuning {
    * past this depth the ridge is left standing instead of cutting a canyon.
    */
   riverMaxCarveM: number;
+  /**
+   * How far (km) an FMG river may move sideways to the lowest ground of its valley. FMG rivers
+   * come from 21 km cells; this pulls their drawn course into the real valley. 0 = off.
+   */
+  riverSnapKm: number;
   /** Colour sea and land from the DEM coastline instead of the cell heights. */
   demCoast: boolean;
 }
@@ -85,6 +90,7 @@ export const DEFAULT_LOCAL_TERRAIN_TUNING: LocalTerrainTuning = {
   burgPadKm: 1.5,
   riverCorridorM: 300,
   riverMaxCarveM: 30,
+  riverSnapKm: 3,
   riverSource: "fmg",
   demCoast: true
 };
@@ -141,6 +147,7 @@ function readUrlTuning(base: LocalTerrainTuning): LocalTerrainTuning {
     burgPadKm: num("ltBurgPadKm") ?? base.burgPadKm,
     riverCorridorM: num("ltRiverM") ?? base.riverCorridorM,
     riverMaxCarveM: num("ltRiverMaxCarveM") ?? base.riverMaxCarveM,
+    riverSnapKm: num("ltRiverSnapKm") ?? base.riverSnapKm,
     demCoast: params.get("ltDemCoast") === "0" ? false : base.demCoast
   };
 }
@@ -159,8 +166,12 @@ export interface LocalTerrainSampler {
   levelSteps: number[];
   /** Baked real rivers in map pixels. Empty when none are installed. */
   realRivers: LocalTerrainPath[];
-  /** Load measurement: wall time, decoded raster bytes, raster count. */
+  /** Load measurement: wall time, decoded raster bytes, raster count (grows as windows load). */
   load: { ms: number; rasterBytes: number; rasters: number };
+  /** Levels over this window (map pixels) that are listed but not loaded yet. */
+  pendingLevels(bounds: { minX: number; minY: number; maxX: number; maxY: number }): number;
+  /** Loads the levels over this window. Resolves true when it loaded anything. */
+  ensureLevels(bounds: { minX: number; minY: number; maxX: number; maxY: number }): Promise<boolean>;
 }
 
 /** Baked rivers are optional dev assets; a missing file means none. */
@@ -179,34 +190,40 @@ async function loadRealRivers(regionId: string): Promise<{ points: [number, numb
 interface DemLevel {
   stepMeters: number;
   source: string;
-  raster: EarthRaster;
+  file: string;
+  west: number;
+  east: number;
+  south: number;
+  north: number;
+  /** Null until a window over this level asks for it. */
+  raster: EarthRaster | null;
+  loading?: Promise<void>;
 }
 
 const LOCAL_DEM_DIR = "./heightmaps/earth/japan-local/";
+/** Committed 1 km / 500 m levels, then the Git-ignored finer levels of a local bake. */
+const DEM_MANIFESTS = ["manifest.json", "manifest.local.json"];
 
-/** Baked levels are optional dev assets while tuning; a missing manifest means none. */
-async function loadDemLevels(regionId: string): Promise<DemLevel[]> {
+/** Level index only; rasters load per window (`ensureLevels`). Missing manifests mean no levels. */
+async function loadDemManifests(regionId: string): Promise<DemLevel[]> {
   if (regionId !== "japan") return [];
-  try {
-    const manifest = JSON.parse(
-      new TextDecoder().decode(await loadEarthRasterBytes(`${LOCAL_DEM_DIR}manifest.json`))
-    ) as {
-      bundles?: { source?: string; levels?: { stepMeters: number; file: string }[] }[];
-    };
-    const entries = (manifest.bundles ?? []).flatMap(bundle =>
-      (bundle.levels ?? []).map(level => ({ ...level, source: bundle.source ?? "terrarium" }))
-    );
-    const levels = await Promise.all(
-      entries.map(async entry => ({
-        stepMeters: entry.stepMeters,
-        source: entry.source,
-        raster: decodeEarthRaster(await loadEarthRasterBytes(`${LOCAL_DEM_DIR}${entry.file}`))
-      }))
-    );
-    return levels.sort((a, b) => a.stepMeters - b.stepMeters);
-  } catch {
-    return [];
+  const levels: DemLevel[] = [];
+  for (const file of DEM_MANIFESTS) {
+    try {
+      const manifest = JSON.parse(new TextDecoder().decode(await loadEarthRasterBytes(`${LOCAL_DEM_DIR}${file}`))) as {
+        bundles?: {
+          source?: string;
+          levels?: { stepMeters: number; file: string; west: number; east: number; south: number; north: number }[];
+        }[];
+      };
+      for (const bundle of manifest.bundles ?? [])
+        for (const level of bundle.levels ?? [])
+          levels.push({ ...level, source: bundle.source ?? "terrarium", raster: null });
+    } catch {
+      // Not installed.
+    }
   }
+  return levels.sort((a, b) => a.stepMeters - b.stepMeters);
 }
 
 /** Levels to try for a step: the coarsest at least as fine as asked, then finer, then coarser. */
@@ -240,7 +257,7 @@ export async function createLocalTerrainSampler(
     return encodeEarthCellHeight(sampleLand(raster, lon, lat), sampleElevation(raster, lon, lat), heightExponent);
   });
   if (!consistency.ok) return null;
-  const [levels, riversLonLat] = await Promise.all([loadDemLevels(geo.id), loadRealRivers(geo.id)]);
+  const [levels, riversLonLat] = await Promise.all([loadDemManifests(geo.id), loadRealRivers(geo.id)]);
   const realRivers = riversLonLat.map(river => ({
     points: river.points.map(([lon, lat]) => {
       const point = georefLonLatToMap(geo, lon, lat, graphWidth, graphHeight);
@@ -268,17 +285,53 @@ export async function createLocalTerrainSampler(
     }
     return order;
   };
+  const load = {
+    ms: (typeof performance !== "undefined" ? performance.now() : Date.now()) - started,
+    rasterBytes: 0,
+    rasters: 0
+  };
+  const overlaps = (level: DemLevel, box: { west: number; east: number; south: number; north: number }) =>
+    level.west < box.east && level.east > box.west && level.south < box.north && level.north > box.south;
+  const lonLatBox = (bounds: { minX: number; minY: number; maxX: number; maxY: number }) => {
+    const a = lonLat(bounds.minX, bounds.minY);
+    const b = lonLat(bounds.maxX, bounds.maxY);
+    return {
+      west: Math.min(a.lon, b.lon),
+      east: Math.max(a.lon, b.lon),
+      south: Math.min(a.lat, b.lat),
+      north: Math.max(a.lat, b.lat)
+    };
+  };
   return {
     consistency,
     levelSteps: steps,
     realRivers,
-    load: {
-      ms: (typeof performance !== "undefined" ? performance.now() : Date.now()) - started,
-      rasterBytes: levels.reduce(
-        (sum, level) => sum + level.raster.elevation.byteLength + level.raster.land.byteLength,
-        0
-      ),
-      rasters: levels.length
+    load,
+    pendingLevels: bounds => {
+      const box = lonLatBox(bounds);
+      return levels.filter(level => !level.raster && overlaps(level, box)).length;
+    },
+    ensureLevels: async bounds => {
+      const box = lonLatBox(bounds);
+      const wanted = levels.filter(level => !level.raster && overlaps(level, box));
+      const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
+      await Promise.all(
+        wanted.map(level => {
+          level.loading ??= loadEarthRasterBytes(`${LOCAL_DEM_DIR}${level.file}`)
+            .then(bytes => {
+              level.raster = decodeEarthRaster(bytes);
+              load.rasters++;
+              load.rasterBytes += level.raster.elevation.byteLength + level.raster.land.byteLength;
+            })
+            .catch(() => {
+              // Listed but not installed (a manifest from another bake): never retried.
+              level.file = "";
+            });
+          return level.loading;
+        })
+      );
+      load.ms += (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0;
+      return wanted.length > 0;
     },
     // The DEM itself is the coastline: Natural Earth admin-1 is a 1:10M outline and too coarse
     // for a 250 m window. Between -5 m and +0.5 m (reclaimed land, zero-metre zones down to about
@@ -287,7 +340,9 @@ export async function createLocalTerrainSampler(
     landAt: (x, y) => {
       const point = lonLat(x, y);
       for (const index of orderFor(0)) {
-        const meters = sampleElevation(levels[index].raster, point.lon, point.lat);
+        const levelRaster = levels[index].raster;
+        if (!levelRaster) continue;
+        const meters = sampleElevation(levelRaster, point.lon, point.lat);
         if (meters == null) continue;
         return meters > 0.5 ? true : meters < -5 ? false : undefined;
       }
@@ -299,7 +354,9 @@ export async function createLocalTerrainSampler(
       const point = lonLat(x, y);
       const order = stepMeters === undefined ? [] : orderFor(stepMeters);
       for (const index of order) {
-        const meters = sampleElevation(levels[index].raster, point.lon, point.lat);
+        const levelRaster = levels[index].raster;
+        if (!levelRaster) continue;
+        const meters = sampleElevation(levelRaster, point.lon, point.lat);
         if (meters != null) return Math.max(0, meters);
       }
       const meters = sampleElevation(raster, point.lon, point.lat);
@@ -330,13 +387,78 @@ export interface LocalTerrainFieldStats {
   riverOverCap: number;
   riverMaxCarveM: number;
   riverMeanCarveM: number;
+  /** Mean sideways move of snapped river points, km. */
+  riverSnapMeanKm: number;
 }
 
 export interface LocalTerrainField {
   metersAt(x: number, y: number, stepMeters?: number): number;
   waterAt(x: number, y: number): boolean;
   displayPoint(x: number, y: number, naval: boolean): readonly [number, number];
+  /** The rivers as drawn: snapped into their valleys when `riverSnapKm` > 0. */
+  rivers: LocalTerrainPath[];
   stats: LocalTerrainFieldStats;
+}
+
+/**
+ * Moves each river point across the river's course to the lowest ground within `radiusPx`, then
+ * smooths the offsets along the river so the course bends instead of zig-zagging. Ends stay put
+ * so tributaries and mouths keep meeting.
+ */
+export function snapRiverToValley(
+  points: ReadonlyArray<readonly number[]>,
+  metersAt: (x: number, y: number) => number,
+  radiusPx: number,
+  probePx: number
+): { points: [number, number][]; meanShiftPx: number } {
+  const n = points.length;
+  const out = points.map(point => [point[0], point[1]] as [number, number]);
+  if (n < 3 || !(radiusPx > 0) || !(probePx > 0)) return { points: out, meanShiftPx: 0 };
+  const offsets = new Array<number>(n).fill(0);
+  const normals: [number, number][] = [];
+  for (let i = 0; i < n; i++) {
+    const a = points[Math.max(0, i - 1)];
+    const b = points[Math.min(n - 1, i + 1)];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const length = Math.hypot(dx, dy) || 1;
+    normals.push([-dy / length, dx / length]);
+  }
+  for (let i = 1; i < n - 1; i++) {
+    const [nx, ny] = normals[i];
+    let best = 0;
+    let bestMeters = Number.POSITIVE_INFINITY;
+    for (let d = -radiusPx; d <= radiusPx + 1e-9; d += probePx) {
+      // Of two equal lows, the nearer wins: a penalty of 1 m per radius.
+      const meters = metersAt(points[i][0] + nx * d, points[i][1] + ny * d) + Math.abs(d) / radiusPx;
+      if (meters < bestMeters) {
+        bestMeters = meters;
+        best = d;
+      }
+    }
+    offsets[i] = best;
+  }
+  // Two passes of a 5-point moving average; ends pinned to 0.
+  for (let pass = 0; pass < 2; pass++) {
+    const copy = offsets.slice();
+    for (let i = 1; i < n - 1; i++) {
+      let sum = 0;
+      let count = 0;
+      for (let k = -2; k <= 2; k++) {
+        const j = i + k;
+        if (j < 0 || j >= n) continue;
+        sum += copy[j];
+        count++;
+      }
+      offsets[i] = sum / count;
+    }
+  }
+  let shift = 0;
+  for (let i = 1; i < n - 1; i++) {
+    out[i] = [points[i][0] + normals[i][0] * offsets[i], points[i][1] + normals[i][1] * offsets[i]];
+    shift += Math.abs(offsets[i]);
+  }
+  return { points: out, meanShiftPx: shift / Math.max(1, n - 2) };
 }
 
 /** Bucketed points for "nearest within r" queries in map pixels. */
@@ -391,6 +513,8 @@ export function createLocalTerrainField(
     burgPadKm: number;
     riverCorridorM: number;
     riverMaxCarveM?: number;
+    /** Snap rivers with widths (FMG rivers) into their valleys, km. 0 = off. */
+    riverSnapKm?: number;
   }
 ): LocalTerrainField {
   const { kmPerPx, bounds } = input;
@@ -404,7 +528,8 @@ export function createLocalTerrainField(
     riverCarved: 0,
     riverOverCap: 0,
     riverMaxCarveM: 0,
-    riverMeanCarveM: 0
+    riverMeanCarveM: 0,
+    riverSnapMeanKm: 0
   };
   const demWaterAt = (x: number, y: number) => {
     const land = sampler.landAt(x, y);
@@ -423,6 +548,20 @@ export function createLocalTerrainField(
   stats.burgPads = pads.length;
   const padIndex = new PointIndex(Math.max(r1, 1e-6), pads);
 
+  // FMG rivers (they carry widths) are snapped into their valleys first; real rivers already are.
+  const snapPx = px(input.riverSnapKm ?? 0);
+  let snapShift = 0;
+  let snapCount = 0;
+  const rivers: LocalTerrainPath[] = input.rivers.map(river => {
+    if (!(snapPx > 0) || !river.widths || !river.points.some(point => inside(point[0], point[1], snapPx * 2)))
+      return river;
+    const snapped = snapRiverToValley(river.points, (x, y) => sampler.metersAt(x, y, 250), snapPx, px(0.25));
+    snapShift += snapped.meanShiftPx;
+    snapCount++;
+    return { points: snapped.points, widths: river.widths };
+  });
+  stats.riverSnapMeanKm = snapCount ? (snapShift / snapCount) * kmPerPx : 0;
+
   // Rivers: samples every ~100 m with a running minimum from the higher end.
   const corridor = px(input.riverCorridorM / 1000);
   const maxCarve = input.riverMaxCarveM ?? Number.POSITIVE_INFINITY;
@@ -431,7 +570,7 @@ export function createLocalTerrainField(
   let carveSum = 0;
   if (corridor > 0) {
     const stepPx = Math.max(px(0.1), 1e-6);
-    for (const river of input.rivers) {
+    for (const river of rivers) {
       const keep = river.points.map(point => inside(point[0], point[1], corridor * 2));
       const line = river.points.filter((_, i) => keep[i]);
       const widths = river.widths?.filter((_, i) => keep[i]);
@@ -526,5 +665,5 @@ export function createLocalTerrainField(
     return [x, y];
   };
 
-  return { metersAt, waterAt, displayPoint, stats };
+  return { metersAt, waterAt, displayPoint, rivers, stats };
 }

@@ -322,6 +322,8 @@ class ThreeDModule {
   /** Real-DEM sampler for the current map, keyed by seed and georef. Null = checked and refused. */
   private localTerrain: { key: string; sampler: LocalTerrainSampler | null } | null = null;
   private localTerrainLoading = "";
+  /** Window whose DEM levels were last requested, so one window asks once. */
+  private localTerrainLevelsKey = "";
   /** Camera is near the ground: the window carries the contact rings (100 m). */
   private campaignContact = false;
   private campaignContactTimer: ReturnType<typeof setTimeout> | undefined;
@@ -2683,6 +2685,21 @@ class ThreeDModule {
       spacingPx: 0,
       footDays: tuning.footDays
     });
+    // Levels load per window: draw with what is loaded, then redraw once this window's levels arrive.
+    if (dem && sampler.pendingLevels(bounds) > 0) {
+      const key = `${focus.x}|${focus.y}|${tuning.footDays}`;
+      if (this.localTerrainLevelsKey !== key) {
+        this.localTerrainLevelsKey = key;
+        void sampler.ensureLevels(bounds).then(loaded => {
+          if (loaded && this.campaignFocus && this.options.isOn && this.viewType === "viewMesh")
+            this.redraw({ refreshTerrainTexture: false });
+        });
+      }
+    }
+    // Rings finer than the finest installed level only add vertices (1 km / 500 m are distributed).
+    const finestKm = sampler.levelSteps.length ? Math.min(...sampler.levelSteps) / 1000 : outerStepKm;
+    const clampRings = (rings: { halfKm: number; stepKm: number }[]) =>
+      rings.map(ring => ({ halfKm: ring.halfKm, stepKm: Math.max(ring.stepKm, finestKm) }));
     // Real rivers replace the FMG rivers in the window when they are baked.
     const realRivers =
       tuning.riverSource === "real" && sampler.realRivers.length
@@ -2699,7 +2716,8 @@ class ThreeDModule {
           cellWaterAt: (x, y) => (worldContext.pack.cells.h[findCell(x, y)] ?? 20) < 20,
           burgPadKm: tuning.burgPadKm,
           riverCorridorM: tuning.riverCorridorM,
-          riverMaxCarveM: tuning.riverMaxCarveM
+          riverMaxCarveM: tuning.riverMaxCarveM,
+          riverSnapKm: realRivers ? 0 : tuning.riverSnapKm
         })
       : null;
     if (field) this.localTerrainStats = field.stats;
@@ -2710,11 +2728,11 @@ class ThreeDModule {
     return {
       heightAt: (x, y, stepKm) => localMetersToWorldY(meters(x, y, stepKm), kmPerPx, exaggeration),
       sampleStepKm: outerStepKm,
-      rings: contact ? tuning.contact.rings : tuning.rings,
+      rings: clampRings(contact ? tuning.contact.rings : tuning.rings),
       maxSamplesPerSide: tuning.maxSamplesPerSide,
       hillshade: tuning.hillshade,
       footDays: tuning.footDays,
-      rivers: realRivers ?? rivers,
+      rivers: field?.rivers ?? realRivers ?? rivers,
       // CAMPAIGN_LINE_LIFT (0.75) becomes 15 m above the DEM; lines bend every 250 m with the ground.
       liftScale: localMetersToWorldY(15, kmPerPx, exaggeration) / CAMPAIGN_LINE_LIFT,
       drapeStepPx: kmPerPx > 0 ? 0.25 / kmPerPx : undefined,

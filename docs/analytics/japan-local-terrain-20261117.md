@@ -417,3 +417,27 @@
 | `raw/japan-local-terrain/r6-tokyo-fmgRivers-oblique.png` | 8928608f38387cf1e84173425b1db7a8f70a834788b7865bb9d4199ab94570f2 |
 | `raw/japan-local-terrain/r6-tokyo-realRivers-oblique.png` | 9db6a89c88bed2d5b0e539b287fa8680ebfb69de4b25d55c36d9de3892091e15 |
 | `raw/japan-local-terrain/r6-sekigahara-fmgRivers-oblique.png` | ce4f3124e6b9be51f5d9bd9210d548f813b27127146de89b797277b66b5cdb9e |
+
+## R7：案Aの配布で測る・遅延読み込み・FMG の川を谷へ寄せる
+
+`manifest.local.json` と `rivers.json` を一時的に外し、配布される1km・500mの段だけで測った。
+
+| 地点・カメラ | 頂点 | 描き直し | 読んだ段（累計） | 読んだバイト（累計） | 谷寄せの平均 | 30m超 | 平均の掘り下げ |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 関ヶ原・作戦（寄せない） | 67,081 | 0.31秒 | 22 | 2.4MB | — | 1,492 | 83m |
+| 関ヶ原・作戦（寄せる） | 67,081 | 0.29秒 | 22 | 2.4MB | 0.52km | 1,470 | 79m |
+| 関ヶ原・近接 | 67,081 | 0.28秒 | 22 | 2.4MB | 0.52km | 1,470 | 79m |
+| 川中島・近接 | 67,081 | 0.27秒 | 36 | 5.3MB | 0.66km | 1,691 | 103m |
+| 東京・作戦 | 67,081 | 0.29秒 | 44 | 6.0MB | 0.69km | 198 | 24m |
+
+- 全段を一括で読んでいた R6（88.6MB）に比べ、1窓で2〜3MB。
+- 配布の段だけでは中心の起伏は500mまでで、R3 の250mより丸い。尾根と谷の配置は読める。
+- 谷寄せは平均0.5〜0.7km動くが、尾根越えの区間はほとんど残る。
+
+| 画像 | SHA-256 |
+| :--- | :--- |
+| `raw/japan-local-terrain/r7-kawanakajima-dist-snap-close.png` | 5c37ee9e425d0bb00b41e5cbc9a53cdc40039d84d50f6b3f258f28ba11c2df4d |
+| `raw/japan-local-terrain/r7-sekigahara-dist-nosnap-oblique.png` | 4dc682ffee21d0eb22df3ce9c162307e60644f981b5143a1efd5961ac1e49a22 |
+| `raw/japan-local-terrain/r7-sekigahara-dist-snap-close.png` | f078654c6899039fe055e481989c072e715c40aef4e6cf8500dd1e7602f10e32 |
+| `raw/japan-local-terrain/r7-sekigahara-dist-snap-oblique.png` | dd184f89181fbeb2ecc031ff5e7957c70db4c28f4a47debeaa1518cd7ed559b9 |
+| `raw/japan-local-terrain/r7-tokyo-dist-snap-oblique.png` | 28e7991b138793abc0b0b655bd9cd7d16f205f881ccda5cb7196cb06959423bb |

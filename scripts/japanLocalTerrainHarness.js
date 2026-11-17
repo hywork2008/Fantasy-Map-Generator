@@ -6,15 +6,16 @@
  */
 async page => {
   const DIR = "docs/analytics/raw/japan-local-terrain/";
-  const ROUND = "r6";
-  const BASE = { source: "dem", label: "default" };
-  // Whole Japan in one window: centred on Honshu, wide enough to reach Hokkaido and Kyushu.
-  const JAPAN = { source: "dem", footDays: 45, rings: [], maxSamplesPerSide: 2600 };
+  const ROUND = "r7";
+  // Set to "dist" when manifest.local.json and rivers.json are moved away (the distributed set).
+  const SET = "dist";
+  const BASE = { source: "dem", label: SET };
   const RUNS = [
-    ["tokyo", { ...BASE, label: "fmgRivers" }, "oblique"],
-    ["tokyo", { ...BASE, label: "fmgRivers" }, "close"],
-    ["tokyo", { ...BASE, riverSource: "real", label: "realRivers" }, "oblique"],
-    ["sekigahara", { ...BASE, label: "fmgRivers" }, "oblique"]
+    ["sekigahara", { ...BASE, riverSnapKm: 0, label: `${SET}-nosnap` }, "oblique"],
+    ["sekigahara", { ...BASE, label: `${SET}-snap` }, "oblique"],
+    ["sekigahara", { ...BASE, label: `${SET}-snap` }, "close"],
+    ["kawanakajima", { ...BASE, label: `${SET}-snap` }, "close"],
+    ["tokyo", { ...BASE, label: `${SET}-snap` }, "oblique"]
   ];
 
   await page.evaluate(async () => {
@@ -105,7 +106,7 @@ async page => {
           redrawMs: Math.round(buildMs),
           geometryMB: +((ground.attributes.position.array.byteLength * 3 + ground.index.array.byteLength) / 1e6).toFixed(1),
           fps: frames / 2,
-          load: T.localTerrain?.sampler?.load,
+          load: { ...T.localTerrain?.sampler?.load },
           realRivers: T.localTerrain?.sampler?.realRivers?.length,
           heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e6) : undefined
         };
