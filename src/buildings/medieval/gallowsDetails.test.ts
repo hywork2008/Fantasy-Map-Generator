@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
 import { landmarkFingerprint } from "../../../scripts/lib/landmarkFingerprint.mts";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
 import { adoptedVariant, medievalDefinition } from "../../city3d/adoption";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import { meshProjection } from "../meshProjection";
 import { type ModelPartRange, modelParts } from "../modelParts";
 import { models } from "./36-gallowsModels";

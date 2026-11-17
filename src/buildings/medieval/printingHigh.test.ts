@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { expect, it } from "vitest";
 import { landmarkFingerprint } from "../../../scripts/lib/landmarkFingerprint.mts";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
 import { medievalDefinition } from "../../city3d/adoption";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import { modelParts } from "../modelParts";
 import { models } from "./38-printing-modelsModels";
 import { guildHallPartFactories } from "./guildHallParts";

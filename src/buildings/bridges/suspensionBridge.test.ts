@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { expect, it } from "vitest";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import { createSuspensionBridge, type SuspensionBridgeSpec } from "./suspensionBridge";
 
 const spec: SuspensionBridgeSpec = { length: 48, width: 2.6, deckHeight: 2, waterHeight: -18 };

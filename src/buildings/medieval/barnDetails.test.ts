@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
 import { adoptedVariant } from "../../city3d/adoption";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import { meshProjection } from "../meshProjection";
 import { models } from "./03-barnsModels";
 

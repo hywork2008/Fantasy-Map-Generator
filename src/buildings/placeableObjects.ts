@@ -36,7 +36,7 @@ export interface PlaceableObject {
   facets?: ModelFacets;
   create(): CityStructureMeshes & { plan: string };
 }
-/** The same factories used by Building Viewer, at their authored meter scale. */
+/** The same factories used by Model Viewer, at their authored meter scale. */
 export const PLACEABLE_OBJECTS: readonly PlaceableObject[] = [
   {
     id: "trebuchet",

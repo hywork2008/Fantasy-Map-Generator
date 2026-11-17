@@ -318,7 +318,7 @@ try {
   const bv = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
   const bvErrors: string[] = [];
   bv.on("pageerror", error => bvErrors.push(error.message));
-  await bv.goto("http://127.0.0.1:5210/src/building-viewer/index.html");
+  await bv.goto("http://127.0.0.1:5210/src/model-viewer/index.html");
   const bvChecks = [];
   for (const species of ["saxaul", "tamarisk", "olive"]) {
     const button = bv.locator(`button[data-id="medieval-${species}"]`);

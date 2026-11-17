@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import * as THREE from "three";
-import { collectModelMetrics } from "../src/building-viewer/modelMetrics";
+import { collectModelMetrics } from "../src/model-viewer/modelMetrics";
 import { createModelAssembly } from "../src/buildings/modelParts";
 import { createMonastery, monasteryPartFactories, monasteryPreviewPlan } from "../src/buildings/monasteries/friary";
 

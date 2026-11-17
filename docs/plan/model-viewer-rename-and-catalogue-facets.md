@@ -114,7 +114,10 @@ export interface ModelFacets {
    - 判定の規則：種類・地域・用途は、選んだ値のどれかに当たれば一致とする。年代は、範囲と重なる時代が1つでもあれば一致とする。地域が `any` のモデルは、どの地域を選んでも一致する。属性で絞り込んでいるあいだは、属性のない項目を隠す。
    - 中世モデルの見出しから task 番号を外した（例: `Medieval 61 · Horse Mills` → `Horse Mills`）。task 番号は、これまでどおり詳細欄の「Task」に出る。
    - 確認：ブラウザで全322項目に属性があり、Unclassified の節が空であることを確かめた。`?kind=vehicle&from=steamEra` では5件（熱気球、飛行船、蒸気機関車、鉱車、幌馬車）に絞られた。
-4. **名称変更**：上の表に従い、名前の変更だけのコミットで行う。AGENTS.md の「BV / Building Viewer」の節も、この時点で「MV / Model Viewer」に書き換える。
+4. **名称変更**（2026-11-18 完了）：上の表に従い、名前の変更だけのコミットで行う。AGENTS.md の「BV / Building Viewer」の節も、この時点で「MV / Model Viewer」に書き換える。
+   - `src/building-viewer/` を `git mv` で `src/model-viewer/` に移した。テスト・`scripts/` の import や URL、`vite.config.ts` のエントリ（`modelViewer`）、ページタイトル・見出し・ルート要素のIDを改めた。
+   - 旧URL用に [src/building-viewer/index.html](../../src/building-viewer/index.html) を残した。クエリとハッシュを保ったまま `model-viewer/` へ転送するだけのページで、ビルドの入口 `buildingViewer` として残す。
+   - 改名しなかったもの：CSSのクラス名（`bv-*`）、ソース中のコメントや識別子に残る略称「BV」（約125ファイル）、`scripts/` のファイル名（`verifyBv*.mts` など）。いずれも画面に出ず、互換性にも関わらないため、触ったファイルから順に直す。
 5. **近代兵器の追加**：第一次世界大戦の戦車などを `kind: "weapon"` または `"vehicle"`、`periods: ["petroleumEra"]` で追加する。
 
 ## 検証

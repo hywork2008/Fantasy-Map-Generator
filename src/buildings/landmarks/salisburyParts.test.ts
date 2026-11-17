@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import { type ModelPartRange, modelParts } from "../modelParts";
 import { SALISBURY_CHAPTER_HOUSE } from "./gothic/salisburyChapterHouse";
 import { heightAt } from "./landmarkTestSupport";

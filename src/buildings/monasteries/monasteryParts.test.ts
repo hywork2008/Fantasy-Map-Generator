@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import * as trees from "../landscape/trees";
 import { createModelAssembly, modelParts } from "../modelParts";
 import { createMonastery, monasteryPartFactories, monasteryPreviewPlan } from "./friary";

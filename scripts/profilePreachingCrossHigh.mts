@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import * as THREE from "three";
-import { collectModelMetrics } from "../src/building-viewer/modelMetrics";
+import { collectModelMetrics } from "../src/model-viewer/modelMetrics";
 import { models } from "../src/buildings/medieval/44-cemetery-facilitiesModels";
 import { modelParts } from "../src/buildings/modelParts";
 import { landmarkFingerprint } from "./lib/landmarkFingerprint.mts";

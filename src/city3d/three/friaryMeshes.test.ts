@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
 import * as landscapeTrees from "../../buildings/landscape/trees";
 import { type ModelPartRange, modelParts } from "../../buildings/modelParts";
 import {
@@ -13,6 +12,7 @@ import { MODEL_VARIANTS } from "../../buildings/variants";
 import { fitMonastery } from "../../city-editor/generators/monasteryLayout";
 import { makeRng } from "../../city-editor/generators/prng";
 import type { Point } from "../../city-editor/types/document";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import { createTownMonasteries } from "./friaryMeshes";
 
 const center = (ring: Point[]): Point =>

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { expect, it } from "vitest";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import { generateTowerBranches, model, SPIRE_LEVEL_HEIGHTS } from "./babelSpire";
 import { checkLandmark } from "./landmarkTestSupport";
 

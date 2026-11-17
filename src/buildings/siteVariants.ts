@@ -43,7 +43,7 @@ export const OBJECT_VARIANTS = [
       {
         author: GROK_TREBUCHET.author,
         date: "2026-11-15",
-        note: "High hinged-counterweight trebuchet for Building Viewer. CE keeps the Codex default."
+        note: "High hinged-counterweight trebuchet for Model Viewer. CE keeps the Codex default."
       }
     ],
     create: createGrokTrebuchet

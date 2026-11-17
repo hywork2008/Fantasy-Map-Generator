@@ -173,7 +173,7 @@ try {
   assert.equal(memory.afterDispose, 0);
   const bv = await browser.newPage({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 1 });
   bv.on("pageerror", error => errors.push(error.message));
-  await bv.goto("http://127.0.0.1:5222/src/building-viewer/index.html");
+  await bv.goto("http://127.0.0.1:5222/src/model-viewer/index.html");
   const button = bv.locator('button[data-id="medieval-pedunculate-oak"]');
   await button.evaluate(element => { for (let p = element.parentElement; p; p = p.parentElement) if (p instanceof HTMLDetailsElement) p.open = true; });
   await button.click();

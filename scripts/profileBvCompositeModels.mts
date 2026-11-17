@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import type * as THREE from "three";
-import { collectModelMetrics } from "../src/building-viewer/modelMetrics";
+import { collectModelMetrics } from "../src/model-viewer/modelMetrics";
 import { createLandscapeTree } from "../src/buildings/landscape/trees";
 import { model as salisbury } from "../src/buildings/landmarks/salisbury";
 import { createMonastery, monasteryPreviewPlan } from "../src/buildings/monasteries/friary";

@@ -217,7 +217,7 @@ function fact(label: string, value: string, wikipediaArticle?: string): HTMLPara
   return row;
 }
 
-const root = document.querySelector("#building-viewer");
+const root = document.querySelector("#model-viewer");
 if (!root) throw new Error("building viewer root is missing");
 
 const entries = loadEntries();
@@ -227,7 +227,7 @@ const list = document.createElement("nav");
 list.className = "bv-list";
 list.setAttribute("aria-label", "Model catalogue");
 const heading = document.createElement("h1");
-heading.textContent = "Building viewer";
+heading.textContent = "Model Viewer";
 list.append(heading);
 const main = document.createElement("div");
 main.className = "bv-main";

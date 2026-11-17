@@ -249,7 +249,7 @@ try {
   await page.close();
   const bv=await browser.newPage({ viewport:{ width:1440,height:1000 },deviceScaleFactor:1 });
   const bvErrors:string[]=[];bv.on("pageerror",e=>bvErrors.push(e.message));
-  await bv.goto("http://127.0.0.1:5219/src/building-viewer/index.html");
+  await bv.goto("http://127.0.0.1:5219/src/model-viewer/index.html");
   const bvChecks=[];
   for (const species of ["garden_parkland","sacred_yew"]) {
     const id=species.replaceAll("_","-");

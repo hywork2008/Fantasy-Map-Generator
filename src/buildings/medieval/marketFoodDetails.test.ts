@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { expect, it } from "vitest";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
 import type { CityElement } from "../../city-editor/types/document";
 import { createTownObjects } from "../../city3d/three/objectMeshes";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import { modelParts } from "../modelParts";
 import { placementDefinition, placementFootprint } from "../placementModels";
 import { MARKET_PALETTES } from "./marketAppearance";
