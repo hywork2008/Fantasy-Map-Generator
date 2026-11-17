@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TAILORING_POINTS_PER_WARDROBE_LOT } from "./craftDemandCalibration";
 
 vi.mock("./subsistenceWage", () => ({ getSubsistenceWage: () => 1 }));
 
@@ -162,7 +163,7 @@ describe("same-market paid textile commissions", () => {
     expect(job.inputUnits).toBeCloseTo((job.productUnits * WOOL_LOTS_PER_CLOTH) / 0.9, 8);
     expect(job.clothUnits).toBeCloseTo(job.productUnits / 0.9, 8);
     expect(job.weavingLaborPoints).toBeCloseTo(job.clothUnits! * 0.259, 8);
-    expect(job.tailoringLaborPoints).toBeCloseTo(job.productUnits * 0.972, 8);
+    expect(job.tailoringLaborPoints).toBeCloseTo(job.productUnits * TAILORING_POINTS_PER_WARDROBE_LOT, 8);
     expect(job.laborPoints).toBeCloseTo(job.weavingLaborPoints! + job.tailoringLaborPoints!, 8);
     expect(job.laborPoints).toBeLessThanOrEqual(1);
     expect(job.servicePayment).toBeCloseTo(Math.ceil(job.laborPoints * 100 - 1e-9) / 100, 8);

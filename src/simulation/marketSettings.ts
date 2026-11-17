@@ -458,7 +458,7 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   candleKgPerPerson: 1,
   waxCandleKgPerPerson: 0.05,
   ruralChandlersPerThousand: 0.5,
-  wageSubsistenceMultiple: 1.5,
+  wageSubsistenceMultiple: 5,
   cheeseMakingDaysPerMilkLot: 10,
   ruralCheeseEatShare: 0.5,
   dairyTraditionHalfLifeYears: 10,

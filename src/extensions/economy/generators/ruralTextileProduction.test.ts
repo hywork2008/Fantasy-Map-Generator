@@ -14,7 +14,7 @@ import {
   setMarketCellColumn,
   setMarkets
 } from "../economyContext";
-import { getGoodDemandCalibration } from "./craftDemandCalibration";
+import { getGoodDemandCalibration, TAILORING_POINTS_PER_WARDROBE_LOT } from "./craftDemandCalibration";
 import { type Good, Goods } from "./goods-generator";
 import { type GoodFlowRecord, setGoodFlowObserver } from "./goodsBalanceLedger";
 import { Markets } from "./markets-generator";
@@ -221,7 +221,7 @@ describe("rural household wool processing", () => {
       .filter(flow => flow.goodId === cloth.i && flow.direction === "sink")
       .reduce((sum, flow) => sum + flow.units, 0);
     expect(woven + 100 - market.goods[cloth.i].stock).toBeCloseTo(consumed, 8);
-    expect(home.laborUsed).toBeCloseTo(home.garments * 972 + woven * 259, 8);
+    expect(home.laborUsed).toBeCloseTo(home.garments * TAILORING_POINTS_PER_WARDROBE_LOT * 1000 + woven * 259, 8);
   });
 
   it("plans tailoring with no raw fiber and limits bought-cloth output by the remaining work and cash", () => {
@@ -579,7 +579,8 @@ describe("rural household wool processing", () => {
     expect(getMarkets()[0].ruralTextileProduction!.laborUsed).toBeLessThanOrEqual(10);
     const home = getMarkets()[0].ruralTextileProduction!;
     expect(home.laborUsed).toBeCloseTo(
-      home.garments * (0.972 + 0.259 / 0.9) * 1000 + home.blankets * (0.0151875 + (0.259 * 250) / 0.95 / 4000) * 1000,
+      home.garments * (TAILORING_POINTS_PER_WARDROBE_LOT + 0.259 / 0.9) * 1000 +
+        home.blankets * (0.0151875 + (0.259 * 250) / 0.95 / 4000) * 1000,
       8
     );
     worldContext.pack.cells.maleAdults[0] = 0.001;

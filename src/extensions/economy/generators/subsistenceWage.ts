@@ -6,8 +6,8 @@ import type { Market } from "./marketTypes";
 
 /**
  * Craft wage as a multiple of a worker's own food bill (docs/plan/craft-wage-subsistence-scale.md).
- * The default of the `wageSubsistenceMultiple` setting; docs/plan/per-capita-income-scale.md
- * moves it toward the historical real wage. Also the reference multiple for quantities that are
+ * The former default of the `wageSubsistenceMultiple` setting (now 5, the 1300 real wage:
+ * docs/plan/wage-multiple-1300.md). Kept as the reference multiple for quantities that are
  * physical and must not follow the setting (`getReferenceSubsistenceWage`).
  */
 export const WAGE_SUBSISTENCE_MULTIPLE = 1.5;

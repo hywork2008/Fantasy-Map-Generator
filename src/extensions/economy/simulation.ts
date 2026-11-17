@@ -171,6 +171,7 @@ import {
   migrateTallowCandleGoods,
   migrateTextileQualityGoods,
   migrateUntaxedSaltValue,
+  migrateWage1300Values,
   migrateWeightRepricing,
   migrateWineRecipe,
   migrateWoodPhysicalRecipes,
@@ -399,7 +400,9 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   // docs/plan/candle-split.md: the homes' tallow candles apart from the wax Candles.
   migrateTallowCandleGoods,
   // docs/analytics/wool-sources-20261117.md: 4 lots of wool a lot of cloth, not 6.
-  migrateWoolClothYield
+  migrateWoolClothYield,
+  // docs/plan/wage-multiple-1300.md §4: values that fit materials and labour at the 1300 wage.
+  migrateWage1300Values
 ];
 
 /**

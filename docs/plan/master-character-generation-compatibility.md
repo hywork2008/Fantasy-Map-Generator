@@ -350,3 +350,13 @@ master T0 と同じ値を保証するのは、基準日時における初期人�
 | `src/extensions/nobility/generators/demonInfiltration.ts` | 潜伏者の再利用/追加、層構成 |
 | `src/extensions/economy/simulation.ts`, `src/runtime/mapReadyTaskCoordinator.ts` | 初期経済・ギルド生成と初期化完了境界 |
 | `src/extensions/characters/characterPopulation.ts` | 明示住民生成・独立都市統治者生成と初期集合の区別 |
+
+## 期待値の取り直し（2026-11-17、2回目）
+
+- [wage-multiple-1300.md](wage-multiple-1300.md) の変更で、親方の初回資産が少し変わった。
+  - 樽・衣服・石灰・インクの人手の値を、1つの品を作る手間から出し直した。
+  - 賃金の倍率の既定を1.5から5にした。
+- 人数・親方・徒弟は変わらない。個人資金の合計だけが変わった。
+  - 人間条件：48人のまま。個人資金 6,409.08 → 6,405.90（人手）→ 6,388.85（倍率）。
+  - Fantasy条件：56人のまま。個人資金 8,293.63 → 8,291.59（人手）→ 8,271.79（倍率）。
+- `expected`と`expectedFantasy`だけを今のコードの評価結果で取り直した。`masterCommit`・設定・入力は変えていない。

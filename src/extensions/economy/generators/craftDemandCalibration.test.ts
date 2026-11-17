@@ -13,11 +13,11 @@ import { laborPeople } from "./craftScale";
 import { OCCUPATIONAL_CALIBRATION, referenceFixtureExpectedPeople } from "./occupationalCalibration";
 
 describe("craftDemandCalibration", () => {
-  it("authors barrel labor at 0.00106 pt/lot (share 0.50 applied)", () => {
-    expect(getGoodDemandCalibration("Barrels")?.laborPointsPerLotAtDefaultRate).toBeCloseTo(0.00106, 5);
+  it("authors barrel labor at one cooper-day a barrel", () => {
+    expect(getGoodDemandCalibration("Barrels")?.laborPointsPerLotAtDefaultRate).toBeCloseTo(12 / 250 / 1000, 8);
     const lots = getCalibratedMonthlyLots({ goodName: "Barrels", laborPeopleBurg: 9000, port: false });
     expect(lots).toBeCloseTo(58.5, 2);
-    expect(laborPointsForLots("Barrels", 58.5, 1000)).toBeCloseTo(0.062, 3);
+    expect(laborPointsForLots("Barrels", 58.5, 1000)).toBeCloseTo((58.5 * 12) / 250 / 1000, 6);
     expect(laborPointsForLots("Barrels", 58.5, 1000)).not.toBeCloseTo(58.5, 1);
   });
 
@@ -52,8 +52,9 @@ describe("craftDemandCalibration", () => {
         getCalibratedMonthlyLots({ goodName: "Barrels", laborPeopleBurg: 9000, port: false }),
         1000
       ) * 1000;
-    // Cooperage typical 45 people at the fixture; the town ale casks' labor is about 1.4 times it.
-    expect(barrelLaborPeople / expectedPeople).toBeCloseTo(1.38, 1);
+    // Cooperage typical 45 people at the fixture; at a cooper-day a barrel the town ale casks need
+    // about a sixteenth of it (docs/plan/wage-multiple-1300.md).
+    expect(barrelLaborPeople / expectedPeople).toBeCloseTo(0.0625, 2);
   });
 
   it("stops a per-head floor once the market holds three months of it", () => {

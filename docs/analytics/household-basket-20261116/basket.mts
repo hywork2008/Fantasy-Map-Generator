@@ -126,8 +126,16 @@ for (let month = 1; month <= months; month++) {
   await advanceWorld(host, { months: 1 });
   const flows = recorder.flush();
   let services = 0, hhIn = 0;
+  // Rural and urban household cash by step: what comes in and goes out of the purses this month.
+  const householdFlows: Record<string, { rural: number; urban: number }> = {};
   for (const f of flows as Record<string, number | string>[]) {
     const step = String(f.step);
+    const rural = Number(f.ruralHouseholds ?? 0), urban = Number(f.urbanHouseholds ?? 0);
+    if (rural || urban) {
+      const row = (householdFlows[step] ??= { rural: 0, urban: 0 });
+      row.rural += rural;
+      row.urban += urban;
+    }
     const inflow = Math.max(0, Number(f.urbanHouseholds ?? 0)) + Math.max(0, Number(f.characters ?? 0));
     if (step.startsWith("taxes:") || step.startsWith("nobility:")) services += inflow;
     hhIn += Math.max(0, Number(f.urbanHouseholds ?? 0)) + Math.max(0, Number(f.ruralHouseholds ?? 0));
@@ -141,7 +149,22 @@ for (let month = 1; month <= months; month++) {
     publicSpending += (report.expenses as Record<string, number>).publicSpending || 0;
   }
   fiscalReportsSeen = fiscalReports.length;
-  const snap: Record<string, unknown> = { stateIncome, publicSpending, month, goodsVA: produced - used, produced, used, staple: stapleValue(), services, hhIn, totals: recorder.totals(), heads: heads(), stapleMedianPrice: medians()[staple.name] };
+  // Towns with an empty treasury, and the towns' staple: need, supplied, paid, budget and stock gaps.
+  const liveBurgs = (getWorldContext().pack.burgs as { i?: number; removed?: boolean; treasury?: number }[]).filter(b => b?.i && !b.removed);
+  const emptyTownShare = liveBurgs.length ? liveBurgs.filter(b => (b.treasury ?? 0) < 1).length / liveBurgs.length : 0;
+  const urbanFood = { need: 0, supplied: 0, paid: 0, budgetGap: 0, stockGap: 0, stressMarkets: 0 };
+  for (const m of getMarkets()) {
+    const c = m.foodLedger?.monthlyConsumption;
+    if (c) {
+      urbanFood.need += c.urbanNeed;
+      urbanFood.supplied += c.urbanSupplied;
+      urbanFood.paid += c.urbanPaid;
+      urbanFood.budgetGap += c.urbanBudgetGap;
+      urbanFood.stockGap += c.urbanStockGap;
+    }
+    if ((m.foodLedger?.urbanFoodStressQuarters ?? 0) > 0) urbanFood.stressMarkets++;
+  }
+  const snap: Record<string, unknown> = { stateIncome, publicSpending, emptyTownShare, urbanFood, householdFlows, month, goodsVA: produced - used, produced, used, staple: stapleValue(), services, hhIn, totals: recorder.totals(), heads: heads(), stapleMedianPrice: medians()[staple.name] };
   snap.ledgers = ledgers();
   // Where unmet household textiles stop (docs/plan/textile-basket-scale.md §3.1): the ledger's gap partition, summed.
   const gaps: Record<string, Record<string, number>> = {};

@@ -9,7 +9,7 @@ describe("getSubsistenceWage", () => {
   afterEach(() => setMarketSettings(DEFAULT_MARKET_SETTINGS));
 
   it("is the multiple of 1,000 people's monthly food bill at the local grain price", () => {
-    const perPointMonthAtOneSp = (WAGE_SUBSISTENCE_MULTIPLE * 0.43 * 1000) / 12;
+    const perPointMonthAtOneSp = (DEFAULT_MARKET_SETTINGS.wageSubsistenceMultiple * 0.43 * 1000) / 12;
     expect(getSubsistenceWage({ goods: {} })).toBeCloseTo(perPointMonthAtOneSp, 6);
     expect(getSubsistenceWage({ goods: { 7: { stock: 0, price: 2 } } } as never)).toBeCloseTo(
       2 * perPointMonthAtOneSp,

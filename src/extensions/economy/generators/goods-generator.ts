@@ -1551,7 +1551,8 @@ export const GOODS_DATA: GoodData[] = [
     icon: "good-garments",
     color: "#bd21ec",
     // 4 t at 15 times the grain price per kilogram (goods-physical-units.md §21): the 4/3 premium over Cloth it had.
-    value: 130,
+    // Materials plus labour at the 1300 wage (multiple 5) at 85% of value (docs/plan/wage-multiple-1300.md §4); was 130.
+    value: 180,
     chance: 0,
     // 4 t finished ordinary wardrobes from 4.444 t of cloth, with modeled 10% cutting loss.
     // Lighter linen wardrobes are a separate product, sharing household replacement demand.
@@ -1612,7 +1613,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["construction"],
     icon: "good-stone",
     color: "#8c8577",
-    value: 6,
+    // Materials plus labour at the 1300 wage (multiple 5) at 85% of value (docs/plan/wage-multiple-1300.md §4); was 6.
+    value: 14,
     chance: 0,
     // docs/plan/urban-construction-industry.md §3.4, §7.1 decision 3: a direct Stone/Wood
     // substitute for masons (constructionEmployment.ts), not a separate technology-adoption
@@ -1699,7 +1701,8 @@ export const GOODS_DATA: GoodData[] = [
     color: "#ffffff",
     // Cloth is a 1,000-person wardrobe-fibre lot (value 98), so the ordinary-cloth leg takes a
     // fifteenth of a lot to keep the recipe cost it had at Cloth 15 (goods-physical-units.md §21).
-    value: 18,
+    // Materials plus labour at the 1300 wage (multiple 5) at 85% of value (docs/plan/wage-multiple-1300.md §4); was 18.
+    value: 50,
     chance: 0,
     recipes: [{ Cloth: 0.15 }, { Linen: 1 }],
     unit: "set",
@@ -1763,7 +1766,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["military"],
     icon: "good-harnesses",
     color: "#a0522d",
-    value: 10,
+    // Materials plus labour at the 1300 wage (multiple 5) at 85% of value (docs/plan/wage-multiple-1300.md §4); was 10.
+    value: 15,
     chance: 0,
     recipes: [
       { Leather: 20, "Iron Ingot": 0.25 },
@@ -1895,7 +1899,8 @@ export const GOODS_DATA: GoodData[] = [
     icon: "good-lead",
     color: "#5c5c5c",
     // Repriced over ore and charcoal: SMELTED_METAL_REPRICING.
-    value: 9,
+    // Materials plus labour at the 1300 wage (multiple 5) at 85% of value (docs/plan/wage-multiple-1300.md §4); was 9.
+    value: 17,
     chance: 0,
     recipes: [{ "Lead Ingot": 1 }],
     unit: "pouch",
@@ -3067,7 +3072,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["industrial", "tools"],
     icon: "good-glass",
     color: "#9ec9d4",
-    value: 14,
+    // Materials plus labour at the 1300 wage (multiple 5) at 85% of value (docs/plan/wage-multiple-1300.md §4); was 14.
+    value: 27,
     chance: 0,
     recipes: [
       { Glass: 1, Pumice: 0.2, Tools: 0.1 },
@@ -3563,7 +3569,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["clothing"],
     icon: "good-garments",
     color: "#e5d9bd",
-    value: 130,
+    // Materials plus labour at the 1300 wage (multiple 5) at 85% of value (docs/plan/wage-multiple-1300.md §4); was 130.
+    value: 165,
     chance: 0,
     // 1,000 lighter wardrobes, 2.16 t after 10% cutting loss from twelve 200 kg bales.
     recipes: TEXTILE_RECIPES["Linen Garments"],
@@ -3588,7 +3595,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["clothing"],
     icon: "good-garments",
     color: "#a28b73",
-    value: 130,
+    // Materials plus labour at the 1300 wage (multiple 5) at 85% of value (docs/plan/wage-multiple-1300.md §4); was 130.
+    value: 180,
     chance: 0,
     recipes: TEXTILE_RECIPES["Wool Garments"],
     unit: "wardrobe lot",
@@ -3600,7 +3608,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["clothing"],
     icon: "good-cloth",
     color: "#a69b89",
-    value: 8,
+    // Materials plus labour at the 1300 wage (multiple 5) at 85% of value (docs/plan/wage-multiple-1300.md §4); was 8.
+    value: 10,
     chance: 0,
     recipes: TEXTILE_RECIPES["Wool Blankets"],
     unit: "blanket lot",
@@ -5618,6 +5627,33 @@ export function migrateWoolClothYield(): boolean {
       recipe[wool.i] = WOOL_LOTS_PER_CLOTH;
       changed = true;
     }
+  }
+  return changed;
+}
+
+/**
+ * Values raised so materials and labour at the 1300 wage fit under them (docs/plan/wage-multiple-1300.md
+ * §4). Only a good still at its former value is changed; a value the user edited is kept.
+ */
+export const WAGE_1300_VALUE_CHANGES: Readonly<Record<string, readonly [number, number]>> = {
+  Sails: [18, 50],
+  "Roman Concrete": [6, 14],
+  "Lab Glassware": [14, 27],
+  Bullets: [9, 17],
+  Harnesses: [10, 15],
+  Garments: [130, 180],
+  "Wool Garments": [130, 180],
+  "Linen Garments": [130, 165],
+  "Wool Blankets": [8, 10]
+};
+
+export function migrateWage1300Values(): boolean {
+  let changed = false;
+  for (const good of getGoods()) {
+    const change = WAGE_1300_VALUE_CHANGES[good.name];
+    if (!change || good.value !== change[0]) continue;
+    good.value = change[1];
+    changed = true;
   }
   return changed;
 }

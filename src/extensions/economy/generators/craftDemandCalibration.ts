@@ -69,6 +69,13 @@ export interface GoodDemandCalibrationRow {
  * §10.18). The State's mounted demand used to count a lot per thousand riders.
  */
 export const HARNESS_SETS_PER_LOT = 100;
+/** Working days in a craftsman's month (about 250 a year). */
+const CRAFT_WORK_DAYS_PER_MONTH = 250 / 12;
+/**
+ * A wardrobe lot is 1,000 wardrobes at about 6.5 tailor-days each. The former 0.972 points (about a
+ * month a wardrobe) cost more than the garment at the 1300 wage (docs/plan/wage-multiple-1300.md).
+ */
+export const TAILORING_POINTS_PER_WARDROBE_LOT = (1000 * 6.5) / CRAFT_WORK_DAYS_PER_MONTH / 1000;
 
 export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
   {
@@ -80,7 +87,8 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     annualLotsPerPerson: 0.078,
     floorFromHouseholdDrinks: true,
     fixtureLotsPerMonth: 58.5,
-    laborPointsPerLotAtDefaultRate: 0.00106,
+    // One barrel in about a cooper's day (docs/plan/wage-multiple-1300.md §2).
+    laborPointsPerLotAtDefaultRate: 1 / CRAFT_WORK_DAYS_PER_MONTH / 1000,
     residualWeight: 0,
     sources: [
       "urban ale fillings: 0.65 adults × 300 L / 200 L cask × 0.08 turnover (foodLots.ts ALE_TARGETS.urbanLitersPerAdultYear; urban-craft-staffing.md §10.5). It was 48 L"
@@ -119,7 +127,8 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     provenances: ["householdPerCapita"],
     annualLotsPerPerson: 0.00025,
     fixtureLotsPerMonth: 0.1875,
-    laborPointsPerLotAtDefaultRate: 0.972,
+    // A wardrobe (tunic, hose, hood, shirts) in about 6.5 tailor-days (docs/plan/wage-multiple-1300.md §2).
+    laborPointsPerLotAtDefaultRate: TAILORING_POINTS_PER_WARDROBE_LOT,
     residualWeight: 1,
     sources: ["four-year wardrobe replacement ceiling shared with Linen Garments; never additive"]
   },
@@ -143,7 +152,8 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     provenances: ["householdPerCapita"],
     annualLotsPerPerson: 0.00025,
     fixtureLotsPerMonth: 0.1875,
-    laborPointsPerLotAtDefaultRate: 0.972,
+    // A wardrobe (tunic, hose, hood, shirts) in about 6.5 tailor-days (docs/plan/wage-multiple-1300.md §2).
+    laborPointsPerLotAtDefaultRate: TAILORING_POINTS_PER_WARDROBE_LOT,
     residualWeight: 1,
     sources: ["model: ordinary wool shares the four-year wardrobe replacement ceiling with Garments and Linen Garments"]
   },
@@ -193,7 +203,8 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     provenances: ["householdPerCapita"],
     annualLotsPerPerson: 0.00025,
     fixtureLotsPerMonth: 0.1875,
-    laborPointsPerLotAtDefaultRate: 0.972,
+    // A wardrobe (tunic, hose, hood, shirts) in about 6.5 tailor-days (docs/plan/wage-multiple-1300.md §2).
+    laborPointsPerLotAtDefaultRate: TAILORING_POINTS_PER_WARDROBE_LOT,
     residualWeight: 1,
     sources: ["four-year wardrobe replacement ceiling shared with Garments; never additive"]
   },
@@ -218,7 +229,7 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     portShare: 0.02,
     provenances: ["categoryResidual"],
     fixtureLotsPerMonth: 0.1,
-    laborPointsPerLotAtDefaultRate: 0.0729,
+    laborPointsPerLotAtDefaultRate: (TAILORING_POINTS_PER_WARDROBE_LOT / 20) * 1.5,
     residualWeight: 1,
     residualCategory: "luxury",
     sources: [
@@ -361,7 +372,9 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     portShare: 0.45,
     provenances: ["recipeDerived"],
     fixtureLotsPerMonth: 0.2,
-    laborPointsPerLotAtDefaultRate: 0.0405,
+    // Burning and drawing a 50 kg sack: a kiln of 20-30 t takes a crew of 4-6 about a week with fuel
+    // handling, about 2 person-days a tonne (docs/plan/wage-multiple-1300.md §2).
+    laborPointsPerLotAtDefaultRate: (0.05 * 2) / CRAFT_WORK_DAYS_PER_MONTH / 1000,
     residualWeight: 0,
     typicalRecipeIndex: 0,
     sources: ["Roman Concrete input"]
@@ -432,7 +445,9 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     portShare: 0.15,
     provenances: ["recipeDerived"],
     fixtureLotsPerMonth: 0.2 / 120,
-    laborPointsPerLotAtDefaultRate: 0.0169 * 120,
+    // Boiling iron-gall ink: about 2 person-days for 10 L, so 24 days a 120 L barrel
+    // (docs/plan/wage-multiple-1300.md §2). The former 0.0169 × 120 counted a litre as a lot.
+    laborPointsPerLotAtDefaultRate: 24 / CRAFT_WORK_DAYS_PER_MONTH / 1000,
     residualWeight: 0,
     typicalRecipeIndex: 0,
     sources: ["Books × 0.5 L, in 120 L barrels"]

@@ -58,6 +58,7 @@ import {
   migrateSyntheticAmmoniaGoods,
   migrateTextileQualityGoods,
   migrateUntaxedSaltValue,
+  migrateWage1300Values,
   migrateWeightRepricing,
   migrateWineRecipe,
   migrateWoodPhysicalRecipes,
@@ -361,7 +362,7 @@ describe("GoodsModule", () => {
       { [cloth.i]: CLOTH_LOTS_PER_FUR_GARMENT, [furs.i]: 1 },
       { [cloth.i]: CLOTH_LOTS_PER_GARMENT, [byName.get("Synthetic Dye")!.i]: 0.15 }
     ]);
-    expect(garments).toMatchObject({ value: 130, unit: "wardrobe lot", demandCoverage: { clothing: 1 } });
+    expect(garments).toMatchObject({ value: 180, unit: "wardrobe lot", demandCoverage: { clothing: 1 } });
     expect(cloth.recipes?.some(recipe => Object.hasOwn(recipe, silk.i))).toBe(false);
   });
 
@@ -437,6 +438,19 @@ describe("GoodsModule", () => {
     expect(cloth.recipes).toEqual([{ [wool.i]: WOOL_LOTS_PER_CLOTH }, { [wool.i]: 5 }]);
     expect(woolCloth.recipes).toEqual([{ [wool.i]: WOOL_LOTS_PER_CLOTH }]);
     expect(migrateWoolClothYield()).toBe(false);
+  });
+
+  it("raises only the values still at their pre-1300-wage default", () => {
+    goodsModule.restoreDefaults();
+    const goods = getGoods();
+    const sails = goods.find(good => good.name === "Sails")!;
+    const garments = goods.find(good => good.name === "Garments")!;
+    sails.value = 18;
+    garments.value = 140;
+    expect(migrateWage1300Values()).toBe(true);
+    expect(sails.value).toBe(50);
+    expect(garments.value).toBe(140);
+    expect(migrateWage1300Values()).toBe(false);
   });
 
   it("appends ordinary wool goods by saved ids without rewriting existing stocks or custom goods", () => {

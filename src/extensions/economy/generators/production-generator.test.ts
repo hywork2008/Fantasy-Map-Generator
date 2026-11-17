@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TAILORING_POINTS_PER_WARDROBE_LOT } from "./craftDemandCalibration";
 
 // Wage fixtures below read wageByOccupation as coins per labor point; pin the subsistence wage it
 // scales to 1 so they keep that meaning (docs/plan/craft-wage-subsistence-scale.md).
@@ -1134,7 +1135,10 @@ describe("linen clothing preparation", () => {
       const plan = planner.planGoodAction(index, state, garments, 0.1, 0.1, 0.2, { multiplier: 1, category: null });
       if (calibrated) {
         expect(plan?.action.good.name).toBe(fabricName);
-        expect(plan?.workersNeeded).toBeCloseTo(0.1 * 0.972 + 0.1 * fabricLots * weavingLabor, 8);
+        expect(plan?.workersNeeded).toBeCloseTo(
+          0.1 * TAILORING_POINTS_PER_WARDROBE_LOT + 0.1 * fabricLots * weavingLabor,
+          8
+        );
         const weaving = planner.planGoodAction(index, state, linen, 1, 1, 1, { multiplier: 1, category: null });
         // Direct candidates still rank by lot margin, not by the inverse of their tiny labor intensity.
         expect(weaving?.normalizedGain).toBeLessThan(8);

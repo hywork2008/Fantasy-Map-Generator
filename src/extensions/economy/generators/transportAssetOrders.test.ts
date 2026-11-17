@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { DEFAULT_MARKET_SETTINGS, setMarketSettings } from "../../../simulation/marketSettings";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
@@ -23,7 +24,9 @@ const WAGE_PER_WORK_POINT = (1.5 * 0.43) / 12;
 const CART_COST = 1.5 * 2 + 0.2 * 5 + 0.8 * 3 + 12 * WAGE_PER_WORK_POINT;
 
 describe("transport asset orders", () => {
+  // Purse arithmetic below was written at the former wage multiple; the order mechanics do not depend on it.
   beforeEach(() => {
+    setMarketSettings({ wageSubsistenceMultiple: 1.5 });
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     worldContext.pack = {
       burgs: [{ i: 0 } as Burg, { i: 1, market: 1, population: 100 } as Burg],
@@ -57,6 +60,7 @@ describe("transport asset orders", () => {
   });
 
   afterEach(() => {
+    setMarketSettings(DEFAULT_MARKET_SETTINGS);
     TransportAssetOrders.clear();
     MerchantTransportAssets.clear();
     clearEconomyContext();

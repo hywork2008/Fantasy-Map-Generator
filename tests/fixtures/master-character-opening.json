@@ -22,78 +22,28 @@
     "cultures": 12,
     "culturesSet": "english",
     "racePersonNameSpheres": {
-      "unknown": {
-        "primary": null
-      },
-      "human": {
-        "primary": null
-      },
-      "elf": {
-        "primary": 7,
-        "alternate": 22
-      },
-      "dark_elf": {
-        "primary": 23,
-        "alternate": 42
-      },
-      "dwarf": {
-        "primary": 6,
-        "alternate": 0
-      },
-      "goblin": {
-        "primary": null
-      },
-      "orc": {
-        "primary": null
-      },
-      "giant": {
-        "primary": 6
-      },
-      "draconic": {
-        "primary": 11
-      },
-      "arachnid": {
-        "primary": null
-      },
-      "amazones": {
-        "primary": 7
-      },
-      "wyrmkin": {
-        "primary": 11
-      },
-      "demon": {
-        "primary": 23
-      },
-      "beastfolk": {
-        "primary": null
-      },
-      "half_elf": {
-        "primary": 7,
-        "alternate": 22
-      },
-      "fallen_angel": {
-        "primary": 42
-      },
-      "lich": {
-        "primary": 23,
-        "alternate": 42
-      },
-      "skeleton": {
-        "primary": null
-      },
-      "zombie": {
-        "primary": null
-      },
-      "vampire": {
-        "primary": 1,
-        "alternate": 23
-      },
-      "dhampir": {
-        "primary": 1
-      },
-      "lesser_vampire": {
-        "primary": 1
-      }
+      "unknown": { "primary": null },
+      "human": { "primary": null },
+      "elf": { "primary": 7, "alternate": 22 },
+      "dark_elf": { "primary": 23, "alternate": 42 },
+      "dwarf": { "primary": 6, "alternate": 0 },
+      "goblin": { "primary": null },
+      "orc": { "primary": null },
+      "giant": { "primary": 6 },
+      "draconic": { "primary": 11 },
+      "arachnid": { "primary": null },
+      "amazones": { "primary": 7 },
+      "wyrmkin": { "primary": 11 },
+      "demon": { "primary": 23 },
+      "beastfolk": { "primary": null },
+      "half_elf": { "primary": 7, "alternate": 22 },
+      "fallen_angel": { "primary": 42 },
+      "lich": { "primary": 23, "alternate": 42 },
+      "skeleton": { "primary": null },
+      "zombie": { "primary": null },
+      "vampire": { "primary": 1, "alternate": 23 },
+      "dhampir": { "primary": 1 },
+      "lesser_vampire": { "primary": 1 }
     },
     "allowedRaceKeys": [
       "human",
@@ -844,7 +794,7 @@
       "age": 55,
       "gender": "male",
       "race": 1,
-      "wealth": 9.23,
+      "wealth": 7.85,
       "family": {
         "spouses": 1,
         "children": 6,
@@ -871,7 +821,7 @@
       "age": 39,
       "gender": "female",
       "race": 1,
-      "wealth": 13.54,
+      "wealth": 11,
       "family": {
         "spouses": 1,
         "children": 7,
@@ -926,7 +876,7 @@
       "age": 43,
       "gender": "male",
       "race": 1,
-      "wealth": 9.04,
+      "wealth": 7.68,
       "family": {
         "spouses": 1,
         "children": 7,
@@ -953,7 +903,7 @@
       "age": 54,
       "gender": "female",
       "race": 1,
-      "wealth": 11.91,
+      "wealth": 9.67,
       "family": {
         "spouses": 1,
         "children": 3,
@@ -1008,7 +958,7 @@
       "age": 41,
       "gender": "male",
       "race": 1,
-      "wealth": 9.56,
+      "wealth": 8.13,
       "family": {
         "spouses": 1,
         "children": 3,
@@ -1035,7 +985,7 @@
       "age": 31,
       "gender": "female",
       "race": 1,
-      "wealth": 8.83,
+      "wealth": 8.56,
       "family": {
         "spouses": 1,
         "children": 2,
@@ -1090,7 +1040,7 @@
       "age": 35,
       "gender": "female",
       "race": 1,
-      "wealth": 10.65,
+      "wealth": 9.05,
       "family": {
         "spouses": 0,
         "children": 0,
@@ -1117,7 +1067,7 @@
       "age": 53,
       "gender": "female",
       "race": 1,
-      "wealth": 9.29,
+      "wealth": 8.39,
       "family": {
         "spouses": 1,
         "children": 4,
@@ -1172,7 +1122,7 @@
       "age": 50,
       "gender": "female",
       "race": 1,
-      "wealth": 13.41,
+      "wealth": 11.4,
       "family": {
         "spouses": 0,
         "children": 0,
@@ -1199,7 +1149,7 @@
       "age": 53,
       "gender": "male",
       "race": 1,
-      "wealth": 14.03,
+      "wealth": 11.93,
       "family": {
         "spouses": 0,
         "children": 0,
@@ -1226,7 +1176,7 @@
       "age": 61,
       "gender": "female",
       "race": 1,
-      "wealth": 14.26,
+      "wealth": 12.12,
       "family": {
         "spouses": 1,
         "children": 4,
@@ -1280,7 +1230,7 @@
       "age": 52,
       "gender": "female",
       "race": 1,
-      "wealth": 13.21,
+      "wealth": 12.16,
       "family": {
         "spouses": 1,
         "children": 6,
@@ -1334,7 +1284,7 @@
       "age": 41,
       "gender": "male",
       "race": 1,
-      "wealth": 16.03,
+      "wealth": 14.82,
       "family": {
         "spouses": 1,
         "children": 7,
@@ -2676,7 +2626,7 @@
       "age": 32,
       "gender": "female",
       "race": 1,
-      "wealth": 11.33,
+      "wealth": 9.63,
       "family": {
         "spouses": 1,
         "children": 3,
@@ -2703,7 +2653,7 @@
       "age": 37,
       "gender": "female",
       "race": 1,
-      "wealth": 16.8,
+      "wealth": 13.93,
       "family": {
         "spouses": 0,
         "children": 0,
@@ -2758,7 +2708,7 @@
       "age": 65,
       "gender": "female",
       "race": 1,
-      "wealth": 11.14,
+      "wealth": 9.47,
       "family": {
         "spouses": 0,
         "children": 0,
@@ -2785,7 +2735,7 @@
       "age": 64,
       "gender": "male",
       "race": 1,
-      "wealth": 15.6,
+      "wealth": 12.49,
       "family": {
         "spouses": 1,
         "children": 5,
@@ -2840,7 +2790,7 @@
       "age": 34,
       "gender": "male",
       "race": 1,
-      "wealth": 11.45,
+      "wealth": 9.73,
       "family": {
         "spouses": 0,
         "children": 0,
@@ -2867,7 +2817,7 @@
       "age": 61,
       "gender": "female",
       "race": 1,
-      "wealth": 12.02,
+      "wealth": 11.33,
       "family": {
         "spouses": 1,
         "children": 3,
@@ -2922,7 +2872,7 @@
       "age": 43,
       "gender": "male",
       "race": 1,
-      "wealth": 12.58,
+      "wealth": 10.69,
       "family": {
         "spouses": 1,
         "children": 6,
@@ -2949,7 +2899,7 @@
       "age": 50,
       "gender": "female",
       "race": 1,
-      "wealth": 9.29,
+      "wealth": 8.39,
       "family": {
         "spouses": 1,
         "children": 5,
@@ -3004,7 +2954,7 @@
       "age": 46,
       "gender": "male",
       "race": 1,
-      "wealth": 13.41,
+      "wealth": 11.4,
       "family": {
         "spouses": 0,
         "children": 0,
@@ -3031,7 +2981,7 @@
       "age": 53,
       "gender": "female",
       "race": 1,
-      "wealth": 8.67,
+      "wealth": 9.76,
       "family": {
         "spouses": 1,
         "children": 9,
@@ -3086,7 +3036,7 @@
       "age": 33,
       "gender": "female",
       "race": 1,
-      "wealth": 16.56,
+      "wealth": 14.08,
       "family": {
         "spouses": 1,
         "children": 3,
@@ -3113,7 +3063,7 @@
       "age": 60,
       "gender": "male",
       "race": 1,
-      "wealth": 16.8,
+      "wealth": 14.31,
       "family": {
         "spouses": 1,
         "children": 4,
@@ -3140,7 +3090,7 @@
       "age": 45,
       "gender": "male",
       "race": 1,
-      "wealth": 12.57,
+      "wealth": 11.53,
       "family": {
         "spouses": 1,
         "children": 5,
@@ -3194,7 +3144,7 @@
       "age": 62,
       "gender": "female",
       "race": 1,
-      "wealth": 8.76,
+      "wealth": 8.4,
       "family": {
         "spouses": 1,
         "children": 5,

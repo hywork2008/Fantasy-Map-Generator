@@ -1,0 +1,69 @@
+good	value	laborPointsPerLot	materials/value	cost/value@1.5	cost/value@5
+Fine Wool Cloth	7	0.019	0.557	0.68	0.95
+Wool Cloth	98	0.259	0.531	0.64	0.91
+Glass	6	0.027	0.242	0.44	0.89
+Bullets	17	0.054	0.412	0.55	0.87
+Wool Blankets	10	0.015	0.645	0.71	0.86
+Fine Wool Garments	12	0.023	0.583	0.67	0.86
+Sails	50	0.243	0.16	0.37	0.86
+Harnesses	15	0.054	0.347	0.5	0.86
+Roman Concrete	14	0.05	0.357	0.51	0.86
+Garments	180	0.312	0.605	0.68	0.85
+Wool Garments	180	0.312	0.605	0.68	0.85
+Linen Garments	165	0.312	0.582	0.66	0.85
+Lab Glassware	27	0.108	0.281	0.45	0.85
+Tallow Candles	2.4	0	0.833	0.84	0.84
+Bronze	10	0.005	0.725	0.75	0.8
+Oil	4	0	0.75	0.75	0.75
+Cheese	14	0.002	0.714	0.72	0.73
+Arms	24	0.068	0.295	0.42	0.7
+Egg	1.5	0	0.667	0.67	0.67
+Slaked Lime	3	0	0.667	0.67	0.67
+Linen	8	0.013	0.375	0.44	0.61
+Bread	0.08	0	0.6	0.6	0.61
+Beer	1.5	0	0.593	0.6	0.61
+Paper	5	0.014	0.2	0.32	0.6
+Mead	4.5	0	0.564	0.57	0.57
+Tapestries	45	0.01	0.533	0.54	0.57
+Brick	2	0	0.542	0.55	0.56
+Jewelry	55	0.001	0.564	0.56	0.56
+Tools	14	0.003	0.5	0.51	0.53
+Ropes	3	0.004	0.333	0.39	0.52
+Timber	3	0.001	0.5	0.51	0.52
+Lime	2	0	0.5	0.5	0.5
+Perry	2.5	0	0.496	0.5	0.5
+Cloth	98	0.259	0.11	0.22	0.49
+Liquor	12	0.036	0.035	0.16	0.47
+Cider	2.4	0	0.454	0.46	0.46
+Wine	1.28	0	0.413	0.41	0.42
+Artworks	32	0.001	0.407	0.41	0.41
+Raisins	5	0	0.4	0.4	0.4
+Soap	6	0	0.378	0.38	0.38
+Saltpeter	4	0.003	0.268	0.3	0.38
+Relics	48	0.002	0.365	0.37	0.37
+Smoked Cheese	20	0	0.345	0.34	0.35
+Potash	0.9	0	0.32	0.32	0.34
+Arrows	3	0.005	0.096	0.17	0.33
+Perfume	28	0	0.321	0.32	0.32
+Candles	14	0	0.286	0.29	0.29
+Ceramics	4	0.001	0.25	0.26	0.27
+Books	18	0.034	0.001	0.08	0.27
+Sculptures	42	0.003	0.257	0.26	0.27
+Stockfish	4	0	0.25	0.25	0.25
+Pomace Wine	0.3	0	0.227	0.23	0.24
+Ash	0.012	0	0	0.07	0.24
+Castile Soap	12	0	0.231	0.23	0.23
+Preserved food	6	0.001	0.173	0.18	0.19
+Ink	3.4	0.001	0.118	0.13	0.17
+Ivory	35	0	0.171	0.17	0.17
+Barrels	0.1	0	0.096	0.12	0.16
+Vinegar	6	0	0.149	0.15	0.15
+Dried Fruits	14	0	0.12	0.12	0.12
+Tar	5	0	0.089	0.09	0.09
+Boots	7	0.001	0.046	0.05	0.07
+Meat	2.5	0.001	0	0.02	0.07
+Leather Goods	3.5	0	0.046	0.05	0.06
+Leather	0.16	0	0	0.01	0.04
+Charcoal	3	0	0.013	0.01	0.01
+Instruments	24	0.001	0.001	0	0.01
+Spinning Wheel	12	0	0.001	0	0

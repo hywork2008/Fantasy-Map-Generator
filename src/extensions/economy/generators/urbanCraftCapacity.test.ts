@@ -7,6 +7,7 @@ import {
   initEconomyContext,
   setGoods
 } from "../economyContext";
+import { TAILORING_POINTS_PER_WARDROBE_LOT } from "./craftDemandCalibration";
 import { Goods } from "./goods-generator";
 import {
   getUrbanCraftCapacityRecords,
@@ -68,7 +69,7 @@ describe("observed urban work budgets", () => {
       const row = getUrbanCraftCapacityRecords()[0];
       const before = structuredClone(getOrCreateUrbanCraftCapacityTable());
       const reference = getUrbanTextileHandworkReference(row)!;
-      expect(reference["Wool Garments:tailoring"]).toBeCloseTo(1000 / 972, 10);
+      expect(reference["Wool Garments:tailoring"]).toBeCloseTo(1 / TAILORING_POINTS_PER_WARDROBE_LOT, 10);
       expect(reference["Wool Garments:fullChain"]).toBeLessThan(reference["Wool Garments:tailoring"]);
       expect(reference["Wool Blankets:fullChain"]).toBeLessThan(reference["Wool Blankets:tailoring"]);
       expect(getOrCreateUrbanCraftCapacityTable()).toEqual(before);
