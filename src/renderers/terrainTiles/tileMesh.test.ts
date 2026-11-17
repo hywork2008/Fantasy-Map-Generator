@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTileMesh, tileLandColor } from "./tileMesh";
+import { ALPINE_TILE_PALETTE, buildTileMesh, tileLandColor } from "./tileMesh";
 
 describe("buildTileMesh", () => {
   it("adds a skirt below the edge and keeps sea and no-data at sea level", () => {
@@ -71,5 +71,35 @@ describe("buildTileMesh", () => {
     expect(mesh.positions[1]).toBeCloseTo(60);
     expect(mesh.positions[3 * 1 + 1]).toBe(0);
     expect(mesh.positions[3 * 3 + 1]).toBeCloseTo(0.5);
+  });
+
+  it("paints steep Alpine slopes as rock and leaves the Japan palette alone", () => {
+    // 3×3 tile rising 100 m per sample (100 m apart): a 45° slope, at 1,000–1,200 m.
+    const data = new Int16Array(9);
+    for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) data[j * 3 + i] = 1000 + i * 100;
+    const input = {
+      data,
+      samples: 3,
+      unitMeters: 1,
+      nodata: -32768,
+      originX: 0,
+      originZ: 0,
+      stepX: 1,
+      stepZ: 1,
+      worldYPerMeter: 0.01,
+      skirtMeters: 0,
+      hillshade: false,
+      stepMeters: 100
+    };
+    const japan = buildTileMesh(input);
+    expect([...japan.colors.subarray(12, 15)].map(v => +v.toFixed(4))).toEqual(
+      tileLandColor(1100).map(v => +v.toFixed(4))
+    );
+    const alps = buildTileMesh({ ...input, palette: ALPINE_TILE_PALETTE });
+    const rock = ALPINE_TILE_PALETTE.rock?.color ?? [0, 0, 0];
+    for (let c = 0; c < 3; c++) expect(alps.colors[12 + c]).toBeCloseTo(rock[c], 5);
+    // Flat ground keeps the height colour.
+    const flat = buildTileMesh({ ...input, data: new Int16Array(9).fill(1100), palette: ALPINE_TILE_PALETTE });
+    expect(flat.colors[12]).toBeCloseTo(tileLandColor(1100, ALPINE_TILE_PALETTE.ramp)[0], 5);
   });
 });

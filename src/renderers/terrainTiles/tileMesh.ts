@@ -30,6 +30,17 @@ export interface TileMeshInput {
   adjustColor?: (x: number, z: number, land: boolean, colors: Float32Array, offset: number) => void;
   /** Reshape land heights (valleys along FMG rivers): world x/z and DEM meters in, meters out. */
   adjustMeters?: (x: number, z: number, meters: number) => number;
+  /** Land colouring by height (and slope); defaults to the Japan palette. */
+  palette?: TilePalette;
+  /** Ground distance between samples in meters, for slopes (`palette.rock`). */
+  stepMeters?: number;
+}
+
+/** Height ramp [meters, r, g, b] and optional bare rock on steep slopes. */
+export interface TilePalette {
+  ramp: readonly (readonly [number, number, number, number])[];
+  /** Slopes from `fromDeg` blend into `color`, fully at `toDeg`. */
+  rock?: { color: readonly [number, number, number]; fromDeg: number; toDeg: number };
 }
 
 export interface TileMeshArrays {
@@ -51,17 +62,36 @@ const RAMP: readonly (readonly [number, number, number, number])[] = [
   [3200, 0.93, 0.93, 0.93]
 ];
 
-export function tileLandColor(meters: number): [number, number, number] {
-  if (meters <= RAMP[0][0]) return [RAMP[0][1], RAMP[0][2], RAMP[0][3]];
-  for (let i = 1; i < RAMP.length; i++) {
-    const [m1, r1, g1, b1] = RAMP[i];
+/** Japan: green lowland, brown mountains, grey and white only on the highest summits. */
+export const JAPAN_TILE_PALETTE: TilePalette = { ramp: RAMP };
+
+/**
+ * Alps: forest and meadow green up to about 2,000 m, scree and rock to 3,000 m, snow and ice above;
+ * steep slopes (cliffs, horns) are bare rock whatever their height.
+ */
+export const ALPINE_TILE_PALETTE: TilePalette = {
+  ramp: [
+    [0, 0.36, 0.52, 0.3],
+    [800, 0.4, 0.55, 0.32],
+    [1800, 0.32, 0.45, 0.27],
+    [2300, 0.55, 0.54, 0.4],
+    [2800, 0.58, 0.56, 0.52],
+    [3300, 0.93, 0.94, 0.96]
+  ],
+  rock: { color: [0.5, 0.47, 0.43], fromDeg: 28, toDeg: 42 }
+};
+
+export function tileLandColor(meters: number, ramp: TilePalette["ramp"] = RAMP): [number, number, number] {
+  if (meters <= ramp[0][0]) return [ramp[0][1], ramp[0][2], ramp[0][3]];
+  for (let i = 1; i < ramp.length; i++) {
+    const [m1, r1, g1, b1] = ramp[i];
     if (meters <= m1) {
-      const [m0, r0, g0, b0] = RAMP[i - 1];
+      const [m0, r0, g0, b0] = ramp[i - 1];
       const t = (meters - m0) / (m1 - m0);
       return [r0 + (r1 - r0) * t, g0 + (g1 - g0) * t, b0 + (b1 - b0) * t];
     }
   }
-  const last = RAMP[RAMP.length - 1];
+  const last = ramp[ramp.length - 1];
   return [last[1], last[2], last[3]];
 }
 
@@ -87,6 +117,7 @@ export function buildTileMesh(input: TileMeshInput): TileMeshArrays {
   const stored = n + 2 * b;
   const padPositions = b ? new Float32Array(stored * stored * 3) : positions;
   const padColors = b ? new Float32Array(stored * stored * 3) : colors;
+  const ramp = input.palette?.ramp ?? RAMP;
   for (let j = 0; j < stored; j++)
     for (let i = 0; i < stored; i++) {
       const k = j * stored + i;
@@ -100,12 +131,35 @@ export function buildTileMesh(input: TileMeshInput): TileMeshArrays {
       padPositions[k * 3] = x;
       padPositions[k * 3 + 1] = Math.max(0, meters) * input.worldYPerMeter;
       padPositions[k * 3 + 2] = z;
-      const color = land ? tileLandColor(meters) : WATER;
+      const color = land ? tileLandColor(meters, ramp) : WATER;
       padColors[k * 3] = color[0];
       padColors[k * 3 + 1] = color[1];
       padColors[k * 3 + 2] = color[2];
       input.adjustColor?.(padPositions[k * 3], padPositions[k * 3 + 2], land, padColors, k * 3);
     }
+  const rock = input.palette?.rock;
+  if (rock && input.stepMeters && input.stepMeters > 0 && input.worldYPerMeter > 0) {
+    // Slope from the heights as drawn (valleys included), central differences inside the stored grid.
+    const step = input.stepMeters;
+    const tanFrom = Math.tan((rock.fromDeg * Math.PI) / 180);
+    const tanTo = Math.tan((rock.toDeg * Math.PI) / 180);
+    const h = (i: number, j: number) => padPositions[(j * stored + i) * 3 + 1] / input.worldYPerMeter;
+    for (let j = 0; j < stored; j++)
+      for (let i = 0; i < stored; i++) {
+        const k = j * stored + i;
+        if (!(h(i, j) > LAND_METERS)) continue;
+        const i0 = Math.max(0, i - 1);
+        const i1 = Math.min(stored - 1, i + 1);
+        const j0 = Math.max(0, j - 1);
+        const j1 = Math.min(stored - 1, j + 1);
+        const gx = (h(i1, j) - h(i0, j)) / ((i1 - i0) * step);
+        const gy = (h(i, j1) - h(i, j0)) / ((j1 - j0) * step);
+        const t = Math.min(1, Math.max(0, (Math.hypot(gx, gy) - tanFrom) / (tanTo - tanFrom)));
+        if (t <= 0) continue;
+        const w = t * t * (3 - 2 * t);
+        for (let c = 0; c < 3; c++) padColors[k * 3 + c] = padColors[k * 3 + c] * (1 - w) + rock.color[c] * w;
+      }
+  }
   if (input.hillshade !== false)
     applyHillshade(
       padPositions.subarray(0, stored * stored * 3),

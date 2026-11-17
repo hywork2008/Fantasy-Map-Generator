@@ -75,6 +75,7 @@ import {
 } from "./localTerrainSampler";
 import { getNightscapeBeamPose, getNightscapePopulationGlow } from "./nightscapeGlow";
 import { TerrainTileLayer, type TerrainTileStats } from "./terrainTiles/terrainTileLayer";
+import { ALPINE_TILE_PALETTE, JAPAN_TILE_PALETTE } from "./terrainTiles/tileMesh";
 import { createTileTerrainSampler } from "./terrainTiles/tileTerrainSampler";
 import {
   ALPINE_VALLEY_TABLES,
@@ -2642,6 +2643,7 @@ class ThreeDModule {
   private syncTerrainTiles(): boolean {
     const regionId = worldContext.options?.earthRegion?.id;
     const tileDir = regionId ? getEarthRegion(regionId)?.localTerrain?.tileDir : undefined;
+    const regionPalette = regionId ? getEarthRegion(regionId)?.localTerrain?.palette : undefined;
     const enabled = getLocalTerrainTuning().tiles.enabled && getLocalTerrainTuning().source === "dem" && tileDir;
     if (!enabled || !this.scene) {
       this.disposeTerrainTiles();
@@ -2650,10 +2652,14 @@ class ThreeDModule {
     // Another region's pyramid: start over.
     if (this.terrainTiles && this.terrainTiles.directory !== tileDir) this.disposeTerrainTiles();
     if (!this.terrainTiles) {
-      const layer = new TerrainTileLayer(() => {
-        this.render();
-        this.refreshCampaignLinesOnTileData();
-      }, tileDir);
+      const layer = new TerrainTileLayer(
+        () => {
+          this.render();
+          this.refreshCampaignLinesOnTileData();
+        },
+        tileDir,
+        regionPalette === "alpine" ? ALPINE_TILE_PALETTE : JAPAN_TILE_PALETTE
+      );
       this.terrainTiles = layer;
       void layer.ready.then(ok => {
         if (ok && this.terrainTiles === layer) {

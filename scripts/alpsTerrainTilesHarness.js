@@ -7,15 +7,18 @@
 async page => {
   const DIR = "docs/analytics/raw/alps-terrain/";
   // Edit per round. A4: close views of the Swiss sites; `maxZoom` 6 shows the 62.5 m level.
-  const ROUND = "a4-terrarium-z5";
+  const ROUND = "a6-palette";
   const TILE_ZOOM = 5;
   // [site, camera height km, camera distance km south of the site]
   const RUNS = [
-    ["zermatt", 5, 9],
-    ["lauterbrunnen", 5, 9],
-    ["aletsch", 5, 9],
-    ["engadin", 5, 9],
-    ["lugano", 5, 9]
+    ["zermatt", 10, 20],
+    ["lauterbrunnen", 8, 16],
+    ["aletsch", 10, 20],
+    ["engadin", 10, 20],
+    ["lugano", 10, 20],
+    ["chamonix", 10, 20],
+    ["dolomites", 10, 20],
+    ["innsbruck", 10, 20]
   ];
 
   await page.goto("http://localhost:5173/Fantasy-Map-Generator/?seed=12345");

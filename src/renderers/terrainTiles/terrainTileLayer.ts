@@ -5,7 +5,7 @@
  */
 import * as THREE from "three";
 import { loadEarthRasterBytes } from "../../generators/earthRegionHeightmap";
-import { buildTileMesh, TILE_WATER_COLOR as WATER } from "./tileMesh";
+import { buildTileMesh, JAPAN_TILE_PALETTE, type TilePalette, TILE_WATER_COLOR as WATER } from "./tileMesh";
 import {
   parentTile,
   projectionFactor,
@@ -218,7 +218,8 @@ export class TerrainTileLayer {
 
   constructor(
     private readonly onChange: () => void,
-    dir = JAPAN_TILE_DIR
+    dir = JAPAN_TILE_DIR,
+    private readonly palette: TilePalette = JAPAN_TILE_PALETTE
   ) {
     this.group.name = "terrain-tiles";
     this.dir = dir;
@@ -778,6 +779,8 @@ export class TerrainTileLayer {
       // Deeper than the largest step between levels on steep ground.
       adjustColor: this.colorAdjuster(params, sx, sz, key),
       adjustMeters: this.metersAdjuster(params, key, sx, sz),
+      palette: this.palette,
+      stepMeters: level.spacingKm * 1000,
       skirtMeters: Math.max(50, (entry.maxM - Math.max(0, entry.minM)) * 0.25)
     });
     const geometry = new THREE.BufferGeometry();
