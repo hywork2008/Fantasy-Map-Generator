@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | A0・A1 済み（2026-11-18）。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める |
+| Status | A0〜A2 済み（2026-11-18）。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める |
 | Parent | [`japan-terrain-tiles.md`](./japan-terrain-tiles.md) |
 | Related | [`japan-local-war-terrain.md`](./japan-local-war-terrain.md)、[`fmg-cell-valleys.md`](./fmg-cell-valleys.md)、[`earth-geography-heightmaps.md`](./earth-geography-heightmaps.md)、[`../../scripts/bakeJapanTiles.mjs`](../../scripts/bakeJapanTiles.mjs)、[`../../src/data/earthRegions.ts`](../../src/data/earthRegions.ts)、[`../../src/renderers/terrainTiles/terrainTileLayer.ts`](../../src/renderers/terrainTiles/terrainTileLayer.ts) |
 | Scope | アルプス山脈とその周りを、Japan と同じ四分木タイルで3D表示し、山の造形を確かめる。日本と同じく「出典を記載すれば加工・再配布・商用利用ができる」データだけを使う。シミュの `cells.h`・河川・経路は変えない |
@@ -153,6 +153,13 @@ Japan と同じ四分木（z0=256km、65点格子）。
 - `scripts/bakeAlpsEarthRaster.mjs` で `public/heightmaps/earth/alps.bin` を焼いた（Terrarium z7、0.02°、675×305、437KB。範囲は地域を0.5°広げた 4.0–17.5°E, 43.0–49.1°N）。陸は Natural Earth 10m admin-0（`temp/ne_10m_admin_0_countries.geojson`、Git 管理外）。
 - `ALPS_REGION`（[`earthRegions.ts`](../../src/data/earthRegions.ts)）とテンプレート `alps`（id 25）を足した。気候の基準は東経4.5–17.0°、中心北緯46.05°。
 - seed 12345 で生成：約4秒、9,598 セル（陸 9,080）、最高 h=100、川 197、国家 14、都市 66（Cultures set Antique のため Settlement pattern が Marches）。人口に頼る試験では Standard に変える。
+
+### A2（2026-11-18）
+
+- `EarthRegion.localTerrain`（`tileDir`・`localDemDir`・`sites`）を足し、Japan と Alps に設定した。タイル表示は `localTerrain` を持つ地域で有効になり、地域が変わるとタイルの層を作り直す（`TerrainTileLayer.directory`）。
+- 県の段（`manifest.json`）と実在河川（`rivers.json`）は `localDemDir` から読む（Alps は無し）。試験地点は `localTerrainSites(regionId)`。`JAPAN_LOCAL_TERRAIN_SITES` は Japan の設定を指す別名として残した（既存のハーネス用）。
+- `prefectures` → `admin1` の名前変更は見送った（URL・ハーネス・タイルの索引の書式が変わるだけで、Alps の表示には要らない）。
+- 確認（seed 12345）：Japan 川中島はタイル 176枚を描き、谷の数値（川8本・3,368点・峡谷8点）も V3 と同じ。Alps ツェルマットは `alps-tiles/` が無いのでタイルは読めず、窓の地面（`alps.bin` の2km）で描く。
 
 ## 8. やらないこと
 

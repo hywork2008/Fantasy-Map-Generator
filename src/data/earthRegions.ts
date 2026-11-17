@@ -40,6 +40,27 @@ export interface EarthRegion {
   previewPng?: string;
   /** One-line note on how Natural Earth admin-0 is interpreted for this region. */
   attribution: string;
+  /**
+   * Real-DEM 3D terrain for the campaign window (docs/plan/japan-terrain-tiles.md,
+   * docs/plan/alps-terrain-tiles.md). Regions without it draw the cell ground only.
+   */
+  localTerrain?: EarthLocalTerrain;
+}
+
+export interface EarthLocalTerrainSite {
+  id: string;
+  name: string;
+  lon: number;
+  lat: number;
+}
+
+export interface EarthLocalTerrain {
+  /** Quadtree tile pyramid (index.json, z<z>.bin). */
+  tileDir: string;
+  /** Per-area DEM levels (manifest.json) and baked real rivers (rivers.json); optional. */
+  localDemDir?: string;
+  /** Tuning fixtures (approximate lon/lat). */
+  sites: readonly EarthLocalTerrainSite[];
 }
 
 const JAPAN_STRAITS: EarthStrait[] = [
@@ -160,6 +181,17 @@ export const JAPAN_REGION: EarthRegion = {
   },
   raster: { path: "./heightmaps/earth/japan.bin" },
   topology: { keepStraits: JAPAN_STRAITS },
+  localTerrain: {
+    tileDir: "./heightmaps/earth/japan-tiles/",
+    localDemDir: "./heightmaps/earth/japan-local/",
+    sites: [
+      { id: "sekigahara", name: "Sekigahara", lon: 136.47, lat: 35.37 },
+      { id: "kawanakajima", name: "Kawanakajima", lon: 138.19, lat: 36.6 },
+      { id: "nagashino", name: "Nagashino-Shitaragahara", lon: 137.55, lat: 34.92 },
+      { id: "okehazama", name: "Okehazama", lon: 136.99, lat: 35.06 },
+      { id: "itsukushima", name: "Itsukushima", lon: 132.32, lat: 34.28 }
+    ]
+  },
   attribution:
     "Natural Earth 10m admin-0 land (public domain). In-frame islands and neighboring land are kept; the canvas is not stretched to the window."
 };
@@ -423,6 +455,19 @@ export const ALPS_REGION: EarthRegion = {
     longitude: 46.91
   },
   raster: { path: "./heightmaps/earth/alps.bin" },
+  localTerrain: {
+    tileDir: "./heightmaps/earth/alps-tiles/",
+    sites: [
+      { id: "zermatt", name: "Zermatt / Matterhorn", lon: 7.66, lat: 46.0 },
+      { id: "lauterbrunnen", name: "Lauterbrunnen", lon: 7.91, lat: 46.59 },
+      { id: "aletsch", name: "Aletsch Glacier", lon: 8.03, lat: 46.45 },
+      { id: "engadin", name: "Engadin (St. Moritz)", lon: 9.84, lat: 46.5 },
+      { id: "lugano", name: "Lake Lugano", lon: 8.95, lat: 46.0 },
+      { id: "chamonix", name: "Mont Blanc / Chamonix", lon: 6.87, lat: 45.92 },
+      { id: "dolomites", name: "Dolomites (Sella)", lon: 11.82, lat: 46.51 },
+      { id: "innsbruck", name: "Innsbruck / Inn valley", lon: 11.39, lat: 47.27 }
+    ]
+  },
   attribution:
     "Natural Earth 10m admin-0 land (public domain). Terrarium elevation (EU-DEM, SRTM, Austria DGM); in-frame neighbors are kept."
 };

@@ -55,6 +55,7 @@ import { cloudImage } from "../assets/cloud-image";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { getEarthRegion } from "../data/earthRegions";
 import { Rivers } from "../generators/river-generator";
 import { getMapURL } from "../io/export";
 import { tip } from "../services/tooltipService";
@@ -2633,19 +2634,20 @@ class ThreeDModule {
    * The window ground stays visible until the tile index has loaded (or if it never does).
    */
   private syncTerrainTiles(): boolean {
-    const enabled =
-      getLocalTerrainTuning().tiles.enabled &&
-      getLocalTerrainTuning().source === "dem" &&
-      worldContext.options?.earthRegion?.id === "japan";
+    const regionId = worldContext.options?.earthRegion?.id;
+    const tileDir = regionId ? getEarthRegion(regionId)?.localTerrain?.tileDir : undefined;
+    const enabled = getLocalTerrainTuning().tiles.enabled && getLocalTerrainTuning().source === "dem" && tileDir;
     if (!enabled || !this.scene) {
       this.disposeTerrainTiles();
       return false;
     }
+    // Another region's pyramid: start over.
+    if (this.terrainTiles && this.terrainTiles.directory !== tileDir) this.disposeTerrainTiles();
     if (!this.terrainTiles) {
       const layer = new TerrainTileLayer(() => {
         this.render();
         this.refreshCampaignLinesOnTileData();
-      });
+      }, tileDir);
       this.terrainTiles = layer;
       void layer.ready.then(ok => {
         if (ok && this.terrainTiles === layer) {

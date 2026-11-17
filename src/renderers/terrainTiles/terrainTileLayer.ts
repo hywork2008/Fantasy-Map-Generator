@@ -195,10 +195,16 @@ export class TerrainTileLayer {
     dir = JAPAN_TILE_DIR
   ) {
     this.group.name = "terrain-tiles";
+    this.dir = dir;
     this.ready = this.loadIndex(dir);
   }
 
   private dir = JAPAN_TILE_DIR;
+
+  /** Directory of the tile pyramid this layer reads. */
+  get directory(): string {
+    return this.dir;
+  }
 
   private async loadIndex(dir: string): Promise<boolean> {
     this.dir = dir;

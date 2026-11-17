@@ -3,7 +3,9 @@
  * decides whether a local war window may read the real DEM instead of the cell heights.
  * See docs/plan/japan-local-war-terrain.md (R0).
  */
+
 import type { EarthBBox } from "../data/earthConfig";
+import { type EarthLocalTerrainSite, getEarthRegion, JAPAN_REGION } from "../data/earthRegions";
 import type { EarthRegionGeoref } from "../types/WorldState";
 
 /** Share of sampled land cells whose re-encoded DEM height may differ before the DEM is refused. */
@@ -79,11 +81,10 @@ export function georefConsistency(
   return { sampled, mismatched, ratio, ok: sampled > 0 && ratio <= limit };
 }
 
-/** Tuning fixtures (approximate lon/lat). */
-export const JAPAN_LOCAL_TERRAIN_SITES = [
-  { id: "sekigahara", name: "Sekigahara", lon: 136.47, lat: 35.37 },
-  { id: "kawanakajima", name: "Kawanakajima", lon: 138.19, lat: 36.6 },
-  { id: "nagashino", name: "Nagashino-Shitaragahara", lon: 137.55, lat: 34.92 },
-  { id: "okehazama", name: "Okehazama", lon: 136.99, lat: 35.06 },
-  { id: "itsukushima", name: "Itsukushima", lon: 132.32, lat: 34.28 }
-] as const;
+/** Japan tuning fixtures (approximate lon/lat); kept for the Japan harnesses. */
+export const JAPAN_LOCAL_TERRAIN_SITES = JAPAN_REGION.localTerrain?.sites ?? [];
+
+/** Tuning fixtures of a region with real-DEM terrain; empty for other regions. */
+export function localTerrainSites(regionId: string): readonly EarthLocalTerrainSite[] {
+  return getEarthRegion(regionId)?.localTerrain?.sites ?? [];
+}

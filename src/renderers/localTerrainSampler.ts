@@ -238,10 +238,10 @@ export interface LocalTerrainSampler {
 }
 
 /** Baked rivers are optional dev assets; a missing file means none. */
-async function loadRealRivers(regionId: string): Promise<{ points: [number, number][] }[]> {
-  if (regionId !== "japan") return [];
+async function loadRealRivers(dir: string | undefined): Promise<{ points: [number, number][] }[]> {
+  if (!dir) return [];
   try {
-    const json = JSON.parse(new TextDecoder().decode(await loadEarthRasterBytes(`${LOCAL_DEM_DIR}rivers.json`))) as {
+    const json = JSON.parse(new TextDecoder().decode(await loadEarthRasterBytes(`${dir}rivers.json`))) as {
       rivers?: { points: [number, number][] }[];
     };
     return json.rivers ?? [];
@@ -263,17 +263,16 @@ interface DemLevel {
   loading?: Promise<void>;
 }
 
-const LOCAL_DEM_DIR = "./heightmaps/earth/japan-local/";
 /** Committed 1 km / 500 m levels, then the Git-ignored finer levels of a local bake. */
 const DEM_MANIFESTS = ["manifest.json", "manifest.local.json"];
 
 /** Level index only; rasters load per window (`ensureLevels`). Missing manifests mean no levels. */
-async function loadDemManifests(regionId: string): Promise<DemLevel[]> {
-  if (regionId !== "japan") return [];
+async function loadDemManifests(dir: string | undefined): Promise<DemLevel[]> {
+  if (!dir) return [];
   const levels: DemLevel[] = [];
   for (const file of DEM_MANIFESTS) {
     try {
-      const manifest = JSON.parse(new TextDecoder().decode(await loadEarthRasterBytes(`${LOCAL_DEM_DIR}${file}`))) as {
+      const manifest = JSON.parse(new TextDecoder().decode(await loadEarthRasterBytes(`${dir}${file}`))) as {
         bundles?: {
           source?: string;
           levels?: { stepMeters: number; file: string; west: number; east: number; south: number; north: number }[];
@@ -315,6 +314,7 @@ export async function createLocalTerrainSampler(
   const region = getEarthRegion(geo.id);
   if (!region) return null;
   const raster = await loadEarthRaster(region);
+  const localDemDir = region.localTerrain?.localDemDir;
   const lonLat = (x: number, y: number) => georefMapToLonLat(geo, x, y, graphWidth, graphHeight);
   const cells = grid.points.map((point, i) => ({ x: point[0], y: point[1], h: grid.cells.h[i] }));
   const consistency = georefConsistency(cells, (x, y) => {
@@ -323,8 +323,8 @@ export async function createLocalTerrainSampler(
   });
   if (!consistency.ok) return null;
   const [levels, riversLonLat] = await Promise.all([
-    options.prefectureLevels === false ? Promise.resolve([]) : loadDemManifests(geo.id),
-    loadRealRivers(geo.id)
+    options.prefectureLevels === false ? Promise.resolve([]) : loadDemManifests(localDemDir),
+    loadRealRivers(localDemDir)
   ]);
   const realRivers = riversLonLat.map(river => ({
     points: river.points.map(([lon, lat]) => {
@@ -385,7 +385,7 @@ export async function createLocalTerrainSampler(
       const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
       await Promise.all(
         wanted.map(level => {
-          level.loading ??= loadEarthRasterBytes(`${LOCAL_DEM_DIR}${level.file}`)
+          level.loading ??= loadEarthRasterBytes(`${localDemDir}${level.file}`)
             .then(bytes => {
               level.raster = decodeEarthRaster(bytes);
               load.rasters++;
