@@ -111,6 +111,12 @@ export interface CampaignBuildInput {
   footDays?: number;
   footKmPerDay?: number;
   heightAt: (x: number, y: number) => number;
+  /** Ground step in km from a finer height source (real DEM). Overrides the grid-based step. */
+  sampleStepKm?: number;
+  /** Darken vertex colors by a fixed north-west light. The ground material is unlit. */
+  hillshade?: boolean;
+  /** Per-side cap for a real-DEM ground. The grid bilinear keeps CAMPAIGN_MAX_SAMPLES_PER_SIDE. */
+  maxSamplesPerSide?: number;
   waterColor: string;
   neutralLandColor?: string;
   stateColors: ReadonlyMap<number, string>;
@@ -181,9 +187,13 @@ export function campaignSampleStepPx(gridSpacingPx: number, kmPerPx: number): nu
 }
 
 /** Samples along one side. The spacing is a minimum, so the count rounds down, then caps. */
-export function campaignSampleCount(spanPx: number, stepPx: number): number {
+export function campaignSampleCount(
+  spanPx: number,
+  stepPx: number,
+  maxPerSide = CAMPAIGN_MAX_SAMPLES_PER_SIDE
+): number {
   if (!(spanPx > 0) || !(stepPx > 0)) return 2;
-  return Math.min(CAMPAIGN_MAX_SAMPLES_PER_SIDE, Math.max(2, Math.floor(spanPx / stepPx) + 1));
+  return Math.min(maxPerSide, Math.max(2, Math.floor(spanPx / stepPx) + 1));
 }
 
 /**
@@ -264,11 +274,15 @@ export function buildCampaignMesh(input: CampaignBuildInput): CampaignMeshBuild 
     footDays: input.footDays,
     footKmPerDay: input.footKmPerDay
   });
-  const stepPx = campaignSampleStepPx(input.gridSpacingPx, input.kmPerPx);
+  const stepPx =
+    input.sampleStepKm && input.sampleStepKm > 0 && input.kmPerPx > 0
+      ? input.sampleStepKm / input.kmPerPx
+      : campaignSampleStepPx(input.gridSpacingPx, input.kmPerPx);
   const spanX = box.maxX - box.minX;
   const spanY = box.maxY - box.minY;
-  const samplesX = campaignSampleCount(spanX, stepPx);
-  const samplesY = campaignSampleCount(spanY, stepPx);
+  const maxPerSide = input.maxSamplesPerSide ?? CAMPAIGN_MAX_SAMPLES_PER_SIDE;
+  const samplesX = campaignSampleCount(spanX, stepPx, maxPerSide);
+  const samplesY = campaignSampleCount(spanY, stepPx, maxPerSide);
   const packSpacing = input.packSpacingPx > 0 ? input.packSpacingPx : input.gridSpacingPx;
   const ground = buildGround(input, box, samplesX, samplesY);
   assertGroundFacesUp(ground);
@@ -326,6 +340,8 @@ function buildGround(
     }
   }
 
+  if (input.hillshade) applyHillshade(positions, colors, samplesX, samplesY);
+
   const quadCount = Math.max(0, samplesX - 1) * Math.max(0, samplesY - 1);
   const indices = new Uint32Array(quadCount * 6);
   let cursor = 0;
@@ -345,6 +361,47 @@ function buildGround(
   }
 
   return { positions, colors, indices, vertexCount };
+}
+
+/** Lambert term from a light in the north-west, 45° up, on the sampled height grid. */
+export function applyHillshade(
+  positions: Float32Array,
+  colors: Float32Array,
+  samplesX: number,
+  samplesY: number
+): void {
+  if (samplesX < 2 || samplesY < 2) return;
+  const light = [-Math.SQRT1_2 * Math.SQRT1_2, Math.SQRT1_2, -Math.SQRT1_2 * Math.SQRT1_2];
+  const at = (col: number, row: number) => {
+    const c = Math.min(samplesX - 1, Math.max(0, col));
+    const r = Math.min(samplesY - 1, Math.max(0, row));
+    return (r * samplesX + c) * 3;
+  };
+  const shade = new Float32Array(samplesX * samplesY);
+  for (let row = 0; row < samplesY; row++) {
+    for (let col = 0; col < samplesX; col++) {
+      const l = at(col - 1, row);
+      const r = at(col + 1, row);
+      const u = at(col, row - 1);
+      const d = at(col, row + 1);
+      const dx = positions[r] - positions[l];
+      const dz = positions[d + 2] - positions[u + 2];
+      const dhx = positions[r + 1] - positions[l + 1];
+      const dhz = positions[d + 1] - positions[u + 1];
+      // Normal of the surface y = h(x, z): (-dh/dx, 1, -dh/dz).
+      const nx = dx !== 0 ? -dhx / dx : 0;
+      const nz = dz !== 0 ? -dhz / dz : 0;
+      const length = Math.hypot(nx, 1, nz);
+      const lambert = (nx * light[0] + light[1] + nz * light[2]) / length;
+      shade[row * samplesX + col] = 0.45 + (0.55 * Math.max(0, lambert)) / light[1];
+    }
+  }
+  for (let i = 0; i < shade.length; i++) {
+    const k = Math.min(1.15, shade[i]);
+    colors[i * 3] = Math.min(1, colors[i * 3] * k);
+    colors[i * 3 + 1] = Math.min(1, colors[i * 3 + 1] * k);
+    colors[i * 3 + 2] = Math.min(1, colors[i * 3 + 2] * k);
+  }
 }
 
 function assertGroundFacesUp(ground: CampaignGround): void {

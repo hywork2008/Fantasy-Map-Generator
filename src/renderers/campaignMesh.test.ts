@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyHillshade,
   buildCampaignMesh,
   CAMPAIGN_MARKER_LIFT,
   CAMPAIGN_MAX_SAMPLES_PER_SIDE,
@@ -313,5 +314,27 @@ describe("campaignMesh", () => {
 
     expect(mesh.markers.map(marker => marker.kind).sort()).toEqual(["burg", "fleet"]);
     expect(mesh.markers.find(marker => marker.kind === "burg")?.name).toBe("Avon");
+  });
+});
+
+describe("applyHillshade", () => {
+  const grid = (heightAt: (col: number, row: number) => number) => {
+    const positions = new Float32Array(9 * 3);
+    for (let row = 0; row < 3; row++)
+      for (let col = 0; col < 3; col++) positions.set([col, heightAt(col, row), row], (row * 3 + col) * 3);
+    return { positions, colors: new Float32Array(27).fill(0.5) };
+  };
+
+  it("keeps flat ground and darkens a slope facing away from the north-west light", () => {
+    const flat = grid(() => 0);
+    applyHillshade(flat.positions, flat.colors, 3, 3);
+    expect(flat.colors[12]).toBeCloseTo(0.5, 5);
+    // Ground rising to the east faces west, toward the light.
+    const towardLight = grid(col => col);
+    const awayFromLight = grid(col => -col);
+    applyHillshade(towardLight.positions, towardLight.colors, 3, 3);
+    applyHillshade(awayFromLight.positions, awayFromLight.colors, 3, 3);
+    expect(towardLight.colors[12]).toBeGreaterThan(0.5);
+    expect(awayFromLight.colors[12]).toBeLessThan(0.5);
   });
 });

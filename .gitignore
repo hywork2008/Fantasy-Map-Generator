@@ -32,3 +32,6 @@ docs/temp/
 /docs/analytics/raw/
 
 /docs/calibration/food-climate.csv
+
+# Japan local war terrain DEM levels while tuning (scripts/bakeJapanLocalDem.mjs; hashes in docs/analytics/japan-local-terrain-*.md)
+/public/heightmaps/earth/japan-local/

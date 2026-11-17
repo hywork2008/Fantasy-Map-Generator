@@ -60,6 +60,12 @@ import { optionsStore } from "../state/optionsStore";
 import { revokeObjectURL, rn, throttle } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { meshHeightFromIndex } from "../utils/height";
+import {
+  createLocalTerrainSampler,
+  getLocalTerrainTuning,
+  type LocalTerrainSampler,
+  localMetersToWorldY
+} from "./localTerrainSampler";
 import { getNightscapeBeamPose, getNightscapePopulationGlow } from "./nightscapeGlow";
 import {
   buildLowPolyBurgSymbols,
@@ -308,6 +314,9 @@ class ThreeDModule {
   private viewType = "viewMesh";
   private campaignFocus: CampaignFocus | null = null;
   private campaignFocusKey = "";
+  /** Real-DEM sampler for the current map, keyed by seed and georef. Null = checked and refused. */
+  private localTerrain: { key: string; sampler: LocalTerrainSampler | null } | null = null;
+  private localTerrainLoading = "";
   private campaignCameraDirty = false;
   private campaignGroup: THREE.Group | undefined;
   private campaignSphere: THREE.SphereGeometry | undefined;
@@ -2601,7 +2610,63 @@ class ThreeDModule {
     this.scene.add(sprite);
   }
 
+  /**
+   * Height source for the campaign window. A georeferenced Earth map reads the real DEM once the
+   * raster has loaded and matched the stored heights; until then, and everywhere else, the cell
+   * bilinear. See docs/plan/japan-local-war-terrain.md.
+   */
+  private campaignTerrainInput(
+    kmPerPx: number
+  ): Pick<CampaignBuildInput, "heightAt" | "sampleStepKm" | "hillshade" | "footDays" | "maxSamplesPerSide"> {
+    const tuning = getLocalTerrainTuning();
+    const geo = worldContext.options?.earthRegion;
+    const bilinear = { heightAt: (x: number, y: number) => this.sampleTerrainHeight(x, y) };
+    if (!geo || tuning.source === "cells") return bilinear;
+    const sampler = this.localTerrainSamplerFor(geo);
+    if (!sampler) return bilinear;
+    // `japanBin` reads only the region raster; `dem` asks for the level matching the ground step.
+    const levelStep = tuning.source === "dem" ? (tuning.stepKm ?? 2) * 1000 : undefined;
+    return {
+      heightAt: (x, y) => localMetersToWorldY(sampler.metersAt(x, y, levelStep), kmPerPx, tuning.exaggeration),
+      sampleStepKm: tuning.stepKm,
+      maxSamplesPerSide: tuning.maxSamplesPerSide,
+      hillshade: tuning.hillshade,
+      footDays: tuning.footDays
+    };
+  }
+
+  private localTerrainSamplerFor(
+    geo: NonNullable<typeof worldContext.options.earthRegion>
+  ): LocalTerrainSampler | null {
+    const key = `${worldContext.seed}|${geo.id}|${worldContext.graphWidth}x${worldContext.graphHeight}`;
+    if (this.localTerrain?.key === key) return this.localTerrain.sampler;
+    if (this.localTerrainLoading === key) return null;
+    this.localTerrainLoading = key;
+    void createLocalTerrainSampler(
+      geo,
+      worldContext.grid,
+      worldContext.graphWidth,
+      worldContext.graphHeight,
+      optionsStore.getState().heightExponent
+    )
+      .catch(error => {
+        console.warn("Local terrain DEM unavailable", error);
+        return null;
+      })
+      .then(sampler => {
+        if (this.localTerrainLoading !== key) return;
+        this.localTerrainLoading = "";
+        this.localTerrain = { key, sampler };
+        if (sampler && this.campaignFocus && this.options.isOn && this.viewType === "viewMesh") {
+          this.campaignCameraDirty = true;
+          this.redraw({ refreshTerrainTexture: false });
+        }
+      });
+    return null;
+  }
+
   private campaignBuildInput(focus: CampaignFocus): CampaignBuildInput {
+    const kmPerPx = kmPerMapPixel(worldContext.distanceScale, optionsStore.getState().distanceUnit || "km");
     const graphWidth = worldContext.graphWidth;
     const graphHeight = worldContext.graphHeight;
     const gridSpacingPx = campaignGridSpacingPx(
@@ -2636,10 +2701,10 @@ class ThreeDModule {
       focusCellId: focus.cellId,
       graphWidth,
       graphHeight,
-      kmPerPx: kmPerMapPixel(worldContext.distanceScale, optionsStore.getState().distanceUnit || "km"),
+      kmPerPx,
       gridSpacingPx,
       packSpacingPx,
-      heightAt: (x, y) => this.sampleTerrainHeight(x, y),
+      ...this.campaignTerrainInput(kmPerPx),
       waterColor: this.options.waterColor,
       stateColors,
       cells: this.campaignCells(),
