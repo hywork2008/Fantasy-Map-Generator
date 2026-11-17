@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import type { Author } from "../authors";
+import type { ModelFacets } from "../modelFacets";
 import type { ModelPartFactory } from "../modelPartTypes";
 import type { ModelVariant } from "../modelVariants";
 
@@ -9,6 +10,8 @@ export interface MedievalModel {
   name: string;
   task: number;
   author?: Author;
+  /** Catalogue attributes for viewer filtering; required once every model is tagged. */
+  facets?: ModelFacets;
   /** Registry availability alone does not imply that CE can place this new assembly. */
   cePlacementStatus?: "preview-only";
   /** Explicit preview tier for factories with no BV variant selector; unspecified means low. */

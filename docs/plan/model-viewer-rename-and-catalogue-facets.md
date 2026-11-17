@@ -97,7 +97,9 @@ export interface ModelFacets {
 
 ## 作業の段階
 
-1. **属性の型の定義**：`modelFacets.ts` に `ModelKind`・`ModelRegion`・`ModelFacets` を定義し、各モデル定義の型から任意項目として参照する。
+1. **属性の型の定義**（2026-11-18 完了）：[modelFacets.ts](../../src/buildings/modelFacets.ts) に `MODEL_KINDS`・`MODEL_REGIONS`・`ModelFacets` と検査関数 `modelFacetErrors()` を定義した。`MedievalModel`・`LandmarkModel`・`PlaceableObject` に任意項目 `facets?: ModelFacets` を追加した。
+   - `BuildingRecord`（`catalogue/*.json`）には項目を追加しない。レコードは `contentHash` を持つ保存形式で、すでに `period`（年代）と `region`（実在の地名）を持つためである。段階2では、`kind: "structure"`・`periods: [record.period]` をレコードから導き、`region` の地名から `ModelRegion` への対応表をレコードIDごとに用意する。
+   - 船・乗り物・兵器・樹木・小物の多くは、共通の定義型を持たず `main.ts` から直接一覧に登録されている。これらの属性は、段階3で一覧の構築を切り出すときに、登録一覧の項目として持たせる。
 2. **属性付け**：既存モデルに属性を付ける。task 番号のまとまり（中世 `*Models.ts`、船、乗り物、兵器、樹木、カタログ）ごとに分けて進める。全モデルに属性があることを確かめるテストを置き、属性付けが終わった段階で「必須」に切り替える。
 3. **一覧の絞り込み**：一覧の構築を切り出し、絞り込み欄と検索、URLクエリへの保存を入れる。
 4. **名称変更**：上の表に従い、名前の変更だけのコミットで行う。AGENTS.md の「BV / Building Viewer」の節も、この時点で「MV / Model Viewer」に書き換える。

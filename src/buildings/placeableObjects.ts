@@ -4,6 +4,7 @@ import type { Author } from "./authors";
 import { createPostMill, POST_MILL } from "./mills/postMill";
 import { createTowerMill, TOWER_MILL } from "./mills/towerMill";
 import { createLowBankWaterMill, createWaterMill, LOW_BANK_WATER_MILLS, WATER_MILL } from "./mills/waterMill";
+import type { ModelFacets } from "./modelFacets";
 import { BATTERING_RAM, createBatteringRam } from "./siege/batteringRam";
 import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "./siege/earlyFieldCannon";
 import { createSiegeTower, SIEGE_TOWER } from "./siege/siegeTower";
@@ -31,6 +32,8 @@ export interface PlaceableObject {
   category: (typeof OBJECT_CATEGORIES)[number];
   name: string;
   author: Author;
+  /** Catalogue attributes for viewer filtering; required once every model is tagged. */
+  facets?: ModelFacets;
   create(): CityStructureMeshes & { plan: string };
 }
 /** The same factories used by Building Viewer, at their authored meter scale. */

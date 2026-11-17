@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import type { Author } from "../authors";
 import { ModelKit, type Surface } from "../medieval/modelKit";
+import type { ModelFacets } from "../modelFacets";
 import type { ModelPartFactory } from "../modelParts";
 
 export interface LandmarkModel {
@@ -9,6 +10,8 @@ export interface LandmarkModel {
   task: string;
   name: string;
   style: "Gothic" | "Romanesque" | "Imaginary";
+  /** Catalogue attributes for viewer filtering; required once every model is tagged. */
+  facets?: ModelFacets;
   state: string;
   /** Conservative display envelope, not a surveyed footprint. X is west to east. */
   size: readonly [number, number, number];
