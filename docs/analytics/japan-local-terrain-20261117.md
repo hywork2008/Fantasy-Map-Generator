@@ -441,3 +441,35 @@
 | `raw/japan-local-terrain/r7-sekigahara-dist-snap-close.png` | f078654c6899039fe055e481989c072e715c40aef4e6cf8500dd1e7602f10e32 |
 | `raw/japan-local-terrain/r7-sekigahara-dist-snap-oblique.png` | dd184f89181fbeb2ecc031ff5e7957c70db4c28f4a47debeaa1518cd7ed559b9 |
 | `raw/japan-local-terrain/r7-tokyo-dist-snap-oblique.png` | 28e7991b138793abc0b0b655bd9cd7d16f205f881ccda5cb7196cb06959423bb |
+
+## R8：FMG の川を「下り続ける」条件で谷へ寄せる
+
+R7 の谷寄せ（各点を独立に最低点へ寄せ、あとでならす）を、動的計画法に替えた（`snapRiverToValley`）。各点の横ずれ候補（±半径、250m刻み）から、地面の高さ＋上流からの登り×4＋隣との横ずれの差の和が最小になる経路を選ぶ。隣どうしの横ずれは半径の1/3まで、両端は動かさない。全段（手元の250m・100mを含む）で測った。
+
+| 地点 | 寄せる半径 | 平均の横ずれ | 30m超 | 平均の掘り下げ | 最大 | 描き直し |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 関ヶ原 | なし | — | 1,656 | 95m | 1,094m | 0.41秒 |
+| 関ヶ原 | 3km | 1.2km | 1,566 | 79m | 778m | 0.41秒 |
+| 関ヶ原 | 6km（既定） | 2.1km | 1,436 | 57m | 514m | 0.41秒 |
+| 関ヶ原 | 10km | 3.3km | 1,313 | 53m | 590m | 0.41秒 |
+| 川中島 | なし | — | 1,665 | 114m | 1,167m | 0.39秒 |
+| 川中島 | 6km | 1.9km | 1,462 | 104m | 1,539m | 0.40秒 |
+| 東京 | なし | — | 255 | 27m | 975m | 0.41秒 |
+| 東京 | 6km | 2.5km | 169 | 21m | 684m | 0.38秒 |
+
+- 半径6kmで平均の掘り下げは関ヶ原で4割、東京で2割減った。R7 の独立に寄せる方式（3kmで1,492→1,470）より効く。描き直しの時間は変わらない。
+- 関ヶ原では、濃尾平野を流れる区間が平野の低い所へ寄り、山地を斜めに横切る線が減った。
+- 川中島は山地の中で FMG の川が別の流域を通っており、6kmでは谷に届かない区間が多い。最大値はかえって増えた（寄せた先の尾根越え）。
+- 10kmは6kmより少し良いが、FMG の川の形から離れていく。既定は6kmとする。
+
+| 画像 | SHA-256 |
+| :--- | :--- |
+| `raw/japan-local-terrain/r8-kawanakajima-local-dp6-close.png` | f8a4405cf96624cf8a12da7b8a79fe0de0018bd06b9879663eabc13325129b6c |
+| `raw/japan-local-terrain/r8-kawanakajima-local-nosnap-close.png` | 2cf9b68140644611e3815fcacd0773b0e08aa1a8f485465a9ed28f6ba4670a3a |
+| `raw/japan-local-terrain/r8-sekigahara-local-dp10-oblique.png` | 6c0b3c50ab3635482c34187df15ca8ea6c9471d33149c86018670d2ec268f764 |
+| `raw/japan-local-terrain/r8-sekigahara-local-dp3-oblique.png` | 2520121a833af3fc38fc941e96cfe562ac0552e39093afdee72c7604ce809c66 |
+| `raw/japan-local-terrain/r8-sekigahara-local-dp6-close.png` | 065cca20289bbc8a3b9b8e156e38ce47373863a9f5980161ca5a3569ff69e14e |
+| `raw/japan-local-terrain/r8-sekigahara-local-dp6-oblique.png` | 0583a97f40e90cef0e15bff54b1dc0defefafa55bc0ac1e5515c15032e4e9cf4 |
+| `raw/japan-local-terrain/r8-sekigahara-local-nosnap-oblique.png` | f51ab67667d7d97a06e1b81b10e5cbc3b37e305e6a6a6a5e85358e818481ed98 |
+| `raw/japan-local-terrain/r8-tokyo-local-dp6-oblique.png` | baa6d6a83f531a6df9048f70ccf9dd159523019ff67a11e0cd0be3a6d30f0e19 |
+| `raw/japan-local-terrain/r8-tokyo-local-nosnap-oblique.png` | ae2153435a3e60194630402d8b4b3b0a0138725a6b5e65a8cee6b10d641ebb78 |

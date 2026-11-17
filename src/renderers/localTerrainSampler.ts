@@ -90,7 +90,7 @@ export const DEFAULT_LOCAL_TERRAIN_TUNING: LocalTerrainTuning = {
   burgPadKm: 1.5,
   riverCorridorM: 300,
   riverMaxCarveM: 30,
-  riverSnapKm: 3,
+  riverSnapKm: 6,
   riverSource: "fmg",
   demCoast: true
 };
@@ -401,20 +401,31 @@ export interface LocalTerrainField {
 }
 
 /**
- * Moves each river point across the river's course to the lowest ground within `radiusPx`, then
- * smooths the offsets along the river so the course bends instead of zig-zagging. Ends stay put
- * so tributaries and mouths keep meeting.
+ * Moves an FMG river sideways into the real valley along a path that keeps descending.
+ *
+ * Each point may move across the river's course by up to `radiusPx` (probed every `probePx`).
+ * A dynamic programme picks one offset per point, minimising the sum of
+ * - the ground height there,
+ * - `RISE_PENALTY` × every metre the course climbs from the previous point (rivers run downhill;
+ *   the points are ordered from source to mouth, but the higher end is taken as the source),
+ * - `BEND_PENALTY` × the sideways change between neighbours, so the course stays smooth.
+ * A move between neighbours is capped at `maxStepPx`, so the river cannot jump to another valley
+ * in one step. Both ends stay put so tributaries and the mouth keep meeting.
  */
+const RISE_PENALTY = 4;
+const BEND_PENALTY_M_PER_PX_RATIO = 20;
+
 export function snapRiverToValley(
   points: ReadonlyArray<readonly number[]>,
   metersAt: (x: number, y: number) => number,
   radiusPx: number,
-  probePx: number
+  probePx: number,
+  maxStepPx = radiusPx / 3
 ): { points: [number, number][]; meanShiftPx: number } {
   const n = points.length;
   const out = points.map(point => [point[0], point[1]] as [number, number]);
   if (n < 3 || !(radiusPx > 0) || !(probePx > 0)) return { points: out, meanShiftPx: 0 };
-  const offsets = new Array<number>(n).fill(0);
+
   const normals: [number, number][] = [];
   for (let i = 0; i < n; i++) {
     const a = points[Math.max(0, i - 1)];
@@ -424,39 +435,56 @@ export function snapRiverToValley(
     const length = Math.hypot(dx, dy) || 1;
     normals.push([-dy / length, dx / length]);
   }
-  for (let i = 1; i < n - 1; i++) {
-    const [nx, ny] = normals[i];
-    let best = 0;
-    let bestMeters = Number.POSITIVE_INFINITY;
-    for (let d = -radiusPx; d <= radiusPx + 1e-9; d += probePx) {
-      // Of two equal lows, the nearer wins: a penalty of 1 m per radius.
-      const meters = metersAt(points[i][0] + nx * d, points[i][1] + ny * d) + Math.abs(d) / radiusPx;
-      if (meters < bestMeters) {
-        bestMeters = meters;
-        best = d;
+  const k = Math.max(1, Math.round(radiusPx / probePx));
+  const offsets = Array.from({ length: 2 * k + 1 }, (_, j) => ((j - k) / k) * radiusPx);
+  const centre = k;
+  const heights = points.map((point, i) =>
+    offsets.map(d => metersAt(point[0] + normals[i][0] * d, point[1] + normals[i][1] * d))
+  );
+  // Downstream = from the higher end to the lower end.
+  const reversed = heights[0][centre] < heights[n - 1][centre];
+  const order = reversed ? [...Array(n).keys()].reverse() : [...Array(n).keys()];
+  const bend = BEND_PENALTY_M_PER_PX_RATIO / radiusPx;
+  const maxStep = Math.max(1, Math.round((maxStepPx / radiusPx) * k));
+
+  let cost = offsets.map((_, j) => (j === centre ? heights[order[0]][j] : Number.POSITIVE_INFINITY));
+  const back: Int32Array[] = [];
+  for (let step = 1; step < n; step++) {
+    const i = order[step];
+    const prev = order[step - 1];
+    const last = step === n - 1;
+    const next = new Array<number>(offsets.length).fill(Number.POSITIVE_INFINITY);
+    const from = new Int32Array(offsets.length).fill(-1);
+    for (let j = 0; j < offsets.length; j++) {
+      if (last && j !== centre) continue;
+      for (let q = Math.max(0, j - maxStep); q <= Math.min(offsets.length - 1, j + maxStep); q++) {
+        if (!Number.isFinite(cost[q])) continue;
+        const rise = Math.max(0, heights[i][j] - heights[prev][q]);
+        const c = cost[q] + heights[i][j] + RISE_PENALTY * rise + bend * Math.abs(offsets[j] - offsets[q]);
+        if (c < next[j]) {
+          next[j] = c;
+          from[j] = q;
+        }
       }
     }
-    offsets[i] = best;
+    back.push(from);
+    cost = next;
   }
-  // Two passes of a 5-point moving average; ends pinned to 0.
-  for (let pass = 0; pass < 2; pass++) {
-    const copy = offsets.slice();
-    for (let i = 1; i < n - 1; i++) {
-      let sum = 0;
-      let count = 0;
-      for (let k = -2; k <= 2; k++) {
-        const j = i + k;
-        if (j < 0 || j >= n) continue;
-        sum += copy[j];
-        count++;
-      }
-      offsets[i] = sum / count;
-    }
+  // Walk back from the pinned last point.
+  const chosen = new Array<number>(n).fill(centre);
+  let j = centre;
+  for (let step = n - 1; step >= 1; step--) {
+    chosen[order[step]] = j;
+    j = back[step - 1][j];
+    if (j < 0) return { points: out, meanShiftPx: 0 };
   }
+  chosen[order[0]] = j;
+
   let shift = 0;
   for (let i = 1; i < n - 1; i++) {
-    out[i] = [points[i][0] + normals[i][0] * offsets[i], points[i][1] + normals[i][1] * offsets[i]];
-    shift += Math.abs(offsets[i]);
+    const d = offsets[chosen[i]];
+    out[i] = [points[i][0] + normals[i][0] * d, points[i][1] + normals[i][1] * d];
+    shift += Math.abs(d);
   }
   return { points: out, meanShiftPx: shift / Math.max(1, n - 2) };
 }

@@ -6,16 +6,20 @@
  */
 async page => {
   const DIR = "docs/analytics/raw/japan-local-terrain/";
-  const ROUND = "r7";
-  // Set to "dist" when manifest.local.json and rivers.json are moved away (the distributed set).
-  const SET = "dist";
+  const ROUND = "r8";
+  // "dist": manifest.local.json and rivers.json moved away (the distributed set); "local": all levels.
+  const SET = "local";
   const BASE = { source: "dem", label: SET };
   const RUNS = [
     ["sekigahara", { ...BASE, riverSnapKm: 0, label: `${SET}-nosnap` }, "oblique"],
-    ["sekigahara", { ...BASE, label: `${SET}-snap` }, "oblique"],
-    ["sekigahara", { ...BASE, label: `${SET}-snap` }, "close"],
-    ["kawanakajima", { ...BASE, label: `${SET}-snap` }, "close"],
-    ["tokyo", { ...BASE, label: `${SET}-snap` }, "oblique"]
+    ["sekigahara", { ...BASE, riverSnapKm: 3, label: `${SET}-dp3` }, "oblique"],
+    ["sekigahara", { ...BASE, riverSnapKm: 6, label: `${SET}-dp6` }, "oblique"],
+    ["sekigahara", { ...BASE, riverSnapKm: 10, label: `${SET}-dp10` }, "oblique"],
+    ["sekigahara", { ...BASE, riverSnapKm: 6, label: `${SET}-dp6` }, "close"],
+    ["kawanakajima", { ...BASE, riverSnapKm: 0, label: `${SET}-nosnap` }, "close"],
+    ["kawanakajima", { ...BASE, riverSnapKm: 6, label: `${SET}-dp6` }, "close"],
+    ["tokyo", { ...BASE, riverSnapKm: 0, label: `${SET}-nosnap` }, "oblique"],
+    ["tokyo", { ...BASE, riverSnapKm: 6, label: `${SET}-dp6` }, "oblique"]
   ];
 
   await page.evaluate(async () => {

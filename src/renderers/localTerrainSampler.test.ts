@@ -110,3 +110,14 @@ describe("snapRiverToValley", () => {
     expect(meanShiftPx).toBeGreaterThan(1);
   });
 });
+
+describe("snapRiverToValley descent", () => {
+  it("follows the descending valley and does not jump into a lone pit across a ridge", () => {
+    const points = Array.from({ length: 11 }, (_, i) => [0, i * 2]);
+    // Valley along x = 2, falling 2 m per unit downstream; a deep pit at (-2.5, 10) only.
+    const ground = (x: number, y: number) =>
+      Math.abs(x + 2.5) < 0.3 && Math.abs(y - 10) < 0.3 ? -500 : 100 - y * 2 + Math.abs(x - 2) * 50;
+    const { points: snapped } = snapRiverToValley(points, ground, 3, 0.25, 1);
+    for (let i = 2; i <= 8; i++) expect(snapped[i][0]).toBeGreaterThan(1);
+  });
+});
