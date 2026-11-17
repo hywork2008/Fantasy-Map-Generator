@@ -6,6 +6,7 @@ import { DEDICATED_TANNERY } from "../../buildings/medieval/dedicatedTanneryProf
 import { DETACHED_BAKEHOUSE } from "../../buildings/medieval/detachedBakehouseProfile";
 import { ENCLOSED_GUILD_HALL } from "../../buildings/medieval/enclosedGuildHall";
 import { ENCLOSED_GUILD_TRADES } from "../../buildings/medieval/enclosedGuildTrades";
+import { HORSE_MILL } from "../../buildings/medieval/horseMill";
 import { OPUS_BUTCHERY, OPUS_TOWN_TRADES, type OpusTownTrade } from "../../buildings/medieval/opusTradeProfiles";
 import { WORKHOME_FORMS } from "../../buildings/medieval/workhomeFormProfiles";
 import { WORKHOME_TRADES } from "../../buildings/medieval/workhomeTradeProfiles";
@@ -120,7 +121,8 @@ export function buildPopulationFacilityRequests(population: number, options: { p
         return bvFacilityAsset("potters-workshop", [{ id: "main", position: [-2, 0, 1.5], clearWidth: 1.4 }]);
       if (trade.pool === "printing")
         return bvFacilityAsset("early-printing-workshop", [{ id: "main", position: [0, 0, 1.5], clearWidth: 1.4 }]);
-      if (trade.pool === "pottery") return placeholder(trade.pool, 20, 20);
+      if (trade.pool === "milling")
+        return bvFacilityAsset("trade-workshop.dedicated-horse-mill", [{ id: "main", ...HORSE_MILL.main }]);
       return placeholder(trade.pool);
     });
     const outer = [
@@ -135,20 +137,14 @@ export function buildPopulationFacilityRequests(population: number, options: { p
       "milling"
     ].includes(trade.pool);
     const use: FacilityUse =
-      trade.pool === "tanning" || trade.pool === "milling"
-        ? "river"
-        : outer
-          ? "hazard"
-          : asset.residentialDwellings === 1
-            ? "craft"
-            : "commerce";
+      trade.pool === "tanning" ? "river" : outer ? "hazard" : asset.residentialDwellings === 1 ? "craft" : "commerce";
     for (let i = 0; i < facilities; i++)
       requests.push({
         id: `${PREFIX}workshop:${trade.pool}:${i}`,
         asset,
         zone: outer ? "outskirts" : "core",
         use,
-        ...(trade.pool === "tanning" || trade.pool === "milling" ? { riverbankMaxDistanceMeters: 50 } : {})
+        ...(trade.pool === "tanning" ? { riverbankMaxDistanceMeters: 50 } : {})
       });
   }
   return { demand, requests };
