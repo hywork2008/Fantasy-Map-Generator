@@ -32,3 +32,20 @@ docs/temp/
 /docs/analytics/raw/
 
 /docs/calibration/food-climate.csv
+
+# Japan local war terrain: 1 km and 500 m levels and manifest.json are distributed; finer levels,
+# real rivers and their manifest stay local (scripts/bakeJapanLocalDem.mjs, scripts/bakeJapanRivers.mjs;
+# hashes in docs/analytics/japan-local-dem-files-*.md)
+/public/heightmaps/earth/japan-local/*-250m*.bin
+/public/heightmaps/earth/japan-local/*-100m*.bin
+/public/heightmaps/earth/japan-local/rivers.json
+/public/heightmaps/earth/japan-local/manifest.local.json
+# Terrain tiles finer than 500 m are not distributed (docs/plan/japan-terrain-tiles.md)
+/public/heightmaps/earth/japan-tiles/z4.bin
+/public/heightmaps/earth/japan-tiles/z5.bin
+/public/heightmaps/earth/japan-tiles/z6.bin
+/public/heightmaps/earth/japan-tiles/index.local.json
+/public/heightmaps/earth/alps-tiles/z4.bin
+/public/heightmaps/earth/alps-tiles/z5.bin
+/public/heightmaps/earth/alps-tiles/z6.bin
+/public/heightmaps/earth/alps-tiles/index.local.json
