@@ -1600,7 +1600,7 @@ function showShipOfTheLine(): void {
     for (const [name, value] of options) input.add(new Option(name, value));
     input.value = lineState[field];
     input.addEventListener("change", () => {
-      lineState[field] = input.value as (typeof lineState)[typeof field];
+      (lineState as Record<string, string>)[field] = input.value;
       showShipOfTheLine();
     });
     const row = document.createElement("label");

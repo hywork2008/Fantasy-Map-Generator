@@ -43,7 +43,6 @@ const HOUSE_FRONT = -0.42;
 const HOUSE_Z = 1.68;
 const POST = 0.15;
 
-const _TREAD_MAX_Z = TREAD_HALF_Z;
 const WHEEL_TOP = WHEEL_Y + RIM_R + RIM_TUBE;
 
 type Frame = { right: THREE.Vector3; up: THREE.Vector3 };
