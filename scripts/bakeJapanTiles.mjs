@@ -23,6 +23,7 @@
  * Japanese prefecture, and tiles whose land is not mostly covered by a raster at least as fine
  * as the level (a 250 m level is only written where 250 m rasters exist).
  *
+ *   index.local.json  levels finer than 500 m (Git-ignored; only with --local and --maxZoom > 3)
  *   prefectures.bin   prefecture index per 1 km cell of the frame (Uint8, 255 = none)
  *
  * Usage: node scripts/bakeJapanTiles.mjs [--maskOnly] [--maxZoom 3] [--rootKm 256] [--samples 65] [--fineFrom 2] [--local]
@@ -52,6 +53,8 @@ const FINE_COVERAGE = 0.5;
 const BORDER = 1;
 // Rewrite only prefectures.bin and the mask entry of an existing index.json.
 const MASK_ONLY = process.argv.includes("--maskOnly");
+// Finest step written to the distributed index.json.
+const DIST_MIN_STEP_M = 500;
 const USE_LOCAL = process.argv.includes("--local");
 
 // JAPAN_REGION (src/data/earthRegions.ts).
@@ -210,11 +213,14 @@ function main() {
     const chunks = [];
     let offset = 0;
     const counts = { land: 0, local: 0 };
+    const parents = new Set(levels[z - 1]?.tiles.map(([x, y]) => `${x}/${y}`) ?? []);
     for (let ty = 0; ty < ny; ty++)
       for (let tx = 0; tx < nx; tx++) {
         const x0 = tx * sizeKm;
         const y0 = ty * sizeKm;
         if (x0 >= WIDTH_KM || y0 >= HEIGHT_KM) continue;
+        // Fine levels only refine tiles baked one level up (the rest is sea or outside Japan).
+        if (z > FINE_FROM && !parents.has(`${tx >> 1}/${ty >> 1}`)) continue;
         const data = new Int16Array(stored * stored);
         let min = Infinity;
         let max = -Infinity;
@@ -303,6 +309,9 @@ function main() {
     }
   }
 
+  // Levels of 500 m and coarser are distributed (index.json); finer ones stay local (index.local.json).
+  const distributed = levels.filter(level => level.spacingKm * 1000 >= DIST_MIN_STEP_M - 1e-6);
+  const local = levels.filter(level => level.spacingKm * 1000 < DIST_MIN_STEP_M - 1e-6);
   const index = {
     version: 2,
     region: REGION,
@@ -316,12 +325,18 @@ function main() {
     nodata: NODATA,
     prefectures: prefs.codes,
     prefectureMask: mask,
-    levels
+    levels: distributed
   };
-  const json = JSON.stringify(index);
-  fs.writeFileSync(path.join(OUT, "index.json"), json);
-  const indexSha = crypto.createHash("sha256").update(json).digest("hex");
-  console.log(`index.json ${json.length} bytes (gzip ${zlib.gzipSync(json).length}) ${indexSha}`);
+  const write = (file, value) => {
+    const json = JSON.stringify(value);
+    fs.writeFileSync(path.join(OUT, file), json);
+    const sha = crypto.createHash("sha256").update(json).digest("hex");
+    console.log(`${file} ${json.length} bytes (gzip ${zlib.gzipSync(json).length}) ${sha}`);
+  };
+  write("index.json", index);
+  const localPath = path.join(OUT, "index.local.json");
+  if (local.length) write("index.local.json", { version: 2, levels: local });
+  else if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
   for (const f of files) console.log(f.file, f.sha);
   console.log(`done in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
 }

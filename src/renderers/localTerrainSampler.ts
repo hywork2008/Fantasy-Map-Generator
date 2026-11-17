@@ -111,10 +111,12 @@ export const DEFAULT_LOCAL_TERRAIN_TUNING: LocalTerrainTuning = {
   riverSource: "fmg",
   demCoast: true,
   tiles: {
-    enabled: false,
+    // Default since T5; `?ltTiles=0` draws the old window ground.
+    enabled: true,
     maxScreenErrorPx: 2,
     maxTiles: 256,
-    maxZoom: 3,
+    // Capped by the installed levels: z3 (500 m) distributed, z4–z5 only when baked locally.
+    maxZoom: 5,
     // T4: 100 km (a bit past the 3-day window) halves the close-view tiles in Tokyo.
     farKm: 100,
     farZoom: 1,

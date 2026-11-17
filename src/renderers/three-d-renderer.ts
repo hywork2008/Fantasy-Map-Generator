@@ -332,6 +332,8 @@ class ThreeDModule {
   private localTerrainStats: LocalTerrainFieldStats | null = null;
   /** Quadtree DEM tiles in place of the window ground (`tiles.enabled` tuning, Japan only). */
   private terrainTiles: TerrainTileLayer | undefined;
+  private campaignTileDataVersion = -1;
+  private campaignTileRefreshTimer: ReturnType<typeof setTimeout> | undefined;
   private tileStateColorCache:
     | { key: string; at: (x: number, y: number) => readonly [number, number, number] | null }
     | undefined;
@@ -2586,7 +2588,10 @@ class ThreeDModule {
     this.render();
   }
 
-  /** Creates or drops the tile layer for the current tuning; true while it replaces the ground. */
+  /**
+   * Creates or drops the tile layer for the current tuning; true while it replaces the ground.
+   * The window ground stays visible until the tile index has loaded (or if it never does).
+   */
   private syncTerrainTiles(): boolean {
     const enabled =
       getLocalTerrainTuning().tiles.enabled &&
@@ -2597,10 +2602,14 @@ class ThreeDModule {
       return false;
     }
     if (!this.terrainTiles) {
-      const layer = new TerrainTileLayer(() => this.render());
+      const layer = new TerrainTileLayer(() => {
+        this.render();
+        this.refreshCampaignLinesOnTileData();
+      });
       this.terrainTiles = layer;
       void layer.ready.then(ok => {
         if (ok && this.terrainTiles === layer) {
+          if (this.mesh?.name === "campaign-ground") this.mesh.visible = false;
           this.updateTerrainTiles();
           this.render();
         }
@@ -2608,7 +2617,22 @@ class ThreeDModule {
     }
     if (this.terrainTiles.group.parent !== this.scene) this.scene.add(this.terrainTiles.group);
     this.updateTerrainTiles();
-    return true;
+    return this.terrainTiles.isLoaded();
+  }
+
+  /**
+   * Lines and markers take their heights from the tiles loaded when the window was built. Once
+   * loading settles with newer heights, rebuild them (no ground: the tiles draw it).
+   */
+  private refreshCampaignLinesOnTileData(): void {
+    const layer = this.terrainTiles;
+    if (!layer || !this.campaignFocus || layer.getStats().pendingBuilds > 0) return;
+    if (layer.dataVersion === this.campaignTileDataVersion) return;
+    clearTimeout(this.campaignTileRefreshTimer);
+    this.campaignTileRefreshTimer = setTimeout(() => {
+      if (this.terrainTiles === layer && layer.dataVersion !== this.campaignTileDataVersion && this.campaignFocus)
+        this.redraw({ refreshTerrainTexture: false });
+    }, 400);
   }
 
   private updateTerrainTiles(): void {
@@ -2665,6 +2689,7 @@ class ThreeDModule {
   }
 
   private disposeTerrainTiles(): void {
+    clearTimeout(this.campaignTileRefreshTimer);
     this.terrainTiles?.dispose();
     this.terrainTiles = undefined;
   }
@@ -2761,6 +2786,7 @@ class ThreeDModule {
     | "rivers"
     | "liftScale"
     | "drapeStepPx"
+    | "skipGround"
   > {
     const tuning = getLocalTerrainTuning();
     const geo = worldContext.options?.earthRegion;
@@ -2819,11 +2845,20 @@ class ThreeDModule {
         })
       : null;
     if (field) this.localTerrainStats = field.stats;
-    const meters = (x: number, y: number, stepKm?: number) =>
+    // With terrain tiles drawing the ground, lines and markers sit on the tiles' own heights.
+    const tiles = dem && this.terrainTiles?.isLoaded() ? this.terrainTiles : undefined;
+    if (tiles) this.campaignTileDataVersion = tiles.dataVersion;
+    const { graphWidth, graphHeight } = worldContext;
+    const fieldMeters = (x: number, y: number, stepKm?: number) =>
       field
         ? field.metersAt(x, y, (stepKm ?? outerStepKm) * 1000)
         : sampler.metersAt(x, y, dem ? (stepKm ?? outerStepKm) * 1000 : undefined);
+    const meters = tiles
+      ? (x: number, y: number, stepKm?: number) =>
+          tiles.metersAt(x, y, graphWidth, graphHeight) ?? fieldMeters(x, y, stepKm)
+      : fieldMeters;
     return {
+      skipGround: Boolean(tiles),
       heightAt: (x, y, stepKm) => localMetersToWorldY(meters(x, y, stepKm), kmPerPx, exaggeration),
       sampleStepKm: outerStepKm,
       rings: clampRings(contact ? tuning.contact.rings : tuning.rings),
@@ -2847,6 +2882,8 @@ class ThreeDModule {
     if (!this.campaignFocus || !this.camera || !this.controls || this.viewType !== "viewMesh") return;
     const tuning = getLocalTerrainTuning();
     if (tuning.source !== "dem" || !worldContext.options?.earthRegion) return;
+    // Tiles refine with the camera; rebuilding the window for contact would only redo the lines.
+    if (this.terrainTiles?.isLoaded()) return;
     const kmPerPx = kmPerMapPixel(worldContext.distanceScale, optionsStore.getState().distanceUnit || "km");
     const distanceKm = this.camera.position.distanceTo(this.controls.target) * kmPerPx;
     const next = this.campaignContact ? distanceKm < tuning.contact.leaveKm : distanceKm < tuning.contact.enterKm;

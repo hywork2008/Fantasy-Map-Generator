@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | T1まで（2026-11-17）。調整前提 |
+| Status | T5まで（2026-11-17）。戦争用3D（Japan）の既定の地面。調整前提 |
 | Parent | [`japan-local-war-terrain.md`](./japan-local-war-terrain.md) |
 | Related | [`war-campaign-mesh.md`](./war-campaign-mesh.md)、[`../../scripts/bakeJapanLocalDem.mjs`](../../scripts/bakeJapanLocalDem.mjs)、[`../../src/renderers/localTerrainSampler.ts`](../../src/renderers/localTerrainSampler.ts)、[`../../src/renderers/campaignMesh.ts`](../../src/renderers/campaignMesh.ts)、[`../../src/renderers/three-d-renderer.ts`](../../src/renderers/three-d-renderer.ts) |
 | Scope | Japan テンプレートの地図で、実在DEMの3D地形を日本全体から局地まで1つの仕組みで描く。画面外・遠方のタイルは読み込まず、作らず、破棄する。都道府県は表示範囲の選択に使う。シミュの `cells.h`・河川・経路は変えない |
@@ -207,3 +207,27 @@ FMG セル（ボロノイ）は形が不揃いで親子が無いので、LOD の
   2. 県マスクは Natural Earth admin-1（粗い）を1km格子に塗ったもの。県境が階段状になる。詳しい県境（国土数値情報 N03 など）は利用条件の確認が先。
   3. 段のファイルを丸ごと読む（z4 で16.7MB）。タイル単位の読み込みは未着手。
   4. タイル表示は `?ltTiles=1` のときだけ。既定にするかは、配布（z4 以降をどうするか）と合わせて決める。
+
+## 17. T5 の結果（2026-11-17）
+
+記録: [`../analytics/japan-terrain-tiles-20261117.md`](../analytics/japan-terrain-tiles-20261117.md)。
+
+- 決定（ユーザー）：タイル表示を既定にする。4段目（250m）以降は配布しない。
+- 既定：`tiles.enabled` true、`maxZoom` 5（入っている段で頭打ち）。`?ltTiles=0` で従来の窓の地面に戻る。索引が読めるまで（読めないときも）従来の地面を出す。
+- 配布：`index.json`・`z0.bin`〜`z3.bin`・`prefectures.bin`（約13MB、gzip 約6.4MB）をコミットする。500m より細かい段は `index.local.json` に分けて Git 管理外にし、実行時にあれば継ぎ足す。
+- タイル単位の読み込み：2MB 以下の段（z0〜z2）は丸ごと、それより大きい段は1枚ずつ HTTP Range で読む（同時8本、48MB までの LRU）。Range が効かない配信では段ごと丸ごとに切り替える。読み込む高さは 30MB から 4〜8MB に減った。
+- 焼き込みは、細かい段で1段上に焼いたタイルの子だけを走査するようにし、413秒から27秒になった。
+- 残り
+  1. 従来の窓の地面（`campaign-ground`）を隠しているだけで、作る処理（0.3秒前後）は毎回走る。タイルが既定になったので、地面の作成を省く。
+  2. 川・道・都市・駒の高さは、従来どおり県ラスタ（`japan-local/`）から取る。タイルと同じ高さを読むようにすれば、県ラスタ（11.5MB）の配布を止められる。
+  3. 部分表示で線を県で切るか、県境データの精度（N03）は §16 のまま。
+
+## 18. T6 の結果（2026-11-17）
+
+- タイルの索引が読めているときは、窓の地面（`campaign-ground`）を作らない（`CampaignBuildInput.skipGround`）。描き直しは 372ms から 24〜38ms になった。初めて戦争用3Dを開いたときだけ、索引の読み込み前に一度作る。
+- 線・都市・駒の高さは、読み込み済みの最も細かいタイルから取る（`TerrainTileLayer.metersAt`）。地面より15m上に載り、地面より下に潜る点は無くなった。細かい高さが届いたら、読み込みが落ち着いたところで線だけ作り直す（400ms 待ち）。
+- 接触モード（カメラが近いと窓を100m環で作り直す）は、タイルが細かさを受け持つので止めた。
+- 残り
+  1. 表示中のタイルが粗い段のとき、細かい段の高さに載せた線が粗い地面に隠れることがある（遠景）。線の高さを表示中の段に合わせるかは見た目で判断する。
+  2. 従来の窓は FMG の川を川幅で水色に塗っていたが、タイルは塗らない（線だけ）。タイルに川の塗りを載せるかは未定。
+  3. 県ラスタ（`japan-local/`、11.5MB）は、川の谷寄せ・海岸の判定（`createLocalTerrainField`）と、タイルが読めないときの高さにまだ使う。これをタイルの高さに置き換えれば配布を止められる。止めるかはユーザーの判断。

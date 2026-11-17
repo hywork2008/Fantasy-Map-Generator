@@ -40,5 +40,8 @@ docs/temp/
 /public/heightmaps/earth/japan-local/*-100m*.bin
 /public/heightmaps/earth/japan-local/rivers.json
 /public/heightmaps/earth/japan-local/manifest.local.json
-# Terrain tile pyramid (scripts/bakeJapanTiles.mjs): regenerated from japan-local while tuning
-/public/heightmaps/earth/japan-tiles/
+# Terrain tiles finer than 500 m are not distributed (docs/plan/japan-terrain-tiles.md)
+/public/heightmaps/earth/japan-tiles/z4.bin
+/public/heightmaps/earth/japan-tiles/z5.bin
+/public/heightmaps/earth/japan-tiles/z6.bin
+/public/heightmaps/earth/japan-tiles/index.local.json

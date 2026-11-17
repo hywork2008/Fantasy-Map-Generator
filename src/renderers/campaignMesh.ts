@@ -140,6 +140,8 @@ export interface CampaignBuildInput {
    * border or river follows the terrain instead of cutting a chord through or over a hill.
    */
   drapeStepPx?: number;
+  /** Leave the ground empty (the terrain tiles draw it). */
+  skipGround?: boolean;
   /** Per-side cap for a real-DEM ground. The grid bilinear keeps CAMPAIGN_MAX_SAMPLES_PER_SIDE. */
   maxSamplesPerSide?: number;
   waterColor: string;
@@ -319,7 +321,10 @@ export function buildCampaignMesh(input: CampaignBuildInput): CampaignMeshBuild 
   const samplesX = xs.length;
   const samplesY = ys.length;
   const packSpacing = input.packSpacingPx > 0 ? input.packSpacingPx : input.gridSpacingPx;
-  const ground = buildGround(input, xs, ys);
+  // Another layer (terrain tiles) draws the ground: keep only lines, markers and camera.
+  const ground = input.skipGround
+    ? { positions: new Float32Array(0), colors: new Float32Array(0), indices: new Uint32Array(0), vertexCount: 0 }
+    : buildGround(input, xs, ys);
   assertGroundFacesUp(ground);
 
   return {

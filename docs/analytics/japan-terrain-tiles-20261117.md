@@ -138,3 +138,65 @@
 | t4-sekigahara-gifu-shiga-oblique.png | `81d13773b9fe239f8713e9fee1c5f38a096933102f58bd2619bebd220dfa00cd` |
 | t4-sekigahara-states-oblique.png | `d5030a96fcf9d4bbe06514de1f803eff65f7458ff9ef31ef1efee97419357f6d` |
 | t4-sekigahara-states-japan.png | `af1f77f1934f486e4deec0d5e3563c1547e4ba580241be228958dde002303225` |
+
+## T5：既定化、配布の段、タイル単位の読み込み
+
+- 焼き込み：`node scripts/bakeJapanTiles.mjs --maxZoom 5 --local` が 26.8秒（T3 は413秒）。z3 以降は1段上で焼いたタイルの子だけ走査する。z3 は 555→553 枚（親の z2 が陸なしで落ちた2枚）。
+- 配布（コミット）は 500m 以上：`index.json`・`z0.bin`〜`z3.bin`・`prefectures.bin`。z4・z5 と `index.local.json` は Git 管理外。
+
+| ファイル | 大きさ | SHA-256 |
+| :--- | ---: | :--- |
+| index.json | 32,195 | `abc651a713e4ccf517de36bdbe7b7dca797e9bee4b4d2b1a2b061bbe5bb3c8ac` |
+| z0.bin | 511,746 | `bb68fc75cc376101944314d3c63b45f67f0f7f8003521be1ecf8dec468883fd9` |
+| z1.bin | 1,616,040 | `fbc1f4ab9bb0e8781e686cf115621997d1b26d3b6df14283f24f476d8e783275` |
+| z2.bin | 1,669,908 | `c83649166399aa24bbef018eea988f5394985ef11f36c38dac365d6bee0eff0d` |
+| z3.bin | 4,964,834 | `b050973efe777af1face1def4288f82f228b11d27c78c418c6024b2ae369c513` |
+| prefectures.bin | 4,506,680 | `9618a88b03081de1707d3da8d6587647417628f6e71de7cd01133615c48abdc5` |
+| （手元）index.local.json | 77,304 | `d8341c1197211fd60e20339c9cae38e111867d0eb81812b036330a8823632f1c` |
+| （手元）z4.bin | 16,627,256 | `92341e6a75bdaf43ea6a4bca1591bec7efc50e80d716252e1bd55a8bc3a40204` |
+| （手元）z5.bin | 4,551,846 | `dccf5c5346408ad03d3a44b5323d0ed1874d93a8d33c5ed5020cdb66ecaa489a` |
+
+- 読み込み：2MB 以下の段（z0〜z2、3.8MB）は丸ごと、z3 以降は1枚ずつ HTTP Range（同時8本、メモリ上は48MBまで LRU）。Range が効かない配信なら段ごと丸ごとに切り替える。開発サーバー（Vite）では Range が効いた。
+- 既定の設定（タイル表示・`maxZoom` 5・`farKm` 100）で撮影。dist は z4・z5・`index.local.json` を退避した配布の状態。
+
+| 撮影 | 組 | タイル | 段ごと（z0/1/2/3/4/5） | 頂点 | 読み込んだ高さ | Range で読んだタイル | 揃うまで |
+| :--- | :--- | ---: | :--- | ---: | ---: | ---: | ---: |
+| 関ヶ原・日本全体 | dist | 92 | 35/57 | 412,252 | 4.05MB | 28 | 0.10秒 |
+| 関ヶ原・斜め | dist | 126 | 1/71/4/50 | 564,606 | 4.25MB | 50 | 0.16秒 |
+| 関ヶ原・接近 | dist | 85 | 1/61/2/21 | 380,885 | 4.25MB | 50 | 0.03秒 |
+| 東京・接近 | dist | 77 | 0/52/5/20 | 345,037 | 4.51MB | 79 | 0.04秒 |
+| 川中島・接近 | dist | 73 | 0/50/3/20 | 327,113 | 4.73MB | 104 | 0.03秒 |
+| 関ヶ原・日本全体 | local | 92 | 35/57 | 412,252 | 5.05MB | 139 | 0.10秒 |
+| 関ヶ原・斜め | local | 247 | 1/71/4/12/133/26 | 1,106,807 | 6.13MB | 260 | 0.32秒 |
+| 関ヶ原・接近 | local | 163 | 1/61/2/4/35/60 | 730,403 | 6.30MB | 279 | 0.07秒 |
+| 東京・接近 | local | 118 | 0/52/5/3/58 | 528,758 | 7.21MB | 380 | 0.04秒 |
+| 川中島・接近 | local | 123 | 0/50/3/4/31/35 | 551,163 | 8.39MB | 511 | 0.03秒 |
+
+- 読み込んだ高さは、T3・T4 の段ごと丸ごと（30.0MB）から 4〜8MB に減った（撮影を順に回した累計）。FPS はすべて 60〜61。
+
+| 画像 | SHA-256 |
+| :--- | :--- |
+| t5-sekigahara-dist-japan.png | `83ccd99f497174fc39417d8373510eba91723e31ae467f3b0045616e9434db35` |
+| t5-sekigahara-dist-oblique.png | `315a3da7d41113a45badbb6a9b1bf3af74ddf6dfa67cbf515dc75df50e0fa84e` |
+| t5-sekigahara-dist-close.png | `c1b57849476da83f794cc867915b8c8f25bb9fa3288de7b550008f9fa490a854` |
+| t5-sekigahara-dist-ground.png | `5beecbb9162a47afeace7397e93ab07080c04f41c0462b59c6d368e51042e9f9` |
+| t5-tokyo-dist-close.png | `f5894251736a0742a57f1f9a1ea233c51339c5ca44577880f6cd018a597166a7` |
+| t5-kawanakajima-dist-close.png | `d7ccf117e86af843a1be568f6c336a4e71d2cc32f38957707b880c0bf93777bf` |
+| t5-sekigahara-local-japan.png | `5ac2a3f40b9ae9d2b243d0c72bb0ea359fa6bc191956b8bdac0fe39174cda772` |
+| t5-sekigahara-local-oblique.png | `a26d48cbd97aba805c863f79775045cab6d3476f15bf28ecd0ce73ee691f006c` |
+| t5-sekigahara-local-close.png | `48a92655ad852cbc173decade0e8048b605098f431094792162e6121fb381c8e` |
+| t5-sekigahara-local-ground.png | `864958f33691af8a9980a78aa520a7ffc3e164cc9fd02b20f4e656d37401dd15` |
+| t5-tokyo-local-close.png | `52c9e343195872150a07303d846cb5796146bb9100c75a7628b5cad87501fb22` |
+| t5-kawanakajima-local-close.png | `e0b271fd0ed1865b8544a3c244eb2a85e3c815825a54055d73ee845e1831c691` |
+
+## T6：窓の地面を作らない、線と駒の高さをタイルから取る
+
+- 川中島・接近（手元の全段）で `ThreeDRenderer.redraw` を2回ずつ計測。タイル表示の切り替えは `window.__fmgLocalTerrain`。
+
+| 状態 | 窓の地面の頂点 | 描き直し |
+| :--- | ---: | ---: |
+| タイル表示（地面を作らない） | 0 | 38ms、24ms |
+| 従来の窓（`tiles.enabled` false） | 114,921 | 373ms、372ms |
+
+- 線の高さ：窓の中の線（川・道・境界・行軍）の頂点 15,054 点で、読み込み済みの最も細かいタイルの高さとの差は平均 +15m（`liftScale` の15m）、地面より下の点は0。
+- 画像 `t6-kawanakajima-local-close.png`：`37a9eb78e688e2647880a2a6b47c1ed699c059d35e01dc6ca3ebda762a3548e9`

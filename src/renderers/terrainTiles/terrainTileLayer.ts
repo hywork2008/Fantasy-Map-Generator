@@ -22,6 +22,11 @@ import {
 export const JAPAN_TILE_DIR = "./heightmaps/earth/japan-tiles/";
 const DISPOSE_AFTER_MS = 2000;
 const BUILDS_PER_FRAME = 12;
+/** Levels up to this size load in one request (z0–z2); larger ones load per tile. */
+const WHOLE_LEVEL_BYTES = 2_000_000;
+const MAX_RANGE_REQUESTS = 8;
+/** Ranged tile heights kept in memory (about 5,600 tiles of 67×67). */
+const MAX_TILE_DATA_BYTES = 48_000_000;
 /** Height scale 50. Hillshade is baked at this exaggeration; others only scale the group. */
 const REFERENCE_EXAGGERATION = 3;
 
@@ -111,7 +116,11 @@ export interface TerrainTileStats {
   drawnVertices: number;
   liveMeshes: number;
   liveGeometryMB: number;
+  /** Whole levels plus ranged tiles in memory. */
   loadedLevelMB: number;
+  /** Tiles fetched by Range so far, and how many are cached now. */
+  rangedTiles: number;
+  cachedTiles: number;
   levels: number[];
   pendingBuilds: number;
   lastUpdateMs: number;
@@ -134,6 +143,12 @@ export class TerrainTileLayer {
     null;
   private disposed = false;
   private prefectureMask: Uint8Array | null = null;
+  private tileData = new Map<string, Int16Array>();
+  private tileLoading = new Set<string>();
+  private tileDataBytes = 0;
+  private rangedTiles = 0;
+  private rangeUnsupported = false;
+  private version = 0;
   private chosen = new Set<number>();
   private sea: THREE.Mesh | undefined;
   private stats: TerrainTileStats = {
@@ -143,6 +158,8 @@ export class TerrainTileLayer {
     liveMeshes: 0,
     liveGeometryMB: 0,
     loadedLevelMB: 0,
+    rangedTiles: 0,
+    cachedTiles: 0,
     levels: [],
     pendingBuilds: 0,
     lastUpdateMs: 0,
@@ -165,6 +182,15 @@ export class TerrainTileLayer {
     this.dir = dir;
     try {
       const index = JSON.parse(new TextDecoder().decode(await loadEarthRasterBytes(`${dir}index.json`))) as TileIndex;
+      // Levels finer than the distributed ones, when baked locally (Git-ignored).
+      try {
+        const local = JSON.parse(new TextDecoder().decode(await loadEarthRasterBytes(`${dir}index.local.json`))) as {
+          levels?: TileIndexLevel[];
+        };
+        for (const level of local.levels ?? []) if (level.z === index.levels.length) index.levels.push(level);
+      } catch {
+        // Not installed.
+      }
       this.index = index;
       this.pyramid = tilePyramid({
         width: index.frame.widthKm,
@@ -199,6 +225,7 @@ export class TerrainTileLayer {
         const copy = new Int16Array(bytes.byteLength / 2);
         copy.set(new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2));
         this.levelData.set(z, copy);
+        this.version++;
       })
       .catch(() => undefined)
       .finally(() => {
@@ -206,6 +233,132 @@ export class TerrainTileLayer {
         if (!this.disposed) this.requestUpdate();
       });
     this.levelLoading.set(z, promise);
+  }
+
+  /** Heights of one tile, from a whole level or a ranged read; undefined until loaded. */
+  private dataFor(key: TileKey): Int16Array | undefined {
+    const index = this.index;
+    const entry = this.entries.get(tileId(key));
+    if (!index || !entry) return undefined;
+    const stored = index.samples + 2 * (index.border ?? 0);
+    const level = this.levelData.get(key.z);
+    if (level) return level.subarray(entry.offset / 2, entry.offset / 2 + stored * stored);
+    const id = tileId(key);
+    const data = this.tileData.get(id);
+    if (data) {
+      // Refresh the LRU order.
+      this.tileData.delete(id);
+      this.tileData.set(id, data);
+    }
+    return data;
+  }
+
+  /** Small levels load whole; large ones tile by tile with HTTP Range (whole file if Range is ignored). */
+  private requestData(key: TileKey): void {
+    const index = this.index;
+    const level = index?.levels[key.z];
+    if (!index || !level) return;
+    if (level.bytes <= WHOLE_LEVEL_BYTES || this.rangeUnsupported) {
+      this.loadLevel(key.z);
+      return;
+    }
+    const id = tileId(key);
+    const entry = this.entries.get(id);
+    if (!entry || this.tileData.has(id) || this.tileLoading.has(id) || this.levelLoading.has(key.z)) return;
+    if (this.tileLoading.size >= MAX_RANGE_REQUESTS) return;
+    const stored = index.samples + 2 * (index.border ?? 0);
+    const length = stored * stored * 2;
+    this.tileLoading.add(id);
+    fetch(`${this.dir}${level.file}`, { headers: { Range: `bytes=${entry.offset}-${entry.offset + length - 1}` } })
+      .then(async response => {
+        if (!response.ok) return;
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (response.status !== 206 || bytes.byteLength !== length) {
+          // The server sent the whole file: keep it as the level and stop asking for ranges.
+          this.rangeUnsupported = true;
+          if (bytes.byteLength === level.bytes) {
+            const all = new Int16Array(bytes.byteLength / 2);
+            all.set(new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2));
+            this.levelData.set(key.z, all);
+            this.version++;
+          }
+          return;
+        }
+        const data = new Int16Array(stored * stored);
+        data.set(new Int16Array(bytes.buffer, bytes.byteOffset, stored * stored));
+        this.tileData.set(id, data);
+        this.version++;
+        this.tileDataBytes += data.byteLength;
+        this.rangedTiles++;
+        this.evictTileData();
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        this.tileLoading.delete(id);
+        if (!this.disposed) this.requestUpdate();
+      });
+  }
+
+  /** Drops the least recently used ranged tiles that have no mesh. */
+  private evictTileData(): void {
+    for (const [id, data] of this.tileData) {
+      if (this.tileDataBytes <= MAX_TILE_DATA_BYTES) break;
+      if (this.live.has(id)) continue;
+      this.tileData.delete(id);
+      this.tileDataBytes -= data.byteLength;
+    }
+  }
+
+  /**
+   * Meters at a map pixel from the finest tile whose heights are in memory (no request), as the
+   * tiles draw it (sea at 0). Null where nothing is loaded. Lines and markers sit on this.
+   */
+  metersAt(mapX: number, mapY: number, graphWidth: number, graphHeight: number): number | null {
+    const index = this.index;
+    if (!index) return null;
+    const xKm = (mapX / graphWidth) * index.frame.widthKm;
+    const yKm = (mapY / graphHeight) * index.frame.heightKm;
+    const border = index.border ?? 0;
+    const stored = index.samples + 2 * border;
+    for (let z = index.levels.length - 1; z >= 0; z--) {
+      const level = index.levels[z];
+      const key = { z, x: Math.floor(xKm / level.sizeKm), y: Math.floor(yKm / level.sizeKm) };
+      const data = this.peekData(key);
+      if (!data) continue;
+      const fx = (xKm - key.x * level.sizeKm) / level.spacingKm + border;
+      const fy = (yKm - key.y * level.sizeKm) / level.spacingKm + border;
+      const x0 = Math.min(stored - 2, Math.max(0, Math.floor(fx)));
+      const y0 = Math.min(stored - 2, Math.max(0, Math.floor(fy)));
+      const tx = Math.min(1, Math.max(0, fx - x0));
+      const ty = Math.min(1, Math.max(0, fy - y0));
+      const at = (i: number, j: number) => {
+        const raw = data[(y0 + j) * stored + x0 + i];
+        return raw === index.nodata ? 0 : Math.max(0, raw * index.unitMeters);
+      };
+      const top = at(0, 0) * (1 - tx) + at(1, 0) * tx;
+      const bottom = at(0, 1) * (1 - tx) + at(1, 1) * tx;
+      return top * (1 - ty) + bottom * ty;
+    }
+    return null;
+  }
+
+  /** Bumps when new heights arrive, so line heights can be refreshed once loading settles. */
+  get dataVersion(): number {
+    return this.version;
+  }
+
+  private peekData(key: TileKey): Int16Array | undefined {
+    const index = this.index;
+    const entry = this.entries.get(tileId(key));
+    if (!index || !entry) return undefined;
+    const stored = index.samples + 2 * (index.border ?? 0);
+    const level = this.levelData.get(key.z);
+    if (level) return level.subarray(entry.offset / 2, entry.offset / 2 + stored * stored);
+    return this.tileData.get(tileId(key));
+  }
+
+  isLoaded(): boolean {
+    return this.index !== null;
   }
 
   getStats(): TerrainTileStats {
@@ -298,8 +451,8 @@ export class TerrainTileLayer {
     for (const tile of wanted) {
       const id = tileId(tile.key);
       if (this.live.has(id)) continue;
-      if (!this.levelData.has(tile.key.z)) {
-        this.loadLevel(tile.key.z);
+      if (!this.dataFor(tile.key)) {
+        this.requestData(tile.key);
         pending++;
         continue;
       }
@@ -315,8 +468,8 @@ export class TerrainTileLayer {
       if (this.live.has(tileId(tile.key))) continue;
       for (let k = parentTile(tile.key); k; k = parentTile(k)) {
         if (this.live.has(tileId(k))) break;
-        if (!this.levelData.has(k.z)) {
-          this.loadLevel(k.z);
+        if (!this.dataFor(k)) {
+          this.requestData(k);
           continue;
         }
         if (this.buildTile(k, sx, sz, params)) break;
@@ -350,7 +503,9 @@ export class TerrainTileLayer {
       drawnVertices,
       liveMeshes: this.live.size,
       liveGeometryMB: +(liveBytes / 1e6).toFixed(2),
-      loadedLevelMB: +(levelBytes / 1e6).toFixed(2),
+      loadedLevelMB: +((levelBytes + this.tileDataBytes) / 1e6).toFixed(2),
+      rangedTiles: this.rangedTiles,
+      cachedTiles: this.tileData.size,
       levels: [...this.levelData.keys()].sort(),
       pendingBuilds: pending,
       lastUpdateMs: +ms.toFixed(1),
@@ -398,14 +553,12 @@ export class TerrainTileLayer {
   private buildTile(key: TileKey, sx: number, sz: number, params: TerrainTileParams): boolean {
     const index = this.index;
     const entry = this.entries.get(tileId(key));
-    const data = this.levelData.get(key.z);
-    if (!index || !entry || !data) return false;
+    const tileData = this.dataFor(key);
+    if (!index || !entry || !tileData) return false;
     const n = index.samples;
     const level = index.levels[key.z];
     const sizeKm = level.sizeKm;
     const border = index.border ?? 0;
-    const stored = n + 2 * border;
-    const tileData = data.subarray(entry.offset / 2, entry.offset / 2 + stored * stored);
     const arrays = buildTileMesh({
       data: tileData,
       samples: n,
@@ -490,5 +643,7 @@ export class TerrainTileLayer {
     }
     this.group.removeFromParent();
     this.levelData.clear();
+    this.tileData.clear();
+    this.tileDataBytes = 0;
   }
 }

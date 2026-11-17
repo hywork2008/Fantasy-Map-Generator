@@ -54,3 +54,18 @@ node scripts/bakeJapanRivers.mjs                                          # opti
 Sources and credits: Natural Earth admin-1 (public domain); AWS Terrain Tiles (per-source credits);
 GSI elevation tiles and GSI vector tiles (Public Data License v1.0, credit 国土地理院). The in-app
 Encyclopedia entry `feature:data-sources` lists them.
+
+## Japan terrain tiles (`japan-tiles/`)
+
+Quadtree tiles for the 3D war view on `japan`-template maps
+([docs/plan/japan-terrain-tiles.md](../../../docs/plan/japan-terrain-tiles.md)), re-sampled from
+`japan.bin` and `japan-local/`. Levels up to 2 MB load whole; larger ones load per tile by HTTP Range.
+
+| Committed | Local only (Git-ignored) |
+| :--- | :--- |
+| `index.json`, `z0.bin`–`z3.bin` (4 km–500 m), `prefectures.bin` (about 13 MB) | `z4.bin`, `z5.bin` (250 m, 125 m), `index.local.json` |
+
+```bash
+node scripts/bakeJapanTiles.mjs                          # distributed levels z0–z3
+node scripts/bakeJapanTiles.mjs --maxZoom 5 --local      # plus local 250 m / 100 m rasters
+```

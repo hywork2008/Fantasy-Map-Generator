@@ -5,29 +5,18 @@
  */
 async page => {
   const DIR = "docs/analytics/raw/japan-terrain-tiles/";
-  const ROUND = "t4";
+  const ROUND = "t5";
+  // "dist": z4.bin, z5.bin and index.local.json moved away (the distributed set); "local": all levels.
+  const SET = "local";
   // [site, tuning patch, view]; views: japan (whole map), region (~400 km), oblique (window), close, ground.
-  // `heightScale` changes the 3D Options Height scale (default 50).
-  const TILES = {
-    enabled: true,
-    maxScreenErrorPx: 2,
-    maxTiles: 256,
-    maxZoom: 5,
-    farKm: 0,
-    farZoom: 1,
-    prefectures: [],
-    mapColors: "none"
-  };
+  // `heightScale` changes the 3D Options Height scale (default 50). Tiles use the defaults.
   const RUNS = [
-    ["sekigahara", { tiles: TILES, label: "far0" }, "oblique"],
-    ["sekigahara", { tiles: { ...TILES, farKm: 200 }, label: "far200" }, "oblique"],
-    ["sekigahara", { tiles: { ...TILES, farKm: 100 }, label: "far100" }, "oblique"],
-    ["sekigahara", { tiles: { ...TILES, farKm: 100 }, label: "far100" }, "close"],
-    ["tokyo", { tiles: { ...TILES, farKm: 100 }, label: "far100" }, "close"],
-    ["sekigahara", { tiles: { ...TILES, farKm: 100, prefectures: ["JP-21", "JP-25"] }, label: "gifu-shiga" }, "japan"],
-    ["sekigahara", { tiles: { ...TILES, farKm: 100, prefectures: ["JP-21", "JP-25"] }, label: "gifu-shiga" }, "oblique"],
-    ["sekigahara", { tiles: { ...TILES, farKm: 100, mapColors: "states" }, label: "states" }, "oblique"],
-    ["sekigahara", { tiles: { ...TILES, farKm: 100, mapColors: "states" }, label: "states" }, "japan"]
+    ["sekigahara", { label: SET }, "japan"],
+    ["sekigahara", { label: SET }, "oblique"],
+    ["sekigahara", { label: SET }, "close"],
+    ["sekigahara", { label: SET }, "ground"],
+    ["tokyo", { label: SET }, "close"],
+    ["kawanakajima", { label: SET }, "close"]
   ];
 
   await page.evaluate(async () => {
@@ -119,6 +108,7 @@ async page => {
           tiles: T.getTerrainTileStats(),
           rescaled,
           meshesBefore,
+          rangeUnsupported: T.terrainTiles?.rangeUnsupported,
           windowVertices: ground?.visible ? ground.geometry.attributes.position.count : 0,
           settledMs,
           fps: frames / 2,
