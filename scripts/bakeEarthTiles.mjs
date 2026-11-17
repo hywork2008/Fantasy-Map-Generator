@@ -65,6 +65,8 @@ const REGIONS = {
     terrariumMaxZoom: 5,
     // swissALTI3D around the test sites (scripts/fetchSwissAlti3d.mjs), with --swiss.
     swiss: path.join(ROOT, "temp/swissalti3d"),
+    // Natural Earth lakes (public domain): flattened to their surface and drawn as water.
+    lakes: [path.join(ROOT, "temp/ne_10m_lakes.geojson"), path.join(ROOT, "temp/ne_10m_lakes_europe.geojson")],
     // ALPS_REGION.localTerrain.sites, for --sitesKm.
     sites: [
       [7.66, 46.0],
@@ -337,6 +339,81 @@ async function terrariumSources() {
   return sources.sort((a, b) => a.stepMeters - b.stepMeters);
 }
 
+// ---- Lakes ----
+
+/** Even-odd point in polygon over all rings (holes included). */
+function insideRings(rings, x, y) {
+  let inside = false;
+  for (const ring of rings)
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i];
+      const [xj, yj] = ring[j];
+      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+  return inside;
+}
+
+/**
+ * Lakes of the region in frame km, each with its surface level: the most common whole meter of the
+ * finest source over the lake (lake surfaces are flat in the DEMs; bathymetry, where present, is not
+ * the most common value). Lakes that do not touch the region are dropped.
+ */
+function loadLakes(sources) {
+  if (!CONFIG.lakes) return [];
+  const lakes = [];
+  const seen = new Set();
+  for (const file of CONFIG.lakes) {
+    if (!fs.existsSync(file)) throw new Error(`${file} missing (Natural Earth lakes)`);
+    for (const feature of JSON.parse(fs.readFileSync(file, "utf8")).features)
+      for (const poly of polygonsOf(feature.geometry)) {
+        const [w, s0, e, n] = bboxOf({ type: "Polygon", coordinates: poly });
+        if (e < REGION.west || w > REGION.east || n < REGION.south || s0 > REGION.north) continue;
+        // The Europe supplement repeats some lakes of the global file.
+        const key = `${w.toFixed(2)},${s0.toFixed(2)},${e.toFixed(2)},${n.toFixed(2)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const rings = poly.map(ring =>
+          ring.map(([lon, lat]) => [(lon - REGION.west) * KM_PER_DEG_LON, (REGION.north - lat) * KM_PER_DEG_LAT])
+        );
+        const box = [
+          (w - REGION.west) * KM_PER_DEG_LON,
+          (REGION.north - n) * KM_PER_DEG_LAT,
+          (e - REGION.west) * KM_PER_DEG_LON,
+          (REGION.north - s0) * KM_PER_DEG_LAT
+        ];
+        const counts = new Map();
+        const step = Math.max(0.1, Math.min(box[2] - box[0], box[3] - box[1]) / 40);
+        for (let y = box[1]; y <= box[3]; y += step)
+          for (let x = box[0]; x <= box[2]; x += step) {
+            if (!insideRings(rings, x, y)) continue;
+            const lon = REGION.west + x / KM_PER_DEG_LON;
+            const lat = REGION.north - y / KM_PER_DEG_LAT;
+            let m = null;
+            for (const src of sources) {
+              m = src.sample(lon, lat);
+              if (m !== null) break;
+            }
+            if (m === null) continue;
+            const k = Math.round(m);
+            counts.set(k, (counts.get(k) ?? 0) + 1);
+          }
+        if (!counts.size) continue;
+        const surfaceM = [...counts].sort((a, b) => b[1] - a[1])[0][0];
+        lakes.push({ name: feature.properties.name ?? null, surfaceM, box, rings });
+      }
+  }
+  return lakes;
+}
+
+function lakeAt(lakes, xKm, yKm) {
+  for (const lake of lakes) {
+    const [x0, y0, x1, y1] = lake.box;
+    if (xKm < x0 || xKm > x1 || yKm < y0 || yKm > y1) continue;
+    if (insideRings(lake.rings, xKm, yKm)) return lake;
+  }
+  return null;
+}
+
 function polygonsOf(geom) {
   if (!geom) return [];
   return geom.type === "Polygon" ? [geom.coordinates] : geom.type === "MultiPolygon" ? geom.coordinates : [];
@@ -403,6 +480,9 @@ async function main() {
   const t0 = performance.now();
   const base = decodeRaster(path.join(EARTH, CONFIG.raster));
   const sources = MASK_ONLY ? [] : await loadSources();
+  // Distributed sources only, so the surface level does not depend on local or site-limited data.
+  const lakes = MASK_ONLY ? [] : loadLakes(sources.filter(source => !source.fromZ));
+  if (lakes.length) console.log(`lakes: ${lakes.length}`);
   const prefs = prefectureGrid();
   fs.mkdirSync(OUT, { recursive: true });
   // Prefecture index per 1 km cell (255 = none) for the runtime's partial display.
@@ -485,6 +565,11 @@ async function main() {
             if (m === null) {
               data[j * stored + i] = NODATA;
               continue;
+            }
+            // Lakes are flat at their surface (the runtime draws them as water from lakes.json).
+            if (lakes.length) {
+              const lake = lakeAt(lakes, x0 + (i - BORDER) * spacingKm, y0 + (j - BORDER) * spacingKm);
+              if (lake) m = lake.surfaceM;
             }
             const inside = i >= BORDER && j >= BORDER && i < stored - BORDER && j < stored - BORDER;
             data[j * stored + i] = Math.max(-32767, Math.min(32767, Math.round(m * 2)));
@@ -575,6 +660,7 @@ async function main() {
     nodata: NODATA,
     prefectures: prefs.codes,
     prefectureMask: mask,
+    ...(lakes.length ? { lakes: { file: "lakes.json", count: lakes.length } } : {}),
     levels: distributed
   };
   const write = (file, value) => {
@@ -584,6 +670,15 @@ async function main() {
     console.log(`${file} ${json.length} bytes (gzip ${zlib.gzipSync(json).length}) ${sha}`);
   };
   write("index.json", index);
+  if (lakes.length)
+    write("lakes.json", {
+      lakes: lakes.map(({ name, surfaceM, box, rings }) => ({
+        name,
+        surfaceM,
+        box: box.map(v => +v.toFixed(3)),
+        rings: rings.map(ring => ring.map(([x, y]) => [+x.toFixed(3), +y.toFixed(3)]))
+      }))
+    });
   const localPath = path.join(OUT, "index.local.json");
   if (local.length) write("index.local.json", { version: 2, levels: local });
   else if (fs.existsSync(localPath)) fs.unlinkSync(localPath);

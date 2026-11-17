@@ -55,6 +55,8 @@ export interface TileIndex {
   prefectures: string[];
   /** Prefecture index per `cellKm` cell of the frame (Uint8, 255 = none). */
   prefectureMask?: { file: string; width: number; height: number; cellKm: number } | null;
+  /** Lake outlines (lakes.json), drawn as water. Heights inside are already flat at the surface. */
+  lakes?: { file: string; count: number };
   levels: TileIndexLevel[];
 }
 
@@ -88,6 +90,29 @@ export interface TileHeightModifier {
   key: string;
   bounds: PixelBounds;
   at(mapX: number, mapY: number, meters: number): number;
+}
+
+/** Lake outline in frame km (x east, y south from the north-west corner). */
+interface TileLake {
+  name: string | null;
+  surfaceM: number;
+  /** [minX, minY, maxX, maxY] km. */
+  box: [number, number, number, number];
+  rings: [number, number][][];
+}
+
+/** Even-odd point in polygon over all rings (holes included). */
+function insideLake(lake: TileLake, x: number, y: number): boolean {
+  const [x0, y0, x1, y1] = lake.box;
+  if (x < x0 || x > x1 || y < y0 || y > y1) return false;
+  let inside = false;
+  for (const ring of lake.rings)
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i];
+      const [xj, yj] = ring[j];
+      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+  return inside;
 }
 
 const insideBounds = (b: PixelBounds, x: number, y: number) => x >= b.minX && x <= b.maxX && y >= b.minY && y <= b.maxY;
@@ -161,6 +186,7 @@ export class TerrainTileLayer {
     null;
   private disposed = false;
   private prefectureMask: Uint8Array | null = null;
+  private lakes: TileLake[] = [];
   private tileData = new Map<string, Int16Array>();
   private tileLoading = new Map<string, Promise<void>>();
   private failed = new Set<string>();
@@ -233,6 +259,17 @@ export class TerrainTileLayer {
           this.prefectureMask = await loadEarthRasterBytes(`${dir}${mask.file}`);
         } catch {
           this.prefectureMask = null;
+        }
+      if (index.lakes)
+        try {
+          const json = JSON.parse(
+            new TextDecoder().decode(await loadEarthRasterBytes(`${dir}${index.lakes.file}`))
+          ) as {
+            lakes?: TileLake[];
+          };
+          this.lakes = json.lakes ?? [];
+        } catch {
+          this.lakes = [];
         }
       for (const level of index.levels)
         for (const [x, y, offset, minM, maxM, prefectures, split] of level.tiles)
@@ -478,9 +515,9 @@ export class TerrainTileLayer {
       const bottom = at(0, 1) * (1 - tx) + at(1, 1) * tx;
       const meters = top * (1 - ty) + bottom * ty;
       const modifier = this.heightModifier;
-      return modifier && meters > 0.5 && insideBounds(modifier.bounds, mapX, mapY)
-        ? Math.max(0.5, modifier.at(mapX, mapY, meters))
-        : meters;
+      if (!modifier || meters <= 0.5 || !insideBounds(modifier.bounds, mapX, mapY)) return meters;
+      if (this.lakes.some(lake => insideLake(lake, xKm, yKm))) return meters;
+      return Math.max(0.5, modifier.at(mapX, mapY, meters));
     }
     return null;
   }
@@ -739,7 +776,7 @@ export class TerrainTileLayer {
       worldYPerMeter:
         (params.worldYPerMeter / (params.exaggeration || REFERENCE_EXAGGERATION)) * REFERENCE_EXAGGERATION,
       // Deeper than the largest step between levels on steep ground.
-      adjustColor: this.colorAdjuster(params, sx, sz),
+      adjustColor: this.colorAdjuster(params, sx, sz, key),
       adjustMeters: this.metersAdjuster(params, key, sx, sz),
       skirtMeters: Math.max(50, (entry.maxM - Math.max(0, entry.minM)) * 0.25)
     });
@@ -768,6 +805,22 @@ export class TerrainTileLayer {
     return true;
   }
 
+  /** Lakes over a tile, with one sample of margin for the shading border. */
+  private lakesNear(key: TileKey): TileLake[] {
+    const level = this.index?.levels[key.z];
+    if (!level || !this.lakes.length) return [];
+    const margin = level.spacingKm;
+    return this.lakes.filter(lake => {
+      const [x0, y0, x1, y1] = lake.box;
+      return (
+        x1 >= key.x * level.sizeKm - margin &&
+        x0 <= (key.x + 1) * level.sizeKm + margin &&
+        y1 >= key.y * level.sizeKm - margin &&
+        y0 <= (key.y + 1) * level.sizeKm + margin
+      );
+    });
+  }
+
   private metersAdjuster(params: TerrainTileParams, key: TileKey, sx: number, sz: number) {
     const modifier = this.heightModifier;
     const level = this.index?.levels[key.z];
@@ -782,24 +835,35 @@ export class TerrainTileLayer {
     if (box.maxX < b.minX || box.minX > b.maxX || box.maxY < b.minY || box.minY > b.maxY) return undefined;
     const halfW = params.graphWidth / 2;
     const halfH = params.graphHeight / 2;
+    // Lakes keep their flat surface: valleys are not carved under them.
+    const lakes = this.lakesNear(key);
     return (x: number, z: number, meters: number) => {
       const mapX = x + halfW;
       const mapY = z + halfH;
-      return insideBounds(b, mapX, mapY) ? modifier.at(mapX, mapY, meters) : meters;
+      if (!insideBounds(b, mapX, mapY)) return meters;
+      if (lakes.length && lakes.some(lake => insideLake(lake, mapX / sx, mapY / sz))) return meters;
+      return modifier.at(mapX, mapY, meters);
     };
   }
 
-  private colorAdjuster(params: TerrainTileParams, sx: number, sz: number) {
+  private colorAdjuster(params: TerrainTileParams, sx: number, sz: number, key: TileKey) {
     const mask = this.prefectureMask;
     const info = this.index?.prefectureMask;
     const chosen = this.chosen;
     const mapColor = params.mapColor;
-    if (!mapColor && !(chosen.size && mask && info)) return undefined;
+    const lakes = this.lakesNear(key);
+    if (!mapColor && !(chosen.size && mask && info) && !lakes.length) return undefined;
     const halfW = params.graphWidth / 2;
     const halfH = params.graphHeight / 2;
     return (x: number, z: number, land: boolean, colors: Float32Array, o: number) => {
       const mapX = x + halfW;
       const mapY = z + halfH;
+      if (land && lakes.length && lakes.some(lake => insideLake(lake, mapX / sx, mapY / sz))) {
+        colors[o] = WATER[0];
+        colors[o + 1] = WATER[1];
+        colors[o + 2] = WATER[2];
+        land = false;
+      }
       if (land && mapColor) {
         const c = mapColor.at(mapX, mapY);
         if (c) for (let i = 0; i < 3; i++) colors[o + i] = colors[o + i] * (1 - MAP_COLOR_MIX) + c[i] * MAP_COLOR_MIX;

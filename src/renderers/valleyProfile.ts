@@ -322,7 +322,10 @@ export function createValleyField(
     return 1 + widen;
   };
 
-  const cell = Math.max(1, maxReachM);
+  // Buckets a quarter of the reach wide: a query scans 9×9 small buckets instead of 3×3 large ones,
+  // which tests far fewer segments for the wide Alpine valleys.
+  const span = 4;
+  const cell = Math.max(1, maxReachM / span);
   const grid = new Map<number, Segment[]>();
   const key = (gx: number, gy: number) => gx * 1_000_003 + gy;
   rivers.forEach((river, r) => {
@@ -356,14 +359,21 @@ export function createValleyField(
     return carve(x, y, groundAt(x, y));
   }
 
+  // Nearest point of each river to the query (per-call scratch, no allocation).
+  const nearSeg = new Int32Array(rivers.length).fill(-1);
+  const nearT = new Float64Array(rivers.length);
+  const nearD2 = new Float64Array(rivers.length);
+  const touched: number[] = [];
+  const reach2 = maxReachM * maxReachM;
+
   function carve(x: number, y: number, ground: number): number {
     if (maxReachM <= 0 || x < reach.minX || x > reach.maxX || y < reach.minY || y > reach.maxY) return ground;
     const gx = Math.floor(x / cell);
     const gy = Math.floor(y / cell);
-    let height = ground;
-    // A segment listed in two buckets is tested twice; min() makes that harmless.
-    for (let dx = -1; dx <= 1; dx++)
-      for (let dy = -1; dy <= 1; dy++) {
+    touched.length = 0;
+    // Distance only: find each river's nearest segment within reach.
+    for (let dx = -span; dx <= span; dx++)
+      for (let dy = -span; dy <= span; dy++) {
         const list = grid.get(key(gx + dx, gy + dy));
         if (!list) continue;
         for (const seg of list) {
@@ -374,22 +384,41 @@ export function createValleyField(
           const vy = b.y - a.y;
           const len2 = vx * vx + vy * vy;
           const t = len2 > 0 ? Math.max(0, Math.min(1, ((x - a.x) * vx + (y - a.y) * vy) / len2)) : 0;
-          const dist = Math.hypot(x - (a.x + vx * t), y - (a.y + vy * t));
-          if (dist >= maxReachM) continue;
-          const d = mix(dims[seg.river][seg.i], dims[seg.river][seg.i + 1], t);
-          // Left of the downstream direction is a positive cross product.
-          const side = vx * (y - a.y) - vy * (x - a.x) >= 0 ? 1 : -1;
-          let wall = side > 0 ? d.wallLeftM : d.wallRightM;
-          if (tuning.spurs) {
-            const s = arc[seg.river][seg.i] + Math.sqrt(len2) * t;
-            wall *= widenAt(seg.river, s, side);
+          const ex = x - (a.x + vx * t);
+          const ey = y - (a.y + vy * t);
+          const d2 = ex * ex + ey * ey;
+          if (d2 >= reach2) continue;
+          const r = seg.river;
+          if (nearSeg[r] < 0 || d2 < nearD2[r]) {
+            if (nearSeg[r] < 0) touched.push(r);
+            nearSeg[r] = seg.i;
+            nearT[r] = t;
+            nearD2[r] = d2;
           }
-          if (dist >= d.floorHalfM + wall) continue;
-          const f = floors[seg.river];
-          const floor = f[seg.i] + (f[seg.i + 1] - f[seg.i]) * t;
-          height = Math.min(height, valleyHeightAt(ground, floor, dist, d, wall));
         }
       }
+    // Then the valley of each nearby river at its nearest point; the lowest wins (confluences).
+    let height = ground;
+    for (const r of touched) {
+      const i = nearSeg[r];
+      const t = nearT[r];
+      const dist = Math.sqrt(nearD2[r]);
+      nearSeg[r] = -1;
+      const river = rivers[r];
+      const a = river[i];
+      const b = river[i + 1];
+      const vx = b.x - a.x;
+      const vy = b.y - a.y;
+      const d = mix(dims[r][i], dims[r][i + 1], t);
+      // Left of the downstream direction is a positive cross product.
+      const side = vx * (y - a.y) - vy * (x - a.x) >= 0 ? 1 : -1;
+      let wall = side > 0 ? d.wallLeftM : d.wallRightM;
+      if (tuning.spurs) wall *= widenAt(r, arc[r][i] + Math.hypot(vx, vy) * t, side);
+      if (dist >= d.floorHalfM + wall) continue;
+      const f = floors[r];
+      const floor = f[i] + (f[i + 1] - f[i]) * t;
+      height = Math.min(height, valleyHeightAt(ground, floor, dist, d, wall));
+    }
     return height;
   }
 

@@ -77,11 +77,13 @@ node scripts/bakeEarthTiles.mjs --region japan --maxZoom 5 --local   # plus loca
 Quadtree tiles for the 3D war view on `alps`-template maps
 ([docs/plan/alps-terrain-tiles.md](../../../docs/plan/alps-terrain-tiles.md)): `alps.bin` and AWS Terrain
 Tiles (Terrarium z8 for 1 km, z9 for 500 m; cached under `temp/terrarium-alps/`). The mask
-(`prefectures.bin`) holds Natural Earth admin-0 countries (ISO A2), not provinces.
+(`prefectures.bin`) holds Natural Earth admin-0 countries (ISO A2), not provinces. `lakes.json` holds
+Natural Earth 10m lakes and the Europe supplement (public domain; `temp/ne_10m_lakes*.geojson`) in frame km with
+their surface level; the tiles are flat there and the runtime draws them as water.
 
 | Committed | Local only (Git-ignored) |
 | :--- | :--- |
-| `index.json`, `z0.bin`–`z3.bin` (4 km–500 m), `prefectures.bin` (about 7 MB) | `z4.bin` and finer, `index.local.json` |
+| `index.json`, `z0.bin`–`z3.bin` (4 km–500 m), `prefectures.bin`, `lakes.json` (about 7 MB) | `z4.bin` and finer, `index.local.json` |
 
 ```bash
 node scripts/bakeEarthTiles.mjs --region alps                        # distributed levels z0–z3
