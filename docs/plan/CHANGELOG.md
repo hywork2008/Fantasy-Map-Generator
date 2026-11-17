@@ -2,6 +2,7 @@
 
 2026-11-17
 
+- docs/plan/fmg-cell-interior-relief.md - セル内の平地と山の境を、標高とは別の山麓線として持つ
 - docs/plan/war-campaign-mesh.md - 戦争用に徒歩7日の窓だけをFMGメッシュで3D表示する
 
 2026-11-16
