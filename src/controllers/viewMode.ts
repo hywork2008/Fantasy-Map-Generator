@@ -15,6 +15,7 @@ import {
 import { closeDialog, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { fitContent } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
+import { findCell } from "../utils/graphUtils";
 import { getElementById } from "../utils/nodeUtils";
 import { editBurg } from "./burg-editor";
 
@@ -61,12 +62,25 @@ export function changeViewMode(event: MouseEvent): void {
   const button = event.target as HTMLElement;
   if (button.tagName !== "BUTTON") return;
   const pressed = useViewModeState.getState().activeViewMode === button.id;
+  // The Layers button is the full world. The map menu is what sets a campaign center.
+  if (!pressed && button.id === "viewMesh") ThreeDRenderer.setCampaignFocus(null);
   enterStandardView();
 
   if (!pressed && button.id !== "viewStandard") {
     useViewModeState.getState().setActiveViewMode(button.id);
     void enter3dView(button.id);
   }
+}
+
+/** Opens viewMesh framed on the clicked map point. The week window can be pulled back into view. */
+export function openCampaignViewAt(mapX: number, mapY: number): void {
+  const canvas = getElementById<HTMLCanvasElement>("canvas3d");
+  const alreadyMesh = canvas?.dataset.type === "viewMesh" && ThreeDRenderer.options.isOn === true;
+  ThreeDRenderer.setCampaignFocus({ x: mapX, y: mapY, cellId: findCell(mapX, mapY) });
+  if (alreadyMesh) return;
+  enterStandardView();
+  useViewModeState.getState().setActiveViewMode("viewMesh");
+  void enter3dView("viewMesh");
 }
 
 export function enterStandardView(): void {

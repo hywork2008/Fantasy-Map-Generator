@@ -165,6 +165,13 @@ export function triggerOpenRegionEditor(provinceId: number): void {
   openRegionEditor(provinceId);
 }
 
+/** Week-of-march 3D window centered on the right-clicked map point. */
+export function triggerOpenCampaignView(mapX: number, mapY: number): void {
+  closeMapContextMenu();
+  // viewMode pulls the 3D renderer. Load it on use so this menu module stays light.
+  void import("./viewMode").then(({ openCampaignViewAt }) => openCampaignViewAt(mapX, mapY));
+}
+
 export function isMapContextMenuTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   if (target.closest("input, textarea, select, [contenteditable='true']")) return false;

@@ -18,6 +18,24 @@ export function heightToMeters(h: number, exponent: number): number {
   return h < 20 ? 0 : pow(h - 18, exponent);
 }
 
+/** Height index span from the land baseline (18) to the top of the scale (100). */
+const MESH_HEIGHT_SPAN = 82;
+
+/**
+ * World Y for a height index. The map's contours and labels use `(h - 18) ** exponent`
+ * meters, so the same raw step is a few meters on a plain and hundreds of meters on a
+ * ridge. A linear `(h - 18) / 82` mesh draws those plains as tall as the ridge.
+ * Index 100 stays at `scale`, which is what the 3D scale slider already meant.
+ * Indices below land stay on the baseline; water cells pass their surface index instead.
+ */
+export function meshHeightFromIndex(heightIndex: number, exponent: number, scale: number): number {
+  const exp = normalizeHeightExponent(exponent);
+  const spanMeters = pow(MESH_HEIGHT_SPAN, exp);
+  if (!Number.isFinite(heightIndex) || !Number.isFinite(scale) || spanMeters <= 0) return 0;
+  if (heightIndex < 20) return 0;
+  return (pow(heightIndex - 18, exp) / spanMeters) * scale;
+}
+
 /**
  * Clamp / default `heightExponent` from options (valid range 1–5, default 1.8).
  */

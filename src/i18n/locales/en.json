@@ -106,7 +106,12 @@
     "openRegionEditor": "Open in Region Editor",
     "openRegionEditorWithProvince": "Open in Region Editor ({{name}})",
     "openRegionEditorDisabled": "No province at this location",
-    "openCityEditor": "Open in City Editor ({{name}})"
+    "openCityEditor": "Open in City Editor ({{name}})",
+    "openCampaignView": "View in 3D from here"
+  },
+  "campaignView": {
+    "viewBattle": "View this battle in 3D",
+    "viewBattleTip": "Open the week-of-march 3D window on this engagement. Scroll to pull back."
   },
   "directions": {
     "mode": {

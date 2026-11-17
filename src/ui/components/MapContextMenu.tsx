@@ -4,6 +4,7 @@ import {
   handleMapContextMenu,
   setDistanceFromHere,
   setDistanceToHere,
+  triggerOpenCampaignView,
   triggerOpenCityEditor,
   triggerOpenProvincesEditor,
   triggerOpenRegionEditor
@@ -86,6 +87,10 @@ export function MapContextMenu() {
     }
   }, [targetProvinceId]);
 
+  const onOpenCampaignView = useCallback(() => {
+    triggerOpenCampaignView(mapX, mapY);
+  }, [mapX, mapY]);
+
   const onFromHere = useCallback(() => {
     setDistanceFromHere(mapX, mapY);
   }, [mapX, mapY]);
@@ -142,6 +147,15 @@ export function MapContextMenu() {
         title={!targetProvinceId ? t("mapContextMenu.openRegionEditorDisabled") : undefined}
       >
         {regionEditorLabel}
+      </button>
+      <button
+        type="button"
+        id="openCampaignView"
+        role="menuitem"
+        className="map-context-menu__item"
+        onClick={onOpenCampaignView}
+      >
+        {t("mapContextMenu.openCampaignView")}
       </button>
       <button type="button" role="menuitem" className="map-context-menu__item" onClick={onFromHere}>
         {fromLabel}

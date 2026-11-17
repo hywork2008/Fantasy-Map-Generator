@@ -29,6 +29,18 @@ import { Line2NodeMaterial, MeshLambertNodeMaterial, WebGPURenderer } from "thre
 import { LoopSubdivision } from "three-subdivide";
 import { layerIsOn } from "../utils/layerUtils";
 import {
+  buildCampaignMesh,
+  type CampaignBuildInput,
+  type CampaignCellInput,
+  type CampaignFocus,
+  type CampaignMarker,
+  type CampaignPolyline,
+  type CampaignRegimentSource,
+  campaignGridSpacingPx,
+  campaignRegimentPlacements
+} from "./campaignMesh";
+import { kmPerMapPixel } from "./campaignWindow";
+import {
   disposeRiverFlowTexture,
   disposeSatelliteTexture,
   generateRiverFlowTexture,
@@ -44,8 +56,10 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { getMapURL } from "../io/export";
 import { tip } from "../services/tooltipService";
+import { optionsStore } from "../state/optionsStore";
 import { revokeObjectURL, rn, throttle } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
+import { meshHeightFromIndex } from "../utils/height";
 import { getNightscapeBeamPose, getNightscapePopulationGlow } from "./nightscapeGlow";
 import {
   buildLowPolyBurgSymbols,
@@ -291,6 +305,15 @@ class ThreeDModule {
   private nightscapeGlowBatches: NightscapeGlowBatch[] = [];
   private nightscapeGlowTexture: THREE.CanvasTexture | undefined;
   private gridToPackCellMap: Map<number, number> | null = null;
+  private viewType = "viewMesh";
+  private campaignFocus: CampaignFocus | null = null;
+  private campaignFocusKey = "";
+  private campaignCameraDirty = false;
+  private campaignGroup: THREE.Group | undefined;
+  private campaignSphere: THREE.SphereGeometry | undefined;
+  private campaignDiamond: THREE.OctahedronGeometry | undefined;
+  /** False until WebGPURenderer.init() resolves, and again after stop(). */
+  private rendererReady = false;
   private erosionBakeActive: boolean = false;
   private erosionBakeData: ErosionBake.ErosionBakeResult | null = null;
   // A full map texture is rendered by a short-lived deck.gl instance. Keep at most one such
@@ -334,7 +357,25 @@ class ThreeDModule {
   async create(canvas: HTMLCanvasElement, type = "viewMesh"): Promise<boolean> {
     this.options.isOn = true;
     this.options.isGlobe = type === "viewGlobe";
+    this.viewType = type;
     return this.options.isGlobe ? this.newGlobe(canvas) : this.newMesh(canvas);
+  }
+
+  /**
+   * Shows the week-of-march window on the next viewMesh draw. Passing null restores the
+   * full-world mesh. The focus survives leaving 3D. The map menu sets the clicked point
+   * before opening viewMesh. The Layers viewMesh button clears it on entry. Heightmap
+   * preview and the globe ignore it.
+   */
+  setCampaignFocus(focus: CampaignFocus | null): void {
+    const next = focus && Number.isFinite(focus.x) && Number.isFinite(focus.y) ? focus : null;
+    const key = next ? `${next.cellId}|${next.x}|${next.y}` : "";
+    if (key !== this.campaignFocusKey) this.campaignCameraDirty = true;
+    this.campaignFocus = next;
+    this.campaignFocusKey = key;
+    if (!this.options.isOn || this.viewType !== "viewMesh") return;
+    if (!next) this.restoreMeshCameraLimits();
+    this.redraw({ refreshTerrainTexture: next === null });
   }
 
   isErosionBuildPending(): boolean {
@@ -370,6 +411,7 @@ class ThreeDModule {
 
   update(): void {
     if (this.options.isGlobe) this.updateGlobeTexure();
+    else if (this.campaignMeshEnabled()) this.redraw({ refreshTerrainTexture: false });
     else {
       this.cancelTerrainOverlayBuild();
       this.deleteLowPolyBurgIcons();
@@ -394,12 +436,20 @@ class ThreeDModule {
       this.updateGlobeTexure();
       return;
     }
+    if (this.campaignMeshEnabled()) {
+      this.redraw({ refreshTerrainTexture: false });
+      return;
+    }
     if (this.options.sceneOnly) this.render();
     else if (!this.material || !this.Renderer) this.textureRefreshPendingDuringMeshBuild = true;
     else this.update3dTexture();
   }
 
   stop(): void {
+    this.rendererReady = false;
+    // Clear this before dispose(). dispose() awaits init(), and newMesh continues after that
+    // same init. The mesh must see the view as already stopped.
+    this.options.isOn = false;
     this.detachBurgPicking();
     if (this.controls) this.controls.dispose();
     if (this.textureRetryTimer !== null) window.clearTimeout(this.textureRetryTimer);
@@ -416,6 +466,11 @@ class ThreeDModule {
     this.deleteLabels();
     this.deleteLowPolyBurgIcons();
     this.deleteFloatingRoutes();
+    this.disposeCampaignGroup();
+    this.campaignSphere?.dispose();
+    this.campaignDiamond?.dispose();
+    this.campaignSphere = undefined;
+    this.campaignDiamond = undefined;
     if (this.texture) this.texture.dispose();
     if (this.geometry) this.geometry.dispose();
     if (this.material) this.material.dispose();
@@ -448,18 +503,23 @@ class ThreeDModule {
     this.mesh = undefined;
     this.nightscapeBeamLight = undefined;
     this.nightscapeBeamTarget = undefined;
-
-    this.options.isOn = false;
   }
 
   setScale(scale: number): void {
     this.options.scale = scale;
-    const vertices = this.geometry!.getAttribute("position");
+    // Campaign positions store height in Y. The full-world plane stores it in Z after Rx(-90°).
+    const geometry = this.geometry;
+    const rotatedPlane = this.mesh !== undefined && Math.abs(this.mesh.rotation.x + Math.PI / 2) < 1e-6;
+    if (!geometry || (this.viewType === "viewMesh" && (this.campaignFocus || !rotatedPlane))) {
+      if (this.options.isOn && this.viewType === "viewMesh" && this.Renderer) this.redraw();
+      return;
+    }
+    const vertices = geometry.getAttribute("position");
     for (let i = 0; i < vertices.count; i++) {
       vertices.setZ(i, this.getMeshHeight(i));
     }
-    this.geometry!.setAttribute("position", vertices);
-    this.geometry!.computeVertexNormals();
+    geometry.setAttribute("position", vertices);
+    geometry.computeVertexNormals();
 
     this.redraw();
   }
@@ -522,6 +582,7 @@ class ThreeDModule {
 
   toggleLabels(): void {
     this.options.labels3d = this.options.labels3d ? 0 : 1;
+    if (this.campaignMeshEnabled()) return;
 
     if (this.options.labels3d && !this.isSatelliteTerrainMode()) {
       this.invalidateLabelVisibilityCache();
@@ -542,7 +603,7 @@ class ThreeDModule {
    * (burg sprites follow the map layer; state sprites stay when 3D labels is enabled).
    */
   syncLabelsFromMapLayers(): void {
-    if (!this.options.isOn || this.isSatelliteTerrainMode()) return;
+    if (!this.options.isOn || this.isSatelliteTerrainMode() || this.campaignMeshEnabled()) return;
     if (!this.options.labels3d) {
       this.clearLabelSprites();
       this.render();
@@ -681,7 +742,8 @@ class ThreeDModule {
     this.scene!.background = (this.scene!.fog as THREE.Fog).color = new THREE.Color(sky);
     this.options.waterColor = water;
     this.waterMaterial!.color = new THREE.Color(water);
-    this.render();
+    if (this.campaignMeshEnabled()) this.redraw({ refreshTerrainTexture: false });
+    else this.render();
   }
 
   setTimeOfDay(presetName: string): void {
@@ -716,6 +778,7 @@ class ThreeDModule {
   }
 
   private async newMesh(canvas: HTMLCanvasElement): Promise<boolean> {
+    this.rendererReady = false;
     this.scene = new THREE.Scene();
 
     this.ambientLight = new THREE.AmbientLight(0xcccccc, this.options.lightness * Math.PI);
@@ -729,6 +792,9 @@ class ThreeDModule {
 
     this.Renderer = createMapWebGPURenderer(canvas);
     await this.Renderer.init();
+    // stop() during init leaves a disposed backend. Do not queue a mesh against it.
+    if (!this.options.isOn) return false;
+    this.rendererReady = true;
     // Matches updateGlobeTexure()'s renderer below: the terrain CanvasTexture is left at its
     // default colorSpace (untagged), so the output needs to be encoded to sRGB here for the
     // canvas pixels to land on-screen unmodified.
@@ -765,6 +831,7 @@ class ThreeDModule {
     this.controls.autoRotate = Boolean(this.options.rotateMesh);
     this.controls.autoRotateSpeed = this.options.rotateMesh;
     this.attachBurgPicking(canvas);
+    if (this.viewType === "viewMesh" && this.campaignFocus) this.campaignCameraDirty = true;
     this.createNightscapeBeamLight();
     this.syncNightscapeLighting();
     const erosionBuild = this.options.erosion;
@@ -1734,6 +1801,8 @@ class ThreeDModule {
   }
 
   private queueMeshBuild(options: MeshRebuildOptions): void {
+    // create() sets isOn before init() resolves. A layer refresh in that gap must not render yet.
+    if (!this.rendererReady) return;
     const requestId = ++this.meshBuildRequestId;
     const build = async (): Promise<void> => {
       if (!this.isMeshBuildCurrent(requestId)) return;
@@ -1782,6 +1851,15 @@ class ThreeDModule {
         }
       }
     }
+
+    if (!this.isMeshBuildCurrent(requestId)) return;
+    this.disposeCampaignGroup();
+    if (this.campaignMeshEnabled()) {
+      this.erosionBakeActive = Boolean(this.options.erosion && this.erosionBakeData);
+      this.createCampaignMesh();
+      return;
+    }
+    this.markCampaignCanvas(false);
 
     const sceneOnly = this.options.sceneOnly;
     const useSatellite = Boolean(
@@ -1948,25 +2026,13 @@ class ThreeDModule {
     }
   }
 
-  private readonly LOWER_BY_WATER = 18;
-  private readonly DIVIDER = 100 - 18;
-
   private getMeshHeight(i: number): number {
     const height = worldContext.grid.cells.h[i];
-
-    let waterCellId: number | null = null;
-    if (height < SEA_LEVEL) {
-      waterCellId = i;
-    } else if (worldContext.grid.cells.c![i]) {
-      waterCellId = worldContext.grid.cells.c![i].find((c: number) => worldContext.grid.cells.h[c] < SEA_LEVEL) ?? null;
-    }
-
-    if (waterCellId !== null) {
-      const waterHeight = getWaterSurfaceHeight(worldContext, waterCellId, this.gridToPackCellMap!);
-      return ((waterHeight - this.LOWER_BY_WATER) / this.DIVIDER) * this.options.scale;
-    }
-
-    return ((height - this.LOWER_BY_WATER) / this.DIVIDER) * this.options.scale;
+    // Only the water cell itself sits on the water surface. A land cell that merely
+    // touches the sea keeps its own height, so a coastal cliff stays as tall as its contours.
+    const surface =
+      height < SEA_LEVEL ? getWaterSurfaceHeight(worldContext, i, this.gridToPackCellMap ?? new Map()) : height;
+    return meshHeightFromIndex(surface, optionsStore.getState().heightExponent, this.options.scale);
   }
 
   private extendWater(width: number, height: number): void {
@@ -1994,6 +2060,7 @@ class ThreeDModule {
       while (this.textureUpdateQueued) {
         this.textureUpdateQueued = false;
         if (!this.material || !this.Renderer || !this.options.isOn || this.options.sceneOnly) continue;
+        if (this.campaignMeshEnabled()) continue;
 
         if (this.isSatelliteTerrainMode()) {
           if (this.erosionBakeData) {
@@ -2014,7 +2081,13 @@ class ThreeDModule {
         const nextTexture = await this.createMeshTexture();
         // Keep the visible bitmap until the last requested deck.gl frame is ready. Any frame made
         // obsolete while it was rendering is discarded without touching the terrain material.
-        if (this.material !== material || !this.options.isOn || this.options.sceneOnly || this.textureUpdateQueued) {
+        if (
+          this.material !== material ||
+          !this.options.isOn ||
+          this.options.sceneOnly ||
+          this.textureUpdateQueued ||
+          this.campaignMeshEnabled()
+        ) {
           nextTexture?.dispose();
           continue;
         }
@@ -2056,6 +2129,7 @@ class ThreeDModule {
   }
 
   private async newGlobe(canvas: HTMLCanvasElement): Promise<boolean> {
+    this.rendererReady = false;
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.TextureLoader().load(
       "https://i0.wp.com/azgaar.files.wordpress.com/2019/10/stars-1.png",
@@ -2064,6 +2138,8 @@ class ThreeDModule {
 
     this.Renderer = createMapWebGPURenderer(canvas);
     await this.Renderer.init();
+    if (!this.options.isOn) return false;
+    this.rendererReady = true;
     this.Renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.Renderer.setSize(canvas.width, canvas.height);
 
@@ -2150,7 +2226,7 @@ class ThreeDModule {
   }
 
   private render(): void {
-    if (!this.Renderer) return;
+    if (!this.Renderer || !this.rendererReady) return;
     this.updateNightscapeBeam();
     this.Renderer.render(this.scene!, this.camera!);
     this.renderThrottled();
@@ -2358,6 +2434,306 @@ class ThreeDModule {
       return color;
     })();
   }
+
+  private campaignMeshEnabled(): boolean {
+    return this.viewType === "viewMesh" && this.campaignFocus !== null && this.options.isGlobe !== true;
+  }
+
+  private restoreMeshCameraLimits(): void {
+    if (!this.camera || !this.controls || this.options.isGlobe) return;
+    this.controls.minDistance = 50;
+    this.controls.maxDistance = 1000;
+    this.camera.near = 0.1;
+    this.camera.far = 2000;
+    this.camera.updateProjectionMatrix();
+    this.controls.update();
+  }
+
+  private applyCampaignCamera(frame: {
+    target: [number, number, number];
+    position: [number, number, number];
+    minDistance: number;
+    maxDistance: number;
+  }): void {
+    if (!this.camera || !this.controls || !this.campaignCameraDirty) return;
+    this.campaignCameraDirty = false;
+    this.controls.target.set(frame.target[0], frame.target[1], frame.target[2]);
+    this.camera.position.set(frame.position[0], frame.position[1], frame.position[2]);
+    this.controls.minDistance = frame.minDistance;
+    this.controls.maxDistance = frame.maxDistance;
+    this.camera.near = 0.1;
+    this.camera.far = Math.max(2000, frame.maxDistance * 4);
+    this.camera.updateProjectionMatrix();
+    this.controls.update();
+  }
+
+  private disposeCampaignGroup(): void {
+    const group = this.campaignGroup;
+    if (!group) return;
+    group.traverse(object => {
+      const drawable = object as THREE.Mesh;
+      if (!drawable.geometry) return;
+      if (drawable.geometry !== this.campaignSphere && drawable.geometry !== this.campaignDiamond)
+        drawable.geometry.dispose();
+      const material = drawable.material;
+      if (Array.isArray(material)) for (const entry of material) entry.dispose();
+      else material?.dispose();
+    });
+    this.scene?.remove(group);
+    this.campaignGroup = undefined;
+  }
+
+  /** Window mesh, cell borders, and the rivers, routes, regiments, and burgs inside it. No deck.gl capture. */
+  private createCampaignMesh(): void {
+    if (!this.scene || !this.campaignFocus) return;
+    this.deleteLabels();
+    this.cancelTerrainOverlayBuild();
+    this.deleteFloatingRoutes();
+    if (this.texture) this.texture.dispose();
+    this.texture = undefined;
+    if (this.material) this.material.dispose();
+    this.material = undefined;
+    if (this.geometry) this.geometry.dispose();
+    this.geometry = undefined;
+    if (this.mesh) this.scene.remove(this.mesh);
+    this.mesh = undefined;
+    if (this.waterMesh) this.waterMesh.visible = false;
+
+    const source = this.campaignBuildInput(this.campaignFocus);
+    const built = buildCampaignMesh(source);
+    const spacing = source.packSpacingPx > 0 ? source.packSpacingPx : 1;
+
+    this.material = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      wireframe: Boolean(this.options.wireframe)
+    });
+    this.geometry = new THREE.BufferGeometry();
+    this.geometry.setAttribute("position", new THREE.BufferAttribute(built.ground.positions, 3));
+    this.geometry.setAttribute("color", new THREE.BufferAttribute(built.ground.colors, 3));
+    this.geometry.setIndex(new THREE.BufferAttribute(built.ground.indices, 1));
+    this.geometry.computeVertexNormals();
+    this.mesh = new THREE.Mesh(this.geometry, this.material);
+    this.mesh.name = "campaign-ground";
+    this.scene.add(this.mesh);
+    this.mesh.updateMatrixWorld();
+
+    const group = new THREE.Group();
+    group.name = "campaign-window";
+    this.scene.add(group);
+    this.campaignGroup = group;
+    const { sphere, diamond } = this.campaignMarkerGeometries();
+    const radius = Math.max(spacing * 0.12, 0.35);
+
+    for (const line of built.polylines) this.addCampaignLine(group, line);
+    for (const marker of built.markers) {
+      this.addCampaignMarker(group, marker, marker.kind === "regiment" ? diamond : sphere, radius);
+      if (marker.kind === "burg" && marker.name) this.addCampaignBurgLabel(marker, spacing);
+    }
+
+    this.applyCampaignCamera(built.camera);
+    this.markCampaignCanvas(true, built.ground.vertexCount);
+    this.render();
+  }
+
+  private markCampaignCanvas(active: boolean, vertexCount = 0): void {
+    const canvas = this.Renderer?.domElement;
+    if (!(canvas instanceof HTMLCanvasElement)) return;
+    if (active) {
+      canvas.dataset.campaign = "window";
+      canvas.dataset.campaignVertices = String(vertexCount);
+      return;
+    }
+    delete canvas.dataset.campaign;
+    delete canvas.dataset.campaignVertices;
+  }
+
+  private campaignMarkerGeometries(): { sphere: THREE.SphereGeometry; diamond: THREE.OctahedronGeometry } {
+    this.campaignSphere ??= new THREE.SphereGeometry(1, 10, 8);
+    this.campaignDiamond ??= new THREE.OctahedronGeometry(1, 0);
+    return { sphere: this.campaignSphere, diamond: this.campaignDiamond };
+  }
+
+  private addCampaignLine(group: THREE.Group, line: CampaignPolyline): void {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(line.positions, 3));
+    const material = new THREE.LineBasicMaterial({
+      color: new THREE.Color(line.color[0], line.color[1], line.color[2]),
+      depthWrite: false
+    });
+    const segments = new THREE.LineSegments(geometry, material);
+    segments.renderOrder = line.kind === "focus" ? 2 : 1;
+    group.add(segments);
+  }
+
+  private addCampaignMarker(
+    group: THREE.Group,
+    marker: CampaignMarker,
+    geometry: THREE.BufferGeometry,
+    radius: number
+  ): void {
+    const material = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(marker.color[0], marker.color[1], marker.color[2])
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.scale.setScalar(radius);
+    mesh.position.set(marker.position[0], marker.position[1], marker.position[2]);
+    mesh.renderOrder = 2;
+    group.add(mesh);
+  }
+
+  private addCampaignBurgLabel(marker: CampaignMarker, spacing: number): void {
+    if (!this.scene || !marker.name) return;
+    const sprite = this.createTextLabel({
+      text: marker.name,
+      font: "Almendra SC",
+      size: 14,
+      color: "#24180f",
+      quality: 8
+    }) as LabelSprite;
+    const width = Math.max(spacing * 0.9, 1.5);
+    const aspect = sprite.scale.y / Math.max(sprite.scale.x, 1e-6);
+    sprite.scale.set(width, width * aspect, 1);
+    sprite.center.set(0.5, 0);
+    sprite.position.set(marker.position[0], marker.position[1], marker.position[2]);
+    sprite.renderOrder = 3;
+    sprite.size = width;
+    this.labels.push(sprite);
+    this.scene.add(sprite);
+  }
+
+  private campaignBuildInput(focus: CampaignFocus): CampaignBuildInput {
+    const graphWidth = worldContext.graphWidth;
+    const graphHeight = worldContext.graphHeight;
+    const gridSpacingPx = campaignGridSpacingPx(
+      graphWidth,
+      graphHeight,
+      worldContext.grid?.cellsX ?? 0,
+      worldContext.grid?.cellsY ?? 0
+    );
+    const cellCount = worldContext.pack.cells?.i?.length ?? 0;
+    const packSpacingPx = cellCount > 0 ? Math.sqrt((graphWidth * graphHeight) / cellCount) : gridSpacingPx;
+    const centroids = worldContext.pack.cells?.p;
+    const stateColors = new Map<number, string>();
+    const regimentSources: CampaignRegimentSource[] = [];
+    for (const state of worldContext.pack.states ?? []) {
+      if (!state || typeof state !== "object") continue;
+      if (!state.removed && state.i && state.color) stateColors.set(state.i, state.color);
+      for (const regiment of state.military ?? []) {
+        regimentSources.push({
+          x: regiment.x,
+          y: regiment.y,
+          cell: regiment.cell,
+          naval: Boolean(regiment.n),
+          path: regiment.path,
+          color: state.color
+        });
+      }
+    }
+
+    return {
+      centerX: focus.x,
+      centerY: focus.y,
+      focusCellId: focus.cellId,
+      graphWidth,
+      graphHeight,
+      kmPerPx: kmPerMapPixel(worldContext.distanceScale, optionsStore.getState().distanceUnit || "km"),
+      gridSpacingPx,
+      packSpacingPx,
+      heightAt: (x, y) => this.sampleTerrainHeight(x, y),
+      waterColor: this.options.waterColor,
+      stateColors,
+      cells: this.campaignCells(),
+      rivers: this.campaignRivers(centroids),
+      routes: this.campaignRoutes(),
+      regiments: campaignRegimentPlacements(regimentSources, cellId => {
+        const point = centroids?.[cellId];
+        return point ? [point[0], point[1]] : undefined;
+      }),
+      burgs: this.campaignBurgs()
+    };
+  }
+
+  private campaignCells(): CampaignCellInput[] {
+    const packCells = worldContext.pack.cells;
+    const ids = packCells?.i;
+    const centroids = packCells?.p;
+    if (!ids || !centroids || !packCells?.h || !packCells.state) return [];
+    const vertexPoints = worldContext.pack.vertices?.p;
+    const biomeColors = worldContext.biomesData?.color;
+    const cells: CampaignCellInput[] = [];
+    for (let index = 0; index < ids.length; index++) {
+      const id = ids[index];
+      const centroid = centroids[id];
+      if (!centroid) continue;
+      const ring: [number, number][] = [];
+      const vertexIds = packCells.v?.[id];
+      if (vertexIds && vertexPoints) {
+        for (const vertexId of vertexIds) {
+          const point = vertexPoints[vertexId];
+          if (point) ring.push([point[0], point[1]]);
+        }
+      }
+      const biomeCode = packCells.biomeCode?.[id];
+      cells.push({
+        id,
+        x: centroid[0],
+        y: centroid[1],
+        height: packCells.h[id] ?? 0,
+        state: packCells.state[id] ?? 0,
+        biomeColor: biomeCode === undefined ? undefined : biomeColors?.[biomeCode],
+        ring
+      });
+    }
+    return cells;
+  }
+
+  private campaignRivers(centroids: [number, number][] | undefined): CampaignBuildInput["rivers"] {
+    const rivers: { points: [number, number][] }[] = [];
+    for (const river of worldContext.pack.rivers ?? []) {
+      if (!river) continue;
+      const drawn = this.campaignPoints(river.points);
+      if (drawn.length >= 2) {
+        rivers.push({ points: drawn });
+        continue;
+      }
+      const fromCells: [number, number][] = [];
+      for (const cellId of river.cells ?? []) {
+        const point = centroids?.[cellId];
+        if (point) fromCells.push([point[0], point[1]]);
+      }
+      if (fromCells.length >= 2) rivers.push({ points: fromCells });
+    }
+    return rivers;
+  }
+
+  private campaignRoutes(): CampaignBuildInput["routes"] {
+    const routes: { points: [number, number][] }[] = [];
+    for (const route of worldContext.pack.routes ?? []) {
+      const points = this.campaignPoints(route?.points);
+      if (points.length >= 2) routes.push({ points });
+    }
+    return routes;
+  }
+
+  private campaignBurgs(): CampaignBuildInput["burgs"] {
+    const burgs: { x: number; y: number; name?: string }[] = [];
+    for (const burg of worldContext.pack.burgs ?? []) {
+      if (!burg || typeof burg !== "object" || burg.removed) continue;
+      if (!Number.isFinite(burg.x) || !Number.isFinite(burg.y)) continue;
+      burgs.push({ x: burg.x, y: burg.y, name: burg.name });
+    }
+    return burgs;
+  }
+
+  private campaignPoints(points: ReadonlyArray<readonly number[]> | undefined): [number, number][] {
+    if (!points) return [];
+    const out: [number, number][] = [];
+    for (const point of points) {
+      if (!point || point.length < 2 || !Number.isFinite(point[0]) || !Number.isFinite(point[1])) continue;
+      out.push([point[0], point[1]]);
+    }
+    return out;
+  }
 }
 
 export type { ThreeDAPI, ThreeDModule, ThreeDOptions };
@@ -2387,6 +2763,7 @@ interface ThreeDAPI {
   setColors: (sky: string, water: string) => void;
   setTimeOfDay: (presetName: string) => void;
   timeOfDayPresets: Record<string, TimeOfDayPreset>;
+  setCampaignFocus: (focus: CampaignFocus | null) => void;
   saveScreenshot: () => Promise<void>;
   saveOBJ: () => void;
   toggleErosion: () => void;

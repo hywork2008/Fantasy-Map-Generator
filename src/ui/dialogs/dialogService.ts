@@ -62,6 +62,18 @@ export function openDialog(id: string, config?: OpenDialogConfig): void {
   dialogStore.getState().openDialog(id, config);
 }
 
+/** Collapse the dialog that contains `source` so a view underneath can be seen. */
+export function minimizeEnclosingDialog(source: Element): void {
+  const dialog = source.closest(".fmg-dialog");
+  if (!dialog || dialog.classList.contains("minimized")) return;
+  for (const button of dialog.querySelectorAll<HTMLButtonElement>(".titlebar-actions button")) {
+    if (button.textContent?.trim() === "▼") {
+      button.click();
+      return;
+    }
+  }
+}
+
 /** 名前付きダイアログを閉じる */
 export function closeDialog(id: string): void {
   dialogStore.getState().closeDialog(id);

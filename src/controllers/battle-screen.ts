@@ -11,6 +11,7 @@ import { getFormationMatchupFactor, getTacticalSkill, resolveBattleFormations } 
 import type { Character } from "../extensions/characters/characterTypes";
 import { isLichRaceKey, raceKeyForId } from "../extensions/characters/lichPolicy";
 import { applyDemographicCasualties } from "../generators/demography-simulator";
+import { battleCampaignAnchor } from "../renderers/campaignFocus";
 import { CombatDeathsRenderer, moveRegiment } from "../renderers/index";
 import { createMarker } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
@@ -1089,6 +1090,15 @@ export function battleAction_addRegimentToSide(side: BattleSide, stateI: number,
 
 export function battleAction_wiki(): void {
   wiki("Battle-Simulator");
+}
+
+/** Opens the week-of-march 3D window on this battle's cell. Does not resolve the battle. */
+export function battleAction_viewIn3d(): boolean {
+  const battle = Battle.context;
+  if (!battle || !Number.isFinite(battle.x) || !Number.isFinite(battle.y)) return false;
+  const anchor = battleCampaignAnchor(battle);
+  void import("./viewMode").then(({ openCampaignViewAt }) => openCampaignViewAt(anchor.x, anchor.y));
+  return true;
 }
 
 export type { BattleRegiment };

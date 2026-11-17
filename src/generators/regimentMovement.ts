@@ -53,7 +53,7 @@ import { buildSeaRouteGraph, findSeaRouteDistance, findSeaRoutePath, type SeaRou
 const GARRISON_PULL_STRENGTH = 0.5;
 
 /** Foot infantry march pace — draft baseline, docs/plan/military-movement.md §4.1 ("叩き台"). */
-const FOOT_SPEED_KM_PER_DAY = 28;
+export const FOOT_SPEED_KM_PER_DAY = 28;
 
 /** Cavalry's short-burst pace — draft baseline, same §4.1 answer. */
 const CAVALRY_BURST_SPEED_KM_PER_DAY = 56;

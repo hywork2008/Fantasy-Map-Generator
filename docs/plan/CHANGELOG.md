@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-11-17
+
+- docs/plan/war-campaign-mesh.md - 戦争用に徒歩7日の窓だけをFMGメッシュで3D表示する
+
 2026-11-16
 
 - docs/plan/workshop-to-firm.md - 中世の工房・商会から近代の企業へ経済主体が移る台帳
