@@ -4,12 +4,15 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { lockRegimentForBattle, unlockRegimentForBattle } from "../generators/battleLock";
+import { regimentCampaignAnchor } from "../renderers/campaignFocus";
+import { campaignSidePx, kmPerMapPixel } from "../renderers/campaignWindow";
 import { drawRegiment, moveRegiment } from "../renderers/index";
 import { moveRegiment as moveRegimentCommand } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, modules, setElSelected } from "../store/editorState";
+import { useOptionsState } from "../store/optionsState";
 import { getRegimentEditorState, setRegimentEditorState } from "../store/regimentEditorState";
 import type { MilitaryRegiment } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
@@ -56,6 +59,27 @@ function getOptionalRegEl(): SVGGElement | null {
 
 function findRegiment(stateId: number, regimentId: number): MilitaryRegiment | undefined {
   return (worldContext.pack.states[stateId]?.military as MilitaryRegiment[] | undefined)?.find(r => r.i === regimentId);
+}
+
+/** Regiments of states at war with `stateId`. Diplomacy "Enemy" on either side counts. */
+function enemyRegiments(stateId: number): { state: number; i: number; x: number; y: number }[] {
+  const states = worldContext.pack.states;
+  const own = states[stateId];
+  if (!own) return [];
+  const forces: { state: number; i: number; x: number; y: number }[] = [];
+  for (let otherId = 0; otherId < states.length; otherId++) {
+    if (otherId === stateId) continue;
+    const other = states[otherId];
+    if (!other || other.removed) continue;
+    const forward = own.diplomacy?.[otherId];
+    const back = other.diplomacy?.[stateId];
+    if (forward !== "Enemy" && back !== "Enemy") continue;
+    for (const regiment of other.military ?? []) {
+      if (!Number.isFinite(regiment.x) || !Number.isFinite(regiment.y)) continue;
+      forces.push({ state: regiment.state, i: regiment.i, x: regiment.x, y: regiment.y });
+    }
+  }
+  return forces;
 }
 
 // Reads the regiment currently open in the editor from regimentEditorState, not from DOM
@@ -488,6 +512,31 @@ export const regimentEditorActions = {
     const reg = getRegiment();
     if (!reg) return;
     editNotes(getRegEl().id, reg.name);
+  },
+
+  viewIn3d(): boolean {
+    const regiment = getRegiment();
+    if (!regiment || !Number.isFinite(regiment.x) || !Number.isFinite(regiment.y)) return false;
+    const battle = Battle.context;
+    const anchor = regimentCampaignAnchor({
+      regiment: { state: regiment.state, i: regiment.i, x: regiment.x, y: regiment.y },
+      battle: battle
+        ? {
+            x: battle.x,
+            y: battle.y,
+            cell: battle.cell,
+            attackers: battle.attackers.regiments,
+            defenders: battle.defenders.regiments
+          }
+        : null,
+      enemies: enemyRegiments(regiment.state),
+      contactReachPx: campaignSidePx(
+        kmPerMapPixel(worldContext.distanceScale, useOptionsState.getState().distanceUnit)
+      ),
+      cellAt: findCell
+    });
+    void import("./viewMode").then(({ openCampaignViewAt }) => openCampaignViewAt(anchor.x, anchor.y));
+    return true;
   },
 
   removeRegiment(): void {

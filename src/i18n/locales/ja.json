@@ -109,6 +109,10 @@
     "openCityEditor": "City Editorで開く（{{name}}）",
     "openCampaignView": "ここを中心に3Dで見る"
   },
+  "campaignView": {
+    "viewBattle": "この戦闘を3Dで見る",
+    "viewBattleTip": "この接敵を中心に、徒歩1週間の3D窓を開きます。ホイールで引けます。"
+  },
   "directions": {
     "mode": {
       "foot": "徒歩",

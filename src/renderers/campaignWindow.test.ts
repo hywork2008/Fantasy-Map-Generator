@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { getEarthDistanceScale } from "../data/earthConfig";
 import { getTemplateDistanceScale } from "../data/earthRegions";
 import { FOOT_SPEED_KM_PER_DAY } from "../generators/regimentMovement";
-import { CAMPAIGN_FOOT_DAYS, CAMPAIGN_FOOT_KM_PER_DAY, campaignWindow, kmPerMapPixel } from "./campaignWindow";
+import {
+  CAMPAIGN_FOOT_DAYS,
+  CAMPAIGN_FOOT_KM_PER_DAY,
+  campaignSidePx,
+  campaignWindow,
+  kmPerMapPixel
+} from "./campaignWindow";
 
 const GRAPH_WIDTH = 960;
 const GRAPH_HEIGHT = 540;
@@ -30,6 +36,7 @@ describe("campaignWindow", () => {
     expect(box.cellsAlongSide).toBeLessThan(11);
     expect(box.maxX - box.minX).toBeCloseTo(box.sideKm / kmPerPx, 5);
     expect(box.maxY - box.minY).toBeCloseTo(box.sideKm / kmPerPx, 5);
+    expect(campaignSidePx(kmPerPx)).toBeCloseTo(box.maxX - box.minX, 5);
   });
 
   it("keeps the same kilometres and spans tens of cells on the Britain scale", () => {

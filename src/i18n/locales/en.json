@@ -109,6 +109,10 @@
     "openCityEditor": "Open in City Editor ({{name}})",
     "openCampaignView": "View in 3D from here"
   },
+  "campaignView": {
+    "viewBattle": "View this battle in 3D",
+    "viewBattleTip": "Open the week-of-march 3D window on this engagement. Scroll to pull back."
+  },
   "directions": {
     "mode": {
       "foot": "On foot",

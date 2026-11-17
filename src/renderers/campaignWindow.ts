@@ -40,6 +40,19 @@ export function kmPerMapPixel(distanceScale: number, distanceUnit = "km"): numbe
   return mapUnitMeters(distanceScale, distanceUnit) / 1000;
 }
 
+/** Map pixels across one campaign window. Two forces this far apart both fit when the camera sits on their midpoint. */
+export function campaignSidePx(
+  kmPerPx: number,
+  footDays = CAMPAIGN_FOOT_DAYS,
+  footKmPerDay = CAMPAIGN_FOOT_KM_PER_DAY
+): number {
+  const kmPerPxSafe = Number.isFinite(kmPerPx) ? kmPerPx : 0;
+  if (kmPerPxSafe <= 0) return 0;
+  const days = Number.isFinite(footDays) ? Math.max(0, footDays) : CAMPAIGN_FOOT_DAYS;
+  const pace = Number.isFinite(footKmPerDay) ? Math.max(0, footKmPerDay) : CAMPAIGN_FOOT_KM_PER_DAY;
+  return (days * pace * 2) / kmPerPxSafe;
+}
+
 function finite(value: number, fallback = 0): number {
   return Number.isFinite(value) ? value : fallback;
 }
