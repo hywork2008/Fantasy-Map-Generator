@@ -403,6 +403,30 @@ export const ANCIENT_ROME_REGION: EarthRegion = {
     "Natural Earth 10m admin-0 land (public domain). Roman Empire AD 117 theatre from Britain to the Caspian; in-frame neighbors are kept."
 };
 
+/**
+ * The Alps and their forelands: Maritime Alps and the Ligurian coast (SW) to the Vienna basin
+ * (E), the Jura and southern Germany (N), the Po plain and northern Adriatic (S). Used to
+ * check real-DEM terrain tiles on Alpine relief (docs/plan/alps-terrain-tiles.md). The graph is
+ * fitted to this bbox's true shape.
+ */
+export const ALPS_REGION: EarthRegion = {
+  id: "alps",
+  name: "Alps",
+  west: 4.5,
+  east: 17,
+  south: 43.5,
+  north: 48.6,
+  projection: "equirectangular",
+  climateAnchor: {
+    mapSize: 3.4722,
+    latitude: 46.05,
+    longitude: 46.91
+  },
+  raster: { path: "./heightmaps/earth/alps.bin" },
+  attribution:
+    "Natural Earth 10m admin-0 land (public domain). Terrarium elevation (EU-DEM, SRTM, Austria DGM); in-frame neighbors are kept."
+};
+
 export const earthRegions: Record<string, EarthRegion> = {
   "east-asia": EAST_ASIA_REGION,
   japan: JAPAN_REGION,
@@ -414,7 +438,8 @@ export const earthRegions: Record<string, EarthRegion> = {
   europe: EUROPE_REGION,
   "indian-ocean": INDIAN_OCEAN_REGION,
   arabia: ARABIA_REGION,
-  "ancient-rome": ANCIENT_ROME_REGION
+  "ancient-rome": ANCIENT_ROME_REGION,
+  alps: ALPS_REGION
 };
 
 export function isEarthRegion(id: string): boolean {

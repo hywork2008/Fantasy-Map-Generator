@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | 調査と設計（2026-11-18）。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める |
+| Status | A0・A1 済み（2026-11-18）。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める |
 | Parent | [`japan-terrain-tiles.md`](./japan-terrain-tiles.md) |
 | Related | [`japan-local-war-terrain.md`](./japan-local-war-terrain.md)、[`fmg-cell-valleys.md`](./fmg-cell-valleys.md)、[`earth-geography-heightmaps.md`](./earth-geography-heightmaps.md)、[`../../scripts/bakeJapanTiles.mjs`](../../scripts/bakeJapanTiles.mjs)、[`../../src/data/earthRegions.ts`](../../src/data/earthRegions.ts)、[`../../src/renderers/terrainTiles/terrainTileLayer.ts`](../../src/renderers/terrainTiles/terrainTileLayer.ts) |
 | Scope | アルプス山脈とその周りを、Japan と同じ四分木タイルで3D表示し、山の造形を確かめる。日本と同じく「出典を記載すれば加工・再配布・商用利用ができる」データだけを使う。シミュの `cells.h`・河川・経路は変えない |
@@ -135,6 +135,24 @@ Japan と同じ四分木（z0=256km、65点格子）。
 | A3 | Terrarium だけで z0〜z3 を焼いて3D表示する | 配布量、全試験地点の画像 |
 | A4 | z4〜z5 を Terrarium で焼き、スイス国内で swissALTI3D の z5 と比べる（Japan の GSI と Terrarium の比較と同じ）。z6 の要否、国境の継ぎ目の見え方、他の国の出典（§2.2）を足すかを決める | 尾根・崖・谷底の見え方、縞の有無、継ぎ目の段差、焼き込み時間 |
 | A5 | アルプスの谷の横断面を測り（`sampleJapanValleyProfiles.mjs` を地域で切り替え）、U字谷の曲線を足すか決める | 深さ別の寸法と側壁の形 |
+
+## 7.1 記録
+
+### A0（2026-11-18）
+
+- swisstopo：[無償地理データの利用条件](https://www.swisstopo.admin.ch/en/terms-of-use-free-geodata-and-geoservices)（2022-08-26 掲載、版 1.3.2021）。利用・頒布・公開、加工、商用利用ができ、出典の記載は必須。使える表記は `Federal Office of Topography swisstopo`、`Bundesamt für Landestopografie swisstopo` などの各言語名と `©swisstopo`。地図やサービスでは、各要素の横か、地図からリンクした出典の一覧ページに書く。派生データは「derived from ...」を前に付けてよい。ジオサービスを過剰に使うとアクセスを制限されうる（数値の上限は無い）。連邦空間データ基盤（FSDI）の一般利用条件も掛かる。→ 地図の出典表示とEncyclopedia の出典一覧に `©swisstopo`（派生なので `derived from swissALTI3D ©swisstopo`）を書く。
+- Terrarium（tilezen/joerd の出典一覧）：アルプスに掛かるのは次の表記。swisstopo・イタリア・フランスの元データは含まれない。
+  - `Austria terrain data © offene Daten Österreichs – Digitales Geländemodell (DGM) Österreich`（CC BY 3.0 AT）
+  - `Europe terrain data produced using Copernicus data and information funded by the European Union - EU-DEM layers`
+  - `Global ETOPO1 terrain data U.S. National Oceanic and Atmospheric Administration`
+  - `global GMTED2010 and SRTM terrain data courtesy of the U.S. Geological Survey`
+- 残る確認：FSDI の一般利用条件（http://www.geo.admin.ch/terms-of-use）は読んでいない。A4 で swissALTI3D を取得する前に読む。
+
+### A1（2026-11-18）
+
+- `scripts/bakeAlpsEarthRaster.mjs` で `public/heightmaps/earth/alps.bin` を焼いた（Terrarium z7、0.02°、675×305、437KB。範囲は地域を0.5°広げた 4.0–17.5°E, 43.0–49.1°N）。陸は Natural Earth 10m admin-0（`temp/ne_10m_admin_0_countries.geojson`、Git 管理外）。
+- `ALPS_REGION`（[`earthRegions.ts`](../../src/data/earthRegions.ts)）とテンプレート `alps`（id 25）を足した。気候の基準は東経4.5–17.0°、中心北緯46.05°。
+- seed 12345 で生成：約4秒、9,598 セル（陸 9,080）、最高 h=100、川 197、国家 14、都市 66（Cultures set Antique のため Settlement pattern が Marches）。人口に頼る試験では Standard に変える。
 
 ## 8. やらないこと
 

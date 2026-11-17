@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { convertLegacyLatitudeToGeographic } from "../data/earthConfig";
 import {
+  ALPS_REGION,
   ANCIENT_ROME_REGION,
   ARABIA_REGION,
   ATLANTICS_REGION,
@@ -198,5 +199,17 @@ describe("ancient-rome climate conversion", () => {
     expect(coords.latN).toBeCloseTo(59.5, 5);
     expect(ANCIENT_ROME_REGION.climateAnchor.mapSize).toBeCloseTo(((56 - -11.5) / 360) * 100, 3);
     expect(ANCIENT_ROME_REGION.climateAnchor.latitude).toBeCloseTo((21.5 + 59.5) / 2, 5);
+  });
+});
+
+describe("alps climate conversion", () => {
+  it("anchors climate to the Alps bbox (Maritime Alps to the Vienna basin)", () => {
+    const coords = earthRegionMapCoordinates(ALPS_REGION);
+    expect(coords.lonW).toBeCloseTo(4.5, 1);
+    expect(coords.lonE).toBeCloseTo(17, 1);
+    expect(coords.latS).toBeCloseTo(43.5, 1);
+    expect(coords.latN).toBeCloseTo(48.6, 1);
+    expect(ALPS_REGION.climateAnchor.mapSize).toBeCloseTo(((17 - 4.5) / 360) * 100, 3);
+    expect(ALPS_REGION.climateAnchor.latitude).toBeCloseTo((43.5 + 48.6) / 2, 5);
   });
 });
