@@ -51,4 +51,25 @@ describe("buildTileMesh", () => {
     // Both columns sit on the same slope, so they shade alike (no seam at the edge).
     expect(mesh.colors[0] / mesh.colors[3]).toBeCloseTo(tileLandColor(200)[0] / tileLandColor(400)[0], 5);
   });
+
+  it("lets adjustMeters lower land only, never below sea level", () => {
+    const data = new Int16Array([100, 0, 100, 100]);
+    const mesh = buildTileMesh({
+      data,
+      samples: 2,
+      unitMeters: 1,
+      nodata: -32768,
+      originX: 0,
+      originZ: 0,
+      stepX: 1,
+      stepZ: 1,
+      worldYPerMeter: 1,
+      skirtMeters: 0,
+      hillshade: false,
+      adjustMeters: (x, _z, m) => (x === 0 ? m - 40 : m - 500)
+    });
+    expect(mesh.positions[1]).toBeCloseTo(60);
+    expect(mesh.positions[3 * 1 + 1]).toBe(0);
+    expect(mesh.positions[3 * 3 + 1]).toBeCloseTo(0.5);
+  });
 });

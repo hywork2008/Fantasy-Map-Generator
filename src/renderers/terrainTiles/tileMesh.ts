@@ -28,6 +28,8 @@ export interface TileMeshInput {
    * world x/z, whether it is land, and the RGB triple at `colors[offset..offset+2]`.
    */
   adjustColor?: (x: number, z: number, land: boolean, colors: Float32Array, offset: number) => void;
+  /** Reshape land heights (valleys along FMG rivers): world x/z and DEM meters in, meters out. */
+  adjustMeters?: (x: number, z: number, meters: number) => number;
 }
 
 export interface TileMeshArrays {
@@ -89,11 +91,15 @@ export function buildTileMesh(input: TileMeshInput): TileMeshArrays {
     for (let i = 0; i < stored; i++) {
       const k = j * stored + i;
       const raw = input.data[k];
-      const meters = raw === input.nodata ? 0 : raw * input.unitMeters;
-      const land = meters > LAND_METERS;
-      padPositions[k * 3] = input.originX + (i - b) * input.stepX;
+      const x = input.originX + (i - b) * input.stepX;
+      const z = input.originZ + (j - b) * input.stepZ;
+      const dem = raw === input.nodata ? 0 : raw * input.unitMeters;
+      const land = dem > LAND_METERS;
+      // Valleys only lower land; they never reach below the land threshold.
+      const meters = land && input.adjustMeters ? Math.max(LAND_METERS, input.adjustMeters(x, z, dem)) : dem;
+      padPositions[k * 3] = x;
       padPositions[k * 3 + 1] = Math.max(0, meters) * input.worldYPerMeter;
-      padPositions[k * 3 + 2] = input.originZ + (j - b) * input.stepZ;
+      padPositions[k * 3 + 2] = z;
       const color = land ? tileLandColor(meters) : WATER;
       padColors[k * 3] = color[0];
       padColors[k * 3 + 1] = color[1];

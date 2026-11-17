@@ -426,7 +426,10 @@ class ThreeDModule {
     this.campaignFocus = next;
     this.campaignFocusKey = key;
     if (!this.options.isOn || this.viewType !== "viewMesh") return;
-    if (!next) this.restoreMeshCameraLimits();
+    if (!next) {
+      this.restoreMeshCameraLimits();
+      this.terrainTiles?.setHeightModifier(null);
+    }
     this.redraw({ refreshTerrainTexture: next === null });
   }
 
@@ -2842,13 +2845,13 @@ class ThreeDModule {
     const geo = worldContext.options?.earthRegion;
     this.localTerrainStats = null;
     this.valleyStats = null;
-    const bilinear = this.cellValleyInput(kmPerPx, focus, rivers, gridSpacingPx, tuning);
-    if (!geo || tuning.source === "cells") return bilinear;
+    const bilinear = () => this.cellValleyInput(kmPerPx, focus, rivers, gridSpacingPx, tuning);
+    if (!geo || tuning.source === "cells") return bilinear();
     // Field from tiles: the base is the region raster only, so japan-local/ is not read at all.
     // Decided by the tuning alone, so the prefecture manifests are never fetched in this mode.
     const fromTiles = tuning.source === "dem" && tuning.tiles.enabled && tuning.tiles.fieldSource === "tiles";
     const baseSampler = this.localTerrainSamplerFor(geo, !fromTiles);
-    if (!baseSampler) return bilinear;
+    if (!baseSampler) return bilinear();
     const sampler = this.fieldSampler(baseSampler, tuning);
     // `japanBin` reads only the region raster; `dem` asks for the level matching the local ground step.
     const dem = tuning.source === "dem";
@@ -2886,6 +2889,9 @@ class ThreeDModule {
             river.points.some(([x, y]) => x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY)
           )
         : null;
+    // Valleys follow the FMG rivers where they are (docs/plan/fmg-cell-valleys.md): no snapping,
+    // no narrow carve. Baked real rivers already lie in their valleys.
+    const valleys = dem && tuning.valley.enabled && !realRivers;
     const field = dem
       ? createLocalTerrainField(sampler, {
           kmPerPx,
@@ -2895,8 +2901,8 @@ class ThreeDModule {
           cellWaterAt: (x, y) => (worldContext.pack.cells.h[findCell(x, y)] ?? 20) < 20,
           burgPadKm: tuning.burgPadKm,
           riverCorridorM: tuning.riverCorridorM,
-          riverMaxCarveM: tuning.riverMaxCarveM,
-          riverSnapKm: realRivers ? 0 : tuning.riverSnapKm
+          riverMaxCarveM: valleys ? 0 : tuning.riverMaxCarveM,
+          riverSnapKm: realRivers || valleys ? 0 : tuning.riverSnapKm
         })
       : null;
     if (field) this.localTerrainStats = field.stats;
@@ -2905,10 +2911,29 @@ class ThreeDModule {
     const tiles = dem && this.terrainTiles?.isLoaded() ? this.terrainTiles : undefined;
     if (tiles) this.campaignTileDataVersion = tiles.dataVersion;
     const { graphWidth, graphHeight } = worldContext;
-    const fieldMeters = (x: number, y: number, stepKm?: number) =>
+    const demMeters = (x: number, y: number, stepKm?: number) =>
       field
         ? field.metersAt(x, y, (stepKm ?? outerStepKm) * 1000)
         : sampler.metersAt(x, y, dem ? (stepKm ?? outerStepKm) * 1000 : undefined);
+    const valleyField = valleys
+      ? this.buildValleyField(kmPerPx, bounds, rivers, (x, y) => demMeters(x, y, 0.25), tuning.valley, 4)
+      : null;
+    // The tiles carve their own heights (every level of detail) with the same valleys.
+    this.terrainTiles?.setHeightModifier(
+      valleyField
+        ? {
+            key: `${focus.x}|${focus.y}|${tuning.footDays}|${JSON.stringify(tuning.valley)}|${kmPerPx}`,
+            bounds: valleyField.boundsPx,
+            at: (x, y, m) => Math.max(0.5, valleyField.carvePx(x, y, m))
+          }
+        : null
+    );
+    const fieldMeters = valleyField
+      ? (x: number, y: number, stepKm?: number) => {
+          const m = demMeters(x, y, stepKm);
+          return m > 0.5 ? Math.max(0.5, valleyField.carvePx(x, y, m)) : m;
+        }
+      : demMeters;
     const meters = tiles
       ? (x: number, y: number, stepKm?: number) =>
           tiles.metersAt(x, y, graphWidth, graphHeight) ?? fieldMeters(x, y, stepKm)
@@ -2951,8 +2976,6 @@ class ThreeDModule {
     const exponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
     const worldPerMeter = this.options.scale / 82 ** exponent;
     if (!(worldPerMeter > 0)) return flat;
-    const started = performance.now();
-    const mPerPx = kmPerPx * 1000;
     const bounds = campaignWindow({
       centerX: focus.x,
       centerY: focus.y,
@@ -2962,21 +2985,54 @@ class ThreeDModule {
       spacingPx: 0,
       footDays: tuning.footDays
     });
-    const probeM = (valley.probeKm > 0 ? valley.probeKm * 1000 : gridSpacingPx * mPerPx) || 0;
+    const groundM = (x: number, y: number) => this.sampleTerrainHeight(x, y) / worldPerMeter;
+    const field = this.buildValleyField(kmPerPx, bounds, rivers, groundM, valley, gridSpacingPx * kmPerPx);
+    return {
+      heightAt: (x, y) => field.metersPx(x, y) * worldPerMeter,
+      rivers,
+      // A valley is a few km wide: sample the window like the DEM ground, and shade it so it reads.
+      sampleStepKm: tuning.stepKm,
+      rings: tuning.rings,
+      maxSamplesPerSide: tuning.maxSamplesPerSide,
+      hillshade: tuning.hillshade,
+      // Lines bend with the valley walls instead of cutting under them.
+      drapeStepPx: 0.25 / kmPerPx
+    };
+  }
+
+  /**
+   * Valleys along the rivers near the window, in map pixels. `groundM` is the uncarved ground
+   * (meters at a map pixel); `defaultProbeKm` is used when `probeKm` is 0.
+   */
+  private buildValleyField(
+    kmPerPx: number,
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+    rivers: CampaignBuildInput["rivers"],
+    groundM: (x: number, y: number) => number,
+    valley: ReturnType<typeof getLocalTerrainTuning>["valley"],
+    defaultProbeKm: number
+  ): {
+    metersPx(x: number, y: number): number;
+    carvePx(x: number, y: number, meters: number): number;
+    boundsPx: { minX: number; minY: number; maxX: number; maxY: number };
+  } {
+    const started = performance.now();
+    const mPerPx = kmPerPx * 1000;
+    const probeM = (valley.probeKm > 0 ? valley.probeKm : defaultProbeKm) * 1000 || 0;
     const marginPx = (probeM + 6000) / mPerPx;
     const near = (x: number, y: number) =>
       x >= bounds.minX - marginPx &&
       x <= bounds.maxX + marginPx &&
       y >= bounds.minY - marginPx &&
       y <= bounds.maxY + marginPx;
-    const groundM = (x: number, y: number) => this.sampleTerrainHeight(x / mPerPx, y / mPerPx) / worldPerMeter;
+    const groundAtM = (x: number, y: number) => groundM(x / mPerPx, y / mPerPx);
     const paths = rivers
       .filter(river => river.points.some(([x, y]) => near(x, y)))
       .map(river => ({
         points: river.points.map(([x, y]) => [x * mPerPx, y * mPerPx]),
         widths: river.widths?.map(w => w * mPerPx)
       }));
-    const field = createValleyField(sampleValleyRivers(paths, groundM, { stepM: 250, probeM }), groundM, valley);
+    const field = createValleyField(sampleValleyRivers(paths, groundAtM, { stepM: 250, probeM }), groundAtM, valley);
     let maxDepth = 0;
     let gorges = 0;
     let points = 0;
@@ -2994,16 +3050,13 @@ class ThreeDModule {
       maxReachM: field.maxReachM,
       buildMs: performance.now() - started
     };
+    const r = field.reach;
     return {
-      heightAt: (x, y) => field.valleyMetersAt(x * mPerPx, y * mPerPx) * worldPerMeter,
-      rivers,
-      // A valley is a few km wide: sample the window like the DEM ground, and shade it so it reads.
-      sampleStepKm: tuning.stepKm,
-      rings: tuning.rings,
-      maxSamplesPerSide: tuning.maxSamplesPerSide,
-      hillshade: tuning.hillshade,
-      // Lines bend with the valley walls instead of cutting under them.
-      drapeStepPx: 0.25 / kmPerPx
+      metersPx: (x, y) => field.valleyMetersAt(x * mPerPx, y * mPerPx),
+      carvePx: (x, y, meters) => field.carve(x * mPerPx, y * mPerPx, meters),
+      boundsPx: Number.isFinite(r.minX)
+        ? { minX: r.minX / mPerPx, minY: r.minY / mPerPx, maxX: r.maxX / mPerPx, maxY: r.maxY / mPerPx }
+        : { minX: 0, minY: 0, maxX: -1, maxY: -1 }
     };
   }
 

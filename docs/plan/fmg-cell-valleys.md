@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | 設計と実測（2026-11-17）。V0・V1 済み（[`valleyProfile.ts`](../../src/renderers/valleyProfile.ts)）。調整前提 |
+| Status | 設計と実測（2026-11-17）。V0〜V2 済み（[`valleyProfile.ts`](../../src/renderers/valleyProfile.ts)）。調整前提 |
 | Parent | [`fmg-cell-interior-relief.md`](./fmg-cell-interior-relief.md) |
 | Related | [`japan-terrain-tiles.md`](./japan-terrain-tiles.md)、[`japan-local-war-terrain.md`](./japan-local-war-terrain.md)、[`war-campaign-mesh.md`](./war-campaign-mesh.md)、[`../../src/renderers/localTerrainSampler.ts`](../../src/renderers/localTerrainSampler.ts)、[`../../src/renderers/campaignMesh.ts`](../../src/renderers/campaignMesh.ts) |
 | Scope | 拡大した3D（戦争用の窓）で、FMG の川に沿って見栄えのする谷・峡谷を作る。谷の寸法と形は実在の日本の谷の横断面から取る。`cells.h`・河川・経路は変えない |
@@ -64,7 +64,7 @@
 | :--- | :--- | :--- |
 | V0 済 | 横断面の曲線と寸法表、`valleyMetersAt` の純粋関数とテスト（谷の外は元の地面、谷底は下流へ単調、`F + W` で連続）。高さは `谷底 + (元の地面 − 谷底) × 曲線` とし、谷底で平ら・尾根で元の地面に一致させた。支谷・左右差の揺らぎ（`spurs`）は V3 へ | 単体テスト |
 | V1 済 | 戦争用の窓（セルの双線形の地図）に入れる。Japan 以外のテンプレートで、山地の川を撮る。結果（highIsland・seed 12345、最も高い川の上流1/3）：川3本・3,856点、谷の作成 28〜40ms、最深 193m、峡谷 0点。谷を見せるため窓の地面を DEM と同じ刻み（`stepKm`・`rings`・陰影）にしたので、頂点 1,225→317k、描き直し 27ms→0.75s。両側の起伏は川から1グリッドセル（`ltValleyProbeKm`=0）まで読む | 見た目、描き直しの時間 |
-| V2 | Japan（タイル）に入れる。タイルの高さに谷を足す方法（タイル作成時に窓の中だけ足す）を決める | 見た目、タイル作成の時間 |
+| V2 済 | Japan（タイル）に入れる。タイルの高さに谷を足す方法（タイル作成時に窓の中だけ足す）を決める。方法：`TerrainTileLayer.setHeightModifier` に谷の範囲（窓＋到達幅）と高さ関数を渡し、範囲に掛かるタイルだけ作り直す。タイルはどの詳細度でも自分の高さを谷底へ寄せる（`carve`）ので、詳細度の境で谷がずれない。線や駒の高さ（`metersAt`）も同じ関数を通す。谷を入れるときは FMG の川を寄せず（`riverSnapKm` 0）、今の掘り下げも切る。DEM での起伏は川から4km まで読む（1グリッドセルではほぼ全域が上限800mになるため）。結果（seed 12345）：川中島 川8本・最深 477m・峡谷 4点、関ヶ原 川10本・最深 494m・峡谷 6点。谷の作成 24〜44ms、タイル更新の最大 13〜25ms（谷なしと同程度）。尾根を越えていた FMG の川が谷底を流れるようになった | 見た目、タイル作成の時間 |
 | V3 | 峡谷の条件・揺らぎ・調整口の既定値を決める | 試験地点の比較画像 |
 
 ## 5. やらないこと

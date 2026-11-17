@@ -72,7 +72,25 @@ interface LiveTile {
   lastUsed: number;
   vertices: number;
   bytes: number;
+  /** Tile extent in map pixels. */
+  boundsPx: PixelBounds;
 }
+
+interface PixelBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+/** Reshapes land heights inside `bounds` (map pixels). `at` takes and returns meters. */
+export interface TileHeightModifier {
+  key: string;
+  bounds: PixelBounds;
+  at(mapX: number, mapY: number, meters: number): number;
+}
+
+const insideBounds = (b: PixelBounds, x: number, y: number) => x >= b.minX && x <= b.maxX && y >= b.minY && y <= b.maxY;
 
 export interface TerrainTileParams {
   graphWidth: number;
@@ -152,6 +170,7 @@ export class TerrainTileLayer {
   private rangedTiles = 0;
   private rangeUnsupported = false;
   private version = 0;
+  private heightModifier: TileHeightModifier | null = null;
   private chosen = new Set<number>();
   private sea: THREE.Mesh | undefined;
   private stats: TerrainTileStats = {
@@ -451,9 +470,37 @@ export class TerrainTileLayer {
       };
       const top = at(0, 0) * (1 - tx) + at(1, 0) * tx;
       const bottom = at(0, 1) * (1 - tx) + at(1, 1) * tx;
-      return top * (1 - ty) + bottom * ty;
+      const meters = top * (1 - ty) + bottom * ty;
+      const modifier = this.heightModifier;
+      return modifier && meters > 0.5 && insideBounds(modifier.bounds, mapX, mapY)
+        ? Math.max(0.5, modifier.at(mapX, mapY, meters))
+        : meters;
     }
     return null;
+  }
+
+  /**
+   * Reshapes land heights inside `bounds` (map pixels), e.g. valleys along FMG rivers
+   * (docs/plan/fmg-cell-valleys.md). A new `key` rebuilds the tiles it touches; null clears it.
+   */
+  setHeightModifier(modifier: TileHeightModifier | null): void {
+    const previous = this.heightModifier;
+    if ((previous?.key ?? null) === (modifier?.key ?? null)) return;
+    this.heightModifier = modifier;
+    for (const [id, tile] of [...this.live]) {
+      const box = tile.boundsPx;
+      const touches = (m: TileHeightModifier | null) =>
+        Boolean(
+          m &&
+            box.maxX >= m.bounds.minX &&
+            box.minX <= m.bounds.maxX &&
+            box.maxY >= m.bounds.minY &&
+            box.minY <= m.bounds.maxY
+        );
+      if (touches(previous) || touches(modifier)) this.disposeTile(id);
+    }
+    this.version++;
+    this.requestUpdate();
   }
 
   /** Bumps when new heights arrive, so line heights can be refreshed once loading settles. */
@@ -687,6 +734,7 @@ export class TerrainTileLayer {
         (params.worldYPerMeter / (params.exaggeration || REFERENCE_EXAGGERATION)) * REFERENCE_EXAGGERATION,
       // Deeper than the largest step between levels on steep ground.
       adjustColor: this.colorAdjuster(params, sx, sz),
+      adjustMeters: this.metersAdjuster(params, key, sx, sz),
       skirtMeters: Math.max(50, (entry.maxM - Math.max(0, entry.minM)) * 0.25)
     });
     const geometry = new THREE.BufferGeometry();
@@ -703,9 +751,36 @@ export class TerrainTileLayer {
       mesh,
       lastUsed: performance.now(),
       vertices: arrays.vertexCount,
+      boundsPx: {
+        minX: key.x * sizeKm * sx,
+        minY: key.y * sizeKm * sz,
+        maxX: (key.x + 1) * sizeKm * sx,
+        maxY: (key.y + 1) * sizeKm * sz
+      },
       bytes: arrays.positions.byteLength + arrays.colors.byteLength + arrays.indices.byteLength
     });
     return true;
+  }
+
+  private metersAdjuster(params: TerrainTileParams, key: TileKey, sx: number, sz: number) {
+    const modifier = this.heightModifier;
+    const level = this.index?.levels[key.z];
+    if (!modifier || !level) return undefined;
+    const box = {
+      minX: key.x * level.sizeKm * sx,
+      minY: key.y * level.sizeKm * sz,
+      maxX: (key.x + 1) * level.sizeKm * sx,
+      maxY: (key.y + 1) * level.sizeKm * sz
+    };
+    const b = modifier.bounds;
+    if (box.maxX < b.minX || box.minX > b.maxX || box.maxY < b.minY || box.minY > b.maxY) return undefined;
+    const halfW = params.graphWidth / 2;
+    const halfH = params.graphHeight / 2;
+    return (x: number, z: number, meters: number) => {
+      const mapX = x + halfW;
+      const mapY = z + halfH;
+      return insideBounds(b, mapX, mapY) ? modifier.at(mapX, mapY, meters) : meters;
+    };
   }
 
   private colorAdjuster(params: TerrainTileParams, sx: number, sz: number) {

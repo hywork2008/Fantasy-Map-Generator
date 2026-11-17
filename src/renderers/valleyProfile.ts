@@ -152,6 +152,10 @@ export interface ValleyRiverPoint extends ValleySiteInput {
 export interface ValleyField {
   /** Height after carving; `groundAt(x, y)` where no valley reaches. */
   valleyMetersAt(x: number, y: number): number;
+  /** Carves a ground height read elsewhere (another level of detail) at the same point. */
+  carve(x: number, y: number, groundM: number): number;
+  /** Bounding box of everything a valley reaches, meters. Empty when there are no rivers. */
+  reach: { minX: number; minY: number; maxX: number; maxY: number };
   /** Floor height per river point (non-increasing downstream). */
   floors: number[][];
   /** Valley size per river point. */
@@ -214,7 +218,10 @@ export function createValleyField(
   });
 
   function valleyMetersAt(x: number, y: number): number {
-    const ground = groundAt(x, y);
+    return carve(x, y, groundAt(x, y));
+  }
+
+  function carve(x: number, y: number, ground: number): number {
     if (maxReachM <= 0) return ground;
     const gx = Math.floor(x / cell);
     const gy = Math.floor(y / cell);
@@ -243,7 +250,15 @@ export function createValleyField(
     return height;
   }
 
-  return { valleyMetersAt, floors, dimensions: dims, maxReachM };
+  const reach = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  for (const river of rivers)
+    for (const p of river) {
+      reach.minX = Math.min(reach.minX, p.x - maxReachM);
+      reach.minY = Math.min(reach.minY, p.y - maxReachM);
+      reach.maxX = Math.max(reach.maxX, p.x + maxReachM);
+      reach.maxY = Math.max(reach.maxY, p.y + maxReachM);
+    }
+  return { valleyMetersAt, carve, reach, floors, dimensions: dims, maxReachM };
 }
 
 export interface ValleyPath {
