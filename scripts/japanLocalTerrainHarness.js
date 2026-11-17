@@ -6,39 +6,13 @@
  */
 async page => {
   const DIR = "docs/analytics/raw/japan-local-terrain/";
-  const ROUND = "r3";
-  const U250 = { source: "dem", stepKm: 0.25, rings: [], label: "u250" };
-  const B = { source: "dem", stepKm: 1, rings: [{ halfKm: 35, stepKm: 0.25 }], label: "r35-250_o1000" };
-  const C = {
-    source: "dem",
-    stepKm: 1,
-    rings: [
-      { halfKm: 35, stepKm: 0.25 },
-      { halfKm: 60, stepKm: 0.5 }
-    ],
-    label: "r35-250_r60-500_o1000"
-  };
-  const D = {
-    source: "dem",
-    stepKm: 1,
-    rings: [
-      { halfKm: 20, stepKm: 0.25 },
-      { halfKm: 45, stepKm: 0.5 }
-    ],
-    label: "r20-250_r45-500_o1000"
-  };
+  const ROUND = "r5";
+  const BASE = { source: "dem", label: "default" };
+  const RAW = { source: "dem", demCoast: false, riverCorridorM: 0, burgPadKm: 0, label: "raw" };
   const RUNS = [
-    ["sekigahara", { ...U250, exaggeration: 3 }, "oblique"],
-    ["sekigahara", { ...B, exaggeration: 3 }, "oblique"],
-    ["sekigahara", { ...C, exaggeration: 3 }, "oblique"],
-    ["sekigahara", { ...D, exaggeration: 3 }, "oblique"],
-    ["sekigahara", { ...C, exaggeration: 4 }, "oblique"],
-    ["sekigahara", { ...C, exaggeration: 3 }, "contact"],
-    ["kawanakajima", { ...U250, exaggeration: 3 }, "oblique"],
-    ["kawanakajima", { ...C, exaggeration: 3 }, "oblique"],
-    ["kawanakajima", { ...D, exaggeration: 3 }, "oblique"],
-    ["okehazama", { ...C, exaggeration: 4 }, "contact"],
-    ["okehazama", { ...D, exaggeration: 5 }, "contact"]
+    ["kawanakajima", { ...BASE, riverMaxCarveM: 1e9, label: "uncapped" }, "close"],
+    ["kawanakajima", { ...BASE, label: "cap30" }, "close"],
+    ["sekigahara", { ...BASE, label: "cap30" }, "oblique"]
   ];
 
   await page.evaluate(async () => {
@@ -58,7 +32,8 @@ async page => {
     window.__lt = {
       async show(siteId, patch, view) {
         const { label: _label, ...tuning } = patch;
-        lt.setLocalTerrainTuning({ footDays: 3, hillshade: true, rings: [], ...tuning });
+        const defaults = window.__fmgLocalTerrainDefaults ?? (window.__fmgLocalTerrainDefaults = { ...lt.getLocalTerrainTuning() });
+        lt.setLocalTerrainTuning({ ...defaults, ...tuning });
         const site = g.JAPAN_LOCAL_TERRAIN_SITES.find(s => s.id === siteId);
         const p = g.georefLonLatToMap(w.options.earthRegion, site.lon, site.lat, w.graphWidth, w.graphHeight);
         viewMode.openCampaignViewAt(p.x + 1e-6 * Math.random(), p.y);
@@ -73,6 +48,18 @@ async page => {
         while (T.scene.getObjectByName("campaign-ground") === before && performance.now() - t0 < 20000) await sleep(5);
         const buildMs = performance.now() - t0;
         const ground = T.scene.getObjectByName("campaign-ground").geometry;
+        if (view === "close") {
+          // About 12 km south of the site, 5 km up: the contact ring fills the view.
+          const tx = p.x - w.graphWidth / 2;
+          const tz = p.y - w.graphHeight / 2;
+          const km = 1 / w.distanceScale;
+          T.controls.target.set(tx, 0, tz);
+          T.camera.position.set(tx, 5 * km, tz + 12 * km);
+          T.controls.update();
+          T.controls.dispatchEvent({ type: "change" });
+          // Contact mode rebuilds the window after a 300 ms debounce; the camera is kept.
+          await sleep(2500);
+        }
         if (view === "oblique") {
           const tx = p.x - w.graphWidth / 2;
           const tz = p.y - w.graphHeight / 2;
@@ -80,8 +67,8 @@ async page => {
           T.controls.target.set(tx, 0, tz);
           T.camera.position.set(tx, half * 0.8, tz + half * 1.4);
           T.controls.update();
-          T.render();
-          await sleep(800);
+          T.controls.dispatchEvent({ type: "change" });
+          await sleep(2500);
         }
         for (const el of document.querySelectorAll("div"))
           if (el.textContent?.startsWith("3D Options") && el.offsetWidth < 400) el.style.visibility = "hidden";
@@ -98,7 +85,9 @@ async page => {
           requestAnimationFrame(tick);
         });
         return {
-          vertices: ground.attributes.position.count,
+          vertices: T.scene.getObjectByName("campaign-ground").geometry.attributes.position.count,
+          contact: T.campaignContact,
+          stats: T.getLocalTerrainStats(),
           redrawMs: Math.round(buildMs),
           geometryMB: +((ground.attributes.position.array.byteLength * 3 + ground.index.array.byteLength) / 1e6).toFixed(1),
           fps: frames / 2,

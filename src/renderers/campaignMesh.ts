@@ -121,6 +121,13 @@ export interface CampaignBuildInput {
    * tensor grid: columns and rows inside a ring use its step, so no T-junction seams appear.
    */
   rings?: readonly CampaignRing[];
+  /**
+   * Real coastline. When given, it decides water and land colours instead of the cell height,
+   * and a DEM-land vertex in a sea cell takes the colour of the nearest land cell.
+   */
+  waterAt?: (x: number, y: number) => boolean;
+  /** Where a burg or army is drawn. A real-DEM window moves tokens off the sea onto the coast. */
+  displayPoint?: (x: number, y: number, naval: boolean) => readonly [number, number];
   /** Per-side cap for a real-DEM ground. The grid bilinear keeps CAMPAIGN_MAX_SAMPLES_PER_SIDE. */
   maxSamplesPerSide?: number;
   waterColor: string;
@@ -347,7 +354,9 @@ function buildGround(input: CampaignBuildInput, xs: readonly number[], ys: reado
       positions[index * 3] = mapX - input.graphWidth / 2;
       positions[index * 3 + 1] = Number.isFinite(height) ? height : 0;
       positions[index * 3 + 2] = mapY - input.graphHeight / 2;
-      const color = vertexColor(lookup.cellAt(mapX, mapY), input, water, neutral);
+      const color = input.waterAt
+        ? coastColor(input.waterAt(mapX, mapY), lookup, mapX, mapY, input, water, neutral)
+        : vertexColor(lookup.cellAt(mapX, mapY), input, water, neutral);
       colors[index * 3] = color[0];
       colors[index * 3 + 1] = color[1];
       colors[index * 3 + 2] = color[2];
@@ -506,29 +515,47 @@ function buildPolylines(input: CampaignBuildInput, box: CampaignWindowBox, packS
 
 function buildMarkers(input: CampaignBuildInput, box: CampaignWindowBox): CampaignMarker[] {
   const markers: CampaignMarker[] = [];
+  const shown = (x: number, y: number, naval: boolean) => input.displayPoint?.(x, y, naval) ?? [x, y];
   for (const regiment of input.regiments) {
     if (!insideBox(regiment.x, regiment.y, box)) continue;
+    const [x, y] = shown(regiment.x, regiment.y, regiment.naval);
     markers.push({
       kind: regiment.naval ? "fleet" : "regiment",
       mapX: regiment.x,
       mapY: regiment.y,
-      position: worldPoint(input, regiment.x, regiment.y, CAMPAIGN_MARKER_LIFT),
+      position: worldPoint(input, x, y, CAMPAIGN_MARKER_LIFT),
       color: parseColor(regiment.color ?? (regiment.naval ? FLEET_COLOR : REGIMENT_COLOR), [0.55, 0.18, 0.18])
     });
   }
   for (const burg of input.burgs) {
     if (!insideBox(burg.x, burg.y, box)) continue;
     const name = burg.name?.trim();
+    const [x, y] = shown(burg.x, burg.y, false);
     markers.push({
       kind: "burg",
       mapX: burg.x,
       mapY: burg.y,
-      position: worldPoint(input, burg.x, burg.y, CAMPAIGN_MARKER_LIFT),
+      position: worldPoint(input, x, y, CAMPAIGN_MARKER_LIFT),
       color: parseColor(burg.color ?? BURG_COLOR, [0.95, 0.89, 0.77]),
       name: name ? name : undefined
     });
   }
   return markers;
+}
+
+function coastColor(
+  isWater: boolean,
+  lookup: CellLookup,
+  x: number,
+  y: number,
+  input: CampaignBuildInput,
+  water: [number, number, number],
+  neutral: [number, number, number]
+): [number, number, number] {
+  if (isWater) return water;
+  const cell = lookup.cellAt(x, y);
+  if (cell && cell.height >= CAMPAIGN_SEA_LEVEL) return vertexColor(cell, input, water, neutral);
+  return vertexColor(lookup.landCellNear(x, y), input, water, neutral);
 }
 
 function vertexColor(
@@ -577,6 +604,28 @@ class CellLookup {
         for (const index of bucket) {
           const cell = this.cells[index];
           if (cell.ring.length >= 3 && pointInRing(x, y, cell.ring)) return cell;
+          const distance = (cell.x - x) ** 2 + (cell.y - y) ** 2;
+          if (distance < nearestDistance) {
+            nearest = cell;
+            nearestDistance = distance;
+          }
+        }
+      }
+    }
+    return nearest;
+  }
+
+  /** Nearest land cell centre within two buckets. */
+  landCellNear(x: number, y: number): CampaignCellInput | undefined {
+    const col = Math.floor(x / this.bucketSize);
+    const row = Math.floor(y / this.bucketSize);
+    let nearest: CampaignCellInput | undefined;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        for (const index of this.buckets.get(`${col + dx}:${row + dy}`) ?? []) {
+          const cell = this.cells[index];
+          if (cell.height < CAMPAIGN_SEA_LEVEL) continue;
           const distance = (cell.x - x) ** 2 + (cell.y - y) ** 2;
           if (distance < nearestDistance) {
             nearest = cell;

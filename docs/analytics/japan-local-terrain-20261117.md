@@ -203,3 +203,110 @@
 | `raw/japan-local-terrain/r3-sekigahara-r35-250_r60-500_o1000-x3-oblique.png` | 2d7d94932170222ca5ce59c9157222ee1dc98e8a029365e82d9c87ef0d1c2408 |
 | `raw/japan-local-terrain/r3-sekigahara-r35-250_r60-500_o1000-x4-oblique.png` | 75c8384cd941df8c47d3cd44bc1997b1bb4680725911b282a31583bb720195e4 |
 | `raw/japan-local-terrain/r3-sekigahara-u250-x3-oblique.png` | 9091f0c672df134357771e3b7273fa6242f5fd04bec36780faa4b02a7cd16e23 |
+
+## R4：接敵の環に100mを足す
+
+### 焼き込み
+
+`--levels 100` を県ごとに実行した（外接矩形を小さく保つため）。間隔の半分以下の画素を選ぶ規則で Terrarium z12（約31m）を使った。タイルのキャッシュは `temp/terrarium-cache` で合計84MB。
+
+| 束 | 格子 | タイル | バイト | SHA-256 |
+| :--- | :--- | :--- | :--- | :--- |
+| 愛知 23-100m | 1093×951 | 195 | 2,208,845 | f9d52200e9498abf63104cc6249a2c3d398b0451161df83f0e9b206c456794bb |
+| 岐阜 21-100m | 1295×1513 | 360 | 4,163,615 | 8326468eed9c841d6df7b57c1dc3d2442104f69722e89d9ecbabc20dbf83ffde |
+| 長野 20-100m | 1313×2081 | 476 | 5,806,279 | 8e0e1355b4ac01cfa9749782b61fcd2cfc964d81924422e119ef62d4606c4d8e |
+
+### 測定
+
+構成 D（R3 の既定）と、D の内側に半幅6kmの100mを足した E。新しい「近接」カメラは地点の南12km・高さ5km。
+
+| 構成 | 頂点 | 描き直し | ジオメトリ |
+| :--- | :--- | :--- | :--- |
+| D | 114,921 | 150〜175ms | 6.9MB |
+| E | 168,921 | 約220ms | 10.1MB |
+
+いずれも60fps。
+
+### 所見
+
+- 桶狭間：D（250m）×3 の近接ではほぼ平ら。E×5 で丘陵と谷の細かい起伏が出る。丘陵地の戦場には100mと×5前後が要る。
+- 川中島：E×3 で善光寺平の平地と、その縁の尾根（妻女山の規模）が分かれて見える。
+- 関ヶ原：E×3 で盆地を囲む山の尾根と谷筋が描き分けられる。
+- 近接カメラでは、都市の球と地名のラベルが地形に対して大きすぎる。表示の大きさを窓の尺度に合わせる必要がある（R5 以降）。
+- 100m の環は E で頂点が約1.5倍、描き直しが約0.22秒。常に入れると R3 の目標を超える。近接カメラのときだけ入れる案が有力。
+
+### 全国の大きさ
+
+陸域は約37.8万km²。R2〜R4 の実測では、県の外接矩形のラスタは陸だけの量の約2.1〜2.8倍になる（海と隣県の NODATA を含むため）。
+
+| 段 | 陸だけ（int16） | 外接矩形のラスタ（実測倍率） |
+| :--- | :--- | :--- |
+| 1km | 0.76MB | 約2MB |
+| 500m | 3.0MB | 約7MB |
+| 250m | 12MB | 約30MB |
+| 100m | 76MB | 約160MB |
+
+| 画像 | SHA-256 |
+| :--- | :--- |
+| `raw/japan-local-terrain/r4-kawanakajima-D-x3-close.png` | f03e916e5cda5ca685595ed8729255984cb644e77c6f3d22539a028c3f12ff69 |
+| `raw/japan-local-terrain/r4-kawanakajima-E100-x3-close.png` | 6a815dbd322d864bec12cf14e7ef2c430e104f834ed9c03e7988f09f8b77b971 |
+| `raw/japan-local-terrain/r4-nagashino-E100-x3-close.png` | aedbb80b34691a88a67f51e8f5dca45f4646484e3315ca84fab8b60c23fb64d8 |
+| `raw/japan-local-terrain/r4-okehazama-D-x3-close.png` | 6cb79bd683db5979b30fc968186db10c785657d03f6441fcf42c910c407153e0 |
+| `raw/japan-local-terrain/r4-okehazama-E100-x3-close.png` | dfe98e2028f535e57bd7953a857714a56d64b26bb3b12ccbf651bcfb81da8886 |
+| `raw/japan-local-terrain/r4-okehazama-E100-x5-close.png` | 75d114c537fe289477116685c157975ee9254a2d23bebc281007bb700bce3575 |
+| `raw/japan-local-terrain/r4-sekigahara-D-x3-close.png` | f478b31d39d7b377325d609469bd6cfda90e823027e63badfc98bdebf7849b7e |
+| `raw/japan-local-terrain/r4-sekigahara-E100-x3-close.png` | 23747bc8173ee58fdc2c98a56aaa259d910f0f9d740e3311d3a260b540d4eba1 |
+| `raw/japan-local-terrain/r4-sekigahara-E100-x3-oblique.png` | b2b6240435e5b3d7e37aae8bd582c5245d045d7c7ca2bc9ee8800aebf7e88cac |
+
+## R5：シミュとの食い違いと接敵表示
+
+### 実装
+
+- 海岸：段の陸ビット（Natural Earth admin-1 を段の解像度で塗ったもの）で海と陸を塗る。段の無い所は `japan.bin` の陸ビット。DEMで陸なのに海セルの所は、近くの陸セルの色。
+- 都市：半径1.5kmを都市の標高で平らにし、3kmで元へ戻す。
+- 河川：FMG の川の折れ線を100mごとに読み、高い端から流れ下る「上がらない」断面で幅300mの廊下を掘る。掘る深さは30mで頭打ち。
+- 駒：海上の陸の駒（都市・連隊）は最寄りの陸へ、陸上の艦隊は最寄りの海へ、表示だけ移す（最大10km）。
+- 接敵：カメラと注視点の距離が25km未満で100mの環と×4に切り替え、40km超で戻す（300msの遅延で1回だけ作り直す）。
+- 駒とラベル：カメラ距離に比例した大きさにし、元の大きさを上限にする。
+- 国土地理院 標高タイル（DEM10B PNG）を `--source gsi` で焼けるようにした。愛知の100mを焼いた（z12、174タイル、4分）。同じ段に両方あるときは `demSource`（既定 gsi）を優先する。
+
+| 段 | バイト | SHA-256 |
+| :--- | :--- | :--- |
+| 23-100m-gsi | 2,208,845 | 2fff921140d5298f2cba7b18134c2c01cbf9ac7456b737b29d187e083c72230d |
+
+### 測定
+
+| 地点・カメラ | 頂点 | 接敵 | 都市の平坦化 | 駒の移動 | 川の標本 | 掘る（>1m） | 30m超 | 最大 | 平均 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 関ヶ原・作戦 | 114,921 | なし | 14 | 2 | 3,690 | 2,542 | 1,443 | 836m | 86m |
+| 厳島・作戦 | 114,921 | なし | 14 | 0 | 901 | 732 | — | 417m | 123m |
+| 川中島・近接 | 168,921 | あり | 7 | 1 | 3,110 | 1,737 | 1,191 | 1,378m | 108m |
+| 桶狭間・近接 | 168,921 | あり | 16 | 2 | 4,129 | 2,945 | — | 1,832m | 162m |
+| 長篠・近接 | 168,921 | あり | 14 | 2 | 3,329 | 2,199 | — | 1,280m | 121m |
+
+描き直しは平坦化・河川の準備を含めて作戦0.26〜0.30秒、接敵0.26〜0.29秒（R3 の0.16秒から約0.1秒増）。60fps。
+
+### 所見
+
+- 海岸：伊勢湾・三河湾の海岸線が実際の形になった。束の外（厳島・広島湾）は `japan.bin` の2km陸ビットのままで、海岸が階段状。横一列の陸の帯も出る（`japan.bin` の陸マスクの行）。広島周辺の束を焼けば直る。
+- 河川：FMG の川は21kmセルから作るので、実際の谷を通らない。川の標本の約4割で、30m以上の尾根を横切っている。上限なしで掘ると最大1.8kmの峡谷になるため、30mで頭打ちにした。尾根を越える区間は、川の線を地表に載せるだけになる。根本的には、局地窓では実在の河川（国土数値情報 W05 など）を描く案と、FMG の川を谷へ寄せる案がある（R6 で判断）。
+- 都市の平坦化：作戦カメラでは目立たず、近接で街の下が平らになる。
+- 駒の移動：1窓あたり0〜2件。
+- 接敵の切替：近接カメラで100mの環に入り、引くと戻る。川中島の近接で手前に壁のような山が写るのは、カメラ（高さ5km固定）が×4の山（1,500m×4）に近すぎるため。撮影用のカメラを地表からの高さにする。
+- GSI と Terrarium（桶狭間・100m）：GSI の方が丘陵の形が細かく、Terrarium の斜めの縞が無い。100mは GSI を既定にする。
+- 駒とラベルが画面上で一定の大きさになり、近接で地形を隠さなくなった。
+
+| 画像 | SHA-256 |
+| :--- | :--- |
+| `raw/japan-local-terrain/r5-itsukushima-default-xundefined-oblique.png` | f6e06bf0a2fb97e63483a359710d27cc979ec1bd48dc69c6764765b90188dd4d |
+| `raw/japan-local-terrain/r5-itsukushima-raw-xundefined-oblique.png` | 047afd6a51e136ec2b5f9b32903313713deae025a0000b77aa32806f61ffe381 |
+| `raw/japan-local-terrain/r5-kawanakajima-cap30-xundefined-close.png` | 73e0873a17560f68a0591d2ab7e763fe1504a1562ab10827d6e8838431f9edf7 |
+| `raw/japan-local-terrain/r5-kawanakajima-default-xundefined-close.png` | e29145564358d077fb6169a66039476753b4dc8fb2f3a7b2ea7283d572c9422d |
+| `raw/japan-local-terrain/r5-kawanakajima-uncapped-xundefined-close.png` | 8751fc540f282a40bab3f2375a5177700acea721d0ed87dda3afa9e71eed3345 |
+| `raw/japan-local-terrain/r5-nagashino-default-xundefined-close.png` | d36db73528c8b0d5f07d800afd12795ba98b0c5eca0d917a746c4eb2d602d84e |
+| `raw/japan-local-terrain/r5-okehazama-gsi-xundefined-close.png` | fce809080ab6215ae415fdd867199ba15abee1732ea499595c314bae33db19ab |
+| `raw/japan-local-terrain/r5-okehazama-terrarium-xundefined-close.png` | e516e1b2eb3cc72ef17f372974f1e496052e63b4dba29aa12b5f52a6a32c278f |
+| `raw/japan-local-terrain/r5-sekigahara-cap30-xundefined-oblique.png` | a0b7a03e270687b04f8311859db4b85ae1faa74a9ac3e1fea5fee0e8d3a2c0ad |
+| `raw/japan-local-terrain/r5-sekigahara-default-xundefined-close.png` | c0a8665a7b829b7a7970fab485f47097abc6d4606062ce264f9ad098823f3206 |
+| `raw/japan-local-terrain/r5-sekigahara-default-xundefined-oblique.png` | 1d669aec886bc00e09bae0734a3da1075f750647581f71f7639235644e36116f |
+| `raw/japan-local-terrain/r5-sekigahara-raw-xundefined-oblique.png` | 0a6b4d3ccb30959a60bb8f9ca6e4c2353e91ac51eb0c3d2c4568c0fc1219541e |

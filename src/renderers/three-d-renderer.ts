@@ -39,7 +39,7 @@ import {
   campaignGridSpacingPx,
   campaignRegimentPlacements
 } from "./campaignMesh";
-import { kmPerMapPixel } from "./campaignWindow";
+import { campaignWindow, kmPerMapPixel } from "./campaignWindow";
 import {
   disposeRiverFlowTexture,
   disposeSatelliteTexture,
@@ -61,8 +61,10 @@ import { revokeObjectURL, rn, throttle } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { meshHeightFromIndex } from "../utils/height";
 import {
+  createLocalTerrainField,
   createLocalTerrainSampler,
   getLocalTerrainTuning,
+  type LocalTerrainFieldStats,
   type LocalTerrainSampler,
   localMetersToWorldY
 } from "./localTerrainSampler";
@@ -317,6 +319,11 @@ class ThreeDModule {
   /** Real-DEM sampler for the current map, keyed by seed and georef. Null = checked and refused. */
   private localTerrain: { key: string; sampler: LocalTerrainSampler | null } | null = null;
   private localTerrainLoading = "";
+  /** Camera is near the ground: the window carries the contact rings (100 m). */
+  private campaignContact = false;
+  private campaignContactTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Dev measurement of the last real-DEM window (pads, carved rivers, moved tokens). */
+  private localTerrainStats: LocalTerrainFieldStats | null = null;
   private campaignCameraDirty = false;
   private campaignGroup: THREE.Group | undefined;
   private campaignSphere: THREE.SphereGeometry | undefined;
@@ -379,12 +386,20 @@ class ThreeDModule {
   setCampaignFocus(focus: CampaignFocus | null): void {
     const next = focus && Number.isFinite(focus.x) && Number.isFinite(focus.y) ? focus : null;
     const key = next ? `${next.cellId}|${next.x}|${next.y}` : "";
-    if (key !== this.campaignFocusKey) this.campaignCameraDirty = true;
+    if (key !== this.campaignFocusKey) {
+      this.campaignCameraDirty = true;
+      this.campaignContact = false;
+    }
     this.campaignFocus = next;
     this.campaignFocusKey = key;
     if (!this.options.isOn || this.viewType !== "viewMesh") return;
     if (!next) this.restoreMeshCameraLimits();
     this.redraw({ refreshTerrainTexture: next === null });
+  }
+
+  /** Measurements of the last real-DEM campaign window (tuning harness). */
+  getLocalTerrainStats(): LocalTerrainFieldStats | null {
+    return this.localTerrainStats;
   }
 
   isErosionBuildPending(): boolean {
@@ -848,7 +863,13 @@ class ThreeDModule {
     this.queueMeshBuild({ refreshTerrainTexture: true, preserveTerrainOverlays: false, erosionBuild });
     this.animate();
 
-    this.controls.addEventListener("change", () => this.render());
+    this.controls.addEventListener("change", () => {
+      if (this.campaignFocus) {
+        this.scaleCampaignMarkers();
+        this.updateCampaignContact();
+      }
+      this.render();
+    });
     return true;
   }
 
@@ -2540,6 +2561,7 @@ class ThreeDModule {
     }
 
     this.applyCampaignCamera(built.camera);
+    this.scaleCampaignMarkers();
     this.markCampaignCanvas(true, built.ground.vertexCount);
     this.render();
   }
@@ -2585,6 +2607,7 @@ class ThreeDModule {
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.scale.setScalar(radius);
+    mesh.userData.baseRadius = radius;
     mesh.position.set(marker.position[0], marker.position[1], marker.position[2]);
     mesh.renderOrder = 2;
     group.add(mesh);
@@ -2606,6 +2629,8 @@ class ThreeDModule {
     sprite.position.set(marker.position[0], marker.position[1], marker.position[2]);
     sprite.renderOrder = 3;
     sprite.size = width;
+    sprite.userData.baseWidth = width;
+    sprite.userData.aspect = aspect;
     this.labels.push(sprite);
     this.scene.add(sprite);
   }
@@ -2616,30 +2641,97 @@ class ThreeDModule {
    * bilinear. See docs/plan/japan-local-war-terrain.md.
    */
   private campaignTerrainInput(
-    kmPerPx: number
-  ): Pick<CampaignBuildInput, "heightAt" | "sampleStepKm" | "hillshade" | "footDays" | "maxSamplesPerSide" | "rings"> {
+    kmPerPx: number,
+    focus: CampaignFocus,
+    burgs: CampaignBuildInput["burgs"],
+    rivers: CampaignBuildInput["rivers"]
+  ): Pick<
+    CampaignBuildInput,
+    "heightAt" | "sampleStepKm" | "hillshade" | "footDays" | "maxSamplesPerSide" | "rings" | "waterAt" | "displayPoint"
+  > {
     const tuning = getLocalTerrainTuning();
     const geo = worldContext.options?.earthRegion;
     const bilinear = { heightAt: (x: number, y: number) => this.sampleTerrainHeight(x, y) };
+    this.localTerrainStats = null;
     if (!geo || tuning.source === "cells") return bilinear;
     const sampler = this.localTerrainSamplerFor(geo);
     if (!sampler) return bilinear;
     // `japanBin` reads only the region raster; `dem` asks for the level matching the local ground step.
     const dem = tuning.source === "dem";
     const outerStepKm = tuning.stepKm ?? 2;
-    return {
-      heightAt: (x, y, stepKm) =>
-        localMetersToWorldY(
-          sampler.metersAt(x, y, dem ? (stepKm ?? outerStepKm) * 1000 : undefined),
+    const contact = dem && this.campaignContact;
+    const exaggeration = contact ? tuning.contact.exaggeration : tuning.exaggeration;
+    const bounds = campaignWindow({
+      centerX: focus.x,
+      centerY: focus.y,
+      graphWidth: worldContext.graphWidth,
+      graphHeight: worldContext.graphHeight,
+      kmPerPx,
+      spacingPx: 0,
+      footDays: tuning.footDays
+    });
+    const field = dem
+      ? createLocalTerrainField(sampler, {
           kmPerPx,
-          tuning.exaggeration
-        ),
+          bounds,
+          burgs,
+          rivers,
+          burgPadKm: tuning.burgPadKm,
+          riverCorridorM: tuning.riverCorridorM,
+          riverMaxCarveM: tuning.riverMaxCarveM
+        })
+      : null;
+    if (field) this.localTerrainStats = field.stats;
+    const meters = (x: number, y: number, stepKm?: number) =>
+      field
+        ? field.metersAt(x, y, (stepKm ?? outerStepKm) * 1000)
+        : sampler.metersAt(x, y, dem ? (stepKm ?? outerStepKm) * 1000 : undefined);
+    return {
+      heightAt: (x, y, stepKm) => localMetersToWorldY(meters(x, y, stepKm), kmPerPx, exaggeration),
       sampleStepKm: outerStepKm,
-      rings: tuning.rings,
+      rings: contact ? tuning.contact.rings : tuning.rings,
       maxSamplesPerSide: tuning.maxSamplesPerSide,
       hillshade: tuning.hillshade,
-      footDays: tuning.footDays
+      footDays: tuning.footDays,
+      waterAt: field && tuning.demCoast ? field.waterAt : undefined,
+      displayPoint: field && tuning.demCoast ? field.displayPoint : undefined
     };
+  }
+
+  /**
+   * Contact mode follows the camera: closer than `enterKm` to the target rebuilds the window
+   * with the 100 m ring, farther than `leaveKm` drops it. Debounced so a zoom gesture rebuilds once.
+   */
+  private updateCampaignContact(): void {
+    if (!this.campaignFocus || !this.camera || !this.controls || this.viewType !== "viewMesh") return;
+    const tuning = getLocalTerrainTuning();
+    if (tuning.source !== "dem" || !worldContext.options?.earthRegion) return;
+    const kmPerPx = kmPerMapPixel(worldContext.distanceScale, optionsStore.getState().distanceUnit || "km");
+    const distanceKm = this.camera.position.distanceTo(this.controls.target) * kmPerPx;
+    const next = this.campaignContact ? distanceKm < tuning.contact.leaveKm : distanceKm < tuning.contact.enterKm;
+    if (next === this.campaignContact) return;
+    clearTimeout(this.campaignContactTimer);
+    this.campaignContactTimer = setTimeout(() => {
+      this.campaignContact = next;
+      this.redraw({ refreshTerrainTexture: false });
+    }, 300);
+  }
+
+  /** Keeps burg spheres, tokens and labels a steady size on screen instead of kilometres wide. */
+  private scaleCampaignMarkers(): void {
+    if (!this.campaignGroup || !this.camera || !this.controls) return;
+    const distance = this.camera.position.distanceTo(this.controls.target);
+    for (const child of this.campaignGroup.children) {
+      const base = child.userData.baseRadius as number | undefined;
+      if (base) child.scale.setScalar(Math.min(base, distance * 0.012));
+    }
+    for (const label of this.labels) {
+      const base = label.userData.baseWidth as number | undefined;
+      const aspect = label.userData.aspect as number | undefined;
+      if (!base || !aspect) continue;
+      const width = Math.min(base, distance * 0.1);
+      label.scale.set(width, width * aspect, 1);
+    }
   }
 
   private localTerrainSamplerFor(
@@ -2685,6 +2777,8 @@ class ThreeDModule {
     const cellCount = worldContext.pack.cells?.i?.length ?? 0;
     const packSpacingPx = cellCount > 0 ? Math.sqrt((graphWidth * graphHeight) / cellCount) : gridSpacingPx;
     const centroids = worldContext.pack.cells?.p;
+    const burgs = this.campaignBurgs();
+    const rivers = this.campaignRivers(centroids);
     const stateColors = new Map<number, string>();
     const regimentSources: CampaignRegimentSource[] = [];
     for (const state of worldContext.pack.states ?? []) {
@@ -2711,17 +2805,17 @@ class ThreeDModule {
       kmPerPx,
       gridSpacingPx,
       packSpacingPx,
-      ...this.campaignTerrainInput(kmPerPx),
+      ...this.campaignTerrainInput(kmPerPx, focus, burgs, rivers),
       waterColor: this.options.waterColor,
       stateColors,
       cells: this.campaignCells(),
-      rivers: this.campaignRivers(centroids),
+      rivers,
       routes: this.campaignRoutes(),
       regiments: campaignRegimentPlacements(regimentSources, cellId => {
         const point = centroids?.[cellId];
         return point ? [point[0], point[1]] : undefined;
       }),
-      burgs: this.campaignBurgs()
+      burgs
     };
   }
 

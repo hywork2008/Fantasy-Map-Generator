@@ -8,10 +8,13 @@
  * Japanese prefecture polygon in the bbox. Output is written next to a manifest the runtime reads.
  *
  * Input: Natural Earth 10m admin-1 GeoJSON (public domain) in temp/japan-local/.
- * Elevation: AWS Terrain Tiles (Terrarium), cached in temp/terrarium-cache/.
+ * Elevation (`--source`):
+ * - `terrarium` (default): AWS Terrain Tiles, cached in temp/terrarium-cache/.
+ * - `gsi`: GSI elevation tiles (DEM10B PNG, z ≤ 14), cached in temp/gsi-dem-cache/.
+ *   Licence: Public Data License v1.0 (attribution: 国土地理院 標高タイル). Files get a `-gsi` suffix.
  *
  * Usage:
- *   node scripts/bakeJapanLocalDem.mjs [--prefs JP-21,JP-20,JP-23,JP-25,JP-24] [--levels 1000,500,250]
+ *   node scripts/bakeJapanLocalDem.mjs [--prefs JP-21,JP-20,JP-23,JP-25,JP-24] [--levels 1000,500,250] [--source gsi]
  */
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -26,7 +29,29 @@ const ROOT = path.resolve(import.meta.dirname, "..");
 const ADMIN1 = path.join(ROOT, "temp/japan-local/ne_10m_admin_1_states_provinces.geojson");
 const ADMIN1_URL =
   "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson";
-const TILE_DIR = path.join(ROOT, "temp/terrarium-cache");
+const SOURCE = process.argv.includes("--source") ? process.argv[process.argv.indexOf("--source") + 1] : "terrarium";
+const SOURCES = {
+  terrarium: {
+    dir: path.join(ROOT, "temp/terrarium-cache"),
+    url: (z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`,
+    maxZoom: 13,
+    decode: (r, g, b) => r * 256 + g + b / 256 - 32768
+  },
+  gsi: {
+    dir: path.join(ROOT, "temp/gsi-dem-cache"),
+    url: (z, x, y) => `https://cyberjapandata.gsi.go.jp/xyz/dem_png/${z}/${x}/${y}.png`,
+    maxZoom: 14,
+    // x = R·2^16 + G·2^8 + B; 2^23 is no data; above it is negative.
+    decode: (r, g, b) => {
+      const v = r * 65536 + g * 256 + b;
+      if (v === 8388608) return null;
+      return (v < 8388608 ? v : v - 16777216) * 0.01;
+    }
+  }
+};
+const SRC = SOURCES[SOURCE];
+if (!SRC) throw new Error(`Unknown --source ${SOURCE}`);
+const TILE_DIR = SRC.dir;
 const OUT_DIR = path.join(ROOT, "public/heightmaps/earth/japan-local");
 const NODATA = -32768;
 const MAGIC = 0x45474d46;
@@ -156,11 +181,11 @@ function tileXY(lon, lat, z) {
 
 /** Smallest zoom whose pixel is at most half the level step at this latitude. */
 function zoomFor(stepMeters, lat) {
-  for (let z = 6; z <= 13; z++) {
+  for (let z = 6; z <= SRC.maxZoom; z++) {
     const pixel = ((40075016 * Math.cos((lat * Math.PI) / 180)) / 2 ** z) / 256;
     if (pixel <= stepMeters / 2) return z;
   }
-  return 13;
+  return SRC.maxZoom;
 }
 
 async function loadTiles(bbox, z) {
@@ -171,8 +196,17 @@ async function loadTiles(bbox, z) {
   for (let x = Math.floor(nw.x); x <= Math.floor(se.x); x++) {
     for (let y = Math.floor(nw.y); y <= Math.floor(se.y); y++) {
       const dest = path.join(TILE_DIR, `${z}-${x}-${y}.png`);
+      const missing = `${dest}.missing`;
+      if (fs.existsSync(missing)) continue;
       if (!fs.existsSync(dest) || fs.statSync(dest).size < 100) {
-        await download(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`, dest);
+        try {
+          await download(SRC.url(z, x, y), dest);
+        } catch (error) {
+          // GSI has no tile over open sea: remember the 404 and treat it as no data.
+          if (!String(error.message).endsWith("404")) throw error;
+          fs.writeFileSync(missing, "");
+          continue;
+        }
       }
       tiles.set(`${x},${y}`, PNG.sync.read(fs.readFileSync(dest)));
     }
@@ -190,7 +224,7 @@ function terrariumAt(tiles, z, lon, lat) {
     const tile = tiles.get(`${Math.floor(px / 256)},${Math.floor(py / 256)}`);
     if (!tile) return null;
     const i = ((((py % 256) + 256) % 256) * 256 + (((px % 256) + 256) % 256)) * 4;
-    return tile.data[i] * 256 + tile.data[i + 1] + tile.data[i + 2] / 256 - 32768;
+    return SRC.decode(tile.data[i], tile.data[i + 1], tile.data[i + 2]);
   };
   const v00 = read(x0, y0);
   const v10 = read(x0 + 1, y0);
@@ -272,7 +306,7 @@ async function main() {
         elevation[i] = terrariumAt(tiles, z, lon, lat);
       }
     }
-    const file = `${bundle}-${stepMeters}m.bin`;
+    const file = `${bundle}-${stepMeters}m${SOURCE === "terrarium" ? "" : `-${SOURCE}`}.bin`;
     const dest = path.join(OUT_DIR, file);
     fs.writeFileSync(dest, encodeRaster(bbox, width, height, elevation, land));
     const bytes = fs.statSync(dest).size;
@@ -282,8 +316,9 @@ async function main() {
 
   const manifestPath = path.join(OUT_DIR, "manifest.json");
   const manifest = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, "utf8")) : { bundles: [] };
-  manifest.bundles = manifest.bundles.filter(entry => entry.id !== bundle);
-  manifest.bundles.push({ id: bundle, prefectures: PREFS, source: "terrarium", levels });
+  const id = SOURCE === "terrarium" ? bundle : `${bundle}-${SOURCE}`;
+  manifest.bundles = manifest.bundles.filter(entry => entry.id !== id);
+  manifest.bundles.push({ id, prefectures: PREFS, source: SOURCE, levels });
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   console.log("manifest", path.relative(ROOT, manifestPath));
 }
