@@ -2,7 +2,7 @@
 
 2026-11-18
 
-- docs/plan/alps-terrain-tiles.md - アルプス周辺の国の公的DEM（出典記載で使えるもの）を調べ、Japan と同じ四分木タイルで3D表示する
+- docs/plan/alps-terrain-tiles.md - アルプス周辺を Japan と同じ四分木タイルで3D表示する。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める
 
 2026-11-17
 
