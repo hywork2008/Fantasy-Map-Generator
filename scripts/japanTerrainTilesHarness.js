@@ -5,20 +5,29 @@
  */
 async page => {
   const DIR = "docs/analytics/raw/japan-terrain-tiles/";
-  const ROUND = "t3";
+  const ROUND = "t4";
   // [site, tuning patch, view]; views: japan (whole map), region (~400 km), oblique (window), close, ground.
   // `heightScale` changes the 3D Options Height scale (default 50).
-  const TILES = { enabled: true, maxScreenErrorPx: 2, maxTiles: 256, maxZoom: 5 };
+  const TILES = {
+    enabled: true,
+    maxScreenErrorPx: 2,
+    maxTiles: 256,
+    maxZoom: 5,
+    farKm: 0,
+    farZoom: 1,
+    prefectures: [],
+    mapColors: "none"
+  };
   const RUNS = [
-    ["sekigahara", { tiles: { ...TILES, enabled: false }, label: "window" }, "close"],
-    ["sekigahara", { tiles: TILES, label: "z5" }, "japan"],
-    ["sekigahara", { tiles: TILES, label: "z5" }, "oblique"],
-    ["sekigahara", { tiles: TILES, label: "z5" }, "close"],
-    ["sekigahara", { tiles: TILES, label: "z5" }, "ground"],
-    ["sekigahara", { tiles: { ...TILES, maxZoom: 4 }, label: "z4" }, "close"],
-    ["sekigahara", { tiles: TILES, label: "z5-hs100", heightScale: 100 }, "close"],
-    ["kawanakajima", { tiles: TILES, label: "z5" }, "close"],
-    ["tokyo", { tiles: TILES, label: "z5" }, "close"]
+    ["sekigahara", { tiles: TILES, label: "far0" }, "oblique"],
+    ["sekigahara", { tiles: { ...TILES, farKm: 200 }, label: "far200" }, "oblique"],
+    ["sekigahara", { tiles: { ...TILES, farKm: 100 }, label: "far100" }, "oblique"],
+    ["sekigahara", { tiles: { ...TILES, farKm: 100 }, label: "far100" }, "close"],
+    ["tokyo", { tiles: { ...TILES, farKm: 100 }, label: "far100" }, "close"],
+    ["sekigahara", { tiles: { ...TILES, farKm: 100, prefectures: ["JP-21", "JP-25"] }, label: "gifu-shiga" }, "japan"],
+    ["sekigahara", { tiles: { ...TILES, farKm: 100, prefectures: ["JP-21", "JP-25"] }, label: "gifu-shiga" }, "oblique"],
+    ["sekigahara", { tiles: { ...TILES, farKm: 100, mapColors: "states" }, label: "states" }, "oblique"],
+    ["sekigahara", { tiles: { ...TILES, farKm: 100, mapColors: "states" }, label: "states" }, "japan"]
   ];
 
   await page.evaluate(async () => {

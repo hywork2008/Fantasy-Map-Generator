@@ -23,6 +23,11 @@ export interface TileMeshInput {
   /** Skirt depth below the edge, in meters. */
   skirtMeters: number;
   hillshade?: boolean;
+  /**
+   * Recolour a vertex before shading (map colours, dimming outside chosen prefectures):
+   * world x/z, whether it is land, and the RGB triple at `colors[offset..offset+2]`.
+   */
+  adjustColor?: (x: number, z: number, land: boolean, colors: Float32Array, offset: number) => void;
 }
 
 export interface TileMeshArrays {
@@ -93,6 +98,7 @@ export function buildTileMesh(input: TileMeshInput): TileMeshArrays {
       padColors[k * 3] = color[0];
       padColors[k * 3 + 1] = color[1];
       padColors[k * 3 + 2] = color[2];
+      input.adjustColor?.(padPositions[k * 3], padPositions[k * 3 + 2], land, padColors, k * 3);
     }
   if (input.hillshade !== false)
     applyHillshade(

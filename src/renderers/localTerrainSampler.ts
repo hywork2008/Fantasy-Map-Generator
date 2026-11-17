@@ -66,7 +66,19 @@ export interface LocalTerrainTuning {
    * Quadtree tiles (docs/plan/japan-terrain-tiles.md) replace the window ground while tuning.
    * Selection splits tiles above `maxScreenErrorPx` up to `maxTiles`; `maxZoom` caps the level.
    */
-  tiles: { enabled: boolean; maxScreenErrorPx: number; maxTiles: number; maxZoom: number };
+  tiles: {
+    enabled: boolean;
+    maxScreenErrorPx: number;
+    maxTiles: number;
+    maxZoom: number;
+    /** Tiles farther than this from the war focus stop at `farZoom`. 0 = no limit. */
+    farKm: number;
+    farZoom: number;
+    /** ISO 3166-2 codes to show (others dimmed). Empty = all of Japan. */
+    prefectures: string[];
+    /** `states` blends the state colours over the land. Off by default. */
+    mapColors: "none" | "states";
+  };
 }
 
 /** Defaults for a georeferenced map. Procedural maps always draw `cells`. */
@@ -98,7 +110,17 @@ export const DEFAULT_LOCAL_TERRAIN_TUNING: LocalTerrainTuning = {
   riverSnapKm: 6,
   riverSource: "fmg",
   demCoast: true,
-  tiles: { enabled: false, maxScreenErrorPx: 2, maxTiles: 256, maxZoom: 3 }
+  tiles: {
+    enabled: false,
+    maxScreenErrorPx: 2,
+    maxTiles: 256,
+    maxZoom: 3,
+    // T4: 100 km (a bit past the 3-day window) halves the close-view tiles in Tokyo.
+    farKm: 100,
+    farZoom: 1,
+    prefectures: [],
+    mapColors: "none"
+  }
 };
 
 /** Height scale 50 (the 3D Options default) is ×3, the value chosen in R1–R4. */
@@ -159,7 +181,11 @@ function readUrlTuning(base: LocalTerrainTuning): LocalTerrainTuning {
       enabled: params.has("ltTiles") ? params.get("ltTiles") !== "0" : base.tiles.enabled,
       maxScreenErrorPx: num("ltTileErr") ?? base.tiles.maxScreenErrorPx,
       maxTiles: num("ltTileMax") ?? base.tiles.maxTiles,
-      maxZoom: num("ltTileZoom") ?? base.tiles.maxZoom
+      maxZoom: num("ltTileZoom") ?? base.tiles.maxZoom,
+      farKm: num("ltTileFarKm") ?? base.tiles.farKm,
+      farZoom: num("ltTileFarZoom") ?? base.tiles.farZoom,
+      prefectures: params.get("ltTilePrefs")?.split(",").filter(Boolean) ?? base.tiles.prefectures,
+      mapColors: params.get("ltTileColors") === "states" ? "states" : base.tiles.mapColors
     }
   };
 }

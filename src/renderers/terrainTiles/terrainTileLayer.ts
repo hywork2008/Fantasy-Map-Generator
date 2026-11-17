@@ -14,6 +14,7 @@ import {
   selectTiles,
   type TileKey,
   type TilePyramid,
+  tileBounds,
   tileId,
   tilePyramid
 } from "./tileTree";
@@ -47,6 +48,8 @@ export interface TileIndex {
   unitMeters: number;
   nodata: number;
   prefectures: string[];
+  /** Prefecture index per `cellKm` cell of the frame (Uint8, 255 = none). */
+  prefectureMask?: { file: string; width: number; height: number; cellKm: number } | null;
   levels: TileIndexLevel[];
 }
 
@@ -77,6 +80,29 @@ export interface TerrainTileParams {
   maxTiles: number;
   maxZoom: number;
   wireframe?: boolean;
+  /** Map pixel of the war focus; with `farKm` > 0, tiles farther than that stop at `farZoom`. */
+  focus?: { x: number; y: number } | null;
+  farKm?: number;
+  farZoom?: number;
+  /** ISO 3166-2 codes to show; others are dimmed and tiles touching none are not drawn. Empty = all. */
+  prefectures?: readonly string[];
+  /** Optional map colouring (e.g. state colours) blended over the land. `key` changes rebuild tiles. */
+  mapColor?: { key: string; at: (mapX: number, mapY: number) => readonly [number, number, number] | null } | null;
+}
+
+/** Share of the map colour over the terrain colour. */
+const MAP_COLOR_MIX = 0.55;
+/** Brightness of land outside the chosen prefectures. */
+const OUTSIDE_PREFECTURE_DIM = 0.35;
+
+export function tileDistanceKm(
+  bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  x: number,
+  y: number
+): number {
+  const dx = Math.max(bounds.minX - x, 0, x - bounds.maxX);
+  const dy = Math.max(bounds.minY - y, 0, y - bounds.maxY);
+  return Math.hypot(dx, dy);
 }
 
 export interface TerrainTileStats {
@@ -107,6 +133,8 @@ export class TerrainTileLayer {
   private lastArgs: { camera: THREE.PerspectiveCamera; viewportHeight: number; params: TerrainTileParams } | null =
     null;
   private disposed = false;
+  private prefectureMask: Uint8Array | null = null;
+  private chosen = new Set<number>();
   private sea: THREE.Mesh | undefined;
   private stats: TerrainTileStats = {
     selected: 0,
@@ -145,6 +173,13 @@ export class TerrainTileLayer {
         maxZoom: index.levels.length - 1,
         samples: index.samples
       });
+      const mask = index.prefectureMask;
+      if (mask)
+        try {
+          this.prefectureMask = await loadEarthRasterBytes(`${dir}${mask.file}`);
+        } catch {
+          this.prefectureMask = null;
+        }
       for (const level of index.levels)
         for (const [x, y, offset, minM, maxM, prefectures, split] of level.tiles)
           this.entries.set(tileId({ z: level.z, x, y }), { offset, minM, maxM, prefectures, split: split !== 0 });
@@ -190,12 +225,28 @@ export class TerrainTileLayer {
     const exaggeration = params.exaggeration > 0 ? params.exaggeration : REFERENCE_EXAGGERATION;
     const buildYPerMeter = (params.worldYPerMeter / exaggeration) * REFERENCE_EXAGGERATION;
     this.group.scale.y = exaggeration / REFERENCE_EXAGGERATION;
-    const key = `${params.graphWidth}|${params.graphHeight}|${buildYPerMeter.toPrecision(6)}|${params.wireframe ? 1 : 0}`;
+    const chosen = new Set<number>();
+    for (const code of params.prefectures ?? []) {
+      const i = index.prefectures.indexOf(code);
+      if (i >= 0) chosen.add(i);
+    }
+    const key = [
+      params.graphWidth,
+      params.graphHeight,
+      buildYPerMeter.toPrecision(6),
+      params.wireframe ? 1 : 0,
+      [...chosen].join(","),
+      params.mapColor?.key ?? ""
+    ].join("|");
+    this.chosen = chosen;
+    // A partial display shows only the chosen land; a full sea plane would read as "all ocean".
+    if (this.sea) this.sea.visible = chosen.size === 0;
     if (key !== this.meshKey) {
       this.disposeMeshes();
       this.meshKey = key;
       this.material.wireframe = Boolean(params.wireframe);
       this.placeSea(params, buildYPerMeter);
+      if (this.sea) this.sea.visible = chosen.size === 0;
     }
 
     camera.updateMatrixWorld();
@@ -206,6 +257,7 @@ export class TerrainTileLayer {
     const halfW = params.graphWidth / 2;
     const halfH = params.graphHeight / 2;
     const maxZoom = Math.min(params.maxZoom, index.levels.length - 1);
+    const focusKm = params.focus ? { x: params.focus.x / sx, y: params.focus.y / sz } : null;
     const selected: SelectedTile[] = selectTiles(pyramid, {
       view: {
         x: (camera.position.x + halfW) / sx,
@@ -218,11 +270,16 @@ export class TerrainTileLayer {
       include: (k, b) => {
         const entry = this.entries.get(tileId(k));
         if (!entry) return false;
+        if (chosen.size && !entry.prefectures.some(p => chosen.has(p))) return false;
         box.min.set(b.minX * sx - halfW, Math.max(0, entry.minM) * params.worldYPerMeter, b.minY * sz - halfH);
         box.max.set(b.maxX * sx - halfW, Math.max(0, entry.maxM) * params.worldYPerMeter, b.maxY * sz - halfH);
         return frustum.intersectsBox(box);
       },
-      canSplit: k => k.z < maxZoom && this.entries.get(tileId(k))?.split !== false,
+      canSplit: k => {
+        if (k.z >= maxZoom || this.entries.get(tileId(k))?.split === false) return false;
+        if (!focusKm || !(params.farKm && params.farKm > 0) || k.z < (params.farZoom ?? 1)) return true;
+        return tileDistanceKm(tileBounds(pyramid, k), focusKm.x, focusKm.y) <= params.farKm;
+      },
       heightRange: k => {
         const entry = this.entries.get(tileId(k));
         return entry
@@ -362,6 +419,7 @@ export class TerrainTileLayer {
       worldYPerMeter:
         (params.worldYPerMeter / (params.exaggeration || REFERENCE_EXAGGERATION)) * REFERENCE_EXAGGERATION,
       // Deeper than the largest step between levels on steep ground.
+      adjustColor: this.colorAdjuster(params, sx, sz),
       skirtMeters: Math.max(50, (entry.maxM - Math.max(0, entry.minM)) * 0.25)
     });
     const geometry = new THREE.BufferGeometry();
@@ -381,6 +439,30 @@ export class TerrainTileLayer {
       bytes: arrays.positions.byteLength + arrays.colors.byteLength + arrays.indices.byteLength
     });
     return true;
+  }
+
+  private colorAdjuster(params: TerrainTileParams, sx: number, sz: number) {
+    const mask = this.prefectureMask;
+    const info = this.index?.prefectureMask;
+    const chosen = this.chosen;
+    const mapColor = params.mapColor;
+    if (!mapColor && !(chosen.size && mask && info)) return undefined;
+    const halfW = params.graphWidth / 2;
+    const halfH = params.graphHeight / 2;
+    return (x: number, z: number, land: boolean, colors: Float32Array, o: number) => {
+      const mapX = x + halfW;
+      const mapY = z + halfH;
+      if (land && mapColor) {
+        const c = mapColor.at(mapX, mapY);
+        if (c) for (let i = 0; i < 3; i++) colors[o + i] = colors[o + i] * (1 - MAP_COLOR_MIX) + c[i] * MAP_COLOR_MIX;
+      }
+      if (chosen.size && mask && info) {
+        const cx = Math.floor(mapX / sx / info.cellKm);
+        const cy = Math.floor(mapY / sz / info.cellKm);
+        const p = cx >= 0 && cy >= 0 && cx < info.width && cy < info.height ? mask[cy * info.width + cx] : 255;
+        if (!chosen.has(p)) for (let i = 0; i < 3; i++) colors[o + i] *= OUTSIDE_PREFECTURE_DIM;
+      }
+    };
   }
 
   private disposeTile(id: string): void {

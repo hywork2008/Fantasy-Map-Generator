@@ -332,6 +332,9 @@ class ThreeDModule {
   private localTerrainStats: LocalTerrainFieldStats | null = null;
   /** Quadtree DEM tiles in place of the window ground (`tiles.enabled` tuning, Japan only). */
   private terrainTiles: TerrainTileLayer | undefined;
+  private tileStateColorCache:
+    | { key: string; at: (x: number, y: number) => readonly [number, number, number] | null }
+    | undefined;
   private campaignCameraDirty = false;
   private campaignGroup: THREE.Group | undefined;
   private campaignSphere: THREE.SphereGeometry | undefined;
@@ -2623,8 +2626,42 @@ class ThreeDModule {
       maxScreenErrorPx: tuning.tiles.maxScreenErrorPx,
       maxTiles: tuning.tiles.maxTiles,
       maxZoom: tuning.tiles.maxZoom,
-      wireframe: Boolean(this.options.wireframe)
+      wireframe: Boolean(this.options.wireframe),
+      focus: this.campaignFocus,
+      farKm: tuning.tiles.farKm,
+      farZoom: tuning.tiles.farZoom,
+      prefectures: tuning.tiles.prefectures,
+      mapColor: tuning.tiles.mapColors === "states" ? this.tileStateColors() : null
     });
+  }
+
+  /** State colours on a coarse map-pixel grid for the tile overlay (`tiles.mapColors`). */
+  private tileStateColors(): { key: string; at: (x: number, y: number) => readonly [number, number, number] | null } {
+    const { pack, graphWidth, graphHeight } = worldContext;
+    const states = pack.states ?? [];
+    const key = `states|${graphWidth}|${graphHeight}|${pack.cells.i.length}|${states.map(s => s?.color ?? "").join(",")}`;
+    if (this.tileStateColorCache?.key === key) return this.tileStateColorCache;
+    const step = 2;
+    const width = Math.ceil(graphWidth / step);
+    const height = Math.ceil(graphHeight / step);
+    const grid = new Uint16Array(width * height);
+    for (let j = 0; j < height; j++)
+      for (let i = 0; i < width; i++) grid[j * width + i] = pack.cells.state[findCell(i * step, j * step)] ?? 0;
+    const palette = states.map(state => {
+      if (!state?.i || state.removed || !state.color?.startsWith("#")) return null;
+      const color = new THREE.Color(state.color);
+      return [color.r, color.g, color.b] as const;
+    });
+    const cache = {
+      key,
+      at: (x: number, y: number) => {
+        const i = Math.min(width - 1, Math.max(0, Math.round(x / step)));
+        const j = Math.min(height - 1, Math.max(0, Math.round(y / step)));
+        return palette[grid[j * width + i]] ?? null;
+      }
+    };
+    this.tileStateColorCache = cache;
+    return cache;
   }
 
   private disposeTerrainTiles(): void {

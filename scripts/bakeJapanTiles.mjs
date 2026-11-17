@@ -23,7 +23,9 @@
  * Japanese prefecture, and tiles whose land is not mostly covered by a raster at least as fine
  * as the level (a 250 m level is only written where 250 m rasters exist).
  *
- * Usage: node scripts/bakeJapanTiles.mjs [--maxZoom 3] [--rootKm 256] [--samples 65] [--fineFrom 2] [--local]
+ *   prefectures.bin   prefecture index per 1 km cell of the frame (Uint8, 255 = none)
+ *
+ * Usage: node scripts/bakeJapanTiles.mjs [--maskOnly] [--maxZoom 3] [--rootKm 256] [--samples 65] [--fineFrom 2] [--local]
  */
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -48,6 +50,8 @@ const FINE_FROM = Number(arg("fineFrom", 2));
 // Share of a fine tile's land that must come from rasters at least as fine as the level.
 const FINE_COVERAGE = 0.5;
 const BORDER = 1;
+// Rewrite only prefectures.bin and the mask entry of an existing index.json.
+const MASK_ONLY = process.argv.includes("--maskOnly");
 const USE_LOCAL = process.argv.includes("--local");
 
 // JAPAN_REGION (src/data/earthRegions.ts).
@@ -166,6 +170,24 @@ function main() {
   const base = decodeRaster(path.join(EARTH, "japan.bin"));
   const sources = loadSources();
   const prefs = prefectureGrid();
+  fs.mkdirSync(OUT, { recursive: true });
+  // Prefecture index per 1 km cell (255 = none) for the runtime's partial display.
+  const mask = prefs.grid ? { file: "prefectures.bin", width: prefs.width, height: prefs.height, cellKm: 1 } : null;
+  if (mask) {
+    fs.writeFileSync(path.join(OUT, mask.file), prefs.grid);
+    const sha = crypto.createHash("sha256").update(prefs.grid).digest("hex");
+    console.log(`${mask.file} ${prefs.grid.length} bytes (gzip ${zlib.gzipSync(prefs.grid).length}) ${sha}`);
+  }
+  if (MASK_ONLY) {
+    const indexPath = path.join(OUT, "index.json");
+    const existing = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+    existing.prefectures = prefs.codes;
+    existing.prefectureMask = mask;
+    const json = JSON.stringify(existing);
+    fs.writeFileSync(indexPath, json);
+    console.log(`index.json ${json.length} bytes ${crypto.createHash("sha256").update(json).digest("hex")}`);
+    return;
+  }
   fs.mkdirSync(OUT, { recursive: true });
   const cols = Math.ceil(WIDTH_KM / ROOT_KM);
   const rows = Math.ceil(HEIGHT_KM / ROOT_KM);
@@ -293,6 +315,7 @@ function main() {
     unitMeters: 0.5,
     nodata: NODATA,
     prefectures: prefs.codes,
+    prefectureMask: mask,
     levels
   };
   const json = JSON.stringify(index);

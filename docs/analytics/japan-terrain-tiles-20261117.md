@@ -106,3 +106,35 @@
 | t3-sekigahara-z5-hs100-close.png | `8f39b3738db10e8684dd4f586bf014b438114a204866da8afbe2fdb12df746f2` |
 | t3-kawanakajima-z5-close.png | `2a23c0239b9ce63cf3c225664a5a983f6f220ef92d249ec73af2cbeaccd7f5e3` |
 | t3-tokyo-z5-close.png | `e58f69d2299e811cf6fb8b396699ca63173fddf838a544ea432ea94d24263eb6` |
+
+## T4：遠景の制限、都道府県の部分表示、国の色（任意）
+
+- 県マスク：`node scripts/bakeJapanTiles.mjs --maskOnly` で `prefectures.bin`（1km格子、2,438×1,847、4,506,680 bytes、gzip 26,554、SHA-256 `9618a88b03081de1707d3da8d6587647417628f6e71de7cd01133615c48abdc5`）と索引の `prefectureMask` を追加。index.json は 109,635 bytes、`bcb7dbedbd2e7c0eb809b096d99bf3991f60cf7e075d1ccf1da87a0f9d715d09`
+- 撮影は `maxZoom` 5、Height scale 50
+
+| 撮影 | タイル | 段ごと（z0/1/2/3/4/5） | 頂点 | GPU 側 | 揃うまで |
+| :--- | ---: | :--- | ---: | ---: | ---: |
+| 関ヶ原・斜め・遠景制限なし | 256（上限） | 1/58/21/51/119/6 | 1,147,136 | 40.9MB | 0.19秒 |
+| 関ヶ原・斜め・200km | 256（上限） | 1/68/2/34/137/14 | 1,147,136 | 40.9MB | 0.18秒 |
+| 関ヶ原・斜め・100km | 247 | 1/71/4/12/133/26 | 1,106,807 | 39.5MB | 0.18秒 |
+| 関ヶ原・接近・100km | 163 | 1/61/2/4/35/60 | 730,403 | 26.0MB | 0.07秒 |
+| 東京・接近・100km | 118 | 0/52/5/3/58 | 528,758 | 18.9MB | 0.04秒 |
+| 岐阜・滋賀のみ・日本全体 | 7 | 0/7 | 31,367 | 1.1MB | 0.03秒 |
+| 岐阜・滋賀のみ・斜め | 75 | 0/1/0/4/70 | 336,075 | 12.0MB | 0.11秒 |
+| 国の色・斜め・100km | 247 | 1/71/4/12/133/26 | 1,106,807 | 39.5MB | 0.17秒 |
+| 国の色・日本全体 | 92 | 35/57 | 412,252 | 14.7MB | 0.10秒 |
+
+- 遠景の制限は、斜めでは浮いた枠を窓の近くの z4・z5 に回す（枚数はほぼ同じ、近くが細かくなる）。接近では枚数が減る（関ヶ原 240→163、東京 256→118）。
+- FPS はすべて 60〜61。
+
+| 画像 | SHA-256 |
+| :--- | :--- |
+| t4-sekigahara-far0-oblique.png | `a7b0f95f7dda65c0034242de910f0c73243bd05d03013fb1bfb633ce6022c625` |
+| t4-sekigahara-far200-oblique.png | `4dfbaeefb871dbdca586f0ea2f6dd24ff6451d654f75946c75167af0cfeadaa3` |
+| t4-sekigahara-far100-oblique.png | `964fae7c8adbbaf778ede7e292381c8d051f7fd27dfe7fa5a9c260a93d705a8c` |
+| t4-sekigahara-far100-close.png | `07ae047cae5905837b721877b23ad9207f186be75ced2513caa9a3c2146d58b9` |
+| t4-tokyo-far100-close.png | `30967090e6b72132ae6983fe950a75c815861a7353aae20d2f652ca0dcca847b` |
+| t4-sekigahara-gifu-shiga-japan.png | `e856ae93094bc02187a3ea738907c0df88da25c536be658293169b959914264f` |
+| t4-sekigahara-gifu-shiga-oblique.png | `81d13773b9fe239f8713e9fee1c5f38a096933102f58bd2619bebd220dfa00cd` |
+| t4-sekigahara-states-oblique.png | `d5030a96fcf9d4bbe06514de1f803eff65f7458ff9ef31ef1efee97419357f6d` |
+| t4-sekigahara-states-japan.png | `af1f77f1934f486e4deec0d5e3563c1547e4ba580241be228958dde002303225` |
