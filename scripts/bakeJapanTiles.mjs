@@ -66,6 +66,8 @@ const WIDTH_KM = (REGION.east - REGION.west) * KM_PER_DEG_LON;
 const HEIGHT_KM = (REGION.north - REGION.south) * KM_PER_DEG_LAT;
 const NODATA = -32768;
 const LAND_M = 0.5;
+// Stored for sea outside every prefecture raster (runtime landAt: below -5 m is sea).
+const SEA_BELOW_M = -6;
 
 function decodeRaster(file) {
   const bytes = fs.readFileSync(file);
@@ -82,8 +84,18 @@ function decodeRaster(file) {
     east: view.getFloat32(14, true),
     south: view.getFloat32(18, true),
     north: view.getFloat32(22, true),
-    elevation
+    elevation,
+    land: bytes.subarray(28 + width * height * 2)
   };
+}
+
+/** Region land mask bit at the nearest pixel (japan.bin). */
+function landAt(r, lon, lat) {
+  const x = Math.floor(((lon - r.west) / (r.east - r.west)) * r.width);
+  const y = Math.floor(((r.north - lat) / (r.north - r.south)) * r.height);
+  if (x < 0 || y < 0 || x >= r.width || y >= r.height) return false;
+  const i = y * r.width + x;
+  return ((r.land[i >> 3] >> (i & 7)) & 1) === 1;
 }
 
 /** Bilinear over valid neighbours; null where none of the four is valid or outside. */
@@ -240,7 +252,12 @@ function main() {
               if (m !== null) break;
               m = sample(s.raster, lon, lat);
             }
-            if (m === null) m = sample(base, lon, lat);
+            if (m === null) {
+              m = sample(base, lon, lat);
+              // No prefecture raster here: the runtime used to fall back to the region land mask,
+              // so sea by that mask is stored below -5 m (a definite "sea" for landAt).
+              if (m !== null && !landAt(base, lon, lat)) m = Math.min(m, SEA_BELOW_M);
+            }
             if (m === null) {
               data[j * stored + i] = NODATA;
               continue;

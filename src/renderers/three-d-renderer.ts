@@ -67,12 +67,14 @@ import {
   createLocalTerrainSampler,
   getLocalTerrainTuning,
   heightScaleExaggeration,
+  type LocalTerrainField,
   type LocalTerrainFieldStats,
   type LocalTerrainSampler,
   localMetersToWorldY
 } from "./localTerrainSampler";
 import { getNightscapeBeamPose, getNightscapePopulationGlow } from "./nightscapeGlow";
 import { TerrainTileLayer, type TerrainTileStats } from "./terrainTiles/terrainTileLayer";
+import { createTileTerrainSampler } from "./terrainTiles/tileTerrainSampler";
 import {
   buildLowPolyBurgSymbols,
   buildRoutePaths,
@@ -322,6 +324,9 @@ class ThreeDModule {
   private campaignFocusKey = "";
   /** Real-DEM sampler for the current map, keyed by seed and georef. Null = checked and refused. */
   private localTerrain: { key: string; sampler: LocalTerrainSampler | null } | null = null;
+  /** Region-only and prefecture-level samplers of the current map, by key. */
+  private localTerrainSamplers = new Map<string, LocalTerrainSampler | null>();
+  private localTerrainLoadingKeys = new Set<string>();
   private localTerrainLoading = "";
   /** Window whose DEM levels were last requested, so one window asks once. */
   private localTerrainLevelsKey = "";
@@ -332,6 +337,10 @@ class ThreeDModule {
   private localTerrainStats: LocalTerrainFieldStats | null = null;
   /** Quadtree DEM tiles in place of the window ground (`tiles.enabled` tuning, Japan only). */
   private terrainTiles: TerrainTileLayer | undefined;
+  private localTerrainField: LocalTerrainField | null = null;
+  private tileFieldSampler:
+    | { layer: TerrainTileLayer; base: LocalTerrainSampler; sampler: LocalTerrainSampler }
+    | undefined;
   private campaignTileDataVersion = -1;
   private campaignTileRefreshTimer: ReturnType<typeof setTimeout> | undefined;
   private tileStateColorCache:
@@ -413,6 +422,16 @@ class ThreeDModule {
   /** Measurements of the last real-DEM campaign window (tuning harness). */
   getLocalTerrainStats(): LocalTerrainFieldStats | null {
     return this.localTerrainStats;
+  }
+
+  /** The sampler the last window read (tuning harnesses). */
+  getLocalTerrainSampler(): LocalTerrainSampler | null {
+    return this.localTerrain?.sampler ?? null;
+  }
+
+  /** The last real-DEM field (snapped rivers, coast) for the T7 comparison harness. */
+  getLocalTerrainField(): LocalTerrainField | null {
+    return this.localTerrainField;
   }
 
   /** Tile layer measurements (docs/plan/japan-terrain-tiles.md harness). */
@@ -2635,6 +2654,20 @@ class ThreeDModule {
     }, 400);
   }
 
+  /** `tiles.fieldSource: "tiles"` reads the field heights from the loaded tile layer. */
+  private fieldSampler(
+    base: LocalTerrainSampler,
+    tuning: ReturnType<typeof getLocalTerrainTuning>
+  ): LocalTerrainSampler {
+    const layer = this.terrainTiles;
+    if (tuning.tiles.fieldSource !== "tiles" || !tuning.tiles.enabled || !layer?.isLoaded()) return base;
+    const cached = this.tileFieldSampler;
+    if (cached?.layer === layer && cached.base === base) return cached.sampler;
+    const sampler = createTileTerrainSampler(layer, base, worldContext.graphWidth, worldContext.graphHeight);
+    this.tileFieldSampler = { layer, base, sampler };
+    return sampler;
+  }
+
   private updateTerrainTiles(): void {
     const layer = this.terrainTiles;
     if (!layer || !this.camera || !(this.camera instanceof THREE.PerspectiveCamera)) return;
@@ -2793,8 +2826,12 @@ class ThreeDModule {
     const bilinear = { heightAt: (x: number, y: number) => this.sampleTerrainHeight(x, y), rivers };
     this.localTerrainStats = null;
     if (!geo || tuning.source === "cells") return bilinear;
-    const sampler = this.localTerrainSamplerFor(geo);
-    if (!sampler) return bilinear;
+    // Field from tiles: the base is the region raster only, so japan-local/ is not read at all.
+    // Decided by the tuning alone, so the prefecture manifests are never fetched in this mode.
+    const fromTiles = tuning.source === "dem" && tuning.tiles.enabled && tuning.tiles.fieldSource === "tiles";
+    const baseSampler = this.localTerrainSamplerFor(geo, !fromTiles);
+    if (!baseSampler) return bilinear;
+    const sampler = this.fieldSampler(baseSampler, tuning);
     // `japanBin` reads only the region raster; `dem` asks for the level matching the local ground step.
     const dem = tuning.source === "dem";
     const outerStepKm = tuning.stepKm ?? 2;
@@ -2845,6 +2882,7 @@ class ThreeDModule {
         })
       : null;
     if (field) this.localTerrainStats = field.stats;
+    this.localTerrainField = field;
     // With terrain tiles drawing the ground, lines and markers sit on the tiles' own heights.
     const tiles = dem && this.terrainTiles?.isLoaded() ? this.terrainTiles : undefined;
     if (tiles) this.campaignTileDataVersion = tiles.dataVersion;
@@ -2913,26 +2951,38 @@ class ThreeDModule {
   }
 
   private localTerrainSamplerFor(
-    geo: NonNullable<typeof worldContext.options.earthRegion>
+    geo: NonNullable<typeof worldContext.options.earthRegion>,
+    prefectureLevels = true
   ): LocalTerrainSampler | null {
-    const key = `${worldContext.seed}|${geo.id}|${worldContext.graphWidth}x${worldContext.graphHeight}`;
-    if (this.localTerrain?.key === key) return this.localTerrain.sampler;
-    if (this.localTerrainLoading === key) return null;
+    const key = `${worldContext.seed}|${geo.id}|${worldContext.graphWidth}x${worldContext.graphHeight}|${prefectureLevels ? "levels" : "region"}`;
+    const cached = this.localTerrainSamplers.get(key);
+    if (cached !== undefined) {
+      this.localTerrain = { key, sampler: cached };
+      return cached;
+    }
+    if (this.localTerrainLoadingKeys.has(key)) return null;
+    this.localTerrainLoadingKeys.add(key);
     this.localTerrainLoading = key;
     void createLocalTerrainSampler(
       geo,
       worldContext.grid,
       worldContext.graphWidth,
       worldContext.graphHeight,
-      optionsStore.getState().heightExponent
+      optionsStore.getState().heightExponent,
+      { prefectureLevels }
     )
       .catch(error => {
         console.warn("Local terrain DEM unavailable", error);
         return null;
       })
       .then(sampler => {
-        if (this.localTerrainLoading !== key) return;
-        this.localTerrainLoading = "";
+        this.localTerrainLoadingKeys.delete(key);
+        if (this.localTerrainLoading === key) this.localTerrainLoading = "";
+        // One map at a time: drop samplers of another seed or size.
+        const prefix = key.slice(0, key.lastIndexOf("|"));
+        for (const other of [...this.localTerrainSamplers.keys()])
+          if (!other.startsWith(`${prefix}|`)) this.localTerrainSamplers.delete(other);
+        this.localTerrainSamplers.set(key, sampler);
         this.localTerrain = { key, sampler };
         if (sampler && this.campaignFocus && this.options.isOn && this.viewType === "viewMesh") {
           this.campaignCameraDirty = true;

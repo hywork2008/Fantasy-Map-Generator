@@ -200,3 +200,50 @@
 
 - 線の高さ：窓の中の線（川・道・境界・行軍）の頂点 15,054 点で、読み込み済みの最も細かいタイルの高さとの差は平均 +15m（`liftScale` の15m）、地面より下の点は0。
 - 画像 `t6-kawanakajima-local-close.png`：`37a9eb78e688e2647880a2a6b47c1ed699c059d35e01dc6ca3ebda762a3548e9`
+
+## T7：川の谷寄せと海岸の判定をタイルの高さで行う（比較）
+
+- 実装：`tiles.fieldSource`（URL `ltFieldSource=tiles`、既定は `prefectures` のまま）。`tiles` のときは `createLocalTerrainField` の高さ・海岸をタイルから読み、残りは地域ラスタ（`japan.bin`）だけの sampler で補う。`japan-local/` は読まない。
+- 焼き直し：県ラスタが無く `japan.bin` で埋めた点のうち、`japan.bin` の陸マスクが海の所は -6m 以下で書く（従来の sampler が陸マスクで「海」と答えていた所を、タイルでも海と答えるため）。z0〜z3 の新しい SHA-256：index.json `0d4bba2ee4569a1ee7ed59e288ff200ae60806cd3901259ed494770dc12b638c`、z0 `0af0eff8a53c4506452e32bc7af05e473cf81a4366a2dcc780d397bdaf013284`（511,746）、z1 `fb2264b2c84cce1cd1cfdbc1a82e4eab4b0c4e4b2f356c382fbec468aa653a47`（1,607,062、179枚）、z2 `0cffe0ebdb9ffb767058b33e9a4f24873057530bab9f6a5229282812b5f5e8ca`（1,669,908）、z3 `37a112285da9647c66e660d308d6b8cccf4f8838ae5cdc610d72ecfd30e6493d`（4,973,812、554枚）。
+- 測定：`scripts/japanFieldCompareHarness.js`（同じ地図・同じ窓で `prefectures` → `tiles` → `prefectures` の順に作り、川の各点のずれと海岸を比べる）、`scripts/japanFieldOverlay.js`（重ね描き）。窓は中心から 84km 四方、海岸は 0.5km 格子（約11.3万点）。
+- 同じ設定で2回作った川のずれ（繰り返し）はどの地点も 0。結果は決定的。
+- 「local」は手元の全段（250m・100m あり）、「dist」は配布の状態（`manifest.local.json`・z4・z5・`index.local.json` を退避）。地図はページを開き直すたびに作り直されるので、local と dist は別の地図。
+
+### 川の位置（FMG の川を谷へ寄せた後の、点ごとのずれ）
+
+| 組 | 地点 | 川 | 点 | 平均 | 中央 | 95% | 最大 | 1km 超 |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| local | 関ヶ原 | 7 | 62 | 1.30km | 0.25km | 6.0km | 7.5km | 18 |
+| local | 川中島 | 6 | 39 | 0.24km | 0 | 1.75km | 1.75km | 3 |
+| local | 東京 | 3 | 29 | 0.42km | 0 | 2.25km | 2.25km | 5 |
+| dist | 関ヶ原 | 7 | 56 | 0.67km | 0.5km | 3.0km | 4.0km | 14 |
+| dist | 川中島 | 7 | 53 | 0.74km | 0.25km | 3.5km | 5.75km | 10 |
+| dist | 東京 | 4 | 38 | 1.08km | 0.5km | 5.5km | 6.0km | 10 |
+
+- 谷寄せの半径は 6km。ずれの大きい区間は、関ヶ原（local）の木曽川上流で隣の谷を選んだ1本と、関東平野・濃尾平野のような平地（谷の底が決まらない所）。山間の川（川中島 local）はほぼ重なる。
+- 谷寄せ後の平均の掘り下げ：関ヶ原 local 60.7→58.4m、川中島 94.7→83.5m、東京 5.7→5.1m（prefectures→tiles）。
+
+### 海岸（DEM の三値 landAt の一致）
+
+| 組 | 地点 | 不一致 | うち陸と海が逆 | `field.waterAt`（川の塗りを含む）の不一致 |
+| :--- | :--- | ---: | ---: | ---: |
+| local | 関ヶ原 | 1.27% | 67点 | 2.07% |
+| local | 川中島 | 0.19% | 44点 | 0.40% |
+| local | 東京 | 0.93% | 61点 | 0.73% |
+| dist | 関ヶ原 | 3.46% | 202点 | 2.29% |
+| dist | 川中島 | 0.29% | 117点 | 0.92% |
+| dist | 東京 | 1.80% | 225点 | 2.04% |
+
+- 不一致の大半は「片方が未定（-5〜+0.5m）で FMG のセルに任せる」点。陸と海が逆になるのは海岸線に沿った1点幅（0.5km）で、タイルの格子が県ラスタの格子と半目ずれているため。重ね描きでは海岸線の縁の点として出る。
+- dist の関ヶ原は「県ラスタ：海／タイル：未定」が 2,539点。陸の無い z3 タイルは焼かないので、その海では z2（1km）の値を読み、海岸近くで -5m より浅くなる。
+
+| ファイル | SHA-256 |
+| :--- | :--- |
+| t7-local-rivers.json | `425eb763b06c6daf7ad7a4d3b5bd23e52eff4dbc2c4f904f42fb6a55ab8cde91` |
+| t7-dist-rivers.json | `22e50edf8da0e9f4f11ad09326403195bfe597966eb594b101672f1a175ed6ca` |
+| t7-local-sekigahara-overlay.png | `68bf7aeeacc814f9ffa9917d8c37dd66aa163bc1b13d0d40a094ff10525f1929` |
+| t7-local-kawanakajima-overlay.png | `b042aa24a10ce0dfbca3a0b20c986a4eac672252307e98e7000cf0b3b2c706c8` |
+| t7-local-tokyo-overlay.png | `35d85a485feb394b2d73544e108dc9c6642abf809d7aec4493338eb6118b58ab` |
+| t7-dist-sekigahara-overlay.png | `cb1b79453df79270ee7e95f39d280978e6f8059ca953afdbbb53cc184d1b7fc2` |
+| t7-dist-kawanakajima-overlay.png | `2e285cee6ec3b80846450853a1a0a64d8b520654e17d903ec8f1f10a03a37a33` |
+| t7-dist-tokyo-overlay.png | `39622f7148868e4a5f9d8288c02302d2ece28ef3ae74e0515efe777ca8ce205d` |

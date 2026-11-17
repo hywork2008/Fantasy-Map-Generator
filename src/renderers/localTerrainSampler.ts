@@ -78,6 +78,11 @@ export interface LocalTerrainTuning {
     prefectures: string[];
     /** `states` blends the state colours over the land. Off by default. */
     mapColors: "none" | "states";
+    /**
+     * Heights for river snapping, carving and the DEM coast: `prefectures` reads japan-local/,
+     * `tiles` reads the terrain tiles (T7 comparison, docs/plan/japan-terrain-tiles.md).
+     */
+    fieldSource: "prefectures" | "tiles";
   };
 }
 
@@ -121,7 +126,8 @@ export const DEFAULT_LOCAL_TERRAIN_TUNING: LocalTerrainTuning = {
     farKm: 100,
     farZoom: 1,
     prefectures: [],
-    mapColors: "none"
+    mapColors: "none",
+    fieldSource: "prefectures"
   }
 };
 
@@ -187,7 +193,8 @@ function readUrlTuning(base: LocalTerrainTuning): LocalTerrainTuning {
       farKm: num("ltTileFarKm") ?? base.tiles.farKm,
       farZoom: num("ltTileFarZoom") ?? base.tiles.farZoom,
       prefectures: params.get("ltTilePrefs")?.split(",").filter(Boolean) ?? base.tiles.prefectures,
-      mapColors: params.get("ltTileColors") === "states" ? "states" : base.tiles.mapColors
+      mapColors: params.get("ltTileColors") === "states" ? "states" : base.tiles.mapColors,
+      fieldSource: params.get("ltFieldSource") === "tiles" ? "tiles" : base.tiles.fieldSource
     }
   };
 }
@@ -283,7 +290,9 @@ export async function createLocalTerrainSampler(
   grid: { points: ReadonlyArray<readonly number[]>; cells: { h: ArrayLike<number> } },
   graphWidth: number,
   graphHeight: number,
-  heightExponent: number
+  heightExponent: number,
+  /** `prefectureLevels: false` reads only the region raster (no japan-local/ manifests). */
+  options: { prefectureLevels?: boolean } = {}
 ): Promise<LocalTerrainSampler | null> {
   if (!geo) return null;
   const started = typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -297,7 +306,10 @@ export async function createLocalTerrainSampler(
     return encodeEarthCellHeight(sampleLand(raster, lon, lat), sampleElevation(raster, lon, lat), heightExponent);
   });
   if (!consistency.ok) return null;
-  const [levels, riversLonLat] = await Promise.all([loadDemManifests(geo.id), loadRealRivers(geo.id)]);
+  const [levels, riversLonLat] = await Promise.all([
+    options.prefectureLevels === false ? Promise.resolve([]) : loadDemManifests(geo.id),
+    loadRealRivers(geo.id)
+  ]);
   const realRivers = riversLonLat.map(river => ({
     points: river.points.map(([lon, lat]) => {
       const point = georefLonLatToMap(geo, lon, lat, graphWidth, graphHeight);

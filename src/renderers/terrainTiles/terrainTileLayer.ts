@@ -144,7 +144,10 @@ export class TerrainTileLayer {
   private disposed = false;
   private prefectureMask: Uint8Array | null = null;
   private tileData = new Map<string, Int16Array>();
-  private tileLoading = new Set<string>();
+  private tileLoading = new Map<string, Promise<void>>();
+  private failed = new Set<string>();
+  private failedLevels = new Set<number>();
+  private isFailed = (key: TileKey) => this.failed.has(tileId(key)) || this.failedLevels.has(key.z);
   private tileDataBytes = 0;
   private rangedTiles = 0;
   private rangeUnsupported = false;
@@ -217,7 +220,7 @@ export class TerrainTileLayer {
 
   private loadLevel(z: number): void {
     const index = this.index;
-    if (!index || this.levelData.has(z) || this.levelLoading.has(z)) return;
+    if (!index || this.levelData.has(z) || this.levelLoading.has(z) || this.failedLevels.has(z)) return;
     const level = index.levels[z];
     if (!level) return;
     const promise = loadEarthRasterBytes(`${this.dir}${level.file}`)
@@ -227,7 +230,9 @@ export class TerrainTileLayer {
         this.levelData.set(z, copy);
         this.version++;
       })
-      .catch(() => undefined)
+      .catch(() => {
+        this.failedLevels.add(z);
+      })
       .finally(() => {
         this.levelLoading.delete(z);
         if (!this.disposed) this.requestUpdate();
@@ -265,13 +270,18 @@ export class TerrainTileLayer {
     const id = tileId(key);
     const entry = this.entries.get(id);
     if (!entry || this.tileData.has(id) || this.tileLoading.has(id) || this.levelLoading.has(key.z)) return;
+    if (this.failed.has(id)) return;
     if (this.tileLoading.size >= MAX_RANGE_REQUESTS) return;
     const stored = index.samples + 2 * (index.border ?? 0);
     const length = stored * stored * 2;
-    this.tileLoading.add(id);
-    fetch(`${this.dir}${level.file}`, { headers: { Range: `bytes=${entry.offset}-${entry.offset + length - 1}` } })
+    const promise = fetch(`${this.dir}${level.file}`, {
+      headers: { Range: `bytes=${entry.offset}-${entry.offset + length - 1}` }
+    })
       .then(async response => {
-        if (!response.ok) return;
+        if (!response.ok) {
+          this.failed.add(id);
+          return;
+        }
         const bytes = new Uint8Array(await response.arrayBuffer());
         if (response.status !== 206 || bytes.byteLength !== length) {
           // The server sent the whole file: keep it as the level and stop asking for ranges.
@@ -292,11 +302,115 @@ export class TerrainTileLayer {
         this.rangedTiles++;
         this.evictTileData();
       })
-      .catch(() => undefined)
+      .catch(() => {
+        this.failed.add(id);
+      })
       .finally(() => {
         this.tileLoading.delete(id);
         if (!this.disposed) this.requestUpdate();
       });
+    this.tileLoading.set(id, promise);
+  }
+
+  /** Tiles of these levels that cover a map-pixel rectangle (only tiles in the index). */
+  private keysCovering(
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+    levels: readonly number[],
+    graphWidth: number,
+    graphHeight: number
+  ): TileKey[] {
+    const index = this.index;
+    if (!index) return [];
+    const kx = index.frame.widthKm / graphWidth;
+    const ky = index.frame.heightKm / graphHeight;
+    const keys: TileKey[] = [];
+    for (const z of levels) {
+      const level = index.levels[z];
+      if (!level) continue;
+      const x0 = Math.floor((bounds.minX * kx) / level.sizeKm);
+      const x1 = Math.floor((bounds.maxX * kx) / level.sizeKm);
+      const y0 = Math.floor((bounds.minY * ky) / level.sizeKm);
+      const y1 = Math.floor((bounds.maxY * ky) / level.sizeKm);
+      for (let y = y0; y <= y1; y++)
+        for (let x = x0; x <= x1; x++) if (this.entries.has(tileId({ z, x, y }))) keys.push({ z, x, y });
+    }
+    return keys;
+  }
+
+  /** Tiles over a rectangle not in memory yet (failed reads excluded). */
+  pendingArea(
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+    levels: readonly number[],
+    graphWidth: number,
+    graphHeight: number
+  ): number {
+    return this.keysCovering(bounds, levels, graphWidth, graphHeight).filter(
+      key => !this.peekData(key) && !this.isFailed(key)
+    ).length;
+  }
+
+  /** Loads every tile of these levels over a rectangle. Resolves true when it loaded anything. */
+  async ensureArea(
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+    levels: readonly number[],
+    graphWidth: number,
+    graphHeight: number
+  ): Promise<boolean> {
+    await this.ready;
+    const keys = this.keysCovering(bounds, levels, graphWidth, graphHeight);
+    let loaded = false;
+    for (;;) {
+      const missing = keys.filter(key => !this.peekData(key) && !this.isFailed(key));
+      if (!missing.length || this.disposed) break;
+      for (const key of missing) this.requestData(key);
+      const waits = [...this.tileLoading.values(), ...this.levelLoading.values()];
+      if (!waits.length) break;
+      await Promise.race(waits);
+      loaded = true;
+    }
+    return loaded;
+  }
+
+  /** Level steps in meters by z (grid spacing). */
+  get levelStepsMeters(): number[] {
+    return this.index?.levels.map(level => level.spacingKm * 1000) ?? [];
+  }
+
+  /**
+   * Raw DEM meters (negative at sea) at a map pixel from level `z` when its tile is in memory;
+   * null when not loaded, outside the index, or no data.
+   */
+  rawMetersAt(mapX: number, mapY: number, z: number, graphWidth: number, graphHeight: number): number | null {
+    const index = this.index;
+    const level = index?.levels[z];
+    if (!index || !level) return null;
+    const xKm = (mapX / graphWidth) * index.frame.widthKm;
+    const yKm = (mapY / graphHeight) * index.frame.heightKm;
+    const key = { z, x: Math.floor(xKm / level.sizeKm), y: Math.floor(yKm / level.sizeKm) };
+    const data = this.peekData(key);
+    if (!data) return null;
+    const border = index.border ?? 0;
+    const stored = index.samples + 2 * border;
+    const fx = (xKm - key.x * level.sizeKm) / level.spacingKm + border;
+    const fy = (yKm - key.y * level.sizeKm) / level.spacingKm + border;
+    const x0 = Math.min(stored - 2, Math.max(0, Math.floor(fx)));
+    const y0 = Math.min(stored - 2, Math.max(0, Math.floor(fy)));
+    const tx = Math.min(1, Math.max(0, fx - x0));
+    const ty = Math.min(1, Math.max(0, fy - y0));
+    let sum = 0;
+    let weight = 0;
+    for (const [i, j, w] of [
+      [0, 0, (1 - tx) * (1 - ty)],
+      [1, 0, tx * (1 - ty)],
+      [0, 1, (1 - tx) * ty],
+      [1, 1, tx * ty]
+    ] as const) {
+      const raw = data[(y0 + j) * stored + x0 + i];
+      if (raw === index.nodata || w === 0) continue;
+      sum += raw * index.unitMeters * w;
+      weight += w;
+    }
+    return weight > 0.25 ? sum / weight : null;
   }
 
   /** Drops the least recently used ranged tiles that have no mesh. */
@@ -644,6 +758,7 @@ export class TerrainTileLayer {
     this.group.removeFromParent();
     this.levelData.clear();
     this.tileData.clear();
+    this.failed.clear();
     this.tileDataBytes = 0;
   }
 }
