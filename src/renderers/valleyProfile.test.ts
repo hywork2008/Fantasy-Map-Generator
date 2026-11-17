@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ALPINE_VALLEY_TABLES,
   createValleyField,
   DEFAULT_VALLEY_TUNING,
   sampleValleyRivers,
@@ -47,6 +48,20 @@ describe("valleyDimensions", () => {
       }
     );
     expect(plain.wallLeftM).toBe(plain.wallM);
+  });
+
+  it("draws Alpine troughs wider and deeper, without gorges", () => {
+    const site = { groundM: 2000, reliefLeftM: 1500, reliefRightM: 1500, riverWidthM: 50 };
+    const japan = valleyDimensions(site);
+    const alps = valleyDimensions(site, DEFAULT_VALLEY_TUNING, ALPINE_VALLEY_TABLES);
+    expect(alps.wallM).toBeGreaterThan(japan.wallM);
+    expect(alps.floorHalfM).toBeGreaterThan(japan.floorHalfM);
+    expect(japan.gorge).toBe(true);
+    expect(alps.gorge).toBe(false);
+    const flat = { groundM: 1500, reliefLeftM: 0, reliefRightM: 0, riverWidthM: 50 };
+    expect(valleyDimensions(flat, DEFAULT_VALLEY_TUNING, ALPINE_VALLEY_TABLES).depthM).toBeGreaterThan(
+      valleyDimensions(flat).depthM
+    );
   });
 
   it("keeps the floor above sea level", () => {

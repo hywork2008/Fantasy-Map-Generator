@@ -61,6 +61,8 @@ export interface EarthLocalTerrain {
   localDemDir?: string;
   /** Tuning fixtures (approximate lon/lat). */
   sites: readonly EarthLocalTerrainSite[];
+  /** Measured valley sizes for carved valleys (docs/plan/fmg-cell-valleys.md). Default: Japanese valleys. */
+  valleyProfile?: "japan" | "alpine";
 }
 
 const JAPAN_STRAITS: EarthStrait[] = [
@@ -457,6 +459,7 @@ export const ALPS_REGION: EarthRegion = {
   raster: { path: "./heightmaps/earth/alps.bin" },
   localTerrain: {
     tileDir: "./heightmaps/earth/alps-tiles/",
+    valleyProfile: "alpine",
     sites: [
       { id: "zermatt", name: "Zermatt / Matterhorn", lon: 7.66, lat: 46.0 },
       { id: "lauterbrunnen", name: "Lauterbrunnen", lon: 7.91, lat: 46.59 },

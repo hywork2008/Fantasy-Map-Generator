@@ -76,7 +76,13 @@ import {
 import { getNightscapeBeamPose, getNightscapePopulationGlow } from "./nightscapeGlow";
 import { TerrainTileLayer, type TerrainTileStats } from "./terrainTiles/terrainTileLayer";
 import { createTileTerrainSampler } from "./terrainTiles/tileTerrainSampler";
-import { createValleyField, sampleValleyRivers } from "./valleyProfile";
+import {
+  ALPINE_VALLEY_TABLES,
+  createValleyField,
+  JAPAN_VALLEY_TABLES,
+  sampleValleyRivers,
+  type ValleyProfileTables
+} from "./valleyProfile";
 import {
   buildLowPolyBurgSymbols,
   buildRoutePaths,
@@ -2920,7 +2926,14 @@ class ThreeDModule {
         ? field.metersAt(x, y, (stepKm ?? outerStepKm) * 1000)
         : sampler.metersAt(x, y, dem ? (stepKm ?? outerStepKm) * 1000 : undefined);
     const valleyField = valleys
-      ? this.buildValleyField(kmPerPx, bounds, rivers, (x, y) => demMeters(x, y, 0.25), tuning.valley, 4)
+      ? this.buildValleyField(
+          kmPerPx,
+          bounds,
+          rivers,
+          (x, y) => demMeters(x, y, 0.25),
+          tuning.valley,
+          this.valleyTables().probeKm
+        )
       : null;
     // The tiles carve their own heights (every level of detail) with the same valleys.
     this.terrainTiles?.setHeightModifier(
@@ -3009,6 +3022,14 @@ class ThreeDModule {
    * Valleys along the rivers near the window, in map pixels. `groundM` is the uncarved ground
    * (meters at a map pixel); `defaultProbeKm` is used when `probeKm` is 0.
    */
+  /** Measured valley sizes for the map's region (Alpine troughs on `alps`, Japanese valleys otherwise). */
+  private valleyTables(): ValleyProfileTables {
+    const id = worldContext.options?.earthRegion?.id;
+    return (id && getEarthRegion(id)?.localTerrain?.valleyProfile) === "alpine"
+      ? ALPINE_VALLEY_TABLES
+      : JAPAN_VALLEY_TABLES;
+  }
+
   private buildValleyField(
     kmPerPx: number,
     bounds: { minX: number; minY: number; maxX: number; maxY: number },
@@ -3037,7 +3058,12 @@ class ThreeDModule {
         points: river.points.map(([x, y]) => [x * mPerPx, y * mPerPx]),
         widths: river.widths?.map(w => w * mPerPx)
       }));
-    const field = createValleyField(sampleValleyRivers(paths, groundAtM, { stepM: 250, probeM }), groundAtM, valley);
+    const field = createValleyField(
+      sampleValleyRivers(paths, groundAtM, { stepM: 250, probeM }),
+      groundAtM,
+      valley,
+      this.valleyTables()
+    );
     let maxDepth = 0;
     let gorges = 0;
     let deep = 0;

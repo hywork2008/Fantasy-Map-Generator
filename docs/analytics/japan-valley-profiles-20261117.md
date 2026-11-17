@@ -6,7 +6,7 @@
 
 - 川：国土地理院ベクトルタイル（地球地図日本、1:100万）の `rivers.json`（手元のみ）。34,791 本の折れ線（タイル境界で分割）。
 - 標高：地形タイル z5（125m、岐阜・長野・愛知）→ z4（250m）→ z3（500m）の順に、あるものを双線形で読む。
-- `node scripts/sampleJapanValleyProfiles.mjs`（既定 `--everyKm 2 --reachKm 6 --floorKm 0.75`）。川に沿って2kmごとに、川と直角に ±6km を 125m おきに読む。海（0m 未満）や無データに掛かる断面は捨てる。
+- `node scripts/sampleValleyProfiles.mjs`（旧 `sampleJapanValleyProfiles.mjs`。既定 `--everyKm 2 --reachKm 6 --floorKm 0.75`）。川に沿って2kmごとに、川と直角に ±6km を 125m おきに読む。海（0m 未満）や無データに掛かる断面は捨てる。
 - 谷底：線から ±0.75km 以内の最低点（1:100万の線の位置の誤差を吸収）。尾根：谷底から両側の到達範囲内の最高点。深さ：低い側の尾根と谷底の差。
 - 全断面：`docs/analytics/raw/japan-valley-profiles/sections.json`（5,828,974 bytes、SHA-256 `d87dce033aeb9653375bb4ebcfefdbd48882c2136550b4753d573f64610fa664`）。
 

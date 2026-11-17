@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | A0〜A4 済み（2026-11-18）。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める |
+| Status | A0〜A5 済み（2026-11-18）。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める |
 | Parent | [`japan-terrain-tiles.md`](./japan-terrain-tiles.md) |
 | Related | [`japan-local-war-terrain.md`](./japan-local-war-terrain.md)、[`fmg-cell-valleys.md`](./fmg-cell-valleys.md)、[`earth-geography-heightmaps.md`](./earth-geography-heightmaps.md)、[`../../scripts/bakeEarthTiles.mjs`](../../scripts/bakeEarthTiles.mjs)、[`../../src/data/earthRegions.ts`](../../src/data/earthRegions.ts)、[`../../src/renderers/terrainTiles/terrainTileLayer.ts`](../../src/renderers/terrainTiles/terrainTileLayer.ts) |
 | Scope | アルプス山脈とその周りを、Japan と同じ四分木タイルで3D表示し、山の造形を確かめる。日本と同じく「出典を記載すれば加工・再配布・商用利用ができる」データだけを使う。シミュの `cells.h`・河川・経路は変えない |
@@ -134,7 +134,7 @@ Japan と同じ四分木（z0=256km、65点格子）。
 | A2 | 実装の一般化（§5）。Japan の見た目と速さが変わらないこと | Japan の試験地点の比較画像、タイル更新の時間 |
 | A3 | Terrarium だけで z0〜z3 を焼いて3D表示する | 配布量、全試験地点の画像 |
 | A4 | z4〜z5 を Terrarium で焼き、スイス国内で swissALTI3D の z5 と比べる（Japan の GSI と Terrarium の比較と同じ）。z6 の要否、国境の継ぎ目の見え方、他の国の出典（§2.2）を足すかを決める | 尾根・崖・谷底の見え方、縞の有無、継ぎ目の段差、焼き込み時間 |
-| A5 | アルプスの谷の横断面を測り（`sampleJapanValleyProfiles.mjs` を地域で切り替え）、U字谷の曲線を足すか決める | 深さ別の寸法と側壁の形 |
+| A5 | アルプスの谷の横断面を測り（`sampleValleyProfiles.mjs --region alps`）、U字谷の曲線を足すか決める | 深さ別の寸法と側壁の形 |
 
 ## 7.1 記録
 
@@ -191,6 +191,14 @@ Japan と同じ四分木（z0=256km、65点格子）。
   - 国境の継ぎ目（ツェルマット・ルガーノ）は、この距離では段差として見えない。
   - 描くタイル 42〜87枚・19万〜39万頂点、タイル更新の最大 0.4〜9ms。
 - 決めたこと：125m までは全域 Terrarium で足り、他の国の公的DEM（§2.2）は足さない。z6 は swissALTI3D のある所だけで残す（`ltTileZoom=6` で見る。既定の `maxZoom` は5のまま）。
+
+### A5（2026-11-18）
+
+- `sampleJapanValleyProfiles.mjs` を `sampleValleyProfiles.mjs --region japan|alps` にした（Japan は既存の全断面と SHA-256 一致）。Alps は Natural Earth 10m の川と Terrarium z10（約106m）で 5,278 断面を測った（記録：[`../analytics/alps-valley-profiles-20261118.md`](../analytics/alps-valley-profiles-20261118.md)）。
+- 結果：アルプスの谷は日本より深く（600m以上が25%）、広い（尾根まで約7km、谷底幅1.4〜1.9km）。側壁の形は日本とほぼ同じで、はっきりしたU字の曲線は出なかった（U字は谷底の広さとして現れる）。峡谷は3.5%と少ない。
+- 決めたこと：U字の曲線は足さない。代わりに谷の寸法表を地域ごとにした（`ValleyProfileTables`。`JAPAN_VALLEY_TABLES`／`ALPINE_VALLEY_TABLES`）。Alps は `localTerrain.valleyProfile: "alpine"` で、深さ別の尾根距離・谷底幅、谷底標高別の深さ、左右比をアルプスの実測にし、峡谷を出さず、起伏を読む距離を7km にした。
+- 確認（seed 12345、DEM の窓）：ツェルマット 川7本・3,846点・最深753m、シャモニー 川12本・最深800m（上限）、ドロミテ 川8本・最深800m（上限）、峡谷0点。谷の作成 25〜57ms。インスブルックは窓に FMG の川が無かった。
+- 残り：谷底1000m以上の既定の深さ（1,209m）が `maxDepthM`（800m）で頭打ちになる。アルプスで上限を上げるかは見た目で決める（`ltValleyMaxM`）。
 
 ## 8. やらないこと
 

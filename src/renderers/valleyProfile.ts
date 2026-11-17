@@ -36,7 +36,24 @@ export const VALLEY_WALL_CURVE: readonly number[] = [0, 0.11, 0.21, 0.29, 0.36, 
 /** Gorges (depth >= 300 m, half-depth width <= 1.5 km): steep beside the floor. */
 export const GORGE_WALL_CURVE: readonly number[] = [0, 0.13, 0.3, 0.38, 0.45, 0.54, 0.6, 0.7, 0.8, 0.92, 1];
 
-/** Measured medians by depth: floor-to-ridge distance and floor width (km). */
+/**
+ * Measured valley sizes of one landscape (docs/analytics/japan-valley-profiles-20261117.md,
+ * docs/analytics/alps-valley-profiles-20261118.md).
+ */
+export interface ValleyProfileTables {
+  /** Medians by depth: floor-to-ridge distance and floor width (km). */
+  depth: readonly { depthM: number; ridgeKm: number; floorKm: number }[];
+  /** Median depth by floor elevation, the lower bound when the cells have no relief. */
+  floorElevation: readonly { elevM: number; depthM: number }[];
+  /** Left/right ridge ratio (p50) by depth. */
+  sideRatio: readonly { depthM: number; ratio: number }[];
+  /** Whether narrow gorges are common enough to draw (`tuning.gorge` still has to allow them). */
+  gorges: boolean;
+  /** How far across the river the relief is read on a real DEM, km. */
+  probeKm: number;
+}
+
+/** Japan: measured medians by depth: floor-to-ridge distance and floor width (km). */
 const DEPTH_TABLE: readonly { depthM: number; ridgeKm: number; floorKm: number }[] = [
   { depthM: 25, ridgeKm: 3.1, floorKm: 0.38 },
   { depthM: 100, ridgeKm: 3.2, floorKm: 0.5 },
@@ -62,6 +79,45 @@ const SIDE_RATIO_TABLE: readonly { depthM: number; ratio: number }[] = [
   { depthM: 450, ratio: 1.34 },
   { depthM: 800, ratio: 1.23 }
 ];
+export const JAPAN_VALLEY_TABLES: ValleyProfileTables = {
+  depth: DEPTH_TABLE,
+  floorElevation: FLOOR_ELEVATION_DEPTH,
+  sideRatio: SIDE_RATIO_TABLE,
+  gorges: true,
+  probeKm: 4
+};
+
+/**
+ * Alps (Natural Earth rivers on Terrarium z10, ±10 km): glacial troughs are wider and deeper than
+ * Japanese valleys, the floor is flatter and wider, and narrow gorges are rare (3.5 % of the
+ * sections 300 m deep or more). The wall shape itself is close to the Japanese one.
+ */
+export const ALPINE_VALLEY_TABLES: ValleyProfileTables = {
+  depth: [
+    { depthM: 25, ridgeKm: 6.75, floorKm: 0.5 },
+    { depthM: 100, ridgeKm: 6.94, floorKm: 1.38 },
+    { depthM: 225, ridgeKm: 6.81, floorKm: 1.38 },
+    { depthM: 450, ridgeKm: 6.88, floorKm: 1.38 },
+    { depthM: 800, ridgeKm: 6.94, floorKm: 1.75 },
+    { depthM: 1200, ridgeKm: 7.25, floorKm: 1.88 }
+  ],
+  floorElevation: [
+    { elevM: 100, depthM: 28 },
+    { elevM: 350, depthM: 170 },
+    { elevM: 750, depthM: 773 },
+    { elevM: 1250, depthM: 1209 }
+  ],
+  sideRatio: [
+    { depthM: 100, ratio: 1.6 },
+    { depthM: 225, ratio: 1.54 },
+    { depthM: 450, ratio: 1.53 },
+    { depthM: 800, ratio: 1.39 },
+    { depthM: 1200, ratio: 1.19 }
+  ],
+  gorges: false,
+  probeKm: 7
+};
+
 /** Tributary notches: spacing along the river and how far they widen the wall. */
 const SPUR_SPACING_M = [1000, 2000] as const;
 const SPUR_WIDEN = [0.25, 0.6] as const;
@@ -118,12 +174,13 @@ export interface ValleyDimensions {
 /** Valley size at one river point. */
 export function valleyDimensions(
   site: ValleySiteInput,
-  tuning: ValleyTuning = DEFAULT_VALLEY_TUNING
+  tuning: ValleyTuning = DEFAULT_VALLEY_TUNING,
+  tables: ValleyProfileTables = JAPAN_VALLEY_TABLES
 ): ValleyDimensions {
   const relief = Math.max(0, Math.max(site.reliefLeftM, site.reliefRightM)) * tuning.reliefShare;
   const floorGuess = Math.max(0, site.groundM - relief);
   const minDepth = lerpTable(
-    FLOOR_ELEVATION_DEPTH,
+    tables.floorElevation,
     r => r.elevM,
     r => r.depthM,
     floorGuess
@@ -132,17 +189,17 @@ export function valleyDimensions(
   depthM = Math.max(0, Math.min(depthM, site.groundM - MIN_FLOOR_M));
   // Gorge: deep, and walled on both sides (the lower side still carries most of the depth).
   const lowSide = Math.min(site.reliefLeftM, site.reliefRightM) * tuning.reliefShare;
-  const gorge = tuning.gorge && depthM >= GORGE_MIN_DEPTH_M && lowSide >= depthM * GORGE_SIDE_SHARE;
+  const gorge = tuning.gorge && tables.gorges && depthM >= GORGE_MIN_DEPTH_M && lowSide >= depthM * GORGE_SIDE_SHARE;
   const ridgeKm = gorge
     ? GORGE_RIDGE_KM
     : lerpTable(
-        DEPTH_TABLE,
+        tables.depth,
         r => r.depthM,
         r => r.ridgeKm,
         depthM
       );
   const floorKm = lerpTable(
-    DEPTH_TABLE,
+    tables.depth,
     r => r.depthM,
     r => r.floorKm,
     depthM
@@ -156,7 +213,7 @@ export function valleyDimensions(
     const high = Math.max(site.reliefLeftM, site.reliefRightM);
     const low = Math.min(site.reliefLeftM, site.reliefRightM);
     const cap = lerpTable(
-      SIDE_RATIO_TABLE,
+      tables.sideRatio,
       r => r.depthM,
       r => r.ratio,
       depthM
@@ -214,9 +271,10 @@ interface Segment {
 export function createValleyField(
   rivers: readonly (readonly ValleyRiverPoint[])[],
   groundAt: (x: number, y: number) => number,
-  tuning: ValleyTuning = DEFAULT_VALLEY_TUNING
+  tuning: ValleyTuning = DEFAULT_VALLEY_TUNING,
+  tables: ValleyProfileTables = JAPAN_VALLEY_TABLES
 ): ValleyField {
-  const dims = rivers.map(river => river.map(p => valleyDimensions(p, tuning)));
+  const dims = rivers.map(river => river.map(p => valleyDimensions(p, tuning, tables)));
   const floors = rivers.map((river, r) => {
     let min = Infinity;
     return river.map((p, i) => {
