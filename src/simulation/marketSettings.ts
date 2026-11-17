@@ -111,6 +111,9 @@ export type DairyDemandMode = (typeof DAIRY_DEMAND_MODES)[number];
 /** What the dairy tradition follows: the milk of the market's own herds, or also the dairy its people bought in. */
 export const DAIRY_TRADITION_SOURCE_MODES = ["herdsAndPurchases", "herdsOnly"] as const;
 export type DairyTraditionSourceMode = (typeof DAIRY_TRADITION_SOURCE_MODES)[number];
+/** Cash held back from bedding: for wardrobes still on the shelf this month, or for the whole unmet wardrobe need. */
+export const BEDDING_CASH_RESERVE_MODES = ["buyableWardrobes", "wardrobeNeed"] as const;
+export type BeddingCashReserveMode = (typeof BEDDING_CASH_RESERVE_MODES)[number];
 export const CHEESE_REFERENCE_PRICE_MODES = ["productionCost", "goodValue"] as const;
 export type CheeseReferencePriceMode = (typeof CHEESE_REFERENCE_PRICE_MODES)[number];
 export type ByproductExportMode = (typeof BYPRODUCT_EXPORT_MODES)[number];
@@ -307,6 +310,7 @@ export type MarketSettings = {
   ruralDairyUse: RuralDairyUseMode;
   dairyDemand: DairyDemandMode;
   cheeseReferencePrice: CheeseReferencePriceMode;
+  beddingCashReserve: BeddingCashReserveMode;
   dairyTraditionSource: DairyTraditionSourceMode;
   /** Share of a guild's treasury above its working reserve spent in its town a month, with `guildSurplusUse` spend. */
   guildSpendRate: number;
@@ -439,6 +443,7 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   ruralDairyUse: "eat",
   dairyDemand: "tradition",
   cheeseReferencePrice: "productionCost",
+  beddingCashReserve: "buyableWardrobes",
   dairyTraditionSource: "herdsAndPurchases",
   guildSpendRate: 0.08,
   guildReserveMonths: 1,
@@ -604,6 +609,10 @@ const dairyTraditionSourceMode = (value: unknown): DairyTraditionSourceMode =>
   DAIRY_TRADITION_SOURCE_MODES.includes(value as DairyTraditionSourceMode)
     ? (value as DairyTraditionSourceMode)
     : DEFAULT_MARKET_SETTINGS.dairyTraditionSource;
+const beddingCashReserveMode = (value: unknown): BeddingCashReserveMode =>
+  BEDDING_CASH_RESERVE_MODES.includes(value as BeddingCashReserveMode)
+    ? (value as BeddingCashReserveMode)
+    : DEFAULT_MARKET_SETTINGS.beddingCashReserve;
 const cheeseReferencePriceMode = (value: unknown): CheeseReferencePriceMode =>
   CHEESE_REFERENCE_PRICE_MODES.includes(value as CheeseReferencePriceMode)
     ? (value as CheeseReferencePriceMode)
@@ -806,6 +815,7 @@ export function getMarketSettings(): MarketSettings {
     ruralDairyUse: ruralDairyUseMode(parsed.ruralDairyUse),
     dairyDemand: dairyDemandMode(parsed.dairyDemand),
     cheeseReferencePrice: cheeseReferencePriceMode(parsed.cheeseReferencePrice),
+    beddingCashReserve: beddingCashReserveMode(parsed.beddingCashReserve),
     dairyTraditionSource: dairyTraditionSourceMode(parsed.dairyTraditionSource),
     guildSpendRate: clamp("guildSpendRate", parsed.guildSpendRate),
     guildReserveMonths: clamp("guildReserveMonths", parsed.guildReserveMonths),
@@ -913,6 +923,7 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     ruralDairyUse: ruralDairyUseMode(next.ruralDairyUse),
     dairyDemand: dairyDemandMode(next.dairyDemand),
     cheeseReferencePrice: cheeseReferencePriceMode(next.cheeseReferencePrice),
+    beddingCashReserve: beddingCashReserveMode(next.beddingCashReserve),
     dairyTraditionSource: dairyTraditionSourceMode(next.dairyTraditionSource),
     guildSpendRate: clamp("guildSpendRate", next.guildSpendRate),
     guildReserveMonths: clamp("guildReserveMonths", next.guildReserveMonths),

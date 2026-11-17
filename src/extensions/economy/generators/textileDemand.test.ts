@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { DEFAULT_MARKET_SETTINGS, setMarketSettings } from "../../../simulation/marketSettings";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
@@ -81,7 +82,10 @@ describe("textile household demand", () => {
     ]);
   });
 
-  afterEach(() => clearEconomyContext());
+  afterEach(() => {
+    clearEconomyContext();
+    setMarketSettings(DEFAULT_MARKET_SETTINGS);
+  });
 
   it("derives four-year replacement demand from real urban and rural residents with a cold-climate multiplier", () => {
     const profile = getMarketTextileDemandProfile(1);
@@ -207,6 +211,8 @@ describe("textile household demand", () => {
   });
 
   it("shares one monthly cash allocation between clothing and bedding and preserves missing-goods reserves", () => {
+    // The old rule: cash is held for the whole unmet wardrobe need, even with no wardrobes on the shelf.
+    setMarketSettings({ ...DEFAULT_MARKET_SETTINGS, beddingCashReserve: "wardrobeNeed" });
     addBlankets();
     const market = getMarkets()[0];
     worldContext.pack.burgs[1]!.population = 0;
@@ -228,6 +234,18 @@ describe("textile household demand", () => {
     settleTextileHouseholdDemand();
     expect(getRuralHouseholdWealth(market)).toBe(95);
     expect(market.goods[9].stock).toBe(before);
+  });
+
+  it("lets money held for wardrobes that are not on the shelf buy bedding", () => {
+    addBlankets();
+    const market = getMarkets()[0];
+    worldContext.pack.burgs[1]!.population = 0;
+    market.foodLedger!.ruralHouseholdWealth = 100;
+    market.goods[5].stock = 0;
+    const before = market.goods[9].stock;
+    settleTextileHouseholdDemand();
+    expect(market.goods[9].stock).toBeLessThan(before);
+    expect(market.blanketLedger!.settlementDiagnostics!.buyers[0].priorityGap).toBe(0);
   });
 
   it("allocates scarce bedding to both populations and preserves old cumulative ledgers", () => {

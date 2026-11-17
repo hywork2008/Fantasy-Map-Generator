@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { DEFAULT_MARKET_SETTINGS, setMarketSettings } from "../../../simulation/marketSettings";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
@@ -71,6 +72,7 @@ describe("rural household wool processing", () => {
     setGoodFlowObserver(flow => flows.push(flow));
   });
   afterEach(() => {
+    setMarketSettings(DEFAULT_MARKET_SETTINGS);
     setGoodFlowObserver(null);
     clearEconomyContext();
   });
@@ -355,6 +357,8 @@ describe("rural household wool processing", () => {
   );
 
   it("keeps the wardrobe cash reservation when little home work leaves clothing unaffordable", () => {
+    // The old rule: cash is held for the whole unmet wardrobe need, even with no wardrobes on the shelf.
+    setMarketSettings({ ...DEFAULT_MARKET_SETTINGS, beddingCashReserve: "wardrobeNeed" });
     const market = getMarkets()[0];
     market.foodLedger!.ruralHouseholdWealth = 2000;
     market.goods[byName("Wool").i].price = 1;

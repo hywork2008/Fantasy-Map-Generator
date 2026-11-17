@@ -1,3 +1,4 @@
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getGoods, getMarketCellColumn, getMarkets, getWorldContext } from "../economyContext";
@@ -517,8 +518,23 @@ export function settleTextileHouseholdDemand(onCommissionLabor?: (burgId: number
       commission.garments,
       commission.garmentSpending
     );
+    // Hold money back only for wardrobes the market still has on its shelf this month: cash held for
+    // wardrobes that cannot be bought would never reach bedding (docs/plan/textile-basket-scale.md §3.4).
+    const buyableReserve = getMarketSettings().beddingCashReserve === "buyableWardrobes";
+    const wardrobeStockLeft = buyableReserve
+      ? getGoods()
+          .filter(good => HOUSEHOLD_GARMENT_NAMES.has(good.name) && isGoodEnabled(good))
+          .reduce((sum, good) => sum + Math.max(0, market.goods[good.i]?.stock ?? 0), 0)
+      : 0;
+    const wardrobeUnmet = market.textileLedger.settlementDiagnostics?.buyers ?? [];
+    const totalWardrobeUnmet = wardrobeUnmet.reduce((sum, row) => sum + row.unmet, 0);
+    const garmentPrice = textilePrice(market, HOUSEHOLD_GARMENT_NAMES);
     for (const [index, buyer] of buyers.entries()) {
-      const allowed = Math.min(buyer.budget, beddingBudgets[index]);
+      const unmet = wardrobeUnmet[index]?.unmet ?? 0;
+      const buyable = totalWardrobeUnmet > 0 ? Math.min(unmet, (wardrobeStockLeft * unmet) / totalWardrobeUnmet) : 0;
+      const allowed = buyableReserve
+        ? Math.max(0, buyer.budget - (Number.isFinite(garmentPrice) ? buyable * garmentPrice : 0))
+        : Math.min(buyer.budget, beddingBudgets[index]);
       buyer.priorityAllocatedBudget = Math.max(
         0,
         openingBudgets[index] - allowed - (buyer.rural ? home.blanketSpending + commission.blanketSpending : 0)

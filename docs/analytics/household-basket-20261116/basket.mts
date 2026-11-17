@@ -131,6 +131,27 @@ for (let month = 1; month <= months; month++) {
   }
   const snap: Record<string, unknown> = { month, goodsVA: produced - used, produced, used, staple: stapleValue(), services, hhIn, totals: recorder.totals(), heads: heads(), stapleMedianPrice: medians()[staple.name] };
   snap.ledgers = ledgers();
+  // Where unmet household textiles stop (docs/plan/textile-basket-scale.md §3.1): the ledger's gap partition, summed.
+  const gaps: Record<string, Record<string, number>> = {};
+  const gapKeys = ["need", "supplied", "marketSupplied", "marketPaid", "remainingBudget", "unmet", "priorityGap", "budgetGap", "stockGap", "allocationOrRoundingGap", "noPricedRouteGap"];
+  const stockNames = ["Garments", "Wool Garments", "Linen Garments", "Wool Blankets", "Cloth", "Wool Cloth", "Linen"];
+  const stocks: Record<string, number> = {};
+  const goodIdByName = new Map(getGoods().map(g => [g.name, g.i]));
+  for (const m of marketById.values()) {
+    for (const [label, ledger] of [["Garments", m.textileLedger], ["Wool Blankets", m.blanketLedger]] as const) {
+      for (const buyer of (ledger as any)?.settlementDiagnostics?.buyers ?? []) {
+        const key = `${label}:${buyer.rural ? "rural" : "urban"}`;
+        const row = (gaps[key] ??= {});
+        for (const k of gapKeys) row[k] = (row[k] ?? 0) + (Number(buyer[k]) || 0);
+      }
+    }
+    for (const name of stockNames) {
+      const id = goodIdByName.get(name);
+      if (id !== undefined) stocks[name] = (stocks[name] ?? 0) + Math.max(0, m.goods?.[id]?.stock ?? 0);
+    }
+  }
+  snap.textileGaps = gaps;
+  snap.textileStocks = stocks;
   snap.sinks = Object.fromEntries(Object.entries(used2).filter(([, v]) => v[1] > 10).map(([k, v]) => [k, [Math.round(v[0]), Math.round(v[1])]]));
   snap.byGood = Object.fromEntries(Object.entries(byGood).filter(([, v]) => Math.abs(v) > 100).map(([k, v]) => [k, Math.round(v)]));
   if (month % 12 === 0) {

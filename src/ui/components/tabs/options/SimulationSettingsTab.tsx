@@ -24,6 +24,8 @@ import {
   setHouseholdHoneyKilograms
 } from "../../../../simulation/householdHoneySettings";
 import {
+  BEDDING_CASH_RESERVE_MODES,
+  type BeddingCashReserveMode,
   BOOTS_LABOR_MODES,
   type BootsLaborMode,
   BYPRODUCT_EXPORT_MODES,
@@ -1990,6 +1992,31 @@ export const SimulationSettingsTab: React.FC = () => {
                 {CHEESE_REFERENCE_PRICE_MODES.map(mode => (
                   <option key={mode} value={mode}>
                     {t(`simulation.cheeseReferencePrice_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.beddingCashReserveTip")}>
+            <td />
+            <td>
+              <label htmlFor="beddingCashReserve">{t("simulation.beddingCashReserve")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="beddingCashReserve"
+                value={marketSettings.beddingCashReserve}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      beddingCashReserve: e.target.value as BeddingCashReserveMode
+                    })
+                  )
+                }
+              >
+                {BEDDING_CASH_RESERVE_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.beddingCashReserve_${mode}`)}
                   </option>
                 ))}
               </select>
