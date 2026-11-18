@@ -1,8 +1,8 @@
 # CE 史実の短冊形区画（burgage plot）で街区を作るオプション
 
 作成: 2026-11-18
-更新: 2026-11-18（B0: 史料の本文を確認し、§2 の寸法表を確定。`bastide` の型を `binaire` に置き換えた）
-状態: B0 完了。B1 以降は未実装。
+更新: 2026-11-18（B0: 史料の本文を確認し、§2 の寸法表を確定。`bastide` の型を `binaire` に置き換えた。B1: 設定の型・型の表・区画を作る純関数を実装）
+状態: B0・B1 完了。B2 以降は未実装（生成にはまだ接続していない）。
 関連: [ce-meshless-block-fabric-scaling.md](ce-meshless-block-fabric-scaling.md)、[ce-medieval-facility-district-packing.md](ce-medieval-facility-district-packing.md)、[ce-facility-block-allocation.md](ce-facility-block-allocation.md)、[bv-workhome-facade-variation.md](bv-workhome-facade-variation.md)、[ce-meshless-gate-ribbon-growth.md](ce-meshless-gate-ribbon-growth.md)
 
 ## 1. 目的と範囲
@@ -246,7 +246,7 @@ Séraphin（p. 39, 44）の Figeac と Villefranche-de-Rouergue の値で作る�
 | 段階 | 内容 | 完了条件 |
 | --- | --- | --- |
 | B0 | §2 の史料を原典で確認し、§2.3 の表を確定する | **完了（2026-11-18）**。5 件の本文を確認し、寸法に出典と頁を付けた。確認できなかった 7 件は §2.2 に分け、数値には使わない。`bastide` を `binaire` に置き換え、ハンザ都市の値を取り下げた |
-| B1 | 設定（`plotFabric`）、型の表（`burgageProfiles.ts`。§2.3 の採用値と出典を持つ）、純関数 `planBurgageCell(ring, profile, context)`（区画・裏小路・横の小路を返す）、`binaire` の `planBinaireCell` | 単体テスト: すべての区画が通りか路地に面する、区画が重ならない、`english-burgage`・`hofstatt` の奥行きが間口の 2 倍以上、割った区画 2 筆の間口の和が元の区画の間口に一致する、街区からはみ出さない |
+| B1 | 設定（`plotFabric`）、型の表（§2.3 の採用値と出典を持つ）、純関数 `planBurgageCell(ring, profile, context)`（区画・裏小路・横の小路を返す）、`binaire` の `planBinaireCell` | **完了（2026-11-18）**。§8.1 |
 | B2 | メッシュなしの生成に接続する。`perimeterJobs` の後で、`plotFabric` によって `compact` と `burgage` の処理を選ぶ。住宅の配置、都市の大きさ（§6）、保存・読込、v19 | `compact` の固定入力の SHA-256 が変わらない。`burgage` の 1,000・5,000 人で未収容の住宅 0。生成時間が `compact` の 1.5 倍以内 |
 | B3 | `placeFacilitiesOnPlots`（§5.5） | `medieval-facilities` の 1,000・5,000 人で、施設だけの街区が 0（街区規模の施設を除く）。施設の 9 割以上が 1〜3 筆。置けた施設の数が `compact` の 9 割以上 |
 | B4 | 区画の境界と裏庭を描く（2D の線、3D の塀・生垣、菜園、木） | 2D と 3D で区画の線が見え、空いた区画が菜園になる。3D の描画の数が許容範囲に収まる |
@@ -255,7 +255,32 @@ Séraphin（p. 39, 44）の Figeac と Villefranche-de-Rouergue の値で作る�
 
 テストは AGENTS.md の方針に従い、変更した範囲に関係するものだけを実行する。B2 以降の FMG での確認は、Settlement pattern を Standard にした地図で行う。
 
-**次に進める作業**: B1（設定・型の表・区画を作る純関数）。§2.2 の未確認の史料は、手に入ったときに §2.3 を見直す。それまで B1 以降を止めない。
+**次に進める作業**: B2（メッシュなしの生成に接続する。`perimeterJobs` の後で `plotFabric` によって処理を選び、住宅の配置・都市の大きさ・保存と読込・v19 を行う）。§2.2 の未確認の史料は、手に入ったときに §2.3 を見直す。
+
+
+### 8.1 B1 の記録（2026-11-18）
+
+実装したもの:
+
+| ファイル | 内容 |
+| --- | --- |
+| [types/contracts/burgage.ts](../../src/city-editor/types/contracts/burgage.ts) | `PlotFabric`（`compact` / `burgage`）、区画・小路・街区の計画の型（`BurgagePlot`、`BurgageLane`、`BurgageCellPlan`） |
+| [types/generationSettings.ts](../../src/city-editor/types/generationSettings.ts)、[types/vector/urban.ts](../../src/city-editor/types/vector/urban.ts) | `plotFabric?` を加えた。どこからも読まないので、今の生成は変わらない |
+| [generators/burgage/profiles.ts](../../src/city-editor/generators/burgage/profiles.ts) | `BURGAGE_PROFILES`（§2.3 の採用値と出典の文字列）、`burgageProfileFor`（§5.1） |
+| [generators/burgage/frame.ts](../../src/city-editor/generators/burgage/frame.ts) | 街区の辺の座標系、凸の窓での切り抜き、長さを幅の列で埋める `fillLength` |
+| [generators/burgage/stripCell.ts](../../src/city-editor/generators/burgage/stripCell.ts) | `planBurgageCell`: 背中合わせの 2 列、1 列と裏小路、深すぎる街区の中央の空き地、横の小路、元の区画を 2 つに割る処理 |
+| [generators/burgage/binaireCell.ts](../../src/city-editor/generators/burgage/binaireCell.ts) | `planBinaireCell`: 細長い街区、横の路地、中央の venelle、頭の家、横の路地に面する家、長すぎる街区を切る路地 |
+
+設計からの変更と、B2 へ送るもの:
+
+- 奥行きと間口の比の検査は、割った区画で 2 倍以上、割っていない区画で 1.75 倍以上にした。`hofstatt` の割っていない区画は、Freiburg の実測（幅14〜18 m・奥行き32〜40 m）どおりだと 2 倍に届かないため。
+- 割った区画 2 筆の間口の和は、作り方の上で元の区画の間口に一致する。元の区画の間口は記録していないので、テストでは和が元の区画の範囲に入ることを確かめた。
+- 幅は「範囲から引いて長さに合わせて伸縮する」ので、範囲の端を少し（テストでは ±15%）はみ出すことがある。
+- 斜めの街区の角で、通りに面さない区画や細すぎる区画は空き地にした。
+- `stone-upland` の奥行きを短い側に寄せる処理（§5.1）、UI（§4 の 3）、街区の外周の後退（今の `fill` の `setback` に当たる処理）は B2 で行う。
+- `binaire` の向かいの通りの頭の家は、街区の遠い辺が向かいの通りと平行なときだけ置く。平行でないときは空き地になる。
+
+テスト: `npx vitest run src/city-editor/architecture.test.ts src/city-editor/generators/burgage`（2 ファイル・20 件成功）。`scripts/lint-architecture.ts` も成功した。
 
 ## 9. 受入の指標
 

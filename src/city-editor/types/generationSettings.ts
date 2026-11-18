@@ -26,6 +26,9 @@ export type WallShapeChoice = "auto" | WallShape;
 export interface GenerationSettings {
   /** Opt-in population-based facilities; absent retains the existing buildings. */
   facilityLayout?: "population";
+  /** How street blocks are cut into plots (docs/plan/ce-burgage-plot-fabric.md). Absent is `compact`, the
+   * existing house-sized blocks. */
+  plotFabric?: import("./contracts/burgage").PlotFabric;
   forestSettings?: import("./contracts/forest").ForestSettings;
   buildingHeightLimit?: import("./contracts/buildingHeightLimits").BuildingHeightLimit;
 

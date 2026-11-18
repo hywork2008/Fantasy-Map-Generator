@@ -19,6 +19,9 @@ export interface VectorUrbanSettings {
    * round them; `leat` digs a tanners' leat wherever the bends break the row into several reaches.
    */
   tanneryBends?: TanneryBends;
+  /** Street blocks of house-sized lots (`compact`, absent) or historical burgage plots
+   * (docs/plan/ce-burgage-plot-fabric.md). */
+  plotFabric?: import("../contracts/burgage").PlotFabric;
 }
 export type TanneryBends = "continuous" | "leat";
 export interface VectorBuilding {
