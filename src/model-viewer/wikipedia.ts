@@ -217,7 +217,12 @@ const modelArticles: Record<string, string> = {
   "trade-workshop.dedicated-fishmongery": "Fishmonger",
   "trade-workshop.dedicated-cutlery": "Cutler",
   "trade-workshop.dedicated-lime-tile-yard": "Lime kiln",
-  "trade-workshop.dedicated-glaziers-workshop": "Glazier"
+  "trade-workshop.dedicated-glaziers-workshop": "Glazier",
+  "trade-workshop.rear-works.baking": "Bakery",
+  "trade-workshop.rear-works.cutlery": "Cutler",
+  "trade-workshop.rear-works.metalwares": "Pewter",
+  "trade-workshop.rear-works.glazing": "Glazier",
+  "trade-workshop.rear-works.chandlery": "Chandler (profession)"
 };
 
 export function medievalWikipediaArticle(model: Pick<MedievalModel, "id" | "task">): string {

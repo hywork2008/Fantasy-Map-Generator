@@ -111,7 +111,13 @@ const TRADE_WORKSHOP_USES: Record<string, string[]> = {
   "dedicated-cutlery": ["cutlery"],
   "dedicated-lime-tile-yard": ["lime-burning", "tile-making"],
   "dedicated-glaziers-workshop": ["glazing"],
-  "dedicated-horse-mill": ["milling"]
+  "dedicated-horse-mill": ["milling"],
+  // Rear works behind a shop-house (docs/plan/ce-town-trade-rear-works.md).
+  "rear-works.baking": ["baking", "food"],
+  "rear-works.cutlery": ["cutlery"],
+  "rear-works.metalwares": ["metalwares"],
+  "rear-works.glazing": ["glazing"],
+  "rear-works.chandlery": ["chandlery"]
 };
 
 const MEDIEVAL_IDS: Record<string, ModelFacets> = {

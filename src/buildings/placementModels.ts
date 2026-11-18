@@ -23,6 +23,7 @@ import { models as coopers } from "./medieval/54-dedicated-cooperageModels";
 import { models as tanneries } from "./medieval/55-dedicated-tanneriesModels";
 import { models as ropeworks } from "./medieval/56-ropeworksModels";
 import { models as butcheries } from "./medieval/57-butcheryModels";
+import { models as rearWorks } from "./medieval/58-rear-worksModels";
 import { models as townTrades } from "./medieval/58-town-tradesModels";
 import { models as squareFurniture } from "./medieval/59-market-square-furnitureModels";
 import { models as churchyardFurniture } from "./medieval/60-churchyard-furnitureModels";
@@ -167,6 +168,7 @@ for (const model of [
   ...ropeworks,
   ...butcheries,
   ...townTrades,
+  ...rearWorks,
   ...parishChurches.filter(m => m.id === "village-chapel"),
   ...townChurches,
   ...squareFurniture,
@@ -247,7 +249,9 @@ function workhomeDefinition(
     const key = `${id}:${quality}:codex`;
     let result = workhomeDefinitions.get(key);
     if (!result) {
-      const variant = model.variants!.find(v => v.author === "Codex GPT-6.1 Sol" && v.level === quality)!;
+      // A shop-house before rear works has no Codex study; it is never saved without its front.
+      const variant = model.variants!.find(v => v.author === "Codex GPT-6.1 Sol" && v.level === quality);
+      if (!variant) return null;
       result = { id: key, variant: variant.id, create: () => variant.create() };
       workhomeDefinitions.set(key, result);
     }

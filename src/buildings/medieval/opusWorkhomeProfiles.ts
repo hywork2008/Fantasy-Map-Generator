@@ -8,8 +8,13 @@ import { historicalPeriodIndex } from "../../types/historicalPeriod";
 import type { BuildingPaletteId } from "../appearance/palette";
 import type { BuildingAppearanceProfile } from "../appearance/types";
 import { REGIONAL_HOUSE_STYLES } from "../houses/regionalHouseStyles";
+import type { OpusRearTrade } from "./opusRearWorksProfiles";
 import type { WorkhomeForm } from "./workhomeFormProfiles";
 import type { WorkhomeRole } from "./workhomeTradeProfiles";
+
+/** The trades an Opus shop-house sells for: the Codex workhome trades, and the trades that keep rear works behind
+ * their house (docs/plan/ce-town-trade-rear-works.md). */
+export type OpusShopRole = WorkhomeRole | OpusRearTrade;
 
 export type OpusWorkhomeCulture = Exclude<BuildingAppearanceProfile, "legacy">;
 
@@ -22,7 +27,7 @@ export const OPUS_WORKHOME_CULTURES: readonly OpusWorkhomeCulture[] = [
 ];
 
 export interface OpusWorkhomeSpec {
-  role: WorkhomeRole;
+  role: OpusShopRole;
   culture: OpusWorkhomeCulture;
   /** Plot frontage, the envelope's X extent: 3.0–7.7 m on a 0.01 m grid. */
   widthMeters: number;
@@ -293,7 +298,7 @@ export const OPUS_WORKHOME_PRESET_ENVELOPES: Record<WorkhomeForm, readonly [numb
 
 /** The catalogue's preset of a trade and Codex form: an English shop-house of the form's envelope. */
 export function opusWorkhomePreset(
-  role: WorkhomeRole,
+  role: OpusShopRole,
   form: WorkhomeForm,
   overrides: Partial<OpusWorkhomeSpec> = {}
 ): OpusWorkhomeSpec {
@@ -331,12 +336,15 @@ export type OpusWorkhomeExterior = Pick<
 export const OPUS_WORKHOME_WIDTH_STEP = 0.25;
 export const OPUS_WORKHOME_DEPTH_STEP = 0.5;
 
-const MODEL_ID = /^trade-workhome\.workhome-(standard|narrow|wide)\.([A-Za-z]+)$/;
+/** A Codex form's workhome, or the shop-house before a trade's rear works (its envelope the standard form's). */
+const MODEL_ID = /^trade-workhome\.(?:workhome-(standard|narrow|wide)|shop-house)\.([A-Za-z]+)$/;
+
+export const opusShopHouseModelId = (trade: OpusRearTrade) => `trade-workhome.shop-house.${trade}`;
 
 /** The trade and Codex form of a task-51 model id, or undefined for any other model. */
-export function opusWorkhomeModel(modelId: string): { role: WorkhomeRole; form: WorkhomeForm } | undefined {
+export function opusWorkhomeModel(modelId: string): { role: OpusShopRole; form: WorkhomeForm } | undefined {
   const m = MODEL_ID.exec(modelId);
-  return m ? { form: m[1] as WorkhomeForm, role: m[2] as WorkhomeRole } : undefined;
+  return m ? { form: (m[1] ?? "standard") as WorkhomeForm, role: m[2] as OpusShopRole } : undefined;
 }
 
 /** The full spec of a placed workhome: its model's preset with the saved exterior. */

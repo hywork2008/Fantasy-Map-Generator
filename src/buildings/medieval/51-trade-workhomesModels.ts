@@ -1,12 +1,14 @@
 import { DEFAULT_AUTHOR } from "../authors";
 import { variantId } from "../modelVariants";
 import type { MedievalModel } from "./modelKit";
+import { OPUS_REAR_TRADES, type OpusRearTrade } from "./opusRearWorksProfiles";
 import {
   createOpusWorkhome,
   OPUS_WORKHOME_CULTURES,
   OPUS_WORKHOME_PRESET_ENVELOPES,
   type OpusWorkhomeCulture,
   type OpusWorkhomeSpec,
+  opusShopHouseModelId,
   opusWorkhomePreset
 } from "./opusWorkhome";
 import { WORKHOME_FORMS } from "./workhomeShell";
@@ -32,7 +34,7 @@ const OPUS_NOTE =
   "Shop window with a drop-down stall board and propped shutter, or an arched shop with a stone counter in the Midi; " +
   "a closed plank door beside it; a signboard naming the house. Low and High share every opening and fitting.";
 
-export const models: MedievalModel[] = WORKHOME_TRADE_COMBINATIONS.map(({ role, form }) => {
+const codexStudies: MedievalModel[] = WORKHOME_TRADE_COMBINATIONS.map(({ role, form }) => {
   const trade = tradeDefinition(role),
     p = WORKHOME_FORMS[form],
     id = `trade-workhome.${p.formId}.${role}`,
@@ -162,3 +164,108 @@ export const models: MedievalModel[] = WORKHOME_TRADE_COMBINATIONS.map(({ role, 
     assembleParts: parts => assembleWorkhomeTrade(role, form, parts[0]?.quality === "high" ? "high" : "low", parts)
   };
 });
+
+const SHOP_NAMES: Record<OpusRearTrade, string> = {
+  baking: "Baker's shop-house",
+  cutlery: "Cutler's shop-house",
+  metalwares: "Pewterer's shop-house",
+  glazing: "Glazier's shop-house",
+  chandlery: "Chandler's shop-house"
+};
+
+/**
+ * Shop-houses of the trades that work behind the house (docs/plan/ce-town-trade-rear-works.md R1): the Opus
+ * shop-house with the trade's wares, on the standard envelope. The works stand in the plot behind it
+ * (`trade-workshop.rear-works.*`). Opus only: no Codex study has these trades.
+ */
+const shopHouses: MedievalModel[] = OPUS_REAR_TRADES.map(trade => {
+  const id = opusShopHouseModelId(trade),
+    family = `medieval.${id}`,
+    preset = opusWorkhomePreset(trade, "standard"),
+    spec = (values: Readonly<Record<string, string>>): OpusWorkhomeSpec =>
+      opusWorkhomePreset(trade, "standard", {
+        culture: values.culture as OpusWorkhomeCulture,
+        ...(values.frontage !== "preset" ? { widthMeters: Number(values.frontage) } : {}),
+        shop: values.shop === "closed" ? "closed" : "open",
+        storeys: values.storeys === "3" ? 3 : 2,
+        entranceFace: values.face === "gable" ? "gable" : "eave",
+        mirror: values.side === "right"
+      });
+  return {
+    id,
+    task: 51,
+    name: SHOP_NAMES[trade],
+    author: OPUS,
+    size: [...OPUS_WORKHOME_PRESET_ENVELOPES.standard, 13] as [number, number, number],
+    placementEnvelope: OPUS_WORKHOME_PRESET_ENVELOPES.standard,
+    note: `${OPUS_NOTE} The house of a trade whose works stand behind it in the plot.`,
+    create: () => createOpusWorkhome(preset, "low"),
+    variants: (["low", "high"] as const).map(quality => ({
+      id: variantId(family, quality, OPUS),
+      family,
+      level: quality,
+      label: quality === "low" ? "Low" : "High",
+      author: OPUS,
+      create: () => createOpusWorkhome(preset, quality)
+    })),
+    presentation: {
+      fields: [
+        {
+          id: "culture",
+          label: "Culture",
+          default: preset.culture,
+          options: OPUS_WORKHOME_CULTURES.map(culture => ({ id: culture, label: CULTURE_LABELS[culture] }))
+        },
+        {
+          id: "frontage",
+          label: "Frontage",
+          default: "preset",
+          options: [
+            { id: "preset", label: `${OPUS_WORKHOME_PRESET_ENVELOPES.standard[0].toFixed(2)} m (standard envelope)` },
+            ...["3", "4.5", "6", "7.5"].map(w => ({ id: w, label: `${Number(w).toFixed(1)} m plot` }))
+          ]
+        },
+        {
+          id: "shop",
+          label: "Shop",
+          default: preset.shop,
+          options: [
+            { id: "open", label: "Open" },
+            { id: "closed", label: "Shuttered" }
+          ]
+        },
+        {
+          id: "storeys",
+          label: "Storeys",
+          default: String(preset.storeys),
+          options: [
+            { id: "2", label: "Two and a garret" },
+            { id: "3", label: "Three and a garret" }
+          ]
+        },
+        {
+          id: "face",
+          label: "Street face",
+          default: preset.entranceFace,
+          options: [
+            { id: "eave", label: "Eaves" },
+            { id: "gable", label: "Gable" }
+          ]
+        },
+        {
+          id: "side",
+          label: "Door side",
+          default: "left",
+          options: [
+            { id: "left", label: "Left" },
+            { id: "right", label: "Right" }
+          ]
+        }
+      ],
+      applies: () => true,
+      create: (variant, values) => createOpusWorkhome(spec(values), variant.includes("@high#") ? "high" : "low")
+    }
+  };
+});
+
+export const models: MedievalModel[] = [...codexStudies, ...shopHouses];

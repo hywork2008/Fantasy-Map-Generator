@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { adoptedVariant } from "../../city3d/adoption";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { placementFootprint } from "../placementModels";
-import { models } from "./51-trade-workhomesModels";
+import { models as taskModels } from "./51-trade-workhomesModels";
 import {
   createOpusWorkhome,
   OPUS_WORKHOME_CULTURES,
@@ -17,6 +17,9 @@ import {
   opusWorkhomeStoreys
 } from "./opusWorkhome";
 import { WORKHOME_TRADES } from "./workhomeTradeProfiles";
+
+/** The Codex trade studies; the shop-houses before rear works have their own tests (opusRearWorks.test.ts). */
+const models = taskModels.filter(model => model.id.startsWith("trade-workhome.workhome-"));
 
 const triangles = (model: CityStructureMeshes) => {
   let n = 0;

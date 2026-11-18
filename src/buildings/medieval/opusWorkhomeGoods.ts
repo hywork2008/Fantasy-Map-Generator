@@ -1,6 +1,6 @@
 import type { Surface } from "./modelKit";
 import type { TradeKit } from "./opusTradeKit";
-import type { WorkhomeRole } from "./workhomeTradeProfiles";
+import type { OpusShopRole } from "./opusWorkhomeProfiles";
 
 /**
  * Wares of a trade's open shop (docs/plan/bv-workhome-facade-variation.md §4.4): what a passer-by saw on the stall
@@ -17,7 +17,7 @@ const seg = (k: TradeKit) => (k.high ? 10 : 6);
 
 export function tradeGoods(
   k: TradeKit,
-  role: WorkhomeRole,
+  role: OpusShopRole,
   place: GoodsPlace,
   x: number,
   y: number,
@@ -86,6 +86,48 @@ export function tradeGoods(
       if (place === "rail") return;
       for (let b = 0; b < (k.high ? 3 : 2); b++)
         k.box("book", [x + (b - 0.5) * 0.11, y + 0.13, z], [0.08, 0.26, 0.2], BINDINGS[(i + b) % BINDINGS.length]);
+      return;
+    // The shop-houses before rear works (docs/plan/ce-town-trade-rear-works.md): what the works behind made.
+    case "baking":
+      // Loaves on the board and shelves; bread was not hung.
+      if (place === "rail") return;
+      k.blob("loaf", [x, y + 0.07, z], [0.14, 0.07, 0.1], i % 2 ? "straw" : "earth");
+      if (k.high) k.blob("roll", [x + 0.17, y + 0.04, z], [0.06, 0.04, 0.06], "straw");
+      return;
+    case "cutlery":
+      if (place === "rail") {
+        k.box("hung-knife", [x, y - 0.2, z], [0.03, 0.3, 0.05], "iron");
+        k.box("knife-haft", [x, y - 0.02, z], [0.035, 0.1, 0.05], i % 2 ? "wood" : "white");
+        return;
+      }
+      for (const dx of k.high ? [-0.08, 0, 0.08] : [-0.05, 0.05]) {
+        k.box("knife-blade", [x + dx, y + 0.01, z - 0.04], [0.04, 0.015, 0.2], "iron");
+        k.box("knife-haft", [x + dx, y + 0.015, z + 0.1], [0.035, 0.025, 0.1], place === "shelf" ? "leather" : "wood");
+      }
+      return;
+    case "metalwares":
+      if (place === "rail") {
+        k.cylinder("hung-skillet", [x, y - 0.2, z], 0.1, 0.05, "brass", 0.1, seg(k)).rotation.x = Math.PI / 2;
+        return;
+      }
+      k.cylinder("flagon", [x, y + 0.13, z], 0.06, 0.26, "pewter", 0.045, seg(k));
+      if (k.high) k.cylinder("charger", [x + 0.15, y + 0.01, z], 0.12, 0.02, "pewter", 0.12, seg(k));
+      return;
+    case "glazing":
+      // Leaded panels and roundels set up against the back of the board.
+      if (place === "rail") return;
+      k.box("leaded-panel", [x, y + 0.2, z - 0.05], [0.3, 0.4, 0.02], "water");
+      if (k.high)
+        k.cylinder("roundel", [x + 0.18, y + 0.12, z], 0.08, 0.015, "water", 0.08, seg(k)).rotation.x = Math.PI / 2;
+      return;
+    case "chandlery":
+      if (place === "rail") {
+        for (const dx of [-0.03, 0.03]) k.cylinder("hung-candle", [x + dx, y - 0.18, z], 0.014, 0.3, "fat", 0.014, 5);
+        return;
+      }
+      k.box("soap-cake", [x, y + 0.04, z], [0.18, 0.08, 0.12], i % 2 ? "fat" : "white");
+      if (k.high)
+        k.cylinder("candle-bundle", [x + 0.15, y + 0.03, z], 0.05, 0.3, "fat", 0.05, 6).rotation.z = Math.PI / 2;
       return;
   }
 }

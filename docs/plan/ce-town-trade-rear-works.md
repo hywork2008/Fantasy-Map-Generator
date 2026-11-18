@@ -1,7 +1,7 @@
 # 町の中の専用作業場を、区画の表の家と裏の作業場に分ける
 
 作成: 2026-11-18
-状態: 調査と計画まで。実装はまだ（§6 の R1 から）。
+状態: R1（MV の裏の作業場と表の店舗兼住宅、§10.1）を済ませた。次は R2。
 関連: [bv-workhome-facade-variation.md](bv-workhome-facade-variation.md) §8・§9（本書はその未決事項の続き）、[ce-burgage-plot-fabric.md](ce-burgage-plot-fabric.md)（短冊形区画）
 
 ## 1. 目的
@@ -142,10 +142,46 @@ Opus 版の 6 業種（[opusTownTrades.ts](../../src/buildings/medieval/opusTown
 
 ## 8. 未決事項
 
-- 裏の作業場を表の家と別の配置（モデル 2 つ）にするか、1 つのモデルにまとめるか。2 つにすると、表の家は Workhome と同じ扱い（外観の保存、区画への合わせ方）にできる。本書は 2 つを推す。
+- ~~裏の作業場を表の家と別の配置（モデル 2 つ）にするか、1 つのモデルにまとめるか。~~ 2 つに分ける（2026-11-18 にユーザーが決めた）。表の家は Workhome と同じ扱い（外観の保存、区画への合わせ方）にする。
 - ろうそく屋（町の外）にも組の方式を使うか。町の外は区画のない空き地に置くので、今の箱のままにする案もある。
 - 魚屋・肉屋の店の数を、町の大きさで減らすか（市場の列に 25 の板があったロンドンでも、魚屋の建物は数えるほど）。今の要求の数は実務者の数から出ている。
 
 ## 9. 次の作業
 
-R1（裏の作業場のモデル）から始める。§8 の 1 つ目（配置を 2 つにするか）を決めてから進める。
+R2: `burgage`／`burgage-dense` で、R1 の 5 業種を表の店舗兼住宅と裏の作業場の 2 つの配置として区画 1〜2 筆に置く。
+
+## 10. 実装の記録
+
+### 10.1 R1（2026-11-18）
+
+作ったもの:
+
+- 裏の作業場（MV task 58 の「Rear Works」、作者 Claude Opus 5.5、Low／High）。
+  - [opusRearWorksProfiles.ts](../../src/buildings/medieval/opusRearWorksProfiles.ts)（three.js なし）: 仕様（業種・文化・幅 3〜8 m・奥行き 5〜10 m・明暗・左右）、配置、保存の形、モデル ID `trade-workshop.rear-works.<業種>`。
+  - [opusRearWorks.ts](../../src/buildings/medieval/opusRearWorks.ts): 区画の幅いっぱいの小屋（奥行き 4.2 m まで）と、家の側の作業の庭（1.6 m 以上）。小屋の壁は町の家の型に合わせる（石・漆喰・板）。+Z が表の家の側。
+    - パン焼き: 戸のある閉じた小屋に、レンガのドームの窯（直径 1.2〜2.7 m。広い区画では小さな窯をもう 1 基）、煙突、こね桶、薪の束。
+    - 刃物: 前の開いた小屋に、鍛冶の炉・フード・煙突・ふいご・金床・水桶。庭に研ぎ石と水槽。
+    - 鉄器: 鋳造の炉とるつぼ、ふいご、石の鋳型と鋳物の台。庭に炭の山と水桶。
+    - ガラス: 白く塗った台に鉛枠のガラス板、鉛の棒の棚、鉛を溶かす小さな炉。庭にガラスの箱とくず。
+    - ろうそく: 脂を煮る銅鍋の炉・フード・煙突、ろうそくを浸す枠。庭に脂の樽。
+  - 既定の外形は 6×7 m（`placementEnvelope`）。CE でそのまま置ける（`placementModels` と `MEDIEVAL_VARIANTS` に登録した）。
+- 表の店舗兼住宅（MV task 51、`trade-workhome.shop-house.<業種>`、Opus のみ）。
+  - Opus の Workhome の業種に 5 業種を足した（`OpusShopRole`）。店の品物（[opusWorkhomeGoods.ts](../../src/buildings/medieval/opusWorkhomeGoods.ts)）は、パン、刃物、錫の水差しと大皿、鉛枠のガラス板と円いガラス、石鹸とろうそく。
+  - `opusWorkhomeModel` がこの ID も読む（外形は standard）。W3・W4 の外観の保存と区画への合わせ方が、そのまま使える。Codex の版はないので、外観なしの保存（`codex`）は描かない。
+- MV の用途の絞り込み（[catalogueFacets.ts](../../src/buildings/catalogueFacets.ts)）と Wikipedia の項目（[wikipedia.ts](../../src/model-viewer/wikipedia.ts)）に、裏の作業場の 5 つを足した。
+
+確かめたこと:
+
+- [opusRearWorks.test.ts](../../src/buildings/medieval/opusRearWorks.test.ts) を足した（3 件）。
+  - 5 業種×5 文化×幅 3・5・8 m×奥行き 5・7・10 m×左右で、外形の中に収まること。三角形が Low 1,500・High 5,000 以下。Low と High で高さが同じこと。
+  - CE で置けること。
+  - 表の店舗兼住宅に業種の品物が並ぶこと。
+- 最初の版では、奥行き 5 m の時に庭が 0.8 m しかなく、研ぎ石の槽や薪が外形からはみ出した。庭を 1.6 m 以上にし、研ぎ石の槽を横向きにし、狭い区画ではガラスのくずと薪を置かないようにした。
+- MV で目視した（パン焼き・刃物、6×7 m、High）。三角形は 1,208（パン焼き）と 1,292（刃物）。
+- task 51 の全モデルを Codex の研究として調べていた [opusWorkhome.test.ts](../../src/buildings/medieval/opusWorkhome.test.ts) と [workhomeTrades.test.ts](../../src/buildings/medieval/workhomeTrades.test.ts) を、Codex の研究だけに絞った。
+- 関連テスト 16 ファイルを実行した。失敗は前からのものだけ（`modelContracts.test.ts` 40 件、`workhomeTrades.test.ts` 27 件、`structuralClearance.test.ts` 1 件。HEAD でも同じ数）。`tsc --noEmit`・biome も成功した。
+
+まだ扱っていないこと:
+
+- CE にはまだ置いていない（R2）。
+- 裏の作業場の大きさ（小屋の奥行き 4.2 m、庭 1.6 m 以上）は仮の値。窯の直径（Bury）と小屋の幅（Mill Cotton）のほかは、史料で確かめていない。
