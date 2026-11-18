@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyHillshade,
   buildCampaignMesh,
+  CAMPAIGN_LINE_LIFT,
   CAMPAIGN_MARKER_LIFT,
   CAMPAIGN_MAX_SAMPLES_PER_SIDE,
   type CampaignBuildInput,
   type CampaignCellInput,
+  campaignAxis,
   campaignContactCamera,
   campaignGridSpacingPx,
   campaignRegimentPlacements,
@@ -313,5 +316,66 @@ describe("campaignMesh", () => {
 
     expect(mesh.markers.map(marker => marker.kind).sort()).toEqual(["burg", "fleet"]);
     expect(mesh.markers.find(marker => marker.kind === "burg")?.name).toBe("Avon");
+  });
+});
+
+describe("applyHillshade", () => {
+  const grid = (heightAt: (col: number, row: number) => number) => {
+    const positions = new Float32Array(9 * 3);
+    for (let row = 0; row < 3; row++)
+      for (let col = 0; col < 3; col++) positions.set([col, heightAt(col, row), row], (row * 3 + col) * 3);
+    return { positions, colors: new Float32Array(27).fill(0.5) };
+  };
+
+  it("keeps flat ground and darkens a slope facing away from the north-west light", () => {
+    const flat = grid(() => 0);
+    applyHillshade(flat.positions, flat.colors, 3, 3);
+    expect(flat.colors[12]).toBeCloseTo(0.5, 5);
+    // Ground rising to the east faces west, toward the light.
+    const towardLight = grid(col => col);
+    const awayFromLight = grid(col => -col);
+    applyHillshade(towardLight.positions, towardLight.colors, 3, 3);
+    applyHillshade(awayFromLight.positions, awayFromLight.colors, 3, 3);
+    expect(towardLight.colors[12]).toBeGreaterThan(0.5);
+    expect(awayFromLight.colors[12]).toBeLessThan(0.5);
+  });
+});
+
+describe("campaignAxis", () => {
+  it("is fine inside a ring, coarse outside, and hits the ring edges exactly", () => {
+    const axis = campaignAxis(0, 100, 50, 10, [{ halfPx: 10, stepPx: 1 }]);
+    expect(axis[0]).toBe(0);
+    expect(axis.at(-1)).toBe(100);
+    expect(axis).toContain(40);
+    expect(axis).toContain(60);
+    const gaps = axis.slice(1).map((x, i) => x - axis[i]);
+    expect(Math.max(...gaps.filter((_, i) => axis[i] >= 40 && axis[i] < 60))).toBeCloseTo(1, 9);
+    expect(Math.max(...gaps)).toBeCloseTo(10, 9);
+    expect(axis.length).toBe(4 + 20 + 4 + 1);
+  });
+});
+
+describe("draped lines", () => {
+  it("bends a river over a ridge and keeps it a scaled lift above the ground", () => {
+    // A 10-unit ridge at x = 50; the river crosses it from x = 49 to 51.
+    const heightAt = (x: number) => (Math.abs(x - 50) < 0.5 ? 10 : 0);
+    const mesh = build({
+      heightAt,
+      liftScale: 0.1,
+      drapeStepPx: 0.25,
+      rivers: [
+        {
+          points: [
+            [49, 40],
+            [51, 40]
+          ]
+        }
+      ]
+    });
+    const river = mesh.polylines.find(line => line.kind === "river")!;
+    const ys = Array.from(river.positions).filter((_, i) => i % 3 === 1);
+    expect(Math.max(...ys)).toBeCloseTo(10 + CAMPAIGN_LINE_LIFT * 0.1, 6);
+    expect(Math.min(...ys)).toBeCloseTo(CAMPAIGN_LINE_LIFT * 0.1, 6);
+    expect(river.positions.length / 6).toBe(8);
   });
 });

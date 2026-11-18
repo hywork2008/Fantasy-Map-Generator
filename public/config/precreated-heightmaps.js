@@ -2,6 +2,7 @@
 
 const precreatedHeightmaps = {
   "africa-centric": {id: 0, name: "Africa Centric"},
+  alps: {id: 25, name: "Alps"},
   "ancient-rome": {id: 24, name: "Ancient Rome"},
   arabia: {id: 1, name: "Arabia"},
   atlantics: {id: 2, name: "Atlantics"},

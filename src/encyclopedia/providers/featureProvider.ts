@@ -1,3 +1,5 @@
+import dataSourcesEn from "../content/features/data-sources.en.md?raw";
+import dataSourcesJa from "../content/features/data-sources.ja.md?raw";
 import encyclopediaEn from "../content/features/encyclopedia.en.md?raw";
 import encyclopediaJa from "../content/features/encyclopedia.ja.md?raw";
 import type { EncyclopediaEntry } from "../encyclopediaTypes";
@@ -12,6 +14,32 @@ export const FEATURE_ENTRIES: readonly EncyclopediaEntry[] = [
     summary: { en: "How to search and read this encyclopedia.", ja: "この百科事典の検索と読み方。" },
     tags: ["help", "codex", "dictionary", "ヘルプ", "辞書"],
     body: [{ kind: "markdown", text: { en: encyclopediaEn, ja: encyclopediaJa } }]
+  },
+  {
+    id: "feature:data-sources",
+    namespace: "feature",
+    title: { en: "Geographic data sources and licences", ja: "地理データの出典とライセンス" },
+    summary: {
+      en: "Where the real coastlines and elevation come from, and how to credit them.",
+      ja: "実在の海岸線と標高の出典、ライセンス、出典の表記。"
+    },
+    tags: [
+      "license",
+      "licence",
+      "attribution",
+      "credit",
+      "natural earth",
+      "terrarium",
+      "gsi",
+      "dem",
+      "elevation",
+      "ライセンス",
+      "出典",
+      "国土地理院",
+      "標高タイル",
+      "公共データ利用規約"
+    ],
+    body: [{ kind: "markdown", text: { en: dataSourcesEn, ja: dataSourcesJa } }]
   },
   {
     id: "feature:cost-of-living",

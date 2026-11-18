@@ -2,11 +2,15 @@
 
 2026-11-18
 
+- docs/plan/alps-terrain-tiles.md - アルプス周辺を Japan と同じ四分木タイルで3D表示する。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める
 - docs/plan/model-viewer-rename-and-catalogue-facets.md - BVをModel Viewerに改名し、種類・年代・地域・用途の属性で一覧を絞り込む
 
 2026-11-17
 
 - docs/plan/fmg-cell-interior-relief.md - セル内の平地と山の境を、標高とは別の山麓線として持つ
+- docs/plan/fmg-cell-valleys.md - FMG の川に沿って、実在の谷の横断面から寸法を取った谷・峡谷を3Dに彫る
+- docs/plan/japan-local-war-terrain.md - Japanテンプレートの戦闘窓だけ実在DEMで3D表示し、解像度とLODを調整で決める
+- docs/plan/japan-terrain-tiles.md - 日本全体から局地までを四分木タイルで3D表示し、画面外のタイルを破棄する
 - docs/plan/war-campaign-mesh.md - 戦争用に徒歩7日の窓だけをFMGメッシュで3D表示する
 
 2026-11-16

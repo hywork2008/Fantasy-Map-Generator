@@ -85,6 +85,17 @@ export interface BiomesData {
   urban?: number[];
 }
 
+/** Map pixel (0..graphWidth, 0..graphHeight) ↔ equirectangular lon/lat bbox. */
+export interface EarthRegionGeoref {
+  id: string;
+  west: number;
+  east: number;
+  south: number;
+  north: number;
+  graphWidth: number;
+  graphHeight: number;
+}
+
 export interface WorldOptions {
   pinNotes: boolean;
   winds: [number, number, number, number, number, number];
@@ -186,6 +197,13 @@ export interface WorldOptions {
    * unpinned coast rendering, so saved maps do not change.
    */
   portCoastPlacement?: PortCoastPlacement;
+  /**
+   * Georeference of an Earth-region template (Japan, Britain, ...), stored at generation so a
+   * loaded map can turn map pixels back into longitude/latitude for local real-DEM terrain.
+   * Absent for procedural templates and for maps generated before it existed.
+   * See docs/plan/japan-local-war-terrain.md.
+   */
+  earthRegion?: EarthRegionGeoref;
   /**
    * Biome regional profile: adjusts auto-assignment rates and continuous masks
    * (great forests, heath mosaics, mediterranean scrub, etc.). Default global.

@@ -13,6 +13,7 @@ import { useOptionsState } from "../store/optionsState";
 import type { Grid } from "../types/Grid";
 import { createTypedArray, findGridCell, getNumberInRange, lim, minmax, P, rand } from "../utils";
 import { ERROR, TIME } from "../utils/debug";
+import { earthRegionGeoref } from "../utils/localTerrainGeoref";
 import { buildEarthRegionHeights } from "./earthRegionHeightmap";
 import { buildIsletHeights } from "./isletHeightmap";
 
@@ -778,6 +779,11 @@ class HeightmapModule {
             ? await this.fromEarthRegion(graph, earthRegion)
             : await this.fromPrecreated(graph, id);
     TIME && console.timeEnd("defineHeightmap");
+    // Islet scope replaces the template, so its pixels are not the region's lon/lat.
+    this.worldContext.options.earthRegion =
+      earthRegion && graph.scope?.kind !== "islet"
+        ? earthRegionGeoref(earthRegion, this.worldContext.graphWidth, this.worldContext.graphHeight)
+        : undefined;
 
     this.clearData();
     return heights as Uint8Array;

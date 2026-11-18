@@ -95,6 +95,8 @@ export interface CampaignBurgInput {
 
 export interface CampaignPathInput {
   points: ReadonlyArray<readonly number[]>;
+  /** Full river width per point in map pixels (FMG river banks). Lines ignore it. */
+  widths?: readonly number[];
 }
 
 export interface CampaignBuildInput {
@@ -110,7 +112,38 @@ export interface CampaignBuildInput {
   packSpacingPx: number;
   footDays?: number;
   footKmPerDay?: number;
-  heightAt: (x: number, y: number) => number;
+  /** `stepKm` is the local ground spacing, so a multi-level DEM can pick its level per vertex. */
+  heightAt: (x: number, y: number, stepKm?: number) => number;
+  /** Ground step in km from a finer height source (real DEM). Overrides the grid-based step. */
+  sampleStepKm?: number;
+  /** Darken vertex colors by a fixed north-west light. The ground material is unlit. */
+  hillshade?: boolean;
+  /**
+   * Finer squares around the centre (half-width and step in km), finest wins. The ground stays one
+   * tensor grid: columns and rows inside a ring use its step, so no T-junction seams appear.
+   */
+  rings?: readonly CampaignRing[];
+  /**
+   * Real coastline. When given, it decides water and land colours instead of the cell height,
+   * and a DEM-land vertex in a sea cell takes the colour of the nearest land cell.
+   */
+  waterAt?: (x: number, y: number) => boolean;
+  /** Where a burg or army is drawn. A real-DEM window moves tokens off the sea onto the coast. */
+  displayPoint?: (x: number, y: number, naval: boolean) => readonly [number, number];
+  /**
+   * Multiplies the line, outline and token lifts. The lifts are tuned for the cell-height mesh
+   * (about 40 m at the default scale); a true-scale DEM window shrinks them back to tens of metres.
+   */
+  liftScale?: number;
+  /**
+   * Splits lines into pieces this long (map pixels) and lifts each joint off the ground, so a
+   * border or river follows the terrain instead of cutting a chord through or over a hill.
+   */
+  drapeStepPx?: number;
+  /** Leave the ground empty (the terrain tiles draw it). */
+  skipGround?: boolean;
+  /** Per-side cap for a real-DEM ground. The grid bilinear keeps CAMPAIGN_MAX_SAMPLES_PER_SIDE. */
+  maxSamplesPerSide?: number;
   waterColor: string;
   neutralLandColor?: string;
   stateColors: ReadonlyMap<number, string>;
@@ -119,6 +152,11 @@ export interface CampaignBuildInput {
   routes: readonly CampaignPathInput[];
   regiments: readonly CampaignRegimentInput[];
   burgs: readonly CampaignBurgInput[];
+}
+
+export interface CampaignRing {
+  halfKm: number;
+  stepKm: number;
 }
 
 export interface CampaignGround {
@@ -181,9 +219,13 @@ export function campaignSampleStepPx(gridSpacingPx: number, kmPerPx: number): nu
 }
 
 /** Samples along one side. The spacing is a minimum, so the count rounds down, then caps. */
-export function campaignSampleCount(spanPx: number, stepPx: number): number {
+export function campaignSampleCount(
+  spanPx: number,
+  stepPx: number,
+  maxPerSide = CAMPAIGN_MAX_SAMPLES_PER_SIDE
+): number {
   if (!(spanPx > 0) || !(stepPx > 0)) return 2;
-  return Math.min(CAMPAIGN_MAX_SAMPLES_PER_SIDE, Math.max(2, Math.floor(spanPx / stepPx) + 1));
+  return Math.min(maxPerSide, Math.max(2, Math.floor(spanPx / stepPx) + 1));
 }
 
 /**
@@ -264,13 +306,25 @@ export function buildCampaignMesh(input: CampaignBuildInput): CampaignMeshBuild 
     footDays: input.footDays,
     footKmPerDay: input.footKmPerDay
   });
-  const stepPx = campaignSampleStepPx(input.gridSpacingPx, input.kmPerPx);
+  const stepPx =
+    input.sampleStepKm && input.sampleStepKm > 0 && input.kmPerPx > 0
+      ? input.sampleStepKm / input.kmPerPx
+      : campaignSampleStepPx(input.gridSpacingPx, input.kmPerPx);
   const spanX = box.maxX - box.minX;
   const spanY = box.maxY - box.minY;
-  const samplesX = campaignSampleCount(spanX, stepPx);
-  const samplesY = campaignSampleCount(spanY, stepPx);
+  const maxPerSide = input.maxSamplesPerSide ?? CAMPAIGN_MAX_SAMPLES_PER_SIDE;
+  const ringsPx = (input.rings ?? [])
+    .filter(ring => ring.halfKm > 0 && ring.stepKm > 0 && input.kmPerPx > 0)
+    .map(ring => ({ halfPx: ring.halfKm / input.kmPerPx, stepPx: ring.stepKm / input.kmPerPx }));
+  const xs = campaignAxis(box.minX, box.maxX, centerX, stepPx, ringsPx, maxPerSide);
+  const ys = campaignAxis(box.minY, box.maxY, centerY, stepPx, ringsPx, maxPerSide);
+  const samplesX = xs.length;
+  const samplesY = ys.length;
   const packSpacing = input.packSpacingPx > 0 ? input.packSpacingPx : input.gridSpacingPx;
-  const ground = buildGround(input, box, samplesX, samplesY);
+  // Another layer (terrain tiles) draws the ground: keep only lines, markers and camera.
+  const ground = input.skipGround
+    ? { positions: new Float32Array(0), colors: new Float32Array(0), indices: new Uint32Array(0), vertexCount: 0 }
+    : buildGround(input, xs, ys);
   assertGroundFacesUp(ground);
 
   return {
@@ -293,38 +347,40 @@ export function buildCampaignMesh(input: CampaignBuildInput): CampaignMeshBuild 
   };
 }
 
-function buildGround(
-  input: CampaignBuildInput,
-  box: CampaignWindowBox,
-  samplesX: number,
-  samplesY: number
-): CampaignGround {
+function buildGround(input: CampaignBuildInput, xs: readonly number[], ys: readonly number[]): CampaignGround {
+  const samplesX = xs.length;
+  const samplesY = ys.length;
   const vertexCount = samplesX * samplesY;
   const positions = new Float32Array(vertexCount * 3);
   const colors = new Float32Array(vertexCount * 3);
-  const spanX = box.maxX - box.minX;
-  const spanY = box.maxY - box.minY;
-  const stepX = samplesX > 1 ? spanX / (samplesX - 1) : 0;
-  const stepY = samplesY > 1 ? spanY / (samplesY - 1) : 0;
   const lookup = new CellLookup(input.cells, input.packSpacingPx > 0 ? input.packSpacingPx : input.gridSpacingPx);
   const water = parseColor(input.waterColor, [0.27, 0.43, 0.67]);
   const neutral = parseColor(input.neutralLandColor ?? NEUTRAL_LAND, [0.72, 0.64, 0.48]);
+  const localStep = (axis: readonly number[], i: number) =>
+    axis.length > 1 ? axis[Math.min(axis.length - 1, i + 1)] - axis[Math.max(0, i - 1)] : 0;
 
   for (let row = 0; row < samplesY; row++) {
-    const mapY = samplesY === 1 ? (box.minY + box.maxY) / 2 : box.minY + row * stepY;
+    const mapY = ys[row];
+    const stepY = localStep(ys, row) / (row > 0 && row < samplesY - 1 ? 2 : 1);
     for (let col = 0; col < samplesX; col++) {
-      const mapX = samplesX === 1 ? (box.minX + box.maxX) / 2 : box.minX + col * stepX;
+      const mapX = xs[col];
+      const stepX = localStep(xs, col) / (col > 0 && col < samplesX - 1 ? 2 : 1);
+      const stepKm = Math.max(stepX, stepY) * input.kmPerPx;
       const index = row * samplesX + col;
-      const world = worldPoint(input, mapX, mapY, 0);
-      positions[index * 3] = world[0];
-      positions[index * 3 + 1] = world[1];
-      positions[index * 3 + 2] = world[2];
-      const color = vertexColor(lookup.cellAt(mapX, mapY), input, water, neutral);
+      const height = input.heightAt(mapX, mapY, stepKm > 0 ? stepKm : undefined);
+      positions[index * 3] = mapX - input.graphWidth / 2;
+      positions[index * 3 + 1] = Number.isFinite(height) ? height : 0;
+      positions[index * 3 + 2] = mapY - input.graphHeight / 2;
+      const color = input.waterAt
+        ? coastColor(input.waterAt(mapX, mapY), lookup, mapX, mapY, input, water, neutral)
+        : vertexColor(lookup.cellAt(mapX, mapY), input, water, neutral);
       colors[index * 3] = color[0];
       colors[index * 3 + 1] = color[1];
       colors[index * 3 + 2] = color[2];
     }
   }
+
+  if (input.hillshade) applyHillshade(positions, colors, samplesX, samplesY);
 
   const quadCount = Math.max(0, samplesX - 1) * Math.max(0, samplesY - 1);
   const indices = new Uint32Array(quadCount * 6);
@@ -345,6 +401,89 @@ function buildGround(
   }
 
   return { positions, colors, indices, vertexCount };
+}
+
+/** Lambert term from a light in the north-west, 45° up, on the sampled height grid. */
+export function applyHillshade(
+  positions: Float32Array,
+  colors: Float32Array,
+  samplesX: number,
+  samplesY: number
+): void {
+  if (samplesX < 2 || samplesY < 2) return;
+  const light = [-Math.SQRT1_2 * Math.SQRT1_2, Math.SQRT1_2, -Math.SQRT1_2 * Math.SQRT1_2];
+  const at = (col: number, row: number) => {
+    const c = Math.min(samplesX - 1, Math.max(0, col));
+    const r = Math.min(samplesY - 1, Math.max(0, row));
+    return (r * samplesX + c) * 3;
+  };
+  const shade = new Float32Array(samplesX * samplesY);
+  for (let row = 0; row < samplesY; row++) {
+    for (let col = 0; col < samplesX; col++) {
+      const l = at(col - 1, row);
+      const r = at(col + 1, row);
+      const u = at(col, row - 1);
+      const d = at(col, row + 1);
+      const dx = positions[r] - positions[l];
+      const dz = positions[d + 2] - positions[u + 2];
+      const dhx = positions[r + 1] - positions[l + 1];
+      const dhz = positions[d + 1] - positions[u + 1];
+      // Normal of the surface y = h(x, z): (-dh/dx, 1, -dh/dz).
+      const nx = dx !== 0 ? -dhx / dx : 0;
+      const nz = dz !== 0 ? -dhz / dz : 0;
+      const length = Math.hypot(nx, 1, nz);
+      const lambert = (nx * light[0] + light[1] + nz * light[2]) / length;
+      shade[row * samplesX + col] = 0.45 + (0.55 * Math.max(0, lambert)) / light[1];
+    }
+  }
+  for (let i = 0; i < shade.length; i++) {
+    const k = Math.min(1.15, shade[i]);
+    colors[i * 3] = Math.min(1, colors[i * 3] * k);
+    colors[i * 3 + 1] = Math.min(1, colors[i * 3 + 1] * k);
+    colors[i * 3 + 2] = Math.min(1, colors[i * 3 + 2] * k);
+  }
+}
+
+/**
+ * Sample coordinates along one axis of the window. Without rings this is the uniform
+ * `campaignSampleCount` spacing. With rings, each stretch uses the finest ring covering it.
+ */
+export function campaignAxis(
+  min: number,
+  max: number,
+  center: number,
+  outerStepPx: number,
+  rings: readonly { halfPx: number; stepPx: number }[],
+  maxCount = CAMPAIGN_MAX_SAMPLES_PER_SIDE
+): number[] {
+  const span = max - min;
+  if (!(span > 0)) return [(min + max) / 2];
+  if (!rings.length) {
+    const count = campaignSampleCount(span, outerStepPx, maxCount);
+    return Array.from({ length: count }, (_, i) => (count === 1 ? (min + max) / 2 : min + (i * span) / (count - 1)));
+  }
+  // Breakpoints where the step changes, then a uniform fill of each stretch.
+  const cuts = new Set<number>([min, max]);
+  for (const ring of rings) {
+    for (const edge of [center - ring.halfPx, center + ring.halfPx]) if (edge > min && edge < max) cuts.add(edge);
+  }
+  const sorted = [...cuts].sort((a, b) => a - b);
+  const stepAt = (x: number) =>
+    rings.reduce(
+      (step, ring) => (Math.abs(x - center) <= ring.halfPx ? Math.min(step, ring.stepPx) : step),
+      outerStepPx
+    );
+  const out: number[] = [min];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i];
+    const b = sorted[i + 1];
+    const step = stepAt((a + b) / 2);
+    const n = Math.max(1, Math.round((b - a) / Math.max(step, 1e-9)));
+    for (let k = 1; k <= n; k++) out.push(a + ((b - a) * k) / n);
+  }
+  if (out.length <= maxCount) return out;
+  // Over the cap: thin evenly, keeping both ends.
+  return Array.from({ length: maxCount }, (_, i) => out[Math.round((i * (out.length - 1)) / (maxCount - 1))]);
 }
 
 function assertGroundFacesUp(ground: CampaignGround): void {
@@ -393,29 +532,47 @@ function buildPolylines(input: CampaignBuildInput, box: CampaignWindowBox, packS
 
 function buildMarkers(input: CampaignBuildInput, box: CampaignWindowBox): CampaignMarker[] {
   const markers: CampaignMarker[] = [];
+  const shown = (x: number, y: number, naval: boolean) => input.displayPoint?.(x, y, naval) ?? [x, y];
   for (const regiment of input.regiments) {
     if (!insideBox(regiment.x, regiment.y, box)) continue;
+    const [x, y] = shown(regiment.x, regiment.y, regiment.naval);
     markers.push({
       kind: regiment.naval ? "fleet" : "regiment",
       mapX: regiment.x,
       mapY: regiment.y,
-      position: worldPoint(input, regiment.x, regiment.y, CAMPAIGN_MARKER_LIFT),
+      position: worldPoint(input, x, y, CAMPAIGN_MARKER_LIFT * (input.liftScale ?? 1)),
       color: parseColor(regiment.color ?? (regiment.naval ? FLEET_COLOR : REGIMENT_COLOR), [0.55, 0.18, 0.18])
     });
   }
   for (const burg of input.burgs) {
     if (!insideBox(burg.x, burg.y, box)) continue;
     const name = burg.name?.trim();
+    const [x, y] = shown(burg.x, burg.y, false);
     markers.push({
       kind: "burg",
       mapX: burg.x,
       mapY: burg.y,
-      position: worldPoint(input, burg.x, burg.y, CAMPAIGN_MARKER_LIFT),
+      position: worldPoint(input, x, y, CAMPAIGN_MARKER_LIFT * (input.liftScale ?? 1)),
       color: parseColor(burg.color ?? BURG_COLOR, [0.95, 0.89, 0.77]),
       name: name ? name : undefined
     });
   }
   return markers;
+}
+
+function coastColor(
+  isWater: boolean,
+  lookup: CellLookup,
+  x: number,
+  y: number,
+  input: CampaignBuildInput,
+  water: [number, number, number],
+  neutral: [number, number, number]
+): [number, number, number] {
+  if (isWater) return water;
+  const cell = lookup.cellAt(x, y);
+  if (cell && cell.height >= CAMPAIGN_SEA_LEVEL) return vertexColor(cell, input, water, neutral);
+  return vertexColor(lookup.landCellNear(x, y), input, water, neutral);
 }
 
 function vertexColor(
@@ -475,6 +632,28 @@ class CellLookup {
     return nearest;
   }
 
+  /** Nearest land cell centre within two buckets. */
+  landCellNear(x: number, y: number): CampaignCellInput | undefined {
+    const col = Math.floor(x / this.bucketSize);
+    const row = Math.floor(y / this.bucketSize);
+    let nearest: CampaignCellInput | undefined;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        for (const index of this.buckets.get(`${col + dx}:${row + dy}`) ?? []) {
+          const cell = this.cells[index];
+          if (cell.height < CAMPAIGN_SEA_LEVEL) continue;
+          const distance = (cell.x - x) ** 2 + (cell.y - y) ** 2;
+          if (distance < nearestDistance) {
+            nearest = cell;
+            nearestDistance = distance;
+          }
+        }
+      }
+    }
+    return nearest;
+  }
+
   private key(x: number, y: number): string {
     return `${Math.floor(x / this.bucketSize)}:${Math.floor(y / this.bucketSize)}`;
   }
@@ -503,7 +682,27 @@ function pushRing(
     const a = ring[index];
     const b = ring[(index + 1) % ring.length];
     if (!Number.isFinite(a[0]) || !Number.isFinite(a[1]) || !Number.isFinite(b[0]) || !Number.isFinite(b[1])) continue;
-    pushSegment(out, worldPoint(input, a[0], a[1], lift), worldPoint(input, b[0], b[1], lift));
+    pushDraped(input, out, a, b, lift);
+  }
+}
+
+/** One map-space segment as world segments, split every `drapeStepPx` so it follows the ground. */
+function pushDraped(
+  input: CampaignBuildInput,
+  out: number[],
+  a: readonly [number, number] | readonly number[],
+  b: readonly [number, number] | readonly number[],
+  lift: number
+): void {
+  const scaled = lift * (input.liftScale ?? 1);
+  const step = input.drapeStepPx ?? 0;
+  const n = step > 0 ? Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step)) : 1;
+  let previous = worldPoint(input, a[0], a[1], scaled);
+  for (let k = 1; k <= n; k++) {
+    const t = k / n;
+    const next = worldPoint(input, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, scaled);
+    pushSegment(out, previous, next);
+    previous = next;
   }
 }
 
@@ -522,11 +721,7 @@ function clipPaths(
       if (!a || !b) continue;
       const clipped = clipSegment(a, b, box);
       if (!clipped) continue;
-      pushSegment(
-        out,
-        worldPoint(input, clipped[0][0], clipped[0][1], lift),
-        worldPoint(input, clipped[1][0], clipped[1][1], lift)
-      );
+      pushDraped(input, out, clipped[0], clipped[1], lift);
     }
   }
   return out;

@@ -15,6 +15,7 @@ Packed public-domain elevation and land masks used by `fromEarthRegion()`.
 | `indian-ocean.bin` | Dakar (W) to mainland Australia (SE); Bass Strait north channel; Tasmania off-map + GMTED/ETOPO |
 | `arabia.bin` | Croatia (NW) to Sri Lanka (SE); coastal margin south and east of Sri Lanka + GMTED/ETOPO |
 | `ancient-rome.bin` | Roman Empire AD 117: Britain to the Caspian, Thebes to Scotland + GMTED/ETOPO |
+| `alps.bin` | Maritime Alps to the Vienna basin, Jura to the Po plain + Terrarium (AWS Terrain Tiles; EU-DEM, SRTM, Austria DGM) |
 
 Bake:
 
@@ -30,7 +31,68 @@ node scripts/bakeEuropeEarthRaster.mjs
 node scripts/bakeIndianOceanEarthRaster.mjs
 node scripts/bakeArabiaEarthRaster.mjs
 node scripts/bakeAncientRomeEarthRaster.mjs
+node scripts/bakeAlpsEarthRaster.mjs
 ```
 
 License: Natural Earth, GMTED2010, and ETOPO1 are public domain. See
 [docs/plan/earth-geography-heightmaps.md](../../../docs/plan/earth-geography-heightmaps.md).
+
+## Japan local war terrain (`japan-local/`)
+
+Real-DEM levels for the campaign 3D window on maps made from the `japan` template
+([docs/plan/japan-local-war-terrain.md](../../../docs/plan/japan-local-war-terrain.md)).
+One FMGE raster per prefecture and level (Okinawa is outside the map).
+
+| Committed | Local only (Git-ignored) |
+| :--- | :--- |
+| `NN-1000m.bin`, `NN-500m.bin`, `manifest.json` (about 11.5 MB) | `*-250m*.bin`, `*-100m*.bin`, `manifest.local.json`, `rivers.json` |
+
+```bash
+node scripts/bakeJapanLocalDem.mjs --prefs JP-23 --levels 1000,500,250   # Terrarium
+node scripts/bakeJapanLocalDem.mjs --prefs JP-23 --levels 100 --source gsi
+node scripts/bakeJapanRivers.mjs                                          # optional real rivers
+```
+
+Sources and credits: Natural Earth admin-1 (public domain); AWS Terrain Tiles (per-source credits);
+GSI elevation tiles and GSI vector tiles (Public Data License v1.0, credit 国土地理院). The in-app
+Encyclopedia entry `feature:data-sources` lists them.
+
+## Japan terrain tiles (`japan-tiles/`)
+
+Quadtree tiles for the 3D war view on `japan`-template maps
+([docs/plan/japan-terrain-tiles.md](../../../docs/plan/japan-terrain-tiles.md)), re-sampled from
+`japan.bin` and `japan-local/`. Levels up to 2 MB load whole; larger ones load per tile by HTTP Range.
+
+| Committed | Local only (Git-ignored) |
+| :--- | :--- |
+| `index.json`, `z0.bin`–`z3.bin` (4 km–500 m), `prefectures.bin` (about 13 MB) | `z4.bin`, `z5.bin` (250 m, 125 m), `index.local.json` |
+
+```bash
+node scripts/bakeEarthTiles.mjs --region japan                       # distributed levels z0–z3
+node scripts/bakeEarthTiles.mjs --region japan --maxZoom 5 --local   # plus local 250 m / 100 m rasters
+```
+
+## Alps terrain tiles (`alps-tiles/`)
+
+Quadtree tiles for the 3D war view on `alps`-template maps
+([docs/plan/alps-terrain-tiles.md](../../../docs/plan/alps-terrain-tiles.md)): `alps.bin` and AWS Terrain
+Tiles (Terrarium z8 for 1 km, z9 for 500 m; cached under `temp/terrarium-alps/`). The mask
+(`prefectures.bin`) holds Natural Earth admin-0 countries (ISO A2), not provinces. `lakes.json` holds
+Natural Earth 10m lakes and the Europe supplement (public domain; `temp/ne_10m_lakes*.geojson`) in frame km with
+their surface level; the tiles are flat there and the runtime draws them as water.
+
+| Committed | Local only (Git-ignored) |
+| :--- | :--- |
+| `index.json`, `z0.bin`–`z3.bin` (4 km–500 m), `prefectures.bin`, `lakes.json` (about 7 MB) | `z4.bin` and finer, `index.local.json` |
+
+```bash
+node scripts/bakeEarthTiles.mjs --region alps                        # distributed levels z0–z3
+node scripts/fetchSwissAlti3d.mjs                                    # swissALTI3D 2 m around the Swiss test sites (temp/)
+node scripts/bakeEarthTiles.mjs --region alps --maxZoom 6 --sitesKm 10 --swiss   # plus local z4–z6 near the sites
+```
+
+Credits: AWS Terrain Tiles — Europe terrain data produced using Copernicus data and information funded by the
+European Union - EU-DEM layers; Austria terrain data © offene Daten Österreichs – Digitales Geländemodell (DGM)
+Österreich; global ETOPO1 terrain data U.S. National Oceanic and Atmospheric Administration; global GMTED2010
+and SRTM terrain data courtesy of the U.S. Geological Survey. Local z6 (62.5 m): derived from swissALTI3D ©swisstopo.
+Natural Earth admin-0 (public domain).

@@ -30,6 +30,7 @@ import { LoopSubdivision } from "three-subdivide";
 import { layerIsOn } from "../utils/layerUtils";
 import {
   buildCampaignMesh,
+  CAMPAIGN_LINE_LIFT,
   type CampaignBuildInput,
   type CampaignCellInput,
   type CampaignFocus,
@@ -39,7 +40,7 @@ import {
   campaignGridSpacingPx,
   campaignRegimentPlacements
 } from "./campaignMesh";
-import { kmPerMapPixel } from "./campaignWindow";
+import { campaignWindow, kmPerMapPixel } from "./campaignWindow";
 import {
   disposeRiverFlowTexture,
   disposeSatelliteTexture,
@@ -54,13 +55,35 @@ import { cloudImage } from "../assets/cloud-image";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { getEarthRegion } from "../data/earthRegions";
+import { Rivers } from "../generators/river-generator";
 import { getMapURL } from "../io/export";
 import { tip } from "../services/tooltipService";
 import { optionsStore } from "../state/optionsStore";
-import { revokeObjectURL, rn, throttle } from "../utils";
+import { findCell, revokeObjectURL, rn, throttle } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
-import { meshHeightFromIndex } from "../utils/height";
+import { meshHeightFromIndex, normalizeHeightExponent } from "../utils/height";
+import {
+  createLocalTerrainField,
+  createLocalTerrainSampler,
+  getLocalTerrainTuning,
+  heightScaleExaggeration,
+  type LocalTerrainField,
+  type LocalTerrainFieldStats,
+  type LocalTerrainSampler,
+  localMetersToWorldY
+} from "./localTerrainSampler";
 import { getNightscapeBeamPose, getNightscapePopulationGlow } from "./nightscapeGlow";
+import { TerrainTileLayer, type TerrainTileStats } from "./terrainTiles/terrainTileLayer";
+import { ALPINE_TILE_PALETTE, JAPAN_TILE_PALETTE } from "./terrainTiles/tileMesh";
+import { createTileTerrainSampler } from "./terrainTiles/tileTerrainSampler";
+import {
+  ALPINE_VALLEY_TABLES,
+  createValleyField,
+  JAPAN_VALLEY_TABLES,
+  sampleValleyRivers,
+  type ValleyProfileTables
+} from "./valleyProfile";
 import {
   buildLowPolyBurgSymbols,
   buildRoutePaths,
@@ -68,6 +91,17 @@ import {
   type LowPolyBurgShape
 } from "./webgl/adapters/deckDataAdapters";
 import { getBurgIconStyle, getLabelStyle, getPathDashStyles, getPathPaintStyles } from "./webgl/webglStyleExtractors";
+
+export interface CellValleyStats {
+  rivers: number;
+  points: number;
+  gorgePoints: number;
+  /** Points 300 m deep or more (the gorge depth). */
+  deepPoints: number;
+  maxDepthM: number;
+  maxReachM: number;
+  buildMs: number;
+}
 
 interface ThreeDOptions {
   scale: number;
@@ -308,6 +342,31 @@ class ThreeDModule {
   private viewType = "viewMesh";
   private campaignFocus: CampaignFocus | null = null;
   private campaignFocusKey = "";
+  /** Real-DEM sampler for the current map, keyed by seed and georef. Null = checked and refused. */
+  private localTerrain: { key: string; sampler: LocalTerrainSampler | null } | null = null;
+  /** Region-only and prefecture-level samplers of the current map, by key. */
+  private localTerrainSamplers = new Map<string, LocalTerrainSampler | null>();
+  private localTerrainLoadingKeys = new Set<string>();
+  private localTerrainLoading = "";
+  /** Window whose DEM levels were last requested, so one window asks once. */
+  private localTerrainLevelsKey = "";
+  /** Camera is near the ground: the window carries the contact rings (100 m). */
+  private campaignContact = false;
+  private campaignContactTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Dev measurement of the last real-DEM window (pads, carved rivers, moved tokens). */
+  private localTerrainStats: LocalTerrainFieldStats | null = null;
+  private valleyStats: CellValleyStats | null = null;
+  /** Quadtree DEM tiles in place of the window ground (`tiles.enabled` tuning, Japan only). */
+  private terrainTiles: TerrainTileLayer | undefined;
+  private localTerrainField: LocalTerrainField | null = null;
+  private tileFieldSampler:
+    | { layer: TerrainTileLayer; base: LocalTerrainSampler; sampler: LocalTerrainSampler }
+    | undefined;
+  private campaignTileDataVersion = -1;
+  private campaignTileRefreshTimer: ReturnType<typeof setTimeout> | undefined;
+  private tileStateColorCache:
+    | { key: string; at: (x: number, y: number) => readonly [number, number, number] | null }
+    | undefined;
   private campaignCameraDirty = false;
   private campaignGroup: THREE.Group | undefined;
   private campaignSphere: THREE.SphereGeometry | undefined;
@@ -370,12 +429,43 @@ class ThreeDModule {
   setCampaignFocus(focus: CampaignFocus | null): void {
     const next = focus && Number.isFinite(focus.x) && Number.isFinite(focus.y) ? focus : null;
     const key = next ? `${next.cellId}|${next.x}|${next.y}` : "";
-    if (key !== this.campaignFocusKey) this.campaignCameraDirty = true;
+    if (key !== this.campaignFocusKey) {
+      this.campaignCameraDirty = true;
+      this.campaignContact = false;
+    }
     this.campaignFocus = next;
     this.campaignFocusKey = key;
     if (!this.options.isOn || this.viewType !== "viewMesh") return;
-    if (!next) this.restoreMeshCameraLimits();
+    if (!next) {
+      this.restoreMeshCameraLimits();
+      this.terrainTiles?.setHeightModifier(null);
+    }
     this.redraw({ refreshTerrainTexture: next === null });
+  }
+
+  /** Measurements of the last real-DEM campaign window (tuning harness). */
+  getLocalTerrainStats(): LocalTerrainFieldStats | null {
+    return this.localTerrainStats;
+  }
+
+  /** Valleys of the last cell-bilinear campaign window (docs/plan/fmg-cell-valleys.md, V1). */
+  getValleyStats(): CellValleyStats | null {
+    return this.valleyStats;
+  }
+
+  /** The sampler the last window read (tuning harnesses). */
+  getLocalTerrainSampler(): LocalTerrainSampler | null {
+    return this.localTerrain?.sampler ?? null;
+  }
+
+  /** The last real-DEM field (snapped rivers, coast) for the T7 comparison harness. */
+  getLocalTerrainField(): LocalTerrainField | null {
+    return this.localTerrainField;
+  }
+
+  /** Tile layer measurements (docs/plan/japan-terrain-tiles.md harness). */
+  getTerrainTileStats(): TerrainTileStats | null {
+    return this.terrainTiles?.getStats() ?? null;
   }
 
   isErosionBuildPending(): boolean {
@@ -467,6 +557,7 @@ class ThreeDModule {
     this.deleteLowPolyBurgIcons();
     this.deleteFloatingRoutes();
     this.disposeCampaignGroup();
+    this.disposeTerrainTiles();
     this.campaignSphere?.dispose();
     this.campaignDiamond?.dispose();
     this.campaignSphere = undefined;
@@ -839,7 +930,14 @@ class ThreeDModule {
     this.queueMeshBuild({ refreshTerrainTexture: true, preserveTerrainOverlays: false, erosionBuild });
     this.animate();
 
-    this.controls.addEventListener("change", () => this.render());
+    this.controls.addEventListener("change", () => {
+      if (this.campaignFocus) {
+        this.scaleCampaignMarkers();
+        this.updateCampaignContact();
+        this.updateTerrainTiles();
+      }
+      this.render();
+    });
     return true;
   }
 
@@ -1859,6 +1957,7 @@ class ThreeDModule {
       this.createCampaignMesh();
       return;
     }
+    this.disposeTerrainTiles();
     this.markCampaignCanvas(false);
 
     const sceneOnly = this.options.sceneOnly;
@@ -2531,8 +2630,136 @@ class ThreeDModule {
     }
 
     this.applyCampaignCamera(built.camera);
+    if (this.syncTerrainTiles()) this.mesh.visible = false;
+    this.scaleCampaignMarkers();
     this.markCampaignCanvas(true, built.ground.vertexCount);
     this.render();
+  }
+
+  /**
+   * Creates or drops the tile layer for the current tuning; true while it replaces the ground.
+   * The window ground stays visible until the tile index has loaded (or if it never does).
+   */
+  private syncTerrainTiles(): boolean {
+    const regionId = worldContext.options?.earthRegion?.id;
+    const tileDir = regionId ? getEarthRegion(regionId)?.localTerrain?.tileDir : undefined;
+    const regionPalette = regionId ? getEarthRegion(regionId)?.localTerrain?.palette : undefined;
+    const enabled = getLocalTerrainTuning().tiles.enabled && getLocalTerrainTuning().source === "dem" && tileDir;
+    if (!enabled || !this.scene) {
+      this.disposeTerrainTiles();
+      return false;
+    }
+    // Another region's pyramid: start over.
+    if (this.terrainTiles && this.terrainTiles.directory !== tileDir) this.disposeTerrainTiles();
+    if (!this.terrainTiles) {
+      const layer = new TerrainTileLayer(
+        () => {
+          this.render();
+          this.refreshCampaignLinesOnTileData();
+        },
+        tileDir,
+        regionPalette === "alpine" ? ALPINE_TILE_PALETTE : JAPAN_TILE_PALETTE
+      );
+      this.terrainTiles = layer;
+      void layer.ready.then(ok => {
+        if (ok && this.terrainTiles === layer) {
+          if (this.mesh?.name === "campaign-ground") this.mesh.visible = false;
+          this.updateTerrainTiles();
+          this.render();
+        }
+      });
+    }
+    if (this.terrainTiles.group.parent !== this.scene) this.scene.add(this.terrainTiles.group);
+    this.updateTerrainTiles();
+    return this.terrainTiles.isLoaded();
+  }
+
+  /**
+   * Lines and markers take their heights from the tiles loaded when the window was built. Once
+   * loading settles with newer heights, rebuild them (no ground: the tiles draw it).
+   */
+  private refreshCampaignLinesOnTileData(): void {
+    const layer = this.terrainTiles;
+    if (!layer || !this.campaignFocus || layer.getStats().pendingBuilds > 0) return;
+    if (layer.dataVersion === this.campaignTileDataVersion) return;
+    clearTimeout(this.campaignTileRefreshTimer);
+    this.campaignTileRefreshTimer = setTimeout(() => {
+      if (this.terrainTiles === layer && layer.dataVersion !== this.campaignTileDataVersion && this.campaignFocus)
+        this.redraw({ refreshTerrainTexture: false });
+    }, 400);
+  }
+
+  /** `tiles.fieldSource: "tiles"` reads the field heights from the loaded tile layer. */
+  private fieldSampler(
+    base: LocalTerrainSampler,
+    tuning: ReturnType<typeof getLocalTerrainTuning>
+  ): LocalTerrainSampler {
+    const layer = this.terrainTiles;
+    if (tuning.tiles.fieldSource !== "tiles" || !tuning.tiles.enabled || !layer?.isLoaded()) return base;
+    const cached = this.tileFieldSampler;
+    if (cached?.layer === layer && cached.base === base) return cached.sampler;
+    const sampler = createTileTerrainSampler(layer, base, worldContext.graphWidth, worldContext.graphHeight);
+    this.tileFieldSampler = { layer, base, sampler };
+    return sampler;
+  }
+
+  private updateTerrainTiles(): void {
+    const layer = this.terrainTiles;
+    if (!layer || !this.camera || !(this.camera instanceof THREE.PerspectiveCamera)) return;
+    const tuning = getLocalTerrainTuning();
+    const kmPerPx = kmPerMapPixel(worldContext.distanceScale, optionsStore.getState().distanceUnit || "km");
+    const exaggeration = tuning.exaggeration ?? heightScaleExaggeration(this.options.scale);
+    const canvas = this.Renderer?.domElement;
+    layer.update(this.camera, canvas instanceof HTMLCanvasElement ? canvas.clientHeight || canvas.height : 800, {
+      graphWidth: worldContext.graphWidth,
+      graphHeight: worldContext.graphHeight,
+      worldYPerMeter: localMetersToWorldY(1, kmPerPx, exaggeration),
+      exaggeration,
+      maxScreenErrorPx: tuning.tiles.maxScreenErrorPx,
+      maxTiles: tuning.tiles.maxTiles,
+      maxZoom: tuning.tiles.maxZoom,
+      wireframe: Boolean(this.options.wireframe),
+      focus: this.campaignFocus,
+      farKm: tuning.tiles.farKm,
+      farZoom: tuning.tiles.farZoom,
+      prefectures: tuning.tiles.prefectures,
+      mapColor: tuning.tiles.mapColors === "states" ? this.tileStateColors() : null
+    });
+  }
+
+  /** State colours on a coarse map-pixel grid for the tile overlay (`tiles.mapColors`). */
+  private tileStateColors(): { key: string; at: (x: number, y: number) => readonly [number, number, number] | null } {
+    const { pack, graphWidth, graphHeight } = worldContext;
+    const states = pack.states ?? [];
+    const key = `states|${graphWidth}|${graphHeight}|${pack.cells.i.length}|${states.map(s => s?.color ?? "").join(",")}`;
+    if (this.tileStateColorCache?.key === key) return this.tileStateColorCache;
+    const step = 2;
+    const width = Math.ceil(graphWidth / step);
+    const height = Math.ceil(graphHeight / step);
+    const grid = new Uint16Array(width * height);
+    for (let j = 0; j < height; j++)
+      for (let i = 0; i < width; i++) grid[j * width + i] = pack.cells.state[findCell(i * step, j * step)] ?? 0;
+    const palette = states.map(state => {
+      if (!state?.i || state.removed || !state.color?.startsWith("#")) return null;
+      const color = new THREE.Color(state.color);
+      return [color.r, color.g, color.b] as const;
+    });
+    const cache = {
+      key,
+      at: (x: number, y: number) => {
+        const i = Math.min(width - 1, Math.max(0, Math.round(x / step)));
+        const j = Math.min(height - 1, Math.max(0, Math.round(y / step)));
+        return palette[grid[j * width + i]] ?? null;
+      }
+    };
+    this.tileStateColorCache = cache;
+    return cache;
+  }
+
+  private disposeTerrainTiles(): void {
+    clearTimeout(this.campaignTileRefreshTimer);
+    this.terrainTiles?.dispose();
+    this.terrainTiles = undefined;
   }
 
   private markCampaignCanvas(active: boolean, vertexCount = 0): void {
@@ -2576,6 +2803,7 @@ class ThreeDModule {
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.scale.setScalar(radius);
+    mesh.userData.baseRadius = radius;
     mesh.position.set(marker.position[0], marker.position[1], marker.position[2]);
     mesh.renderOrder = 2;
     group.add(mesh);
@@ -2597,11 +2825,363 @@ class ThreeDModule {
     sprite.position.set(marker.position[0], marker.position[1], marker.position[2]);
     sprite.renderOrder = 3;
     sprite.size = width;
+    sprite.userData.baseWidth = width;
+    sprite.userData.aspect = aspect;
     this.labels.push(sprite);
     this.scene.add(sprite);
   }
 
+  /**
+   * Height source for the campaign window. A georeferenced Earth map reads the real DEM once the
+   * raster has loaded and matched the stored heights; until then, and everywhere else, the cell
+   * bilinear. See docs/plan/japan-local-war-terrain.md.
+   */
+  private campaignTerrainInput(
+    kmPerPx: number,
+    focus: CampaignFocus,
+    burgs: CampaignBuildInput["burgs"],
+    rivers: CampaignBuildInput["rivers"],
+    gridSpacingPx: number
+  ): Pick<
+    CampaignBuildInput,
+    | "heightAt"
+    | "sampleStepKm"
+    | "hillshade"
+    | "footDays"
+    | "maxSamplesPerSide"
+    | "rings"
+    | "waterAt"
+    | "displayPoint"
+    | "rivers"
+    | "liftScale"
+    | "drapeStepPx"
+    | "skipGround"
+  > {
+    const tuning = getLocalTerrainTuning();
+    const geo = worldContext.options?.earthRegion;
+    this.localTerrainStats = null;
+    this.valleyStats = null;
+    const bilinear = () => this.cellValleyInput(kmPerPx, focus, rivers, gridSpacingPx, tuning);
+    if (!geo || tuning.source === "cells") return bilinear();
+    // Field from tiles: the base is the region raster only, so japan-local/ is not read at all.
+    // Decided by the tuning alone, so the prefecture manifests are never fetched in this mode.
+    const fromTiles = tuning.source === "dem" && tuning.tiles.enabled && tuning.tiles.fieldSource === "tiles";
+    const baseSampler = this.localTerrainSamplerFor(geo, !fromTiles);
+    if (!baseSampler) return bilinear();
+    const sampler = this.fieldSampler(baseSampler, tuning);
+    // `japanBin` reads only the region raster; `dem` asks for the level matching the local ground step.
+    const dem = tuning.source === "dem";
+    const outerStepKm = tuning.stepKm ?? 2;
+    const contact = dem && this.campaignContact;
+    const exaggeration = tuning.exaggeration ?? heightScaleExaggeration(this.options.scale);
+    const bounds = campaignWindow({
+      centerX: focus.x,
+      centerY: focus.y,
+      graphWidth: worldContext.graphWidth,
+      graphHeight: worldContext.graphHeight,
+      kmPerPx,
+      spacingPx: 0,
+      footDays: tuning.footDays
+    });
+    // Levels load per window: draw with what is loaded, then redraw once this window's levels arrive.
+    if (dem && sampler.pendingLevels(bounds) > 0) {
+      const key = `${focus.x}|${focus.y}|${tuning.footDays}`;
+      if (this.localTerrainLevelsKey !== key) {
+        this.localTerrainLevelsKey = key;
+        void sampler.ensureLevels(bounds).then(loaded => {
+          if (loaded && this.campaignFocus && this.options.isOn && this.viewType === "viewMesh")
+            this.redraw({ refreshTerrainTexture: false });
+        });
+      }
+    }
+    // Rings finer than the finest installed level only add vertices (1 km / 500 m are distributed).
+    const finestKm = sampler.levelSteps.length ? Math.min(...sampler.levelSteps) / 1000 : outerStepKm;
+    const clampRings = (rings: { halfKm: number; stepKm: number }[]) =>
+      rings.map(ring => ({ halfKm: ring.halfKm, stepKm: Math.max(ring.stepKm, finestKm) }));
+    // Real rivers replace the FMG rivers in the window when they are baked.
+    const realRivers =
+      tuning.riverSource === "real" && sampler.realRivers.length
+        ? sampler.realRivers.filter(river =>
+            river.points.some(([x, y]) => x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY)
+          )
+        : null;
+    // Valleys follow the FMG rivers where they are (docs/plan/fmg-cell-valleys.md): no snapping,
+    // no narrow carve. Baked real rivers already lie in their valleys.
+    const valleys = dem && tuning.valley.enabled && !realRivers;
+    const field = dem
+      ? createLocalTerrainField(sampler, {
+          kmPerPx,
+          bounds,
+          burgs,
+          rivers: realRivers ?? rivers,
+          cellWaterAt: (x, y) => (worldContext.pack.cells.h[findCell(x, y)] ?? 20) < 20,
+          burgPadKm: tuning.burgPadKm,
+          riverCorridorM: tuning.riverCorridorM,
+          riverMaxCarveM: valleys ? 0 : tuning.riverMaxCarveM,
+          riverSnapKm: realRivers || valleys ? 0 : tuning.riverSnapKm
+        })
+      : null;
+    if (field) this.localTerrainStats = field.stats;
+    this.localTerrainField = field;
+    // With terrain tiles drawing the ground, lines and markers sit on the tiles' own heights.
+    const tiles = dem && this.terrainTiles?.isLoaded() ? this.terrainTiles : undefined;
+    if (tiles) this.campaignTileDataVersion = tiles.dataVersion;
+    const { graphWidth, graphHeight } = worldContext;
+    const demMeters = (x: number, y: number, stepKm?: number) =>
+      field
+        ? field.metersAt(x, y, (stepKm ?? outerStepKm) * 1000)
+        : sampler.metersAt(x, y, dem ? (stepKm ?? outerStepKm) * 1000 : undefined);
+    const valleyField = valleys
+      ? this.buildValleyField(
+          kmPerPx,
+          bounds,
+          rivers,
+          (x, y) => demMeters(x, y, 0.25),
+          tuning.valley,
+          this.valleyTables().probeKm
+        )
+      : null;
+    // The tiles carve their own heights (every level of detail) with the same valleys.
+    this.terrainTiles?.setHeightModifier(
+      valleyField
+        ? {
+            key: `${focus.x}|${focus.y}|${tuning.footDays}|${JSON.stringify(tuning.valley)}|${kmPerPx}`,
+            bounds: valleyField.boundsPx,
+            at: (x, y, m) => Math.max(0.5, valleyField.carvePx(x, y, m))
+          }
+        : null
+    );
+    const fieldMeters = valleyField
+      ? (x: number, y: number, stepKm?: number) => {
+          const m = demMeters(x, y, stepKm);
+          return m > 0.5 ? Math.max(0.5, valleyField.carvePx(x, y, m)) : m;
+        }
+      : demMeters;
+    const meters = tiles
+      ? (x: number, y: number, stepKm?: number) =>
+          tiles.metersAt(x, y, graphWidth, graphHeight) ?? fieldMeters(x, y, stepKm)
+      : fieldMeters;
+    return {
+      skipGround: Boolean(tiles),
+      heightAt: (x, y, stepKm) => localMetersToWorldY(meters(x, y, stepKm), kmPerPx, exaggeration),
+      sampleStepKm: outerStepKm,
+      rings: clampRings(contact ? tuning.contact.rings : tuning.rings),
+      maxSamplesPerSide: tuning.maxSamplesPerSide,
+      hillshade: tuning.hillshade,
+      footDays: tuning.footDays,
+      rivers: field?.rivers ?? realRivers ?? rivers,
+      // CAMPAIGN_LINE_LIFT (0.75) becomes 15 m above the DEM; lines bend every 250 m with the ground.
+      liftScale: localMetersToWorldY(15, kmPerPx, exaggeration) / CAMPAIGN_LINE_LIFT,
+      drapeStepPx: kmPerPx > 0 ? 0.25 / kmPerPx : undefined,
+      waterAt: field && tuning.demCoast ? field.waterAt : undefined,
+      displayPoint: field && tuning.demCoast ? field.displayPoint : undefined
+    };
+  }
+
+  /**
+   * Cell-bilinear ground with valleys carved along the FMG rivers in the window
+   * (docs/plan/fmg-cell-valleys.md). The mesh height is linear in meters, so the valley is cut
+   * in meters and scaled back.
+   */
+  private cellValleyInput(
+    kmPerPx: number,
+    focus: CampaignFocus,
+    rivers: CampaignBuildInput["rivers"],
+    gridSpacingPx: number,
+    tuning: ReturnType<typeof getLocalTerrainTuning>
+  ): Pick<
+    CampaignBuildInput,
+    "heightAt" | "rivers" | "sampleStepKm" | "rings" | "maxSamplesPerSide" | "hillshade" | "drapeStepPx"
+  > {
+    const flat = { heightAt: (x: number, y: number) => this.sampleTerrainHeight(x, y), rivers };
+    const valley = tuning.valley;
+    if (!valley.enabled || this.erosionBakeActive || !(kmPerPx > 0)) return flat;
+    const exponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
+    const worldPerMeter = this.options.scale / 82 ** exponent;
+    if (!(worldPerMeter > 0)) return flat;
+    const bounds = campaignWindow({
+      centerX: focus.x,
+      centerY: focus.y,
+      graphWidth: worldContext.graphWidth,
+      graphHeight: worldContext.graphHeight,
+      kmPerPx,
+      spacingPx: 0,
+      footDays: tuning.footDays
+    });
+    const groundM = (x: number, y: number) => this.sampleTerrainHeight(x, y) / worldPerMeter;
+    const field = this.buildValleyField(kmPerPx, bounds, rivers, groundM, valley, gridSpacingPx * kmPerPx);
+    return {
+      heightAt: (x, y) => field.metersPx(x, y) * worldPerMeter,
+      rivers,
+      // A valley is a few km wide: sample the window like the DEM ground, and shade it so it reads.
+      // Twice the DEM step: the cell ground has no detail of its own between valleys.
+      sampleStepKm: (tuning.stepKm ?? 1) * 2,
+      rings: tuning.rings.map(ring => ({ halfKm: ring.halfKm, stepKm: Math.max(0.5, ring.stepKm * 2) })),
+      maxSamplesPerSide: tuning.maxSamplesPerSide,
+      hillshade: tuning.hillshade,
+      // Lines bend with the valley walls instead of cutting under them.
+      drapeStepPx: 0.25 / kmPerPx
+    };
+  }
+
+  /**
+   * Valleys along the rivers near the window, in map pixels. `groundM` is the uncarved ground
+   * (meters at a map pixel); `defaultProbeKm` is used when `probeKm` is 0.
+   */
+  /** Measured valley sizes for the map's region (Alpine troughs on `alps`, Japanese valleys otherwise). */
+  private valleyTables(): ValleyProfileTables {
+    const id = worldContext.options?.earthRegion?.id;
+    return (id && getEarthRegion(id)?.localTerrain?.valleyProfile) === "alpine"
+      ? ALPINE_VALLEY_TABLES
+      : JAPAN_VALLEY_TABLES;
+  }
+
+  private buildValleyField(
+    kmPerPx: number,
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+    rivers: CampaignBuildInput["rivers"],
+    groundM: (x: number, y: number) => number,
+    valley: ReturnType<typeof getLocalTerrainTuning>["valley"],
+    defaultProbeKm: number
+  ): {
+    metersPx(x: number, y: number): number;
+    carvePx(x: number, y: number, meters: number): number;
+    boundsPx: { minX: number; minY: number; maxX: number; maxY: number };
+  } {
+    const started = performance.now();
+    const mPerPx = kmPerPx * 1000;
+    const probeM = (valley.probeKm > 0 ? valley.probeKm : defaultProbeKm) * 1000 || 0;
+    const marginPx = (probeM + 6000) / mPerPx;
+    const near = (x: number, y: number) =>
+      x >= bounds.minX - marginPx &&
+      x <= bounds.maxX + marginPx &&
+      y >= bounds.minY - marginPx &&
+      y <= bounds.maxY + marginPx;
+    const groundAtM = (x: number, y: number) => groundM(x / mPerPx, y / mPerPx);
+    const paths = rivers
+      .filter(river => river.points.some(([x, y]) => near(x, y)))
+      .map(river => ({
+        points: river.points.map(([x, y]) => [x * mPerPx, y * mPerPx]),
+        widths: river.widths?.map(w => w * mPerPx)
+      }));
+    const field = createValleyField(
+      sampleValleyRivers(paths, groundAtM, { stepM: 250, probeM }),
+      groundAtM,
+      valley,
+      this.valleyTables()
+    );
+    let maxDepth = 0;
+    let gorges = 0;
+    let deep = 0;
+    let points = 0;
+    for (const floors of field.floors) points += floors.length;
+    for (const dims of field.dimensions)
+      for (const d of dims) {
+        maxDepth = Math.max(maxDepth, d.depthM);
+        if (d.gorge) gorges++;
+        if (d.depthM >= 300) deep++;
+      }
+    this.valleyStats = {
+      rivers: paths.length,
+      points,
+      gorgePoints: gorges,
+      deepPoints: deep,
+      maxDepthM: maxDepth,
+      maxReachM: field.maxReachM,
+      buildMs: performance.now() - started
+    };
+    const r = field.reach;
+    return {
+      metersPx: (x, y) => field.valleyMetersAt(x * mPerPx, y * mPerPx),
+      carvePx: (x, y, meters) => field.carve(x * mPerPx, y * mPerPx, meters),
+      boundsPx: Number.isFinite(r.minX)
+        ? { minX: r.minX / mPerPx, minY: r.minY / mPerPx, maxX: r.maxX / mPerPx, maxY: r.maxY / mPerPx }
+        : { minX: 0, minY: 0, maxX: -1, maxY: -1 }
+    };
+  }
+
+  /**
+   * Contact mode follows the camera: closer than `enterKm` to the target rebuilds the window
+   * with the 100 m ring, farther than `leaveKm` drops it. Debounced so a zoom gesture rebuilds once.
+   */
+  private updateCampaignContact(): void {
+    if (!this.campaignFocus || !this.camera || !this.controls || this.viewType !== "viewMesh") return;
+    const tuning = getLocalTerrainTuning();
+    if (tuning.source !== "dem" || !worldContext.options?.earthRegion) return;
+    // Tiles refine with the camera; rebuilding the window for contact would only redo the lines.
+    if (this.terrainTiles?.isLoaded()) return;
+    const kmPerPx = kmPerMapPixel(worldContext.distanceScale, optionsStore.getState().distanceUnit || "km");
+    const distanceKm = this.camera.position.distanceTo(this.controls.target) * kmPerPx;
+    const next = this.campaignContact ? distanceKm < tuning.contact.leaveKm : distanceKm < tuning.contact.enterKm;
+    if (next === this.campaignContact) return;
+    clearTimeout(this.campaignContactTimer);
+    this.campaignContactTimer = setTimeout(() => {
+      this.campaignContact = next;
+      this.redraw({ refreshTerrainTexture: false });
+    }, 300);
+  }
+
+  /** Keeps burg spheres, tokens and labels a steady size on screen instead of kilometres wide. */
+  private scaleCampaignMarkers(): void {
+    if (!this.campaignGroup || !this.camera || !this.controls) return;
+    const distance = this.camera.position.distanceTo(this.controls.target);
+    for (const child of this.campaignGroup.children) {
+      const base = child.userData.baseRadius as number | undefined;
+      if (base) child.scale.setScalar(Math.min(base, distance * 0.012));
+    }
+    for (const label of this.labels) {
+      const base = label.userData.baseWidth as number | undefined;
+      const aspect = label.userData.aspect as number | undefined;
+      if (!base || !aspect) continue;
+      const width = Math.min(base, distance * 0.1);
+      label.scale.set(width, width * aspect, 1);
+    }
+  }
+
+  private localTerrainSamplerFor(
+    geo: NonNullable<typeof worldContext.options.earthRegion>,
+    prefectureLevels = true
+  ): LocalTerrainSampler | null {
+    const key = `${worldContext.seed}|${geo.id}|${worldContext.graphWidth}x${worldContext.graphHeight}|${prefectureLevels ? "levels" : "region"}`;
+    const cached = this.localTerrainSamplers.get(key);
+    if (cached !== undefined) {
+      this.localTerrain = { key, sampler: cached };
+      return cached;
+    }
+    if (this.localTerrainLoadingKeys.has(key)) return null;
+    this.localTerrainLoadingKeys.add(key);
+    this.localTerrainLoading = key;
+    void createLocalTerrainSampler(
+      geo,
+      worldContext.grid,
+      worldContext.graphWidth,
+      worldContext.graphHeight,
+      optionsStore.getState().heightExponent,
+      { prefectureLevels }
+    )
+      .catch(error => {
+        console.warn("Local terrain DEM unavailable", error);
+        return null;
+      })
+      .then(sampler => {
+        this.localTerrainLoadingKeys.delete(key);
+        if (this.localTerrainLoading === key) this.localTerrainLoading = "";
+        // One map at a time: drop samplers of another seed or size.
+        const prefix = key.slice(0, key.lastIndexOf("|"));
+        for (const other of [...this.localTerrainSamplers.keys()])
+          if (!other.startsWith(`${prefix}|`)) this.localTerrainSamplers.delete(other);
+        this.localTerrainSamplers.set(key, sampler);
+        this.localTerrain = { key, sampler };
+        if (sampler && this.campaignFocus && this.options.isOn && this.viewType === "viewMesh") {
+          this.campaignCameraDirty = true;
+          this.redraw({ refreshTerrainTexture: false });
+        }
+      });
+    return null;
+  }
+
   private campaignBuildInput(focus: CampaignFocus): CampaignBuildInput {
+    const kmPerPx = kmPerMapPixel(worldContext.distanceScale, optionsStore.getState().distanceUnit || "km");
     const graphWidth = worldContext.graphWidth;
     const graphHeight = worldContext.graphHeight;
     const gridSpacingPx = campaignGridSpacingPx(
@@ -2613,6 +3193,8 @@ class ThreeDModule {
     const cellCount = worldContext.pack.cells?.i?.length ?? 0;
     const packSpacingPx = cellCount > 0 ? Math.sqrt((graphWidth * graphHeight) / cellCount) : gridSpacingPx;
     const centroids = worldContext.pack.cells?.p;
+    const burgs = this.campaignBurgs();
+    const rivers = this.campaignRivers(centroids);
     const stateColors = new Map<number, string>();
     const regimentSources: CampaignRegimentSource[] = [];
     for (const state of worldContext.pack.states ?? []) {
@@ -2636,20 +3218,20 @@ class ThreeDModule {
       focusCellId: focus.cellId,
       graphWidth,
       graphHeight,
-      kmPerPx: kmPerMapPixel(worldContext.distanceScale, optionsStore.getState().distanceUnit || "km"),
+      kmPerPx,
       gridSpacingPx,
       packSpacingPx,
-      heightAt: (x, y) => this.sampleTerrainHeight(x, y),
+      ...this.campaignTerrainInput(kmPerPx, focus, burgs, rivers, gridSpacingPx),
+
       waterColor: this.options.waterColor,
       stateColors,
       cells: this.campaignCells(),
-      rivers: this.campaignRivers(centroids),
       routes: this.campaignRoutes(),
       regiments: campaignRegimentPlacements(regimentSources, cellId => {
         const point = centroids?.[cellId];
         return point ? [point[0], point[1]] : undefined;
       }),
-      burgs: this.campaignBurgs()
+      burgs
     };
   }
 
@@ -2687,10 +3269,28 @@ class ThreeDModule {
     return cells;
   }
 
+  /**
+   * FMG rivers along the same meandered banks the 2D map draws, with the full width per point,
+   * so a real-DEM window can paint them as water at their map width.
+   */
   private campaignRivers(centroids: [number, number][] | undefined): CampaignBuildInput["rivers"] {
-    const rivers: { points: [number, number][] }[] = [];
+    const rivers: { points: [number, number][]; widths?: number[] }[] = [];
     for (const river of worldContext.pack.rivers ?? []) {
       if (!river) continue;
+      if (river.cells && river.cells.length >= 2) {
+        try {
+          const points = river.points && river.points.length === river.cells.length ? river.points : null;
+          const meandered = Rivers.addMeandering(river.cells, points);
+          const banks = Rivers.getRiverBanks(meandered, river.widthFactor, river.sourceWidth);
+          const drawn = meandered.map(([x, y]) => [x, y] as [number, number]);
+          if (drawn.length >= 2) {
+            rivers.push({ points: drawn, widths: banks.widths });
+            continue;
+          }
+        } catch {
+          // Corrupt river geometry: fall back to the stored points or cell centres below.
+        }
+      }
       const drawn = this.campaignPoints(river.points);
       if (drawn.length >= 2) {
         rivers.push({ points: drawn });
