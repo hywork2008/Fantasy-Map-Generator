@@ -2,7 +2,7 @@
 
 作成: 2026-11-14
 更新: 2026-11-18（Codex 版の内部構造をやめ、外観だけの Claude Opus 5.5 版を作る計画へ全面的に書き直した）
-状態: W0（計測、§3.3）、W1（MV の Opus 版、§10.1）、W2（店の間・品物・階数、§10.2）を済ませた。CE はまだ Codex 版を使う（W3 で切り替える）。
+状態: W0（計測、§3.3）、W1（MV の Opus 版、§10.1）、W2（店の間・品物・階数、§10.2）、W3（CE で Opus 版を採用、§10.3）を済ませた。次は W4（短冊形区画の幅に合わせる）。
 
 ## 1. 目的と方針
 
@@ -265,7 +265,7 @@ interface OpusWorkhomeSpec {
 
 ### 7.2 W3（CE `compact`）
 
-- `compact` の出力の SHA（`5e13d2db3d1e8823`、`5b8b8adac3dec72c`）が変わらない。
+- `compact` の配置（施設の位置・向き・敷地）、街区の記録（fabric）、人口の報告が変わらない。Workhome の扉の位置・高さ・外観の仕様は変わるので、文書全体の SHA は変わる（2026-11-18 に改めた。§10.3）。
 - 同じ列で接する Workhome の組のうち、`specKey` が同じ組: 0。
 - 町全体の Workhome の三角形（Low）が、今の 0.4 倍以下。
 
@@ -286,7 +286,7 @@ interface OpusWorkhomeSpec {
 
 ## 9. 次の作業
 
-W3 です。CE の `compact` で Opus 版を採用し（`CE_ADOPTION`）、施設ごとに外観の仕様（文化・扉の側・店の開閉・階数）を決めて保存します。Opus 版の敷地は Codex 版の外接矩形と同じにして、`compact` の出力が変わらないことを確かめます。
+W4 です。`burgage`／`burgage-dense` で、区画の幅（0.25 m 刻み）に合わせた Workhome の資産を作り、区画 1 筆に置きます。扉の左右（`mirror`）も、区画ごとの入口と一緒にここで入れます。
 
 ## 10. 実装の記録
 
@@ -363,4 +363,47 @@ Low は Codex 版（4,428〜6,444）の 1/4〜1/6、地域の型の住宅 `craft
 
 - [opusWorkhome.test.ts](../../src/buildings/medieval/opusWorkhome.test.ts) に 2 件足した: 10 業種 × 2 文化の最大の組み合わせで三角形の上限と区画に収まること、雨戸を閉めると店の間と品物がなくなること。階数の規則（時代・間口・くじ、間口 5 m 未満で 3 階にしない）。
 - MV で正面から目視した: 仕立（英国型、布と衣服）、金細工（南仏型、石の売り台に杯と皿）、弓矢（英国型 7.5 m・窓 2）、靴（ハンザ型）、書籍（山地型、アーチの店口に本）、馬具（北方型）、毛皮の閉店と半開きの扉。
+
+### 10.3 W3（2026-11-18）
+
+作ったもの:
+
+- 採用: `CE_ADOPTION` で task 51 の Low／High を Opus 版にした。
+- 敷地: `MedievalModel.placementEnvelope` を足し、task 51 は Codex 版の外接矩形（6.44／5.24／7.64 × 10.53／8.93 m）を宣言する。`placementFootprint` は宣言した値を、測った網の値と同じ float32 に丸めて返す。どちらの作者のモデルでも、CE の敷地は同じになる。
+- 入口: `populationFacilityRequests` の Workhome の入口を、Opus 版の既定の仕様の扉（`opusWorkhomeLayout(...).entrance`）にした。
+- 外観の仕様（[workhomeExteriors.ts](../../src/city-editor/generators/vector/generation/workhomeExteriors.ts) の `dressWorkhomes`）: 施設を置いた後、自動で置いた Workhome ごとに決めて、配置の `exterior` に保存する。
+  - 文化: 町の外観の型（`vectorTownProfile`。壁・塔と同じ。`legacy` なら英国型）。
+  - 通りに向ける面・階数（`opusWorkhomeStoreys`）・雨戸（開 7 割）・扉（半開き 2 割）・看板（7 割）・明暗: 施設 id の種から。割合は仮（§8）。
+  - 隣と壁を接する Workhome が同じ外観になる時は、通りに向ける面 → 明暗 → 雨戸の順にずらす。
+  - 保存する高さ（`building.heightMeters`）を、その外観のモデルの高さにする（`opusWorkhomeHeight`。Low と High で同じ）。
+  - 編集の前から残る施設は、保存されたまま（`exterior` がなければ Codex 版のまま）にする。
+- 描画: 3D は `exterior` からその外観の Opus 版を作り（`placementDefinition` の `workhome`、仕様ごとに試作品を共有）、`exterior` のない古い保存データの Workhome は Codex 版で描く。これで古い保存データの高さの照合も通る。
+- 町の外観の型を決める関数を、描画側から生成側（`vectorTownProfile`、[housingCulture.ts](../../src/city-editor/generators/vector/generation/housingCulture.ts)）に移し、描画側はそれを呼ぶ。`automaticHousingProfile` は [automaticHousing.ts](../../src/buildings/appearance/automaticHousing.ts) に移した（描画側からも再輸出している）。
+- 文書の検証: 配置の `exterior` を受け付け、Workhome のモデル以外に付いていたり、値が範囲外だったりすれば誤りにする。
+
+`compact` の出力（`b2-probe`、壁あり・川なし）:
+
+| 町 | 配置・街区・報告 | 文書全体の SHA |
+| --- | --- | --- |
+| 1,000 人・家だけ | W3 の前と同じ | 同じ（`01a89e2c58563127`） |
+| 2,000 人・施設あり | 同じ（施設 94/100） | 変わる（扉・高さ・外観） |
+| 5,000 人・施設あり・lateMedieval | 同じ（施設 234/250） | 変わる |
+
+初めは宣言した外接矩形を丸めずに返していたため、敷地の値が測った値（float32）と 1e-8 m ほど違い、配置と街区が変わった。丸めて同じ値にした。扉の位置と高さは、配置に影響しなかった。
+
+町全体の Workhome（`compact`、`b2-probe`）:
+
+| 町 | Workhome | 外観の種類 | 3 階建て | 三角形 Low（Codex → Opus） | 三角形 High |
+| --- | --- | --- | --- | --- | --- |
+| 2,000 人 | 58 | 52 の試作品 | 23 | 316,804 → 54,140（0.17 倍） | 898,060 → 218,760（0.24 倍） |
+| 5,000 人 | 155 | 111 の試作品 | 43 | 837,912 → 142,912（0.17 倍） | 2,382,180 → 568,260（0.24 倍） |
+
+試作品の数は Codex 版（業種 × 外形の 13 まで）より大きく増えた。5,000 人の町の 3D の場面を作る時間は、Low 691 → 686〜701 ms、High 2,395 → 2,472〜2,500 ms（+3〜4%）で、§7 の 1.2 倍以内に収まった（vitest の中で、2 回目以降を測った）。
+
+確かめたこと:
+
+- [workhomeExteriors3d.test.ts](../../src/city-editor/renderers/vector/workhomeExteriors3d.test.ts)（3 件）: 2,000 人の `compact` の町で、全 Workhome が町の文化の外観を持ち、壁を接する 2 つが同じ外観にならないこと。3D で全 Workhome がモデルで描かれ、高さの不一致や仮の箱の警告が出ないこと。`exterior` のない古い保存データが Codex 版で警告なく描かれること。
+- [opusWorkhome.test.ts](../../src/buildings/medieval/opusWorkhome.test.ts): CE の採用が Opus 版になり、敷地が Codex 版の外接矩形のままであること。Low と High の高さが同じこと。
+- CE（meshless）で `compact`・`medieval-facilities` の町を生成し、3D で目視した。
+- 関連テスト 43 ファイル・219 件のうち、2 件が失敗した。`houseLod3d.test.ts` と `facilities3d.test.ts`（施設の町の BV の作業場を High で描く）は、W1 の前のコミット 730b4c1b7 でも失敗しており、今回の変更とは関係しない。
 

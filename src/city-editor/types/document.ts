@@ -196,6 +196,8 @@ export interface CityElement {
   objectQuality?: import("../../buildings/placementContract").PlacementQuality;
   objectPalette?: import("../../buildings/medieval/marketAppearance").MarketPalette;
   objectMarketActivity?: "market-day" | "closed";
+  /** A trade workhome's street front, or "codex" for one saved before it had one (scene only, not saved). */
+  objectWorkhome?: import("../../buildings/medieval/opusWorkhomeProfiles").OpusWorkhomeExterior | "codex";
   /** The model drawn mirrored across its local x axis. */
   objectMirrored?: boolean;
   shipType?: import("./ships").ShipType;

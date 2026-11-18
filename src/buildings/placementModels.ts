@@ -34,6 +34,8 @@ import {
   type MarketDetail,
   packedMarketPitch
 } from "./medieval/marketPresentation";
+import { createOpusWorkhome } from "./medieval/opusWorkhome";
+import { type OpusWorkhomeExterior, opusWorkhomeSpecKey, opusWorkhomeSpecOf } from "./medieval/opusWorkhomeProfiles";
 import { objectDrawing, PLACEABLE_OBJECTS, placeableObject } from "./placeableObjects";
 import type { PlacementQuality } from "./placementContract";
 import { axisBoxFromBounds, type FootprintBox, footprintBox } from "./placementContract";
@@ -186,7 +188,16 @@ for (const model of [
     },
     definition: qualities.high,
     qualities,
-    footprint: quality => measured(qualities[quality === "low" ? "low" : "high"])
+    footprint: model.placementEnvelope
+      ? () => ({
+          // Rounded as measured mesh bounds are (float32), so plots sized on the measured model stay bit-identical.
+          halfX: Math.fround(model.placementEnvelope![0] / 2),
+          halfZ: Math.fround(model.placementEnvelope![1] / 2),
+          centerX: 0,
+          centerZ: 0,
+          groundY: 0
+        })
+      : quality => measured(qualities[quality === "low" ? "low" : "high"])
   });
 }
 
@@ -210,13 +221,60 @@ export function placementFootprint(id: string, quality?: PlacementQuality): Foot
 }
 
 /** Mesh factory for models that are not already placeable objects. Placeable objects keep their adopted variants. */
+const workhomeDefinitions = new Map<string, BvDefinition>();
+/**
+ * A trade workhome's street front (docs/plan/bv-workhome-facade-variation.md §4.7): a saved exterior draws the Opus
+ * shop-house it describes; "codex" draws the Codex study a placement saved before the exterior existed was sized on.
+ */
+function workhomeDefinition(
+  id: string,
+  level: PlacementQuality,
+  workhome: OpusWorkhomeExterior | "codex"
+): BvDefinition | null {
+  const model = workhomes.find(m => m.id === id);
+  if (!model) return null;
+  const quality = level === "low" ? "low" : "high";
+  if (workhome === "codex") {
+    const key = `${id}:${quality}:codex`;
+    let result = workhomeDefinitions.get(key);
+    if (!result) {
+      const variant = model.variants!.find(v => v.author === "Codex GPT-6.1 Sol" && v.level === quality)!;
+      result = { id: key, variant: variant.id, create: () => variant.create() };
+      workhomeDefinitions.set(key, result);
+    }
+    return result;
+  }
+  const spec = opusWorkhomeSpecOf(id, workhome);
+  if (!spec) return null;
+  const key = `${id}:${quality}:${opusWorkhomeSpecKey(spec)}`;
+  let result = workhomeDefinitions.get(key);
+  if (!result) {
+    const variant = model.variants!.find(v => v.author === "Claude Opus 5.5" && v.level === quality)!;
+    result = { id: key, variant: variant.id, create: () => createOpusWorkhome(spec, quality) };
+    workhomeDefinitions.set(key, result);
+  }
+  return result;
+}
+
 export function placementDefinition(
   id: string,
   quality?: PlacementQuality,
   palette?: MarketPalette,
-  presentation?: { activity?: MarketActivity; detail?: MarketDetail }
+  presentation?: {
+    activity?: MarketActivity;
+    detail?: MarketDetail;
+    /** A trade workhome's saved street front, or "codex" for a placement saved before it had one. */
+    workhome?: OpusWorkhomeExterior | "codex";
+  }
 ): BvDefinition | null {
   if (placeableObject(id)) return null;
+  if (presentation?.workhome) {
+    const level = placementQuality(id, quality);
+    if (level) {
+      const result = workhomeDefinition(id, level, presentation.workhome);
+      if (result) return result;
+    }
+  }
   if (packedMarketPitch(id, presentation?.activity)) return null;
   const source = sources.get(id);
   const level = placementQuality(id, quality);

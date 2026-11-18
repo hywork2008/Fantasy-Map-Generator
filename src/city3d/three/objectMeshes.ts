@@ -58,7 +58,8 @@ export function createTownObjects(
       return [{ id: item.id, definition: objectDefinition(placeable.id), matrix }];
     }
     const plain = placementDefinition(item.objectType, item.objectQuality, item.objectPalette, {
-      activity: item.objectMarketActivity
+      activity: item.objectMarketActivity,
+      workhome: item.objectWorkhome
     });
     const authored = placementFootprint(item.objectType, item.objectQuality);
     if (!plain || !authored) return [];

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { BuildingAppearance } from "../../../buildings/appearance/types";
+import { opusWorkhomeModel } from "../../../buildings/medieval/opusWorkhomeProfiles";
 import type { ModelQuality } from "../../../buildings/modelQuality";
 import { placeableObject } from "../../../buildings/placeableObjects";
 import { placementDefinition, placementFootprint } from "../../../buildings/placementModels";
@@ -655,9 +656,12 @@ export function createVectorScene(
             !p.appearance?.quality &&
             sameFootprint(placementFootprint(p.modelId, placementQuality), placementFootprint(p.modelId, saved)),
           level = p.display?.provenance === "copied" || generated ? placementQuality : saved,
+          // A trade workhome draws its saved street front; one saved before it had one keeps its Codex study.
+          workhome = p.exterior ?? (opusWorkhomeModel(p.modelId) ? ("codex" as const) : undefined),
           definition =
             placementDefinition(p.modelId, level, p.appearance?.palette, {
-              activity: p.appearance?.activity
+              activity: p.appearance?.activity,
+              workhome
             }) ?? placeableObject(p.modelId),
           footprint = placementFootprint(p.modelId, level);
         if (definition && footprint) {
@@ -705,6 +709,7 @@ export function createVectorScene(
                 ...(p.appearance?.palette ? { objectPalette: p.appearance.palette } : {}),
                 ...(p.appearance?.activity ? { objectMarketActivity: p.appearance.activity } : {}),
                 ...(p.mirrored ? { objectMirrored: true } : {}),
+                ...(workhome ? { objectWorkhome: workhome } : {}),
                 rotation: angle,
                 locked: false
               } as CityElement);

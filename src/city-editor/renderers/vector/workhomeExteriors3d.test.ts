@@ -1,0 +1,99 @@
+import * as THREE from "three";
+import { describe, expect, it } from "vitest";
+import { opusWorkhomeSpecKey, opusWorkhomeSpecOf } from "../../../buildings/medieval/opusWorkhomeProfiles";
+import { placementDefinition } from "../../../buildings/placementModels";
+import { defaultGenerationSettings } from "../../generators/generation/settings";
+import { nearestOnPolyline } from "../../generators/geom";
+import { defaultPopulationSettings } from "../../generators/populationPlan";
+import { vectorInputFromEditor } from "../../generators/vector/generation/editorInput";
+import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../../generators/vector/generation/pipeline";
+import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../../generators/vector/generation/urban";
+import { vectorWallChoice } from "../../generators/vector/generation/wallShape";
+import { assertVectorDocument } from "../../generators/vector/validation/document";
+import type { VectorCityDocument } from "../../types/vector/document";
+import { vectorRenderData } from "./renderData";
+import { createVectorScene } from "./scene3d";
+
+/** A walled compact town of 2,000 people with its facilities. */
+function town(): VectorCityDocument {
+  const seed = "workhome-w3",
+    settings = {
+      ...defaultGenerationSettings(),
+      wallShape: "polygon" as const,
+      plotFabric: "compact" as const,
+      facilityLayout: "population" as const
+    };
+  settings.config = {
+    ...settings.config,
+    rivers: [],
+    features: { ...settings.config.features, walls: true, port: false, shanty: false }
+  };
+  settings.population = defaultPopulationSettings(2000);
+  const input = vectorInputFromEditor({
+      settings,
+      seed,
+      frame: { extentMeters: 800, cityRadiusMeters: 200, blockSizeMeters: 50 },
+      lotOccupancy: 1
+    }),
+    wall = vectorWallChoice(settings, seed, input.context.historicalPeriod ?? "ageOfExploration"),
+    skeleton = generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall }).document;
+  return generateVectorUrban(skeleton, {
+    ...DEFAULT_VECTOR_URBAN,
+    mode: "medieval-facilities",
+    population: 2000,
+    plotFabric: "compact"
+  });
+}
+
+const warningsOf = (doc: VectorCityDocument) => {
+  const scene = createVectorScene(vectorRenderData(doc, "housing"));
+  try {
+    return scene.warnings as readonly string[];
+  } finally {
+    scene.dispose();
+  }
+};
+
+describe("Opus workhomes in a compact CE town (docs/plan/bv-workhome-facade-variation.md W3)", () => {
+  const doc = town(),
+    workhomes = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workhome."));
+
+  it("gives every workhome a saved street front of the town's culture, never twice along a party wall", () => {
+    expect(workhomes.length).toBeGreaterThan(30);
+    expect(() => assertVectorDocument(doc)).not.toThrow();
+    const keys = workhomes.map(p => opusWorkhomeSpecKey(opusWorkhomeSpecOf(p.modelId, p.exterior!)!));
+    expect(new Set(workhomes.map(p => p.exterior!.culture)).size).toBe(1);
+    expect(new Set(keys).size).toBeGreaterThan(12);
+    for (const [i, a] of workhomes.entries())
+      for (const [j, b] of workhomes.entries()) {
+        if (j <= i || keys[i] !== keys[j]) continue;
+        const touch = a.site.outer.some(p => nearestOnPolyline(p, [...b.site.outer, b.site.outer[0]]).dist < 0.3);
+        expect(touch).toBe(false);
+      }
+  });
+
+  it("draws every workhome as its model, its saved height that of its street front", () => {
+    const ids = new Set(workhomes.map(p => p.id));
+    const bad = warningsOf(doc).filter(w => ids.has(w.slice(w.indexOf(":") + 1)));
+    expect(bad).toEqual([]);
+  });
+
+  it("keeps drawing a workhome saved before W3 as the Codex study it was sized on", () => {
+    // A save from before W3: no street front, the Codex height, and an edit since (its fingerprint is stale).
+    const legacy = structuredClone(doc);
+    legacy.revision++;
+    for (const p of Object.values(legacy.placements)) {
+      if (!p.exterior) continue;
+      delete p.exterior;
+      const model = placementDefinition(p.modelId, "low", undefined, { workhome: "codex" })!.create();
+      try {
+        const box = new THREE.Box3().setFromObject(model.group, true);
+        p.building!.heightMeters = box.max.y - box.min.y;
+      } finally {
+        model.dispose();
+      }
+    }
+    const ids = new Set(workhomes.map(p => p.id));
+    expect(warningsOf(legacy).filter(w => ids.has(w.slice(w.indexOf(":") + 1)))).toEqual([]);
+  });
+});

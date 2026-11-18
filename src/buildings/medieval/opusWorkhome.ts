@@ -9,7 +9,8 @@ import {
   type OpusWorkhomeLayout,
   type OpusWorkhomeOpening,
   type OpusWorkhomeSpec,
-  opusWorkhomeLayout
+  opusWorkhomeLayout,
+  opusWorkhomeSpecKey
 } from "./opusWorkhomeProfiles";
 
 export * from "./opusWorkhomeProfiles";
@@ -332,4 +333,22 @@ export function createOpusWorkhome(input: OpusWorkhomeSpec, quality: TradeQualit
   k.chimneyStack(stackX, l.z0 + 1.2, roof.ridgeY + 0.5, 0.7, 0.6, l.stoneGround ? "stone" : "brick");
   sign(k, l);
   return compactModel(k.finish());
+}
+
+const heights = new Map<string, number>();
+/** Height of a spec's model from its base (the same at Low and High), as CE saves it with the placement. */
+export function opusWorkhomeHeight(spec: OpusWorkhomeSpec): number {
+  const key = opusWorkhomeSpecKey(spec);
+  let result = heights.get(key);
+  if (result === undefined) {
+    const model = createOpusWorkhome(spec, "low");
+    try {
+      const box = new THREE.Box3().setFromObject(model.group, true);
+      result = box.max.y - box.min.y;
+    } finally {
+      model.dispose();
+    }
+    heights.set(key, result);
+  }
+  return result;
 }

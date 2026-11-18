@@ -17,6 +17,9 @@ export interface MedievalModel {
   /** Explicit preview tier for factories with no BV variant selector; unspecified means low. */
   quality?: "low" | "high";
   biomes?: readonly string[];
+  /** Declared CE plot (width, depth) centred on the origin; replaces the measured mesh bounds as the footprint, so
+   * variants of different authors keep one placement envelope. */
+  placementEnvelope?: readonly [number, number];
   /** Conservative width, depth and height envelopes in meters. */
   size: readonly [number, number, number];
   note: string;

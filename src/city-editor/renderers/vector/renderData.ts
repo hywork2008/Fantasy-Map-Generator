@@ -1,4 +1,4 @@
-import { buildingAppearanceProfile, normalizeBuildingAppearanceContext } from "../../../buildings/appearance/resolver";
+import { normalizeBuildingAppearanceContext } from "../../../buildings/appearance/resolver";
 import type { BuildingAppearance, BuildingAppearanceProfile } from "../../../buildings/appearance/types";
 import { TREE_SPECIES, type TreeSpecies, treeLodProfile } from "../../../buildings/landscape/trees";
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
@@ -18,7 +18,7 @@ import {
   unpackPoints
 } from "../../generators/vector/fabric/pack";
 import { vectorLandscapeClimate } from "../../generators/vector/generation/forest";
-import { vectorHousingCulture } from "../../generators/vector/generation/housingCulture";
+import { vectorTownProfile } from "../../generators/vector/generation/housingCulture";
 import { vectorHouseHeightKey, vectorHousingHeights } from "../../generators/vector/generation/housingHeights";
 import { tanneryWaterWorks } from "../../generators/vector/generation/tanneryWaterWorks";
 import { bridgeGeometry, gateOpening, junctionSurface } from "../../generators/vector/geometry/network";
@@ -40,7 +40,6 @@ import type { VectorFurlongCourse } from "../../types/vector/landUse";
 import type { Monastery } from "../../types/vector/monastery";
 import type { VectorStage } from "../../types/vector/urban";
 import { collectOpenSpacePlan, type OpenSpacePlan } from "../openSpaceSites";
-import { automaticHousingProfile } from "../standaloneHousingAppearance";
 import { vectorDefenseSurfaces } from "./defense";
 import { vectorFerrySurfaces } from "./ferry";
 import { vectorGuildSurfaces } from "./guild";
@@ -1154,18 +1153,7 @@ function vectorParkTrees(doc: VectorCityDocument): VectorLandscapeTree[] {
 
 /** The town's appearance profile as the mesh editor reads it for its towers and gates: the houses' automatic one. */
 function vectorWallProfile(doc: VectorCityDocument): BuildingAppearanceProfile {
-  const descriptor = doc.site?.descriptor,
-    context = normalizeBuildingAppearanceContext({
-      period: doc.context.historicalPeriod,
-      tradition: descriptor?.civilization?.tradition,
-      temperatureC: descriptor?.climate?.temperatureC,
-      biome: descriptor?.biome ?? (descriptor?.climate?.biomeKey ? { key: descriptor.climate.biomeKey } : undefined)
-    });
-  return buildingAppearanceProfile({
-    profile: vectorHousingCulture(doc) ?? automaticHousingProfile(context, !!descriptor, doc.recipe.seed),
-    context,
-    rural: false
-  });
+  return vectorTownProfile(doc);
 }
 
 /**

@@ -57,6 +57,8 @@ export const models: MedievalModel[] = WORKHOME_TRADE_COMBINATIONS.map(({ role, 
     name: `${trade.name} workhome (${form})`,
     author: DEFAULT_AUTHOR,
     size: [p.width + 0.6, p.depth + 1.5, p.envelope.max[1]],
+    // The Codex envelope: CE plots keep their size whichever author's model draws on them (plan §4.7).
+    placementEnvelope: OPUS_WORKHOME_PRESET_ENVELOPES[form],
     note: `Dry workhome via explicit CE conversion: one planned dwelling, three static workplaces; production throughput and supply chain are not verified. ${trade.dependencies.length ? `External inputs/processes: ${trade.dependencies.join(", ")}. ` : ""}Supply and occupational process conditions remain separate from placement. ${OPUS_NOTE}`,
     create: () => assembleWorkhomeTrade(role, form, "low"),
     variants: [

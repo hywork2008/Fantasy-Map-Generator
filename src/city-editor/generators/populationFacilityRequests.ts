@@ -8,6 +8,7 @@ import { ENCLOSED_GUILD_HALL } from "../../buildings/medieval/enclosedGuildHall"
 import { ENCLOSED_GUILD_TRADES } from "../../buildings/medieval/enclosedGuildTrades";
 import { HORSE_MILL } from "../../buildings/medieval/horseMill";
 import { OPUS_BUTCHERY, OPUS_TOWN_TRADES, type OpusTownTrade } from "../../buildings/medieval/opusTradeProfiles";
+import { opusWorkhomeLayout, opusWorkhomePreset } from "../../buildings/medieval/opusWorkhomeProfiles";
 import { WORKHOME_FORMS } from "../../buildings/medieval/workhomeFormProfiles";
 import { WORKHOME_TRADES } from "../../buildings/medieval/workhomeTradeProfiles";
 import type { LandmarkAsset } from "../types/document";
@@ -82,9 +83,11 @@ export function buildPopulationFacilityRequests(population: number, options: { p
     const asset = cached(`workshop:${trade.pool}`, () => {
       const dry = WORKHOME_TRADES.find(t => t.id === trade.pool);
       if (dry) {
-        const form = WORKHOME_FORMS[dry.form];
+        // The Opus shop-house's street door on its Codex envelope (docs/plan/bv-workhome-facade-variation.md W3).
+        const form = WORKHOME_FORMS[dry.form],
+          door = opusWorkhomeLayout(opusWorkhomePreset(dry.id, dry.form)).entrance;
         return {
-          ...bvFacilityAsset(`trade-workhome.${form.formId}.${trade.pool}`, [{ id: "main", ...form.main }]),
+          ...bvFacilityAsset(`trade-workhome.${form.formId}.${trade.pool}`, [door]),
           residentialDwellings: 1
         };
       }

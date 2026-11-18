@@ -2,12 +2,16 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { adoptedVariant } from "../../city3d/adoption";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { placementFootprint } from "../placementModels";
 import { models } from "./51-trade-workhomesModels";
 import {
   createOpusWorkhome,
   OPUS_WORKHOME_CULTURES,
+  OPUS_WORKHOME_PRESET_ENVELOPES,
   type OpusWorkhomeSpec,
+  opusWorkhomeHeight,
   opusWorkhomeLayout,
+  opusWorkhomeModel,
   opusWorkhomePreset,
   opusWorkhomeSpecKey,
   opusWorkhomeStoreys
@@ -82,6 +86,18 @@ describe("Opus shop-house workhome (docs/plan/bv-workhome-facade-variation.md W1
       }
   });
 
+  it("stands as tall at Low as at High, so CE checks a saved height at either quality", () => {
+    for (const culture of OPUS_WORKHOME_CULTURES)
+      for (const entranceFace of ["eave", "gable"] as const)
+        for (const storeys of [2, 3] as const) {
+          const spec = opusWorkhomePreset("bowyery", "wide", { culture, entranceFace, storeys });
+          expect(measure(spec, "high").box.max.y - measure(spec, "high").box.min.y).toBeCloseTo(
+            opusWorkhomeHeight(spec),
+            3
+          );
+        }
+  });
+
   it("raises a third storey only from the late Middle Ages and on frontages of 5 m or more", () => {
     expect(opusWorkhomeStoreys("highMedieval", 7, 0)).toBe(2);
     expect(opusWorkhomeStoreys("lateMedieval", 4.9, 0)).toBe(2);
@@ -128,7 +144,7 @@ describe("Opus shop-house workhome (docs/plan/bv-workhome-facade-variation.md W1
     expect(opusWorkhomeLayout({ ...b, fronts: 2 }).shops).toHaveLength(1);
   });
 
-  it("registers Low and High Opus variants on every trade workhome, previewed in MV while CE keeps Codex", () => {
+  it("registers Low and High Opus variants on every trade workhome, adopted by CE on the Codex envelope (W3)", () => {
     expect(models).toHaveLength(13);
     for (const model of models) {
       const opus = model.variants!.filter(v => v.author === "Claude Opus 5.5");
@@ -136,7 +152,18 @@ describe("Opus shop-house workhome (docs/plan/bv-workhome-facade-variation.md W1
       for (const v of opus) expect(model.presentation!.applies(v.id)).toBe(true);
       expect(model.presentation!.applies(model.variants![0].id)).toBe(false);
       for (const level of ["low", "high"])
-        expect(adoptedVariant(model.variants![0].family, level).author).toBe("Codex GPT-6.1 Sol");
+        expect(adoptedVariant(model.variants![0].family, level).author).toBe("Claude Opus 5.5");
+      // CE plots keep the Codex envelope, as the Codex model measured it.
+      const form = opusWorkhomeModel(model.id)!.form,
+        [w, d] = OPUS_WORKHOME_PRESET_ENVELOPES[form];
+      for (const level of ["low", "high"] as const)
+        expect(placementFootprint(model.id, level)).toEqual({
+          halfX: Math.fround(w / 2),
+          halfZ: Math.fround(d / 2),
+          centerX: 0,
+          centerZ: 0,
+          groundY: 0
+        });
       expect(model.parts!(opus[0].id)).toEqual([]);
     }
   });

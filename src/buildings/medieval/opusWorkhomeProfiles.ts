@@ -277,3 +277,42 @@ export function opusWorkhomePreset(
     ...overrides
   };
 }
+
+/**
+ * What CE keeps per placed workhome (plan §4.7): the street front a facility was given. The trade and the plot come
+ * from its model id, so a saved exterior and its model id rebuild the same model.
+ */
+export type OpusWorkhomeExterior = Pick<
+  OpusWorkhomeSpec,
+  "culture" | "entranceFace" | "storeys" | "shop" | "door" | "sign" | "shade"
+>;
+
+const MODEL_ID = /^trade-workhome\.workhome-(standard|narrow|wide)\.([A-Za-z]+)$/;
+
+/** The trade and Codex form of a task-51 model id, or undefined for any other model. */
+export function opusWorkhomeModel(modelId: string): { role: WorkhomeRole; form: WorkhomeForm } | undefined {
+  const m = MODEL_ID.exec(modelId);
+  return m ? { form: m[1] as WorkhomeForm, role: m[2] as WorkhomeRole } : undefined;
+}
+
+/** The full spec of a placed workhome: its model's preset with the saved exterior. */
+export function opusWorkhomeSpecOf(modelId: string, exterior: OpusWorkhomeExterior): OpusWorkhomeSpec | undefined {
+  const model = opusWorkhomeModel(modelId);
+  return model && opusWorkhomePreset(model.role, model.form, exterior);
+}
+
+export function isOpusWorkhomeExterior(value: unknown): value is OpusWorkhomeExterior {
+  const v = value as Record<string, unknown>;
+  return (
+    !!v &&
+    typeof v === "object" &&
+    Object.keys(v).every(k => ["culture", "entranceFace", "storeys", "shop", "door", "sign", "shade"].includes(k)) &&
+    (OPUS_WORKHOME_CULTURES as readonly unknown[]).includes(v.culture) &&
+    (v.entranceFace === "gable" || v.entranceFace === "eave") &&
+    (v.storeys === 2 || v.storeys === 3) &&
+    (v.shop === "open" || v.shop === "closed") &&
+    (v.door === "closed" || v.door === "ajar") &&
+    (v.sign === "board" || v.sign === "none") &&
+    (v.shade === 0 || v.shade === 1 || v.shade === 2)
+  );
+}

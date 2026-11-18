@@ -104,7 +104,8 @@ export const CE_ADOPTION: Record<string, Record<string, Adoption>> = {
       )
     ])
   ),
-  // The Opus shop-house (docs/plan/bv-workhome-facade-variation.md W1) is previewed in MV; CE adopts it in W3.
+  // The Opus shop-house (docs/plan/bv-workhome-facade-variation.md W3). A placement saved before it keeps the Codex
+  // study it was sized on (placementDefinition's "codex" presentation).
   ...Object.fromEntries(
     WORKHOME_TRADE_COMBINATIONS.map(({ role, form }) => [
       `medieval.trade-workhome.workhome-${form}.${role}`,
@@ -112,9 +113,9 @@ export const CE_ADOPTION: Record<string, Record<string, Adoption>> = {
         (["low", "high"] as const).map(level => [
           level,
           {
-            variant: `medieval.trade-workhome.workhome-${form}.${role}@${level}#codex-gpt-6.1-sol`,
+            variant: `medieval.trade-workhome.workhome-${form}.${role}@${level}#claude-opus-5.5`,
             since: "2026-11-18",
-            note: "Kept until W3 of the Opus shop-house plan; the Opus variant is an MV preview"
+            note: "Opus street-front shop-house on the Codex envelope; the Codex interior ledger is not drawn"
           }
         ])
       )

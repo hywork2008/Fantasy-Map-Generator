@@ -55,6 +55,7 @@ import {
 import { matchesVectorUrbanFingerprint, vectorUrbanAlgorithm, vectorUrbanFingerprint } from "./urbanState";
 import { assignVectorWards, streetBlockOf, wardHeightKind } from "./wards";
 import { layoutVectorWells } from "./wells";
+import { dressWorkhomes } from "./workhomeExteriors";
 
 export const DEFAULT_VECTOR_URBAN: VectorUrbanSettings = {
   mode: "medieval",
@@ -699,6 +700,12 @@ function* vectorUrbanSteps(
     if (run?.profile) run.profile.facilityMs = performance.now() - started;
   } else if (packer) placeFacilities(packer);
   const facilities = ownedPlacements.filter(id => doc.placements[id].building?.kind === "facility");
+  // Trade workhomes take their street fronts once their places are known (docs/plan/bv-workhome-facade-variation.md W3).
+  // One kept from before an edit keeps what it was saved with, a Codex study included.
+  dressWorkhomes(
+    doc,
+    facilities.filter(id => !continuation?.retainedPlacements?.includes(id))
+  );
   if (settings.mode === "medieval-facilities") checkpoint("facilities", [...manual, ...facilities]);
   timed("facilities");
   const facilityLand = organic ? [] : deriveVectorBlocks(doc, protectedRegions),

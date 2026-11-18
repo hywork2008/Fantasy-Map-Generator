@@ -1,4 +1,5 @@
 import RBush from "rbush";
+import { isOpusWorkhomeExterior, opusWorkhomeModel } from "../../../../buildings/medieval/opusWorkhomeProfiles";
 import { isHistoricalPeriod } from "../../../../types/historicalPeriod";
 import type { Point } from "../../../types/primitives";
 import type {
@@ -408,7 +409,7 @@ export function validateVectorDocument(
             ? ["building"]
             : legacy === 6
               ? ["building", "display"]
-              : ["building", "display", "appearance", "mirrored"]
+              : ["building", "display", "appearance", "mirrored", "exterior"]
       ) ||
       !id(p.modelId) ||
       !point(p.position) ||
@@ -420,7 +421,8 @@ export function validateVectorDocument(
       !region(p.site) ||
       !Array.isArray(p.accesses) ||
       !p.accesses.every(checkAnchor) ||
-      (p.mirrored !== undefined && p.mirrored !== true)
+      (p.mirrored !== undefined && p.mirrored !== true) ||
+      (p.exterior !== undefined && (!opusWorkhomeModel(p.modelId) || !isOpusWorkhomeExterior(p.exterior)))
     )
       errors.push(`placement:${p.id}`);
   timed("sites");
