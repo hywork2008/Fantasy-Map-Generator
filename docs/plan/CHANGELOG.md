@@ -3,6 +3,7 @@
 2026-11-18
 
 - docs/plan/alps-terrain-tiles.md - アルプス周辺を Japan と同じ四分木タイルで3D表示する。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める
+- docs/plan/ce-burgage-plot-fabric.md - 今の住宅用の街区の切り方を残したまま、史料に基づく短冊形区画（burgage plot）で街区を作るオプションを加え、施設は区画を1〜3筆合わせて置く
 - docs/plan/model-viewer-rename-and-catalogue-facets.md - BVをModel Viewerに改名し、種類・年代・地域・用途の属性で一覧を絞り込む
 
 2026-11-17
