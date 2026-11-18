@@ -1,9 +1,11 @@
+import { isModelShipType } from "../data/ships";
 import type { ShipType } from "../types/ships";
 
 // Imported ship aliases are data tokens, independent of the display language.
 export function normalizeShipType(key: string | undefined): ShipType {
   if (!key) return "small";
   const lower = key.toLowerCase();
+  if (isModelShipType(lower)) return lower;
   if (
     lower === "barge" ||
     lower === "river-barge" ||

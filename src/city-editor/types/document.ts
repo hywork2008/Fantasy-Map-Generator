@@ -198,7 +198,7 @@ export interface CityElement {
   objectMarketActivity?: "market-day" | "closed";
   /** The model drawn mirrored across its local x axis. */
   objectMirrored?: boolean;
-  shipType?: "small" | "medium" | "large" | "barge";
+  shipType?: import("./ships").ShipType;
   shipState?: import("./ships").ShipDisplayState;
   harborOperation?: import("./contracts/harborCargo").CargoBerthAssignment;
   /** The dry harbour ward owning an element placed in a neighbouring water cell. */

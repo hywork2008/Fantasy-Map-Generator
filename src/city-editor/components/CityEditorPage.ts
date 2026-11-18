@@ -1952,7 +1952,7 @@ function mountCityEditorSession(root: HTMLElement, options: CityEditorOptions): 
   bindPanelEvents(panelEventContext(), "shipSizeInput:input");
   shipSizeInput.type = "number";
   shipSizeInput.min = "6";
-  shipSizeInput.max = "80";
+  shipSizeInput.max = String(Math.max(...Object.values(SHIP_SPECS).map(spec => spec.maxSizeMeters)));
   shipSizeInput.step = "1";
   shipSizeInput.value = String(interaction.shipSizeMeters);
   shipSizeInput.title = editorText("cityEditor.messages.shipLengthInMetres");

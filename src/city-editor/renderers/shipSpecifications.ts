@@ -24,5 +24,9 @@ export const SHIP_SPECS: Record<ShipType, ShipDimensions> = {
   small: localizedShipSpec(SHIP_DIMENSIONS.small, "cityEditor.messages.smallShipSloop"),
   medium: localizedShipSpec(SHIP_DIMENSIONS.medium, "cityEditor.messages.mediumShipCaravel"),
   large: localizedShipSpec(SHIP_DIMENSIONS.large, "cityEditor.messages.largeShipGalleon"),
-  barge: localizedShipSpec(SHIP_DIMENSIONS.barge, "cityEditor.messages.riverCargoBoatBarge")
+  barge: localizedShipSpec(SHIP_DIMENSIONS.barge, "cityEditor.messages.riverCargoBoatBarge"),
+  "ship-of-the-line": localizedShipSpec(SHIP_DIMENSIONS["ship-of-the-line"], "cityEditor.messages.shipOfTheLine"),
+  "war-galley": localizedShipSpec(SHIP_DIMENSIONS["war-galley"], "cityEditor.messages.warGalley"),
+  trireme: localizedShipSpec(SHIP_DIMENSIONS.trireme, "cityEditor.messages.trireme"),
+  carrier: localizedShipSpec(SHIP_DIMENSIONS.carrier, "cityEditor.messages.aircraftCarrierFord")
 };
