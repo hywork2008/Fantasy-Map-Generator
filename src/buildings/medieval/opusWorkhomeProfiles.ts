@@ -285,7 +285,14 @@ export function opusWorkhomePreset(
 export type OpusWorkhomeExterior = Pick<
   OpusWorkhomeSpec,
   "culture" | "entranceFace" | "storeys" | "shop" | "door" | "sign" | "shade"
->;
+> &
+  /** A workhome fitted to its burgage plot (W4): its frontage and depth on their grids, and its door side. Without
+   * them it keeps its Codex form's envelope with the door on the left. */
+  Partial<Pick<OpusWorkhomeSpec, "widthMeters" | "depthMeters" | "mirror">>;
+
+/** Grids of a plot-fitted workhome, so a town shares few models (plan §4.2). */
+export const OPUS_WORKHOME_WIDTH_STEP = 0.25;
+export const OPUS_WORKHOME_DEPTH_STEP = 0.5;
 
 const MODEL_ID = /^trade-workhome\.workhome-(standard|narrow|wide)\.([A-Za-z]+)$/;
 
@@ -298,15 +305,42 @@ export function opusWorkhomeModel(modelId: string): { role: WorkhomeRole; form: 
 /** The full spec of a placed workhome: its model's preset with the saved exterior. */
 export function opusWorkhomeSpecOf(modelId: string, exterior: OpusWorkhomeExterior): OpusWorkhomeSpec | undefined {
   const model = opusWorkhomeModel(modelId);
-  return model && opusWorkhomePreset(model.role, model.form, exterior);
+  const given = Object.fromEntries(Object.entries(exterior).filter(([, v]) => v !== undefined));
+  return model && opusWorkhomePreset(model.role, model.form, given as Partial<OpusWorkhomeSpec>);
 }
+
+/** A workhome's envelope (width, depth): its fitted plot, or its Codex form's. */
+export function opusWorkhomeEnvelope(modelId: string, exterior?: OpusWorkhomeExterior): readonly [number, number] {
+  const preset = OPUS_WORKHOME_PRESET_ENVELOPES[opusWorkhomeModel(modelId)?.form ?? "standard"];
+  return [exterior?.widthMeters ?? preset[0], exterior?.depthMeters ?? preset[1]];
+}
+
+const onGrid = (v: unknown, step: number, lo: number, hi: number) =>
+  typeof v === "number" && v >= lo && v <= hi && Math.abs(v / step - Math.round(v / step)) < 1e-9;
 
 export function isOpusWorkhomeExterior(value: unknown): value is OpusWorkhomeExterior {
   const v = value as Record<string, unknown>;
   return (
     !!v &&
     typeof v === "object" &&
-    Object.keys(v).every(k => ["culture", "entranceFace", "storeys", "shop", "door", "sign", "shade"].includes(k)) &&
+    Object.keys(v).every(k =>
+      [
+        "culture",
+        "entranceFace",
+        "storeys",
+        "shop",
+        "door",
+        "sign",
+        "shade",
+        "widthMeters",
+        "depthMeters",
+        "mirror"
+      ].includes(k)
+    ) &&
+    (v.widthMeters === undefined ||
+      onGrid(v.widthMeters, OPUS_WORKHOME_WIDTH_STEP, OPUS_WORKHOME_MIN_WIDTH, OPUS_WORKHOME_MAX_WIDTH)) &&
+    (v.depthMeters === undefined || onGrid(v.depthMeters, OPUS_WORKHOME_DEPTH_STEP, 8, 12)) &&
+    (v.mirror === undefined || typeof v.mirror === "boolean") &&
     (OPUS_WORKHOME_CULTURES as readonly unknown[]).includes(v.culture) &&
     (v.entranceFace === "gable" || v.entranceFace === "eave") &&
     (v.storeys === 2 || v.storeys === 3) &&

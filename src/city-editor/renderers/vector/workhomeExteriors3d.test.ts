@@ -3,24 +3,26 @@ import { describe, expect, it } from "vitest";
 import { opusWorkhomeSpecKey, opusWorkhomeSpecOf } from "../../../buildings/medieval/opusWorkhomeProfiles";
 import { placementDefinition } from "../../../buildings/placementModels";
 import { defaultGenerationSettings } from "../../generators/generation/settings";
-import { nearestOnPolyline } from "../../generators/geom";
+import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../../generators/geom";
 import { defaultPopulationSettings } from "../../generators/populationPlan";
+import { unpackPoints } from "../../generators/vector/fabric/pack";
 import { vectorInputFromEditor } from "../../generators/vector/generation/editorInput";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../../generators/vector/generation/pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../../generators/vector/generation/urban";
 import { vectorWallChoice } from "../../generators/vector/generation/wallShape";
 import { assertVectorDocument } from "../../generators/vector/validation/document";
+import type { PlotFabric } from "../../types/contracts/burgage";
 import type { VectorCityDocument } from "../../types/vector/document";
 import { vectorRenderData } from "./renderData";
 import { createVectorScene } from "./scene3d";
 
-/** A walled compact town of 2,000 people with its facilities. */
-function town(): VectorCityDocument {
+/** A walled town of 2,000 people with its facilities, on compact lots or burgage plots. */
+function town(plotFabric: PlotFabric = "compact"): VectorCityDocument {
   const seed = "workhome-w3",
     settings = {
       ...defaultGenerationSettings(),
       wallShape: "polygon" as const,
-      plotFabric: "compact" as const,
+      plotFabric,
       facilityLayout: "population" as const
     };
   settings.config = {
@@ -41,7 +43,7 @@ function town(): VectorCityDocument {
     ...DEFAULT_VECTOR_URBAN,
     mode: "medieval-facilities",
     population: 2000,
-    plotFabric: "compact"
+    plotFabric
   });
 }
 
@@ -95,5 +97,52 @@ describe("Opus workhomes in a compact CE town (docs/plan/bv-workhome-facade-vari
     }
     const ids = new Set(workhomes.map(p => p.id));
     expect(warningsOf(legacy).filter(w => ids.has(w.slice(w.indexOf(":") + 1)))).toEqual([]);
+  });
+});
+
+describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-facade-variation.md W4)", () => {
+  const doc = town("burgage-dense"),
+    workhomes = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workhome."));
+
+  it("builds nearly every workhome on one plot, as wide as the plot on its grid, its door on its own side", () => {
+    expect(doc.urban!.algorithm).toBe("vector-urban-v23");
+    expect(() => assertVectorDocument(doc)).not.toThrow();
+    // Plots whose front, a metre in, lies under a workhome's parcel.
+    const fronts = Object.values(doc.fabric!.cells).flatMap(c =>
+      c.plots
+        ? c.plots.offsets.map((start, i) => {
+            const ring = unpackPoints(
+                c.plots!.coords,
+                c.origin,
+                start,
+                c.plots!.offsets[i + 1] ?? c.plots!.coords.length / 2
+              ),
+              [a, b] = unpackPoints(c.plots!.fronts, c.origin, i * 2, i * 2 + 2),
+              m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
+              q = polygonCentroid(ring),
+              d = Math.hypot(q[0] - m[0], q[1] - m[1]);
+            return {
+              point: [m[0] + (q[0] - m[0]) / d, m[1] + (q[1] - m[1]) / d] as [number, number],
+              frontage: Math.hypot(b[0] - a[0], b[1] - a[1])
+            };
+          })
+        : []
+    );
+    let single = 0;
+    for (const p of workhomes) {
+      const under = fronts.filter(f => pointInPolygon(f.point, p.site.outer));
+      if (under.length === 1) {
+        single++;
+        expect(p.exterior!.widthMeters).toBeLessThanOrEqual(under[0].frontage - 0.2 + 1e-6);
+        expect(p.exterior!.widthMeters).toBeGreaterThan(under[0].frontage - 0.2 - 0.25 - 1e-6);
+      }
+    }
+    expect(single / workhomes.length).toBeGreaterThanOrEqual(0.9);
+    expect(new Set(workhomes.map(p => p.exterior!.mirror)).size).toBe(2);
+  });
+
+  it("draws every fitted workhome as its model", () => {
+    const ids = new Set(workhomes.map(p => p.id));
+    expect(warningsOf(doc).filter(w => ids.has(w.slice(w.indexOf(":") + 1)))).toEqual([]);
   });
 });

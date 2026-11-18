@@ -1,4 +1,5 @@
 import RBush from "rbush";
+import { opusWorkhomeModel } from "../../../../buildings/medieval/opusWorkhomeProfiles";
 import { growthRandom } from "../../../../utils/urbanMorphology";
 import type { Point } from "../../../types/primitives";
 import type { CurveAnchor, VectorCityDocument, VectorPlacement } from "../../../types/vector/document";
@@ -13,6 +14,7 @@ import { simpleContour, surfacesOverlap } from "../geometry/surfaces";
 import { connectTanneryRow, type FacilityLotResult, facilityLand, facilityLines, isWetTannery } from "./facilityLots";
 import type { VectorPerimeterPlan } from "./perimeter";
 import { waterDistance } from "./urbanPacking";
+import { fittedWorkhomeAsset, type WorkhomeFit } from "./workhomeAssets";
 
 type Box = { minX: number; minY: number; maxX: number; maxY: number };
 const boxOf = (ring: Point[], pad = 0): Box => ({
@@ -175,8 +177,13 @@ export function placeFacilitiesOnPlots(
       )
       .map(({ p }) => p)
       .slice(0, SEEDS_PER_REQUEST);
+    // A trade workhome is built to its plot (docs/plan/bv-workhome-facade-variation.md W4): one plot, its frontage
+    // the building's, its door on its own side. Runs of more plots are for a plot too narrow for a shop-house.
+    const workhome = !!request.asset.bvModel && !!opusWorkhomeModel(request.asset.bvModel.id),
+      mirror = growthRandom(`workhome-door:${request.id}`) < 0.5;
     let placement: VectorPlacement | undefined,
       run: Plot[] | undefined,
+      fit: WorkhomeFit | undefined,
       sized = false;
     for (const seed of seeds) {
       const row = rows.get(seed.row)!,
@@ -189,11 +196,21 @@ export function placeFacilitiesOnPlots(
           if (start < 0 || start + n > row.length) continue;
           const candidate = row.slice(start, start + n);
           if (candidate.some(p => used.has(p.i) || p.kind === "row")) continue;
+          const fitted = workhome
+            ? fittedWorkhomeAsset(
+                request.asset,
+                Math.hypot(candidate.at(-1)!.b[0] - candidate[0].a[0], candidate.at(-1)!.b[1] - candidate[0].a[1]),
+                Math.min(...candidate.map(p => p.depth)),
+                mirror
+              )
+            : undefined;
+          if (workhome && !fitted) continue;
+          const asked = fitted ? { ...request, asset: fitted.asset } : request;
           let taken = candidate,
             laid = layFacility(
               doc,
-              request,
-              entrance,
+              asked,
+              fitted ? fitted.asset.entrances[0] : entrance,
               candidate,
               [],
               lines,
@@ -223,10 +240,23 @@ export function placeFacilitiesOnPlots(
             continue;
           placement = laid;
           run = taken;
+          fit = fitted?.fit;
         }
       if (placement) break;
     }
     if (placement && run) {
+      // The plot-fitted envelope and door side; `dressWorkhomes` gives the rest of the street front.
+      if (fit)
+        placement.exterior = {
+          culture: "atlantic",
+          entranceFace: "eave",
+          storeys: 2,
+          shop: "open",
+          door: "closed",
+          sign: "board",
+          shade: 1,
+          ...fit
+        };
       doc.placements[placement.id] = placement;
       for (const p of run) used.add(p.i);
       takenInRow.set(run[0].row, (takenInRow.get(run[0].row) ?? 0) + run.length);

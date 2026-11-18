@@ -60,9 +60,14 @@ export function dressWorkhomes(doc: VectorCityDocument, ids: readonly string[]) 
     const p = doc.placements[id],
       model = p && opusWorkhomeModel(p.modelId);
     if (!model || p.origin !== "automatic" || p.building?.kind !== "facility") continue;
-    const r = (k: string) => growthRandom(`workhome-exterior:${id}:${k}`),
-      width = OPUS_WORKHOME_PRESET_ENVELOPES[model.form][0];
+    // A workhome fitted to its burgage plot keeps the plot's envelope and its door side (W4).
+    const fit = p.exterior?.widthMeters
+        ? { widthMeters: p.exterior.widthMeters, depthMeters: p.exterior.depthMeters, mirror: p.exterior.mirror }
+        : {},
+      r = (k: string) => growthRandom(`workhome-exterior:${id}:${k}`),
+      width = fit.widthMeters ?? OPUS_WORKHOME_PRESET_ENVELOPES[model.form][0];
     const exterior: OpusWorkhomeExterior = {
+      ...fit,
       culture,
       entranceFace: faceFixed ?? (r("face") < 0.5 ? "gable" : "eave"),
       storeys: opusWorkhomeStoreys(period, width, r("storeys")),
@@ -71,6 +76,8 @@ export function dressWorkhomes(doc: VectorCityDocument, ids: readonly string[]) 
       sign: r("sign") < SIGNBOARD ? "board" : "none",
       shade: Math.min(2, Math.floor(r("shade") * 3)) as 0 | 1 | 2
     };
+    for (const k of ["widthMeters", "depthMeters", "mirror"] as const)
+      if (exterior[k] === undefined) delete exterior[k];
     const neighbours = dressed.filter(d => touching(d.outer, p.site.outer)).map(d => d.key),
       keyOf = (e: OpusWorkhomeExterior) => opusWorkhomeSpecKey(opusWorkhomeSpecOf(p.modelId, e)!);
     // The next front in a fixed order: the street face, then the shade, then the shutters.

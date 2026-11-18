@@ -27,7 +27,10 @@ const ALGORITHMS = [
   "vector-urban-v17",
   "vector-urban-v18",
   "vector-urban-v19",
-  "vector-urban-v20"
+  "vector-urban-v20",
+  "vector-urban-v21",
+  "vector-urban-v22",
+  "vector-urban-v23"
 ];
 type RecordValue = Record<string, unknown>;
 const record = (v: unknown): v is RecordValue => !!v && typeof v === "object" && !Array.isArray(v);
