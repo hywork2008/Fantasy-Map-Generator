@@ -1,16 +1,30 @@
-import { OBJECT_CATEGORIES, objectDrawing, PLACEABLE_OBJECTS, placeableObject } from "../../buildings/placeableObjects";
+import { OBJECT_CATEGORIES, objectDrawing, placeableObject } from "../../buildings/placeableObjects";
+import { placeableObjectsFor } from "../../buildings/placeablePeriod";
 import { editorText } from "../../i18n/editorMessages";
+import type { HistoricalPeriod } from "../../types/historicalPeriod";
 import { objectScale } from "../generators/objectPlacement";
 import type { EditorLifetime } from "../services/editorLifetime";
 import type { InteractionState } from "../state/editorSession";
 import { div } from "./editorControls";
 
-export function buildObjectControls(scope: EditorLifetime, interaction: InteractionState, preview: () => void) {
+/**
+ * Category and model choice for the object tool. The list follows the city's historical period unless the
+ * period is ignored; `sync` re-reads the period when the tool is opened.
+ */
+export function buildObjectControls(
+  scope: EditorLifetime,
+  interaction: InteractionState,
+  preview: () => void,
+  period: () => HistoricalPeriod | undefined = () => undefined
+) {
   const controls = div("ce-object-controls");
   controls.hidden = true;
+  const ignorePeriod = document.createElement("input");
+  ignorePeriod.type = "checkbox";
+  ignorePeriod.dataset.objectField = "ignorePeriod";
   const category = document.createElement("select");
   category.setAttribute("aria-label", editorText("cityEditor.messages.objectCategory"));
-  for (const name of OBJECT_CATEGORIES) category.add(new Option(name, name));
+  const offered = () => placeableObjectsFor(period(), ignorePeriod.checked);
   const model = document.createElement("select");
   model.setAttribute("aria-label", editorText("cityEditor.messages.objectModel"));
   const scale = document.createElement("input");
@@ -35,16 +49,31 @@ export function buildObjectControls(scope: EditorLifetime, interaction: Interact
     dimensions.textContent = `${[bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z, bounds.max.y - bounds.min.y].map(v => (v * interaction.objectScale).toFixed(1)).join(" × ")} m`;
     preview();
   }
+  function populateCategories() {
+    const previous = category.value,
+      objects = offered();
+    category.replaceChildren();
+    for (const name of OBJECT_CATEGORIES)
+      if (objects.some(item => item.category === name)) category.add(new Option(name, name));
+    if ([...category.options].some(option => option.value === previous)) category.value = previous;
+    populate();
+  }
   function populate() {
+    const previous = model.value;
     model.replaceChildren();
-    for (const definition of PLACEABLE_OBJECTS.filter(item => item.category === category.value))
+    for (const definition of offered().filter(item => item.category === category.value))
       model.add(new Option(definition.name, definition.id));
-    interaction.objectType = model.value;
-    interaction.objectScale = 1;
-    scale.value = "1";
+    if ([...model.options].some(option => option.value === previous)) model.value = previous;
+    if (!model.value) return;
+    if (interaction.objectType !== model.value) {
+      interaction.objectType = model.value;
+      interaction.objectScale = 1;
+      scale.value = "1";
+    }
     update();
   }
   scope.listen(category, "change", populate);
+  scope.listen(ignorePeriod, "change", populateCategories);
   scope.listen(model, "change", () => {
     interaction.objectType = model.value;
     interaction.objectScale = 1;
@@ -69,7 +98,10 @@ export function buildObjectControls(scope: EditorLifetime, interaction: Interact
     label.append(title, input);
     controls.append(label);
   }
-  controls.append(dimensions);
-  populate();
-  return controls;
+  const ignoreLabel = document.createElement("label");
+  ignoreLabel.className = "ce-object-ignore-period";
+  ignoreLabel.append(ignorePeriod, editorText("cityEditor.messages.ignoreHistoricalPeriod"));
+  controls.append(dimensions, ignoreLabel);
+  populateCategories();
+  return { controls, sync: populateCategories };
 }

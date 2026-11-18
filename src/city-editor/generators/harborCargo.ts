@@ -1,5 +1,5 @@
 import { SHIP_CARGO_GEOMETRY } from "../../buildings/ships/cargoGeometry";
-import { SHIP_DIMENSIONS } from "../data/ships";
+import { isModelShipType, SHIP_DIMENSIONS } from "../data/ships";
 import type { CargoBerthAssignment, CargoQuay } from "../types/contracts/harborCargo";
 import type { CityElement, Point } from "../types/document";
 
@@ -11,7 +11,8 @@ export { HARBOR_CRANE_PROFILES } from "../../buildings/medieval/harborCraneDimen
 export type { CargoBerthAssignment, CargoQuay } from "../types/contracts/harborCargo";
 
 export function cargoShipGeometry(type: ShipType, length: number) {
-  const authored = SHIP_CARGO_GEOMETRY[type];
+  // Hand-placed Model Viewer ships take no cargo: they keep the galleon's handling profile, scaled.
+  const authored = SHIP_CARGO_GEOMETRY[isModelShipType(type) ? "large" : type];
   const scale = length / authored.hullLength;
   return {
     beam: (SHIP_DIMENSIONS[type].baseBeamMeters * length) / SHIP_DIMENSIONS[type].baseLengthMeters,

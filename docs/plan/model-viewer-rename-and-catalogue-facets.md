@@ -119,6 +119,15 @@ export interface ModelFacets {
    - 旧URL用に [src/building-viewer/index.html](../../src/building-viewer/index.html) を残した。クエリとハッシュを保ったまま `model-viewer/` へ転送するだけのページで、ビルドの入口 `buildingViewer` として残す。
    - 改名しなかったもの：CSSのクラス名（`bv-*`）、ソース中のコメントや識別子に残る略称「BV」（約125ファイル）、`scripts/` のファイル名（`verifyBv*.mts` など）。いずれも画面に出ず、互換性にも関わらないため、触ったファイルから順に直す。
 5. **近代兵器の追加**：第一次世界大戦の戦車などを `kind: "weapon"` または `"vehicle"`、`periods: ["petroleumEra"]` で追加する。
+   - 2026-11-18：戦車は `vehicle` とすることに決めた（未決事項を解消）。最初の1両として、第二次世界大戦のドイツの Tiger I（1942〜1945年）を [tigerTank.ts](../../src/buildings/vehicles/tigerTank.ts) に追加した。属性は `kind: "vehicle"`、`periods: ["petroleumEra"]`、`years: [1942, 1945]`、`regions: ["european"]`、`uses: ["armor", "military"]`。`PLACEABLE_OBJECTS`（ID `tigerI`）とMVの Vehicles の見出しに登録した。author は Claude Opus 5.5。
+   - 寸法は公表値（全長8.45 m（砲を前に向けた状態）、車体長6.316 m、全幅3.705 m、全高3.0 m）に合わせた。装甲厚、ハッチ、工具、履帯の個々のリンク、車内は簡略化または省いた。砲塔は旋回しない静止モデルで、国籍標識などのマーキングは描いていない。
+   - 2026-11-18：Tiger I に High 品質を追加した。130 mm ピッチの個々の履帯リンク（片側約100枚、グローサー付き）、ゴムタイヤ付きの転輪とボルト止めのハブキャップ、2列の歯を持つ起動輪、スポーク付きの誘導輪、牽引シャックル・前照灯・牽引ワイヤー・工具・機関室のファンカバーとグリル、段付きの砲身とスロット付きの砲口ブレーキ、ピストルポート・脱出ハッチ・吊り上げ環・3連の発煙弾発射器を加えた。これまでのモデルは Low とした。`object.tigerI@high` として登録し、CE は従来どおり default（Low）を使う。
+   - 2026-11-18：航空機の最初の1機として、アメリカの B-29 Superfortress 爆撃機（1944〜1960年）を [b29Bomber.ts](../../src/buildings/vehicles/b29Bomber.ts) に追加した。航空機は飛行船の前例に合わせて `kind: "vehicle"` とし、属性は `periods: ["petroleumEra"]`、`years: [1944, 1960]`、`regions: ["american"]`、`uses: ["aviation", "military"]`。`PLACEABLE_OBJECTS`（ID `b29`）、MVの Vehicles の見出し、`object.b29@high` に登録した。author は Claude Opus 5.5。
+   - 全長30.18 m、全幅43.05 m、全高8.46 m、プロペラ直径5.05 m は公表値に合わせた。尾翼・ナセル位置・脚の位置は三面図から割り出した概略値である。翼・尾翼は対称 NACA 断面を断面ロフトで作り、上反角4.5°と丸めた翼端を持つ。High ではフラップ・補助翼・昇降舵・方向舵を分け、機首ガラスの枠、天測窓、銃塔4基と尾部銃座、側面・上面の照準ブリスター、爆弾倉扉の継ぎ目、カウルフラップ・オイルクーラー吸気口・ターボ過給器、ねじれと黄色の先端を持つプロペラ、主脚の緩衝支柱・ドラッグブレース・脚扉を加えた。車内、爆弾、一部機体の APQ-13 レドーム、後期型の4連装上部銃塔は省いた。プロペラ・銃塔・舵面は動かない静止モデルで、マーキングは描いていない。
+   - 2026-11-18：アメリカの B-2 Spirit ステルス爆撃機（1997年〜、退役予定を2032年とした）を [b2Bomber.ts](../../src/buildings/vehicles/b2Bomber.ts) に追加した。属性は `kind: "vehicle"`、`periods: ["rocketryEra"]`、`years: [1997, 2032]`、`regions: ["american"]`、`uses: ["aviation", "military"]`。`PLACEABLE_OBJECTS`（ID `b2`）、MVの Vehicles の見出し、`object.b2@high` に登録した。author は Claude Opus 5.5。
+   - 全長21.0 m、全幅52.4 m、全高5.18 m、前縁後退角33° は公表値に合わせた。後縁の折れ点（ダブルWの鋸歯）は各辺がいずれかの前縁と平行になるよう計算し、翼厚・インテーク・脚の位置は三面図から割り出した概略値である。翼は中心体から翼端まで断面ロフトした一体の全翼で、操縦席の膨らみは中心線上の実際の頂点が公表全高にちょうど届くよう高さを決めている。High では中央のビーバーテール（GLAS）、片側3枚のエレボン、翼端のスプリット式ドラッグラダーを分け、風防・側窓、脱出ハッチ、空中給油口、補助吸気扉、爆弾倉扉の継ぎ目、4輪ボギーの主脚と支柱・脚扉・脚収納部を加えた。機内、兵装、電波吸収材のパネル継ぎ目、センサー類は省いた。舵面・扉は動かない静止モデルで、マーキングは描いていない。
+   - 2026-11-18：アメリカの Gerald R. Ford 級原子力空母（ネームシップ CVN-78、2017年〜）を [fordCarrier.ts](../../src/buildings/ships/fordCarrier.ts) に追加した。CE の船舶ツールは帆船（GalleonState）前提のため、トライリームと同じく MV 専用とし、Ships の見出しに置いた。属性は `kind: "ship"`、`periods: ["rocketryEra"]`、`years: [2017, 2105]`、`regions: ["american"]`、`uses: ["aviation", "military"]`（[catalogueIndex.ts](../../src/model-viewer/catalogueIndex.ts) の MV 専用エントリ `ford-carrier`）。author は Claude Opus 5.5。
+   - 全長337 m、飛行甲板幅78 m、水線幅41 m、喫水12 m、キールからマスト頂部まで76 m は Wikipedia の公表値に合わせた。水線を y = 0 とする。飛行甲板の高さ（水線上19.5 m）、アイランド・エレベーター・カタパルト・兵装の位置は写真と一般配置図から割り出した概略値である。Low は船体・スポンソン・飛行甲板・アイランド・マスト・レーダー面・エレベーター・推進器の概形、High は甲板マーキング（9°のアングルドデッキ、EMALS 4基と JBD、着艦ワイヤー3本）、艦橋・航空管制所の窓、マストのヤードとアンテナドーム、格納庫開口、錨孔、喫水線の黒帯、Mk 29・Mk 49・ファランクス、5翅プロペラ4基と舵2枚を加えた。艦載機・艦番号・内部は省いた。
 
 ## 検証
 
@@ -129,5 +138,5 @@ export interface ModelFacets {
 ## 未決事項
 
 - `ModelRegion` の最終的な値の一覧（FMGの文化セットとの対応）。
-- 戦車を `weapon` と `vehicle` のどちらに入れるか。本書では、用途で分けるなら `weapon`、走行装置を共有する部品群として扱うなら `vehicle` とし、最初の戦車を追加する時点で決める。
+- ~~戦車を `weapon` と `vehicle` のどちらに入れるか~~ → `vehicle` に決定（2026-11-18）。
 - CEの保存データ中の `bv` 接頭辞を、読み込み時の変換付きで改名するかどうか。

@@ -1,10 +1,13 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import type { ModelQuality } from "../../buildings/modelQuality";
 import { SHIP_VARIANTS } from "../../buildings/ships/shipVariants";
-import { SHIP_DIMENSIONS } from "../../city-editor/data/ships";
+import { isModelShipType, SHIP_DIMENSIONS } from "../../city-editor/data/ships";
 import { BRUSH_SHIP_STATE } from "../../city-editor/generators/shipDisplayState";
+import { modelShipExtent, modelShipVariant } from "../../city-editor/renderers/modelShips";
 import type { ShipSite } from "../../city-editor/renderers/shipSites";
 import type { Point } from "../../city-editor/types/primitives";
+import type { ShipType } from "../../city-editor/types/ships";
 import { adopt, markVariant } from "../adoption";
 import { planVertex } from "../core/planFrame";
 import type { CityStructureMeshes } from "./structureMeshes";
@@ -16,11 +19,15 @@ const MODELS = {
   large: ship("ship.galleon"),
   barge: ship("ship.barge")
 } as const;
+const modelFor = (type: ShipType, quality: ModelQuality) =>
+  isModelShipType(type) ? modelShipVariant(type, quality) : MODELS[type];
 
 /** Share a BV prototype per ship type and display state, with material batches per prototype. */
 export function createTownShips(
   sites: readonly ShipSite[],
-  waterHeightAt: (point: Point) => number
+  waterHeightAt: (point: Point) => number,
+  /** Scene model quality; ships with quality tiers (the carrier) follow it. */
+  quality: ModelQuality = "standard"
 ): CityStructureMeshes {
   const group = new THREE.Group();
   group.name = "ce-ships";
@@ -39,19 +46,31 @@ export function createTownShips(
     const type = ships[0].type,
       state = type === "barge" ? BRUSH_SHIP_STATE : (ships[0].state ?? BRUSH_SHIP_STATE);
     if (!ships.length) continue;
-    const model = MODELS[type].create(state);
-    markVariant(group, MODELS[type].id);
+    const variant = modelFor(type, quality),
+      model = variant.create(state);
+    markVariant(group, variant.id);
     models.push(model);
     model.group.updateMatrixWorld(true);
-    // CE sizes describe the hull, excluding projecting spars, sails and the rudder.
-    const hull = model.pickables.find(mesh => mesh.name === "hull-topsides" || mesh.name === "hull-sides")!;
-    const bounds = new THREE.Box3().setFromObject(hull);
-    const hullLength = bounds.max.x - bounds.min.x;
-    const hullBeam = bounds.max.z - bounds.min.z;
-    const center = (bounds.min.x + bounds.max.x) / 2;
+    // CE sizes describe the hull, excluding projecting spars, sails and the rudder; Model Viewer ships are
+    // sized overall and scale uniformly.
+    let hullLength: number, hullBeam: number, center: number;
+    if (isModelShipType(type)) {
+      const extent = modelShipExtent(model);
+      hullLength = extent.length;
+      hullBeam = extent.beam;
+      center = extent.centerX;
+    } else {
+      const hull = model.pickables.find(mesh => mesh.name === "hull-topsides" || mesh.name === "hull-sides")!;
+      const bounds = new THREE.Box3().setFromObject(hull);
+      hullLength = bounds.max.x - bounds.min.x;
+      hullBeam = bounds.max.z - bounds.min.z;
+      center = (bounds.min.x + bounds.max.x) / 2;
+    }
     const transforms = ships.map(site => {
       const scale = site.length / hullLength;
-      const beam = (SHIP_DIMENSIONS[type].baseBeamMeters * site.length) / SHIP_DIMENSIONS[type].baseLengthMeters;
+      const beam = isModelShipType(type)
+        ? hullBeam * scale
+        : (SHIP_DIMENSIONS[type].baseBeamMeters * site.length) / SHIP_DIMENSIONS[type].baseLengthMeters;
       // BV bows face +X; CE bows face +Y at zero, with plan +Y mapped to three.js -Z.
       return new THREE.Matrix4()
         .compose(

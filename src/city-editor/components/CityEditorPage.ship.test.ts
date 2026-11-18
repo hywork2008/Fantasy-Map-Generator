@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { MODEL_SHIP_TYPES } from "../data/ships";
 import { mountCityEditor } from "./CityEditorPage";
 
 if (typeof Element.prototype.scrollIntoView !== "function") {
@@ -43,7 +44,13 @@ describe("City Editor Ship Tool", () => {
     // Ship type select lists every SHIP_SPECS entry (small, medium, large, barge)
     const select = shipControls?.querySelector("select");
     expect(select).toBeDefined();
-    expect([...(select?.options ?? [])].map(o => o.value)).toEqual(["small", "medium", "large", "barge"]);
+    expect([...(select?.options ?? [])].map(o => o.value)).toEqual([
+      "small",
+      "medium",
+      "large",
+      "barge",
+      ...MODEL_SHIP_TYPES
+    ]);
     expect(select?.value).toBe("small");
 
     // Length input exists

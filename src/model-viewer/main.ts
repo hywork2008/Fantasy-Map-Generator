@@ -1,6 +1,7 @@
 import { createFlintlockMusket, FLINTLOCK_MUSKET } from "../buildings/arms/flintlockMusket";
 import { type Author, DEFAULT_AUTHOR } from "../buildings/authors";
 import { createPolygonHouses, POLYGON_HOUSES } from "../buildings/houses/polygonHouses";
+import { createFordCarrier, FORD_CARRIER } from "../buildings/ships/fordCarrier";
 import type { GalleonState } from "../buildings/ships/galleonArmament";
 import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import { installCatalogueFilter } from "./catalogueFilterPanel";
@@ -96,6 +97,8 @@ import {
 } from "../buildings/temples/basilicaTemple";
 import { validateBuildingRecord } from "../buildings/validate";
 import { familyVariants, MODEL_VARIANTS } from "../buildings/variants";
+import { B2, createB2 } from "../buildings/vehicles/b2Bomber";
+import { B29, createB29 } from "../buildings/vehicles/b29Bomber";
 import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
 import {
   AIRSHIP,
@@ -108,6 +111,7 @@ import {
 import { createMedievalWagon, MEDIEVAL_WAGON } from "../buildings/vehicles/medievalWagon";
 import { createMinecart, MINECART } from "../buildings/vehicles/minecart";
 import { createNobleCarriage, NOBLE_CARRIAGE } from "../buildings/vehicles/nobleCarriage";
+import { createTigerTank, TIGER_I } from "../buildings/vehicles/tigerTank";
 import { createWarWagon, WAR_WAGON } from "../buildings/vehicles/warWagon";
 import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
 import {
@@ -1888,6 +1892,64 @@ function showTrireme(): void {
 triremeButton.addEventListener("click", () => showTrireme());
 shipsHeading.append(triremeButton);
 
+const fordButton = document.createElement("button");
+fordButton.type = "button";
+fordButton.dataset.id = "ford-carrier";
+fordButton.textContent = "Gerald R. Ford-class · US nuclear aircraft carrier, 2017–";
+function showFordCarrier(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === fordButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Carrier side elevation";
+  levelTitle.textContent = "Flight deck plan";
+  const model = createFordCarrier(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = false;
+  const info = FORD_CARRIER;
+  frame({ occupancyMeters: { width: info.length, depth: info.beam } }, info.height);
+  camera.position.set(150, 70, 140);
+  controls.target.set(0, 15, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", info.name),
+    fact("Author", info.author),
+    fact("Period", "United States Navy, lead ship USS Gerald R. Ford (CVN-78) in service from 2017"),
+    fact(
+      "Dimensions",
+      `${info.length} m overall × ${info.beam} m flight deck (${info.waterlineBeam} m at the waterline); ${info.draft} m draft; ${info.height} m keel to mast top; flight deck ${info.flightDeckHeight} m above the waterline`
+    ),
+    fact(
+      "Flight deck",
+      "9° angled landing area, four EMALS catapults (two bow, two waist), three arresting wires, three elevators"
+    ),
+    fact("Propulsion", "Two Bechtel A1B reactors, four shafts"),
+    fact("Self-defence", "Two Mk 29 ESSM and two Mk 49 RAM launchers, three Phalanx CIWS"),
+    fact("Radar", "Dual Band Radar on the island: AN/SPY-3 (X band) and AN/SPY-4 (S band)"),
+    fact("CE adoption", "Not placed by CE; Model Viewer only"),
+    fact("Quality", quality === "high" ? "High" : "Low — plain deck, island and hull without markings or weapons"),
+    fact("Note", info.note, "Gerald R. Ford-class aircraft carrier"),
+    ...(quality === "high" ? [fact("High detail", info.highNote)] : [])
+  );
+}
+fordButton.addEventListener("click", () => showFordCarrier());
+shipsHeading.append(fordButton);
+AUTHORED_VARIANTS[fordButton.dataset.id] = {
+  author: FORD_CARRIER.author,
+  primary: true,
+  quality: true,
+  show: () => showFordCarrier()
+};
+
 const sloopButton = document.createElement("button");
 sloopButton.type = "button";
 sloopButton.textContent = "Sloop · Small coastal sailing ship";
@@ -2864,6 +2926,170 @@ warWagonButton.addEventListener("click", () => {
   );
 });
 vehiclesHeading.append(warWagonButton);
+
+const tigerButton = document.createElement("button");
+tigerButton.dataset.id = "tigerI";
+tigerButton.type = "button";
+tigerButton.textContent = "Tiger I · German heavy tank, 1942–1945";
+function showTigerTank(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === tigerButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Tiger I side elevation";
+  levelTitle.textContent = "Tiger I plan";
+  const model = createTigerTank(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: TIGER_I.length, depth: TIGER_I.width } }, TIGER_I.height);
+  camera.position.set(9, 6, 10);
+  controls.target.set(0.8, 1.4, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", TIGER_I.name),
+    fact("Author", TIGER_I.author),
+    fact("Period", "Second World War · Germany, 1942–1945"),
+    fact(
+      "Dimensions",
+      `${TIGER_I.length} m with gun forward (hull ${TIGER_I.hullLength} m) × ${TIGER_I.width} m × ${TIGER_I.height} m`
+    ),
+    fact("Armament", "8.8 cm KwK 36 L/56 with muzzle brake; hull machine-gun ball mount"),
+    fact("Running gear", "Interleaved road wheels on eight stations a side, front drive sprocket, rear idler"),
+    fact("Quality", quality === "high" ? "High" : "Low — plain track runs and simplified fittings"),
+    fact("Note", TIGER_I.note, "Tiger I"),
+    ...(quality === "high" ? [fact("High detail", TIGER_I.highNote)] : [])
+  );
+}
+tigerButton.addEventListener("click", () => showTigerTank());
+vehiclesHeading.append(tigerButton);
+AUTHORED_VARIANTS[tigerButton.dataset.id] = {
+  author: TIGER_I.author,
+  primary: true,
+  quality: true,
+  show: () => showTigerTank()
+};
+
+const b29Button = document.createElement("button");
+b29Button.dataset.id = "b29";
+b29Button.type = "button";
+b29Button.textContent = "B-29 Superfortress · US heavy bomber, 1944–1960";
+function showB29(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === b29Button ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "B-29 side elevation";
+  levelTitle.textContent = "B-29 plan";
+  const model = createB29(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: B29.length, depth: B29.span } }, B29.height);
+  camera.position.set(21, 10, 24);
+  controls.target.set(1, 3.5, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", B29.name),
+    fact("Author", B29.author),
+    fact("Period", "Second World War and Korean War · United States, 1944–1960"),
+    fact("Dimensions", `${B29.length} m long × ${B29.span} m span × ${B29.height} m to the fin tip`),
+    fact(
+      "Powerplant",
+      `Four Wright R-3350 Duplex-Cyclone 18-cylinder radials with turbosuperchargers; four-blade Hamilton Standard propellers, ${B29.propellerDiameter} m`
+    ),
+    fact(
+      "Defensive armament",
+      "Four remote-controlled turrets (upper and lower, forward and aft) and a manned tail position, each shown with two .50-cal machine guns"
+    ),
+    fact("Landing gear", "Tricycle: dual main wheels retracting into the inboard nacelles, twin nose wheel"),
+    fact("Quality", quality === "high" ? "High" : "Low — one-piece flying surfaces, plain cowlings and glazing"),
+    fact("Note", B29.note, "B-29 Superfortress"),
+    ...(quality === "high" ? [fact("High detail", B29.highNote)] : [])
+  );
+}
+b29Button.addEventListener("click", () => showB29());
+vehiclesHeading.append(b29Button);
+AUTHORED_VARIANTS[b29Button.dataset.id] = {
+  author: B29.author,
+  primary: true,
+  quality: true,
+  show: () => showB29()
+};
+
+const b2Button = document.createElement("button");
+b2Button.dataset.id = "b2";
+b2Button.type = "button";
+b2Button.textContent = "B-2 Spirit · US stealth bomber, 1997–";
+function showB2(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === b2Button ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "B-2 side elevation";
+  levelTitle.textContent = "B-2 plan";
+  const model = createB2(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: B2.length, depth: B2.span } }, B2.height);
+  camera.position.set(30, 19, 26);
+  controls.target.set(0, 2.5, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", B2.name),
+    fact("Author", B2.author),
+    fact("Period", "Late Cold War to the present · United States, in service from 1997"),
+    fact(
+      "Dimensions",
+      `${B2.length} m long × ${B2.span} m span × ${B2.height} m high; leading edges swept ${B2.sweep}°`
+    ),
+    fact(
+      "Powerplant",
+      "Four General Electric F118-GE-100 non-afterburning turbofans buried in the wing, fed from upper-surface intakes"
+    ),
+    fact("Armament", "Two internal bomb bays side by side in the centre body; no defensive guns"),
+    fact("Landing gear", "Tricycle: four-wheel main bogies, twin nose wheel"),
+    fact("Quality", quality === "high" ? "High" : "Low — one-piece wing without control surfaces and plain gear"),
+    fact("Note", B2.note, "Northrop B-2 Spirit"),
+    ...(quality === "high" ? [fact("High detail", B2.highNote)] : [])
+  );
+}
+b2Button.addEventListener("click", () => showB2());
+vehiclesHeading.append(b2Button);
+AUTHORED_VARIANTS[b2Button.dataset.id] = {
+  author: B2.author,
+  primary: true,
+  quality: true,
+  show: () => showB2()
+};
 
 let townWallHousingCulture: BuildingAppearanceProfile = "legacy";
 

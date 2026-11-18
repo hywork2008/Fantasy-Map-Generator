@@ -1,7 +1,9 @@
+import { isModelShipType } from "../data/ships";
 import { BRUSH_SHIP_STATE } from "../generators/shipDisplayState";
 import { normalizeShipType } from "../generators/ships";
 import type { Point } from "../types/document";
 import type { ShipClassKey, ShipDisplayState } from "../types/ships";
+import { modelShipPlan } from "./modelShips";
 import { SHIP_SPECS } from "./shipSpecifications";
 
 export interface RenderShipOptions {
@@ -73,6 +75,8 @@ export function renderShipSvg(options: RenderShipOptions): SVGGElement {
     case "barge":
       buildRiverBargeGeometry(group);
       break;
+    default:
+      if (isModelShipType(type)) buildModelShipGeometry(group, type, spec.baseLengthMeters);
   }
 
   if (state.sails === "set") {
@@ -1843,4 +1847,33 @@ function buildRiverBargeGeometry(container: SVGGElement): void {
       "stroke-width": "0.18"
     })
   );
+}
+
+/**
+ * Plan of a Model Viewer ship from its own mesh faces, scaled to the type's base length: the bow (+X) points up
+ * the drawing (-Y) and starboard (+Z) to the right (+X).
+ */
+function buildModelShipGeometry(
+  container: SVGGElement,
+  type: Parameters<typeof modelShipPlan>[0],
+  baseLength: number
+): void {
+  const plan = modelShipPlan(type),
+    k = baseLength / plan.length;
+  const g = element("g", {
+    class: "ce-ship-model-plan",
+    transform: `scale(${k}) matrix(0 -1 1 0 ${-plan.centerZ} ${plan.centerX})`
+  });
+  const [x, y, width, height] = plan.box;
+  g.appendChild(
+    element("image", {
+      href: plan.href,
+      x: String(x),
+      y: String(y),
+      width: String(width),
+      height: String(height),
+      preserveAspectRatio: "none"
+    })
+  );
+  container.appendChild(g);
 }

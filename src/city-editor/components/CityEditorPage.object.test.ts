@@ -1,5 +1,6 @@
 import { afterEach, expect, it } from "vitest";
 import { OBJECT_CATEGORIES, PLACEABLE_OBJECTS } from "../../buildings/placeableObjects";
+import { placeableObjectsFor } from "../../buildings/placeablePeriod";
 import { editorText } from "../../i18n/editorMessages";
 import { mountCityEditor } from "./CityEditorPage";
 
@@ -24,6 +25,15 @@ it("offers all requested BV categories, places a scaled model and supports editi
   button(editorText("cityEditor.messages.placeObjects")).click();
   expect(controls.hidden).toBe(false);
   const [category, model] = controls.querySelectorAll("select");
+  // A new city is set in the Age of Exploration: the list offers only the models of that period.
+  const offered = placeableObjectsFor("ageOfExploration");
+  expect(offered.length).toBeLessThan(PLACEABLE_OBJECTS.length);
+  expect([...category.options].map(o => o.value)).toEqual(
+    OBJECT_CATEGORIES.filter(name => offered.some(o => o.category === name))
+  );
+  expect([...model.options].every(o => offered.some(item => item.id === o.value))).toBe(true);
+  const ignorePeriod = controls.querySelector<HTMLInputElement>("[data-object-field='ignorePeriod']")!;
+  ignorePeriod.click();
   expect([...category.options].map(o => o.value)).toEqual(OBJECT_CATEGORIES);
   for (const name of OBJECT_CATEGORIES) {
     category.value = name;
@@ -73,8 +83,14 @@ it("rotates a trebuchet from the inspector and by dragging its handle, with undo
   const button = (title: string) =>
     [...root.querySelectorAll<HTMLButtonElement>("button")].find(b => b.title === title || b.textContent === title)!;
   button(editorText("cityEditor.messages.placeObjects")).click();
+  // The trebuchet is older than the default period; ignoring the period offers it again.
+  root.querySelector<HTMLInputElement>(".ce-object-controls [data-object-field='ignorePeriod']")!.click();
+  const category = root.querySelector<HTMLSelectElement>(".ce-object-controls select")!;
+  category.value = "Siege engines";
+  category.dispatchEvent(new Event("change"));
   const map = root.querySelector<HTMLDivElement>(".ce-map")!;
   map.dispatchEvent(new MouseEvent("click", { clientX: 200, clientY: 200, bubbles: true }));
+  expect(root.querySelector(".ce-object")!.getAttribute("data-object-type")).toBe("trebuchet");
   button(editorText("cityEditor.messages.selectAndMove")).click();
   root.querySelector(".ce-object")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   const angleInput = () =>

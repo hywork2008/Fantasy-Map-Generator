@@ -17,6 +17,9 @@ import {
 } from "./props/medievalContainers";
 import { createEarlyFieldCannonModel, EARLY_FIELD_CANNON } from "./siege/earlyFieldCannon";
 import { createGrokTrebuchet, GROK_TREBUCHET } from "./siege/grokTrebuchet";
+import { B2, createB2 } from "./vehicles/b2Bomber";
+import { B29, createB29 } from "./vehicles/b29Bomber";
+import { createTigerTank, TIGER_I } from "./vehicles/tigerTank";
 import { createMedievalWellModel, MEDIEVAL_WELL } from "./wells/medievalWell";
 import { createLowMedievalWellModel } from "./wells/medievalWellLow";
 import { createPublicWaterBasinModel } from "./wells/publicWaterBasin";
@@ -47,6 +50,30 @@ export const OBJECT_VARIANTS = [
       }
     ],
     create: createGrokTrebuchet
+  },
+  {
+    id: variantId("object.tigerI", "high", TIGER_I.author),
+    family: "object.tigerI",
+    level: "high",
+    author: TIGER_I.author,
+    credits: [{ author: TIGER_I.author, date: "2026-11-18", note: TIGER_I.highNote }],
+    create: () => createTigerTank("high")
+  },
+  {
+    id: variantId("object.b29", "high", B29.author),
+    family: "object.b29",
+    level: "high",
+    author: B29.author,
+    credits: [{ author: B29.author, date: "2026-11-18", note: B29.highNote }],
+    create: () => createB29("high")
+  },
+  {
+    id: variantId("object.b2", "high", B2.author),
+    family: "object.b2",
+    level: "high",
+    author: B2.author,
+    credits: [{ author: B2.author, date: "2026-11-18", note: B2.highNote }],
+    create: () => createB2("high")
   }
 ];
 
