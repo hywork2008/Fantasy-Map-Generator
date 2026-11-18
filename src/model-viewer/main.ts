@@ -1,6 +1,7 @@
 import { createFlintlockMusket, FLINTLOCK_MUSKET } from "../buildings/arms/flintlockMusket";
 import { type Author, DEFAULT_AUTHOR } from "../buildings/authors";
 import { createPolygonHouses, POLYGON_HOUSES } from "../buildings/houses/polygonHouses";
+import { createFordCarrier, FORD_CARRIER } from "../buildings/ships/fordCarrier";
 import type { GalleonState } from "../buildings/ships/galleonArmament";
 import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import { installCatalogueFilter } from "./catalogueFilterPanel";
@@ -1890,6 +1891,64 @@ function showTrireme(): void {
 }
 triremeButton.addEventListener("click", () => showTrireme());
 shipsHeading.append(triremeButton);
+
+const fordButton = document.createElement("button");
+fordButton.type = "button";
+fordButton.dataset.id = "ford-carrier";
+fordButton.textContent = "Gerald R. Ford-class · US nuclear aircraft carrier, 2017–";
+function showFordCarrier(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === fordButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Carrier side elevation";
+  levelTitle.textContent = "Flight deck plan";
+  const model = createFordCarrier(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = false;
+  const info = FORD_CARRIER;
+  frame({ occupancyMeters: { width: info.length, depth: info.beam } }, info.height);
+  camera.position.set(150, 70, 140);
+  controls.target.set(0, 15, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", info.name),
+    fact("Author", info.author),
+    fact("Period", "United States Navy, lead ship USS Gerald R. Ford (CVN-78) in service from 2017"),
+    fact(
+      "Dimensions",
+      `${info.length} m overall × ${info.beam} m flight deck (${info.waterlineBeam} m at the waterline); ${info.draft} m draft; ${info.height} m keel to mast top; flight deck ${info.flightDeckHeight} m above the waterline`
+    ),
+    fact(
+      "Flight deck",
+      "9° angled landing area, four EMALS catapults (two bow, two waist), three arresting wires, three elevators"
+    ),
+    fact("Propulsion", "Two Bechtel A1B reactors, four shafts"),
+    fact("Self-defence", "Two Mk 29 ESSM and two Mk 49 RAM launchers, three Phalanx CIWS"),
+    fact("Radar", "Dual Band Radar on the island: AN/SPY-3 (X band) and AN/SPY-4 (S band)"),
+    fact("CE adoption", "Not placed by CE; Model Viewer only"),
+    fact("Quality", quality === "high" ? "High" : "Low — plain deck, island and hull without markings or weapons"),
+    fact("Note", info.note, "Gerald R. Ford-class aircraft carrier"),
+    ...(quality === "high" ? [fact("High detail", info.highNote)] : [])
+  );
+}
+fordButton.addEventListener("click", () => showFordCarrier());
+shipsHeading.append(fordButton);
+AUTHORED_VARIANTS[fordButton.dataset.id] = {
+  author: FORD_CARRIER.author,
+  primary: true,
+  quality: true,
+  show: () => showFordCarrier()
+};
 
 const sloopButton = document.createElement("button");
 sloopButton.type = "button";
