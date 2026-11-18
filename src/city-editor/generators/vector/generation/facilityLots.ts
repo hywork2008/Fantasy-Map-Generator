@@ -42,7 +42,7 @@ const SAMPLE_METERS = 1;
 
 export interface FacilityLotResult {
   placed: string[];
-  unplaced: { id: string; reason: "space" | "district" | "river" | "frame" }[];
+  unplaced: { id: string; reason: "space" | "district" | "river" | "frame" | "plot" }[];
   /** Street blocks a facility stands in; they stay recorded even when they hold no house. */
   cells: Set<string>;
 }
@@ -95,44 +95,8 @@ export function placeFacilitiesOnLots(
    * seed never succeeds later for the same model. */
   const failed = new Map<string, Set<number>>();
   const cellRings = new Map(plan.districts.flatMap(d => d.cells.map(c => [c.id, c.ring] as const)));
-  // Lines a front may face: CE streets and lanes (by their fabric ids) and the main roads (by anchor).
-  const lines: { points: Point[]; widthMeters: number; fabric?: string; road?: string }[] = [];
-  for (const d of plan.districts) {
-    for (const [k, l] of d.streets.entries())
-      lines.push({ points: l.points, widthMeters: l.widthMeters, fabric: fabricStreetId(d.id, k) });
-    for (const c of d.cells)
-      for (const [k, l] of c.lanes.entries())
-        lines.push({ points: l.points, widthMeters: l.widthMeters, fabric: fabricLaneId(c.id, k) });
-  }
-  for (const p of Object.values(doc.paths).filter(p => p.role === "road"))
-    lines.push({ points: samplePath(p).map(s => s.point), widthMeters: 0, road: p.id });
-  const surfaces = new Map<number, VectorPolygon | undefined>();
-  const surfaceOf = (k: number) => {
-    if (!surfaces.has(k))
-      try {
-        // A few centimetres wider: the fabric records the lines rounded to the centimetre, and the check on the
-        // recorded lines (reattachFabricEntrances) must find no sliver the rounding moved onto the parcel.
-        surfaces.set(k, fabricLineSurface({ ...lines[k], widthMeters: lines[k].widthMeters + LINE_MARGIN_METERS }));
-      } catch {
-        surfaces.set(k, undefined);
-      }
-    return surfaces.get(k);
-  };
-  const lineIndex = new RBush<Box & { k: number }>();
-  lineIndex.load(lines.map((l, k) => ({ ...boxOf(l.points), k })));
-  const occupied = new RBush<Box & { polygon: VectorPolygon }>();
-  occupied.load(vectorOccupiedSites(doc, "reserved").map(polygon => ({ ...boxOf(polygon.outer), polygon })));
-  // Gate openings and junction discs are kept clear exactly as validation tests them, as the houses keep them.
-  const protectedLand = new RBush<Box & { polygon: VectorPolygon }>();
-  protectedLand.load(
-    [
-      ...Object.values(doc.connections.gates).map(g => ({ outer: gateOpening(doc, g), holes: [] })),
-      ...Object.keys(doc.connections.nodes).flatMap(id => {
-        const junction = junctionSurface(doc, id);
-        return junction ? [junction] : [];
-      })
-    ].map(polygon => ({ ...boxOf(polygon.outer), polygon }))
-  );
+  const { lines, lineIndex, surfaceOf } = facilityLines(doc, plan),
+    { occupied, protectedLand } = facilityLand(doc);
   // A facility never stands across a lane of its street block.
   const lanesOf = new Map(plan.districts.flatMap(d => d.cells.map(c => [c.id, c.lanes] as const)));
   const water = new Map<number, number>();
@@ -461,6 +425,55 @@ export function placeFacilitiesOnLots(
   return result;
 }
 
+/** Lines a facility's front may face: CE streets and lanes (by their fabric ids) and the main roads (by anchor),
+ * with an index and their recorded surfaces. */
+export function facilityLines(doc: VectorCityDocument, plan: VectorPerimeterPlan) {
+  // Lines a front may face: CE streets and lanes (by their fabric ids) and the main roads (by anchor).
+  const lines: { points: Point[]; widthMeters: number; fabric?: string; road?: string }[] = [];
+  for (const d of plan.districts) {
+    for (const [k, l] of d.streets.entries())
+      lines.push({ points: l.points, widthMeters: l.widthMeters, fabric: fabricStreetId(d.id, k) });
+    for (const c of d.cells)
+      for (const [k, l] of c.lanes.entries())
+        lines.push({ points: l.points, widthMeters: l.widthMeters, fabric: fabricLaneId(c.id, k) });
+  }
+  for (const p of Object.values(doc.paths).filter(p => p.role === "road"))
+    lines.push({ points: samplePath(p).map(s => s.point), widthMeters: 0, road: p.id });
+  const surfaces = new Map<number, VectorPolygon | undefined>();
+  const surfaceOf = (k: number) => {
+    if (!surfaces.has(k))
+      try {
+        // A few centimetres wider: the fabric records the lines rounded to the centimetre, and the check on the
+        // recorded lines (reattachFabricEntrances) must find no sliver the rounding moved onto the parcel.
+        surfaces.set(k, fabricLineSurface({ ...lines[k], widthMeters: lines[k].widthMeters + LINE_MARGIN_METERS }));
+      } catch {
+        surfaces.set(k, undefined);
+      }
+    return surfaces.get(k);
+  };
+  const lineIndex = new RBush<Box & { k: number }>();
+  lineIndex.load(lines.map((l, k) => ({ ...boxOf(l.points), k })));
+  return { lines, lineIndex, surfaceOf };
+}
+
+/** Land a facility keeps off: occupied sites, gate openings and junction discs. */
+export function facilityLand(doc: VectorCityDocument) {
+  const occupied = new RBush<Box & { polygon: VectorPolygon }>();
+  occupied.load(vectorOccupiedSites(doc, "reserved").map(polygon => ({ ...boxOf(polygon.outer), polygon })));
+  // Gate openings and junction discs are kept clear exactly as validation tests them, as the houses keep them.
+  const protectedLand = new RBush<Box & { polygon: VectorPolygon }>();
+  protectedLand.load(
+    [
+      ...Object.values(doc.connections.gates).map(g => ({ outer: gateOpening(doc, g), holes: [] })),
+      ...Object.keys(doc.connections.nodes).flatMap(id => {
+        const junction = junctionSurface(doc, id);
+        return junction ? [junction] : [];
+      })
+    ].map(polygon => ({ ...boxOf(polygon.outer), polygon }))
+  );
+  return { occupied, protectedLand };
+}
+
 /**
  * Facilities kept from before an edit (facility mode) against the CE plan laid again: a facility whose door still
  * meets a street or lane of the new plan takes that line's id; one whose line is gone, or that a new line crosses,
@@ -527,7 +540,7 @@ function lineMeets(points: Point[], widthMeters: number, ring: Point[]): boolean
 }
 
 const WET_TANNERY_MODEL = "trade-workshop.dedicated-wet-tannery";
-const isWetTannery = (r: BVFacilityRequest) => r.asset.bvModel?.id === WET_TANNERY_MODEL;
+export const isWetTannery = (r: BVFacilityRequest) => r.asset.bvModel?.id === WET_TANNERY_MODEL;
 /** How far beside a drawn centreline its surveyed water may lie, and the widest water crossed to a bank. */
 const BANK_SEARCH_METERS = 40;
 const BANK_WATER_MAX_METERS = 600;
@@ -976,7 +989,7 @@ export function reserveTanneryRow(
 }
 
 /** The reserved yards joined to the street, lane or road before their doors; a yard with none in reach is dropped. */
-function connectTanneryRow(
+export function connectTanneryRow(
   doc: VectorCityDocument,
   ids: readonly string[],
   ctx: {

@@ -215,7 +215,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
           burgageLandFactor(settings)
         ),
       // On burgage plots a facility takes whole plots, its yard with it (plan §6).
-      need = Math.sqrt(housing ** 2 + (facilityM2 * shape * burgageLandFactor(settings)) / Math.PI);
+      need = Math.sqrt(housing ** 2 + (facilityM2 * shape * burgageLandFactor(settings, "facility")) / Math.PI);
     for (let attempt = 0; attempt < 3; attempt++) {
       const probe = vectorInputFromDescriptor(descriptor),
         dry =
@@ -250,7 +250,10 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     // widened by the wall shape as the rest is.
     const shape = isVectorWallShape(wall.wall) ? 1 / vectorWallAreaShare(seed, wall.wall, wall.wallSides) : 1;
     // On burgage plots a facility takes whole plots, its yard with it (plan §6).
-    return Math.max(30, Math.sqrt(radius ** 2 + (facilityLandM2 * shape * burgageLandFactor(settings)) / Math.PI));
+    return Math.max(
+      30,
+      Math.sqrt(radius ** 2 + (facilityLandM2 * shape * burgageLandFactor(settings, "facility")) / Math.PI)
+    );
   };
   // The first pass leaves the civic centre out: on a site sized for houses alone it may not fit yet.
   const first = build(size(0), false);

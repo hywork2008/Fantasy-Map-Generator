@@ -315,7 +315,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       f =>
         keys(f, "id,reason") &&
         id(f.id) &&
-        ["space", "river", "district", "budget", "unsearched", "frame"].includes(f.reason)
+        ["space", "river", "district", "budget", "unsearched", "frame", "plot"].includes(f.reason)
     ) ||
     !Array.isArray(r.reasons) ||
     !r.reasons.every(k => typeof k === "string")

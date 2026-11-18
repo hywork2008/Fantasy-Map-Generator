@@ -59,7 +59,7 @@ interface CellPlan {
   attachments: VectorFabricCell["attachments"];
   mouths: VectorFabricCell["mouths"];
   /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md); absent on compact street blocks. */
-  plots?: { ring: Point[]; front: [Point, Point] }[];
+  plots?: { ring: Point[]; front: [Point, Point]; kind: "plot" | "head" | "row" }[];
 }
 interface DistrictPlan {
   id: string;

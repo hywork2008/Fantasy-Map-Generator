@@ -1,4 +1,4 @@
-import type { BurgageCellPlan, BurgageProfileId, BurgageSetting } from "../../types/contracts/burgage";
+import type { BurgageCellPlan, BurgagePlot, BurgageProfileId, BurgageSetting } from "../../types/contracts/burgage";
 import type { Point } from "../../types/geometry";
 import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../geom";
 import { insetConvexKernel } from "../lotGeometry";
@@ -39,7 +39,7 @@ const LANE_REACH_METERS = 12;
 
 export interface BurgagePerimeterCell {
   lanes: { points: Point[]; widthMeters: number }[];
-  plots: { ring: Point[]; front: [Point, Point] }[];
+  plots: { ring: Point[]; front: [Point, Point]; kind: BurgagePlot["kind"] }[];
   open: Point[][];
   /** House footprints: the front of each strip plot, or the whole binaire house plot. */
   houses: Point[][];
@@ -107,7 +107,7 @@ export function burgagePerimeterCell(
     result.lanes.push({ points: reachRing(lane.points, ring), widthMeters: lane.widthMeters });
   const rng = makeRng(`${cellSeed}:burgage-houses-v1`);
   for (const plot of plans.flatMap(p => p.plots)) {
-    result.plots.push({ ring: plot.ring, front: plot.front });
+    result.plots.push({ ring: plot.ring, front: plot.front, kind: plot.kind });
     if (plot.kind !== "plot") {
       result.houses.push(plot.ring);
       continue;

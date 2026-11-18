@@ -338,7 +338,8 @@
           "river": "No available riverbank",
           "district": "Insufficient suitable peripheral land",
           "budget": "This facility hit its search allowance",
-          "unsearched": "Not searched; the shared attempt budget was already spent"
+          "unsearched": "Not searched; the shared attempt budget was already spent",
+          "plot": "No run of burgage plots wide and deep enough"
         },
         "running": "Generating candidate… You can cancel or continue editing.",
         "settingGaps": {

@@ -104,10 +104,22 @@ export const BURGAGE_LAND_FACTOR: Record<BurgageProfileId, number> = {
   binaire: 1
 };
 
-/** The land factor of generation settings: 1 for compact lots. */
-export function burgageLandFactor(settings: { plotFabric?: string; buildingAppearanceProfile?: unknown }): number {
+/** Land a facility's site takes on these plots: the whole plots under it, yards with them (plan §5.5). Lower values
+ * than the houses' left facilities without rows to take (measured 2026-11-18, plan §8.3). */
+export const BURGAGE_FACILITY_LAND_FACTOR: Record<BurgageProfileId, number> = {
+  "english-burgage": 3,
+  hofstatt: 3.5,
+  binaire: 1
+};
+
+/** The land factor of generation settings for houses or facilities: 1 for compact lots. */
+export function burgageLandFactor(
+  settings: { plotFabric?: string; buildingAppearanceProfile?: unknown },
+  use: "housing" | "facility" = "housing"
+): number {
   if (settings.plotFabric !== "burgage") return 1;
-  return BURGAGE_LAND_FACTOR[burgageProfileFor(settings.buildingAppearanceProfile as BuildingAppearanceProfile)];
+  const profile = burgageProfileFor(settings.buildingAppearanceProfile as BuildingAppearanceProfile);
+  return (use === "facility" ? BURGAGE_FACILITY_LAND_FACTOR : BURGAGE_LAND_FACTOR)[profile];
 }
 
 /** The plot type of a housing culture (plan §5.1). */

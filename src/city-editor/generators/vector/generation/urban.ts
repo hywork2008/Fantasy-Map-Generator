@@ -23,6 +23,7 @@ import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/document";
 import { vectorUrbanStages } from "../validation/urban";
 import { placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
+import { placeFacilitiesOnPlots } from "./facilityPlots";
 import { vectorHousingCulture } from "./housingCulture";
 import { raiseVectorLandUse } from "./landUse";
 import { layoutVectorParks } from "./parks";
@@ -674,7 +675,8 @@ function* vectorUrbanSteps(
       const at = ownedPlacements.indexOf(id);
       if (at >= 0) ownedPlacements.splice(at, 1);
     }
-    const lots = placeFacilitiesOnLots(
+    // Burgage plots take facilities on whole plots (docs/plan/ce-burgage-plot-fabric.md B3); compact lots as before.
+    const lots = (organic.plotFabric === "burgage" ? placeFacilitiesOnPlots : placeFacilitiesOnLots)(
       doc,
       organic,
       requests.filter(r => !ownedPlacements.includes(`urban:${r.id}`) && !tanneryRow.unplaced.some(u => u.id === r.id)),
