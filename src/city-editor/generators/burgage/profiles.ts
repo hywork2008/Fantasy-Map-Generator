@@ -94,6 +94,22 @@ export const BURGAGE_PROFILES: {
   }
 };
 
+/**
+ * Land a dwelling takes on these plots against the compact lots the meshless site size was fitted on (plan §6).
+ * Measured 2026-11-18 on the walled synthetic inputs of 1,000–5,000 people (docs/plan/ce-burgage-plot-fabric.md §8.2).
+ */
+export const BURGAGE_LAND_FACTOR: Record<BurgageProfileId, number> = {
+  "english-burgage": 3,
+  hofstatt: 3.5,
+  binaire: 1
+};
+
+/** The land factor of generation settings: 1 for compact lots. */
+export function burgageLandFactor(settings: { plotFabric?: string; buildingAppearanceProfile?: unknown }): number {
+  if (settings.plotFabric !== "burgage") return 1;
+  return BURGAGE_LAND_FACTOR[burgageProfileFor(settings.buildingAppearanceProfile as BuildingAppearanceProfile)];
+}
+
 /** The plot type of a housing culture (plan §5.1). */
 export function burgageProfileFor(appearance: BuildingAppearanceProfile | undefined): BurgageProfileId {
   if (appearance === "northern-urban") return "hofstatt";

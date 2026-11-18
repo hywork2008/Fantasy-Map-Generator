@@ -316,6 +316,8 @@
         "allowExpansion": "Allow suburbs within automatic synthetic input",
         "tanneryBends": "Tanners' row at river bends",
         "tanneryBendsOptions": { "continuous": "One continuous row", "leat": "Tanners' leat" },
+        "plotFabric": "Plot pattern",
+        "plotFabricOptions": { "compact": "Compact (houses only)", "burgage": "Burgage plots (historical)" },
         "develop": "Preview lanes, facilities and housing",
         "capacity": "Dwelling capacity / required",
         "unplaced": "Unplaced population",

@@ -9,6 +9,7 @@ import {
   edgeOnLine,
   extent,
   fillLength,
+  LANE_CLEARANCE_METERS,
   lineAcross,
   type PlotFrame,
   toLocal,
@@ -112,16 +113,18 @@ export function planBurgageCell(ring: Point[], profile: StripPlotProfile, contex
     }
   } else {
     const lane = profile.backLaneMeters && !opposite ? drawIn(rng, profile.backLaneMeters) : 0;
-    const withLane = lane > 0 && depthSpan >= minDepth + lane;
-    const depth = Math.min(maxDepth, withLane ? depthSpan - lane : depthSpan);
-    if (depth < minDepth * 0.5) {
+    const gap = lane + 2 * LANE_CLEARANCE_METERS;
+    const withLane = lane > 0 && depthSpan >= minDepth + gap;
+    const depth = Math.min(maxDepth, withLane ? depthSpan - gap : depthSpan);
+    // A block too shallow for its setting's plots still takes the shallowest plots of the type.
+    if (depth < profile.depthMeters.intramural[0] * 0.5) {
       plan.open.push(block);
       return plan;
     }
     rows.push({ frame, t1: depth, mainFrom: -Infinity, mainTo: Infinity });
     if (withLane) {
-      const at = depth + lane / 2,
-        sliver = clipToBox(block, frame, -Infinity, Infinity, at - 1e-3, at + 1e-3);
+      const at = depth + gap / 2,
+        sliver = clipToBox(block, frame, -Infinity, Infinity, at - 1e-3, at + 1e-3, false);
       if (sliver.length >= 3) {
         const ss = sliver.map(p => toLocal(frame, p)[0]);
         plan.lanes.push({
@@ -131,8 +134,9 @@ export function planBurgageCell(ring: Point[], profile: StripPlotProfile, contex
         });
       }
     }
-    const rest = clipToBox(block, frame, -Infinity, Infinity, depth + lane, Infinity);
-    if (rest.length >= 3 && extent(frame, rest).t1 - (depth + lane) >= OPEN_MIN_METERS) plan.open.push(rest);
+    const back = withLane ? depth + gap : depth;
+    const rest = clipToBox(block, frame, -Infinity, Infinity, back, Infinity);
+    if (rest.length >= 3 && extent(frame, rest).t1 - back >= OPEN_MIN_METERS) plan.open.push(rest);
   }
 
   // Cross lanes cut the whole block, so both rows break at the same places.
@@ -144,8 +148,8 @@ export function planBurgageCell(ring: Point[], profile: StripPlotProfile, contex
   const spans: [number, number][] = [];
   let from = -Infinity;
   for (const cut of cuts) {
-    spans.push([from, cut.at - cut.width / 2]);
-    from = cut.at + cut.width / 2;
+    spans.push([from, cut.at - cut.width / 2 - LANE_CLEARANCE_METERS]);
+    from = cut.at + cut.width / 2 + LANE_CLEARANCE_METERS;
   }
   spans.push([from, Infinity]);
 

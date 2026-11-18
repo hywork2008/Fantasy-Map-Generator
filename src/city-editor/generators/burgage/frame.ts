@@ -2,6 +2,10 @@ import type { Point } from "../../types/geometry";
 import { clipPolygonHalfPlane, inwardNormal, isSimplePolygon, polygonArea } from "../geom";
 import type { Rng } from "../prng";
 
+/** Plots keep this far off a lane's surface, as compact lots do (`ORGANIC_LANE_FACADE_CLEARANCE`): rounded to the
+ * centimetre, a plot touching the surface would overlap it. */
+export const LANE_CLEARANCE_METERS = 0.05;
+
 /** A block's frame on one of its edges: `s` along the edge, `t` inward from it. */
 export interface PlotFrame {
   origin: Point;
@@ -43,13 +47,44 @@ export function extent(f: PlotFrame, ring: Point[]): { s0: number; s1: number; t
 
 /** `ring` cut to `s0 <= s <= s1, t0 <= t <= t1` of the frame. The window is convex, so the clip is exact for any
  * simple ring whose cut stays in one piece; a ring that falls apart is caught by `usablePlot`. */
-export function clipToBox(ring: Point[], f: PlotFrame, s0: number, s1: number, t0: number, t1: number): Point[] {
+export function clipToBox(
+  ring: Point[],
+  f: PlotFrame,
+  s0: number,
+  s1: number,
+  t0: number,
+  t1: number,
+  /** False keeps a probing sliver whole: tidying would drop its millimetre-apart points. */
+  tidy = true
+): Point[] {
   let out = ring;
   if (Number.isFinite(s0)) out = clipPolygonHalfPlane(out, toWorld(f, s0, 0), f.u);
   if (Number.isFinite(s1)) out = clipPolygonHalfPlane(out, toWorld(f, s1, 0), [-f.u[0], -f.u[1]]);
   if (Number.isFinite(t0)) out = clipPolygonHalfPlane(out, toWorld(f, 0, t0), f.v);
   if (Number.isFinite(t1)) out = clipPolygonHalfPlane(out, toWorld(f, 0, t1), [-f.v[0], -f.v[1]]);
-  return out;
+  return tidy ? tidyRing(out) : out;
+}
+
+/** Points closer than this to the previous one go: rounded to the centimetre they would repeat. */
+const TIDY_METERS = 0.02;
+
+/** The ring without near-repeated points, points on a straight run and spikes, which polygon clipping downstream
+ * can stumble on. A ring that falls below three points is empty. */
+export function tidyRing(ring: Point[]): Point[] {
+  let out = ring.filter((p, i) => {
+    const q = ring[(i + ring.length - 1) % ring.length];
+    return i === 0 || Math.hypot(p[0] - q[0], p[1] - q[1]) >= TIDY_METERS;
+  });
+  if (out.length > 1 && Math.hypot(out[0][0] - out.at(-1)![0], out[0][1] - out.at(-1)![1]) < TIDY_METERS) out.pop();
+  out = out.filter((p, i) => {
+    const a = out[(i + out.length - 1) % out.length],
+      b = out[(i + 1) % out.length],
+      u: Point = [p[0] - a[0], p[1] - a[1]],
+      v: Point = [b[0] - p[0], b[1] - p[1]];
+    // A straight run or a spike back on itself alike.
+    return Math.abs(u[0] * v[1] - u[1] * v[0]) > 1e-6 * Math.hypot(...u) * Math.hypot(...v);
+  });
+  return out.length >= 3 ? out : [];
 }
 
 /** The ring's edge on the line `t = at` of the frame (`axis` 1), or `s = at` (`axis` 0): its two extreme points. */
@@ -69,7 +104,7 @@ export function usablePlot(ring: Point[], minimumArea: number): boolean {
 
 /** The line `s = at` of the frame through the ring, as a two-point centre line. */
 export function lineAcross(ring: Point[], f: PlotFrame, at: number): Point[] | undefined {
-  const sliver = clipToBox(ring, f, at - 1e-3, at + 1e-3, -Infinity, Infinity);
+  const sliver = clipToBox(ring, f, at - 1e-3, at + 1e-3, -Infinity, Infinity, false);
   if (sliver.length < 3) return undefined;
   const ts = sliver.map(p => toLocal(f, p)[1]);
   return [toWorld(f, at, Math.min(...ts)), toWorld(f, at, Math.max(...ts))];

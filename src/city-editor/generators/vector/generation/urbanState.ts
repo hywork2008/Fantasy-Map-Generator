@@ -1,8 +1,17 @@
 import type { VectorCityDocument } from "../../../types/vector/document";
-import type { VectorUrbanAlgorithm } from "../../../types/vector/urban";
+import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/vector/urban";
 
 /** Output-changing revisions bump this; recipe links refuse documents adopted by another version. */
 export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v18";
+/** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision; compact output stays v18. */
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v19";
+
+/** The algorithm that generates with these settings. */
+export function vectorUrbanAlgorithm(
+  settings: Pick<VectorUrbanSettings, "plotFabric"> | undefined
+): VectorUrbanAlgorithm {
+  return settings?.plotFabric === "burgage" ? VECTOR_URBAN_BURGAGE_ALGORITHM : VECTOR_URBAN_ALGORITHM;
+}
 
 /** The requested settings without the housing culture, which changes how houses look, not what was generated: it
  * is applied to the open city without regenerating it. */

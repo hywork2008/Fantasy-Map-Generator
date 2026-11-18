@@ -4,6 +4,7 @@ import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorFabricDetachedLine } from "../../../types/vector/fabric";
 import type { VectorStage, VectorUrbanSettings } from "../../../types/vector/urban";
+import { burgageLandFactor } from "../../burgage/profiles";
 import { bvFacilityAsset } from "../../bvFacilityAsset";
 import { facilityPlacementOrder, facilityUseOf } from "../../facilityUses";
 import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
@@ -22,6 +23,7 @@ import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/document";
 import { vectorUrbanStages } from "../validation/urban";
 import { placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
+import { vectorHousingCulture } from "./housingCulture";
 import { raiseVectorLandUse } from "./landUse";
 import { layoutVectorParks } from "./parks";
 import {
@@ -49,7 +51,7 @@ import {
   type UrbanSearchStats,
   waterDistance
 } from "./urbanPacking";
-import { matchesVectorUrbanFingerprint, VECTOR_URBAN_ALGORITHM, vectorUrbanFingerprint } from "./urbanState";
+import { matchesVectorUrbanFingerprint, vectorUrbanAlgorithm, vectorUrbanFingerprint } from "./urbanState";
 import { assignVectorWards, streetBlockOf, wardHeightKind } from "./wards";
 import { layoutVectorWells } from "./wells";
 
@@ -279,7 +281,9 @@ function* vectorUrbanSteps(
   ) {
     const area = domain.reduce((n, p) => n + regionArea(p), 0),
       needed =
-        required * 95 +
+        required *
+          95 *
+          burgageLandFactor({ plotFabric: settings.plotFabric, buildingAppearanceProfile: vectorHousingCulture(doc) }) +
         requests.reduce(
           (n, r) => n + r.asset.minimumSite.reduce((n, p) => n + regionArea({ outer: p.outer, holes: [] }), 0) * 1.5,
           0
@@ -821,7 +825,7 @@ function* vectorUrbanSteps(
   doc.revision++;
   doc.generation = { ...doc.generation!, blocks, inputRevision: doc.revision };
   doc.urban = {
-    algorithm: VECTOR_URBAN_ALGORITHM,
+    algorithm: vectorUrbanAlgorithm(settings),
     inputRevision: doc.revision,
     settings: structuredClone(settings),
     baseGeneration,

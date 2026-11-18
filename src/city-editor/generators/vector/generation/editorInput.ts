@@ -3,6 +3,7 @@ import type { CityDocument } from "../../../types/document";
 import type { GenerationSettings } from "../../../types/generation";
 import { monasteryCountFor, monasteryKindsFor } from "../../aerialLandmarks";
 import { supportsBuildingHeightVariation } from "../../buildingHeightPolicy";
+import { burgageLandFactor } from "../../burgage/profiles";
 import { planPopulation } from "../../populationPlan";
 import { synthSite } from "../../site/synthSite";
 import { featureReservations } from "../environmentState";
@@ -98,7 +99,8 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
             dwellings,
             expectedVectorHouseStoreys(period, settings, undefined),
             input.lotOccupancy,
-            0
+            0,
+            burgageLandFactor(settings)
           )) **
           2;
     let scale = 1;
@@ -209,9 +211,11 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
           dwellings,
           expectedVectorHouseStoreys(period, settings, settings.descriptor.civilization?.tradition),
           input.lotOccupancy,
-          houses * MONASTERY_BLOCK_M2 * CIVIC_LAND_FACTOR
+          houses * MONASTERY_BLOCK_M2 * CIVIC_LAND_FACTOR,
+          burgageLandFactor(settings)
         ),
-      need = Math.sqrt(housing ** 2 + (facilityM2 * shape) / Math.PI);
+      // On burgage plots a facility takes whole plots, its yard with it (plan §6).
+      need = Math.sqrt(housing ** 2 + (facilityM2 * shape * burgageLandFactor(settings)) / Math.PI);
     for (let attempt = 0; attempt < 3; attempt++) {
       const probe = vectorInputFromDescriptor(descriptor),
         dry =
@@ -239,12 +243,14 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
         getUrbanDwellings(settings.population!.targetPopulation),
         expectedVectorHouseStoreys(period, settings, settings.descriptor?.civilization?.tradition),
         input.lotOccupancy,
-        reservedM2
+        reservedM2,
+        burgageLandFactor(settings)
       );
     // The facilities' parcels are measured land, not an estimate the fill correction trims: they are added whole,
     // widened by the wall shape as the rest is.
     const shape = isVectorWallShape(wall.wall) ? 1 / vectorWallAreaShare(seed, wall.wall, wall.wallSides) : 1;
-    return Math.max(30, Math.sqrt(radius ** 2 + (facilityLandM2 * shape) / Math.PI));
+    // On burgage plots a facility takes whole plots, its yard with it (plan §6).
+    return Math.max(30, Math.sqrt(radius ** 2 + (facilityLandM2 * shape * burgageLandFactor(settings)) / Math.PI));
   };
   // The first pass leaves the civic centre out: on a site sized for houses alone it may not fit yet.
   const first = build(size(0), false);

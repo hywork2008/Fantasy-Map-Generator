@@ -9,6 +9,7 @@ import {
   edgeOnLine,
   extent,
   fillLength,
+  LANE_CLEARANCE_METERS,
   lineAcross,
   type PlotFrame,
   toLocal,
@@ -82,9 +83,10 @@ export function planBinaireCell(
   // Over-long blocks are cut by transverse lanes into lengths of the profile.
   const segments = Math.max(1, Math.ceil(box.t1 / profile.blockLengthMeters[1]));
   const transverse = segments > 1 ? drawIn(rng, profile.crossLaneMeters) : 0;
-  const segmentLength = (box.t1 - transverse * (segments - 1)) / segments;
+  const crossing = transverse + 2 * LANE_CLEARANCE_METERS;
+  const segmentLength = (box.t1 - crossing * (segments - 1)) / segments;
   for (let k = 1; k < segments; k++) {
-    const at = k * segmentLength + (k - 0.5) * transverse,
+    const at = k * segmentLength + (k - 0.5) * crossing,
       points = lineAcross(block, { origin: frame.origin, u: frame.v, v: frame.u }, at);
     if (points) plan.lanes.push({ kind: "transverse", widthMeters: transverse, points });
   }
@@ -94,15 +96,16 @@ export function planBinaireCell(
     const last = n === strips.length - 1;
     // A cross lane follows each block but the last, which ends on the cell's own street.
     const lane = last ? 0 : strip.lane,
+      gap = last ? 0 : lane + 2 * LANE_CLEARANCE_METERS,
       a = s,
-      b = last ? box.s1 : s + strip.width - lane;
-    s = b + lane;
+      b = last ? box.s1 : s + strip.width - gap;
+    s = b + gap;
     if (!last) {
-      const points = lineAcross(block, frame, b + lane / 2);
+      const points = lineAcross(block, frame, b + gap / 2);
       if (points) plan.lanes.push({ kind: "cross", widthMeters: lane, points });
     }
     for (let k = 0; k < segments; k++) {
-      const t0 = k * (segmentLength + transverse),
+      const t0 = k * (segmentLength + crossing),
         t1 = t0 + segmentLength,
         headAtEnd = k === segments - 1 && opposite;
       layBlock(plan, block, frame, profile, rng, `${n}.${k}`, a, b, t0, t1, headAtEnd);

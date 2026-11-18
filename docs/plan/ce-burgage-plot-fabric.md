@@ -1,8 +1,8 @@
 # CE 史実の短冊形区画（burgage plot）で街区を作るオプション
 
 作成: 2026-11-18
-更新: 2026-11-18（B0: 史料の本文を確認し、§2 の寸法表を確定。`bastide` の型を `binaire` に置き換えた。B1: 設定の型・型の表・区画を作る純関数を実装）
-状態: B0・B1 完了。B2 以降は未実装（生成にはまだ接続していない）。
+更新: 2026-11-18（B0: 史料の本文を確認し、§2 の寸法表を確定。`bastide` の型を `binaire` に置き換えた。B1: 設定の型・型の表・区画を作る純関数を実装。B2: メッシュなしの生成に接続し、開発中の既定値にした）
+状態: B0〜B2 完了。B3 以降は未実装。新しい CE の既定は `medieval-facilities` と `burgage`（§8.2）。
 関連: [ce-meshless-block-fabric-scaling.md](ce-meshless-block-fabric-scaling.md)、[ce-medieval-facility-district-packing.md](ce-medieval-facility-district-packing.md)、[ce-facility-block-allocation.md](ce-facility-block-allocation.md)、[bv-workhome-facade-variation.md](bv-workhome-facade-variation.md)、[ce-meshless-gate-ribbon-growth.md](ce-meshless-gate-ribbon-growth.md)
 
 ## 1. 目的と範囲
@@ -230,7 +230,7 @@ Séraphin（p. 39, 44）の Figeac と Villefranche-de-Rouergue の値で作る�
 
 `english-burgage` と `hofstatt` では、1 筆に 1 戸だと、同じ人口で市域が 2 倍以上になる。史料の奥行き（Stratford 60 m、Burford 76〜140 m）のままなら、さらに広がる。§2.3 で壁の中の奥行きを 30〜50 m にしたのはこのためである。
 
-- `meshlessCityRadius` に、区画の型ごとの「1 筆あたりの土地（道を含む）」を渡す引数を加える。値は B2 で固定入力から計測して決め、`compact` の値は変えない。
+- `meshlessCityRadius` に、区画の型ごとの土地の倍率 `landFactor` を渡す引数を加えた（B2）。倍率は固定入力から計測して決めた（§8.2）: `english-burgage` 3、`hofstatt` 3.5、`binaire` 1。`compact` は 1 で、値は変わらない。施設の土地にも同じ倍率をかける。施設は区画を丸ごと使い、裏庭も一緒に取るため。
 - 壁の中では、R5（区画を割る）と B5 の裏の棟で密度を上げる。壁の中に入りきらない分は、今と同じく門の外の街道沿いへ回す。
 - 市域が広がると、壁・門・道の数も増える。[ce-meshless-block-fabric-scaling.md](ce-meshless-block-fabric-scaling.md) の上限（道の数・記録の数・文書の長さ）に当たらないかを B2 で確かめる。
 
@@ -247,7 +247,7 @@ Séraphin（p. 39, 44）の Figeac と Villefranche-de-Rouergue の値で作る�
 | --- | --- | --- |
 | B0 | §2 の史料を原典で確認し、§2.3 の表を確定する | **完了（2026-11-18）**。5 件の本文を確認し、寸法に出典と頁を付けた。確認できなかった 7 件は §2.2 に分け、数値には使わない。`bastide` を `binaire` に置き換え、ハンザ都市の値を取り下げた |
 | B1 | 設定（`plotFabric`）、型の表（§2.3 の採用値と出典を持つ）、純関数 `planBurgageCell(ring, profile, context)`（区画・裏小路・横の小路を返す）、`binaire` の `planBinaireCell` | **完了（2026-11-18）**。§8.1 |
-| B2 | メッシュなしの生成に接続する。`perimeterJobs` の後で、`plotFabric` によって `compact` と `burgage` の処理を選ぶ。住宅の配置、都市の大きさ（§6）、保存・読込、v19 | `compact` の固定入力の SHA-256 が変わらない。`burgage` の 1,000・5,000 人で未収容の住宅 0。生成時間が `compact` の 1.5 倍以内 |
+| B2 | メッシュなしの生成に接続する。`perimeterJobs` の後で、`plotFabric` によって `compact` と `burgage` の処理を選ぶ。住宅の配置、都市の大きさ（§6）、保存・読込、v19 | **完了（2026-11-18）**。§8.2 |
 | B3 | `placeFacilitiesOnPlots`（§5.5） | `medieval-facilities` の 1,000・5,000 人で、施設だけの街区が 0（街区規模の施設を除く）。施設の 9 割以上が 1〜3 筆。置けた施設の数が `compact` の 9 割以上 |
 | B4 | 区画の境界と裏庭を描く（2D の線、3D の塀・生垣、菜園、木） | 2D と 3D で区画の線が見え、空いた区画が菜園になる。3D の描画の数が許容範囲に収まる |
 | B5 | burgage cycle: 人口の密度と時代で、間口を割り、区画の奥に裏の棟を建てる | 壁の中の密度が B2 の見積もりより上がり、市域が狭くなる。裏の棟が裏小路か中庭から出入りできる |
@@ -255,7 +255,7 @@ Séraphin（p. 39, 44）の Figeac と Villefranche-de-Rouergue の値で作る�
 
 テストは AGENTS.md の方針に従い、変更した範囲に関係するものだけを実行する。B2 以降の FMG での確認は、Settlement pattern を Standard にした地図で行う。
 
-**次に進める作業**: B2（メッシュなしの生成に接続する。`perimeterJobs` の後で `plotFabric` によって処理を選び、住宅の配置・都市の大きさ・保存と読込・v19 を行う）。§2.2 の未確認の史料は、手に入ったときに §2.3 を見直す。
+**次に進める作業**: B3（`placeFacilitiesOnPlots`。施設を区画単位で合筆して置き、§5.5 の上限を守る）。§2.2 の未確認の史料は、手に入ったときに §2.3 を見直す。
 
 
 ### 8.1 B1 の記録（2026-11-18）
@@ -281,6 +281,73 @@ Séraphin（p. 39, 44）の Figeac と Villefranche-de-Rouergue の値で作る�
 - `binaire` の向かいの通りの頭の家は、街区の遠い辺が向かいの通りと平行なときだけ置く。平行でないときは空き地になる。
 
 テスト: `npx vitest run src/city-editor/architecture.test.ts src/city-editor/generators/burgage`（2 ファイル・20 件成功）。`scripts/lint-architecture.ts` も成功した。
+
+
+### 8.2 B2 の記録（2026-11-18）
+
+#### 既定値
+
+開発中の生成を既定にして、Generate city を押せばすぐに今の状態が見えるようにした（2026-11-18 のユーザーの依頼）。
+
+| 場所 | 既定 |
+| --- | --- |
+| 新しく開いた CE（[CityEditorPage.ts](../../src/city-editor/components/CityEditorPage.ts) の `generateSettings`） | `facilityLayout: "population"`（Building generation は `medieval-facilities`）、`plotFabric: "burgage"` |
+| メッシュなしの生成パネル（[VectorGenerationPanel.ts](../../src/city-editor/components/vector/VectorGenerationPanel.ts)） | Plot pattern の選択を加えた。エディターの設定がないときは `medieval-facilities` と `burgage` |
+| 保存された文書・共有リンク | 設定に `plotFabric` がなければ `compact`。保存済みの都市の結果は変わらない |
+
+ほかに既定を変えた設定はない。今の既定（川 1 本が町を通る、小さな都市の施設、壁あり）は、区画・施設・川沿いの業種をまとめて確かめられるため、そのままにした。
+
+#### 実装
+
+| ファイル | 内容 |
+| --- | --- |
+| [generators/burgage/perimeterCell.ts](../../src/city-editor/generators/burgage/perimeterCell.ts) | CE の街区 1 つを区画にする。辺ごとの後退（compact と同じく小路の半幅以上、近くの街路の半幅）、凹んだ街区を 15° より鋭い角で凸に切る処理、区画の正面の家（奥行き 8〜12 m、区画の半分まで）、小路を街路の中心線まで伸ばす処理 |
+| [perimeter.ts](../../src/city-editor/generators/vector/generation/perimeter.ts) | `PerimeterPlanContext.burgage`（型・壁の環・高地の浅い区画）。街区の大きさを区画の奥行きから決める（`burgageStreetCellMeters`）。`computeBurgageCell`。fabric の街区に `plots` を保存。アルゴリズムの版を `vectorUrbanAlgorithm` で決める |
+| [urbanState.ts](../../src/city-editor/generators/vector/generation/urbanState.ts) | `vector-urban-v19`。`burgage` だけが v19 で、`compact` は v18 のまま |
+| [urbanSizing.ts](../../src/city-editor/generators/vector/generation/urbanSizing.ts)、[editorInput.ts](../../src/city-editor/generators/vector/generation/editorInput.ts)、[urban.ts](../../src/city-editor/generators/vector/generation/urban.ts) | 土地の倍率（§6） |
+| [validation/fabric.ts](../../src/city-editor/generators/vector/validation/fabric.ts)、[validation/urban.ts](../../src/city-editor/generators/vector/validation/urban.ts)、[share.ts](../../src/city-editor/services/io/vector/share.ts)、[hash.ts](../../src/city-editor/generators/vector/fabric/hash.ts) | `plots`・`plotFabric`・v19 の検証と、内容のハッシュ。`plots` がない街区のハッシュは変わらない |
+
+`compact` の出力を守るため、次の 3 か所は `burgage` か、今まで例外で止まっていた場合にだけ働く。
+
+- [facilityLots.ts](../../src/city-editor/generators/vector/generation/facilityLots.ts): `burgage` では、施設の下になった家の残りを施設の敷地に合わせない。合わせると、細い角や棘ができ、正面の街路にまで届いた。残りは裏庭になる。B3 で区画単位の配置に置き換える。
+- [perimeter.ts](../../src/city-editor/generators/vector/generation/perimeter.ts) `vectorPerimeterResidual`: 残りの土地（表示だけに使う）の切り抜きが失敗した区画は、残りの土地なしにする。
+- [forest.ts](../../src/city-editor/generators/vector/generation/forest.ts) `vectorCountryside`: 切り抜きが失敗したら、建物の敷地を除かずに田園を作り直す。それも失敗したら田園なし。入力の並びは前と同じにした。
+
+#### 計測
+
+壁あり（多角形）・川なしの合成入力（シード `b2-probe`）。ほかに、川ありの 3 シード（`s1`〜`s3`、2,000・8,000 人）でも、全件で未収容 0 を確かめた。
+
+| 型（地域の型） | 人口・方式 | 生成時間 | 家 | 区画 | 必要戸数 | 壁の中／外の戸数 | 未収容 | 施設 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `english-burgage`（atlantic） | 1,000・medieval | 0.5 秒 | 149 | 175 | 223 | 197／26 | 0 | – |
+| 同 | 2,000・facilities | 2.3 秒 | 178 | 410 | 445 | 451／0 | 0 | 94/100 |
+| 同 | 5,000・facilities | 3.1 秒 | 465 | 1,003 | 1,112 | 1,114／0 | 0 | 241/255 |
+| `hofstatt`（northern-urban） | 1,000・medieval | 0.5 秒 | 79 | 120 | 223 | 224／0 | 0 | – |
+| 同 | 2,000・facilities | 1.9 秒 | 166 | 345 | 445 | 446／0 | 0 | 94/100 |
+| 同 | 5,000・facilities | 3.1 秒 | 344 | 912 | 1,112 | 1,112／0 | 0 | 241/255 |
+| `binaire`（mediterranean） | 1,000・medieval | 0.4 秒 | 117 | 189 | 223 | 224／0 | 0 | – |
+| 同 | 2,000・facilities | 3.4 秒 | 218 | 563 | 445 | 445／0 | 0 | 93/100 |
+| 同 | 5,000・facilities | 7.6 秒 | 594 | 1,240 | 1,112 | 1,112／0 | 0 | 236/255 |
+| `compact`（比較） | 2,000・facilities | 3.3〜3.8 秒 | 369 | – | 445 | 445／14 | 0 | 94/100 |
+| `compact`（比較） | 5,000・facilities | 6.0 秒 | – | – | 1,112 | 1,112／13 | 0 | 239/255 |
+
+- `compact` の固定入力（1,000 人 medieval・2,000 人 facilities）の直列化文書の SHA-256 の先頭 16 桁は、変更前後で同じだった（`5e13d2db3d1e8823`、`5b8b8adac3dec72c`）。
+- 生成時間は、どの型も `compact` の 1.5 倍以内だった（`binaire` の 5,000 人が最大で約 1.3 倍）。
+- 土地の倍率を `english-burgage` で 2〜4 と変えて比べた。2 では未収容が出た。4 では 1,000 人の町で区画の 4 割に家が建たなかった。そこで 3 にした。`hofstatt` は 3 で 5,000 人に未収容 9 が出たので、3.5 にした。
+
+#### 残った課題
+
+- **空いた区画**: 施設のある町では、家も施設もない区画が多い（`hofstatt` の 5,000 人で区画 912 に家 344・施設 241）。施設の土地にかけた倍率が大きすぎる可能性がある。B3 で施設が区画を何筆使うかが決まってから、倍率を計り直す。中世の町に空いた区画があったこと自体は史料に合う（R7）。
+- **施設の置き方**: B2 では、今の `placeFacilitiesOnLots` が家の正面の帯を「区画」として使う。施設の奥は裏庭の上にはみ出し、区画の線に揃わない。B3 で置き換える。
+- **`binaire` の venelle**: 保存も描画もしていない（家の裏が中央の路地に面していることが見えない）。B4 で描く。
+- **district の記録の `parameters`**: `burgage` でも `lotArea: 80`・`streetCellMeters: 50` のまま保存している。読み込みや描画には使っていない。
+- **切り抜きの失敗への逃げ道**: 上の 2 か所は、問題を隠す方向の処理である。B4 で区画と裏庭を描くときに、どの形で失敗するかを調べ直す。
+
+#### テスト
+
+- 追加: [burgagePlots.test.ts](../../src/city-editor/generators/vector/generation/burgagePlots.test.ts)。`burgage` の町で、v19 になること、全員が収容されること、家が区画の正面に建つこと、保存と読み込みで fabric が変わらないこと、`compact` が v18 のままで区画を持たないことを確かめる。
+- 実行して成功: burgage（2 ファイル）、architecture、perimeter、facilityLots、urban、forest、landUse、validation/fabric、validation/document、documentCodec、share、VectorGenerationPanel、VectorCitySettingsPanel、generationFacilities、market、suburbs。`scripts/lint-architecture.ts` と `tsc --noEmit` も成功した。
+- [renderers/svg.test.ts](../../src/city-editor/renderers/svg.test.ts) の「draws a Tiny church larger than a house plot…」は失敗した。変更前の状態でも同じく失敗するので、今回の変更とは関係ない。
 
 ## 9. 受入の指標
 

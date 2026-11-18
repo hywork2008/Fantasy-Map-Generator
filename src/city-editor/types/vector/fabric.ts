@@ -72,6 +72,9 @@ export interface VectorFabricCell {
   cleared?: number[];
   detachedLines?: VectorFabricDetachedLine[];
   inside?: boolean;
+  /** Burgage plots of the street block (v19, docs/plan/ce-burgage-plot-fabric.md §7): rings packed like houses,
+   * and per plot the front's two points (centimetres from `origin`). Absent on compact street blocks. */
+  plots?: { offsets: number[]; coords: number[]; fronts: number[] };
 }
 
 export interface VectorFabric {

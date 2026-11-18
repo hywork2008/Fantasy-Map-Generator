@@ -3,6 +3,7 @@ import type { BurgageCellPlan } from "../../types/contracts/burgage";
 import type { Point } from "../../types/geometry";
 import { nearestOnPolyline, pointInPolygon, polygonArea } from "../geom";
 import { planBinaireCell } from "./binaireCell";
+import { LANE_CLEARANCE_METERS } from "./frame";
 import { BURGAGE_PROFILES, burgageProfileFor } from "./profiles";
 import { planBurgageCell } from "./stripCell";
 
@@ -37,7 +38,10 @@ function frontsOnStreetOrLane(plan: BurgageCellPlan, ring: Point[]): boolean {
     const mid: Point = [(plot.front[0][0] + plot.front[1][0]) / 2, (plot.front[0][1] + plot.front[1][1]) / 2];
     return (
       ringEdges(ring).some(edge => nearestOnPolyline(mid, edge).dist < 1e-6) ||
-      plan.lanes.some(l => Math.abs(nearestOnPolyline(mid, l.points).dist - l.widthMeters / 2) < 1e-6)
+      // Plots keep a few centimetres off the lane's surface.
+      plan.lanes.some(
+        l => Math.abs(nearestOnPolyline(mid, l.points).dist - l.widthMeters / 2 - LANE_CLEARANCE_METERS) < 1e-6
+      )
     );
   });
 }
@@ -92,7 +96,8 @@ describe("strip plot cells", () => {
     const plan = planBurgageCell(ring, english, { seed: "c", fronts: [0], setting: "intramural" });
     const back = plan.lanes.filter(l => l.kind === "back");
     expect(back).toHaveLength(1);
-    for (const plot of plan.plots) expect(plot.depthMeters + back[0].widthMeters).toBeLessThanOrEqual(48 + 1e-6);
+    for (const plot of plan.plots)
+      expect(plot.depthMeters + back[0].widthMeters + 2 * LANE_CLEARANCE_METERS).toBeLessThanOrEqual(48 + 1e-6);
     expect(frontsOnStreetOrLane(plan, ring)).toBe(true);
   });
 

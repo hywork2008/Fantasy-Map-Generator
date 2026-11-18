@@ -12,6 +12,13 @@ import type {
 import type { VectorBlock, VectorPolygon } from "../../../types/vector/generation";
 import type { VectorUrbanSettings } from "../../../types/vector/urban";
 import type { ResidentialHeightKind } from "../../buildingHeightPolicy";
+import {
+  type BurgagePlanContext,
+  burgagePerimeterCell,
+  burgageSetting,
+  burgageStreetCellMeters
+} from "../../burgage/perimeterCell";
+import { burgageProfileFor } from "../../burgage/profiles";
 import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
 import {
   buildOrganicStreetCell,
@@ -30,16 +37,17 @@ import { packLines, packPoints, unpackPoints } from "../fabric/pack";
 import { evaluateAnchor } from "../geometry/curves";
 import { gateOpening, junctionSurface } from "../geometry/network";
 import { regionArea, regionBoolean } from "../geometry/regions";
-import { offsetRing } from "../geometry/routing";
+import { offsetRing, sampledClosedRing } from "../geometry/routing";
 import { samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface, simpleContour, surfacesOverlap } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
 import { vectorDistrictId } from "./districtId";
+import { vectorHousingCulture } from "./housingCulture";
 import { vectorHouseHeightKey, vectorHousingHeights } from "./housingHeights";
 import { perimeterHouseDwellings } from "./urbanCapacity";
 import { nearestRoadAnchor } from "./urbanPacking";
-import { VECTOR_URBAN_ALGORITHM } from "./urbanState";
+import { vectorUrbanAlgorithm } from "./urbanState";
 
 export const PERIMETER_HOUSE_MODEL = "ce-perimeter-house";
 type FabricLine = { points: Point[]; widthMeters: number };
@@ -50,6 +58,8 @@ interface CellPlan {
   lanes: FabricLine[];
   attachments: VectorFabricCell["attachments"];
   mouths: VectorFabricCell["mouths"];
+  /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md); absent on compact street blocks. */
+  plots?: { ring: Point[]; front: [Point, Point] }[];
 }
 interface DistrictPlan {
   id: string;
@@ -65,6 +75,8 @@ export interface VectorPerimeterPlan {
   /** Parcels of every street block, for district classification and residual land. */
   blocks: VectorBlock[];
   laneWidthMeters: number;
+  /** Street blocks laid out as burgage plots (v19). */
+  plotFabric?: "burgage";
 }
 const lineLength = (points: Point[]) =>
   points.slice(1).reduce((n, p, i) => n + Math.hypot(p[0] - points[i][0], p[1] - points[i][1]), 0);
@@ -96,6 +108,8 @@ export interface PerimeterPlanContext {
   extentMeters: number;
   /** The mesh editor's classic plan (P4d): each district filled by its classic block infill, no organic streets. */
   classic?: boolean;
+  /** Street blocks of burgage plots instead of compact lots (docs/plan/ce-burgage-plot-fabric.md). */
+  burgage?: BurgagePlanContext;
 }
 /** One reachable skeleton block without holes, with its stable district id. */
 export interface PerimeterDistrictJob {
@@ -223,9 +237,25 @@ export function perimeterJobs(
       walls,
       hub: doc.site!.center,
       extentMeters: doc.frame.extentMeters,
-      ...(doc.generation?.settings.layout === "classic" ? { classic: true } : {})
+      ...(doc.generation?.settings.layout === "classic"
+        ? { classic: true }
+        : settings.plotFabric === "burgage"
+          ? { burgage: burgagePlanContext(doc) }
+          : {})
     },
     jobs
+  };
+}
+
+/** The plot type from the housing culture, and the wall rings that tell intramural street blocks. */
+function burgagePlanContext(doc: VectorCityDocument): BurgagePlanContext {
+  const culture = vectorHousingCulture(doc);
+  return {
+    profile: burgageProfileFor(culture),
+    wallRings: Object.values(doc.connections.circuits)
+      .filter(c => !c.parentCircuitId)
+      .map(c => sampledClosedRing(doc, c.pathId)),
+    ...(culture === "stone-upland" ? { shallow: true } : {})
   };
 }
 
@@ -265,7 +295,8 @@ function planKey(context: PerimeterPlanContext): string {
       context.hub,
       context.extentMeters,
       context.walls,
-      !!context.classic
+      !!context.classic,
+      context.burgage ?? null
     ]);
     planKeys.set(context, key);
   }
@@ -399,7 +430,16 @@ export function planPerimeterStreets(context: PerimeterPlanContext, job: Perimet
         fullBoundaries,
         ceParameters(context),
         context.seed,
-        ceContext(context)
+        context.burgage
+          ? {
+              ...ceContext(context),
+              // Burgage street blocks are two plot depths across (plan §5.3).
+              streetCellMeters: burgageStreetCellMeters(
+                context.burgage,
+                burgageSetting(context.burgage, polygonCentroid(outline))
+              )
+            }
+          : ceContext(context)
       );
   const result: PerimeterStreetPlan = {
     districtId,
@@ -449,6 +489,7 @@ const freshCell = (r: PerimeterCellResult): PerimeterCellResult => ({
   houses: [...r.houses]
 });
 function computePerimeterCell(context: PerimeterPlanContext, job: PerimeterCellJob): PerimeterCellResult {
+  if (context.burgage) return computeBurgageCell(context, context.burgage, job);
   const { districtId, cell, nearby } = job,
     local = context.classic
       ? buildPerimeterBlocks(
@@ -494,6 +535,62 @@ function computePerimeterCell(context: PerimeterPlanContext, job: PerimeterCellJ
       districtId,
       polygon: b.polygon,
       draw: b.occupancyDraw ?? growthRandom(JSON.stringify(b.polygon))
+    }))
+  };
+}
+
+/** One street block of burgage plots: its lanes, plots and house fronts (plan §5). */
+function computeBurgageCell(
+  context: PerimeterPlanContext,
+  burgage: BurgagePlanContext,
+  job: PerimeterCellJob
+): PerimeterCellResult {
+  const { districtId, cell, nearby } = job,
+    local = burgagePerimeterCell(
+      burgage,
+      cell,
+      context.seed,
+      context.laneWidthMeters,
+      nearby.map(n => n.street)
+    );
+  const attachments: CellPlan["attachments"] = [];
+  local.lanes.forEach((lane, laneIndex) => {
+    for (const end of [0, 1] as const) {
+      const p = end === 0 ? lane.points[0] : lane.points.at(-1)!;
+      const street = nearby.find(n => nearestOnPolyline(p, n.street.points).dist <= 1e-4);
+      if (street)
+        attachments.push({ lane: laneIndex, end, street: street.index, t: lineParameter(street.street.points, p) });
+    }
+  });
+  const parcel = (outer: Point[], id: string): VectorBlock => ({
+    id,
+    outer,
+    holes: [],
+    areaMeters2: regionArea({ outer, holes: [] }),
+    frontage: [],
+    reachable: true
+  });
+  return {
+    cell: {
+      id: cell.id,
+      districtId,
+      ring: cell.ring,
+      lanes: local.lanes,
+      attachments,
+      mouths: [],
+      plots: local.plots
+    },
+    // The plots and the open ground are the street block's parcels: what no house covers is yard and garden.
+    // Clipping can leave a ring a validated block refuses (a repeated or collinear point); that land is left out.
+    blocks: [
+      ...local.plots.map((p, i) => parcel(p.ring, `${cell.id}:plot:${i}`)),
+      ...local.open.map((ring, i) => parcel(ring, `${cell.id}:open:${i}`))
+    ].filter(b => simpleContour(b.outer, true) && b.areaMeters2 > 1e-6),
+    houses: local.houses.map(polygon => ({
+      cellId: cell.id,
+      districtId,
+      polygon,
+      draw: growthRandom(JSON.stringify(polygon))
     }))
   };
 }
@@ -605,7 +702,8 @@ export function joinPerimeterPlan(
     districts: districts.map(d => d.district),
     houses: districts.flatMap(d => d.houses),
     blocks: districts.flatMap(d => d.blocks),
-    laneWidthMeters: settings.laneWidthMeters
+    laneWidthMeters: settings.laneWidthMeters,
+    ...(settings.plotFabric === "burgage" ? { plotFabric: "burgage" as const } : {})
   };
   // Street and lane ends on a main road join it through an explicit node. A short connector closes any gap.
   const joiner = createGenerationJoiner(doc);
@@ -704,6 +802,19 @@ function packedRing(points: Point[], origin: Point): number[] | undefined {
   while (kept.length >= 4 && kept[0] === kept.at(-2) && kept[1] === kept.at(-1)) kept.splice(-2, 2);
   if (kept.length < 6 || !isSimplePolygon(unpackPoints(kept, origin), 1e-12)) return;
   return kept;
+}
+
+/** A street block's burgage plots as the record keeps them; a plot that rounding breaks is left out. */
+function packedPlots(plots: NonNullable<CellPlan["plots"]>, origin: Point): NonNullable<VectorFabricCell["plots"]> {
+  const out: NonNullable<VectorFabricCell["plots"]> = { offsets: [], coords: [], fronts: [] };
+  for (const plot of plots) {
+    const ring = packedRing(plot.ring, origin);
+    if (!ring) continue;
+    out.offsets.push(out.coords.length / 2);
+    out.coords.push(...ring);
+    out.fronts.push(...packPoints(plot.front, origin));
+  }
+  return out;
 }
 
 /** The share of a lot, and the least area, a facility standing across it must leave for a house. */
@@ -1097,7 +1208,7 @@ export function placeVectorPerimeterHouses(
       count++;
     }
   }
-  const algorithm = VECTOR_URBAN_ALGORITHM,
+  const algorithm = vectorUrbanAlgorithm(plan),
     districts: VectorFabric["districts"] = {},
     fabricCells: VectorFabric["cells"] = {};
   for (const district of plan.districts) {
@@ -1167,7 +1278,8 @@ export function placeVectorPerimeterHouses(
         detached: [],
         ...(cleared[cell.id]?.length ? { cleared: [...cleared[cell.id]] } : {}),
         ...(detachedLines[cell.id]?.length ? { detachedLines: carried(cell.id, cell.lanes) } : {}),
-        inside: cellInside(cell.id)
+        inside: cellInside(cell.id),
+        ...(cell.plots ? { plots: packedPlots(cell.plots, cellOrigin) } : {})
       };
       fabricCells[cell.id] = { ...value, hash: fabricCellHash(value) };
     }
@@ -1228,7 +1340,14 @@ export function vectorPerimeterResidual(doc: VectorCityDocument, blocks: VectorB
       key = JSON.stringify(sites),
       known = residuals.get(block);
     if (known?.key === key) return structuredClone(known.land);
-    const land = regionBoolean([block], sites, "difference").filter(p => valid(p.outer) && p.holes.every(valid));
+    let land: VectorPolygon[];
+    try {
+      land = regionBoolean([block], sites, "difference").filter(p => valid(p.outer) && p.holes.every(valid));
+    } catch {
+      // The clipping kernel can fail on near-degenerate parcels (burgage plots cut at a block's corners); residual
+      // land is display-only, so that parcel shows none.
+      land = [];
+    }
     residuals.set(block, { key, land });
     return structuredClone(land);
   });

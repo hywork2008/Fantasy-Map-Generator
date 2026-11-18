@@ -316,6 +316,8 @@
         "allowExpansion": "自動合成入力の範囲内で郊外を追加",
         "tanneryBends": "川の曲がりでのなめし場",
         "tanneryBendsOptions": { "continuous": "曲がりに沿って1列に並べる", "leat": "工房用水路を掘る" },
+        "plotFabric": "区画の作り方",
+        "plotFabricOptions": { "compact": "コンパクト（住宅のみ）", "burgage": "短冊形区画（史料に基づく）" },
         "develop": "小路・施設・住宅の候補を生成",
         "capacity": "住戸容量 / 必要住戸",
         "unplaced": "未収容人口",

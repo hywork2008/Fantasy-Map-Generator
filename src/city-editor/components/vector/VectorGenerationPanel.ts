@@ -17,6 +17,7 @@ import { renderVectorDocument } from "../../renderers/vector/documentSvg";
 import type { EditorLifetime } from "../../services/editorLifetime";
 import { parseIncomingPayload } from "../../services/io/incomingCity";
 import { startVectorGeneration, type VectorGenerationTask } from "../../services/vectorGenerationWorkerClient";
+import type { PlotFabric } from "../../types/contracts/burgage";
 import type { BurgSiteDescriptor } from "../../types/contracts/burgSiteDescriptor";
 import type { GenerationSettings } from "../../types/generation";
 import type { VectorCityDocument } from "../../types/vector/document";
@@ -333,7 +334,8 @@ export function createVectorGenerationPanel(
     option.textContent = value;
     mode.append(option);
   }
-  mode.value = vectorUrbanMode(editorInput?.settings);
+  // Without the editor's settings the panel opens on the mode under development, so Generate city shows it.
+  mode.value = editorInput ? vectorUrbanMode(editorInput.settings) : "medieval-facilities";
   field("mode", mode);
   // How the tanners' row meets the river's bends: one continuous row (default) or a tanners' leat.
   const tanneryBends = document.createElement("select");
@@ -346,6 +348,18 @@ export function createVectorGenerationPanel(
   }
   tanneryBends.value = "continuous";
   field("tanneryBends", tanneryBends);
+  // How street blocks are cut into plots (docs/plan/ce-burgage-plot-fabric.md). Burgage plots are the default while
+  // they are developed, so Generate city shows their state.
+  const plotFabric = document.createElement("select");
+  plotFabric.dataset.generationField = "plotFabric";
+  for (const value of ["compact", "burgage"] as const) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = text(`plotFabricOptions.${value}`);
+    plotFabric.append(option);
+  }
+  plotFabric.value = editorInput ? (editorInput.settings.plotFabric ?? "compact") : "burgage";
+  field("plotFabric", plotFabric);
   const population = number(
       "population",
       editorInput?.settings.population?.targetPopulation ?? (read().context.targetPopulation || 1000)
@@ -409,7 +423,8 @@ export function createVectorGenerationPanel(
           maxLanes: Number(maxLanes.value),
           allowExpansion: expansion.checked,
           lotOccupancy: lotOccupancy(),
-          tanneryBends: tanneryBends.value as TanneryBends
+          tanneryBends: tanneryBends.value as TanneryBends,
+          plotFabric: plotFabric.value as PlotFabric
         }
       },
       "develop"
@@ -455,6 +470,7 @@ export function createVectorGenerationPanel(
             settings: {
               ...editorInput.settings,
               facilityLayout,
+              plotFabric: plotFabric.value as PlotFabric,
               population: {
                 ...(editorInput.settings.population ?? {
                   version: 1,
@@ -496,7 +512,8 @@ export function createVectorGenerationPanel(
             mode: urbanMode,
             population: target,
             lotOccupancy: lotOccupancy(),
-            tanneryBends: tanneryBends.value as TanneryBends
+            tanneryBends: tanneryBends.value as TanneryBends,
+            plotFabric: plotFabric.value as PlotFabric
           }
         },
         "develop",

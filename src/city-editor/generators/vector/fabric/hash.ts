@@ -56,7 +56,8 @@ export function fabricCellHash(c: Omit<VectorFabricCell, "hash">): string {
       c.inside ?? null,
       // Absent on records that never cleared a lot, so their hashes stay as they were.
       ...(c.cleared ? [c.cleared] : []),
-      ...(c.detachedLines ? [detached(c.detachedLines)] : [])
+      ...(c.detachedLines ? [detached(c.detachedLines)] : []),
+      ...(c.plots ? [["plots", c.plots.offsets, c.plots.coords, c.plots.fronts]] : [])
     ])
   );
 }

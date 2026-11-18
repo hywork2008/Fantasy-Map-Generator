@@ -406,7 +406,9 @@ export function placeFacilitiesOnLots(
             absorbed.push(...rest);
           }
         }
-        if (absorbed.length) {
+        // On burgage plots the house fronts' leftovers stay yard: joined to the parcel they made slivers and spikes
+        // and reached the streets the fronts lie on (B3 lays facilities on whole plots instead).
+        if (absorbed.length && plan.plotFabric !== "burgage") {
           try {
             const parcel = regionBoolean([site, ...absorbed], [], "union");
             if (
