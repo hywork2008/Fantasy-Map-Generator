@@ -380,7 +380,8 @@ export function createVectorGenerationPanel(
     const c = u.checkpoints.find(c => c.id === stage.value);
     const visibleFacilities = (c?.placementIds ?? Object.keys(doc.placements))
       .map(id => doc.placements[id])
-      .filter(p => p.building?.kind === "facility");
+      // A shop-house's rear works is counted with its house (docs/plan/ce-town-trade-rear-works.md R2).
+      .filter(p => p.building?.kind === "facility" && !p.building.annexOf);
     status.textContent = `${text("population")}: ${u.report.targetPopulation}; ${text("capacity")}: ${c?.capacityDwellings ?? u.report.capacityDwellings} / ${u.report.requiredDwellings}; ${text("unplaced")}: ${c?.unplacedPopulation ?? u.report.unplacedPopulation}; ${text("facilities")}: ${visibleFacilities.length} / ${u.report.requiredFacilities}; ${text("provisional")}: ${visibleFacilities.filter(p => p.building?.provenance === "provisional").length}${c ? `; ${text("stagePopulation")}: ${c.assignedPopulation}` : ""}`;
     // Inside against beyond the wall, for the finished town only: earlier stages hold fewer buildings.
     const shares = !c || c.id === "housing" ? vectorWallShares(doc) : undefined;

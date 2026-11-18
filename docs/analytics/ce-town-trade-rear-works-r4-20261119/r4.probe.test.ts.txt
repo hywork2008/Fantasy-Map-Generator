@@ -1,0 +1,99 @@
+import { createHash } from "node:crypto";
+import { appendFileSync } from "node:fs";
+import { it } from "vitest";
+import { defaultGenerationSettings } from "../generators/generation/settings";
+import { pointInPolygon, polygonArea, polygonCentroid } from "../generators/geom";
+import { defaultPopulationSettings } from "../generators/populationPlan";
+import { cellHouseCount, cellHouseRing, unpackPoints } from "../generators/vector/fabric/pack";
+import { vectorInputFromEditor } from "../generators/vector/generation/editorInput";
+import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../generators/vector/generation/pipeline";
+import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../generators/vector/generation/urban";
+import { vectorWallChoice } from "../generators/vector/generation/wallShape";
+import { assertVectorDocument } from "../generators/vector/validation/document";
+import { vectorRenderData } from "../renderers/vector/renderData";
+import { createVectorScene } from "../renderers/vector/scene3d";
+
+const OUT = process.env.OUT!;
+const TRADES = ["baking", "cutlery", "metalwares", "glazing", "chandlery", "fishmongery", "butchery"];
+const tradeOf = (id: string) => TRADES.find(t => new RegExp(`:${t}(:|$)`).test(id.replace(/:rear$/, "").replace(/x+$/, "")));
+
+function town(plotFabric: string, population: number, river: boolean, seed: string) {
+  const settings = { ...defaultGenerationSettings(), wallShape: "polygon" as const, plotFabric, facilityLayout: "population" as const } as never as ReturnType<typeof defaultGenerationSettings>;
+  settings.config = { ...settings.config, rivers: river ? ["meander"] : [], features: { ...settings.config.features, walls: true, port: false, shanty: false } };
+  settings.population = defaultPopulationSettings(population);
+  const big = population > 6000;
+  const input = vectorInputFromEditor({ settings, seed, frame: { extentMeters: big ? 1000 : 800, cityRadiusMeters: big ? 260 : 200, blockSizeMeters: 50 }, lotOccupancy: 1 }),
+    wall = vectorWallChoice(settings, seed, input.context.historicalPeriod ?? "ageOfExploration"),
+    skeleton = generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall }).document;
+  return generateVectorUrban(skeleton, { ...DEFAULT_VECTOR_URBAN, mode: "medieval-facilities", population, plotFabric: plotFabric as never });
+}
+
+const cases: [string, number, boolean, string][] = [];
+for (const fabric of (process.env.FABRICS ?? "burgage-dense,burgage,compact").split(","))
+  for (const pop of [2000, 5000, 9000])
+    for (const [river, seed] of [[false, "workhome-w3"], [true, "r1"], [true, "r2"]] as const) cases.push([fabric, pop, river, seed]);
+
+for (const [fabric, pop, river, seed] of cases)
+  it(`${fabric} ${pop} ${seed}`, () => {
+    const row: Record<string, unknown> = { fabric, pop, seed };
+    let doc;
+    try {
+      doc = town(fabric, pop, river, seed);
+      assertVectorDocument(doc);
+    } catch (e) {
+      row.error = (e as Error).message.slice(0, 160);
+      appendFileSync(OUT, `${JSON.stringify(row)}\n`);
+      return;
+    }
+    const r = doc.urban!.report;
+    row.algorithm = doc.urban!.algorithm;
+    row.placed = r.placedFacilities;
+    row.required = r.requiredFacilities;
+    row.unplacedPopulation = r.unplacedPopulation;
+    row.sha = createHash("sha256").update(JSON.stringify(doc)).digest("hex").slice(0, 16);
+    if (doc.fabric) {
+      const plots: [number, number][][] = [];
+      let land = 0, plotArea = 0, built = 0;
+      for (const c of Object.values(doc.fabric.cells)) {
+        if (c.inside) land += Math.abs(polygonArea(unpackPoints(c.ring, c.origin)));
+        if (c.plots) for (const [i, start] of c.plots.offsets.entries()) {
+          const ring = unpackPoints(c.plots.coords, c.origin, start, c.plots.offsets[i + 1] ?? c.plots.coords.length / 2);
+          plots.push(ring); if (c.inside) plotArea += Math.abs(polygonArea(ring));
+        }
+        if (!c.inside) continue;
+        const detached = new Set(c.detached);
+        for (let i = 0; i < cellHouseCount(c); i++) if (!detached.has(i)) built += Math.abs(polygonArea(cellHouseRing(c, i)));
+      }
+      const insideCell = (p: [number, number]) => Object.values(doc.fabric!.cells).some(c => c.inside && pointInPolygon(p, unpackPoints(c.ring, c.origin)));
+      for (const p of Object.values(doc.placements))
+        if (p.building && insideCell(p.position)) for (const f of p.building.footprint) built += Math.abs(polygonArea(f.outer));
+      row.builtShare = +(100 * built / land).toFixed(1);
+      const centroids = plots.map(polygonCentroid);
+      const groups = new Map<string, { trade: string; sites: [number, number][][]; paired: boolean }>();
+      for (const p of Object.values(doc.placements)) {
+        const b = p.building as (typeof p.building & { annexOf?: string }) | undefined;
+        if (b?.kind !== "facility" || p.origin !== "automatic") continue;
+        const trade = tradeOf(b.annexOf ?? p.id);
+        if (!trade) continue;
+        const key = b.annexOf ?? p.id, g = groups.get(key) ?? { trade, sites: [], paired: false };
+        g.sites.push(p.site.outer);
+        if (b.annexOf) g.paired = true;
+        groups.set(key, g);
+      }
+      const per: Record<string, { n: number; paired: number; plots: number }> = {};
+      for (const g of groups.values()) {
+        const n = centroids.filter(c => g.sites.some(s => pointInPolygon(c, s))).length;
+        const s = (per[g.trade] ??= { n: 0, paired: 0, plots: 0 });
+        s.n++; s.plots += n; if (g.paired) s.paired++;
+      }
+      row.trades = Object.fromEntries(Object.entries(per).map(([k, s]) => [k, [s.n, s.paired, +(s.plots / s.n).toFixed(2)]]));
+      const all = Object.values(per).reduce((a, s) => ({ n: a.n + s.n, plots: a.plots + s.plots }), { n: 0, plots: 0 });
+      row.plotsPerFacility = all.n ? +(all.plots / all.n).toFixed(2) : null;
+    }
+    const scene = createVectorScene(vectorRenderData(doc, "housing"));
+    const warnings = scene.warnings as string[];
+    scene.dispose();
+    const ids = new Set(Object.values(doc.placements).filter(p => tradeOf(p.id)).map(p => p.id));
+    row.tradeWarnings = warnings.filter(w => ids.has(w.slice(w.indexOf(":") + 1)));
+    appendFileSync(OUT, `${JSON.stringify(row)}\n`);
+  }, 900000);
