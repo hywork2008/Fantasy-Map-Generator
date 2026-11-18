@@ -2,7 +2,7 @@
 
 作成: 2026-11-14
 更新: 2026-11-18（Codex 版の内部構造をやめ、外観だけの Claude Opus 5.5 版を作る計画へ全面的に書き直した）
-状態: 設計のみ。未実装。W0（計測）は本書の作成時に済ませた（§3.3）。
+状態: W0（計測、§3.3）と W1（MV の Opus 版、§10.1）を済ませた。CE はまだ Codex 版を使う（W3 で切り替える）。
 
 ## 1. 目的と方針
 
@@ -110,21 +110,21 @@ createOpusWorkhome(spec: OpusWorkhomeSpec, quality: "low" | "high")
 interface OpusWorkhomeSpec {
   role: WorkhomeRole;               // trade: goods on the stall board and in the shop bay
   culture: RegionalHouseProfile;    // ground-floor type, colours, cover, finish (§4.3)
-  widthMeters: number;              // street frontage, 3.0–7.5, on a 0.25 m grid
-  depthMeters: number;              // 8–12, on a 0.5 m grid
+  widthMeters: number;              // street frontage, 3.0–7.7, on a 0.01 m grid
+  depthMeters: number;              // 8–12, on a 0.01 m grid
   storeys: 2 | 3;                   // ground + upper storeys; a garret under the roof is not counted
   entranceFace: "gable" | "eave";   // never turns the footprint; only the ridge (as RegionalHouseSpec)
   fronts: 1 | 2;                    // single-fronted, or door between two shop windows (width >= 6)
   shop: "open" | "closed";
   door: "closed" | "ajar";
   sign: "board" | "none";
-  wall: BuildingPaletteId; roof: BuildingPaletteId; frame?: BuildingPaletteId;
+  // wall, roof and frame colours come from the culture's house style (W3 may take the plot's appearance instead)
   shade: 0 | 1 | 2;
-  mirror: boolean;                  // door side, baked through BvDefinition.mirrorX
+  mirror: boolean;                  // door on the right; laid out, not baked through mirrorX, so the entrance stays exact
 }
 ```
 
-`opusWorkhomeSpecKey(spec)` で試作品を共有する。幅は 0.25 m 刻み、奥行きは 0.5 m 刻みにそろえ、キーの種類を抑える。
+`opusWorkhomeSpecKey(spec)` で試作品を共有する。モデルは 0.01 m 刻みで作る（Codex の外接矩形 6.44 m などを保つため）。CE で試作品の種類を抑えるため、W4 では区画の幅を 0.25 m 刻みに丸めて渡す。
 
 ### 4.3 文化ごとの 1 階の形
 
@@ -133,7 +133,7 @@ interface OpusWorkhomeSpec {
 | 地域の型 | 1 階の正面 | 上の階 | 根拠 |
 | --- | --- | --- | --- |
 | `atlantic` | 木枠の店の窓（縦桟で 2〜3 区画）。下の雨戸を倒して売り台にし、上の雨戸を突き上げて庇にする。扉は窓の横 | 張り出し 1 段 | Bennell pp.193, 198–199、VCH Explore |
-| `northern-urban` | 妻入り。店の窓は雨戸付き。アーケードは作らない | 張り出し。屋根裏の荷揚げ戸と滑車の梁 | Garrigou Grandchamp p.94（ドイツ語圏にアーケードはほとんどなく、ハンザの町では屋根裏が倉庫） |
+| `northern-urban` | 妻入り。店の窓は 2 枚の跳ね上げ・跳ね下げの雨戸（上は庇、下は売り台）。アーケードは作らない | 張り出し。屋根裏の荷揚げ戸と滑車の梁 | Garrigou Grandchamp p.94（ドイツ語圏にアーケードはほとんどなく、ハンザの町では屋根裏が倉庫）、Reinle（§5.4） |
 | `mediterranean` | 石造。アーチの店口（下に石の売り台）と、上の階へ上がる別の扉 | 張り出しなし。対の窓 | Garrigou Grandchamp p.92 図 15・p.94 |
 | `stone-upland` | 石積みの 1 階。アーチの店口 1 つと扉 | 木組みの上階 | 同上（仮。山地の事例は未確認） |
 | `northern-wooded` | 板張り。雨戸付きの開口 1 つと扉 | 張り出しなし | 仮。事例は未確認 |
@@ -187,7 +187,7 @@ interface OpusWorkhomeSpec {
 
 ## 5. 史料
 
-参照日: 2026-11-18（§5.1〜§5.3）、2026-11-14（§5.4）。
+参照日: 2026-11-18（§5.1〜§5.4）、2026-11-14（§5.5）。
 
 ### 5.1 J. Bennell, "Shop and Office in Medieval and Tudor London", *Trans. London and Middlesex Archaeological Society* 40, pp.189–206（[ADS](https://archaeologydataservice.ac.uk/catalogue/adsdata/arch-4072-1/dissemination/pdf/LAMAS_Vol40_189-206_ShopAndOfficeInMedievalAndTudorLondon.pdf)）
 
@@ -220,7 +220,16 @@ interface OpusWorkhomeSpec {
 
 設計への適用: §4.3 の文化ごとの 1 階の形、§4.6 の大きさ。南仏の 12〜13 世紀が中心で、ドイツ語圏の店の窓の形は、本資料からは分からない。
 
-### 5.4 旧版から引き継いだ資料
+### 5.4 A. Reinle, „Fensterladen", *Reallexikon zur Deutschen Kunstgeschichte* VII（1981）, Sp. 1501–1524（[RDK Labor](https://www.rdklabor.de/wiki/Fensterladen)）
+
+- 「3. Klappläden」: 跳ね上げ・跳ね下げの雨戸（Klappladen）は、開口の上か下に蝶番で留め、棒で支えるか上で掛け金に掛けた。
+- 同節: Konrad Witz の板絵（1445 年ごろ、シュトラスブルク）に、石造の家の 1 階の店の丸アーチの開口がある。上の雨戸は上げ、下の雨戸は倒して陳列台・売り台にしている。
+- 冒頭: 通りに向けて開く中世の Klappladen が陳列台・売り台になり、ここから店を「Laden」と呼ぶようになった。
+- 同節: Zürich の世界年代記（1340〜50 年ごろ）では、上に蝶番のある雨戸を棒で支え、片流れの庇のようにしている（店とは書かれていない）。
+
+設計への適用: `northern-urban` の店の窓を、`atlantic` と同じ上下 2 枚の雨戸（TradeKit の `shopFront`）にする。開口の大きさと、扉が別にあるかは本資料からは分からない。図像が中心で、14〜15 世紀の店の雨戸の現存例は挙がっていない。
+
+### 5.5 旧版から引き継いだ資料
 
 | 資料 | 確認できること | 設計への適用と限界 |
 | --- | --- | --- |
@@ -231,7 +240,7 @@ interface OpusWorkhomeSpec {
 
 まだ確かめていないこと:
 
-- ドイツ語圏（`northern-urban`）の店の窓の形と雨戸。W1 の初めに、Bauforschung の報告を 1〜2 件調べる。
+- ドイツ語圏（`northern-urban`）の店の開口の大きさ。§5.4 で雨戸の形は確かめたが、寸法の資料はまだない。
 - `stone-upland`・`northern-wooded` の事例。見つからなければ仮のまま、本書に明記する。
 
 ## 6. 段階
@@ -277,4 +286,41 @@ interface OpusWorkhomeSpec {
 
 ## 9. 次の作業
 
-W1 です。初めに、ドイツ語圏の店の窓の事例を調べます（§5 の未確認）。そのあと、`atlantic` の型で 1 業種（仕立）を試作し、幅 3.0・4.5・6.5 m の 3 つで、見た目と三角形の数を確かめます。
+W2 です。店の間と業種の品物（§4.4、10 業種）を作り、階数の規則（§4.6）を入れます。
+
+## 10. 実装の記録
+
+### 10.1 W1（2026-11-18）
+
+作ったもの:
+
+- [opusWorkhomeProfiles.ts](../../src/buildings/medieval/opusWorkhomeProfiles.ts)（Three.js なし）: `OpusWorkhomeSpec`、正規化と `opusWorkhomeSpecKey`、壁・開口・入口を決める `opusWorkhomeLayout`、文化ごとの 1 階の型、Codex の外接矩形を保つ既定の仕様（`opusWorkhomePreset`）。CE は W3／W4 でここから敷地と入口を引く。
+- [opusWorkhome.ts](../../src/buildings/medieval/opusWorkhome.ts): `createOpusWorkhome(spec, quality)`。外殻・1 階の正面・裏口・上の階の窓・屋根・煙突・看板だけを作り、`compactModel` で材料ごとにまとめる。
+- [regionalHouseStyles.ts](../../src/buildings/houses/regionalHouseStyles.ts): 地域の型の `STYLES` を Three.js なしのファイルに移した（`REGIONAL_HOUSE_STYLES`）。住宅の出力は変えていない。
+- task 51 の 13 のモデルに、作者 `Claude Opus 5.5` の Low／High を足した。MV では、作者を Opus に切り替えると、文化・間口・店の窓の数・店の開閉・扉・階数・通りに向ける面・扉の側を選べる（`MedievalModel.presentation`、MV 側は汎用の選択欄）。Opus 版には部品の一覧がない。
+- `CE_ADOPTION` で、task 51 の CE の採用を Codex 版に固定した。CE の出力は変わらない。
+- TradeKit の `pitchedRoof` に `courses`（瓦の段を描くか）を足した。草葺きには段を描かない。
+
+設計から変えた点・決めた点:
+
+- 外接矩形を区画に収めるため、屋根の出を寸法から逆算する。平入りは隣家との境で破風の出を 0.05 m にし、妻入りは軒の出と屋根の厚みの分だけ壁を内側に寄せる。張り出しと平入りの軒も、通り側の区画の線を越えない。
+- 妻入りで店の窓が 1 m 未満になる狭い区画では、平入りに切り替える。`northern-urban`（妻入り固定）は、3 m の区画でも店の窓 1 m 弱を確保できる。
+- 裏には、表の扉と並ぶ裏口と小窓を付けた（裏庭に面する）。
+- W1 の店の開口の奥は、暗い面 1 枚で閉じた。店の間は W2 で作る。
+
+三角形の数（仕立、店の窓 2、1 棟あたり、Low／High）:
+
+| 文化 | 3 m・2 階 | 6.44 m・2 階 | 6.44 m・3 階 | 7.7 m・2 階 |
+| --- | --- | --- | --- | --- |
+| `atlantic` | 700／2,260 | 892／3,424 | 1,108／4,828 | 892／3,640 |
+| `northern-urban` | 724／2,260 | 916／3,496 | 1,132／4,876 | 916／3,724 |
+| `mediterranean` | 540／1,644 | 694／2,386 | 814／3,238 | 694／2,434 |
+| `stone-upland` | 636／2,016 | 790／2,986 | 1,006／4,390 | 790／3,142 |
+| `northern-wooded` | 556／1,696 | 748／2,512 | 868／3,496 | 748／2,596 |
+
+Low は Codex 版（4,428〜6,444）の 1/4〜1/6、地域の型の住宅 `craft`（596〜1,180）と同じ程度になった。§7.1 の上限（Low 1,800、High 7,000）に収まる。メッシュは 1 棟 7〜10 個。
+
+確かめたこと:
+
+- [opusWorkhome.test.ts](../../src/buildings/medieval/opusWorkhome.test.ts): 5 つの文化 × 間口 4 つ × 階数 2 つで外接矩形が区画に収まること、三角形の上限、扉と店の窓が重ならず柱を残すこと（3 m〜7.7 m、窓 1／2、左右）、仕様のキー、13 モデルの Opus の版と CE の採用。
+- MV で 5 つの文化を表示して目視した（英国型の平入り・妻入りの 2 窓、ハンザ型の妻入りと荷揚げ戸、南仏型のアーチの店口と石の売り台、山地型の閉じた雨戸と半開きの扉、北方の板張りの 3 m 間口）。

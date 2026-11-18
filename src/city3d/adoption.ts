@@ -3,6 +3,7 @@ import type { TreeSpecies } from "../buildings/landscape/trees";
 import { TREE_VARIANTS, treeFamily, treeLevel } from "../buildings/landscape/treeVariants";
 import { MEDIEVAL_VARIANTS, medievalFamily } from "../buildings/medieval/medievalVariants";
 import type { MedievalModel } from "../buildings/medieval/modelKit";
+import { WORKHOME_TRADE_COMBINATIONS } from "../buildings/medieval/workhomeTradeProfiles";
 import type { ModelVariant, ModelVariantInfo } from "../buildings/modelVariants";
 import { familyVariants } from "../buildings/variants";
 import type { BvDefinition } from "./three/bvInstances";
@@ -98,6 +99,22 @@ export const CE_ADOPTION: Record<string, Record<string, Adoption>> = {
             variant: `medieval.trade-workshop.${trade}@${level}#claude-opus-5.5`,
             since: "2026-11-12",
             note: "Opus fourteenth-century town-trade plot; the Codex block study failed the grounding and envelope contract"
+          }
+        ])
+      )
+    ])
+  ),
+  // The Opus shop-house (docs/plan/bv-workhome-facade-variation.md W1) is previewed in MV; CE adopts it in W3.
+  ...Object.fromEntries(
+    WORKHOME_TRADE_COMBINATIONS.map(({ role, form }) => [
+      `medieval.trade-workhome.workhome-${form}.${role}`,
+      Object.fromEntries(
+        (["low", "high"] as const).map(level => [
+          level,
+          {
+            variant: `medieval.trade-workhome.workhome-${form}.${role}@${level}#codex-gpt-6.1-sol`,
+            since: "2026-11-18",
+            note: "Kept until W3 of the Opus shop-house plan; the Opus variant is an MV preview"
           }
         ])
       )

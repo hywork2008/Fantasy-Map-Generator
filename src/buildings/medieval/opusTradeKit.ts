@@ -228,6 +228,8 @@ export class TradeKit extends ModelKit {
     gableOverhang?: number;
     surface?: Surface;
     thickness?: number;
+    /** Tile courses on High; a thatched roof has none. */
+    courses?: boolean;
   }) {
     const half = (o.across[1] - o.across[0]) / 2,
       c = (o.across[0] + o.across[1]) / 2,
@@ -260,7 +262,7 @@ export class TradeKit extends ModelKit {
       // Local w = u × n must run along the ridge; the box is symmetric, so its sign is irrelevant.
       this.oriented("roof-slope", center, u, n, [len + t * 0.6, t, length], surface);
       if (!this.high) continue;
-      for (let d = 0.28; d < len - 0.15; d += 0.3) {
+      for (let d = 0.28; o.courses !== false && d < len - 0.15; d += 0.3) {
         const p = lower
           .clone()
           .addScaledVector(u, d)
