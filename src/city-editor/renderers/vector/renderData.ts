@@ -5,7 +5,7 @@ import { packedMarketPitch } from "../../../buildings/medieval/marketPresentatio
 import type { FacilityPlans } from "../../../city3d/three/facilityMeshes";
 import { growthRandom } from "../../../utils/urbanMorphology";
 import { lotMassing, massingContext } from "../../generators/buildingMassing";
-import { nearestOnPolyline, pointInPolygon } from "../../generators/geom";
+import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../../generators/geom";
 import { treeSpeciesForClimate } from "../../generators/landscapeTreeSpecies";
 import { type ContourLine, fieldContours } from "../../generators/terrainField/contours";
 import type { TownWaterKind } from "../../generators/townWater";
@@ -173,11 +173,14 @@ export function burgagePlotSurfaces(
     });
     return out;
   }
-  const rings = plots.offsets.map((start, i) =>
-    unpackPoints(plots.coords, cell.origin, start, plots.offsets[i + 1] ?? plots.coords.length / 2)
-  );
-  // A street block no house was built in (a park's lawn, outskirts the town did not need) is no one's yard.
-  if (!rings.length || !cellHouseCount(cell)) return out;
+  // Only plots a house was built on are yards (a vacant plot, a park's lawn, outskirts the town did not need, are no
+  // one's): no ground, walls or trees of their own.
+  const all = plots.offsets.map((start, i) =>
+      unpackPoints(plots.coords, cell.origin, start, plots.offsets[i + 1] ?? plots.coords.length / 2)
+    ),
+    built = builtPlots(cell, all),
+    rings = all.filter((_, i) => built[i]);
+  if (!rings.length) return out;
   const parts = rings.map(outer => ({ outer, holes: [] as Point[][] }));
   let yards: VectorPolygon[];
   try {
@@ -197,7 +200,9 @@ export function burgagePlotSurfaces(
     elevationMeters: 0.02
   });
   // Each edge once: the sides plots share, their backs, and the corners' sides; never a plot's front.
-  const fronts = rings.map((_, i) => unpackPoints(plots.fronts, cell.origin, i * 2, i * 2 + 2));
+  const fronts = all
+    .map((_, i) => unpackPoints(plots.fronts, cell.origin, i * 2, i * 2 + 2))
+    .filter((_, i) => built[i]);
   const key = (a: Point, b: Point) => {
     const p = `${Math.round(a[0] * 10)},${Math.round(a[1] * 10)}`,
       q = `${Math.round(b[0] * 10)},${Math.round(b[1] * 10)}`;
@@ -277,6 +282,15 @@ export function burgagePlotSurfaces(
   return out;
 }
 
+/** Which of a street block's plots a house stands on (its front house or a rear one). */
+function builtPlots(cell: VectorFabricCell, rings: Point[][]): boolean[] {
+  const detached = new Set(cell.detached),
+    houses: Point[] = [];
+  for (let i = 0; i < cellHouseCount(cell); i++)
+    if (!detached.has(i)) houses.push(polygonCentroid(cellHouseRing(cell, i)));
+  return rings.map(ring => houses.some(h => pointInPolygon(h, ring)));
+}
+
 /** Fruit trees of burgage yards (plan §5.4, B5): an apple or a pear in the back half of a deep plot, two in a vacant
  * one. Placed from the plot's own geometry, so a redraw puts them back where they were. */
 export function burgageYardTrees(cell: VectorFabricCell, blocked: Point[][]): VectorLandscapeTree[] {
@@ -284,8 +298,14 @@ export function burgageYardTrees(cell: VectorFabricCell, blocked: Point[][]): Ve
   if (!plots || plots.venelles?.widths.length) return [];
   const trees: VectorLandscapeTree[] = [];
   const near = blocked.filter(r => r.some(p => Math.hypot(p[0] - cell.origin[0], p[1] - cell.origin[1]) < 400));
-  plots.offsets.forEach((start, i) => {
-    const ring = unpackPoints(plots.coords, cell.origin, start, plots.offsets[i + 1] ?? plots.coords.length / 2),
+  const rings = plots.offsets.map((start, i) =>
+      unpackPoints(plots.coords, cell.origin, start, plots.offsets[i + 1] ?? plots.coords.length / 2)
+    ),
+    built = builtPlots(cell, rings);
+  plots.offsets.forEach((_, i) => {
+    // Only a yard keeps fruit trees.
+    if (!built[i]) return;
+    const ring = rings[i],
       [a, b] = unpackPoints(plots.fronts, cell.origin, i * 2, i * 2 + 2),
       frontage = Math.hypot(b[0] - a[0], b[1] - a[1]);
     if (frontage < 3) return;

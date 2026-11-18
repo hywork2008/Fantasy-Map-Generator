@@ -3,6 +3,7 @@ import type { BurgageCellPlan } from "../../types/contracts/burgage";
 import type { Point } from "../../types/geometry";
 import { nearestOnPolyline, pointInPolygon, polygonArea } from "../geom";
 import { planBinaireCell } from "./binaireCell";
+import gateNotchCell from "./fixtures/gate-notch-cell.json";
 import { LANE_CLEARANCE_METERS } from "./frame";
 import { burgagePerimeterCell } from "./perimeterCell";
 import { BURGAGE_PROFILES, burgageProfileFor } from "./profiles";
@@ -213,5 +214,30 @@ describe("burgage street blocks beside a gate road", () => {
       return Math.max(...p.ring.map(q => Math.abs((q[0] - a[0]) * v[0] + (q[1] - a[1]) * v[1])));
     });
     expect(Math.min(...depths)).toBeGreaterThan(15);
+  });
+});
+
+describe("burgage street blocks notched by a junction", () => {
+  it("leaves the wedge a cut from the notch makes open, and gives no plot a misshapen house", () => {
+    const { burgage, cell, seed, laneWidthMeters, streets } = gateNotchCell as unknown as {
+      burgage: Parameters<typeof burgagePerimeterCell>[0];
+      cell: Parameters<typeof burgagePerimeterCell>[1];
+      seed: string;
+      laneWidthMeters: number;
+      streets: Parameters<typeof burgagePerimeterCell>[4];
+    };
+    const plan = burgagePerimeterCell(burgage, cell, seed, laneWidthMeters, streets);
+    expect(plan.plots.length).toBeGreaterThan(10);
+    // No plot is a wedge's triangle, and every front house fills most of its frontage-by-depth box.
+    expect(plan.plots.filter(p => p.ring.length === 3)).toEqual([]);
+    for (const house of plan.houses) {
+      const plot = plan.plots.find(p => house.every(q => pointInPolygon(q, p.ring) || onRing(q, p.ring)));
+      if (!plot) continue;
+      const [a, b] = plot.front,
+        l = Math.hypot(b[0] - a[0], b[1] - a[1]),
+        v: Point = [-(b[1] - a[1]) / l, (b[0] - a[0]) / l],
+        depth = Math.max(...house.map(q => Math.abs((q[0] - a[0]) * v[0] + (q[1] - a[1]) * v[1])));
+      expect(Math.abs(polygonArea(house))).toBeGreaterThanOrEqual(0.7 * l * depth - 1e-6);
+    }
   });
 });

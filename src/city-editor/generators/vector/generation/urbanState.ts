@@ -10,11 +10,12 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // v35–v36: fishmongers and butchers so too, in the rows facing the market place (same plan, R3).
 // v37–v38: a rear works stands only in the backland, clear of the streets beside or behind its plot; a street block
 // bent by a gate road is inset edge by edge, not cut into long triangles.
+// v39–v40: a cut from a block's notch leaves its wedge open; no front house is a wedge's corner.
 export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v30";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v37";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v39";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v38";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v40";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(
