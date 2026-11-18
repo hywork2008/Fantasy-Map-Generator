@@ -17,6 +17,7 @@ import {
 } from "./props/medievalContainers";
 import { createEarlyFieldCannonModel, EARLY_FIELD_CANNON } from "./siege/earlyFieldCannon";
 import { createGrokTrebuchet, GROK_TREBUCHET } from "./siege/grokTrebuchet";
+import { B29, createB29 } from "./vehicles/b29Bomber";
 import { createTigerTank, TIGER_I } from "./vehicles/tigerTank";
 import { createMedievalWellModel, MEDIEVAL_WELL } from "./wells/medievalWell";
 import { createLowMedievalWellModel } from "./wells/medievalWellLow";
@@ -56,6 +57,14 @@ export const OBJECT_VARIANTS = [
     author: TIGER_I.author,
     credits: [{ author: TIGER_I.author, date: "2026-11-18", note: TIGER_I.highNote }],
     create: () => createTigerTank("high")
+  },
+  {
+    id: variantId("object.b29", "high", B29.author),
+    family: "object.b29",
+    level: "high",
+    author: B29.author,
+    credits: [{ author: B29.author, date: "2026-11-18", note: B29.highNote }],
+    create: () => createB29("high")
   }
 ];
 

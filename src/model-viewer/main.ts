@@ -96,6 +96,7 @@ import {
 } from "../buildings/temples/basilicaTemple";
 import { validateBuildingRecord } from "../buildings/validate";
 import { familyVariants, MODEL_VARIANTS } from "../buildings/variants";
+import { B29, createB29 } from "../buildings/vehicles/b29Bomber";
 import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
 import {
   AIRSHIP,
@@ -2916,6 +2917,62 @@ AUTHORED_VARIANTS[tigerButton.dataset.id] = {
   primary: true,
   quality: true,
   show: () => showTigerTank()
+};
+
+const b29Button = document.createElement("button");
+b29Button.dataset.id = "b29";
+b29Button.type = "button";
+b29Button.textContent = "B-29 Superfortress · US heavy bomber, 1944–1960";
+function showB29(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === b29Button ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "B-29 side elevation";
+  levelTitle.textContent = "B-29 plan";
+  const model = createB29(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: B29.length, depth: B29.span } }, B29.height);
+  camera.position.set(21, 10, 24);
+  controls.target.set(1, 3.5, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", B29.name),
+    fact("Author", B29.author),
+    fact("Period", "Second World War and Korean War · United States, 1944–1960"),
+    fact("Dimensions", `${B29.length} m long × ${B29.span} m span × ${B29.height} m to the fin tip`),
+    fact(
+      "Powerplant",
+      `Four Wright R-3350 Duplex-Cyclone 18-cylinder radials with turbosuperchargers; four-blade Hamilton Standard propellers, ${B29.propellerDiameter} m`
+    ),
+    fact(
+      "Defensive armament",
+      "Four remote-controlled turrets (upper and lower, forward and aft) and a manned tail position, each shown with two .50-cal machine guns"
+    ),
+    fact("Landing gear", "Tricycle: dual main wheels retracting into the inboard nacelles, twin nose wheel"),
+    fact("Quality", quality === "high" ? "High" : "Low — one-piece flying surfaces, plain cowlings and glazing"),
+    fact("Note", B29.note, "B-29 Superfortress"),
+    ...(quality === "high" ? [fact("High detail", B29.highNote)] : [])
+  );
+}
+b29Button.addEventListener("click", () => showB29());
+vehiclesHeading.append(b29Button);
+AUTHORED_VARIANTS[b29Button.dataset.id] = {
+  author: B29.author,
+  primary: true,
+  quality: true,
+  show: () => showB29()
 };
 
 let townWallHousingCulture: BuildingAppearanceProfile = "legacy";
