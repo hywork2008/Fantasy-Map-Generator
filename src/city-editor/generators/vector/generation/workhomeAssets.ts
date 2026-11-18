@@ -1,4 +1,15 @@
 import {
+  OPUS_GUILD_HOUSE_DEPTH_STEP,
+  OPUS_GUILD_HOUSE_MAX_WIDTH,
+  OPUS_GUILD_HOUSE_MIN_DEPTH,
+  OPUS_GUILD_HOUSE_MIN_WIDTH,
+  OPUS_GUILD_HOUSE_PRESET_ENVELOPE,
+  OPUS_GUILD_HOUSE_WIDTH_STEP,
+  opusGuildHouseLayout,
+  opusGuildHouseModel,
+  opusGuildHousePreset
+} from "../../../../buildings/medieval/opusGuildHouseProfiles";
+import {
   OPUS_WORKHOME_DEPTH_STEP,
   OPUS_WORKHOME_MIN_WIDTH,
   OPUS_WORKHOME_PRESET_ENVELOPES,
@@ -20,10 +31,38 @@ const MIN_DEPTH = 8;
 
 export type WorkhomeFit = Required<Pick<OpusWorkhomeExterior, "widthMeters" | "depthMeters" | "mirror">>;
 
+/** The sizes a street house is fitted on: its frontage and depth ranges and grids, its preset depth. */
+function fitting(asset: LandmarkAsset) {
+  const id = asset.bvModel?.id ?? "",
+    workhome = opusWorkhomeModel(id);
+  if (workhome)
+    return {
+      minWidth: OPUS_WORKHOME_MIN_WIDTH,
+      maxWidth: MAX_FITTED_WIDTH,
+      widthStep: OPUS_WORKHOME_WIDTH_STEP,
+      minDepth: MIN_DEPTH,
+      presetDepth: OPUS_WORKHOME_PRESET_ENVELOPES[workhome.form][1],
+      depthStep: OPUS_WORKHOME_DEPTH_STEP,
+      door: (fit: WorkhomeFit) => opusWorkhomeLayout(opusWorkhomePreset(workhome.role, workhome.form, fit)).entrance
+    };
+  const guild = opusGuildHouseModel(id);
+  if (guild)
+    return {
+      minWidth: OPUS_GUILD_HOUSE_MIN_WIDTH,
+      maxWidth: OPUS_GUILD_HOUSE_MAX_WIDTH,
+      widthStep: OPUS_GUILD_HOUSE_WIDTH_STEP,
+      minDepth: OPUS_GUILD_HOUSE_MIN_DEPTH,
+      presetDepth: OPUS_GUILD_HOUSE_PRESET_ENVELOPE[1],
+      depthStep: OPUS_GUILD_HOUSE_DEPTH_STEP,
+      door: (fit: WorkhomeFit) => opusGuildHouseLayout(opusGuildHousePreset(guild.role, fit)).entrance
+    };
+}
+
 /**
- * A trade workhome's asset fitted to a run of burgage plots (docs/plan/bv-workhome-facade-variation.md §4.7, W4): its
- * frontage the run's on a 0.25 m grid, its depth its Codex form's (on a 0.5 m grid) or what the plots leave, its
- * door on the given side. Undefined for any other asset, or where a 3 m shop-house or an 8 m deep one does not fit.
+ * A street house's asset fitted to a run of burgage plots (docs/plan/bv-workhome-facade-variation.md §4.7, W4, W5b):
+ * its frontage the run's on its grid, its depth its preset's (on its grid) or what the plots leave, its door on the
+ * given side. A trade workhome takes 3–7.5 m, a guild house 6–10 m. Undefined for any other asset, or where the
+ * house does not fit.
  */
 export function fittedWorkhomeAsset(
   asset: LandmarkAsset,
@@ -31,18 +70,13 @@ export function fittedWorkhomeAsset(
   plotDepth: number,
   mirror: boolean
 ): { asset: LandmarkAsset; fit: WorkhomeFit } | undefined {
-  const model = asset.bvModel && opusWorkhomeModel(asset.bvModel.id);
-  if (!model) return;
+  const f = fitting(asset);
+  if (!f) return;
   const step = (v: number, s: number) => Math.floor(v / s + 1e-9) * s;
-  const width = Math.min(MAX_FITTED_WIDTH, step(frontage - 2 * SIDE_MARGIN, OPUS_WORKHOME_WIDTH_STEP)),
-    depth = Math.min(
-      step(OPUS_WORKHOME_PRESET_ENVELOPES[model.form][1], OPUS_WORKHOME_DEPTH_STEP),
-      step(plotDepth - DEPTH_MARGIN, OPUS_WORKHOME_DEPTH_STEP)
-    );
-  if (width < OPUS_WORKHOME_MIN_WIDTH || depth < MIN_DEPTH) return;
-  const door = opusWorkhomeLayout(
-      opusWorkhomePreset(model.role, model.form, { widthMeters: width, depthMeters: depth, mirror })
-    ).entrance,
+  const width = Math.min(f.maxWidth, step(frontage - 2 * SIDE_MARGIN, f.widthStep)),
+    depth = Math.min(step(f.presetDepth, f.depthStep), step(plotDepth - DEPTH_MARGIN, f.depthStep));
+  if (width < f.minWidth || depth < f.minDepth) return;
+  const door = f.door({ widthMeters: width, depthMeters: depth, mirror }),
     outer: Point[] = [
       [-width / 2, -depth / 2],
       [width / 2, -depth / 2],

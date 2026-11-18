@@ -1,10 +1,7 @@
 import * as THREE from "three";
 import type { BuildingAppearance } from "../../../buildings/appearance/types";
-import {
-  type OpusWorkhomeExterior,
-  opusWorkhomeEnvelope,
-  opusWorkhomeModel
-} from "../../../buildings/medieval/opusWorkhomeProfiles";
+import { opusWorkhomeModel } from "../../../buildings/medieval/opusWorkhomeProfiles";
+import { type StreetHouseExterior, streetHouseEnvelope } from "../../../buildings/medieval/streetHouses";
 import type { ModelQuality } from "../../../buildings/modelQuality";
 import { placeableObject } from "../../../buildings/placeableObjects";
 import { placementDefinition, placementFootprint } from "../../../buildings/placementModels";
@@ -173,9 +170,9 @@ function stampOf(...parts: unknown[]): string {
  * shared models outlive the scene that built it.
  */
 
-/** The plan box of a plot-fitted workhome, rounded as measured footprints are. */
-function workhomeFootprint(modelId: string, exterior: OpusWorkhomeExterior) {
-  const [width, depth] = opusWorkhomeEnvelope(modelId, exterior);
+/** The plan box of a plot-fitted street house, rounded as measured footprints are. */
+function workhomeFootprint(modelId: string, exterior: StreetHouseExterior) {
+  const [width, depth] = streetHouseEnvelope(modelId, exterior);
   return { halfX: Math.fround(width / 2), halfZ: Math.fround(depth / 2), centerX: 0, centerZ: 0, groundY: 0 };
 }
 
@@ -674,7 +671,7 @@ export function createVectorScene(
               activity: p.appearance?.activity,
               workhome
             }) ?? placeableObject(p.modelId),
-          // A workhome fitted to its plot (W4) stands on its own envelope, not its Codex form's.
+          // A street house fitted to its plot (W4, W5b) stands on its own envelope, not its preset's.
           footprint = p.exterior?.widthMeters
             ? workhomeFootprint(p.modelId, p.exterior)
             : placementFootprint(p.modelId, level);

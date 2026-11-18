@@ -7,6 +7,11 @@ import { DETACHED_BAKEHOUSE } from "../../buildings/medieval/detachedBakehousePr
 import { ENCLOSED_GUILD_HALL } from "../../buildings/medieval/enclosedGuildHall";
 import { ENCLOSED_GUILD_TRADES } from "../../buildings/medieval/enclosedGuildTrades";
 import { HORSE_MILL } from "../../buildings/medieval/horseMill";
+import {
+  opusGuildHouseLayout,
+  opusGuildHouseModelId,
+  opusGuildHousePreset
+} from "../../buildings/medieval/opusGuildHouseProfiles";
 import { OPUS_BUTCHERY, OPUS_TOWN_TRADES, type OpusTownTrade } from "../../buildings/medieval/opusTradeProfiles";
 import {
   type OpusWorkhomeCulture,
@@ -81,11 +86,17 @@ export function buildPopulationFacilityRequests(
   for (const hall of halls) {
     const domain = hall.domains[0] ?? "textiles",
       role = domain === "glassware" ? "glassware-pottery" : domain === "printing" ? "book-trades" : domain;
-    const asset = ENCLOSED_GUILD_TRADES.some(t => t.id === role)
-      ? cached(`guild:${role}`, () =>
-          bvFacilityAsset(`trade-hall.guild-enclosed.${role}`, [{ id: "main", ...ENCLOSED_GUILD_HALL.main }])
-        )
-      : placeholder(`guild:${role}`, 13, 10);
+    const known = ENCLOSED_GUILD_TRADES.find(t => t.id === role)?.id;
+    // A German-style guild house is a town house in the row (plan W5b); the other halls stand on their own.
+    const asset = !known
+      ? placeholder(`guild:${role}`, 13, 10)
+      : hall.kind === "zunft"
+        ? cached(`guild-house:${known}`, () =>
+            bvFacilityAsset(opusGuildHouseModelId(known), [opusGuildHouseLayout(opusGuildHousePreset(known)).entrance])
+          )
+        : cached(`guild:${known}`, () =>
+            bvFacilityAsset(`trade-hall.guild-enclosed.${known}`, [{ id: "main", ...ENCLOSED_GUILD_HALL.main }])
+          );
     requests.push({
       id: `${PREFIX}guild:${hall.kind === "town" ? "town" : domain}`,
       asset,

@@ -322,8 +322,9 @@ export class TradeKit extends ModelKit {
     }
   }
 
-  /** Window: a cut opening with a dark oiled-cloth pane, lattice and open shutters (High) or a flush dark panel (Low). */
-  windowOn(axis: "x" | "z", face: number, out: 1 | -1, u: number, y: number, w = 0.7, h = 0.85) {
+  /** Window: a cut opening with a dark oiled-cloth pane, lattice and open shutters (High) or a flush dark panel (Low).
+   * A row of close-set windows has no room for shutters (`shutters` false). */
+  windowOn(axis: "x" | "z", face: number, out: 1 | -1, u: number, y: number, w = 0.7, h = 0.85, shutters = true) {
     const at = (d: number) => face + out * d;
     if (!this.high) {
       if (axis === "x") this.box("window-panel", [u, y, at(0.01)], [w, h, 0.02], "dark");
@@ -347,7 +348,7 @@ export class TradeKit extends ModelKit {
     pane("window-mullion", u, y, 0.05, h, -WALL / 2 + 0.04, 0.05, "oak");
     pane("window-transom", u, y + h * 0.1, w, 0.04, -WALL / 2 + 0.04, 0.04, "oak");
     pane("window-sill", u, y - h / 2 - 0.04, w + 0.2, 0.08, 0.06, 0.14, "oak");
-    for (const s of [-1, 1]) {
+    for (const s of shutters ? [-1, 1] : []) {
       pane("window-shutter", u + s * (w * 0.75 + 0.02), y, w / 2, h, 0.04, 0.04, "wood");
       pane("shutter-hinge", u + s * (w / 2 + 0.03), y + h * 0.3, 0.1, 0.04, 0.065, 0.02, "iron");
     }

@@ -2,7 +2,7 @@
 
 作成: 2026-11-14
 更新: 2026-11-18（Codex 版の内部構造をやめ、外観だけの Claude Opus 5.5 版を作る計画へ全面的に書き直した）
-状態: W0（計測、§3.3）、W1（MV の Opus 版、§10.1）、W2（店の間・品物・階数、§10.2）、W3（CE で Opus 版を採用、§10.3）、W4（短冊形区画の幅に合わせる、§10.4）を済ませた。W5 は史料の調べ直し（§5.6）、計画（§6.1）、W5a（会館の数の規則、§10.5）を済ませた。残りは W5b・W5c。
+状態: W0（計測、§3.3）、W1（MV の Opus 版、§10.1）、W2（店の間・品物・階数、§10.2）、W3（CE で Opus 版を採用、§10.3）、W4（短冊形区画の幅に合わせる、§10.4）を済ませた。W5 は史料の調べ直し（§5.6）、計画（§6.1）、W5a（会館の数の規則、§10.5）、W5b（ドイツ語圏の会館を並びの町家に、§10.6）を済ませた。残りは W5c。
 
 ## 1. 目的と方針
 
@@ -342,7 +342,7 @@ interface OpusWorkhomeSpec {
 本書の W1〜W4 は済んだ。次の候補は 3 つある。
 
 - 町の中心の大型施設（task 52〜58）の大きさの見直し（§8 の未決事項。別の設計書）。`burgage-dense` の施設のある町の建物の割合を `compact` に近づけるには、こちらが要る（§10.4）。
-- W5b（`northern-urban` の Zunfthaus を区画の並びの町家にする、§6.1）。W5a は済んだ（§10.5）。
+- W5c（`atlantic` の町のギルドホール、§6.1）。task 49（1 階が開いた型）を CE で使えるようにして市場に面して置く。W5a・W5b は済んだ（§10.5、§10.6）。
 - §10.4 で見つけた、`burgage`・川あり・5,000 人・種 `r1` の検証の誤り（刃物屋の配置）。W4 の前からある。
 
 ## 10. 実装の記録
@@ -544,3 +544,45 @@ Low は Codex 版（4,428〜6,444）の 1/4〜1/6、地域の型の住宅 `craft
 
 - Economy ありの町の会館（`raiseVectorGuilds`、`environment.guilds`）は、FMG の組合から別に建つ。§6.1 の規則はまだ通していない。
 - メッシュありの CE の会館の数は変えていない。
+
+### 10.6 W5b（2026-11-18）
+
+作ったもの:
+
+- MV: task 48 に Opus の会館（`trade-hall.guild-house.<業種>`、10 業種、作者 Claude Opus 5.5、Low／High）を足した。新しいモデル ID で、Codex の独立した会館（`trade-hall.guild-enclosed.*`）は変えていない。MV で文化・間口（6〜10 m）・階数・妻入り／平入り・扉の開閉・扉の側を切り替えられる。
+  - [opusGuildHouseProfiles.ts](../../src/buildings/medieval/opusGuildHouseProfiles.ts)（three.js なし）: 仕様・配置・外観の保存形・検査。外形は既定 8×12 m、間口 6〜10 m（0.25 m 刻み）、奥行き 9〜14 m（0.5 m 刻み）。
+  - [opusGuildHouse.ts](../../src/buildings/medieval/opusGuildHouse.ts): 1 階は石造で、アーチの入口と鉄格子の窓（チューリヒの Haus zum Rüden は 1348 年に 1 階を石で建て直した。`northern-wooded` だけ木造）。2 階は会合室（Stube）で、天井高 3.2 m、雨戸のない窓を間口いっぱいに並べる（Reihenfenster）。3 階は家の窓。入口の脇に組合の看板（業種の道具・品物の絵）を吊るす。内部は作らない。
+  - Workhome と同じ外殻を使うため、[opusWorkhome.ts](../../src/buildings/medieval/opusWorkhome.ts) の組み立てを `groundShell`・`raiseStreetHouse`・`upperStorey` に分け、[opusWorkhomeProfiles.ts](../../src/buildings/medieval/opusWorkhomeProfiles.ts) の外形の計算を `opusStreetShell` に分けた。Workhome のモデルは頂点まで変わらない（5 文化×4 間口×Low／High の頂点・行列のハッシュが前と一致）。
+- CE:
+  - `northern-urban` の会館（W5a の `zunft`）の要求を、Opus の会館のモデルにした。`atlantic` などの町のギルドホールと職人組合の会館は、W5c までは今の task 48 の独立した会館のまま。
+  - `burgage`／`burgage-dense` では、Workhome と同じ方法で区画に合わせる（[workhomeAssets.ts](../../src/city-editor/generators/vector/generation/workhomeAssets.ts)）。区画の並びの間口から幅を 6〜10 m で決め、1 筆で 6 m に足りない時は 2 筆を使う。
+  - 外観（`dressWorkhomes`）は、町の文化、入口の開閉、明暗を施設ごとの乱数で決め、高さをモデルに合わせる。保存の `exterior` は、Workhome と会館のどちらかの形（[streetHouses.ts](../../src/buildings/medieval/streetHouses.ts) で型ごとに検査する）。
+  - 版: `compact` を v27、`burgage` を v28、`burgage-dense` を v29 にした（`northern-urban` の町の出力が変わる。`atlantic` の町は版の文字列のほかは変わらない）。
+
+施設のある町（壁あり・川なし、`b2-probe`、大航海時代、`northern-urban`）、W5b の前 → 後:
+
+| 町 | 会館の幅 | 施設を置けた数 | 建物の割合（家と施設） | 未収容 |
+| --- | --- | --- | --- | --- |
+| `compact` 2,000 人 | 12.8 → 8 m（既定） | 85/91 → 85/91 | 43% → 38% | 0 |
+| `compact` 5,000 人 | 12.8 → 8 m（既定） | 233/249 → 233/249 | 45% → 44% | 0 |
+| `burgage` 2,000 人 | 12.8 → 6.75 m | 85/91 → 85/91 | 16% → 17% | 0 |
+| `burgage` 5,000 人 | 12.8 → 6.25〜10 m | 230/249 → 227/249 | 15% → 15% | 0 |
+| `burgage-dense` 2,000 人 | 12.8 → 8.25 m | 85/91 → 85/91 | 33% → 31% | 0 |
+| `burgage-dense` 5,000 人 | 12.8 → 7.25〜9.5 m | 233/249 → 233/249 | 31% → 30% | 0 |
+
+- `atlantic` の 6 つの町は、施設・家・建物の割合が前と同じ。
+- `compact` 2,000 人の建物の割合が 5 ポイント下がったのは、会館の位置が変わって町の街区の分け方が変わり、壁の中の街区が 1 つ増えた（41,254 → 45,609 m²）ため。建物の面積（17,549 → 17,489 m²）はほぼ同じ。
+- `burgage` 5,000 人では置けた施設が 3 つ減った（ろうそく屋など）。会館が区画の並びに入った分、ほかの施設の置き場所が変わったためとみられるが、原因は確かめていない。
+
+確かめたこと:
+
+- [opusGuildHouse.test.ts](../../src/buildings/medieval/opusGuildHouse.test.ts) を足した（3 件: 5 文化×間口 6・8・10 m×2・3 階×妻入り／平入りで外形の中に収まること、三角形が Low 1,800・High 7,000 以下（Workhome と同じ上限）、Low と High で高さが同じこと。入口・1 階の窓・Stube の窓が重ならないこと。10 業種が CE で置けること）。
+- [workhomeExteriors3d.test.ts](../../src/city-editor/renderers/vector/workhomeExteriors3d.test.ts) に 2 件足した: `northern-urban`・`burgage-dense`・3,000 人の町で、会館が 2 棟とも Opus の会館（独立した会館は 0）、幅 6〜10 m、文化と妻入りが町のものであること。3D で警告が出ないこと。
+- [enclosedGuildHall.test.ts](../../src/buildings/medieval/enclosedGuildHall.test.ts) は task 48 の全モデルを独立した会館として調べていたので、独立した会館だけを調べるように絞った。
+- MV で目視した（`northern-urban`、8 m、High）。Stube の窓の列に雨戸を付けると重なったので、列の窓には雨戸を付けない（`TradeKit.windowOn` に `shutters` を足した。既定は今までどおり付ける）。
+- 関連テスト 64 ファイルを実行した。失敗は、W5b の前から失敗している 5 ファイル（`modelContracts.test.ts` の 40 件、`marketGuildHall.test.ts`・`structuralClearance.test.ts`・`waterGeometry.test.ts`・`obernHouseModels.test.ts` の各 1 件。W5a のコミットでも同じ数だけ失敗する）だけ。`tsc --noEmit`・biome・`scripts/lint-architecture.ts` も成功した。
+
+まだ扱っていないこと:
+
+- 会館の大きさの根拠は、「隣の町家と同じ区画の家」という仮定だけ（§5.6 のまだ確かめていないこと）。
+- 1 つの家に同居する組合（W5a）は、看板に先頭の組合しか描かない。

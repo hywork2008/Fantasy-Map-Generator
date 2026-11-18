@@ -4,11 +4,12 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 /** Output-changing revisions bump this; recipe links refuse documents adopted by another version. */
 // v21–v23: the Opus shop-house workhomes (docs/plan/bv-workhome-facade-variation.md W3, W4) on each plot fabric.
 // v24–v26: guild halls by the town's culture and size (same plan, W5a).
-export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v24";
+// v27–v29: German-style guild houses as town houses in the street row (W5b).
+export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v27";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v25";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v28";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v26";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v29";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(

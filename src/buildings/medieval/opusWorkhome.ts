@@ -6,6 +6,7 @@ import type { Surface } from "./modelKit";
 import { TradeKit, type TradeQuality, WALL_THICKNESS, type WallOpening } from "./opusTradeKit";
 import { tradeGoods } from "./opusWorkhomeGoods";
 import {
+  type OpusStreetLayout,
   type OpusWorkhomeLayout,
   type OpusWorkhomeOpening,
   type OpusWorkhomeSpec,
@@ -15,8 +16,8 @@ import {
 
 export * from "./opusWorkhomeProfiles";
 
-const PLINTH = 0.42;
-const DOOR_HEIGHT = 2.15;
+export const PLINTH = 0.42;
+export const DOOR_HEIGHT = 2.15;
 const SHOP_SILL = 0.8;
 const SHOP_HEAD = 2.15;
 /** Rise of a segmental arch over a shop or a door: low enough to keep the head under the first floor. */
@@ -26,7 +27,7 @@ const hex = (palette: BuildingPaletteId, shade: number) =>
   Number.parseInt(BUILDING_PALETTES[palette][shade].slice(1), 16);
 
 /** Kit colours from the culture's house style, so the workhome takes its street's look (plan §4.1). */
-function colors(l: OpusWorkhomeLayout): Partial<Record<Surface, number>> {
+export function streetHouseColors(l: OpusStreetLayout): Partial<Record<Surface, number>> {
   const s = l.spec.shade;
   return {
     plaster: hex(l.finish === "boarding" ? "timber" : l.colors.wall, s),
@@ -36,10 +37,10 @@ function colors(l: OpusWorkhomeLayout): Partial<Record<Surface, number>> {
   };
 }
 
-const archRise = (o: OpusWorkhomeOpening) => Math.min(ARCH_RISE, (o.b - o.a) / 2);
+export const archRise = (o: OpusWorkhomeOpening) => Math.min(ARCH_RISE, (o.b - o.a) / 2);
 
 /** Wall fill between a rectangular cut and its segmental arch, plus a dressed arch ring (High). */
-function archHead(k: TradeKit, o: OpusWorkhomeOpening, spring: number, face: number) {
+export function archHead(k: TradeKit, o: OpusWorkhomeOpening, spring: number, face: number) {
   const span = o.b - o.a,
     c = (o.a + o.b) / 2,
     rise = archRise(o),
@@ -143,7 +144,7 @@ function shopWindow(k: TradeKit, l: OpusWorkhomeLayout, o: OpusWorkhomeOpening, 
   shopBay(k, l, o, head, face + 0.33);
 }
 
-function streetDoor(k: TradeKit, l: OpusWorkhomeLayout, top: number) {
+export function streetDoor(k: TradeKit, l: OpusStreetLayout & { spec: { door: "closed" | "ajar" } }, top: number) {
   const { a, b } = l.door,
     face = l.z1,
     c = (a + b) / 2,
@@ -191,18 +192,57 @@ function sign(k: TradeKit, l: OpusWorkhomeLayout) {
   });
 }
 
-/** One upper storey: front, back and party walls with its windows; the front may jetty out. */
-function upperStorey(k: TradeKit, l: OpusWorkhomeLayout, y0: number, y1: number, front: number, surface: Surface) {
+/** Front windows of an upper storey: centres along X, pane size, and the wall cut (High) from `from` to `to` above
+ * the floor, `cut` wide. */
+export interface StoreyWindows {
+  at: readonly number[];
+  w: number;
+  h: number;
+  centre: number;
+  cut: number;
+  from: number;
+  to: number;
+  /** Open shutters beside each window (High); a close-set row has none. */
+  shutters?: boolean;
+}
+const SHOP_HOUSE_WINDOWS = (l: OpusStreetLayout): StoreyWindows => ({
+  at: l.windows,
+  w: 0.76,
+  h: 0.95,
+  centre: 1.3,
+  cut: 0.76,
+  from: 0.82,
+  to: 1.78
+});
+
+/** One upper storey: front, back and party walls with its windows; the front may jetty out. A guild house's Stube
+ * passes its own row of front windows (`front` centres, `size` width and height). */
+export function upperStorey(
+  k: TradeKit,
+  l: OpusStreetLayout,
+  y0: number,
+  y1: number,
+  front: number,
+  surface: Surface,
+  windows: StoreyWindows = SHOP_HOUSE_WINDOWS(l)
+) {
   const t = WALL_THICKNESS,
-    windowY = y0 + 1.3,
-    cut: WallOpening[] = k.high ? l.windows.map(u => ({ a: u - 0.38, b: u + 0.38, y0: y0 + 0.82, y1: y0 + 1.78 })) : [];
+    windowY = y0 + windows.centre,
+    cut: WallOpening[] = k.high
+      ? windows.at.map(u => ({
+          a: u - windows.cut / 2,
+          b: u + windows.cut / 2,
+          y0: y0 + windows.from,
+          y1: y0 + windows.to
+        }))
+      : [];
   k.wall("upper-wall", "x", l.x0, l.x1, front - t / 2, y0, y1, cut, surface);
   const back = l.windows.filter((_, i) => i % 2 === 0);
   const backCut: WallOpening[] = k.high ? back.map(u => ({ a: u - 0.3, b: u + 0.3, y0: y0 + 0.95, y1: y0 + 1.7 })) : [];
   k.wall("upper-wall", "x", l.x0, l.x1, l.z0 + t / 2, y0, y1, backCut, surface);
   for (const x of [l.x0 + t / 2, l.x1 - t / 2]) k.wall("party-wall", "z", l.z0 + t, front - t, x, y0, y1, [], surface);
-  for (const u of l.windows) k.windowOn("x", front, 1, u, windowY, 0.76, 0.95);
-  for (const u of back) k.windowOn("x", l.z0, -1, u, windowY, 0.6, 0.75);
+  for (const u of windows.at) k.windowOn("x", front, 1, u, windowY, windows.w, windows.h, windows.shutters ?? true);
+  for (const u of back) k.windowOn("x", l.z0, -1, u, y0 + 1.3, 0.6, 0.75);
   if (l.finish === "frame") {
     k.framing("x", l.x0, l.x1, front, 1, y0, y1, cut, 0.6);
     k.framing("x", l.x0, l.x1, l.z0, -1, y0, y1, backCut, 0.9);
@@ -214,7 +254,7 @@ function upperStorey(k: TradeKit, l: OpusWorkhomeLayout, y0: number, y1: number,
 }
 
 /** Street gable of a gable-fronted house: framed infill, a loft window or a hoist door with its beam. */
-function streetGable(k: TradeKit, l: OpusWorkhomeLayout, front: number, top: number, rise: number) {
+function streetGable(k: TradeKit, l: OpusStreetLayout, front: number, top: number, rise: number) {
   const c = (l.x0 + l.x1) / 2;
   if (l.hoist) {
     // Hanseatic lofts stored goods, hoisted from the street (Garrigou Grandchamp 2002 p.94).
@@ -225,26 +265,15 @@ function streetGable(k: TradeKit, l: OpusWorkhomeLayout, front: number, top: num
   } else k.windowOn("x", front, 1, c, top + rise * 0.38, 0.55, 0.7);
 }
 
-/** The Opus shop-house workhome of a spec (plan §4): street front only, no interior ledger. */
-export function createOpusWorkhome(input: OpusWorkhomeSpec, quality: TradeQuality): CityStructureMeshes {
-  const l = opusWorkhomeLayout(input),
-    spec = l.spec,
-    k = new TradeKit(`opus-workhome-${spec.role}-${quality}`, quality === "high", colors(l)),
-    t = WALL_THICKNESS;
-  const groundSurface: Surface = l.stoneGround ? "stone" : "plaster";
-  const upperSurface: Surface = "plaster";
-  // Ground storey: plinth, street front cut by the door and the shops, blank party walls.
-  // An arched opening springs lower so its crown keeps the square head's height (plus a little).
-  const spring = (o: OpusWorkhomeOpening, head: number) => head + 0.3 - archRise(o);
-  const headOf = (head: number) => (l.arched ? head + 0.3 : head);
-  const front: WallOpening[] = [
-    { a: l.door.a, b: l.door.b, y0: -1, y1: headOf(DOOR_HEIGHT) },
-    ...l.shops.map(o => ({ a: o.a, b: o.b, y0: SHOP_SILL, y1: headOf(SHOP_HEAD) }))
-  ];
+/**
+ * The ground storey's shell of a street house: plinth, the street front cut by `front`, the back wall with a door
+ * lined up with the street door and a small window, and blank party walls.
+ */
+export function groundShell(k: TradeKit, l: OpusStreetLayout, front: readonly WallOpening[], surface: Surface) {
+  const t = WALL_THICKNESS;
   k.wall("stone-plinth", "x", l.x0, l.x1, l.z1 - t / 2, 0, PLINTH, front, "stone", t + 0.06);
-  // The back door to the yard lines up with the street door; a small window lights the back room.
   const backDoor: WallOpening = { a: l.door.a, b: l.door.b, y0: -1, y1: DOOR_HEIGHT - 0.1 };
-  const backWindow = (l.x0 + l.x1) / 2 + (spec.mirror ? -1 : 1) * (l.x1 - l.x0) * 0.22;
+  const backWindow = (l.x0 + l.x1) / 2 + (l.spec.mirror ? -1 : 1) * (l.x1 - l.x0) * 0.22;
   const back: WallOpening[] = [
     backDoor,
     ...(k.high ? [{ a: backWindow - 0.3, b: backWindow + 0.3, y0: 1.2, y1: 1.9 }] : [])
@@ -252,8 +281,8 @@ export function createOpusWorkhome(input: OpusWorkhomeSpec, quality: TradeQualit
   k.wall("stone-plinth", "x", l.x0, l.x1, l.z0 + t / 2, 0, PLINTH, [backDoor], "stone", t + 0.06);
   for (const x of [l.x0 + t / 2, l.x1 - t / 2])
     k.wall("stone-plinth", "z", l.z0 + t, l.z1 - t, x, 0, PLINTH, [], "stone", t + 0.06);
-  k.wall("ground-wall", "x", l.x0, l.x1, l.z1 - t / 2, PLINTH, l.ground, front, groundSurface);
-  k.wall("ground-wall", "x", l.x0, l.x1, l.z0 + t / 2, PLINTH, l.ground, back, groundSurface);
+  k.wall("ground-wall", "x", l.x0, l.x1, l.z1 - t / 2, PLINTH, l.ground, front, surface);
+  k.wall("ground-wall", "x", l.x0, l.x1, l.z0 + t / 2, PLINTH, l.ground, back, surface);
   k.box(
     "back-door-leaf",
     [(backDoor.a + backDoor.b) / 2, (DOOR_HEIGHT - 0.1) / 2, l.z0 + t / 2],
@@ -262,13 +291,22 @@ export function createOpusWorkhome(input: OpusWorkhomeSpec, quality: TradeQualit
   );
   k.windowOn("x", l.z0, -1, backWindow, 1.55, 0.6, 0.7);
   for (const x of [l.x0 + t / 2, l.x1 - t / 2])
-    k.wall("party-wall", "z", l.z0 + t, l.z1 - t, x, PLINTH, l.ground, [], groundSurface);
-  if (l.arched) {
-    archHead(k, l.door, spring(l.door, DOOR_HEIGHT), l.z1);
-    for (const o of l.shops) archHead(k, o, spring(o, SHOP_HEAD), l.z1);
-  } else if (l.finish === "frame") k.framing("x", l.x0, l.x1, l.z1, 1, PLINTH, l.ground, front);
-  streetDoor(k, l, headOf(DOOR_HEIGHT));
-  for (const o of l.shops) shopWindow(k, l, o, headOf(SHOP_HEAD));
+    k.wall("party-wall", "z", l.z0 + t, l.z1 - t, x, PLINTH, l.ground, [], surface);
+}
+
+/**
+ * Everything above the ground storey: the first floor and its jetty, the upper storeys (`storey` builds each, the
+ * shop-house's by default), the roof with its eaves or gable to the street, and the chimney stack.
+ */
+export function raiseStreetHouse(
+  k: TradeKit,
+  l: OpusStreetLayout,
+  heights: readonly number[],
+  storey: (index: number, y0: number, y1: number, front: number) => void = (_, y0, y1, front) =>
+    upperStorey(k, l, y0, y1, front, "plaster")
+) {
+  const t = WALL_THICKNESS,
+    upperSurface: Surface = "plaster";
   // Upper storeys over the first-floor joists; only the first jetties out over the street.
   const front1 = l.z1 + l.jetty;
   k.box(
@@ -284,7 +322,10 @@ export function createOpusWorkhome(input: OpusWorkhomeSpec, quality: TradeQualit
       k.beam("jetty-bracket", [x, l.ground - 0.75, l.z1 + 0.05], [x, l.ground - 0.05, front1 - 0.1], 0.13, "oak");
   }
   let y = l.ground + 0.2;
-  for (let s = 1; s < spec.storeys; s++, y += l.upper) upperStorey(k, l, y, y + l.upper, front1, upperSurface);
+  for (const [i, h] of heights.entries()) {
+    storey(i, y, y + h, front1);
+    y += h;
+  }
   const top = y;
   // Roof: eaves or gable to the street, overhangs ending on the envelope.
   const roof = k.pitchedRoof(
@@ -329,8 +370,37 @@ export function createOpusWorkhome(input: OpusWorkhomeSpec, quality: TradeQualit
     streetGable(k, l, front1, top, roof.rise);
   }
   // The hearth's stack rises against the party wall away from the door.
-  const stackX = spec.mirror ? l.x0 + 0.45 : l.x1 - 0.45;
+  const stackX = l.spec.mirror ? l.x0 + 0.45 : l.x1 - 0.45;
   k.chimneyStack(stackX, l.z0 + 1.2, roof.ridgeY + 0.5, 0.7, 0.6, l.stoneGround ? "stone" : "brick");
+  return { front1, top };
+}
+
+/** The Opus shop-house workhome of a spec (plan §4): street front only, no interior ledger. */
+export function createOpusWorkhome(input: OpusWorkhomeSpec, quality: TradeQuality): CityStructureMeshes {
+  const l = opusWorkhomeLayout(input),
+    spec = l.spec,
+    k = new TradeKit(`opus-workhome-${spec.role}-${quality}`, quality === "high", streetHouseColors(l));
+  const groundSurface: Surface = l.stoneGround ? "stone" : "plaster";
+  // Ground storey: plinth, street front cut by the door and the shops, blank party walls.
+  // An arched opening springs lower so its crown keeps the square head's height (plus a little).
+  const spring = (o: OpusWorkhomeOpening, head: number) => head + 0.3 - archRise(o);
+  const headOf = (head: number) => (l.arched ? head + 0.3 : head);
+  const front: WallOpening[] = [
+    { a: l.door.a, b: l.door.b, y0: -1, y1: headOf(DOOR_HEIGHT) },
+    ...l.shops.map(o => ({ a: o.a, b: o.b, y0: SHOP_SILL, y1: headOf(SHOP_HEAD) }))
+  ];
+  groundShell(k, l, front, groundSurface);
+  if (l.arched) {
+    archHead(k, l.door, spring(l.door, DOOR_HEIGHT), l.z1);
+    for (const o of l.shops) archHead(k, o, spring(o, SHOP_HEAD), l.z1);
+  } else if (l.finish === "frame") k.framing("x", l.x0, l.x1, l.z1, 1, PLINTH, l.ground, front);
+  streetDoor(k, l, headOf(DOOR_HEIGHT));
+  for (const o of l.shops) shopWindow(k, l, o, headOf(SHOP_HEAD));
+  raiseStreetHouse(
+    k,
+    l,
+    Array.from({ length: spec.storeys - 1 }, () => l.upper)
+  );
   sign(k, l);
   return compactModel(k.finish());
 }

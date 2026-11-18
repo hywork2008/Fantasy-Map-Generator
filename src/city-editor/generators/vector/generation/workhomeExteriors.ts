@@ -1,3 +1,10 @@
+import { opusGuildHouseHeight } from "../../../../buildings/medieval/opusGuildHouse";
+import {
+  type OpusGuildHouseExterior,
+  opusGuildHouseModel,
+  opusGuildHouseSpecKey,
+  opusGuildHouseSpecOf
+} from "../../../../buildings/medieval/opusGuildHouseProfiles";
 import { opusWorkhomeHeight } from "../../../../buildings/medieval/opusWorkhome";
 import {
   OPUS_WORKHOME_FRONTS,
@@ -50,14 +57,40 @@ export function dressWorkhomes(doc: VectorCityDocument, ids: readonly string[]) 
     faceFixed = OPUS_WORKHOME_FRONTS[culture].face,
     dressed: { outer: [number, number][]; key: string }[] = [];
   for (const id of ids) {
-    const p = doc.placements[id],
-      model = p && opusWorkhomeModel(p.modelId);
-    if (!model || p.origin !== "automatic" || p.building?.kind !== "facility") continue;
+    const p = doc.placements[id];
+    if (p?.origin !== "automatic" || p.building?.kind !== "facility") continue;
+    const r = (k: string) => growthRandom(`workhome-exterior:${id}:${k}`);
+    // A guild house (W5b): the town's culture, its portal and shade from its own draw; never the front of a
+    // neighbouring one.
+    if (opusGuildHouseModel(p.modelId)) {
+      const saved = p.exterior as OpusGuildHouseExterior | undefined,
+        exterior: OpusGuildHouseExterior = {
+          ...(saved?.widthMeters
+            ? { widthMeters: saved.widthMeters, depthMeters: saved.depthMeters, mirror: saved.mirror }
+            : {}),
+          culture,
+          entranceFace: faceFixed ?? (r("face") < 0.5 ? "gable" : "eave"),
+          storeys: 3,
+          door: r("door") < AJAR_DOOR ? "ajar" : "closed",
+          shade: Math.min(2, Math.floor(r("shade") * 3)) as 0 | 1 | 2
+        },
+        keyOf = (e: OpusGuildHouseExterior) => opusGuildHouseSpecKey(opusGuildHouseSpecOf(p.modelId, e)!),
+        neighbours = dressed.filter(d => touching(d.outer, p.site.outer)).map(d => d.key);
+      for (let step = 0; step < 3 && neighbours.includes(keyOf(exterior)); step++)
+        exterior.shade = ((exterior.shade + 1) % 3) as 0 | 1 | 2;
+      p.exterior = exterior;
+      const height = opusGuildHouseHeight(opusGuildHouseSpecOf(p.modelId, exterior)!);
+      p.building.heightMeters = height;
+      if (p.display) p.display.heightMeters = height;
+      dressed.push({ outer: p.site.outer, key: keyOf(exterior) });
+      continue;
+    }
+    const model = opusWorkhomeModel(p.modelId);
+    if (!model) continue;
     // A workhome fitted to its burgage plot keeps the plot's envelope and its door side (W4).
     const fit = p.exterior?.widthMeters
         ? { widthMeters: p.exterior.widthMeters, depthMeters: p.exterior.depthMeters, mirror: p.exterior.mirror }
         : {},
-      r = (k: string) => growthRandom(`workhome-exterior:${id}:${k}`),
       width = fit.widthMeters ?? OPUS_WORKHOME_PRESET_ENVELOPES[model.form][0];
     const exterior: OpusWorkhomeExterior = {
       ...fit,

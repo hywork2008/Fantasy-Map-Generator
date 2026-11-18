@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import type { BuildingAppearanceProfile } from "../../../buildings/appearance/types";
 import { opusWorkhomeSpecKey, opusWorkhomeSpecOf } from "../../../buildings/medieval/opusWorkhomeProfiles";
 import { placementDefinition } from "../../../buildings/placementModels";
 import { defaultGenerationSettings } from "../../generators/generation/settings";
@@ -16,21 +17,25 @@ import type { VectorCityDocument } from "../../types/vector/document";
 import { vectorRenderData } from "./renderData";
 import { createVectorScene } from "./scene3d";
 
-/** A walled town of 2,000 people with its facilities, on compact lots or burgage plots. */
-function town(plotFabric: PlotFabric = "compact"): VectorCityDocument {
+/** A walled town with its facilities (2,000 people unless given), on compact lots or burgage plots. */
+function town(
+  plotFabric: PlotFabric = "compact",
+  { population = 2000, culture }: { population?: number; culture?: BuildingAppearanceProfile } = {}
+): VectorCityDocument {
   const seed = "workhome-w3",
     settings = {
       ...defaultGenerationSettings(),
       wallShape: "polygon" as const,
       plotFabric,
-      facilityLayout: "population" as const
+      facilityLayout: "population" as const,
+      ...(culture ? { buildingAppearanceProfile: culture } : {})
     };
   settings.config = {
     ...settings.config,
     rivers: [],
     features: { ...settings.config.features, walls: true, port: false, shanty: false }
   };
-  settings.population = defaultPopulationSettings(2000);
+  settings.population = defaultPopulationSettings(population);
   const input = vectorInputFromEditor({
       settings,
       seed,
@@ -42,7 +47,7 @@ function town(plotFabric: PlotFabric = "compact"): VectorCityDocument {
   return generateVectorUrban(skeleton, {
     ...DEFAULT_VECTOR_URBAN,
     mode: "medieval-facilities",
-    population: 2000,
+    population,
     plotFabric
   });
 }
@@ -105,7 +110,7 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
     workhomes = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workhome."));
 
   it("builds nearly every workhome on one plot, as wide as the plot on its grid, its door on its own side", () => {
-    expect(doc.urban!.algorithm).toBe("vector-urban-v26");
+    expect(doc.urban!.algorithm).toBe("vector-urban-v29");
     expect(() => assertVectorDocument(doc)).not.toThrow();
     // Plots whose front, a metre in, lies under a workhome's parcel.
     const fronts = Object.values(doc.fabric!.cells).flatMap(c =>
@@ -145,6 +150,28 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
 
   it("draws every fitted workhome as its model", () => {
     const ids = new Set(workhomes.map(p => p.id));
+    expect(warningsOf(doc).filter(w => ids.has(w.slice(w.indexOf(":") + 1)))).toEqual([]);
+  });
+});
+
+describe("Guild houses in the street row of a German-style town (docs/plan/bv-workhome-facade-variation.md W5b)", () => {
+  const doc = town("burgage-dense", { population: 3000, culture: "northern-urban" }),
+    houses = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-hall.guild-house."));
+
+  it("raises the town's guild houses as town houses of one or two plots, fronted in its culture", () => {
+    expect(() => assertVectorDocument(doc)).not.toThrow();
+    // 3,000 people: a guild house for each 1,250 (plan §6.1), and no detached hall.
+    expect(houses).toHaveLength(2);
+    expect(Object.values(doc.placements).some(p => p.modelId.startsWith("trade-hall.guild-enclosed."))).toBe(false);
+    for (const p of houses) {
+      expect(p.exterior).toMatchObject({ culture: "northern-urban", entranceFace: "gable", storeys: 3 });
+      expect(p.exterior!.widthMeters).toBeGreaterThanOrEqual(6);
+      expect(p.exterior!.widthMeters).toBeLessThanOrEqual(10);
+    }
+  });
+
+  it("draws every guild house as its model", () => {
+    const ids = new Set(houses.map(p => p.id));
     expect(warningsOf(doc).filter(w => ids.has(w.slice(w.indexOf(":") + 1)))).toEqual([]);
   });
 });

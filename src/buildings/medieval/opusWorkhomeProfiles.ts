@@ -104,8 +104,8 @@ export interface OpusWorkhomeOpening {
   b: number;
 }
 
-export interface OpusWorkhomeLayout {
-  spec: OpusWorkhomeSpec;
+/** The walls, roof and finish of an Opus street house, shared by shop-houses and guild houses (plan §4.1, §6.1). */
+export interface OpusStreetShell {
   /** Ground-storey walls; z1 is the street front, z0 the back. */
   x0: number;
   x1: number;
@@ -120,18 +120,39 @@ export interface OpusWorkhomeLayout {
   roofThickness: number;
   eaveOverhang: number;
   vergeOverhang: number;
-  door: OpusWorkhomeOpening;
-  shops: OpusWorkhomeOpening[];
-  /** Upper-storey window centres along X. */
-  windows: number[];
   arched: boolean;
   stoneGround: boolean;
-  hoist: boolean;
-  /** Main entrance on the street front, model metres. */
-  entrance: { id: "main"; position: readonly [number, number, number]; clearWidth: number };
   colors: { wall: BuildingPaletteId; roof: BuildingPaletteId; frame?: BuildingPaletteId; plinth: BuildingPaletteId };
   finish: "frame" | "boarding" | "masonry";
   cover: (typeof REGIONAL_HOUSE_STYLES)[OpusWorkhomeCulture]["cover"];
+}
+
+/** What the shell's builder reads of a street house's spec. */
+export interface OpusStreetHouseSpec {
+  culture: OpusWorkhomeCulture;
+  widthMeters: number;
+  depthMeters: number;
+  storeys: 2 | 3;
+  entranceFace: "gable" | "eave";
+  shade: 0 | 1 | 2;
+  mirror: boolean;
+}
+
+export interface OpusStreetLayout extends OpusStreetShell {
+  spec: OpusStreetHouseSpec;
+  /** The street door; the back door lines up with it. */
+  door: OpusWorkhomeOpening;
+  /** Upper-storey window centres along X. */
+  windows: number[];
+  /** Loft door with a hoist beam in the street gable. */
+  hoist: boolean;
+  /** Main entrance on the street front, model metres. */
+  entrance: { id: "main"; position: readonly [number, number, number]; clearWidth: number };
+}
+
+export interface OpusWorkhomeLayout extends OpusStreetLayout {
+  spec: OpusWorkhomeSpec;
+  shops: OpusWorkhomeOpening[];
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -182,7 +203,13 @@ export function opusWorkhomeLayout(input: OpusWorkhomeSpec): OpusWorkhomeLayout 
   return first;
 }
 
-function layoutFor(spec: OpusWorkhomeSpec): OpusWorkhomeLayout {
+/**
+ * The walls of a street house on its envelope: margins kept for the roof slab, the eaves and the street reach (stall
+ * board, sign) so the model never leaves its plot.
+ */
+export function opusStreetShell(
+  spec: Pick<OpusStreetHouseSpec, "culture" | "entranceFace" | "widthMeters" | "depthMeters">
+): OpusStreetShell {
   const style = REGIONAL_HOUSE_STYLES[spec.culture],
     front = OPUS_WORKHOME_FRONTS[spec.culture],
     ridge = spec.entranceFace === "gable" ? "z" : "x",
@@ -193,12 +220,40 @@ function layoutFor(spec: OpusWorkhomeSpec): OpusWorkhomeLayout {
   const side = ridge === "x" ? VERGE : eaveReach,
     backMargin = ridge === "x" ? eaveReach : GABLE_FRAME;
   const half = spec.widthMeters / 2,
-    x0 = -half + side,
-    x1 = half - side,
-    z0 = -spec.depthMeters / 2 + backMargin,
-    jetty = Math.min(style.jetty, 0.4),
+    jetty = Math.min(style.jetty, 0.4);
+  return {
+    x0: -half + side,
+    x1: half - side,
+    z0: -spec.depthMeters / 2 + backMargin,
     // The stall board and the sign reach into the street; an eaves front also must keep its eave on the plot.
-    z1 = spec.depthMeters / 2 - Math.max(STREET_REACH, jetty + (ridge === "x" ? eaveReach : VERGE)),
+    z1: spec.depthMeters / 2 - Math.max(STREET_REACH, jetty + (ridge === "x" ? eaveReach : VERGE)),
+    ground: GROUND,
+    upper: UPPER,
+    jetty,
+    ridge,
+    pitch: front.pitch,
+    roofThickness,
+    eaveOverhang: EAVE,
+    vergeOverhang: VERGE,
+    arched: front.arched,
+    stoneGround: front.stoneGround,
+    colors: { wall: style.wall, roof: style.roof, frame: style.frame, plinth: style.plinth },
+    finish: style.boarding ? "boarding" : style.frame ? "frame" : "masonry",
+    cover: style.cover
+  };
+}
+
+/** Upper-storey window centres: bays of about 1.6 m across the front. */
+export function opusStreetWindows(shell: Pick<OpusStreetShell, "x0" | "x1">, per = 1.6, max = 4): number[] {
+  const inner = shell.x1 - shell.x0,
+    bays = clamp(Math.round(inner / per), 1, max);
+  return Array.from({ length: bays }, (_, i) => grid(shell.x0 + ((i + 0.5) * inner) / bays));
+}
+
+function layoutFor(spec: OpusWorkhomeSpec): OpusWorkhomeLayout {
+  const shell = opusStreetShell(spec),
+    front = OPUS_WORKHOME_FRONTS[spec.culture],
+    { x0, x1, z1, ridge } = shell,
     inner = x1 - x0;
   // The door stands at one side (or the middle of a double front); the shop fills the rest.
   const left = !spec.mirror;
@@ -218,32 +273,14 @@ function layoutFor(spec: OpusWorkhomeSpec): OpusWorkhomeLayout {
       c = (from + to) / 2;
     shops = [{ a: c - span / 2, b: c + span / 2 }];
   }
-  const bays = clamp(Math.round(inner / 1.6), 1, 4),
-    windows = Array.from({ length: bays }, (_, i) => grid(x0 + ((i + 0.5) * inner) / bays));
   return {
+    ...shell,
     spec,
-    x0,
-    x1,
-    z0,
-    z1,
-    ground: GROUND,
-    upper: UPPER,
-    jetty,
-    ridge,
-    pitch: front.pitch,
-    roofThickness,
-    eaveOverhang: EAVE,
-    vergeOverhang: VERGE,
     door,
     shops,
-    windows,
-    arched: front.arched,
-    stoneGround: front.stoneGround,
+    windows: opusStreetWindows(shell),
     hoist: front.hoist && ridge === "z",
-    entrance: { id: "main", position: [grid((door.a + door.b) / 2), 0, grid(z1)], clearWidth: DOOR_WIDTH },
-    colors: { wall: style.wall, roof: style.roof, frame: style.frame, plinth: style.plinth },
-    finish: style.boarding ? "boarding" : style.frame ? "frame" : "masonry",
-    cover: style.cover
+    entrance: { id: "main", position: [grid((door.a + door.b) / 2), 0, grid(z1)], clearWidth: DOOR_WIDTH }
   };
 }
 

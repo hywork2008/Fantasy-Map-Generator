@@ -1,5 +1,5 @@
 import RBush from "rbush";
-import { opusWorkhomeModel } from "../../../../buildings/medieval/opusWorkhomeProfiles";
+import { streetHouseKind } from "../../../../buildings/medieval/streetHouses";
 import { growthRandom } from "../../../../utils/urbanMorphology";
 import type { Point } from "../../../types/primitives";
 import type { CurveAnchor, VectorCityDocument, VectorPlacement } from "../../../types/vector/document";
@@ -178,8 +178,10 @@ export function placeFacilitiesOnPlots(
       .map(({ p }) => p)
       .slice(0, SEEDS_PER_REQUEST);
     // A trade workhome is built to its plot (docs/plan/bv-workhome-facade-variation.md W4): one plot, its frontage
-    // the building's, its door on its own side. Runs of more plots are for a plot too narrow for a shop-house.
-    const workhome = !!request.asset.bvModel && !!opusWorkhomeModel(request.asset.bvModel.id),
+    // the building's, its door on its own side. Runs of more plots are for a plot too narrow for a shop-house. A
+    // guild house (W5b) is a town house of one plot or two.
+    const kind = request.asset.bvModel && streetHouseKind(request.asset.bvModel.id),
+      workhome = !!kind,
       mirror = growthRandom(`workhome-door:${request.id}`) < 0.5;
     let placement: VectorPlacement | undefined,
       run: Plot[] | undefined,
@@ -247,16 +249,19 @@ export function placeFacilitiesOnPlots(
     if (placement && run) {
       // The plot-fitted envelope and door side; `dressWorkhomes` gives the rest of the street front.
       if (fit)
-        placement.exterior = {
-          culture: "atlantic",
-          entranceFace: "eave",
-          storeys: 2,
-          shop: "open",
-          door: "closed",
-          sign: "board",
-          shade: 1,
-          ...fit
-        };
+        placement.exterior =
+          kind === "guild-house"
+            ? { culture: "northern-urban", entranceFace: "gable", storeys: 3, door: "closed", shade: 1, ...fit }
+            : {
+                culture: "atlantic",
+                entranceFace: "eave",
+                storeys: 2,
+                shop: "open",
+                door: "closed",
+                sign: "board",
+                shade: 1,
+                ...fit
+              };
       doc.placements[placement.id] = placement;
       for (const p of run) used.add(p.i);
       takenInRow.set(run[0].row, (takenInRow.get(run[0].row) ?? 0) + run.length);

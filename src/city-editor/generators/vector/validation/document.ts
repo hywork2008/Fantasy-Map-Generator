@@ -1,5 +1,5 @@
 import RBush from "rbush";
-import { isOpusWorkhomeExterior, opusWorkhomeModel } from "../../../../buildings/medieval/opusWorkhomeProfiles";
+import { isStreetHouseExterior } from "../../../../buildings/medieval/streetHouses";
 import { isHistoricalPeriod } from "../../../../types/historicalPeriod";
 import type { Point } from "../../../types/primitives";
 import type {
@@ -422,7 +422,7 @@ export function validateVectorDocument(
       !Array.isArray(p.accesses) ||
       !p.accesses.every(checkAnchor) ||
       (p.mirrored !== undefined && p.mirrored !== true) ||
-      (p.exterior !== undefined && (!opusWorkhomeModel(p.modelId) || !isOpusWorkhomeExterior(p.exterior)))
+      (p.exterior !== undefined && !isStreetHouseExterior(p.modelId, p.exterior))
     )
       errors.push(`placement:${p.id}`);
   timed("sites");

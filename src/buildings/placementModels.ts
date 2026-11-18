@@ -34,8 +34,16 @@ import {
   type MarketDetail,
   packedMarketPitch
 } from "./medieval/marketPresentation";
+import { createOpusGuildHouse } from "./medieval/opusGuildHouse";
+import {
+  type OpusGuildHouseExterior,
+  opusGuildHouseModel,
+  opusGuildHouseSpecKey,
+  opusGuildHouseSpecOf
+} from "./medieval/opusGuildHouseProfiles";
 import { createOpusWorkhome } from "./medieval/opusWorkhome";
 import { type OpusWorkhomeExterior, opusWorkhomeSpecKey, opusWorkhomeSpecOf } from "./medieval/opusWorkhomeProfiles";
+import type { StreetHouseExterior } from "./medieval/streetHouses";
 import { objectDrawing, PLACEABLE_OBJECTS, placeableObject } from "./placeableObjects";
 import type { PlacementQuality } from "./placementContract";
 import { axisBoxFromBounds, type FootprintBox, footprintBox } from "./placementContract";
@@ -229,8 +237,9 @@ const workhomeDefinitions = new Map<string, BvDefinition>();
 function workhomeDefinition(
   id: string,
   level: PlacementQuality,
-  workhome: OpusWorkhomeExterior | "codex"
+  workhome: StreetHouseExterior | "codex"
 ): BvDefinition | null {
+  if (opusGuildHouseModel(id)) return workhome === "codex" ? null : guildHouseDefinition(id, level, workhome);
   const model = workhomes.find(m => m.id === id);
   if (!model) return null;
   const quality = level === "low" ? "low" : "high";
@@ -244,13 +253,29 @@ function workhomeDefinition(
     }
     return result;
   }
-  const spec = opusWorkhomeSpecOf(id, workhome);
+  const spec = opusWorkhomeSpecOf(id, workhome as OpusWorkhomeExterior);
   if (!spec) return null;
   const key = `${id}:${quality}:${opusWorkhomeSpecKey(spec)}`;
   let result = workhomeDefinitions.get(key);
   if (!result) {
     const variant = model.variants!.find(v => v.author === "Claude Opus 5.5" && v.level === quality)!;
     result = { id: key, variant: variant.id, create: () => createOpusWorkhome(spec, quality) };
+    workhomeDefinitions.set(key, result);
+  }
+  return result;
+}
+
+/** A guild house's saved front draws the Opus guild house it describes (plan W5b). */
+function guildHouseDefinition(id: string, level: PlacementQuality, exterior: StreetHouseExterior): BvDefinition | null {
+  const spec = opusGuildHouseSpecOf(id, exterior as OpusGuildHouseExterior),
+    model = tradeHalls.find(m => m.id === id);
+  if (!spec || !model) return null;
+  const quality = level === "low" ? "low" : "high",
+    key = `${id}:${quality}:${opusGuildHouseSpecKey(spec)}`;
+  let result = workhomeDefinitions.get(key);
+  if (!result) {
+    const variant = model.variants!.find(v => v.level === quality)!;
+    result = { id: key, variant: variant.id, create: () => createOpusGuildHouse(spec, quality) };
     workhomeDefinitions.set(key, result);
   }
   return result;
@@ -263,8 +288,9 @@ export function placementDefinition(
   presentation?: {
     activity?: MarketActivity;
     detail?: MarketDetail;
-    /** A trade workhome's saved street front, or "codex" for a placement saved before it had one. */
-    workhome?: OpusWorkhomeExterior | "codex";
+    /** A street house's saved front (trade workhome or guild house), or "codex" for a workhome saved before it had
+     * one. */
+    workhome?: StreetHouseExterior | "codex";
   }
 ): BvDefinition | null {
   if (placeableObject(id)) return null;
