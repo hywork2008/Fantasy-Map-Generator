@@ -194,7 +194,12 @@ export function placeFacilitiesOnPlots(
     });
 
   for (const request of requests) {
-    if (isWetTannery(request)) continue;
+    // A wet tannery stands only in the tanners' row, reserved on the bank before the street plan. One the row did
+    // not take (an edit keeps the row as it was, and lays no new one) is reported, not dropped.
+    if (isWetTannery(request)) {
+      if (!rowIds.includes(`urban:${request.id}`)) result.unplaced.push({ id: request.id, reason: "river" });
+      continue;
+    }
     const asset = request.asset,
       entrance = asset.entrances.find(e => e.required) ?? asset.entrances[0];
     const wantsWater = request.riverbankMaxDistanceMeters !== undefined;

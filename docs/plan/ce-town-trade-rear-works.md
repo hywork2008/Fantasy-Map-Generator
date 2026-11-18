@@ -153,7 +153,7 @@ Opus 版の 6 業種（[opusTownTrades.ts](../../src/buildings/medieval/opusTown
 
 本書の段階はすべて済んだ。残る候補:
 
-- 編集の後の組の扱いを確かめる。今は壁のある施設の町で、道を広げる編集が R2 の前から `urban-totals` の誤りで失敗する（§10.2）。その不具合を先に調べる。
+- ~~編集の後の組の扱いを確かめる。今は壁のある施設の町で、道を広げる編集が R2 の前から `urban-totals` の誤りで失敗する（§10.2）。その不具合を先に調べる。~~ 直した（§10.7）。
 - 魚屋・肉屋の店の数を町の大きさで減らすか（§8）。
 - 町の外の作業場（皮なめし・樽・縄など）の大きさの見直し（§2 の範囲の外）。
 
@@ -370,3 +370,19 @@ Opus 版の 6 業種（[opusTownTrades.ts](../../src/buildings/medieval/opusTown
 まだ扱っていないこと:
 
 - 3D での目視。
+
+### 10.7 編集の `urban-totals` の誤り（2026-11-19）
+
+原因:
+
+- 編集の後の作り直し（`continuation`）では、皮なめしの列（`reserveTanneryRow`）を作り直さない。列に入らなかった水を使う皮なめし（川のない町ではすべて）は、区画・敷地に置く処理（`placeFacilitiesOnPlots`／`placeFacilitiesOnLots`）で黙って飛ばされ、置けなかった施設として報告されなかった。報告の「置けた数＋置けなかった数＝要る数」が合わず、文書の検証が `urban-totals` で失敗していた。R2 の前からある。
+
+直したもの:
+
+- 皮なめしの列に入っていない水を使う皮なめしは、置けなかった施設（理由 `river`）として報告する（[facilityPlots.ts](../../src/city-editor/generators/vector/generation/facilityPlots.ts)、[facilityLots.ts](../../src/city-editor/generators/vector/generation/facilityLots.ts)）。新しく作る町では、列に入らなかったものは前から列の処理が報告しているので、出力は変わらない（版は上げていない）。
+
+確かめたこと:
+
+- 壁のある施設の 2,000 人の町（種 `workhome-w3`、川なし）で、`burgage-dense`・`burgage`・`compact` の道を 1 本ずつ 2 m 広げる編集を試した。前はすべて `urban-totals` で失敗した。後は、守られた物に道が当たる編集（`dependency-road-obstacle`、意図した拒否）を除いてすべて通った。施設の数・未収容の住民 0 は変わらず、裏の作業場はどれも表の家とともに残るか動いた（家のない作業場は 0）。
+- [burgagePlots.test.ts](../../src/city-editor/generators/vector/generation/burgagePlots.test.ts) に、`burgage-dense` の町で街道を広げる編集の検査を足した（直す前は `urban-totals` で失敗する）。
+- 関連テスト 5 ファイル（37 件）が成功した。

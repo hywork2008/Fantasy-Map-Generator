@@ -5,6 +5,8 @@ import type { VectorCityDocument } from "../../../types/vector/document";
 import { defaultGenerationSettings } from "../../generation/settings";
 import { pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
 import { defaultPopulationSettings } from "../../populationPlan";
+import { prepareVectorEdit, reconcileVectorEdit } from "../editing/dependencies";
+import { replaceVectorPath } from "../editing/paths";
 import { unpackPoints } from "../fabric/pack";
 import { regionArea } from "../geometry/regions";
 import { vectorInputFromEditor } from "./editorInput";
@@ -178,5 +180,21 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
     const doc = town("compact");
     expect(doc.fabric!.algorithm).toBe("vector-urban-v30");
     expect(Object.values(doc.fabric!.cells).some(c => c.plots)).toBe(false);
+  });
+
+  it("keeps a walled town with its facilities through a road edit, each rear works with its house", () => {
+    // Without a river no wet tannery finds its row; an edit keeps the row and must report them still (2026-11-19).
+    const source = town("burgage-dense", 2000, true),
+      road = Object.values(source.paths).find(p => p.id.startsWith("auto-approach"))!,
+      path = structuredClone(road);
+    path.width.leftMeters += 2;
+    path.width.rightMeters += 2;
+    const { document: doc } = reconcileVectorEdit(source, replaceVectorPath(prepareVectorEdit(source), path)),
+      report = doc.urban!.report;
+    expect(report.placedFacilities + report.unplacedFacilities.length).toBe(report.requiredFacilities);
+    expect(report.unplacedFacilities.filter(f => f.id.includes(":tanning:")).length).toBeGreaterThan(0);
+    const rears = Object.values(doc.placements).filter(p => p.building?.annexOf);
+    expect(rears.length).toBeGreaterThan(5);
+    for (const rear of rears) expect(doc.placements[rear.building!.annexOf!]?.building?.kind).toBe("facility");
   });
 });
