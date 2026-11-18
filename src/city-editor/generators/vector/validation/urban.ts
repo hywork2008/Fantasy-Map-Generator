@@ -179,7 +179,8 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       "vector-urban-v16",
       "vector-urban-v17",
       "vector-urban-v18",
-      "vector-urban-v19"
+      "vector-urban-v19",
+      "vector-urban-v20"
     ].includes(u.algorithm) ||
     !nonnegative(u.inputRevision) ||
     !keys(
@@ -206,7 +207,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     (u.settings.lotOccupancy !== undefined &&
       (!Number.isFinite(u.settings.lotOccupancy) || u.settings.lotOccupancy < 0.1 || u.settings.lotOccupancy > 1)) ||
     (u.settings.tanneryBends !== undefined && !["continuous", "leat"].includes(u.settings.tanneryBends)) ||
-    (u.settings.plotFabric !== undefined && !["compact", "burgage"].includes(u.settings.plotFabric)) ||
+    (u.settings.plotFabric !== undefined && !["compact", "burgage", "burgage-dense"].includes(u.settings.plotFabric)) ||
     !object(u.baseGeneration) ||
     !object(u.baseContext) ||
     !keys(u.baseConnections, "nodes,edges,gates,circuits,bridges,wallRoads") ||

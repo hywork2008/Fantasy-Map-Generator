@@ -34,6 +34,8 @@ const NEIGHBOUR_METERS = 0.6;
 const SEEDS_PER_REQUEST = 300;
 /** The building stands this far behind its front, as on compact lots. */
 const FRONT_SETBACK_METERS = 0.05;
+/** On dense burgage a facility's parcel ends this far behind its building; the rest of its plots builds over. */
+const DENSE_FACILITY_COURT_METERS = 4;
 
 /** Share of a plot's place in the facilities' order given by its distance from the centre, as for houses. */
 const CENTRE_WEIGHT = 0.6;
@@ -102,11 +104,23 @@ export function placeFacilitiesOnPlots(
   const cellPlots = new Map<string, number>();
   for (const p of plots) cellPlots.set(p.cellId, (cellPlots.get(p.cellId) ?? 0) + 1);
   /** Plots of a row facilities may still take. */
+  // Burgage keeps half of every row and street block for houses. Dense burgage (plan §8.7) packs workshops closer, as
+  // a walled town's crafts streets were: a row keeps at least one house plot, and a street block a third of its plots,
+  // so no facility, nor any group of them, takes a street block whole.
+  // Binaire blocks are dense already; dense burgage changes only the strip plots.
+  const dense = plan.plotFabric === "burgage-dense",
+    binaireCells = new Set(plots.filter(p => p.kind !== "plot").map(p => p.cellId));
   const rowRoom = (row: Plot[]) => {
-    const heads = row.every(p => p.kind === "head");
-    return (heads ? row.length : Math.floor(row.length / 2)) - (takenInRow.get(row[0].row) ?? 0);
+    const heads = row.every(p => p.kind === "head"),
+      taken = takenInRow.get(row[0].row) ?? 0;
+    if (heads) return row.length - taken;
+    return dense ? row.length - 1 - taken : Math.floor(row.length / 2) - taken;
   };
-  const cellRoom = (cellId: string) => Math.floor((cellPlots.get(cellId) ?? 0) / 2) - (takenInCell.get(cellId) ?? 0);
+  const cellRoom = (cellId: string) =>
+    Math.floor(
+      ((cellPlots.get(cellId) ?? 0) * (dense && !binaireCells.has(cellId) ? 2 : 1)) /
+        (dense && !binaireCells.has(cellId) ? 3 : 2)
+    ) - (takenInCell.get(cellId) ?? 0);
   const water = new Map<number, number>();
   const waterOf = (p: Plot) => {
     let d = water.get(p.i);
@@ -140,7 +154,9 @@ export function placeFacilitiesOnPlots(
     }
     const outskirts = request.zone === "outskirts",
       commerce = facilityUseOf(request) === "commerce",
-      limit = isLarge(request) ? MAX_PLOTS_LARGE : MAX_PLOTS;
+      // Dense burgage halves the plots, so a facility may join twice as many; runs are tried fewest plots first, so it
+      // never takes more than its building needs.
+      limit = (isLarge(request) ? MAX_PLOTS_LARGE : MAX_PLOTS) * (dense ? 2 : 1);
     const seeds = plots
       .filter(p => !used.has(p.i) && p.core !== outskirts && p.kind !== "row")
       // Rows and street blocks already holding their share of facilities give no seed.
@@ -174,7 +190,16 @@ export function placeFacilitiesOnPlots(
           const candidate = row.slice(start, start + n);
           if (candidate.some(p => used.has(p.i) || p.kind === "row")) continue;
           let taken = candidate,
-            laid = layFacility(doc, request, entrance, candidate, [], lines, wantsWater);
+            laid = layFacility(
+              doc,
+              request,
+              entrance,
+              candidate,
+              [],
+              lines,
+              wantsWater,
+              dense && candidate.every(p => p.kind === "plot")
+            );
           // A facility deeper than a binaire block's heads takes the houses behind them too, as a head house of two
           // parcels did (plan §5.7).
           if (laid && "deep" in laid && candidate.length === row.length && candidate.every(p => p.kind === "head")) {
@@ -336,7 +361,9 @@ function layFacility(
   /** Plots behind the run that join its parcel (binaire houses behind the heads). */
   behind: Plot[],
   lines: ReturnType<typeof facilityLines>["lines"],
-  wantsWater: boolean
+  wantsWater: boolean,
+  /** Dense burgage: the parcel ends a court behind the building, and the plots' backs stay for rear houses. */
+  shallowParcel = false
 ): VectorPlacement | { wide: number; deep: number } | undefined {
   const asset = request.asset,
     a = run[0].a,
@@ -390,6 +417,25 @@ function layFacility(
       area = all.reduce((n, p) => n + Math.abs(polygonArea(p.ring)), 0);
     if (Math.abs(polygonArea(hull)) > area * 1.08) return;
     site = { outer: hull, holes: [] };
+  }
+  if (shallowParcel && !behind.length) {
+    // The run's front strip as deep as the building and its court; the parcel is the plots cut there (plan §8.7).
+    const cut = deep + FRONT_SETBACK_METERS + DENSE_FACILITY_COURT_METERS,
+      reach = length + 2;
+    if (cut < Math.min(...run.map(p => p.depth)) - DENSE_FACILITY_COURT_METERS) {
+      const band: Point[] = [
+        [a[0] - tangent[0] - inward[0], a[1] - tangent[1] - inward[1]],
+        [a[0] + tangent[0] * reach - inward[0], a[1] + tangent[1] * reach - inward[1]],
+        [a[0] + tangent[0] * reach + inward[0] * cut, a[1] + tangent[1] * reach + inward[1] * cut],
+        [a[0] - tangent[0] + inward[0] * cut, a[1] - tangent[1] + inward[1] * cut]
+      ];
+      try {
+        const front = regionBoolean([site], [{ outer: band, holes: [] }], "intersection");
+        if (front.length === 1 && !front[0].holes.length && simpleContour(front[0].outer, true)) site = front[0];
+      } catch {
+        // the whole plots
+      }
+    }
   }
   const footprint = asset.footprint.map(p => ({
     outer: p.outer.map(transform),

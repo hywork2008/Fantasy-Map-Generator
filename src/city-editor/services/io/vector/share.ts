@@ -136,7 +136,7 @@ function validateShare(value: unknown): VectorShare | null {
       typeof u.allowExpansion !== "boolean" ||
       (u.lotOccupancy !== undefined &&
         (!Number.isFinite(u.lotOccupancy) || u.lotOccupancy < 0.1 || u.lotOccupancy > 1)) ||
-      (u.plotFabric !== undefined && !["compact", "burgage"].includes(u.plotFabric)) ||
+      (u.plotFabric !== undefined && !["compact", "burgage", "burgage-dense"].includes(u.plotFabric)) ||
       Object.keys(u).some(
         k =>
           ![

@@ -18,7 +18,7 @@ import {
   burgageSetting,
   burgageStreetCellMeters
 } from "../../burgage/perimeterCell";
-import { burgageProfileFor } from "../../burgage/profiles";
+import { burgageProfileFor, isBurgageFabric } from "../../burgage/profiles";
 import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
 import {
   buildOrganicStreetCell,
@@ -79,7 +79,7 @@ export interface VectorPerimeterPlan {
   blocks: VectorBlock[];
   laneWidthMeters: number;
   /** Street blocks laid out as burgage plots (v19). */
-  plotFabric?: "burgage";
+  plotFabric?: "burgage" | "burgage-dense";
 }
 const lineLength = (points: Point[]) =>
   points.slice(1).reduce((n, p, i) => n + Math.hypot(p[0] - points[i][0], p[1] - points[i][1]), 0);
@@ -242,8 +242,8 @@ export function perimeterJobs(
       extentMeters: doc.frame.extentMeters,
       ...(doc.generation?.settings.layout === "classic"
         ? { classic: true }
-        : settings.plotFabric === "burgage"
-          ? { burgage: burgagePlanContext(doc) }
+        : isBurgageFabric(settings.plotFabric)
+          ? { burgage: burgagePlanContext(doc, settings.plotFabric === "burgage-dense") }
           : {})
     },
     jobs
@@ -251,9 +251,10 @@ export function perimeterJobs(
 }
 
 /** The plot type from the housing culture, and the wall rings that tell intramural street blocks. */
-function burgagePlanContext(doc: VectorCityDocument): BurgagePlanContext {
+function burgagePlanContext(doc: VectorCityDocument, dense: boolean): BurgagePlanContext {
   const culture = vectorHousingCulture(doc);
   return {
+    ...(dense ? { dense: true } : {}),
     profile: burgageProfileFor(culture),
     wallRings: Object.values(doc.connections.circuits)
       .filter(c => !c.parentCircuitId)
@@ -724,7 +725,7 @@ export function joinPerimeterPlan(
     houses: districts.flatMap(d => d.houses),
     blocks: districts.flatMap(d => d.blocks),
     laneWidthMeters: settings.laneWidthMeters,
-    ...(settings.plotFabric === "burgage" ? { plotFabric: "burgage" as const } : {})
+    ...(isBurgageFabric(settings.plotFabric) ? { plotFabric: settings.plotFabric } : {})
   };
   // Street and lane ends on a main road join it through an explicit node. A short connector closes any gap.
   const joiner = createGenerationJoiner(doc);

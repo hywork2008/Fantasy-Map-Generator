@@ -1584,7 +1584,7 @@ function mountCityEditorSession(root: HTMLElement, options: CityEditorOptions): 
     // The generation under development is the default, so Generate city shows its state at once: population
     // facilities on burgage plots (docs/plan/ce-burgage-plot-fabric.md).
     facilityLayout: "population",
-    plotFabric: "burgage",
+    plotFabric: "burgage-dense",
     townWallRings: "single"
   };
   // Shown in the Generate panel and encoded in a shareable `city-editor/#…`

@@ -2,7 +2,7 @@
 
 作成: 2026-11-18
 更新: 2026-11-18（B0: 史料の本文を確認し、§2 の寸法表を確定。`bastide` の型を `binaire` に置き換えた。B1: 設定の型・型の表・区画を作る純関数を実装。B2: メッシュなしの生成に接続し、開発中の既定値にした。B3: 施設を区画単位で置く。B4: 区画の裏庭・境界の塀・venelle を描く。B5: 裏の棟と裏庭の果樹、土地の倍率の計り直し）
-状態: B0〜B5 完了。画面での確認で、壁の中の町並みを建て詰まった区画に見直すことになった（§8.6、確認待ち）。B6 は未着手。新しい CE の既定は `medieval-facilities` と `burgage`（§8.2）。
+状態: B0〜B5 完了。§8.6 の見直しとして、3 つ目の区画の作り方 `burgage-dense`（建て詰まった短冊形区画）を加えた（§8.7）。新しい CE の既定は `medieval-facilities` と `burgage-dense`。B6 は未着手。
 関連: [ce-meshless-block-fabric-scaling.md](ce-meshless-block-fabric-scaling.md)、[ce-medieval-facility-district-packing.md](ce-medieval-facility-district-packing.md)、[ce-facility-block-allocation.md](ce-facility-block-allocation.md)、[bv-workhome-facade-variation.md](bv-workhome-facade-variation.md)、[ce-meshless-gate-ribbon-growth.md](ce-meshless-gate-ribbon-growth.md)
 
 ## 1. 目的と範囲
@@ -255,7 +255,7 @@ Séraphin（p. 39, 44）の Figeac と Villefranche-de-Rouergue の値で作る�
 
 テストは AGENTS.md の方針に従い、変更した範囲に関係するものだけを実行する。B2 以降の FMG での確認は、Settlement pattern を Standard にした地図で行う。
 
-**次に進める作業**: §8.6 の見直し（壁の中を建て詰まった区画にする）。ユーザーの確認後に進める。B6 はその後。
+**次に進める作業**: ブラウザで Generate city を押し、`burgage-dense` の町並みを確かめる（§8.7 の残したこと）。そのうえで、施設のある町の密度の調整（施設の土地の倍率）を進めるか、B6（メッシュあり CE への適用の判断）に進むかを決める。
 
 
 ### 8.1 B1 の記録（2026-11-18）
@@ -538,6 +538,81 @@ B5 の「裏の棟」は、同じ区画の奥に建つ建物（Freiburg の Hint
 
 - 建て詰まった区画を、壁の中なら人口によらず使うか、人口や時代で切り替えるか。
 - 壁の中で区画を割る処理（間口を半分にする）を、B5 で入れなかったが、加えるか。
+
+
+### 8.7 3 つ目の区画の作り方 `burgage-dense`（2026-11-18）
+
+§8.6 の見直しで、ユーザーと次のように決めた。
+
+| 値 | 町並み |
+| --- | --- |
+| `compact` | 都市。住宅が密集する（今までどおり） |
+| `burgage` | 裏庭つきの短冊形区画。村落〜小さな町（B1〜B5 のまま） |
+| `burgage-dense` | 新しい選択肢。`burgage` の区画を壁の中で半分に割り、人口に合わせて裏庭を建物で埋め、`compact` 並みに建て詰まった壁の中の都市にする |
+
+新しい CE の既定は、開発中の `burgage-dense` にした（[CityEditorPage.ts](../../src/city-editor/components/CityEditorPage.ts)、[VectorGenerationPanel.ts](../../src/city-editor/components/vector/VectorGenerationPanel.ts)）。アルゴリズムの版は `vector-urban-v20`。`compact`（v18）と `burgage`（v19）の出力は変わらない。
+
+#### 壁の中の区画
+
+[perimeterCell.ts](../../src/city-editor/generators/burgage/perimeterCell.ts)、[stripCell.ts](../../src/city-editor/generators/burgage/stripCell.ts)。
+
+- **間口を半分にする**: B1 の区画を、もう一度 2 つに割る。割った両方が 3.5 m 以上になるときだけ割る。York の Coppergate の区画は約 5.5 m、Figeac の横の路地の家は 4.5〜7.5 m で、狭いもので 3 m だった（Séraphin p. 39）。`english-burgage` では、7 m より広い区画が割られる。
+- **奥行き**: 22〜32 m にした。施設の多い町では、同じ土地でも通りに面する長さが要るため。`burgage` の壁の中は 30〜50 m で、Freiburg の 32〜40 m を下回るのはゲーム側の調整である。
+- **裏庭を建物で埋める**: 表の家の後ろに、小さな中庭（3〜4.5 m）と奥行き 6〜9 m の棟を交互に置き、区画の奥まで並べる。最後の棟は区画の奥の線まで伸ばすので、向かいの列の最後の棟と背中合わせになる。棟は B5 の裏の棟と同じく、壁の同じ側の表の家がすべて建ってから建つ。
+- **壁の外**: 壁の外と高地の町は、`burgage` と同じ区画（裏庭つき）のままにした。
+- **`binaire`**: もともと建て詰まった型なので、`burgage-dense` でも変えない。
+
+#### 施設
+
+[facilityPlots.ts](../../src/city-editor/generators/vector/generation/facilityPlots.ts)。
+
+- **筆数の上限**: 区画を半分にしたので、施設が合わせられる区画の数の上限を 2 倍（6 筆、ギルドホール・宿屋は 8 筆）にした。区画は少ない筆数から試すので、建物に要る分しか取らない。
+- **列と街区の規則**: 「1 つの列の半分まで」をやめた。代わりに、列には必ず家の区画を 1 つ残し、街区には区画の 3 分の 1 を残す。施設 1 つでも、施設が集まっても、街区全体を取ることはない（ユーザーの条件）。
+- **施設の敷地**: 施設の敷地を区画の奥まで取らず、建物の奥から 4 m（中庭）で切るようにした。残りの区画の奥には家の棟が建つ。
+- **`binaire`**: `binaire` の街区と頭の家には、上の規則を当てない。
+
+#### 都市の大きさ
+
+`english-burgage` と `hofstatt` の土地の倍率を、家 1.2・施設 2 にした（`DENSE_BURGAGE_LAND_FACTOR`・`DENSE_BURGAGE_FACILITY_LAND_FACTOR`）。施設の倍率を 1〜1.5 にすると、建て詰まり具合は `compact` に並ぶ。しかし 2,000 人の町で置けた施設が 57〜61/100 に減ったので、2 にした。
+
+#### 計測
+
+壁あり・川なし（シード `b2-probe`、`english-burgage`）。「建物の割合」は、壁の中の街区の土地に対する家と施設の建物の面積の割合。
+
+| 方式 | 人口・方式 | 市域の半径 | 家 | 建物の割合 | 施設 | 未収容 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `compact` | 1,000・medieval | 183 m | 222 | 37% | – | 0 |
+| `burgage-dense` | 同 | 188 m | 190 | 38% | – | 0 |
+| `compact` | 5,000・medieval | 386 m | 1,073 | 49% | – | 0 |
+| `burgage` | 同 | 326 m | 670 | 31% | – | 0 |
+| `burgage-dense` | 同 | 281 m | 756 | 43% | – | 0 |
+| `compact` | 2,000・facilities | 352 m | 369 | 38% | 94/100 | 0 |
+| `burgage` | 同 | 422 m | 211 | 19% | 84/100 | 0 |
+| `burgage-dense` | 同 | 373 m | 290 | 32% | 84/100 | 0 |
+| `compact` | 5,000・facilities | 507 m | 909 | 45% | 239/255 | 0 |
+| `burgage` | 同 | 598 m | 456 | 17% | 238/255 | 0 |
+| `burgage-dense` | 同 | 510 m | 756 | 33% | 239/255 | 0 |
+
+`hofstatt` でもほぼ同じだった（5,000 人の家だけの町で 42%、施設のある町で 33%）。川ありの 3 シード（2,000・8,000 人）でも、未収容はどれも 0 だった。置けた施設は、2,000 人で 77〜88/100、8,000 人で 372〜384/394。
+
+2D の画像で比べると、`burgage` で長い裏庭が続いていた街区が、表の家と奥の棟で埋まった。施設のある町では、施設の奥の中庭と、需要に届かなかった区画の裏庭が、まだ空いて残る。
+
+#### 2D の描画の不具合（あわせて直した）
+
+区画の裏庭の地面が、2D で施設の建物の上に描かれていた。施設は町の描画データの前の方に、裏庭は街区の順に入るためである。区画の地面・塀・venelle・果樹を、すべての建物より前に並べ直した（[renderData.ts](../../src/city-editor/renderers/vector/renderData.ts)）。3D は高さで重なるので、影響がなかった。
+
+#### 残したこと
+
+- ブラウザでの見た目は確かめていない。今回は、描画データから作った SVG を Chrome で画像にして確かめた。
+- 施設のある町の建物の割合（32〜33%）は、まだ `compact`（38〜45%）より低い。施設の土地の倍率を下げると、小さな町で置ける施設が減る。施設の数は人口 20 人に 1 つほどと多く、街区の 3 分の 1 を家に残す規則と、土地の量がぶつかっている。
+- 中庭への通路は、形として残しているだけで、道としては記録していない（B5 と同じ）。
+
+#### テスト
+
+- [burgagePlots.test.ts](../../src/city-editor/generators/vector/generation/burgagePlots.test.ts) に 2 件加えた。
+  - 5,000 人の家だけの町で、`burgage-dense` が v20 になること、全員が収容されること、壁の中の建物の割合が `compact` の 8 割以上あること、壁の中の区画の間口の中央値が 5 m 未満であること。
+  - 2,000 人の施設のある町で、施設の 75% 以上が置けること、壁の中で施設のある街区には家もあること。
+- 実行して成功: burgage（2 ファイル）、burgagePlots、burgagePlots3d、renderData、sceneLayers、picking、validation/fabric、validation/document、documentCodec、share、perimeter、facilityLots、urban、wards、parks、VectorGenerationPanel、architecture（17 ファイル・97 件）。`tsc --noEmit` と `scripts/lint-architecture.ts` も成功した。`compact` の SHA-256 は変わらなかった。
 
 ## 9. 受入の指標
 

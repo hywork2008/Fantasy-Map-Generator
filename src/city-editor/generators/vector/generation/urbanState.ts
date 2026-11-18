@@ -5,12 +5,18 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v18";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision; compact output stays v18. */
 export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v19";
+/** Dense burgage plots (plan §8.7). */
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v20";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(
   settings: Pick<VectorUrbanSettings, "plotFabric"> | undefined
 ): VectorUrbanAlgorithm {
-  return settings?.plotFabric === "burgage" ? VECTOR_URBAN_BURGAGE_ALGORITHM : VECTOR_URBAN_ALGORITHM;
+  return settings?.plotFabric === "burgage"
+    ? VECTOR_URBAN_BURGAGE_ALGORITHM
+    : settings?.plotFabric === "burgage-dense"
+      ? VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM
+      : VECTOR_URBAN_ALGORITHM;
 }
 
 /** The requested settings without the housing culture, which changes how houses look, not what was generated: it

@@ -1,5 +1,5 @@
 import type { BuildingAppearanceProfile } from "../../../buildings/appearance/types";
-import type { BurgageProfileId, BurgageSetting } from "../../types/contracts/burgage";
+import type { BurgageProfileId, BurgageSetting, PlotFabric } from "../../types/contracts/burgage";
 
 type Range = readonly [number, number];
 
@@ -114,14 +114,36 @@ export const BURGAGE_FACILITY_LAND_FACTOR: Record<BurgageProfileId, number> = {
   binaire: 1
 };
 
+/** The same for dense burgage (plan §8.7): yards built over inside the wall, so a dwelling takes about as much land as
+ * on compact lots. Measured on the walled synthetic inputs (plan §8.7). */
+export const DENSE_BURGAGE_LAND_FACTOR: Record<BurgageProfileId, number> = {
+  "english-burgage": 1.2,
+  hofstatt: 1.2,
+  binaire: 1
+};
+export const DENSE_BURGAGE_FACILITY_LAND_FACTOR: Record<BurgageProfileId, number> = {
+  "english-burgage": 2,
+  hofstatt: 2,
+  binaire: 1
+};
+
 /** The land factor of generation settings for houses or facilities: 1 for compact lots. */
 export function burgageLandFactor(
   settings: { plotFabric?: string; buildingAppearanceProfile?: unknown },
   use: "housing" | "facility" = "housing"
 ): number {
-  if (settings.plotFabric !== "burgage") return 1;
+  if (settings.plotFabric !== "burgage" && settings.plotFabric !== "burgage-dense") return 1;
   const profile = burgageProfileFor(settings.buildingAppearanceProfile as BuildingAppearanceProfile);
-  return (use === "facility" ? BURGAGE_FACILITY_LAND_FACTOR : BURGAGE_LAND_FACTOR)[profile];
+  const dense = settings.plotFabric === "burgage-dense";
+  return (
+    use === "facility"
+      ? dense
+        ? DENSE_BURGAGE_FACILITY_LAND_FACTOR
+        : BURGAGE_FACILITY_LAND_FACTOR
+      : dense
+        ? DENSE_BURGAGE_LAND_FACTOR
+        : BURGAGE_LAND_FACTOR
+  )[profile];
 }
 
 /** The plot type of a housing culture (plan §5.1). */
@@ -130,3 +152,7 @@ export function burgageProfileFor(appearance: BuildingAppearanceProfile | undefi
   if (appearance === "mediterranean") return "binaire";
   return "english-burgage";
 }
+
+/** Burgage plots of either kind. */
+export const isBurgageFabric = (fabric: PlotFabric | undefined): fabric is "burgage" | "burgage-dense" =>
+  fabric === "burgage" || fabric === "burgage-dense";

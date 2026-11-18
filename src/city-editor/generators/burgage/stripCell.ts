@@ -26,6 +26,10 @@ export interface StripCellContext {
   setting: BurgageSetting;
   /** Overrides the profile's share of undivided plots (old centre: more, later growth: fewer; plan R6). */
   undividedShare?: number;
+  /** Dense burgage (plan §8.7): every plot is halved again where both halves keep at least this frontage. */
+  halveMinFrontage?: number;
+  /** Plot depths in place of the profile's for the setting (dense burgage inside the wall). */
+  depthMeters?: readonly [number, number];
 }
 
 /** Edges at most this far from antiparallel to the main front count as the opposite street. */
@@ -71,7 +75,7 @@ export function planBurgageCell(ring: Point[], profile: StripPlotProfile, contex
       return toLocal(frame, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2])[1] > depthSpan / 2;
     })
     .sort((a, b) => length(b.i) - length(a.i))[0];
-  const [minDepth, maxDepth] = profile.depthMeters[context.setting];
+  const [minDepth, maxDepth] = context.depthMeters ?? profile.depthMeters[context.setting];
 
   // A row's own frame and depth, and the band of the main frame that keeps it off the other row.
   type Row = { frame: PlotFrame; t1: number; mainFrom: number; mainTo: number };
@@ -158,7 +162,7 @@ export function planBurgageCell(ring: Point[], profile: StripPlotProfile, contex
     for (const [k, [a, b]] of spans.entries()) {
       let band = clipToBox(block, frame, a, b, row.mainFrom, row.mainTo);
       band = clipToBox(band, row.frame, -Infinity, Infinity, 0, row.t1);
-      if (band.length >= 3) layRow(plan, band, row.frame, profile, share, rng, `${r}.${k}`);
+      if (band.length >= 3) layRow(plan, band, row.frame, profile, share, rng, `${r}.${k}`, context.halveMinFrontage);
     }
   return plan;
 }
@@ -182,7 +186,8 @@ function layRow(
   profile: StripPlotProfile,
   undividedShare: number,
   rng: Rng,
-  key: string
+  key: string,
+  halveMinFrontage?: number
 ): void {
   const front = edgeOnLine(frame, band, 1, 0);
   if (!front) {
@@ -216,7 +221,14 @@ function layRow(
   let at = s0;
   originals.forEach((original, n) => {
     const parent = `${key}:${n}`;
-    const widths = original.undivided ? [original.width] : halves(rng, original.width, minFrontage, maxFrontage);
+    let widths = original.undivided ? [original.width] : halves(rng, original.width, minFrontage, maxFrontage);
+    // Dense burgage halves each plot once more where the halves stay wide enough for a house (plan §8.7, R5).
+    if (halveMinFrontage !== undefined)
+      widths = widths.flatMap(w => {
+        if (w / 2 < halveMinFrontage) return [w];
+        const first = Math.min(Math.max(w * rng.range(0.45, 0.55), halveMinFrontage), w - halveMinFrontage);
+        return [first, w - first];
+      });
     widths.forEach((width, h) => {
       const from = at,
         to = n === originals.length - 1 && h === widths.length - 1 ? s1 : at + width;

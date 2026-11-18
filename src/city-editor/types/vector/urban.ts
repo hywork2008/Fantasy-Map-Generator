@@ -88,7 +88,7 @@ export interface VectorUrbanCheckpoint {
  * placements. v10: house storeys by the mesh editor's height variation and height limit (P3b). v11: lots kept off gate openings
  * and junction discs exactly (P4a). v12: wall shapes turned in 48 steps and checked against their gates; double
  * walls (P4b). v14: house storeys by the economic ward of the street block (P6g). v15: roadside ribbon beyond the wall (P7a). v16: park wards laid out as lawns (P7c); water points (P7d). v18: facility mode lays the CE street blocks round its facilities. v19: burgage plots (`plotFabric`; compact
- * street blocks stay v18). Saved output of
+ * street blocks stay v18). v20: dense burgage plots. Saved output of
  * an older version stays as adopted. */
 export type VectorUrbanAlgorithm =
   | "vector-urban-v1"
@@ -109,7 +109,8 @@ export type VectorUrbanAlgorithm =
   | "vector-urban-v16"
   | "vector-urban-v17"
   | "vector-urban-v18"
-  | "vector-urban-v19";
+  | "vector-urban-v19"
+  | "vector-urban-v20";
 export interface VectorUrban {
   algorithm: VectorUrbanAlgorithm;
   inputRevision: number;

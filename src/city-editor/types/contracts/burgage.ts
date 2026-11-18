@@ -2,9 +2,11 @@ import type { Point } from "../geometry";
 
 /**
  * How a street block is cut into plots (docs/plan/ce-burgage-plot-fabric.md §4). `compact` is the existing
- * house-sized block layout; `burgage` lays historical narrow-and-deep plots from the profile tables.
+ * house-sized block layout: a dense town of houses. `burgage` lays historical narrow-and-deep plots with yards behind
+ * their houses: a village or a small town. `burgage-dense` lays the same plots, halved, and builds their yards over
+ * inside the wall as far as the population needs, back to back with the next row: a walled town (plan §8.7).
  */
-export type PlotFabric = "compact" | "burgage";
+export type PlotFabric = "compact" | "burgage" | "burgage-dense";
 
 /** Plot types of the burgage plot fabric (plan §2.3). */
 export type BurgageProfileId = "english-burgage" | "hofstatt" | "binaire";

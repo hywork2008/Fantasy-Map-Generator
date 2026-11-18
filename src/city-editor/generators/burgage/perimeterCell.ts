@@ -18,13 +18,18 @@ export interface BurgagePlanContext {
   wallRings: Point[][];
   /** Upland towns keep the shallower intramural depths everywhere (plan §5.1, a game adjustment). */
   shallow?: boolean;
+  /** Dense burgage (plan §8.7): inside the wall the plots are halved and their yards built over as the town needs. */
+  dense?: boolean;
 }
 
 /** Street-block size of the CE street plan for this plot type: two plot depths, or a binaire block's length. */
 export function burgageStreetCellMeters(burgage: BurgagePlanContext, setting: BurgageSetting): number {
   const profile = BURGAGE_PROFILES[burgage.profile];
   if (profile.kind === "binaire") return (profile.blockLengthMeters[0] + profile.blockLengthMeters[1]) / 2;
-  const [min, max] = profile.depthMeters[burgage.shallow ? "intramural" : setting];
+  const [min, max] =
+    burgage.dense && setting === "intramural" && !burgage.shallow
+      ? DENSE_DEPTH_METERS
+      : profile.depthMeters[burgage.shallow ? "intramural" : setting];
   return min + max;
 }
 
@@ -81,7 +86,9 @@ export function burgagePerimeterCell(
   });
   const profile = BURGAGE_PROFILES[burgage.profile];
   const cellSeed = `${seed}:${cell.id}`;
-  const setting = burgageSetting(burgage, polygonCentroid(ring));
+  const setting = burgageSetting(burgage, polygonCentroid(ring)),
+    // Dense burgage packs the plots inside the wall; beyond it they keep their yards (plan §8.7).
+    packed = !!burgage.dense && setting === "intramural" && !burgage.shallow;
   const plans = convexPieces(ring, sides).flatMap((piece, k) => {
     const block = insetConvexKernel(
       piece.ring,
@@ -103,7 +110,12 @@ export function burgagePerimeterCell(
     return [
       profile.kind === "binaire"
         ? planBinaireCell(block, profile, { seed: pieceSeed, fronts })
-        : planBurgageCell(block, profile, { seed: pieceSeed, fronts, setting })
+        : planBurgageCell(block, profile, {
+            seed: pieceSeed,
+            fronts,
+            setting,
+            ...(packed ? { halveMinFrontage: DENSE_MIN_FRONTAGE, depthMeters: DENSE_DEPTH_METERS } : {})
+          })
     ];
   });
   // The binaire venelle is a drain between house backs, not a lane a door opens on (plan §5.7).
@@ -122,12 +134,51 @@ export function burgagePerimeterCell(
     if (!house) continue;
     result.houses.push(house);
     // The burgage cycle (plan R6, B5): a deep plot can take a rear house across its back yard. The town adopts it only
-    // when its front houses fall short, nearest the centre first.
-    const rear = rearHouse(plot.ring, plot.front, depth, rng);
-    if (rear) result.rearHouses.push(rear);
+    // when its front houses fall short, nearest the centre first. Dense burgage builds the whole yard over, range
+    // behind range to the plot's tail, where it meets the next row's (plan §8.7).
+    if (packed) result.rearHouses.push(...rearRanges(plot.ring, plot.front, depth, rng));
+    else {
+      const rear = rearHouse(plot.ring, plot.front, depth, rng);
+      if (rear) result.rearHouses.push(rear);
+    }
   }
   result.open.push(...plans.flatMap(p => p.open));
   return result;
+}
+
+/** Dense burgage plots are halved down to this frontage (plan §8.7): York's Coppergate tenements were about 5.5 m,
+ * Figeac's houses on the cross lanes 4.5–7.5 m and down to 3 m (Séraphin p. 39). */
+const DENSE_MIN_FRONTAGE = 3.5;
+/** Dense plots inside the wall are shallower than a new town's: more frontage on the same land, as the crafts that
+ * a walled town packs along its streets need (plan §8.7, a game adjustment within Freiburg's 32–40 m and below). */
+const DENSE_DEPTH_METERS: readonly [number, number] = [22, 32];
+/** Courts between the ranges of a dense plot, and the ranges' depth. */
+const DENSE_COURT_METERS: readonly [number, number] = [3, 4.5];
+const DENSE_RANGE_METERS: readonly [number, number] = [6, 9];
+
+/** The ranges behind a dense plot's front house, each behind a small court, the last reaching the plot's tail. */
+function rearRanges(ring: Point[], front: [Point, Point], frontDepth: number, rng: () => number): Point[][] {
+  const [a, b] = front,
+    length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const u: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+  const c = polygonCentroid(ring);
+  let v: Point = [-u[1], u[0]];
+  if ((c[0] - a[0]) * v[0] + (c[1] - a[1]) * v[1] < 0) v = [-v[0], -v[1]];
+  const frame = { origin: a, u, v };
+  const plotDepth = Math.max(...ring.map(p => (p[0] - a[0]) * v[0] + (p[1] - a[1]) * v[1]));
+  const between = (r: readonly [number, number]) => r[0] + (r[1] - r[0]) * rng();
+  const passage = length >= REAR_PASSAGE_MIN_FRONTAGE ? REAR_PASSAGE_METERS : 0,
+    left = rng() < 0.5;
+  const ranges: Point[][] = [];
+  for (let at = frontDepth + between(DENSE_COURT_METERS); at + DENSE_RANGE_METERS[0] <= plotDepth; ) {
+    let to = at + between(DENSE_RANGE_METERS);
+    // Too short a strip behind it for another court and range: the range runs on to the tail.
+    if (plotDepth - to < DENSE_COURT_METERS[0] + DENSE_RANGE_METERS[0]) to = plotDepth;
+    const range = clipToBox(ring, frame, left ? passage : -Infinity, left ? Infinity : length - passage, at, to);
+    if (range.length >= 3 && Math.abs(polygonArea(range)) >= 12) ranges.push(range);
+    at = to + between(DENSE_COURT_METERS);
+  }
+  return ranges;
 }
 
 /** Reflex corners sharper than this (15°) are cut into convex pieces. */

@@ -676,7 +676,7 @@ function* vectorUrbanSteps(
       if (at >= 0) ownedPlacements.splice(at, 1);
     }
     // Burgage plots take facilities on whole plots (docs/plan/ce-burgage-plot-fabric.md B3); compact lots as before.
-    const lots = (organic.plotFabric === "burgage" ? placeFacilitiesOnPlots : placeFacilitiesOnLots)(
+    const lots = (organic.plotFabric ? placeFacilitiesOnPlots : placeFacilitiesOnLots)(
       doc,
       organic,
       requests.filter(r => !ownedPlacements.includes(`urban:${r.id}`) && !tanneryRow.unplaced.some(u => u.id === r.id)),

@@ -1049,6 +1049,15 @@ export function vectorRenderData(
               kind: TownWaterKind = !w || w.riverPathId ? "river" : w.id.startsWith("fmg-coast:") ? "ocean" : "lake";
             return { id: s.id, kind, polygons: s.polygons };
           });
+  // Burgage yards, walls, venelles and yard trees lie on the ground: in the 2D plan they come before every building,
+  // or a facility placed before its street block's yards would be drawn under them.
+  const ground = surfaces.filter(s => s.featureKind === "burgage");
+  if (ground.length) {
+    const rest = surfaces.filter(s => s.featureKind !== "burgage"),
+      firstBuilding = rest.findIndex(s => s.kind === "building");
+    surfaces.splice(0, surfaces.length, ...rest);
+    surfaces.splice(firstBuilding < 0 ? surfaces.length : firstBuilding, 0, ...ground);
+  }
   return {
     water,
     structures: vectorStructures(doc).filter(s => drawn.has(s.owner)),
