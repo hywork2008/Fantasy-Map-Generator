@@ -39,6 +39,8 @@ const PREFIX = "population-facility:";
  * bark vats, fleshing beam, drying frames; the dedicated tannery model's workplaces) manned under a master, four
  * hands to the yard (tanners' row plan T1a). */
 const PRACTITIONERS_PER_FACILITY: Record<string, number> = { baking: 5, brewing: 6, butchery: 15, tanning: 4 };
+/** Hands of one butcher's shop where each keeps his own (a master, a journeyman and an apprentice; provisional). */
+const BUTCHER_SHOP_HANDS = 3;
 /** Pools whose facility is a smaller BV model than the trade's default. */
 const BREWHOUSE_MODEL = "ale-brewhouse";
 const rows = csvParse(occupations) as unknown as TradeReferenceRow[];
@@ -72,7 +74,14 @@ function placeholder(pool: string, width = 10, depth = 12): LandmarkAsset {
  */
 export function buildPopulationFacilityRequests(
   population: number,
-  options: { period: string; port: boolean; culture?: OpusWorkhomeCulture }
+  options: {
+    period: string;
+    port: boolean;
+    culture?: OpusWorkhomeCulture;
+    /** The town lays burgage plots: each butcher keeps his own shop in the Butcher Row, his slaughter shed behind it
+     * (docs/plan/ce-town-trade-rear-works.md R3, §10.8), rather than a butchers' hall for several. */
+    plots?: boolean;
+  }
 ) {
   const demand = medievalTradeDemand(rows, population, {
     period: options.period,
@@ -110,7 +119,8 @@ export function buildPopulationFacilityRequests(
     });
   }
   for (const trade of demand.trades) {
-    const per = PRACTITIONERS_PER_FACILITY[trade.pool],
+    const per =
+        options.plots && trade.pool === "butchery" ? BUTCHER_SHOP_HANDS : PRACTITIONERS_PER_FACILITY[trade.pool],
       facilities = per ? (trade.workshops ? Math.max(1, Math.round(trade.practitioners / per)) : 0) : trade.workshops;
     if (!facilities) continue;
     const asset = cached(`workshop:${trade.pool}`, () => {

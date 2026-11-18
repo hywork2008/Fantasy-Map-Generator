@@ -110,7 +110,7 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
     workhomes = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workhome."));
 
   it("builds nearly every workhome on one plot, as wide as the plot on its grid, its door on its own side", () => {
-    expect(doc.urban!.algorithm).toBe("vector-urban-v43");
+    expect(doc.urban!.algorithm).toBe("vector-urban-v45");
     expect(() => assertVectorDocument(doc)).not.toThrow();
     // Plots whose front, a metre in, lies under a workhome's parcel.
     const fronts = Object.values(doc.fabric!.cells).flatMap(c =>
@@ -155,13 +155,14 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
 
   it("lays each town trade as a shop-house and its rear works in the same plots (ce-town-trade-rear-works.md R2, R3)", () => {
     const rears = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workshop.rear-works."));
-    // 2,000 people: bakers 5, metalworkers 3, a cutler, a chandler, a fishmonger and a butcher (R3). A trade keeps its
+    // 2,000 people: bakers 5, metalworkers 3, a cutler, a chandler, a fishmonger (R3) and four butchers, each with his
+    // own shop in a burgage town (§10.8). A trade keeps its
     // dedicated workshop only where no plot has a backland clear of the streets for its works (§10.5): a few at most.
     const boxes = Object.values(doc.placements).filter(p =>
       /dedicated-(bakehouse|cutlery|metalwares|chandlery|fishmongery|butchery)/.test(p.modelId)
     );
-    expect(rears.length + boxes.length).toBe(12);
-    expect(rears.length).toBeGreaterThanOrEqual(10);
+    expect(rears.length + boxes.length).toBe(15);
+    expect(rears.length).toBeGreaterThanOrEqual(13);
     // The market trades' shops are the ones nearest the market place (Fish Row, Butcher Row).
     const plaza = doc.environment!.features["feature:civic-plaza"].boundary.outer,
       toMarket = (trade: string) =>
@@ -170,7 +171,7 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
           .map(p => nearestOnPolyline(p.building!.entrances[0].point, [...plaza, plaza[0]]).dist);
     const market = [...toMarket("fishmongery"), ...toMarket("butchery")],
       others = ["baking", "cutlery", "metalwares", "chandlery"].flatMap(toMarket);
-    expect(market).toHaveLength(2);
+    expect(market).toHaveLength(5);
     expect(Math.max(...market)).toBeLessThan(Math.min(...others));
     for (const rear of rears) {
       const house = doc.placements[rear.building!.annexOf!];

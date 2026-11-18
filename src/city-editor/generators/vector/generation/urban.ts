@@ -4,7 +4,7 @@ import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorFabricDetachedLine } from "../../../types/vector/fabric";
 import type { VectorStage, VectorUrbanSettings } from "../../../types/vector/urban";
-import { burgageLandFactor } from "../../burgage/profiles";
+import { burgageLandFactor, isBurgageFabric } from "../../burgage/profiles";
 import { bvFacilityAsset } from "../../bvFacilityAsset";
 import { facilityPlacementOrder, facilityUseOf } from "../../facilityUses";
 import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
@@ -271,7 +271,8 @@ function* vectorUrbanSteps(
           buildPopulationFacilityRequests(settings.population, {
             period: doc.context.historicalPeriod,
             port: !!doc.site.descriptor?.burg.port,
-            culture: vectorTownCulture(vectorTownProfile(doc))
+            culture: vectorTownCulture(vectorTownProfile(doc)),
+            plots: isBurgageFabric(settings.plotFabric)
           })
             // The town's guildhall raised in its market place with the civic centre (plan W5c) is not placed again.
             .requests.filter(r => !(doc.placements[TOWN_GUILDHALL_ID] && r.id.endsWith(":guild:town")))
