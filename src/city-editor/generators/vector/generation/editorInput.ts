@@ -12,6 +12,7 @@ import { allVectorWater } from "../geometry/water";
 import { seedVectorCivicCentre, vectorBurial, vectorCivicLayout } from "./civic";
 import { curveSynthesizedRivers } from "./curvedRivers";
 import { fortifyVectorInput } from "./fortress";
+import { chosenHousingCulture, townProfileFor, vectorTownCulture, vectorTownProfile } from "./housingCulture";
 import { expectedVectorHouseStoreys } from "./housingHeights";
 import { syntheticVectorInput, vectorInputFromDescriptor } from "./input";
 import { vectorFacilityLand } from "./suburbs";
@@ -202,7 +203,8 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
         settings.population.targetPopulation,
         period,
         !!descriptor.burg.port,
-        settings.facilityLayout
+        settings.facilityLayout,
+        vectorTownCulture(townProfileFor(period, chosenHousingCulture(settings), descriptor, seed))
       ).coreM2,
       shape = isVectorWallShape(wall.wall) ? 1 / vectorWallAreaShare(seed, wall.wall, wall.wallSides) : 1,
       housing =
@@ -271,7 +273,8 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     settings.population.targetPopulation,
     period,
     !!settings.config.features.port,
-    settings.facilityLayout
+    settings.facilityLayout,
+    vectorTownCulture(vectorTownProfile(first))
   ).coreM2;
   // The religious houses the skeleton will found take whole blocks of the houses' land too (P6c); a walled town's
   // abbey stands outside the walls.

@@ -24,7 +24,7 @@ import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/docu
 import { vectorUrbanStages } from "../validation/urban";
 import { placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
 import { placeFacilitiesOnPlots } from "./facilityPlots";
-import { vectorHousingCulture } from "./housingCulture";
+import { vectorHousingCulture, vectorTownCulture, vectorTownProfile } from "./housingCulture";
 import { raiseVectorLandUse } from "./landUse";
 import { layoutVectorParks } from "./parks";
 import {
@@ -268,7 +268,8 @@ function* vectorUrbanSteps(
       ? facilityPlacementOrder(
           buildPopulationFacilityRequests(settings.population, {
             period: doc.context.historicalPeriod,
-            port: !!doc.site.descriptor?.burg.port
+            port: !!doc.site.descriptor?.burg.port,
+            culture: vectorTownCulture(vectorTownProfile(doc))
           }).requests
         )
       : [];

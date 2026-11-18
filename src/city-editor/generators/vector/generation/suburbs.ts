@@ -1,3 +1,4 @@
+import type { OpusWorkhomeCulture } from "../../../../buildings/medieval/opusWorkhomeProfiles";
 import { getUrbanDwellings } from "../../../../utils/urbanDwellings";
 import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
@@ -409,11 +410,12 @@ export function vectorFacilityLand(
   population: number,
   period: string,
   port: boolean,
-  facilityLayout: string | undefined
+  facilityLayout: string | undefined,
+  culture: OpusWorkhomeCulture
 ): VectorFacilityLand {
   if (facilityLayout !== "population" || !population) return NO_FACILITY_LAND;
   const land = { coreM2: 0, outskirtsM2: 0, riversideM2: 0 };
-  for (const r of buildPopulationFacilityRequests(population, { period, port }).requests) {
+  for (const r of buildPopulationFacilityRequests(population, { period, port, culture }).requests) {
     const m2 =
       r.asset.minimumSite.reduce((n, p) => n + regionArea({ outer: p.outer, holes: [] }), 0) * FACILITY_PARCEL_FACTOR;
     if (r.zone !== "outskirts") land.coreM2 += m2 * FACILITY_CORE_DISPLACEMENT;

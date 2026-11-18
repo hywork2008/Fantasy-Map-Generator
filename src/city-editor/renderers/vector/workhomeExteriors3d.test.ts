@@ -105,7 +105,7 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
     workhomes = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workhome."));
 
   it("builds nearly every workhome on one plot, as wide as the plot on its grid, its door on its own side", () => {
-    expect(doc.urban!.algorithm).toBe("vector-urban-v23");
+    expect(doc.urban!.algorithm).toBe("vector-urban-v26");
     expect(() => assertVectorDocument(doc)).not.toThrow();
     // Plots whose front, a metre in, lies under a workhome's parcel.
     const fronts = Object.values(doc.fabric!.cells).flatMap(c =>
@@ -133,8 +133,10 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
       const under = fronts.filter(f => pointInPolygon(f.point, p.site.outer));
       if (under.length === 1) {
         single++;
-        expect(p.exterior!.widthMeters).toBeLessThanOrEqual(under[0].frontage - 0.2 + 1e-6);
-        expect(p.exterior!.widthMeters).toBeGreaterThan(under[0].frontage - 0.2 - 0.25 - 1e-6);
+        // The saved fronts are packed on a 1 cm grid; the workhome was fitted to the unpacked plot before.
+        expect(p.exterior!.widthMeters).toBeLessThanOrEqual(under[0].frontage - 0.2 + 0.02);
+        // A plot wider than 7.7 m takes the widest shop-house on the grid, 7.5 m.
+        expect(p.exterior!.widthMeters).toBeGreaterThan(Math.min(7.5, under[0].frontage - 0.2 - 0.25) - 0.02);
       }
     }
     expect(single / workhomes.length).toBeGreaterThanOrEqual(0.9);

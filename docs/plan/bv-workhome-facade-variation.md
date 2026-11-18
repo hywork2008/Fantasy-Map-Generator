@@ -2,7 +2,7 @@
 
 作成: 2026-11-14
 更新: 2026-11-18（Codex 版の内部構造をやめ、外観だけの Claude Opus 5.5 版を作る計画へ全面的に書き直した）
-状態: W0（計測、§3.3）、W1（MV の Opus 版、§10.1）、W2（店の間・品物・階数、§10.2）、W3（CE で Opus 版を採用、§10.3）、W4（短冊形区画の幅に合わせる、§10.4）を済ませた。残りは W5（ギルドホール）。
+状態: W0（計測、§3.3）、W1（MV の Opus 版、§10.1）、W2（店の間・品物・階数、§10.2）、W3（CE で Opus 版を採用、§10.3）、W4（短冊形区画の幅に合わせる、§10.4）を済ませた。W5 は史料の調べ直し（§5.6）、計画（§6.1）、W5a（会館の数の規則、§10.5）を済ませた。残りは W5b・W5c。
 
 ## 1. 目的と方針
 
@@ -243,6 +243,31 @@ interface OpusWorkhomeSpec {
 - ドイツ語圏（`northern-urban`）の店の開口の大きさ。§5.4 で雨戸の形は確かめたが、寸法の資料はまだない。
 - `stone-upland`・`northern-wooded` の事例。見つからなければ仮のまま、本書に明記する。
 
+### 5.6 ギルドホール（W5 の調べ直し、2026-11-18）
+
+| 資料 | 確かめたこと | 設計への適用 |
+| --- | --- | --- |
+| K. Giles, "Medieval Guildhalls as Habitus", in *An Archaeology of Social Identity: Guildhalls in York, c.1350–1630*, BAR (2000), pp.56–78（[White Rose](https://eprints.whiterose.ac.uk/11009/1/chap6.pdf)） | 14 世紀の職人組合は、祭壇を持つ教区教会の身廊・側廊で会合を開くのが普通だった（p.112）。多くの兄弟会・職人組合は会館を建てなかった（p.119 "many religious fraternities and craft mysteries never built guildhalls"）。会館を建てるのは、合併や危機などの節目だった（p.117）。ヨークで会館を建てた職人組合は、肉屋（Shambles）と靴屋（Hungate）くらいで、ほかは商人・兄弟会の会館。大きな会館は門と中庭の奥にあり、通りに面していない（p.121–122）。会館は前の家の敷地に建つことが多かった（p.119） | `atlantic`: 職人組合ごとの会館は作らない。大きな町でも数棟だけ。大きな会館は通りの並びではなく、表の家の奥に置く |
+| [The Hundred Parishes, "Guildhalls"](https://hundredparishes.org.uk/wp-content/uploads/2023/07/Article-GUILDHALLS.pdf)（エセックス北西部の地域史の解説） | 村と小さな町の guildhall の多くは、教会に結びついた互助会のもの。教会の脇や裏に 1 棟（Linton 1523、Finchingfield・Clavering・Ashdon は 15 世紀）。職人組合のものは市場町に限られ、1 階を市場にしたものがある（Thaxted、3 階建て、15 世紀） | 町に 1 棟の「町のギルドホール」を、教会の近くに置く。市場のある町では 1 階が開いた型（task 49）にできる |
+| [Thaxted Guildhall（Wikipedia）](https://en.wikipedia.org/wiki/Thaxted_Guildhall) | 1 階は市場の開いた床で、中央に太い柱。2 階は 3 面で通りに張り出す（独立した建物）。刃物組合が費用を出したとされるが、確かではない。年輪年代では材は 15 世紀後半 | task 49 の型の根拠。大きさは未確認 |
+| P. Motz, 1926（[Badische Heimat](https://badische-heimat.de/wp-content/uploads/2019/02/1926_rathaeuser_konstanz.pdf)、検索結果の抜粋で確認、本文は未読）と [Rosgartenmuseum](https://en.wikipedia.org/wiki/Rosgartenmuseum) | コンスタンツ（15 世紀に約 5,000 人）の 10 の Zunft のうち、自分の家を持ったのは大きな 4 つだけで、ほかは Trinkstube を使った。「Zum Rosgarten」は 1324 年に記録のある家で、1454 年に Zunftsaal を入れた。肉屋・小売商・薬屋・陶工・縄屋の Zunft が 1 つの家を使った | `northern-urban`: Zunfthaus は並びの家を買い取ったもの。Zunft の数より少なく、1 つの家を数業種で使う |
+| [Zünfte of Zürich](https://en.wikipedia.org/wiki/Z%C3%BCnfte_of_Z%C3%BCrich) と各 Zunfthaus の記事（Wikipedia） | 1336 年以後、13 の Zunft と Constaffel。家は買い取りが多い（Saffran 1383、Constaffel「Haus zum Rüden」1401、Schmiden「Zum goldenen Horn」1412、Kämbel 1487）。今の宮殿のような建物は 18 世紀の建て替え（Saffran 1719〜、Meisen 1752〜）。場所は Limmatquai・Münsterhof など川沿いと広場 | Zunft が町を治める町では、Zunft ごとに家がある。中世の家は通りの並びの町家で、大きさは隣の家に近い |
+| [Turismo Roma: Seven Roman guild churches](https://turismoroma.it/en/page/seven-roman-guild-churches)、[Scuole Piccole of Venice](https://www.worddisk.com/wiki/Scuole_Piccole_of_Venice) | イタリアの組合の本拠は、守護聖人の教会や礼拝堂だった。ヴェネツィアの小さな scuole の多くは、教区教会や修道院の教会で会合した。ボローニャの樽運びの組合のように、大都市には組合の館もある | `mediterranean`: 職人組合の会館は、大都市を除いて作らない。教会の礼拝堂で足りる |
+
+まとめ:
+
+- 今の CE は、実務者 3 人以上の業種ごとに会館を 1 棟置く（`medievalTradeDemand` の `inferredHalls`）。500 人の町でも 7 棟、2,000 人で 9 棟の 12.8×9 m の会館が建つ。どの地域の資料とも合わない。「組合がある」ことと「会館を持つ」ことは別である。
+- 会館を持つ組合は少なく、地域で形が違う。
+  - `atlantic`: 町のギルドホール 1 棟（教会の近く、または市場の 1 階が開いた建物）。職人組合の会館は大きな町に数棟で、表の家の奥。
+  - `northern-urban`: 通りの並びの町家を買い取った Zunfthaus。大きな Zunft だけが持ち、1 つの家を数業種で使う。Zunft が町を治める町では、Zunft ごとに持つ。
+  - `mediterranean`: 教会の礼拝堂。会館は大都市だけ。
+
+まだ確かめていないこと:
+
+- `stone-upland`・`northern-wooded` の事例。北欧・バルト海沿岸の gilde の家（ギルドの宴会の家）を次に調べる。それまでは `atlantic` と同じ規則を仮に使う。
+- Thaxted と Zunfthaus の間口・奥行き。Zunfthaus は隣の町家と同じ区画の家とみなす（仮）。
+- 小さなドイツ語圏の町（2,000 人未満）で、Zunft が宿屋・市庁舎で会合したことを示す中世の資料。ウルムの宿屋の例は 18 世紀の記述だった（[ウルム市文書館](https://stadtarchiv.ulm.de/-/media/archiv/downloads/ugin/wirtschaft/zunftwesen.pdf)、検索結果の抜粋）。
+
 ## 6. 段階
 
 | 段階 | 内容 | 依存 |
@@ -252,7 +277,35 @@ interface OpusWorkhomeSpec {
 | W2 | 店の間と業種の品物（§4.4、10 業種）、階数（§4.6） | W1 |
 | W3 | CE: `CE_ADOPTION` で Opus 版を採用する。施設ごとの外観の仕様（§4.7）を入れる。`compact` の出力が変わらないことを確かめる | W1、W2 |
 | W4 | CE `burgage`／`burgage-dense`: 区画の幅に合わせた資産を作り、Workhome を区画 1 筆に置く。版を上げる。[ce-burgage-plot-fabric.md](ce-burgage-plot-fabric.md) §8.7 の町で、建物の割合と施設を置けた数を比べる | W3 |
-| W5 | 使われていない Trade／Market Guild Halls（task 48/49）を同じ並びに混ぜる | ギルドホールの史料の調べ直しの後 |
+| W5 | ギルドホールの数と形を地域ごとに改める（§6.1）。史料の調べ直し（§5.6）は済み | W3、W4 |
+
+### 6.1 W5 の計画（§5.6 を受けて改めた）
+
+旧版の「使われていない Trade／Market Guild Halls（task 48/49）を同じ並びに混ぜる」は、会館の数が今のままである前提だった。§5.6 で、数そのものが多すぎると分かったので、次の 3 つに分ける。
+
+| 段階 | 内容 |
+| --- | --- |
+| W5a | 会館の数の規則。組合（実務者 3 人以上の業種）と会館を分ける。地域の型と町の人口から、会館の数と形を決める（下の表）。会館を持たない組合は建物を描かない（教会・宿屋で会合する） |
+| W5b | `northern-urban` の Zunfthaus。task 48 の ID に Opus の版を足し、Workhome と同じ組み立てで、区画 1〜2 筆の町家として並びに置く。1 階は扉と窓、2 階は Stube の窓の列、紋の看板。店の間は作らない。1 つの家に数業種を割り当てる |
+| W5c | `atlantic` の町のギルドホール。市場のある町では task 49（1 階が開いた型）を市場に面して置き、CE で使えるようにする。ほかは task 48 を教会の近くに置く。大きな町の職人組合の会館は、表の区画の奥に置く |
+
+会館の数（Economy なしの既定。人口の区切りは仮の値）:
+
+| 地域の型 | 2,000 人未満 | 2,000〜10,000 人 | 10,000 人以上 |
+| --- | --- | --- | --- |
+| `atlantic`・`northern-wooded`・`stone-upland`（仮） | 町のギルドホール 1 | 町のギルドホール 1 | 町のギルドホール 1 ＋ 職人組合の会館 5,000 人ごとに 1 |
+| `northern-urban` | 0（宿屋で会合） | Zunfthaus を 1,250 人ごとに 1（コンスタンツ 5,000 人で 4）。組合の数が上限 | 同じ |
+| `mediterranean` | 0 | 0 | 職人組合の会館 10,000 人ごとに 1 |
+
+- 大きな組合（実務者の多い業種）から順に会館を割り当てる。`northern-urban` で会館より組合が多い時は、残りの組合を同じ家に足す（コンスタンツの Rosgarten）。
+- Economy あり: FMG の組合（`guild-halls-and-urban-trades.md` の chapter）を組合として渡し、同じ規則で会館にする。
+- 版: 施設の数が変わるので、`compact`・`burgage`・`burgage-dense` の版を上げる。
+
+受入の条件:
+
+- 2,000 人の `atlantic` の町の会館: 9 棟 → 1 棟。5,000 人の `northern-urban` の町: 4 棟以下で、全部が区画の並びの町家。
+- 会館を持たない組合の業種でも、Workhome の数は変わらない。
+- 未収容の住民: 0。`burgage-dense` の建物の割合は、空いた区画を家が埋めるので、W4 より下がらない。
 
 ## 7. 受入の条件
 
@@ -289,7 +342,7 @@ interface OpusWorkhomeSpec {
 本書の W1〜W4 は済んだ。次の候補は 3 つある。
 
 - 町の中心の大型施設（task 52〜58）の大きさの見直し（§8 の未決事項。別の設計書）。`burgage-dense` の施設のある町の建物の割合を `compact` に近づけるには、こちらが要る（§10.4）。
-- W5（ギルドホールを混ぜる）。ギルドホールの史料の調べ直しが先。
+- W5b（`northern-urban` の Zunfthaus を区画の並びの町家にする、§6.1）。W5a は済んだ（§10.5）。
 - §10.4 で見つけた、`burgage`・川あり・5,000 人・種 `r1` の検証の誤り（刃物屋の配置）。W4 の前からある。
 
 ## 10. 実装の記録
@@ -448,3 +501,46 @@ Low は Codex 版（4,428〜6,444）の 1/4〜1/6、地域の型の住宅 `craft
 - CE で `burgage-dense` の 5,000 人の町を生成し、3D で目視した。この町では「仮の箱・未確認のモデル」の注記が 1 件出た。どの建物かは特定できていない（vitest の 4 つの町では 0 件）。
 - 関連テスト 67 ファイル・272 件のうち、失敗は §10.3 と同じ 2 件（W1 の前から失敗している `houseLod3d.test.ts`・`facilities3d.test.ts`）。
 
+### 10.5 W5a（2026-11-18）
+
+§6.1 の数の規則を、2026-11-18 にユーザーが認めた。
+
+作ったもの:
+
+- [guildHallPlan.ts](../../src/city-editor/generators/guildHallPlan.ts): `guildHallPlan(culture, population, chapters)`。§6.1 の表のとおりに、会館の種類（`town`・`craft`・`zunft`）と、そこで会合する組合を返す。会館は実務者の多い組合から割り当てる。`northern-urban` では、家を持たない組合を家に順に足す。
+- [populationFacilityRequests.ts](../../src/city-editor/generators/populationFacilityRequests.ts): `culture` を受け取り、会館の要求を `guildHallPlan` から作る。町のギルドホールの ID は `guild:town`、ほかは `guild:<業種>` のまま。モデルは W5b・W5c までは今の task 48（先頭の組合の紋）を使う。`culture` がない時（メッシュありの CE）は、今までどおり組合ごとに 1 棟。
+- [housingCulture.ts](../../src/city-editor/generators/vector/generation/housingCulture.ts): 町の外観の型を文書ができる前にも出せるように `townProfileFor` を分け、型から会館・Workhome の文化を出す `vectorTownCulture` を置いた（`legacy` は `atlantic`）。`urban.ts`・敷地の見積もり（`vectorFacilityLand`、`editorInput.ts`・`pipeline.ts`）が同じ文化を使う。
+- 版: `compact` を v24、`burgage` を v25、`burgage-dense` を v26 にした。
+
+施設のある町（壁あり・川なし、`b2-probe`、大航海時代）、W5a の前 → 後:
+
+| 町 | 会館 | 施設を置けた数 | 建物の割合（家と施設） | 未収容 |
+| --- | --- | --- | --- | --- |
+| `atlantic` `compact` 2,000 人 | 10 → 1 | 94/100 → 85/91 | 38% → 43% | 0 |
+| `atlantic` `compact` 5,000 人 | 10 → 1 | 239/255 → 230/246 | 45% → 47% | 0 |
+| `atlantic` `burgage` 2,000 人 | 10 → 1 | 94/100 → 85/91 | 19% → 17% | 0 |
+| `atlantic` `burgage` 5,000 人 | 10 → 1 | 238/255 → 230/246 | 17% → 16% | 0 |
+| `atlantic` `burgage-dense` 2,000 人 | 10 → 1 | 94/100 → 85/91 | 31% → 33% | 0 |
+| `atlantic` `burgage-dense` 5,000 人 | 10 → 1 | 239/255 → 230/246 | 31% → 31% | 0 |
+| `northern-urban` `compact` 5,000 人 | 10 → 4 | 239/255 → 233/249 | 45% → 45% | 0 |
+| `northern-urban` `burgage` 5,000 人 | 10 → 4 | 233/255 → 230/249 | 15% → 15% | 0 |
+| `northern-urban` `burgage-dense` 2,000 人 | 10 → 1 | 94/100 → 85/91 | 31% → 33% | 0 |
+| `northern-urban` `burgage-dense` 5,000 人 | 10 → 4 | 239/255 → 233/249 | 31% → 31% | 0 |
+
+（大航海時代なので印刷の組合ができ、W5a の前の会館は 10。建物の割合は壁の中の街区に対する値で、整数に丸めた。）
+
+- 会館のほかの施設は、置けた数が前と同じ（減ったのは会館の分だけ）。`northern-urban` `burgage` 5,000 人だけは 3 つ多く置けた。置けなかった施設は、前と同じく縄綯い場が主。
+- `burgage-dense` の建物の割合は下がらなかった（31〜33%）。`burgage` は 1〜2 ポイント下がった。会館の分だけ町が小さくなり、裏庭の割合が増えたため。`burgage` の割合は §6.1 の受入の条件に入れていない。
+- `northern-urban` の Zunfthaus は、まだ task 48 の独立した会館（12.8×9 m）で、区画の並びの町家ではない（W5b）。
+
+確かめたこと:
+
+- [guildHallPlan.test.ts](../../src/city-editor/generators/guildHallPlan.test.ts) を足した（3 件: 地域の型ごとの数、`northern-urban` の家の共用）。
+- [workhomeExteriors3d.test.ts](../../src/city-editor/renderers/vector/workhomeExteriors3d.test.ts) の W4 の幅の検査を直した。会館が減って町の区画が変わり、間口 9.5 m の区画に Workhome が建つようになった。上限 7.5 m と、保存した区画の正面が 1 cm 刻みであることを、検査が考えていなかった。
+- [burgagePlots.test.ts](../../src/city-editor/generators/vector/generation/burgagePlots.test.ts) の版の期待値を v24〜v26 にした。
+- 関連テスト 17 ファイル・113 件が成功した。`tsc --noEmit`・biome・`scripts/lint-architecture.ts` も成功した。
+
+まだ扱っていないこと:
+
+- Economy ありの町の会館（`raiseVectorGuilds`、`environment.guilds`）は、FMG の組合から別に建つ。§6.1 の規則はまだ通していない。
+- メッシュありの CE の会館の数は変えていない。

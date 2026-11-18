@@ -39,6 +39,7 @@ import { isFerryRiver, raiseVectorFerries } from "./ferries";
 import { raiseVectorForest } from "./forest";
 import { spreadApproaches, squareWallCrossings } from "./gateApproaches";
 import { raiseVectorGuilds } from "./guilds";
+import { vectorTownCulture, vectorTownProfile } from "./housingCulture";
 import { expectedVectorHouseStoreys } from "./housingHeights";
 import { raiseVectorInns } from "./inns";
 import { raiseVectorOpenLandmarks } from "./landmarks";
@@ -1324,7 +1325,8 @@ function skeleton(
         doc.context.targetPopulation ?? 0,
         period,
         !!doc.site?.descriptor?.burg.port,
-        doc.context.requestedSettings?.facilityLayout
+        doc.context.requestedSettings?.facilityLayout,
+        vectorTownCulture(vectorTownProfile(doc))
       )
     );
   const ribbon = raiseVectorRibbonLand(

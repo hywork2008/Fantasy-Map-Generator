@@ -2,7 +2,6 @@ import { opusWorkhomeHeight } from "../../../../buildings/medieval/opusWorkhome"
 import {
   OPUS_WORKHOME_FRONTS,
   OPUS_WORKHOME_PRESET_ENVELOPES,
-  type OpusWorkhomeCulture,
   type OpusWorkhomeExterior,
   opusWorkhomeModel,
   opusWorkhomeSpecKey,
@@ -12,7 +11,7 @@ import {
 import { growthRandom } from "../../../../utils/urbanMorphology";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import { nearestOnPolyline } from "../../geom";
-import { vectorTownProfile } from "./housingCulture";
+import { vectorTownCulture, vectorTownProfile } from "./housingCulture";
 
 /** Shares of the drawn street fronts (provisional, plan §8): shutters open, a door left ajar, a signboard hung. */
 const OPEN_SHOP = 0.7;
@@ -20,12 +19,6 @@ const AJAR_DOOR = 0.2;
 const SIGNBOARD = 0.7;
 /** Sites closer than this share a party wall. */
 const TOUCH_METERS = 0.3;
-
-/** The culture a town's workhomes are drawn in: its housing profile, English where it has none of its own. */
-function workhomeCulture(doc: VectorCityDocument): OpusWorkhomeCulture {
-  const profile = vectorTownProfile(doc);
-  return profile === "legacy" ? "atlantic" : profile;
-}
 
 const ring = (outer: readonly [number, number][]) => [...outer, outer[0]];
 function touching(a: readonly [number, number][], b: readonly [number, number][]) {
@@ -52,7 +45,7 @@ function touching(a: readonly [number, number][], b: readonly [number, number][]
  * its envelope and door; only its saved height follows the model.
  */
 export function dressWorkhomes(doc: VectorCityDocument, ids: readonly string[]) {
-  const culture = workhomeCulture(doc),
+  const culture = vectorTownCulture(vectorTownProfile(doc)),
     period = doc.context.historicalPeriod,
     faceFixed = OPUS_WORKHOME_FRONTS[culture].face,
     dressed: { outer: [number, number][]; key: string }[] = [];

@@ -8,13 +8,18 @@ import { ENCLOSED_GUILD_HALL } from "../../buildings/medieval/enclosedGuildHall"
 import { ENCLOSED_GUILD_TRADES } from "../../buildings/medieval/enclosedGuildTrades";
 import { HORSE_MILL } from "../../buildings/medieval/horseMill";
 import { OPUS_BUTCHERY, OPUS_TOWN_TRADES, type OpusTownTrade } from "../../buildings/medieval/opusTradeProfiles";
-import { opusWorkhomeLayout, opusWorkhomePreset } from "../../buildings/medieval/opusWorkhomeProfiles";
+import {
+  type OpusWorkhomeCulture,
+  opusWorkhomeLayout,
+  opusWorkhomePreset
+} from "../../buildings/medieval/opusWorkhomeProfiles";
 import { WORKHOME_FORMS } from "../../buildings/medieval/workhomeFormProfiles";
 import { WORKHOME_TRADES } from "../../buildings/medieval/workhomeTradeProfiles";
 import type { LandmarkAsset } from "../types/document";
 import type { BVFacilityRequest } from "./allocateBVFacilities";
 import { bvFacilityAsset } from "./bvFacilityAsset";
 import type { FacilityUse } from "./facilityUses";
+import { guildHallPlan, type PlannedGuildHall } from "./guildHallPlan";
 import { medievalTradeDemand, type TradeReferenceRow } from "./medievalTradeDemand";
 
 const PREFIX = "population-facility:";
@@ -51,7 +56,14 @@ function placeholder(pool: string, width = 10, depth = 12): LandmarkAsset {
   };
 }
 
-export function buildPopulationFacilityRequests(population: number, options: { period: string; port: boolean }) {
+/**
+ * The facilities a town of this size needs. `culture` sets its guild halls by its housing culture (plan
+ * bv-workhome-facade-variation.md §6.1 W5a); without one, as the mesh editor still does, every guild has its hall.
+ */
+export function buildPopulationFacilityRequests(
+  population: number,
+  options: { period: string; port: boolean; culture?: OpusWorkhomeCulture }
+) {
   const demand = medievalTradeDemand(rows, population, {
     period: options.period,
     port: options.port
@@ -62,19 +74,24 @@ export function buildPopulationFacilityRequests(population: number, options: { p
     if (!assets.has(key)) assets.set(key, build());
     return assets.get(key)!;
   };
-  for (const domain of demand.domains.filter(d => d.inferredHalls)) {
-    const role =
-      domain.domain === "glassware"
-        ? "glassware-pottery"
-        : domain.domain === "printing"
-          ? "book-trades"
-          : domain.domain;
+  const chapters = demand.domains.filter(d => d.inferredHalls),
+    halls: PlannedGuildHall[] = options.culture
+      ? guildHallPlan(options.culture, population, chapters)
+      : chapters.map(d => ({ kind: "craft", domains: [d.domain] }));
+  for (const hall of halls) {
+    const domain = hall.domains[0] ?? "textiles",
+      role = domain === "glassware" ? "glassware-pottery" : domain === "printing" ? "book-trades" : domain;
     const asset = ENCLOSED_GUILD_TRADES.some(t => t.id === role)
       ? cached(`guild:${role}`, () =>
           bvFacilityAsset(`trade-hall.guild-enclosed.${role}`, [{ id: "main", ...ENCLOSED_GUILD_HALL.main }])
         )
       : placeholder(`guild:${role}`, 13, 10);
-    requests.push({ id: `${PREFIX}guild:${domain.domain}`, asset, zone: "core", use: "commerce" });
+    requests.push({
+      id: `${PREFIX}guild:${hall.kind === "town" ? "town" : domain}`,
+      asset,
+      zone: "core",
+      use: "commerce"
+    });
   }
   for (const trade of demand.trades) {
     const per = PRACTITIONERS_PER_FACILITY[trade.pool],
