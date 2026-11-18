@@ -2870,7 +2870,7 @@ const tigerButton = document.createElement("button");
 tigerButton.dataset.id = "tigerI";
 tigerButton.type = "button";
 tigerButton.textContent = "Tiger I · German heavy tank, 1942–1945";
-tigerButton.addEventListener("click", () => {
+function showTigerTank(): void {
   selection++;
   for (const button of list.querySelectorAll("button")) {
     button.setAttribute("aria-current", button === tigerButton ? "true" : "false");
@@ -2879,9 +2879,12 @@ tigerButton.addEventListener("click", () => {
   floors.replaceChildren();
   facts.replaceChildren();
   banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
   roofTitle.textContent = "Tiger I side elevation";
   levelTitle.textContent = "Tiger I plan";
-  const model = createTigerTank();
+  const model = createTigerTank(quality);
   massing = model;
   scene.add(model.group);
   ground.visible = true;
@@ -2901,11 +2904,19 @@ tigerButton.addEventListener("click", () => {
     ),
     fact("Armament", "8.8 cm KwK 36 L/56 with muzzle brake; hull machine-gun ball mount"),
     fact("Running gear", "Interleaved road wheels on eight stations a side, front drive sprocket, rear idler"),
-    fact("Note", TIGER_I.note, "Tiger I")
+    fact("Quality", quality === "high" ? "High" : "Low — plain track runs and simplified fittings"),
+    fact("Note", TIGER_I.note, "Tiger I"),
+    ...(quality === "high" ? [fact("High detail", TIGER_I.highNote)] : [])
   );
-});
+}
+tigerButton.addEventListener("click", () => showTigerTank());
 vehiclesHeading.append(tigerButton);
-AUTHORED_VARIANTS[tigerButton.dataset.id] = { author: TIGER_I.author, primary: true, show: () => tigerButton.click() };
+AUTHORED_VARIANTS[tigerButton.dataset.id] = {
+  author: TIGER_I.author,
+  primary: true,
+  quality: true,
+  show: () => showTigerTank()
+};
 
 let townWallHousingCulture: BuildingAppearanceProfile = "legacy";
 

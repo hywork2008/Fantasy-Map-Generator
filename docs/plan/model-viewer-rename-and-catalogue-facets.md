@@ -121,6 +121,7 @@ export interface ModelFacets {
 5. **近代兵器の追加**：第一次世界大戦の戦車などを `kind: "weapon"` または `"vehicle"`、`periods: ["petroleumEra"]` で追加する。
    - 2026-11-18：戦車は `vehicle` とすることに決めた（未決事項を解消）。最初の1両として、第二次世界大戦のドイツの Tiger I（1942〜1945年）を [tigerTank.ts](../../src/buildings/vehicles/tigerTank.ts) に追加した。属性は `kind: "vehicle"`、`periods: ["petroleumEra"]`、`years: [1942, 1945]`、`regions: ["european"]`、`uses: ["armor", "military"]`。`PLACEABLE_OBJECTS`（ID `tigerI`）とMVの Vehicles の見出しに登録した。author は Claude Opus 5.5。
    - 寸法は公表値（全長8.45 m（砲を前に向けた状態）、車体長6.316 m、全幅3.705 m、全高3.0 m）に合わせた。装甲厚、ハッチ、工具、履帯の個々のリンク、車内は簡略化または省いた。砲塔は旋回しない静止モデルで、国籍標識などのマーキングは描いていない。
+   - 2026-11-18：Tiger I に High 品質を追加した。130 mm ピッチの個々の履帯リンク（片側約100枚、グローサー付き）、ゴムタイヤ付きの転輪とボルト止めのハブキャップ、2列の歯を持つ起動輪、スポーク付きの誘導輪、牽引シャックル・前照灯・牽引ワイヤー・工具・機関室のファンカバーとグリル、段付きの砲身とスロット付きの砲口ブレーキ、ピストルポート・脱出ハッチ・吊り上げ環・3連の発煙弾発射器を加えた。これまでのモデルは Low とした。`object.tigerI@high` として登録し、CE は従来どおり default（Low）を使う。
 
 ## 検証
 
