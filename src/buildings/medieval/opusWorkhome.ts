@@ -4,6 +4,7 @@ import { BUILDING_PALETTES, type BuildingPaletteId } from "../appearance/palette
 import { compactModel } from "../compactModel";
 import type { Surface } from "./modelKit";
 import { TradeKit, type TradeQuality, WALL_THICKNESS, type WallOpening } from "./opusTradeKit";
+import { tradeGoods } from "./opusWorkhomeGoods";
 import {
   type OpusWorkhomeLayout,
   type OpusWorkhomeOpening,
@@ -64,8 +65,61 @@ function archHead(k: TradeKit, o: OpusWorkhomeOpening, spring: number, face: num
   k.add("arch-voussoirs", ringGeometry, "stone");
 }
 
+/** Depth of the shop room behind its window: Schofield's usual shop of about 2.4 x 3.0 m (Bennell p.194). */
+const SHOP_BAY = 2.8;
+
+/** Evenly spaced item centres across a run, `per` metres apart at most `max` of them. */
+const slots = (a: number, b: number, per: number, max: number) => {
+  const n = Math.max(1, Math.min(max, Math.floor((b - a) / per)));
+  return Array.from({ length: n }, (_, i) => a + ((i + 0.5) * (b - a)) / n);
+};
+
+/**
+ * The shop room seen through an open window (plan §4.4): a floor, partitions closing it off from the house, a
+ * counter behind the sill, shelves on the back wall and a rail inside the head, each set with the trade's goods.
+ * Nothing behind it is built.
+ */
+function shopBay(k: TradeKit, l: OpusWorkhomeLayout, o: OpusWorkhomeOpening, head: number, board: number) {
+  const t = WALL_THICKNESS,
+    inner = l.z1 - t,
+    depth = Math.min(SHOP_BAY, inner - l.z0 - 1.5),
+    back = inner - depth,
+    a = Math.max(l.x0 + t, o.a - 0.1),
+    b = Math.min(l.x1 - t, o.b + 0.1),
+    c = (a + b) / 2,
+    w = b - a,
+    room = l.ground,
+    role = l.spec.role;
+  k.box("shop-floor", [c, 0.03, back + depth / 2], [w, 0.06, depth], "wood");
+  k.box("shop-back-partition", [c, room / 2, back - 0.04], [w + 0.16, room, 0.08], "wood");
+  for (const x of [a - 0.04, b + 0.04])
+    k.box("shop-side-partition", [x, room / 2, back + depth / 2], [0.08, room, depth], "plaster");
+  // The inner counter behind the sill, its top level with the window board.
+  k.box("shop-counter", [c, SHOP_SILL - 0.04, inner - 0.3], [w, 0.08, 0.5], "oak");
+  if (k.high)
+    k.box("shop-counter-front", [c, (SHOP_SILL - 0.08) / 2, inner - 0.55], [w, SHOP_SILL - 0.08, 0.05], "wood");
+  const shelves = k.high ? [1.25, 1.75] : [1.4];
+  for (const y of shelves) k.box("shop-shelf", [c, y, back + 0.17], [w - 0.1, 0.04, 0.3], "oak");
+  if (k.high) k.box("shop-rail", [c, head - 0.08, inner - 0.12], [w - 0.1, 0.05, 0.05], "iron");
+  const across = (per: number, max: number) => slots(o.a + 0.05, o.b - 0.05, per, max);
+  // Goods on the street board (stall board or stone counter), the inner counter, the shelves and the rail.
+  across(0.55, k.high ? 3 : 2).forEach((x, i) => {
+    tradeGoods(k, role, "counter", x, SHOP_SILL, board, i);
+  });
+  across(0.6, k.high ? 3 : 1).forEach((x, i) => {
+    tradeGoods(k, role, "counter", x, SHOP_SILL, inner - 0.42, i + 1);
+  });
+  for (const [s, y] of shelves.entries())
+    slots(a + 0.1, b - 0.1, 0.45, k.high ? 3 : 2).forEach((x, i) => {
+      tradeGoods(k, role, "shelf", x, y + 0.02, back + 0.17, i + s);
+    });
+  across(0.5, k.high ? 3 : 1).forEach((x, i) => {
+    tradeGoods(k, role, "rail", x, head - 0.1, inner - 0.12, i);
+  });
+}
+
 /** Shop window: open drops the stall board and props the upper shutter (or shows the stone counter of an arched
- * shop); closed shows the shutters flush in the opening. The space behind stays dark until W2's shop bay. */
+ * shop) in front of the shop room; closed shows the shutters flush in the opening and builds no room. */
 function shopWindow(k: TradeKit, l: OpusWorkhomeLayout, o: OpusWorkhomeOpening, head: number) {
   const face = l.z1,
     w = o.b - o.a,
@@ -78,14 +132,14 @@ function shopWindow(k: TradeKit, l: OpusWorkhomeLayout, o: OpusWorkhomeOpening, 
         k.box("shutter-ledge", [c, y, face - t / 2 + 0.05], [w - 0.1, 0.1, 0.04], "oak");
     return;
   }
-  k.box("shop-recess", [c, (SHOP_SILL + head) / 2, face - 0.7], [w, head - SHOP_SILL, 0.04], "dark");
-  k.box("shop-floor", [c, SHOP_SILL - 0.05, face - 0.35], [w, 0.1, 0.7], "wood");
   if (l.arched) {
     // The étal: a stone counter sill projecting into the street (Garrigou Grandchamp 2002 p.92, fig. 15).
     k.box("stone-counter", [c, SHOP_SILL - 0.06, face + 0.22], [w + 0.1, 0.12, 0.5], "stone");
+    shopBay(k, l, o, head, face + 0.22);
     return;
   }
   k.shopFront(o.a, o.b, face, SHOP_SILL, SHOP_HEAD);
+  shopBay(k, l, o, head, face + 0.33);
 }
 
 function streetDoor(k: TradeKit, l: OpusWorkhomeLayout, top: number) {
@@ -107,7 +161,7 @@ function streetDoor(k: TradeKit, l: OpusWorkhomeLayout, top: number) {
 }
 
 /** A painted device on the board (signs named the house, rarely the trade: Bennell pp.201–202). */
-const DEVICES = ["star", "ring", "key", "bell"] as const;
+const DEVICES = ["star", "sun", "key", "bell"] as const;
 function device(role: string, mirror: boolean) {
   let h = mirror ? 7 : 3;
   for (const ch of role) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -121,11 +175,13 @@ function sign(k: TradeKit, l: OpusWorkhomeLayout) {
   const x = Math.min(l.x1 - 0.15, Math.max(l.x0 + 0.15, outer + (l.spec.mirror ? -0.2 : 0.2)));
   const kind = device(l.spec.role, l.spec.mirror);
   k.signBracket(x, l.z1, l.ground - 0.15, (cx, cy, cz) => {
-    if (kind === "ring") k.ring("sign-device", [cx + 0.03, cy, cz], 0.14, 0.035, "amber");
+    // Flat painted discs, not tori: a sign is seen from the street, not handled.
+    if (kind === "sun")
+      k.cylinder("sign-device", [cx + 0.03, cy, cz], 0.14, 0.02, "amber", 0.14, 8).rotation.z = Math.PI / 2;
     else if (kind === "bell") k.cylinder("sign-device", [cx + 0.03, cy - 0.02, cz], 0.13, 0.22, "brass", 0.05, 6);
     else if (kind === "key") {
       k.box("sign-device", [cx + 0.03, cy, cz], [0.02, 0.05, 0.32], "iron");
-      k.ring("sign-device", [cx + 0.03, cy, cz - 0.17], 0.06, 0.02, "iron");
+      k.box("sign-device", [cx + 0.03, cy, cz - 0.17], [0.02, 0.12, 0.1], "iron");
     } else
       for (const r of [0, Math.PI / 3, -Math.PI / 3]) {
         const arm = k.box("sign-device", [cx + 0.03, cy, cz], [0.02, 0.06, 0.34], "amber");

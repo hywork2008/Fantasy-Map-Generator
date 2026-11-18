@@ -9,8 +9,10 @@ import {
   type OpusWorkhomeSpec,
   opusWorkhomeLayout,
   opusWorkhomePreset,
-  opusWorkhomeSpecKey
+  opusWorkhomeSpecKey,
+  opusWorkhomeStoreys
 } from "./opusWorkhome";
+import { WORKHOME_TRADES } from "./workhomeTradeProfiles";
 
 const triangles = (model: CityStructureMeshes) => {
   let n = 0;
@@ -32,7 +34,7 @@ function measure(spec: OpusWorkhomeSpec, quality: "low" | "high") {
 
 const WIDTHS = [3, 4.5, 6.44, 7.7];
 
-describe("Opus shop-house workhome (docs/plan/bv-workhome-facade-variation.md W1)", () => {
+describe("Opus shop-house workhome (docs/plan/bv-workhome-facade-variation.md W1, W2)", () => {
   it("keeps every culture, frontage and storey count inside its plot envelope and its triangle budget", () => {
     let worstLow = 0,
       worstHigh = 0;
@@ -63,6 +65,32 @@ describe("Opus shop-house workhome (docs/plan/bv-workhome-facade-variation.md W1
     // Plan §7.1: about 1.5 times a regional craft house at Low; the Codex workhome took 4,428–6,444.
     expect(worstLow).toBeLessThanOrEqual(1800);
     expect(worstHigh).toBeLessThanOrEqual(7000);
+  });
+
+  it("keeps every trade's open shop and its goods inside the budget, and builds no shop room behind shutters", () => {
+    for (const { id: role } of WORKHOME_TRADES)
+      for (const culture of ["atlantic", "mediterranean"] as const) {
+        const open = opusWorkhomePreset(role, "standard", { culture, widthMeters: 7.7, fronts: 2, storeys: 3 }),
+          low = measure(open, "low"),
+          high = measure(open, "high"),
+          closed = measure({ ...open, shop: "closed" }, "low");
+        expect(low.triangles).toBeLessThanOrEqual(1800);
+        expect(high.triangles).toBeLessThanOrEqual(7000);
+        // The shop room and its wares are what opening the shutters adds.
+        expect(low.triangles - closed.triangles).toBeGreaterThan(100);
+        for (const { box } of [low, high]) expect(box.max.z).toBeLessThanOrEqual(open.depthMeters / 2 + 0.01);
+      }
+  });
+
+  it("raises a third storey only from the late Middle Ages and on frontages of 5 m or more", () => {
+    expect(opusWorkhomeStoreys("highMedieval", 7, 0)).toBe(2);
+    expect(opusWorkhomeStoreys("lateMedieval", 4.9, 0)).toBe(2);
+    expect(opusWorkhomeStoreys("lateMedieval", 5, 0)).toBe(3);
+    expect(opusWorkhomeStoreys("ageOfExploration", 6, 0.9)).toBe(2);
+    // A narrow plot never takes three storeys, whatever the spec asks.
+    expect(
+      opusWorkhomeLayout(opusWorkhomePreset("tailoring", "standard", { widthMeters: 4, storeys: 3 })).spec.storeys
+    ).toBe(2);
   });
 
   it("lays a door and its shop windows on the street front apart, from 3 m plots to double fronts", () => {

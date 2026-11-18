@@ -3,6 +3,8 @@
  * (docs/plan/bv-workhome-facade-variation.md §4). Free of three.js so CE generators can lay plots and entrances.
  * Coordinates are metres, +Z toward the street, the envelope centred on the origin.
  */
+
+import { historicalPeriodIndex } from "../../types/historicalPeriod";
 import type { BuildingPaletteId } from "../appearance/palette";
 import type { BuildingAppearanceProfile } from "../appearance/types";
 import { REGIONAL_HOUSE_STYLES } from "../houses/regionalHouseStyles";
@@ -45,6 +47,21 @@ export const OPUS_WORKHOME_MIN_WIDTH = 3;
 export const OPUS_WORKHOME_MAX_WIDTH = 7.7;
 /** Double fronts need a window either side of the door (Bennell p.194: 6.1–7.32 m). */
 export const OPUS_WORKHOME_DOUBLE_FRONT_WIDTH = 6;
+
+/** A third storey needs this frontage: a tall house on a narrow plot is a tower, not a shop-house (plan §4.6). */
+export const OPUS_WORKHOME_TALL_WIDTH = 5;
+/** Share of tall shop-houses where they are allowed (provisional, plan §8). */
+export const OPUS_WORKHOME_TALL_SHARE = 0.35;
+
+/**
+ * Storeys of a shop-house (plan §4.6): a ground storey and one upper storey under a garret, as most London shops by
+ * 1300 (Bennell pp.193–194); a third storey from the late Middle Ages on frontages of 5 m and more, as Cheapside's
+ * goldsmiths in 1547. `roll` is the facility's own draw in [0, 1).
+ */
+export function opusWorkhomeStoreys(period: string | undefined, widthMeters: number, roll: number): 2 | 3 {
+  const late = historicalPeriodIndex(period) >= historicalPeriodIndex("lateMedieval");
+  return late && widthMeters >= OPUS_WORKHOME_TALL_WIDTH && roll < OPUS_WORKHOME_TALL_SHARE ? 3 : 2;
+}
 
 /** Street-side reach in front of the ground-storey wall: stall board, propped shutter, sign. */
 const STREET_REACH = 0.8;
@@ -129,6 +146,7 @@ export function normalizeOpusWorkhomeSpec(spec: OpusWorkhomeSpec): OpusWorkhomeS
     widthMeters,
     depthMeters: grid(clamp(spec.depthMeters, 8, 12)),
     entranceFace: face,
+    storeys: spec.storeys === 3 && widthMeters >= OPUS_WORKHOME_TALL_WIDTH ? 3 : 2,
     fronts: spec.fronts === 2 && widthMeters >= OPUS_WORKHOME_DOUBLE_FRONT_WIDTH ? 2 : 1
   };
 }
