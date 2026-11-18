@@ -413,6 +413,26 @@
         "replay": "共有した入力と設定から再生成",
         "glbHint": "形状とモデル寸法を保持します。BV固有のシェーダーは標準glTF材質に近似します。"
       },
+      "objects": {
+        "title": "オブジェクト配置",
+        "ignorePeriod": "年代設定を無視（全モデルを表示）",
+        "category": "カテゴリ",
+        "model": "モデル",
+        "facing": "向き（度）",
+        "place": "地図上に配置",
+        "stop": "配置を終了",
+        "placing": "地図をクリックするとモデルを配置します。Escで終了します。",
+        "placed": "配置しました：",
+        "failed": "配置できません：",
+        "placedList": "配置済みオブジェクト",
+        "remove": "選択したオブジェクトを削除",
+        "errors": {
+          "object-obstacle": "道路・川・城壁・建物・住宅と重なります。",
+          "object-outside-frame": "モデルが地図の端からはみ出します。",
+          "object-model": "不明なモデルです。",
+          "object-required": "このツールで配置したオブジェクトを選んでください。"
+        }
+      },
       "environment": {
         "title": "敷地・景観・地形",
         "kind": "用途",
@@ -1552,6 +1572,7 @@
       "objectCategory": "カテゴリ",
       "objectModel": "モデル",
       "objectScale": "倍率",
+      "ignoreHistoricalPeriod": "年代設定を無視",
       "objectDimensions": "寸法 (m)",
       "objectsNeedLand": "オブジェクト全体を陸地に配置してください。",
       "rotateObject": "オブジェクトを回転",
