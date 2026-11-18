@@ -46,7 +46,7 @@ function town(plotFabric: PlotFabric, population = 1000, facilities = false): Ve
 const rings = (coords: number[], offsets: number[], origin: [number, number]) =>
   offsets.map((start, i) => unpackPoints(coords, origin, start, offsets[i + 1] ?? coords.length / 2));
 
-describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md B2, B3)", () => {
+describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md B2, B3, B5)", () => {
   it("houses everyone on plots recorded with their street blocks, and keeps them through a save", () => {
     const doc = town("burgage");
     expect(doc.urban!.algorithm).toBe("vector-urban-v19");
@@ -87,6 +87,31 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
       // A street block inside the wall that holds a facility holds houses too.
       if (cell.inside && under.some(t => t.length)) expect(cell.houses.offsets.length).toBeGreaterThan(0);
     }
+  });
+
+  it("builds rear houses in the yards only once every front inside the wall is built (the burgage cycle, B5)", () => {
+    const doc = town("burgage", 5000);
+    expect(doc.urban!.report.unplacedDwellings).toBe(0);
+    const lawns = (doc.urban!.parks ?? []).flatMap(p => p.lawns);
+    let rear = 0,
+      empty = 0,
+      plots = 0;
+    for (const cell of Object.values(doc.fabric!.cells)) {
+      if (!cell.plots || !cell.inside) continue;
+      const houses = rings(cell.houses.coords, cell.houses.offsets, cell.origin);
+      for (const plot of rings(cell.plots.coords, cell.plots.offsets, cell.origin)) {
+        // A park ward's plots are its lawn, not empty fronts.
+        if (lawns.some(l => pointInPolygon(polygonCentroid(plot), l))) continue;
+        const on = houses.filter(h => pointInPolygon(polygonCentroid(h), plot)).length;
+        plots++;
+        if (on >= 2) rear++;
+        if (!on) empty++;
+      }
+    }
+    expect(rear).toBeGreaterThan(50);
+    // Fronts inside the wall stay empty only where a house cannot stand (a gate opening, a junction) or a park ward
+    // keeps its block free (its lawn is inset from the block's edges): a few at most, while yards take rear houses.
+    expect(empty / plots).toBeLessThan(0.05);
   });
 
   it("leaves compact street blocks as they were", () => {

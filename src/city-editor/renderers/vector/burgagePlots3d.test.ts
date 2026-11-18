@@ -2,6 +2,7 @@ import type * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import type { BuildingAppearanceProfile } from "../../../buildings/appearance/types";
 import { defaultGenerationSettings } from "../../generators/generation/settings";
+import { pointInPolygon } from "../../generators/geom";
 import { defaultPopulationSettings } from "../../generators/populationPlan";
 import { vectorInputFromEditor } from "../../generators/vector/generation/editorInput";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../../generators/vector/generation/pipeline";
@@ -58,7 +59,7 @@ function burgageMeshes(doc: VectorCityDocument) {
   return { data, roles };
 }
 
-describe("burgage plots drawn in 2D and 3D (docs/plan/ce-burgage-plot-fabric.md B4)", () => {
+describe("burgage plots drawn in 2D and 3D (docs/plan/ce-burgage-plot-fabric.md B4, B5)", () => {
   it("draws each street block's yards and plot walls as one ground and one wall, under its houses", () => {
     const doc = town("atlantic"),
       { data, roles } = burgageMeshes(doc),
@@ -67,7 +68,12 @@ describe("burgage plots drawn in 2D and 3D (docs/plan/ce-burgage-plot-fabric.md 
     expect(data.warnings.filter(w => w.startsWith("burgage-"))).toEqual([]);
     for (const cell of cells) {
       const own = data.surfaces.filter(s => s.id.startsWith(`${cell.id}~`) && s.featureKind === "burgage");
-      expect(own.map(s => s.pieceRole).sort()).toEqual(["plot-wall", "yard"]);
+      expect(
+        own
+          .map(s => s.pieceRole)
+          .filter(r => r !== "landscape-tree")
+          .sort()
+      ).toEqual(["plot-wall", "yard"]);
       // The yards and walls come before the block's houses, so 2D draws the houses over them.
       const houses = data.surfaces.findIndex(s => s.id === cell.id && s.houses);
       if (houses >= 0) for (const s of own) expect(data.surfaces.indexOf(s)).toBeLessThan(houses);
@@ -76,6 +82,11 @@ describe("burgage plots drawn in 2D and 3D (docs/plan/ce-burgage-plot-fabric.md 
     const plots = cells.reduce((n, c) => n + c.plots!.offsets.length, 0);
     expect((roles.yard ?? 0) + (roles["plot-wall"] ?? 0)).toBeLessThan(plots / 2);
     expect(roles["plot-wall"]).toBeGreaterThan(0);
+    // Fruit trees stand in the yards (B5), each inside a plot and clear of every house.
+    const trees = (data.landscapeTrees ?? []).filter(t => t.id.includes("~tree"));
+    expect(trees.length).toBeGreaterThan(20);
+    const houses = data.surfaces.filter(s => s.houses).flatMap(s => s.polygons.map(p => p.outer));
+    for (const tree of trees) expect(houses.some(h => pointInPolygon(tree.point, h))).toBe(false);
   });
 
   it("draws a binaire block's venelles and gives its house plots no yard", () => {

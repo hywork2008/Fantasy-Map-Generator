@@ -73,7 +73,8 @@ interface DistrictPlan {
 }
 export interface VectorPerimeterPlan {
   districts: DistrictPlan[];
-  houses: { cellId: string; districtId: string; polygon: Point[]; draw: number }[];
+  /** `rear`: a burgage rear house (B5), built only once the town's front houses fall short. */
+  houses: { cellId: string; districtId: string; polygon: Point[]; draw: number; rear?: true }[];
   /** Parcels of every street block, for district classification and residual land. */
   blocks: VectorBlock[];
   laneWidthMeters: number;
@@ -591,15 +592,27 @@ function computeBurgageCell(
     // The plots and the open ground are the street block's parcels: what no house covers is yard and garden.
     // Clipping can leave a ring a validated block refuses (a repeated or collinear point); that land is left out.
     blocks: [
-      ...local.plots.map((p, i) => parcel(p.ring, `${cell.id}:plot:${i}`)),
-      ...local.open.map((ring, i) => parcel(ring, `${cell.id}:open:${i}`))
+      // Named as compact parcels are (`<street block>:parcel:<n>`): the wards, the parks and the facilities' barred
+      // blocks find their street block from that name (`streetBlockOf`).
+      ...local.plots.map((p, i) => parcel(p.ring, `${cell.id}:parcel:${i}`)),
+      ...local.open.map((ring, i) => parcel(ring, `${cell.id}:parcel:${local.plots.length + i}`))
     ].filter(b => simpleContour(b.outer, true) && b.areaMeters2 > 1e-6),
-    houses: local.houses.map(polygon => ({
-      cellId: cell.id,
-      districtId,
-      polygon,
-      draw: growthRandom(JSON.stringify(polygon))
-    }))
+    houses: [
+      ...local.houses.map(polygon => ({
+        cellId: cell.id,
+        districtId,
+        polygon,
+        draw: growthRandom(JSON.stringify(polygon))
+      })),
+      // Rear houses draw in the upper half: their recorded draw orders them among themselves.
+      ...local.rearHouses.map(polygon => ({
+        cellId: cell.id,
+        districtId,
+        polygon,
+        draw: 0.5 + 0.5 * growthRandom(JSON.stringify(polygon)),
+        rear: true as const
+      }))
+    ]
   };
 }
 
@@ -1148,7 +1161,12 @@ export function placeVectorPerimeterHouses(
     // Lots beyond the wall come after every lot inside it, so no lot inside stays empty while people live outside
     // (pre-acceptance U3).
     beyond = (h: (typeof plan.houses)[number]) => (wall && cells.has(h.cellId) && !cellInside(h.cellId) ? 1 : 0),
-    order = plan.houses.slice().sort((a, b) => beyond(a) - beyond(b) || rank.get(a)! - rank.get(b)! || a.draw - b.draw);
+    // A burgage rear house (B5) comes after every front house on its side of the wall: the yards fill up only once
+    // the fronts are built (the burgage cycle). Compact lots have none, so their order is as it was.
+    rear = (h: (typeof plan.houses)[number]) => (h.rear ? 1 : 0),
+    order = plan.houses
+      .slice()
+      .sort((a, b) => beyond(a) - beyond(b) || rear(a) - rear(b) || rank.get(a)! - rank.get(b)! || a.draw - b.draw);
   for (let pass = 0; pass < 2; pass++) {
     if (pass && capacity >= required) break;
     for (const house of pass ? held.splice(0) : order) {

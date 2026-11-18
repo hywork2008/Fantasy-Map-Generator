@@ -96,19 +96,21 @@ export const BURGAGE_PROFILES: {
 
 /**
  * Land a dwelling takes on these plots against the compact lots the meshless site size was fitted on (plan §6).
- * Measured 2026-11-18 on the walled synthetic inputs of 1,000–5,000 people (docs/plan/ce-burgage-plot-fabric.md §8.2).
+ * Measured 2026-11-18 on the walled synthetic inputs of 1,000–5,000 people (docs/plan/ce-burgage-plot-fabric.md §8.2),
+ * and lowered in B5 (§8.5) once rear houses fill the yards before the town grows.
  */
 export const BURGAGE_LAND_FACTOR: Record<BurgageProfileId, number> = {
-  "english-burgage": 3,
-  hofstatt: 3.5,
+  "english-burgage": 2,
+  hofstatt: 2.5,
   binaire: 1
 };
 
-/** Land a facility's site takes on these plots: the whole plots under it, yards with them (plan §5.5). Lower values
- * than the houses' left facilities without rows to take (measured 2026-11-18, plan §8.3). */
+/** Land a facility's site takes on these plots: the whole plots under it, yards with them, and the plots beside it
+ * that the half-a-row rule keeps for houses (plan §5.5). Measured in B5 (plan §8.5): lower values left facilities
+ * without rows to take. */
 export const BURGAGE_FACILITY_LAND_FACTOR: Record<BurgageProfileId, number> = {
-  "english-burgage": 3,
-  hofstatt: 3.5,
+  "english-burgage": 4.5,
+  hofstatt: 4.5,
   binaire: 1
 };
 

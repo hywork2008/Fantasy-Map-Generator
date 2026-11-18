@@ -45,6 +45,8 @@ export interface BurgagePerimeterCell {
   drains: { points: Point[]; widthMeters: number }[];
   /** House footprints: the front of each strip plot, or the whole binaire house plot. */
   houses: Point[][];
+  /** Rear houses of deep strip plots, behind a yard (plan §5.4, B5). */
+  rearHouses: Point[][];
 }
 
 /**
@@ -60,7 +62,7 @@ export function burgagePerimeterCell(
   /** District streets near the block: an edge on one keeps off its surface. */
   streets: readonly { points: Point[]; widthMeters: number }[] = []
 ): BurgagePerimeterCell {
-  const result: BurgagePerimeterCell = { lanes: [], plots: [], open: [], houses: [], drains: [] };
+  const result: BurgagePerimeterCell = { lanes: [], plots: [], open: [], houses: [], rearHouses: [], drains: [] };
   const ring = cell.ring;
   const sides: Side[] = ring.map((a, i) => {
     const b = ring[(i + 1) % ring.length],
@@ -115,8 +117,14 @@ export function burgagePerimeterCell(
       result.houses.push(plot.ring);
       continue;
     }
-    const house = frontHouse(plot.ring, plot.front, rng.range(...HOUSE_DEPTH));
-    if (house) result.houses.push(house);
+    const depth = rng.range(...HOUSE_DEPTH),
+      house = frontHouse(plot.ring, plot.front, depth);
+    if (!house) continue;
+    result.houses.push(house);
+    // The burgage cycle (plan R6, B5): a deep plot can take a rear house across its back yard. The town adopts it only
+    // when its front houses fall short, nearest the centre first.
+    const rear = rearHouse(plot.ring, plot.front, depth, rng);
+    if (rear) result.rearHouses.push(rear);
   }
   result.open.push(...plans.flatMap(p => p.open));
   return result;
@@ -204,6 +212,37 @@ function frontHouse(ring: Point[], front: [Point, Point], depth: number) {
   const frame = { origin: a, u, v };
   const plotDepth = Math.max(...ring.map(p => (p[0] - a[0]) * v[0] + (p[1] - a[1]) * v[1]));
   const house = clipToBox(ring, frame, -Infinity, Infinity, 0, Math.min(depth, plotDepth / 2));
+  return house.length >= 3 && Math.abs(polygonArea(house)) >= 12 ? house : undefined;
+}
+
+/** Yard between a front house and its rear house, and the rear house's depth (plan §5.4; Freiburg's Vorderhaus and
+ * Hinterhaus, Löbbecke S. 13). A rear house leaves the plot's back strip and, on a wide plot, a passage along one side
+ * from the yard to the back. */
+const REAR_YARD_METERS: readonly [number, number] = [5, 8];
+const REAR_DEPTH_METERS: readonly [number, number] = [6, 9];
+const REAR_BACK_METERS = 2;
+const REAR_PASSAGE_METERS = 1.2;
+/** Plots narrower than this keep the rear house across their full width. */
+const REAR_PASSAGE_MIN_FRONTAGE = 5;
+
+function rearHouse(ring: Point[], front: [Point, Point], frontDepth: number, rng: () => number): Point[] | undefined {
+  const [a, b] = front,
+    length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const u: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+  const c = polygonCentroid(ring);
+  let v: Point = [-u[1], u[0]];
+  if ((c[0] - a[0]) * v[0] + (c[1] - a[1]) * v[1] < 0) v = [-v[0], -v[1]];
+  const frame = { origin: a, u, v };
+  const plotDepth = Math.max(...ring.map(p => (p[0] - a[0]) * v[0] + (p[1] - a[1]) * v[1]));
+  const from = frontDepth + REAR_YARD_METERS[0] + (REAR_YARD_METERS[1] - REAR_YARD_METERS[0]) * rng(),
+    to = Math.min(
+      from + REAR_DEPTH_METERS[0] + (REAR_DEPTH_METERS[1] - REAR_DEPTH_METERS[0]) * rng(),
+      plotDepth - REAR_BACK_METERS
+    );
+  if (to - from < REAR_DEPTH_METERS[0]) return;
+  const passage = length >= REAR_PASSAGE_MIN_FRONTAGE ? REAR_PASSAGE_METERS : 0,
+    left = rng() < 0.5;
+  const house = clipToBox(ring, frame, left ? passage : -Infinity, left ? Infinity : length - passage, from, to);
   return house.length >= 3 && Math.abs(polygonArea(house)) >= 12 ? house : undefined;
 }
 
