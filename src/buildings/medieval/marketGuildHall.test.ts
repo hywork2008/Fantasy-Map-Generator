@@ -39,7 +39,7 @@ it("uses version 2 ports and distinguishes physical tread width, clear width and
   for (const key of ["risers", "flightTreads", "flightRun", "treadDepth", "treadWidth", "clearWidth"] as const)
     expect(profile.stair[key]).toBeCloseTo(spec.stairs[key]);
   expect(models.map(model => model.id.split(".").at(-1))).toEqual(ENCLOSED_GUILD_TRADES.map(trade => trade.id));
-  expect(models.every(model => model.cePlacementStatus === "preview-only")).toBe(true);
+  expect(models.every(model => model.cePlacementStatus === undefined)).toBe(true);
 });
 
 it.each(models.flatMap(model => model.variants!.map(variant => ({ model, variant }))))(

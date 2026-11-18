@@ -110,7 +110,7 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
     workhomes = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workhome."));
 
   it("builds nearly every workhome on one plot, as wide as the plot on its grid, its door on its own side", () => {
-    expect(doc.urban!.algorithm).toBe("vector-urban-v29");
+    expect(doc.urban!.algorithm).toBe("vector-urban-v32");
     expect(() => assertVectorDocument(doc)).not.toThrow();
     // Plots whose front, a metre in, lies under a workhome's parcel.
     const fronts = Object.values(doc.fabric!.cells).flatMap(c =>
@@ -174,4 +174,29 @@ describe("Guild houses in the street row of a German-style town (docs/plan/bv-wo
     const ids = new Set(houses.map(p => p.id));
     expect(warningsOf(doc).filter(w => ids.has(w.slice(w.indexOf(":") + 1)))).toEqual([]);
   });
+});
+
+describe("An English-style town's guildhall in its market place (docs/plan/bv-workhome-facade-variation.md W5c)", () => {
+  for (const plotFabric of ["compact", "burgage-dense"] as const)
+    it(`stands the market-side hall in the square of a ${plotFabric} town, clear of its stalls, and draws it`, () => {
+      // 3,500 people: a 48 m square (a 30 m one leaves the hall no side clear of the market's aisles).
+      const doc = town(plotFabric, { population: 3500 }),
+        plaza = doc.environment!.features["feature:civic-plaza"],
+        halls = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-hall.guild-"));
+      expect(halls.map(p => p.modelId.split(".")[1])).toEqual(["guild-market-arcade"]);
+      const [hall] = halls;
+      expect(
+        hall.site.outer.every(
+          q =>
+            pointInPolygon(q, plaza.boundary.outer) ||
+            nearestOnPolyline(q, [...plaza.boundary.outer, plaza.boundary.outer[0]]).dist < 1e-6
+        )
+      ).toBe(true);
+      for (const id of plaza.placementIds.filter(id => id !== hall.id))
+        expect(doc.placements[id].site.outer.some(q => pointInPolygon(q, hall.site.outer))).toBe(false);
+      // The market is still held round it.
+      expect(plaza.placementIds.filter(id => id.startsWith("civic:market-stall")).length).toBeGreaterThan(0);
+      expect(() => assertVectorDocument(doc)).not.toThrow();
+      expect(warningsOf(doc).filter(w => w.endsWith(hall.id))).toEqual([]);
+    });
 });

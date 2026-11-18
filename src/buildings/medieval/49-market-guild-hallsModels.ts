@@ -12,9 +12,8 @@ export const models: MedievalModel[] = ENCLOSED_GUILD_TRADES.map(({ id: role, na
     task: 49,
     name: name.replace("Enclosed ", "Market-side "),
     author: DEFAULT_AUTHOR,
-    cePlacementStatus: "preview-only",
     size: [17.2, 8.9, 9.2],
-    note: "T1b guild-market-arcade v2: open inspection floor, east exterior stair and 36 assembly seats. Ground entrance is in the east outer bay. No workshop or dwelling capacity. Both qualities share body and ports; CE placement is not enabled.",
+    note: "T1b guild-market-arcade v2: open inspection floor, east exterior stair and 36 assembly seats. Ground entrance is in the east outer bay. No workshop or dwelling capacity. Both qualities share body and ports; CE places it in an English-style town's market place as its guildhall (docs/plan/bv-workhome-facade-variation.md W5c).",
     create: () => assembleMarketGuildHall(role, "low"),
     variants: (["low", "high"] as const).map(quality => ({
       id: variantId(family, quality, DEFAULT_AUTHOR),

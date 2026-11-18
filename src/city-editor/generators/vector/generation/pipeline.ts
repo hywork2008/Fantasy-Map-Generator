@@ -50,6 +50,7 @@ import { type RouteLink, skeletonRoutes } from "./routes";
 import { GENERATED_HARBOR_ID, raiseVectorHarbor } from "./seaHarbor";
 import { raiseVectorShantyLand, wantsShanty } from "./shanty";
 import { clipVectorDomainToWall, raiseVectorRibbonLand, vectorFacilityLand, vectorRibbonShortfall } from "./suburbs";
+import { raiseTownGuildhall, townGuildhallRole } from "./townGuildhall";
 import { isVectorWallShape, VECTOR_WALL_WIDTH_METERS, vectorUnitWallRing, vectorWallSettings } from "./wallShape";
 
 /** Sine of the shallowest angle a road or river may cross a generated wall shape at (20 degrees). */
@@ -1207,6 +1208,10 @@ function skeleton(
         if (containsRegion(free, evaluateAnchor(roads[i], hit.a))) joinVectorGenerationAnchors(doc, [hit.a, hit.b]);
   rebuildRoadGraph(doc);
   connectVectorCivicCentre(doc);
+  // An English-style town's guildhall stands in its market place before the stalls set out round it (plan W5c). A
+  // square too small for it keeps the hall among the town's facilities, as designed, so nothing is reported.
+  const townHall = doc.environment?.features[CIVIC_PLAZA_ID] && townGuildhallRole(doc);
+  if (townHall) raiseTownGuildhall(doc, townHall);
   // The civic plaza holds a market day once its streets are laid (P6b).
   if (doc.environment?.features[CIVIC_PLAZA_ID] && !raiseVectorPlazaMarket(doc))
     diagnostics.push({ code: "market-unplaced", entityId: CIVIC_PLAZA_ID, severity: "warning" });

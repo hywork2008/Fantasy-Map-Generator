@@ -189,7 +189,10 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       "vector-urban-v26",
       "vector-urban-v27",
       "vector-urban-v28",
-      "vector-urban-v29"
+      "vector-urban-v29",
+      "vector-urban-v30",
+      "vector-urban-v31",
+      "vector-urban-v32"
     ].includes(u.algorithm) ||
     !nonnegative(u.inputRevision) ||
     !keys(

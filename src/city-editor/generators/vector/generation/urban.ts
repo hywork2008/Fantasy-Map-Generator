@@ -43,6 +43,7 @@ import {
 } from "./perimeter";
 import { deriveVectorBlocks, joinVectorGenerationAnchors } from "./pipeline";
 import { vectorApproachBands, vectorSuburbanLots } from "./suburbs";
+import { TOWN_GUILDHALL_ID } from "./townGuildhall";
 import { allocateVectorResidents, vectorPlacementDwellings } from "./urbanCapacity";
 import {
   createUrbanPacker,
@@ -270,7 +271,9 @@ function* vectorUrbanSteps(
             period: doc.context.historicalPeriod,
             port: !!doc.site.descriptor?.burg.port,
             culture: vectorTownCulture(vectorTownProfile(doc))
-          }).requests
+          })
+            // The town's guildhall raised in its market place with the civic centre (plan W5c) is not placed again.
+            .requests.filter(r => !(doc.placements[TOWN_GUILDHALL_ID] && r.id.endsWith(":guild:town")))
         )
       : [];
   const domain = structuredClone(continuation?.domain ?? sourceSite.domain);
