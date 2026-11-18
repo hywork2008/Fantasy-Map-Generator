@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import * as THREE from "three";
-import { collectModelMetrics } from "../src/building-viewer/modelMetrics";
+import { collectModelMetrics } from "../src/model-viewer/modelMetrics";
 import { createBarge } from "../src/buildings/ships/barge";
 import { createCaravel } from "../src/buildings/ships/caravel";
 import { createCarrack } from "../src/buildings/ships/carrack";

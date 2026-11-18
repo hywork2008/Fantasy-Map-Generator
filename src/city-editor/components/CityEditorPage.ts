@@ -1891,6 +1891,7 @@ function mountCityEditorSession(root: HTMLElement, options: CityEditorOptions): 
   for (const [id, labelKey, icon] of TOOLS) {
     const button = makeIconButton(icon, editorText(labelKey), () => {
       interaction.tool = id;
+      if (id === "object") objectUi.sync();
       if (id !== "way") cancelWay(interaction);
       cancelLedger(interaction);
       if (id === "building") {
@@ -1951,7 +1952,7 @@ function mountCityEditorSession(root: HTMLElement, options: CityEditorOptions): 
   bindPanelEvents(panelEventContext(), "shipSizeInput:input");
   shipSizeInput.type = "number";
   shipSizeInput.min = "6";
-  shipSizeInput.max = "80";
+  shipSizeInput.max = String(Math.max(...Object.values(SHIP_SPECS).map(spec => spec.maxSizeMeters)));
   shipSizeInput.step = "1";
   shipSizeInput.value = String(interaction.shipSizeMeters);
   shipSizeInput.title = editorText("cityEditor.messages.shipLengthInMetres");
@@ -1971,9 +1972,15 @@ function mountCityEditorSession(root: HTMLElement, options: CityEditorOptions): 
     label(editorText("cityEditor.messages.angle"), shipAngle)
   );
   toolbar.content.appendChild(shipControls);
-  const objectControls = buildObjectControls(scope, interaction, () => {
-    if (interaction.tool === "object") updateShipPreview();
-  });
+  const objectUi = buildObjectControls(
+    scope,
+    interaction,
+    () => {
+      if (interaction.tool === "object") updateShipPreview();
+    },
+    () => documents.documentState.historicalPeriod ?? "ageOfExploration"
+  );
+  const objectControls = objectUi.controls;
   toolbar.content.appendChild(objectControls);
   const buildingUi = buildBuildingControls(scope, interaction, () => updateBuildingPreview());
   toolbar.content.appendChild(buildingUi.controls);

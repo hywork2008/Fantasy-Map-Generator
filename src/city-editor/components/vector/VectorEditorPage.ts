@@ -25,6 +25,7 @@ import { createVectorEditPanel } from "./VectorEditPanel";
 import { createVectorEnvironmentPanel } from "./VectorEnvironmentPanel";
 import { createVectorFabricHousePanel } from "./VectorFabricHousePanel";
 import { createVectorGenerationPanel } from "./VectorGenerationPanel";
+import { createVectorObjectPanel } from "./VectorObjectPanel";
 import { createVectorPlacementPanel } from "./VectorPlacementPanel";
 import { createVectorPresentationPanel } from "./VectorPresentationPanel";
 import { createVectorWorkbench } from "./VectorWorkbench";
@@ -136,6 +137,7 @@ export function mountVectorCityEditor(
   });
   let environmentPanel: ReturnType<typeof createVectorEnvironmentPanel> | undefined;
   let placementPanel: ReturnType<typeof createVectorPlacementPanel> | undefined;
+  let objectPanel: ReturnType<typeof createVectorObjectPanel> | undefined;
   let housePanel: ReturnType<typeof createVectorFabricHousePanel> | undefined;
   let editPanel: ReturnType<typeof createVectorEditPanel> | undefined;
   let generationPanel: ReturnType<typeof createVectorGenerationPanel> | undefined;
@@ -156,6 +158,7 @@ export function mountVectorCityEditor(
     redo.disabled = !session.history.canRedo;
     editPanel?.refresh();
     placementPanel?.refresh();
+    objectPanel?.refresh();
     housePanel?.refresh();
     environmentPanel?.refresh();
     generationPanel?.refresh();
@@ -250,6 +253,7 @@ export function mountVectorCityEditor(
         return;
       }
       placementPanel?.select(id);
+      objectPanel?.select(id);
       const pathId = doc.paths[id]
         ? id
         : (doc.connections.bridges[id]?.roadPathId ?? doc.connections.nodes[id]?.anchors[0]?.pathId);
@@ -427,6 +431,23 @@ export function mountVectorCityEditor(
     () => session.history.document,
     (doc, label) => editPanel!.submit(doc, label),
     () => session.history.peek()
+  );
+  objectPanel = createVectorObjectPanel(
+    scope,
+    controls,
+    map,
+    () => session.history.document,
+    (doc, label) => {
+      // Objects take free ground only, so nothing generated around them has to be rebuilt.
+      scope.invalidate("import");
+      session.history.commit(doc, label);
+      refresh();
+    },
+    () => session.history.peek(),
+    id => {
+      placementPanel?.select(id);
+      objectPanel?.select(id);
+    }
   );
   housePanel = createVectorFabricHousePanel(
     scope,

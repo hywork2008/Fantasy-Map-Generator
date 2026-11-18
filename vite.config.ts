@@ -23,7 +23,9 @@ export default defineConfig({
                 cityEditor: path.resolve(import.meta.dirname, 'src/city-editor/index.html'),
                 // Indoor / courtyard plans, independent of the world map.
                 dungeonEditor: path.resolve(import.meta.dirname, 'src/dungeon-editor/index.html'),
-                // Building records: coarse massing, roof plan, and floor plan.
+                // Model Viewer: buildings, vehicles, ships, weapons, trees and props.
+                modelViewer: path.resolve(import.meta.dirname, 'src/model-viewer/index.html'),
+                // Former Building Viewer URL; forwards to the Model Viewer with its query.
                 buildingViewer: path.resolve(import.meta.dirname, 'src/building-viewer/index.html'),
                 // Regional map editor (Sword Coast / Perilous Shores style), between World and City.
                 regionEditor: path.resolve(import.meta.dirname, 'src/region-editor/index.html'),

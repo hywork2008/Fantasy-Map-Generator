@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 import { landmarkFingerprint } from "../../../scripts/lib/landmarkFingerprint.mts";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
 import { adopt } from "../../city3d/adoption";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import { type ModelPartRange, modelParts } from "../modelParts";
 import { createGrokTrireme, GROK_TRIREME, grokTriremeParts, TRIREME_SAILS } from "./grokTrireme";
 import { SHIP_VARIANTS } from "./shipVariants";

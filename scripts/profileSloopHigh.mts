@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import * as THREE from "three";
-import { collectModelMetrics } from "../src/building-viewer/modelMetrics";
+import { collectModelMetrics } from "../src/model-viewer/modelMetrics";
 import { modelParts } from "../src/buildings/modelParts";
 import { createSloop } from "../src/buildings/ships/sloop";
 import { createSloopHigh, sloopHighParts } from "../src/buildings/ships/sloopHigh";

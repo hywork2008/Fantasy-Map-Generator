@@ -58,6 +58,46 @@ select {
   font-size: 1.05rem;
 }
 
+.bv-filter {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+}
+
+.bv-filter fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin: 0;
+  padding: 4px 6px 6px;
+  border: 1px solid #b7b0a2;
+  border-radius: 6px;
+}
+
+.bv-filter legend {
+  padding: 0 4px;
+  font-weight: 650;
+}
+
+.bv-filter input[type="search"],
+.bv-filter select[multiple] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.bv-filter-count {
+  margin: 0;
+  color: #5c564e;
+}
+
+.bv-kind {
+  margin: 14px 0 4px;
+  padding-top: 8px;
+  border-top: 1px solid #b7b0a2;
+  font-size: 0.95rem;
+}
+
 .bv-list button {
   display: block;
   width: 100%;

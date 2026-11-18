@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
 import { landmarkFingerprint } from "../../../scripts/lib/landmarkFingerprint.mts";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
 import { adoptedVariant } from "../../city3d/adoption";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import { type ModelPartRange, modelParts } from "../modelParts";
 import { CEMETERY_VARIANTS } from "../siteVariants";
 import { models } from "./44-cemetery-facilitiesModels";

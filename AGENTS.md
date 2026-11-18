@@ -11,10 +11,12 @@ src/app.ts起点
 src/region-editor
 FMGのProvince相当の地図を描く
 
-### BV / Building Viewer
+### MV / Model Viewer
 
-src/building-viewer
-CEで使用する3Dオブジェクトを閲覧する為のツール
+src/model-viewer
+URL: http://{host}:{port}/Fantasy-Map-Generator/model-viewer/
+建物・乗り物・船・兵器・樹木・小物など、CEで使用する3Dモデルを閲覧する為のツール。旧称BV / Building Viewer（旧URL building-viewer/ は model-viewer/ へ転送する）。
+モデルIDや、CEの保存データ中の識別子（bvModel、bv-facility: など）は互換性の為に改名しない。
 
 ### CE / City Editor
 

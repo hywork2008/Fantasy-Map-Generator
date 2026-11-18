@@ -1,4 +1,4 @@
-import type { ShipType } from "../../city-editor/types/ships";
+import type { ModelShipType, ShipType } from "../../city-editor/types/ships";
 
 /** Authored Codex hull coordinates, excluding bowsprits. Closed hatches are deck handover
  * areas, not a claim that these exterior-only models contain accessible holds.
@@ -30,6 +30,6 @@ export const SHIP_CARGO_GEOMETRY = {
   },
   barge: { hullLength: 19, hullCenter: 0, accessX: 0, deckY: 1, draft: 0.7, rigging: [] }
 } satisfies Record<
-  ShipType,
+  Exclude<ShipType, ModelShipType>,
   { hullLength: number; hullCenter: number; accessX: number; deckY: number; draft: number; rigging: number[][] }
 >;

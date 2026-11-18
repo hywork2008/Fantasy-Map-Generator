@@ -38,7 +38,7 @@ for (const name of (await readdir("src/buildings/catalogue")).filter(name => nam
 }
 
 // Discover the named model definitions actually imported by BV, rather than CE-only models.
-const viewer = ts.createSourceFile("main.ts", await readFile("src/building-viewer/main.ts", "utf8"), ts.ScriptTarget.Latest, true);
+const viewer = ts.createSourceFile("main.ts", await readFile("src/model-viewer/main.ts", "utf8"), ts.ScriptTarget.Latest, true);
 const seen = new Set<string>();
 for (const statement of viewer.statements) {
   if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
@@ -48,7 +48,7 @@ for (const statement of viewer.statements) {
   if (!clause || clause.isTypeOnly || !clause.namedBindings || !ts.isNamedImports(clause.namedBindings)) continue;
   const symbols = clause.namedBindings.elements.filter(el => !el.isTypeOnly).map(el => (el.propertyName ?? el.name).text);
   if (!symbols.length) continue;
-  const source = path.normalize(path.join("src/building-viewer", `${relative}.ts`));
+  const source = path.normalize(path.join("src/model-viewer", `${relative}.ts`));
   const module = await load(source);
   for (const symbol of symbols) {
     if (!/^[A-Z][A-Z_]+$/.test(symbol)) continue;

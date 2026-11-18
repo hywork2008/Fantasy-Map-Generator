@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import { type ModelPartRange, modelParts } from "../modelParts";
 import { models } from "./08-shop-housesModels";
 

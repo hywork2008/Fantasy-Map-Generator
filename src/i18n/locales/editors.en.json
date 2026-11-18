@@ -413,6 +413,26 @@
         "replay": "Recreate shared recipe",
         "glbHint": "Geometry and model dimensions are retained. Custom BV shaders are approximated by standard glTF materials."
       },
+      "objects": {
+        "title": "Place objects",
+        "ignorePeriod": "Ignore historical period (offer every model)",
+        "category": "Category",
+        "model": "Model",
+        "facing": "Facing (degrees)",
+        "place": "Place on map",
+        "stop": "Stop placing",
+        "placing": "Click the map to place the model; Esc stops.",
+        "placed": "Placed",
+        "failed": "Cannot place:",
+        "placedList": "Placed objects",
+        "remove": "Remove selected object",
+        "errors": {
+          "object-obstacle": "a road, river, wall, building or house is in the way.",
+          "object-outside-frame": "the model would reach past the map edge.",
+          "object-model": "unknown model.",
+          "object-required": "choose an object placed with this tool."
+        }
+      },
       "environment": {
         "title": "Sites, landscape and terrain",
         "kind": "Use",
@@ -849,6 +869,10 @@
       "default": "Default",
       "riverPassage": "River passage: {{value0}}",
       "smallShipSloop": "Small ship (sloop)",
+      "shipOfTheLine": "Ship of the line",
+      "warGalley": "War galley",
+      "trireme": "Trireme",
+      "aircraftCarrierFord": "Aircraft carrier (Gerald R. Ford class)",
       "mediumShipCaravel": "Medium ship (caravel)",
       "largeShipGalleon": "Large ship (galleon)",
       "riverCargoBoatBarge": "River cargo boat (barge)",
@@ -1552,6 +1576,7 @@
       "objectCategory": "Category",
       "objectModel": "Model",
       "objectScale": "Scale",
+      "ignoreHistoricalPeriod": "Ignore historical period",
       "objectDimensions": "Dimensions (m)",
       "objectsNeedLand": "Place the entire object on land.",
       "rotateObject": "Rotate object",

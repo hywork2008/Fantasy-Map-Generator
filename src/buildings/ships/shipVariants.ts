@@ -2,6 +2,7 @@ import { type ModelVariant, variantId } from "../modelVariants";
 import { createBarge } from "./barge";
 import { createCaravel } from "./caravel";
 import { createCarrack } from "./carrack";
+import { createFordCarrierModel } from "./fordCarrier";
 import { createGalleon } from "./galleon";
 import type { GalleonState } from "./galleonArmament";
 import { createGrokGalleon } from "./grokGalleon";
@@ -100,5 +101,13 @@ export const SHIP_VARIANTS: readonly ShipVariant[] = [
     level: "high",
     author: "Grok 4.7",
     create: state => createGrokTrireme(state)
-  }
+  },
+  ...(["default", "low", "high"] as const).map(level => ({
+    id: variantId("ship.carrier", level, "Claude Opus 5.5"),
+    family: "ship.carrier",
+    level,
+    author: "Claude Opus 5.5" as const,
+    // CE draws the Low tier by default; a carrier has no sail or gunport state.
+    create: () => createFordCarrierModel(level === "high" ? "high" : "low")
+  }))
 ];

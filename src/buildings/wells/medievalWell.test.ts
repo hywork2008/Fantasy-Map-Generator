@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import { createMedievalWell, MEDIEVAL_WELL } from "./medievalWell";
 import { createLowMedievalWellModel } from "./medievalWellLow";
 

@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import * as THREE from "three";
-import { collectModelMetrics } from "../src/building-viewer/modelMetrics";
+import { collectModelMetrics } from "../src/model-viewer/modelMetrics";
 import { models } from "../src/buildings/medieval/33-friariesModels";
 import { modelParts } from "../src/buildings/modelParts";
 import { friaryPreviewPlan } from "../src/buildings/monasteries/friary";

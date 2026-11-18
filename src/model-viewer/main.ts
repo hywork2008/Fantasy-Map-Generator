@@ -1,8 +1,10 @@
 import { createFlintlockMusket, FLINTLOCK_MUSKET } from "../buildings/arms/flintlockMusket";
 import { type Author, DEFAULT_AUTHOR } from "../buildings/authors";
 import { createPolygonHouses, POLYGON_HOUSES } from "../buildings/houses/polygonHouses";
+import { createFordCarrier, FORD_CARRIER } from "../buildings/ships/fordCarrier";
 import type { GalleonState } from "../buildings/ships/galleonArmament";
 import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
+import { installCatalogueFilter } from "./catalogueFilterPanel";
 import "./viewer.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -95,6 +97,8 @@ import {
 } from "../buildings/temples/basilicaTemple";
 import { validateBuildingRecord } from "../buildings/validate";
 import { familyVariants, MODEL_VARIANTS } from "../buildings/variants";
+import { B2, createB2 } from "../buildings/vehicles/b2Bomber";
+import { B29, createB29 } from "../buildings/vehicles/b29Bomber";
 import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
 import {
   AIRSHIP,
@@ -107,6 +111,7 @@ import {
 import { createMedievalWagon, MEDIEVAL_WAGON } from "../buildings/vehicles/medievalWagon";
 import { createMinecart, MINECART } from "../buildings/vehicles/minecart";
 import { createNobleCarriage, NOBLE_CARRIAGE } from "../buildings/vehicles/nobleCarriage";
+import { createTigerTank, TIGER_I } from "../buildings/vehicles/tigerTank";
 import { createWarWagon, WAR_WAGON } from "../buildings/vehicles/warWagon";
 import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
 import {
@@ -216,7 +221,7 @@ function fact(label: string, value: string, wikipediaArticle?: string): HTMLPara
   return row;
 }
 
-const root = document.querySelector("#building-viewer");
+const root = document.querySelector("#model-viewer");
 if (!root) throw new Error("building viewer root is missing");
 
 const entries = loadEntries();
@@ -226,7 +231,7 @@ const list = document.createElement("nav");
 list.className = "bv-list";
 list.setAttribute("aria-label", "Model catalogue");
 const heading = document.createElement("h1");
-heading.textContent = "Building viewer";
+heading.textContent = "Model Viewer";
 list.append(heading);
 const main = document.createElement("div");
 main.className = "bv-main";
@@ -905,6 +910,7 @@ function showBasilicaTemple(): void {
 
 const aqueducts = modelCategory("Aqueduct assemblies");
 const aqueductButton = document.createElement("button");
+aqueductButton.dataset.id = "pont-du-gard";
 aqueductButton.type = "button";
 aqueductButton.textContent = "Pont du Gard · Roman aqueduct";
 aqueductButton.addEventListener("click", () => {
@@ -947,6 +953,7 @@ aqueductButton.addEventListener("click", () => {
 aqueducts.append(aqueductButton);
 const chapels = modelCategory("Chapel assemblies");
 const stGeorgesButton = document.createElement("button");
+stGeorgesButton.dataset.id = "st-georges-chapel";
 stGeorgesButton.type = "button";
 stGeorgesButton.textContent = "St George's Chapel · Windsor Castle";
 stGeorgesButton.addEventListener("click", () => {
@@ -1215,6 +1222,7 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
 }
 const assemblies = modelCategory("Fortress assemblies");
 const bojniceButton = document.createElement("button");
+bojniceButton.dataset.id = "bojnice-castle";
 bojniceButton.type = "button";
 bojniceButton.textContent = "Bojnice Castle · Romantic reconstruction";
 bojniceButton.addEventListener("click", () => {
@@ -1253,6 +1261,7 @@ bojniceButton.addEventListener("click", () => {
 });
 assemblies.append(bojniceButton);
 const chambordButton = document.createElement("button");
+chambordButton.dataset.id = "chambord";
 chambordButton.type = "button";
 chambordButton.textContent = "Château de Chambord · French Renaissance";
 chambordButton.addEventListener("click", () => {
@@ -1298,6 +1307,7 @@ for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
   const button = document.createElement("button");
   button.type = "button";
   button.dataset.phase = phase;
+  button.dataset.id = `krak-${phase}`;
   button.textContent = `${KRAK.name} · ${phase === "hospitalier-1270" ? "c. 1270" : "Mamluk alterations"}`;
   button.addEventListener("click", () => {
     void showFortress(phase).catch(error => {
@@ -1308,6 +1318,7 @@ for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
   assemblies.append(button);
 }
 const cliffButton = document.createElement("button");
+cliffButton.dataset.id = "cliff-fortress";
 cliffButton.type = "button";
 cliffButton.dataset.study = "cliff";
 cliffButton.textContent = "Cliff fortress · crag study";
@@ -1319,6 +1330,7 @@ cliffButton.addEventListener("click", () => {
 });
 assemblies.append(cliffButton);
 const terraceButton = document.createElement("button");
+terraceButton.dataset.id = "terraced-river";
 terraceButton.type = "button";
 terraceButton.dataset.study = "terrace";
 terraceButton.textContent = "Terraced river · escarpment study";
@@ -1880,6 +1892,64 @@ function showTrireme(): void {
 triremeButton.addEventListener("click", () => showTrireme());
 shipsHeading.append(triremeButton);
 
+const fordButton = document.createElement("button");
+fordButton.type = "button";
+fordButton.dataset.id = "ford-carrier";
+fordButton.textContent = "Gerald R. Ford-class · US nuclear aircraft carrier, 2017–";
+function showFordCarrier(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === fordButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Carrier side elevation";
+  levelTitle.textContent = "Flight deck plan";
+  const model = createFordCarrier(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = false;
+  const info = FORD_CARRIER;
+  frame({ occupancyMeters: { width: info.length, depth: info.beam } }, info.height);
+  camera.position.set(150, 70, 140);
+  controls.target.set(0, 15, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", info.name),
+    fact("Author", info.author),
+    fact("Period", "United States Navy, lead ship USS Gerald R. Ford (CVN-78) in service from 2017"),
+    fact(
+      "Dimensions",
+      `${info.length} m overall × ${info.beam} m flight deck (${info.waterlineBeam} m at the waterline); ${info.draft} m draft; ${info.height} m keel to mast top; flight deck ${info.flightDeckHeight} m above the waterline`
+    ),
+    fact(
+      "Flight deck",
+      "9° angled landing area, four EMALS catapults (two bow, two waist), three arresting wires, three elevators"
+    ),
+    fact("Propulsion", "Two Bechtel A1B reactors, four shafts"),
+    fact("Self-defence", "Two Mk 29 ESSM and two Mk 49 RAM launchers, three Phalanx CIWS"),
+    fact("Radar", "Dual Band Radar on the island: AN/SPY-3 (X band) and AN/SPY-4 (S band)"),
+    fact("CE adoption", "Not placed by CE; Model Viewer only"),
+    fact("Quality", quality === "high" ? "High" : "Low — plain deck, island and hull without markings or weapons"),
+    fact("Note", info.note, "Gerald R. Ford-class aircraft carrier"),
+    ...(quality === "high" ? [fact("High detail", info.highNote)] : [])
+  );
+}
+fordButton.addEventListener("click", () => showFordCarrier());
+shipsHeading.append(fordButton);
+AUTHORED_VARIANTS[fordButton.dataset.id] = {
+  author: FORD_CARRIER.author,
+  primary: true,
+  quality: true,
+  show: () => showFordCarrier()
+};
+
 const sloopButton = document.createElement("button");
 sloopButton.type = "button";
 sloopButton.textContent = "Sloop · Small coastal sailing ship";
@@ -2019,6 +2089,7 @@ sloopButton.addEventListener("click", () => showSailingShip("sloop"));
 shipsHeading.append(sloopButton);
 
 const bargeButton = document.createElement("button");
+bargeButton.dataset.id = "barge";
 bargeButton.type = "button";
 bargeButton.textContent = "Barge · River cargo carrier";
 bargeButton.addEventListener("click", () => {
@@ -2149,6 +2220,7 @@ trebuchetButton.addEventListener("click", () => {
 siegeHeading.append(trebuchetButton);
 
 const ramButton = document.createElement("button");
+ramButton.dataset.id = "batteringRam";
 ramButton.type = "button";
 ramButton.textContent = "Battering ram · Medieval European covered ram";
 ramButton.addEventListener("click", () => {
@@ -2183,6 +2255,7 @@ ramButton.addEventListener("click", () => {
 siegeHeading.append(ramButton);
 
 const siegeTowerButton = document.createElement("button");
+siegeTowerButton.dataset.id = "siegeTower";
 siegeTowerButton.type = "button";
 siegeTowerButton.textContent = "Siege tower · Medieval European belfry";
 siegeTowerButton.addEventListener("click", () => {
@@ -2222,6 +2295,7 @@ siegeHeading.append(siegeTowerButton);
 
 const artilleryHeading = modelCategory("Artillery");
 const cannonButton = document.createElement("button");
+cannonButton.dataset.id = "earlyFieldCannon";
 cannonButton.type = "button";
 cannonButton.textContent = "Early field cannon · Europe c. 1500";
 cannonButton.addEventListener("click", () => {
@@ -2324,6 +2398,7 @@ smallArmsHeading.append(musketButton);
 
 const millsHeading = modelCategory("Mills");
 const postMillButton = document.createElement("button");
+postMillButton.dataset.id = "postMill";
 postMillButton.type = "button";
 postMillButton.textContent = "Medieval windmill · Timber post mill";
 postMillButton.addEventListener("click", () => {
@@ -2358,6 +2433,7 @@ postMillButton.addEventListener("click", () => {
 millsHeading.append(postMillButton);
 
 const towerMillButton = document.createElement("button");
+towerMillButton.dataset.id = "towerMill";
 towerMillButton.type = "button";
 towerMillButton.textContent = "Stone windmill · Tower mill";
 towerMillButton.addEventListener("click", () => {
@@ -2392,6 +2468,7 @@ towerMillButton.addEventListener("click", () => {
 millsHeading.append(towerMillButton);
 
 const waterMillButton = document.createElement("button");
+waterMillButton.dataset.id = "waterMill";
 waterMillButton.type = "button";
 waterMillButton.textContent = "Medieval watermill · Timber and stone";
 waterMillButton.addEventListener("click", () => {
@@ -2427,6 +2504,7 @@ millsHeading.append(waterMillButton);
 
 for (const spec of LOW_BANK_WATER_MILLS) {
   const button = document.createElement("button");
+  button.dataset.id = spec.id;
   button.type = "button";
   button.textContent = spec.name;
   button.addEventListener("click", () => {
@@ -2468,6 +2546,7 @@ for (const spec of LOW_BANK_WATER_MILLS) {
 
 const wellsHeading = modelCategory("Wells");
 const wellButton = document.createElement("button");
+wellButton.dataset.id = "medievalWell";
 wellButton.type = "button";
 wellButton.textContent = "Medieval European well · Stone and timber";
 wellButton.addEventListener("click", () => {
@@ -2504,6 +2583,7 @@ wellsHeading.append(wellButton);
 for (const kind of WATER_BASIN_KINDS) {
   const spec = PUBLIC_WATER_BASINS[kind];
   const button = document.createElement("button");
+  button.dataset.id = kind;
   button.type = "button";
   button.textContent = spec.name;
   button.addEventListener("click", () => {
@@ -2541,6 +2621,7 @@ for (const kind of CONTAINER_KINDS) {
   for (const state of CONTAINER_STATES) {
     const spec = MEDIEVAL_CONTAINERS[kind];
     const button = document.createElement("button");
+    button.dataset.id = `container-${kind}-${state}`;
     button.type = "button";
     const stateLabel = state === "closed" && kind === "sack" ? "Tied" : label(state);
     button.textContent = `${spec.name} · ${stateLabel}`;
@@ -2586,6 +2667,7 @@ for (const kind of CONTAINER_KINDS) {
 
 const yardsHeading = modelCategory("Work yards");
 const lumberYardButton = document.createElement("button");
+lumberYardButton.dataset.id = "lumber-yard";
 lumberYardButton.type = "button";
 lumberYardButton.textContent = "Medieval European lumber yard · Timber storage";
 lumberYardButton.addEventListener("click", () => {
@@ -2623,12 +2705,13 @@ lumberYardButton.addEventListener("click", () => {
 yardsHeading.append(lumberYardButton);
 
 const vehiclesHeading = modelCategory("Vehicles");
-for (const [definition, create] of [
-  [HOT_AIR_BALLOON, createHotAirBalloon],
-  [AIRSHIP, createAirship],
-  [STEAM_LOCOMOTIVE, createSteamLocomotive]
+for (const [definition, create, id] of [
+  [HOT_AIR_BALLOON, createHotAirBalloon, "hotAirBalloon"],
+  [AIRSHIP, createAirship, "airship"],
+  [STEAM_LOCOMOTIVE, createSteamLocomotive, "steamLocomotive"]
 ] as const) {
   const button = document.createElement("button");
+  button.dataset.id = id;
   button.type = "button";
   button.textContent = definition.name;
   button.addEventListener("click", () => {
@@ -2664,6 +2747,7 @@ for (const [definition, create] of [
 }
 
 const minecartButton = document.createElement("button");
+minecartButton.dataset.id = "minecart";
 minecartButton.type = "button";
 minecartButton.textContent = "Minecart · Timber mining cart";
 minecartButton.addEventListener("click", () => {
@@ -2698,6 +2782,7 @@ minecartButton.addEventListener("click", () => {
 vehiclesHeading.append(minecartButton);
 
 const wagonButton = document.createElement("button");
+wagonButton.dataset.id = "medievalWagon";
 wagonButton.type = "button";
 wagonButton.textContent = "Medieval European wagon · Four-wheeled freight wagon";
 wagonButton.addEventListener("click", () => {
@@ -2732,6 +2817,7 @@ wagonButton.addEventListener("click", () => {
 vehiclesHeading.append(wagonButton);
 
 const coveredWagonButton = document.createElement("button");
+coveredWagonButton.dataset.id = "coveredWagon";
 coveredWagonButton.type = "button";
 coveredWagonButton.textContent = "Covered wagon · Canvas-covered freight wagon";
 coveredWagonButton.addEventListener("click", () => {
@@ -2767,6 +2853,7 @@ coveredWagonButton.addEventListener("click", () => {
 vehiclesHeading.append(coveredWagonButton);
 
 const nobleCarriageButton = document.createElement("button");
+nobleCarriageButton.dataset.id = "nobleCarriage";
 nobleCarriageButton.type = "button";
 nobleCarriageButton.textContent = "Noble carriage · Medieval European covered carriage";
 nobleCarriageButton.addEventListener("click", () => {
@@ -2802,6 +2889,7 @@ nobleCarriageButton.addEventListener("click", () => {
 vehiclesHeading.append(nobleCarriageButton);
 
 const warWagonButton = document.createElement("button");
+warWagonButton.dataset.id = "warWagon";
 warWagonButton.type = "button";
 warWagonButton.textContent = "War wagon · Medieval European defensive wagon";
 warWagonButton.addEventListener("click", () => {
@@ -2838,6 +2926,170 @@ warWagonButton.addEventListener("click", () => {
   );
 });
 vehiclesHeading.append(warWagonButton);
+
+const tigerButton = document.createElement("button");
+tigerButton.dataset.id = "tigerI";
+tigerButton.type = "button";
+tigerButton.textContent = "Tiger I · German heavy tank, 1942–1945";
+function showTigerTank(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === tigerButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Tiger I side elevation";
+  levelTitle.textContent = "Tiger I plan";
+  const model = createTigerTank(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: TIGER_I.length, depth: TIGER_I.width } }, TIGER_I.height);
+  camera.position.set(9, 6, 10);
+  controls.target.set(0.8, 1.4, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", TIGER_I.name),
+    fact("Author", TIGER_I.author),
+    fact("Period", "Second World War · Germany, 1942–1945"),
+    fact(
+      "Dimensions",
+      `${TIGER_I.length} m with gun forward (hull ${TIGER_I.hullLength} m) × ${TIGER_I.width} m × ${TIGER_I.height} m`
+    ),
+    fact("Armament", "8.8 cm KwK 36 L/56 with muzzle brake; hull machine-gun ball mount"),
+    fact("Running gear", "Interleaved road wheels on eight stations a side, front drive sprocket, rear idler"),
+    fact("Quality", quality === "high" ? "High" : "Low — plain track runs and simplified fittings"),
+    fact("Note", TIGER_I.note, "Tiger I"),
+    ...(quality === "high" ? [fact("High detail", TIGER_I.highNote)] : [])
+  );
+}
+tigerButton.addEventListener("click", () => showTigerTank());
+vehiclesHeading.append(tigerButton);
+AUTHORED_VARIANTS[tigerButton.dataset.id] = {
+  author: TIGER_I.author,
+  primary: true,
+  quality: true,
+  show: () => showTigerTank()
+};
+
+const b29Button = document.createElement("button");
+b29Button.dataset.id = "b29";
+b29Button.type = "button";
+b29Button.textContent = "B-29 Superfortress · US heavy bomber, 1944–1960";
+function showB29(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === b29Button ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "B-29 side elevation";
+  levelTitle.textContent = "B-29 plan";
+  const model = createB29(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: B29.length, depth: B29.span } }, B29.height);
+  camera.position.set(21, 10, 24);
+  controls.target.set(1, 3.5, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", B29.name),
+    fact("Author", B29.author),
+    fact("Period", "Second World War and Korean War · United States, 1944–1960"),
+    fact("Dimensions", `${B29.length} m long × ${B29.span} m span × ${B29.height} m to the fin tip`),
+    fact(
+      "Powerplant",
+      `Four Wright R-3350 Duplex-Cyclone 18-cylinder radials with turbosuperchargers; four-blade Hamilton Standard propellers, ${B29.propellerDiameter} m`
+    ),
+    fact(
+      "Defensive armament",
+      "Four remote-controlled turrets (upper and lower, forward and aft) and a manned tail position, each shown with two .50-cal machine guns"
+    ),
+    fact("Landing gear", "Tricycle: dual main wheels retracting into the inboard nacelles, twin nose wheel"),
+    fact("Quality", quality === "high" ? "High" : "Low — one-piece flying surfaces, plain cowlings and glazing"),
+    fact("Note", B29.note, "B-29 Superfortress"),
+    ...(quality === "high" ? [fact("High detail", B29.highNote)] : [])
+  );
+}
+b29Button.addEventListener("click", () => showB29());
+vehiclesHeading.append(b29Button);
+AUTHORED_VARIANTS[b29Button.dataset.id] = {
+  author: B29.author,
+  primary: true,
+  quality: true,
+  show: () => showB29()
+};
+
+const b2Button = document.createElement("button");
+b2Button.dataset.id = "b2";
+b2Button.type = "button";
+b2Button.textContent = "B-2 Spirit · US stealth bomber, 1997–";
+function showB2(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === b2Button ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "B-2 side elevation";
+  levelTitle.textContent = "B-2 plan";
+  const model = createB2(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: B2.length, depth: B2.span } }, B2.height);
+  camera.position.set(30, 19, 26);
+  controls.target.set(0, 2.5, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", B2.name),
+    fact("Author", B2.author),
+    fact("Period", "Late Cold War to the present · United States, in service from 1997"),
+    fact(
+      "Dimensions",
+      `${B2.length} m long × ${B2.span} m span × ${B2.height} m high; leading edges swept ${B2.sweep}°`
+    ),
+    fact(
+      "Powerplant",
+      "Four General Electric F118-GE-100 non-afterburning turbofans buried in the wing, fed from upper-surface intakes"
+    ),
+    fact("Armament", "Two internal bomb bays side by side in the centre body; no defensive guns"),
+    fact("Landing gear", "Tricycle: four-wheel main bogies, twin nose wheel"),
+    fact("Quality", quality === "high" ? "High" : "Low — one-piece wing without control surfaces and plain gear"),
+    fact("Note", B2.note, "Northrop B-2 Spirit"),
+    ...(quality === "high" ? [fact("High detail", B2.highNote)] : [])
+  );
+}
+b2Button.addEventListener("click", () => showB2());
+vehiclesHeading.append(b2Button);
+AUTHORED_VARIANTS[b2Button.dataset.id] = {
+  author: B2.author,
+  primary: true,
+  quality: true,
+  show: () => showB2()
+};
 
 let townWallHousingCulture: BuildingAppearanceProfile = "legacy";
 
@@ -2970,6 +3222,7 @@ for (const definition of BARBICANS) {
   button.type = "button";
   button.textContent = definition.name;
   button.dataset.barbicanId = definition.id;
+  button.dataset.id = `barbican-${definition.id}`;
   button.addEventListener("click", () => {
     selection++;
     for (const item of list.querySelectorAll("button"))
@@ -3079,6 +3332,7 @@ for (const template of [
 ] as const) {
   const button = document.createElement("button");
   button.type = "button";
+  button.dataset.id = `sign-${template.id}`;
   button.textContent = `${label(template.id)} · Hanging sign`;
   button.addEventListener("click", () => showSign(template, button));
   signsHeading.append(button);
@@ -3258,12 +3512,12 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
   const category = modelCategory(
     task === 43
       ? "Trees"
-      : `Medieval ${String(task).padStart(2, "0")} · ${label(
+      : label(
           file
             .split("/")
             .at(-1)!
             .replace(/^\d+-|Models.ts$/g, "")
-        )}`
+        )
   );
   for (const definition of module.models) {
     const button = document.createElement("button");
@@ -3647,6 +3901,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
 }
 
 const treeCoverage = modelCategory("Trees · biome coverage");
+treeCoverage.dataset.kind = "flora";
 for (const biome of STANDARD_BIOME_DEFINITIONS) {
   const ready = Object.values(medievalModules)
     .flatMap(module => module.models)
@@ -3655,6 +3910,7 @@ for (const biome of STANDARD_BIOME_DEFINITIONS) {
   row.textContent = `${biome.label}: ${ready.length ? ready.map(model => model.name).join(", ") : Object.keys(biome.relief.icons).some(icon => ["acacia", "palm", "deciduous", "conifer", "swamp", "deadTree"].includes(icon)) ? "Tree models planned" : "No tree relief in FMG"}`;
   treeCoverage.append(row);
 }
+installCatalogueFilter(list);
 
 resize();
 new ResizeObserver(resize).observe(stage);

@@ -1,7 +1,7 @@
 import { landmarkFingerprint as fingerprint } from "./lib/landmarkFingerprint.mts";
 import { writeFile } from "node:fs/promises";
 import * as THREE from "three";
-import { collectModelMetrics } from "../src/building-viewer/modelMetrics";
+import { collectModelMetrics } from "../src/model-viewer/modelMetrics";
 import { model } from "../src/buildings/landmarks/salisbury";
 import { modelParts } from "../src/buildings/modelParts";
 

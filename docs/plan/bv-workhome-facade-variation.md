@@ -1,11 +1,12 @@
-# BV Workhome の外観のバリエーション
+# MV Workhome の外観のバリエーション
 
 作成: 2026-11-14
+更新: 2026-11-18（BV の Model Viewer（MV）への改名と、一覧の属性による再編に合わせた）
 状態: 設計のみ。未実装。
 
 ## 1. 目的と範囲
 
-BV の Medieval 50 · Workhome Shells と Medieval 51 · Trade Workhomes を CE に並べると、次の 2 つが起きる。
+MV の Structures の節にある Workhome Shells（task 50）と Trade Workhomes（task 51）を CE に並べると、次の 2 つが起きる。
 
 - 業種が違うのに、外観が同じ大きな建物が並ぶ。
 - 扉が開いたままで、そこから違う内部が見える。
@@ -21,7 +22,7 @@ BV の Medieval 50 · Workhome Shells と Medieval 51 · Trade Workhomes を CE 
 
 ### 1.1 範囲に入れる
 
-- BV: Workhome の外装を、パラメータを受け取って作る形にする。次のものを加える。
+- MV: Workhome の外装を、パラメータを受け取って作る形にする。次のものを加える。
   - 閉じた扉
   - 店の開口と、跳ね上げ式の雨戸
   - 業種ごとの吊り看板
@@ -36,17 +37,20 @@ BV の Medieval 50 · Workhome Shells と Medieval 51 · Trade Workhomes を CE 
 
 - 業種の設備（作業台・在庫）の作り直し。ただし外から見える部分だけは、§4.4 の扱いに従う。
 - 街区・区画の作り方（[ce-meshless-frontage-first-blocks.md](ce-meshless-frontage-first-blocks.md) の FF の作業）。
-- Medieval 52〜58 の専用作業場（パン焼き・鍛冶・樽・なめし・縄・肉・町の職人）。どれも業種ごとの外形をすでに持っている。
+- task 52〜58 の専用作業場（Dedicated Bakehouses〜Town Trades）（パン焼き・鍛冶・樽・なめし・縄・肉・町の職人）。どれも業種ごとの外形をすでに持っている。
 - CG。
 
 ## 2. 前提と順序
 
 2026-11-13 のユーザーとの合意で、次の前提がある。
 
-1. **先に BV の大掃除をする**: カテゴリ・地域・文化・年代を整理する。ギルドホール（27 Cloth Halls、28 Craft Guild Halls、48 Trade Guild Halls、49 Market Guild Halls）は、史料から調べ直すかもしれない。
+1. **先に MV の大掃除をする**: カテゴリ・地域・文化・年代を整理する。
+   - 2026-11-18 に、属性（種類・年代・地域・用途）による一覧の再編として完了した（[model-viewer-rename-and-catalogue-facets.md](model-viewer-rename-and-catalogue-facets.md)）。見出しから task 番号が外れ、中世モデルの見出しは種類の節（Structures など）の下に並ぶ。task 番号は詳細欄の「Task」に出る。
+   - Workhome の属性は [catalogueFacets.ts](../../src/buildings/catalogueFacets.ts) の task ごとの表で引く。task 50 は `kind: "structure"`・highMedieval 以降・`european`・用途 `dwelling`、task 51 はこれに `crafts` と業種のタグ（モデル ID の末尾、例: `leather-goods`）を足す。モデル ID（`trade-workhome.*`）は CE の保存データにあるため変わっていない。
+   - ギルドホール（task 27 Cloth Halls、28 Craft Guild Halls、48 Trade Guild Halls、49 Market Guild Halls）の史料からの調べ直しは、まだ行っていない。属性は付いた（用途 `guild`）が、形と年代・地域は再編前のままである。
 2. 当初は、提案 1（建物を先に並べる FF）が終わってから、本書の部品がどこまで要るかを見定める予定だった。FF1 は 2026-11-13 に一度スタッシュに退避され、廃止を前提に扱われている。このため本書の段階は、**FF の結果に依存しない部分（V0〜V3）**と、**区画の幅に依存する部分（V4）**に分けた。
 
-V0〜V3 は大掃除と並行できる。BV の中で 50/51 の位置と名前は変えない前提にする。大掃除で番号や分類が変わったら、本書の表記を追従させる。V5（ギルドホールを混ぜる）は、大掃除が終わってから進める。
+V0〜V3 は大掃除の結果に依存しない。本書では、モデルを task 番号（50/51）と MV の見出しの名前で示す。task 番号は見出しから外れたが、モデルの定義と詳細欄には残っている。V5（ギルドホールを混ぜる）は、ギルドホールの史料の調べ直しが終わってから進める。
 
 ## 3. 今の実装の調査
 
@@ -75,7 +79,7 @@ V0〜V3 は大掃除と並行できる。BV の中で 50/51 の位置と名前�
 
 ### 3.3 使える部品
 
-- [opusTradeKit.ts](../../src/buildings/medieval/opusTradeKit.ts)（BV 57/58 の Opus 版、CE が採用している）に、必要な部品がある。
+- [opusTradeKit.ts](../../src/buildings/medieval/opusTradeKit.ts)（task 57 Butchery・58 Town Trades の Opus 版、CE が採用している）に、必要な部品がある。
   - `doorLeaf`: 角度を指定できる扉板
   - `shopFront`: 下の板を台にし、上の雨戸を突き上げる店の開口
   - `signBracket`: 張り出しの下に吊る看板の腕木
@@ -98,7 +102,7 @@ assembleWorkhome(spec: WorkhomeExteriorSpec, role, quality)
 
 - 床・階段・作業場・倉庫の配置（`WorkhomeProfile` の `floors`、`stair`、`workZoneXZ`、`spine`）は変えない。
 - 外装の扉の位置は、`spine.centerX` の通路の正面に置く。
-- 外装の仕様は、BV・CE の両方から Three.js なしで読める、プロファイルだけのファイル（`workhomeExteriorProfiles.ts`）に置く。`workhomeFormProfiles.ts` と同じ扱いにする。
+- 外装の仕様は、MV・CE の両方から Three.js なしで読める、プロファイルだけのファイル（`workhomeExteriorProfiles.ts`）に置く。`workhomeFormProfiles.ts` と同じ扱いにする。
 
 ### 4.2 `WorkhomeExteriorSpec`
 
@@ -172,11 +176,11 @@ interface WorkhomeExteriorSpec {
 | 段階 | 内容 | 依存 |
 | --- | --- | --- |
 | V0 | 計測。CE の代表の町で、Workhome の外観の種類の数、同じ外観が接している組の数、試作品の数、三角形の数を今の方式で記録する | なし |
-| V1 | BV: `WorkhomeExteriorSpec` と `workhomeExterior`（TradeKit）を作る。扉を閉じる、店の開口、窓の数、反転、色を入れる。BV の Medieval 51 に、外装を切り替える選択肢を出す。内部の取り決めのテスト（[workhomeTrades.test.ts](../../src/buildings/medieval/workhomeTrades.test.ts)）を守る | なし |
+| V1 | MV: `WorkhomeExteriorSpec` と `workhomeExterior`（TradeKit）を作る。扉を閉じる、店の開口、窓の数、反転、色を入れる。MV の Trade Workhomes（task 51）に、外装を切り替える選択肢を出す。外装の違いは見出しを分けず、同じモデルの選択肢として出す（属性・用途のタグは業種のまま変えない）。内部の取り決めのテスト（[workhomeTrades.test.ts](../../src/buildings/medieval/workhomeTrades.test.ts)）を守る | なし |
 | V2 | 業種ごとの看板の紋（10 業種）、妻入り・平入り、張り出し、階数 | V1 |
 | V3 | CE: 施設ごとに外装の仕様を決め（§4.5）、`optional` の外形を使い、3D の試作品キャッシュを使う。Low で設備を描かない選択肢を測る。V0 と比べる | V1、V2 |
 | V4 | 間口の幅を連続して受け取る外装（4.8〜7.2 m の範囲。内部の取り決めは外形の中に収める） | 区画の作り方の方針（FF の後継）が決まってから |
-| V5 | 使われていない Trade／Market Guild Halls を、同じ並びに混ぜる | BV の大掃除の後 |
+| V5 | 使われていない Trade／Market Guild Halls（task 48/49）を、同じ並びに混ぜる | ギルドホールの史料の調べ直しの後 |
 
 ## 7. 受入の条件
 
@@ -187,7 +191,7 @@ V0 と同じ町で測る。
 - 扉が開口だけになっている Workhome: 0（`door: "ajar"` の扉板は、扉があるものとして数える）
 - 試作品の数と、3D の初回表示の時間: 今の 1.2 倍以内
 - Low の三角形の数: 1 棟あたり今の 1.5 倍以内
-- 最後に、BV と CE の 3D で目視して、ユーザーに確かめてもらう
+- 最後に、MV と CE の 3D で目視して、ユーザーに確かめてもらう
 
 ## 8. 未決事項
 
@@ -195,7 +199,7 @@ V0 と同じ町で測る。
 - 店の開口を `open` にする割合。季節・時刻の表示の設定と結びつけるか。
 - 1 階のガラスを外すときに、上の階の窓も、ガラスから油を塗った布や格子に変えるか。年代で変えるか。
 - V4 で幅を連続させた時に、narrow の 3 階の階段の取り決めを、幅の下限でも守れるか。
-- Workhome を、隣の住宅の `RegionalHouseSpec` と同じ部品で作るか（外観は確実にそろうが、内部の取り決めとの整合が難しい）。または TradeKit で作るか（本書の案。Opus 版の 57/58 と見た目がそろう）。V1 の初めに、TradeKit の案で 1 業種を試作して決める。
+- Workhome を、隣の住宅の `RegionalHouseSpec` と同じ部品で作るか（外観は確実にそろうが、内部の取り決めとの整合が難しい）。または TradeKit で作るか（本書の案。Opus 版の task 57/58 と見た目がそろう）。V1 の初めに、TradeKit の案で 1 業種を試作して決める。
 
 ## 9. 次の作業
 

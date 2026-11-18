@@ -623,7 +623,7 @@ export function createVectorScene(
           pile = surface.harborPile;
         const point = ship?.point ?? crane?.point ?? pile!.point;
         const model = ship
-          ? createTownShips([{ ...ship, point: [0, 0] }], () => 0)
+          ? createTownShips([{ ...ship, point: [0, 0] }], () => 0, quality)
           : crane
             ? createTownCranes([{ ...crane, point: [0, 0] }], () => -LAND_Y, harborCache, quality)
             : createTownHarborCargo([{ ...pile!, point: [0, 0] }], () => -LAND_Y, harborCache);

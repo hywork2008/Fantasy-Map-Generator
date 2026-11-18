@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
 import type { Point } from "../../city-editor/types/document";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import * as trees from "../landscape/trees";
 import { models } from "../medieval/33-friariesModels";
 import { type ModelPartRange, modelParts } from "../modelParts";

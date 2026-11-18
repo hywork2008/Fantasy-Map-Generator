@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { expect, it } from "vitest";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
 import type { CityElement } from "../../city-editor/types/document";
 import { createBvInstances, createBvPrototypeCache } from "../../city3d/three/bvInstances";
 import { createTownObjects } from "../../city3d/three/objectMeshes";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import { meshProjection } from "../meshProjection";
 import { modelParts } from "../modelParts";
 import { placementDefinition, placementFootprint } from "../placementModels";

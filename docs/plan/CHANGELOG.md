@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-11-18
+
+- docs/plan/model-viewer-rename-and-catalogue-facets.md - BVをModel Viewerに改名し、種類・年代・地域・用途の属性で一覧を絞り込む
+
 2026-11-17
 
 - docs/plan/fmg-cell-interior-relief.md - セル内の平地と山の境を、標高とは別の山麓線として持つ

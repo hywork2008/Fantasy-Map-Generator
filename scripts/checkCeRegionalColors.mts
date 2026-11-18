@@ -49,7 +49,7 @@ try {
     results.push({ profile, exportComputedFill: checked.actual, expectedHex: checked.expected });
   }
   await page.setViewportSize({ width: 1400, height: 1000 });
-  await page.goto("http://127.0.0.1:5199/src/building-viewer/index.html");
+  await page.goto("http://127.0.0.1:5199/src/model-viewer/index.html");
   await page.getByText("CE regional houses", { exact: true }).click();
   for (const profile of profiles) {
     await page.locator(`[data-appearance-profile="${profile}"]`).click();

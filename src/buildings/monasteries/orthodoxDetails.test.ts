@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
 import { landmarkFingerprint } from "../../../scripts/lib/landmarkFingerprint.mts";
-import { collectModelMetrics } from "../../building-viewer/modelMetrics";
+import { collectModelMetrics } from "../../model-viewer/modelMetrics";
 import { models } from "../medieval/41-orthodox-monasteriesModels";
 import { type ModelPartRange, modelParts } from "../modelParts";
 import { MONASTERY_VARIANTS } from "../siteVariants";

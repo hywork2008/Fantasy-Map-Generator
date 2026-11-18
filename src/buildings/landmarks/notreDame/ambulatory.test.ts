@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { expect, it } from "vitest";
-import { collectModelMetrics } from "../../../building-viewer/modelMetrics";
+import { collectModelMetrics } from "../../../model-viewer/modelMetrics";
 import { model } from "../notreDame";
 
 const factory = (role: string) => model.highDetail!.parts!().find(part => part.role === role)!;
