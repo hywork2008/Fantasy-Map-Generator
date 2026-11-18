@@ -43,6 +43,7 @@ import {
 } from "./perimeter";
 import { deriveVectorBlocks, joinVectorGenerationAnchors } from "./pipeline";
 import { isRearWorks } from "./rearWorksAssets";
+import { reserveRopewalks } from "./ropewalks";
 import { vectorApproachBands, vectorSuburbanLots } from "./suburbs";
 import { TOWN_GUILDHALL_ID } from "./townGuildhall";
 import { allocateVectorResidents, vectorPlacementDwellings } from "./urbanCapacity";
@@ -376,6 +377,13 @@ function* vectorUrbanSteps(
           settings.tanneryBends ?? "continuous"
         )
       : { placed: [], unplaced: [], lanes: [], leats: [], islands: [] };
+  // Ropewalks beside the roads out of the gates (docs/plan/ce-outskirts-workshop-sizes.md S1), laid as the tanners'
+  // row is: the street plan keeps off them.
+  const ropewalks =
+    !continuation && organicMode && settings.mode === "medieval-facilities" && walls.length
+      ? reserveRopewalks(doc, requests, inside)
+      : { placed: [], sites: [] };
+  for (const site of ropewalks.sites) protectedRegions.push(structuredClone(site));
   // The street plan keeps off the yards and their revetments.
   // A little wider than the yards themselves: a lane ending on the block's edge, rounded to the centimetre, must not
   // reach into a yard.
@@ -483,7 +491,7 @@ function* vectorUrbanSteps(
     totalAttempts: run?.facilityAttempts ?? FACILITY_SEARCH_LIMITS.totalAttempts,
     requestAttempts: run?.requestAttempts ?? FACILITY_SEARCH_LIMITS.requestAttempts
   };
-  const ownedPlacements: string[] = [...(continuation?.retainedPlacements ?? [])],
+  const ownedPlacements: string[] = [...(continuation?.retainedPlacements ?? []), ...ropewalks.placed],
     unplacedFacilities: NonNullable<VectorCityDocument["urban"]>["report"]["unplacedFacilities"] = [];
   let facilityAttempts = 0;
   /** Facilities first, each on a frontage of its use, then the retries a capped search left over. */

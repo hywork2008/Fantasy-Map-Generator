@@ -3,12 +3,14 @@ import { parseVectorDocument, serializeVectorDocument } from "../../../services/
 import type { PlotFabric } from "../../../types/contracts/burgage";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import { defaultGenerationSettings } from "../../generation/settings";
-import { pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
+import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
 import { defaultPopulationSettings } from "../../populationPlan";
 import { prepareVectorEdit, reconcileVectorEdit } from "../editing/dependencies";
 import { replaceVectorPath } from "../editing/paths";
 import { unpackPoints } from "../fabric/pack";
-import { regionArea } from "../geometry/regions";
+import { regionArea, regionBoolean } from "../geometry/regions";
+import { samplePath } from "../geometry/sampling";
+import { pathSurface } from "../geometry/surfaces";
 import { vectorInputFromEditor } from "./editorInput";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
@@ -51,8 +53,8 @@ const rings = (coords: number[], offsets: number[], origin: [number, number]) =>
 describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md B2, B3, B5, §8.7)", () => {
   it("houses everyone on plots recorded with their street blocks, and keeps them through a save", () => {
     const doc = town("burgage");
-    expect(doc.urban!.algorithm).toBe("vector-urban-v44");
-    expect(doc.fabric!.algorithm).toBe("vector-urban-v44");
+    expect(doc.urban!.algorithm).toBe("vector-urban-v47");
+    expect(doc.fabric!.algorithm).toBe("vector-urban-v47");
     expect(doc.urban!.report.unplacedDwellings).toBe(0);
     const cells = Object.values(doc.fabric!.cells).filter(c => c.houses.offsets.length);
     expect(cells.length).toBeGreaterThan(5);
@@ -146,7 +148,7 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
     };
     const dense = town("burgage-dense", 5000),
       compact = town("compact", 5000);
-    expect(dense.fabric!.algorithm).toBe("vector-urban-v45");
+    expect(dense.fabric!.algorithm).toBe("vector-urban-v48");
     expect(dense.urban!.report.unplacedDwellings).toBe(0);
     expect(cover(dense)).toBeGreaterThan(cover(compact) * 0.8);
     // Inside the wall the plots are halved: most are narrower than the burgage option's narrowest (5 m).
@@ -178,7 +180,7 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
 
   it("leaves compact street blocks as they were", () => {
     const doc = town("compact");
-    expect(doc.fabric!.algorithm).toBe("vector-urban-v41");
+    expect(doc.fabric!.algorithm).toBe("vector-urban-v46");
     expect(Object.values(doc.fabric!.cells).some(c => c.plots)).toBe(false);
   });
 
@@ -196,5 +198,27 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
     const rears = Object.values(doc.placements).filter(p => p.building?.annexOf);
     expect(rears.length).toBeGreaterThan(5);
     for (const rear of rears) expect(doc.placements[rear.building!.annexOf!]?.building?.kind).toBe("facility");
+  });
+
+  it("lays the ropewalks beside the roads out of the gates, off the glacis and the road (ce-outskirts-workshop-sizes.md S1)", () => {
+    const doc = town("burgage-dense", 5000, true),
+      walks = Object.values(doc.placements).filter(p => p.modelId === "trade-workshop.dedicated-ropewalk");
+    expect(walks).toHaveLength(2);
+    expect(doc.urban!.report.unplacedFacilities.filter(f => f.id.includes(":ropemaking:"))).toEqual([]);
+    const roads = Object.values(doc.paths).filter(p => p.role === "road"),
+      walls = Object.values(doc.paths).filter(p => p.role === "wall");
+    for (const walk of walks) {
+      // Its door joined to a road, its ground clear of every road and outside the wall.
+      expect(walk.building!.entrances[0].accessIndex).toBe(0);
+      expect(roads.some(r => r.id === walk.accesses[0].pathId)).toBe(true);
+      for (const road of roads)
+        expect(
+          regionBoolean([walk.site], [pathSurface(road)], "intersection").reduce((n, r) => n + regionArea(r), 0)
+        ).toBeLessThan(1e-5);
+      for (const wall of walls) {
+        const line = samplePath(wall).map(q => q.point);
+        expect(Math.min(...walk.site.outer.map(q => nearestOnPolyline(q, line).dist))).toBeGreaterThan(10);
+      }
+    }
   });
 });
