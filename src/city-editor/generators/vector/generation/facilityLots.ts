@@ -491,6 +491,8 @@ export function refitRetainedFacilities(doc: VectorCityDocument, plan: VectorPer
   const released: string[] = [];
   for (const id of ids) {
     const p = doc.placements[id];
+    // A rear works follows its house, below.
+    if (p?.building?.annexOf) continue;
     if (!p?.building?.entrances.some(e => e.fabricLine !== undefined)) continue;
     const ring = p.site.outer;
     const crossed = lines.some(l => lineMeets(l.points, l.widthMeters, ring));
@@ -517,6 +519,23 @@ export function refitRetainedFacilities(doc: VectorCityDocument, plan: VectorPer
     if (!ok) {
       delete doc.placements[id];
       released.push(id);
+    }
+  }
+  // A rear works goes with its house, and keeps its way out through it (docs/plan/ce-town-trade-rear-works.md R2).
+  for (const id of ids) {
+    const p = doc.placements[id],
+      annexOf = p?.building?.annexOf;
+    if (!annexOf) continue;
+    const house = doc.placements[annexOf]?.building?.entrances[0];
+    if (!house) {
+      delete doc.placements[id];
+      released.push(id);
+      continue;
+    }
+    p.accesses = structuredClone(doc.placements[annexOf].accesses);
+    for (const e of p.building!.entrances) {
+      e.connector = [e.point, ...house.connector];
+      if (house.fabricLine !== undefined) e.fabricLine = house.fabricLine;
     }
   }
   return released;

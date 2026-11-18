@@ -6,11 +6,12 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // v24–v26: guild halls by the town's culture and size (same plan, W5a).
 // v27–v29: German-style guild houses as town houses in the street row (W5b).
 // v30–v32: an English-style town's guildhall in its market place (W5c).
+// v33–v34: burgage town trades as a shop-house and its rear works (docs/plan/ce-town-trade-rear-works.md R2).
 export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v30";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v31";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v33";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v32";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v34";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(

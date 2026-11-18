@@ -1,4 +1,5 @@
 import RBush from "rbush";
+import { opusRearWorksLayout, opusRearWorksPreset } from "../../../../buildings/medieval/opusRearWorksProfiles";
 import { streetHouseKind } from "../../../../buildings/medieval/streetHouses";
 import { growthRandom } from "../../../../utils/urbanMorphology";
 import type { Point } from "../../../types/primitives";
@@ -13,6 +14,16 @@ import { regionArea, regionBoolean } from "../geometry/regions";
 import { simpleContour, surfacesOverlap } from "../geometry/surfaces";
 import { connectTanneryRow, type FacilityLotResult, facilityLand, facilityLines, isWetTannery } from "./facilityLots";
 import type { VectorPerimeterPlan } from "./perimeter";
+import {
+  fitRearWorks,
+  pairedRearTrade,
+  REAR_FRONT_GAP_METERS,
+  REAR_RESERVE_METERS,
+  REAR_YARD_METERS,
+  type RearWorksFit,
+  rearWorksAsset,
+  shopHouseAsset
+} from "./rearWorksAssets";
 import { waterDistance } from "./urbanPacking";
 import { fittedWorkhomeAsset, type WorkhomeFit } from "./workhomeAssets";
 
@@ -180,70 +191,93 @@ export function placeFacilitiesOnPlots(
     // A trade workhome is built to its plot (docs/plan/bv-workhome-facade-variation.md W4): one plot, its frontage
     // the building's, its door on its own side. Runs of more plots are for a plot too narrow for a shop-house. A
     // guild house (W5b) is a town house of one plot or two.
-    const kind = request.asset.bvModel && streetHouseKind(request.asset.bvModel.id),
-      workhome = !!kind,
+    // A town trade with its works behind the house (docs/plan/ce-town-trade-rear-works.md R2) takes its plot as a
+    // shop-house at the front and the works in the back; where no strip plot holds both, its workshop as before.
+    const rearTrade = pairedRearTrade(request.asset.bvModel?.id),
       mirror = growthRandom(`workhome-door:${request.id}`) < 0.5;
     let placement: VectorPlacement | undefined,
+      rear: VectorPlacement | undefined,
       run: Plot[] | undefined,
       fit: WorkhomeFit | undefined,
+      kind: ReturnType<typeof streetHouseKind>,
       sized = false;
-    for (const seed of seeds) {
-      const row = rows.get(seed.row)!,
-        room = Math.min(limit, rowRoom(row), cellRoom(seed.cellId));
-      if (room < 1) continue;
-      const k = row.indexOf(seed);
-      // Runs holding the seed, fewest plots first, the seed at their start first.
-      for (let n = 1; !placement && n <= room; n++)
-        for (let start = k; !placement && start > k - n; start--) {
-          if (start < 0 || start + n > row.length) continue;
-          const candidate = row.slice(start, start + n);
-          if (candidate.some(p => used.has(p.i) || p.kind === "row")) continue;
-          const fitted = workhome
-            ? fittedWorkhomeAsset(
-                request.asset,
-                Math.hypot(candidate.at(-1)!.b[0] - candidate[0].a[0], candidate.at(-1)!.b[1] - candidate[0].a[1]),
-                Math.min(...candidate.map(p => p.depth)),
-                mirror
-              )
-            : undefined;
-          if (workhome && !fitted) continue;
-          const asked = fitted ? { ...request, asset: fitted.asset } : request;
-          let taken = candidate,
-            laid = layFacility(
-              doc,
-              asked,
-              fitted ? fitted.asset.entrances[0] : entrance,
-              candidate,
-              [],
-              lines,
-              wantsWater,
-              dense && candidate.every(p => p.kind === "plot")
-            );
-          // A facility deeper than a binaire block's heads takes the houses behind them too, as a head house of two
-          // parcels did (plan §5.7).
-          if (laid && "deep" in laid && candidate.length === row.length && candidate.every(p => p.kind === "head")) {
-            const behind = housesBehind(candidate, cellHouses.get(seed.cellId) ?? [], used, laid.deep);
-            if (behind.length && cellRoom(seed.cellId) >= candidate.length + behind.length) {
-              laid = layFacility(doc, request, entrance, candidate, behind, lines, wantsWater);
-              taken = [...candidate, ...behind];
+    for (const pair of rearTrade ? [true, false] : [false]) {
+      const houseAsset = pair ? shopHouseAsset(rearTrade!) : request.asset;
+      kind = houseAsset.bvModel && streetHouseKind(houseAsset.bvModel.id);
+      const workhome = !!kind;
+      for (const seed of seeds) {
+        const row = rows.get(seed.row)!,
+          room = Math.min(limit, rowRoom(row), cellRoom(seed.cellId));
+        if (room < 1) continue;
+        const k = row.indexOf(seed);
+        // Runs holding the seed, fewest plots first, the seed at their start first.
+        for (let n = 1; !placement && n <= room; n++)
+          for (let start = k; !placement && start > k - n; start--) {
+            if (start < 0 || start + n > row.length) continue;
+            const candidate = row.slice(start, start + n);
+            if (candidate.some(p => used.has(p.i) || p.kind === "row")) continue;
+            // The pair stands on strip plots, the works behind the house in the same plots.
+            if (pair && candidate.some(p => p.kind !== "plot")) continue;
+            const frontage = Math.hypot(
+                candidate.at(-1)!.b[0] - candidate[0].a[0],
+                candidate.at(-1)!.b[1] - candidate[0].a[1]
+              ),
+              plotDepth = Math.min(...candidate.map(p => p.depth));
+            const fitted = workhome
+              ? fittedWorkhomeAsset(houseAsset, frontage, pair ? plotDepth - REAR_RESERVE_METERS : plotDepth, mirror)
+              : undefined;
+            if (workhome && !fitted) continue;
+            // The house's parcel ends at the yard behind it; the works' parcel starts there.
+            const cut = pair ? FRONT_SETBACK_METERS + fitted!.fit.depthMeters + REAR_YARD_METERS : undefined,
+              rearFit = pair ? fitRearWorks(frontage, plotDepth - cut!, mirror) : undefined;
+            if (pair && !rearFit) continue;
+            const asked = fitted ? { ...request, asset: fitted.asset } : request;
+            let taken = candidate,
+              laid = layFacility(
+                doc,
+                asked,
+                fitted ? fitted.asset.entrances[0] : entrance,
+                candidate,
+                [],
+                lines,
+                wantsWater,
+                dense && candidate.every(p => p.kind === "plot"),
+                cut
+              );
+            // A facility deeper than a binaire block's heads takes the houses behind them too, as a head house of two
+            // parcels did (plan §5.7).
+            if (laid && "deep" in laid && candidate.length === row.length && candidate.every(p => p.kind === "head")) {
+              const behind = housesBehind(candidate, cellHouses.get(seed.cellId) ?? [], used, laid.deep);
+              if (behind.length && cellRoom(seed.cellId) >= candidate.length + behind.length) {
+                laid = layFacility(doc, request, entrance, candidate, behind, lines, wantsWater);
+                taken = [...candidate, ...behind];
+              }
             }
+            if (laid && "deep" in laid) continue;
+            sized = true;
+            if (!laid) continue;
+            const blocked = (site: VectorPolygon) =>
+              occupied
+                .search(boxOf(site.outer))
+                .some(o => regionBoolean([site], [o.polygon], "intersection").some(r => regionArea(r) > 1e-5)) ||
+              protectedLand.search(boxOf(site.outer, 1e-6)).some(o => surfacesOverlap(site, o.polygon)) ||
+              crossesLine(site);
+            if (
+              blocked(laid.site) ||
+              (wantsWater && waterDistance(doc, [laid.site]) > request.riverbankMaxDistanceMeters!)
+            )
+              continue;
+            const works = pair
+              ? layRearWorks(laid, rearTrade!, rearFit!, candidate, cut!, fitted!.fit.depthMeters, dense)
+              : undefined;
+            if (pair && (!works || blocked(works.site))) continue;
+            placement = laid;
+            rear = works;
+            run = taken;
+            fit = fitted?.fit;
           }
-          if (laid && "deep" in laid) continue;
-          sized = true;
-          if (!laid) continue;
-          if (
-            occupied
-              .search(boxOf(laid.site.outer))
-              .some(o => regionBoolean([laid.site], [o.polygon], "intersection").some(r => regionArea(r) > 1e-5)) ||
-            protectedLand.search(boxOf(laid.site.outer, 1e-6)).some(o => surfacesOverlap(laid.site, o.polygon)) ||
-            crossesLine(laid.site) ||
-            (wantsWater && waterDistance(doc, [laid.site]) > request.riverbankMaxDistanceMeters!)
-          )
-            continue;
-          placement = laid;
-          run = taken;
-          fit = fitted?.fit;
-        }
+        if (placement) break;
+      }
       if (placement) break;
     }
     if (placement && run) {
@@ -263,13 +297,17 @@ export function placeFacilitiesOnPlots(
                 ...fit
               };
       doc.placements[placement.id] = placement;
+      if (rear) {
+        doc.placements[rear.id] = rear;
+        occupied.insert({ ...boxOf(rear.site.outer), polygon: rear.site });
+      }
       for (const p of run) used.add(p.i);
       takenInRow.set(run[0].row, (takenInRow.get(run[0].row) ?? 0) + run.length);
       takenInCell.set(run[0].cellId, (takenInCell.get(run[0].cellId) ?? 0) + run.length);
       facilityRows.add(run[0].row);
       occupied.insert({ ...boxOf(placement.site.outer), polygon: placement.site });
       result.cells.add(run[0].cellId);
-      result.placed.push(placement.id);
+      result.placed.push(placement.id, ...(rear ? [rear.id] : []));
     } else
       result.unplaced.push({
         id: request.id,
@@ -398,7 +436,9 @@ function layFacility(
   lines: ReturnType<typeof facilityLines>["lines"],
   wantsWater: boolean,
   /** Dense burgage: the parcel ends a court behind the building, and the plots' backs stay for rear houses. */
-  shallowParcel = false
+  shallowParcel = false,
+  /** The parcel ends this far behind the front, the rest of the plots another building's (a shop-house's rear works). */
+  parcelCut?: number
 ): VectorPlacement | { wide: number; deep: number } | undefined {
   const asset = request.asset,
     a = run[0].a,
@@ -453,24 +493,15 @@ function layFacility(
     if (Math.abs(polygonArea(hull)) > area * 1.08) return;
     site = { outer: hull, holes: [] };
   }
-  if (shallowParcel && !behind.length) {
+  if (parcelCut !== undefined) {
+    const front = bandOf(site, a, tangent, inward, length, -1, parcelCut);
+    if (!front) return;
+    site = front;
+  } else if (shallowParcel && !behind.length) {
     // The run's front strip as deep as the building and its court; the parcel is the plots cut there (plan §8.7).
-    const cut = deep + FRONT_SETBACK_METERS + DENSE_FACILITY_COURT_METERS,
-      reach = length + 2;
-    if (cut < Math.min(...run.map(p => p.depth)) - DENSE_FACILITY_COURT_METERS) {
-      const band: Point[] = [
-        [a[0] - tangent[0] - inward[0], a[1] - tangent[1] - inward[1]],
-        [a[0] + tangent[0] * reach - inward[0], a[1] + tangent[1] * reach - inward[1]],
-        [a[0] + tangent[0] * reach + inward[0] * cut, a[1] + tangent[1] * reach + inward[1] * cut],
-        [a[0] - tangent[0] + inward[0] * cut, a[1] - tangent[1] + inward[1] * cut]
-      ];
-      try {
-        const front = regionBoolean([site], [{ outer: band, holes: [] }], "intersection");
-        if (front.length === 1 && !front[0].holes.length && simpleContour(front[0].outer, true)) site = front[0];
-      } catch {
-        // the whole plots
-      }
-    }
+    const cut = deep + FRONT_SETBACK_METERS + DENSE_FACILITY_COURT_METERS;
+    if (cut < Math.min(...run.map(p => p.depth)) - DENSE_FACILITY_COURT_METERS)
+      site = bandOf(site, a, tangent, inward, length, -1, cut) ?? site;
   }
   const footprint = asset.footprint.map(p => ({
     outer: p.outer.map(transform),
@@ -531,6 +562,152 @@ function layFacility(
       residentialShare: 0,
       pool: facilityUseOf(request),
       ...(wantsWater ? { riverbankDistanceMeters: waterDistance(doc, [site]) } : {})
+    }
+  };
+}
+
+/** The part of `site` between `from` and `to` behind the front at `a` (along `tangent`, `length` long), if one piece. */
+function bandOf(
+  site: VectorPolygon,
+  a: Point,
+  tangent: Point,
+  inward: Point,
+  length: number,
+  from: number,
+  to: number
+): VectorPolygon | undefined {
+  const reach = length + 2,
+    at = (along: number, depth: number): Point => [
+      a[0] + tangent[0] * along + inward[0] * depth,
+      a[1] + tangent[1] * along + inward[1] * depth
+    ],
+    band: Point[] = [at(-1, from), at(reach, from), at(reach, to), at(-1, to)];
+  try {
+    const part = regionBoolean([site], [{ outer: band, holes: [] }], "intersection");
+    if (part.length === 1 && !part[0].holes.length && simpleContour(part[0].outer, true)) return part[0];
+  } catch {
+    // no single piece
+  }
+}
+
+/** The rear works fits in the back of the house's plots this far short of their back on dense burgage, whose plots'
+ * backs stay for rear houses. */
+const DENSE_REAR_COURT_METERS = 1;
+
+/**
+ * A shop-house's rear works (docs/plan/ce-town-trade-rear-works.md §5.3, R2): behind the house and its yard in the same
+ * plots, centred on them and facing the house, its parcel the plots from `cut` back (on dense burgage only as deep as
+ * the works and a court). Its way out runs through the house to the house's door. Undefined where it does not fit.
+ */
+function layRearWorks(
+  house: VectorPlacement,
+  trade: Parameters<typeof rearWorksAsset>[0],
+  fit: RearWorksFit,
+  run: Plot[],
+  cut: number,
+  houseDepth: number,
+  dense: boolean
+): VectorPlacement | undefined {
+  const a = run[0].a,
+    b = run.at(-1)!.b,
+    length = Math.hypot(b[0] - a[0], b[1] - a[1]),
+    tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length],
+    inward = inwardOf(run[0].ring, a, tangent),
+    entrance = house.building!.entrances[0];
+  let plots: VectorPolygon | undefined;
+  try {
+    const union = regionBoolean(
+      run.map(p => ({ outer: p.ring, holes: [] })),
+      [],
+      "union"
+    );
+    if (union.length === 1 && !union[0].holes.length && simpleContour(union[0].outer, true)) plots = union[0];
+  } catch {
+    plots = undefined;
+  }
+  if (!plots) return;
+  const back = cut + REAR_FRONT_GAP_METERS + fit.depthMeters,
+    site = bandOf(
+      plots,
+      a,
+      tangent,
+      inward,
+      length,
+      cut,
+      dense ? back + DENSE_REAR_COURT_METERS : Math.max(...run.map(p => p.depth)) + 1
+    );
+  if (!site) return;
+  // The house's frame: its centre stands half its depth behind the front setback.
+  const angle = (house.facingDegrees * Math.PI) / 180,
+    c = Math.cos(angle),
+    s = Math.sin(angle),
+    shift = back - fit.depthMeters / 2 - (FRONT_SETBACK_METERS + houseDepth / 2),
+    position: Point = [house.position[0] + inward[0] * shift, house.position[1] + inward[1] * shift],
+    transform = (p: Point): Point => [p[0] * c - p[1] * s + position[0], p[0] * s + p[1] * c + position[1]];
+  const w = fit.widthMeters / 2,
+    d = fit.depthMeters / 2,
+    footprint = [
+      {
+        outer: (
+          [
+            [-w, -d],
+            [w, -d],
+            [w, d],
+            [-w, d]
+          ] as Point[]
+        ).map(transform),
+        holes: []
+      }
+    ];
+  if (regionBoolean(footprint, [site], "difference").some(r => regionArea(r) > 1e-5)) return;
+  // As bvFacilityAsset turns model metres into plan metres: +Z the house is -Y on the plan.
+  const asset = rearWorksAsset(trade),
+    door = opusRearWorksLayout(opusRearWorksPreset(trade, fit)).entrance;
+  let point = transform([door.position[0], -door.position[2]]);
+  if (!pointInPolygon(point, site.outer)) {
+    point = [point[0] + inward[0] * 0.3, point[1] + inward[1] * 0.3];
+    if (!pointInPolygon(point, site.outer)) return;
+  }
+  const to = entrance.point,
+    reach = Math.hypot(to[0] - point[0], to[1] - point[1]);
+  if (reach < 0.01) return;
+  return {
+    id: `${house.id}:rear`,
+    modelId: asset.bvModel!.id,
+    position,
+    facingDegrees: house.facingDegrees,
+    origin: "automatic",
+    editPolicy: "editable",
+    site,
+    accesses: structuredClone(house.accesses),
+    exterior: { culture: "atlantic", shade: 1, ...fit },
+    building: {
+      kind: "facility",
+      label: asset.name,
+      districtId: house.building!.districtId,
+      provenance: "bv",
+      dimensionSource: asset.dimensionSource ?? "Provisional dimensions",
+      heightMeters: asset.bvModel!.heightMeters,
+      footprint,
+      reserved: [site],
+      entrances: [
+        {
+          id: door.id,
+          point,
+          outward: [(to[0] - point[0]) / reach, (to[1] - point[1]) / reach],
+          widthMeters: door.clearWidth,
+          // Through the house to its door, as a burgage's back was reached.
+          connector: [point, ...entrance.connector],
+          ...(entrance.accessIndex !== undefined ? { accessIndex: entrance.accessIndex } : {}),
+          ...(entrance.fabricLine !== undefined ? { fabricLine: entrance.fabricLine } : {})
+        }
+      ],
+      dwellings: 0,
+      floorFootprintMeters2: 0,
+      storeys: 0,
+      residentialShare: 0,
+      annexOf: house.id,
+      ...(house.building!.pool ? { pool: house.building!.pool } : {})
     }
   };
 }

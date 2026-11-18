@@ -42,6 +42,7 @@ import {
   vectorPerimeterResidual
 } from "./perimeter";
 import { deriveVectorBlocks, joinVectorGenerationAnchors } from "./pipeline";
+import { isRearWorks } from "./rearWorksAssets";
 import { vectorApproachBands, vectorSuburbanLots } from "./suburbs";
 import { TOWN_GUILDHALL_ID } from "./townGuildhall";
 import { allocateVectorResidents, vectorPlacementDwellings } from "./urbanCapacity";
@@ -703,7 +704,9 @@ function* vectorUrbanSteps(
     }
     if (run?.profile) run.profile.facilityMs = performance.now() - started;
   } else if (packer) placeFacilities(packer);
-  const facilities = ownedPlacements.filter(id => doc.placements[id].building?.kind === "facility");
+  const facilities = ownedPlacements.filter(id => doc.placements[id].building?.kind === "facility"),
+    // A shop-house's rear works is its facility's second building, reported once (docs/plan/ce-town-trade-rear-works.md).
+    reported = facilities.filter(id => !isRearWorks(doc.placements[id]));
   // Trade workhomes take their street fronts once their places are known (docs/plan/bv-workhome-facade-variation.md W3).
   // One kept from before an edit keeps what it was saved with, a Codex study included.
   dressWorkhomes(
@@ -874,9 +877,9 @@ function* vectorUrbanSteps(
           .filter(id => !inside(doc.placements[id].position))
           .reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0) + fabricDwellings(false),
       // A facility kept from an edit of a town planned with an earlier request set (another staffing) still counts.
-      requiredFacilities: requests.length + facilities.filter(id => !requests.some(r => `urban:${r.id}` === id)).length,
-      placedFacilities: facilities.length,
-      provisionalFacilities: facilities.filter(id => doc.placements[id].building!.provenance === "provisional").length,
+      requiredFacilities: requests.length + reported.filter(id => !requests.some(r => `urban:${r.id}` === id)).length,
+      placedFacilities: reported.length,
+      provisionalFacilities: reported.filter(id => doc.placements[id].building!.provenance === "provisional").length,
       unplacedFacilities,
       housingBuildings:
         ownedPlacements.length -

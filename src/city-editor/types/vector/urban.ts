@@ -50,6 +50,9 @@ export interface VectorBuilding {
   storeys: number;
   residentialShare: number;
   riverbankDistanceMeters?: number;
+  /** A facility's second building on its plot (the rear works behind a shop-house, docs/plan/ce-town-trade-rear-works.md
+   * R2): the placement it belongs to. The facility is reported once, by that placement. */
+  annexOf?: string;
 }
 export interface VectorUrbanReport {
   targetPopulation: number;
@@ -124,7 +127,9 @@ export type VectorUrbanAlgorithm =
   | "vector-urban-v29"
   | "vector-urban-v30"
   | "vector-urban-v31"
-  | "vector-urban-v32";
+  | "vector-urban-v32"
+  | "vector-urban-v33"
+  | "vector-urban-v34";
 export interface VectorUrban {
   algorithm: VectorUrbanAlgorithm;
   inputRevision: number;

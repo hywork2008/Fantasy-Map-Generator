@@ -49,8 +49,8 @@ const rings = (coords: number[], offsets: number[], origin: [number, number]) =>
 describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md B2, B3, B5, §8.7)", () => {
   it("houses everyone on plots recorded with their street blocks, and keeps them through a save", () => {
     const doc = town("burgage");
-    expect(doc.urban!.algorithm).toBe("vector-urban-v31");
-    expect(doc.fabric!.algorithm).toBe("vector-urban-v31");
+    expect(doc.urban!.algorithm).toBe("vector-urban-v33");
+    expect(doc.fabric!.algorithm).toBe("vector-urban-v33");
     expect(doc.urban!.report.unplacedDwellings).toBe(0);
     const cells = Object.values(doc.fabric!.cells).filter(c => c.houses.offsets.length);
     expect(cells.length).toBeGreaterThan(5);
@@ -70,19 +70,33 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
     const report = doc.urban!.report;
     expect(report.unplacedDwellings).toBe(0);
     expect(report.placedFacilities / report.requiredFacilities).toBeGreaterThan(0.8);
-    const all = Object.values(doc.placements).filter(p => p.building?.kind === "facility" && p.origin === "automatic");
+    // A shop-house and its rear works (ce-town-trade-rear-works.md R2) are one facility on one parcel, split between them.
+    const all = Object.values(doc.placements).filter(
+        p => p.building?.kind === "facility" && p.origin === "automatic" && !p.building.annexOf
+      ),
+      annex = new Map(
+        Object.values(doc.placements)
+          .filter(p => p.building?.annexOf)
+          .map(p => [p.building!.annexOf!, p])
+      ),
+      parcel = (p: (typeof all)[number]) => [p.site, ...(annex.has(p.id) ? [annex.get(p.id)!.site] : [])];
     expect(all.length).toBeGreaterThan(50);
+    expect(annex.size).toBeGreaterThan(5);
     for (const cell of Object.values(doc.fabric!.cells)) {
       if (!cell.plots) continue;
       const plots = rings(cell.plots.coords, cell.plots.offsets, cell.origin);
-      const under = all.map(f => plots.filter(plot => pointInPolygon(polygonCentroid(plot), f.site.outer)));
+      const under = all.map(f =>
+        plots.filter(plot => parcel(f).some(site => pointInPolygon(polygonCentroid(plot), site.outer)))
+      );
       for (const [k, taken] of under.entries()) {
         // The tanners' row is reserved on the bank, not on plots.
         if (!taken.length || all[k].modelId.includes("wet-tannery")) continue;
         // The parcel is its plots whole: one to four of them, nothing more.
         expect(taken.length).toBeLessThanOrEqual(4);
         const area = taken.reduce((n, plot) => n + Math.abs(polygonArea(plot)), 0);
-        expect(Math.abs(regionArea(all[k].site) - area)).toBeLessThan(area * 0.02 + 1);
+        expect(Math.abs(parcel(all[k]).reduce((n, site) => n + regionArea(site), 0) - area)).toBeLessThan(
+          area * 0.02 + 1
+        );
       }
       // A street block inside the wall that holds a facility holds houses too.
       if (cell.inside && under.some(t => t.length)) expect(cell.houses.offsets.length).toBeGreaterThan(0);
@@ -130,7 +144,7 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
     };
     const dense = town("burgage-dense", 5000),
       compact = town("compact", 5000);
-    expect(dense.fabric!.algorithm).toBe("vector-urban-v32");
+    expect(dense.fabric!.algorithm).toBe("vector-urban-v34");
     expect(dense.urban!.report.unplacedDwellings).toBe(0);
     expect(cover(dense)).toBeGreaterThan(cover(compact) * 0.8);
     // Inside the wall the plots are halved: most are narrower than the burgage option's narrowest (5 m).

@@ -42,6 +42,13 @@ import {
   opusGuildHouseSpecKey,
   opusGuildHouseSpecOf
 } from "./medieval/opusGuildHouseProfiles";
+import { createOpusRearWorks } from "./medieval/opusRearWorks";
+import {
+  type OpusRearWorksExterior,
+  opusRearWorksModel,
+  opusRearWorksSpecKey,
+  opusRearWorksSpecOf
+} from "./medieval/opusRearWorksProfiles";
 import { createOpusWorkhome } from "./medieval/opusWorkhome";
 import { type OpusWorkhomeExterior, opusWorkhomeSpecKey, opusWorkhomeSpecOf } from "./medieval/opusWorkhomeProfiles";
 import type { StreetHouseExterior } from "./medieval/streetHouses";
@@ -242,6 +249,7 @@ function workhomeDefinition(
   workhome: StreetHouseExterior | "codex"
 ): BvDefinition | null {
   if (opusGuildHouseModel(id)) return workhome === "codex" ? null : guildHouseDefinition(id, level, workhome);
+  if (opusRearWorksModel(id)) return workhome === "codex" ? null : rearWorksDefinition(id, level, workhome);
   const model = workhomes.find(m => m.id === id);
   if (!model) return null;
   const quality = level === "low" ? "low" : "high";
@@ -280,6 +288,22 @@ function guildHouseDefinition(id: string, level: PlacementQuality, exterior: Str
   if (!result) {
     const variant = model.variants!.find(v => v.level === quality)!;
     result = { id: key, variant: variant.id, create: () => createOpusGuildHouse(spec, quality) };
+    workhomeDefinitions.set(key, result);
+  }
+  return result;
+}
+
+/** A rear works' saved envelope and culture draw the shed it describes (docs/plan/ce-town-trade-rear-works.md R2). */
+function rearWorksDefinition(id: string, level: PlacementQuality, exterior: StreetHouseExterior): BvDefinition | null {
+  const spec = opusRearWorksSpecOf(id, exterior as OpusRearWorksExterior),
+    model = rearWorks.find(m => m.id === id);
+  if (!spec || !model) return null;
+  const quality = level === "low" ? "low" : "high",
+    key = `${id}:${quality}:${opusRearWorksSpecKey(spec)}`;
+  let result = workhomeDefinitions.get(key);
+  if (!result) {
+    const variant = model.variants!.find(v => v.level === quality)!;
+    result = { id: key, variant: variant.id, create: () => createOpusRearWorks(spec, quality) };
     workhomeDefinitions.set(key, result);
   }
   return result;

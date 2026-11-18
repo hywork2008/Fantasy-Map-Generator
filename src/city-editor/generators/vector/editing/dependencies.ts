@@ -346,6 +346,14 @@ export function reconcileVectorEdit(source: VectorCityDocument, candidate: Vecto
       retainedPlacements.push(id);
     }
   }
+  // A rear works moves with the shop-house it stands behind (docs/plan/ce-town-trade-rear-works.md R2).
+  for (const id of [...retainedPlacements]) {
+    const annexOf = doc.placements[id].building?.annexOf;
+    if (!annexOf || !relocatedPlacements.includes(annexOf)) continue;
+    retainedPlacements.splice(retainedPlacements.indexOf(id), 1);
+    relocatedPlacements.push(id);
+    delete doc.placements[id];
+  }
   // Reserve the edited topology as the new pre-urban baseline. Strip only M5-owned lanes.
   const featureAccessPaths = new Set(Object.values(doc.environment?.features ?? {}).map(f => f.access.pathId));
   const ownedPaths = previous.ownedPaths.filter(

@@ -5,7 +5,7 @@
  * Coordinates are metres, +Z toward the house (the plot's front), the envelope centred on the origin.
  */
 
-import type { OpusWorkhomeCulture } from "./opusWorkhomeProfiles";
+import { OPUS_WORKHOME_CULTURES, type OpusWorkhomeCulture } from "./opusWorkhomeProfiles";
 
 export const OPUS_REAR_TRADES = ["baking", "cutlery", "metalwares", "glazing", "chandlery"] as const;
 export type OpusRearTrade = (typeof OPUS_REAR_TRADES)[number];
@@ -119,4 +119,31 @@ export function opusRearWorksSpecOf(modelId: string, exterior: OpusRearWorksExte
   const model = opusRearWorksModel(modelId);
   const given = Object.fromEntries(Object.entries(exterior).filter(([, v]) => v !== undefined));
   return model && opusRearWorksPreset(model.trade, given as Partial<OpusRearWorksSpec>);
+}
+
+/** A rear works' envelope (width, depth): its fitted plot, or the preset's. */
+export function opusRearWorksEnvelope(exterior?: OpusRearWorksExterior): readonly [number, number] {
+  return [
+    exterior?.widthMeters ?? OPUS_REAR_WORKS_PRESET_ENVELOPE[0],
+    exterior?.depthMeters ?? OPUS_REAR_WORKS_PRESET_ENVELOPE[1]
+  ];
+}
+
+const onGrid = (v: unknown, step: number, lo: number, hi: number) =>
+  typeof v === "number" && v >= lo && v <= hi && Math.abs(v / step - Math.round(v / step)) < 1e-9;
+
+export function isOpusRearWorksExterior(value: unknown): value is OpusRearWorksExterior {
+  const v = value as Record<string, unknown>;
+  return (
+    !!v &&
+    typeof v === "object" &&
+    Object.keys(v).every(k => ["culture", "shade", "widthMeters", "depthMeters", "mirror"].includes(k)) &&
+    (v.widthMeters === undefined ||
+      onGrid(v.widthMeters, OPUS_REAR_WORKS_WIDTH_STEP, OPUS_REAR_WORKS_MIN_WIDTH, OPUS_REAR_WORKS_MAX_WIDTH)) &&
+    (v.depthMeters === undefined ||
+      onGrid(v.depthMeters, OPUS_REAR_WORKS_DEPTH_STEP, OPUS_REAR_WORKS_MIN_DEPTH, OPUS_REAR_WORKS_MAX_DEPTH)) &&
+    (v.mirror === undefined || typeof v.mirror === "boolean") &&
+    (OPUS_WORKHOME_CULTURES as readonly unknown[]).includes(v.culture) &&
+    (v.shade === 0 || v.shade === 1 || v.shade === 2)
+  );
 }

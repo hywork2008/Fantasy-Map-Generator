@@ -85,7 +85,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
         !keys(
           b,
           "kind,label,districtId,provenance,dimensionSource,footprint,reserved,entrances,dwellings,floorFootprintMeters2,storeys,residentialShare",
-          "pool,riverbankDistanceMeters,heightMeters"
+          "pool,riverbankDistanceMeters,heightMeters,annexOf"
         ) ||
         !["facility", "housing"].includes(b.kind) ||
         typeof b.label !== "string" ||
@@ -141,7 +141,12 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
               b.floorFootprintMeters2 !== VECTOR_HOUSE_FLOOR_AREA ||
               b.residentialShare !== VECTOR_HOUSE_SHARE ||
               b.dwellings !== vectorHouseDwellings())) ||
-        (b.kind === "facility" && (b.dwellings > 1 || (b.dwellings > 0 && !p.modelId.startsWith("trade-workhome."))))
+        (b.kind === "facility" && (b.dwellings > 1 || (b.dwellings > 0 && !p.modelId.startsWith("trade-workhome.")))) ||
+        (b.annexOf !== undefined &&
+          (b.kind !== "facility" ||
+            b.dwellings !== 0 ||
+            doc.placements[b.annexOf]?.building?.kind !== "facility" ||
+            doc.placements[b.annexOf].building!.annexOf !== undefined))
       )
         errors.push(`building:${p.id}`);
     }
@@ -192,7 +197,9 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       "vector-urban-v29",
       "vector-urban-v30",
       "vector-urban-v31",
-      "vector-urban-v32"
+      "vector-urban-v32",
+      "vector-urban-v33",
+      "vector-urban-v34"
     ].includes(u.algorithm) ||
     !nonnegative(u.inputRevision) ||
     !keys(
@@ -384,7 +391,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       u.settings.population !== r.targetPopulation ||
       r.capacityDwellings !==
         Object.values(doc.placements).reduce((n, p) => n + vectorPlacementDwellings(p), 0) + fabricDwellings ||
-      owned.filter(p => p?.building?.kind === "facility").length !== r.placedFacilities ||
+      owned.filter(p => p?.building?.kind === "facility" && !p.building.annexOf).length !== r.placedFacilities ||
       owned.filter(p => p?.building?.kind === "housing").length + fabricHouses !== r.housingBuildings
     )
       errors.push("urban-result");

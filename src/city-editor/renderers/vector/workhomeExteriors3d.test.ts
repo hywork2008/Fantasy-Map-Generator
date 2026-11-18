@@ -110,7 +110,7 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
     workhomes = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workhome."));
 
   it("builds nearly every workhome on one plot, as wide as the plot on its grid, its door on its own side", () => {
-    expect(doc.urban!.algorithm).toBe("vector-urban-v32");
+    expect(doc.urban!.algorithm).toBe("vector-urban-v34");
     expect(() => assertVectorDocument(doc)).not.toThrow();
     // Plots whose front, a metre in, lies under a workhome's parcel.
     const fronts = Object.values(doc.fabric!.cells).flatMap(c =>
@@ -150,6 +150,31 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
 
   it("draws every fitted workhome as its model", () => {
     const ids = new Set(workhomes.map(p => p.id));
+    expect(warningsOf(doc).filter(w => ids.has(w.slice(w.indexOf(":") + 1)))).toEqual([]);
+  });
+
+  it("lays each town trade as a shop-house and its rear works in the same plots (ce-town-trade-rear-works.md R2)", () => {
+    const rears = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workshop.rear-works."));
+    // 2,000 people: bakers 5, metalworkers 3, a cutler and a chandler; no dedicated workshop of theirs is left.
+    expect(rears).toHaveLength(10);
+    expect(
+      Object.values(doc.placements).some(p => /dedicated-(bakehouse|cutlery|metalwares|chandlery)/.test(p.modelId))
+    ).toBe(false);
+    for (const rear of rears) {
+      const house = doc.placements[rear.building!.annexOf!];
+      expect(house.modelId).toBe(`trade-workhome.shop-house.${rear.modelId.split(".").at(-1)}`);
+      expect(rear.facingDegrees).toBe(house.facingDegrees);
+      // Behind the house, a yard of 4 m between them, the two parcels meeting along one line.
+      const angle = (house.facingDegrees * Math.PI) / 180,
+        back = [-Math.sin(angle), Math.cos(angle)],
+        gap = (rear.position[0] - house.position[0]) * back[0] + (rear.position[1] - house.position[1]) * back[1];
+      expect(gap - house.exterior!.depthMeters! / 2 - rear.exterior!.depthMeters! / 2).toBeCloseTo(4.05, 5);
+      expect(rear.exterior!.culture).toBe(house.exterior!.culture);
+    }
+    // The pair is one facility.
+    const facilities = doc.urban!.ownedPlacements.filter(id => doc.placements[id].building?.kind === "facility");
+    expect(doc.urban!.report.placedFacilities).toBe(facilities.length - rears.length);
+    const ids = new Set(rears.map(p => p.id));
     expect(warningsOf(doc).filter(w => ids.has(w.slice(w.indexOf(":") + 1)))).toEqual([]);
   });
 });

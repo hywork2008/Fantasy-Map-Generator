@@ -5,6 +5,12 @@ import {
   opusGuildHouseSpecKey,
   opusGuildHouseSpecOf
 } from "../../../../buildings/medieval/opusGuildHouseProfiles";
+import { opusRearWorksHeight } from "../../../../buildings/medieval/opusRearWorks";
+import {
+  type OpusRearWorksExterior,
+  opusRearWorksModel,
+  opusRearWorksSpecOf
+} from "../../../../buildings/medieval/opusRearWorksProfiles";
 import { opusWorkhomeHeight } from "../../../../buildings/medieval/opusWorkhome";
 import {
   OPUS_WORKHOME_FRONTS,
@@ -49,7 +55,8 @@ function touching(a: readonly [number, number][], b: readonly [number, number][]
  * Give each generated trade workhome its street front (docs/plan/bv-workhome-facade-variation.md §4.5, W3): the
  * town's culture, and per facility the street face, storeys, shutters, door, sign and shade from its own draw, so a
  * save draws the same town again. Two workhomes sharing a party wall never show the same front. The placement keeps
- * its envelope and door; only its saved height follows the model.
+ * its envelope and door; only its saved height follows the model. A rear works behind a shop-house takes the town's
+ * culture too.
  */
 export function dressWorkhomes(doc: VectorCityDocument, ids: readonly string[]) {
   const culture = vectorTownCulture(vectorTownProfile(doc)),
@@ -83,6 +90,22 @@ export function dressWorkhomes(doc: VectorCityDocument, ids: readonly string[]) 
       p.building.heightMeters = height;
       if (p.display) p.display.heightMeters = height;
       dressed.push({ outer: p.site.outer, key: keyOf(exterior) });
+      continue;
+    }
+    // A shop-house's rear works (docs/plan/ce-town-trade-rear-works.md R2): the town's walls, its own shade.
+    if (opusRearWorksModel(p.modelId)) {
+      const saved = p.exterior as OpusRearWorksExterior | undefined,
+        exterior: OpusRearWorksExterior = {
+          ...(saved?.widthMeters
+            ? { widthMeters: saved.widthMeters, depthMeters: saved.depthMeters, mirror: saved.mirror }
+            : {}),
+          culture,
+          shade: Math.min(2, Math.floor(r("shade") * 3)) as 0 | 1 | 2
+        };
+      p.exterior = exterior;
+      const height = opusRearWorksHeight(opusRearWorksSpecOf(p.modelId, exterior)!);
+      p.building.heightMeters = height;
+      if (p.display) p.display.heightMeters = height;
       continue;
     }
     const model = opusWorkhomeModel(p.modelId);
