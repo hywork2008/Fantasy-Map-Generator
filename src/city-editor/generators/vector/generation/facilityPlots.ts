@@ -13,6 +13,7 @@ import { nearestRoadAnchor } from "../geometry/network";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { simpleContour, surfacesOverlap } from "../geometry/surfaces";
 import { connectTanneryRow, type FacilityLotResult, facilityLand, facilityLines, isWetTannery } from "./facilityLots";
+import { CIVIC_PLAZA_ID } from "./market";
 import type { VectorPerimeterPlan } from "./perimeter";
 import {
   fitRearWorks,
@@ -52,6 +53,11 @@ const DENSE_FACILITY_COURT_METERS = 4;
 
 /** Share of a plot's place in the facilities' order given by its distance from the centre, as for houses. */
 const CENTRE_WEIGHT = 0.6;
+
+/** Plots a shop-house and its rear works take at most (docs/plan/ce-town-trade-rear-works.md §6, R2). */
+const PAIR_PLOTS = 2;
+/** The town trades that sell in the market's rows (plan §5.4). */
+const MARKET_TRADES = new Set(["fishmongery", "butchery"]);
 
 const isLarge = (request: BVFacilityRequest) => /:(guild|inn|hall)/.test(request.id);
 
@@ -143,6 +149,18 @@ export function placeFacilitiesOnPlots(
     }
     return d;
   };
+  // The market place's edge, and each plot front's distance from it.
+  const plaza = doc.environment?.features[CIVIC_PLAZA_ID],
+    marketRing = plaza?.kind === "market" ? [...plaza.boundary.outer, plaza.boundary.outer[0]] : undefined,
+    marketDistance = new Map<number, number>();
+  const marketOf = (p: Plot) => {
+    let d = marketDistance.get(p.i);
+    if (d === undefined) {
+      d = nearestOnPolyline([(p.a[0] + p.b[0]) / 2, (p.a[1] + p.b[1]) / 2], marketRing!).dist;
+      marketDistance.set(p.i, d);
+    }
+    return d;
+  };
   const facilityRows = new Set<number>();
   /** Binaire houses of each street block, behind its heads. */
   const cellHouses = new Map<string, Plot[]>();
@@ -167,6 +185,9 @@ export function placeFacilitiesOnPlots(
     }
     const outskirts = request.zone === "outskirts",
       commerce = facilityUseOf(request) === "commerce",
+      // Fishmongers and butchers keep their shops in the rows facing the market place (Fish Row, Butcher Row;
+      // docs/plan/ce-town-trade-rear-works.md §5.4, R3): the plots nearest the square first.
+      market = !!marketRing && MARKET_TRADES.has(pairedRearTrade(request.asset.bvModel?.id) ?? ""),
       // Dense burgage halves the plots, so a facility may join twice as many; runs are tried fewest plots first, so it
       // never takes more than its building needs.
       limit = (isLarge(request) ? MAX_PLOTS_LARGE : MAX_PLOTS) * (dense ? 2 : 1);
@@ -175,16 +196,18 @@ export function placeFacilitiesOnPlots(
       // Rows and street blocks already holding their share of facilities give no seed.
       .filter(p => rowRoom(rows.get(p.row)!) >= 1 && cellRoom(p.cellId) >= 1)
       .filter(p => !wantsWater || waterOf(p) <= request.riverbankMaxDistanceMeters! + 30)
-      .map(p => ({ p, near: wantsWater || commerce ? 0 : facilityRows.has(p.row) ? 0 : 1 }))
+      .map(p => ({ p, near: wantsWater || commerce || market ? 0 : facilityRows.has(p.row) ? 0 : 1 }))
       .sort(
         ({ p: a, near: na }, { p: b, near: nb }) =>
           na - nb ||
           (wantsWater
             ? waterOf(a) - waterOf(b)
-            : commerce
-              ? Math.hypot(a.centroid[0] - center[0], a.centroid[1] - center[1]) -
-                Math.hypot(b.centroid[0] - center[0], b.centroid[1] - center[1])
-              : a.draw - b.draw)
+            : market
+              ? marketOf(a) - marketOf(b)
+              : commerce
+                ? Math.hypot(a.centroid[0] - center[0], a.centroid[1] - center[1]) -
+                  Math.hypot(b.centroid[0] - center[0], b.centroid[1] - center[1])
+                : a.draw - b.draw)
       )
       .map(({ p }) => p)
       .slice(0, SEEDS_PER_REQUEST);
@@ -207,7 +230,7 @@ export function placeFacilitiesOnPlots(
       const workhome = !!kind;
       for (const seed of seeds) {
         const row = rows.get(seed.row)!,
-          room = Math.min(limit, rowRoom(row), cellRoom(seed.cellId));
+          room = Math.min(pair ? PAIR_PLOTS : limit, rowRoom(row), cellRoom(seed.cellId));
         if (room < 1) continue;
         const k = row.indexOf(seed);
         // Runs holding the seed, fewest plots first, the seed at their start first.

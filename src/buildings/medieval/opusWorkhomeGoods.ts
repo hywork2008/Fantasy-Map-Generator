@@ -129,5 +129,21 @@ export function tradeGoods(
       if (k.high)
         k.cylinder("candle-bundle", [x + 0.15, y + 0.03, z], 0.05, 0.3, "fat", 0.05, 6).rotation.z = Math.PI / 2;
       return;
+    // The market trades' shops in Fish Row and Butcher Row (R3).
+    case "fishmongery":
+      if (place === "rail") {
+        k.box("hung-stockfish", [x, y - 0.25, z], [0.1, 0.45, 0.02], "fish");
+        return;
+      }
+      k.blob("fresh-fish", [x, y + 0.03, z], [0.07, 0.03, 0.16], i % 3 ? "fish" : "white");
+      if (k.high) k.blob("fresh-fish", [x + 0.12, y + 0.03, z + 0.03], [0.06, 0.03, 0.14], "fish");
+      return;
+    case "butchery":
+      if (place === "rail") {
+        k.blob("hanging-joint", [x, y - 0.22, z], [0.11, 0.22, 0.09], i % 3 === 2 ? "fat" : "meat");
+        return;
+      }
+      k.blob("joint", [x, y + 0.08, z], [0.16, 0.08, 0.12], i % 2 ? "meat" : "fat");
+      return;
   }
 }

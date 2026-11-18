@@ -7,7 +7,16 @@
 
 import { OPUS_WORKHOME_CULTURES, type OpusWorkhomeCulture } from "./opusWorkhomeProfiles";
 
-export const OPUS_REAR_TRADES = ["baking", "cutlery", "metalwares", "glazing", "chandlery"] as const;
+export const OPUS_REAR_TRADES = [
+  "baking",
+  "cutlery",
+  "metalwares",
+  "glazing",
+  "chandlery",
+  // The market trades (R3): the shop-house in the market's Fish Row or Butcher Row, the works behind it.
+  "fishmongery",
+  "butchery"
+] as const;
 export type OpusRearTrade = (typeof OPUS_REAR_TRADES)[number];
 
 export interface OpusRearWorksSpec {

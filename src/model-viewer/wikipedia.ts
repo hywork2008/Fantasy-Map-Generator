@@ -222,7 +222,9 @@ const modelArticles: Record<string, string> = {
   "trade-workshop.rear-works.cutlery": "Cutler",
   "trade-workshop.rear-works.metalwares": "Pewter",
   "trade-workshop.rear-works.glazing": "Glazier",
-  "trade-workshop.rear-works.chandlery": "Chandler (profession)"
+  "trade-workshop.rear-works.chandlery": "Chandler (profession)",
+  "trade-workshop.rear-works.fishmongery": "Fishmonger",
+  "trade-workshop.rear-works.butchery": "Butcher"
 };
 
 export function medievalWikipediaArticle(model: Pick<MedievalModel, "id" | "task">): string {

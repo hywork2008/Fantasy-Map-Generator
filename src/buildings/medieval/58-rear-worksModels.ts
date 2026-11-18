@@ -18,7 +18,9 @@ const NAMES: Record<OpusRearTrade, string> = {
   cutlery: "Cutler's forge and grinding behind the house",
   metalwares: "Pewterer's casting shed behind the house",
   glazing: "Glazier's workshop behind the house",
-  chandlery: "Chandler's rendering shed behind the house"
+  chandlery: "Chandler's rendering shed behind the house",
+  fishmongery: "Fishmonger's curing shed behind the house",
+  butchery: "Butcher's slaughter shed behind the house"
 };
 
 const NOTES: Record<OpusRearTrade, string> = {
@@ -31,7 +33,11 @@ const NOTES: Record<OpusRearTrade, string> = {
   glazing:
     "An open-fronted shop with a whitened glazing table of leaded panels, a came rack and a small stove for the lead; glass crates and cullet in the yard.",
   chandlery:
-    "An open-fronted rendering shed with the tallow copper on its hearth under hood and stack and a dipping frame of setting candles; tallow barrels in the yard."
+    "An open-fronted rendering shed with the tallow copper on its hearth under hood and stack and a dipping frame of setting candles; tallow barrels in the yard.",
+  fishmongery:
+    "An open-fronted curing shed behind a Fish Row shop: herring tuns stacked along the back, the salt bin, a gutting table and stockfish hung under the eaves; brine and water tubs in the yard. Salisbury's fish stalls became shops in a Fish Row (1314).",
+  butchery:
+    "An open-fronted slaughter shed behind a Butcher Row shop: sides of beef dressed on a beam with its windlass, chopping blocks and a scalding trough where the plot is wide; offal and water tubs in the yard. Salisbury's Butcher Row was mostly shops by 1455."
 };
 
 /**

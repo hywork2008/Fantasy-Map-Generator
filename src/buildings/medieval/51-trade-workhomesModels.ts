@@ -170,7 +170,9 @@ const SHOP_NAMES: Record<OpusRearTrade, string> = {
   cutlery: "Cutler's shop-house",
   metalwares: "Pewterer's shop-house",
   glazing: "Glazier's shop-house",
-  chandlery: "Chandler's shop-house"
+  chandlery: "Chandler's shop-house",
+  fishmongery: "Fishmonger's shop in Fish Row",
+  butchery: "Butcher's shop in Butcher Row"
 };
 
 /**

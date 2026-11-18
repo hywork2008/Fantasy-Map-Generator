@@ -30,7 +30,10 @@ const PAIRED_TRADES: Readonly<Record<string, OpusRearTrade>> = {
   "trade-workshop.dedicated-cutlery": "cutlery",
   "trade-workshop.dedicated-metalwares": "metalwares",
   "trade-workshop.dedicated-glaziers-workshop": "glazing",
-  "trade-workshop.dedicated-chandlery": "chandlery"
+  "trade-workshop.dedicated-chandlery": "chandlery",
+  // Market trades (R3): their shops stand in the rows facing the market place.
+  "trade-workshop.dedicated-fishmongery": "fishmongery",
+  "trade-workshop.dedicated-butchery": "butchery"
 };
 
 /** Open yard between the shop-house's back wall and the rear works (plan §5.3). */

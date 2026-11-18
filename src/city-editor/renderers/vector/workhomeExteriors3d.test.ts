@@ -110,7 +110,7 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
     workhomes = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workhome."));
 
   it("builds nearly every workhome on one plot, as wide as the plot on its grid, its door on its own side", () => {
-    expect(doc.urban!.algorithm).toBe("vector-urban-v34");
+    expect(doc.urban!.algorithm).toBe("vector-urban-v36");
     expect(() => assertVectorDocument(doc)).not.toThrow();
     // Plots whose front, a metre in, lies under a workhome's parcel.
     const fronts = Object.values(doc.fabric!.cells).flatMap(c =>
@@ -153,13 +153,26 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
     expect(warningsOf(doc).filter(w => ids.has(w.slice(w.indexOf(":") + 1)))).toEqual([]);
   });
 
-  it("lays each town trade as a shop-house and its rear works in the same plots (ce-town-trade-rear-works.md R2)", () => {
+  it("lays each town trade as a shop-house and its rear works in the same plots (ce-town-trade-rear-works.md R2, R3)", () => {
     const rears = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workshop.rear-works."));
-    // 2,000 people: bakers 5, metalworkers 3, a cutler and a chandler; no dedicated workshop of theirs is left.
-    expect(rears).toHaveLength(10);
+    // 2,000 people: bakers 5, metalworkers 3, a cutler, a chandler, a fishmonger and a butcher (R3); no dedicated
+    // workshop of theirs is left.
+    expect(rears).toHaveLength(12);
     expect(
-      Object.values(doc.placements).some(p => /dedicated-(bakehouse|cutlery|metalwares|chandlery)/.test(p.modelId))
+      Object.values(doc.placements).some(p =>
+        /dedicated-(bakehouse|cutlery|metalwares|chandlery|fishmongery|butchery)/.test(p.modelId)
+      )
     ).toBe(false);
+    // The market trades' shops are the ones nearest the market place (Fish Row, Butcher Row).
+    const plaza = doc.environment!.features["feature:civic-plaza"].boundary.outer,
+      toMarket = (trade: string) =>
+        Object.values(doc.placements)
+          .filter(p => p.modelId === `trade-workhome.shop-house.${trade}`)
+          .map(p => nearestOnPolyline(p.building!.entrances[0].point, [...plaza, plaza[0]]).dist);
+    const market = [...toMarket("fishmongery"), ...toMarket("butchery")],
+      others = ["baking", "cutlery", "metalwares", "chandlery"].flatMap(toMarket);
+    expect(market).toHaveLength(2);
+    expect(Math.max(...market)).toBeLessThan(Math.min(...others));
     for (const rear of rears) {
       const house = doc.placements[rear.building!.annexOf!];
       expect(house.modelId).toBe(`trade-workhome.shop-house.${rear.modelId.split(".").at(-1)}`);

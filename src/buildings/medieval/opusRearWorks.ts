@@ -234,7 +234,79 @@ function chandlery(k: TradeKit, l: OpusRearWorksLayout, ridge: number) {
   if (k.high) k.barrel(bx + l.side * 0.75, bz);
 }
 
-const FITTINGS = { baking, cutlery, metalwares, glazing, chandlery } as const;
+/** A fishmonger's curing shed behind a Fish Row shop: herring barrels stacked at the back, the salt bin, the gutting
+ * table and a rack of stockfish; brine and water tubs in the yard. */
+function fishmongery(k: TradeKit, l: OpusRearWorksLayout) {
+  const r = room(l),
+    bz = r.back + 0.35;
+  // Herring tuns laid on their sides along the back wall, a second tier on the first where the shed is wide.
+  const tuns = Math.max(1, Math.min(k.high ? 4 : 3, Math.floor((r.b - r.a - 1.4) / 0.68)));
+  for (let i = 0; i < tuns; i++) k.barrel(r.hearth - r.s * (0.35 + i * 0.68), bz, 0.32, 0.8, 0, Math.PI / 2);
+  if (k.high && tuns > 1) k.barrel(r.hearth - r.s * 0.69, bz, 0.32, 0.8, 0.6, Math.PI / 2);
+  const sx = r.far + r.s * 0.45,
+    sz = r.back + 0.5;
+  k.box("salt-bin", [sx, 0.4, sz], [0.8, 0.8, 0.7], "wood");
+  k.box("salt", [sx, 0.81, sz], [0.68, 0.04, 0.58], "white");
+  const tw = Math.min(2.0, r.b - r.a - 0.6),
+    tx = (r.a + r.b) / 2,
+    tz = r.front - 0.55;
+  k.trestleTable(tx, tz, tw, 0.7, 0.85);
+  for (let i = 0; i < (k.high ? 5 : 2); i++)
+    k.blob(
+      "gutted-fish",
+      [tx - tw / 2 + 0.3 + ((tw - 0.6) * i) / (k.high ? 4 : 1), 0.89, tz],
+      [0.07, 0.03, 0.15],
+      "fish"
+    );
+  // Stockfish hung on a pole under the eaves, along the shed's front.
+  const pw = Math.min(2.4, r.b - r.a - 0.4);
+  k.beam("rack-pole", [tx - pw / 2, 2.2, l.z1 - 0.4], [tx + pw / 2, 2.2, l.z1 - 0.4], 0.06, "wood", true);
+  for (let i = 0; i < (k.high ? 8 : 3); i++)
+    k.box(
+      "stockfish",
+      [tx - pw / 2 + 0.2 + ((pw - 0.4) * i) / (k.high ? 7 : 2), 1.88, l.z1 - 0.4],
+      [0.12, 0.6, 0.02],
+      "fish"
+    );
+  const yx = -l.side * Math.max(0, (l.x1 - l.x0) / 2 - 0.7),
+    yz = (l.z1 + l.yard) / 2;
+  k.tub(yx, yz, 0.3, 0.45, "water");
+  if (l.x1 - l.x0 > 3.4) k.barrel(yx + l.side * 0.8, yz);
+}
+
+/** A butcher's slaughter shed behind a Butcher Row shop, as in York's Shambles: a beam and windlass with sides of beef
+ * hung to dress, the chopping blocks, the scalding trough; offal tubs and the water tub in the yard. */
+function butchery(k: TradeKit, l: OpusRearWorksLayout) {
+  const r = room(l),
+    hz = r.back + 0.7,
+    span = r.b - r.a;
+  k.beam("hanging-beam", [r.a, 2.35, hz], [r.b, 2.35, hz], 0.16, "oak", true);
+  const sides = span > 3.4 ? 2 : 1;
+  for (let i = 0; i < sides; i++) {
+    const x = r.hearth - r.s * (0.5 + i * 0.8);
+    k.beam("gambrel", [x - 0.22, 2.2, hz], [x + 0.22, 2.2, hz], 0.04, "iron");
+    k.sphere("beef-side", [x, 1.4, hz], [0.27, 0.78, 0.13], "meat");
+    if (k.high) k.sphere("beef-fat-cover", [x, 1.48, hz + 0.05], [0.24, 0.66, 0.1], "fat");
+  }
+  k.beam("windlass-roller", [r.far + r.s * 0.2, 0.95, hz], [r.far + r.s * 0.9, 0.95, hz], 0.2, "wood", true);
+  k.block(r.far + r.s * 0.6, r.front - 0.6, 0.38, 0.8);
+  if (span > 2.8) k.block(r.hearth - r.s * 0.6, r.front - 0.5, 0.34, 0.78);
+  if (span > 3.4) {
+    const tx = (r.a + r.b) / 2;
+    k.box("scalding-trough", [tx, 0.4, r.front - 0.55], [Math.min(1.6, span - 2.2), 0.5, 0.65], "wood");
+    k.box("scalding-water", [tx, 0.6, r.front - 0.55], [Math.min(1.4, span - 2.4), 0.03, 0.5], "water");
+  }
+  if (k.high) {
+    k.box("blood-gutter", [(r.a + r.b) / 2, 0.08, r.front], [span, 0.012, 0.16], "dark");
+    k.box("cleaver", [r.far + r.s * 0.6, 0.82, r.front - 0.55], [0.32, 0.02, 0.12], "iron");
+  }
+  const yx = -l.side * Math.max(0, (l.x1 - l.x0) / 2 - 0.7),
+    yz = (l.z1 + l.yard) / 2;
+  k.tub(yx, yz, 0.34, 0.6, "meat");
+  if (l.x1 - l.x0 > 3.4) k.tub(yx + l.side * 0.85, yz, 0.28, 0.45, "water");
+}
+
+const FITTINGS = { baking, cutlery, metalwares, glazing, chandlery, fishmongery, butchery } as const;
 
 /** The Opus rear works of a spec (docs/plan/ce-town-trade-rear-works.md §5.2): the trade's shed and yard only. */
 export function createOpusRearWorks(input: OpusRearWorksSpec, quality: TradeQuality): CityStructureMeshes {

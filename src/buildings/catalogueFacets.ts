@@ -117,7 +117,9 @@ const TRADE_WORKSHOP_USES: Record<string, string[]> = {
   "rear-works.cutlery": ["cutlery"],
   "rear-works.metalwares": ["metalwares"],
   "rear-works.glazing": ["glazing"],
-  "rear-works.chandlery": ["chandlery"]
+  "rear-works.chandlery": ["chandlery"],
+  "rear-works.fishmongery": ["fishmongery", "food"],
+  "rear-works.butchery": ["butchery", "food"]
 };
 
 const MEDIEVAL_IDS: Record<string, ModelFacets> = {
