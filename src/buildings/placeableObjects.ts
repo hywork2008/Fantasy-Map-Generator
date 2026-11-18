@@ -9,6 +9,7 @@ import { BATTERING_RAM, createBatteringRam } from "./siege/batteringRam";
 import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "./siege/earlyFieldCannon";
 import { createSiegeTower, SIEGE_TOWER } from "./siege/siegeTower";
 import { createTrebuchet, TREBUCHET } from "./siege/trebuchet";
+import { B2, createB2 } from "./vehicles/b2Bomber";
 import { B29, createB29 } from "./vehicles/b29Bomber";
 import { COVERED_WAGON, createCoveredWagon } from "./vehicles/coveredWagon";
 import {
@@ -101,6 +102,7 @@ export const PLACEABLE_OBJECTS: readonly PlaceableObject[] = [
   { id: "warWagon", category: "Vehicles", name: WAR_WAGON.name, author: WAR_WAGON.author, create: createWarWagon },
   { id: "tigerI", category: "Vehicles", name: TIGER_I.name, author: TIGER_I.author, create: createTigerTank },
   { id: "b29", category: "Vehicles", name: B29.name, author: B29.author, create: createB29 },
+  { id: "b2", category: "Vehicles", name: B2.name, author: B2.author, create: createB2 },
   { id: "postMill", category: "Mills", name: POST_MILL.name, author: POST_MILL.author, create: createPostMill },
   { id: "towerMill", category: "Mills", name: TOWER_MILL.name, author: TOWER_MILL.author, create: createTowerMill },
   { id: "waterMill", category: "Mills", name: WATER_MILL.name, author: WATER_MILL.author, create: createWaterMill },

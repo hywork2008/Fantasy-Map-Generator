@@ -96,6 +96,7 @@ import {
 } from "../buildings/temples/basilicaTemple";
 import { validateBuildingRecord } from "../buildings/validate";
 import { familyVariants, MODEL_VARIANTS } from "../buildings/variants";
+import { B2, createB2 } from "../buildings/vehicles/b2Bomber";
 import { B29, createB29 } from "../buildings/vehicles/b29Bomber";
 import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
 import {
@@ -2973,6 +2974,62 @@ AUTHORED_VARIANTS[b29Button.dataset.id] = {
   primary: true,
   quality: true,
   show: () => showB29()
+};
+
+const b2Button = document.createElement("button");
+b2Button.dataset.id = "b2";
+b2Button.type = "button";
+b2Button.textContent = "B-2 Spirit · US stealth bomber, 1997–";
+function showB2(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === b2Button ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "B-2 side elevation";
+  levelTitle.textContent = "B-2 plan";
+  const model = createB2(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: B2.length, depth: B2.span } }, B2.height);
+  camera.position.set(30, 19, 26);
+  controls.target.set(0, 2.5, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", B2.name),
+    fact("Author", B2.author),
+    fact("Period", "Late Cold War to the present · United States, in service from 1997"),
+    fact(
+      "Dimensions",
+      `${B2.length} m long × ${B2.span} m span × ${B2.height} m high; leading edges swept ${B2.sweep}°`
+    ),
+    fact(
+      "Powerplant",
+      "Four General Electric F118-GE-100 non-afterburning turbofans buried in the wing, fed from upper-surface intakes"
+    ),
+    fact("Armament", "Two internal bomb bays side by side in the centre body; no defensive guns"),
+    fact("Landing gear", "Tricycle: four-wheel main bogies, twin nose wheel"),
+    fact("Quality", quality === "high" ? "High" : "Low — one-piece wing without control surfaces and plain gear"),
+    fact("Note", B2.note, "Northrop B-2 Spirit"),
+    ...(quality === "high" ? [fact("High detail", B2.highNote)] : [])
+  );
+}
+b2Button.addEventListener("click", () => showB2());
+vehiclesHeading.append(b2Button);
+AUTHORED_VARIANTS[b2Button.dataset.id] = {
+  author: B2.author,
+  primary: true,
+  quality: true,
+  show: () => showB2()
 };
 
 let townWallHousingCulture: BuildingAppearanceProfile = "legacy";
