@@ -142,6 +142,9 @@ export type BootsLaborMode = (typeof BOOTS_LABOR_MODES)[number];
  */
 export const BYPRODUCT_PRICING_MODES = ["stockAndDemand", "legacy"] as const;
 export type ByproductPricingMode = (typeof BYPRODUCT_PRICING_MODES)[number];
+/** What demand a raw good's price is reckoned from (docs/plan/raw-good-processing-demand.md). */
+export const RAW_GOOD_DEMAND_MODES = ["withProcessingUse", "modelOnly"] as const;
+export type RawGoodDemandMode = (typeof RAW_GOOD_DEMAND_MODES)[number];
 export const CHARACTER_RESERVE_MODES = ["byTier", "legacy"] as const;
 export type CharacterReserveMode = (typeof CHARACTER_RESERVE_MODES)[number];
 export const HEIRLESS_ESTATE_MODES = ["town", "keep"] as const;
@@ -188,6 +191,9 @@ export type WaxSurplusMode = (typeof WAX_SURPLUS_MODES)[number];
 
 export const GRAIN_REPAYMENT_MODES = ["quarterDays", "monthly"] as const;
 export type GrainRepaymentMode = (typeof GRAIN_REPAYMENT_MODES)[number];
+/** How much grain a market buys at a quarter (docs/plan/staple-price-harvest-coverage.md §7). */
+export const GRAIN_PURCHASE_CAP_MODES = ["harvestBridge", "twelveMonths"] as const;
+export type GrainPurchaseCapMode = (typeof GRAIN_PURCHASE_CAP_MODES)[number];
 
 /** Calendar months of the English quarter days: Lady Day (25 Mar), Midsummer, Michaelmas, Christmas. */
 export const QUARTER_DAY_MONTHS: readonly number[] = [3, 6, 9, 12];
@@ -205,6 +211,7 @@ export type MarketSettings = {
   craftSalePayment: CraftSalePaymentMode;
   householdGoodsPayment: HouseholdGoodsPaymentMode;
   grainRepayment: GrainRepaymentMode;
+  grainPurchaseCap: GrainPurchaseCapMode;
   ruralTownSpending: RuralTownSpendingMode;
   /** Months of their monthly need farm families keep in their purse (one quarter-day term). */
   ruralPurseMonths: number;
@@ -271,6 +278,7 @@ export type MarketSettings = {
   urbanHarvestHelpShare: number;
   bootsLabor: BootsLaborMode;
   byproductPricing: ByproductPricingMode;
+  rawGoodDemand: RawGoodDemandMode;
   /** Beeswax priced from its stock against the towns' candle targets, or by the legacy rule (docs/plan/wax-pricing.md). */
   beeswaxPricing: ByproductPricingMode;
   /** Wax beyond `waxKeepMonths` of a market's use paid to the church as wax rent, or kept (docs/plan/wax-tithe.md). */
@@ -316,6 +324,10 @@ export type MarketSettings = {
   beddingCashReserve: BeddingCashReserveMode;
   stateReserveFloor: StateReserveFloorMode;
   stateReserveYears: number;
+  stapleCarryoverMonths: number;
+  staplePriceCeiling: number;
+  staplePriceFloor: number;
+  stapleSurplusElasticity: number;
   dairyTraditionSource: DairyTraditionSourceMode;
   /** Share of a guild's treasury above its working reserve spent in its town a month, with `guildSurplusUse` spend. */
   guildSpendRate: number;
@@ -388,6 +400,7 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   craftSalePayment: "consignment",
   householdGoodsPayment: "free",
   grainRepayment: "quarterDays",
+  grainPurchaseCap: "harvestBridge",
   ruralTownSpending: "need",
   ruralPurseMonths: 3,
   ruralSpendElasticityAbove: 1,
@@ -426,6 +439,7 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   urbanHarvestHelpShare: 0.5,
   bootsLabor: "perDay",
   byproductPricing: "stockAndDemand",
+  rawGoodDemand: "withProcessingUse",
   beeswaxPricing: "stockAndDemand",
   waxSurplus: "tithe",
   waxKeepMonths: 12,
@@ -451,6 +465,10 @@ export const DEFAULT_MARKET_SETTINGS: Readonly<MarketSettings> = {
   beddingCashReserve: "buyableWardrobes",
   stateReserveFloor: "incomeOnly",
   stateReserveYears: 0.75,
+  stapleCarryoverMonths: 1,
+  staplePriceCeiling: 3,
+  staplePriceFloor: 0.5,
+  stapleSurplusElasticity: -0.5,
   dairyTraditionSource: "herdsAndPurchases",
   guildSpendRate: 0.08,
   guildReserveMonths: 1,
@@ -542,6 +560,10 @@ export const MARKET_SETTING_LIMITS = {
   animalProteinCapGramsPerDay: { min: 5, max: 80, step: 1 },
   cheeseStorageLossPerMonth: { min: 0, max: 0.1, step: 0.005 },
   stateReserveYears: { min: 0.25, max: 3, step: 0.25 },
+  stapleCarryoverMonths: { min: 0, max: 6, step: 0.5 },
+  staplePriceCeiling: { min: 1.5, max: 6, step: 0.1 },
+  staplePriceFloor: { min: 0.2, max: 1, step: 0.05 },
+  stapleSurplusElasticity: { min: -2, max: -0.1, step: 0.05 },
   cheesePriceElasticity: { min: -2, max: 0, step: 0.1 }
 } as const;
 
@@ -572,6 +594,11 @@ const householdGoodsPaymentMode = (value: unknown): HouseholdGoodsPaymentMode =>
   HOUSEHOLD_GOODS_PAYMENT_MODES.includes(value as HouseholdGoodsPaymentMode)
     ? (value as HouseholdGoodsPaymentMode)
     : DEFAULT_MARKET_SETTINGS.householdGoodsPayment;
+
+const grainPurchaseCapMode = (value: unknown): GrainPurchaseCapMode =>
+  GRAIN_PURCHASE_CAP_MODES.includes(value as GrainPurchaseCapMode)
+    ? (value as GrainPurchaseCapMode)
+    : DEFAULT_MARKET_SETTINGS.grainPurchaseCap;
 
 const grainRepaymentMode = (value: unknown): GrainRepaymentMode =>
   GRAIN_REPAYMENT_MODES.includes(value as GrainRepaymentMode)
@@ -657,6 +684,11 @@ const byproductPricingMode = (
   BYPRODUCT_PRICING_MODES.includes(value as ByproductPricingMode)
     ? (value as ByproductPricingMode)
     : DEFAULT_MARKET_SETTINGS[key];
+
+const rawGoodDemandMode = (value: unknown): RawGoodDemandMode =>
+  RAW_GOOD_DEMAND_MODES.includes(value as RawGoodDemandMode)
+    ? (value as RawGoodDemandMode)
+    : DEFAULT_MARKET_SETTINGS.rawGoodDemand;
 
 const characterReserveMode = (value: unknown): CharacterReserveMode =>
   CHARACTER_RESERVE_MODES.includes(value as CharacterReserveMode)
@@ -767,6 +799,7 @@ export function getMarketSettings(): MarketSettings {
     craftSalePayment: craftSalePaymentMode(parsed.craftSalePayment),
     householdGoodsPayment: householdGoodsPaymentMode(parsed.householdGoodsPayment),
     grainRepayment: grainRepaymentMode(parsed.grainRepayment),
+    grainPurchaseCap: grainPurchaseCapMode(parsed.grainPurchaseCap),
     ruralTownSpending: ruralTownSpendingMode(parsed.ruralTownSpending),
     ruralPurseMonths: clamp("ruralPurseMonths", parsed.ruralPurseMonths),
     ruralSpendElasticityAbove: clamp("ruralSpendElasticityAbove", parsed.ruralSpendElasticityAbove),
@@ -805,6 +838,7 @@ export function getMarketSettings(): MarketSettings {
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", parsed.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(parsed.bootsLabor),
     byproductPricing: byproductPricingMode(parsed.byproductPricing),
+    rawGoodDemand: rawGoodDemandMode(parsed.rawGoodDemand),
     beeswaxPricing: byproductPricingMode(parsed.beeswaxPricing, "beeswaxPricing"),
     waxSurplus: waxSurplusMode(parsed.waxSurplus),
     waxKeepMonths: clamp("waxKeepMonths", parsed.waxKeepMonths),
@@ -830,6 +864,10 @@ export function getMarketSettings(): MarketSettings {
     beddingCashReserve: beddingCashReserveMode(parsed.beddingCashReserve),
     stateReserveFloor: stateReserveFloorMode(parsed.stateReserveFloor),
     stateReserveYears: clamp("stateReserveYears", parsed.stateReserveYears),
+    stapleCarryoverMonths: clamp("stapleCarryoverMonths", parsed.stapleCarryoverMonths),
+    staplePriceCeiling: clamp("staplePriceCeiling", parsed.staplePriceCeiling),
+    staplePriceFloor: clamp("staplePriceFloor", parsed.staplePriceFloor),
+    stapleSurplusElasticity: clamp("stapleSurplusElasticity", parsed.stapleSurplusElasticity),
     dairyTraditionSource: dairyTraditionSourceMode(parsed.dairyTraditionSource),
     guildSpendRate: clamp("guildSpendRate", parsed.guildSpendRate),
     guildReserveMonths: clamp("guildReserveMonths", parsed.guildReserveMonths),
@@ -877,6 +915,7 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     craftSalePayment: craftSalePaymentMode(next.craftSalePayment),
     householdGoodsPayment: householdGoodsPaymentMode(next.householdGoodsPayment),
     grainRepayment: grainRepaymentMode(next.grainRepayment),
+    grainPurchaseCap: grainPurchaseCapMode(next.grainPurchaseCap),
     ruralTownSpending: ruralTownSpendingMode(next.ruralTownSpending),
     ruralPurseMonths: clamp("ruralPurseMonths", next.ruralPurseMonths),
     ruralSpendElasticityAbove: clamp("ruralSpendElasticityAbove", next.ruralSpendElasticityAbove),
@@ -915,6 +954,7 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     urbanHarvestHelpShare: clamp("urbanHarvestHelpShare", next.urbanHarvestHelpShare),
     bootsLabor: bootsLaborMode(next.bootsLabor),
     byproductPricing: byproductPricingMode(next.byproductPricing),
+    rawGoodDemand: rawGoodDemandMode(next.rawGoodDemand),
     beeswaxPricing: byproductPricingMode(next.beeswaxPricing, "beeswaxPricing"),
     waxSurplus: waxSurplusMode(next.waxSurplus),
     waxKeepMonths: clamp("waxKeepMonths", next.waxKeepMonths),
@@ -940,6 +980,10 @@ export function setMarketSettings(patch: Partial<MarketSettings>): MarketSetting
     beddingCashReserve: beddingCashReserveMode(next.beddingCashReserve),
     stateReserveFloor: stateReserveFloorMode(next.stateReserveFloor),
     stateReserveYears: clamp("stateReserveYears", next.stateReserveYears),
+    stapleCarryoverMonths: clamp("stapleCarryoverMonths", next.stapleCarryoverMonths),
+    staplePriceCeiling: clamp("staplePriceCeiling", next.staplePriceCeiling),
+    staplePriceFloor: clamp("staplePriceFloor", next.staplePriceFloor),
+    stapleSurplusElasticity: clamp("stapleSurplusElasticity", next.stapleSurplusElasticity),
     dairyTraditionSource: dairyTraditionSourceMode(next.dairyTraditionSource),
     guildSpendRate: clamp("guildSpendRate", next.guildSpendRate),
     guildReserveMonths: clamp("guildReserveMonths", next.guildReserveMonths),

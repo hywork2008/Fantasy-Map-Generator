@@ -11,6 +11,11 @@ export interface Market {
    * last month's snapshot and its net staple shipment out (byproductExport.ts).
    */
   byproductUse?: Record<number, { intake: number; stock: number; shipped: number; use?: number; inflow?: number }>;
+  /**
+   * Raw goods drawn by recipes (town workshops, rural weaving) since the last price pass, by good
+   * id; the pass prices from it and starts it again (docs/plan/raw-good-processing-demand.md).
+   */
+  rawProcessingUse?: Record<number, number>;
   /** Actual Salt recipe inputs since the last salt settlement; persisted, never a second stock. */
   saltProcessingInputBags?: number;
   /** Latest cash-funded Salt wholesale unit cost including freight. */
@@ -476,6 +481,12 @@ export interface FoodLedger {
    * eaters' stock nor grain to sell to another market (docs/plan/urban-craft-staffing.md §10.9).
    */
   brewingReserve?: number;
+  /**
+   * Yearly grain the market's brewers draw from the granary, set at the last quarterly purchase. The
+   * staple price counts it with the eaters; grain sent to other markets is not counted, or an
+   * exporting market priced its own glut at the ceiling (docs/plan/staple-price-harvest-coverage.md §7).
+   */
+  brewingGrainDemand?: number;
   /** Grain farmers offered this market in each calendar month (index 0 = January) over the last year. */
   offeredIntakeByMonth?: number[];
   /**

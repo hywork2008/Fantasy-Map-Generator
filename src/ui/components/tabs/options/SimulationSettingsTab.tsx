@@ -61,8 +61,10 @@ import {
   FUEL_CHOICE_MODES,
   type FuelChoiceMode,
   GRAIN_FEED_MODES,
+  GRAIN_PURCHASE_CAP_MODES,
   GRAIN_REPAYMENT_MODES,
   type GrainFeedMode,
+  type GrainPurchaseCapMode,
   type GrainRepaymentMode,
   GUILD_MASTER_INCOME_MODES,
   GUILD_MASTER_SEAT_MODES,
@@ -102,6 +104,8 @@ import {
   type MerchantProfitUse,
   PEAT_CUT_PLAN_MODES,
   type PeatCutPlanMode,
+  RAW_GOOD_DEMAND_MODES,
+  type RawGoodDemandMode,
   RURAL_DAIRY_USE_MODES,
   RURAL_REST_DAYS_MODES,
   RURAL_TOWN_SPENDING_MODES,
@@ -457,7 +461,9 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.dissolveCargo}
                 onChange={e =>
                   setMarketSettingsState(
-                    setMarketSettings({ dissolveCargo: e.target.value as MarketDissolveCargoMode })
+                    setMarketSettings({
+                      dissolveCargo: e.target.value as MarketDissolveCargoMode
+                    })
                   )
                 }
               >
@@ -536,7 +542,11 @@ export const SimulationSettingsTab: React.FC = () => {
                 id="merchantProfitUse"
                 value={marketSettings.merchantProfitUse}
                 onChange={e =>
-                  setMarketSettingsState(setMarketSettings({ merchantProfitUse: e.target.value as MerchantProfitUse }))
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      merchantProfitUse: e.target.value as MerchantProfitUse
+                    })
+                  )
                 }
               >
                 {MERCHANT_PROFIT_USES.map(use => (
@@ -558,7 +568,9 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.characterReserve}
                 onChange={e =>
                   setMarketSettingsState(
-                    setMarketSettings({ characterReserve: e.target.value as CharacterReserveMode })
+                    setMarketSettings({
+                      characterReserve: e.target.value as CharacterReserveMode
+                    })
                   )
                 }
               >
@@ -650,7 +662,11 @@ export const SimulationSettingsTab: React.FC = () => {
                 id="heirlessEstate"
                 value={marketSettings.heirlessEstate}
                 onChange={e =>
-                  setMarketSettingsState(setMarketSettings({ heirlessEstate: e.target.value as HeirlessEstateMode }))
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      heirlessEstate: e.target.value as HeirlessEstateMode
+                    })
+                  )
                 }
               >
                 {HEIRLESS_ESTATE_MODES.map(mode => (
@@ -686,7 +702,9 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.stateBudgetIncome}
                 onChange={e =>
                   setMarketSettingsState(
-                    setMarketSettings({ stateBudgetIncome: e.target.value as StateBudgetIncomeMode })
+                    setMarketSettings({
+                      stateBudgetIncome: e.target.value as StateBudgetIncomeMode
+                    })
                   )
                 }
               >
@@ -708,7 +726,11 @@ export const SimulationSettingsTab: React.FC = () => {
                 id="guildMasterSeat"
                 value={marketSettings.guildMasterSeat}
                 onChange={e =>
-                  setMarketSettingsState(setMarketSettings({ guildMasterSeat: e.target.value as GuildMasterSeatMode }))
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      guildMasterSeat: e.target.value as GuildMasterSeatMode
+                    })
+                  )
                 }
               >
                 {GUILD_MASTER_SEAT_MODES.map(mode => (
@@ -730,7 +752,9 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.guildMasterIncome}
                 onChange={e =>
                   setMarketSettingsState(
-                    setMarketSettings({ guildMasterIncome: e.target.value as GuildMasterIncomeMode })
+                    setMarketSettings({
+                      guildMasterIncome: e.target.value as GuildMasterIncomeMode
+                    })
                   )
                 }
               >
@@ -779,7 +803,13 @@ export const SimulationSettingsTab: React.FC = () => {
               <select
                 id="hayTrade"
                 value={marketSettings.hayTrade}
-                onChange={e => setMarketSettingsState(setMarketSettings({ hayTrade: e.target.value as HayTradeMode }))}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      hayTrade: e.target.value as HayTradeMode
+                    })
+                  )
+                }
               >
                 {HAY_TRADE_MODES.map(mode => (
                   <option key={mode} value={mode}>
@@ -799,7 +829,11 @@ export const SimulationSettingsTab: React.FC = () => {
                 id="hayPayment"
                 value={marketSettings.hayPayment}
                 onChange={e =>
-                  setMarketSettingsState(setMarketSettings({ hayPayment: e.target.value as HayPaymentMode }))
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      hayPayment: e.target.value as HayPaymentMode
+                    })
+                  )
                 }
               >
                 {HAY_PAYMENT_MODES.map(mode => (
@@ -855,6 +889,31 @@ export const SimulationSettingsTab: React.FC = () => {
                 {GRAIN_REPAYMENT_MODES.map(mode => (
                   <option key={mode} value={mode}>
                     {t(`simulation.grainRepayment_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.grainPurchaseCapTip")}>
+            <td />
+            <td>
+              <label htmlFor="grainPurchaseCap">{t("simulation.grainPurchaseCap")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="grainPurchaseCap"
+                value={marketSettings.grainPurchaseCap}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      grainPurchaseCap: e.target.value as GrainPurchaseCapMode
+                    })
+                  )
+                }
+              >
+                {GRAIN_PURCHASE_CAP_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.grainPurchaseCap_${mode}`)}
                   </option>
                 ))}
               </select>
@@ -1030,7 +1089,9 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.urbanHarvestHelp}
                 onChange={e =>
                   setMarketSettingsState(
-                    setMarketSettings({ urbanHarvestHelp: e.target.value as UrbanHarvestHelpMode })
+                    setMarketSettings({
+                      urbanHarvestHelp: e.target.value as UrbanHarvestHelpMode
+                    })
                   )
                 }
               >
@@ -1065,7 +1126,11 @@ export const SimulationSettingsTab: React.FC = () => {
               <select
                 id="hayCatchUp"
                 value={marketSettings.hayCatchUp}
-                onChange={e => setMarketSettings({ hayCatchUp: e.target.value as HayCatchUpMode })}
+                onChange={e =>
+                  setMarketSettings({
+                    hayCatchUp: e.target.value as HayCatchUpMode
+                  })
+                }
               >
                 {HAY_CATCH_UP_MODES.map(mode => (
                   <option key={mode} value={mode}>
@@ -1098,7 +1163,11 @@ export const SimulationSettingsTab: React.FC = () => {
               <select
                 id="ruralWorkYear"
                 value={marketSettings.ruralWorkYear}
-                onChange={e => setMarketSettings({ ruralWorkYear: e.target.value as RuralWorkYearMode })}
+                onChange={e =>
+                  setMarketSettings({
+                    ruralWorkYear: e.target.value as RuralWorkYearMode
+                  })
+                }
               >
                 {RURAL_WORK_YEAR_MODES.map(mode => (
                   <option key={mode} value={mode}>
@@ -1145,7 +1214,11 @@ export const SimulationSettingsTab: React.FC = () => {
               <select
                 id="ruralRestDays"
                 value={marketSettings.ruralRestDays}
-                onChange={e => setMarketSettings({ ruralRestDays: e.target.value as RuralRestDaysMode })}
+                onChange={e =>
+                  setMarketSettings({
+                    ruralRestDays: e.target.value as RuralRestDaysMode
+                  })
+                }
               >
                 {RURAL_REST_DAYS_MODES.map(mode => (
                   <option key={mode} value={mode}>
@@ -1179,7 +1252,11 @@ export const SimulationSettingsTab: React.FC = () => {
                 id="grainFeed"
                 value={marketSettings.grainFeed}
                 onChange={e =>
-                  setMarketSettingsState(setMarketSettings({ grainFeed: e.target.value as GrainFeedMode }))
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      grainFeed: e.target.value as GrainFeedMode
+                    })
+                  )
                 }
               >
                 {GRAIN_FEED_MODES.map(mode => (
@@ -1201,7 +1278,9 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.feedShortfallResponse}
                 onChange={e =>
                   setMarketSettingsState(
-                    setMarketSettings({ feedShortfallResponse: e.target.value as FeedShortfallResponseMode })
+                    setMarketSettings({
+                      feedShortfallResponse: e.target.value as FeedShortfallResponseMode
+                    })
                   )
                 }
               >
@@ -1224,7 +1303,9 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.feedShortfallTiming}
                 onChange={e =>
                   setMarketSettingsState(
-                    setMarketSettings({ feedShortfallTiming: e.target.value as FeedShortfallTimingMode })
+                    setMarketSettings({
+                      feedShortfallTiming: e.target.value as FeedShortfallTimingMode
+                    })
                   )
                 }
               >
@@ -1260,7 +1341,11 @@ export const SimulationSettingsTab: React.FC = () => {
                 id="leanCondition"
                 value={marketSettings.leanCondition}
                 onChange={e =>
-                  setMarketSettingsState(setMarketSettings({ leanCondition: e.target.value as LeanConditionMode }))
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      leanCondition: e.target.value as LeanConditionMode
+                    })
+                  )
                 }
               >
                 {LEAN_CONDITION_MODES.map(mode => (
@@ -1336,7 +1421,13 @@ export const SimulationSettingsTab: React.FC = () => {
               <select
                 id="leanCull"
                 value={marketSettings.leanCull}
-                onChange={e => setMarketSettingsState(setMarketSettings({ leanCull: e.target.value as LeanCullMode }))}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      leanCull: e.target.value as LeanCullMode
+                    })
+                  )
+                }
               >
                 {LEAN_CULL_MODES.map(mode => (
                   <option key={mode} value={mode}>
@@ -1370,7 +1461,11 @@ export const SimulationSettingsTab: React.FC = () => {
                 id="leanDeaths"
                 value={marketSettings.leanDeaths}
                 onChange={e =>
-                  setMarketSettingsState(setMarketSettings({ leanDeaths: e.target.value as LeanDeathMode }))
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      leanDeaths: e.target.value as LeanDeathMode
+                    })
+                  )
                 }
               >
                 {LEAN_DEATH_MODES.map(mode => (
@@ -1391,7 +1486,11 @@ export const SimulationSettingsTab: React.FC = () => {
                 id="fodderValue"
                 value={marketSettings.fodderValue}
                 onChange={e =>
-                  setMarketSettingsState(setMarketSettings({ fodderValue: e.target.value as FodderValueMode }))
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      fodderValue: e.target.value as FodderValueMode
+                    })
+                  )
                 }
               >
                 {FODDER_VALUE_MODES.map(mode => (
@@ -1413,7 +1512,9 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.feedCrisisBudget}
                 onChange={e =>
                   setMarketSettingsState(
-                    setMarketSettings({ feedCrisisBudget: e.target.value as FeedCrisisBudgetMode })
+                    setMarketSettings({
+                      feedCrisisBudget: e.target.value as FeedCrisisBudgetMode
+                    })
                   )
                 }
               >
@@ -1449,7 +1550,11 @@ export const SimulationSettingsTab: React.FC = () => {
                 id="hayPlanHerd"
                 value={marketSettings.hayPlanHerd}
                 onChange={e =>
-                  setMarketSettingsState(setMarketSettings({ hayPlanHerd: e.target.value as HayPlanHerdMode }))
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      hayPlanHerd: e.target.value as HayPlanHerdMode
+                    })
+                  )
                 }
               >
                 {HAY_PLAN_HERD_MODES.map(mode => (
@@ -1471,7 +1576,9 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.herdOfftakeSpread}
                 onChange={e =>
                   setMarketSettingsState(
-                    setMarketSettings({ herdOfftakeSpread: e.target.value as HerdOfftakeSpreadMode })
+                    setMarketSettings({
+                      herdOfftakeSpread: e.target.value as HerdOfftakeSpreadMode
+                    })
                   )
                 }
               >
@@ -1494,7 +1601,9 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.byproductFarmgate}
                 onChange={e =>
                   setMarketSettingsState(
-                    setMarketSettings({ byproductFarmgate: e.target.value as ByproductFarmgateMode })
+                    setMarketSettings({
+                      byproductFarmgate: e.target.value as ByproductFarmgateMode
+                    })
                   )
                 }
               >
@@ -1530,7 +1639,11 @@ export const SimulationSettingsTab: React.FC = () => {
                 id="bootsLabor"
                 value={marketSettings.bootsLabor}
                 onChange={e =>
-                  setMarketSettingsState(setMarketSettings({ bootsLabor: e.target.value as BootsLaborMode }))
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      bootsLabor: e.target.value as BootsLaborMode
+                    })
+                  )
                 }
               >
                 {BOOTS_LABOR_MODES.map(mode => (
@@ -1552,13 +1665,40 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={marketSettings.byproductPricing}
                 onChange={e =>
                   setMarketSettingsState(
-                    setMarketSettings({ byproductPricing: e.target.value as ByproductPricingMode })
+                    setMarketSettings({
+                      byproductPricing: e.target.value as ByproductPricingMode
+                    })
                   )
                 }
               >
                 {BYPRODUCT_PRICING_MODES.map(mode => (
                   <option key={mode} value={mode}>
                     {t(`simulation.byproductPricing_${mode}`)}
+                  </option>
+                ))}
+              </select>
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.rawGoodDemandTip")}>
+            <td />
+            <td>
+              <label htmlFor="rawGoodDemand">{t("simulation.rawGoodDemand")}</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="rawGoodDemand"
+                value={marketSettings.rawGoodDemand}
+                onChange={e =>
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      rawGoodDemand: e.target.value as RawGoodDemandMode
+                    })
+                  )
+                }
+              >
+                {RAW_GOOD_DEMAND_MODES.map(mode => (
+                  <option key={mode} value={mode}>
+                    {t(`simulation.rawGoodDemand_${mode}`)}
                   </option>
                 ))}
               </select>
@@ -1574,7 +1714,11 @@ export const SimulationSettingsTab: React.FC = () => {
                 id="beeswaxPricing"
                 value={marketSettings.beeswaxPricing}
                 onChange={e =>
-                  setMarketSettingsState(setMarketSettings({ beeswaxPricing: e.target.value as ByproductPricingMode }))
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      beeswaxPricing: e.target.value as ByproductPricingMode
+                    })
+                  )
                 }
               >
                 {BYPRODUCT_PRICING_MODES.map(mode => (
@@ -1595,7 +1739,11 @@ export const SimulationSettingsTab: React.FC = () => {
                 id="waxSurplus"
                 value={marketSettings.waxSurplus}
                 onChange={e =>
-                  setMarketSettingsState(setMarketSettings({ waxSurplus: e.target.value as WaxSurplusMode }))
+                  setMarketSettingsState(
+                    setMarketSettings({
+                      waxSurplus: e.target.value as WaxSurplusMode
+                    })
+                  )
                 }
               >
                 {WAX_SURPLUS_MODES.map(mode => (
@@ -2060,6 +2208,62 @@ export const SimulationSettingsTab: React.FC = () => {
                 step={MARKET_SETTING_LIMITS.stateReserveYears.step}
                 value={marketSettings.stateReserveYears}
                 onChange={v => updateMarketSetting("stateReserveYears", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.stapleCarryoverMonthsTip")}>
+            <td />
+            <td>{t("simulation.stapleCarryoverMonths")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="stapleCarryoverMonths"
+                min={MARKET_SETTING_LIMITS.stapleCarryoverMonths.min}
+                max={MARKET_SETTING_LIMITS.stapleCarryoverMonths.max}
+                step={MARKET_SETTING_LIMITS.stapleCarryoverMonths.step}
+                value={marketSettings.stapleCarryoverMonths}
+                onChange={v => updateMarketSetting("stapleCarryoverMonths", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.staplePriceCeilingTip")}>
+            <td />
+            <td>{t("simulation.staplePriceCeiling")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="staplePriceCeiling"
+                min={MARKET_SETTING_LIMITS.staplePriceCeiling.min}
+                max={MARKET_SETTING_LIMITS.staplePriceCeiling.max}
+                step={MARKET_SETTING_LIMITS.staplePriceCeiling.step}
+                value={marketSettings.staplePriceCeiling}
+                onChange={v => updateMarketSetting("staplePriceCeiling", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.staplePriceFloorTip")}>
+            <td />
+            <td>{t("simulation.staplePriceFloor")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="staplePriceFloor"
+                min={MARKET_SETTING_LIMITS.staplePriceFloor.min}
+                max={MARKET_SETTING_LIMITS.staplePriceFloor.max}
+                step={MARKET_SETTING_LIMITS.staplePriceFloor.step}
+                value={marketSettings.staplePriceFloor}
+                onChange={v => updateMarketSetting("staplePriceFloor", v)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("simulation.stapleSurplusElasticityTip")}>
+            <td />
+            <td>{t("simulation.stapleSurplusElasticity")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="stapleSurplusElasticity"
+                min={MARKET_SETTING_LIMITS.stapleSurplusElasticity.min}
+                max={MARKET_SETTING_LIMITS.stapleSurplusElasticity.max}
+                step={MARKET_SETTING_LIMITS.stapleSurplusElasticity.step}
+                value={marketSettings.stapleSurplusElasticity}
+                onChange={v => updateMarketSetting("stapleSurplusElasticity", v)}
               />
             </td>
           </tr>

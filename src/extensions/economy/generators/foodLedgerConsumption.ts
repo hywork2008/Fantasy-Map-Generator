@@ -1,4 +1,5 @@
-import { isGrainRepaymentMonth } from "../../../simulation/marketSettings";
+import { pow } from "../../../simulation/deterministicMath";
+import { getMarketSettings, isGrainRepaymentMonth } from "../../../simulation/marketSettings";
 import type { Burg } from "../../hostTypes";
 import { minmax, rn } from "../../hostUtils";
 import {
@@ -15,6 +16,7 @@ import { getMarketPriceLevel } from "./currencySufficiency";
 import { syncStapleCropMarketRows } from "./foodCoLoad";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { BURG_TARGET_RESERVE_DAYS, emptyFoodLedger, getStapleFoodGood } from "./foodProduction";
+import { getHarvestBridgeReserve } from "./grainStorage";
 import { creditRuralHouseholdWealth, debitRuralHouseholdWealth } from "./householdWealth";
 import { getTemporaryLodgerPopulationPointsByBurg } from "./innStays";
 import type { FoodLedger, Market } from "./marketTypes";
@@ -35,8 +37,42 @@ const SEVERE_DEFICIT_QUARTERS_BEFORE_DEATH = 2;
  * famine deaths only below this foodSecurity. Keep the two constants in lockstep.
  */
 export const URBAN_FOOD_FAMINE_DEATH_BAND = 0.85;
-const PRICE_FLOOR = 0.8;
-const PRICE_CEILING = 2.0;
+/** Months of demand kept back before the first full year of farmers' offers is known. */
+const BRIDGE_FLOOR_MONTHS = 3;
+/**
+ * King's law (Davenant 1699, 1690s England): harvest shortfall -> price relative to a normal year
+ * (docs/plan/staple-price-harvest-coverage.md §3.2).
+ */
+const KING_LAW: readonly (readonly [number, number])[] = [
+  [0, 1],
+  [0.1, 1.3],
+  [0.2, 1.8],
+  [0.3, 2.6],
+  [0.4, 3.8],
+  [0.5, 5.5]
+];
+
+function kingLawMultiplier(shortfall: number): number {
+  for (let i = 1; i < KING_LAW.length; i++) {
+    const [s1, p1] = KING_LAW[i];
+    if (shortfall <= s1) {
+      const [s0, p0] = KING_LAW[i - 1];
+      return p0 + ((p1 - p0) * (shortfall - s0)) / (s1 - s0);
+    }
+  }
+  const [sa, pa] = KING_LAW[KING_LAW.length - 2];
+  const [sb, pb] = KING_LAW[KING_LAW.length - 1];
+  return pb + ((pb - pa) * (shortfall - sb)) / (sb - sa);
+}
+
+/** Staple price multiple for stock / (demand until the next harvest + normal carry-over). */
+export function getStaplePriceMultiplier(coverage: number): number {
+  const { staplePriceCeiling, staplePriceFloor, stapleSurplusElasticity } = getMarketSettings();
+  if (!(coverage > 0)) return staplePriceCeiling;
+  const multiplier =
+    coverage < 1 ? kingLawMultiplier(1 - coverage) : pow(coverage, -1 / Math.abs(stapleSurplusElasticity));
+  return minmax(multiplier, staplePriceFloor, staplePriceCeiling);
+}
 const DAYS_PER_YEAR = 365.2425;
 
 function dailyNeedPerPerson(): number {
@@ -377,17 +413,25 @@ function settleGrainPrice(
   // driven by the demand that buys from the Market: burgs, lodgers and farm buy-back.
   // Farm families buying back once their larders run out draw on the same stock
   // (docs/plan/craft-wage-subsistence-scale.md §11).
-  const annualDemand = urbanPopulation * GROSS_FOOD_NEED + Math.max(0, ledger.ruralMarketDraw ?? 0);
-  const positionInQuarter = ((simulationMonth - 1) % 3) + 1; // 1, 2, or 3
-  const monthsRemainingInQuarter = 4 - positionInQuarter; // includes the current month
-  const expectedRemainingDemand = (annualDemand / 12) * monthsRemainingInQuarter;
-  // This quarter's production already landed at the quarter boundary (see foodProduction.ts),
-  // so "expected remaining production" for the months left in the quarter is 0 — next quarter's
-  // harvest is not yet confirmed and must not be counted as supply.
-  const expectedSupply = currentStock;
-
-  const coverageRatio = expectedRemainingDemand > 0 ? expectedSupply / expectedRemainingDemand : 1;
-  const priceMultiplier = coverageRatio > 0 ? minmax(1 / coverageRatio, PRICE_FLOOR, PRICE_CEILING) : PRICE_CEILING;
+  // Brewers draw on the same stock, as the quarterly purchase counts them; grain sent to other
+  // markets answers their prices, not this one's (docs/plan/staple-price-harvest-coverage.md §7).
+  const annualDemand =
+    urbanPopulation * GROSS_FOOD_NEED +
+    Math.max(0, ledger.ruralMarketDraw ?? 0) +
+    Math.max(0, ledger.brewingGrainDemand ?? 0);
+  // Stock is held to the next harvest, so it is weighed against the demand until the farmers'
+  // next offers restock it plus a normal carry-over (docs/plan/staple-price-harvest-coverage.md §3.1).
+  // This month's purchase lands after this settlement (generateMonthlyLedger), so no offer is in yet.
+  const month = ((simulationMonth - 1) % 12) + 1;
+  const neededStock =
+    getHarvestBridgeReserve(annualDemand, ledger.offeredIntakeByMonth, month, BRIDGE_FLOOR_MONTHS, 0) +
+    (annualDemand / 12) * getMarketSettings().stapleCarryoverMonths;
+  // King's law relates price to the year's supply, so the gap to the needed stock is counted as a
+  // share of a year's demand: half a month short before harvest is about 4%, not a third of the
+  // few months left (docs/plan/staple-price-harvest-coverage.md §7).
+  const yearSupplyNeed = annualDemand * (1 + getMarketSettings().stapleCarryoverMonths / 12);
+  const coverageRatio = yearSupplyNeed > 0 ? Math.max(0, 1 + (currentStock - neededStock) / yearSupplyNeed) : 1;
+  const priceMultiplier = getStaplePriceMultiplier(coverageRatio);
   return rn(basePrice * priceMultiplier, 2);
 }
 

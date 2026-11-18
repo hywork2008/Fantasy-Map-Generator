@@ -1869,6 +1869,13 @@ export class MarketsModule {
       // price band is reckoned from. 1 when the setting is off.
       const priceLevel = getMarketPriceLevel(market);
 
+      // Raw goods are priced from at least what recipes drew last cycle: the modelled demand left
+      // out the town workshops' wool, so wool sat at 0.3 of its value on a month's stock
+      // (docs/plan/raw-good-processing-demand.md).
+      const processingUse =
+        getMarketSettings().rawGoodDemand === "withProcessingUse" ? (market.rawProcessingUse ?? {}) : undefined;
+      market.rawProcessingUse = {};
+
       // First pass: raw goods - price from demand/supply ratio
       for (const good of goods) {
         const mineOrFurnaceGood = isMineOrFurnaceGood(good);
@@ -1889,7 +1896,10 @@ export class MarketsModule {
           );
           continue;
         }
-        if (!good.distribution && !mineOrFurnaceGood && !farmgateReferenceGood) continue;
+        // Wool is shorn from the standing flock, with no cell distribution or recipe, so no pass priced
+        // it and only sales pressure moved it, to 0.3 of its value (docs/plan/raw-good-processing-demand.md).
+        const shornGood = processingUse !== undefined && good.name === "Wool";
+        if (!good.distribution && !mineOrFurnaceGood && !farmgateReferenceGood && !shornGood) continue;
         const marketGood = this.getMarketGood(market, good);
         if (farmgateReferenceGood) {
           // Source-cell fruit and milk never form a normal raw Market stock. Empty pooled stock is not
@@ -1905,7 +1915,7 @@ export class MarketsModule {
         }
         const consumerDemand = consumerDemandFactors[good.i] || 0;
         const industrialDemand = industrialDemandFactors[good.i] || 0;
-        const demand =
+        const modelledDemand =
           this.calculateGoodDemand(
             good,
             population,
@@ -1916,6 +1926,8 @@ export class MarketsModule {
             market.i,
             textileOrders
           ) + (mineOrFurnaceGood ? (metalDemandByMarket.get(market.i)?.get(good.i) ?? 0) : 0);
+        // The larger, not the sum: the modelled demand already holds the rural weaving orders.
+        const demand = Math.max(modelledDemand, processingUse?.[good.i] ?? 0);
         const baseValue = good.value * priceLevel;
         const floor = getPriceFloor(good, baseValue);
         if (startLine(good)) seedStartLineStock(marketGood, demand);
@@ -2345,7 +2357,7 @@ export class MarketsModule {
     // Market.goods remains the canonical market-wide total; this records its physical location.
     addWholesaleGoodStock(burg.i!, market.i, good.i, actualUnits);
 
-    if (!isPricedByHouseholdDemand(good))
+    if (!isPricedByHouseholdDemand(good) && !hasSettledPrice(good))
       marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, -actualUnits), 2);
 
     // Cumulative-sales counter for the Goods Editor (docs/temp/0807-alcoholic.md's Balance History
@@ -2527,7 +2539,7 @@ export class MarketsModule {
     if (felled > 0 && timberCellId !== undefined) harvestWood(timberCellId, felled);
     for (const { good, amount, stock } of required) {
       stock.stock = rn(Math.max(0, stock.stock - amount), 2);
-      if (!isPricedByHouseholdDemand(good))
+      if (!isPricedByHouseholdDemand(good) && !hasSettledPrice(good))
         stock.price = rn(this.applyMarketPressure(good.value, stock.price, amount), 2);
       recordGoodFlow({ direction: "sink", category: "shipbuilding", goodId: good.i, units: amount, marketId });
     }
@@ -3753,7 +3765,7 @@ export class MarketsModule {
    */
   applyPlayerTradePressure(market: Market, good: Good, units: number): void {
     const row = market.goods[good.i];
-    if (!row || isPricedByHouseholdDemand(good)) return;
+    if (!row || isPricedByHouseholdDemand(good) || hasSettledPrice(good)) return;
     row.price = rn(this.applyMarketPressure(good.value, row.price, units), 2);
   }
 

@@ -1230,7 +1230,7 @@
       "age": 52,
       "gender": "female",
       "race": 1,
-      "wealth": 12.16,
+      "wealth": 14.23,
       "family": {
         "spouses": 1,
         "children": 6,
@@ -1284,7 +1284,7 @@
       "age": 41,
       "gender": "male",
       "race": 1,
-      "wealth": 14.82,
+      "wealth": 16.8,
       "family": {
         "spouses": 1,
         "children": 7,
@@ -3090,7 +3090,7 @@
       "age": 45,
       "gender": "male",
       "race": 1,
-      "wealth": 11.53,
+      "wealth": 13.12,
       "family": {
         "spouses": 1,
         "children": 5,
@@ -3144,7 +3144,7 @@
       "age": 62,
       "gender": "female",
       "race": 1,
-      "wealth": 8.4,
+      "wealth": 9.99,
       "family": {
         "spouses": 1,
         "children": 5,

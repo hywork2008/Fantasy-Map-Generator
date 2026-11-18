@@ -164,7 +164,14 @@ for (let month = 1; month <= months; month++) {
     }
     if ((m.foodLedger?.urbanFoodStressQuarters ?? 0) > 0) urbanFood.stressMarkets++;
   }
-  const snap: Record<string, unknown> = { stateIncome, publicSpending, emptyTownShare, urbanFood, householdFlows, month, goodsVA: produced - used, produced, used, staple: stapleValue(), services, hhIn, totals: recorder.totals(), heads: heads(), stapleMedianPrice: medians()[staple.name] };
+  // Staple retail price across markets with town demand, relative to the staple's base value.
+  const stapleRel = getMarkets()
+    .filter(m => m?.foodLedger && m.goods?.[staple.i]?.price > 0)
+    .map(m => m.goods[staple.i].price / (staple.value || 1))
+    .sort((a, b) => a - b);
+  const q = (f: number) => stapleRel[Math.min(stapleRel.length - 1, Math.floor(f * stapleRel.length))] ?? 0;
+  const stapleSpread = { n: stapleRel.length, p10: q(0.1), p25: q(0.25), p50: q(0.5), p75: q(0.75), p90: q(0.9), atFloor: stapleRel.filter(v => v <= 0.505).length / (stapleRel.length || 1), atCeiling: stapleRel.filter(v => v >= 2.99).length / (stapleRel.length || 1) };
+  const snap: Record<string, unknown> = { stapleSpread, stateIncome, publicSpending, emptyTownShare, urbanFood, householdFlows, month, goodsVA: produced - used, produced, used, staple: stapleValue(), services, hhIn, totals: recorder.totals(), heads: heads(), stapleMedianPrice: medians()[staple.name], ...(month % 12 === 0 ? { prices: medians(), values: Object.fromEntries(getGoods().map(g => [g.name, g.value])) } : {}) };
   snap.ledgers = ledgers();
   // Where unmet household textiles stop (docs/plan/textile-basket-scale.md §3.1): the ledger's gap partition, summed.
   const gaps: Record<string, Record<string, number>> = {};

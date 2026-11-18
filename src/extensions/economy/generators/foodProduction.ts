@@ -1,3 +1,4 @@
+import { getMarketSettings } from "../../../simulation/marketSettings";
 import { getSeasonalAmplitude, minmax, rn } from "../../hostUtils";
 import { getSimulationMonth, getSimulationYear } from "../context/economyApi";
 import {
@@ -178,6 +179,29 @@ export function getGlobalQuarterlyFoodWeights({
  * goods carry the local diet and are deliberately not separate ledgers; Grain remains the
  * shared store-of-calories and trade-price representation.
  */
+/**
+ * Most grain the market holds after this quarter's purchase. Under `harvestBridge` it buys its demand
+ * until farmers' next offers restock it, plus the staple carry-over; the staple price weighs stock
+ * against the same need (docs/plan/staple-price-harvest-coverage.md §7). Until a year of offers is
+ * known, and under `twelveMonths`, it holds a year's demand plus this period's.
+ */
+function getGrainPurchaseCap(
+  ledger: FoodLedger,
+  annualPurchaseDemand: number,
+  months: readonly number[],
+  periodMonths: number
+): number {
+  const twelveMonths = annualPurchaseDemand * (STORAGE_CAP_MONTHS / 12) + (annualPurchaseDemand * periodMonths) / 12;
+  const { grainPurchaseCap, stapleCarryoverMonths } = getMarketSettings();
+  const offers = ledger.offeredIntakeByMonth;
+  if (grainPurchaseCap !== "harvestBridge" || !months.length || offers?.length !== 12 || offers.some(o => !(o >= 0)))
+    return twelveMonths;
+  return (
+    getHarvestBridgeReserve(annualPurchaseDemand, offers, months[0], EXPORT_RESERVE_MONTHS, months.length) +
+    (annualPurchaseDemand / 12) * stapleCarryoverMonths
+  );
+}
+
 export function getStapleFoodGood(): Good | undefined {
   return (
     getGoods().find(good => good.name === "Grain" && good.tags?.includes("stapleFood")) ??
@@ -555,7 +579,11 @@ export class FoodProductionModule {
       let ruralPopulation = 0;
       let annualMarketFoodIntake = 0;
       const cropWholesale = new Map<number, number>();
-      const cellWholesale: { cellId: number; wholesale: number; cap: number }[] = [];
+      const cellWholesale: {
+        cellId: number;
+        wholesale: number;
+        cap: number;
+      }[] = [];
 
       for (const cellId of pack.cells.i) {
         if (marketCellColumn[cellId] !== market.i || pack.cells.h[cellId] < 20) continue;
@@ -689,7 +717,8 @@ export class FoodProductionModule {
       // granary. Without it the cap covered the towns and brewers alone, and every export or loss
       // came out of their next year's stock (urban-craft-staffing.md §10.12).
       const annualPurchaseDemand = annualDemand + annualBrewingGrain + getAnnualGranaryOutflow(ledger);
-      const storageCap = annualPurchaseDemand * (STORAGE_CAP_MONTHS / 12) + (annualPurchaseDemand * periodMonths) / 12;
+      ledger.brewingGrainDemand = rn(annualBrewingGrain, 2);
+      const storageCap = getGrainPurchaseCap(ledger, annualPurchaseDemand, months, periodMonths);
       const purchasable = Math.max(0, storageCap - held);
       const purchaseShare = annualMarketFoodIntake > 0 ? Math.min(1, purchasable / annualMarketFoodIntake) : 0;
       if (purchaseShare < 1)

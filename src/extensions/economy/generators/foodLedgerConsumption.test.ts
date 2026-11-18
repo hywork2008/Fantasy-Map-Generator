@@ -17,6 +17,7 @@ vi.mock("./innStays", () => ({
   getTemporaryLodgerPopulationPointsByBurg: vi.fn(() => new Map())
 }));
 
+import { DEFAULT_MARKET_SETTINGS } from "../../../simulation/marketSettings";
 import {
   getBurgMarketLedgers,
   getGoods,
@@ -30,6 +31,7 @@ import {
 import type { BurgMarketLedger } from "./burgMarketLedgersTypes";
 import {
   computeUrbanFoodSecurity,
+  getStaplePriceMultiplier,
   settleMonthlyFoodConsumption,
   URBAN_FOOD_FAMINE_DEATH_BAND
 } from "./foodLedgerConsumption";
@@ -254,7 +256,7 @@ describe("settleMonthlyFoodConsumption", () => {
     expect(market.marketTreasury!.balance).toBeGreaterThan(0);
   });
 
-  it("prices Grain at the floor when stock comfortably covers the rest of the quarter", () => {
+  it("prices Grain at the floor when stock far exceeds the need to the next harvest", () => {
     const stapleGood = { i: 1, name: "Grain", tags: ["food", "stapleFood"], value: 1 } as any;
     vi.mocked(getGoods).mockReturnValue([stapleGood]);
     vi.mocked(getSimulationMonth).mockReturnValue(3); // last month of the quarter: least demand left
@@ -271,10 +273,10 @@ describe("settleMonthlyFoodConsumption", () => {
 
     settleMonthlyFoodConsumption();
 
-    expect(market.goods[stapleGood.i].price).toBeCloseTo(0.8, 5);
+    expect(market.goods[stapleGood.i].price).toBeCloseTo(DEFAULT_MARKET_SETTINGS.staplePriceFloor, 5);
   });
 
-  it("prices Grain at the ceiling when stock cannot cover the rest of the quarter", () => {
+  it("prices Grain at the ceiling when stock cannot cover the need to the next harvest", () => {
     const stapleGood = { i: 1, name: "Grain", tags: ["food", "stapleFood"], value: 1 } as any;
     vi.mocked(getGoods).mockReturnValue([stapleGood]);
     vi.mocked(getSimulationMonth).mockReturnValue(1); // first month: most demand still ahead
@@ -286,13 +288,24 @@ describe("settleMonthlyFoodConsumption", () => {
       centerBurgId: 1,
       color: "#fff",
       goods: {},
-      foodLedger: makeLedger({ foodStockAge0: 0.001 })
+      // The next harvest is eleven months away: the stock must carry almost a year.
+      foodLedger: makeLedger({
+        foodStockAge0: 0.001,
+        offeredIntakeByMonth: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1_000_000]
+      })
     } as Market;
     setMarket(market);
 
     settleMonthlyFoodConsumption();
 
-    expect(market.goods[stapleGood.i].price).toBeCloseTo(2.0, 5);
+    expect(market.goods[stapleGood.i].price).toBeCloseTo(DEFAULT_MARKET_SETTINGS.staplePriceCeiling, 5);
+  });
+
+  it("follows King's law below the needed stock and stays at base price when stock matches it", () => {
+    expect(getStaplePriceMultiplier(1)).toBeCloseTo(1, 5);
+    expect(getStaplePriceMultiplier(0.9)).toBeCloseTo(1.3, 5);
+    expect(getStaplePriceMultiplier(0.8)).toBeCloseTo(1.8, 5);
+    expect(getStaplePriceMultiplier(1.2)).toBeLessThan(1);
   });
 
   it("refreshes Grain's debug stock from the post-consumption Food Ledger", () => {

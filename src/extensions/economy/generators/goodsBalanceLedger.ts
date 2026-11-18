@@ -190,6 +190,20 @@ export function recordGoodFlow(flow: GoodFlowRecord): void {
     const market = findById(getMarkets(), flow.marketId);
     if (market) market.saltProcessingInputBags = (market.saltProcessingInputBags ?? 0) + flow.units;
   }
+  // Raw goods' recipe draws price them in the next pass (docs/plan/raw-good-processing-demand.md).
+  if (
+    flow.direction === "sink" &&
+    flow.category === "recipeInput" &&
+    flow.marketId !== undefined &&
+    good?.distribution
+  ) {
+    const market = findById(getMarkets(), flow.marketId);
+    if (market) {
+      market.rawProcessingUse ??= {};
+      const use = market.rawProcessingUse;
+      use[good.i] = (use[good.i] ?? 0) + flow.units;
+    }
+  }
   // The market keeps as much town hearth ash as its recipes and towns draw.
   if (
     flow.direction === "sink" &&

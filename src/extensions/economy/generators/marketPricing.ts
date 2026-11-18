@@ -75,10 +75,13 @@ export function customerBuyPrice(midPrice: number, burgId?: number, goodId?: num
  * the last price). Trade and purchase pressure must not move it, or one large deal carried a
  * collapsed price into the following months (docs/plan/salt-supply-calibration.md §3.12). Fresh
  * Meat is sold the month it is killed and never stands in stock (slaughter.ts), so an empty shelf
- * is not a shortage; it is priced at sale (docs/plan/livestock-meat-sales.md §4.4).
+ * is not a shortage; it is priced at sale (docs/plan/livestock-meat-sales.md §4.4). The staple food is
+ * priced monthly by the food ledger from its stock against the need to the next harvest; grain trade
+ * pushed it to 3x or 0.25x of its value between settlements, and the quarter's farmgate price read
+ * that pushed price (docs/plan/staple-price-harvest-coverage.md §3.4).
  */
-export function hasSettledPrice(good: Pick<Good, "name">): boolean {
-  return good.name === "Salt" || good.name === "Meat";
+export function hasSettledPrice(good: Pick<Good, "name"> & { tags?: readonly string[] }): boolean {
+  return good.name === "Salt" || good.name === "Meat" || good.tags?.includes("stapleFood") === true;
 }
 
 /**

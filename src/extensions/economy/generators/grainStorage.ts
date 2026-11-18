@@ -53,12 +53,14 @@ export function getQuarterlyStorageLoss(climateMultiplier: number): {
  * farmers are expected to offer before the next harvest, looking up to a year ahead from `month`.
  * A market with one harvest a year keeps nearly a year's demand just after harvest; an evenly
  * supplied market keeps only `floorMonths`. Until a whole year of offers is known the floor applies.
+ * `landedMonths` counts this month and the following ones whose offers are already in stock.
  */
 export function getHarvestBridgeReserve(
   annualDemand: number,
   offeredIntakeByMonth: readonly number[] | undefined,
   month: number,
-  floorMonths: number
+  floorMonths: number,
+  landedMonths = 1
 ): number {
   const monthlyDemand = Math.max(0, annualDemand) / 12;
   const floor = monthlyDemand * floorMonths;
@@ -69,7 +71,7 @@ export function getHarvestBridgeReserve(
   // This month's offer has already landed; consumption of this month and the next eleven is
   // bridged only by later months' offers.
   for (let ahead = 0; ahead < 12; ahead++) {
-    if (ahead > 0) shortfall -= offeredIntakeByMonth[(month - 1 + ahead) % 12];
+    if (ahead >= landedMonths) shortfall -= offeredIntakeByMonth[(month - 1 + ahead) % 12];
     shortfall += monthlyDemand;
     if (shortfall > worst) worst = shortfall;
   }
