@@ -20,7 +20,7 @@
 
 2026-11-14
 
-- docs/plan/bv-workhome-facade-variation.md
+- docs/plan/bv-workhome-facade-variation.md - MV の Workhome を、内部構造を持たない外観だけの Opus 版にし、区画の間口に合わせて建てる（2026-11-18 に全面改訂）
 
 2026-11-12
 
