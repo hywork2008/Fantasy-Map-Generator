@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-11-19
+
+- docs/plan/opus-ropewalk.md - MV の綱打ち場（task 56）を、綱打ちの手順の記述から組み直した Opus 版にする（麻の小屋・紡ぎ車・撚り板・杭・撚り子・後ろ橇）
+
 2026-11-18
 
 - docs/plan/alps-terrain-tiles.md - アルプス周辺を Japan と同じ四分木タイルで3D表示する。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める

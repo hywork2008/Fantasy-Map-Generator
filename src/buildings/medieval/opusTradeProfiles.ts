@@ -54,3 +54,15 @@ export const OPUS_TOWN_TRADES: Record<OpusTownTrade, OpusTownTradeProfile> = {
     entrance: { id: "main", position: [-0.9, 0, 5], clearWidth: 1 }
   }
 };
+
+/**
+ * Opus ropewalk (MV task 56): a hand ropewalk with its hemp house, as the rope-makers of a late-medieval town worked
+ * one on the edge of town (docs/plan/opus-ropewalk.md). The walk runs along Z; +Z is its head and the way in from the
+ * road. The envelope is the CE plot of the earlier study, so CE keeps its footprint and entrance.
+ */
+export const OPUS_ROPEWALK = {
+  width: 6,
+  depth: 54,
+  /** The hemp house's door on the road at the head of the walk. */
+  entrance: { id: "main", position: [0, 0, 27] as const, clearWidth: 1.6 }
+} as const;

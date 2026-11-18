@@ -12,7 +12,12 @@ import {
   opusGuildHouseModelId,
   opusGuildHousePreset
 } from "../../buildings/medieval/opusGuildHouseProfiles";
-import { OPUS_BUTCHERY, OPUS_TOWN_TRADES, type OpusTownTrade } from "../../buildings/medieval/opusTradeProfiles";
+import {
+  OPUS_BUTCHERY,
+  OPUS_ROPEWALK,
+  OPUS_TOWN_TRADES,
+  type OpusTownTrade
+} from "../../buildings/medieval/opusTradeProfiles";
 import {
   type OpusWorkhomeCulture,
   opusWorkhomeLayout,
@@ -128,9 +133,7 @@ export function buildPopulationFacilityRequests(
       if (trade.pool === "tanning")
         return bvFacilityAsset("trade-workshop.dedicated-wet-tannery", DEDICATED_TANNERY.ports);
       if (trade.pool === "ropemaking")
-        return bvFacilityAsset("trade-workshop.dedicated-ropewalk", [
-          { id: "main", position: [0, 0, 27], clearWidth: 1.6 }
-        ]);
+        return bvFacilityAsset("trade-workshop.dedicated-ropewalk", [OPUS_ROPEWALK.entrance]);
       // Entrances follow the adopted Opus plots: the shop door on the street front.
       if (trade.pool === "butchery")
         return bvFacilityAsset("trade-workshop.dedicated-butchery", [OPUS_BUTCHERY.entrance]);

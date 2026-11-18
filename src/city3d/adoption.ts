@@ -104,6 +104,17 @@ export const CE_ADOPTION: Record<string, Record<string, Adoption>> = {
       )
     ])
   ),
+  // The Opus ropewalk rebuilt from the rope-makers' trade (docs/plan/opus-ropewalk.md), on the earlier plot.
+  "medieval.trade-workshop.dedicated-ropewalk": Object.fromEntries(
+    (["low", "high"] as const).map(level => [
+      level,
+      {
+        variant: `medieval.trade-workshop.dedicated-ropewalk@${level}#claude-opus-5.5`,
+        since: "2026-11-19",
+        note: "Opus hand ropewalk with hemp house, wheel, tackle-board, stakes and traveller; same 6 x 54 m plot and door"
+      }
+    ])
+  ),
   // The Opus shop-house (docs/plan/bv-workhome-facade-variation.md W3). A placement saved before it keeps the Codex
   // study it was sized on (placementDefinition's "codex" presentation).
   ...Object.fromEntries(

@@ -11,11 +11,12 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // v37–v38: a rear works stands only in the backland, clear of the streets beside or behind its plot; a street block
 // bent by a gate road is inset edge by edge, not cut into long triangles.
 // v39–v40: a cut from a block's notch leaves its wedge open; no front house is a wedge's corner.
-export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v30";
+// v41–v43: the Opus ropewalk (docs/plan/opus-ropewalk.md): same plot and door, its own height.
+export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v41";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v39";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v42";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v40";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v43";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(
