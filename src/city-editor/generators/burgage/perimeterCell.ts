@@ -90,7 +90,7 @@ export function burgagePerimeterCell(
     // Dense burgage packs the plots inside the wall; beyond it they keep their yards (plan §8.7).
     packed = !!burgage.dense && setting === "intramural" && !burgage.shallow;
   const plans = convexPieces(ring, sides).flatMap((piece, k) => {
-    const block = insetConvexKernel(
+    const block = insetBlock(
       piece.ring,
       piece.sides.map(s => s.setback)
     );
@@ -187,6 +187,47 @@ const REFLEX_SIN = Math.sin((15 * Math.PI) / 180);
 interface Side {
   setback: number;
   front: boolean;
+}
+
+/**
+ * A piece inset by each edge's setback. A convex piece takes the half-plane kernel. A piece left with the slight bends
+ * of a sampled curve (`convexPieces` cuts only real corners) is inset edge by edge instead: the kernel would carry the
+ * short edge of a bend on through the block and cut it into a long thin triangle (a gate road's approach band).
+ */
+function insetBlock(ring: Point[], setbacks: number[]): Point[] {
+  const sign = Math.sign(polygonArea(ring));
+  const convex = ring.every((p, i) => {
+    const a = ring[(i + ring.length - 1) % ring.length],
+      b = ring[(i + 1) % ring.length];
+    return ((p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0])) * sign >= -1e-9;
+  });
+  if (convex) return insetConvexKernel(ring, setbacks);
+  // Each edge's band of its setback, on the block's side, taken off the piece.
+  const bands = ring.flatMap((a, i) => {
+    const b = ring[(i + 1) % ring.length],
+      d = setbacks[i],
+      length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (d <= 0 || length < 1e-9) return [];
+    // The inward normal (`insetConvexKernel` takes the outward one, with the opposite sign).
+    const n: Point = [(sign * (b[1] - a[1])) / length, (-sign * (b[0] - a[0])) / length];
+    // Carried on past both ends by the setback, so two bands meet in a mitre at a bend rather than leave a notch.
+    const u: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length],
+      a0: Point = [a[0] - u[0] * d, a[1] - u[1] * d],
+      b0: Point = [b[0] + u[0] * d, b[1] + u[1] * d];
+    return [
+      {
+        outer: [a0, b0, [b0[0] + n[0] * d, b0[1] + n[1] * d], [a0[0] + n[0] * d, a0[1] + n[1] * d]] as Point[],
+        holes: []
+      }
+    ];
+  });
+  try {
+    const parts = regionBoolean([{ outer: ring, holes: [] }], bands, "difference").filter(r => !r.holes.length);
+    if (!parts.length) return [];
+    return parts.reduce((x, y) => (Math.abs(polygonArea(y.outer)) > Math.abs(polygonArea(x.outer)) ? y : x)).outer;
+  } catch {
+    return insetConvexKernel(ring, setbacks);
+  }
 }
 
 /** A concave street block cut at its reflex corners into convex pieces, each laid out on its own. A cut edge is no

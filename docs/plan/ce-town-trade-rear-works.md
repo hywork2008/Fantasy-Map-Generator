@@ -311,3 +311,30 @@ Opus 版の 6 業種（[opusTownTrades.ts](../../src/buildings/medieval/opusTown
 直したもの:
 
 - CE の生成の欄の「施設」の数と、壁の内外の施設の数が、裏の作業場も 1 つと数えていた（5,000 人の町で 262/245）。裏の作業場を数えないようにした（[VectorGenerationPanel.ts](../../src/city-editor/components/vector/VectorGenerationPanel.ts)、[urbanCapacity.ts](../../src/city-editor/generators/vector/generation/urbanCapacity.ts)）。生成の結果は変わらないので、版は上げていない。
+
+### 10.5 ユーザーの報告による修正（2026-11-19）
+
+報告（種 `e69w8s` の町）: 街区の一面にだけ家が建ち、その裏庭に建てた建物の入口が塀に塞がれる、または入口が道でなく裏庭の側にある。公園・家の建たない郊外の街区・施設の敷地にも庭の塀ができる。郊外の道の曲がる所で街区が細長い三角形に切られる。
+
+直したもの:
+
+- 裏の作業場は、区画の奥（backland）にだけ置く。表の家の通り以外の道・小路・街道のそばに作業場が来る区画（街区の角や、区画の脇・奥が道に面する所）では組にしない（[facilityPlots.ts](../../src/city-editor/generators/vector/generation/facilityPlots.ts) の `exposed`）。作業場の外形の角と辺の中点が、小路・通りの縁から 2.5 m、街道の中心線から 8 m より近ければ、そばにあるとみる。組にできない施設は、どの区画にも組が入らない時だけ箱になる。
+- 区画の庭・塀・果樹は、家が 1 軒も建たない街区（公園、町が要らなかった郊外）には描かない（[renderData.ts](../../src/city-editor/renderers/vector/renderData.ts) の `burgagePlotSurfaces`）。
+- 施設の敷地を通る塀は、敷地の縁で切る。前は、塀の辺の中点が敷地の中か縁のそばにある時だけ省いていたので、敷地を斜めに横切る塀や、中点が敷地の外にある塀が残った。
+- 版: `burgage` を v37、`burgage-dense` を v38 にした（作業場の置き方が変わったため。描き方の変更は保存データを変えない）。
+
+計測（壁あり・川なし、種 `workhome-w3`）: 組の数は `burgage-dense` 5,000 人で 33 → 31、`burgage` 5,000 人で 33 → 29、`burgage-dense` 2,000 人で 12 → 12。
+
+確かめたこと:
+
+- [burgagePlots3d.test.ts](../../src/city-editor/renderers/vector/burgagePlots3d.test.ts) に足した: 家の建たない街区に庭・塀・果樹がないこと、どの施設の敷地にも塀が入らないこと。前の描き方では、家の建たない街区の検査で失敗することを確かめた。
+- 関連テスト 5 ファイル（43 件）が成功した。
+
+- 郊外の細長い三角形の街区（CE の既定の設定で「Generate city」、種 `e69w8s`。西の門の街道の両側）: 街区そのものは街道に沿った帯だった。門の近くで街道の辺が折れ、外側の小路が数 m ごとの点で緩く曲がるため、帯がわずかに凹む。凹みが 15° に満たない時、区画を割る前の後退（`insetConvexKernel`）は凸の多角形として半平面を重ねるので、門の側の短い辺の延長が帯を斜めに切り、区画の列が細い三角形になっていた。凸でない街区は、辺ごとの後退の帯（両端を後退の分だけ延ばし、曲がり角で突き合わせる）を街区から引いて後退させるようにした（[perimeterCell.ts](../../src/city-editor/generators/burgage/perimeterCell.ts) の `insetBlock`）。凸の街区は今のまま。
+  - この町の西の街道の南の帯は、区画 16 筆（奥行き 4〜20 m）から 22 筆（奥行き約 21 m）になった。北の帯は 17 筆から 24 筆。町全体で置けた施設は 230 → 241/245。
+  - [burgage.test.ts](../../src/city-editor/generators/burgage/burgage.test.ts) にこの帯の検査を足した（直す前は失敗する）。
+- 版は v37・v38 のまま（同じ作業の中の変更）。
+
+まだ扱っていないこと:
+
+- 3D でこの町の西の街道を目視していない（2D で、区画が街道に沿って帯の奥まで並ぶことを確かめた）。

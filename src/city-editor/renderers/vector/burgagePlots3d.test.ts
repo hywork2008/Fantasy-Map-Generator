@@ -8,6 +8,7 @@ import { vectorInputFromEditor } from "../../generators/vector/generation/editor
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../../generators/vector/generation/pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../../generators/vector/generation/urban";
 import { vectorWallChoice } from "../../generators/vector/generation/wallShape";
+import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
 import type { VectorCityDocument } from "../../types/vector/document";
 import { vectorRenderData } from "./renderData";
 import { createVectorScene } from "./scene3d";
@@ -63,8 +64,20 @@ describe("burgage plots drawn in 2D and 3D (docs/plan/ce-burgage-plot-fabric.md 
   it("draws each street block's yards and plot walls as one ground and one wall, under its houses", () => {
     const doc = town("atlantic"),
       { data, roles } = burgageMeshes(doc),
-      cells = Object.values(doc.fabric!.cells).filter(c => c.plots?.offsets.length);
+      cells = Object.values(doc.fabric!.cells).filter(c => c.plots?.offsets.length && c.houses.offsets.length);
     expect(cells.length).toBeGreaterThan(5);
+    // A street block no house was built in (a park, outskirts the town did not need) has no yards, walls or trees.
+    const empty = Object.values(doc.fabric!.cells).filter(c => c.plots?.offsets.length && !c.houses.offsets.length);
+    for (const cell of empty) {
+      expect(data.surfaces.filter(s => s.id.startsWith(`${cell.id}~`) && s.featureKind === "burgage")).toEqual([]);
+      expect((data.landscapeTrees ?? []).filter(t => t.id.startsWith(`${cell.id}~`))).toEqual([]);
+    }
+    // No plot wall runs into a facility's site (its model brings its own enclosure).
+    const walls = data.surfaces.filter(s => s.pieceRole === "plot-wall").flatMap(s => s.polygons),
+      facilities = Object.values(doc.placements).filter(p => p.building?.kind === "facility");
+    expect(facilities.length).toBeGreaterThan(20);
+    for (const f of facilities)
+      expect(regionBoolean(walls, [f.site], "intersection").reduce((n, r) => n + regionArea(r), 0)).toBeLessThan(0.05);
     expect(data.warnings.filter(w => w.startsWith("burgage-"))).toEqual([]);
     for (const cell of cells) {
       const own = data.surfaces.filter(s => s.id.startsWith(`${cell.id}~`) && s.featureKind === "burgage");

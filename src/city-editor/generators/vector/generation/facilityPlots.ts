@@ -54,6 +54,10 @@ const DENSE_FACILITY_COURT_METERS = 4;
 /** Share of a plot's place in the facilities' order given by its distance from the centre, as for houses. */
 const CENTRE_WEIGHT = 0.6;
 
+/** A rear works this close to a street or lane edge (or to a road's centre line, whose width the lines do not
+ * keep) stands by it. */
+const REAR_EXPOSED_METERS = 2.5;
+const REAR_EXPOSED_ROAD_METERS = 8;
 /** Plots a shop-house and its rear works take at most (docs/plan/ce-town-trade-rear-works.md §6, R2). */
 const PAIR_PLOTS = 2;
 /** The town trades that sell in the market's rows (plan §5.4). */
@@ -160,6 +164,21 @@ export function placeFacilitiesOnPlots(
       marketDistance.set(p.i, d);
     }
     return d;
+  };
+  /** Whether a rear works stands by a street, lane or road other than its house's: there it would show the street its
+   * back or side, its door in the yard (docs/plan/ce-town-trade-rear-works.md R2); it stands in the backland only. */
+  const exposed = (works: VectorPlacement, front: number) => {
+    const ring = works.building!.footprint[0].outer,
+      probes = ring.flatMap((p, i) => {
+        const q = ring[(i + 1) % ring.length];
+        return [p, [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2] as Point];
+      });
+    return lineIndex.search(boxOf(ring, REAR_EXPOSED_ROAD_METERS)).some(item => {
+      if (item.k === front) return false;
+      const line = lines[item.k],
+        reach = line.road ? REAR_EXPOSED_ROAD_METERS : line.widthMeters / 2 + REAR_EXPOSED_METERS;
+      return probes.some(q => nearestOnPolyline(q, line.points).dist < reach);
+    });
   };
   const facilityRows = new Set<number>();
   /** Binaire houses of each street block, behind its heads. */
@@ -293,7 +312,7 @@ export function placeFacilitiesOnPlots(
             const works = pair
               ? layRearWorks(laid, rearTrade!, rearFit!, candidate, cut!, fitted!.fit.depthMeters, dense)
               : undefined;
-            if (pair && (!works || blocked(works.site))) continue;
+            if (pair && (!works || blocked(works.site) || exposed(works, candidate[0].line))) continue;
             placement = laid;
             rear = works;
             run = taken;

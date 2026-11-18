@@ -4,6 +4,7 @@ import type { Point } from "../../types/geometry";
 import { nearestOnPolyline, pointInPolygon, polygonArea } from "../geom";
 import { planBinaireCell } from "./binaireCell";
 import { LANE_CLEARANCE_METERS } from "./frame";
+import { burgagePerimeterCell } from "./perimeterCell";
 import { BURGAGE_PROFILES, burgageProfileFor } from "./profiles";
 import { planBurgageCell } from "./stripCell";
 
@@ -179,5 +180,38 @@ describe("binaire cells", () => {
     expect(plan.plots.some(p => p.kind === "head" && p.front.every(q => Math.abs(q[1] - 150) < 1e-6))).toBe(true);
     expect(frontsOnStreetOrLane(plan, ring)).toBe(true);
     expect(overlapping(plan, ring)).toBe(0);
+  });
+});
+
+describe("burgage street blocks beside a gate road", () => {
+  it("lays a band bent by the road near the gate as full-depth plots along the road, not long triangles", () => {
+    // The approach band south of the west gate road of `e69w8s` (2026-11-19 report): the road edge bends near the
+    // gate, and the outer lane follows a gentle curve sampled every few metres.
+    const ring: Point[] = [
+      [-506.8, -2.58],
+      [-339.99, -10.38],
+      [-337.12, -10.66],
+      [-332.99, -11.29],
+      [-298.83, -17.89],
+      [-294.78, 3.05],
+      [-296.58, 5.81],
+      [-334.27, 13.1],
+      [-505.69, 21.1]
+    ];
+    const plan = burgagePerimeterCell(
+      { profile: "english-burgage", wallRings: [] },
+      { id: "band", ring, boundaries: [] },
+      "gate-band",
+      2.4
+    );
+    expect(plan.plots.length).toBeGreaterThan(15);
+    // Every plot reaches across the band, road to outer lane: the band is about 22 m deep less the setbacks.
+    const depths = plan.plots.map(p => {
+      const [a, b] = p.front,
+        l = Math.hypot(b[0] - a[0], b[1] - a[1]),
+        v: Point = [-(b[1] - a[1]) / l, (b[0] - a[0]) / l];
+      return Math.max(...p.ring.map(q => Math.abs((q[0] - a[0]) * v[0] + (q[1] - a[1]) * v[1])));
+    });
+    expect(Math.min(...depths)).toBeGreaterThan(15);
   });
 });

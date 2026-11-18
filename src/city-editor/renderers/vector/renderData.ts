@@ -176,7 +176,8 @@ export function burgagePlotSurfaces(
   const rings = plots.offsets.map((start, i) =>
     unpackPoints(plots.coords, cell.origin, start, plots.offsets[i + 1] ?? plots.coords.length / 2)
   );
-  if (!rings.length) return out;
+  // A street block no house was built in (a park's lawn, outskirts the town did not need) is no one's yard.
+  if (!rings.length || !cellHouseCount(cell)) return out;
   const parts = rings.map(outer => ({ outer, holes: [] as Point[][] }));
   let yards: VectorPolygon[];
   try {
@@ -238,6 +239,26 @@ export function burgagePlotSurfaces(
   let merged: VectorPolygon[];
   try {
     merged = regionBoolean(walls, [], "union", false);
+    // A wall running into a facility's site stops at its edge: the facility's model brings its own enclosure.
+    const all = rings.flat(),
+      x0 = Math.min(...all.map(p => p[0])),
+      y0 = Math.min(...all.map(p => p[1])),
+      x1 = Math.max(...all.map(p => p[0])),
+      y1 = Math.max(...all.map(p => p[1])),
+      crossed = sites.filter(
+        site =>
+          site.some(p => p[0] >= x0) &&
+          site.some(p => p[0] <= x1) &&
+          site.some(p => p[1] >= y0) &&
+          site.some(p => p[1] <= y1)
+      );
+    if (crossed.length)
+      merged = regionBoolean(
+        merged,
+        crossed.map(outer => ({ outer, holes: [] })),
+        "difference",
+        false
+      );
   } catch {
     // Unjoined, every wall would be its own mesh in 3D; the block keeps its yards without them.
     warnings.push(`burgage-walls:${cell.id}`);
@@ -684,7 +705,7 @@ export function vectorRenderData(
     for (const cell of Object.values(doc.fabric.cells)) {
       lines(cell.id, "l", cell.lanes, cell.origin, cell.detachedLines);
       // Burgage plots (docs/plan/ce-burgage-plot-fabric.md B4): yards and their boundary walls, under the houses.
-      if (cell.plots) {
+      if (cell.plots && cellHouseCount(cell)) {
         burgagePlotSurfaces(cell, warnings, facilitySites).forEach(add);
         // Fruit trees in the yards' back halves, clear of every house and of every facility's whole site (B5).
         const houseRings = Array.from({ length: cellHouseCount(cell) }, (_, i) => cellHouseRing(cell, i)),

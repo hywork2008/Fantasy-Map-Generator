@@ -8,11 +8,13 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // v30–v32: an English-style town's guildhall in its market place (W5c).
 // v33–v34: burgage town trades as a shop-house and its rear works (docs/plan/ce-town-trade-rear-works.md R2).
 // v35–v36: fishmongers and butchers so too, in the rows facing the market place (same plan, R3).
+// v37–v38: a rear works stands only in the backland, clear of the streets beside or behind its plot; a street block
+// bent by a gate road is inset edge by edge, not cut into long triangles.
 export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v30";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v35";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v37";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v36";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v38";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(

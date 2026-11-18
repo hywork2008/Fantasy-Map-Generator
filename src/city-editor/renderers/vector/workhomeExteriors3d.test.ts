@@ -110,7 +110,7 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
     workhomes = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workhome."));
 
   it("builds nearly every workhome on one plot, as wide as the plot on its grid, its door on its own side", () => {
-    expect(doc.urban!.algorithm).toBe("vector-urban-v36");
+    expect(doc.urban!.algorithm).toBe("vector-urban-v38");
     expect(() => assertVectorDocument(doc)).not.toThrow();
     // Plots whose front, a metre in, lies under a workhome's parcel.
     const fronts = Object.values(doc.fabric!.cells).flatMap(c =>
@@ -155,14 +155,13 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
 
   it("lays each town trade as a shop-house and its rear works in the same plots (ce-town-trade-rear-works.md R2, R3)", () => {
     const rears = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workshop.rear-works."));
-    // 2,000 people: bakers 5, metalworkers 3, a cutler, a chandler, a fishmonger and a butcher (R3); no dedicated
-    // workshop of theirs is left.
-    expect(rears).toHaveLength(12);
-    expect(
-      Object.values(doc.placements).some(p =>
-        /dedicated-(bakehouse|cutlery|metalwares|chandlery|fishmongery|butchery)/.test(p.modelId)
-      )
-    ).toBe(false);
+    // 2,000 people: bakers 5, metalworkers 3, a cutler, a chandler, a fishmonger and a butcher (R3). A trade keeps its
+    // dedicated workshop only where no plot has a backland clear of the streets for its works (§10.5): a few at most.
+    const boxes = Object.values(doc.placements).filter(p =>
+      /dedicated-(bakehouse|cutlery|metalwares|chandlery|fishmongery|butchery)/.test(p.modelId)
+    );
+    expect(rears.length + boxes.length).toBe(12);
+    expect(rears.length).toBeGreaterThanOrEqual(10);
     // The market trades' shops are the ones nearest the market place (Fish Row, Butcher Row).
     const plaza = doc.environment!.features["feature:civic-plaza"].boundary.outer,
       toMarket = (trade: string) =>
