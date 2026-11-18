@@ -1,20 +1,23 @@
 import * as THREE from "three";
 import { meshProjection } from "../../buildings/meshProjection";
+import { type ModelQuality, resolveModelQuality } from "../../buildings/modelQuality";
 import { SHIP_VARIANTS } from "../../buildings/ships/shipVariants";
 import { adopt } from "../../city3d/adoption";
 import type { ModelShipType } from "../types/ships";
 
 /** Model Viewer ships the editor can place by hand; the sailing studies exist at their high tier only. */
-const MODEL_SHIP_VARIANTS: Record<ModelShipType, { family: string; level: string }> = {
-  "ship-of-the-line": { family: "ship.ship-of-the-line", level: "high" },
-  "war-galley": { family: "ship.galley", level: "high" },
-  trireme: { family: "ship.trireme", level: "high" },
-  carrier: { family: "ship.carrier", level: "default" }
+const MODEL_SHIP_VARIANTS: Record<ModelShipType, { family: string; tiers: readonly ("low" | "high")[] }> = {
+  "ship-of-the-line": { family: "ship.ship-of-the-line", tiers: ["high"] },
+  "war-galley": { family: "ship.galley", tiers: ["high"] },
+  trireme: { family: "ship.trireme", tiers: ["high"] },
+  carrier: { family: "ship.carrier", tiers: ["low", "high"] }
 };
 
-export function modelShipVariant(type: ModelShipType) {
-  const { family, level } = MODEL_SHIP_VARIANTS[type];
-  return adopt(SHIP_VARIANTS, family, level);
+/** The variant drawn at the scene's model quality; the low tier is the family's CE default. */
+export function modelShipVariant(type: ModelShipType, quality: ModelQuality = "standard") {
+  const { family, tiers } = MODEL_SHIP_VARIANTS[type],
+    tier = resolveModelQuality(quality, tiers);
+  return adopt(SHIP_VARIANTS, family, tier === "high" ? "high" : tiers.length > 1 ? "default" : tier);
 }
 
 /** Overall extent of a model ship along its keel (X) and across it (Z), with the X centre. */

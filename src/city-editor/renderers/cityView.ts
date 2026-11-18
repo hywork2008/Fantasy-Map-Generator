@@ -819,7 +819,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     const nextObjectStamp = JSON.stringify(objectElements);
     const objectsChanged = terrainChanged || objectStamp !== nextObjectStamp || !objects;
     const shipSites = collectShipSites(city);
-    const nextShipStamp = JSON.stringify(shipSites);
+    const nextShipStamp = JSON.stringify([shipSites, quality]);
     const shipsChanged = plan.water || shipStamp !== nextShipStamp || !scene.getObjectByName("ce-ships");
     const pierSites = collectPierSites(city, fabric.harbor);
     const nextPierStamp = JSON.stringify(pierSites);
@@ -974,7 +974,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     }
     if (shipsChanged && waterMeshes) {
       ships?.dispose();
-      ships = createTownShips(shipSites, point => townWaterHeightAt(waterMeshes!, point));
+      ships = createTownShips(shipSites, point => townWaterHeightAt(waterMeshes!, point), quality);
       scene.add(ships.group);
       shipStamp = nextShipStamp;
     }

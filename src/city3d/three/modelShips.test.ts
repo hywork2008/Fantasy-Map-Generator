@@ -32,3 +32,17 @@ it("places a carrier in 3D at its overall length, bow along the site rotation, a
   expect(svg.getAttribute("data-ship-type")).toBe("carrier");
   expect(svg.querySelector(".ce-ship-model-plan image")?.getAttribute("href")).toMatch(/^data:image\/svg\+xml/);
 });
+
+it("draws the carrier at the scene's model quality", () => {
+  const site: ShipSite = { id: "cvn", type: "carrier", point: [0, 0], rotation: 0, length: 337 };
+  const variants = (quality: "low" | "standard" | "high") => {
+    const ships = createTownShips([site], () => 0, quality),
+      ids = JSON.stringify(ships.group.userData);
+    ships.dispose();
+    return ids;
+  };
+  expect(modelShipVariant("carrier", "high").level).toBe("high");
+  expect(modelShipVariant("carrier", "standard").level).toBe("default");
+  expect(variants("high")).toContain("ship.carrier@high");
+  expect(variants("standard")).not.toContain("@high");
+});

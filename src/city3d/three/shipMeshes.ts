@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import type { ModelQuality } from "../../buildings/modelQuality";
 import { SHIP_VARIANTS } from "../../buildings/ships/shipVariants";
 import { isModelShipType, SHIP_DIMENSIONS } from "../../city-editor/data/ships";
 import { BRUSH_SHIP_STATE } from "../../city-editor/generators/shipDisplayState";
@@ -18,12 +19,15 @@ const MODELS = {
   large: ship("ship.galleon"),
   barge: ship("ship.barge")
 } as const;
-const modelFor = (type: ShipType) => (isModelShipType(type) ? modelShipVariant(type) : MODELS[type]);
+const modelFor = (type: ShipType, quality: ModelQuality) =>
+  isModelShipType(type) ? modelShipVariant(type, quality) : MODELS[type];
 
 /** Share a BV prototype per ship type and display state, with material batches per prototype. */
 export function createTownShips(
   sites: readonly ShipSite[],
-  waterHeightAt: (point: Point) => number
+  waterHeightAt: (point: Point) => number,
+  /** Scene model quality; ships with quality tiers (the carrier) follow it. */
+  quality: ModelQuality = "standard"
 ): CityStructureMeshes {
   const group = new THREE.Group();
   group.name = "ce-ships";
@@ -42,7 +46,7 @@ export function createTownShips(
     const type = ships[0].type,
       state = type === "barge" ? BRUSH_SHIP_STATE : (ships[0].state ?? BRUSH_SHIP_STATE);
     if (!ships.length) continue;
-    const variant = modelFor(type),
+    const variant = modelFor(type, quality),
       model = variant.create(state);
     markVariant(group, variant.id);
     models.push(model);
