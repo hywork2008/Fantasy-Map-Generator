@@ -1,8 +1,8 @@
 # CE 史実の短冊形区画（burgage plot）で街区を作るオプション
 
 作成: 2026-11-18
-更新: 2026-11-18（B0: 史料の本文を確認し、§2 の寸法表を確定。`bastide` の型を `binaire` に置き換えた。B1: 設定の型・型の表・区画を作る純関数を実装。B2: メッシュなしの生成に接続し、開発中の既定値にした。B3: 施設を区画単位で置く）
-状態: B0〜B3 完了。B4 以降は未実装。新しい CE の既定は `medieval-facilities` と `burgage`（§8.2）。
+更新: 2026-11-18（B0: 史料の本文を確認し、§2 の寸法表を確定。`bastide` の型を `binaire` に置き換えた。B1: 設定の型・型の表・区画を作る純関数を実装。B2: メッシュなしの生成に接続し、開発中の既定値にした。B3: 施設を区画単位で置く。B4: 区画の裏庭・境界の塀・venelle を描く）
+状態: B0〜B4 完了。B5 以降は未実装。新しい CE の既定は `medieval-facilities` と `burgage`（§8.2）。
 関連: [ce-meshless-block-fabric-scaling.md](ce-meshless-block-fabric-scaling.md)、[ce-medieval-facility-district-packing.md](ce-medieval-facility-district-packing.md)、[ce-facility-block-allocation.md](ce-facility-block-allocation.md)、[bv-workhome-facade-variation.md](bv-workhome-facade-variation.md)、[ce-meshless-gate-ribbon-growth.md](ce-meshless-gate-ribbon-growth.md)
 
 ## 1. 目的と範囲
@@ -249,13 +249,13 @@ Séraphin（p. 39, 44）の Figeac と Villefranche-de-Rouergue の値で作る�
 | B1 | 設定（`plotFabric`）、型の表（§2.3 の採用値と出典を持つ）、純関数 `planBurgageCell(ring, profile, context)`（区画・裏小路・横の小路を返す）、`binaire` の `planBinaireCell` | **完了（2026-11-18）**。§8.1 |
 | B2 | メッシュなしの生成に接続する。`perimeterJobs` の後で、`plotFabric` によって `compact` と `burgage` の処理を選ぶ。住宅の配置、都市の大きさ（§6）、保存・読込、v19 | **完了（2026-11-18）**。§8.2 |
 | B3 | `placeFacilitiesOnPlots`（§5.5） | **完了（2026-11-18）**。§8.3。壁の中の施設だけの街区は 0。壁の外には残る（§8.3） |
-| B4 | 区画の境界と裏庭を描く（2D の線、3D の塀・生垣、菜園、木） | 2D と 3D で区画の線が見え、空いた区画が菜園になる。3D の描画の数が許容範囲に収まる |
+| B4 | 区画の境界と裏庭を描く（2D の線、3D の塀・生垣、菜園、木） | **完了（2026-11-18）**。§8.4。空いた区画の木と菜園の作物は B5 に回した |
 | B5 | burgage cycle: 人口の密度と時代で、間口を割り、区画の奥に裏の棟を建てる | 壁の中の密度が B2 の見積もりより上がり、市域が狭くなる。裏の棟が裏小路か中庭から出入りできる |
 | B6 | メッシュあり CE への適用を判断する | メッシュあり CE の利用状況と、`localInfill.ts` の `buildPerimeterBlocks` に同じ処理を渡すときの費用を比べて決める |
 
 テストは AGENTS.md の方針に従い、変更した範囲に関係するものだけを実行する。B2 以降の FMG での確認は、Settlement pattern を Standard にした地図で行う。
 
-**次に進める作業**: B4（区画の境界と裏庭、`binaire` の venelle を 2D・3D で描く）。§2.2 の未確認の史料は、手に入ったときに §2.3 を見直す。
+**次に進める作業**: B5（区画の分割と裏の棟による建て込み。あわせて、壁の外の施設だけの街区・川のある小さな町の区画不足・空いた区画の木と菜園を扱う）。§2.2 の未確認の史料は、手に入ったときに §2.3 を見直す。
 
 
 ### 8.1 B1 の記録（2026-11-18）
@@ -393,6 +393,50 @@ Séraphin（p. 39, 44）の Figeac と Villefranche-de-Rouergue の値で作る�
 - [VectorGenerationPanel.test.ts](../../src/city-editor/components/vector/VectorGenerationPanel.test.ts) の urban の段階のテストは、`compact` の戸数を確かめるテストなので、Plot pattern を `compact` に選ぶ操作を加えた（パネルが `burgage` で開くようになったため）。
 - 実行して成功: burgage（2 ファイル）、burgagePlots、architecture、perimeter、facilityLots、urban、tannersRow、guilds、parks、validation/fabric、validation/document、share、VectorGenerationPanel。`tsc --noEmit` と `scripts/lint-architecture.ts` も成功した。
 
+
+### 8.4 B4 の記録（2026-11-18）
+
+#### 実装
+
+- **描く面**: [renderData.ts](../../src/city-editor/renderers/vector/renderData.ts) の `burgagePlotSurfaces` が、区画のある街区 1 つから次の面を作る。どれも `kind: "feature"`・`featureKind: "burgage"` で、2D の SVG と 3D の両方が、今の面の描き方のまま描く。
+  - `yard`: 街区の区画をすべて合わせた地面（色 `#b5b27f`）。家の建たない区画は、そのまま菜園・空き地に見える。
+  - `plot-wall`: 区画の境目と区画の奥の線に沿った、幅 0.25 m・高さ 1.1 m の塀（色 `#8f7d63`）。区画の正面（家が閉じる側）には立てない。重なる辺は 1 回だけ描く。
+  - `venelle`: `binaire` の街区の中央の路地（幅 0.4 m、色 `#6f6658`）。`binaire` の区画は家そのものなので、裏庭と塀は描かない。
+- **描く順序**: 裏庭と塀は、その街区の家より前に置く。2D では家が上に描かれる。
+- **3D の数を抑える**: 裏庭と塀は街区ごとに 1 つの多角形に合わせる。3D は多角形 1 つを 1 つのメッシュにするため、区画や塀の 1 本ごとにメッシュにしない。合わせられなかった街区は、裏庭は区画のまま描き、塀は描かずに警告（`burgage-yards:`・`burgage-walls:`）を残す。
+- **venelle の保存**: B2 では venelle を捨てていた。fabric の街区の `plots.venelles` に、小路と同じ形で保存するようにした。家の扉が向く小路（`lanes`）には入れない。ハッシュと検証も合わせた。
+- **区画を描く段階**: Blocks and lanes・Facilities・Housing の各段階で描く（家は Housing だけ）。
+
+#### B2 の切り抜きの逃げ道の調べ直し
+
+B2 で入れた 2 つの逃げ道（残りの土地、田園）が、B3 の後にどれだけ働くかを数えた。3 つの型 × 3 つの人口と、川ありの 3 シード × 2 つの人口（計 15 回）で、働いたのは残りの土地の 1 回だけだった。
+
+- 原因: 楔形の区画の辺と、その上の家の辺が、数 mm ずれて重なっていた。家はセンチメートルに丸めて保存されるが、区画（残りの土地の計算に使う街区の区画）は丸めていなかった。
+- 対策: 区画を、家と同じくセンチメートルに丸めて記録するようにした。その後の 15 回では、どちらの逃げ道も 1 回も働かなかった。逃げ道は、念のための守りとして残した。
+
+#### 計測
+
+2,000 人・施設あり・壁あり・川なし（シード `burgage-b4`）。描画データの作成は `vectorRenderData`、3D は `createVectorScene` の時間。
+
+| 型 | 描画データ | 3D の作成（町全体） | 3D のメッシュ（町全体／うち区画） | 区画の頂点数 | 警告 |
+| --- | --- | --- | --- | --- | --- |
+| `english-burgage` | 66 ms | 2.8 秒 | 2,147／80 | 34,837 | なし |
+| `hofstatt` | 49 ms | 2.2 秒 | 974／99 | 33,575 | なし |
+| `binaire` | 45 ms | 2.1 秒 | 2,094／145 | 580 | なし |
+
+区画のメッシュは、町全体のメッシュの 4〜10% だった。生成の結果（家・施設・未収容）は B3 から変わらず、`compact` の SHA-256 も変わらなかった。
+
+#### 残したこと
+
+- 空いた区画の木と、菜園の畝・作物は描いていない。今は裏庭の色だけで見せている。B5 で、区画の奥の付属屋とあわせて扱う。
+- 塀は区画ごとに石垣・板塀・生垣を分けていない（色 1 つ）。地域の型と時代で分けるかは、§10 に残す。
+
+#### テスト
+
+- 追加: [burgagePlots3d.test.ts](../../src/city-editor/renderers/vector/burgagePlots3d.test.ts)。`english-burgage` の町で、区画のある街区ごとに裏庭と塀が 1 つずつあり、家より先に並ぶこと、警告がないこと、区画のメッシュが区画の数の半分より少ないことを確かめる。`binaire` の町で、venelle が描かれ、裏庭が描かれないことを確かめる。
+- 実行して成功: burgage（2 ファイル）、burgagePlots、burgagePlots3d、renderData、sceneLayers、picking、precision、validation/fabric、validation/document、documentCodec、share、perimeter、facilityLots、VectorGenerationPanel、architecture。`tsc --noEmit` と `scripts/lint-architecture.ts` も成功した。
+- [houseLod3d.test.ts](../../src/city-editor/renderers/vector/houseLod3d.test.ts) の 1 件は失敗した。B2 より前のコミット（`b7b2c8e33`）でも同じく失敗するので、今回の変更とは関係ない。
+
 ## 9. 受入の指標
 
 生成ごとに次の値を報告（`VectorUrbanReport`）に出し、`compact` と比べる。
@@ -410,4 +454,5 @@ Séraphin（p. 39, 44）の Figeac と Villefranche-de-Rouergue の値で作る�
 - 裏小路を道路グラフの道として持つか、fabric の小路として持つか。今の小路と同じく fabric の小路とする案が有力。
 - 区画の奥の付属屋（B5）を、MV のモデルにするか、CE の簡単な箱にするか。
 - `binaire` の横の路地に面した、路地をはさむ 2 軒（奥行き 6〜7.5 m ずつ）を 1 つの区画にして、小さな工房を置けるようにするか（B3 の計測で、`binaire` の施設の 3 割が置けなかった）。
+- 区画の塀を、地域の型と時代で石垣・板塀・生垣に分けるか（B4 では色 1 つ）。
 - 橋は増やさない。区画の配置で新しい橋は作らないので、[bridgeSkewPolicy.ts](../../src/utils/bridgeSkewPolicy.ts) の判定には影響しない。ただし、川に沿う区画の奥の端は川岸で止め、川の上に区画を作らない。

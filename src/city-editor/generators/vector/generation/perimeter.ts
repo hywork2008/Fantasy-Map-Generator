@@ -60,6 +60,8 @@ interface CellPlan {
   mouths: VectorFabricCell["mouths"];
   /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md); absent on compact street blocks. */
   plots?: { ring: Point[]; front: [Point, Point]; kind: "plot" | "head" | "row" }[];
+  /** Binaire venelles (plan §5.7). */
+  drains?: FabricLine[];
 }
 interface DistrictPlan {
   id: string;
@@ -562,14 +564,19 @@ function computeBurgageCell(
         attachments.push({ lane: laneIndex, end, street: street.index, t: lineParameter(street.street.points, p) });
     }
   });
-  const parcel = (outer: Point[], id: string): VectorBlock => ({
-    id,
-    outer,
-    holes: [],
-    areaMeters2: regionArea({ outer, holes: [] }),
-    frontage: [],
-    reachable: true
-  });
+  // In whole centimetres, as the houses on them are recorded: their shared edges then coincide exactly, and the
+  // residual land's clipping does not meet two edges a few millimetres apart.
+  const parcel = (ring: Point[], id: string): VectorBlock => {
+    const outer = ring.map((p): Point => [Math.round(p[0] * 100) / 100 || 0, Math.round(p[1] * 100) / 100 || 0]);
+    return {
+      id,
+      outer,
+      holes: [],
+      areaMeters2: regionArea({ outer, holes: [] }),
+      frontage: [],
+      reachable: true
+    };
+  };
   return {
     cell: {
       id: cell.id,
@@ -578,7 +585,8 @@ function computeBurgageCell(
       lanes: local.lanes,
       attachments,
       mouths: [],
-      plots: local.plots
+      plots: local.plots,
+      ...(local.drains.length ? { drains: local.drains } : {})
     },
     // The plots and the open ground are the street block's parcels: what no house covers is yard and garden.
     // Clipping can leave a ring a validated block refuses (a repeated or collinear point); that land is left out.
@@ -805,8 +813,17 @@ function packedRing(points: Point[], origin: Point): number[] | undefined {
 }
 
 /** A street block's burgage plots as the record keeps them; a plot that rounding breaks is left out. */
-function packedPlots(plots: NonNullable<CellPlan["plots"]>, origin: Point): NonNullable<VectorFabricCell["plots"]> {
-  const out: NonNullable<VectorFabricCell["plots"]> = { offsets: [], coords: [], fronts: [] };
+function packedPlots(
+  plots: NonNullable<CellPlan["plots"]>,
+  origin: Point,
+  drains: CellPlan["drains"]
+): NonNullable<VectorFabricCell["plots"]> {
+  const out: NonNullable<VectorFabricCell["plots"]> = {
+    offsets: [],
+    coords: [],
+    fronts: [],
+    ...(drains?.length ? { venelles: packLines(drains, origin) } : {})
+  };
   for (const plot of plots) {
     const ring = packedRing(plot.ring, origin);
     if (!ring) continue;
@@ -1279,7 +1296,7 @@ export function placeVectorPerimeterHouses(
         ...(cleared[cell.id]?.length ? { cleared: [...cleared[cell.id]] } : {}),
         ...(detachedLines[cell.id]?.length ? { detachedLines: carried(cell.id, cell.lanes) } : {}),
         inside: cellInside(cell.id),
-        ...(cell.plots ? { plots: packedPlots(cell.plots, cellOrigin) } : {})
+        ...(cell.plots ? { plots: packedPlots(cell.plots, cellOrigin, cell.drains) } : {})
       };
       fabricCells[cell.id] = { ...value, hash: fabricCellHash(value) };
     }
@@ -1344,8 +1361,9 @@ export function vectorPerimeterResidual(doc: VectorCityDocument, blocks: VectorB
     try {
       land = regionBoolean([block], sites, "difference").filter(p => valid(p.outer) && p.holes.every(valid));
     } catch {
-      // The clipping kernel can fail on near-degenerate parcels (burgage plots cut at a block's corners); residual
-      // land is display-only, so that parcel shows none.
+      // The clipping kernel can fail on near-degenerate parcels; residual land is display-only, so that parcel shows
+      // none. Burgage parcels are recorded in whole centimetres like their houses, which removed the failures measured
+      // in B2 (plan §8.4); this stays as the guard.
       land = [];
     }
     residuals.set(block, { key, land });

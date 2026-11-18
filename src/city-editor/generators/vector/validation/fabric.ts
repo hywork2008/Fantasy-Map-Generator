@@ -229,7 +229,8 @@ function cellErrors(c: RecordValue, key: string): string[] {
   const plots = cell.plots;
   if (
     plots !== undefined &&
-    (!keys(plots, ["offsets", "coords", "fronts"]) ||
+    (!keys(plots, ["offsets", "coords", "fronts"], ["venelles"]) ||
+      (plots.venelles !== undefined && !lines(plots.venelles)) ||
       !ints(plots.coords) ||
       plots.coords.length % 2 ||
       !offsets(plots.offsets, plots.coords.length / 2, 3) ||

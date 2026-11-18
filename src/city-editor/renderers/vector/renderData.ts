@@ -4,11 +4,18 @@ import { TREE_SPECIES, type TreeSpecies, treeLodProfile } from "../../../buildin
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
 import type { FacilityPlans } from "../../../city3d/three/facilityMeshes";
 import { lotMassing, massingContext } from "../../generators/buildingMassing";
+import { nearestOnPolyline } from "../../generators/geom";
 import { treeSpeciesForClimate } from "../../generators/landscapeTreeSpecies";
 import { type ContourLine, fieldContours } from "../../generators/terrainField/contours";
 import type { TownWaterKind } from "../../generators/townWater";
 import { curveSource } from "../../generators/vector/editing/paths";
-import { cellHouseCount, cellHouseRing, fabricHouseId, unpackLine } from "../../generators/vector/fabric/pack";
+import {
+  cellHouseCount,
+  cellHouseRing,
+  fabricHouseId,
+  unpackLine,
+  unpackPoints
+} from "../../generators/vector/fabric/pack";
 import { vectorLandscapeClimate } from "../../generators/vector/generation/forest";
 import { vectorHousingCulture } from "../../generators/vector/generation/housingCulture";
 import { vectorHouseHeightKey, vectorHousingHeights } from "../../generators/vector/generation/housingHeights";
@@ -24,7 +31,7 @@ import type { HarborCargoPile, HarborCrane } from "../../types/contracts/harborF
 import type { CemeteryPlan } from "../../types/document";
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument, VectorPath, VectorPlacement } from "../../types/vector/document";
-import type { VectorFabricLines } from "../../types/vector/fabric";
+import type { VectorFabricCell, VectorFabricLines } from "../../types/vector/fabric";
 import type { VectorPolygon } from "../../types/vector/generation";
 import type { VectorHarborShip } from "../../types/vector/harbor";
 import type { VectorLandscapeTree } from "../../types/vector/landscape";
@@ -127,6 +134,123 @@ export interface VectorRenderData {
    * The `river` surfaces stay as pick targets. Relief and harbours keep their own surfaces. */
   water?: { id: string; kind: TownWaterKind; polygons: VectorPolygon[] }[];
 }
+/** Yard ground and boundary walls of a burgage street block are this tall; walls this wide. */
+const PLOT_WALL_METERS = { height: 1.1, width: 0.25 };
+
+/**
+ * A burgage street block's plots as surfaces (plan §5.4, B4): the yards as one ground (every plot, the vacant ones as
+ * gardens; the houses stand on it), the walls between plots and along their backs (never across the fronts, which
+ * the houses close), and a binaire block's venelles. Binaire plots are the houses themselves: they have no yard.
+ */
+export function burgagePlotSurfaces(cell: VectorFabricCell, warnings: string[] = []): VectorRenderSurface[] {
+  const plots = cell.plots;
+  if (!plots) return [];
+  const out: VectorRenderSurface[] = [];
+  const venelles = plots.venelles;
+  if (venelles?.widths.length) {
+    let strips = venelles.widths.flatMap((w, i) => strip(unpackLine(venelles, i, cell.origin), w));
+    try {
+      strips = regionBoolean(strips, [], "union", false);
+    } catch {
+      warnings.push(`burgage-venelles:${cell.id}`);
+    }
+    out.push({
+      id: `${cell.id}~venelles`,
+      kind: "feature",
+      featureKind: "burgage",
+      pieceRole: "venelle",
+      polygons: strips,
+      color: "#6f6658",
+      heightMeters: 0,
+      elevationMeters: 0.03
+    });
+    return out;
+  }
+  const rings = plots.offsets.map((start, i) =>
+    unpackPoints(plots.coords, cell.origin, start, plots.offsets[i + 1] ?? plots.coords.length / 2)
+  );
+  if (!rings.length) return out;
+  const parts = rings.map(outer => ({ outer, holes: [] as Point[][] }));
+  let yards: VectorPolygon[];
+  try {
+    yards = regionBoolean(parts, [], "union", false);
+  } catch {
+    warnings.push(`burgage-yards:${cell.id}`);
+    yards = parts;
+  }
+  out.push({
+    id: `${cell.id}~yards`,
+    kind: "feature",
+    featureKind: "burgage",
+    pieceRole: "yard",
+    polygons: yards,
+    color: "#b5b27f",
+    heightMeters: 0,
+    elevationMeters: 0.02
+  });
+  // Each edge once: the sides plots share, their backs, and the corners' sides; never a plot's front.
+  const fronts = rings.map((_, i) => unpackPoints(plots.fronts, cell.origin, i * 2, i * 2 + 2));
+  const key = (a: Point, b: Point) => {
+    const p = `${Math.round(a[0] * 10)},${Math.round(a[1] * 10)}`,
+      q = `${Math.round(b[0] * 10)},${Math.round(b[1] * 10)}`;
+    return p < q ? `${p}|${q}` : `${q}|${p}`;
+  };
+  const seen = new Set<string>(),
+    walls: VectorPolygon[] = [];
+  rings.forEach((ring, i) => {
+    const [fa, fb] = fronts[i];
+    ring.forEach((a, k) => {
+      const b = ring[(k + 1) % ring.length];
+      const onFront = [a, b].every(p => nearestOnPolyline(p, [fa, fb]).dist < 0.02);
+      const id = key(a, b);
+      if (onFront || seen.has(id) || Math.hypot(b[0] - a[0], b[1] - a[1]) < 0.3) return;
+      seen.add(id);
+      walls.push(...strip([a, b], PLOT_WALL_METERS.width));
+    });
+  });
+  if (!walls.length) return out;
+  let merged: VectorPolygon[];
+  try {
+    merged = regionBoolean(walls, [], "union", false);
+  } catch {
+    // Unjoined, every wall would be its own mesh in 3D; the block keeps its yards without them.
+    warnings.push(`burgage-walls:${cell.id}`);
+    return out;
+  }
+  out.push({
+    id: `${cell.id}~walls`,
+    kind: "feature",
+    featureKind: "burgage",
+    pieceRole: "plot-wall",
+    polygons: merged,
+    color: "#8f7d63",
+    heightMeters: PLOT_WALL_METERS.height,
+    elevationMeters: 0.02
+  });
+  return out;
+}
+
+/** A line as quadrilaterals `width` wide, one per segment. */
+function strip(points: Point[], width: number): VectorPolygon[] {
+  return points.slice(1).flatMap((b, i) => {
+    const a = points[i],
+      l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (l < 1e-6) return [];
+    const n: Point = [(-(b[1] - a[1]) / l) * (width / 2), ((b[0] - a[0]) / l) * (width / 2)];
+    return [
+      {
+        outer: [
+          [a[0] + n[0], a[1] + n[1]],
+          [b[0] + n[0], b[1] + n[1]],
+          [b[0] - n[0], b[1] - n[1]],
+          [a[0] - n[0], a[1] - n[1]]
+        ] as Point[],
+        holes: []
+      }
+    ];
+  });
+}
+
 /** Adopted geometry only. The same clipped surfaces feed screen SVG, exports and 3D. */
 export function vectorRenderData(
   doc: VectorCityDocument,
@@ -453,6 +577,8 @@ export function vectorRenderData(
       lines(district.id, "s", district.streets, district.origin, district.detachedLines);
     for (const cell of Object.values(doc.fabric.cells)) {
       lines(cell.id, "l", cell.lanes, cell.origin, cell.detachedLines);
+      // Burgage plots (docs/plan/ce-burgage-plot-fabric.md B4): yards and their boundary walls, under the houses.
+      if (cell.plots) burgagePlotSurfaces(cell, warnings).forEach(add);
       if (urban && stage !== "housing") continue;
       // One surface per street block: 2D draws it as one path, 3D batches it by storeys.
       const detached = new Set(cell.detached),

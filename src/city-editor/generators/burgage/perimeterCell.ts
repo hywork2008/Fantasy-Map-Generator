@@ -41,6 +41,8 @@ export interface BurgagePerimeterCell {
   lanes: { points: Point[]; widthMeters: number }[];
   plots: { ring: Point[]; front: [Point, Point]; kind: BurgagePlot["kind"] }[];
   open: Point[][];
+  /** Binaire venelles between the house backs (plan §5.7). */
+  drains: { points: Point[]; widthMeters: number }[];
   /** House footprints: the front of each strip plot, or the whole binaire house plot. */
   houses: Point[][];
 }
@@ -58,7 +60,7 @@ export function burgagePerimeterCell(
   /** District streets near the block: an edge on one keeps off its surface. */
   streets: readonly { points: Point[]; widthMeters: number }[] = []
 ): BurgagePerimeterCell {
-  const result: BurgagePerimeterCell = { lanes: [], plots: [], open: [], houses: [] };
+  const result: BurgagePerimeterCell = { lanes: [], plots: [], open: [], houses: [], drains: [] };
   const ring = cell.ring;
   const sides: Side[] = ring.map((a, i) => {
     const b = ring[(i + 1) % ring.length],
@@ -103,8 +105,9 @@ export function burgagePerimeterCell(
     ];
   });
   // The binaire venelle is a drain between house backs, not a lane a door opens on (plan §5.7).
-  for (const lane of plans.flatMap(p => p.lanes).filter(l => l.kind !== "venelle"))
-    result.lanes.push({ points: reachRing(lane.points, ring), widthMeters: lane.widthMeters });
+  for (const lane of plans.flatMap(p => p.lanes))
+    if (lane.kind === "venelle") result.drains.push({ points: lane.points, widthMeters: lane.widthMeters });
+    else result.lanes.push({ points: reachRing(lane.points, ring), widthMeters: lane.widthMeters });
   const rng = makeRng(`${cellSeed}:burgage-houses-v1`);
   for (const plot of plans.flatMap(p => p.plots)) {
     result.plots.push({ ring: plot.ring, front: plot.front, kind: plot.kind });
