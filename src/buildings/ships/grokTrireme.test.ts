@@ -204,8 +204,9 @@ describe.each(["set", "furled"] as const)("sails %s", sails => {
 });
 
 it("registers a BV-only high variant and leaves the other ships on their CE choices", () => {
-  const variants = SHIP_VARIANTS.filter(entry => entry.family === "ship.trireme");
+  const variants = SHIP_VARIANTS.filter(entry => entry.family === "ship.trireme" && entry.author === "Grok 4.7");
   expect(variants.map(entry => entry.id)).toEqual(["ship.trireme@high#grok-4.7"]);
+  expect(adopt(SHIP_VARIANTS, "ship.trireme", "high").author).toBe("Grok 4.7");
   expect(variants[0]?.author).toBe("Grok 4.7");
   expect(SHIP_VARIANTS.filter(entry => entry.family === "ship.galley").map(entry => entry.id)).toEqual([
     "ship.galley@high#grok-4.7"

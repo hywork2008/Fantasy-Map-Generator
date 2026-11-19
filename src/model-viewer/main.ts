@@ -74,6 +74,12 @@ import {
   type OpusShipOfTheLineQuality,
   opusShipOfTheLineParts
 } from "../buildings/ships/opusShipOfTheLine";
+import {
+  createOpusTrireme,
+  OPUS_TRIREME,
+  type OpusTriremeQuality,
+  opusTriremeParts
+} from "../buildings/ships/opusTrireme";
 import { assembleSailingParts, type SailingShipState } from "../buildings/ships/sailingAssembly";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
 import { createSloopHigh, sloopHighParts } from "../buildings/ships/sloopHigh";
@@ -1821,21 +1827,27 @@ const triremeButton = document.createElement("button");
 triremeButton.type = "button";
 triremeButton.textContent = "Trireme · Olympias";
 triremeButton.dataset.id = "trireme";
-const triremeState: { sails: "set" | "furled"; oars: "out" | "stowed"; part: string } = {
+const triremeState: { sails: "set" | "furled" | "struck"; oars: "out" | "stowed" } = {
   sails: "set",
-  oars: "out",
-  part: "all"
+  oars: "out"
 };
 AUTHORED_VARIANTS.trireme = {
   author: GROK_TRIREME.author,
+  authors: [GROK_TRIREME.author, OPUS_TRIREME.author],
   primary: true,
   quality: true,
-  highOnly: true,
   show: () => showTrireme()
 };
-function showTrireme(): void {
-  if (qualitySelect.value !== "high") qualitySelect.value = "high";
-  for (const option of qualitySelect.options) option.disabled = option.value !== "high";
+const triremePartSelected = { grok: "all", opus: "all" };
+function showTrireme(author: string = authorSelect.value): void {
+  const opus = author === OPUS_TRIREME.author;
+  const key = opus ? "opus" : "grok";
+  // Grok 4.7 prepared High only; the Opus edition also has a light Low tier.
+  for (const option of qualitySelect.options) option.disabled = !opus && option.value !== "high";
+  if (!opus && qualitySelect.value !== "high") qualitySelect.value = "high";
+  const quality = (opus ? qualitySelect.value : "high") as OpusTriremeQuality;
+  // Only the Opus edition can strike the main mast.
+  if (!opus && triremeState.sails === "struck") triremeState.sails = "furled";
   selection++;
   for (const button of list.querySelectorAll("button"))
     button.setAttribute("aria-current", button === triremeButton ? "true" : "false");
@@ -1846,19 +1858,37 @@ function showTrireme(): void {
   roofTitle.textContent = "Ship elevation";
   levelTitle.textContent = "Deck plan";
   showQuality(true);
-  const parts = grokTriremeParts(triremeState);
-  if (!parts.some(entry => entry.id === triremeState.part)) triremeState.part = "all";
-  const chosen = parts.find(entry => entry.id === triremeState.part);
-  const model = chosen ? assembleSailingParts("trireme-part", [chosen]) : createGrokTrireme(triremeState);
-  comparisonModel = { path: null, quality: "high", viewOnly: true };
+  const parts = opus
+    ? opusTriremeParts(quality, triremeState)
+    : grokTriremeParts({
+        sails: triremeState.sails === "struck" ? "furled" : triremeState.sails,
+        oars: triremeState.oars
+      });
+  if (!parts.some(entry => entry.id === triremePartSelected[key])) triremePartSelected[key] = "all";
+  const chosen = parts.find(entry => entry.id === triremePartSelected[key]);
+  const model = chosen
+    ? assembleSailingParts("trireme-part", [chosen])
+    : opus
+      ? createOpusTrireme(quality, triremeState)
+      : createGrokTrireme({
+          sails: triremeState.sails === "struck" ? "furled" : triremeState.sails,
+          oars: triremeState.oars
+        });
+  comparisonModel = { path: null, quality, viewOnly: true };
   for (const [label, field, options] of [
     [
       "Sails",
       "sails",
-      [
-        ["Set", "set"],
-        ["Furled · moored", "furled"]
-      ]
+      opus
+        ? [
+            ["Set", "set"],
+            ["Brailed up · moored", "furled"],
+            ["Mast struck · battle trim", "struck"]
+          ]
+        : [
+            ["Set", "set"],
+            ["Furled · moored", "furled"]
+          ]
     ],
     [
       "Oars",
@@ -1876,7 +1906,7 @@ function showTrireme(): void {
     input.addEventListener("change", () => {
       if (field === "sails") triremeState.sails = input.value as (typeof triremeState)["sails"];
       else triremeState.oars = input.value as (typeof triremeState)["oars"];
-      showTrireme();
+      showTrireme(author);
     });
     const row = document.createElement("label");
     row.append(label, input);
@@ -1886,10 +1916,10 @@ function showTrireme(): void {
   partSelect.setAttribute("aria-label", "Assembly part");
   partSelect.add(new Option("Complete ship", "all"));
   for (const entry of parts) partSelect.add(new Option(`${entry.role} · ${entry.quality}`, entry.id));
-  partSelect.value = triremeState.part;
+  partSelect.value = triremePartSelected[key];
   partSelect.addEventListener("change", () => {
-    triremeState.part = partSelect.value;
-    showTrireme();
+    triremePartSelected[key] = partSelect.value;
+    showTrireme(author);
   });
   const partRow = document.createElement("label");
   partRow.append("Assembly part", partSelect);
@@ -1897,7 +1927,7 @@ function showTrireme(): void {
   modelOptions.hidden = false;
   massing = model;
   scene.add(model.group);
-  const info = GROK_TRIREME;
+  const info = opus ? OPUS_TRIREME : GROK_TRIREME;
   frame({ occupancyMeters: { width: info.length, depth: info.beam } }, info.height);
   camera.position.set(info.length * 0.95, info.height * 0.62, info.length * 0.85);
   controls.target.set(0, 1.15, 0);
@@ -1906,23 +1936,45 @@ function showTrireme(): void {
   mountPlan(levelHost, meshProjection(model, "top"));
   appendFacts(
     fact("Model", info.name),
-    fact("Quality", "High — the only prepared resolution"),
+    fact("Quality", opus ? (quality === "high" ? "High" : "Low") : "High — the only prepared resolution"),
     fact("Sails", triremeState.sails),
     fact("Oars", triremeState.oars),
-    fact("CE adoption", "Not placed by CE. BV-only; CE keeps sloop, caravel, galleon and barge"),
+    fact(
+      "CE adoption",
+      opus
+        ? "BV-only comparison; CE places the Grok 4.7 High"
+        : "Placed by hand in CE (Model ships); the adopted High edition"
+    ),
     fact(
       "Dimensions",
-      `${info.length} m overall × ${info.beam} m beam over the outrigger; ${info.height} m above the waterline; ${info.draft} m illustrative waterline`
+      opus
+        ? `${info.length} m ram to aphlaston × ${info.beam} m over the outriggers (${OPUS_TRIREME.hullBeam} m hull); ${info.height} m to the main truck; ${info.draft} m draught`
+        : `${info.length} m overall × ${info.beam} m beam over the outrigger; ${info.height} m above the waterline; ${info.draft} m illustrative waterline`
     ),
-    fact("Ram", "Bronze bow ram on the waterline"),
-    fact("Oarsmen", "170 oars in three banks: 62 thranite, 54 zygite, 54 thalamite"),
-    fact("Rig", "Two square sails, main and fore"),
+    fact(
+      "Ram",
+      opus
+        ? "Three-finned bronze ram on the waterline, with a bronze-capped proembolion above"
+        : "Bronze bow ram on the waterline"
+    ),
+    fact(
+      "Oarsmen",
+      opus
+        ? "170 oars on one 0.888 m room: 62 thranites on the outrigger, 54 zygites on the gunwale, 54 thalamites through leather-sleeved ports"
+        : "170 oars in three banks: 62 thranite, 54 zygite, 54 thalamite"
+    ),
+    fact(
+      "Rig",
+      opus
+        ? "Brailed square main sail and a raked boat sail (akateion); the main mast strikes onto deck crutches for battle"
+        : "Two square sails, main and fore"
+    ),
     fact("Note", info.note, "Olympias (trireme)")
   );
   const panel = modelPartsPanel(model.group);
   if (panel) facts.append(panel);
 }
-triremeButton.addEventListener("click", () => showTrireme());
+triremeButton.addEventListener("click", () => showTrireme(GROK_TRIREME.author));
 shipsHeading.append(triremeButton);
 
 const fordButton = document.createElement("button");
