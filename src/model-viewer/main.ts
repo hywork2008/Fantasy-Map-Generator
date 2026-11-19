@@ -80,6 +80,7 @@ import {
   type OpusTriremeQuality,
   opusTriremeParts
 } from "../buildings/ships/opusTrireme";
+import { createRopeFerry, ROPE_FERRY } from "../buildings/ships/ropeFerry";
 import { assembleSailingParts, type SailingShipState } from "../buildings/ships/sailingAssembly";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
 import { createSloopHigh, sloopHighParts } from "../buildings/ships/sloopHigh";
@@ -2213,6 +2214,58 @@ bargeButton.addEventListener("click", () => {
   );
 });
 shipsHeading.append(bargeButton);
+
+const ropeFerryButton = document.createElement("button");
+ropeFerryButton.type = "button";
+ropeFerryButton.dataset.id = "rope-ferry";
+ropeFerryButton.textContent = "Rope ferry · Hand-hauled river cart ferry";
+function showRopeFerry(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === ropeFerryButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Ferry side elevation";
+  levelTitle.textContent = "Deck plan";
+  const model = createRopeFerry(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = false;
+  frame({ occupancyMeters: { width: ROPE_FERRY.length, depth: ROPE_FERRY.beam } }, ROPE_FERRY.height);
+  camera.position.set(11, 7, 12);
+  controls.target.set(0, 0.8, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", ROPE_FERRY.name),
+    fact("Author", ROPE_FERRY.author),
+    fact("Period", "European river crossings, 13th to 19th century; before and beside the reaction ferry of 1657"),
+    fact(
+      "Dimensions",
+      `${ROPE_FERRY.hullLength} m hull (${ROPE_FERRY.length.toFixed(2)} m with the flaps raised) × ${ROPE_FERRY.beam} m beam; ${ROPE_FERRY.depth} m deep, ${ROPE_FERRY.draft} m light draft; ${ROPE_FERRY.laneWidth} m between the wheel kerbs`
+    ),
+    fact("Propulsion", "Hauled hand over hand along a bank-to-bank rope; poled in the shallows"),
+    fact("Load", "People, livestock, or one cart or wagon with its team, driven on at one end and off at the other"),
+    fact("CE adoption", "Not placed by CE yet; Model Viewer only"),
+    fact("Quality", quality === "high" ? "High" : "Low — one-piece deck, plain flaps and guides"),
+    fact("Note", ROPE_FERRY.note, "Cable ferry"),
+    ...(quality === "high" ? [fact("High detail", ROPE_FERRY.highNote)] : [])
+  );
+}
+ropeFerryButton.addEventListener("click", () => showRopeFerry());
+shipsHeading.append(ropeFerryButton);
+AUTHORED_VARIANTS[ropeFerryButton.dataset.id] = {
+  author: ROPE_FERRY.author,
+  primary: true,
+  quality: true,
+  show: () => showRopeFerry()
+};
 
 const siegeHeading = modelCategory("Siege engines");
 const trebuchetButton = document.createElement("button");

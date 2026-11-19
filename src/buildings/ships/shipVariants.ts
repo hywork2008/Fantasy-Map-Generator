@@ -13,6 +13,7 @@ import { createMerchantShipHigh } from "./merchantShipHigh";
 import { createOpusGalleon } from "./opusGalleon";
 import { createOpusShipOfTheLine } from "./opusShipOfTheLine";
 import { createOpusTrireme } from "./opusTrireme";
+import { createRopeFerryModel } from "./ropeFerry";
 import { createSloop } from "./sloop";
 import { createSloopHigh } from "./sloopHigh";
 
@@ -125,5 +126,13 @@ export const SHIP_VARIANTS: readonly ShipVariant[] = [
     author: "Claude Opus 5.5" as const,
     // CE draws the Low tier by default; a carrier has no sail or gunport state.
     create: () => createFordCarrierModel(level === "high" ? "high" : "low")
+  })),
+  ...(["default", "low", "high"] as const).map(level => ({
+    id: variantId("ship.rope-ferry", level, "Claude Opus 5.5"),
+    family: "ship.rope-ferry",
+    level,
+    author: "Claude Opus 5.5" as const,
+    // Not placed by CE yet; the default tier is Low, as for the carrier.
+    create: () => createRopeFerryModel(level === "high" ? "high" : "low")
   }))
 ];
