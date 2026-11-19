@@ -11,12 +11,12 @@ import { defaultPopulationSettings } from "./populationPlan";
 import { measureHousingCapacity, residentialCapacity } from "./residentialCapacity";
 
 describe("population facilities in normal city generation", () => {
-  it("maps the 5,000-person reference to 235 workshops and 9 halls, retaining dry-workshop dwellings and explicit provisional sites", () => {
+  it("maps the 5,000-person reference to 232 workshops and 9 halls, retaining dry-workshop dwellings and explicit provisional sites", () => {
     const settings = defaultGenerationSettings();
     settings.historicalPeriod = "highMedieval";
     settings.config.features.port = false;
     const { requests } = populationFacilityRequests(5000, settings);
-    expect(requests).toHaveLength(244);
+    expect(requests).toHaveLength(241);
     expect(requests.filter(r => r.id.includes("guild:"))).toHaveLength(9);
     expect(requests.filter(r => r.asset.residentialDwellings === 1)).toHaveLength(155);
     expect(requests.find(r => r.id.includes("workshop:baking:"))!.asset.bvModel?.id).toBe(

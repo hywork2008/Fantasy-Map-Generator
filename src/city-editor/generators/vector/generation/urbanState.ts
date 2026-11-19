@@ -23,11 +23,12 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // v51–v53: coopers and horse mills in town; smiths and chandlers spread among the roadside houses; lime and tile
 // yards and potters apart past the houses, the rest beyond the map (same plan, §8.15); a facility's parcel keeps
 // off the streets with its lots' leftovers too.
-export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v51";
+// v52–v54: earth potters at about one works in a town of 5,000 (same plan, §8.16).
+export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v52";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v52";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v53";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v53";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v54";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(

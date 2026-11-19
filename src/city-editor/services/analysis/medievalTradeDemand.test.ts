@@ -10,8 +10,8 @@ const rows = csvParse(
 describe("fixed medieval trade observation demand", () => {
   it.each([
     [1000, 44, 28, 16, 7],
-    [5000, 279, 155, 124, 9],
-    [20000, 1120, 620, 500, 10]
+    [5000, 276, 155, 121, 9],
+    [20000, 1108, 620, 488, 10]
   ])(
     "reproduces the reference at population %i",
     (population, workshops, mixedWorkshops, dedicatedWorkshops, inferredHalls) => {
