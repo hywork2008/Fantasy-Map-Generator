@@ -31,6 +31,9 @@ export type { HarborCargoPile, HarborCrane } from "../types/contracts/harborFabr
  */
 const OVERFLOW_PILE_SLOTS = 40;
 const MAX_OVERFLOW_PILES = 12;
+/** A quay's cart path runs to a street this far away at most: a town set back from its shore (a straight coast,
+ * docs/plan/ce-outskirts-workshop-sizes.md §8.17) still has its streets a little over 100 m from the water. */
+const QUAY_STREET_REACH_METERS = 150;
 const OVERFLOW_PILE_KINDS = ["bales", "barrels", "crates"] as const;
 const OVERFLOW_PILE_STEP = 4.5;
 
@@ -83,6 +86,9 @@ export interface HarborSite {
   throughStreets: ParcelFrontage[];
   /** Convex obstacles no harbour space may cover. */
   barriers: Point[][];
+  /** Convex land a quay strip is cut round, not given up for (the streets that come down to the shore); a cart path
+   * may still end on it. */
+  keepOff?: Point[][];
   isFree: (polygon: Point[]) => boolean;
   /** The cart path from a quay to a street; `isFree` of its corridor when absent. */
   pathIsFree?: (from: Point, to: Point) => boolean;
@@ -318,14 +324,20 @@ export function planHarborOnShores(site: HarborSite): HarborPlan {
     sharedArea: 0
   };
   const addSpace = (shore: HarborShore, poly: Point[], kind: OpenSpace["kind"]) => {
-    const land = site.landPolygon(shore.landId);
-    if (!land || poly.length < 3) return;
+    const land = site.landPolygon(shore.landId),
+      added: Point[][] = [];
+    if (!land || poly.length < 3) return added;
     for (const part of convexInfillParts(land)) {
       let pieces = [intersectConvex(poly, part)].filter(p => p.length >= 3 && plotArea(p) >= 4);
-      for (const obstacle of [...barriers, ...plan.spaces.map(s => s.polygon)])
+      for (const obstacle of [
+        ...barriers,
+        ...(kind === "quay" ? (site.keepOff ?? []) : []),
+        ...plan.spaces.map(s => s.polygon)
+      ])
         pieces = pieces.flatMap(p => subtractConvex(p, obstacle, 4));
       for (const polygon of pieces) {
         if (!isFree(polygon)) continue;
+        added.push(polygon);
         plan.spaces.push({
           id: `harbor:${shore.id}:${kind}:${plan.spaces.length}`,
           faceId: shore.landId,
@@ -335,6 +347,7 @@ export function planHarborOnShores(site: HarborSite): HarborPlan {
         });
       }
     }
+    return added;
   };
   for (const { shore, polygon } of site.bankSpaces) addSpace(shore, polygon, "quay");
   const berthByWater = new Map<Id, HarborShore>();
@@ -381,13 +394,28 @@ export function planHarborOnShores(site: HarborSite): HarborPlan {
             ? 8
             : 6;
     const shift = (p: Point, d: number): Point => [p[0] + shore.inward[0] * d, p[1] + shore.inward[1] * d];
-    const qA = shift(shore.a, stripWidth / 2),
+    let qA = shift(shore.a, stripWidth / 2),
       qB = shift(shore.b, stripWidth / 2);
-    addSpace(shore, corridor(qA, qB, stripWidth), "quay");
-    const midpoint: Point = [(qA[0] + qB[0]) / 2, (qA[1] + qB[1]) / 2];
+    const strip = addSpace(shore, corridor(qA, qB, stripWidth), "quay");
+    let midpoint: Point = [(qA[0] + qB[0]) / 2, (qA[1] + qB[1]) / 2];
+    // A street coming down to the shore cuts the strip: the quay is the longest piece beside it, and its cart path
+    // starts from that piece's middle.
+    if (strip.length && !strip.some(p => pointInPolygon(midpoint, p))) {
+      const along = (p: Point) =>
+          ((p[0] - qA[0]) * (qB[0] - qA[0]) + (p[1] - qA[1]) * (qB[1] - qA[1])) /
+          Math.max(1e-9, (qB[0] - qA[0]) ** 2 + (qB[1] - qA[1]) ** 2),
+        spans = strip.map(p => {
+          const t = p.map(along);
+          return [Math.max(0, Math.min(...t)), Math.min(1, Math.max(...t))] as const;
+        }),
+        [t0, t1] = spans.reduce((a, b) => (b[1] - b[0] > a[1] - a[0] ? b : a)),
+        at = (t: number): Point => [qA[0] + (qB[0] - qA[0]) * t, qA[1] + (qB[1] - qA[1]) * t];
+      [qA, qB] = [at(t0), at(t1)];
+      midpoint = at((t0 + t1) / 2);
+    }
     const candidates = streets
       .map(s => ({ street: s, hit: nearestOnPolyline(midpoint, [s.a, s.b]) }))
-      .filter(c => c.hit.dist < 100 && c.hit.dist >= 1)
+      .filter(c => c.hit.dist < QUAY_STREET_REACH_METERS && c.hit.dist >= 1)
       .sort((a, b) => a.hit.dist - b.hit.dist);
     const connection = candidates.find(({ hit }) => {
       const path = corridor(midpoint, hit.point, 3, 0);
@@ -407,9 +435,9 @@ export function planHarborOnShores(site: HarborSite): HarborPlan {
       });
     });
     if (!connection) continue;
-    const usableStrip = plan.spaces.some(
-      s => s.kind === "quay" && s.faceId === shore.landId && pointInPolygon(midpoint, s.polygon)
-    );
+    const usableStrip =
+      Math.hypot(qB[0] - qA[0], qB[1] - qA[1]) >= 4 &&
+      plan.spaces.some(s => s.kind === "quay" && s.faceId === shore.landId && pointInPolygon(midpoint, s.polygon));
     if (!usableStrip) continue;
     plan.frontages.push({ a: qA, b: qB, widthMeters: stripWidth, cargo: true });
     plan.frontages.push({ a: midpoint, b: connection.hit.point, widthMeters: 3, cargo: true });

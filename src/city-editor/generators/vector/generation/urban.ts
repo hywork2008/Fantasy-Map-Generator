@@ -15,9 +15,10 @@ import { isDetachedFabricLinePath } from "../editing/fabricLines";
 import { rebuildRoadGraph } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { featureReservations } from "../environmentState";
-import { evaluateAnchor } from "../geometry/curves";
+import { evaluateAnchor, pathIsClosed } from "../geometry/curves";
 import { containsRegion, indexedContains, regionArea, regionBoolean } from "../geometry/regions";
 import { sampledClosedRing } from "../geometry/routing";
+import { samplePath } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/document";
@@ -354,9 +355,16 @@ function* vectorUrbanSteps(
       },
       protectedRegions
     );
-  const walls = Object.values(doc.connections.circuits)
-    .filter(c => !c.parentCircuitId)
-    .map(c => ({ outer: sampledClosedRing(doc, c.pathId), holes: [] }));
+  // A coastal town's wall runs from shore to shore and makes no circuit: closed across its ends (along the shore) it
+  // bounds the town all the same, its core and the roadside beyond its gates (ce-outskirts-workshop-sizes.md §8.18,
+  // §8.19), not the round 0.65 of the site an open town takes.
+  const circuits = Object.values(doc.connections.circuits)
+      .filter(c => !c.parentCircuitId)
+      .map(c => ({ outer: sampledClosedRing(doc, c.pathId), holes: [] })),
+    shoreWall = circuits.length
+      ? undefined
+      : Object.values(doc.paths).find(p => p.role === "wall" && !pathIsClosed(p) && !p.id.includes("inner")),
+    walls = shoreWall ? [{ outer: samplePath(shoreWall).map(q => q.point), holes: [] }] : circuits;
   // Thousands of district and street-block centres are tested against the wall ring; an edge index keeps it short.
   const inWalls = walls.length ? indexedContains(walls) : undefined,
     inside = (p: Point) => !inWalls || inWalls(p);

@@ -628,7 +628,10 @@ function bankRuns(doc: VectorCityDocument, core: (p: Point) => boolean, maxMeter
     center = doc.site!.center,
     half = doc.frame.extentMeters / 2,
     wet = (p: Point) => water.some(w => containsRegion([w], p)),
-    runs: { bank: Point[]; landSide: 1 | -1; startMeters: number }[] = [];
+    // Standing water that is no river's (the sea, a lake): a river's course into it has left its banks.
+    sea = (doc.site?.water ?? []).filter(w => !w.riverPathId).flatMap(w => w.polygons),
+    atSea = (p: Point) => sea.some(w => containsRegion([w], p)),
+    runs: { bank: Point[]; landSide: 1 | -1; startMeters: number; upstream: boolean }[] = [];
   let framed = false;
   for (const raw of riverCourses(doc)) {
     const line: Point[] = [raw[0]],
@@ -649,67 +652,79 @@ function bankRuns(doc: VectorCityDocument, core: (p: Point) => boolean, maxMeter
     if (line.length < 3) continue;
     const hit = nearestOnPolyline(center, line),
       below = s[hit.segIndex] + hit.t * BANK_STEP_METERS;
-    for (const side of [1, -1] as const) {
-      let current: Point[] = [],
-        start = 0;
-      const flush = () => {
-        if (current.length > 1) runs.push({ bank: current, landSide: side, startMeters: start });
-        current = [];
-      };
-      for (let k = 0; k < line.length; k++) {
-        if (s[k] < below) continue;
-        // Only the drawn frame, and only as far down the river as the row can use. The bank beyond the frame goes on
-        // unseen: the town's map is not widened for its tanneries.
-        if (Math.abs(line[k][0]) > half || Math.abs(line[k][1]) > half) {
-          framed = true;
-          break;
-        }
-        if (s[k] - below > maxMeters) break;
-        const a = line[Math.max(0, k - 1)],
-          b = line[Math.min(line.length - 1, k + 1)],
-          l = Math.hypot(b[0] - a[0], b[1] - a[1]),
-          dir: Point = [(-(b[1] - a[1]) / l) * side, ((b[0] - a[0]) / l) * side];
-        // The water under the centreline, or beside it where the river's surveyed water lies off its drawn line.
-        let from: Point | undefined = wet(line[k]) ? line[k] : undefined;
-        for (let d = 0.5; !from && d <= BANK_SEARCH_METERS; d += 0.5)
-          for (const q of [
-            [line[k][0] + dir[0] * d, line[k][1] + dir[1] * d],
-            [line[k][0] - dir[0] * d, line[k][1] - dir[1] * d]
-          ] as Point[])
-            if (wet(q)) {
-              from = q;
-              break;
-            }
-        // Out across the water to the first dry ground: a coarse walk (a wide estuary), then a fine one.
-        let p: Point | undefined;
-        if (from) {
-          let d = 0;
-          while (d <= BANK_WATER_MAX_METERS && wet([from[0] + dir[0] * d, from[1] + dir[1] * d])) d += 2;
-          if (d <= BANK_WATER_MAX_METERS) {
-            let lo = Math.max(0, d - 2);
-            while (d - lo > 0.1) {
-              const mid = (lo + d) / 2;
-              if (wet([from[0] + dir[0] * mid, from[1] + dir[1] * mid])) lo = mid;
-              else d = mid;
-            }
-            p = [from[0] + dir[0] * (d + 0.1), from[1] + dir[1] * (d + 0.1)];
+    // Below the town first; above it too, where a short course to the sea leaves too little bank below (the
+    // upstream runs are taken only after every run below, `reserveTanneryRow`).
+    for (const upstream of [false, true])
+      for (const side of [1, -1] as const) {
+        let current: Point[] = [],
+          start = 0;
+        const flush = () => {
+          // A run above the town was walked upstream; its bank is kept in the river's order all the same.
+          if (current.length > 1)
+            runs.push({ bank: upstream ? current.reverse() : current, landSide: side, startMeters: start, upstream });
+          current = [];
+        };
+        for (let j = 0; j < line.length; j++) {
+          const k = upstream ? line.length - 1 - j : j,
+            from = upstream ? below - s[k] : s[k] - below;
+          if (from < 0) continue;
+          // Only the drawn frame, and only as far along the river as the row can use. The bank beyond the frame goes
+          // on unseen: the town's map is not widened for its tanneries.
+          if (Math.abs(line[k][0]) > half || Math.abs(line[k][1]) > half) {
+            framed = true;
+            break;
           }
+          if (from > maxMeters) break;
+          // The river ends at its mouth: the tanners want its running fresh water, not the sea's shore beyond it.
+          if (atSea(line[k])) {
+            if (upstream) continue;
+            break;
+          }
+          const a = line[Math.max(0, k - 1)],
+            b = line[Math.min(line.length - 1, k + 1)],
+            l = Math.hypot(b[0] - a[0], b[1] - a[1]),
+            dir: Point = [(-(b[1] - a[1]) / l) * side, ((b[0] - a[0]) / l) * side];
+          // The water under the centreline, or beside it where the river's surveyed water lies off its drawn line.
+          let from0: Point | undefined = wet(line[k]) ? line[k] : undefined;
+          for (let d = 0.5; !from0 && d <= BANK_SEARCH_METERS; d += 0.5)
+            for (const q of [
+              [line[k][0] + dir[0] * d, line[k][1] + dir[1] * d],
+              [line[k][0] - dir[0] * d, line[k][1] - dir[1] * d]
+            ] as Point[])
+              if (wet(q)) {
+                from0 = q;
+                break;
+              }
+          // Out across the water to the first dry ground: a coarse walk (a wide estuary), then a fine one.
+          let p: Point | undefined;
+          if (from0) {
+            let d = 0;
+            while (d <= BANK_WATER_MAX_METERS && wet([from0[0] + dir[0] * d, from0[1] + dir[1] * d])) d += 2;
+            if (d <= BANK_WATER_MAX_METERS) {
+              let lo = Math.max(0, d - 2);
+              while (d - lo > 0.1) {
+                const mid = (lo + d) / 2;
+                if (wet([from0[0] + dir[0] * mid, from0[1] + dir[1] * mid])) lo = mid;
+                else d = mid;
+              }
+              p = [from0[0] + dir[0] * (d + 0.1), from0[1] + dir[1] * (d + 0.1)];
+            }
+          }
+          // The bank jumps (a creek mouth, a quay) where it moves much farther than the centreline did.
+          const last = current.at(-1);
+          if (
+            !p ||
+            core(p) ||
+            (last && Math.hypot(p[0] - last[0], p[1] - last[1]) > BANK_STEP_METERS + BANK_JUMP_METERS)
+          ) {
+            flush();
+            if (!p || core(p)) continue;
+          }
+          if (!current.length) start = from;
+          current.push(p);
         }
-        // The bank jumps (a creek mouth, a quay) where it moves much farther than the centreline did.
-        const last = current.at(-1);
-        if (
-          !p ||
-          core(p) ||
-          (last && Math.hypot(p[0] - last[0], p[1] - last[1]) > BANK_STEP_METERS + BANK_JUMP_METERS)
-        ) {
-          flush();
-          if (!p || core(p)) continue;
-        }
-        if (!current.length) start = s[k] - below;
-        current.push(p);
+        flush();
       }
-      flush();
-    }
   }
   return { runs, framed };
 }
@@ -826,7 +841,11 @@ export function reserveTanneryRow(
   // The trade gathers on one bank: the run holding the most yards fills first, nearest the town first along it.
   const capacity = new Map<number, number>();
   for (const y of yards) capacity.set(y.run, (capacity.get(y.run) ?? 0) + 1);
-  yards.sort((a, b) => capacity.get(b.run)! - capacity.get(a.run)! || a.run - b.run || a.key - b.key);
+  // Every run below the town before any above it (`bankRuns`).
+  const above = (y: (typeof yards)[number]) => (banks.runs[y.run].upstream ? 1 : 0);
+  yards.sort(
+    (a, b) => above(a) - above(b) || capacity.get(b.run)! - capacity.get(a.run)! || a.run - b.run || a.key - b.key
+  );
   const placed: string[] = [];
   let framed = banks.framed;
   const overlaps = (a: VectorPolygon, b: VectorPolygon) =>

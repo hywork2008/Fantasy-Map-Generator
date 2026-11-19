@@ -176,7 +176,9 @@ function synthCoast(rng: Rng, shape: CoastShape, half: number, R: number): BurgS
 
   // A coastal town must actually reach its waterfront. Offsets larger than
   // the city radius put the harbour in the countryside or beyond the frame.
-  const standoff = R * (shape === "straight" ? rng.range(0.15, 0.5) : rng.range(0.0, 0.5));
+  // The town's centre stands well inland of a straight shore, so the wall's waterfront is a short chord and most of
+  // its round site is dry land (§8.17); it still reaches the water for its harbour.
+  const standoff = R * (shape === "straight" ? rng.range(0.55, 0.8) : rng.range(0.0, 0.5));
   let curvature: number;
   let waterInside: boolean;
   if (shape === "straight") {
@@ -241,7 +243,9 @@ const MEANDER_PROFILES: Record<
 };
 
 function meanderProfileFor(shape: RiverShape): MeanderProfile {
-  if (shape === "straight") return "straight";
+  // `through` runs as straight here as on the plain (native) site the editor draws without a coast, so adding a coast
+  // does not also bend the river (ce-outskirts-workshop-sizes.md §8.17).
+  if (shape === "straight" || shape === "through") return "straight";
   if (shape === "meander") return "meander";
   return "gentle";
 }

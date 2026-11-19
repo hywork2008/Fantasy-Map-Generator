@@ -71,7 +71,9 @@ export function regionBoolean(
     if (
       !retry ||
       !(error instanceof Error) ||
-      (!/^Unable to (complete output ring|find segment)/.test(error.message) &&
+      (!/^(Unable to (complete output ring|find segment|pop\(\) left SweepEvent)|Infinite loop when passing sweep line)/.test(
+        error.message
+      ) &&
         // A runaway recursion of the kernel (a ring walk, or a segment's state chain on a near-coincident edge).
         // The stack it leaves is cut at `Error.stackTraceLimit` frames (10 by default), so the frames that would
         // name the kernel's routine are usually gone: every stack overflow of the kernel is retried.
