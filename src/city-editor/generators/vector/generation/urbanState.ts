@@ -27,11 +27,12 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // v53–v55: a straight coast's town stands further inland and its `through` river runs straight; the tanners' row
 // ends at the river's mouth and goes above the town where too little bank lies below (same plan, §8.17); a coastal
 // town's wall, closed along the shore, bounds its core and grows its roadside beyond the gates (§8.18, §8.19).
-export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v53";
+// v54–v56: every street block is laid out, a main road at its edge or not: lanes join it to its neighbours (§8.20).
+export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v54";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v54";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v55";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v55";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v56";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(

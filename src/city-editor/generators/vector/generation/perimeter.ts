@@ -153,11 +153,11 @@ function centimetreRing(points: Point[]): Point[] | undefined {
   return undefined;
 }
 
-/** A CE district plan needs a simple outline. A reachable block with holes (a civic precinct or a dead-end road
+/** A CE district plan needs a simple outline. A block with holes (a civic precinct or a dead-end road
  * standing free inside it) is cut by a 0.2 m slit through each hole into parts without holes; the parts become
  * districts of their own. Without this the whole block, the largest quarter of some cities, stayed empty. */
 function withoutHoles(block: VectorBlock): VectorBlock[] {
-  if (!block.reachable || !block.holes.length) return [block];
+  if (!block.holes.length) return [block];
   let parts: VectorPolygon[] = [{ outer: block.outer, holes: block.holes }];
   for (let guard = 0; guard < 16 && parts.some(p => p.holes.length); guard++)
     parts = parts.flatMap(part => {
@@ -218,7 +218,9 @@ export function perimeterJobs(
     let districtId = vectorDistrictId(sourceBlock);
     for (let n = 2; districtIds.has(districtId); n++) districtId = `${vectorDistrictId(sourceBlock)}:${n}`;
     districtIds.add(districtId);
-    if (!sourceBlock.reachable || sourceBlock.holes.length) continue;
+    // Every street block of the town is laid out, a main road at its edge or not: lanes run round every block, along
+    // the river and the wall too, so each opens onto its neighbours (docs/plan/ce-outskirts-workshop-sizes.md §8.20).
+    if (sourceBlock.holes.length) continue;
     // The record keeps the outline in whole centimetres, so the plan works on that outline. Rounding can fold a
     // fine outline onto itself; a coarser simplification is tried before the block is left without a district.
     const outline = [0.05, 0.2, 0.5]
