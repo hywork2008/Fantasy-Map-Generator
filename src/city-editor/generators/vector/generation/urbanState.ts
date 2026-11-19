@@ -16,11 +16,12 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // v46–v48: ropewalks beside the roads out of the gates (docs/plan/ce-outskirts-workshop-sizes.md S1).
 // v47–v49: the Opus smithy after Newington on a 10 x 8 m envelope (same plan, S2); the ropewalks behind the row
 // facing the road, a lane to their door (§8.2).
-export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v47";
+// v48–v50: coopers at the inland rate of York, more in ports (same plan, S3).
+export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v48";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v48";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v49";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v49";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v50";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(
