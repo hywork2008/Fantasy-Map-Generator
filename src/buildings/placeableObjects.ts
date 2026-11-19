@@ -11,6 +11,7 @@ import { createSiegeTower, SIEGE_TOWER } from "./siege/siegeTower";
 import { createTrebuchet, TREBUCHET } from "./siege/trebuchet";
 import { B2, createB2 } from "./vehicles/b2Bomber";
 import { B29, createB29 } from "./vehicles/b29Bomber";
+import { BENZ_MOTORWAGEN, createBenzMotorwagen } from "./vehicles/benzMotorwagen";
 import { COVERED_WAGON, createCoveredWagon } from "./vehicles/coveredWagon";
 import {
   AIRSHIP,
@@ -110,6 +111,13 @@ export const PLACEABLE_OBJECTS: readonly PlaceableObject[] = [
     name: WRIGHT_FLYER.name,
     author: WRIGHT_FLYER.author,
     create: createWrightFlyer
+  },
+  {
+    id: "benzMotorwagen",
+    category: "Vehicles",
+    name: BENZ_MOTORWAGEN.name,
+    author: BENZ_MOTORWAGEN.author,
+    create: createBenzMotorwagen
   },
   { id: "postMill", category: "Mills", name: POST_MILL.name, author: POST_MILL.author, create: createPostMill },
   { id: "towerMill", category: "Mills", name: TOWER_MILL.name, author: TOWER_MILL.author, create: createTowerMill },

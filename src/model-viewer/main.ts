@@ -111,6 +111,7 @@ import { validateBuildingRecord } from "../buildings/validate";
 import { familyVariants, MODEL_VARIANTS } from "../buildings/variants";
 import { B2, createB2 } from "../buildings/vehicles/b2Bomber";
 import { B29, createB29 } from "../buildings/vehicles/b29Bomber";
+import { BENZ_MOTORWAGEN, createBenzMotorwagen } from "../buildings/vehicles/benzMotorwagen";
 import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
 import {
   AIRSHIP,
@@ -3237,6 +3238,65 @@ AUTHORED_VARIANTS[wrightFlyerButton.dataset.id] = {
   primary: true,
   quality: true,
   show: () => showWrightFlyer()
+};
+
+const benzMotorwagenButton = document.createElement("button");
+benzMotorwagenButton.dataset.id = "benzMotorwagen";
+benzMotorwagenButton.type = "button";
+benzMotorwagenButton.textContent = "Benz Patent-Motorwagen · German motor car, 1886";
+function showBenzMotorwagen(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === benzMotorwagenButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Benz Patent-Motorwagen side elevation";
+  levelTitle.textContent = "Benz Patent-Motorwagen plan";
+  const model = createBenzMotorwagen(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: BENZ_MOTORWAGEN.length, depth: BENZ_MOTORWAGEN.width } }, BENZ_MOTORWAGEN.height);
+  camera.position.set(2.6, 1.8, 3.2);
+  controls.target.set(0, 0.6, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", BENZ_MOTORWAGEN.name),
+    fact("Author", BENZ_MOTORWAGEN.author),
+    fact("Period", "Second Industrial Revolution · Mannheim, Germany; patented 29 January 1886, built 1886–1893"),
+    fact(
+      "Dimensions",
+      `${BENZ_MOTORWAGEN.length} m long × ${BENZ_MOTORWAGEN.width} m wide × ${BENZ_MOTORWAGEN.height} m high; wheelbase ${BENZ_MOTORWAGEN.wheelbase} m`
+    ),
+    fact(
+      "Powerplant",
+      "954 cc horizontal single-cylinder four-stroke, about 2/3 hp at 400 rpm; vertical crankshaft, horizontal flywheel, evaporative cooling"
+    ),
+    fact(
+      "Drive",
+      "Flat belt to a countershaft with differential, then a chain to each rear wheel; one speed, no reverse"
+    ),
+    fact("Steering", "Tiller turning the single front wheel through a rack and pinion"),
+    fact("Quality", quality === "high" ? "High" : "Low — eight spokes per wheel, a block engine, no belt or chains"),
+    fact("Note", BENZ_MOTORWAGEN.note, "Benz Patent-Motorwagen"),
+    ...(quality === "high" ? [fact("High detail", BENZ_MOTORWAGEN.highNote)] : [])
+  );
+}
+benzMotorwagenButton.addEventListener("click", () => showBenzMotorwagen());
+vehiclesHeading.append(benzMotorwagenButton);
+AUTHORED_VARIANTS[benzMotorwagenButton.dataset.id] = {
+  author: BENZ_MOTORWAGEN.author,
+  primary: true,
+  quality: true,
+  show: () => showBenzMotorwagen()
 };
 
 let townWallHousingCulture: BuildingAppearanceProfile = "legacy";

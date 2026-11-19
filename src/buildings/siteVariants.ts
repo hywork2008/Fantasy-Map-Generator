@@ -19,6 +19,7 @@ import { createEarlyFieldCannonModel, EARLY_FIELD_CANNON } from "./siege/earlyFi
 import { createGrokTrebuchet, GROK_TREBUCHET } from "./siege/grokTrebuchet";
 import { B2, createB2 } from "./vehicles/b2Bomber";
 import { B29, createB29 } from "./vehicles/b29Bomber";
+import { BENZ_MOTORWAGEN, createBenzMotorwagen } from "./vehicles/benzMotorwagen";
 import { createTigerTank, TIGER_I } from "./vehicles/tigerTank";
 import { createWrightFlyer, WRIGHT_FLYER } from "./vehicles/wrightFlyer";
 import { createMedievalWellModel, MEDIEVAL_WELL } from "./wells/medievalWell";
@@ -83,6 +84,14 @@ export const OBJECT_VARIANTS = [
     author: WRIGHT_FLYER.author,
     credits: [{ author: WRIGHT_FLYER.author, date: "2026-11-19", note: WRIGHT_FLYER.highNote }],
     create: () => createWrightFlyer("high")
+  },
+  {
+    id: variantId("object.benzMotorwagen", "high", BENZ_MOTORWAGEN.author),
+    family: "object.benzMotorwagen",
+    level: "high",
+    author: BENZ_MOTORWAGEN.author,
+    credits: [{ author: BENZ_MOTORWAGEN.author, date: "2026-11-19", note: BENZ_MOTORWAGEN.highNote }],
+    create: () => createBenzMotorwagen("high")
   }
 ];
 
